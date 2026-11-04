@@ -1,5 +1,6 @@
 import type { TacticalPromptView } from '../protocol/view.ts';
-import { TacticalPromptKind, YES_NO_CHOICES } from '../sim/tactical/prompts.ts';
+import { InvSlot, itemIn } from '../sim/tactical/inventory.ts';
+import { NUMBERED_CHOICES, TacticalPromptKind, YES_NO_CHOICES } from '../sim/tactical/prompts.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalState } from '../sim/tactical/state.ts';
 
@@ -39,5 +40,17 @@ export function tacticalPromptView(t: TacticalState | null | undefined): Tactica
     case TacticalPromptKind.PLACE_BLUE_FLAG:
     case TacticalPromptKind.REMOVE_BLUE_FLAG:
       return blueFlagView(t, prompt.id, prompt.kind);
+    case TacticalPromptKind.BOMB_SETTING:
+      return {
+        id: prompt.id,
+        kind: 'bombSetting',
+        soldier: prompt.soldier.id,
+        gridNo: prompt.gridNo,
+        item: itemName(t, itemIn(prompt.soldier.inv, InvSlot.HAND)),
+        detonator: prompt.detonator,
+        choices: [...NUMBERED_CHOICES],
+      };
+    case TacticalPromptKind.REMOTE_FREQUENCY:
+      return { id: prompt.id, kind: 'remoteFrequency', soldier: prompt.soldier.id, choices: [...NUMBERED_CHOICES] };
   }
 }

@@ -1136,6 +1136,39 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.input.mouseText()?.actionPoints).toMatchObject({ value: apCost, center: true });
   });
 
+  it('draws the walk onto the tile with the bomb cursor, shows the cost of the walk and the plant in combat and orders the plant on the click (HandleBombCursor)', async () => {
+    const f = await inCombat();
+    const t = tacticalOf(f.session).state;
+    const sapper = t.soldiers.find((v) => v?.id === 0);
+    const mine = t.content.items.byName.get('MINE');
+    if (!sapper || !mine) throw new Error('no merc 0 or no mine');
+    sapper.inv[InvSlot.HAND] = createItem(t.content.items, mine.index, 100);
+    f.client.refresh();
+    let tile = -1;
+    let apCost = 0;
+    for (const offset of [2, -2, 2 * WORLD_COLS, -2 * WORLD_COLS]) {
+      const preview = await f.client.hintNow({ type: 'previewAction', soldier: 0, gridNo: merc(f, 0).gridNo + offset, kind: 'bomb' });
+      const data = preview.data as { ok: boolean; apCost: number };
+      if (!data.ok) continue;
+      tile = merc(f, 0).gridNo + offset;
+      apCost = data.apCost;
+      break;
+    }
+    expect(apCost).toBeGreaterThan(3);
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    centreOn(f, tile);
+    hover(f, tile);
+    await f.settle(8);
+    expect(f.screen.controls.input.uiCursor).toBe('PLACE_BOMB_GREY_UICURSOR');
+    expect(f.screen.controls.input.mouseText()?.actionPoints).toMatchObject({ value: apCost, center: true });
+    expect(f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS'))).toBe(true);
+    expect(f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'))?.gridNo).toBe(tile);
+    const at = f.world.pickPoint(tile);
+    await f.clickAt(at.x, at.y);
+    await f.settle();
+    expect(commandsOf(f, 'plantBomb').at(-1)).toEqual({ type: 'plantBomb', soldier: 0, gridNo: tile });
+  });
+
   it('names the items under every hand cursor, by CTRL, by the hand button or after the pointer rests (gfUIOverItemPoolGridNo)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tile = merc(f, 0).gridNo + 3;

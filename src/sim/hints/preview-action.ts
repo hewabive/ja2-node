@@ -8,7 +8,9 @@
 // @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
 // @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet); Interface_Items.cc DrawItemTileCursor
 // @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03); Turn_Based_Input.cc
-// @src HandleHandCursorClick (EPC_CANNOT_DO_THAT for an escort's pickup or search, 2026-11-03).
+// @src HandleHandCursorClick (EPC_CANNOT_DO_THAT for an escort's pickup or search, 2026-11-03); Handle_UI.cc
+// @src DrawUIMovementPath (MOVEUI_TARGET_BOMB: the walk onto the tile plus AP_DROP_BOMB), UIMouseOnValidAttackLocation
+// @src (BOMBCURS) and Points.cc GetTotalAPsToDropBomb (0 for a tile out of reach, 2026-11-04).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -18,6 +20,7 @@ import { preservingFields, withTemporaryFields } from '../knowledge/guard.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { isRobotSoldier } from '../narrative/talkable.ts';
 import { AnimHeight } from '../tactical/animation.ts';
+import { apsToDropBomb, bombTileRefusal } from '../tactical/bombs/planting.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { canBeStolenFrom, stealActionGridNo } from '../tactical/combat/steal.ts';
 import { closingDoorMenu, doorApCost, doorMenu } from '../tactical/doors/door-actions.ts';
@@ -43,8 +46,8 @@ import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 import { interfaceLevelOf, plotWalk } from './walk-plot.ts';
 
-export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid', 'steal', 'toss'] as const;
-export const UNSUPPORTED_ACTIONS = ['cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'] as const;
+export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid', 'steal', 'toss', 'bomb'] as const;
+export const UNSUPPORTED_ACTIONS = ['cutFence', 'repair', 'refuel', 'jar', 'can', 'enterVehicle'] as const;
 
 export type ActionKind = (typeof SUPPORTED_ACTIONS)[number];
 
@@ -277,6 +280,21 @@ function tossAction(c: ActionContext, req: PreviewActionRequest): ActionPart {
   };
 }
 
+function bombAction(c: ActionContext): ActionPart {
+  const { t, s } = c;
+  const isEpc = c.world.tactical?.soldierView(s.id)?.kind === 'epc';
+  const tile = bombTileRefusal(t, s, c.g, isEpc);
+  if (tile) return refused(c, tile);
+  const apCost = apsToDropBomb(t, s, c.g);
+  return {
+    ok: apCost !== 0,
+    ...(apCost !== 0 ? {} : { refusal: 'noPath' }),
+    apCost,
+    actionGridNo: c.g,
+    steps: walkTo(c, c.g).steps,
+  };
+}
+
 function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest): ActionPart {
   switch (kind) {
     case 'door':
@@ -299,6 +317,8 @@ function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest):
       return stealAction(c);
     case 'toss':
       return tossAction(c, req);
+    case 'bomb':
+      return bombAction(c);
   }
 }
 

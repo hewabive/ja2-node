@@ -36,12 +36,20 @@ export interface MergeOutcome {
 
 export type AttachResult = 'attached' | 'merged' | 'destroyed' | 'failedCheck' | 'noAPs' | 'impossible';
 
-const SKILL_CHECKS: Readonly<Record<string, number>> = {
-  ATTACHING_SPECIAL_ITEM_CHECK: SkillCheckReason.ATTACHING_SPECIAL_ITEM,
-  ATTACHING_SPECIAL_ELECTRONIC_ITEM_CHECK: SkillCheckReason.ATTACHING_SPECIAL_ELECTRONIC_ITEM,
-  ATTACHING_DETONATOR_CHECK: SkillCheckReason.ATTACHING_DETONATOR,
-  ATTACHING_REMOTE_DETONATOR_CHECK: SkillCheckReason.ATTACHING_REMOTE_DETONATOR,
-};
+function skillCheckReasonOf(check: string): number | undefined {
+  switch (check) {
+    case 'ATTACHING_SPECIAL_ITEM_CHECK':
+      return SkillCheckReason.ATTACHING_SPECIAL_ITEM;
+    case 'ATTACHING_SPECIAL_ELECTRONIC_ITEM_CHECK':
+      return SkillCheckReason.ATTACHING_SPECIAL_ELECTRONIC_ITEM;
+    case 'ATTACHING_DETONATOR_CHECK':
+      return SkillCheckReason.ATTACHING_DETONATOR;
+    case 'ATTACHING_REMOTE_DETONATOR_CHECK':
+      return SkillCheckReason.ATTACHING_REMOTE_DETONATOR;
+    default:
+      return undefined;
+  }
+}
 
 const MERGE_CHECK_MODIFIER = -30;
 const COMBO_MERGE_EXPERIENCE = 20;
@@ -66,7 +74,7 @@ function failCheck(target: ItemObject, attachment: ItemObject, margin: number): 
 function attachAsAttachment(t: CombatContext, s: Soldier, target: ItemObject, attachment: ItemObject): AttachResult {
   const items = t.content.items;
   const info = items.rules.attachmentInfo.get(attachment.item);
-  const reason = info ? SKILL_CHECKS[info.check] : undefined;
+  const reason = info ? skillCheckReasonOf(info.check) : undefined;
   if (info && reason !== undefined) {
     const margin = skillCheck(t, s, reason, info.mod);
     if (margin < 0) return failCheck(target, attachment, margin);

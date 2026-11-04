@@ -95,6 +95,10 @@ export function setBombOwner(o: ItemObject, owner: number): void {
   o.money = u32((o.money & ~(LOW_BYTE << OWNER_SHIFT)) | (u8(owner) << OWNER_SHIFT));
 }
 
+export function setPlacedBySoldier(o: ItemObject, soldierId: number): void {
+  setBombOwner(o, soldierId + SOLDIER_OWNER_OFFSET);
+}
+
 export function actionValueOf(o: ItemObject): number {
   return u8(o.keyId);
 }

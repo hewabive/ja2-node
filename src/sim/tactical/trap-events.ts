@@ -32,4 +32,24 @@ export interface MineLocatorEvent extends SimEventBase {
   readonly level: number;
 }
 
-export type TrapEvent = TrapSpottedEvent | TrapDisarmedEvent | TrapSetOffEvent | SwitchActivatedEvent | MineLocatorEvent;
+export interface BombPlantedEvent extends SimEventBase {
+  readonly type: 'bombPlanted';
+  readonly soldier: number;
+  readonly gridNo: number;
+  readonly item: string;
+}
+
+export interface BombFumbledEvent extends SimEventBase {
+  readonly type: 'bombFumbled';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
+export type TrapEvent =
+  | TrapSpottedEvent
+  | TrapDisarmedEvent
+  | TrapSetOffEvent
+  | SwitchActivatedEvent
+  | MineLocatorEvent
+  | BombPlantedEvent
+  | BombFumbledEvent;

@@ -10,6 +10,9 @@ const NONINTERRUPTIBLE_DONE = 442;
 const RESUME_FIRE = 476;
 const RANDOM_ANIM_CHECK = 491;
 const JUMP_TO_START = 501;
+const END_OF_ANIMATION = 499;
+const DROP_BOMB_CODE = 483;
+const USE_REMOTE_CODE = 484;
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
   'CROUCH_SHOOT_UNJAM',
@@ -30,6 +33,26 @@ describe('stub animation scripts', () => {
       const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
       const end = script.indexOf(0);
       expect(script.slice(end - 2, end), name).toEqual([NONINTERRUPTIBLE_DONE, RESUME_FIRE]);
+    }
+  });
+
+  it('plant the bomb and press the remote with codes 483 and 484 in the middle of PLANT_BOMB and USE_REMOTE, as the original scripts do', async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const { codes } = parseAnimationScripts(await buildStubAnimationScripts());
+    for (const [name, code] of [
+      ['PLANT_BOMB', DROP_BOMB_CODE],
+      ['USE_REMOTE', USE_REMOTE_CODE],
+    ] as const) {
+      const start = stateId(tables, name) * MAX_FRAMES_PER_ANIM;
+      const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
+      const end = script.indexOf(0);
+      expect(
+        script.filter((c) => c === code),
+        name,
+      ).toHaveLength(1);
+      expect(script.indexOf(code), name).toBeGreaterThan(0);
+      expect(script.slice(end - 2, end), name).toEqual([NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]);
     }
   });
 

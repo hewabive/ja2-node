@@ -46,7 +46,6 @@ export interface AttackContext {
 }
 
 const UNBUILT_ACTION_CURSORS: Readonly<Partial<Record<EstimateAttack['cursor'], string>>> = {
-  bomb: 'PLACE_BOMB_GREY_UICURSOR',
   wirecutter: 'BAD_WIRECUTTER_UICURSOR',
   repair: 'BAD_REPAIR_UICURSOR',
   refuel: 'REFUEL_GREY_UICURSOR',
@@ -88,6 +87,8 @@ export function attackCursor(e: EstimateAttack, aim: AimState, c: AttackContext)
       return plain(c.activated || c.onTarget ? 'ACTION_FIRSTAID_RED' : 'ACTION_FIRSTAID_GRAY');
     case 'remote':
       return withAp(c.activated ? 'PLACE_REMOTE_RED_UICURSOR' : 'PLACE_REMOTE_GREY_UICURSOR', e, c.inCombat);
+    case 'bomb':
+      return withAp(c.activated ? 'PLACE_BOMB_RED_UICURSOR' : 'PLACE_BOMB_GREY_UICURSOR', e, c.inCombat);
     case 'other':
       return plain('NO_UICURSOR');
     default:

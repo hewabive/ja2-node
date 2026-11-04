@@ -78,3 +78,11 @@ export function useStatueRemote(t: TacticalState, s: Soldier): boolean {
   if (opens) changeO3SectorStatue(t, false);
   return opens;
 }
+
+export type StatueRemoteResult = 'statueOpened' | 'nothing';
+
+export function pressStatueRemote(t: TacticalState, s: Soldier): StatueRemoteResult {
+  const result = useStatueRemote(t, s) ? 'statueOpened' : 'nothing';
+  t.events.push({ type: 'remoteUsed', soldier: s.id, result });
+  return result;
+}

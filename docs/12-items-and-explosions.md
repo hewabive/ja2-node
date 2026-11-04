@@ -256,6 +256,10 @@ soldier checks the tile ahead before a step and the tiles around after an arriva
 merc, the AI or a metal detector do about a mine noticed there. `booby-traps.ts` checks an item's booby trap in the
 pickup (`item-actions.ts`), which also asks before working a switch and, on a tile our side knows to hold a mine, to
 disarm the bomb under it; `prompts.ts` holds the tactical prompt and the globals the original's boxes read.
+`bombs/planting.ts` is `HandleItem`'s remote and bomb branches (`combat/attack.ts`): the walk onto the tile, the plant at
+the frame of `PLANT_BOMB` (code 483), the timer or frequency box of a detonator and its answer, and the remote bomb
+trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor's walk and APs are its
+`apsToDropBomb` and `bombTileRefusal`, which the `plantBomb` command, `estimateAttack` and `previewAction` share.
 
 **Design.**
 - The bomb fields stay in the union aliases of the object (deviation "Object union"), so map records, native saves,
@@ -286,7 +290,10 @@ disarm the bomb under it; `prompts.ts` holds the tactical prompt and the globals
   last trap, whether it was just found), set by the pickup and read at the answer; a spotted trap's box waits for the
   merc's stop-time quote (`24` §2). A spotted mine sets only the soldier and the tile, so its blue flag goes on the
   level the last booby trap left; its box opens as the quote ends, without the original's locator lock (deviation
-  "Mine locator").
+  "Mine locator"). The bomb boxes keep their soldier and tile in the prompt itself (`gpTempSoldier`, `gsTempGridno`),
+  and their answer reads his hand item as the original's callback does.
+- The walk onto a tile to plant is a pending action of its own (`Soldier.pendingDropBomb`, `MERC_DROPBOMB`), with the
+  tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 
@@ -314,12 +321,18 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | The blue flag of a spotted mine goes on the level the last booby trap left, and its locator looks there | `tactical/bombs/mine-detection.test.ts` "asks at once in the sandbox; yes puts a blue flag …", "sends the mine locator …" |
 | A spotted mine left without its blue flag is known but unmarked: nobody warns of it again, paths do not avoid it and a search there walks onto it | `tactical/bombs/mine-detection.test.ts` "leaves the mine known but unmarked on a no …" |
 | A failed disarm of a buried bomb sets off every bomb of its tile, remote ones too, but never a mine one of our mercs planted | `tactical/booby-traps.test.ts` "sets off every bomb of the tile after a failed check …", "sets off nothing when the failed disarm …" |
+| Planting crouched or prone costs no AP: only the standing plant's animation charges `AP_DROP_BOMB` | `tactical/bombs/planting.test.ts` "plants at once and for no AP when crouched or prone …" |
+| A planting check missed by 20 or less shifts the setting by one: a timer of 1 may come out as 0, a frequency of 4 as 5, which no trigger button reaches | `tactical/bombs/planting.test.ts` "messes up the setting by Random(3) - 1 …" |
+| A planting check missed by more than 20 sets the bomb off at the merc's feet, and the bomb stays in his hand | `tactical/bombs/planting.test.ts` "blows up at his feet …" |
+| A timed or remote bomb our merc planted is a booby trap of his trap level to our own mercs | `tactical/bombs/planting.test.ts` "leaves a booby trap of his own trap level …" |
+| A merc whose attacking hand is still his second hand gets the setting box at once, and the bomb lands on the clicked tile without a walk (the detonator box at the end of `HandleItem`) | `tactical/bombs/planting.test.ts` "asks for the setting at once and puts the bomb on the clicked tile …" |
+| The hand item roll comes before the remote's APs: a broken remote bomb trigger costs nothing | `tactical/bombs/planting.test.ts` "refuses a broken trigger before its APs …" |
 
 Not checked against the native build: no oracle probe covers the bomb list, the flags, paths around mines, the queue's
-times and draws, the timers, the suspicious ground's draws or the buried disarm yet; the action item probes of
+times and draws, the timers, the suspicious ground's draws, the buried disarm or the planting box's draws yet; the action item probes of
 `tools/oracle/README.md` "Give" check the queue with the quest action items. With the original data
 `tactical/bombs/item-actions-original.test.ts` works the museum switch of L12, the Orta basement cell switch and the
-brothel's untrap switch. Not pinned: an entry whose slot a new bomb took after it was queued sets off the new bomb.
+brothel's untrap switch, and `tactical/bombs/planting-original.test.ts` the real `PLANT_BOMB` and `USE_REMOTE` scripts. Not pinned: an entry whose slot a new bomb took after it was queued sets off the new bomb.
 From scans of the 261 original maps: no map holds a hidden pressure explosive with a trap level, a pit or a blue flag;
 every loose switch's stored detonator already matches the one the load gives it, a switch over a switch structure and a
 pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the 14 soldiers placed on roofs all stand on

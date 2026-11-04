@@ -1340,6 +1340,22 @@ function addTacticalPromptsAndStopTimeQuotes(snapshot: Readonly<Record<string, u
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_DROP_BOMB_KEY = 'pendingDropBomb';
+
+function withPendingDropBomb(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPendingDropBomb(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withPendingDropBomb(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, PENDING_ROBOT_RELOAD_KEY, PENDING_DROP_BOMB_KEY, false) : mapped;
+}
+
+function addPendingDropBomb(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withPendingDropBomb(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1388,5 +1404,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     44: addWorldBombsAndMineFlags,
     45: actionItemsIntoExplosionQueue,
     46: addTacticalPromptsAndStopTimeQuotes,
+    47: addPendingDropBomb,
   };
 }

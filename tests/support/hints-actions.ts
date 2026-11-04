@@ -49,6 +49,7 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
       requests.push({ ...base, kind: 'aid', gridNo: o.gridNo, level: o.level });
     }
     requests.push({ ...base, kind: 'aid', gridNo: s.gridNo });
+    for (const off of [0, ...LOOK_OFFSETS]) requests.push({ ...base, kind: 'bomb', gridNo: s.gridNo + off });
     const pocket = (s.inventory ?? []).find((i) => i.slot !== InvSlot.HAND);
     if (pocket) {
       const toss = { ...base, kind: 'toss', slot: pocket.slot };
@@ -123,6 +124,10 @@ const HINT_KITS: readonly (readonly KitEntry[])[] = [
     [InvSlot.SMALLPOCK1, 'GL_HE_GRENADE'],
     [InvSlot.SMALLPOCK2, 'SNIPERSCOPE'],
     [InvSlot.SMALLPOCK3, 'TOOLKIT'],
+  ],
+  [
+    [InvSlot.HAND, 'MINE', 2],
+    [InvSlot.SMALLPOCK1, 'TRIP_FLARE'],
   ],
 ];
 

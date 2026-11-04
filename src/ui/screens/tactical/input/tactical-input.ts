@@ -38,7 +38,10 @@
 // @src cursor while an item is held over the map, its own PATHFINDCOUNTER rest), Turn_Based_Input.cc GetTBMouseButtonInput
 // @src and Real_Time_Input.cc GetRTMouseButtonInput (the right click with an item held, 2026-11-03); Turn_Based_Input.cc
 // @src HandleModNone 'n' (the soldier stack under the pointer, else the interactive tile stack, 2026-11-04);
-// @src Soldier_Find.cc CycleSoldierFindStack (gUIActionModeChangeDueToMouseOver cleared on the ground, gUITargetSoldier).
+// @src Soldier_Find.cc CycleSoldierFindStack (gUIActionModeChangeDueToMouseOver cleared on the ground, gUITargetSoldier);
+// @src UI_Cursors.cc HandleBombCursor (the walk onto the tile and its move grid, MOVEUI_TARGET_BOMB of Handle_UI.cc
+// @src DrawUIMovementPath), Handle_UI.cc UIMouseOnValidAttackLocation (BOMBCURS: his own tile or one he could stand on)
+// @src and Handle_Items.cc HandleItem's bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
@@ -1211,6 +1214,7 @@ export class TacticalInput {
 
   #validAttackLocation(sel: SoldierView, e: EstimateAttack): boolean {
     if (e.cursor === 'invalid') return false;
+    if (e.cursor === 'bomb') return this.#validBombTile(sel);
     const target = this.#hover.target;
     if (target?.id === sel.id && e.cursor !== 'aid') return false;
     if (this.#wrongFingerprint(sel)) return false;
@@ -1223,6 +1227,15 @@ export class TacticalInput {
     }
     if (e.cursor === 'aid' && !target) return false;
     return true;
+  }
+
+  #validBombTile(sel: SoldierView): boolean {
+    const mapPos = this.#mapPos();
+    if (mapPos === null) return false;
+    if (mapPos === sel.gridNo) return true;
+    if (this.#bombPreview(sel, mapPos)?.refusal === 'badTile') return false;
+    if (this.#hover.target?.id === sel.id) return false;
+    return !this.#wrongFingerprint(sel);
   }
 
   #wrongFingerprint(sel: SoldierView): boolean {
@@ -2491,6 +2504,7 @@ export class TacticalInput {
       }
     }
     if (estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#meleeWalkPath(sel, estimate, activated);
+    if (estimate.cursor === 'bomb') this.#bombWalkPath(sel, mapPos);
     if (
       (estimate.cursor === 'toss' || estimate.cursor === 'trajectory') &&
       estimate.landsAt !== undefined &&
@@ -2505,6 +2519,20 @@ export class TacticalInput {
     this.#steps = this.#plots() ? footstepMarkers(estimate.steps ?? [], sel.level) : [];
     this.#showMoveGridAt = estimate.walkTo;
     this.#showMoveGrid = activated ? 2 : 1;
+  }
+
+  #bombPreview(sel: SoldierView, mapPos: number): PreviewAction | null {
+    return dataOf(
+      this.#hint<PreviewAction>({ type: 'previewAction', soldier: sel.id, gridNo: mapPos, kind: 'bomb', mode: this.moveModeOf(sel) }),
+    );
+  }
+
+  #bombWalkPath(sel: SoldierView, mapPos: number): void {
+    const data = this.#bombPreview(sel, mapPos);
+    if (!data) return;
+    this.#steps = this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
+    this.#showMoveGridAt = mapPos;
+    this.#showMoveGrid = 1;
   }
 
   #markFreeCursor(result: AttackCursor): void {
@@ -2602,6 +2630,11 @@ export class TacticalInput {
     }
     if (estimate?.cursor === 'remote') {
       void this.#host.send({ type: 'useRemote', soldier: sel.id });
+      this.#pending = UiEvent.A_CHANGE_TO_MOVE;
+      return;
+    }
+    if (estimate?.cursor === 'bomb') {
+      void this.#host.sendBusyOrder({ type: 'plantBomb', soldier: sel.id, gridNo });
       this.#pending = UiEvent.A_CHANGE_TO_MOVE;
       return;
     }

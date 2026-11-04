@@ -4,6 +4,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { UnsuppliedFieldError } from '../knowledge/guard.ts';
+import { apsToDropBomb } from '../tactical/bombs/planting.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newSmokeEffect } from '../tactical/explosions/smoke.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../tactical/explosions/trajectory.ts';
@@ -34,6 +35,24 @@ describe('the item cursor of the hand item', () => {
     expect(cursorFor('REMOTETRIGGER')).toMatchObject({ ok: true, data: { cursor: 'remote', apCost: AP.USE_REMOTE } });
     expect(cursorFor('WIRECUTTERS')).toMatchObject({ ok: true, data: { cursor: 'wirecutter' } });
     expect(cursorFor('CANTEEN')).toMatchObject({ ok: true, data: { cursor: 'invalid' } });
+  });
+
+  it('answers the bomb cursor with the walk onto the tile plus AP_DROP_BOMB, and 0 for a tile out of reach (GetTotalAPsToDropBomb)', () => {
+    const sim = newCombatSim(content);
+    const sapper = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH, { gun: 'MINE' });
+    spawnSoldier(sim, 1, Team.OUR, PATIENT_AT, Direction.NORTH);
+    sim.lookAround();
+    const free = gridNo(83, 80);
+    expect(apsToDropBomb(sim.state, sapper, free)).toBeGreaterThan(AP.DROP_BOMB);
+    expect(estimateAttack(sim, { soldier: 0, target: MERC_AT })).toMatchObject({
+      ok: true,
+      data: { cursor: 'bomb', apCost: AP.DROP_BOMB },
+    });
+    expect(estimateAttack(sim, { soldier: 0, target: free })).toMatchObject({
+      ok: true,
+      data: { cursor: 'bomb', apCost: apsToDropBomb(sim.state, sapper, free) },
+    });
+    expect(estimateAttack(sim, { soldier: 0, target: PATIENT_AT })).toMatchObject({ ok: true, data: { cursor: 'bomb', apCost: 0 } });
   });
 });
 

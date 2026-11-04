@@ -2141,3 +2141,52 @@ describe('snapshot version 46 (no tactical prompt, booby-trap globals or stop-ti
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });
+
+const PENDING_DROP_BOMB_KEY = 'pendingDropBomb';
+
+function withoutPendingDropBomb(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPendingDropBomb(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === PENDING_DROP_BOMB_KEY) expect(v).toBe(false);
+    else out[key] = withoutPendingDropBomb(v);
+  }
+  return out;
+}
+
+function versionFortySeven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutPendingDropBomb(value)]);
+  return { ...snapshot, version: 47, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 47 (no pending drop bomb) migrates with nobody on the way to plant a bomb', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoPendingDropBomb(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionFortySeven(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${PENDING_DROP_BOMB_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${PENDING_DROP_BOMB_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoPendingDropBomb(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoPendingDropBomb(await createCampaignSession(kit.read, exists, 9));
+  });
+});

@@ -503,6 +503,7 @@ export interface Soldier {
   serviceCount: number;
   pendingAid: PendingAid | null;
   pendingRobotReload: PendingRobotReload | null;
+  pendingDropBomb: boolean;
 }
 
 export interface DrugCourse {
@@ -881,5 +882,6 @@ export function createSoldier(init: SoldierInit): Soldier {
     serviceCount: 0,
     pendingAid: null,
     pendingRobotReload: null,
+    pendingDropBomb: false,
   };
 }

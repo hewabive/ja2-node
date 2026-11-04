@@ -5,7 +5,8 @@
 // @src first step's APs and the continue location), MakeSoldierTurn (the turn), UIHandlePADJAdjustStance (the climb),
 // @src UIOkForItemPickup (the pick-up), UIHandleEndTurn (CheckForEndOfCombatMode before the turn passes);
 // @src Interface.cc PopupMovementMenu (who cannot run); Handle_Items.cc HandleItem (the attack, the remote's APs);
-// @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE), SetSoldierAsUnderAiControl (the AI turn in the
+// @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE; the plantBomb command and the remote bomb trigger go through
+// @src HandleItem, 2026-11-04), SetSoldierAsUnderAiControl (the AI turn in the
 // @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet); Handle_UI.cc
 // @src UIHandleRubberBandOnTerrain (who may be multi-selected) and EndMultiSoldierSelection for the select command
 // @src (2026-10-31); Turn_Based_Input.cc ChangeCurrentSquad and Radar_Screen.cc TacticalSquadListBtnCallBack
@@ -67,6 +68,13 @@ import {
 } from './animation.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
 import { answerPlaceBlueFlag, mineSpottedDialogueCallBack } from './bombs/mine-detection.ts';
+import {
+  answerBombMessageBox,
+  bombOpcode,
+  handlePendingDropBombOnArrival,
+  type PlantBombRefusal,
+  plantBombRefusal,
+} from './bombs/planting.ts';
 import { answerDisarmTrap, answerRemoveBlueFlag, boobyTrapDialogueCallBack } from './booby-traps.ts';
 import { generateBuildings } from './buildings.ts';
 import { enoughAmmo, minAPsToAttack } from './combat/ap.ts';
@@ -137,7 +145,7 @@ import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { StopTimeCallback } from './narrative/port.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
-import { useStatueRemote } from './narrative/statue.ts';
+import { pressStatueRemote } from './narrative/statue.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { clearTacticalStuffDueToTimeCompression, executeOverhead, type OverheadHooks } from './overhead.ts';
@@ -150,7 +158,7 @@ import { invalidStanceRefusal } from './person-structure.ts';
 import { dispatchPlayerOrder, type OrderContext, PLAYER_ORDERS } from './player-orders.ts';
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
-import { promptOpenRefusal, TacticalPromptKind, takeYesNoAnswer } from './prompts.ts';
+import { promptOpenRefusal, TacticalPromptKind, takeAnswer } from './prompts.ts';
 import { randomAnimOpcode } from './random-anims.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
 import { cancelPendingRobotReload, handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
@@ -226,6 +234,7 @@ export interface CombatSnapshot {
 const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
 const ESCORT_CANNOT_PICK_UP = 'an escort can neither pick up nor search';
 const REMOTE_TRIGGER = 'REMOTETRIGGER';
+const REMOTE_BOMB_TRIGGER = 'REMOTEBOMBTRIGGER';
 const QUEUED_ORDER = 'the last order has not started yet: advance first';
 const NPC_DREW_FIRST = 'the neutral NPC drew first: no attack was made, and he turns on us';
 const BAD_GROUP: Refusal = { token: 'badGroup', reason: 'group must list controllable mercs of yours in the sector' };
@@ -279,6 +288,13 @@ const DOOR_REFUSALS: Readonly<Record<string, string>> = {
   diagonal: 'not possible from a diagonal position',
   notEnoughAp: 'not enough APs',
   noPath: 'cannot get next to the door',
+};
+
+const PLANT_BOMB_REFUSALS: Readonly<Record<PlantBombRefusal, string>> = {
+  notABomb: 'the soldier holds no mine, trip flare, trip klaxon or explosive with a detonator',
+  noPath: 'no path',
+  badTile: 'the bomb cannot go on that tile: nobody could stand there',
+  notEnoughAP: 'not enough APs to walk there and plant it',
 };
 
 const MELEE_ORDER_REFUSALS: Readonly<Record<MeleeOrderRefusal, string>> = {
@@ -360,6 +376,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       wheelchairOpcode(state, s, code) ??
       stealOpcode(state, s, code) ??
       robotReloadOpcode(state, s, code) ??
+      bombOpcode(state, s, code) ??
       crowOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
@@ -374,7 +391,8 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       handlePendingTalkOnArrival(state, s) ||
       handlePendingGiveOnArrival(state, s) ||
       handlePendingAidOnArrival(state, s) ||
-      handlePendingRobotReloadOnArrival(state, s),
+      handlePendingRobotReloadOnArrival(state, s) ||
+      handlePendingDropBombOnArrival(state, s),
     runningIntoGas: checkForRunningIntoGas,
     enteredGridNo: updateGassedOnNewGridNo,
     endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -620,20 +638,26 @@ export class TacticalSim {
 
   #answer(cmd: TacticalCommand): CommandResult {
     const t = this.state;
-    const answer = takeYesNoAnswer(t, cmd);
+    const answer = takeAnswer(t, cmd);
     if ('ok' in answer) return answer;
-    switch (answer.prompt.kind) {
+    const { prompt, choice } = answer;
+    const yes = choice === 'yes';
+    switch (prompt.kind) {
       case TacticalPromptKind.DISARM_TRAP:
-        answerDisarmTrap(t, answer.yes);
+        answerDisarmTrap(t, yes);
         break;
       case TacticalPromptKind.ACTIVATE_SWITCH:
-        answerActivateSwitch(t, answer.prompt, answer.yes);
+        answerActivateSwitch(t, prompt, yes);
         break;
       case TacticalPromptKind.PLACE_BLUE_FLAG:
-        answerPlaceBlueFlag(t, answer.yes);
+        answerPlaceBlueFlag(t, yes);
         break;
       case TacticalPromptKind.REMOVE_BLUE_FLAG:
-        answerRemoveBlueFlag(t, answer.yes);
+        answerRemoveBlueFlag(t, yes);
+        break;
+      case TacticalPromptKind.BOMB_SETTING:
+      case TacticalPromptKind.REMOTE_FREQUENCY:
+        answerBombMessageBox(t, prompt, Number(choice));
         break;
     }
     return { ok: true };
@@ -694,6 +718,8 @@ export class TacticalSim {
         return this.#climb(cmd);
       case 'useRemote':
         return this.#useRemote(cmd);
+      case 'plantBomb':
+        return this.#plantBomb(cmd);
       case 'door':
         return this.#door(cmd);
       case 'select':
@@ -914,14 +940,40 @@ export class TacticalSim {
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
     selectOrderedMerc(t, s);
-    const remote = t.content.items.byName.get(REMOTE_TRIGGER)?.index;
-    if (remote === undefined || s.inv[InvSlot.HAND]?.item !== remote) return refuse('noRemote', 'the soldier holds no remote trigger');
+    const hand = itemIn(s.inv, InvSlot.HAND);
+    if (hand === t.content.items.byName.get(REMOTE_TRIGGER)?.index) return this.#pressStatueRemote(s);
+    if (hand !== t.content.items.byName.get(REMOTE_BOMB_TRIGGER)?.index) return refuse('noRemote', 'the soldier holds no remote trigger');
+    return this.#handItemResult(handleItem(t, s, s.gridNo, s.level, hand));
+  }
+
+  #pressStatueRemote(s: Soldier): CommandResult {
+    const t = this.state;
     if (!enoughPoints(t.inCombat, s, AP_USE_REMOTE)) return refuse('notEnoughAP', `not enough APs: ${AP_USE_REMOTE} needed`);
     deductPoints(t.inCombat, s, AP_USE_REMOTE, 0);
     if (height(t.content, s.state) === AnimHeight.STAND) deductPoints(t.inCombat, s, AP_USE_REMOTE, 0);
-    const opened = useStatueRemote(t, s);
-    t.events.push({ type: 'remoteUsed', soldier: s.id, result: opened ? 'statueOpened' : 'nothing' });
-    return { ok: true, data: { result: opened ? 'statueOpened' : 'nothing' } };
+    const result = pressStatueRemote(t, s);
+    return { ok: true, data: { result } };
+  }
+
+  #plantBomb(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
+    const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
+    if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
+    const planting = plantBombRefusal(t, s, g, t.narrative.isEpc(s));
+    if (planting) return refuse(planting, PLANT_BOMB_REFUSALS[planting]);
+    return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
+  }
+
+  #handItemResult(result: number): CommandResult {
+    if (result === ItemHandle.OK) return { ok: true };
+    if (result === ItemHandle.BROKEN) return refuse('itemBroken', 'the item in hand does not work');
+    if (result === ItemHandle.CANNOT_GETTO_LOCATION) return refuse('noPath', 'no path');
+    return refuse(ATTACK_REFUSAL_TOKENS[result] ?? 'refused', ATTACK_REFUSALS[result] ?? `refused (${result})`);
   }
 
   #move(cmd: TacticalCommand): CommandResult {

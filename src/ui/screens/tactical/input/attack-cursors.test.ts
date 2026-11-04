@@ -41,13 +41,15 @@ describe('the aim cursor', () => {
     expect(attackCursor(knife, AIM, { ...HOVERING, onTarget: false }).cursor).toBe('KNIFE_REG_UICURSOR');
   });
 
-  it('draws the item cursors of HandleAidCursor and HandleRemoteCursor, and the unbuilt item actions greyed out', () => {
+  it('draws the item cursors of HandleAidCursor, HandleRemoteCursor and HandleBombCursor, and the unbuilt item actions greyed out', () => {
     const item = (cursor: EstimateAttack['cursor'], apCost = 0): EstimateAttack => ({ ...GUN, cursor, apCost, apCostByAim: [] });
     expect(attackCursor(item('aid'), AIM, HOVERING).cursor).toBe('ACTION_FIRSTAID_RED');
     expect(attackCursor(item('aid'), AIM, { ...HOVERING, onTarget: false }).cursor).toBe('ACTION_FIRSTAID_GRAY');
     expect(attackCursor(item('remote', 2), AIM, HOVERING)).toMatchObject({ cursor: 'PLACE_REMOTE_GREY_UICURSOR', apCost: 2 });
     expect(attackCursor(item('remote', 2), AIM, CONFIRMED).cursor).toBe('PLACE_REMOTE_RED_UICURSOR');
-    expect(attackCursor(item('bomb'), AIM, CONFIRMED)).toMatchObject({ cursor: 'PLACE_BOMB_GREY_UICURSOR', apCost: null });
+    expect(attackCursor(item('bomb', 9), AIM, HOVERING)).toMatchObject({ cursor: 'PLACE_BOMB_GREY_UICURSOR', apCost: 9 });
+    expect(attackCursor(item('bomb', 21), AIM, CONFIRMED)).toMatchObject({ cursor: 'PLACE_BOMB_RED_UICURSOR', apInvalid: true });
+    expect(attackCursor(item('bomb', 9), AIM, { ...HOVERING, inCombat: false })).toMatchObject({ apCost: null });
     expect(attackCursor(item('wirecutter'), AIM, HOVERING).cursor).toBe('BAD_WIRECUTTER_UICURSOR');
     expect(attackCursor(item('tincan'), AIM, HOVERING).cursor).toBe('PLACE_TINCAN_GREY_UICURSOR');
     expect(attackCursor(item('invalid'), AIM, HOVERING).cursor).toBe('INVALID_ACTION_UICURSOR');

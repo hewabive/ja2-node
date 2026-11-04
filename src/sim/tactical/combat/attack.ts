@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_Items.cc HandleItem (gun path, the rocket rifle imprint), HandItemWorks;
+// @src src/game/Tactical/Handle_Items.cc HandleItem (gun path, the rocket rifle imprint, the remote and bomb cursors and
+// @src the detonator box at its end, 2026-11-04), HandItemWorks;
 // @src Soldier_Control.cc EVENT_FireSoldierWeapon (with the view sent to a seen soldier not of ours turning to shoot),
 // @src SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon,
 // @src PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
@@ -16,6 +17,7 @@ import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../.
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { createItem, findAttachment, type ItemObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';
+import { itemCursorOf } from '../action-cursor.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -28,6 +30,7 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
+import { detonatorBoxAtTheEnd, dropsBomb, handleDropBombItem, handleRemoteItem, startBombMessageBox } from '../bombs/planting.ts';
 import { igniteExplosion } from '../explosions/explosion.ts';
 import { calcThrownChanceToHit, useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
@@ -118,11 +121,15 @@ export function handleItem(t: TacticalState, s: Soldier, g: number, level: numbe
   const cls = def(t, handItem)?.itemClass ?? ItemClass.NONE;
   if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, tgt, handItem);
   if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
+  if (itemCursorOf(t, handItem) === ItemCursor.REMOTE) return handleRemoteItem(t, s, g);
+  if (dropsBomb(t, s, handItem)) return handleDropBombItem(t, s, g);
   if (cls === ItemClass.BLADE) return handleBladeAttack(t, s, g);
   if (cls === ItemClass.TENTACLES) return handleTentacleAttack(t, s, g);
   if (cls === ItemClass.GRENADE || cls === ItemClass.LAUNCHER || cls === ItemClass.THROWN)
     return handleThrowOrLaunch(t, s, g, level, tgt, handItem);
-  return ItemHandle.BROKEN;
+  if (!detonatorBoxAtTheEnd(t, s, handItem)) return ItemHandle.BROKEN;
+  startBombMessageBox(t, s, g);
+  return ItemHandle.OK;
 }
 
 function mortarHasRoom(t: TacticalState, s: Soldier, targetGrid: number): boolean {

@@ -46,8 +46,8 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows them disabled): planting bombs and using wire cutters, toolkits, gas cans,
-jars and tin cans on a tile, and the x-ray detector (gap "Unbuilt item actions"; `previewAction` answers `notSupported`,
+**Not built as commands** (the client shows them disabled): using wire cutters, toolkits, gas cans, jars and tin cans
+on a tile, and the x-ray detector (gap "Unbuilt item actions"; `previewAction` answers `notSupported`,
 `useRemote` refuses the detector); auto-bandage (gap "Auto-bandage"); the placement GUI (deviation "Tactical
 placement"); vehicles' condition and fuel (gap "Vehicles as characters").
 
@@ -320,7 +320,7 @@ sector entry and a native import add again, most wall end pieces; `object` at th
 destroyed structure's debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
 draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
 took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `knownMines` lists the tiles our side
-knows to hold a mine (a blue flag, a mine the militia spotted, and from a later port our own planted mines), which the
+knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our mercs planted), which the
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
 levels, bomb timers and owners are never shown (`12` §6). Animation schedules, palettes and light sprites serve the
 renderer and the devtools.
@@ -440,10 +440,27 @@ which digs the bomb up into his pockets, or onto the ground when they are full (
 trigger, another action item as a detonator), and takes the blue flag off (`trapDisarmed`), or sets off every bomb of
 the tile (`trapSetOff` with CURSE1); `no` asks `removeBlueFlag`.
 
+`plantBomb {soldier, gridNo}` is the bomb cursor's click (`HandleItem`, `Handle_Items.cc:758`): it takes a mine, trip
+flare or trip klaxon in hand, or an explosive with a detonator or remote detonator attached, walks onto the tile (his own
+by default) and plants it there; the hand item roll comes first, as for a shot (`itemBroken`). Standing he plays the
+plant, which costs 3 AP at its start; crouched or prone he plants at once and for nothing. A mine goes in buried and armed
+at once with 25 explosives chances: the tile joins `knownMines`, our team and the militia walk over it, and the trap
+level is his explosives and experience (at most 10). An explosive with a detonator asks `bombSetting` instead, after
+the walk and halfway through the plant: the turns of its timer (one more out of combat) or its frequency, `1` to `4`.
+The answer takes his planting check: passed, the bomb lies armed and visible with the setting and 25 chances; missed by
+20 or less, 10 chances and the setting off by one either way (in combat a timer of 1 may come out as 0, which runs
+through 255 turns; a frequency of 4 as 5, which no trigger reaches); missed by more, it explodes at his feet (`bombFumbled`) and
+stays in his hand. Our own planted bomb is a booby trap to our mercs who pick it up. `bombPlanted {soldier, gridNo,
+item}` marks a plant. Refusals: `notABomb`, `badTile` (nobody could stand there), and in combat `noPath` before
+`badTile`, then `notEnoughAP` for the walk and the plant, as `previewAction` kind `bomb` gives them; out of combat a
+walk that cannot start is `noPath` after the roll. The remote bomb trigger in hand takes `useRemote` (§8.2).
+
 These prompts belong to the loaded sector and come in `observe.prompt` of the sandbox too:
 `disarmTrap {id, soldier, gridNo, buried, item?, choices}` (`item` names a trap the merc can see), `activateSwitch
 {id, soldier?, choices}` (`soldier` when he is ours), `placeBlueFlag {id, soldier, gridNo, choices}` and
-`removeBlueFlag {id, soldier, gridNo, choices}`, all with `yes` and `no`. As with the original's message boxes,
+`removeBlueFlag {id, soldier, gridNo, choices}`, all with `yes` and `no`; `bombSetting {id, soldier, gridNo, item,
+detonator: timed|remote, choices}` and `remoteFrequency {id, soldier, choices}` with `1` to `4` and no way out, as the
+original's four numbered buttons. As with the original's message boxes,
 one is open at a time and a second one asked for meanwhile is never shown. While the merc warns, the game stands as the
 original's does: one more tactical frame, then only the line and the clocks run until it ends, and commands are refused
 with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt opens at once.
@@ -460,7 +477,10 @@ act on it meanwhile stops the merc (`{started: busy}`), as `InteractWithOpenable
 before the door stops. A door that changes out of the squad's sight raises no `doorChanged` and keeps its place in
 `openDoors` until a merc sees it. Containers and switches take `open` and `close` with the
 original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. `useRemote`
-presses the remote trigger in hand (the O3 statue, `26`).
+presses the remote trigger in hand: the O3 statue's at once (`26`, deviation "Remote trigger"); the remote bomb trigger
+after its hand item roll (`itemBroken`) for 2 AP, standing through its animation for 2 more, then `remoteFrequency`
+asks, and the answer sets off every armed remote bomb of that frequency through the bomb queue (`remoteUsed {result:
+bombs, frequency}`).
 
 ### 8.3 Inventory, money and first aid
 

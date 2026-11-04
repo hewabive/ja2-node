@@ -134,6 +134,10 @@ const DROP_BESIDE_CODE = 763;
 const END_FIRST_AID = 768;
 const GIVE_ITEM_CODE = 486;
 const RELOAD_ROBOT_CODE = 756;
+const DROP_BOMB_CODE = 483;
+const USE_REMOTE_CODE = 484;
+const PLANT_BOMB_REACH = 6;
+const USE_REMOTE_REACH = 4;
 const ROLLOVER_GETUP = 437;
 const ClimbOp = {
   FORWARD_FALL: 403,
@@ -180,6 +184,20 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   ],
   GIVE_ITEM: () => [...frames(5), GIVE_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   RELOAD_ROBOT: () => [...frames(8), RELOAD_ROBOT_CODE, ...descendingFrames(4), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  PLANT_BOMB: () => [
+    ...frames(PLANT_BOMB_REACH),
+    DROP_BOMB_CODE,
+    ...descendingFrames(PLANT_BOMB_REACH),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
+  USE_REMOTE: () => [
+    ...frames(USE_REMOTE_REACH),
+    USE_REMOTE_CODE,
+    ...descendingFrames(USE_REMOTE_REACH),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
   START_AID: (t) => [...frames(4), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'GIVING_AID'))],
   GIVING_AID: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
   END_AID: () => [4, 3, 2, 1, END_FIRST_AID, END_OF_ANIMATION],

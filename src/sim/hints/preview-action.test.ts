@@ -5,6 +5,7 @@ import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid
 import { createItem } from '../items/object.ts';
 import { knowledgeViewOf } from '../knowledge/sim-view.ts';
 import { AnimHeight, states } from '../tactical/animation.ts';
+import { apsToDropBomb } from '../tactical/bombs/planting.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { apsToBeginFirstAid } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
@@ -188,10 +189,24 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(action(sim, 'pickUp', ORIGIN + EAST)).toMatchObject({ ok: true });
   });
 
+  it('plants on his own tile for AP_DROP_BOMB, walks onto another for the walk plus AP_DROP_BOMB, and refuses no bomb or a tile nobody could stand on', () => {
+    const sim = newCombatSim(content);
+    const sapper = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST, { gun: 'MINE' });
+    spawnSoldier(sim, 1, Team.OUR, ORIGIN + SOUTH, Direction.WEST);
+    expect(action(sim, 'bomb', ORIGIN)).toMatchObject({ ok: true, apCost: AP.DROP_BOMB, actionGridNo: ORIGIN, steps: [] });
+    const walk = action(sim, 'bomb', ORIGIN + 2 * EAST);
+    expect(walk).toMatchObject({ ok: true, apCost: apsToDropBomb(sim.state, sapper, ORIGIN + 2 * EAST), actionGridNo: ORIGIN + 2 * EAST });
+    expect(walk.apCost).toBeGreaterThan(AP.DROP_BOMB);
+    expect(walk.steps.length).toBeGreaterThan(0);
+    expect(action(sim, 'bomb', ORIGIN + SOUTH)).toMatchObject({ ok: false, refusal: 'badTile' });
+    sapper.inv[InvSlot.HAND] = createItem(content.items, content.items.byName.get('GLOCK_17')?.index ?? 0, 100);
+    expect(action(sim, 'bomb', ORIGIN)).toMatchObject({ ok: false, refusal: 'notABomb' });
+  });
+
   it('answers notSupported for the item cursors without a command', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
-    for (const kind of ['cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'])
+    for (const kind of ['cutFence', 'repair', 'refuel', 'jar', 'can', 'enterVehicle'])
       expect(hintAnswer(sim, 'previewAction', { soldier: 0, kind, gridNo: ORIGIN + 1 })).toMatchObject({
         ok: false,
         data: { refusal: 'notSupported' },

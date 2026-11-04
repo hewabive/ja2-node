@@ -1,19 +1,21 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/UI_Cursors.cc GetActionModeCursor (no cursor in deep water, 2026-11-03),
-// @src HandleNonActivatedTargetCursor (the reload cursors, the chance to get through below OK_CHANCE_TO_GET_THROUGH,
-// @src InRange), HandleNonActivatedTossCursor (the launchable attachment, the under-barrel launcher in attached mode,
-// @src CalculateLaunchItemChanceToGetThrough with the landing level); Weapons.cc InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
-// @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid).
+// @src src/game/Tactical/UI_Cursors.cc HandleNonActivatedTargetCursor (the reload cursors, the chance to get through
+// @src below OK_CHANCE_TO_GET_THROUGH, InRange), HandleNonActivatedTossCursor (the launchable attachment, the
+// @src under-barrel launcher in attached mode, CalculateLaunchItemChanceToGetThrough with the landing level); Weapons.cc
+// @src InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
+// @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid);
+// @src UI_Cursors.cc HandleBombCursor (GetTotalAPsToDropBomb, 2026-11-04).
 
 import { ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { CELL_X_SIZE, DIRECTION_COUNT, DIRECTION_INCREMENT, isVisibleTile, newGridNo } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
-import { Terrain } from '../../content/world/terrain.ts';
 import { createItem, findAttachment, type ItemObject } from '../items/object.ts';
 import { withTemporaryFields } from '../knowledge/guard.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
+import { actionModeCursor } from '../tactical/action-cursor.ts';
 import { AnimHeight, endHeight } from '../tactical/animation.ts';
+import { apsToDropBomb } from '../tactical/bombs/planting.ts';
 import { calcTotalAPsToAttack, enoughAmmo, minAPsToThrow } from '../tactical/combat/ap.ts';
 import { soldierToLocationChanceToGetThrough, soldierToSoldierBodyPartChanceToGetThrough } from '../tactical/combat/bullets.ts';
 import { calcChanceToHitGun, gunRange, rangeInUnits } from '../tactical/combat/chance.ts';
@@ -28,10 +30,9 @@ import { InvSlot, NO_SLOT } from '../tactical/inventory.ts';
 import { tacticalPanelEnv } from '../tactical/inventory-commands.ts';
 import { apsToAutoReload } from '../tactical/inventory-panel.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
-import { uncontrolledRobot } from '../tactical/narrative/robot.ts';
 import type { Footstep } from '../tactical/plot-path.ts';
 import { AP } from '../tactical/points.ts';
-import { Body, NOWHERE, OKBREATH, type Soldier } from '../tactical/soldier.ts';
+import { NOWHERE, type Soldier } from '../tactical/soldier.ts';
 import type { WeaponModeView } from '../tactical/soldier-view.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { actingSoldier } from './soldier-check.ts';
@@ -127,28 +128,10 @@ const CURSOR_NAMES: Readonly<Record<number, AttackCursor>> = {
 };
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
-const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const NO_AMMO_STATE: AmmoState = { empty: false, canReload: false, reloadAp: 0 };
 
 function itemIndex(t: TacticalState, name: string): number {
   return t.content.items.byName.get(name)?.index ?? -2;
-}
-
-function actionModeCursor(t: TacticalState, s: Soldier, isEpc: boolean): number {
-  if (isEpc && s.bodyType !== Body.ROBOTNOWEAPON) return ItemCursor.INVALID;
-  if (isVehicle(s) || uncontrolledRobot(t, s)) return ItemCursor.INVALID;
-  if (s.weaponMode === WeaponMode.ATTACHED) return ItemCursor.TRAJECTORY;
-  const hand = s.inv[InvSlot.HAND] as ItemObject;
-  if (hand.item === NOTHING) return ItemCursor.PUNCH;
-  let cursor = t.content.items.byIndex.get(hand.item)?.cursor ?? ItemCursor.INVALID;
-  if (
-    cursor === ItemCursor.INVALID &&
-    (findAttachment(hand, itemIndex(t, 'DETONATOR')) !== -1 || findAttachment(hand, itemIndex(t, 'REMDETONATOR')) !== -1)
-  )
-    cursor = ItemCursor.BOMB;
-  if (s.overTerrain === Terrain.DEEP_WATER) cursor = ItemCursor.INVALID;
-  if (s.breath < OKBREATH && s.collapsed) cursor = ItemCursor.INVALID;
-  return cursor;
 }
 
 function inRange(t: TacticalState, s: Soldier, g: number): boolean {
@@ -301,10 +284,15 @@ const ATTACK_CURSORS: ReadonlySet<number> = new Set([
   ItemCursor.TRAJECTORY,
 ]);
 
-function itemUse(cursor: number, base: EstimateBase): EstimateAttack {
+function itemUseApCost(t: TacticalState, s: Soldier, target: number, cursor: number): number {
+  if (cursor === ItemCursor.REMOTE) return AP.USE_REMOTE;
+  return cursor === ItemCursor.BOMB ? apsToDropBomb(t, s, target) : 0;
+}
+
+function itemUse(t: TacticalState, s: Soldier, target: number, cursor: number, base: EstimateBase): EstimateAttack {
   return {
     ...base,
-    apCost: cursor === ItemCursor.REMOTE ? AP.USE_REMOTE : 0,
+    apCost: itemUseApCost(t, s, target, cursor),
     apCostByAim: [],
     chanceToHit: null,
     chanceToGetThrough: 0,
@@ -367,7 +355,7 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
         weaponMode: WEAPON_MODE_NAMES[mode] ?? 'single',
         actionPoints: s.actionPoints,
       };
-      if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(cursor, base));
+      if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(t, s, target, cursor, base));
       if (cursor === ItemCursor.TOSS || cursor === ItemCursor.TRAJECTORY)
         return hintData(estimateThrow(t, s, target, level, aim, cursor === ItemCursor.TRAJECTORY, base));
       return hintData(estimateStrike(t, s, target, level, aim, cursor, base));
