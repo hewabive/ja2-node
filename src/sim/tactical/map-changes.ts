@@ -4,7 +4,8 @@
 // @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem, AddObjectToMapTempFile,
 // @src AddObjectFromMapTempFileToMap; TileEngine/WorldMan.cc AddStructToTail, AddStructToHead, RemoveStruct,
 // @src IndexExistsInStructLayer (the replayed tile records, over the structure layer the landed helicopter's pieces are
-// @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer.
+// @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer; Structure.cc InternalSwapStructureForPartner
+// @src (a partner swap keeps its node's place, 2026-11-04).
 
 import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
