@@ -1277,6 +1277,19 @@ describe('the tactical input on the tactical screen', () => {
     expect([itemLocatorsAt(f, flashing), litFaces()]).toEqual([0, 0]);
   });
 
+  it('moves the view to a mine our merc spots, and flashes the item locator over it after his line though the view shows no item there (MineSpottedDialogueCallBack)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const mine = merc(f, 0).gridNo + 3;
+    const tick = f.client.view.tick;
+    f.frames([{ tick, changed: [], removed: [], events: [{ tick, type: 'trapSpotted', soldier: 0, gridNo: mine, kind: 'ground' }] }]);
+    expect(f.world.located.at(-1)).toBe(mine);
+    f.frames([{ tick, changed: [], removed: [], events: [{ tick, type: 'mineLocator', gridNo: mine, level: 0 }] }]);
+    f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect(itemLocatorsAt(f, mine)).toBe(1);
+    for (let k = 1; k < ITEM_LOCATOR_STEPS; k++) f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect(itemLocatorsAt(f, mine)).toBe(0);
+  });
+
   it('flashes the multi-purpose locator at a corpse a merc comments on, for 8 cycles of 5 frames (BeginMultiPurposeLocator)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tile = merc(f, 0).gridNo + 3;

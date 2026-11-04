@@ -31,7 +31,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
-| `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items (§6) |
+| `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts`, `bombs/mine-detection.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items; the suspicious ground (§6) |
 | `booby-traps.ts`, `prompts.ts` | A pickup's booby trap and its disarm box; the tactical prompt and the globals its answers read (§6) |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
@@ -251,9 +251,11 @@ step on a tile (`setOffBombsInGridNo`, from `handleAtNewGridNo` and the fence la
 (`setOffBombsByFrequency`, from a pressure switch underfoot and from a switch worked by hand,
 `activateSwitchInGridNo`), and the timers (`decayBombTimers`, at each real-time turn and at the end of each round,
 `10`); `bombs/item-action.ts` runs the action items, the quest ones through `narrative/quest-items.ts` (`25`). The
-queue runs in the overhead pass after the tile animations. `booby-traps.ts` checks an item's booby trap in the pickup
-(`item-actions.ts`), which also asks before working a switch; `prompts.ts` holds the tactical prompt and the globals
-the original's boxes read.
+queue runs in the overhead pass after the tile animations. `bombs/mine-detection.ts` is the suspicious ground: every
+soldier checks the tile ahead before a step and the tiles around after an arrival (`movement.ts`, `07`), and what our
+merc, the AI or a metal detector do about a mine noticed there. `booby-traps.ts` checks an item's booby trap in the
+pickup (`item-actions.ts`), which also asks before working a switch and, on a tile our side knows to hold a mine, to
+disarm the bomb under it; `prompts.ts` holds the tactical prompt and the globals the original's boxes read.
 
 **Design.**
 - The bomb fields stay in the union aliases of the object (deviation "Object union"), so map records, native saves,
@@ -282,7 +284,9 @@ the original's boxes read.
   `prompt` beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown. The
   callbacks read the original's globals (`TacticalState.boobyTrap`: the soldier, item, tile, level and difficulty of the
   last trap, whether it was just found), set by the pickup and read at the answer; a spotted trap's box waits for the
-  merc's stop-time quote (`24` §2).
+  merc's stop-time quote (`24` §2). A spotted mine sets only the soldier and the tile, so its blue flag goes on the
+  level the last booby trap left; its box opens as the quote ends, without the original's locator lock (deviation
+  "Mine locator").
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 
@@ -305,18 +309,27 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | The gain for finding a trap comes at the disarm box's answer, a no too, and a known trap asks with none | `tactical/booby-traps.test.ts` "gives the finding gain on a no too …", "asks at once …" |
 | Disarming a bomb one of our mercs planted gives no gain and no COOL1 | `tactical/booby-traps.test.ts` "gives no explosives gain and no COOL1 …" |
 | A known trap picked up in one go after a switch loses its box: the switch's box is up | `tactical/booby-traps.test.ts` "drops the disarm box of a known trap …" |
+| Every step of a bleeding or shocked soldier draws `PreRandom(3)` twice, for the tile ahead and the tiles around, mines or not, unless he carries a metal detector | `tactical/bombs/mine-detection.test.ts` "draws PreRandom(3) at both checks …" |
+| A metal detector finds no mine above trap level 10, and an enemy who carries one marks the mines he finds for the player with blue flags and walks on | `tactical/bombs/mine-detection.test.ts` "flags a mine of trap 10 or less with a metal detector …" |
+| The blue flag of a spotted mine goes on the level the last booby trap left, and its locator looks there | `tactical/bombs/mine-detection.test.ts` "asks at once in the sandbox; yes puts a blue flag …", "sends the mine locator …" |
+| A spotted mine left without its blue flag is known but unmarked: nobody warns of it again, paths do not avoid it and a search there walks onto it | `tactical/bombs/mine-detection.test.ts` "leaves the mine known but unmarked on a no …" |
+| A failed disarm of a buried bomb sets off every bomb of its tile, remote ones too, but never a mine one of our mercs planted | `tactical/booby-traps.test.ts` "sets off every bomb of the tile after a failed check …", "sets off nothing when the failed disarm …" |
 
 Not checked against the native build: no oracle probe covers the bomb list, the flags, paths around mines, the queue's
-times and draws or the timers yet; the action item probes of `tools/oracle/README.md` "Give" check the queue with the
-quest action items. With the original data `tactical/bombs/item-actions-original.test.ts` works the museum switch of
-L12, the Orta basement cell switch and the brothel's untrap switch. Not pinned: an entry whose slot a new bomb took
-after it was queued sets off the new bomb. From scans of the 261 original maps: no map holds a hidden pressure explosive
-with a trap level, a pit or a blue flag; every loose switch's stored detonator already matches the one the load gives
-it, a switch over a switch structure and a pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the
-14 soldiers placed on roofs all stand on flat roofs, so the roof type test moves none of them.
+times and draws, the timers, the suspicious ground's draws or the buried disarm yet; the action item probes of
+`tools/oracle/README.md` "Give" check the queue with the quest action items. With the original data
+`tactical/bombs/item-actions-original.test.ts` works the museum switch of L12, the Orta basement cell switch and the
+brothel's untrap switch. Not pinned: an entry whose slot a new bomb took after it was queued sets off the new bomb.
+From scans of the 261 original maps: no map holds a hidden pressure explosive with a trap level, a pit or a blue flag;
+every loose switch's stored detonator already matches the one the load gives it, a switch over a switch structure and a
+pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the 14 soldiers placed on roofs all stand on
+flat roofs, so the roof type test moves none of them; the pressure-triggered switches and quest action items lie at
+trap level 20, beyond any trap detect level and metal detector, as do P3's minefield, while the minefields of I8, N3,
+N5, O3 and P3_B1 lie at 3 to 10 and F9's mine at 5, so only those are ever found.
 
 Not ported: gaps "Map items" (the pits), "Unbuilt item actions", "Auto-bandage",
 "Walking side effects" (water damage to items). Other deviations of this domain: "Object union", "Item cursor", "Key
 ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
 pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
-draws in explosions", "Wall decals after a load", "Drugs in the projection".
+draws in explosions", "Wall decals after a load", "Drugs in the projection", "Mine locator", "Blue flag without a
+bomb".

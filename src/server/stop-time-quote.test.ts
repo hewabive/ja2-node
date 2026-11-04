@@ -2,14 +2,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
+import { DIRECTION_INCREMENT, Direction } from '../content/world/grid.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import { createItem } from '../sim/items/object.ts';
 import { TacticalModal } from '../sim/narrative/talk-state.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { armBomb, Detonator } from '../sim/tactical/bombs/bomb-object.ts';
 import { MercQuote } from '../sim/tactical/narrative/merc-quotes.ts';
 import { type Soldier, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalState } from '../sim/tactical/state.ts';
-import { addItemToPool, Visibility } from '../sim/tactical/world-items.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { saveRefusal } from './save-rules.ts';
@@ -29,6 +31,7 @@ const KESTREL = 0;
 const SURE_TRAP = 1;
 const QUOTE_TICKS = 3000;
 const FROZEN_TICKS = 20;
+const WALK_STEPS = 4;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -130,5 +133,42 @@ describe('the booby-trap quote in a campaign stops time (Dialogue_Control.cc Che
     expect(c.live.dispatch({ type: 'answer', choice: 'no' })).toMatchObject({ ok: true });
     expect(c.session.view().prompt ?? null).toBeNull();
     expect(c.session.dispatch(move)).toMatchObject({ ok: true });
+  });
+});
+
+describe('the suspicious-ground quote in a campaign stops time (Overhead.cc CheckIfNearbyGroundSeemsWrong)', () => {
+  async function walkPastMine(c: Campaign): Promise<number> {
+    const start = kestrel(c);
+    const move = { type: 'move', soldier: start.id, to: start.gridNo + WALK_STEPS * (DIRECTION_INCREMENT[Direction.EAST] ?? 0) };
+    await c.session.prepare(move);
+    expect(c.session.dispatch(move)).toMatchObject({ ok: true });
+    const t = tactical(c);
+    const merc = kestrel(c);
+    const first = merc.gridNo + (DIRECTION_INCREMENT[merc.path[0] ?? 0] ?? 0);
+    const second = first + (DIRECTION_INCREMENT[merc.path[1] ?? 0] ?? 0);
+    const mine = createItem(t.content.items, t.content.items.byName.get('MINE')?.index ?? 0, 100);
+    armBomb(t, mine, Detonator.PRESSURE);
+    mine.trap = SURE_TRAP;
+    addItemToPool(t, second, mine, Visibility.BURIED, 0, WorldItemFlags.ARMED_BOMB);
+    const said = c.live.advance({ events: ['mercQuote'], ticks: QUOTE_TICKS }).events;
+    expect(said).toContainEqual(expect.objectContaining({ type: 'mercQuote', profile: KESTREL, id: MercQuote.SUSPICIOUS_GROUND }));
+    expect(kestrel(c).gridNo).toBe(first);
+    return second;
+  }
+
+  it('stands while the merc warns, then asks to place a blue flag, which marks the tile for our side', async () => {
+    const c = await squadInA9(93);
+    const mine = await walkPastMine(c);
+    expect(tacticalModal(c)).not.toBe(TacticalModal.OFF);
+    expect(c.live.advance({ idle: true }).reason).toBe('decision');
+    expect(c.session.view().prompt).toEqual({
+      id: expect.stringMatching(/^placeBlueFlag-\d+-1$/),
+      kind: 'placeBlueFlag',
+      soldier: kestrel(c).id,
+      gridNo: mine,
+      choices: ['yes', 'no'],
+    });
+    expect(c.live.dispatch({ type: 'answer', choice: 'yes' })).toMatchObject({ ok: true });
+    expect(c.session.view().knownMines).toEqual([mine]);
   });
 });

@@ -34,7 +34,10 @@ const NO_INITIATING_TARGET = -1;
 const FIRST_SQUAD = 0;
 
 export const STOP_TIME_CALLBACKS = 'tactical';
-export const StopTimeCallback = { BOOBY_TRAP: `${STOP_TIME_CALLBACKS}:boobyTrap` } as const;
+export const StopTimeCallback = {
+  BOOBY_TRAP: `${STOP_TIME_CALLBACKS}:boobyTrap`,
+  MINE_SPOTTED: `${STOP_TIME_CALLBACKS}:mineSpotted`,
+} as const;
 export type StopTimeCallback = (typeof StopTimeCallback)[keyof typeof StopTimeCallback];
 
 export interface QuoteSaidRecord {

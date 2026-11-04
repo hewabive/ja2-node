@@ -4,10 +4,12 @@ import { itemId, objectOf } from '../../../tests/support/explosives.ts';
 import { testProfile } from '../../../tests/support/profiles.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { tacticalPromptView } from '../../server/tactical-prompt-view.ts';
 import type { SimEvent } from '../events.ts';
 import { type ItemObject, ObjectFlags } from '../items/object.ts';
 import { changeSoldierStance } from './animation.ts';
-import { Detonator, setBombOwner, setDetonator, setFrequency } from './bombs/bomb-object.ts';
+import { Detonator, ItemAction, setActionValue, setBombItem, setBombOwner, setDetonator, setFrequency } from './bombs/bomb-object.ts';
+import { hasMineFlag, MineFlag, setMineFlag } from './bombs/mine-flags.ts';
 import { continuePastBoobyTrap } from './booby-traps.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
@@ -42,6 +44,10 @@ const SOLDIER_OWNER_OFFSET = 2;
 const FREQUENCY = 3;
 const OTHER_FREQUENCY = 4;
 const TILES_AWAY = 6;
+const MINE_STATUS = 77;
+const DIG_UP_ROLL = 4;
+const DIG_UP_STATUS_SPREAD = 9;
+const ROOF_LEVEL = 1;
 
 const ZERO_GAINS: Record<StatKey, number> = {
   lifeMax: 0,
@@ -375,5 +381,178 @@ describe('an open tactical prompt', () => {
     expect(sim.dispatch({ type: 'answer', choice: 'maybe' })).toMatchObject({ data: { refusal: 'badChoice' } });
     expect(sim.dispatch({ type: 'answer', choice: 'no' })).toEqual({ ok: true });
     expect(sim.dispatch({ type: 'answer', choice: 'no' })).toMatchObject({ data: { refusal: 'noPrompt' } });
+  });
+});
+
+describe('the bomb under a tile our side knows to hold a mine (Handle_Items.cc HandleSoldierPickupItem, gfDisarmingBuriedBomb)', () => {
+  interface Burying {
+    readonly detonator?: number;
+    readonly action?: number;
+    readonly bombItem?: string;
+    readonly owner?: number;
+    readonly status?: number;
+  }
+
+  function bury(t: TacticalState, name: string, burying: Burying = {}, g = MERC_AT): WorldItem {
+    const o = objectOf(t, name, burying.status ?? 100);
+    o.trap = EASY_TRAP;
+    o.flags |= ObjectFlags.ARMED_BOMB;
+    setDetonator(o, burying.detonator ?? Detonator.PRESSURE);
+    setBombItem(o, burying.bombItem === undefined ? o.item : itemId(t, burying.bombItem));
+    if (burying.action !== undefined) setActionValue(o, burying.action);
+    if (burying.owner !== undefined) setBombOwner(o, burying.owner);
+    const wi = addItemToPool(t, g, o, Visibility.BURIED, 0, WorldItemFlags.ARMED_BOMB);
+    if (!wi) throw new Error(`cannot bury ${name}`);
+    setMineFlag(t, g, MineFlag.PLAYER);
+    return wi;
+  }
+
+  function disarmRolls(skill: number): number[] {
+    return [skill, ...Array.from({ length: ROLLS_PER_DIFFICULTY_DISARMED * EASY_TRAP }, () => NO_GAIN)];
+  }
+
+  function scriptedRandom(t: TacticalState, roll: number): number[] {
+    const asked: number[] = [];
+    const rng = t.rng as unknown as { int(n: number): number };
+    rng.int = (n: number) => {
+      asked.push(n);
+      return roll;
+    };
+    return asked;
+  }
+
+  it('asks to disarm it before the items lying there, naming no item, and charges no pickup APs', () => {
+    const { sim, t, merc } = scene();
+    spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    sim.lookAround();
+    const canteen = lay(t, objectOf(t, 'CANTEEN'));
+    const mine = bury(t, 'MINE');
+    const before = merc.actionPoints;
+    pickUp(sim);
+    expect(t.boobyTrap).toMatchObject({ soldier: merc, item: mine, gridNo: MERC_AT, level: 0, buried: true, difficulty: EASY_TRAP });
+    expect(tacticalPromptView(t)).toEqual({
+      id: t.prompt?.id,
+      kind: 'disarmTrap',
+      soldier: merc.id,
+      gridNo: MERC_AT,
+      buried: true,
+      choices: ['yes', 'no'],
+    });
+    expect(t.worldItems).toContain(canteen);
+    expect(merc.actionPoints).toBe(before);
+  });
+
+  it('digs up a mine as its bomb item at its bomb status, with 6 × trap explosives and COOL1, and takes the blue flag off', () => {
+    const { sim, t, merc } = scene();
+    const mine = bury(t, 'MINE', { status: MINE_STATUS });
+    pickUp(sim);
+    const asked = scriptedPre(t, disarmRolls(SURE_SUCCESS));
+    const events = answer(sim, 'yes');
+    expect(asked).toHaveLength(SKILL_CHECK_ROLLS + ROLLS_PER_DIFFICULTY_DISARMED * EASY_TRAP);
+    expect(events.find((e) => e.type === 'trapDisarmed')).toEqual(
+      expect.objectContaining({ soldier: merc.id, gridNo: MERC_AT, battleSound: 'COOL1' }),
+    );
+    expect(holds(merc, itemId(t, 'MINE'))).toMatchObject({ status: [MINE_STATUS], flags: 0, trap: 0 });
+    expect(t.worldItems).not.toContain(mine);
+    expect(t.worldBombs.some((b) => b.exists)).toBe(false);
+    expect(hasMineFlag(t, MERC_AT, MineFlag.PLAYER)).toBe(false);
+  });
+
+  it('digs up a switch as a remote bomb trigger and an action item that does not blow up as a detonator, at 1 + Random(9)', () => {
+    for (const [buried, dugUp] of [
+      [{ name: 'SWITCH', burying: {} }, 'REMOTEBOMBTRIGGER'],
+      [{ name: 'ACTION_ITEM', burying: { action: ItemAction.KLAXON } }, 'DETONATOR'],
+    ] as const) {
+      const { sim, t, merc } = scene();
+      bury(t, buried.name, buried.burying);
+      pickUp(sim);
+      scriptedPre(t, disarmRolls(SURE_SUCCESS));
+      const asked = scriptedRandom(t, DIG_UP_ROLL);
+      answer(sim, 'yes');
+      expect(asked).toEqual([DIG_UP_STATUS_SPREAD]);
+      expect(holds(merc, itemId(t, dugUp))).toMatchObject({ status: [1 + DIG_UP_ROLL] });
+    }
+  });
+
+  it('digs up a map minefield, an action item that blows up, as its bomb item', () => {
+    const { sim, t, merc } = scene();
+    bury(t, 'ACTION_ITEM', { action: ItemAction.BLOW_UP, bombItem: 'MINE', owner: 1 });
+    pickUp(sim);
+    scriptedPre(t, disarmRolls(SURE_SUCCESS));
+    answer(sim, 'yes');
+    expect(holds(merc, itemId(t, 'MINE'))).toMatchObject({ status: [100] });
+    expect(holds(merc, itemId(t, 'ACTION_ITEM'))).toBeUndefined();
+  });
+
+  it('sets off every bomb of the tile after a failed check, a remote one too, with 3 × trap explosives as a failure and CURSE1', () => {
+    const { sim, t, merc } = scene();
+    bury(t, 'MINE');
+    bury(t, 'TNT', { detonator: Detonator.REMOTE });
+    pickUp(sim);
+    const failed = Array.from({ length: ROLLS_PER_DIFFICULTY_FOUND * EASY_TRAP }, () => NO_GAIN);
+    const asked = scriptedPre(t, [SURE_FAILURE, ...failed]);
+    const events = answer(sim, 'yes');
+    expect(asked).toHaveLength(SKILL_CHECK_ROLLS + ROLLS_PER_DIFFICULTY_FOUND * EASY_TRAP);
+    expect(events.find((e) => e.type === 'trapSetOff')).toEqual(expect.objectContaining({ soldier: merc.id, battleSound: 'CURSE1' }));
+    expect(t.explosionQueue.entries.map((e) => e.bomb)).toEqual([0, 1]);
+  });
+
+  it('sets off nothing when the failed disarm is of a mine one of our mercs planted: our team never sets those off', () => {
+    const { sim, t, merc } = scene();
+    bury(t, 'MINE', { owner: merc.id + SOLDIER_OWNER_OFFSET });
+    pickUp(sim);
+    scriptedPre(t, [SURE_FAILURE, ...Array.from({ length: ROLLS_PER_DIFFICULTY_FOUND * EASY_TRAP }, () => NO_GAIN)]);
+    answer(sim, 'yes');
+    expect(t.explosionQueue.entries).toEqual([]);
+  });
+
+  it('asks on a no whether to take the blue flag off: yes takes it off, no leaves it', () => {
+    for (const choice of ['yes', 'no'] as const) {
+      const { sim, t, merc } = scene();
+      const mine = bury(t, 'MINE');
+      pickUp(sim);
+      expect(answer(sim, 'no')).toEqual([]);
+      expect(tacticalPromptView(t)).toEqual({
+        id: t.prompt?.id,
+        kind: 'removeBlueFlag',
+        soldier: merc.id,
+        gridNo: MERC_AT,
+        choices: ['yes', 'no'],
+      });
+      answer(sim, choice);
+      expect(hasMineFlag(t, MERC_AT, MineFlag.PLAYER)).toBe(choice === 'no');
+      expect(t.worldItems).toContain(mine);
+    }
+  });
+
+  it('leaves a dug-up bomb that does not fit on the ground, uncovered and no longer armed', () => {
+    const { sim, t, merc } = scene();
+    const mine = bury(t, 'MINE');
+    const crowbar = objectOf(t, 'CROWBAR');
+    for (let slot = 0; slot < merc.inv.length; slot++) if (slot !== InvSlot.HAND) merc.inv[slot] = { ...crowbar, attachments: [] };
+    pickUp(sim);
+    scriptedPre(t, disarmRolls(SURE_SUCCESS));
+    answer(sim, 'yes');
+    expect(t.worldItems).not.toContain(mine);
+    expect(t.worldItems.filter((wi) => wi.gridNo === MERC_AT)).toEqual([
+      expect.objectContaining({
+        object: expect.objectContaining({ item: itemId(t, 'MINE'), flags: 0 }),
+        visible: Visibility.VISIBLE,
+        flags: 0,
+      }),
+    ]);
+    expect(t.worldBombs.some((b) => b.exists)).toBe(false);
+  });
+
+  it('picks up as usual where our side marks a mine with no bomb under it on his level (the original throws)', () => {
+    for (const bombThere of [false, true]) {
+      const { sim, t, merc } = scene();
+      setMineFlag(t, MERC_AT, MineFlag.PLAYER);
+      if (bombThere) bury(t, 'MINE').level = ROOF_LEVEL;
+      lay(t, objectOf(t, 'CANTEEN'));
+      pickUp(sim);
+      expect(t.prompt).toBeNull();
+      expect(holds(merc, itemId(t, 'CANTEEN'))).toBeDefined();
+    }
   });
 });

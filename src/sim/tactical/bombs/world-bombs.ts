@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/World_Items.cc gWorldBombs, AddBombToWorld, RemoveBombFromWorldByItemIndex; World_Items.h
-// @src WORLDBOMB, FOR_EACH_WORLD_BOMB; TileEngine/Explosion_Control.cc FindActiveTimedBomb, ActiveTimedBombExists.
+// @src WORLDBOMB, FOR_EACH_WORLD_BOMB; TileEngine/Explosion_Control.cc FindActiveTimedBomb, ActiveTimedBombExists;
+// @src World_Items.cc FindWorldItemForBombInGridNo (2026-11-04).
 
 import type { TacticalState } from '../state.ts';
 import type { WorldItem } from '../world-items.ts';
@@ -29,6 +30,10 @@ export function removeBombFromWorld(t: Pick<TacticalState, 'worldBombs'>, item: 
 
 export function worldBombItems(t: Pick<TacticalState, 'worldBombs'>): WorldItem[] {
   return t.worldBombs.flatMap((b) => (b.exists ? [b.item] : []));
+}
+
+export function findWorldItemForBombInGridNo(t: Pick<TacticalState, 'worldBombs'>, g: number, level: number): WorldItem | null {
+  return worldBombItems(t).find((wi) => wi.gridNo === g && wi.level === level) ?? null;
 }
 
 export function isActiveTimedBomb(item: WorldItem): boolean {

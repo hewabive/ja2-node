@@ -32,12 +32,14 @@ const CORRIDOR = 4;
 const PLAYER_OWNED = 2;
 const ALARM_FREQUENCY = 52;
 const VEHICLE_ID = 120;
+const MAP_ACTION_ITEM_TRAP = 20;
 
 function actionItem(action: number, owner = 0): ItemObject {
   const o = createItem(content.items, content.items.byName.get('ACTION_ITEM')?.index ?? 0, 100);
   setDetonator(o, Detonator.PRESSURE);
   setActionValue(o, action);
   setBombOwner(o, owner);
+  o.trap = MAP_ACTION_ITEM_TRAP;
   return o;
 }
 
@@ -46,6 +48,7 @@ function trigger(name: 'ACTION_ITEM' | 'SWITCH', detonator: number, frequency: n
   setDetonator(o, detonator);
   setActionValue(o, action);
   setFrequency(o, frequency);
+  o.trap = MAP_ACTION_ITEM_TRAP;
   return o;
 }
 

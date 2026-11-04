@@ -21,6 +21,11 @@ function disarmTrapView(t: TacticalState, id: string): TacticalPromptView {
   };
 }
 
+function blueFlagView(t: TacticalState, id: string, kind: 'placeBlueFlag' | 'removeBlueFlag'): TacticalPromptView {
+  const trap = t.boobyTrap;
+  return { id, kind, soldier: trap.soldier?.id ?? -1, gridNo: trap.gridNo, choices: [...YES_NO_CHOICES] };
+}
+
 export function tacticalPromptView(t: TacticalState | null | undefined): TacticalPromptView | null {
   const prompt = t?.prompt;
   if (!t || !prompt) return null;
@@ -31,5 +36,8 @@ export function tacticalPromptView(t: TacticalState | null | undefined): Tactica
       const ours = prompt.soldier.team === Team.OUR ? { soldier: prompt.soldier.id } : {};
       return { id: prompt.id, kind: 'activateSwitch', ...ours, choices: [...YES_NO_CHOICES] };
     }
+    case TacticalPromptKind.PLACE_BLUE_FLAG:
+    case TacticalPromptKind.REMOVE_BLUE_FLAG:
+      return blueFlagView(t, prompt.id, prompt.kind);
   }
 }

@@ -8,7 +8,8 @@
 // @src EVENT_InternalSetSoldierDestination (2026-11-01); the end of aim and the EPC's uncower of
 // @src EVENT_InternalGetNewSoldierPath, the door-step halt of HandleGotoNewGridNo and HandleNextTileWaiting's forced swap
 // @src through SwapMercPositions (2026-11-01); the place of the blind and drunk falls after the gas check (2026-11-04);
-// @src HandleAtNewGridNo's walk-off return, breath collapse and mines (2026-11-04).
+// @src HandleAtNewGridNo's walk-off return, breath collapse and mines (2026-11-04); the CheckIfNearbyGroundSeemsWrong of
+// @src HandleGotoNewGridNo (the next tile) and HandleAtNewGridNo (the tiles around, 2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -33,6 +34,7 @@ import {
   TurningFromProne,
 } from './animation.ts';
 import { setOffBombsInGridNo } from './bombs/bomb-queue.ts';
+import { checkIfNearbyGroundSeemsWrong } from './bombs/mine-detection.ts';
 import { checkForBreathCollapse } from './breath-collapse.ts';
 import { INVALID_ANIMATION, pickSoldierReadyAnimation } from './combat/attack.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
@@ -355,6 +357,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     s.endDoorOpenCode = 0;
     return { ok: false, keepMoving: true };
   }
+  const stoppedBySuspiciousGround = checkIfNearbyGroundSeemsWrong(t, s, next, false);
   if (s.noAPToFinishMove && !initial) {
     s.endDoorOpenCode = 0;
     return { ok: true, keepMoving: false };
@@ -374,7 +377,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
   reverseCreatureThatCannotTurn(t, s, direction);
   setSoldierDestination(t, s, direction, animState, initial);
   adjustNoAPToFinishMove(s, false);
-  return { ok: true, keepMoving: true };
+  return { ok: true, keepMoving: !stoppedBySuspiciousGround };
 }
 
 function creatureBackwardsState(s: Soldier): string | null {
@@ -560,6 +563,7 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
     adjustNoAPToFinishMove(s, true);
     keepMoving = false;
   }
+  if (checkIfNearbyGroundSeemsWrong(t, s, s.gridNo, true)) keepMoving = false;
   t.hooks.newAiSituation(t, s);
   handleEscortArrival(t, s);
   assassinStepsCloseToPc(t, s);

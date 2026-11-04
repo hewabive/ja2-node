@@ -3,7 +3,7 @@
 // @src src/game/MessageBoxScreen.cc DoMessageBox (a box asked for while one is up is not shown), ExitMsgBox (the box is
 // @src gone before its callback runs); the MSG_BOX_FLAG_YESNO boxes of Tactical/Handle_Items.cc and the globals their
 // @src callbacks read: gpBoobyTrapSoldier, g_booby_trap_item, gsBoobyTrapGridNo, gbBoobyTrapLevel, gfDisarmingBuriedBomb,
-// @src gbTrapDifficulty, gfJustFoundBoobyTrap.
+// @src gbTrapDifficulty, gfJustFoundBoobyTrap; PLACE_BLUE_FLAG_PROMPT and REMOVE_BLUE_FLAG_PROMPT (2026-11-04).
 
 import type { CommandRefused } from '../command.ts';
 import { refuse } from './refusal.ts';
@@ -11,11 +11,21 @@ import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import type { WorldItem } from './world-items.ts';
 
-export const TacticalPromptKind = { DISARM_TRAP: 'disarmTrap', ACTIVATE_SWITCH: 'activateSwitch' } as const;
+export const TacticalPromptKind = {
+  DISARM_TRAP: 'disarmTrap',
+  ACTIVATE_SWITCH: 'activateSwitch',
+  PLACE_BLUE_FLAG: 'placeBlueFlag',
+  REMOVE_BLUE_FLAG: 'removeBlueFlag',
+} as const;
 export type TacticalPromptKind = (typeof TacticalPromptKind)[keyof typeof TacticalPromptKind];
 
+type BoobyTrapPromptKind =
+  | typeof TacticalPromptKind.DISARM_TRAP
+  | typeof TacticalPromptKind.PLACE_BLUE_FLAG
+  | typeof TacticalPromptKind.REMOVE_BLUE_FLAG;
+
 export type TacticalPrompt =
-  | { readonly id: string; readonly kind: typeof TacticalPromptKind.DISARM_TRAP }
+  | { readonly id: string; readonly kind: BoobyTrapPromptKind }
   | {
       readonly id: string;
       readonly kind: typeof TacticalPromptKind.ACTIVATE_SWITCH;

@@ -47,6 +47,10 @@ const TOLERANCE_SHIFT = 24;
 const NO_FREQUENCY = 0;
 const SOLDIER_OWNER_OFFSET = 2;
 
+export function bombStatusOf(o: ItemObject): number {
+  return i8(o.status[0] ?? 0);
+}
+
 export function detonatorOf(o: ItemObject): number {
   return i8(o.gunAmmoType);
 }

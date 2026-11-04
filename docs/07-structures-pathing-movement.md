@@ -95,7 +95,9 @@ charged while walking. Sight at each arrival uses the facing of that moment.
 returns before noise and sight: while any squad walks off the map or to an exit grid, every soldier's arrival stops there,
 the enemies' too, so walkers make no noise and nobody looks; a soldier at 0 breath is marked to collapse and walks on
 until his animation lets him; a mine or pressure item under him goes into the bomb queue, and if it is an explosive he
-stops (`12` §6). The landing behind a jumped fence sets off the mines of its tile as well (code 444).
+stops (`12` §6). The landing behind a jumped fence sets off the mines of its tile as well (code 444). Every soldier
+checks the tile ahead for a mine before each step, and the tiles around after the arrival's sight; one who notices a
+mine stops (`bombs/mine-detection.ts`, `12` §6).
 
 **Falls.** From the second step of a move, after the gas check, a blinded runner and then a soldier who is DRUNK
 (`12` §5) may trip over (`tripsAndFalls`, `falls.ts`; `Tactical/Overhead.cc:1499`): he collapses where he stands, loses
@@ -103,8 +105,9 @@ some APs and the move ends there. The player hears his curse and reads the origi
 our soldiers and those the squad sees (deviation "Falls out of sight").
 
 **Randomness.** The path search draws nothing. Walking draws only what the ported steps draw (the gas check's
-`PreRandom(5)`, the falls' `Random(5)` rolls with the fall itself, and the sight of a soldier a swap moves); the marbles
-and the forgetful counter are not ported, so their draws do not happen (gaps "Walking side effects").
+`PreRandom(5)`, the falls' `Random(5)` rolls with the fall itself, the trap detect level's `PreRandom(3)` of a bleeding
+or shocked soldier at both mine checks of a step, and the sight of a soldier a swap moves); the marbles and the forgetful
+counter are not ported, so their draws do not happen (gaps "Walking side effects").
 
 **Swaps.** The head-on swap of two blocked AI soldiers, the forced swap of a soldier's third wait and the player's
 exchange of places all go through `swapMercPositions` (`teleport.ts`): both destinations are tested, and the soldier

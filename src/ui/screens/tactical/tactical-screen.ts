@@ -65,7 +65,9 @@
 // @src click opens no panel); Overhead_Map.cc HandleOverheadMap (gSelectedGuy lights our merc's face);
 // @src Radar_Screen.cc RadarRegionMoveCallback (a drag on the radar moves the view, under the overhead map too),
 // @src RadarRegionButtonCallbackPrimary (the release centres the view there, or closes the overhead map),
-// @src RadarRegionButtonCallbackSecondary (the right click opens or closes the overhead map) (2026-11-04).
+// @src RadarRegionButtonCallbackSecondary (the right click opens or closes the overhead map) (2026-11-04);
+// @src Overhead.cc CheckIfNearbyGroundSeemsWrong's LocateGridNo and Handle_Items.cc MineSpottedDialogueCallBack's item
+// @src locator at the spotted mine (2026-11-04).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -256,6 +258,7 @@ export class TacticalScreen implements Screen {
   readonly #blinkCounters = new Map<number, TimeCounter>();
   readonly #itemLocators = new ItemLocators();
   readonly #corpseLocator = new MultiPurposeLocator();
+  readonly #mineLocators = new ItemLocators();
   #itemLocatorsLocked = false;
   readonly #log = new TacticalMessageLog();
   readonly #topBar = new TopBar();
@@ -1062,6 +1065,7 @@ export class TacticalScreen implements Screen {
     if (listed) this.#itemLocators.remove(listed);
     this.#itemLocators.removeWhere((pool) => itemPool(view?.items, pool.gridNo, pool.level).length === 0);
     this.#itemLocators.step(this.#now, this.#itemLocatorsLocked, this.#env.runtime.clock.paused);
+    this.#mineLocators.step(this.#now, this.#itemLocatorsLocked, this.#env.runtime.clock.paused);
     this.#corpseLocator.step(this.#now);
   }
 
@@ -1394,6 +1398,12 @@ export class TacticalScreen implements Screen {
         return;
       case 'itemsLocated':
         this.controls.slideTo(event.gridNo);
+        return;
+      case 'trapSpotted':
+        if (event.kind === 'ground') this.#env.world.locate(event.gridNo);
+        return;
+      case 'mineLocator':
+        this.#mineLocators.add(event, this.#now);
         return;
       case 'corpseLocated':
         this.#corpseLocator.begin(event);
@@ -2239,6 +2249,7 @@ export class TacticalScreen implements Screen {
     const radio = view.model.asset(String(params.radio)).path;
     const hostileRadio = view.model.asset(String(params.hostileRadio)).path;
     for (const locator of this.#itemLocators.shown()) this.#drawItemLocator(list, radio, locator);
+    for (const locator of this.#mineLocators.shown()) this.#drawTileLocator(list, radio, locator, 0);
     const corpse = this.#corpseLocator.shown();
     if (corpse) this.#drawTileLocator(list, radio, corpse, 0);
     for (const s of this.#view()?.soldiers ?? []) this.#aboveGuy(list, s, top, font, radio, hostileRadio);

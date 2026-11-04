@@ -16,7 +16,8 @@
 // @src once with NotifySoldiersToLookforItems), Soldier_Ani.cc code 763 (2026-11-03); PickPickupAnimation's turn to a
 // @src raised or openable structure on his own tile (2026-11-04); SoldierGetItemFromWorld's ContinuePastBoobyTrap stop,
 // @src the ACTIVATE_SWITCH_PROMPT box for a SWITCH left on the ground and no GOTIT after the booby-trap quote,
-// @src SwitchMessageBoxCallBack (2026-11-04).
+// @src SwitchMessageBoxCallBack (2026-11-04); HandleSoldierPickupItem's DISARM_TRAP_PROMPT for the bomb under a tile our
+// @src side knows to hold a mine, through World_Items.cc FindWorldItemForBombInGridNo (2026-11-04).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -44,7 +45,9 @@ import {
 } from './animation.ts';
 import { frequencyOf } from './bombs/bomb-object.ts';
 import { setOffBombsByFrequency } from './bombs/bomb-queue.ts';
-import { continuePastBoobyTrap } from './booby-traps.ts';
+import { hasMineFlag, MineFlag } from './bombs/mine-flags.ts';
+import { findWorldItemForBombInGridNo } from './bombs/world-bombs.ts';
+import { askToDisarmBuriedBomb, continuePastBoobyTrap } from './booby-traps.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
@@ -229,10 +232,19 @@ function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
     soldierGetItemFromWorld(t, s, pending);
     return;
   }
+  const buriedBomb = knownMineAt(t, pending.gridNo, s.level);
+  if (buriedBomb) {
+    askToDisarmBuriedBomb(t, s, buriedBomb, pending.gridNo);
+    return;
+  }
   const allHidden = pool.every((wi) => wi.visible === Visibility.HIDDEN_ITEM);
   if (pickupCandidates(t, s, pending.gridNo, pending.zLevel).length > 0) soldierGetItemFromWorld(t, s, pending);
   else if (allHidden && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
   else sayNothingFound(t, s, pending.gridNo);
+}
+
+function knownMineAt(t: TacticalState, g: number, level: number): WorldItem | null {
+  return hasMineFlag(t, g, MineFlag.PLAYER) ? findWorldItemForBombInGridNo(t, g, level) : null;
 }
 
 function sayNothingFound(t: TacticalState, s: Soldier, gridNo: number): void {

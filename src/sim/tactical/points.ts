@@ -259,7 +259,7 @@ export interface PointsContext {
 
 export function doorTravelCost(
   ctx: PointsContext,
-  s: Soldier,
+  s: Soldier | null,
   g: number,
   cost: number,
   perceived: boolean,
@@ -267,8 +267,9 @@ export function doorTravelCost(
 ): number {
   if (!isDoorTravelCost(cost)) return cost;
   const ref = doorObstacleIfClosed(cost, g);
+  const cannotOpenDoors = s?.monsterOrAnimal ?? false;
   let replacement = ref.obstacleIfClosed ? TravelCost.DOOR : cost;
-  if (s.monsterOrAnimal) replacement = TravelCost.OBSTACLE;
+  if (cannotOpenDoors) replacement = TravelCost.OBSTACLE;
   const state = doorState(ctx.env, ref.door, perceived);
   let open: boolean;
   if (ref.door2 === -1) {
@@ -282,9 +283,9 @@ export function doorTravelCost(
   }
   if (open) return ref.obstacleIfClosed ? terrainCost(ctx.env.world, g) : replacement;
   if (!ref.obstacleIfClosed) return terrainCost(ctx.env.world, g);
-  if (perceived || s.monsterOrAnimal) return replacement;
+  if (perceived || cannotOpenDoors) return replacement;
   const door = ctx.env.world.mapDoors.get(ref.door);
-  return door && (!door.locked || s.hasKeys) && !returnDoorCost ? terrainCost(ctx.env.world, g) : replacement;
+  return door && (!door.locked || s?.hasKeys) && !returnDoorCost ? terrainCost(ctx.env.world, g) : replacement;
 }
 
 export function terrainActionPoints(ctx: PointsContext, s: Soldier, g: number, dir: number, level: number): number {

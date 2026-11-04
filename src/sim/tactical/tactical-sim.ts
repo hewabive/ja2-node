@@ -66,7 +66,8 @@ import {
   states,
 } from './animation.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
-import { answerDisarmTrap, boobyTrapDialogueCallBack } from './booby-traps.ts';
+import { answerPlaceBlueFlag, mineSpottedDialogueCallBack } from './bombs/mine-detection.ts';
+import { answerDisarmTrap, answerRemoveBlueFlag, boobyTrapDialogueCallBack } from './booby-traps.ts';
 import { generateBuildings } from './buildings.ts';
 import { enoughAmmo, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
@@ -614,6 +615,7 @@ export class TacticalSim {
 
   runStopTimeCallback(name: string): void {
     if (name === StopTimeCallback.BOOBY_TRAP) boobyTrapDialogueCallBack(this.state);
+    else if (name === StopTimeCallback.MINE_SPOTTED) mineSpottedDialogueCallBack(this.state);
   }
 
   #answer(cmd: TacticalCommand): CommandResult {
@@ -626,6 +628,12 @@ export class TacticalSim {
         break;
       case TacticalPromptKind.ACTIVATE_SWITCH:
         answerActivateSwitch(t, answer.prompt, answer.yes);
+        break;
+      case TacticalPromptKind.PLACE_BLUE_FLAG:
+        answerPlaceBlueFlag(t, answer.yes);
+        break;
+      case TacticalPromptKind.REMOVE_BLUE_FLAG:
+        answerRemoveBlueFlag(t, answer.yes);
         break;
     }
     return { ok: true };

@@ -320,7 +320,7 @@ sector entry and a native import add again, most wall end pieces; `object` at th
 destroyed structure's debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
 draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
 took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `knownMines` lists the tiles our side
-knows to hold a mine (a blue flag, and from later ports our own planted mines and the mines militia spot), which the
+knows to hold a mine (a blue flag, a mine the militia spotted, and from a later port our own planted mines), which the
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
 levels, bomb timers and owners are never shown (`12` §6). Animation schedules, palettes and light sprites serve the
 renderer and the devtools.
@@ -344,7 +344,8 @@ ours turning to shoot, our merc hit in combat, the seen NPC a trigger waits for,
 our merc who sights an enemy on the enemy's turn; with `slide` the view slides: to that enemy while the squad sees him,
 and to an opponent turning visible in combat or before the sector's first sighting, `Tactical/OppList.cc:1916`, `:2440`;
 deviation "Locates of unseen soldiers"), the items' tile the view slides to as the items-seen quote starts or an escort
-sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a rotting corpse a merc comments on
+sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a mine a merc of ours spotted, after
+his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3154`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
 (`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), the portrait flash of a seen soldier hurt by
 bleeding, gas or electricity (`damageFeedback {soldier}`, `Tactical/Soldier_Control.cc:8770`) and the interface level
 the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
@@ -419,15 +420,30 @@ usable weapon who sees the merc may draw first on an `attack` made with a weapon
 is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
 of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
 
-**Booby traps and switches** (`12` §6). A pickup stops at a trapped item: a merc who does not notice the trap sets it
+**Booby traps, switches and mines** (`12` §6). A pickup stops at a trapped item: a merc who does not notice the trap sets it
 off (`trapSetOff`, a mini grenade with nobody as its owner), one who notices it (`trapSpotted {kind: item}`) warns with
 his booby-trap line and the `disarmTrap` prompt opens once the line is said; a trap known before asks at once. `yes`
 takes his disarm check: the item comes untrapped into his pockets, or stays on the ground when they are full
 (`trapDisarmed`), or the trap goes off (`trapSetOff` with CURSE1); `no` leaves it. A switch is not picked up:
 `activateSwitch` asks, and `yes` fires its frequency (`switchActivated`, the original's line). The pickup's APs are paid
-all the same. These prompts belong to the loaded sector and come in `observe.prompt` of the sandbox too:
-`disarmTrap {id, soldier, gridNo, buried, item?, choices}` (`item` names a trap the merc can see) and `activateSwitch
-{id, soldier?, choices}` (`soldier` when he is ours), both with `yes` and `no`. As with the original's message boxes,
+all the same.
+
+Every soldier checks for mines as he walks: the tile ahead before each step, the tiles around after each arrival. A
+pressure-triggered bomb within his trap detect level stops him. Our merc stops with the whole squad out of combat,
+`trapSpotted {kind: ground}` names the mine's tile, where the view moves, and he warns with his suspicious-ground line;
+then `mineLocator` and the `placeBlueFlag` prompt: `yes` puts a blue flag there (a tile change, and the tile joins
+`knownMines`), `no` leaves the mine known but unmarked, so nobody warns of it again and paths do not avoid it. A merc
+with a metal detector anywhere in his pockets flags the mines of trap level 10 or less he finds at once, without a word;
+an enemy carrying one does the same for us. A `pickUp` or search on a tile in `knownMines` asks `disarmTrap` with
+`buried` for the bomb under it, before the items there and without the pickup's APs: `yes` takes his disarm check,
+which digs the bomb up into his pockets, or onto the ground when they are full (a switch comes up as a remote bomb
+trigger, another action item as a detonator), and takes the blue flag off (`trapDisarmed`), or sets off every bomb of
+the tile (`trapSetOff` with CURSE1); `no` asks `removeBlueFlag`.
+
+These prompts belong to the loaded sector and come in `observe.prompt` of the sandbox too:
+`disarmTrap {id, soldier, gridNo, buried, item?, choices}` (`item` names a trap the merc can see), `activateSwitch
+{id, soldier?, choices}` (`soldier` when he is ours), `placeBlueFlag {id, soldier, gridNo, choices}` and
+`removeBlueFlag {id, soldier, gridNo, choices}`, all with `yes` and `no`. As with the original's message boxes,
 one is open at a time and a second one asked for meanwhile is never shown. While the merc warns, the game stands as the
 original's does: one more tactical frame, then only the line and the clocks run until it ends, and commands are refused
 with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt opens at once.

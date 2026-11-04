@@ -37,8 +37,8 @@ import {
 } from '../lighting/lighting.ts';
 import { handleBuildingDestruction } from '../narrative/minor-offenses.ts';
 import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
-import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
+import { doorTravelCost, type PointsContext } from '../points.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import type { Soldier } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
@@ -273,29 +273,13 @@ function blockingStructureInfo(t: TacticalState, g: number, dir: number, level: 
   return { blocking: minimum ? Blocking.REDUCE_RANGE : Blocking.NEXT_TILE, height: structureHeight(last), structure: last };
 }
 
-function doorCostWithoutSoldier(t: TacticalState, g: number, cost: number): number {
-  const ref = doorObstacleIfClosed(cost, g);
-  const replacement = ref.obstacleIfClosed ? TravelCost.DOOR : cost;
-  const state = doorState(t.pathEnv, ref.door, false);
-  let open: boolean;
-  if (ref.door2 === -1) {
-    if (!has(state, StructureFlags.ANYDOOR)) return cost;
-    open = has(state, StructureFlags.OPEN);
-  } else {
-    const state2 = doorState(t.pathEnv, ref.door2, false);
-    if (!has(state, StructureFlags.ANYDOOR) && !has(state2, StructureFlags.ANYDOOR)) return cost;
-    if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) return replacement;
-    open = true;
-  }
-  if (open) return ref.obstacleIfClosed ? terrainCost(t.pathWorld, g) : replacement;
-  if (!ref.obstacleIfClosed) return terrainCost(t.pathWorld, g);
-  const door = t.pathWorld.mapDoors.get(ref.door);
-  return door && !door.locked ? terrainCost(t.pathWorld, g) : replacement;
+function pointsContext(t: TacticalState): PointsContext {
+  return { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
 }
 
 function travelCostObstacle(t: TacticalState, g: number, dir: number, level: number): boolean {
   const cost = t.world.costs.get(g, dir, level);
-  if (isDoorTravelCost(cost)) return doorCostWithoutSoldier(t, g, cost) >= TravelCost.BLOCKED;
+  if (isDoorTravelCost(cost)) return doorTravelCost(pointsContext(t), null, g, cost, false, false) >= TravelCost.BLOCKED;
   return cost === TravelCost.WALL;
 }
 
