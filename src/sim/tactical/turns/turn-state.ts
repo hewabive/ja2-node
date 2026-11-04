@@ -4,9 +4,9 @@
 // @src OppList.cc gbSeenOpponents, watched locations; Overhead.cc gfPauseAllAI, guiPauseAllAITimer; Overhead.h
 // @src ENEMY_OFFERED_SURRENDER; Soldier_Profile.cc gfPotentialTeamChangeDuringDeath; Overhead_Types.h fKilledEnemyOnAttack,
 // @src enemy_killed_on_attack, enemy_killed_on_attack_killer, ubEnemyKilledOnAttackLocation, bEnemyKilledOnAttackLevel
-// @src (2026-10-30).
+// @src (2026-10-30); usItemsSeenOnAttackGridNo (2026-11-03).
 
-import type { Soldier } from '../soldier.ts';
+import { NOWHERE, type Soldier } from '../soldier.ts';
 import type { AiProgress, TopMessage } from './top-message.ts';
 
 export const TEAM_COUNT = 6;
@@ -53,6 +53,7 @@ export interface TurnState {
   enemySightingOnTheirTurn: { enemy: Soldier; since: number } | null;
   killedEnemyOnAttack: EnemyKilledOnAttack | null;
   itemsSeenOnAttack: Soldier | null;
+  itemsSeenOnAttackGridNo: number;
   lockItemLocators: boolean;
   killingGuysForLosingBattle: boolean;
   checkSightAtEndOfAttack: boolean;
@@ -96,6 +97,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     enemySightingOnTheirTurn: null,
     killedEnemyOnAttack: null,
     itemsSeenOnAttack: null,
+    itemsSeenOnAttackGridNo: NOWHERE,
     lockItemLocators: false,
     killingGuysForLosingBattle: false,
     checkSightAtEndOfAttack: false,

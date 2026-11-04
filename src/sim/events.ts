@@ -70,6 +70,23 @@ export interface SoldierLocatedEvent extends SimEventBase {
   readonly type: 'soldierLocated';
   readonly soldier: number;
   readonly locator: SoldierLocator;
+  readonly slide?: true;
+}
+
+export interface ItemsLocatedEvent extends SimEventBase {
+  readonly type: 'itemsLocated';
+  readonly gridNo: number;
+}
+
+export interface CorpseLocatedEvent extends SimEventBase {
+  readonly type: 'corpseLocated';
+  readonly gridNo: number;
+  readonly level: number;
+}
+
+export interface DamageFeedbackEvent extends SimEventBase {
+  readonly type: 'damageFeedback';
+  readonly soldier: number;
 }
 
 export interface InterfaceLevelEvent extends SimEventBase {
@@ -664,6 +681,9 @@ export type SimEvent =
   | InterruptEvent
   | AiTurnEvent
   | SoldierLocatedEvent
+  | ItemsLocatedEvent
+  | CorpseLocatedEvent
+  | DamageFeedbackEvent
   | InterfaceLevelEvent
   | EnemyTurnProgressEvent
   | InterruptEndedEvent

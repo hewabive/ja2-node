@@ -6,11 +6,13 @@ import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
-import { type Soldier, Team } from '../soldier.ts';
+import { type Soldier, TEAM_FIRST_ID, Team, Visible } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
 import { calcSoldierNextBleed } from './bleeding.ts';
 import { beginSoldierGetup } from './death.ts';
+import { soldierTakeDamage } from './hit.ts';
+import { DamageReason } from './types.ts';
 
 let content: TacticalContent;
 
@@ -257,5 +259,43 @@ describe('getting up at turn start', () => {
     expect(s.collapsed).toBe(true);
     expect(s.breath).toBe(0);
     expect(s.sleepDrugCounter).toBe(4);
+  });
+});
+
+describe('the damage feedback (Soldier_Control.cc HandleSoldierTakeDamageFeedback)', () => {
+  const feedback = (sim: TacticalSim) => sim.state.events.filter((e) => e.type === 'damageFeedback');
+
+  it('flashes the portrait of a merc who bleeds a point of life', () => {
+    const sim = newCombatSim(content);
+    sim.state.inCombat = true;
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 50 });
+    s.lifeMax = 80;
+    s.bleeding = 30;
+    s.nextBleed = 1;
+    beginMercTurn(sim.state, s);
+    expect(feedback(sim)).toEqual([{ type: 'damageFeedback', soldier: s.id }]);
+  });
+
+  it('follows gas and electric damage, breath only included, but not a hit', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 50 });
+    soldierTakeDamage(sim.state, s, 0, 500, DamageReason.GAS, null);
+    soldierTakeDamage(sim.state, s, 2, 0, DamageReason.ELECTRICITY, null);
+    soldierTakeDamage(sim.state, s, 2, 0, DamageReason.GUNFIRE, null);
+    expect(feedback(sim)).toEqual([
+      { type: 'damageFeedback', soldier: s.id },
+      { type: 'damageFeedback', soldier: s.id },
+    ]);
+  });
+
+  it('is sent for a soldier the squad sees, not for one out of sight', () => {
+    const sim = newCombatSim(content);
+    const seen = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY] ?? 20, Team.ENEMY, gridNo(80, 84), Direction.SOUTH);
+    const unseen = spawnSoldier(sim, (TEAM_FIRST_ID[Team.ENEMY] ?? 20) + 1, Team.ENEMY, gridNo(80, 88), Direction.SOUTH);
+    seen.visible = Visible.SEEN;
+    unseen.visible = Visible.HIDDEN;
+    soldierTakeDamage(sim.state, seen, 1, 0, DamageReason.GAS, null);
+    soldierTakeDamage(sim.state, unseen, 1, 0, DamageReason.GAS, null);
+    expect(feedback(sim)).toEqual([{ type: 'damageFeedback', soldier: seen.id }]);
   });
 });

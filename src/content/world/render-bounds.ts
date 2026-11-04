@@ -30,7 +30,7 @@ export interface WorldXY {
   readonly y: number;
 }
 
-const ROOF_LEVEL_HEIGHT = 50;
+export const ROOF_LEVEL_HEIGHT = 50;
 const CENTER_WORLD_X = 800;
 const CENTER_WORLD_Y = 800;
 const MAP_CENTER_SCREEN_X = 0;

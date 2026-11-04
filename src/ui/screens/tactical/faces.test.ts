@@ -95,6 +95,23 @@ describe('the portrait flash of a merc being hit (HandleAutoFaces)', () => {
   });
 });
 
+describe('the portrait flash at bleeding, gas and electric damage (Soldier_Control.cc FlashSoldierPortrait)', () => {
+  const FLASH_STEP_MS = 150;
+
+  it('starts the flash again from its first shade, even mid-flash, and stops it with no hit to hold it', () => {
+    const images = catalog();
+    const face = new FaceAnimator(RECORD, 0, () => 0);
+    const merc = { id: 2, life: 60, ap: 5 } as SoldierView;
+    face.flash(0);
+    face.update(FLASH_STEP_MS, merc, null, images);
+    expect(face.shade(merc, true)).toBe(FaceShade.ENDSHADE);
+    face.flash(FLASH_STEP_MS);
+    expect(face.shade(merc, true)).toBe(FaceShade.STARTSHADE);
+    face.update(3 * FLASH_STEP_MS, merc, null, images);
+    expect(face.shade(merc, true)).toBe(FaceShade.NOSHADE);
+  });
+});
+
 describe('the face highlight', () => {
   const at = 1000;
   const merc = { id: 2, life: 60, gridNo: at, destination: at } as SoldierView;

@@ -3,7 +3,7 @@ import { type FakeHost, fakeHost, LOCK_PAUSE_MERC_TALKING, testSoldier } from '.
 import { Assignment } from '../strategic/economy/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import type { PathEnv } from '../tactical/pathfinding.ts';
-import { type Soldier, Team } from '../tactical/soldier.ts';
+import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { finishTalkingFace, shutUpTalkingFace, stepDialogue } from './converse.ts';
 import {
@@ -25,6 +25,7 @@ const MERC_PROFILE = 5;
 const OTHER_PROFILE = 6;
 const MERC_AT = 12_880;
 const OTHER_AT = 12_890;
+const ITEMS_AT = 12_884;
 const SPOTTED_SOMETHING_TWO = 12;
 const CONSCIOUS_BUT_DYING = 12;
 const LINE_BUDGET = 1000;
@@ -57,7 +58,7 @@ describe('the items-seen quote (Overhead.cc MakeCharacterDialogueEventSignalItem
     const host = fakeHost({ soldiers: [merc], draws: [1] });
     const t = tacticalOf(host);
     t.turn.lockItemLocators = true;
-    signalItemLocatorStart(host, merc);
+    signalItemLocatorStart(host, merc, ITEMS_AT);
     expect(host.drawsTaken).toEqual([]);
     expect(t.turn.lockItemLocators).toBe(true);
     stepDialogue(host);
@@ -65,6 +66,24 @@ describe('the items-seen quote (Overhead.cc MakeCharacterDialogueEventSignalItem
     expect(t.turn.lockItemLocators).toBe(false);
     expect(host.emitted).toContainEqual(expect.objectContaining({ type: 'mercQuote', soldier: merc.id, id: SPOTTED_SOMETHING_TWO }));
     expect(host.talk.queue).toEqual([]);
+  });
+
+  it('slides the view to the items it was queued for as it starts, before the line (SlideToLocation)', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc], draws: [0] });
+    signalItemLocatorStart(host, merc, ITEMS_AT);
+    expect(host.emitted).toEqual([]);
+    stepDialogue(host);
+    expect(host.emitted.map((e) => e.type)).toEqual(['itemsLocated', 'mercQuote']);
+    expect(host.emitted[0]).toEqual({ type: 'itemsLocated', gridNo: ITEMS_AT });
+  });
+
+  it('slides nowhere for a quote queued before the tile was kept (an older snapshot)', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc], draws: [0] });
+    signalItemLocatorStart(host, merc, NOWHERE);
+    stepDialogue(host);
+    expect(host.emitted.map((e) => e.type)).toEqual(['mercQuote']);
   });
 });
 
@@ -294,7 +313,7 @@ describe('the map screen pause for a line (Dialogue_Control.cc DialogueEventQuot
   it("pauses only for a queued quote: the alternate file's line, the items-seen line and a merc's trigger line play unpaused", () => {
     const { host, merc } = mercOnTheMap();
     characterDialogueUsingAlternateFile(host, MERC_PROFILE, GUIDE_QUOTE);
-    signalItemLocatorStart(host, merc);
+    signalItemLocatorStart(host, merc, ITEMS_AT);
     addDialogueEvent(host, { kind: 'pcTriggerNpc', speaker: MERC_PROFILE, quote: MercQuote.HEADSHOT, npc: OTHER_PROFILE, record: 0 });
     expect(pausesWhileTheQueueRuns(host).some(Boolean)).toBe(false);
     expect(mercQuotesSaid(host)).toHaveLength(3);

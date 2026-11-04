@@ -330,9 +330,9 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
         }
         if (blocking === Blocking.TOPLEFT_DOOR || blocking === Blocking.TOPRIGHT_DOOR) goneThroughDoor = 1;
         if (revealItems) {
-          lookForAndMayCommentOnSeeingCorpse(t, s, marker);
+          lookForAndMayCommentOnSeeingCorpse(t, s, marker, level);
           if (setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators)
-            itemsQuoteSaid = noticeRevealedItems(t, s, itemsQuoteSaid);
+            itemsQuoteSaid = noticeRevealedItems(t, s, marker, itemsQuoteSaid);
         }
         tilesLeftToSee--;
         if (tilesLeftToSee <= 0) break;

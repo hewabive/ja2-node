@@ -10,7 +10,8 @@
 // @src TurnOffTeamsMuzzleFlashes, DecideTrueVisibility (ManSeesMan's first-battle fact through the narrative
 // @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT; RadioSightings
 // @src and HandleSight with gfPlayerTeamSawCreatures and the first creature sighting's quote (2026-10-30); ManLooksForMan's
-// @src fMercAsleep (2026-10-31).
+// @src fMercAsleep (2026-10-31); ManSeesMan's SlideTo to an opponent turning visible in combat or in a virgin sector
+// @src (2026-11-03).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv, u8 } from '../../../core/int.ts';
@@ -441,8 +442,16 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
     const locate = opp.visible === -1;
     opp.visible = 1;
     cancelFadeOnSighting(t, opp);
-    if (locate) setSoldierAniSpeed(t, opp);
+    if (locate) {
+      setSoldierAniSpeed(t, opp);
+      slideToSightedOpponent(t, s, opp);
+    }
   } else if (s.team !== Team.OUR) reevaluateEnemyStance(t, s, s.state);
+}
+
+function slideToSightedOpponent(t: TacticalState, s: Soldier, opp: Soldier): void {
+  if (!(t.inCombat || t.turn.virginSector) || opp.neutral || s.side === opp.side) return;
+  t.events.push({ type: 'soldierLocated', soldier: opp.id, locator: 'normal', slide: true });
 }
 
 export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, caller: number): boolean {

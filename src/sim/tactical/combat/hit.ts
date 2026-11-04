@@ -4,7 +4,8 @@
 // @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
-// @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker,
+// @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, HandleSoldierTakeDamageFeedback (the portrait flash of a soldier
+// @src the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
 // @src CheckForFreeupFromHit, SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
 // @src spit gas).
@@ -776,6 +777,10 @@ function countHitForBeatingQuote(t: TacticalState, s: Soldier): void {
   s.numHitsThisTurn = 0;
 }
 
+function handleSoldierTakeDamageFeedback(t: TacticalState, s: Soldier): void {
+  if (shownToPlayer(s)) t.events.push({ type: 'damageFeedback', soldier: s.id });
+}
+
 function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): void {
   if (reason === DamageReason.BLOODLOSS || reason === DamageReason.ELECTRICITY || reason === DamageReason.GAS) {
     if (s.placed) {
@@ -784,6 +789,7 @@ function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): vo
       if (s.life === 0) s.doingExternalDeath = true;
       checkForAndHandleSoldierDyingNotFromHit(t, s);
     }
+    handleSoldierTakeDamageFeedback(t, s);
   }
   if (reason === DamageReason.ELECTRICITY && s.life >= OKLIFE) releaseSoldiersAttacker(t, s);
 }

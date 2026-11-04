@@ -297,7 +297,8 @@ shows them. Our soldiers carry what the original's panels and face read (the sin
 face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`, the climb button's roof
 edge, APs and fence as `climb`, the APs for the cheapest attack on the last target that keep the AP number out of dark
 red as `enoughApToAttack`, the move's final tile behind the face's moving highlight as `destination`, the hit animation
-that holds the portrait flash as `gettingHit`). A soldier off the ground
+that holds the portrait flash as `gettingHit`). `itemLocatorsLocked` stands while the original's item locators wait for
+the items-seen quote (`fLockItemLocators`, `08`). A soldier off the ground
 (on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile (`06`); a
 corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). A
 soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits
@@ -325,8 +326,13 @@ reads them (deviation "Message list").
 what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, the
 window a friendly bullet first meets in combat, where show misses moves the view (`bulletLocated`, `27` §2.4), and the
 soldiers the original moves the view to (`soldierLocated {soldier, locator: none|normal|fast}`: a seen soldier not of
-ours turning to shoot, our merc hit in combat, the seen NPC a trigger waits for, a seen Hicks turning hostile at night;
-deviation "Locates of unseen soldiers") and the interface level the original switches to (`interfaceLevel {soldier,
+ours turning to shoot, our merc hit in combat, the seen NPC a trigger waits for, a seen Hicks turning hostile at night,
+our merc who sights an enemy on the enemy's turn; with `slide` the view slides: to that enemy while the squad sees him,
+and to an opponent turning visible in combat or before the sector's first sighting, `Tactical/OppList.cc:1916`, `:2440`;
+deviation "Locates of unseen soldiers"), the items' tile the view slides to as the items-seen quote starts or an escort
+sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a rotting corpse a merc comments on
+(`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), the portrait flash of a seen soldier hurt by
+bleeding, gas or electricity (`damageFeedback {soldier}`, `Tactical/Soldier_Control.cc:8770`) and the interface level the original switches to (`interfaceLevel {soldier,
 level}`: at every selection, a forced reselection of the selected merc included, and when the selected merc of ours ends
 a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`, `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the
 view centres on with his locator; a load sends no `sectorLoaded` (deviation "View after a load"). The session copies

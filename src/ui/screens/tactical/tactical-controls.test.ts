@@ -15,8 +15,9 @@ import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
+import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
-import type { ClimbView, SoldierView } from '../../../protocol/view.ts';
+import type { ClimbView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
@@ -44,6 +45,11 @@ const SMALL_FONT = 'smallfont1';
 const BIG_POCKET = 7;
 const HAND_SLOT = 5;
 const ITEMS_OVER_MS = 1500;
+const ITEM_LOCATOR_STEP_MS = 40;
+const ITEM_LOCATOR_STEPS = 58;
+const TILE_LOCATOR_HALF_SIZE = 20;
+const RADIO_FRAME_MS = 80;
+const MULTI_PURPOSE_LOCATOR_FRAMES = 40;
 const CABINET_HEIGHT = 40;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
@@ -188,6 +194,12 @@ async function playOut(f: TacticalUiTest): Promise<void> {
 
 function imagesOf(f: TacticalUiTest, asset: string): DrawItem[] {
   return f.draw().items.filter((i) => i.kind === 'image' && i.asset === asset);
+}
+
+function itemLocatorsAt(f: TacticalUiTest, tile: number): number {
+  const at = f.world.tileCentre(tile);
+  const corner = { x: at.x - TILE_LOCATOR_HALF_SIZE, y: at.y - TILE_LOCATOR_HALF_SIZE };
+  return imagesOf(f, RADIO).filter((i) => i.kind === 'image' && i.x === corner.x && i.y === corner.y).length;
 }
 
 function locatorFrames(f: TacticalUiTest, asset: string): number[] {
@@ -1128,6 +1140,112 @@ describe('the tactical input on the tactical screen', () => {
     pointer(f, 'pointerMove', away.x, away.y, MouseButton.LEFT);
     await f.settle(8);
     expect([itemNameLines(f), compatibleFaces(f)]).toEqual([0, []]);
+  });
+
+  it('flashes a locator with the names of revealed items once the item locators unlock, for 58 steps of 40 ms (HandleFlashingItems, RenderTopmostFlashingItems)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'GLOCK_17');
+    const tick = f.client.view.tick;
+    const locked = (on: boolean): ViewFrame => ({ tick, changed: [], removed: [], itemLocatorsLocked: on });
+    f.frames([{ ...locked(true), events: [{ tick, type: 'itemsRevealed', gridNo: tile, level: 0 }] }]);
+    for (let k = 0; k < 3; k++) f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect([itemLocatorsAt(f, tile), itemNameLines(f)]).toEqual([0, 0]);
+    f.frames([locked(false)]);
+    f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect([itemLocatorsAt(f, tile), itemNameLines(f)]).toEqual([1, 1]);
+    for (let k = 1; k < ITEM_LOCATOR_STEPS; k++) f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect([itemLocatorsAt(f, tile), itemNameLines(f)]).toEqual([0, 0]);
+  });
+
+  it('unlocks the item locators for a lock the view let go between two frames of one delivery', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'GLOCK_17');
+    const tick = f.client.view.tick;
+    const revealed: ViewFrame = {
+      tick,
+      changed: [],
+      removed: [],
+      events: [{ tick, type: 'itemsRevealed', gridNo: tile, level: 0 }],
+      itemLocatorsLocked: true,
+    };
+    f.frames([
+      revealed,
+      { tick: tick + 1, changed: [], removed: [], itemLocatorsLocked: false },
+      { tick: tick + 2, changed: [], removed: [], itemLocatorsLocked: true },
+    ]);
+    f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect(itemLocatorsAt(f, tile)).toBe(1);
+  });
+
+  it('drops the locator of items once the pool list under the pointer names them (RenderTopmostTacticalInterface’s RemoveFlashItemSlot)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'GLOCK_17');
+    const tick = f.client.view.tick;
+    f.frames([{ tick, changed: [], removed: [], events: [{ tick, type: 'itemsRevealed', gridNo: tile, level: 0 }] }]);
+    f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect(itemLocatorsAt(f, tile)).toBe(1);
+    f.screen.controls.toggleHandCursor();
+    hover(f, tile);
+    await f.settle(4);
+    expect([itemLocatorsAt(f, tile), itemNameLines(f)]).toEqual([0, 1]);
+  });
+
+  it('lights the faces a flashing locator’s items are compatible with only while the pickup menu is up (HandleAnyMercInSquadHasCompatibleStuff)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const clip = t.content.items.byName.get('CLIP9_15')?.index ?? 0;
+    for (const s of t.soldiers) {
+      if (s?.team !== 0) continue;
+      for (let slot = 0; slot < s.inv.length; slot++) s.inv[slot] = emptyObject();
+    }
+    const picker = t.soldiers.find((s) => s?.id === 0);
+    if (!picker) throw new Error('no merc 0');
+    picker.inv[InvSlot.SMALLPOCK1] = createItem(t.content.items, clip, 100);
+    const litFaces = () => f.draw().items.filter((i) => i.kind === 'rectangle' && i.color === COMPATIBLE_HILIGHT).length;
+    const pile = merc(f, 0).gridNo + 2;
+    placeItem(f, pile, 'KEVLAR_VEST');
+    placeItem(f, pile, 'KEVLAR_VEST');
+    const flashing = merc(f, 0).gridNo - 3;
+    placeItem(f, flashing, 'GLOCK_17');
+    const tick = f.client.view.tick;
+    f.frames([{ tick, changed: [], removed: [], events: [{ tick, type: 'itemsRevealed', gridNo: flashing, level: 0 }] }]);
+    f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect([itemLocatorsAt(f, flashing), litFaces()]).toEqual([1, 0]);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    const at = f.world.pickPoint(pile);
+    await f.clickAt(at.x, at.y);
+    expect(f.screen.pickup.open).toBe(true);
+    const menu = f.widget('pickupArea').rect;
+    f.t.move(menu.x + menu.width + 20, menu.y);
+    f.t.frame();
+    expect(litFaces()).toBe(1);
+    for (let k = 0; k < ITEM_LOCATOR_STEPS; k++) f.t.frame(ITEM_LOCATOR_STEP_MS);
+    expect([itemLocatorsAt(f, flashing), litFaces()]).toEqual([0, 0]);
+  });
+
+  it('flashes the multi-purpose locator at a corpse a merc comments on, for 8 cycles of 5 frames (BeginMultiPurposeLocator)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    const tick = f.client.view.tick;
+    f.t.frame(RADIO_FRAME_MS + 1);
+    f.frames([{ tick, changed: [], removed: [], events: [{ tick, type: 'corpseLocated', gridNo: tile, level: 1 }] }]);
+    const at = f.world.tileCentre(tile);
+    const frames = () =>
+      imagesOf(f, RADIO).flatMap((i) =>
+        i.kind === 'image' && i.x === at.x - TILE_LOCATOR_HALF_SIZE && i.y === at.y - ROOF_LEVEL_HEIGHT - TILE_LOCATOR_HALF_SIZE
+          ? [i.frame]
+          : [],
+      );
+    expect(frames()).toEqual([1]);
+    for (let k = 2; k < MULTI_PURPOSE_LOCATOR_FRAMES; k++) f.t.frame(RADIO_FRAME_MS + 1);
+    expect(frames()).toEqual([4]);
+    f.t.frame(RADIO_FRAME_MS + 1);
+    expect(frames()).toEqual([]);
   });
 
   it('names, picks up and marks on the overhead map an item in an open cabinet, which only the world leaves undrawn', async () => {

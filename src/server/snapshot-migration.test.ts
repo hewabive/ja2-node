@@ -445,7 +445,12 @@ describe('snapshot version 13 (no team-change flag) migrates with the flag down'
   });
 });
 
-const ITEM_LOOKING_DEFAULTS: Readonly<Record<string, Json>> = { lookForItems: false, itemsSeenOnAttack: null, lockItemLocators: false };
+const ITEM_LOOKING_DEFAULTS: Readonly<Record<string, Json>> = {
+  lookForItems: false,
+  itemsSeenOnAttack: null,
+  itemsSeenOnAttackGridNo: -1,
+  lockItemLocators: false,
+};
 
 function withoutItemLooking(o: Record<string, Json>): Record<string, Json> {
   const out: Record<string, Json> = {};
@@ -1769,5 +1774,58 @@ describe('snapshot version 40 (no interface lock flag) migrates with no lock tha
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const ITEMS_TILE = 12_884;
+const NO_ITEMS_TILE = -1;
+const ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY = 'itemsSeenOnAttackGridNo';
+
+function withoutItemsSeenTiles(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutItemsSeenTiles(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutItemsSeenTiles(v);
+  if (out.kind === 'itemLocator') {
+    const { gridNo, ...older } = out;
+    expect(gridNo).toBe(ITEMS_TILE);
+    return older;
+  }
+  if (!(ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY in out)) return out;
+  const { [ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY]: held, ...older } = out;
+  expect(held).toBe(NO_ITEMS_TILE);
+  return older;
+}
+
+function versionFortyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutItemsSeenTiles(value)]);
+  return { ...snapshot, version: 41, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 41 (no items-seen tiles) migrates with no tile to slide to', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign with an items-seen quote queued', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const queue = campaign.campaign.talk?.talk.queue;
+    if (!queue) throw new Error('no dialogue queue');
+    queue.push({ kind: 'itemLocator', speaker: 0, gridNo: ITEMS_TILE });
+    const current = snapshotSession(campaign);
+    const legacy = versionFortyOne(current.sim);
+    const queued = (tile: number) => `"kind":"itemLocator","speaker":0,"gridNo":${tile}`;
+    expect(JSON.stringify(current.sim)).toContain(queued(ITEMS_TILE));
+    expect(JSON.stringify(current.sim)).toContain(`"itemsSeenOnAttack":null,"${ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY}":${NO_ITEMS_TILE},`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY}"`);
+    const migrated = snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))));
+    expect(migrated).toBe(snapshotJson(current.sim).replace(queued(ITEMS_TILE), queued(NO_ITEMS_TILE)));
   });
 });

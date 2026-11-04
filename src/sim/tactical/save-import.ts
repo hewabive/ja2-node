@@ -708,6 +708,7 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.someoneHit = ts.someoneHit;
   turn.enemyOfferedSurrender = (ts.enemyFlags & ENEMY_OFFERED_SURRENDER) !== 0;
   turn.itemsSeenOnAttack = ts.itemsSeenOnAttack ? soldierById(t, ts.itemsSeenOnAttackSoldier) : null;
+  turn.itemsSeenOnAttackGridNo = ts.itemsSeenOnAttack ? ts.itemsSeenOnAttackGridNo : NOWHERE;
   turn.lockItemLocators = ts.lockItemLocators;
   turn.spottersCalledForBy = ts.spottersCalledForBy;
   turn.consNumTurnsNotSeen = ts.consecutiveTurnsNotSeen;

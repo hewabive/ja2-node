@@ -11,7 +11,8 @@
 // @src (a line cut short by StopAnyCurrentlyTalkingSpeech or DialogueAdvanceSpeech), HandleTalkingAutoFace and
 // @src SetupFinalTalkingDelay (300 ms with the mouth closed after the voice or the text duration), SetFaceTalking (a line
 // @src lasts as long as its sample with speech on, its text without); Strategic/Assignments.cc
-// @src DialogueEventRemoveEPC; Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart; Dialogue_Control.cc
+// @src DialogueEventRemoveEPC; Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (the slide to its location,
+// @src 2026-11-03); Dialogue_Control.cc
 // @src HandleImportantMercQuote, CreateTalkingUI (the DIALOGUE_EXTERNAL_NPC_UI faces of Skyrider and the head miners)
 // @src and DialogueEvent::Execute returning true for a special event that waits (2026-11-01).
 
@@ -21,7 +22,7 @@ import { i8 } from '../../core/int.ts';
 import { TICK_MS } from '../clock.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
-import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { NarrativeEventWithoutTick } from './events.ts';
 import type { NarrativeHost } from './host.ts';
 import { NarrativeProfile, ProfileFlag } from './narrative-ids.ts';
@@ -151,8 +152,8 @@ export function externalNpcDialogue(host: Pick<NarrativeHost, 'talk'>, profile: 
   });
 }
 
-export function signalItemLocatorStart(host: Pick<NarrativeHost, 'talk'>, s: Soldier): void {
-  addDialogueEvent(host, { kind: 'itemLocator', speaker: s.profile });
+export function signalItemLocatorStart(host: Pick<NarrativeHost, 'talk'>, s: Soldier, gridNo: number): void {
+  addDialogueEvent(host, { kind: 'itemLocator', speaker: s.profile, gridNo });
 }
 
 export function talkingMenuDialogue(host: Pick<NarrativeHost, 'talk'>, quote: number, record: number | null = null): void {
@@ -310,6 +311,7 @@ function executePcTrigger(host: NarrativeHost, e: Extract<DialogueEvent, { kind:
 function executeItemLocatorStart(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'itemLocator' }>): boolean {
   const t = host.tactical();
   if (t) t.turn.lockItemLocators = false;
+  if (t && e.gridNo !== NOWHERE) host.emit({ type: 'itemsLocated', gridNo: e.gridNo });
   const quote = QUOTE_SPOTTED_SOMETHING_ONE + host.random(SPOTTED_SOMETHING_QUOTES);
   executeCharacterDialogue(host, e.speaker, quote, MERC_LINE);
   return false;

@@ -4,8 +4,8 @@
 // @src then sight, then interrupts);
 // @src Soldier_Control.cc HaultSoldierFromSighting; Soldier_Ani.cc opcode 495 (door opening sight and noise), opcodes 408
 // @src and 475 (the sight after a roof climb);
-// @src OppList.cc OurTeamSeesSomeone (the quotes, the curse, the end of fVirginSector and UnSetUIBusy, 2026-10-30; the camera's
-// @src locate and slide are not ported: gaps "Tactical HUD details").
+// @src OppList.cc OurTeamSeesSomeone (the quotes, the curse, the end of fVirginSector and UnSetUIBusy, 2026-10-30; the locate
+// @src to our merc and the slide to the enemy sighted on their turn, 2026-11-03).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, soldierGotoStationaryStance } from '../animation.ts';
@@ -16,7 +16,7 @@ import { stopMerc } from '../movement.ts';
 import { setOffActionItemsInGridNo } from '../narrative/quest-items.ts';
 import { type SightingBattleSound, saySeenQuote } from '../narrative/sighting-quotes.ts';
 import { hasPendingAction, removePendingAction } from '../pending-action.ts';
-import { NO_PENDING_ANIMATION, ReasonCantFinishMove, type Soldier, Team } from '../soldier.ts';
+import { NO_PENDING_ANIMATION, ReasonCantFinishMove, type Soldier, Team, Visible } from '../soldier.ts';
 import { soldierInventoryContext } from '../soldier-inventory.ts';
 import type { PerceptionHooks, TacticalHooks, TacticalState } from '../state.ts';
 import { enterCombatMode } from '../turns/turns.ts';
@@ -90,8 +90,20 @@ function ourTeamSeesSomeone(t: TacticalState, s: Soldier, revealed: number, unkn
     ...(battleSound ? { battleSound } : {}),
   });
   haltFromSighting(t, s, true);
-  if (virginSector) t.turn.virginSector = false;
-  else unSetUIBusy(t, s);
+  if (virginSector) {
+    t.turn.virginSector = false;
+    return;
+  }
+  locateSightingOnTheirTurn(t, s);
+  unSetUIBusy(t, s);
+}
+
+function locateSightingOnTheirTurn(t: TacticalState, s: Soldier): void {
+  const sighting = t.turn.enemySightingOnTheirTurn;
+  if (!sighting) return;
+  t.events.push({ type: 'soldierLocated', soldier: s.id, locator: 'normal' });
+  if (sighting.enemy.visible !== Visible.HIDDEN)
+    t.events.push({ type: 'soldierLocated', soldier: sighting.enemy.id, locator: 'normal', slide: true });
 }
 
 export function perceptionHooks(

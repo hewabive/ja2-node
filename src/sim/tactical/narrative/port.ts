@@ -121,7 +121,7 @@ export interface NarrativePort {
   sayQuote(s: Soldier, quote: number, delayed?: boolean): void;
   cosmeticPick(choices: number): number;
   logBleedMeToos(on: boolean): void;
-  signalItemLocatorStart(s: Soldier): void;
+  signalItemLocatorStart(s: Soldier, gridNo: number): void;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {

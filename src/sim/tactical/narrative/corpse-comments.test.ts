@@ -95,10 +95,12 @@ function setTolerance(s: Scene, soldier: Soldier, value: number): void {
   if (record) record.corpseQuoteTolerance = value;
 }
 
-function look(s: Scene, rolls: readonly number[], soldier = s.merc): void {
+function look(s: Scene, rolls: readonly number[], soldier = s.merc, level = 0): void {
   s.script.push(...rolls);
-  lookForAndMayCommentOnSeeingCorpse(s.t, soldier, CORPSE_AT);
+  lookForAndMayCommentOnSeeingCorpse(s.t, soldier, CORPSE_AT, level);
 }
+
+const corpseLocators = (s: Scene) => s.t.events.filter((e) => e.type === 'corpseLocated');
 
 describe('a merc seeing a rotting corpse (Rotting_Corpses.cc LookForAndMayCommentOnSeeingCorpse)', () => {
   it('says the gross-out quote and resets his tolerance to Random(3) + 1, then draws Random(2) for the squad', () => {
@@ -149,8 +151,19 @@ describe('a merc seeing a rotting corpse (Rotting_Corpses.cc LookForAndMayCommen
   it('comments on a corpse lying on the ground below the roof tile he looks at: GetCorpseAtGridNo ignores the level', () => {
     const s = scene();
     s.merc.level = 1;
-    look(s, [0, SQUAD_SPARED]);
+    look(s, [0, SQUAD_SPARED], s.merc, 1);
     expect(s.said).toEqual([[s.merc.id, MercQuote.HEADSHOT]]);
+  });
+
+  it('shows the locator at the tile and level of the look when he comments, and only then (Interface.cc BeginMultiPurposeLocator)', () => {
+    const s = scene();
+    setTolerance(s, s.merc, 1);
+    look(s, []);
+    expect(corpseLocators(s)).toEqual([]);
+    setTolerance(s, s.merc, 0);
+    s.merc.level = 1;
+    look(s, [0, SQUAD_SPARED], s.merc, 1);
+    expect(corpseLocators(s)).toEqual([{ type: 'corpseLocated', gridNo: CORPSE_AT, level: 1 }]);
   });
 
   it('is what a look that reveals items does on each tile it reaches (FOV.cc RevealRoofsAndItems)', () => {

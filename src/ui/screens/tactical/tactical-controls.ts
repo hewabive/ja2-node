@@ -186,6 +186,12 @@ export interface ControlsScreen {
   radarBlink(): boolean;
 }
 
+export interface PoolList {
+  readonly gridNo: number;
+  readonly level: number;
+  readonly items: readonly ItemView[];
+}
+
 export interface ControlsArt {
   readonly menus: MenuArt;
   readonly exit: ExitDialogArt;
@@ -925,23 +931,36 @@ export class TacticalControls {
       list.popClip();
     }
     this.#renderRubberBand(list, width, bottom);
-    this.#renderItemPool(list, width, bottom);
+    this.#renderItemPool(list);
+  }
+
+  poolList(): PoolList | null {
+    const gridNo = this.input.overItemPoolGridNo;
+    const sel = this.#screen.selected();
+    if (gridNo === null || !sel || this.#screen.itemInCursor() || this.overhead.open) return null;
+    const items = this.#view()?.items;
+    const ownLevel = itemPool(items, gridNo, sel.level);
+    const level = ownLevel.length > 0 ? sel.level : sel.level === 0 ? 1 : 0;
+    const pool = ownLevel.length > 0 ? ownLevel : itemPool(items, gridNo, level);
+    const listed = onZLevel(pool, largestZLevel(pool));
+    return listed.length > 0 ? { gridNo, level, items: listed } : null;
   }
 
   poolListItems(): readonly ItemView[] {
-    const gridNo = this.input.overItemPoolGridNo;
-    const sel = this.#screen.selected();
-    if (gridNo === null || !sel || this.#screen.itemInCursor() || this.overhead.open) return [];
-    const items = this.#view()?.items;
-    const ownLevel = itemPool(items, gridNo, sel.level);
-    const pool = ownLevel.length > 0 ? ownLevel : itemPool(items, gridNo, sel.level === 0 ? 1 : 0);
-    return onZLevel(pool, largestZLevel(pool));
+    return this.poolList()?.items ?? [];
   }
 
-  #renderItemPool(list: DrawList, width: number, bottom: number): void {
+  #renderItemPool(list: DrawList): void {
     const shown = this.poolListItems();
     if (shown.length === 0) return;
+    const regions = this.#env().runtime.regions;
+    this.drawItemPoolList(list, shown, regions.mouseX, regions.mouseY);
+  }
+
+  drawItemPoolList(list: DrawList, shown: readonly ItemView[], atX: number, atY: number): void {
     const env = this.#env();
+    const width = env.runtime.geometry().width;
+    const bottom = this.#screen.viewportBottom();
     const font = env.runtime.fonts.get(FontName.SMALLFONT1);
     const lines = shown.slice(0, NUM_ITEMS_LISTED).map((i) => {
       const name = env.media.item(i.item)?.shortName ?? i.item;
@@ -949,11 +968,10 @@ export class TacticalControls {
     });
     if (shown.length > NUM_ITEMS_LISTED) lines.push(this.#text(TACTICAL, ITEMPOOL_POPUP_MORE_STR));
     const maxWidth = Math.max(0, ...lines.map((l) => stringPixLength(l, font)));
-    const regions = env.runtime.regions;
-    const x = regions.mouseX + ITEM_LIST_X + maxWidth <= width ? regions.mouseX + ITEM_LIST_X : regions.mouseX - maxWidth;
+    const x = atX + ITEM_LIST_X + maxWidth <= width ? atX + ITEM_LIST_X : atX - maxWidth;
     const dy = fontHeight(font) - 2;
     const h = dy * Math.min(shown.length, NUM_ITEMS_LISTED + 1);
-    let y = regions.mouseY < idiv(h, 2) ? 0 : regions.mouseY + idiv(h, 2) >= bottom ? bottom - h : regions.mouseY - idiv(h, 2);
+    let y = atY < idiv(h, 2) ? 0 : atY + idiv(h, 2) >= bottom ? bottom - h : atY - idiv(h, 2);
     for (const line of lines) {
       mprint(list, font, x, y, line, fontColors(FontColor.MCOLOR_DKGRAY, DEFAULT_SHADOW));
       y += dy;

@@ -49,10 +49,18 @@
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
 // @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02); Interface_Control.cc
 // @src RenderTopmostTacticalInterface and Handle_Items.cc DrawItemPoolList (the faces lit by every item of the pool list
-// @src under the pointer, HandleAnyMercInSquadHasCompatibleStuff, 2026-11-03).
+// @src under the pointer, HandleAnyMercInSquadHasCompatibleStuff, 2026-11-03); Interface_Control.cc RenderTacticalInterface
+// @src (HandleFlashingItems and HandleMultiPurposeLocator, also under the overhead map), RenderTopmostTacticalInterface (the
+// @src flashing items and the multi-purpose locator before the soldiers' locators, RemoveFlashItemSlot of the pool listed
+// @src under the pointer, the faces their lists light kept while the pickup menu or the item pointer is up) and
+// @src Handle_Items.cc RenderTopmostFlashingItems (the locator 20 up and left of the tile centre, raised by the level and
+// @src the first item's height, with DrawItemPoolList of the items at that height beside it); Overhead.cc SlideToLocation
+// @src (the items-seen quote), SlideTo (a sighting); Soldier_Control.cc FlashSoldierPortrait (the damage feedback,
+// @src 2026-11-03).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
 import { idiv } from '../../../core/int.ts';
 import type { CompatibleMercs, ItemInfo } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
@@ -111,6 +119,7 @@ import {
   tossCommand,
 } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
+import { ItemLocators, MultiPurposeLocator, type ShownLocator } from './item-locators.ts';
 import { itemPool, onZLevel } from './item-pool.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
@@ -181,6 +190,7 @@ const PAUSE_KEY = 'Pause';
 const PANEL_TOGGLE_KEY = '`';
 const KEY_RING_KEY = 'k';
 const LOCATOR_OFFSET = 25;
+const TILE_LOCATOR_HALF_SIZE = 20;
 const DAMAGE_OFFSET_X = 20;
 const DAMAGE_OFFSET_Y = -5;
 const RADAR_MAP_BLINK_MS = 400;
@@ -244,6 +254,9 @@ export class TacticalScreen implements Screen {
   readonly #damage = new Map<number, DamageNumber>();
   readonly #locators = new Map<number, Locator>();
   readonly #blinkCounters = new Map<number, TimeCounter>();
+  readonly #itemLocators = new ItemLocators();
+  readonly #corpseLocator = new MultiPurposeLocator();
+  #itemLocatorsLocked = false;
   readonly #log = new TacticalMessageLog();
   readonly #topBar = new TopBar();
   readonly #feedback = new FeedbackBox();
@@ -687,6 +700,7 @@ export class TacticalScreen implements Screen {
     this.dialogue.enter();
     if (this.#selected !== null) this.#selectedChanged();
     this.#log.clear();
+    this.#itemLocatorsLocked = this.#view()?.itemLocatorsLocked === true;
     this.#env.client.start();
   }
 
@@ -957,6 +971,7 @@ export class TacticalScreen implements Screen {
     this.#updateModels(view);
     this.controls.update(this.#now);
     if (!this.controls.overhead.open) this.#stepLocators();
+    this.#stepItemLocators(view);
     this.#scrollMessages();
     this.#updateCursor(now);
     this.#itemTileCursor();
@@ -1014,6 +1029,14 @@ export class TacticalScreen implements Screen {
       if (!soldierById(view, id)) continue;
       if (!locator.update(this.#now)) this.#locators.delete(id);
     }
+  }
+
+  #stepItemLocators(view: PlayerView | null): void {
+    const listed = this.controls.poolList();
+    if (listed) this.#itemLocators.remove(listed);
+    this.#itemLocators.removeWhere((pool) => itemPool(view?.items, pool.gridNo, pool.level).length === 0);
+    this.#itemLocators.step(this.#now, this.#itemLocatorsLocked, this.#env.runtime.clock.paused);
+    this.#corpseLocator.step(this.#now);
   }
 
   #scrollMessages(): void {
@@ -1242,6 +1265,7 @@ export class TacticalScreen implements Screen {
       if (frame.clock) this.#log.timeCompressed = frame.clock.compressing;
       for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
       for (const event of frame.events ?? []) this.#event(event, frame);
+      this.#followItemLocatorLock(frame);
       for (const entry of frame.messages ?? []) {
         if (!showsInTacticalLog(entry)) continue;
         const text = formatMessageEntry(entry, { text: this.#env.text, itemByIndex: (i) => this.#env.media.itemByIndex(i) });
@@ -1252,6 +1276,11 @@ export class TacticalScreen implements Screen {
       if (clearsMessageLog(frame)) this.#log.clear();
       for (const s of frame.changed) if (s.team === OUR_TEAM && s.inventory) this.#lastInventories.set(s.id, s.inventory);
     }
+  }
+
+  #followItemLocatorLock(frame: ViewFrame): void {
+    if (frame.itemLocatorsLocked !== undefined) this.#itemLocatorsLocked = frame.itemLocatorsLocked;
+    if (!this.#itemLocatorsLocked) this.#itemLocators.unlock();
   }
 
   #townIdString(view: PlayerView | null): string {
@@ -1326,9 +1355,22 @@ export class TacticalScreen implements Screen {
       }
       case 'soldierLocated': {
         const s = soldierById(view, event.soldier);
-        if (s) this.#locateSoldier(s, SOLDIER_LOCATE_FLAGS[event.locator]);
+        if (s && event.slide) this.#slideTo(s, SOLDIER_LOCATE_FLAGS[event.locator]);
+        else if (s) this.#locateSoldier(s, SOLDIER_LOCATE_FLAGS[event.locator]);
         return;
       }
+      case 'itemsRevealed':
+        this.#itemLocators.add(event, this.#now);
+        return;
+      case 'itemsLocated':
+        this.controls.slideTo(event.gridNo);
+        return;
+      case 'corpseLocated':
+        this.#corpseLocator.begin(event);
+        return;
+      case 'damageFeedback':
+        this.#faces.get(event.soldier)?.flash(this.#now);
+        return;
       case 'interfaceLevel':
         this.#setInterfaceLevel(event.level);
         return;
@@ -1818,9 +1860,13 @@ export class TacticalScreen implements Screen {
   }
 
   #compatibleFace(s: SoldierView): boolean {
-    if (this.inventory.cursor !== null) return this.inventory.compatibleMercs().has(s.id);
-    if (this.pickup.open) return this.inventory.groundCompatibleMercs().has(s.id);
-    return this.#poolListCompatibleMercs().includes(s.id);
+    if (this.inventory.cursor !== null) return this.inventory.compatibleMercs().has(s.id) || this.#lightsLocatorFace(s);
+    if (this.pickup.open) return this.inventory.groundCompatibleMercs().has(s.id) || this.#lightsLocatorFace(s);
+    return this.#compatibleMercsOf(this.controls.poolListItems()).includes(s.id);
+  }
+
+  #lightsLocatorFace(s: SoldierView): boolean {
+    return this.#compatibleMercsOf(this.#itemLocators.shown().flatMap((l) => this.#locatorListItems(l))).includes(s.id);
   }
 
   #pickupRowHover(ground: number | null): void {
@@ -1828,8 +1874,7 @@ export class TacticalScreen implements Screen {
     this.inventory.groundRowHover(ground === null ? null : { soldier: menu.soldier, gridNo: menu.gridNo, zLevel: menu.zLevel, ground });
   }
 
-  #poolListCompatibleMercs(): readonly number[] {
-    const listed = this.controls.poolListItems();
+  #compatibleMercsOf(listed: readonly ItemView[]): readonly number[] {
     if (listed.length === 0) return [];
     const items = listed.flatMap((i) => this.#env.media.item(i.item)?.index ?? []);
     const reply = this.#env.client.hint({ type: 'compatibleMercs', items });
@@ -2147,6 +2192,9 @@ export class TacticalScreen implements Screen {
     const font = this.#env.runtime.fonts.get(FontName.TINYFONT1);
     const radio = view.model.asset(String(params.radio)).path;
     const hostileRadio = view.model.asset(String(params.hostileRadio)).path;
+    for (const locator of this.#itemLocators.shown()) this.#drawItemLocator(list, radio, locator);
+    const corpse = this.#corpseLocator.shown();
+    if (corpse) this.#drawTileLocator(list, radio, corpse, 0);
     for (const s of this.#view()?.soldiers ?? []) this.#aboveGuy(list, s, top, font, radio, hostileRadio);
     for (const [id, damage] of this.#damage) {
       const s = soldierById(this.#view(), id);
@@ -2158,6 +2206,28 @@ export class TacticalScreen implements Screen {
       mprint(list, font, x, y, `-${damage.amount}`, fontColors(FontColor.MCOLOR_WHITE, DEFAULT_SHADOW));
     }
     list.popClip();
+  }
+
+  #locatorHeight(locator: ShownLocator): number {
+    return itemPool(this.#view()?.items, locator.gridNo, locator.level)[0]?.height ?? 0;
+  }
+
+  #locatorListItems(locator: ShownLocator): ItemView[] {
+    const height = this.#locatorHeight(locator);
+    return itemPool(this.#view()?.items, locator.gridNo, locator.level).filter((i) => (i.height ?? 0) === height);
+  }
+
+  #drawItemLocator(list: DrawList, radio: string, locator: ShownLocator): void {
+    const at = this.#drawTileLocator(list, radio, locator, this.#locatorHeight(locator));
+    this.controls.drawItemPoolList(list, this.#locatorListItems(locator), at.x, at.y);
+  }
+
+  #drawTileLocator(list: DrawList, radio: string, locator: ShownLocator, height: number): { x: number; y: number } {
+    const centre = this.#env.world.tileCentre(locator.gridNo);
+    const x = centre.x - TILE_LOCATOR_HALF_SIZE;
+    const y = centre.y - height - (locator.level ? ROOF_LEVEL_HEIGHT : 0) - TILE_LOCATOR_HALF_SIZE;
+    list.image(radio, locator.frame, x, y);
+    return { x, y };
   }
 
   #aboveGuy(list: DrawList, s: SoldierView, top: number, font: Parameters<typeof mprint>[1], radio: string, hostileRadio: string): void {

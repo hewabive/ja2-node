@@ -644,7 +644,7 @@ export class TalkFlow {
       },
       cosmeticPick: (choices) => this.talk.fx.int(choices),
       logBleedMeToos: (on) => beginLoggingForBleedMeToos(this.talk, on),
-      signalItemLocatorStart: (s) => signalItemLocatorStart(host, s),
+      signalItemLocatorStart: (s, gridNo) => signalItemLocatorStart(host, s, gridNo),
     };
   }
 

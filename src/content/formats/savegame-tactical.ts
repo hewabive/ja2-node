@@ -329,6 +329,7 @@ export interface TacticalStatus {
   readonly enemyFlags: number;
   readonly itemsSeenOnAttack: boolean;
   readonly itemsSeenOnAttackSoldier: number;
+  readonly itemsSeenOnAttackGridNo: number;
   readonly lockItemLocators: boolean;
   readonly guideDescription: {
     readonly counting: boolean;
@@ -523,6 +524,7 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     enemyFlags: n('fEnemyFlags'),
     itemsSeenOnAttack: b('fItemsSeenOnAttack'),
     itemsSeenOnAttackSoldier: n('items_seen_on_attack_soldier'),
+    itemsSeenOnAttackGridNo: n('usItemsSeenOnAttackGridNo'),
     lockItemLocators: b('fLockItemLocators'),
     guideDescription: {
       counting: b('fCountingDownForGuideDescription'),

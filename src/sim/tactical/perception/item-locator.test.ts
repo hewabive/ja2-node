@@ -3,6 +3,7 @@ import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/supp
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { createItem } from '../../items/object.ts';
+import { tacticalViewParts } from '../../knowledge/sim-view.ts';
 import { anim } from '../anim-states.ts';
 import { states } from '../animation.ts';
 import { reduceAttackBusyCount } from '../combat/barrier.ts';
@@ -41,6 +42,7 @@ interface Scene {
   readonly t: TacticalState;
   readonly merc: Soldier;
   readonly signalled: number[];
+  readonly tiles: number[];
 }
 
 function scene(): Scene {
@@ -48,8 +50,15 @@ function scene(): Scene {
   const t = sim.state;
   const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
   const signalled: number[] = [];
-  t.narrative = { ...t.narrative, signalItemLocatorStart: (s) => signalled.push(s.id) };
-  return { sim, t, merc, signalled };
+  const tiles: number[] = [];
+  t.narrative = {
+    ...t.narrative,
+    signalItemLocatorStart: (s, at) => {
+      signalled.push(s.id);
+      tiles.push(at);
+    },
+  };
+  return { sim, t, merc, signalled, tiles };
 }
 
 function inCombat(s: Scene): Soldier {
@@ -176,13 +185,26 @@ describe('looking for new items (Handle_Items.cc NotifySoldiersToLookforItems, O
 });
 
 describe('the item locator lock and the items-seen quote (FOV.cc RevealRoofsAndItems)', () => {
-  it('says one quote for a look that shows items on several tiles', () => {
+  it('says one quote for a look that shows items on several tiles, queued with the first tile to slide to', () => {
     const s = scene();
     hiddenItem(s.t, IN_VIEW);
     hiddenItem(s.t, FURTHER_IN_VIEW);
     revealRoofsAndItems(s.t, s.merc, true);
     expect(revealed(s.t)).toEqual([IN_VIEW, FURTHER_IN_VIEW]);
     expect(s.signalled).toEqual([s.merc.id]);
+    expect(s.tiles).toEqual([IN_VIEW]);
+  });
+
+  it('leaves the locators unlocked after a look out of combat that shows items on more than one tile', () => {
+    const s = scene();
+    hiddenItem(s.t, IN_VIEW);
+    revealRoofsAndItems(s.t, s.merc, true);
+    expect(s.t.turn.lockItemLocators).toBe(true);
+    const t = scene();
+    hiddenItem(t.t, IN_VIEW);
+    hiddenItem(t.t, FURTHER_IN_VIEW);
+    revealRoofsAndItems(t.t, t.merc, true);
+    expect(t.t.turn.lockItemLocators).toBe(false);
   });
 
   it('keeps a merc quiet in combat while the locators are locked, and unlocks them first out of combat', () => {
@@ -214,7 +236,16 @@ describe('the item locator lock and the items-seen quote (FOV.cc RevealRoofsAndI
     s.t.turn.attackBusyCount = 1;
     reduceAttackBusyCount(s.t, null, false);
     expect(s.signalled).toEqual([s.merc.id]);
+    expect(s.tiles).toEqual([IN_VIEW]);
     expect(s.t.turn.itemsSeenOnAttack).toBeNull();
+  });
+
+  it('shows the lock in the view while it holds, for the client to keep the locators waiting', () => {
+    const s = scene();
+    expect(tacticalViewParts(s.sim).itemLocatorsLocked).toBeUndefined();
+    hiddenItem(s.t);
+    revealRoofsAndItems(s.t, s.merc, true);
+    expect(tacticalViewParts(s.sim).itemLocatorsLocked).toBe(true);
   });
 
   it('forgets a held quote when combat starts again', () => {
@@ -224,12 +255,26 @@ describe('the item locator lock and the items-seen quote (FOV.cc RevealRoofsAndI
     expect(s.t.turn.itemsSeenOnAttack).toBeNull();
   });
 
-  it('lets an EPC unlock the locators instead of speaking', () => {
+  it('lets an EPC unlock the locators and slide the view to the items at once instead of speaking', () => {
     const s = scene();
     s.t.narrative = { ...s.t.narrative, isEpc: () => true };
     hiddenItem(s.t);
     revealRoofsAndItems(s.t, s.merc, true);
     expect(s.signalled).toEqual([]);
     expect(s.t.turn.lockItemLocators).toBe(false);
+    expect(s.t.events.filter((e) => e.type === 'itemsLocated')).toEqual([{ type: 'itemsLocated', gridNo: IN_VIEW }]);
+  });
+
+  it('slides an EPC to the tile held with the items seen during an attack once it ends on our turn (Overhead.cc:5744)', () => {
+    const s = scene();
+    s.t.narrative = { ...s.t.narrative, isEpc: () => true };
+    inCombat(s);
+    s.t.turn.attackBusyCount = 1;
+    hiddenItem(s.t, FURTHER_IN_VIEW);
+    revealRoofsAndItems(s.t, s.merc, true);
+    expect(s.t.turn.itemsSeenOnAttackGridNo).toBe(FURTHER_IN_VIEW);
+    expect(s.t.events.filter((e) => e.type === 'itemsLocated')).toEqual([]);
+    reduceAttackBusyCount(s.t, null, false);
+    expect(s.t.events.filter((e) => e.type === 'itemsLocated')).toEqual([{ type: 'itemsLocated', gridNo: FURTHER_IN_VIEW }]);
   });
 });

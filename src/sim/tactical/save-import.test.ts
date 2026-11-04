@@ -148,6 +148,7 @@ function syntheticSave({
       teams: [],
       itemsSeenOnAttack: false,
       itemsSeenOnAttackSoldier: NOBODY,
+      itemsSeenOnAttackGridNo: 0,
       lockItemLocators: false,
       numCrowsPossible: 0,
       dontAddNewCrows: false,
@@ -407,18 +408,24 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(fadeOf(soldierOf(sim, CIVILIAN_ID + 1))).toEqual([Visible.FADING_OUT, Visible.FADING_OUT, SoldierFade.OUT, 7, NOWHERE]);
   });
 
-  it('restores an order to look for items, the item locator lock and a quote held for the end of an attack (SOLDIER_LOOKFOR_ITEMS, fLockItemLocators, fItemsSeenOnAttack)', () => {
+  it('restores an order to look for items, the item locator lock and a quote held for the end of an attack with its tile (SOLDIER_LOOKFOR_ITEMS, fLockItemLocators, fItemsSeenOnAttack, usItemsSeenOnAttackGridNo)', () => {
     const save = syntheticSave({
       soldiers: [
         savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { uiStatusFlags: SOLDIER_LOOKFOR_ITEMS }),
         savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82)),
       ],
-      tactical: { itemsSeenOnAttack: true, itemsSeenOnAttackSoldier: MERC_ID, lockItemLocators: true },
+      tactical: {
+        itemsSeenOnAttack: true,
+        itemsSeenOnAttackSoldier: MERC_ID,
+        itemsSeenOnAttackGridNo: gridNo(80, 86),
+        lockItemLocators: true,
+      },
     });
     const sim = importedSim(save);
     const merc = soldierOf(sim, MERC_ID);
     expect([merc.lookForItems, soldierOf(sim, MERC_ID + 1).lookForItems]).toEqual([true, false]);
-    expect([sim.state.turn.lockItemLocators, sim.state.turn.itemsSeenOnAttack]).toEqual([true, merc]);
+    const turn = sim.state.turn;
+    expect([turn.lockItemLocators, turn.itemsSeenOnAttack, turn.itemsSeenOnAttackGridNo]).toEqual([true, merc, gridNo(80, 86)]);
   });
 
   it('restores the gassed state of a soldier (SOLDIER_GASSED)', () => {

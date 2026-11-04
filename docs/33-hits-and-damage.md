@@ -106,8 +106,8 @@ not, deviation "Crows on load").
 **A rotting corpse turns a merc's stomach.** Every look that reveals items (`08`) shows a merc the corpses on its
 tiles; at a rotting one he says quote 33 when his `corpseQuoteTolerance` is 0, or 1 while crows feed on it, which
 resets it and may harden the squad. The tolerance is the merc record's (`NarrativePort.corpseQuoteRecord`); the daily
-update lowers it (`src/sim/campaign/contracts/daily.ts`). The locator the original shows at the corpse is not drawn
-(gaps "Tactical HUD details").
+update lowers it (`src/sim/campaign/contracts/daily.ts`). The comment puts the multi-purpose locator on the tile and
+level of the look (`corpseLocated`; `src/ui/screens/tactical/item-locators.ts`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6); the order of a whole shot is
 `11`. The kill quotes draw on `main` in `HandleKilledQuote`'s order, also when nobody speaks. Curses, laughs (the laugh

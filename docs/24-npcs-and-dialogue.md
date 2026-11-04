@@ -116,18 +116,18 @@ Tactical rules reach the dialogue only through `TacticalState.narrative` (deviat
 battle, a creature lair's tension lines (`narrative/creature-tension.ts`), a buddy's comment and the can't-do line of a
 skill check, the out-of-ammo line at the end of the attack that emptied the gun, the found-something-special line of a
 pickup, the dying line and the bleeding warning, all through `TacticalPort.sayQuote`, the items-seen quote through
-`signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it, the comment a
-closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue, and so do the strategic lines:
-contract, relationship and morale lines (`ContractFlow.say`, `sayImportant`, `sayDelayed`), a finished assignment and
-tiredness (`EconomyHooks.tacticalCharacterDialogue`, `campaign/economy-lines.ts`), an own merc's bark, and the external
-faces of Skyrider and the head miners (`externalNpcDialogue`, said as `skyriderQuote` and `headMinerQuote`). An
-important line (`handleImportantMercQuote`, the contract lines) wraps a sleeping merc's line in a wake event and a sleep
-event. Special events the original queues with these lines are `callback` events with numeric arguments, run when the
-queue reaches them: the renewal step after the merc's lines that says the raise and opens the menu, the contract endings
-and the map screen switch (`22`), and Skyrider's SAM reveals and monologue time (`25`). A callback may wait at the head
-of the queue (the contract ones while a prompt is open). A campaign without a talk flow (test campaigns) keeps
-shortcuts: contract and Skyrider lines are plain events, a head miner's line a `headMinerQuote` event, the economy's
-lines are not said, Skyrider's special events run at once and the contract endings wait in
+`signalItemLocatorStart`, which picks its line, unlocks the item locators and slides the view to the items only when the
+queue runs it, the comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue, and so
+do the strategic lines: contract, relationship and morale lines (`ContractFlow.say`, `sayImportant`, `sayDelayed`), a
+finished assignment and tiredness (`EconomyHooks.tacticalCharacterDialogue`, `campaign/economy-lines.ts`), an own merc's
+bark, and the external faces of Skyrider and the head miners (`externalNpcDialogue`, said as `skyriderQuote` and
+`headMinerQuote`). An important line (`handleImportantMercQuote`, the contract lines) wraps a sleeping merc's line in a
+wake event and a sleep event. Special events the original queues with these lines are `callback` events with numeric
+arguments, run when the queue reaches them: the renewal step after the merc's lines that says the raise and opens the
+menu, the contract endings and the map screen switch (`22`), and Skyrider's SAM reveals and monologue time (`25`). A
+callback may wait at the head of the queue (the contract ones while a prompt is open). A campaign without a talk flow
+(test campaigns) keeps shortcuts: contract and Skyrider lines are plain events, a head miner's line a `headMinerQuote`
+event, the economy's lines are not said, Skyrider's special events run at once and the contract endings wait in
 `ContractState.pendingEndings`, which also holds the endings of older saves.
 
 **Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,

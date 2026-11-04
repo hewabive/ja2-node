@@ -22,7 +22,7 @@ import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } fro
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
 import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, type SpeechLineRequest, textDelay } from '../../speech.ts';
-import { COMPATIBLE_HILIGHT } from './faces.ts';
+import { COMPATIBLE_HILIGHT, FaceShade } from './faces.ts';
 import { UiMode } from './input/ui-events.ts';
 import { MAX_AGE } from './message-log.ts';
 
@@ -63,6 +63,7 @@ const PATHFIND_REST_MS = 100;
 const PAST_DOUBLE_CLICK_MS = 400;
 const MSG_THROW = 37;
 const PICKUP_PAGE_ROWS = 6;
+const RADIO = 'interface/radio.sti';
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -715,6 +716,38 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(slidTo(ours)).toBe(selected.gridNo);
     expect(slidTo({ tick, type: 'interrupt', team: 1, interrupter: other.id })).toBe(other.gridNo);
     expect(slidTo({ tick, type: 'interruptEnded', team: 0 })).toBe(selected.gridNo);
+  });
+
+  it('slides to the items as their quote starts, and to a sighted soldier with his locator (SlideToLocation, OppList.cc SlideTo)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.slideViewOf = () => OFF_SCREEN_SLIDE;
+    const view = f.client.view;
+    const spotter = view.soldiers.find((s) => s.id === view.selected);
+    const other = view.soldiers.find((s) => s.team === 0 && s.id !== view.selected);
+    if (!spotter || !other) throw new Error('no squad');
+    const tick = view.tick;
+    const items = spotter.gridNo + 7;
+    f.frames([frame(tick, [{ tick, type: 'itemsLocated', gridNo: items }])]);
+    expect(f.screen.controls.slideTarget).toBe(items);
+    f.frames([
+      frame(tick, [
+        { tick, type: 'soldierLocated', soldier: spotter.id, locator: 'normal' },
+        { tick, type: 'soldierLocated', soldier: other.id, locator: 'normal', slide: true },
+      ]),
+    ]);
+    expect([f.world.located.at(-1), f.screen.controls.slideTarget]).toEqual([spotter.gridNo, other.gridNo]);
+    expect(images(f, RADIO)).toHaveLength(2);
+  });
+
+  it('flashes the portrait of a merc at the damage feedback of bleeding, gas or electricity (FlashSoldierPortrait)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const view = f.client.view;
+    const merc = view.soldiers.find((s) => s.id === view.selected);
+    if (!merc) throw new Error('no merc');
+    const shade = () => f.screen.faceOf(merc.id)?.shade(merc, false);
+    expect(shade()).not.toBe(FaceShade.STARTSHADE);
+    f.frames([frame(view.tick, [{ tick: view.tick, type: 'damageFeedback', soldier: merc.id }])]);
+    expect(shade()).toBe(FaceShade.STARTSHADE);
   });
 
   it('outlines the picker’s slots and lights the faces for the pickup row under the pointer, checked as the pointer enters the row', async () => {

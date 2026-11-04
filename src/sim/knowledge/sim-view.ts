@@ -36,6 +36,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     smoke: smokeViews(sim.state),
     tileChanges: tileChangeViews(sim.state),
     blood: bloodViews(sim.state),
+    ...(sim.state.turn.lockItemLocators ? { itemLocatorsLocked: true } : {}),
   };
 }
 

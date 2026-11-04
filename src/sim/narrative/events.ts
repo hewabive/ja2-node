@@ -1,6 +1,6 @@
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import type { MercQuoteEvent } from '../campaign/contracts/events.ts';
-import type { SimEventBase, SoldierLocatedEvent } from '../events.ts';
+import type { ItemsLocatedEvent, SimEventBase, SoldierLocatedEvent } from '../events.ts';
 import type { EconomyEvent } from '../strategic/economy/events.ts';
 import type { SkyriderQuoteEvent } from '../strategic/forces/helicopter-events.ts';
 
@@ -142,7 +142,7 @@ export type NarrativeEvent =
   | SexSceneEvent
   | AlarmEvent;
 
-type Emitted = NarrativeEvent | MercQuoteEvent | SkyriderQuoteEvent | SoldierLocatedEvent;
+type Emitted = NarrativeEvent | MercQuoteEvent | SkyriderQuoteEvent | SoldierLocatedEvent | ItemsLocatedEvent;
 
 type HeadMinerQuoteEvent = Extract<EconomyEvent, { readonly type: 'headMinerQuote' }>;
 

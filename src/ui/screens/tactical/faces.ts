@@ -7,7 +7,8 @@
 // @src without a soldier: frame 0, the eyes and the mouth), SetFaceShade, HandleFaceHilights, DrawFaceRect,
 // @src HandleRenderFaceAdjustments (closed eyes, hatch, skull, enemy count, hatch for those who cannot act, the text over the
 // @src face, the right icons and the bottom-right icon), HandleAutoFaces (the portrait flash started and held by
-// @src fGettingHit, the moving highlight by sFinalDestination, 2026-11-03); src/game/Tactical/Gap.cc PollAudioGap;
+// @src fGettingHit, the moving highlight by sFinalDestination, 2026-11-03); src/game/Tactical/Soldier_Control.cc
+// @src FlashSoldierPortrait (2026-11-03); src/game/Tactical/Gap.cc PollAudioGap;
 // @src src/game/Tactical/Interface.h FLASH_PORTRAIT_*.
 
 import { type AudioGap, inAudioGap } from '../../../content/formats/gap.ts';
@@ -184,7 +185,7 @@ export class FaceAnimator {
     this.#animatingTalking = false;
   }
 
-  #startFlash(now: number): void {
+  flash(now: number): void {
     this.#flash = FlashState.START;
     this.#flashFrame = FaceShade.STARTSHADE;
     this.#flashSince = now;
@@ -201,7 +202,7 @@ export class FaceAnimator {
   #updateFlash(now: number, gettingHit: boolean): void {
     switch (this.#flash) {
       case FlashState.STOP:
-        if (gettingHit) this.#startFlash(now);
+        if (gettingHit) this.flash(now);
         return;
       case FlashState.START:
         this.#stepFlash(now, gettingHit);

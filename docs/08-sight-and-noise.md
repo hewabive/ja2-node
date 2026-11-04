@@ -41,7 +41,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/duel.ts` | Duel points, interrupt conditions, watched locations (`10`) |
 | `perception/knowledge.ts` | The AI's reading of heard noises and known opponents |
 | `perception/fov.ts` | `revealRoofsAndItems`, `allSoldiersLookForItems`, revealed tiles and rooms (`TacticalState.fog`) |
-| `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`) |
+| `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote with the tile it slides to and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`, `turn.itemsSeenOnAttackGridNo`) |
 | `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; what our sighting does (the quote or battle sound, the halt, the end of the virgin sector); the AI's stance after one |
 | `narrative/sighting-quotes.ts` | The sighting quotes: in trouble, creatures, bloodcats, the first enemy of the sector, the battle-sound roll |
 | `lighting/lighting.ts` | `lightTrueLevel` and the light scaling of vision (`20`) |
@@ -120,7 +120,14 @@ lock in combat silences and an attack in progress holds until it ends on our tur
 look so at once. Other new items (a dropped item, a knife laid by a throw, a dud) only set every soldier's
 `lookForItems`; he then looks at his next animation frame (`overhead.ts`) without locators: the items show, but he
 does not halt and queues no items-seen quote. Every such look also shows him the rotting corpses on the tiles where it
-reveals items, which he may comment on (`33`).
+reveals items, which he may comment on (`33`). The locators are the client's (`ui/screens/tactical/item-locators.ts`):
+each `itemsRevealed` starts one, held while the view's `itemLocatorsLocked` stands, and the quote keeps the first tile
+of its look to slide the view to as it starts (`itemsLocated`; an escort slides at once). The lock reaches the client as
+view state, not as events, because a look out of combat drops and takes it again within one pass (`29` §7).
+
+**The camera at a sighting.** An opponent turning visible to our team or the militia slides the view to him in combat
+and before the sector's first sighting; a later sighting by our merc on the enemy's turn locates him and slides to the
+enemy that paused the enemy's turn (`soldierLocated` with `slide`, `perception/sight.ts`, `perception/wiring.ts`).
 
 **Decay.** A team's turn start decays its public opplist and watched locations, each soldier's his own. In real time
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
@@ -156,6 +163,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Any camouflage on a bloodcat counts as full camouflage | `sight-modifiers.test.ts` |
 | A muzzle flash shows a shooter as in daylight to anyone but a tank, which keeps looking only the way it is turning, also where a look ignores the facing | `sight-modifiers.test.ts` |
 | In combat a locked item locator keeps every merc who sees new items quiet; only a look out of combat, the items-seen quote itself or the creature queen's death unlocks it | `item-locator.test.ts` |
+| A look out of combat that shows items on two tiles or more leaves the item locators unlocked, so they flash before the items-seen quote; one tile leaves them locked until it starts | `item-locator.test.ts` "leaves the locators unlocked after a look out of combat …" |
 | Only a look forgets which creature the team saw last: a radio outside a look (a noise, an unseen attacker) that reveals a soldier brings the creature line | `../narrative/sighting-quotes.test.ts` |
 | A merc counts himself among the allies who see half the enemies, so the in-trouble line needs four opponents in his sight when he stands alone | `../narrative/sighting-quotes.test.ts` |
 
@@ -188,5 +196,5 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Guard room run", the camera's slide to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
+Not ported: gaps "Guard room run". Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
 after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

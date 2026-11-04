@@ -1100,6 +1100,37 @@ function addInterfaceLockFlag(snapshot: Readonly<Record<string, unknown>>): Reco
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY = 'itemsSeenOnAttackGridNo';
+const ITEM_LOCATOR_KIND = 'itemLocator';
+const ITEM_LOCATOR_SPEAKER_KEY = 'speaker';
+const ITEM_LOCATOR_GRID_NO_KEY = 'gridNo';
+const NO_ITEMS_TILE = -1;
+
+function withItemsSeenGridNo(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withItemsSeenGridNo(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withItemsSeenGridNo(v);
+  return mapped.kind === ITEM_LOCATOR_KIND
+    ? insertAfter(mapped, ITEM_LOCATOR_SPEAKER_KEY, ITEM_LOCATOR_GRID_NO_KEY, NO_ITEMS_TILE)
+    : mapped;
+}
+
+function withItemsSeenOnAttackGridNo(tactical: JsonObject): JsonObject {
+  const turn = tactical.turn;
+  if (!isObject(turn) || turn[REF] !== undefined) return tactical;
+  return { ...tactical, turn: insertAfter(turn, ITEMS_SEEN_ON_ATTACK_KEY, ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY, NO_ITEMS_TILE) };
+}
+
+function addItemsSeenTiles(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const located = withItemsSeenGridNo(value);
+    return [name, name === 'tactical' && isObject(located) ? withItemsSeenOnAttackGridNo(located) : located];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1142,5 +1173,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     38: addCorpseHeights,
     39: addBulletLocatedFlags,
     40: addInterfaceLockFlag,
+    41: addItemsSeenTiles,
   };
 }

@@ -950,6 +950,7 @@ export interface PlayerView {
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
   readonly blood?: readonly BloodPoolView[];
+  readonly itemLocatorsLocked?: boolean;
   readonly music?: MusicView;
 }
 
@@ -992,6 +993,7 @@ export interface ViewFrame {
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
   readonly blood?: readonly BloodPoolView[];
+  readonly itemLocatorsLocked?: boolean;
   readonly music?: MusicView;
 }
 
@@ -1067,6 +1069,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), tileChanges: next.tileChanges ?? [] };
   if (!sameJson(previous.blood ?? [], next.blood ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), blood: next.blood ?? [] };
+  if ((previous.itemLocatorsLocked ?? false) !== (next.itemLocatorsLocked ?? false))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), itemLocatorsLocked: next.itemLocatorsLocked ?? false };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if ((previous.selected ?? null) !== (next.selected ?? null))

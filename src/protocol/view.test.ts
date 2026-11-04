@@ -75,6 +75,15 @@ describe('view frames', () => {
     expect(nobody && applyViewFrame(selected, nobody).selected).toBeNull();
   });
 
+  it('carry the item locator lock as it rises and drops', () => {
+    const locked: PlayerView = { ...base, itemLocatorsLocked: true };
+    expect(diffPlayerView(base, { ...base, tick: 20 })).toBeNull();
+    expect(diffPlayerView(base, { ...locked, tick: 20 })).toEqual({ tick: 20, changed: [], removed: [], itemLocatorsLocked: true });
+    const unlocked = diffPlayerView(locked, { ...base, tick: 30 });
+    expect(unlocked).toMatchObject({ itemLocatorsLocked: false });
+    expect(unlocked && applyViewFrame(locked, unlocked).itemLocatorsLocked).toBe(false);
+  });
+
   it('carry the current squad when the server makes another squad current or none', () => {
     const current: PlayerView = { ...base, currentSquad: 0 };
     expect(diffPlayerView(current, { ...current, tick: 20 })).toBeNull();
