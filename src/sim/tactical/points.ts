@@ -5,7 +5,7 @@
 // @src CalcNewActionPoints (the boxing halving); the phobia terms of CalcActionPoints and EnoughPoints' waiting and
 // @src traversal exceptions (2026-11-01); the sleep dart, drug and INT8 terms of CalcActionPoints and
 // @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs, the INT16 breath of DeductPoints and
-// @src AdjustBreathPts (2026-11-04).
+// @src AdjustBreathPts, the robot's zapped breath costs of DeductPoints (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -20,6 +20,7 @@ import type { TacticalContent } from './content.ts';
 import { adrenalineEffect, apEffectDueToDrugs, bpEffectDueToDrugs } from './drugs.ts';
 import { carriedWeightPercent, InvSlot, isValidSecondHandShot, itemIn } from './inventory.ts';
 import { boxingHalvesPoints } from './narrative/boxing-state.ts';
+import { isRobot } from './narrative/robot.ts';
 import { doorObstacleIfClosed, doorState, isWater, type PathEnv, terrainCost } from './pathfinding.ts';
 import { mercSeesCreature } from './perception/opp.ts';
 import {
@@ -474,7 +475,7 @@ export function deductPoints(inCombat: boolean, s: Soldier, apCost: number, bpCo
   let ap = s.actionPoints - (inCombat ? apCost : 0);
   if (ap < 0 && s.actionPoints > 0) ap = 0;
   s.actionPoints = Math.max(ap, -MAX_AP_DEBT);
-  const cost = i16(bpCost);
+  const cost = isRobot(s) ? 0 : i16(bpCost);
   if (!cost) return;
   const regained = i16(-adjustBreathPts(s, cost));
   s.breathRed = Math.min(MAX_BREATH_RED, Math.max(0, i16(s.breathRed - regained)));

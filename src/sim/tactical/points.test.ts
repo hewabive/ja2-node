@@ -137,6 +137,18 @@ describe('action points', () => {
     expect([pushed.breathRed, pushed.breath]).toEqual([0, 100]);
   });
 
+  it('zaps every breath cost of the robot, a regain included, but still charges his APs (DeductPoints)', () => {
+    const t = tactical();
+    const robot = spawn(t, gridNo(80, 80), Team.OUR, Body.ROBOTNOWEAPON);
+    robot.breathRed = 1000;
+    robot.breath = 90;
+    robot.actionPoints = 10;
+    deductPoints(true, robot, 4, 500);
+    expect([robot.actionPoints, robot.breathRed, robot.breath]).toEqual([6, 1000, 90]);
+    deductPoints(true, robot, 0, -500);
+    expect([robot.breathRed, robot.breath]).toEqual([1000, 90]);
+  });
+
   it('prices stance changes, turning and a running start', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
