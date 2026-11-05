@@ -75,6 +75,13 @@ and enters the tactical screen (deviation "Selection on load"). The import does 
 (`27`). The load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104,
 the start sector for an invalid landing zone.
 
+**Vehicle ids.** A soldier's `bVehicleID` is the vehicle he is and `iVehicleId` the one he rides. The import keeps them
+apart: every vehicle soldier, on any team, gets his `bVehicleID` (`Soldier.vehicleId`, -1 for anyone else, whose byte
+the original leaves at 0), the roster record keeps `iVehicleId`, and a vehicle merc's `RosterMerc.vehicleId` reads his
+soldier's (`sim/campaign/roster.ts`). Each vehicle is linked to the first active soldier who is it, whatever his team,
+as `FindSoldierType` scans (`sim/strategic/map/save-import.ts`), and the list is refilled in place, as the tactical sim
+shares it (`25`). The fuel patch of saves up to version 73 (`SaveLoadGame.cc:981`) never applies: those are refused.
+
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
 has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
 underground traversal flag, the current squad (the first, before the load's selections), the talk context, the

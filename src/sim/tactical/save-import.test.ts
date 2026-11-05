@@ -12,6 +12,10 @@ import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { createRosterState } from '../campaign/merc-record.ts';
+import { Roster } from '../campaign/roster.ts';
+import { addSavedMercsToRoster } from '../campaign/save-roster.ts';
+import { NO_VEHICLE } from '../strategic/forces/constants.ts';
 import { createStrategicState } from '../strategic/state.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
@@ -657,5 +661,47 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
       creatureTenseQuoteDelaySeconds: 74,
       lastCreatureTenseQuoteMs: 912_345,
     });
+  });
+});
+
+describe('the vehicle ids of an import (LoadSaveSoldierType.cc bVehicleID, iVehicleId)', () => {
+  const SOLDIER_VEHICLE = 0x00008000;
+  const OUR_HUMMER_ID = 18;
+  const CIVILIAN_TRUCK_ID = 121;
+  const ENEMY_TANK_ID = 22;
+  const OUR_HUMMER_SLOT = 1;
+  const TRUCK_SLOT = 3;
+  const TANK_SLOT = 4;
+  const RIDDEN_SLOT = 2;
+  const STALE_SLOT = 6;
+
+  function vehicleSoldier(id: number, team: number, body: number, slot: number, at: number): SavedSoldierEntry {
+    return savedSoldier(id, team, at, { uiStatusFlags: SOLDIER_VEHICLE, ubBodyType: body, bVehicleID: slot, iVehicleId: RIDDEN_SLOT });
+  }
+
+  function vehicleSave(): SaveGame {
+    return syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { bVehicleID: STALE_SLOT, iVehicleId: RIDDEN_SLOT }),
+        vehicleSoldier(OUR_HUMMER_ID, Team.OUR, Body.HUMVEE, OUR_HUMMER_SLOT, gridNo(70, 70)),
+        vehicleSoldier(ENEMY_TANK_ID, Team.ENEMY, Body.TANK_NW, TANK_SLOT, gridNo(90, 70)),
+        vehicleSoldier(CIVILIAN_TRUCK_ID, Team.CIV, Body.ICECREAMTRUCK, TRUCK_SLOT, gridNo(70, 90)),
+      ],
+    });
+  }
+
+  it('reads the vehicle a soldier is from bVehicleID for every team, and none for a soldier who is no vehicle', () => {
+    const sim = importedSim(vehicleSave());
+    const ids = [MERC_ID, OUR_HUMMER_ID, ENEMY_TANK_ID, CIVILIAN_TRUCK_ID].map((id) => soldierOf(sim, id).vehicleId);
+    expect(ids).toEqual([NO_VEHICLE, OUR_HUMMER_SLOT, TANK_SLOT, TRUCK_SLOT]);
+  });
+
+  it('gives our vehicle merc the vehicle he is, not the iVehicleId the original never sets for him, and a merc the one he rides', () => {
+    const save = vehicleSave();
+    const sim = importedSim(save);
+    const state = createRosterState();
+    const roster = new Roster({ state, content, combat: () => sim.state });
+    addSavedMercsToRoster(roster, save, sim.state);
+    expect([roster.get(OUR_HUMMER_ID)?.vehicleId, roster.get(MERC_ID)?.vehicleId]).toEqual([OUR_HUMMER_SLOT, RIDDEN_SLOT]);
   });
 });

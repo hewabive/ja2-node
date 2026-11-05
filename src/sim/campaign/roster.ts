@@ -141,7 +141,7 @@ export class RosterMerc implements CrewMember {
   }
 
   get vehicleId(): number {
-    return this.record.vehicleId;
+    return this.isVehicle ? this.soldier.vehicleId : this.record.vehicleId;
   }
 
   set vehicleId(value: number) {

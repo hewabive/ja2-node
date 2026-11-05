@@ -12,7 +12,8 @@
 // @src before UpdateMercsInSector; SetBlueFlagFlags, 2026-11-04); TileEngine/SaveLoadMap.cc
 // @src LoadRevealedStatusArrayFromRevealedTempFile; LoadSaveTacticalStatusType.cc ExtractTacticalStatusTypeFromFile (the
 // @src panic fields, 2026-11-04); Tactical/LoadSaveSoldierType.cc (uiXRayActivatedTime, xrayed_by with
-// @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04).
+// @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04); Tactical/LoadSaveSoldierType.cc bVehicleID of a
+// @src vehicle soldier (2026-11-04).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -33,6 +34,7 @@ import { i16, u8 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
+import { NO_VEHICLE } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import type { Corpse } from './combat/death.ts';
@@ -477,6 +479,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.cowering = (r.statusFlags & SoldierStatusFlags.COWERING) !== 0;
   s.gassed = (r.statusFlags & SoldierStatusFlags.GASSED) !== 0;
   s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
+  s.vehicleId = r.statusFlags & SoldierStatusFlags.VEHICLE ? r.vehicleSlot : NO_VEHICLE;
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;
   s.xrayActivatedTime = r.xrayActivatedTime;
   s.breathMax = r.stats.breathMax;
