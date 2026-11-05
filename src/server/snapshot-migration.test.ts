@@ -4,6 +4,7 @@ import { addStubTank, stubCampaignWithOurHummer } from '../../tests/support/vehi
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
 import { Direction, WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { StructureFlags } from '../content/world/structures.ts';
+import { strategicHandlePlayerTeamMercDeath } from '../sim/campaign/merc-fate.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { createItem } from '../sim/items/object.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
@@ -2592,5 +2593,86 @@ describe('snapshot version 53 (no 32-step facing) migrates with every soldier fa
 
   it('a landed campaign', async () => {
     await expectHiResDirections(await createCampaignSession(kit.read, exists, 9));
+  });
+});
+
+const DEAD_KEY = 'dead';
+const DEAD_FLAG = 0x00000080;
+
+function deadMercIds(strategic: JsonObject): ReadonlySet<number> {
+  const entries = object(object(strategic.roster).mercs)[MAP_ENTRIES] as Json[];
+  const dead = (entries as [number, JsonObject][]).filter(([, record]) => ((record[STATUS_FLAGS_KEY] as number) & DEAD_FLAG) !== 0);
+  return new Set(dead.map(([id]) => id));
+}
+
+function withDeadMercsAlive(value: Json, dead: ReadonlySet<number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDeadMercsAlive(v, dead));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withDeadMercsAlive(v, dead);
+  if (!SOLDIER_RECORD_KEYS.every((key) => key in out) || out.team !== Team.OUR || !dead.has(out.id as number)) return out;
+  return { ...out, [DEAD_KEY]: false };
+}
+
+function versionFiftyFour(snapshot: SimSnapshot): SimSnapshot {
+  const strategic = snapshot.graph.sections.find(([name]) => name === 'strategic')?.[1];
+  const dead = strategic === undefined ? new Set<number>() : deadMercIds(object(strategic));
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withDeadMercsAlive(value, dead)]);
+  return { ...snapshot, version: 54, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 54 (a strategic death left the soldier alive) migrates with every merc whose record carries DEAD dead on his soldier', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectDeadOnSoldiers(session: SessionSim, changed: boolean): Promise<SessionSim> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftyFour(current.sim);
+    expect(JSON.stringify(legacy.graph) !== JSON.stringify(current.sim.graph)).toBe(changed);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    return restored;
+  }
+
+  function dieStrategically(session: CampaignSession, index: number, offTheLoadedMap: boolean): Soldier {
+    const battle = session.campaign.battle;
+    const m = battle?.roster.all()[index];
+    if (!battle || !m) throw new Error('no merc to kill');
+    if (offTheLoadedMap) {
+      m.betweenSectors = true;
+      session.campaign.strategic?.mercs.removeFromTacticalSector(m.id);
+    }
+    m.soldier.life = 0;
+    strategicHandlePlayerTeamMercDeath(battle, m);
+    return m.soldier;
+  }
+
+  function deadOnSoldiers(session: SessionSim): boolean[] {
+    return ((session as CampaignSession).campaign.battle?.roster.all() ?? []).map((m) => m.soldier.dead);
+  }
+
+  it('a sandbox, where nobody has a merc record', async () => {
+    await expectDeadOnSoldiers(await createSandboxSession(kit.read, false, 5), false);
+  });
+
+  it.each([
+    ['in the loaded sector', false],
+    ['after leaving the loaded sector', true],
+  ])('a campaign on the map whose merc died strategically %s', async (_where, offTheLoadedMap) => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    const dead = dieStrategically(campaign, 1, offTheLoadedMap);
+    expect(campaign.campaign.tactical?.state.mercSlots.includes(dead)).toBe(!offTheLoadedMap);
+    const restored = await expectDeadOnSoldiers(campaign, true);
+    expect(deadOnSoldiers(restored)).toEqual([false, true, false, false]);
   });
 });

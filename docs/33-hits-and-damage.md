@@ -62,6 +62,17 @@ sighting pause", "Suppression stance change from the end of the previous one").
 **Our dead merc holds the barrier** for a fixed 1920 game ms after 440, where the original waits for the portrait and
 skull animation in wall-clock time (deviation "Our merc's death").
 
+**A merc of ours can die off the tactical map.** Bleeding, gas and electricity that bring a soldier not on the loaded
+map to life 0, or any soldier while the map screen is up, hand him to the campaign through
+`SectorHooks.mercDiedOffTheMap` (`handleTakeDamageDeath`, `Tactical/Soldier_Control.cc:5401`): the strategic bookkeeping
+of `campaign/merc-fate.ts` runs at once, with no death animation, corpse or skull, and `mercDied` stands for the death cry
+and the two samples the original plays (`29`). On the tactical screen that is all: his gear stays on his record and
+nobody comments, since the buddy lines belong to the death on the tactical map (`Tactical/Overhead.cc:2207`, said before
+its bookkeeping) and to the map screen (`Strategic/Strategic.cc:36`). The bookkeeping sets `Soldier.dead` beside the
+roster's `DEAD` bit, the one `SOLDIER_DEAD` of the original, so the tactical death never runs again for him. A merc of
+the loaded sector lying collapsed when he dies on the map screen gets both the death animation and the bookkeeping; the
+body, the gear and the compression stop of the map screen are gaps "Death in the map screen".
+
 **The damage window is presentation with a gameplay effect.** A soldier's floating damage number accumulates every life
 loss for 8 × 250 ms, and the "blown away" chest kill reads that sum: hits landing within about 2 s add up. The window
 only runs for a soldier the player can see, so hits on an unseen soldier keep adding up until a visible one. ja2-node
@@ -153,6 +164,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A tank's death marks its `NPC164` profile dead, though it writes no history entry | `src/sim/tactical/vehicle-damage.test.ts` "marks a tank's NPC164 profile dead …" |
 | A vehicle's armour is its type's armour item at status 100 wherever it is hit, the vest, helmet and leggings a tank wears ignored: it draws its `PreRandom(100)` every time, can never fail and never wears | `src/sim/tactical/vehicle-damage.test.ts` "protects a vehicle with its type's armour …" |
 | A corpse added to an unloaded sector takes no level from its definition: it lies on the ground at the soldier's whole height, 58 px up for one who stood on a roof, while his items stay on the roof level | `src/sim/campaign/sector-loot.test.ts` |
+| A merc of ours who bleeds to death outside the loaded sector while the tactical screen is up leaves no body and no gear, and nobody comments | `src/sim/campaign/death-off-the-map.test.ts` "leaves no body and no gear …" |
+| An insured merc dying off the tactical map with no enemy in the loaded sector is a suspicious death: the test reads the loaded sector, not his (`Strategic/Strategic_Merc_Handler.cc:103`) | `src/sim/campaign/death-off-the-map.test.ts` "an insured merc dying off the map …" |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).
@@ -173,5 +186,7 @@ Inferred from reading the source:
 - The quotes of a kill: their hold until the end of the attack, the draws of `HandleKilledQuote` and the items-seen
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
+- A merc of the loaded sector lying collapsed who bleeds to death while the map screen is up starts his death animation
+  and gets the strategic bookkeeping at once; a standing one dies at once in tactical terms and gets it at the skull.
 
 Not ported: gaps "Unseen soldiers in combat".

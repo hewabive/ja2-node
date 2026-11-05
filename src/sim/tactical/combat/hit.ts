@@ -4,7 +4,8 @@
 // @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
-// @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04), HandleTakeDamageDeath, HandleSoldierTakeDamageFeedback
+// @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04), HandleTakeDamageDeath (its strategic branch,
+// @src 2026-11-05), HandleSoldierTakeDamageFeedback
 // @src (the portrait flash of a soldier the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
 // @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
@@ -787,6 +788,10 @@ function handleSoldierTakeDamageFeedback(t: TacticalState, s: Soldier): void {
   if (shownToPlayer(s)) t.events.push({ type: 'damageFeedback', soldier: s.id });
 }
 
+function diesOffTheTacticalMap(t: TacticalState, s: Soldier): boolean {
+  return (t.sectorHooks.inMapScreen(t) || !s.placed) && s.life === 0 && !s.dead;
+}
+
 function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): void {
   if (reason === DamageReason.BLOODLOSS || reason === DamageReason.ELECTRICITY || reason === DamageReason.GAS) {
     if (s.placed) {
@@ -796,6 +801,7 @@ function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): vo
       checkForAndHandleSoldierDyingNotFromHit(t, s);
     }
     handleSoldierTakeDamageFeedback(t, s);
+    if (diesOffTheTacticalMap(t, s)) t.sectorHooks.mercDiedOffTheMap(t, s);
   }
   if (reason === DamageReason.ELECTRICITY && s.life >= OKLIFE) releaseSoldiersAttacker(t, s);
 }

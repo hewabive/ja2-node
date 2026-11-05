@@ -4,7 +4,8 @@
 // @src DIALOGUE_COLOR, the 256-line ring); the ScreenMsg sites of Tactical/OppList.cc (noises), Overhead.cc (enemy in
 // @src sector, first aid), TeamTurns.cc (interrupt), Campaign.cc (stat gains), Items.cc (reload), Handle_Doors.cc and
 // @src Keys.cc (locks and traps), Interface_Dialogue.cc and TacticalAI/NPC.cc (recruits, escorts, balances),
-// @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, unpaid RPCs, worn-off camouflage),
+// @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, the death off the tactical map
+// @src printed off the game screen, 2026-11-05; unpaid RPCs, worn-off camouflage),
 // @src Map_Screen_Interface.cc (equipment left, invasions), Map_Screen_Helicopter.cc (Skyrider's bill), Assignments.cc
 // @src (repairs, aborted assignments), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
 // @src Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Weapons.cc UseHandToHand (stealing, 2026-10-31), Soldier_Control.cc (refused first aid),
@@ -184,6 +185,11 @@ function soldierDied(e: EventOf<'soldierDied'>, facts: MessageFacts): Omit<Messa
   return [];
 }
 
+function mercDied(e: EventOf<'mercDied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+  if (!e.mapScreen) return [];
+  return [{ kind: 'interface', colour: FONT_RED, table: 'pMercDeadString', index: 0, args: [text(facts.soldierName(e.soldier))] }];
+}
+
 function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
   const known = NPC_MESSAGES[e.kind];
   if (!known) return [];
@@ -238,6 +244,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
         ]
       : [],
   soldierDied,
+  mercDied,
   enemyPresence: () => [line('TacticalStr', 85)],
   sectorLoaded: (e) => (e.enemyPresence ? [line('TacticalStr', 85)] : []),
   interrupt: (e, facts) =>

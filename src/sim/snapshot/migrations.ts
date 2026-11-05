@@ -1576,6 +1576,37 @@ function addHiResDirections(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const DEAD_KEY = 'dead';
+const DEAD_FLAG = 0x00000080;
+
+function deadMercIds(strategic: Json | undefined): ReadonlySet<number> {
+  const dead = new Set<number>();
+  for (const entry of rosterEntries(strategic)) {
+    if (!Array.isArray(entry)) continue;
+    const [id, record] = entry;
+    const flags = field(record, STATUS_FLAGS_KEY, 0);
+    if (typeof id === 'number' && typeof flags === 'number' && (flags & DEAD_FLAG) !== 0) dead.add(id);
+  }
+  return dead;
+}
+
+function withDeadMercsDead(value: Json, dead: ReadonlySet<number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDeadMercsDead(v, dead));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withDeadMercsDead(v, dead);
+  const { id, team } = mapped;
+  const deadMerc = isSoldierRecord(mapped) && team === OUR_TEAM && typeof id === 'number' && dead.has(id);
+  return deadMerc ? { ...mapped, [DEAD_KEY]: true } : mapped;
+}
+
+function markStrategicDeathsOnSoldiers(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const dead = deadMercIds(sectionOf(graph.sections, 'strategic'));
+  const sections = graph.sections.map(([name, value]): Section => [name, withDeadMercsDead(value, dead)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1631,5 +1662,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     51: addVehicleIdsAndSharedVehicleList,
     52: moveVehicleSeatsOntoSoldiers,
     53: addHiResDirections,
+    54: markStrategicDeathsOnSoldiers,
   };
 }

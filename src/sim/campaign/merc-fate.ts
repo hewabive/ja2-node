@@ -43,7 +43,7 @@ export interface DeathBookkeeping {
   deathBookkeeping(m: RosterMerc): void;
   lifeInsuranceOnDeath(m: RosterMerc, p: ProfileProgress): void;
   mercMercDied(m: RosterMerc): void;
-  buddyKilledQuotes(dead: RosterMerc): void;
+  soldierDeadComments(dead: RosterMerc): void;
 }
 
 export interface FateContext {
@@ -52,7 +52,6 @@ export interface FateContext {
   moraleContext(): MoraleContext;
   questContext(): QuestContext;
   interrogationMeanwhile?(): void;
-  mercDied?(merc: RosterMerc): void;
 }
 
 function bothCaptureFlags(flags: number): boolean {
@@ -94,6 +93,7 @@ export function strategicHandlePlayerTeamMercDeath(ctx: FateContext, m: RosterMe
   books?.deathBookkeeping(m);
   if (!m.isEpc && !m.isRobot) state.status.mercDeaths = u8(state.status.mercDeaths + 1);
   m.statusFlags |= SoldierStatusFlags.DEAD;
+  m.soldier.dead = true;
   m.soldier.breathMax = 0;
   m.soldier.breath = 0;
   m.asleep = false;
@@ -105,8 +105,7 @@ export function strategicHandlePlayerTeamMercDeath(ctx: FateContext, m: RosterMe
   if (!m.isEpc && !m.isRobot) handleMoraleEvent(ctx.moraleContext(), m, MoraleEvent.TEAMMATE_DIED, m.sector);
   books?.mercMercDied(m);
   handleStrategicDeath(ctx, m);
-  books?.buddyKilledQuotes(m);
-  ctx.mercDied?.(m);
+  books?.soldierDeadComments(m);
 }
 
 function captureSoldier(ctx: FateContext, m: RosterMerc, sector: Sector, gridNo: number, itemGridNo: number): void {

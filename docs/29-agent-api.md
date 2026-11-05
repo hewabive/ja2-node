@@ -339,6 +339,13 @@ right after the command, and the `Session` holds them for the next report.
 saved, sent whole in `welcome`, new ones in frames and in every `advance` report (`messages`). The simulation never
 reads them (deviation "Message list").
 
+**A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
+while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?}`, never as `soldierDied`: the
+strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. The
+original plays his death cry and the samples `DOORCR_1` and `HEADCR_1` for it (`Tactical/Soldier_Control.cc:5407`;
+gaps "Sound coverage"), and prints `pMercDeadString` in the message list off the tactical screen, which `mapScreen`
+marks (`Strategic/Strategic_Merc_Handler.cc:71`).
+
 **Presentation events** never enter the state or an outcome: optional fields (materials, sound facts) and events for
 what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, the
 window a friendly bullet first meets in combat, where show misses moves the view (`bulletLocated`, `27` §2.4), and the

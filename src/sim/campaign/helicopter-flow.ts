@@ -245,7 +245,7 @@ export class HelicopterFlow {
     const bandage = m.lifeMax - m.life - m.bleeding;
     m.life = m.life > BLOODLOSS_DAMAGE ? m.life - BLOODLOSS_DAMAGE : 0;
     m.bleeding = m.lifeMax - (m.life + bandage);
-    if (m.life === 0) this.campaign.battle?.mercDiedInTactical(m.soldier);
+    if (m.life === 0) this.campaign.battle?.mercDiedOffTheMap(m.soldier);
     return true;
   }
 

@@ -738,15 +738,20 @@ export class ContractFlow implements ContractContext {
     this.hooks.mercMercLost();
   }
 
-  buddyKilledQuotes(dead: RosterMerc): void {
-    const flow = this.state.flow;
-    if (flow !== 'tactical' && flow !== 'strategic') return;
-    for (const m of this.team()) {
-      if (m.life < OKLIFE || (flow === 'tactical' && !m.inSector)) continue;
-      const p = this.profile(m.profile);
-      const quote = p ? BUDDY_KILLED_QUOTES[whichBuddy(p, dead.profile)] : undefined;
-      if (quote) this.say(m, quote, dead.profile);
-    }
+  soldierDeadComments(dead: RosterMerc): void {
+    if (this.state.flow !== 'strategic') return;
+    for (const m of this.team()) this.#buddyKilledQuote(m, dead);
+  }
+
+  inSectorBuddyKilledQuotes(dead: RosterMerc): void {
+    for (const m of this.team()) if (m.inSector) this.#buddyKilledQuote(m, dead);
+  }
+
+  #buddyKilledQuote(m: RosterMerc, dead: RosterMerc): void {
+    if (m.life < OKLIFE) return;
+    const p = this.profile(m.profile);
+    const quote = p ? BUDDY_KILLED_QUOTES[whichBuddy(p, dead.profile)] : undefined;
+    if (quote) this.say(m, quote, dead.profile);
   }
 }
 

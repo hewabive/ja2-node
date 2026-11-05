@@ -656,6 +656,13 @@ export interface MercCapturedEvent extends SimEventBase {
   readonly sector: string;
 }
 
+export interface MercDiedEvent extends SimEventBase {
+  readonly type: 'mercDied';
+  readonly soldier: number;
+  readonly sector: string;
+  readonly mapScreen?: true;
+}
+
 export interface CiviliansEatenEvent extends SimEventBase {
   readonly type: 'civiliansEaten';
   readonly sector: string;
@@ -771,6 +778,7 @@ export type SimEvent =
   | BattleResultEvent
   | SectorControlChangedEvent
   | MercCapturedEvent
+  | MercDiedEvent
   | ContractEvent
   | CiviliansEatenEvent
   | CompressionStartedEvent

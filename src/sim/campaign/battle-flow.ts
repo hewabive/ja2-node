@@ -6,7 +6,8 @@
 // @src MercCellMouseClickCallback, AcceptSurrenderCallback, RejectSurrenderCallback, BandageButtonCallback,
 // @src RemoveAutoResolveInterface (orchestration); MapScreen.cc HandlePostAutoresolveMessages;
 // @src Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat; Tactical/Overhead.cc CheckForEndOfBattle and
-// @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call);
+// @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call; its buddy
+// @src comments first, 2026-11-05); Tactical/Soldier_Control.cc HandleTakeDamageDeath (the strategic branch, 2026-11-05);
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
 // @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack.
@@ -1090,7 +1091,16 @@ export class BattleFlow implements FateContext {
   mercDiedInTactical(soldier: Soldier): void {
     const m = this.roster.get(soldier.id);
     if (!m || m.soldier !== soldier || m.assignment === Assignment.ASSIGNMENT_DEAD) return;
+    this.campaign.contracts?.inSectorBuddyKilledQuotes(m);
     strategicHandlePlayerTeamMercDeath(this, m);
+  }
+
+  mercDiedOffTheMap(soldier: Soldier): void {
+    const m = this.roster.get(soldier.id);
+    if (!m || m.soldier !== soldier) return;
+    strategicHandlePlayerTeamMercDeath(this, m);
+    const mapScreen = this.state.flow === 'strategic';
+    this.emit({ type: 'mercDied', soldier: m.id, sector: sectorShortString(m.sector), ...(mapScreen ? { mapScreen } : {}) });
   }
 
   pendingEnemies(): boolean {

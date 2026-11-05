@@ -656,6 +656,8 @@ export class SectorFlow {
         this.#pendingWait = code;
       },
       mercDied: (_t, dead) => this.campaign.battle?.mercDiedInTactical(dead),
+      mercDiedOffTheMap: (_t, dead) => this.campaign.battle?.mercDiedOffTheMap(dead),
+      inMapScreen: () => this.campaign.state.flow === 'strategic',
       pendingEnemies: () => this.campaign.battle?.pendingEnemies() ?? false,
       militiaFinishBattle: (t) => this.campaign.battle?.militiaFinishBattle(t) ?? false,
       battleLost: (t) => this.campaign.battle?.battleLost(t),

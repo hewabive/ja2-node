@@ -93,6 +93,14 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(appendToLog([], entries).map((e) => e.kind)).toEqual(['interface']);
   });
 
+  it('prints pMercDeadString in red for our merc dying off the tactical map only off the tactical screen', () => {
+    const entries = messageEntriesOf(
+      [at({ type: 'mercDied', soldier: 1, sector: 'B9' }), at({ type: 'mercDied', soldier: 0, sector: 'A9', mapScreen: true })],
+      facts,
+    );
+    expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 163, table: 'pMercDeadString', index: 0, args: [{ text: 'Ivan' }] }]);
+  });
+
   it('follows the lock and trap lines of Handle_Doors and Keys', () => {
     const door = (action: string, result: string, trap?: string) => at({ type: 'doorResult', soldier: 0, gridNo: 5, action, result, trap });
     const entries = messageEntriesOf(

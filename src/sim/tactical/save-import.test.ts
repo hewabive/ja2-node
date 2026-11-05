@@ -62,6 +62,7 @@ const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
 const SOLDIER_LOOKFOR_ITEMS = 0x200;
 const SOLDIER_GASSED = 0x01000000;
+const SOLDIER_DEAD = 0x00000080;
 const SOLDIER_MISC_XRAYED = 0x04;
 const DOOR_HAS_TIN_CAN = 0x10;
 
@@ -636,6 +637,22 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
     profiles[user.id] = { ...savedProfile(user, user.nickname), numTimesDrugUseInLifetime: 7 };
     const strategic = importedCampaignWideState({ ...syntheticSave({}), profiles } as SaveGame);
     expect(strategic.profiles.get(user.id)?.numTimesDrugUseInLifetime).toBe(7);
+  });
+
+  it('keeps a dead merc of ours dead on his soldier as on his record, the one SOLDIER_DEAD of the original', () => {
+    const DEAD_ID = MERC_ID + 1;
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82)),
+        savedSoldier(DEAD_ID, Team.OUR, gridNo(82, 82), { uiStatusFlags: SOLDIER_DEAD, bLife: 0 }),
+      ],
+    });
+    const sim = importedSim(save);
+    const roster = new Roster({ state: createRosterState(), content, combat: () => sim.state });
+    addSavedMercsToRoster(roster, save, sim.state);
+    const merc = (id: number) => roster.get(id);
+    expect([merc(MERC_ID)?.soldier.dead, merc(DEAD_ID)?.soldier.dead]).toEqual([false, true]);
+    expect(((merc(DEAD_ID)?.statusFlags ?? 0) & SOLDIER_DEAD) !== 0).toBe(true);
   });
 
   it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay, the crows and the creature tension timer', () => {
