@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
-import { stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
+import { addStubTank, stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
-import { WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
+import { Direction, WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { StructureFlags } from '../content/world/structures.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { createItem } from '../sim/items/object.ts';
@@ -2534,5 +2534,63 @@ describe('snapshot version 52 (seats as merc status flags) migrates with each se
     const restored = (await expectSeatsOnSoldiers(campaign)) as CampaignSession;
     const t = restored.campaign.tactical?.state;
     expect([driver.id, passenger.id].map((id) => t?.soldiers[id]?.vehicleSeat)).toEqual([VehicleSeat.DRIVER, VehicleSeat.PASSENGER]);
+  });
+});
+
+const HI_RES_DIRECTION_KEY = 'hiResDirection';
+const HI_RES_STEPS_PER_DIRECTION = 4;
+const TANK_ROWS_SOUTH = 10;
+
+function withoutHiResDirections(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutHiResDirections(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutHiResDirections(v);
+  if (!SOLDIER_RECORD_KEYS.every((key) => key in out)) return out;
+  const { [HI_RES_DIRECTION_KEY]: hiResDirection, ...older } = out;
+  expect(hiResDirection).toBe((older.direction as number) * HI_RES_STEPS_PER_DIRECTION);
+  return older;
+}
+
+function versionFiftyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutHiResDirections(value)]);
+  return { ...snapshot, version: 53, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 53 (no 32-step facing) migrates with every soldier facing four steps a direction', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectHiResDirections(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftyThree(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${HI_RES_DIRECTION_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${HI_RES_DIRECTION_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox with an enemy tank facing west', async () => {
+    const sandbox = (await createSandboxSession(kit.read, false, 5)) as TacticalSession;
+    const t = sandbox.sim.state;
+    const merc = teamMembers(t, Team.OUR)[0];
+    if (!merc) throw new Error('no merc in the sandbox');
+    const at = merc.gridNo + TANK_ROWS_SOUTH * WORLD_COLS;
+    const tank = addStubTank(t, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: at, direction: Direction.WEST });
+    expect(tank.hiResDirection).toBe(Direction.WEST * HI_RES_STEPS_PER_DIRECTION);
+    await expectHiResDirections(sandbox);
+  });
+
+  it('a landed campaign', async () => {
+    await expectHiResDirections(await createCampaignSession(kit.read, exists, 9));
   });
 });

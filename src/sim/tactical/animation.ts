@@ -10,7 +10,9 @@
 // @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions, reverse moves and failed surface, and the side
 // @src step of EVENT_InternalSetSoldierDesiredDirection (2026-11-01); CalculateSoldierAniSpeed's adrenaline halving
 // @src (2026-11-04); SoldierGotoStationaryStance's tread in deep water and SetSoldierAniSpeed's stats of the soldier a
-// @src follower waits on (fUseMoverrideMoveSpeed, 2026-11-04).
+// @src follower waits on (fUseMoverrideMoveSpeed, 2026-11-04); a vehicle's turn through ubHiResDirection and the
+// @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier
+// @src (2026-11-05).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -34,8 +36,12 @@ import {
   DIRECTION_COUNT,
   DIRECTION_INCREMENT,
   Direction,
+  HI_RES_DIRECTIONS,
+  HI_RES_STEPS_PER_DIRECTION,
+  hiResDirectionOf,
   oppositeDirection,
   perpendicularDirection,
+  quickestHiResTurnIncrement,
   quickestTurnIncrement,
 } from './directions.ts';
 import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from './doors/door-actions.ts';
@@ -63,6 +69,7 @@ import { effectiveAgility } from './skills.ts';
 import {
   Body,
   hasThreatenStance,
+  isCreatureOrBloodcat,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
   NOBODY,
@@ -256,12 +263,19 @@ export function adjustNoAPToFinishMove(s: Soldier, set: boolean): void {
 
 export function setSoldierDirection(t: TacticalState, s: Soldier, direction: number): void {
   s.direction = direction;
+  s.hiResDirection = hiResDirectionOf(direction);
   if (!s.dontUnsetLastTargetFromTurn) s.lastTarget = NOWHERE;
   addMercStructure(t, s);
   if (hasAnimFlag(t.content, s.state, AnimFlags.FASTTURN) && s.team === Team.OUR && !s.turningFromHit) {
     if (s.direction !== s.desiredDirection) s.aniDelay = FAST_TURN_DELAY;
     else setSoldierAniSpeed(t, s);
   }
+}
+
+export function faceAtOnce(s: Soldier, direction: number): void {
+  s.desiredDirection = direction;
+  s.direction = direction;
+  s.hiResDirection = hiResDirectionOf(direction);
 }
 
 const TURN_CHARGE_FLAGS = AnimFlags.BREATH | AnimFlags.OK_CHARGE_AP_FOR_TURN | AnimFlags.FIREREADY;
@@ -288,7 +302,14 @@ export function setDesiredDirection(t: TacticalState, s: Soldier, direction: num
       changeSoldierStance(t, s, AnimHeight.CROUCH);
     }
   }
-  s.turnIncrement = quickestTurnIncrement(s.direction, s.desiredDirection);
+  if (s.desiredDirection !== s.direction && pausesMoveToTurn(s)) s.pauseAnimMove = true;
+  s.turnIncrement = isVehicleBody(s)
+    ? quickestHiResTurnIncrement(s.hiResDirection, hiResDirectionOf(s.desiredDirection))
+    : quickestTurnIncrement(s.direction, s.desiredDirection);
+}
+
+function pausesMoveToTurn(s: Soldier): boolean {
+  return isVehicleBody(s) || isCreatureOrBloodcat(s);
 }
 
 export function changeSoldierState(t: TacticalState, s: Soldier, state: number, startCode = 0, force = false): void {
@@ -802,6 +823,7 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
   if (s.direction === s.desiredDirection) {
     s.lookOnNextTurn = false;
     s.dontUnsetLastTargetFromTurn = false;
+    if (pausesMoveToTurn(s)) s.pauseAnimMove = false;
     t.hooks.turnFinished(t, s);
     if (s.turningFromPronePosition === TurningFromProne.ON) {
       if (isValidStance(t, s, AnimHeight.PRONE) && s.tempObject === null && !playsMeleeAttack(t, s))
@@ -829,9 +851,8 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
     return;
   }
   if (s.noAPToFinishMove) adjustNoAPToFinishMove(s, false);
-  let direction = s.direction + s.turnIncrement;
-  if (direction > 7) direction = 0;
-  else if (direction < 0) direction = 7;
+  const direction = isVehicleBody(s) ? turnHiResStep(s) : nextTurnDirection(s);
+  if (direction === BETWEEN_DIRECTIONS) return;
   if (okToAddMercToWorld(t, s, direction)) {
     if (hasAnimFlag(content, s.state, AnimFlags.STATIONARY)) s.lookOnNextTurn = true;
     setSoldierDirection(t, s, direction);
@@ -839,6 +860,22 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
     changeSoldierStance(t, s, AnimHeight.CROUCH);
     s.turningFromPronePosition = TurningFromProne.ENDING_UP_FROM_MOVE;
   } else if ((s.structure?.def.tiles.length ?? 0) > 1) s.desiredDirection = s.direction;
+}
+
+const BETWEEN_DIRECTIONS = -1;
+
+function nextTurnDirection(s: Soldier): number {
+  const direction = s.direction + s.turnIncrement;
+  if (direction > DIRECTION_COUNT - 1) return 0;
+  return direction < 0 ? DIRECTION_COUNT - 1 : direction;
+}
+
+function turnHiResStep(s: Soldier): number {
+  let hiRes = s.hiResDirection + s.turnIncrement;
+  if (hiRes > HI_RES_DIRECTIONS - 1) hiRes = 0;
+  else if (hiRes < 0) hiRes = HI_RES_DIRECTIONS - 1;
+  s.hiResDirection = hiRes;
+  return hiRes % HI_RES_STEPS_PER_DIRECTION === 0 ? hiRes / HI_RES_STEPS_PER_DIRECTION : BETWEEN_DIRECTIONS;
 }
 
 const MELEE_ATTACK_STATES = ['STAB', 'SLICE', 'CROUCH_STAB', 'PUNCH', 'PUNCH_LOW', 'CROWBAR_ATTACK'];

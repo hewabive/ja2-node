@@ -236,6 +236,23 @@ describe('other soldiers in the view (G5)', () => {
     expect(inSight.some((s) => s.id === behind.id)).toBe(false);
   });
 
+  it("show a tank's 32-step facing between two directions and that it is turning, neither once it faces where it turned", () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const tank = addStubTank(sim.state, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: gridNo(80, 92), direction: Direction.NORTH });
+    const merc = spawnSoldier(sim, 21, Team.ENEMY, gridNo(78, 90), Direction.NORTH);
+    sim.lookAround();
+    expect(shown(sim, tank.id)).not.toHaveProperty('hiResDirection');
+    expect(shown(sim, tank.id)).not.toHaveProperty('turning');
+    Object.assign(tank, { desiredDirection: Direction.EAST, hiResDirection: 5, direction: Direction.NORTHEAST });
+    Object.assign(merc, { desiredDirection: Direction.EAST });
+    expect(shown(sim, tank.id)).toMatchObject({ direction: Direction.NORTHEAST, hiResDirection: 5, turning: true });
+    expect(shown(sim, merc.id)).not.toHaveProperty('turning');
+    Object.assign(tank, { hiResDirection: 8, direction: Direction.EAST });
+    expect(shown(sim, tank.id)).not.toHaveProperty('hiResDirection');
+    expect(shown(sim, tank.id)).not.toHaveProperty('turning');
+  });
+
   it('mark a soldier whose life is gone while his death animation plays', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

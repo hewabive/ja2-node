@@ -4,6 +4,7 @@ import { u32 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
+import { hiResDirectionOf } from '../tactical/directions.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError } from './codec.ts';
@@ -1556,6 +1557,25 @@ function moveVehicleSeatsOntoSoldiers(snapshot: Readonly<Record<string, unknown>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const DIRECTION_KEY = 'direction';
+const HI_RES_DIRECTION_KEY = 'hiResDirection';
+
+function withHiResDirections(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withHiResDirections(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withHiResDirections(v);
+  const direction = mapped[DIRECTION_KEY];
+  if (!isSoldierRecord(mapped) || typeof direction !== 'number') return mapped;
+  return insertAfter(mapped, DIRECTION_KEY, HI_RES_DIRECTION_KEY, hiResDirectionOf(direction));
+}
+
+function addHiResDirections(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withHiResDirections(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1610,5 +1630,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     50: addForgetCountAndFollowerSpeed,
     51: addVehicleIdsAndSharedVehicleList,
     52: moveVehicleSeatsOntoSoldiers,
+    53: addHiResDirections,
   };
 }

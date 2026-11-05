@@ -11,7 +11,7 @@ import { i32 } from '../../core/int.ts';
 import { cloneObject, deleteObject, type ItemObject, removeObjects } from '../items/object.ts';
 import { plotPathCost } from './ai/utils.ts';
 import { anim } from './anim-states.ts';
-import { initNewSoldierAnim, setDesiredDirection } from './animation.ts';
+import { faceAtOnce, initNewSoldierAnim, setDesiredDirection } from './animation.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { autoPlaceObject, NO_SLOT } from './inventory.ts';
 import { getNewSoldierPath } from './movement.ts';
@@ -98,8 +98,7 @@ function beginGiveItem(t: TacticalState, s: Soldier): void {
   if (!pending) return;
   pending.begun = true;
   if (verifyGiveItem(t, s)) {
-    s.desiredDirection = pending.direction;
-    s.direction = pending.direction;
+    faceAtOnce(s, pending.direction);
     initNewSoldierAnim(t, s, anim(t.content, 'GIVE_ITEM'), 0, false);
     return;
   }

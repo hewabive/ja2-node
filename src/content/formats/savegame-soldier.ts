@@ -582,6 +582,7 @@ export interface SoldierMotion {
   readonly inNonInterruptibleAnimation: boolean;
   readonly rtNonInterruptible: boolean;
   readonly turningUntilDone: boolean;
+  readonly turningIncrement: number;
   readonly continueMoveAfterStanceChange: boolean;
   readonly pathStored: number;
   readonly pathSize: number;
@@ -972,6 +973,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       inNonInterruptibleAnimation: r.bool('fInNonintAnim'),
       rtNonInterruptible: r.bool('fRTInNonintAnim'),
       turningUntilDone: r.bool('fTurningUntilDone'),
+      turningIncrement: n('bTurningIncrement'),
       continueMoveAfterStanceChange: r.bool('fContinueMoveAfterStanceChange'),
       pathStored: n('bPathStored'),
       pathSize: pathSize,

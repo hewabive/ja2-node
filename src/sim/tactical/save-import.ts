@@ -13,7 +13,8 @@
 // @src LoadRevealedStatusArrayFromRevealedTempFile; LoadSaveTacticalStatusType.cc ExtractTacticalStatusTypeFromFile (the
 // @src panic fields, 2026-11-04); Tactical/LoadSaveSoldierType.cc (uiXRayActivatedTime, xrayed_by with
 // @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04); Tactical/LoadSaveSoldierType.cc bVehicleID of a
-// @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05).
+// @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05);
+// @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -403,8 +404,7 @@ function importAwaySoldiers(t: TacticalState, save: SaveGame): void {
     s.oldGridNo = grid(r.oldGridNo);
     s.destination = grid(r.destination);
     s.finalDestination = grid(r.finalDestination);
-    s.direction = r.direction;
-    s.desiredDirection = r.desiredDirection;
+    importFacing(s, r);
     s.away = true;
     t.awaySlots.push(s);
   }
@@ -420,6 +420,13 @@ function importSoldiers(t: TacticalState, save: SaveGame, presentation: Presenta
   return created.length;
 }
 
+function importFacing(s: Soldier, r: SavedSoldier): void {
+  s.direction = r.direction;
+  s.hiResDirection = r.hiResDirection;
+  s.desiredDirection = r.desiredDirection;
+  s.turnIncrement = r.motion.turningIncrement;
+}
+
 function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry, presentation: PresentationTimeline): Soldier {
   const r = entry.soldier;
   const s = createSavedSoldier(save, entry);
@@ -429,8 +436,7 @@ function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry
   s.destination = grid(r.destination);
   s.finalDestination = grid(r.finalDestination);
   s.oldGridNo = grid(r.oldGridNo);
-  s.direction = r.direction;
-  s.desiredDirection = r.desiredDirection;
+  importFacing(s, r);
   s.overTerrain = r.overTerrainType;
   s.pc = r.aniCode;
   s.frameSlot = frameSlotOfSpriteFrame(presentation, r.animState, r.aniCode, r.aniFrame);
@@ -496,6 +502,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.boxer = (r.statusFlags & SoldierStatusFlags.BOXER) !== 0;
   s.cowering = (r.statusFlags & SoldierStatusFlags.COWERING) !== 0;
   s.gassed = (r.statusFlags & SoldierStatusFlags.GASSED) !== 0;
+  s.pauseAnimMove = (r.statusFlags & SoldierStatusFlags.PAUSEANIMOVE) !== 0;
   s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
   s.vehicleId = r.statusFlags & SoldierStatusFlags.VEHICLE ? r.vehicleSlot : NO_VEHICLE;
   s.vehicleSeat = seatOfStatusFlags(r.statusFlags);

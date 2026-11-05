@@ -709,6 +709,31 @@ describe('the vehicle ids of an import (LoadSaveSoldierType.cc bVehicleID, iVehi
     addSavedMercsToRoster(roster, save, sim.state);
     expect([roster.get(OUR_HUMMER_ID)?.vehicleId, roster.get(MERC_ID)?.vehicleId]).toEqual([OUR_HUMMER_SLOT, RIDDEN_SLOT]);
   });
+
+  it('keeps a tank saved mid-turn turning: its 32-step facing, its step and its paused move (ubHiResDirection, bTurningIncrement, SOLDIER_PAUSEANIMOVE)', () => {
+    const SOLDIER_PAUSEANIMOVE = 0x04000000;
+    const HALF_WAY_TO_NORTHEAST = 2;
+    const CLOCKWISE = 1;
+    const turning = savedSoldier(ENEMY_TANK_ID, Team.ENEMY, gridNo(90, 70), {
+      uiStatusFlags: SOLDIER_VEHICLE | SOLDIER_PAUSEANIMOVE,
+      ubBodyType: Body.TANK_NW,
+      bVehicleID: TANK_SLOT,
+      bDirection: Direction.NORTH,
+      bDesiredDirection: Direction.EAST,
+      ubHiResDirection: HALF_WAY_TO_NORTHEAST,
+      bTurningIncrement: CLOCKWISE,
+    });
+    const sim = importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82)), turning] }));
+    const tank = soldierOf(sim, ENEMY_TANK_ID);
+    expect([tank.direction, tank.desiredDirection, tank.hiResDirection, tank.turnIncrement, tank.pauseAnimMove]).toEqual([
+      Direction.NORTH,
+      Direction.EAST,
+      HALF_WAY_TO_NORTHEAST,
+      CLOCKWISE,
+      true,
+    ]);
+    expect(soldierOf(sim, MERC_ID).pauseAnimMove).toBe(false);
+  });
 });
 
 describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDIER_DRIVER, SOLDIER_PASSENGER)', () => {

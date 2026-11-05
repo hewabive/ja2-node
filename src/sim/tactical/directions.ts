@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Isometric_Utils.h DirIncrementer, OneCDirection, OneCCDirection, QuickestDirection, OppositeDirection;
-// @src Isometric_Utils.cc gPurpendicularDirection (2026-11-01)
+// @src Isometric_Utils.cc gPurpendicularDirection (2026-11-01); Tactical/Soldier_Control.cc Dir2ExtDir (2026-11-05)
 
+import { HI_RES_DIRECTIONS, HI_RES_STEPS_PER_DIRECTION } from '../../content/anim/soldier-sprite.ts';
 import { DIRECTION_COUNT, Direction } from '../../content/world/grid.ts';
 
 export { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction } from '../../content/world/grid.ts';
@@ -27,6 +28,16 @@ export function quickestTurnIncrement(origin: number, dest: number, maxDistance 
   if (origin === dest) return 0;
   if (origin > dest) return origin - dest >= maxDistance ? 1 : -1;
   return dest - origin > maxDistance ? -1 : 1;
+}
+
+export { HI_RES_DIRECTIONS, HI_RES_STEPS_PER_DIRECTION };
+
+export function hiResDirectionOf(direction: number): number {
+  return direction * HI_RES_STEPS_PER_DIRECTION;
+}
+
+export function quickestHiResTurnIncrement(origin: number, dest: number): number {
+  return quickestTurnIncrement(origin, dest, HI_RES_DIRECTIONS / 2);
 }
 
 const { NORTH, NORTHEAST, EAST, SOUTHEAST, SOUTH, SOUTHWEST, WEST, NORTHWEST } = Direction;

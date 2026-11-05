@@ -13,7 +13,7 @@ import { swapObjects } from '../items/object.ts';
 import { findObj, totalPoints, useKitPoints } from '../strategic/economy/kits.ts';
 import { plotPathCost } from './ai/utils.ts';
 import { anim } from './anim-states.ts';
-import { AnimHeight, changeSoldierStance, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
+import { AnimHeight, changeSoldierStance, faceAtOnce, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
 import { MIN_BLEEDING_THRESHOLD } from './combat/bleeding.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
@@ -115,8 +115,7 @@ export function soldierBeginFirstAid(t: TacticalState, s: Soldier, gridNo: numbe
     return;
   }
   givingSoldierCancelServices(t, s, false);
-  s.desiredDirection = direction;
-  s.direction = direction;
+  faceAtOnce(s, direction);
   initNewSoldierAnim(t, s, anim(t.content, 'START_AID'), 0, false);
   s.targetGridNo = gridNo;
   s.servicePartner = patient.id;

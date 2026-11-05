@@ -90,7 +90,8 @@ There is no snap to the centre: arrival logic runs on the frame after the positi
 step starts from the overshot position.
 
 **No turn before a step.** The facing turns one octant per frame while the soldier already moves; turning APs are never
-charged while walking. Sight at each arrival uses the facing of that moment.
+charged while walking. Sight at each arrival uses the facing of that moment. Creatures and vehicles are the exception:
+they stand until they face the step (`pauseAnimMove`, `06`), and a vehicle other than a tank never turns.
 
 **The arrival on a tile.** `handleAtNewGridNo` (`movement.ts`, `Tactical/Overhead.cc:1709`) keeps the original's early
 returns before noise and sight: while any squad walks off the map or to an exit grid, every soldier's arrival stops there,

@@ -99,6 +99,7 @@ import { apsToStealItem, canBeStolenFrom, mercStealFromMerc, stealActionGridNo, 
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { crowOpcode, crowsFlyAway, crowsSeeingAttackerFlyAway, handleRottingCorpses } from './crows.ts';
+import { hiResDirectionOf } from './directions.ts';
 import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
 import { doorCommand, handlePendingDoorOnArrival } from './doors/door-command.ts';
 import { type DoorView, doorViews, type KeyView, keyRingView } from './doors/door-view.ts';
@@ -182,7 +183,7 @@ import {
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
-import { Body, inVehicle, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
+import { Body, inVehicle, isTank, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import {
@@ -222,6 +223,8 @@ export interface SoldierSnapshot {
   readonly level: number;
   readonly heightAdjustment?: number;
   readonly direction: number;
+  readonly hiResDirection?: number;
+  readonly turning?: boolean;
   readonly animation: number;
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
@@ -1356,6 +1359,8 @@ export class TacticalSim {
       level: s.level,
       ...(s.heightAdjustment !== 0 ? { heightAdjustment: s.heightAdjustment } : {}),
       direction: s.direction,
+      ...(s.hiResDirection !== hiResDirectionOf(s.direction) ? { hiResDirection: s.hiResDirection } : {}),
+      ...(isTank(s) && s.direction !== s.desiredDirection ? { turning: true } : {}),
       animation: s.state,
       frame: spriteFrameAt(presentation, s.frameSlot),
       palettes: [s.palettes.hair, s.palettes.skin, s.palettes.vest, s.palettes.pants] as const,

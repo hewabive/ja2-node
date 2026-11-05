@@ -48,6 +48,8 @@ export interface SoldierView {
   readonly level: number;
   readonly heightAdjustment?: number;
   readonly direction: number;
+  readonly hiResDirection?: number;
+  readonly turning?: boolean;
   readonly animation: number;
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
@@ -1185,6 +1187,8 @@ function sameClock(a: ClockView | undefined, b: ClockView): boolean {
 }
 
 const SCALAR_SOLDIER_FIELDS = [
+  'hiResDirection',
+  'turning',
   'surface',
   'camouflaged',
   'frameSlot',

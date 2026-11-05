@@ -66,8 +66,9 @@ export interface SoldierPalette {
   readonly compose: () => Uint8Array;
 }
 
-export function sheetFacing(view: Pick<SoldierView, 'direction'>): SheetFacing {
-  return facingOfDirection(view.direction);
+export function sheetFacing(view: Pick<SoldierView, 'direction' | 'hiResDirection'>): SheetFacing {
+  const facing = facingOfDirection(view.direction);
+  return view.hiResDirection === undefined ? facing : { ...facing, hiResDirection: view.hiResDirection };
 }
 
 export function zStripIndex(view: Pick<SoldierView, 'bodyType' | 'direction'>): number {

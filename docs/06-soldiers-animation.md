@@ -76,12 +76,15 @@ for stealth in real time; in the states marked for fast turns our mercs turn at 
 began and the frame delay. A client whose scripts hash like the server's predicts the slot between views exactly;
 one with other scripts walks its own and warps time between the state start and the fire markers (deviation "Soldier
 frames with other scripts"). The sheet frame comes from the script frame and the current facing at draw time, so a new
-facing shows at once (deviation "Soldier frame on turning"); a vehicle's sheet of 32 facings is read by the 32-step
-facing, which the view does not carry yet, so the client takes four steps a direction (`sheetFacing`,
-`app/world/soldier-assets.ts`; gaps "Tank turning").
+facing shows at once (deviation "Soldier frame on turning"); a vehicle's sheet of 32 facings is read by its 32-step
+facing (`Soldier.hiResDirection`, `ubHiResDirection`), which the view carries as `hiResDirection` while it lies between
+two directions (`sheetFacing`, `app/world/soldier-assets.ts`).
 
 **Turning and stepping belong to the state.** A state with the turning flag turns one octant per frame while it plays,
 if the soldier's structure fits the new facing; prone has no turning flag, so a prone turn goes through a crouch.
+A tank turns one of its 32 facings per frame instead, its direction changing at every fourth, and any other vehicle
+never turns. A vehicle or creature given a new facing holds its move until it faces it (`pauseAnimMove`), so a creature
+stops at each bend of its path to turn and a vehicle other than a tank never moves along a path it does not face.
 `WALKING` steps the body's walking speed per frame; every other state steps its own, whatever the body's table says.
 
 **One palette per soldier.** The palette of the soldier's standing sheet with the hair, skin, vest and pants
@@ -162,6 +165,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2` and `m_raise` never show | `src/content/anim/surface-choice.test.ts`, `hud-view.test.ts` |
 | In water neither the hand item nor wounds choose the sheet: a state without a water sheet, like walking backwards, shows the rifle sheet even with empty hands | `src/content/anim/surface-choice.test.ts` |
 | The queen picks her spit sheet by the direction from two tiles east of her to the target, and has five sheets for eight directions | `hud-view.test.ts`, `src/content/anim/surface-choice.test.ts` |
+| A tank takes four frames to turn an octant, its direction changing only at the fourth; any other vehicle never turns, so one that does not face the first step of its path never moves | `animation.test.ts` "turns a tank a facing in four 32-step facings …", "never turns a vehicle other than a tank", `src/sim/campaign/vehicle-boarding.test.ts` "never moves a vehicle facing away …" |
+| A creature stands still at a bend of its path until it faces the next step; a merc turns as he walks | `movement.test.ts` "holds a creature on its tile …", `animation.test.ts` "is set when a tank or a creature is given a new facing …" |
 | Only the regular male's prone sheet takes its z strips from frame 5; the big man's and the woman's take frame 0 | `src/content/anim/zstrip-frames.test.ts` |
 
 Not pinned yet:

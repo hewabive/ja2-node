@@ -304,7 +304,9 @@ after-effect), each absent without it; strategic mercs carry the same two for th
 counters, and so the turns a course has left, are never shown, and other soldiers carry no drug state (`12` §5).
 `itemLocatorsLocked` stands while the original's item locators wait for the items-seen quote (`fLockItemLocators`,
 `08`). A soldier off the ground (on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is
-drawn above his tile (`06`); a corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). Every
+drawn above his tile (`06`); a corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). A
+tank turning toward a new facing carries `turning`, and `hiResDirection`, its facing in 32 steps (0 north, clockwise,
+four a direction), while that lies between two directions (`06`). Every
 soldier in the view carries `surface`, the animation sheet he shows (an index of `tables/anim-surfaces.json`, chosen by
 the simulation from his state, body, hand items, wounds, water and stance), and `camouflaged` while he wears camouflage
 paint, ours and theirs alike, as the screen shows both (`06`). A soldier the squad has just lost stays while he fades
@@ -412,7 +414,7 @@ A vehicle of ours with nobody aboard is not ours to command (`IsOwnedMerc`): its
 The hints refuse the same way (`blocked`). A vehicle never moves on the tactical map (`HandleMoveModeInteractiveClick`):
 `move`, `swapPlaces` with `cursor`, a `moveGroup` naming one and `enterVehicle` by one refuse `vehicleCantMove`. It
 leaves a sector by strategic travel, or through `exitSector` as the vehicle alone, never as a squad (its passengers are
-on no squad), when it drives to the edge as the original's walk-off does.
+on no squad), when it drives toward the edge as the original's walk-off does, as far as it goes without turning.
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's

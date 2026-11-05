@@ -104,7 +104,7 @@ describe('the bounding box of a shown soldier (GetActualSoldierAnimDims)', () =>
     expect(dims(scene.shownBoundingBox(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(1, NORTH))));
   });
 
-  it("draws a vehicle's 32-direction sheet at four hi-res steps a facing, one octant clockwise (ConvertAniCodeToAniFrame)", () => {
+  it("draws a vehicle's 32-direction sheet at its 32-step facing, four steps a direction and the steps between while it turns, one octant clockwise (ConvertAniCodeToAniFrame)", () => {
     const hiResLayout: SheetLayout = {
       directions: HI_RES_DIRECTIONS,
       framesPerDirection: 1,
@@ -122,6 +122,11 @@ describe('the bounding box of a shown soldier (GetActualSoldierAnimDims)', () =>
       return dims(scene.shownSprite(SOLDIER));
     });
     expect(shown).toEqual([4, 8, 12, 16, 20, 24, 28, 0].map((i) => dims(sheetFrame(i))));
+    const turning = [1, 2, 3, 31].map((hiResDirection) => {
+      scene.build(input([soldier({ bodyType: HUMVEE, direction: 0, hiResDirection, frame: 2 })]));
+      return dims(scene.shownSprite(SOLDIER));
+    });
+    expect(turning).toEqual([5, 6, 7, 3].map((i) => dims(sheetFrame(i))));
   });
 
   it('has none for a soldier not shown', () => {

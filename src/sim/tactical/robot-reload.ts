@@ -9,7 +9,7 @@ import type { OpOutcome } from '../../content/anim/script.ts';
 import { NOTHING } from '../../content/items/items.ts';
 import { cloneObject, type ItemObject, removeObjects } from '../items/object.ts';
 import { anim } from './anim-states.ts';
-import { initNewSoldierAnim } from './animation.ts';
+import { faceAtOnce, initNewSoldierAnim } from './animation.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { apsToMovePlusAction } from './give.ts';
 import { autoPlaceObject, InvSlot, itemIn, reloadGun } from './inventory.ts';
@@ -73,8 +73,7 @@ function beginReloadRobot(t: TacticalState, s: Soldier, gridNo: number, directio
     returnAmmoToPockets(t, s);
     return false;
   }
-  s.desiredDirection = direction;
-  s.direction = direction;
+  faceAtOnce(s, direction);
   initNewSoldierAnim(t, s, anim(t.content, 'RELOAD_ROBOT'), 0, false);
   return true;
 }

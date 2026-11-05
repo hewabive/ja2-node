@@ -16,6 +16,7 @@ import { ProfileFlag } from '../narrative/narrative-ids.ts';
 import { Assignment, VehicleSeat } from '../strategic/forces/constants.ts';
 import { FACT_OK_USE_HUMMER } from '../strategic/forces/helicopter.ts';
 import { setFact } from '../strategic/narrative/facts.ts';
+import { setSoldierDirection } from '../tactical/animation.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { Body, type Soldier, SoldierStatusFlags, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
@@ -42,6 +43,8 @@ const FIRST_SQUAD = 0;
 const SECOND_SQUAD = 1;
 const WALK_BUDGET = 20_000;
 const AT_THE_EAST_EDGE = gridNo(150, 77);
+const PATH_TO_THE_EAST_EDGE = [Direction.NORTHEAST, Direction.NORTHEAST, Direction.NORTH];
+const TWO_STEPS_NORTHEAST = gridNo(152, 75);
 const INSIDE_THE_MAP = gridNo(140, 77);
 const DRIVE_SECONDS = 5;
 
@@ -290,18 +293,40 @@ describe('boarding and leaving on the map screen in the loaded sector (Assignmen
 });
 
 describe('a vehicle squad at the edge of the map (StrategicMap.cc OKForSectorExit, JumpIntoAdjacentSector)', () => {
-  it('leaves as the vehicle alone, never as a squad, and the vehicle drives to the edge: the one move a vehicle makes on the tactical map (quirk)', async () => {
+  async function hummerAtTheEastEdge(facing: number): Promise<{ readonly session: CampaignSession; readonly hummer: RosterMerc }> {
     const session = await stubCampaignWithOurHummer(kit, SEED);
     await driveOurHummerInto(session, 'B9');
     const [hummer] = ourVehicles(session);
     if (!hummer) throw new Error('no vehicle of ours');
     setSoldierPosition(tactical(session), hummer.soldier, AT_THE_EAST_EDGE);
+    setSoldierDirection(tactical(session), hummer.soldier, facing);
+    return { session, hummer };
+  }
+
+  function leaveEast(session: CampaignSession, hummer: RosterMerc): Soldier {
+    expect(refusalOf(session, { type: 'exitSector', soldier: hummer.id, direction: 'east', who: 'merc', load: false })).toBe('ok');
+    expect(hummer.soldier.path.slice(0, hummer.soldier.pathSize)).toEqual(PATH_TO_THE_EAST_EDGE);
+    new ReloadingSession('drive', session).advance({ worldSeconds: DRIVE_SECONDS });
+    const vehicle = merc(session, hummer.id);
+    expect([vehicle.soldier.placed, session.view().strategic?.mercs.find((m) => m.id === hummer.id)?.betweenSectors]).toEqual([
+      false,
+      true,
+    ]);
+    return vehicle.soldier;
+  }
+
+  it('leaves as the vehicle alone, never as a squad, and the vehicle drives toward the edge as far as it goes straight: the one move a vehicle makes on the tactical map (quirk)', async () => {
+    const { session, hummer } = await hummerAtTheEastEdge(Direction.NORTHEAST);
     expect(refusalOf(session, { type: 'move', soldier: hummer.id, to: INSIDE_THE_MAP })).toBe('vehicleCantMove');
     expect(refusalOf(session, { type: 'exitSector', soldier: hummer.id, direction: 'east', who: 'squad' })).toBe('squadNotAllowed');
-    expect(refusalOf(session, { type: 'exitSector', soldier: hummer.id, direction: 'east', who: 'merc', load: false })).toBe('ok');
-    new ReloadingSession('drive', session).advance({ worldSeconds: DRIVE_SECONDS });
-    const vehicle = merc(session, hummer.id).soldier;
-    expect(vehicle.gridNo).not.toBe(AT_THE_EAST_EDGE);
+    const vehicle = leaveEast(session, hummer);
+    expect([vehicle.gridNo, vehicle.direction, vehicle.pauseAnimMove]).toEqual([TWO_STEPS_NORTHEAST, Direction.NORTHEAST, true]);
     expect(mercs(session).map((m) => m.soldier.gridNo)).toEqual([vehicle.gridNo, vehicle.gridNo]);
+  });
+
+  it('never moves a vehicle facing away from its first step, which cannot turn, and the walk-off timer takes it out of the sector (Soldier_Control.cc:3914, :4220; Overhead.cc:1083)', async () => {
+    const { session, hummer } = await hummerAtTheEastEdge(Direction.SOUTHEAST);
+    const vehicle = leaveEast(session, hummer);
+    expect([vehicle.gridNo, vehicle.direction, vehicle.pauseAnimMove]).toEqual([AT_THE_EAST_EDGE, Direction.SOUTHEAST, true]);
   });
 });

@@ -890,3 +890,29 @@ describe('a tile under the body of another soldier (WorldMan.cc WhoIsThere2: a p
     expect(walker.direction).toBe(Direction.WEST);
   });
 });
+
+describe('a walk that starts facing away (Soldier_Control.cc:3914 SOLDIER_PAUSEANIMOVE)', () => {
+  const WALK_TICKS = 4_000;
+  const FROM = gridNo(80, 80);
+  const TO = FROM + 2 * (DIRECTION_INCREMENT[Direction.NORTH] ?? 0);
+
+  function walkNorthFacingEast(body: number, team: number, id: number): { readonly movedWhileTurning: boolean; readonly arrived: boolean } {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = spawnSoldier(sim, id, team, FROM, Direction.EAST, { body });
+    expect(getNewSoldierPath(t, s, TO, states(content.animations).WALKING)).toBe(true);
+    let movedWhileTurning = false;
+    for (let tick = 0; tick < WALK_TICKS && s.gridNo !== TO; tick++) {
+      const before = { x: s.x, y: s.y };
+      const turning = s.direction !== s.desiredDirection;
+      executeOverhead(t);
+      if (turning && (s.x !== before.x || s.y !== before.y)) movedWhileTurning = true;
+    }
+    return { movedWhileTurning, arrived: s.gridNo === TO };
+  }
+
+  it('holds a creature on its tile until it faces its first step, while a merc walks as he turns', () => {
+    expect(walkNorthFacingEast(Body.BLOODCAT, Team.CREATURE, 40)).toEqual({ movedWhileTurning: false, arrived: true });
+    expect(walkNorthFacingEast(Body.REGMALE, Team.OUR, 0)).toEqual({ movedWhileTurning: true, arrived: true });
+  });
+});

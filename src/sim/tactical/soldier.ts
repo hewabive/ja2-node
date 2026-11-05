@@ -13,6 +13,7 @@ import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
 import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { AiMorale } from './combat/types.ts';
+import { hiResDirectionOf } from './directions.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
 import type { LightSprite } from './lighting/lighting.ts';
@@ -72,6 +73,7 @@ export const SoldierStatusFlags = {
   COWERING: 0x00400000,
   GASSED: 0x01000000,
   OFF_MAP: 0x02000000,
+  PAUSEANIMOVE: 0x04000000,
   DRIVER: 0x08000000,
   PASSENGER: 0x10000000,
 } as const;
@@ -317,6 +319,7 @@ export interface Soldier {
   pendingAnimation: number;
   pendingDirection: number;
   direction: number;
+  hiResDirection: number;
   desiredDirection: number;
   turnIncrement: number;
   turningUntilDone: boolean;
@@ -677,6 +680,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingAnimation: NO_PENDING_ANIMATION,
     pendingDirection: NO_PENDING_DIRECTION,
     direction: init.direction,
+    hiResDirection: hiResDirectionOf(init.direction),
     desiredDirection: init.direction,
     turnIncrement: 0,
     turningUntilDone: false,
