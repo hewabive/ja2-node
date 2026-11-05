@@ -114,15 +114,19 @@ export async function stubCampaignAtTheHummer(kit: StubSectorKit, seed: number, 
   return session;
 }
 
-export interface StubTankOrder {
-  readonly body: typeof Body.TANK_NW | typeof Body.TANK_NE;
+export interface StubVehicleOrder {
+  readonly body: number;
   readonly team: number;
   readonly gridNo: number;
   readonly direction: number;
   readonly soldierClass?: number;
 }
 
-function tankPlacement(order: StubTankOrder): BasicPlacement {
+export interface StubTankOrder extends StubVehicleOrder {
+  readonly body: typeof Body.TANK_NW | typeof Body.TANK_NE;
+}
+
+function vehiclePlacement(order: StubVehicleOrder): BasicPlacement {
   return {
     detailed: false,
     startingGridNo: order.gridNo,
@@ -143,14 +147,18 @@ function tankPlacement(order: StubTankOrder): BasicPlacement {
   };
 }
 
-export function addStubTank(t: TacticalState, order: StubTankOrder): Soldier {
+export function addStubVehicle(t: TacticalState, order: StubVehicleOrder): Soldier {
   const id = firstFreeSoldierId((n) => soldierSlotTaken(t, n), order.team, order.body);
-  const tank = id < 0 ? null : createFromPlacementParts(t, id, tankPlacement(order), null, NEUTRAL_POPULATION);
-  if (!tank) throw new Error(`no soldier slot for a tank on team ${order.team}`);
-  tank.insertionGridNo = order.gridNo;
-  const placed = addSoldierToSector(t, tank, { code: Insertion.GRIDNO, data: order.gridNo, direction: order.direction }, {}, false);
-  if (!placed) throw new Error(`the tank found no place near ${order.gridNo}`);
-  return tank;
+  const vehicle = id < 0 ? null : createFromPlacementParts(t, id, vehiclePlacement(order), null, NEUTRAL_POPULATION);
+  if (!vehicle) throw new Error(`no soldier slot for a vehicle on team ${order.team}`);
+  vehicle.insertionGridNo = order.gridNo;
+  const at = { code: Insertion.GRIDNO, data: order.gridNo, direction: order.direction };
+  if (!addSoldierToSector(t, vehicle, at, {}, false)) throw new Error(`the vehicle found no place near ${order.gridNo}`);
+  return vehicle;
+}
+
+export function addStubTank(t: TacticalState, order: StubTankOrder): Soldier {
+  return addStubVehicle(t, order);
 }
 
 export function addVehicleOfOurs(campaign: CampaignSim, sector: Sector, body: number = Body.HUMVEE): RosterMerc {

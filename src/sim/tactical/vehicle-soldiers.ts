@@ -14,20 +14,29 @@ import {
   vehicleTypeOfBody,
 } from '../vehicles/vehicle-list.ts';
 import type { TacticalContent } from './content.ts';
+import type { Refusal } from './refusal.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { SectorRef, TacticalState } from './state.ts';
 
 const NO_SECTOR: SectorRef = { x: 0, y: 0, z: 0 };
 const NO_MOVEMENT_GROUPS: readonly number[] = [];
 
+export interface VehicleBoarding {
+  okUseVehicle(vehicle: Soldier): boolean;
+  putSoldierInVehicle(s: Soldier, vehicle: Soldier): Refusal | null;
+  exitVehicle(s: Soldier): void;
+}
+
 export interface VehicleHooks {
   addVehicleToList(vehicles: VehicleRecord[], sector: SectorRef, type: number): number;
   killAllInVehicle(v: VehicleRecord): void;
+  readonly boarding: VehicleBoarding | null;
 }
 
 export const PRIVATE_VEHICLE_LIST: VehicleHooks = {
   addVehicleToList: (vehicles, sector, type) => fillVehicleSlot(vehicles, sector, type, NO_MOVEMENT_GROUPS),
   killAllInVehicle: () => {},
+  boarding: null,
 };
 
 export interface VehicleRegistry {

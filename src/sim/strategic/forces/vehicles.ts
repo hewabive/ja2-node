@@ -2,14 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Vehicles.cc AddVehicleToList (the movement group), GetVehicle,
 // @src GetNumberOfNonEPCsInVehicle, IsEnoughSpaceInVehicle, GetVehicleSeats, RemoveSoldierFromVehicle, TakeSoldierOutOfVehicle,
-// @src ExitVehicle (strategic part), SetSoldierExitHelicopterInsertionData, SetVehicleSectorValues, KillAllInVehicle,
+// @src ExitVehicle (its order, the loaded sector's part through TacticalWorldPort.loadedVehicles, 2026-11-05),
+// @src SetSoldierExitHelicopterInsertionData, SetVehicleSectorValues, KillAllInVehicle,
 // @src KillPersonInVehicle, TeleportVehicleToItsClosestSector, MoveCharactersPathToVehicle, SetUpMvtGroupForVehicle,
 // @src IsThisVehicleAccessibleToSoldier (without OKUseVehicle); Strategic/Map_Screen_Interface_Map.cc CancelPathForVehicle;
 // @src Strategic/Map_Screen_Helicopter.h IsHelicopter, InHelicopter.
 
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
-import { OKLIFE } from '../../tactical/soldier.ts';
+import { NOWHERE, OKLIFE } from '../../tactical/soldier.ts';
 import {
   fillVehicleSlot,
   NO_PASSENGER,
@@ -174,22 +175,31 @@ export function removeSoldierFromVehicle(ctx: StrategicContext, id: number): boo
   return true;
 }
 
-function exitVehicle(ctx: StrategicContext, id: number): boolean {
+export function exitVehicle(ctx: StrategicContext, id: number): boolean {
   const m = requireMerc(ctx, id);
+  const vehicleSoldierId = getVehicle(ctx, m.vehicleId).soldierId;
+  const loaded = ctx.world.loadedVehicles;
+  const gridNo = loaded?.exitSpot(id, vehicleSoldierId) ?? NOWHERE;
   removeSoldierFromVehicle(ctx, id);
+  m.insertionCode = InsertionCode.GRIDNO;
   m.vehicleId = NO_VEHICLE;
-  const world = ctx.state.worldSector;
-  if (world) ctx.mercs.updateMercInSector(id, world);
+  loaded?.placeOutOfVehicle(id, vehicleSoldierId, gridNo);
   addCharacterToUniqueSquad(ctx, id);
+  loaded?.setCurrentSquadOnGameScreen(m.assignment);
+  loaded?.selectOnGameScreen(id);
   return true;
+}
+
+export function exitsOntoTheLoadedMap(ctx: StrategicContext, m: StrategicMerc): boolean {
+  const world = ctx.state.worldSector;
+  const loadedHere = world !== null && sameSector(m.sector, world) && ctx.mercs.inTacticalSector?.(m.id) === true;
+  return loadedHere && !inHelicopter(ctx, m);
 }
 
 export function takeSoldierOutOfVehicle(ctx: StrategicContext, id: number): boolean {
   const m = requireMerc(ctx, id);
   if (m.assignment !== Assignment.VEHICLE) return false;
-  const world = ctx.state.worldSector;
-  const loadedHere = world !== null && sameSector(m.sector, world) && ctx.mercs.inTacticalSector?.(id) === true;
-  if (loadedHere && !inHelicopter(ctx, m)) return exitVehicle(ctx, id);
+  if (exitsOntoTheLoadedMap(ctx, m)) return exitVehicle(ctx, id);
   return removeSoldierFromVehicle(ctx, id);
 }
 

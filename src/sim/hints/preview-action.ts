@@ -13,7 +13,8 @@
 // @src (BOMBCURS) and Points.cc GetTotalAPsToDropBomb (0 for a tile out of reach, 2026-11-04); Handle_UI.cc
 // @src DrawUIMovementPath (MOVEUI_TARGET_WIREFENCE, MOVEUI_TARGET_JAR, MOVEUI_TARGET_CAN) and UI_Cursors.cc
 // @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the good cursor: a cuttable fence at ground level, a
-// @src corpse, a door; 2026-11-04).
+// @src corpse, a door; 2026-11-04); Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (the enter-vehicle cursor) and
+// @src Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick (its walk and APs, 2026-11-05).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -21,7 +22,9 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import { giveApRefusal, giverRefusal } from '../campaign/give-flow.ts';
 import { preservingFields, withTemporaryFields } from '../knowledge/guard.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
+import type { StrategicKnowledge } from '../knowledge/strategic.ts';
 import { isRobotSoldier } from '../narrative/talkable.ts';
+import { okUseVehicleType } from '../strategic/forces/helicopter.ts';
 import { AnimHeight } from '../tactical/animation.ts';
 import { apsToDropBomb, bombTileRefusal } from '../tactical/bombs/planting.ts';
 import { findAdjacentGridEx, findAdjacentGridExForDoor } from '../tactical/combat/melee-reach.ts';
@@ -42,10 +45,19 @@ import type { Footstep } from '../tactical/plot-path.ts';
 import { AP, apsToChangeStance, apsToLook, enoughPoints } from '../tactical/points.ts';
 import { seenExchangeChecks, validQuickExchangePosition } from '../tactical/quick-exchange.ts';
 import { apsToReloadRobot } from '../tactical/robot-reload.ts';
-import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
+import { NOWHERE, onTheGrid, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { apsToCutFence, fenceCuttableBy, interactiveTileAt, isCorpseAtGridNo } from '../tactical/tile-tools.ts';
 import { AP_TOSS_ITEM, previewToss } from '../tactical/toss.ts';
+import {
+  BoardingCursor,
+  type BoardingRules,
+  enterVehicleWalk,
+  isBoardingRefusal,
+  NOT_IN_CAMPAIGN,
+  VEHICLE_CANT_MOVE,
+} from '../tactical/vehicle-boarding.ts';
+import { isVehicleBody, vehicleTypeOfBody } from '../vehicles/vehicle-list.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 import { interfaceLevelOf, plotWalk } from './walk-plot.ts';
@@ -65,8 +77,9 @@ export const SUPPORTED_ACTIONS = [
   'cutFence',
   'jar',
   'can',
+  'enterVehicle',
 ] as const;
-export const UNSUPPORTED_ACTIONS = ['repair', 'refuel', 'enterVehicle'] as const;
+export const UNSUPPORTED_ACTIONS = ['repair', 'refuel'] as const;
 
 export type ActionKind = (typeof SUPPORTED_ACTIONS)[number];
 
@@ -100,6 +113,7 @@ export interface PreviewActionRequest extends HintRequestBase {
   readonly slot?: unknown;
   readonly count?: unknown;
   readonly index?: unknown;
+  readonly cursor?: unknown;
 }
 
 interface ActionContext {
@@ -351,6 +365,26 @@ function canAction(c: ActionContext): ActionPart {
   return withCursorCheck({ ok: true, apCost: AP.ATTACH_CAN + walk.cost, actionGridNo: approach.actionGridNo, steps: walk.steps }, refusal);
 }
 
+function boardingRules(world: KnowledgeWorld, strategic: StrategicKnowledge): BoardingRules {
+  return {
+    usable: (v) => okUseVehicleType(strategic.ctx, vehicleTypeOfBody(v.bodyType)),
+    aboard: (v) => world.tactical?.soldierView(v.id)?.passengers?.length ?? 0,
+  };
+}
+
+function enterVehicleAction(c: ActionContext, cursor: unknown): ActionPart {
+  const { t, s, target } = c;
+  const strategic = c.world.strategic;
+  if (!strategic) return refused(c, NOT_IN_CAMPAIGN.token, s.gridNo);
+  if (isVehicleBody(s.bodyType)) return refused(c, VEHICLE_CANT_MOVE.token, s.gridNo);
+  const kind = cursor ?? BoardingCursor.HAND;
+  if (kind !== BoardingCursor.HAND && kind !== BoardingCursor.MOVE) return refused(c, 'badCursor', s.gridNo);
+  const vehicle = target && onTheGrid(target) ? target : null;
+  const walk = enterVehicleWalk(t, s, vehicle, kind, boardingRules(c.world, strategic));
+  if (isBoardingRefusal(walk)) return refused(c, walk.token, s.gridNo);
+  return { ok: true, apCost: walk.apCost, actionGridNo: walk.actionGridNo, steps: walkTo(c, walk.actionGridNo).steps };
+}
+
 function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest): ActionPart {
   switch (kind) {
     case 'door':
@@ -381,6 +415,8 @@ function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest):
       return jarAction(c);
     case 'can':
       return canAction(c);
+    case 'enterVehicle':
+      return enterVehicleAction(c, req.cursor);
   }
 }
 

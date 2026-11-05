@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Add.cc FindGridNoFromSweetSpot, FindGridNoFromSweetSpotThroughPeople,
-// @src FindGridNoFromSweetSpotWithStructData, FindGridNoFromSweetSpotWithStructDataFromSoldier (the bump's variant),
+// @src FindGridNoFromSweetSpotWithStructData, FindGridNoFromSweetSpotWithStructDataFromSoldier (every fClosestToMerc, 2026-11-05),
 // @src FindGridNoFromSweetSpotWithStructDataUsingGivenDirectionFirst (2026-11-05),
 // @src FindGridNoFromSweetSpotExcludingSweetSpot, FindRandomGridNoFromSweetSpot (2026-11-01),
 // @src FindGridNoFromSweetSpotExcludingSweetSpotInQuardent (its SOUTHEAST quadrant, the only one it narrows, 2026-11-02);
@@ -186,21 +186,40 @@ export function findGridNoFromSweetSpotWithStructData(
   return findSweetSpotWithStructData(t, s, sweet, radius, search)?.gridNo ?? NOWHERE;
 }
 
-export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier, radius: number): number {
-  const sweet = s.gridNo;
-  const standing = states(t.content.animations).STANDING;
+export const ClosestTo = { SWEET_SPOT: 0, MERC: 1, MERC_AND_SWEET_SPOT: 2, SWEET_SPOT_WITHOUT_STRUCTURE: 3 } as const;
+
+function rangeFor(closestTo: number, from: number, sweet: number, g: number): number {
+  if (closestTo === ClosestTo.MERC) return rangeInCellCoords(from, g);
+  if (closestTo === ClosestTo.MERC_AND_SWEET_SPOT) return rangeInCellCoords(from, g) + rangeInCellCoords(sweet, g);
+  return cardinalSpacesAway(sweet, g);
+}
+
+export function findGridNoFromSweetSpotWithStructDataFromSoldier(
+  t: TacticalState,
+  s: Soldier,
+  animState: number,
+  radius: number,
+  closestTo: number,
+  source: Soldier,
+): number {
+  const sweet = source.gridNo;
   const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, 0), radius, { flags: SWEET_SPOT_FLOOD_FLAGS });
+  const structureTested = closestTo !== ClosestTo.SWEET_SPOT_WITHOUT_STRUCTURE;
   let lowest = NOWHERE;
   let lowestRange = NO_RANGE;
   for (const g of reachable) {
-    if (!freeFor(t, s, g) || !structureFitsSomeDirection(t, s, standing, g)) continue;
-    const range = rangeInCellCoords(s.gridNo, g);
+    if (!freeFor(t, s, g) || (structureTested && !structureFitsSomeDirection(t, s, animState, g))) continue;
+    const range = rangeFor(closestTo, s.gridNo, sweet, g);
     if (range < lowestRange || (range === lowestRange && pythSpacesAway(s.gridNo, g) < pythSpacesAway(s.gridNo, lowest))) {
       lowest = g;
       lowestRange = range;
     }
   }
   return lowest;
+}
+
+export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier, radius: number): number {
+  return findGridNoFromSweetSpotWithStructDataFromSoldier(t, s, states(t.content.animations).STANDING, radius, ClosestTo.MERC, s);
 }
 
 export function findGridNoFromSweetSpotExcludingSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {

@@ -24,6 +24,7 @@ import { AP, apsToChangeStance, enoughPoints } from './points.ts';
 import { corpseAt, corpseInSlot, slotOfCorpse } from './rotting-corpses.ts';
 import type { Soldier, TileTool } from './soldier.ts';
 import type { TacticalState } from './state.ts';
+import { soldierEnterVehicle } from './vehicle-boarding.ts';
 
 const CUT_FENCE_CODE = 481;
 const TAKE_BLOOD_CODE = 760;
@@ -126,6 +127,7 @@ const BEGIN_TILE_TOOL: Readonly<Record<TileTool, (t: TacticalState, s: Soldier, 
   cutFence: soldierBeginCutFence,
   takeBlood: soldierBeginTakeBlood,
   attachCan: soldierBeginAttachCan,
+  enterVehicle: soldierEnterVehicle,
 };
 
 function walkUpThenUse(t: TacticalState, s: Soldier, approach: MeleeApproach, tool: TileTool, g: number): number {

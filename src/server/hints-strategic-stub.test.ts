@@ -26,6 +26,7 @@ import { QuestStatus, setFact } from '../sim/strategic/narrative/facts.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
+import { Body } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { Session } from './session.ts';
@@ -46,6 +47,8 @@ afterAll(async () => {
 
 const QUIET = ['A9', 'A10', 'B9', 'B10'];
 const ROUTE_STEP_SECONDS = 600;
+const ENTER_VEHICLE_BUDGET = 20_000;
+const OUR_FIRST_VEHICLE = 18;
 
 interface Campaign {
   readonly sim: CampaignSession;
@@ -248,6 +251,42 @@ describe('a civilian vehicle the squad stands by, client against server', () => 
       }
       expect(offered.every((n) => n === (usable ? 1 : 0))).toBe(true);
     }
+  });
+});
+
+describe('the enter-vehicle cursor by a civilian vehicle, client against server', () => {
+  it("agrees with the click: notAllowed without the Hummer's fact, then the walk beside it, then vehicleOccupied under the move cursor once somebody sits in it", async () => {
+    const sim = await stubCampaignAtTheHummer(kit, 43);
+    const session = withQueries(new Session('enter-vehicle-hints', sim), sources);
+    const t = sim.campaign.tactical?.state;
+    const hummer = t?.soldiers.find((s) => s?.placed && s.bodyType === Body.HUMVEE);
+    const [first, second] = sim.view().strategic?.mercs.map((m) => m.id) ?? [];
+    if (!hummer || first === undefined || second === undefined) throw new Error('no Hummer or no two mercs');
+    const ask = (soldier: number, vehicle: number, cursor: string) => ({
+      type: 'previewAction',
+      soldier,
+      kind: 'enterVehicle',
+      gridNo: hummer.gridNo,
+      target: vehicle,
+      cursor,
+    });
+    await expectHintsAgree(session, client, [ask(first, hummer.id, 'hand')]);
+    expect((await session.query(ask(first, hummer.id, 'hand'))).data).toMatchObject({ ok: false, refusal: 'notAllowed' });
+    expect(sim.dispatch({ type: 'enterVehicle', soldier: first, vehicle: hummer.id })).toMatchObject({ data: { refusal: 'notAllowed' } });
+    setFact(sim.campaign.state.narrative, FACT_OK_USE_HUMMER, true);
+    await expectHintsAgree(session, client, [ask(first, hummer.id, 'hand'), ask(first, hummer.id, 'move')]);
+    const walk = (await session.query(ask(first, hummer.id, 'hand'))).data as { readonly actionGridNo: number };
+    expect(walk).toMatchObject({ ok: true, affordable: true });
+    expect(sim.dispatch({ type: 'enterVehicle', soldier: first, vehicle: hummer.id })).toMatchObject({
+      ok: true,
+      data: { actionGridNo: walk.actionGridNo },
+    });
+    session.advance({ idle: true }, ENTER_VEHICLE_BUDGET);
+    await expectHintsAgree(session, client, [ask(second, OUR_FIRST_VEHICLE, 'move'), ask(second, OUR_FIRST_VEHICLE, 'hand')]);
+    expect((await session.query(ask(second, OUR_FIRST_VEHICLE, 'move'))).data).toMatchObject({ ok: false, refusal: 'vehicleOccupied' });
+    expect(sim.dispatch({ type: 'enterVehicle', soldier: second, vehicle: OUR_FIRST_VEHICLE, cursor: 'move' })).toMatchObject({
+      data: { refusal: 'vehicleOccupied' },
+    });
   });
 });
 

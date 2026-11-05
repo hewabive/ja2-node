@@ -6,7 +6,8 @@
 // @src (the team change); TacticalAI/NPC.cc UpdateDarrelScriptToGoTo, GetInfoForAbandoningEPC; Tactical/Soldier_Add.cc
 // @src FindGridNoFromSweetSpotExcludingSweetSpot; Strategic/Assignments.cc InternalUnescortEPC, UnEscortEPC; Laptop/Personnel.cc
 // @src AddCharacterToOtherList, RemoveNewlyHiredMercFromPersonnelDepartedList; Strategic/Strategic_Town_Loyalty.cc
-// @src HandleTownLoyaltyForNPCRecruitment.
+// @src HandleTownLoyaltyForNPCRecruitment; Tactical/Vehicles.cc AddSoldierToVehicle (ChangeSoldierTeam of a vehicle not ours: a
+// @src vehicle merc with the original's zeroed squad and group, and no slot past 19 checked before the soldier goes, 2026-11-05).
 
 import { isTwoHanded, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { Approach } from '../../../content/narrative/npc-constants.ts';
@@ -40,7 +41,7 @@ import type { RecruitActions } from '../../tactical/narrative/npc-actions/env.ts
 import { changeSoldierTeam } from '../../tactical/narrative/team-change.ts';
 import { kickOutWheelchair } from '../../tactical/narrative/wheelchair.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
-import { CivilianGroup, firstFreeSoldierId, NO_PROFILE, NOWHERE, type Soldier, Team } from '../../tactical/soldier.ts';
+import { CivilianGroup, firstFreeSoldierId, NO_PROFILE, NOWHERE, type Soldier, SoldierStatusFlags, Team } from '../../tactical/soldier.ts';
 import { soldierInventoryContext } from '../../tactical/soldier-inventory.ts';
 import type { TacticalState } from '../../tactical/state.ts';
 import { findGridNoFromSweetSpotExcludingSweetSpot } from '../../tactical/sweet-spots.ts';
@@ -144,7 +145,7 @@ export class RecruitFlow {
     return changeSoldierTeam(t, old, team, { freeSoldierId: (to, bodyType) => this.#freeSoldierId(t, to, bodyType) });
   }
 
-  #join(fresh: Soldier, kind: number, sector: Sector): RosterMerc | null {
+  #join(fresh: Soldier, kind: number, sector: Sector, statusFlags = 0): RosterMerc | null {
     const roster = this.#roster;
     if (!roster) return null;
     const merc = new RosterMerc(
@@ -152,7 +153,7 @@ export class RecruitFlow {
         soldier: fresh,
         profile: this.#campaign.battle?.content.profiles[fresh.profile] ?? null,
         kind,
-        statusFlags: 0,
+        statusFlags,
         sector: { ...sector },
         betweenSectors: false,
         groupId: 0,
@@ -285,6 +286,14 @@ export class RecruitFlow {
 
   changeTeam(s: Soldier, team: number): Soldier | null {
     return this.#changeTeam(s, team);
+  }
+
+  takeOverVehicle(old: Soldier): RosterMerc | null {
+    const t = this.#t;
+    if (!t || this.#freeSoldierId(t, Team.OUR, old.bodyType) < 0) return null;
+    const sector = this.#soldierSector(old) ?? { x: 0, y: 0, z: 0 };
+    const fresh = this.#changeTeam(old, Team.OUR);
+    return fresh ? this.#join(fresh, MercKind.VEHICLE, sector, SoldierStatusFlags.VEHICLE) : null;
   }
 
   turnIntoAnonymousCivilian(s: Soldier): void {

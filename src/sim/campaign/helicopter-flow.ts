@@ -29,7 +29,7 @@ import { handleKillChopperMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { AC, areAssignmentConditionsMet, canCharacterSquad, JoinSquad } from '../strategic/economy/conditions.ts';
 import { Assignment, OKLIFE } from '../strategic/economy/constants.ts';
 import type { CrewMember, EconomyContext } from '../strategic/economy/ports.ts';
-import { addSoldierToVehicle, canCharacterVehicle } from '../strategic/economy/vehicle-assignment.ts';
+import { addSoldierToVehicle, Boarding, canCharacterVehicle } from '../strategic/economy/vehicle-assignment.ts';
 import {
   cancelHelicopterRoute,
   canHelicopterFly,
@@ -62,6 +62,7 @@ import type { HelicopterPort, StrategicContext, TacticalWorldPort } from '../str
 import { PathEdit, plotLegs, plottedRoute } from '../strategic/forces/routes.ts';
 import { addCharacterToSquad, getFirstEmptySquad, removeCharacterFromSquads } from '../strategic/forces/squads.ts';
 import {
+  exitsOntoTheLoadedMap,
   findVehicle,
   inHelicopter,
   isEnoughSpaceInVehicle,
@@ -79,9 +80,11 @@ import { refuse } from '../tactical/refusal.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import { killPersonInVehicle } from '../tactical/vehicle-passengers.ts';
+import { NO_VEHICLE_SOLDIER } from '../vehicles/vehicle-list.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { refuseMove, sectorList } from './commands.ts';
 import { seatedInLoadedSector } from './roster.ts';
+import { vehicleTileOnTheMap } from './vehicle-boarding.ts';
 
 const BLOODLOSS_DAMAGE = 100;
 
@@ -101,7 +104,7 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   alreadyAboard: 'the merc is already in that vehicle',
   notAccessible: 'the vehicle is not in the merc’s sector, is moving or is destroyed',
   notAllowed: 'that vehicle may not be used yet',
-  vehicleNotOurs: 'the vehicle is not on the player’s team',
+  noVehicleSlot: 'two vehicles of ours already take soldier ids 18 and 19',
   vehicleFull: 'no free seat',
   combat: 'enemies are present in the loaded sector',
   impassableSector: 'the merc stands in an impassable sector',
@@ -452,8 +455,10 @@ export class HelicopterFlow {
       return refusal(isHelicopter(economy, v) ? (whyHelicopterCannotFly(economy) ?? 'notAllowed') : 'notAllowed');
     if (!canCharacterVehicle(economy, m)) return refusal(this.#conditionRefusal(economy, m) ?? 'notEligible');
     if (!isEnoughSpaceInVehicle(economy, v)) return refusal('vehicleFull');
-    if (!addSoldierToVehicle(economy, m, v)) return refusal(isHelicopter(economy, v) ? 'vehicleFull' : 'vehicleNotOurs');
-    this.emit({ type: 'vehicleBoarded', soldier: m.id, vehicle: vid });
+    const boarding = addSoldierToVehicle(economy, m, v);
+    if (boarding !== Boarding.BOARDED) return refusal(boarding);
+    const gridNo = vehicleTileOnTheMap(this.campaign, v.soldierId);
+    this.emit({ type: 'vehicleBoarded', soldier: m.id, vehicle: vid, ...(gridNo === null ? {} : { gridNo }) });
     return { ok: true, data: { vehicle: vid, seat: v.passengers.indexOf(m.id) } };
   }
 
@@ -472,11 +477,13 @@ export class HelicopterFlow {
     if (squadRefusal) return refusal(squadRefusal);
     const vehicle = m.vehicleId;
     const fromHelicopter = inHelicopter(economy, m);
+    const vehicleSoldierId = findVehicle(economy, vehicle)?.soldierId ?? NO_VEHICLE_SOLDIER;
+    const vehicleTile = exitsOntoTheLoadedMap(economy, m) ? vehicleTileOnTheMap(this.campaign, vehicleSoldierId) : null;
     takeSoldierOutOfVehicle(economy, m.id);
     removeCharacterFromSquads(economy, m.id);
     addCharacterToSquad(economy, m.id, squad);
     if (fromHelicopter) setSoldierExitHelicopterInsertionData(economy, m);
-    this.emit({ type: 'vehicleLeft', soldier: m.id, vehicle });
+    this.emit({ type: 'vehicleLeft', soldier: m.id, vehicle, ...(vehicleTile === null ? {} : { gridNo: vehicleTile }) });
     return { ok: true, data: { squad } };
   }
 }

@@ -32,6 +32,7 @@ strategic checks: goods, money, hospital          strategic/narrative/npc-events
   over the campaign, sector loaded or not         campaign/narrative/quest-world.ts
 helicopter: flights, SAMs, hovering, the bill     strategic/forces/helicopter.ts, campaign/helicopter-flow.ts
 vehicles: the list, a vehicle soldier's slot      vehicles/vehicle-list.ts, tactical/vehicle-soldiers.ts
+  boarding and leaving on the loaded map          tactical/vehicle-boarding.ts, campaign/vehicle-boarding.ts
 robot control                                     campaign/robot-control.ts, tactical/narrative/robot.ts
 the quest log of the player view                  src/server/quest-view.ts
 ```
@@ -50,7 +51,8 @@ the quest log of the player view                  src/server/quest-view.ts
 | `strategic/forces/helicopter.ts`, `helicopter-state.ts`, `helicopter-events.ts`, `vehicles.ts`; `campaign/helicopter-flow.ts` | Skyrider's helicopter; `HelicopterFlow`: the hover events, the hourly debt, the monologues, the KILL_CHOPPER meanwhile, the commands |
 | `tactical/landed-helicopter.ts` | The helicopter standing in the loaded map (`TacticalState.landedHelicopter`): its pieces, their structures, the bump and their tile changes |
 | `campaign/robot-control.ts`, `tactical/narrative/robot.ts` | `ControllingRobot` and the remote holder; an uncontrolled robot's orders and the controller's interrupt points |
-| `strategic/economy/vehicle-assignment.ts` | Boarding a vehicle and who must drive it |
+| `strategic/economy/vehicle-assignment.ts` | Boarding a vehicle (`AddSoldierToVehicle`, the takeover of a vehicle not ours included) and who must drive it |
+| `tactical/vehicle-boarding.ts`, `campaign/vehicle-boarding.ts` | The click on a vehicle with its walk and the boarding on arrival, the way out of a vehicle (`ExitVehicle`'s tile, opplist entry and sight), `VehicleHooks.boarding` and the loaded sector's part of boarding and leaving (`TacticalWorldPort.loadedVehicles`) |
 | `vehicles/vehicle-list.ts`, `tactical/vehicle-soldiers.ts` | The vehicle list both layers share, its slots and records; a vehicle soldier registering his vehicle at creation and his vehicle leaving the list with him |
 | `src/server/quest-view.ts` | The quest log of the player view |
 
@@ -137,6 +139,16 @@ kills the seated passengers through tactical damage and the others through the s
 Helicopter passengers over the loaded sector stay out of the merc slots, in the sector through the roster's
 `offGridInSector` (gaps "Turn-based hooks").
 
+**Boarding and leaving.** `AddSoldierToVehicle` and `ExitVehicle` keep their original order in the strategic code
+(`strategic/economy/vehicle-assignment.ts`, `strategic/forces/vehicles.ts`), which reaches the loaded map through
+`TacticalWorldPort.loadedVehicles`: the takeover of a vehicle not ours (`ChangeSoldierTeam` and a roster merc of kind
+`VEHICLE` with the original's zeroed squad and group, `RecruitFlow.takeOverVehicle`), the selections the original makes
+on the game screen only, and the exit tile with its sight. The tactical click (`enterVehicle`) and the team panel's
+button (`exitVehicle`) go through `TacticalState.vehicleHooks.boarding`, which the sandbox lacks, so it refuses both
+(`notInCampaign`): boarding changes squads, groups and assignments. The map screen's `boardVehicle` and `leaveVehicle`
+reach the same code, so a civilian vehicle of the loaded sector is taken over from either screen, and a merc leaving
+on the loaded map stands where `ExitVehicle` puts him (`29` §8.8).
+
 **Where the mercs aboard count.** The original keeps them in by default and skips the seat where it says so; ja2-node
 reads the seat at the same places (`tactical/vehicle-presence.ts`). They look, hear and radio, and enemies see them at
 the vehicle's tile (`08`); a vehicle of ours never looks. The cursor never finds them (`findSoldierAtGridNo`, the
@@ -190,7 +202,10 @@ says otherwise:
 | A vehicle of ours with nobody aboard is not ours: it cannot be selected or ordered, though it stays on our team and squad | `src/sim/tactical/vehicle-presence.test.ts` "is not ours to select or order …", `src/sim/campaign/vehicle-presence.test.ts` "is no longer ours to select …" |
 | The passengers enter a sector before their vehicle, in the slots below its 18 or 19, and come to its tile only when it is placed | `src/sim/tactical/insertion.test.ts` "is registered in his merc slot without a tile …", `src/sim/campaign/vehicle-passengers.test.ts` "come in with it …" |
 | A vehicle entering a sector takes the closest tile its structure fits on in the insertion direction, else in the first of the eight that fits, and keeps that direction as its insertion direction | `src/sim/tactical/insertion.test.ts` "turns to the first of the eight directions …" |
-| A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most; a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts` |
+| A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most (a boarding checks the slot first, deviation "Third vehicle of ours"); a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/campaign/vehicle-boarding.test.ts` "takes a second vehicle over as soldier 19 …" |
+| A merc never boards from where he stands: his own tile is never free to him (`NewOKDestination` finds him there), so beside a vehicle he walks round it to the next free tile first; on arrival he gets into whatever enterable vehicle stands on the tile, allowed or not by then | `src/sim/tactical/vehicle-boarding.test.ts` "never boards from where the merc stands …", "walks to the free tile closest to the vehicle …" |
+| Leaving a vehicle takes the free tile closest by rows and columns within 5 tiles, else within 20, whatever the merc's body needs there; ties go to the first tile of the square, the north-west first | `src/sim/tactical/vehicle-boarding.test.ts` "takes the free tile closest by rows and columns …" |
+| A vehicle squad leaves a sector only as the vehicle alone (its passengers are on no squad), and the vehicle drives to the edge: the one move a vehicle makes on the tactical map | `src/sim/campaign/vehicle-boarding.test.ts` "leaves as the vehicle alone …" |
 | A tank's soldier carries profile `NPC164`, the unused jeep's, and a full tank | `src/sim/tactical/vehicle-soldiers.test.ts` |
 | A civilian or enemy vehicle leaves the list at every unload of its sector and registers again at the next load, maybe under another id; a destroyed vehicle elsewhere leaves it only at the next registration | `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/vehicles/vehicle-list.test.ts` |
 | Skyrider's profile follows his helicopter only while a refuel site is the loaded sector, and leaving it clears x and y but not z; a landing there brings him back only at the next load | `src/sim/strategic/forces/helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |

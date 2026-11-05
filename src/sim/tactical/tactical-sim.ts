@@ -18,7 +18,9 @@
 // @src box's callback) and GameScreen.cc EndModalTactical (the stop-time quote's callback, 2026-11-04); Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (WIRECUTCURS: a cuttable fence at ground level) and Turn_Based_Input.cc's click with the
 // @src wire cutters, jar and tin can (cutFence, fillJar, attachCan through HandleItem; the x-ray device takes useRemote,
-// @src 2026-11-04).
+// @src 2026-11-04); Turn_Based_Input.cc HandleMoveModeInteractiveClick (no move for a vehicle), HandleHandCursorClick
+// @src (the vehicle click, enterVehicle) and Interface_Panels.cc TMClickSecondHandInvCallbackPrimary (ExitVehicle, the
+// @src exitVehicle command, 2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -186,7 +188,18 @@ import { fenceCuttableBy, handlePendingTileToolOnArrival, interactiveTileAt, til
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns } from './turns/turns.ts';
-import { apsToDisplay, crewRefusal } from './vehicle-presence.ts';
+import {
+  BoardingCursor,
+  type BoardingRules,
+  enterVehicle,
+  enterVehicleCheck,
+  isBoardingRefusal,
+  NOT_IN_CAMPAIGN,
+  NOT_IN_VEHICLE,
+  VEHICLE_CANT_MOVE,
+} from './vehicle-boarding.ts';
+import { apsToDisplay, crewRefusal, passengersAboard } from './vehicle-presence.ts';
+import type { VehicleBoarding } from './vehicle-soldiers.ts';
 import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
 import { dynamicLightSprites } from './world-view.ts';
 
@@ -759,6 +772,10 @@ export class TacticalSim {
       case 'fillJar':
       case 'attachCan':
         return this.#useTileTool(cmd);
+      case 'enterVehicle':
+        return this.#enterVehicle(cmd);
+      case 'exitVehicle':
+        return this.#exitVehicle(cmd);
       case 'door':
         return this.#door(cmd);
       case 'select':
@@ -1028,6 +1045,48 @@ export class TacticalSim {
     return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
   }
 
+  #boardingRules(boarding: VehicleBoarding): BoardingRules {
+    const t = this.state;
+    return { usable: (v) => boarding.okUseVehicle(v), aboard: (v) => passengersAboard(t, v).length };
+  }
+
+  #enterVehicle(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const boarding = t.vehicleHooks.boarding;
+    if (!boarding) return refused(NOT_IN_CAMPAIGN);
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
+    if (isVehicle(s)) return refused(VEHICLE_CANT_MOVE);
+    const cursor = cmd.cursor ?? BoardingCursor.HAND;
+    if (cursor !== BoardingCursor.HAND && cursor !== BoardingCursor.MOVE) return refuse('badCursor', 'cursor must be hand or move');
+    const target = this.soldier(cmd.vehicle);
+    const vehicle = target && onTheGrid(target) && shownToPlayer(target) ? target : null;
+    const walk = enterVehicleCheck(t, s, vehicle, cursor, this.#boardingRules(boarding));
+    if (isBoardingRefusal(walk)) return refused(walk);
+    const entered = enterVehicle(t, s, walk);
+    return entered ? refused(entered) : { ok: true, data: { actionGridNo: walk.actionGridNo, boarded: inVehicle(s) } };
+  }
+
+  #exitVehicleRefusal(s: Soldier): Refusal | null {
+    if (!s.placed || s.team !== Team.OUR) return { token: 'noSuchSoldier', reason: 'no such soldier of yours' };
+    if (!inVehicle(s)) return NOT_IN_VEHICLE;
+    return this.#selectionLock(s);
+  }
+
+  #exitVehicle(cmd: TacticalCommand): CommandResult {
+    const boarding = this.state.vehicleHooks.boarding;
+    if (!boarding) return refused(NOT_IN_CAMPAIGN);
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.#exitVehicleRefusal(s);
+    if (refusal) return refused(refusal);
+    boarding.exitVehicle(s);
+    return { ok: true, data: { gridNo: s.gridNo } };
+  }
+
   #handItemResult(result: number): CommandResult {
     if (result === ItemHandle.OK) return { ok: true };
     if (result === ItemHandle.BROKEN) return refuse('itemBroken', 'the item in hand does not work');
@@ -1042,6 +1101,7 @@ export class TacticalSim {
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
     selectOrderedMerc(t, s);
+    if (isVehicle(s)) return refused(VEHICLE_CANT_MOVE);
     const to = cmd.to;
     if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
       return refuse('badDestination', 'destination must be a visible gridNo');

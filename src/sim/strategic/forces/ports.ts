@@ -114,6 +114,15 @@ export interface TacticalWorldPort {
   removedFromSquad?(id: number, squad: number): void;
   addedToSquad?(id: number, squad: number): void;
   rebuildCurrentSquad?(): void;
+  readonly loadedVehicles?: LoadedSectorVehicles;
+}
+
+export interface LoadedSectorVehicles {
+  takeOver(vehicleSoldierId: number): number | null;
+  selectOnGameScreen(id: number): void;
+  setCurrentSquadOnGameScreen(squad: number): void;
+  exitSpot(id: number, vehicleSoldierId: number): number;
+  placeOutOfVehicle(id: number, vehicleSoldierId: number, gridNo: number): void;
 }
 
 export interface StrategicPorts {

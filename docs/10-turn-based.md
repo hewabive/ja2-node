@@ -37,7 +37,7 @@ exitCombatMode → real time; a real-time turn on the next tick
 | Module | Holds |
 |---|---|
 | `turns/turns.ts` | Entering and leaving combat, team turns, `beginMercTurn`, the interrupt queue, the end of combat and of the battle, the real-time turn, the enemy-sighting pause |
-| `selection.ts` | The selected merc: the checks, squad, wake-up and psycho quote of `InternalSelectSoldier`, `SelectNextAvailSoldier`, the end of a multi-selection, the selections of a screen entry, a sector load, a native load, a death and a removal (called from `src/sim/campaign/screens.ts`, `sector-flow.ts`, `combat/death.ts`, `sector-presence.ts`); the current squad, kept in `forces.currentSquad` through the narrative port: `SetCurrentSquad`, `SetDefaultSquadOnSectorEntry`, `RebuildCurrentSquad` and the end of `AddCharacterToSquad` (called from `sector-flow.ts`, `sector-exits.ts`, the talk and escort flows, the `selectSquad` command) |
+| `selection.ts` | The selected merc: the checks, squad, wake-up and psycho quote of `InternalSelectSoldier`, `SelectNextAvailSoldier`, the end of a multi-selection, the selections of a screen entry, a sector load, a native load, a death and a removal (called from `src/sim/campaign/screens.ts`, `sector-flow.ts`, `combat/death.ts`, `sector-presence.ts`; boarding and leaving a vehicle on the game screen from `src/sim/campaign/vehicle-boarding.ts`); the current squad, kept in `forces.currentSquad` through the narrative port: `SetCurrentSquad`, `SetDefaultSquadOnSectorEntry`, `RebuildCurrentSquad` and the end of `AddCharacterToSquad` (called from `sector-flow.ts`, `sector-exits.ts`, the talk and escort flows, the `selectSquad` command) |
 | `turns/turn-state.ts` | `TurnState`: the original's tactical-status, interrupt and AI-list globals; `intList` is `gOutOfTurnOrder` without its unused slot 0 |
 | `turns/ai-list.ts`, `turns/top-message.ts` | The AI list of a team's turn; the top message bar and the AI progress |
 | `turns/personality.ts` | A merc's phobias and nervousness at his turn start: the morale events and the personality quote |
@@ -185,6 +185,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Entering combat plays a sleeping merc's wake-up but leaves him asleep, so his morale still waits for him to wake | `turns/turns.test.ts`, `combat/morale.test.ts`, `src/sim/campaign/narrative-port.test.ts` |
 | Entering combat on our turn selects every merc of ours with an opponent in turn, each with the selection's wake-up and draw, and the last one stays selected | `selection.test.ts` |
 | `SelectNextAvailSoldier` takes the team's first controllable merc, not the one after the fallen merc | `selection.test.ts` |
+| A vehicle never moves on the tactical map: a move, the exchange cursor, a group move and a boarding click with one are refused (`VEHICLE_CANT_MOVE_IN_TACTICAL`); it drives only to the map's edge when it leaves the sector | `vehicle-boarding.test.ts` "refuses vehicleCantMove …", `src/sim/campaign/vehicle-boarding.test.ts` "leaves as the vehicle alone …" |
+| Boarding on the game screen selects the vehicle, forced, while it is still empty, and makes its squad current; leaving makes the merc's new squad current and selects him; the map screen selects nobody | `src/sim/campaign/vehicle-boarding.test.ts` "walks up to the civilian Hummer …", "puts each merc on the free tile …", "takes the civilian Hummer over as soldier 18 with no selection …" |
 | A selection wakes a merc who collapsed from exhaustion, whom the `wake` command (`CanCharacterBeAwakened`) refuses | `src/sim/campaign/narrative-port.test.ts` |
 | Every return to the tactical screen selects the selected merc again with `SELSOLDIER_FORCE_RESELECT`, and a sector load selects twice, so a psycho draws on every screen change | `selection.test.ts`, `src/sim/campaign/automatic-selection.test.ts` |
 | A sleeping selected merc gives way on entry to the team's first controllable merc, who is selected twice, and stays asleep unless he is that merc | `selection.test.ts` |
@@ -221,7 +223,7 @@ reading the source:
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's
   return changes nothing (`SelectSoldier` refuses on the shopkeeper screen).
 
-Not ported: gaps "Automatic selections" (the assignment menu's close, the vehicles).
+Not ported: gaps "Automatic selections" (the assignment menu's close).
 Other deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
 on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame
 timers", "Soldier fade without merc lights", "Hidden attacks start combat", "Interface lock per source".

@@ -10,6 +10,10 @@ describe('refusal messages', () => {
   it("boxes a vehicle's move with an empty tank with ME_VEHICLE_NO_GAS's map error", () => {
     expect(refusalMessage('vehicleNoGas')).toEqual({ table: 'pMapErrorString', index: 42, shown: 'box' });
   });
+
+  it('logs VEHICLE_CANT_MOVE_IN_TACTICAL for a move click with a vehicle selected', () => {
+    expect(refusalMessage('vehicleCantMove')).toEqual({ table: 'TacticalStr', index: 128, shown: 'log' });
+  });
 });
 
 describe('the exchange of places (CanExchangePlaces)', () => {

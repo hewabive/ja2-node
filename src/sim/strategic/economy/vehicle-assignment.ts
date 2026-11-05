@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc CanCharacterVehicle, VehicleMenuBtnCallback, HandleShadingOfLinesForVehicleMenu;
-// @src Tactical/Vehicles.cc AddSoldierToVehicle (strategic part), PutSoldierInVehicle, IsThisVehicleAccessibleToSoldier,
+// @src Tactical/Vehicles.cc AddSoldierToVehicle (the takeover, selections and seat of the loaded sector through
+// @src TacticalWorldPort.loadedVehicles, 2026-11-05), PutSoldierInVehicle, IsThisVehicleAccessibleToSoldier,
 // @src AnyAccessibleVehiclesInSoldiersSector, CanSoldierDriveVehicle, OnlyThisSoldierCanDriveVehicle, SoldierMustDriveVehicle.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
@@ -41,17 +42,24 @@ export function canCharacterVehicle(ctx: EconomyContext, s: CrewMember): boolean
   );
 }
 
-function takeVehicleOver(ctx: EconomyContext, v: VehicleRecord): boolean {
-  const vs = ctx.crew.get(v.soldierId);
-  if (!vs) return false;
-  if (numberInVehicle(v) !== 0) return true;
+export const Boarding = { BOARDED: 'boarded', VEHICLE_FULL: 'vehicleFull', NO_VEHICLE_SLOT: 'noVehicleSlot' } as const;
+export type Boarding = (typeof Boarding)[keyof typeof Boarding];
+
+function vehicleSoldierOnOurTeam(ctx: EconomyContext, v: VehicleRecord): CrewMember | null {
+  if (!ctx.crew.get(v.soldierId)) ctx.world.loadedVehicles?.takeOver(v.soldierId);
+  return ctx.crew.get(v.soldierId) ?? null;
+}
+
+function takeVehicleOver(ctx: EconomyContext, v: VehicleRecord): CrewMember | null {
+  const vs = vehicleSoldierOnOurTeam(ctx, v);
+  if (!vs || numberInVehicle(v) !== 0) return vs;
   addCharacterToUniqueSquad(ctx, vs.id);
   removePlayerFromGroup(ctx, vs.id);
   const g = getGroup(ctx, v.movementGroup);
-  if (!g) return true;
+  if (!g) return vs;
   if (!g.members.includes(vs.id)) addPlayerToGroup(ctx, g, vs.id);
   else vs.groupId = v.movementGroup;
-  return true;
+  return vs;
 }
 
 function leavePreviousPlace(ctx: EconomyContext, s: CrewMember): void {
@@ -71,9 +79,12 @@ function seatInVehicle(ctx: EconomyContext, s: CrewMember, v: VehicleRecord): vo
   else ctx.mercs.removeFromTacticalSector(s.id);
 }
 
-export function addSoldierToVehicle(ctx: EconomyContext, s: CrewMember, v: VehicleRecord): boolean {
-  if (!isHelicopter(ctx, v) && !takeVehicleOver(ctx, v)) return false;
-  if (v.passengers.includes(s.id)) return true;
+export function addSoldierToVehicle(ctx: EconomyContext, s: CrewMember, v: VehicleRecord): Boarding {
+  const vs = isHelicopter(ctx, v) ? null : takeVehicleOver(ctx, v);
+  if (!vs && !isHelicopter(ctx, v)) return Boarding.NO_VEHICLE_SLOT;
+  if (v.passengers.includes(s.id)) return Boarding.BOARDED;
+  const loaded = ctx.world.loadedVehicles;
+  if (vs) loaded?.selectOnGameScreen(vs.id);
   const vid = vehicleIdOf(ctx, v);
   const seats = vehicleSeats(ctx, v);
   for (let slot = 0; slot < seats; slot++) {
@@ -86,9 +97,10 @@ export function addSoldierToVehicle(ctx: EconomyContext, s: CrewMember, v: Vehic
     const g = getGroup(ctx, v.movementGroup);
     if (v.movementGroup !== 0 && g) addPlayerToGroup(ctx, g, s.id);
     seatInVehicle(ctx, s, v);
-    return true;
+    if (vs) loaded?.setCurrentSquadOnGameScreen(vs.assignment);
+    return Boarding.BOARDED;
   }
-  return false;
+  return Boarding.VEHICLE_FULL;
 }
 
 function canSoldierDriveVehicle(ctx: EconomyContext, s: CrewMember, vid: number, ignoreAsleep: boolean): boolean {

@@ -244,7 +244,11 @@ export function isSkyriderFlyingInSector(ctx: StrategicContext, s: Sector): bool
 }
 
 export function okUseVehicle(ctx: StrategicContext, v: VehicleRecord): boolean {
-  switch (ctx.content.vehicles[v.type]?.profile) {
+  return okUseVehicleType(ctx, v.type);
+}
+
+export function okUseVehicleType(ctx: StrategicContext, type: number): boolean {
+  switch (ctx.content.vehicles[type]?.profile) {
     case PROF_HUMMER:
       return ctx.helicopter.fact(FACT_OK_USE_HUMMER);
     case PROF_ICECREAM:

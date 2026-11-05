@@ -3,7 +3,7 @@ import { type EconomyTestContent, economyTestContext, loadEconomyTestContent } f
 import { parseSectorString, type Sector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { numberInVehicle, passengersOf } from '../../vehicles/vehicle-list.ts';
 import type { EconomyContext } from '../economy/ports.ts';
-import { addSoldierToVehicle, isVehicleAccessibleToSoldier, soldierMustDriveVehicle } from '../economy/vehicle-assignment.ts';
+import { addSoldierToVehicle, Boarding, isVehicleAccessibleToSoldier, soldierMustDriveVehicle } from '../economy/vehicle-assignment.ts';
 import { initStrategicMovementCosts } from '../map/init.ts';
 import { Assignment } from './constants.ts';
 import { getGroup } from './groups.ts';
@@ -54,8 +54,8 @@ describe('ground vehicles', () => {
 
   it('puts the vehicle soldier on a squad and in its group, then seats a driver and a passenger in slot order', () => {
     const { ctx, v, vid } = hummerWorld();
-    expect(addSoldierToVehicle(ctx, member(ctx, 0), v)).toBe(true);
-    expect(addSoldierToVehicle(ctx, member(ctx, 1), v)).toBe(true);
+    expect(addSoldierToVehicle(ctx, member(ctx, 0), v)).toBe(Boarding.BOARDED);
+    expect(addSoldierToVehicle(ctx, member(ctx, 1), v)).toBe(Boarding.BOARDED);
     expect(passengersOf(v)).toEqual([0, 1]);
     const g = getGroup(ctx, v.movementGroup);
     expect(g?.members).toEqual([VEHICLE_SOLDIER, 0, 1]);

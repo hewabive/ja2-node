@@ -410,7 +410,10 @@ vehicle): every order to him, `stop`, `mute` and the inventory and money command
 merc; no order takes him as its target, as the cursor never finds him (`FindSoldier`): `pass`, `steal`, `swapPlaces` and
 `talk` refuse `noSuchTarget`, `bandage` `noTarget`.
 A vehicle of ours with nobody aboard is not ours to command (`IsOwnedMerc`): its orders and `select` refuse `noDriver`.
-The hints refuse the same way (`blocked`).
+The hints refuse the same way (`blocked`). A vehicle never moves on the tactical map (`HandleMoveModeInteractiveClick`):
+`move`, `swapPlaces` with `cursor`, a `moveGroup` naming one and `enterVehicle` by one refuse `vehicleCantMove`. It
+leaves a sector by strategic travel, or through `exitSector` as the vehicle alone, never as a squad (its passengers are
+on no squad), when it drives to the edge as the original's walk-off does.
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
@@ -647,6 +650,27 @@ him, while the radar and the overhead map mark his tile as the original's do. A 
 in seat order as `passengers` (none: not ours to command, `noDriver`); its squad's team panel shows them in its place,
 a click on one of their faces selecting the vehicle; the driver's `ap` is the vehicle's, as his panel shows
 (`GetUIApsToDisplay`). The mercs aboard look, hear and radio (`08`); our vehicle never looks.
+
+On the tactical screen (`src/sim/tactical/vehicle-boarding.ts`, `src/sim/campaign/vehicle-boarding.ts`),
+`enterVehicle {soldier, vehicle, cursor}` is the click on a vehicle with the hand cursor (`cursor: "hand"`, the
+default) or the move cursor (`"move"`), `vehicle` the vehicle's soldier id: he walks to the free tile closest to it by
+rows and columns within 5, never his own, so he always walks (a quirk, `25`), and on arrival gets into
+whatever enterable vehicle stands there. A civilian vehicle becomes ours on boarding: a merc of `kind` `vehicle` with
+soldier id 18, then 19, the vehicle keeping its id; the vehicle is selected and its squad made current. Refusals in
+order: `notInCampaign` (the sandbox), the order's own (`inVehicle`, `noDriver`, …), `vehicleCantMove`, `noSuchTarget`
+(no vehicle the squad sees), `notEnterable` (a tank, a wreck below 15 life, no vehicle), `notAllowed` (the Hummer and
+the ice cream truck before their facts), `vehicleOccupied` (the move cursor over a vehicle with somebody aboard),
+`noPath` (no free tile within 5, or no walk), `notEnoughAP`; `data.actionGridNo` is the tile he walks to.
+`previewAction` kind `enterVehicle` with `target` and `cursor` gives that walk and its APs with the same refusals.
+`exitVehicle {soldier}` is the team panel's Exit Vehicle button for a merc aboard: he stands on the free tile closest to
+the vehicle within 5 tiles, else within 20, knows the vehicle, looks around, joins a squad of his own, made current,
+and is selected; the vehicle left empty drops its squad for its group and is not ours to command. Refusals:
+`notInCampaign`, `noSuchSoldier`, `notInVehicle`; `data.gridNo` is his tile. The map screen's `boardVehicle` takes a
+civilian vehicle of the loaded sector over the same way, a third vehicle of ours refused as `noVehicleSlot` (deviation
+"Third vehicle of ours"), and its `leaveVehicle` in the loaded sector puts the merc where `exitVehicle` does.
+`vehicleBoarded` and `vehicleLeft {soldier, vehicle, gridNo}` carry the vehicle's tile, where the enter sound plays,
+while the vehicle stands on the loaded map.
+
 `strategic.vehicles` names our vehicles and the helicopter, and another vehicle only while a merc of ours could board
 it (`IsThisVehicleAccessibleToSoldier`: in his sector, neither moving, `OKUseVehicle`), the map screen's vehicle menu;
 an enemy's tank never, though the vehicle list holds it while its sector is loaded.

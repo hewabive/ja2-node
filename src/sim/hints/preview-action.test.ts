@@ -206,11 +206,17 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
   it('answers notSupported for the item cursors without a command', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
-    for (const kind of ['repair', 'refuel', 'enterVehicle'])
+    for (const kind of ['repair', 'refuel'])
       expect(hintAnswer(sim, 'previewAction', { soldier: 0, kind, gridNo: ORIGIN + 1 })).toMatchObject({
         ok: false,
         data: { refusal: 'notSupported' },
       });
+  });
+
+  it('refuses the enter-vehicle cursor in the sandbox as its command does', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    expect(action(sim, 'enterVehicle', ORIGIN + 1)).toMatchObject({ ok: false, refusal: 'notInCampaign' });
   });
 
   it('never sees an unseen soldier standing on the walk-up path', () => {

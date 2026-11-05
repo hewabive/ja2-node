@@ -1,10 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Turn_Based_Input.cc ToggleStealthMode, HandleStealthChangeFromUIKeys, the 'z' key with ALT (the
-// @src squad), the 'x' key (exchange places with AP), HandleMoveModeInteractiveClick (the free exchange),
+// @src squad), the 'x' key (exchange places with AP), HandleMoveModeInteractiveClick (the free exchange; no vehicle
+// @src moves, 2026-11-05),
 // @src HandleTBClimbWindow; Interface_Panels.cc BtnStealthModeCallback, BtnMuteCallback, BtnBurstModeCallback,
 // @src BtnClimbCallback (the fence jump); Weapons.cc ChangeWeaponMode; Handle_UI.cc UIHandleJumpOver, UIHandleCMoveMerc
-// @src (the all-move), HandleMultiSelectionMove; Soldier_Control.cc GetMoveStateBasedOnStance, BeginSoldierClimbWindow;
+// @src (the all-move, which a vehicle selected never reaches), HandleMultiSelectionMove (never a vehicle); Soldier_Control.cc GetMoveStateBasedOnStance, BeginSoldierClimbWindow;
 // @src Soldier_Tile.cc CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
 // @src Isometric_Utils.cc IsFacingClimableWindow; Structure_Wrap.cc IsJumpableWindowPresentAtGridNo;
 // @src Points.cc GetAPsToJumpFence; Turn_Based_Input.cc SwitchHeadGear (CTRL+N: the squad's living non-vehicles in
@@ -44,6 +45,7 @@ import { selectOrderedMerc } from './selection.ts';
 import { Body, OKLIFE, onTheGrid, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { swapMercPositions, teleportSoldier } from './teleport.ts';
+import { VEHICLE_CANT_MOVE } from './vehicle-boarding.ts';
 import { crewRefusal } from './vehicle-presence.ts';
 
 export interface OrderCommand {
@@ -218,6 +220,7 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   if (!other || !onTheGrid(other) || other === s) return refuse('noSuchTarget', 'with must be another soldier in the sector');
   const level = cmd.level === 1 ? 1 : cmd.level === 0 ? 0 : s.level;
   if (cmd.cursor === true) {
+    if (isVehicle(s)) return refused(VEHICLE_CANT_MOVE);
     if (!validQuickExchangePosition(t, s, other)) return refuse('invalidExchange', 'not an adjacent neutral or friendly soldier in sight');
     const refusal = exchangeRefusal(t, s, other);
     if (refusal) return refuseExchange(refusal, other);
@@ -342,6 +345,7 @@ function moveGroup(ctx: OrderContext, cmd: OrderCommand): CommandResult {
     return refuse('badMode', 'mode must be run, fast or stance');
   const list = soldierList(ctx, cmd.soldiers);
   if (isRefusal(list)) return refused(list);
+  if (list.some(isVehicle)) return refused(VEHICLE_CANT_MOVE);
   const moved: number[] = [];
   const noPath: number[] = [];
   for (const s of list) {

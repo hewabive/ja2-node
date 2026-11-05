@@ -210,6 +210,7 @@ import {
 } from './sector-diff.ts';
 import { type AdjacentJump, allMercsHaveWalkedOffSector, allMercsWalkedToExitGrid, exitSectorCommand } from './sector-exits.ts';
 import { addCorpsesToBloodcatLair } from './sector-loot.ts';
+import { campaignVehicleBoarding, loadedSectorVehicles } from './vehicle-boarding.ts';
 
 export interface SectorWorlds {
   exists(path: string): boolean;
@@ -637,6 +638,7 @@ export class SectorFlow {
     sim.state.vehicleHooks = {
       addVehicleToList: (_list, sector, type) => addVehicleToList(this.ctx, sector, type),
       killAllInVehicle: (v) => killAllInVehicle(this.ctx, v),
+      boarding: campaignVehicleBoarding(this.campaign),
     };
     sim.state.timeOfDayLight = {
       ambientLevel: () => {
@@ -1508,6 +1510,7 @@ export function sectorWorldPort(base: TacticalWorldPort, flowOf: () => SectorFlo
       flowOf()?.rebuildCurrentSquad();
       base.rebuildCurrentSquad?.();
     },
+    loadedVehicles: loadedSectorVehicles(() => flowOf()?.campaign ?? null),
   };
 }
 

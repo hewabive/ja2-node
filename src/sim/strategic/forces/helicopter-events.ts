@@ -100,12 +100,14 @@ export interface VehicleBoardedEvent extends SimEventBase {
   readonly type: 'vehicleBoarded';
   readonly soldier: number;
   readonly vehicle: number;
+  readonly gridNo?: number;
 }
 
 export interface VehicleLeftEvent extends SimEventBase {
   readonly type: 'vehicleLeft';
   readonly soldier: number;
   readonly vehicle: number;
+  readonly gridNo?: number;
 }
 
 export interface VehicleOutOfGasEvent extends SimEventBase {
