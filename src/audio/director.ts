@@ -30,9 +30,11 @@
 // @src and ExitVehicle (the vehicle type's enter sound at the vehicle's tile, HIGHVOLUME, on the tactical screen),
 // @src HandleVehicleMovementSound (its move sound at the tile it starts from, once a vehicle's state turns moving,
 // @src stopped by a state that is not, Soldier_Control.cc EVENT_InitNewSoldierAnim, or by AdjustNoAPToFinishMove,
-// @src 2026-11-05).
+// @src 2026-11-05); Tactical/Soldier_Control.cc TurnSoldier (a tank's TURRET_MOVE loop from its first 32-facing step,
+// @src stopped with TURRET_STOP once it faces where it turns, 2026-11-05).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
+import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
 import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../content/anim/timeline-follower.ts';
 import { ambientActive, ambientCue, ambientGapMs } from '../content/audio/ambient-schedule.ts';
@@ -55,6 +57,7 @@ import {
   impactCue,
   imprintCue,
   isSoundOpcode,
+  isTankBody,
   lockOutcomeCue,
   materialHitCue,
   missCue,
@@ -65,6 +68,8 @@ import {
   SoundBody,
   smallExplosionCue,
   TerrainKind,
+  turretMoveCue,
+  turretStopCue,
 } from '../content/audio/cues.ts';
 import { type Heard, heardSoundTile } from '../content/audio/heard-place.ts';
 import { hasIdleSounds, idleCheck, idleCheckLoopFrames } from '../content/audio/idle-sounds.ts';
@@ -96,6 +101,7 @@ const UNSEEN_VICTIM_TEAM = 1;
 const NOBODY = -1;
 const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
+const hiResFacing = (s: SoldierView) => s.hiResDirection ?? facingOfDirection(s.direction).hiResDirection;
 const ANIM_STAND = 6;
 const CANTEEN = 'CANTEEN';
 const DYING_HEALTH_INDEX = 0;
@@ -197,6 +203,7 @@ export class SoundDirector {
   readonly #dead = new Set<number>();
   readonly #struckVehicles = new Set<number>();
   readonly #driving = new Map<number, VoiceHandle>();
+  readonly #turrets = new Map<number, VoiceHandle>();
   readonly #weapons = new Map<number, number>();
   readonly #bursts = new Map<number, boolean>();
   readonly #calls = new Map<number, CreatureCall>();
@@ -226,6 +233,7 @@ export class SoundDirector {
 
   reset(soldiers: readonly SoldierView[], openContainers: readonly number[] = []): void {
     for (const id of [...this.#driving.keys()]) this.#stopDriving(id);
+    for (const id of [...this.#turrets.keys()]) this.#silenceTurret(id);
     this.#soldiers.clear();
     this.#timelines.clear();
     for (const s of soldiers) this.#soldierChanged(s, false);
@@ -339,6 +347,7 @@ export class SoundDirector {
       if (audible && prev) for (const code of followed.ops) if (isSoundOpcode(code)) this.#opcode(s, code);
     }
     if (prev && isVehicleBody(s.bodyType)) this.#vehicleMovement(prev, s, audible);
+    if (prev && isTankBody(s.bodyType)) this.#turret(prev, s, audible);
     if (!audible || !prev) return;
     const stateChanged = prev.animation !== s.animation;
     if (stateChanged && this.#has(prev.animation, AnimFlags.MOVING) && this.#has(s.animation, AnimFlags.STATIONARY)) this.#footstep(s);
@@ -348,6 +357,29 @@ export class SoundDirector {
   #forget(id: number): void {
     this.#soldiers.delete(id);
     this.#driving.delete(id);
+    this.#silenceTurret(id);
+  }
+
+  #turret(prev: SoldierView, s: SoldierView, audible: boolean): void {
+    if (s.turning !== true) {
+      this.#stopTurret(s, audible);
+      return;
+    }
+    if (audible && hiResFacing(prev) !== hiResFacing(s) && !this.#turrets.has(s.id)) {
+      const voice = this.#play(turretMoveCue(this.#o.book, s.gridNo));
+      if (voice) this.#turrets.set(s.id, voice);
+    }
+  }
+
+  #stopTurret(s: SoldierView, audible: boolean): void {
+    if (!this.#turrets.has(s.id)) return;
+    this.#silenceTurret(s.id);
+    if (audible) this.#play(turretStopCue(this.#o.book, s.gridNo));
+  }
+
+  #silenceTurret(id: number): void {
+    this.#turrets.get(id)?.stop();
+    this.#turrets.delete(id);
   }
 
   #vehicleMovement(prev: SoldierView, s: SoldierView, audible: boolean): void {

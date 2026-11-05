@@ -839,4 +839,47 @@ describe('the sounds of a vehicle', () => {
     expect(r.cues.map((c) => c.gridNo)).toEqual([VEHICLE_AT, SOMEWHERE_ELSE]);
     expect(r.cues[1]?.file).toBe(book.vehicles[4]?.move);
   });
+
+  describe("a tank's turret (TurnSoldier)", () => {
+    const TANK = 30;
+    const tank = (extra: Partial<SoldierView>) =>
+      soldier(TANK, 'STANDING', 0, { bodyType: TANK_NW, team: 1, gridNo: SOMEWHERE_ELSE, ...extra });
+    const turretMove = { file: 'TURRET_MOVE', mix: 'soldier', baseVolume: 127, gridNo: SOMEWHERE_ELSE, loops: 100 };
+    const turretStop = { file: 'TURRET_STOP', mix: 'soldier', baseVolume: 127, gridNo: SOMEWHERE_ELSE, loops: 1 };
+    const named = (cue: { readonly file: string }) => ({ ...cue, file: book.paths.get(cue.file) });
+    const turningTo = (direction: number, steps: readonly number[], from: number) =>
+      steps.map((hiResDirection, k) => frame(from + 10 * k, [tank({ direction, hiResDirection, turning: true })]));
+
+    it('loops TURRET_MOVE from the first step of the turn to its end, then plays TURRET_STOP once', () => {
+      const r = rig();
+      const voices = voicesOf(r);
+      r.director.reset([tank({ direction: Direction.NORTH })]);
+      r.director.applyFrames([frame(10, [tank({ direction: Direction.NORTH, turning: true })])]);
+      expect(r.cues).toEqual([]);
+      r.director.applyFrames([
+        ...turningTo(Direction.NORTH, [1, 2, 3], 20),
+        frame(50, [tank({ direction: Direction.NORTHEAST, turning: true })]),
+        ...turningTo(Direction.NORTHEAST, [5, 6, 7], 60),
+      ]);
+      expect(r.cues).toEqual([expect.objectContaining(named(turretMove))]);
+      expect([named(turretMove).file, named(turretStop).file]).toEqual(['sounds/tank turret a.wav', 'sounds/tank turret b.wav']);
+      expect(voices[0]?.active).toBe(true);
+      r.director.applyFrames([frame(90, [tank({ direction: Direction.EAST })])]);
+      expect(voices[0]?.active).toBe(false);
+      expect(r.cues).toEqual([expect.objectContaining(named(turretMove)), expect.objectContaining(named(turretStop))]);
+    });
+
+    it('plays nothing for a turn caught up from the past, and silences the loop of a tank gone from the view', () => {
+      const r = rig();
+      const voices = voicesOf(r);
+      r.director.reset([tank({ direction: Direction.NORTH })]);
+      r.director.applyFrames([...turningTo(Direction.NORTH, [1], 10), frame(10 + CATCH_UP_TICKS + 1, [])]);
+      expect(r.cues).toEqual([]);
+      r.director.applyFrames(turningTo(Direction.NORTH, [2], 200));
+      expect(r.cues).toEqual([expect.objectContaining(named(turretMove))]);
+      r.director.applyFrames([{ tick: 210, changed: [], removed: [TANK], events: [] }]);
+      expect(voices[0]?.active).toBe(false);
+      expect(r.cues).toHaveLength(1);
+    });
+  });
 });

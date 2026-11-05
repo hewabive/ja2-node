@@ -8,7 +8,8 @@
 // @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
 // @src HandleDoorTrap; TileEngine/Explosion_Control.cc PerformItemAction and HandleExplosionQueue (the klaxon,
 // @src 2026-11-04); Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
-// @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down).
+// @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down); Tactical/Soldier_Control.cc
+// @src TurnSoldier (TURRET_MOVE and TURRET_STOP, 2026-11-05).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook, WeaponSounds } from './cue-book.ts';
@@ -44,8 +45,12 @@ export const SoundBody = {
   BLOODCAT: 20,
   ROBOTNOWEAPON: 21,
   FIRST_VEHICLE: 22,
+  TANK_NW: 23,
+  TANK_NE: 24,
   LAST_VEHICLE: 27,
 } as const;
+
+const TURRET_MOVE_LOOPS = 100;
 
 const FOOTSTEP_VARIANTS = 4;
 const WATER_STEP_VARIANTS = 2;
@@ -67,6 +72,18 @@ export interface Footstep {
 
 export function isVehicleBody(bodyType: number): boolean {
   return bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
+}
+
+export function isTankBody(bodyType: number): boolean {
+  return bodyType === SoundBody.TANK_NW || bodyType === SoundBody.TANK_NE;
+}
+
+export function turretMoveCue(book: CueBook, gridNo: number): Cue | null {
+  return effectCue(book, 'TURRET_MOVE', 'soldier', VolumeLevel.HIGH, gridNo, TURRET_MOVE_LOOPS);
+}
+
+export function turretStopCue(book: CueBook, gridNo: number): Cue | null {
+  return effectCue(book, 'TURRET_STOP', 'soldier', VolumeLevel.HIGH, gridNo);
 }
 
 function footstepBase(ctx: StepContext): { readonly first: string; readonly variants: number } {

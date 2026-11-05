@@ -63,8 +63,9 @@ generator are not drawn, or drawn on the client's `ClientRandom`, seeded from th
 plays from where the squad hears it ("Sounds out of sight"), and only animals in sight make idle sounds ("Idle sounds
 of unseen animals"). Code 491 is counted from the passes of the loop that holds it, since the server sends no frames of
 a predictable loop; the simulation runs the same check with its own draw and does not tell the client what it rolled.
-Frames more than 100 ticks behind the newest (`CATCH_UP_TICKS`) only update the director's memory, so a skip replays
-no sounds.
+For the same reason a tank's turret loop runs from the view of its first 32-step facing to the view that ends its
+`turning`, one frame before the original stops it ("Turret stop"). Frames more than 100 ticks behind the newest
+(`CATCH_UP_TICKS`) only update the director's memory, so a skip replays no sounds.
 
 **The original's mixer on Web Audio.** Each cue's mix rule computes volume and pan as its call site in the original
 does, applied per voice under one master gain: 16 voices, a new sound dropped when all are busy; two gains per voice
@@ -172,6 +173,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | Only a merc on our team holds his line for his battle sound; an NPC's line plays over his | `audio/director.test.ts` |
 | A vehicle's battle sound is said by a merc aboard drawn anew each time; an empty vehicle says nothing | `audio/director.test.ts` "is spoken by a passenger drawn with Random(passengers) …", "says nothing with nobody aboard …" |
 | A vehicle's move sound plays once from the tile it starts from without following it and stops at any state that does not move it; a pause for want of APs silences the rest of that move | `audio/director.test.ts` "starts the move sound at the tile a vehicle starts from …", "stops the move sound when the vehicle runs out of APs …" |
+| A tank's turret loop starts at its first 32-step facing of a turn, not at the order, plays on through every octant of the turn and gives way to the stop sound only once the tank faces where it turns; a step caught up from the past starts nothing | `audio/director.test.ts` "loops TURRET_MOVE from the first step …", "plays nothing for a turn caught up from the past …" |
 | Music starts without a fade-in | `audio/music.test.ts` |
 | Setting the playing mode again makes it its own previous mode: the prebattle screen sets enemy present twice, so a later restore forgets what played before | `protocol/music.test.ts` |
 | A restore never returns to the victory or defeat track, but to the nothing music | `protocol/music.test.ts` |
