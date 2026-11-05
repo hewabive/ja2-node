@@ -59,14 +59,14 @@ describe('the map client clock', () => {
     expect(session.drives).toEqual([]);
   });
 
-  it('stops real time on the events that open a box: the update box, the lost sector box and the invasion box', () => {
+  it('stops real time on the events that open a box: the update box, the lost sector box, the invasion box and the out-of-gas box', () => {
     const session = new FakeSession();
     session.latestView = viewIn('strategic');
     mapClientOn(session).start();
     expect(session.driver).toEqual({
       mode: 'realtime',
       speed: 1,
-      pauseOn: ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon', 'sectorLost', 'invasion'],
+      pauseOn: ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon', 'sectorLost', 'invasion', 'vehicleOutOfGas'],
     });
   });
 

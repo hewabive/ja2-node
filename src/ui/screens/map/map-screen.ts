@@ -39,7 +39,8 @@
 // @src RequestContractMenu (the line stops as the contract menu opens), the exit to the laptop (StopAnyCurrentlyTalkingSpeech)
 // @src (2026-11-03); Map_Screen_Interface.cc GoToNextCharacterInList and ValidSelectableCharForNextOrPrev (with an item
 // @src held or the inventory shown only a merc with an accessible inventory, with an item held only one who could take
-// @src it, MapscreenCanPassItemToChar through the passTargets hint) (2026-11-04).
+// @src it, MapscreenCanPassItemToChar through the passTargets hint) (2026-11-04);
+// @src Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (2026-11-05).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -98,12 +99,12 @@ import {
 import { CompressionBlink, type CompressRequest, compressionCommand, compressionLabelSteady } from './compression.ts';
 import { ContractMenu } from './contract-menu.ts';
 import { type MapEnvironment, MapLayout } from './environment.ts';
+import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from './event-boxes.ts';
 import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn } from './facts.ts';
 import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnTeams } from './filters.ts';
 import { cornerIcons, infoGeometry, renderCharacterInfo } from './info-panel.ts';
 import { type InvasionEvent, invasionBoxesOf, invasionText } from './invasion.ts';
 import { LayoutParams, type Params } from './layout-params.ts';
-import { inTacticalFlow, lostSectorsOf, lostSectorText } from './lost-sector.ts';
 import { type MapAction, MapScreenController } from './map-controller.ts';
 import { accessibleInventory, MapInventory } from './map-inventory.ts';
 import { MenuMask } from './map-menu.ts';
@@ -262,7 +263,7 @@ export class MapScreen implements Screen {
   readonly #moveBox: MoveBox;
   readonly #updateBox: UpdateBox;
   readonly #updates = new UpdateQueue();
-  readonly #lostSectors: PromptedText[] = [];
+  readonly #eventBoxes: PromptedText[] = [];
   #updatePrompt: ViewerPrompt | null = null;
   readonly #preBattleBoxes: PromptedText[] = [];
   readonly #message = new MapUiMessage();
@@ -777,12 +778,15 @@ export class MapScreen implements Screen {
         } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
         else if (event.type === 'vehicleBoarded' && !this.#isHelicopter(event.vehicle)) this.#env.sounds.vehicleEntered();
       }
-    if (!inTacticalFlow(this.#playerView()))
-      for (const lost of lostSectorsOf(frames))
-        this.#lostSectors.push({
-          text: lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label, true)),
-          prompt: eventPrompt(lost, lost.sector),
-        });
+    const view = this.#playerView();
+    if (!inTacticalFlow(view))
+      this.#eventBoxes.push(
+        ...eventBoxesOf(frames, {
+          text: this.#env.text,
+          sectorName: (label) => this.#sectorName(label, true),
+          vehicleType: vehicleTypeIn(view),
+        }),
+      );
     this.noticeInvasions(invasionBoxesOf(frames));
     this.noticeBattleNotices(battleNoticesOf(frames));
     this.#inventory.frames(frames);
@@ -839,7 +843,7 @@ export class MapScreen implements Screen {
     this.#env.client.holdTime('militia', this.#militia.open);
     this.#showNextUpdate();
     this.#followUpdatePrompt();
-    this.#showLostSector();
+    this.#showEventBox();
     this.#env.client.holdTime('updateBox', this.#updateBox.open);
     this.#env.client.holdTime('moveBox', this.#moveBox.open);
     this.#env.client.holdTime('menus', this.#menus.open || this.#contract.open);
@@ -1576,9 +1580,9 @@ export class MapScreen implements Screen {
     return true;
   }
 
-  #showLostSector(): void {
-    const lost = this.#lostSectors.shift();
-    if (lost !== undefined) void this.#mapBox(lost.text, lost.prompt);
+  #showEventBox(): void {
+    const box = this.#eventBoxes.shift();
+    if (box !== undefined) void this.#mapBox(box.text, box.prompt);
   }
 
   async #updateFinished(continueTime: boolean | null): Promise<void> {

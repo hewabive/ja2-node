@@ -63,7 +63,8 @@ command, not cursor clicks (deviations "Map route plotting", "Move box regroupin
 **A vehicle's fuel is its soldier's.** A ground vehicle travels as its own group with its soldier and passengers;
 its fuel is the vehicle soldier's `breathRed`, which strategic code reads as `StrategicMerc.fuel` and spends through
 `MercPort.spendVehicleFuel` (`src/sim/vehicles/vehicle-fuel.ts`); the roster reaches a vehicle of ours wherever it is.
-The original's out-of-gas box is the `vehicleOutOfGas` event (gap "Out-of-gas box").
+The original's out-of-gas box is the `vehicleOutOfGas` event, which the client boxes on the screen that is up
+(`ui/screens/map/event-boxes.ts`).
 
 **Minutes and events.** Strategic times are world minutes and an arrival is a `GROUP_ARRIVAL` event, so groups arriving
 in the same second resolve in the queue's order. `GROUP_ABOUT_TO_ARRIVE` is posted and does nothing: the original only
@@ -174,7 +175,7 @@ the source:
 - Not probed: strategic advance with replayed draws (enemy sleep, queued battles and reversals in one run), and player
   ETAs with encumbrance unless every member is in the loaded sector.
 
-Not ported: gaps "Strategic move refusals", "Out-of-gas box", "Savegame import". Other
+Not ported: gaps "Strategic move refusals", "Savegame import". Other
 deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
 enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on
 import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".

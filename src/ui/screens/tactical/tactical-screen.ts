@@ -72,7 +72,8 @@
 // @src locator at the spotted mine (2026-11-04); Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle squad's
 // @src slots hold its passengers) and MercFacePanelCallbackPrimary (a passenger's face locates and selects his vehicle)
 // @src (2026-11-05); Interface.cc DrawSelectedUIAboveGuy and GetSoldierAboveGuyPositions (any vehicle is named, with its
-// @src profile, by zVehicleName and gets the life and fuel bars, 2026-11-05).
+// @src profile, by zVehicleName and gets the life and fuel bars, 2026-11-05); Strategic_Movement.cc
+// @src ReportVehicleOutOfGas (the STR_LATE_05 box on the screen that is up, 2026-11-05).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -100,12 +101,12 @@ import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
-import { eventPrompt, type PromptedText } from '../../viewer-prompts.ts';
+import type { PromptedText } from '../../viewer-prompts.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from '../map/event-boxes.ts';
 import { sectorNameIn } from '../map/facts.ts';
-import { inTacticalFlow, lostSectorsOf, lostSectorText } from '../map/lost-sector.ts';
 import { DialogueLayer } from '../talk/dialogue-layer.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
 import { type CommandReply, type TacticalEnvironment, TacticalLayout } from './environment.ts';
@@ -331,7 +332,7 @@ export class TacticalScreen implements Screen {
   #entered = false;
   #entryLocate: number | null = null;
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
-  readonly #lostSectors: PromptedText[] = [];
+  readonly #eventBoxes: PromptedText[] = [];
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
@@ -1027,7 +1028,7 @@ export class TacticalScreen implements Screen {
     this.#syncSquadRegions();
     this.#hudView.update();
     this.#panelView().update();
-    this.#showLostSector();
+    this.#showEventBox();
   }
 
   #overheadHoveredMerc(): number | null {
@@ -1322,12 +1323,11 @@ export class TacticalScreen implements Screen {
   frames(frames: readonly ViewFrame[]): void {
     this.dialogue.frames(frames);
     this.controls.frames(frames);
-    if (inTacticalFlow(this.#view()))
-      for (const lost of lostSectorsOf(frames))
-        this.#lostSectors.push({
-          text: lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label)),
-          prompt: eventPrompt(lost, lost.sector),
-        });
+    const view = this.#view();
+    if (inTacticalFlow(view))
+      this.#eventBoxes.push(
+        ...eventBoxesOf(frames, { text: this.#env.text, sectorName: (label) => this.#sectorName(label), vehicleType: vehicleTypeIn(view) }),
+      );
     for (const frame of frames) {
       if (frame.clock) this.#log.timeCompressed = frame.clock.compressing;
       for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
@@ -1360,13 +1360,13 @@ export class TacticalScreen implements Screen {
     return facts ? sectorNameIn(facts, this.#env.text, this.#view()?.strategic, label, true) : label;
   }
 
-  #showLostSector(): void {
-    const lost = this.#lostSectors.shift();
-    if (lost === undefined) return;
+  #showEventBox(): void {
+    const box = this.#eventBoxes.shift();
+    if (box === undefined) return;
     const { width, height } = this.#env.runtime.geometry();
-    void this.#env.boxes.ask(lost.text, 'ok', {
+    void this.#env.boxes.ask(box.text, 'ok', {
       centering: { x: 0, y: 0, width, height: height - INV_INTERFACE_HEIGHT },
-      viewer: lost.prompt,
+      viewer: box.prompt,
     });
   }
 

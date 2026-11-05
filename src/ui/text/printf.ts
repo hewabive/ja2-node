@@ -9,3 +9,10 @@ export function printf(template: string, args: readonly (string | number)[]): st
     return kind === 's' ? String(value) : String(Math.trunc(Number(value)));
   });
 }
+
+const BRACES = /\{\}/g;
+
+export function braceFormat(template: string, args: readonly (string | number)[]): string {
+  let next = 0;
+  return template.replace(BRACES, (whole) => (next < args.length ? String(args[next++]) : whole));
+}

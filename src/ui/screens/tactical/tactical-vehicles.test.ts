@@ -325,3 +325,19 @@ describe('the name and bars of a vehicle (Vehicles.cc SetVehicleValuesIntoSoldie
     expect([drawn(BOX_LIFE, TANK_LIFE), drawn(BOX_BREATH, TANK_FUEL)]).toEqual([true, true]);
   });
 });
+
+describe('the out-of-gas box on the tactical screen (Strategic_Movement.cc ReportVehicleOutOfGas)', () => {
+  it('boxes our Hummer stranded without fuel by pVehicleStrings and the short sector name', async () => {
+    const f = await atTheHummer(true);
+    const merc = await boardTheHummer(f);
+    const vehicle = f.client.view.soldiers.find((s) => s.id === merc)?.vehicle?.id;
+    if (vehicle === undefined) throw new Error('nobody aboard');
+    const tick = f.client.view.tick;
+    f.frames([{ tick, changed: [], removed: [], events: [{ type: 'vehicleOutOfGas', tick, vehicle, sector: 'L10' }] }]);
+    await f.settle();
+    expect(f.widget('messageBox').text).toBe('The Hummer has run out of gas and is now stranded in L10.');
+    f.key('Enter');
+    await f.settle();
+    expect(f.t.runtime.host.modal).toBeNull();
+  });
+});

@@ -137,26 +137,27 @@ with `openShop`; the panel holds it the original's 800 ms (`ShopPanel`), and out
 pointer by the `compatibleItems` hint's shop rule.
 
 **The map screen drives its own time.** `SessionMapClient` runs the session in real time at speed 1 and stops the driver
-on the events that open a box (`pauseOn`: the update box's, `sectorLost` and `invasion`); menus, plotting, boxes and the
-inventories hold time like `InterruptTimeForMenus`; after the server stops on an event the driver restarts once playback
-has caught up. It never starts in the autoresolve flow, where the autoresolve screen owns the clock, as strategic time
-stands still during the original's autoresolve; leaving the map stops it, so the tactical screen asks for real time anew
-on entry.
+on the events that open a box (`pauseOn`: the update box's, `sectorLost`, `invasion` and `vehicleOutOfGas`); menus,
+plotting, boxes and the inventories hold time like `InterruptTimeForMenus`; after the server stops on an event the
+driver restarts once playback has caught up. It never starts in the autoresolve flow, where the autoresolve screen owns
+the clock, as strategic time stands still during the original's autoresolve; leaving the map stops it, so the tactical
+screen asks for real time anew on entry.
 
-**The lost sector box goes to the screen of the flow.** The original opens it with `DoScreenIndependantMessageBox` on
-whatever screen is up; ja2-node's map and tactical screens both hear every frame, so the tactical screen opens it in the
-tactical flow and the map screen otherwise, once it is on top again after autoresolve (`map/lost-sector.ts`). The
-invasion box of a SAM site or town held by militia alone, the bloodcat ambush and lair boxes and the box of an attack on
-mercs who cannot fight always go to the map screen, which the battle they announce brings up; the screen opens them
-before the pre-battle panel and its automatic autoresolve, which wait for OK as the boxes' callback
-`TriggerPrebattleInterface` does, and the map host keeps the events for a screen not built yet (`map/invasion.ts` from
-`invasion`, `map/battle-notice.ts` from the `preBattle` event's `notice`).
+**The lost sector and out-of-gas boxes go to the screen of the flow.** The original opens them with
+`DoScreenIndependantMessageBox` on whatever screen is up; ja2-node's map and tactical screens both hear every frame, so
+the tactical screen opens them in the tactical flow and the map screen otherwise, once it is on top again after
+autoresolve (`map/event-boxes.ts`). The invasion box of a SAM site or town held by militia alone, the bloodcat ambush
+and lair boxes and the box of an attack on mercs who cannot fight always go to the map screen, which the battle they
+announce brings up; the screen opens them before the pre-battle panel and its automatic autoresolve, which wait for OK
+as the boxes' callback `TriggerPrebattleInterface` does, and the map host keeps the events for a screen not built yet
+(`map/invasion.ts` from `invasion`, `map/battle-notice.ts` from the `preBattle` event's `notice`).
 
 **A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
 the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead
 map, in the panels and the character list (`soldierName`, `tactical/soldiers.ts`; `characterName`,
-`map/character-list.ts`), the info panel by `pShortVehicleStrings` and `pVehicleStrings` as `DrawCharacterInfo`. A
-vehicle in sight that is not ours carries its life and fuel for the bars over it (`29`).
+`map/character-list.ts`), the info panel by `pShortVehicleStrings` and `pVehicleStrings` as `DrawCharacterInfo`, and the
+out-of-gas box by `pVehicleStrings`. A vehicle in sight that is not ours carries its life and fuel for the bars over it
+(`29`).
 
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
 the legs stay in the client until the confirming click sends one `route` per group, and the move box sends one
@@ -251,7 +252,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | An empty vehicle of ours under the pointer is neither ours nor an enemy, so a click does not select it (`Tactical/Soldier_Find.cc:50`); a merc aboard a vehicle is never under the pointer, and a click on his face in the team panel selects the vehicle | `tactical/input/targets.test.ts` "owns a vehicle of ours only with somebody aboard …", "never finds a merc aboard a vehicle …"; `tactical/soldiers.test.ts` "finds the vehicle of a merc aboard …" |
 | An enterable vehicle not ours and an empty vehicle of ours are no soldier to `UIHandleOnMerc`: the move cursor goes on to the enter cursor and the vehicle is never named under the pointer (`Tactical/Handle_UI.cc:2711`, `:2749`); an empty vehicle of ours, named only by a locator, shows its name in grey under its Empty assignment in yellow (`Tactical/Interface.cc:1036`) | `tactical/tactical-vehicles.test.ts` "names no enterable vehicle under the pointer …", "names a vehicle of ours in white while somebody is aboard, and in grey …" |
 | Every vehicle under the pointer, an enemy tank included, gets the life and fuel bars where another soldier not ours shows his health word, and a vehicle nobody is aboard, an enemy tank too, is named in grey (`Tactical/Interface.cc:1036`, `:1050`) | `tactical/tactical-vehicles.test.ts` "draws the life and fuel bars of an enemy tank …" |
-| A vehicle has three names: `zVehicleName` above it and in the character list, where the ice cream truck is a plain Truck, `pVehicleStrings` in the info panel, and `pShortVehicleStrings` under the info face (`Tactical/Vehicles.cc:67`, `Strategic/MapScreen.cc:762`, `Strategic/Strategic_Movement.cc:3156`) | `tactical/soldiers.test.ts` "names a vehicle by zVehicleName …", `map/info-panel.test.ts` "the name of a vehicle on the map screen …" |
+| A vehicle has three names: `zVehicleName` above it and in the character list, where the ice cream truck is a plain Truck, `pVehicleStrings` in the info panel and the out-of-gas box, and `pShortVehicleStrings` under the info face (`Tactical/Vehicles.cc:67`, `Strategic/MapScreen.cc:762`, `Strategic/Strategic_Movement.cc:3156`) | `tactical/soldiers.test.ts` "names a vehicle by zVehicleName …", `map/info-panel.test.ts` "the name of a vehicle on the map screen …" |
 | The move cursor shows enter over an empty vehicle the merc may use even when no tile beside it can be reached, and the click then boards nothing (`Tactical/Handle_UI.cc:4926`, `Tactical/Turn_Based_Input.cc:2974`) | `tactical/input/vehicle-cursors.test.ts` "… as enter over an empty one even out of reach …" |
 | In real time a move click on a vehicle orders the boarding at the press and again at the release, as the press does not intercept the release (`Tactical/Real_Time_Input.cc:205`, `:598`) | `tactical/tactical-vehicles.test.ts` "orders the boarding at the press of a real-time move click and again at its release …" |
 | The toolkit's and the gas can's cursors turn good over any vehicle at ground level, an enemy tank included, by the vehicle's own tile wherever the pointer is on its picture (`Tactical/UI_Cursors.cc:120`, `:901`, `:909`) | `tactical/tactical-vehicles.test.ts` "turns good anywhere on the Hummer's picture …", "… turns good over an enemy tank as well" |
@@ -300,5 +301,5 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "Out-of-gas box", "IME composition", "I.M.P. skill
-page and saved profiles".
+Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "IME composition", "I.M.P. skill page and saved
+profiles".

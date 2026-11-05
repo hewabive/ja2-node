@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { sectorId } from '../../../content/strategic/sector-ids.ts';
+import { addVehicleOfOurs } from '../../../../tests/support/vehicles.ts';
+import { parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
@@ -502,6 +503,19 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.client.refresh();
       const tick = f.client.view.tick;
       f.frames([{ tick, changed: [], removed: [], events: [{ type: 'sectorLost', tick, sector: 'C13', kind: 'town' }] }]);
+      await f.settle();
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
+  it('boxes a vehicle of ours that burns its last fuel, naming its type by pVehicleStrings and the sector (ReportVehicleOutOfGas)', () =>
+    withMap(async (f) => {
+      const hummer = addVehicleOfOurs((f.session.sim as CampaignSession).campaign, parseSectorString('B13'));
+      f.client.refresh();
+      const tick = f.client.view.tick;
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'vehicleOutOfGas', tick, vehicle: hummer.vehicleId, sector: 'B13' }] }]);
+      await f.settle();
+      expect(f.widget(MESSAGE_BOX).text).toBe('The Hummer has run out of gas and is now stranded in B13.');
+      f.key('Enter');
       await f.settle();
       expect(f.t.runtime.host.modal).toBeNull();
     }));
