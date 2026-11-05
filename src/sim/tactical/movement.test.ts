@@ -533,6 +533,24 @@ describe("a follower's speed (Soldier_Tile.cc SetDelayedTileWaiting, Soldier_Con
     expect(walkingDelay(t, follower)).toBe(own);
   });
 
+  it("keeps the mate's speed once he arrives, so he breathes at the mate's pace until a stop clears it", () => {
+    const t = tactical();
+    const follower = spawn(t, START);
+    const slow = spawn(t, START + 10);
+    slow.breath = 40;
+    setDelayedTileWaiting(t, follower, slow.gridNo, 100);
+    expect(getNewSoldierPath(t, follower, START + 3, follower.uiMovementMode)).toBe(true);
+    runUntilStill(t);
+    expect([follower.gridNo, follower.state, follower.useOverrideMoveSpeed]).toEqual([
+      START + 3,
+      states(content.animations).STANDING,
+      true,
+    ]);
+    expect(follower.aniDelay).toBe(slow.breath * 2 + (100 - slow.life));
+    stopMerc(t, follower);
+    expect(follower.useOverrideMoveSpeed).toBe(false);
+  });
+
   it('takes the speed of whoever reserved the tile, and never of a soldier of another team or for one', () => {
     const t = tactical();
     const follower = spawn(t, START);
