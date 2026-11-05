@@ -608,6 +608,30 @@ describe('the sound director', () => {
     expect(files(r)).toEqual([book.paths.get('S_METAL_IMPACT3')]);
   });
 
+  it('rings the metal of a vehicle the hit destroys, which the same frame removes from the view', () => {
+    const TANK = 23;
+    const r = rig();
+    r.director.reset([soldier(5, 'STANDING', 0, { bodyType: TANK, team: 1, voice: 'bad1' })]);
+    const destroyed: ViewFrame['events'] = [
+      { type: 'vehicleDestroyed', tick: 10, soldier: 5, vehicle: 0, killer: null },
+      {
+        type: 'soldierHit',
+        tick: 10,
+        soldier: 5,
+        attacker: null,
+        gridNo: G,
+        location: 'torso',
+        special: 0,
+        conscious: false,
+        damage: 40,
+        breathLoss: 0,
+        life: 0,
+      },
+    ];
+    r.director.applyFrames([{ ...frame(10, [], destroyed), removed: [5] }]);
+    expect(files(r)).toEqual([book.paths.get('S_METAL_IMPACT3')]);
+  });
+
   it('sounds a locker opening and closing from the open containers of the view and lets the opener cheer later', () => {
     const LOCKER_METAL = 22;
     const r = rig(world(1, [], LOCKER_METAL));

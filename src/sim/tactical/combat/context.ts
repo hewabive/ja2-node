@@ -1,3 +1,4 @@
+import type { VehicleRecord } from '../../vehicles/vehicle-list.ts';
 import type { TacticalContent } from '../content.ts';
 import type { NarrativePort } from '../narrative/port.ts';
 import type { ProfileProgress, StatKey } from '../profiles.ts';
@@ -27,6 +28,7 @@ export interface CombatContext extends LoadedSector {
   readonly rng: RandomStream;
   readonly fx?: RandomStream;
   readonly profiles: Map<number, ProfileProgress>;
+  readonly vehicles?: readonly VehicleRecord[];
   readonly inCombat: boolean;
   readonly turn: { readonly attackBusyCount: number };
   readonly events: { push(event: StatChangedEvent): unknown };

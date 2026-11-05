@@ -28,7 +28,8 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 | Module | Holds |
 |---|---|
 | `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window |
-| `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills |
+| `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills; a vehicle's armour |
+| `vehicle-damage.ts` | A vehicle's share of the damage, its condition, its destruction and wreck explosion |
 | `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |
 | `rotting-corpses.ts` | The corpse slots, a corpse's aging when it is added, decapitation and the heads it leaves, the crows feeding on a corpse |
 | `crows.ts` | Crows sent to rotting corpses by day, a flock's flight from a noise or an attack, the climb of code 466 |
@@ -39,7 +40,7 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 | `combat/experience.ts`, `combat/skill-check.ts` | Stat change chances and their conversion to points; skill checks |
 | `combat/context.ts` | `CombatContext`, the narrow state `bulletImpact`, `hthImpact` and `statChange` need |
 
-Agent API events of a hit (`bulletImpact`, `soldierHit`, `soldierDied`, `attackResolved`): `29`.
+Agent API events of a hit (`bulletImpact`, `soldierHit`, `soldierDied`, `vehicleDestroyed`, `attackResolved`): `29`.
 
 ## 2. Design
 
@@ -78,6 +79,14 @@ when the busy count reaches 0. AI morale is recomputed only when the AI decides,
 chance to hit read the value of the soldier's last decision.
 
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
+
+**A vehicle is hurt through its record in the vehicle list** (`25`). A soldier of a vehicle body never bleeds, falls or
+plays a hit: `soldierTakeDamage` hands his share of the damage to `vehicleTakeDamage`, which finds the vehicle's
+soldier again by its id and lowers his life; at 0 the vehicle is destroyed, explodes at his tile and dies at once,
+before the attack ends, and its passengers die through `TacticalState.vehicleHooks` (gap "Turn-based hooks"). His armour
+is his vehicle type's armour item, whatever he wears. A vehicle soldier without a slot in the list (one an older
+snapshot holds, until his sector loads again) takes no damage and has no armour, where the original would read past its
+list.
 
 **A corpse keeps the height it is drawn at** above its level (`Corpse.heightAdjustment`, the definition's
 `sHeightAdjustment`): set from the soldier's height as he dies or is added to an unloaded sector, kept by the sector
@@ -139,6 +148,10 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A corpse is saved with the crows feeding on it when the squad leaves, before the unload removes them, so on return it counts crows that are gone and the mercs comment on it sooner | `src/sim/campaign/sector-flow.test.ts` |
 | A merc on a roof comments on a corpse on the ground below the tile he looks at: `GetCorpseAtGridNo` ignores the level | `src/sim/tactical/narrative/corpse-comments.test.ts` |
 | A corpse on a roof keeps the soldier's height above the storey: one the map placed there (58) lies 8 px above the roof, one who climbed up (50) on it | `death.test.ts` |
+| A vehicle other than a tank takes a third of gunfire and twice an explosion over 50, but a structure explosion whole; fists, gas, blades, falls and bleeding do nothing to any vehicle | `src/sim/tactical/vehicle-damage.test.ts` "takes a third of gunfire …", "takes nothing from fists …" |
+| A destroyed vehicle sets off a `GREAT_BIG_EXPLOSION` at its own tile credited to its attacker, then dies and kills its passengers in seat order, stopping at the first one already dead | `src/sim/tactical/vehicle-damage.test.ts` "blows up at its own tile …", `src/sim/campaign/vehicle-destruction.test.ts` |
+| A tank's death marks its `NPC164` profile dead, though it writes no history entry | `src/sim/tactical/vehicle-damage.test.ts` "marks a tank's NPC164 profile dead …" |
+| A vehicle's armour is its type's armour item at status 100 wherever it is hit, the vest, helmet and leggings a tank wears ignored: it draws its `PreRandom(100)` every time, can never fail and never wears | `src/sim/tactical/vehicle-damage.test.ts` "protects a vehicle with its type's armour …" |
 | A corpse added to an unloaded sector takes no level from its definition: it lies on the ground at the soldier's whole height, 58 px up for one who stood on a roof, while his items stay on the roof level | `src/sim/campaign/sector-loot.test.ts` |
 
 Not pinned yet:
@@ -161,4 +174,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Unseen soldiers in combat".
+Not ported: gaps "Unseen soldiers in combat", "Turn-based hooks" (a destroyed vehicle's passengers).

@@ -160,7 +160,7 @@ says otherwise:
 | The boxers are read from the ring tiles only while the first slot is empty, so ids from an earlier map still count until D5 is entered again | `src/sim/tactical/narrative/boxing.test.ts` |
 | The Kingpin alarm rings again at the next step: its "zap" clears the disabled flag it means to set | `src/sim/tactical/narrative/quest-items.test.ts` |
 | The museum alarm calls Eldin while sight is off, so he never sees the spot and always runs to it | `src/sim/tactical/narrative/quest-items.test.ts` |
-| A crash that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts` |
+| A crash or a wreck that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts`, `src/sim/campaign/vehicle-destruction.test.ts` |
 | A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most; a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts` |
 | A tank's soldier carries profile `NPC164`, the unused jeep's, and a full tank | `src/sim/tactical/vehicle-soldiers.test.ts` |
 | A civilian or enemy vehicle leaves the list at every unload of its sector and registers again at the next load, maybe under another id; a destroyed vehicle elsewhere leaves it only at the next registration | `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/vehicles/vehicle-list.test.ts` |

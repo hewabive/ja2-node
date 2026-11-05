@@ -80,7 +80,7 @@ import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/force
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
-import { addVehicleToList } from '../strategic/forces/vehicles.ts';
+import { addVehicleToList, killAllInVehicle } from '../strategic/forces/vehicles.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { loadScreenId } from '../strategic/map/loading-screen.ts';
 import { damageSamIfFound } from '../strategic/map/sam.ts';
@@ -615,7 +615,10 @@ export class SectorFlow {
     sim.state.experienceHooks = this.campaign.experienceHooks;
     sim.state.narrative = campaignNarrativePort(this.campaign);
     sim.state.scheduleClock = campaignScheduleClock(this.campaign);
-    sim.state.vehicleHooks = { addVehicleToList: (_list, sector, type) => addVehicleToList(this.ctx, sector, type) };
+    sim.state.vehicleHooks = {
+      addVehicleToList: (_list, sector, type) => addVehicleToList(this.ctx, sector, type),
+      killAllInVehicle: (v) => killAllInVehicle(this.ctx, v),
+    };
     sim.state.timeOfDayLight = {
       ambientLevel: () => {
         const world = this.world;

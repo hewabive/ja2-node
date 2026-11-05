@@ -632,6 +632,11 @@ Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as 
 helicopter. Passengers can neither leave nor change squads while it flies (deviation "Leaving the helicopter in
 flight"). Ground vehicles move through a passenger's `route`.
 
+A vehicle in the loaded sector, an enemy tank among them, takes hits by the original's vehicle rules (`33`) and gets 35
+APs more a turn, up to 50 (`10`). The hit that destroys it brings `vehicleDestroyed {soldier, vehicle, killer}` (the
+vehicle soldier, the vehicle's id, the attacker or null) before the `explosion` of its wreck, credited to that attacker,
+and its `soldierDied`; the mercs aboard die with it.
+
 ### 8.9 Towns, militia, mines and assignments
 
 Rules: `18`. `assign` runs `SetAssignmentForList` per soldier in the given order, each checked on its own; the original

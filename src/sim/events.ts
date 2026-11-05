@@ -352,6 +352,13 @@ export interface SoldierDiedEvent extends SimEventBase {
   readonly heard?: HeardFrom;
 }
 
+export interface VehicleDestroyedEvent extends SimEventBase {
+  readonly type: 'vehicleDestroyed';
+  readonly soldier: number;
+  readonly vehicle: number;
+  readonly killer: number | null;
+}
+
 export interface AttackResolvedEvent extends SimEventBase {
   readonly type: 'attackResolved';
   readonly soldier: number | null;
@@ -734,6 +741,7 @@ export type SimEvent =
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent
+  | VehicleDestroyedEvent
   | AttackResolvedEvent
   | GunJammedEvent
   | GunImprintEvent

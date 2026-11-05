@@ -77,10 +77,7 @@ export function bulletImpact(
     origImpact = idiv(origImpact * 4, 3);
     if (isTankBody(target)) origImpact = idiv(origImpact, 2);
   }
-  let impact =
-    special === Special.BLINDED_BY_SPIT
-      ? origImpact
-      : origImpact - totalArmourProtection(t.content.items, t.pre, target, location, origImpact, ammo);
+  let impact = special === Special.BLINDED_BY_SPIT ? origImpact : origImpact - totalArmourProtection(t, target, location, origImpact, ammo);
   if (ammo === AmmoType.HP || ammo === AmmoType.SLEEP_DART) impact = Math.max(impact, 0);
   else {
     impact = Math.max(impact, idiv(origImpact + 5, 10));

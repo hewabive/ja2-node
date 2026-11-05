@@ -23,10 +23,12 @@ const NO_MOVEMENT_GROUPS: readonly number[] = [];
 
 export interface VehicleHooks {
   addVehicleToList(vehicles: VehicleRecord[], sector: SectorRef, type: number): number;
+  killAllInVehicle(v: VehicleRecord): void;
 }
 
 export const PRIVATE_VEHICLE_LIST: VehicleHooks = {
   addVehicleToList: (vehicles, sector, type) => fillVehicleSlot(vehicles, sector, type, NO_MOVEMENT_GROUPS),
+  killAllInVehicle: () => {},
 };
 
 export interface VehicleRegistry {

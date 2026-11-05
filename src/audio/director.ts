@@ -187,6 +187,7 @@ export class SoundDirector {
   readonly #battle = new Map<number, BattleMemory>();
   readonly #battleVoices = new Map<number, VoiceHandle>();
   readonly #dead = new Set<number>();
+  readonly #struckVehicles = new Set<number>();
   readonly #weapons = new Map<number, number>();
   readonly #bursts = new Map<number, boolean>();
   readonly #calls = new Map<number, CreatureCall>();
@@ -498,6 +499,12 @@ export class SoundDirector {
       this.#attacks.set(e.soldier, 'gun');
     } else if (e.type === 'meleeStrike') this.#attacks.set(e.soldier, e.weapon === 'blade' ? 'blade' : 'punch');
     else if (e.type === 'creatureCall') this.#calls.set(e.soldier, e.call);
+    else if (e.type === 'soldierHit' && this.#knownVehicle(e.soldier)) this.#struckVehicles.add(e.soldier);
+  }
+
+  #knownVehicle(id: number): boolean {
+    const s = this.#soldiers.get(id);
+    return s !== undefined && isVehicleBody(s.bodyType);
   }
 
   #event(e: NonNullable<ViewFrame['events']>[number]): void {
@@ -683,12 +690,12 @@ export class SoundDirector {
   #soldierHit(e: EventOf<'soldierHit'>): void {
     const place = this.#sourcePlace(e.soldier, e.gridNo, e.heard);
     const s = this.#victim(e.soldier, place, e.unseen);
-    if (!s) return;
     const book = this.#o.book;
-    if (isVehicleBody(s.bodyType)) {
+    if (this.#struckVehicles.delete(e.soldier) || (s && isVehicleBody(s.bodyType))) {
       this.#play(this.#placed(effectCue(book, 'S_METAL_IMPACT3', 'location', VolumeLevel.MID), place));
       return;
     }
+    if (!s) return;
     const blade = e.attacker !== null && this.#attacks.get(e.attacker) === 'blade';
     this.#play(this.#placed(impactCue(book, place.gridNo, blade, this.#rng.rand), place));
     if (e.life === 0) {

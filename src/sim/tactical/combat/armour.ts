@@ -1,17 +1,27 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc CalcBodyImpactReduction, ArmourProtection, TotalArmourProtection, EffectiveArmour,
-// @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass.
+// @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass; the vehicle armour of
+// @src TotalArmourProtection with Vehicles.cc GetVehicleArmour (2026-11-04).
 
 import { AmmoType, ArmourClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { i8, idiv } from '../../../core/int.ts';
 import { deleteObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { isVehicleBody, type VehicleRecord, validVehicle } from '../../vehicles/vehicle-list.ts';
+import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import type { Soldier } from '../soldier.ts';
 import type { RandomStream } from './context.ts';
 import { AimShot } from './types.ts';
 
 const BODY_IMPACT_REDUCTION = [0, 15, 30, 23];
+const VEHICLE_ARMOUR_STATUS = 100;
+
+export interface ArmourContext {
+  readonly content: Pick<TacticalContent, 'items' | 'vehicles'>;
+  readonly pre: RandomStream;
+  readonly vehicles?: readonly VehicleRecord[];
+}
 
 function ammoArmourAdjust(value: number, ammo: number): number {
   switch (ammo) {
@@ -61,7 +71,25 @@ export function findPlatesAttachment(items: ItemTable, o: ItemObject): number {
   return o.attachments.findIndex((a) => items.byIndex.get(a.item)?.armour?.armourClass === ArmourClass.PLATE);
 }
 
-export function totalArmourProtection(
+function vehicleArmourItem(c: ArmourContext, vehicle: Soldier): number {
+  const v = validVehicle(c.vehicles ?? [], vehicle.vehicleId);
+  const armour = v ? c.content.vehicles[v.type]?.armourType : undefined;
+  if (armour === undefined) return NOTHING;
+  return c.content.items.byName.get(armour)?.index ?? NOTHING;
+}
+
+function vehicleArmourProtection(c: ArmourContext, vehicle: Soldier, impact: number, ammo: number): number {
+  let status = VEHICLE_ARMOUR_STATUS;
+  const dummy = { get: () => status, set: (v: number) => (status = v) };
+  return armourProtection(c.content.items, c.pre, vehicleArmourItem(c, vehicle), dummy, impact, ammo);
+}
+
+export function totalArmourProtection(c: ArmourContext, target: Soldier, location: number, impact: number, ammo: number): number {
+  if (isVehicleBody(target.bodyType)) return vehicleArmourProtection(c, target, impact, ammo);
+  return wornArmourProtection(c.content.items, c.pre, target, location, impact, ammo);
+}
+
+function wornArmourProtection(
   items: ItemTable,
   pre: RandomStream,
   target: Soldier,

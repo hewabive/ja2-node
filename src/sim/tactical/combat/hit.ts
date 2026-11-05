@@ -4,8 +4,8 @@
 // @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
-// @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, HandleSoldierTakeDamageFeedback (the portrait flash of a soldier
-// @src the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
+// @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04), HandleTakeDamageDeath, HandleSoldierTakeDamageFeedback
+// @src (the portrait flash of a soldier the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
 // @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
@@ -50,6 +50,7 @@ import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBloo
 import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
+import { vehicleShareOfDamage, vehicleTakeDamage } from '../vehicle-damage.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
 import { freeUpAttackerGivenTarget, reduceAttackBusyCount, reduceAttackBusyGivenTarget } from './barrier.ts';
@@ -205,7 +206,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     const chanceThrough = u8(Math.max(0, impact - 20));
     if (t.pre.int(100) < chanceThrough) {
       impact -= calcBodyImpactReduction(ammo, location);
-      impact -= totalArmourProtection(t.content.items, t.pre, tgt, location, impact, ammo);
+      impact -= totalArmourProtection(t, tgt, location, impact, ammo);
       if (impact > 0) {
         b.impact = i8(impact);
         stopped = false;
@@ -685,7 +686,11 @@ export function soldierTakeDamage(
   t.sectorHooks.soldierTakingDamage(t, s);
   noticeMariaEscapeWhenKingpinsManIsHurt(t, s);
   const oldLife = s.life;
-  if (isVehicle(s)) return 0;
+  if (isVehicle(s)) {
+    vehicleTakeDamage(t, s.vehicleId, reason, vehicleShareOfDamage(s, reason, life), s.gridNo, attacker);
+    handleTakeDamageDeath(t, s, reason);
+    return 0;
+  }
   if (s.npcShooting) {
     life = i16(s.life - 1);
     s.npcShooting = false;
