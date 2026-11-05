@@ -36,6 +36,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
 | Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
+| Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -175,7 +176,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 1000 + node id / 999 | 0004 | every `AddPlacementToWorld`: draws inside a placement are skipped and the native outcome answers it |
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
-| 4001 / 4000 | 0027 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant, dropped by the bomb comparer (deviations "Cosmetic draws …") |
+| 4001 / 4000 | 0027, 0028 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); dropped by the bomb and vehicle comparers (deviations "Cosmetic draws …", "Footstep variants") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
   action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the
@@ -587,6 +588,39 @@ stop-time quote as not said, so its callback runs at once, as the probe runs the
 The native booby trap globals outlive a save load, so a new save session starts from the last ones printed. Not probed: the plant, remote and switch animations,
 the walk's step chain, militia, pits and the tile tools.
 
+### Vehicles
+
+Commands (0028): `vehicles` (the dump), `vehiclecreate`, `vehicleset`, `vehicleinv`, `vehicleclick`
+(`CheckForAndHandleHandleVehicleInteractiveClick`), `vehicleboard` (`PutSoldierInVehicle`), `vehicleexit`
+(`TakeSoldierOutOfVehicle`), `vehicledamage` (`SoldierTakeDamage`), `vehiclearmour` (`TotalArmourProtection`),
+`vehicleitem` (`HandleItem` with a toolkit or gas can), `vehiclerefuel` (`AddFuelToVehicle`), `vehiclerepair`
+(`RepairVehicle`), `vehiclecanmove` (`CanEntireMovementGroupMercIsInMove`), `vehiclelos`, `vehicleturnstart`
+(`EVENT_BeginMercTurn`), `vehiclededuct` (`DeductPoints`), `tankdecide` (`DecideAction`), `tankturn`, `tankshoot`,
+`vehiclesteal` (`UseHandToHand` stealing), `vehiclefire` (`HandleItem` with the hand item, then the game event pump and
+the animation frames until the attack ends), `vehicleroute`, `vehiclewarp` and `vehicleleavesector`. Every command
+prints its draws, its result and the vehicle state: the valid vehicle records with their groups, every vehicle
+soldier, our other mercs, every player group with members, the squads, the current squad, the selection, the ignited
+explosions, the attack busy count and the message boxes it opened. The probe script comments each scenario.
+
+The harness does in the oracle what the game's screens do around these calls: `vehicleclick` sets `gUIFullTarget`;
+`vehiclecreate` creates from a basic placement as `AddPlacementToWorld` does; `vehiclecanmove` and `vehicleroute` fill
+the map screen's character list, which `CanEntireMovementGroupMercIsInMove` walks; `vehicleclick` and `vehicleitem`
+stop the walk they start (`EVENT_StopMerc`) so the next command starts from the same tile on both sides. No save owns a
+vehicle, so `vehicles.txt` makes them: a civilian Hummer in `SaveGame01` (B13) and two enemy tanks in `SaveGame10`
+(D13), where nobody sees them unless a scenario wants it. The steal uses `seed value=106 pre=reseed`, whose first
+`PreRandom(100)` is 0: a tank's steal chance is 0, but a roll of 0 still takes its cannon.
+
+`vehicles-compare.ts` imports the save into a tactical session, creates the vehicles through
+`createFromPlacementParts` and `addSoldierToSector` with the standing frame's draw, runs the same ja2-node functions,
+replays every draw strictly with the pathfinder's, music and cosmetic marks dropped (warps excepted: they run on
+ja2-node's generator and compare the vehicle state, with the out-of-gas box as the `vehicleOutOfGas` event) and compares
+the result and the state field by field. Not compared: a native field the command leaves stale (the click's
+`bPendingActionData3`), positions of soldiers off the map (native `NOWHERE`), the sector flag of the dead (native
+soldiers stay `bInSector`), the current squad outside boarding and leaving (the native value outlives a save load), the
+selection while the map screen is up, and everything `vehicleleavesector` does after `OKForSectorExit`: ja2-node will
+let a vehicle leave with its passengers (deviation "Vehicle sector exit"), while the original sends it alone in a fresh
+squad's foot group and leaves its record and passengers behind, which the native output records.
+
 ## Shipped probes
 
 `compare-all.sh` lists the outputs it compares, relative to the work dir. `probes/<name>.txt` writes
@@ -631,4 +665,5 @@ The base of the diff is `reference/stracciatella` with the earlier patches appli
 only for files two patches touch: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004, 0012),
 `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc` (0016, 0020),
 `Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc` (0007, 0027),
-`Tactical/Handle_Items.cc` (0017, 0027) and `Tactical/Overhead.cc` (0020, 0027).
+`Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027) and `Tactical/Soldier_Control.cc` (0027,
+0028).

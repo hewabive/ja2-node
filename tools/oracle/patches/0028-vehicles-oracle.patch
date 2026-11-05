@@ -1,0 +1,85 @@
+Vehicle oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-05. See LICENSE (SFI-SCLA).
+Exports the static CheckForAndHandleHandleVehicleInteractiveClick of Turn_Based_Input.cc as
+OracleVehicleInteractiveClick, so the vehicle probes run the hand and move cursor click on a vehicle with gUIFullTarget
+set, and marks three cosmetic Random draws 4001/4000 in the trace of 0002: the passenger who speaks a vehicle's battle
+sound (PickRandomPassengerFromVehicle), the footstep variant (InternalPlaySoldierFootstepSound) and the blood pool
+graphic (UpdateBloodGraphics), which ja2-node leaves to the client (deviations "Footstep variants", "Cosmetic draws in
+attacks"). No behaviour change. Applied by tools/oracle/build.sh after 0027.
+
+--- a/src/game/Tactical/Soldier_Control.cc
++++ b/src/game/Tactical/Soldier_Control.cc
+@@ -8856,11 +8856,13 @@
+ 
+ 	// Pick a random sound
+ 	UINT8 random_snd;
++	OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 	do
+ 	{
+ 		random_snd = Random(random_max);
+ 	}
+ 	while (random_snd == s->ubLastFootPrintSound);
++	OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 
+ 	s->ubLastFootPrintSound = random_snd;
+ 
+--- a/src/game/TileEngine/Smell.cc
++++ b/src/game/TileEngine/Smell.cc
+@@ -10,6 +10,10 @@
+ #include "Game_Clock.h"
+ #include "Overhead.h"
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ 
+ /*
+  * Smell & Blood system
+@@ -457,7 +461,9 @@
+ 		INT8 const strength = BLOOD_FLOOR_STRENGTH(me.ubBloodInfo);
+ 		if (strength == 0) return;
+ 
++		OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 		UINT16 const index     = Random(4) * 4 + 3 - strength / 2U;
++		OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 		UINT32 const type      =
+ 			BLOOD_FLOOR_TYPE(me.ubSmellInfo) == HUMAN ? HUMANBLOOD :
+ 			CREATUREBLOOD;
+--- a/src/game/Tactical/Turn_Based_Input.cc
++++ b/src/game/Tactical/Turn_Based_Input.cc
+@@ -3407,3 +3407,9 @@
+ 		}
+ 	}
+ }
++
++
++bool OracleVehicleInteractiveClick(SOLDIERTYPE& s, BOOLEAN const fMovementMode)
++{
++	return CheckForAndHandleHandleVehicleInteractiveClick(s, fMovementMode);
++}
+--- a/src/game/Tactical/Vehicles.cc
++++ b/src/game/Tactical/Vehicles.cc
+@@ -40,6 +40,10 @@
+ #include <stdexcept>
+ #include <vector>
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ 
+ UINT8 gubVehicleMovementGroups[MAX_VEHICLES];
+ 
+@@ -1004,7 +1008,11 @@
+ 	SOLDIERTYPE* mercs_in_vehicle[20];
+ 	CFOR_EACH_PASSENGER(v, i) mercs_in_vehicle[n_mercs++] = *i;
+ 
+-	return n_mercs == 0 ? NULL : mercs_in_vehicle[Random(n_mercs)];
++	if (n_mercs == 0) return NULL;
++	OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
++	INT32 const pick = Random(n_mercs);
++	OracleTraceMark(ORACLE_MARK_COSMETIC_END);
++	return mercs_in_vehicle[pick];
+ }
+ 
+ 

@@ -1,0 +1,178 @@
+# Ground vehicles (0028). Every command prints its draws, its result and the vehicle state: the valid vehicle records
+# (type, sector, between sectors, destroyed, the ten seats by soldier id, the strategic path, the movement group with its
+# members), every vehicle soldier (team, side, profile, body, vehicle id, gridno and world position, facing, hi-res facing,
+# the vehicle, driver, passenger and pause flags, life, breath and fuel, APs held, initial and CalcActionPoints,
+# assignment, group, in sector, damage counter, animation), our mercs (position, assignment, iVehicleId, group, flags,
+# sector, insertion), every player group with members, the squads, the current squad, the selected soldier, the ignited
+# explosions, the attack busy count, combat and the message boxes the command opened. screen=map runs a command with the map screen up (default the game screen),
+# combat=0|1 clears or sets INCOMBAT around it.
+#
+# vehiclecreate makes a vehicle soldier as a map placement would (CreateDetailedPlacementGivenBasicPlacementInfo from a
+# basic placement, TacticalCreateSoldier, AddSoldierToSectorNoCalculateDirection). vehicleset sets soldier fields
+# (life=, lifeMax=, breath=, breathRed=, ap=, initialAp=, visible=, grid=, face=, mode=, stand=1), the attack busy count
+# (busy=) and facts (fact=<id>:<value>).
+# vehicleinv swaps a pocket into the hand (swap=), fills a pocket (slot=, item=, status=) and attaches items (attach=).
+# vehicleclick runs CheckForAndHandleHandleVehicleInteractiveClick with gUIFullTarget on the vehicle (move=1: the move
+# cursor) and prints the walk it starts, then stops the merc. vehicleboard runs PutSoldierInVehicle, vehicleexit
+# TakeSoldierOutOfVehicle, vehicledamage SoldierTakeDamage (the explosions it ignites are freed after the print),
+# vehiclearmour TotalArmourProtection, vehicleitem HandleItem with a toolkit or gas can in hand (then stops the merc),
+# vehiclerefuel AddFuelToVehicle (code 769), vehiclerepair RepairVehicle, vehiclecanmove CanEntireMovementGroupMercIsInMove
+# with the map screen's character list filled, vehiclelos SoldierToSoldierLineOfSightTest,
+# vehicleturnstart EVENT_BeginMercTurn, vehiclededuct DeductPoints, tankdecide DecideAction with the creature AI settings
+# (alert=, ap=, initialAp=, lastAction=, noise=<grid>:<volume>, face=), tankturn EVENT_SetSoldierDesiredDirection and
+# TurnSoldier step by step, tankshoot the TANK_SHOOT frames through AdjustToNextAnimationFrame, vehiclesteal
+# UseHandToHand stealing, vehiclefire HandleItem with the hand item, then the game events and the animation frames until
+# the attack ends (40 frames at most), vehicleroute plots a vehicle's route as the map
+# screen does and vehiclewarp runs the clock, vehicleleavesector OKForSectorExit, JumpIntoAdjacentSector and
+# AllMercsHaveWalkedOffSector (the 2.5 s walk-off timer's end).
+
+# SaveGame01: B13 in real time, mercs 0, 1 and 2, civilians, the away civilians hold 119 and 120. A civilian Hummer of
+# the L10 placement kind, made here: soldier 124, vehicle 0, profile 160, full tank.
+save SaveGame01
+seed value=5 pre=reseed
+vehiclecreate body=hummer team=civ grid=7598 dir=2
+
+# The Hummer's SPECTRA armour with its PreRandom weak spot; fists and gas do nothing, gunfire a third, an explosion of 50
+# or less in full; a mechanic's points repair a tenth of them.
+vehiclearmour who=124 impact=30 ammo=0
+vehiclearmour who=124 impact=30 ammo=2
+vehicledamage who=124 damage=10 reason=hth att=0
+vehicledamage who=124 damage=10 reason=gas
+vehicledamage who=124 damage=30 reason=gunfire att=0
+vehicledamage who=124 damage=20 reason=explosion att=0
+vehiclerepair who=124 points=25
+vehiclerepair who=124 points=127
+vehiclerepair who=124 points=127
+
+# The hand cursor: unseen, then not allowed before FACT_OK_USE_HUMMER, then short of APs in combat, then a walk to the
+# action tile; the move cursor too while the Hummer is empty.
+vehicleclick who=0 vehicle=124
+vehicleset who=124 visible=1
+vehicleclick who=0 vehicle=124
+vehicleset who=0 fact=224:1
+vehicleclick who=0 vehicle=124 combat=1 ap=1
+vehicleclick who=0 vehicle=124
+vehicleclick who=0 vehicle=124 move=1
+
+# The action tile is never the merc's own: from 7278 the click walks to 7918, from 7918 back to 7278. Boarding runs at the
+# end of the walk (PutSoldierInVehicle): the takeover makes the Hummer soldier 18 of our team in a unique squad, selected;
+# merc 0 drives. A merc's click on the occupied Hummer with the move cursor does nothing.
+vehicleset who=0 grid=7278 ap=24
+vehicleclick who=0 vehicle=124
+vehicleset who=0 grid=7918
+vehicleclick who=0 vehicle=124
+vehicleboard who=0 vehicle=124
+vehicleclick who=1 vehicle=18 move=1
+vehicleclick who=1 vehicle=18
+vehicleboard who=1 vehicle=18
+
+# A passenger is seen at the vehicle's tile through the vehicle's own structure, as the vehicle is.
+vehiclelos viewer=2 target=0
+vehiclelos viewer=2 target=1
+vehiclelos viewer=2 target=18
+vehiclelos viewer=116 target=1
+vehiclelos viewer=116 target=18
+
+# The toolkit and the gas can walk up to the Hummer; the gas can adds status x 50 fuel and loses fuel / 50 status.
+vehicleitem who=2 grid=7598 item=TOOLKIT
+vehicleitem who=2 grid=7598 item=GAS_CAN status=50
+vehicleset who=18 breathRed=4000 breath=40
+vehiclerefuel who=2 vehicle=18 item=GAS_CAN status=37
+vehiclerefuel who=2 vehicle=18 item=GAS_CAN status=100
+vehiclerefuel who=2 vehicle=18 item=GAS_CAN status=100
+
+# The strategic move checks of the group, through a passenger and through the vehicle.
+vehiclecanmove who=0
+vehiclecanmove who=18
+vehicleset who=18 life=10
+vehiclecanmove who=0
+vehicleset who=18 life=55 breathRed=0 breath=0
+vehiclecanmove who=0
+vehiclecanmove who=18
+
+# Leaving and boarding again: the exit tile from the merc's sweet spot around the Hummer.
+vehicleexit who=1
+vehicleboard who=1 vehicle=18
+
+# With 20 fuel the Hummer drives to C13 and runs dry there: the fuel goes to 0 and the move is refused.
+vehicleset who=18 breathRed=20 breath=1
+vehicleroute who=0 to=C13 screen=map
+vehiclewarp minutes=60 screen=map
+vehiclecanmove who=0 screen=map
+vehiclecanmove who=18 screen=map
+
+# SaveGame01 again: the Hummer with two mercs aboard is blown up, which kills both.
+save SaveGame01
+seed value=5 pre=reseed
+vehiclecreate body=hummer team=civ grid=7598 dir=2
+vehicleset who=0 fact=224:1
+vehicleboard who=0 vehicle=124
+vehicleboard who=1 vehicle=18
+vehicledamage who=18 damage=60 reason=explosion att=2
+
+# SaveGame10: D13 in real time, mercs 0, 1 and 2 near 8519, enemies 20-24 far away. Two enemy tanks where nobody sees
+# them: their APs, a first breath deduction (the full tank reads as no breath at all), the armour, the turns through the
+# hi-res facings, the shot's recoil and the RED look-around.
+save SaveGame10
+seed value=7 pre=reseed
+vehiclecreate body=tanknw team=enemy grid=16100 dir=6 class=army
+vehiclecreate body=tankne team=enemy grid=16900 dir=0 class=elite
+vehicleturnstart who=25
+vehicleturnstart who=26 combat=1
+vehiclededuct who=25 bp=100
+vehicleturnstart who=25 combat=1
+vehicleset who=25 ap=0
+vehicleturnstart who=25 combat=1
+vehiclearmour who=25 impact=40 ammo=0
+vehiclearmour who=25 impact=40 ammo=5
+tankturn who=25 dir=0
+tankturn who=25 dir=4
+tankturn who=26 dir=5
+tankshoot who=25 target=12000
+
+# The RED look-around: a random facing with full APs, a 60 % roll without them, the noise first, a repeated turn ending
+# the turn in combat or waiting in real time, too few APs to look in combat.
+tankdecide who=26 alert=2 ap=40 initialAp=40 lastAction=0
+tankdecide who=26 alert=2 ap=30 initialAp=40 lastAction=0
+tankdecide who=26 alert=2 ap=40 initialAp=40 lastAction=20 combat=1
+tankdecide who=26 alert=2 ap=40 initialAp=40 lastAction=20 combat=0
+tankdecide who=26 alert=2 ap=40 initialAp=40 lastAction=0 noise=12000:40
+tankdecide who=26 alert=2 ap=1 initialAp=40 lastAction=0 combat=1
+seed value=13 pre=reseed
+tankdecide who=26 alert=2 ap=40 initialAp=40 lastAction=20 combat=1
+tankdecide who=26 alert=2 ap=40 initialAp=40 lastAction=20 combat=0
+tankdecide who=26 alert=2 ap=30 initialAp=40 lastAction=0
+tankdecide who=26 alert=2 ap=30 initialAp=40 lastAction=0
+
+# A tank takes gunfire in full and an explosion destroys it.
+vehicledamage who=25 damage=30 reason=gunfire att=0
+vehicledamage who=25 damage=200 reason=explosion att=0
+
+# SaveGame10 again: a tank beside merc 0. Stealing from a tank has no chance, but a PreRandom(100) of 0 succeeds: seed 11
+# misses, seed 106 grabs the TANK_CANNON. Merc 0 fires it with no shell, with a shell in a pocket and with one loaded.
+save SaveGame10
+seed value=7 pre=reseed
+vehiclecreate body=tanknw team=enemy grid=8524 dir=6 class=army
+seed value=11 pre=reseed
+vehiclesteal who=0 target=25
+seed value=106 pre=reseed
+vehiclesteal who=0 target=25
+vehicleinv who=0 swap=6 slot=6 item=none
+vehiclefire who=0 target=8530
+vehicleinv who=0 slot=12 item=TANK_SHELL
+vehiclefire who=0 target=8530
+vehicleinv who=0 slot=5 attach=TANK_SHELL
+vehiclefire who=0 target=8530
+vehicleset who=0 stand=1 busy=0
+vehiclefire who=0 target=8530 combat=1
+
+# SaveGame01 again, last because the walk-off leaves its globals set: the Hummer with two mercs aboard leaves south for
+# C13 by itself, in a fresh squad's foot group, and its record and the mercs aboard stay in B13.
+save SaveGame01
+seed value=5 pre=reseed
+vehiclecreate body=hummer team=civ grid=7598 dir=2
+vehicleset who=0 fact=224:1
+vehicleboard who=0 vehicle=124
+vehicleboard who=1 vehicle=18
+vehicleset who=18 grid=24077
+vehicleleavesector who=18 dir=S code=single

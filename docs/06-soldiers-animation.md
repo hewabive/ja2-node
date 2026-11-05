@@ -181,7 +181,10 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 No probe covers animation timing: frame delays, fast turns, turning and the step of a frame are checked against the
-source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). Inferred from reading the source:
+source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). The vehicle probe follows a tank's turn
+call by call (its facings, the half turn, the look after each new facing), its shot's position frame by frame and the
+creation of vehicle soldiers from a placement, palettes included (`tools/oracle/README.md` "Vehicles"). Inferred from
+reading the source:
 - A soldier's shade never carries the `0x30` bits: the lighting clamps levels to 0–15, so ja2-node drops them.
 - `ja2prof.dat` is not loaded: its placeholders only tell the original's aim cursor the body part under it on a
   soldier in a prone sheet who is not lying yet (the cursor skips lying soldiers), and a facing change removes them.

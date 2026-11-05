@@ -138,7 +138,8 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 Inferred from reading the source; no probe compares the human YELLOW, RED and BLACK decisions (the probes cover
-`CalcBestShot`, the surrender offer and named NPCs, boxing, and the creature AI, `tools/oracle/README.md`):
+`CalcBestShot`, the surrender offer and named NPCs, boxing, the creature AI, and a tank's RED decisions with its
+look-around, `tools/oracle/README.md`):
 - The turn and stance changes ending early and the APs a repeated turn drains.
 - The BLACK loop of a civilian whose `CanNPCAttack` fails other than for want of a weapon (deviation "Armed civilian
   without ammo").
@@ -148,7 +149,6 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - The AI path costs excluding the cost of starting to move.
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
-- A tank's RED look-around: its draws, and the end of its turn or the wait after a second turn in a row.
 - The panic decisions inside `DecideActionRed` and `DecideActionBlack` and the radio chances: the bomb probes
   (`tools/oracle/README.md` "Bombs") check the triggers the maps give, the chosen one with his keys, `PanicAI`, the
   pull and the detonator.

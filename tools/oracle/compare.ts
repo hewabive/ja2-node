@@ -65,6 +65,7 @@ import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
 import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
 import { TALK_PROBES, TalkComparer } from './talk-compare.ts';
+import { VEHICLE_PROBES, VehicleComparer } from './vehicles-compare.ts';
 
 type Json = Record<string, unknown>;
 type ReadFile = (path: string) => Promise<Uint8Array | null>;
@@ -601,6 +602,7 @@ for (const file of files) {
   const boxing = new BoxingComparer(read, exists);
   const drugs = new DrugComparer(read, exists);
   const bombs = new BombComparer(read, exists, content);
+  const vehicles = new VehicleComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -637,6 +639,7 @@ for (const file of files) {
       if (ctx.bytes) boxing.loadSave(ctx.bytes);
       if (ctx.bytes) drugs.loadSave(ctx.bytes);
       if (ctx.bytes) bombs.loadSave(ctx.bytes);
+      if (ctx.bytes) vehicles.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -668,6 +671,7 @@ for (const file of files) {
     else if (BOXING_PROBES.has(String(p.probe))) failures += await boxing.compare(p);
     else if (DRUG_PROBES.has(String(p.probe))) failures += await drugs.compare(p);
     else if (BOMB_PROBES.has(String(p.probe))) failures += await bombs.compare(p);
+    else if (VEHICLE_PROBES.has(String(p.probe))) failures += await vehicles.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

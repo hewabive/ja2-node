@@ -162,8 +162,9 @@ Not pinned yet:
 
 The oracle matches the travel table, routes including tactical traversals, the groups, squads and sector records of
 native saves, edgepoints, exit thresholds, walking off and in, the mirror gridno, `OKForSectorExit`, the init list and
-the defence placement (`tools/oracle/README.md`, "Strategic movement" and "Sector transitions"). Inferred from reading
-the source:
+the defence placement (`tools/oracle/README.md`, "Strategic movement" and "Sector transitions"), and a vehicle's group
+plotted to the next sector, the fuel it spends there down to empty and the move checks of its group
+(`tools/oracle/README.md` "Vehicles"). Inferred from reading the source:
 - Mobile enemies that reached a sector after the player left appear twice when its preserved enemy file is restored:
   the file is accepted only against the stationary counts, the load adds the mobile strength, and
   `PrepareEnemyForSectorBattle` adds the same groups again. Check: save beside an enemy sector, let a patrol enter it,

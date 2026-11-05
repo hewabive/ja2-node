@@ -240,8 +240,11 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 The oracle compares facts, quests and `CheckFact` for all 500 ids with the talk context set, the boxing club, the
-helicopter, the robot's control, the NPC system events with Kingpin's money and the hospital, and the quest action items
-(`tools/oracle/README.md`, "Facts and NPC presence", "Boxing", "Helicopter", "Recruiting", "NPC actions", "Give").
+helicopter, the robot's control, the NPC system events with Kingpin's money and the hospital, the quest action items,
+and ground vehicles: creation, the boarding click and its walk, the takeover, leaving, damage, destruction with the mercs
+aboard, repair, the toolkit's and gas can's walks, the fuel, and the line of sight to the mercs aboard
+(`tools/oracle/README.md`, "Facts and NPC presence", "Boxing", "Helicopter", "Recruiting", "NPC actions", "Give",
+"Vehicles").
 Inferred from reading the source:
 - The quest rules of a new sighting other than the hostile-quote list, the escorts' arrivals, the neutral assassins'
   approach and the profile deaths other than the Queen's: unit tests on stub soldiers only.
@@ -249,12 +252,13 @@ Inferred from reading the source:
 - The profile flag and Pacos' fact set when our team hurts an NPC, and the creature queen's death beginning only with
   a killer.
 - That checking Skyrider's monologues once per strategic step matches the map panel's redraws.
-- The toolkit and the gas can on a vehicle: the walk, the assignment and the fuel, on stub vehicles only.
+- The toolkit's repair assignment at the end of its walk (the probe stops the walk), and a vehicle's battle sound
+  spoken by a passenger.
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
 - The helicopter on the map: no probe dumps the structures or the soldiers' tiles after a load of the airport with the
   helicopter on the ground; the stub helicopter (`stubs/helicopter.ts`) has its own shapes, so stub tests pin the pieces'
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance", "Tank
-turning". Deviations of this domain: "Helicopter on load", "Toolkit repair in tactical".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance". Deviations of
+this domain: "Helicopter on load", "Toolkit repair in tactical".

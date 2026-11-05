@@ -213,7 +213,8 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 No probe compares duel points, the interrupt queue, team turns or the end of combat; the oracle's soldier dump compares
-the APs of a new turn (`apPerTurn`) and the tactical status after a save load (`tools/oracle/README.md`). Inferred from
+the APs of a new turn (`apPerTurn`) and the tactical status after a save load, the vehicle probe a vehicle's APs at its
+creation, at a takeover and at its turn starts, and its breath after a breath cost (`tools/oracle/README.md`). Inferred from
 reading the source:
 - Everyone entering combat with a full turn plus 5 carried APs.
 - A duel margin of 127 or more needs more shock than hits normally leave; ja2-node keeps the rule.

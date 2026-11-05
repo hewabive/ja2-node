@@ -13,7 +13,7 @@ PROBES=(
   morale/morale.jsonl merchants/merchants.jsonl contracts/contracts.jsonl creatures/creature-ai.jsonl
   laptop/laptop.jsonl doors/doors.jsonl heli/heli.jsonl talk/talk.jsonl facts/facts.jsonl actions/actions.jsonl
   schedules/schedules.jsonl give/give.jsonl recruit/recruit.jsonl civ/civ.jsonl meanwhile/meanwhile.jsonl
-  boxing/boxing.jsonl drugs/drugs.jsonl bombs/bombs.jsonl
+  boxing/boxing.jsonl drugs/drugs.jsonl bombs/bombs.jsonl vehicles/vehicles.jsonl
 )
 OPTIONAL_PROBES=(attach/attach.jsonl florist/florist.jsonl)
 for probe in "${OPTIONAL_PROBES[@]}"; do

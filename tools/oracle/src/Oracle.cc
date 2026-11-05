@@ -21,6 +21,9 @@
 // @src Strategic/Hourly_Update.cc UpdateRegenCounters (drug probes)
 // @src src/game/TileEngine/Explosion_Control.cc, Tactical/World_Items.cc, Tactical/Handle_Items.cc, Tactical/Items.cc
 // @src ArmBomb, ActivateXRayDevice, TacticalAI/PanicButtons.cc, AIMain.cc ExecuteAction, Soldier_Ani.cc code 762 (bomb probes)
+// @src src/game/Tactical/Vehicles.cc, Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick, Soldier_Control.cc
+// @src SoldierTakeDamage, TurnSoldier, Weapons.cc TotalArmourProtection, UseHandToHand, TacticalAI/DecideAction.cc,
+// @src Strategic/Strategic_Movement.cc AddFuelToVehicle, StrategicMap.cc JumpIntoAdjacentSector (vehicle probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -146,6 +149,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <unistd.h>
@@ -8548,6 +8552,662 @@ void ProbeMinePath(Command const& c)
 	});
 }
 
+}
+
+#include "Bullets.h"
+#include "Event_Pump.h"
+#include "Handle_UI.h"
+#include "Soldier_Ani.h"
+
+bool OracleVehicleInteractiveClick(SOLDIERTYPE& s, BOOLEAN fMovementMode);
+
+namespace {
+
+constexpr UINT32 VEHICLE_STATUS_FLAGS = SOLDIER_VEHICLE | SOLDIER_DRIVER | SOLDIER_PASSENGER | SOLDIER_PAUSEANIMOVE;
+constexpr long long MAX_TURN_STEPS = 64;
+constexpr long long DEFAULT_ANIMATION_FRAMES = 40;
+constexpr long long DEFAULT_ITEM_STATUS = 100;
+constexpr INT8 AVERAGE_RELATIVE_LEVEL = 2;
+
+std::map<std::string, INT8> const VEHICLE_BODIES{
+	{"hummer", HUMVEE}, {"eldorado", ELDORADO}, {"icecream", ICECREAMTRUCK}, {"jeep", JEEP}, {"tanknw", TANK_NW}, {"tankne", TANK_NE},
+};
+
+std::map<std::string, UINT8> const PLACEMENT_CLASSES{
+	{"none", SOLDIER_CLASS_NONE}, {"admin", SOLDIER_CLASS_ADMINISTRATOR}, {"army", SOLDIER_CLASS_ARMY}, {"elite", SOLDIER_CLASS_ELITE},
+};
+
+std::map<std::string, UINT8> const DAMAGE_REASONS{
+	{"gunfire", TAKE_DAMAGE_GUNFIRE}, {"blade", TAKE_DAMAGE_BLADE}, {"hth", TAKE_DAMAGE_HANDTOHAND}, {"fall", TAKE_DAMAGE_FALLROOF},
+	{"bloodloss", TAKE_DAMAGE_BLOODLOSS}, {"explosion", TAKE_DAMAGE_EXPLOSION}, {"gas", TAKE_DAMAGE_GAS},
+	{"structure", TAKE_DAMAGE_STRUCTURE_EXPLOSION},
+};
+
+std::map<std::string, UINT8> const JUMP_CODES{
+	{"all", JUMP_ALL_NO_LOAD}, {"allload", JUMP_ALL_LOAD_NEW}, {"single", JUMP_SINGLE_NO_LOAD}, {"singleload", JUMP_SINGLE_LOAD_NEW},
+};
+
+std::string DescribeVehicleRecords()
+{
+	std::vector<std::string> rows;
+	for (size_t i = 0; i < pVehicleList.size(); ++i)
+	{
+		VEHICLETYPE const& v = pVehicleList[i];
+		if (!v.fValid) continue;
+		std::vector<long long> seats;
+		for (SOLDIERTYPE const* p : v.pPassengers) seats.push_back(p ? p->ubID : NO_SOLDIER_ID);
+		std::vector<long long> path;
+		for (PathSt const* n = v.pMercPath; n; n = n->pNext) path.push_back(n->uiSectorId);
+		Json j;
+		j.num("id", static_cast<long long>(i))
+			.num("type", v.ubVehicleType)
+			.raw("sector", StrategicSector(v.sSector))
+			.num("z", v.sSector.z)
+			.flag("betweenSectors", v.fBetweenSectors)
+			.flag("destroyed", v.fDestroyed)
+			.raw("passengers", Numbers(seats))
+			.raw("path", Numbers(path));
+		if (GROUP const* g = GetGroup(v.ubMovementGroup)) j.raw("group", HeliGroup(*g));
+		rows.push_back(j.text());
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeVehicleSoldier(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("team", s.bTeam)
+		.num("side", static_cast<long long>(s.bSide))
+		.num("neutral", s.bNeutral)
+		.num("profile", s.ubProfile)
+		.num("body", s.ubBodyType)
+		.num("vehicle", s.bVehicleID)
+		.num("gridNo", s.sGridNo)
+		.real("x", s.dXPos)
+		.real("y", s.dYPos)
+		.num("direction", s.bDirection)
+		.num("desiredDirection", s.bDesiredDirection)
+		.num("hiRes", s.ubHiResDirection)
+		.num("flags", s.uiStatusFlags & VEHICLE_STATUS_FLAGS)
+		.nums("life", {s.bLife, s.bLifeMax})
+		.nums("breath", {s.bBreath, s.bBreathMax, s.sBreathRed})
+		.nums("ap", {s.bActionPoints, s.bInitialActionPoints, CalcActionPoints(&s)})
+		.num("assignment", s.bAssignment)
+		.num("groupId", s.ubGroupID)
+		.flag("inSector", s.bInSector)
+		.num("damage", s.sDamage)
+		.num("animState", s.usAnimState)
+		.text();
+}
+
+std::string DescribeVehicleSoldiers()
+{
+	std::vector<std::string> rows;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->uiStatusFlags & SOLDIER_VEHICLE) rows.push_back(DescribeVehicleSoldier(*s));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeCrewMember(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.num("direction", s.bDirection)
+		.num("assignment", s.bAssignment)
+		.num("vehicleId", s.iVehicleId)
+		.num("groupId", s.ubGroupID)
+		.num("flags", s.uiStatusFlags & VEHICLE_STATUS_FLAGS)
+		.flag("inSector", s.bInSector)
+		.raw("sector", StrategicSector(s.sSector))
+		.flag("betweenSectors", s.fBetweenSectors)
+		.nums("insertion", {s.ubStrategicInsertionCode, s.usStrategicInsertionData})
+		.num("ap", s.bActionPoints)
+		.num("life", s.bLife)
+		.text();
+}
+
+std::string DescribeCrew()
+{
+	std::vector<std::string> rows;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (!(s->uiStatusFlags & SOLDIER_VEHICLE)) rows.push_back(DescribeCrewMember(*s));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribePlayerGroups()
+{
+	std::vector<std::string> rows;
+	FOR_EACH_GROUP(g)
+	{
+		if (g->fPlayer && g->pPlayerList) rows.push_back(HeliGroup(*g));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeVehicleState()
+{
+	return Json{}
+		.raw("vehicles", DescribeVehicleRecords())
+		.raw("groups", DescribePlayerGroups())
+		.raw("soldiers", DescribeVehicleSoldiers())
+		.raw("crew", DescribeCrew())
+		.raw("squads", HeliSquads())
+		.num("currentSquad", CurrentSquad())
+		.num("selected", SoldierIdOrNone(GetSelectedMan()))
+		.raw("explosions", DescribeExplosions())
+		.num("busy", gTacticalStatus.ubAttackBusyCount)
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.raw("boxes", DescribeBoxes())
+		.text();
+}
+
+class VehicleProbeScope
+{
+public:
+	VehicleProbeScope(Command const& c, std::vector<OracleDraw>& draws) : screen_(guiCurrentScreen), flags_(gTacticalStatus.uiFlags)
+	{
+		guiCurrentScreen = Text(c, "screen", "game") == "map" ? MAP_SCREEN : GAME_SCREEN;
+		if (Has(c, "combat"))
+		{
+			if (Integer(c, "combat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+			else gTacticalStatus.uiFlags &= ~INCOMBAT;
+		}
+		gOracleBoxes.clear();
+		gOracleMessageBoxHook = RecordBox;
+		OracleTraceRandom(&draws);
+	}
+
+	VehicleProbeScope(VehicleProbeScope const&) = delete;
+	VehicleProbeScope& operator=(VehicleProbeScope const&) = delete;
+
+	~VehicleProbeScope()
+	{
+		OracleTraceRandom(nullptr);
+		gOracleMessageBoxHook = NULL;
+		guiCurrentScreen = screen_;
+		gTacticalStatus.uiFlags = (gTacticalStatus.uiFlags & ~INCOMBAT) | (flags_ & INCOMBAT);
+	}
+
+private:
+	ScreenID screen_;
+	UINT32 flags_;
+};
+
+template<typename Run>
+void RunVehicleProbe(Command const& c, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	std::string result;
+	{
+		VehicleProbeScope const scope(c, draws);
+		if constexpr (std::is_invocable_v<Run, std::vector<OracleDraw> const&>) result = run(draws);
+		else result = run();
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDraws(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.raw("state", DescribeVehicleState()));
+}
+
+SOLDIERTYPE& VehicleSoldierArgument(Command const& c, char const* key)
+{
+	SOLDIERTYPE& vs = ExistingSoldier(Required(c, key));
+	if (!(vs.uiStatusFlags & SOLDIER_VEHICLE)) throw std::runtime_error("not a vehicle soldier: " + std::to_string(vs.ubID));
+	return vs;
+}
+
+SOLDIERTYPE& ActiveSoldier(long long id)
+{
+	if (id < 0 || id >= MAX_NUM_SOLDIERS) throw std::runtime_error("soldier id out of range: " + std::to_string(id));
+	SOLDIERTYPE& s = GetMan(static_cast<UINT>(id));
+	if (!s.bActive) throw std::runtime_error("soldier is not active: " + std::to_string(id));
+	return s;
+}
+
+void StopProbeWalk(SOLDIERTYPE& s)
+{
+	s.ubPendingAction = NO_PENDING_ACTION;
+	EVENT_StopMerc(&s);
+}
+
+std::string DescribePendingWalk(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("pending", s.ubPendingAction)
+		.num("pendingData2", s.sPendingActionData2)
+		.num("pendingData3", s.bPendingActionData3)
+		.num("destination", s.sFinalDestination)
+		.num("pathSize", s.ubPathDataSize)
+		.num("ap", s.bActionPoints)
+		.num("gridNo", s.sGridNo)
+		.text();
+}
+
+void ProbeVehicles(Command const& c)
+{
+	RunVehicleProbe(c, [] { return std::string{}; });
+}
+
+void ProbeVehicleCreate(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	BASIC_SOLDIERCREATE_STRUCT bp{};
+	bp.usStartingGridNo        = GridArgument(c, "grid");
+	bp.bTeam                   = Lookup(TEAMS, c, "team", "civ");
+	bp.bRelativeAttributeLevel = static_cast<INT8>(Integer(c, "attributes", AVERAGE_RELATIVE_LEVEL));
+	bp.bRelativeEquipmentLevel = static_cast<INT8>(Integer(c, "equipment", AVERAGE_RELATIVE_LEVEL));
+	bp.bDirection              = static_cast<INT8>(Integer(c, "dir", SOUTH));
+	bp.bOrders                 = STATIONARY;
+	bp.bAttitude               = DEFENSIVE;
+	bp.bBodyType               = Lookup(VEHICLE_BODIES, c, "body", "hummer");
+	bp.sPatrolGrid[0]          = bp.usStartingGridNo;
+	bp.ubSoldierClass          = Lookup(PLACEMENT_CLASSES, c, "class", "none");
+	bp.fPriorityExistance      = TRUE;
+	RunVehicleProbe(c, [&] {
+		SOLDIERCREATE_STRUCT dp{};
+		CreateDetailedPlacementGivenBasicPlacementInfo(&dp, &bp);
+		SOLDIERTYPE* const s = TacticalCreateSoldier(dp);
+		if (!s) throw std::runtime_error("TacticalCreateSoldier failed");
+		AddSoldierToSectorNoCalculateDirection(s);
+		return Json{}.num("who", s->ubID).raw("soldier", DescribeDetail(*s)).text();
+	});
+}
+
+void ProbeVehicleSet(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SetIfGiven(c, "life", s.bLife);
+	SetIfGiven(c, "lifeMax", s.bLifeMax);
+	SetIfGiven(c, "breath", s.bBreath);
+	SetIfGiven(c, "breathRed", s.sBreathRed);
+	SetIfGiven(c, "ap", s.bActionPoints);
+	SetIfGiven(c, "initialAp", s.bInitialActionPoints);
+	SetIfGiven(c, "visible", s.bVisible);
+	if (Has(c, "grid")) EVENT_SetSoldierPosition(&s, GridArgument(c, "grid"), SSP_NONE);
+	if (Has(c, "face"))
+	{
+		INT8 const dir = static_cast<INT8>(Integer(c, "face", 0));
+		EVENT_SetSoldierDirection(&s, dir);
+		EVENT_SetSoldierDesiredDirection(&s, dir);
+	}
+	if (Has(c, "mode")) s.usUIMovementMode = Lookup(MOVE_MODES, c, "mode", "walk");
+	if (Integer(c, "stand", 0) != 0) SetStanceImmediately(s, STANDING);
+	SetIfGiven(c, "busy", gTacticalStatus.ubAttackBusyCount);
+	for (std::string const& part : SplitList(Text(c, "fact", ""), ','))
+	{
+		auto const [id, value] = SplitPair(part);
+		gubFact[std::stoi(id)] = static_cast<UINT8>(value);
+	}
+	RunVehicleProbe(c, [] { return std::string{}; });
+}
+
+void ProbeVehicleInventory(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	if (Has(c, "swap")) SwapObjs(&s.inv[HANDPOS], &s.inv[Required(c, "swap")]);
+	if (Has(c, "slot"))
+	{
+		OBJECTTYPE& o = s.inv[Required(c, "slot")];
+		if (Text(c, "item", "keep") == "none") DeleteObj(&o);
+		else if (Has(c, "item")) CreateItem(ItemArgument(Text(c, "item", "")), static_cast<INT8>(Integer(c, "status", DEFAULT_ITEM_STATUS)), &o);
+		AttachProbeItems(c, o);
+	}
+	RunVehicleProbe(c, [&] { return Json{}.raw("inv", DescribeBombInventory(s)).text(); });
+}
+
+void ProbeVehicleClick(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE& vs = ExistingSoldier(Required(c, "vehicle"));
+	BOOLEAN const move = Integer(c, "move", 0) != 0;
+	if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+	RunVehicleProbe(c, [&] {
+		gUIFullTarget = &vs;
+		bool const handled = OracleVehicleInteractiveClick(s, move);
+		gUIFullTarget = NULL;
+		std::string const walk = DescribePendingWalk(s);
+		StopProbeWalk(s);
+		return Json{}.flag("handled", handled).raw("walk", walk).text();
+	});
+}
+
+void ProbeVehicleBoard(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SOLDIERTYPE& vs = VehicleSoldierArgument(c, "vehicle");
+	VEHICLETYPE& v = GetVehicle(vs.bVehicleID);
+	RunVehicleProbe(c, [&] { return Json{}.flag("boarded", PutSoldierInVehicle(s, v)).text(); });
+}
+
+void ProbeVehicleExit(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	RunVehicleProbe(c, [&] { return Json{}.flag("left", TakeSoldierOutOfVehicle(&s) != FALSE).text(); });
+}
+
+void ProbeVehicleDamage(Command const& c)
+{
+	SOLDIERTYPE& vs = ActiveSoldier(Required(c, "who"));
+	INT16 const damage = static_cast<INT16>(Required(c, "damage"));
+	INT16 const breath = static_cast<INT16>(Integer(c, "breath", damage));
+	UINT8 const reason = Lookup(DAMAGE_REASONS, c, "reason", "gunfire");
+	SOLDIERTYPE* const attacker = Has(c, "att") ? &ActiveSoldier(Required(c, "att")) : nullptr;
+	RunVehicleProbe(c, [&] {
+		UINT8 const combined = SoldierTakeDamage(&vs, damage, breath, reason, attacker);
+		return Json{}.num("combined", combined).text();
+	});
+	OracleResetExplosions();
+	gTacticalStatus.ubAttackBusyCount = 0;
+}
+
+void ProbeVehicleArmour(Command const& c)
+{
+	SOLDIERTYPE& vs = VehicleSoldierArgument(c, "who");
+	INT32 const impact = static_cast<INT32>(Required(c, "impact"));
+	UINT8 const ammo = static_cast<UINT8>(Integer(c, "ammo", AMMO_REGULAR));
+	RunVehicleProbe(c, [&] {
+		INT32 const protection = TotalArmourProtection(vs, AIM_SHOT_TORSO, impact, ammo);
+		return Json{}.num("protection", protection).num("armour", GetVehicleArmour(vs.bVehicleID)).text();
+	});
+}
+
+void PutInHand(SOLDIERTYPE& s, Command const& c)
+{
+	if (!Has(c, "item")) return;
+	CreateItem(ItemArgument(Text(c, "item", "")), static_cast<INT8>(Integer(c, "status", DEFAULT_ITEM_STATUS)), &s.inv[HANDPOS]);
+}
+
+void ProbeVehicleItem(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const gridNo = GridArgument(c, "grid");
+	PutInHand(s, c);
+	if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+	RunVehicleProbe(c, [&] {
+		ItemHandleResult const handled = HandleItem(&s, gridNo, 0, s.inv[HANDPOS].usItem, FALSE);
+		std::string const walk = DescribePendingWalk(s);
+		StopProbeWalk(s);
+		return Json{}.num("handled", handled).raw("walk", walk).raw("inv", DescribeBombInventory(s)).text();
+	});
+}
+
+void ProbeVehicleRefuel(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SOLDIERTYPE& vs = VehicleSoldierArgument(c, "vehicle");
+	PutInHand(s, c);
+	RunVehicleProbe(c, [&] {
+		AddFuelToVehicle(&s, &vs);
+		return Json{}.raw("inv", DescribeBombInventory(s)).text();
+	});
+}
+
+void ProbeVehicleRepair(Command const& c)
+{
+	SOLDIERTYPE& vs = ActiveSoldier(Required(c, "who"));
+	VEHICLETYPE const& v = GetVehicle(vs.bVehicleID);
+	INT8 const points = static_cast<INT8>(Required(c, "points"));
+	RunVehicleProbe(c, [&] {
+		bool const needed = DoesVehicleNeedAnyRepairs(v);
+		BOOLEAN nothingLeft = FALSE;
+		INT8 const used = RepairVehicle(v, points, &nothingLeft);
+		return Json{}.flag("needed", needed).num("used", used).flag("nothingLeft", nothingLeft != FALSE).text();
+	});
+}
+
+class CharacterListScope
+{
+public:
+	CharacterListScope()
+	{
+		ClearCharacterList();
+		size_t merc = 0;
+		size_t vehicle = FIRST_VEHICLE;
+		FOR_EACH_IN_TEAM(s, OUR_TEAM)
+		{
+			size_t& slot = (s->uiStatusFlags & SOLDIER_VEHICLE) ? vehicle : merc;
+			if (slot < MAX_CHARACTER_COUNT) gCharactersList[slot++].merc = s;
+		}
+	}
+
+	CharacterListScope(CharacterListScope const&) = delete;
+	CharacterListScope& operator=(CharacterListScope const&) = delete;
+
+	~CharacterListScope() { ClearCharacterList(); }
+
+private:
+	static void ClearCharacterList()
+	{
+		for (size_t i = 0; i < MAX_CHARACTER_COUNT; ++i) gCharactersList[i] = MapScreenCharacterSt{};
+	}
+};
+
+void ProbeVehicleLineOfSight(Command const& c)
+{
+	SOLDIERTYPE& viewer = ExistingSoldier(Required(c, "viewer"));
+	SOLDIERTYPE& target = ActiveSoldier(Required(c, "target"));
+	UINT8 const tileLimit = static_cast<UINT8>(Integer(c, "tileLimit", DEFAULT_TILE_SIGHT_LIMIT));
+	INT8 const aware = static_cast<INT8>(Integer(c, "aware", 1));
+	RunVehicleProbe(c, [&] {
+		return Json{}.num("soldierToSoldier", SoldierToSoldierLineOfSightTest(&viewer, &target, tileLimit, aware)).text();
+	});
+}
+
+void ProbeVehicleCanMove(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	RunVehicleProbe(c, [&] {
+		CharacterListScope const list;
+		return Json{}.num("error", CanEntireMovementGroupMercIsInMove(s)).text();
+	});
+}
+
+void ProbeVehicleTurnStart(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	long long const count = Integer(c, "count", 1);
+	RunVehicleProbe(c, [&] {
+		for (long long i = 0; i < count; ++i) EVENT_BeginMercTurn(s);
+		return std::string{};
+	});
+}
+
+void ProbeVehicleDeduct(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	INT16 const ap = static_cast<INT16>(Integer(c, "ap", 0));
+	INT16 const bp = static_cast<INT16>(Integer(c, "bp", 0));
+	RunVehicleProbe(c, [&] {
+		DeductPoints(&s, ap, bp);
+		return std::string{};
+	});
+}
+
+void ProbeTankDecide(Command const& c)
+{
+	SOLDIERTYPE& s = VehicleSoldierArgument(c, "who");
+	ApplySoldierSettings(c, s);
+	if (Has(c, "hiRes")) s.ubHiResDirection = static_cast<UINT8>(Required(c, "hiRes"));
+	RunVehicleProbe(c, [&] {
+		gfTurnBasedAI = (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+		INT8 const action = DecideAction(&s);
+		return Json{}.flag("turnBased", gfTurnBasedAI).num("decided", action).raw("ai", DescribeCreatureAI(s)).text();
+	});
+}
+
+std::string ShootRow(SOLDIERTYPE const& s)
+{
+	return Json{}.num("state", s.usAnimState).num("code", s.usAniCode).num("frame", s.usAniFrame).real("x", s.dXPos).real("y", s.dYPos).num("gridNo", s.sGridNo).text();
+}
+
+std::vector<long long> TurnRow(SOLDIERTYPE const& s, size_t draws)
+{
+	return {s.ubHiResDirection, s.bDirection, s.bDesiredDirection, s.bTurningIncrement, (s.uiStatusFlags & SOLDIER_PAUSEANIMOVE) ? 1 : 0,
+		static_cast<long long>(draws)};
+}
+
+void ProbeTankTurn(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	UINT16 const direction = static_cast<UINT16>(Required(c, "dir"));
+	RunVehicleProbe(c, [&](std::vector<OracleDraw> const& draws) {
+		std::vector<std::string> steps;
+		EVENT_SetSoldierDesiredDirection(&s, direction);
+		steps.push_back(Numbers(TurnRow(s, draws.size())));
+		for (long long i = 0; i < MAX_TURN_STEPS; ++i)
+		{
+			bool const done = s.bDirection == s.bDesiredDirection;
+			TurnSoldier(&s);
+			steps.push_back(Numbers(TurnRow(s, draws.size())));
+			if (done) break;
+		}
+		bool const turning = (gAnimControl[s.usAnimState].uiFlags & ANIM_TURNING) != 0;
+		return Json{}.raw("steps", JsonArray(steps)).flag("turningAnim", turning).num("aniDelay", s.sAniDelay).text();
+	});
+}
+
+void ProbeTankShoot(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	long long const frames = Integer(c, "frames", DEFAULT_ANIMATION_FRAMES);
+	UINT16 const state = static_cast<UINT16>(Integer(c, "state", TANK_SHOOT));
+	if (Has(c, "target"))
+	{
+		s.sTargetGridNo = GridArgument(c, "target");
+		s.bTargetLevel  = 0;
+	}
+	RunVehicleProbe(c, [&] {
+		std::vector<std::string> steps;
+		EVENT_InitNewSoldierAnim(&s, state, 0, TRUE);
+		steps.push_back(ShootRow(s));
+		for (long long i = 0; i < frames && s.usAnimState == state; ++i)
+		{
+			AdjustToNextAnimationFrame(&s);
+			steps.push_back(ShootRow(s));
+		}
+		ClearEventQueue();
+		return Json{}.raw("steps", JsonArray(steps)).text();
+	});
+}
+
+void ProbeVehicleSteal(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE& target = ExistingSoldier(Required(c, "target"));
+	s.bTargetLevel = target.bLevel;
+	s.bAimTime = 0;
+	RunVehicleProbe(c, [&] {
+		UseHandToHand(&s, target.sGridNo, TRUE);
+		return Json{}
+			.raw("inv", DescribeBombInventory(s))
+			.raw("targetInv", DescribeBombInventory(target))
+			.raw("ownTile", DescribeBombPool(s.sGridNo, s.bLevel))
+			.raw("targetTile", DescribeBombPool(target.sGridNo, target.bLevel))
+			.text();
+	});
+}
+
+std::string AnimStep(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("state", s.usAnimState)
+		.str("name", gAnimControl[s.usAnimState].zAnimStr)
+		.num("direction", s.bDirection)
+		.num("busy", gTacticalStatus.ubAttackBusyCount)
+		.num("ap", s.bActionPoints)
+		.num("attachment", s.inv[HANDPOS].usAttachItem[0])
+		.text();
+}
+
+void ProbeVehicleFire(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	long long const frames = Integer(c, "frames", DEFAULT_ANIMATION_FRAMES);
+	GridNo const target = GridArgument(c, "target");
+	if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+	RunVehicleProbe(c, [&] {
+		ItemHandleResult const handled = HandleItem(&s, target, 0, s.inv[HANDPOS].usItem, FALSE);
+		std::vector<std::string> states;
+		DequeAllGameEvents();
+		states.push_back(AnimStep(s));
+		for (long long i = 0; i < frames && (gTacticalStatus.ubAttackBusyCount > 0 || (s.usAnimState != STANDING)); ++i)
+		{
+			AdjustToNextAnimationFrame(&s);
+			if (gAnimControl[s.usAnimState].uiFlags & ANIM_TURNING) TurnSoldier(&s);
+			DequeAllGameEvents();
+			if (states.back() != AnimStep(s)) states.push_back(AnimStep(s));
+		}
+		return Json{}
+			.num("handled", handled)
+			.raw("states", JsonArray(states))
+			.num("bullets", guiNumBullets)
+			.num("animState", s.usAnimState)
+			.num("ap", s.bActionPoints)
+			.num("attackingWeapon", s.usAttackingWeapon)
+			.num("targetGridNo", s.sTargetGridNo)
+			.num("desiredDirection", s.bDesiredDirection)
+			.num("busy", gTacticalStatus.ubAttackBusyCount)
+			.raw("inv", DescribeBombInventory(s))
+			.text();
+	});
+}
+
+void ProbeVehicleRoute(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SGPSector const to = StrategicSectorArgument(c, "to");
+	RunVehicleProbe(c, [&] {
+		CharacterListScope const list;
+		MoveError const error = CanEntireMovementGroupMercIsInMove(s);
+		if (error != ME_OK) return Json{}.num("error", error).text();
+		PlotPathForCharacter(s, to, false);
+		INT32 const vid = s.bAssignment == VEHICLE ? s.iVehicleId : s.bVehicleID;
+		VEHICLETYPE& v = GetVehicle(vid);
+		RebuildWayPointsForGroupPath(v.pMercPath, *GetGroup(v.ubMovementGroup));
+		return Json{}.num("error", error).text();
+	});
+}
+
+void ProbeVehicleWarp(Command const& c)
+{
+	UINT32 const seconds = static_cast<UINT32>(Required(c, "minutes")) * 60;
+	RunVehicleProbe(c, [&] {
+		WarpGameTime(seconds, WARPTIME_PROCESS_EVENTS_NORMALLY);
+		return Json{}.num("worldMinutes", GetWorldTotalMin()).text();
+	});
+}
+
+void ProbeVehicleLeaveSector(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	UINT8 const tactical = Lookup(TACTICAL_EXIT_DIRECTIONS, c, "dir", "S");
+	INT8 const strategic = Lookup(STRATEGIC_EXIT_DIRECTIONS, c, "dir", "S");
+	UINT8 const code = Lookup(JUMP_CODES, c, "code", "single");
+	SetSelectedMan(&s);
+	iCurrentTacticalSquad = s.bAssignment;
+	RunVehicleProbe(c, [&] {
+		UINT32 minutes = 0;
+		BOOLEAN const ok = OKForSectorExit(strategic, 0, &minutes);
+		Json j;
+		j.num("ok", ok).num("exitDirection", strategic).num("minutes", minutes).num("selectedSquad", s.bAssignment).num("groupBefore", s.ubGroupID);
+		if (!ok) return j.text();
+		JumpIntoAdjacentSector(tactical, code, 0);
+		j.num("groupAfterJump", s.ubGroupID).num("squadAfterJump", s.bAssignment).num("destination", s.sFinalDestination);
+		AllMercsHaveWalkedOffSector();
+		return j.text();
+	});
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -8793,6 +9453,30 @@ void Dispatch(Command const& c)
 	if (c.name == "pulltrigger") return ProbePullTrigger(c);
 	if (c.name == "usedetonator") return ProbeUseDetonator(c);
 	if (c.name == "minepath") return ProbeMinePath(c);
+	if (c.name == "vehicles") return ProbeVehicles(c);
+	if (c.name == "vehiclecreate") return ProbeVehicleCreate(c);
+	if (c.name == "vehicleset") return ProbeVehicleSet(c);
+	if (c.name == "vehicleinv") return ProbeVehicleInventory(c);
+	if (c.name == "vehicleclick") return ProbeVehicleClick(c);
+	if (c.name == "vehicleboard") return ProbeVehicleBoard(c);
+	if (c.name == "vehicleexit") return ProbeVehicleExit(c);
+	if (c.name == "vehicledamage") return ProbeVehicleDamage(c);
+	if (c.name == "vehiclearmour") return ProbeVehicleArmour(c);
+	if (c.name == "vehicleitem") return ProbeVehicleItem(c);
+	if (c.name == "vehiclerefuel") return ProbeVehicleRefuel(c);
+	if (c.name == "vehiclerepair") return ProbeVehicleRepair(c);
+	if (c.name == "vehiclecanmove") return ProbeVehicleCanMove(c);
+	if (c.name == "vehiclelos") return ProbeVehicleLineOfSight(c);
+	if (c.name == "vehicleturnstart") return ProbeVehicleTurnStart(c);
+	if (c.name == "vehiclededuct") return ProbeVehicleDeduct(c);
+	if (c.name == "tankdecide") return ProbeTankDecide(c);
+	if (c.name == "tankturn") return ProbeTankTurn(c);
+	if (c.name == "tankshoot") return ProbeTankShoot(c);
+	if (c.name == "vehiclesteal") return ProbeVehicleSteal(c);
+	if (c.name == "vehiclefire") return ProbeVehicleFire(c);
+	if (c.name == "vehicleroute") return ProbeVehicleRoute(c);
+	if (c.name == "vehiclewarp") return ProbeVehicleWarp(c);
+	if (c.name == "vehicleleavesector") return ProbeVehicleLeaveSector(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 
