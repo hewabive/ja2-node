@@ -579,7 +579,8 @@ export class TacticalHost {
       command: (cmd) => this.#command(cmd),
       advance: (until) => this.#o.session.advance(until),
       inventory: (soldier) => this.#o.session.soldiers.find((s) => s.id === soldier)?.inventory ?? [],
-      soldiers: () => this.#o.session.soldiers.map((s) => ({ id: s.id, team: s.team, gridNo: s.gridNo, level: s.level })),
+      soldiers: () =>
+        this.#o.session.soldiers.map((s) => ({ id: s.id, team: s.team, gridNo: s.gridNo, level: s.level, vehicle: s.vehicle?.id ?? null })),
       items: () => this.#o.session.items,
       soldierScreen: (soldier) => this.#loaded?.presenter.soldierTrueScreenPosition(soldier) ?? null,
       gridNoScreen: (gridNo) => this.#loaded?.presenter.gridNoPickPoint(gridNo) ?? null,

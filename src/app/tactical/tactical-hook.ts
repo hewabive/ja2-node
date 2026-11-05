@@ -16,6 +16,7 @@ export interface SoldierSample {
   readonly team: number;
   readonly gridNo: number;
   readonly level: number;
+  readonly vehicle: number | null;
 }
 
 export interface CommandSample {

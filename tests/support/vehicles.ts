@@ -2,7 +2,8 @@ import type { BasicPlacement } from '../../src/content/formats/map.ts';
 import { parseSectorString, type Sector } from '../../src/content/strategic/sector-ids.ts';
 import { Direction, gridNo } from '../../src/content/world/grid.ts';
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
-import type { CampaignSession } from '../../src/server/campaign-session.ts';
+import { CampaignSession } from '../../src/server/campaign-session.ts';
+import type { Session } from '../../src/server/session.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { createMercRecord } from '../../src/sim/campaign/merc-record.ts';
 import { MercKind, RosterMerc } from '../../src/sim/campaign/roster.ts';
@@ -95,23 +96,53 @@ async function dispatchPrepared(session: CampaignSession, cmd: { readonly type: 
   if (!result.ok) throw new Error(`${cmd.type} refused: ${result.reason}`);
 }
 
+interface CampaignDriver {
+  readonly sim: CampaignSession;
+  order(cmd: { readonly type: string; readonly [key: string]: unknown }): Promise<void>;
+  advance(worldSeconds: number): void;
+}
+
+async function arriveAtTheHummer(d: CampaignDriver): Promise<void> {
+  for (const name of QUIET) quietSector(d.sim.campaign, name);
+  removeEnemyGroups(d.sim.campaign);
+  await d.order({ type: 'compressTime', mode: LANDING_COMPRESSION });
+  await d.order({ type: 'mapScreen' });
+  teleportSquad(d.sim, parseSectorString(APPROACH));
+  const first = d.sim.view().strategic?.mercs[0];
+  if (!first) throw new Error('no merc');
+  await d.order({ type: 'route', soldier: first.id, to: HUMMER_SECTOR });
+  const arrived = () => d.sim.view().strategic?.mercs.every((m) => m.sector === HUMMER_SECTOR && !m.betweenSectors) === true;
+  for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) d.advance(ROUTE_SLICE_SECONDS);
+  if (!arrived()) throw new Error(`the squad did not reach ${HUMMER_SECTOR}`);
+  await d.order({ type: 'enterSector', sector: HUMMER_SECTOR });
+}
+
 export async function stubCampaignAtTheHummer(kit: StubSectorKit, seed: number, mode?: RunMode, mercs = 2): Promise<CampaignSession> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs, land: false });
   const session = drivenSession(created, stubSessionSources(kit), mode);
-  for (const name of QUIET) quietSector(session.campaign, name);
-  removeEnemyGroups(session.campaign);
-  await dispatchPrepared(session, { type: 'compressTime', mode: LANDING_COMPRESSION });
-  await dispatchPrepared(session, { type: 'mapScreen' });
-  teleportSquad(session, parseSectorString(APPROACH));
-  const first = session.view().strategic?.mercs[0];
-  if (!first) throw new Error('no merc');
-  await dispatchPrepared(session, { type: 'route', soldier: first.id, to: HUMMER_SECTOR });
-  const live = new ReloadingSession('hummer', session);
-  const arrived = () => session.view().strategic?.mercs.every((m) => m.sector === HUMMER_SECTOR && !m.betweenSectors) === true;
-  for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
-  if (!arrived()) throw new Error(`the squad did not reach ${HUMMER_SECTOR}`);
-  await dispatchPrepared(session, { type: 'enterSector', sector: HUMMER_SECTOR });
+  let live: ReloadingSession | null = null;
+  await arriveAtTheHummer({
+    sim: session,
+    order: (cmd) => dispatchPrepared(session, cmd),
+    advance: (worldSeconds) => {
+      live ??= new ReloadingSession('hummer', session);
+      live.advance({ worldSeconds });
+    },
+  });
   return session;
+}
+
+export async function bringSessionToTheHummer(session: Session): Promise<void> {
+  const sim = session.sim;
+  if (!(sim instanceof CampaignSession)) throw new Error('not a campaign');
+  await arriveAtTheHummer({
+    sim,
+    order: async (cmd) => {
+      const result = await session.prepareAndDispatch(cmd);
+      if (!result.ok) throw new Error(`${cmd.type} refused: ${result.reason}`);
+    },
+    advance: (worldSeconds) => void session.advance({ worldSeconds }),
+  });
 }
 
 export interface StubVehicleOrder {
