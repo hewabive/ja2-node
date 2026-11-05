@@ -79,8 +79,7 @@ function exitGridProbe(s: Soldier) {
 export function findGridNoFromSweetSpotCloseToExitGrid(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
   const target = exitGridAt(t, sweet);
   if (!target) return NOWHERE;
-  const probe = s.multiTile ? { ...s, team: Team.ENEMY, side: Side.FRIENDLY, level: 0, bodyType: 0 } : exitGridProbe(s);
-  const flood = findBestPath(t.pathEnv, probe, NOWHERE, 0, {
+  const flood = findBestPath(t.pathEnv, exitGridProbe(s), NOWHERE, 0, {
     copy: PathCopy.REACHABLE,
     flags: PathFlags.THROUGH_PEOPLE,
     distLimit: radius,

@@ -1,14 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
-import { Direction } from '../../content/world/grid.ts';
+import { ourHummerOnTheMap, seatInVehicle } from '../../../tests/support/vehicles.ts';
+import { DIRECTION_COUNT, Direction, gridNo } from '../../content/world/grid.ts';
+import { TravelCost } from '../../content/world/movement-costs.ts';
 import { absoluteScreenXY, mapPosFromAbsoluteScreenXY, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
+import type { SyntheticWorld } from '../../content/world/synthetic.ts';
+import { VehicleSeat } from '../strategic/forces/constants.ts';
 import { states } from './animation.ts';
 import { Insertion } from './insertion.ts';
+import { addExitGridToWorld } from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
 import {
   adjustSoldierPathToGoOffEdge,
   checkMercsWaiting,
   ExitDirection,
+  findGridNoFromSweetSpotCloseToExitGrid,
   mirrorGridNo,
   pickGridNoNearestEdge,
   pickGridNoToWalkIn,
@@ -131,5 +138,39 @@ describe('walking off and on', () => {
     expect(over).toBe(WaitForMercs.WALKOFF_SCREEN);
     expect(t.perception.disallowSight).toBe(false);
     expect(t.mercsWaiting).toBeNull();
+  });
+});
+
+describe('the way to an exit grid (Exit_Grids.cc FindGridNoFromSweetSpotCloseToExitGrid)', () => {
+  const CAR_AT = gridNo(80, 70);
+  const DRIVER_AT = gridNo(90, 78);
+  const WALL_X = 76;
+  const WALL_TOP = 55;
+  const WALL_BOTTOM = 85;
+  const GAP = gridNo(WALL_X, 70);
+  const EXIT_AT = gridNo(72, 70);
+  const BASEMENT = { x: 9, y: 2, z: 1 };
+  const SEARCH_RADIUS = 10;
+  const DRIVER = 5;
+  const IN_THE_GAP = 6;
+
+  function wallWithAGap(world: SyntheticWorld): void {
+    for (let y = WALL_TOP; y <= WALL_BOTTOM; y++) {
+      const g = gridNo(WALL_X, y);
+      if (g === GAP) continue;
+      for (let direction = 0; direction < DIRECTION_COUNT; direction++) world.costs.force(g, direction, 0, TravelCost.OBSTACLE);
+    }
+  }
+
+  it('finds a vehicle the exit tile past a gap one tile wide with a merc in it: the search floods as a lone walker through people, the zeroed dummy soldier of the original, and fits the vehicle on the exit tile only (quirk)', () => {
+    const sim = newCombatSim(kit.content, [], 3, new Set(), wallWithAGap, { exitGrids: [] });
+    const t = sim.state;
+    const driver = spawnSoldier(sim, DRIVER, Team.OUR, DRIVER_AT, Direction.NORTH);
+    const hummer = ourHummerOnTheMap(t, CAR_AT);
+    seatInVehicle(t, driver, hummer, VehicleSeat.DRIVER);
+    spawnSoldier(sim, IN_THE_GAP, Team.OUR, GAP, Direction.NORTH);
+    addExitGridToWorld(t, { mapIndex: EXIT_AT, gridNo: EXIT_AT, sector: BASEMENT });
+    expect(findGridNoFromSweetSpotCloseToExitGrid(t, hummer, EXIT_AT, SEARCH_RADIUS)).toBe(EXIT_AT);
+    expect(soldierOKForSectorExit(t, hummer, ExitDirection.EXIT_GRID, EXIT_AT)).toBe(true);
   });
 });

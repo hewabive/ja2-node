@@ -136,6 +136,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | A passenger cannot move while his vehicle's tank is empty: the group check meets the vehicle soldier, and the refusal names the vehicle | `strategic/forces/move-permission.test.ts`, `campaign/vehicle-travel.test.ts` |
 | The museum move check asks whether Eldin lives, not whether the alarm went off, counts the chalice on any merc of the team wherever he is, and reads the room under the merc's tile in whatever map is loaded, also when he stands in another sector | `strategic/forces/move-permission.test.ts` |
 | An arriving creature faces the first direction its body fits on the tile it found (north on open ground), whatever its insertion direction, a forced one too: the facing a creature attack sets per edge is never used | `tactical/insertion.test.ts` |
+| The way to an exit grid is searched as a lone walker's through people (`FindGridNoFromSweetSpotCloseToExitGrid`'s zeroed dummy soldier), also for a vehicle, whose structure is fitted on the exit tile only: a vehicle finds an exit tile past a gap one tile wide | `tactical/sector-exit.test.ts` "finds a vehicle the exit tile past a gap …" |
 
 Not pinned yet:
 - The exit check of a merc away from the edge applies the underground rule from the second level only (`z > 1`): on a
