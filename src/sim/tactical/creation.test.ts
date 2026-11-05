@@ -214,9 +214,16 @@ describe('TacticalCreateSoldier', () => {
   });
 
   it('weakens civilians by body type after the palettes', () => {
-    const { c } = creation([0, 0, 50, 1, 0, 10, 2]);
+    const { c } = creation([0, 0, 1, 0, 10, 2]);
     const s = tacticalCreateSoldier(c, create({ team: Team.CIV, soldierClass: SoldierClass.NONE, bodyType: Body.MANCIV }), 120, ENV(40));
     expect([s?.life, s?.lifeMax, s?.palettes.pants]).toEqual([45, 45, 'TANPANTS']);
+  });
+
+  it('never dresses a civilian in the civilian clothes: GeneratePaletteForSoldier runs before TacticalCreateSoldier sets his team (quirk)', () => {
+    const { c, rolls } = creation([0, 0, 2, 0, 10, 2]);
+    const s = tacticalCreateSoldier(c, create({ team: Team.CIV, soldierClass: SoldierClass.NONE, bodyType: Body.MANCIV }), 120, ENV(40));
+    expect(rolls.requested.slice(0, 4)).toEqual([4, 100, 3, 4]);
+    expect([s?.palettes.pants, s?.palettes.vest]).toEqual(['BLUEPANTS', 'YELLOWVEST']);
   });
 
   it('arms creatures with their natural weapons and hides and rolls the body parts they drop', () => {

@@ -158,6 +158,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Any stance change of a civilian body but the cripple's only sets or clears the cower state (`ChangeSoldierStance`, `Tactical/Soldier_Control.cc:3701`): told to lie down he cowers and ends crouched, and a crouched civilian whose cower flag is off ignores a stand | `stance.test.ts` |
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
+| A civilian never wears the civilian clothes of `GeneratePaletteForSoldier`'s 40 % roll: `TacticalCreateSoldier` rolls the palette before it sets the team (vanilla set it first) | `creation.test.ts` "never dresses a civilian in the civilian clothes …" |
 | An unseen enemy at the glow peak takes the step before it, 200 instead of 225 | `glow.test.ts` |
 | A one-handed gun in hand ends the idle check after its draw, injured or not: "Don't EVER do a trivial anim" | `random-anims.test.ts` |
 | An animal's idle sound holds its loop at code 491 for a frame, so the next pass counts it again | `random-anims.test.ts` |

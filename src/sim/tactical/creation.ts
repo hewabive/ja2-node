@@ -4,7 +4,8 @@
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
 // @src Soldier_Control.cc CreateSoldierCommon (the opplist reset), SetSoldierHeight (a placement on a flat roof);
-// @src Inventory_Choosing.cc AssignCreatureInventory.
+// @src Inventory_Choosing.cc AssignCreatureInventory; GeneratePaletteForSoldier running before TacticalCreateSoldier
+// @src sets bTeam, so no civilian takes its civilian clothes (2026-11-05).
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
@@ -26,7 +27,7 @@ import { emptyInventory, hiredMercInventory, type Inventory, type InventoryConte
 import { CivGroupHostility } from './narrative/constants.ts';
 import { NOWHERE } from './pathfinding.ts';
 import { initSoldierOppList, type OppListTables } from './perception/opplist-reset.ts';
-import { type ActionPointWorld, calcActionPoints } from './points.ts';
+import { type ActionPointWorld, calcActionPointsBeforeVehicleFlag } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { SECOND_LEVEL_Z_OFFSET, setUnplacedSoldierHeight } from './roofs.ts';
 import {
@@ -299,29 +300,13 @@ function pick<T>(c: CreationContext, options: readonly T[]): T {
   return options[c.rng.int(options.length)] as T;
 }
 
-export function generatePalettes(
-  c: CreationContext,
-  body: number,
-  team: number,
-  soldierClass: number,
-  given: Partial<SoldierPalettes>,
-): SoldierPalettes {
+export function generatePalettes(c: CreationContext, body: number, soldierClass: number, given: Partial<SoldierPalettes>): SoldierPalettes {
   const skin = c.rng.int(SKIN_IDS.length);
   const hair = HAIR_IDS[chooseHair(c, body, skin)] ?? 'BLACKHEAD';
   const skinId = SKIN_IDS[skin] ?? 'PINKSKIN';
   const forced = CLASS_CLOTHES[soldierClass];
   if (forced) return { hair, skin: skinId, vest: forced[0], pants: forced[1] };
   if (given.vest && given.pants) return { hair, skin: skinId, vest: given.vest, pants: given.pants };
-  const cheesy = team === Team.CIV && c.rng.int(100) < 40;
-  if (cheesy) {
-    if (c.rng.int(100) < 30) return { hair, skin: skinId, vest: 'GYELLOWSHIRT', pants: pick(c, ['TANPANTS', 'BEIGEPANTS', 'GREENPANTS']) };
-    return {
-      hair,
-      skin: skinId,
-      pants: 'JEANPANTS',
-      vest: pick(c, ['WHITEVEST', 'BLACKSHIRT', 'PURPLESHIRT', 'BLUEVEST', 'BROWNVEST', 'JEANVEST', 'REDVEST']),
-    };
-  }
   switch (c.rng.int(3)) {
     case 0:
       return { hair, skin: skinId, pants: 'GREENPANTS', vest: pick(c, ['YELLOWVEST', 'WHITEVEST', 'BROWNVEST', 'GREENVEST']) };
@@ -773,7 +758,7 @@ function generatedSoldier(c: CreationContext, pp: SoldierCreate, id: number): So
   });
   assignNightOps(c, s);
   const given = pp.visible ? pp.palettes : {};
-  return { ...s, palettes: generatePalettes(c, pp.bodyType, pp.team, pp.soldierClass, given) };
+  return { ...s, palettes: generatePalettes(c, pp.bodyType, pp.soldierClass, given) };
 }
 
 export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id: number, env: CreationEnv): Soldier | null {
@@ -868,7 +853,7 @@ function creationActionPoints(c: Pick<CreationContext, 'sector' | 'soldiers' | '
     soldiers: c.soldiers ?? NOBODY_IN_SECTOR,
     ...(c.boxing ? { boxing: c.boxing } : {}),
   };
-  return calcActionPoints(world, s);
+  return calcActionPointsBeforeVehicleFlag(world, s);
 }
 
 function progressStats(p: ProfileProgress): SoldierStats {
