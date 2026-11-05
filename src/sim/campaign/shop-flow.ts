@@ -210,7 +210,7 @@ export class ShopFlow {
   #open(cmd: CampaignCommand): CommandResult {
     const { merc, def, dealer } = this.#validateOpen(cmd, true);
     const t = this.#t as TacticalState;
-    deductPoints(t.inCombat, merc, AP_TALK, 0);
+    deductPoints(t, merc, AP_TALK, 0);
     const facing = directionToward(merc.gridNo, dealer.gridNo);
     setDesiredDirection(t, merc, facing);
     setDesiredDirection(t, dealer, (facing + OPPOSITE) % DIRECTIONS);

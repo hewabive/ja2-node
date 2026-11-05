@@ -6,6 +6,7 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { Rng } from '../../core/rng.ts';
 import { createBoxingRecord } from '../strategic/narrative/facts.ts';
+import { anim } from './anim-states.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { getNewSoldierPath, setSoldierPosition } from './movement.ts';
@@ -102,13 +103,13 @@ describe('action points', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
     s.actionPoints = 3;
-    deductPoints(false, s, 5, 100);
+    deductPoints({ inCombat: false, content }, s, 5, 100);
     expect(s.actionPoints).toBe(3);
     expect(s.breathRed).toBeGreaterThan(0);
-    deductPoints(true, s, 5, 0);
+    deductPoints({ inCombat: true, content }, s, 5, 0);
     expect(s.actionPoints).toBe(0);
     s.actionPoints = -4;
-    deductPoints(true, s, 2, 0);
+    deductPoints({ inCombat: true, content }, s, 2, 0);
     expect(s.actionPoints).toBe(-6);
   });
 
@@ -119,7 +120,7 @@ describe('action points', () => {
     s.breathRed = 6000;
     s.breath = 0;
     s.actionPoints = -6;
-    deductPoints(true, s, 0, 1000);
+    deductPoints({ inCombat: true, content }, s, 0, 1000);
     expect([s.actionPoints, s.breath]).toEqual([0, 0]);
   });
 
@@ -128,12 +129,12 @@ describe('action points', () => {
     const scaled = spawn(t, gridNo(80, 80));
     scaled.breath = 90;
     scaled.breathRed = 1000;
-    deductPoints(true, scaled, 0, 32536);
+    deductPoints({ inCombat: true, content }, scaled, 0, 32536);
     expect([scaled.breathRed, scaled.breath]).toEqual([0, 100]);
     const pushed = spawn(t, gridNo(82, 80));
     pushed.breath = 0;
     pushed.breathRed = 10000;
-    deductPoints(true, pushed, 0, 16000);
+    deductPoints({ inCombat: true, content }, pushed, 0, 16000);
     expect([pushed.breathRed, pushed.breath]).toEqual([0, 100]);
   });
 
@@ -143,9 +144,9 @@ describe('action points', () => {
     robot.breathRed = 1000;
     robot.breath = 90;
     robot.actionPoints = 10;
-    deductPoints(true, robot, 4, 500);
+    deductPoints({ inCombat: true, content }, robot, 4, 500);
     expect([robot.actionPoints, robot.breathRed, robot.breath]).toEqual([6, 1000, 90]);
-    deductPoints(true, robot, 0, -500);
+    deductPoints({ inCombat: true, content }, robot, 0, -500);
     expect([robot.breathRed, robot.breath]).toEqual([1000, 90]);
   });
 
@@ -189,6 +190,33 @@ function creatureSeenBy(t: TacticalState, s: Soldier, body: number, seen: number
   if (seen === Opp.SEEN_CURRENTLY) s.ai.oppCount++;
   return creature;
 }
+
+describe('a non-swimmer in deep water (Points.cc AdjustBreathPts)', () => {
+  function breathRedAfter(trait: number, state: string, cost: number, profile = MERC_PROFILE): number {
+    const t = tactical();
+    const s = phobic(t, trait);
+    s.profile = profile;
+    s.state = anim(content, state);
+    s.breathRed = 1000;
+    deductPoints({ inCombat: true, content }, s, 0, cost);
+    return s.breathRed;
+  }
+
+  it('loses breath five times faster treading or swimming deep water, and regains it five times slower', () => {
+    expect(breathRedAfter(Personality.NONE, 'DEEP_WATER_TRED', 100)).toBe(1100);
+    expect(breathRedAfter(Personality.NONSWIMMER, 'DEEP_WATER_TRED', 100)).toBe(1500);
+    expect(breathRedAfter(Personality.NONSWIMMER, 'DEEP_WATER_SWIM', 100)).toBe(1500);
+    expect(breathRedAfter(Personality.NONE, 'DEEP_WATER_SWIM', -500)).toBe(500);
+    expect(breathRedAfter(Personality.NONSWIMMER, 'DEEP_WATER_SWIM', -500)).toBe(900);
+  });
+
+  it('breathes as anyone else in any other state, in the water going under included, and without a profile', () => {
+    expect(breathRedAfter(Personality.NONSWIMMER, 'WALKING', 100)).toBe(1100);
+    expect(breathRedAfter(Personality.NONSWIMMER, 'LOW_TO_DEEP_WATER', 100)).toBe(1100);
+    expect(breathRedAfter(Personality.NONSWIMMER, 'DEEP_WATER_HIT', 100)).toBe(1100);
+    expect(breathRedAfter(Personality.NONSWIMMER, 'DEEP_WATER_SWIM', 100, NO_PROFILE)).toBe(1100);
+  });
+});
 
 describe('phobias in the turn APs (Soldier_Control.cc CalcActionPoints)', () => {
   it('cuts a claustrophobic merc to nine tenths while the loaded sector is underground', () => {

@@ -9,7 +9,8 @@
 // @src AdjustNoAPToFinishMove, EVENT_InitNewSoldierAnim's CROW_EAT and the first destination of a moving special move
 // @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions, reverse moves and failed surface, and the side
 // @src step of EVENT_InternalSetSoldierDesiredDirection (2026-11-01); CalculateSoldierAniSpeed's adrenaline halving
-// @src (2026-11-04).
+// @src (2026-11-04); SoldierGotoStationaryStance's tread in deep water and SetSoldierAniSpeed's stats of the soldier a
+// @src follower waits on (fUseMoverrideMoveSpeed, 2026-11-04).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -186,26 +187,31 @@ function speedTableFor(tables: AnimationTables, id: string): readonly { speed: n
   return null;
 }
 
-export function computedAnimationDelay(t: TacticalState, s: Soldier): number {
+export function computedAnimationDelay(t: TacticalState, s: Soldier, stats: Soldier = s): number {
   const content = t.content;
   const control = content.animations.controls[s.state];
   if (!control) return 0;
   const id = control.id;
-  if (id === 'STANDING' || id === 'PRONE' || id === 'CROUCHING') return Math.max(s.breath * 2 + (100 - s.life), MIN_BREATH_DELAY);
+  if (id === 'STANDING' || id === 'PRONE' || id === 'CROUCHING') return Math.max(stats.breath * 2 + (100 - stats.life), MIN_BREATH_DELAY);
   if (id === 'READY_RIFLE_STAND') return s.aimTime === 0 ? QUICK_READY_DELAY : AIMED_READY_DELAY;
   const bodyLimited = id === 'SWATTING' || id === 'CRAWLING';
   const table = speedTableFor(content.animations, id);
-  const additional = table && (!bodyLimited || s.bodyType <= Body.REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
+  const additional = table && (!bodyLimited || stats.bodyType <= Body.REGFEMALE) ? Math.max(0, table[stats.bodyType]?.speed ?? 0) : 0;
   const moving = (control.flags & AnimFlags.MOVING) !== 0;
-  const terrain = moving ? (TERRAIN_SPEED_DELAY[s.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
-  const breathDeficit = Math.min(50 - idiv(s.breath, 2), MAX_BREATH_DEFICIT);
-  const agilityDeficit = 50 - idiv(effectiveAgility(s), 4);
-  const lifeDeficit = 50 - idiv(s.life, 2);
+  const terrain = moving ? (TERRAIN_SPEED_DELAY[stats.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
+  const breathDeficit = Math.min(50 - idiv(stats.breath, 2), MAX_BREATH_DEFICIT);
+  const agilityDeficit = 50 - idiv(effectiveAgility(stats), 4);
+  const lifeDeficit = 50 - idiv(stats.life, 2);
   let delay = terrain + lifeDeficit + breathDeficit + agilityDeficit + additional;
   if (moving && adrenalineEffect(s) !== 0) delay = idiv(delay, 2);
   if (t.inCombat) delay = idiv(delay, 2);
-  else if (s.stealthMode) delay *= 2;
+  else if (stats.stealthMode) delay *= 2;
   return delay;
+}
+
+function speedStatsSoldier(t: TacticalState, s: Soldier): Soldier {
+  if (!s.useOverrideMoveSpeed) return s;
+  return t.soldiers[s.overrideMoveSpeed] ?? s;
 }
 
 export function resetFrameTimer(t: TacticalState, s: Soldier): void {
@@ -227,7 +233,7 @@ export function setSoldierAniSpeed(t: TacticalState, s: Soldier): void {
     return;
   }
   s.aniDelay = t.content.animations.controls[s.state]?.speed ?? 0;
-  if (s.aniDelay === 0) s.aniDelay = computedAnimationDelay(t, s);
+  if (s.aniDelay === 0) s.aniDelay = computedAnimationDelay(t, s, speedStatsSoldier(t, s));
   resetFrameTimer(t, s);
 }
 
@@ -267,7 +273,7 @@ export function setDesiredDirection(t: TacticalState, s: Soldier, direction: num
     if (hasAnimFlag(t.content, animState, TURN_CHARGE_FLAGS) && !initialMove && !s.dontChargeTurningAPs) {
       const end = endHeight(t.content, animState);
       const cost = end === AnimHeight.STAND ? AP.LOOK_STANDING : end === AnimHeight.CROUCH ? AP.LOOK_CROUCHED : AP.LOOK_PRONE;
-      deductPoints(t.inCombat, s, cost, 0);
+      deductPoints(t, s, cost, 0);
     }
     s.dontChargeTurningAPs = false;
     const startHeight = height(t.content, animState);
@@ -291,6 +297,10 @@ export function changeSoldierState(t: TacticalState, s: Soldier, state: number, 
 
 export function soldierGotoStationaryStance(t: TacticalState, s: Soldier): void {
   const st = states(t.content.animations);
+  if (s.overTerrain === Terrain.DEEP_WATER) {
+    initNewSoldierAnim(t, s, anim(t.content, 'DEEP_WATER_TRED'), 0, false);
+    return;
+  }
   if (s.servicePartner !== NOBODY && s.life >= OKLIFE && s.breath > 0) {
     initNewSoldierAnim(t, s, anim(t.content, 'GIVING_AID'), 0, false);
     return;
@@ -853,7 +863,7 @@ const CROUCH_TRANSITIONS = ['KNEEL_UP', 'KNEEL_DOWN', 'BIGMERC_CROUCH_TRANS_INTO
 
 function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
   const name = t.content.animations.controls[next]?.id ?? '';
-  const charge = (ap: number, bp: number) => deductPoints(t.inCombat, s, ap, bp);
+  const charge = (ap: number, bp: number) => deductPoints(t, s, ap, bp);
   if (READY_STATES.includes(name)) {
     if (!s.dontChargeReadyAPs) charge(apsToReadyWeapon(t.content, s), 0);
     else s.dontChargeReadyAPs = false;

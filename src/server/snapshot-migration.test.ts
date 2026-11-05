@@ -2310,3 +2310,58 @@ describe('snapshot version 49 (no tile tools, tin cans or x-ray) migrates with n
     await expectNoToolsCansOrXRay(campaign);
   });
 });
+
+const WALKING_COUNTERS: Readonly<Record<string, Json>> = {
+  tilesMovedSinceLastForget: 0,
+  overrideMoveSpeed: 0,
+  useOverrideMoveSpeed: false,
+};
+
+function withoutWalkingCounters(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutWalkingCounters(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key in WALKING_COUNTERS) expect(v).toEqual(WALKING_COUNTERS[key]);
+    else out[key] = withoutWalkingCounters(v);
+  }
+  return out;
+}
+
+function versionFifty(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutWalkingCounters(value)]);
+  return { ...snapshot, version: 50, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 50 (no forget count, no borrowed move speed) migrates with every soldier at no tiles since he forgot and his own speed', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectOwnCounters(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionFifty(current.sim);
+    for (const key of Object.keys(WALKING_COUNTERS)) {
+      expect(JSON.stringify(current.sim)).toContain(`"${key}"`);
+      expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    }
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectOwnCounters(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectOwnCounters(await createCampaignSession(kit.read, exists, 9));
+  });
+});

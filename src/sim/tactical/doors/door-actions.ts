@@ -464,7 +464,7 @@ export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: numbe
   }
   if (r.handle && isDoor) handleDoorChangeFromGridNo(t, s, gridNo, { noisy });
   else if (r.handle) handleStructChangeFromGridNo(t, s, gridNo);
-  deductPoints(t.inCombat, s, r.ap, r.bp);
+  deductPoints(t, s, r.ap, r.bp);
   if (s.team === Team.OUR) doorResult(t, s, gridNo, code, r);
   return r.handle;
 }

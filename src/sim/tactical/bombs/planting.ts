@@ -101,7 +101,7 @@ export function handleDropBombItem(t: TacticalState, s: Soldier, g: number): num
 
 export function handleRemoteItem(t: TacticalState, s: Soldier, g: number, handItem: number): number {
   if (!enoughPoints(t.inCombat, s, AP.USE_REMOTE)) return ItemHandle.NOAPS;
-  deductPoints(t.inCombat, s, AP.USE_REMOTE, 0);
+  deductPoints(t, s, AP.USE_REMOTE, 0);
   if (handItem === itemIndex(t, 'XRAY_DEVICE')) {
     t.events.push({ type: 'remoteUsed', soldier: s.id, result: 'xray' });
     activateXRayDevice(t, s);

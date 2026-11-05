@@ -516,7 +516,7 @@ export function beginSoldierGetup(t: TacticalState, s: Soldier): void {
       if (boxingFight(t) && s.boxer && s.collapsedTurns > COLLAPSED_TURNS_BEFORE_KNOCKOUT) endBoxingMatch(t, s);
     }
   } else if (s.sleepDrugCounter > 0 && t.pre.int(100) < sleepDartSuccumbChance(s)) {
-    deductPoints(t.inCombat, s, 0, i16(s.breathMax * 100));
+    deductPoints(t, s, 0, i16(s.breathMax * 100));
     soldierCollapse(t, s);
   }
   if (s.sleepDrugCounter > 0) s.sleepDrugCounter--;

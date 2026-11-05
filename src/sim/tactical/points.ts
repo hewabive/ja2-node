@@ -5,7 +5,8 @@
 // @src CalcNewActionPoints (the boxing halving); the phobia terms of CalcActionPoints and EnoughPoints' waiting and
 // @src traversal exceptions (2026-11-01); the sleep dart, drug and INT8 terms of CalcActionPoints and
 // @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs, the INT16 breath of DeductPoints and
-// @src AdjustBreathPts, the robot's zapped breath costs of DeductPoints (2026-11-04).
+// @src AdjustBreathPts, the robot's zapped breath costs of DeductPoints, AdjustBreathPts' non-swimmer in deep water
+// @src (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -462,10 +463,23 @@ export function minAPsToStartMovement(content: TacticalContent, s: Soldier, mode
   return aps;
 }
 
-function adjustBreathPts(s: Soldier, cost: number): number {
+export interface BreathRules {
+  readonly inCombat: boolean;
+  readonly content: TacticalContent;
+}
+
+const SWIMMING_STATES = ['DEEP_WATER_TRED', 'DEEP_WATER_SWIM'];
+const NON_SWIMMER_BREATH_FACTOR = 5;
+
+function nonSwimmerInDeepWater(content: TacticalContent, s: Soldier): boolean {
+  return hasPersonality(s, Personality.NONSWIMMER) && SWIMMING_STATES.includes(stateName(content, s.state));
+}
+
+function adjustBreathPts(content: TacticalContent, s: Soldier, cost: number): number {
   let factor = 100 + (100 - s.breath);
   factor += idiv(100 * (s.lifeMax - effectiveLife(s)), s.lifeMax);
   if (s.stats.strength > 80) factor -= idiv(s.stats.strength - 80, 2);
+  if (nonSwimmerInDeepWater(content, s)) factor *= NON_SWIMMER_BREATH_FACTOR;
   if (factor === 0) return 0;
   return i16(cost > 0 ? idiv(cost * factor, 100) : idiv(cost * 100, factor));
 }
@@ -477,13 +491,13 @@ export function enoughPoints(inCombat: boolean, s: Soldier, apCost: number): boo
   return s.actionPoints - (inCombat ? apCost : 0) >= 0;
 }
 
-export function deductPoints(inCombat: boolean, s: Soldier, apCost: number, bpCost: number): void {
-  let ap = s.actionPoints - (inCombat ? apCost : 0);
+export function deductPoints(rules: BreathRules, s: Soldier, apCost: number, bpCost: number): void {
+  let ap = s.actionPoints - (rules.inCombat ? apCost : 0);
   if (ap < 0 && s.actionPoints > 0) ap = 0;
   s.actionPoints = Math.max(ap, -MAX_AP_DEBT);
   const cost = isRobot(s) ? 0 : i16(bpCost);
   if (!cost) return;
-  const regained = i16(-adjustBreathPts(s, cost));
+  const regained = i16(-adjustBreathPts(rules.content, s, cost));
   s.breathRed = Math.min(MAX_BREATH_RED, Math.max(0, i16(s.breathRed - regained)));
   let breath = i8(Math.trunc(Math.fround(s.breathMax - Math.fround(s.breathRed / 100))));
   if (breath > 100) breath = 100;
@@ -534,7 +548,7 @@ export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolea
       if (moved > 0) change += moved;
       if (change < 0) change = 0;
     }
-    deductPoints(ctx.inCombat, s, 0, change);
+    deductPoints(ctx, s, 0, change);
     s.tilesMovedPerRTBreathUpdate = 0;
     return;
   }
@@ -545,7 +559,7 @@ export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolea
     perAP = idiv(perAP * 100, adjustment());
     change = i16((s.actionPoints - MAX_AP_CARRIED) * perAP);
   }
-  deductPoints(ctx.inCombat, s, 0, bpEffectDueToDrugs(s, change));
+  deductPoints(ctx, s, 0, bpEffectDueToDrugs(s, change));
 }
 
 export function maxActionPoints(bodyType: number): number {

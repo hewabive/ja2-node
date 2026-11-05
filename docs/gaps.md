@@ -17,7 +17,6 @@ The loaded sector: doors, sight, walking, combat, items, explosions, the AI and 
 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
-| Walking side effects | Per step: slipping on marbles (`Tactical/Overhead.cc:1477`), the FORGETFUL stop (`:1526`), swimming and water damage (`Tactical/Soldier_Control.cc:2035`) with a non-swimmer's breath cost ×5 in deep water (`Tactical/Points.cc:609`), the sneaking agility gain, the follower speed and a blood trail (`Tactical/Overhead.cc:1769`) | Only the blind and drunk falls (`falls.ts`), the suspicious ground before a step and after an arrival (`bombs/mine-detection.ts`) and, at the arrival on a tile, the walk-off return, the breath collapse and the mines (`handleAtNewGridNo`, `movement.ts`); water only turns running into walking; `adjustBreathPts` (`points.ts`) has no non-swimmer factor | Adds `Random` and `PreRandom` draws per step; the marbles come before the falls and draw nothing before a slip, so the falls keep their draws in order except on a tile with marbles |
 | Turn-based hooks | Vehicle soldiers in tactical | None (`turns/turns.ts`) | "Ground vehicles" |
 | Combat AI specials | A tank's look-around in RED (`TacticalAI/DecideAction.cc:2291`); AI knife throws | None (`ai/combat-decide.ts`, `ai/control.ts`): a tank in RED ends its decision, a `THROW_KNIFE` action is cancelled | The tank's turn adds draws |
 | Action points and phobias | The vehicle bonus of 35 APs (`Tactical/Soldier_Control.cc:409`) | None (`calcActionPoints`, `points.ts`) | Comes with "Ground vehicles" |

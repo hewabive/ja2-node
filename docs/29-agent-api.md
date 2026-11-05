@@ -395,7 +395,12 @@ he walks or swats backwards facing away from his path, or side-steps when he fac
 body without those states, as a civilian escort's, pays the first step and stays where he is (`06`). A blinded merc who
 runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls where he stands with some
 APs lost, the move ends there, and `fellDown {soldier, cause: blind|drunk}` brings his CURSE1 and the original's line,
-for our soldiers and those the squad sees (deviation "Falls out of sight").
+for our soldiers and those the squad sees (deviation "Falls out of sight"). Marbles on a floor or road tile, hidden ones
+too, make anyone slip there the same way and are gone: `slippedOnMarbles {soldier}`, with the line for our mercs only.
+A FORGETFUL merc may stop on the way with his personality line once he has walked 200 tiles since he last forgot. In
+deep water a soldier swims and treads; a non-swimmer loses breath five times as fast there, and medium or deep water
+damages items and washes camouflage off (`camoWashedOff {soldier}`). A merc waiting on a squad mate walks at the mate's
+speed until he stops at his destination (`07`).
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's

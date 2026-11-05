@@ -173,7 +173,7 @@ export function soldierGiveItemFromAnimation(t: TacticalState, s: Soldier): void
   const object = cloneObject(temp);
   s.tempObject = null;
   const slot = s.pendingGive?.slot ?? NO_SLOT;
-  deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
+  deductPoints(t, s, AP.PICKUP_ITEM, 0);
   const target = verifyGiveItem(t, s);
   s.pendingGive = null;
   if (target) {

@@ -9,7 +9,9 @@
 // @src EVENT_InternalGetNewSoldierPath, the door-step halt of HandleGotoNewGridNo and HandleNextTileWaiting's forced swap
 // @src through SwapMercPositions (2026-11-01); the place of the blind and drunk falls after the gas check (2026-11-04);
 // @src HandleAtNewGridNo's walk-off return, breath collapse and mines (2026-11-04); the CheckIfNearbyGroundSeemsWrong of
-// @src HandleGotoNewGridNo (the next tile) and HandleAtNewGridNo (the tiles around, 2026-11-04).
+// @src HandleGotoNewGridNo (the next tile) and HandleAtNewGridNo (the tiles around, 2026-11-04); the place of the marbles
+// @src and the FORGETFUL stop after the gas check, SetSoldierGridNo's water and sneaking, the swim of
+// @src EVENT_InternalGetNewSoldierPath, SetDelayedTileWaiting's and EVENT_StopMerc's fUseMoverrideMoveSpeed (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -44,6 +46,7 @@ import { interactWithDoorAt } from './doors/door-actions.ts';
 import { handleDoorChangeFromGridNo } from './doors.ts';
 import { cancelFadeOutAwayFromStart } from './fade.ts';
 import { tripsAndFalls } from './falls.ts';
+import { forgetsTheWay } from './forgetful.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
@@ -62,6 +65,7 @@ import { addMercStructure, removeMercStructure, validCreatureTurn } from './pers
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
 import { handleWaitActionOnArrival } from './sector-exit.ts';
 import { dropSmell } from './smell.ts';
+import { sneakPastUnawareEnemies } from './sneak-past.ts';
 import {
   Body,
   cellCentre,
@@ -78,6 +82,7 @@ import {
 } from './soldier.ts';
 import { onVisibleWorldTile, placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 import { findGridNoFromSweetSpot, findGridNoFromSweetSpotThroughPeople } from './sweet-spots.ts';
+import { handleWaterOnNewGridNo, moveStateInWater } from './swimming.ts';
 import { swapMercPositions } from './teleport.ts';
 
 export const MoveTile = { CLEAR: 0, TEMP_BLOCKED: -1, STATIONARY_BLOCKED: -2 } as const;
@@ -162,10 +167,12 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   placeOccupant(t, s);
   s.placed = true;
   addMercStructure(t, s);
+  const terrainLeft = s.overTerrain;
   s.overTerrain = t.world.terrain[g] ?? 0;
-  if (isWater(t.pathWorld, g)) s.uiMovementMode = states(t.content.animations).WALKING;
-  setSoldierAniSpeed(t, s);
+  handleWaterOnNewGridNo(t, s, terrainLeft);
   t.hooks.enteredGridNo(t, s, g);
+  sneakPastUnawareEnemies(t, s, g);
+  setSoldierAniSpeed(t, s);
 }
 
 function isMovingState(t: TacticalState, state: number): boolean {
@@ -211,6 +218,7 @@ export function stopMerc(t: TacticalState, s: Soldier): void {
     s.turningToShoot = false;
     reduceAttackBusyCount(t, s, false);
   }
+  if (s.gridNo === s.finalDestination) s.useOverrideMoveSpeed = false;
   unmarkMovementReserved(t, s);
 }
 
@@ -220,10 +228,24 @@ function setFinalTile(t: TacticalState, s: Soldier, givenUp: boolean): void {
   stopMerc(t, s);
 }
 
+function soldierHoldingUp(t: TacticalState, g: number, level: number): Soldier | null {
+  const reservedBy = t.reserved[g] ?? -1;
+  if (reservedBy !== -1) return t.soldiers[reservedBy] ?? null;
+  return whoIsThere(t, g, level);
+}
+
+function followAtTheirSpeed(t: TacticalState, s: Soldier, g: number): void {
+  const leader = soldierHoldingUp(t, g, s.level);
+  if (!leader || leader.team !== Team.OUR || s.team !== Team.OUR) return;
+  s.overrideMoveSpeed = leader.id;
+  s.useOverrideMoveSpeed = true;
+}
+
 export function setDelayedTileWaiting(t: TacticalState, s: Soldier, cause: number, value: number): void {
   s.delayedMovement = value;
   s.delayedMovementCause = cause;
   s.nextTileCheckAt = t.clockMs + NEXT_TILE_CHECK_DELAY;
+  followAtTheirSpeed(t, s, cause);
 }
 
 export function setSoldierDestination(t: TacticalState, s: Soldier, direction: number, animState: number, initialMove = false): void {
@@ -373,7 +395,8 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
   }
   if (t.hooks.runningIntoGas(t, s)) return { ok: true, keepMoving: false };
   if (tripsAndFalls(t, s)) return { ok: false, keepMoving: true };
-  if (!stepPaidBeforeGettingUpToTurn(t, s, animState)) deductPoints(t.inCombat, s, ap, bp);
+  if (forgetsTheWay(t, s)) return { ok: true, keepMoving: !stoppedBySuspiciousGround };
+  if (!stepPaidBeforeGettingUpToTurn(t, s, animState)) deductPoints(t, s, ap, bp);
   reverseCreatureThatCannotTurn(t, s, direction);
   setSoldierDestination(t, s, direction, animState, initial);
   adjustNoAPToFinishMove(s, false);
@@ -452,9 +475,10 @@ export function getNewSoldierPath(
     s.path = [route.steps[0] ?? 0, ...route.steps.slice(0, MAX_PATH_LIST_SIZE - 1)];
     s.pathIndex = 0;
     s.pathSize = route.length === MAX_PATH_LIST_SIZE ? MAX_PATH_LIST_SIZE : route.length + 1;
-    if (s.uiMovementMode !== s.state) {
+    const moveState = moveStateInWater(t, s, s.uiMovementMode);
+    if (moveState !== s.state) {
       s.dontUpdateNewGridNoOnMoveAnimChange = 1;
-      initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
+      initNewSoldierAnim(t, s, moveState, 0, false);
     }
     return true;
   }
@@ -468,7 +492,7 @@ export function getNewSoldierPath(
   s.finalDestination = dest;
   s.pastX = false;
   s.pastY = false;
-  startMoveAnimation(t, s, moveState, forceRestart);
+  startMoveAnimation(t, s, moveStateInWater(t, s, moveState), forceRestart);
   return true;
 }
 

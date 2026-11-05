@@ -29,7 +29,7 @@ export function soldierInventoryContext(t: TacticalState, s: Soldier): Inventory
     items: t.content.items,
     inCombat: t.inCombat,
     actionPoints: () => s.actionPoints,
-    spendActionPoints: (ap) => deductPoints(t.inCombat, s, ap, 0),
+    spendActionPoints: (ap) => deductPoints(t, s, ap, 0),
     dropAtFeet: (o: ItemObject) => {
       addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level);
     },

@@ -394,7 +394,7 @@ export function handleBladeAttack(t: TacticalState, s: Soldier, g: number): numb
 
 export function handleTentacleAttack(t: TacticalState, s: Soldier, g: number): number {
   t.turn.attackBusyCount++;
-  deductPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
+  deductPoints(t, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
   initNewSoldierAnim(t, s, anim(t.content, 'QUEEN_SWIPE'), 0, false);
   s.ai.action = AiAction.KNIFE_STAB;
   return ItemHandle.OK;
@@ -497,7 +497,7 @@ export function noticeStrike(s: Soldier, tgt: Soldier): void {
 }
 
 export function useBlade(t: TacticalState, s: Soldier, g: number): void {
-  deductPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
+  deductPoints(t, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
   const tgt = whoIsThere(t, g, s.targetLevel);
   if (tgt) {
     noticeStrike(s, tgt);
@@ -528,7 +528,7 @@ export function useBlade(t: TacticalState, s: Soldier, g: number): void {
 }
 
 export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
-  deductPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
+  deductPoints(t, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
   const tgt = whoIsThere(t, g, s.targetLevel);
   if (tgt) {
     noticeStrike(s, tgt);

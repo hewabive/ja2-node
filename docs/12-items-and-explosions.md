@@ -30,6 +30,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
+| `swimming.ts` | Water damage on a medium or deep tile: soaked items, washed-off camouflage, rinsed creature smell (`07` §2) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
 | `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts`, `bombs/mine-detection.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items; the suspicious ground (§6) |
 | `booby-traps.ts`, `prompts.ts` | A pickup's booby trap and its disarm box; the tactical prompt and the globals its answers read (§6) |
@@ -393,9 +394,8 @@ checked against the native build: the wire cutters, the jar and the tin can. Wit
 `TAKE_BLOOD_FROM_CORPSE` scripts. Not ported: a corpse that vanishes during the jar's animation (an explosion) gives
 human blood here, where the original reads the type its freed slot still holds.
 
-Not ported: gaps "Map items" (the pits), "Ground vehicles" (the toolkit and the gas can), "Auto-bandage",
-"Walking side effects" (water damage to items). Other deviations of this domain: "Object union", "Item cursor", "Key
-ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
-pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
-draws in explosions", "Wall decals after a load", "Drugs in the projection", "Mine locator", "Blue flag without a
-bomb".
+Not ported: gaps "Map items" (the pits), "Ground vehicles" (the toolkit and the gas can), "Auto-bandage". Other
+deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
+"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
+and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",
+"Drugs in the projection", "Mine locator", "Blue flag without a bomb".

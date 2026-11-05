@@ -28,14 +28,14 @@ function directionToSwitch(t: TacticalState, s: Soldier): number {
 export function executePullTrigger(t: TacticalState, s: Soldier): void {
   t.gameEvents.push({ kind: 'desiredDirection', soldier: s.id, direction: directionToSwitch(t, s) });
   initNewSoldierAnim(t, s, anim(t.content, PULL_SWITCH_STATE), 0, false);
-  deductPoints(t.inCombat, s, AP.PULL_TRIGGER, NO_BREATH_COST);
+  deductPoints(t, s, AP.PULL_TRIGGER, NO_BREATH_COST);
   t.panic.chosenOne = null;
 }
 
 export function executeUseDetonator(t: TacticalState, s: Soldier): void {
   const ai = s.ai;
   t.panic.chosenOne = null;
-  deductPoints(t.inCombat, s, AP.USE_REMOTE, BP.USE_DETONATOR);
+  deductPoints(t, s, AP.USE_REMOTE, BP.USE_DETONATOR);
   setOffPanicBombs(t, s, FIRST_PANIC_TRIGGER);
   ai.actionData = NOWHERE;
   ai.lastAction = ai.action;

@@ -131,7 +131,7 @@ function mergeObjects(
   const items = t.content.items;
   if (merge.action !== MergeAction.COMBINE_POINTS) {
     if (!enoughPoints(t.inCombat, s, AP.MERGE)) return 'noAPs';
-    deductPoints(t.inCombat, s, AP.MERGE, 0);
+    deductPoints(t, s, AP.MERGE, 0);
   }
   switch (merge.action) {
     case MergeAction.COMBINE_POINTS:

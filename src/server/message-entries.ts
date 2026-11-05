@@ -16,7 +16,8 @@
 // @src CanExchangePlaces names the NPC who refuses to move; Interface_Items.cc HandleItemPointerClick
 // @src (MSG_ITEM_PASSED_TO_MERC, MSG_NO_ROOM_TO_PASS_ITEM with the item's short name and the catcher, 2026-11-03);
 // @src Drugs_And_Alcohol.cc ApplyDrugs (MSG_DRANK_SOME with the drink's short name, MSG_MERC_TOOK_DRUG, 2026-11-04);
-// @src Overhead.cc HandleGotoNewGridNo (STR_LATE_37 of the blind and the drunk fall, 2026-11-04); Handle_Items.cc
+// @src Overhead.cc HandleGotoNewGridNo (STR_LATE_37 of the blind and the drunk fall, STR_SLIPPED_MARBLES of our merc
+// @src who slips on marbles, 2026-11-04); Items.cc WaterDamage (STR_CAMO_WASHED_OFF, 2026-11-04); Handle_Items.cc
 // @src SwitchMessageBoxCallBack (STR_LATE_58, 2026-11-04).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
@@ -95,7 +96,9 @@ const NS_SOLDIER_EQUIPS_ITEM = 0;
 const NS_SOLDIER_REMOVES_ITEM = 1;
 const GUN_GOT_FINGERPRINT = 111;
 const STR_CAMO_WORN_OFF = 30;
+const STR_CAMO_WASHED_OFF = 31;
 const STR_STOLE_SOMETHING = 33;
+const STR_SLIPPED_MARBLES = 50;
 const STR_FAILED_TO_STEAL_SOMETHING = 51;
 const STR_LATE_37 = 36;
 const STR_LATE_58 = 57;
@@ -247,6 +250,10 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [text(facts.soldierName(e.soldier))])],
   firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],
   fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [text(facts.soldierName(e.soldier))])],
+  slippedOnMarbles: (e, facts) =>
+    facts.soldierTeam(e.soldier) === OUR_TEAM
+      ? [line('Message', STR_SLIPPED_MARBLES, [text(facts.soldierName(e.soldier))], 'uiFeedback')]
+      : [],
   switchActivated: () => [line('gzLateLocalizedString', STR_LATE_58)],
   stopped: (e, facts) =>
     e.reason === 'outOfAPs' && facts.soldierTeam(e.soldier) === OUR_TEAM
@@ -259,6 +266,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   mercArrived: (e, facts) => [line('TacticalStr', 80, [text(facts.soldierName(e.soldier) ?? facts.profileName(e.profile))])],
   historyAdded: () => [line('pMessageStrings', 67)],
   camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [text(facts.soldierName(e.soldier))])],
+  camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [text(facts.soldierName(e.soldier))])],
   stealAttempt: (e, facts) => [
     line('Message', e.result === 'failed' ? STR_FAILED_TO_STEAL_SOMETHING : STR_STOLE_SOMETHING, [
       text(facts.soldierName(e.soldier)),

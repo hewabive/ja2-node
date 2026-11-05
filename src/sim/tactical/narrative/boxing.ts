@@ -73,7 +73,7 @@ function calmBoxerDown(t: TacticalState, s: Soldier): void {
   s.ai.underFire = 0;
   if (s.life > 0 && (s.life < OKLIFE || s.breath < OKBREATH)) {
     s.life = Math.max(OKLIFE * 2, s.life);
-    if (s.breath < FULL_BREATH) deductPoints(t.inCombat, s, 0, -BREATH_REFILL_SCALE * (FULL_BREATH - s.breath));
+    if (s.breath < FULL_BREATH) deductPoints(t, s, 0, -BREATH_REFILL_SCALE * (FULL_BREATH - s.breath));
     beginSoldierGetup(t, s);
   }
 }

@@ -470,10 +470,10 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   const d = def(t, item);
   const hand = s.inv[InvSlot.HAND] as ItemObject;
   if (s.doBurst) {
-    if (s.doBurst === 1) deductPoints(t.inCombat, s, ap, 0);
+    if (s.doBurst === 1) deductPoints(t, s, ap, 0);
   } else if (isValidSecondHandShot(items, s) && (hand.status[0] ?? 0) >= USABLE_STATUS && hand.gunAmmoStatus > 0) {
-    if (s.attackingHand === InvSlot.HAND) deductPoints(t.inCombat, s, ap, 0);
-  } else deductPoints(t.inCombat, s, ap, 0);
+    if (s.attackingHand === InvSlot.HAND) deductPoints(t, s, ap, 0);
+  } else deductPoints(t, s, ap, 0);
   const pos = getTargetWorldPositions(t, s, target);
   const knife = d?.itemClass === ItemClass.THROWING_KNIFE;
   const chance = inMeanwhile(t)

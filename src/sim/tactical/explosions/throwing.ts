@@ -220,7 +220,7 @@ export function releaseThrow(t: TacticalState, s: Soldier): RealObject | null {
   const params = t.explosives.throwParams.get(s.id);
   if (!s.tempObject || !params) return null;
   const ap = params.action === ThrowAction.ARM_ITEM ? minAPsToThrow(t, s, s.targetGridNo) : AP_TOSS_ITEM;
-  deductPoints(t.inCombat, s, ap, 0);
+  deductPoints(t, s, ap, 0);
   return launchTempObject(t, s, s.tempObject, params);
 }
 
@@ -283,7 +283,7 @@ export function useLauncher(t: TacticalState, s: Soldier, g: number): RealObject
   const chance = calcThrownChanceToHit(t, s, g, s.aimTime);
   const roll = t.pre.int(100);
   const ap = itemDef(t, s.attackingWeapon)?.itemClass === ItemClass.LAUNCHER ? minAPsToAttack(t, s, g, true) : minAPsToThrow(t, s, g);
-  deductPoints(t.inCombat, s, ap, 0);
+  deductPoints(t, s, ap, 0);
   const params = calculateLaunchItemParamsForThrow(
     t,
     s,

@@ -221,6 +221,12 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('names the soldier whose camouflage the water washed off with STR_CAMO_WASHED_OFF', () => {
+    expect(messageEntriesOf([at({ type: 'camoWashedOff', soldier: 1 })], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 31, args: [{ text: 'Fox' }] },
+    ]);
+  });
+
   it('prints a steal with the thief and the short name of the item, a knocked-away item as stolen too', () => {
     const steal = (result: 'grabbed' | 'dropped' | 'failed') => at({ type: 'stealAttempt', soldier: 1, target: 20, item: 7, result });
     const args = [{ text: 'Fox' }, { item: 7, name: 'short' }];
@@ -269,6 +275,13 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(messageEntriesOf([fell(1, 'drunk'), fell(20, 'blind')], facts)).toEqual([
       { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Fox' }] },
       { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Soldier' }] },
+    ]);
+  });
+
+  it('prints STR_SLIPPED_MARBLES as UI feedback with the name of our merc who slips on marbles, and nothing for anyone else', () => {
+    const slipped = (soldier: number) => at({ type: 'slippedOnMarbles', soldier });
+    expect(messageEntriesOf([slipped(1), slipped(20)], facts)).toEqual([
+      { tick: 40, kind: 'uiFeedback', colour: 144, table: 'Message', index: 50, args: [{ text: 'Fox' }] },
     ]);
   });
 

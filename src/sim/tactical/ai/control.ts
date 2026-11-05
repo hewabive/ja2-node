@@ -437,12 +437,12 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
     case AiAction.RED_ALERT:
     case AiAction.YELLOW_ALERT:
       if (ai.action === AiAction.RED_ALERT && s.team !== Team.OUR && redAlertIsInitial(t, s.team)) handleInitialRedAlert(t, s.team);
-      deductPoints(t.inCombat, s, AP.RADIO, 0);
+      deductPoints(t, s, AP.RADIO, 0);
       radioSightings(t, s, null, s.team);
       aiDecideRadioAnimation(t, s);
       return true;
     case AiAction.CREATURE_CALL:
-      deductPoints(t.inCombat, s, AP.RADIO, 0);
+      deductPoints(t, s, AP.RADIO, 0);
       creatureCall(t, s);
       return true;
     case AiAction.PULL_TRIGGER:

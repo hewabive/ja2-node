@@ -1415,6 +1415,32 @@ function addTileToolsTinCansAndXRay(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const TILES_MOVED_KEY = 'tilesMoved';
+const TILES_SINCE_FORGETTING_KEY = 'tilesMovedSinceLastForget';
+const NEXT_TILE_CHECK_KEY = 'nextTileCheckAt';
+const OVERRIDE_MOVE_SPEED_KEY = 'overrideMoveSpeed';
+const USE_OVERRIDE_MOVE_SPEED_KEY = 'useOverrideMoveSpeed';
+
+function withWalkingCounters(o: JsonObject): JsonObject {
+  const forgetting = insertAfter(o, TILES_MOVED_KEY, TILES_SINCE_FORGETTING_KEY, 0);
+  const speedOf = insertAfter(forgetting, NEXT_TILE_CHECK_KEY, OVERRIDE_MOVE_SPEED_KEY, 0);
+  return insertAfter(speedOf, OVERRIDE_MOVE_SPEED_KEY, USE_OVERRIDE_MOVE_SPEED_KEY, false);
+}
+
+function withSoldierWalkingCounters(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSoldierWalkingCounters(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSoldierWalkingCounters(v);
+  return isSoldierRecord(mapped) ? withWalkingCounters(mapped) : mapped;
+}
+
+function addForgetCountAndFollowerSpeed(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withSoldierWalkingCounters(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1466,5 +1492,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     47: addPendingDropBomb,
     48: addPanicStateAndKeysByte,
     49: addTileToolsTinCansAndXRay,
+    50: addForgetCountAndFollowerSpeed,
   };
 }

@@ -46,7 +46,7 @@ import {
 } from './inventory.ts';
 import type { AppliedSound, KeySpotView } from './inventory-events.ts';
 import { attachSucceeded, evaluateValidMerge, MergeAction, soldierAttachObject, validMerge } from './item-merge.ts';
-import { AP, deductPoints, enoughPoints } from './points.ts';
+import { AP, type BreathRules, deductPoints, enoughPoints } from './points.ts';
 import { Body, OKLIFE, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -166,6 +166,10 @@ export function takeObjects(items: ItemTable, o: ItemObject, count: Count, index
   return whole;
 }
 
+function breathRules(env: PanelEnv): BreathRules {
+  return { inCombat: env.inCombat, content: env.combat.content };
+}
+
 export function dryInventoryContext(items: ItemTable, inCombat: boolean, s: Soldier): InventoryContext {
   return {
     items,
@@ -201,8 +205,8 @@ export function transferCheckRefusal(env: PanelEnv, mover: Soldier, target: Sold
 
 export function chargeTransfer(env: PanelEnv, mover: Soldier, target: Soldier): void {
   if (mover === target) return;
-  if (mover.life >= CONSCIOUSNESS) deductPoints(env.inCombat, mover, TRANSFER_CHARGE_APS, 0);
-  if (target.life >= CONSCIOUSNESS) deductPoints(env.inCombat, target, TRANSFER_CHARGE_APS, 0);
+  if (mover.life >= CONSCIOUSNESS) deductPoints(breathRules(env), mover, TRANSFER_CHARGE_APS, 0);
+  if (target.life >= CONSCIOUSNESS) deductPoints(breathRules(env), target, TRANSFER_CHARGE_APS, 0);
 }
 
 function placementFits(env: PanelEnv, mover: Soldier, from: number, target: Soldier, to: number, count: Count, index: number): boolean {
@@ -369,7 +373,7 @@ export function attachmentsChanged(before: AttachmentSnapshot, after: Attachment
 }
 
 function chargeAttachmentChange(env: PanelEnv, payer: Soldier, before: AttachmentSnapshot, host: ItemObject): void {
-  if (env.inCombat && attachmentsChanged(before, attachmentSnapshot(host))) deductPoints(env.inCombat, payer, AP_RELOAD_GUN, 0);
+  if (env.inCombat && attachmentsChanged(before, attachmentSnapshot(host))) deductPoints(breathRules(env), payer, AP_RELOAD_GUN, 0);
 }
 
 export interface AttachRequest {
@@ -559,7 +563,7 @@ const CAMO: MercApplication = {
     const points = Math.min(idiv(FULL_CAMO - target.camo + 1, 2), totalPoints(o));
     target.camo = Math.min(target.camo + points * 2, FULL_CAMO);
     useKitPoints(o, points);
-    deductPoints(env.inCombat, target, AP.CAMOFLAGE, 0);
+    deductPoints(breathRules(env), target, AP.CAMOFLAGE, 0);
   },
 };
 
@@ -572,7 +576,7 @@ const CANTEEN: MercApplication = {
   },
   apply: (env, target, o) => {
     const points = Math.min(CANTEEN_POINTS_PER_DRINK, totalPoints(o));
-    deductPoints(env.inCombat, target, AP.DRINK, 2 * points * -(100 - target.breath));
+    deductPoints(breathRules(env), target, AP.DRINK, 2 * points * -(100 - target.breath));
     useKitPoints(o, points);
   },
   sound: (env, target) => ((env.combat.profiles.get(target.profile)?.sex ?? MALE) === MALE ? 'DRINK_CANTEEN_MALE' : 'DRINK_CANTEEN_FEMALE'),
@@ -585,7 +589,7 @@ const ELIXIR: MercApplication = {
     return enoughPoints(env.inCombat, target, AP.CAMOFLAGE) ? 'applies' : 'noAPs';
   },
   apply: (env, target, o) => {
-    deductPoints(env.inCombat, target, AP.CAMOFLAGE, 0);
+    deductPoints(breathRules(env), target, AP.CAMOFLAGE, 0);
     const points = Math.min((MAX_HUMAN_CREATURE_SMELL - target.monsterSmell) * 2, totalPoints(o));
     useKitPoints(o, points);
     target.monsterSmell += idiv(points, 2);

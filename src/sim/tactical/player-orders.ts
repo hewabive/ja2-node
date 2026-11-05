@@ -229,8 +229,8 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const refusal = exchangeRefusal(t, s, other);
   if (refusal) return refuseExchange(refusal, other);
   swapMercPositions(t, s, other);
-  deductPoints(t.inCombat, s, AP.EXCHANGE_PLACES, 0);
-  deductPoints(t.inCombat, other, AP.EXCHANGE_PLACES, 0);
+  deductPoints(t, s, AP.EXCHANGE_PLACES, 0);
+  deductPoints(t, other, AP.EXCHANGE_PLACES, 0);
   t.events.push({ type: 'placesSwapped', soldier: s.id, with: other.id, gridNo: s.gridNo });
   return { ok: true };
 }
@@ -312,7 +312,7 @@ function climbWindow(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   s.dontChargeTurningAPs = true;
   s.turningUntilDone = true;
   s.turningFromPronePosition = TurningFromProne.OFF;
-  deductPoints(t.inCombat, s, AP.JUMPFENCE, BP.JUMPFENCE);
+  deductPoints(t, s, AP.JUMPFENCE, BP.JUMPFENCE);
   teleportSoldier(t, s, to, true);
   return { ok: true, data: { to } };
 }

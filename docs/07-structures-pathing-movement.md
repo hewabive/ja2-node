@@ -38,6 +38,7 @@ every 5 ms tick: executeOverhead, soldiers in mercSlots     overhead.ts
 | `sweet-spots.ts` | The original's searches for a free tile near a sweet spot: a dummy soldier's reachability flood, then the closest candidate (plain, through people, with a structure fit, excluding the spot) |
 | `points.ts`, `plot-path.ts`, `ai/utils.ts` | AP and breath of a step (`actionPointCost`, `terrainBreathPoints`), of a path (`plotPathSteps` = `PlotPath`), the AI's estimates |
 | `movement.ts`, `overhead.ts` | The walking protocol: path orders, the tile step, blocking, reservations, waiting, stopping; the per-tick pass |
+| `falls.ts`, `forgetful.ts`, `swimming.ts`, `sneak-past.ts` | What a step may bring: marbles and falls, the FORGETFUL stop, water, the sneaking agility gain |
 | `teleport.ts` | A teleport with its look and roof reveal; the swap of two soldiers |
 | `animation.ts`, `roofs.ts`, `jump-over.ts` | Turning, the fence hop; climbing roofs and jumping over a prone soldier, separate actions |
 
@@ -99,15 +100,31 @@ stops (`12` §6). The landing behind a jumped fence sets off the mines of its ti
 checks the tile ahead for a mine before each step, and the tiles around after the arrival's sight; one who notices a
 mine stops (`bombs/mine-detection.ts`, `12` §6).
 
-**Falls.** From the second step of a move, after the gas check, a blinded runner and then a soldier who is DRUNK
-(`12` §5) may trip over (`tripsAndFalls`, `falls.ts`; `Tactical/Overhead.cc:1499`): he collapses where he stands, loses
-some APs and the move ends there. The player hears his curse and reads the original's line through `fellDown`, only for
-our soldiers and those the squad sees (deviation "Falls out of sight").
+**Falls.** From the second step of a move, after the gas check, a soldier on a floor or road tile of the ground level
+that holds marbles (any of the pool's items, hidden ones too) slips: the marbles are gone, he collapses and loses some
+APs (`Tactical/Overhead.cc:1477`). Otherwise a blinded runner and then a soldier who is DRUNK (`12` §5) may trip over
+(`tripsAndFalls`, `falls.ts`; `:1499`): he collapses where he stands, loses some APs and the move ends there. The player
+hears the curse through `slippedOnMarbles` and `fellDown`, only for our soldiers and those the squad sees (deviation
+"Falls out of sight"); the marbles' line is for our mercs alone. With no fall, our FORGETFUL merc counts the step, and
+from the third step of a move, once he has walked more than 200 tiles since he last forgot, may stop with his
+personality line and some APs lost (`forgetful.ts`, `:1526`).
 
-**Randomness.** The path search draws nothing. Walking draws only what the ported steps draw (the gas check's
-`PreRandom(5)`, the falls' `Random(5)` rolls with the fall itself, the trap detect level's `PreRandom(3)` of a bleeding
-or shocked soldier at both mine checks of a step, and the sight of a soldier a swap moves); the marbles and the forgetful
-counter are not ported, so their draws do not happen (gaps "Walking side effects").
+**Water and the rest of a new tile.** `setSoldierGridNo` (`movement.ts`, `Tactical/Soldier_Control.cc:2005`) updates
+the terrain and then, in the original's order, the water (`swimming.ts`: the forced walk, going under and coming up, the
+damage of `Tactical/Items.cc:3315`), the gas flag, the sneaking agility gain (`sneak-past.ts`) and the animation speed,
+which a merc waiting on a squad mate's tile borrows from him until he stops on his final tile (`setDelayedTileWaiting`).
+The original's `fPrevInWater` always equals the water test of the terrain left, so no flag is kept. A move started in
+deep water swims, a stop there treads, and a non-swimmer treading or swimming spends breath five times as fast
+(`deductPoints`, `points.ts`). A soldier bleeding past 12 drops blood at the middle of each tile
+(`handleBloodForNewGridNo`, `combat/bleeding.ts`).
+
+**Randomness.** The path search draws nothing. Walking draws what the ported steps draw: the gas check's
+`PreRandom(5)`, the slip's and the falls' `Random(AP)`, the falls' `Random(5)` rolls with the fall itself, the
+forgetful merc's `Random(100)` and `Random(AP)`, the trail's `Random(7)` with its drop's `Random(3)`, the water damage's
+`PreRandom(100)` per item and `Random(10)` or `Random(20)` for the smell, the sneaking gain's `PreRandom(100)` per
+chance, the trap detect level's `PreRandom(3)` of a bleeding or shocked soldier at both mine checks of a step, and the
+sight of a soldier a swap moves. The marbles draw nothing before a slip, so the falls keep their draws except on a tile
+with marbles.
 
 **Swaps.** The head-on swap of two blocked AI soldiers, the forced swap of a soldier's third wait and the player's
 exchange of places all go through `swapMercPositions` (`teleport.ts`): both destinations are tested, and the soldier
@@ -140,6 +157,10 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A soldier who leaves the sector during a pass makes the one after him miss that pass: the merc slots close up under the pass's index | `merc-slots.test.ts` |
 | A soldier moved one tile at a time never trips: the falls skip the first step of a move | `falls.test.ts` "rolls for neither fall on the first step …" |
 | A fall is rolled before its room is tested, on the tile the soldier faces, not the next of his path: where the path turns, a soldier on the faced tile keeps him up after the roll | `falls.test.ts` "tests for room to fall after the roll …" |
+| Hidden marbles trip a walker as well: the slip searches the whole pool | `falls.test.ts` "slips on hidden marbles too …" |
+| A forgetful merc moved one tile at a time never forgets: the count skips the first step of every move | `forgetful.test.ts` "counts the steps of a move from the second …" |
+| The forget die is rolled on every step from the third, before the count is tested, so it draws while the merc cannot forget | `forgetful.test.ts` "rolls Random(100) on every step from the third …" |
+| A soldier who goes under mid-step takes that step again from the tile he entered (his swim starts as a new move), so on a diagonal he swims a tile off his path and plans again; coming up does the same | `swimming.test.ts` "takes the step he went under on again …" |
 | Our merc may end a path on a tile marked for the player as holding a mine, though no path of his passes one; a militia soldier may not even end there | `pathfinding.test.ts` "keeps our merc off a tile with the player mine flag …", "keeps the rest of the friendly side off the tile …" |
 | The dummy soldier of a reachability flood is on the friendly side whatever its team, so the floods for sweet spots, edgepoints and items keep off the player's marked mines, never the enemy's | `pathfinding.test.ts` "floods a dummy soldier around the player mine flag …" |
 
@@ -157,8 +178,8 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 The oracle covers the cost table, paths and their AP cost, multi-tile creature paths (`13`), edgepoints and walking off
-the map (`16`). The walking protocol itself (frames per tile, reservations, waiting, swaps, re-planning, the falls) is
-not probed.
+the map (`16`). The walking protocol itself (frames per tile, reservations, waiting, swaps, re-planning, the falls, the
+marbles, the forgetful stop, swimming and the follower's speed) is not probed.
 Inferred from reading the source:
 - No shipped map has a structure on the array border, where the original's neighbour writes would wrap or overflow;
   `MovementCosts` drops writes outside the map and keeps the row wrap.
@@ -166,6 +187,6 @@ Inferred from reading the source:
 - `Math.atan2` gives the original's direction between tiles: integer deltas never fall on a sector boundary.
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
-Not ported: gaps "Walking side effects", "Doors", "Unseen soldiers in combat".
+Not ported: gaps "Doors", "Unseen soldiers in combat".
 Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and
 bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the loaded sector".

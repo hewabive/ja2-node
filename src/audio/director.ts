@@ -600,6 +600,7 @@ export class SoundDirector {
         this.#battleSound(e.soldier, 'NOTHING', false);
         return;
       case 'fellDown':
+      case 'slippedOnMarbles':
         this.#battleSound(e.soldier, 'CURSE1', false);
         return;
       case 'itemApplied':

@@ -607,6 +607,9 @@ export interface SoldierMotion {
   readonly dontUnsetLastTargetFromTurn: boolean;
   readonly tilesMovedPerRTBreathUpdate: number;
   readonly lastMovementAnimPerRTBreathUpdate: number;
+  readonly tilesMovedSinceLastForget: number;
+  readonly overrideMoveSpeed: number;
+  readonly useOverrideMoveSpeed: boolean;
   readonly pendingAction: number;
   readonly pendingActionData1: number;
   readonly pendingActionData2: number;
@@ -994,6 +997,9 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       dontUnsetLastTargetFromTurn: r.bool('fDontUnsetLastTargetFromTurn'),
       tilesMovedPerRTBreathUpdate: n('ubTilesMovedPerRTBreathUpdate'),
       lastMovementAnimPerRTBreathUpdate: n('usLastMovementAnimPerRTBreathUpdate'),
+      tilesMovedSinceLastForget: n('ubNumTilesMovesSinceLastForget'),
+      overrideMoveSpeed: n('bOverrideMoveSpeed'),
+      useOverrideMoveSpeed: r.bool('fUseMoverrideMoveSpeed'),
       pendingAction: n('ubPendingAction'),
       pendingActionData1: n('uiPendingActionData1'),
       pendingActionData2: n('sPendingActionData2'),

@@ -547,6 +547,9 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.dontUnsetLastTargetFromTurn = m.dontUnsetLastTargetFromTurn;
   s.tilesMovedPerRTBreathUpdate = m.tilesMovedPerRTBreathUpdate;
   s.lastMovementAnimPerRTBreathUpdate = m.lastMovementAnimPerRTBreathUpdate;
+  s.tilesMovedSinceLastForget = m.tilesMovedSinceLastForget;
+  s.overrideMoveSpeed = m.overrideMoveSpeed;
+  s.useOverrideMoveSpeed = m.useOverrideMoveSpeed;
   s.pendingActionData1 = m.pendingActionData1;
   s.pendingActionData2 = m.pendingActionData2;
   s.timeOfLastRandomAction = m.timeOfLastRandomAction;

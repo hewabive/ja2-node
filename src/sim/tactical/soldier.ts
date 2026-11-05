@@ -333,11 +333,14 @@ export interface Soldier {
   reverse: boolean;
   overTerrain: number;
   tilesMoved: number;
+  tilesMovedSinceLastForget: number;
 
   delayedMovement: number;
   delayedMovementCause: number;
   delayedMovementFlags: number;
   nextTileCheckAt: number;
+  overrideMoveSpeed: number;
+  useOverrideMoveSpeed: boolean;
   blockedByAnotherMerc: boolean;
   blockedByAnotherMercDirection: number;
   reservedGridNo: number;
@@ -687,10 +690,13 @@ export function createSoldier(init: SoldierInit): Soldier {
     reverse: false,
     overTerrain: 0,
     tilesMoved: 0,
+    tilesMovedSinceLastForget: 0,
     delayedMovement: 0,
     delayedMovementCause: NOWHERE,
     delayedMovementFlags: 0,
     nextTileCheckAt: 0,
+    overrideMoveSpeed: 0,
+    useOverrideMoveSpeed: false,
     blockedByAnotherMerc: false,
     blockedByAnotherMercDirection: 0,
     reservedGridNo: NOWHERE,

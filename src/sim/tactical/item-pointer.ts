@@ -116,8 +116,8 @@ function passFromPocket(t: TacticalState, giver: Soldier, catcher: Soldier, sour
 export function passItem(t: TacticalState, giver: Soldier, catcher: Soldier, source: ItemSource): PassRefusal | PassOutcome {
   const refusal = passRefusal(t, giver, catcher);
   if (refusal) return refusal;
-  deductPoints(t.inCombat, catcher, AP_PASS_ITEM, 0);
-  deductPoints(t.inCombat, giver, AP_PASS_ITEM, 0);
+  deductPoints(t, catcher, AP_PASS_ITEM, 0);
+  deductPoints(t, giver, AP_PASS_ITEM, 0);
   const passed = isRingSource(source) ? passFromRing(t, giver, catcher, source) : passFromPocket(t, giver, catcher, source);
   return { passed };
 }

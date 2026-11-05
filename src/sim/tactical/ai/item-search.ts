@@ -157,7 +157,7 @@ export function searchForItems(t: TacticalState, s: Soldier, reason: number, wan
     const hand = s.inv[InvSlot.HAND] as ItemObject;
     if (hand.flags & ObjectFlags.UNDROPPABLE) {
       deleteObject(hand);
-      deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
+      deductPoints(t, s, AP.PICKUP_ITEM, 0);
     } else {
       s.ai.nextAction = AiAction.PICKUP_ITEM;
       s.ai.nextActionData = bestSpot;

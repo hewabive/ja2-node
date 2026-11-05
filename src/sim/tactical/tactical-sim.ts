@@ -900,7 +900,7 @@ export class TacticalSim {
     const item = isRingSource(source) ? NOTHING : itemIn(s.inv, source.slot);
     const dropped = takeSourceObject(t.content, s, source) as ItemObject;
     if (!isRingSource(source)) handleTacticalEffectsOfEquipmentChange(t, s, source.slot, item, NOTHING);
-    deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
+    deductPoints(t, s, AP.PICKUP_ITEM, 0);
     if (beside) soldierDropObjectBeside(t, s, dropped, g);
     else soldierDropObject(t, s, dropped);
     return { ok: true };
@@ -977,8 +977,8 @@ export class TacticalSim {
   #pressStatueRemote(s: Soldier): CommandResult {
     const t = this.state;
     if (!enoughPoints(t.inCombat, s, AP_USE_REMOTE)) return refuse('notEnoughAP', `not enough APs: ${AP_USE_REMOTE} needed`);
-    deductPoints(t.inCombat, s, AP_USE_REMOTE, 0);
-    if (height(t.content, s.state) === AnimHeight.STAND) deductPoints(t.inCombat, s, AP_USE_REMOTE, 0);
+    deductPoints(t, s, AP_USE_REMOTE, 0);
+    if (height(t.content, s.state) === AnimHeight.STAND) deductPoints(t, s, AP_USE_REMOTE, 0);
     const result = pressStatueRemote(t, s);
     return { ok: true, data: { result } };
   }

@@ -190,7 +190,7 @@ export function soldierDressWound(t: TacticalState, medic: Soldier, victim: Sold
   const actual = u32(dressing.actual - left);
   let usedAPs = u32(udiv(u32(Math.imul(actual, available)), possible));
   if (medicKit) usedAPs = idiv(usedAPs * 2, 3);
-  deductPoints(t.inCombat, medic, i16(usedAPs), i16(usedAPs * BP_PER_AP.LT_EFFORT));
+  deductPoints(t, medic, i16(usedAPs), i16(usedAPs * BP_PER_AP.LT_EFFORT));
   if (medic.team === Team.OUR) {
     statChange(t, medic, StatKind.MEDICAL, idiv(actual, 2), StatCause.SUCCESS);
     statChange(t, medic, StatKind.DEXTERITY, idiv(actual, 6), StatCause.SUCCESS);

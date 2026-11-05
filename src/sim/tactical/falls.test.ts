@@ -2,13 +2,16 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import type { SimEvent } from '../events.ts';
+import { createItem } from '../items/object.ts';
 import { animName } from './anim-states.ts';
 import { AnimHeight, endHeight, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
+import { addItemToPool, itemsAt, Visibility } from './world-items.ts';
 
 let content: TacticalContent;
 
@@ -175,5 +178,67 @@ describe('falls on the way (Overhead.cc HandleGotoNewGridNo, after the gas check
     const events = stepUntilFall(w);
     expect([w.s.collapsed, w.s.visible]).toEqual([true, Visible.HIDDEN]);
     expect(fellDown(events)).toEqual([]);
+  });
+});
+
+const slipped = (events: readonly SimEvent[]) => events.filter((e) => e.type === 'slippedOnMarbles');
+
+function marblesAt(w: Walker, g: number, visibility: number = Visibility.VISIBLE, level = 0): void {
+  const marbles = content.items.byName.get('MARBLES')?.index ?? 0;
+  addItemToPool(w.sim.state, g, createItem(content.items, marbles, 100), visibility, level);
+}
+
+function floorAt(w: Walker, ...tiles: number[]): void {
+  for (const g of tiles) w.sim.state.world.terrain[g] = Terrain.FLAT_FLOOR;
+}
+
+const marblesLeft = (w: Walker, g: number) =>
+  itemsAt(w.sim.state, g, 0).filter((wi) => wi.object.item === content.items.byName.get('MARBLES')?.index).length;
+
+describe('marbles on the way (Overhead.cc HandleGotoNewGridNo, before the falls)', () => {
+  it('slips a merc on marbles on a floor tile he reached: slippedOnMarbles, the marbles gone, the collapse and Random(AP) + 1 APs lost, no fall die rolled', () => {
+    const w = drunk(walker());
+    floorAt(w, ORIGIN + EAST);
+    marblesAt(w, ORIGIN + EAST);
+    expect(slipped(walkUntilFall(w, ORIGIN + 3 * EAST))).toEqual([expect.objectContaining({ type: 'slippedOnMarbles', soldier: 0 })]);
+    expect([w.s.gridNo, w.s.collapsed, animName(content, w.s.state)]).toEqual([ORIGIN + EAST, true, 'FALLFORWARD_FROMHIT_STAND']);
+    expect(marblesLeft(w, ORIGIN + EAST)).toBe(0);
+    expect(fallRollsDrawn(w)).toBe(0);
+    const lost = w.draws[ranges(w).indexOf(TRYING_TO_FALL_DIE) + 1] as Draw;
+    expect(w.s.actionPoints).toBe(lost.range - (lost.value + 1));
+  });
+
+  it('slips on hidden marbles too: the pool is searched whatever the items are shown', () => {
+    const w = walker();
+    floorAt(w, ORIGIN + EAST);
+    marblesAt(w, ORIGIN + EAST, Visibility.HIDDEN_ITEM);
+    expect(slipped(walkUntilFall(w, ORIGIN + 3 * EAST))).toHaveLength(1);
+    expect(w.s.gridNo).toBe(ORIGIN + EAST);
+  });
+
+  it('slips only from the second step of a move and on a floor or a road: never on the marbles he sets out from, never on grass', () => {
+    const fromTheMarbles = walker();
+    floorAt(fromTheMarbles, ORIGIN);
+    marblesAt(fromTheMarbles, ORIGIN);
+    go(fromTheMarbles, ORIGIN + 3 * EAST);
+    expect([fromTheMarbles.s.gridNo, marblesLeft(fromTheMarbles, ORIGIN)]).toEqual([ORIGIN + 3 * EAST, 1]);
+    const onGrass = walker();
+    marblesAt(onGrass, ORIGIN + EAST);
+    expect(slipped(go(onGrass, ORIGIN + 3 * EAST))).toEqual([]);
+    expect(onGrass.s.gridNo).toBe(ORIGIN + 3 * EAST);
+    const onRoad = walker();
+    onRoad.sim.state.world.terrain[ORIGIN + EAST] = Terrain.PAVED_ROAD;
+    marblesAt(onRoad, ORIGIN + EAST);
+    expect(slipped(go(onRoad, ORIGIN + 3 * EAST))).toHaveLength(1);
+  });
+
+  it('slips an unseen enemy without telling the player', () => {
+    const w = walker({ team: Team.ENEMY });
+    floorAt(w, ORIGIN + EAST);
+    marblesAt(w, ORIGIN + EAST);
+    getNewSoldierPath(w.sim.state, w.s, ORIGIN + 3 * EAST, states(content.animations).WALKING);
+    const events = stepUntilFall(w);
+    expect([w.s.collapsed, w.s.visible, marblesLeft(w, ORIGIN + EAST)]).toEqual([true, Visible.HIDDEN, 0]);
+    expect(slipped(events)).toEqual([]);
   });
 });

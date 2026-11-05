@@ -1,13 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount, the dying quote and the bleeding
-// @src warning; the patient being bandaged or doctored, 2026-11-01), SoldierBleed, CalcSoldierNextBleed.
+// @src warning; the patient being bandaged or doctored, 2026-11-01), SoldierBleed, CalcSoldierNextBleed; Overhead.cc
+// @src HandleBloodForNewGridNo (2026-11-04).
 
 import { idiv } from '../../../core/int.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
 import { profileProgress } from '../profiles.ts';
 import { effectiveLife } from '../skills.ts';
-import { BLOOD_DIVISOR, MAX_BLOOD_QUANTITY } from '../smell.ts';
+import { BLOOD_DIVISOR, dropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { soldierTakeDamage } from './hit.ts';
@@ -41,9 +42,21 @@ function loseLifeMaxWhileDying(t: TacticalState, s: Soldier): void {
 
 export const NO_BLOOD = 40;
 
+function bloodOfWound(s: Soldier): number {
+  return Math.min(idiv(s.bleeding - MIN_BLEEDING_THRESHOLD, BLOOD_DIVISOR), MAX_BLOOD_QUANTITY);
+}
+
 function bleedingBlood(s: Soldier): number {
   if (s.tilesMoved >= 1) return NO_BLOOD;
-  return Math.min(idiv(s.bleeding - MIN_BLEEDING_THRESHOLD, BLOOD_DIVISOR), MAX_BLOOD_QUANTITY);
+  return bloodOfWound(s);
+}
+
+const TRAIL_BLOOD_SPREAD = 7;
+
+export function handleBloodForNewGridNo(t: TacticalState, s: Soldier): void {
+  if (s.bleeding <= MIN_BLEEDING_THRESHOLD) return;
+  const blood = bloodOfWound(s) - t.rng.int(TRAIL_BLOOD_SPREAD);
+  if (blood >= 0) dropBlood(t, s, blood);
 }
 
 function underCare(t: TacticalState, s: Soldier): boolean {

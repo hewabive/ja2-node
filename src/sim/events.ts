@@ -41,6 +41,16 @@ export interface FellDownEvent extends SimEventBase {
   readonly cause: 'blind' | 'drunk';
 }
 
+export interface SlippedOnMarblesEvent extends SimEventBase {
+  readonly type: 'slippedOnMarbles';
+  readonly soldier: number;
+}
+
+export interface CamoWashedOffEvent extends SimEventBase {
+  readonly type: 'camoWashedOff';
+  readonly soldier: number;
+}
+
 export interface NoPathEvent extends SimEventBase {
   readonly type: 'noPath';
   readonly soldier: number;
@@ -684,6 +694,8 @@ export type SimEvent =
   | ArrivedEvent
   | StoppedEvent
   | FellDownEvent
+  | SlippedOnMarblesEvent
+  | CamoWashedOffEvent
   | NoPathEvent
   | CombatStartedEvent
   | TurnStartedEvent

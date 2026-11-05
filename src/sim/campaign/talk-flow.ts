@@ -906,7 +906,7 @@ export class TalkFlow {
       if (talkableRefusal(t, this.#rules(), null, target, { give: false, mercs: false, collapsed: false })) return false;
       if (rangeBetween(merc.gridNo, target.gridNo) > VALIDATED_TALK_RANGE) return false;
     }
-    deductPoints(t.inCombat, merc, AP_TALK, 0);
+    deductPoints(t, merc, AP_TALK, 0);
     const facing = directionToward(merc.gridNo, target.gridNo);
     setDesiredDirection(t, merc, facing);
     setDesiredDirection(t, target, (facing + OPPOSITE) % DIRECTIONS);

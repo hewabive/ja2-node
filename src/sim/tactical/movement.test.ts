@@ -10,7 +10,7 @@ import { syntheticStructure, syntheticWorld } from '../../content/world/syntheti
 import { Rng } from '../../core/rng.ts';
 import { createItem } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
-import { initNewSoldierAnim, setDesiredDirection, states, TurningFromProne } from './animation.ts';
+import { initNewSoldierAnim, setDesiredDirection, setSoldierAniSpeed, states, TurningFromProne } from './animation.ts';
 import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
@@ -32,6 +32,7 @@ import { MAX_PATH_LIST_SIZE, NOWHERE } from './pathfinding.ts';
 import { revealedRooms } from './perception/fov.ts';
 import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
+import { bloodFloorStrength } from './smell.ts';
 import { Body, createSoldier, NO_PENDING_DIRECTION, Orders, type Soldier, Team, Visible } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
@@ -505,6 +506,81 @@ describe('waiting for a blocked tile in a corridor (Soldier_Tile.cc HandleNextTi
     expect(merc.oppList[enemyComingIntoRange.id]).toBe(Opp.SEEN_CURRENTLY);
     expect(revealedRooms(t)).toEqual([ROOM]);
     expect(blocker.oppList[mercInFrontOfTheBlocker.id]).toBe(Opp.NOT_HEARD_OR_SEEN);
+  });
+});
+
+describe("a follower's speed (Soldier_Tile.cc SetDelayedTileWaiting, Soldier_Control.cc SetSoldierAniSpeed, EVENT_StopMerc)", () => {
+  function walkingDelay(t: TacticalState, s: Soldier): number {
+    s.state = states(content.animations).WALKING;
+    setSoldierAniSpeed(t, s);
+    return s.aniDelay;
+  }
+
+  it("walks a merc waiting on a squad mate at the mate's speed until he stops on his final tile", () => {
+    const t = tactical();
+    const follower = spawn(t, START);
+    const slow = spawn(t, START + 1);
+    slow.stats.agility = 20;
+    slow.breath = 40;
+    const own = walkingDelay(t, follower);
+    const mates = walkingDelay(t, slow);
+    expect(mates).toBeGreaterThan(own);
+    setDelayedTileWaiting(t, follower, slow.gridNo, 100);
+    expect([follower.useOverrideMoveSpeed, follower.overrideMoveSpeed]).toEqual([true, slow.id]);
+    expect(walkingDelay(t, follower)).toBe(mates);
+    stopMerc(t, follower);
+    expect(follower.useOverrideMoveSpeed).toBe(false);
+    expect(walkingDelay(t, follower)).toBe(own);
+  });
+
+  it('takes the speed of whoever reserved the tile, and never of a soldier of another team or for one', () => {
+    const t = tactical();
+    const follower = spawn(t, START);
+    const reserver = spawn(t, START + 5);
+    t.reserved[START + 1] = reserver.id;
+    setDelayedTileWaiting(t, follower, START + 1, 1);
+    expect(follower.overrideMoveSpeed).toBe(reserver.id);
+    const enemy = spawn(t, START + 10, Team.ENEMY);
+    const another = spawn(t, START + 11);
+    setDelayedTileWaiting(t, another, enemy.gridNo, 1);
+    setDelayedTileWaiting(t, enemy, another.gridNo, 1);
+    expect([another.useOverrideMoveSpeed, enemy.useOverrideMoveSpeed]).toEqual([false, false]);
+  });
+});
+
+describe('a blood trail (Overhead.cc HandleBloodForNewGridNo)', () => {
+  const TRAIL_DIE = 7;
+
+  it('drops (bleeding - 12) / 10 blood, at most 7, less Random(7) at the middle of every tile a soldier bleeding past 12 reaches, none below 0', () => {
+    const t = tactical();
+    const s = spawn(t, START);
+    s.bleeding = 42;
+    const rng = t.rng as unknown as { int(n: number): number };
+    const real = rng.int.bind(rng);
+    const trail = [0, 3, 2];
+    let rolled = 0;
+    rng.int = (n: number) => {
+      if (n !== TRAIL_DIE) return real(n);
+      rolled++;
+      return trail.shift() ?? 6;
+    };
+    expect(getNewSoldierPath(t, s, START + 3, s.uiMovementMode)).toBe(true);
+    runUntilStill(t);
+    expect(rolled).toBe(3);
+    expect([1, 2, 3].map((k) => bloodFloorStrength(t.smell.blood[START + k] ?? 0))).toEqual([3, 0, 1]);
+    const steady = tactical();
+    const unhurt = spawn(steady, START);
+    unhurt.bleeding = 12;
+    const ranges: number[] = [];
+    const steadyRng = steady.rng as unknown as { int(n: number): number };
+    const steadyReal = steadyRng.int.bind(steadyRng);
+    steadyRng.int = (n: number) => {
+      ranges.push(n);
+      return steadyReal(n);
+    };
+    getNewSoldierPath(steady, unhurt, START + 3, unhurt.uiMovementMode);
+    runUntilStill(steady);
+    expect(ranges).not.toContain(TRAIL_DIE);
   });
 });
 

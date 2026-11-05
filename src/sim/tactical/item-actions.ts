@@ -297,7 +297,7 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
   }
   const gotIt = s.team === Team.OUR && !(cool && saidFoundSomethingSpecial(t, s)) && !saidBoobyTrapQuote;
   if (s.team === Team.OUR && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
-  if (!dontCharge) deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
+  if (!dontCharge) deductPoints(t, s, AP.PICKUP_ITEM, 0);
   t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });
   schedulePickedOwnershipCheck(t, s, pending.gridNo);
 }

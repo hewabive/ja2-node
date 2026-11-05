@@ -596,7 +596,7 @@ export function beginTryingToFall(t: TacticalState, s: Soldier): void {
 
 export function soldierCollapse(t: TacticalState, s: Soldier): void {
   if (isMonster(s)) {
-    deductPoints(t.inCombat, s, 0, -5000);
+    deductPoints(t, s, 0, -5000);
     return;
   }
   s.collapsed = true;
@@ -721,7 +721,7 @@ export function soldierTakeDamage(
     } else s.bleeding = i8(s.lifeMax - (s.life + bandage));
   }
   const apCost = idiv(life, AP_GET_WOUNDED_DIVISOR);
-  if (!isRobot(s)) deductPoints(t.inCombat, s, apCost, breath);
+  if (!isRobot(s)) deductPoints(t, s, apCost, breath);
   const combined = u8(idiv(u8(life), 10) + idiv(breath, 2000));
   if (!isRobot(s)) s.shock = i8(s.shock + combined);
   s.nextBleed = calcNextBleed(s);
