@@ -124,7 +124,7 @@ sandbox's only fills a slot. The soldier holds the vehicle's id (`Soldier.vehicl
 and the record its soldier (`VehicleRecord.soldierId`, standing for `FindSoldierType`); a team change keeps both. A
 vehicle not on our team leaves the list with its corpse and when its sector unloads, and registers again, maybe under
 another id, at the next load; ours stays. The type's name (`zVehicleName`) is UI text and stays out of the simulation
-(`31`): a vehicle soldier keeps the name his creation gave him. A snapshot older than the list links only the vehicles
+(`31`): a vehicle soldier keeps the name his creation gave him, and the client names him by his body's type (`30`). A snapshot older than the list links only the vehicles
 its records named, which were ours from native imports; any other vehicle soldier it holds has no slot (-1) until his
 sector loads again.
 
@@ -256,6 +256,5 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Ground vehicles" (the vehicle's name
-and the bars of a vehicle not ours), "Helicopter entrance". Deviations of this domain: "Helicopter on load",
-"Toolkit repair in tactical".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance", "Tank
+turning". Deviations of this domain: "Helicopter on load", "Toolkit repair in tactical".

@@ -21,6 +21,7 @@ import type { UiTextService } from '../../text/text-service.ts';
 import {
   assignmentString,
   type CharacterList,
+  characterName,
   departureText,
   destinationString,
   FIRST_VEHICLE,
@@ -153,7 +154,7 @@ export class TeamListView {
         const p = hCenterVCenterAlign(ctx.origin.x + x + 1, y, w, this.geometry.ySize, text, ctx.font);
         mprint(ctx.list, ctx.font, p.x, p.y, text, fontColors(c, DEFAULT_SHADOW, FontColor.BLACK));
       };
-      draw(TeamColumn.NAME, m.name, colour);
+      draw(TeamColumn.NAME, characterName(ctx.text, ctx.strategic, m), colour);
       draw(TeamColumn.LOCATION, locationString(ctx.text, m), colour);
       draw(TeamColumn.DESTINATION, destinationString(ctx.strategic, m), colour);
       draw(TeamColumn.ASSIGNMENT, assignmentString(ctx.text, ctx.strategic, m), this.#flash && m.idle === true ? FontColor.RED : colour);

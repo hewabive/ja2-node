@@ -16,6 +16,7 @@ import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { Body, Team } from '../../../sim/tactical/soldier.ts';
 import { whoIsThere } from '../../../sim/tactical/state.ts';
 import { enterCombatMode } from '../../../sim/tactical/turns/turns.ts';
+import { rgb } from '../../draw-list.ts';
 import { MouseButton } from '../../input/events.ts';
 import { FontName } from '../../text/fonts.ts';
 import { glyphRun } from '../../text/print.ts';
@@ -33,6 +34,13 @@ const COLUMNS_WEST_OF_THE_HUMMER = 3;
 const ASSIGNMENT_EMPTY = 34;
 const VEHICLE_CANT_MOVE_IN_TACTICAL = 128;
 const VEHICLE_NAME = 'Hummer';
+const TANK_NAME = 'Tank';
+const TANK_LIFE = 61;
+const TANK_FUEL = 73;
+const BAR_WIDTH = 16;
+const FULL = 100;
+const BOX_LIFE = rgb(200, 0, 0);
+const BOX_BREATH = rgb(100, 100, 220);
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -221,11 +229,6 @@ describe('a merc aboard a vehicle on the tactical screen', () => {
     const f = await atTheHummer(true);
     const merc = await boardTheHummer(f);
     const vehicle = selected(f);
-    const soldier = tacticalOf(f.session).state.soldiers[vehicle.id];
-    if (!soldier) throw new Error('no vehicle soldier');
-    soldier.name = VEHICLE_NAME;
-    f.deliver();
-    await f.settle();
     const empty = `(${f.text.string('pAssignmentStrings', ASSIGNMENT_EMPTY)})`;
     expect([drawnAboveGuy(f, VEHICLE_NAME), drawnAboveGuy(f, empty)]).toEqual([[FontColor.MCOLOR_WHITE], []]);
     await f.click('teamSecondHand0');
@@ -279,5 +282,46 @@ describe('the toolkit and the gas can over a vehicle (UI_Cursors.cc HandleRepair
     if (!tank) throw new Error('the tank is not in view');
     await pointAt(f, onThePicture(f, tank.id));
     expect(f.screen.controls.input.uiCursor).toBe('GOOD_REPAIR_UICURSOR');
+  });
+});
+
+describe('the name and bars of a vehicle (Vehicles.cc SetVehicleValuesIntoSoldierType, Interface.cc DrawSelectedUIAboveGuy)', () => {
+  it('names the Hummer by zVehicleName of its type, whatever name its soldier carries, above it and on the overhead map', async () => {
+    const f = await atTheHummer(true);
+    expect(hummer(f).name).not.toBe(VEHICLE_NAME);
+    await boardTheHummer(f);
+    expect(selected(f).bodyType).toBe(Body.HUMVEE);
+    expect(drawnAboveGuy(f, VEHICLE_NAME)).toEqual([FontColor.MCOLOR_WHITE]);
+    f.world.overhead = {
+      render: (list, x, y) => list.fill(x, y, x + 10, y + 10, 0),
+      pointOf: (gridNo) => ({ x: (gridNo % WORLD_COLS) * 2, y: Math.floor(gridNo / WORLD_COLS) }),
+      gridNoAt: () => null,
+      soldierGridNoAt: () => null,
+    };
+    f.key('Insert');
+    expect(f.screen.controls.overhead.open).toBe(true);
+    expect(drawnAboveGuy(f, VEHICLE_NAME)).toEqual([FontColor.MCOLOR_WHITE]);
+  });
+
+  it('draws the life and fuel bars of an enemy tank under the pointer where another soldier not ours shows his health word, its name grey as nobody is aboard', async () => {
+    const f = await atTheHummer(true);
+    const t = tacticalOf(f.session).state;
+    const tank = addStubTank(t, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: TANK_AT, direction: Direction.SOUTH });
+    Object.assign(tank, { life: TANK_LIFE, breath: TANK_FUEL });
+    campaignOf(f).campaign.tactical?.lookAround();
+    f.deliver();
+    await f.settle();
+    const seen = f.client.view.soldiers.find((s) => s.id === tank.id);
+    if (!seen) throw new Error('the tank is not in view');
+    expect(seen).toMatchObject({ life: TANK_LIFE, breath: TANK_FUEL });
+    await pointAt(f, onThePicture(f, tank.id));
+    const lines = f.draw().items.flatMap((i) => (i.kind === 'rectangle' ? [i] : []));
+    const drawn = (color: number, value: number) =>
+      lines.some((l) => l.color === color && l.x2 === Math.trunc(l.x1 + (value / FULL) * BAR_WIDTH));
+    expect([drawnAboveGuy(f, TANK_NAME), drawnAboveGuy(f, f.text.string('zHealthStr', seen.healthIndex ?? 0) ?? '')]).toEqual([
+      [FontColor.GRAY4],
+      [],
+    ]);
+    expect([drawn(BOX_LIFE, TANK_LIFE), drawn(BOX_BREATH, TANK_FUEL)]).toEqual([true, true]);
   });
 });

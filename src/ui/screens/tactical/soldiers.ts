@@ -11,9 +11,12 @@
 // @src gMercProfiles[ubProfile].bSex (the texts by a merc's sex take his profile's, not his body type's) (2026-11-01).
 // @src Soldier_Macros.h OK_ENTERABLE_VEHICLE, TANK; Interface_Panels.cc SetStatsHelp (VEHICLE_VITAL_STATS_POPUPTEXT),
 // @src Interface.cc DrawSelectedUIAboveGuy (FONT_GRAY4 for a vehicle nobody is aboard) and Handle_UI.cc UIHandleOnMerc
-// @src (no gSelectedGuy for an enterable vehicle not ours or an empty one of ours) (2026-11-05).
+// @src (no gSelectedGuy for an enterable vehicle not ours or an empty one of ours) (2026-11-05); Vehicles.cc
+// @src SetVehicleValuesIntoSoldierType (a vehicle soldier's name is zVehicleName of its type and its profile the type's,
+// @src which the view leaves out for a vehicle not ours, 2026-11-05).
 
 import { Body } from '../../../content/anim/body-types.ts';
+import { isVehicleBody as isVehicleBodyType, vehicleTypeOfBody } from '../../../content/strategic/vehicle-types.ts';
 import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
@@ -22,14 +25,13 @@ import { OKLIFE } from './faces.ts';
 
 export const OUR_TEAM = 0;
 const REGFEMALE = 3;
-const FIRST_VEHICLE_BODY = 22;
-const LAST_VEHICLE_BODY = 27;
 const TANK_BODIES: ReadonlySet<number> = new Set([Body.TANK_NW, Body.TANK_NE]);
 const DYING_HEALTH_INDEX = 0;
 const MERC_VITAL_STATS_POPUPTEXT = 61;
 const STR_LATE_16 = 15;
 const VEHICLE_VITAL_STATS_POPUPTEXT = 135;
 const MORALE_STRINGS = 'pMoralStrings';
+const VEHICLE_NAMES = 'zVehicleName';
 
 export type ApColour = 'dkred' | 'ltblue' | 'ltyellow' | 'ltgray';
 
@@ -61,8 +63,17 @@ export function isMercBodyType(s: SoldierView): boolean {
   return s.bodyType >= 0 && s.bodyType <= REGFEMALE;
 }
 
-export function isVehicleBody(s: SoldierView): boolean {
-  return s.bodyType >= FIRST_VEHICLE_BODY && s.bodyType <= LAST_VEHICLE_BODY;
+export function isVehicleBody(s: Pick<SoldierView, 'bodyType'>): boolean {
+  return isVehicleBodyType(s.bodyType);
+}
+
+export function hasProfile(s: Pick<SoldierView, 'profile' | 'bodyType'>): boolean {
+  return s.profile !== undefined || isVehicleBody(s);
+}
+
+export function soldierName(text: UiTextService, s: Pick<SoldierView, 'name' | 'bodyType'>): string {
+  if (!isVehicleBody(s)) return s.name;
+  return text.string(VEHICLE_NAMES, vehicleTypeOfBody(s.bodyType)) ?? s.name;
 }
 
 export function isTank(s: SoldierView): boolean {

@@ -71,7 +71,8 @@
 // @src Overhead.cc CheckIfNearbyGroundSeemsWrong's LocateGridNo and Handle_Items.cc MineSpottedDialogueCallBack's item
 // @src locator at the spotted mine (2026-11-04); Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle squad's
 // @src slots hold its passengers) and MercFacePanelCallbackPrimary (a passenger's face locates and selects his vehicle)
-// @src (2026-11-05).
+// @src (2026-11-05); Interface.cc DrawSelectedUIAboveGuy and GetSoldierAboveGuyPositions (any vehicle is named, with its
+// @src profile, by zVehicleName and gets the life and fuel bars, 2026-11-05).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -155,6 +156,7 @@ import { drawRadarPicture } from './radar-picture.ts';
 import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-panel.ts';
 import {
   barValues,
+  hasProfile,
   inCombat,
   isDead,
   isEpc,
@@ -172,6 +174,7 @@ import {
   ourTurn,
   ownSoldiers,
   soldierById,
+  soldierName,
   squadOf,
   teamPanelMembers,
   vehicleCarrying,
@@ -843,7 +846,7 @@ export class TacticalScreen implements Screen {
     if (inCombat(this.#view()) && !okInterrupt(s)) {
       if (fromUi)
         this.#localFeedback(
-          printf(this.#env.text.string('TacticalStr', MERC_IS_UNAVAILABLE_STR) ?? '', [s.name]),
+          printf(this.#env.text.string('TacticalStr', MERC_IS_UNAVAILABLE_STR) ?? '', [soldierName(this.#env.text, s)]),
           FontColor.MCOLOR_LTYELLOW,
         );
       return false;
@@ -2344,17 +2347,18 @@ export class TacticalScreen implements Screen {
     const selectedBox = selected && this.controls.input.rubberBand === null;
     const shown = selectedBox || (locator?.shown ?? false) || multiSelected || s.id === this.#hoveredSoldier;
     if (!shown) return;
-    const profiled = s.profile !== undefined;
+    const profiled = hasProfile(s);
     const at = aboveGuyPosition(pos, offset, this.#damage.has(s.id), top, profiled);
     let x = at.x;
     let y = at.y;
     const catcher = this.controls.input.itemTile.catcher;
     const caught = catcher?.soldier === s.id ? catcher.kind : null;
-    if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled || isVehicleBody(s)) {
+    if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled) {
       const action = (caught && caught !== 'give' ? this.#catcherLabel(caught) : '') || this.#assignmentLabel(s, multiSelected);
       if (action) printAboveGuy(list, font, x, y, action, emptyVehicleOfOurs(s) ? FontColor.YELLOW : FontColor.MCOLOR_WHITE);
-      printAboveGuy(list, font, x, action ? y - 10 : y, s.name, nobodyAboard(s) ? FontColor.GRAY4 : FontColor.MCOLOR_WHITE);
-      if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc') {
+      const name = soldierName(this.#env.text, s);
+      printAboveGuy(list, font, x, action ? y - 10 : y, name, nobodyAboard(s) ? FontColor.GRAY4 : FontColor.MCOLOR_WHITE);
+      if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || isVehicleBody(s)) {
         x += selected ? 28 : 30;
         y += selected ? 5 : 7;
         const box = this.#env.world.pointerBox(selectedBox);

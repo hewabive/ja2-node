@@ -152,6 +152,12 @@ before the pre-battle panel and its automatic autoresolve, which wait for OK as 
 `TriggerPrebattleInterface` does, and the map host keeps the events for a screen not built yet (`map/invasion.ts` from
 `invasion`, `map/battle-notice.ts` from the `preBattle` event's `notice`).
 
+**A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
+the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead
+map, in the panels and the character list (`soldierName`, `tactical/soldiers.ts`; `characterName`,
+`map/character-list.ts`), the info panel by `pShortVehicleStrings` and `pVehicleStrings` as `DrawCharacterInfo`. A
+vehicle in sight that is not ours carries its life and fuel for the bars over it (`29`).
+
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
 the legs stay in the client until the confirming click sends one `route` per group, and the move box sends one
 `routeGroup` and lets the server regroup (deviations "Map route plotting", "Move box regrouping"). Decision prompts open
@@ -244,6 +250,8 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | With n cycling a soldier stack, the pointer moving off the stacked soldier finds nobody once, and the stack ends then (`Tactical/Soldier_Find.cc:232`) | `tactical/input/targets.test.ts` "finds nobody the first time the pointer is off the stacked soldier …" |
 | An empty vehicle of ours under the pointer is neither ours nor an enemy, so a click does not select it (`Tactical/Soldier_Find.cc:50`); a merc aboard a vehicle is never under the pointer, and a click on his face in the team panel selects the vehicle | `tactical/input/targets.test.ts` "owns a vehicle of ours only with somebody aboard …", "never finds a merc aboard a vehicle …"; `tactical/soldiers.test.ts` "finds the vehicle of a merc aboard …" |
 | An enterable vehicle not ours and an empty vehicle of ours are no soldier to `UIHandleOnMerc`: the move cursor goes on to the enter cursor and the vehicle is never named under the pointer (`Tactical/Handle_UI.cc:2711`, `:2749`); an empty vehicle of ours, named only by a locator, shows its name in grey under its Empty assignment in yellow (`Tactical/Interface.cc:1036`) | `tactical/tactical-vehicles.test.ts` "names no enterable vehicle under the pointer …", "names a vehicle of ours in white while somebody is aboard, and in grey …" |
+| Every vehicle under the pointer, an enemy tank included, gets the life and fuel bars where another soldier not ours shows his health word, and a vehicle nobody is aboard, an enemy tank too, is named in grey (`Tactical/Interface.cc:1036`, `:1050`) | `tactical/tactical-vehicles.test.ts` "draws the life and fuel bars of an enemy tank …" |
+| A vehicle has three names: `zVehicleName` above it and in the character list, where the ice cream truck is a plain Truck, `pVehicleStrings` in the info panel, and `pShortVehicleStrings` under the info face (`Tactical/Vehicles.cc:67`, `Strategic/MapScreen.cc:762`, `Strategic/Strategic_Movement.cc:3156`) | `tactical/soldiers.test.ts` "names a vehicle by zVehicleName …", `map/info-panel.test.ts` "the name of a vehicle on the map screen …" |
 | The move cursor shows enter over an empty vehicle the merc may use even when no tile beside it can be reached, and the click then boards nothing (`Tactical/Handle_UI.cc:4926`, `Tactical/Turn_Based_Input.cc:2974`) | `tactical/input/vehicle-cursors.test.ts` "… as enter over an empty one even out of reach …" |
 | In real time a move click on a vehicle orders the boarding at the press and again at the release, as the press does not intercept the release (`Tactical/Real_Time_Input.cc:205`, `:598`) | `tactical/tactical-vehicles.test.ts` "orders the boarding at the press of a real-time move click and again at its release …" |
 | The toolkit's and the gas can's cursors turn good over any vehicle at ground level, an enemy tank included, by the vehicle's own tile wherever the pointer is on its picture (`Tactical/UI_Cursors.cc:120`, `:901`, `:909`) | `tactical/tactical-vehicles.test.ts` "turns good anywhere on the Hummer's picture …", "… turns good over an enemy tank as well" |
@@ -292,5 +300,5 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "Ground vehicles" (the vehicle's name and the bars of a
-vehicle not ours), "Out-of-gas box", "IME composition", "I.M.P. skill page and saved profiles".
+Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "Out-of-gas box", "IME composition", "I.M.P. skill
+page and saved profiles".

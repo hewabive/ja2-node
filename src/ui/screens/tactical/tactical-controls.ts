@@ -84,6 +84,7 @@ import {
   opponentCount,
   ourTurn,
   soldierById,
+  soldierName,
 } from './soldiers.ts';
 
 const SCROLL_STEP_MS = 20;
@@ -243,6 +244,7 @@ export class TacticalControls {
       art: art.overhead,
       map: () => env.world.overheadMap(),
       soldiers: () => env.client.view?.soldiers ?? [],
+      nameOf: (s) => soldierName(env.text, s),
       items: () => env.client.view?.items ?? [],
       selected: () => screen.selected()?.id ?? null,
       blink: () => screen.radarBlink(),

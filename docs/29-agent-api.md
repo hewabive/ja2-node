@@ -59,13 +59,13 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight; unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
 | Towns and mines | Loyalty once started and where the town uses it; mine status in the town box's order | Remaining ore, which mine will deplete |
 | Helicopter | Debt, hits, safe and unsafe sectors, route cost | Skyrider's talk state and accumulated bill |
-| Vehicles | Our vehicles with the condition and fuel percentage; the others a merc of ours could board | The condition and fuel of other vehicles; fuel finer than a percent; other vehicles in the vehicle list, an enemy's tank among them |
+| Vehicles | Our vehicles with the condition and fuel percentage; the others a merc of ours could board; the condition and fuel percentage of any vehicle in sight, as the bars over it show them | The condition and fuel of other vehicles out of sight; fuel finer than a percent; other vehicles in the vehicle list, an enemy's tank among them |
 | Autoresolve | Cells, health categories, counts, battle time | Ratings, timers, pending bullets, exact enemy life, the capture roll |
 | Laptop | What the pages print | `dayBecomesAvailable`, hangovers, tolerances, hated and buddy lists, death rate, reputation, unhired deaths and improvements before they show, restocks, theft counters, investigation outcomes, the M.E.R.C. outage roll, queued events |
 | Contracts | The renewal options and their costs; willing and unwilling mercs look alike, only the quotes tell | Opinions, buddy and hated slots, tolerances, learn-to progress, precedents, `signedAnotherContract`, the renewal list |
@@ -648,7 +648,9 @@ vehicle's tile, which he does not occupy: the client draws no sprite and no ligh
 him, while the radar and the overhead map mark his tile as the original's do. A vehicle of ours lists the mercs aboard
 in seat order as `passengers` (none: not ours to command, `noDriver`); its squad's team panel shows them in its place,
 a click on one of their faces selecting the vehicle; the driver's `ap` is the vehicle's, as his panel shows
-(`GetUIApsToDisplay`). The mercs aboard look, hear and radio (`08`); our vehicle never looks.
+(`GetUIApsToDisplay`). The mercs aboard look, hear and radio (`08`); our vehicle never looks. Any other vehicle in sight,
+an enemy tank or a civilian car, carries `life`, `lifeMax`, `breath` (its fuel in percent) and `breathMax`, which the
+bars over it show (`Tactical/Interface.cc:1050`); other soldiers not ours carry only their health word.
 
 On the tactical screen (`src/sim/tactical/vehicle-boarding.ts`, `src/sim/campaign/vehicle-boarding.ts`),
 `enterVehicle {soldier, vehicle, cursor}` is the click on a vehicle with the hand cursor (`cursor: "hand"`, the

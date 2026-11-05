@@ -10,10 +10,12 @@
 // @src turning cost); Faces.cc HandleAutoFaces (sFinalDestination for the moving highlight, fGettingHit for the portrait
 // @src flash) (2026-11-03); Interface_Panels.cc PrintAP and Faces.cc HandleRenderFaceAdjustments (the drug state behind
 // @src the light blue AP number and the drug icons: MercUnderTheInfluence, GetDrugEffect, GetDrunkLevel; 2026-11-04);
-// @src Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle's passengers in its squad's panel, 2026-11-05).
+// @src Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle's passengers in its squad's panel, 2026-11-05);
+// @src Interface.cc DrawSelectedUIAboveGuy and DrawBarsInUIBox (the life and fuel bars over any vehicle, 2026-11-05).
 
 import type { OwnHintInputs } from '../knowledge/view.ts';
 import { VehicleSeat } from '../strategic/forces/constants.ts';
+import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { findFenceJumpDirection } from './animation.ts';
 import { minAPsToAttack } from './combat/ap.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
@@ -85,7 +87,14 @@ export interface OwnSoldierFields {
   readonly hint: OwnHintInputs;
 }
 
-export interface OtherSoldierFields {
+export interface VehicleConditionFields {
+  readonly life: number;
+  readonly lifeMax: number;
+  readonly breath: number;
+  readonly breathMax: number;
+}
+
+export interface OtherSoldierFields extends Partial<VehicleConditionFields> {
   readonly hostile: boolean;
   readonly healthIndex: number;
 }
@@ -210,9 +219,14 @@ function seenHealthIndex(s: Soldier): number {
   return HEALTH_CATEGORIES.indexOf(healthCategory(s.life, s.lifeMax));
 }
 
+function vehicleCondition(s: Soldier): VehicleConditionFields {
+  return { life: s.life, lifeMax: s.lifeMax, breath: s.breath, breathMax: s.breathMax };
+}
+
 export function otherSoldierFields(s: Soldier): OtherSoldierFields {
   return {
     hostile: !s.neutral && s.side !== Side.FRIENDLY,
     healthIndex: seenHealthIndex(s),
+    ...(isVehicleBody(s.bodyType) ? vehicleCondition(s) : {}),
   };
 }

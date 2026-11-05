@@ -70,6 +70,7 @@ export interface OverheadHooks {
   readonly art: OverheadArt;
   map(): OverheadMapView | null;
   soldiers(): readonly SoldierView[];
+  nameOf(s: SoldierView): string;
   items(): readonly ItemView[];
   selected(): number | null;
   blink(): boolean;
@@ -269,8 +270,9 @@ export class OverheadMap {
     const name = (s: SoldierView) => {
       const p = map.pointOf(s.gridNo);
       const lift = heightLift(s) + NAME_LIFT;
-      const at = hCenterVCenterAlign(o.x + p.x, o.y + p.y - lift, 1, 1, s.name, tiny);
-      mprint(list, tiny, at.x, at.y, s.name, fontColors(FontColor.MCOLOR_WHITE));
+      const label = this.#hooks.nameOf(s);
+      const at = hCenterVCenterAlign(o.x + p.x, o.y + p.y - lift, 1, 1, label, tiny);
+      mprint(list, tiny, at.x, at.y, label, fontColors(FontColor.MCOLOR_WHITE));
     };
     const sel = this.#hooks.soldiers().find((s) => s.id === selected);
     if (sel) name(sel);

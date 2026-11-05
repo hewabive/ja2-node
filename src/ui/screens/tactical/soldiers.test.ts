@@ -1,6 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { Body } from '../../../content/anim/body-types.ts';
+import { loadUiStrings } from '../../../content/text/strings.ts';
+import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
-import { apColour, teamPanelMembers, vehicleCarrying } from './soldiers.ts';
+import { StringsTextService } from '../../text/text-service.ts';
+import { apColour, hasProfile, soldierName, teamPanelMembers, vehicleCarrying } from './soldiers.ts';
+
+let text: StringsTextService;
+
+beforeAll(async () => {
+  const strings = await loadUiStrings(async (path) => new Uint8Array(await readFile(join(PROJECT_DATA_DIR, path))), 'eng');
+  text = new StringsTextService(strings);
+});
 
 describe('the AP number of a merc in combat (PrintAP)', () => {
   const merc = { id: 2, ap: 4, enoughApToAttack: true } as SoldierView;
@@ -47,5 +60,21 @@ describe('the team panel of the current squad (CheckForAndAddMercToTeamPanel)', 
     const view = { soldiers: [passenger, walker, truck] } as unknown as PlayerView;
     expect(vehicleCarrying(view, passenger)?.id).toBe(18);
     expect(vehicleCarrying(view, walker)).toBeNull();
+  });
+});
+
+describe('the name of a soldier (Vehicles.cc SetVehicleValuesIntoSoldierType)', () => {
+  it("names a vehicle by zVehicleName of its body's type, the ice cream truck a plain Truck, and anybody else by his own name", () => {
+    const named = (bodyType: number) => soldierName(text, { name: 'Iggy', bodyType });
+    const bodies = [Body.HUMVEE, Body.ELDORADO, Body.ICECREAMTRUCK, Body.JEEP, Body.TANK_NW, Body.TANK_NE, Body.REGMALE];
+    expect(bodies.map(named)).toEqual(['Hummer', 'Eldorado', 'Truck', 'Jeep', 'Tank', 'Tank', 'Iggy']);
+  });
+});
+
+describe('the profile behind the label above a soldier (Interface.cc GetSoldierAboveGuyPositions)', () => {
+  it('gives every vehicle a profile, a tank not ours included, so its label drops to its feet as a profiled merc does', () => {
+    const tank = { bodyType: Body.TANK_NE } as SoldierView;
+    const enemy = { bodyType: Body.REGMALE } as SoldierView;
+    expect([hasProfile(tank), hasProfile(enemy), hasProfile({ ...enemy, profile: 7 })]).toEqual([true, false, true]);
   });
 });

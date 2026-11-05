@@ -5,7 +5,9 @@
 // @src UpdateSMPanel (burst for a burst-capable gun or an
 // @src under-barrel launcher in the hand, mute always, stealth with the action buttons, climb by the roof edge with its
 // @src APs or the fence next to the merc), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp;
-// @src Interface_Items.cc DisableInvRegions (the key ring off only with the inventory, an item in the cursor leaves it on).
+// @src Interface_Items.cc DisableInvRegions (the key ring off only with the inventory, an item in the cursor leaves it on);
+// @src the name a panel prints is the soldier's, a vehicle's being zVehicleName of its type (Vehicles.cc
+// @src SetVehicleValuesIntoSoldierType, 2026-11-05).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';
@@ -23,7 +25,7 @@ import {
   statText,
   stealthButtons,
 } from './sm-panel.ts';
-import { apColour, inCombat, isDead, ourTurn, showsAp, vehicleCarrying, vitalStatsHelp } from './soldiers.ts';
+import { apColour, inCombat, isDead, ourTurn, showsAp, soldierName, vehicleCarrying, vitalStatsHelp } from './soldiers.ts';
 import type { TeamPanelModel, TeamSlotModel } from './team-panel.ts';
 
 export const CHANGE_STAT_RECENTLY_DURATION_MS = 60000;
@@ -92,7 +94,7 @@ export function teamPanelModel(
     return {
       soldier: s.id,
       occupied: true,
-      name: s.name,
+      name: soldierName(text, s),
       stealth: s.stealth === true,
       ap: String(s.ap ?? 0),
       showAp: showsAp(view, s),
@@ -145,7 +147,7 @@ export function smPanelModel(
   const shop = state.shopOpen === true;
   return {
     ...model,
-    name: s.name,
+    name: soldierName(text, s),
     stealth: s.stealth === true,
     ap: String(s.ap ?? 0),
     showAp: showsAp(view, s),

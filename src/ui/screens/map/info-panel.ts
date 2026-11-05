@@ -8,7 +8,8 @@
 // @src red for CHANGE_STAT_RECENTLY_DURATION after a change), RenderHandPosItem (not with the inventory open or for the
 // @src dead), RenderIconsForUpperLeftCornerPiece, ConvertMinTimeToETADayHourMinString; src/game/Strategic/
 // @src Map_Screen_Interface.cc RenderMapStatusBars (DrawSoldierUIBars at BAR_INFO_X, BAR_INFO_Y); no vehicle name for a
-// @src repair id that names no vehicle, where GetVehicle throws (2026-11-05).
+// @src repair id that names no vehicle, where GetVehicle throws; a vehicle's names from pShortVehicleStrings and
+// @src pVehicleStrings of its type (2026-11-05).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -26,6 +27,7 @@ import {
   assignmentString,
   CHAR_TEXT_FONT_COLOR,
   groupOfMerc,
+  isVehicle,
   locationString,
   moraleText,
   vehicleOfMerc,
@@ -39,6 +41,7 @@ const REPAIR_STRINGS = 'pRepairStrings';
 const REPAIR_ITEMS = 0;
 const REPAIR_ROBOT = 3;
 const SHORT_VEHICLE_STRINGS = 'pShortVehicleStrings';
+const VEHICLE_STRINGS = 'pVehicleStrings';
 const TOWN_NAMES = 'strategic-map-town-names';
 const POW_STRINGS = 'pPOWStrings';
 const POW_UNKNOWN = 1;
@@ -206,9 +209,21 @@ function health(ctx: InfoContext, g: InfoGeometry, m: StrategicMercView): void {
   mprint(ctx.list, ctx.font, x, y, String(m.lifeMax), fontColors(statColour(flash, ctx.now), DEFAULT_SHADOW));
 }
 
+export interface CharacterNames {
+  readonly nickname: string;
+  readonly name: string;
+}
+
+export function characterNames(text: UiTextService, view: StrategicView, m: StrategicMercView, fullName: string | null): CharacterNames {
+  const type = isVehicle(m) ? vehicleOfMerc(view, m)?.type : undefined;
+  if (type === undefined) return { nickname: m.name, name: fullName ?? m.name };
+  return { nickname: text.string(SHORT_VEHICLE_STRINGS, type) ?? '', name: text.string(VEHICLE_STRINGS, type) ?? '' };
+}
+
 export function renderCharacterInfo(ctx: InfoContext, g: InfoGeometry, m: StrategicMercView, townOf: (sector: string) => number): void {
-  centred(ctx, g.nickname, m.name, CHAR_TEXT_FONT_COLOR);
-  centred(ctx, g.name, ctx.fullName ?? m.name, CHAR_TEXT_FONT_COLOR);
+  const names = characterNames(ctx.text, ctx.strategic, m, ctx.fullName);
+  centred(ctx, g.nickname, names.nickname, CHAR_TEXT_FONT_COLOR);
+  centred(ctx, g.name, names.name, CHAR_TEXT_FONT_COLOR);
   centred(ctx, g.assignment1, assignmentString(ctx.text, ctx.strategic, m), CHAR_TEXT_FONT_COLOR);
   centred(ctx, g.assignment2, secondAssignmentLine(ctx, m, townOf), CHAR_TEXT_FONT_COLOR);
   health(ctx, g, m);

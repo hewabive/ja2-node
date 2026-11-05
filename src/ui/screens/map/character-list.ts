@@ -8,7 +8,8 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc SetEntryInSelectedCharacterList, ResetEntryForSelectedList,
 // @src ResetSelectedListForMapScreen, ToggleEntryInSelectedList, BuildSelectedListFromAToB, GetMoraleString,
 // @src MultipleCharacterListEntriesSelected, CharacterIsGettingPathPlotted (2026-11-02); ChangeSelectedInfoChar's
-// @src held-item check, MapscreenCanPassItemToChar through the passTargets hint (2026-11-04).
+// @src held-item check, MapscreenCanPassItemToChar through the passTargets hint (2026-11-04); DrawName (a vehicle's
+// @src name is zVehicleName of its type, Tactical/Vehicles.cc SetVehicleValuesIntoSoldierType, 2026-11-05).
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -54,6 +55,7 @@ const STR_PB_HOURS_ABBREVIATION = 45;
 const STRATEGIC_STRINGS = 'gpStrategicString';
 const ASSIGNMENT_STRINGS = 'pAssignmentStrings';
 const SHORT_VEHICLE_STRINGS = 'pShortVehicleStrings';
+const VEHICLE_NAMES = 'zVehicleName';
 const POW_STRINGS = 'pPOWStrings';
 const POW_UNKNOWN = 1;
 const MORALE_STRINGS = 'pMoralStrings';
@@ -90,6 +92,11 @@ export function vehicleOfMerc(view: StrategicView, m: StrategicMercView): Strate
   const vehicles = view.vehicles ?? [];
   if (m.vehicle !== undefined) return vehicles.find((v) => v.id === m.vehicle) ?? null;
   return null;
+}
+
+export function characterName(text: UiTextService, view: StrategicView, m: StrategicMercView): string {
+  const type = isVehicle(m) ? vehicleOfMerc(view, m)?.type : undefined;
+  return type === undefined ? m.name : (text.string(VEHICLE_NAMES, type) ?? m.name);
 }
 
 export function mercPath(view: StrategicView, m: StrategicMercView): readonly string[] {

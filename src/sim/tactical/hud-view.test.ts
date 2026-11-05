@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent, loadTestTimelines } from '../../../tests/support/tactical.ts';
+import { addStubTank } from '../../../tests/support/vehicles.ts';
 import { SubAnimFlags } from '../../content/anim/surface-choice.ts';
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
@@ -221,6 +222,18 @@ describe('other soldiers in the view (G5)', () => {
     expect(shown(sim, 20)).not.toHaveProperty('drunk');
     expect(shown(sim, 20)).not.toHaveProperty('adrenaline');
     expect(shown(sim, 116).hostile).toBe(false);
+  });
+
+  it('show a vehicle in sight with its life and fuel for the bars over it, and nothing of one out of sight (Interface.cc DrawSelectedUIAboveGuy)', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const seen = addStubTank(sim.state, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: gridNo(80, 92), direction: Direction.NORTH });
+    const behind = addStubTank(sim.state, { body: Body.TANK_NE, team: Team.ENEMY, gridNo: gridNo(80, 40), direction: Direction.SOUTH });
+    Object.assign(seen, { life: 61, breath: 73 });
+    sim.lookAround();
+    const inSight = sim.snapshot(presentation, (s) => s.team === Team.OUR || s.visible >= 0);
+    expect(shown(sim, seen.id)).toMatchObject({ life: 61, lifeMax: seen.lifeMax, breath: 73, breathMax: seen.breathMax });
+    expect(inSight.some((s) => s.id === behind.id)).toBe(false);
   });
 
   it('mark a soldier whose life is gone while his death animation plays', () => {
