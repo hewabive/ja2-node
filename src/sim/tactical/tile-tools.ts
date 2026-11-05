@@ -4,13 +4,19 @@
 // @src EVENT_SoldierBeginCutFence, EVENT_SoldierBeginTakeBlood, EVENT_SoldierBeginAttachCan; externalized/Soldier.cc
 // @src handlePendingAction (MERC_CUTFFENCE, MERC_TAKEBLOOD, MERC_ATTACH_CAN); Structure_Wrap.cc
 // @src FindCuttableWireFenceAtGridNo, CutWireFence, IsCuttableWireFenceAtGridNo, IsCorpseAtGridNo; Rotting_Corpses.cc
-// @src GetBloodFromCorpse; Points.cc GetAPsToCutFence, GetAPsToUseJar; Soldier_Ani.cc codes 481 and 760.
+// @src GetBloodFromCorpse; Points.cc GetAPsToCutFence, GetAPsToUseJar; Soldier_Ani.cc codes 481 and 760; the toolkit and
+// @src gas can branches of HandleItem, IsRepairableStructAtGridNo, GetRefuelableStructAtGridNo, GetAPsToBeginRepair,
+// @src GetAPsToRefuelVehicle, EVENT_SoldierBeginRepair, EVENT_SoldierBeginRefuel, handlePendingAction (MERC_REPAIR,
+// @src MERC_FUEL_VEHICLE), Soldier::setPendingAction (sPendingActionData2), Soldier_Ani.cc code 769 (2026-11-05).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
+import { i8 } from '../../core/int.ts';
 import { createItem, deleteObject, type ItemObject, swapObjects } from '../items/object.ts';
+import { addFuelToVehicle, isGasCanEmpty } from '../vehicles/vehicle-fuel.ts';
+import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { plotPathCost } from './ai/utils.ts';
 import { anim } from './anim-states.ts';
 import { AnimHeight, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from './animation.ts';
@@ -21,16 +27,21 @@ import { swapStructureForPartnerAndRecord } from './doors.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from './inventory.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { AP, apsToChangeStance, enoughPoints } from './points.ts';
+import type { Refusal } from './refusal.ts';
 import { corpseAt, corpseInSlot, slotOfCorpse } from './rotting-corpses.ts';
-import type { Soldier, TileTool } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import { NOWHERE, type Soldier, type TileTool } from './soldier.ts';
+import { type TacticalState, whoIsThere } from './state.ts';
+import { ClosestTo, findGridNoFromSweetSpotWithStructDataFromSoldier } from './sweet-spots.ts';
 import { soldierEnterVehicle } from './vehicle-boarding.ts';
 
 const CUT_FENCE_CODE = 481;
 const TAKE_BLOOD_CODE = 760;
+const REFUEL_VEHICLE_CODE = 769;
+const VEHICLE_TOOL_RADIUS = 5;
 const FRESH_BLOOD_STATUS = 100;
 const GROUND_LEVEL = 0;
 const HUMAN_BLOOD = 'JAR_HUMAN_BLOOD';
+const GAS_CAN = 'GAS_CAN';
 const BLOOD_OF_CORPSE: Readonly<Record<string, string>> = {
   ADULTMONSTER_DEAD: 'JAR_CREATURE_BLOOD',
   INFANTMONSTER_DEAD: 'JAR_CREATURE_BLOOD',
@@ -59,6 +70,32 @@ export function isCorpseAtGridNo(t: TacticalState, g: number): boolean {
   return t.world.structures.find(g, StructureFlags.CORPSE) !== null;
 }
 
+export const VEHICLE_TOOLS_NOT_IN_CAMPAIGN: Refusal = {
+  token: 'notInCampaign',
+  reason: 'vehicles are repaired and refuelled in a campaign only',
+};
+
+export function vehicleAtGridNo(t: TacticalState, g: number): Soldier | null {
+  const there = whoIsThere(t, g, GROUND_LEVEL);
+  return there && isVehicleBody(there.bodyType) ? there : null;
+}
+
+export function vehicleServiceableBy(t: TacticalState, s: Soldier, g: number): boolean {
+  return s.level === GROUND_LEVEL && vehicleAtGridNo(t, g) !== null;
+}
+
+export interface VehicleToolTarget {
+  readonly gridNo: number;
+  readonly vehicleGridNo: number;
+}
+
+export function vehicleToolTarget(t: TacticalState, s: Soldier, g: number): VehicleToolTarget {
+  const vehicle = vehicleAtGridNo(t, g);
+  if (!vehicle) return { gridNo: g, vehicleGridNo: NOWHERE };
+  const spot = findGridNoFromSweetSpotWithStructDataFromSoldier(t, s, s.uiMovementMode, VEHICLE_TOOL_RADIUS, ClosestTo.SWEET_SPOT, vehicle);
+  return spot === NOWHERE ? { gridNo: g, vehicleGridNo: NOWHERE } : { gridNo: spot, vehicleGridNo: vehicle.gridNo };
+}
+
 export function interactiveTileAt(t: TacticalState, g: number): number | null {
   const structure = t.world.structures.find(g, StructureFlags.OPENABLE);
   if (!structure) return null;
@@ -74,6 +111,14 @@ export function cutWireFence(t: TacticalState, g: number): boolean {
 
 export function apsToCutFence(t: TacticalState, s: Soldier): number {
   return apsToChangeStance(t.content, s, AnimHeight.CROUCH) + AP.USEWIRECUTTERS;
+}
+
+export function apsToBeginRepair(t: TacticalState, s: Soldier): number {
+  return apsToChangeStance(t.content, s, AnimHeight.CROUCH) + AP.START_REPAIR;
+}
+
+export function apsToRefuelVehicle(t: TacticalState, s: Soldier): number {
+  return apsToChangeStance(t.content, s, AnimHeight.CROUCH) + AP.REFUEL_VEHICLE;
 }
 
 export function walkCostTo(t: TacticalState, s: Soldier, g: number): number {
@@ -123,15 +168,34 @@ export function soldierBeginAttachCan(t: TacticalState, s: Soldier, g: number, d
   t.events.push({ type: 'canAttached', soldier: s.id, gridNo: g });
 }
 
+const soldierIdAsVehicleUnderRepair = (vehicle: Soldier): number => i8(vehicle.id);
+
+export function soldierBeginRepair(t: TacticalState, s: Soldier, g: number, direction: number): void {
+  const vehicle = vehicleAtGridNo(t, g);
+  if (!vehicle) return;
+  faceToward(t, s, direction);
+  initNewSoldierAnim(t, s, anim(t.content, 'GOTO_REPAIRMAN'), 0, false);
+  t.vehicleHooks.boarding?.setAssignmentRepair(s, soldierIdAsVehicleUnderRepair(vehicle));
+}
+
+export function soldierBeginRefuel(t: TacticalState, s: Soldier, g: number, direction: number): void {
+  if (!vehicleAtGridNo(t, g)) return;
+  faceToward(t, s, direction);
+  initNewSoldierAnim(t, s, anim(t.content, 'REFUEL_VEHICLE'), 0, false);
+}
+
 const BEGIN_TILE_TOOL: Readonly<Record<TileTool, (t: TacticalState, s: Soldier, g: number, direction: number) => void>> = {
   cutFence: soldierBeginCutFence,
   takeBlood: soldierBeginTakeBlood,
   attachCan: soldierBeginAttachCan,
   enterVehicle: soldierEnterVehicle,
+  repair: soldierBeginRepair,
+  refuel: soldierBeginRefuel,
 };
 
 function walkUpThenUse(t: TacticalState, s: Soldier, approach: MeleeApproach, tool: TileTool, g: number): number {
   s.pendingTileTool = { tool, gridNo: g, direction: approach.direction };
+  s.pendingActionData2 = g;
   if (getNewSoldierPath(t, s, approach.actionGridNo, s.uiMovementMode, 0, true)) return ItemHandle.OK;
   s.pendingTileTool = null;
   return ItemHandle.CANNOT_GETTO_LOCATION;
@@ -175,19 +239,55 @@ export function handleTinCan(t: TacticalState, s: Soldier, g: number): number {
   return ItemHandle.OK;
 }
 
-function tileToolOf(t: Pick<TacticalState, 'content'>, item: number): 'wireCutters' | 'jar' | 'tinCan' | null {
-  if (item === itemIndex(t, 'WIRECUTTERS')) return 'wireCutters';
-  if (item === itemIndex(t, 'JAR')) return 'jar';
-  if (item === itemIndex(t, 'STRING_TIED_TO_TIN_CAN')) return 'tinCan';
-  return null;
+interface VehicleTool {
+  readonly tool: 'repair' | 'refuel';
+  readonly aps: (t: TacticalState, s: Soldier) => number;
+  readonly pendingGridNo: (target: VehicleToolTarget, adjustedGridNo: number) => number;
 }
 
+const TOOL_KIT: VehicleTool = {
+  tool: 'repair',
+  aps: apsToBeginRepair,
+  pendingGridNo: (target, adjustedGridNo) => (target.vehicleGridNo !== NOWHERE ? target.vehicleGridNo : adjustedGridNo),
+};
+
+const GAS_CAN_TOOL: VehicleTool = {
+  tool: 'refuel',
+  aps: apsToRefuelVehicle,
+  pendingGridNo: (target) => target.vehicleGridNo,
+};
+
+function handleVehicleTool(t: TacticalState, s: Soldier, g: number, use: VehicleTool): number {
+  const target = vehicleToolTarget(t, s, g);
+  const approach = findAdjacentGridEx(t, s, target.gridNo, true);
+  if (!approach) return ItemHandle.CANNOT_GETTO_LOCATION;
+  if (!enoughPoints(t.inCombat, s, use.aps(t, s) + walkCostTo(t, s, approach.actionGridNo))) return ItemHandle.NOAPS;
+  if (s.gridNo !== approach.actionGridNo) return walkUpThenUse(t, s, approach, use.tool, use.pendingGridNo(target, approach.targetGridNo));
+  BEGIN_TILE_TOOL[use.tool](t, s, approach.targetGridNo, approach.direction);
+  return ItemHandle.OK;
+}
+
+export function handleToolKit(t: TacticalState, s: Soldier, g: number): number {
+  return handleVehicleTool(t, s, g, TOOL_KIT);
+}
+
+export function handleGasCan(t: TacticalState, s: Soldier, g: number): number {
+  return handleVehicleTool(t, s, g, GAS_CAN_TOOL);
+}
+
+type TileToolHandler = (t: TacticalState, s: Soldier, g: number) => number;
+
+const HAND_TILE_TOOLS: readonly (readonly [item: string, handle: TileToolHandler])[] = [
+  ['WIRECUTTERS', handleWireCutters],
+  ['TOOLKIT', handleToolKit],
+  [GAS_CAN, handleGasCan],
+  ['JAR', handleJar],
+  ['STRING_TIED_TO_TIN_CAN', handleTinCan],
+];
+
 export function handleTileTool(t: TacticalState, s: Soldier, g: number, handItemIndex: number): number | null {
-  const tool = tileToolOf(t, handItemIndex);
-  if (tool === 'wireCutters') return handleWireCutters(t, s, g);
-  if (tool === 'jar') return handleJar(t, s, g);
-  if (tool === 'tinCan') return handleTinCan(t, s, g);
-  return null;
+  const tool = HAND_TILE_TOOLS.find(([item]) => handItemIndex === itemIndex(t, item));
+  return tool ? tool[1](t, s, g) : null;
 }
 
 function bloodOfCorpse(t: TacticalState, type: number): string {
@@ -208,9 +308,18 @@ function cutFenceAtTarget(t: TacticalState, s: Soldier): void {
   if (cutWireFence(t, s.targetGridNo)) t.events.push({ type: 'fenceCut', soldier: s.id, gridNo: s.targetGridNo });
 }
 
+function refuelVehicleFromHand(t: TacticalState, s: Soldier): void {
+  const vehicle = whoIsThere(t, s.pendingActionData2, s.level);
+  const can = s.inv[InvSlot.HAND] as ItemObject;
+  if (!vehicle || can.item !== itemIndex(t, GAS_CAN) || !addFuelToVehicle(vehicle, can)) return;
+  if (isGasCanEmpty(can)) deleteObject(can);
+  t.events.push({ type: 'vehicleRefuelled', soldier: s.id, vehicle: vehicle.vehicleId, gridNo: vehicle.gridNo });
+}
+
 export function tileToolOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   if (code === CUT_FENCE_CODE) cutFenceAtTarget(t, s);
   else if (code === TAKE_BLOOD_CODE) getBloodFromCorpse(t, s);
+  else if (code === REFUEL_VEHICLE_CODE) refuelVehicleFromHand(t, s);
   else return null;
   return 'continue';
 }

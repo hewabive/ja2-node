@@ -18,4 +18,11 @@ export interface CanAttachedEvent extends SimEventBase {
   readonly gridNo: number;
 }
 
-export type TileToolEvent = FenceCutEvent | JarFilledEvent | CanAttachedEvent;
+export interface VehicleRefuelledEvent extends SimEventBase {
+  readonly type: 'vehicleRefuelled';
+  readonly soldier: number;
+  readonly vehicle: number;
+  readonly gridNo: number;
+}
+
+export type TileToolEvent = FenceCutEvent | JarFilledEvent | CanAttachedEvent | VehicleRefuelledEvent;

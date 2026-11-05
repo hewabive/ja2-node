@@ -7,11 +7,12 @@
 // @src metal grey at 0, the maximum flashing after a change, "??" for a prisoner), DrawCharStats and PrintStat (green or
 // @src red for CHANGE_STAT_RECENTLY_DURATION after a change), RenderHandPosItem (not with the inventory open or for the
 // @src dead), RenderIconsForUpperLeftCornerPiece, ConvertMinTimeToETADayHourMinString; src/game/Strategic/
-// @src Map_Screen_Interface.cc RenderMapStatusBars (DrawSoldierUIBars at BAR_INFO_X, BAR_INFO_Y).
+// @src Map_Screen_Interface.cc RenderMapStatusBars (DrawSoldierUIBars at BAR_INFO_X, BAR_INFO_Y); no vehicle name for a
+// @src repair id that names no vehicle, where GetVehicle throws (2026-11-05).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
-import type { StrategicMercView, StrategicView } from '../../../protocol/view.ts';
+import type { StrategicMercView, StrategicVehicleView, StrategicView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
 import { hCenterVCenterAlign, hRightVCenterAlign, stringPixLength } from '../../text/measure.ts';
@@ -127,6 +128,11 @@ export function etaDayHourMinute(text: UiTextService, minutes: number): string {
   return `${text.string(ETA_STRING, 0) ?? ''} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
+export function vehicleUnderRepairName(text: UiTextService, vehicles: readonly StrategicVehicleView[], id: number): string {
+  const v = vehicles.find((x) => x.id === id);
+  return v ? (text.string(SHORT_VEHICLE_STRINGS, v.type ?? 0) ?? '') : '';
+}
+
 function secondAssignmentLine(ctx: InfoContext, m: StrategicMercView, townOf: (sector: string) => number): string {
   const text = ctx.text;
   switch (m.assignment) {
@@ -140,10 +146,7 @@ function secondAssignmentLine(ctx: InfoContext, m: StrategicMercView, townOf: (s
     }
     case Assignment.REPAIR: {
       if (m.repairRobot) return text.string(REPAIR_STRINGS, REPAIR_ROBOT) ?? '';
-      if (m.repairVehicle !== undefined) {
-        const v = (ctx.strategic.vehicles ?? []).find((x) => x.id === m.repairVehicle);
-        return text.string(SHORT_VEHICLE_STRINGS, v?.type ?? 0) ?? '';
-      }
+      if (m.repairVehicle !== undefined) return vehicleUnderRepairName(text, ctx.strategic.vehicles ?? [], m.repairVehicle);
       return text.string(REPAIR_STRINGS, REPAIR_ITEMS) ?? '';
     }
     case Assignment.IN_TRANSIT: {

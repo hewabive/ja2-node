@@ -131,6 +131,8 @@ const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   'cutFence',
   'fillJar',
   'attachCan',
+  'repair',
+  'refuel',
   'enterVehicle',
   'exitVehicle',
   'door',

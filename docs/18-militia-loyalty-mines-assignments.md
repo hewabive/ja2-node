@@ -93,7 +93,9 @@ assignment. In turn-based combat the clock stands still, so assignments make no 
 
 **A vehicle's condition is its soldier's.** A mechanic repairs the life of the vehicle soldier: a vehicle of ours
 through the crew port wherever it is, any other through the `loadedSectorSoldier` hook, since such a vehicle is in the
-list only while its sector is loaded (`vehicle-repair.ts`). The helicopter has no soldier and is never repaired.
+list only while its sector is loaded (`vehicle-repair.ts`). The helicopter has no soldier and is never repaired. A
+toolkit used on a vehicle in tactical sets the repair under the vehicle soldier's id, which names no vehicle, so that
+mechanic repairs nothing and finishes at the next hour (deviation "Toolkit repair in tactical", `25`).
 
 **Strategic flow stands for compression.** Squad mercs heal at the resting rate while time is compressed; the map
 screen always compresses and tactical never does, so ja2-node asks whether the flow is strategic (deviation "Time

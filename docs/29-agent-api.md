@@ -46,9 +46,8 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows them disabled): repairing and refuelling a vehicle with a toolkit or a gas
-can (gap "Ground vehicles"; `previewAction` answers `notSupported`); auto-bandage (gap "Auto-bandage"); the placement
-GUI (deviation "Tactical placement").
+**Not built as commands** (the client shows them disabled): auto-bandage (gap "Auto-bandage"); the placement GUI
+(deviation "Tactical placement").
 
 ## 3. Fairness: what the agent never sees
 
@@ -513,7 +512,7 @@ can on a string on a door's tile: `canAttached`, and the door makes three times 
 `noWireCutters`, `noJar`, `noCan` (the hand gives no such cursor), `noFence` (the cursor's check of
 `UIMouseOnValidAttackLocation`), `noInteractiveTile`, then the hand item roll (`itemBroken`), `noPath` and `notEnoughAP`.
 `previewAction` kinds `cutFence`, `jar` and `can` give what their cursors show: the walk beside the tile, the APs and,
-as `ok`, whether the cursor turns good.
+as `ok`, whether the cursor turns good. The toolkit and the gas can on a vehicle are `repair` and `refuel` (§8.8).
 
 ### 8.3 Inventory, money and first aid
 
@@ -671,6 +670,21 @@ civilian vehicle of the loaded sector over the same way, a third vehicle of ours
 `vehicleBoarded` and `vehicleLeft {soldier, vehicle, gridNo}` carry the vehicle's tile, where the enter sound plays,
 while the vehicle stands on the loaded map.
 
+A toolkit or a gas can in hand repairs or refuels a vehicle of any team at ground level, an enemy tank included, as the
+original's item cursors do (`src/sim/tactical/tile-tools.ts`, rules `25`): `repair {soldier, gridNo}` and
+`refuel {soldier, gridNo}`, `gridNo` any tile of the vehicle. The merc walks towards the free tile closest to the
+vehicle within 5 (the walk ends beside that tile when one beside is nearer) and, arriving, crouches: the toolkit puts
+him on the `REPAIR` assignment, off his squad, under the vehicle soldier's id, which names no vehicle, so he repairs
+nothing and finishes at the next hour (deviation "Toolkit repair in tactical"; nothing changes when nothing around needs
+a repair); the gas can pours 50 fuel per point of its status, up to a full tank, losing a point per whole 50 poured and
+vanishing at 0 (`vehicleRefuelled {soldier, vehicle, gridNo}`, the vehicle's id and tile; a full tank takes nothing).
+Neither costs more than the walk and the crouch; a merc who already stands where he would walk to does nothing (a
+quirk, `25`). Refusals: `notInCampaign` (the sandbox), the order's own (`inVehicle`, …), `noToolKit` or `noGasCan` (the
+hand gives no such cursor), `noVehicle` (no vehicle on the tile at ground level, or the merc is on a roof), the hand item
+roll (`itemBroken`), `noPath`, `notEnoughAP` (the walk plus the crouch and 5 for a repair or 10 for a
+refuel). `previewAction` kinds `repair` and `refuel` give the cursor's walk and APs and, as `ok`, whether it turns good
+(`noVehicle` where it does not); the walk is the cursor's, beside a door maybe another tile than the order's (`25`).
+
 `strategic.vehicles` names our vehicles and the helicopter, and another vehicle only while a merc of ours could board
 it (`IsThisVehicleAccessibleToSoldier`: in his sector, neither moving, `OKUseVehicle`), the map screen's vehicle menu;
 an enemy's tank never, though the vehicle list holds it while its sector is loaded.
@@ -681,7 +695,8 @@ A vehicle of ours is a merc of `kind` `vehicle` whose `vehicle` names the vehicl
 Travel burns fuel (`16`); the leg that empties the tank brings `vehicleOutOfGas {vehicle, sector}`, the original's box,
 before the arrival's `groupArrived`, and the group stops there. A vehicle with an empty tank refuses to move as
 `vehicleNoGas` (after `vehicleEmpty` and `vehicleDamaged`), and so does the route of anyone aboard, naming the vehicle
-soldier. The hints read the fuel from the percentage shown. A mechanic repairs a vehicle by the hour (`18`).
+soldier. The hints read the fuel from the percentage shown, so a tank a gas can left below 1 % refuses there while
+the command moves it (deviation "Strategic hints and enemy counts"). A mechanic repairs a vehicle by the hour (`18`).
 
 A vehicle in the loaded sector, an enemy tank among them, takes hits by the original's vehicle rules (`33`) and gets 35
 APs more a turn, up to 50 (`10`). The hit that destroys it brings `vehicleDestroyed {soldier, vehicle, killer}` (the

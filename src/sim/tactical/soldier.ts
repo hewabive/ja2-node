@@ -572,7 +572,7 @@ export interface PendingRobotReload {
   readonly direction: number;
 }
 
-export type TileTool = 'cutFence' | 'takeBlood' | 'attachCan' | 'enterVehicle';
+export type TileTool = 'cutFence' | 'takeBlood' | 'attachCan' | 'enterVehicle' | 'repair' | 'refuel';
 
 export interface PendingTileTool {
   readonly tool: TileTool;

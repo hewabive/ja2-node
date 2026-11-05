@@ -25,6 +25,7 @@ export interface VehicleBoarding {
   okUseVehicle(vehicle: Soldier): boolean;
   putSoldierInVehicle(s: Soldier, vehicle: Soldier): Refusal | null;
   exitVehicle(s: Soldier): void;
+  setAssignmentRepair(s: Soldier, vehicleUnderRepair: number): void;
 }
 
 export interface VehicleHooks {

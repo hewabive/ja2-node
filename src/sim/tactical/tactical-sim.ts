@@ -20,7 +20,8 @@
 // @src wire cutters, jar and tin can (cutFence, fillJar, attachCan through HandleItem; the x-ray device takes useRemote,
 // @src 2026-11-04); Turn_Based_Input.cc HandleMoveModeInteractiveClick (no move for a vehicle), HandleHandCursorClick
 // @src (the vehicle click, enterVehicle) and Interface_Panels.cc TMClickSecondHandInvCallbackPrimary (ExitVehicle, the
-// @src exitVehicle command, 2026-11-05).
+// @src exitVehicle command, 2026-11-05); Handle_UI.cc UIMouseOnValidAttackLocation (REPAIRCURS and REFUELCURS: a
+// @src vehicle at ground level) for the repair and refuel commands (2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -184,7 +185,14 @@ import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSo
 import { Body, inVehicle, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
-import { fenceCuttableBy, handlePendingTileToolOnArrival, interactiveTileAt, tileToolOpcode } from './tile-tools.ts';
+import {
+  fenceCuttableBy,
+  handlePendingTileToolOnArrival,
+  interactiveTileAt,
+  tileToolOpcode,
+  VEHICLE_TOOLS_NOT_IN_CAMPAIGN,
+  vehicleServiceableBy,
+} from './tile-tools.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns } from './turns/turns.ts';
@@ -326,12 +334,34 @@ const PLANT_BOMB_REFUSALS: Readonly<Record<PlantBombRefusal, string>> = {
 interface TileToolOrder {
   readonly cursor: number;
   readonly refusal: readonly [token: string, reason: string];
+  readonly target?: {
+    readonly valid: (t: TacticalState, s: Soldier, g: number) => boolean;
+    readonly refusal: readonly [token: string, reason: string];
+  };
 }
 
+const SERVICEABLE_VEHICLE: TileToolOrder['target'] = {
+  valid: vehicleServiceableBy,
+  refusal: ['noVehicle', 'no vehicle on that tile at ground level, or the soldier is on a roof'],
+};
+
 const TILE_TOOL_ORDERS: Readonly<Record<string, TileToolOrder>> = {
-  cutFence: { cursor: ItemCursor.WIRECUT, refusal: ['noWireCutters', 'the soldier holds no wire cutters he can use'] },
+  cutFence: {
+    cursor: ItemCursor.WIRECUT,
+    refusal: ['noWireCutters', 'the soldier holds no wire cutters he can use'],
+    target: { valid: fenceCuttableBy, refusal: ['noFence', 'no wire fence to cut on that tile at his level'] },
+  },
   fillJar: { cursor: ItemCursor.JAR, refusal: ['noJar', 'the soldier holds no empty jar he can use'] },
-  attachCan: { cursor: ItemCursor.TINCAN, refusal: ['noCan', 'the soldier holds no tin can on a string he can use'] },
+  attachCan: {
+    cursor: ItemCursor.TINCAN,
+    refusal: ['noCan', 'the soldier holds no tin can on a string he can use'],
+    target: {
+      valid: (t, _s, g) => interactiveTileAt(t, g) !== null,
+      refusal: ['noInteractiveTile', 'nothing on that tile to tie the can to: give the gridNo of a door'],
+    },
+  },
+  repair: { cursor: ItemCursor.REPAIR, refusal: ['noToolKit', 'the soldier holds no toolkit he can use'], target: SERVICEABLE_VEHICLE },
+  refuel: { cursor: ItemCursor.REFUEL, refusal: ['noGasCan', 'the soldier holds no gas can he can use'], target: SERVICEABLE_VEHICLE },
 };
 
 const MELEE_ORDER_REFUSALS: Readonly<Record<MeleeOrderRefusal, string>> = {
@@ -772,6 +802,9 @@ export class TacticalSim {
       case 'fillJar':
       case 'attachCan':
         return this.#useTileTool(cmd);
+      case 'repair':
+      case 'refuel':
+        return this.state.vehicleHooks.boarding ? this.#useTileTool(cmd) : refused(VEHICLE_TOOLS_NOT_IN_CAMPAIGN);
       case 'enterVehicle':
         return this.#enterVehicle(cmd);
       case 'exitVehicle':
@@ -1039,9 +1072,7 @@ export class TacticalSim {
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const order = TILE_TOOL_ORDERS[cmd.type] as TileToolOrder;
     if (actionModeCursor(t, s, t.narrative.isEpc(s)) !== order.cursor) return refuse(...order.refusal);
-    if (cmd.type === 'cutFence' && !fenceCuttableBy(t, s, g)) return refuse('noFence', 'no wire fence to cut on that tile at his level');
-    if (cmd.type === 'attachCan' && interactiveTileAt(t, g) === null)
-      return refuse('noInteractiveTile', 'nothing on that tile to tie the can to: give the gridNo of a door');
+    if (order.target && !order.target.valid(t, s, g)) return refuse(...order.target.refusal);
     return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
   }
 

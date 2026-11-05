@@ -17,6 +17,7 @@ import { Direction } from '../content/world/grid.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
+import type { PreviewAction } from '../sim/hints/preview-action.ts';
 import { createItem } from '../sim/items/object.ts';
 import { LAIR_DESTROYED } from '../sim/strategic/creatures/creatures.ts';
 import { FACT_OK_USE_HUMMER, SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
@@ -27,6 +28,8 @@ import { InvSlot } from '../sim/tactical/inventory.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
 import { Body } from '../sim/tactical/soldier.ts';
+import { apsToBeginRepair, apsToRefuelVehicle, walkCostTo } from '../sim/tactical/tile-tools.ts';
+import { addFuelToVehicle } from '../sim/vehicles/vehicle-fuel.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { Session } from './session.ts';
@@ -290,6 +293,42 @@ describe('the enter-vehicle cursor by a civilian vehicle, client against server'
   });
 });
 
+describe('the toolkit and gas can cursors by a civilian vehicle, client against server', () => {
+  it('turn good over any tile of the Hummer the boarding still refuses, with the walk and APs the order takes, and stay bad off it (quirk)', async () => {
+    const sim = await stubCampaignAtTheHummer(kit, 44);
+    const session = withQueries(new Session('vehicle-tool-hints', sim), sources);
+    const t = sim.campaign.tactical?.state;
+    const hummer = t?.soldiers.find((s) => s?.placed && s.bodyType === Body.HUMVEE);
+    const [mechanic, driver] = (sim.campaign.battle?.roster.all() ?? []).filter((m) => !m.isVehicle).map((m) => m.soldier);
+    if (!t || !hummer || !mechanic || !driver) throw new Error('no Hummer or no two mercs');
+    mechanic.inv[InvSlot.HAND] = createItem(kit.content.items, kit.content.items.byName.get('TOOLKIT')?.index ?? 0, 100);
+    driver.inv[InvSlot.HAND] = createItem(kit.content.items, kit.content.items.byName.get('GAS_CAN')?.index ?? 0, 100);
+    const ask = (soldier: number, kind: string, gridNo: number) => ({ type: 'previewAction', soldier, kind, gridNo });
+    const beside = hummer.gridNo + 1;
+    const offTheCar = mechanic.gridNo + 2;
+    await expectHintsAgree(session, client, [
+      ask(mechanic.id, 'repair', hummer.gridNo),
+      ask(mechanic.id, 'repair', beside),
+      ask(mechanic.id, 'repair', offTheCar),
+      ask(driver.id, 'refuel', hummer.gridNo),
+      ask(driver.id, 'refuel', offTheCar),
+    ]);
+    const repair = (await session.query(ask(mechanic.id, 'repair', beside))).data as PreviewAction;
+    const refuel = (await session.query(ask(driver.id, 'refuel', hummer.gridNo))).data as PreviewAction;
+    expect([repair.ok, refuel.ok]).toEqual([true, true]);
+    expect(repair.apCost).toBe(apsToBeginRepair(t, mechanic) + walkCostTo(t, mechanic, repair.actionGridNo));
+    expect(refuel.apCost).toBe(apsToRefuelVehicle(t, driver) + walkCostTo(t, driver, refuel.actionGridNo));
+    expect((await session.query(ask(mechanic.id, 'repair', offTheCar))).data).toMatchObject({ ok: false, refusal: 'noVehicle' });
+    expect(sim.dispatch({ type: 'enterVehicle', soldier: mechanic.id, vehicle: hummer.id })).toMatchObject({
+      data: { refusal: 'notAllowed' },
+    });
+    expect(sim.dispatch({ type: 'repair', soldier: mechanic.id, gridNo: offTheCar })).toMatchObject({ data: { refusal: 'noVehicle' } });
+    expect(sim.dispatch({ type: 'repair', soldier: mechanic.id, gridNo: beside })).toEqual({ ok: true });
+    session.advance({ idle: true }, ENTER_VEHICLE_BUDGET);
+    expect(sim.campaign.tactical?.state.soldiers[mechanic.id]?.gridNo).toBe(repair.actionGridNo);
+  });
+});
+
 describe('a vehicle of ours, client against server', () => {
   async function withOurHummer(seed: number): Promise<Campaign & { readonly hummer: RosterMerc }> {
     const sim = await stubCampaignWithOurHummer(kit, seed);
@@ -311,6 +350,18 @@ describe('a vehicle of ours, client against server', () => {
       expect(await c.session.query({ type: 'previewRoute', soldier, to: 'B10' }), `hint for ${soldier}`).toMatchObject(refused);
       expect(c.sim.dispatch({ type: 'route', soldier, to: 'B10' }), `route for ${soldier}`).toMatchObject(refused);
     }
+  });
+
+  it('refuse the route of a vehicle a gas can left below 1 %, which shows 0, while the command moves it (deviation)', async () => {
+    const c = await withOurHummer(40);
+    Object.assign(c.hummer.soldier, { breathRed: 0, breath: 0 });
+    addFuelToVehicle(c.hummer.soldier, { status: [1] });
+    expect([c.hummer.soldier.breathRed, c.hummer.soldier.breath]).toEqual([50, 0]);
+    expect(await c.session.query({ type: 'previewRoute', soldier: c.hummer.id, to: 'B10' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'vehicleNoGas' },
+    });
+    expect(c.sim.dispatch({ type: 'route', soldier: c.hummer.id, to: 'B10' })).toMatchObject({ ok: true });
   });
 
   it('offer the repair of a damaged vehicle of ours in the assignment menu as the full state does', async () => {

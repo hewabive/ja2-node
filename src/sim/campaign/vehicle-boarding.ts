@@ -2,8 +2,10 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-05. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Vehicles.cc PutSoldierInVehicle, AddSoldierToVehicle (ChangeSoldierTeam, SelectSoldier and
 // @src SetCurrentSquad on the game screen, the enter sound at the vehicle), ExitVehicle (its tactical part, the
-// @src selections and the enter sound), OKUseVehicle.
+// @src selections and the enter sound), OKUseVehicle; Strategic/Assignments.cc SetSoldierAssignmentRepair from
+// @src Soldier_Control.cc EVENT_SoldierBeginRepair (2026-11-05).
 
+import { setSoldierAssignmentRepair } from '../strategic/economy/set-assignment.ts';
 import { addSoldierToVehicle, Boarding } from '../strategic/economy/vehicle-assignment.ts';
 import { okUseVehicleType } from '../strategic/forces/helicopter.ts';
 import type { LoadedSectorVehicles } from '../strategic/forces/ports.ts';
@@ -72,6 +74,14 @@ function exitVehicleOnTheMap(campaign: CampaignSim, s: Soldier): void {
   campaign.helicopter.emit({ type: 'vehicleLeft', soldier: s.id, vehicle: vid, ...withGridNo(gridNo) });
 }
 
+const NOT_A_ROBOT = false;
+
+function setAssignmentRepair(campaign: CampaignSim, s: Soldier, vehicleUnderRepair: number): void {
+  const economy = campaign.economy;
+  const merc = campaign.battle?.roster.get(s.id);
+  if (economy && merc) setSoldierAssignmentRepair(economy, merc, NOT_A_ROBOT, vehicleUnderRepair);
+}
+
 export function campaignVehicleBoarding(campaign: CampaignSim): VehicleBoarding {
   return {
     okUseVehicle: (vehicle) => {
@@ -80,6 +90,7 @@ export function campaignVehicleBoarding(campaign: CampaignSim): VehicleBoarding 
     },
     putSoldierInVehicle: (s, vehicle) => putSoldierInVehicle(campaign, s, vehicle),
     exitVehicle: (s) => exitVehicleOnTheMap(campaign, s),
+    setAssignmentRepair: (s, vehicleUnderRepair) => setAssignmentRepair(campaign, s, vehicleUnderRepair),
   };
 }
 

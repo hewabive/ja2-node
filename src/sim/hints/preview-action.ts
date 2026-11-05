@@ -6,7 +6,7 @@
 // @src UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
 // @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
-// @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet); Interface_Items.cc DrawItemTileCursor
+// @src 2026-11-01); Interface_Items.cc DrawItemTileCursor
 // @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03); Turn_Based_Input.cc
 // @src HandleHandCursorClick (EPC_CANNOT_DO_THAT for an escort's pickup or search, 2026-11-03); Handle_UI.cc
 // @src DrawUIMovementPath (MOVEUI_TARGET_BOMB: the walk onto the tile plus AP_DROP_BOMB), UIMouseOnValidAttackLocation
@@ -14,7 +14,9 @@
 // @src DrawUIMovementPath (MOVEUI_TARGET_WIREFENCE, MOVEUI_TARGET_JAR, MOVEUI_TARGET_CAN) and UI_Cursors.cc
 // @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the good cursor: a cuttable fence at ground level, a
 // @src corpse, a door; 2026-11-04); Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (the enter-vehicle cursor) and
-// @src Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick (its walk and APs, 2026-11-05).
+// @src Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick (its walk and APs, 2026-11-05); Handle_UI.cc
+// @src DrawUIMovementPath (MOVEUI_TARGET_REPAIR, MOVEUI_TARGET_REFUEL) and UI_Cursors.cc HandleRepairCursor,
+// @src HandleRefuelCursor (the good cursor: a vehicle at ground level, 2026-11-05).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -47,7 +49,17 @@ import { seenExchangeChecks, validQuickExchangePosition } from '../tactical/quic
 import { apsToReloadRobot } from '../tactical/robot-reload.ts';
 import { NOWHERE, onTheGrid, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
-import { apsToCutFence, fenceCuttableBy, interactiveTileAt, isCorpseAtGridNo } from '../tactical/tile-tools.ts';
+import {
+  apsToBeginRepair,
+  apsToCutFence,
+  apsToRefuelVehicle,
+  fenceCuttableBy,
+  interactiveTileAt,
+  isCorpseAtGridNo,
+  VEHICLE_TOOLS_NOT_IN_CAMPAIGN,
+  vehicleServiceableBy,
+  vehicleToolTarget,
+} from '../tactical/tile-tools.ts';
 import { AP_TOSS_ITEM, previewToss } from '../tactical/toss.ts';
 import {
   BoardingCursor,
@@ -78,8 +90,9 @@ export const SUPPORTED_ACTIONS = [
   'jar',
   'can',
   'enterVehicle',
+  'repair',
+  'refuel',
 ] as const;
-export const UNSUPPORTED_ACTIONS = ['repair', 'refuel'] as const;
 
 export type ActionKind = (typeof SUPPORTED_ACTIONS)[number];
 
@@ -130,7 +143,6 @@ type ActionPart = Omit<PreviewAction, 'kind' | 'affordable'> & { readonly afford
 
 const NO_STEPS: readonly Footstep[] = [];
 const SUPPORTED: ReadonlySet<string> = new Set(SUPPORTED_ACTIONS);
-const UNSUPPORTED: ReadonlySet<string> = new Set(UNSUPPORTED_ACTIONS);
 
 function refused(c: ActionContext, refusal: string, actionGridNo = c.g): ActionPart {
   return { ok: false, refusal, apCost: 0, actionGridNo, steps: NO_STEPS };
@@ -385,6 +397,20 @@ function enterVehicleAction(c: ActionContext, cursor: unknown): ActionPart {
   return { ok: true, apCost: walk.apCost, actionGridNo: walk.actionGridNo, steps: walkTo(c, walk.actionGridNo).steps };
 }
 
+export function vehicleToolPreviewGridNo(t: TacticalState, s: Soldier, g: number): number {
+  const target = vehicleToolTarget(t, s, g).gridNo;
+  return findAdjacentGridExForDoor(t, s, target)?.actionGridNo ?? target;
+}
+
+function vehicleToolAction(c: ActionContext, apsToUse: (t: TacticalState, s: Soldier) => number): ActionPart {
+  const { t, s } = c;
+  if (!c.world.strategic) return refused(c, VEHICLE_TOOLS_NOT_IN_CAMPAIGN.token, s.gridNo);
+  const actionGridNo = vehicleToolPreviewGridNo(t, s, c.g);
+  const walk = walkTo(c, actionGridNo);
+  const part = { ok: true, apCost: apsToUse(t, s) + walk.cost, actionGridNo, steps: walk.steps };
+  return withCursorCheck(part, vehicleServiceableBy(t, s, c.g) ? null : 'noVehicle');
+}
+
 function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest): ActionPart {
   switch (kind) {
     case 'door':
@@ -417,6 +443,10 @@ function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest):
       return canAction(c);
     case 'enterVehicle':
       return enterVehicleAction(c, req.cursor);
+    case 'repair':
+      return vehicleToolAction(c, apsToBeginRepair);
+    case 'refuel':
+      return vehicleToolAction(c, apsToRefuelVehicle);
   }
 }
 
@@ -434,7 +464,6 @@ function complete(acting: ActingSoldier, kind: ActionKind, part: ActionPart): Pr
 
 export function previewAction(world: KnowledgeWorld, req: PreviewActionRequest): HintResult<PreviewAction> {
   const kind = req.kind;
-  if (typeof kind === 'string' && UNSUPPORTED.has(kind)) return refuseHint('notSupported', `${kind} has no command yet`);
   if (typeof kind !== 'string' || !SUPPORTED.has(kind)) return refuseHint('badKind', `kind must be one of ${SUPPORTED_ACTIONS.join(', ')}`);
   const acting = actingSoldier(world, req.soldier);
   if ('refusal' in acting) return acting.refusal;

@@ -131,6 +131,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | One NPC in a wilderness sector who was ever spoken to, recruited or escorted silences the NPC-of-note box for every unmet NPC there | `strategic/forces/npcs-of-note.test.ts` |
 | A bloodcat lair's corpses carry profile 0 from their zeroed definition, and in the first two days of a campaign their unsigned time of death wraps, still two days back for the rot | `campaign/sector-loot.test.ts` |
 | Fuel spent on the map leaves the percentage rounded up, so a vehicle shows 1 % of fuel until its tank is empty | `vehicles/vehicle-fuel.test.ts`, `campaign/vehicle-travel.test.ts` |
+| A gas can leaves the percentage rounded down: 50 fuel from a can of status 1 in an empty tank shows 0 %, which the route hint takes for empty while the vehicle moves (deviation "Strategic hints and enemy counts") | `vehicles/vehicle-fuel.test.ts` "shows 0 for the 50 fuel …", `src/server/hints-strategic-stub.test.ts` "refuse the route of a vehicle a gas can left below 1 % …" |
 | A passenger cannot move while his vehicle's tank is empty: the group check meets the vehicle soldier, and the refusal names the vehicle | `strategic/forces/move-permission.test.ts`, `campaign/vehicle-travel.test.ts` |
 | The museum move check asks whether Eldin lives, not whether the alarm went off, counts the chalice on any merc of the team wherever he is, and reads the room under the merc's tile in whatever map is loaded, also when he stands in another sector | `strategic/forces/move-permission.test.ts` |
 | An arriving creature faces the first direction its body fits on the tile it found (north on open ground), whatever its insertion direction, a forced one too: the facing a creature attack sets per edge is never used | `tactical/insertion.test.ts` |
@@ -173,7 +174,7 @@ the source:
 - Not probed: strategic advance with replayed draws (enemy sleep, queued battles and reversals in one run), and player
   ETAs with encumbrance unless every member is in the loaded sector.
 
-Not ported: gaps "Strategic move refusals", "Ground vehicles", "Out-of-gas box", "Savegame import". Other
+Not ported: gaps "Strategic move refusals", "Out-of-gas box", "Savegame import". Other
 deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
 enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on
 import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".

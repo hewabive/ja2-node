@@ -203,14 +203,10 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(action(sim, 'bomb', ORIGIN)).toMatchObject({ ok: false, refusal: 'notABomb' });
   });
 
-  it('answers notSupported for the item cursors without a command', () => {
+  it('refuses the repair and refuel cursors in the sandbox as their commands do', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
-    for (const kind of ['repair', 'refuel'])
-      expect(hintAnswer(sim, 'previewAction', { soldier: 0, kind, gridNo: ORIGIN + 1 })).toMatchObject({
-        ok: false,
-        data: { refusal: 'notSupported' },
-      });
+    for (const kind of ['repair', 'refuel']) expect(action(sim, kind, ORIGIN + 1)).toMatchObject({ ok: false, refusal: 'notInCampaign' });
   });
 
   it('refuses the enter-vehicle cursor in the sandbox as its command does', () => {

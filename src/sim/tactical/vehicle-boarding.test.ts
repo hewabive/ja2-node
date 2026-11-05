@@ -61,6 +61,7 @@ function withBoarding(t: TacticalState, usable: () => boolean = () => true): Boa
       exitVehicle: (s) => {
         boardings.exited.push(s.id);
       },
+      setAssignmentRepair: () => {},
     },
   };
   return boardings;

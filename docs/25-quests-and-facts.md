@@ -33,6 +33,7 @@ strategic checks: goods, money, hospital          strategic/narrative/npc-events
 helicopter: flights, SAMs, hovering, the bill     strategic/forces/helicopter.ts, campaign/helicopter-flow.ts
 vehicles: the list, a vehicle soldier's slot      vehicles/vehicle-list.ts, tactical/vehicle-soldiers.ts
   boarding and leaving on the loaded map          tactical/vehicle-boarding.ts, campaign/vehicle-boarding.ts
+  repair and refuel with a toolkit or gas can     tactical/tile-tools.ts, vehicles/vehicle-fuel.ts
 robot control                                     campaign/robot-control.ts, tactical/narrative/robot.ts
 the quest log of the player view                  src/server/quest-view.ts
 ```
@@ -53,6 +54,7 @@ the quest log of the player view                  src/server/quest-view.ts
 | `campaign/robot-control.ts`, `tactical/narrative/robot.ts` | `ControllingRobot` and the remote holder; an uncontrolled robot's orders and the controller's interrupt points |
 | `strategic/economy/vehicle-assignment.ts` | Boarding a vehicle (`AddSoldierToVehicle`, the takeover of a vehicle not ours included) and who must drive it |
 | `tactical/vehicle-boarding.ts`, `campaign/vehicle-boarding.ts` | The click on a vehicle with its walk and the boarding on arrival, the way out of a vehicle (`ExitVehicle`'s tile, opplist entry and sight), `VehicleHooks.boarding` and the loaded sector's part of boarding and leaving (`TacticalWorldPort.loadedVehicles`) |
+| `tactical/tile-tools.ts`, `vehicles/vehicle-fuel.ts` | The toolkit and the gas can on a vehicle (`HandleItem`'s branches among the tile tools of `12` §7): the walk, the repair assignment on arrival, the fuel poured at code 769 |
 | `vehicles/vehicle-list.ts`, `tactical/vehicle-soldiers.ts` | The vehicle list both layers share, its slots and records; a vehicle soldier registering his vehicle at creation and his vehicle leaving the list with him |
 | `src/server/quest-view.ts` | The quest log of the player view |
 
@@ -149,6 +151,14 @@ button (`exitVehicle`) go through `TacticalState.vehicleHooks.boarding`, which t
 reach the same code, so a civilian vehicle of the loaded sector is taken over from either screen, and a merc leaving
 on the loaded map stands where `ExitVehicle` puts him (`29` §8.8).
 
+**Repair and refuel.** The toolkit and the gas can are tile tools (`tactical/tile-tools.ts`, `12` §7) aimed at the free
+tile closest to the vehicle, as boarding is; the walk-up search then takes that tile as its target, so the merc may stop
+beside it, and the pending action holds the vehicle's own tile for the arrival. The toolkit's arrival sets the `REPAIR`
+assignment through `VehicleHooks.boarding.setAssignmentRepair` (`setSoldierAssignmentRepair`), which keeps the
+original's id (deviation "Toolkit repair in tactical"); the gas can pours at code 769 (`addFuelToVehicle`,
+`vehicles/vehicle-fuel.ts`) into the soldier on the tile its `pendingActionData2` holds, as the original reads
+`sPendingActionData2`. The sandbox has no `boarding` port, so it refuses both (`notInCampaign`), as it refuses boarding.
+
 **Where the mercs aboard count.** The original keeps them in by default and skips the seat where it says so; ja2-node
 reads the seat at the same places (`tactical/vehicle-presence.ts`). They look, hear and radio, and enemies see them at
 the vehicle's tile (`08`); a vehicle of ours never looks. The cursor never finds them (`findSoldierAtGridNo`, the
@@ -206,6 +216,13 @@ says otherwise:
 | A merc never boards from where he stands: his own tile is never free to him (`NewOKDestination` finds him there), so beside a vehicle he walks round it to the next free tile first; on arrival he gets into whatever enterable vehicle stands on the tile, allowed or not by then | `src/sim/tactical/vehicle-boarding.test.ts` "never boards from where the merc stands …", "walks to the free tile closest to the vehicle …" |
 | Leaving a vehicle takes the free tile closest by rows and columns within 5 tiles, else within 20, whatever the merc's body needs there; ties go to the first tile of the square, the north-west first | `src/sim/tactical/vehicle-boarding.test.ts` "takes the free tile closest by rows and columns …" |
 | A vehicle squad leaves a sector only as the vehicle alone (its passengers are on no squad), and the vehicle drives to the edge: the one move a vehicle makes on the tactical map | `src/sim/campaign/vehicle-boarding.test.ts` "leaves as the vehicle alone …" |
+| A toolkit or a gas can works on any vehicle at ground level, an enemy tank and a civilian car the squad may not board yet included; its cursor turns good over any tile of it | `src/sim/tactical/tile-tools-vehicles.test.ts` "pour fuel into a neutral truck and walk to an enemy tank alike", `src/server/hints-strategic-stub.test.ts` "turn good over any tile of the Hummer …" |
+| The walk of a toolkit or gas can goes to whichever of the free tile closest to the vehicle and its four neighbours is the shortest walk, so he may stop a tile short, not beside the vehicle, and works on it from there | `src/sim/tactical/tile-tools-vehicles.test.ts` "walks one tile short of the sweet spot …" |
+| A merc who already stands where the walk would end repairs or refuels nothing: the begin looks for the vehicle on the free tile instead of the vehicle's | `src/sim/tactical/tile-tools-vehicles.test.ts` "does nothing from the tile it would walk to …", "pours nothing from the tile it would walk to …" |
+| The repair and refuel cursors take the door rules of the walk-up search and the order not: when the free tile closest to a vehicle is a door's, the cursor shows a step onto it from the tile beside, where the order does nothing | `src/sim/tactical/tile-tools.test.ts` "shows a step onto the door tile …" |
+| The toolkit puts the merc on `REPAIR` under the vehicle soldier's id, an INT8, where a vehicle id is meant (deviation "Toolkit repair in tactical"), off his squad; with nothing around to repair it changes nothing | `src/sim/tactical/tile-tools-vehicles.test.ts` "hands the strategic side the car soldier id as an INT8 …", `src/sim/campaign/vehicle-tools.test.ts` |
+| Repair and refuel ask for the crouch plus 5 or 10 APs but take only the walk and the crouch | `src/sim/tactical/tile-tools-vehicles.test.ts` "walks one tile short …", "walks up, pours the can …" |
+| The gas can pours 50 fuel per point of status and loses a point per whole 50 poured, so 180 fuel costs it 3 points and 49 none; a full tank takes nothing | `src/sim/vehicles/vehicle-fuel.test.ts` |
 | A tank's soldier carries profile `NPC164`, the unused jeep's, and a full tank | `src/sim/tactical/vehicle-soldiers.test.ts` |
 | A civilian or enemy vehicle leaves the list at every unload of its sector and registers again at the next load, maybe under another id; a destroyed vehicle elsewhere leaves it only at the next registration | `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/vehicles/vehicle-list.test.ts` |
 | Skyrider's profile follows his helicopter only while a refuel site is the loaded sector, and leaving it clears x and y but not z; a landing there brings him back only at the next load | `src/sim/strategic/forces/helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
@@ -232,11 +249,13 @@ Inferred from reading the source:
 - The profile flag and Pacos' fact set when our team hurts an NPC, and the creature queen's death beginning only with
   a killer.
 - That checking Skyrider's monologues once per strategic step matches the map panel's redraws.
+- The toolkit and the gas can on a vehicle: the walk, the assignment and the fuel, on stub vehicles only.
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
 - The helicopter on the map: no probe dumps the structures or the soldiers' tiles after a load of the airport with the
   helicopter on the ground; the stub helicopter (`stubs/helicopter.ts`) has its own shapes, so stub tests pin the pieces'
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Ground vehicles",
-"Helicopter entrance". Deviation of this domain: "Helicopter on load".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Ground vehicles" (the client's repair
+and refuel cursors, the vehicle's name), "Helicopter entrance". Deviations of this domain: "Helicopter on load",
+"Toolkit repair in tactical".

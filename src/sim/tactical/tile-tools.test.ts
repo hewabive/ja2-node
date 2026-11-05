@@ -2,12 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hintAnswer, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { itemId, objectOf } from '../../../tests/support/explosives.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
+import { addStubVehicle } from '../../../tests/support/vehicles.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { SimEvent } from '../events.ts';
 import { answerHint } from '../hints/answer.ts';
-import type { PreviewAction } from '../hints/preview-action.ts';
+import { type PreviewAction, vehicleToolPreviewGridNo } from '../hints/preview-action.ts';
 import { createItems } from '../items/object.ts';
 import { knowledgeRules, knowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { knowledgeViewOf } from '../knowledge/sim-view.ts';
@@ -18,11 +19,12 @@ import { loadDoorStatusArray, storedDoorStatuses } from './doors/door-status.ts'
 import { InvSlot } from './inventory.ts';
 import { doorOpeningNoise } from './perception/noise.ts';
 import { AP } from './points.ts';
-import { NO_PROFILE, type Soldier, Team } from './soldier.ts';
+import { Body, NO_PROFILE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
-import { apsToCutFence, apsToUseJar, isCuttableWireFenceAtGridNo, walkCostTo } from './tile-tools.ts';
+import { apsToCutFence, apsToUseJar, isCuttableWireFenceAtGridNo, vehicleToolTarget, walkCostTo } from './tile-tools.ts';
 import { enterCombatMode } from './turns/turns.ts';
+import { PRIVATE_VEHICLE_LIST } from './vehicle-soldiers.ts';
 import { tileChangeViews } from './world-view.ts';
 
 const VILLAGE = 'stubs/world/maps/village.dat';
@@ -33,6 +35,8 @@ const OPEN_GROUND = gridNo(108, 69);
 const DOOR = 11429;
 const BESIDE_DOOR = DOOR + WORLD_COLS;
 const OUTSIDE_DOOR = DOOR + 2 * WORLD_COLS;
+const INSIDE_BY_THE_DOOR = DOOR + 1;
+const JEEP_BY_THE_DOOR = DOOR - 2;
 const FAR_ENEMY = gridNo(60, 130);
 const FLAT_MERC = gridNo(80, 80);
 const EAST = DIRECTION_INCREMENT[Direction.EAST] ?? 0;
@@ -315,5 +319,23 @@ describe('the tin can on a string (HandleItem, EVENT_SoldierBeginAttachCan, Door
       apCost: AP.ATTACH_CAN + walkCostTo(sim.state, merc, BESIDE_DOOR),
     });
     expect(previewOn(sim, VILLAGE, 'can', OUTSIDE_DOOR + 3)).toMatchObject({ ok: false, refusal: 'noDoor' });
+  });
+});
+
+describe('the gas can by a door (Handle_UI.cc DrawUIMovementPath, Handle_Items.cc HandleItem)', () => {
+  it("shows a step onto the door tile that is the jeep's sweet spot, while the order from beside it does nothing: the cursor takes the door rules of the walk-up search, the order not (quirk)", () => {
+    const sim = village();
+    const t = sim.state;
+    const jeep = addStubVehicle(t, { body: Body.JEEP, team: Team.CIV, gridNo: JEEP_BY_THE_DOOR, direction: Direction.WEST });
+    Object.assign(jeep, { breathRed: 0, breath: 0 });
+    const merc = holding(sim, INSIDE_BY_THE_DOOR, Direction.WEST, 'GAS_CAN');
+    t.vehicleHooks = {
+      ...PRIVATE_VEHICLE_LIST,
+      boarding: { okUseVehicle: () => true, putSoldierInVehicle: () => null, exitVehicle: () => {}, setAssignmentRepair: () => {} },
+    };
+    expect(vehicleToolTarget(t, merc, JEEP_BY_THE_DOOR).gridNo).toBe(DOOR);
+    expect(vehicleToolPreviewGridNo(t, merc, JEEP_BY_THE_DOOR)).toBe(DOOR);
+    const events = order(sim, 'refuel', JEEP_BY_THE_DOOR);
+    expect([merc.gridNo, jeep.breathRed, events.filter((e) => e.type === 'vehicleRefuelled')]).toEqual([INSIDE_BY_THE_DOOR, 0, []]);
   });
 });

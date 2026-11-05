@@ -34,7 +34,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
 | `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts`, `bombs/mine-detection.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items; the suspicious ground (§6) |
 | `booby-traps.ts`, `prompts.ts` | A pickup's booby trap and its disarm box; the tactical prompt and the globals its answers read (§6) |
-| `tile-tools.ts`, `xray.ts` | Wire cutters, the jar and the tin can on a tile; the x-ray detector and the radar contacts it gives (§7) |
+| `tile-tools.ts`, `xray.ts` | Wire cutters, the jar and the tin can on a tile, the toolkit and the gas can on a vehicle (`25`); the x-ray detector and the radar contacts it gives (§7) |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
@@ -355,7 +355,8 @@ N5, O3 and P3_B1 lie at 3 to 10 and F9's mine at 5, so only those are ever found
 
 **Where.** `tile-tools.ts` is `HandleItem`'s wire cutters, jar and tin can branches (`combat/attack.ts`), each with its
 walk beside the tile and AP check, the begin functions the arrival calls, the fence cut at code 481 and the blood at code
-760; the commands `cutFence`, `fillJar` and `attachCan` (`tactical-sim.ts`) add the checks of the original's click
+760, and its toolkit and gas can branches on a vehicle with the fuel at code 769 (`25`); the commands `cutFence`,
+`fillJar`, `attachCan`, `repair` and `refuel` (`tactical-sim.ts`) add the checks of the original's click
 (`UIMouseOnValidAttackLocation`), and `previewAction` the cursors' walk, APs and good or bad state
 (`src/sim/hints/preview-action.ts`, the client's `src/ui/screens/tactical/input/attack-cursors.ts`). `xray.ts` is the
 x-ray detector, reached through the remote branch of `HandleItem` (`bombs/planting.ts`) by `useRemote`, its turn-offs
@@ -363,8 +364,9 @@ x-ray detector, reached through the remote branch of `HandleItem` (`bombs/planti
 
 **Design.**
 - The walk up to a tool's tile is a pending action of its own (`Soldier.pendingTileTool`: the tool, the tile and the
-  facing of `MERC_CUTFFENCE`, `MERC_TAKEBLOOD`, `MERC_ATTACH_CAN`); the jar keeps the corpse's slot in
-  `pendingActionData4` until its frame, as the original's `uiPendingActionData4`.
+  facing of `MERC_CUTFFENCE`, `MERC_TAKEBLOOD`, `MERC_ATTACH_CAN`, `MERC_REPAIR`, `MERC_FUEL_VEHICLE`), and the tile also
+  goes to `pendingActionData2`, as `setPendingAction` sets `sPendingActionData2`, where code 769 finds the vehicle; the
+  jar keeps the corpse's slot in `pendingActionData4` until its frame, as the original's `uiPendingActionData4`.
 - The cut is the fence structure swapped for its partner and recorded as a map change, so the sector keeps it and the
   view shows it as a `swap` in `tileChanges`; the hints do not see it yet (gap "Structure changes in the hints").
 - A tin can is the door status's `hasTinCan` (`DOOR_HAS_TIN_CAN`), which the sector's door statuses and a native import
@@ -375,8 +377,8 @@ x-ray detector, reached through the remote branch of `HandleItem` (`bombs/planti
 - The x-ray marks are `Soldier.xrayedBy` (the original's `SOLDIER_MISC_XRAYED` with `xrayed_by`) and the start
   `Soldier.xrayActivatedTime`, both on the world clock's seconds. The view's `radarContacts` lists the marked soldiers
   the squad does not see with the colour the radar gives each, and nothing else about them (D16, `29` §7).
-- The jar's code 760 and the cut's code 481 are simulation opcodes; 760 sits in the sound range of the scripts, so it
-  joins the opcodes the logic timeline keeps there (`src/content/anim/timelines.ts`).
+- The jar's code 760, the cut's code 481 and the gas can's code 769 are simulation opcodes; 760 and 769 sit in the sound
+  range of the scripts, so they join the opcodes the logic timeline keeps there (`src/content/anim/timelines.ts`).
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 
@@ -394,7 +396,7 @@ checked against the native build: the wire cutters, the jar and the tin can. Wit
 `TAKE_BLOOD_FROM_CORPSE` scripts. Not ported: a corpse that vanishes during the jar's animation (an explosion) gives
 human blood here, where the original reads the type its freed slot still holds.
 
-Not ported: gaps "Map items" (the pits), "Ground vehicles" (the toolkit and the gas can), "Auto-bandage". Other
+Not ported: gaps "Map items" (the pits), "Auto-bandage". Other
 deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
 "Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
 and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",

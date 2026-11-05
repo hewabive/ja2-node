@@ -4,7 +4,6 @@ import { StructureFlags } from '../../src/content/world/structures.ts';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
 import type { PlayerView, SoldierView } from '../../src/protocol/view.ts';
-import { UNSUPPORTED_ACTIONS } from '../../src/sim/hints/preview-action.ts';
 import { createItems, emptyObject } from '../../src/sim/items/object.ts';
 import { InvSlot, NUM_INV_SLOTS } from '../../src/sim/tactical/inventory.ts';
 import type { Soldier } from '../../src/sim/tactical/soldier.ts';
@@ -50,8 +49,10 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
     }
     requests.push({ ...base, kind: 'aid', gridNo: s.gridNo });
     for (const off of [0, ...LOOK_OFFSETS]) requests.push({ ...base, kind: 'bomb', gridNo: s.gridNo + off });
-    for (const kind of ['cutFence', 'jar', 'can'] as const)
+    for (const kind of ['cutFence', 'jar', 'can', 'repair', 'refuel'] as const)
       for (const off of [0, ...LOOK_OFFSETS]) requests.push({ ...base, kind, gridNo: s.gridNo + off });
+    for (const o of others)
+      if (o.id !== s.id) for (const kind of ['repair', 'refuel'] as const) requests.push({ ...base, kind, gridNo: o.gridNo });
     for (const corpse of view.corpses ?? []) requests.push({ ...base, kind: 'jar', gridNo: corpse.gridNo });
     const pocket = (s.inventory ?? []).find((i) => i.slot !== InvSlot.HAND);
     if (pocket) {
@@ -73,9 +74,6 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
       requests.push({ ...base, kind: 'can', gridNo: g });
     }
   }
-  const first = own(view)[0];
-  if (first)
-    for (const kind of UNSUPPORTED_ACTIONS) requests.push({ type: 'previewAction', soldier: first.id, kind, gridNo: first.gridNo + 1 });
   return requests;
 }
 
