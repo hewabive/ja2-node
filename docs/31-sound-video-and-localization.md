@@ -56,7 +56,8 @@ sector ("Defeat track"); Skyrider's destruction waits for a sound ("Helicopter d
 strategic events ("Ambient sound events", "Ambient timing"); the first helicopter drop waits for the engine sound to
 fade (gaps "Helicopter entrance": once ported, its end follows the script's ticks). Sound picks on the gameplay
 generator are not drawn, or drawn on the client's `ClientRandom`, seeded from the session id ("Cosmetic draws …",
-"Footstep variants", "Music track choice").
+"Footstep variants", "Music track choice"), the merc aboard who speaks for a vehicle among them
+(`PickRandomPassengerFromVehicle`).
 
 **The client hears what the squad hears.** The view has no position for an unseen soldier (D16), so an unseen source
 plays from where the squad hears it ("Sounds out of sight"), and only animals in sight make idle sounds ("Idle sounds
@@ -169,6 +170,8 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A muted confirmation still counts for the 2 s repeat filter | `content/audio/cues.test.ts` |
 | A merc's line waits for his battle sound with speech off too, only its subtitle shown | `ui/speech.test.ts` |
 | Only a merc on our team holds his line for his battle sound; an NPC's line plays over his | `audio/director.test.ts` |
+| A vehicle's battle sound is said by a merc aboard drawn anew each time; an empty vehicle says nothing | `audio/director.test.ts` "is spoken by a passenger drawn with Random(passengers) …", "says nothing with nobody aboard …" |
+| A vehicle's move sound plays once from the tile it starts from without following it and stops at any state that does not move it; a pause for want of APs silences the rest of that move | `audio/director.test.ts` "starts the move sound at the tile a vehicle starts from …", "stops the move sound when the vehicle runs out of APs …" |
 | Music starts without a fade-in | `audio/music.test.ts` |
 | Setting the playing mode again makes it its own previous mode: the prebattle screen sets enemy present twice, so a later restore forgets what played before | `protocol/music.test.ts` |
 | A restore never returns to the victory or defeat track, but to the nothing music | `protocol/music.test.ts` |

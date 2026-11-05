@@ -12,8 +12,9 @@ import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } fro
 import { Direction } from '../content/world/grid.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { SoldierView, ViewFrame } from '../protocol/view.ts';
-import { CATCH_UP_TICKS, SoundDirector, type SoundWorld } from './director.ts';
-import { AudioEngine } from './engine.ts';
+import { ClientRandom } from './client-random.ts';
+import { CATCH_UP_TICKS, type DirectorOptions, SoundDirector, type SoundWorld } from './director.ts';
+import { AudioEngine, type VoiceHandle } from './engine.ts';
 
 let book: CueBook;
 let tables: AnimationTables;
@@ -36,7 +37,7 @@ interface Rig {
   clock: number;
 }
 
-function rig(world: SoundWorld | null = null, animationScripts = scripts): Rig {
+function rig(world: SoundWorld | null = null, animationScripts = scripts, options: Partial<DirectorOptions> = {}): Rig {
   const graph = new FakeGraph();
   const engine = new AudioEngine({ createGraph: () => graph.asGraph(), load: async () => pcmWav(200) });
   engine.unlock();
@@ -65,6 +66,7 @@ function rig(world: SoundWorld | null = null, animationScripts = scripts): Rig {
     rpcSpeechPrefixed: false,
     now: () => r.clock,
     later: (_ms, run) => r.later.push(run),
+    ...options,
   });
   director.setWorld(world);
   return {
@@ -705,5 +707,136 @@ describe('the sound director', () => {
     r.clock += 1000;
     r.director.update();
     expect(r.cues).toEqual([expect.objectContaining({ file: 'ambient/owl.wav', bus: 'ambient', baseVolume: 30 })]);
+  });
+});
+
+describe('the sounds of a vehicle', () => {
+  const HUMVEE = 22;
+  const TANK_NW = 23;
+  const VEHICLE = 18;
+  const VEHICLE_AT = G + 3;
+  const SOMEWHERE_ELSE = G + 40;
+  const BATTLE_SOUNDS = 'battlesnds/';
+  const VOICE_DIGITS = 3;
+
+  const hummer = (state: string, extra: Partial<SoldierView> = {}) =>
+    soldier(VEHICLE, state, 0, { bodyType: HUMVEE, gridNo: VEHICLE_AT, voice: '999', ...extra });
+  const passenger = (id: number, voice: string, extra: Partial<SoldierView> = {}) =>
+    soldier(id, 'STANDING', 0, { gridNo: VEHICLE_AT, voice, vehicle: { id: 0, driver: id === 1 }, ...extra });
+  const boarded = (gridNo?: number): NonNullable<ViewFrame['events']>[number] => ({
+    type: 'vehicleBoarded',
+    tick: 10,
+    soldier: 1,
+    vehicle: 0,
+    ...(gridNo === undefined ? {} : { gridNo }),
+  });
+  const left = (gridNo: number): NonNullable<ViewFrame['events']>[number] => ({
+    type: 'vehicleLeft',
+    tick: 20,
+    soldier: 1,
+    vehicle: 0,
+    gridNo,
+  });
+
+  function voicesOf(r: Rig): VoiceHandle[] {
+    const voices: VoiceHandle[] = [];
+    const play = r.engine.play.bind(r.engine);
+    r.engine.play = (cue) => {
+      const voice = play(cue);
+      voices.push(voice);
+      return voice;
+    };
+    return voices;
+  }
+
+  it('is spoken by a passenger drawn with Random(passengers) on the client generator (PickRandomPassengerFromVehicle)', () => {
+    const voices = ['007', '008', '011'];
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const spoken = seeds.map((seed) => {
+      const r = rig(null, scripts, { seed });
+      r.director.reset([hummer('STANDING', { passengers: [1, 2, 3] }), ...voices.map((v, k) => passenger(k + 1, v))]);
+      r.director.curse(VEHICLE);
+      return files(r).map((f) => f.slice(BATTLE_SOUNDS.length, BATTLE_SOUNDS.length + VOICE_DIGITS));
+    });
+    expect(spoken).toEqual(seeds.map((seed) => [voices[new ClientRandom(seed).rand(voices.length)]]));
+    expect(new Set(spoken.flat()).size).toBe(voices.length);
+  });
+
+  it('says nothing with nobody aboard or a muted passenger drawn, and plays a death cry of the vehicle once', () => {
+    const r = rig();
+    r.director.reset([hummer('STANDING', { passengers: [] }), passenger(1, '007', { muted: true })]);
+    r.director.attention(VEHICLE);
+    r.director.applyFrames([
+      frame(
+        10,
+        [hummer('STANDING', { passengers: [1] })],
+        [{ type: 'soldierDied', tick: 10, soldier: VEHICLE, killer: null, gridNo: VEHICLE_AT }],
+      ),
+    ]);
+    expect(r.cues).toEqual([]);
+    r.director.applyFrames([
+      frame(20, [passenger(1, '007')], [{ type: 'soldierDied', tick: 20, soldier: VEHICLE, killer: null, gridNo: VEHICLE_AT }]),
+    ]);
+    expect(r.cues).toEqual([]);
+    r.director.confirm(VEHICLE);
+    expect(files(r)).toEqual([expect.stringMatching(/^battlesnds\/007_ok\d\.wav$/)]);
+  });
+
+  it("plays the vehicle type's enter sound at the vehicle's tile as a merc boards or leaves it, only on the tactical screen", () => {
+    let tactical = true;
+    const r = rig(null, scripts, { onTacticalScreen: () => tactical });
+    r.director.reset([hummer('STANDING', { passengers: [1] }), passenger(1, '007')]);
+    r.director.applyFrames([frame(10, [], [boarded(VEHICLE_AT), boarded()]), frame(20, [], [left(VEHICLE_AT)])]);
+    const enter = { file: book.vehicles[1]?.enter, gridNo: VEHICLE_AT, mix: 'location', baseVolume: 127 };
+    expect(r.cues).toEqual([expect.objectContaining(enter), expect.objectContaining(enter)]);
+    expect(enter.file).toBe(book.paths.get('S_VECH1_INTO'));
+    tactical = false;
+    r.director.applyFrames([frame(30, [], [boarded(VEHICLE_AT)])]);
+    expect(r.cues).toHaveLength(2);
+  });
+
+  it('plays nothing as a merc boards where no vehicle stands in the view', () => {
+    const r = rig();
+    r.director.reset([hummer('STANDING', { passengers: [1] }), passenger(1, '007')]);
+    r.director.applyFrames([frame(10, [], [boarded(SOMEWHERE_ELSE)])]);
+    expect(r.cues).toEqual([]);
+  });
+
+  it('starts the move sound at the tile a vehicle starts from as it begins to move, and stops it as it stops (HandleVehicleMovementSound)', () => {
+    const r = rig();
+    const voices = voicesOf(r);
+    r.director.reset([hummer('STANDING')]);
+    r.director.applyFrames([frame(10, [hummer('WALKING')]), frame(20, [hummer('WALKING', { gridNo: VEHICLE_AT + 1, frame: 2 })])]);
+    const move = { file: book.vehicles[1]?.move, gridNo: VEHICLE_AT, mix: 'location', baseVolume: 127, loops: 1 };
+    expect(r.cues).toEqual([expect.objectContaining(move)]);
+    expect(move.file).toBe(book.paths.get('S_VECH1_MOVE'));
+    expect(voices[0]?.active).toBe(true);
+    r.director.applyFrames([frame(30, [hummer('STANDING', { gridNo: VEHICLE_AT + 1 })])]);
+    expect(voices[0]?.active).toBe(false);
+    r.director.applyFrames([frame(40, [hummer('WALKING', { gridNo: VEHICLE_AT + 1 })])]);
+    expect(r.cues.map((c) => c.gridNo)).toEqual([VEHICLE_AT, VEHICLE_AT + 1]);
+  });
+
+  it('stops the move sound when the vehicle runs out of APs to finish its move and does not start it again on the same move (AdjustNoAPToFinishMove)', () => {
+    const r = rig();
+    const voices = voicesOf(r);
+    r.director.reset([hummer('STANDING')]);
+    r.director.applyFrames([frame(10, [hummer('WALKING')]), frame(20, [hummer('WALKING', { noApToFinishMove: true })])]);
+    expect(voices[0]?.active).toBe(false);
+    r.director.applyFrames([frame(30, [hummer('WALKING', { noApToFinishMove: false })])]);
+    expect(r.cues).toHaveLength(1);
+  });
+
+  it("starts no move sound for a frame caught up from the past, and a tank's own as it moves", () => {
+    const r = rig();
+    r.director.reset([hummer('STANDING'), soldier(30, 'STANDING', 0, { bodyType: TANK_NW, team: 1, gridNo: SOMEWHERE_ELSE })]);
+    r.director.applyFrames([frame(10, [hummer('WALKING')]), frame(10 + CATCH_UP_TICKS + 1, [])]);
+    expect(r.cues).toEqual([]);
+    r.director.applyFrames([
+      frame(200, [hummer('STANDING')]),
+      frame(210, [hummer('WALKING'), soldier(30, 'WALKING', 0, { bodyType: TANK_NW, team: 1, gridNo: SOMEWHERE_ELSE })]),
+    ]);
+    expect(r.cues.map((c) => c.gridNo)).toEqual([VEHICLE_AT, SOMEWHERE_ELSE]);
+    expect(r.cues[1]?.file).toBe(book.vehicles[4]?.move);
   });
 });

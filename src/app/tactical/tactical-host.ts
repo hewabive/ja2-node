@@ -7,6 +7,7 @@ import { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
+import { inTacticalFlow } from '../../ui/screens/map/event-boxes.ts';
 import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
 import type { BattleSound } from '../../ui/screens/tactical/environment.ts';
 import {
@@ -113,7 +114,12 @@ export class TacticalHost {
     this.#o = options;
     const params = new URLSearchParams(location.search);
     this.#renderer = new WorldRenderer(options.page.gl, { checkPartialRedraws: params.get(WORLD_CHECK_PARAM) === '1' });
-    this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false, dataVersion: options.ui.dataVersion });
+    this.#sound = new TacticalSound({
+      engine: options.ui.audio.engine,
+      music: false,
+      dataVersion: options.ui.dataVersion,
+      onTacticalScreen: () => inTacticalFlow(options.session.view),
+    });
     this.#speechSettings = options.speech.settings;
     this.#presenter = options.speech.presenter;
     options.speech.addBattleSounds({ playing: (profile) => this.#sound.director?.mercBattleSoundPlaying(profile) ?? false });

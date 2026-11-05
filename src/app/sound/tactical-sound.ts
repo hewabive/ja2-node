@@ -53,6 +53,7 @@ export interface TacticalSoundOptions {
   readonly engine?: AudioEngine;
   readonly music?: boolean;
   readonly dataVersion?: DataVersion;
+  readonly onTacticalScreen?: () => boolean;
 }
 
 export class TacticalSound {
@@ -67,12 +68,14 @@ export class TacticalSound {
   #available: ReadonlySet<string> = new Set();
   readonly #withMusic: boolean;
   readonly #versionKnown: boolean;
+  readonly #onTacticalScreen: (() => boolean) | undefined;
 
   constructor(options: TacticalSoundOptions = {}) {
     this.#settings = loadSettings();
     this.#withMusic = options.music ?? true;
     this.#version = options.dataVersion ?? STUB_DATA_VERSION;
     this.#versionKnown = options.dataVersion !== undefined;
+    this.#onTacticalScreen = options.onTacticalScreen;
     this.engine =
       options.engine ??
       new AudioEngine({
@@ -165,6 +168,7 @@ export class TacticalSound {
         later: (ms, run) => {
           setTimeout(run, ms);
         },
+        ...(this.#onTacticalScreen ? { onTacticalScreen: this.#onTacticalScreen } : {}),
       });
       this.hook.director = this.#director.stats;
       if (this.#withMusic) await this.music.load(this.engine, session);

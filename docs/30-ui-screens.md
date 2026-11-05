@@ -146,11 +146,13 @@ screen asks for real time anew on entry.
 **The lost sector and out-of-gas boxes go to the screen of the flow.** The original opens them with
 `DoScreenIndependantMessageBox` on whatever screen is up; ja2-node's map and tactical screens both hear every frame, so
 the tactical screen opens them in the tactical flow and the map screen otherwise, once it is on top again after
-autoresolve (`map/event-boxes.ts`). The invasion box of a SAM site or town held by militia alone, the bloodcat ambush
-and lair boxes and the box of an attack on mercs who cannot fight always go to the map screen, which the battle they
-announce brings up; the screen opens them before the pre-battle panel and its automatic autoresolve, which wait for OK
-as the boxes' callback `TriggerPrebattleInterface` does, and the map host keeps the events for a screen not built yet
-(`map/invasion.ts` from `invasion`, `map/battle-notice.ts` from the `preBattle` event's `notice`).
+autoresolve (`map/event-boxes.ts`). The enter sound of a ground vehicle follows the same split: the sound director plays
+it at the vehicle's tile in the tactical flow, the map screen otherwise (gaps "Sound coverage"). The invasion box of a
+SAM site or town held by militia alone, the bloodcat ambush and lair boxes and the box of an attack on mercs who cannot
+fight always go to the map screen, which the battle they announce brings up; the screen opens them before the
+pre-battle panel and its automatic autoresolve, which wait for OK as the boxes' callback `TriggerPrebattleInterface`
+does, and the map host keeps the events for a screen not built yet (`map/invasion.ts` from `invasion`,
+`map/battle-notice.ts` from the `preBattle` event's `notice`).
 
 **A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
 the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead

@@ -3,8 +3,9 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning
 // @src footsteps), PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc
 // @src HandleAtNewGridNo), InternalDoMercBattleSound (nothing from a muted soldier; a vehicle's goes to a random
-// @src passenger, and none is on the map), EVENT_SoldierGotHit (impact and hit sounds, none for a vehicle, which only
-// @src rings its metal in Vehicles.cc VehicleTakeDamage); Tactical/Soldier_Ani.cc (death sounds, the creature battle
+// @src passenger, Vehicles.cc PickRandomPassengerFromVehicle with Random(n) drawn here, 2026-11-05), EVENT_SoldierGotHit
+// @src (impact and hit sounds, none for a vehicle, which only rings its metal in Vehicles.cc VehicleTakeDamage);
+// @src Tactical/Soldier_Ani.cc (death sounds, the creature battle
 // @src cry of code 717 by the call kind); Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo (the close sound on the
 // @src door's key frame); TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (an openable's sound from the
 // @src view's open containers, silent when Bobby Ray's delivery closes the crate as Strategic_Event_Handler.cc
@@ -25,7 +26,11 @@
 // @src after the canteen) and Tactical/Items.cc ApplyCanteen (its drinking sound at MIDVOLUME, 2026-11-04);
 // @src Tactical/Overhead.cc HandleGotoNewGridNo (the CURSE1 of the blind and the drunk fall, 2026-11-04);
 // @src Tactical/Handle_Items.cc HandleItem (USE_X_RAY_MACHINE at the merc's tile as the x-ray device starts, the NOTHING
-// @src battle sound of a jar or tin can used where no corpse lies, 2026-11-04).
+// @src battle sound of a jar or tin can used where no corpse lies, 2026-11-04); Tactical/Vehicles.cc AddSoldierToVehicle
+// @src and ExitVehicle (the vehicle type's enter sound at the vehicle's tile, HIGHVOLUME, on the tactical screen),
+// @src HandleVehicleMovementSound (its move sound at the tile it starts from, once a vehicle's state turns moving,
+// @src stopped by a state that is not, Soldier_Control.cc EVENT_InitNewSoldierAnim, or by AdjustNoAPToFinishMove,
+// @src 2026-11-05).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -33,7 +38,7 @@ import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../c
 import { ambientActive, ambientCue, ambientGapMs } from '../content/audio/ambient-schedule.ts';
 import { type BattleMemory, type BattleSoundName, battleSoundCue, NO_BATTLE_MEMORY } from '../content/audio/battle-sound.ts';
 import { CALL_CRY_CODES, callAnimationState, codesInScript } from '../content/audio/creature-call.ts';
-import { type Cue, effectCue, type FileExists, VolumeLevel } from '../content/audio/cue.ts';
+import { type Cue, cueOf, effectCue, type FileExists, VolumeLevel } from '../content/audio/cue.ts';
 import type { CueBook } from '../content/audio/cue-book.ts';
 import {
   alarmCue,
@@ -68,6 +73,7 @@ import { speechCue, speechPathForLine } from '../content/audio/speech.ts';
 import type { AmbientEntry } from '../content/formats/ambient.ts';
 import type { AnimationScripts } from '../content/formats/ja2bin.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
+import { vehicleTypeOfBody } from '../content/strategic/vehicle-types.ts';
 import { TICK_MS } from '../protocol/messages.ts';
 import type { SoldierView, ViewFrame } from '../protocol/view.ts';
 import { ClientRandom } from './client-random.ts';
@@ -87,6 +93,7 @@ const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const RECRUITED_KINDS = new Set(['rpc', 'epc']);
 const CONTENTS_EXCLAMATION_DELAY_MS = 500;
 const UNSEEN_VICTIM_TEAM = 1;
+const NOBODY = -1;
 const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const ANIM_STAND = 6;
@@ -126,6 +133,7 @@ export interface DirectorOptions {
   readonly rpcSpeechPrefixed: boolean;
   readonly now: () => number;
   readonly later: (ms: number, run: () => void) => void;
+  readonly onTacticalScreen?: () => boolean;
 }
 
 export interface DirectorStats {
@@ -188,6 +196,7 @@ export class SoundDirector {
   readonly #battleVoices = new Map<number, VoiceHandle>();
   readonly #dead = new Set<number>();
   readonly #struckVehicles = new Set<number>();
+  readonly #driving = new Map<number, VoiceHandle>();
   readonly #weapons = new Map<number, number>();
   readonly #bursts = new Map<number, boolean>();
   readonly #calls = new Map<number, CreatureCall>();
@@ -216,6 +225,7 @@ export class SoundDirector {
   }
 
   reset(soldiers: readonly SoldierView[], openContainers: readonly number[] = []): void {
+    for (const id of [...this.#driving.keys()]) this.#stopDriving(id);
     this.#soldiers.clear();
     this.#timelines.clear();
     for (const s of soldiers) this.#soldierChanged(s, false);
@@ -275,7 +285,7 @@ export class SoundDirector {
       const audible = newest - frame.tick <= CATCH_UP_TICKS;
       const events = frame.events ?? [];
       for (const e of events) this.#remember(e);
-      for (const id of frame.removed) this.#soldiers.delete(id);
+      for (const id of frame.removed) this.#forget(id);
       for (const s of frame.changed) this.#soldierChanged(s, audible);
       if (frame.openContainers) this.#containersChanged(frame.openContainers, audible, events);
       for (const e of events) {
@@ -328,10 +338,36 @@ export class SoundDirector {
       this.#timelines.set(s.id, followed.position);
       if (audible && prev) for (const code of followed.ops) if (isSoundOpcode(code)) this.#opcode(s, code);
     }
+    if (prev && isVehicleBody(s.bodyType)) this.#vehicleMovement(prev, s, audible);
     if (!audible || !prev) return;
     const stateChanged = prev.animation !== s.animation;
     if (stateChanged && this.#has(prev.animation, AnimFlags.MOVING) && this.#has(s.animation, AnimFlags.STATIONARY)) this.#footstep(s);
     if (!stateChanged && prev.direction !== s.direction && this.#turningStep(s)) this.#footstep(s);
+  }
+
+  #forget(id: number): void {
+    this.#soldiers.delete(id);
+    this.#driving.delete(id);
+  }
+
+  #vehicleMovement(prev: SoldierView, s: SoldierView, audible: boolean): void {
+    if (!this.#has(s.animation, AnimFlags.MOVING) || s.noApToFinishMove === true) {
+      this.#stopDriving(s.id);
+      return;
+    }
+    if (audible && !this.#has(prev.animation, AnimFlags.MOVING)) this.#startDriving(s);
+  }
+
+  #startDriving(s: SoldierView): void {
+    if (this.#driving.has(s.id)) return;
+    const sounds = this.#o.book.vehicles[vehicleTypeOfBody(s.bodyType)];
+    const voice = sounds ? this.#play(cueOf(sounds.move, 'location', VolumeLevel.HIGH, s.gridNo)) : null;
+    if (voice) this.#driving.set(s.id, voice);
+  }
+
+  #stopDriving(id: number): void {
+    this.#driving.get(id)?.stop();
+    this.#driving.delete(id);
   }
 
   #loopFrames(state: number): number | null {
@@ -456,13 +492,26 @@ export class SoundDirector {
     return { ...cue, gridNo: NOWHERE, baseVolume: Math.max(VolumeLevel.LOW, cue.baseVolume - FAR_VOLUME_MOD) };
   }
 
-  #voiceSound(s: Voiced | undefined, sound: BattleSoundName, lowerVolume: boolean): void {
-    if (!s || s.muted || isVehicleBody(s.bodyType)) return;
+  #randomPassenger(vehicle: number): Voiced | undefined {
+    const aboard = this.#soldiers.get(vehicle)?.passengers ?? [];
+    if (aboard.length === 0) return undefined;
+    return this.#soldiers.get(aboard[this.#rng.rand(aboard.length)] ?? NOBODY);
+  }
+
+  #deathSoundPlayed(id: number): boolean {
+    if (this.#dead.has(id)) return true;
+    this.#dead.add(id);
+    return false;
+  }
+
+  #voiceSound(soldier: Voiced | undefined, sound: BattleSoundName, lowerVolume: boolean): void {
+    if (!soldier) return;
+    const vehicle = isVehicleBody(soldier.bodyType);
+    if (!vehicle && soldier.muted) return;
+    if (sound === 'DIE1' && this.#deathSoundPlayed(soldier.id)) return;
+    const s = vehicle ? this.#randomPassenger(soldier.id) : soldier;
+    if (!s || s.muted) return;
     const id = s.id;
-    if (sound === 'DIE1') {
-      if (this.#dead.has(id)) return;
-      this.#dead.add(id);
-    }
     const playing = this.#battleVoices.get(id);
     const owner = this.#speechOwner;
     const talking = owner ? owner.isTalking(id) : this.#speech?.speaker === id && this.#speech.voice.active;
@@ -616,6 +665,10 @@ export class SoundDirector {
       case 'itemDropped':
         if (!e.beside && this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));
         return;
+      case 'vehicleBoarded':
+      case 'vehicleLeft':
+        if (e.gridNo !== undefined) this.#enterSound(e.gridNo);
+        return;
       case 'mercQuote':
         if (e.textKey) this.#speak(e.profile, e.soldier >= 0 ? e.soldier : null, e.textKey);
         return;
@@ -625,6 +678,13 @@ export class SoundDirector {
       default:
         return;
     }
+  }
+
+  #enterSound(gridNo: number): void {
+    if (this.#o.onTacticalScreen?.() === false) return;
+    const vehicle = [...this.#soldiers.values()].find((s) => s.gridNo === gridNo && isVehicleBody(s.bodyType));
+    const sounds = vehicle ? this.#o.book.vehicles[vehicleTypeOfBody(vehicle.bodyType)] : undefined;
+    if (sounds) this.#play(cueOf(sounds.enter, 'location', VolumeLevel.HIGH, gridNo));
   }
 
   #itemApplied(e: EventOf<'itemApplied'>): void {

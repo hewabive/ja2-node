@@ -39,8 +39,9 @@
 // @src RequestContractMenu (the line stops as the contract menu opens), the exit to the laptop (StopAnyCurrentlyTalkingSpeech)
 // @src (2026-11-03); Map_Screen_Interface.cc GoToNextCharacterInList and ValidSelectableCharForNextOrPrev (with an item
 // @src held or the inventory shown only a merc with an accessible inventory, with an item held only one who could take
-// @src it, MapscreenCanPassItemToChar through the passTargets hint) (2026-11-04);
-// @src Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (2026-11-05).
+// @src it, MapscreenCanPassItemToChar through the passTargets hint) (2026-11-04); Tactical/Vehicles.cc AddSoldierToVehicle
+// @src and ExitVehicle (the enter sound of a ground vehicle, also as a merc leaves one in the loaded sector, while the
+// @src map screen is up), Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (2026-11-05).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -142,6 +143,9 @@ const BATTLE_SCREEN_PROMPTS: ReadonlySet<string> = new Set(['preBattle', 'autore
 function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: string }): boolean {
   return BATTLE_SCREEN_PROMPTS.has(prompt.kind) || (prompt.kind === 'surrender' && prompt.context === 'autoresolve');
 }
+
+type FrameEvent = NonNullable<ViewFrame['events']>[number];
+
 const OWNER = 'mapScreen';
 const RADAR_WIDTH = 88;
 const RADAR_HEIGHT = 44;
@@ -776,7 +780,7 @@ export class MapScreen implements Screen {
           flashes.set(key, { at: this.#now, up: event.change > 0 });
           this.#flashes.set(event.soldier, flashes);
         } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
-        else if (event.type === 'vehicleBoarded' && !this.#isHelicopter(event.vehicle)) this.#env.sounds.vehicleEntered();
+        else if (this.#entersOrLeavesGroundVehicle(event) && !inTacticalFlow(this.#playerView())) this.#env.sounds.vehicleEntered();
       }
     const view = this.#playerView();
     if (!inTacticalFlow(view))
@@ -791,6 +795,11 @@ export class MapScreen implements Screen {
     this.noticeBattleNotices(battleNoticesOf(frames));
     this.#inventory.frames(frames);
     this.#battle.frames(frames);
+  }
+
+  #entersOrLeavesGroundVehicle(event: FrameEvent): boolean {
+    if (event.type === 'vehicleBoarded') return !this.#isHelicopter(event.vehicle);
+    return event.type === 'vehicleLeft' && event.gridNo !== undefined;
   }
 
   #isHelicopter(vehicle: number): boolean {

@@ -161,6 +161,22 @@ describe('boarding a vehicle with the cursor (Handle_UI.cc UIHandleInteractiveTi
     }
   });
 
+  it('says OK1 as the boarding click passes its checks, and nothing when the Hummer may not be used (DoMercBattleSound)', async () => {
+    const said: unknown[] = [];
+    for (const allowed of [false, true]) {
+      const f = await atTheHummer(allowed);
+      const merc = selected(f).id;
+      f.screen.controls.toggleHandCursor();
+      await f.settle();
+      const at = onThePicture(f, hummer(f).id);
+      await pointAt(f, at);
+      await f.clickAt(at.x, at.y);
+      said.push(f.battleSounds.map((b) => ({ ...b, merc })));
+    }
+    const merc = (said[1] as { merc: number }[])[0]?.merc;
+    expect(said).toEqual([[], [{ soldier: merc, sound: 'ok', merc }]]);
+  });
+
   it('turns the move cursor over the Hummer to cannot-move while it may not be used, and to enter once it may, and only then does the click board it', async () => {
     const cursors: string[] = [];
     const boardings: number[] = [];

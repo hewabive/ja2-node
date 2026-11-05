@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/WeaponModels.cc (calibre sound defaults, sReloadSound and sLocknLoadSound per weapon class);
-// @src src/externalized/ExplosionAnimationModel.cc getSounds; src/game/Utils/Sound_Control.cc szSoundEffects.
+// @src src/externalized/ExplosionAnimationModel.cc getSounds; src/game/Utils/Sound_Control.cc szSoundEffects;
+// @src src/externalized/VehicleModel.cc (enter_sound and move_sound of each vehicle type, 2026-11-05).
 
 import { asArray, asObject, asString, type JsonObject } from '../strategic/json-fields.ts';
 import { parseJsoncBytes } from '../strategic/jsonc.ts';
@@ -17,7 +18,15 @@ import {
 export const WEAPONS_PATH = 'externalized/weapons.json';
 export const CALIBRES_PATH = 'externalized/calibres.json';
 export const EXPLOSION_ANIMATIONS_PATH = 'externalized/explosion-animations.json';
-export const CUE_BOOK_PATHS = [SOUND_EFFECTS_PATH, BATTLE_SOUNDS_PATH, WEAPONS_PATH, CALIBRES_PATH, EXPLOSION_ANIMATIONS_PATH] as const;
+export const VEHICLES_PATH = 'externalized/vehicles.json';
+export const CUE_BOOK_PATHS = [
+  SOUND_EFFECTS_PATH,
+  BATTLE_SOUNDS_PATH,
+  WEAPONS_PATH,
+  CALIBRES_PATH,
+  EXPLOSION_ANIMATIONS_PATH,
+  VEHICLES_PATH,
+] as const;
 
 export type WeaponKind =
   | 'handgun'
@@ -70,11 +79,17 @@ export interface WeaponSounds {
   readonly lockAndLoad: string | null;
 }
 
+export interface VehicleSounds {
+  readonly enter: string;
+  readonly move: string;
+}
+
 export interface CueBook {
   readonly effects: SoundEffectTable;
   readonly battle: BattleSoundTable;
   readonly weapons: ReadonlyMap<number, WeaponSounds>;
   readonly explosions: ReadonlyMap<string, readonly string[]>;
+  readonly vehicles: readonly VehicleSounds[];
   readonly paths: ReadonlyMap<string, string>;
 }
 
@@ -84,6 +99,7 @@ export interface CueBookSources {
   readonly weapons: unknown;
   readonly calibres: unknown;
   readonly explosions: unknown;
+  readonly vehicles: unknown;
 }
 
 function optionalText(o: JsonObject, key: string, fallback: string): string {
@@ -135,6 +151,16 @@ export function parseExplosionSounds(json: unknown): Map<string, readonly string
   );
 }
 
+export function parseVehicleSounds(json: unknown): VehicleSounds[] {
+  return asArray(json, 'vehicles').map((v, i) => {
+    const o = asObject(v, `vehicles[${i}]`);
+    return {
+      enter: asString(o.enterSound, `vehicles[${i}].enterSound`).toLowerCase(),
+      move: asString(o.moveSound, `vehicles[${i}].moveSound`).toLowerCase(),
+    };
+  });
+}
+
 export function buildCueBook(sources: CueBookSources): CueBook {
   const effects = parseSoundEffects(sources.effects);
   const paths = new Map<string, string>();
@@ -144,15 +170,16 @@ export function buildCueBook(sources: CueBookSources): CueBook {
     battle: parseBattleSounds(sources.battle),
     weapons: parseWeaponSounds(sources.weapons, sources.calibres),
     explosions: parseExplosionSounds(sources.explosions),
+    vehicles: parseVehicleSounds(sources.vehicles),
     paths,
   };
 }
 
 export async function loadCueBook(read: (path: string) => Promise<Uint8Array>): Promise<CueBook> {
-  const [effects, battle, weapons, calibres, explosions] = await Promise.all(
+  const [effects, battle, weapons, calibres, explosions, vehicles] = await Promise.all(
     CUE_BOOK_PATHS.map(async (p) => parseJsoncBytes(await read(p))),
   );
-  return buildCueBook({ effects, battle, weapons, calibres, explosions });
+  return buildCueBook({ effects, battle, weapons, calibres, explosions, vehicles });
 }
 
 export function soundPath(book: CueBook, name: string): string | null {

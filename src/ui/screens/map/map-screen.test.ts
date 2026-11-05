@@ -520,6 +520,33 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.t.runtime.host.modal).toBeNull();
     }));
 
+  it('sounds a merc getting into a ground vehicle, or out of one on the loaded map, only while the map screen is up', () =>
+    withMap(async (f) => {
+      const hummer = addVehicleOfOurs((f.session.sim as CampaignSession).campaign, parseSectorString('B13'));
+      f.client.refresh();
+      const tick = f.client.view.tick;
+      const merc = f.mercs[0] ?? -1;
+      const vehicle = hummer.vehicleId;
+      const leftOnTheMap = { type: 'vehicleLeft', tick, soldier: merc, vehicle, gridNo: 12345 } as const;
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [
+            { type: 'vehicleBoarded', tick, soldier: merc, vehicle },
+            { type: 'vehicleLeft', tick, soldier: merc, vehicle },
+            leftOnTheMap,
+          ],
+        },
+      ]);
+      expect(f.sounds.filter((s) => s === 'vehicleEntered')).toHaveLength(2);
+      (f.session.sim as CampaignSession).campaign.state.flow = 'tactical';
+      f.client.refresh();
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'vehicleBoarded', tick, soldier: merc, vehicle }, leftOnTheMap] }]);
+      expect(f.sounds.filter((s) => s === 'vehicleEntered')).toHaveLength(2);
+    }));
+
   it("boxes an escort's lone move with pMapErrorString 6 or 7 by the sex of his profile, naming the escort", () =>
     withMap(async (f) => {
       const campaign = (f.session.sim as CampaignSession).campaign;

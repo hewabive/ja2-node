@@ -47,7 +47,8 @@
 // @src UIMouseOnValidAttackLocation (WIRECUTCURS) and HandleItem's wire cutters, jar and tin can (2026-11-04);
 // @src Handle_UI.cc UIHandleOnMerc (a visible enterable vehicle not ours is no merc to the cursor), UIHandleMOnTerrain (the
 // @src floating X with a vehicle selected), UIHandleInteractiveTilesAndItemsOnTerrain (the enter-vehicle cursor,
-// @src gfBeginVehicleCursor), Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick from HandleHandCursorClick
+// @src gfBeginVehicleCursor), Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick (the OK1 battle sound
+// @src once the boarding passes its checks) from HandleHandCursorClick
 // @src and HandleMoveModeInteractiveClick (VEHICLE_CANT_MOVE_IN_TACTICAL with a vehicle selected); UI_Cursors.cc
 // @src HandleRepairCursor, HandleRefuelCursor (at the target's tile: the walk, the move grid and the AP in combat, the good
 // @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05).
@@ -2239,6 +2240,7 @@ export class TacticalInput {
 
   #boardIfAble(sel: SoldierView, vehicle: SoldierView, cursor: BoardingCursor, preview: PreviewAction | null): boolean {
     if (!preview?.ok || !this.#enoughPoints(sel, preview.apCost, true)) return false;
+    this.#env().battleSound(sel.id, 'ok');
     void this.#host.sendBusyOrder({ type: 'enterVehicle', soldier: sel.id, vehicle: vehicle.id, cursor });
     return true;
   }
