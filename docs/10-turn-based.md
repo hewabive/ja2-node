@@ -179,6 +179,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | An insect-phobic merc loses APs for a creature he only heard or saw before, as long as he sees anyone: `MercSeesCreature` reads any opplist entry | `points.test.ts` |
 | A claustrophobe's AP cut reads the loaded sector alone, so a merc created or inserted while an underground map is loaded gets it before he is placed; his level loss waits for him to be in the sector | `points.test.ts`, `skills.test.ts` |
 | A collapsed soldier waiting to move with others has enough points: `EnoughPoints` tests the wait before the collapse | `points.test.ts` |
+| A vehicle's 35 extra APs come after the body maximum, so its turn APs pass 50 (halved in a boxing match); only the turn's total is clamped to 50 again | `points.test.ts` "adds 35 APs to every vehicle …", "clamps the turn total of a vehicle …" |
 | Combat started after our first sighting in the sector, which ends the virgin sector, leaves the enemy presence unset: `SetEnemyPresence` asks for a virgin sector | `narrative/sighting-quotes.test.ts` |
 | Entering combat plays a sleeping merc's wake-up but leaves him asleep, so his morale still waits for him to wake | `turns/turns.test.ts`, `combat/morale.test.ts`, `src/sim/campaign/narrative-port.test.ts` |
 | Entering combat on our turn selects every merc of ours with an opponent in turn, each with the selection's wake-up and draw, and the last one stays selected | `selection.test.ts` |
@@ -219,8 +220,7 @@ reading the source:
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's
   return changes nothing (`SelectSoldier` refuses on the shopkeeper screen).
 
-Not ported: gaps "Action points and phobias", "Turn-based hooks", "Automatic selections" (the assignment menu's close,
-the vehicles).
+Not ported: gaps "Turn-based hooks", "Automatic selections" (the assignment menu's close, the vehicles).
 Other deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
 on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame
 timers", "Soldier fade without merc lights", "Hidden attacks start combat", "Interface lock per source".

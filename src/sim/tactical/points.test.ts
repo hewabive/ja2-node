@@ -4,6 +4,7 @@ import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { idiv } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { createBoxingRecord } from '../strategic/narrative/facts.ts';
 import { anim } from './anim-states.ts';
@@ -15,6 +16,7 @@ import { executeOverhead } from './overhead.ts';
 import { Opp } from './perception/opp.ts';
 import {
   AP,
+  AP_LIMITS,
   apsToChangeStance,
   apsToLook,
   calcActionPoints,
@@ -338,6 +340,37 @@ describe('drugs in the turn APs (Soldier_Control.cc CalcActionPoints, Drugs_And_
     expect(calcActionPoints(t, s)).toBe(0);
     s.sleepDrugCounter = 0;
     expect(calcActionPoints(t, s)).toBe(21);
+  });
+});
+
+const VEHICLE_AP_BONUS = 35;
+const BADLY_WOUNDED = 20;
+
+describe('the vehicle bonus in the turn APs (Soldier_Control.cc CalcActionPoints, CalcNewActionPoints)', () => {
+  it('adds 35 APs to every vehicle after the body maximum, so the turn APs pass 50, and halves them in a boxing match (quirk)', () => {
+    const t = tactical();
+    const tank = spawn(t, gridNo(80, 80), Team.ENEMY, Body.TANK_NW);
+    const truck = spawn(t, gridNo(90, 90), Team.CIV, Body.ICECREAMTRUCK);
+    expect([calcActionPoints(t, tank), calcActionPoints(t, truck)]).toEqual([21 + VEHICLE_AP_BONUS, 21 + VEHICLE_AP_BONUS]);
+    expect(21 + VEHICLE_AP_BONUS).toBeGreaterThan(AP_LIMITS.VEHICLE_MAXIMUM);
+    tank.life = BADLY_WOUNDED;
+    tank.breath = 0;
+    expect(calcActionPoints(t, tank)).toBe(AP_LIMITS.MINIMUM + VEHICLE_AP_BONUS);
+    const boxing = { ...createBoxingRecord(), state: BoxingState.BOXING };
+    expect(calcActionPoints({ soldiers: t.soldiers, sector: t.sector, boxing }, truck)).toBe(idiv(21 + VEHICLE_AP_BONUS, 2));
+  });
+
+  it('clamps the turn total of a vehicle to 50 again, carried APs included (quirk)', () => {
+    const t = tactical();
+    const tank = spawn(t, gridNo(80, 80), Team.ENEMY, Body.TANK_NE);
+    tank.actionPoints = 0;
+    calcNewActionPoints(t, tank);
+    expect([tank.actionPoints, tank.initialActionPoints]).toEqual([AP_LIMITS.VEHICLE_MAXIMUM, AP_LIMITS.VEHICLE_MAXIMUM]);
+    tank.life = BADLY_WOUNDED;
+    tank.breath = 0;
+    tank.actionPoints = 3;
+    calcNewActionPoints(t, tank);
+    expect(tank.actionPoints).toBe(3 + AP_LIMITS.MINIMUM + VEHICLE_AP_BONUS);
   });
 });
 
