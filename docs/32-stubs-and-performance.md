@@ -69,9 +69,9 @@ Everything else must be own work, so that the dedication can cover it.
 
 | Area | Source | What it covers |
 |---|---|---|
-| Sector maps | `stubs/maps/*.map.txt`, compiled by `stubs/world.ts` | hand-made A9, A10, A10_b1, D5, N7, P3, P3_b1; `village` (the sandbox map, `STUB_SANDBOX_MAP`); `wilderness` for every sector without another map; five kind maps behind the sectors of `stubs/maps/sector-kinds.json` (§1.6) |
-| Tileset and structures | `stubs/world.ts`, `stubs/tiles.ts`, `stubs/effects.ts`, `stubs/helicopter.ts`; person and corpse structure files from `src/content/anim/` | tileset 0 with the tile types of §1.6; tileset 17 (the airstrip) with the helicopter |
-| Soldiers | `stubs/soldiers.ts`, `stubs/anim-scripts.ts` | stand, walk, run, crouch and prone sheets for every animation surface; an invented script for every animation state; palettes |
+| Sector maps | `stubs/maps/*.map.txt`, compiled by `stubs/world.ts` | hand-made A9, A10, A10_b1, D5, L10, N7, P3, P3_b1; `village` (the sandbox map, `STUB_SANDBOX_MAP`); `wilderness` for every sector without another map; five kind maps behind the sectors of `stubs/maps/sector-kinds.json` (§1.6) |
+| Tileset and structures | `stubs/world.ts`, `stubs/tiles.ts`, `stubs/effects.ts`, `stubs/helicopter.ts`; person, vehicle and corpse structure files from `src/content/anim/` | tileset 0 with the tile types of §1.6; tileset 17 (the airstrip) with the helicopter |
+| Soldiers | `stubs/soldiers.ts`, `stubs/anim-scripts.ts` | stand, walk, run, crouch and prone sheets for every animation surface (the vehicles' too); an invented script for every animation state; palettes |
 | Characters and text | `stubs/profiles.json` (defaults in `src/content/formats/stub-profiles.ts`), `stubs/npc/`, `stubs/text/`, built by `stubs/npc.ts` and `stubs/text.ts` | the profiles of §1.6, their NPC records and EDTs, merc quotes, the item descriptions the stub campaign and tests use, credits, mails, help and laptop texts |
 | Locks | `stubs/locks.json` | |
 | Sounds, music, speech, video | `stubs/media.ts` and the generators it calls (§1.7) | |
@@ -88,13 +88,13 @@ map, so `sectorMapPath` (`src/content/strategic/sector-maps.ts`) finds `stubs/wo
 original maps still win. `stubs/sector-kinds.test.ts` checks the table against the towns, mines, SAM sites, garrisons,
 underground sectors, lairs and Skyrider's placements.
 
-**Placement rules.** The surface kind maps, `wilderness` and N7 have the four entry points (edgepoints generated at
+**Placement rules.** The surface kind maps, `wilderness`, L10 and N7 have the four entry points (edgepoints generated at
 load) and at least 20 enemy slots, the largest garrison but the Queen's: `AddSoldierInitListEnemyDefenceSoldiers` places
 soldiers on the map's enemy placements only, so a group member without a slot would be counted in battle but never
 placed, and his group would keep its count after the battle. P3 has 32 elite slots for `QUEEN_DEFENCE`, laid out so a
 squad can fight its way to the stairs. The other hand-made maps have fewer (A9 six, for the Omerta garrison). NPC
 placements carry a `STAYINSECTOR` schedule: an unscheduled civilian would get the default come-and-go schedule
-(`Strategic/Scheduling.cc:917-955`).
+(`Strategic/Scheduling.cc:917-955`), which spares only animals and vehicles, so the L10 car needs none.
 
 **Same-sector exits.** The stub map format accepts `exit: x y -> here z=<level> at X Y`, written as sector 0,0;
 `withSectorExitGrids` (`src/content/strategic/sector-maps.ts`) resolves it to the sector named by the map file, so one
@@ -116,7 +116,24 @@ pass and runs the special events queued behind it (`24`).
 
 **Animation scripts** (`stubs/anim-scripts.ts`) are invented, except that the seven unjam scripts end like the
 original's with the non-interruptible release and opcode 476, which returns to the shooting animation the jam
-interrupted; otherwise the shot never comes and its busy count stays (`stubs/anim-scripts.test.ts`).
+interrupted; otherwise the shot never comes and its busy count stays (`stubs/anim-scripts.test.ts`). The vehicle work
+scripts carry the original's codes in its order: `REFUEL_VEHICLE` passes the refuel code 769 before its release,
+`GOTO_REPAIRMAN` goes on to `BEING_REPAIRMAN` after its release, and `VEHICLE_DIE` loops.
+
+**Vehicles.** The structure files `hmmv` (the Hummer, the Eldorado, the ice cream truck and the jeep) and `tnk_sht`,
+`tnk2_rot` (the two tanks) are own shapes (`STUB_VEHICLE_SHAPES`, `src/content/anim/structures.ts`): per facing, the
+tiles inside a rectangle turned to it and centred on the base tile, 15 or 17 tiles for the car and 21 or 23 for the
+tank, with the original's vehicle flags (`MOBILE | TRANSPARENT | VEHICLE`) and metal armour. A soldier's structure loses
+the flags that block moves (`WorldStructures.add`), so the vehicle stops other soldiers as a person does: every tile is
+his for `whoIsThere`, which paths around people avoid. The vehicles draw the stub stand sheet: the client picks no frame
+by the 32 facings of a vehicle surface. L10 is a garage yard (`stubs/maps/l10.map.txt`) with the car of profile 160,
+whose stub sector is L10, at gridno 12083 facing west; a squad that walks in from L9 arrives around the west entry 12074,
+nine tiles from the car's base tile. No golden or e2e spec loads L10; the stub campaign bot's march may fight there, so
+the map keeps the wilderness's four entries and twenty enemy slots. Tests reach the car with `stubCampaignAtTheHummer`
+and put a tank on any loaded map with `addStubTank` (`tests/support/vehicles.ts`, pinned by
+`src/sim/campaign/stub-vehicles.test.ts`): no stub map places a tank, since the original's tank sectors are garrisons
+and share the camp map. Dave and his sale are not in the pack: a test that boards the car sets `FACT_OK_USE_HUMMER`
+itself.
 
 **Tile types.** The stub tileset fills grounds, a floor, two wall families (each with the end pieces at sub-indices 48
 to 55 that a destroyed wall leaves its neighbours, `12`; the frames between are unused), roofs (flat climbable, slanted,

@@ -32,6 +32,7 @@ export const STUB_MAPS = [
   'stubs/world/maps/p3.dat',
   'stubs/world/maps/p3_b1.dat',
   'stubs/world/maps/d5.dat',
+  'stubs/world/maps/l10.dat',
   'stubs/world/maps/town.dat',
   'stubs/world/maps/mine.dat',
   'stubs/world/maps/camp.dat',

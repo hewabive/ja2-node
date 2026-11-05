@@ -2441,6 +2441,7 @@
         "blinkFrequency": 3000,
         "expressionFrequency": 2500
       },
+      "sector": "L10",
       "stats": {
         "life": 100,
         "lifeMax": 100,

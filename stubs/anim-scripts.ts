@@ -80,6 +80,7 @@ const ASSIGNMENT_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   END_DOCTOR: () => [...descendingFrames(ASSIGNMENT_END_FRAMES), STANCE_TO_STANDING],
   BEING_REPAIRMAN: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
   END_REPAIRMAN: () => [...descendingFrames(ASSIGNMENT_END_FRAMES), STANCE_TO_STANDING],
+  GOTO_REPAIRMAN: (t) => [...frames(ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'BEING_REPAIRMAN'))],
   GOTO_SLEEP: (t) => [...frames(ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'SLEEPING'))],
   SLEEPING: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
   WKAEUP_FROM_SLEEP: (t) => [
@@ -142,6 +143,9 @@ const SET_OFF_TRIGGER_CODE = 762;
 const PULL_SWITCH_REACH = 5;
 const CUT_FENCE_CODE = 481;
 const TAKE_BLOOD_CODE = 760;
+const REFUEL_VEHICLE_CODE = 769;
+const REFUEL_REACH = 5;
+const POURING_FRAMES = 4;
 const ToolSound = { WIRE_CUTTERS: 770, FENCE_OPEN: 791, COOL_QUOTE: 766 } as const;
 const CUT_FENCE_REACH = 4;
 const SNIP_FRAMES = 4;
@@ -229,6 +233,13 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     ...frames(DRAIN_FRAMES),
     TAKE_BLOOD_CODE,
     ...descendingFrames(DRAIN_RETURN),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
+  REFUEL_VEHICLE: () => [
+    ...frames(REFUEL_REACH + POURING_FRAMES),
+    REFUEL_VEHICLE_CODE,
+    ...descendingFrames(REFUEL_REACH),
     NONINTERRUPTIBLE_DONE,
     END_OF_ANIMATION,
   ],
@@ -352,6 +363,7 @@ const LOOPS = [
   'CRIPPLE_DIE_STOP',
   'CRIPPLE_DIE_FLYBACK_STOP',
   'ROBOTNW_DIE_STOP',
+  'VEHICLE_DIE',
 ];
 
 const CREATURE_HITS = ['ADULTMONSTER_HIT', 'LARVAE_HIT', 'INFANT_HIT', 'QUEEN_HIT', 'BLOODCAT_HIT', 'COW_HIT'];

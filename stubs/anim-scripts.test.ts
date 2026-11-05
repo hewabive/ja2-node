@@ -1,11 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { stepToNextFrame } from '../src/content/anim/script.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables, stateId } from '../src/content/anim/tables.ts';
-import { MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../src/content/formats/ja2bin.ts';
+import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../src/content/formats/ja2bin.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { buildStubAnimationScripts } from './anim-scripts.ts';
 
+const LAST_FRAME_CODE = 398;
+const REFUEL_VEHICLE_CODE = 769;
 const NONINTERRUPTIBLE_DONE = 442;
 const RESUME_FIRE = 476;
 const RANDOM_ANIM_CHECK = 491;
@@ -25,6 +28,21 @@ const UNJAM_STATES = [
   'PRONE_SHOOT_DWEL_UNJAM',
   'STANDING_SHOOT_LOW_UNJAM',
 ];
+
+function playedOpcodes(scripts: AnimationScripts, state: number): { ops: number[]; next: number | null } {
+  const ops: number[] = [];
+  let pc = 0;
+  for (let frame = 0; frame < MAX_FRAMES_PER_ANIM; frame++) {
+    const step = stepToNextFrame(scripts, state, pc, (code) => {
+      ops.push(code);
+      return code === END_OF_ANIMATION ? 'stop' : 'continue';
+    });
+    if (step.kind === 'state') return { ops, next: step.state };
+    if (step.kind !== 'frame') return { ops, next: null };
+    pc = step.nextPc;
+  }
+  throw new Error(`state ${state} plays without end`);
+}
 
 describe('stub animation scripts', () => {
   it('end every unjam animation by resuming the interrupted shot, as the original scripts do', async () => {
@@ -72,6 +90,29 @@ describe('stub animation scripts', () => {
       const end = script.indexOf(0);
       expect(script.slice(end - 2, end), name).toEqual([RANDOM_ANIM_CHECK, JUMP_TO_START]);
     }
+  });
+
+  it('pass the refuel code 769 in REFUEL_VEHICLE before its release, and go from GOTO_REPAIRMAN to BEING_REPAIRMAN after the release, as the original scripts do', async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const scripts = parseAnimationScripts(await buildStubAnimationScripts());
+    expect(playedOpcodes(scripts, stateId(tables, 'REFUEL_VEHICLE'))).toEqual({
+      ops: [REFUEL_VEHICLE_CODE, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+      next: null,
+    });
+    expect(playedOpcodes(scripts, stateId(tables, 'GOTO_REPAIRMAN'))).toEqual({
+      ops: [NONINTERRUPTIBLE_DONE],
+      next: stateId(tables, 'BEING_REPAIRMAN'),
+    });
+  });
+
+  it('loop the dying vehicle, as the original script does', async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const { codes } = parseAnimationScripts(await buildStubAnimationScripts());
+    const start = stateId(tables, 'VEHICLE_DIE') * MAX_FRAMES_PER_ANIM;
+    const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
+    expect(script.slice(0, script.indexOf(0)).filter((c) => c > LAST_FRAME_CODE)).toEqual([JUMP_TO_START]);
   });
 
   it('loop the treading in deep water, as the original script does', async () => {

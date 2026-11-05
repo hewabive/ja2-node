@@ -3,11 +3,13 @@
 // @src src/game/Tactical/Animation_Data.cc gAnimStructureDatabase, InitAnimationSystem, InternalGetAnimationStructureRef
 
 import { parseStructureFile, type StructureDef, type StructureFile, type StructureTile } from '../formats/jsd.ts';
+import { WORLD_COLS } from '../world/grid.ts';
 import { StructureFlags, StructureTileFlags } from '../world/structures.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 
 export const AnimStruct = { S: 0, C: 1, P: 2, F: 3, FB: 4, DEFAULT: 5, NONE: 120 } as const;
 export const NUM_ANIM_STRUCTS = 6;
+const NUM_DIRECTIONS = 8;
 
 const ANIM_STRUCTURE_DIR = 'anims/structdata/';
 export const STUB_ANIM_STRUCTURE_DIR = `stubs/${ANIM_STRUCTURE_DIR}`;
@@ -118,6 +120,101 @@ function syntheticPerson(number: number, shape: Uint8Array): StructureDef {
   };
 }
 
+const VEHICLE_FLAGS = StructureFlags.MOBILE | StructureFlags.TRANSPARENT | StructureFlags.VEHICLE;
+const MATERIAL_THICKER_METAL = 22;
+const MATERIAL_HEAVY_METAL = 23;
+const PROFILE_CELLS = 25;
+const LOW_BODY = 0b0011;
+const TALL_BODY = 0b0111;
+const FACING_STEPS: readonly (readonly [number, number])[] = [
+  [0, -1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+];
+
+interface StubVehicleShape {
+  readonly armour: number;
+  readonly halfLength: number;
+  readonly halfWidth: number;
+  cubes(along: number, across: number): number;
+}
+
+const HUMMER_SHAPE: StubVehicleShape = {
+  armour: MATERIAL_THICKER_METAL,
+  halfLength: 2.5,
+  halfWidth: 1.5,
+  cubes: (along) => (along > 0 ? LOW_BODY : TALL_BODY),
+};
+
+const TANK_TURRET_HALF_LENGTH = 1.5;
+const TANK_TURRET_HALF_WIDTH = 1;
+const TANK_SHAPE: StubVehicleShape = {
+  armour: MATERIAL_HEAVY_METAL,
+  halfLength: 3.5,
+  halfWidth: 1.5,
+  cubes: (along, across) => (Math.abs(along) < TANK_TURRET_HALF_LENGTH && Math.abs(across) < TANK_TURRET_HALF_WIDTH ? TALL_BODY : LOW_BODY),
+};
+
+const STUB_VEHICLE_SHAPES: Readonly<Record<string, StubVehicleShape>> = {
+  hmmv: HUMMER_SHAPE,
+  tnk_sht: TANK_SHAPE,
+  tnk2_rot: TANK_SHAPE,
+};
+
+function directionOfStructure(number: number): number {
+  return (number + NUM_DIRECTIONS - 1) % NUM_DIRECTIONS;
+}
+
+function vehicleTile(x: number, y: number, cubes: number): StructureTile {
+  return {
+    posRelToBase: x + y * WORLD_COLS,
+    xRelToBase: x,
+    yRelToBase: y,
+    shape: new Uint8Array(PROFILE_CELLS).fill(cubes),
+    flags: 0,
+    vehicleHitLocation: 0,
+  };
+}
+
+function vehicleFootprint(shape: StubVehicleShape, direction: number): StructureTile[] {
+  const [fx, fy] = FACING_STEPS[direction] ?? [0, -1];
+  const length = Math.hypot(fx, fy);
+  const reach = Math.ceil(Math.max(shape.halfLength, shape.halfWidth) * Math.SQRT2);
+  const tiles: StructureTile[] = [];
+  for (let y = -reach; y <= reach; y++) {
+    for (let x = -reach; x <= reach; x++) {
+      const along = (x * fx + y * fy) / length;
+      const across = (y * fx - x * fy) / length;
+      if (Math.abs(along) >= shape.halfLength || Math.abs(across) >= shape.halfWidth) continue;
+      const tile = vehicleTile(x, y, shape.cubes(along, across));
+      if (x === 0 && y === 0) tiles.unshift(tile);
+      else tiles.push(tile);
+    }
+  }
+  return tiles;
+}
+
+function syntheticVehicle(number: number, shape: StubVehicleShape): StructureDef {
+  return {
+    number,
+    armour: shape.armour,
+    hitPoints: 0,
+    density: 100,
+    flags: VEHICLE_FLAGS,
+    wallOrientation: 0,
+    destructionPartner: 0,
+    partnerDelta: 0,
+    zTileOffsetX: 0,
+    zTileOffsetY: 0,
+    tiles: vehicleFootprint(shape, directionOfStructure(number)),
+  };
+}
+
 const STUB_SHAPES: Readonly<Record<string, Uint8Array>> = {
   m_stand: personShape(0b0111, 0b0011),
   m_crouch: personShape(0b0011, 0b0001),
@@ -138,9 +235,16 @@ const STUB_SHAPES: Readonly<Record<string, Uint8Array>> = {
 };
 
 export function stubAnimStructureFiles(): ReadonlyMap<string, StructureDef[]> {
-  return new Map(
-    Object.entries(STUB_SHAPES).map(([name, shape]) => [name, Array.from({ length: 8 }, (_, d) => syntheticPerson(d, shape))]),
-  );
+  return new Map([
+    ...Object.entries(STUB_SHAPES).map(([name, shape]): [string, StructureDef[]] => [
+      name,
+      Array.from({ length: NUM_DIRECTIONS }, (_, d) => syntheticPerson(d, shape)),
+    ]),
+    ...Object.entries(STUB_VEHICLE_SHAPES).map(([name, shape]): [string, StructureDef[]] => [
+      name,
+      Array.from({ length: NUM_DIRECTIONS }, (_, n) => syntheticVehicle(n, shape)),
+    ]),
+  ]);
 }
 
 export function stubAnimStructures(): AnimStructures {
