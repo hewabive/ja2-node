@@ -7,7 +7,9 @@
 // @src flag); GameScreen.cc EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the
 // @src loaded sector (2026-10-31);
 // @src GameScreen.cc InternalLeaveTacticalScreen (the timer and the unload of a sector nobody of ours is left in, and
-// @src CheckForDisabledRegionRemove, 2026-11-03).
+// @src CheckForDisabledRegionRemove, 2026-11-03); Map_Screen_Interface_Bottom.cc HandleExitsFromMapScreen (the
+// @src SyncStrategicTurnTimes of MAP_EXIT_TO_TACTICAL's SetCurrentWorldSector), Strategic_Turns.cc guiLastTacticalRealTime
+// @src on the JA2 clock that never goes back (2026-11-05).
 
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -26,6 +28,7 @@ import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { enterTacticalScreen } from '../tactical/selection.ts';
+import { rewindRealtimeTurnStamps, syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 
@@ -72,6 +75,7 @@ export function openTacticalScreen(campaign: CampaignSim): CommandResult {
   if (s.flow !== 'strategic' || !world || !campaign.tactical) return refuse('noSector', 'no sector is loaded');
   if (!campaign.strategic?.mercs.all().some((m) => canGoToTactical(m, world)))
     return refuse('noMercThere', 'no merc of yours is in the loaded sector');
+  syncStrategicTurnTimes(campaign.tactical.state.realtimeClock, s.realMs);
   returnToLoadedSector(campaign);
   return { ok: true };
 }
@@ -82,6 +86,7 @@ export function returnToLoadedSector(campaign: CampaignSim): void {
   const entering = s.flow !== 'tactical';
   const fromMap = s.flow === 'strategic';
   if (t) {
+    rewindRealtimeTurnStamps(t.realtimeClock, s.realMs - t.clockMs);
     s.realMs = t.clockMs;
     s.clock.driver.lastSecondMs = t.clockMs;
   }

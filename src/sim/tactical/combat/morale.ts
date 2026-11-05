@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEvent
 // @src (soldier-only tactical events; the phobic ones and PHOBIC_LIMIT, the EPC and assignment checks and the
 // @src low-morale quote of UpdateSoldierMorale 2026-11-01; the drug term of RefreshSoldierMorale and the crash events
-// @src 2026-11-04).
+// @src 2026-11-04; UpdateSoldierMorale for our merc off the loaded map, 2026-11-05).
 
 import { idiv } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
@@ -67,7 +67,7 @@ export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
 }
 
 function moraleCounts(t: TacticalState, s: Soldier): boolean {
-  if (!s.placed || s.life < CONSCIOUSNESS || isMechanical(s) || t.narrative.isEpc(s)) return false;
+  if (s.life < CONSCIOUSNESS || isMechanical(s) || t.narrative.isEpc(s)) return false;
   return !MORALE_FROZEN_ASSIGNMENTS.has(soldierAssignment(t, s)) && s.profile !== NO_PROFILE;
 }
 

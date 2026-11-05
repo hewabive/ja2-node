@@ -17,7 +17,7 @@ import { Assignment, VehicleSeat } from '../strategic/forces/constants.ts';
 import { FACT_OK_USE_HUMMER } from '../strategic/forces/helicopter.ts';
 import { setFact } from '../strategic/narrative/facts.ts';
 import { setSoldierDirection } from '../tactical/animation.ts';
-import { setSoldierPosition } from '../tactical/movement.ts';
+import { setSoldierPosition, worldIndexFromCoords } from '../tactical/movement.ts';
 import { Body, type Soldier, SoldierStatusFlags, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { MercKind, type RosterMerc } from './roster.ts';
@@ -303,6 +303,10 @@ describe('a vehicle squad at the edge of the map (StrategicMap.cc OKForSectorExi
     return { session, hummer };
   }
 
+  function lastTile(s: Soldier): number {
+    return worldIndexFromCoords(s.x, s.y);
+  }
+
   function leaveEast(session: CampaignSession, hummer: RosterMerc): Soldier {
     expect(refusalOf(session, { type: 'exitSector', soldier: hummer.id, direction: 'east', who: 'merc', load: false })).toBe('ok');
     expect(hummer.soldier.path.slice(0, hummer.soldier.pathSize)).toEqual(PATH_TO_THE_EAST_EDGE);
@@ -320,13 +324,13 @@ describe('a vehicle squad at the edge of the map (StrategicMap.cc OKForSectorExi
     expect(refusalOf(session, { type: 'move', soldier: hummer.id, to: INSIDE_THE_MAP })).toBe('vehicleCantMove');
     expect(refusalOf(session, { type: 'exitSector', soldier: hummer.id, direction: 'east', who: 'squad' })).toBe('squadNotAllowed');
     const vehicle = leaveEast(session, hummer);
-    expect([vehicle.gridNo, vehicle.direction, vehicle.pauseAnimMove]).toEqual([TWO_STEPS_NORTHEAST, Direction.NORTHEAST, true]);
-    expect(mercs(session).map((m) => m.soldier.gridNo)).toEqual([vehicle.gridNo, vehicle.gridNo]);
+    expect([lastTile(vehicle), vehicle.direction, vehicle.pauseAnimMove]).toEqual([TWO_STEPS_NORTHEAST, Direction.NORTHEAST, true]);
+    expect(mercs(session).map((m) => lastTile(m.soldier))).toEqual([TWO_STEPS_NORTHEAST, TWO_STEPS_NORTHEAST]);
   });
 
   it('never moves a vehicle facing away from its first step, which cannot turn, and the walk-off timer takes it out of the sector (Soldier_Control.cc:3914, :4220; Overhead.cc:1083)', async () => {
     const { session, hummer } = await hummerAtTheEastEdge(Direction.SOUTHEAST);
     const vehicle = leaveEast(session, hummer);
-    expect([vehicle.gridNo, vehicle.direction, vehicle.pauseAnimMove]).toEqual([AT_THE_EAST_EDGE, Direction.SOUTHEAST, true]);
+    expect([lastTile(vehicle), vehicle.direction, vehicle.pauseAnimMove]).toEqual([AT_THE_EAST_EDGE, Direction.SOUTHEAST, true]);
   });
 });

@@ -4,6 +4,7 @@ import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import { idiv } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { createBoxingRecord } from '../strategic/narrative/facts.ts';
@@ -19,6 +20,7 @@ import {
   AP_LIMITS,
   apsToChangeStance,
   apsToLook,
+  BP_PER_AP,
   calcActionPoints,
   calcNewActionPoints,
   deductPoints,
@@ -497,6 +499,18 @@ describe('breath', () => {
     expect([s.breath, s.tilesMovedPerRTBreathUpdate]).toEqual([70, 0]);
     unusedAPsToBreath(ctx(t), s, false);
     expect(s.breath).toBeGreaterThan(70);
+  });
+
+  it('reads the water a standing soldier breathes in from his own terrain, not the map under his gridNo (MercInWater)', () => {
+    const regainedBy = (overTerrain: number) => {
+      const t = tactical();
+      const s = spawn(t, gridNo(80, 80));
+      Object.assign(s, { overTerrain, breathRed: 3000 });
+      unusedAPsToBreath(ctx(t), s, false);
+      return 3000 - s.breathRed;
+    };
+    expect(regainedBy(Terrain.FLAT_GROUND)).toBe(-3 * BP_PER_AP.NO_EFFORT);
+    expect(regainedBy(Terrain.LOW_WATER)).toBe(-3 * BP_PER_AP.LT_EFFORT);
   });
 
   it("takes a roof step's breath from the ground costs under the roof", () => {

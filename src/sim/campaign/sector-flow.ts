@@ -30,7 +30,9 @@
 // @src for a native import (2026-11-01); SaveLoadGame.cc LoadSavedGame (HandleRottingCorpses of
 // @src LoadRottingCorpsesFromTempCorpseFile) for a native import (2026-11-01); Overhead.cc ExecuteOverhead (the LU_ENDUILOCK
 // @src that ends the wait for mercs on our turn before AllMercsHaveWalkedOffSector, 2026-11-03); StrategicMap.cc EnterSector
-// @src (its EndMapScreen before PrepareLoadedSector on a load from the map, 2026-11-03).
+// @src (its EndMapScreen before PrepareLoadedSector on a load from the map, 2026-11-03); StrategicMap.cc
+// @src SetCurrentWorldSector (its SyncStrategicTurnTimes, the loaded sector's included), the strategic merc list as our team
+// @src of the turn starts (FOR_EACH_IN_TEAM(OUR_TEAM), 2026-11-05).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -169,6 +171,7 @@ import {
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
+import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import { seatAtVehicle } from '../tactical/vehicle-passengers.ts';
 import { removeVehiclesNotOnOurTeam } from '../tactical/vehicle-soldiers.ts';
 import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
@@ -294,6 +297,10 @@ export class SectorFlow {
       m.soldier.offMap = false;
       m.offGridInSector = false;
     }
+  }
+
+  #ourWholeTeam(): Soldier[] {
+    return this.setup.roster.all().map((m) => m.soldier);
   }
 
   #seatAtVehicle(merc: RosterMerc, vehicle: RosterMerc): void {
@@ -480,6 +487,7 @@ export class SectorFlow {
 
   setCurrentWorldSector(sector: Sector, options: LoadOptions = {}): boolean {
     const s = this.campaign.state;
+    syncStrategicTurnTimes(this.realtimeClock, s.realMs);
     const world = this.world;
     if (world && this.campaign.tactical && sameSector(world, sector)) {
       this.#reenterLoadedSector();
@@ -658,6 +666,7 @@ export class SectorFlow {
       mercDied: (_t, dead) => this.campaign.battle?.mercDiedInTactical(dead),
       mercDiedOffTheMap: (_t, dead) => this.campaign.battle?.mercDiedOffTheMap(dead),
       inMapScreen: () => this.campaign.state.flow === 'strategic',
+      ourWholeTeam: () => this.#ourWholeTeam(),
       pendingEnemies: () => this.campaign.battle?.pendingEnemies() ?? false,
       militiaFinishBattle: (t) => this.campaign.battle?.militiaFinishBattle(t) ?? false,
       battleLost: (t) => this.campaign.battle?.battleLost(t),

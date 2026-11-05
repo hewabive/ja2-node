@@ -357,7 +357,8 @@ deviation "Locates of unseen soldiers"), the items' tile the view slides to as t
 sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a mine a merc of ours spotted, after
 his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3154`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
 (`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), the portrait flash of a seen soldier hurt by
-bleeding, gas or electricity (`damageFeedback {soldier}`, `Tactical/Soldier_Control.cc:8770`) and the interface level
+bleeding, gas or electricity, a merc of ours off the loaded map included (`damageFeedback {soldier}`,
+`Tactical/Soldier_Control.cc:8770`) and the interface level
 the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
 `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;

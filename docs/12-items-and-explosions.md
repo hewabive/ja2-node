@@ -100,7 +100,10 @@ explosion holds the attack busy count from ignition to its last frame and keeps 
 hits adds his own hold (`33`).
 
 **Gas marks the soldier.** The gassed state is the soldier's own flag (`Soldier.gassed`): it leaves the sector with him,
-is saved with him and is read from a native save. The per-round gas flags and the one-hit-per-blast flag live per
+is saved with him and is read from a native save. Every turn start of our whole team tests it against the loaded map at
+the merc's gridno (`clearGassedAtTurnStart`), and a merc off the loaded map stands nowhere there: his removal from the
+sector, or the load of another, set `NOWHERE` (`removeSoldierFromTacticalSector`, `Strategic/StrategicMap.cc:563`), so
+he loses the flag at his next turn start. The per-round gas flags and the one-hit-per-blast flag live per
 soldier id in `ExplosivesState` (deviation "Gas and blast hit flags"). Clouds and flares age by world seconds, which stand still
 in turn-based combat; the sandbox counts its own (deviation "World clock for smoke and light"). Sight reads the gas and
 smoke layer of the tiles (`08`). A soldier of the computer teams puts on a gas mask he carries when his team is called
@@ -149,6 +152,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A tile keeps the first cloud's gas: tear gas over smoke leaves it smoky | `explosions/smoke.test.ts` |
 | Plain smoke gasses whoever steps into it without a good mask (aim −50, no interrupts), though it does no damage | `explosions/smoke.test.ts` |
 | A mask worn below 70 lets a soldier get gassed, yet any mask clears the state at his next turn start | `explosions/smoke.test.ts` |
+| A merc of ours off the loaded map has his gassed state tested against the loaded map where he stands, nowhere, so a cloud at the tile he left, or at that tile of a newly loaded map, never keeps him gassed | `turns/whole-team.test.ts` "loses the gassed flag at his next turn start …", `src/sim/campaign/absent-mercs.test.ts` "reads the newly loaded map where he stands …" |
 | A pile under a soldier or a blocking structure is picked up from a side tile only, though the reach animation turns to any neighbour: a merc on its diagonal walks first | `item-actions.test.ts` |
 | A search pays only its walk and its click checks no APs: in combat a merc short of the walk sets off and stops where they run out, and one on the tile searches with none left | `item-actions.test.ts` |
 | A search turns up hidden items only on a tile where every item is hidden: one beside a buried item stays hidden, and the merc finds nothing | `item-actions.test.ts` |
@@ -200,8 +204,9 @@ the sandbox).
 **Design.** The courses belong to the soldier: they leave the sector with him, are saved with him and come from a
 native save, and other modules read them only through `drugs.ts`. Taking one costs no AP and needs none, as in the
 original; `count: 'all'` applies the cursor's SHIFT stack, so a booster's status is the stack's last and a beer drinks
-into the next bottle (`Tactical/Interface_Items.cc:2693`). A course runs only where turn starts run: in the loaded
-sector, not on the map screen and not for mercs elsewhere (gaps "Absent mercs between hourly updates").
+into the next bottle (`Tactical/Interface_Items.cc:2693`). A course runs where turn starts run: for our whole team,
+mercs off the loaded map included, with the crash's morale, and for the loaded sector's other soldiers, but not on the
+map screen (gaps "Absent mercs between hourly updates").
 
 **What the player sees.** Our soldiers and strategic mercs carry the derived `drunk` level and `adrenaline` state
 (`drugView`); the counters, and so the turns left, stay hidden (D16, `29` §7). From them the client draws the face's

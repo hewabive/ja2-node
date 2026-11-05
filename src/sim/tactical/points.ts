@@ -7,7 +7,8 @@
 // @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs, the INT16 breath of DeductPoints and
 // @src AdjustBreathPts, the robot's zapped breath costs of DeductPoints, AdjustBreathPts' non-swimmer in deep water, the
 // @src vehicle bonus of CalcActionPoints (2026-11-04); UnusedAPsToBreath's vehicles and the vehicle flag set after the
-// @src creation's CalcActionPoints (Soldier_Create.cc TacticalCreateSoldier, 2026-11-05).
+// @src creation's CalcActionPoints (Soldier_Create.cc TacticalCreateSoldier, 2026-11-05); GetBreathPerAP's MercInWater on
+// @src the soldier's own terrain (2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -26,6 +27,7 @@ import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { isRobot } from './narrative/robot.ts';
 import { doorObstacleIfClosed, doorState, isWater, type PathEnv, terrainCost } from './pathfinding.ts';
 import { mercSeesCreature } from './perception/opp.ts';
+import { mercInWater } from './person-structure.ts';
 import {
   effectiveAgility,
   effectiveDexterity,
@@ -529,7 +531,7 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
   let perAP = 0;
   if (flags & AnimFlags.VARIABLE_EFFORT) {
     perAP = BP_PER_AP.MIN_EFFORT;
-    const inWater = isWater(ctx.env.world, s.gridNo);
+    const inWater = mercInWater(s);
     if (name === 'STANDING') perAP = inWater ? BP_PER_AP.LT_EFFORT : BP_PER_AP.NO_EFFORT;
     else if (name === 'WALKING') perAP = inWater ? BP_PER_AP.MOD_EFFORT : BP_PER_AP.LT_EFFORT;
   }

@@ -46,7 +46,7 @@ import { createPerception, type Perception } from './perception/sight.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
-import { inVehicle, NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
+import { inVehicle, NOBODY, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from './vehicle-soldiers.ts';
 import type { WorldItem } from './world-items.ts';
@@ -229,6 +229,7 @@ export interface SectorHooks {
   mercDied(t: TacticalState, s: Soldier): void;
   mercDiedOffTheMap(t: TacticalState, s: Soldier): void;
   inMapScreen(t: TacticalState): boolean;
+  ourWholeTeam(t: TacticalState): readonly Soldier[];
   pendingEnemies(t: TacticalState): boolean;
   militiaFinishBattle(t: TacticalState): boolean;
   battleLost(t: TacticalState): void;
@@ -250,6 +251,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   mercDied: () => {},
   mercDiedOffTheMap: () => {},
   inMapScreen: () => false,
+  ourWholeTeam: (t) => teamMembers(t, Team.OUR),
   pendingEnemies: () => false,
   militiaFinishBattle: () => false,
   battleLost: () => {},

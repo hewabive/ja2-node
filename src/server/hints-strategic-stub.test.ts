@@ -265,11 +265,12 @@ describe('the enter-vehicle cursor by a civilian vehicle, client against server'
     const hummer = t?.soldiers.find((s) => s?.placed && s.bodyType === Body.HUMVEE);
     const [first, second] = sim.view().strategic?.mercs.map((m) => m.id) ?? [];
     if (!hummer || first === undefined || second === undefined) throw new Error('no Hummer or no two mercs');
+    const hummerGridNo = hummer.gridNo;
     const ask = (soldier: number, vehicle: number, cursor: string) => ({
       type: 'previewAction',
       soldier,
       kind: 'enterVehicle',
-      gridNo: hummer.gridNo,
+      gridNo: hummerGridNo,
       target: vehicle,
       cursor,
     });

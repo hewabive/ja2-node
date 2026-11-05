@@ -4,8 +4,8 @@
 // @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
-// @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04), HandleTakeDamageDeath (its strategic branch,
-// @src 2026-11-05), HandleSoldierTakeDamageFeedback
+// @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04; the damage display of a soldier in the sector only,
+// @src 2026-11-05), HandleTakeDamageDeath (its strategic branch, 2026-11-05), HandleSoldierTakeDamageFeedback
 // @src (the portrait flash of a soldier the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
 // @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
@@ -719,7 +719,7 @@ export function soldierTakeDamage(
   }
   s.damageWindow = i16(s.damageWindow + life);
   if (s.life < 0) s.life = 0;
-  if (s.life < oldLife && s.visible !== -1) t.events.push({ type: 'lifeLost', soldier: s.id, amount: oldLife - s.life });
+  if (s.life < oldLife && s.placed && s.visible !== -1) t.events.push({ type: 'lifeLost', soldier: s.id, amount: oldLife - s.life });
   if (reason === DamageReason.EXPLOSION || reason === DamageReason.STRUCTURE_EXPLOSION) checkEquipmentForDamage(t, s, life);
   if (reason !== DamageReason.GAS && !isRobot(s)) {
     if (reason === DamageReason.HANDTOHAND) {

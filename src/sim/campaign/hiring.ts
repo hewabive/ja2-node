@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc, MercArrivesCallback (contract fields: contracts/contract-flow.ts);
 // @src Strategic/Map_Screen_Interface.cc
 // @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs; Tactical/Merc_Entering.cc
-// @src HandleHeliDrop (the end of the drop selects its first seat, 2026-10-31).
+// @src HandleHeliDrop (the end of the drop selects its first seat, 2026-10-31), HandleFirstHeliDropOfGame (its
+// @src SyncStrategicTurnTimes, 2026-11-05).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { type Sector, sectorFromId } from '../../content/strategic/sector-ids.ts';
@@ -18,6 +19,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { createMercFromProfile } from '../tactical/creation.ts';
 import { autoPlaceObject } from '../tactical/inventory.ts';
 import { firstFreeSoldierId, type Soldier, Team } from '../tactical/soldier.ts';
+import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { createMercRecord } from './merc-record.ts';
 import { MercKind, type Roster, RosterMerc } from './roster.ts';
@@ -126,4 +128,5 @@ export function teamJackedInAndGearedToGo(campaign: CampaignSim, loadStartSector
   s.didGameJustStart = false;
   if (s.flow === 'tactical') setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
   campaign.sectors?.endHelicopterDrop();
+  syncStrategicTurnTimes(s.sectorFlow.realtimeClock, s.realMs);
 }

@@ -71,7 +71,12 @@ aid, smell, the bomb timers, smoke and light decay); out of combat the bomb time
 (`12` §6). A team with nobody in the sector is skipped, an AI team with an empty AI list after
 its turn start. A turn start decays the team's public opplist and watched locations and runs `beginMercTurn` for each
 living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over, a debt
-of up to 100 kept). It first steps his drug courses and regeneration, which then change his breath, his new APs and
+of up to 100 kept). Our team there, and in the real-time turn's first pass, is every merc of ours wherever he is, in id
+order (`FOR_EACH_IN_TEAM`, `Tactical/TeamTurns.cc:325`, `Tactical/Tactical_Turns.cc:123`): the campaign's sector hook
+`ourWholeTeam` lists the roster, mercs in other sectors, travelling, captured or in transit included, the sandbox its
+placed team. A merc off the loaded map gets the same turn start without its in-sector parts (blood on the floor, the
+breath collapse, getting up, the opplist and x-ray, a phobia's morale and line): he bleeds, breathes, steps his drug
+courses and gets his APs, all without a draw. It first steps his drug courses and regeneration, which then change his breath, his new APs and
 their maximum (`12` §5). At our End Turn a merc whose path still has an affordable first step loses his pending move;
 one stopped for want of APs keeps it and his freeze into the next turn.
 
@@ -173,6 +178,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A soldier in his death animation (life 0) counts as a capable enemy, an unconscious one does not | `turns/end-of-battle.test.ts` |
 | An unalerted neutral civilian acting out a quote record costs the AI list its one-in-ten roll and is handled anyway | `turns/ai-list.test.ts` |
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
+| The real-time turn skips the robot and our vehicles, on the map or off it, but our team's turn in combat starts theirs | `turns/realtime-turns.test.ts`, `turns/whole-team.test.ts` "skips the robot and our vehicles …" |
+| In combat a merc of ours in another sector bleeds a whole step at each of our turns while the world clock stands, where real time bleeds him half a step a turn | `turns/whole-team.test.ts` "bleeds a merc of ours off the map a whole step …" |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
 | Breath changes are INT16: a cost the breath factor scales past 32767, or a breath reduction pushed past it, gives breath back | `points.test.ts` "keeps the INT16 breath of DeductPoints …" |
@@ -221,6 +228,10 @@ reading the source:
 - `CalcInterruptDuelPts` stores every step in an `INT8`; ja2-node wraps only the result, which differs only below −128.
 - That the order lock of deviation "Turn-based UI lock" admits the same orders as `SetUIBusy`.
 - Boxing, vehicle and robot branches are ported as read, without probes.
+- The turn starts of our mercs off the loaded map: a merc breathes by the animation he left the map in, so one who ran
+  off regains nothing, and a step since the last turn zeroes his first gain; a stale `GIVING_AID` state still looks for
+  its patient on the loaded map; the helicopter's passengers over the loaded sector, in its merc slots in the original,
+  get the turn start of a merc elsewhere (gaps "Turn-based hooks").
 - The selections of a screen entry, a sector load, a death, a removal and a change of the current squad, and that the
   original reaches them at the moments `29` §4.3 names (the map, a load, the skull, a squad or sector removal, a squad
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's

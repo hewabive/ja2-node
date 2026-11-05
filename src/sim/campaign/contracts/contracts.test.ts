@@ -481,12 +481,13 @@ describe('leaving the team', () => {
     expect(p.useProfileInsertion).toBe(false);
     const again = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
     const waiting = merc(again, 1).soldier;
-    Object.assign(waiting, { quoteRecord: 7, quoteActionId: QUOTE_ACTION_CHECK_FOR_DEST, finalDestination: waiting.gridNo });
+    const place = waiting.gridNo;
+    Object.assign(waiting, { quoteRecord: 7, quoteActionId: QUOTE_ACTION_CHECK_FOR_DEST, finalDestination: place });
     strategicRemoveMerc(again.flow, merc(again, 1), 'none');
     expect(profile(again, STUB.hana)).toMatchObject({
       useProfileInsertion: true,
       insertionCode: Insertion.GRIDNO,
-      insertionData: waiting.gridNo,
+      insertionData: place,
       quoteActionId: QUOTE_ACTION_CHECK_FOR_DEST,
       quoteRecord: QUOTE_ACTION_CHECK_FOR_DEST,
     });

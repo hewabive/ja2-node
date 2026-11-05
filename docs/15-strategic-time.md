@@ -56,7 +56,12 @@ advances by 5 ms (D3): in tactical it is the loaded sector's `clockMs`, on the m
 `autoresolve` and `laptop` flows leave it standing like the original's other screens. The map never steps the loaded
 sector (the original runs no `ExecuteOverhead` there), so the sector's clock waits. A sector load starts that clock at
 `realMs`; going back to a sector still loaded hands `realMs` to its clock and re-phases the clock's second, as the
-original's screen change does (`returnToLoadedSector`).
+original's screen change does (`returnToLoadedSector`). That way back is the one place `realMs` runs backwards, where the
+original's JA2 clock never does: the real-time turn's stamps (`RealtimeClock.lastOverheadMs`, `lastTurnMs`) live on that
+clock, so `returnToLoadedSector` moves them back by as much as it rewinds `realMs`; any other stamp a map-side system
+writes in the `realMs` timeline needs the same. `SyncStrategicTurnTimes` stamps the turn at every `setCurrentWorldSector`
+(the loaded sector's included, as the map's way back to tactical is, `Strategic/Map_Screen_Interface_Bottom.cc:1100`), at
+combat entry and at the first landing, so the first real-time turn comes 5 s after any of them.
 
 **`UpdateClock` on an ideal machine.** `updateClock` is the original's function fed with `realMs`, so the pace follows
 the tick, not the frame rate (deviation "Strategic map pacing"): a world second per 200 ticks in tactical; while
@@ -124,7 +129,8 @@ out.
 **Compression in other rules.** Natural healing asks whether time is compressed; ja2-node asks whether the flow is
 strategic (deviation "Time compression for healing"). The original's map runs a real-time turn every 20 ms while
 compressing, so bleeding per world minute depends on the compression level; ja2-node runs real-time turns only in the
-tactical step, for the loaded sector, so nobody bleeds on the map screen (gap "Absent mercs between hourly updates").
+tactical step, for our whole team and the loaded sector, so nobody bleeds on the map screen (gap "Absent mercs between
+hourly updates").
 Starting compression stops every soldier of the loaded sector, cancels their AI actions and drops the game events not
 yet dequeued (`clearTacticalStuffDueToTimeCompression`, `tactical/overhead.ts`); the `tacticalClearedForCompression`
 event it emits makes the client empty its tactical message log, shown and queued lines, as `ClearTacticalMessageQueue`
@@ -174,6 +180,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |
+| The first real-time turn after a sector load, or after the way back to the loaded sector from the map, comes at the first 20 ms count past 5 s | `campaign/absent-mercs.test.ts` "comes at the first 20 ms count …", "comes as long after a return …" |
 | `InitBloodCatSectors` stops at sector 254 | `strategic/map/init.test.ts` |
 | Every start of compression clears the loaded sector, not only the first since the map opened: the map screen forgets each frame that compression occurred | `campaign/screens.test.ts` |
 | A speed button starts compression without the clean-up; only the start toggle runs it | `campaign/screens.test.ts` |

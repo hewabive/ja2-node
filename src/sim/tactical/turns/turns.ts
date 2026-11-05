@@ -22,7 +22,9 @@
 // @src StartInterrupt and DisplayHiddenInterrupt slide to, gLastInterruptedGuy and the AI interrupter (2026-11-03);
 // @src HandleTacticalEndTurn's IsMechanical skip (2026-11-04); the DecayBombTimers calls of HandleTacticalEndTurn and
 // @src EndTurnEvents, EVENT_BeginMercTurn's low breath flag reset, the x-ray turn-offs of EVENT_BeginMercTurn and
-// @src HandleTacticalEndTurn (2026-11-04).
+// @src HandleTacticalEndTurn (2026-11-04); FOR_EACH_IN_TEAM(OUR_TEAM) of HandleTacticalEndTurn's first pass and of
+// @src BeginTeamTurn, our mercs off the loaded map included; Strategic/Strategic_Turns.cc SyncStrategicTurnTimes and its
+// @src call in CommonEnterCombatModeCode (2026-11-05).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -186,6 +188,15 @@ function gamePaused(t: TacticalState): boolean {
   return t.worldClock?.paused === true;
 }
 
+export function syncStrategicTurnTimes(clock: RealtimeClock, nowMs: number): void {
+  clock.lastTurnMs = nowMs;
+}
+
+export function rewindRealtimeTurnStamps(clock: RealtimeClock, rewindMs: number): void {
+  clock.lastOverheadMs -= rewindMs;
+  clock.lastTurnMs -= rewindMs;
+}
+
 export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): void {
   if (!t.inCombat && t.turn.forceRealtimeTurn) {
     t.turn.forceRealtimeTurn = false;
@@ -237,7 +248,7 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
   nonCombatDecayPublicOpplist(t, clock, now);
   if (!t.inCombat) {
     t.narrative.logBleedMeToos(true);
-    for (const s of teamMembers(t, Team.OUR)) {
+    for (const s of t.sectorHooks.ourWholeTeam(t)) {
       if (s.life <= 0 || isMechanical(s)) continue;
       beginMercTurn(t, s);
       handlePlayerServices(t, s);
@@ -280,6 +291,10 @@ export function startPlayerTeamTurn(t: TacticalState, entering: boolean): void {
   if (t.inCombat) t.events.push({ type: 'turnStarted', team: Team.OUR, round: t.turn.round });
 }
 
+function teamTurnMembers(t: TacticalState, team: number): readonly Soldier[] {
+  return team === Team.OUR ? t.sectorHooks.ourWholeTeam(t) : teamMembers(t, team);
+}
+
 export function beginTeamTurn(t: TacticalState, start: number): void {
   let team = start;
   for (;;) {
@@ -295,7 +310,7 @@ export function beginTeamTurn(t: TacticalState, start: number): void {
     }
     t.narrative.logBleedMeToos(true);
     decayPublicOpplist(t, team);
-    for (const s of teamMembers(t, team)) if (s.life > 0) beginMercTurn(t, s);
+    for (const s of teamTurnMembers(t, team)) if (s.life > 0) beginMercTurn(t, s);
     if (boxingRoundDecided(t)) return;
     t.narrative.logBleedMeToos(false);
     if (team === Team.OUR) {
@@ -424,6 +439,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
     calcNewActionPoints(t, s);
     recordPreCombatGridNo(t, s);
   }
+  syncStrategicTurnTimes(t.realtimeClock, t.clockMs);
   t.turn.round = 1;
   t.events.push({ type: 'combatStarted', team: startTeam });
 }

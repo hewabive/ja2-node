@@ -62,6 +62,11 @@ sighting pause", "Suppression stance change from the end of the previous one").
 **Our dead merc holds the barrier** for a fixed 1920 game ms after 440, where the original waits for the portrait and
 skull animation in wall-clock time (deviation "Our merc's death").
 
+**Our mercs bleed off the tactical map too.** Every turn start of our whole team bleeds them, wherever they are (`10`),
+with the doctor test against their own sector. Their life loss draws no damage number (`lifeLost` is the loaded map's
+damage display, `fDisplayDamage` of a soldier in the sector); their grunt and portrait flash (`damageFeedback`,
+`Tactical/Soldier_Control.cc:8760`) come as in the original.
+
 **A merc of ours can die off the tactical map.** Bleeding, gas and electricity that bring a soldier not on the loaded
 map to life 0, or any soldier while the map screen is up, hand him to the campaign through
 `SectorHooks.mercDiedOffTheMap` (`handleTakeDamageDeath`, `Tactical/Soldier_Control.cc:5401`): the strategic bookkeeping
@@ -164,7 +169,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A tank's death marks its `NPC164` profile dead, though it writes no history entry | `src/sim/tactical/vehicle-damage.test.ts` "marks a tank's NPC164 profile dead …" |
 | A vehicle's armour is its type's armour item at status 100 wherever it is hit, the vest, helmet and leggings a tank wears ignored: it draws its `PreRandom(100)` every time, can never fail and never wears | `src/sim/tactical/vehicle-damage.test.ts` "protects a vehicle with its type's armour …" |
 | A corpse added to an unloaded sector takes no level from its definition: it lies on the ground at the soldier's whole height, 58 px up for one who stood on a roof, while his items stay on the roof level | `src/sim/campaign/sector-loot.test.ts` |
-| A merc of ours who bleeds to death outside the loaded sector while the tactical screen is up leaves no body and no gear, and nobody comments | `src/sim/campaign/death-off-the-map.test.ts` "leaves no body and no gear …" |
+| A merc of ours who bleeds to death outside the loaded sector while the tactical screen is up leaves no body and no gear, and nobody comments | `src/sim/campaign/death-off-the-map.test.ts` "leaves no body and no gear …", `src/sim/campaign/absent-mercs.test.ts` "bleed to death through the turn …" |
+| A merc of ours in another sector who starts to bleed at the same turn start as mercs on the loaded map says ME_TOO when one of them, before him in id order, said the bleeding line | `src/sim/campaign/absent-mercs.test.ts` "start in id order …" |
 | An insured merc dying off the tactical map with no enemy in the loaded sector is a suspicious death: the test reads the loaded sector, not his (`Strategic/Strategic_Merc_Handler.cc:103`) | `src/sim/campaign/death-off-the-map.test.ts` "an insured merc dying off the map …" |
 
 Not pinned yet:
