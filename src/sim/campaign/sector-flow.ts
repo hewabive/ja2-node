@@ -84,7 +84,7 @@ import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/force
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
-import { addVehicleToList, inHelicopter, killAllInVehicle } from '../strategic/forces/vehicles.ts';
+import { inHelicopter } from '../strategic/forces/vehicles.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { loadScreenId } from '../strategic/map/loading-screen.ts';
 import { damageSamIfFound } from '../strategic/map/sam.ts';
@@ -169,7 +169,7 @@ import {
   updateCurrentlySelectedMerc,
 } from '../tactical/selection.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
-import { type RealtimeClock, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
+import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import { seatAtVehicle } from '../tactical/vehicle-passengers.ts';
@@ -186,7 +186,6 @@ import {
   handleRpcDescription,
   startGuideCountdown,
 } from './narrative/guide-description.ts';
-import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
 import { onTacticalMap, type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { endMapScreenForSectorLoad, returnToLoadedSector } from './screens.ts';
 import {
@@ -213,7 +212,8 @@ import {
 } from './sector-diff.ts';
 import { type AdjacentJump, allMercsHaveWalkedOffSector, allMercsWalkedToExitGrid, exitSectorCommand } from './sector-exits.ts';
 import { addCorpsesToBloodcatLair } from './sector-loot.ts';
-import { campaignVehicleBoarding, loadedSectorVehicles } from './vehicle-boarding.ts';
+import { campaignTurnHooks, installCampaignPorts } from './turn-world.ts';
+import { loadedSectorVehicles } from './vehicle-boarding.ts';
 
 export interface SectorWorlds {
   exists(path: string): boolean;
@@ -297,10 +297,6 @@ export class SectorFlow {
       m.soldier.offMap = false;
       m.offGridInSector = false;
     }
-  }
-
-  #ourWholeTeam(): Soldier[] {
-    return this.setup.roster.all().map((m) => m.soldier);
   }
 
   #seatAtVehicle(merc: RosterMerc, vehicle: RosterMerc): void {
@@ -640,21 +636,19 @@ export class SectorFlow {
   }
 
   #installHooks(sim: TacticalSim): void {
-    sim.state.experienceHooks = this.campaign.experienceHooks;
-    sim.state.narrative = campaignNarrativePort(this.campaign);
-    sim.state.scheduleClock = campaignScheduleClock(this.campaign);
-    sim.state.vehicleHooks = {
-      addVehicleToList: (_list, sector, type) => addVehicleToList(this.ctx, sector, type),
-      killAllInVehicle: (v) => killAllInVehicle(this.ctx, v),
-      boarding: campaignVehicleBoarding(this.campaign),
-    };
+    installCampaignPorts(this.campaign, sim.state);
     sim.state.timeOfDayLight = {
       ambientLevel: () => {
         const world = this.world;
         return world ? this.#timeOfDayAmbientLightLevel(world) : null;
       },
     };
-    sim.state.sectorHooks = {
+    sim.state.sectorHooks = this.#loadedSectorHooks();
+  }
+
+  #loadedSectorHooks(): SectorHooks {
+    return {
+      ...campaignTurnHooks(this.campaign),
       soldierDied: (_t, dead) => this.#soldierDied(dead),
       murderOfCivilian: (t, dead) => this.#murderOfCivilian(t, dead),
       soldierTakingDamage: (_t, hurt) => this.#soldierTakingDamage(hurt),
@@ -664,14 +658,10 @@ export class SectorFlow {
         this.#pendingWait = code;
       },
       mercDied: (_t, dead) => this.campaign.battle?.mercDiedInTactical(dead),
-      mercDiedOffTheMap: (_t, dead) => this.campaign.battle?.mercDiedOffTheMap(dead),
-      inMapScreen: () => this.campaign.state.flow === 'strategic',
-      ourWholeTeam: () => this.#ourWholeTeam(),
       pendingEnemies: () => this.campaign.battle?.pendingEnemies() ?? false,
       militiaFinishBattle: (t) => this.campaign.battle?.militiaFinishBattle(t) ?? false,
       battleLost: (t) => this.campaign.battle?.battleLost(t),
       battleEnded: (t, result) => this.campaign.battle?.tacticalBattleEnded(t, result === 'won'),
-      tacticalTurnEnded: () => handleRpcDescription(this.campaign),
       combatEntered: () => this.#combatEntered(),
       enemyPresence: () => this.#enemyPresence(),
       structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),

@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Strategic_Merc_Handler.cc StrategicHandlePlayerTeamMercDeath; Strategic/Strategic.cc
-// @src HandleStrategicDeath; Strategic/Queen_Command.cc BeginCaptureSquence, EndCaptureSequence, CaptureSoldier,
-// @src EnemyCapturesPlayerSoldier (the quests through Strategic/Quests.cc StartQuest, InternalStartQuest, InternalEndQuest).
+// @src src/game/Strategic/Strategic_Merc_Handler.cc StrategicHandlePlayerTeamMercDeath (also for a soldier of another team,
+// @src 2026-11-05); Strategic/Strategic.cc HandleStrategicDeath (its map screen branch, 2026-11-05); Strategic/Queen_Command.cc
+// @src BeginCaptureSquence, EndCaptureSequence, CaptureSoldier, EnemyCapturesPlayerSoldier (the quests through
+// @src Strategic/Quests.cc StartQuest, InternalStartQuest, InternalEndQuest).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { idiv, u8 } from '../../core/int.ts';
@@ -19,8 +20,8 @@ import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { internalEndQuest, internalStartQuest, type QuestContext, startQuest } from '../strategic/narrative/quests.ts';
 import { MercStatus, type ProfileProgress } from '../tactical/profiles.ts';
-import { SoldierStatusFlags } from '../tactical/soldier.ts';
-import { handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
+import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
+import { handleMoraleEvent, handleTeammateDiedMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
 import type { RosterMerc } from './roster.ts';
 import { addItemsToUnloadedSector } from './sector-loot.ts';
 
@@ -40,17 +41,25 @@ const CAPTIVE_BREATH = 50;
 const HIDDEN_ITEM_VISIBILITY = 0;
 
 export interface DeathBookkeeping {
-  deathBookkeeping(m: RosterMerc): void;
+  deathHistory(dead: Soldier, sector: Sector): void;
   lifeInsuranceOnDeath(m: RosterMerc, p: ProfileProgress): void;
   mercMercDied(m: RosterMerc): void;
-  soldierDeadComments(dead: RosterMerc): void;
+  soldierDeadComments(dead: Soldier): void;
+}
+
+export interface MapScreenDeath {
+  inMapMode(): boolean;
+  addDeadSoldierToUnloadedSector(dead: Soldier, sector: Sector): void;
+  stopTimeCompression(): void;
 }
 
 export interface FateContext {
   readonly economy: EconomyContext;
   readonly bookkeeping?: DeathBookkeeping | null;
+  readonly mapScreen?: MapScreenDeath | null;
   moraleContext(): MoraleContext;
   questContext(): QuestContext;
+  profileOf(id: number): ProfileProgress | null;
   interrogationMeanwhile?(): void;
 }
 
@@ -79,33 +88,64 @@ export function endCaptureSequence(ctx: FateContext): void {
   } else status.flags |= CaptureFlag.FOR_RESCUE | CaptureFlag.FOR_ESCAPE;
 }
 
+function handleStrategicDeathInMapMode(ctx: FateContext, dead: Soldier, sector: Sector): void {
+  const map = ctx.mapScreen;
+  if (!map?.inMapMode()) return;
+  ctx.bookkeeping?.soldierDeadComments(dead);
+  map.addDeadSoldierToUnloadedSector(dead, sector);
+  map.stopTimeCompression();
+}
+
 export function handleStrategicDeath(ctx: FateContext, m: RosterMerc): void {
   const economy = ctx.economy;
   if (m.assignment === Assignment.VEHICLE && m.vehicleId !== -1) takeSoldierOutOfVehicle(economy, m.id);
   removeCharacterFromSquads(economy, m.id);
   if (m.assignment !== Assignment.ASSIGNMENT_DEAD) setTimeOfAssignmentChange(economy, m);
   changeSoldiersAssignment(economy, m, Assignment.ASSIGNMENT_DEAD);
+  handleStrategicDeathInMapMode(ctx, m.soldier, m.sector);
+}
+
+function countMercDeath(ctx: FateContext): void {
+  const status = ctx.economy.state.status;
+  status.mercDeaths = u8(status.mercDeaths + 1);
+}
+
+function markDead(s: Soldier): void {
+  s.dead = true;
+  s.breathMax = 0;
+  s.breath = 0;
 }
 
 export function strategicHandlePlayerTeamMercDeath(ctx: FateContext, m: RosterMerc): void {
   const state = ctx.economy.state;
   const books = ctx.bookkeeping ?? null;
-  books?.deathBookkeeping(m);
-  if (!m.isEpc && !m.isRobot) state.status.mercDeaths = u8(state.status.mercDeaths + 1);
+  const counted = !m.isEpc && !m.isRobot;
+  books?.deathHistory(m.soldier, m.sector);
+  if (counted) countMercDeath(ctx);
   m.statusFlags |= SoldierStatusFlags.DEAD;
-  m.soldier.dead = true;
-  m.soldier.breathMax = 0;
-  m.soldier.breath = 0;
+  markDead(m.soldier);
   m.asleep = false;
   const progress = state.profiles.get(m.profile);
   if (progress) {
     progress.mercStatus = MercStatus.IS_DEAD;
     books?.lifeInsuranceOnDeath(m, progress);
   }
-  if (!m.isEpc && !m.isRobot) handleMoraleEvent(ctx.moraleContext(), m, MoraleEvent.TEAMMATE_DIED, m.sector);
+  if (counted) handleTeammateDiedMoraleEvent(ctx.moraleContext(), m.soldier, m.sector);
   books?.mercMercDied(m);
   handleStrategicDeath(ctx, m);
-  books?.soldierDeadComments(m);
+}
+
+export function strategicHandleOtherTeamSoldierDeath(ctx: FateContext, s: Soldier, sector: Sector): void {
+  const state = ctx.economy.state;
+  const counted = s.bodyType !== Body.ROBOTNOWEAPON;
+  ctx.bookkeeping?.deathHistory(s, sector);
+  if (counted) countMercDeath(ctx);
+  markDead(s);
+  const progress = ctx.profileOf(s.profile);
+  if (progress) progress.mercStatus = MercStatus.IS_DEAD;
+  if (counted) handleTeammateDiedMoraleEvent(ctx.moraleContext(), s, sector);
+  state.economy.reEvaluateNothingToDo = true;
+  handleStrategicDeathInMapMode(ctx, s, sector);
 }
 
 function captureSoldier(ctx: FateContext, m: RosterMerc, sector: Sector, gridNo: number, itemGridNo: number): void {

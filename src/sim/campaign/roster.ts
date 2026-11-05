@@ -455,10 +455,6 @@ export function onTacticalMap(t: Pick<TacticalState, 'soldiers'>, merc: RosterMe
   return registeredInTactical(t, merc) && merc.soldier.placed;
 }
 
-export function seatedInLoadedSector(t: Pick<TacticalState, 'soldiers'>, merc: RosterMerc): boolean {
-  return onTacticalMap(t, merc) && inVehicle(merc.soldier);
-}
-
 export interface RosterHooks {
   removeFromTacticalSector(merc: RosterMerc): void;
   selectAfterRemoval(merc: RosterMerc): void;

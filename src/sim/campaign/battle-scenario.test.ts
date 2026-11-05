@@ -21,6 +21,7 @@ import { fact, QuestStatus } from '../strategic/narrative/facts.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
+import { keyItemForKeyId } from '../tactical/doors/keys.ts';
 import { TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { checkForEndOfBattle } from '../tactical/turns/turns.ts';
@@ -48,6 +49,9 @@ const TICKS_TO_ARRIVAL = 2 * 12_000;
 const UNCONSCIOUS_LIFE = 10;
 const BLOODCAT_PLACEMENTS = 5;
 const CIVILIAN_DISTANCE = 4 * WORLD_COLS;
+const WEAK_LIFE = 15;
+const KEY_POSITION = 3;
+const KEYS_ON_RING = 2;
 
 function sendEnemyGroup(c: CampaignSim): number {
   const ctx = c.strategic;
@@ -179,6 +183,30 @@ describe('autoresolve from the strategic state', () => {
     expect(fact(n, Fact.FIRST_BATTLE_FOUGHT)).toBe(true);
     expect(fact(n, Fact.FIRST_BATTLE_BEING_FOUGHT)).toBe(true);
     expect(meanwhileScheduledIn(r.c.state.meanwhile, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE)).toBe(true);
+  });
+
+  it('drops the key ring of a merc killed in autoresolve beside his body (Auto_Resolve.cc RemoveAutoResolveInterface, Tactical_Save.cc AddDeadSoldierToUnLoadedSector)', () => {
+    const { c } = landedTown(5);
+    for (const m of c.battle?.roster.all() ?? []) {
+      Object.assign(m.soldier, { life: WEAK_LIFE, bleeding: 0 });
+      const ring = m.soldier.keyRing ?? [];
+      ring[KEY_POSITION] = { keyId: m.id + 1, count: KEYS_ON_RING };
+    }
+    advance(c, { ticks: TICKS_TO_ARRIVAL });
+    const prompt = c.state.battle.prompt;
+    expect(prompt && c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'autoresolve' })).toMatchObject({ ok: true });
+    advance(c, { idle: true });
+    const done = c.state.battle.prompt;
+    expect(done && c.dispatch({ type: 'answer', prompt: done.id, choice: 'done' })).toMatchObject({ ok: true });
+    const dead = (c.battle?.roster.all() ?? []).filter((m) => m.soldier.life === 0);
+    expect(dead.length).toBeGreaterThan(0);
+    const items = (c.state.sectorDiffs.get(sectorKey(A9))?.items ?? []).filter((wi) => wi.exists).map((wi) => wi.object);
+    for (const m of dead) {
+      const keyId = m.id + 1;
+      const keys = items.filter((o) => o.item === keyItemForKeyId(kit.sectors.content, keyId) && o.keyId === keyId);
+      expect(keys).toMatchObject([{ count: KEYS_ON_RING }]);
+      expect(m.soldier.keyRing?.[KEY_POSITION]?.count).toBe(0);
+    }
   });
 
   it('continues exactly when the campaign is saved and restored after every input', async () => {

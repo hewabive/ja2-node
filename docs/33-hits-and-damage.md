@@ -74,9 +74,25 @@ of `campaign/merc-fate.ts` runs at once, with no death animation, corpse or skul
 and the two samples the original plays (`29`). On the tactical screen that is all: his gear stays on his record and
 nobody comments, since the buddy lines belong to the death on the tactical map (`Tactical/Overhead.cc:2207`, said before
 its bookkeeping) and to the map screen (`Strategic/Strategic.cc:36`). The bookkeeping sets `Soldier.dead` beside the
-roster's `DEAD` bit, the one `SOLDIER_DEAD` of the original, so the tactical death never runs again for him. A merc of
-the loaded sector lying collapsed when he dies on the map screen gets both the death animation and the bookkeeping; the
-body, the gear and the compression stop of the map screen are gaps "Death in the map screen".
+roster's `DEAD` bit, the one `SOLDIER_DEAD` of the original, so the tactical death never runs again for him.
+
+**The map screen adds the body.** While the map screen is up (`flow === 'strategic'`, the original's `fInMapMode`),
+`handleStrategicDeath` (`campaign/merc-fate.ts`, `Strategic/Strategic.cc:32`) makes every able merc of the dead soldier's
+team say his buddy line, lays the body, the carried items and the key ring in the dead soldier's sector at
+`RandomGridNo` of the loaded or last loaded map (`deadSoldierRecord` and `addDeadSoldierToUnloadedSector`,
+`campaign/sector-loot.ts`, shared with autoresolve, `19`) and stops compression with `mercDied`. The sector is his own,
+the one he left for a traveller, and the records are written even for the loaded sector, whose unload then overwrites
+them. With no sector loaded the damage runs on the unloaded world (`CampaignSim.turnWorld()`, `campaign/turn-world.ts`):
+an empty `TacticalState` sharing the campaign's streams, profiles, options, vehicle list and real-time clock, with the
+campaign's ports and the sector hooks that are not about a loaded map, built on first use and never saved (`27`). A wreck
+of the helicopter or a ground vehicle kills each passenger through `SoldierTakeDamage(100, 100, BLOODLOSS)` on that world
+(`killPersonInVehicle`, `Tactical/Vehicles.cc:452`).
+
+**The strategic death takes any soldier.** The original's branch tests no team (`Tactical/Soldier_Control.cc:5401`), so
+a civilian, militiaman or enemy of the loaded sector who bleeds to death lying collapsed while the map screen is up runs
+`StrategicHandlePlayerTeamMercDeath` too: `strategicHandleOtherTeamSoldierDeath` keeps every step that reads something
+other than our roster (history for a profile, the merc death count, the profile's death, morale and reputation, the
+map screen's body with the drop rules of another team) and none of the roster's (insurance, squads, assignment).
 
 **The damage window is presentation with a gameplay effect.** A soldier's floating damage number accumulates every life
 loss for 8 × 250 ms, and the "blown away" chest kill reads that sum: hits landing within about 2 s add up. The window
@@ -172,6 +188,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A merc of ours who bleeds to death outside the loaded sector while the tactical screen is up leaves no body and no gear, and nobody comments | `src/sim/campaign/death-off-the-map.test.ts` "leaves no body and no gear …", `src/sim/campaign/absent-mercs.test.ts` "bleed to death through the turn …" |
 | A merc of ours in another sector who starts to bleed at the same turn start as mercs on the loaded map says ME_TOO when one of them, before him in id order, said the bleeding line | `src/sim/campaign/absent-mercs.test.ts` "start in id order …" |
 | An insured merc dying off the tactical map with no enemy in the loaded sector is a suspicious death: the test reads the loaded sector, not his (`Strategic/Strategic_Merc_Handler.cc:103`) | `src/sim/campaign/death-off-the-map.test.ts` "an insured merc dying off the map …" |
+| A merc of ours dying while the map screen is up leaves his body, every item and his keys in his sector (the one he left, if travelling) at a random tile of the loaded or last loaded map, buddies anywhere comment, and compression stops | `src/sim/campaign/death-in-the-map-screen.test.ts` "leaves his body, every item and his keys …", "of a merc between sectors …" |
+| A merc of the loaded sector lying collapsed who dies while the map screen is up starts his death animation and gets the map screen's body in the loaded sector's records, which the unload overwrites, so he leaves no body anywhere; standing, he dies at once in tactical terms and the map branch is skipped; per source, the oracle (task 7) confirms | `src/sim/campaign/death-in-the-map-screen.test.ts` "lying collapsed, starts his death animation …", "standing, dies at once …" |
+| A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:728`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …" |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).
@@ -192,7 +211,10 @@ Inferred from reading the source:
 - The quotes of a kill: their hold until the end of the attack, the draws of `HandleKilledQuote` and the items-seen
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
-- A merc of the loaded sector lying collapsed who bleeds to death while the map screen is up starts his death animation
-  and gets the strategic bookkeeping at once; a standing one dies at once in tactical terms and gets it at the skull.
+
+- A soldier who died on the map screen through the strategic death, lying in his death animation, never gets his
+  tactical death when the tactical screen comes back (`HandleSoldierDeath` skips a `SOLDIER_DEAD` soldier,
+  `Tactical/Soldier_Ani.cc:2861`): no corpse on the live map, and for another team no kill, loyalty, militia count or
+  quest consequence.
 
 Not ported: gaps "Unseen soldiers in combat".

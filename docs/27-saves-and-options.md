@@ -234,6 +234,11 @@ world) and those hold nothing the codec cannot write. Rules for code that adds s
   get their own objects, and no group sector object is mutated in place.
 - **Caches are derived**: module-level `WeakMap`s keyed by content, the light template map and the content indexes are
   allowed and never written.
+- **The unloaded world is derived.** The empty tactical state the campaign runs our absent mercs' damage on while no
+  sector is loaded (`CampaignSim.turnWorld()`, `campaign/turn-world.ts`, `33`) is built on first use and never saved:
+  everything it touches is campaign state (streams, profiles, the roster's soldiers, sector records) and its events
+  drain at each step, so a restore rebuilds it identical (`death-in-the-map-screen.test.ts` "leaves the unloaded world
+  empty …").
 - **Identity checks must survive a reload.** Militia prompts are answered from the head of `economy.prompts`, never
   found by identity. `registeredInTactical` (`src/sim/campaign/roster.ts`) stays an identity check: `t.soldiers` keeps
   the object of a soldier who left the team until the slot is registered again, and a hire can reuse that id meanwhile,

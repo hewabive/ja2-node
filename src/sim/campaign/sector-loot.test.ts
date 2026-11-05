@@ -103,6 +103,7 @@ describe('drops and corpses in unloaded sectors', () => {
       level: 0,
       deathAnimation: 'FALLBACK_HIT_DEATH',
       items: [createItem(content.items, gun, 90)],
+      keys: [],
     });
     const diff = state.sectorDiffs.get(sectorKey(SECTOR));
     expect(diff?.items).toHaveLength(1);
@@ -124,6 +125,7 @@ describe('drops and corpses in unloaded sectors', () => {
       level: s.level,
       deathAnimation: 'FALLBACK_HIT_DEATH',
       items: [createItem(content.items, gun, 90)],
+      keys: [],
     });
     const diff = state.sectorDiffs.get(sectorKey(SECTOR));
     expect(diff?.items?.[0]?.level).toBe(1);

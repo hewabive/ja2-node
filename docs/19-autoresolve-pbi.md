@@ -85,7 +85,10 @@ feed scripted or replayed streams through it.
 
 **When the strategic layer learns.** Morale, loyalty and control run when the battle ends (`BattleFlow` `#endBattle`;
 `endOfBattle` only applies the time factors). Deaths, captures, militia losses and promotions, enemy deaths, corpses and
-drops run when the player closes AR (`closeAutoresolve` against `strategicClosePort`). Each enemy cell's strategic group
+drops run when the player closes AR (`closeAutoresolve` against `strategicClosePort`). A corpse's record is the one the
+map screen's deaths use (`deadSoldierRecord`, `campaign/sector-loot.ts`, `33`): `RandomGridNo`'s pairs, the drops, the
+key ring of a merc of ours, which lands in his own sector, then the death animation's `Random(4)`
+(`Strategic/Auto_Resolve.cc:1674`, `Tactical/Tactical_Save.cc:834`). Each enemy cell's strategic group
 (Q16) decides which record loses a dead soldier. Every change of control goes through `setThisSectorAsPlayerControlled`
 or `setThisSectorAsEnemyControlled`; their town, mine, SAM, meanwhile and theft effects go through the context's `world`
 hooks, the Queen's through `ctx.ai`. A lost or abandoned AR hands the sector to the enemy at `done`, where the original

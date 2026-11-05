@@ -11,7 +11,6 @@ import { type Sector, sectorFromId, sectorId, sectorShortString } from '../../..
 import { idiv, u32 } from '../../../core/int.ts';
 import { cloneObject, type ItemObject } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
-import { randomGridNo } from '../../strategic/forces/autoresolve/close.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { getGroup, removeGroup } from '../../strategic/forces/groups.ts';
 import { takeSoldierOutOfVehicle } from '../../strategic/forces/vehicles.ts';
@@ -27,7 +26,7 @@ import { addTransaction, FinanceCode } from '../finances.ts';
 import { lastMapRestrictedScroll } from '../flow-state.ts';
 import { mercThinksHisMoraleIsTooLow, modifyPlayerReputation, Reputation } from '../relations/reputation.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
-import { addItemsToUnloadedSector } from '../sector-loot.ts';
+import { addItemsToUnloadedSector, randomGridNo } from '../sector-loot.ts';
 import type { ContractContext } from './context.ts';
 import type { DepartureCause, DepartureEquipment, PersonnelList } from './events.ts';
 import { HistoryCode } from './quotes.ts';

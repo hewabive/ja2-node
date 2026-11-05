@@ -92,7 +92,7 @@ import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { updateRegenCounters } from '../tactical/drugs.ts';
 import { healthCategory } from '../tactical/health.ts';
-import { profileProgress } from '../tactical/profiles.ts';
+import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import { leaveTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
@@ -116,13 +116,15 @@ import {
   endCaptureSequence,
   enemyCapturesPlayerSoldier,
   type FateContext,
+  type MapScreenDeath,
+  strategicHandleOtherTeamSoldierDeath,
   strategicHandlePlayerTeamMercDeath,
 } from './merc-fate.ts';
 import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
 import { preBattlePanel } from './pre-battle-panel.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
-import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sector-loot.ts';
+import { addDeadSoldierToUnloadedSector, deadSoldierRecord, randomGridNo, removeRandomItemsInSector } from './sector-loot.ts';
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
 
 export const TICKS_PER_AUTORESOLVE_SLICE = 200;
@@ -213,12 +215,24 @@ export class BattleFlow implements FateContext {
   readonly campaign: CampaignSim;
   readonly content: TacticalContent;
   readonly roster: Roster;
+  readonly mapScreen: MapScreenDeath;
   readonly #events: SimEvent[] = [];
 
   constructor(campaign: CampaignSim, setup: BattleSetup) {
     this.campaign = campaign;
     this.content = setup.content;
     this.roster = setup.roster;
+    this.mapScreen = {
+      inMapMode: () => this.state.flow === 'strategic',
+      addDeadSoldierToUnloadedSector: (dead, sector) => this.#addDeadSoldierToUnloadedSector(dead, sector),
+      stopTimeCompression: () => stopTimeCompression(this.campaign.clockContext, CompressionStop.MERC_DIED),
+    };
+  }
+
+  #addDeadSoldierToUnloadedSector(dead: Soldier, sector: Sector): void {
+    const main = this.state.rng;
+    const gridNo = randomGridNo(main, lastMapRestrictedScroll(this.state, this.campaign.tactical?.state ?? null));
+    addDeadSoldierToUnloadedSector(this.state, this.content, sector, deadSoldierRecord(main, this.content, dead, gridNo));
   }
 
   get state(): StrategicState {
@@ -272,11 +286,14 @@ export class BattleFlow implements FateContext {
     if (queen) scheduleInterrogation(queen);
   }
 
+  profileOf(id: number): ProfileProgress | null {
+    return id === NO_PROFILE ? null : profileProgress({ profiles: this.state.profiles, content: this.content }, id);
+  }
+
   moraleContext(): MoraleContext {
     const queen = this.campaign.queen;
     const team = this.roster.all();
-    for (const m of team)
-      if (m.profile !== NO_PROFILE) profileProgress({ profiles: this.state.profiles, content: this.content }, m.profile);
+    for (const m of team) this.profileOf(m.profile);
     return {
       team,
       profiles: this.state.profiles,
@@ -786,7 +803,8 @@ export class BattleFlow implements FateContext {
       const m = this.roster.get(soldier.id);
       if (m) m.insertionCode = InsertionCode.CENTER;
     }
-    for (const record of result.corpses) addDeadSoldierToUnloadedSector(s, this.content, sector, record);
+    for (const record of result.corpses)
+      addDeadSoldierToUnloadedSector(s, this.content, sector, record, this.#sectorOf(record.soldier, sector));
     reEvaluateEveryonesNothingToDo(this.economy);
     warpGameTime(this.campaign.clockContext, result.warpSeconds, Warp.NO_PROCESSING);
     battle.autoresolve = null;
@@ -810,6 +828,11 @@ export class BattleFlow implements FateContext {
       sectorControl: control,
       itemsDropped: result.corpses.reduce((n, c) => n + c.items.length, 0),
     });
+  }
+
+  #sectorOf(soldier: Soldier, fallback: Sector): Sector {
+    const m = this.roster.get(soldier.id);
+    return m?.soldier === soldier ? m.sector : fallback;
   }
 
   #returnToMapOrTactical(): void {
@@ -1096,11 +1119,22 @@ export class BattleFlow implements FateContext {
   }
 
   mercDiedOffTheMap(soldier: Soldier): void {
-    const m = this.roster.get(soldier.id);
-    if (!m || m.soldier !== soldier) return;
-    strategicHandlePlayerTeamMercDeath(this, m);
+    const sector = this.#strategicDeathOf(soldier);
+    if (!sector) return;
     const mapScreen = this.state.flow === 'strategic';
-    this.emit({ type: 'mercDied', soldier: m.id, sector: sectorShortString(m.sector), ...(mapScreen ? { mapScreen } : {}) });
+    this.emit({ type: 'mercDied', soldier: soldier.id, sector: sectorShortString(sector), ...(mapScreen ? { mapScreen } : {}) });
+  }
+
+  #strategicDeathOf(soldier: Soldier): Sector | null {
+    const m = this.roster.get(soldier.id);
+    if (m?.soldier === soldier) {
+      strategicHandlePlayerTeamMercDeath(this, m);
+      return m.sector;
+    }
+    const world = this.state.worldSector;
+    if (m || soldier.team === Team.OUR || !world) return null;
+    strategicHandleOtherTeamSoldierDeath(this, soldier, world);
+    return world;
   }
 
   pendingEnemies(): boolean {

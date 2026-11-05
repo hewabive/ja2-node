@@ -136,8 +136,9 @@ skips the seat; the grid lookups never find him, as `WhoIsThere2` never does. `s
 skips for a seated soldier and every placement of the vehicle carries its passengers (`movement.ts`, `07`). At a sector
 entry the mercs, in their slots before the vehicle's 18 or 19, wait in the sector with no tile until the vehicle takes
 them to its own; a group arriving puts the vehicle in first, and its passengers take its tile at once
-(`tactical/vehicle-passengers.ts`). Boarding on the map screen seats a merc on the loaded map at the vehicle; a wreck
-kills the seated passengers through tactical damage and the others through the stand-in the helicopter's crash uses.
+(`tactical/vehicle-passengers.ts`). Boarding on the map screen seats a merc on the loaded map at the vehicle; a wreck,
+like the helicopter shot down, kills every passenger through `SoldierTakeDamage` on his world: the loaded sector's, or
+with none loaded the unloaded one (`CampaignSim.turnWorld()`, `33`).
 Helicopter passengers over the loaded sector stay out of the merc slots, in the sector through the roster's
 `offGridInSector` (gaps "Turn-based hooks").
 

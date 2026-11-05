@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEventForSoldier,
-// @src HandleMoraleEvent (the strategic events and the reputation change); Strategic/Strategic_Status.h REPUTATION_*;
+// @src HandleMoraleEvent (the strategic events and the reputation change; MORALE_TEAMMATE_DIED for any dead soldier,
+// @src 2026-11-05); Strategic/Strategic_Status.h REPUTATION_*;
 // @src the drug term of RefreshSoldierMorale (2026-11-04).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
@@ -11,6 +12,7 @@ import { Assignment, CONSCIOUSNESS, MoraleEvent as EconomyMoraleEvent } from '..
 import { drugMoraleBonus } from '../tactical/drugs.ts';
 import { QuoteSaidFlag } from '../tactical/narrative/merc-quotes.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
+import type { Soldier } from '../tactical/soldier.ts';
 import type { QuoteName } from './contracts/quotes.ts';
 import { modifyPlayerReputation, Reputation } from './relations/reputation.ts';
 import type { RosterMerc } from './roster.ts';
@@ -269,17 +271,17 @@ function ranAway(ctx: MoraleContext, m: RosterMerc, s: Sector, gate: MoraleQuote
   apply(ctx, m, MoraleEvent.RAN_AWAY, gate);
 }
 
-function teammateDied(ctx: MoraleContext, dead: RosterMerc, s: Sector, gate: MoraleQuoteGate): void {
+function teammateDied(ctx: MoraleContext, deadProfile: number, s: Sector, gate: MoraleQuoteGate): void {
   for (const other of ctx.team) {
     const p = ctx.profiles.get(other.profile);
     if (!p) continue;
-    if (p.hated.slice(0, COMPARED_BUDDIES).includes(dead.profile)) {
+    if (p.hated.slice(0, COMPARED_BUDDIES).includes(deadProfile)) {
       apply(ctx, other, MoraleEvent.HATED_DIED, gate);
       continue;
     }
     if (inSector(other, s)) apply(ctx, other, MoraleEvent.SQUADMATE_DIED, gate);
     apply(ctx, other, MoraleEvent.TEAMMATE_DIED, gate);
-    if (p.buddies.slice(0, COMPARED_BUDDIES).includes(dead.profile)) apply(ctx, other, MoraleEvent.BUDDY_DIED, gate);
+    if (p.buddies.slice(0, COMPARED_BUDDIES).includes(deadProfile)) apply(ctx, other, MoraleEvent.BUDDY_DIED, gate);
   }
 }
 
@@ -301,7 +303,7 @@ function applyMoraleEvent(ctx: MoraleContext, subject: RosterMerc | null, event:
     return;
   }
   if (event === MoraleEvent.TEAMMATE_DIED) {
-    if (subject) teammateDied(ctx, subject, s, gate);
+    if (subject) teammateDied(ctx, subject.profile, s, gate);
     return;
   }
   if (EVERYONE.has(event)) {
@@ -311,16 +313,25 @@ function applyMoraleEvent(ctx: MoraleContext, subject: RosterMerc | null, event:
   if (IN_SECTOR_ONLY.has(event)) for (const m of ctx.team) if (inSector(m, s)) apply(ctx, m, event, gate);
 }
 
-function reputationChange(subject: RosterMerc | null, event: number): number | null {
+function reputationChange(experience: number, event: number): number | null {
   const fixed = REPUTATION_CHANGES[event];
   if (fixed !== undefined) return fixed;
   const perLevel = PER_LEVEL_REPUTATION[event];
   if (perLevel === undefined) return null;
-  return i8(u8((subject?.soldier.stats.experience ?? 0) * perLevel));
+  return i8(u8(experience * perLevel));
+}
+
+function changeReputation(ctx: MoraleContext, experience: number, event: number): void {
+  const change = reputationChange(experience, event);
+  if (change !== null && ctx.status) modifyPlayerReputation(ctx.status, change);
 }
 
 export function handleMoraleEvent(ctx: MoraleContext, subject: RosterMerc | null, event: number, s: Sector): void {
   applyMoraleEvent(ctx, subject, event, s, { said: false });
-  const change = reputationChange(subject, event);
-  if (change !== null && ctx.status) modifyPlayerReputation(ctx.status, change);
+  changeReputation(ctx, subject?.soldier.stats.experience ?? 0, event);
+}
+
+export function handleTeammateDiedMoraleEvent(ctx: MoraleContext, dead: Soldier, s: Sector): void {
+  teammateDied(ctx, dead.profile, s, { said: false });
+  changeReputation(ctx, dead.stats.experience, MoraleEvent.TEAMMATE_DIED);
 }

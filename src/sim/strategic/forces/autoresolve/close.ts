@@ -1,17 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Auto_Resolve.cc RemoveAutoResolveInterface, IsAnybodyWounded; Town_Militia.cc
-// @src CheckOneMilitiaForPromotion; Tactical/Tactical_Save.cc AddDeadSoldierToUnLoadedSector;
-// @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo;
-// @src the usBattlesFought count of every merc of the battle (2026-10-24).
+// @src CheckOneMilitiaForPromotion; the usBattlesFought count of every merc of the battle (2026-10-24); the dead
+// @src soldier's record through campaign/sector-loot.ts (2026-11-05).
 
-import { ItemClass } from '../../../../content/items/items.ts';
-import { WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';
-import { gridNoOnVisibleWorldTile } from '../../../../content/world/render-bounds.ts';
 import { idiv, u32, udiv } from '../../../../core/int.ts';
-import { cloneObject, type ItemObject, ObjectFlags } from '../../../items/object.ts';
+import { type CorpseRecord, deadSoldierRecord, randomGridNo } from '../../../campaign/sector-loot.ts';
 import type { RandomStream } from '../../../tactical/combat/context.ts';
-import { Body, OKLIFE, type Soldier, SoldierClass, Team } from '../../../tactical/soldier.ts';
+import { OKLIFE, type Soldier, SoldierClass } from '../../../tactical/soldier.ts';
 import { mercProfile } from './attack.ts';
 import { type ArCell, type AutoresolveEnv, type AutoresolveState, BattleStatus, combatContext, updateRobotController } from './state.ts';
 
@@ -19,8 +15,6 @@ export const MilitiaRank = { GREEN: 0, REGULAR: 1, ELITE: 2 } as const;
 
 const MILITIA_DEATH_LIFE = idiv(OKLIFE, 2);
 const MS_PER_SECOND = 1000;
-const DROP_SKIP_PERCENT = 75;
-const DEATH_ANIMATIONS = ['GENERIC_HIT_DEATH', 'FALLBACK_HIT_DEATH', 'PRONE_HIT_DEATH', 'FLYBACK_HIT_DEATH'] as const;
 const GREEN_PROMOTION = { minPoints: 2, percentPerPoint: 25 } as const;
 const REGULAR_PROMOTION = { minPoints: 5, percentPerPoint: 10 } as const;
 
@@ -48,16 +42,6 @@ export interface AutoresolveClosePort {
   resetEnemyMovement?(): void;
 }
 
-export type DeathAnimation = (typeof DEATH_ANIMATIONS)[number];
-
-export interface CorpseRecord {
-  readonly soldier: Soldier;
-  readonly gridNo: number;
-  readonly level: number;
-  readonly deathAnimation: DeathAnimation;
-  readonly items: readonly ItemObject[];
-}
-
 export interface MilitiaPromotions {
   greenToRegular: number;
   regularToElite: number;
@@ -82,46 +66,10 @@ export interface AutoresolveCloseResult {
   readonly playerKills: number;
 }
 
-export function randomGridNo(main: RandomStream, restrictedScroll: number): number {
-  for (;;) {
-    const x = main.int(WORLD_COLS);
-    const y = main.int(WORLD_ROWS);
-    const g = y * WORLD_COLS + x;
-    if (gridNoOnVisibleWorldTile(restrictedScroll, g)) return g;
-  }
-}
-
-const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
-
-function droppedItem(env: AutoresolveEnv, s: Soldier, o: ItemObject): ItemObject | null {
-  const main = env.rng.main;
-  if (s.team !== Team.OUR) {
-    if (main.int(100) < DROP_SKIP_PERCENT) {
-      o.flags |= ObjectFlags.UNDROPPABLE;
-      return null;
-    }
-    if (o.flags & ObjectFlags.UNDROPPABLE) return null;
-    if (env.content.items.byIndex.get(o.item)?.itemClass === ItemClass.AMMO) o.count = 1 + main.int(o.count);
-  }
-  return cloneObject(o);
-}
-
-export function deadSoldierRecord(env: AutoresolveEnv, s: Soldier, gridNo: number): CorpseRecord {
-  const items: ItemObject[] = [];
-  if (!isRobot(s)) {
-    for (const o of s.inv) {
-      if (o.item === 0) continue;
-      const dropped = droppedItem(env, s, o);
-      if (dropped) items.push(dropped);
-    }
-  }
-  const deathAnimation = DEATH_ANIMATIONS[env.rng.main.int(DEATH_ANIMATIONS.length)] as DeathAnimation;
-  return { soldier: s, gridNo, level: s.level, deathAnimation, items };
-}
-
 function addDeadSoldier(env: AutoresolveEnv, corpses: CorpseRecord[], s: Soldier): void {
-  const gridNo = randomGridNo(env.rng.main, env.world.lastMapRestrictedScroll);
-  corpses.push(deadSoldierRecord(env, s, gridNo));
+  const main = env.rng.main;
+  const gridNo = randomGridNo(main, env.world.lastMapRestrictedScroll);
+  corpses.push(deadSoldierRecord(main, env.content, s, gridNo));
 }
 
 function promotionAllowed(

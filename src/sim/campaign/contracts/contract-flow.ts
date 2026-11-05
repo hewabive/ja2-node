@@ -6,12 +6,13 @@
 // @src MercDismissConfirmCallBack, RemoveMercMenuBtnCallback; Tactical/Dialogue_Control.cc CanSayQuote; Tactical/Campaign.cc
 // @src ChangeStat (salary and the M.E.R.C. level-up email event); Strategic/Strategic_Merc_Handler.cc
 // @src StrategicHandlePlayerTeamMercDeath (history, insurance, M.E.R.C. contract end); Strategic/Strategic.cc
-// @src HandleSoldierDeadComments; Tactical/Overhead.cc HandlePlayerTeamMemberDeath (buddy quotes); Merc_Contract.cc
+// @src HandleSoldierDeadComments (the dead soldier's own team, 2026-11-05); Tactical/Overhead.cc HandlePlayerTeamMemberDeath
+// @src (buddy quotes); Merc_Contract.cc
 // @src DialogueEventContract, MakeCharacterDialogueEventContractEnding(NoAskEquip), MapScreen.cc
 // @src MakeDialogueEventEnterMapScreen, Map_Screen_Interface.cc MakeDialogueEventShowContractMenu (the endings and the
 // @src renewal menu as dialogue events behind the lines, 2026-11-01).
 
-import { sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
 import type { CommandRefused, CommandResult } from '../../command.ts';
 import type { SimEvent } from '../../events.ts';
@@ -44,7 +45,7 @@ import type { ExperienceHooks } from '../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../tactical/content.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { type RefusalTexts, refuse, refuseWithText } from '../../tactical/refusal.ts';
-import { Body, NO_PROFILE, OKLIFE, type Soldier } from '../../tactical/soldier.ts';
+import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import type { MoraleContext } from '../morale.ts';
 import { campaignProfile, loadMercProfiles } from '../profiles.ts';
@@ -712,12 +713,11 @@ export class ContractFlow implements ContractContext {
     raiseSalaries(p, levels);
   }
 
-  deathBookkeeping(m: RosterMerc): void {
-    if (m.profile === NO_PROFILE) return;
-    const world = this.state.worldSector;
-    const sector = m.sector.x >= 1 && m.sector.y >= 1 ? m.sector : world;
-    const killedByUs = m.soldier.attacker?.team === 0;
-    this.history(killedByUs ? HistoryCode.MERC_KILLED_CHARACTER : HistoryCode.MERC_KILLED, m.profile, sector);
+  deathHistory(dead: Soldier, sector: Sector): void {
+    if (dead.profile === NO_PROFILE) return;
+    const where = sector.x >= 1 && sector.y >= 1 ? sector : this.state.worldSector;
+    const killedByUs = dead.attacker?.team === Team.OUR;
+    this.history(killedByUs ? HistoryCode.MERC_KILLED_CHARACTER : HistoryCode.MERC_KILLED, dead.profile, where);
   }
 
   lifeInsuranceOnDeath(m: RosterMerc, p: ProfileProgress): void {
@@ -738,20 +738,38 @@ export class ContractFlow implements ContractContext {
     this.hooks.mercMercLost();
   }
 
-  soldierDeadComments(dead: RosterMerc): void {
-    if (this.state.flow !== 'strategic') return;
+  soldierDeadComments(dead: Soldier): void {
+    if (dead.team !== Team.OUR) {
+      for (const s of this.#loadedTeam(dead.team)) this.#otherTeamBuddyKilledQuote(s, dead);
+      return;
+    }
     for (const m of this.team()) this.#buddyKilledQuote(m, dead);
   }
 
   inSectorBuddyKilledQuotes(dead: RosterMerc): void {
-    for (const m of this.team()) if (m.inSector) this.#buddyKilledQuote(m, dead);
+    for (const m of this.team()) if (m.inSector) this.#buddyKilledQuote(m, dead.soldier);
   }
 
-  #buddyKilledQuote(m: RosterMerc, dead: RosterMerc): void {
-    if (m.life < OKLIFE) return;
-    const p = this.profile(m.profile);
-    const quote = p ? BUDDY_KILLED_QUOTES[whichBuddy(p, dead.profile)] : undefined;
+  #loadedTeam(team: number): Soldier[] {
+    const t = this.campaign.tactical?.state;
+    return t ? t.soldiers.filter((s): s is Soldier => s?.team === team) : [];
+  }
+
+  #buddyKilledQuoteOf(speaker: Soldier, dead: Soldier): QuoteName | null {
+    if (speaker.life < OKLIFE) return null;
+    const p = this.profile(speaker.profile);
+    return (p && BUDDY_KILLED_QUOTES[whichBuddy(p, dead.profile)]) ?? null;
+  }
+
+  #buddyKilledQuote(m: RosterMerc, dead: Soldier): void {
+    const quote = this.#buddyKilledQuoteOf(m.soldier, dead);
     if (quote) this.say(m, quote, dead.profile);
+  }
+
+  #otherTeamBuddyKilledQuote(speaker: Soldier, dead: Soldier): void {
+    const quote = this.#buddyKilledQuoteOf(speaker, dead);
+    const host = this.#dialogue;
+    if (quote && host) tacticalCharacterDialogue(host, speaker, Quote[quote], mercAbout(dead.profile));
   }
 }
 

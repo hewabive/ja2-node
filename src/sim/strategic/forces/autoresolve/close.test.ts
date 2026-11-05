@@ -12,12 +12,13 @@ import {
 } from '../../../../../tests/support/autoresolve.ts';
 import { loadTestContent } from '../../../../../tests/support/tactical.ts';
 import { RestrictedScroll } from '../../../../content/world/render-bounds.ts';
+import { randomGridNo } from '../../../campaign/sector-loot.ts';
 import { createItem } from '../../../items/object.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { InvSlot } from '../../../tactical/inventory.ts';
 import { Personality, SoldierClass } from '../../../tactical/soldier.ts';
 import { autoBandageMercs, canBandage, dressWound } from './bandage.ts';
-import { type AutoresolveClosePort, checkOneMilitiaForPromotion, closeAutoresolve, MilitiaRank, randomGridNo } from './close.ts';
+import { type AutoresolveClosePort, checkOneMilitiaForPromotion, closeAutoresolve, MilitiaRank } from './close.ts';
 import { answerSurrender, attemptPlayerCapture } from './end.ts';
 import { endOfBattle } from './outcome.ts';
 import { BattleStatus, CellFlag, combatContext } from './state.ts';

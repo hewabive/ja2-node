@@ -98,6 +98,7 @@ import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, s
 import { ShopFlow } from './shop-flow.ts';
 import { storyRefusal } from './story-refusals.ts';
 import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
+import { createUnloadedWorld, drainUnloadedWorldEvents } from './turn-world.ts';
 
 export interface CampaignCommand {
   readonly type: string;
@@ -186,6 +187,7 @@ export class CampaignSim {
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
   #leavingTacticalForMap = false;
+  #unloadedWorld: TacticalSim | null = null;
 
   constructor(
     state: StrategicState = createStrategicState(),
@@ -621,7 +623,17 @@ export class CampaignSim {
     }
   }
 
+  turnWorld(): TacticalSim | null {
+    if (this.tactical) return this.tactical;
+    const content = this.battle?.content;
+    if (!content) return null;
+    this.#unloadedWorld ??= createUnloadedWorld(this, content);
+    this.#unloadedWorld.state.clockMs = this.state.realMs;
+    return this.#unloadedWorld;
+  }
+
   #collectEvents(): void {
+    if (this.#unloadedWorld) this.#events.push(...drainUnloadedWorldEvents(this.#unloadedWorld, this.tick));
     if (this.economy) for (const e of this.economy.events.splice(0)) this.#events.push({ ...e, tick: this.tick } as SimEvent);
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());

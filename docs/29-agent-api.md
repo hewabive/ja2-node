@@ -344,7 +344,10 @@ while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen
 strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. The
 original plays his death cry and the samples `DOORCR_1` and `HEADCR_1` for it (`Tactical/Soldier_Control.cc:5407`;
 gaps "Sound coverage"), and prints `pMercDeadString` in the message list off the tactical screen, which `mapScreen`
-marks (`Strategic/Strategic_Merc_Handler.cc:71`).
+marks (`Strategic/Strategic_Merc_Handler.cc:71`). On the map screen his body, items and keys go into that sector's
+records, every able merc of ours says his buddy line and compression stops (`compressionStopped {reason: mercDied}`,
+`Strategic/Strategic.cc:32`). A soldier of another team of the loaded sector who bleeds to death while the map screen is
+up comes as `mercDied` too, with the same consequences: the original's strategic death tests no team (`33`).
 
 **Presentation events** never enter the state or an outcome: optional fields (materials, sound facts) and events for
 what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, the

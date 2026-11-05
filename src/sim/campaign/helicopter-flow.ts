@@ -4,8 +4,8 @@
 // @src Strategic/Hourly_Update.cc HandleHourlyUpdate (PayOffSkyriderDebtIfAny); Strategic/MapScreen.cc RenderMapRegionBackground
 // @src (CheckAndHandleSkyriderMonologues while the pilot is available), the helicopter plotting and confirmation;
 // @src Strategic/Meanwhile.cc
-// @src HandleKillChopperMeanwhileScene; Tactical/Vehicles.cc KillPersonInVehicle; Tactical/Soldier_Control.cc
-// @src SoldierTakeDamage (TAKE_DAMAGE_BLOODLOSS for a soldier outside the loaded sector), HandleTakeDamageDeath;
+// @src HandleKillChopperMeanwhileScene; Tactical/Vehicles.cc KillPersonInVehicle (SoldierTakeDamage on the soldier's
+// @src world, the loaded sector's or the unloaded one, 2026-11-05);
 // @src Strategic/Map_Screen_Helicopter.cc HandleHelicopterOnGround (removing Skyrider's soldier, the helicopter on the
 // @src loaded map); Strategic/Assignments.cc SquadMenuBtnCallback (leaving a vehicle), VehicleMenuBtnCallback;
 // @src Strategic/Player_Command.cc
@@ -83,10 +83,7 @@ import { killPersonInVehicle } from '../tactical/vehicle-passengers.ts';
 import { NO_VEHICLE_SOLDIER } from '../vehicles/vehicle-list.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { refuseMove, sectorList } from './commands.ts';
-import { seatedInLoadedSector } from './roster.ts';
 import { vehicleTileOnTheMap } from './vehicle-boarding.ts';
-
-const BLOODLOSS_DAMAGE = 100;
 
 type Command = { readonly type: string; readonly [key: string]: unknown };
 
@@ -239,14 +236,9 @@ export class HelicopterFlow {
 
   #killInVehicle(id: number): boolean {
     const m = this.campaign.battle?.roster.get(id);
-    if (!m || m.life === 0) return false;
-    const t = this.campaign.tactical?.state;
-    if (t && seatedInLoadedSector(t, m)) return killPersonInVehicle(t, m.soldier);
-    const bandage = m.lifeMax - m.life - m.bleeding;
-    m.life = m.life > BLOODLOSS_DAMAGE ? m.life - BLOODLOSS_DAMAGE : 0;
-    m.bleeding = m.lifeMax - (m.life + bandage);
-    if (m.life === 0) this.campaign.battle?.mercDiedOffTheMap(m.soldier);
-    return true;
+    const world = this.campaign.turnWorld();
+    if (!m || !world) return false;
+    return killPersonInVehicle(world.state, m.soldier);
   }
 
   #scheduleKillChopperMeanwhile(): void {
