@@ -44,7 +44,13 @@
 // @src and Handle_Items.cc HandleItem's bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04); UI_Cursors.cc
 // @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the walk, the move grid and the AP in combat of
 // @src DrawUIMovementPath; the good cursor over a cuttable fence at ground level, a corpse, a door's interactive tile),
-// @src UIMouseOnValidAttackLocation (WIRECUTCURS) and HandleItem's wire cutters, jar and tin can (2026-11-04).
+// @src UIMouseOnValidAttackLocation (WIRECUTCURS) and HandleItem's wire cutters, jar and tin can (2026-11-04);
+// @src Handle_UI.cc UIHandleOnMerc (a visible enterable vehicle not ours is no merc to the cursor), UIHandleMOnTerrain (the
+// @src floating X with a vehicle selected), UIHandleInteractiveTilesAndItemsOnTerrain (the enter-vehicle cursor,
+// @src gfBeginVehicleCursor), Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick from HandleHandCursorClick
+// @src and HandleMoveModeInteractiveClick (VEHICLE_CANT_MOVE_IN_TACTICAL with a vehicle selected); UI_Cursors.cc
+// @src HandleRepairCursor, HandleRefuelCursor (at the target's tile: the walk, the move grid and the AP in combat, the good
+// @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
@@ -68,8 +74,10 @@ import {
   inCombat,
   isEpc,
   isRobot,
+  isVehicleBody,
   nextActiveAndAliveMerc,
   OUR_TEAM,
+  okEnterableVehicle,
   ourTurn,
   ownSoldiers,
   soldierById,
@@ -78,6 +86,7 @@ import { Arrows } from './arrows.ts';
 import {
   type AimState,
   type AttackCursor,
+  aimsAtTheTarget,
   aimTimeOf,
   attackCursor,
   confirmsBeforeAttack,
@@ -89,6 +98,7 @@ import {
   TILE_TOOL_ORDERS,
   type TileToolCursor,
   tileToolCursor,
+  tileToolTargetRefusal,
   wheelAdjust,
 } from './attack-cursors.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
@@ -107,6 +117,7 @@ import {
 } from './targets.ts';
 import { UiCursorFlag } from './ui-cursors.ts';
 import { MouseMove, MoveUiTarget, Selection, SINGLE_EVENT, UI_EVENTS, UiEvent, UiMode } from './ui-events.ts';
+import { BoardingCursor, enterVehicleCursor } from './vehicle-cursors.ts';
 import { apNumberMarker, cursorMarkers, footstepMarkers, impactMarker, selectionMarker, showMoveGridMarker } from './world-markers.ts';
 
 export const PATHFIND_DELAY_MS = 80;
@@ -132,6 +143,7 @@ const NO_PROFILE = 200;
 const NOBODY_USING_REMOTE_STR = 88;
 const CANT_MOVE_THERE_STR = 34;
 const OUT_OF_RANGE_STRING = 126;
+const VEHICLE_CANT_MOVE_IN_TACTICAL = 128;
 const ATTACK_OWN_GUY_PROMPT = 28;
 const MSG_SQUAD_ACTIVE = 59;
 const DOOR_DOOR_MOUSE_DESCRIPTION = 9;
@@ -237,6 +249,7 @@ export class TacticalInput {
   #showMoveGridAt = -1;
   #selection: Selection = Selection.NONE;
   #selectionAt = { gridNo: -1, level: 0 };
+  #beginVehicleCursor = false;
   #arrows = 0;
   #impact: { gridNo: number; level: number; good: boolean } | null = null;
   #hitLocation: string | null = null;
@@ -1222,7 +1235,10 @@ export class TacticalInput {
 
   #validAttackLocation(sel: SoldierView, e: EstimateAttack): boolean {
     if (e.cursor === 'invalid') return false;
-    if (e.cursor === 'wirecutter') return this.#tileToolPreview(sel, 'wirecutter')?.refusal !== 'noFence';
+    if (isTileToolCursor(e.cursor)) {
+      const noTarget = tileToolTargetRefusal(e.cursor);
+      if (noTarget) return this.#tileToolPreview(sel, e.cursor)?.refusal !== noTarget;
+    }
     if (e.cursor === 'bomb') return this.#validBombTile(sel);
     const target = this.#hover.target;
     if (target?.id === sel.id && e.cursor !== 'aid') return false;
@@ -1715,6 +1731,11 @@ export class TacticalInput {
   #moveModeInteractiveClick(): number {
     const sel = this.#sel();
     if (!sel) return 0;
+    if (isVehicleBody(sel)) {
+      this.#feedback(VEHICLE_CANT_MOVE_IN_TACTICAL);
+      return -3;
+    }
+    if (this.#vehicleInteractiveClick(sel, BoardingCursor.MOVE)) return -1;
     const target = this.#hover.target;
     if (target && target.id !== sel.id) {
       if (this.#validQuickExchange()) void this.#host.send({ type: 'swapPlaces', soldier: sel.id, with: target.id, cursor: true });
@@ -1737,6 +1758,7 @@ export class TacticalInput {
   #handCursorClick(mapPos: number, event: UiEvent): UiEvent {
     const sel = this.#sel();
     if (!sel) return event;
+    if (this.#vehicleInteractiveClick(sel, BoardingCursor.HAND)) return event;
     const target = this.#hover.target;
     if (target && this.#targetIs(FindFlag.ENEMY) && !this.#targetIs(FindFlag.UNCONSCIOUS)) return this.#stealClick(sel, target.id, event);
     const tile = this.#interactiveTileOrItemsOnTop();
@@ -2048,6 +2070,7 @@ export class TacticalInput {
       return true;
     }
     if (flags & (FindFlag.ENEMY | FindFlag.NEUTRAL)) {
+      if (okEnterableVehicle(target)) return false;
       if (movementMode) {
         if (target.hostile === true) {
           this.#actionChangeByMouseOver = true;
@@ -2069,6 +2092,10 @@ export class TacticalInput {
     if (mapPos === null) return;
     this.#actionChangeByMouseOver = false;
     const sel = this.#sel();
+    if (sel && okEnterableVehicle(sel) && !this.#onMerc(true)) {
+      this.#newCursor = 'FLOATING_X_UICURSOR';
+      return;
+    }
     let setCursor = false;
     if (!this.#onMerc(true)) {
       this.#trackItemsOver(mapPos);
@@ -2093,7 +2120,7 @@ export class TacticalInput {
         else setCursor = true;
       } else this.#newCursor = 'NORMAL_SNAPUICURSOR';
     } else if (this.#validQuickExchange()) this.#newCursor = 'EXCHANGE_PLACES_UICURSOR';
-    if (setCursor && sel) this.#setMovementModeCursor(sel);
+    if (setCursor && sel && !this.#beginVehicleCursor) this.#setMovementModeCursor(sel);
   }
 
   #selectNextActiveAndAliveMerc(sel: SoldierView): void {
@@ -2120,6 +2147,8 @@ export class TacticalInput {
 
   #interactiveTilesAndItems(sel: SoldierView, mapPos: number, useOkCursor: boolean, itemsOnlyIfOnIntTiles: boolean): boolean {
     this.#onMerc(false);
+    this.#beginVehicleCursor = false;
+    if (this.#vehicleCursor(sel, itemsOnlyIfOnIntTiles ? BoardingCursor.MOVE : BoardingCursor.HAND)) return true;
     const tile = this.#interactiveTileOrItemsOnTop();
     const actionGridNo = tile?.gridNo ?? mapPos;
     const target = this.#hover.target;
@@ -2164,6 +2193,54 @@ export class TacticalInput {
       if (!this.#enoughPoints(sel, this.#currentAp, false)) this.#apInvalid = true;
     }
     return false;
+  }
+
+  #vehicleCursor(sel: SoldierView, cursor: BoardingCursor): boolean {
+    const vehicle = this.#hover.target;
+    if (!vehicle || !okEnterableVehicle(vehicle)) return false;
+    const shown = enterVehicleCursor(cursor, dataOf(this.#boardingPreview(sel, vehicle, cursor)));
+    if (!shown) return false;
+    this.#newCursor = shown;
+    this.#beginVehicleCursor = cursor === BoardingCursor.MOVE;
+    return true;
+  }
+
+  #boardingRequest(sel: SoldierView, vehicle: SoldierView, cursor: BoardingCursor): CommandEnvelope {
+    return {
+      type: 'previewAction',
+      soldier: sel.id,
+      gridNo: vehicle.gridNo,
+      kind: 'enterVehicle',
+      target: vehicle.id,
+      cursor,
+      mode: this.moveModeOf(sel),
+    };
+  }
+
+  #boardingPreview(sel: SoldierView, vehicle: SoldierView, cursor: BoardingCursor): HintState<PreviewAction> {
+    return this.#hint<PreviewAction>(this.#boardingRequest(sel, vehicle, cursor));
+  }
+
+  #vehicleInteractiveClick(sel: SoldierView, cursor: BoardingCursor): boolean {
+    const vehicle = this.#hover.target;
+    if (!vehicle || !okEnterableVehicle(vehicle)) return false;
+    const answer = this.#boardingPreview(sel, vehicle, cursor);
+    if (answer.state === 'pending') {
+      void this.#boardWhenPlotted(sel, vehicle, cursor);
+      return true;
+    }
+    return this.#boardIfAble(sel, vehicle, cursor, dataOf(answer));
+  }
+
+  async #boardWhenPlotted(sel: SoldierView, vehicle: SoldierView, cursor: BoardingCursor): Promise<void> {
+    const answer = await hintNow<PreviewAction>(this.#env().client, this.#boardingRequest(sel, vehicle, cursor));
+    this.#boardIfAble(sel, vehicle, cursor, dataOf(answer));
+  }
+
+  #boardIfAble(sel: SoldierView, vehicle: SoldierView, cursor: BoardingCursor, preview: PreviewAction | null): boolean {
+    if (!preview?.ok || !this.#enoughPoints(sel, preview.apCost, true)) return false;
+    void this.#host.sendBusyOrder({ type: 'enterVehicle', soldier: sel.id, vehicle: vehicle.id, cursor });
+    return true;
   }
 
   #interactiveCursor(old: string, confirm: boolean): string {
@@ -2549,9 +2626,15 @@ export class TacticalInput {
     const mapPos = this.#mapPos();
     if (mapPos === null) return null;
     const kind = TILE_TOOL_ACTIONS[cursor];
-    const gridNo = kind === 'can' ? (this.#interactiveTile()?.gridNo ?? mapPos) : mapPos;
+    const gridNo = this.#tileToolGridNo(cursor, mapPos);
     const level = this.#host.interfaceLevel();
     return dataOf(this.#hint<PreviewAction>({ type: 'previewAction', soldier: sel.id, gridNo, kind, level, mode: this.moveModeOf(sel) }));
+  }
+
+  #tileToolGridNo(cursor: TileToolCursor, mapPos: number): number {
+    if (cursor === 'tincan') return this.#interactiveTile()?.gridNo ?? mapPos;
+    if (aimsAtTheTarget(cursor)) return this.#hover.target?.gridNo ?? mapPos;
+    return mapPos;
   }
 
   #tileToolWalkPath(sel: SoldierView, cursor: TileToolCursor): void {

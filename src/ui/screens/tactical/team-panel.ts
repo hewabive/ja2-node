@@ -4,7 +4,9 @@
 // @src conversation, everything off while gfDisableTacticalPanelButtons is set), RenderTEAMPanel
 // @src (the fast help of the hands: GetHelpTextForItem, DRIVER_POPUPTEXT, EXIT_VEHICLE_POPUPTEXT), MercFacePanelCallback*
 // @src (left: locate or select, right: the SM panel unless dead, an EPC or in a vehicle), EnemyIndicatorClickCallback,
-// @src TMClickFirstHandInvCallbackSecondary and TMClickSecondHandInvCallbackSecondary (swap hands, not the robot).
+// @src TMClickFirstHandInvCallbackSecondary and TMClickSecondHandInvCallbackSecondary (swap hands, not the robot),
+// @src TMClickSecondHandInvCallbackPrimary (the second hand of a merc aboard a vehicle is the Exit Vehicle button,
+// @src 2026-11-05).
 
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
 import { getPath } from '../../layout/controller.ts';
@@ -20,6 +22,7 @@ export const TEAM_PANEL_CONTRACT: ControllerContract = {
     faceHover: { args: 2 },
     enemyIndicator: { args: 1 },
     swapHands: { args: 1 },
+    exitVehicle: { args: 1 },
     endTurn: {},
     mapScreen: {},
     toggleSquadList: {},
@@ -60,6 +63,7 @@ export interface TeamPanelActions {
   faceHover(slot: number, on: boolean): void;
   enemyIndicator(slot: number): void;
   swapHands(slot: number): void;
+  exitVehicle(slot: number): void;
   endTurn(): void;
   mapScreen(): void;
   toggleSquadList(): void;
@@ -95,6 +99,9 @@ export class TeamPanelController implements LayoutController {
         return;
       case 'swapHands':
         this.#actions.swapHands(slot);
+        return;
+      case 'exitVehicle':
+        this.#actions.exitVehicle(slot);
         return;
       case 'endTurn':
         this.#actions.endTurn();

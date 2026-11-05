@@ -1,7 +1,7 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
-    "src/game/Tactical/Interface_Panels.cc InitializeTEAMPanel (bottom_bar.sti, the slots after the sixth copied from 5 * TEAMPANEL_SLOT_WIDTH, the panel region from the viewport end at MSYS_PRIORITY_NORMAL with CURSOR_NORMAL, per slot the face, enemy indicator, bars, left bars and the two hand regions), RenderTEAMPanel (p_close.sti frame 5 for an empty slot, the border, the name in BLOCKFONT2, the AP, the bars at TM_BARS_X + 2, TM_BARS_Y + 2 + TM_LIFEBAR_HEIGHT, the hand items), RenderTeamSlotBorder (gold_front.sti), CreateTEAMPanelButtons (bottom_bar_buttons.sti 0/3, 1/4, 2/5 at TM_ENDTURN_X, TM_ROSTERMODE_X, TM_DISK_X = m_teamPanelSlotsTotalWidth + 9, MSYS_PRIORITY_HIGH - 1; the fast help END_TURN_POPUPTEXT, MAPSCREEN_POPUPTEXT, CHANGE_SQUAD_POPUPTEXT), UpdateTEAMPanel, RenderSoldierTeamInv (inventor.sti for the driver and passengers), SetStatsHelp, PrintAP",
+    "src/game/Tactical/Interface_Panels.cc InitializeTEAMPanel (bottom_bar.sti, the slots after the sixth copied from 5 * TEAMPANEL_SLOT_WIDTH, the panel region from the viewport end at MSYS_PRIORITY_NORMAL with CURSOR_NORMAL, per slot the face, enemy indicator, bars, left bars and the two hand regions), RenderTEAMPanel (p_close.sti frame 5 for an empty slot, the border, the name in BLOCKFONT2, the AP, the bars at TM_BARS_X + 2, TM_BARS_Y + 2 + TM_LIFEBAR_HEIGHT, the hand items), RenderTeamSlotBorder (gold_front.sti), CreateTEAMPanelButtons (bottom_bar_buttons.sti 0/3, 1/4, 2/5 at TM_ENDTURN_X, TM_ROSTERMODE_X, TM_DISK_X = m_teamPanelSlotsTotalWidth + 9, MSYS_PRIORITY_HIGH - 1; the fast help END_TURN_POPUPTEXT, MAPSCREEN_POPUPTEXT, CHANGE_SQUAD_POPUPTEXT), UpdateTEAMPanel, RenderSoldierTeamInv (inventor.sti for the driver and passengers), TMClickSecondHandInvCallbackPrimary (ExitVehicle from the second hand of the driver and passengers), SetStatsHelp, PrintAP",
     "src/game/UILayout.h TEAMPANEL_HEIGHT; src/game/Tactical/Interface_Panels.cc:2556-2560 the AP box, :2561-2566 the bars"
   ],
   "screen": "tacticalTeam",
@@ -188,6 +188,7 @@
           "priority": "NORMAL",
           "enabled": "panelRegionsEnabled",
           "tooltip": { "bind": "slots[$i].secondHandHelp" },
+          "primary": "exitVehicle($i)",
           "secondary": "swapHands($i)"
         }
       ]

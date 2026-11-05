@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel (gfDisableTacticalPanelButtons), RenderTEAMPanel (the
-// @src hands' fast help, the driver and passenger texts), UpdateSMPanel (burst for a burst-capable gun or an
+// @src hands' fast help, the driver and passenger texts; the driver's with his vehicle's life and breath, 2026-11-05),
+// @src UpdateSMPanel (burst for a burst-capable gun or an
 // @src under-barrel launcher in the hand, mute always, stealth with the action buttons, climb by the roof edge with its
 // @src APs or the fence next to the merc), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp;
 // @src Interface_Items.cc DisableInvRegions (the key ring off only with the inventory, an item in the cursor leaves it on).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
+import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { OKLIFE } from './faces.ts';
 import { type HelpTextSources, helpTextForItem, NUM_INV_SLOTS } from './inventory.ts';
@@ -21,7 +23,7 @@ import {
   statText,
   stealthButtons,
 } from './sm-panel.ts';
-import { apColour, inCombat, isDead, ourTurn, showsAp, vitalStatsHelp } from './soldiers.ts';
+import { apColour, inCombat, isDead, ourTurn, showsAp, vehicleCarrying, vitalStatsHelp } from './soldiers.ts';
 import type { TeamPanelModel, TeamSlotModel } from './team-panel.ts';
 
 export const CHANGE_STAT_RECENTLY_DURATION_MS = 60000;
@@ -64,10 +66,16 @@ function emptySlot(): TeamSlotModel {
   };
 }
 
-function handHelp(text: UiTextService, s: SoldierView, slot: number, help: HelpTextSources): string {
+function driverHelp(text: UiTextService, view: PlayerView | null, driver: SoldierView): string {
+  const vehicle = vehicleCarrying(view, driver);
+  const numbers = [vehicle?.life ?? 0, vehicle?.lifeMax ?? 0, vehicle?.breath ?? 0, vehicle?.breathMax ?? 0];
+  return printf(text.string('TacticalStr', DRIVER_POPUPTEXT) ?? '', numbers);
+}
+
+function handHelp(text: UiTextService, view: PlayerView | null, s: SoldierView, slot: number, help: HelpTextSources): string {
   if (isDead(s)) return '';
   const seat = s.vehicle ?? null;
-  if (slot === 5 && seat?.driver) return text.string('TacticalStr', DRIVER_POPUPTEXT) ?? '';
+  if (slot === 5 && seat?.driver) return driverHelp(text, view, s);
   if (slot === 6 && seat) return text.string('TacticalStr', EXIT_VEHICLE_POPUPTEXT) ?? '';
   return helpTextForItem(slotItem(s, slot), help);
 }
@@ -90,8 +98,8 @@ export function teamPanelModel(
       showAp: showsAp(view, s),
       apColor: apColour(s),
       statsHelp: vitalStatsHelp(text, s),
-      firstHandHelp: handHelp(text, s, 5, help),
-      secondHandHelp: handHelp(text, s, 6, help),
+      firstHandHelp: handHelp(text, view, s, 5, help),
+      secondHandHelp: handHelp(text, view, s, 6, help),
     };
   });
   const disabled = state.teamButtonsDisabled;

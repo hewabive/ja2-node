@@ -256,6 +256,6 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Ground vehicles" (the client's repair
-and refuel cursors, the vehicle's name), "Helicopter entrance". Deviations of this domain: "Helicopter on load",
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Ground vehicles" (the vehicle's name
+and the bars of a vehicle not ours), "Helicopter entrance". Deviations of this domain: "Helicopter on load",
 "Toolkit repair in tactical".

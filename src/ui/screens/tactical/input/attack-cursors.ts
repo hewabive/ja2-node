@@ -45,30 +45,45 @@ export interface AttackContext {
   readonly onSelected: boolean;
 }
 
-const UNBUILT_ACTION_CURSORS: Readonly<Partial<Record<EstimateAttack['cursor'], string>>> = {
-  repair: 'BAD_REPAIR_UICURSOR',
-  refuel: 'REFUEL_GREY_UICURSOR',
-};
-
-export type TileToolCursor = 'wirecutter' | 'jar' | 'tincan';
+export type TileToolCursor = 'wirecutter' | 'jar' | 'tincan' | 'repair' | 'refuel';
 
 const TILE_TOOL_CURSORS: Readonly<Record<TileToolCursor, readonly [good: string, bad: string]>> = {
   wirecutter: ['GOOD_WIRECUTTER_UICURSOR', 'BAD_WIRECUTTER_UICURSOR'],
   jar: ['GOOD_JAR_UICURSOR', 'BAD_JAR_UICURSOR'],
   tincan: ['PLACE_TINCAN_GREY_UICURSOR', 'PLACE_TINCAN_RED_UICURSOR'],
+  repair: ['GOOD_REPAIR_UICURSOR', 'BAD_REPAIR_UICURSOR'],
+  refuel: ['REFUEL_RED_UICURSOR', 'REFUEL_GREY_UICURSOR'],
 };
 
-export const TILE_TOOL_ACTIONS: Readonly<Record<TileToolCursor, 'cutFence' | 'jar' | 'can'>> = {
+export const TILE_TOOL_ACTIONS: Readonly<Record<TileToolCursor, 'cutFence' | 'jar' | 'can' | 'repair' | 'refuel'>> = {
   wirecutter: 'cutFence',
   jar: 'jar',
   tincan: 'can',
+  repair: 'repair',
+  refuel: 'refuel',
 };
 
-export const TILE_TOOL_ORDERS: Readonly<Record<TileToolCursor, 'cutFence' | 'fillJar' | 'attachCan'>> = {
+export const TILE_TOOL_ORDERS: Readonly<Record<TileToolCursor, 'cutFence' | 'fillJar' | 'attachCan' | 'repair' | 'refuel'>> = {
   wirecutter: 'cutFence',
   jar: 'fillJar',
   tincan: 'attachCan',
+  repair: 'repair',
+  refuel: 'refuel',
 };
+
+const TILE_TOOL_TARGET_REFUSALS: Readonly<Partial<Record<TileToolCursor, string>>> = {
+  wirecutter: 'noFence',
+  repair: 'noVehicle',
+  refuel: 'noVehicle',
+};
+
+export function tileToolTargetRefusal(cursor: TileToolCursor): string | null {
+  return TILE_TOOL_TARGET_REFUSALS[cursor] ?? null;
+}
+
+export function aimsAtTheTarget(cursor: TileToolCursor): boolean {
+  return cursor === 'repair' || cursor === 'refuel';
+}
 
 export function isTileToolCursor(cursor: EstimateAttack['cursor']): cursor is TileToolCursor {
   return cursor in TILE_TOOL_CURSORS;
@@ -120,9 +135,11 @@ export function attackCursor(e: EstimateAttack, aim: AimState, c: AttackContext)
     case 'wirecutter':
     case 'jar':
     case 'tincan':
+    case 'repair':
+    case 'refuel':
       return plain(tileToolCursor(e.cursor, false));
     default:
-      return plain(UNBUILT_ACTION_CURSORS[e.cursor] ?? 'INVALID_ACTION_UICURSOR');
+      return plain('INVALID_ACTION_UICURSOR');
   }
 }
 

@@ -9,7 +9,11 @@
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
 // @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead); bCollapsed, our soldiers' own (2026-11-03).
 // @src gMercProfiles[ubProfile].bSex (the texts by a merc's sex take his profile's, not his body type's) (2026-11-01).
+// @src Soldier_Macros.h OK_ENTERABLE_VEHICLE, TANK; Interface_Panels.cc SetStatsHelp (VEHICLE_VITAL_STATS_POPUPTEXT),
+// @src Interface.cc DrawSelectedUIAboveGuy (FONT_GRAY4 for a vehicle nobody is aboard) and Handle_UI.cc UIHandleOnMerc
+// @src (no gSelectedGuy for an enterable vehicle not ours or an empty one of ours) (2026-11-05).
 
+import { Body } from '../../../content/anim/body-types.ts';
 import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
@@ -20,9 +24,11 @@ export const OUR_TEAM = 0;
 const REGFEMALE = 3;
 const FIRST_VEHICLE_BODY = 22;
 const LAST_VEHICLE_BODY = 27;
+const TANK_BODIES: ReadonlySet<number> = new Set([Body.TANK_NW, Body.TANK_NE]);
 const DYING_HEALTH_INDEX = 0;
 const MERC_VITAL_STATS_POPUPTEXT = 61;
 const STR_LATE_16 = 15;
+const VEHICLE_VITAL_STATS_POPUPTEXT = 135;
 const MORALE_STRINGS = 'pMoralStrings';
 
 export type ApColour = 'dkred' | 'ltblue' | 'ltyellow' | 'ltgray';
@@ -57,6 +63,23 @@ export function isMercBodyType(s: SoldierView): boolean {
 
 export function isVehicleBody(s: SoldierView): boolean {
   return s.bodyType >= FIRST_VEHICLE_BODY && s.bodyType <= LAST_VEHICLE_BODY;
+}
+
+export function isTank(s: SoldierView): boolean {
+  return TANK_BODIES.has(s.bodyType);
+}
+
+export function okEnterableVehicle(s: SoldierView): boolean {
+  return isVehicleBody(s) && !isTank(s) && !isUnconscious(s);
+}
+
+export function nobodyAboard(s: SoldierView): boolean {
+  return isVehicleBody(s) && (s.passengers ?? []).length === 0;
+}
+
+export function namedUnderPointer(s: SoldierView): boolean {
+  if (!isVehicleBody(s) || isOwned(s)) return true;
+  return s.team !== OUR_TEAM && !okEnterableVehicle(s);
 }
 
 export function hasFemaleProfile(view: PlayerView | null, s: SoldierView): boolean {
@@ -164,6 +187,8 @@ export function moraleString(text: UiTextService, s: SoldierView): string {
 export function vitalStatsHelp(text: UiTextService, s: SoldierView): string {
   const life = s.life ?? 0;
   if (life === 0) return '';
+  if (isVehicleBody(s))
+    return printf(text.string('TacticalStr', VEHICLE_VITAL_STATS_POPUPTEXT) ?? '', [life, s.lifeMax ?? 0, s.breath ?? 0, s.breathMax ?? 0]);
   if (isRobot(s)) return printf(text.string('gzLateLocalizedString', STR_LATE_16) ?? '', [life, s.lifeMax ?? 0]);
   return printf(text.string('TacticalStr', MERC_VITAL_STATS_POPUPTEXT) ?? '', [
     life,

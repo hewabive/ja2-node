@@ -29,7 +29,9 @@
 // @src Interface.cc EndUIMessage (a key or click closes the feedback box); Interface_Items.cc HandleItemPointerClick (a
 // @src moving soldier under the pointer refused, the stale bad throw with CANNOT_THROW_TO_DEST_STR), DrawItemTileCursor (the
 // @src item's ground picture in the throw and give cursors, SetExternVOData), Interface.cc DrawSelectedUIAboveGuy (the
-// @src catcher's CATCH_STR, RELOAD_STR, MSG_PASS or GIVE_STR, 2026-11-03); src/game/Tactical/Squads.cc
+// @src catcher's CATCH_STR, RELOAD_STR, MSG_PASS or GIVE_STR, 2026-11-03; a vehicle named in FONT_GRAY4 while nobody is
+// @src aboard, an empty vehicle of ours under its ASSIGNMENT_EMPTY in yellow, 2026-11-05); Interface_Panels.cc
+// @src TMClickSecondHandInvCallbackPrimary (ExitVehicle, 2026-11-05); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
 // @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody);
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, centred above
@@ -159,7 +161,10 @@ import {
   isInVehicle,
   isMercBodyType,
   isUnconscious,
+  isVehicleBody,
+  namedUnderPointer,
   nextMerc,
+  nobodyAboard,
   OUR_TEAM,
   okInterrupt,
   onTheMap,
@@ -207,6 +212,8 @@ const SQUAD_COLUMNS = 2;
 const MSG_INTERFACE_LOG_Y = 150;
 const CONTINUE_OVER_FACE_STR = 63;
 const STR_LATE_34 = 33;
+const ASSIGNMENT_STRINGS = 'pAssignmentStrings';
+const ASSIGNMENT_EMPTY = 34;
 const STR_LATE_15 = 14;
 const TICK_MS = 5;
 const ON_ROOF_COLOUR = rgb(150, 150, 0);
@@ -234,6 +241,10 @@ const RADAR_CONTACT_COLOURS: Readonly<Record<RadarContactKind, number>> = {
 };
 const HANDPOS = 5;
 const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
+
+function emptyVehicleOfOurs(s: SoldierView): boolean {
+  return s.team === OUR_TEAM && nobodyAboard(s);
+}
 
 type PanelKind = 'team' | 'sm';
 const DESCRIBED_BUTTON_OWNERS: ReadonlySet<string> = new Set(['itemDescription', 'itemPickupMenu', 'tacticalMenus', 'tacticalExitDialog']);
@@ -331,6 +342,7 @@ export class TacticalScreen implements Screen {
       },
       enemyIndicator: (slot) => this.#enemyIndicator(this.#slots[slot] ?? null),
       swapHands: (slot) => this.#swapHands(this.#slots[slot] ?? null),
+      exitVehicle: (slot) => this.#exitVehicle(this.#slots[slot] ?? null),
       endTurn: () => void this.#command({ type: 'endTurn' }),
       mapScreen: () => env.flow.mapScreen(),
       toggleSquadList: () => this.#toggleSquadList(),
@@ -1036,7 +1048,8 @@ export class TacticalScreen implements Screen {
     if (gridNo === null) return null;
     const at = { x, y, gridNo, level: this.#interfaceLevel };
     const input = this.controls.input;
-    return findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, input.pickRules(), input.soldierStack)?.id ?? null;
+    const s = findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, input.pickRules(), input.soldierStack);
+    return s && namedUnderPointer(s) ? s.id : null;
   }
 
   #updateFaces(): void {
@@ -1590,6 +1603,12 @@ export class TacticalScreen implements Screen {
     const s = soldierById(this.#view(), id);
     if (!s || s.controlled !== undefined) return;
     void this.#command({ type: 'swapHands', soldier: s.id });
+  }
+
+  #exitVehicle(id: number | null): void {
+    const s = soldierById(this.#view(), id);
+    if (!s || !isInVehicle(s)) return;
+    void this.#command({ type: 'exitVehicle', soldier: s.id });
   }
 
   async #command(cmd: Parameters<InventoryPanel['send']>[0]): Promise<void> {
@@ -2331,12 +2350,10 @@ export class TacticalScreen implements Screen {
     let y = at.y;
     const catcher = this.controls.input.itemTile.catcher;
     const caught = catcher?.soldier === s.id ? catcher.kind : null;
-    if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled) {
-      let action = caught && caught !== 'give' ? this.#catcherLabel(caught) : '';
-      if (!action && s.team === OUR_TEAM && squadOf(s) !== this.#squad && !multiSelected)
-        action = (this.#env.text.string('gzLateLocalizedString', STR_LATE_34) ?? '').replace('%d', String(squadOf(s) + 1));
-      if (action) printAboveGuy(list, font, x, y, action, FontColor.MCOLOR_WHITE);
-      printAboveGuy(list, font, x, action ? y - 10 : y, s.name, FontColor.MCOLOR_WHITE);
+    if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled || isVehicleBody(s)) {
+      const action = (caught && caught !== 'give' ? this.#catcherLabel(caught) : '') || this.#assignmentLabel(s, multiSelected);
+      if (action) printAboveGuy(list, font, x, y, action, emptyVehicleOfOurs(s) ? FontColor.YELLOW : FontColor.MCOLOR_WHITE);
+      printAboveGuy(list, font, x, action ? y - 10 : y, s.name, nobodyAboard(s) ? FontColor.GRAY4 : FontColor.MCOLOR_WHITE);
       if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc') {
         x += selected ? 28 : 30;
         y += selected ? 5 : 7;
@@ -2357,6 +2374,12 @@ export class TacticalScreen implements Screen {
     } else if (s.level !== 0)
       printAboveGuy(list, font, x, y + 10, this.#env.text.string('gzLateLocalizedString', STR_LATE_15) ?? '', FontColor.YELLOW);
     printAboveGuy(list, font, x, y, healthString(this.#env.text, s.healthIndex ?? 0), FontColor.MCOLOR_DKRED);
+  }
+
+  #assignmentLabel(s: SoldierView, multiSelected: boolean): string {
+    if (emptyVehicleOfOurs(s)) return `(${this.#env.text.string(ASSIGNMENT_STRINGS, ASSIGNMENT_EMPTY) ?? ''})`;
+    if (s.team !== OUR_TEAM || squadOf(s) === this.#squad || multiSelected) return '';
+    return (this.#env.text.string('gzLateLocalizedString', STR_LATE_34) ?? '').replace('%d', String(squadOf(s) + 1));
   }
 
   #catcherLabel(kind: Exclude<CatcherKind, 'give'>): string {

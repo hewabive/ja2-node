@@ -41,7 +41,7 @@ describe('the aim cursor', () => {
     expect(attackCursor(knife, AIM, { ...HOVERING, onTarget: false }).cursor).toBe('KNIFE_REG_UICURSOR');
   });
 
-  it('draws the item cursors of HandleAidCursor, HandleRemoteCursor and HandleBombCursor, the tile tools bad until their preview says good, and the vehicle tools greyed out', () => {
+  it('draws the item cursors of HandleAidCursor, HandleRemoteCursor and HandleBombCursor, and the tile and vehicle tools bad until their preview says good', () => {
     const item = (cursor: EstimateAttack['cursor'], apCost = 0): EstimateAttack => ({ ...GUN, cursor, apCost, apCostByAim: [] });
     expect(attackCursor(item('aid'), AIM, HOVERING).cursor).toBe('ACTION_FIRSTAID_RED');
     expect(attackCursor(item('aid'), AIM, { ...HOVERING, onTarget: false }).cursor).toBe('ACTION_FIRSTAID_GRAY');
@@ -53,10 +53,12 @@ describe('the aim cursor', () => {
     expect(attackCursor(item('wirecutter'), AIM, HOVERING).cursor).toBe('BAD_WIRECUTTER_UICURSOR');
     expect(attackCursor(item('jar'), AIM, HOVERING).cursor).toBe('BAD_JAR_UICURSOR');
     expect(attackCursor(item('tincan'), AIM, HOVERING).cursor).toBe('PLACE_TINCAN_RED_UICURSOR');
-    expect((['wirecutter', 'jar', 'tincan'] as const).map((cursor) => tileToolCursor(cursor, true))).toEqual([
+    expect((['wirecutter', 'jar', 'tincan', 'repair', 'refuel'] as const).map((cursor) => tileToolCursor(cursor, true))).toEqual([
       'GOOD_WIRECUTTER_UICURSOR',
       'GOOD_JAR_UICURSOR',
       'PLACE_TINCAN_GREY_UICURSOR',
+      'GOOD_REPAIR_UICURSOR',
+      'REFUEL_RED_UICURSOR',
     ]);
     expect(attackCursor(item('repair'), AIM, HOVERING).cursor).toBe('BAD_REPAIR_UICURSOR');
     expect(attackCursor(item('refuel'), AIM, HOVERING).cursor).toBe('REFUEL_GREY_UICURSOR');
