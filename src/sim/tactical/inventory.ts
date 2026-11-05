@@ -7,7 +7,7 @@
 // @src Soldier_Control.h IsWearingHeadGear
 
 import type { MercProfile } from '../../content/formats/prof.ts';
-import { ArmourClass, ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
+import { ArmourClass, ItemClass, type ItemDef, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem, validAttachment, validLaunchable } from '../../content/items/rules.ts';
 import { slotLimitOf } from '../../content/items/slot-limit.ts';
 import { idiv, u8 } from '../../core/int.ts';
@@ -383,9 +383,11 @@ export function reloadGun(ctx: InventoryContext, c: Carrier, gun: ItemObject, am
   return true;
 }
 
-export function objectGrams(items: ItemTable, o: ItemObject): number {
-  const def = items.byIndex.get(o.item);
-  if (!def || o.item === NOTHING) return 0;
+function definedItem(items: ItemTable, o: ItemObject): ItemDef | undefined {
+  return o.item === NOTHING ? undefined : items.byIndex.get(o.item);
+}
+
+function gramsOf(items: ItemTable, def: ItemDef, o: ItemObject): number {
   let grams = 100 * def.weight;
   if (def.perPocket <= 1) {
     for (const a of o.attachments) if (a.item !== NOTHING) grams += 100 * (items.byIndex.get(a.item)?.weight ?? 0);
@@ -394,9 +396,16 @@ export function objectGrams(items: ItemTable, o: ItemObject): number {
   return grams;
 }
 
+export function objectGrams(items: ItemTable, o: ItemObject): number {
+  const def = definedItem(items, o);
+  return def ? gramsOf(items, def, o) : 0;
+}
+
 export function objectWeight(items: ItemTable, o: ItemObject): number {
-  const grams = objectGrams(items, o);
-  return (items.byIndex.get(o.item)?.perPocket ?? 0) > 1 ? grams * o.count : grams;
+  const def = definedItem(items, o);
+  if (!def) return 0;
+  const grams = gramsOf(items, def, o);
+  return def.perPocket > 1 ? grams * o.count : grams;
 }
 
 export function carriedWeightPercent(items: ItemTable, inv: Inventory, effectiveStrength: number): number {

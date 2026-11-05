@@ -19,12 +19,17 @@ import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { AiAction } from '../ai/actions.ts';
 import { setSoldierAniSpeed, states } from '../animation.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
-import { soldierToSoldierLos } from '../combat/positions.ts';
 import { withinOneOctant } from '../directions.ts';
 import { smokeTypeOnTile, wearingGasMask } from '../explosions/smoke.ts';
 import { cancelFadeOnSighting } from '../fade.ts';
 import { wearsHeadGear } from '../inventory.ts';
-import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import {
+  adjustMaxSightRangeForEnvEffects,
+  LIGHT_SIGHTING,
+  lightTrueLevel,
+  NORMAL_LIGHTLEVEL_DAY,
+  NORMAL_LIGHTLEVEL_NIGHT,
+} from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { amARobot } from '../narrative/robot.ts';
@@ -71,6 +76,7 @@ import { reevaluateEnemyStance } from './enemy-stance.ts';
 import { revealRoofsAndItems } from './fov.ts';
 import { atan8, Caller, Opp, SeenCreature, SightFlags } from './opp.ts';
 import { resetLastKnownLocs } from './opplist-reset.ts';
+import { sightLineOfSight } from './sight-memo.ts';
 
 export { atan8, atan8Of, Caller, Opp, SightFlags } from './opp.ts';
 
@@ -106,6 +112,16 @@ const TEAM_COUNT = 6;
 const DIFFICULTY_MEDIUM = 2;
 const NORMAL_HUMAN_SMELL_STRENGTH = 10;
 const UNSEEN_SPOTTING_EXPERIENCE_CHANCES = 10;
+const OTHER_LEVEL_SIGHT_TILES = 2;
+const SKILL_TRAIT_SLOTS = 2;
+const PERCENT = 100;
+const MOST_GEAR_SIGHT_TILES = Math.max(
+  2 * SUNGOGGLES_BONUS_PER_LEVEL,
+  Math.max(NIGHTSIGHTGOGGLES_BONUS, UVGOGGLES_BONUS) + SKILL_TRAIT_SLOTS,
+);
+const FARTHEST_LIT_SIGHT =
+  idiv((MAX_DISTANCE_VISIBLE + OTHER_LEVEL_SIGHT_TILES) * Math.max(...LIGHT_SIGHTING), PERCENT) + MOST_GEAR_SIGHT_TILES;
+export const FARTHEST_NON_MONSTER_SIGHT = Math.max(FARTHEST_LIT_SIGHT + TANK_SIGHT_BONUS, MAX_DISTANCE_VISIBLE);
 
 export interface Perception {
   readonly publicOpp: Int8Array[];
@@ -173,7 +189,7 @@ export function distanceVisible(
     : facing === IRRELEVANT || viewer.bodyType === Body.ROBOTNOWEAPON || flash
       ? MAX_DISTANCE_VISIBLE
       : facingRange(t, viewer, facing, subjectDir, g);
-  if (viewer.level !== level) d += 2;
+  if (viewer.level !== level) d += OTHER_LEVEL_SIGHT_TILES;
   const light = flash ? Math.min(lightTrueLevel(t, g, level), NORMAL_LIGHTLEVEL_DAY) : lightTrueLevel(t, g, level);
   const lit = adjustMaxSightRangeForEnvEffects(light, d) + lightGearBonus(t, viewer, light);
   return sightInGas(t, viewer, level, sightAroundTanks(viewer, subject, lit));
@@ -185,7 +201,7 @@ function facingRange(t: TacticalState, viewer: Soldier, facing: number, subjectD
   const look = LOOK_BY_OCTANT_DIFFERENCE[diff > 4 ? 8 - diff : diff] ?? 0;
   let d = look === ANGLE && (viewer.team === Team.OUR || viewer.ai.alertStatus >= AlertStatus.RED) ? STRAIGHT : look;
   d *= 2;
-  if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = idiv(d * 8, 10);
+  if (look !== STRAIGHT && viewer.state === states(t.content.animations).RUNNING) d = idiv(d * 8, 10);
   return d;
 }
 
@@ -210,9 +226,13 @@ export function seesMuzzleFlashWithoutTurning(viewer: Soldier, towards: number):
   return withinOneOctant(viewer.direction, towards);
 }
 
-function nightSightBonus(t: TacticalState, viewer: Soldier, light: number, wears: (name: string) => boolean): number {
-  const intensifier = wears('NIGHTGOGGLES') || amARobot(t, viewer);
-  if (!intensifier && !wears('UVGOGGLES') && viewer.bodyType !== Body.BLOODCAT) return 0;
+function wearsNamed(t: TacticalState, viewer: Soldier, name: string): boolean {
+  return wearsHeadGear(viewer.inv, t.content.items.byName.get(name)?.index ?? NO_ITEM);
+}
+
+function nightSightBonus(t: TacticalState, viewer: Soldier, light: number): number {
+  const intensifier = wearsNamed(t, viewer, 'NIGHTGOGGLES') || amARobot(t, viewer);
+  if (!intensifier && !wearsNamed(t, viewer, 'UVGOGGLES') && viewer.bodyType !== Body.BLOODCAT) return 0;
   if (intensifier) {
     if (light <= NORMAL_LIGHTLEVEL_NIGHT) return NIGHTSIGHTGOGGLES_BONUS;
     return light < NORMAL_LIGHTLEVEL_NIGHT + GOGGLES_FADE_LEVELS ? NIGHTSIGHTGOGGLES_BONUS / 2 : 0;
@@ -221,13 +241,12 @@ function nightSightBonus(t: TacticalState, viewer: Soldier, light: number, wears
 }
 
 function lightGearBonus(t: TacticalState, viewer: Soldier, light: number): number {
-  const wears = (name: string) => wearsHeadGear(viewer.inv, t.content.items.byName.get(name)?.index ?? NO_ITEM);
   if (light < NORMAL_LIGHTLEVEL_DAY) {
-    if (!wears('SUNGOGGLES')) return 0;
+    if (!wearsNamed(t, viewer, 'SUNGOGGLES')) return 0;
     return SUNGOGGLES_BONUS_PER_LEVEL * (light < NORMAL_LIGHTLEVEL_DAY - 1 ? 2 : 1);
   }
   if (light <= NORMAL_LIGHTLEVEL_DAY + DARK_LEVELS_ABOVE_DAY) return 0;
-  return nightSightBonus(t, viewer, light, wears) + numSkillTraits(viewer, SkillTrait.NIGHTOPS);
+  return nightSightBonus(t, viewer, light) + numSkillTraits(viewer, SkillTrait.NIGHTOPS);
 }
 
 export function knowledge(oldValue: number, newValue: number): number {
@@ -456,8 +475,22 @@ function slideToSightedOpponent(t: TacticalState, s: Soldier, opp: Soldier): voi
 }
 
 export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, caller: number): boolean {
+  const tiles = pythSpacesAway(me.gridNo, opp.gridNo);
+  const outOfSight = outOfAnySight(me, tiles);
+  if (outOfSight && me.oppList[opp.id] !== Opp.SEEN_CURRENTLY) return false;
   if (me === opp || !validForSightings(me) || me.life < OKLIFE || !validForSightings(opp) || me.team === opp.team) return false;
   if (t.narrative.mercAsleep(me) || me.bodyType === Body.LARVAE_MONSTER || vehicleOfOurs(me)) return false;
+  const seen = !outOfSight && seesWithin(t, me, opp, tiles);
+  if (seen) manSeesMan(t, me, opp, caller);
+  else if (me.oppList[opp.id] === Opp.SEEN_CURRENTLY) handleManNoLongerSeen(t, me, opp);
+  return seen;
+}
+
+function outOfAnySight(me: Soldier, tiles: number): boolean {
+  return tiles > FARTHEST_NON_MONSTER_SIGHT && !isMonster(me);
+}
+
+function seesWithin(t: TacticalState, me: Soldier, opp: Soldier, tiles: number): boolean {
   const pers = me.oppList[opp.id] ?? 0;
   const publ = t.perception.publicOpp[me.team]?.[opp.id] ?? 0;
   const aware = pers !== 0 || publ !== 0;
@@ -471,13 +504,7 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
         opp.gridNo,
         opp.level,
       );
-  let seen = false;
-  if (pythSpacesAway(me.gridNo, opp.gridNo) <= d && soldierToSoldierLos(t, me, opp, u8(d), aware) !== 0) {
-    manSeesMan(t, me, opp, caller);
-    seen = true;
-  }
-  if (!seen && me.oppList[opp.id] === Opp.SEEN_CURRENTLY) handleManNoLongerSeen(t, me, opp);
-  return seen;
+  return tiles <= d && sightLineOfSight(t, me, opp, u8(d), aware) !== 0;
 }
 
 function noteSightedCreature(p: Perception, opp: Soldier): void {

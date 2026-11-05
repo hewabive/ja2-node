@@ -232,8 +232,9 @@ world) and those hold nothing the codec cannot write. Rules for code that adds s
 - **State never references a module-level constant object.** A restored campaign would hold copies where a new one
   holds the shared constant, and the aliasing would differ after a reload; group sectors and stub merc stats therefore
   get their own objects, and no group sector object is mutated in place.
-- **Caches are derived**: module-level `WeakMap`s keyed by content, the light template map and the content indexes are
-  allowed and never written.
+- **Caches are derived**: module-level `WeakMap`s keyed by content, the light template map, the content indexes, the
+  sight memo (`TacticalState.sightMemo`, rebuilt empty on restore like `pathEnv`, `08` §2) and the list of placed
+  soldiers `mercs()` hands out (a `WeakMap` keyed by `mercSlots`) are allowed and never written.
 - **The unloaded world is derived.** The empty tactical state the campaign runs our absent mercs' damage on while no
   sector is loaded (`CampaignSim.turnWorld()`, `campaign/turn-world.ts`, `33`) is built on first use and never saved:
   everything it touches is campaign state (streams, profiles, the roster's soldiers, sector records) and its events

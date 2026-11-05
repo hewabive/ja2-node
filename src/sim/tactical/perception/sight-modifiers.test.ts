@@ -12,10 +12,10 @@ import type { TacticalContent } from '../content.ts';
 import { SmokeTile } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
-import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { Body, isMonster, SkillTrait, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { HeightClass, type LosWorld, type SightTarget, soldierToSoldierLineOfSight } from './los.ts';
-import { distanceVisible, MAX_DISTANCE_VISIBLE } from './sight.ts';
+import { distanceVisible, FARTHEST_NON_MONSTER_SIGHT, MAX_DISTANCE_VISIBLE } from './sight.ts';
 
 let content: TacticalContent;
 
@@ -130,6 +130,47 @@ describe('gas and tanks in the vision range (OppList.cc DistanceVisible)', () =>
     expect(behind()).toBe(0);
     viewer.bodyType = Body.ROBOTNOWEAPON;
     expect(behind()).toBe(FULL_RANGE);
+  });
+});
+
+describe('the farthest sight of anyone but a creature (bound of OppList.cc DistanceVisible)', () => {
+  const NIGHTOPS_BOTH = { skillTrait1: SkillTrait.NIGHTOPS, skillTrait2: SkillTrait.NIGHTOPS };
+  const GEAR = [null, 'SUNGOGGLES', 'NIGHTGOGGLES', 'UVGOGGLES'] as const;
+  const LIGHT_LEVELS = Array.from({ length: 16 }, (_, k) => k);
+  const ROOF_TILE = gridNo(80, 95);
+
+  it('never reaches past FARTHEST_NON_MONSTER_SIGHT, whatever the body, gear, night-ops traits, light, roof and tanks', () => {
+    const { t, viewer, target } = viewerAndTarget();
+    const bareHead = viewer.inv[InvSlot.HEAD1];
+    if (!bareHead) throw new Error('the viewer has no head slot');
+    const headGear = (gear: string | null) =>
+      gear ? createItem(content.items, content.items.byName.get(gear)?.index ?? 0, 100) : bareHead;
+    let farthest = 0;
+    for (const body of Object.values(Body)) {
+      if (isMonster({ bodyType: body })) continue;
+      for (const targetBody of [Body.REGMALE, Body.TANK_NW]) {
+        for (const gear of GEAR) {
+          for (const traits of [{ skillTrait1: 0, skillTrait2: 0 }, NIGHTOPS_BOTH]) {
+            for (const light of LIGHT_LEVELS) {
+              viewer.bodyType = body;
+              target.bodyType = targetBody;
+              Object.assign(viewer, traits);
+              viewer.inv[InvSlot.HEAD1] = headGear(gear);
+              lightSetBaseLevel(t, light);
+              for (const facing of [ANY_DIRECTION, Direction.SOUTH]) {
+                farthest = Math.max(
+                  farthest,
+                  distanceVisible(t, viewer, facing, Direction.SOUTH, target.gridNo, 0),
+                  distanceVisible(t, viewer, facing, Direction.SOUTH, ROOF_TILE, 1),
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(farthest).toBeGreaterThan(MAX_DISTANCE_VISIBLE);
+    expect(farthest).toBeLessThanOrEqual(FARTHEST_NON_MONSTER_SIGHT);
   });
 });
 

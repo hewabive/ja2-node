@@ -628,8 +628,7 @@ export function cellCentre(g: number): { x: number; y: number } {
   return { x: (g % 160) * 10 + 5, y: idiv(g, 160) * 10 + 5 };
 }
 
-export function createSoldier(init: SoldierInit): Soldier {
-  const centre = cellCentre(init.gridNo);
+function identityAndMovement(init: SoldierInit, centre: { x: number; y: number }) {
   return {
     id: init.id,
     team: init.team,
@@ -747,6 +746,11 @@ export function createSoldier(init: SoldierInit): Soldier {
     collapsed: false,
     dontChargeReadyAPs: false,
     dontChargeAPsForStanceChange: false,
+  } satisfies Partial<Soldier>;
+}
+
+function awarenessAndCombat(init: SoldierInit) {
+  return {
     ai: {
       alertStatus: AlertStatus.GREEN,
       orders: Orders.STATIONARY,
@@ -869,6 +873,11 @@ export function createSoldier(init: SoldierInit): Soldier {
     timeOfLastRandomAction: 0,
     turningFromHit: false,
     changingStanceDueToSuppression: false,
+  } satisfies Partial<Soldier>;
+}
+
+function recordAndServices() {
+  return {
     statDamage: { strength: 0, dexterity: 0, agility: 0, wisdom: 0 },
     kills: 0,
     assists: 0,
@@ -934,5 +943,10 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingTileTool: null,
     xrayActivatedTime: 0,
     xrayedBy: null,
-  };
+  } satisfies Partial<Soldier>;
+}
+
+export function createSoldier(init: SoldierInit): Soldier {
+  const centre = cellCentre(init.gridNo);
+  return { ...identityAndMovement(init, centre), ...awarenessAndCombat(init), ...recordAndServices() };
 }

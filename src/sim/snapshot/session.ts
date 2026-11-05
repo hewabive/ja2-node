@@ -6,6 +6,7 @@ import { NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { NO_TIME_OF_DAY_LIGHT } from '../tactical/lighting/lighting.ts';
 import { NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { NO_SCHEDULE_CLOCK } from '../tactical/narrative/schedule-state.ts';
+import { createSightMemo } from '../tactical/perception/sight-memo.ts';
 import {
   createPathEnv,
   NO_HOOKS,
@@ -56,6 +57,7 @@ const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'timeOfDayLight',
   'vehicleHooks',
   'pathEnv',
+  'sightMemo',
 ]);
 
 function tacticalData(t: TacticalState): Record<string, unknown> {
@@ -66,7 +68,7 @@ function tacticalData(t: TacticalState): Record<string, unknown> {
 }
 
 function reviveTactical(data: unknown): TacticalState {
-  const fields = data as Omit<TacticalState, 'pathEnv'> & { readonly pathEnv: PathEnvSettings };
+  const fields = data as Omit<TacticalState, 'pathEnv' | 'sightMemo'> & { readonly pathEnv: PathEnvSettings };
   return {
     ...fields,
     hooks: NO_HOOKS,
@@ -79,6 +81,7 @@ function reviveTactical(data: unknown): TacticalState {
     timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
     vehicleHooks: PRIVATE_VEHICLE_LIST,
     pathEnv: createPathEnv(fields, fields.pathEnv),
+    sightMemo: createSightMemo(),
   };
 }
 

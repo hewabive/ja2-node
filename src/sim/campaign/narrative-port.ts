@@ -103,7 +103,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     assassinKilled: () => campaign.narrative.assassinKilled(),
     isEpc: (soldier) => campaign.battle?.roster.get(soldier.id)?.isEpc ?? false,
     assignment: (soldier) => campaign.battle?.roster.get(soldier.id)?.assignment ?? null,
-    mercAsleep: (soldier) => campaign.battle?.roster.get(soldier.id)?.asleep ?? false,
+    mercAsleep: (soldier) => campaign.battle?.roster.asleep(soldier.id) ?? false,
     putMercInAwakeState: (soldier) => wakeSelectedMerc(campaign, soldier),
     currentSquad: () => s.forces.currentSquad,
     changeCurrentSquad: (squad) => {

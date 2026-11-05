@@ -542,6 +542,10 @@ export class Roster implements CrewPort {
     return record ? this.#facade(record) : undefined;
   }
 
+  asleep(id: number): boolean {
+    return this.#state.mercs.get(id)?.asleep ?? false;
+  }
+
   byProfile(profile: number): RosterMerc | undefined {
     return this.all().find((m) => m.profile === profile);
   }

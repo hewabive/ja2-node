@@ -66,6 +66,17 @@ explosion or the bomb queue runs, a roof climb runs or the squad gathers to leav
 (`disallowSight`), so known targets are lost; an explosion the queue sets off leaves sight off until the queue ends, when
 all teams look at once (`12` §6).
 
+**A look remembers its ray.** `manLooksForMan` keeps the last ray of each viewer and target
+(`perception/sight-memo.ts`, `TacticalState.sightMemo`: transient like `pathEnv`, never saved) and reuses it while
+every input stands: both soldiers' tile, level, stance height, body and terrain, the target's camouflage and tiles moved,
+the range, awareness, `disallowSight`, the structure lists and the smoke layer. `WorldStructures.add` and `remove` count
+every change of the lists (`version`), `setSmokeFlagsAt` (`explosions/smoke.ts`) every change of a smoke tile; a
+structure or smoke tile written another way would serve a stale ray. Before that, a pair farther apart than anyone but a
+creature can see (`FARTHEST_NON_MONSTER_SIGHT`, a bound of `distanceVisible`) is not seen without any work unless the
+viewer sees the target now. Both serve the map screen's real-time turn, which makes all teams look at each 20 ms poll
+(`15`, `32` §2.2); pinned by `sight-memo.test.ts` and `sight-modifiers.test.ts` "never reaches past
+FARTHEST_NON_MONSTER_SIGHT …".
+
 **An aware viewer sees all around.** An unaware look counts the angle from the facing the soldier is turning to, with
 sub-tile positions. A soldier who saw or heard the opponent in the last three turns, himself or through his team, looks
 in a full circle. Radio makes the whole team aware: a teammate who did not know the enemy looks at him at once, in a

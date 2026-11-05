@@ -17,6 +17,7 @@ import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts'
 import { stopMerc } from '../movement.ts';
 import { AttackReason, processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
+import { smokeTilesChanged } from '../perception/sight-memo.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { Spread, spreadEffectSmoke } from './explosion.ts';
@@ -165,17 +166,23 @@ export function restoreSmokeCloud(t: TacticalState, cloud: SmokeCloud): void {
   spreadEffectSmoke(t, cloud, Spread.SUBSEQUENT, levelOf(cloud));
 }
 
+export function setSmokeFlagsAt(t: Pick<TacticalState, 'explosives' | 'sightMemo'>, g: number, level: number, flags: number): void {
+  const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];
+  if (tiles[g] === flags) return;
+  tiles[g] = flags;
+  smokeTilesChanged(t);
+}
+
 export function addSmokeEffectToTile(t: TacticalState, cloud: SmokeCloud, type: SmokeEffectType, g: number, level: number): void {
   const dissipating = cloud.duration - cloud.age < DISSIPATING_TURNS;
   if (dissipating) removeSmokeEffectFromTile(t, g, level);
-  const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];
-  if ((tiles[g] ?? 0) & ANY_SMOKE) return;
-  tiles[g] = (tiles[g] ?? 0) | (TILE_FLAG_BY_ID[type.id] ?? 0) | (dissipating ? SmokeTile.DISSIPATING : 0);
+  const flags = smokeFlagsAt(t, g, level);
+  if (flags & ANY_SMOKE) return;
+  setSmokeFlagsAt(t, g, level, flags | (TILE_FLAG_BY_ID[type.id] ?? 0) | (dissipating ? SmokeTile.DISSIPATING : 0));
 }
 
 export function removeSmokeEffectFromTile(t: TacticalState, g: number, level: number): void {
-  const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];
-  tiles[g] = (tiles[g] ?? 0) & ~(ANY_SMOKE | SmokeTile.DISSIPATING);
+  setSmokeFlagsAt(t, g, level, smokeFlagsAt(t, g, level) & ~(ANY_SMOKE | SmokeTile.DISSIPATING));
 }
 
 function ageCloud(t: TacticalState, k: number, cloud: SmokeCloud, updates: number): void {

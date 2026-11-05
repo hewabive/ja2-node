@@ -9,7 +9,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
 import type { DoorView } from '../tactical/doors/door-view.ts';
 import { containerGridNos, doorGridNos, isDoorOpenAt, isOpenableOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
-import { smokeTileFlag, smokeTypeOf } from '../tactical/explosions/smoke.ts';
+import { setSmokeFlagsAt, smokeTileFlag, smokeTypeOf } from '../tactical/explosions/smoke.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -22,6 +22,7 @@ import type { BoxingStateName } from '../tactical/narrative/boxing-events.ts';
 import { BOXING_STATE_NAMES } from '../tactical/narrative/boxing-state.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { Opp } from '../tactical/perception/opp.ts';
+import { smokeTilesChanged } from '../tactical/perception/sight-memo.ts';
 import { addMercStructure, removeMercStructure } from '../tactical/person-structure.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import { createTacticalState, placeOccupant, registerSoldier, type TacticalState } from '../tactical/state.ts';
@@ -215,10 +216,10 @@ export class TacticalProjection {
     const t = this.state;
     const tiles = t.explosives.smokeTiles;
     for (const level of tiles) level.fill(0);
+    smokeTilesChanged(t);
     for (const tile of view.smoke ?? []) {
       const type = smokeTypeOf(t, tile.effect);
-      const level = tiles[tile.level > 0 ? 1 : 0];
-      if (type) level[tile.gridNo] = smokeTileFlag(type);
+      if (type) setSmokeFlagsAt(t, tile.gridNo, tile.level, smokeTileFlag(type));
     }
   }
 

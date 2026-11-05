@@ -59,7 +59,7 @@ const Blocking = {
   TOPRIGHT_OPEN_WINDOW: 100,
 } as const;
 
-const PASS_THROUGH_BLOCKING: ReadonlySet<number> = new Set([
+const PASS_THROUGH_BLOCKING: readonly boolean[] = blockingTable([
   Blocking.NOTHING,
   Blocking.TOPLEFT_DOOR,
   Blocking.TOPRIGHT_DOOR,
@@ -68,6 +68,12 @@ const PASS_THROUGH_BLOCKING: ReadonlySet<number> = new Set([
   Blocking.TOPRIGHT_OPEN_WINDOW,
   Blocking.TOPLEFT_OPEN_WINDOW,
 ]);
+
+function blockingTable(passing: readonly number[]): boolean[] {
+  const table = new Array<boolean>(Math.max(...Object.values(Blocking)) + 1).fill(false);
+  for (const b of passing) table[b] = true;
+  return table;
+}
 
 const U = UP;
 const L = DLEFT;
@@ -123,6 +129,18 @@ const SIGHT_DIRS: readonly (readonly number[])[] = [
   [SOUTHWEST, NORTHWEST, WEST, SOUTH, NORTH],
   [WEST, NORTH, NORTHWEST, SOUTHWEST, NORTHEAST],
 ];
+
+interface SightFan {
+  readonly dirs: readonly number[];
+  readonly incs: readonly number[];
+}
+
+function sightFan(direction: number): SightFan {
+  const dirs = [...(SIGHT_DIRS[direction] ?? SIGHT_DIRS[0] ?? []), direction];
+  return { dirs, incs: [...dirs.slice(0, 5).map((d) => DIRECTION_INCREMENT[d] ?? 0), 0] };
+}
+
+const SIGHT_FANS: readonly SightFan[] = SIGHT_DIRS.map((_, direction) => sightFan(direction));
 
 export interface FogOfWar {
   readonly roomHidden: Uint8Array;
@@ -218,8 +236,8 @@ export function switchOnRevealedCaveLights(t: TacticalState): void {
   for (let g = 0; g < WORLD_MAX; g++) if ((t.fog.revealed[g] ?? 0) & RevealedFlags.GROUND) switchOnCaveLightAt(t, g);
 }
 
-function sightRevealsGround(t: TacticalState, g: number): boolean {
-  if (!inCavesOrBasement(t)) return true;
+function sightRevealsGround(t: TacticalState, g: number, underground: boolean): boolean {
+  if (!underground) return true;
   return (t.world.level.rooms[g] ?? NO_ROOM) !== NO_ROOM || !flatRoofAboveGridNo(t, g);
 }
 
@@ -274,8 +292,8 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
   const range = s.gassed
     ? GASSED_VIEW_RANGE
     : idiv(adjustMaxSightRangeForEnvEffects(lightTrueLevel(t, s.gridNo, level), NORMAL_VIEW_RANGE) + NORMAL_VIEW_RANGE, 2);
-  const dirs = [...(SIGHT_DIRS[s.direction] ?? SIGHT_DIRS[0] ?? []), s.direction];
-  const incs = [...dirs.slice(0, 5).map((d) => DIRECTION_INCREMENT[d] ?? 0), 0];
+  const { dirs, incs } = SIGHT_FANS[s.direction] ?? sightFan(s.direction);
+  const underground = inCavesOrBasement(t);
   const table = s.direction % 2 === 1 ? VIEW_PATH_2 : VIEW_PATH;
   let goneThroughDoor = 0;
   let throughWindow = 0;
@@ -357,12 +375,12 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
         if (blocking === Blocking.FULL || (travelCostObstacle && !throughWindow)) break;
         slots.addSeenTile(t, marker);
         if (level === 0) {
-          if (sightRevealsGround(t, marker)) revealGround(t, marker);
+          if (sightRevealsGround(t, marker, underground)) revealGround(t, marker);
           const room = t.world.level.rooms[marker] ?? NO_ROOM;
           if (room !== NO_ROOM && fog.roomHidden[room]) revealHiddenRoom(t, room, s, slots);
         } else fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.ROOF;
         updateBloodGraphics(t, marker, level);
-        if (!PASS_THROUGH_BLOCKING.has(blocking)) break;
+        if (!PASS_THROUGH_BLOCKING[blocking]) break;
       } else if (travelCostObstacle) break;
     }
   }

@@ -210,7 +210,8 @@ export function trashWorldItems(t: TacticalState): void {
 
 export function setItemsVisibilityOn(t: TacticalState, g: number, level: number, allGreaterThan: number, setLocator: boolean): boolean {
   let modified = false;
-  for (const wi of itemsAt(t, g, level)) {
+  for (const wi of t.worldItems) {
+    if (wi.gridNo !== g || wi.level !== level) continue;
     if (wi.visible === Visibility.VISIBLE || wi.visible < allGreaterThan) continue;
     if (wi.object.item === itemIndex(t, 'ACTION_ITEM') || wi.object.item === itemIndex(t, 'OWNERSHIP')) continue;
     wi.visible = Visibility.VISIBLE;

@@ -72,6 +72,16 @@ function sightTarget(t: TacticalState, s: Soldier, aware: boolean): SightTarget 
 
 export function soldierToSoldierLos(t: TacticalState, viewer: Soldier, target: Soldier, tileLimit: number, aware: boolean): number {
   if (keptApartInBloodcatArena(t, viewer, target)) return 0;
+  return soldierToSoldierLineOfSightIn(t, viewer, target, tileLimit, aware);
+}
+
+export function soldierToSoldierLineOfSightIn(
+  t: TacticalState,
+  viewer: Soldier,
+  target: Soldier,
+  tileLimit: number,
+  aware: boolean,
+): number {
   return soldierToSoldierLineOfSight(
     losWorldOf(t),
     losSubject(t, viewer),

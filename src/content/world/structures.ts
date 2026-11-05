@@ -117,6 +117,7 @@ export class WorldStructures {
   readonly lists: StructureInstance[][] = Array.from({ length: WORLD_MAX }, () => []);
   private nextId = FIRST_AVAILABLE_STRUCTURE_ID;
   private readonly heights: Uint8Array;
+  #version = 0;
 
   constructor(heights: Uint8Array) {
     this.heights = heights;
@@ -143,6 +144,10 @@ export class WorldStructures {
     });
     copy.nextId = this.nextId;
     return copy;
+  }
+
+  get version(): number {
+    return this.#version;
   }
 
   at(g: number): readonly StructureInstance[] {
@@ -294,6 +299,7 @@ export class WorldStructures {
       }
       s.id = id;
       this.lists[s.gridNo]?.push(s);
+      this.#version++;
     }
     return created[0] ?? null;
   }
@@ -308,7 +314,9 @@ export class WorldStructures {
     const list = this.lists[s.gridNo];
     if (!list) return;
     const i = list.indexOf(s);
-    if (i >= 0) list.splice(i, 1);
+    if (i < 0) return;
+    list.splice(i, 1);
+    this.#version++;
   }
 
   remove(base: StructureInstance): void {

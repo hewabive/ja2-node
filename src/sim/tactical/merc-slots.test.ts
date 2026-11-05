@@ -9,7 +9,7 @@ import type { TacticalContent } from './content.ts';
 import { setSoldierPosition } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { createSoldier, Orders, type Soldier, Team } from './soldier.ts';
-import { createTacticalState, registerSoldier, type TacticalState, unregisterSoldier } from './state.ts';
+import { createTacticalState, mercs, registerSoldier, type TacticalState, unregisterSoldier } from './state.ts';
 
 let content: TacticalContent;
 
@@ -88,6 +88,25 @@ describe('merc slots (Overhead.cc AddMercSlot, RemoveMercSlot)', () => {
     expect([t.mercSlots, t.awaySlots]).toEqual([[stayer], [otherWalker, walker]]);
     expect(moveSoldierFromAwayToMercSlot(t, otherWalker)).toBe(true);
     expect([t.mercSlots, t.awaySlots]).toEqual([[stayer, otherWalker], [walker]]);
+  });
+});
+
+describe('the placed soldiers of the merc slots (FOR_EACH_MERC as a list taken at the start of a loop)', () => {
+  it('hands out the same list until a slot or a placement changes, and never changes a list already handed out', () => {
+    const t = sector();
+    const first = entered(t, Team.ENEMY, 70);
+    const second = entered(t, Team.CIV, 72);
+    const before = mercs(t);
+    expect(mercs(t)).toBe(before);
+    second.placed = false;
+    const afterLeaving = mercs(t);
+    expect([before, afterLeaving]).toEqual([[first, second], [first]]);
+    second.placed = true;
+    expect(mercs(t)).toEqual([first, second]);
+    const third = entered(t, Team.CIV, 74);
+    expect(mercs(t)).toEqual([first, second, third]);
+    unregisterSoldier(t, first);
+    expect([mercs(t), afterLeaving]).toEqual([[second, third], [first]]);
   });
 });
 

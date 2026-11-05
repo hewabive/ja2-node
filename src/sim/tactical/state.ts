@@ -43,6 +43,7 @@ import { createScheduleList, NO_SCHEDULE_CLOCK, type ScheduleClock, type Schedul
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
+import { createSightMemo, type SightMemo } from './perception/sight-memo.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
@@ -290,6 +291,7 @@ export interface TacticalState {
   readonly pathEnv: PathEnv;
   hooks: TacticalHooks;
   readonly perception: Perception;
+  readonly sightMemo: SightMemo;
   readonly lighting: LightingState;
   timeOfDayLight: TimeOfDayLight;
   readonly fog: FogOfWar;
@@ -487,6 +489,7 @@ export function createTacticalState(
     pathEnv,
     hooks: NO_HOOKS,
     perception: createPerception(TOTAL_SOLDIERS),
+    sightMemo: createSightMemo(),
     lighting: createLightingState(world.level),
     timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
     fog: createFogOfWar(),
@@ -592,8 +595,24 @@ export function unregisterSoldier(t: TacticalState, s: Soldier): boolean {
   return eraseFromSlots(t.mercSlots, s);
 }
 
-export function mercs(t: Pick<TacticalState, 'mercSlots'>): Soldier[] {
-  return t.mercSlots.filter((s) => s.placed);
+const placedMercsOfSlots = new WeakMap<readonly Soldier[], readonly Soldier[]>();
+
+function stillPlacedMercs(slots: readonly Soldier[], placed: readonly Soldier[]): boolean {
+  let k = 0;
+  for (const s of slots) {
+    if (!s.placed) continue;
+    if (placed[k] !== s) return false;
+    k++;
+  }
+  return k === placed.length;
+}
+
+export function mercs(t: Pick<TacticalState, 'mercSlots'>): readonly Soldier[] {
+  const known = placedMercsOfSlots.get(t.mercSlots);
+  if (known && stillPlacedMercs(t.mercSlots, known)) return known;
+  const placed = t.mercSlots.filter((s) => s.placed);
+  placedMercsOfSlots.set(t.mercSlots, placed);
+  return placed;
 }
 
 export function soldiersById(t: Pick<TacticalState, 'soldiers'>): Soldier[] {

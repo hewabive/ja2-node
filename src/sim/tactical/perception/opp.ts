@@ -22,6 +22,8 @@ export const SightFlags = { LOOK: 0x01, RADIO: 0x02, INTERRUPT: 0x04 } as const;
 export const SeenCreature = { NONE: 0, CREATURE: 1, BLOODCAT: 2 } as const;
 export const Caller = { MANLOOKSFOROTHERTEAMS: 0, OTHERTEAMSLOOKFORMAN: 1, VERIFYANDDECAYOPPLIST: 2, UPDATEPUBLIC: 4, UNKNOWN: 5 } as const;
 
+const DIRECTION_BY_OCTANT: readonly number[] = [2, 1, 0, 7, 6, 5, 4, 3];
+
 export function atan8(x1: number, y1: number, x2: number, y2: number): number {
   const x = x2 - x1;
   const y = -(y2 - y1);
@@ -29,7 +31,7 @@ export function atan8(x1: number, y1: number, x2: number, y2: number): number {
   let theta = Math.atan2(y, x);
   if (theta < 0) theta += 2 * Math.PI;
   const index = Math.trunc((8 * theta + Math.PI) / (2 * Math.PI)) % 8;
-  return [2, 1, 0, 7, 6, 5, 4, 3][index] ?? 2;
+  return DIRECTION_BY_OCTANT[index] ?? 2;
 }
 
 export function atan8Of(from: { readonly x: number; readonly y: number }, to: { readonly x: number; readonly y: number }): number {
