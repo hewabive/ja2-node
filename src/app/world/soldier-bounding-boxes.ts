@@ -5,16 +5,17 @@
 // @src converted and by EVENT_SetSoldierDirection, which does not convert the frame again, so a turn keeps the frame of
 // @src the facing before it.
 
+import type { SheetFacing } from '../../content/anim/soldier-sprite.ts';
 import type { IndexedFrame } from '../../content/picture/picture.ts';
 import type { SoldierView } from '../../protocol/view.ts';
-import type { SheetRequest } from './soldier-assets.ts';
+import { type SheetRequest, sheetFacing } from './soldier-assets.ts';
 
 export type BoundingBox = Pick<IndexedFrame, 'offsetX' | 'offsetY' | 'width' | 'height'>;
 
 export interface BoundingFrame {
   readonly sheet: SheetRequest;
   readonly scriptFrame: number;
-  readonly direction: number;
+  readonly facing: SheetFacing;
 }
 
 export interface BoundingFrameSources {
@@ -26,11 +27,11 @@ export interface BoundingFrameSources {
 interface Pose {
   readonly animation: number;
   readonly stateTick: number;
-  readonly direction: number;
+  readonly facing: SheetFacing;
 }
 
 function poseOf(s: SoldierView): Pose {
-  return { animation: s.animation, stateTick: s.stateTick, direction: s.direction };
+  return { animation: s.animation, stateTick: s.stateTick, facing: sheetFacing(s) };
 }
 
 function startedAnimation(before: Pose | undefined, s: SoldierView): boolean {
@@ -61,12 +62,12 @@ export class SoldierBoundingBoxes {
   }
 
   #follow(s: SoldierView, before: Pose | undefined, sources: BoundingFrameSources): void {
-    if (startedAnimation(before, s)) this.#set(s.id, sources.sheetFor(s), sources.firstFrameOf(s), s.direction);
-    else if (before && before.direction !== s.direction) this.#set(s.id, sources.sheetFor(s), sources.frameOf(s), before.direction);
+    if (startedAnimation(before, s)) this.#set(s.id, sources.sheetFor(s), sources.firstFrameOf(s), sheetFacing(s));
+    else if (before && before.facing.direction !== s.direction) this.#set(s.id, sources.sheetFor(s), sources.frameOf(s), before.facing);
   }
 
-  #set(id: number, sheet: SheetRequest | null, scriptFrame: number, direction: number): void {
-    if (sheet) this.#frames.set(id, { sheet, scriptFrame, direction });
+  #set(id: number, sheet: SheetRequest | null, scriptFrame: number, facing: SheetFacing): void {
+    if (sheet) this.#frames.set(id, { sheet, scriptFrame, facing });
     else this.#frames.delete(id);
   }
 

@@ -7,7 +7,7 @@
 
 import { substituteBodyTypeState } from '../../content/anim/body-substitution.ts';
 import { bodyTypePaletteSubstitution, OWN_SHEET_PALETTE, reloadsPalette } from '../../content/anim/palette-substitution.ts';
-import { composeSoldierPalette, type SheetLayout } from '../../content/anim/soldier-sprite.ts';
+import { composeSoldierPalette, facingOfDirection, type SheetFacing, type SheetLayout } from '../../content/anim/soldier-sprite.ts';
 import { AnimStruct, type AnimStructures, animStructType, loadAnimStructures } from '../../content/anim/structures.ts';
 import { chooseSurface, SubAnimFlags } from '../../content/anim/surface-choice.ts';
 import {
@@ -64,6 +64,10 @@ export interface SheetRequest {
 export interface SoldierPalette {
   readonly key: string;
   readonly compose: () => Uint8Array;
+}
+
+export function sheetFacing(view: Pick<SoldierView, 'direction'>): SheetFacing {
+  return facingOfDirection(view.direction);
 }
 
 export function zStripIndex(view: Pick<SoldierView, 'bodyType' | 'direction'>): number {

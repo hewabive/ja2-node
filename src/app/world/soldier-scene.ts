@@ -17,7 +17,7 @@ import type { ShadeField } from '../../render/world/world-renderer.ts';
 import type { WorldSprites } from '../../render/world/world-sprites.ts';
 import { LightSpriteFlags, lightTimeAt } from '../../sim/tactical/lighting/lighting.ts';
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
-import type { SoldierAssets, SoldierSheet } from './soldier-assets.ts';
+import { type SoldierAssets, type SoldierSheet, sheetFacing } from './soldier-assets.ts';
 import { type BoundingBox, SoldierBoundingBoxes } from './soldier-bounding-boxes.ts';
 import type { MercLight } from './world-lighting.ts';
 
@@ -109,7 +109,7 @@ export class SoldierScene {
     const frame = this.#boundingBoxes.frameOf(id);
     const sheet = frame ? this.#assets.ready(frame.sheet) : null;
     if (!frame || !sheet) return null;
-    return sheet.picture.frames[soldierSheetFrame(sheet.layout, frame.scriptFrame, frame.direction)] ?? null;
+    return sheet.picture.frames[soldierSheetFrame(sheet.layout, frame.scriptFrame, frame.facing)] ?? null;
   }
 
   ungreyed(s: SoldierView): boolean {
@@ -124,7 +124,7 @@ export class SoldierScene {
     const palette = this.#assets.paletteFor(s);
     if (!request || !sheet || !palette) return null;
     const loaded = sprites.addSheet(request.id, sheet.picture);
-    const sprite = sprites.soldierFrame(loaded, soldierSheetFrame(sheet.layout, frame, s.direction));
+    const sprite = sprites.soldierFrame(loaded, soldierSheetFrame(sheet.layout, frame, sheetFacing(s)));
     if (!sprite) return null;
     const paletteBase = sprites.soldierPaletteBase(palette.key, palette.compose);
     return { sprite, paletteBase, multiTile: this.#multiTile(s, sheet) };

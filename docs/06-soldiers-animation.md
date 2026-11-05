@@ -76,7 +76,9 @@ for stealth in real time; in the states marked for fast turns our mercs turn at 
 began and the frame delay. A client whose scripts hash like the server's predicts the slot between views exactly;
 one with other scripts walks its own and warps time between the state start and the fire markers (deviation "Soldier
 frames with other scripts"). The sheet frame comes from the script frame and the current facing at draw time, so a new
-facing shows at once (deviation "Soldier frame on turning").
+facing shows at once (deviation "Soldier frame on turning"); a vehicle's sheet of 32 facings is read by the 32-step
+facing, which the view does not carry yet, so the client takes four steps a direction (`sheetFacing`,
+`app/world/soldier-assets.ts`; gaps "Tank turning").
 
 **Turning and stepping belong to the state.** A state with the turning flag turns one octant per frame while it plays,
 if the soldier's structure fits the new facing; prone has no turning flag, so a prone turn goes through a crouch.

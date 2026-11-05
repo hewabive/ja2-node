@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.cc CreateSoldierPalettes, SetPaletteReplacement, ConvertAniCodeToAniFrame;
+// @src src/game/Tactical/Soldier_Control.cc CreateSoldierPalettes, SetPaletteReplacement, ConvertAniCodeToAniFrame (a
+// @src 32-direction sheet by ExtOneCDirection of ubHiResDirection, 2026-11-05), Dir2ExtDir;
 // @src TileEngine/RenderWorld.cc (merc screen position, shade and z).
 
 import { idiv } from '../../core/int.ts';
@@ -17,6 +18,9 @@ export const SOLDIER_SHADOW_INDEX = 254;
 export const DEFAULT_SOLDIER_SHADE = 4;
 export const MERC_Z_LEVEL = 3;
 const TWO_DIRECTION_BLOCKS = [0, 0, 1, 1, 0, 1, 1, 0];
+const DIRECTIONS = 8;
+export const HI_RES_DIRECTIONS = 32;
+export const HI_RES_STEPS_PER_DIRECTION = HI_RES_DIRECTIONS / DIRECTIONS;
 
 function replace(palette: Uint8Array, data: PaletteData, id: string): void {
   if (!id) return;
@@ -49,10 +53,29 @@ export interface SheetLayout {
   readonly frameCount: number;
 }
 
-export function soldierSheetFrame(layout: SheetLayout, scriptFrame: number, direction: number): number {
-  let block = (direction + 1) % 8;
+export interface SheetFacing {
+  readonly direction: number;
+  readonly hiResDirection: number;
+}
+
+export function facingOfDirection(direction: number): SheetFacing {
+  return { direction, hiResDirection: direction * HI_RES_STEPS_PER_DIRECTION };
+}
+
+function oneClockwise(direction: number, directions: number): number {
+  return (direction + 1) % directions;
+}
+
+function hiResBlock(hiResDirection: number): number {
+  return (hiResDirection + HI_RES_STEPS_PER_DIRECTION) % HI_RES_DIRECTIONS;
+}
+
+export function soldierSheetFrame(layout: SheetLayout, scriptFrame: number, facing: SheetFacing): number {
+  const direction = facing.direction;
+  let block = oneClockwise(direction, DIRECTIONS);
   if (layout.directions === 1) block = 0;
   else if (layout.directions === 4) block = idiv(block, 2);
+  else if (layout.directions === HI_RES_DIRECTIONS) block = hiResBlock(facing.hiResDirection);
   else if (layout.directions === 2) block = TWO_DIRECTION_BLOCKS[direction] ?? 0;
   else if (layout.directions === 3) block = direction === 7 ? 1 : direction === 6 ? 0 : direction === 2 ? 2 : block;
   const frame = layout.noFrames ? 0 : scriptFrame;

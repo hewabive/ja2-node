@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { facingOfDirection } from '../../content/anim/soldier-sprite.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import type { SheetRequest } from './soldier-assets.ts';
 import { type BoundingFrameSources, SoldierBoundingBoxes } from './soldier-bounding-boxes.ts';
@@ -55,36 +56,44 @@ describe('the bounding box of a soldier (SetSoldierLocatorOffsets)', () => {
   it('takes the first frame of his animation as it starts and keeps it while later frames show', () => {
     const start = soldier({ animation: FALLING, frame: FIRST_FALLING_FRAME + 2, stateTick: 40 });
     const boxes = following([soldier()], [start], [{ ...start, frame: FIRST_FALLING_FRAME + 5 }]);
-    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(FALLING), scriptFrame: FIRST_FALLING_FRAME, direction: NORTH });
+    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(FALLING), scriptFrame: FIRST_FALLING_FRAME, facing: facingOfDirection(NORTH) });
   });
 
   it('starts again from the first frame when the same animation restarts', () => {
     const boxes = following([soldier({ frame: 3 })], [soldier({ frame: 5, stateTick: 90, direction: EAST })]);
-    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(STANDING), scriptFrame: FIRST_STANDING_FRAME, direction: EAST });
+    expect(boxes.frameOf(SOLDIER)).toEqual({
+      sheet: sheetOf(STANDING),
+      scriptFrame: FIRST_STANDING_FRAME,
+      facing: facingOfDirection(EAST),
+    });
   });
 
   it('keeps the frame shown at a turn in the facing before it, as EVENT_SetSoldierDirection converts no frame', () => {
     const boxes = following([soldier({ frame: 3 })], [soldier({ frame: 5, direction: NORTHEAST })]);
-    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(STANDING), scriptFrame: 5, direction: NORTH });
+    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(STANDING), scriptFrame: 5, facing: facingOfDirection(NORTH) });
     boxes.update([soldier({ frame: 6, direction: EAST })], sources);
-    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(STANDING), scriptFrame: 6, direction: NORTHEAST });
+    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(STANDING), scriptFrame: 6, facing: facingOfDirection(NORTHEAST) });
   });
 
   it('takes the first frame in the new facing when an animation starts with a turn between two views', () => {
     const boxes = following([soldier({ frame: 3 })], [soldier({ animation: FALLING, stateTick: 40, direction: EAST })]);
-    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(FALLING), scriptFrame: FIRST_FALLING_FRAME, direction: EAST });
+    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(FALLING), scriptFrame: FIRST_FALLING_FRAME, facing: facingOfDirection(EAST) });
   });
 
   it('starts a soldier new to the view at the first frame of his animation', () => {
     const boxes = following([soldier({ id: OTHER })], [soldier({ id: OTHER }), soldier({ frame: 5, direction: EAST })]);
-    expect(boxes.frameOf(SOLDIER)).toEqual({ sheet: sheetOf(STANDING), scriptFrame: FIRST_STANDING_FRAME, direction: EAST });
+    expect(boxes.frameOf(SOLDIER)).toEqual({
+      sheet: sheetOf(STANDING),
+      scriptFrame: FIRST_STANDING_FRAME,
+      facing: facingOfDirection(EAST),
+    });
   });
 
   it('forgets a soldier who leaves the view, so his return counts as a start', () => {
     const boxes = following([soldier({ frame: 3 })], [soldier({ frame: 5, direction: EAST })], []);
     expect(boxes.frameOf(SOLDIER)).toBeNull();
     boxes.update([soldier({ frame: 5, direction: NORTHEAST })], sources);
-    expect(boxes.frameOf(SOLDIER)?.direction).toBe(NORTHEAST);
+    expect(boxes.frameOf(SOLDIER)?.facing).toEqual(facingOfDirection(NORTHEAST));
     expect(boxes.frameOf(SOLDIER)?.scriptFrame).toBe(FIRST_STANDING_FRAME);
   });
 

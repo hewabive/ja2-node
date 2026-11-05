@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SheetLayout } from '../../content/anim/soldier-sprite.ts';
+import { HI_RES_DIRECTIONS, type SheetLayout } from '../../content/anim/soldier-sprite.ts';
 import type { AnimationTables } from '../../content/anim/tables.ts';
 import type { IndexedFrame, IndexedPicture } from '../../content/picture/picture.ts';
 import type { SoldierView } from '../../protocol/view.ts';
@@ -15,6 +15,7 @@ const NORTHEAST = 1;
 const FRAMES_PER_DIRECTION = 3;
 const DIRECTIONS = 8;
 const FIRST_FRAME = 0;
+const HUMVEE = 22;
 
 function sheetFrame(index: number): IndexedFrame {
   return { width: 10 + index, height: 30 + index, offsetX: -5, offsetY: -30 - index, pixels: new Uint8Array((10 + index) * (30 + index)) };
@@ -101,6 +102,26 @@ describe('the bounding box of a shown soldier (GetActualSoldierAnimDims)', () =>
     scene.build(input([soldier({ frame: 1, direction: NORTHEAST })]));
     expect(dims(scene.shownSprite(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(1, NORTHEAST))));
     expect(dims(scene.shownBoundingBox(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(1, NORTH))));
+  });
+
+  it("draws a vehicle's 32-direction sheet at four hi-res steps a facing, one octant clockwise (ConvertAniCodeToAniFrame)", () => {
+    const hiResLayout: SheetLayout = {
+      directions: HI_RES_DIRECTIONS,
+      framesPerDirection: 1,
+      noFrames: true,
+      frameCount: HI_RES_DIRECTIONS,
+    };
+    const hiResPicture: IndexedPicture = { ...picture, frames: Array.from({ length: HI_RES_DIRECTIONS }, (_, i) => sheetFrame(i)) };
+    const scene = new SoldierScene({
+      ...assets,
+      ready: () => ({ picture: hiResPicture, layout: hiResLayout }),
+    } as unknown as SoldierAssets);
+    scene.setSprites(sprites);
+    const shown = Array.from({ length: DIRECTIONS }, (_, direction) => {
+      scene.build(input([soldier({ bodyType: HUMVEE, direction, frame: 2 })]));
+      return dims(scene.shownSprite(SOLDIER));
+    });
+    expect(shown).toEqual([4, 8, 12, 16, 20, 24, 28, 0].map((i) => dims(sheetFrame(i))));
   });
 
   it('has none for a soldier not shown', () => {
