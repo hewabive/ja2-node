@@ -127,10 +127,19 @@ pass, as `EnvironmentController` does, and makes nobody look: the original's `Al
 out.
 
 **Compression in other rules.** Natural healing asks whether time is compressed; ja2-node asks whether the flow is
-strategic (deviation "Time compression for healing"). The original's map runs a real-time turn every 20 ms while
-compressing, so bleeding per world minute depends on the compression level; ja2-node runs real-time turns only in the
-tactical step, for our whole team and the loaded sector, so nobody bleeds on the map screen (gap "Absent mercs between
-hourly updates").
+strategic (deviation "Time compression for healing"). The map screen polls the real-time turn as the tactical screen
+does, every 20 ms of `realMs` (every 4 ticks), right after `realMs` moves and before the dialogue, the automatic pause
+and `updateClock` (`handleMapScreenRealtimeTurns`, `campaign/turn-world.ts`; `Strategic/MapScreen.cc:1618`). It runs
+nothing at X0, while paused (the player's pause, the automatic one, a line's) or with compression stopped, and while
+compressing its check time is `5000 / (speed × 10)` ms, 1 ms or less, so a turn comes at every poll at every speed:
+our whole team and the loaded sector's soldiers bleed, breathe, sober up and regenerate as often per real second at
+5 minutes per second as at 60, twelve times more per world minute (`Strategic/Strategic_Turns.cc:62-77`). The turn
+runs against the loaded sector, frozen otherwise (its tick and clock stand, its smoke and light age by world time),
+or with none loaded against the unloaded world (`33`); the loaded sector's events come out at once with the campaign's
+tick. `DecayBloodAndSmells` waits 5 real seconds of compressed time between passes (`5 × speed` world seconds) and
+nothing with no world loaded (`TileEngine/Smell.cc:220-245`). Deterministic and driver-independent: the poll rides on
+the tick, as the clock does (deviation "Strategic map pacing"). The dead `NOT_USING_TIME_COMPRESSION` branch of
+`HandleStrategicTurn` is not ported (only `SetGameHoursPerSecond` sets that mode, and nothing calls it).
 Starting compression stops every soldier of the loaded sector, cancels their AI actions and drops the game events not
 yet dequeued (`clearTacticalStuffDueToTimeCompression`, `tactical/overhead.ts`); the `tacticalClearedForCompression`
 event it emits makes the client empty its tactical message log, shown and queued lines, as `ClearTacticalMessageQueue`
@@ -180,7 +189,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |
-| The first real-time turn after a sector load, or after the way back to the loaded sector from the map, comes at the first 20 ms count past 5 s | `campaign/absent-mercs.test.ts` "comes at the first 20 ms count …", "comes as long after a return …" |
+| The first real-time turn after a sector load, or after the way back to the loaded sector from the map, comes at the first 20 ms count past 5 s, however recent the map's last turn | `campaign/absent-mercs.test.ts` "comes at the first 20 ms count …", "comes as long after a return …", "comes as long after a compressed stay …" |
+| The map screen runs a real-time turn at every 20 ms poll at every compressed speed, so bleeding, breath and drugs per world minute depend on the speed, twelve times faster at 5 minutes per second than at 60 | `campaign/map-screen-turns.test.ts` "every 20 ms, a turn at each poll …", "so a wounded merc bleeds as much …" |
+| With an underground sector loaded, every compressed poll on the map rolls its claustrophobes | `campaign/map-screen-turns.test.ts` "rolls each claustrophobe …" |
 | `InitBloodCatSectors` stops at sector 254 | `strategic/map/init.test.ts` |
 | Every start of compression clears the loaded sector, not only the first since the map opened: the map screen forgets each frame that compression occurred | `campaign/screens.test.ts` |
 | A speed button starts compression without the clean-up; only the start toggle runs it | `campaign/screens.test.ts` |
@@ -199,8 +210,7 @@ The oracle's `warp` probe runs `WarpGameTime` over every event and compares the 
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
-Not ported: gaps "Absent mercs between hourly updates", "Auto-bandage", "Map screen exit
-checks". Other deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause",
-"Time compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after
-combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time", "Interface lock per source",
-"Options and saves on the map".
+Not ported: gaps "Auto-bandage", "Map screen exit checks". Other deviations of this domain: "Ambient sound events",
+"Ambient light and light schedule", "Real-time pause", "Time compression checks", "Time compression for healing", "World
+clock for smoke and light", "Real-time turn after combat", "Brothel time warp", "Strategic map pacing", "Clock during
+fades", "Prompt time", "Interface lock per source", "Options and saves on the map".

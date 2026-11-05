@@ -254,7 +254,7 @@ scripted command list, so a rerun does the same work and only machine noise vari
 |---|---|---|
 | `enemy-turn` | turn-based battles through a `Session` with the instant driver's semantics (an advance with a 50,000-tick budget, so a stall is reported instead of spinning); the mercs fire once a turn at the nearest visible enemy. The generated arena with 8, 16 and 32 enemies against six mercs and four civilians (plus six militia with 32); on the original data also A9 with 4, 16 and 32 garrison soldiers and the D13 battle of `SaveGame10` | ms per enemy side turn |
 | `realtime` | the patrol arena with 20, 40 and 64 soldiers around six mercs sealed in a bunker, green and yellow; a variant in which combat starts is void | µs per tick |
-| `strategic` | a new campaign with the squad routed so that no sector is loaded, then 7 and 30 world days of compression with one or six mercs; once more with Drassen handed to the player and the Queen woken | ms per world day |
+| `strategic` | a new campaign with the squad routed so that no sector is loaded, then 7 and 30 world days of compression with one or six mercs; once more with Drassen handed to the player and the Queen woken; and six mercs in Drassen with C13 loaded (`-town`: 15 soldiers on the stubs, 32 on the original data), at 60 and at 5 (`-min5`) world minutes per second. The other variants compress at 60 | ms per world day |
 | `autoresolve` | 20 battles a run of 10, 20 and 40 per side | ms per battle |
 | `save` | saves and loads of the 64-soldier arena, a landed new campaign and, on the original data, the largest native save of `$JA2_SAVES_DIR` | ms per save; snapshot, encode, parse and restore as series |
 | `server` | in process, sessions sharing one slice scheduler: 1, 4 and 16 real-time viewer sessions plus one instant battle per four viewers, driven by WebSocket clients in a worker thread | the longest event-loop stall |
@@ -276,7 +276,8 @@ made back to back on one machine compare: the development VM's throughput varies
 | Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | met without margin on the arena: the turn is the cover search's chance-to-get-through traces |
 | Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | met with a wide margin |
 | Real-time tick, worst single tick | ≤ 50 ms | met; above it a tick shows as a hitch at ×1 |
-| Strategic world day, no sector loaded, p95 | ≤ 100 ms | met |
+| Strategic world day, no sector loaded, p95 | ≤ 100 ms | met: 25–45 ms with the map's real-time turn for six mercs, about 10 ms a day more than without it |
+| Strategic world day, a town sector loaded, p95 | ≤ 100 ms | missed: 465 ms on the stubs and 573 ms on the original data at 60 minutes per second, 4.6 s and 5.8 s at 5 (25–30 ms and about 0.18 s before the map ran the real-time turn). Every 20 ms poll runs the whole turn on the loaded sector; `AllTeamsLookForAll` of its smoke decay takes about 60 % |
 | Autoresolve battle, 40 per side, p95 | ≤ 10 ms | met |
 | Save (snapshot, stringify, gzip) | ≤ 100 ms and ≤ 2 MB gzipped | size met widely; time met except the largest native import (at the target at the median) and a session's first save (§2.7) |
 | Load (parse, restore with fresh content) | ≤ 500 ms | met; most of a load is building the content again |
@@ -302,7 +303,7 @@ made back to back on one machine compare: the development VM's throughput varies
 
 | Optimization | Where |
 |---|---|
-| the roster's sorted list reused until the roster changes | `Roster` (`src/sim/campaign/roster.ts`) |
+| the roster's sorted list, and its soldiers for every turn start, reused until the roster changes | `Roster` (`src/sim/campaign/roster.ts`) |
 | enemy counts and the player's knowledge of them for the whole surface map at once, each tested against its per-sector original | `numEnemiesInEverySurfaceSector` (`src/sim/strategic/forces/groups.ts`), `surfaceKnowledgeOfEnemies` (`src/sim/strategic/map/knowledge.ts`) |
 | unchanged sector views reused between frames | `src/server/strategic-view.ts` |
 | view diff by `sameJson` (equal exactly when the `JSON.stringify` outputs are equal, fuzz-tested) | `src/protocol/same-json.ts` |
@@ -312,10 +313,11 @@ made back to back on one machine compare: the development VM's throughput varies
 | advances in 10 ms slices, one slice per event-loop turn; optional worker per session | `src/server/slicing.ts`, `src/server/session-host.ts` (`04` §5.9) |
 | gzip at `Z_BEST_SPEED`, on the thread pool when asynchronous: the default level gives about 40 % smaller files but takes three times longer | `src/server/save-file.ts` |
 
-**Left**: the cover search's chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo
-would not pay) and the path search. Candidates not yet profiled: sight results per tick between position changes,
-path costs within one AI decision, the reachability flood shared by cover and flee searches, allocation in the bullet
-and LOS loops.
+**Left**: the map screen's real-time turn on a loaded sector, run at every 20 ms poll while compressing (§2.2: the sight
+of `AllTeamsLookForAll` in its smoke decay, then the opplist decay and the turn starts); the cover search's
+chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo would not pay) and the path
+search. Candidates not yet profiled: sight results per tick between position changes, path costs within one AI decision,
+the reachability flood shared by cover and flee searches, allocation in the bullet and LOS loops.
 
 ### 2.4 Session hosts
 

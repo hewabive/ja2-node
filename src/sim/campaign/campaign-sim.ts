@@ -8,7 +8,9 @@
 // @src TileEngine/Environment.cc EnvironmentController (the ambient light); GameScreen.cc LeaveTacticalScreen (a leave
 // @src for the map screen asked during a step happens once the step is done); GameScreen.cc MainGameScreenHandle and
 // @src HandleModalTactical (while a stop-time quote plays only the dialogue runs, before the strategic turn, the overhead
-// @src and the meanwhile check, the full-screen region takes the input, and GameLoop.cc UpdateClock runs on, 2026-11-04).
+// @src and the meanwhile check, the full-screen region takes the input, and GameLoop.cc UpdateClock runs on, 2026-11-04);
+// @src Strategic/MapScreen.cc MapScreenHandle (HandleStrategicTurn before HandleDialogue and
+// @src UpdatePausedStatesDueToTimeCompression, all before GameLoop.cc UpdateClock, 2026-11-05).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -98,7 +100,7 @@ import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, s
 import { ShopFlow } from './shop-flow.ts';
 import { storyRefusal } from './story-refusals.ts';
 import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
-import { createUnloadedWorld, drainUnloadedWorldEvents } from './turn-world.ts';
+import { createUnloadedWorld, drainTurnWorldEvents, handleMapScreenRealtimeTurns } from './turn-world.ts';
 
 export interface CampaignCommand {
   readonly type: string;
@@ -633,7 +635,7 @@ export class CampaignSim {
   }
 
   #collectEvents(): void {
-    if (this.#unloadedWorld) this.#events.push(...drainUnloadedWorldEvents(this.#unloadedWorld, this.tick));
+    if (this.#unloadedWorld) this.#events.push(...drainTurnWorldEvents(this.#unloadedWorld, this.tick));
     if (this.economy) for (const e of this.economy.events.splice(0)) this.#events.push({ ...e, tick: this.tick } as SimEvent);
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());
@@ -674,6 +676,7 @@ export class CampaignSim {
     } else if (s.flow === 'autoresolve') this.battle?.stepAutoresolve();
     else {
       s.realMs += TICK_MS;
+      this.#handleStrategicTurn();
       this.talk?.afterStrategicStep();
       this.#updatePausedStatesDueToTimeCompression();
     }
@@ -690,6 +693,11 @@ export class CampaignSim {
     this.#reEvaluateNothingToDo();
     this.#collectEvents();
     this.#syncClockEvents();
+  }
+
+  #handleStrategicTurn(): void {
+    handleMapScreenRealtimeTurns(this);
+    if (this.tactical) this.#events.push(...drainTurnWorldEvents(this.tactical, this.tick));
   }
 
   #stepModalTactical(): void {

@@ -202,5 +202,3 @@ estimates are not compared. Inferred from reading the source:
   `HandleMilitiaDefections` is therefore unreachable.
 - That Deidranna's death never maximises loyalty: `MaximizeLoyaltyForDeidrannaKilled` sits in the enemy branch while
   she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
-
-Not ported: gap "Absent mercs between hourly updates".

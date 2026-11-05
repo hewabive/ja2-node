@@ -5,6 +5,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { SmokeEffectId } from '../../../content/items/explosions.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { CompressMode } from '../../strategic/time/constants.ts';
 import type { TacticalContent } from '../content.ts';
 import { newSmokeEffect, smokeEffectOnTile } from '../explosions/smoke.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
@@ -29,7 +30,7 @@ const WOUNDED = { lifeMax: 80, life: 60, bleeding: 20 };
 function sector(): TacticalSim {
   const sim = newCombatSim(content);
   sim.state.inCombat = false;
-  sim.state.worldClock = { seconds: NOW, paused: false };
+  sim.state.worldClock = { seconds: NOW, paused: false, mode: CompressMode.X1 };
   return sim;
 }
 

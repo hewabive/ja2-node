@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { CompressMode } from '../../strategic/time/constants.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp } from '../perception/opp.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
@@ -22,7 +23,7 @@ function rememberedEnemy(): { t: TacticalState; world: { seconds: number }; enem
   const t = sim.state;
   spawnSoldier(sim, 0, Team.OUR, gridNo(60, 60), Direction.NORTH);
   const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(110, 110), Direction.SOUTH);
-  const world = { seconds: NOW, paused: false };
+  const world = { seconds: NOW, paused: false, mode: CompressMode.X1 };
   t.worldClock = world;
   const ours = t.perception.publicOpp[Team.OUR];
   if (ours) ours[enemy.id] = Opp.SEEN_THIS_TURN;
@@ -50,7 +51,7 @@ describe('real-time turns', () => {
   it('wait while the game is paused, their timer running on, so the first counter after the pause brings one (HandleStrategicTurn)', () => {
     const t = newCombatSim(content).state;
     t.inCombat = false;
-    const world = { seconds: NOW, paused: true };
+    const world = { seconds: NOW, paused: true, mode: CompressMode.X1 };
     t.worldClock = world;
     const clock = createRealtimeClock();
     const turns: number[] = [];
@@ -120,7 +121,7 @@ describe('the real-time turn of our team', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     t.inCombat = false;
-    t.worldClock = { seconds: NOW, paused: false };
+    t.worldClock = { seconds: NOW, paused: false, mode: CompressMode.X1 };
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(60, 60), Direction.NORTH);
     const robot = spawnSoldier(sim, 1, Team.OUR, gridNo(62, 60), Direction.NORTH, { body: Body.ROBOTNOWEAPON });
     const jeep = spawnSoldier(sim, 2, Team.OUR, gridNo(66, 60), Direction.NORTH, { body: Body.JEEP });

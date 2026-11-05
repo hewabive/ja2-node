@@ -135,6 +135,7 @@ export interface LightEffect {
 export interface WorldClockSource {
   readonly seconds: number;
   readonly paused: boolean;
+  readonly mode: number;
 }
 
 const MS_PER_SECOND = 1000;

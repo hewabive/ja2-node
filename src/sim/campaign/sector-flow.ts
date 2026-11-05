@@ -666,6 +666,7 @@ export class SectorFlow {
       enemyPresence: () => this.#enemyPresence(),
       structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),
       inCreatureLair: () => this.#inCreatureLair(),
+      worldLoaded: () => true,
     };
   }
 

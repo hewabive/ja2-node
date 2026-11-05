@@ -3,6 +3,7 @@ import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
+import { CompressMode } from '../strategic/time/constants.ts';
 import { anim, animName } from './anim-states.ts';
 import { adjustNoAPToFinishMove, initNewSoldierAnim, states } from './animation.ts';
 import { internalReduceAttackBusyCount } from './combat/barrier.ts';
@@ -76,7 +77,7 @@ function corpse(at: number, type = ROTTING_STAGE2, bodyType: number = Body.REGMA
 function sector(seconds = NOON): { sim: TacticalSim; t: TacticalState; world: { seconds: number } } {
   const sim = newCombatSim(content);
   const t = sim.state;
-  const world = { seconds, paused: false };
+  const world = { seconds, paused: false, mode: CompressMode.X1 };
   t.worldClock = world;
   t.crows.possible = POSSIBLE;
   return { sim, t, world };

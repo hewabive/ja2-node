@@ -542,9 +542,9 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
   return perAP;
 }
 
-export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean): void {
+export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean, carriedPercent?: number): void {
   if (isVehicleBody(s.bodyType)) return;
-  const adjustment = () => breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s));
+  const adjustment = () => breathAdjustmentForCarriedWeight(carriedPercent ?? carriedWeightPercentOf(ctx.content, s));
   if (!ctx.inCombat) {
     const perAP = i16(idiv(breathPerAP(ctx, s, s.state) * 100, adjustment()));
     let change = bpEffectDueToDrugs(s, i16(UNUSED_APS_PER_REALTIME_TURN * perAP));

@@ -1,10 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Smell.cc DecaySmells, DecayBlood, DecayBloodAndSmells, DropSmell, InternalDropBlood, DropBlood,
-// @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics.
+// @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics; DecayBloodAndSmells's
+// @src check time by compression mode (2026-11-05).
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { idiv, u8, u32 } from '../../core/int.ts';
+import { COMPRESS_SPEEDS, CompressMode } from '../strategic/time/constants.ts';
 import { isWater } from './pathfinding.ts';
 import { Body, NOWHERE, type Soldier } from './soldier.ts';
 
@@ -29,6 +31,7 @@ const BLOOD_STRENGTH_MASK = 0xfc;
 const SMELL_MUDDY_DIVISOR = 3;
 const SMELL_COMBINE_DIVISOR = 5;
 const REALTIME_DECAY_SECONDS = 100;
+const COMPRESSED_DECAY_REAL_SECONDS = 5;
 const SHOWN_POOL_CREATURE = 0x08;
 const SHOWN_POOL_STRENGTH = 0x07;
 const UNSEEN = -1;
@@ -193,9 +196,14 @@ function decayBlood(w: SmellWorld): void {
   for (let g = 0; g < WORLD_MAX; g++) if (blood[g]) decayBloodAt(w, g);
 }
 
-export function decayBloodAndSmells(w: SmellWorld, worldSeconds: number): void {
+function decayCheckSeconds(compressMode: number): number {
+  if (compressMode < CompressMode.MIN5) return REALTIME_DECAY_SECONDS;
+  return COMPRESSED_DECAY_REAL_SECONDS * (COMPRESS_SPEEDS[compressMode] ?? 0);
+}
+
+export function decayBloodAndSmells(w: SmellWorld, worldSeconds: number, compressMode: number = CompressMode.X1): void {
   const m = w.smell;
-  if (u32(worldSeconds - m.lastDecaySeconds) <= REALTIME_DECAY_SECONDS) return;
+  if (u32(worldSeconds - m.lastDecaySeconds) <= decayCheckSeconds(compressMode)) return;
   m.lastDecaySeconds = worldSeconds;
   decayBlood(w);
   decaySmells(m);

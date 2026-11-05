@@ -245,6 +245,20 @@ describe('the real-time turn after a sector load and after a return from the map
     expect(waited).toBeGreaterThan(RT_TURN_MS);
     expect(waited).toBeLessThanOrEqual(RT_TURN_MS + STRATEGIC_OVERHEAD_MS);
   });
+
+  it('comes as long after a compressed stay on the map, though the map ran a turn at every poll', async () => {
+    const c = await landedInA9(71);
+    await order(c, { type: 'mapScreen' });
+    await order(c, { type: 'compressTime', mode: 2 });
+    c.live.advance(ON_THE_MAP);
+    const s = c.session.campaign.state;
+    expect(s.realMs - s.sectorFlow.realtimeClock.lastTurnMs).toBeLessThan(STRATEGIC_OVERHEAD_MS);
+    await order(c, { type: 'tacticalScreen' });
+    const backAt = tactical(c).clockMs;
+    const waited = firstTurnAfter(c, backAt);
+    expect(waited).toBeGreaterThan(RT_TURN_MS);
+    expect(waited).toBeLessThanOrEqual(RT_TURN_MS + STRATEGIC_OVERHEAD_MS);
+  });
 });
 
 describe('the gas test of a merc of ours off the loaded map (Soldier_Control.cc EVENT_BeginMercTurn, SmokeEffects.cc GetSmokeEffectOnTile)', () => {

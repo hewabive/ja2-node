@@ -63,7 +63,8 @@ sighting pause", "Suppression stance change from the end of the previous one").
 skull animation in wall-clock time (deviation "Our merc's death").
 
 **Our mercs bleed off the tactical map too.** Every turn start of our whole team bleeds them, wherever they are (`10`),
-with the doctor test against their own sector. Their life loss draws no damage number (`lifeLost` is the loaded map's
+with the doctor test against their own sector, on the tactical screen every 5 s and on the compressed map screen at every
+20 ms poll, so the bleeding per world minute depends on the speed (`15` §2). Their life loss draws no damage number (`lifeLost` is the loaded map's
 damage display, `fDisplayDamage` of a soldier in the sector); their grunt and portrait flash (`damageFeedback`,
 `Tactical/Soldier_Control.cc:8760`) come as in the original.
 
@@ -190,7 +191,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | An insured merc dying off the tactical map with no enemy in the loaded sector is a suspicious death: the test reads the loaded sector, not his (`Strategic/Strategic_Merc_Handler.cc:103`) | `src/sim/campaign/death-off-the-map.test.ts` "an insured merc dying off the map …" |
 | A merc of ours dying while the map screen is up leaves his body, every item and his keys in his sector (the one he left, if travelling) at a random tile of the loaded or last loaded map, buddies anywhere comment, and compression stops | `src/sim/campaign/death-in-the-map-screen.test.ts` "leaves his body, every item and his keys …", "of a merc between sectors …" |
 | A merc of the loaded sector lying collapsed who dies while the map screen is up starts his death animation and gets the map screen's body in the loaded sector's records, which the unload overwrites, so he leaves no body anywhere; standing, he dies at once in tactical terms and the map branch is skipped; per source, the oracle (task 7) confirms | `src/sim/campaign/death-in-the-map-screen.test.ts` "lying collapsed, starts his death animation …", "standing, dies at once …" |
-| A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:728`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …" |
+| A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:728`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …"; through the map screen's turn, `src/sim/campaign/map-screen-turns.test.ts` "bleeds a collapsed civilian to death there …" |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).

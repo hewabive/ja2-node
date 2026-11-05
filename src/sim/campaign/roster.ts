@@ -498,6 +498,7 @@ interface OrderedMercs {
   readonly records: readonly MercRecord[];
   readonly ids: readonly number[];
   readonly mercs: readonly RosterMerc[];
+  readonly soldiers: readonly Soldier[];
 }
 
 export class Roster implements CrewPort {
@@ -546,12 +547,20 @@ export class Roster implements CrewPort {
   }
 
   all(): readonly RosterMerc[] {
+    return this.#orderedMercs().mercs;
+  }
+
+  soldiers(): readonly Soldier[] {
+    return this.#orderedMercs().soldiers;
+  }
+
+  #orderedMercs(): OrderedMercs {
     const known = this.#ordered;
-    if (known && this.#stillOrdered(known)) return known.mercs;
+    if (known && this.#stillOrdered(known)) return known;
     const records = [...this.#state.mercs.values()];
     const mercs = [...records].sort((a, b) => a.soldier.id - b.soldier.id).map((r) => this.#facade(r));
-    this.#ordered = { records, ids: records.map((r) => r.soldier.id), mercs };
-    return mercs;
+    this.#ordered = { records, ids: records.map((r) => r.soldier.id), mercs, soldiers: mercs.map((m) => m.soldier) };
+    return this.#ordered;
   }
 
   #stillOrdered(known: OrderedMercs): boolean {

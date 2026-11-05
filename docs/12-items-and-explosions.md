@@ -205,8 +205,9 @@ the sandbox).
 native save, and other modules read them only through `drugs.ts`. Taking one costs no AP and needs none, as in the
 original; `count: 'all'` applies the cursor's SHIFT stack, so a booster's status is the stack's last and a beer drinks
 into the next bottle (`Tactical/Interface_Items.cc:2693`). A course runs where turn starts run: for our whole team,
-mercs off the loaded map included, with the crash's morale, and for the loaded sector's other soldiers, but not on the
-map screen (gaps "Absent mercs between hourly updates").
+mercs off the loaded map included, with the crash's morale, and for the loaded sector's other soldiers, on the tactical
+screen and on the compressed map screen, where a turn comes at every poll, so a course lasts fewer world minutes the
+slower the compression (`15` §2).
 
 **What the player sees.** Our soldiers and strategic mercs carry the derived `drunk` level and `adrenaline` state
 (`drugView`); the counters, and so the turns left, stay hidden (D16, `29` §7). From them the client draws the face's

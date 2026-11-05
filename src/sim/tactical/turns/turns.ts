@@ -24,11 +24,14 @@
 // @src EndTurnEvents, EVENT_BeginMercTurn's low breath flag reset, the x-ray turn-offs of EVENT_BeginMercTurn and
 // @src HandleTacticalEndTurn (2026-11-04); FOR_EACH_IN_TEAM(OUR_TEAM) of HandleTacticalEndTurn's first pass and of
 // @src BeginTeamTurn, our mercs off the loaded map included; Strategic/Strategic_Turns.cc SyncStrategicTurnTimes and its
-// @src call in CommonEnterCombatModeCode (2026-11-05).
+// @src call in CommonEnterCombatModeCode (2026-11-05); Strategic/Strategic_Turns.cc HandleStrategicTurn's map screen gate
+// @src (IsTimeBeingCompressed) and its compressed check time (the dead NOT_USING_TIME_COMPRESSION branch left out), polled
+// @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv, u8, u32 } from '../../../core/int.ts';
+import { CompressMode } from '../../strategic/time/constants.ts';
 import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
@@ -152,8 +155,9 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   }
   clearGassedAtTurnStart(t, s);
   if (s.blindedCounter > 0 && --s.blindedCounter === 0) handleSight(t, s, SightFlags.LOOK);
-  s.weightCarriedAtTurnStart = carriedWeightPercentOf(t.content, s);
-  unusedAPsToBreath(pointsContext(t), s, s.gassed);
+  const carriedPercent = carriedWeightPercentOf(t.content, s);
+  s.weightCarriedAtTurnStart = carriedPercent;
+  unusedAPsToBreath(pointsContext(t), s, s.gassed, carriedPercent);
   resetLowBreathWarning(t, s);
   if (s.turnsUntilCanSayHeardNoise > 0) s.turnsUntilCanSayHeardNoise--;
   if (s.placed) checkForBreathCollapse(t, s);
@@ -181,11 +185,28 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
 }
 
 export const RT_TURN_MS = 5000;
+const RT_COMPRESSION_TACTICAL_TURN_MODIFIER = 10;
 const ROTTING_CORPSES_INTERVAL_SECONDS = 1200;
 export const STRATEGIC_OVERHEAD_MS = 20;
 
-function gamePaused(t: TacticalState): boolean {
-  return t.worldClock?.paused === true;
+export interface StrategicTurnPoll {
+  readonly nowMs: number;
+  readonly paused: boolean;
+  readonly mapScreen: boolean;
+  readonly compressing: boolean;
+  readonly compressSpeed: number;
+  readonly inCombat: boolean;
+}
+
+function tacticalScreenPoll(t: TacticalState): StrategicTurnPoll {
+  return {
+    nowMs: t.clockMs,
+    paused: t.worldClock?.paused === true,
+    mapScreen: false,
+    compressing: false,
+    compressSpeed: 0,
+    inCombat: t.inCombat,
+  };
 }
 
 export function syncStrategicTurnTimes(clock: RealtimeClock, nowMs: number): void {
@@ -198,23 +219,35 @@ export function rewindRealtimeTurnStamps(clock: RealtimeClock, rewindMs: number)
 }
 
 export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): void {
-  if (!t.inCombat && t.turn.forceRealtimeTurn) {
-    t.turn.forceRealtimeTurn = false;
-    clock.lastTurnMs = t.clockMs;
-    handleTacticalEndTurn(t, clock);
-    forceOpplistDecay(t, clock);
-    return;
-  }
-  if (t.clockMs - clock.lastOverheadMs < STRATEGIC_OVERHEAD_MS) return;
-  clock.lastOverheadMs = t.clockMs;
-  if (gamePaused(t)) return;
-  if (t.inCombat) {
-    clock.lastTurnMs = t.clockMs;
-    return;
-  }
-  if (t.clockMs - clock.lastTurnMs <= RT_TURN_MS) return;
-  clock.lastTurnMs = t.clockMs;
+  if (handleForcedRealtimeTurn(t, clock, t.clockMs)) return;
+  if (strategicTurnDue(clock, tacticalScreenPoll(t))) handleTacticalEndTurn(t, clock);
+}
+
+export function handleForcedRealtimeTurn(t: TacticalState, clock: RealtimeClock, nowMs: number): boolean {
+  if (t.inCombat || !t.turn.forceRealtimeTurn) return false;
+  t.turn.forceRealtimeTurn = false;
+  clock.lastTurnMs = nowMs;
   handleTacticalEndTurn(t, clock);
+  forceOpplistDecay(t, clock);
+  return true;
+}
+
+function realtimeTurnCheckMs(poll: StrategicTurnPoll): number {
+  if (!poll.compressing) return RT_TURN_MS;
+  return idiv(RT_TURN_MS, poll.compressSpeed * RT_COMPRESSION_TACTICAL_TURN_MODIFIER);
+}
+
+export function strategicTurnDue(clock: RealtimeClock, poll: StrategicTurnPoll): boolean {
+  if (poll.nowMs - clock.lastOverheadMs < STRATEGIC_OVERHEAD_MS) return false;
+  clock.lastOverheadMs = poll.nowMs;
+  if (poll.paused || (poll.mapScreen && !poll.compressing)) return false;
+  if (poll.inCombat) {
+    clock.lastTurnMs = poll.nowMs;
+    return false;
+  }
+  if (poll.nowMs - clock.lastTurnMs <= realtimeTurnCheckMs(poll)) return false;
+  clock.lastTurnMs = poll.nowMs;
+  return true;
 }
 
 function nonCombatDecayPublicOpplist(t: TacticalState, clock: RealtimeClock, now: number): void {
@@ -243,7 +276,7 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
   decayBombTimers(t);
   decaySmokeEffects(t);
   decayLightEffects(t);
-  decayBloodAndSmells(t, now);
+  if (t.sectorHooks.worldLoaded(t)) decayBloodAndSmells(t, now, t.worldClock?.mode ?? CompressMode.X1);
   t.sectorHooks.addPendingEnemies(t);
   nonCombatDecayPublicOpplist(t, clock, now);
   if (!t.inCombat) {

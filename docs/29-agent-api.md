@@ -147,15 +147,24 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
 
 `compressTime {mode}` and `stopTime` are the map screen's clock buttons; the player's pause is not a command, the manual
 driver is the pause. A strategic `advance` (one with a world-time field, `compressionStopped` or `mode`) starts
-compression itself and stops where the original stops it (`04` §4.2); the clock's `canCompress` and `compressRefusal`
-say beforehand whether it would start. A timed bomb ticking on the loaded map refuses compression (`activeTimedBomb`)
-until it goes off or the sector unloads. `status.flow` names the flow (`tactical`, `strategic`, `autoresolve`, `laptop`,
-`meanwhile`, `endgame`, `ended`); `mapScreen` and `tacticalScreen` switch between the first two like the original's
-screen toggle, and the loaded sector stays frozen on the map (deviation "Map and tactical screens"). `tacticalScreen` and
-a sector load from the map lift the clock's `pauseLocked`, and `tacticalScreen` its `paused` unless the player paused
-(`15`). A head miner's line other than "creatures gone" takes tactical to the map screen before it is said (deviation
-"Head miner map switch"). The sleep and wake notification is a client setting: an agent that wants the original's stop
-passes `events: ['fellAsleep', 'wokeUp']` beside its time target.
+compression itself, at 5 world minutes per second unless `mode` says otherwise, and stops where the original stops it
+(`04` §4.2); the clock's `canCompress` and `compressRefusal` say beforehand whether it would start. A timed bomb ticking
+on the loaded map refuses compression (`activeTimedBomb`) until it goes off or the sector unloads. `status.flow` names
+the flow (`tactical`, `strategic`, `autoresolve`, `laptop`, `meanwhile`, `endgame`, `ended`); `mapScreen` and
+`tacticalScreen` switch between the first two like the original's screen toggle, and the loaded sector stays frozen on
+the map but for the real-time turn below (deviation "Map and tactical screens"). `tacticalScreen` and a sector load from
+the map lift the clock's `pauseLocked`, and `tacticalScreen` its `paused` unless the player paused (`15`). A head
+miner's line other than "creatures gone" takes tactical to the map screen before it is said (deviation "Head miner map
+switch"). The sleep and wake notification is a client setting: an agent that wants the original's stop passes `events:
+['fellAsleep', 'wokeUp']` beside its time target.
+
+While time is compressed the map screen runs the real-time turn every 20 ms of real time, at every speed, for every merc
+of ours wherever he is and for the loaded sector's soldiers (`15` §2): wounded mercs bleed, tired ones get their
+breath back, drugs wear off and the regeneration booster heals once per turn. Bleeding, breath and drugs per world
+minute therefore depend on the speed: twelve times more at 5 minutes per second (the default) than at 60, so a wounded
+merc loses about twelve times less life over a stretch compressed at 60 minutes per second. A merc who bleeds to death
+on the map stops compression with `compressionStopped {reason: 'mercDied'}` after his `mercDied`, which ends an `advance`
+unless it passed `compressionStopped: false`. Bleeding and dying lines pause the map while they are said (below).
 
 `compressionStarted {mode}` and `compressionStopped {reason}` follow whether time runs compressed
 (`IsTimeBeingCompressed`), so a speed picked while time stands and an unpause start it too; a line's pause (below) marks

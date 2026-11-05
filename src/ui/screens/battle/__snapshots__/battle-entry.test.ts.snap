@@ -264,22 +264,22 @@ glyphs blockfont2 23,114 n=7 fg=145
 glyphs blockfont2 76,114 n=7 fg=145
 glyphs blockfont2 133,114 n=9 fg=145
 glyphs blockfont2 190,114 n=4 fg=145
-glyphs blockfont2 220,114 n=3 fg=145
+glyphs blockfont2 218,114 n=4 fg=145
 glyphs blockfont2 31,124 n=4 fg=145
 glyphs blockfont2 76,124 n=7 fg=145
 glyphs blockfont2 133,124 n=9 fg=145
 glyphs blockfont2 190,124 n=4 fg=145
-glyphs blockfont2 220,124 n=3 fg=145
+glyphs blockfont2 218,124 n=4 fg=145
 glyphs blockfont2 25,134 n=6 fg=145
 glyphs blockfont2 76,134 n=7 fg=145
 glyphs blockfont2 133,134 n=9 fg=145
 glyphs blockfont2 190,134 n=4 fg=145
-glyphs blockfont2 220,134 n=3 fg=145
+glyphs blockfont2 218,134 n=4 fg=145
 glyphs blockfont2 28,144 n=6 fg=145
 glyphs blockfont2 76,144 n=7 fg=145
 glyphs blockfont2 133,144 n=9 fg=145
 glyphs blockfont2 190,144 n=4 fg=145
-glyphs blockfont2 220,144 n=3 fg=145
+glyphs blockfont2 218,144 n=4 fg=145
 glyphs blockfont2 31,341 n=4 fg=145
 image interface/prebattlebutton.sti#0 27,54
 clip 30,56 61x28

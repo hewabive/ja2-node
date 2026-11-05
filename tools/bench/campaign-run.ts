@@ -121,11 +121,11 @@ export function answerPrompts(c: Campaign): number {
   throw new Error('bench: prompts keep coming');
 }
 
-export function leaveSector(c: Campaign): void {
+export function leaveSector(c: Campaign, to = ESCAPE_SECTOR): void {
   const campaign = c.campaignSession.campaign;
   const mercs = c.campaignSession.roster?.all() ?? [];
   for (const m of mercs) {
-    const routed = c.session.dispatch({ type: 'route', soldier: m.id, to: ESCAPE_SECTOR });
+    const routed = c.session.dispatch({ type: 'route', soldier: m.id, to });
     if (!routed.ok) throw new Error(`bench: route refused: ${routed.reason ?? ''}`);
   }
   c.session.advance({ ticks: LEAVE_TICKS, events: ['sectorUnloaded'] });
@@ -138,10 +138,10 @@ export function worldSeconds(c: Campaign): number {
 
 export class CompressionRefused extends Error {}
 
-export function compressUntil(c: Campaign, target: WorldTimeTarget): StopReport[] {
+export function compressUntil(c: Campaign, target: WorldTimeTarget, mode: number = CompressMode.MIN60): StopReport[] {
   const reports: StopReport[] = [];
   for (let round = 0; round < PROMPT_ROUNDS; round++) {
-    const report = c.session.advance({ worldTime: target, compressionStopped: false, mode: CompressMode.MIN60 });
+    const report = c.session.advance({ worldTime: target, compressionStopped: false, mode });
     reports.push(report);
     if (report.reason === 'worldTime' || report.reason === 'ended') return reports;
     if (report.reason === 'refused') throw new CompressionRefused(report.refusal ?? 'compression refused');
