@@ -1,8 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { buildStubAnimationScripts } from '../../../stubs/anim-scripts.ts';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { addStubTank, addStubVehicle } from '../../../tests/support/vehicles.ts';
 import { ticksPerFrame } from '../../content/anim/schedule-track.ts';
+import { stateId } from '../../content/anim/tables.ts';
+import { splitAnimationScripts } from '../../content/anim/timelines.ts';
+import { MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { TICK_MS } from '../clock.ts';
@@ -259,5 +263,38 @@ describe('the move paused for a turn (SOLDIER_PAUSEANIMOVE)', () => {
     const cat = spawnSoldier(sim, 40, Team.CREATURE, gridNo(90, 90), Direction.NORTH, { body: Body.BLOODCAT });
     setDesiredDirection(sim.state, cat, Direction.NORTH);
     expect(cat.pauseAnimMove).toBe(false);
+  });
+});
+
+describe("a tank's recoil (Soldier_Ani.cc codes 412 and 413)", () => {
+  const NUDGE_FORWARD = 412;
+  const NUDGE_BACKWARD = 413;
+  const NUDGES = 3;
+  const NUDGE = Math.fround(0.2);
+  const END_OF_ANIMATION = 499;
+
+  async function withRecoilingTankShot(): Promise<TacticalContent> {
+    const scripts = parseAnimationScripts(await buildStubAnimationScripts());
+    const codes = new Uint16Array(scripts.codes);
+    const shot = stateId(content.animations, 'TANK_SHOOT') * MAX_FRAMES_PER_ANIM;
+    const nudges = (code: number) => Array.from({ length: NUDGES }, () => code);
+    codes.fill(0, shot, shot + MAX_FRAMES_PER_ANIM);
+    codes.set([1, ...nudges(NUDGE_BACKWARD), 2, ...nudges(NUDGE_FORWARD), 3, END_OF_ANIMATION], shot);
+    return { ...content, timeline: splitAnimationScripts({ codes }).logic };
+  }
+
+  it('moves the tank back a fifth of a world unit a code along its facing, then forward again to where it began', async () => {
+    const recoiling = await withRecoilingTankShot();
+    const t = newCombatSim(recoiling).state;
+    const tank = addStubTank(t, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: gridNo(80, 80), direction: Direction.SOUTH });
+    const start = { x: tank.x, y: tank.y, gridNo: tank.gridNo };
+    initNewSoldierAnim(t, tank, anim(recoiling, 'TANK_SHOOT'), 0, false);
+    expect({ x: tank.x, y: tank.y }).toEqual({ x: start.x, y: start.y });
+    adjustToNextAnimationFrame(t, tank);
+    let pushedBack = start.y;
+    for (let k = 0; k < NUDGES; k++) pushedBack = Math.fround(pushedBack - NUDGE);
+    expect({ x: tank.x, y: tank.y, gridNo: tank.gridNo }).toEqual({ x: start.x, y: pushedBack, gridNo: start.gridNo });
+    adjustToNextAnimationFrame(t, tank);
+    expect({ x: tank.x, y: tank.y, gridNo: tank.gridNo }).toEqual(start);
   });
 });

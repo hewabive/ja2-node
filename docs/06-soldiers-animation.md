@@ -86,6 +86,8 @@ A tank turns one of its 32 facings per frame instead, its direction changing at 
 never turns. A vehicle or creature given a new facing holds its move until it faces it (`pauseAnimMove`), so a creature
 stops at each bend of its path to turn and a vehicle other than a tank never moves along a path it does not face.
 `WALKING` steps the body's walking speed per frame; every other state steps its own, whatever the body's table says.
+Codes 412 and 413 nudge the soldier along his facing in the simulation: a tank's shot rocks it back and forward
+between two frames.
 
 **One palette per soldier.** The palette of the soldier's standing sheet with the hair, skin, vest and pants
 replacements serves every sheet he shows: on the Gold data a body's sheets differ only at entries soldiers never use
@@ -167,6 +169,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | The queen picks her spit sheet by the direction from two tiles east of her to the target, and has five sheets for eight directions | `hud-view.test.ts`, `src/content/anim/surface-choice.test.ts` |
 | A tank takes four frames to turn an octant, its direction changing only at the fourth; any other vehicle never turns, so one that does not face the first step of its path never moves | `animation.test.ts` "turns a tank a facing in four 32-step facings …", "never turns a vehicle other than a tank", `src/sim/campaign/vehicle-boarding.test.ts` "never moves a vehicle facing away …" |
 | A creature stands still at a bend of its path until it faces the next step; a merc turns as he walks | `movement.test.ts` "holds a creature on its tile …", `animation.test.ts` "is set when a tank or a creature is given a new facing …" |
+| A tank's recoil moves it in the simulation, back along its facing and forward again, not only on screen | `animation.test.ts` "moves the tank back a fifth of a world unit a code …" |
 | Only the regular male's prone sheet takes its z strips from frame 5; the big man's and the woman's take frame 0 | `src/content/anim/zstrip-frames.test.ts` |
 
 Not pinned yet:

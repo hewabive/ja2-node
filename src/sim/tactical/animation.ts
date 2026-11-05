@@ -11,8 +11,8 @@
 // @src step of EVENT_InternalSetSoldierDesiredDirection (2026-11-01); CalculateSoldierAniSpeed's adrenaline halving
 // @src (2026-11-04); SoldierGotoStationaryStance's tread in deep water and SetSoldierAniSpeed's stats of the soldier a
 // @src follower waits on (fUseMoverrideMoveSpeed, 2026-11-04); a vehicle's turn through ubHiResDirection and the
-// @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier
-// @src (2026-11-05).
+// @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier,
+// @src Soldier_Ani.cc codes 412 and 413 (2026-11-05).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -95,6 +95,9 @@ const INJURED_CHANGE_THRESHOLD = 30;
 const PAUSE_ALL_UPDATES_DELAY = 10000;
 
 const OP_PAUSE_ONE_FRAME = 402;
+const OP_NUDGE_FORWARD = 412;
+const OP_NUDGE_BACKWARD = 413;
+const NUDGE_DISTANCE = 0.2;
 const OP_NONINT_DONE = 442;
 const OP_HOP_FENCE_STEP = 443;
 const OP_END_HOP_FENCE = 444;
@@ -717,6 +720,12 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
   switch (code) {
     case OP_PAUSE_ONE_FRAME:
       s.pausedMove = true;
+      return 'continue';
+    case OP_NUDGE_FORWARD:
+      moveMercFacingDirection(t, s, NUDGE_DISTANCE);
+      return 'continue';
+    case OP_NUDGE_BACKWARD:
+      moveMercFacingDirection(t, s, -NUDGE_DISTANCE);
       return 'continue';
     case OP_NONINT_DONE:
       s.inNonInterruptibleAnimation = false;
