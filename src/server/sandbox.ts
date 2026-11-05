@@ -117,7 +117,7 @@ export class TacticalSession implements SessionSim {
 }
 
 const SANDBOX_SQUAD_INDEX = 0;
-const SANDBOX_CREW: Pick<SoldierView, 'asleep' | 'squad' | 'vehicle'> = { asleep: false, squad: SANDBOX_SQUAD_INDEX, vehicle: null };
+const SANDBOX_CREW: Pick<SoldierView, 'asleep' | 'squad'> = { asleep: false, squad: SANDBOX_SQUAD_INDEX };
 
 function withSandboxCrew(views: readonly SoldierView[]): SoldierView[] {
   return views.map((v) => (v.team === Team.OUR ? { ...v, ...SANDBOX_CREW } : v));

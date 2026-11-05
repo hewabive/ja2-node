@@ -135,8 +135,17 @@ them to its own; a group arriving puts the vehicle in first, and its passengers 
 (`tactical/vehicle-passengers.ts`). Boarding on the map screen seats a merc on the loaded map at the vehicle; a wreck
 kills the seated passengers through tactical damage and the others through the stand-in the helicopter's crash uses.
 Helicopter passengers over the loaded sector stay out of the merc slots, in the sector through the roster's
-`offGridInSector` (gaps "Turn-based hooks"). The rules for where passengers count (sight, targets, orders, medics,
-selections, the view) are gaps "Turn-based hooks".
+`offGridInSector` (gaps "Turn-based hooks").
+
+**Where the mercs aboard count.** The original keeps them in by default and skips the seat where it says so; ja2-node
+reads the seat at the same places (`tactical/vehicle-presence.ts`). They look, hear and radio, and enemies see them at
+the vehicle's tile (`08`); a vehicle of ours never looks. The cursor never finds them (`findSoldierAtGridNo`, the
+client's `findSoldier`), they take no orders (`crewRefusal` in `actRefusal`, `inVehicle`) and are no member of a
+multi-selection. A vehicle of ours is ours to command only with somebody aboard (`IsOwnedMerc`, `noDriver`), and a
+vehicle with nobody aboard, an enemy tank or a civilian car, gets no locator at its AI turn. The view lists them with
+their seat at the vehicle's tile and the vehicle with its passengers, whom its squad's team panel shows in its place;
+the driver shows the vehicle's APs (`29` §8.8). Auto-bandage and the AI's medics, which skip them, are not ported
+(gaps "Auto-bandage"); a merc's light in a vehicle is the client's (deviation "Merc light in a vehicle").
 
 **Quest action items.** The Kingpin and museum alarms and the brothel room scene are action items the bomb queue runs
 like any other (`12` §6): our soldiers set them off by stepping on their pressure plates or on a switch of their
@@ -177,6 +186,8 @@ says otherwise:
 | A crash or a wreck that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts`, `src/sim/campaign/vehicle-destruction.test.ts`, `src/sim/campaign/vehicle-passengers.test.ts` "are spared behind a merc already dead …" |
 | A passenger killed with his vehicle loses 100 life and 100 breath to bleeding on its tile and, sitting, dies at once with no fall to play | `src/sim/campaign/vehicle-passengers.test.ts` "each take 100 life …" |
 | A passenger breathes the gas of his vehicle's tile without a mask, and is tested again at every placement of the vehicle, its own tile included | `src/sim/tactical/vehicle-passengers.test.ts` "is gassed on the vehicle's tile …", "tests his tile's gas again …" |
+| The mercs aboard stay in the sector at the vehicle's tile: they look and are seen, yet the cursor and every order that names a soldier pass them by, though their merc slots come before the vehicle's | `src/sim/tactical/vehicle-presence.test.ts` "lets the mercs aboard look …", "are never found on the vehicle's tile …", "are no target of an order …" |
+| A vehicle of ours with nobody aboard is not ours: it cannot be selected or ordered, though it stays on our team and squad | `src/sim/tactical/vehicle-presence.test.ts` "is not ours to select or order …", `src/sim/campaign/vehicle-presence.test.ts` "is no longer ours to select …" |
 | The passengers enter a sector before their vehicle, in the slots below its 18 or 19, and come to its tile only when it is placed | `src/sim/tactical/insertion.test.ts` "is registered in his merc slot without a tile …", `src/sim/campaign/vehicle-passengers.test.ts` "come in with it …" |
 | A vehicle entering a sector takes the closest tile its structure fits on in the insertion direction, else in the first of the eight that fits, and keeps that direction as its insertion direction | `src/sim/tactical/insertion.test.ts` "turns to the first of the eight directions …" |
 | A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most; a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts` |

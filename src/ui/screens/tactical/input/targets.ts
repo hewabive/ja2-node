@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Find.h SoldierFindFlags; Soldier_Find.cc GetSoldierFindFlags, IsValidTargetMerc,
+// @src src/game/Tactical/Soldier_Find.h SoldierFindFlags; Soldier_Find.cc GetSoldierFindFlags (a vehicle of ours owned
+// @src only with somebody aboard, 2026-11-05), IsValidTargetMerc,
 // @src FindRelativeSoldierPosition (head above 20 %, the middle down to 60 % standing or 70 % crouched, the feet below),
-// @src FindSoldier with FINDSOLDIERSAMELEVEL (the soldiers on the interface level whose screen rectangle, edges
-// @src included, holds the pointer or who stand on its tile, the selected merc passed over in the action modes unless
+// @src FindSoldier with FINDSOLDIERSAMELEVEL (never a passenger; the soldiers on the interface level whose screen
+// @src rectangle, edges included, holds the pointer or who stand on its tile, the selected merc passed over in the action modes unless
 // @src his action cursor is the aid cursor, a vehicle only by his picture, the one whose rectangle reaches lowest on
 // @src screen, the first of a tie); FindSoldier with FIND_SOLDIER_BEGINSTACK and the stack it keeps (the stacked
 // @src soldier while the pointer is on him, none while the stack is on the ground of its tile), CycleSoldierFindStack
@@ -12,7 +13,7 @@
 
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox, SoldierHeight } from '../environment.ts';
-import { isDead, isUnconscious, isVehicleBody, OUR_TEAM, okInterrupt } from '../soldiers.ts';
+import { isDead, isInVehicle, isOwned, isUnconscious, isVehicleBody, OUR_TEAM, okInterrupt } from '../soldiers.ts';
 
 export const FindFlag = {
   OWNED: 0x1,
@@ -28,8 +29,9 @@ export const FindFlag = {
 export function soldierFindFlags(s: SoldierView, selected: number | null, view: PlayerView | null): number {
   let flags = 0;
   if (s.id === selected) flags |= FindFlag.SELECTED;
-  if (s.team === OUR_TEAM) flags |= FindFlag.OWNED;
-  else if (s.hostile === true) flags |= FindFlag.ENEMY;
+  if (s.team === OUR_TEAM) {
+    if (isOwned(s)) flags |= FindFlag.OWNED;
+  } else if (s.hostile === true) flags |= FindFlag.ENEMY;
   else flags |= FindFlag.NEUTRAL;
   if (view?.combat && s.team === OUR_TEAM && !okInterrupt(s)) flags |= FindFlag.NOINTERRUPT;
   if (isUnconscious(s)) flags |= FindFlag.UNCONSCIOUS;
@@ -77,6 +79,7 @@ function* pointedSoldiers(
   const x = Math.floor(at.x);
   const y = Math.floor(at.y);
   for (const s of soldiers) {
+    if (isInVehicle(s)) continue;
     if (s.level !== at.level) continue;
     const box = world.soldierBox(s.id);
     if (!box) continue;

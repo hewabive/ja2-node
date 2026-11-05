@@ -5,7 +5,8 @@
 // @src QUOTE_UNDER_HEAVY_FIRE for the targeted merc),
 // @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount; Handle_UI.cc
 // @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team); the HandleKilledQuote of
-// @src InternalReduceAttackBusyCount (2026-10-30), its QUOTE_OUT_OF_AMMO of fSayAmmoQuotePending (2026-10-30).
+// @src InternalReduceAttackBusyCount (2026-10-30), its QUOTE_OUT_OF_AMMO of fSayAmmoQuotePending (2026-10-30);
+// @src NoticeUnseenAttacker's vehicle of ours, which notices nobody (2026-11-05).
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
@@ -45,6 +46,7 @@ import { selectedSoldier } from '../selection.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
+import { vehicleOfOurs } from '../vehicle-presence.ts';
 import { handleAnyStatChangesAfterAttack, StatCause, statChange } from './experience.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { soldierToSoldierLos } from './positions.ts';
@@ -144,7 +146,7 @@ export function noticeUnseenAttacker(t: TacticalState, att: Soldier, def: Soldie
   if (att.attackingWeapon === (t.content.items.byName.get('DART_GUN')?.index ?? -2)) {
     if (skillCheck(t, def, SkillCheckReason.NOTICE_DART, 0) < 0) return;
   }
-  if (def.bodyType === Body.LARVAE_MONSTER) return;
+  if (def.bodyType === Body.LARVAE_MONSTER || vehicleOfOurs(def)) return;
   const oldOpp = def.oppList[att.id] ?? 0;
   let sees = false;
   if (pythSpacesAway(att.gridNo, def.gridNo) <= MAX_DISTANCE_VISIBLE) {

@@ -12,9 +12,10 @@ import { FACT_OK_USE_HUMMER } from '../../src/sim/strategic/forces/helicopter.ts
 import { addVehicleToList } from '../../src/sim/strategic/forces/vehicles.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { setFact } from '../../src/sim/strategic/narrative/facts.ts';
-import { createFromPlacementParts } from '../../src/sim/tactical/creation.ts';
+import { createFromPlacementParts, newSoldierCreate, tacticalCreateSoldier } from '../../src/sim/tactical/creation.ts';
 import { NEUTRAL_POPULATION, soldierSlotTaken } from '../../src/sim/tactical/init-list.ts';
 import { addSoldierToSector, Insertion } from '../../src/sim/tactical/insertion.ts';
+import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
 import {
   Attitude,
   Body,
@@ -27,9 +28,10 @@ import {
   SoldierStatusFlags,
   Team,
 } from '../../src/sim/tactical/soldier.ts';
-import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import { registerSoldier, type TacticalState } from '../../src/sim/tactical/state.ts';
+import { seatAtVehicle } from '../../src/sim/tactical/vehicle-passengers.ts';
 import { registerVehicleSoldier } from '../../src/sim/tactical/vehicle-soldiers.ts';
-import { vehicleTypeOfBody } from '../../src/sim/vehicles/vehicle-list.ts';
+import { NO_PASSENGER, vehicleTypeOfBody } from '../../src/sim/vehicles/vehicle-list.ts';
 import type { RunMode } from './reload.ts';
 import type { StubSectorKit } from './sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from './session-reload.ts';
@@ -221,4 +223,23 @@ export async function driveOurHummerInto(session: CampaignSession, sector: strin
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`our Hummer did not reach ${sector}`);
   await dispatchPrepared(session, { type: 'enterSector', sector });
+}
+
+const OUR_VEHICLE_SLOT = 18;
+
+export function ourHummerOnTheMap(t: TacticalState, at: number, direction: number = Direction.WEST): Soldier {
+  const create = { ...newSoldierCreate(Team.OUR, Body.HUMVEE, direction, at), life: VEHICLE_LIFE, lifeMax: VEHICLE_LIFE };
+  const s = tacticalCreateSoldier(t, create, OUR_VEHICLE_SLOT, NEUTRAL_POPULATION);
+  if (!s) throw new Error('no Hummer');
+  registerSoldier(t, s);
+  setSoldierPosition(t, s, at);
+  return s;
+}
+
+export function seatInVehicle(t: TacticalState, merc: Soldier, vehicle: Soldier, seat: number): void {
+  const v = t.vehicles[vehicle.vehicleId];
+  if (!v) throw new Error('the vehicle soldier has no vehicle');
+  v.passengers[v.passengers.indexOf(NO_PASSENGER)] = merc.id;
+  merc.vehicleSeat = seat;
+  seatAtVehicle(t, merc, vehicle);
 }

@@ -1,11 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc CheckForDisabledForGiveItem, SetNewPanel (no panel for escorts and
-// @src vehicles); Interface_Items.cc HandleItemPointerClick (the drop on the soldier's own tile), CancelItemPointer;
+// @src vehicles), MercFacePanelCallbackSecondary (none for the mercs aboard a vehicle); Interface_Items.cc
+// @src HandleItemPointerClick (the drop on the soldier's own tile), CancelItemPointer;
 // @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor;
 // @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket); Interface_Panels.cc
 // @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts); Squads.cc
-// @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01).
+// @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01); Soldier_Find.cc FindSoldier (the
+// @src medkit's patient is never a passenger, 2026-11-05).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
@@ -40,7 +42,7 @@ import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { refuse } from './refusal.ts';
 import { currentSquad } from './selection.ts';
-import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { Body, inVehicle, OKLIFE, onTheGrid, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type CombineCursor, combineStacks } from './stack-cleanup.ts';
 import { type TacticalState, teamMembers } from './state.ts';
@@ -94,6 +96,7 @@ export const InventoryRefusal = {
   BAD_INDEX: 'badIndex',
   NO_SUCH_TARGET: 'noSuchTarget',
   NO_INVENTORY: 'noInventory',
+  IN_VEHICLE: 'inVehicle',
   TOO_FAR: 'tooFar',
   NO_LINE_OF_SIGHT: 'noLineOfSight',
   BAD_AMOUNT: 'badAmount',
@@ -138,6 +141,7 @@ export const INVENTORY_REFUSAL_TEXT: Readonly<Record<InventoryRefusal, string>> 
   badIndex: 'index must point to an object in the stack',
   noSuchTarget: 'no such soldier of yours in the sector',
   noInventory: 'that soldier has no inventory panel (escort or vehicle)',
+  inVehicle: 'that soldier sits in a vehicle: his inventory panel does not open',
   tooFar: 'the other merc must stand within 3 tiles (2 when unconscious)',
   noLineOfSight: 'the other merc cannot be seen from here',
   noKit: 'put a first aid kit or medical kit into the hand first',
@@ -226,6 +230,7 @@ function otherMerc(t: TacticalState, value: unknown, fallback: Soldier): Soldier
   if (value === undefined) return fallback;
   const s = typeof value === 'number' ? t.soldiers[value] : undefined;
   if (!s?.placed || s.team !== Team.OUR || s.life <= 0) return InventoryRefusal.NO_SUCH_TARGET;
+  if (inVehicle(s)) return InventoryRefusal.IN_VEHICLE;
   if (t.narrative.isEpc(s) || isVehicle(s)) return InventoryRefusal.NO_INVENTORY;
   return s;
 }
@@ -413,7 +418,7 @@ function moveKeyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Co
 
 function bandageCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const patient = typeof cmd.target === 'number' ? (t.soldiers[cmd.target] ?? null) : s;
-  const target = patient?.placed && patient.level === s.level ? patient : null;
+  const target = patient && onTheGrid(patient) && patient.level === s.level ? patient : null;
   const refused = firstAidTargetRefusal(t, s, target);
   if (refused) return refusal(refused);
   removePendingAction(t, s);

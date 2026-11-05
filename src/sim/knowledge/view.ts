@@ -2,7 +2,7 @@ import type { DoorView, KeyView } from '../tactical/doors/door-view.ts';
 import type { AdrenalineView, DrunkView } from '../tactical/drugs.ts';
 import type { InventoryItemView } from '../tactical/inventory-view.ts';
 import type { Stance } from '../tactical/movement-mode.ts';
-import type { FirstAidRole, SoldierStatsView, WeaponModeView } from '../tactical/soldier-view.ts';
+import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../tactical/soldier-view.ts';
 
 export interface OwnHintInputs {
   readonly skills: readonly [number, number];
@@ -54,6 +54,8 @@ export interface KnowledgeSoldier {
   readonly stance?: Stance;
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
+  readonly vehicle?: VehicleSeatView | null;
+  readonly passengers?: readonly number[];
   readonly drunk?: DrunkView;
   readonly adrenaline?: AdrenalineView;
   readonly hostile?: boolean;

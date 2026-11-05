@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox } from '../environment.ts';
-import { findSoldier, PICK_ANYONE, type PickRules, type SoldierScreenRects, SoldierStack } from './targets.ts';
+import { FindFlag, findSoldier, PICK_ANYONE, type PickRules, type SoldierScreenRects, SoldierStack, soldierFindFlags } from './targets.ts';
 
 const POINTER_TILE = 500;
 const OTHER_TILE = 501;
 const HUMVEE = 22;
+const OUR_TEAM = 0;
 
 function soldier(id: number, over: Partial<SoldierView> = {}): SoldierView {
   return {
@@ -92,6 +93,23 @@ describe('the soldier under the pointer (FindSoldier)', () => {
 
   it('finds no soldier without a picture shown', () => {
     expect(findSoldier([soldier(1, { gridNo: POINTER_TILE })], at(110, 60), rects({}), anyone)).toBeNull();
+  });
+
+  it('never finds a merc aboard a vehicle, though he has its tile and a rectangle: the vehicle is found instead', () => {
+    const box = { x: 100, y: 50, width: 20, height: 40 };
+    const aboard = soldier(1, { team: OUR_TEAM, gridNo: POINTER_TILE, vehicle: { id: 0, driver: true } });
+    const truck = soldier(18, { team: OUR_TEAM, bodyType: HUMVEE, gridNo: POINTER_TILE, passengers: [1] });
+    expect(findSoldier([aboard, truck], at(110, 60), rects({ 1: box, 18: box }), anyone)?.id).toBe(18);
+    expect(findSoldier([aboard], at(110, 60), rects({ 1: box }), anyone)).toBeNull();
+  });
+});
+
+describe('the flags of the soldier under the pointer (GetSoldierFindFlags)', () => {
+  it('owns a vehicle of ours only with somebody aboard, and makes an empty one neither ours nor an enemy (quirk)', () => {
+    const truck = soldier(18, { team: OUR_TEAM, bodyType: HUMVEE });
+    expect(soldierFindFlags({ ...truck, passengers: [1] }, null, null) & FindFlag.OWNED).toBe(FindFlag.OWNED);
+    const empty = soldierFindFlags({ ...truck, passengers: [] }, null, null);
+    expect(empty & (FindFlag.OWNED | FindFlag.ENEMY | FindFlag.NEUTRAL)).toBe(0);
   });
 });
 

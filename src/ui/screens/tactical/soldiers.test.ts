@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SoldierView } from '../../../protocol/view.ts';
-import { apColour } from './soldiers.ts';
+import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
+import { apColour, teamPanelMembers, vehicleCarrying } from './soldiers.ts';
 
 describe('the AP number of a merc in combat (PrintAP)', () => {
   const merc = { id: 2, ap: 4, enoughApToAttack: true } as SoldierView;
@@ -24,5 +24,28 @@ describe('the AP number of a merc in combat (PrintAP)', () => {
       expect(apColour({ ...merc, ...influence, enoughApToAttack: false })).toBe('dkred');
       expect(apColour({ ...merc, ...influence, ap: -1 })).toBe('dkred');
     }
+  });
+});
+
+describe('the team panel of the current squad (CheckForAndAddMercToTeamPanel)', () => {
+  const HUMVEE = 22;
+  const merc = (id: number, over: Partial<SoldierView> = {}) => ({ id, team: 0, bodyType: 0, squad: 1, ...over }) as SoldierView;
+
+  it("lists a vehicle's passengers in seat order in its place, not the vehicle, and nobody aboard on his own", () => {
+    const driver = merc(3, { squad: null, vehicle: { id: 0, driver: true } });
+    const passenger = merc(1, { squad: null, vehicle: { id: 0, driver: false } });
+    const truck = merc(18, { bodyType: HUMVEE, passengers: [3, 1] });
+    const walker = merc(2);
+    const view = { soldiers: [passenger, walker, driver, truck] } as unknown as PlayerView;
+    expect(teamPanelMembers(view, [walker, truck, driver]).map((s) => s.id)).toEqual([2, 3, 1]);
+  });
+
+  it('finds the vehicle of a merc aboard, whose face selects it, and none for a merc on foot', () => {
+    const passenger = merc(1, { squad: null, vehicle: { id: 0, driver: false } });
+    const truck = merc(18, { bodyType: HUMVEE, passengers: [1] });
+    const walker = merc(2);
+    const view = { soldiers: [passenger, walker, truck] } as unknown as PlayerView;
+    expect(vehicleCarrying(view, passenger)?.id).toBe(18);
+    expect(vehicleCarrying(view, walker)).toBeNull();
   });
 });

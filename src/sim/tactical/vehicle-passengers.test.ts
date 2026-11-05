@@ -2,19 +2,17 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { itemId, objectOf } from '../../../tests/support/explosives.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { ourHummerOnTheMap, seatInVehicle } from '../../../tests/support/vehicles.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { VehicleSeat } from '../strategic/forces/constants.ts';
 import { initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
-import { newSoldierCreate, tacticalCreateSoldier } from './creation.ts';
 import { newSmokeEffect } from './explosions/smoke.ts';
-import { NEUTRAL_POPULATION } from './init-list.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
-import { registerSoldier, type TacticalState, whoIsThere } from './state.ts';
+import { type Soldier, Team } from './soldier.ts';
+import { type TacticalState, whoIsThere } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
-import { seatAtVehicle } from './vehicle-passengers.ts';
 
 let content: TacticalContent;
 
@@ -22,7 +20,6 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
-const OUR_VEHICLE_SLOT = 18;
 const PARKED_AT = gridNo(80, 70);
 const MOVED_TO = gridNo(90, 70);
 const STANDING_AT = gridNo(80, 76);
@@ -31,22 +28,8 @@ const NOBODY = -1;
 const HUMAN_SMELL = 5;
 const NO_SMELL = 0;
 
-function ourHummer(t: TacticalState, at = PARKED_AT): Soldier {
-  const create = { ...newSoldierCreate(Team.OUR, Body.HUMVEE, Direction.WEST, at), life: 100, lifeMax: 100 };
-  const s = tacticalCreateSoldier(t, create, OUR_VEHICLE_SLOT, NEUTRAL_POPULATION);
-  if (!s) throw new Error('no Hummer');
-  registerSoldier(t, s);
-  setSoldierPosition(t, s, at);
-  return s;
-}
-
-function board(t: TacticalState, merc: Soldier, hummer: Soldier, seat: number): void {
-  const v = t.vehicles[hummer.vehicleId];
-  if (!v) throw new Error('the Hummer has no vehicle');
-  v.passengers[v.passengers.indexOf(NOBODY)] = merc.id;
-  merc.vehicleSeat = seat;
-  seatAtVehicle(t, merc, hummer);
-}
+const ourHummer = (t: TacticalState, at = PARKED_AT) => ourHummerOnTheMap(t, at);
+const board = seatInVehicle;
 
 function aboard(): { readonly sim: TacticalSim; readonly t: TacticalState; readonly hummer: Soldier; readonly merc: Soldier } {
   const sim = newCombatSim(content);

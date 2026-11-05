@@ -12,6 +12,7 @@ import { DamageReason } from './combat/types.ts';
 import { removeSoldierFromGridNo, setSoldierPositionXY, stopMerc } from './movement.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
+import { vehicleCarrying } from './vehicle-presence.ts';
 
 const KILLED_IN_VEHICLE_LIFE = 100;
 const KILLED_IN_VEHICLE_BREATH = 100;
@@ -20,12 +21,6 @@ export function seatAtVehicle(t: TacticalState, s: Soldier, vehicle: Soldier): v
   removeSoldierFromGridNo(t, s);
   setSoldierPositionXY(t, s, vehicle.x, vehicle.y);
   stopMerc(t, s);
-}
-
-function vehicleSoldierCarrying(t: TacticalState, s: Soldier): Soldier | null {
-  const v = t.vehicles.find((x) => x.valid && x.passengers.includes(s.id));
-  const vehicle = v ? t.soldiers[v.soldierId] : undefined;
-  return vehicle?.placed ? vehicle : null;
 }
 
 function haltAsBoarded(t: TacticalState, s: Soldier): void {
@@ -38,8 +33,8 @@ export function seatOnSectorEntry(t: TacticalState, s: Soldier): void {
   s.placed = false;
   s.offMap = true;
   haltAsBoarded(t, s);
-  const vehicle = vehicleSoldierCarrying(t, s);
-  if (vehicle) setSoldierPositionXY(t, s, vehicle.x, vehicle.y);
+  const vehicle = vehicleCarrying(t, s);
+  if (vehicle?.placed) setSoldierPositionXY(t, s, vehicle.x, vehicle.y);
 }
 
 export function killPersonInVehicle(t: TacticalState, s: Soldier): boolean {

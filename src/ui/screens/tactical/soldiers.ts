@@ -75,6 +75,25 @@ export function isInVehicle(s: SoldierView): boolean {
   return s.vehicle !== undefined && s.vehicle !== null;
 }
 
+export function onTheMap(s: SoldierView): boolean {
+  return !isInVehicle(s);
+}
+
+export function isOwned(s: SoldierView): boolean {
+  return s.team === OUR_TEAM && (!isVehicleBody(s) || (s.passengers ?? []).length > 0);
+}
+
+export function vehicleCarrying(view: PlayerView | null, s: SoldierView): SoldierView | null {
+  if (!isInVehicle(s)) return null;
+  return view?.soldiers.find((v) => v.passengers?.includes(s.id)) ?? null;
+}
+
+export function teamPanelMembers(view: PlayerView | null, squadMembers: readonly SoldierView[]): SoldierView[] {
+  return squadMembers.flatMap((s) =>
+    isVehicleBody(s) ? (s.passengers ?? []).flatMap((id) => soldierById(view, id) ?? []) : isInVehicle(s) ? [] : [s],
+  );
+}
+
 export function isDead(s: SoldierView): boolean {
   if (s.team === OUR_TEAM) return (s.life ?? 0) <= 0;
   return s.healthIndex === LIFELESS_HEALTH_INDEX;

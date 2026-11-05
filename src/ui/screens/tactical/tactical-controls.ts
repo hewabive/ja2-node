@@ -648,7 +648,7 @@ export class TacticalControls {
   #nextMerc(): void {
     const sel = this.#screen.selected();
     if (!sel) return;
-    const slots = this.#screen.slotSoldiers().filter((s): s is SoldierView => s !== null && !isDead(s));
+    const slots = this.#screen.slotSoldiers().filter((s): s is SoldierView => s !== null && !isDead(s) && !isInVehicle(s));
     const at = slots.findIndex((s) => s.id === sel.id);
     const next = slots[(at + 1) % Math.max(1, slots.length)] ?? sel;
     this.#screen.locateSelect(next, true);

@@ -1,8 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serialisedView, withQueries } from '../../tests/support/hints.ts';
+import {
+  type ClientSide,
+  clientSide,
+  expectHintsAgree,
+  type HintSources,
+  sampleAttackHints,
+  sampleMoveHints,
+  serialisedView,
+  withQueries,
+} from '../../tests/support/hints.ts';
 import { samplePassHints, sampleStrategicHints } from '../../tests/support/hints-strategic.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
-import { stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
+import { driveOurHummerInto, stubCampaignAtTheHummer, stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction } from '../content/world/grid.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
@@ -10,10 +19,10 @@ import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
 import { createItem } from '../sim/items/object.ts';
 import { LAIR_DESTROYED } from '../sim/strategic/creatures/creatures.ts';
-import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
+import { FACT_OK_USE_HUMMER, SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
-import { QuestStatus } from '../sim/strategic/narrative/facts.ts';
+import { QuestStatus, setFact } from '../sim/strategic/narrative/facts.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
@@ -198,6 +207,47 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     const routed = c.sim.dispatch({ type: 'route', soldier: fit.id, to: 'B11' });
     expect(squad).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: tired.id } });
     expect(routed).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: tired.id } });
+  });
+});
+
+describe('the mercs aboard a vehicle of ours in the loaded sector, client against server', () => {
+  it('agree on their moves and attacks, refused as inVehicle like the orders, and on the vehicle with them aboard', async () => {
+    const sim = await stubCampaignWithOurHummer(kit, 41);
+    await driveOurHummerInto(sim, 'B9');
+    const session = withQueries(new Session('aboard-hints', sim), sources);
+    const view = serialisedView(session);
+    await expectHintsAgree(session, client, [
+      ...sampleMoveHints(view, { radius: 6, step: 3 }),
+      ...sampleAttackHints(view, { radius: 6, step: 6 }),
+    ]);
+    const seated = view.soldiers.filter((s) => s.vehicle);
+    expect(seated.length).toBeGreaterThan(1);
+    for (const s of seated) {
+      const to = s.gridNo + 3;
+      expect((await session.query({ type: 'previewMove', soldier: s.id, to })).data).toMatchObject({ refusal: 'inVehicle' });
+      expect(sim.dispatch({ type: 'move', soldier: s.id, to })).toMatchObject({ ok: false, data: { refusal: 'inVehicle' } });
+    }
+  });
+});
+
+describe('a civilian vehicle the squad stands by, client against server', () => {
+  it("offer the vehicle line of the assignment menu as the full state does, with and without the Hummer's fact", async () => {
+    const sim = await stubCampaignAtTheHummer(kit, 42);
+    expect(sim.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    const session = withQueries(new Session('civilian-vehicle-hints', sim), sources);
+    const economy = sim.campaign.economy;
+    const roster = sim.campaign.battle?.roster;
+    if (!economy || !roster) throw new Error('no campaign layers');
+    for (const usable of [false, true]) {
+      setFact(sim.campaign.state.narrative, FACT_OK_USE_HUMMER, usable);
+      const offered: number[] = [];
+      for (const m of roster.all()) {
+        const hint = await session.query({ type: 'assignmentOptions', soldier: m.id });
+        expect(hint.data, `assignment menu of ${m.id}`).toEqual(JSON.parse(JSON.stringify(assignmentOptionsFor(economy, m))));
+        offered.push((hint.data as { readonly vehicles: readonly unknown[] }).vehicles.length);
+      }
+      expect(offered.every((n) => n === (usable ? 1 : 0))).toBe(true);
+    }
   });
 });
 

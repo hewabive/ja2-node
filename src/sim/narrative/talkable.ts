@@ -1,11 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Civ_Quotes.cc GetCivType; Tactical/Handle_UI.cc IsValidTalkableNPC; Tactical/Soldier_Macros.h
-// @src RPC_RECRUITED, AM_AN_EPC, AM_A_ROBOT.
+// @src RPC_RECRUITED, AM_AN_EPC, AM_A_ROBOT; Tactical/Soldier_Find.cc FindSoldier (never a passenger).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { hasAnimFlag } from '../tactical/animation.ts';
-import { Body, NO_PROFILE, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, NO_PROFILE, onTheGrid, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 
 export const CivType = { NA: 0, ADULT: 1, KID: 2, MARRIED_PC: 3, ENEMY: 4 } as const;
@@ -81,7 +81,7 @@ export function talkableRefusal(
   options: { readonly give: boolean; readonly mercs: boolean; readonly collapsed: boolean },
 ): TalkRefusal | null {
   if (talker && isRobotSoldier(talker)) return 'talkerIsRobot';
-  if (!s.placed || s.life === 0) return 'noSuchTarget';
+  if (!onTheGrid(s) || s.life === 0) return 'noSuchTarget';
   if (s.collapsed && options.collapsed) return 'targetCollapsed';
   if (isVehicle(s)) return 'notTalkable';
   if (s.team !== Team.OUR && s.visible === NOT_VISIBLE) return 'targetHidden';

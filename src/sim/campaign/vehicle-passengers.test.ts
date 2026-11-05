@@ -52,7 +52,7 @@ async function inTheLoadedSector(): Promise<CampaignSession> {
 }
 
 describe('the mercs aboard a ground vehicle in the loaded sector (Soldier_Add.cc InternalAddSoldierToSector, Vehicles.cc UpdateAllVehiclePassengersGridNo)', () => {
-  it('come in with it: registered in their merc slots before the vehicle in slot 18, then given its tile, with no occupant, structure or drawing', async () => {
+  it('come in with it: registered in their merc slots before the vehicle in slot 18, then given its tile, with no occupant or structure', async () => {
     const session = await inTheLoadedSector();
     const t = tactical(session);
     const hummer = hummerOf(session).soldier;
@@ -66,9 +66,12 @@ describe('the mercs aboard a ground vehicle in the loaded sector (Soldier_Add.cc
     ]);
     expect(hummer.structure).not.toBeNull();
     expect(whoIsThere(t, hummer.gridNo, 0)).toBe(hummer);
-    const drawn = session.view().soldiers.map((v) => v.id);
-    expect(drawn).toContain(hummer.id);
-    expect(seated.some((m) => drawn.includes(m.id))).toBe(false);
+    const listed = session.view().soldiers;
+    expect(listed.find((v) => v.id === hummer.id)?.passengers).toEqual(seated.map((m) => m.id));
+    expect(seated.map((m) => listed.find((v) => v.id === m.id)?.vehicle)).toEqual([
+      { id: hummer.vehicleId, driver: true },
+      { id: hummer.vehicleId, driver: false },
+    ]);
   });
 
   it('get off on the map screen onto the grid, and on boarding again sit at the vehicle, leaving the tile they stood on free', async () => {

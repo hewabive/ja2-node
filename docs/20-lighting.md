@@ -142,4 +142,4 @@ the source:
 
 Not ported: gaps "Savegame import" (light effect records). Other deviations of this domain: "Light on structures",
 "Ambient light and light schedule", "Doors and light in the projection", "World clock for smoke and light", "Soldier
-fade without merc lights".
+fade without merc lights", "Merc light in a vehicle".

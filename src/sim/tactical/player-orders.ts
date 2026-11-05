@@ -41,9 +41,10 @@ import { AP, apsToChangeStance, BP, deductPoints, enoughPoints } from './points.
 import { type ExchangeRefusal, exchangeRefusal, validQuickExchangePosition } from './quick-exchange.ts';
 import { type Refusal, type RefusalTexts, refuse, refused } from './refusal.ts';
 import { selectOrderedMerc } from './selection.ts';
-import { Body, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
+import { Body, OKLIFE, onTheGrid, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { swapMercPositions, teleportSoldier } from './teleport.ts';
+import { crewRefusal } from './vehicle-presence.ts';
 
 export interface OrderCommand {
   readonly type: string;
@@ -85,18 +86,19 @@ const JUMP_OVER_STATE = 'JUMP_OVER_BLOCKING_PERSON';
 const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 
-function ownSoldier(ctx: OrderContext, id: unknown): Soldier | null {
+const isRefusal = <T extends object>(v: T | Refusal): v is Refusal => 'token' in v && 'reason' in v;
+
+function ownSoldier(ctx: OrderContext, id: unknown): Soldier | Refusal {
   const s = ctx.soldier(id);
-  return s?.placed && s.team === Team.OUR ? s : null;
+  if (!s?.placed || s.team !== Team.OUR) return NO_SUCH_SOLDIER;
+  return crewRefusal(ctx.t, s) ?? s;
 }
 
 function actingSoldier(ctx: OrderContext, id: unknown): Soldier | Refusal {
   const s = ownSoldier(ctx, id);
-  if (!s) return NO_SUCH_SOLDIER;
+  if (isRefusal(s)) return s;
   return ctx.actRefusal(s) ?? s;
 }
-
-const isRefusal = <T extends object>(v: T | Refusal): v is Refusal => 'token' in v && 'reason' in v;
 
 function orderedSoldier(ctx: OrderContext, id: unknown): Soldier | Refusal {
   const s = actingSoldier(ctx, id);
@@ -135,7 +137,7 @@ function squadForHeadGear(ctx: OrderContext, ids: unknown): Soldier[] | Refusal 
   const list: Soldier[] = [];
   for (const id of ids) {
     const s = ownSoldier(ctx, id);
-    if (!s) return NO_SUCH_SOLDIER;
+    if (isRefusal(s)) return s;
     if (!list.includes(s) && s.life > 0 && !isVehicle(s)) list.push(s);
   }
   return list;
@@ -152,7 +154,7 @@ function headGear(ctx: OrderContext, cmd: OrderCommand): CommandResult {
 
 function mute(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const s = ownSoldier(ctx, cmd.soldier);
-  if (!s) return refused(NO_SUCH_SOLDIER);
+  if (isRefusal(s)) return refused(s);
   if (cmd.on !== undefined && typeof cmd.on !== 'boolean') return refuse('badValue', 'on must be true or false');
   s.muted = typeof cmd.on === 'boolean' ? cmd.on : !s.muted;
   ctx.t.events.push({ type: 'muteChanged', soldier: s.id, on: s.muted });
@@ -213,7 +215,7 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const s = orderedSoldier(ctx, cmd.soldier);
   if (isRefusal(s)) return refused(s);
   const other = ctx.soldier(cmd.with);
-  if (!other?.placed || other === s) return refuse('noSuchTarget', 'with must be another soldier in the sector');
+  if (!other || !onTheGrid(other) || other === s) return refuse('noSuchTarget', 'with must be another soldier in the sector');
   const level = cmd.level === 1 ? 1 : cmd.level === 0 ? 0 : s.level;
   if (cmd.cursor === true) {
     if (!validQuickExchangePosition(t, s, other)) return refuse('invalidExchange', 'not an adjacent neutral or friendly soldier in sight');

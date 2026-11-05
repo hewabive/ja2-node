@@ -5,7 +5,7 @@
 // @src AnyAccessibleVehiclesInSoldiersSector, CanSoldierDriveVehicle, OnlyThisSoldierCanDriveVehicle, SoldierMustDriveVehicle.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
-import { NO_PASSENGER, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
+import { NO_PASSENGER, numberInVehicle, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
 import { VehicleSeat } from '../forces/constants.ts';
 import { addPlayerToGroup, getGroup, removeGroup, removePlayerFromGroup } from '../forces/groups.ts';
 import { okUseVehicle } from '../forces/helicopter.ts';
@@ -14,7 +14,6 @@ import {
   findVehicle,
   isHelicopter,
   isThisVehicleAccessibleToSoldier,
-  numberInVehicle,
   takeSoldierOutOfVehicle,
   vehicleIdOf,
   vehicleSeats,

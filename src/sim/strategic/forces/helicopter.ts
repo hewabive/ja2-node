@@ -26,7 +26,7 @@ import {
 import { i32, u8, u32 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
-import { passengersOf, removeVehicleFromList, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
+import { numberInVehicle, passengersOf, removeVehicleFromList, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
 import { markSecretFoundAt } from '../map/control.ts';
 import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../map/knowledge.ts';
 import { appendStrategicPath, findStratPath, lastSectorOfPath } from '../map/pathing.ts';
@@ -57,7 +57,6 @@ import {
   findVehicle,
   inHelicopter,
   killAllInVehicle,
-  numberInVehicle,
   takeSoldierOutOfVehicle,
 } from './vehicles.ts';
 

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (the close call quotes unless somebody was hit, the civilian-group
 // @src proximity rule and its boxer exception),
-// @src StartNPCAI (the locator and UpdateEnemyUIBar as events), TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable.
+// @src StartNPCAI (the locator and UpdateEnemyUIBar as events, no locator for a vehicle with nobody aboard),
+// @src TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
@@ -18,6 +19,7 @@ import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
 import { updateEnemyUIBar } from '../turns/top-message.ts';
 import { endAITurn, sayCloseCallQuotes, setSoldierAsUnderAiControl } from '../turns/turns.ts';
+import { emptyVehicle } from '../vehicle-presence.ts';
 import { AiAction, Situation } from './actions.ts';
 import type { AiControl } from './control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './decide.ts';
@@ -128,9 +130,13 @@ function locatorSkipped(s: Soldier): boolean {
   return s.team === Team.MILITIA && s.side === Side.FRIENDLY && s.ai.alertStatus === AlertStatus.GREEN;
 }
 
+function located(t: TacticalState, s: Soldier): boolean {
+  return !emptyVehicle(t, s) && s.visible !== -1 && s.life !== 0;
+}
+
 function announceAiTurn(t: TacticalState, s: Soldier): void {
   if (!t.inCombat || t.turn.intList.length > 0) return;
-  if (s.visible !== -1 && s.life !== 0 && !locatorSkipped(s)) t.events.push({ type: 'aiTurn', soldier: s.id });
+  if (located(t, s) && !locatorSkipped(s)) t.events.push({ type: 'aiTurn', soldier: s.id });
   updateEnemyUIBar(t);
 }
 

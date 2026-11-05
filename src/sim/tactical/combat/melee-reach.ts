@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch and blade tile choice);
 // @src Overhead.cc FindAdjacentGridEx (with and without fDoor), FindNextToAdjacentGridEx, FindAdjacentPunchTarget;
-// @src Soldier_Find.cc FindSoldier (FIND_SOLDIER_GRIDNO).
+// @src Soldier_Find.cc FindSoldier (FIND_SOLDIER_GRIDNO, passengers skipped).
 
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
@@ -14,7 +14,7 @@ import { InvSlot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { newOKDestination, newOKDestinationAndDirection } from '../pathfinding.ts';
 import { doorTravelCost } from '../points.ts';
-import { Body, isCreatureOrBloodcat, NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { Body, inVehicle, isCreatureOrBloodcat, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 
 export interface MeleeSpot {
@@ -49,6 +49,7 @@ export function findSoldierAtGridNo(t: TacticalState, g: number, level: number):
   for (const m of t.mercSlots) {
     if (!m.placed || m.dead) continue;
     if (m.visible === -1 && !t.pathEnv.showAllMercs) continue;
+    if (inVehicle(m)) continue;
     if (m.gridNo === g && !newOKDestination(t.pathEnv, m, g, true, level)) return m;
   }
   return null;

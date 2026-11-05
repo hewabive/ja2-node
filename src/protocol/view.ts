@@ -91,6 +91,7 @@ export interface SoldierView {
   readonly continueTo?: number | null;
   readonly noApToFinishMove?: boolean;
   readonly vehicle?: VehicleSeatView | null;
+  readonly passengers?: readonly number[];
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
   readonly climb?: ClimbView;
@@ -1218,7 +1219,14 @@ const SCALAR_SOLDIER_FIELDS = [
   'fadingOut',
 ] as const satisfies readonly (keyof SoldierView)[];
 
-const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle', 'climb', 'hint'] as const satisfies readonly (keyof SoldierView)[];
+const STRUCTURED_SOLDIER_FIELDS = [
+  'stats',
+  'sees',
+  'vehicle',
+  'passengers',
+  'climb',
+  'hint',
+] as const satisfies readonly (keyof SoldierView)[];
 
 function samePresentationFields(a: SoldierView, b: SoldierView): boolean {
   return SCALAR_SOLDIER_FIELDS.every((key) => a[key] === b[key]) && STRUCTURED_SOLDIER_FIELDS.every((key) => sameJson(a[key], b[key]));

@@ -16,6 +16,7 @@ import type { SceneAniTile, SceneItem, SoldierSprite, WorldUiNode } from '../../
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { ShadeField, WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent } from '../../sim/events.ts';
+import { onTheMap } from '../../ui/screens/tactical/soldiers.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { type BulletTiles, bulletNodes, bulletTiles, thrownNodes } from './bullet-nodes.ts';
 import { CrowShadows } from './crow-shadows.ts';
@@ -315,12 +316,13 @@ export class TacticalWorldView {
 
   render(f: TacticalFrame): WorldDrawStats {
     const view = f.view;
+    const onMap = view.soldiers.filter(onTheMap);
     const time = f.time ?? (view.clock ? { hour: view.clock.hour, minute: view.clock.minute } : SANDBOX_TIME);
     const ambient = view.light?.ambient ?? null;
     const openDoors = new Set(view.openDoors);
     const shining = this.lighting.mercLightsShine(time, ambient);
     const mercLights = this.#soldiers.mercLights(
-      { soldiers: view.soldiers, lights: f.options },
+      { soldiers: onMap, lights: f.options },
       shining,
       nightTime(time.hour),
       (s) => this.#templates.resolve(mercLightTemplateName(s.inventory))?.template ?? null,
@@ -337,13 +339,13 @@ export class TacticalWorldView {
     this.#shade = shade;
     const hostile = f.hostile ?? defaultHostile;
     const soldiers = this.#soldiers.build({
-      soldiers: view.soldiers,
+      soldiers: onMap,
       clockMs: f.clockMs,
       hour: time.hour,
       shade,
       hasRoof: (g) => this.#roofed[g] === 1,
       glow: glowContext({
-        soldiers: view.soldiers,
+        soldiers: onMap,
         combat: view.combat,
         clockMs: f.clockMs,
         hovered: f.hovered,
@@ -372,7 +374,7 @@ export class TacticalWorldView {
     this.#drawnBullets = bullets.length;
     const animatedTiles = [
       ...aniTiles,
-      ...this.#crowShadowTiles(view.soldiers, f.clockMs),
+      ...this.#crowShadowTiles(onMap, f.clockMs),
       ...this.#cachedEffectTiles(effects),
       ...this.#knifeTiles(bullets, Math.floor(shownTick)),
     ];
@@ -389,7 +391,7 @@ export class TacticalWorldView {
       slantRoofCeilings: new Set(view.slantRoofCeilings ?? NO_CEILINGS),
       soldiers,
       items: this.#items(view.items),
-      uiNodes: [...f.uiNodes, ...this.#roofMarkerNodes(view.soldiers)],
+      uiNodes: [...f.uiNodes, ...this.#roofMarkerNodes(onMap)],
       aniTiles: animatedTiles,
       structNodes: [
         ...effectStructNodes(effects, this.world.tables, this.world.tiles),

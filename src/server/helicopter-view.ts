@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc DisplayPositionOfHelicopter (the flight ratio, clamped to 0..100),
 // @src DisplayDistancesForHelicopter (safe and unsafe sectors); Strategic/Map_Screen_Helicopter.cc CanHelicopterFly;
 // @src Strategic/Map_Screen_Interface.cc UpdateCharRegionHelpText (a vehicle's condition and fuel, bLife and bBreath of its
-// @src soldier, shown for our own vehicles only).
+// @src soldier, shown for our own vehicles only); Tactical/Vehicles.cc IsThisVehicleAccessibleToSoldier and
+// @src Strategic/Assignments.cc CanCharacterVehicle (the vehicles a merc could board, the only others the map screen names).
 
 import { type Sector, sectorFromStrategicIndex, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { DestroyedHelicopterView, StrategicHelicopterView, StrategicVehicleView } from '../protocol/view.ts';
@@ -21,9 +22,10 @@ import {
 import { REFUEL_SITES } from '../sim/strategic/forces/helicopter-state.ts';
 import { groupBetweenSectorsAndSectorXYIsInDifferentDirection } from '../sim/strategic/forces/movement.ts';
 import type { StrategicContext } from '../sim/strategic/forces/ports.ts';
-import { vehicleSeats } from '../sim/strategic/forces/vehicles.ts';
+import { isThisVehicleAccessibleToSoldier, vehicleSeats } from '../sim/strategic/forces/vehicles.ts';
 import { calculateTravelTimeOfGroup, TRAVERSE_TIME_IMPOSSIBLE } from '../sim/strategic/map/travel.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
+import { Team } from '../sim/tactical/soldier.ts';
 import { passengersOf, type VehicleRecord } from '../sim/vehicles/vehicle-list.ts';
 
 const name = (s: Sector) => sectorShortString(s);
@@ -67,11 +69,29 @@ function flightProgress(ctx: StrategicContext, g: Group | undefined): number {
   return Math.min(MAX_FLIGHT_RATIO, Math.max(0, ratio));
 }
 
+function playersVehicle(campaign: CampaignSim, ctx: StrategicContext, v: VehicleRecord, id: number): boolean {
+  return id === ctx.state.forces.helicopterVehicleId || campaign.battle?.roster.get(v.soldierId)?.isVehicle === true;
+}
+
+function enemyVehicle(campaign: CampaignSim, v: VehicleRecord): boolean {
+  return campaign.tactical?.state.soldiers[v.soldierId]?.team === Team.ENEMY;
+}
+
+function boardableByOurMercs(ctx: StrategicContext, v: VehicleRecord): boolean {
+  return okUseVehicle(ctx, v) && ctx.mercs.all().some((m) => !m.isVehicle && isThisVehicleAccessibleToSoldier(m, v));
+}
+
+function shownVehicle(campaign: CampaignSim, ctx: StrategicContext, v: VehicleRecord, id: number): boolean {
+  if (!v.valid || v.destroyed) return false;
+  if (playersVehicle(campaign, ctx, v, id)) return true;
+  return !enemyVehicle(campaign, v) && boardableByOurMercs(ctx, v);
+}
+
 export function vehicleViews(campaign: CampaignSim): StrategicVehicleView[] | undefined {
   const ctx = campaign.strategic;
   if (!ctx) return undefined;
   const views = ctx.state.forces.vehicles.flatMap((v, id) =>
-    v.valid && !v.destroyed
+    shownVehicle(campaign, ctx, v, id)
       ? [
           {
             id,

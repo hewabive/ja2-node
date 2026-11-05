@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Vehicles.cc AddVehicleToList (the movement group), GetVehicle, GetNumberInVehicle,
+// @src src/game/Tactical/Vehicles.cc AddVehicleToList (the movement group), GetVehicle,
 // @src GetNumberOfNonEPCsInVehicle, IsEnoughSpaceInVehicle, GetVehicleSeats, RemoveSoldierFromVehicle, TakeSoldierOutOfVehicle,
 // @src ExitVehicle (strategic part), SetSoldierExitHelicopterInsertionData, SetVehicleSectorValues, KillAllInVehicle,
 // @src KillPersonInVehicle, TeleportVehicleToItsClosestSector, MoveCharactersPathToVehicle, SetUpMvtGroupForVehicle,
@@ -10,7 +10,14 @@
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
-import { fillVehicleSlot, NO_PASSENGER, passengersOf, type VehicleRecord, validVehicle } from '../../vehicles/vehicle-list.ts';
+import {
+  fillVehicleSlot,
+  NO_PASSENGER,
+  numberInVehicle,
+  passengersOf,
+  type VehicleRecord,
+  validVehicle,
+} from '../../vehicles/vehicle-list.ts';
 import { setSectorFlag } from '../map/sectors.ts';
 import { setProfileSector } from '../narrative/presence.ts';
 import { worldDay, worldTotalMinutes } from '../time/world-clock.ts';
@@ -24,10 +31,6 @@ export const HELICOPTER_EXIT_GRIDNO_AT_AIRPORT = 10125;
 
 export function vehicleSeats(ctx: StrategicContext, v: VehicleRecord): number {
   return ctx.content.vehicles[v.type]?.seats ?? 0;
-}
-
-export function numberInVehicle(v: VehicleRecord): number {
-  return passengersOf(v).length;
 }
 
 export function isEnoughSpaceInVehicle(ctx: StrategicContext, v: VehicleRecord): boolean {

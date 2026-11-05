@@ -83,7 +83,7 @@ chance to hit read the value of the soldier's last decision.
 **A vehicle is hurt through its record in the vehicle list** (`25`). A soldier of a vehicle body never bleeds, falls or
 plays a hit: `soldierTakeDamage` hands his share of the damage to `vehicleTakeDamage`, which finds the vehicle's
 soldier again by its id and lowers his life; at 0 the vehicle is destroyed, explodes at his tile and dies at once,
-before the attack ends, and its passengers die through `TacticalState.vehicleHooks` (gap "Turn-based hooks"). His armour
+before the attack ends, and its passengers die through `TacticalState.vehicleHooks` (`25`). His armour
 is his vehicle type's armour item, whatever he wears. A vehicle soldier without a slot in the list (one an older
 snapshot holds, until his sector loads again) takes no damage and has no armour, where the original would read past its
 list.
@@ -174,4 +174,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Unseen soldiers in combat", "Turn-based hooks" (a destroyed vehicle's passengers).
+Not ported: gaps "Unseen soldiers in combat".

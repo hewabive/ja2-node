@@ -66,7 +66,7 @@ original's message. Per domain:
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
 | Towns and mines | Loyalty once started and where the town uses it; mine status in the town box's order | Remaining ore, which mine will deplete |
 | Helicopter | Debt, hits, safe and unsafe sectors, route cost | Skyrider's talk state and accumulated bill |
-| Vehicles | The condition and fuel percentage of our vehicles | The condition and fuel of other vehicles; fuel finer than a percent |
+| Vehicles | Our vehicles with the condition and fuel percentage; the others a merc of ours could board | The condition and fuel of other vehicles; fuel finer than a percent; other vehicles in the vehicle list, an enemy's tank among them |
 | Autoresolve | Cells, health categories, counts, battle time | Ratings, timers, pending bullets, exact enemy life, the capture roll |
 | Laptop | What the pages print | `dayBecomesAvailable`, hangovers, tolerances, hated and buddy lists, death rate, reputation, unhired deaths and improvements before they show, restocks, theft counters, investigation outcomes, the M.E.R.C. outage roll, queued events |
 | Contracts | The renewal options and their costs; willing and unwilling mercs look alike, only the quotes tell | Opinions, buddy and hated slots, tolerances, learn-to progress, precedents, `signedAnotherContract`, the renewal list |
@@ -382,11 +382,13 @@ mode the original keeps beside the stance (deviation "Stance") and refuses a hei
 (`IsValidStance`: vehicles, the robot, water, an escort lying down, no room for the body), with the message of
 `UIHandleSoldierStanceChange`; the `movementOptions` hint says which of run, sneak and crawl the movement menu offers.
 `select` is the player's selection (§4.3): it refuses where `InternalSelectSoldier` returns early (another screen with
-`notInTactical`, a merc out of control with `cannotAct` or `onAssignment`, one without a move in our interrupt with
-`mercUnavailable` and its message, the selected merc with `alreadySelected`) and under the order locks; `group` (the
-other members, possibly none) ends a real-time multi-selection: every member wakes before the selection, which is
-skipped when the chosen merc is selected already, as in `EndMultiSoldierSelection`, and `data.woke` lists who woke. A
-selection wakes a sleeper even when he collapsed, which `wake` refuses. `selectSquad` is the squad key's
+`notInTactical`, a merc aboard a vehicle with `inVehicle`, a vehicle of ours with nobody aboard with `noDriver`, a merc
+out of control with `cannotAct` or `onAssignment`, one without a move in our interrupt with `mercUnavailable` and its
+message, the selected merc with `alreadySelected`) and under the order locks; `group` (the other members, possibly
+none, never a vehicle or a merc aboard one: `badGroup`, as select-all and the rubber band skip them) ends a real-time
+multi-selection: every member wakes before the selection, which is skipped when the chosen merc is selected already, as
+in `EndMultiSoldierSelection`, and `data.woke` lists who woke. A selection wakes a sleeper even when he collapsed, which
+`wake` refuses. `selectSquad` is the squad key's
 `ChangeCurrentSquad`: it refuses a squad with nobody in the loaded sector (`squadNotHere`, `IsSquadOnCurrentTacticalMap`),
 a number outside 0..19 (`badSquad`) and another screen (`notInTactical`), and takes `select`'s order locks for the
 squad's first merc; the current squad itself changes nothing. A new `move` re-plans a halted move for any merc
@@ -402,6 +404,13 @@ A FORGETFUL merc may stop on the way with his personality line once he has walke
 deep water a soldier swims and treads; a non-swimmer loses breath five times as fast there, and medium or deep water
 damages items and washes camouflage off (`camoWashedOff {soldier}`). A merc waiting on a squad mate walks at the mate's
 speed until he stops at his destination (`07`).
+A merc aboard a vehicle in the loaded sector is no controllable merc (`OK_CONTROLLABLE_MERC`, his assignment is the
+vehicle): every order to him, `stop`, `mute` and the inventory and money commands included, refuses `inVehicle` (`talk`,
+`give` and `openShop` refuse `canAct` with its reason), and so does an inventory command that names him as the other
+merc; no order takes him as its target, as the cursor never finds him (`FindSoldier`): `pass`, `steal`, `swapPlaces` and
+`talk` refuse `noSuchTarget`, `bandage` `noTarget`.
+A vehicle of ours with nobody aboard is not ours to command (`IsOwnedMerc`): its orders and `select` refuse `noDriver`.
+The hints refuse the same way (`blocked`).
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
@@ -632,7 +641,15 @@ Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as 
 `plotted` asks him the same way first. `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (deviation "Leaving the helicopter in
 flight"). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
-at its tile; seated mercs are left out of the tactical `soldiers` for now (gaps "Turn-based hooks").
+at its tile. The tactical `soldiers` list him with `vehicle {id, driver}` (the vehicle's id, whether he drives) at the
+vehicle's tile, which he does not occupy: the client draws no sprite and no light for him and its cursor never finds
+him, while the radar and the overhead map mark his tile as the original's do. A vehicle of ours lists the mercs aboard
+in seat order as `passengers` (none: not ours to command, `noDriver`); its squad's team panel shows them in its place,
+a click on one of their faces selecting the vehicle; the driver's `ap` is the vehicle's, as his panel shows
+(`GetUIApsToDisplay`). The mercs aboard look, hear and radio (`08`); our vehicle never looks.
+`strategic.vehicles` names our vehicles and the helicopter, and another vehicle only while a merc of ours could board
+it (`IsThisVehicleAccessibleToSoldier`: in his sector, neither moving, `OKUseVehicle`), the map screen's vehicle menu;
+an enemy's tank never, though the vehicle list holds it while its sector is loaded.
 
 A vehicle of ours is a merc of `kind` `vehicle` whose `vehicle` names the vehicle it is; its condition is its `life` and
 `lifeMax`, its fuel in percent its `breath`, as the map screen's status bars show them, and its entry in

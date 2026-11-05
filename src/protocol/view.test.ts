@@ -141,6 +141,15 @@ function soldier(id: number, gridNo: number): SoldierView {
   };
 }
 
+describe('the frames of a vehicle of ours', () => {
+  it('carry the vehicle when somebody gets aboard or off, though nothing else about it changed', () => {
+    const empty = { ...soldier(18, 40), passengers: [] };
+    const before: PlayerView = { ...base, soldiers: [empty] };
+    const frame = diffPlayerView(before, { ...before, tick: 20, soldiers: [{ ...empty, passengers: [1] }] });
+    expect(frame?.changed.map((s) => s.passengers)).toEqual([[1]]);
+  });
+});
+
 describe('applying view frames', () => {
   const steps: PlayerView[] = [
     { ...base, soldiers: [soldier(1, 10), soldier(2, 20)], music: { mode: 'tacticalNothing', creature: false } },

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Vehicles.h VEHICLETYPE, the vehicle types, MAX_PASSENGERS_IN_VEHICLE; Tactical/Vehicles.cc
-// @src AddVehicleToList (the garbage collection and the slot), RemoveVehicleFromList, FindSoldierType.
+// @src AddVehicleToList (the garbage collection and the slot), RemoveVehicleFromList, FindSoldierType, GetNumberInVehicle.
 
 import { Body } from '../../content/anim/body-types.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
@@ -46,6 +46,10 @@ export function emptyPassengerSlots(): number[] {
 
 export function passengersOf(v: VehicleRecord): number[] {
   return v.passengers.filter((id) => id !== NO_PASSENGER);
+}
+
+export function numberInVehicle(v: VehicleRecord): number {
+  return passengersOf(v).length;
 }
 
 export function isVehicleBody(bodyType: number): boolean {

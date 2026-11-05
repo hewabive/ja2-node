@@ -11,7 +11,7 @@
 // @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT; RadioSightings
 // @src and HandleSight with gfPlayerTeamSawCreatures and the first creature sighting's quote (2026-10-30); ManLooksForMan's
 // @src fMercAsleep (2026-10-31); ManSeesMan's SlideTo to an opponent turning visible in combat or in a virgin sector
-// @src (2026-11-03).
+// @src (2026-11-03); ManLooksForMan's vehicle of ours, which never looks (2026-11-05).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv, u8 } from '../../../core/int.ts';
@@ -57,6 +57,7 @@ import {
   isTeamActive,
   resolveInterruptsVs,
 } from '../turns/turns.ts';
+import { vehicleOfOurs } from '../vehicle-presence.ts';
 import {
   calcInterruptDuelPts,
   clearWatchedLocIncrements,
@@ -456,7 +457,7 @@ function slideToSightedOpponent(t: TacticalState, s: Soldier, opp: Soldier): voi
 
 export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, caller: number): boolean {
   if (me === opp || !validForSightings(me) || me.life < OKLIFE || !validForSightings(opp) || me.team === opp.team) return false;
-  if (t.narrative.mercAsleep(me) || me.bodyType === Body.LARVAE_MONSTER) return false;
+  if (t.narrative.mercAsleep(me) || me.bodyType === Body.LARVAE_MONSTER || vehicleOfOurs(me)) return false;
   const pers = me.oppList[opp.id] ?? 0;
   const publ = t.perception.publicOpp[me.team]?.[opp.id] ?? 0;
   const aware = pers !== 0 || publ !== 0;

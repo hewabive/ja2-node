@@ -9,9 +9,11 @@
 // @src edges of the stance drag); Interface_Panels.cc PrintAP (EnoughPoints for MinAPsToAttack at sLastTarget with the
 // @src turning cost); Faces.cc HandleAutoFaces (sFinalDestination for the moving highlight, fGettingHit for the portrait
 // @src flash) (2026-11-03); Interface_Panels.cc PrintAP and Faces.cc HandleRenderFaceAdjustments (the drug state behind
-// @src the light blue AP number and the drug icons: MercUnderTheInfluence, GetDrugEffect, GetDrunkLevel; 2026-11-04).
+// @src the light blue AP number and the drug icons: MercUnderTheInfluence, GetDrugEffect, GetDrunkLevel; 2026-11-04);
+// @src Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle's passengers in its squad's panel, 2026-11-05).
 
 import type { OwnHintInputs } from '../knowledge/view.ts';
+import { VehicleSeat } from '../strategic/forces/constants.ts';
 import { findFenceJumpDirection } from './animation.ts';
 import { minAPsToAttack } from './combat/ap.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
@@ -24,6 +26,7 @@ import { carriedWeightPercentOf, enoughPoints } from './points.ts';
 import { apsToClimbRoof, type RoofClimb, roofClimb } from './roofs.ts';
 import { NOBODY, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
+import { passengersAboard, seatedVehicleId, vehicleOfOurs } from './vehicle-presence.ts';
 
 export interface SoldierStatsView {
   readonly agility: number;
@@ -75,6 +78,8 @@ export interface OwnSoldierFields {
   readonly enoughApToAttack: boolean;
   readonly destination: number;
   readonly gettingHit: boolean;
+  readonly vehicle: VehicleSeatView | null;
+  readonly passengers?: readonly number[];
   readonly drunk?: DrunkView;
   readonly adrenaline?: AdrenalineView;
   readonly hint: OwnHintInputs;
@@ -144,6 +149,11 @@ function enoughApToAttackLastTarget(t: TacticalState, s: Soldier): boolean {
   return enoughPoints(t.inCombat, s, minAPs);
 }
 
+function seatView(t: TacticalState, s: Soldier): VehicleSeatView | null {
+  const id = seatedVehicleId(t, s);
+  return id === null ? null : { id, driver: s.vehicleSeat === VehicleSeat.DRIVER };
+}
+
 function firstAidRole(s: Soldier): FirstAidRole | null {
   if (s.servicePartner !== NOBODY) return 'medic';
   return s.serviceCount > 0 ? 'patient' : null;
@@ -174,6 +184,8 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     enoughApToAttack: enoughApToAttackLastTarget(t, s),
     destination: s.finalDestination,
     gettingHit: s.gettingHit !== 0,
+    vehicle: seatView(t, s),
+    ...(vehicleOfOurs(s) ? { passengers: passengersAboard(t, s) } : {}),
     ...drugView(s),
     hint: ownHintInputs(s),
   };

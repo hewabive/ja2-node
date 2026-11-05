@@ -67,7 +67,9 @@
 // @src RadarRegionButtonCallbackPrimary (the release centres the view there, or closes the overhead map),
 // @src RadarRegionButtonCallbackSecondary (the right click opens or closes the overhead map) (2026-11-04);
 // @src Overhead.cc CheckIfNearbyGroundSeemsWrong's LocateGridNo and Handle_Items.cc MineSpottedDialogueCallBack's item
-// @src locator at the spotted mine (2026-11-04).
+// @src locator at the spotted mine (2026-11-04); Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle squad's
+// @src slots hold its passengers) and MercFacePanelCallbackPrimary (a passenger's face locates and selects his vehicle)
+// @src (2026-11-05).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -160,11 +162,14 @@ import {
   nextMerc,
   OUR_TEAM,
   okInterrupt,
+  onTheMap,
   opponentCount,
   ourTurn,
   ownSoldiers,
   soldierById,
   squadOf,
+  teamPanelMembers,
+  vehicleCarrying,
   visibleEnemies,
 } from './soldiers.ts';
 import { type ControlsArt, type ControlsScreen, type PanelButton, TacticalControls } from './tactical-controls.ts';
@@ -896,7 +901,10 @@ export class TacticalScreen implements Screen {
 
   #teamMembers(): SoldierView[] {
     const view = this.#view();
-    return ownSoldiers(view).filter((s) => squadOf(s) === this.#squad && !isInVehicle(s));
+    return teamPanelMembers(
+      view,
+      ownSoldiers(view).filter((s) => squadOf(s) === this.#squad),
+    );
   }
 
   #syncSlots(): void {
@@ -1533,6 +1541,11 @@ export class TacticalScreen implements Screen {
   #selectFace(slot: number): void {
     const s = this.#slotSoldier(this.#slots[slot] ?? null);
     if (!s || this.pickup.open || this.inventory.cursor) return;
+    const vehicle = vehicleCarrying(this.#view(), s);
+    if (vehicle) {
+      this.#handleLocateSelect(vehicle, false);
+      return;
+    }
     if (this.controls.overhead.open) {
       this.#selectSoldier(s, true, false);
       return;
@@ -1880,7 +1893,7 @@ export class TacticalScreen implements Screen {
   }
 
   #stepMerc(step: 1 | -1): void {
-    const next = nextMerc(ownSoldiers(this.#view()), this.#smMerc, step);
+    const next = nextMerc(ownSoldiers(this.#view()).filter(onTheMap), this.#smMerc, step);
     if (!next) return;
     this.#requestPanel('sm', next.id);
     if (!this.pickup.open) this.locate(next.id, this.dialogue.shopOpen ? LocateFlag.DONTSETLOCATOR : LocateFlag.SETLOCATOR);

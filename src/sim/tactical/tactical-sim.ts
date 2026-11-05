@@ -179,13 +179,14 @@ import {
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
-import { Body, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
+import { Body, inVehicle, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { fenceCuttableBy, handlePendingTileToolOnArrival, interactiveTileAt, tileToolOpcode } from './tile-tools.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns } from './turns/turns.ts';
+import { apsToDisplay, crewRefusal } from './vehicle-presence.ts';
 import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
 import { dynamicLightSprites } from './world-view.ts';
 
@@ -246,7 +247,10 @@ const REMOTE_BOMB_TRIGGER = 'REMOTEBOMBTRIGGER';
 const XRAY_DEVICE = 'XRAY_DEVICE';
 const QUEUED_ORDER = 'the last order has not started yet: advance first';
 const NPC_DREW_FIRST = 'the neutral NPC drew first: no attack was made, and he turns on us';
-const BAD_GROUP: Refusal = { token: 'badGroup', reason: 'group must list controllable mercs of yours in the sector' };
+const BAD_GROUP: Refusal = {
+  token: 'badGroup',
+  reason: 'group must list controllable mercs of yours in the sector, neither vehicles nor the mercs aboard them',
+};
 const AP_USE_REMOTE = 2;
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
@@ -334,6 +338,7 @@ const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (Ite
 const isThrowItemClass = (cls: number) => cls === ItemClass.GRENADE || cls === ItemClass.THROWN || cls === ItemClass.LAUNCHER;
 const RANGED_ITEM_CLASSES: ReadonlySet<number> = new Set([ItemClass.GUN, ItemClass.THROWING_KNIFE]);
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+const neverMultiSelected = (s: Soldier) => isVehicle(s) || inVehicle(s);
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 
 function walksOrRuns(t: TacticalState, s: Soldier): boolean {
@@ -564,6 +569,8 @@ export class TacticalSim {
   actRefusal(s: Soldier): Refusal | null {
     const t = this.state;
     if (!s.placed || s.team !== Team.OUR) return { token: 'noSuchSoldier', reason: 'no such soldier of yours' };
+    const crew = crewRefusal(t, s);
+    if (crew) return crew;
     if (s.life < OKLIFE) return { token: 'cannotAct', reason: 'soldier cannot act' };
     if (s.breath < OKBREATH && (s.collapsed || s.breathCollapsed)) return { token: 'outOfBreath', reason: 'soldier is out of breath' };
     if (uncontrolledRobot(t, s)) return { token: 'uncontrolledRobot', reason: UNCONTROLLED_ROBOT };
@@ -596,12 +603,12 @@ export class TacticalSim {
   #multiSelection(ids: unknown, chosen: Soldier): Soldier[] | Refusal | null {
     const t = this.state;
     if (ids === undefined) return null;
-    if (!Array.isArray(ids)) return BAD_GROUP;
+    if (!Array.isArray(ids) || neverMultiSelected(chosen)) return BAD_GROUP;
     if (t.inCombat) return { token: 'inCombat', reason: 'there is no multi-selection in turn-based combat' };
     const members: Soldier[] = [];
     for (const id of ids) {
       const m = this.soldier(id);
-      if (!m?.placed || m.team !== Team.OUR || !okControllableMerc(t, m)) return BAD_GROUP;
+      if (!m?.placed || m.team !== Team.OUR || !okControllableMerc(t, m) || neverMultiSelected(m)) return BAD_GROUP;
       if (m !== chosen && !members.includes(m)) members.push(m);
     }
     return members;
@@ -611,6 +618,8 @@ export class TacticalSim {
     const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s?.placed || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const crew = crewRefusal(t, s);
+    if (crew) return refused(crew);
     const members = this.#multiSelection(cmd.group, s);
     if (members && !Array.isArray(members)) return refused(members);
     const refusal = this.#selectionLock(s) ?? selectionRefusal(t, s);
@@ -759,6 +768,8 @@ export class TacticalSim {
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
+        const crew = crewRefusal(this.state, s);
+        if (crew) return refused(crew);
         cancelAllServices(this.state, s);
         s.pendingAid = null;
         s.pendingDoorAction = null;
@@ -841,7 +852,7 @@ export class TacticalSim {
     if (refusal) return refused(refusal);
     selectOrderedMerc(t, s);
     const target = this.soldier(cmd.target);
-    if (!target?.placed || !shownToPlayer(target)) return refuse('noSuchTarget', 'target must be a soldier the squad sees');
+    if (!target || !onTheGrid(target) || !shownToPlayer(target)) return refuse('noSuchTarget', 'target must be a soldier the squad sees');
     if (!canBeStolenFrom(target)) return refuse('notStealable', 'only a conscious hostile soldier can be robbed');
     const apCost = apsToStealItem(t, s, stealActionGridNo(t, s, target));
     if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
@@ -919,7 +930,7 @@ export class TacticalSim {
     const source = this.#itemSource(s, cmd);
     if ('ok' in source) return source;
     const target = this.soldier(cmd.target);
-    if (!target?.placed || target === s || !shownToPlayer(target))
+    if (!target || !onTheGrid(target) || target === s || !shownToPlayer(target))
       return refuse('noSuchTarget', 'target must be another soldier the squad sees');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     const outcome = passItem(t, s, target, source);
@@ -1241,7 +1252,7 @@ export class TacticalSim {
   }
 
   snapshot(presentation: PresentationTimeline, filter: (s: Soldier) => boolean = () => true): OwnSoldierSnapshot[] {
-    const shown = this.state.soldiers.filter((s): s is Soldier => !!s && onTheGrid(s) && filter(s));
+    const shown = this.state.soldiers.filter((s): s is Soldier => !!s && s.placed && filter(s));
     const others = new Set(shown.filter((s) => s.team !== Team.OUR).map((s) => s.id));
     return shown.map((s) => ({
       id: s.id,
@@ -1268,7 +1279,7 @@ export class TacticalSim {
       ...(s.visible === Visible.FADING_OUT ? { fadingOut: true } : {}),
       ...(s.team === Team.OUR
         ? {
-            ap: s.actionPoints,
+            ap: apsToDisplay(this.state, s),
             life: s.life,
             lifeMax: s.lifeMax,
             breath: s.breath,

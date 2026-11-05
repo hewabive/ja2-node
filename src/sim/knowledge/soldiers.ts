@@ -1,5 +1,6 @@
 import { handClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { createItem } from '../items/object.ts';
+import { VehicleSeat } from '../strategic/forces/constants.ts';
 import { endHeight, states } from '../tactical/animation.ts';
 import { WeaponMode } from '../tactical/combat/types.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -23,7 +24,7 @@ import {
   Team,
   Visible,
 } from '../tactical/soldier.ts';
-import type { WeaponModeView } from '../tactical/soldier-view.ts';
+import type { VehicleSeatView, WeaponModeView } from '../tactical/soldier-view.ts';
 import { type GuardOptions, guardFields } from './guard.ts';
 import { inventoryFromView } from './objects.ts';
 import type { KnowledgeSoldier, OwnHintInputs } from './view.ts';
@@ -46,6 +47,7 @@ const SHOWN_FIELDS = [
   'overTerrain',
   'monsterOrAnimal',
   'muzzleFlash',
+  'vehicleSeat',
 ] as const;
 
 const DERIVED_FROM_HOSTILE = ['side', 'neutral'] as const;
@@ -210,6 +212,11 @@ function applyStance(content: TacticalContent, s: Soldier, stance: Stance | unde
     : movementForStanceChange(content, stanceHeight(stance) ?? endHeight(content, s.state));
 }
 
+function seatOf(vehicle: VehicleSeatView | null | undefined): number {
+  if (!vehicle) return VehicleSeat.NONE;
+  return vehicle.driver ? VehicleSeat.DRIVER : VehicleSeat.PASSENGER;
+}
+
 function drugsFromView(v: KnowledgeSoldier, guard: GuardOptions): DrugCourses {
   const shown = drugCoursesShowing(v);
   const adrenalineFields = v.adrenaline ? NO_DRUG_FIELDS : SHOWN_DRUG_FIELDS;
@@ -233,6 +240,7 @@ function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldie
   s.weaponMode = WEAPON_MODES[v.weaponMode ?? 'single'];
   s.blindedCounter = v.blinded ? 1 : 0;
   s.serviceCount = v.firstAid === 'patient' ? 1 : 0;
+  s.vehicleSeat = seatOf(v.vehicle);
   s.keyRing = keyRingOf(v);
   s.hasKeys = (v.keys ?? []).length > 0 ? 1 : 0;
   s.skillTrait1 = hint.skills[0];

@@ -1,6 +1,9 @@
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
+import type { KnowledgeSoldier } from '../knowledge/view.ts';
 import { OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
+import { IN_VEHICLE, NO_DRIVER } from '../tactical/vehicle-presence.ts';
+import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { type HintRefusal, refuseHint } from './types.ts';
 
 export interface ActingSoldier {
@@ -9,9 +12,17 @@ export interface ActingSoldier {
   readonly blocked: string | null;
 }
 
+function crewBlock(v: KnowledgeSoldier): string | null {
+  if (v.vehicle) return IN_VEHICLE.token;
+  return isVehicleBody(v.bodyType) && (v.passengers ?? []).length === 0 ? NO_DRIVER.token : null;
+}
+
 function blockedBy(world: KnowledgeWorld, id: number): string | null {
   const v = world.tactical?.soldierView(id);
-  if (!v || (v.life ?? 0) < OKLIFE) return 'cannotAct';
+  if (!v) return 'cannotAct';
+  const crew = crewBlock(v);
+  if (crew) return crew;
+  if ((v.life ?? 0) < OKLIFE) return 'cannotAct';
   if (world.view.combat?.uiLocked) return 'uiLocked';
   if (v.canAct === false) return 'mercUnavailable';
   return null;

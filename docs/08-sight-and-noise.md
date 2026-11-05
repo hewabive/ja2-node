@@ -177,6 +177,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Only a look forgets which creature the team saw last: a radio outside a look (a noise, an unseen attacker) that reveals a soldier brings the creature line | `../narrative/sighting-quotes.test.ts` |
 | A merc counts himself among the allies who see half the enemies, so the in-trouble line needs four opponents in his sight when he stands alone | `../narrative/sighting-quotes.test.ts` |
 | A look examines only the first slanted roof on a tile, so a hidden roof whose base lies under another gets its ceiling only once a tile of its own is seen | `slant-roofs.test.ts` |
+| The mercs aboard a vehicle of ours look, hear and radio from its tile, while the vehicle never looks and notices no unseen attacker, though enemies see it | `../vehicle-presence.test.ts` "lets the mercs aboard look …", "lets the vehicle notice no unseen attacker …" |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.
@@ -206,6 +207,10 @@ are not probed. Inferred from reading the source:
 - Hiring a merc while a sector is loaded wipes our team's public last-known locations there (`TacticalCreateSoldier`
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
+- A merc aboard a ground vehicle is a valid sighting at the vehicle's tile (`IsSoldierValidForSightings`,
+  `Tactical/OppList.cc:621`), and nothing in the line of sight treats the vehicle's own structure apart: he looks out
+  from its tile and an enemy who sees that tile sees him (`../vehicle-presence.test.ts` "lets enemies see the mercs
+  aboard …"). The helicopter's passengers never count.
 
 Deviations of this domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light
 schedule", "Sounds out of sight", "Bullets of unseen shooters".
