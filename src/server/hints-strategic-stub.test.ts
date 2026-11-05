@@ -2,8 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serialisedView, withQueries } from '../../tests/support/hints.ts';
 import { samplePassHints, sampleStrategicHints } from '../../tests/support/hints-strategic.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction } from '../content/world/grid.ts';
+import type { RosterMerc } from '../sim/campaign/roster.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
 import { LAIR_DESTROYED } from '../sim/strategic/creatures/creatures.ts';
@@ -194,6 +196,30 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     const routed = c.sim.dispatch({ type: 'route', soldier: fit.id, to: 'B11' });
     expect(squad).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: tired.id } });
     expect(routed).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: tired.id } });
+  });
+});
+
+describe('a vehicle of ours, client against server', () => {
+  async function withOurHummer(seed: number): Promise<Campaign & { readonly hummer: RosterMerc }> {
+    const sim = await stubCampaignWithOurHummer(kit, seed);
+    const hummer = sim.campaign.battle?.roster.all().find((m) => m.isVehicle);
+    if (!hummer) throw new Error('no vehicle of ours');
+    return { sim, session: withQueries(new Session('vehicle-hints', sim), sources), hummer };
+  }
+
+  it('refuse the route of a vehicle with an empty tank, and of its passengers through it, like the command (ME_VEHICLE_NO_GAS, quirk)', async () => {
+    const c = await withOurHummer(38);
+    Object.assign(c.hummer.soldier, { breathRed: 0, breath: 0 });
+    const view = serialisedView(c.session);
+    await expectHintsAgree(c.session, client, sampleStrategicHints(view));
+    const passengers = view.strategic?.mercs.filter((m) => m.vehicle === c.hummer.vehicleId).map((m) => m.id) ?? [];
+    expect(passengers).toContain(c.hummer.id);
+    expect(passengers.length).toBeGreaterThan(1);
+    const refused = { ok: false, data: { refusal: 'vehicleNoGas', soldier: c.hummer.id } };
+    for (const soldier of passengers) {
+      expect(await c.session.query({ type: 'previewRoute', soldier, to: 'B10' }), `hint for ${soldier}`).toMatchObject(refused);
+      expect(c.sim.dispatch({ type: 'route', soldier, to: 'B10' }), `route for ${soldier}`).toMatchObject(refused);
+    }
   });
 });
 

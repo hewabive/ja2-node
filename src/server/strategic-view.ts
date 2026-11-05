@@ -205,7 +205,7 @@ function mercView(m: ViewedMerc): StrategicMercView {
     breath: m.soldier?.breath ?? 0,
     breathMax: m.soldier?.breathMax ?? 0,
     asleep: m.asleep,
-    ...(m.assignment === Assignment.VEHICLE ? { vehicle: m.vehicleId } : {}),
+    ...(m.assignment === Assignment.VEHICLE || m.isVehicle ? { vehicle: m.vehicleId } : {}),
     ...(m.soldier ? drugView(m.soldier) : {}),
   };
 }

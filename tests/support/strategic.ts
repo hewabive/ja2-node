@@ -16,6 +16,7 @@ import type {
   TravelStat,
 } from '../../src/sim/strategic/forces/ports.ts';
 import { createStrategicState, type StrategicState, type StrategicStateOptions } from '../../src/sim/strategic/state.ts';
+import { FULL_VEHICLE_FUEL, spendVehicleFuel, type VehicleFuel } from '../../src/sim/vehicles/vehicle-fuel.ts';
 import { type MapFacts, mapFacts } from '../../src/ui/screens/map/facts.ts';
 
 const DATA_DIR = join(import.meta.dirname, '../../data');
@@ -77,6 +78,11 @@ export interface FakeMercOptions {
   readonly encumbrance?: number;
   readonly tooTired?: boolean;
   readonly prevSectorId?: number;
+  readonly fuel?: number;
+}
+
+interface FakeMerc extends StrategicMerc {
+  fuel: number;
 }
 
 export interface ExperienceAward {
@@ -86,21 +92,21 @@ export interface ExperienceAward {
 }
 
 export class FakeMercs implements MercPort {
-  readonly mercs = new Map<number, StrategicMerc>();
+  readonly mercs = new Map<number, FakeMerc>();
   readonly encumbrance = new Map<number, number>();
   readonly tired = new Set<number>();
   readonly experience: ExperienceAward[] = [];
   readonly placedInSector: number[] = [];
   readonly removedFromSector: number[] = [];
   readonly collapsed: { readonly id: number; readonly firstToComplain: boolean }[] = [];
-  fuel = 10000;
 
   add(o: FakeMercOptions): StrategicMerc {
-    const m: StrategicMerc = {
+    const m: FakeMerc = {
       id: o.id,
       profile: o.profile ?? o.id + 50,
       life: o.life ?? 80,
       lifeMax: o.lifeMax ?? 80,
+      fuel: o.fuel ?? FULL_VEHICLE_FUEL,
       strength: o.strength ?? 80,
       isVehicle: o.isVehicle ?? false,
       isRobot: o.isRobot ?? false,
@@ -168,9 +174,13 @@ export class FakeMercs implements MercPort {
     this.collapsed.push({ id, firstToComplain });
   }
 
-  spendVehicleFuel(_vehicleSoldierId: number, fuel: number): number {
-    this.fuel = Math.max(0, this.fuel - fuel);
-    return this.fuel;
+  spendVehicleFuel(vehicleSoldierId: number, fuel: number): number {
+    const m = this.mercs.get(vehicleSoldierId);
+    if (!m) return 0;
+    const tank: VehicleFuel = { breathRed: m.fuel, breath: 0 };
+    spendVehicleFuel(tank, fuel);
+    m.fuel = tank.breathRed;
+    return m.fuel;
   }
 }
 

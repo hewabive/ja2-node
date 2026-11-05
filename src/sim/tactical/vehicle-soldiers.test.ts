@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { NO_VEHICLE } from '../strategic/forces/constants.ts';
+import { FULL_VEHICLE_FUEL } from '../vehicles/vehicle-fuel.ts';
 import { NO_MOVEMENT_GROUP, VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { handleSoldierDeath } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
@@ -10,7 +11,7 @@ import { NEUTRAL_POPULATION } from './init-list.ts';
 import { setSoldierPosition } from './movement.ts';
 import { Body, NO_PROFILE, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
-import { FULL_VEHICLE_FUEL, removeVehiclesNotOnOurTeam } from './vehicle-soldiers.ts';
+import { removeVehiclesNotOnOurTeam } from './vehicle-soldiers.ts';
 
 let content: TacticalContent;
 

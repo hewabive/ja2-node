@@ -288,4 +288,4 @@ Inferred or observed in ja2-node only:
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
 Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "Team panel vehicle exit",
-"Vehicles as characters", "IME composition", "I.M.P. skill page and saved profiles".
+"Out-of-gas box", "IME composition", "I.M.P. skill page and saved profiles".

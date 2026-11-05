@@ -34,6 +34,7 @@ export const MOVE_REFUSAL_INDEX: Readonly<Record<string, number>> = {
   tooInjured: 33,
   dead: 35,
   tooTired: 43,
+  vehicleNoGas: 42,
   vehicleDamaged: 47,
   robotAlone: 49,
   escortAlone: 6,

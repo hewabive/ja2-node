@@ -108,6 +108,12 @@ export interface VehicleLeftEvent extends SimEventBase {
   readonly vehicle: number;
 }
 
+export interface VehicleOutOfGasEvent extends SimEventBase {
+  readonly type: 'vehicleOutOfGas';
+  readonly vehicle: number;
+  readonly sector: string;
+}
+
 export type ArrivedWho =
   | { readonly kind: 'merc'; readonly soldier: number }
   | { readonly kind: 'squad'; readonly squad: number }
@@ -149,6 +155,7 @@ export type HelicopterEvent =
   | SkyriderMonologueEvent
   | PassengersDroppedEvent
   | VehicleBoardedEvent
-  | VehicleLeftEvent;
+  | VehicleLeftEvent
+  | VehicleOutOfGasEvent;
 
 export type HelicopterEventWithoutTick = HelicopterEvent extends infer E ? (E extends HelicopterEvent ? Omit<E, 'tick'> : never) : never;

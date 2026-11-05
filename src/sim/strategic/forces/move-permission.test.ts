@@ -14,8 +14,9 @@ import { MercKind, type Roster } from '../../campaign/roster.ts';
 import { createItem } from '../../items/object.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
-import { Body, TEAM_FIRST_ID, Team } from '../../tactical/soldier.ts';
+import { Body, OKLIFE, TEAM_FIRST_ID, Team } from '../../tactical/soldier.ts';
 import { sectorMapOf } from '../../tactical/state.ts';
+import { sectorInfo } from '../map/sectors.ts';
 import { Npc } from '../narrative/npc-ids.ts';
 import { Assignment, EncounterCode } from './constants.ts';
 import { canCharacterMoveInStrategic, canEntireMovementGroupMove, MoveRefusal } from './move-permission.ts';
@@ -133,6 +134,34 @@ describe('strategic movement permission', () => {
     const escort = mercs.add({ id: ESCORT, sector: B9, isEpc: true, assignment: Assignment.VEHICLE });
     for (const m of [vehicle, escort]) Object.assign(m, { vehicleId: VEHICLE, groupId: VEHICLE_GROUP });
     expect(canEntireMovementGroupMove(ctx, VEHICLE_SOLDIER, PEACE)).toEqual({ refusal: MoveRefusal.EPC_ALONE, soldier: ESCORT });
+  });
+
+  it('checks a vehicle for passengers, then damage, then fuel, all before the sector (ME_VEHICLE_EMPTY, _DAMAGED, _NO_GAS)', () => {
+    const mercs = new FakeMercs();
+    const ctx = testContext({ content, mercs });
+    Object.assign(sectorInfo(ctx.state.map, B9), { numTroops: 3 });
+    const vehicle = mercs.add({ id: VEHICLE_SOLDIER, sector: B9, isVehicle: true, life: OKLIFE - 1, fuel: 0 });
+    vehicle.vehicleId = VEHICLE;
+    expect(canCharacterMoveInStrategic(ctx, vehicle, PEACE)).toBe(MoveRefusal.VEHICLE_EMPTY);
+    const driver = mercs.add({ id: 0, sector: B9, assignment: Assignment.VEHICLE });
+    driver.vehicleId = VEHICLE;
+    expect(canCharacterMoveInStrategic(ctx, vehicle, PEACE)).toBe(MoveRefusal.VEHICLE_DAMAGED);
+    Object.assign(vehicle, { life: OKLIFE });
+    expect(canCharacterMoveInStrategic(ctx, vehicle, PEACE)).toBe(MoveRefusal.VEHICLE_NO_GAS);
+    Object.assign(vehicle, { fuel: 1 });
+    expect(canCharacterMoveInStrategic(ctx, vehicle, PEACE)).toBe(MoveRefusal.ENEMY);
+  });
+
+  it("refuses a passenger's move for the empty tank of his vehicle, which travels in his group (quirk)", () => {
+    const mercs = new FakeMercs();
+    const ctx = testContext({ content, mercs });
+    const vehicle = mercs.add({ id: VEHICLE_SOLDIER, sector: B9, isVehicle: true, fuel: 0, assignment: Assignment.SQUAD_1 });
+    const driver = mercs.add({ id: 0, sector: B9, assignment: Assignment.VEHICLE });
+    for (const m of [vehicle, driver]) Object.assign(m, { vehicleId: VEHICLE, groupId: VEHICLE_GROUP });
+    expect(canCharacterMoveInStrategic(ctx, driver, PEACE)).toBeNull();
+    expect(canEntireMovementGroupMove(ctx, 0, PEACE)).toEqual({ refusal: MoveRefusal.VEHICLE_NO_GAS, soldier: VEHICLE_SOLDIER });
+    Object.assign(vehicle, { fuel: 1 });
+    expect(canEntireMovementGroupMove(ctx, 0, PEACE)).toBeNull();
   });
 
   it('keeps Maria in C5', () => {

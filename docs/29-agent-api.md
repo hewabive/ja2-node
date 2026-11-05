@@ -48,7 +48,7 @@ an LLM agent without pausing is a non-goal.
 
 **Not built as commands** (the client shows them disabled): repairing and refuelling a vehicle with a toolkit or a gas
 can (gap "Ground vehicles"; `previewAction` answers `notSupported`); auto-bandage (gap "Auto-bandage"); the placement
-GUI (deviation "Tactical placement"); vehicles' condition and fuel (gap "Vehicles as characters").
+GUI (deviation "Tactical placement").
 
 ## 3. Fairness: what the agent never sees
 
@@ -66,6 +66,7 @@ original's message. Per domain:
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
 | Towns and mines | Loyalty once started and where the town uses it; mine status in the town box's order | Remaining ore, which mine will deplete |
 | Helicopter | Debt, hits, safe and unsafe sectors, route cost | Skyrider's talk state and accumulated bill |
+| Vehicles | The condition and fuel percentage of our vehicles | The condition and fuel of other vehicles; fuel finer than a percent |
 | Autoresolve | Cells, health categories, counts, battle time | Ratings, timers, pending bullets, exact enemy life, the capture roll |
 | Laptop | What the pages print | `dayBecomesAvailable`, hangovers, tolerances, hated and buddy lists, death rate, reputation, unhired deaths and improvements before they show, restocks, theft counters, investigation outcomes, the M.E.R.C. outage roll, queued events |
 | Contracts | The renewal options and their costs; willing and unwilling mercs look alike, only the quotes tell | Opinions, buddy and hated slots, tolerances, learn-to progress, precedents, `signedAnotherContract`, the renewal list |
@@ -631,6 +632,14 @@ Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as 
 `plotted` asks him the same way first. `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (deviation "Leaving the helicopter in
 flight"). Ground vehicles move through a passenger's `route`.
+
+A vehicle of ours is a merc of `kind` `vehicle` whose `vehicle` names the vehicle it is; its condition is its `life` and
+`lifeMax`, its fuel in percent its `breath`, as the map screen's status bars show them, and its entry in
+`strategic.vehicles` repeats them as `life`, `lifeMax` and `fuel`. Other vehicles and the helicopter show neither.
+Travel burns fuel (`16`); the leg that empties the tank brings `vehicleOutOfGas {vehicle, sector}`, the original's box,
+before the arrival's `groupArrived`, and the group stops there. A vehicle with an empty tank refuses to move as
+`vehicleNoGas` (after `vehicleEmpty` and `vehicleDamaged`), and so does the route of anyone aboard, naming the vehicle
+soldier. The hints read the fuel from the percentage shown.
 
 A vehicle in the loaded sector, an enemy tank among them, takes hits by the original's vehicle rules (`33`) and gets 35
 APs more a turn, up to 50 (`10`). The hit that destroys it brings `vehicleDestroyed {soldier, vehicle, killer}` (the

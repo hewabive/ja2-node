@@ -122,6 +122,7 @@ function savedMercPort(save: SaveGame): MercPort {
       profile: s.profile,
       life: s.stats.life,
       lifeMax: s.stats.lifeMax,
+      fuel: s.breathRed,
       strength: s.stats.strength,
       isVehicle: (s.statusFlags & STATUS_VEHICLE) !== 0,
       isRobot: (s.statusFlags & STATUS_ROBOT) !== 0,

@@ -16,6 +16,7 @@ export interface StrategicMerc {
   readonly profile: number;
   readonly life: number;
   readonly lifeMax: number;
+  readonly fuel: number;
   readonly strength: number;
   readonly isVehicle: boolean;
   readonly isRobot: boolean;

@@ -21,6 +21,7 @@ export const MoveRefusal = {
   UNDERGROUND: 'underground',
   VEHICLE_EMPTY: 'vehicleEmpty',
   VEHICLE_DAMAGED: 'vehicleDamaged',
+  VEHICLE_NO_GAS: 'vehicleNoGas',
   DEAD: 'dead',
   TOO_INJURED: 'tooInjured',
   COMBAT: 'inCombat',
@@ -113,6 +114,7 @@ export function canCharacterMoveInStrategic(ctx: StrategicContext, m: StrategicM
   if (m.isVehicle) {
     if (passengers(ctx, m.vehicleId) === 0) return MoveRefusal.VEHICLE_EMPTY;
     if (m.life < OKLIFE) return MoveRefusal.VEHICLE_DAMAGED;
+    if (m.fuel === 0) return MoveRefusal.VEHICLE_NO_GAS;
   } else {
     if (m.life <= 0) return MoveRefusal.DEAD;
     if (m.life < OKLIFE) return MoveRefusal.TOO_INJURED;

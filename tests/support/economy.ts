@@ -12,6 +12,7 @@ import { applySquadAssignment } from '../../src/sim/strategic/economy/set-assign
 import type { HelicopterPort } from '../../src/sim/strategic/forces/ports.ts';
 import { createStrategicState, type StrategicStateOptions } from '../../src/sim/strategic/state.ts';
 import { NOWHERE } from '../../src/sim/tactical/soldier.ts';
+import { FULL_VEHICLE_FUEL } from '../../src/sim/vehicles/vehicle-fuel.ts';
 import { loadStrategicTestContent, testContext } from './strategic.ts';
 
 const DATA_DIR = join(import.meta.dirname, '../../data');
@@ -55,6 +56,7 @@ export interface CrewOptions {
   readonly isVehicle?: boolean;
   readonly isRobot?: boolean;
   readonly isEpc?: boolean;
+  readonly fuel?: number;
   readonly lastAssignmentChangeMin?: number;
   readonly inSector?: boolean;
 }
@@ -87,6 +89,7 @@ export class FakeCrew implements CrewPort {
       profile: o.profile ?? o.id + 50,
       life: o.life ?? 80,
       lifeMax: o.lifeMax ?? 80,
+      fuel: o.fuel ?? FULL_VEHICLE_FUEL,
       strength: stats.strength,
       isVehicle: o.isVehicle ?? false,
       isRobot: o.isRobot ?? false,

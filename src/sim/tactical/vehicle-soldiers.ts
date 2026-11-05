@@ -4,6 +4,7 @@
 // @src (fRemoveVehicle); Tactical/Vehicles.cc SetVehicleValuesIntoSoldierType; TileEngine/WorldDef.cc TrashWorld (the
 // @src soldiers not on our team).
 
+import { FULL_VEHICLE_FUEL, FULL_VEHICLE_FUEL_PERCENT } from '../vehicles/vehicle-fuel.ts';
 import {
   fillVehicleSlot,
   isVehicleBody,
@@ -16,8 +17,6 @@ import type { TacticalContent } from './content.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { SectorRef, TacticalState } from './state.ts';
 
-export const FULL_VEHICLE_FUEL = 10000;
-const FULL_VEHICLE_FUEL_PERCENT = 100;
 const NO_SECTOR: SectorRef = { x: 0, y: 0, z: 0 };
 const NO_MOVEMENT_GROUPS: readonly number[] = [];
 

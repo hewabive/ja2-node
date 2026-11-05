@@ -6,6 +6,10 @@ describe('refusal messages', () => {
     expect(refusalMessage('museumChalice')).toEqual({ table: 'pMapErrorString', index: 34, shown: 'box' });
     expect(refusalMessage('inCombat')).toEqual({ table: 'pMapErrorString', index: 11, shown: 'box' });
   });
+
+  it("boxes a vehicle's move with an empty tank with ME_VEHICLE_NO_GAS's map error", () => {
+    expect(refusalMessage('vehicleNoGas')).toEqual({ table: 'pMapErrorString', index: 42, shown: 'box' });
+  });
 });
 
 describe('the exchange of places (CanExchangePlaces)', () => {

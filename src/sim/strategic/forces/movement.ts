@@ -5,10 +5,11 @@
 // @src DelayEnemyGroupsIfPathsCross, GroupArrivedAtSector, HandleNonCombatGroupArrival, CalculateNextMoveIntention,
 // @src AwardExperienceForTravelling, PlayerGroupArrivedSafelyInSector, HandlePlayerGroupEnteringSectorToCheckForNPCsOfNote,
 // @src RetreatGroupToPreviousSector, CalculateGroupRetreatSector, ResetMovementForEnemyGroup, RandomizePatrolGroupLocation,
-// @src PlaceGroupInSector, MoveAllGroupsInCurrentSectorToSector, GroupWillMoveThroughSector, SpendVehicleFuel;
+// @src PlaceGroupInSector, MoveAllGroupsInCurrentSectorToSector, GroupWillMoveThroughSector;
 // @src Strategic_Pathing.cc RebuildWayPointsForGroupPath, ClearMercPathsAndWaypointsForAllInGroup, MoveGroupFromSectorToSector*,
 // @src AddSectorToFrontOfMercPathForAllSoldiersInGroup, GetGroupMercPathPtr.
-// @src The MSG_ARRIVE line of GroupArrivedAtSector becomes the groupArrived event.
+// @src The MSG_ARRIVE line of GroupArrivedAtSector becomes the groupArrived event, ReportVehicleOutOfGas's box the
+// @src vehicleOutOfGas event.
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import {
@@ -353,10 +354,12 @@ function insertionFromTravel(arrival: Sector, prev: Sector): { direction: number
   return null;
 }
 
-function spendVehicleFuel(ctx: StrategicContext, g: Group): void {
+function spendVehicleFuel(ctx: StrategicContext, g: Group, arrival: Sector): void {
   const v = vehicleOfGroup(ctx, g);
   const remaining = ctx.mercs.spendVehicleFuel(v.soldierId, i16(g.traverseTime * VEHICLE_FUEL_PER_MINUTE));
-  if (remaining === 0) clearMercPathsAndWaypointsForAllInGroup(ctx, g);
+  if (remaining !== 0) return;
+  ctx.helicopter.emit({ type: 'vehicleOutOfGas', vehicle: ctx.state.forces.vehicles.indexOf(v), sector: sectorShortString(arrival) });
+  clearMercPathsAndWaypointsForAllInGroup(ctx, g);
 }
 
 type ArrivalOutcome = 'invalid' | 'arrived' | 'destroyed';
@@ -448,7 +451,7 @@ export function groupArrivedAtSector(ctx: StrategicContext, g: Group, checkForBa
   g.next = { x: 0, y: 0, z: g.next.z };
   if (g.player && !neverLeft) {
     if (!g.vehicle) awardExperienceForTravelling(ctx, g);
-    else if (!isHelicopterGroup(ctx, g)) spendVehicleFuel(ctx, g);
+    else if (!isHelicopterGroup(ctx, g)) spendVehicleFuel(ctx, g, arrival);
   }
   g.traverseTime = 0;
   g.arrivalTime = 0;

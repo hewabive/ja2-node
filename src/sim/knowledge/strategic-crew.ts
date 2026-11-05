@@ -3,6 +3,7 @@ import type { Sector } from '../../content/strategic/sector-ids.ts';
 import type { CrewMember, CrewPort, MercStats } from '../strategic/economy/ports.ts';
 import { emptyInventory, type Inventory } from '../tactical/inventory.ts';
 import { NOWHERE } from '../tactical/soldier.ts';
+import { FUEL_PER_PERCENT } from '../vehicles/vehicle-fuel.ts';
 import { type GuardOptions, guardFields, unsupplied } from './guard.ts';
 import { objectFromInventoryView } from './objects.ts';
 import type { KnowledgeMerc } from './view.ts';
@@ -12,6 +13,7 @@ const CREW_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'profile',
   'life',
   'lifeMax',
+  'fuel',
   'strength',
   'isVehicle',
   'isRobot',
@@ -34,6 +36,8 @@ const CREW_FIELDS: ReadonlySet<PropertyKey> = new Set([
 
 const NO_VEHICLE = -1;
 const NO_PROFILE = 200;
+const VEHICLE_KIND = 'vehicle';
+const NO_FUEL = 0;
 const NO_ROOM = 0;
 const ROBOT_PROFILE = 62;
 
@@ -81,6 +85,10 @@ function inventoryOf(items: ItemTable, m: KnowledgeMerc, guard: GuardOptions): I
   return inv;
 }
 
+function fuelShown(m: KnowledgeMerc): number {
+  return m.kind === VEHICLE_KIND ? m.breath * FUEL_PER_PERCENT : NO_FUEL;
+}
+
 export function isRobotMerc(m: KnowledgeMerc): boolean {
   return m.controlled !== undefined || m.profile === ROBOT_PROFILE;
 }
@@ -91,8 +99,9 @@ export function crewMemberFromView(items: ItemTable, m: KnowledgeMerc, placement
     profile: m.profile ?? NO_PROFILE,
     life: m.life,
     lifeMax: m.lifeMax,
+    fuel: fuelShown(m),
     strength: m.stats?.strength ?? 0,
-    isVehicle: m.kind === 'vehicle',
+    isVehicle: m.kind === VEHICLE_KIND,
     isRobot: isRobotMerc(m),
     isEpc: m.kind === 'epc',
     isPassengerOrDriver: false,

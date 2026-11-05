@@ -1,7 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc DisplayPositionOfHelicopter (the flight ratio, clamped to 0..100),
-// @src DisplayDistancesForHelicopter (safe and unsafe sectors); Strategic/Map_Screen_Helicopter.cc CanHelicopterFly.
+// @src DisplayDistancesForHelicopter (safe and unsafe sectors); Strategic/Map_Screen_Helicopter.cc CanHelicopterFly;
+// @src Strategic/Map_Screen_Interface.cc UpdateCharRegionHelpText (a vehicle's condition and fuel, bLife and bBreath of its
+// @src soldier, shown for our own vehicles only).
 
 import { type Sector, sectorFromStrategicIndex, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { DestroyedHelicopterView, StrategicHelicopterView, StrategicVehicleView } from '../protocol/view.ts';
@@ -37,6 +39,11 @@ const KIND_NAMES: Readonly<Record<string, string>> = {
 function kindOf(ctx: StrategicContext, v: VehicleRecord): string {
   const profile = ctx.content.vehicles[v.type]?.profile ?? '';
   return KIND_NAMES[profile] ?? profile;
+}
+
+function conditionOf(campaign: CampaignSim, v: VehicleRecord): Pick<StrategicVehicleView, 'life' | 'lifeMax' | 'fuel'> {
+  const vs = campaign.battle?.roster.get(v.soldierId);
+  return vs?.isVehicle ? { life: vs.life, lifeMax: vs.lifeMax, fuel: vs.breath } : {};
 }
 
 function vehicleLeg(
@@ -78,6 +85,7 @@ export function vehicleViews(campaign: CampaignSim): StrategicVehicleView[] | un
             group: v.movementGroup,
             usable: okUseVehicle(ctx, v),
             ...vehicleLeg(ctx, v),
+            ...conditionOf(campaign, v),
           },
         ]
       : [],

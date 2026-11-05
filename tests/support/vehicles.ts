@@ -3,18 +3,53 @@ import { parseSectorString, type Sector } from '../../src/content/strategic/sect
 import { Direction, gridNo } from '../../src/content/world/grid.ts';
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { getGroup, removeGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
+import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
+import { createMercRecord } from '../../src/sim/campaign/merc-record.ts';
+import { MercKind, RosterMerc } from '../../src/sim/campaign/roster.ts';
+import { Assignment, NO_VEHICLE } from '../../src/sim/strategic/forces/constants.ts';
+import { addPlayerToGroup, getGroup, removeGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
+import { FACT_OK_USE_HUMMER } from '../../src/sim/strategic/forces/helicopter.ts';
+import { addVehicleToList } from '../../src/sim/strategic/forces/vehicles.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
+import { setFact } from '../../src/sim/strategic/narrative/facts.ts';
 import { createFromPlacementParts } from '../../src/sim/tactical/creation.ts';
 import { NEUTRAL_POPULATION, soldierSlotTaken } from '../../src/sim/tactical/init-list.ts';
 import { addSoldierToSector, Insertion } from '../../src/sim/tactical/insertion.ts';
-import { Attitude, type Body, firstFreeSoldierId, Orders, type Soldier, SoldierClass } from '../../src/sim/tactical/soldier.ts';
+import {
+  Attitude,
+  Body,
+  createSoldier,
+  firstFreeSoldierId,
+  NOWHERE,
+  Orders,
+  type Soldier,
+  SoldierClass,
+  SoldierStatusFlags,
+  Team,
+} from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import { registerVehicleSoldier } from '../../src/sim/tactical/vehicle-soldiers.ts';
+import { vehicleTypeOfBody } from '../../src/sim/vehicles/vehicle-list.ts';
 import type { RunMode } from './reload.ts';
 import type { StubSectorKit } from './sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from './session-reload.ts';
 
 const STUB_MAP_ORIGIN = 66;
+const VEHICLE_LIFE = 100;
+const NO_PREVIOUS_SECTOR = 255;
+const VEHICLE_STATS = {
+  agility: 0,
+  dexterity: 0,
+  strength: 0,
+  wisdom: 0,
+  leadership: 0,
+  marksmanship: 0,
+  mechanical: 0,
+  explosives: 0,
+  medical: 0,
+  experience: 0,
+};
+const VEHICLE_PALETTES = { hair: '', skin: '', vest: '', pants: '' };
 
 export const HUMMER_SECTOR = 'L10';
 export const PROF_HUMMER = 160;
@@ -25,17 +60,18 @@ export const HUMMER_ARRIVAL_GRIDNO = gridNo(STUB_MAP_ORIGIN + 8, STUB_MAP_ORIGIN
 const APPROACH = 'L9';
 const START = 'A9';
 const QUIET = [START, APPROACH, HUMMER_SECTOR];
+export const OUR_HUMMER_ROUTE = ['B9', 'B10', 'B11'];
 const LANDING_COMPRESSION = 2;
 const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
 const AVERAGE_LEVEL = 2;
 
-function quietSector(session: CampaignSession, name: string): void {
-  Object.assign(sectorInfo(session.campaign.state.map, parseSectorString(name)), { numAdmins: 0, numTroops: 0, numElites: 0 });
+function quietSector(campaign: CampaignSim, name: string): void {
+  Object.assign(sectorInfo(campaign.state.map, parseSectorString(name)), { numAdmins: 0, numTroops: 0, numElites: 0 });
 }
 
-function removeEnemyGroups(session: CampaignSession): void {
-  const ctx = session.campaign.strategic;
+function removeEnemyGroups(campaign: CampaignSim): void {
+  const ctx = campaign.strategic;
   if (!ctx) throw new Error('no strategic layer');
   for (const g of ctx.state.forces.groups.filter((group) => !group.player)) removeGroup(ctx, g, true);
 }
@@ -60,8 +96,8 @@ async function dispatchPrepared(session: CampaignSession, cmd: { readonly type: 
 export async function stubCampaignAtTheHummer(kit: StubSectorKit, seed: number, mode?: RunMode, mercs = 2): Promise<CampaignSession> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs, land: false });
   const session = drivenSession(created, stubSessionSources(kit), mode);
-  for (const name of QUIET) quietSector(session, name);
-  removeEnemyGroups(session);
+  for (const name of QUIET) quietSector(session.campaign, name);
+  removeEnemyGroups(session.campaign);
   await dispatchPrepared(session, { type: 'compressTime', mode: LANDING_COMPRESSION });
   await dispatchPrepared(session, { type: 'mapScreen' });
   teleportSquad(session, parseSectorString(APPROACH));
@@ -113,4 +149,65 @@ export function addStubTank(t: TacticalState, order: StubTankOrder): Soldier {
   const placed = addSoldierToSector(t, tank, { code: Insertion.GRIDNO, data: order.gridNo, direction: order.direction }, {}, false);
   if (!placed) throw new Error(`the tank found no place near ${order.gridNo}`);
   return tank;
+}
+
+export function addVehicleOfOurs(campaign: CampaignSim, sector: Sector, body: number = Body.HUMVEE): RosterMerc {
+  const ctx = campaign.strategic;
+  const battle = campaign.battle;
+  if (!ctx || !battle) throw new Error('no strategic layer');
+  const roster = battle.roster;
+  const id = firstFreeSoldierId((n) => roster.get(n) !== undefined, Team.OUR, body);
+  if (id < 0) throw new Error('no soldier slot for a vehicle of ours');
+  const soldier = createSoldier({
+    id,
+    team: Team.OUR,
+    name: `vehicle ${id}`,
+    bodyType: body,
+    palettes: VEHICLE_PALETTES,
+    stats: VEHICLE_STATS,
+    life: VEHICLE_LIFE,
+    gridNo: NOWHERE,
+    direction: Direction.NORTH,
+    state: 0,
+  });
+  const vid = addVehicleToList(ctx, sector, vehicleTypeOfBody(body));
+  registerVehicleSoldier({ content: battle.content, vehicles: ctx.state.forces.vehicles }, soldier, vid);
+  const merc = new RosterMerc(
+    createMercRecord({
+      soldier,
+      profile: null,
+      kind: MercKind.VEHICLE,
+      statusFlags: SoldierStatusFlags.VEHICLE,
+      sector: { ...sector },
+      betweenSectors: false,
+      groupId: 0,
+      prevSectorId: NO_PREVIOUS_SECTOR,
+      insertionCode: 0,
+      insertionDirection: 0,
+      path: [],
+      assignment: Assignment.ASSIGNMENT_EMPTY,
+      vehicleId: NO_VEHICLE,
+      asleep: false,
+    }),
+  );
+  roster.add(merc);
+  const group = getGroup(ctx, ctx.state.forces.vehicles[vid]?.movementGroup ?? 0);
+  if (group) addPlayerToGroup(ctx, group, id);
+  return merc;
+}
+
+export const OUR_HUMMER_SECTOR = START;
+
+export async function stubCampaignWithOurHummer(kit: StubSectorKit, seed: number, mode?: RunMode, mercs = 2): Promise<CampaignSession> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
+  for (const name of [START, ...OUR_HUMMER_ROUTE]) quietSector(session.campaign, name);
+  removeEnemyGroups(session.campaign);
+  await dispatchPrepared(session, { type: 'compressTime', mode: LANDING_COMPRESSION });
+  await dispatchPrepared(session, { type: 'mapScreen' });
+  setFact(session.campaign.state.narrative, FACT_OK_USE_HUMMER, true);
+  const hummer = addVehicleOfOurs(session.campaign, parseSectorString(START));
+  for (const m of session.view().strategic?.mercs ?? [])
+    if (m.id !== hummer.id) await dispatchPrepared(session, { type: 'boardVehicle', soldier: m.id, vehicle: hummer.vehicleId });
+  return session;
 }

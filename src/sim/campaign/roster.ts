@@ -26,6 +26,7 @@ import {
 } from '../tactical/skills.ts';
 import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
+import { spendVehicleFuel } from '../vehicles/vehicle-fuel.ts';
 import type { MercContract } from './contracts/contract-state.ts';
 import { type MercRecord, type ProfileRecordTraits, profileRecordTraits, type RosterState } from './merc-record.ts';
 import {
@@ -348,6 +349,10 @@ export class RosterMerc implements CrewMember {
     return this.soldier.breathMax;
   }
 
+  get fuel(): number {
+    return this.soldier.breathRed;
+  }
+
   set breathMax(value: number) {
     this.soldier.breathMax = value;
   }
@@ -449,7 +454,6 @@ export interface RosterHooks {
   updateMercInSector(merc: RosterMerc, sector: Sector): void;
   tooTiredToTravel(merc: RosterMerc): boolean;
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
-  spendVehicleFuel(vehicle: RosterMerc, fuel: number): number;
   roomOf(merc: RosterMerc): number;
   assignToSquad(merc: RosterMerc, squad: number): void;
 }
@@ -461,7 +465,6 @@ export const NO_ROSTER_HOOKS: RosterHooks = {
   updateMercInSector: () => {},
   tooTiredToTravel: () => false,
   collapseFromFatigue: () => {},
-  spendVehicleFuel: () => 0,
   roomOf: () => NO_ROOM,
   assignToSquad: (merc, squad) => {
     merc.assignment = squad;
@@ -617,7 +620,9 @@ export class Roster implements CrewPort {
 
   spendVehicleFuel(vehicleSoldierId: number, fuel: number): number {
     const merc = this.get(vehicleSoldierId);
-    return merc ? this.hooks.spendVehicleFuel(merc, fuel) : 0;
+    if (!merc) return 0;
+    spendVehicleFuel(merc.soldier, fuel);
+    return merc.fuel;
   }
 
   roomOf(id: number): number {
