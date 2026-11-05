@@ -156,4 +156,4 @@ look-around, `tools/oracle/README.md`):
 
 Not ported: gaps "Combat AI specials". Kept differences: deviations "Armed civilian without ammo", "AI climb that
 cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies",
-"Multi-tile turning", "Blood and smell decay period".
+"Multi-tile turning".
