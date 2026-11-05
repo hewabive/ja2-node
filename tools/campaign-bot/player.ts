@@ -173,6 +173,11 @@ export class Player {
         this.memory.lastSeen.delete(id);
         if (id < OUR_TEAM_SIZE) this.#lostMerc(id);
         else this.tally.enemiesKilled.add(`${this.tally.battles}:${id}`);
+      } else if (e.type === 'mercDied' && (e.soldier as number) < OUR_TEAM_SIZE) {
+        const id = e.soldier as number;
+        this.memory.dead.add(id);
+        if (this.verbose) this.log(`  merc ${id} died off the tactical map in ${String(e.sector)}${e.mapScreen ? ' (map screen)' : ''}`);
+        this.#lostMerc(id);
       } else if (e.type === 'shotFired' && (e.soldier as number) < OUR_TEAM_SIZE) {
         this.memory.shots++;
       } else if (e.type === 'noiseHeard') {
