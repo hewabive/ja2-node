@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches and
-// @src the Tixa gas mask draw; the panic branches and NeedToRadioAboutPanicTrigger in the radio chances, 2026-11-04).
+// @src the Tixa gas mask draw; the panic branches and NeedToRadioAboutPanicTrigger in the radio chances, 2026-11-04; a
+// @src tank's look-around in DecideActionRed, 2026-11-05).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
+import { DIRECTION_COUNT, DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
@@ -24,7 +25,7 @@ import { directionToward } from '../movement.ts';
 import { BoxingState } from '../narrative/boxing-state.ts';
 import { CivGroupHostility, TIXA_SECTOR } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
-import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
+import { closestKnownOpponent, mostImportantNoiseHeard, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { internalIsValidStance, isValidStance } from '../person-structure.ts';
 import { apsToChangeStance, apsToLook, apsToReadyWeapon, calcActionPoints, MAX_AP_CARRIED, minPtsToMove } from '../points.ts';
@@ -52,7 +53,7 @@ import {
   findSpotMaxDistFromOpponents,
   inLightAtNight,
 } from './cover.ts';
-import { determineMovementMode, realtimeCivDelay } from './decide.ts';
+import { determineMovementMode, realtimeAiDelay, realtimeCivDelay } from './decide.ts';
 import { boxerClosesIn, decideActionBoxerEnteringRing } from './decide-boxing.ts';
 import { GoFlag, goAsFarAsPossibleTowards, internalGoAsFarAsPossibleTowards } from './destinations.ts';
 import { ItemSearch, searchForItems } from './item-search.ts';
@@ -93,6 +94,8 @@ const RADIO_RED_ALERT_BY_DIFFICULTY = [50, 65, 80, 90, 95];
 const IRRELEVANT = -1;
 const OPPONENT_LEVEL_UNTRACKED = 0;
 const TIXA_GAS_MASK_CHANCE = 10;
+const TANK_TURN_CHANCE = 60;
+const TANK_LAST_TURN_CHANCE = 60;
 
 const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
@@ -531,7 +534,7 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
       }
     }
   }
-  if (isTank(s)) return AiAction.NONE;
+  if (isTank(s)) return tankLooksAround(t, s);
   if (canMove && !s.neutral && (t.inCombat || s.team === Team.ENEMY)) {
     const found = searchForItems(t, s, ItemSearch.GENERAL, handItem(s));
     if (found.action !== AiAction.NONE) {
@@ -588,6 +591,37 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
   }
   ai.actionData = NOWHERE;
   return AiAction.NONE;
+}
+
+function tankLookDirection(t: TacticalState, s: Soldier): number {
+  const noise = mostImportantNoiseHeard(t, s);
+  if (noise !== NOWHERE) {
+    const toward = directionToward(s.gridNo, noise);
+    if (s.direction !== toward) return toward;
+  }
+  return t.pre.int(DIRECTION_COUNT);
+}
+
+function limitTankTurning(t: TacticalState, s: Soldier): void {
+  const ai = s.ai;
+  if (ai.lastAction !== AiAction.CHANGE_FACING || pre100(t) >= TANK_LAST_TURN_CHANCE) return;
+  if (t.inCombat) {
+    ai.nextAction = AiAction.END_TURN;
+    return;
+  }
+  ai.nextAction = AiAction.WAIT;
+  ai.nextActionData = realtimeAiDelay(t);
+}
+
+function tankLooksAround(t: TacticalState, s: Soldier): number {
+  if (t.inCombat && apsToLook(t.content, s) > s.actionPoints) return AiAction.NONE;
+  const direction = tankLookDirection(t, s);
+  if (s.direction === direction) return AiAction.NONE;
+  if (s.actionPoints !== s.initialActionPoints && pre100(t) >= TANK_TURN_CHANCE) return AiAction.NONE;
+  if (!internalIsValidStance(t, s, direction, endHeight(t.content, s.state))) return AiAction.NONE;
+  s.ai.actionData = direction;
+  limitTankTurning(t, s);
+  return AiAction.CHANGE_FACING;
 }
 
 function redMainChoice(t: TacticalState, s: Soldier): number | null {

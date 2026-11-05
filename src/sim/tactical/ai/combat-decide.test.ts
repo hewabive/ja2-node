@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { addStubTank } from '../../../../tests/support/vehicles.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { createItem } from '../../items/object.ts';
@@ -10,7 +11,7 @@ import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { SmokeTile } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
-import { AlertStatus, Attitude, NOBODY, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, NOBODY, type Soldier, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
@@ -167,5 +168,92 @@ describe('the Tixa gas mask (DecideAction.cc DecideActionRed, DecideActionBlack)
       const elsewhere = decision(decide, alert, BESIDE_TIXA, [], true);
       expect(decision(decide, alert, TIXA_BASEMENT, [], true)).toEqual(elsewhere);
     }
+  });
+});
+
+describe("a tank's look-around in red (DecideAction.cc DecideActionRed)", () => {
+  const TANK_AT = gridNo(80, 80);
+  const NOISE_EAST = gridNo(86, 80);
+  const NOISE_NORTH = gridNo(80, 74);
+  const LOUD = 20;
+  const FULL_APS = 50;
+  const TURNS_NOW = 59;
+  const STAYS = 60;
+  const DELAY_DRAW = 999;
+  const REALTIME_AI_DELAY = 10_000 + DELAY_DRAW;
+
+  interface LookAround {
+    readonly pre: readonly number[];
+    readonly rng?: readonly number[];
+    readonly turnBased?: boolean;
+    readonly actionPoints?: number;
+    readonly noise?: number;
+    readonly lastAction?: number;
+  }
+
+  function lookAround(o: LookAround) {
+    const t = newCombatSim(content).state;
+    const tank = addStubTank(t, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: TANK_AT, direction: Direction.NORTH });
+    t.inCombat = o.turnBased ?? true;
+    tank.ai.alertStatus = AlertStatus.RED;
+    tank.initialActionPoints = FULL_APS;
+    tank.actionPoints = o.actionPoints ?? FULL_APS;
+    tank.ai.lastAction = o.lastAction ?? AiAction.NONE;
+    if (o.noise !== undefined) Object.assign(tank.ai, { noiseGridNo: o.noise, noiseVolume: LOUD });
+    const pre = new ScriptedStream(o.pre);
+    const rng = new ScriptedStream(o.rng ?? []);
+    Object.assign(t, { pre, rng });
+    const action = decideActionRed(t, tank, NO_GREEN_DECISION);
+    return {
+      action,
+      facing: action === AiAction.CHANGE_FACING ? tank.ai.actionData : null,
+      next: [tank.ai.nextAction, tank.ai.nextActionData],
+      pre: pre.requested,
+      rng: rng.requested,
+    };
+  }
+
+  const turnTo = (facing: number) => ({ action: AiAction.CHANGE_FACING, facing });
+  const stays = { action: AiAction.NONE, facing: null };
+
+  it('turns a tank with full APs toward a random facing without a noise, drawing PreRandom(8) only', () => {
+    expect(lookAround({ pre: [Direction.EAST] })).toMatchObject({ ...turnTo(Direction.EAST), pre: [8], rng: [] });
+  });
+
+  it('turns a tank toward the most important noise without a draw, and draws a facing when it already faces the noise', () => {
+    expect(lookAround({ pre: [], noise: NOISE_EAST })).toMatchObject({ ...turnTo(Direction.EAST), pre: [] });
+    expect(lookAround({ pre: [Direction.SOUTH], noise: NOISE_NORTH })).toMatchObject({ ...turnTo(Direction.SOUTH), pre: [8] });
+  });
+
+  it('leaves a tank as it is when the drawn facing is its own, without the turn chance', () => {
+    expect(lookAround({ pre: [Direction.NORTH], actionPoints: FULL_APS - 1 })).toMatchObject({ ...stays, pre: [8] });
+  });
+
+  it('turns a tank that spent APs on PreRandom(100) < 60 only, a draw full APs skip', () => {
+    expect(lookAround({ pre: [Direction.EAST, TURNS_NOW], actionPoints: FULL_APS - 1 })).toMatchObject({
+      ...turnTo(Direction.EAST),
+      pre: [8, 100],
+    });
+    expect(lookAround({ pre: [Direction.EAST, STAYS], actionPoints: FULL_APS - 1 })).toMatchObject({ ...stays, pre: [8, 100] });
+  });
+
+  it('ends the turn after a second turn in a row on PreRandom(100) < 60', () => {
+    const again = { lastAction: AiAction.CHANGE_FACING };
+    expect(lookAround({ ...again, pre: [Direction.EAST, TURNS_NOW] })).toMatchObject({
+      ...turnTo(Direction.EAST),
+      next: [AiAction.END_TURN, expect.anything()],
+      pre: [8, 100],
+    });
+    expect(lookAround({ ...again, pre: [Direction.EAST, STAYS] })).toMatchObject({
+      ...turnTo(Direction.EAST),
+      next: [AiAction.NONE, expect.anything()],
+      pre: [8, 100],
+    });
+  });
+
+  it('waits REALTIME_AI_DELAY after a second turn in a row in real time, drawing Random(1000) on the gameplay stream', () => {
+    expect(
+      lookAround({ turnBased: false, lastAction: AiAction.CHANGE_FACING, pre: [Direction.EAST, TURNS_NOW], rng: [DELAY_DRAW] }),
+    ).toMatchObject({ ...turnTo(Direction.EAST), next: [AiAction.WAIT, REALTIME_AI_DELAY], pre: [8, 100], rng: [1000] });
   });
 });

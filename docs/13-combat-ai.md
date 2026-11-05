@@ -119,6 +119,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/`:
 | Any armed item on a panic frequency counts as a panic bomb, a door closer too: a soldier holding a remote bomb trigger sets it off | `panic.test.ts` "an alerted soldier holding one sets off the first panic frequency …" |
 | A panic switch our merc pulls sets off its frequency and leaves the trigger armed for the army | `panic.test.ts` "sets off its frequency but leaves the trigger armed …" |
 | A chosen one sent to an alarm trigger stays chosen when he collapses | `panic.test.ts` "a collapsing chosen one is replaced, unless …" |
+| A tank in RED already facing its loudest noise draws a facing at random, and a draw of its own facing leaves it standing without another draw; with full APs it turns without the turn chance's draw | `combat-decide.test.ts` "draws a facing when it already faces the noise", "leaves a tank as it is …", "… a draw full APs skip" |
 | The panic keys are a bit stack on an INT8: the eighth push wraps into a negative byte, which still opens locked doors | `panic.test.ts` "pushes a set bit onto the INT8 …", `../pathfinding.test.ts` "lets any keys byte but 0 …" |
 
 Not pinned yet:
@@ -147,6 +148,7 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - The AI path costs excluding the cost of starting to move.
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
+- A tank's RED look-around: its draws, and the end of its turn or the wait after a second turn in a row.
 - The panic decisions inside `DecideActionRed` and `DecideActionBlack` and the radio chances: the bomb probes
   (`tools/oracle/README.md` "Bombs") check the triggers the maps give, the chosen one with his keys, `PanicAI`, the
   pull and the detonator.
