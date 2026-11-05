@@ -2,13 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL;
 // @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment); Soldier_Create.cc
-// @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01)
+// @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01; the slots of our vehicles and
+// @src bVehicleID, 2026-11-04)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
+import { NO_VEHICLE } from '../strategic/forces/constants.ts';
 import { AiMorale } from './combat/types.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
@@ -134,10 +136,18 @@ export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier,
   return them.neutral && (me.team !== Team.CREATURE || them.bodyType >= Body.HUMVEE);
 }
 
-export function firstFreeSoldierId(taken: (id: number) => boolean, team: number): number {
+const OUR_VEHICLE_SLOT_BODIES: ReadonlySet<number> = new Set([Body.ELDORADO, Body.HUMVEE, Body.ICECREAMTRUCK, Body.JEEP]);
+const OUR_VEHICLE_SLOTS = 2;
+
+function firstSoldierIdToTry(team: number, bodyType: number | undefined): number {
   const first = TEAM_FIRST_ID[team] ?? 0;
-  const size = TEAM_SIZES[team] ?? 0;
-  for (let id = first; id < first + size; id++) if (!taken(id)) return id;
+  if (team !== Team.OUR || bodyType === undefined || !OUR_VEHICLE_SLOT_BODIES.has(bodyType)) return first;
+  return first + (TEAM_SIZES[team] ?? 0) - OUR_VEHICLE_SLOTS;
+}
+
+export function firstFreeSoldierId(taken: (id: number) => boolean, team: number, bodyType?: number): number {
+  const end = (TEAM_FIRST_ID[team] ?? 0) + (TEAM_SIZES[team] ?? 0);
+  for (let id = firstSoldierIdToTry(team, bodyType); id < end; id++) if (!taken(id)) return id;
   return -1;
 }
 export const NO_INTERRUPT = 127;
@@ -282,6 +292,7 @@ export interface Soldier {
   underAiControl: boolean;
   boxer: boolean;
   monsterOrAnimal: boolean;
+  vehicleId: number;
 
   state: number;
   pc: number;
@@ -641,6 +652,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     underAiControl: false,
     boxer: false,
     monsterOrAnimal: false,
+    vehicleId: NO_VEHICLE,
     state: init.state,
     pc: 0,
     frameSlot: NO_FRAME_SLOT,

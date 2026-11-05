@@ -9,6 +9,7 @@ import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
 import { loadExplosionContent } from '../../content/items/explosions.ts';
 import { loadItemTable } from '../../content/items/items.ts';
 import { loadQuoteSpeakers } from '../../content/narrative/quote-speakers.ts';
+import { loadVehicleTypes } from '../../content/strategic/strategic-content.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../../content/text/data-version.ts';
 import { parseTileTables, TILE_TABLES_PATH } from '../../content/world/tile-tables.ts';
 import type { ReadFile } from '../../content/world/tileset-loader.ts';
@@ -54,6 +55,7 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     lightTemplates,
     quoteSpeakers,
     tiles,
+    vehicles,
   ] = await Promise.all([
     json(read, ANIM_CONTROL_PATH),
     json(read, ANIM_SURFACES_PATH),
@@ -67,6 +69,7 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     loadShippedLightTemplates(read),
     loadQuoteSpeakers(read),
     json(read, TILE_TABLES_PATH),
+    loadVehicleTypes(read),
   ]);
   return {
     timeline: timelines.logic,
@@ -82,5 +85,6 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     quoteSpeakers,
     sightingBattleSound: decoding.sightingBattleSound,
     tileTables: parseTileTables(tiles),
+    vehicles,
   };
 }

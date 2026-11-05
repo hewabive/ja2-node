@@ -16,6 +16,7 @@ import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord 
 import type { GameOptions } from '../options.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
+import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { states } from './animation.ts';
 import { soldierDifficultyLevel } from './combat/chance.ts';
 import type { RandomStream } from './combat/context.ts';
@@ -43,6 +44,7 @@ import {
   Team,
 } from './soldier.ts';
 import type { SectorRef, TacticalState } from './state.ts';
+import { registerVehicleSoldier } from './vehicle-soldiers.ts';
 import { flatRoofAboveGridNo } from './world-items.ts';
 
 const HAIR = { WHITE: 0, BLACK: 1, BROWN: 2, BLONDE: 3, RED: 4 } as const;
@@ -197,14 +199,6 @@ const MONSTER_BODIES: ReadonlySet<number> = new Set([
   Body.INFANT_MONSTER,
   Body.QUEENMONSTER,
 ]);
-const VEHICLE_BODIES: ReadonlySet<number> = new Set([
-  Body.HUMVEE,
-  Body.ELDORADO,
-  Body.ICECREAMTRUCK,
-  Body.JEEP,
-  Body.TANK_NW,
-  Body.TANK_NE,
-]);
 const NEUTRAL_VEHICLE_BODIES: ReadonlySet<number> = new Set([Body.HUMVEE, Body.ELDORADO, Body.ICECREAMTRUCK]);
 
 interface CivilianStatRoll {
@@ -225,7 +219,7 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
 export interface CreationContext
   extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'>,
     Partial<OppListTables>,
-    Partial<Pick<TacticalState, 'world'>> {
+    Partial<Pick<TacticalState, 'world' | 'vehicles' | 'vehicleHooks'>> {
   readonly rng: RandomStream;
   readonly boxing?: BoxingRecord;
   readonly sector?: SectorRef | null;
@@ -278,6 +272,7 @@ export interface SoldierCreate {
   readonly inv: Inventory;
   name: string;
   scheduleId: number;
+  givenVehicleId?: number;
 }
 
 function chooseHair(c: CreationContext, body: number, skin: number): number {
@@ -662,7 +657,7 @@ function bodyTypeSetup(c: BodyContext, s: Soldier): void {
     s.monsterOrAnimal = true;
     s.normalSmell = COW_SMELL_STRENGTH;
   } else if (b === Body.CROW) s.monsterOrAnimal = true;
-  else if (VEHICLE_BODIES.has(b)) {
+  else if (isVehicleBody(b)) {
     if (NEUTRAL_VEHICLE_BODIES.has(b)) s.neutral = true;
   } else if (b !== Body.ROBOTNOWEAPON) s.normalSmell = NORMAL_HUMAN_SMELL_STRENGTH;
 }
@@ -811,6 +806,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
       s.camo = FULL_CAMOUFLAGE;
   }
   bodyTypeSetup(c, s);
+  if (isVehicleBody(s.bodyType)) registerVehicleSoldier(c, s, pp.givenVehicleId);
   if (env.autoresolve) return s;
   createSoldierCommon(c, s);
   if (pp.onRoof && onFlatRoof(c, pp.insertionGridNo)) setUnplacedSoldierHeight(s, SECOND_LEVEL_Z_OFFSET);

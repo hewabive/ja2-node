@@ -7,9 +7,9 @@
 
 import { strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
-import { passengersOf } from '../strategic/forces/groups.ts';
 import { canHelicopterFly, helicopterGroup, whyHelicopterCannotFly } from '../strategic/forces/helicopter.ts';
 import { helicopterPathFigures, plottingEtaMinutes } from '../strategic/map/plotting.ts';
+import { passengersOf } from '../vehicles/vehicle-list.ts';
 import { plotLegsHint, viaSectors } from './preview-route.ts';
 import { sectorNames, sectorParam, strategicOf } from './strategic-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';

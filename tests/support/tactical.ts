@@ -11,6 +11,7 @@ import { parseStubLockTable } from '../../src/content/formats/locks.ts';
 import { EXPLOSION_ANIMATIONS_PATH, parseExplosionContent, SMOKE_EFFECTS_PATH } from '../../src/content/items/explosions.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { MERC_QUOTES_PATH, parseQuoteSpeakers } from '../../src/content/narrative/quote-speakers.ts';
+import { loadVehicleTypes } from '../../src/content/strategic/strategic-content.ts';
 import { DEFAULT_DATA_DECODING } from '../../src/content/text/data-version.ts';
 import { type DoorCostTable, parseDoorCostTable } from '../../src/content/world/movement-costs.ts';
 import { parseTileTables, TILE_TABLES_PATH } from '../../src/content/world/tile-tables.ts';
@@ -20,6 +21,8 @@ import { parseMaterialArmour } from '../../src/sim/tactical/load-content.ts';
 import { buildStubAnimationScripts } from '../../stubs/anim-scripts.ts';
 
 export const DATA_DIR = join(import.meta.dirname, '../../data');
+
+const readDataFile = async (path: string) => new Uint8Array(readFileSync(join(DATA_DIR, path)));
 
 export function readDataJson(path: string): unknown {
   return JSON.parse(readFileSync(join(DATA_DIR, path), 'utf8'));
@@ -63,5 +66,6 @@ export async function loadTestContent(): Promise<TacticalContent> {
     quoteSpeakers: parseQuoteSpeakers(readDataJson(MERC_QUOTES_PATH)),
     sightingBattleSound: DEFAULT_DATA_DECODING.sightingBattleSound,
     tileTables: parseTileTables(readDataJson(TILE_TABLES_PATH)),
+    vehicles: await loadVehicleTypes(readDataFile),
   };
 }

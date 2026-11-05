@@ -152,6 +152,44 @@ describe('importStrategicMap on a synthetic save', () => {
     expect(s.map.sectors[D13_ID]?.flags).toBe(SectorFlag.ALREADY_VISITED);
   });
 
+  it('links each vehicle to the first active soldier who is it, on any team, and refills the list in place for the tactical layer that shares it (Vehicles.cc FindSoldierType)', () => {
+    const SOLDIER_VEHICLE = 0x00008000;
+    const HUMVEE = 22;
+    const ICECREAMTRUCK = 26;
+    const vehicle = (slot: number) => ({
+      slot,
+      valid: true,
+      movementGroup: 50 + slot,
+      type: slot,
+      sector: D13,
+      betweenSectors: false,
+      passengerProfiles: [],
+      passengerSlots: [],
+      destroyed: false,
+      path: [],
+    });
+    const vehicleSoldier = (id: number, team: number, bodyType: number, vehicleSlot: number, active = 1) => ({
+      soldier: { id, profile: 200, team, groupId: 0, statusFlags: SOLDIER_VEHICLE, bodyType, vehicleSlot, active },
+    });
+    const base = syntheticSave(MapModificationType.OPENABLE_STRUCT);
+    const save = {
+      ...base,
+      soldiers: [
+        ...base.soldiers,
+        vehicleSoldier(18, 0, HUMVEE, 0),
+        vehicleSoldier(117, 4, ICECREAMTRUCK, 1, 0),
+        vehicleSoldier(120, 4, ICECREAMTRUCK, 1),
+        vehicleSoldier(121, 4, ICECREAMTRUCK, 1),
+      ],
+      vehicles: [vehicle(0), vehicle(1), vehicle(2)],
+    } as unknown as SaveGame;
+    const ctx = testContext({ content });
+    const shared = ctx.state.forces.vehicles;
+    importStrategicMap(ctx, save);
+    expect(ctx.state.forces.vehicles).toBe(shared);
+    expect(shared.map((v) => v.soldierId)).toEqual([18, 120, -1]);
+  });
+
   it('keeps the map modifications flag when the loaded sector writes records back', () => {
     const ctx = testContext({ content });
     importStrategicMap(ctx, syntheticSave(MapModificationType.REMOVE_STRUCT));

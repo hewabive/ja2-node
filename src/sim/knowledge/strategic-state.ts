@@ -2,7 +2,7 @@ import { TransportMask } from '../../content/strategic/policy.ts';
 import { parseSectorString, type Sector, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../content/strategic/strategic-content.ts';
 import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS, SectorFlag } from '../strategic/forces/constants.ts';
-import { emptyPassengerSlots, type Group, type VehicleRecord } from '../strategic/forces/groups.ts';
+import type { Group } from '../strategic/forces/groups.ts';
 import { SKYRIDER } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext } from '../strategic/forces/ports.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../strategic/map/init.ts';
@@ -10,6 +10,7 @@ import { sectorInfo } from '../strategic/map/sectors.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
+import { emptyPassengerSlots, type VehicleRecord } from '../vehicles/vehicle-list.ts';
 import { type GuardOptions, guardFields } from './guard.ts';
 import type { KnowledgeGroup, KnowledgeSector, KnowledgeStrategic, KnowledgeVehicle } from './view.ts';
 

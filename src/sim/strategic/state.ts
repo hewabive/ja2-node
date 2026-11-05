@@ -22,6 +22,7 @@ import { type GameOptions, gameOptions } from '../options.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import type { CrowStatus, RealtimeClock } from '../tactical/state.ts';
+import type { VehicleRecord } from '../vehicles/vehicle-list.ts';
 import {
   createMeanwhileState,
   createQueenState,
@@ -109,6 +110,7 @@ export interface StrategicStateOptions {
   readonly streams?: RandomStreams;
   readonly options?: GameOptions;
   readonly profiles?: Map<number, ProfileProgress>;
+  readonly vehicles?: VehicleRecord[];
   readonly civGroups?: CivGroupState;
   readonly keyTable?: KeyTable;
   readonly boxing?: BoxingRecord;
@@ -136,7 +138,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     options: options.options ?? gameOptions(),
     profiles: options.profiles ?? new Map(),
     map: createMapState(),
-    forces: createForcesState(),
+    forces: createForcesState(options.vehicles),
     movement: createMovementFlowState(),
     encounter: createEncounterState(),
     battle: createBattleState(),

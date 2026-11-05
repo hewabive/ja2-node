@@ -7,7 +7,8 @@
 
 import { type Sector, sectorFromStrategicIndex, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i32 } from '../../../core/int.ts';
-import type { Group, VehicleRecord } from '../forces/groups.ts';
+import type { VehicleRecord } from '../../vehicles/vehicle-list.ts';
+import type { Group } from '../forces/groups.ts';
 import { groupBetweenSectorsAndSectorXYIsInDifferentDirection } from '../forces/movement.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';

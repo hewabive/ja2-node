@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Vehicles.cc AddVehicleToList, RemoveVehicleFromList, GetVehicle, GetNumberInVehicle,
+// @src src/game/Tactical/Vehicles.cc AddVehicleToList (the movement group), GetVehicle, GetNumberInVehicle,
 // @src GetNumberOfNonEPCsInVehicle, IsEnoughSpaceInVehicle, GetVehicleSeats, RemoveSoldierFromVehicle, TakeSoldierOutOfVehicle,
 // @src ExitVehicle (strategic part), SetSoldierExitHelicopterInsertionData, SetVehicleSectorValues, KillAllInVehicle,
 // @src KillPersonInVehicle, TeleportVehicleToItsClosestSector, MoveCharactersPathToVehicle, SetUpMvtGroupForVehicle,
@@ -10,20 +10,12 @@
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
+import { fillVehicleSlot, NO_PASSENGER, passengersOf, type VehicleRecord, validVehicle } from '../../vehicles/vehicle-list.ts';
 import { setSectorFlag } from '../map/sectors.ts';
 import { setProfileSector } from '../narrative/presence.ts';
 import { worldDay, worldTotalMinutes } from '../time/world-clock.ts';
-import { Assignment, InsertionCode, NO_VEHICLE, SectorFlag } from './constants.ts';
-import {
-  addPlayerToGroup,
-  emptyPassengerSlots,
-  getGroup,
-  NO_PASSENGER,
-  passengersOf,
-  removePlayerFromGroup,
-  requireMerc,
-  type VehicleRecord,
-} from './groups.ts';
+import { Assignment, InsertionCode, NO_GROUP, NO_VEHICLE, SectorFlag } from './constants.ts';
+import { addPlayerToGroup, getGroup, removePlayerFromGroup, requireMerc } from './groups.ts';
 import { placeGroupInSector, rebuildWayPointsForGroupPath } from './movement.ts';
 import { type StrategicContext, type StrategicMerc, VehicleRole } from './ports.ts';
 import { addCharacterToUniqueSquad, removeCharacterFromSquads } from './squads.ts';
@@ -43,8 +35,7 @@ export function isEnoughSpaceInVehicle(ctx: StrategicContext, v: VehicleRecord):
 }
 
 export function findVehicle(ctx: StrategicContext, id: number): VehicleRecord | null {
-  const v = ctx.state.forces.vehicles[id];
-  return v?.valid ? v : null;
+  return validVehicle(ctx.state.forces.vehicles, id);
 }
 
 export function getVehicle(ctx: StrategicContext, id: number): VehicleRecord {
@@ -71,22 +62,8 @@ export function isThisVehicleAccessibleToSoldier(m: StrategicMerc, v: VehicleRec
 
 export function addVehicleToList(ctx: StrategicContext, s: Sector, type: number): number {
   const f = ctx.state.forces;
-  for (const v of f.vehicles) if (v.destroyed && !sameSector(v.sector, s)) v.valid = false;
-  let vid = f.vehicles.findIndex((v) => !v.valid);
-  if (vid < 0) vid = f.vehicles.length;
-  const record: VehicleRecord = {
-    valid: true,
-    destroyed: false,
-    type,
-    sector: { ...s },
-    movementGroup: f.vehicleGroupIds[vid] ?? 0,
-    path: [],
-    betweenSectors: false,
-    passengers: emptyPassengerSlots(),
-    soldierId: -1,
-  };
-  f.vehicles[vid] = record;
-  const g = getGroup(ctx, record.movementGroup);
+  const vid = fillVehicleSlot(f.vehicles, s, type, f.vehicleGroupIds);
+  const g = getGroup(ctx, f.vehicleGroupIds[vid] ?? NO_GROUP);
   if (!g) return vid;
   g.transportMask = ctx.content.vehicles[type]?.movementType ?? g.transportMask;
   g.sector = { ...s };
@@ -99,11 +76,6 @@ export function addVehicleToList(ctx: StrategicContext, s: Sector, type: number)
 function vehicleProfile(ctx: StrategicContext, v: VehicleRecord): ProfileProgress | undefined {
   const id = ctx.content.vehicles[v.type]?.profileId;
   return id === undefined ? undefined : ctx.state.profiles.get(id);
-}
-
-export function removeVehicleFromList(v: VehicleRecord): void {
-  v.path = [];
-  v.valid = false;
 }
 
 export function setVehicleSectorValues(ctx: StrategicContext, v: VehicleRecord, s: Sector): void {

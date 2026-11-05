@@ -54,6 +54,7 @@ import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToP
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
 import { loudestScream, soundPlace, unseenVictim } from '../unseen-sources.ts';
+import { removeVehicleOfSoldier } from '../vehicle-soldiers.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { internalSoldierReadyWeapon } from './attack.ts';
 import { StatCause, statChange } from './experience.ts';
@@ -376,6 +377,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   removeOccupant(t, s);
   removeMercStructure(t, s);
   if (s.team !== Team.OUR) {
+    removeVehicleOfSoldier(t.vehicles, s);
     handleCrowLeave(t, s);
     unregisterSoldier(t, s);
   }

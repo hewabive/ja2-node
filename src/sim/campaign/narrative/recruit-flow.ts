@@ -118,11 +118,11 @@ export class RecruitFlow {
     return this.#campaign.state.worldSector;
   }
 
-  #freeSoldierId(t: TacticalState, team: number): number {
+  #freeSoldierId(t: TacticalState, team: number, bodyType: number): number {
     const roster = this.#roster;
     const taken = (n: number) =>
       soldierSlotTaken(t, n) || this.reservedSoldierSlot(n) || (team === Team.OUR && roster?.get(n) !== undefined);
-    return firstFreeSoldierId(taken, team);
+    return firstFreeSoldierId(taken, team, bodyType);
   }
 
   #leaveTeam(m: RosterMerc): void {
@@ -141,7 +141,7 @@ export class RecruitFlow {
     const leaving = this.#roster?.get(old.id);
     if (leaving?.soldier === old) this.#leaveTeam(leaving);
     if (!t) return null;
-    return changeSoldierTeam(t, old, team, { freeSoldierId: (to) => this.#freeSoldierId(t, to) });
+    return changeSoldierTeam(t, old, team, { freeSoldierId: (to, bodyType) => this.#freeSoldierId(t, to, bodyType) });
   }
 
   #join(fresh: Soldier, kind: number, sector: Sector): RosterMerc | null {

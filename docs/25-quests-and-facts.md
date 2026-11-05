@@ -1,7 +1,7 @@
 # 25 — Quests, facts and campaign rules
 
 The fact store and `CheckFact`, quests and their rewards, the San Mona boxing club, escorts and the robot, Skyrider's
-helicopter, and the quest rules the original spreads over tactical and strategic code: sightings, deaths, escorts
+helicopter and the vehicle list, and the quest rules the original spreads over tactical and strategic code: sightings, deaths, escorts
 arriving, quest action items, Pablo's goods, Kingpin's money, the Cambria hospital, terrorists and assassins. Siblings:
 `24` the records that test and set facts and start and end quests, the talk context, recruiting and escorting; `35` what
 each NPC action does, NPC presence, the 04:00 and hourly handlers, civilian groups, doors; `26` meanwhiles, the Queen
@@ -31,6 +31,7 @@ tactical quest rules, through the port            tactical/narrative/port.ts, ca
 strategic checks: goods, money, hospital          strategic/narrative/npc-events.ts, kingpin.ts, hospital.ts
   over the campaign, sector loaded or not         campaign/narrative/quest-world.ts
 helicopter: flights, SAMs, hovering, the bill     strategic/forces/helicopter.ts, campaign/helicopter-flow.ts
+vehicles: the list, a vehicle soldier's slot      vehicles/vehicle-list.ts, tactical/vehicle-soldiers.ts
 robot control                                     campaign/robot-control.ts, tactical/narrative/robot.ts
 the quest log of the player view                  src/server/quest-view.ts
 ```
@@ -50,6 +51,7 @@ the quest log of the player view                  src/server/quest-view.ts
 | `tactical/landed-helicopter.ts` | The helicopter standing in the loaded map (`TacticalState.landedHelicopter`): its pieces, their structures, the bump and their tile changes |
 | `campaign/robot-control.ts`, `tactical/narrative/robot.ts` | `ControllingRobot` and the remote holder; an uncontrolled robot's orders and the controller's interrupt points |
 | `strategic/economy/vehicle-assignment.ts` | Boarding a vehicle and who must drive it |
+| `vehicles/vehicle-list.ts`, `tactical/vehicle-soldiers.ts` | The vehicle list both layers share, its slots and records; a vehicle soldier registering his vehicle at creation and his vehicle leaving the list with him |
 | `src/server/quest-view.ts` | The quest log of the player view |
 
 ## 2. Design
@@ -107,6 +109,21 @@ adds them before it applies the sector's saved map changes, as the original's lo
 destroyed before the save stays off the map (the map changes replay over the structure layer the pieces are appended
 to), and before the saved soldiers enter the map, so its bump moves nobody (`14`).
 
+**One vehicle list, shared.** `VehicleRecord` and the slot functions live in `vehicles/vehicle-list.ts`, which both
+layers import: `strategic/forces/vehicles.ts` imports tactical code, so tactical code reaches the list only there. In a
+campaign `TacticalState.vehicles` is `StrategicState.forces.vehicles` itself, shared by reference as the profiles are;
+the snapshot graph keeps the two one array, and the native import refills the list in place. One list keeps the
+original's ids, which the saves, the strategic code and the views use, and lets the sandbox have vehicles too, in a list
+of its own. Every soldier of a vehicle body registers his vehicle at creation, whatever his team, through
+`TacticalState.vehicleHooks`: the campaign's adds the vehicle with its movement group (`addVehicleToList`), the
+sandbox's only fills a slot. The soldier holds the vehicle's id (`Soldier.vehicleId`, `bVehicleID`, -1 for anyone else)
+and the record its soldier (`VehicleRecord.soldierId`, standing for `FindSoldierType`); a team change keeps both. A
+vehicle not on our team leaves the list with its corpse and when its sector unloads, and registers again, maybe under
+another id, at the next load; ours stays. The type's name (`zVehicleName`) is UI text and stays out of the simulation
+(`31`): a vehicle soldier keeps the name his creation gave him. A snapshot older than the list links only the vehicles
+its records named, which were ours from native imports; any other vehicle soldier it holds has no slot (-1) until his
+sector loads again.
+
 **Quest action items.** The Kingpin and museum alarms and the brothel room scene are action items the bomb queue runs
 like any other (`12` §6): our soldiers set them off by stepping on their pressure plates or on a switch of their
 frequency, and the queue runs them with sight disallowed and the AI held. `bombs/item-action.ts` hands them to
@@ -144,6 +161,9 @@ says otherwise:
 | The Kingpin alarm rings again at the next step: its "zap" clears the disabled flag it means to set | `src/sim/tactical/narrative/quest-items.test.ts` |
 | The museum alarm calls Eldin while sight is off, so he never sees the spot and always runs to it | `src/sim/tactical/narrative/quest-items.test.ts` |
 | A crash that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts` |
+| A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most; a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts` |
+| A tank's soldier carries profile `NPC164`, the unused jeep's, and a full tank | `src/sim/tactical/vehicle-soldiers.test.ts` |
+| A civilian or enemy vehicle leaves the list at every unload of its sector and registers again at the next load, maybe under another id; a destroyed vehicle elsewhere leaves it only at the next registration | `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/vehicles/vehicle-list.test.ts` |
 | Skyrider's profile follows his helicopter only while a refuel site is the loaded sector, and leaving it clears x and y but not z; a landing there brings him back only at the next load | `src/sim/strategic/forces/helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
 | A landing or takeoff at the loaded refuel site changes the helicopter's structures but not the movement costs: the path over its tiles stays open after a landing and blocked after a takeoff until the next sector load | `src/sim/tactical/landed-helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
 | Adding the helicopter bumps every soldier of the ten-tile square around the landing site off his own tile, under the helicopter or not, the square ending a tile short south and east; one bumped onto a tile the sweep has still to visit is bumped again | `src/sim/tactical/landed-helicopter.test.ts` |

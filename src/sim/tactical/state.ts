@@ -16,6 +16,7 @@ import type { SimEvent } from '../events.ts';
 import { type GameOptions, gameOptions } from '../options.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/facts.ts';
+import type { VehicleRecord } from '../vehicles/vehicle-list.ts';
 import { createPanicState, type PanicState } from './ai/panic-triggers.ts';
 import { anim } from './anim-states.ts';
 import type { ExplosionQueue } from './bombs/bomb-queue.ts';
@@ -47,6 +48,7 @@ import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.
 import { createSmellMap, type SmellMap } from './smell.ts';
 import { NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
+import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from './vehicle-soldiers.ts';
 import type { WorldItem } from './world-items.ts';
 
 export type SectorMapData = Pick<
@@ -288,6 +290,8 @@ export interface TacticalState {
   turnHooks: TurnHooks;
   readonly equipment: EquipmentState;
   readonly profiles: Map<number, ProfileProgress>;
+  readonly vehicles: VehicleRecord[];
+  vehicleHooks: VehicleHooks;
   readonly worldItems: WorldItem[];
   readonly worldBombs: WorldBomb[];
   readonly mineFlags: Uint8Array;
@@ -374,6 +378,7 @@ export interface SharedCampaignState {
   readonly options?: GameOptions;
   readonly pre?: PreRandom;
   readonly profiles?: Map<number, ProfileProgress>;
+  readonly vehicles?: VehicleRecord[];
   readonly keyTable?: KeyTable;
   readonly civGroups?: CivGroupState;
   readonly boxing?: BoxingRecord;
@@ -482,6 +487,8 @@ export function createTacticalState(
     turnHooks: NO_TURN_HOOKS,
     equipment: createEquipmentState(content.items, options),
     profiles: shared.profiles ?? new Map(),
+    vehicles: shared.vehicles ?? [],
+    vehicleHooks: PRIVATE_VEHICLE_LIST,
     worldItems: [],
     worldBombs: [],
     mineFlags,

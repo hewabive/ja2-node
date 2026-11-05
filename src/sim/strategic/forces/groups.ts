@@ -19,6 +19,7 @@ import {
   sectorId,
 } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';
+import { passengersOf, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
 import { findUndergroundSector, sectorInfo, totalMilitia } from '../map/sectors.ts';
 import { EventKind } from '../time/constants.ts';
 import { deleteStrategicEvent } from '../time/event-queue.ts';
@@ -68,29 +69,6 @@ export interface Group {
   readonly enemy: EnemyGroup | null;
 }
 
-export const MAX_PASSENGERS_IN_VEHICLE = 10;
-export const NO_PASSENGER = -1;
-
-export interface VehicleRecord {
-  valid: boolean;
-  destroyed: boolean;
-  type: number;
-  sector: Sector;
-  movementGroup: number;
-  path: number[];
-  betweenSectors: boolean;
-  readonly passengers: number[];
-  soldierId: number;
-}
-
-export function emptyPassengerSlots(): number[] {
-  return new Array<number>(MAX_PASSENGERS_IN_VEHICLE).fill(NO_PASSENGER);
-}
-
-export function passengersOf(v: VehicleRecord): number[] {
-  return v.passengers.filter((id) => id !== NO_PASSENGER);
-}
-
 export interface ForcesState {
   groups: Group[];
   squads: number[][];
@@ -104,7 +82,7 @@ export interface ForcesState {
   helicopter: HelicopterState;
 }
 
-export function createForcesState(): ForcesState {
+export function createForcesState(vehicles: VehicleRecord[] = []): ForcesState {
   return {
     groups: [],
     squads: [],
@@ -112,7 +90,7 @@ export function createForcesState(): ForcesState {
     deadSquadMembers: [],
     currentSquad: 0,
     vehicleGroupIds: [],
-    vehicles: [],
+    vehicles,
     helicopterVehicleId: -1,
     helicopterAirborne: false,
     helicopter: createHelicopterState(),

@@ -149,7 +149,7 @@ export function initStrategicLayerMap(ctx: StrategicContext, hooks: StrategicLay
   hooks.initNpcs?.(ctx);
   initNpcPlacements(ctx);
   initializeHelicopter(ctx);
-  ctx.state.forces.vehicles = [];
+  ctx.state.forces.vehicles.length = 0;
   initBloodCatSectors(ctx);
   initializeSamSites(ctx);
   initMapSecrets(ctx);

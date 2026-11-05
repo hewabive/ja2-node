@@ -37,6 +37,7 @@ import { applyOptionChange, type GameOptions, parseOptionChange } from '../optio
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
+import type { VehicleRecord } from '../vehicles/vehicle-list.ts';
 import { actionModeCursor } from './action-cursor.ts';
 import { AiAction } from './ai/actions.ts';
 import {
@@ -349,6 +350,7 @@ export interface TacticalSimOptions {
   readonly options?: GameOptions;
   readonly streams?: { readonly rng: Rng; readonly pre: PreRandom };
   readonly profiles?: Map<number, ProfileProgress>;
+  readonly vehicles?: VehicleRecord[];
   readonly keyTable?: KeyTable;
   readonly civGroups?: CivGroupState;
   readonly boxing?: BoxingRecord;
@@ -368,6 +370,7 @@ function createSimState(world: TacticalWorld, content: TacticalContent, seed: nu
       ...(options.options ? { options: options.options } : {}),
       ...(options.streams ? { pre: options.streams.pre } : {}),
       ...(options.profiles ? { profiles: options.profiles } : {}),
+      ...(options.vehicles ? { vehicles: options.vehicles } : {}),
       ...(options.keyTable ? { keyTable: options.keyTable } : {}),
       ...(options.civGroups ? { civGroups: options.civGroups } : {}),
       ...(options.boxing ? { boxing: options.boxing } : {}),

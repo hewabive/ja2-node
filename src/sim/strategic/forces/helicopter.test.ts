@@ -4,6 +4,7 @@ import { ScriptedRolls } from '../../../../tests/support/strategic.ts';
 import { parseSectorString, type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { FinanceCode } from '../../campaign/finances.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
+import { passengersOf } from '../../vehicles/vehicle-list.ts';
 import type { EconomyContext } from '../economy/ports.ts';
 import { addSoldierToVehicle } from '../economy/vehicle-assignment.ts';
 import { updateAirspaceControl } from '../map/control.ts';
@@ -14,7 +15,7 @@ import { EventKind } from '../time/constants.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import { Assignment, SectorFlag } from './constants.ts';
 import { handleGroupArrivalEvent } from './context.ts';
-import { getGroup, passengersOf } from './groups.ts';
+import { getGroup } from './groups.ts';
 import {
   canHelicopterFly,
   checkAndHandleSkyriderMonologues,

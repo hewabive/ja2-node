@@ -27,9 +27,12 @@ export interface StrategicPolicy {
 }
 
 export interface VehicleType {
+  readonly enterSound: string;
+  readonly moveSound: string;
   readonly profile: string;
   readonly profileId: number;
   readonly movementType: number;
+  readonly armourType: string;
   readonly seats: number;
 }
 
@@ -72,9 +75,12 @@ export function parseVehicleTypes(json: unknown, profileIds: ReadonlyMap<string,
     const profileId = profileIds.get(profile);
     if (profileId === undefined) throw new FormatError(`${what}: unknown profile ${profile}`);
     return {
+      enterSound: asString(o.enterSound, `${what}.enterSound`),
+      moveSound: asString(o.moveSound, `${what}.moveSound`),
       profile,
       profileId,
       movementType: movementType(o.movementType, `${what}.movementType`),
+      armourType: asString(o.armourType, `${what}.armourType`),
       seats: asInt(o.seats, `${what}.seats`),
     };
   });

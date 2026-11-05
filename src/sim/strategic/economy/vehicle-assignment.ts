@@ -5,7 +5,8 @@
 // @src AnyAccessibleVehiclesInSoldiersSector, CanSoldierDriveVehicle, OnlyThisSoldierCanDriveVehicle, SoldierMustDriveVehicle.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
-import { addPlayerToGroup, getGroup, NO_PASSENGER, removeGroup, removePlayerFromGroup, type VehicleRecord } from '../forces/groups.ts';
+import { NO_PASSENGER, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
+import { addPlayerToGroup, getGroup, removeGroup, removePlayerFromGroup } from '../forces/groups.ts';
 import { okUseVehicle } from '../forces/helicopter.ts';
 import { VehicleRole } from '../forces/ports.ts';
 import { addCharacterToUniqueSquad, removeCharacterFromSquads } from '../forces/squads.ts';

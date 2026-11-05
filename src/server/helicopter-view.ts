@@ -6,7 +6,7 @@
 import { type Sector, sectorFromStrategicIndex, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { DestroyedHelicopterView, StrategicHelicopterView, StrategicVehicleView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { type Group, getGroup, passengersOf, type VehicleRecord } from '../sim/strategic/forces/groups.ts';
+import { type Group, getGroup } from '../sim/strategic/forces/groups.ts';
 import {
   canHelicopterFly,
   helicopterGroup,
@@ -22,6 +22,7 @@ import type { StrategicContext } from '../sim/strategic/forces/ports.ts';
 import { vehicleSeats } from '../sim/strategic/forces/vehicles.ts';
 import { calculateTravelTimeOfGroup, TRAVERSE_TIME_IMPOSSIBLE } from '../sim/strategic/map/travel.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
+import { passengersOf, type VehicleRecord } from '../sim/vehicles/vehicle-list.ts';
 
 const name = (s: Sector) => sectorShortString(s);
 const pathNames = (path: readonly number[]) => path.map((i) => name(sectorFromStrategicIndex(i)));

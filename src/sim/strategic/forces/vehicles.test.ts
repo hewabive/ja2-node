@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, economyTestContext, loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { parseSectorString, type Sector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { passengersOf } from '../../vehicles/vehicle-list.ts';
 import type { EconomyContext } from '../economy/ports.ts';
 import { addSoldierToVehicle, isVehicleAccessibleToSoldier, soldierMustDriveVehicle } from '../economy/vehicle-assignment.ts';
 import { initStrategicMovementCosts } from '../map/init.ts';
 import { Assignment } from './constants.ts';
-import { getGroup, passengersOf } from './groups.ts';
+import { getGroup } from './groups.ts';
 import { FACT_OK_USE_HUMMER } from './helicopter.ts';
 import { addCharacterToSquad, initSquads, initVehicles } from './squads.ts';
 import { addVehicleToList, killAllInVehicle, numberInVehicle, removeSoldierFromVehicle, takeSoldierOutOfVehicle } from './vehicles.ts';

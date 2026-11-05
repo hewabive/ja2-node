@@ -17,13 +17,14 @@ import {
   type TacticalState,
 } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
+import { PRIVATE_VEHICLE_LIST } from '../tactical/vehicle-soldiers.ts';
 import { canonicalJson, decodeGraph, type EncodedGraph, encodeGraph, type Section, SnapshotError } from './codec.ts';
 import { NO_MIGRATION_CONTEXT, type SnapshotMigrationContext, snapshotMigrations } from './migrations.ts';
 import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 51;
+export const SNAPSHOT_VERSION = 52;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -53,6 +54,7 @@ const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'narrative',
   'scheduleClock',
   'timeOfDayLight',
+  'vehicleHooks',
   'pathEnv',
 ]);
 
@@ -75,6 +77,7 @@ function reviveTactical(data: unknown): TacticalState {
     narrative: NO_NARRATIVE_PORT,
     scheduleClock: NO_SCHEDULE_CLOCK,
     timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
+    vehicleHooks: PRIVATE_VEHICLE_LIST,
     pathEnv: createPathEnv(fields, fields.pathEnv),
   };
 }

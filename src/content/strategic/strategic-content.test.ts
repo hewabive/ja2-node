@@ -94,6 +94,19 @@ describe('strategic content from data/externalized', () => {
     expect(content.vehicles.map((v) => v.profileId)).toEqual([161, 160, 162, 164, 164, 163]);
   });
 
+  it('reads the armour and the enter and move sounds of each vehicle type', () => {
+    expect(content.vehicles.map((v) => v.armourType)).toEqual([
+      'KEVLAR_VEST',
+      'SPECTRA_VEST',
+      'KEVLAR_VEST',
+      'KEVLAR_VEST',
+      'SPECTRA_VEST',
+      'KEVLAR_VEST',
+    ]);
+    expect(new Set(content.vehicles.map((v) => v.enterSound))).toEqual(new Set(['sounds/into vehicle.wav']));
+    expect(new Set(content.vehicles.map((v) => v.moveSound))).toEqual(new Set(['sounds/driving 01.wav']));
+  });
+
   it('transcribes the travel table and the known facilities', () => {
     const { travel } = content;
     expect(travel.townMinutes).toBe(5);

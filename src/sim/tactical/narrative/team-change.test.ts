@@ -11,13 +11,16 @@ import { anim, animName } from '../anim-states.ts';
 import { initNewSoldierAnim } from '../animation.ts';
 import { deathOpcode } from '../combat/death.ts';
 import type { TacticalContent } from '../content.ts';
+import { newSoldierCreate, tacticalCreateSoldier } from '../creation.ts';
+import { NEUTRAL_POPULATION, soldierSlotTaken } from '../init-list.ts';
 import { InvSlot } from '../inventory.ts';
+import { setSoldierPosition } from '../movement.ts';
 import { progressFromProfile } from '../profiles.ts';
-import { CivilianGroup, type Soldier, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { Body, CivilianGroup, firstFreeSoldierId, type Soldier, Team } from '../soldier.ts';
+import { registerSoldier, type TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { NO_NARRATIVE_PORT } from './port.ts';
-import { changeSoldierTeam } from './team-change.ts';
+import { changeSoldierTeam, type TeamChangeSlots } from './team-change.ts';
 
 let content: TacticalContent;
 
@@ -187,5 +190,63 @@ describe('a team change while the soldier is being hit (Soldier_Profile.cc gfPot
     const standing = spawnSoldier(sim, SECOND_RECRUIT, Team.OUR, AT + 3 * WORLD_COLS, EAST);
     const fresh = changeSoldierTeam(t, standing, Team.CIV, { freeSoldierId: () => FREE_CIV_SLOT });
     expect(fresh && animName(t.content, fresh.state)).toBe('STANDING');
+  });
+});
+
+describe('a vehicle changing teams (Soldier_Profile.cc ChangeSoldierTeam, Soldier_Create.cc TacticalCreateSoldier)', () => {
+  const PROF_HUMMER = 160;
+  const CIV_HUMMERS = [116, 117, 118];
+  const VEHICLE_LIFE = 63;
+
+  function civilianHummer(sim: TacticalSim, id: number, at: number): Soldier {
+    const t = sim.state;
+    const create = { ...newSoldierCreate(Team.CIV, Body.HUMVEE, EAST, at), profile: PROF_HUMMER };
+    const s = tacticalCreateSoldier(t, create, id, NEUTRAL_POPULATION);
+    if (!s) throw new Error('no hummer');
+    registerSoldier(t, s);
+    setSoldierPosition(t, s, at);
+    s.placed = true;
+    s.life = VEHICLE_LIFE;
+    return s;
+  }
+
+  function ourSlots(t: TacticalState): TeamChangeSlots {
+    return { freeSoldierId: (team, body) => firstFreeSoldierId((n) => soldierSlotTaken(t, n), team, body) };
+  }
+
+  it('keeps the vehicle id, recreates the vehicle without a profile, and the vehicle gives it back its own, now recruited', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const record = content.profiles[PROF_HUMMER];
+    if (record) t.profiles.set(PROF_HUMMER, progressFromProfile(record));
+    const old = civilianHummer(sim, CIV_HUMMERS[0] ?? 0, AT);
+    const fresh = changeSoldierTeam(t, old, Team.OUR, ourSlots(t));
+    expect(fresh).toMatchObject({
+      team: Team.OUR,
+      bodyType: Body.HUMVEE,
+      vehicleId: old.vehicleId,
+      profile: PROF_HUMMER,
+      life: VEHICLE_LIFE,
+    });
+    expect(t.vehicles).toHaveLength(1);
+    expect(t.vehicles[old.vehicleId]).toMatchObject({ valid: true, soldierId: fresh?.id });
+    expect((t.profiles.get(PROF_HUMMER)?.miscFlags ?? 0) & ProfileFlag.RECRUITED).toBe(ProfileFlag.RECRUITED);
+  });
+
+  it('puts our vehicles in soldier slots 18 and 19 only, so a third vehicle cannot join and stays out of the sector (kept quirk)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const hummers = CIV_HUMMERS.map((id, k) => civilianHummer(sim, id, AT + 4 * k));
+    const joined = hummers.map((h) => changeSoldierTeam(t, h, Team.OUR, ourSlots(t))?.id ?? null);
+    expect(joined).toEqual([18, 19, null]);
+    expect(hummers.map((h) => t.vehicles[h.vehicleId]?.valid)).toEqual([true, true, true]);
+    expect(hummers[2]?.placed).toBe(false);
+  });
+
+  it('searches from the first slot of the team for a tank of ours and for a vehicle of another team', () => {
+    const free = () => false;
+    expect(firstFreeSoldierId(free, Team.OUR, Body.TANK_NW)).toBe(0);
+    expect(firstFreeSoldierId(free, Team.OUR, Body.ICECREAMTRUCK)).toBe(18);
+    expect(firstFreeSoldierId(free, Team.CIV, Body.HUMVEE)).toBe(116);
   });
 });

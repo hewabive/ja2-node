@@ -118,6 +118,14 @@ async function readJsonc(read: ReadFile, path: string): Promise<unknown> {
   return parseJsoncBytes(bytes);
 }
 
+export async function loadVehicleTypes(read: ReadFile): Promise<VehicleType[]> {
+  const [vehicles, profileInfo] = await Promise.all([
+    readJsonc(read, STRATEGIC_CONTENT_PATHS.vehicles),
+    readJsonc(read, STRATEGIC_CONTENT_PATHS.profileInfo),
+  ]);
+  return parseVehicleTypes(vehicles, profileIdsByName(profileInfo));
+}
+
 export async function loadStrategicContent(read: ReadFile): Promise<StrategicContent> {
   const keys = Object.keys(STRATEGIC_CONTENT_PATHS) as (keyof typeof STRATEGIC_CONTENT_PATHS)[];
   const values = await Promise.all(keys.map((key) => readJsonc(read, STRATEGIC_CONTENT_PATHS[key])));

@@ -8,14 +8,18 @@ import { createItem } from '../sim/items/object.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
+import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creation.ts';
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
+import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
+import { setSoldierPosition } from '../sim/tactical/movement.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
-import { Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
-import { type RealtimeClock, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
+import { Body, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
+import { type RealtimeClock, registerSoldier, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
-import { createSandboxSession } from './sandbox.ts';
+import type { CampaignSession } from './campaign-session.ts';
+import { createSandboxSession, type TacticalSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 import { restoreSession, type SessionSnapshot, snapshotSession } from './session-snapshot.ts';
 
@@ -2363,5 +2367,84 @@ describe('snapshot version 50 (no forget count, no borrowed move speed) migrates
 
   it('a landed campaign', async () => {
     await expectOwnCounters(await createCampaignSession(kit.read, exists, 9));
+  });
+});
+
+const SOLDIER_RECORD_KEYS = ['state', 'pc', 'frameSlot', 'aniDelay'];
+const VEHICLE_ID_KEY = 'vehicleId';
+const VEHICLES_KEY = 'vehicles';
+const NOT_A_VEHICLE = -1;
+const PARKED_AT = 9000;
+const OUR_VEHICLE_SLOT = 18;
+
+function withoutVehicleIds(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutVehicleIds(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutVehicleIds(v);
+  if (!SOLDIER_RECORD_KEYS.every((key) => key in out)) return out;
+  const { [VEHICLE_ID_KEY]: vehicleId, ...older } = out;
+  expect(typeof vehicleId).toBe('number');
+  return older;
+}
+
+function versionFiftyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    const older = withoutVehicleIds(value);
+    if (name !== 'tactical') return [name, older];
+    const { [VEHICLES_KEY]: vehicles, ...tactical } = object(older);
+    expect(vehicles).toBeDefined();
+    return [name, tactical];
+  });
+  return { ...snapshot, version: 51, graph: { ...snapshot.graph, sections } };
+}
+
+function parkedVehicle(t: TacticalState, team: number, body: number, id: number, at: number): Soldier {
+  const s = tacticalCreateSoldier(t, newSoldierCreate(team, body, 0, at), id, NEUTRAL_POPULATION);
+  if (!s) throw new Error(`no vehicle of body ${body}`);
+  registerSoldier(t, s);
+  setSoldierPosition(t, s, at);
+  s.placed = true;
+  return s;
+}
+
+describe('snapshot version 51 (no vehicle ids, no tactical vehicle list) migrates with each linked vehicle soldier on his slot and the strategic list shared by the tactical layer', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectLinkedVehicles(session: SessionSim): Promise<SessionSim> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftyOne(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${VEHICLE_ID_KEY}":${NOT_A_VEHICLE}`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    return restored;
+  }
+
+  it('a sandbox gets a list of its own and no vehicle soldier', async () => {
+    const restored = await expectLinkedVehicles(await createSandboxSession(kit.read, false, 5));
+    expect((restored as TacticalSession).sim.state.vehicles).toEqual([]);
+  });
+
+  it('a landed campaign with a vehicle of ours and a civilian one gets them back on their slots, the tactical list being the strategic one', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    const ours = parkedVehicle(t, Team.OUR, Body.HUMVEE, OUR_VEHICLE_SLOT, PARKED_AT);
+    const truck = parkedVehicle(t, Team.CIV, Body.ICECREAMTRUCK, TEAM_FIRST_ID[Team.CIV] + 8, PARKED_AT + 4);
+    expect([ours.vehicleId, truck.vehicleId].every((id) => id >= 0)).toBe(true);
+    const restored = (await expectLinkedVehicles(campaign)) as CampaignSession;
+    const sim = restored.campaign;
+    expect(sim.tactical?.state.vehicles).toBe(sim.state.forces.vehicles);
+    expect([ours.id, truck.id].map((id) => sim.tactical?.state.soldiers[id]?.vehicleId)).toEqual([ours.vehicleId, truck.vehicleId]);
   });
 });

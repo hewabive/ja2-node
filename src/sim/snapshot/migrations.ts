@@ -4,6 +4,7 @@ import { u32 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
+import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError } from './codec.ts';
 
@@ -1441,6 +1442,50 @@ function addForgetCountAndFollowerSpeed(snapshot: Readonly<Record<string, unknow
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const VEHICLE_ID_KEY = 'vehicleId';
+const MONSTER_OR_ANIMAL_KEY = 'monsterOrAnimal';
+const VEHICLES_KEY = 'vehicles';
+const PROFILES_KEY = 'profiles';
+const NOT_A_VEHICLE = -1;
+const SHARED_VEHICLE_LIST: Json = { [REF]: 'strategic/forces/vehicles' };
+
+function vehicleSlotsBySoldier(strategic: Json | undefined): Map<number, number> {
+  const slots = new Map<number, number>();
+  const vehicles = field(field(strategic, 'forces', null), VEHICLES_KEY, null);
+  if (!Array.isArray(vehicles)) return slots;
+  vehicles.forEach((v: Json, slot: number) => {
+    const soldier = field(v, 'soldierId', NOT_A_VEHICLE);
+    if (field(v, 'valid', false) === true && typeof soldier === 'number' && soldier >= 0 && !slots.has(soldier)) slots.set(soldier, slot);
+  });
+  return slots;
+}
+
+function vehicleIdOf(soldier: JsonObject, slots: ReadonlyMap<number, number>): number {
+  const { id, bodyType } = soldier;
+  if (typeof id !== 'number' || typeof bodyType !== 'number' || !isVehicleBody(bodyType)) return NOT_A_VEHICLE;
+  return slots.get(id) ?? NOT_A_VEHICLE;
+}
+
+function withVehicleIds(value: Json, slots: ReadonlyMap<number, number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withVehicleIds(v, slots));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withVehicleIds(v, slots);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, MONSTER_OR_ANIMAL_KEY, VEHICLE_ID_KEY, vehicleIdOf(mapped, slots)) : mapped;
+}
+
+function addVehicleIdsAndSharedVehicleList(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const strategic = sectionOf(graph.sections, 'strategic');
+  const slots = vehicleSlotsBySoldier(strategic);
+  const list: Json = isObject(strategic) ? SHARED_VEHICLE_LIST : [];
+  const sections = graph.sections.map(([name, value]): Section => {
+    const linked = withVehicleIds(value, slots);
+    return [name, name === 'tactical' && isObject(linked) ? insertAfter(linked, PROFILES_KEY, VEHICLES_KEY, list) : linked];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1493,5 +1538,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     48: addPanicStateAndKeysByte,
     49: addTileToolsTinCansAndXRay,
     50: addForgetCountAndFollowerSpeed,
+    51: addVehicleIdsAndSharedVehicleList,
   };
 }

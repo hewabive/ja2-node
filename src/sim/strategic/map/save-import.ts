@@ -10,8 +10,15 @@ import type { SavedHelicopter } from '../../../content/formats/savegame-tactical
 import { MapModificationType } from '../../../content/formats/savegame-temp-files.ts';
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';
+import {
+  emptyPassengerSlots,
+  findSoldierType,
+  NO_VEHICLE_SOLDIER,
+  type VehicleRecord,
+  type VehicleSoldier,
+} from '../../vehicles/vehicle-list.ts';
 import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
-import { emptyPassengerSlots, type Group, type VehicleRecord } from '../forces/groups.ts';
+import type { Group } from '../forces/groups.ts';
 import { type HelicopterState, REFUEL_SITES } from '../forces/helicopter-state.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { type MapElement, resetSectorFlag, type SectorInfo, type UndergroundSector } from './sectors.ts';
@@ -25,6 +32,10 @@ const MAP_CHANGES_WRITTEN_BACK_ON_LOAD: ReadonlySet<number> = new Set([
   MapModificationType.WINDOW_HIT,
 ]);
 const SOLDIER_VEHICLE_FLAG = 0x00008000;
+
+interface VehicleSoldierEntry extends VehicleSoldier {
+  readonly id: number;
+}
 
 function playerSoldierByProfile(save: SaveGame): Map<number, { id: number; groupId: number }> {
   const byProfile = new Map<number, { id: number; groupId: number }>();
@@ -94,11 +105,16 @@ function importHelicopter(saved: SavedHelicopter): HelicopterState {
   return { ...saved, refuelSiteAvailable: REFUEL_SITES.map((_, i) => saved.refuelSiteAvailable[i] === true) };
 }
 
+function savedVehicleSoldiers(save: SaveGame): VehicleSoldierEntry[] {
+  return save.soldiers.flatMap(({ soldier: r }) =>
+    r.active !== 0 && r.statusFlags & SOLDIER_VEHICLE_FLAG ? [{ id: r.id, bodyType: r.bodyType, vehicleId: r.vehicleSlot }] : [],
+  );
+}
+
 function importVehicles(save: SaveGame, byProfile: Map<number, { id: number }>): VehicleRecord[] {
+  const vehicleSoldiers = savedVehicleSoldiers(save);
   return save.vehicles.map((v) => {
-    const vehicleSoldier = save.soldiers.find(
-      (e) => e.soldier.team === PLAYER_TEAM && e.soldier.statusFlags & SOLDIER_VEHICLE_FLAG && e.soldier.vehicleSlot === v.slot,
-    );
+    const vehicleSoldier = findSoldierType(vehicleSoldiers, v.slot);
     return {
       valid: v.valid,
       destroyed: v.destroyed,
@@ -108,7 +124,7 @@ function importVehicles(save: SaveGame, byProfile: Map<number, { id: number }>):
       path: [...v.path],
       betweenSectors: v.betweenSectors,
       passengers: passengerSlots(v.passengerSlots, byProfile),
-      soldierId: vehicleSoldier?.soldier.id ?? -1,
+      soldierId: vehicleSoldier?.id ?? NO_VEHICLE_SOLDIER,
     };
   });
 }
@@ -134,7 +150,7 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   f.squadGroupIds = save.squadMovementGroups.map((id) => u8(id));
   f.deadSquadMembers = info.deadSquadMembers.map((row) => [...row]);
   f.vehicleGroupIds = [...save.vehicleMovementGroups];
-  f.vehicles = importVehicles(save, byProfile);
+  f.vehicles.splice(0, f.vehicles.length, ...importVehicles(save, byProfile));
   f.helicopterVehicleId = info.helicopterVehicleId;
   f.helicopterAirborne = info.helicopterAirborne;
   f.helicopter = importHelicopter(info.helicopter);

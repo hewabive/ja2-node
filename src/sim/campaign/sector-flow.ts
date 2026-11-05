@@ -14,7 +14,8 @@
 // @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
-// @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
+// @src WorldDef.cc TrashWorld (DestroyAllSchedules; the vehicles of the soldiers not on our team, 2026-11-04);
+// @src SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
 // @src with the merc it locates, and the screen entry after a load), Merc_Entering.cc
 // @src HandleHeliDrop (the first seat's selection; the arrival quotes of each drop, Soldier_Ani.cc:988, 2026-11-01; the
@@ -79,6 +80,7 @@ import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/force
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
+import { addVehicleToList } from '../strategic/forces/vehicles.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { loadScreenId } from '../strategic/map/loading-screen.ts';
 import { damageSamIfFound } from '../strategic/map/sam.ts';
@@ -165,6 +167,7 @@ import {
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
+import { removeVehiclesNotOnOurTeam } from '../tactical/vehicle-soldiers.ts';
 import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
@@ -584,6 +587,7 @@ export class SectorFlow {
       options: s.options,
       streams: { rng: s.rng, pre: s.pre },
       profiles: s.profiles,
+      vehicles: s.forces.vehicles,
       keyTable: s.keyTable,
       civGroups: s.civGroups,
       boxing: s.narrative.boxing,
@@ -611,6 +615,7 @@ export class SectorFlow {
     sim.state.experienceHooks = this.campaign.experienceHooks;
     sim.state.narrative = campaignNarrativePort(this.campaign);
     sim.state.scheduleClock = campaignScheduleClock(this.campaign);
+    sim.state.vehicleHooks = { addVehicleToList: (_list, sector, type) => addVehicleToList(this.ctx, sector, type) };
     sim.state.timeOfDayLight = {
       ambientLevel: () => {
         const world = this.world;
@@ -1365,7 +1370,10 @@ export class SectorFlow {
 
   #worldTrashed(): void {
     const t = this.campaign.tactical?.state;
-    if (t) destroyAllSchedules(t);
+    if (t) {
+      destroyAllSchedules(t);
+      removeVehiclesNotOnOurTeam(t);
+    }
     const q = this.queen;
     if (q) handleFirstMeanwhileSetUpWithTrashWorld(q);
   }

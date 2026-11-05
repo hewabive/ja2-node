@@ -193,6 +193,7 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
     options: sim.state.options,
     streams: { rng: sim.state.rng, pre: sim.state.pre },
     profiles: sim.state.profiles,
+    vehicles: sim.state.vehicles,
     civGroups: sim.state.civGroups,
     keyTable: sim.state.keyTable,
     boxing: sim.state.boxing,
