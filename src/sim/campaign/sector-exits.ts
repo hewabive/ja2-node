@@ -21,6 +21,7 @@ import {
   numEnemiesInAnySector,
   playerMercsInSector,
   setGroupSectorValue,
+  vehicleOfGroup,
 } from '../strategic/forces/groups.ts';
 import {
   addWaypointToPGroup,
@@ -28,13 +29,14 @@ import {
   resetMovementForEnemyGroupsInLocation,
 } from '../strategic/forces/movement.ts';
 import type { StrategicContext } from '../strategic/forces/ports.ts';
-import { plotPathForCharacter } from '../strategic/forces/routes.ts';
+import { plotPathForCharacter, soldierGroup } from '../strategic/forces/routes.ts';
 import {
   addCharacterToUniqueSquad,
   handleSoldierLeavingSectorByThemSelf,
   numberOfPlayerControllableMercsInSquad,
   removeCharacterFromSquads,
 } from '../strategic/forces/squads.ts';
+import { setVehicleSectorValues } from '../strategic/forces/vehicles.ts';
 import { getSectorMvtTimeForGroup, TRAVERSE_TIME_IMPOSSIBLE } from '../strategic/map/travel.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime } from '../strategic/time/world-clock.ts';
@@ -393,10 +395,9 @@ export function jumpIntoAdjacentSector(
     valid = flow.setup.roster.all().find((m) => okControllable(flow, m) && m.assignment === selected.assignment) ?? null;
   } else {
     valid = selected;
-    if (jumpCode === JumpCode.SINGLE_NO_LOAD) handleSoldierLeavingSectorByThemSelf(flow.ctx, selected.id);
-    else addCharacterToUniqueSquad(flow.ctx, selected.id);
+    leaveOnOwnSquad(flow, selected, jumpCode);
   }
-  const group = valid ? getGroup(flow.ctx, valid.groupId) : undefined;
+  const group = valid ? soldierGroup(flow.ctx, valid) : undefined;
   if (!valid || !group) return false;
   let minutes = 0;
   if (direction !== DIRECTION_EXITGRID) minutes = traverseTime(flow, group, STRATEGIC_MOVE_OF[direction] ?? 0, UNDERGROUND_FROM_LEVEL);
@@ -434,6 +435,22 @@ export function jumpIntoAdjacentSector(
   }
   for (const m of groupMercs(flow, group)) if (!okControllable(flow, m)) removeCharacterFromSquads(flow.ctx, m.id);
   return true;
+}
+
+function leaveUnconsciousMercsBehind(flow: SectorFlow, group: Group): void {
+  if (group.vehicle) return;
+  for (const m of groupMercs(flow, group)) if (m.life < OKLIFE) addCharacterToUniqueSquad(flow.ctx, m.id);
+}
+
+function leaveOnOwnSquad(flow: SectorFlow, selected: RosterMerc, jumpCode: number): void {
+  if (selected.isVehicle) return;
+  if (jumpCode === JumpCode.SINGLE_NO_LOAD) handleSoldierLeavingSectorByThemSelf(flow.ctx, selected.id);
+  else addCharacterToUniqueSquad(flow.ctx, selected.id);
+}
+
+function setLeavingGroupSector(flow: SectorFlow, group: Group, target: Sector): void {
+  if (group.vehicle) setVehicleSectorValues(flow.ctx, vehicleOfGroup(flow.ctx, group), target);
+  setGroupSectorValue(flow.ctx, target, group);
 }
 
 function setInsertionDataFromAdjacentMoveDirection(flow: SectorFlow, m: RosterMerc, direction: number, additional: number): void {
@@ -523,8 +540,9 @@ function doneFadeOutAdjacentSector(flow: SectorFlow, jump: AdjacentJump): void {
   if (!t || !group) return;
   if (t.world.map?.ambient?.caves) t.ignoreAllObstacles = true;
   const walking = states(t.content.animations).WALKING;
+  const walkers = group.vehicle ? [] : groupMercs(flow, group);
   let n = 0;
-  for (const m of groupMercs(flow, group)) {
+  for (const m of walkers) {
     const s = m.soldier;
     if (!s.placed || s.gridNo === NOWHERE) continue;
     const picked = pickGridNoToWalkIn(t, s, entryCode);
@@ -551,16 +569,16 @@ export function allMercsWalkedToExitGrid(flow: SectorFlow): void {
       setInsertionDataFromAdjacentMoveDirection(flow, m, jump.direction, jump.additional);
       flow.setup.roster.removeFromTacticalSector(m.id);
     }
-    setGroupSectorValue(flow.ctx, jump.target, group);
+    setLeavingGroupSector(flow, group, jump.target);
     flow.setDefaultSquadOnSectorEntry(true);
   } else {
     const tt = flow.campaign.state.movement.tacticalTraversal;
     tt.active = true;
     tt.groupId = group.id;
-    for (const m of groupMercs(flow, group)) if (m.life < OKLIFE) addCharacterToUniqueSquad(flow.ctx, m.id);
+    leaveUnconsciousMercsBehind(flow, group);
     for (const m of groupMercs(flow, group)) setInsertionDataFromAdjacentMoveDirection(flow, m, jump.direction, jump.additional);
     flow.overrideInsertionWithExitGrid = null;
-    setGroupSectorValue(flow.ctx, jump.target, group);
+    setLeavingGroupSector(flow, group, jump.target);
     flow.setCurrentWorldSector(jump.target);
     clearTraversal(flow);
   }

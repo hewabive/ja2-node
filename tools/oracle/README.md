@@ -617,8 +617,8 @@ ja2-node's generator and compare the vehicle state, with the out-of-gas box as t
 the result and the state field by field. Not compared: a native field the command leaves stale (the click's
 `bPendingActionData3`), positions of soldiers off the map (native `NOWHERE`), the sector flag of the dead (native
 soldiers stay `bInSector`), the current squad outside boarding and leaving (the native value outlives a save load), the
-selection while the map screen is up, and everything `vehicleleavesector` does after `OKForSectorExit`: ja2-node will
-let a vehicle leave with its passengers (deviation "Vehicle sector exit"), while the original sends it alone in a fresh
+selection while the map screen is up, and everything `vehicleleavesector` does after `OKForSectorExit`: ja2-node lets
+a vehicle leave with its passengers (deviation "Vehicle sector exit"), while the original sends it alone in a fresh
 squad's foot group and leaves its record and passengers behind, which the native output records.
 
 ## Shipped probes

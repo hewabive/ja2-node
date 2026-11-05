@@ -413,8 +413,10 @@ merc; no order takes him as its target, as the cursor never finds him (`FindSold
 A vehicle of ours with nobody aboard is not ours to command (`IsOwnedMerc`): its orders and `select` refuse `noDriver`.
 The hints refuse the same way (`blocked`). A vehicle never moves on the tactical map (`HandleMoveModeInteractiveClick`):
 `move`, `swapPlaces` with `cursor`, a `moveGroup` naming one and `enterVehicle` by one refuse `vehicleCantMove`. It
-leaves a sector by strategic travel, or through `exitSector` as the vehicle alone, never as a squad (its passengers are
-on no squad), when it drives toward the edge as the original's walk-off does, as far as it goes without turning.
+leaves a sector by strategic travel, or through `exitSector` with `who: merc`, never as a squad (its passengers are on
+no squad), when it drives toward the edge as the original's walk-off does, as far as it goes without turning, and then
+leaves as its own group with everybody aboard at the vehicle's speed, burning its fuel on arrival (deviation "Vehicle
+sector exit"): a load seats them at the vehicle, which enters at the entry point of its side.
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's

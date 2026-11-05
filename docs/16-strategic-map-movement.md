@@ -89,7 +89,8 @@ tactical screens"); the only gate to entering a sector is `SectorFlow.enterSecto
 entering from the PBI uses the automatic start (deviation "Tactical placement"). `exitSector` evaluates the exit check
 and the exit menu's rules and refuses a choice the menu would not offer (deviation "Exit dialog"); the client's exit
 hint runs the same check over the player's knowledge (`src/sim/hints/exit-sector.ts`, D16). The merc wait counts 2500
-game ms (deviation "Waiting for mercs to exit"). The lair's "Travel to surface?" question is `exitSector` with `warp`,
+game ms (deviation "Waiting for mercs to exit"). A vehicle of ours that leaves drives off as its own group with
+everybody aboard, where the original sends its soldier alone in a squad's foot group (deviation "Vehicle sector exit"). The lair's "Travel to surface?" question is `exitSector` with `warp`,
 offered through the view because which lair was destroyed is hidden state (`surfaceWarp`,
 `strategic/creatures/creatures.ts`).
 
@@ -137,6 +138,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The museum move check asks whether Eldin lives, not whether the alarm went off, counts the chalice on any merc of the team wherever he is, and reads the room under the merc's tile in whatever map is loaded, also when he stands in another sector | `strategic/forces/move-permission.test.ts` |
 | An arriving creature faces the first direction its body fits on the tile it found (north on open ground), whatever its insertion direction, a forced one too: the facing a creature attack sets per edge is never used | `tactical/insertion.test.ts` |
 | The way to an exit grid is searched as a lone walker's through people (`FindGridNoFromSweetSpotCloseToExitGrid`'s zeroed dummy soldier), also for a vehicle, whose structure is fitted on the exit tile only: a vehicle finds an exit tile past a gap one tile wide | `tactical/sector-exit.test.ts` "finds a vehicle the exit tile past a gap …" |
+| A vehicle's riders always take the travel insertion code, where walkers keep an edge-index code (`Strategic_Movement.cc:1245`, `:1285`): a vehicle that leaves by the edge for a quick traversal (deviation "Vehicle sector exit") enters at the entry point of its side, not across from where it left | `campaign/vehicle-sector-exit.test.ts` "loads the next sector through a town …" |
 
 Not pinned yet:
 - The exit check of a merc away from the edge applies the underground rule from the second level only (`z > 1`): on a
@@ -145,7 +147,6 @@ Not pinned yet:
   (`handlePotentialMoraleHitForSkimmingSectors`).
 - `AllMercsWalkedToExitGrid` passes the target sector to the retreat loyalty check, after the group already stands
   there.
-- A vehicle's riders always take the travel insertion code; walkers keep an edge-index code.
 - Soldiers other than creatures face the map centre on entry: the insertion direction set on arrival is ignored, only a
   forced one (100 and up) counts (`addSoldierToSector`).
 - A preserved enemy file is checked against the stationary counts only, so any underground file mismatches; each saved

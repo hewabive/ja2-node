@@ -315,7 +315,7 @@ describe('a vehicle squad at the edge of the map (StrategicMap.cc OKForSectorExi
     return vehicle.soldier;
   }
 
-  it('leaves as the vehicle alone, never as a squad, and the vehicle drives toward the edge as far as it goes straight: the one move a vehicle makes on the tactical map (quirk)', async () => {
+  it('counts the vehicle alone at the exit, never the squad, and the vehicle drives toward the edge as far as it goes straight, its passengers riding its steps: the one move a vehicle makes on the tactical map (quirk)', async () => {
     const { session, hummer } = await hummerAtTheEastEdge(Direction.NORTHEAST);
     expect(refusalOf(session, { type: 'move', soldier: hummer.id, to: INSIDE_THE_MAP })).toBe('vehicleCantMove');
     expect(refusalOf(session, { type: 'exitSector', soldier: hummer.id, direction: 'east', who: 'squad' })).toBe('squadNotAllowed');
