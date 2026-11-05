@@ -32,6 +32,11 @@ export interface StatDamage {
   wisdom: number;
 }
 
+export interface VehicleCondition {
+  life: number;
+  readonly lifeMax: number;
+}
+
 export interface CrewMember extends StrategicMerc {
   life: number;
   lifeMax: number;
@@ -83,8 +88,7 @@ export interface EconomyHooks {
   headMinerAlive(profile: number): boolean;
   headMinerTown(profile: number): number;
   placeHeadMiner(profile: number, sector: Sector, town: number): void;
-  vehicleNeedsRepair(vehicle: number, mercId: number): boolean;
-  repairVehicle(vehicle: number, points: number): number;
+  loadedSectorSoldier(id: number): VehicleCondition | null;
   history(code: number, secondCode: number, sector: Sector): void;
   animateFallingAsleep(id: number): void;
   animateWakingUp(id: number): void;
@@ -144,8 +148,7 @@ export const defaultEconomyHooks: EconomyHooks = {
   headMinerAlive: () => true,
   headMinerTown: () => 0,
   placeHeadMiner: () => {},
-  vehicleNeedsRepair: () => false,
-  repairVehicle: () => 0,
+  loadedSectorSoldier: () => null,
   history: () => {},
   animateFallingAsleep: () => {},
   animateWakingUp: () => {},

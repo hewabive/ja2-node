@@ -639,7 +639,7 @@ A vehicle of ours is a merc of `kind` `vehicle` whose `vehicle` names the vehicl
 Travel burns fuel (`16`); the leg that empties the tank brings `vehicleOutOfGas {vehicle, sector}`, the original's box,
 before the arrival's `groupArrived`, and the group stops there. A vehicle with an empty tank refuses to move as
 `vehicleNoGas` (after `vehicleEmpty` and `vehicleDamaged`), and so does the route of anyone aboard, naming the vehicle
-soldier. The hints read the fuel from the percentage shown.
+soldier. The hints read the fuel from the percentage shown. A mechanic repairs a vehicle by the hour (`18`).
 
 A vehicle in the loaded sector, an enemy tank among them, takes hits by the original's vehicle rules (`33`) and gets 35
 APs more a turn, up to 50 (`10`). The hit that destroys it brings `vehicleDestroyed {soldier, vehicle, killer}` (the

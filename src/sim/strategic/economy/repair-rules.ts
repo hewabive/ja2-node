@@ -7,10 +7,13 @@
 import { NOTHING } from '../../../content/items/items.ts';
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import type { ItemObject } from '../../items/object.ts';
+import { findVehicle } from '../forces/vehicles.ts';
 import { AC, areAssignmentConditionsMet, isMechanical } from './conditions.ts';
 import { Assignment } from './constants.ts';
 import { findObj, isGun, isItemRepairable, kitItems, NO_SLOT, Slot } from './kits.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
+import { isVehicleAccessibleToSoldier } from './vehicle-assignment.ts';
+import { doesVehicleNeedAnyRepairs } from './vehicle-repair.ts';
 
 export const RepairPass = { HANDS_AND_ARMOR: 0, HEADGEAR: 1, POCKETS: 2 } as const;
 export const FINAL_REPAIR_PASS = RepairPass.POCKETS;
@@ -84,7 +87,10 @@ export function canCharacterRepairRobot(ctx: EconomyContext, s: CrewMember): boo
 }
 
 export function canCharacterRepairVehicle(ctx: EconomyContext, s: CrewMember, vehicle: number): boolean {
-  return ctx.hooks.vehicleNeedsRepair(vehicle, s.id);
+  const v = findVehicle(ctx, vehicle);
+  if (!v || v.destroyed) return false;
+  if (!doesVehicleNeedAnyRepairs(ctx, v)) return false;
+  return isVehicleAccessibleToSoldier(ctx, s, v);
 }
 
 function anyRepairableVehicleHere(ctx: EconomyContext, s: CrewMember): boolean {

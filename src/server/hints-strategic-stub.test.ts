@@ -8,11 +8,13 @@ import { Direction } from '../content/world/grid.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
+import { createItem } from '../sim/items/object.ts';
 import { LAIR_DESTROYED } from '../sim/strategic/creatures/creatures.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../sim/strategic/narrative/facts.ts';
+import { InvSlot } from '../sim/tactical/inventory.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -220,6 +222,24 @@ describe('a vehicle of ours, client against server', () => {
       expect(await c.session.query({ type: 'previewRoute', soldier, to: 'B10' }), `hint for ${soldier}`).toMatchObject(refused);
       expect(c.sim.dispatch({ type: 'route', soldier, to: 'B10' }), `route for ${soldier}`).toMatchObject(refused);
     }
+  });
+
+  it('offer the repair of a damaged vehicle of ours in the assignment menu as the full state does', async () => {
+    const c = await withOurHummer(39);
+    const economy = c.sim.campaign.economy;
+    const roster = c.sim.campaign.battle?.roster;
+    const toolkit = kit.content.items.byName.get('TOOLKIT');
+    if (!economy || !roster || !toolkit) throw new Error('no campaign layers');
+    c.hummer.life = 60;
+    for (const m of roster.all()) if (!m.isVehicle) m.soldier.inv[InvSlot.HAND] = createItem(kit.content.items, toolkit.index, 100);
+    for (const m of roster.all()) {
+      const hint = await c.session.query({ type: 'assignmentOptions', soldier: m.id });
+      expect(hint.data, `assignment menu of ${m.id}`).toEqual(JSON.parse(JSON.stringify(assignmentOptionsFor(economy, m))));
+    }
+    const mechanic = roster.all().find((m) => !m.isVehicle);
+    const menu = JSON.stringify((await c.session.query({ type: 'assignmentOptions', soldier: mechanic?.id })).data);
+    expect(menu).toContain('repairVehicle');
+    expect(menu).not.toContain('notRepairable');
   });
 });
 

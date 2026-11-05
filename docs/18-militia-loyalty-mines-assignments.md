@@ -44,7 +44,7 @@ tactical militia from the counts; promotions on unload          campaign/sector-
 | `militia-rules.ts`, `militia.ts`, `militia-moves.ts` | Eligibility and capacity; training sessions, payment and continue prompts, promotions; the militia panel's moves and AUTO |
 | `mine-status.ts`, `mines.ts` | Mine records; init, income, workforce, depletion, monsters, head miners and their quotes |
 | `conditions.ts`, `points.ts`, `kits.ts`, `repair-rules.ts`, `vehicle-assignment.ts` | Every `CanCharacter…` check; doctor, repair and training points; kit points; what is left to repair; the vehicle assignment |
-| `rest.ts`, `doctor.ts`, `repair.ts`, `training.ts` | The hourly work |
+| `rest.ts`, `doctor.ts`, `repair.ts`, `vehicle-repair.ts`, `training.ts` | The hourly work; a vehicle's condition and its repair |
 | `set-assignment.ts`, `assignment-done.ts`, `update.ts` | Setting assignments, sleep and wake; done, aborted, nothing to do; the hourly update and the economy events |
 | `save-import.ts`, `sector-loss.ts` | Imported mines, loyalty, ledger and assignment fields; the notice for a lost important sector |
 | `strategic/map/control.ts`, `map/sam.ts`, `campaign/sam-repair.ts` | Sector control changes, air control, SAM damage and repair; the terminal graphic the repair puts back |
@@ -90,6 +90,10 @@ server only takes whole moves and AUTO (deviation "Militia redistribution").
 **Work is paid for the hour that ended.** The hourly update notes who slept through the past hour before the rest step
 puts mercs to bed or wakes them, and every payout reads that note; nothing pays in the first 45 minutes of an
 assignment. In turn-based combat the clock stands still, so assignments make no progress (`10`).
+
+**A vehicle's condition is its soldier's.** A mechanic repairs the life of the vehicle soldier: a vehicle of ours
+through the crew port wherever it is, any other through the `loadedSectorSoldier` hook, since such a vehicle is in the
+list only while its sector is loaded (`vehicle-repair.ts`). The helicopter has no soldier and is never repaired.
 
 **Strategic flow stands for compression.** Squad mercs heal at the resting rate while time is compressed; the map
 screen always compresses and tactical never does, so ja2-node asks whether the flow is strategic (deviation "Time
@@ -159,6 +163,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | Bandaging uses the doctor's first kit of either kind, though only a medical kit makes him a doctor | `training.test.ts` |
 | A teammate repairs the robot's gear: the check for machines and EPCs looks at the repairer | `assignments.test.ts` |
 | Damage costing less than a point is repaired with no points left | `assignments.test.ts` |
+| A mechanic on a vehicle turns only whole tens of his hour's points into condition and leaves the rest unused, so with fewer than 10 an hour he repairs nothing and stops as not skilled enough | `vehicle-repair.test.ts` |
 | A rested squad merc swings around 95 breath; a dying squad merc cannot sleep, so he is worn out | `assignments.test.ts` |
 | The menu's leader made a patient or trainee takes the pose of his old assignment; the mercs listed with him take the new one, and a repairman of the menu takes none | `assignments.test.ts` |
 | A doctor, repairman or patient who stays done shows the end of his work again at every update that finds him done | `assignments.test.ts` |
@@ -196,4 +201,4 @@ estimates are not compared. Inferred from reading the source:
 - That Deidranna's death never maximises loyalty: `MaximizeLoyaltyForDeidrannaKilled` sits in the enemy branch while
   she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
 
-Not ported: gaps "Strategic economy stand-ins" (vehicle repair), "Absent mercs between hourly updates".
+Not ported: gap "Absent mercs between hourly updates".

@@ -7,6 +7,7 @@ import { NOTHING } from '../../../content/items/items.ts';
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { i8, idiv, u8, u16 } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
+import { findVehicle } from '../forces/vehicles.ts';
 import { CompressionStop, stopTimeCompression } from '../time/world-clock.ts';
 import { assignmentAborted, assignmentDone } from './assignment-done.ts';
 import { enoughTimeOnAssignment } from './conditions.ts';
@@ -38,6 +39,7 @@ import {
   RepairPass,
   robotSoldier,
 } from './repair-rules.ts';
+import { repairVehicle } from './vehicle-repair.ts';
 
 const REPAIR_COST_PER_JAM = 2;
 const UNJAM_STAT_CHANCES = 5;
@@ -203,8 +205,8 @@ export function handleRepairBySoldier(ctx: EconomyContext, s: CrewMember): void 
   }
   const budget: Budget = { left: initial };
   if (s.vehicleUnderRepair !== -1) {
-    if (canCharacterRepairVehicle(ctx, s, s.vehicleUnderRepair))
-      budget.left = u8(budget.left - ctx.hooks.repairVehicle(s.vehicleUnderRepair, budget.left));
+    const v = findVehicle(ctx, s.vehicleUnderRepair);
+    if (v && canCharacterRepairVehicle(ctx, s, s.vehicleUnderRepair)) budget.left = u8(budget.left - repairVehicle(ctx, v, budget.left));
   } else if (s.fixingRobot) {
     const robot = robotSoldier(ctx);
     if (robot && canCharacterRepairRobot(ctx, s)) {

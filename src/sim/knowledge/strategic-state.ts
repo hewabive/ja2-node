@@ -10,15 +10,16 @@ import { sectorInfo } from '../strategic/map/sectors.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
-import { emptyPassengerSlots, type VehicleRecord } from '../vehicles/vehicle-list.ts';
+import { emptyPassengerSlots, NO_VEHICLE_SOLDIER, type VehicleRecord } from '../vehicles/vehicle-list.ts';
 import { type GuardOptions, guardFields } from './guard.ts';
-import type { KnowledgeGroup, KnowledgeSector, KnowledgeStrategic, KnowledgeVehicle } from './view.ts';
+import type { KnowledgeGroup, KnowledgeMerc, KnowledgeSector, KnowledgeStrategic, KnowledgeVehicle } from './view.ts';
 
 const UNDERGROUND_SEPARATOR = '-';
 const NO_HELICOPTER = -1;
 const UNKNOWN_ENEMY_COUNT = 1;
 const NO_LAST_REASSIGNMENT = 255;
 const ONE_WAY = 0;
+const VEHICLE_KIND = 'vehicle';
 
 export const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'clock',
@@ -56,6 +57,7 @@ const VEHICLE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'path',
   'betweenSectors',
   'passengers',
+  'soldierId',
 ]);
 
 export function sectorFromName(name: string): Sector {
@@ -152,7 +154,11 @@ function vehicleOnlyGroups(groups: readonly KnowledgeGroup[], vehicles: readonly
     }));
 }
 
-function projectedVehicle(view: KnowledgeVehicle, guard: GuardOptions): VehicleRecord {
+function vehicleSoldierOf(mercs: readonly KnowledgeMerc[], vehicle: number): number {
+  return mercs.find((m) => m.kind === VEHICLE_KIND && m.vehicle === vehicle)?.id ?? NO_VEHICLE_SOLDIER;
+}
+
+function projectedVehicle(view: KnowledgeVehicle, soldierId: number, guard: GuardOptions): VehicleRecord {
   const passengers = emptyPassengerSlots();
   view.passengers.forEach((id, k) => {
     passengers[k] = id;
@@ -166,7 +172,7 @@ function projectedVehicle(view: KnowledgeVehicle, guard: GuardOptions): VehicleR
     path: pathFromNames(view.path),
     betweenSectors: view.betweenSectors,
     passengers,
-    soldierId: -1,
+    soldierId,
   };
   return guardFields(v, VEHICLE_FIELDS, `vehicle ${view.id}`, guard);
 }
@@ -207,7 +213,7 @@ export function overlayStrategicState(ctx: StrategicContext, view: KnowledgeStra
   );
   forces.squads = squadsOf(view);
   forces.vehicles = [];
-  for (const v of vehicles) forces.vehicles[v.id] = projectedVehicle(v, guard);
+  for (const v of vehicles) forces.vehicles[v.id] = projectedVehicle(v, vehicleSoldierOf(view.mercs, v.id), guard);
   const heli = view.helicopter;
   forces.helicopterVehicleId = heli?.vehicle ?? NO_HELICOPTER;
   forces.helicopterAirborne = heli?.airborne === true;

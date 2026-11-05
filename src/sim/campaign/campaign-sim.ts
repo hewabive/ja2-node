@@ -342,6 +342,7 @@ export class CampaignSim {
         this.narrative.placeHeadMiner(profile, sector, town),
       headMinerTown: (profile: number) => this.narrative.headMinerTown(profile),
       headMinerAlive: (profile: number) => this.narrative.headMinerAlive(profile),
+      loadedSectorSoldier: (id: number) => this.tactical?.state.soldiers[id] ?? null,
       history: (code: number, secondCode: number, sector: { x: number; y: number; z: number }) =>
         this.laptop?.economyHistory(code, secondCode, sector),
       ...assignmentAnimationHooks(this),
