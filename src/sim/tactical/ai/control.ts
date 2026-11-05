@@ -28,6 +28,7 @@ import {
   states,
 } from '../animation.ts';
 import { moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
+import { attackAnimationHoldsBusyCount } from '../combat/attack.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
 import { DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { interactWithDoorAt } from '../doors/door-actions.ts';
@@ -755,7 +756,7 @@ function waitsForQuoteTrigger(t: TacticalState, s: Soldier): boolean {
 
 function newSituationCanBeProcessed(t: TacticalState, s: Soldier): boolean {
   if (t.turn.attackBusyCount === 0) return true;
-  if (s.ai.action === AiAction.FIRE_GUN) return t.bullets.length === 0;
+  if (s.ai.action === AiAction.FIRE_GUN) return t.bullets.length === 0 && !attackAnimationHoldsBusyCount(t, s);
   if (s.ai.action !== AiAction.TOSS_PROJECTILE || t.explosives.objects.length > 0) return false;
   t.turn.attackBusyCount = 0;
   return true;

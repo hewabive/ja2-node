@@ -48,7 +48,8 @@ team turn: AI list built                                turns/turns.ts, turns/ai
 time in AI list order, so the draws of a team turn follow that order. An action is never re-decided: it ends at its
 completion hook (path exhausted, the turn or stance animation done, the climb or radio opcode, the attack busy count at
 0) or is cancelled by a new situation. A new situation waits while the attack busy count is up, except for a shooter
-once no bullet flies and for a tosser once nothing is in the air, whose busy count it clears. An action the soldier
+once no bullet flies and his attack animation has released its own count (deviation "New situation during a gun
+attack"), and for a tosser once nothing is in the air, whose busy count it clears. An action the soldier
 cannot afford is kept and halts him: a GREEN or YELLOW soldier's move resumes next turn, a RED or BLACK soldier rethinks
 at his turn start.
 

@@ -119,6 +119,7 @@ const ROOF_FALLS = ['FALLFORWARD_ROOF', 'FALLOFF'];
 const WADING_TERRAINS: readonly number[] = [Terrain.LOW_WATER, Terrain.MED_WATER];
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 const KEEPS_LAST_TARGET = ['READY_RIFLE_STAND', 'READY_RIFLE_PRONE', 'READY_RIFLE_CROUCH', 'ROBOT_SHOOT'];
+const SLOTS_THE_SCRIPT_RUNS_ON: ReadonlySet<SlotKind> = new Set([SlotKind.FRAME, SlotKind.NOP, SlotKind.OP]);
 
 export interface NamedStates {
   readonly WALKING: number;
@@ -714,6 +715,17 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
       }
     }
   }
+}
+
+export function animationReachesOpcode(t: TacticalState, s: Soldier, code: number): boolean {
+  const timeline = t.content.timeline;
+  for (let pc = s.pc; pc < MAX_FRAMES_PER_ANIM; pc++) {
+    const slot = timelineSlot(s.state, pc);
+    const kind = slotKind(timeline, slot);
+    if (kind === SlotKind.OP && slotArgument(timeline, slot) === code) return true;
+    if (!SLOTS_THE_SCRIPT_RUNS_ON.has(kind)) return false;
+  }
+  return false;
 }
 
 function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {

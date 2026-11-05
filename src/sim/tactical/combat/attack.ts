@@ -21,6 +21,7 @@ import { itemCursorOf } from '../action-cursor.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
   AnimHeight,
+  animationReachesOpcode,
   changeSoldierStance,
   changeSoldierState,
   endHeight,
@@ -72,6 +73,7 @@ const GUN_HIT_DIFFICULTY_DIVISOR = 25;
 const GUN_HIT_EXPERIENCE = 3;
 const GUN_SHOT_EXPERIENCE = 3;
 const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
+const RELEASE_ATTACK_BUSY_COUNT = 753;
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 const def = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
@@ -694,6 +696,10 @@ function burstController(t: TacticalState, s: Soldier): OpOutcome {
   return 'continue';
 }
 
+export function attackAnimationHoldsBusyCount(t: TacticalState, s: Soldier): boolean {
+  return animationReachesOpcode(t, s, RELEASE_ATTACK_BUSY_COUNT);
+}
+
 export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   switch (code) {
     case 430:
@@ -733,7 +739,7 @@ export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutc
       return 'stop';
     case 477:
       return 'continue';
-    case 753:
+    case RELEASE_ATTACK_BUSY_COUNT:
       reduceAttackBusyCount(t, s, false);
       if (animName(t.content, s.state) === 'QUEEN_SWIPE') reduceAttackBusyCount(t, s, false);
       return 'continue';
