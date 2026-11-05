@@ -13,7 +13,9 @@ import { parseSectorString } from '../../content/strategic/sector-ids.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, pythSpacesAway } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { CampaignSession } from '../../server/campaign-session.ts';
+import { calculateSoldierZPos } from '../tactical/combat/positions.ts';
 import { findBestPath, PathCopy, PathFlags } from '../tactical/pathfinding.ts';
+import { ZPos } from '../tactical/perception/los.ts';
 import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { NO_MOVEMENT_GROUP, VehicleTypeId } from '../vehicles/vehicle-list.ts';
@@ -34,6 +36,7 @@ const FULL_FUEL = 10000;
 const BEYOND_THE_HUMMER = gridNo(66 + 21, 66 + 9);
 const OPEN_GROUND_FOR_A_TANK = gridNo(66 + 6, 66 + 3);
 const NEAR_THE_HUMMER = 9;
+const HEIGHT_UNITS_PER_CUBE = 64;
 
 function tactical(session: CampaignSession): TacticalState {
   const t = session.campaign.tactical?.state;
@@ -127,5 +130,16 @@ describe('a stub tank', () => {
     const tiles = footprint(tank);
     expect(tiles.map((g) => whoIsThere(t, g, 0)?.id)).toEqual(tiles.map(() => tank.id));
     expect(t.vehicles[tank.vehicleId]).toMatchObject({ valid: true, type: VehicleTypeId.TANK_CAR, soldierId: tank.id });
+  });
+
+  it('reaches at its turret the cube a shot at a tank aims for: a third above a standing head (LOS.cc CalculateSoldierZPos)', async () => {
+    const session = await stubCampaignAtTheHummer(kit, SEED);
+    const t = tactical(session);
+    const tank = addStubTank(t, { body: Body.TANK_NE, team: Team.ENEMY, gridNo: OPEN_GROUND_FOR_A_TANK, direction: Direction.NORTH });
+    const aimedCube = Math.trunc(calculateSoldierZPos(t, tank, ZPos.TARGET) / HEIGHT_UNITS_PER_CUBE);
+    const turret = tank.structure?.def.tiles[0]?.shape;
+    if (!turret) throw new Error('the tank has no structure');
+    expect(aimedCube).toBe(3);
+    expect(Array.from(turret).every((cubes) => (cubes & (1 << aimedCube)) !== 0)).toBe(true);
   });
 });

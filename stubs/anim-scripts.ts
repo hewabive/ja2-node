@@ -323,7 +323,11 @@ const Op = {
   LOCK_N_LOAD: 708,
   KNIFE_THROW_SOUND: 709,
   RESUME_FIRE: 476,
+  LOCATE_TARGET: 477,
 } as const;
+
+const TANK_RECOIL_FRAMES = 6;
+const TANK_BURST_ROUNDS = 6;
 
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
@@ -428,6 +432,14 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
     Op.IMPROPER_END,
     to(aim),
   ];
+  m.set('TANK_SHOOT', [Op.BUSY_UP, Op.FIRE, ...frames(TANK_RECOIL_FRAMES), Op.BUSY_DOWN, END_OF_ANIMATION]);
+  m.set('TANK_BURST', [
+    Op.BUSY_UP,
+    ...Array.from({ length: TANK_BURST_ROUNDS }, () => [Op.FLASH, Op.BURST, Op.FIRE, Op.LOCATE_TARGET, ...frames(2)]).flat(),
+    Op.END_BURST,
+    Op.BUSY_DOWN,
+    END_OF_ANIMATION,
+  ]);
   for (const name of UNJAM_STATES) m.set(name, [1, Op.LOCK_N_LOAD, ...frames(6, 2), NONINTERRUPTIBLE_DONE, Op.RESUME_FIRE]);
   m.set('STANDING_BURST', burst('AIM_RIFLE_STAND', 0));
   m.set('CROUCHED_BURST', burst('AIM_RIFLE_CROUCH', 0));

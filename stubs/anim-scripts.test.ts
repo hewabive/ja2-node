@@ -19,6 +19,13 @@ const USE_REMOTE_CODE = 484;
 const SET_OFF_TRIGGER_CODE = 762;
 const CUT_FENCE_CODE = 481;
 const TAKE_BLOOD_CODE = 760;
+const BUSY_UP = 757;
+const BUSY_DOWN = 753;
+const FIRE = 430;
+const FLASH = 441;
+const BURST = 448;
+const END_BURST = 449;
+const LOCATE_TARGET = 477;
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
   'CROUCH_SHOOT_UNJAM',
@@ -103,6 +110,21 @@ describe('stub animation scripts', () => {
     expect(playedOpcodes(scripts, stateId(tables, 'GOTO_REPAIRMAN'))).toEqual({
       ops: [NONINTERRUPTIBLE_DONE],
       next: stateId(tables, 'BEING_REPAIRMAN'),
+    });
+  });
+
+  it("fire the tank's cannon once and its burst six times between the attack busy codes, as the original scripts do", async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const scripts = parseAnimationScripts(await buildStubAnimationScripts());
+    expect(playedOpcodes(scripts, stateId(tables, 'TANK_SHOOT'))).toEqual({
+      ops: [BUSY_UP, FIRE, BUSY_DOWN, END_OF_ANIMATION],
+      next: null,
+    });
+    const burstRound = [FLASH, BURST, FIRE, LOCATE_TARGET];
+    expect(playedOpcodes(scripts, stateId(tables, 'TANK_BURST'))).toEqual({
+      ops: [BUSY_UP, ...Array.from({ length: 6 }, () => burstRound).flat(), END_BURST, BUSY_DOWN, END_OF_ANIMATION],
+      next: null,
     });
   });
 

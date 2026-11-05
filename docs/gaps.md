@@ -18,6 +18,7 @@ The loaded sector: doors, sight, walking, combat, items, explosions, the AI and 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Turn-based hooks | Vehicle soldiers in tactical | None (`turns/turns.ts`) | "Ground vehicles" |
+| Tank recoil | A tank's cannon shot rocks it forward and back 0.2 world units a frame, seven frames each way (`TANK_SHOOT`'s codes 413 and 412, `Tactical/Soldier_Ani.cc:301`) | Codes 412 and 413 do nothing (`runOpcode`, `animation.ts`): the tank holds still | Only `TANK_SHOOT` uses the two codes; the tank ends where it began, so only the client's drawing changes |
 | Combat AI specials | A tank's look-around in RED (`TacticalAI/DecideAction.cc:2291`); AI knife throws | None (`ai/combat-decide.ts`, `ai/control.ts`): a tank in RED ends its decision, a `THROW_KNIFE` action is cancelled | The tank's turn adds draws |
 | Action points and phobias | The vehicle bonus of 35 APs (`Tactical/Soldier_Control.cc:409`) | None (`calcActionPoints`, `points.ts`) | Comes with "Ground vehicles" |
 | Map items | The pit action items open a pit and drop the soldiers around into it (`PerformItemAction`, `TileEngine/Explosion_Control.cc:1671`; `Add3X3Pit`, `TileEngine/Pits.cc:24`) | Do nothing (`performItemAction`, `bombs/item-action.ts`) | No shipped map holds a pit (`12` §6) |

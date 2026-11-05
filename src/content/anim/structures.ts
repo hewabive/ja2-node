@@ -126,6 +126,8 @@ const MATERIAL_HEAVY_METAL = 23;
 const PROFILE_CELLS = 25;
 const LOW_BODY = 0b0011;
 const TALL_BODY = 0b0111;
+const TANK_HULL = TALL_BODY;
+const TANK_TURRET = 0b1111;
 const FACING_STEPS: readonly (readonly [number, number])[] = [
   [0, -1],
   [1, -1],
@@ -157,7 +159,8 @@ const TANK_SHAPE: StubVehicleShape = {
   armour: MATERIAL_HEAVY_METAL,
   halfLength: 3.5,
   halfWidth: 1.5,
-  cubes: (along, across) => (Math.abs(along) < TANK_TURRET_HALF_LENGTH && Math.abs(across) < TANK_TURRET_HALF_WIDTH ? TALL_BODY : LOW_BODY),
+  cubes: (along, across) =>
+    Math.abs(along) < TANK_TURRET_HALF_LENGTH && Math.abs(across) < TANK_TURRET_HALF_WIDTH ? TANK_TURRET : TANK_HULL,
 };
 
 const STUB_VEHICLE_SHAPES: Readonly<Record<string, StubVehicleShape>> = {

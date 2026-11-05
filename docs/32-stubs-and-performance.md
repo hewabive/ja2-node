@@ -118,12 +118,15 @@ pass and runs the special events queued behind it (`24`).
 original's with the non-interruptible release and opcode 476, which returns to the shooting animation the jam
 interrupted; otherwise the shot never comes and its busy count stays (`stubs/anim-scripts.test.ts`). The vehicle work
 scripts carry the original's codes in its order: `REFUEL_VEHICLE` passes the refuel code 769 before its release,
-`GOTO_REPAIRMAN` goes on to `BEING_REPAIRMAN` after its release, and `VEHICLE_DIE` loops.
+`GOTO_REPAIRMAN` goes on to `BEING_REPAIRMAN` after its release, and `VEHICLE_DIE` loops. A tank fires its cannon
+once in `TANK_SHOOT` and six rounds in `TANK_BURST`, between the attack busy codes, as the original's scripts do.
 
 **Vehicles.** The structure files `hmmv` (the Hummer, the Eldorado, the ice cream truck and the jeep) and `tnk_sht`,
 `tnk2_rot` (the two tanks) are own shapes (`STUB_VEHICLE_SHAPES`, `src/content/anim/structures.ts`): per facing, the
 tiles inside a rectangle turned to it and centred on the base tile, 15 or 17 tiles for the car and 21 or 23 for the
-tank, with the original's vehicle flags (`MOBILE | TRANSPARENT | VEHICLE`) and metal armour. A soldier's structure loses
+tank, with the original's vehicle flags (`MOBILE | TRANSPARENT | VEHICLE`) and metal armour. The car stands two or
+three cubes tall, the tank three and four at its turret, the cube a shot at a tank aims for (`CalculateSoldierZPos`
+raises a tank's target by a third), as the original's tank reaches it. A soldier's structure loses
 the flags that block moves (`WorldStructures.add`), so the vehicle stops other soldiers as a person does: every tile is
 his for `whoIsThere`, which paths around people avoid. The vehicles draw the stub stand sheet: the client picks no frame
 by the 32 facings of a vehicle surface. L10 is a garage yard (`stubs/maps/l10.map.txt`) with the car of profile 160,
