@@ -197,6 +197,7 @@ describe('a vehicle changing teams (Soldier_Profile.cc ChangeSoldierTeam, Soldie
   const PROF_HUMMER = 160;
   const CIV_HUMMERS = [116, 117, 118];
   const VEHICLE_LIFE = 63;
+  const OLD_VEHICLE_APS = 17;
 
   function civilianHummer(sim: TacticalSim, id: number, at: number): Soldier {
     const t = sim.state;
@@ -231,6 +232,15 @@ describe('a vehicle changing teams (Soldier_Profile.cc ChangeSoldierTeam, Soldie
     expect(t.vehicles).toHaveLength(1);
     expect(t.vehicles[old.vehicleId]).toMatchObject({ valid: true, soldierId: fresh?.id });
     expect((t.profiles.get(PROF_HUMMER)?.miscFlags ?? 0) & ProfileFlag.RECRUITED).toBe(ProfileFlag.RECRUITED);
+  });
+
+  it('starts our new vehicle with no APs: the vehicle is created from an empty struct with no life to count them, and the sector keeps them (quirk)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const old = civilianHummer(sim, CIV_HUMMERS[0] ?? 0, AT);
+    old.actionPoints = OLD_VEHICLE_APS;
+    const fresh = changeSoldierTeam(t, old, Team.OUR, ourSlots(t));
+    expect([fresh?.placed, fresh?.actionPoints, fresh?.initialActionPoints]).toEqual([true, 0, 0]);
   });
 
   it('puts our vehicles in soldier slots 18 and 19 only, so a third vehicle cannot join and stays out of the sector (kept quirk)', () => {

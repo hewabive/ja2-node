@@ -374,6 +374,39 @@ describe('the vehicle bonus in the turn APs (Soldier_Control.cc CalcActionPoints
   });
 });
 
+describe("a vehicle's fuel read as breath (Points.cc UnusedAPsToBreath, DeductPoints)", () => {
+  const FULL_TANK = 10000;
+  const BREATH_COST = 100;
+
+  function fullTank(t: TacticalState): Soldier {
+    const tank = spawn(t, gridNo(80, 80), Team.ENEMY, Body.TANK_NW);
+    tank.breathRed = FULL_TANK;
+    tank.breath = 100;
+    tank.actionPoints = AP_LIMITS.VEHICLE_MAXIMUM;
+    return tank;
+  }
+
+  it('neither gains nor loses breath between turns, in real time or turn-based, so a full tank stays at full breath', () => {
+    const t = tactical();
+    const tank = fullTank(t);
+    for (const inCombat of [false, true]) {
+      t.inCombat = inCombat;
+      unusedAPsToBreath(ctx(t), tank, false);
+    }
+    expect([tank.breath, tank.breathRed]).toEqual([100, FULL_TANK]);
+  });
+
+  it('reads a full tank as all breath spent at the first breath cost, which halves the turn APs before the 35 of a vehicle (quirk)', () => {
+    const t = tactical();
+    const tank = fullTank(t);
+    deductPoints(t, tank, 0, BREATH_COST);
+    expect([tank.breath, tank.breathRed]).toEqual([0, FULL_TANK]);
+    expect(calcActionPoints(t, tank)).toBe(21 - idiv(21, 2) + VEHICLE_AP_BONUS);
+    unusedAPsToBreath(ctx(t), tank, false);
+    expect(tank.breath).toBe(0);
+  });
+});
+
 describe('drugs in the breath between turns (Points.cc UnusedAPsToBreath, Drugs_And_Alcohol.cc HandleBPEffectDueToDrugs)', () => {
   function breathAfter(inCombat: boolean, prepare: (s: Soldier) => void, gassed = false): number {
     const t = tactical();

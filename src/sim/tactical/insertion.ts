@@ -3,7 +3,7 @@
 // @src src/game/Strategic/StrategicMap.cc UpdateMercInSector; Tactical/Soldier_Add.cc InternalAddSoldierToSector,
 // @src AddSoldierToSectorGridNo, SoldierInSectorIncompaciated, InternalSoldierInSectorSleep, SoldierInSectorAnim;
 // @src TileEngine/Exit_Grids.cc FindClosestExitGrid; InternalAddSoldierToSector's vehicle sweet spot and its stop for a
-// @src driver or passenger (2026-11-05).
+// @src driver or passenger (2026-11-05); the APs a vehicle keeps when added (InternalAddSoldierToSector computes none, 2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -224,6 +224,10 @@ function sectorEntrySpot(t: TacticalState, s: Soldier, order: InsertionOrder, ca
   return soldierSpot(t, s, order, calculateDirection);
 }
 
+function keepsActionPointsAtInsertion(s: Soldier): boolean {
+  return isVehicleBody(s.bodyType);
+}
+
 export function addSoldierToSector(
   t: TacticalState,
   s: Soldier,
@@ -233,7 +237,7 @@ export function addSoldierToSector(
   animation: PlacementAnimation | null = null,
 ): boolean {
   keepElliotAliveInMeanwhile(t, s);
-  s.actionPoints = calcActionPoints(t, s);
+  if (!keepsActionPointsAtInsertion(s)) s.actionPoints = calcActionPoints(t, s);
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
   if (inVehicle(s)) {
     seatOnSectorEntry(t, s);

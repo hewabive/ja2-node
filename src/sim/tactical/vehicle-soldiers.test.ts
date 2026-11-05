@@ -8,7 +8,9 @@ import { handleSoldierDeath } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { type CreationContext, newSoldierCreate, tacticalCreateSoldier } from './creation.ts';
 import { NEUTRAL_POPULATION } from './init-list.ts';
+import { addSoldierToSector, Insertion } from './insertion.ts';
 import { setSoldierPosition } from './movement.ts';
+import { calcActionPoints } from './points.ts';
 import { Body, NO_PROFILE, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 import { removeVehiclesNotOnOurTeam } from './vehicle-soldiers.ts';
@@ -28,6 +30,7 @@ const PROF_ELDERODO = 161;
 const PROF_ICECREAM = 162;
 const NPC164 = 164;
 const FUEL_PERCENT = 100;
+const VEHICLE_AP_BONUS = 35;
 
 function createVehicle(c: CreationContext, team: number, body: number, id: number, givenVehicleId?: number): Soldier {
   const create = { ...newSoldierCreate(team, body, EAST, AT), life: LIFE, lifeMax: LIFE };
@@ -80,6 +83,15 @@ describe('vehicle soldiers at creation (Soldier_Create.cc TacticalCreateSoldier,
     const soldiers = VEHICLES.map(([body, team], k) => createVehicle(t, team, body, (TEAM_FIRST_ID[team] ?? 0) + k));
     expect(soldiers.map((s) => s.profile)).toEqual(VEHICLES.map(([, , , profile]) => profile));
     expect(soldiers.map((s) => [s.breathRed, s.breath])).toEqual(soldiers.map(() => [FULL_VEHICLE_FUEL, FUEL_PERCENT]));
+  });
+
+  it('starts a vehicle with the APs of its body, without the 35 of a vehicle: SOLDIER_VEHICLE comes after the creation counts them, and adding it to the sector keeps them (quirk)', () => {
+    const t = newCombatSim(content).state;
+    const tank = createVehicle(t, Team.ENEMY, Body.TANK_NW, TEAM_FIRST_ID[Team.ENEMY] ?? 0);
+    const creationAps = calcActionPoints(t, tank) - VEHICLE_AP_BONUS;
+    expect([tank.actionPoints, tank.initialActionPoints]).toEqual([creationAps, creationAps]);
+    addSoldierToSector(t, tank, { code: Insertion.GRIDNO, data: AT, direction: EAST }, {}, false);
+    expect([tank.placed, tank.actionPoints]).toEqual([true, creationAps]);
   });
 
   it('registers nothing for another body', () => {

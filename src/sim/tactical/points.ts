@@ -6,7 +6,8 @@
 // @src traversal exceptions (2026-11-01); the sleep dart, drug and INT8 terms of CalcActionPoints and
 // @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs, the INT16 breath of DeductPoints and
 // @src AdjustBreathPts, the robot's zapped breath costs of DeductPoints, AdjustBreathPts' non-swimmer in deep water, the
-// @src vehicle bonus of CalcActionPoints (2026-11-04).
+// @src vehicle bonus of CalcActionPoints (2026-11-04); UnusedAPsToBreath's vehicles and the vehicle flag set after the
+// @src creation's CalcActionPoints (Soldier_Create.cc TacticalCreateSoldier, 2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -540,6 +541,7 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
 }
 
 export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean): void {
+  if (isVehicleBody(s.bodyType)) return;
   const adjustment = () => breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s));
   if (!ctx.inCombat) {
     const perAP = i16(idiv(breathPerAP(ctx, s, s.state) * 100, adjustment()));
@@ -588,6 +590,14 @@ function collapsedFromSleepDart(s: Soldier): boolean {
 }
 
 export function calcActionPoints(w: ActionPointWorld, s: Soldier): number {
+  return actionPointsPerTurn(w, s, isVehicleBody(s.bodyType));
+}
+
+export function calcActionPointsBeforeVehicleFlag(w: ActionPointWorld, s: Soldier): number {
+  return actionPointsPerTurn(w, s, false);
+}
+
+function actionPointsPerTurn(w: ActionPointWorld, s: Soldier, vehicle: boolean): number {
   if (!s.life) return 0;
   if (collapsedFromSleepDart(s)) return 0;
   let points = 5 + idiv(10 * effectiveExpLevel(w, s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20, 40);
@@ -605,7 +615,7 @@ export function calcActionPoints(w: ActionPointWorld, s: Soldier): number {
   }
   points = u8(phobicPoints(w, s, u8(points)));
   points = apEffectDueToDrugs(s, points);
-  if (isVehicleBody(s.bodyType)) points = u8(points + VEHICLE_AP_BONUS);
+  if (vehicle) points = u8(points + VEHICLE_AP_BONUS);
   if (boxingHalvesPoints(w)) points = idiv(points, BOXING_POINTS_DIVISOR);
   return i8(points);
 }
