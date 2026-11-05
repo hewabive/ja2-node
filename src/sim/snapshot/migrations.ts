@@ -1486,6 +1486,76 @@ function addVehicleIdsAndSharedVehicleList(snapshot: Readonly<Record<string, unk
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const VEHICLE_SEAT_KEY = 'vehicleSeat';
+const STATUS_FLAGS_KEY = 'statusFlags';
+const MAP_ENTRIES = '$map';
+const DRIVER_FLAG = 0x08000000;
+const PASSENGER_FLAG = 0x10000000;
+const SEAT_FLAGS = DRIVER_FLAG | PASSENGER_FLAG;
+const NO_SEAT = 0;
+const DRIVER_SEAT = 1;
+const PASSENGER_SEAT = 2;
+
+function seatOfFlags(flags: number): number {
+  if (flags & DRIVER_FLAG) return DRIVER_SEAT;
+  return flags & PASSENGER_FLAG ? PASSENGER_SEAT : NO_SEAT;
+}
+
+function rosterEntries(strategic: Json | undefined): readonly Json[] {
+  const entries = field(field(field(strategic, 'roster', null), 'mercs', null), MAP_ENTRIES, null);
+  return Array.isArray(entries) ? entries : [];
+}
+
+function seatsByMerc(strategic: Json | undefined): Map<number, number> {
+  const seats = new Map<number, number>();
+  for (const entry of rosterEntries(strategic)) {
+    if (!Array.isArray(entry)) continue;
+    const [id, record] = entry;
+    const flags = field(record, STATUS_FLAGS_KEY, 0);
+    if (typeof id === 'number' && typeof flags === 'number' && seatOfFlags(flags) !== NO_SEAT) seats.set(id, seatOfFlags(flags));
+  }
+  return seats;
+}
+
+function withoutSeatFlags(entry: Json): Json {
+  if (!Array.isArray(entry)) return entry;
+  const [id, record] = entry;
+  const flags = field(record, STATUS_FLAGS_KEY, 0);
+  if (!isObject(record) || typeof flags !== 'number') return entry;
+  return [id ?? null, { ...record, [STATUS_FLAGS_KEY]: flags & ~SEAT_FLAGS }];
+}
+
+function rosterWithoutSeatFlags(strategic: JsonObject): JsonObject {
+  const roster = strategic.roster;
+  const mercs = field(roster, 'mercs', null);
+  if (!isObject(roster) || !isObject(mercs)) return strategic;
+  const entries = rosterEntries(strategic).map((entry: Json) => withoutSeatFlags(entry));
+  return { ...strategic, roster: { ...roster, mercs: { ...mercs, [MAP_ENTRIES]: entries } } };
+}
+
+function seatOf(soldier: JsonObject, seats: ReadonlyMap<number, number>): number {
+  const { id, team } = soldier;
+  return typeof id === 'number' && team === OUR_TEAM ? (seats.get(id) ?? NO_SEAT) : NO_SEAT;
+}
+
+function withVehicleSeats(value: Json, seats: ReadonlyMap<number, number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withVehicleSeats(v, seats));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withVehicleSeats(v, seats);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, VEHICLE_ID_KEY, VEHICLE_SEAT_KEY, seatOf(mapped, seats)) : mapped;
+}
+
+function moveVehicleSeatsOntoSoldiers(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const seats = seatsByMerc(sectionOf(graph.sections, 'strategic'));
+  const sections = graph.sections.map(([name, value]): Section => {
+    const seated = withVehicleSeats(value, seats);
+    return [name, name === 'strategic' && isObject(seated) ? rosterWithoutSeatFlags(seated) : seated];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1539,5 +1609,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     49: addTileToolsTinCansAndXRay,
     50: addForgetCountAndFollowerSpeed,
     51: addVehicleIdsAndSharedVehicleList,
+    52: moveVehicleSeatsOntoSoldiers,
   };
 }

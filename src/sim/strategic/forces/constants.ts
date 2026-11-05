@@ -12,6 +12,7 @@ export const ABOUT_TO_ARRIVE_DELAY = 5;
 export const NO_GROUP = 0;
 export const NO_PROFILE_SLOT = -1;
 export const NO_VEHICLE = -1;
+export const VehicleSeat = { NONE: 0, DRIVER: 1, PASSENGER: 2 } as const;
 
 export const Assignment = {
   SQUAD_1: 0,

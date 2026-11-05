@@ -631,7 +631,8 @@ map screen only (deviation "Helicopter interface"). `heliPlot` is the click on t
 Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as a refusal; `heliRoute` without
 `plotted` asks him the same way first. `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (deviation "Leaving the helicopter in
-flight"). Ground vehicles move through a passenger's `route`.
+flight"). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
+at its tile; seated mercs are left out of the tactical `soldiers` for now (gaps "Turn-based hooks").
 
 A vehicle of ours is a merc of `kind` `vehicle` whose `vehicle` names the vehicle it is; its condition is its `life` and
 `lifeMax`, its fuel in percent its `breath`, as the map screen's status bars show them, and its entry in

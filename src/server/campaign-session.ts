@@ -23,12 +23,12 @@ import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.t
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
-import { Assignment } from '../sim/strategic/forces/constants.ts';
+import { Assignment, VehicleSeat } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
-import { SoldierStatusFlags, Team } from '../sim/tactical/soldier.ts';
+import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
 import { BulletFlights } from './bullet-flights.ts';
@@ -53,8 +53,7 @@ const EMAIL_TEXT = 'emailText';
 const RECRUITED_KINDS: Readonly<Record<number, string>> = { [MercKind.NPC]: 'rpc', [MercKind.EPC]: 'epc' };
 
 function crewFields(m: RosterMerc): Pick<SoldierView, 'asleep' | 'squad' | 'vehicle'> {
-  const vehicle =
-    m.assignment === Assignment.VEHICLE ? { id: m.vehicleId, driver: (m.statusFlags & SoldierStatusFlags.DRIVER) !== 0 } : null;
+  const vehicle = m.assignment === Assignment.VEHICLE ? { id: m.vehicleId, driver: m.vehicleSeat === VehicleSeat.DRIVER } : null;
   return { asleep: m.asleep, squad: m.assignment < Assignment.ON_DUTY ? m.assignment : null, vehicle };
 }
 

@@ -38,7 +38,6 @@ import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { factValue, setFact } from '../../src/sim/strategic/narrative/facts.ts';
 import { EventKind, Warp } from '../../src/sim/strategic/time/constants.ts';
 import { warpGameTime, worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
-import { SoldierStatusFlags } from '../../src/sim/tactical/soldier.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
@@ -205,11 +204,6 @@ function heliFacts(ctx: EconomyContext): Json {
   return facts;
 }
 
-function roleOf(m: RosterMerc): number {
-  if (m.statusFlags & SoldierStatusFlags.DRIVER) return 1;
-  return m.statusFlags & SoldierStatusFlags.PASSENGER ? 2 : 0;
-}
-
 const SOLDIER_KEYS = [
   'id',
   'assignment',
@@ -243,7 +237,7 @@ function soldierFacts(m: RosterMerc, roster: Roster): Json {
     groupId: m.groupId,
     insertionCode: m.insertionCode,
     insertionData: m.soldier.insertionData,
-    role: roleOf(m),
+    role: m.vehicleSeat,
     life: m.life,
   });
 }

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
 import { WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { StructureFlags } from '../content/world/structures.ts';
@@ -8,6 +9,7 @@ import { createItem } from '../sim/items/object.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
+import { VehicleSeat } from '../sim/strategic/forces/constants.ts';
 import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creation.ts';
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
@@ -2446,5 +2448,91 @@ describe('snapshot version 51 (no vehicle ids, no tactical vehicle list) migrate
     const sim = restored.campaign;
     expect(sim.tactical?.state.vehicles).toBe(sim.state.forces.vehicles);
     expect([ours.id, truck.id].map((id) => sim.tactical?.state.soldiers[id]?.vehicleId)).toEqual([ours.vehicleId, truck.vehicleId]);
+  });
+});
+
+const VEHICLE_SEAT_KEY = 'vehicleSeat';
+const STATUS_FLAGS_KEY = 'statusFlags';
+const MAP_ENTRIES = '$map';
+const SEAT_FLAGS: Readonly<Record<number, number>> = { [VehicleSeat.DRIVER]: 0x08000000, [VehicleSeat.PASSENGER]: 0x10000000 };
+const SEAT_SEED = 13;
+
+function withoutVehicleSeats(value: Json, seats: Map<number, number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutVehicleSeats(v, seats));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutVehicleSeats(v, seats);
+  if (!SOLDIER_RECORD_KEYS.every((key) => key in out)) return out;
+  const { [VEHICLE_SEAT_KEY]: seat, ...older } = out;
+  expect(typeof seat).toBe('number');
+  if (typeof older.id === 'number' && typeof seat === 'number' && seat !== VehicleSeat.NONE) seats.set(older.id, seat);
+  return older;
+}
+
+function withSeatFlags(strategic: JsonObject, seats: ReadonlyMap<number, number>): JsonObject {
+  const roster = object(strategic.roster);
+  const mercs = object(roster.mercs);
+  const entries = (mercs[MAP_ENTRIES] as Json[]).map((entry: Json) => {
+    const [id, record] = entry as [number, JsonObject];
+    const flags = (record[STATUS_FLAGS_KEY] as number) | (SEAT_FLAGS[seats.get(id) ?? VehicleSeat.NONE] ?? 0);
+    return [id, { ...record, [STATUS_FLAGS_KEY]: flags }];
+  });
+  return { ...strategic, roster: { ...roster, mercs: { ...mercs, [MAP_ENTRIES]: entries } } };
+}
+
+function versionFiftyTwo(snapshot: SimSnapshot): SimSnapshot {
+  const seats = new Map<number, number>();
+  const unseated = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutVehicleSeats(value, seats)]);
+  const sections = unseated.map(([name, value]): readonly [string, Json] => [
+    name,
+    name === 'strategic' ? withSeatFlags(object(value), seats) : value,
+  ]);
+  return { ...snapshot, version: 52, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 52 (seats as merc status flags) migrates with each seat on its soldier and the two flags gone from the merc record', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectSeatsOnSoldiers(session: SessionSim): Promise<SessionSim> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftyTwo(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain(`"${VEHICLE_SEAT_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    return restored;
+  }
+
+  it('a sandbox, where nobody sits in a vehicle', async () => {
+    await expectSeatsOnSoldiers(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a campaign on the map with a driver and a passenger aboard a Hummer of ours', async () => {
+    const restored = (await expectSeatsOnSoldiers(await stubCampaignWithOurHummer(kit, SEAT_SEED))) as CampaignSession;
+    const aboard = restored.campaign.battle?.roster.all().filter((m) => m.isPassengerOrDriver) ?? [];
+    expect(aboard.map((m) => [m.vehicleSeat, m.statusFlags])).toEqual([
+      [VehicleSeat.DRIVER, 0],
+      [VehicleSeat.PASSENGER, 0],
+    ]);
+  });
+
+  it('a landed campaign with seated mercs in the loaded sector', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const [driver, passenger] = campaign.campaign.battle?.roster.all() ?? [];
+    if (!driver || !passenger) throw new Error('two mercs needed');
+    driver.soldier.vehicleSeat = VehicleSeat.DRIVER;
+    passenger.soldier.vehicleSeat = VehicleSeat.PASSENGER;
+    const restored = (await expectSeatsOnSoldiers(campaign)) as CampaignSession;
+    const t = restored.campaign.tactical?.state;
+    expect([driver.id, passenger.id].map((id) => t?.soldiers[id]?.vehicleSeat)).toEqual([VehicleSeat.DRIVER, VehicleSeat.PASSENGER]);
   });
 });

@@ -4,7 +4,7 @@ import type { ItemObject } from '../items/object.ts';
 import { findObj, NO_SLOT } from '../strategic/economy/kits.ts';
 import type { CrewMember, CrewPort, MercStats, StatDamage } from '../strategic/economy/ports.ts';
 import { dressWound as virtualSoldierDressWound } from '../strategic/forces/autoresolve/bandage.ts';
-import { TravelStat, VehicleRole } from '../strategic/forces/ports.ts';
+import { TravelStat } from '../strategic/forces/ports.ts';
 import type { CombatContext } from '../tactical/combat/context.ts';
 import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -24,7 +24,7 @@ import {
   effectiveWisdom,
   type LoadedSector,
 } from '../tactical/skills.ts';
-import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
+import { Body, inVehicle, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { spendVehicleFuel } from '../vehicles/vehicle-fuel.ts';
 import type { MercContract } from './contracts/contract-state.ts';
@@ -439,12 +439,24 @@ export class RosterMerc implements CrewMember {
   }
 
   get isPassengerOrDriver(): boolean {
-    return (this.statusFlags & (SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER)) !== 0;
+    return inVehicle(this.soldier);
+  }
+
+  get vehicleSeat(): number {
+    return this.soldier.vehicleSeat;
   }
 }
 
 export function registeredInTactical(t: Pick<TacticalState, 'soldiers'>, merc: RosterMerc): boolean {
   return t.soldiers[merc.id] === merc.soldier;
+}
+
+export function onTacticalMap(t: Pick<TacticalState, 'soldiers'>, merc: RosterMerc): boolean {
+  return registeredInTactical(t, merc) && merc.soldier.placed;
+}
+
+export function seatedInLoadedSector(t: Pick<TacticalState, 'soldiers'>, merc: RosterMerc): boolean {
+  return onTacticalMap(t, merc) && inVehicle(merc.soldier);
 }
 
 export interface RosterHooks {
@@ -456,6 +468,7 @@ export interface RosterHooks {
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
   roomOf(merc: RosterMerc): number;
   assignToSquad(merc: RosterMerc, squad: number): void;
+  seatAtVehicle(merc: RosterMerc, vehicle: RosterMerc): void;
 }
 
 export const NO_ROSTER_HOOKS: RosterHooks = {
@@ -469,6 +482,7 @@ export const NO_ROSTER_HOOKS: RosterHooks = {
   assignToSquad: (merc, squad) => {
     merc.assignment = squad;
   },
+  seatAtVehicle: () => {},
 };
 
 export interface RosterSetup {
@@ -658,12 +672,15 @@ export class Roster implements CrewPort {
     return d && p ? virtualSoldierDressWound(this.#content.items, this.#combat(), d.soldier, p.soldier, kit, kitPoints, kitStatus) : 0;
   }
 
-  setVehicleRole(id: number, role: number): void {
+  setVehicleSeat(id: number, seat: number): void {
     const merc = this.get(id);
-    if (!merc) return;
-    merc.statusFlags &= ~(SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER);
-    if (role === VehicleRole.DRIVER) merc.statusFlags |= SoldierStatusFlags.DRIVER;
-    else if (role === VehicleRole.PASSENGER) merc.statusFlags |= SoldierStatusFlags.PASSENGER;
+    if (merc) merc.soldier.vehicleSeat = seat;
+  }
+
+  seatAtVehicle(id: number, vehicleSoldierId: number): void {
+    const merc = this.get(id);
+    const vehicle = this.get(vehicleSoldierId);
+    if (merc && vehicle) this.hooks.seatAtVehicle(merc, vehicle);
   }
 
   insertionData(id: number): number {

@@ -220,7 +220,7 @@ reading the source:
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's
   return changes nothing (`SelectSoldier` refuses on the shopkeeper screen).
 
-Not ported: gaps "Turn-based hooks" (vehicle passengers), "Automatic selections" (the assignment menu's close, the
+Not ported: gaps "Turn-based hooks" (the passengers' presence rules), "Automatic selections" (the assignment menu's close, the
 vehicles).
 Other deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
 on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame

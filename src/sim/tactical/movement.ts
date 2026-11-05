@@ -11,13 +11,16 @@
 // @src HandleAtNewGridNo's walk-off return, breath collapse and mines (2026-11-04); the CheckIfNearbyGroundSeemsWrong of
 // @src HandleGotoNewGridNo (the next tile) and HandleAtNewGridNo (the tiles around, 2026-11-04); the place of the marbles
 // @src and the FORGETFUL stop after the gas check, SetSoldierGridNo's water and sneaking, the swim of
-// @src EVENT_InternalGetNewSoldierPath, SetDelayedTileWaiting's and EVENT_StopMerc's fUseMoverrideMoveSpeed (2026-11-04).
+// @src EVENT_InternalGetNewSoldierPath, SetDelayedTileWaiting's and EVENT_StopMerc's fUseMoverrideMoveSpeed (2026-11-04);
+// @src SetSoldierGridNo's skips for a driver or passenger, RemoveSoldierFromGridNo, EVENT_InternalSetSoldierPosition's
+// @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
 import { i8, idiv } from '../../core/int.ts';
+import { passengersOf, validVehicle } from '../vehicles/vehicle-list.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
 import {
@@ -69,6 +72,8 @@ import { sneakPastUnawareEnemies } from './sneak-past.ts';
 import {
   Body,
   cellCentre,
+  inVehicle,
+  isEnterableVehicle,
   isMonster,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
@@ -141,16 +146,35 @@ function markMovementReserved(t: TacticalState, s: Soldier, g: number): void {
   s.reservedGridNo = g;
 }
 
+function liftOffTile(t: TacticalState, s: Soldier): void {
+  if (s.placed) removeOccupant(t, s);
+  removeMercStructure(t, s);
+}
+
+function standOnTile(t: TacticalState, s: Soldier): void {
+  dropSmell(t.smell, s);
+  placeOccupant(t, s);
+  s.placed = true;
+  addMercStructure(t, s);
+}
+
+export function removeSoldierFromGridNo(t: TacticalState, s: Soldier): void {
+  if (s.gridNo === NOWHERE || !(s.placed || s.offMap)) return;
+  liftOffTile(t, s);
+  unmarkMovementReserved(t, s);
+  s.gridNo = NOWHERE;
+}
+
 function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void {
   let g = requested;
-  if (g === s.gridNo && s.placed) return;
+  const seated = inVehicle(s);
+  if (g === s.gridNo && s.placed && !seated) return;
   if (isMovingState(t, s.state)) {
     if (g !== s.destination) g = s.destination;
     if (g === s.gridNo) return;
   }
   s.oldGridNo = s.gridNo;
-  if (s.placed) removeOccupant(t, s);
-  removeMercStructure(t, s);
+  if (!seated) liftOffTile(t, s);
   s.gridNo = g;
   s.placed = false;
   s.offMap = !onVisibleWorldTile(t, g);
@@ -160,19 +184,27 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
     handleDoorChangeFromGridNo(t, s, s.endDoorOpenCodeData);
   }
   s.walkToAttackGridNo = NOWHERE;
-  unmarkMovementReserved(t, s);
+  if (!seated) unmarkMovementReserved(t, s);
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
   if (s.initialGridNo === 0) s.initialGridNo = g;
-  dropSmell(t.smell, s);
-  placeOccupant(t, s);
-  s.placed = true;
-  addMercStructure(t, s);
+  if (seated) s.placed = true;
+  else standOnTile(t, s);
   const terrainLeft = s.overTerrain;
   s.overTerrain = t.world.terrain[g] ?? 0;
-  handleWaterOnNewGridNo(t, s, terrainLeft);
+  if (!seated) handleWaterOnNewGridNo(t, s, terrainLeft);
   t.hooks.enteredGridNo(t, s, g);
   sneakPastUnawareEnemies(t, s, g);
   setSoldierAniSpeed(t, s);
+}
+
+function updateAllVehiclePassengersGridNo(t: TacticalState, vs: Soldier): void {
+  if (!isEnterableVehicle(vs)) return;
+  const v = validVehicle(t.vehicles, vs.vehicleId);
+  if (!v) return;
+  for (const id of passengersOf(v)) {
+    const p = t.soldiers[id];
+    if (p && (p.placed || p.offMap) && inVehicle(p)) setSoldierPositionXY(t, p, vs.x, vs.y);
+  }
 }
 
 function isMovingState(t: TacticalState, state: number): boolean {
@@ -186,6 +218,7 @@ export function setSoldierPositionXY(t: TacticalState, s: Soldier, x: number, y:
   s.x = x;
   s.y = y;
   setSoldierGridNo(t, s, g);
+  updateAllVehiclePassengersGridNo(t, s);
 }
 
 export function setSoldierPosition(t: TacticalState, s: Soldier, g: number, options: PositionOptions = {}): void {
@@ -195,6 +228,7 @@ export function setSoldierPosition(t: TacticalState, s: Soldier, g: number, opti
   s.x = Math.fround(centre.x);
   s.y = Math.fround(centre.y);
   setSoldierGridNo(t, s, g);
+  updateAllVehiclePassengersGridNo(t, s);
 }
 
 export function stopMerc(t: TacticalState, s: Soldier): void {

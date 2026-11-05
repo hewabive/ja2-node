@@ -118,6 +118,11 @@ deep water swims, a stop there treads, and a non-swimmer treading or swimming sp
 (`deductPoints`, `points.ts`). A soldier bleeding past 12 drops blood at the middle of each tile
 (`handleBloodForNewGridNo`, `combat/bleeding.ts`).
 
+**A soldier in a vehicle.** A merc seated in a ground vehicle (`Soldier.vehicleSeat`, `25`) has no tile of his own:
+`setSoldierGridNo` keeps his gridno, gas and sneaking, skips the occupant, the structure, the reservation, the smell and
+the water (`Tactical/Soldier_Control.cc:1911`), and never takes the short cut of a soldier already on the tile. Every
+position the vehicle is given is given to its passengers too (`Tactical/Vehicles.cc:802`), with no step of their own.
+
 **Randomness.** The path search draws nothing. Walking draws what the ported steps draw: the gas check's
 `PreRandom(5)`, the slip's and the falls' `Random(AP)`, the falls' `Random(5)` rolls with the fall itself, the
 forgetful merc's `Random(100)` and `Random(AP)`, the trail's `Random(7)` with its drop's `Random(3)`, the water damage's
@@ -164,6 +169,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A soldier who goes under mid-step takes that step again from the tile he entered (his swim starts as a new move), so on a diagonal he swims a tile off his path and plans again; coming up does the same | `swimming.test.ts` "takes the step he went under on again …" |
 | Our merc may end a path on a tile marked for the player as holding a mine, though no path of his passes one; a militia soldier may not even end there | `pathfinding.test.ts` "keeps our merc off a tile with the player mine flag …", "keeps the rest of the friendly side off the tile …" |
 | The dummy soldier of a reachability flood is on the friendly side whatever its team, so the floods for sweet spots, edgepoints and items keep off the player's marked mines, never the enemy's | `pathfinding.test.ts` "floods a dummy soldier around the player mine flag …" |
+| A passenger has no tile to stay on, so `setSoldierGridNo` never short-cuts for him: each placement of his vehicle, on its own tile too, tests his gas again; he leaves no smell and counts no step | `vehicle-passengers.test.ts` "tests his tile's gas again …", "leaves no smell …", "takes no step …" |
 
 Not pinned yet:
 - The origin is never marked visited, and a stale open-list node is expanded again in seven directions; both count

@@ -125,6 +125,26 @@ describe('the helicopter commands', () => {
   });
 });
 
+describe('the helicopter passengers over the loaded sector (Soldier_Add.cc InternalAddSoldierToSector)', () => {
+  it('stay in the sector with no tile when it loads its mercs: a sector load never puts them on the map', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+    c.sectors?.updateMercsInSector();
+    const t = c.tactical?.state;
+    const flying = c.battle?.roster.get(0);
+    if (!t || !flying) throw new Error('no loaded sector');
+    expect([flying.isPassengerOrDriver, flying.inSector, t.mercSlots.includes(flying.soldier), flying.offGridInSector]).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ]);
+    expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
+    expect(c.battle?.roster.get(1)?.inSector).toBe(true);
+  });
+});
+
 describe('the kill-chopper meanwhile', () => {
   it('is pending for the strategic layer only in its own second, as AreInMeanwhile reports it', () => {
     const c = landedCampaign();

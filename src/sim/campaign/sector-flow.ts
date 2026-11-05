@@ -15,6 +15,8 @@
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
 // @src WorldDef.cc TrashWorld (DestroyAllSchedules; the vehicles of the soldiers not on our team, 2026-11-04);
+// @src Tactical/Vehicles.cc AddSoldierToVehicle (the seat at a vehicle on the loaded map); Soldier_Add.cc
+// @src InternalAddSoldierToSector (the helicopter's passengers with no tile, 2026-11-05);
 // @src SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
 // @src with the merc it locates, and the screen entry after a load), Merc_Entering.cc
@@ -80,7 +82,7 @@ import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/force
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
-import { addVehicleToList, killAllInVehicle } from '../strategic/forces/vehicles.ts';
+import { addVehicleToList, inHelicopter, killAllInVehicle } from '../strategic/forces/vehicles.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { loadScreenId } from '../strategic/map/loading-screen.ts';
 import { damageSamIfFound } from '../strategic/map/sam.ts';
@@ -167,6 +169,7 @@ import {
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
+import { seatAtVehicle } from '../tactical/vehicle-passengers.ts';
 import { removeVehiclesNotOnOurTeam } from '../tactical/vehicle-soldiers.ts';
 import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -181,7 +184,7 @@ import {
   startGuideCountdown,
 } from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
-import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
+import { onTacticalMap, type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { endMapScreenForSectorLoad, returnToLoadedSector } from './screens.ts';
 import {
   addDiffWorldItems,
@@ -280,7 +283,23 @@ export class SectorFlow {
       unselect: (merc) => this.#withTactical((t) => unselectRemovedSoldier(t, merc.soldier)),
       updateMercInSector: (merc) => this.updateMercInSector(merc),
       roomOf: (merc) => this.#loadedMapRoom(merc.soldier.gridNo),
+      seatAtVehicle: (merc, vehicle) => this.#seatAtVehicle(merc, vehicle),
     };
+  }
+
+  #mercsOutOfTheSector(): void {
+    for (const m of this.setup.roster.all()) {
+      m.soldier.placed = false;
+      m.soldier.offMap = false;
+      m.offGridInSector = false;
+    }
+  }
+
+  #seatAtVehicle(merc: RosterMerc, vehicle: RosterMerc): void {
+    const t = this.campaign.tactical?.state;
+    if (!t || !onTacticalMap(t, merc)) return;
+    if (onTacticalMap(t, vehicle)) seatAtVehicle(t, merc.soldier, vehicle.soldier);
+    else this.setup.roster.removeFromGridNo(merc.id);
   }
 
   #loadedMapRoom(gridNo: number): number {
@@ -687,7 +706,7 @@ export class SectorFlow {
     if (previous) setupProfileInsertionDataForCivilians(previous.state, this.#profileInsertionHooks());
     narrative.handleQuestCodeOnSectorEntry(sector);
     this.#loadScreen = loadScreenId(this.ctx, sector, s.rng);
-    for (const m of this.setup.roster.all()) m.soldier.placed = false;
+    this.#mercsOutOfTheSector();
     if (!this.#inMeanwhile()) setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
     const diff = s.sectorDiffs.get(sectorKey(sector)) ?? null;
     const doorTable = diff && getSectorFlagStatus(s.map, sector, SectorFlag.DOOR_TABLE_TEMP_FILES_EXISTS) ? diff.doorTable : null;
@@ -1000,6 +1019,10 @@ export class SectorFlow {
   #placeMerc(m: RosterMerc): void {
     const t = this.campaign.tactical?.state;
     if (!t || m.assignment === EconomyAssignment.IN_TRANSIT) return;
+    if (m.isPassengerOrDriver && inHelicopter(this.ctx, m)) {
+      m.offGridInSector = true;
+      return;
+    }
     const order: InsertionOrder = { code: m.insertionCode, data: m.soldier.insertionData, direction: m.insertionDirection };
     updateMercInSector(t, m.soldier, order, this.#insertionContext(m));
     m.insertionCode = order.code;
@@ -1389,7 +1412,7 @@ export class SectorFlow {
       this.#worldTrashed();
     }
     this.campaign.tactical = null;
-    for (const m of this.setup.roster.all()) m.soldier.placed = false;
+    this.#mercsOutOfTheSector();
     const s = this.campaign.state;
     s.worldSector = null;
     s.flow = 'strategic';

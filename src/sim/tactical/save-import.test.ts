@@ -3,7 +3,7 @@ import { stubProfiles } from '../../../tests/support/contracts.ts';
 import { loadTestContent, loadTestTimelines, testDoorCosts } from '../../../tests/support/tactical.ts';
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
-import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
+import type { SavedSoldierEntry, SavedVehicle, SaveGame } from '../../content/formats/savegame.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
@@ -15,8 +15,9 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { createRosterState } from '../campaign/merc-record.ts';
 import { Roster } from '../campaign/roster.ts';
 import { addSavedMercsToRoster } from '../campaign/save-roster.ts';
-import { NO_VEHICLE } from '../strategic/forces/constants.ts';
+import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { createStrategicState } from '../strategic/state.ts';
+import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
@@ -36,6 +37,7 @@ import {
   TOTAL_SOLDIERS,
   Visible,
 } from './soldier.ts';
+import { whoIsThere } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { WorldItemFlags } from './world-items.ts';
 
@@ -122,6 +124,7 @@ function savedSoldier(id: number, team: number, at: number, extra: SoldierFields
 
 interface SyntheticSave {
   readonly soldiers?: readonly SavedSoldierEntry[];
+  readonly vehicles?: readonly SavedVehicle[];
   readonly lastKnownOppLocBytes?: Uint8Array;
   readonly lastKnownOppLevel?: readonly (readonly number[])[];
   readonly publicLastKnownOppLevel?: readonly (readonly number[])[];
@@ -138,6 +141,7 @@ function levelRows(count: number, entries: readonly (readonly [row: number, oppo
 
 function syntheticSave({
   soldiers = [],
+  vehicles = [],
   lastKnownOppLocBytes = new Uint8Array(TOTAL_SOLDIERS * TOTAL_SOLDIERS),
   lastKnownOppLevel = levelRows(TOTAL_SOLDIERS),
   publicLastKnownOppLevel = levelRows(MAX_TEAMS),
@@ -186,6 +190,7 @@ function syntheticSave({
     clock: { envLightValue: 3 },
     currentSector: { worldItems: worldItems ?? null, corpses: corpses ?? null, mapModifications: null, doorStatus: null, doors: null },
     soldiers,
+    vehicles,
     schedules: [],
     oppList: {
       publicOpplist: [],
@@ -703,5 +708,87 @@ describe('the vehicle ids of an import (LoadSaveSoldierType.cc bVehicleID, iVehi
     const roster = new Roster({ state, content, combat: () => sim.state });
     addSavedMercsToRoster(roster, save, sim.state);
     expect([roster.get(OUR_HUMMER_ID)?.vehicleId, roster.get(MERC_ID)?.vehicleId]).toEqual([OUR_HUMMER_SLOT, RIDDEN_SLOT]);
+  });
+});
+
+describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDIER_DRIVER, SOLDIER_PASSENGER)', () => {
+  const SOLDIER_VEHICLE = 0x00008000;
+  const SOLDIER_DRIVER = 0x08000000;
+  const SOLDIER_PASSENGER = 0x10000000;
+  const OUR_HUMMER_ID = 18;
+  const HUMMER_SLOT = 0;
+  const HELICOPTER_SLOT = 1;
+  const PARKED_AT = gridNo(80, 82);
+  const DRIVER_ID = 0;
+  const PASSENGER_ID = 1;
+  const FLYING_ID = 2;
+
+  function savedVehicle(slot: number, type: number, passengerSlots: readonly (number | null)[]): SavedVehicle {
+    return {
+      slot,
+      valid: true,
+      movementGroup: 0,
+      type,
+      sector: SECTOR,
+      betweenSectors: false,
+      passengerProfiles: [],
+      passengerSlots,
+      destroyed: false,
+      path: [],
+    };
+  }
+
+  function seatedSave(): SaveGame {
+    return syntheticSave({
+      soldiers: [
+        savedSoldier(DRIVER_ID, Team.OUR, PARKED_AT, { uiStatusFlags: SOLDIER_DRIVER, iVehicleId: HUMMER_SLOT }),
+        savedSoldier(PASSENGER_ID, Team.OUR, PARKED_AT, { uiStatusFlags: SOLDIER_PASSENGER, iVehicleId: HUMMER_SLOT }),
+        savedSoldier(FLYING_ID, Team.OUR, gridNo(90, 90), { uiStatusFlags: SOLDIER_PASSENGER, iVehicleId: HELICOPTER_SLOT }),
+        savedSoldier(OUR_HUMMER_ID, Team.OUR, PARKED_AT, {
+          uiStatusFlags: SOLDIER_VEHICLE,
+          ubBodyType: Body.HUMVEE,
+          bVehicleID: HUMMER_SLOT,
+          iVehicleId: NO_VEHICLE,
+        }),
+      ],
+      vehicles: [
+        savedVehicle(HUMMER_SLOT, VehicleTypeId.HUMMER, [DRIVER_ID, PASSENGER_ID]),
+        savedVehicle(HELICOPTER_SLOT, VehicleTypeId.HELICOPTER, [FLYING_ID]),
+      ],
+    });
+  }
+
+  it("puts a ground vehicle's driver and passenger in the sector at its tile with their seat, no occupant and no structure", () => {
+    const sim = importedSim(seatedSave());
+    const t = sim.state;
+    const seated = [soldierOf(sim, DRIVER_ID), soldierOf(sim, PASSENGER_ID)];
+    expect(seated.map((s) => [s.placed, s.gridNo, s.vehicleSeat, s.structure])).toEqual([
+      [true, PARKED_AT, VehicleSeat.DRIVER, null],
+      [true, PARKED_AT, VehicleSeat.PASSENGER, null],
+    ]);
+    expect(seated.every((s) => t.mercSlots.includes(s))).toBe(true);
+    expect(whoIsThere(t, PARKED_AT, 0)).toBe(soldierOf(sim, OUR_HUMMER_ID));
+  });
+
+  it('keeps them off the grid when the saved changes of the sector lift everyone off it and put them back', () => {
+    const sim = importedSim(seatedSave());
+    loadSavedSectorChanges(sim, NO_SAVED_SECTOR_CHANGES);
+    const t = sim.state;
+    expect(whoIsThere(t, PARKED_AT, 0)).toBe(soldierOf(sim, OUR_HUMMER_ID));
+    expect([soldierOf(sim, DRIVER_ID).structure, soldierOf(sim, PASSENGER_ID).structure]).toEqual([null, null]);
+  });
+
+  it("leaves the helicopter's passenger out of the tactical slots, in the sector with no tile, and the roster reads every seat from the soldier", () => {
+    const save = seatedSave();
+    const sim = importedSim(save);
+    expect(sim.state.soldiers[FLYING_ID]).toBeUndefined();
+    const roster = new Roster({ state: createRosterState(), content, combat: () => sim.state });
+    addSavedMercsToRoster(roster, save, sim.state);
+    const mercs = [DRIVER_ID, PASSENGER_ID, FLYING_ID].map((id) => roster.get(id));
+    expect(mercs.map((m) => [m?.vehicleSeat, m?.isPassengerOrDriver, m?.offGridInSector, m?.statusFlags])).toEqual([
+      [VehicleSeat.DRIVER, true, false, 0],
+      [VehicleSeat.PASSENGER, true, false, 0],
+      [VehicleSeat.PASSENGER, true, true, 0],
+    ]);
   });
 });

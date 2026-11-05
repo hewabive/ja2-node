@@ -2,12 +2,14 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc UpdateMercInSector; Tactical/Soldier_Add.cc InternalAddSoldierToSector,
 // @src AddSoldierToSectorGridNo, SoldierInSectorIncompaciated, InternalSoldierInSectorSleep, SoldierInSectorAnim;
-// @src TileEngine/Exit_Grids.cc FindClosestExitGrid.
+// @src TileEngine/Exit_Grids.cc FindClosestExitGrid; InternalAddSoldierToSector's vehicle sweet spot and its stop for a
+// @src driver or passenger (2026-11-05).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
+import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { anim } from './anim-states.ts';
 import { hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
 import { assignmentPose } from './assignment-animations.ts';
@@ -19,10 +21,16 @@ import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
 import { calcActionPoints } from './points.ts';
 import { FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
-import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
+import { Body, inVehicle, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
-import { findGridNoFromSweetSpot, findSweetSpotWithStructData, type SweetSpot } from './sweet-spots.ts';
+import {
+  findGridNoFromSweetSpot,
+  findSweetSpotWithStructData,
+  findSweetSpotWithStructDataUsingGivenDirectionFirst,
+  type SweetSpot,
+} from './sweet-spots.ts';
 import { checkForPotentialAddToBattleIncrement, setEnemyPresence } from './turns/turns.ts';
+import { seatOnSectorEntry } from './vehicle-passengers.ts';
 
 export const Insertion = {
   NORTH: 0,
@@ -41,6 +49,7 @@ export const CENTER_GRIDNO = (WORLD_ROWS / 2) * WORLD_COLS + WORLD_COLS / 2;
 export const ARRIVING_GAME_GRIDNO = 4379;
 export const FORCED_DIRECTION = 100;
 const SWEET_SPOT_RADIUS = 7;
+const VEHICLE_SWEET_SPOT_RADIUS = 12;
 const EXIT_GRID_SEARCH_RADIUS = 10;
 const ARRIVAL_WALK_RADIUS = 4;
 const SECOND_LEVEL = 1;
@@ -174,23 +183,45 @@ function creatureSpot(t: TacticalState, s: Soldier, order: InsertionOrder, calcu
   return calculateDirection ? spot : { gridNo: spot.gridNo, direction: order.direction };
 }
 
-function soldierSpot(t: TacticalState, s: Soldier, order: InsertionOrder, calculateDirection: boolean): SweetSpot | null {
-  let gridNo = findGridNoFromSweetSpot(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS);
-  if (gridNo === NOWHERE) gridNo = s.insertionGridNo;
-  if (!isVisibleTile(gridNo)) return null;
+function arrivalDirection(t: TacticalState, s: Soldier, spot: SweetSpot, order: InsertionOrder, calculateDirection: boolean): SweetSpot {
   let calculate = calculateDirection;
   if (order.direction >= FORCED_DIRECTION) {
     order.direction -= FORCED_DIRECTION;
     calculate = false;
   }
+  const gridNo = spot.gridNo;
   if (!calculate) return { gridNo, direction: order.direction };
-  let direction = directionFromTo(gridNo, CENTER_GRIDNO);
+  let direction = spot.direction;
   if (s.useExitGridForReentryDirection) {
     s.useExitGridForReentryDirection = false;
     const exit = findClosestExitGrid(t, gridNo, EXIT_GRID_SEARCH_RADIUS);
     if (exit !== NOWHERE) direction = directionFromTo(exit, gridNo);
   }
   return { gridNo, direction };
+}
+
+function soldierSpot(t: TacticalState, s: Soldier, order: InsertionOrder, calculateDirection: boolean): SweetSpot | null {
+  let gridNo = findGridNoFromSweetSpot(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS);
+  if (gridNo === NOWHERE) gridNo = s.insertionGridNo;
+  if (!isVisibleTile(gridNo)) return null;
+  return arrivalDirection(t, s, { gridNo, direction: directionFromTo(gridNo, CENTER_GRIDNO) }, order, calculateDirection);
+}
+
+function vehicleSpot(t: TacticalState, s: Soldier, order: InsertionOrder, calculateDirection: boolean): SweetSpot | null {
+  const standing = states(t.content.animations).STANDING;
+  const found = findSweetSpotWithStructDataUsingGivenDirectionFirst(t, s, s.insertionGridNo, VEHICLE_SWEET_SPOT_RADIUS, {
+    animState: standing,
+    givenDirection: order.direction,
+  });
+  if (!found) return null;
+  order.direction = found.direction;
+  return arrivalDirection(t, s, found, order, calculateDirection);
+}
+
+function sectorEntrySpot(t: TacticalState, s: Soldier, order: InsertionOrder, calculateDirection: boolean): SweetSpot | null {
+  if (s.team === Team.CREATURE) return creatureSpot(t, s, order, calculateDirection);
+  if (isVehicleBody(s.bodyType)) return vehicleSpot(t, s, order, calculateDirection);
+  return soldierSpot(t, s, order, calculateDirection);
 }
 
 export function addSoldierToSector(
@@ -204,8 +235,12 @@ export function addSoldierToSector(
   keepElliotAliveInMeanwhile(t, s);
   s.actionPoints = calcActionPoints(t, s);
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
+  if (inVehicle(s)) {
+    seatOnSectorEntry(t, s);
+    return false;
+  }
   clearCreatureTensionQuotesSaid(t, s);
-  const spot = s.team === Team.CREATURE ? creatureSpot(t, s, order, calculateDirection) : soldierSpot(t, s, order, calculateDirection);
+  const spot = sectorEntrySpot(t, s, order, calculateDirection);
   if (!spot || !isVisibleTile(spot.gridNo)) return false;
   const direction = spot.direction >= FORCED_DIRECTION ? spot.direction - FORCED_DIRECTION : spot.direction;
   addSoldierToSectorGridNo(t, s, spot.gridNo, direction, order.code, ctx, animation);

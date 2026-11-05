@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldMan.cc WhoIsThere2; Tactical/Overhead.cc AddMercSlot, RemoveMercSlot (the vector of
-// @src Stracciatella, 2026-11-02).
+// @src Stracciatella, 2026-11-02); Soldier_Control.cc SetSoldierGridNo (no level node for a driver or passenger, 2026-11-05).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
@@ -46,7 +46,7 @@ import { createPerception, type Perception } from './perception/sight.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
-import { NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
+import { inVehicle, NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from './vehicle-soldiers.ts';
 import type { WorldItem } from './world-items.ts';
@@ -553,6 +553,7 @@ function personLyingOver(state: Pick<TacticalState, 'world' | 'soldiers'>, g: nu
 }
 
 export function placeOccupant(state: TacticalState, s: Soldier): void {
+  if (inVehicle(s)) return;
   const layer = state.occupant[s.level > 0 ? 1 : 0];
   if (layer[s.gridNo] === -1) layer[s.gridNo] = s.id;
 }

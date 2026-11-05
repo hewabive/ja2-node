@@ -4,7 +4,7 @@
 // @src SetSoldierAnimationSurface; Tactical/Soldier_Control.cc EVENT_SetSoldierDirection, InternalIsValidStance (an
 // @src escort may crouch anywhere and never lie down), MercInWater; Tactical/Handle_UI.cc UIHandleSoldierStanceChange
 // @src (the message for a stance that is not valid; the tired collapse is refused before as outOfBreath);
-// @src TacticalAI/AIUtils.cc ValidCreatureTurn
+// @src TacticalAI/AIUtils.cc ValidCreatureTurn; AddMercStructureInfoFromAnimSurface's level node a passenger lacks (2026-11-05)
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
@@ -14,7 +14,7 @@ import { DIRECTION_COUNT, quickestTurnIncrement } from './directions.ts';
 import { animStructureFile } from './multi-tile.ts';
 import { isRobot } from './narrative/robot.ts';
 import type { Refusal } from './refusal.ts';
-import { Body, OKBREATH, type Soldier } from './soldier.ts';
+import { Body, OKBREATH, onTheGrid, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export function removeMercStructure(t: TacticalState, s: Soldier): void {
@@ -93,7 +93,7 @@ export function invalidStanceRefusal(t: TacticalState, s: Soldier, stance: numbe
 export function addMercStructure(t: TacticalState, s: Soldier, state = s.state): StructureInstance | null {
   s.multiTile = false;
   removeMercStructure(t, s);
-  if (!s.placed) return null;
+  if (!onTheGrid(s)) return null;
   const def = animStructureDef(t, s, state, s.direction);
   if (!def) return null;
   s.structure = t.world.structures.add(s.gridNo, s.level, def, { kind: 'soldier', id: s.id });

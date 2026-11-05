@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Add.cc FindGridNoFromSweetSpot, FindGridNoFromSweetSpotThroughPeople,
 // @src FindGridNoFromSweetSpotWithStructData, FindGridNoFromSweetSpotWithStructDataFromSoldier (the bump's variant),
+// @src FindGridNoFromSweetSpotWithStructDataUsingGivenDirectionFirst (2026-11-05),
 // @src FindGridNoFromSweetSpotExcludingSweetSpot, FindRandomGridNoFromSweetSpot (2026-11-01),
 // @src FindGridNoFromSweetSpotExcludingSweetSpotInQuardent (its SOUTHEAST quadrant, the only one it narrows, 2026-11-02);
 // @src Tactical/PathAI.h SaveNPCBudgetAndDistLimit (the dummy soldier's flood); TileEngine/GridSquare.cc GridSquare.
@@ -89,11 +90,13 @@ export function findGridNoFromSweetSpotThroughPeople(t: TacticalState, s: Soldie
   return lowestRanked(reachable, (g) => (freeFor(t, s, g) ? rangeInCellCoords(sweet, g) : null));
 }
 
+function structureFits(t: TacticalState, s: Soldier, animState: number, g: number, direction: number): boolean {
+  const def = animStructureDef(t, s, animState, direction);
+  return !def || t.world.structures.okayToAdd(g, s.level, def, s.id);
+}
+
 function firstFittingDirection(t: TacticalState, s: Soldier, animState: number, g: number): number | null {
-  for (let direction = 0; direction < DIRECTION_COUNT; direction++) {
-    const def = animStructureDef(t, s, animState, direction);
-    if (!def || t.world.structures.okayToAdd(g, s.level, def, s.id)) return direction;
-  }
+  for (let direction = 0; direction < DIRECTION_COUNT; direction++) if (structureFits(t, s, animState, g, direction)) return direction;
   return null;
 }
 
@@ -134,6 +137,43 @@ export function findSweetSpotWithStructData(
   });
   const direction = gridNo === NOWHERE ? null : firstFittingDirection(t, s, search.animState, gridNo);
   return direction === null ? null : { gridNo, direction };
+}
+
+export interface GivenDirectionSearch {
+  readonly animState: number;
+  readonly givenDirection: number;
+}
+
+function fittingDirectionGivenFirst(t: TacticalState, s: Soldier, animState: number, g: number, given: number): number | null {
+  if (structureFits(t, s, animState, g, given)) return given;
+  for (let direction = 0; direction < DIRECTION_COUNT; direction++) {
+    if (direction !== given && structureFits(t, s, animState, g, direction)) return direction;
+  }
+  return null;
+}
+
+export function findSweetSpotWithStructDataUsingGivenDirectionFirst(
+  t: TacticalState,
+  s: Soldier,
+  sweet: number,
+  radius: number,
+  search: GivenDirectionSearch,
+): SweetSpot | null {
+  if (s.gridNo === sweet && !isVehicle(s)) return { gridNo: sweet, direction: s.direction };
+  const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, 0), radius, { flags: SWEET_SPOT_FLOOD_FLAGS });
+  let best: SweetSpot | null = null;
+  let lowestRange = NO_RANGE;
+  for (const g of reachable) {
+    if (!freeFor(t, s, g)) continue;
+    const direction = fittingDirectionGivenFirst(t, s, search.animState, g, search.givenDirection);
+    if (direction === null) continue;
+    const range = rangeInCellCoords(sweet, g);
+    if (range < lowestRange) {
+      best = { gridNo: g, direction };
+      lowestRange = range;
+    }
+  }
+  return best;
 }
 
 export function findGridNoFromSweetSpotWithStructData(

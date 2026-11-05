@@ -6,9 +6,9 @@
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { NO_PASSENGER, type VehicleRecord } from '../../vehicles/vehicle-list.ts';
+import { VehicleSeat } from '../forces/constants.ts';
 import { addPlayerToGroup, getGroup, removeGroup, removePlayerFromGroup } from '../forces/groups.ts';
 import { okUseVehicle } from '../forces/helicopter.ts';
-import { VehicleRole } from '../forces/ports.ts';
 import { addCharacterToUniqueSquad, removeCharacterFromSquads } from '../forces/squads.ts';
 import {
   findVehicle,
@@ -65,6 +65,13 @@ function leavePreviousPlace(ctx: EconomyContext, s: CrewMember): void {
   }
 }
 
+function seatInVehicle(ctx: EconomyContext, s: CrewMember, v: VehicleRecord): void {
+  ctx.mercs.setVehicleSeat?.(s.id, numberInVehicle(v) === 1 ? VehicleSeat.DRIVER : VehicleSeat.PASSENGER);
+  if (!isHelicopter(ctx, v) && ctx.mercs.seatAtVehicle) ctx.mercs.seatAtVehicle(s.id, v.soldierId);
+  else if (ctx.mercs.removeFromGridNo) ctx.mercs.removeFromGridNo(s.id);
+  else ctx.mercs.removeFromTacticalSector(s.id);
+}
+
 export function addSoldierToVehicle(ctx: EconomyContext, s: CrewMember, v: VehicleRecord): boolean {
   if (!isHelicopter(ctx, v) && !takeVehicleOver(ctx, v)) return false;
   if (v.passengers.includes(s.id)) return true;
@@ -79,9 +86,7 @@ export function addSoldierToVehicle(ctx: EconomyContext, s: CrewMember, v: Vehic
     s.vehicleId = vid;
     const g = getGroup(ctx, v.movementGroup);
     if (v.movementGroup !== 0 && g) addPlayerToGroup(ctx, g, s.id);
-    ctx.mercs.setVehicleRole?.(s.id, numberInVehicle(v) === 1 ? VehicleRole.DRIVER : VehicleRole.PASSENGER);
-    if (ctx.mercs.removeFromGridNo) ctx.mercs.removeFromGridNo(s.id);
-    else ctx.mercs.removeFromTacticalSector(s.id);
+    seatInVehicle(ctx, s, v);
     return true;
   }
   return false;

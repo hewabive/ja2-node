@@ -14,10 +14,10 @@ import { fillVehicleSlot, NO_PASSENGER, passengersOf, type VehicleRecord, validV
 import { setSectorFlag } from '../map/sectors.ts';
 import { setProfileSector } from '../narrative/presence.ts';
 import { worldDay, worldTotalMinutes } from '../time/world-clock.ts';
-import { Assignment, InsertionCode, NO_GROUP, NO_VEHICLE, SectorFlag } from './constants.ts';
+import { Assignment, InsertionCode, NO_GROUP, NO_VEHICLE, SectorFlag, VehicleSeat } from './constants.ts';
 import { addPlayerToGroup, getGroup, removePlayerFromGroup, requireMerc } from './groups.ts';
 import { placeGroupInSector, rebuildWayPointsForGroupPath } from './movement.ts';
-import { type StrategicContext, type StrategicMerc, VehicleRole } from './ports.ts';
+import type { StrategicContext, StrategicMerc } from './ports.ts';
 import { addCharacterToUniqueSquad, removeCharacterFromSquads } from './squads.ts';
 
 export const HELICOPTER_EXIT_GRIDNO_AT_AIRPORT = 10125;
@@ -159,7 +159,7 @@ export function removeSoldierFromVehicle(ctx: StrategicContext, id: number): boo
   v.passengers[slot] = NO_PASSENGER;
   removePlayerFromGroup(ctx, id);
   m.sector = { ...v.sector };
-  ctx.mercs.setVehicleRole?.(id, VehicleRole.NONE);
+  ctx.mercs.setVehicleSeat?.(id, VehicleSeat.NONE);
   if (isHelicopter(ctx, v)) {
     if (m.life >= OKLIFE) setSectorFlag(ctx.state.map, m.sector, SectorFlag.ALREADY_VISITED, worldDay(ctx.state.clock));
     setSoldierExitHelicopterInsertionData(ctx, m);

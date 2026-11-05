@@ -78,8 +78,10 @@ import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
+import { killPersonInVehicle } from '../tactical/vehicle-passengers.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { refuseMove, sectorList } from './commands.ts';
+import { seatedInLoadedSector } from './roster.ts';
 
 const BLOODLOSS_DAMAGE = 100;
 
@@ -235,6 +237,8 @@ export class HelicopterFlow {
   #killInVehicle(id: number): boolean {
     const m = this.campaign.battle?.roster.get(id);
     if (!m || m.life === 0) return false;
+    const t = this.campaign.tactical?.state;
+    if (t && seatedInLoadedSector(t, m)) return killPersonInVehicle(t, m.soldier);
     const bandage = m.lifeMax - m.life - m.bleeding;
     m.life = m.life > BLOODLOSS_DAMAGE ? m.life - BLOODLOSS_DAMAGE : 0;
     m.bleeding = m.lifeMax - (m.life + bandage);

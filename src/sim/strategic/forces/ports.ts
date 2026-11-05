@@ -37,8 +37,6 @@ export interface StrategicMerc {
 export const TravelStat = { HEALTH: 'health', STRENGTH: 'strength' } as const;
 export type TravelStat = (typeof TravelStat)[keyof typeof TravelStat];
 
-export const VehicleRole = { NONE: 0, DRIVER: 1, PASSENGER: 2 } as const;
-
 export interface MercPort {
   get(id: number): StrategicMerc | undefined;
   byProfile(profile: number): StrategicMerc | undefined;
@@ -52,7 +50,8 @@ export interface MercPort {
   tooTiredToTravel(id: number): boolean;
   collapseFromFatigue(id: number, firstToComplain: boolean): void;
   spendVehicleFuel(vehicleSoldierId: number, fuel: number): number;
-  setVehicleRole?(id: number, role: number): void;
+  setVehicleSeat?(id: number, seat: number): void;
+  seatAtVehicle?(id: number, vehicleSoldierId: number): void;
   insertionData?(id: number): number;
   robotControllerInSquad?(squad: number): boolean;
   robotControllerInVehicle?(vehicleId: number): boolean;

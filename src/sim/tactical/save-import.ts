@@ -13,7 +13,7 @@
 // @src LoadRevealedStatusArrayFromRevealedTempFile; LoadSaveTacticalStatusType.cc ExtractTacticalStatusTypeFromFile (the
 // @src panic fields, 2026-11-04); Tactical/LoadSaveSoldierType.cc (uiXRayActivatedTime, xrayed_by with
 // @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04); Tactical/LoadSaveSoldierType.cc bVehicleID of a
-// @src vehicle soldier (2026-11-04).
+// @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -34,8 +34,9 @@ import { i16, u8 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
-import { NO_VEHICLE } from '../strategic/forces/constants.ts';
+import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
+import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
@@ -344,6 +345,23 @@ function storedDoorStatus(d: SavedDoorStatus): StoredDoorStatus {
   };
 }
 
+const SEATED_FLAGS = SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER;
+
+export function seatOfStatusFlags(statusFlags: number): number {
+  if (statusFlags & SoldierStatusFlags.DRIVER) return VehicleSeat.DRIVER;
+  return statusFlags & SoldierStatusFlags.PASSENGER ? VehicleSeat.PASSENGER : VehicleSeat.NONE;
+}
+
+function seatedInGroundVehicle(save: SaveGame, s: SavedSoldier): boolean {
+  const v = save.vehicles.find((x) => x.valid && x.slot === s.vehicleId);
+  return v !== undefined && v.type !== VehicleTypeId.HELICOPTER;
+}
+
+function onTheLoadedMap(save: SaveGame, s: SavedSoldier): boolean {
+  if (s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP)) return false;
+  return !(s.statusFlags & SEATED_FLAGS) || seatedInGroundVehicle(save, s);
+}
+
 export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
   const sector = save.tactical.worldSector;
   return (
@@ -352,7 +370,7 @@ export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
     s.sector.x === sector.x &&
     s.sector.y === sector.y &&
     s.sector.z === sector.z &&
-    !(s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP | SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER))
+    onTheLoadedMap(save, s)
   );
 }
 
@@ -480,6 +498,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.gassed = (r.statusFlags & SoldierStatusFlags.GASSED) !== 0;
   s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
   s.vehicleId = r.statusFlags & SoldierStatusFlags.VEHICLE ? r.vehicleSlot : NO_VEHICLE;
+  s.vehicleSeat = seatOfStatusFlags(r.statusFlags);
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;
   s.xrayActivatedTime = r.xrayActivatedTime;
   s.breathMax = r.stats.breathMax;

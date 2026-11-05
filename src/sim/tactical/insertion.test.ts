@@ -6,10 +6,14 @@ import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../conten
 import { compileTileMovementCosts } from '../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
+import { VehicleSeat } from '../strategic/forces/constants.ts';
 import type { TacticalContent } from './content.ts';
+import { newSoldierCreate, tacticalCreateSoldier } from './creation.ts';
+import { NEUTRAL_POPULATION } from './init-list.ts';
 import { addSoldierToSector, Insertion } from './insertion.ts';
 import { setSoldierHeight } from './roofs.ts';
-import { Body, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
+import { removeSoldierFromTacticalSector } from './sector-presence.ts';
+import { Body, NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
 import { whoIsThere } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
@@ -93,6 +97,98 @@ describe('InternalAddSoldierToSector for the creature team (Soldier_Add.cc)', ()
     expect(insert(creatures, arrivingCreature(creatures), ARRIVAL_FACING, true)).toMatchObject({ placed: false, gridNo: gridNo(60, 60) });
     const soldiers = walledIn();
     expect(insert(soldiers, arrivingSoldier(soldiers), ARRIVAL_FACING, true)).toMatchObject({ placed: true, gridNo: SWEET });
+  });
+});
+
+const OUR_VEHICLE_SLOT = 18;
+const NOBODY = -1;
+const AWAY_FROM_IT = gridNo(60, 60);
+const IN_THE_WEST_FACING_FOOTPRINT = 2;
+
+function arrivingHummer(sim: TacticalSim): Soldier {
+  const create = { ...newSoldierCreate(Team.OUR, Body.HUMVEE, Direction.SOUTH, AWAY_FROM_IT), life: 100, lifeMax: 100 };
+  const s = tacticalCreateSoldier(sim.state, create, OUR_VEHICLE_SLOT, NEUTRAL_POPULATION);
+  if (!s) throw new Error('no Hummer');
+  return s;
+}
+
+function blockedAt(g: number): TacticalSim {
+  return newCombatSim(content, [], 3, new Set(), (world) => {
+    world.structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
+    compileTileMovementCosts(world.costs, world, g);
+  });
+}
+
+describe('InternalAddSoldierToSector for a vehicle (Soldier_Add.cc FindGridNoFromSweetSpotWithStructDataUsingGivenDirectionFirst)', () => {
+  it('takes the closest tile its structure fits facing the insertion direction, which it keeps over the direction to the centre', () => {
+    const sim = newCombatSim(content);
+    const hummer = arrivingHummer(sim);
+    expect(insert(sim, hummer, ARRIVAL_FACING, true)).toEqual({
+      placed: true,
+      gridNo: SWEET,
+      direction: ARRIVAL_FACING,
+      orderDirection: ARRIVAL_FACING,
+    });
+    expect(hummer.structure).not.toBeNull();
+    expect(whoIsThere(sim.state, SWEET, 0)).toBe(hummer);
+  });
+
+  it('turns to the first of the eight directions its structure fits when the insertion direction does not, and keeps it as its insertion direction', () => {
+    const sim = blockedAt(SWEET + IN_THE_WEST_FACING_FOOTPRINT);
+    const hummer = arrivingHummer(sim);
+    expect(insert(sim, hummer, Direction.WEST, false)).toEqual({
+      placed: true,
+      gridNo: SWEET,
+      direction: Direction.NORTH,
+      orderDirection: Direction.NORTH,
+    });
+    expect(hummer.structure).not.toBeNull();
+  });
+});
+
+describe('InternalAddSoldierToSector for a merc seated in a vehicle (Soldier_Add.cc, Soldier_Control.cc UpdateAllVehiclePassengersGridNo)', () => {
+  function seated(sim: TacticalSim, hummer: Soldier, id: number): Soldier {
+    const merc = spawnSoldier(sim, id, Team.OUR, gridNo(70, 70 + id), Direction.NORTH);
+    const v = sim.state.vehicles[hummer.vehicleId];
+    if (!v) throw new Error('the Hummer has no vehicle');
+    v.passengers[v.passengers.indexOf(NOBODY)] = merc.id;
+    merc.vehicleSeat = id === 0 ? VehicleSeat.DRIVER : VehicleSeat.PASSENGER;
+    removeSoldierFromTacticalSector(sim.state, merc);
+    merc.gridNo = NOWHERE;
+    return merc;
+  }
+
+  function enter(sim: TacticalSim, s: Soldier): boolean {
+    s.insertionGridNo = SWEET;
+    return addSoldierToSector(sim.state, s, { code: Insertion.NORTH, data: 0, direction: Direction.SOUTH }, {}, true);
+  }
+
+  it('is registered in his merc slot without a tile, before the vehicle, which takes him to its tile when it is placed', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const hummer = arrivingHummer(sim);
+    const mercs = [seated(sim, hummer, 0), seated(sim, hummer, 1)];
+    expect(mercs.map((m) => enter(sim, m))).toEqual([false, false]);
+    expect(mercs.map((m) => [t.mercSlots.includes(m), m.placed, m.offMap, m.gridNo])).toEqual([
+      [true, false, true, NOWHERE],
+      [true, false, true, NOWHERE],
+    ]);
+    expect(insert(sim, hummer, ARRIVAL_FACING, true)).toMatchObject({ placed: true, gridNo: SWEET });
+    expect(mercs.map((m) => [m.placed, m.offMap, m.gridNo, m.structure])).toEqual([
+      [true, false, SWEET, null],
+      [true, false, SWEET, null],
+    ]);
+    expect(whoIsThere(t, SWEET, 0)).toBe(hummer);
+  });
+
+  it("takes the vehicle's tile at once when the vehicle is already placed, as a group arriving puts the vehicle in first", () => {
+    const sim = newCombatSim(content);
+    const hummer = arrivingHummer(sim);
+    const merc = seated(sim, hummer, 0);
+    insert(sim, hummer, ARRIVAL_FACING, true);
+    expect(enter(sim, merc)).toBe(false);
+    expect([merc.placed, merc.gridNo, merc.structure]).toEqual([true, SWEET, null]);
+    expect(whoIsThere(sim.state, SWEET, 0)).toBe(hummer);
   });
 });
 

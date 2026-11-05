@@ -124,6 +124,20 @@ another id, at the next load; ours stays. The type's name (`zVehicleName`) is UI
 its records named, which were ours from native imports; any other vehicle soldier it holds has no slot (-1) until his
 sector loads again.
 
+**Passengers in the loaded sector.** A merc seated in a ground vehicle stays in the sector (`placed`, his merc slot) at
+the vehicle's tile, with his seat on the soldier (`Soldier.vehicleSeat`, the original's `SOLDIER_DRIVER` and
+`SOLDIER_PASSENGER`; the roster reads it there) and no occupant entry or structure (`placeOccupant`, `addMercStructure`).
+`placed` keeps its in-sector meaning for him, as `bInSector` does in the original, so every loop includes him unless it
+skips the seat; the grid lookups never find him, as `WhoIsThere2` never does. `setSoldierGridNo` skips what the original
+skips for a seated soldier and every placement of the vehicle carries its passengers (`movement.ts`, `07`). At a sector
+entry the mercs, in their slots before the vehicle's 18 or 19, wait in the sector with no tile until the vehicle takes
+them to its own; a group arriving puts the vehicle in first, and its passengers take its tile at once
+(`tactical/vehicle-passengers.ts`). Boarding on the map screen seats a merc on the loaded map at the vehicle; a wreck
+kills the seated passengers through tactical damage and the others through the stand-in the helicopter's crash uses.
+Helicopter passengers over the loaded sector stay out of the merc slots, in the sector through the roster's
+`offGridInSector` (gaps "Turn-based hooks"). The rules for where passengers count (sight, targets, orders, medics,
+selections, the view) are gaps "Turn-based hooks".
+
 **Quest action items.** The Kingpin and museum alarms and the brothel room scene are action items the bomb queue runs
 like any other (`12` §6): our soldiers set them off by stepping on their pressure plates or on a switch of their
 frequency, and the queue runs them with sight disallowed and the AI held. `bombs/item-action.ts` hands them to
@@ -160,7 +174,11 @@ says otherwise:
 | The boxers are read from the ring tiles only while the first slot is empty, so ids from an earlier map still count until D5 is entered again | `src/sim/tactical/narrative/boxing.test.ts` |
 | The Kingpin alarm rings again at the next step: its "zap" clears the disabled flag it means to set | `src/sim/tactical/narrative/quest-items.test.ts` |
 | The museum alarm calls Eldin while sight is off, so he never sees the spot and always runs to it | `src/sim/tactical/narrative/quest-items.test.ts` |
-| A crash or a wreck that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts`, `src/sim/campaign/vehicle-destruction.test.ts` |
+| A crash or a wreck that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts`, `src/sim/campaign/vehicle-destruction.test.ts`, `src/sim/campaign/vehicle-passengers.test.ts` "are spared behind a merc already dead …" |
+| A passenger killed with his vehicle loses 100 life and 100 breath to bleeding on its tile and, sitting, dies at once with no fall to play | `src/sim/campaign/vehicle-passengers.test.ts` "each take 100 life …" |
+| A passenger breathes the gas of his vehicle's tile without a mask, and is tested again at every placement of the vehicle, its own tile included | `src/sim/tactical/vehicle-passengers.test.ts` "is gassed on the vehicle's tile …", "tests his tile's gas again …" |
+| The passengers enter a sector before their vehicle, in the slots below its 18 or 19, and come to its tile only when it is placed | `src/sim/tactical/insertion.test.ts` "is registered in his merc slot without a tile …", `src/sim/campaign/vehicle-passengers.test.ts` "come in with it …" |
+| A vehicle entering a sector takes the closest tile its structure fits on in the insertion direction, else in the first of the eight that fits, and keeps that direction as its insertion direction | `src/sim/tactical/insertion.test.ts` "turns to the first of the eight directions …" |
 | A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most; a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts` |
 | A tank's soldier carries profile `NPC164`, the unused jeep's, and a full tank | `src/sim/tactical/vehicle-soldiers.test.ts` |
 | A civilian or enemy vehicle leaves the list at every unload of its sector and registers again at the next load, maybe under another id; a destroyed vehicle elsewhere leaves it only at the next registration | `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/vehicles/vehicle-list.test.ts` |

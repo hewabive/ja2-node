@@ -179,7 +179,7 @@ import {
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
-import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
+import { Body, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { fenceCuttableBy, handlePendingTileToolOnArrival, interactiveTileAt, tileToolOpcode } from './tile-tools.ts';
@@ -1241,7 +1241,7 @@ export class TacticalSim {
   }
 
   snapshot(presentation: PresentationTimeline, filter: (s: Soldier) => boolean = () => true): OwnSoldierSnapshot[] {
-    const shown = this.state.soldiers.filter((s): s is Soldier => !!s?.placed && filter(s));
+    const shown = this.state.soldiers.filter((s): s is Soldier => !!s && onTheGrid(s) && filter(s));
     const others = new Set(shown.filter((s) => s.team !== Team.OUR).map((s) => s.id));
     return shown.map((s) => ({
       id: s.id,

@@ -3,14 +3,15 @@
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL;
 // @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment); Soldier_Create.cc
 // @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01; the slots of our vehicles and
-// @src bVehicleID, 2026-11-04)
+// @src bVehicleID, 2026-11-04); Tactical/Soldier_Control.h SOLDIER_DRIVER, SOLDIER_PASSENGER; Soldier_Macros.h EnterableVehicle
+// @src (2026-11-05)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
-import { NO_VEHICLE } from '../strategic/forces/constants.ts';
+import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { AiMorale } from './combat/types.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
@@ -130,6 +131,18 @@ export function isMechanical(s: { readonly bodyType: number }): boolean {
 
 export function isTank(s: { readonly bodyType: number }): boolean {
   return s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
+}
+
+export function isEnterableVehicle(s: { readonly bodyType: number }): boolean {
+  return s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP && !isTank(s);
+}
+
+export function inVehicle(s: { readonly vehicleSeat: number }): boolean {
+  return s.vehicleSeat !== VehicleSeat.NONE;
+}
+
+export function onTheGrid(s: { readonly placed: boolean; readonly vehicleSeat: number }): boolean {
+  return s.placed && !inVehicle(s);
 }
 
 export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier, 'neutral' | 'bodyType'>): boolean {
@@ -293,6 +306,7 @@ export interface Soldier {
   boxer: boolean;
   monsterOrAnimal: boolean;
   vehicleId: number;
+  vehicleSeat: number;
 
   state: number;
   pc: number;
@@ -653,6 +667,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     boxer: false,
     monsterOrAnimal: false,
     vehicleId: NO_VEHICLE,
+    vehicleSeat: VehicleSeat.NONE,
     state: init.state,
     pc: 0,
     frameSlot: NO_FRAME_SLOT,

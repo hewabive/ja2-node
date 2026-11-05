@@ -211,3 +211,14 @@ export async function stubCampaignWithOurHummer(kit: StubSectorKit, seed: number
     if (m.id !== hummer.id) await dispatchPrepared(session, { type: 'boardVehicle', soldier: m.id, vehicle: hummer.vehicleId });
   return session;
 }
+
+export async function driveOurHummerInto(session: CampaignSession, sector: string): Promise<void> {
+  const passenger = session.view().strategic?.mercs.find((m) => m.vehicle !== undefined && m.kind !== 'vehicle');
+  if (!passenger) throw new Error('nobody aboard');
+  await dispatchPrepared(session, { type: 'route', soldier: passenger.id, to: sector });
+  const live = new ReloadingSession('our-hummer', session);
+  const arrived = () => session.view().strategic?.mercs.every((m) => m.sector === sector && !m.betweenSectors) === true;
+  for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+  if (!arrived()) throw new Error(`our Hummer did not reach ${sector}`);
+  await dispatchPrepared(session, { type: 'enterSector', sector });
+}
