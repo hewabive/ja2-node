@@ -34,6 +34,7 @@ import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../s
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
+import { autoBandageView } from './auto-bandage-view.ts';
 import { BulletFlights } from './bullet-flights.ts';
 import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import type { SessionSim } from './session.ts';
@@ -148,11 +149,13 @@ export function tacticalPlayerView(
   const parts = tacticalViewParts(sim, presentation);
   const soldiers = nextFramesInViewTicks(parts.soldiers, sim.tick, tick, stepping);
   const prompt = tacticalPromptView(sim.state);
+  const autoBandage = autoBandageView(sim.state);
   return {
     tick,
     ...parts,
     soldiers: withSandboxCrew(withVoices(soldiers, sim.state.soldiers, voiceOf)),
     ...(prompt ? { prompt } : {}),
+    ...(autoBandage ? { autoBandage } : {}),
   };
 }
 

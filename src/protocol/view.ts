@@ -970,6 +970,12 @@ export interface BoxingView {
   readonly uiLocked: boolean;
 }
 
+export interface AutoBandageView {
+  readonly complete: boolean;
+  readonly medics: readonly number[];
+  readonly patients: readonly number[];
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
@@ -986,6 +992,7 @@ export interface PlayerView {
   readonly meanwhile?: MeanwhileSceneView | null;
   readonly ended?: CampaignEndedView | null;
   readonly boxing?: BoxingView | null;
+  readonly autoBandage?: AutoBandageView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly openContainers?: readonly number[];
@@ -1033,6 +1040,7 @@ export interface ViewFrame {
   readonly meanwhile?: MeanwhileSceneView | null;
   readonly ended?: CampaignEndedView | null;
   readonly boxing?: BoxingView | null;
+  readonly autoBandage?: AutoBandageView | null;
   readonly openDoors?: readonly number[];
   readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -1166,6 +1174,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), ended: next.ended ?? null };
   if (!sameJson(previous.boxing ?? null, next.boxing ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), boxing: next.boxing ?? null };
+  if (!sameJson(previous.autoBandage ?? null, next.autoBandage ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoBandage: next.autoBandage ?? null };
   if (next.music && !sameMusic(previous.music, next.music))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), music: next.music };
   return frame;

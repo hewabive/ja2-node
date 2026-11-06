@@ -104,6 +104,17 @@ describe('view frames', () => {
     expect(off && applyViewFrame(xrayed, off).radarContacts).toEqual([]);
   });
 
+  it('carry the box of auto-bandage as it opens, completes and closes', () => {
+    const running: PlayerView = { ...base, tick: 20, autoBandage: { complete: false, medics: [2], patients: [0, 2] } };
+    expect(diffPlayerView(base, running)).toEqual({ tick: 20, changed: [], removed: [], autoBandage: running.autoBandage });
+    expect(diffPlayerView(running, { ...running, tick: 30 })).toBeNull();
+    const complete: PlayerView = { ...running, tick: 40, autoBandage: { complete: true, medics: [2], patients: [0, 2] } };
+    expect(diffPlayerView(running, complete)).toMatchObject({ autoBandage: { complete: true } });
+    const closed = diffPlayerView(complete, { ...base, tick: 50 });
+    expect(closed).toMatchObject({ autoBandage: null });
+    expect(closed && applyViewFrame(complete, JSON.parse(JSON.stringify(closed))).autoBandage).toBeNull();
+  });
+
   it('carry the current squad when the server makes another squad current or none', () => {
     const current: PlayerView = { ...base, currentSquad: 0 };
     expect(diffPlayerView(current, { ...current, tick: 20 })).toBeNull();

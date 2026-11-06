@@ -11,7 +11,8 @@
 // @src and 31, pMilitiaString 2), Soldier_Tile.cc CanExchangePlaces (STR_LATE_03, REFUSE_EXCHANGE_PLACES),
 // @src Interface_Items.cc HandleItemPointerClick (CANNOT_THROW_TO_DEST_STR, 2026-11-03), Turn_Based_Input.cc
 // @src HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT, 2026-11-03;
-// @src VEHICLE_CANT_MOVE_IN_TACTICAL, 2026-11-05).
+// @src VEHICLE_CANT_MOVE_IN_TACTICAL, 2026-11-05); Tactical/Auto_Bandage.cc BeginAutoBandage (AUTOBANDAGE_NOT_NEEDED,
+// @src STR_LATE_09, CANT_AUTOBANDAGE_PROMPT, 2026-11-06).
 
 export interface UiTextKey {
   readonly table: string;
@@ -83,6 +84,9 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   walking: box('zMarksMapScreenText', 5),
   driving: box('zMarksMapScreenText', 7),
   sectorNotCleared: box('Message', 44),
+  nobodyToBandage: box('TacticalStr', 116),
+  noMedKit: box('gzLateLocalizedString', 8),
+  cannotAutoBandage: box('TacticalStr', 129),
   notTired: box('zMarksMapScreenText', 4),
   collapsed: box('zMarksMapScreenText', 6),
   noMercsHired: box('pMapScreenJustStartedHelpText', 0),

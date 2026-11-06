@@ -16,6 +16,20 @@ describe('refusal messages', () => {
   });
 });
 
+describe("BeginAutoBandage's OK boxes", () => {
+  it('boxes the sector not cleared, AUTOBANDAGE_NOT_NEEDED, STR_LATE_09 and CANT_AUTOBANDAGE_PROMPT', () => {
+    expect(refusalMessage('sectorNotCleared')).toEqual({ table: 'Message', index: 44, shown: 'box' });
+    expect(refusalMessage('nobodyToBandage')).toEqual({ table: 'TacticalStr', index: 116, shown: 'box' });
+    expect(refusalMessage('noMedKit')).toEqual({ table: 'gzLateLocalizedString', index: 8, shown: 'box' });
+    expect(refusalMessage('cannotAutoBandage')).toEqual({ table: 'TacticalStr', index: 129, shown: 'box' });
+  });
+
+  it('has no message for the orders the mode masks, as no input reaches the game then', () => {
+    expect(refusalMessage('autoBandaging')).toBeNull();
+    expect(refusalMessage('notAutoBandaging')).toBeNull();
+  });
+});
+
 describe('the exchange of places (CanExchangePlaces)', () => {
   it('logs STR_LATE_03 for an NPC with a profile and REFUSE_EXCHANGE_PLACES for anyone else', () => {
     expect(refusalMessage('npcRefusesToMove')).toEqual({ table: 'gzLateLocalizedString', index: 2, shown: 'log' });

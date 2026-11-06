@@ -4,7 +4,8 @@
 // @src DoDeadIsDeadSave; Tactical/Handle_UI.cc UIHandleEndTurn; Tactical/TeamTurns.cc StartPlayerTeamTurn, EndTurn;
 // @src Strategic/Meanwhile.cc BeginMeanwhile; Strategic/Map_Screen_Interface.cc HandleGroupAboutToArrive;
 // @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo;
-// @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04).
+// @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04);
+// @src Tactical/Auto_Bandage.cc AutoBandage (its mask takes every key while the mode runs, 2026-11-06).
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -20,6 +21,7 @@ import { TacticalSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 
 export const SAVE_REFUSALS = [
+  'autoBandaging',
   'conversation',
   'stopTimeQuote',
   'meanwhileStarting',
@@ -34,6 +36,7 @@ export type SaveRefusal = (typeof SAVE_REFUSALS)[number];
 export type SaveRequestKind = 'player' | 'quick';
 
 export const SAVE_REFUSAL_MESSAGES: Readonly<Record<SaveRefusal, string>> = {
+  autoBandaging: 'auto-bandage is running: endAutoBandage ends it',
   conversation: 'a conversation is open, or someone has something to say outside tactical',
   stopTimeQuote: 'the game stands while a merc warns of a trap',
   meanwhileStarting: 'a meanwhile scene is starting or playing',
@@ -100,6 +103,10 @@ export function canGameBeSaved(sim: SessionSim): boolean {
   return campaign === null || !enemiesInLoadedSector(campaign);
 }
 
+function autoBandaging(sim: SessionSim): boolean {
+  return tacticalOf(sim)?.state.pathEnv.autoBandage ?? false;
+}
+
 function modalRefusal(campaign: CampaignSim): SaveRefusal | null {
   if (conversationOpen(campaign)) return 'conversation';
   if (campaign.talk?.stopTimeQuotePlaying()) return 'stopTimeQuote';
@@ -112,6 +119,7 @@ function modalRefusal(campaign: CampaignSim): SaveRefusal | null {
 export function saveRefusal(sim: SessionSim, request: SaveRequestKind = 'player'): SaveRefusal | null {
   const mode = saveModeOf(sim);
   if (mode === 'deadIsDead' && request === 'player') return 'deadIsDead';
+  if (autoBandaging(sim)) return 'autoBandaging';
   const campaign = campaignOf(sim);
   const modal = campaign ? modalRefusal(campaign) : null;
   if (modal) return modal;
@@ -129,7 +137,7 @@ function actionInProgress(sim: SessionSim): boolean {
 }
 
 export function deadIsDeadWritable(sim: SessionSim): boolean {
-  if (!ourTurn(sim) || actionInProgress(sim)) return false;
+  if (!ourTurn(sim) || actionInProgress(sim) || autoBandaging(sim)) return false;
   const campaign = campaignOf(sim);
   return campaign === null || modalRefusal(campaign) === null;
 }

@@ -46,8 +46,7 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows them disabled): auto-bandage (gap "Auto-bandage"); the placement GUI
-(deviation "Tactical placement").
+**Not built as commands** (the client shows it disabled): the placement GUI (deviation "Tactical placement").
 
 ## 3. Fairness: what the agent never sees
 
@@ -88,7 +87,8 @@ in, the action-item queue, the boxers leaving the ring, a scripted sequence (`15
 A decision is a choice the game waits for (`hasPendingDecision`): an interrupt in our favour with nobody of ours
 acting; an open prompt (`observe.prompt`, which in the sandbox too holds the loaded sector's prompts of §8.1,
 `observe.contractPrompt`, `observe.npcRequest`); a conversation waiting for a
-choice, also one an NPC opened (`initiatedBy: npc`, deviation "Conversation prompt"); an open shop. A running `advance`
+choice, also one an NPC opened (`initiatedBy: npc`, deviation "Conversation prompt"); an open shop; the question a won
+battle asks about auto-bandage once its lines are over (`beginAutoBandage`, §8.3). A running `advance`
 stops with `decision` when one arises, and the real-time driver holds without running ticks; a new `advance` answers
 `decision` at once while a prompt is open and is refused while a conversation waits or a shop is open. Prompts are
 answered with `answer {prompt?, choice}` (a wrong id or choice is refused); while one is open the clock and the ticks
@@ -286,6 +286,7 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 | Won and over (flow `ended`) | nothing (`status` and `newSession` work) | `campaignOver`, also for the server-only queries | `ended` at once, no ticks |
 | Boxing UI lock (§8.6) | `estimateAttack`, `answer`, `skipLine` | `boxingUiLock` | runs the walk out of the ring |
 | Stop-time quote (§8.1) | `estimateAttack`, `answer`, `skipLine` | `stopTimeQuote` | runs the line to its end and its prompt |
+| Auto-bandage (§8.3) | `endAutoBandage`, `skipLine`, `setOption`, the queries; saves are refused too | `autoBandaging` | runs the mode, a frame a tick; `idle` once nobody more can be bandaged; a world-time target is refused (`autoBandaging: …`) |
 
 `setOption` is accepted in every state but an open prompt (`promptOpen`).
 
@@ -591,6 +592,19 @@ goes back on top of its stack, at `data.index`. `itemApplied` names the canteen'
 profile (`sound`, `Tactical/Items.cc:3458`); the client says COOL1 after the other items, as the panel does.
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
+
+Auto-bandage (`src/sim/tactical/auto-bandage.ts`, `12` §8; deviation "Auto-bandage") is the `a` key and the end-of-battle
+question as commands. `autoBandage` refuses with the original's OK boxes in its order (`sectorNotCleared`,
+`nobodyToBandage`, `noMedKit`, `cannotAutoBandage`, after `uiLocked`) or opens the `beginAutoBandage` prompt; a won
+battle opens the same prompt by itself once its lines are over and nobody of ours walks up to act, or gives
+`autoBandageRefused {refusal}` when the sector changed meanwhile. `yes` starts the mode (`autoBandageStarted {medics,
+patients}`): the world clock stands, every tick is one frame of the original's `HandleAutoBandage`, and
+`observe.autoBandage {complete, medics, patients}` is the box of medics and patients, whose bars the soldiers' own
+fields carry. Every other command is refused with `autoBandaging`, saves too. `advance {idle}` stops at completion
+(`autoBandageComplete`): everybody bandaged, the kits used up or a patient no medic can reach; the mode and its AI run on,
+as the box waits for Done, until `endAutoBandage`, which ends it at the end of the next tick (`autoBandageEnded {failed,
+worldSecondsWarped}`; `failed` is the original's warning box). A world-time target in the mode is refused rather than run
+to the budget: the clock it waits for stands. `outOfBandages` carries CURSE1 only outside the mode.
 
 The item cursor's click on the map (`HandleItemPointerClick`) is one of four commands, picked as the original picks its
 branch (`src/ui/screens/tactical/input/item-tile-cursor.ts`): `give` to a talkable soldier (a named NPC, an escort, the

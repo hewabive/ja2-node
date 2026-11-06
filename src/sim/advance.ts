@@ -47,6 +47,7 @@ export interface WorldTimeControl {
   startCompression(mode?: number): string | null;
   stopCompression(): void;
   modalRefusal?(): string | null;
+  worldTimeRefusal?(): string | null;
   dialogueHoldsTime?(): boolean;
 }
 
@@ -178,6 +179,8 @@ export class AdvanceRun {
     const modal = clock?.modalRefusal?.() ?? null;
     if (modal) return this.#report('refused', modal);
     if (!this.#strategic || !clock) return null;
+    const held = clock.worldTimeRefusal?.() ?? null;
+    if (held) return this.#report('refused', held);
     if (!clock.onMap() && this.#target === null && !sim.hasPendingDecision())
       return this.#report('refused', 'time compression works on the strategic map only');
     if (clock.onMap() && !clock.compressing() && !sim.hasPendingDecision()) {

@@ -118,6 +118,30 @@ describe('MCP endpoint', () => {
     for (const agent of agents) await agent?.client.close();
   });
 
+  it('describes auto-bandage: its two commands, the prompt, the view block, the events and every refusal', async () => {
+    const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
+    const app = createApp({
+      vfs: new Vfs([]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: false },
+      sessions,
+      defaultSession: 'sandbox',
+    });
+    const { client } = await mcpClient(app);
+    const described = new Map((await client.listTools()).tools.map((t) => [t.name, t.description ?? '']));
+    const mentions = (tool: string, words: readonly string[]) => expect(words.filter((w) => !described.get(tool)?.includes(w))).toEqual([]);
+    mentions('act', ['{"type":"autoBandage"}', '{"type":"endAutoBandage"}', 'beginAutoBandage: "yes"', 'nobodyToBandage', 'noMedKit']);
+    mentions('act', ['cannotAutoBandage', 'sectorNotCleared', 'notAutoBandaging', 'autoBandaging', 'autoBandageRefused']);
+    mentions('observe', ['observe.autoBandage {complete, medics, patients}', 'beginAutoBandage {}']);
+    mentions('advance', [
+      'autoBandageStarted',
+      'autoBandageComplete',
+      'autoBandageEnded {failed, worldSecondsWarped}',
+      'autoBandageRefused',
+    ]);
+    await client.close();
+  });
+
   it('requires the token', async () => {
     const app = createApp({ vfs: new Vfs([]), token, info: { originalData: false, slfCount: 0, stubs: false } });
     expect((await app.request('http://localhost/mcp', { method: 'POST' })).status).toBe(401);
