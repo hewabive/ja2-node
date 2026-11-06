@@ -25,6 +25,7 @@ import {
   unPauseGame,
   type WorldClock,
 } from '../strategic/time/world-clock.ts';
+import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
 import { refuse, refused } from '../tactical/refusal.ts';
@@ -56,6 +57,7 @@ export function openMapScreen(campaign: CampaignSim, abandonFight = false): Comm
 
 export function leaveTacticalScreen(campaign: CampaignSim): void {
   if (campaign.state.flow !== 'tactical') return;
+  setAutoBandagePending(campaign.state.sectorFlow.autoBandage, false);
   const battle = campaign.state.battle;
   battle.lostBattleUnloadAtMs = null;
   if (!battle.autoStart) campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();

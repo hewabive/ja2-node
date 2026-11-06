@@ -113,4 +113,14 @@ describe('meanwhile scenes in a campaign', () => {
     expect(c.state.meanwhile.trying).toBe(false);
     expect(c.state.meanwhile.log.map((e) => e.id)).toEqual([Meanwhile.FLOWERS]);
   });
+
+  it('drops a pending auto-bandage question as a scene starts in tactical (CheckForMeanwhileOKStart leaves the screen)', () => {
+    const c = landed(34);
+    expect(c.state.flow).toBe('tactical');
+    c.state.meanwhile.current = { sector: { x: 3, y: 16 }, trigger: 0, id: Meanwhile.FLOWERS, npc: Npc.QUEEN };
+    c.state.meanwhile.trying = true;
+    c.state.sectorFlow.autoBandage.pending = true;
+    c.meanwhile.afterStep();
+    expect([c.state.meanwhile.trying, c.state.sectorFlow.autoBandage.pending]).toEqual([false, false]);
+  });
 });

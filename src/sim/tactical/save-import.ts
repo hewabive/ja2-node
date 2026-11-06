@@ -14,7 +14,8 @@
 // @src panic fields, 2026-11-04); Tactical/LoadSaveSoldierType.cc (uiXRayActivatedTime, xrayed_by with
 // @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04); Tactical/LoadSaveSoldierType.cc bVehicleID of a
 // @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05);
-// @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05).
+// @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05); LoadSaveTacticalStatusType.cc
+// @src fAutoBandagePending (2026-11-06).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -38,6 +39,7 @@ import type { DroppedNativeOption } from '../options.ts';
 import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
+import { setAutoBandagePending } from './auto-bandage.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
@@ -65,7 +67,15 @@ import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
 import { copyDrugCourses, createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
-import { type CrowStatus, placeOccupant, type RealtimeClock, registerSoldier, removeOccupant, type TacticalState } from './state.ts';
+import {
+  type AutoBandageState,
+  type CrowStatus,
+  placeOccupant,
+  type RealtimeClock,
+  registerSoldier,
+  removeOccupant,
+  type TacticalState,
+} from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, trashWorldItems } from './world-items.ts';
 
@@ -113,6 +123,7 @@ export interface CampaignWideState {
   readonly profiles: Map<number, ProfileProgress>;
   readonly realtimeClock: RealtimeClock;
   readonly crows: CrowStatus;
+  readonly autoBandage: AutoBandageState;
   readonly pre: PreRandom;
   readonly content: { readonly profiles: readonly MercProfile[] };
 }
@@ -174,6 +185,7 @@ export function importCampaignWideState(state: CampaignWideState, save: SaveGame
   state.realtimeClock.lastCreatureTenseQuoteMs = save.tactical.creatureTenseQuoteLastUpdate;
   state.crows.possible = save.tactical.numCrowsPossible;
   state.crows.dontAddNew = save.tactical.dontAddNewCrows;
+  setAutoBandagePending(state.autoBandage, save.tactical.autoBandagePending);
   state.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
 }
 

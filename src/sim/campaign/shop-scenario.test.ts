@@ -244,6 +244,16 @@ describe('shop scenario on the stub village', () => {
     expect(c.dispatch({ type: 'stance', soldier: merc.id, stance: 'crouch' })).toMatchObject({ ok: false, data: { refusal: 'shopOpen' } });
   });
 
+  it('drops a pending auto-bandage question as the shop opens (EnterShopKeeperInterfaceScreen leaves tactical)', () => {
+    const c = startCampaign(7);
+    const merc = firstMerc(c);
+    spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, merc);
+    stockFranz(c);
+    c.state.sectorFlow.autoBandage.pending = true;
+    expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: merc.id }).ok).toBe(true);
+    expect(c.state.sectorFlow.autoBandage.pending).toBe(false);
+  });
+
   it('greets with the usual quote at Arnie while his repairs are unfinished: the original overwrites quote 33', () => {
     const c = startCampaign(6);
     const merc = firstMerc(c);

@@ -67,6 +67,7 @@ profiling demands it, which it has not (§4.5).
 |---|---|---|
 | Animation frames counted by the wall clock, re-armed from "now", no catch-up | `Utils/Timer_Control.cc:155-181` | Game-ms deadlines checked every tick, same reset points (deviations "Frame timers") |
 | Unseen soldiers in combat: frame delay 0, speed = the loop rate, once the pass after their fade-out has run | `Tactical/Soldier_Control.cc:4928-4936` | One frame per tick; only the pace of turn-based playback changes |
+| Auto-bandage: one frame per pass of the main loop, every soldier at frame delay 0, the services and the 5 s warp count once a frame, the world clock paused | `Tactical/Auto_Bandage.cc:209-267`, `Tactical/Soldier_Control.cc:4928-4937`, `sgp/SGP.cc:193` | One frame per tick; the count caps at 125 s, so the jump is the same at any pace (`12` §8) |
 | Bullets: one step per frame, at most every `bulletSpeed/10` ms | `Tactical/LOS.cc:3155-3184` | One tile per tick (deviations "Bullet flight") |
 | Throw physics: once per frame when the 20 ms counter is due | `TileEngine/Physics.cc:238` | Every 20 game ms (deviations "Physics cadence and floats") |
 | Real-time AI: one soldier after more than 50 ms, more while less than 10 ms of CPU passed | `Tactical/Overhead.cc:109-110, 1039-1053` | Every AI slot after the cursor, every 55 game ms (deviations "Timing", `09`) |

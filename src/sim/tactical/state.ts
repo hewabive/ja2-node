@@ -245,6 +245,7 @@ export interface SectorHooks {
   worldLoaded(t: TacticalState): boolean;
   autoBandageStarted(t: TacticalState): void;
   autoBandageEnded(t: TacticalState, warpSeconds: number): void;
+  inDeidrannaEndgame(t: TacticalState): boolean;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -270,6 +271,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   worldLoaded: () => true,
   autoBandageStarted: () => {},
   autoBandageEnded: () => {},
+  inDeidrannaEndgame: () => false,
 };
 
 export interface TacticalState {

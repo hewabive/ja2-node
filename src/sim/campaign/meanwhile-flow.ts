@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Meanwhile.cc CheckForMeanwhileOKStart, BeginMeanwhileCallBack, StartMeanwhile, SetNPCMeanwhile,
 // @src DoneFadeOutMeanwhile, DoneFadeInMeanwhile, EndMeanwhile, RestoreNPCMeanwhile, DoneFadeOutMeanwhileOnceDone;
 // @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Tactical/Interface_Dialogue.cc NPC_ACTION_SHOOT_ELLIOT (Elliot's
-// @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map).
+// @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map); the pending
+// @src auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears (2026-11-06).
 
 import { sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';
@@ -33,6 +34,7 @@ import {
   unLockPauseState,
   unPauseGame,
 } from '../strategic/time/world-clock.ts';
+import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { StoryEventWithoutTick } from './narrative/story-events.ts';
 
@@ -90,6 +92,7 @@ export class MeanwhileFlow {
     if (!m.trying || (flow !== 'tactical' && flow !== 'strategic')) return;
     if (!this.#gatesPass()) return;
     m.trying = false;
+    setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
     if (m.current.id === Meanwhile.INTERROGATION) this.#startInterrogation();
     else this.#resolveMeduna(m.current.id);
   }

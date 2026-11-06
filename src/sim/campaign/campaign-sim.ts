@@ -10,7 +10,10 @@
 // @src HandleModalTactical (while a stop-time quote plays only the dialogue runs, before the strategic turn, the overhead
 // @src and the meanwhile check, the full-screen region takes the input, and GameLoop.cc UpdateClock runs on, 2026-11-04);
 // @src Strategic/MapScreen.cc MapScreenHandle (HandleStrategicTurn before HandleDialogue and
-// @src UpdatePausedStatesDueToTimeCompression, all before GameLoop.cc UpdateClock, 2026-11-05).
+// @src UpdatePausedStatesDueToTimeCompression, all before GameLoop.cc UpdateClock, 2026-11-05); GameScreen.cc
+// @src MainGameScreenHandle in auto-bandage (HandleAutoBandage returns before HandleTacticalUI, EnvironmentController,
+// @src HandleWaitTimerForNPCTrigger, CheckCustomizableTimer, HandleDialogue and CheckForMeanwhileOKStart; its mask takes every
+// @src order) and GameLoop.cc UpdateClock after it (2026-11-06).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -66,12 +69,13 @@ import {
   worldDay,
   worldTotalMinutes,
 } from '../strategic/time/world-clock.ts';
+import { AUTO_BANDAGING } from '../tactical/auto-bandage.ts';
 import { activeTimedBombExists } from '../tactical/bombs/world-bombs.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { STOP_TIME_CALLBACKS } from '../tactical/narrative/port.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
-import { refuse } from '../tactical/refusal.ts';
+import { refuse, refused } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, hostileCiviliansPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { assignmentAnimationHooks } from './assignment-animations.ts';
@@ -98,7 +102,7 @@ import { repairSamTerminal } from './sam-repair.ts';
 import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
-import { storyRefusal } from './story-refusals.ts';
+import { isQueryCommand, storyRefusal } from './story-refusals.ts';
 import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
 import { createUnloadedWorld, drainTurnWorldEvents, handleMapScreenRealtimeTurns } from './turn-world.ts';
 
@@ -116,6 +120,7 @@ const STOP_TIME_QUOTE_TEXT = 'the game stands while a merc warns of a trap: adva
 const PROMPT_OPEN_REFUSAL = 'promptOpen: a prompt is open, answer it first';
 const ACCEPTED_DURING_STOP_TIME_QUOTE: ReadonlySet<string> = new Set(['estimateAttack', 'answer', 'skipLine']);
 const ACCEPTED_WITH_TACTICAL_PROMPT: ReadonlySet<string> = new Set(['answer', 'skipLine']);
+const ACCEPTED_DURING_AUTO_BANDAGE: ReadonlySet<string> = new Set(['endAutoBandage', 'skipLine']);
 const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   ...PLAYER_ORDERS,
   'move',
@@ -146,6 +151,8 @@ const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   'talk',
   'approach',
   'give',
+  'autoBandage',
+  'endAutoBandage',
 ]);
 
 export interface CampaignHooks {
@@ -662,9 +669,11 @@ export class CampaignSim {
     if (this.#tacticalPromptOpen()) return;
     const s = this.state;
     s.session.tick++;
+    const autoBandaging = this.#autoBandaging();
     syncInterfaceLockPause(this);
-    const modal = s.flow === 'tactical' && this.tactical !== null && this.talk?.tacticalFrameIsModal() === true;
-    if (modal) this.#stepModalTactical();
+    const modal = !autoBandaging && s.flow === 'tactical' && this.tactical !== null && this.talk?.tacticalFrameIsModal() === true;
+    if (autoBandaging) this.#stepAutoBandage();
+    else if (modal) this.#stepModalTactical();
     else if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
       this.talk?.beforeTacticalStep();
@@ -681,7 +690,7 @@ export class CampaignSim {
       this.#updatePausedStatesDueToTimeCompression();
     }
     updateClock(this.#clock, s.realMs);
-    if (!modal) {
+    if (!modal && !autoBandaging) {
       this.meanwhile.afterStep();
       this.endgame.afterStep();
     }
@@ -698,6 +707,19 @@ export class CampaignSim {
   #handleStrategicTurn(): void {
     handleMapScreenRealtimeTurns(this);
     if (this.tactical) this.#events.push(...drainTurnWorldEvents(this.tactical, this.tick));
+  }
+
+  #autoBandaging(): boolean {
+    return this.state.flow === 'tactical' && this.tactical?.state.pathEnv.autoBandage === true;
+  }
+
+  #stepAutoBandage(): void {
+    const tactical = this.tactical;
+    if (!tactical) return;
+    tactical.step();
+    this.state.realMs = tactical.state.clockMs;
+    this.#events.push(...tactical.drainEvents());
+    this.sectors?.afterTacticalStep();
   }
 
   #stepModalTactical(): void {
@@ -726,6 +748,7 @@ export class CampaignSim {
   isIdle(): boolean {
     const s = this.state;
     if (this.ended()) return true;
+    if (this.#autoBandaging()) return this.tactical?.isIdle() ?? true;
     if (this.endgame.active() || s.meanwhile.trying || s.meanwhile.inScene) return false;
     if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
     if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle() && (this.talk?.isIdle() ?? true);
@@ -818,6 +841,11 @@ export class CampaignSim {
     return refuse('boxingUiLock', BOXING_UI_LOCK_TEXT);
   }
 
+  #autoBandageRefusal(cmd: CampaignCommand): CommandResult | null {
+    if (!this.#autoBandaging() || ACCEPTED_DURING_AUTO_BANDAGE.has(cmd.type) || isQueryCommand(cmd.type)) return null;
+    return refused(AUTO_BANDAGING);
+  }
+
   #offTacticalScreenRefusal(cmd: CampaignCommand): CommandResult | null {
     if (!TACTICAL_SCREEN_ORDERS.has(cmd.type) || (this.state.flow === 'tactical' && this.tactical)) return null;
     return refuse('notInTactical', `${cmd.type} is given on the tactical screen only`);
@@ -859,6 +887,7 @@ export class CampaignSim {
     const story = storyRefusal(this, cmd);
     if (story) return story;
     const locked =
+      this.#autoBandageRefusal(cmd) ??
       this.#boxingUiLockRefusal(cmd) ??
       this.#offTacticalScreenRefusal(cmd) ??
       this.#stopTimeQuoteRefusal(cmd) ??

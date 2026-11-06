@@ -309,6 +309,7 @@ export interface TacticalStatus {
   readonly enemySightingOnTheirTurn: boolean;
   readonly enemySightingOnTheirTurnEnemy: number;
   readonly autoBandageMode: boolean;
+  readonly autoBandagePending: boolean;
   readonly attackBusyCount: number;
   readonly turnLimitCounter: number;
   readonly turnLimitMax: number;
@@ -505,6 +506,7 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     enemySightingOnTheirTurn: b('fEnemySightingOnTheirTurn'),
     enemySightingOnTheirTurnEnemy: n('enemy_sighting_on_their_turn_enemy'),
     autoBandageMode: b('fAutoBandageMode'),
+    autoBandagePending: b('fAutoBandagePending'),
     attackBusyCount: n('ubAttackBusyCount'),
     turnLimitCounter: n('usTactialTurnLimitCounter'),
     turnLimitMax: n('usTactialTurnLimitMax'),

@@ -11,13 +11,13 @@ import { createItem, emptyObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
 import { isMoving, states } from './animation.ts';
-import { startAutoBandage } from './auto-bandage.ts';
+import { shouldBeginAutoBandage, startAutoBandage } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
 import { createSoldier, NOBODY, NOWHERE, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
-import { RT_TURN_MS, STRATEGIC_OVERHEAD_MS } from './turns/turns.ts';
+import { checkForEndOfBattle, RT_TURN_MS, STRATEGIC_OVERHEAD_MS } from './turns/turns.ts';
 
 let content: TacticalContent;
 
@@ -236,6 +236,106 @@ describe('the auto-bandage command (Auto_Bandage.cc BeginAutoBandage)', () => {
     expect(sim.actRefusal(ira)?.token).toBe('autoBandaging');
     expect(sim.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: true });
     expect(sim.dispatch({ type: 'endAutoBandage' })).toEqual({ ok: true, data: { ending: true } });
+  });
+});
+
+function holdTheQuestion(t: TacticalState): { talking: boolean; scripted: boolean } {
+  const holds = { talking: false, scripted: false };
+  t.narrative = {
+    ...t.narrative,
+    dialogueQueueIsEmptyAndNobodyIsTalking: () => !holds.talking,
+    scriptedSequence: () => holds.scripted,
+  };
+  return holds;
+}
+
+function pendingAndPrompt(t: TacticalState): [boolean, unknown] {
+  return [t.autoBandage.pending, t.prompt?.kind ?? null];
+}
+
+describe('the question at the end of a battle (Overhead.cc CheckForEndOfBattle, Auto_Bandage.cc ShouldBeginAutoBandage)', () => {
+  it('is set pending out of combat, outside the Deidranna endgame and with a medic for a patient', () => {
+    const sim = scene();
+    const t = sim.state;
+    const ira = medic(sim, IRA, MEDIC);
+    patient(sim, SHADOW, FAR_FROM_MEDIC);
+    const pendingAfter = () => {
+      shouldBeginAutoBandage(t);
+      return t.autoBandage.pending;
+    };
+    const asked: boolean[] = [];
+    t.inCombat = true;
+    asked.push(pendingAfter());
+    t.inCombat = false;
+    t.sectorHooks = { ...t.sectorHooks, inDeidrannaEndgame: () => true };
+    asked.push(pendingAfter());
+    t.sectorHooks = { ...t.sectorHooks, inDeidrannaEndgame: () => false };
+    ira.stats.medical = 0;
+    asked.push(pendingAfter());
+    ira.stats.medical = 30;
+    asked.push(pendingAfter());
+    expect(asked).toEqual([false, false, false, true]);
+  });
+
+  it('is set pending by a won battle in both arms, after a fought battle and after one nobody fought', () => {
+    const fought = [1, 0].map((enemies) => {
+      const sim = scene();
+      const t = sim.state;
+      medic(sim, IRA, MEDIC);
+      patient(sim, SHADOW, FAR_FROM_MEDIC);
+      t.turn.enemyInSector = true;
+      t.turn.numFoughtInBattle[Team.ENEMY] = enemies;
+      expect(checkForEndOfBattle(t)).toBe(true);
+      return t.autoBandage.pending;
+    });
+    expect(fought).toEqual([true, true]);
+  });
+});
+
+describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () => {
+  it('waits for the dialogue, a pending action of ours and the locked interface, then asks once with the same prompt', () => {
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
+    const holds = holdTheQuestion(t);
+    t.autoBandage.pending = true;
+    const waited: [boolean, unknown][] = [];
+    holds.talking = true;
+    frame(sim);
+    waited.push(pendingAndPrompt(t));
+    holds.talking = false;
+    shadow.pendingTalk = IRA;
+    frame(sim);
+    waited.push(pendingAndPrompt(t));
+    shadow.pendingTalk = null;
+    holds.scripted = true;
+    frame(sim);
+    waited.push(pendingAndPrompt(t));
+    holds.scripted = false;
+    frame(sim);
+    waited.push(pendingAndPrompt(t));
+    expect(waited).toEqual([
+      [true, null],
+      [true, null],
+      [true, null],
+      [false, 'beginAutoBandage'],
+    ]);
+    expect(sim.dispatch({ type: 'answer', choice: 'yes' })).toEqual({ ok: true });
+    expect(t.pathEnv.autoBandage).toBe(true);
+  });
+
+  it('checks everything again when it asks, so a changed sector gives the refusal instead and clears the flag (quirk)', () => {
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
+    t.autoBandage.pending = true;
+    shadow.bleeding = 0;
+    const events = frame(sim);
+    expect(ofType(events, 'autoBandageRefused')).toMatchObject([{ refusal: 'nobodyToBandage' }]);
+    expect(pendingAndPrompt(t)).toEqual([false, null]);
+    expect(ofType(frame(sim), 'autoBandageRefused')).toEqual([]);
   });
 });
 

@@ -6,7 +6,8 @@
 // @src ShopkeeperAutoPlaceObject, ShopkeeperAddItemToPool, HandleShopKeeperDialog (opening quote);
 // @src RepairIsDone (collected repairs shown as "REPAIRED"), GetShopKeeperInterfaceUserInput (SPACE: the next merc prices);
 // @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc, the previous and next merc buttons
-// @src change gpSMCurrentMerc inside the shop); Overhead.cc FindNextActiveAndAliveMerc (regular mercs only).
+// @src change gpSMCurrentMerc inside the shop); Overhead.cc FindNextActiveAndAliveMerc (regular mercs only);
+// @src EnterShopKeeperInterfaceScreen's LeaveTacticalScreen, which clears a pending auto-bandage (2026-11-06).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -43,6 +44,7 @@ import { type ShopRepairedView, type ShopView, shopBoxView, shopKind } from '../
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { hasAnimFlag, setDesiredDirection } from '../tactical/animation.ts';
+import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
 import { NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { directionToward, stopMerc } from '../tactical/movement.ts';
@@ -271,6 +273,7 @@ export class ShopFlow {
 
   #begin(def: DealerDef, dealer: Soldier, merc: Soldier): CommandResult {
     const ctx = this.#ctx;
+    setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
     this.#session = {
       dealer: def.id,
       dealerSoldier: dealer.id,

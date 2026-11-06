@@ -28,7 +28,7 @@
 // @src (IsTimeBeingCompressed) and its compressed check time (the dead NOT_USING_TIME_COMPRESSION branch left out), polled
 // @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05);
 // @src Overhead.cc NumEnemyInSector, EVENT_BeginMercTurn's auto-bandage gate on bleeding, the game Auto_Bandage.cc's
-// @src AutoBandage pauses for the whole mode (2026-11-06).
+// @src AutoBandage pauses for the whole mode; CheckForEndOfBattle's ShouldBeginAutoBandage in both arms (2026-11-06).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -38,6 +38,7 @@ import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
 import { startWakingUp } from '../assignment-animations.ts';
+import { shouldBeginAutoBandage } from '../auto-bandage.ts';
 import { decayBombTimers } from '../bombs/bomb-queue.ts';
 import { checkForBreathCollapse, resetLowBreathWarning } from '../breath-collapse.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
@@ -672,8 +673,9 @@ export function checkForEndOfBattle(t: TacticalState, anEnemyRetreated = false):
     }
     if (battleFought(t)) {
       ourMercsFinishFoughtBattle(t);
+      shouldBeginAutoBandage(t);
       sayBattleEndQuote(t, anEnemyRetreated);
-    }
+    } else shouldBeginAutoBandage(t);
     for (const s of teamMembers(t, Team.MILITIA)) {
       s.ai.alertStatus = AlertStatus.GREEN;
       t.turnHooks.checkForChangingOrders(t, s);

@@ -27,13 +27,17 @@ const QUERY_COMMANDS: ReadonlySet<string> = new Set([
   'inventory',
 ]);
 
+export function isQueryCommand(type: string): boolean {
+  return QUERY_COMMANDS.has(type);
+}
+
 function storyRefused(code: string): CommandResult {
   return refuse(code, `${code}: ${REFUSAL_TEXT[code] ?? 'refused'}`);
 }
 
 export function storyRefusal(campaign: CampaignSim, cmd: CampaignCommand): CommandResult | null {
   if (campaign.ended()) return storyRefused(StoryRefusal.CAMPAIGN_OVER);
-  if (QUERY_COMMANDS.has(cmd.type) || cmd.type === 'answer' || cmd.type === 'skipLine') return null;
+  if (isQueryCommand(cmd.type) || cmd.type === 'answer' || cmd.type === 'skipLine') return null;
   if (campaign.state.meanwhile.inScene) return storyRefused(StoryRefusal.IN_MEANWHILE);
   if (campaignStatus(campaign.state.ending) === 'endgame') return storyRefused(StoryRefusal.ENDGAME);
   return null;

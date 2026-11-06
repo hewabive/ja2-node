@@ -4,7 +4,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { createWorldClock, lockPauseState, pauseGame, type WorldClock } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
-import { type TacticalState, WaitForMercs } from '../tactical/state.ts';
+import { setAutoBandageMode, type TacticalState, WaitForMercs } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { createSectorFlowState } from './flow-state.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
@@ -86,6 +86,19 @@ describe('the interface lock pause', () => {
     t.mercsWaiting = null;
     syncInterfaceLockPause(campaign);
     expect(pauseOf(state.clock)).toEqual([true, true, LOCK_PAUSE_LOCKUI_MODE]);
+    expect(campaign.state.sectorFlow.interfaceLockActive).toBe(false);
+  });
+
+  it('leaves the auto-bandage pause alone while a lock begins and ends inside the mode, whose frame never reaches HandleTacticalUI', () => {
+    const { campaign, state, t } = rig();
+    setAutoBandageMode(t, true);
+    pauseGame(state.clock);
+    walkOff(t);
+    syncInterfaceLockPause(campaign);
+    expect(pauseOf(state.clock)).toEqual([true, false, 0]);
+    t.mercsWaiting = null;
+    syncInterfaceLockPause(campaign);
+    expect(pauseOf(state.clock)).toEqual([true, false, 0]);
     expect(campaign.state.sectorFlow.interfaceLockActive).toBe(false);
   });
 

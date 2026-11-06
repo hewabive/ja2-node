@@ -34,7 +34,9 @@
 // @src SetCurrentWorldSector (its SyncStrategicTurnTimes, the loaded sector's included), the strategic merc list as our team
 // @src of the turn starts (FOR_EACH_IN_TEAM(OUR_TEAM), 2026-11-05); Map_Screen_Interface_Bottom.cc
 // @src AllowedToExitFromMapscreenTo (the checks shared by every exit before those of MAP_EXIT_TO_TACTICAL; a bloodcat
-// @src ambush as a battle going on, 2026-11-06).
+// @src ambush as a battle going on, 2026-11-06); Tactical/Auto_Bandage.cc AutoBandage (PauseGame at the start, UnPauseGame
+// @src and WarpGameTime with WARPTIME_NO_PROCESSING_OF_EVENTS at the end) and ShouldBeginAutoBandage's
+// @src IN_DEIDRANNA_ENDGAME (2026-11-06).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -106,9 +108,9 @@ import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
-import { CompressMode } from '../strategic/time/constants.ts';
+import { CompressMode, Warp } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
-import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
+import { pauseGame, setGameTimeCompressionLevel, unPauseGame, warpGameTime, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import { initPanicSystem } from '../tactical/ai/panic-triggers.ts';
 import { removeAllActiveTimedBombs } from '../tactical/bombs/bomb-queue.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -679,9 +681,15 @@ export class SectorFlow {
       structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),
       inCreatureLair: () => this.#inCreatureLair(),
       worldLoaded: () => true,
-      autoBandageStarted: () => {},
-      autoBandageEnded: () => {},
+      autoBandageStarted: () => pauseGame(this.campaign.state.clock),
+      autoBandageEnded: (_t, warpSeconds) => this.#autoBandageEnded(warpSeconds),
+      inDeidrannaEndgame: () => this.campaign.state.ending.inDeidrannaEndgame,
     };
+  }
+
+  #autoBandageEnded(warpSeconds: number): void {
+    unPauseGame(this.campaign.state.clock);
+    warpGameTime(this.campaign.clockContext, warpSeconds, Warp.NO_PROCESSING);
   }
 
   adoptLoadedSector(

@@ -177,6 +177,7 @@ function syntheticSave({
       lockItemLocators: false,
       numCrowsPossible: 0,
       dontAddNewCrows: false,
+      autoBandagePending: false,
       creatureTenseQuoteDelay: 0,
       creatureTenseQuoteLastUpdate: 0,
       panicFlags: 0,
@@ -617,8 +618,8 @@ function importedCampaignWideState(save: SaveGame) {
   const strategic = createStrategicState({ seed: 1 });
   const { civGroups, keyTable, profiles, pre } = strategic;
   const contentProfiles = { profiles: stubProfiles(content.items) };
-  const { realtimeClock, crows } = strategic.sectorFlow;
-  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, crows, content: contentProfiles }, save);
+  const { realtimeClock, crows, autoBandage } = strategic.sectorFlow;
+  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, crows, autoBandage, content: contentProfiles }, save);
   return strategic;
 }
 
@@ -663,7 +664,7 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
     expect(((merc(DEAD_ID)?.statusFlags ?? 0) & SOLDIER_DEAD) !== 0).toBe(true);
   });
 
-  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay, the crows and the creature tension timer', () => {
+  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay, the crows, the pending auto-bandage and the creature tension timer', () => {
     const base = syntheticSave({});
     const ring = Array.from({ length: 256 }, (_, k) => (k * 37) % 1000);
     const key = { sectorFound: 12, dateFound: 345 };
@@ -677,12 +678,14 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
         timeSinceLastOpplistDecay: 4321,
         numCrowsPossible: 7,
         dontAddNewCrows: true,
+        autoBandagePending: true,
         creatureTenseQuoteDelay: 74,
         creatureTenseQuoteLastUpdate: 912_345,
       },
     } as SaveGame;
     const strategic = importedCampaignWideState(save);
     expect(strategic.sectorFlow.crows).toEqual({ possible: 7, dontAddNew: true });
+    expect(strategic.sectorFlow.autoBandage.pending).toBe(true);
     expect(strategic.pre.state()).toEqual({ ring, index: 65 });
     expect(strategic.keyTable[0]).toEqual(key);
     expect(strategic.civGroups.hostility.slice(0, 3)).toEqual([0, 2, 1]);

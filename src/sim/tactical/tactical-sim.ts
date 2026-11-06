@@ -23,7 +23,8 @@
 // @src exitVehicle command, 2026-11-05); Handle_UI.cc UIMouseOnValidAttackLocation (REPAIRCURS and REFUELCURS: a
 // @src vehicle at ground level) for the repair and refuel commands (2026-11-05); GameScreen.cc MainGameScreenHandle in
 // @src auto-bandage (HandleAutoBandage instead of the frame; its mask takes every order) and Turn_Based_Input.cc's 'a' key
-// @src (the autoBandage command), the Done and Cancel buttons of Auto_Bandage.cc (endAutoBandage, 2026-11-06).
+// @src (the autoBandage command), the Done and Cancel buttons of Auto_Bandage.cc (endAutoBandage, 2026-11-06);
+// @src MainGameScreenHandle's HandleAutoBandagePending after HandleStrategicTurn (2026-11-06).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -78,7 +79,16 @@ import {
   soldierGotoStationaryStance,
   states,
 } from './animation.ts';
-import { autoBandageFrame, beginAutoBandage, checkAutoBandageComplete, requestEndAutoBandage, startAutoBandage } from './auto-bandage.ts';
+import {
+  AUTO_BANDAGING,
+  autoBandageFrame,
+  autoBandageQuestionDue,
+  beginAutoBandage,
+  checkAutoBandageComplete,
+  handleAutoBandagePending,
+  requestEndAutoBandage,
+  startAutoBandage,
+} from './auto-bandage.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
 import { answerPlaceBlueFlag, mineSpottedDialogueCallBack } from './bombs/mine-detection.ts';
 import {
@@ -288,7 +298,6 @@ const BAD_GROUP: Refusal = {
   reason: 'group must list controllable mercs of yours in the sector, neither vehicles nor the mercs aboard them',
 };
 const AP_USE_REMOTE = 2;
-const AUTO_BANDAGING: Refusal = { token: 'autoBandaging', reason: 'auto-bandage is running: endAutoBandage ends it' };
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
   random: AimShot.RANDOM,
@@ -535,6 +544,7 @@ function overheadHooks(ai: AiControl): OverheadHooks {
       updateBullets(state);
       overheadTimers(state);
       handleRealtimeTurns(state, state.realtimeClock);
+      handleAutoBandagePending(state);
       handleEnemySightingPause(state);
       beginAiPass(state);
     },
@@ -634,6 +644,7 @@ export class TacticalSim {
   isIdle(): boolean {
     const t = this.state;
     if (t.pathEnv.autoBandage) return t.autoBandage.complete;
+    if (autoBandageQuestionDue(t)) return false;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.explosionQueue.active) return false;
     if (t.mercsWaiting || t.boxing.uiLocked || t.turn.enemySightingOnTheirTurn) return false;

@@ -70,10 +70,12 @@ at 5 minutes per second and 4,800 at 60. A pause or another screen re-phases the
 the first pass after combat adds a second at once.
 
 **What stops the clock.** Turn-based combat (world time stands, ticks run), a pause, X0 or stopped compression, and the
-`autoresolve` and `laptop` flows. A line the dialogue queue says on the map pauses the game under pause lock 15 until
-its face ends, unless the game is paused already, and leaves compression on to run again after it (`24`, `29` §4.4);
-the strategic lines (assignments, tiredness, contracts, Skyrider, head miners) go through that queue too, and while
-anything waits in it compression cannot start (`dialogueQueued`).
+`autoresolve` and `laptop` flows. Auto-bandage pauses the game for the whole mode through its sector hooks and at its
+end unpauses it and warps it by the mode's count, 5 s a frame up to 125 s (`12` §8); the interface lock's pause stays
+out of the mode, whose frame never reaches `HandleTacticalUI`. A line the dialogue queue says on the map pauses the game
+under pause lock 15 until its face ends, unless the game is paused already, and leaves compression on to run again after
+it (`24`, `29` §4.4); the strategic lines (assignments, tiredness, contracts, Skyrider, head miners) go through that
+queue too, and while anything waits in it compression cannot start (`dialogueQueued`).
 A pause lock forbids unpausing and compressing (a new speed too), not pausing, and it is one flag: any unlock lifts it,
 whoever locked. Subsystems lock with the original's reason ids, which a native save carries. In tactical the interface
 lock pauses the game under lock 16 from the start of its first source to the end of its last, and that end lifts every
@@ -108,8 +110,8 @@ head; since no callback can post at or before its own stamp, it visits the event
 
 **Three warps.** `Warp.NORMAL` runs every event in the window at its stamp (`updateClock`, the first landing).
 `NO_PROCESSING` jumps and leaves the skipped events in the past for the next advance (autoresolve's battle time, the PBI
-retreat, the last group leaving a hostile sector, the brothel). `TARGET_TIME_FIRST` runs only the last event stamped
-exactly at the target, ahead of everything already due (the adjacent-sector traversal, `16`).
+retreat, the last group leaving a hostile sector, the brothel, auto-bandage's seconds). `TARGET_TIME_FIRST` runs only
+the last event stamped exactly at the target, ahead of everything already due (the adjacent-sector traversal, `16`).
 
 **Order inside a tick.** The screen work comes first (the tactical pass, or the map's dialogue and automatic pause),
 then `updateClock`: at most one advance, its events in queue order, each with the clock at its stamp. What an event
@@ -189,6 +191,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The clock stands in turn-based combat and adds a second at once after it | `time/world-clock.test.ts` |
 | One pause lock for every reason: any unlock lifts it | `time/world-clock.test.ts` |
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
+| Auto-bandage's warp is 5 s a frame up to 125 s however long the mode ran, and the events inside it wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |
 | Leaving the map lifts the pause lock, whoever set it, and the way back to the loaded sector every pause but the player's; only a way out past the exit checks, such as the pre-battle panel's, can find a lock | `campaign/screens.test.ts` |
 | The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
@@ -221,7 +224,7 @@ source:
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
-Not ported: gaps "Auto-bandage". Other deviations of this domain: "Ambient sound events", "Ambient light and light
-schedule", "Real-time pause", "Time compression checks", "Time compression for healing", "World clock for smoke and
-light", "Real-time turn after combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time",
-"Interface lock per source", "Options and saves on the map".
+Deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause", "Time
+compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after combat",
+"Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time", "Interface lock per source", "Options
+and saves on the map".

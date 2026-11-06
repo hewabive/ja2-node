@@ -131,10 +131,12 @@ event, the economy's lines are not said, Skyrider's special events run at once a
 `ContractState.pendingEndings`, which also holds the endings of older saves.
 
 **Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,
-no gas and no captivity, when it is queued and again when it plays; auto-bandage mode drops whatever reaches the head of
-the queue. A sleeping merc whose line comes up wakes by the roster flag alone, without the waking rules or animation, and
-an event at the back of the queue puts him back to sleep. While a turn start bleeds a team (`logBleedMeToos`), the first
-bleeding warning is said as such and the next ones become ME_TOO.
+no gas and no captivity, when it is queued and again when it plays. While auto-bandage runs the queue stands: its frame
+returns before `HandleDialogue` (`GameScreen.cc:283`, `:520`), so nothing plays and the lines queued meanwhile play
+after it (`12` §8); the drop of the head in `handleDialogue` (`Tactical/Dialogue_Control.cc:462`) is ported but no
+tactical frame reaches it. A sleeping merc whose line comes up wakes by the roster flag alone, without the waking rules
+or animation, and an event at the back of the queue puts him back to sleep. While a turn start bleeds a team
+(`logBleedMeToos`), the first bleeding warning is said as such and the next ones become ME_TOO.
 
 **Stop-time quotes.** The booby-trap and suspicious-ground lines of a merc of ours stop tactical while they play, as
 the original's modal tactical does (`Tactical/Dialogue_Control.cc:1560`, `GameScreen.cc:296`): the line's start marks

@@ -410,9 +410,10 @@ human blood here, where the original reads the type its freed slot still holds.
 **Where.** `ai/medical.ts` is `Medical.cc`: who counts as a medic and who as a patient, `canAutoBandage` with its full
 check of one patient per call, the AI's patient search (`findBestPatient`) and its medical decision
 (`decideAutoBandage`). `auto-bandage.ts` is `Auto_Bandage.cc`: the command's checks and question, the start, the frame
-and the end. `numEnemyInSector` (`turns/turns.ts`) is the sector check that opens the mode. `TacticalSim` routes the
-commands, the answer and the ticks. The end of a battle, the campaign's pause and warp, the view, the box and the key are
-gaps "Auto-bandage".
+and the end, and the question a won battle leaves pending. `numEnemyInSector` (`turns/turns.ts`) is the sector check
+that opens the mode. `TacticalSim` routes the commands, the answer and the ticks, `CampaignSim` the campaign's frame and
+orders in the mode, and the sector flow's hooks pause and warp the world clock. The view, the box and the key are gaps
+"Auto-bandage".
 
 **Lifecycle.**
 - `autoBandage` is the `a` key: the original's OK boxes become refusals in its order (`sectorNotCleared`,
@@ -429,7 +430,18 @@ gaps "Auto-bandage".
   `autoBandageEnded` (the campaign's `UnPauseGame` and `WarpGameTime`) and the failure to the `autoBandageEnded` event
   (the original's `pDoctorWarningString[1]` box), and sets every speed back.
 - While the mode runs every order is refused as `autoBandaging` but `endAutoBandage` and `setOption`; `actRefusal` refuses
-  the campaign's orders the same way.
+  the campaign's orders the same way, and `CampaignSim` refuses every other campaign command but `skipLine` and the
+  queries.
+- A won battle sets the question pending in both arms of `checkForEndOfBattle` (`shouldBeginAutoBandage`): out of combat,
+  outside the Deidranna endgame (the sector hook `inDeidrannaEndgame`) and with a medic for a patient. The normal pass
+  runs `handleAutoBandagePending` right after the real-time turn, as `MainGameScreenHandle` runs it after
+  `HandleStrategicTurn`. It waits while the dialogue is busy, a merc of ours has a pending action or the interface is
+  locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
+  original's OK box), otherwise the same prompt opens, and the rest of the pass runs. While the question is due the sim is
+  not idle. Leaving tactical (the map screen, a contract's switch to it), opening a shop and a meanwhile's start drop it
+  (deviation "Pending auto-bandage and client screens"); a sector change does not. A soldier arriving to open a door
+  drops the action while the question is pending, as in the mode (`doors/door-command.ts`). A native import takes
+  `fAutoBandagePending`.
 
 **The frame** (`autoBandageFrame`) is `HandleAutoBandage`: the real-time turn (`HandleStrategicTurn`, which the paused
 game stops: `turns.ts` counts the mode as a pause, so the sandbox has none either), the services of our team, the 5 s
@@ -449,6 +461,15 @@ the rest of its frame (`GameScreen.cc:283-288`), so those hooks are the normal p
 | `handleEnemySightingPause` | Left out | `GameScreen.cc:311-327` |
 | `beginAiPass`, the slots' AI, `awayAiForPass` | Kept, then the completion check | `Overhead.cc:503-1077` |
 | `dequeueAllGameEvents`, `checkMercsWaiting` | Kept | `Auto_Bandage.cc:238`, `Overhead.cc:1080` |
+
+**In a campaign** the step of the mode is the tactical frame, the sector flow's after-step (the end of a wait for mercs)
+and `updateClock`, which the pause stops. It leaves out what `MainGameScreenHandle` runs after its early return: the
+interface lock's pause (`HandleTacticalUI`; `syncInterfaceLockPause` returns at once in the mode, so a lock that begins
+and ends inside it cannot lift the mode's pause), the environment controller, the NPC trigger timer, the dialogue step
+with the shop it may open, and the timers of `CheckCustomizableTimer` and `CheckForMeanwhileOKStart` (Carmen, the
+endgame, the meanwhile start). So the dialogue queue stands for the whole mode and the lines queued meanwhile play after
+it; `isIdle` reads only the mode's completion, not the frozen talk. The start's hook pauses the world clock; the end's
+hook unpauses it and warps it by the count with `Warp.NO_PROCESSING` (`campaign/sector-flow.ts`, `15`).
 
 **What the flag changes.**
 - The AI (`ai/control.ts`): `handleSoldierAI` lets our mercs through, and their real-time decision is
@@ -516,7 +537,11 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 | Completion only marks the mode: it runs on, its AI deciding and drawing, until the end | `auto-bandage.test.ts` "completes once everybody is bandaged …", "runs on after completion …" |
 | No real-time turn runs in the mode, so the first one after it comes at once | `auto-bandage.test.ts` "stops the real-time turn while the mode runs …" |
 | The end comes at the end of the frame after the request, which runs in full | `auto-bandage.test.ts` "ends at the end of the next frame …" |
-| The end stands up every merc of ours, off the map too, where he stays mid-transition, and stops a walking medic on his tile; it cancels no service, so a medic stood up mid-dressing keeps his patient | `auto-bandage.test.ts` "stands up every merc of ours …", "stops a medic walking …" |
+| The end stands up every merc of ours, off the map too, where he stays mid-transition, and stops a walking medic on his tile; it cancels no service, so a medic stood up mid-dressing keeps his patient | `auto-bandage.test.ts` "stands up every merc of ours …", "stops a medic walking …"; `campaign/auto-bandage-flow.test.ts` "stands up a merc of ours in another sector …" |
+| A won battle sets the question in both arms, fought or not; it waits for the dialogue (the victory line), a pending action of ours and the locked interface, then checks everything again, so a sector that changed meanwhile gives the refusal and drops the question | `auto-bandage.test.ts` "is set pending by a won battle in both arms …", "waits for the dialogue …", "checks everything again …"; `campaign/auto-bandage-flow.test.ts` "waits for the victory line …" |
+| A battle won on the map with blood off leaves the question for the way back to tactical; with blood on the death waits for its animation and sets nothing on the map | `campaign/auto-bandage-flow.test.ts` "with blood off …", "sets nothing with blood on …" |
+| The dialogue queue stands for the whole mode: a line queued in it plays after the end | `campaign/auto-bandage-flow.test.ts` "keeps the dialogue standing …" |
+| The world clock stands for the mode and jumps by its count at the end; the events inside the jump wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |
 
 The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage") record these decisions and the frames of a
 whole mode in the native build; no comparer reads them yet, so the frame loop is checked only by these tests.
@@ -526,4 +551,4 @@ deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "At
 "Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
 and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",
 "Drugs in the projection", "Mine locator", "Blue flag without a bomb", "Auto-bandage statics", "AI first aid without a
-path", "Door on the way in auto-bandage".
+path", "Door on the way in auto-bandage", "Pending auto-bandage and client screens".

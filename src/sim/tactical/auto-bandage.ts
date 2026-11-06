@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-06. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Auto_Bandage.cc BeginAutoBandage, BeginAutoBandageCallBack, HandleAutoBandage (the frame; the
 // @src panel, the shadow and the keys are the client's), SetAutoBandageComplete, AutoBandage, SetUpAutoBandageUpdatePanel
-// @src (the lists); Tactical/Overhead.cc ExecuteOverhead (the completion check after the away-slot AI).
+// @src (the lists); Tactical/Overhead.cc ExecuteOverhead (the completion check after the away-slot AI); Auto_Bandage.cc
+// @src ShouldBeginAutoBandage, HandleAutoBandagePending and SetAutoBandagePending (2026-11-06).
 
 import type { CommandResult } from '../command.ts';
 import { type ItemObject, swapObjects } from '../items/object.ts';
@@ -17,18 +18,22 @@ import {
 import { anim } from './anim-states.ts';
 import { AnimHeight, changeSoldierStance, height, resetAllMercSpeeds, soldierGotoStationaryStance } from './animation.ts';
 import { handleTeamServices } from './first-aid.ts';
+import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
+import { hasPendingAction } from './pending-action.ts';
 import { openTacticalPrompt, TacticalPromptKind } from './prompts.ts';
-import { type RefusalTexts, refuseWithText } from './refusal.ts';
+import { type Refusal, type RefusalTexts, refuseWithText } from './refusal.ts';
 import { inSector, NOBODY, OKLIFE, type Soldier, Team } from './soldier.ts';
-import { setAutoBandageMode, type TacticalState } from './state.ts';
+import { type AutoBandageState, setAutoBandageMode, type TacticalState } from './state.ts';
 import { handleForcedRealtimeTurn, handleRealtimeTurns, numEnemyInSector } from './turns/turns.ts';
 
 const SECONDS_PER_FRAME = 5;
 const LAST_COUNTED_SECONDS = 120;
 
 export type AutoBandageRefusal = 'sectorNotCleared' | 'nobodyToBandage' | 'noMedKit' | 'cannotAutoBandage';
+
+export const AUTO_BANDAGING: Refusal = { token: 'autoBandaging', reason: 'auto-bandage is running: endAutoBandage ends it' };
 
 const AUTO_BANDAGE_REFUSALS: RefusalTexts<AutoBandageRefusal> = {
   sectorNotCleared: 'enemies are in the sector',
@@ -54,6 +59,33 @@ export function beginAutoBandage(t: TacticalState): CommandResult {
   if (refusal) return refuseWithText(AUTO_BANDAGE_REFUSALS, refusal);
   openTacticalPrompt(t, { kind: TacticalPromptKind.BEGIN_AUTO_BANDAGE });
   return { ok: true, data: { prompt: t.prompt?.id } };
+}
+
+export function setAutoBandagePending(state: AutoBandageState, pending: boolean): void {
+  state.pending = pending;
+}
+
+export function shouldBeginAutoBandage(t: TacticalState): void {
+  if (t.inCombat || t.sectorHooks.inDeidrannaEndgame(t)) return;
+  if (canAutoBandage(t, false)) setAutoBandagePending(t.autoBandage, true);
+}
+
+function pendingQuestionWaits(t: TacticalState): boolean {
+  if (!t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking()) return true;
+  if (ourTeam(t).some(hasPendingAction)) return true;
+  return playerInterfaceLocked(t);
+}
+
+export function autoBandageQuestionDue(t: TacticalState): boolean {
+  return t.autoBandage.pending && !pendingQuestionWaits(t);
+}
+
+export function handleAutoBandagePending(t: TacticalState): void {
+  if (!autoBandageQuestionDue(t)) return;
+  setAutoBandagePending(t.autoBandage, false);
+  const refusal = autoBandageRefusal(t);
+  if (refusal) t.events.push({ type: 'autoBandageRefused', refusal });
+  else openTacticalPrompt(t, { kind: TacticalPromptKind.BEGIN_AUTO_BANDAGE });
 }
 
 function refill(list: number[], ids: readonly number[]): void {

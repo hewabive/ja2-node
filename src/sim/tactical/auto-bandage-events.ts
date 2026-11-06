@@ -1,4 +1,5 @@
 import type { SimEventBase } from '../events.ts';
+import type { AutoBandageRefusal } from './auto-bandage.ts';
 
 export interface AutoBandageStartedEvent extends SimEventBase {
   readonly type: 'autoBandageStarted';
@@ -16,4 +17,9 @@ export interface AutoBandageEndedEvent extends SimEventBase {
   readonly worldSecondsWarped: number;
 }
 
-export type AutoBandageEvent = AutoBandageStartedEvent | AutoBandageCompleteEvent | AutoBandageEndedEvent;
+export interface AutoBandageRefusedEvent extends SimEventBase {
+  readonly type: 'autoBandageRefused';
+  readonly refusal: AutoBandageRefusal;
+}
+
+export type AutoBandageEvent = AutoBandageStartedEvent | AutoBandageCompleteEvent | AutoBandageEndedEvent | AutoBandageRefusedEvent;
