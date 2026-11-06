@@ -5,7 +5,8 @@
 // @src (DISARM_TRAP_PROMPT), BoobyTrapMessageBoxCallBack (REMOVE_BLUE_FLAG_PROMPT), MineSpottedLocatorCallback
 // @src (PLACE_BLUE_FLAG_PROMPT), all MSG_BOX_BASIC_STYLE yes/no boxes, and StartBombMessageBox (CHOOSE_BOMB_FREQUENCY_STR,
 // @src CHOOSE_TIMER_STR, CHOOSE_REMOTE_FREQUENCY_STR in a MSG_BOX_BASIC_SMALL_BUTTONS box with four numbered buttons whose
-// @src number is the answer); Utils/Text.h TacticalStr.
+// @src number is the answer); Utils/Text.h TacticalStr; Tactical/Auto_Bandage.cc BeginAutoBandage's
+// @src BEGIN_AUTOBANDAGE_PROMPT_STR box (2026-11-06).
 
 import type { PromptView, TacticalPromptView } from '../../../protocol/view.ts';
 import type { MessageBoxButtons } from '../../message-boxes.ts';
@@ -14,6 +15,7 @@ import { MessageBoxReturn, MessageBoxStyleId } from '../../widgets/message-box.t
 
 const TACTICAL = 'TacticalStr';
 const TacticalStr = {
+  BEGIN_AUTOBANDAGE_PROMPT_STR: 1,
   ACTIVATE_SWITCH_PROMPT: 14,
   DISARM_TRAP_PROMPT: 15,
   CHOOSE_BOMB_FREQUENCY_STR: 21,
@@ -32,6 +34,7 @@ const TACTICAL_KINDS: ReadonlySet<string> = new Set([
   'placeBlueFlag',
   'bombSetting',
   'remoteFrequency',
+  'beginAutoBandage',
 ]);
 
 export interface ItemPromptBox {
@@ -81,5 +84,7 @@ export function itemPromptBox(text: UiTextService, prompt: TacticalPromptView): 
       return numberedBox(text, prompt.detonator === 'timed' ? TacticalStr.CHOOSE_TIMER_STR : TacticalStr.CHOOSE_REMOTE_FREQUENCY_STR);
     case 'remoteFrequency':
       return numberedBox(text, TacticalStr.CHOOSE_BOMB_FREQUENCY_STR);
+    case 'beginAutoBandage':
+      return yesNoBox(text, TacticalStr.BEGIN_AUTOBANDAGE_PROMPT_STR);
   }
 }

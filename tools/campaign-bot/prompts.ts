@@ -43,6 +43,8 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
       return ['no'];
     case 'placeBlueFlag':
       return ['yes'];
+    case 'beginAutoBandage':
+      return ['no'];
     case 'bombSetting':
     case 'remoteFrequency':
       return ['1'];

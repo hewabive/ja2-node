@@ -17,6 +17,7 @@ const PROMPTS: readonly (readonly [TacticalPromptView, string])[] = [
   [{ id: 'p', kind: 'remoteFrequency', soldier: 0, choices: NUMBERS }, 'TacticalStr[21]'],
   [{ id: 'p', kind: 'bombSetting', soldier: 0, gridNo: 1, item: 'TNT', detonator: 'timed', choices: NUMBERS }, 'TacticalStr[22]'],
   [{ id: 'p', kind: 'bombSetting', soldier: 0, gridNo: 1, item: 'TNT', detonator: 'remote', choices: NUMBERS }, 'TacticalStr[23]'],
+  [{ id: 'p', kind: 'beginAutoBandage', choices: YES_NO }, 'TacticalStr[1]'],
 ];
 
 const MAP_CONTEXT: PromptContext = { text: KEY_TEXT, strategic: undefined, sectorName: (label) => label, townOf: () => 0 };

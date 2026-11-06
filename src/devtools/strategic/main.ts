@@ -377,6 +377,8 @@ function promptSummary(prompt: PromptView): string {
       return `soldier ${prompt.soldier}: ${prompt.detonator === 'timed' ? 'timer' : 'frequency'} for the ${prompt.item}?`;
     case 'remoteFrequency':
       return `soldier ${prompt.soldier}: which frequency to set off?`;
+    case 'beginAutoBandage':
+      return 'bandage the wounded automatically?';
   }
 }
 

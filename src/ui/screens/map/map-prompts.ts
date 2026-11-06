@@ -98,6 +98,7 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
     case 'placeBlueFlag':
     case 'bombSetting':
     case 'remoteFrequency':
+    case 'beginAutoBandage':
       return itemBox(itemPromptBox(text, prompt));
   }
 }

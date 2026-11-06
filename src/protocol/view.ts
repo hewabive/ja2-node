@@ -443,7 +443,8 @@ export type TacticalPromptView =
       readonly detonator: 'timed' | 'remote';
       readonly choices: readonly NumberedChoice[];
     }
-  | { readonly id: string; readonly kind: 'remoteFrequency'; readonly soldier: number; readonly choices: readonly NumberedChoice[] };
+  | { readonly id: string; readonly kind: 'remoteFrequency'; readonly soldier: number; readonly choices: readonly NumberedChoice[] }
+  | { readonly id: string; readonly kind: 'beginAutoBandage'; readonly choices: readonly YesNoChoice[] };
 
 export type PromptView =
   | TacticalPromptView

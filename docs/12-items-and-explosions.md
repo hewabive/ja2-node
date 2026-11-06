@@ -412,8 +412,9 @@ check of one patient per call, the AI's patient search (`findBestPatient`) and i
 (`decideAutoBandage`). `auto-bandage.ts` is `Auto_Bandage.cc`: the command's checks and question, the start, the frame
 and the end, and the question a won battle leaves pending. `numEnemyInSector` (`turns/turns.ts`) is the sector check
 that opens the mode. `TacticalSim` routes the commands, the answer and the ticks, `CampaignSim` the campaign's frame and
-orders in the mode, and the sector flow's hooks pause and warp the world clock. The view, the box and the key are gaps
-"Auto-bandage".
+orders in the mode, and the sector flow's hooks pause and warp the world clock. The view shows the prompt
+(`server/tactical-prompt-view.ts`) and the client its yes/no box; the rest of the view, the box of medics and the key are
+gaps "Auto-bandage".
 
 **Lifecycle.**
 - `autoBandage` is the `a` key: the original's OK boxes become refusals in its order (`sectorNotCleared`,

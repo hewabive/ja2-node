@@ -24,7 +24,7 @@ import { InvSlot } from '../tactical/inventory.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { NOWHERE, OKLIFE, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { STRATEGIC_OVERHEAD_MS } from '../tactical/turns/turns.ts';
+import { RT_TURN_MS, STRATEGIC_OVERHEAD_MS } from '../tactical/turns/turns.ts';
 import type { RosterMerc } from './roster.ts';
 
 let kit: StubSectorKit;
@@ -59,6 +59,8 @@ const LINE_BUDGET = 200;
 const ONE_TICK = { ticks: 1 };
 const A_FEW_FRAMES = { ticks: 10 };
 const UNTIL_THE_FIRST_TURN = { ticks: (STRATEGIC_OVERHEAD_MS + TICK_MS) / TICK_MS };
+const PAST_TWO_TURNS = { ticks: (2 * (RT_TURN_MS + STRATEGIC_OVERHEAD_MS + TICK_MS)) / TICK_MS };
+const ONE_WORLD_SECOND = { ticks: 1000 / TICK_MS };
 const ANNOYED_PROFILE = 99;
 
 interface Campaign {
@@ -214,6 +216,7 @@ describe('the question after a won battle (Overhead.cc CheckForEndOfBattle, Auto
     expect([pending(c), promptKind(c), merc(c, MORAGA).soldier.pendingAid !== null]).toEqual([true, null, true]);
     const asked = c.live.advance({ idle: true });
     expect(asked.reason).toBe('decision');
+    expect(c.session.view().prompt).toMatchObject({ kind: 'beginAutoBandage', choices: ['yes', 'no'] });
     expect([pending(c), promptKind(c), merc(c, MORAGA).soldier.pendingAid]).toEqual([false, 'beginAutoBandage', null]);
   });
 
@@ -285,7 +288,7 @@ describe('the mode in a campaign (Auto_Bandage.cc AutoBandage, HandleAutoBandage
     await endTheMode(c);
     const queued = () => c.session.campaign.state.queue.events.some((e) => e.stamp === insideTheJump);
     expect([clock(c).seconds, clock(c).paused, queued()]).toEqual([startedAt + WARP_CAP_SECONDS, false, true]);
-    c.live.advance({ ticks: 1000 / TICK_MS });
+    c.live.advance(ONE_WORLD_SECOND);
     expect(queued()).toBe(false);
   });
 
@@ -295,7 +298,7 @@ describe('the mode in a campaign (Auto_Bandage.cc AutoBandage, HandleAutoBandage
     await sendAway(c, VANT);
     const lastTurnMs = tactical(c).realtimeClock.lastTurnMs;
     await startTheMode(c);
-    c.live.advance({ ticks: 2 * (UNTIL_THE_FIRST_TURN.ticks + 1000) });
+    c.live.advance(PAST_TWO_TURNS);
     expect([tactical(c).realtimeClock.lastTurnMs, merc(c, VANT).soldier.life]).toEqual([lastTurnMs, WOUNDED.life]);
     await endTheMode(c);
     c.live.advance(UNTIL_THE_FIRST_TURN);
