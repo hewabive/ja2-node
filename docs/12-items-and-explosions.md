@@ -2,7 +2,8 @@
 
 Items from their definitions to the world: the item table, the item object, soldier inventories and their commands,
 reloading, first aid, world items, what profiles and the equipment generator give soldiers, explosions, smoke, gas and
-flares, drugs and alcohol (§5), bombs and mines (§6), tools on tiles and the x-ray detector (§7). Siblings: `11` firing (jams, wear, ammo use, the hand item breaking); `33` what a hit
+flares, drugs and alcohol (§5), bombs and mines (§6), tools on tiles and the x-ray detector (§7), auto-bandage's medics
+and patients (§8). Siblings: `11` firing (jams, wear, ammo use, the hand item breaking); `33` what a hit
 does to a soldier (armour against bullets, the weapon knocked out of the hand, the drops at death); `34` throwing,
 launchers, duds and item physics; `35` and `25` locks, door traps, action items and switches; `23` merchants; `29` the
 inventory commands; `30` the inventory screens. Each module's `@src` header names the Stracciatella functions it ports;
@@ -29,6 +30,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
+| `ai/medical.ts` | Auto-bandage's medics and patients, its full check and the AI's medical decision (§8) |
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `swimming.ts` | Water damage on a medium or deep tile: soaked items, washed-off camouflage, rinsed creature smell (`07` §2) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
@@ -403,8 +405,46 @@ checked against the native build: the wire cutters, the jar and the tin can. Wit
 `TAKE_BLOOD_FROM_CORPSE` scripts. Not ported: a corpse that vanishes during the jar's animation (an explosion) gives
 human blood here, where the original reads the type its freed slot still holds.
 
+## 8. Auto-bandage
+
+**Where.** `ai/medical.ts` is `Medical.cc`: who counts as a medic and who as a patient, `canAutoBandage` with its full
+check of one patient per call, the AI's patient search (`findBestPatient`) and its medical decision
+(`decideAutoBandage`). `numEnemyInSector` (`turns/turns.ts`) is the sector check that opens the mode. Nothing calls them
+yet: the mode, its AI and services, the box and the commands are gaps "Auto-bandage".
+
+**Design.**
+- The mode flag is `pathEnv.autoBandage` (`fAutoBandageMode`, with `OUR_MERCS_AUTO_MOVE`, which rises and falls with
+  it), read by the path search and the other systems the mode changes; `setAutoBandageMode` (`state.ts`) is its only
+  writer. The rest of the mode is `TacticalState.autoBandage`: the pending flag, completion, the failure flag, the
+  seconds to warp, the end request, the full check's pointer (`soldier_for_full_check`) and the panel lists.
+- All but the pending flag are file or function statics in the original, which outlive the mode, a sector load and a
+  save load (`Tactical/Auto_Bandage.cc:47-63`, `TacticalAI/Medical.cc:97`). The campaign keeps one record in its sector
+  flow and hands it to every loaded sector, as it does the real-time clock, so the pointer crosses a sector load; the
+  record is saved (deviation "Auto-bandage statics").
+- A patient's medic (`Soldier.autoBandagingMedic`) and the pocket a medic's kit came from (`Soldier.slotItemTakenFrom`)
+  are soldier fields, an id and a slot like `servicePartner`.
+- The patient search raises `PathEnv.globalFlags` (`gubGlobalPathFlags`) for its whole loop, so every path it plots goes
+  through people: the walk-up searches of `findAdjacentGridEx`, the run costs and the climb estimates. The flag never
+  outlives the call and is not saved.
+
+Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/medical.test.ts`:
+
+| Quirk | Test |
+|---|---|
+| A tie in priority and path goes to the later patient in team order; priority (3 below OKLIFE, 2 below twice OKLIFE, else 1) beats any path | "gives a tie in priority and path to the later patient …", "takes the cheaper path at equal priority …" |
+| A reachable patient on the medic's level beats any patient behind a climb, whatever the priorities | "prefers any reachable patient on his level …" |
+| A medic takes over another's patient only when strictly closer, and cancels the other's action; a medic who finds no tile beside the patient loses him to anyone, as `FindAdjacentGridEx` returns only a tile it can path to | "lets a medic take over …", "leaves the patient to his medic …", "takes the patient from a medic who finds no tile …" |
+| A bleeding medic dresses himself first and keeps his gait; a medic who goes to a patient is set RUNNING | "dresses a bleeding medic first …", "runs to his patient …" |
+| A merc aboard a vehicle counts as neither medic nor patient, yet the search keeps him as a candidate: no tile beside the vehicle is free, so he is dropped silently, and a medic on a roof climbs down for him | "keeps a merc aboard a vehicle as a candidate …" |
+| The full check visits one patient per call, the first call only arming it; a failure keeps the pointer on the patient, so the next mode fails at its first call | "checks one patient per call …", "fails on a patient no medic can reach …" |
+| `FindAutobandageClimbPoint` reads the climb spots at swapped levels, the ground-side spot on the roof and the roof-side spot on the ground floor (`TacticalAI/Medical.cc:43-46` against `TileEngine/Buildings.cc:264-265`), and passes a roof patient on any such spot, reachable or not; a medic on a roof passes every ground patient | "reads the climb spots at swapped levels …", "passes a roof patient on any climb spot …", "passes a patient who is a medic himself …" |
+| `NumEnemyInSector` counts unconscious and unseen hostiles | `turns/end-of-battle.test.ts` "counts every living, non-neutral, non-friendly soldier …" |
+
+The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage") record these decisions in the native build;
+no comparer reads them yet.
+
 Not ported: gaps "Map items" (the pits), "Auto-bandage". Other
 deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
 "Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
 and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",
-"Drugs in the projection", "Mine locator", "Blue flag without a bomb".
+"Drugs in the projection", "Mine locator", "Blue flag without a bomb", "Auto-bandage statics".

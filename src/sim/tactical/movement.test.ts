@@ -42,7 +42,7 @@ import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
 import { bloodFloorStrength } from './smell.ts';
 import { Body, createSoldier, NO_PENDING_DIRECTION, Orders, type Soldier, Team, Visible } from './soldier.ts';
-import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
+import { createTacticalState, registerSoldier, setAutoBandageMode, type TacticalState, whoIsThere } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 
 const doorCosts = testDoorCosts();
@@ -556,7 +556,7 @@ describe('waiting for a blocked tile in a corridor (Soldier_Tile.cc HandleNextTi
     ];
     for (const { team, orders, swapped } of cases) {
       const t = corridor();
-      Object.assign(t.pathEnv, { autoBandage: true });
+      setAutoBandageMode(t, true);
       const merc = spawn(t, START);
       merc.finalDestination = END_OF_CORRIDOR;
       const blocker = spawn(t, BLOCKED_TILE, team);
@@ -568,7 +568,7 @@ describe('waiting for a blocked tile in a corridor (Soldier_Tile.cc HandleNextTi
 
   it('leaves a merc swapped in auto-bandage standing with no final destination: the swap resets the tile his route search heads for', () => {
     const t = corridor();
-    Object.assign(t.pathEnv, { autoBandage: true });
+    setAutoBandageMode(t, true);
     const merc = spawn(t, START);
     merc.finalDestination = END_OF_CORRIDOR;
     spawn(t, BLOCKED_TILE, Team.ENEMY);
@@ -581,7 +581,7 @@ describe('waiting for a blocked tile in a corridor (Soldier_Tile.cc HandleNextTi
     const ROOM = 5;
     const SIGHT_RANGE = 26;
     const t = corridor();
-    Object.assign(t.pathEnv, { autoBandage: true });
+    setAutoBandageMode(t, true);
     for (let x = 72; x <= 74; x++) t.world.level.rooms[gridNo(x, 80)] = ROOM;
     const merc = spawn(t, BLOCKED_TILE);
     merc.direction = merc.desiredDirection = Direction.WEST;

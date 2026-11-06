@@ -629,6 +629,7 @@ export class SectorFlow {
       startMs: s.realMs,
       realtimeClock: this.realtimeClock,
       crows: this.#flow.crows,
+      autoBandage: this.#flow.autoBandage,
       hour: worldHour(s.clock),
       dayAmbient,
     });

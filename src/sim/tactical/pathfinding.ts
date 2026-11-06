@@ -3,6 +3,7 @@
 // @src src/game/Tactical/PathAI.cc FindBestPath, IsDoorObstacleIfClosed, GetDoorState; Overhead.cc NewOKDestination,
 // @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water.
 // @src 2026-11-04: FindBestPath's mine checks (MAPELEMENT_ENEMY_MINE_PRESENT, MAPELEMENT_PLAYER_MINE_PRESENT).
+// @src 2026-11-06: FindBestPath's gubGlobalPathFlags.
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -90,7 +91,8 @@ export interface PathEnv {
   whoIsThere(g: number, level: number): PathSoldier | null;
   doorStatus(g: number): DoorStatus | null;
   readonly showAllMercs: boolean;
-  readonly autoBandage: boolean;
+  autoBandage: boolean;
+  globalFlags?: number;
   readonly minAPsToStartMovement?: (s: PathSoldier, mode: MoveMode) => number;
   readonly multiTile?: (s: PathSoldier, mode: MoveMode | null) => MultiTileShape | null;
   readonly stats?: { searches: number };
@@ -412,7 +414,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   const world = env.world;
   const mode = options.mode ?? MoveMode.WALKING;
   const copy = options.copy ?? PathCopy.NONE;
-  const flags = options.flags ?? 0;
+  const flags = (options.flags ?? 0) | (env.globalFlags ?? 0);
   const maxTrailTree = options.maxTrailTree ?? MAX_TRAIL_TREE;
   const copyCosts = copy === PathCopy.REACHABLE_AND_APS;
   const distLimit = copyCosts ? Math.min(options.distLimit ?? 0, AI_PATHCOST_RADIUS) : (options.distLimit ?? 0);

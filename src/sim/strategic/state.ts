@@ -21,7 +21,7 @@ import { createNpcRecordState, type NpcRecordState } from '../narrative/records.
 import { type GameOptions, gameOptions } from '../options.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
-import type { CrowStatus, RealtimeClock } from '../tactical/state.ts';
+import type { AutoBandageState, CrowStatus, RealtimeClock } from '../tactical/state.ts';
 import type { VehicleRecord } from '../vehicles/vehicle-list.ts';
 import {
   createMeanwhileState,
@@ -116,6 +116,7 @@ export interface StrategicStateOptions {
   readonly boxing?: BoxingRecord;
   readonly realtimeClock?: RealtimeClock;
   readonly crows?: CrowStatus;
+  readonly autoBandage?: AutoBandageState;
 }
 
 const DEFAULT_SEED = 1;
@@ -160,7 +161,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     civGroups: options.civGroups ?? createCivGroupState(),
     keyTable: options.keyTable ?? createKeyTable(),
     roster: createRosterState(),
-    sectorFlow: createSectorFlowState(options.realtimeClock, options.crows),
+    sectorFlow: createSectorFlowState(options.realtimeClock, options.crows, options.autoBandage),
     shop: { session: null },
     talk: createTalkFlowState(seed),
     cosmetic: createCosmeticStreams(seed),

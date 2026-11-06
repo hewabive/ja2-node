@@ -65,6 +65,7 @@ export function createUnloadedWorld(campaign: CampaignSim, content: TacticalCont
     startMs: s.realMs,
     realtimeClock: s.sectorFlow.realtimeClock,
     crows: s.sectorFlow.crows,
+    autoBandage: s.sectorFlow.autoBandage,
   });
   sim.attachWorldClock(s.clock);
   installCampaignPorts(campaign, sim.state);

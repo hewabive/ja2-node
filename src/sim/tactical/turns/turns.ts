@@ -26,7 +26,8 @@
 // @src BeginTeamTurn, our mercs off the loaded map included; Strategic/Strategic_Turns.cc SyncStrategicTurnTimes and its
 // @src call in CommonEnterCombatModeCode (2026-11-05); Strategic/Strategic_Turns.cc HandleStrategicTurn's map screen gate
 // @src (IsTimeBeingCompressed) and its compressed check time (the dead NOT_USING_TIME_COMPRESSION branch left out), polled
-// @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05).
+// @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05);
+// @src Overhead.cc NumEnemyInSector (2026-11-06).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -82,6 +83,7 @@ import {
   Body,
   CivilianGroup,
   consideredNeutral,
+  inSector,
   isMechanical,
   isMonster,
   NO_INTERRUPT,
@@ -413,6 +415,16 @@ export function numCapableEnemyInSector(t: TacticalState): number {
   for (const s of t.soldiers) {
     if (!s?.placed || s.dead) continue;
     if (s.life < OKLIFE && s.life !== 0) continue;
+    if (s.neutral || s.side === Side.FRIENDLY) continue;
+    n++;
+  }
+  return n;
+}
+
+export function numEnemyInSector(t: TacticalState): number {
+  let n = 0;
+  for (const s of t.soldiers) {
+    if (!s || !inSector(s) || s.life <= 0) continue;
     if (s.neutral || s.side === Side.FRIENDLY) continue;
     n++;
   }

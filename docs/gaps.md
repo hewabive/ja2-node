@@ -44,7 +44,7 @@ Commands the API does not have yet, and what its hints do not read. Paths are un
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Structure changes in the hints | The cursor reads the live world: a cut fence, a blown wall or a structure a stay added counts at once for the path, the wire cutter cursor and the rest (`Tactical/Handle_UI.cc:3116`, `Tactical/UI_Cursors.cc:893`) | The hints' projection holds the map as loaded with the view's doors, corpses, items, mines and light, not its `tileChanges` (`knowledge/tactical.ts`): after a cut a fence still blocks `previewMove` and turns the wire cutter cursor good, while `cutFence` refuses it as `noFence` | Replaying the view's `tileChanges` into the projection, as the client's lighting does (`src/app/world/world-lighting.ts`) |
-| Auto-bandage | After a battle mercs with kits bandage everybody at a high time rate (`Tactical/Auto_Bandage.cc:184`), vehicles and the mercs aboard them neither as medics nor as patients (`Tactical/Auto_Bandage.cc:90`, `TacticalAI/Medical.cc:166`, `:184`) | The `bandage` command, one medic and patient at a time (`tactical/first-aid.ts`) | A large UI-driven mode |
+| Auto-bandage | After a battle mercs with kits bandage everybody at a high time rate (`Tactical/Auto_Bandage.cc:184`), the start leaving vehicles and the mercs aboard them out of its checks (`Tactical/Auto_Bandage.cc:90`) | The `bandage` command, one medic and patient at a time (`tactical/first-aid.ts`); the medics and patients, the full check and the AI's medical decision are ported and called by nothing yet (`tactical/ai/medical.ts`, `12` §8) | A large UI-driven mode |
 
 ## 5. Savegame import
 

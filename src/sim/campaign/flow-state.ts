@@ -5,7 +5,14 @@ import { createTalkState, type TalkState } from '../narrative/talk-state.ts';
 import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { SRC_PROFILE_AT_START } from '../strategic/narrative/check-fact.ts';
 import { NO_SELECTION } from '../tactical/selection.ts';
-import { type CrowStatus, createCrowStatus, createRealtimeClock, type RealtimeClock } from '../tactical/state.ts';
+import {
+  type AutoBandageState,
+  type CrowStatus,
+  createAutoBandageState,
+  createCrowStatus,
+  createRealtimeClock,
+  type RealtimeClock,
+} from '../tactical/state.ts';
 import type { AdjacentJump } from './sector-exits.ts';
 import type { ShopSession } from './shop-flow.ts';
 
@@ -22,6 +29,7 @@ export interface SessionState {
 export interface SectorFlowState {
   readonly realtimeClock: RealtimeClock;
   readonly crows: CrowStatus;
+  readonly autoBandage: AutoBandageState;
   jump: AdjacentJump | null;
   usingEdgepointsForEntry: boolean;
   overrideInsertionWithExitGrid: number | null;
@@ -66,10 +74,12 @@ export function createSessionState(): SessionState {
 export function createSectorFlowState(
   realtimeClock: RealtimeClock = createRealtimeClock(),
   crows: CrowStatus = createCrowStatus(),
+  autoBandage: AutoBandageState = createAutoBandageState(),
 ): SectorFlowState {
   return {
     realtimeClock,
     crows,
+    autoBandage,
     jump: null,
     usingEdgepointsForEntry: false,
     overrideInsertionWithExitGrid: null,

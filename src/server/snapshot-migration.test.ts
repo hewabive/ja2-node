@@ -2722,3 +2722,90 @@ describe("snapshot version 55 (the fog-of-war walk's markers saved) migrates wit
     await expectMarkersDropped(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+const AUTO_BANDAGE_KEY = 'autoBandage';
+const NO_INVENTORY_SLOT = -1;
+const AUTO_BANDAGE_SOLDIER_DEFAULTS: Readonly<Record<string, Json>> = {
+  autoBandagingMedic: TOTAL_SOLDIERS,
+  slotItemTakenFrom: NO_INVENTORY_SLOT,
+};
+const NO_AUTO_BANDAGE = {
+  pending: false,
+  complete: false,
+  failed: false,
+  seconds: 0,
+  endRequested: false,
+  fullCheckSoldier: TOTAL_SOLDIERS,
+  medics: [],
+  patients: [],
+};
+
+function withoutAutoBandageState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutAutoBandageState(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === AUTO_BANDAGE_KEY && typeof v === 'object') {
+      if (!isReference(v)) expect(v).toEqual(NO_AUTO_BANDAGE);
+    } else if (key in AUTO_BANDAGE_SOLDIER_DEFAULTS) expect(v).toBe(AUTO_BANDAGE_SOLDIER_DEFAULTS[key]);
+    else out[key] = withoutAutoBandageState(v);
+  }
+  return out;
+}
+
+function versionFiftySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutAutoBandageState(value)]);
+  return { ...snapshot, version: 56, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 56 (no auto-bandage state) migrates with the mode never run: nobody armed for the full check, no medic or kit slot on any soldier', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoAutoBandageState(session: SessionSim): Promise<SessionSim> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftySix(current.sim);
+    for (const key of ['fullCheckSoldier', ...Object.keys(AUTO_BANDAGE_SOLDIER_DEFAULTS)])
+      expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    return restored;
+  }
+
+  it('a sandbox', async () => {
+    await expectNoAutoBandageState(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign, whose loaded sector shares the record of the sector flow, as the statics outlive a sector load', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    expect(campaign.campaign.tactical?.state.autoBandage).toBe(campaign.campaign.state.sectorFlow.autoBandage);
+    const restored = (await expectNoAutoBandageState(campaign)) as CampaignSession;
+    expect(restored.campaign.tactical?.state.autoBandage).toBe(restored.campaign.state.sectorFlow.autoBandage);
+  });
+
+  it('keeps the full-check pointer, completion and the panel lists through a snapshot, as the statics outlive the mode', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const state = campaign.campaign.state.sectorFlow.autoBandage;
+    state.fullCheckSoldier = 1;
+    state.complete = true;
+    state.medics.push(2);
+    state.patients.push(0, 1);
+    const restored = (await restoreSession(JSON.parse(JSON.stringify(snapshotSession(campaign))), kit.read, exists)) as CampaignSession;
+    expect(restored.campaign.tactical?.state.autoBandage).toEqual({
+      ...NO_AUTO_BANDAGE,
+      fullCheckSoldier: 1,
+      complete: true,
+      medics: [2],
+      patients: [0, 1],
+    });
+  });
+});

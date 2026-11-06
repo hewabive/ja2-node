@@ -20,7 +20,7 @@ import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { NOWHERE } from '../pathfinding.ts';
 import { AP } from '../points.ts';
 import { AlertStatus, Body, CivilianGroup, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, registerSoldier, type TacticalState, unregisterSoldier } from '../state.ts';
+import { createTacticalState, registerSoldier, setAutoBandageMode, type TacticalState, unregisterSoldier } from '../state.ts';
 import { AI_DELAY, AiAction, Situation } from './actions.ts';
 import {
   aiForSlot,
@@ -587,7 +587,7 @@ describe('the soldiers a new situation spares (AIMain.cc HandleSoldierAI, SetNew
 
   function busyWithNewSituation(quoteRecord: number, autoBandage: boolean) {
     const { t } = world(3);
-    Object.assign(t.pathEnv, { autoBandage });
+    setAutoBandageMode(t, autoBandage);
     const s = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
     s.profile = SCRIPTED_NPC;
     s.quoteRecord = quoteRecord;

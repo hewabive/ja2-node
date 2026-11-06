@@ -273,6 +273,7 @@ export interface TacticalState {
   tick: number;
   readonly realtimeClock: RealtimeClock;
   readonly crows: CrowStatus;
+  readonly autoBandage: AutoBandageState;
   readonly aiPass: AiPassState;
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
@@ -376,6 +377,34 @@ export function createCrowStatus(): CrowStatus {
   return { possible: 0, dontAddNew: false };
 }
 
+export interface AutoBandageState {
+  pending: boolean;
+  complete: boolean;
+  failed: boolean;
+  seconds: number;
+  endRequested: boolean;
+  fullCheckSoldier: number;
+  readonly medics: number[];
+  readonly patients: number[];
+}
+
+export function createAutoBandageState(): AutoBandageState {
+  return {
+    pending: false,
+    complete: false,
+    failed: false,
+    seconds: 0,
+    endRequested: false,
+    fullCheckSoldier: NOBODY,
+    medics: [],
+    patients: [],
+  };
+}
+
+export function setAutoBandageMode(t: Pick<TacticalState, 'pathEnv'>, on: boolean): void {
+  t.pathEnv.autoBandage = on;
+}
+
 export const RESET_AWAY_AI_CURSOR = 0xffff;
 
 export interface AiPassState {
@@ -399,6 +428,7 @@ export interface SharedCampaignState {
   readonly boxing?: BoxingRecord;
   readonly realtimeClock?: RealtimeClock;
   readonly crows?: CrowStatus;
+  readonly autoBandage?: AutoBandageState;
 }
 
 export interface SectorRef {
@@ -441,6 +471,7 @@ export function createPathEnv(parts: PathEnvParts, settings: PathEnvSettings): P
     doorStatus: (g) => doorStatus.get(g) ?? null,
     showAllMercs: settings.showAllMercs,
     autoBandage: settings.autoBandage,
+    globalFlags: 0,
     multiTile: (p, mode) => {
       const s = p as Soldier;
       if (!s.multiTile) return null;
@@ -474,6 +505,7 @@ export function createTacticalState(
     tick: 0,
     realtimeClock: shared.realtimeClock ?? createRealtimeClock(),
     crows: shared.crows ?? createCrowStatus(),
+    autoBandage: shared.autoBandage ?? createAutoBandageState(),
     aiPass: createAiPassState(),
     world,
     content,

@@ -1623,6 +1623,56 @@ function dropFogMarkers(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const AUTO_BANDAGE_KEY = 'autoBandage';
+const SERVICE_COUNT_KEY = 'serviceCount';
+const AUTO_BANDAGING_MEDIC_KEY = 'autoBandagingMedic';
+const SLOT_ITEM_TAKEN_FROM_KEY = 'slotItemTakenFrom';
+const NO_SOLDIER = 156;
+const NO_INVENTORY_SLOT = -1;
+const SHARED_AUTO_BANDAGE: JsonObject = { [REF]: `strategic/${SECTOR_FLOW_KEY}/${AUTO_BANDAGE_KEY}` };
+
+function noAutoBandage(): JsonObject {
+  return {
+    pending: false,
+    complete: false,
+    failed: false,
+    seconds: 0,
+    endRequested: false,
+    fullCheckSoldier: NO_SOLDIER,
+    medics: [],
+    patients: [],
+  };
+}
+
+function withAutoBandageFields(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withAutoBandageFields(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withAutoBandageFields(v);
+  if (!isSoldierRecord(mapped)) return mapped;
+  const medic = insertAfter(mapped, SERVICE_COUNT_KEY, AUTO_BANDAGING_MEDIC_KEY, NO_SOLDIER);
+  return insertAfter(medic, AUTO_BANDAGING_MEDIC_KEY, SLOT_ITEM_TAKEN_FROM_KEY, NO_INVENTORY_SLOT);
+}
+
+function withSectorFlowAutoBandage(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: insertAfter(flow, CROWS_KEY, AUTO_BANDAGE_KEY, noAutoBandage()) };
+}
+
+function addAutoBandageState(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const shared = isObject(sectionOf(graph.sections, 'strategic'));
+  const sections = graph.sections.map(([name, value]): Section => {
+    const fields = withAutoBandageFields(value);
+    if (name === 'strategic' && isObject(fields)) return [name, withSectorFlowAutoBandage(fields)];
+    if (name === 'tactical' && isObject(fields))
+      return [name, insertAfter(fields, CROWS_KEY, AUTO_BANDAGE_KEY, shared ? SHARED_AUTO_BANDAGE : noAutoBandage())];
+    return [name, fields];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1680,5 +1730,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     53: addHiResDirections,
     54: markStrategicDeathsOnSoldiers,
     55: dropFogMarkers,
+    56: addAutoBandageState,
   };
 }

@@ -199,6 +199,7 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
     boxing: sim.state.boxing,
     realtimeClock: sim.state.realtimeClock,
     crows: sim.state.crows,
+    autoBandage: sim.state.autoBandage,
   });
   return { strategic, sim, report };
 }

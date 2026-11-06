@@ -66,7 +66,8 @@ where, placing a soldier, bullets and thrown objects. `isVisibleTile` is the clo
 where the original has no test: agent API gridno validation and the insertion guard.
 
 **The path search.** It orders by travel cost, never by AP, so walking, running and crawling find the same path; the
-mode matters for an AI budget, multi-tile structures and the AP total. Globals of the original are per-call options. A
+mode matters for an AI budget, multi-tile structures and the AP total. Globals of the original are per-call options, but
+for `gubGlobalPathFlags`, which auto-bandage's patient search raises on `PathEnv.globalFlags` around its loop (`12` §8). A
 heap pops in the original's skip-list order without its draws (deviation "Pathfinder RNG"). The pool of 1022 open nodes
 and the trail limit are kept, so long searches fail where the original's do; reachability floods pass the larger limit
 the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. A step onto a tile

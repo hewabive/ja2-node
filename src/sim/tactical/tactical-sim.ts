@@ -185,7 +185,15 @@ import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
 import { Body, inVehicle, isTank, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
-import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
+import {
+  type AutoBandageState,
+  type CrowStatus,
+  createTacticalState,
+  type RealtimeClock,
+  type TacticalState,
+  teamMembers,
+  whoIsThere,
+} from './state.ts';
 import {
   fenceCuttableBy,
   handlePendingTileToolOnArrival,
@@ -408,6 +416,7 @@ export interface TacticalSimOptions {
   readonly startMs?: number;
   readonly realtimeClock?: RealtimeClock;
   readonly crows?: CrowStatus;
+  readonly autoBandage?: AutoBandageState;
   readonly hour?: number;
   readonly dayAmbient?: number;
 }
@@ -427,6 +436,7 @@ function createSimState(world: TacticalWorld, content: TacticalContent, seed: nu
       ...(options.boxing ? { boxing: options.boxing } : {}),
       ...(options.realtimeClock ? { realtimeClock: options.realtimeClock } : {}),
       ...(options.crows ? { crows: options.crows } : {}),
+      ...(options.autoBandage ? { autoBandage: options.autoBandage } : {}),
     },
   );
   t.clockMs = options.startMs ?? 0;

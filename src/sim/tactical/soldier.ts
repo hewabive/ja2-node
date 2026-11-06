@@ -15,7 +15,7 @@ import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { AiMorale } from './combat/types.ts';
 import { hiResDirectionOf } from './directions.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
-import { emptyInventory, type Inventory } from './inventory.ts';
+import { emptyInventory, type Inventory, NO_SLOT } from './inventory.ts';
 import type { LightSprite } from './lighting/lighting.ts';
 import type { WorldItem } from './world-items.ts';
 
@@ -145,6 +145,10 @@ export function inVehicle(s: { readonly vehicleSeat: number }): boolean {
 
 export function onTheGrid(s: { readonly placed: boolean; readonly vehicleSeat: number }): boolean {
   return s.placed && !inVehicle(s);
+}
+
+export function inSector(s: { readonly placed: boolean; readonly offMap: boolean }): boolean {
+  return s.placed || s.offMap;
 }
 
 export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier, 'neutral' | 'bodyType'>): boolean {
@@ -532,6 +536,8 @@ export interface Soldier {
   pendingActionData4: number;
   servicePartner: number;
   serviceCount: number;
+  autoBandagingMedic: number;
+  slotItemTakenFrom: number;
   pendingAid: PendingAid | null;
   pendingRobotReload: PendingRobotReload | null;
   pendingDropBomb: boolean;
@@ -937,6 +943,8 @@ function recordAndServices() {
     pendingActionData4: 0,
     servicePartner: NOBODY,
     serviceCount: 0,
+    autoBandagingMedic: NOBODY,
+    slotItemTakenFrom: NO_SLOT,
     pendingAid: null,
     pendingRobotReload: null,
     pendingDropBomb: false,

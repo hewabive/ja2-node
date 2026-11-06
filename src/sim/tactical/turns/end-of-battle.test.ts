@@ -6,7 +6,7 @@ import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { Team } from '../soldier.ts';
-import { numCapableEnemyInSector } from './turns.ts';
+import { numCapableEnemyInSector, numEnemyInSector } from './turns.ts';
 
 let content: TacticalContent;
 
@@ -40,5 +40,23 @@ describe('the end of a battle in real time', () => {
     expect(numCapableEnemyInSector(t)).toBe(1);
     enemy.dead = true;
     expect(numCapableEnemyInSector(t)).toBe(0);
+  });
+});
+
+describe('the enemies in the sector (Overhead.cc NumEnemyInSector)', () => {
+  it('counts every living, non-neutral, non-friendly soldier in the sector, the unconscious and the unseen included', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(60, 60), Direction.NORTH);
+    spawnSoldier(sim, 84, Team.MILITIA, gridNo(62, 60), Direction.NORTH);
+    const civilian = spawnSoldier(sim, 116, Team.CIV, gridNo(64, 60), Direction.NORTH);
+    const unconscious = spawnSoldier(sim, 20, Team.ENEMY, gridNo(110, 110), Direction.SOUTH, { life: 5 });
+    expect([numEnemyInSector(t), numCapableEnemyInSector(t)]).toEqual([1, 0]);
+    civilian.neutral = false;
+    expect(numEnemyInSector(t)).toBe(2);
+    unconscious.life = 0;
+    expect(numEnemyInSector(t)).toBe(1);
+    civilian.placed = false;
+    expect(numEnemyInSector(t)).toBe(0);
   });
 });
