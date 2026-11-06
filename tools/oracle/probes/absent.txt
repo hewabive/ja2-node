@@ -1,0 +1,176 @@
+# Our mercs off the loaded map between hourly updates (0029). Every block starts from a fresh save load and sets the
+# JA2 clock, the stamp of the last real-time turn and the rotting corpse stamp with abclock, the screen with abscreen
+# and the compression with abcompress, so nothing carries over from the save's screen or an earlier block. Every block
+# ends on the game screen: LoadSavedGame crashes after a death on the map while the map screen is up.
+# SaveGame01: B13 at 21:37 (night), Shadow 0, Sidney 1, Ira 2 (profile 59); civilians 116-123.
+
+# 1. The real-time turn on the game screen: Ira off to B12, Sidney wounded on the map.
+save SaveGame01
+abclock ja2clock=6050930 last=6050930 rotting=0 base=1
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+abturn                                              # the first turn: looks, opplists, everyone in B13
+abaway who=2 sector=B12                             # RemoveSoldierFromTacticalSector: NOWHERE
+abset who=2 life=50 bleeding=20 nextBleed=0.5 breath=40 breathRed=3000
+abset who=1 life=60 bleeding=20 nextBleed=0.5
+abturn                                              # id order: Sidney's bleeding line, then Ira's ME_TOO
+abturn count=3
+abset who=2 anim=RUNNING breath=40                  # the animation he left the map in decides his breath
+abturn
+abset who=2 anim=STANDING terrain=10                # standing in deep water (MercInWater reads his own terrain)
+abturn
+abset who=2 terrain=5 gassed=1                      # the gas test at NOWHERE
+abturn
+abset who=0 gassed=1
+absmoke grid=6634 item=SMOKE_GRENADE                # a cloud on Shadow's tile keeps him gassed
+abturn
+abset who=2 drug=0:0:-2:2:0:20 regen=3 morale=50    # an adrenaline crash and the regeneration booster off the map
+abturn count=2
+abset who=0 buddy=59
+abset who=2 life=1 bleeding=5 nextBleed=0.5 regen=0 insurance=1 insuredAt=0
+abturn                                              # Ira bleeds to death in B12: no body, no buddy line
+abrecords sector=B12
+abscreen screen=game
+
+# 2. The map screen's poll: gate and check time per compression mode, the 20 ms counter satisfied by sleeping.
+save SaveGame01
+abclock ja2clock=1000000 last=1000000 rotting=0 base=1
+abscreen screen=map
+abaway who=2 sector=B12
+abset who=2 life=50 bleeding=20 nextBleed=2
+abcompress mode=0 on=0 paused=0
+abpoll now=1000020 count=2                          # X0: nothing
+abcompress mode=2 on=1 paused=0
+abpoll now=1000060 count=3                          # 5 min/s: check 1 ms, a turn at each poll
+abpoll now=1000121 count=2 step=1                   # 1 ms apart: not past the check
+abcompress mode=3 on=1 paused=0
+abpoll now=1000200 count=2 step=1                   # 30 min/s: check 0
+abcompress mode=4 on=1 paused=0
+abpoll now=1000300 count=2 step=1                   # 60 min/s: check 0
+abcompress mode=2 on=1 paused=1
+abpoll now=1000400 count=2                          # paused: nothing
+abcompress mode=2 on=0 paused=0
+abpoll now=1000500 count=2                          # compression stopped: nothing
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+abpoll now=1005301 count=2 step=1                   # the game screen: 5000 ms, past it only at the second poll
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abclock decay=162750
+abpoll now=1010000                                  # blood and smells: 5 real seconds at 5 min/s, 1500 s not past
+abclock decay=162749
+abpoll now=1010020
+abcompress mode=3 on=1 paused=0
+abclock decay=155250
+abpoll now=1010040
+abclock decay=155249
+abpoll now=1010060
+abcompress mode=4 on=1 paused=0
+abclock decay=146250
+abpoll now=1010080
+abclock decay=146249
+abpoll now=1010100
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+abclock decay=164150
+abpoll now=1016000
+abclock decay=164149
+abpoll now=1022000
+abscreen screen=game
+
+# 3. Deaths on the map screen: Ira in B12, then Sidney between B12 and the next sector.
+save SaveGame01
+abclock ja2clock=2000000 last=2000000 rotting=0 base=1
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abaway who=2 sector=B12
+abset who=0 buddy=59
+abset who=1 buddy=59
+abset who=2 life=1 bleeding=5 nextBleed=0.5 key=3:1:2 insurance=1 insuredAt=0
+abturn                                              # body, items and keys in B12, buddy lines, compression stops
+abrecords sector=B12
+abaway who=1 sector=B12 between=1
+abset who=1 life=1 bleeding=5 nextBleed=0.5
+abcompress mode=2 on=1 paused=0
+abdamage who=1 damage=1 breath=100 reason=bloodloss
+abrecords sector=B12
+abscreen screen=game
+
+# 4. A merc of the loaded sector dying on the map: collapsed (death animation, the map body in B13's records), standing
+# (dead in tactical terms, the map branch skipped), then the world unloaded.
+save SaveGame01
+abclock ja2clock=3000000 last=3000000 rotting=0 base=1
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abrecords sector=B13
+abset who=1 life=5 anim=STAND_FALLFORWARD_STOP collapsed=1
+abdamage who=1 damage=5 breath=100 reason=bloodloss
+abrecords sector=B13
+abdamage who=2 damage=100 breath=100 reason=bloodloss
+abrecords sector=B13
+abaway who=0 sector=B12                             # the last living merc leaves before the world unloads
+abunload
+abrecords sector=B13
+abscreen screen=game
+
+# 5. A civilian of the loaded sector lying collapsed bleeds to death on the map: our strategic death.
+save SaveGame01
+abclock ja2clock=4000000 last=4000000 rotting=0 base=1
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abrecords sector=B13
+abset who=121 life=5 anim=STAND_FALLFORWARD_STOP collapsed=1
+abdamage who=121 damage=5 breath=100 reason=bloodloss
+abrecords sector=B13
+abscreen screen=game
+
+# 6. Sight returning on the map reveals a hidden room with an item; a light step of dusk on the map.
+save SaveGame01
+abclock ja2clock=5000000 last=5000000 rotting=0 base=1
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+abturn
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abset who=1 grid=10433 blinded=1                    # Sidney inside room 1, blind for one more turn
+abhide room=1 item=GLOCK_17 at=10595
+abturn                                              # his look reveals the room: the spotted-something line
+ablight value=3                                     # EVENT_CHANGELIGHTVAL on the map: the loaded map's ambient stays
+abturn
+abscreen screen=game
+
+# 7. The claustrophobe's roll at every map turn underground (the loaded sector's z set to 1, its only input).
+save SaveGame01
+abclock ja2clock=6000000 last=6000000 rotting=0 base=1 z=1
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abset who=2 personality=claustrophobic morale=50
+abpoll now=6000020 count=6
+abscreen screen=game
+
+# 8. SaveGame03: no world loaded, three mercs between C12 and C13 at NOWHERE. Comes after SaveGame01 so the last
+# loaded map, whose scroll area RandomGridNo reads, is B13.
+save SaveGame03
+abclock ja2clock=7000000 last=7000000 rotting=0 base=1
+abscreen screen=map
+abcompress mode=2 on=1 paused=0
+abclock decay=0
+abset who=1 life=50 bleeding=20 nextBleed=0.5 gassed=1
+abpoll now=7000020 count=3                          # the first pass on no world; no blood decay
+abset who=0 buddy=15
+abset who=1 life=1 bleeding=5 nextBleed=0.5
+abturn                                              # Sidney dies between sectors: body in C12
+abrecords sector=C12
+abscreen screen=game
+
+# 9. SaveGame07: D13 in turn-based combat, Ira off the map to D12.
+save SaveGame07
+abclock ja2clock=8000000 last=7990000 rotting=0 base=1
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+abaway who=2 sector=D12
+abset who=2 life=50 bleeding=20 nextBleed=1.5 breath=40 breathRed=3000
+abpoll now=8000020                                  # in combat: the stamp moves, no turn
+abteamturn                                          # a whole step of bleeding per turn of ours
+abteamturn                                          # nobody left to fight: combat ends with its real-time turn
+abpoll now=8000040

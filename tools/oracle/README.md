@@ -37,6 +37,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
 | Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
+| Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -142,7 +143,8 @@ tools/oracle/compare-all.sh
 
 `compare.ts` walks each output file in order with fresh comparers per file. A `sector` line loads that map (A9 when a
 file has none); a `save` line imports the save into fresh ja2-node sessions (`14`; saves from `$JA2_SAVES_DIR` or
-`SavedGames` next to the data folder); the comparer owning each following probe's command rebuilds it in that context.
+`SavedGames` next to the data folder; a save with no world loaded leaves the map probes on A9); the comparer owning each
+following probe's command rebuilds it in that context.
 Output: one line per probe plus a summary; exit status 1 on any mismatch or oracle error. Comparing needs the original
 data and the saves, not the native build. `compare-all.sh` runs `compare.ts` over the outputs it lists ("Shipped
 probes"); it is the `oracle` gate of `pnpm gates` (skipped without the work dir or `JA2_DATA_DIR`).
@@ -176,7 +178,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 1000 + node id / 999 | 0004 | every `AddPlacementToWorld`: draws inside a placement are skipped and the native outcome answers it |
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
-| 4001 / 4000 | 0027, 0028 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); dropped by the bomb and vehicle comparers (deviations "Cosmetic draws …", "Footstep variants") |
+| 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle and absent comparers (deviations "Cosmetic draws …", "Footstep variants") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
   action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the
@@ -621,6 +623,40 @@ selection while the map screen is up, and everything `vehicleleavesector` does a
 a vehicle leave with its passengers (deviation "Vehicle sector exit"), while the original sends it alone in a fresh
 squad's foot group and leaves its record and passengers behind, which the native output records.
 
+### Absent mercs
+
+Commands (0029): `abclock` (the JA2 clock, `guiLastTacticalRealTime`, the rotting corpse stamp of
+`HandleTacticalEndTurn`, the world seconds, `uiDecayBloodLastUpdate`, the loaded sector's `z`, the history baseline),
+`abscreen` (`guiCurrentScreen` and `fInMapMode`), `abcompress` (mode, `gfTimeCompressionOn`, `gfGamePaused`), `abaway`
+(`RemoveSoldierFromTacticalSector`, then the merc's sector and travel flag), `abset` (life, bleeding, `dNextBleed`,
+breath, the animation, terrain, gas, drug courses, regeneration, morale, blindness, a key, insurance, a buddy, the
+personality, the tile), `abturn` (`HandleTacticalEndTurn`), `abpoll` (the JA2 clock set, 21 ms of sleep for the 20 ms
+counter, `HandleStrategicTurn`), `abteamturn` (`BeginTeamTurn(OUR_TEAM)`), `abdamage` (`SoldierTakeDamage`), `absmoke`
+(`NewSmokeEffect`), `abhide` (a room hidden again and an invisible item in it), `ablight` (`EVENT_CHANGELIGHTVAL`
+executed), `abrecords` (a sector's item and corpse temp files) and `abunload` (`HandleDefiniteUnloadingOfWorld` for
+`ABOUT_TO_TRASH_WORLD`, `TrashWorld` and the rest of `CheckAndHandleUnloadingOfCurrentWorld` after it). Every command
+prints its draws, the lines `CharacterDialogue` queued, the real-time turns it ran and the state: screen, clocks,
+compression, the world, the death count, the history since the block's start, the insurance payouts and suspicious
+deaths, the blood decay stamp, the light, our whole team's turn fields and the loaded sector's other soldiers. Every
+block of `absent.txt` starts from a save load and sets the clocks, the screen and the compression itself, and ends on
+the game screen: `LoadSavedGame` crashes after a death on the map while the map screen is up.
+
+`absent-compare.ts` imports the save (`SaveGame03`, saved with no world loaded, resumes on the map with no tactical
+state), sets the same fields, sets the map screen as the strategic flow, runs `handleTacticalEndTurn` on
+`CampaignSim.turnWorld()`, `handleMapScreenRealtimeTurns` or the tactical screen's `handleRealtimeTurns` for a poll,
+`beginTeamTurn`, `soldierTakeDamage`, the dispatch of the light event and the sector flow's unload, replays the draws
+strictly with the pathfinder's, music and cosmetic marks dropped, compares the queued lines with the talk queue and the
+state field by field. The 20 ms counter's phase is not comparable: the native counter runs on the wall clock, which the
+probe satisfies by sleeping, ja2-node's on `realMs`; each comparer poll sets `lastOverheadMs` 20 ms back. A team turn
+that ends combat gets ja2-node's forced real-time turn inside the probe (deviation "Real-time turn after combat").
+Records are compared as what a command added since the block's first `abrecords` of the sector (native temp files of
+the loaded sector are not imported), and after an unload at the tiles of those additions. Not compared: the screen and
+compression before a block sets them, `gfDoLighting` before a light event (the native load sets it), and the tile and
+sector flag of the dead (native `RemoveSoldierFromGridNo` puts our dead at `NOWHERE` while they stay `bInSector`).
+Dawn and dusk on the map are probed as far as a headless build reaches: the light event leaves the loaded map's ambient
+as it was; that only the game screen's frame runs `EnvironmentController` is read from the source
+(`GameScreen.cc:333`).
+
 ## Shipped probes
 
 `compare-all.sh` lists the outputs it compares, relative to the work dir. `probes/<name>.txt` writes
@@ -634,10 +670,11 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   battles over SaveGame01, 02, 07, 09 and 10 with militia, garrisons, codes, retreats and both `pre` modes; the first
   battle of `autoresolve-d13.txt`); `compare-all.sh` requires them.
 - `attach` and `florist` are optional: `compare-all.sh` skips them with a hint when missing.
-- **Saves.** The shipped scripts name the maintainer's six saves (`SaveGame01`, `02`, `07`, `08`, `09`, `10`; sectors
-  B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame07` and `08` were saved in turn-based combat in
-  D13, `SaveGame10` in D13 in real time; `09` and `10` are the sci-fi saves; all are on easy with 2–4 % progress. Other
-  saves need other scripts (`save-probes.ts` writes one for any saves).
+- **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
+  sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
+  between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;
+  `09` and `10` are the sci-fi saves; all are on easy with 2–4 % progress. Other saves need other scripts
+  (`save-probes.ts` writes one for any saves).
 
 ## Hooks
 
@@ -662,8 +699,8 @@ done > /tmp/hooks.patch
 ```
 
 The base of the diff is `reference/stracciatella` with the earlier patches applied; it differs from the plain reference
-only for files two patches touch: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004, 0012),
-`Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc` (0016, 0020),
-`Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc` (0007, 0027),
-`Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027) and `Tactical/Soldier_Control.cc` (0027,
-0028).
+only for files more than one patch touches: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004,
+0012, 0029), `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc`
+(0016, 0020), `Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc`
+(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027) and
+`Tactical/Soldier_Control.cc` (0027, 0028).

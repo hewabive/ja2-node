@@ -103,12 +103,13 @@ hits adds his own hold (`33`).
 is saved with him and is read from a native save. Every turn start of our whole team tests it against the loaded map at
 the merc's gridno (`clearGassedAtTurnStart`), and a merc off the loaded map stands nowhere there: his removal from the
 sector, or the load of another, set `NOWHERE` (`removeSoldierFromTacticalSector`, `Strategic/StrategicMap.cc:563`), so
-he loses the flag at his next turn start. The per-round gas flags and the one-hit-per-blast flag live per
-soldier id in `ExplosivesState` (deviation "Gas and blast hit flags"). Clouds and flares age by world seconds, which stand still
-in turn-based combat; the sandbox counts its own (deviation "World clock for smoke and light"). Sight reads the gas and
-smoke layer of the tiles (`08`). A soldier of the computer teams puts on a gas mask he carries when his team is called
-to an alarm or an ambush, when he hears an alarm (civilians too) and, in Tixa only, on a `pre` draw of a RED or BLACK
-decision (`wearGasMaskIfAvailable`, `explosions/smoke.ts`).
+he loses the flag at his next turn start: the native build reads past the end of the world array there, with a sector
+loaded or none, and finds no smoke (`tools/oracle/README.md` "Absent mercs"). The per-round gas flags and the
+one-hit-per-blast flag live per soldier id in `ExplosivesState` (deviation "Gas and blast hit flags"). Clouds and flares
+age by world seconds, which stand still in turn-based combat; the sandbox counts its own (deviation "World clock for
+smoke and light"). Sight reads the gas and smoke layer of the tiles (`08`). A soldier of the computer teams puts on a
+gas mask he carries when his team is called to an alarm or an ambush, when he hears an alarm (civilians too) and, in
+Tixa only, on a `pre` draw of a RED or BLACK decision (`wearGasMaskIfAvailable`, `explosions/smoke.ts`).
 
 **Structures report damage.** Before a structure takes a hit, the O3 statue may take it (`26`); after a damaging hit
 the brothel listener runs, then `SectorHooks.structureDamaged` (the SAM sites, `18`), both with the wound before the
@@ -244,9 +245,9 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 The oracle's drug probes (`tools/oracle/README.md` "Drugs") check every drug and drink taken, with the booster's
 `PreRandom` draw and the lifetime count, and the courses over turn starts in real time and turn-based: the order inside
 `EVENT_BeginMercTurn`, the crash's morale with attitudes, the AP clamp chain, the INT8 wraps, the breath, the drunk
-stats and the boosters of the day. Not checked against the native build: Larry's swap (no save has him on the team), the
-asleep merc's morale and the campaign's morale refresh, stealth, the moving frame delay, code 491's drunk idle and the
-drunk fall.
+stats and the boosters of the day; the absent probes a crash and the regeneration booster of a merc off the loaded
+map. Not checked against the native build: Larry's swap (no save has him on the team), the asleep merc's morale and the
+campaign's morale refresh, stealth, the moving frame delay, code 491's drunk idle and the drunk fall.
 
 ## 6. Bombs and mines
 

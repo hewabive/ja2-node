@@ -1,0 +1,132 @@
+Absent merc oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-06. See LICENSE (SFI-SCLA).
+Exposes what the absent merc probes set and read around HandleStrategicTurn and HandleTacticalEndTurn: the statics
+guiLastTacticalRealTime of Strategic_Turns.cc and gfTimeCompressionOn of Game_Clock.cc, the function static stamp of
+HandleTacticalEndTurn's rotting corpse pass (moved to file scope) with a count of the turns run, and the static
+HandleDefiniteUnloadingOfWorld(ABOUT_TO_TRASH_WORLD) of StrategicMap.cc; traces every line CharacterDialogue queues
+through OracleCharacterDialogueTrace (Oracle.cc, inactive unless a probe sets a trace); marks the smoke tile's start
+frame and delay draws of SmokeEffects.cc AddSmokeEffectToTile 4001/4000 in the trace of 0002 (deviation "Cosmetic
+draws in explosions"). No behaviour change. Applied by tools/oracle/build.sh after 0028.
+
+--- a/src/game/Strategic/Game_Clock.cc
++++ b/src/game/Strategic/Game_Clock.cc
+@@ -929,3 +929,9 @@
+ 
+ 	WORLDTIMESTR = ST::format("{} {}, {02d}:{02d}", dayStringToUse, guiDay, guiHour, guiMin);
+ }
++
++
++void OracleSetTimeCompressionOn(BOOLEAN const on)
++{
++	gfTimeCompressionOn = on;
++}
+--- a/src/game/Strategic/StrategicMap.cc
++++ b/src/game/Strategic/StrategicMap.cc
+@@ -3251,3 +3251,8 @@
+ {
+ 	HandleQuestCodeOnSectorExit(oldSector);
+ }
++
++void OracleHandleTrashWorldUnloading()
++{
++	HandleDefiniteUnloadingOfWorld(ABOUT_TO_TRASH_WORLD);
++}
+--- a/src/game/Strategic/Strategic_Turns.cc
++++ b/src/game/Strategic/Strategic_Turns.cc
+@@ -93,3 +93,14 @@
+ 	SyncStrategicTurnTimes();
+ 	HandleTacticalEndTurn();
+ }
++
++
++UINT32 OracleLastTacticalRealTime()
++{
++	return guiLastTacticalRealTime;
++}
++
++void OracleSetLastTacticalRealTime(UINT32 const time)
++{
++	guiLastTacticalRealTime = time;
++}
+--- a/src/game/Tactical/Dialogue_Control.cc
++++ b/src/game/Tactical/Dialogue_Control.cc
+@@ -62,6 +62,8 @@
+ #include <queue>
+ #include <string_theory/format>
+ 
++void OracleCharacterDialogueTrace(UINT8 character, UINT16 quote);
++
+ 
+ #define DIALOGUE_DEFAULT_SUBTITLE_WIDTH	200
+ #define TEXT_DELAY_MODIFIER			60
+@@ -678,6 +680,7 @@
+ 			bool            const delayed_;
+ 	};
+ 
++	OracleCharacterDialogueTrace(character, quote);
+ 	DialogueEvent::Add(new DialogueEventQuote(character, quote, face, dialogue_handler, fFromSoldier, delayed));
+ }
+ 
+--- a/src/game/Tactical/Tactical_Turns.cc
++++ b/src/game/Tactical/Tactical_Turns.cc
+@@ -77,9 +77,27 @@
+ }
+ 
+ 
++static UINT32 uiTimeSinceLastStrategicUpdate = 0;
++static UINT32 guiOracleTacticalEndTurns = 0;
++
++UINT32 OracleRottingCorpsesStamp()
++{
++	return uiTimeSinceLastStrategicUpdate;
++}
++
++void OracleSetRottingCorpsesStamp(UINT32 const stamp)
++{
++	uiTimeSinceLastStrategicUpdate = stamp;
++}
++
++UINT32 OracleTacticalEndTurns()
++{
++	return guiOracleTacticalEndTurns;
++}
++
+ void HandleTacticalEndTurn()
+ {
+-	static UINT32 uiTimeSinceLastStrategicUpdate = 0;
++	++guiOracleTacticalEndTurns;
+ 
+ 	UINT32 const now = GetWorldTotalSeconds();
+ 
+--- a/src/game/TileEngine/SmokeEffects.cc
++++ b/src/game/TileEngine/SmokeEffects.cc
+@@ -23,6 +23,10 @@
+ #include "ContentManager.h"
+ #include "GameInstance.h"
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ #include <algorithm>
+ #include <stdexcept>
+ 
+@@ -213,7 +217,9 @@
+ 		{
+ 			cached_file = smokeEffect->getGraphics().c_str();
+ 		}
++		OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 		start_frame  = Random(5);
++		OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 		ani_flags   |= ANITILE_ALWAYS_TRANSLUCENT;
+ 	}
+ 	else
+@@ -230,7 +236,9 @@
+ 	ani_params.sStartFrame = start_frame;
+ 	ani_params.sGridNo     = sGridNo;
+ 	ani_params.ubLevelID   = (bLevel == 0 ? ANI_STRUCT_LEVEL : ANI_ONROOF_LEVEL);
++	OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 	ani_params.sDelay      = 300 + Random(300);
++	OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 	ani_params.sX          = CenterX(sGridNo);
+ 	ani_params.sY          = CenterY(sGridNo);
+ 	ani_params.sZ          = 0;

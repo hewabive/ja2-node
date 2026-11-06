@@ -24,6 +24,10 @@
 // @src src/game/Tactical/Vehicles.cc, Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick, Soldier_Control.cc
 // @src SoldierTakeDamage, TurnSoldier, Weapons.cc TotalArmourProtection, UseHandToHand, TacticalAI/DecideAction.cc,
 // @src Strategic/Strategic_Movement.cc AddFuelToVehicle, StrategicMap.cc JumpIntoAdjacentSector (vehicle probes)
+// @src src/game/Strategic/Strategic_Turns.cc HandleStrategicTurn, Tactical/Tactical_Turns.cc HandleTacticalEndTurn,
+// @src Tactical/TeamTurns.cc BeginTeamTurn, Tactical/Overhead.cc RemoveSoldierFromTacticalSector, Soldier_Control.cc
+// @src SoldierTakeDamage, Tactical/Tactical_Save.cc LoadWorldItemsFromTempItemFile, TileEngine/WorldDef.cc TrashWorld
+// @src (absent merc probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -9208,6 +9212,434 @@ void ProbeVehicleLeaveSector(Command const& c)
 	});
 }
 
+}
+
+#include "Environment.h"
+#include "LoadSaveRottingCorpse.h"
+#include "Render_Fun.h"
+#include "SmokeEffects.h"
+#include "Strategic_Turns.h"
+#include "Tactical_Save.h"
+#include "Tactical_Turns.h"
+
+UINT32 OracleLastTacticalRealTime();
+void OracleSetLastTacticalRealTime(UINT32 time);
+void OracleSetTimeCompressionOn(BOOLEAN on);
+void OracleHandleTrashWorldUnloading();
+UINT32 OracleRottingCorpsesStamp();
+void OracleSetRottingCorpsesStamp(UINT32 stamp);
+UINT32 OracleTacticalEndTurns();
+
+namespace {
+std::vector<std::vector<long long>>* gAbsentLines = nullptr;
+}
+
+void OracleCharacterDialogueTrace(UINT8 const character, UINT16 const quote)
+{
+	if (gAbsentLines) gAbsentLines->push_back({character, quote});
+}
+
+namespace {
+
+constexpr useconds_t STRATEGIC_OVERHEAD_SLEEP_US = 21000;
+constexpr long long DEFAULT_POLL_STEP_MS = 20;
+constexpr long long DRUG_COURSE_FIELDS = 6;
+
+size_t gAbsentHistoryBase = 0;
+
+std::map<std::string, UINT16> const ABSENT_ANIMS{
+	{"STANDING", STANDING}, {"WALKING", WALKING}, {"RUNNING", RUNNING}, {"CRAWLING", CRAWLING}, {"SWATTING", SWATTING},
+	{"STAND_FALLFORWARD_STOP", STAND_FALLFORWARD_STOP}, {"FALLBACKHIT_STOP", FALLBACKHIT_STOP},
+	{"PRONE_LAYFROMHIT_STOP", PRONE_LAYFROMHIT_STOP},
+};
+
+std::map<std::string, INT8> const ABSENT_PERSONALITIES{
+	{"none", NO_PERSONALITYTRAIT}, {"claustrophobic", CLAUSTROPHOBIC}, {"nervous", NERVOUS},
+};
+
+std::string DescribeKeyRing(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> keys;
+	if (s.pKeyRing)
+	{
+		for (int i = 0; i < NUM_KEYS; ++i)
+		{
+			KEY_ON_RING const& k = s.pKeyRing[i];
+			if (k.ubNumber != 0) keys.push_back(Numbers({i, k.ubKeyID, k.ubNumber}));
+		}
+	}
+	return JsonArray(keys);
+}
+
+std::string DescribeAbsentMerc(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.nums("life", {s.bLife, s.bLifeMax, s.bBleeding})
+		.real("nextBleed", s.dNextBleed)
+		.nums("breath", {s.bBreath, s.bBreathMax, s.sBreathRed})
+		.num("ap", s.bActionPoints)
+		.num("shock", s.bShock)
+		.flag("gassed", (s.uiStatusFlags & SOLDIER_GASSED) != 0)
+		.flag("dead", (s.uiStatusFlags & SOLDIER_DEAD) != 0)
+		.flag("collapsed", s.bCollapsed)
+		.num("animState", s.usAnimState)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.flag("inSector", s.bInSector)
+		.raw("sector", StrategicSector(s.sSector))
+		.flag("between", s.fBetweenSectors)
+		.num("assignment", s.bAssignment)
+		.num("morale", s.bMorale)
+		.raw("courses", DescribeDrugCourses(s))
+		.nums("regen", {s.bRegenerationCounter, s.bRegenBoostersUsedToday})
+		.nums("quoteFlags", {s.usQuoteSaidFlags, s.usQuoteSaidExtFlags})
+		.num("blinded", s.bBlindedCounter)
+		.raw("keys", DescribeKeyRing(s))
+		.text();
+}
+
+std::string DescribeAbsentOther(SOLDIERTYPE const& s)
+{
+	return Numbers({s.ubID, s.bTeam, s.bLife, s.bBreath, s.bBleeding, (s.uiStatusFlags & SOLDIER_DEAD) ? 1 : 0, s.usAnimState});
+}
+
+std::string AbsentScreen()
+{
+	if (guiCurrentScreen == MAP_SCREEN) return "map";
+	if (guiCurrentScreen == GAME_SCREEN) return "game";
+	return "other";
+}
+
+std::string DescribeSuspiciousDeaths()
+{
+	std::vector<std::string> rows;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (s->ubProfile != NO_PROFILE) rows.push_back(Numbers({s->ubProfile, GetProfile(s->ubProfile).ubSuspiciousDeath}));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeAbsentState()
+{
+	std::vector<std::string> team;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM) team.push_back(DescribeAbsentMerc(*s));
+	std::vector<std::string> others;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam != OUR_TEAM && s->bInSector) others.push_back(DescribeAbsentOther(*s));
+	}
+	return Json{}
+		.str("screen", AbsentScreen())
+		.flag("mapMode", fInMapMode)
+		.nums("clock", {GetWorldTotalSeconds(), GetJA2Clock(), OracleLastTacticalRealTime(), OracleRottingCorpsesStamp()})
+		.nums("compression", {giTimeCompressMode, IsTimeCompressionOn(), GamePaused(), IsTimeBeingCompressed()})
+		.flag("worldLoaded", gfWorldLoaded)
+		.raw("worldSector", StrategicSector(gWorldSector))
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("deaths", gStrategicStatus.ubMercDeaths)
+		.raw("history", DescribeHistoryTail(gAbsentHistoryBase))
+		.raw("payouts", DescribePayouts())
+		.raw("suspicious", DescribeSuspiciousDeaths())
+		.num("bloodDecay", gTacticalStatus.uiDecayBloodLastUpdate)
+		.nums("light", {LightGetAmbient(), gubEnvLightValue, gfDoLighting})
+		.raw("team", JsonArray(team))
+		.raw("others", JsonArray(others))
+		.text();
+}
+
+void ForgetMapCharacterList()
+{
+	for (size_t i = 0; i < MAX_CHARACTER_COUNT; ++i) gCharactersList[i] = MapScreenCharacterSt{};
+}
+
+template<typename Run>
+void RunAbsentProbe(Command const& c, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	UINT32 const turns = OracleTacticalEndTurns();
+	std::string result;
+	gAbsentLines = &lines;
+	OracleTraceRandom(&draws);
+	try
+	{
+		result = run();
+	}
+	catch (...)
+	{
+		OracleTraceRandom(nullptr);
+		gAbsentLines = nullptr;
+		throw;
+	}
+	OracleTraceRandom(nullptr);
+	gAbsentLines = nullptr;
+	ForgetMapCharacterList();
+	std::vector<std::string> said;
+	for (auto const& l : lines) said.push_back(Numbers(l));
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDraws(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.num("turnsRun", OracleTacticalEndTurns() - turns)
+		.raw("lines", JsonArray(said))
+		.raw("state", DescribeAbsentState()));
+}
+
+std::string Nothing()
+{
+	return std::string{};
+}
+
+void ProbeAbsentClock(Command const& c)
+{
+	if (Has(c, "ja2clock")) guiBaseJA2Clock = static_cast<UINT32>(Required(c, "ja2clock"));
+	if (Has(c, "last")) OracleSetLastTacticalRealTime(static_cast<UINT32>(Required(c, "last")));
+	if (Has(c, "rotting")) OracleSetRottingCorpsesStamp(static_cast<UINT32>(Required(c, "rotting")));
+	if (Has(c, "seconds"))
+	{
+		guiGameClock = static_cast<UINT32>(Required(c, "seconds"));
+		UpdateGameClockGlobals(gpGameClockString);
+	}
+	if (Has(c, "decay")) gTacticalStatus.uiDecayBloodLastUpdate = static_cast<UINT32>(Required(c, "decay"));
+	if (Has(c, "z")) gWorldSector.z = static_cast<INT8>(Required(c, "z"));
+	if (Integer(c, "base", 0) != 0) gAbsentHistoryBase = ReadHistoryRecords().size();
+	RunAbsentProbe(c, Nothing);
+}
+
+void ProbeAbsentScreen(Command const& c)
+{
+	bool const map = Text(c, "screen", Text(c, "_0", "game")) == "map";
+	guiCurrentScreen = map ? MAP_SCREEN : GAME_SCREEN;
+	fInMapMode = map;
+	RunAbsentProbe(c, Nothing);
+}
+
+void ProbeAbsentCompress(Command const& c)
+{
+	giTimeCompressMode = static_cast<INT32>(Required(c, "mode"));
+	OracleSetTimeCompressionOn(Integer(c, "on", 0) != 0);
+	gfGamePaused = Integer(c, "paused", 0) != 0;
+	RunAbsentProbe(c, Nothing);
+}
+
+void ProbeAbsentAway(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	RunAbsentProbe(c, [&] {
+		if (s.bInSector) RemoveSoldierFromTacticalSector(s);
+		s.sSector = sector;
+		s.fBetweenSectors = Integer(c, "between", 0) != 0;
+		return std::string{};
+	});
+}
+
+void SetDrugCourse(SOLDIERTYPE& s, std::string const& text)
+{
+	std::vector<std::string> const parts = SplitList(text, ':');
+	if (static_cast<long long>(parts.size()) != DRUG_COURSE_FIELDS) throw std::runtime_error("drug needs kind:future:rate:effect:sideRate:side");
+	size_t const k = std::stoul(parts[0]);
+	if (k >= NUM_COMPLEX_DRUGS) throw std::runtime_error("no such drug course " + parts[0]);
+	s.bFutureDrugEffect[k]   = static_cast<INT8>(std::stoi(parts[1]));
+	s.bDrugEffectRate[k]     = static_cast<INT8>(std::stoi(parts[2]));
+	s.bDrugEffect[k]         = static_cast<INT8>(std::stoi(parts[3]));
+	s.bDrugSideEffectRate[k] = static_cast<INT8>(std::stoi(parts[4]));
+	s.bDrugSideEffect[k]     = static_cast<INT8>(std::stoi(parts[5]));
+}
+
+void SetKeyOnRing(SOLDIERTYPE& s, std::string const& text)
+{
+	std::vector<std::string> const parts = SplitList(text, ':');
+	if (parts.size() != 3 || !s.pKeyRing) throw std::runtime_error("key needs pos:id:count and a key ring");
+	KEY_ON_RING& k = s.pKeyRing[std::stoi(parts[0])];
+	k.ubKeyID  = static_cast<UINT8>(std::stoi(parts[1]));
+	k.ubNumber = static_cast<UINT8>(std::stoi(parts[2]));
+}
+
+void SetStatusFlag(Command const& c, char const* key, SOLDIERTYPE& s, UINT32 const flag)
+{
+	if (!Has(c, key)) return;
+	if (Integer(c, key, 0) != 0) s.uiStatusFlags |= flag;
+	else s.uiStatusFlags &= ~flag;
+}
+
+void ProbeAbsentSet(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SetIfGiven(c, "life", s.bLife);
+	SetIfGiven(c, "lifeMax", s.bLifeMax);
+	SetIfGiven(c, "bleeding", s.bBleeding);
+	SetIfGiven(c, "breath", s.bBreath);
+	SetIfGiven(c, "breathMax", s.bBreathMax);
+	SetIfGiven(c, "breathRed", s.sBreathRed);
+	SetIfGiven(c, "ap", s.bActionPoints);
+	SetIfGiven(c, "shock", s.bShock);
+	SetIfGiven(c, "blinded", s.bBlindedCounter);
+	SetIfGiven(c, "morale", s.bMorale);
+	SetIfGiven(c, "terrain", s.bOverTerrainType);
+	SetIfGiven(c, "regen", s.bRegenerationCounter);
+	SetIfGiven(c, "collapsed", s.bCollapsed);
+	if (Has(c, "nextBleed")) s.dNextBleed = std::stof(Text(c, "nextBleed", "0"));
+	if (Has(c, "anim")) s.usAnimState = Lookup(ABSENT_ANIMS, c, "anim", "STANDING");
+	SetStatusFlag(c, "gassed", s, SOLDIER_GASSED);
+	for (std::string const& course : SplitList(Text(c, "drug", ""), ',')) SetDrugCourse(s, course);
+	if (Has(c, "key")) SetKeyOnRing(s, Text(c, "key", ""));
+	if (Has(c, "insurance"))
+	{
+		s.usLifeInsurance = static_cast<UINT16>(Required(c, "insurance"));
+		s.uiStartTimeOfInsuranceContract = static_cast<UINT32>(Integer(c, "insuredAt", 0));
+	}
+	if (Has(c, "buddy")) GetProfile(s.ubProfile).bBuddy[0] = static_cast<INT8>(Required(c, "buddy"));
+	if (Has(c, "personality")) GetProfile(s.ubProfile).bPersonalityTrait = Lookup(ABSENT_PERSONALITIES, c, "personality", "none");
+	if (Has(c, "grid")) EVENT_SetSoldierPosition(&s, GridArgument(c, "grid"), SSP_NONE);
+	RunAbsentProbe(c, Nothing);
+}
+
+void ProbeAbsentTurn(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	RunAbsentProbe(c, [&] {
+		for (long long i = 0; i < count; ++i) HandleTacticalEndTurn();
+		return std::string{};
+	});
+}
+
+void ProbeAbsentPoll(Command const& c)
+{
+	long long const now = Required(c, "now");
+	long long const count = Integer(c, "count", 1);
+	long long const step = Integer(c, "step", DEFAULT_POLL_STEP_MS);
+	RunAbsentProbe(c, [&] {
+		std::vector<std::string> polls;
+		UINT32 const turns = OracleTacticalEndTurns();
+		for (long long i = 0; i < count; ++i)
+		{
+			guiBaseJA2Clock = static_cast<UINT32>(now + i * step);
+			usleep(STRATEGIC_OVERHEAD_SLEEP_US);
+			HandleStrategicTurn();
+			polls.push_back(Numbers({GetJA2Clock(), OracleLastTacticalRealTime(), OracleTacticalEndTurns() - turns}));
+		}
+		return Json{}.raw("polls", JsonArray(polls)).text();
+	});
+}
+
+void ProbeAbsentTeamTurn(Command const& c)
+{
+	RunAbsentProbe(c, [] {
+		BeginTeamTurn(OUR_TEAM);
+		return std::string{};
+	});
+}
+
+void ProbeAbsentDamage(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	INT16 const damage = static_cast<INT16>(Required(c, "damage"));
+	INT16 const breath = static_cast<INT16>(Integer(c, "breath", damage));
+	UINT8 const reason = Lookup(DAMAGE_REASONS, c, "reason", "bloodloss");
+	RunAbsentProbe(c, [&] { return Json{}.num("combined", SoldierTakeDamage(&s, damage, breath, reason, NULL)).text(); });
+}
+
+void ProbeAbsentSmoke(Command const& c)
+{
+	GridNo const gridNo = GridArgument(c, "grid");
+	UINT16 const item = ItemArgument(Text(c, "item", "SMOKE_GRENADE"));
+	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
+	RunAbsentProbe(c, [&] {
+		NewSmokeEffect(gridNo, item, level, NULL);
+		return Json{}.num("smoke", static_cast<long long>(GetSmokeEffectOnTile(gridNo, level))).text();
+	});
+}
+
+void ProbeAbsentHide(Command const& c)
+{
+	UINT8 const room = static_cast<UINT8>(Required(c, "room"));
+	RunAbsentProbe(c, [&] {
+		gubWorldRoomHidden[room] = TRUE;
+		if (Has(c, "item"))
+		{
+			OBJECTTYPE o;
+			CreateItem(ItemArgument(Text(c, "item", "")), static_cast<INT8>(Integer(c, "status", DEFAULT_ITEM_STATUS)), &o);
+			AddItemToPool(GridArgument(c, "at"), &o, INVISIBLE, 0, 0, 0);
+		}
+		return std::string{};
+	});
+}
+
+void ProbeAbsentLight(Command const& c)
+{
+	STRATEGICEVENT e{};
+	e.ubCallbackID = EVENT_CHANGELIGHTVAL;
+	e.uiParam      = static_cast<UINT32>(Required(c, "value"));
+	e.uiTimeStamp  = GetWorldTotalMin();
+	RunAbsentProbe(c, [&] {
+		ExecuteStrategicEvent(&e);
+		return std::string{};
+	});
+}
+
+std::string DescribeTempItems(SGPSector const& sector)
+{
+	std::vector<std::string> rows;
+	for (WORLDITEM const& wi : LoadWorldItemsFromTempItemFile(sector))
+	{
+		if (!wi.fExists) continue;
+		rows.push_back(Numbers({wi.sGridNo, wi.ubLevel, wi.usFlags, wi.bVisible, wi.o.usItem, wi.o.ubNumberOfObjects, wi.o.bStatus[0]}));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeTempCorpses(SGPSector const& sector)
+{
+	std::vector<std::string> rows;
+	ST::string const name = GetMapTempFileName(SF_ROTTING_CORPSE_TEMP_FILE_EXISTS, sector);
+	if (!GCM->tempFiles()->exists(name)) return "[]";
+	AutoSGPFile f(GCM->tempFiles()->openForReading(name));
+	UINT32 count = 0;
+	f->read(&count, sizeof(count));
+	for (UINT32 i = 0; i < count; ++i)
+	{
+		ROTTING_CORPSE_DEFINITION d;
+		ExtractRottingCorpseFromFile(f, &d);
+		rows.push_back(Numbers({d.ubType, d.ubBodyType, d.sGridNo, d.bLevel, d.usFlags, d.ubProfile, d.bDirection, d.uiTimeOfDeath,
+			d.sHeightAdjustment, d.bVisible}));
+	}
+	return JsonArray(rows);
+}
+
+void ProbeAbsentRecords(Command const& c)
+{
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	RunAbsentProbe(c, [&] {
+		return Json{}
+			.raw("items", DescribeTempItems(sector))
+			.raw("corpses", DescribeTempCorpses(sector))
+			.flag("itemFile", GetSectorFlagStatus(sector, SF_ITEM_TEMP_FILE_EXISTS) != FALSE)
+			.flag("corpseFile", GetSectorFlagStatus(sector, SF_ROTTING_CORPSE_TEMP_FILE_EXISTS) != FALSE)
+			.text();
+	});
+}
+
+void ProbeAbsentUnload(Command const& c)
+{
+	RunAbsentProbe(c, [] {
+		OracleHandleTrashWorldUnloading();
+		TrashWorld();
+		gTacticalStatus.fEnemyInSector = FALSE;
+		gTacticalStatus.uiFlags &= ~INCOMBAT;
+		SetWorldSectorInvalid();
+		gfCaves    = FALSE;
+		gfBasement = FALSE;
+		return std::string{};
+	});
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -9477,6 +9909,20 @@ void Dispatch(Command const& c)
 	if (c.name == "vehicleroute") return ProbeVehicleRoute(c);
 	if (c.name == "vehiclewarp") return ProbeVehicleWarp(c);
 	if (c.name == "vehicleleavesector") return ProbeVehicleLeaveSector(c);
+	if (c.name == "abclock") return ProbeAbsentClock(c);
+	if (c.name == "abscreen") return ProbeAbsentScreen(c);
+	if (c.name == "abcompress") return ProbeAbsentCompress(c);
+	if (c.name == "abaway") return ProbeAbsentAway(c);
+	if (c.name == "abset") return ProbeAbsentSet(c);
+	if (c.name == "abturn") return ProbeAbsentTurn(c);
+	if (c.name == "abpoll") return ProbeAbsentPoll(c);
+	if (c.name == "abteamturn") return ProbeAbsentTeamTurn(c);
+	if (c.name == "abdamage") return ProbeAbsentDamage(c);
+	if (c.name == "absmoke") return ProbeAbsentSmoke(c);
+	if (c.name == "abhide") return ProbeAbsentHide(c);
+	if (c.name == "ablight") return ProbeAbsentLight(c);
+	if (c.name == "abrecords") return ProbeAbsentRecords(c);
+	if (c.name == "abunload") return ProbeAbsentUnload(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

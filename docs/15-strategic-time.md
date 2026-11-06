@@ -192,7 +192,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The first real-time turn after a sector load, or after the way back to the loaded sector from the map, comes at the first 20 ms count past 5 s, however recent the map's last turn | `campaign/absent-mercs.test.ts` "comes at the first 20 ms count …", "comes as long after a return …", "comes as long after a compressed stay …" |
 | The map screen runs a real-time turn at every 20 ms poll at every compressed speed, so bleeding, breath and drugs per world minute depend on the speed, twelve times faster at 5 minutes per second than at 60 | `campaign/map-screen-turns.test.ts` "every 20 ms, a turn at each poll …", "so a wounded merc bleeds as much …" |
 | With an underground sector loaded, every compressed poll on the map rolls its claustrophobes | `campaign/map-screen-turns.test.ts` "rolls each claustrophobe …" |
-| A look of the map's real-time turn that reveals a room with items says the spotted-something line on the map, during compression, its `Random(2)` drawn at that poll: `TacticalCharacterDialogue` has no screen check (`Tactical/Dialogue_Control.cc:543`; per source, to be confirmed by the oracle, task 7 of the absent block) | `campaign/map-screen-looks.test.ts` "says the spotted-something line on the map …" |
+| A look of the map's real-time turn that reveals a room with items says the spotted-something line on the map, during compression, its `Random(2)` drawn at that poll: `TacticalCharacterDialogue` has no screen check (`Tactical/Dialogue_Control.cc:543`) | `campaign/map-screen-looks.test.ts` "says the spotted-something line on the map …" |
 | Dawn and dusk leave the loaded sector's light as it was while the map compresses: only the game screen applies a light change (`EnvironmentController`, `GameScreen.cc:333`), so the map's looks see by the old light and the first look back in tactical by the new | `campaign/map-screen-looks.test.ts` "keeps the day light of the loaded sector over dusk on the map …" |
 | `InitBloodCatSectors` stops at sector 254 | `strategic/map/init.test.ts` |
 | Every start of compression clears the loaded sector, not only the first since the map opened: the map screen forgets each frame that compression occurred | `campaign/screens.test.ts` |
@@ -207,7 +207,12 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 The oracle's `warp` probe runs `WarpGameTime` over every event and compares the economy handlers; `newgame` and
-`newgamefull` replay the native draw logs of a new game (`tools/oracle/README.md`). Inferred from reading the source:
+`newgamefull` replay the native draw logs of a new game; the absent probes compare the real-time turn on both screens
+and `HandleStrategicTurn`'s gate and check time at each compression mode and under a pause, with the blood decay per
+mode, the spotted-something line of a look on the map and a light change on the map leaving the loaded map's ambient
+(`tools/oracle/README.md` "Absent mercs"). The 20 ms counter's phase is not comparable (the native one runs on the wall
+clock), nor is the frame loop that runs `EnvironmentController` only on the game screen. Inferred from reading the
+source:
 - The slice positions on a 5 ms loop: computed from the integer formulas and unit-tested, not traced natively.
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.

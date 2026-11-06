@@ -191,7 +191,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A merc of ours in another sector who starts to bleed at the same turn start as mercs on the loaded map says ME_TOO when one of them, before him in id order, said the bleeding line | `src/sim/campaign/absent-mercs.test.ts` "start in id order …" |
 | An insured merc dying off the tactical map with no enemy in the loaded sector is a suspicious death: the test reads the loaded sector, not his (`Strategic/Strategic_Merc_Handler.cc:103`) | `src/sim/campaign/death-off-the-map.test.ts` "an insured merc dying off the map …" |
 | A merc of ours dying while the map screen is up leaves his body, every item and his keys in his sector (the one he left, if travelling) at a random tile of the loaded or last loaded map, buddies anywhere comment, and compression stops | `src/sim/campaign/death-in-the-map-screen.test.ts` "leaves his body, every item and his keys …", "of a merc between sectors …" |
-| A merc of the loaded sector lying collapsed who dies while the map screen is up starts his death animation and gets the map screen's body in the loaded sector's records, which the unload overwrites, so he leaves no body anywhere; standing, he dies at once in tactical terms and the map branch is skipped; per source, the oracle (task 7) confirms | `src/sim/campaign/death-in-the-map-screen.test.ts` "lying collapsed, starts his death animation …", "standing, dies at once …" |
+| A merc of the loaded sector lying collapsed who dies while the map screen is up starts his death animation and gets the map screen's body in the loaded sector's records, which the unload overwrites, so he leaves no body anywhere; standing, he dies at once in tactical terms and the map branch is skipped | `src/sim/campaign/death-in-the-map-screen.test.ts` "lying collapsed, starts his death animation …", "standing, dies at once …" |
 | A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:728`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …"; through the map screen's turn, `src/sim/campaign/map-screen-turns.test.ts` "bleeds a collapsed civilian to death there …" |
 | A body laid in an unloaded sector, by the map screen's strategic death or by autoresolve, carries profile 0, not the dead soldier's: the definition is zeroed and the profile never set (`Tactical/Tactical_Save.cc:885`), so a search for a corpse by profile misses it | `src/sim/campaign/sector-loot.test.ts` "lays the corpse of a soldier with a profile under profile 0 …" |
 
@@ -204,7 +204,10 @@ Not pinned yet:
 
 ## 4. Not checked against the native build
 
-Inferred from reading the source:
+The absent probes (`tools/oracle/README.md` "Absent mercs") compare bleeding off the tactical map on both screens, the
+deaths off it (strategic bookkeeping, insurance, buddy lines, the body, items and keys of the map screen and their
+draws), both branches of a merc of the loaded sector dying on the map and the unload after it, and another team's
+strategic death. Inferred from reading the source:
 - A hit on a soldier lying in `FLYBACKHIT_STOP` never releases the attacker; believed unreachable.
 - A shooter hit mid-burst keeps `bulletsLeft`, so his attack's hold leaks; ja2-node does not special-case it.
 - A negative float breath converted to `UINT8` assumes x86 truncate-then-wrap; ja2-node does the same.

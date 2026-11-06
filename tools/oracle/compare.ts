@@ -36,6 +36,7 @@ import {
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, type TacticalState, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { ABSENT_PROBES, AbsentComparer } from './absent-compare.ts';
 import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
 import { ATTACH_PROBES, AttachComparer } from './attach-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
@@ -74,6 +75,7 @@ interface Context {
   readonly sim: TacticalSim;
   readonly save: boolean;
   readonly bytes?: Uint8Array;
+  readonly worldless?: boolean;
 }
 
 const DEFAULT_MAP = 'maps/a9.dat';
@@ -523,10 +525,18 @@ async function sectorContext(
   return { sim, save: false };
 }
 
-async function saveContext(read: ReadFile, dataDir: string, p: Json): Promise<Context> {
+async function saveContext(
+  read: ReadFile,
+  content: TacticalContent,
+  worlds: Map<string, TacticalWorld>,
+  dataDir: string,
+  p: Json,
+): Promise<Context> {
   const bytes = new Uint8Array(readFileSync(join(savesDir(dataDir), `${String(p.name)}.sav`)));
   const { session } = await createTacticalSaveSession(read, bytes);
-  return { sim: session.sim, save: true, bytes };
+  const loaded = session.campaign.tactical;
+  if (loaded) return { sim: loaded, save: true, bytes };
+  return { sim: (await sectorContext(read, content, worlds, null)).sim, save: true, bytes, worldless: true };
 }
 
 async function comparePreBattleProbe(read: ReadFile, exists: FileExists, ctx: Context | null, p: Json): Promise<number> {
@@ -603,6 +613,7 @@ for (const file of files) {
   const drugs = new DrugComparer(read, exists);
   const bombs = new BombComparer(read, exists, content);
   const vehicles = new VehicleComparer(read, exists);
+  const absent = new AbsentComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -615,9 +626,9 @@ for (const file of files) {
       sectors.loadSector(ctx.sim, p);
       meanwhiles.loadSector();
     } else if (p.probe === 'save') {
-      ctx = await saveContext(read, dataDir, p);
+      ctx = await saveContext(read, content, worlds, dataDir, p);
       sectors.loadSave(savesDir(dataDir), String(p.name));
-      await strategic.loadSave(savesDir(dataDir), String(p.name), ctx.sim);
+      await strategic.loadSave(savesDir(dataDir), String(p.name), ctx.worldless ? null : ctx.sim);
       await economy.loadSave(savesDir(dataDir), String(p.name));
       await sai.loadSave(savesDir(dataDir), String(p.name));
       if (ctx.bytes) creatures.loadSave(ctx.bytes);
@@ -640,6 +651,7 @@ for (const file of files) {
       if (ctx.bytes) drugs.loadSave(ctx.bytes);
       if (ctx.bytes) bombs.loadSave(ctx.bytes);
       if (ctx.bytes) vehicles.loadSave(ctx.bytes);
+      if (ctx.bytes) absent.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -672,6 +684,7 @@ for (const file of files) {
     else if (DRUG_PROBES.has(String(p.probe))) failures += await drugs.compare(p);
     else if (BOMB_PROBES.has(String(p.probe))) failures += await bombs.compare(p);
     else if (VEHICLE_PROBES.has(String(p.probe))) failures += await vehicles.compare(p);
+    else if (ABSENT_PROBES.has(String(p.probe))) failures += await absent.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);
