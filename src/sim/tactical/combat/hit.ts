@@ -60,6 +60,7 @@ import { checkForAndHandleSoldierDyingNotFromHit } from './death.ts';
 import { StatCause, statChange } from './experience.ts';
 import { bulletImpact, isCreatureOrBloodcat } from './impact.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
+import { giveBackWhatACutStrikeHeld, holdsTheStrikeWillRelease } from './strikes.ts';
 import {
   AimShot,
   BP_GET_HIT,
@@ -312,6 +313,7 @@ export function eventSoldierGotHit(
   const name = animName(t.content, s.state);
   if (name === 'SHOOT_ROCKET' || name === 'SHOOT_MORTAR' || name === 'THROW_ITEM' || name === 'LOB_ITEM')
     reduceAttackBusyCount(t, s, false);
+  const strikeHolds = holdsTheStrikeWillRelease(t, target);
   if (att) att.lastAttackHit = true;
   s.attacker = att;
   if (!isVehicle(s)) {
@@ -379,6 +381,7 @@ export function eventSoldierGotHit(
   const locked = animationLocked(t, s);
   startHitAnimation(t, s, cls, weapon, direction, range, att, special);
   if (locked && hitAnimationDropped(t, s, before)) releaseSoldiersAttacker(t, s);
+  giveBackWhatACutStrikeHeld(t, target, strikeHolds);
 }
 
 function animationLocked(t: TacticalState, s: Soldier): boolean {

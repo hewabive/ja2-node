@@ -120,6 +120,7 @@ const WADING_TERRAINS: readonly number[] = [Terrain.LOW_WATER, Terrain.MED_WATER
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 const KEEPS_LAST_TARGET = ['READY_RIFLE_STAND', 'READY_RIFLE_PRONE', 'READY_RIFLE_CROUCH', 'ROBOT_SHOOT'];
 const SLOTS_THE_SCRIPT_RUNS_ON: ReadonlySet<SlotKind> = new Set([SlotKind.FRAME, SlotKind.NOP, SlotKind.OP]);
+const SEQUEL_STATES_A_SCRIPT_REACHES = 2;
 
 export interface NamedStates {
   readonly WALKING: number;
@@ -724,6 +725,34 @@ export function animationReachesOpcode(t: TacticalState, s: Soldier, code: numbe
     const kind = slotKind(timeline, slot);
     if (kind === SlotKind.OP && slotArgument(timeline, slot) === code) return true;
     if (!SLOTS_THE_SCRIPT_RUNS_ON.has(kind)) return false;
+  }
+  return false;
+}
+
+export function scriptRanOpcode(t: TacticalState, state: number, pc: number, code: number): boolean {
+  const timeline = t.content.timeline;
+  for (let at = 0; at < pc; at++) {
+    const slot = timelineSlot(state, at);
+    if (slotKind(timeline, slot) === SlotKind.OP && slotArgument(timeline, slot) === code) return true;
+  }
+  return false;
+}
+
+export function scriptReachesOpcode(t: TacticalState, state: number, pc: number, code: number): boolean {
+  const timeline = t.content.timeline;
+  let current = state;
+  let at = pc;
+  for (let hop = 0; hop <= SEQUEL_STATES_A_SCRIPT_REACHES; hop++) {
+    for (; at < MAX_FRAMES_PER_ANIM; at++) {
+      const slot = timelineSlot(current, at);
+      const kind = slotKind(timeline, slot);
+      if (kind === SlotKind.OP && slotArgument(timeline, slot) === code) return true;
+      if (kind === SlotKind.STATE) break;
+      if (!SLOTS_THE_SCRIPT_RUNS_ON.has(kind)) return false;
+    }
+    if (at >= MAX_FRAMES_PER_ANIM) return false;
+    current = slotArgument(timeline, timelineSlot(current, at));
+    at = 0;
   }
   return false;
 }

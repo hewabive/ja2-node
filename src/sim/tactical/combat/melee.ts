@@ -64,6 +64,7 @@ import { agilityForEnemyMissingPlayer, modifyExpGainByTarget, StatCause, statCha
 import { eventSoldierGotHit } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { bladeApproach, directPunchApproach, findAdjacentGridEx, findSoldierAtGridNo, type MeleeApproach } from './melee-reach.ts';
+import { cutStrikeGivingBackItsHolds } from './strikes.ts';
 import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, ItemHandle, Special, weaponStatusMod } from './types.ts';
 
 const MeleeMode = { STAB: 0, PUNCH: 1, STEAL: 2 } as const;
@@ -228,7 +229,7 @@ export function hthImpact(t: CombatContext, att: Soldier, tgt: Soldier, hitBy: n
 
 function turnTowardAttacker(t: TacticalState, att: Soldier, tgt: Soldier): void {
   if (!turnsFromAttacks(tgt)) return;
-  stopMerc(t, tgt);
+  cutStrikeGivingBackItsHolds(t, tgt, () => stopMerc(t, tgt));
   if (tgt.team !== Team.OUR) t.turnHooks.cancelAIAction(t, tgt);
   t.gameEvents.push({ kind: 'desiredDirection', soldier: tgt.id, direction: directionToward(tgt.gridNo, att.gridNo) });
 }
@@ -558,10 +559,12 @@ function signalDodge(t: TacticalState, s: Soldier): void {
   if (!tgt || !isMercBody(tgt)) return;
   if ((tgt.oppList[s.id] ?? 0) === Opp.NOT_HEARD_OR_SEEN && tgt.team !== s.team) return;
   if (height(t.content, tgt.state) !== AnimHeight.STAND) return;
-  stopMerc(t, tgt);
-  if (tgt.team !== Team.OUR) t.turnHooks.cancelAIAction(t, tgt);
-  setDesiredDirection(t, tgt, directionToward(tgt.gridNo, s.gridNo));
-  changeSoldierState(t, tgt, anim(t.content, 'DODGE_ONE'));
+  cutStrikeGivingBackItsHolds(t, tgt, () => {
+    stopMerc(t, tgt);
+    if (tgt.team !== Team.OUR) t.turnHooks.cancelAIAction(t, tgt);
+    setDesiredDirection(t, tgt, directionToward(tgt.gridNo, s.gridNo));
+    changeSoldierState(t, tgt, anim(t.content, 'DODGE_ONE'));
+  });
 }
 
 function endNpcPunch(t: TacticalState, s: Soldier): boolean {

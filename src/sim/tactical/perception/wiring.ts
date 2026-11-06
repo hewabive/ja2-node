@@ -10,6 +10,7 @@
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, soldierGotoStationaryStance } from '../animation.ts';
 import { reduceAttackBusyCount, unSetUIBusy } from '../combat/barrier.ts';
+import { strikePending } from '../combat/strikes.ts';
 import { unsetEngagedInConvFromPcAction } from '../give.ts';
 import { autoPlaceObject } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
@@ -21,13 +22,6 @@ import type { PerceptionHooks, TacticalHooks, TacticalState } from '../state.ts'
 import { enterCombatMode } from '../turns/turns.ts';
 import { doorOpeningNoise, makeNoise, movementNoise, NoiseKind } from './noise.ts';
 import { allTeamsLookForAll, handleSight, initOpplistForDoorOpening, SightFlags } from './sight.ts';
-
-const PENDING_MELEE_ATTACKS = ['THROW_KNIFE', 'SLICE', 'STAB', 'CROUCH_STAB', 'PUNCH', 'PUNCH_LOW', 'CROWBAR_ATTACK'];
-
-function pendingMeleeAttack(t: TacticalState, s: Soldier): boolean {
-  if (s.pendingAnimation === NO_PENDING_ANIMATION) return false;
-  return PENDING_MELEE_ATTACKS.includes(t.content.animations.controls[s.pendingAnimation]?.id ?? '');
-}
 
 export function returnThrownObject(t: TacticalState, s: Soldier): void {
   const thrown = s.tempObject;
@@ -54,7 +48,7 @@ function haltInCombat(t: TacticalState, s: Soldier, fromSightingEnemy: boolean):
 export function haltFromSighting(t: TacticalState, s: Soldier, fromSightingEnemy: boolean): void {
   if (hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) return;
   const throwing = s.tempObject !== null && fromSightingEnemy;
-  const attacking = pendingMeleeAttack(t, s);
+  const attacking = strikePending(t, s);
   if (throwing) returnThrownObject(t, s);
   if (throwing || attacking) {
     reduceAttackBusyCount(t, s, false);
