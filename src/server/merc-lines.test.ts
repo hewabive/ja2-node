@@ -314,14 +314,15 @@ describe('the map screen pause for a line in a campaign (Dialogue_Control.cc Dia
     expect(clockOf(finished)).toMatchObject({ paused: false, pauseLocked: false });
   });
 
-  it('lifts the pause of a line at once when the player goes back to tactical while it plays, as the map screen ends (MapScreen.cc EndMapScreen)', async () => {
+  it('keeps the pause of a line when the player asks for tactical while it plays, as every exit from the map waits for it (Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo)', async () => {
     const c = await onTheMap(105, COMPRESSING);
     const line = sayLine(c);
     expect(clockOf(c)).toMatchObject({ paused: true, pauseLocked: true });
-    expect(c.session.dispatch({ type: 'tacticalScreen' })).toMatchObject({ ok: true });
-    expect(clockOf(c)).toMatchObject({ paused: false, pauseLocked: false });
+    expect(c.session.dispatch({ type: 'tacticalScreen' })).toMatchObject({ ok: false, data: { refusal: 'pauseLocked' } });
+    expect(clockOf(c)).toMatchObject({ paused: true, pauseLocked: true });
     c.live.advance({ ticks: line.ticks });
     expect(clockOf(c)).toMatchObject({ paused: false, pauseLocked: false });
+    expect(c.session.dispatch({ type: 'tacticalScreen' })).toMatchObject({ ok: true });
   });
 
   it('never pauses for a line said in tactical', async () => {

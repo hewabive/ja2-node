@@ -47,7 +47,8 @@
 // @src (the info face as an auto face, Strategic/MapScreen.cc HandleAutoFaces), CheckBleeding (uiChangeHealthTime of the
 // @src point of maximum life lost while dying, which DrawCharacterInfo prints red), Campaign.cc ProcessStatChange
 // @src (uiChangeHealthTime of a health gain), HandleTakeDamageDeath (the cry and the samples of a death on the map
-// @src screen) (2026-11-06).
+// @src screen) (2026-11-06); Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (an item held, the town box, the
+// @src militia popup and the sector inventory shut every exit; the shared game checks by the clock view, 2026-11-06).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -1058,11 +1059,16 @@ export class MapScreen implements Screen {
 
   #allowedToExit(): boolean {
     const view = this.#playerView();
-    return !view?.prompt && !view?.contractPrompt && this.#plot === null && !this.#leaving && !this.#updateBox.open;
+    if (view?.prompt || view?.contractPrompt || view?.clock?.exitRefusal) return false;
+    return this.#plot === null && !this.#leaving && this.#exitBoxesClosed();
+  }
+
+  #exitBoxesClosed(): boolean {
+    return !this.#inventory.holding && !this.#updateBox.open && !this.#townBox.open && !this.#militia.open && !this.#sectorInventoryOpen;
   }
 
   #canEnterSelected(): boolean {
-    if (!this.#allowedToExit() || this.#sectorInventoryOpen) return false;
+    if (!this.#allowedToExit()) return false;
     const reply = this.#env.client.hint({ type: 'canEnterSector', sector: sectorLabel(this.#selected) });
     return reply.state === 'ready' && reply.answer.ok && (reply.answer.data as { allowed: boolean }).allowed;
   }

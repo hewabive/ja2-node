@@ -5,7 +5,7 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { advance } from '../advance.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
-import { lockPauseState, pauseGame } from '../strategic/time/world-clock.ts';
+import { CompressionStop, lockPauseState, pauseGame } from '../strategic/time/world-clock.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 let kit: CampaignKit;
@@ -25,6 +25,7 @@ const TEN_REAL_SECONDS_OF_TICKS = 10 * ONE_REAL_SECOND_OF_TICKS;
 const SIX_REAL_SECONDS = 6;
 const LOCK_PAUSE_MEANWHILE = 6;
 const LOCK_PAUSE_MERC_TALKING = 15;
+const A9 = { x: 9, y: 1, z: 0 };
 
 function landedWithRoster(troops: number) {
   const created = createTestCampaign(kit, { seed: 8, mercs: 2, garrison: { admins: 0, troops, elites: 0 } });
@@ -137,18 +138,29 @@ describe('leaving the map screen', () => {
     expect(c.tactical?.state.realtimeClock.lastTurnMs).toBeGreaterThan(lastTurnMs);
   });
 
-  it("keeps the player's own pause on the way back to the loaded sector and lifts only the pause lock (gfPauseDueToPlayerGamePause)", () => {
+  it("keeps the player's own pause on the way back to the loaded sector (gfPauseDueToPlayerGamePause)", () => {
+    const c = landed(0);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    const clock = c.state.clock;
+    pauseGame(clock);
+    clock.playerPause = true;
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    expect([c.state.clock.paused, c.state.clock.pauseLocked]).toEqual([true, false]);
+  });
+
+  it("lifts only the pause lock, not the player's pause, when the pre-battle panel hands the map back to the loaded sector past the exit checks", () => {
     const c = landed(0);
     expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     const clock = c.state.clock;
     pauseGame(clock);
     clock.playerPause = true;
     lockPauseState(clock, LOCK_PAUSE_MERC_TALKING);
-    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
-    expect([c.state.clock.paused, c.state.clock.pauseLocked]).toEqual([true, false]);
+    expect(c.dispatch({ type: 'tacticalScreen' })).toMatchObject({ ok: false, data: { refusal: 'pauseLocked' } });
+    expect(c.sectors?.setCurrentWorldSector(A9)).toBe(true);
+    expect([c.state.flow, c.state.clock.paused, c.state.clock.pauseLocked]).toEqual(['tactical', true, false]);
   });
 
-  it('stops compression and lifts the pause lock when a sector loads from the map, so the load unpauses the game (StrategicMap.cc EnterSector)', () => {
+  it('stops compression and lifts the pause lock when a sector loads from the map past the exit checks, so the load unpauses the game (StrategicMap.cc EnterSector)', () => {
     const { campaign: c, roster } = landedWithRoster(0);
     expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     for (const m of roster.all()) m.betweenSectors = true;
@@ -159,9 +171,10 @@ describe('leaving the map screen', () => {
     pauseGame(clock);
     lockPauseState(clock, LOCK_PAUSE_MEANWHILE);
     c.drainEvents();
-    expect(c.dispatch({ type: 'enterSector', sector: 'A9' })).toMatchObject({ ok: true });
+    expect(c.dispatch({ type: 'enterSector', sector: 'A9' })).toMatchObject({ ok: false, data: { refusal: 'pauseLocked' } });
+    expect(c.sectors?.setCurrentWorldSector(A9)).toBe(true);
     expect([c.state.flow, c.state.clock.paused, c.state.clock.pauseLocked]).toEqual(['tactical', false, false]);
-    expect(c.drainEvents()).toContainEqual(expect.objectContaining({ type: 'compressionStopped', reason: 'mapExit' }));
+    expect([c.state.clock.compressionOn, c.state.clock.stopReason]).toEqual([false, CompressionStop.MAP_EXIT]);
   });
 });
 

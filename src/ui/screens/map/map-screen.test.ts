@@ -24,6 +24,8 @@ const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
 const TRAIN_MENU_TOWN = 1;
 const MESSAGE_BOX = 'messageBox';
+const EXIT_BUTTONS = ['laptopButton', 'tacticalButton', 'optionsButton'];
+const SQUAD_SECTOR = 'D13';
 const MALE = 0;
 const FEMALE = 1;
 const FRED = 106;
@@ -413,6 +415,26 @@ describe('the map screen over the stub map-screen campaign', () => {
         'Game Style: Realistic',
       ]);
       expect(f.sounds).toContain('newMessageBeep');
+    }));
+
+  it('shuts the laptop, tactical and options buttons while the pause is locked or the town box is open (AllowedToExitFromMapscreenTo)', () =>
+    withMap(async (f) => {
+      const exits = () => EXIT_BUTTONS.map((id) => f.widget(id).enabled);
+      const lockPause = (locked: boolean) => {
+        (f.session.sim as CampaignSession).campaign.state.clock.pauseLocked = locked;
+        f.client.refresh();
+        f.t.frame();
+      };
+      await f.clickSector(SQUAD_SECTOR);
+      expect(exits()).toEqual([true, true, true]);
+      lockPause(true);
+      expect(f.client.view.clock?.exitRefusal).toBe('pauseLocked');
+      expect(exits()).toEqual([false, false, false]);
+      lockPause(false);
+      expect(exits()).toEqual([true, true, true]);
+      await f.clickSector(SQUAD_SECTOR, MouseButton.RIGHT);
+      expect(f.screen.hook().townBox).not.toBeNull();
+      expect(exits()).toEqual([false, false, false]);
     }));
 
   it('quick saves with Alt+S and quick loads with Alt+L where the screen may be left, a refusal in a box', () =>

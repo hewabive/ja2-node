@@ -90,11 +90,11 @@ keeps the closing 300 ms, and every cut emits `lineCut` so all viewers end it. A
 
 **A line on the map screen pauses the game.** A quote the queue says while the map screen is up pauses the world clock
 under pause lock 15 (`LOCK_PAUSE_MERC_TALKING`, `TalkState.pausedForLine`) until its face ends, however it ends: its
-time or a `skipLine`; going back to tactical or loading a sector from the map lifts it at once (`15`), an exit the
-original refuses during the line (gaps "Map screen exit checks"). A line said while the game is already paused takes no
-lock and leaves the pause as it was. Compression stays on and runs again at its speed after the line (`29` §4.4). Only the
-queue's quotes pause, not lines from the alternate file, the items-seen line or a merc's trigger line. While anything
-waits in the queue, time compression cannot start (`dialogueQueued`, `AllowedToTimeCompress`).
+time or a `skipLine`. Every exit from the map is refused while lines wait in the queue or one is said under its lock
+(`dialogueQueued`, `pauseLocked`; `campaign/map-screen-exits.ts`, `29` §4.4). A line said while the game is already
+paused takes no lock and leaves the pause as it was. Compression stays on and runs again at its speed after the line
+(`29` §4.4). Only the queue's quotes pause, not lines from the alternate file, the items-seen line or a merc's trigger
+line. While anything waits in the queue, time compression cannot start (`dialogueQueued`, `AllowedToTimeCompress`).
 
 **Commands return at once; a waiting panel freezes the campaign.** `talk`, `approach`, `answer`, `give`, `openShop`
 and `unescort` run their step and the queue runs in the following ticks. A panel waiting for the player (no talking

@@ -152,11 +152,21 @@ compression itself, at 5 world minutes per second unless `mode` says otherwise, 
 on the loaded map refuses compression (`activeTimedBomb`) until it goes off or the sector unloads. `status.flow` names
 the flow (`tactical`, `strategic`, `autoresolve`, `laptop`, `meanwhile`, `endgame`, `ended`); `mapScreen` and
 `tacticalScreen` switch between the first two like the original's screen toggle, and the loaded sector stays frozen on
-the map but for the real-time turn below (deviation "Map and tactical screens"). `tacticalScreen` and a sector load from
-the map lift the clock's `pauseLocked`, and `tacticalScreen` its `paused` unless the player paused (`15`). A head
-miner's line other than "creatures gone" takes tactical to the map screen before it is said (deviation "Head miner map
-switch"). The sleep and wake notification is a client setting: an agent that wants the original's stop passes `events:
-['fellAsleep', 'wokeUp']` beside its time target.
+the map but for the real-time turn below (deviation "Map and tactical screens"). `tacticalScreen` lifts the clock's
+`paused` unless the player paused (`15`). A head miner's line other than "creatures gone" takes tactical to the map
+screen before it is said (deviation "Head miner map switch"). The sleep and wake notification is a client setting: an
+agent that wants the original's stop passes `events: ['fellAsleep', 'wokeUp']` beside its time target.
+
+**Exits from the map.** `tacticalScreen`, `enterSector` from the map and `openLaptop` share the checks of the original's
+exits (`AllowedToExitFromMapscreenTo`, `src/sim/campaign/map-screen-exits.ts`): each is refused while lines wait in the
+dialogue queue (`dialogueQueued`), while a meanwhile scene is about to start (`meanwhileStarting`), while a pause lock
+holds (`pauseLocked`: a line said on the map, below, among others), during the contract renewal sequence
+(`renewalSequence`) and while a battle is about to begin (`battlePending`). The clock's `exitRefusal` names the first
+that holds while the map is up, and the `canEnterSector` hint answers it after an open prompt and before its own checks.
+Advancing past the lines opens the way: `advance {idle}` once compression is stopped (an `advance` that ended at
+`compressionStopped` leaves it stopped; otherwise `stopTime` first), or `advance {ticks}`. The client keeps its Laptop,
+Tactical and Options buttons and its save keys shut on the same token, and on its own boxes as the original does (an
+item held, the town box, the militia popup, the sector inventory).
 
 While time is compressed the map screen runs the real-time turn every 20 ms of real time, at every speed, for every merc
 of ours wherever he is and for the loaded sector's soldiers (`15` §2): wounded mercs bleed, tired ones get their
@@ -179,7 +189,8 @@ A line the dialogue queue says on the map pauses the game until it ends, as the 
 refused with `pauseLocked`, a new speed too (`stopTime` still works). Compression that was on runs again at its speed
 after the line, and a strategic `advance` runs through it; one that would start compression waits for the queued lines
 to end first, and `advance {idle}` on the map waits for the queue to empty. A line said while the game is already paused
-takes no lock and leaves the pause; while lines wait in the queue `compressTime` is refused with `dialogueQueued`. The
+takes no lock and leaves the pause; while lines wait in the queue `compressTime` is refused with `dialogueQueued`, and
+the exits from the map with `dialogueQueued` or, while a line is said under its lock, `pauseLocked` (above). The
 strategic lines go through this queue as in the original: assignment done, the tired complaint, contract,
 relationship and morale lines, Skyrider and the head miners. Their `mercQuote`, `skyriderQuote` and `headMinerQuote`
 events come when the queue says them, after the lines queued before, not at the step that caused them; a line whose

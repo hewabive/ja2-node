@@ -39,6 +39,7 @@ import { mercArrivalTimeOfDay } from '../contracts/contract-times.ts';
 import type { MailKind } from '../contracts/events.ts';
 import { SpecialProfile } from '../contracts/quotes.ts';
 import type { FinanceRecord } from '../finances.ts';
+import { mapScreenExitRefusal } from '../map-screen-exits.ts';
 import { initProfileFromContent, ProfileMiscFlag3 } from '../profiles.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
 import { openTacticalScreen } from '../screens.ts';
@@ -512,9 +513,7 @@ export class LaptopFlow implements LaptopContext {
     if (s.flow === 'laptop') return 'laptopOpen';
     if (s.flow !== 'strategic') return 'mapScreenOnly';
     if (s.battle.prompt) return 'promptOpen';
-    if (s.encounter.preBattle) return 'battlePending';
-    if (this.campaign.contracts?.sequenceOn) return 'renewalSequence';
-    return null;
+    return mapScreenExitRefusal(this.campaign);
   }
 
   dispatch(cmd: Command): CommandResult | null {

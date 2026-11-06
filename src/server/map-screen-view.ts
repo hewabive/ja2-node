@@ -6,7 +6,8 @@
 // @src AddTextToMineBox (status order, production, ore type), AddCommonInfoToBox (control of town and found SAM sectors,
 // @src the training percentage); Strategic/Map_Screen_Interface_Map.cc ShowItemsOnMap, DrawMapIndexBigMap (found secrets),
 // @src ShowTownText; Tactical/Tactical_Save.cc GetNumberOfVisibleWorldItemsFromSectorStructureForSector;
-// @src Laptop/Finances.cc GetProjectedTotalDailyIncome; Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress;
+// @src Laptop/Finances.cc GetProjectedTotalDailyIncome; Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress,
+// @src EnableDisableBottomButtonsAndRegions (the exit buttons by AllowedToExitFromMapscreenTo, 2026-11-06);
 // @src Strategic/Game_Clock.cc (giTimeCompressMode, gfGamePaused, gfLockPauseState).
 
 import { MineType } from '../content/strategic/economy-content.ts';
@@ -21,6 +22,7 @@ import type {
   StrategicUndergroundView,
 } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { mapScreenExitRefusal } from '../sim/campaign/map-screen-exits.ts';
 import { canChangeSleepStatusForSoldier } from '../sim/strategic/economy/conditions.ts';
 import { Assignment, FIRST_TOWN, NUM_TOWNS } from '../sim/strategic/economy/constants.ts';
 import {
@@ -48,6 +50,7 @@ const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sect
 export function clockView(campaign: CampaignSim): ClockView {
   const c = campaign.state.clock;
   const refusal = campaign.compressionRefusalToken();
+  const exitRefusal = mapScreenExitRefusal(campaign);
   return {
     day: worldDay(c),
     hour: worldHour(c),
@@ -59,6 +62,7 @@ export function clockView(campaign: CampaignSim): ClockView {
     pauseLocked: c.pauseLocked,
     canCompress: refusal === null,
     ...(refusal ? { compressRefusal: refusal } : {}),
+    ...(exitRefusal ? { exitRefusal } : {}),
   };
 }
 

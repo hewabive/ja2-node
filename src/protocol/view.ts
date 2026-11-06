@@ -145,6 +145,7 @@ export interface ClockView {
   readonly pauseLocked?: boolean;
   readonly canCompress?: boolean;
   readonly compressRefusal?: string;
+  readonly exitRefusal?: string;
 }
 
 export interface StrategicSectorView {
@@ -1180,6 +1181,7 @@ const CLOCK_FIELDS = [
   'pauseLocked',
   'canCompress',
   'compressRefusal',
+  'exitRefusal',
 ] as const satisfies readonly (keyof ClockView)[];
 
 function sameClock(a: ClockView | undefined, b: ClockView): boolean {

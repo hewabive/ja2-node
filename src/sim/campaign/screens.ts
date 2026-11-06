@@ -9,7 +9,8 @@
 // @src GameScreen.cc InternalLeaveTacticalScreen (the timer and the unload of a sector nobody of ours is left in, and
 // @src CheckForDisabledRegionRemove, 2026-11-03); Map_Screen_Interface_Bottom.cc HandleExitsFromMapScreen (the
 // @src SyncStrategicTurnTimes of MAP_EXIT_TO_TACTICAL's SetCurrentWorldSector), Strategic_Turns.cc guiLastTacticalRealTime
-// @src on the JA2 clock that never goes back (2026-11-05).
+// @src on the JA2 clock that never goes back (2026-11-05); Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (the
+// @src checks of MAP_EXIT_TO_TACTICAL, 2026-11-06).
 
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -26,11 +27,12 @@ import {
 } from '../strategic/time/world-clock.ts';
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
-import { refuse } from '../tactical/refusal.ts';
+import { refuse, refused } from '../tactical/refusal.ts';
 import { enterTacticalScreen } from '../tactical/selection.ts';
 import { rewindRealtimeTurnStamps, syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
+import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
 
 const ABSENT = new Set<number>([Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW, Assignment.ASSIGNMENT_DEAD]);
 const ABANDON_FIGHT_TEXT = 'a boxing match is under way; send "abandonFight": true to abandon it and open the map';
@@ -73,6 +75,8 @@ export function openTacticalScreen(campaign: CampaignSim): CommandResult {
   if (s.flow === 'tactical') return { ok: true };
   const world = s.worldSector;
   if (s.flow !== 'strategic' || !world || !campaign.tactical) return refuse('noSector', 'no sector is loaded');
+  const exit = mapScreenExitRefusalOf(campaign);
+  if (exit) return refused(exit);
   if (!campaign.strategic?.mercs.all().some((m) => canGoToTactical(m, world)))
     return refuse('noMercThere', 'no merc of yours is in the loaded sector');
   syncStrategicTurnTimes(campaign.tactical.state.realtimeClock, s.realMs);

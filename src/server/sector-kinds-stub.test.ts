@@ -100,6 +100,7 @@ function routeSquadTo(c: Campaign, name: string): SimEvent[] {
 }
 
 async function enter(c: Campaign, name: string): Promise<void> {
+  c.live.advance({ idle: true });
   const command = { type: 'enterSector', sector: name };
   await c.session.prepare(command);
   expect(c.session.dispatch(command)).toMatchObject({ ok: true });

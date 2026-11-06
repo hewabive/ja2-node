@@ -32,7 +32,8 @@
 // @src that ends the wait for mercs on our turn before AllMercsHaveWalkedOffSector, 2026-11-03); StrategicMap.cc EnterSector
 // @src (its EndMapScreen before PrepareLoadedSector on a load from the map, 2026-11-03); StrategicMap.cc
 // @src SetCurrentWorldSector (its SyncStrategicTurnTimes, the loaded sector's included), the strategic merc list as our team
-// @src of the turn starts (FOR_EACH_IN_TEAM(OUR_TEAM), 2026-11-05).
+// @src of the turn starts (FOR_EACH_IN_TEAM(OUR_TEAM), 2026-11-05); Map_Screen_Interface_Bottom.cc
+// @src AllowedToExitFromMapscreenTo (the checks shared by every exit before those of MAP_EXIT_TO_TACTICAL, 2026-11-06).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -179,6 +180,7 @@ import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
 import type { SectorFlowState } from './flow-state.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
+import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
 import {
   GUIDE_DESCRIPTION_COUNTDOWN_RANGE,
@@ -472,6 +474,8 @@ export class SectorFlow {
     const s = this.campaign.state;
     if (s.encounter.preBattle || s.encounter.simultaneousArrival || s.movement.groupPrompting !== null)
       return { token: 'decisionPending', reason: 'a strategic decision is pending' };
+    const exit = mapScreenExitRefusalOf(this.campaign);
+    if (exit) return exit;
     const t = this.campaign.tactical?.state;
     const world = this.world;
     if (t && (t.inCombat || t.turn.enemyInSector) && world && !sameSector(world, sector))

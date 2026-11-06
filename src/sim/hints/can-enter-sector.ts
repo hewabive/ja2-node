@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (the Tactical button: a battle
-// @src elsewhere, a pending decision); StrategicMap.cc CanGoToTacticalInSector.
+// @src elsewhere, a pending decision; the shared checks by the clock view's exitRefusal, 2026-11-06); StrategicMap.cc
+// @src CanGoToTacticalInSector.
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { sameSector } from '../../content/strategic/sector-ids.ts';
@@ -27,6 +28,8 @@ export interface CanEnterSectorRequest extends HintRequestBase {
 function refusalOf(world: KnowledgeWorld, sk: StrategicKnowledge, sector: Sector): string | null {
   const prompt = world.view.prompt;
   if (prompt) return DECISION_PROMPTS.has(prompt.kind) ? 'decisionPending' : 'promptOpen';
+  const exit = world.view.clock?.exitRefusal;
+  if (exit) return exit;
   const loaded = sk.strategic.worldSector;
   if (sk.enemyInLoadedSector && loaded && world.view.mapPath && !sameSector(sectorFromName(loaded), sector)) return 'battleElsewhere';
   if (!canGoToTacticalInSector(sk.ctx.crew.all(), sector)) return 'noMercThere';

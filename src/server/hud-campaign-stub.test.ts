@@ -116,6 +116,7 @@ describe('strategic HUD events and refusals in a stub campaign', () => {
 
   it('gives own-merc barks their text key, length and sector', async () => {
     const c = await landedCampaign(72, []);
+    c.live.advance({ idle: true });
     const enter = { type: 'enterSector', sector: 'A9' };
     await c.session.prepare(enter);
     expect(c.session.dispatch(enter)).toMatchObject({ ok: true });

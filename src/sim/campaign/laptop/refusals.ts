@@ -1,5 +1,6 @@
 import type { CommandRefused } from '../../command.ts';
 import { type RefusalDetail, type RefusalTexts, refuseWithText } from '../../tactical/refusal.ts';
+import { MAP_SCREEN_EXIT_REFUSAL_TEXT, type MapScreenExitRefusal } from '../map-screen-exits.ts';
 import type { AimHireRefusal } from './aim.ts';
 import type { OrderRefusal } from './bobby-ray.ts';
 import type { FlowerRefusal } from './florist.ts';
@@ -12,8 +13,7 @@ export type LaptopRefusal =
   | 'laptopClosed'
   | 'mapScreenOnly'
   | 'promptOpen'
-  | 'battlePending'
-  | 'renewalSequence'
+  | MapScreenExitRefusal
   | LandingZoneRefusal
   | 'badSite'
   | 'noSuchMail'
@@ -37,8 +37,7 @@ const LAPTOP_REFUSAL_TEXT: RefusalTexts<LaptopRefusal> = {
   laptopClosed: 'the laptop is closed, openLaptop first',
   mapScreenOnly: 'the laptop is used from the map screen only',
   promptOpen: 'answer the open prompt first',
-  battlePending: 'a battle is about to begin: answer the pre-battle prompt first',
-  renewalSequence: 'mercs are asking for contract renewals: answer them first',
+  ...MAP_SCREEN_EXIT_REFUSAL_TEXT,
   beforeFirstLanding: 'the landing zone moves only after the first landing',
   badSector: 'sector must be a surface sector such as B13',
   groundBarrier: 'the helicopter cannot drop mercs in that sector',

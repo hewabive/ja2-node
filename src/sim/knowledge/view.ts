@@ -88,6 +88,7 @@ export interface KnowledgeClock {
   readonly day: number;
   readonly hour: number;
   readonly minute: number;
+  readonly exitRefusal?: string;
 }
 
 export interface KnowledgeLightSprite {
