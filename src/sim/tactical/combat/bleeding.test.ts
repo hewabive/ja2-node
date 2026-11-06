@@ -76,6 +76,48 @@ describe('bleeding at turn start', () => {
   });
 });
 
+describe("the bleeding presentation of our merc (Soldier_Control.cc CheckBleeding's STR_LOSES_1_HP, SoldierBleed)", () => {
+  function bleeder(team: number, life: number, lifeMax = 80): { sim: TacticalSim; s: Soldier } {
+    const sim = newCombatSim(content);
+    sim.state.inCombat = true;
+    const id = team === Team.OUR ? 0 : TEAM_FIRST_ID[Team.ENEMY];
+    const s = spawnSoldier(sim, id, team, gridNo(80, 80), Direction.SOUTH, { life });
+    s.lifeMax = lifeMax;
+    s.bleeding = lifeMax - life;
+    s.nextBleed = 1;
+    sim.state.events.length = 0;
+    return { sim, s };
+  }
+
+  const bled = (sim: TacticalSim) => sim.state.events.filter((e) => e.type === 'mercBled');
+
+  it('tells of every point our merc bleeds before the damage it does, bandaged or not', () => {
+    const { sim, s } = bleeder(Team.OUR, 50);
+    s.bleeding = 20;
+    beginMercTurn(sim.state, s);
+    const types = sim.state.events.map((e) => e.type);
+    expect(bled(sim)).toEqual([{ type: 'mercBled', soldier: s.id }]);
+    expect(types.indexOf('mercBled')).toBeLessThan(types.indexOf('damageFeedback'));
+  });
+
+  it('marks the bleed that costs a dying merc a point of maximum life, never once that is below OKLIFE', () => {
+    const dying = bleeder(Team.OUR, 10);
+    beginMercTurn(dying.sim.state, dying.s);
+    expect(bled(dying.sim)).toEqual([{ type: 'mercBled', soldier: dying.s.id, lifeMaxLost: true }]);
+    const spent = bleeder(Team.OUR, 10, 14);
+    beginMercTurn(spent.sim.state, spent.s);
+    expect(spent.s.lifeMax).toBe(14);
+    expect(bled(spent.sim)).toEqual([{ type: 'mercBled', soldier: spent.s.id }]);
+  });
+
+  it('tells nothing of a bleeding soldier of another team', () => {
+    const { sim, s } = bleeder(Team.ENEMY, 10);
+    beginMercTurn(sim.state, s);
+    expect(s.lifeMax).toBe(79);
+    expect(bled(sim)).toEqual([]);
+  });
+});
+
 describe('the bleeding lines (Soldier_Control.cc CheckBleeding)', () => {
   const SERIOUSLY_WOUNDED = 14;
   const STARTING_TO_BLEED = 24;

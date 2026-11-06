@@ -107,6 +107,12 @@ export interface DamageFeedbackEvent extends SimEventBase {
   readonly soldier: number;
 }
 
+export interface MercBledEvent extends SimEventBase {
+  readonly type: 'mercBled';
+  readonly soldier: number;
+  readonly lifeMaxLost?: true;
+}
+
 export interface InterfaceLevelEvent extends SimEventBase {
   readonly type: 'interfaceLevel';
   readonly soldier: number;
@@ -661,6 +667,7 @@ export interface MercDiedEvent extends SimEventBase {
   readonly soldier: number;
   readonly sector: string;
   readonly mapScreen?: true;
+  readonly cry?: UnseenVictim;
 }
 
 export interface CiviliansEatenEvent extends SimEventBase {
@@ -719,6 +726,7 @@ export type SimEvent =
   | ItemsLocatedEvent
   | CorpseLocatedEvent
   | DamageFeedbackEvent
+  | MercBledEvent
   | InterfaceLevelEvent
   | EnemyTurnProgressEvent
   | InterruptEndedEvent

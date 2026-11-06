@@ -19,7 +19,8 @@
 // @src Drugs_And_Alcohol.cc ApplyDrugs (MSG_DRANK_SOME with the drink's short name, MSG_MERC_TOOK_DRUG, 2026-11-04);
 // @src Overhead.cc HandleGotoNewGridNo (STR_LATE_37 of the blind and the drunk fall, STR_SLIPPED_MARBLES of our merc
 // @src who slips on marbles, 2026-11-04); Items.cc WaterDamage (STR_CAMO_WASHED_OFF, 2026-11-04); Handle_Items.cc
-// @src SwitchMessageBoxCallBack (STR_LATE_58, 2026-11-04).
+// @src SwitchMessageBoxCallBack (STR_LATE_58, 2026-11-04); Soldier_Control.cc CheckBleeding (STR_LOSES_1_HP of our merc
+// @src bleeding while dying, 2026-11-06).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -96,6 +97,7 @@ const NEW_STRINGS = 'new-strings';
 const NS_SOLDIER_EQUIPS_ITEM = 0;
 const NS_SOLDIER_REMOVES_ITEM = 1;
 const GUN_GOT_FINGERPRINT = 111;
+const STR_LOSES_1_HP = 4;
 const STR_CAMO_WORN_OFF = 30;
 const STR_CAMO_WASHED_OFF = 31;
 const STR_STOLE_SOMETHING = 33;
@@ -245,6 +247,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
       : [],
   soldierDied,
   mercDied,
+  mercBled: (e, facts) => (e.lifeMaxLost ? [line('Message', STR_LOSES_1_HP, [text(facts.soldierName(e.soldier))])] : []),
   enemyPresence: () => [line('TacticalStr', 85)],
   sectorLoaded: (e) => (e.enemyPresence ? [line('TacticalStr', 85)] : []),
   interrupt: (e, facts) =>

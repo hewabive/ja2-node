@@ -101,6 +101,14 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 163, table: 'pMercDeadString', index: 0, args: [{ text: 'Ivan' }] }]);
   });
 
+  it('prints STR_LOSES_1_HP in the interface colour for our merc who loses a point of maximum life bleeding, nothing for a plain bleed', () => {
+    const entries = messageEntriesOf(
+      [at({ type: 'mercBled', soldier: 1 }), at({ type: 'mercBled', soldier: 0, lifeMaxLost: true })],
+      facts,
+    );
+    expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 4, args: [{ text: 'Ivan' }] }]);
+  });
+
   it('follows the lock and trap lines of Handle_Doors and Keys', () => {
     const door = (action: string, result: string, trap?: string) => at({ type: 'doorResult', soldier: 0, gridNo: 5, action, result, trap });
     const entries = messageEntriesOf(

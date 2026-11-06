@@ -349,14 +349,15 @@ saved, sent whole in `welcome`, new ones in frames and in every `advance` report
 reads them (deviation "Message list").
 
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
-while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?}`, never as `soldierDied`: the
-strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. The
-original plays his death cry and the samples `DOORCR_1` and `HEADCR_1` for it (`Tactical/Soldier_Control.cc:5407`;
-gaps "Sound coverage"), and prints `pMercDeadString` in the message list off the tactical screen, which `mapScreen`
-marks (`Strategic/Strategic_Merc_Handler.cc:71`). On the map screen his body, items and keys go into that sector's
-records, every able merc of ours says his buddy line and compression stops (`compressionStopped {reason: mercDied}`,
-`Strategic/Strategic.cc:32`). A soldier of another team of the loaded sector who bleeds to death while the map screen is
-up comes as `mercDied` too, with the same consequences: the original's strategic death tests no team (`33`).
+while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
+strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. His death
+cry and the samples `DOORCR_1` and `HEADCR_1` play for it (`Tactical/Soldier_Control.cc:5407`): `cry {voice, bodyType}`
+names the battle-sound voice, absent for a muted soldier, who makes only the samples (`31`). Off the tactical screen,
+which `mapScreen` marks, `pMercDeadString` goes into the message list (`Strategic/Strategic_Merc_Handler.cc:71`). On
+the map screen his body, items and keys go into that sector's records, every able merc of ours says his buddy line and
+compression stops (`compressionStopped {reason: mercDied}`, `Strategic/Strategic.cc:32`). A soldier of another team of
+the loaded sector who bleeds to death while the map screen is up comes as `mercDied` too, with the same consequences:
+the original's strategic death tests no team (`33`).
 
 **Presentation events** never enter the state or an outcome: optional fields (materials, sound facts) and events for
 what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, the
@@ -370,8 +371,10 @@ sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator a
 his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3154`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
 (`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), the portrait flash of a seen soldier hurt by
 bleeding, gas or electricity, a merc of ours off the loaded map included (`damageFeedback {soldier}`,
-`Tactical/Soldier_Control.cc:8770`) and the interface level
-the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
+`Tactical/Soldier_Control.cc:8770`), a point of life a merc of ours bleeds, which makes him the map screen's info
+character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMaxLost` when, dying, he lost a point of
+maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
+interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
 `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
 a load sends no `sectorLoaded` (deviation "View after a load"). The session copies the cosmetic animations into
