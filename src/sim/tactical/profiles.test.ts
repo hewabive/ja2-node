@@ -5,12 +5,14 @@ import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { parseStubProfiles, STUB_PROFILES_PATH } from '../../content/formats/stub-profiles.ts';
 import { progressFromProfile, progressFromSavedProfile } from './profiles.ts';
-import { Body } from './soldier.ts';
+import { Body, NOWHERE } from './soldier.ts';
 
 const LEFTOVER_GRIDNO = 25700;
 const ANY_ITEM = 1;
 const KICKED_OUT_BODY = Body.REGMALE;
 const REVEALED_NAME = 'True Name';
+const SAVED_NOWHERE = 25601;
+const PRE_COMBAT_TILE = 9035;
 
 function savedProfile(p: MercProfile): SavedMercProfile {
   return { ...p, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, checksum: 0 };
@@ -47,5 +49,13 @@ describe('profile progress', () => {
     const revealed = { ...savedProfile(content), nickname: REVEALED_NAME };
     expect(progressFromSavedProfile(revealed, content).nickname).toBe(REVEALED_NAME);
     expect(progressFromSavedProfile(savedProfile(content), content).nickname).toBeUndefined();
+  });
+
+  it("reads a saved pre-combat tile of NOWHERE (GRIDSIZE + 1) as ours, so a neutral civilian's next combat records his tile", () => {
+    const content = profileWithLeftovers();
+    expect(progressFromSavedProfile({ ...savedProfile(content), preCombatGridNo: SAVED_NOWHERE }, content).preCombatGridNo).toBe(NOWHERE);
+    expect(progressFromSavedProfile({ ...savedProfile(content), preCombatGridNo: PRE_COMBAT_TILE }, content).preCombatGridNo).toBe(
+      PRE_COMBAT_TILE,
+    );
   });
 });

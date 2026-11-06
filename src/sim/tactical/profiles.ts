@@ -3,12 +3,16 @@
 // @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields, the NPC
 // @src presence fields), bMercStatus
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters; fUseProfileInsertionInfo and sGridNo,
-// @src which prof.dat holds as leftovers, cleared); Soldier_Profile.cc WhichBuddy; Soldier_Profile_Type.h BuddySlot
+// @src which prof.dat holds as leftovers, cleared); Soldier_Profile.cc WhichBuddy; Soldier_Profile_Type.h BuddySlot;
+// @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1) in a saved sPreCombatGridNo (2026-11-06)
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
+import { WORLD_MAX } from '../../content/world/grid.ts';
+import { NOWHERE } from './soldier.ts';
 
 const STAT_CHANGE_COUNTERS = 12;
+const SAVED_NOWHERE = WORLD_MAX + 1;
 const INITIAL_HATED_COUNTERS = 2;
 
 export const MercStatus = {
@@ -323,6 +327,7 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
 export function progressFromSavedProfile(saved: SavedMercProfile, content: MercProfile | undefined): ProfileProgress {
   const progress = progressFromProfile(saved, saved, true);
   if (saved.nickname !== content?.nickname) progress.nickname = saved.nickname;
+  if (saved.preCombatGridNo === SAVED_NOWHERE) progress.preCombatGridNo = NOWHERE;
   return progress;
 }
 
