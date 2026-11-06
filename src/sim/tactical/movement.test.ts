@@ -252,6 +252,16 @@ describe('walking', () => {
     expect(walk(false)).toBe(START);
   });
 
+  it('opens a door on the way in auto-bandage for a merc of ours who never chose how to open one (deviation "Door on the way in auto-bandage")', () => {
+    const t = behindClosedDoor();
+    const s = spawn(t, gridNo(80, 82));
+    expect(s.doorHandleCode).toBe(HandleDoor.DENIED);
+    setAutoBandageMode(t, true);
+    expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
+    runUntilStill(t, 100_000);
+    expect([s.gridNo, s.doorHandleCode]).toEqual([gridNo(80, 77), HandleDoor.OPEN]);
+  });
+
   it('walks around a wall', () => {
     const t = tactical((w) => {
       for (let x = 70; x <= 90; x++) w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT));

@@ -14,7 +14,8 @@
 // @src EVENT_InternalGetNewSoldierPath, SetDelayedTileWaiting's and EVENT_StopMerc's fUseMoverrideMoveSpeed (2026-11-04);
 // @src SetSoldierGridNo's skips for a driver or passenger, RemoveSoldierFromGridNo, EVENT_InternalSetSoldierPosition's
 // @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05); HandleGotoNewGridNo's walk on after a door for
-// @src our merc in auto-bandage (2026-11-06).
+// @src our merc in auto-bandage, and the plain opening a merc of ours who never chose how to open a door gets there
+// @src (deviation "Door on the way in auto-bandage", 2026-11-06).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -48,6 +49,7 @@ import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction, perpendicularDirection } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
+import { HandleDoor } from './doors/door-table.ts';
 import { handleDoorChangeFromGridNo } from './doors.ts';
 import { cancelFadeOutAwayFromStart } from './fade.ts';
 import { tripsAndFalls } from './falls.ts';
@@ -233,6 +235,10 @@ export function setSoldierPosition(t: TacticalState, s: Soldier, g: number, opti
   updateAllVehiclePassengersGridNo(t, s);
 }
 
+function openDoorsAsTheAiInAutoBandage(t: TacticalState, s: Soldier): void {
+  if (t.pathEnv.autoBandage && s.team === Team.OUR && s.doorHandleCode === HandleDoor.DENIED) s.doorHandleCode = HandleDoor.OPEN;
+}
+
 export function stopMerc(t: TacticalState, s: Soldier): void {
   if (!s.delayedMovement) {
     s.pendingAnimation = NO_PENDING_ANIMATION;
@@ -402,6 +408,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
       s.endDoorOpenCode = 0;
       return { ok: false, keepMoving: false };
     }
+    openDoorsAsTheAiInAutoBandage(t, s);
     interactWithDoorAt(t, s, doorGridNo, direction);
     if (s.team !== Team.OUR || t.pathEnv.autoBandage || s.underAiControl) {
       s.endDoorOpenCode = 1;
