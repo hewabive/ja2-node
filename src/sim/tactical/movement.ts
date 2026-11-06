@@ -15,9 +15,11 @@
 // @src SetSoldierGridNo's skips for a driver or passenger, RemoveSoldierFromGridNo, EVENT_InternalSetSoldierPosition's
 // @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05); HandleGotoNewGridNo's walk on after a door for
 // @src our merc in auto-bandage, and the plain opening a merc of ours who never chose how to open a door gets there
-// @src (deviation "Door on the way in auto-bandage", 2026-11-06).
+// @src (deviation "Door on the way in auto-bandage", 2026-11-06); ExecuteOverhead's arrival handling an AI soldier with
+// @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
+import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
@@ -656,12 +658,16 @@ export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
       s.pendingDirection = -1;
     }
   }
+  let pendingActionHandled = false;
   if (s.waitActionToDo) {
     const walkingOffEdge = s.waitActionToDo === 2;
     handleWaitActionOnArrival(t, s);
     if (walkingOffEdge) return;
-  } else if (!t.hooks.pendingAction(t, s) && !hadPendingAnimation && s.life >= OKLIFE && !crowInTheAir(s))
-    soldierGotoStationaryStance(t, s);
+  } else {
+    pendingActionHandled = t.hooks.pendingAction(t, s);
+    if (!pendingActionHandled && !hadPendingAnimation && s.life >= OKLIFE && !crowInTheAir(s)) soldierGotoStationaryStance(t, s);
+  }
+  if (!pendingActionHandled && s.quoteActionId === QuoteActionId.CHECKFORDEST) s.ai.handleEveryFrame = true;
   t.events.push({ type: 'arrived', soldier: s.id, gridNo: s.gridNo });
 }
 

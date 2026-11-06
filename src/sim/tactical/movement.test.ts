@@ -3,6 +3,7 @@ import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support
 import { layProne, raiseTiles, withTwoTileCreatureBodies, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
+import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
@@ -130,6 +131,18 @@ describe('walking', () => {
     expect(whoIsThere(t, START, 0)).toBeNull();
     expect(t.reserved.every((r) => r === -1)).toBe(true);
     expect(t.events).toContainEqual({ type: 'arrived', soldier: s.id, gridNo: gridNo(85, 80) });
+  });
+
+  it('has an AI soldier who walks with QUOTE_ACTION_ID_CHECKFORDEST handled the very frame after he arrives, and nobody else', () => {
+    const t = tactical();
+    const checking = spawn(t, START, Team.CIV);
+    const walking = spawn(t, gridNo(80, 84), Team.CIV);
+    checking.quoteActionId = QuoteActionId.CHECKFORDEST;
+    expect(getNewSoldierPath(t, checking, gridNo(83, 80), checking.uiMovementMode)).toBe(true);
+    expect(getNewSoldierPath(t, walking, gridNo(83, 84), walking.uiMovementMode)).toBe(true);
+    runUntilStill(t);
+    expect([checking.gridNo, checking.ai.handleEveryFrame]).toEqual([gridNo(83, 80), true]);
+    expect([walking.gridNo, walking.ai.handleEveryFrame]).toEqual([gridNo(83, 84), false]);
   });
 
   it('counts the tiles moved in a signed byte, so the tile after the 127th wraps the count to -128', () => {
