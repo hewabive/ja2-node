@@ -35,7 +35,11 @@ The map, travel, vehicles, time compression, the economy, sector state and autor
 
 ## 3. Campaign, laptop and narrative
 
-NPC records, merc lines, the dialogue queue and quest scripting. Paths are under `src/sim/`. None open.
+NPC records, merc lines, the dialogue queue and quest scripting. Paths are under `src/sim/`.
+
+| Area | Original | ja2-node | Notes |
+|---|---|---|---|
+| Someone else in sector | Three seconds after a won battle, boxing included, an OK box says someone else is in the sector when it is a wilderness sector whose profiled NPCs nobody has spoken with; while auto-bandage runs or its question is pending, a line plays, a message box is up, or a tactical menu or the talk panel is open, it looks again two seconds later (`Tactical/Overhead.cc:4697`, `:6195-6215`) | No box after a battle (`checkForEndOfBattle`, `tactical/turns/turns.ts`); the same sector test opens the `npcOfNote` prompt when a squad arrives (`strategic/forces/npcs-of-note.ts`) | An `ok` prompt like `npcOfNote` (deviation "Strategic prompts") and its box in the client. The waits run on the one customizable timer, which the picked-ownership check and the death and capture timers also set, each firing or dropping the one before (`Utils/Timer_Control.cc:101`), and which leaving tactical clears (`GameScreen.cc:208`) |
 
 ## 4. Agent API
 
@@ -44,7 +48,6 @@ Commands the API does not have yet, and what its hints do not read. Paths are un
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Structure changes in the hints | The cursor reads the live world: a cut fence, a blown wall or a structure a stay added counts at once for the path, the wire cutter cursor and the rest (`Tactical/Handle_UI.cc:3116`, `Tactical/UI_Cursors.cc:893`) | The hints' projection holds the map as loaded with the view's doors, corpses, items, mines and light, not its `tileChanges` (`knowledge/tactical.ts`): after a cut a fence still blocks `previewMove` and turns the wire cutter cursor good, while `cutFence` refuses it as `noFence` | Replaying the view's `tileChanges` into the projection, as the client's lighting does (`src/app/world/world-lighting.ts`) |
-| Auto-bandage | The mode runs a frame per pass of the main loop, which aims at 144 a second (`Tactical/Auto_Bandage.cc:209-267`, `src/sgp/SGP.cc:193`) | The mode, its agent API (`29` §8.3) and its client (`30`) are built; no bench measures the mode's tick in a sector with civilians, where every soldier animates and runs his AI at every tick | A variant of the `realtime` bench (`tools/bench/scenarios/realtime.ts`) |
 
 ## 5. Savegame import
 

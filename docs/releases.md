@@ -1,5 +1,15 @@
 # Releases
 
+## Unreleased
+
+- **Auto-bandage** (`12` §8). The `a` key and the question after a won battle start the original's mode: the mercs of
+  ours who carry a medical kit bandage every bleeding merc in the sector on the AI's medical decisions, a frame a tick,
+  while the world clock stands; Done or Cancel ends it, everybody stands up and the clock jumps by up to 125 s. Agents
+  run it with `autoBandage`, the `beginAutoBandage` prompt and `endAutoBandage` (`29` §8.3), and the campaign bot runs it
+  after a won battle; the tactical screen shows the box of medics and patients over the frozen screen (`30`). The native
+  oracle compares the mode frame by frame, and the `realtime` bench times its frames (`32` §2.2): a frame takes under
+  1 ms at the 95th percentile with medics crossing a field, so real time ×1 holds 200 frames a second.
+
 ## 0.7.0 — platform release (M7), 2026-10-18
 
 The first release of ja2-node as a platform: the whole Jagged Alliance 2 campaign runs on a Node server, from the

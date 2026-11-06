@@ -106,7 +106,8 @@ on; from then on the tactical host draws no world below it, though the sound sti
 view's block, at the end of the next tick. The OK boxes of a pending question the sector no longer allows
 (`autoBandageRefused`) and of a failed full check (`autoBandageEnded.failed`, `pDoctorWarningString[1]`) are viewer
 prompts. The face cell is the map update box's (`src/ui/widgets/update-panel-face.ts`), the art the `tactical-input`
-layout's. In a talk the key sends nothing, as the conversation is modal (`29` §5).
+layout's. In a talk the key sends nothing, as the conversation is modal (`29` §5; deviation "Auto-bandage key in a
+talk").
 
 **The item cursor and the pickup menu live in the client.** The cursor is a local selection drawn as the mouse cursor
 until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it,

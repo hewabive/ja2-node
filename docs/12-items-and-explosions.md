@@ -415,6 +415,7 @@ that opens the mode. `TacticalSim` routes the commands, the answer and the ticks
 orders in the mode, and the sector flow's hooks pause and warp the world clock. The view shows the prompt
 (`server/tactical-prompt-view.ts`) and, while the mode runs, the box of medics and patients (`server/auto-bandage-view.ts`);
 the agent API is `29` §8.3, the client's key, boxes and frozen screen `30` (`ui/screens/tactical/auto-bandage-box.ts`).
+The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
 
 **Lifecycle.**
 - `autoBandage` is the `a` key: the original's OK boxes become refusals in its order (`sectorNotCleared`,
@@ -546,13 +547,21 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 
 The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage", `tools/oracle/auto-bandage-compare.ts`) check
 the checks, the question, the start, the decisions, the full check, the services and the end against the native build,
-the draws replayed strictly, and whole modes frame by frame for our team and the mode's globals; the civilians of a
-native import do not act alike there (an off-map civilian's schedule, a YELLOW civilian's choice; not traced yet), so
-the frame runs take the native draws in order and leave the civilians out.
+the draws replayed strictly, and whole modes frame by frame for our team and the mode's globals. Not checked against
+the native build:
+- The civilians in a frame run: those of a native import do not act alike there (an off-map civilian's schedule, a
+  YELLOW civilian's choice; not traced yet), so the frame runs take the native draws in order and leave them out.
+- The keys, the panel's buttons, the start's and the end's `HandleTacticalUI` calls and the message box screen's pause:
+  the oracle has no input queue and no panel.
+- The dialogue queue standing for the whole mode: the probes never run `HandleDialogue`, so it is read from
+  `MainGameScreenHandle`'s early return (`GameScreen.cc:283-288`).
+- That a key press the Yes box leaves in the queue cannot end the mode at its first frame
+  (`Tactical/Turn_Based_Input.cc:2142`): by reading, the box drains every key event before its callback starts the
+  mode (`MessageBoxScreen.cc:457-460`).
 
-Not ported: gaps "Map items" (the pits), "Auto-bandage". Other
-deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
-"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
-and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",
-"Drugs in the projection", "Mine locator", "Blue flag without a bomb", "Auto-bandage statics", "AI first aid without a
-path", "Door on the way in auto-bandage", "Pending auto-bandage and client screens".
+Not ported: gaps "Map items" (the pits). Other deviations of this domain: "Object union", "Item cursor", "Key ring
+cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
+pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
+draws in explosions", "Wall decals after a load", "Drugs in the projection", "Mine locator", "Blue flag without a bomb",
+"Auto-bandage statics", "AI first aid without a path", "Door on the way in auto-bandage", "Auto-bandage", "Pending
+auto-bandage and client screens", "Auto-bandage key in a talk".
