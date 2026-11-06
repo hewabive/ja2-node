@@ -93,8 +93,13 @@ const PLAYER_TEAMS: readonly number[] = [Team.OUR, Team.MILITIA];
 const HOSTILE_TEAMS: readonly number[] = [Team.ENEMY, Team.CREATURE];
 
 const AI_ACTION_NAMES = new Map<number, string>(Object.entries(AiAction).map(([name, code]) => [code, name]));
+const STALLED = 'stalled';
 
 class Stalled extends Error {}
+
+export function isStalled(outcome: unknown): boolean {
+  return typeof outcome === 'string' && outcome.startsWith(STALLED);
+}
 
 function living(sim: TacticalSim, teams: readonly number[]): number {
   return sim.state.soldiers.filter((s) => s?.placed && teams.includes(s.team) && s.life >= OKLIFE).length;
@@ -253,7 +258,7 @@ export function fight(field: Battlefield, policy: FirePolicy = RETURN_FIRE): Bat
     }
   } catch (err) {
     if (!(err instanceof Stalled)) throw err;
-    return { turnMs, turnTicks, outcome: `stalled in round ${rounds}: ${err.message} (busy: ${busySoldiers(sim())})`, rounds };
+    return { turnMs, turnTicks, outcome: `${STALLED} in round ${rounds}: ${err.message} (busy: ${busySoldiers(sim())})`, rounds };
   }
   return { turnMs, turnTicks, outcome: outcome(sim(), rounds), rounds };
 }

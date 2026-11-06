@@ -1,6 +1,7 @@
 import { appendFileSync } from 'node:fs';
 import { availableParallelism, cpus, totalmem } from 'node:os';
 import { compareWithBaseline, saveBaseline } from './baseline.ts';
+import { isStalled } from './battle.ts';
 import { openBenchData } from './data.ts';
 import { isolatedChild } from './isolate.ts';
 import type { BenchContext, BenchLine } from './measure.ts';
@@ -122,5 +123,7 @@ export async function runBench(args: BenchArgs): Promise<number> {
   const failed = lines.filter((l) => l.target && !l.target.ok);
   for (const l of failed)
     console.error(`FAIL ${l.scenario} ${l.variant}: ${l.target?.stat} above the sanity bound ${l.target?.bound} ${l.unit}`);
-  return failed.length > 0 ? 1 : 0;
+  const stalled = lines.filter((l) => isStalled(l.info?.outcome));
+  for (const l of stalled) console.error(`FAIL ${l.scenario} ${l.variant}: ${String(l.info?.outcome)}`);
+  return failed.length > 0 || stalled.length > 0 ? 1 : 0;
 }

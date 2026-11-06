@@ -246,7 +246,8 @@ scripted command list, so a rerun does the same work and only machine noise vari
   of named simulation functions through V8 precise coverage (`tools/bench/inspector.ts`, one extra run, about 8×
   slower); `tools/bench/stats.test.ts` fails when a counted function is renamed.
 - **Seeds** are per scenario, chosen so the stub runs avoid known stalls; `--seed` overrides them all.
-- **Stall sweep.** Watchdogs are not ported (deviations "Watchdogs"), so a stall is a bug that fails the run. The sweep:
+- **Stall sweep.** Watchdogs are not ported (deviations "Watchdogs"), so a stall is a bug that fails the run: a line
+  whose `outcome` is `stalled …` (`enemy-turn` and `campaign`) makes the command fail, as a sanity bound does. The sweep:
   `bench enemy-turn --runs 1` with seeds 1–8 on both sources and `bench campaign --runs 1` with seeds 1–16 on stubs,
   every run ending without a `stalled` outcome.
 
@@ -267,8 +268,9 @@ unchanged.
 ### 2.2 Targets
 
 Each JSON line carries its target where the scenario defines one; the bench fails only above ten times the target
-(`SANITY_FACTOR`), so a failing bench means a gross regression, and the verdict is read from the numbers. Only runs
-made back to back on one machine compare: the development VM's throughput varies more than its load average shows.
+(`SANITY_FACTOR`) or on a stall (§2.1), so a failing bench means a gross regression or a hang, and the verdict is read
+from the numbers. Only runs made back to back on one machine compare: the development VM's throughput varies more than
+its load average shows.
 
 | Metric | Target | Status |
 |---|---|---|
@@ -348,7 +350,8 @@ three shards; and the browser suite only when `tools/gates.ts --plan` selects `e
 base is unknown). A push or pull request that touches only `docs/`, Markdown files or `LICENSE` starts no CI.
 
 - The bench smoke runs every scenario once on stubs plus one `--calls` run and uploads `bench.jsonl`. One run means no
-  warm-up and no run-to-run check: CI numbers are cold, a smoke signal only; it fails on errors or a sanity bound.
+  warm-up and no run-to-run check: CI numbers are cold, a smoke signal only; it fails on errors, a sanity bound or a
+  stall.
 - Playwright installs its browsers without `--with-deps`: the runner image carries the system libraries, and the apt
   step of `--with-deps` once took more than 10 minutes on a slow mirror.
 

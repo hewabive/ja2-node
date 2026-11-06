@@ -5,7 +5,7 @@ import type { StopReport, WorldTimeTarget } from '../../src/sim/advance.ts';
 import type { BattlePrompt } from '../../src/sim/strategic/forces/battle-state.ts';
 import { numEnemiesInSector } from '../../src/sim/strategic/forces/groups.ts';
 import { CompressMode } from '../../src/sim/strategic/time/constants.ts';
-import { type Battlefield, fight, MeteredSim, startsBattle } from './battle.ts';
+import { type Battlefield, fight, isStalled, MeteredSim, startsBattle } from './battle.ts';
 import type { BenchData } from './data.ts';
 
 export interface Campaign {
@@ -66,7 +66,7 @@ export function clearSector(c: Campaign): string {
       break;
     }
     outcome = fight(field, CLEARING_FIRE).outcome;
-    if (outcome === 'lost' || outcome.startsWith('stalled')) break;
+    if (outcome === 'lost' || isStalled(outcome)) break;
     c.session.advance({ idle: true }, IDLE_BUDGET_TICKS);
     answerPrompts(c);
   }
