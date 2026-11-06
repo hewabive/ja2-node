@@ -93,7 +93,7 @@ const PLAYER_TEAMS: readonly number[] = [Team.OUR, Team.MILITIA];
 const HOSTILE_TEAMS: readonly number[] = [Team.ENEMY, Team.CREATURE];
 
 const AI_ACTION_NAMES = new Map<number, string>(Object.entries(AiAction).map(([name, code]) => [code, name]));
-const STALLED = 'stalled';
+export const STALLED = 'stalled';
 
 class Stalled extends Error {}
 

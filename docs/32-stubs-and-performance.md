@@ -249,14 +249,15 @@ scripted command list, so a rerun does the same work and only machine noise vari
   slower); `tools/bench/stats.test.ts` fails when a counted function is renamed.
 - **Seeds** are per scenario, chosen so the stub runs avoid known stalls; `--seed` overrides them all.
 - **Stall sweep.** Watchdogs are not ported (deviations "Watchdogs"), so a stall is a bug that fails the run: a line
-  whose `outcome` is `stalled …` (`enemy-turn` and `campaign`) makes the command fail, as a sanity bound does. The sweep:
+  whose `outcome` is `stalled …` (`enemy-turn`, `campaign` and auto-bandage in `realtime`) makes the command fail, as a
+  sanity bound does. The sweep:
   `bench enemy-turn --runs 1` with seeds 1–8 on both sources and `bench campaign --runs 1` with seeds 1–16 on stubs,
   every run ending without a `stalled` outcome.
 
 | Scenario | What it runs | Primary metric |
 |---|---|---|
 | `enemy-turn` | turn-based battles through a `Session` with the instant driver's semantics (an advance with a 50,000-tick budget, so a stall is reported instead of spinning); the mercs fire once a turn at the nearest visible enemy. The generated arena with 8, 16 and 32 enemies against six mercs and four civilians (plus six militia with 32); on the original data also A9 with 4, 16 and 32 garrison soldiers and the D13 battle of `SaveGame10` | ms per enemy side turn |
-| `realtime` | the patrol arena with 20, 40 and 64 soldiers around six mercs sealed in a bunker, green and yellow; a variant in which combat starts is void | µs per tick |
+| `realtime` | the patrol arena with 20, 40 and 64 soldiers around six mercs sealed in a bunker, green and yellow; a variant in which combat starts is void. Auto-bandage (`bandage-*`): three of six mercs bleed and carry no kit, the other three carry one, spread over an open arena among 20 and 32 civilians (the civilian team's limit) or at the entry of C13 among its own (8 on the stubs, 27 on the original data); the run starts the mode with the `a` key's commands and times every frame through completion and 1000 frames of the box to the end, and a mode not complete within 20,000 frames is a stall | µs per tick; µs per frame |
 | `strategic` | a new campaign with the squad routed so that no sector is loaded, then 7 and 30 world days of compression with one or six mercs; once more with Drassen handed to the player and the Queen woken; and six mercs in Drassen with C13 loaded (`-town`: 15 soldiers on the stubs, 32 on the original data), at 60 and at 5 (`-min5`) world minutes per second. The other variants compress at 60 | ms per world day |
 | `autoresolve` | 20 battles a run of 10, 20 and 40 per side | ms per battle |
 | `save` | saves and loads of the 64-soldier arena, a landed new campaign and, on the original data, the largest native save of `$JA2_SAVES_DIR` | ms per save; snapshot, encode, parse and restore as series |
@@ -280,6 +281,7 @@ its load average shows.
 | Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | met without margin on the arena: the turn is the cover search's chance-to-get-through traces |
 | Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | met with a wide margin |
 | Real-time tick, worst single tick | ≤ 50 ms | met; above it a tick shows as a hitch at ×1 |
+| Auto-bandage frame, p95 | ≤ 5 ms: 200 frames a second at ×1 | met widely: 0.85–0.91 ms in the arena, where the medics cross the field, and 17–26 µs in C13, on both sources; the busiest 200 frames in a row take 183–192 ms in the arena and 6–9 ms in C13, and a frame of the box after completion 6–8 µs on average. The worst frame is the first, 40–60 ms in the arena (1.3–2.3 ms in C13): every medic decides at once and searches his paths to every patient, a hitch at ×1 as the mode starts (§2.3) |
 | Strategic world day, no sector loaded, p95 | ≤ 100 ms | met: 25–45 ms with the map's real-time turn for six mercs, about 10 ms a day more than without it |
 | Strategic world day, a town sector loaded, p95 | ≤ 100 ms | met at 60 minutes per second: 65 ms on the stubs and 80 ms on the original data; 415 ms and 750 ms at 5, under the bench's 1 s bound (130 ms, 165 ms, 1.3 s and 1.75 s before the look skip, §2.3; 455 ms, 545 ms, 4.5 s and 5.8 s before the sight memo and the shared soldier shape; 25–30 ms and about 0.18 s before the map ran the real-time turn). Every 20 ms poll runs the turn on the loaded sector, 14,400 polls a world day at 5 minutes per second: what is left is checking the remembered look's tape (a quarter to a third), the turn start of every soldier (a fifth to a quarter) and the campaign's per-step event collection (a tenth to a sixth) |
 | Autoresolve battle, 40 per side, p95 | ≤ 10 ms | met |
@@ -331,9 +333,10 @@ structure reads per tile (blocking, tallest structure, slanted roof), keyed by t
 the reads, most tiles having no structure; checking the tape in place instead of recording and comparing it, and
 leaving out the narrative reads, changed nothing measurable. Candidates: an index of world items by tile (the walk scans
 every item at each tile it reveals, when a look runs); soldiers restored from a snapshot, which the codec builds by keyed stores (`#plain`, `src/sim/snapshot/codec.ts`), the
-way V8 turns an object of some 260 properties into a dictionary (not measured on a restore); the per-step event collection of `CampaignSim`, a tenth to a sixth at 5 minutes per second. Also left: the cover search's
-chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo would not pay) and the path
-search. Candidates not yet profiled: sight results per tick between position changes, path costs within one AI decision,
+way V8 turns an object of some 260 properties into a dictionary (not measured on a restore); the per-step event collection of `CampaignSim`, a tenth to a sixth at 5 minutes per second. Also left: the cover search's chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo would not pay) and the path
+search, which is four fifths of auto-bandage's profile in the arena: each medic's decision searches a walk to every
+patient and the cost of the medic a patient already has, and the full check plots one walk every other frame, about
+380 searches in a run of 1415 frames. Candidates not yet profiled: sight results per tick between position changes, path costs within one AI decision,
 the reachability flood shared by cover and flee searches, allocation in the bullet and LOS loops.
 
 ### 2.4 Session hosts

@@ -5,7 +5,7 @@ import { WORLD_COLS } from '../../src/content/world/grid.ts';
 import type { TileTables } from '../../src/content/world/tile-tables.ts';
 import { Rng } from '../../src/core/rng.ts';
 
-export const ArenaLayout = { BATTLE: 'battle', PATROL: 'patrol' } as const;
+export const ArenaLayout = { BATTLE: 'battle', PATROL: 'patrol', OPEN: 'open' } as const;
 export type ArenaLayout = (typeof ArenaLayout)[keyof typeof ArenaLayout];
 
 export interface ArenaSpec {
@@ -110,6 +110,15 @@ const MILITIA_ROWS_BELOW = 4;
 const BUNKER: Box = { x0: 2, y0: ARENA_HEIGHT - 7, x1: 8, y1: ARENA_HEIGHT - 5 };
 const BUNKER_KEEP_OUT = 14;
 const ALARM: Point = { x: ARENA_WIDTH - 12, y: 10 };
+const OPEN_MERC_MARGIN = 10;
+const OPEN_MERCS: readonly Point[] = [
+  { x: OPEN_MERC_MARGIN, y: ARENA_HEIGHT - OPEN_MERC_MARGIN },
+  { x: ARENA_WIDTH / 2, y: ARENA_HEIGHT - MERC_ROW_FROM_BOTTOM },
+  { x: ARENA_WIDTH - OPEN_MERC_MARGIN, y: ARENA_HEIGHT - OPEN_MERC_MARGIN },
+  { x: OPEN_MERC_MARGIN, y: OPEN_MERC_MARGIN },
+  { x: ARENA_WIDTH / 2, y: MERC_ROW_FROM_BOTTOM },
+  { x: ARENA_WIDTH - OPEN_MERC_MARGIN, y: OPEN_MERC_MARGIN },
+];
 const MAX_TRIES = 10_000;
 
 class Canvas {
@@ -246,18 +255,22 @@ export function generateArena(spec: ArenaSpec): Arena {
   const rng = Rng.fromSeed(spec.seed);
   const canvas = new Canvas();
   const battle = spec.layout === ArenaLayout.BATTLE;
+  const bunker = spec.layout === ArenaLayout.PATROL;
+  const open = spec.layout === ArenaLayout.OPEN;
   addGroundPatches(rng, canvas);
-  const mercs = (battle ? battleMercs() : bunkerMercs()).slice(0, spec.mercs);
+  const mercs = (bunker ? bunkerMercs() : open ? [...OPEN_MERCS] : battleMercs()).slice(0, spec.mercs);
   const mercBox: Box = {
     x0: Math.min(...mercs.map((p) => p.x)),
     y0: Math.min(...mercs.map((p) => p.y)),
     x1: Math.max(...mercs.map((p) => p.x)),
     y1: Math.max(...mercs.map((p) => p.y)),
   };
-  const nearMercs = (p: Point) => inBox(p, mercBox, MERC_CLEARANCE);
+  const nearMercs = open
+    ? (p: Point) => mercs.some((m) => inBox(p, { x0: m.x, y0: m.y, x1: m.x, y1: m.y }, MERC_CLEARANCE))
+    : (p: Point) => inBox(p, mercBox, MERC_CLEARANCE);
   const nearBunker = (p: Point) => inBox(p, BUNKER, 1);
-  if (!battle) drawBunker(canvas, BUNKER);
-  const structureKeepOut = battle ? nearMercs : nearBunker;
+  if (bunker) drawBunker(canvas, BUNKER);
+  const structureKeepOut = bunker ? nearBunker : nearMercs;
   const interior = { x0: BORDER, y0: BORDER, x1: ARENA_WIDTH - BORDER - 1, y1: ARENA_HEIGHT - BORDER - 1 };
   drawWalls(rng, canvas, battle ? BATTLE_WALLS : PATROL_WALLS, structureKeepOut);
   scatter(rng, canvas, battle ? BATTLE_BARRELS : PATROL_BARRELS, interior, structureKeepOut, (p) => canvas.set(p, BARREL));
@@ -295,7 +308,7 @@ export function generateArena(spec: ArenaSpec): Arena {
     const civilians = placeSoldiers(rng, canvas, spec.civilians, interior, nearMercs);
     for (const p of civilians) lines.push(soldierLine('CIV', p, pick(rng, DIRECTIONS), 'STATIONARY', 'DEFENSIVE', 'NONE', false));
   } else {
-    const away = (p: Point) => inBox(p, BUNKER, BUNKER_KEEP_OUT);
+    const away = bunker ? (p: Point) => inBox(p, BUNKER, BUNKER_KEEP_OUT) : nearMercs;
     const enemies = placeSoldiers(rng, canvas, spec.enemies, interior, away);
     for (const [i, p] of enemies.entries())
       lines.push(soldierLine('ENEMY', p, pick(rng, DIRECTIONS), pick(rng, PATROL_ORDERS), pick(rng, ATTITUDES), cls(i), true));
@@ -322,7 +335,7 @@ export function generateArena(spec: ArenaSpec): Arena {
     path: `${STUB_MAPS_DIR}${ARENA_MAP_PREFIX}${spec.name}.dat`,
     text,
     mercGridNos: mercs.map(gridNoOf),
-    alarmGridNo: battle ? null : gridNoOf(ALARM),
+    alarmGridNo: bunker ? gridNoOf(ALARM) : null,
     garrison: { admins: 0, troops: spec.enemies - spec.elites, elites: spec.elites },
   };
 }

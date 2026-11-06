@@ -28,6 +28,18 @@ const PATROL: ArenaSpec = {
   seed: 3,
 };
 
+const OPEN: ArenaSpec = {
+  name: 'bandage-20',
+  layout: ArenaLayout.OPEN,
+  enemies: 0,
+  elites: 0,
+  militia: 0,
+  civilians: 20,
+  mercs: 6,
+  seed: 3,
+};
+const SPREAD_TILES = 20;
+
 let data: BenchData;
 
 beforeAll(async () => {
@@ -52,7 +64,7 @@ describe('bench arena', () => {
   });
 
   it('round-trips through the stub map format into a map with every placement', async () => {
-    for (const spec of [BATTLE, PATROL]) {
+    for (const spec of [BATTLE, PATROL, OPEN]) {
       const arena = generateArena(spec);
       await data.addArena(arena);
       const bytes = await data.read(arena.path);
@@ -80,6 +92,16 @@ describe('bench arena', () => {
     const placed = (team: number) => t.soldiers.filter((s) => s?.placed && s.team === team).length;
     expect([placed(Team.OUR), placed(Team.ENEMY), placed(Team.MILITIA), placed(Team.CIV)]).toEqual([6, 16, 4, 4]);
     expect(t.inCombat).toBe(true);
+  });
+
+  it('spreads the open squad over the field among civilians, with no alarm', () => {
+    const arena = generateArena(OPEN);
+    expect(arena.alarmGridNo).toBeNull();
+    const column = (g: number) => g % WORLD_COLS;
+    const row = (g: number) => Math.trunc(g / WORLD_COLS);
+    const span = (pick: (g: number) => number) => Math.max(...arena.mercGridNos.map(pick)) - Math.min(...arena.mercGridNos.map(pick));
+    expect(span(column)).toBeGreaterThanOrEqual(SPREAD_TILES);
+    expect(span(row)).toBeGreaterThanOrEqual(SPREAD_TILES);
   });
 
   it('keeps the patrol squad in a sealed bunker, out of sight', async () => {
