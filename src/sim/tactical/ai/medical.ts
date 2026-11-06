@@ -30,15 +30,15 @@ const STANDING_BESIDE_COST = 1;
 const NO_PATH = 0;
 const BESIDE = 1;
 
-function ourTeam(t: TacticalState): Soldier[] {
+export function ourTeam(t: TacticalState): Soldier[] {
   return t.soldiers.filter((s): s is Soldier => s?.team === Team.OUR);
 }
 
-function aboardOrVehicle(s: Soldier): boolean {
+export function aboardOrVehicle(s: Soldier): boolean {
   return isVehicleBody(s.bodyType) || inVehicle(s);
 }
 
-function carriesMedKit(t: TacticalState, s: Soldier): boolean {
+export function carriesMedKit(t: TacticalState, s: Soldier): boolean {
   return findObjClass(t.content.items, s, ItemClass.MEDKIT) !== NO_SLOT;
 }
 

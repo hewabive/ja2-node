@@ -27,7 +27,8 @@
 // @src call in CommonEnterCombatModeCode (2026-11-05); Strategic/Strategic_Turns.cc HandleStrategicTurn's map screen gate
 // @src (IsTimeBeingCompressed) and its compressed check time (the dead NOT_USING_TIME_COMPRESSION branch left out), polled
 // @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05);
-// @src Overhead.cc NumEnemyInSector, EVENT_BeginMercTurn's auto-bandage gate on bleeding (2026-11-06).
+// @src Overhead.cc NumEnemyInSector, EVENT_BeginMercTurn's auto-bandage gate on bleeding, the game Auto_Bandage.cc's
+// @src AutoBandage pauses for the whole mode (2026-11-06).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -200,10 +201,14 @@ export interface StrategicTurnPoll {
   readonly inCombat: boolean;
 }
 
+function gamePaused(t: TacticalState): boolean {
+  return t.worldClock?.paused === true || t.pathEnv.autoBandage;
+}
+
 function tacticalScreenPoll(t: TacticalState): StrategicTurnPoll {
   return {
     nowMs: t.clockMs,
-    paused: t.worldClock?.paused === true,
+    paused: gamePaused(t),
     mapScreen: false,
     compressing: false,
     compressSpeed: 0,

@@ -5,7 +5,8 @@
 // @src callbacks read: gpBoobyTrapSoldier, g_booby_trap_item, gsBoobyTrapGridNo, gbBoobyTrapLevel, gfDisarmingBuriedBomb,
 // @src gbTrapDifficulty, gfJustFoundBoobyTrap; PLACE_BLUE_FLAG_PROMPT and REMOVE_BLUE_FLAG_PROMPT; the
 // @src MSG_BOX_FLAG_FOUR_NUMBERED_BUTTONS box of StartBombMessageBox, answered 1-4 (MSG_BOX_RETURN_1..4), and the
-// @src gpTempSoldier and gsTempGridno its callback reads (2026-11-04).
+// @src gpTempSoldier and gsTempGridno its callback reads (2026-11-04); Tactical/Auto_Bandage.cc BeginAutoBandage's
+// @src BEGIN_AUTOBANDAGE_PROMPT_STR box (2026-11-06).
 
 import type { CommandRefused } from '../command.ts';
 import { refuse } from './refusal.ts';
@@ -20,6 +21,7 @@ export const TacticalPromptKind = {
   REMOVE_BLUE_FLAG: 'removeBlueFlag',
   BOMB_SETTING: 'bombSetting',
   REMOTE_FREQUENCY: 'remoteFrequency',
+  BEGIN_AUTO_BANDAGE: 'beginAutoBandage',
 } as const;
 export type TacticalPromptKind = (typeof TacticalPromptKind)[keyof typeof TacticalPromptKind];
 
@@ -30,6 +32,7 @@ type BoobyTrapPromptKind =
 
 export type TacticalPrompt =
   | { readonly id: string; readonly kind: BoobyTrapPromptKind }
+  | { readonly id: string; readonly kind: typeof TacticalPromptKind.BEGIN_AUTO_BANDAGE }
   | {
       readonly id: string;
       readonly kind: typeof TacticalPromptKind.ACTIVATE_SWITCH;

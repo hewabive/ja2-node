@@ -10,7 +10,8 @@ import { createItem } from '../items/object.ts';
 import { AI_DELAY, AiAction } from './ai/actions.ts';
 import { handleSoldierAI } from './ai/control.ts';
 import { anim } from './anim-states.ts';
-import { initNewSoldierAnim, resetAllMercSpeeds, setSoldierDirection, states } from './animation.ts';
+import { initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
+import { startAutoBandage } from './auto-bandage.ts';
 import { updateSkullReleases } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { handleTeamServices } from './first-aid.ts';
@@ -68,12 +69,10 @@ function civilian(sim: TacticalSim, id: number, at: number): Soldier {
 }
 
 function startMode(sim: TacticalSim): void {
-  setAutoBandageMode(sim.state, true);
-  resetAllMercSpeeds(sim.state);
+  startAutoBandage(sim.state);
 }
 
 function bandageFrame(sim: TacticalSim): SimEvent[] {
-  handleTeamServices(sim.state, Team.OUR);
   sim.step();
   return sim.drainEvents();
 }
@@ -139,7 +138,7 @@ describe('the AI of our mercs in auto-bandage (AIMain.cc HandleSoldierAI, Realti
     expect(ira.slotItemTakenFrom).toBe(InvSlot.BIGPOCK1);
   });
 
-  it('swaps a second kit in after the first ran out with a patient’s last dressing, so the pocket it came from overwrites the first one', () => {
+  it('swaps a second kit in after the first ran out with a patient’s last dressing, so the pocket it came from overwrites the first one, and the end leaves the hand empty and the gun in the first kit’s pocket', () => {
     const sim = scene();
     const ira = medic(sim, IRA, gridNo(70, 70), InvSlot.BIGPOCK1, 2);
     ira.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('FIRSTAIDKIT'), FULL_KIT);
@@ -149,12 +148,13 @@ describe('the AI of our mercs in auto-bandage (AIMain.cc HandleSoldierAI, Realti
     framesUntil(sim, () => shadow.bleeding === 0);
     expect([itemIn(ira.inv, InvSlot.HAND), ira.slotItemTakenFrom]).toEqual([NOTHING, InvSlot.BIGPOCK1]);
     framesUntil(sim, () => sidney.serviceCount > 0);
+    const pockets = () => [itemIn(ira.inv, InvSlot.HAND), itemIn(ira.inv, InvSlot.BIGPOCK1), itemIn(ira.inv, InvSlot.BIGPOCK2)];
     expect(ira.slotItemTakenFrom).toBe(InvSlot.BIGPOCK2);
-    expect([itemIn(ira.inv, InvSlot.HAND), itemIn(ira.inv, InvSlot.BIGPOCK1), itemIn(ira.inv, InvSlot.BIGPOCK2)]).toEqual([
-      item('FIRSTAIDKIT'),
-      item('GLOCK_17'),
-      NOTHING,
-    ]);
+    expect(pockets()).toEqual([item('FIRSTAIDKIT'), item('GLOCK_17'), NOTHING]);
+    expect(sim.dispatch({ type: 'endAutoBandage' })).toMatchObject({ ok: true });
+    bandageFrame(sim);
+    expect([sim.state.pathEnv.autoBandage, ira.slotItemTakenFrom]).toEqual([false, InvSlot.BIGPOCK2]);
+    expect(pockets()).toEqual([NOTHING, item('GLOCK_17'), item('FIRSTAIDKIT')]);
   });
 
   it('makes a merc of ours with nothing to do wait 10 to 11 s at his first visit, drawing Random(1000) on the main stream', () => {

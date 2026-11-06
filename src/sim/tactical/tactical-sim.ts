@@ -21,7 +21,9 @@
 // @src 2026-11-04); Turn_Based_Input.cc HandleMoveModeInteractiveClick (no move for a vehicle), HandleHandCursorClick
 // @src (the vehicle click, enterVehicle) and Interface_Panels.cc TMClickSecondHandInvCallbackPrimary (ExitVehicle, the
 // @src exitVehicle command, 2026-11-05); Handle_UI.cc UIMouseOnValidAttackLocation (REPAIRCURS and REFUELCURS: a
-// @src vehicle at ground level) for the repair and refuel commands (2026-11-05).
+// @src vehicle at ground level) for the repair and refuel commands (2026-11-05); GameScreen.cc MainGameScreenHandle in
+// @src auto-bandage (HandleAutoBandage instead of the frame; its mask takes every order) and Turn_Based_Input.cc's 'a' key
+// @src (the autoBandage command), the Done and Cancel buttons of Auto_Bandage.cc (endAutoBandage, 2026-11-06).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -76,6 +78,7 @@ import {
   soldierGotoStationaryStance,
   states,
 } from './animation.ts';
+import { autoBandageFrame, beginAutoBandage, checkAutoBandageComplete, requestEndAutoBandage, startAutoBandage } from './auto-bandage.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
 import { answerPlaceBlueFlag, mineSpottedDialogueCallBack } from './bombs/mine-detection.ts';
 import {
@@ -115,6 +118,7 @@ import { cancelAllServices, firstAidOpcode, givingSoldierCancelServices, handleP
 import { dequeueAllGameEvents } from './game-events.ts';
 import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
 import { ensureConsistentWeaponMode, handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
+import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { dispatchInventoryCommand, INVENTORY_COMMANDS } from './inventory-commands.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
@@ -284,6 +288,7 @@ const BAD_GROUP: Refusal = {
   reason: 'group must list controllable mercs of yours in the sector, neither vehicles nor the mercs aboard them',
 };
 const AP_USE_REMOTE = 2;
+const AUTO_BANDAGING: Refusal = { token: 'autoBandaging', reason: 'auto-bandage is running: endAutoBandage ends it' };
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
   random: AimShot.RANDOM,
@@ -512,19 +517,23 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
   };
 }
 
+function overheadTimers(state: TacticalState): void {
+  stepExplosions(state);
+  handleExplosionQueue(state);
+  handleCreatureTenseQuote(state);
+  checkHostileOrSayQuoteList(state);
+  endTimedAiPause(state);
+  updateMissAnimations(state);
+  updateSkullReleases(state);
+}
+
 function overheadHooks(ai: AiControl): OverheadHooks {
   return {
     beforePass: (state) => {
       handlePickedOwnershipCheck(state);
       stepThrownObjects(state);
       updateBullets(state);
-      stepExplosions(state);
-      handleExplosionQueue(state);
-      handleCreatureTenseQuote(state);
-      checkHostileOrSayQuoteList(state);
-      endTimedAiPause(state);
-      updateMissAnimations(state);
-      updateSkullReleases(state);
+      overheadTimers(state);
       handleRealtimeTurns(state, state.realtimeClock);
       handleEnemySightingPause(state);
       beginAiPass(state);
@@ -538,12 +547,29 @@ function overheadHooks(ai: AiControl): OverheadHooks {
   };
 }
 
+function autoBandageOverheadHooks(ai: AiControl): OverheadHooks {
+  return {
+    beforePass: (state) => {
+      overheadTimers(state);
+      beginAiPass(state);
+    },
+    ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
+    afterPass: (state) => {
+      awayAiForPass(state, ai);
+      checkAutoBandageComplete(state);
+      dequeueAllGameEvents(state);
+      checkMercsWaiting(state);
+    },
+  };
+}
+
 export class TacticalSim {
   readonly state: TacticalState;
   readonly world: TacticalWorld;
   readonly mapPath: string;
   readonly ai: AiControl;
   readonly hooks: OverheadHooks;
+  readonly autoBandageHooks: OverheadHooks;
 
   constructor(world: TacticalWorld, content: TacticalContent, seed: number, options: TacticalSimOptions = {}, existing?: TacticalState) {
     this.world = world;
@@ -555,6 +581,7 @@ export class TacticalSim {
     });
     installTacticalHooks(this.state, this.ai);
     this.hooks = overheadHooks(this.ai);
+    this.autoBandageHooks = autoBandageOverheadHooks(this.ai);
     if (existing) return;
     generateBuildings(this.state);
     initLighting(this.state, world.map, options.hour ?? SANDBOX_WORLD_HOUR, options.dayAmbient ?? NORMAL_LIGHTLEVEL_DAY);
@@ -606,6 +633,7 @@ export class TacticalSim {
 
   isIdle(): boolean {
     const t = this.state;
+    if (t.pathEnv.autoBandage) return t.autoBandage.complete;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.explosionQueue.active) return false;
     if (t.mercsWaiting || t.boxing.uiLocked || t.turn.enemySightingOnTheirTurn) return false;
@@ -624,6 +652,7 @@ export class TacticalSim {
 
   actRefusal(s: Soldier): Refusal | null {
     const t = this.state;
+    if (t.pathEnv.autoBandage) return AUTO_BANDAGING;
     if (!s.placed || s.team !== Team.OUR) return { token: 'noSuchSoldier', reason: 'no such soldier of yours' };
     const crew = crewRefusal(t, s);
     if (crew) return crew;
@@ -713,9 +742,11 @@ export class TacticalSim {
   }
 
   step(): void {
-    if (this.state.prompt) return;
-    executeOverhead(this.state, this.hooks);
-    this.state.tick++;
+    const t = this.state;
+    if (t.prompt) return;
+    if (t.pathEnv.autoBandage) autoBandageFrame(t, this.autoBandageHooks);
+    else executeOverhead(t, this.hooks);
+    t.tick++;
   }
 
   runClockAlone(): void {
@@ -750,6 +781,9 @@ export class TacticalSim {
       case TacticalPromptKind.REMOTE_FREQUENCY:
         answerBombMessageBox(t, prompt, Number(choice));
         break;
+      case TacticalPromptKind.BEGIN_AUTO_BANDAGE:
+        if (yes) startAutoBandage(t);
+        break;
     }
     return { ok: true };
   }
@@ -775,7 +809,20 @@ export class TacticalSim {
     return { ok: true, data: { options: { ...this.state.options } } };
   }
 
+  #dispatchInAutoBandage(cmd: TacticalCommand): CommandResult {
+    if (cmd.type === 'setOption') return this.#setOption(cmd);
+    if (cmd.type !== 'endAutoBandage') return refused(AUTO_BANDAGING);
+    requestEndAutoBandage(this.state);
+    return { ok: true, data: { ending: true } };
+  }
+
+  #autoBandage(): CommandResult {
+    if (playerInterfaceLocked(this.state)) return refuse('uiLocked', 'the interface is locked');
+    return beginAutoBandage(this.state);
+  }
+
   dispatch(cmd: TacticalCommand): CommandResult {
+    if (this.state.pathEnv.autoBandage) return this.#dispatchInAutoBandage(cmd);
     if (cmd.type === 'answer') return this.#answer(cmd);
     const prompt = promptOpenRefusal(this.state);
     if (prompt) return prompt;
@@ -828,6 +875,10 @@ export class TacticalSim {
         return this.#select(cmd);
       case 'selectSquad':
         return this.#selectSquad(cmd);
+      case 'autoBandage':
+        return this.#autoBandage();
+      case 'endAutoBandage':
+        return refuse('notAutoBandaging', 'auto-bandage is not running');
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');

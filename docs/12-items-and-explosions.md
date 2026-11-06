@@ -409,9 +409,46 @@ human blood here, where the original reads the type its freed slot still holds.
 
 **Where.** `ai/medical.ts` is `Medical.cc`: who counts as a medic and who as a patient, `canAutoBandage` with its full
 check of one patient per call, the AI's patient search (`findBestPatient`) and its medical decision
-(`decideAutoBandage`). `numEnemyInSector` (`turns/turns.ts`) is the sector check that opens the mode. Every system that
-reads the mode flag follows it (below); nothing raises the flag yet: the start, the frame, the end, the box and the
-commands are gaps "Auto-bandage".
+(`decideAutoBandage`). `auto-bandage.ts` is `Auto_Bandage.cc`: the command's checks and question, the start, the frame
+and the end. `numEnemyInSector` (`turns/turns.ts`) is the sector check that opens the mode. `TacticalSim` routes the
+commands, the answer and the ticks. The end of a battle, the campaign's pause and warp, the view, the box and the key are
+gaps "Auto-bandage".
+
+**Lifecycle.**
+- `autoBandage` is the `a` key: the original's OK boxes become refusals in its order (`sectorNotCleared`,
+  `nobodyToBandage`, `noMedKit`, `cannotAutoBandage`), after the interface lock (`uiLocked`) and an open prompt; otherwise
+  it opens the `beginAutoBandage` prompt. `no` changes nothing; `yes` starts the mode.
+- The start runs the real-time turn left over from combat first (the original ran it at the combat's exit, deviation
+  "Real-time turn after combat"), raises the flag, builds the two lists, calls the sector hook `autoBandageStarted`
+  (the campaign's `PauseGame`), clears every merc's kit pocket and medic through `ourWholeTeam`, and sets every speed
+  (`autoBandageStarted` event).
+- One tick is one frame (below). Completion only marks the record (`autoBandageComplete` event) and makes the sim idle;
+  the mode runs on, AI, services and draws included, until `endAutoBandage`, which asks for the end. The end comes at the
+  end of the next frame, as the button's `fEndAutoBandage` does.
+- The end stands our whole team up, swaps the hands back, ends their actions, gives the warp to the sector hook
+  `autoBandageEnded` (the campaign's `UnPauseGame` and `WarpGameTime`) and the failure to the `autoBandageEnded` event
+  (the original's `pDoctorWarningString[1]` box), and sets every speed back.
+- While the mode runs every order is refused as `autoBandaging` but `endAutoBandage` and `setOption`; `actRefusal` refuses
+  the campaign's orders the same way.
+
+**The frame** (`autoBandageFrame`) is `HandleAutoBandage`: the real-time turn (`HandleStrategicTurn`, which the paused
+game stops: `turns.ts` counts the mode as a pause, so the sandbox has none either), the services of our team, the 5 s
+count, the overhead pass with `autoBandageOverheadHooks`, then the end if asked. `MainGameScreenHandle` returns before
+the rest of its frame (`GameScreen.cc:283-288`), so those hooks are the normal pass's without what lies outside
+`ExecuteOverhead`:
+
+| Normal pass | In the mode | Original |
+|---|---|---|
+| `handlePickedOwnershipCheck` | Left out | `CheckCustomizableTimer`, `GameScreen.cc:340` |
+| `stepThrownObjects` | Left out | `SimulateWorld`, `GameScreen.cc:343` |
+| `updateBullets` | Left out | `UpdateBullets`, `GameScreen.cc:424` |
+| `stepExplosions`, `updateMissAnimations` | Kept | `UpdateAniTiles`, `Overhead.cc:487` |
+| `handleExplosionQueue`, `handleCreatureTenseQuote`, `checkHostileOrSayQuoteList`, `endTimedAiPause` | Kept | `Overhead.cc:490-500` |
+| `updateSkullReleases` | Kept | `HandlePanelFaceAnimations`, in the slot loop |
+| `handleRealtimeTurns` | First in the frame | `Auto_Bandage.cc:225` |
+| `handleEnemySightingPause` | Left out | `GameScreen.cc:311-327` |
+| `beginAiPass`, the slots' AI, `awayAiForPass` | Kept, then the completion check | `Overhead.cc:503-1077` |
+| `dequeueAllGameEvents`, `checkMercsWaiting` | Kept | `Auto_Bandage.cc:238`, `Overhead.cc:1080` |
 
 **What the flag changes.**
 - The AI (`ai/control.ts`): `handleSoldierAI` lets our mercs through, and their real-time decision is
@@ -462,7 +499,7 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 | `FindAutobandageClimbPoint` reads the climb spots at swapped levels, the ground-side spot on the roof and the roof-side spot on the ground floor (`TacticalAI/Medical.cc:43-46` against `TileEngine/Buildings.cc:264-265`), and passes a roof patient on any such spot, reachable or not; a medic on a roof passes every ground patient | "reads the climb spots at swapped levels …", "passes a roof patient on any climb spot …", "passes a patient who is a medic himself …" |
 | `NumEnemyInSector` counts unconscious and unseen hostiles | `turns/end-of-battle.test.ts` "counts every living, non-neutral, non-friendly soldier …" |
 | A medic done with a patient stays in `GIVING_AID` until his next action changes the animation | `auto-bandage-ai.test.ts` "keeps a medic done with a patient in GIVING_AID …" |
-| `bSlotItemTakenFrom` is overwritten by every swap: a first kit used up with a patient's last dressing is not replaced, the second kit swapped in later records its own pocket, and the gun stays in the first kit's | `auto-bandage-ai.test.ts` "swaps a second kit in after the first ran out …" |
+| `bSlotItemTakenFrom` is overwritten by every swap: a first kit used up with a patient's last dressing is not replaced, the second kit swapped in later records its own pocket, so the end leaves the hand empty, the second kit back in its pocket and the gun in the first kit's | `auto-bandage-ai.test.ts` "swaps a second kit in after the first ran out …" |
 | The medic's gait comes from the movement table: at GREEN he walks, at RED he runs, and his first decision raises him to RED once his team knows of opposition | `auto-bandage-ai.test.ts` "walks at GREEN …", "runs at RED", "raises a medic at GREEN to RED …" |
 | Every soldier of every team animates one frame per pass and has his AI visited at every pass, each on his own 100 ms timer; a turning merc of ours keeps the fast-turn delay | `auto-bandage-ai.test.ts` "handles the AI of every soldier …", "animates every soldier of every team …" |
 | A merc of ours with nothing to do draws `REALTIME_AI_DELAY`'s `Random(1000)` on the main stream at each decision, and the wait leaves his action in progress | `auto-bandage-ai.test.ts` "makes a merc of ours with nothing to do wait …" |
@@ -470,12 +507,23 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 | Our mercs reveal no items and see no corpses as they look | `auto-bandage-ai.test.ts` "reveals no items to our mercs looking around …" |
 | Nobody bleeds at the turn start | `combat/bleeding.test.ts` "bleeds nobody at the turn start while auto-bandage runs …" |
 | A merc of ours swapped at his third wait stands with no final destination | `movement.test.ts` (`07`) |
+| The command's refusals come in `BeginAutoBandage`'s order, and its kit check counts any merc of ours with a kit, a dying one or one with no medical skill | `auto-bandage.test.ts` "refuses in the original’s order …" |
+| The lists are in team order, a bleeding medic on both; when either is empty both are | `auto-bandage.test.ts` "lists the medics and the patients …", "empties both lists …" |
+| The start clears the failure, and the kit pocket and medic of every merc of ours wherever he is, but not the full check's pointer | `auto-bandage.test.ts` "clears the failure and every merc’s kit pocket …" |
+| The world clock jumps 5 s for every frame, the frame of the end included, up to 125 s however long the mode ran | `auto-bandage.test.ts` "counts 5 s a frame up to 125 …", "warps 5 s for every frame of an early end …" |
+| The services run at every frame: a patient is dressed once a frame instead of once a real-time turn | `auto-bandage.test.ts` "dresses the patient at every frame of the aid" |
+| Running out of kits completes the mode silently, the patient still bleeding; only a failed full check reports at the end | `auto-bandage.test.ts` "completes silently when the kits run out …", "completes with the failure …" |
+| Completion only marks the mode: it runs on, its AI deciding and drawing, until the end | `auto-bandage.test.ts` "completes once everybody is bandaged …", "runs on after completion …" |
+| No real-time turn runs in the mode, so the first one after it comes at once | `auto-bandage.test.ts` "stops the real-time turn while the mode runs …" |
+| The end comes at the end of the frame after the request, which runs in full | `auto-bandage.test.ts` "ends at the end of the next frame …" |
+| The end stands up every merc of ours, off the map too, where he stays mid-transition, and stops a walking medic on his tile; it cancels no service, so a medic stood up mid-dressing keeps his patient | `auto-bandage.test.ts` "stands up every merc of ours …", "stops a medic walking …" |
 
 The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage") record these decisions and the frames of a
-whole mode in the native build; no comparer reads them yet.
+whole mode in the native build; no comparer reads them yet, so the frame loop is checked only by these tests.
 
 Not ported: gaps "Map items" (the pits), "Auto-bandage". Other
 deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
 "Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
 and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",
-"Drugs in the projection", "Mine locator", "Blue flag without a bomb", "Auto-bandage statics".
+"Drugs in the projection", "Mine locator", "Blue flag without a bomb", "Auto-bandage statics", "AI first aid without a
+path", "Door on the way in auto-bandage".

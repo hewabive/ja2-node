@@ -243,6 +243,8 @@ export interface SectorHooks {
   structureDamaged(t: TacticalState, gridNo: number, damage: number): void;
   inCreatureLair(t: TacticalState): boolean;
   worldLoaded(t: TacticalState): boolean;
+  autoBandageStarted(t: TacticalState): void;
+  autoBandageEnded(t: TacticalState, warpSeconds: number): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -266,6 +268,8 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   structureDamaged: () => {},
   inCreatureLair: () => false,
   worldLoaded: () => true,
+  autoBandageStarted: () => {},
+  autoBandageEnded: () => {},
 };
 
 export interface TacticalState {

@@ -52,5 +52,7 @@ export function tacticalPromptView(t: TacticalState | null | undefined): Tactica
       };
     case TacticalPromptKind.REMOTE_FREQUENCY:
       return { id: prompt.id, kind: 'remoteFrequency', soldier: prompt.soldier.id, choices: [...NUMBERED_CHOICES] };
+    case TacticalPromptKind.BEGIN_AUTO_BANDAGE:
+      return null;
   }
 }

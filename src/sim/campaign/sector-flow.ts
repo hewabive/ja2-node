@@ -679,6 +679,8 @@ export class SectorFlow {
       structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),
       inCreatureLair: () => this.#inCreatureLair(),
       worldLoaded: () => true,
+      autoBandageStarted: () => {},
+      autoBandageEnded: () => {},
     };
   }
 
