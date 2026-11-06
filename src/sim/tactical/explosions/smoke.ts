@@ -11,13 +11,13 @@ import { NOTHING } from '../../../content/items/items.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv, u16, u32, udiv } from '../../../core/int.ts';
 import { type ItemObject, swapObjects, USABLE_STATUS } from '../../items/object.ts';
+import { smokeChanged } from '../change-counts.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
 import { AttackReason, processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
-import { smokeTilesChanged } from '../perception/sight-memo.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { Spread, spreadEffectSmoke } from './explosion.ts';
@@ -166,11 +166,11 @@ export function restoreSmokeCloud(t: TacticalState, cloud: SmokeCloud): void {
   spreadEffectSmoke(t, cloud, Spread.SUBSEQUENT, levelOf(cloud));
 }
 
-export function setSmokeFlagsAt(t: Pick<TacticalState, 'explosives' | 'sightMemo'>, g: number, level: number, flags: number): void {
+export function setSmokeFlagsAt(t: Pick<TacticalState, 'explosives' | 'changes'>, g: number, level: number, flags: number): void {
   const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];
   if (tiles[g] === flags) return;
   tiles[g] = flags;
-  smokeTilesChanged(t);
+  smokeChanged(t);
 }
 
 export function addSmokeEffectToTile(t: TacticalState, cloud: SmokeCloud, type: SmokeEffectType, g: number, level: number): void {

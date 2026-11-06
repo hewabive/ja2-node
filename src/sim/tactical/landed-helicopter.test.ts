@@ -87,7 +87,7 @@ describe('the helicopter on the loaded map', () => {
     expect(open).not.toBe(TravelCost.OBSTACLE);
     setHelicopterOnMap(sim.state, drassen(sim), true);
     expect(costs.get(FUSELAGE_TILE, Direction.NORTH, 0)).toBe(open);
-    costs.values.set(compileWorldMovementCosts(sim.state.world).values);
+    costs.replaceWith(compileWorldMovementCosts(sim.state.world).values);
     expect(costs.get(FUSELAGE_TILE, Direction.NORTH, 0)).toBe(TravelCost.OBSTACLE);
     setHelicopterOnMap(sim.state, drassen(sim), false);
     expect(costs.get(FUSELAGE_TILE, Direction.NORTH, 0)).toBe(TravelCost.OBSTACLE);

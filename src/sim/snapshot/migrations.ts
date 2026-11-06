@@ -1607,6 +1607,22 @@ function markStrategicDeathsOnSoldiers(snapshot: Readonly<Record<string, unknown
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const FOG_MARKER_KEYS = ['markers', 'markerValue'];
+
+function withoutFogMarkers(tactical: JsonObject): JsonObject {
+  const fog = tactical[FOG_KEY];
+  if (!isObject(fog) || fog[REF] !== undefined) return tactical;
+  return { ...tactical, [FOG_KEY]: withoutKeys(fog, FOG_MARKER_KEYS) };
+}
+
+function dropFogMarkers(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withoutFogMarkers(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1663,5 +1679,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     52: moveVehicleSeatsOntoSoldiers,
     53: addHiResDirections,
     54: markStrategicDeathsOnSoldiers,
+    55: dropFogMarkers,
   };
 }

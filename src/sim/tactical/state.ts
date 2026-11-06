@@ -23,6 +23,7 @@ import type { ExplosionQueue } from './bombs/bomb-queue.ts';
 import { mineFlagsOfMap } from './bombs/mine-flags.ts';
 import type { WorldBomb } from './bombs/world-bombs.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
+import { type ChangeCounts, createChangeCounts, occupancyChanged } from './change-counts.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from './combat/context.ts';
 import type { Corpse } from './combat/death.ts';
@@ -41,7 +42,8 @@ import { multiTileShape } from './multi-tile.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { createScheduleList, NO_SCHEDULE_CLOCK, type ScheduleClock, type ScheduleList } from './narrative/schedule-state.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
-import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
+import { createFogOfWar, createViewMarkers, type FogOfWar, type ViewMarkers } from './perception/fov.ts';
+import { createLookMemo, type LookMemo } from './perception/look-memo.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
 import { createSightMemo, type SightMemo } from './perception/sight-memo.ts';
 import type { ProfileProgress } from './profiles.ts';
@@ -292,9 +294,12 @@ export interface TacticalState {
   hooks: TacticalHooks;
   readonly perception: Perception;
   readonly sightMemo: SightMemo;
+  readonly lookMemo: LookMemo;
+  readonly changes: ChangeCounts;
   readonly lighting: LightingState;
   timeOfDayLight: TimeOfDayLight;
   readonly fog: FogOfWar;
+  readonly viewMarkers: ViewMarkers;
   perceptionHooks: PerceptionHooks;
   readonly turn: TurnState;
   turnHooks: TurnHooks;
@@ -490,9 +495,12 @@ export function createTacticalState(
     hooks: NO_HOOKS,
     perception: createPerception(TOTAL_SOLDIERS),
     sightMemo: createSightMemo(),
+    lookMemo: createLookMemo(),
+    changes: createChangeCounts(),
     lighting: createLightingState(world.level),
     timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
     fog: createFogOfWar(),
+    viewMarkers: createViewMarkers(),
     perceptionHooks: NO_PERCEPTION_HOOKS,
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
@@ -566,12 +574,21 @@ function personLyingOver(state: Pick<TacticalState, 'world' | 'soldiers'>, g: nu
 export function placeOccupant(state: TacticalState, s: Soldier): void {
   if (inVehicle(s)) return;
   const layer = state.occupant[s.level > 0 ? 1 : 0];
-  if (layer[s.gridNo] === -1) layer[s.gridNo] = s.id;
+  if (layer[s.gridNo] !== -1) return;
+  layer[s.gridNo] = s.id;
+  occupancyChanged(state);
 }
 
 export function removeOccupant(state: TacticalState, s: Soldier): void {
   const layer = state.occupant[s.level > 0 ? 1 : 0];
-  if (layer[s.gridNo] === s.id) layer[s.gridNo] = -1;
+  if (layer[s.gridNo] !== s.id) return;
+  layer[s.gridNo] = -1;
+  occupancyChanged(state);
+}
+
+export function clearOccupants(state: TacticalState): void {
+  for (const layer of state.occupant) layer.fill(-1);
+  occupancyChanged(state);
 }
 
 export function asPathSoldier(s: Soldier): PathSoldier {

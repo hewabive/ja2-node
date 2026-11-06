@@ -149,7 +149,7 @@ export function importSave(sim: TacticalSim, save: SaveGame, presentation: Prese
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
   const corpses = importCorpses(t, save.currentSector.corpses ?? []);
   const skippedMapModifications = skippedMapModificationCount(sim.world.tables, save.currentSector.mapModifications ?? []);
-  t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+  t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
   const soldiers = importSoldiers(t, save, presentation);
   importAwaySoldiers(t, save);
   t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
@@ -274,7 +274,7 @@ function applyRevealedStatus(t: TacticalState, revealed: Uint8Array | null): voi
 }
 
 export function initLoadedWorld(t: TacticalState): void {
-  t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+  t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
   lightSpriteRenderAll(t);
   setBlueFlagFlags(t);
 }

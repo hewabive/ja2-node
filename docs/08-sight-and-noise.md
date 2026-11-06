@@ -41,6 +41,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/duel.ts` | Duel points, interrupt conditions, watched locations (`10`) |
 | `perception/knowledge.ts` | The AI's reading of heard noises and known opponents |
 | `perception/fov.ts` | `revealRoofsAndItems`, `allSoldiersLookForItems`, revealed tiles and rooms (`TacticalState.fog`) |
+| `perception/look-memo.ts`, `change-counts.ts` | The look skipped while its inputs stand, and the change counts of the world layers it reads (§2) |
 | `perception/slant-roofs.ts` | The ceilings of slanted roofs: which roofs a look or a load examines, and the tiles that show a ceiling (`fog.slantRoofCeilings`) |
 | `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote with the tile it slides to and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`, `turn.itemsSeenOnAttackGridNo`) |
 | `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; what our sighting does (the quote or battle sound, the halt, the end of the virgin sector); the AI's stance after one |
@@ -76,6 +77,35 @@ creature can see (`FARTHEST_NON_MONSTER_SIGHT`, a bound of `distanceVisible`) is
 viewer sees the target now. Both serve the map screen's real-time turn, which makes all teams look at each 20 ms poll
 (`15`, `32` §2.2); pinned by `sight-memo.test.ts` and `sight-modifiers.test.ts` "never reaches past
 FARTHEST_NON_MONSTER_SIGHT …".
+
+**A look that would change nothing is skipped.** Out of combat `allTeamsLookForAll` records what it reads on a tape
+before and after it runs (`perception/look-memo.ts`, `TacticalState.lookMemo`, transient, empty after a restore). A look
+that left the tape as it was, drew from neither stream and pushed no event or game event is remembered (with streams
+other than the game's own, as tests and oracle replays swap in, none is), and the next call whose tape equals it again
+is skipped: the same inputs take the same path and write the values already there. Every draw a look can make lies on a
+branch that also changes the tape or pushes an event, so the stream check only backs the proof up. The tape
+holds what the path reads and writes, read from `sight.ts` (the look, `distanceVisible`, the ray memo's inputs,
+`manSeesMan`'s seen-again branch, the radio, the best sighting) and `fov.ts` (the walk with `mercLooksForDoors`, the
+corpse comment, item visibility, blood graphics, slanted roofs), compared value by value where cheap: every soldier with
+the fields those read, each soldier's opinion of each other (with the last known tile and the seen mark where it is not
+0), the public opinions, noise and awareness, the watched-location increments, the sighting scratch of `perception` and
+`turn`, combat, difficulty, blood and gore, the sector, the door statuses, the world items, the corpses and, in caves,
+the light sprites. The world's large layers count their changes instead, and every writer counts: the structure lists
+(`WorldStructures.add`, `remove`), the movement costs (`MovementCosts.raise`, `force`, `clearTile`, `replaceWith`, its
+only writers), and `TacticalState.changes` (transient): `smoke` by `setSmokeFlagsAt`, the only writer of the smoke
+layer; `light` by `traceLight` (every draw and erase) and `resetTileLights` (every render and map load, which
+`lightSetBaseLevel`, `initLighting` and the save import run after writing the ambient level or the cave flags); `fog` by
+`setRevealedFlags`, `setRoomRevealed`, `restoreFogOfWar`, `examineSlantRoofsOverRevealedTiles` and `setCeiling`, every
+write of the revealed tiles, the room roofs and the slanted roof ceilings; `blood` by `setBloodReevaluation`, every write
+of the blood to redraw; `occupancy` by `placeOccupant`, `removeOccupant` and `clearOccupants`. A writer of these that
+does not count, or a read the tape misses, would let a skipped look miss a change. The last merc to radio, which a look
+writes and never reads and the opplist decay clears, is set again from the remembered look's radio callers. Two paths
+read more than the tape holds and are never remembered: an enemy readying his weapon at a sighting
+(`reevaluateEnemyStance`) and the first creature line of a merc without a profile, which leaves no flag. The walk's
+markers are scratch outside the snapshot (`TacticalState.viewMarkers`), as in the original: no walk reads what an
+earlier one left there. `setLookSkipping(false)` runs every look, for differential checks. Pinned by
+`look-memo.test.ts` (each input and each counting writer) and `../campaign/map-screen-looks.test.ts` (skip on and off
+alike, a compressed day with a loaded town included).
 
 **An aware viewer sees all around.** An unaware look counts the angle from the facing the soldier is turning to, with
 sub-tile positions. A soldier who saw or heard the opponent in the last three turns, himself or through his team, looks

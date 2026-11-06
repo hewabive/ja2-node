@@ -11,6 +11,7 @@ import { soldierReadyWeapon } from '../combat/attack.ts';
 import { isMercBody } from '../pathfinding.ts';
 import { Body, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
+import { markLookUnrepeatable } from './look-memo.ts';
 import { Opp } from './opp.ts';
 
 const NOT_TURNING_FROM_PRONE = 0;
@@ -39,6 +40,7 @@ export function reevaluateEnemyStance(t: TacticalState, s: Soldier, animState: n
   if (s.turningFromPronePosition !== NOT_TURNING_FROM_PRONE) return false;
   if (s.bodyType === Body.QUEENMONSTER) {
     if (hasAnimFlag(t.content, animState, AnimFlags.BREATH) && s.ai.oppCount > 0) {
+      markLookUnrepeatable(t);
       initNewSoldierAnim(t, s, anim(t.content, 'QUEEN_INTO_READY'), 0, true);
       return true;
     }
@@ -46,6 +48,7 @@ export function reevaluateEnemyStance(t: TacticalState, s: Soldier, animState: n
   if (!isMercBody(s) || !hasAnimFlag(t.content, animState, AnimFlags.MERCIDLE | AnimFlags.BREATH) || s.ai.oppCount <= 0) return false;
   const closest = closestSeenMerc(t, s);
   if (closest === NOWHERE) return false;
+  markLookUnrepeatable(t);
   s.dontChargeReadyAPs = true;
   return soldierReadyWeapon(t, s, closest, false);
 }

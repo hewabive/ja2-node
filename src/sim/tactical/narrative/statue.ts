@@ -7,7 +7,7 @@ import { recompileLocalMovementCosts } from '../../../content/world/movement-cos
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { roomAt } from '../ai/destinations.ts';
 import { addExitGridToWorld, recordExitGridAdded, recordStructureAdded, recordStructureRemoved } from '../map-changes.ts';
-import { RevealedFlags } from '../perception/fov.ts';
+import { markGroundRevealed } from '../perception/fov.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 
@@ -62,7 +62,7 @@ export function changeO3SectorStatue(t: TacticalState, fromExplosion: boolean): 
   const exit = { mapIndex: STATUE_EXIT_GRIDNO, gridNo: BASEMENT_ARRIVAL_GRIDNO, sector: { ...BASEMENT } };
   addExitGridToWorld(t, exit);
   recordExitGridAdded(t, exit);
-  t.fog.revealed[STATUE_EXIT_GRIDNO] = (t.fog.revealed[STATUE_EXIT_GRIDNO] ?? 0) | RevealedFlags.GROUND;
+  markGroundRevealed(t, STATUE_EXIT_GRIDNO);
   recompileLocalMovementCosts(t.world.costs, t.world, STATUE_GRIDNO, RECOMPILE_RADIUS);
   t.events.push({ type: 'statueOpened', sector: 'O3', destroyed: fromExplosion });
 }

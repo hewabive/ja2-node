@@ -736,7 +736,7 @@ export class SectorFlow {
     const now = this.nowMinutes();
     if (this.#inMeanwhile()) {
       if (diff && this.#interrogationScene()) this.#loadItemDiff(sector, diff);
-      t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+      t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
       return;
     }
     if (diff) {

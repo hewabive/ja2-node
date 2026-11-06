@@ -123,7 +123,7 @@ describe('light sprites', () => {
     lamp(t, 'L-R05.LHT');
     const lit = row(t, Y, X + 3, X + 6);
     t.world.structures.add(gridNo(X + 2, Y), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT));
-    t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+    t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
     expect(row(t, Y, X + 3, X + 6)).toEqual(lit);
     lightSpriteRenderAll(t);
     expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
@@ -133,7 +133,7 @@ describe('light sprites', () => {
     const t = tactical();
     const l = lamp(t, 'L-R05.LHT');
     t.world.structures.add(gridNo(X + 2, Y), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT));
-    t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+    t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
     lightSpriteDestroy(t, l);
     expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
   });

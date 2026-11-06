@@ -74,6 +74,7 @@ import {
 } from './duel.ts';
 import { reevaluateEnemyStance } from './enemy-stance.ts';
 import { revealRoofsAndItems } from './fov.ts';
+import { lookUnlessUnchanged, setLastMercToRadio } from './look-memo.ts';
 import { atan8, Caller, Opp, SeenCreature, SightFlags } from './opp.ts';
 import { resetLastKnownLocs } from './opplist-reset.ts';
 import { sightLineOfSight } from './sight-memo.ts';
@@ -518,7 +519,7 @@ function putMilitiaOnRedAlert(t: TacticalState): void {
 
 export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | null, toTeam: number): void {
   const p = t.perception;
-  p.lastMercToRadio[s.team] = s;
+  setLastMercToRadio(t, s);
   const table = p.publicOpp[toTeam];
   if (!table) return;
   let revealed = 0;
@@ -704,6 +705,11 @@ export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
 }
 
 export function allTeamsLookForAll(t: TacticalState, allowInterrupts = false): void {
+  if (t.inCombat) lookAtAllTeams(t, allowInterrupts);
+  else lookUnlessUnchanged(t, () => lookAtAllTeams(t, allowInterrupts));
+}
+
+function lookAtAllTeams(t: TacticalState, allowInterrupts: boolean): void {
   const p = t.perception;
   if (allowInterrupts || !t.inCombat) {
     p.bestSize = BEST_SIGHTING_ALL;

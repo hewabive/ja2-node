@@ -2676,3 +2676,49 @@ describe('snapshot version 54 (a strategic death left the soldier alive) migrate
     expect(deadOnSoldiers(restored)).toEqual([false, true, false, false]);
   });
 });
+
+const FOG_MARKERS_KEY = 'markers';
+const FOG_MARKER_VALUE_KEY = 'markerValue';
+const SAVED_MARKER_VALUE = 17;
+
+function versionFiftyFive(snapshot: SimSnapshot): SimSnapshot {
+  const markers = new Uint8Array(WORLD_MAX).fill(SAVED_MARKER_VALUE, 0, WORLD_COLS);
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const fog = { ...object(tactical.fog), [FOG_MARKERS_KEY]: { $u8: encodeBase64(markers) }, [FOG_MARKER_VALUE_KEY]: SAVED_MARKER_VALUE };
+    return [name, { ...tactical, fog }];
+  });
+  return { ...snapshot, version: 55, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 55 (the fog-of-war walk's markers saved) migrates without them, as scratch the original never saves", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectMarkersDropped(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftyFive(current.sim);
+    expect(JSON.stringify(current.sim)).not.toContain(`"${FOG_MARKER_VALUE_KEY}"`);
+    expect(JSON.stringify(legacy)).toContain(`"${FOG_MARKER_VALUE_KEY}":${SAVED_MARKER_VALUE}`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectMarkersDropped(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectMarkersDropped(await createCampaignSession(kit.read, exists, 9));
+  });
+});

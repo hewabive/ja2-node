@@ -18,6 +18,7 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { idiv } from '../../../core/int.ts';
+import { fogChanged } from '../change-counts.ts';
 import { mercLooksForDoors } from '../doors/door-status.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, switchOnCaveLightAt } from '../lighting/lighting.ts';
 import { BOXING_RING } from '../narrative/boxing-state.ts';
@@ -146,20 +147,38 @@ export interface FogOfWar {
   readonly roomHidden: Uint8Array;
   readonly revealed: Uint8Array;
   readonly slantRoofCeilings: Uint8Array;
-  readonly markers: Uint8Array;
-  markerValue: number;
+}
+
+export interface ViewMarkers {
+  readonly tiles: Uint8Array;
+  value: number;
 }
 
 export const RevealedFlags = { GROUND: 0x01, ROOF: 0x02 } as const;
+
+const FIRST_MARKER_VALUE = 1;
+const LAST_MARKER_VALUE = 254;
+const MARKERS_WRAP_AT = 255;
 
 export function createFogOfWar(): FogOfWar {
   return {
     roomHidden: new Uint8Array(MAX_ROOMS).fill(1),
     revealed: new Uint8Array(WORLD_MAX),
     slantRoofCeilings: new Uint8Array(WORLD_MAX),
-    markers: new Uint8Array(WORLD_MAX),
-    markerValue: 254,
   };
+}
+
+export function createViewMarkers(): ViewMarkers {
+  return { tiles: new Uint8Array(WORLD_MAX), value: LAST_MARKER_VALUE };
+}
+
+function nextViewMarker(markers: ViewMarkers): number {
+  markers.value++;
+  if (markers.value === MARKERS_WRAP_AT) {
+    markers.tiles.fill(0);
+    markers.value = FIRST_MARKER_VALUE;
+  }
+  return markers.value;
 }
 
 function groundRevealed(t: TacticalState, g: number): boolean {
@@ -207,26 +226,53 @@ function blockingStructureInfo(t: TacticalState, g: number, level: number): numb
   return minimum ? Blocking.REDUCE_RANGE : Blocking.NEXT_TILE;
 }
 
+function setRevealedFlags(t: TacticalState, g: number, flags: number): void {
+  if ((t.fog.revealed[g] ?? 0) === flags) return;
+  t.fog.revealed[g] = flags;
+  fogChanged(t);
+}
+
+export function markGroundRevealed(t: TacticalState, g: number): void {
+  setRevealedFlags(t, g, (t.fog.revealed[g] ?? 0) | RevealedFlags.GROUND);
+}
+
 function revealGround(t: TacticalState, g: number): void {
-  t.fog.revealed[g] = (t.fog.revealed[g] ?? 0) | RevealedFlags.GROUND;
+  markGroundRevealed(t, g);
   switchOnCaveLightAt(t, g);
+}
+
+function revealRoof(t: TacticalState, g: number): void {
+  setRevealedFlags(t, g, (t.fog.revealed[g] ?? 0) | RevealedFlags.ROOF);
+}
+
+function setRoomRevealed(t: TacticalState, room: number): void {
+  if (!t.fog.roomHidden[room]) return;
+  t.fog.roomHidden[room] = 0;
+  fogChanged(t);
 }
 
 function setGridNoRevealed(t: TacticalState, g: number): void {
   revealGround(t, g);
-  t.fog.roomHidden[t.world.level.rooms[g] ?? NO_ROOM] = 0;
+  setRoomRevealed(t, t.world.level.rooms[g] ?? NO_ROOM);
+}
+
+export function restoreFogOfWar(t: TacticalState, revealed: Uint8Array, roomHidden: Uint8Array): void {
+  t.fog.revealed.set(revealed);
+  t.fog.roomHidden.set(roomHidden);
+  fogChanged(t);
 }
 
 export function setMapRevealedStatus(t: TacticalState, revealed: (g: number) => boolean): void {
   for (let g = 0; g < WORLD_MAX; g++) {
     if (revealed(g)) setGridNoRevealed(t, g);
-    else t.fog.revealed[g] = (t.fog.revealed[g] ?? 0) & ~RevealedFlags.GROUND;
+    else setRevealedFlags(t, g, (t.fog.revealed[g] ?? 0) & ~RevealedFlags.GROUND);
   }
   examineSlantRoofsOverRevealedTiles(t);
 }
 
 export function examineSlantRoofsOverRevealedTiles(t: TacticalState): void {
   t.fog.slantRoofCeilings.fill(0);
+  fogChanged(t);
   const slots = new SlantRoofSlots();
   for (let g = 0; g < WORLD_MAX; g++) if (groundRevealed(t, g)) slots.addRoofsHiddenOver(t, g);
   slots.examine(t, (g) => groundRevealed(t, g));
@@ -282,11 +328,8 @@ function revealsNothing(s: Soldier): boolean {
 export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: boolean): void {
   if (revealsNothing(s)) return;
   const fog = t.fog;
-  fog.markerValue++;
-  if (fog.markerValue === 255) {
-    fog.markers.fill(0);
-    fog.markerValue = 1;
-  }
+  const markers = t.viewMarkers.tiles;
+  const markerValue = nextViewMarker(t.viewMarkers);
   mercLooksForDoors(t, s);
   const level = s.level;
   const range = s.gassed
@@ -343,8 +386,8 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           stopRevealingItemsAfterThisTile = true;
         } else if (tallest !== 0) stopRevealingItemsAfterThisTile = true;
       }
-      if (fog.markers[marker] !== fog.markerValue) {
-        fog.markers[marker] = fog.markerValue;
+      if (markers[marker] !== markerValue) {
+        markers[marker] = markerValue;
         if (marker === previous && k !== 0) continue;
         if (goneThroughDoor && k > 5) break;
         const blocking = blockingStructureInfo(t, marker, level);
@@ -378,7 +421,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           if (sightRevealsGround(t, marker, underground)) revealGround(t, marker);
           const room = t.world.level.rooms[marker] ?? NO_ROOM;
           if (room !== NO_ROOM && fog.roomHidden[room]) revealHiddenRoom(t, room, s, slots);
-        } else fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.ROOF;
+        } else revealRoof(t, marker);
         updateBloodGraphics(t, marker, level);
         if (!PASS_THROUGH_BLOCKING[blocking]) break;
       } else if (travelCostObstacle) break;

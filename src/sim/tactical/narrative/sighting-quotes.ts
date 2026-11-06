@@ -5,6 +5,7 @@
 
 import { idiv } from '../../../core/int.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
+import { markLookUnrepeatable } from '../perception/look-memo.ts';
 import { Opp, SeenCreature } from '../perception/opp.ts';
 import { profileProgress } from '../profiles.ts';
 import { isMonster, NO_PROFILE, OKLIFE, Side, type Soldier } from '../soldier.ts';
@@ -35,6 +36,7 @@ export function hasSeenCreatures(t: TacticalState, s: Soldier): boolean {
 export function sayFirstCreatureSightingQuote(t: TacticalState, s: Soldier): void {
   const p = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
   if (p) p.miscFlags |= ProfileFlag.HAVESEENCREATURE;
+  else markLookUnrepeatable(t);
   say(t, s, MercQuote.FIRSTTIME_GAME_SEE_CREATURE);
 }
 

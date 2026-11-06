@@ -24,7 +24,7 @@ import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
 import { loadedWorldItemGridNo } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
-import { examineSlantRoofsOverRevealedTiles, switchOnRevealedCaveLights } from '../tactical/perception/fov.ts';
+import { examineSlantRoofsOverRevealedTiles, restoreFogOfWar, switchOnRevealedCaveLights } from '../tactical/perception/fov.ts';
 import { addRottingCorpse, type CorpseAging, removeAllCorpses } from '../tactical/rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
@@ -274,8 +274,7 @@ export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], agi
 }
 
 export function restoreRevealed(t: TacticalState, revealed: RevealedState): void {
-  t.fog.revealed.set(revealed.revealed);
-  t.fog.roomHidden.set(revealed.roomHidden);
+  restoreFogOfWar(t, revealed.revealed, revealed.roomHidden);
   examineSlantRoofsOverRevealedTiles(t);
   switchOnRevealedCaveLights(t);
 }

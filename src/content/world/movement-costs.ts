@@ -99,36 +99,54 @@ const ORIENTATION_NAMES: Readonly<Record<number, string>> = {
 };
 
 export class MovementCosts {
-  readonly values = new Uint8Array(WORLD_MAX * DIRECTION_COUNT * LEVELS);
+  readonly #values = new Uint8Array(WORLD_MAX * DIRECTION_COUNT * LEVELS);
+  #version = 0;
 
   static fromSnapshot(values: Uint8Array): MovementCosts {
     const costs = new MovementCosts();
-    if (values.length !== costs.values.length) throw new RangeError(`a movement cost snapshot needs ${costs.values.length} values`);
-    costs.values.set(values);
+    costs.replaceWith(values);
     return costs;
   }
 
   toSnapshot(): Uint8Array {
-    return this.values;
+    return this.#values;
+  }
+
+  get values(): Uint8Array {
+    return this.#values;
+  }
+
+  get version(): number {
+    return this.#version;
   }
 
   get(g: number, d: number, level: number): number {
-    return this.values[(g * DIRECTION_COUNT + d) * LEVELS + level] ?? TravelCost.OFF_MAP;
+    return this.#values[(g * DIRECTION_COUNT + d) * LEVELS + level] ?? TravelCost.OFF_MAP;
+  }
+
+  replaceWith(values: Uint8Array): void {
+    if (values.length !== this.#values.length) throw new RangeError(`a movement cost snapshot needs ${this.#values.length} values`);
+    this.#values.set(values);
+    this.#version++;
   }
 
   raise(g: number, d: number, level: number, cost: number): void {
     if (g < 0 || g >= WORLD_MAX) return;
     const i = (g * DIRECTION_COUNT + d) * LEVELS + level;
-    if ((this.values[i] ?? 0) < cost) this.values[i] = cost;
+    if ((this.#values[i] ?? 0) >= cost) return;
+    this.#values[i] = cost;
+    this.#version++;
   }
 
   force(g: number, d: number, level: number, cost: number): void {
     if (g < 0 || g >= WORLD_MAX) return;
-    this.values[(g * DIRECTION_COUNT + d) * LEVELS + level] = cost;
+    this.#values[(g * DIRECTION_COUNT + d) * LEVELS + level] = cost;
+    this.#version++;
   }
 
   clearTile(g: number): void {
-    this.values.fill(0, g * DIRECTION_COUNT * LEVELS, (g + 1) * DIRECTION_COUNT * LEVELS);
+    this.#values.fill(0, g * DIRECTION_COUNT * LEVELS, (g + 1) * DIRECTION_COUNT * LEVELS);
+    this.#version++;
   }
 }
 

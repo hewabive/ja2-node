@@ -6,6 +6,7 @@
 
 import { WORLD_MAX } from '../../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
+import { fogChanged } from '../change-counts.ts';
 import type { TacticalState } from '../state.ts';
 
 const NO_ROOM = 0;
@@ -49,13 +50,19 @@ function examineSlantRoof(t: TacticalState, gridNo: number, revealed: (gridNo: n
   const base = roof ? t.world.structures.findBase(roof) : null;
   if (!base) return;
   const hidden = hiddenByRevealedRoom(t, base);
-  const ceilings = t.fog.slantRoofCeilings;
   for (const tile of base.def.tiles) {
     const at = base.gridNo + tile.posRelToBase;
     if (at < 0 || at >= WORLD_MAX) continue;
-    if (revealed(at)) ceilings[at] = NO_CEILING;
-    else if (hidden) ceilings[at] = CEILING;
+    if (revealed(at)) setCeiling(t, at, NO_CEILING);
+    else if (hidden) setCeiling(t, at, CEILING);
   }
+}
+
+function setCeiling(t: TacticalState, gridNo: number, ceiling: number): void {
+  const ceilings = t.fog.slantRoofCeilings;
+  if (ceilings[gridNo] === ceiling) return;
+  ceilings[gridNo] = ceiling;
+  fogChanged(t);
 }
 
 export function slantRoofCeilingTiles(t: TacticalState): number[] {

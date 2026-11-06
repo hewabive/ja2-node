@@ -4,6 +4,7 @@ import { StructureFlags, type StructureInstance } from '../../content/world/stru
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import { setKnownMines } from '../tactical/bombs/mine-flags.ts';
+import { smokeChanged } from '../tactical/change-counts.ts';
 import { corpseStructureDef } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
@@ -22,10 +23,9 @@ import type { BoxingStateName } from '../tactical/narrative/boxing-events.ts';
 import { BOXING_STATE_NAMES } from '../tactical/narrative/boxing-state.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { Opp } from '../tactical/perception/opp.ts';
-import { smokeTilesChanged } from '../tactical/perception/sight-memo.ts';
 import { addMercStructure, removeMercStructure } from '../tactical/person-structure.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
-import { createTacticalState, placeOccupant, registerSoldier, type TacticalState } from '../tactical/state.ts';
+import { clearOccupants, createTacticalState, placeOccupant, registerSoldier, type TacticalState } from '../tactical/state.ts';
 import { type GuardOptions, guardFields, UnsuppliedFieldError } from './guard.ts';
 import { worldItemFromView } from './objects.ts';
 import { soldierFromView } from './soldiers.ts';
@@ -187,8 +187,7 @@ export class TacticalProjection {
     this.#placed = [];
     t.soldiers.length = 0;
     t.mercSlots.length = 0;
-    t.occupant[0].fill(-1);
-    t.occupant[1].fill(-1);
+    clearOccupants(t);
     const ours = t.perception.publicOpp[Team.OUR];
     ours?.fill(Opp.NOT_HEARD_OR_SEEN);
     const ownIds = views.filter((v) => v.team === Team.OUR).map((v) => v.id);
@@ -216,7 +215,7 @@ export class TacticalProjection {
     const t = this.state;
     const tiles = t.explosives.smokeTiles;
     for (const level of tiles) level.fill(0);
-    smokeTilesChanged(t);
+    smokeChanged(t);
     for (const tile of view.smoke ?? []) {
       const type = smokeTypeOf(t, tile.effect);
       if (type) setSmokeFlagsAt(t, tile.gridNo, tile.level, smokeTileFlag(type));

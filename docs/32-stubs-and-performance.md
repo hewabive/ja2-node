@@ -277,7 +277,7 @@ made back to back on one machine compare: the development VM's throughput varies
 | Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | met with a wide margin |
 | Real-time tick, worst single tick | ≤ 50 ms | met; above it a tick shows as a hitch at ×1 |
 | Strategic world day, no sector loaded, p95 | ≤ 100 ms | met: 25–45 ms with the map's real-time turn for six mercs, about 10 ms a day more than without it |
-| Strategic world day, a town sector loaded, p95 | ≤ 100 ms | missed: 165 ms on the stubs and 200 ms on the original data at 60 minutes per second, 1.3 s and 1.8 s at 5 (455 ms, 545 ms, 4.5 s and 5.8 s before the sight memo and the shared soldier shape, §2.3; 25–30 ms and about 0.18 s before the map ran the real-time turn). Every 20 ms poll runs the whole turn on the loaded sector: the radio look's `revealRoofsAndItems` for each merc takes about half of it, the look of all teams at all teams most of the rest |
+| Strategic world day, a town sector loaded, p95 | ≤ 100 ms | met at 60 minutes per second: 65 ms on the stubs and 80 ms on the original data; 415 ms and 750 ms at 5, under the bench's 1 s bound (130 ms, 165 ms, 1.3 s and 1.75 s before the look skip, §2.3; 455 ms, 545 ms, 4.5 s and 5.8 s before the sight memo and the shared soldier shape; 25–30 ms and about 0.18 s before the map ran the real-time turn). Every 20 ms poll runs the turn on the loaded sector, 14,400 polls a world day at 5 minutes per second: what is left is checking the remembered look's tape (a quarter to a third), the turn start of every soldier (a fifth to a quarter) and the campaign's per-step event collection (a tenth to a sixth) |
 | Autoresolve battle, 40 per side, p95 | ≤ 10 ms | met |
 | Save (snapshot, stringify, gzip) | ≤ 100 ms and ≤ 2 MB gzipped | size met widely; time met except the largest native import (at the target at the median) and a session's first save (§2.7) |
 | Load (parse, restore with fresh content) | ≤ 500 ms | met; most of a load is building the content again |
@@ -289,7 +289,9 @@ made back to back on one machine compare: the development VM's throughput varies
 - Profile with `--profile` (a `.cpuprofile` for Chrome DevTools and the hottest self-time frames) and fix the top
   frames only. Every optimization keeps the outcomes: the same counters in every bench line, byte-identical frames,
   event logs and final snapshots (hash them over a compressed week and two campaign battles on both sources, before and
-  after), the oracle compare unchanged.
+  after), the oracle compare unchanged. A skip is checked also against itself switched off (`setLookSkipping`, `08` §2)
+  over every scenario and a compressed week with a loaded town, its civilians and militia, smoke, items in the open and
+  in a hidden room, stream states included.
 - Caches are derived data: they live beside the state, are rebuilt on load (`27` §1.9), never enter the snapshot and
   never change an outcome.
 - Profiles of the save path misattribute time to whatever runs during a garbage collection; time the phases with
@@ -310,6 +312,7 @@ made back to back on one machine compare: the development VM's throughput varies
 | no view built or diffed without a subscriber | the session (`04` §5.9) |
 | an occupied cover position traced once for all three stances | `locationChances` (`src/sim/tactical/ai/cover.ts`) |
 | collision-free throw forces remembered per item table | `knownForces` (`src/sim/tactical/explosions/trajectory.ts`) |
+| a look out of combat skipped while everything it reads stands as after a look that changed nothing: a tape of its inputs, compared value by value, with change counts for the structure lists, movement costs, smoke, light, fog of war, blood and occupancy that every writer bumps | `src/sim/tactical/perception/look-memo.ts`, `allTeamsLookForAll` (`08` §2) |
 | the ray of each viewer and target, reused while its inputs stand (tiles, levels, stance heights, bodies, terrain, camouflage, range, awareness, the change counts of the structure lists and the smoke layer); no sight work for an unseen pair beyond the farthest sight of anyone but a creature | `src/sim/tactical/perception/sight-memo.ts`, `manLooksForMan` (`08` §2) |
 | soldiers built from three object literals of fewer than 128 properties each: V8 gives each object of a larger literal a hidden class of its own, which made every soldier field read in a loop over soldiers megamorphic | `createSoldier` (`src/sim/tactical/soldier.ts`) |
 | the placed soldiers of the merc slots handed out as one read-only list until a slot or a placement changes | `mercs` (`src/sim/tactical/state.ts`) |
@@ -317,13 +320,14 @@ made back to back on one machine compare: the development VM's throughput varies
 | advances in 10 ms slices, one slice per event-loop turn; optional worker per session | `src/server/slicing.ts`, `src/server/session-host.ts` (`04` §5.9) |
 | gzip at `Z_BEST_SPEED`, on the thread pool when asynchronous: the default level gives about 40 % smaller files but takes three times longer | `src/server/save-file.ts` |
 
-**Left**: the map screen's real-time turn on a loaded sector, run at every 20 ms poll while compressing (§2.2): the fog
-of war walk of `revealRoofsAndItems` for each merc, then the look of all teams at all teams in its smoke decay, the
-opplist decay and the turn starts. A memo of the walk's structure reads per tile (blocking, tallest structure, slanted
-roof), keyed by the lists' change count, ran slower than the reads, most tiles having no structure. Candidates: an index
-of world items by tile (the walk scans every item at each tile it reveals, about 8 % of the turn on the original data);
-soldiers restored from a snapshot, which the codec builds by keyed stores (`#plain`, `src/sim/snapshot/codec.ts`), the
-way V8 turns an object of some 260 properties into a dictionary (not measured on a restore); the per-step event collection of `CampaignSim`, about 5 % at 5 minutes per second. Also left: the cover search's
+**Left**: the map screen's real-time turn on a loaded sector, run at every 20 ms poll while compressing (§2.2): the check
+of the remembered look's tape (a few thousand values with C13 loaded on the original data, about 15 µs a poll), the turn
+starts of every soldier (the carried weight, the action points, the breath) and the opplist decay. A memo of the walk's
+structure reads per tile (blocking, tallest structure, slanted roof), keyed by the lists' change count, ran slower than
+the reads, most tiles having no structure; checking the tape in place instead of recording and comparing it, and
+leaving out the narrative reads, changed nothing measurable. Candidates: an index of world items by tile (the walk scans
+every item at each tile it reveals, when a look runs); soldiers restored from a snapshot, which the codec builds by keyed stores (`#plain`, `src/sim/snapshot/codec.ts`), the
+way V8 turns an object of some 260 properties into a dictionary (not measured on a restore); the per-step event collection of `CampaignSim`, a tenth to a sixth at 5 minutes per second. Also left: the cover search's
 chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo would not pay) and the path
 search. Candidates not yet profiled: sight results per tick between position changes, path costs within one AI decision,
 the reachability flood shared by cover and flee searches, allocation in the bullet and LOS loops.

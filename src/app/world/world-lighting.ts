@@ -19,6 +19,7 @@ import { EventKind } from '../../sim/strategic/time/constants.ts';
 import { buildDayLightLevels, NORMAL_LIGHTLEVEL_NIGHT } from '../../sim/strategic/time/environment.ts';
 import { createEventQueue } from '../../sim/strategic/time/event-queue.ts';
 import { createWorldClock } from '../../sim/strategic/time/world-clock.ts';
+import { createChangeCounts } from '../../sim/tactical/change-counts.ts';
 import { doorGridNos } from '../../sim/tactical/doors.ts';
 import {
   createLightingState,
@@ -83,7 +84,7 @@ export interface LightingInput {
   readonly tileChanges?: readonly TileChangeView[];
 }
 
-type LightingHost = Pick<TacticalState, 'lighting' | 'world' | 'pathWorld' | 'pathEnv'>;
+type LightingHost = Pick<TacticalState, 'lighting' | 'world' | 'pathWorld' | 'pathEnv' | 'changes'>;
 
 function dayLightSchedule(): readonly { readonly second: number; readonly level: number }[] {
   const q = createEventQueue();
@@ -144,6 +145,7 @@ export class WorldLighting {
   readonly #mapDoors: Map<number, MapDoor>;
   #host: LightingHost;
   readonly #doorStatus = new Map<number, DoorStatus>();
+  readonly #changes = createChangeCounts();
   readonly #doors: readonly number[];
   #version = 0;
   #staticKey = '';
@@ -178,7 +180,8 @@ export class WorldLighting {
       showAllMercs: false,
       autoBandage: false,
     };
-    return { lighting, world: { ...world, structures: standing.structures, costs: standing.costs, mapDoors }, pathWorld, pathEnv };
+    const changes = this.#changes;
+    return { lighting, world: { ...world, structures: standing.structures, costs: standing.costs, mapDoors }, pathWorld, pathEnv, changes };
   }
 
   #followStructureChanges(changes: readonly TileChangeView[]): void {

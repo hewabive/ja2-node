@@ -29,16 +29,11 @@ interface LineOfSightEntry {
 export interface SightMemo {
   structures: WorldStructures | null;
   heights: Uint8Array | null;
-  smokeVersion: number;
   entries: (LineOfSightEntry | null)[] | null;
 }
 
 export function createSightMemo(): SightMemo {
-  return { structures: null, heights: null, smokeVersion: 0, entries: null };
-}
-
-export function smokeTilesChanged(t: Pick<TacticalState, 'sightMemo'>): void {
-  t.sightMemo.smokeVersion++;
+  return { structures: null, heights: null, entries: null };
 }
 
 function entriesFor(t: TacticalState): (LineOfSightEntry | null)[] {
@@ -63,7 +58,7 @@ function sameInputs(e: LineOfSightEntry, t: TacticalState, viewer: Soldier, targ
     e.tileLimit === tileLimit &&
     e.aware === aware &&
     e.structuresVersion === t.world.structures.version &&
-    e.smokeVersion === t.sightMemo.smokeVersion &&
+    e.smokeVersion === t.changes.smoke &&
     e.disallowSight === t.perception.disallowSight &&
     e.viewerLevel === viewer.level &&
     e.viewerHeight === endHeight(t.content, viewer.state) &&
@@ -96,7 +91,7 @@ function entryOf(t: TacticalState, viewer: Soldier, target: Soldier, tileLimit: 
     aware,
     disallowSight: t.perception.disallowSight,
     structuresVersion: t.world.structures.version,
-    smokeVersion: t.sightMemo.smokeVersion,
+    smokeVersion: t.changes.smoke,
     value,
   };
 }

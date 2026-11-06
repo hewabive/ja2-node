@@ -16,6 +16,7 @@ import type { Level } from '../../../content/world/level.ts';
 import { isDoorTravelCost, isOpenDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
 import { clamp, i16, idiv, u8, u16, u32 } from '../../../core/int.ts';
+import { lightChanged } from '../change-counts.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { atan8 } from '../perception/opp.ts';
 import type { TacticalState } from '../state.ts';
@@ -243,7 +244,9 @@ function lightTile(t: TacticalState, x: number, y: number, amount: number, roofO
   else if (!(filter & FILTER_ORIENTED_ONLY)) apply(l.landLight, l.landMaxLight, g, amount);
 }
 
-function resetTileLights(l: LightingState): void {
+function resetTileLights(t: TacticalState): void {
+  const l = t.lighting;
+  lightChanged(t);
   l.landLight.fill(0);
   l.roofLight.fill(0);
   l.landMaxLight.fill(0);
@@ -275,6 +278,7 @@ function nodeFlagsAfterLighting(n: LightNode, dir: number, filter: number): numb
 }
 
 function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, apply: TileLighter): void {
+  lightChanged(t);
   const { lights, rays } = l.template;
   const nodeFlags = new Uint16Array(lights.length);
   const roofOnly = (l.flags & LightSpriteFlags.ONROOF) !== 0;
@@ -388,7 +392,7 @@ export function lightSpritePosition(t: TacticalState, l: LightSprite, x: number,
 }
 
 export function lightSpriteRenderAll(t: TacticalState): void {
-  resetTileLights(t.lighting);
+  resetTileLights(t);
   for (const l of t.lighting.sprites) {
     if (!l) continue;
     l.flags &= ~LightSpriteFlags.ERASE;
@@ -447,7 +451,7 @@ function poweredAtLoad(t: TacticalState, flags: number, lightTime: number): bool
 
 export function loadMapLights(t: TacticalState, lights: MapLights | null, hour: number): void {
   t.lighting.sprites.fill(null);
-  resetTileLights(t.lighting);
+  resetTileLights(t);
   const lightTime = lightTimeAt(hour);
   for (const def of lights?.sprites ?? []) {
     const l = lightSpriteCreate(t, def.template);

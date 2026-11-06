@@ -2,10 +2,13 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
 import type { StrategicState } from '../strategic/state.ts';
+import { createChangeCounts } from '../tactical/change-counts.ts';
 import { NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { NO_TIME_OF_DAY_LIGHT } from '../tactical/lighting/lighting.ts';
 import { NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { NO_SCHEDULE_CLOCK } from '../tactical/narrative/schedule-state.ts';
+import { createViewMarkers } from '../tactical/perception/fov.ts';
+import { createLookMemo } from '../tactical/perception/look-memo.ts';
 import { createSightMemo } from '../tactical/perception/sight-memo.ts';
 import {
   createPathEnv,
@@ -25,7 +28,7 @@ import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 55;
+export const SNAPSHOT_VERSION = 56;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -58,7 +61,12 @@ const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'vehicleHooks',
   'pathEnv',
   'sightMemo',
+  'lookMemo',
+  'changes',
+  'viewMarkers',
 ]);
+
+type DerivedTacticalField = 'pathEnv' | 'sightMemo' | 'lookMemo' | 'changes' | 'viewMarkers';
 
 function tacticalData(t: TacticalState): Record<string, unknown> {
   const data: Record<string, unknown> = {};
@@ -68,7 +76,7 @@ function tacticalData(t: TacticalState): Record<string, unknown> {
 }
 
 function reviveTactical(data: unknown): TacticalState {
-  const fields = data as Omit<TacticalState, 'pathEnv' | 'sightMemo'> & { readonly pathEnv: PathEnvSettings };
+  const fields = data as Omit<TacticalState, DerivedTacticalField> & { readonly pathEnv: PathEnvSettings };
   return {
     ...fields,
     hooks: NO_HOOKS,
@@ -82,6 +90,9 @@ function reviveTactical(data: unknown): TacticalState {
     vehicleHooks: PRIVATE_VEHICLE_LIST,
     pathEnv: createPathEnv(fields, fields.pathEnv),
     sightMemo: createSightMemo(),
+    lookMemo: createLookMemo(),
+    changes: createChangeCounts(),
+    viewMarkers: createViewMarkers(),
   };
 }
 

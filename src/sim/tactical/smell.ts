@@ -7,6 +7,7 @@
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { idiv, u8, u32 } from '../../core/int.ts';
 import { COMPRESS_SPEEDS, CompressMode } from '../strategic/time/constants.ts';
+import { bloodChanged, type Counted } from './change-counts.ts';
 import { isWater } from './pathfinding.ts';
 import { Body, NOWHERE, type Soldier } from './soldier.ts';
 
@@ -44,7 +45,7 @@ export interface SmellMap {
   lastDecaySeconds: number;
 }
 
-export interface SmellWorld {
+export interface SmellWorld extends Counted {
   readonly smell: SmellMap;
   readonly rng: { int(n: number): number };
   readonly pathWorld: Parameters<typeof isWater>[0];
@@ -121,11 +122,17 @@ function setBloodType(m: SmellMap, g: number, level: number, kind: number): void
   m.smell[g] = u8(info);
 }
 
+function setBloodReevaluation(w: SmellWorld, g: number, reevaluate: number): void {
+  if (w.smell.reevaluateBlood[g] === reevaluate) return;
+  w.smell.reevaluateBlood[g] = reevaluate;
+  bloodChanged(w);
+}
+
 export function updateBloodGraphics(w: SmellWorld, g: number, level: number): void {
   if (!w.options.bloodAndGore) return;
   const m = w.smell;
   if (!m.reevaluateBlood[g]) return;
-  m.reevaluateBlood[g] = 0;
+  setBloodReevaluation(w, g, 0);
   if (level !== 0) return;
   const strength = bloodFloorStrength(m.blood[g] ?? 0);
   const creature = strength > 0 && bloodType(m, g, 0) !== BloodKind.HUMAN;
@@ -146,14 +153,14 @@ export function shownBloodPools(m: SmellMap): ShownBloodPool[] {
 export function removeBlood(w: SmellWorld, g: number, level: number): void {
   const m = w.smell;
   m.blood[g] = 0;
-  m.reevaluateBlood[g] = 1;
+  setBloodReevaluation(w, g, 1);
   updateBloodGraphics(w, g, level);
 }
 
 function redrawLoadedBlood(w: SmellWorld, g: number): void {
   if (!w.options.bloodAndGore) return;
   for (const level of [0, 1]) {
-    w.smell.reevaluateBlood[g] = 1;
+    setBloodReevaluation(w, g, 1);
     updateBloodGraphics(w, g, level);
   }
 }
@@ -182,7 +189,7 @@ function decayBloodAt(w: SmellWorld, g: number): void {
     blood[g] = info;
     return;
   }
-  w.smell.reevaluateBlood[g] = 1;
+  setBloodReevaluation(w, g, 1);
   info = withFloorStrength(info, Math.max(bloodFloorStrength(info) - 1, 0));
   if (bloodFloorStrength(info) === 0 && noBloodStrength(info)) info = 0;
   info = withRoofStrength(info, Math.max(bloodRoofStrength(info) - 1, 0));
@@ -252,7 +259,7 @@ export function internalDropBlood(w: SmellWorld, g: number, level: number, kind:
   const strength = Math.min(amount, MAX_BLOOD_QUANTITY);
   if (level === 0) dropBloodOnFloor(w, g, kind, strength);
   else dropBloodOnRoof(w, g, kind, strength);
-  w.smell.reevaluateBlood[g] = 1;
+  setBloodReevaluation(w, g, 1);
   if (visible !== UNSEEN) updateBloodGraphics(w, g, level);
 }
 
