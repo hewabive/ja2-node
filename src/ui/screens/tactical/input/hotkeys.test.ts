@@ -120,4 +120,24 @@ describe('the gameplay keys of Turn_Based_Input.cc', () => {
     expect(handleTacticalKey(r.host, up('Escape'), UiEvent.U_MOVEMENT_MENU)).toBe(UiEvent.A_CHANGE_TO_MOVE);
     expect(r.calls).toEqual(['closeMenu']);
   });
+
+  it('starts auto-bandage with a alone, on its press, never while the UI is locked, on the enemy turn or in a talk', () => {
+    const peace = recorder();
+    expect(handleTacticalKey(peace.host, down('a'), UiEvent.M_ON_TERRAIN)).toBe(UiEvent.M_ON_TERRAIN);
+    handleTacticalKey(peace.host, up('a'), UiEvent.M_ON_TERRAIN);
+    handleTacticalKey(peace.host, down('a', KEY_MASK.SHIFT), UiEvent.M_ON_TERRAIN);
+    handleTacticalKey(peace.host, down('a', KEY_MASK.CTRL), UiEvent.M_ON_TERRAIN);
+    expect(peace.calls).toEqual(['autoBandage']);
+    const ourTurn = recorder({ inCombat: true });
+    handleTacticalKey(ourTurn.host, down('a'), UiEvent.M_ON_TERRAIN);
+    expect(ourTurn.calls).toEqual(['autoBandage']);
+    const gated = [
+      recorder({ locked: true, inCombat: true }),
+      recorder({ locked: true, inCombat: true, ourTurn: false }),
+      recorder({ inConversation: true }),
+      recorder({ mode: UiMode.MENU_MODE }),
+    ];
+    for (const r of gated) handleTacticalKey(r.host, down('a'), UiEvent.M_ON_TERRAIN);
+    expect(gated.map((r) => r.calls)).toEqual([[], [], [], []]);
+  });
 });

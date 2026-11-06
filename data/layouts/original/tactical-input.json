@@ -4,11 +4,12 @@
     "src/game/Tactical/Interface.cc InitializeTacticalInterface (newicons3.sti and door_op2.sti with three frames per button: off, hilite, on; button_frame.sti BUTTON_PANEL_WIDTH x BUTTON_PANEL_HEIGHT), PopupMovementMenu, PopupDoorOpenMenu",
     "src/game/Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu (the dialog merc popup box, popupcheck.sti, popupradiobuttons.sti, popupbuttons.sti)",
     "src/game/TileEngine/Overhead_Map.cc uiOVERMAP map_bord.sti, uiPERSONS persons.sti (one frame per team, 7 to 9 for the placement GUI)",
-    "src/game/Tactical/Spread_Burst.cc guiBURSTACCUM burst1.sti"
+    "src/game/Tactical/Spread_Burst.cc guiBURSTACCUM burst1.sti",
+    "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Tactical/Auto_Bandage.cc AddFacesToAutoBandageBox (panels.sti), MakeButton (group_confirm_tactical.sti 7/8 in MAP_SCREEN_FONT)"
   ],
   "screen": "tacticalInput",
   "frame": "screen",
-  "constants": ["MessageBoxScreen", "MercTextBox"],
+  "constants": ["MessageBoxScreen", "MercTextBox", "Map_Screen_Interface"],
   "assets": {
     "buttonFrame": {
       "sti": "interface/button_frame.sti",
@@ -156,6 +157,63 @@
           ["TEXT_POPUP_GAP_BN_LINES", 4],
           ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
         ]
+      }
+    },
+    "updatePanel": {
+      "sti": "interface/group_confirm_tactical.sti",
+      "stub": {
+        "sizes": [
+          [4, 4],
+          [70, 4],
+          [4, 4],
+          [4, 70],
+          [70, 70],
+          [4, 70],
+          [148, 22],
+          [70, 15],
+          [70, 15],
+          [50, 22],
+          [50, 22],
+          [4, 10],
+          [50, 10],
+          [4, 10],
+          [78, 22],
+          [70, 70],
+          [70, 10],
+          [74, 22],
+          [74, 22],
+          [148, 32],
+          [70, 49]
+        ],
+        "states": [
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "normal",
+          "pressed",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain"
+        ]
+      }
+    },
+    "updateFace": {
+      "sti": "interface/panels.sti",
+      "stub": {
+        "sizes": [[47, 31], [35, 31]]
       }
     }
   },

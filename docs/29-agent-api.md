@@ -243,7 +243,7 @@ viewer leaves, the session falls back to the manual driver and a waiting `advanc
 **Viewer prompts.** A box a page shows for the game, not for its player's own action, is also a prompt any client may
 answer: the meanwhile box (`ok`, or `ok` and `skip` for a scene seen before, as `BringupMeanwhileBox`,
 `Strategic/Meanwhile.cc:225`), the map screen's update box (`continue`, `stop`), the lost sector, invasion and
-pre-battle notices (`ok`). The page publishes it with an id taken from the game event, so every page shows the same id
+pre-battle notices and the auto-bandage notices (`ok`). The page publishes it with an id taken from the game event, so every page shows the same id
 (`showPrompt`, `src/ui/viewer-prompts.ts`); `observe.viewerPrompts` and `status` list the open ones, and `answer` with
 that id closes the box on every page as the click would (`Session.answerViewerPrompt`). A viewer's own click answers it
 the same way. These answers are presentation: they run outside the input queue and never enter the input log; the

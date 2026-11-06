@@ -55,7 +55,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 
 | Screen | Hints and queries | Commands | Events and view parts that drive it |
 |---|---|---|---|
-| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `selected`, `currentSquad`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), the message log |
+| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen`, `autoBandage`, `endAutoBandage` | `combat`, `selected`, `currentSquad`, `doorMenu`, `autoBandage`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), `autoBandageRefused`, `autoBandageEnded`, the message log |
 | Talk and shop | `quoteTrade`, `compatibleItems` with `rule: shop` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, the tactical `surrender` prompt (asked once the offer's quote box closes), the item prompts of the loaded sector (the switch, trap and blue flag yes/no boxes and the bomb boxes' four small numbered buttons, `tactical/item-prompts.ts`; asked once the lines are said, on the map screen too), `observe.shop` |
 | Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
@@ -93,6 +93,18 @@ turn, and while an order the original sends through `SetUIBusy` waits for its an
 frame before the answer, so the lock has no gap; only Esc passes. Playback merely trailing the newest tick does not
 lock: frames arrive unevenly under the real-time driver and a tick threshold made the lock and the cursor flicker
 (deviations "Turn-based UI lock", "Playback lock").
+
+**Auto-bandage stops the tactical screen** (`tactical/auto-bandage-box.ts`). The `a` key sends `autoBandage`: a refusal
+shows its OK box (`REFUSAL_MESSAGES`), and the question is the `beginAutoBandage` prompt in the item prompts' yes/no box,
+the same box a won battle opens. While the view carries `autoBandage` the screen does what `MainGameScreenHandle` does
+after `HandleAutoBandage`: nothing. It neither updates nor scrolls, and takes no input but the box's keys and the
+buttons above its mask. Its first frame draws the screen as it stood, shadows it and captures the picture; every later
+frame draws that picture under the box, whose bars read the soldier views as playback goes on. Done and Stop, enabled by
+`complete`, and Esc, Enter and Space as `HandleAutoBandage` reads them, send `endAutoBandage` once; the box goes with the
+view's block, at the end of the next tick. The OK boxes of a pending question the sector no longer allows
+(`autoBandageRefused`) and of a failed full check (`autoBandageEnded.failed`, `pDoctorWarningString[1]`) are viewer
+prompts. The face cell is the map update box's (`src/ui/widgets/update-panel-face.ts`), the art the `tactical-input`
+layout's. In a talk the key sends nothing, as the conversation is modal (`29` §5).
 
 **The item cursor and the pickup menu live in the client.** The cursor is a local selection drawn as the mouse cursor
 until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it,
@@ -250,6 +262,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The locator of a soldier out of sight stands, neither stepping nor ending, and goes on where it stood once he is seen again: the branch that would end it runs only with SHOW_ALL_MERCS (`Tactical/Interface.cc:923`) | `tactical/tactical-controls.test.ts` "stands the locator of a soldier out of sight …" |
 | A locator takes at most one step a frame, the first at once unless the soldier's last step is under 80 ms old, so a slow frame slows it down (`Tactical/Interface.cc:935`) | `tactical/overlays.test.ts` |
 | An item locator that runs out ends the first locator of its pool: when a newer one of the same pool took an earlier slot, the older one ends the newer one instead and flashes on until its INT8 colour wraps round to 1, 255 steps of 40 ms later (`Tactical/Handle_Items.cc:2191`) | `tactical/item-locators.test.ts` "ends a pool’s first locator as any of its locators runs out …" |
+| The auto-bandage box is four faces wide from three faces up, shows a merc both medic and patient in both lists, and draws the breath bar at the breath maximum; with an empty list it draws nothing and has no buttons, so only the keys end the mode (`Tactical/Auto_Bandage.cc:466`, `:446`, `:924`) | `tactical/auto-bandage-box.test.ts` "is two faces wide below three faces …", "shows a merc on both lists twice …", "draws the breath bar at the breath maximum …", "masks the screen but draws no panel …" |
 | The pickup menu checks a row's compatible stuff once as the pointer enters it, so after a wheel turn of the page under the pointer the outlines and faces stay those of the row's earlier item until the pointer leaves the row (`Tactical/Interface_Items.cc:4799`) | `tactical/tactical-screen.test.ts` "keeps the outlines of the pickup row the pointer entered while the wheel turns the page under it …" |
 | A camera slide ends with one more scroll step by its target's place against the screen centre, which `SoldierLocationRelativeToScreen` measures without the map's left and top edges the target's place includes, so a target near the centre reads up and right (`Tactical/Soldier_Find.cc:424`, `TileEngine/RenderWorld.cc:1984`) | `src/app/world/slide.test.ts` "reads a target at the screen centre as up and right of it …"; `tactical/tactical-controls.test.ts` "slides to a target off screen in its direction …" |
 | A face's right icons (blinded, adrenaline, drink) go at each icon's own width times its place, so the narrower adrenaline and drink icons overlap a wider blinded one (`Tactical/Faces.cc:694`) | `tactical/faces.test.ts` "places each right icon at its own width times its place …" |
@@ -315,5 +328,4 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "IME composition", "I.M.P. skill page and saved
-profiles".
+Not ported: gaps "IME composition", "I.M.P. skill page and saved profiles".

@@ -40,6 +40,8 @@ const SAVE_DESCRIPTION_FIELD = 'description.0';
 const MARKER_TIMEOUT_MS = 30_000;
 const BOT_LOG_LINES = 300;
 const PLAYER_TURN = 'playerTurn';
+const BEGIN_AUTO_BANDAGE = 'beginAutoBandage';
+const THE_ENDING_TICK = 1;
 
 export interface ShadowTally {
   tactical: number;
@@ -377,6 +379,30 @@ export class MainFlow {
     await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true && window.__ja2Ui.tactical.talk.busy === false);
     await clickWidget(page, 'talkDone');
     await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === false);
+  }
+
+  async autoBandage(): Promise<boolean> {
+    const page = this.page;
+    await this.closeConversation();
+    const asked = (await this.game.observe(this.session)).prompt?.kind === BEGIN_AUTO_BANDAGE;
+    if (asked) {
+      await modalIs(page, 'itemPromptBox');
+      await clickWidget(page, 'itemPromptBox.yes');
+      await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'autoBandageBox'));
+      await this.game.advance(this.session, { idle: true });
+      await showLatest(page);
+      await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'autoBandageBox.done' && w.enabled));
+      await clickWidget(page, 'autoBandageBox.done');
+      await page.waitForFunction(() => window.__ja2Ui.tactical?.commands.at(-1)?.type === 'endAutoBandage');
+      await this.game.advance(this.session, { ticks: THE_ENDING_TICK });
+      await showLatest(page);
+      await page.waitForFunction(() => !window.__ja2Ui.widgets.some((w) => w.id === 'autoBandageBox'));
+    }
+    if (await page.evaluate(() => window.__ja2Ui.modal === 'messageBox')) {
+      await clickWidget(page, 'messageBox.ok');
+      await modalIs(page, null);
+    }
+    return asked;
   }
 
   async mapScreen(): Promise<void> {

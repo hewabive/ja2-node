@@ -10,7 +10,8 @@
 // @src GotoLowerStance; Overhead.cc CycleThroughKnownEnemies, CycleVisibleEnemies; DisplayCover.cc DisplayRangeToTarget;
 // @src GameSettings.cc DisplayGameSettings; Soldier_Control.cc HandlePlayerTogglingLightEffects; DisplayCover.cc
 // @src ChangeSizeOfDisplayCover, ChangeSizeOfLOS (- and = with Delete or End held); SwitchHeadGear (CTRL+N, alternating
-// @src from the night gear); DoQuickSave, DoQuickLoad (ALT+S, ALT+L outside a conversation); MusicSetVolume (ALT+-).
+// @src from the night gear); DoQuickSave, DoQuickLoad (ALT+S, ALT+L outside a conversation); MusicSetVolume (ALT+-);
+// @src BeginAutoBandage (a, outside a conversation, which is modal, 2026-11-06).
 
 import type { UiKeyEvent } from '../../../input/events.ts';
 import { UiEvent, UiMode } from './ui-events.ts';
@@ -73,6 +74,7 @@ export interface HotkeyHost {
   switchHeadGear(): void;
   quickSave(): void;
   quickLoad(): void;
+  autoBandage(): void;
 }
 
 export type SmButton = 'updown' | 'nextMerc' | 'burst' | 'look' | 'done' | 'map' | 'options' | 'stealth';
@@ -166,6 +168,9 @@ function noModifier(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
     case '=':
       if (displayKeyHeld(h)) resizeDisplays(h, 1);
       else if (!h.inCombat) h.selectAllInSector();
+      return event;
+    case 'a':
+      if (!h.inConversation) h.autoBandage();
       return event;
     case 'b':
       if (!h.itemInCursor && panelOk(h, 'burst')) h.weaponMode();

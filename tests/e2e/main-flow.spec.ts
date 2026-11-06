@@ -39,6 +39,7 @@ test('the main flow on /play with the shadow mode on: a new game, an A.I.M. hire
     await step('cursors in combat', () => flow.cursorsInCombat());
     expect(await step('aimed shot', () => flow.aimedShot())).toBe(true);
     expect(await step('battle', () => flow.win())).toBe('won');
+    await step('auto-bandage', () => flow.autoBandage());
     await step('map screen', () => flow.mapScreen());
     const soldier = await step('route', () => flow.plotRoute(ROUTE_TO));
     await step('save', () => flow.saveGame(description));

@@ -414,7 +414,7 @@ and the end, and the question a won battle leaves pending. `numEnemyInSector` (`
 that opens the mode. `TacticalSim` routes the commands, the answer and the ticks, `CampaignSim` the campaign's frame and
 orders in the mode, and the sector flow's hooks pause and warp the world clock. The view shows the prompt
 (`server/tactical-prompt-view.ts`) and, while the mode runs, the box of medics and patients (`server/auto-bandage-view.ts`);
-the agent API is `29` §8.3. The client shows the yes/no box; its box of medics and the key are gaps "Auto-bandage".
+the agent API is `29` §8.3, the client's key, boxes and frozen screen `30` (`ui/screens/tactical/auto-bandage-box.ts`).
 
 **Lifecycle.**
 - `autoBandage` is the `a` key: the original's OK boxes become refusals in its order (`sectorNotCleared`,

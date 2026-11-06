@@ -73,7 +73,9 @@
 // @src slots hold its passengers) and MercFacePanelCallbackPrimary (a passenger's face locates and selects his vehicle)
 // @src (2026-11-05); Interface.cc DrawSelectedUIAboveGuy and GetSoldierAboveGuyPositions (any vehicle is named, with its
 // @src profile, by zVehicleName and gets the life and fuel bars, 2026-11-05); Strategic_Movement.cc
-// @src ReportVehicleOutOfGas (the STR_LATE_05 box on the screen that is up, 2026-11-05).
+// @src ReportVehicleOutOfGas (the STR_LATE_05 box on the screen that is up, 2026-11-05); GameScreen.cc
+// @src MainGameScreenHandle (nothing after HandleAutoBandage while the mode runs: no interface update, no rendering, no
+// @src input but the auto-bandage keys and the mask's buttons, 2026-11-06).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -104,10 +106,12 @@ import { printf } from '../../text/printf.ts';
 import type { PromptedText } from '../../viewer-prompts.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
+import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from '../map/event-boxes.ts';
 import { sectorNameIn } from '../map/facts.ts';
 import { DialogueLayer } from '../talk/dialogue-layer.ts';
+import { AutoBandageBox, autoBandageNotices } from './auto-bandage-box.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
 import { type CommandReply, type TacticalEnvironment, TacticalLayout } from './environment.ts';
 import {
@@ -205,6 +209,7 @@ const ESCAPE_KEY = 'Escape';
 const PAUSE_KEY = 'Pause';
 const PANEL_TOGGLE_KEY = '`';
 const KEY_RING_KEY = 'k';
+const MAP_SCREEN_FONT = 'MAP_SCREEN_FONT';
 const LOCATOR_OFFSET = 25;
 const TILE_LOCATOR_HALF_SIZE = 20;
 const DAMAGE_OFFSET_X = 20;
@@ -253,6 +258,10 @@ function emptyVehicleOfOurs(s: SoldierView): boolean {
 type PanelKind = 'team' | 'sm';
 const DESCRIBED_BUTTON_OWNERS: ReadonlySet<string> = new Set(['itemDescription', 'itemPickupMenu', 'tacticalMenus', 'tacticalExitDialog']);
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
+
+interface EventBox extends PromptedText {
+  readonly fullScreen?: boolean;
+}
 
 function clearsMessageLog(frame: ViewFrame): boolean {
   return frame.events?.some((e) => e.type === 'tacticalClearedForCompression') ?? false;
@@ -332,7 +341,8 @@ export class TacticalScreen implements Screen {
   #entered = false;
   #entryLocate: number | null = null;
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
-  readonly #eventBoxes: PromptedText[] = [];
+  readonly #eventBoxes: EventBox[] = [];
+  readonly #autoBandage: AutoBandageBox;
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
@@ -456,6 +466,30 @@ export class TacticalScreen implements Screen {
     this.#teamView = new LayoutView({ ...common, model: env.layout(TacticalLayout.TEAM), controller: this.#team, owner: 'tacticalTeam' });
     this.#smView = new LayoutView({ ...common, model: env.layout(TacticalLayout.SINGLE_MERC), controller: this.#sm, owner: 'tacticalSm' });
     this.controls = new TacticalControls(this.#controlsScreen(), this.#controlsArt());
+    this.#autoBandage = this.#autoBandageBox();
+  }
+
+  #autoBandageBox(): AutoBandageBox {
+    const env = this.#env;
+    const model = env.layout(TacticalLayout.INPUT);
+    return new AutoBandageBox({
+      services: env.runtime,
+      text: env.text,
+      art: () => ({
+        panel: model.asset('updatePanel').path,
+        faces: model.asset('updateFace').path,
+        buttonFont: env.runtime.fonts.get(model.font(MAP_SCREEN_FONT)),
+      }),
+      soldier: (id) => soldierById(this.#view(), id),
+      portrait: (s) => this.#mediumFace(s),
+      ensure: (path) => env.media.image(path),
+      end: () => void this.#send({ type: 'endAutoBandage' }),
+    });
+  }
+
+  #mediumFace(s: SoldierView): string | null {
+    const face = s.profile === undefined ? undefined : this.#env.media.profile(s.profile)?.faceIndex;
+    return face === undefined ? null : portraitPath(face, 'medium');
   }
 
   #controlsArt(): ControlsArt {
@@ -747,6 +781,7 @@ export class TacticalScreen implements Screen {
 
   exit(): void {
     this.#entered = false;
+    this.#autoBandage.close();
     this.#env.client.stop();
     this.dialogue.dispose();
     this.controls.exit();
@@ -1001,6 +1036,7 @@ export class TacticalScreen implements Screen {
     this.#now = this.#env.runtime.clock.ja2Now;
     const view = this.#view();
     this.#env.client.sync();
+    if (this.#autoBandage.update(view?.autoBandage ?? null)) return;
     this.#locateToSoldierOnEntry();
     this.#followServer();
     this.#applyPanelSwitch();
@@ -1227,6 +1263,10 @@ export class TacticalScreen implements Screen {
 
   input(event: UiInputEvent): boolean {
     if (isPointerEvent(event)) return false;
+    if (this.#autoBandage.open) {
+      this.#autoBandage.input(event);
+      return true;
+    }
     if (this.controls.overhead.open) {
       this.controls.overhead.keyInput(event);
       return true;
@@ -1268,6 +1308,11 @@ export class TacticalScreen implements Screen {
   }
 
   render(list: DrawList): void {
+    if (!this.#autoBandage.frozen) this.#renderScreen(list);
+    this.#autoBandage.render(list);
+  }
+
+  #renderScreen(list: DrawList): void {
     this.controls.renderWorld(list);
     this.#panelView().render(list);
     const ctx = this.#tileContext(list);
@@ -1317,7 +1362,13 @@ export class TacticalScreen implements Screen {
       if (!DESCRIBED_BUTTON_OWNERS.has(String(button.owner))) continue;
       extra.push(button.describe());
     }
-    return [...this.#hudView.describe(), ...this.#panelView().describe(), ...extra, ...this.dialogue.describe()];
+    return [
+      ...this.#hudView.describe(),
+      ...this.#panelView().describe(),
+      ...extra,
+      ...this.dialogue.describe(),
+      ...this.#autoBandage.describe(),
+    ];
   }
 
   frames(frames: readonly ViewFrame[]): void {
@@ -1328,6 +1379,7 @@ export class TacticalScreen implements Screen {
       this.#eventBoxes.push(
         ...eventBoxesOf(frames, { text: this.#env.text, sectorName: (label) => this.#sectorName(label), vehicleType: vehicleTypeIn(view) }),
       );
+    this.#eventBoxes.push(...autoBandageNotices(frames, this.#env.text));
     for (const frame of frames) {
       if (frame.clock) this.#log.timeCompressed = frame.clock.compressing;
       for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
@@ -1364,10 +1416,8 @@ export class TacticalScreen implements Screen {
     const box = this.#eventBoxes.shift();
     if (box === undefined) return;
     const { width, height } = this.#env.runtime.geometry();
-    void this.#env.boxes.ask(box.text, 'ok', {
-      centering: { x: 0, y: 0, width, height: height - INV_INTERFACE_HEIGHT },
-      viewer: box.prompt,
-    });
+    const centering = box.fullScreen ? {} : { centering: { x: 0, y: 0, width, height: height - INV_INTERFACE_HEIGHT } };
+    void this.#env.boxes.ask(box.text, 'ok', { ...centering, viewer: box.prompt });
   }
 
   #beginFeedback(text: string, skull: boolean): void {

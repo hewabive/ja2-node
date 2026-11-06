@@ -1,5 +1,7 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
-import { clickAt, imagesLoaded, openTacticalSession, pointAt, rightClickWidget, showLatest, tacticalOrder } from './play-flow.ts';
+import { AUTO_BANDAGE_SAVE, writeAutoBandageSave } from '../support/e2e-auto-bandage-save.ts';
+import { SAVE_DIR } from './env.ts';
+import { clickAt, imagesLoaded, modalIs, openTacticalSession, pointAt, rightClickWidget, showLatest, tacticalOrder } from './play-flow.ts';
 import { capture, clickWidget, expectGolden } from './ui-capture.ts';
 
 const COLS = 160;
@@ -34,6 +36,12 @@ async function soldierGridNo(page: Page, id: number): Promise<number | null> {
   return page.evaluate((wanted) => window.__ja2Ui.tactical?.soldiers().find((s) => s.id === wanted)?.gridNo ?? null, id);
 }
 
+async function boxButtons(page: Page): Promise<(boolean | undefined)[]> {
+  return page.evaluate(() =>
+    ['autoBandageBox.done', 'autoBandageBox.cancel'].map((id) => window.__ja2Ui.widgets.find((w) => w.id === id)?.enabled),
+  );
+}
+
 async function restPointer(page: Page): Promise<void> {
   const logical = await page.evaluate(() => window.__ja2Ui.logical);
   await pointAt(page, logical.width - 1, 0);
@@ -41,6 +49,44 @@ async function restPointer(page: Page): Promise<void> {
 
 test.describe('goldens of the tactical screen on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
+  test.beforeAll(async () => {
+    await writeAutoBandageSave(SAVE_DIR);
+  });
+
+  test('the auto-bandage box over the shadowed screen, from the a key through the question to Done', async ({ page, request }) => {
+    const response = await request.post('/api/sessions', { data: { load: AUTO_BANDAGE_SAVE } });
+    expect(response.ok()).toBe(true);
+    const { session } = (await response.json()) as { session: string };
+    try {
+      await openTacticalSession(page, session, PINNED);
+      await page.keyboard.press('KeyA');
+      await modalIs(page, 'itemPromptBox');
+      await clickWidget(page, 'itemPromptBox.yes');
+      await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'autoBandageBox' && w.state === 'running'));
+      expect(await boxButtons(page)).toEqual([false, true]);
+      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
+      await showLatest(page);
+      await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'autoBandageBox' && w.state === 'complete'));
+      expect(await boxButtons(page)).toEqual([true, false]);
+      await restPointer(page);
+      await imagesLoaded(page);
+      expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
+      await expectGolden('tactical-auto-bandage', await capture(page));
+      await clickWidget(page, 'autoBandageBox.done');
+      await page.waitForFunction(() => window.__ja2Ui.tactical?.commands.at(-1)?.type === 'endAutoBandage');
+      expect(await page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1))).toEqual({
+        type: 'endAutoBandage',
+        ok: true,
+        reason: null,
+      });
+      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ ticks: 1 }));
+      await showLatest(page);
+      await page.waitForFunction(() => !window.__ja2Ui.widgets.some((w) => w.id.startsWith('autoBandageBox')));
+      expect(await page.evaluate(() => window.__ja2Ui.modal)).toBeNull();
+    } finally {
+      await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+    }
+  });
   test('the single merc panel, the item description box and the overhead map of the sandbox', async ({ page, request }) => {
     const session = await newSession(request, { seed: QUIET_SEED });
     try {

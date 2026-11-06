@@ -36,7 +36,8 @@
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump);
 // @src src/game/Tactical/Strategic_Exit_GUI.cc InitSectorExitMenu, WarpToSurfaceCallback (STR_LATE_33 asked before the
 // @src exit menu: yes warps, no opens the menu); Interface.cc InitDoorOpenMenu (EraseInterfaceMenus cancels the item
-// @src pointer, 2026-11-02).
+// @src pointer, 2026-11-02); Auto_Bandage.cc BeginAutoBandage (the a key's OK boxes, MSG_BOX_BASIC_STYLE centred on
+// @src the screen, 2026-11-06).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -57,6 +58,7 @@ import { hCenterVCenterAlign, stringPixLength } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import { gameSettingsLines } from '../game-settings.ts';
+import { autoBandageRefusalText } from './auto-bandage-box.ts';
 import { type CommandReply, ScrollFlag, type TacticalEnvironment } from './environment.ts';
 import { ExitDialog, type ExitDialogArt, type ExitDirection } from './exit-dialog.ts';
 import { OKLIFE } from './faces.ts';
@@ -764,6 +766,13 @@ export class TacticalControls {
     if (soldiers.length > 0) void this.#screen.send({ type: 'switchHeadGear', soldiers: soldiers.map((s) => s.id), gear });
   }
 
+  async #autoBandage(): Promise<void> {
+    const env = this.#env();
+    const reply = await this.#screen.send({ type: 'autoBandage' });
+    const refusal = reply.ok ? null : autoBandageRefusalText(env.text, refusalOf(reply.data));
+    if (refusal !== null) await env.boxes.alert(refusal);
+  }
+
   async #quickSave(): Promise<void> {
     const env = this.#env();
     const failure = await env.flow.quickSave();
@@ -912,6 +921,7 @@ export class TacticalControls {
       switchHeadGear: () => this.#switchHeadGear(),
       quickSave: () => void this.#quickSave(),
       quickLoad: () => env.flow.quickLoad(),
+      autoBandage: () => void this.#autoBandage(),
     };
   }
 
