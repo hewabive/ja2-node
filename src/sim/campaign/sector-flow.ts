@@ -33,7 +33,8 @@
 // @src (its EndMapScreen before PrepareLoadedSector on a load from the map, 2026-11-03); StrategicMap.cc
 // @src SetCurrentWorldSector (its SyncStrategicTurnTimes, the loaded sector's included), the strategic merc list as our team
 // @src of the turn starts (FOR_EACH_IN_TEAM(OUR_TEAM), 2026-11-05); Map_Screen_Interface_Bottom.cc
-// @src AllowedToExitFromMapscreenTo (the checks shared by every exit before those of MAP_EXIT_TO_TACTICAL, 2026-11-06).
+// @src AllowedToExitFromMapscreenTo (the checks shared by every exit before those of MAP_EXIT_TO_TACTICAL; a bloodcat
+// @src ambush as a battle going on, 2026-11-06).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -476,13 +477,19 @@ export class SectorFlow {
       return { token: 'decisionPending', reason: 'a strategic decision is pending' };
     const exit = mapScreenExitRefusalOf(this.campaign);
     if (exit) return exit;
-    const t = this.campaign.tactical?.state;
     const world = this.world;
-    if (t && (t.inCombat || t.turn.enemyInSector) && world && !sameSector(world, sector))
+    if (this.#battleGoingOn() && world && !sameSector(world, sector))
       return { token: 'battleElsewhere', reason: 'enemies are present in the loaded sector' };
     if (!this.canGoToTacticalInSector(sector)) return { token: 'noMercThere', reason: 'no merc of yours can go there' };
     if (!this.setup.worlds.world(this.mapPathOf(sector))) return { token: 'mapNotLoaded', reason: 'sector map is not loaded' };
     return null;
+  }
+
+  #battleGoingOn(): boolean {
+    const t = this.campaign.tactical?.state;
+    if (!t) return false;
+    if (t.inCombat || t.turn.enemyInSector) return true;
+    return this.campaign.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH && hostileBloodcatsPresent(t);
   }
 
   setCurrentWorldSector(sector: Sector, options: LoadOptions = {}): boolean {

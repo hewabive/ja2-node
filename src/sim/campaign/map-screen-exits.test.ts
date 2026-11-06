@@ -1,18 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { spawnSoldier } from '../../../tests/support/combat.ts';
 import { type ClientSide, clientAnswer, clientSide, type HintSources, serialisedView, withQueries } from '../../../tests/support/hints.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../../tests/support/session-reload.ts';
 import { parseSectorString, sameSector } from '../../content/strategic/sector-ids.ts';
+import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import type { CommandEnvelope } from '../../protocol/messages.ts';
 import { createCampaignSession } from '../../server/campaign-factory.ts';
 import type { CampaignSession } from '../../server/campaign-session.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { tacticalCharacterDialogue } from '../narrative/dialogue-queue.ts';
+import { EncounterCode } from '../strategic/forces/constants.ts';
 import { removeGroup } from '../strategic/forces/groups.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
+import { Body, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import type { RosterMerc } from './roster.ts';
 
 let kit: StubSectorKit;
@@ -39,6 +43,8 @@ const LINE_STEPS = 4;
 const LINE_TICKS = 3000;
 const AN_HOUR = 3600;
 const LAST_LIFE_POINT = 1;
+const BLOODCAT_ID = TEAM_FIRST_ID[Team.CREATURE];
+const BLOODCAT_DISTANCE = 4 * WORLD_COLS;
 const BLEEDING_NOW = { bleeding: 20, nextBleed: 0.5 };
 
 const TO_TACTICAL = { type: 'tacticalScreen' };
@@ -179,6 +185,17 @@ describe('the exits from the map screen (Map_Screen_Interface_Bottom.cc AllowedT
     expect(await enterHint(c)).toEqual({ server: said, client: said });
     c.live.advance({ idle: true });
     expect(await enterHint(c)).toEqual({ server: { allowed: true }, client: { allowed: true } });
+  });
+
+  it('refuses a sector load away from a bloodcat ambush in the loaded sector, which flags no enemy presence (battleElsewhere)', async () => {
+    const c = await onTheMapOverA9(38);
+    const sim = c.session.campaign.tactical ?? never('loaded sector');
+    const kestrel = merc(c, KESTREL).soldier;
+    spawnSoldier(sim, BLOODCAT_ID, Team.CREATURE, kestrel.gridNo + BLOODCAT_DISTANCE, Direction.NORTH, { body: Body.BLOODCAT });
+    c.session.campaign.state.encounter.code = EncounterCode.BLOODCAT_AMBUSH;
+    expect(c.session.campaign.tactical?.state.turn.enemyInSector).toBe(false);
+    expect(await order(c, { type: 'enterSector', sector: ELSEWHERE })).toMatchObject({ ok: false, data: { refusal: 'battleElsewhere' } });
+    expect(await order(c, TO_THE_LOADED_SECTOR)).toMatchObject({ ok: true });
   });
 
   it('refuses the way back to tactical after an advance that stops at a death off the loaded map, until the lines it brought are said', async () => {

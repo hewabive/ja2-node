@@ -161,12 +161,13 @@ agent that wants the original's stop passes `events: ['fellAsleep', 'wokeUp']` b
 exits (`AllowedToExitFromMapscreenTo`, `src/sim/campaign/map-screen-exits.ts`): each is refused while lines wait in the
 dialogue queue (`dialogueQueued`), while a meanwhile scene is about to start (`meanwhileStarting`), while a pause lock
 holds (`pauseLocked`: a line said on the map, below, among others), during the contract renewal sequence
-(`renewalSequence`) and while a battle is about to begin (`battlePending`). The clock's `exitRefusal` names the first
-that holds while the map is up, and the `canEnterSector` hint answers it after an open prompt and before its own checks.
-Advancing past the lines opens the way: `advance {idle}` once compression is stopped (an `advance` that ended at
-`compressionStopped` leaves it stopped; otherwise `stopTime` first), or `advance {ticks}`. The client keeps its Laptop,
-Tactical and Options buttons and its save keys shut on the same token, and on its own boxes as the original does (an
-item held, the town box, the militia popup, the sector inventory).
+(`renewalSequence`) and while a battle is about to begin (`battlePending`); `enterSector` to another sector also while a
+battle goes on in the loaded one, a bloodcat ambush included (`battleElsewhere`). The clock's `exitRefusal` names the
+first shared check that holds while the map is up, and the `canEnterSector` hint answers it after an open prompt and
+before its own checks. Advancing past the lines opens the way: `advance {idle}` once compression is stopped (an
+`advance` that ended at `compressionStopped` leaves it stopped; otherwise `stopTime` first), or `advance {ticks}`. The
+client keeps its Laptop, Tactical and Options buttons and its save keys shut on the same token, and on its own boxes as
+the original does (an item held, the town box, the militia popup, the sector inventory).
 
 While time is compressed the map screen runs the real-time turn every 20 ms of real time, at every speed, for every merc
 of ours wherever he is and for the loaded sector's soldiers (`15` §2): wounded mercs bleed, tired ones get their
