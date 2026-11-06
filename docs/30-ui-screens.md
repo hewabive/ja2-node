@@ -154,6 +154,16 @@ pre-battle panel and its automatic autoresolve, which wait for OK as the boxes' 
 does, and the map host keeps the events for a screen not built yet (`map/invasion.ts` from `invasion`,
 `map/battle-notice.ts` from the `preBattle` event's `notice`).
 
+**The loaded sector's events reach the map screen too.** While time is compressed the map screen's real-time turn runs
+on the loaded sector (`15` §2), so its bleeding, deaths and sightings come with the campaign's tick to both screens. The
+tactical screen is not updated while another screen is up, as the original runs `ExecuteOverhead` on the game screen
+only: a damage number of a bleed on the map, the summed loss since, drifts once the tactical screen is back
+(`DamageNumber`, one step a frame, `tactical/overlays.ts`), and the sound director plays no animation sound meanwhile
+(`31`). The map screen shows what the original's shows: a merc of ours who bleeds becomes the info character and his face
+flashes (`mercBled`, `SoldierBleed`'s `SetInfoChar`), `damageFeedback` flashes the info face as the map's
+`HandleAutoFaces` animates it, a point of maximum life lost while dying prints the maximum life red, as a health gain
+prints it green (`map/map-screen.ts`), and a soldier dying there cries through `MapSound` (`31`).
+
 **A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
 the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead
 map, in the panels and the character list (`soldierName`, `tactical/soldiers.ts`; `characterName`,
@@ -249,6 +259,8 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | On the map screen a CTRL+click on a stack without a cursor cleans the stack up and still picks it up, as `MAPInvClickCallbackPrimary` does not return after `CleanUpStack` (`Strategic/MapScreen.cc:3704`); the tactical panel returns | `map/map-inventory.test.ts` "cleans up a stack with CTRL+click on the map and still picks it up …" |
 | With an item held and an enemy in the loaded sector the map screen's info character changes to nobody, not even back to the merc the item came from (`Strategic/Map_Screen_Interface.cc:1457`) | `src/sim/campaign/item-passing.test.ts` "passes nothing to anybody while the loaded sector holds enemies …" |
 | On the map screen a right click on a key of the ring shows no description, as its call is commented out, while one on an empty position closes the ring (`Tactical/Interface_Panels.cc:3572`) | `map/map-inventory.test.ts` "takes keys off the ring of a merc in no loaded sector …" |
+| On the map screen every point a merc of ours bleeds makes him the info character and resets the selection, even when he already is the info character, so compressing time with a wounded merc keeps undoing a multi-selection (`Tactical/Soldier_Control.cc:7935`, `Strategic/MapScreen.cc:406`, `:7006`) | `map/map-screen.test.ts` "makes a merc who bleeds the info character, the selection reset even when he is one already …" |
+| A damage number put up while the map screen is up stands there and drifts only once the game screen is back, with every loss since summed (`Tactical/Overhead.cc:527`) | `tactical/overlays.test.ts` "drifts a step every 250 ms for 8 steps, at most one a frame …" |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
 | With n cycling a soldier stack, the pointer moving off the stacked soldier finds nobody once, and the stack ends then (`Tactical/Soldier_Find.cc:232`) | `tactical/input/targets.test.ts` "finds nobody the first time the pointer is off the stacked soldier …" |
 | An empty vehicle of ours under the pointer is neither ours nor an enemy, so a click does not select it (`Tactical/Soldier_Find.cc:50`); a merc aboard a vehicle is never under the pointer, and a click on his face in the team panel selects the vehicle | `tactical/input/targets.test.ts` "owns a vehicle of ours only with somebody aboard …", "never finds a merc aboard a vehicle …"; `tactical/soldiers.test.ts` "finds the vehicle of a merc aboard …" |

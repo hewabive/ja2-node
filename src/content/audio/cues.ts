@@ -9,7 +9,8 @@
 // @src HandleDoorTrap; TileEngine/Explosion_Control.cc PerformItemAction and HandleExplosionQueue (the klaxon,
 // @src 2026-11-04); Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down); Tactical/Soldier_Control.cc
-// @src TurnSoldier (TURRET_MOVE and TURRET_STOP, 2026-11-05).
+// @src TurnSoldier (TURRET_MOVE and TURRET_STOP, 2026-11-05), HandleTakeDamageDeath (DOORCR_1 and HEADCR_1 of a death off the
+// @src tactical map, HIGHVOLUME, MIDDLEPAN, 2026-11-06).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook, WeaponSounds } from './cue-book.ts';
@@ -323,6 +324,12 @@ export function doorTrapCue(book: CueBook, trap: string, gridNo: number): Cue | 
 
 export function dropCue(book: CueBook, gridNo: number): Cue | null {
   return effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, gridNo);
+}
+
+const DEATH_OFF_THE_MAP_SAMPLES = ['DOORCR_1', 'HEADCR_1'] as const;
+
+export function deathOffTheMapCues(book: CueBook): Cue[] {
+  return DEATH_OFF_THE_MAP_SAMPLES.flatMap((name) => effectCue(book, name, 'fixed', VolumeLevel.HIGH) ?? []);
 }
 
 export type CreatureCall = 'onePrey' | 'multiplePrey' | 'attacked' | 'crippled';

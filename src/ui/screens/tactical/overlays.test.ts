@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOCATOR_FRAME_MS, Locator, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES, TimeCounter } from './overlays.ts';
+import { DamageNumber, LOCATOR_FRAME_MS, Locator, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES, TimeCounter } from './overlays.ts';
 
 const LOCATOR_FRAMES = 5;
 const FAST_LOCATOR_STEPS = (SHOW_LOCATOR_FAST_CYCLES - 1) * LOCATOR_FRAMES;
@@ -39,5 +39,23 @@ describe('the radio locator', () => {
     expect([next.frame, next.shown]).toEqual([0, false]);
     next.update(3 * LOCATOR_FRAME_MS);
     expect([next.frame, next.shown]).toEqual([1, true]);
+  });
+});
+
+describe('the floating damage number', () => {
+  const DAMAGE_DISPLAY_DELAY_MS = 250;
+  const DAMAGE_STEPS = 8;
+  const BACK_ON_THE_GAME_SCREEN = 60_000;
+
+  it('drifts a step every 250 ms for 8 steps, at most one a frame, so a number put up while the map screen is up drifts from the return', () => {
+    const number = new DamageNumber(0, 10, 20);
+    expect(number.update(DAMAGE_DISPLAY_DELAY_MS - 1)).toBe(true);
+    expect([number.dx, number.dy]).toEqual([10, 20]);
+    expect(number.update(BACK_ON_THE_GAME_SCREEN)).toBe(true);
+    expect([number.dx, number.dy]).toEqual([11, 19]);
+    let steps = 1;
+    for (let now = BACK_ON_THE_GAME_SCREEN + DAMAGE_DISPLAY_DELAY_MS; number.update(now); now += DAMAGE_DISPLAY_DELAY_MS) steps++;
+    expect(steps + 1).toBe(DAMAGE_STEPS);
+    expect([number.dx, number.dy]).toEqual([10 + DAMAGE_STEPS, 20 - DAMAGE_STEPS]);
   });
 });

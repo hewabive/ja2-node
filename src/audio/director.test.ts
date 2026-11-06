@@ -697,6 +697,53 @@ describe('the sound director', () => {
     expect(r.cues).toEqual([]);
   });
 
+  it('cries the death of a merc of ours off the loaded map on the tactical screen in the voice the event names, then DOORCR_1 and HEADCR_1', () => {
+    const r = rig();
+    const died = (soldier: number, extra: object = {}) => ({ type: 'mercDied', tick: 10, soldier, sector: 'B9', ...extra }) as const;
+    r.director.applyFrames([frame(10, [], [died(4, { cry: { voice: '005', bodyType: 0 } })])]);
+    const samples = [book.paths.get('DOORCR_1'), book.paths.get('HEADCR_1')];
+    expect(files(r)).toEqual(['battlesnds/005_die.wav', ...samples]);
+    expect(r.cues[0]).toMatchObject({ gridNo: -1, mix: 'voiceOwn', baseVolume: 127 });
+    expect(r.cues.slice(1)).toEqual(samples.map((file) => expect.objectContaining({ file, mix: 'fixed', baseVolume: 127, pan: 64 })));
+    r.director.applyFrames([frame(20, [], [died(5)])]);
+    expect(files(r).slice(3)).toEqual(samples);
+    r.director.applyFrames([frame(30, [], [died(6, { mapScreen: true, cry: { voice: '007', bodyType: 0 } })])]);
+    expect(r.cues).toHaveLength(5);
+  });
+
+  it('plays no animation codes, final footsteps or code 491 of the loaded sector while the tactical screen is not up, and the events still', () => {
+    let tactical = false;
+    const r = rig(world(1), withScript('STANDING', [1, 2, 3, 491, 501, 999]), { onTacticalScreen: () => tactical });
+    const crow = soldier(2, 'STANDING', 0, { bodyType: 19, team: 4, frameDelay: 100, healthIndex: 5 });
+    r.director.reset([soldier(1, 'WALKING', 1), crow]);
+    r.director.applyFrames([frame(10, [soldier(1, 'KNEEL_DOWN', 1)])]);
+    r.director.applyFrames([frame(20, [soldier(1, 'STANDING', 0)])]);
+    for (let tick = 30; tick <= 30_000; tick += 10) r.director.applyFrames([frame(tick, [])]);
+    expect(r.cues).toEqual([]);
+    r.director.applyFrames([frame(30_010, [], [{ type: 'soldierDied', tick: 30_010, soldier: 1, killer: null, gridNo: G }])]);
+    expect(files(r)).toEqual(['battlesnds/007_die.wav']);
+    tactical = true;
+    r.director.applyFrames([frame(30_020, [soldier(1, 'KNEEL_DOWN', 1)])]);
+    expect(files(r).slice(1)).toEqual([book.paths.get('KNEEL_DOWN_SOUND')]);
+  });
+
+  it("silences the creature queen's position sound while the tactical screen is not up and starts it again on the return", async () => {
+    let tactical = true;
+    const r = rig(null, scripts, { onTacticalScreen: () => tactical });
+    r.director.reset([soldier(1, 'STANDING', 0, { bodyType: 10, team: 2 })]);
+    r.director.applyFrames([frame(10, [])]);
+    const loop = book.paths.get('QUEEN_AMBIENT_NOISE');
+    expect(files(r)).toEqual([loop]);
+    await settle();
+    expect(r.graph.playing()).toHaveLength(1);
+    tactical = false;
+    r.director.applyFrames([frame(20, [])]);
+    expect(r.graph.playing()).toEqual([]);
+    tactical = true;
+    r.director.update();
+    expect(files(r)).toEqual([loop, loop]);
+  });
+
   it('schedules ambient sounds of the active time window with gaps from the table', () => {
     const owl = { minTimeMs: 1000, maxTimeMs: 1000, timeCategory: AmbientTime.NIGHT, file: 'owl.wav', volume: 30 };
     const bird = { ...owl, timeCategory: AmbientTime.DAY, file: 'bird.wav' };

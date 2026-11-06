@@ -31,7 +31,11 @@
 // @src HandleVehicleMovementSound (its move sound at the tile it starts from, once a vehicle's state turns moving,
 // @src stopped by a state that is not, Soldier_Control.cc EVENT_InitNewSoldierAnim, or by AdjustNoAPToFinishMove,
 // @src 2026-11-05); Tactical/Soldier_Control.cc TurnSoldier (a tank's TURRET_MOVE loop from its first 32-facing step,
-// @src stopped with TURRET_STOP once it faces where it turns, 2026-11-05).
+// @src stopped with TURRET_STOP once it faces where it turns, 2026-11-05); Tactical/Soldier_Control.cc
+// @src HandleTakeDamageDeath (the DIE1 cry, DOORCR_1 and HEADCR_1 of a merc of ours dying off the loaded map while the
+// @src tactical screen is up, at NOWHERE, 2026-11-06); GameScreen.cc MainGameScreenHandle (ExecuteOverhead, which runs the
+// @src animation codes, the final footsteps and code 491, only on the game screen; LeaveTacticalScreen's
+// @src SetPositionSndsInActive, which silences the position sounds off the game screen, 2026-11-06).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
@@ -46,6 +50,7 @@ import {
   alarmCue,
   type CreatureCall,
   type DoorKind,
+  deathOffTheMapCues,
   doorCue,
   doorTrapCue,
   dropCue,
@@ -288,25 +293,34 @@ export class SoundDirector {
   applyFrames(frames: readonly ViewFrame[]): void {
     const newest = frames.at(-1)?.tick;
     if (newest === undefined) return;
+    const animating = this.#onTacticalScreen();
     for (const frame of frames) {
       this.stats.frames++;
       const audible = newest - frame.tick <= CATCH_UP_TICKS;
       const events = frame.events ?? [];
       for (const e of events) this.#remember(e);
       for (const id of frame.removed) this.#forget(id);
-      for (const s of frame.changed) this.#soldierChanged(s, audible);
+      for (const s of frame.changed) this.#soldierChanged(s, audible && animating);
       if (frame.openContainers) this.#containersChanged(frame.openContainers, audible, events);
       for (const e of events) {
         this.stats.events++;
         if (audible) this.#event(e);
       }
-      this.#idleChecks(frame.tick, audible);
+      this.#idleChecks(frame.tick, audible && animating);
     }
-    this.#loops.update([...this.#soldiers.values()]);
+    this.#updatePositionSounds();
+  }
+
+  #onTacticalScreen(): boolean {
+    return this.#o.onTacticalScreen?.() !== false;
+  }
+
+  #updatePositionSounds(): void {
+    this.#loops.update(this.#onTacticalScreen() ? [...this.#soldiers.values()] : []);
   }
 
   update(): void {
-    this.#loops.update([...this.#soldiers.values()]);
+    this.#updatePositionSounds();
     this.#scheduleAmbient();
   }
 
@@ -656,6 +670,9 @@ export class SoundDirector {
       case 'soldierDied':
         this.#voiceSound(this.#victim(e.soldier, this.#sourcePlace(e.soldier, e.gridNo, e.heard), e.unseen), 'DIE1', false);
         return;
+      case 'mercDied':
+        if (!e.mapScreen) this.#mercDiedOffTheMap(e);
+        return;
       case 'creatureCall':
         if (e.unseen) this.#unseenCall(e.call, e.unseen.bodyType, this.#placeOf(undefined, e.heard));
         return;
@@ -712,8 +729,16 @@ export class SoundDirector {
     }
   }
 
+  #mercDiedOffTheMap(e: EventOf<'mercDied'>): void {
+    if (e.cry) {
+      const absent = { id: e.soldier, gridNo: NOWHERE, team: OUR_TEAM, bodyType: e.cry.bodyType, voice: e.cry.voice };
+      this.#voiceSound(absent, 'DIE1', false);
+    }
+    for (const cue of deathOffTheMapCues(this.#o.book)) this.#play(cue);
+  }
+
   #enterSound(gridNo: number): void {
-    if (this.#o.onTacticalScreen?.() === false) return;
+    if (!this.#onTacticalScreen()) return;
     const vehicle = [...this.#soldiers.values()].find((s) => s.gridNo === gridNo && isVehicleBody(s.bodyType));
     const sounds = vehicle ? this.#o.book.vehicles[vehicleTypeOfBody(vehicle.bodyType)] : undefined;
     if (sounds) this.#play(cueOf(sounds.enter, 'location', VolumeLevel.HIGH, gridNo));

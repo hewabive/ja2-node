@@ -4,6 +4,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support
 import { addVehicleOfOurs } from '../../../../tests/support/vehicles.ts';
 import { parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
+import type { ViewFrame } from '../../../protocol/view.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
@@ -16,6 +17,7 @@ import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } fro
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
 import { Assignment } from './character-list.ts';
 import { parseSectorLabel } from './facts.ts';
+import { CHANGE_STAT_RECENTLY_DURATION_MS } from './info-panel.ts';
 import { localMessage, MAX_MESSAGES_ON_MAP_BOTTOM } from './message-list.ts';
 
 const PLOT_REST_MS = 250;
@@ -79,6 +81,14 @@ function line(item: DrawItem): string {
     default:
       return item.kind;
   }
+}
+
+function whiteFaces(f: MapUiTest): number {
+  return f.draw().items.filter((item) => item.kind === 'image' && item.shade?.base === 'white').length;
+}
+
+function glyphColours(f: MapUiTest): number[] {
+  return f.draw().items.flatMap((item) => (item.kind === 'glyphs' ? [item.foreground] : []));
 }
 
 function snapshot(f: MapUiTest): string {
@@ -545,6 +555,76 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.client.refresh();
       f.frames([{ tick, changed: [], removed: [], events: [{ type: 'vehicleBoarded', tick, soldier: merc, vehicle }, leftOnTheMap] }]);
       expect(f.sounds.filter((s) => s === 'vehicleEntered')).toHaveLength(2);
+    }));
+
+  it('makes a merc who bleeds the info character, the selection reset even when he is one already, and flashes his face (SoldierBleed, SetInfoChar)', () =>
+    withMap(async (f) => {
+      const [first, second] = f.mercs;
+      if (first === undefined || second === undefined) throw new Error('two mercs needed');
+      const list = f.screen.list;
+      const tick = f.client.view.tick;
+      const bled = (soldier: number) => f.frames([{ tick, changed: [], removed: [], events: [{ type: 'mercBled', tick, soldier }] }]);
+      list.changeInfo(list.rowOf(first), true);
+      list.setSelected(list.rowOf(second));
+      f.t.frame();
+      expect(whiteFaces(f)).toBe(0);
+      bled(second);
+      expect(f.screen.hook()).toMatchObject({ info: second, selected: [second] });
+      expect(whiteFaces(f)).toBeGreaterThan(0);
+      list.setSelected(list.rowOf(first));
+      bled(second);
+      expect(f.screen.hook()).toMatchObject({ info: second, selected: [second] });
+    }));
+
+  it('flashes the info face at the damage feedback of gas or bleeding without changing the info character', () =>
+    withMap(async (f) => {
+      const info = f.screen.hook().info ?? -1;
+      const other = f.mercs.find((m) => m !== info) ?? -1;
+      const tick = f.client.view.tick;
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: other }] }]);
+      expect([f.screen.hook().info, whiteFaces(f)]).toEqual([info, 0]);
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: info }] }]);
+      expect([f.screen.hook().info, whiteFaces(f) > 0]).toEqual([info, true]);
+    }));
+
+  it('prints the maximum life red after a bleed that costs a point of it, and green after a health gain', () =>
+    withMap(async (f) => {
+      const info = f.screen.hook().info ?? -1;
+      const tick = f.client.view.tick;
+      const recoloured = (event: NonNullable<ViewFrame['events']>[number]) => {
+        f.t.frame();
+        const before = glyphColours(f);
+        f.frames([{ tick, changed: [], removed: [], events: [event] }]);
+        const after = glyphColours(f);
+        return after.flatMap((colour, i) => (colour !== before[i] ? [colour] : []));
+      };
+      expect(recoloured({ type: 'mercBled', tick, soldier: info })).toEqual([]);
+      expect(recoloured({ type: 'mercBled', tick, soldier: info, lifeMaxLost: true })).toEqual([FontColor.RED]);
+      f.t.frame(CHANGE_STAT_RECENTLY_DURATION_MS);
+      expect(recoloured({ type: 'statChanged', tick, soldier: info, stat: 'lifeMax', change: 1 })).toEqual([FontColor.LTGREEN]);
+    }));
+
+  it('cries a death on the map screen through its own sounds, and leaves one on the tactical screen to the tactical director', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const merc = f.mercs[0] ?? -1;
+      const cry = { voice: '005', bodyType: 0 };
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [
+            { type: 'mercDied', tick, soldier: merc, sector: 'B13', mapScreen: true, cry },
+            { type: 'mercDied', tick, soldier: merc, sector: 'B13', mapScreen: true },
+            { type: 'mercDied', tick, soldier: merc, sector: 'B13', cry },
+          ],
+        },
+      ]);
+      expect(f.sounds.filter((s) => s.startsWith('mercDiedOffTheMap'))).toEqual([
+        `mercDiedOffTheMap ${merc} 005`,
+        `mercDiedOffTheMap ${merc} mute`,
+      ]);
     }));
 
   it("boxes an escort's lone move with pMapErrorString 6 or 7 by the sex of his profile, naming the escort", () =>

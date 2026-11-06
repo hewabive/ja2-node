@@ -74,6 +74,18 @@ sample cache. ja2-node decodes WAV itself, since almost every battle sound and a
 `decodeAudioData` does not decode reliably. Speech and music (about 500 MB) load per file through `/vfs`, never
 bundled; a missing file is skipped, as the original skips a failed play.
 
+**Animation sounds belong to the tactical screen.** The original replays animation codes, final footsteps and code 491
+in `ExecuteOverhead`, on the game screen only, and silences the position sounds (the creature queen's) as it leaves
+that screen (`GameScreen.cc:216`), while battle sounds and samples the simulation calls for play on any screen. The
+director follows the loaded sector's views while the map screen is up, whose real-time turn changes them, but plays
+only their events' sounds there (`audio/director.ts`, `onTacticalScreen`).
+
+**A death off the tactical map** cries in the voice `mercDied`'s `cry` names, then plays `DOORCR_1` and `HEADCR_1`
+at full volume in the middle (`Tactical/Soldier_Control.cc:5407`): the director while the tactical screen is up,
+`MapSound` while `mapScreen` marks the map screen, which plays the cry in the middle too, where the original pans a merc
+of the loaded sector by the tactical camera it left. The cry's variant is the client's draw; the voice is the profile's
+voice id, an I.M.P.'s chosen one, as in the views. A muted soldier has no `cry` and makes only the samples.
+
 **Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
 waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`, on the map screen
 `MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it. On

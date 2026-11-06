@@ -360,6 +360,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
       newMessageBeep: () => sounds.push('newMessageBeep'),
       confirmRoute: (soldier) => sounds.push(`confirmRoute ${soldier}`),
       vehicleEntered: () => sounds.push('vehicleEntered'),
+      mercDiedOffTheMap: (soldier, cry) => sounds.push(`mercDiedOffTheMap ${soldier} ${cry?.voice ?? 'mute'}`),
     },
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,

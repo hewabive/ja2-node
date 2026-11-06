@@ -51,11 +51,17 @@ export interface MapFlow {
   help?(): void;
 }
 
+export interface DeathCry {
+  readonly voice: string;
+  readonly bodyType: number;
+}
+
 export interface MapSounds {
   glowClick(): void;
   newMessageBeep(): void;
   confirmRoute(soldier: number): void;
   vehicleEntered(): void;
+  mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void;
 }
 
 export interface MapMedia extends TacticalMedia {

@@ -13,7 +13,9 @@
 // @src of THIRDPOINTERS2 or 1 at + 28, + 5 or + 30, + 7, the health word, "(roof)"),
 // @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/Interface_Control.cc
 // @src RenderTopmostTacticalInterface (the damage number at the true position + the bounding box offset + 20, - 5);
-// @src src/game/Tactical/Overhead.cc (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps); src/game/Tactical/
+// @src src/game/Tactical/Overhead.cc ExecuteOverhead (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps, at most
+// @src one a frame, its TIMECOUNTERDONE re-armed from now, so a number put up while the map screen is up drifts from the
+// @src return to the game screen, 2026-11-06); src/game/Tactical/
 // @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast; frame and cycles start again, the counter and the
 // @src shown flag stay, 2026-11-03); src/game/Tactical/Overhead.cc LocateSoldier (10 centres on the soldier even
 // @src on screen; 10 and SETLOCATOR show the normal locator, the other flags but DONTSETLOCATOR the fast one), SlideTo
@@ -262,14 +264,12 @@ export class DamageNumber {
   }
 
   update(now: number): boolean {
-    while (now - this.#since >= DAMAGE_DISPLAY_DELAY_MS) {
-      this.#since += DAMAGE_DISPLAY_DELAY_MS;
-      this.#steps++;
-      this.dx++;
-      this.dy--;
-      if (this.#steps >= DAMAGE_STEPS) return false;
-    }
-    return true;
+    if (now - this.#since < DAMAGE_DISPLAY_DELAY_MS) return true;
+    this.#since = now;
+    this.#steps++;
+    this.dx++;
+    this.dy--;
+    return this.#steps < DAMAGE_STEPS;
   }
 }
 

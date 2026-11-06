@@ -12,6 +12,8 @@ import { MapSound } from './map-sound.ts';
 const MERC = 3;
 const PROFILE = 7;
 const OTHER_PROFILE = 8;
+const DOORCR_1 = 'sounds/doorcr.wav';
+const HEADCR_1 = 'sounds/ja2 death hit.wav';
 
 function source(): AssetSource {
   return {
@@ -52,6 +54,20 @@ describe('the map screen battle sounds', () => {
     await settle();
     for (const playing of r.graph.playing()) playing.finish();
     expect(r.sound.mercBattleSoundPlaying(PROFILE)).toBe(false);
+  });
+
+  it('cries the death of a soldier on the map screen in the voice the event names, then DOORCR_1 and HEADCR_1, all at the middle', async () => {
+    const r = await rig();
+    r.sound.mercDiedOffTheMap(MERC, { voice: '052', bodyType: 0 });
+    const samples = [DOORCR_1, HEADCR_1];
+    expect(r.cues.map((c) => c.file)).toEqual(['battlesnds/052_die.wav', ...samples]);
+    expect(r.cues.map((c) => [c.gridNo, c.pan, c.baseVolume])).toEqual([
+      [-1, 64, 127],
+      [-1, 64, 127],
+      [-1, 64, 127],
+    ]);
+    r.sound.mercDiedOffTheMap(MERC + 1, null);
+    expect(r.cues.slice(3).map((c) => c.file)).toEqual(samples);
   });
 
   it('keeps the route confirmation of a merc who is talking silent', async () => {

@@ -7,7 +7,7 @@ import { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
-import { inTacticalFlow } from '../../ui/screens/map/event-boxes.ts';
+import { gameScreenOf } from '../../ui/screens/front-end/flow.ts';
 import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
 import type { BattleSound } from '../../ui/screens/tactical/environment.ts';
 import {
@@ -118,7 +118,7 @@ export class TacticalHost {
       engine: options.ui.audio.engine,
       music: false,
       dataVersion: options.ui.dataVersion,
-      onTacticalScreen: () => inTacticalFlow(options.session.view),
+      onTacticalScreen: () => gameScreenOf(options.session.view) === 'tactical',
     });
     this.#speechSettings = options.speech.settings;
     this.#presenter = options.speech.presenter;

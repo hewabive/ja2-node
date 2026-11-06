@@ -41,7 +41,13 @@
 // @src held or the inventory shown only a merc with an accessible inventory, with an item held only one who could take
 // @src it, MapscreenCanPassItemToChar through the passTargets hint) (2026-11-04); Tactical/Vehicles.cc AddSoldierToVehicle
 // @src and ExitVehicle (the enter sound of a ground vehicle, also as a merc leaves one in the loaded sector, while the
-// @src map screen is up), Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (2026-11-05).
+// @src map screen is up), Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (2026-11-05); Tactical/Soldier_Control.cc
+// @src SoldierBleed (on the map screen the bleeding merc becomes the info character through SetInfoChar, the selection
+// @src reset even when he already is one; the portrait flash) and FlashSoldierPortrait from HandleSoldierTakeDamageFeedback
+// @src (the info face as an auto face, Strategic/MapScreen.cc HandleAutoFaces), CheckBleeding (uiChangeHealthTime of the
+// @src point of maximum life lost while dying, which DrawCharacterInfo prints red), Campaign.cc ProcessStatChange
+// @src (uiChangeHealthTime of a health gain), HandleTakeDamageDeath (the cry and the samples of a death on the map
+// @src screen) (2026-11-06).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -145,6 +151,13 @@ function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: 
 }
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
+
+const HEALTH_STAT = 'health';
+const INFO_STAT_KEYS: Readonly<Record<string, string>> = { experience: 'level', lifeMax: HEALTH_STAT };
+
+function infoStatKey(stat: string): string {
+  return INFO_STAT_KEYS[stat] ?? stat;
+}
 
 const OWNER = 'mapScreen';
 const RADAR_WIDTH = 88;
@@ -772,16 +785,7 @@ export class MapScreen implements Screen {
     const mercs = this.#strategic()?.mercs ?? [];
     for (const frame of frames) this.#updates.observe(frame.tick, frame.events ?? [], mercs, this.#env.notifySleepWake());
     if (this.#entered) this.#speech.frames(frames);
-    for (const frame of frames)
-      for (const event of frame.events ?? []) {
-        if (event.type === 'statChanged') {
-          const key = event.stat === 'experience' ? 'level' : event.stat;
-          const flashes = this.#flashes.get(event.soldier) ?? new Map<string, StatFlash>();
-          flashes.set(key, { at: this.#now, up: event.change > 0 });
-          this.#flashes.set(event.soldier, flashes);
-        } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
-        else if (this.#entersOrLeavesGroundVehicle(event) && !inTacticalFlow(this.#playerView())) this.#env.sounds.vehicleEntered();
-      }
+    for (const frame of frames) for (const event of frame.events ?? []) this.#event(event);
     const view = this.#playerView();
     if (!inTacticalFlow(view))
       this.#eventBoxes.push(
@@ -795,6 +799,44 @@ export class MapScreen implements Screen {
     this.noticeBattleNotices(battleNoticesOf(frames));
     this.#inventory.frames(frames);
     this.#battle.frames(frames);
+  }
+
+  #event(event: FrameEvent): void {
+    switch (event.type) {
+      case 'statChanged':
+        this.#flashStat(event.soldier, infoStatKey(event.stat), event.change > 0);
+        return;
+      case 'groupArrived':
+        if (event.final) this.#arrivalSelection(event.sector);
+        return;
+      case 'mercBled':
+        this.#mercBled(event.soldier, event.lifeMaxLost === true);
+        return;
+      case 'damageFeedback':
+        this.#faces.get(event.soldier)?.flash(this.#now);
+        return;
+      case 'mercDied':
+        if (event.mapScreen) this.#env.sounds.mercDiedOffTheMap(event.soldier, event.cry ?? null);
+        return;
+      default:
+        if (this.#entersOrLeavesGroundVehicle(event) && !inTacticalFlow(this.#playerView())) this.#env.sounds.vehicleEntered();
+    }
+  }
+
+  #flashStat(soldier: number, key: string, up: boolean): void {
+    const flashes = this.#flashes.get(soldier) ?? new Map<string, StatFlash>();
+    flashes.set(key, { at: this.#now, up });
+    this.#flashes.set(soldier, flashes);
+  }
+
+  #mercBled(soldier: number, lifeMaxLost: boolean): void {
+    if (lifeMaxLost) this.#flashStat(soldier, HEALTH_STAT, false);
+    if (!this.#entered) return;
+    const row = this.list.rowOf(soldier);
+    if (row >= 0) this.list.changeInfo(row, true);
+    const info = this.list.infoMerc(this.#strategic());
+    if (info?.id === soldier) this.#faceOf(info).flash(this.#now);
+    else this.#faces.get(soldier)?.flash(this.#now);
   }
 
   #entersOrLeavesGroundVehicle(event: FrameEvent): boolean {
@@ -877,16 +919,20 @@ export class MapScreen implements Screen {
     return m ? (this.#faces.get(m.id) ?? null) : null;
   }
 
+  #faceOf(m: StrategicMercView): FaceAnimator {
+    const known = this.#faces.get(m.id);
+    if (known) return known;
+    const profile = m.profile !== undefined ? this.#env.media.profile(m.profile) : null;
+    const face = new FaceAnimator(faceRecordOf(mercSoldier(this.#playerView(), m), profile), this.#now, this.#env.random);
+    this.#faces.set(m.id, face);
+    return face;
+  }
+
   #updateFace(): void {
     const m = this.list.infoMerc(this.#strategic());
     if (!m) return;
     const soldier = mercSoldier(this.#playerView(), m);
-    let face = this.#faces.get(m.id);
-    if (!face) {
-      const profile = m.profile !== undefined ? this.#env.media.profile(m.profile) : null;
-      face = new FaceAnimator(faceRecordOf(soldier, profile), this.#now, this.#env.random);
-      this.#faces.set(m.id, face);
-    }
+    const face = this.#faceOf(m);
     this.#env.media.image(face.record.path);
     const speech = this.#speech.speaking;
     const speaking = speech && speech.speaker === m.id ? speech : null;
