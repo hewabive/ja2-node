@@ -4,7 +4,8 @@
 // @src Tactical/Soldier_Control.cc BeginSoldierClimbUpRoof, BeginSoldierClimbDownRoof, SetSoldierHeight;
 // @src TileEngine/WorldDef.h FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET;
 // @src CheckSoldierHitRoof; Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
-// @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb; Tactical/Handle_UI.cc ChangeInterfaceLevel at codes 408 and 475.
+// @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb; Tactical/Handle_UI.cc ChangeInterfaceLevel at codes 408 and 475;
+// @src our merc freed like the AI at codes 408 and 475 in auto-bandage (2026-11-06).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
@@ -147,6 +148,10 @@ function followClimbWithInterface(t: TacticalState, s: Soldier, level: number): 
     t.events.push({ type: 'interfaceLevel', soldier: s.id, level });
 }
 
+function climbsAsAI(t: TacticalState, s: Soldier): boolean {
+  return s.team !== Team.OUR || t.pathEnv.autoBandage;
+}
+
 function climbUpCommit(t: TacticalState, s: Soldier): void {
   t.perception.disallowSight = false;
   setSoldierPosition(t, s, s.tempNewGridNo);
@@ -155,7 +160,7 @@ function climbUpCommit(t: TacticalState, s: Soldier): void {
   s.desiredHeight = AnimHeight.CROUCH;
   setSoldierHeight(t, s, CLIMBED_UP_HEIGHT);
   followClimbWithInterface(t, s, ROOF_LEVEL);
-  if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
+  if (climbsAsAI(t, s)) t.turnHooks.freeUpFromRoofClimb(t, s);
   t.hooks.climbedRoof(t, s);
 }
 
@@ -164,7 +169,7 @@ function climbDownCommit(t: TacticalState, s: Soldier): void {
   s.finalDestination = s.gridNo;
   t.perception.disallowSight = false;
   followClimbWithInterface(t, s, GROUND_LEVEL);
-  if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
+  if (climbsAsAI(t, s)) t.turnHooks.freeUpFromRoofClimb(t, s);
   s.uiMovementMode = anim(t.content, 'WALKING');
   t.hooks.climbedRoof(t, s);
 }

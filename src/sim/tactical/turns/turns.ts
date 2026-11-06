@@ -27,7 +27,7 @@
 // @src call in CommonEnterCombatModeCode (2026-11-05); Strategic/Strategic_Turns.cc HandleStrategicTurn's map screen gate
 // @src (IsTimeBeingCompressed) and its compressed check time (the dead NOT_USING_TIME_COMPRESSION branch left out), polled
 // @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05);
-// @src Overhead.cc NumEnemyInSector (2026-11-06).
+// @src Overhead.cc NumEnemyInSector, EVENT_BeginMercTurn's auto-bandage gate on bleeding (2026-11-06).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -145,7 +145,7 @@ export function sayCloseCallQuotes(t: TacticalState): void {
 export function beginMercTurn(t: TacticalState, s: Soldier): void {
   if (s.ai.underFire !== 0) s.ai.underFire--;
   handleEndTurnDrugAdjustments(t, s);
-  if (bleedsAtTurnStart(s)) {
+  if (!t.pathEnv.autoBandage && bleedsAtTurnStart(s)) {
     const blood = checkBleeding(t, s);
     if (blood !== NO_BLOOD && s.placed) dropBlood(t, s, u8(blood));
   }

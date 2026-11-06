@@ -409,8 +409,29 @@ human blood here, where the original reads the type its freed slot still holds.
 
 **Where.** `ai/medical.ts` is `Medical.cc`: who counts as a medic and who as a patient, `canAutoBandage` with its full
 check of one patient per call, the AI's patient search (`findBestPatient`) and its medical decision
-(`decideAutoBandage`). `numEnemyInSector` (`turns/turns.ts`) is the sector check that opens the mode. Nothing calls them
-yet: the mode, its AI and services, the box and the commands are gaps "Auto-bandage".
+(`decideAutoBandage`). `numEnemyInSector` (`turns/turns.ts`) is the sector check that opens the mode. Every system that
+reads the mode flag follows it (below); nothing raises the flag yet: the start, the frame, the end, the box and the
+commands are gaps "Auto-bandage".
+
+**What the flag changes.**
+- The AI (`ai/control.ts`): `handleSoldierAI` lets our mercs through, and their real-time decision is
+  `decideAutoBandage` (`rtPlayerDecideAction`); a NONE becomes the soldier's 10–11 s wait, as for anyone. `aiForSlot`
+  visits every slot at every pass, each soldier still on his own 100 ms timer, and the cursor moves on after each.
+- `GIVE_AID` runs `HandleItem` with the kit in hand on the ground level, as `AIMain.cc:1732` does; `handleItem`'s medkit
+  branch is `beginFirstAid` (`handleMedKit`, `first-aid.ts`), which walks him up or starts the dressing. A refusal
+  cancels the action. `GET_CLOSER` and `MOVE_TO_CLIMB` walk through `executeMovement`, whose `newDest` takes the gait
+  from the movement table at the medic's alert status, so the RUNNING of the decision does not stick.
+- The services (`first-aid.ts`): a service that ends clears the patient's medic and ends the medic's action instead of
+  `END_AID`; a medic out of bandages does not curse (`outOfBandages` carries CURSE1 only outside the mode).
+- Animation (`animation.ts`): every soldier in the sector animates at the loop rate but a monster getting up
+  (`setSoldierAniSpeed`); `resetAllMercSpeeds` applies it to everyone at once.
+- A roof climb's commit frees our merc like the AI (`roofs.ts`); a merc of ours who opens a door on his way walks on
+  after it (`movement.ts`); a dead patient's medic is cancelled (`updateSkullReleases`, `combat/death.ts`); looking
+  reveals no items and sees no corpses (`OUR_MERCS_AUTO_MOVE`, `perception/fov.ts`); nobody bleeds at the turn start
+  (`beginMercTurn`, `turns/turns.ts`).
+- Already following the flag before: no new situation for anybody (`09`), AI paths and our mercs' paths through people,
+  the forced swap at the third wait (`07`), the interface level after a climb, the bleeding warning, the door on arrival
+  and the dialogue drop.
 
 **Design.**
 - The mode flag is `pathEnv.autoBandage` (`fAutoBandageMode`, with `OUR_MERCS_AUTO_MOVE`, which rises and falls with
@@ -427,7 +448,8 @@ yet: the mode, its AI and services, the box and the commands are gaps "Auto-band
   through people: the walk-up searches of `findAdjacentGridEx`, the run costs and the climb estimates. The flag never
   outlives the call and is not saved.
 
-Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/medical.test.ts`:
+Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/medical.test.ts` or the file named (under
+`src/sim/tactical/`):
 
 | Quirk | Test |
 |---|---|
@@ -439,9 +461,18 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 | The full check visits one patient per call, the first call only arming it; a failure keeps the pointer on the patient, so the next mode fails at its first call | "checks one patient per call …", "fails on a patient no medic can reach …" |
 | `FindAutobandageClimbPoint` reads the climb spots at swapped levels, the ground-side spot on the roof and the roof-side spot on the ground floor (`TacticalAI/Medical.cc:43-46` against `TileEngine/Buildings.cc:264-265`), and passes a roof patient on any such spot, reachable or not; a medic on a roof passes every ground patient | "reads the climb spots at swapped levels …", "passes a roof patient on any climb spot …", "passes a patient who is a medic himself …" |
 | `NumEnemyInSector` counts unconscious and unseen hostiles | `turns/end-of-battle.test.ts` "counts every living, non-neutral, non-friendly soldier …" |
+| A medic done with a patient stays in `GIVING_AID` until his next action changes the animation | `auto-bandage-ai.test.ts` "keeps a medic done with a patient in GIVING_AID …" |
+| `bSlotItemTakenFrom` is overwritten by every swap: a first kit used up with a patient's last dressing is not replaced, the second kit swapped in later records its own pocket, and the gun stays in the first kit's | `auto-bandage-ai.test.ts` "swaps a second kit in after the first ran out …" |
+| The medic's gait comes from the movement table: at GREEN he walks, at RED he runs, and his first decision raises him to RED once his team knows of opposition | `auto-bandage-ai.test.ts` "walks at GREEN …", "runs at RED", "raises a medic at GREEN to RED …" |
+| Every soldier of every team animates one frame per pass and has his AI visited at every pass, each on his own 100 ms timer; a turning merc of ours keeps the fast-turn delay | `auto-bandage-ai.test.ts` "handles the AI of every soldier …", "animates every soldier of every team …" |
+| A merc of ours with nothing to do draws `REALTIME_AI_DELAY`'s `Random(1000)` on the main stream at each decision, and the wait leaves his action in progress | `auto-bandage-ai.test.ts` "makes a merc of ours with nothing to do wait …" |
+| A patient's death cancels his medic only while a merc of ours stands conscious in the sector, the medic himself included | `auto-bandage-ai.test.ts` "cancels a dead patient's medic only while …" |
+| Our mercs reveal no items and see no corpses as they look | `auto-bandage-ai.test.ts` "reveals no items to our mercs looking around …" |
+| Nobody bleeds at the turn start | `combat/bleeding.test.ts` "bleeds nobody at the turn start while auto-bandage runs …" |
+| A merc of ours swapped at his third wait stands with no final destination | `movement.test.ts` (`07`) |
 
-The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage") record these decisions in the native build;
-no comparer reads them yet.
+The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage") record these decisions and the frames of a
+whole mode in the native build; no comparer reads them yet.
 
 Not ported: gaps "Map items" (the pits), "Auto-bandage". Other
 deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",

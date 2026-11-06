@@ -7,7 +7,9 @@
 // @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
 // @src HandleAITacticalTraversal, the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
 // @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle (with PCs under AI control); creature/crow
-// @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI.
+// @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI;
+// @src auto-bandage (2026-11-06): HandleSoldierAI letting our mercs through, RTPlayerDecideAction, ExecuteAction
+// @src AI_ACTION_GIVE_AID, ExecuteOverhead's AI for every slot.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach, isTraversalQuoteAction, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
@@ -30,6 +32,7 @@ import {
 import { moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
 import { attackAnimationHoldsBusyCount } from '../combat/attack.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
+import { ItemHandle } from '../combat/types.ts';
 import { DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { interactWithDoorAt } from '../doors/door-actions.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
@@ -73,6 +76,7 @@ import {
 } from './decide.ts';
 import { decideActionNamedNPC } from './decide-named-npc.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
+import { decideAutoBandage } from './medical.ts';
 import { redAlertIsInitial, sendClosestEnemyAfterRedAlert } from './panic.ts';
 import { executePullTrigger, executeUseDetonator, triggerPullerDone } from './panic-actions.ts';
 import { alertQueenAndJoe, traverseDown } from './queen-escape.ts';
@@ -84,6 +88,7 @@ const MAX_DISTANCE_VISIBLE = 26;
 const CLOSE_ENOUGH_TILES = 4;
 const NPC_ARRIVAL_WAIT_MS = 500;
 const DONE_TRAVERSAL_WAIT_MS = 100;
+const GIVE_AID_LEVEL = 0;
 const QUOTE_TRIGGER_SPEAKERS: readonly number[] = [Npc.SERGEANT, Npc.MIKE, Npc.JOE];
 
 export interface AiControl {
@@ -428,13 +433,19 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
     case AiAction.FIRE_GUN: {
       if (ai.action === AiAction.TOSS_PROJECTILE) loadWeaponIfNeeded(t, s);
       if (ai.action === AiAction.KNIFE_MOVE) s.uiMovementMode = determineMovementMode(t, s, ai.action);
-      const result = t.turnHooks.aiAttack(t, s, ai.actionData, s.targetLevel);
-      if (result !== 1) {
+      const result = t.turnHooks.aiHandleItem(t, s, ai.actionData, s.targetLevel);
+      if (result !== ItemHandle.OK) {
         cancelAIAction(t, s);
         t.hooks.endAiGuysTurn(t, s);
       }
       return true;
     }
+    case AiAction.GIVE_AID:
+      if (t.turnHooks.aiHandleItem(t, s, ai.actionData, GIVE_AID_LEVEL) !== ItemHandle.OK) {
+        cancelAIAction(t, s);
+        t.hooks.endAiGuysTurn(t, s);
+      }
+      return true;
     case AiAction.RED_ALERT:
     case AiAction.YELLOW_ALERT:
       if (ai.action === AiAction.RED_ALERT && s.team !== Team.OUR && redAlertIsInitial(t, s.team)) handleInitialRedAlert(t, s.team);
@@ -517,10 +528,15 @@ function triggerDoneTraversal(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
+function rtPlayerDecideAction(t: TacticalState, s: Soldier, control: AiControl): number {
+  return t.pathEnv.autoBandage ? decideAutoBandage(t, s) : decideAction(t, s, control.green);
+}
+
 function rtDecideAction(t: TacticalState, s: Soldier, control: AiControl): number {
-  const decidesAsNpc = !decidesAsCreature(s) && !isCrow(s) && s.team !== Team.OUR;
-  if (decidesAsNpc && triggerDoneTraversal(t, s)) return AiAction.WAIT;
-  return decideNpcAction(t, s, control);
+  if (decidesAsCreature(s) || isCrow(s)) return decideNpcAction(t, s, control);
+  if (s.team === Team.OUR) return rtPlayerDecideAction(t, s, control);
+  if (triggerDoneTraversal(t, s)) return AiAction.WAIT;
+  return decideAction(t, s, control.green);
 }
 
 function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
@@ -630,10 +646,14 @@ function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiCont
   checkForEndOfBattle(t, true);
 }
 
+function playerMercRunsAI(t: TacticalState, s: Soldier): boolean {
+  return t.pathEnv.autoBandage || (s.underAiControl && (s.quoteRecord !== 0 || s.boxer));
+}
+
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
   if (s.engagedInAction || t.turn.enemySightingOnTheirTurn || t.explosionQueue.entries.length > 0 || t.explosionQueue.active) return;
-  if (s.team === Team.OUR && !(s.underAiControl && (s.quoteRecord !== 0 || s.boxer))) {
+  if (s.team === Team.OUR && !playerMercRunsAI(t, s)) {
     ai.handleEveryFrame = false;
     return;
   }
@@ -816,7 +836,7 @@ export function aiForSlot(t: TacticalState, s: Soldier, slot: number, control: A
   }
   const pass = t.aiPass;
   const scheduled = pass.handleThisPass && pass.cursor === slot;
-  if (!scheduled && !s.ai.handleEveryFrame) return;
+  if (!scheduled && !s.ai.handleEveryFrame && !t.pathEnv.autoBandage) return;
   handleSoldierAI(t, s, control);
   if (!t.inCombat) pass.handleThisPass = nextAIToHandle(t);
 }

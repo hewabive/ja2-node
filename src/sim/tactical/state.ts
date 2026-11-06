@@ -177,7 +177,7 @@ export interface TurnHooks {
   minAPsToAttack(t: TacticalState, s: Soldier, target: number, addTurning: boolean): number;
   suppressedStanceChange(t: TacticalState, s: Soldier, stance: number): void;
   freeUpFromAttacking(t: TacticalState, s: Soldier): void;
-  aiAttack(t: TacticalState, s: Soldier, target: number, level: number): number;
+  aiHandleItem(t: TacticalState, s: Soldier, target: number, level: number): number;
   freeUpFromPendingAction(t: TacticalState, s: Soldier): void;
   freeUpNpcFromPendingAction(t: TacticalState, s: Soldier): void;
   actionDone(t: TacticalState, s: Soldier): void;
@@ -196,7 +196,7 @@ export const NO_TURN_HOOKS: TurnHooks = {
   minAPsToAttack: () => 0,
   suppressedStanceChange: () => {},
   freeUpFromAttacking: () => {},
-  aiAttack: () => 0,
+  aiHandleItem: () => 0,
   freeUpFromPendingAction: () => {},
   freeUpNpcFromPendingAction: () => {},
   actionDone: () => {},

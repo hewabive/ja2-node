@@ -56,7 +56,8 @@ leaves closes the gap while the cursors keep their index, so the soldier who sli
 tick, and an away soldier slid under the away cursor is visited in his place (`01` §3.10; deviation "Away cursor past
 the end"). A soldier flagged `handleEveryFrame` is visited on every pass and skips the timer: an NPC a script sends
 somewhere or whose walk ended short of the script's destination, an NPC facing the player until a PC comes near (`24`,
-`35`). Leaving combat pauses all AI for 1500 ms (`10`).
+`35`). Leaving combat pauses all AI for 1500 ms (`10`). While auto-bandage runs, every soldier is visited on every pass,
+still on his own timer, and our mercs run the AI too, deciding by `decideAutoBandage` (`12` §8).
 
 **Turn-based runs the same code on another cadence.** In combat there are no ticks and no timers: `handleSoldierAI`
 runs for every slot on every pass and only the holder of the AI turn acts (`10`, `13`). `t.inCombat` switches what
@@ -156,5 +157,5 @@ boxers and the creature AI from GREEN up (`tools/oracle/README.md`). Inferred fr
 - `handleSystemNewAISituation` doing nothing in real time, where the current team stays ours.
 - The GoAsFar fallback and its shuffle never running for a random destination, which is legal already.
 
-Not ported: gaps "Auto-bandage", "Combat AI specials". Kept differences: deviations "Timing",
+Not ported: gaps "Combat AI specials". Kept differences: deviations "Timing",
 "Frame timers", "Game events", "GoAsFar fallback", "Away civilians".

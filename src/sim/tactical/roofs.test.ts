@@ -4,13 +4,23 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import type { InterfaceLevelEvent, SimEvent } from '../events.ts';
 import { tacticalViewParts } from '../knowledge/sim-view.ts';
+import { AiAction } from './ai/actions.ts';
 import { AnimHeight, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
-import { beginSoldierClimbUpRoof, checkSoldierHitRoof, findHigherLevel, findLowerLevel, setSoldierHeight } from './roofs.ts';
+import {
+  beginSoldierClimbDownRoof,
+  beginSoldierClimbUpRoof,
+  checkSoldierHitRoof,
+  findHigherLevel,
+  findLowerLevel,
+  setSoldierHeight,
+} from './roofs.ts';
 import { Attitude, Body, Orders, Team } from './soldier.ts';
-import { whoIsThere } from './state.ts';
+import { setAutoBandageMode, whoIsThere } from './state.ts';
+
+const CLIMB_TICKS = 5000;
 
 let content: TacticalContent;
 
@@ -98,6 +108,24 @@ describe('the interface level after a climb (Soldier_Ani.cc 408, 475: ChangeInte
     expect(beginSoldierClimbUpRoof(sim.state, climber)).toBe(true);
     const events = runUntilIdle(sim);
     expect([climber.level, levels(events)]).toEqual([1, []]);
+  });
+});
+
+describe('a climb of ours in auto-bandage (Soldier_Ani.cc 408, 475: FreeUpNPCFromRoofClimb)', () => {
+  it('frees a merc of ours from his climb like the AI once he is up, and once he is down', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.NORTH);
+    setAutoBandageMode(t, true);
+    const climbAsAI = (climb: () => boolean) => {
+      merc.ai.action = AiAction.CLIMB_ROOF;
+      merc.ai.actionInProgress = true;
+      expect(climb()).toBe(true);
+      for (let tick = 0; tick < CLIMB_TICKS && merc.ai.action !== AiAction.NONE; tick++) sim.step();
+      return [merc.level, merc.ai.action];
+    };
+    expect(climbAsAI(() => beginSoldierClimbUpRoof(t, merc))).toEqual([1, AiAction.NONE]);
+    expect(climbAsAI(() => beginSoldierClimbDownRoof(t, merc))).toEqual([0, AiAction.NONE]);
   });
 });
 

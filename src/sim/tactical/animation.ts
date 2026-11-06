@@ -13,7 +13,8 @@
 // @src follower waits on (fUseMoverrideMoveSpeed, 2026-11-04); a vehicle's turn through ubHiResDirection and the
 // @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier,
 // @src Soldier_Ani.cc codes 412 and 413 (2026-11-05); BeginSoldierClimbFence's free turn and prone reset, code 444's free
-// @src stance change on the final tile (2026-11-06).
+// @src stance change on the final tile (2026-11-06); SetSoldierAniSpeed's auto-bandage branch and Overhead.cc
+// @src ResetAllMercSpeeds (2026-11-06).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -70,6 +71,7 @@ import { effectiveAgility } from './skills.ts';
 import {
   Body,
   hasThreatenStance,
+  inSector,
   isCreatureOrBloodcat,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
@@ -236,7 +238,8 @@ function fadedOutOfSight(s: Soldier): boolean {
 }
 
 function animatesAtLoopRate(t: TacticalState, s: Soldier): boolean {
-  return t.inCombat && fadedOutOfSight(s) && s.state !== anim(t.content, 'MONSTER_UP');
+  const loopRate = t.pathEnv.autoBandage || (t.inCombat && fadedOutOfSight(s));
+  return loopRate && s.state !== anim(t.content, 'MONSTER_UP');
 }
 
 export function setSoldierAniSpeed(t: TacticalState, s: Soldier): void {
@@ -248,6 +251,10 @@ export function setSoldierAniSpeed(t: TacticalState, s: Soldier): void {
   s.aniDelay = t.content.animations.controls[s.state]?.speed ?? 0;
   if (s.aniDelay === 0) s.aniDelay = computedAnimationDelay(t, s, speedStatsSoldier(t, s));
   resetFrameTimer(t, s);
+}
+
+export function resetAllMercSpeeds(t: TacticalState): void {
+  for (const s of t.soldiers) if (s && inSector(s)) setSoldierAniSpeed(t, s);
 }
 
 export function nextFrameTick(t: TacticalState, s: Soldier): number {

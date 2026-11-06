@@ -13,7 +13,8 @@
 // @src and the FORGETFUL stop after the gas check, SetSoldierGridNo's water and sneaking, the swim of
 // @src EVENT_InternalGetNewSoldierPath, SetDelayedTileWaiting's and EVENT_StopMerc's fUseMoverrideMoveSpeed (2026-11-04);
 // @src SetSoldierGridNo's skips for a driver or passenger, RemoveSoldierFromGridNo, EVENT_InternalSetSoldierPosition's
-// @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05).
+// @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05); HandleGotoNewGridNo's walk on after a door for
+// @src our merc in auto-bandage (2026-11-06).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -402,7 +403,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
       return { ok: false, keepMoving: false };
     }
     interactWithDoorAt(t, s, doorGridNo, direction);
-    if (s.team !== Team.OUR || s.underAiControl) {
+    if (s.team !== Team.OUR || t.pathEnv.autoBandage || s.underAiControl) {
       s.endDoorOpenCode = 1;
       s.endDoorOpenCodeData = doorGridNo;
     }

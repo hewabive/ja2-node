@@ -501,7 +501,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       s.ai.actionInProgress = true;
     },
     freeUpFromAttacking: actionDone,
-    aiAttack: (state, s, target, level) => handleItem(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
+    aiHandleItem: (state, s, target, level) => handleItem(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
     freeUpFromPendingAction,
     freeUpNpcFromPendingAction,
     actionDone,

@@ -5,7 +5,8 @@
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
 // @src SetGridNoRevealedFlag and the spotted-something quote; without a soldier for the REVEAL_ROOM action item 2026-11-04);
 // @src Tactical/Handle_Items.cc AllSoldiersLookforItems;
-// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04).
+// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04); RevealRoofsAndItems'
+// @src OUR_MERCS_AUTO_MOVE (2026-11-06).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
@@ -325,6 +326,10 @@ function revealsNothing(s: Soldier): boolean {
   return s.team !== Team.OUR || isVehicle(s) || !s.placed || s.life < OKLIFE || s.blindedCounter > 0;
 }
 
+function ourMercsAutoMove(t: TacticalState): boolean {
+  return t.pathEnv.autoBandage;
+}
+
 export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: boolean): void {
   if (revealsNothing(s)) return;
   const fog = t.fog;
@@ -342,6 +347,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
   let throughWindow = 0;
   let throughWindowDirection = -1;
   let itemsQuoteSaid = false;
+  const itemsToo = !ourMercsAutoMove(t);
   const slots = new SlantRoofSlots();
   const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
   for (const path of table) {
@@ -408,7 +414,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           throughWindowDirection = dir;
         }
         if (blocking === Blocking.TOPLEFT_DOOR || blocking === Blocking.TOPRIGHT_DOOR) goneThroughDoor = 1;
-        if (revealItems) {
+        if (itemsToo && revealItems) {
           lookForAndMayCommentOnSeeingCorpse(t, s, marker, level);
           if (setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators)
             itemsQuoteSaid = noticeRevealedItems(t, s, marker, itemsQuoteSaid);

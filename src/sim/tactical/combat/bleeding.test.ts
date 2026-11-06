@@ -10,7 +10,7 @@ import { type Soldier, TEAM_FIRST_ID, Team, Visible } from '../soldier.ts';
 import { setAutoBandageMode } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
-import { calcSoldierNextBleed } from './bleeding.ts';
+import { calcSoldierNextBleed, checkBleeding } from './bleeding.ts';
 import { beginSoldierGetup } from './death.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { DamageReason } from './types.ts';
@@ -155,12 +155,22 @@ describe('the bleeding lines (Soldier_Control.cc CheckBleeding)', () => {
     s.serviceCount = 0;
     setAutoBandageMode(sim.state, true);
     s.nextBleed = 1;
-    beginMercTurn(sim.state, s);
+    checkBleeding(sim.state, s);
     expect([said, s.warnedAboutBleeding]).toEqual([[], false]);
     setAutoBandageMode(sim.state, false);
     s.nextBleed = 1;
     beginMercTurn(sim.state, s);
     expect(said).toEqual([[s.id, STARTING_TO_BLEED]]);
+  });
+
+  it('bleeds nobody at the turn start while auto-bandage runs, and bleeds him at the first turn after (Soldier_Control.cc EVENT_BeginMercTurn)', () => {
+    const { sim, s, said } = bleedingMerc(50);
+    setAutoBandageMode(sim.state, true);
+    beginMercTurn(sim.state, s);
+    expect([s.life, s.nextBleed, said]).toEqual([50, 1, []]);
+    setAutoBandageMode(sim.state, false);
+    beginMercTurn(sim.state, s);
+    expect(s.life).toBe(49);
   });
 
   it('says the seriously-wounded line once while dying and conscious, and no bleeding warning after it', () => {

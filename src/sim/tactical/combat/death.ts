@@ -7,7 +7,7 @@
 // @src chosen one, 2026-11-04); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
-// @src 2026-10-31).
+// @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -50,7 +50,7 @@ import { checkSoldierHitRoof } from '../roofs.ts';
 import { addRottingCorpse, handleCrowLeave, nowMinuteOf } from '../rotting-corpses.ts';
 import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from '../selection.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
-import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_PROFILE, NOBODY, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
 import { loudestScream, soundPlace, unseenVictim } from '../unseen-sources.ts';
@@ -477,6 +477,12 @@ const SKULL_UI_MS = 1920;
 const MILITIA_KILL_POINTS = 2;
 const MILITIA_ASSIST_POINTS = 1;
 
+function cancelAutoBandagingMedic(t: TacticalState, dead: Soldier): void {
+  if (!t.pathEnv.autoBandage || dead.autoBandagingMedic === NOBODY) return;
+  const medic = t.soldiers[dead.autoBandagingMedic];
+  if (medic) t.turnHooks.cancelAIAction(t, medic);
+}
+
 export function updateSkullReleases(t: TacticalState): void {
   if (t.pendingSkullReleases.length === 0) return;
   const due = t.pendingSkullReleases.filter((r) => t.clockMs >= r.at);
@@ -485,6 +491,7 @@ export function updateSkullReleases(t: TacticalState): void {
   for (const r of due) {
     if (!r.soldier.doingExternalDeath) releaseSoldiersAttacker(t, r.soldier);
     const successor = deathSuccessor(t, r.soldier);
+    if (successor) cancelAutoBandagingMedic(t, r.soldier);
     playerTeamDeathRules(t, r.soldier);
     t.sectorHooks.mercDied(t, r.soldier);
     checkForEndOfBattle(t);

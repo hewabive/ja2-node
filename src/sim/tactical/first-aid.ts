@@ -4,7 +4,9 @@
 // @src SoldierDressWound (with the quote flags it clears), InternalReceivingSoldierCancelServices, InternalGivingSoldierCancelServices,
 // @src SoldierGotoStationaryStance (the GIVING_AID branch); Overhead.cc HandleTeamServices, HandlePlayerServices;
 // @src Points.cc GetAPsToBeginFirstAid; Soldier_Ani.cc code 768; externalized/Soldier.cc handlePendingAction
-// @src (MERC_GIVEAID); Handle_UI.cc the medkit checks of the item cursor; RT_Time_Defines.h RT_FIRST_AID_GAIN_MODIFIER.
+// @src (MERC_GIVEAID); Handle_UI.cc the medkit checks of the item cursor; RT_Time_Defines.h RT_FIRST_AID_GAIN_MODIFIER;
+// @src the auto-bandage branches of InternalReceivingSoldierCancelServices, InternalGivingSoldierCancelServices and
+// @src HandlePlayerServices (2026-11-06).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -17,6 +19,7 @@ import { AnimHeight, changeSoldierStance, faceAtOnce, initNewSoldierAnim, soldie
 import { MIN_BLEEDING_THRESHOLD } from './combat/bleeding.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
+import { ItemHandle } from './combat/types.ts';
 import { InvSlot, itemIn, NO_SLOT } from './inventory.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { AP, apsToChangeStance, BP_PER_AP, deductPoints, enoughPoints } from './points.ts';
@@ -89,6 +92,17 @@ export function beginFirstAid(t: TacticalState, s: Soldier, targetGridNo: number
     return FirstAidRefusal.CANNOT_GET_THERE;
   }
   return null;
+}
+
+export function handleMedKit(t: TacticalState, s: Soldier, targetGridNo: number): number {
+  switch (beginFirstAid(t, s, targetGridNo)) {
+    case null:
+      return ItemHandle.OK;
+    case FirstAidRefusal.NOT_ENOUGH_APS:
+      return ItemHandle.NOAPS;
+    default:
+      return ItemHandle.CANNOT_GETTO_LOCATION;
+  }
 }
 
 export function handlePendingAidOnArrival(t: TacticalState, s: Soldier): boolean {
@@ -197,6 +211,13 @@ export function soldierDressWound(t: TacticalState, medic: Soldier, victim: Sold
   return dressing.cost;
 }
 
+function endService(t: TacticalState, medic: Soldier, patient: Soldier | undefined, playEndAnim: boolean): void {
+  if (t.pathEnv.autoBandage) {
+    if (patient) patient.autoBandagingMedic = NOBODY;
+    t.turnHooks.actionDone(t, medic);
+  } else if (medic.life >= OKLIFE && medic.breath > 0 && playEndAnim) initNewSoldierAnim(t, medic, anim(t.content, 'END_AID'), 0, false);
+}
+
 export function receivingSoldierCancelServices(t: TacticalState, s: Soldier, playEndAnim = true): void {
   if (s.serviceCount <= 0) return;
   for (const medic of t.soldiers) {
@@ -204,7 +225,7 @@ export function receivingSoldierCancelServices(t: TacticalState, s: Soldier, pla
     s.serviceCount--;
     medic.servicePartner = NOBODY;
     t.events.push({ type: 'firstAidEnded', soldier: medic.id, patient: s.id });
-    if (medic.life >= OKLIFE && medic.breath > 0 && playEndAnim) initNewSoldierAnim(t, medic, anim(t.content, 'END_AID'), 0, false);
+    endService(t, medic, s, playEndAnim);
   }
 }
 
@@ -214,7 +235,7 @@ export function givingSoldierCancelServices(t: TacticalState, s: Soldier, playEn
   if (patient) patient.serviceCount--;
   t.events.push({ type: 'firstAidEnded', soldier: s.id, patient: s.servicePartner });
   s.servicePartner = NOBODY;
-  if (s.life >= OKLIFE && s.breath > 0 && playEndAnim) initNewSoldierAnim(t, s, anim(t.content, 'END_AID'), 0, false);
+  endService(t, s, patient, playEndAnim);
 }
 
 export function cancelAllServices(t: TacticalState, s: Soldier, playEndAnim = true): void {
@@ -249,7 +270,7 @@ export function handlePlayerServices(t: TacticalState, s: Soldier): void {
     swapObjects(kit, s.inv[slot] as typeof kit);
     return;
   }
-  t.events.push({ type: 'outOfBandages', soldier: s.id });
+  t.events.push({ type: 'outOfBandages', soldier: s.id, ...(t.pathEnv.autoBandage ? {} : { battleSound: 'CURSE1' as const }) });
   givingSoldierCancelServices(t, s);
 }
 

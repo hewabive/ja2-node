@@ -35,7 +35,8 @@
 // @src HandleTakeDamageDeath (the DIE1 cry, DOORCR_1 and HEADCR_1 of a merc of ours dying off the loaded map while the
 // @src tactical screen is up, at NOWHERE, 2026-11-06); GameScreen.cc MainGameScreenHandle (ExecuteOverhead, which runs the
 // @src animation codes, the final footsteps and code 491, only on the game screen; LeaveTacticalScreen's
-// @src SetPositionSndsInActive, which silences the position sounds off the game screen, 2026-11-06).
+// @src SetPositionSndsInActive, which silences the position sounds off the game screen, 2026-11-06); Overhead.cc
+// @src HandlePlayerServices (the CURSE1 of a medic out of bandages, none in auto-bandage, 2026-11-06).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
@@ -699,6 +700,7 @@ export class SoundDirector {
         return;
       case 'enemySighted':
       case 'itemsPickedUp':
+      case 'outOfBandages':
         if (e.battleSound) this.#battleSound(e.soldier, e.battleSound, false);
         return;
       case 'nothingFound':

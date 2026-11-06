@@ -39,6 +39,7 @@ export interface FirstAidDoneEvent extends SimEventBase {
 export interface OutOfBandagesEvent extends SimEventBase {
   readonly type: 'outOfBandages';
   readonly soldier: number;
+  readonly battleSound?: 'CURSE1';
 }
 
 export interface ItemMovedEvent extends SimEventBase {

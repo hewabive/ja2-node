@@ -8,7 +8,8 @@
 // @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions;
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
 // @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths; Soldier_Control.cc
-// @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun).
+// @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun); Handle_Items.cc HandleItem
+// @src dispatch to the medkit branch (2026-11-06).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -34,6 +35,7 @@ import {
 import { detonatorBoxAtTheEnd, dropsBomb, handleDropBombItem, handleRemoteItem, startBombMessageBox } from '../bombs/planting.ts';
 import { igniteExplosion } from '../explosions/explosion.ts';
 import { calcThrownChanceToHit, useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
+import { handleMedKit } from '../first-aid.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
@@ -124,6 +126,7 @@ export function handleItem(t: TacticalState, s: Soldier, g: number, level: numbe
   const cls = def(t, handItem)?.itemClass ?? ItemClass.NONE;
   if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, tgt, handItem);
   if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
+  if (cls === ItemClass.MEDKIT) return handleMedKit(t, s, g);
   const tileTool = handleTileTool(t, s, g, handItem);
   if (tileTool !== null) return tileTool;
   if (itemCursorOf(t, handItem) === ItemCursor.REMOTE) return handleRemoteItem(t, s, g, handItem);

@@ -21,6 +21,7 @@ import {
 } from './animation.ts';
 import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
+import { HandleDoor } from './doors/door-table.ts';
 import { InvSlot } from './inventory.ts';
 import {
   getNewSoldierPath,
@@ -205,7 +206,7 @@ describe('walking', () => {
     expect(s.gridNo).toBe(gridNo(80, 77));
   });
 
-  it('lets an enemy in sight open a closed door on the way and close it behind him', () => {
+  function behindClosedDoor(): TacticalState {
     const closed = {
       ...syntheticStructure(StructureFlags.DOOR | StructureFlags.OPENABLE, Orientation.INSIDE_LEFT),
       number: 0,
@@ -217,18 +218,38 @@ describe('walking', () => {
       partnerDelta: -1,
     };
     const file = { structureCount: 2, auxData: null, tileLocations: [], structures: [closed, open] };
-    const t = tactical((w) => {
+    return tactical((w) => {
       for (let x = 70; x <= 90; x++) {
         if (x === 80) w.add(gridNo(x, 79), 0, closed, undefined, file);
         else w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT));
       }
     });
+  }
+
+  it('lets an enemy in sight open a closed door on the way and close it behind him', () => {
+    const t = behindClosedDoor();
     const s = spawn(t, START, Team.ENEMY);
     s.visible = Visible.SEEN;
     expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
     runUntilStill(t, 100_000);
     expect(s.gridNo).toBe(gridNo(80, 77));
     expect(t.events.filter((e) => e.type === 'doorChanged').map((e) => (e.type === 'doorChanged' ? e.open : null))).toEqual([true, false]);
+  });
+
+  it('lets a merc of ours walk on after the door he opens on his way only in auto-bandage, as the AI does', () => {
+    const twoTilesBeforeTheDoor = gridNo(80, 82);
+    const walk = (autoBandage: boolean) => {
+      const t = behindClosedDoor();
+      const s = spawn(t, twoTilesBeforeTheDoor);
+      s.doorHandleCode = HandleDoor.OPEN;
+      setAutoBandageMode(t, true);
+      expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
+      setAutoBandageMode(t, autoBandage);
+      runUntilStill(t, 100_000);
+      return s.gridNo;
+    };
+    expect(walk(true)).toBe(gridNo(80, 77));
+    expect(walk(false)).toBe(START);
   });
 
   it('walks around a wall', () => {
