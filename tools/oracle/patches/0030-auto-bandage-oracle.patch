@@ -1,0 +1,342 @@
+Auto-bandage oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-06. See LICENSE (SFI-SCLA).
+Lets the auto-bandage probes run the mode headless and frame by frame: the services, counter, overhead and event pump of
+HandleAutoBandage move into RunAutoBandageFrame and its end request into EndAutoBandageFrame, both called where the code
+was; with gOracleAutoBandageHeadless set, AutoBandage and SetUpAutoBandageUpdatePanel skip HandleTacticalUI, the mouse
+mask and the faces. Appended accessors read and set the file statics of Auto_Bandage.cc (the seconds, the complete, end
+and beginning flags, the two lists), the function static soldier_for_full_check of CanAutoBandage (moved to file scope),
+the AI slot cursors and the away slots of Overhead.cc, and expose the static FindBestPatient. Timer_Control reads the time
+through TimerControlNow, which returns a virtual steady clock instead of ReferenceClock::now() once the oracle switches it
+on and advances it. No behaviour change while the switch and the virtual clock are off. Applied by
+tools/oracle/build.sh after 0029.
+
+--- a/src/game/Tactical/Auto_Bandage.cc
++++ b/src/game/Tactical/Auto_Bandage.cc
+@@ -67,6 +67,8 @@
+ // has the button for autobandage end been setup yet
+ static BOOLEAN fAutoEndBandageButtonCreated = FALSE;
+ 
++bool gOracleAutoBandageHeadless = false;
++
+ 
+ static void BeginAutoBandageCallBack(MessageBoxReturnValue);
+ 
+@@ -206,6 +208,38 @@
+ static void DisplayAutoBandageUpdatePanel(void);
+ 
+ 
++void RunAutoBandageFrame(void)
++{
++	// Handle strategic engine
++	HandleStrategicTurn( );
++
++	HandleTeamServices( OUR_TEAM );
++
++	if ( guiAutoBandageSeconds <= 120 )
++	{
++		guiAutoBandageSeconds += 5;
++	}
++
++	// Execute Tactical Overhead
++	ExecuteOverhead( );
++
++	// Deque all game events
++	DequeAllGameEvents();
++}
++
++
++void EndAutoBandageFrame(void)
++{
++	gfBeginningAutoBandage = FALSE;
++
++	if( fEndAutoBandage )
++	{
++		AutoBandage( FALSE );
++		fEndAutoBandage = FALSE;
++	}
++}
++
++
+ BOOLEAN HandleAutoBandage( )
+ {
+ 	InputAtom InputEvent;
+@@ -221,21 +255,7 @@
+ 
+ 		DisplayAutoBandageUpdatePanel( );
+ 
+-		// Handle strategic engine
+-		HandleStrategicTurn( );
+-
+-		HandleTeamServices( OUR_TEAM );
+-
+-		if ( guiAutoBandageSeconds <= 120 )
+-		{
+-			guiAutoBandageSeconds += 5;
+-		}
+-
+-		// Execute Tactical Overhead
+-		ExecuteOverhead( );
+-
+-		// Deque all game events
+-		DequeAllGameEvents();
++		RunAutoBandageFrame( );
+ 
+ 		while (DequeueSpecificEvent(&InputEvent, KEYBOARD_EVENTS))
+ 		{
+@@ -250,13 +270,7 @@
+ 			}
+ 		}
+ 
+-		gfBeginningAutoBandage = FALSE;
+-
+-		if( fEndAutoBandage )
+-		{
+-			AutoBandage( FALSE );
+-			fEndAutoBandage = FALSE;
+-		}
++		EndAutoBandageFrame( );
+ 
+ 		return( TRUE );
+ 	}
+@@ -294,7 +308,7 @@
+ 
+ 		// Lock UI!
+ 		//guiPendingOverrideEvent = LU_BEGINUILOCK;
+-		HandleTacticalUI( );
++		if (!gOracleAutoBandageHeadless) HandleTacticalUI( );
+ 
+ 		PauseGame();
+ 		// Compress time...
+@@ -307,7 +321,7 @@
+ 		}
+ 
+ 		// build a mask
+-		MSYS_DefineRegion(&gAutoBandageRegion, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, MSYS_PRIORITY_HIGHEST - 1, CURSOR_NORMAL, MSYS_NO_CALLBACK, MSYS_NO_CALLBACK);
++		if (!gOracleAutoBandageHeadless) MSYS_DefineRegion(&gAutoBandageRegion, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, MSYS_PRIORITY_HIGHEST - 1, CURSOR_NORMAL, MSYS_NO_CALLBACK, MSYS_NO_CALLBACK);
+ 
+ 		gfBeginningAutoBandage = TRUE;
+ 
+@@ -345,8 +359,11 @@
+ 		}
+ 
+ 		// UnLock UI!
+-		guiPendingOverrideEvent = LU_ENDUILOCK;
+-		HandleTacticalUI( );
++		if (!gOracleAutoBandageHeadless)
++		{
++			guiPendingOverrideEvent = LU_ENDUILOCK;
++			HandleTacticalUI( );
++		}
+ 
+ 		UnPauseGame();
+ 		// Bring time back...
+@@ -357,11 +374,14 @@
+ 
+ 		DestroyTerminateAutoBandageButton( );
+ 
+-		// build a mask
+-		MSYS_RemoveRegion( &gAutoBandageRegion );
++		if (!gOracleAutoBandageHeadless)
++		{
++			// build a mask
++			MSYS_RemoveRegion( &gAutoBandageRegion );
+ 
+-		// clear faces for auto bandage
+-		RemoveFacesForAutoBandage( );
++			// clear faces for auto bandage
++			RemoveFacesForAutoBandage( );
++		}
+ 
+ 		SetRenderFlags( RENDER_FLAG_FULL );
+ 		fInterfacePanelDirty = DIRTYLEVEL2;
+@@ -412,7 +432,7 @@
+ 	while (next_patient != endof(gpatient_list)) *next_patient++ = NULL;
+ 
+ 	// now add the faces
+-	AddFacesToAutoBandageBox( );
++	if (!gOracleAutoBandageHeadless) AddFacesToAutoBandageBox( );
+ 
+ 	fAutoBandageComplete = FALSE;
+ }
+@@ -936,3 +956,34 @@
+ 
+ 	return( TRUE );
+ }
++
++
++UINT32 OracleAutoBandageSeconds()
++{
++	return guiAutoBandageSeconds;
++}
++
++BOOLEAN OracleAutoBandageComplete()
++{
++	return fAutoBandageComplete;
++}
++
++BOOLEAN OracleEndAutoBandageRequested()
++{
++	return fEndAutoBandage;
++}
++
++void OracleRequestEndAutoBandage(BOOLEAN const end)
++{
++	fEndAutoBandage = end;
++}
++
++BOOLEAN OracleBeginningAutoBandage()
++{
++	return gfBeginningAutoBandage;
++}
++
++SOLDIERTYPE const* OracleAutoBandageListEntry(bool const doctors, size_t const i)
++{
++	return i < MAX_CHARACTER_COUNT ? (doctors ? gdoctor_list : gpatient_list)[i] : NULL;
++}
+--- a/src/game/Tactical/Overhead.cc
++++ b/src/game/Tactical/Overhead.cc
+@@ -6259,3 +6259,29 @@
+ 	CheckIfNearbyGroundSeemsWrong(s, gridno, check_around, &keep_moving);
+ 	return keep_moving;
+ }
++
++UINT32 OracleAISlotToHandle()
++{
++	return guiAISlotToHandle;
++}
++
++UINT32 OracleAIAwaySlotToHandle()
++{
++	return guiAIAwaySlotToHandle;
++}
++
++void OracleSetAISlotsToHandle(UINT32 const slot, UINT32 const away)
++{
++	guiAISlotToHandle     = slot;
++	guiAIAwaySlotToHandle = away;
++}
++
++size_t OracleAwaySlotCount()
++{
++	return AwaySlots.size();
++}
++
++SOLDIERTYPE const* OracleAwaySlot(size_t const i)
++{
++	return AwaySlots[i];
++}
+--- a/src/game/TacticalAI/Medical.cc
++++ b/src/game/TacticalAI/Medical.cc
+@@ -92,10 +92,10 @@
+ 	return( FALSE );
+ }
+ 
++static const SOLDIERTYPE* soldier_for_full_check = NULL;
++
+ BOOLEAN CanAutoBandage( BOOLEAN fDoFullCheck )
+ {
+-	static const SOLDIERTYPE* soldier_for_full_check = NULL;
+-
+ 	// returns false if we should stop being in auto-bandage mode
+ 	UINT8					ubMedics = 0, ubPatients = 0;
+ 
+@@ -430,3 +430,19 @@
+ 	// do nothing
+ 	return( AI_ACTION_NONE );
+ }
++
++
++SOLDIERTYPE const* OracleFullCheckSoldier()
++{
++	return soldier_for_full_check;
++}
++
++void OracleSetFullCheckSoldier(SOLDIERTYPE const* const s)
++{
++	soldier_for_full_check = s;
++}
++
++INT8 OracleFindBestPatient(SOLDIERTYPE* const s, BOOLEAN* const climb)
++{
++	return FindBestPatient(s, climb);
++}
+--- a/src/game/Utils/Timer_Control.cc
++++ b/src/game/Utils/Timer_Control.cc
+@@ -40,6 +40,9 @@
+ 
+ static double g_durations_multiplier;
+ 
++static bool gfOracleVirtualClock{false};
++static TIMECOUNTER gOracleVirtualNow;
++
+ // These should probably use Timer.h's GetClock() instead,
+ // which would also make ResetJA2ClockGlobalTimers unnecessary.
+ extern std::uint32_t guiCompressionStringBaseTime;
+@@ -151,14 +154,14 @@
+ 	// Timers never expire while time is paused.
+ 	if (gfPauseClock) return false;
+ 
+-	bool const result{ ReferenceClock::now() >= giTimerCounters[pc] };
++	bool const result{ TimerControlNow() >= giTimerCounters[pc] };
+ 	if (result && autoReset) RESETCOUNTER(pc);
+ 	return result;
+ }
+ 
+ void RESETTIMECOUNTER(TIMECOUNTER & tc, ReferenceClock::duration const duration)
+ {
+-	tc = ReferenceClock::now() + std::chrono::duration_cast
++	tc = TimerControlNow() + std::chrono::duration_cast
+ 		<ReferenceClock::duration>(duration * g_durations_multiplier);
+ }
+ 
+@@ -167,7 +170,7 @@
+ 	// Timers never expire while time is paused.
+ 	if (gfPauseClock) return false;
+ 
+-	bool const result{ ReferenceClock::now() >= tc};
++	bool const result{ TimerControlNow() >= tc};
+ 	if (result) RESETTIMECOUNTER(tc, duration);
+ 	return result;
+ }
+@@ -177,7 +180,28 @@
+ 	// Timers never expire while time is paused.
+ 	if (gfPauseClock) return false;
+ 
+-	bool const result{ ReferenceClock::now() >= tc};
++	bool const result{ TimerControlNow() >= tc};
+ 	if (result && duration != 0) RESETTIMECOUNTER(tc, milliseconds{duration});
+ 	return result;
+ }
++
++TIMECOUNTER TimerControlNow()
++{
++	return gfOracleVirtualClock ? gOracleVirtualNow : ReferenceClock::now();
++}
++
++void OracleSetVirtualClock(bool const on)
++{
++	if (on && !gfOracleVirtualClock) gOracleVirtualNow = ReferenceClock::now();
++	gfOracleVirtualClock = on;
++}
++
++void OracleAdvanceVirtualClock(milliseconds const step)
++{
++	gOracleVirtualNow += step;
++}
++
++bool OracleVirtualClockOn()
++{
++	return gfOracleVirtualClock;
++}
+--- a/src/game/Utils/Timer_Control.h
++++ b/src/game/Utils/Timer_Control.h
+@@ -73,7 +73,9 @@
+ {
+ 	RESETTIMECOUNTER(tc, milliseconds{millis});
+ }
+-static inline void ZEROTIMECOUNTER(TIMECOUNTER & tc) { tc = ReferenceClock::now(); }
++[[nodiscard]] TIMECOUNTER TimerControlNow();
++
++static inline void ZEROTIMECOUNTER(TIMECOUNTER & tc) { tc = TimerControlNow(); }
+ 
+ // whenever guiBaseJA2Clock changes, we must reset all the timer variables that
+ // use it as a reference

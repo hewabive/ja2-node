@@ -28,6 +28,8 @@
 // @src Tactical/TeamTurns.cc BeginTeamTurn, Tactical/Overhead.cc RemoveSoldierFromTacticalSector, Soldier_Control.cc
 // @src SoldierTakeDamage, Tactical/Tactical_Save.cc LoadWorldItemsFromTempItemFile, TileEngine/WorldDef.cc TrashWorld
 // @src (absent merc probes)
+// @src src/game/Tactical/Auto_Bandage.cc, TacticalAI/Medical.cc, Tactical/Overhead.cc ExecuteOverhead, HandleTeamServices,
+// @src TacticalAI/AIMain.cc ExecuteAction, TacticalAI/Realtime.cc RTHandleAI (auto-bandage probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -9640,6 +9642,796 @@ void ProbeAbsentUnload(Command const& c)
 	});
 }
 
+}
+
+#include "Auto_Bandage.h"
+#include "Buildings.h"
+#include "Medical.h"
+
+extern bool gOracleAutoBandageHeadless;
+extern BOOLEAN gfAutoBandageFailed;
+extern UINT32 guiRTAILastUpdateTime;
+void RunAutoBandageFrame();
+void EndAutoBandageFrame();
+UINT32 OracleAutoBandageSeconds();
+BOOLEAN OracleAutoBandageComplete();
+BOOLEAN OracleEndAutoBandageRequested();
+void OracleRequestEndAutoBandage(BOOLEAN end);
+BOOLEAN OracleBeginningAutoBandage();
+SOLDIERTYPE const* OracleAutoBandageListEntry(bool doctors, size_t i);
+SOLDIERTYPE const* OracleFullCheckSoldier();
+void OracleSetFullCheckSoldier(SOLDIERTYPE const* s);
+INT8 OracleFindBestPatient(SOLDIERTYPE* s, BOOLEAN* climb);
+void OracleSetVirtualClock(bool on);
+void OracleAdvanceVirtualClock(milliseconds step);
+bool OracleVirtualClockOn();
+UINT32 OracleAISlotToHandle();
+UINT32 OracleAIAwaySlotToHandle();
+void OracleSetAISlotsToHandle(UINT32 slot, UINT32 away);
+size_t OracleAwaySlotCount();
+SOLDIERTYPE const* OracleAwaySlot(size_t i);
+
+namespace {
+
+constexpr long long DEFAULT_FRAME_STEP_MS = 5;
+constexpr long long MAX_FRAMES = 20000;
+constexpr long long NOT_MEASURED = -1;
+
+TIMECOUNTER gAutoBandageClockStart{};
+
+std::map<std::string, UINT16> const AUTO_BANDAGE_ANIMS{
+	{"STANDING", STANDING}, {"CROUCHING", CROUCHING}, {"PRONE", PRONE}, {"STAND_FALLFORWARD_STOP", STAND_FALLFORWARD_STOP},
+	{"FALLBACKHIT_STOP", FALLBACKHIT_STOP}, {"PRONE_LAYFROMHIT_STOP", PRONE_LAYFROMHIT_STOP},
+};
+
+std::vector<std::string> const FRAME_FIELDS{
+	"gridNo", "level", "animState", "aniFrame", "direction", "life", "bleeding", "breath", "action", "actionData",
+	"actionInProgress", "partner", "serviceCount", "hand", "aniDelay", "alert", "moveMode", "finalDestination", "aiCounterMs",
+};
+
+std::string AutoBandageBoxKind(ST::string const& text)
+{
+	if (text == g_langRes->Message[STR_SECTOR_NOT_CLEARED]) return "sectorNotCleared";
+	if (text == TacticalStr[AUTOBANDAGE_NOT_NEEDED]) return "notNeeded";
+	if (text == gzLateLocalizedString[STR_LATE_09]) return "noMedKit";
+	if (text == TacticalStr[CANT_AUTOBANDAGE_PROMPT]) return "cantAutoBandage";
+	if (text == TacticalStr[BEGIN_AUTOBANDAGE_PROMPT_STR]) return "beginAutoBandage";
+	if (text == pDoctorWarningString[1]) return "doctorWarning";
+	return "other";
+}
+
+void RecordAutoBandageBox(ST::string const& text, MSGBOX_CALLBACK const callback)
+{
+	gOracleBoxes.push_back({AutoBandageBoxKind(text), callback});
+}
+
+long long VirtualElapsedMs()
+{
+	if (!OracleVirtualClockOn()) return NOT_MEASURED;
+	return std::chrono::duration_cast<milliseconds>(TimerControlNow() - gAutoBandageClockStart).count();
+}
+
+long long RemainingMs(TIMECOUNTER const& counter)
+{
+	if (!OracleVirtualClockOn()) return NOT_MEASURED;
+	return std::max(0LL, static_cast<long long>(std::chrono::duration_cast<milliseconds>(counter - TimerControlNow()).count()));
+}
+
+std::string DescribeAutoBandageInventory(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> slots;
+	for (int k = 0; k < NUM_INV_SLOTS; ++k)
+	{
+		OBJECTTYPE const& o = s.inv[k];
+		if (o.usItem == NOTHING) continue;
+		std::vector<long long> row{k, o.usItem, o.ubNumberOfObjects};
+		for (int n = 0; n < o.ubNumberOfObjects && n < MAX_OBJECTS_PER_SLOT; ++n) row.push_back(o.bStatus[n]);
+		slots.push_back(Numbers(row));
+	}
+	return JsonArray(slots);
+}
+
+std::vector<long long> AnimFields(SOLDIERTYPE const& s)
+{
+	return {s.usAnimState, s.usAniCode, s.usAniFrame, gAnimControl[s.usAnimState].ubHeight, gAnimControl[s.usAnimState].ubEndHeight,
+		s.sAniDelay};
+}
+
+std::vector<long long> ActionFields(SOLDIERTYPE const& s)
+{
+	return {s.bAction, s.usActionData, s.bNextAction, s.usNextActionData, s.bActionInProgress};
+}
+
+std::string DescribeAutoBandageMerc(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("profile", s.ubProfile)
+		.nums("life", {s.bLife, s.bLifeMax, s.bBleeding})
+		.nums("breath", {s.bBreath, s.bBreathMax})
+		.num("medical", s.bMedical)
+		.flag("collapsed", s.bCollapsed)
+		.flag("inSector", s.bInSector)
+		.raw("sector", StrategicSector(s.sSector))
+		.flag("between", s.fBetweenSectors)
+		.num("assignment", s.bAssignment)
+		.num("flags", s.uiStatusFlags & (VEHICLE_STATUS_FLAGS | SOLDIER_PCUNDERAICONTROL | SOLDIER_DEAD))
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.real("x", s.dXPos)
+		.real("y", s.dYPos)
+		.num("direction", s.bDirection)
+		.nums("anim", AnimFields(s))
+		.str("animName", gAnimControl[s.usAnimState].zAnimStr)
+		.num("alert", s.bAlertStatus)
+		.num("moveMode", s.usUIMovementMode)
+		.nums("action", ActionFields(s))
+		.nums("destination", {s.sFinalDestination, s.sAbsoluteFinalDestination, s.ubPathIndex, s.ubPathDataSize, s.fDelayedMovement})
+		.nums("pending", {s.ubPendingAction, s.sPendingActionData2})
+		.num("hand", s.inv[HANDPOS].usItem)
+		.raw("inv", DescribeAutoBandageInventory(s))
+		.num("slotTaken", s.bSlotItemTakenFrom)
+		.num("medic", SoldierIdOrNone(s.auto_bandaging_medic))
+		.num("partner", SoldierIdOrNone(s.service_partner))
+		.num("serviceCount", s.ubServiceCount)
+		.num("target", s.sTargetGridNo)
+		.nums("counters", {RemainingMs(s.AICounter), RemainingMs(s.UpdateCounter)})
+		.nums("ai", {s.bNewSituation, s.fAIFlags, s.bOppCnt})
+		.flag("warnedBleeding", s.fWarnedAboutBleeding)
+		.text();
+}
+
+std::string DescribeAutoBandageOther(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("team", s.bTeam)
+		.num("neutral", s.bNeutral)
+		.num("side", static_cast<long long>(s.bSide))
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.real("x", s.dXPos)
+		.real("y", s.dYPos)
+		.num("direction", s.bDirection)
+		.nums("anim", AnimFields(s))
+		.nums("life", {s.bLife, s.bBleeding})
+		.flag("collapsed", s.bCollapsed)
+		.num("alert", s.bAlertStatus)
+		.num("moveMode", s.usUIMovementMode)
+		.nums("action", ActionFields(s))
+		.num("visible", s.bVisible)
+		.nums("counters", {RemainingMs(s.AICounter), RemainingMs(s.UpdateCounter)})
+		.nums("ai", {s.bNewSituation, s.fAIFlags, s.bOppCnt})
+		.text();
+}
+
+std::string DescribeSlotIds(std::vector<SOLDIERTYPE const*> const& slots)
+{
+	std::vector<long long> ids;
+	for (SOLDIERTYPE const* s : slots) ids.push_back(SoldierIdOrNone(s));
+	return Numbers(ids);
+}
+
+std::string DescribeMercSlots()
+{
+	std::vector<SOLDIERTYPE const*> slots;
+	for (SOLDIERTYPE const* s : ActiveMercs()) slots.push_back(s);
+	return DescribeSlotIds(slots);
+}
+
+std::string DescribeAwaySlots()
+{
+	std::vector<SOLDIERTYPE const*> slots;
+	for (size_t i = 0; i < OracleAwaySlotCount(); ++i) slots.push_back(OracleAwaySlot(i));
+	return DescribeSlotIds(slots);
+}
+
+std::string DescribeAutoBandageList(bool const doctors)
+{
+	std::vector<long long> ids;
+	for (size_t i = 0; i < MAX_CHARACTER_COUNT; ++i)
+	{
+		SOLDIERTYPE const* const s = OracleAutoBandageListEntry(doctors, i);
+		if (!s) break;
+		ids.push_back(s->ubID);
+	}
+	return Numbers(ids);
+}
+
+std::string DescribeAutoBandageState()
+{
+	UINT32 pauseTimer = 0;
+	BOOLEAN const aiPaused = OracleAiPause(&pauseTimer);
+	std::vector<std::string> team;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM) team.push_back(DescribeAutoBandageMerc(*s));
+	std::vector<std::string> others;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam != OUR_TEAM && s->bInSector) others.push_back(DescribeAutoBandageOther(*s));
+	}
+	return Json{}
+		.flag("mode", gTacticalStatus.fAutoBandageMode)
+		.flag("pending", gTacticalStatus.fAutoBandagePending)
+		.flag("autoMove", (gTacticalStatus.uiFlags & OUR_MERCS_AUTO_MOVE) != 0)
+		.flag("complete", OracleAutoBandageComplete())
+		.flag("failed", gfAutoBandageFailed)
+		.num("seconds", OracleAutoBandageSeconds())
+		.flag("endRequested", OracleEndAutoBandageRequested())
+		.flag("beginning", OracleBeginningAutoBandage())
+		.raw("doctors", DescribeAutoBandageList(true))
+		.raw("patients", DescribeAutoBandageList(false))
+		.num("fullCheck", SoldierIdOrNone(OracleFullCheckSoldier()))
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.flag("endgame", (gTacticalStatus.uiFlags & IN_DEIDRANNA_ENDGAME) != 0)
+		.flag("enemyInSector", gTacticalStatus.fEnemyInSector)
+		.num("enemies", NumEnemyInSector())
+		.flag("aware", gTacticalStatus.Team[OUR_TEAM].bAwareOfOpposition)
+		.str("screen", AbsentScreen())
+		.nums("clock", {GetWorldTotalSeconds(), GetJA2Clock(), VirtualElapsedMs(), OracleLastTacticalRealTime()})
+		.nums("pause", {GamePaused(), PauseStateLocked()})
+		.nums("aiSlots", {OracleAISlotToHandle(), OracleAIAwaySlotToHandle(), guiRTAILastUpdateTime, aiPaused, pauseTimer})
+		.raw("mercSlots", DescribeMercSlots())
+		.raw("awaySlots", DescribeAwaySlots())
+		.flag("dialogueIdle", DialogueQueueIsEmptyAndNobodyIsTalking())
+		.flag("blood", gGameSettings.fOptions[TOPTION_BLOOD_N_GORE])
+		.num("uiMode", gCurrentUIMode)
+		.raw("team", JsonArray(team))
+		.raw("others", JsonArray(others))
+		.text();
+}
+
+std::string DescribeQueuedLines(std::vector<std::vector<long long>> const& lines)
+{
+	std::vector<std::string> said;
+	for (auto const& l : lines) said.push_back(Numbers(l));
+	return JsonArray(said);
+}
+
+class AutoBandageScope
+{
+public:
+	AutoBandageScope(Command const& c, std::vector<OracleDraw>& draws, std::vector<std::vector<long long>>& lines) :
+		screen_(guiCurrentScreen), mapMode_(fInMapMode), flags_(gTacticalStatus.uiFlags), restoreCombat_(Has(c, "combat"))
+	{
+		bool const map = Text(c, "screen", "game") == "map";
+		guiCurrentScreen = map ? MAP_SCREEN : GAME_SCREEN;
+		fInMapMode = map;
+		if (restoreCombat_)
+		{
+			if (Integer(c, "combat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+			else gTacticalStatus.uiFlags &= ~INCOMBAT;
+		}
+		gOracleAutoBandageHeadless = true;
+		gOracleBoxes.clear();
+		gOracleMessageBoxHook = RecordAutoBandageBox;
+		gAbsentLines = &lines;
+		OracleTraceRandom(&draws);
+	}
+
+	AutoBandageScope(AutoBandageScope const&) = delete;
+	AutoBandageScope& operator=(AutoBandageScope const&) = delete;
+
+	~AutoBandageScope()
+	{
+		OracleTraceRandom(nullptr);
+		gAbsentLines = nullptr;
+		gOracleMessageBoxHook = NULL;
+		gOracleAutoBandageHeadless = false;
+		guiCurrentScreen = screen_;
+		fInMapMode = mapMode_;
+		if (restoreCombat_) gTacticalStatus.uiFlags = (gTacticalStatus.uiFlags & ~INCOMBAT) | (flags_ & INCOMBAT);
+	}
+
+private:
+	ScreenID screen_;
+	BOOLEAN mapMode_;
+	UINT32 flags_;
+	bool restoreCombat_;
+};
+
+std::string AnswerAutoBandageBoxes(Command const& c)
+{
+	std::vector<std::string> const answers = SplitList(Text(c, "answer", ""), ',');
+	size_t next = 0;
+	std::vector<std::string> shown;
+	while (!gOracleBoxes.empty())
+	{
+		OracleBox const box = gOracleBoxes.front();
+		gOracleBoxes.erase(gOracleBoxes.begin());
+		std::string answer;
+		if (box.callback && next < answers.size() && !answers[next].empty())
+		{
+			answer = answers[next++];
+			box.callback(AnswerValue(answer));
+		}
+		shown.push_back(Json{}.str("kind", box.kind).flag("question", box.callback != NULL).str("answer", answer).text());
+	}
+	return JsonArray(shown);
+}
+
+template<typename Run>
+void RunAutoBandageProbe(Command const& c, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::string result;
+	std::string boxes;
+	{
+		AutoBandageScope const scope(c, draws, lines);
+		result = run();
+		boxes = AnswerAutoBandageBoxes(c);
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDraws(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.raw("boxes", boxes)
+		.raw("lines", DescribeQueuedLines(lines))
+		.raw("state", DescribeAutoBandageState()));
+}
+
+std::string FrameRow(SOLDIERTYPE const& s)
+{
+	char position[64];
+	std::snprintf(position, sizeof(position), "[%.9g,%.9g]", s.dXPos, s.dYPos);
+	return "[" + std::to_string(s.ubID) + "," +
+		Numbers({s.sGridNo, s.bLevel, s.usAnimState, s.usAniFrame, s.bDirection, s.bLife, s.bBleeding, s.bBreath, s.bAction,
+			s.usActionData, s.bActionInProgress, SoldierIdOrNone(s.service_partner), s.ubServiceCount, s.inv[HANDPOS].usItem,
+			s.sAniDelay, s.bAlertStatus, s.usUIMovementMode, s.sFinalDestination, RemainingMs(s.AICounter)}) +
+		"," + position + "]";
+}
+
+std::map<UINT8, std::string> FrameRows()
+{
+	std::map<UINT8, std::string> rows;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bInSector) rows[s->ubID] = FrameRow(*s);
+	}
+	return rows;
+}
+
+std::string FrameGlobals()
+{
+	return Numbers({OracleAutoBandageSeconds(), OracleAutoBandageComplete(), gTacticalStatus.fAutoBandageMode,
+		SoldierIdOrNone(OracleFullCheckSoldier()), gfAutoBandageFailed, OracleAISlotToHandle(), OracleAIAwaySlotToHandle()});
+}
+
+void ProbeAutoBandageState(Command const& c)
+{
+	RunAutoBandageProbe(c, Nothing);
+}
+
+void ProbeAutoBandageTimer(Command const& c)
+{
+	if (Has(c, "on"))
+	{
+		bool const on = Integer(c, "on", 1) != 0;
+		bool const wasOn = OracleVirtualClockOn();
+		OracleSetVirtualClock(on);
+		if (on && !wasOn) gAutoBandageClockStart = TimerControlNow();
+	}
+	if (Has(c, "advance")) OracleAdvanceVirtualClock(milliseconds{Required(c, "advance")});
+	if (Has(c, "ja2clock")) guiBaseJA2Clock = static_cast<UINT32>(Required(c, "ja2clock"));
+	if (Has(c, "last")) OracleSetLastTacticalRealTime(static_cast<UINT32>(Required(c, "last")));
+	if (Has(c, "aislot") || Has(c, "awayslot"))
+	{
+		OracleSetAISlotsToHandle(static_cast<UINT32>(Integer(c, "aislot", OracleAISlotToHandle())),
+			static_cast<UINT32>(Integer(c, "awayslot", OracleAIAwaySlotToHandle())));
+	}
+	RunAutoBandageProbe(c, Nothing);
+}
+
+void PlaceOnLevel(SOLDIERTYPE& s, GridNo const gridNo, INT8 const level)
+{
+	SetSoldierHeight(&s, level > 0 ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFSET);
+	EVENT_SetSoldierPosition(&s, gridNo, SSP_FORCE_DELETE);
+}
+
+void ProbeAutoBandageMerc(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	SetIfGiven(c, "life", s.bLife);
+	SetIfGiven(c, "lifeMax", s.bLifeMax);
+	SetIfGiven(c, "bleeding", s.bBleeding);
+	SetIfGiven(c, "breath", s.bBreath);
+	SetIfGiven(c, "breathMax", s.bBreathMax);
+	SetIfGiven(c, "medical", s.bMedical);
+	SetIfGiven(c, "collapsed", s.bCollapsed);
+	SetIfGiven(c, "alert", s.bAlertStatus);
+	if (Has(c, "grid") || Has(c, "level"))
+	{
+		GridNo const gridNo = Has(c, "grid") ? GridArgument(c, "grid") : s.sGridNo;
+		PlaceOnLevel(s, gridNo, static_cast<INT8>(Integer(c, "level", s.bLevel)));
+	}
+	if (Has(c, "anim")) SetStanceImmediately(s, Lookup(AUTO_BANDAGE_ANIMS, c, "anim", "STANDING"));
+	RunAutoBandageProbe(c, [&] {
+		if (Has(c, "away"))
+		{
+			SGPSector sector = StrategicSectorArgument(c, "away");
+			sector.z = static_cast<INT8>(Integer(c, "z", 0));
+			if (s.bInSector) RemoveSoldierFromTacticalSector(s);
+			s.sSector = sector;
+			s.fBetweenSectors = Integer(c, "between", 0) != 0;
+		}
+		return std::string{};
+	});
+}
+
+void ProbeAutoBandageKit(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	long long const slot = Required(c, "slot");
+	if (slot < 0 || slot >= NUM_INV_SLOTS) throw std::runtime_error("no such slot " + std::to_string(slot));
+	OBJECTTYPE& o = s.inv[slot];
+	std::string const item = Text(c, "item", "FIRSTAIDKIT");
+	if (item == "none") DeleteObj(&o);
+	else CreateItem(ItemArgument(item), static_cast<INT8>(Integer(c, "status", DEFAULT_ITEM_STATUS)), &o);
+	RunAutoBandageProbe(c, Nothing);
+}
+
+void ProbeAutoBandageHostile(Command const& c)
+{
+	GridNo const gridNo = GridArgument(c, "grid");
+	RunAutoBandageProbe(c, [&] {
+		SOLDIERCREATE_STRUCT cs{};
+		cs.ubProfile        = NO_PROFILE;
+		cs.sSector          = gWorldSector;
+		cs.bTeam            = Lookup(TEAMS, c, "team", "enemy");
+		cs.bBodyType        = Lookup(BODIES, c, "body", "regmale");
+		cs.bDirection       = static_cast<INT8>(Integer(c, "dir", SOUTH));
+		cs.sInsertionGridNo = gridNo;
+		RandomizeNewSoldierStats(&cs);
+		SOLDIERTYPE* const s = TacticalCreateSoldier(cs);
+		if (!s) throw std::runtime_error("TacticalCreateSoldier failed");
+		AddSoldierToSectorNoCalculateDirection(s);
+		if (s->sGridNo != gridNo) EVENT_SetSoldierPosition(s, gridNo, SSP_NONE);
+		SetIfGiven(c, "neutral", s->bNeutral);
+		SetIfGiven(c, "life", s->bLife);
+		SetIfGiven(c, "collapsed", s->bCollapsed);
+		if (Has(c, "anim")) SetStanceImmediately(*s, Lookup(AUTO_BANDAGE_ANIMS, c, "anim", "STANDING"));
+		return Json{}.num("who", s->ubID).text();
+	});
+}
+
+void ProbeAutoBandageVehicle(Command const& c)
+{
+	BASIC_SOLDIERCREATE_STRUCT bp{};
+	bp.usStartingGridNo        = GridArgument(c, "grid");
+	bp.bTeam                   = CIV_TEAM;
+	bp.bRelativeAttributeLevel = AVERAGE_RELATIVE_LEVEL;
+	bp.bRelativeEquipmentLevel = AVERAGE_RELATIVE_LEVEL;
+	bp.bDirection              = static_cast<INT8>(Integer(c, "dir", SOUTH));
+	bp.bOrders                 = STATIONARY;
+	bp.bAttitude               = DEFENSIVE;
+	bp.bBodyType               = Lookup(VEHICLE_BODIES, c, "body", "hummer");
+	bp.sPatrolGrid[0]          = bp.usStartingGridNo;
+	bp.ubSoldierClass          = SOLDIER_CLASS_NONE;
+	bp.fPriorityExistance      = TRUE;
+	RunAutoBandageProbe(c, [&] {
+		SOLDIERCREATE_STRUCT dp{};
+		CreateDetailedPlacementGivenBasicPlacementInfo(&dp, &bp);
+		SOLDIERTYPE* const s = TacticalCreateSoldier(dp);
+		if (!s) throw std::runtime_error("TacticalCreateSoldier failed");
+		AddSoldierToSectorNoCalculateDirection(s);
+		INT8 const vehicle = s->bVehicleID;
+		std::vector<long long> boarded;
+		for (std::string const& id : SplitList(Text(c, "board", ""), ','))
+		{
+			if (id.empty()) continue;
+			boarded.push_back(PutSoldierInVehicle(ActiveSoldier(ParseInteger("board", id)), GetVehicle(vehicle)) ? 1 : 0);
+		}
+		return Json{}.num("vehicle", vehicle).num("who", GetSoldierStructureForVehicle(GetVehicle(vehicle)).ubID).nums("boarded", boarded).text();
+	});
+}
+
+void ProbeAutoBandageHurt(Command const& c)
+{
+	SOLDIERTYPE& s = ActiveSoldier(Required(c, "who"));
+	INT16 const damage = static_cast<INT16>(Required(c, "damage"));
+	INT16 const breath = static_cast<INT16>(Integer(c, "breath", damage));
+	UINT8 const reason = Lookup(DAMAGE_REASONS, c, "reason", "bloodloss");
+	RunAutoBandageProbe(c, [&] { return Json{}.num("combined", SoldierTakeDamage(&s, damage, breath, reason, NULL)).text(); });
+}
+
+void ProbeAutoBandageTactical(Command const& c)
+{
+	SetIfGiven(c, "enemyInSector", gTacticalStatus.fEnemyInSector);
+	SetIfGiven(c, "fought", gTacticalStatus.bNumFoughtInBattle[ENEMY_TEAM]);
+	SetIfGiven(c, "aware", gTacticalStatus.Team[OUR_TEAM].bAwareOfOpposition);
+	if (Has(c, "blood")) gGameSettings.fOptions[TOPTION_BLOOD_N_GORE] = Integer(c, "blood", 1) != 0;
+	if (Text(c, "queue", "") == "empty") EmptyDialogueQueue();
+	RunAutoBandageProbe(c, Nothing);
+}
+
+void ProbeAutoBandageMap(Command const& c)
+{
+	RunAutoBandageProbe(c, [&] {
+		std::vector<std::string> doors;
+		for (DOOR const& d : DoorTable) doors.push_back(Numbers({d.sGridNo, d.fLocked, d.ubLockID}));
+		std::vector<std::string> buildings;
+		std::vector<bool> seen(MAX_BUILDINGS + 1, false);
+		for (GridNo g = 0; g < WORLD_MAX; ++g)
+		{
+			UINT8 const b = gubBuildingInfo[g];
+			if (b == NO_BUILDING || b > MAX_BUILDINGS || seen[b]) continue;
+			seen[b] = true;
+			BUILDING const* const building = FindBuilding(g);
+			if (!building) continue;
+			std::vector<std::string> spots;
+			for (UINT8 k = 0; k < building->ubNumClimbSpots; ++k)
+			{
+				GridNo const up   = building->sUpClimbSpots[k];
+				GridNo const down = building->sDownClimbSpots[k];
+				spots.push_back(Numbers({up, down, SoldierIdOrNone(WhoIsThere2(up, 0)), SoldierIdOrNone(WhoIsThere2(up, 1)),
+					SoldierIdOrNone(WhoIsThere2(down, 0)), SoldierIdOrNone(WhoIsThere2(down, 1))}));
+			}
+			buildings.push_back("[" + Numbers({b, g, building->ubNumClimbSpots}) + "," + JsonArray(spots) + "]");
+		}
+		std::vector<std::string> tiles;
+		if (Has(c, "around"))
+		{
+			GridNo const center = GridArgument(c, "around");
+			long long const radius = Integer(c, "radius", 0);
+			for (long long dy = -radius; dy <= radius; ++dy)
+			{
+				for (long long dx = -radius; dx <= radius; ++dx)
+				{
+					long long const g = center + dy * WORLD_COLS + dx;
+					if (g < 0 || g >= WORLD_MAX) continue;
+					GridNo const gridNo = static_cast<GridNo>(g);
+					tiles.push_back(Numbers({gridNo, gubWorldRoomInfo[gridNo], gubBuildingInfo[gridNo], FlatRoofAboveGridNo(gridNo) ? 1 : 0,
+						gubWorldMovementCosts[gridNo][NORTH][0], gubWorldMovementCosts[gridNo][EAST][0],
+						gubWorldMovementCosts[gridNo][SOUTH][0], gubWorldMovementCosts[gridNo][WEST][0]}));
+				}
+			}
+		}
+		return Json{}.raw("doors", JsonArray(doors)).raw("buildings", JsonArray(buildings)).raw("tiles", JsonArray(tiles)).text();
+	});
+}
+
+void ProbeAutoBandageBegin(Command const& c)
+{
+	RunAutoBandageProbe(c, [] {
+		BeginAutoBandage();
+		return std::string{};
+	});
+}
+
+void ProbeAutoBandageShould(Command const& c)
+{
+	UINT32 const flags = gTacticalStatus.uiFlags;
+	if (Integer(c, "endgame", 0) != 0) gTacticalStatus.uiFlags |= IN_DEIDRANNA_ENDGAME;
+	RunAutoBandageProbe(c, [] {
+		ShouldBeginAutoBandage();
+		return std::string{};
+	});
+	gTacticalStatus.uiFlags = (gTacticalStatus.uiFlags & ~IN_DEIDRANNA_ENDGAME) | (flags & IN_DEIDRANNA_ENDGAME);
+}
+
+void ProbeAutoBandagePending(Command const& c)
+{
+	if (Has(c, "pending")) SetAutoBandagePending(Integer(c, "pending", 1) != 0);
+	UI_MODE const mode = gCurrentUIMode;
+	if (Integer(c, "lock", 0) != 0) gCurrentUIMode = LOCKUI_MODE;
+	SOLDIERTYPE* const holder = Has(c, "hold") ? &ActiveSoldier(Required(c, "hold")) : nullptr;
+	UINT8 const held = holder ? holder->ubPendingAction : NO_PENDING_ACTION;
+	if (holder) holder->ubPendingAction = MERC_GIVEAID;
+	if (Has(c, "talk")) CharacterDialogue(ActiveSoldier(Required(c, "talk")).ubProfile, QUOTE_SECTOR_SAFE, NULL, DIALOGUE_TACTICAL_UI, TRUE);
+	RunAutoBandageProbe(c, [] {
+		HandleAutoBandagePending();
+		return std::string{};
+	});
+	if (Has(c, "talk")) EmptyDialogueQueue();
+	if (holder) holder->ubPendingAction = held;
+	gCurrentUIMode = mode;
+}
+
+void ProbeAutoBandageStart(Command const& c)
+{
+	RunAutoBandageProbe(c, [] {
+		AutoBandage(TRUE);
+		return std::string{};
+	});
+}
+
+void ProbeAutoBandageEnd(Command const& c)
+{
+	RunAutoBandageProbe(c, [] {
+		AutoBandage(FALSE);
+		return std::string{};
+	});
+}
+
+void ProbeAutoBandageCan(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	BOOLEAN const full = Integer(c, "full", 0) != 0;
+	if (Has(c, "check"))
+	{
+		long long const id = Integer(c, "check", NO_SOLDIER_ID);
+		OracleSetFullCheckSoldier(id == NO_SOLDIER_ID ? nullptr : &ActiveSoldier(id));
+	}
+	RunAutoBandageProbe(c, [&] {
+		std::vector<std::string> calls;
+		for (long long i = 0; i < count; ++i)
+		{
+			BOOLEAN const can = CanAutoBandage(full);
+			calls.push_back(Numbers({can, SoldierIdOrNone(OracleFullCheckSoldier()), gfAutoBandageFailed}));
+		}
+		return Json{}.raw("calls", JsonArray(calls)).text();
+	});
+}
+
+std::string DescribeMedics()
+{
+	std::vector<std::string> rows;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM) rows.push_back(Numbers({s->ubID, SoldierIdOrNone(s->auto_bandaging_medic)}));
+	return JsonArray(rows);
+}
+
+void ProbeAutoBandagePatient(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunAutoBandageProbe(c, [&] {
+		BOOLEAN climb = FALSE;
+		INT8 const action = OracleFindBestPatient(&s, &climb);
+		return Json{}.num("action", action).num("actionData", s.usActionData).flag("climb", climb).raw("medics", DescribeMedics()).text();
+	});
+}
+
+void ProbeAutoBandageDecide(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	std::string const mode = Text(c, "mode", "decide");
+	RunAutoBandageProbe(c, [&] {
+		gfTurnBasedAI = (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+		if (mode == "ai") HandleSoldierAI(&s);
+		else if (mode == "rt") RTHandleAI(&s);
+		else if (mode == "decide") s.bAction = DecideAutoBandage(&s);
+		else throw std::runtime_error("unknown mode " + mode);
+		return Json{}.nums("action", ActionFields(s)).num("moveMode", s.usUIMovementMode).raw("medics", DescribeMedics()).text();
+	});
+}
+
+void ProbeAutoBandageExecute(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunAutoBandageProbe(c, [&] {
+		gfTurnBasedAI = (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+		NPCDoesAct(&s);
+		s.bActionInProgress = ExecuteAction(&s);
+		return Json{}.nums("action", ActionFields(s)).raw("walk", DescribePendingWalk(s)).text();
+	});
+}
+
+std::string ServiceRow()
+{
+	std::vector<std::string> rows;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (!s->bInSector) continue;
+		rows.push_back(Numbers({s->ubID, s->bLife, s->bBleeding, s->usAnimState, SoldierIdOrNone(s->service_partner), s->ubServiceCount}));
+	}
+	return JsonArray(rows);
+}
+
+void ProbeAutoBandageServices(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	RunAutoBandageProbe(c, [&] {
+		std::vector<std::string> calls;
+		for (long long i = 0; i < count; ++i)
+		{
+			HandleTeamServices(OUR_TEAM);
+			calls.push_back(ServiceRow());
+		}
+		return Json{}.raw("calls", JsonArray(calls)).text();
+	});
+}
+
+bool AnyMercGivingAid()
+{
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (s->bInSector && s->usAnimState == GIVING_AID) return true;
+	}
+	return false;
+}
+
+std::string ChangedRows(std::map<UINT8, std::string>& last)
+{
+	std::map<UINT8, std::string> const now = FrameRows();
+	std::vector<std::string> changed;
+	for (auto const& [id, row] : now)
+	{
+		auto const it = last.find(id);
+		if (it == last.end() || it->second != row) changed.push_back(row);
+	}
+	for (auto const& [id, row] : last)
+	{
+		if (!now.count(id)) changed.push_back("[" + std::to_string(id) + ",null]");
+	}
+	last = now;
+	return JsonArray(changed);
+}
+
+void ProbeAutoBandageFrames(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	long long const step = Integer(c, "step", DEFAULT_FRAME_STEP_MS);
+	std::string const until = Text(c, "until", "");
+	if (!until.empty() && until != "complete" && until != "aid") throw std::runtime_error("until is complete or aid: " + until);
+	bool const plain = Integer(c, "plain", 0) != 0;
+	if (count < 1 || count > MAX_FRAMES) throw std::runtime_error("count out of range: " + std::to_string(count));
+	if (!OracleVirtualClockOn()) throw std::runtime_error("abframes needs the virtual clock (abtimer on=1)");
+	if (plain == (gTacticalStatus.fAutoBandageMode != FALSE)) throw std::runtime_error("plain=1 runs outside the mode only, mode frames inside it only");
+	if (Integer(c, "end", 0) != 0) OracleRequestEndAutoBandage(TRUE);
+	std::map<UINT8, std::string> last = FrameRows();
+	std::string lastGlobals = FrameGlobals();
+	long long frames = 0;
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::string boxes;
+	{
+		AutoBandageScope const scope(c, draws, lines);
+		while (frames < count)
+		{
+			OracleAdvanceVirtualClock(milliseconds{step});
+			guiBaseJA2Clock += static_cast<UINT32>(step);
+			draws.clear();
+			lines.clear();
+			if (plain)
+			{
+				HandleStrategicTurn();
+				HandleAutoBandagePending();
+				ExecuteOverhead();
+				DequeAllGameEvents();
+			}
+			else
+			{
+				RunAutoBandageFrame();
+				EndAutoBandageFrame();
+			}
+			++frames;
+			std::string const changed = ChangedRows(last);
+			std::string const globals = FrameGlobals();
+			if (changed != "[]" || !draws.empty() || !lines.empty() || globals != lastGlobals)
+			{
+				Emit(Json{}
+					.str("probe", c.name)
+					.num("line", c.line)
+					.num("frame", frames)
+					.raw("globals", globals)
+					.raw("draws", DescribeDraws(draws))
+					.raw("lines", DescribeQueuedLines(lines))
+					.raw("changed", changed));
+			}
+			lastGlobals = globals;
+			if (!plain && !gTacticalStatus.fAutoBandageMode) break;
+			if (plain && !gOracleBoxes.empty()) break;
+			if (until == "complete" && OracleAutoBandageComplete()) break;
+			if (until == "aid" && AnyMercGivingAid()) break;
+		}
+		draws.clear();
+		lines.clear();
+		boxes = AnswerAutoBandageBoxes(c);
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("frames", frames)
+		.strs("frameFields", FRAME_FIELDS)
+		.strs("globalFields", {"seconds", "complete", "mode", "fullCheck", "failed", "aiSlot", "awaySlot"})
+		.raw("draws", DescribeDraws(draws))
+		.raw("boxes", boxes)
+		.raw("lines", DescribeQueuedLines(lines))
+		.raw("state", DescribeAutoBandageState()));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -9923,6 +10715,26 @@ void Dispatch(Command const& c)
 	if (c.name == "ablight") return ProbeAbsentLight(c);
 	if (c.name == "abrecords") return ProbeAbsentRecords(c);
 	if (c.name == "abunload") return ProbeAbsentUnload(c);
+	if (c.name == "abstate") return ProbeAutoBandageState(c);
+	if (c.name == "abtimer") return ProbeAutoBandageTimer(c);
+	if (c.name == "abmerc") return ProbeAutoBandageMerc(c);
+	if (c.name == "abkit") return ProbeAutoBandageKit(c);
+	if (c.name == "abhostile") return ProbeAutoBandageHostile(c);
+	if (c.name == "abvehicle") return ProbeAutoBandageVehicle(c);
+	if (c.name == "abhurt") return ProbeAutoBandageHurt(c);
+	if (c.name == "abtactical") return ProbeAutoBandageTactical(c);
+	if (c.name == "abmap") return ProbeAutoBandageMap(c);
+	if (c.name == "abbegin") return ProbeAutoBandageBegin(c);
+	if (c.name == "abshould") return ProbeAutoBandageShould(c);
+	if (c.name == "abpending") return ProbeAutoBandagePending(c);
+	if (c.name == "abstart") return ProbeAutoBandageStart(c);
+	if (c.name == "abend") return ProbeAutoBandageEnd(c);
+	if (c.name == "abcan") return ProbeAutoBandageCan(c);
+	if (c.name == "abpatient") return ProbeAutoBandagePatient(c);
+	if (c.name == "abdecide") return ProbeAutoBandageDecide(c);
+	if (c.name == "abexecute") return ProbeAutoBandageExecute(c);
+	if (c.name == "abservices") return ProbeAutoBandageServices(c);
+	if (c.name == "abframes") return ProbeAutoBandageFrames(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

@@ -38,6 +38,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
 | Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
+| Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | none yet | 0030 | `12` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -119,10 +120,16 @@ with ja2-node" name the commands each comparer reads. Rules that hold across dom
   otherwise, a domain's commands work on a loaded `save` and soldier ids (`who`, `merc`, `src`, `dest`, `target`) are
   the save's.
 - **Seeding.** The engine is seeded from the clock at start, so an unseeded script draws differently on every run and
-  must match on every run. `seed value=<n>` reseeds the `Random` engine; a save restores the `PreRandom` ring and its
-  index, not the engine, so `pre=reseed` also refills the ring and resets its index. Scripts seed where a setup step's
-  draws are not replayed (probe soldiers' random stats) or a fixed scenario is wanted. `draws on|off|dump` traces draws
-  across commands (`dump` emits and clears the trace, used around `save` for the load-time recomputation).
+  must match on every run. `LoadSavedGame` itself draws from the engine (`GenerateBuildings` picks the climb spots at
+  random), so a script that depends on what a load draws seeds before `save`. `seed value=<n>` reseeds the `Random`
+  engine; a save restores the `PreRandom` ring and its index, not the engine, so `pre=reseed` also refills the ring and
+  resets its index. Scripts seed where a setup step's draws are not replayed (probe soldiers' random stats) or a fixed
+  scenario is wanted. `draws on|off|dump` traces draws across commands (`dump` emits and clears the trace, used around
+  `save` for the load-time recomputation).
+- **Virtual clock.** Every `TIMECOUNTER` of `Timer_Control` (the overhead pass, animation and AI counters) reads the
+  steady clock of the machine. `abtimer on=1` (0030) switches it to a virtual one that only probes advance (`abframes`
+  by 5 ms per frame, `abtimer advance=`); switched on before the first load, every counter a load or a frame sets is
+  reproducible.
 - **Probe soldiers.** Without `who`, `path` and `los` create soldiers with `TacticalCreateSoldier` (no profile, default
   team `enemy`, body `regmale`) and remove them afterwards, so commands do not influence each other apart from the
   `Random()` state; creating them draws random stats, and `FindBestPath` draws skip-list levels, neither of which
@@ -657,6 +664,45 @@ Dawn and dusk on the map are probed as far as a headless build reaches: the ligh
 as it was; that only the game screen's frame runs `EnvironmentController` is read from the source
 (`GameScreen.cc:333`).
 
+### Auto-bandage
+
+Commands (0030), all but `abtimer` on a loaded `save`: `abtimer` (the virtual clock, the JA2 clock, the real-time turn
+stamp, the AI slot cursors of `ExecuteOverhead`), `abstate`, `abmap` (the door table, every building's climb spots with
+who stands on each at both levels, and with `around= radius=` the room, building, roof and movement costs of the tiles
+around), `abmerc` (life, bleeding, breath, medical, collapse, alert, a stance or lying animation, the tile and level,
+`away=` through `RemoveSoldierFromTacticalSector`), `abkit` (a kit made with `CreateItem` in a pocket, or the pocket
+emptied), `abhostile` (a soldier of another team), `abvehicle` (a civilian Hummer made from a placement, `board=` mercs
+through `PutSoldierInVehicle`), `abhurt` (`SoldierTakeDamage`), `abtactical` (enemy presence, the fought count, our
+team's awareness, blood, an emptied dialogue queue), `abbegin` (`BeginAutoBandage`), `abshould`, `abpending`
+(`HandleAutoBandagePending` with a queued line, a pending action or the UI lock held for the call), `abstart`
+(`AutoBandage(TRUE)`), `abend` (`AutoBandage(FALSE)`), `abcan` (`CanAutoBandage` `count=` times, `check=` setting the
+full-check pointer first), `abpatient` (`FindBestPatient`), `abdecide` (`DecideAutoBandage`, or `mode=rt` `RTHandleAI`,
+or `mode=ai` `HandleSoldierAI`), `abexecute` (`ExecuteAction`), `abservices` (`HandleTeamServices(OUR_TEAM)`) and
+`abframes`. `screen=map` and `combat=` hold the screen and `INCOMBAT` for one command. Every command but `abframes`
+prints its draws, its result, the message boxes it opened (their kind, and the answer `answer=yes|no` gave a question
+through its callback, as 0027 does), the lines `CharacterDialogue` queued (0029's trace) and the state: the mode,
+pending, complete, failed, end and beginning flags, the seconds, the two lists, the full-check pointer, the clocks, the
+pause, the AI cursors, `MercSlots` and `AwaySlots` in order, our whole team (life, breath, medical, sector, tile,
+animation with its delay, alert, gait, AI action fields, pending action, inventory with every status,
+`bSlotItemTakenFrom`, `auto_bandaging_medic`, the service pair, the remaining AI and animation counters) and the loaded
+sector's other soldiers.
+
+The probes run the original's functions headless: 0030's switch skips `HandleTacticalUI`, the mouse mask, the faces and
+the panel, and `DoMessageBox` hands every box to the probe. `abframes count=` runs the mode's frame of
+`HandleAutoBandage` (`RunAutoBandageFrame`, then `EndAutoBandageFrame`) after advancing the virtual clock and the JA2
+clock by `step=` ms (5); `end=1` sets `fEndAutoBandage` first, as the buttons do; `until=complete` and `until=aid` stop
+at completion or at the first merc of ours in `GIVING_AID`. `plain=1` runs outside the mode the part of
+`MainGameScreenHandle` that matters here (`HandleStrategicTurn`, `HandleAutoBandagePending`, `ExecuteOverhead`,
+`DequeAllGameEvents`) and stops when a box opens. Every frame that changes anything prints a line with its number,
+`[seconds, complete, mode, full-check pointer, failed, AI slot, away slot]`, its draws, the lines queued and a row for
+every soldier of the sector that changed (`frameFields` of the closing line names the columns); the closing line carries
+the state. `abtimer on=1` comes before the first load, so every timer the loads and frames set is deterministic: a run
+is byte for byte the same every time.
+
+Not probed: the panel, the buttons and the keys (Esc, Enter, Space; the oracle has no input queue), the shadow, the
+`HandleTacticalUI` calls of the start and the end, `UpdateClock` (the clock is paused), and the pause the message box
+screen takes while a box is up. No comparer reads the output yet; `compare-all.sh` does not list it.
+
 ## Shipped probes
 
 `compare-all.sh` lists the outputs it compares, relative to the work dir. `probes/<name>.txt` writes
@@ -670,6 +716,7 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   battles over SaveGame01, 02, 07, 09 and 10 with militia, garrisons, codes, retreats and both `pre` modes; the first
   battle of `autoresolve-d13.txt`); `compare-all.sh` requires them.
 - `attach` and `florist` are optional: `compare-all.sh` skips them with a hint when missing.
+- `auto-bandage.txt` writes `autobandage/autobandage.jsonl` (on `SaveGame01`, B13); no comparer reads it yet.
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;
@@ -702,5 +749,5 @@ The base of the diff is `reference/stracciatella` with the earlier patches appli
 only for files more than one patch touches: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004,
 0012, 0029), `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc`
 (0016, 0020), `Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc`
-(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027) and
+(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027, 0030) and
 `Tactical/Soldier_Control.cc` (0027, 0028).
