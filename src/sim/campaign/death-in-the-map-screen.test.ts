@@ -22,7 +22,7 @@ import { animName } from '../tactical/anim-states.ts';
 import { soldierTakeDamage } from '../tactical/combat/hit.ts';
 import { DamageReason } from '../tactical/combat/types.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { Quote } from './contracts/quotes.ts';
@@ -67,6 +67,7 @@ const COLLAPSE_TICKS = { ticks: 400 };
 const KILLING_BLOW = 100;
 const CIVILIAN_DISTANCE = 4 * WORLD_COLS;
 const DROPPED = 80;
+const ZEROED_CORPSE_PROFILE = 0;
 const DEAD_NPC = 135;
 const BUDDY_NPC = 136;
 const HOVER = 'A10';
@@ -180,7 +181,9 @@ describe('a merc of ours dying while the map screen is up (Strategic.cc HandleSt
     expect(draws.requested).toEqual([160, 160, 160, 160, 4]);
     const b9 = records(c, parseSectorString(ELSEWHERE)) ?? never('B9 records');
     const body = gridNoOf(BODY_AT);
-    expect(b9.corpses).toMatchObject([{ gridNo: body, level: 0, findSweetSpot: true, profile: KESTREL }]);
+    expect(b9.corpses).toMatchObject([
+      { gridNo: body, level: 0, findSweetSpot: true, bodyType: kestrel.soldier.bodyType, profile: ZEROED_CORPSE_PROFILE },
+    ]);
     const dropped = (b9.items ?? []).filter((wi) => wi.exists && wi.gridNo === body).map((wi) => wi.object);
     const key = c.session.campaign.battle?.content.items.byName.get('KEY_1')?.index;
     expect(dropped.map((o) => o.item)).toEqual([...carried, key]);
@@ -204,7 +207,7 @@ describe('a merc of ours dying while the map screen is up (Strategic.cc HandleSt
     bleedTheLastPoint(turnWorld(c), kestrel);
     const events = c.live.advance(ONE_TICK).events;
     expect(ofType(events, 'mercDied')).toMatchObject([{ soldier: kestrel.id, sector: LANDING, mapScreen: true }]);
-    expect(records(c, parseSectorString(LANDING))?.corpses).toMatchObject([{ profile: KESTREL }]);
+    expect(records(c, parseSectorString(LANDING))?.corpses).toMatchObject([{ bodyType: kestrel.soldier.bodyType }]);
     expect(records(c, parseSectorString(ELSEWHERE))?.corpses ?? []).toEqual([]);
   });
 });
@@ -228,13 +231,14 @@ describe('a merc of the loaded sector dying while the map screen is up (Soldier_
     expect(animName(t.content, vant.soldier.state)).toMatch(/_DEATH$/);
     expect(t.corpses).toHaveLength(corpses);
     const a9 = parseSectorString(LANDING);
-    expect(records(c, a9)?.corpses).toMatchObject([{ profile: VANT }]);
+    expect(records(c, a9)?.corpses).toMatchObject([{ bodyType: vant.soldier.bodyType }]);
+    const body = records(c, a9)?.corpses?.[0]?.gridNo ?? never('the body');
     const mapBranchItems = (records(c, a9)?.items ?? []).filter((wi) => wi.exists).length;
     expect(mapBranchItems).toBeGreaterThan(0);
     expect(merc(c, VANT).assignment).toBe(Assignment.ASSIGNMENT_DEAD);
     await routeKestrel(c, ELSEWHERE, (m) => m.betweenSectors);
     expect(c.session.campaign.tactical).toBeNull();
-    expect((records(c, a9)?.corpses ?? []).filter((x) => x.profile === VANT)).toEqual([]);
+    expect((records(c, a9)?.corpses ?? []).filter((x) => x.gridNo === body)).toEqual([]);
   });
 
   it('standing, dies at once in tactical terms, his gear dropped on the live map, and the map branch is skipped (quirk)', async () => {
@@ -296,7 +300,7 @@ describe('a soldier of another team of the loaded sector dying while the map scr
     const after = [KESTREL, VANT].map((p) => merc(c, p).soldier.strategicMoraleMod + merc(c, p).soldier.tacticalMoraleMod);
     expect(after.every((m, k) => m < (morale[k] ?? 0))).toBe(true);
     const a9 = records(c, parseSectorString(LANDING)) ?? never('A9 records');
-    expect(a9.corpses).toMatchObject([{ gridNo: gridNoOf(BODY_AT), profile: NO_PROFILE }]);
+    expect(a9.corpses).toMatchObject([{ gridNo: gridNoOf(BODY_AT), profile: ZEROED_CORPSE_PROFILE }]);
     expect((a9.items ?? []).filter((wi) => wi.exists).map((wi) => wi.object.item)).toEqual([civilian.inv[InvSlot.HAND]?.item]);
     const report = c.live.advance(ONE_TICK);
     expect(ofType(report.events, 'mercDied')).toMatchObject([{ soldier: civilian.id, sector: LANDING, mapScreen: true }]);
@@ -369,7 +373,7 @@ describe('the helicopter shot down while the map screen is up (Vehicles.cc KillA
     expect(ofType(report.events, 'mercDied')).toMatchObject(passengers.map((soldier) => ({ soldier, sector: HOVER, mapScreen: true })));
     expect(ofType(report.events, 'compressionStopped')).toMatchObject([{ reason: 'mercDied' }]);
     const bodies = records(c, parseSectorString(HOVER))?.corpses ?? [];
-    expect(bodies.map((x) => x.profile)).toEqual([KESTREL, VANT]);
+    expect(bodies.map((x) => x.bodyType)).toEqual([KESTREL, VANT].map((p) => merc(c, p).soldier.bodyType));
     expect(ofType(report.events, 'damageFeedback').map((e) => e.soldier)).toEqual(passengers);
   });
 

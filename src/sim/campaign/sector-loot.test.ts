@@ -30,6 +30,8 @@ beforeAll(async () => {
 
 const SECTOR = { x: 13, y: 4, z: 0 };
 const DROPPED_AT = gridNo(80, 80);
+const NAMED_PROFILE = 59;
+const ZEROED_PROFILE = 0;
 
 function enemy() {
   return createSoldier({
@@ -134,6 +136,20 @@ describe('drops and corpses in unloaded sectors', () => {
     const nowMinute = worldTotalMinutes(state.clock);
     restoreCorpses(t, diff?.corpses ?? [], { nowMinute, inTown: false, loadingSave: false });
     expect(corpseViews(t)).toMatchObject([{ level: 0, heightAdjustment: SECOND_LEVEL_Z_OFFSET }]);
+  });
+
+  it('lays the corpse of a soldier with a profile under profile 0, not his own: the zeroed definition never gets it, so a search for his corpse by profile misses it (quirk, Tactical_Save.cc AddDeadSoldierToUnLoadedSector)', () => {
+    const state = createStrategicState();
+    const named = Object.assign(enemy(), { profile: NAMED_PROFILE });
+    addDeadSoldierToUnloadedSector(state, content, SECTOR, {
+      soldier: named,
+      gridNo: DROPPED_AT,
+      level: 0,
+      deathAnimation: 'GENERIC_HIT_DEATH',
+      items: [],
+      keys: [],
+    });
+    expect(state.sectorDiffs.get(sectorKey(SECTOR))?.corpses?.map((c) => c.profile)).toEqual([ZEROED_PROFILE]);
   });
 
   it('reuses the first non-existing slot and lets thieves take visible reachable items below the chance', () => {

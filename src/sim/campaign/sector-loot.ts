@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc AddItemsToUnLoadedSector, AddDeadSoldierToUnLoadedSector (the corpse and the
 // @src item records; the corpse's level 0 and the soldier's height, 2026-11-02; the drop rules and the key ring dropped
-// @src through Tactical/Keys.cc DropKeysInKeyRing's unloaded path, 2026-11-05), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
+// @src through Tactical/Keys.cc DropKeysInKeyRing's unloaded path, 2026-11-05; the zeroed definition's profile 0,
+// @src 2026-11-06), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
 // @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo;
 // @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector;
 // @src Strategic/Strategic_Movement.cc AddCorpsesToBloodcatLair (the facing drawn on a cosmetic stream; the zeroed
@@ -158,7 +159,7 @@ export function addDeadSoldierToUnloadedSector(
     bodyType: s.bodyType,
     direction: s.direction,
     state: anim(content, record.deathAnimation),
-    profile: s.profile,
+    profile: ZEROED_PROFILE,
     type: corpseTypeFor(content.corpses.table, s.bodyType, anim(content, record.deathAnimation)),
     timeOfDeath: worldTotalMinutes(state.clock),
     headTaken: false,
