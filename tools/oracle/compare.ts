@@ -39,6 +39,7 @@ import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { ABSENT_PROBES, AbsentComparer } from './absent-compare.ts';
 import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
 import { ATTACH_PROBES, AttachComparer } from './attach-compare.ts';
+import { AUTO_BANDAGE_PROBES, AutoBandageComparer } from './auto-bandage-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
@@ -614,6 +615,7 @@ for (const file of files) {
   const bombs = new BombComparer(read, exists, content);
   const vehicles = new VehicleComparer(read, exists);
   const absent = new AbsentComparer(read, exists);
+  const autoBandage = new AutoBandageComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -652,6 +654,7 @@ for (const file of files) {
       if (ctx.bytes) bombs.loadSave(ctx.bytes);
       if (ctx.bytes) vehicles.loadSave(ctx.bytes);
       if (ctx.bytes) absent.loadSave(ctx.bytes);
+      if (ctx.bytes) autoBandage.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -685,6 +688,7 @@ for (const file of files) {
     else if (BOMB_PROBES.has(String(p.probe))) failures += await bombs.compare(p);
     else if (VEHICLE_PROBES.has(String(p.probe))) failures += await vehicles.compare(p);
     else if (ABSENT_PROBES.has(String(p.probe))) failures += await absent.compare(p);
+    else if (AUTO_BANDAGE_PROBES.has(String(p.probe))) failures += await autoBandage.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

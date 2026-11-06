@@ -539,7 +539,7 @@ function rtDecideAction(t: TacticalState, s: Soldier, control: AiControl): numbe
   return decideAction(t, s, control.green);
 }
 
-function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
+export function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
   if (ai.action === AiAction.NONE) {
     if (ai.nextAction === AiAction.NONE) {

@@ -413,8 +413,8 @@ check of one patient per call, the AI's patient search (`findBestPatient`) and i
 and the end, and the question a won battle leaves pending. `numEnemyInSector` (`turns/turns.ts`) is the sector check
 that opens the mode. `TacticalSim` routes the commands, the answer and the ticks, `CampaignSim` the campaign's frame and
 orders in the mode, and the sector flow's hooks pause and warp the world clock. The view shows the prompt
-(`server/tactical-prompt-view.ts`) and the client its yes/no box; the rest of the view, the box of medics and the key are
-gaps "Auto-bandage".
+(`server/tactical-prompt-view.ts`) and, while the mode runs, the box of medics and patients (`server/auto-bandage-view.ts`);
+the agent API is `29` §8.3. The client shows the yes/no box; its box of medics and the key are gaps "Auto-bandage".
 
 **Lifecycle.**
 - `autoBandage` is the `a` key: the original's OK boxes become refusals in its order (`sectorNotCleared`,
@@ -544,8 +544,11 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 | The dialogue queue stands for the whole mode: a line queued in it plays after the end | `campaign/auto-bandage-flow.test.ts` "keeps the dialogue standing …" |
 | The world clock stands for the mode and jumps by its count at the end; the events inside the jump wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |
 
-The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage") record these decisions and the frames of a
-whole mode in the native build; no comparer reads them yet, so the frame loop is checked only by these tests.
+The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage", `tools/oracle/auto-bandage-compare.ts`) check
+the checks, the question, the start, the decisions, the full check, the services and the end against the native build,
+the draws replayed strictly, and whole modes frame by frame for our team and the mode's globals; the civilians of a
+native import do not act alike there (an off-map civilian's schedule, a YELLOW civilian's choice; not traced yet), so
+the frame runs take the native draws in order and leave the civilians out.
 
 Not ported: gaps "Map items" (the pits), "Auto-bandage". Other
 deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",

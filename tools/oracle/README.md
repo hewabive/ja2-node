@@ -38,7 +38,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
 | Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
-| Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | none yet | 0030 | `12` |
+| Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -185,7 +185,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 1000 + node id / 999 | 0004 | every `AddPlacementToWorld`: draws inside a placement are skipped and the native outcome answers it |
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
-| 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle and absent comparers (deviations "Cosmetic draws …", "Footstep variants") |
+| 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle, absent and auto-bandage comparers (deviations "Cosmetic draws …", "Footstep variants") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
   action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the
@@ -701,7 +701,33 @@ is byte for byte the same every time.
 
 Not probed: the panel, the buttons and the keys (Esc, Enter, Space; the oracle has no input queue), the shadow, the
 `HandleTacticalUI` calls of the start and the end, `UpdateClock` (the clock is paused), and the pause the message box
-screen takes while a box is up. No comparer reads the output yet; `compare-all.sh` does not list it.
+screen takes while a box is up.
+
+`auto-bandage-compare.ts` imports the save into a tactical session, sets the scene the same way, runs `beginAutoBandage`,
+`shouldBeginAutoBandage`, `handleAutoBandagePending`, `startAutoBandage`, `endAutoBandage`, `canAutoBandage`,
+`findBestPatient`, `decideAutoBandage`, `rtHandleAI`, `handleSoldierAI`, `executeAction`, `handleTeamServices` and the
+tactical step, replays the draws strictly with the pathfinder's, music and cosmetic marks dropped, and compares the
+result, the boxes (the refusal tokens, the `beginAutoBandage` prompt, `autoBandageRefused` and `autoBandageEnded.failed`),
+the queued lines and the state field by field: the mode's record, our whole team (the kit pocket and the patient's medic
+only once a start has reset them; the save's are stale) and the sector's other soldiers. The native statics (the lists,
+completion, the full-check pointer) outlive a save load, so a new session starts from the last ones printed. Setting the
+scene takes the native outcome where the native draws a random soldier: `abhostile` and `abvehicle` create theirs on
+ja2-node's generator, take the native life and medical skill, and the action data 0 a fresh native soldier has; the
+vehicle is the soldier the boarding's takeover leaves. `abmap` hands ja2-node the climb spots the native load drew
+(`GenerateBuildings` picks them at random) and compares who stands on each. A soldier `abmerc` puts on a tile no person
+fits stays out of ja2-node's occupancy, as the native `WhoIsThere2` finds no person structure there.
+
+A frame run (`abframes`) is compared frame by frame for our team (every frame column but the animation frame, which
+ja2-node does not keep) and the mode's five globals, and by the closing state. Before a run the comparer takes from the
+native state printed just before it every soldier's animation code, frame delay, frame timer and AI timer, the AI slot
+cursors and their last pass time, the real-time turn stamp and the game pause: a native import keeps none of these
+phases (the load advances the animation scripts by one code), and the virtual clock's are printed only as time left.
+The 20 ms strategic poll's phase is not printed either; in a run outside the mode (`plain=1`) whose real-time turn the
+closing state shows, the comparer lets ja2-node's poll fall on that frame. The civilians of the native import do not act
+alike in the frames (an off-map civilian's schedule acts natively and not in ja2-node, and a YELLOW civilian chooses
+differently on the same draws; not traced yet), so the frame runs take the native draws in order (each request takes the
+next native draw of its range, ja2-node's own generator past them) and leave the civilians out of the frames and of every
+later state of the block.
 
 ## Shipped probes
 
@@ -716,7 +742,7 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   battles over SaveGame01, 02, 07, 09 and 10 with militia, garrisons, codes, retreats and both `pre` modes; the first
   battle of `autoresolve-d13.txt`); `compare-all.sh` requires them.
 - `attach` and `florist` are optional: `compare-all.sh` skips them with a hint when missing.
-- `auto-bandage.txt` writes `autobandage/autobandage.jsonl` (on `SaveGame01`, B13); no comparer reads it yet.
+- `auto-bandage.txt` writes `autobandage/autobandage.jsonl` (on `SaveGame01`, B13).
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;

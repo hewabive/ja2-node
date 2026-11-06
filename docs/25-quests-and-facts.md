@@ -173,8 +173,7 @@ multi-selection. A vehicle of ours is ours to command only with somebody aboard 
 vehicle with nobody aboard, an enemy tank or a civilian car, gets no locator at its AI turn. The view lists them with
 their seat at the vehicle's tile and the vehicle with its passengers, whom its squad's team panel shows in its place;
 the driver shows the vehicle's APs (`29` §8.8). Auto-bandage counts them as neither medic nor patient, yet its patient
-search keeps a merc aboard as a candidate and drops him for want of a free tile beside the vehicle (`12` §8; the mode
-itself is gaps "Auto-bandage"); a merc's light in a vehicle is the client's (deviation "Merc light in a vehicle").
+search keeps a merc aboard as a candidate and drops him for want of a free tile beside the vehicle (`12` §8); a merc's light in a vehicle is the client's (deviation "Merc light in a vehicle").
 
 **Quest action items.** The Kingpin and museum alarms and the brothel room scene are action items the bomb queue runs
 like any other (`12` §6): our soldiers set them off by stepping on their pressure plates or on a switch of their
