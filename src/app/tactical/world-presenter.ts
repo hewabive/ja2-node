@@ -156,6 +156,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return this.#world.world.mapPath;
   }
 
+  get picture(): number {
+    return this.#renderer.picture;
+  }
+
   get camera(): Camera {
     return this.#camera;
   }

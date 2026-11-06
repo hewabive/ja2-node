@@ -99,7 +99,9 @@ shows its OK box (`REFUSAL_MESSAGES`), and the question is the `beginAutoBandage
 the same box a won battle opens. While the view carries `autoBandage` the screen does what `MainGameScreenHandle` does
 after `HandleAutoBandage`: nothing. It neither updates nor scrolls, and takes no input but the box's keys and the
 buttons above its mask. Its first frame draws the screen as it stood, shadows it and captures the picture; every later
-frame draws that picture under the box, whose bars read the soldier views as playback goes on. Done and Stop, enabled by
+frame draws that picture, opaque over the whole screen, under the box, whose bars read the soldier views as playback goes
+on; from then on the tactical host draws no world below it, though the sound still follows the view (`worldCovered`,
+`src/app/tactical/tactical-host.ts`). Done and Stop, enabled by
 `complete`, and Esc, Enter and Space as `HandleAutoBandage` reads them, send `endAutoBandage` once; the box goes with the
 view's block, at the end of the next tick. The OK boxes of a pending question the sector no longer allows
 (`autoBandageRefused`) and of a failed full check (`autoBandageEnded.failed`, `pDoctorWarningString[1]`) are viewer

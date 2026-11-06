@@ -193,6 +193,7 @@ export class AutoBandageBox {
   #mask: MouseRegion | null = null;
   #buttons: Button[] = [];
   #captured = false;
+  #covering = false;
   #endSent = false;
 
   constructor(host: AutoBandageBoxHost) {
@@ -205,6 +206,10 @@ export class AutoBandageBox {
 
   get frozen(): boolean {
     return this.#captured;
+  }
+
+  get coversScreen(): boolean {
+    return this.#covering;
   }
 
   get complete(): boolean {
@@ -226,6 +231,7 @@ export class AutoBandageBox {
 
   #start(view: AutoBandageView): void {
     this.#captured = false;
+    this.#covering = false;
     this.#endSent = false;
     this.#mask = this.#host.services.regions.define({
       x1: 0,
@@ -273,6 +279,7 @@ export class AutoBandageBox {
     if (!this.#view) return;
     this.#view = null;
     this.#captured = false;
+    this.#covering = false;
     this.#mask?.remove();
     this.#mask = null;
     this.#host.services.buttons.removeOwner(OWNER);
@@ -290,8 +297,10 @@ export class AutoBandageBox {
     if (!view) return;
     const { width, height } = this.#host.services.geometry();
     const screen = { x: 0, y: 0, width, height };
-    if (this.#captured) list.snapshot(SNAPSHOT, screen, screen);
-    else {
+    if (this.#captured) {
+      list.snapshot(SNAPSHOT, screen, screen);
+      this.#covering = true;
+    } else {
       list.shadow(0, 0, width - 1, height - 1);
       list.capture(SNAPSHOT);
       this.#captured = true;

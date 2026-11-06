@@ -706,6 +706,10 @@ export class TacticalScreen implements Screen {
     return this.#panel;
   }
 
+  get worldCovered(): boolean {
+    return this.#autoBandage.coversScreen;
+  }
+
   get selected(): number | null {
     return this.#selected;
   }

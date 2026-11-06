@@ -419,6 +419,7 @@ export class TacticalHost {
       render: (width, height) => {
         const loaded = this.#loaded;
         if (!loaded || !this.loaded) return null;
+        if (this.#screen?.worldCovered) return this.#coveredWorld(loaded.presenter);
         const started = performance.now();
         loaded.presenter.resize(width, height);
         const picture = loaded.presenter.render();
@@ -428,6 +429,11 @@ export class TacticalHost {
       },
       present: (target, height) => this.#loaded?.presenter.present(target, height),
     };
+  }
+
+  #coveredWorld(presenter: TacticalWorldPresenter): number {
+    this.#updateSound(presenter);
+    return presenter.picture;
   }
 
   #updateSound(presenter: TacticalWorldPresenter): void {

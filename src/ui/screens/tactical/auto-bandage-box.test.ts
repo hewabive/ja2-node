@@ -186,13 +186,16 @@ describe('the auto-bandage box (Auto_Bandage.cc DisplayAutoBandageUpdatePanel)',
     const first = new DrawList();
     h.box.render(first);
     expect(first.items.slice(0, 2).map((i) => i.kind)).toEqual(['shadow', 'capture']);
-    expect(h.box.frozen).toBe(true);
+    expect([h.box.frozen, h.box.coversScreen]).toEqual([true, false]);
     const later = new DrawList();
     h.box.render(later);
+    expect(h.box.coversScreen).toBe(true);
     expect(later.items[0]).toMatchObject({ kind: 'snapshot', x: 0, y: 0, width: 640, height: 480 });
     const fullScreen = (i: DrawList['items'][number]) => 'width' in i && i.width === SCREEN.width && i.height === SCREEN.height;
     expect(later.items.filter(fullScreen).map((i) => i.kind)).toEqual(['snapshot']);
     expect(later.items.some((i) => i.kind === 'capture')).toBe(false);
+    h.box.update(null);
+    expect(h.box.coversScreen).toBe(false);
   });
 
   it('masks the screen but draws no panel and no buttons when a list is empty', async () => {

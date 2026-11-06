@@ -74,6 +74,7 @@ describe('auto-bandage on the tactical screen (Turn_Based_Input.cc a, Auto_Banda
   it('asks, shows the box of medics and patients over the frozen screen, which neither scrolls nor takes another key, and ends with Done', async () => {
     const f = await tacticalUiTest(kit, ui, 5);
     const patient = clearedWithAPatient(f);
+    expect(f.screen.worldCovered).toBe(false);
     f.key('a');
     await f.settle();
     expect(f.t.runtime.host.modal?.id).toBe('itemPromptBox');
@@ -85,6 +86,7 @@ describe('auto-bandage on the tactical screen (Turn_Based_Input.cc a, Auto_Banda
     expect(f.widget('autoBandageBox')).toMatchObject({ visible: true, state: 'running' });
     expect([f.widget('autoBandageBox.done').enabled, f.widget('autoBandageBox.cancel').enabled]).toEqual([false, true]);
     expect(f.draw().items[0]).toMatchObject({ kind: 'snapshot' });
+    expect(f.screen.worldCovered).toBe(true);
     f.key('m');
     f.key('Insert');
     expect([f.flow, f.screen.controls.overhead.open]).toEqual([[], false]);
@@ -103,6 +105,7 @@ describe('auto-bandage on the tactical screen (Turn_Based_Input.cc a, Auto_Banda
     expect(f.client.view.autoBandage ?? null).toBeNull();
     expect(f.find('autoBandageBox')).toBeUndefined();
     expect(f.draw().items.some((i) => i.kind === 'snapshot')).toBe(false);
+    expect(f.screen.worldCovered).toBe(false);
     expect([f.flow, f.screen.controls.overhead.open]).toEqual([[], false]);
   });
 });
