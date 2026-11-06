@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
 // @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the
-// @src LOCKUI_MODE test, 2026-10-30);
+// @src LOCKUI_MODE test, 2026-10-30; its fAutoBandagePending test, 2026-11-06);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
 // @src stops the menu's merc, 2026-11-01).
 
@@ -206,9 +206,16 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   return { ok: true, data: { walking: true, to: approach.gridNo } };
 }
 
+function autoBandageOnOrPending(t: TacticalState): boolean {
+  return t.pathEnv.autoBandage || t.autoBandage.pending;
+}
+
 function otherActivityUnderWay(t: TacticalState): boolean {
   return (
-    !t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking() || playerInterfaceLocked(t) || anyMercWalksToGiveItem(t) || t.pathEnv.autoBandage
+    !t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking() ||
+    playerInterfaceLocked(t) ||
+    anyMercWalksToGiveItem(t) ||
+    autoBandageOnOrPending(t)
   );
 }
 

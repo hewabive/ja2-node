@@ -80,6 +80,21 @@ describe('NPCs opening the closest door or cabinet', () => {
     expect(doorIsOpen(sim)).toBe(false);
   });
 
+  it('drops the opening when it arrives while an auto-bandage question waits for a merc of ours (Overhead.cc:840)', () => {
+    const sim = village();
+    const ours = spawnSoldier(sim, 0, Team.OUR, SIX_ROWS_SOUTH + 1, NORTH);
+    ours.pendingTalk = 40;
+    sim.state.autoBandage.pending = true;
+    const npc = spawnSoldier(sim, 40, Team.CIV, FIVE_ROWS_SOUTH, NORTH);
+    Object.assign(npc, { profile: Npc.ARMAND, neutral: true });
+    expect(npcOpenThing(fakeActionEnv(), sim.state, npc, true)).toBe(true);
+    stepFor(sim, NPC_WALK_AND_OPEN_TICKS);
+    expect(npc.gridNo).toBe(OUTSIDE);
+    expect(npc.pendingDoorAction).toBeNull();
+    expect(doorIsOpen(sim)).toBe(false);
+    expect(sim.state.autoBandage.pending).toBe(true);
+  });
+
   it('drops the opening when it arrives on his own team’s turn in combat, as the interface is locked then', () => {
     const sim = village();
     const npc = spawnSoldier(sim, 40, Team.CIV, FIVE_ROWS_SOUTH, NORTH);
