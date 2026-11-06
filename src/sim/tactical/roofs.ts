@@ -5,7 +5,8 @@
 // @src TileEngine/WorldDef.h FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET;
 // @src CheckSoldierHitRoof; Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
 // @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb; Tactical/Handle_UI.cc ChangeInterfaceLevel at codes 408 and 475;
-// @src our merc freed like the AI at codes 408 and 475 in auto-bandage (2026-11-06).
+// @src our merc freed like the AI at codes 408 and 475 in auto-bandage; code 408's UIHandleSoldierStanceChange to a crouch,
+// @src its SetUIbasedOnStance (2026-11-06).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
@@ -17,6 +18,7 @@ import { DamageReason } from './combat/types.ts';
 import { DIRECTION_COUNT } from './directions.ts';
 import { cancelAllServices } from './first-aid.ts';
 import { moveMercFacingDirection, setSoldierPosition } from './movement.ts';
+import { movementForStanceChange } from './movement-mode.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure } from './person-structure.ts';
 import { AP, apsToChangeStance, enoughPoints } from './points.ts';
@@ -161,6 +163,7 @@ function climbUpCommit(t: TacticalState, s: Soldier): void {
   setSoldierHeight(t, s, CLIMBED_UP_HEIGHT);
   followClimbWithInterface(t, s, ROOF_LEVEL);
   if (climbsAsAI(t, s)) t.turnHooks.freeUpFromRoofClimb(t, s);
+  if (s.team === Team.OUR) s.uiMovementMode = movementForStanceChange(t.content, AnimHeight.CROUCH);
   t.hooks.climbedRoof(t, s);
 }
 

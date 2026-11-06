@@ -5,7 +5,7 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import type { InterfaceLevelEvent, SimEvent } from '../events.ts';
 import { tacticalViewParts } from '../knowledge/sim-view.ts';
 import { AiAction } from './ai/actions.ts';
-import { AnimHeight, endHeight } from './animation.ts';
+import { AnimHeight, endHeight, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
@@ -21,6 +21,7 @@ import { Attitude, Body, Orders, Team } from './soldier.ts';
 import { setAutoBandageMode, whoIsThere } from './state.ts';
 
 const CLIMB_TICKS = 5000;
+const CLIMBED_UP_HEIGHT = 50;
 
 let content: TacticalContent;
 
@@ -126,6 +127,28 @@ describe('a climb of ours in auto-bandage (Soldier_Ani.cc 408, 475: FreeUpNPCFro
     };
     expect(climbAsAI(() => beginSoldierClimbUpRoof(t, merc))).toEqual([1, AiAction.NONE]);
     expect(climbAsAI(() => beginSoldierClimbDownRoof(t, merc))).toEqual([0, AiAction.NONE]);
+  });
+});
+
+describe('the gait once up (Soldier_Ani.cc 408: UIHandleSoldierStanceChange to a crouch, SetUIbasedOnStance)', () => {
+  function gaitOnceUp(team: number, id: number): number | undefined {
+    const sim = newCombatSim(content, [], 3, building());
+    const climber = spawnSoldier(sim, id, team, gridNo(84, 80), Direction.NORTH);
+    setAutoBandageMode(sim.state, true);
+    climber.uiMovementMode = states(content.animations).RUNNING;
+    climber.ai.action = AiAction.CLIMB_ROOF;
+    climber.ai.actionInProgress = true;
+    expect(beginSoldierClimbUpRoof(sim.state, climber)).toBe(true);
+    for (let tick = 0; tick < CLIMB_TICKS; tick++) {
+      sim.step();
+      if (climber.heightAdjustment === CLIMBED_UP_HEIGHT) return climber.uiMovementMode;
+    }
+    return undefined;
+  }
+
+  it('swats a merc of ours from the frame he is up, where an enemy keeps his gait', () => {
+    const st = states(content.animations);
+    expect([gaitOnceUp(Team.OUR, 0), gaitOnceUp(Team.ENEMY, 20)]).toEqual([st.SWATTING, st.RUNNING]);
   });
 });
 
