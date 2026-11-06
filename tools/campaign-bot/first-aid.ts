@@ -1,4 +1,5 @@
 import type { SoldierView } from '../../src/protocol/view.ts';
+import { autoBandage, autoBandageQuestion } from './auto-bandage.ts';
 import { handItem, isGun } from './gear.ts';
 import { tiles } from './grid.ts';
 import type { Observation } from './mcp-game.ts';
@@ -40,12 +41,20 @@ export async function kitInHand(p: Player, medic: SoldierView): Promise<boolean>
   return (await p.act({ type: 'moveItem', soldier: medic.id, from: slot, to: 'hand' })).ok;
 }
 
+async function bandagedByTheMode(p: Player, patient: number): Promise<boolean> {
+  const question = autoBandageQuestion(await p.observe());
+  if (question === null) return false;
+  await autoBandage(p, question);
+  return (await p.observe()).soldiers.find((s) => s.id === patient)?.bleeding === 0;
+}
+
 async function treat(p: Player, medic: SoldierView, patient: SoldierView): Promise<boolean> {
   const started = await p.act({ type: 'bandage', soldier: medic.id, target: patient.id });
   if (!started.ok) return false;
   for (let slice = 0; slice < AID_SLICES; slice++) {
     const report = await p.advance({ ticks: AID_SLICE_TICKS, events: [...DONE_EVENTS, 'combatStarted'] });
-    if (report.reason === 'decision' || report.events.some((e) => e.type === 'combatStarted')) return false;
+    if (report.events.some((e) => e.type === 'combatStarted')) return false;
+    if (report.reason === 'decision') return bandagedByTheMode(p, patient.id);
     if (report.events.some((e) => (DONE_EVENTS as readonly string[]).includes(e.type))) return true;
   }
   return false;

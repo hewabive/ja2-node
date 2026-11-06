@@ -1,4 +1,5 @@
 import type { ContractPromptView, NpcRequestPromptView, PromptView } from '../../src/protocol/view.ts';
+import { autoBandage, autoBandageQuestion, finishAutoBandage } from './auto-bandage.ts';
 import type { Observation } from './mcp-game.ts';
 import type { Player } from './player.ts';
 
@@ -44,7 +45,7 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
     case 'placeBlueFlag':
       return ['yes'];
     case 'beginAutoBandage':
-      return ['no'];
+      return ['yes'];
     case 'bombSetting':
     case 'remoteFrequency':
       return ['1'];
@@ -77,6 +78,15 @@ async function answerWith(p: Player, id: string, kind: string, choices: readonly
 
 export async function answerPrompts(p: Player, view: Observation): Promise<boolean> {
   const balance = view.strategic?.balance ?? 0;
+  const question = autoBandageQuestion(view);
+  if (question) {
+    await autoBandage(p, question);
+    return true;
+  }
+  if (view.autoBandage) {
+    await finishAutoBandage(p);
+    return true;
+  }
   if (view.prompt) return answerWith(p, view.prompt.id, view.prompt.kind, battleChoices(view.prompt, balance));
   if (view.contractPrompt) return answerWith(p, view.contractPrompt.id, view.contractPrompt.kind, contractChoices(view.contractPrompt));
   if (view.npcRequest)
