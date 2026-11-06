@@ -12,6 +12,7 @@ import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, idiv, u8 } from '../../../core/int.ts';
+import { AiAction } from '../ai/actions.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
 import { givingSoldierCancelServices } from '../first-aid.ts';
 import { InvSlot } from '../inventory.ts';
@@ -44,7 +45,7 @@ import { AP } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { selectedSoldier } from '../selection.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { mercs, type TacticalState } from '../state.ts';
 import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
 import { vehicleOfOurs } from '../vehicle-presence.ts';
 import { handleAnyStatChangesAfterAttack, StatCause, statChange } from './experience.ts';
@@ -60,6 +61,7 @@ const MAX_DISTANCE_VISIBLE = 26;
 const IRRELEVANT = -1;
 const ProfileAttitude = { AGGRESSIVE: 5, COWARD: 9 } as const;
 const AiAttitude = { DEFENSIVE: 0, BRAVESOLO: 1, BRAVEAID: 2, AGGRESSIVE: 4 } as const;
+const NPC_ATTACK_ACTIONS: readonly number[] = [AiAction.FIRE_GUN, AiAction.TOSS_PROJECTILE, AiAction.KNIFE_STAB];
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
 
@@ -186,6 +188,21 @@ export function noticeUnseenAttacker(t: TacticalState, att: Soldier, def: Soldie
   }
 }
 
+function attackStillQueued(t: TacticalState, s: Soldier): boolean {
+  return t.gameEvents.some((e) => e.kind === 'beginFireWeapon' && e.soldier === s.id);
+}
+
+function attackLeftWaiting(t: TacticalState, s: Soldier, releaser: Soldier | null): boolean {
+  return (
+    s !== releaser && s.team !== Team.OUR && s.ai.actionInProgress && NPC_ATTACK_ACTIONS.includes(s.ai.action) && !attackStillQueued(t, s)
+  );
+}
+
+function freeUpAttackersLeftWaiting(t: TacticalState, releaser: Soldier | null): void {
+  if (!t.inCombat) return;
+  for (const s of mercs(t)) if (attackLeftWaiting(t, s, releaser)) t.turnHooks.freeUpFromAttacking(t, s);
+}
+
 export function internalReduceAttackBusyCount(
   t: TacticalState,
   soldier: Soldier | null,
@@ -227,6 +244,7 @@ export function internalReduceAttackBusyCount(
     if (enterCombat && !t.inCombat && !inMeanwhile(t)) enterCombatMode(t, soldier.team);
     soldier.attackNoticed = false;
   }
+  freeUpAttackersLeftWaiting(t, soldier);
   const killed = t.turn.killedEnemyOnAttack;
   if (killed) {
     handleKilledQuote(t, killed);

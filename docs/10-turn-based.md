@@ -169,6 +169,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | The second sighter's team starts combat when the third sighter is on his team, and the best interrupts him; with only two sighters the best's team starts | `turns/turns.test.ts` |
 | Combat starts with a full turn plus the maximum carry-over, because real time never spends APs | `turns/turns.test.ts` |
 | End Turn judges a stopped merc's move by the first step of his path, not by the step he is on | `turns/turns.test.ts` |
+| End Turn cancels a halted walk-up but keeps its strike, so the merc finishes his step and strikes on the enemy's turn | `turns/end-turn.test.ts` |
 | Three teams in the interrupt queue cancel every interrupt, and the mover stops anyway | `turns/turns.test.ts` |
 | A tie in the interrupt duel goes to the mover | `turns/turns.test.ts` |
 | The point for an opponent seen before needs a second sighting: the first records −1, the test asks for `TRUE` | `turns/turns.test.ts` |

@@ -55,9 +55,10 @@ about (deviation "Last kill talked about").
 suppression stance changes. Every increment is paid by exactly one decrement; a soldier releases all hits of a sequence
 at once (`releaseSoldiersAttacker`). While the count is above 0, interrupts, noise and AI re-planning wait; reaching 0
 runs the end of the attack once, for whoever brought it to 0: the shooter, or the suppressor whose stance change ended
-last. There is no watchdog: holds the original leaves to its 15 s and 25 s breakers are released where they arise, and
-a leak fails the tests (deviations "Watchdogs", "Hit during a non-interruptible animation", "Knock-back and the
-sighting pause", "Suppression stance change from the end of the previous one").
+last, and frees an NPC whose attack another one outlasted. There is no watchdog: holds the original leaves to its 15 s
+and 25 s breakers are released where they arise, and a leak fails the tests (deviations "Watchdogs", "Hit during a
+non-interruptible animation", "Knock-back and the sighting pause", "Suppression stance change from the end of the
+previous one", "Attack outlasted by another").
 
 **Our dead merc holds the barrier** for a fixed 1920 game ms after 440, where the original waits for the portrait and
 skull animation in wall-clock time (deviation "Our merc's death").
