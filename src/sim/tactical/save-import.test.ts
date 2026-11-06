@@ -564,6 +564,14 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
       [false, true],
     ]);
   });
+
+  it('restores the time left to the next bleeding point of a wounded soldier (dNextBleed)', () => {
+    const halfwayToTheNextPoint = 4.7;
+    const save = syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { bBleeding: 6, dNextBleed: halfwayToTheNextPoint })],
+    });
+    expect(soldierOf(importedSim(save), MERC_ID).nextBleed).toBe(Math.fround(halfwayToTheNextPoint));
+  });
 });
 
 describe('the revealed map of the loaded sector (SaveLoadMap.cc LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus)', () => {
