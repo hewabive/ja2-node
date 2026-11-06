@@ -266,8 +266,6 @@ function jumpFence(ctx: OrderContext, s: Soldier): CommandResult {
   const direction = findFenceJumpDirection(t, s);
   if (direction < 0) return refuse('noFence', 'no fence to jump next to the soldier');
   if (!enoughPoints(t.inCombat, s, apsToJumpFence(t, s))) return refuse('notEnoughAP', `not enough APs: ${apsToJumpFence(t, s)} needed`);
-  s.dontChargeTurningAPs = true;
-  s.turningFromPronePosition = TurningFromProne.OFF;
   beginSoldierClimbFence(t, s);
   return { ok: true, data: { direction } };
 }

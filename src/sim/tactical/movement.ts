@@ -27,6 +27,7 @@ import {
   AnimHeight,
   adjustNoAPToFinishMove,
   beginSoldierClimbFence,
+  CONTINUE_MOVE_PAST_FENCE,
   endHeight,
   hasAnimFlag,
   initNewSoldierAnim,
@@ -383,7 +384,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
       s.pathIndex++;
       soldierGotoStationaryStance(t, s);
       beginSoldierClimbFence(t, s);
-      s.continueMoveAfterStanceChange = 2;
+      s.continueMoveAfterStanceChange = CONTINUE_MOVE_PAST_FENCE;
     }
     return { ok: false, keepMoving: true };
   }

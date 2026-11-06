@@ -12,7 +12,8 @@
 // @src (2026-11-04); SoldierGotoStationaryStance's tread in deep water and SetSoldierAniSpeed's stats of the soldier a
 // @src follower waits on (fUseMoverrideMoveSpeed, 2026-11-04); a vehicle's turn through ubHiResDirection and the
 // @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier,
-// @src Soldier_Ani.cc codes 412 and 413 (2026-11-05).
+// @src Soldier_Ani.cc codes 412 and 413 (2026-11-05); BeginSoldierClimbFence's free turn and prone reset, code 444's free
+// @src stance change on the final tile (2026-11-06).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -625,8 +626,8 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
       return;
     }
     if (s.continueMoveAfterStanceChange) {
-      if (s.continueMoveAfterStanceChange === 2) {
-        s.pathIndex = Math.min(s.pathIndex + 1, s.pathSize);
+      if (s.continueMoveAfterStanceChange === CONTINUE_MOVE_PAST_FENCE) {
+        stepPastFenceLanding(s);
         if (s.pathIndex !== s.pathSize) initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
       } else {
         initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
@@ -673,9 +674,24 @@ function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
   }
   if (s.gridNo !== s.finalDestination) return 'continue';
   const movementEnd = endHeight(t.content, s.uiMovementMode);
-  if (endHeight(t.content, s.state) !== movementEnd) changeSoldierStance(t, s, movementEnd);
-  else soldierGotoStationaryStance(t, s);
+  if (endHeight(t.content, s.state) !== movementEnd) {
+    s.dontChargeAPsForStanceChange = true;
+    changeSoldierStance(t, s, movementEnd);
+  } else {
+    soldierGotoStationaryStance(t, s);
+    endMoveOnFenceLanding(s);
+  }
   return 'stop';
+}
+
+function stepPastFenceLanding(s: Soldier): void {
+  s.pathIndex = Math.min(s.pathIndex + 1, s.pathSize);
+}
+
+function endMoveOnFenceLanding(s: Soldier): void {
+  if (s.continueMoveAfterStanceChange !== CONTINUE_MOVE_PAST_FENCE) return;
+  stepPastFenceLanding(s);
+  s.continueMoveAfterStanceChange = 0;
 }
 
 export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
@@ -824,9 +840,11 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
 export function beginSoldierClimbFence(t: TacticalState, s: Soldier): void {
   const best = findFenceJumpDirection(t, s);
   if (best < 0) return;
+  s.dontChargeTurningAPs = true;
   s.reverse = false;
   setDesiredDirection(t, s, best);
   s.turningUntilDone = true;
+  s.turningFromPronePosition = TurningFromProne.OFF;
   s.pendingAnimation = states(t.content.animations).HOPFENCE;
 }
 
@@ -935,6 +953,7 @@ function playsMeleeAttack(t: TacticalState, s: Soldier): boolean {
 }
 
 export const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
+export const CONTINUE_MOVE_PAST_FENCE = 2;
 const isVehicleBody = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const isTankBody = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 

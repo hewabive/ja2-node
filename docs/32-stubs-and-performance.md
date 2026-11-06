@@ -120,6 +120,8 @@ interrupted; otherwise the shot never comes and its busy count stays (`stubs/ani
 scripts carry the original's codes in its order: `REFUEL_VEHICLE` passes the refuel code 769 before its release,
 `GOTO_REPAIRMAN` goes on to `BEING_REPAIRMAN` after its release, and `VEHICLE_DIE` loops. A tank fires its cannon
 once in `TANK_SHOOT` and six rounds in `TANK_BURST`, between the attack busy codes, as the original's scripts do.
+`HOPFENCE` ends with its release, the end of the hop (code 444) and the end of the animation, in the original's order:
+a hop that ends the move changes stance at code 444, which a non-interruptible animation would refuse.
 
 **Vehicles.** The structure files `hmmv` (the Hummer, the Eldorado, the ice cream truck and the jeep) and `tnk_sht`,
 `tnk2_rot` (the two tanks) are own shapes (`STUB_VEHICLE_SHAPES`, `src/content/anim/structures.ts`): per facing, the

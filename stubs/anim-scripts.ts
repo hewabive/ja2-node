@@ -8,7 +8,7 @@ export const STUB_FRAMES_PER_DIRECTION = 12;
 const LOOP_FRAMES = 12;
 const ONE_SHOT_FRAMES = 8;
 const START_SWAT_FRAMES = 5;
-const HOP_FENCE_HALF = 9;
+const HOP_FENCE_FRAMES = 18;
 const JUMP_TO_START = 501;
 const END_OF_ANIMATION = 499;
 const NONINTERRUPTIBLE_DONE = 442;
@@ -652,14 +652,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
     else if (door) script = door(tables);
     else if (control.index === startSwat) script = [...frames(START_SWAT_FRAMES), stateJump(stateId(tables, 'SWATTING'))];
     else if (control.index === hopFence)
-      script = [
-        BEGIN_HOP_FENCE,
-        ...frames(HOP_FENCE_HALF),
-        END_HOP_FENCE,
-        ...frames(HOP_FENCE_HALF, HOP_FENCE_HALF + 1),
-        ...releases,
-        END_OF_ANIMATION,
-      ];
+      script = [BEGIN_HOP_FENCE, ...frames(HOP_FENCE_FRAMES), ...releases, END_HOP_FENCE, END_OF_ANIMATION];
     else if (STEPPING_STATES.includes(control.id)) script = steppingLoop();
     else if (control.index === standing) script = [...frames(LOOP_FRAMES), RANDOM_ANIM_CHECK, JUMP_TO_START];
     else if (looping.has(control.index) || control.flags & AnimFlags.MOVING) script = [...frames(LOOP_FRAMES), JUMP_TO_START];

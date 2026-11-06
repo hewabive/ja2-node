@@ -1,16 +1,24 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { layProne, raiseTiles, withTwoTileCreatureBodies, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import { createItem } from '../items/object.ts';
-import { AiAction } from './ai/actions.ts';
-import { initNewSoldierAnim, setDesiredDirection, setSoldierAniSpeed, states, TurningFromProne } from './animation.ts';
+import { AiAction, Situation } from './ai/actions.ts';
+import {
+  beginSoldierClimbFence,
+  initNewSoldierAnim,
+  setDesiredDirection,
+  setSoldierAniSpeed,
+  states,
+  TurningFromProne,
+} from './animation.ts';
 import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
@@ -35,6 +43,7 @@ import { AP } from './points.ts';
 import { bloodFloorStrength } from './smell.ts';
 import { Body, createSoldier, NO_PENDING_DIRECTION, Orders, type Soldier, Team, Visible } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
+import { TacticalSim } from './tactical-sim.ts';
 
 const doorCosts = testDoorCosts();
 let content: TacticalContent;
@@ -248,6 +257,85 @@ describe('walking', () => {
     expect(civilianRunSpeed).not.toBeCloseTo(runningSpeed);
     expect(firstStep(st.WALKING, START)).toBeCloseTo(content.animations.bodySpeeds.walk[Body.MANCIV]?.movement ?? 0, 4);
     expect(firstStep(st.RUNNING, gridNo(80, 84))).toBeCloseTo(runningSpeed, 4);
+  });
+});
+
+describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.cc code 444)', () => {
+  const LANDING = gridNo(80, 78);
+  const HOP_TICKS = 3_000;
+  const ENEMY_TURN_TICKS = 20_000;
+  const AMPLE_APS = 40;
+
+  function placeFence(w: WorldStructures): void {
+    for (let x = 60; x <= 100; x++) w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT));
+  }
+
+  function hopper(t: TacticalState, facing: number, mode: 'WALKING' | 'SWATTING'): Soldier {
+    const st = states(content.animations);
+    const s = spawn(t, START);
+    t.inCombat = true;
+    s.direction = s.desiredDirection = facing;
+    if (mode === 'SWATTING') initNewSoldierAnim(t, s, st.CROUCHING, 0, true);
+    s.uiMovementMode = st[mode];
+    s.actionPoints = AMPLE_APS;
+    return s;
+  }
+
+  function hopToLanding(facing: number, mode: 'WALKING' | 'SWATTING'): Soldier {
+    const t = tactical(placeFence);
+    const s = hopper(t, facing, mode);
+    expect(getNewSoldierPath(t, s, LANDING, s.uiMovementMode)).toBe(true);
+    for (let tick = 0; tick < HOP_TICKS; tick++) executeOverhead(t);
+    return s;
+  }
+
+  const apsSpent = (s: Soldier) => AMPLE_APS - s.actionPoints;
+
+  it('turns to a fence on his way for free', () => {
+    expect(apsSpent(hopToLanding(Direction.EAST, 'WALKING'))).toBe(apsSpent(hopToLanding(Direction.NORTH, 'WALKING')));
+  });
+
+  it('keeps a prone soldier who turns to a fence from lying down again once he faces it', () => {
+    const t = tactical(placeFence);
+    const s = spawn(t, START);
+    layProne(t, s);
+    beginSoldierClimbFence(t, s);
+    expect([s.desiredDirection, s.turningFromPronePosition]).toEqual([Direction.NORTH, TurningFromProne.OFF]);
+  });
+
+  it('gets up for free on the fence landing that is his final tile', () => {
+    expect(apsSpent(hopToLanding(Direction.NORTH, 'WALKING'))).toBe(AP.JUMPFENCE);
+  });
+
+  it('ends the move on the fence landing that is his final tile, swatting as walking: the path runs out and nothing continues it', () => {
+    const ends = (['WALKING', 'SWATTING'] as const).map((mode) => {
+      const s = hopToLanding(Direction.NORTH, mode);
+      return [s.gridNo, s.pathSize - s.pathIndex, s.continueMoveAfterStanceChange];
+    });
+    expect(ends).toEqual([
+      [LANDING, 0, 0],
+      [LANDING, 0, 0],
+    ]);
+  });
+
+  it('lets an enemy whose run away ends swatting on a fence landing finish his action, so the enemy turn ends', () => {
+    const base = syntheticWorld(doorCosts, placeFence);
+    const sim = new TacticalSim({ ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 3);
+    const t = sim.state;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 88), Direction.NORTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, START, Direction.SOUTH);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
+    const st = states(content.animations);
+    initNewSoldierAnim(t, enemy, st.CROUCHING, 0, true);
+    enemy.uiMovementMode = st.SWATTING;
+    enemy.ai.newSituation = Situation.NOT_NEW;
+    enemy.ai.action = AiAction.RUN_AWAY;
+    enemy.ai.actionData = LANDING;
+    enemy.ai.actionInProgress = true;
+    expect(getNewSoldierPath(t, enemy, LANDING, enemy.uiMovementMode)).toBe(true);
+    runUntilIdle(sim, ENEMY_TURN_TICKS);
+    expect([enemy.gridNo, t.turn.currentTeam]).toEqual([LANDING, Team.OUR]);
   });
 });
 

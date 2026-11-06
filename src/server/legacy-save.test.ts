@@ -121,6 +121,17 @@ const END_OF_ANIMATION = 499;
 const DEATH_OR_RELEASE = 497;
 const DEAD = 440;
 const JUMP_TO_START = 501;
+const BEGIN_HOP_FENCE = 450;
+const END_HOP_FENCE = 444;
+const RECORDED_HOP_FENCE_HALF = 9;
+const HOP_FENCE_LANDING_MIDWAY_AT_070 = [
+  BEGIN_HOP_FENCE,
+  ...frames(RECORDED_HOP_FENCE_HALF),
+  END_HOP_FENCE,
+  ...frames(RECORDED_HOP_FENCE_HALF, RECORDED_HOP_FENCE_HALF + 1),
+  NONINTERRUPTIBLE_DONE,
+  END_OF_ANIMATION,
+];
 const SAVE_NAMES = ['campaign', 'sandbox'];
 
 interface SoldierSummary {
@@ -260,6 +271,7 @@ async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<U
     replaceScript(codes, stateId(tables, name), [...frames(RECORDED_ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE]);
   for (const name of CREATURE_DEATH_STOPS_AT_070)
     replaceScript(codes, stateId(tables, name), [1, DEAD, ...frames(RECORDED_LOOP_FRAMES - 1, 2), JUMP_TO_START]);
+  replaceScript(codes, stateId(tables, 'HOPFENCE'), HOP_FENCE_LANDING_MIDWAY_AT_070);
   return writeAnimationScripts({ codes });
 }
 

@@ -26,6 +26,8 @@ const FLASH = 441;
 const BURST = 448;
 const END_BURST = 449;
 const LOCATE_TARGET = 477;
+const BEGIN_HOP_FENCE = 450;
+const END_HOP_FENCE = 444;
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
   'CROUCH_SHOOT_UNJAM',
@@ -124,6 +126,16 @@ describe('stub animation scripts', () => {
     const burstRound = [FLASH, BURST, FIRE, LOCATE_TARGET];
     expect(playedOpcodes(scripts, stateId(tables, 'TANK_BURST'))).toEqual({
       ops: [BUSY_UP, ...Array.from({ length: 6 }, () => burstRound).flat(), END_BURST, BUSY_DOWN, END_OF_ANIMATION],
+      next: null,
+    });
+  });
+
+  it('release the fence hop before its end at code 444, right before the end of the animation, as the original script does', async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const scripts = parseAnimationScripts(await buildStubAnimationScripts());
+    expect(playedOpcodes(scripts, stateId(tables, 'HOPFENCE'))).toEqual({
+      ops: [BEGIN_HOP_FENCE, NONINTERRUPTIBLE_DONE, END_HOP_FENCE, END_OF_ANIMATION],
       next: null,
     });
   });
