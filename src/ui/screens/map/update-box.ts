@@ -5,8 +5,8 @@
 // @src (no dead mercs, SIZE_OF_UPDATE_BOX), CreateDestroyTheUpdateBox (the screen mask, the paused game, newbeep.wav),
 // @src DisplaySoldierUpdateBox (two columns up to NUMBER_OF_MERCS_FOR_FOUR_WIDTH_UPDATE_PANEL mercs, four above, the
 // @src bottom 280 pixels down the map, the group_confirm_tactical.sti pieces, the faces with their names in TINYFONT1
-// @src FONT_LTRED, STR_LATE_49 over the button container, the reason from pUpdateMercStrings), RenderSoldierSmallFaceForUpdatePanel
-// @src (panels.sti, the 65face portrait, the life, bleeding, breath and morale bars), CreateDestroyUpdatePanelButtons
+// @src FONT_LTRED, STR_LATE_49 over the button container, the reason from pUpdateMercStrings; the face cell is
+// @src widgets/update-panel-face.ts, 2026-11-06), CreateDestroyUpdatePanelButtons
 // @src (group_confirm_tactical.sti 7/8 at MSYS_PRIORITY_HIGHEST - 1, pUpdatePanelButtons, STR_LATE_51 and STR_LATE_52),
 // @src EndUpdateBox (Continue restarts time compression, Stop stops it), MoveScreenMaskBtnCallbackSecondary (a right click
 // @src closes the box); src/game/Strategic/Assignments.cc AssignmentDone (ASSIGNMENT_FINISHED_FOR_UPDATE),
@@ -17,7 +17,7 @@
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
 import type { StrategicMercView, ViewFrame } from '../../../protocol/view.ts';
-import { type DrawList, rgb } from '../../draw-list.ts';
+import type { DrawList } from '../../draw-list.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
@@ -27,6 +27,13 @@ import { fontColors } from '../../text/print.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { displayWrappedString, drawTextToScreen, TextFlag } from '../../text/wrap.ts';
 import { type Button, twoFrameImage } from '../../widgets/button.ts';
+import {
+  drawUpdatePanelFace,
+  TACT_UPDATE_MERC_FACE_X_HEIGHT,
+  TACT_UPDATE_MERC_FACE_X_OFFSET,
+  TACT_UPDATE_MERC_FACE_X_WIDTH,
+  TACT_UPDATE_MERC_FACE_Y_OFFSET,
+} from '../../widgets/update-panel-face.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { Assignment } from './character-list.ts';
 
@@ -42,10 +49,10 @@ export const SIZE_OF_UPDATE_BOX = 20;
 const FOUR_WIDE_COLUMNS = 4;
 const TWO_WIDE_COLUMNS = 2;
 const FOUR_WIDE_ABOVE = 4;
-const BLOCK_WIDTH = 70;
-const BLOCK_HEIGHT = 49;
-const FACE_X_OFFSET = 8;
-const FACE_Y_OFFSET = 6;
+const BLOCK_WIDTH = TACT_UPDATE_MERC_FACE_X_WIDTH;
+const BLOCK_HEIGHT = TACT_UPDATE_MERC_FACE_X_HEIGHT;
+const FACE_X_OFFSET = TACT_UPDATE_MERC_FACE_X_OFFSET;
+const FACE_Y_OFFSET = TACT_UPDATE_MERC_FACE_Y_OFFSET;
 const REASON_OFFSET_Y = 14;
 const MAP_X = 290;
 const MAP_WIDTH = 336;
@@ -60,14 +67,6 @@ const REASON_DY_TWO = 3;
 const NAME_DX = -5;
 const NAME_DY = 31;
 const NAME_WIDTH = 57;
-const PORTRAIT_INSET = 2;
-const BARS_LEFT = 36;
-const BARS_RIGHT = 44;
-const BARS_TOP = 2;
-const BARS_BOTTOM = 30;
-const BAR_BASE = 29;
-const BAR_RANGE = 27;
-const FULL = 100;
 const MASK_PRIORITY = Priority.HIGHEST - 4;
 const BUTTON_PRIORITY = Priority.HIGHEST - 1;
 const STR_LATE_49 = 48;
@@ -79,18 +78,7 @@ const BUTTONS = 'pUpdatePanelButtons';
 const BUTTON_UP = 7;
 const BUTTON_DOWN = 8;
 const OWNER = 'updateBox';
-const BLACK = rgb(0, 0, 0);
 const Piece = { TOP_LEFT: 0, TOP_EDGE: 1, TOP_RIGHT: 2, LEFT_SIDE: 3, RIGHT_SIDE: 5, CONTAINER: 19, BLOCK: 20 } as const;
-const BLEEDING_SHADOW = rgb(107, 107, 57);
-const BLEEDING = rgb(222, 181, 115);
-const BANDAGED_SHADOW = rgb(156, 57, 57);
-const BANDAGED = rgb(222, 132, 132);
-const LIFE_SHADOW = rgb(107, 8, 8);
-const LIFE = rgb(206, 0, 0);
-const BREATH_SHADOW = rgb(8, 8, 132);
-const BREATH = rgb(8, 8, 107);
-const MORALE_SHADOW = rgb(8, 156, 8);
-const MORALE = rgb(8, 107, 8);
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 type Point = { readonly x: number; readonly y: number };
@@ -327,24 +315,9 @@ export class UpdateBox {
   }
 
   #renderFace(list: DrawList, m: StrategicMercView, x: number, y: number): void {
-    list.fill(x + BARS_LEFT, y + BARS_TOP, x + BARS_RIGHT, y + BARS_BOTTOM, BLACK);
-    list.image(this.#host.faces, 0, x, y);
     const face = this.#host.face(m.id);
-    if (face && this.#host.ensure(face)) list.image(face, 0, x + PORTRAIT_INSET, y + PORTRAIT_INSET);
-    if (m.life === 0) return;
-    const bottom = y + BAR_BASE;
-    const top = (value: number) => bottom - idiv(BAR_RANGE * value, FULL);
-    const bar = (dx: number, from: number, shadow: ReturnType<typeof rgb>, colour: ReturnType<typeof rgb>) => {
-      list.fill(x + dx, from, x + dx + 1, bottom, shadow);
-      list.fill(x + dx + 1, from, x + dx + 2, bottom, colour);
-    };
-    let start = top(m.lifeMax);
-    bar(BARS_LEFT, start, BLEEDING_SHADOW, BLEEDING);
-    start += idiv(BAR_RANGE * (m.bleeding ?? 0), FULL);
-    bar(BARS_LEFT, start, BANDAGED_SHADOW, BANDAGED);
-    bar(BARS_LEFT, top(m.life), LIFE_SHADOW, LIFE);
-    bar(BARS_LEFT + 3, top(m.breathMax), BREATH_SHADOW, BREATH);
-    bar(BARS_LEFT + 6, top(m.morale ?? 0), MORALE_SHADOW, MORALE);
+    const portrait = face && this.#host.ensure(face) ? face : null;
+    drawUpdatePanelFace(list, this.#host.faces, portrait, { ...m, bleeding: m.bleeding ?? 0, morale: m.morale ?? 0 }, x, y);
   }
 
   #renderTexts(list: DrawList, g: UpdatePanelGeometry, reason: number): void {
