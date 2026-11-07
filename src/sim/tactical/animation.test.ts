@@ -19,6 +19,7 @@ import {
   setDesiredDirection,
   setSoldierAniSpeed,
   setSoldierDirection,
+  soldierGotoStationaryStance,
 } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { executeOverhead } from './overhead.ts';
@@ -152,6 +153,24 @@ describe('the end of a hurt walk', () => {
       return animName(content, merc.state);
     };
     expect([stopOn(0, Terrain.FLAT_GROUND), stopOn(1, Terrain.LOW_WATER)]).toEqual(['END_HURT_WALKING', 'STANDING']);
+  });
+});
+
+describe("the creature queen's stationary stance (Soldier_Control.cc SoldierGotoStationaryStance)", () => {
+  it('readies a queen who sees somebody or is on our team, and lets the others breathe', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const restingStateOf = (id: number, team: number, oppCount: number) => {
+      const queen = spawnSoldier(sim, id, team, gridNo(70 + 10 * (id % 4), 70), Direction.SOUTH, { body: Body.QUEENMONSTER });
+      queen.ai.oppCount = oppCount;
+      soldierGotoStationaryStance(t, queen);
+      return animName(content, queen.state);
+    };
+    expect([restingStateOf(52, Team.CREATURE, 1), restingStateOf(53, Team.CREATURE, 0), restingStateOf(1, Team.OUR, 0)]).toEqual([
+      'QUEEN_READY',
+      'QUEEN_MONSTER_BREATHING',
+      'QUEEN_READY',
+    ]);
   });
 });
 

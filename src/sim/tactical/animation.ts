@@ -14,7 +14,7 @@
 // @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier,
 // @src Soldier_Ani.cc codes 412 and 413 (2026-11-05); BeginSoldierClimbFence's free turn and prone reset, code 444's free
 // @src stance change on the final tile (2026-11-06); SetSoldierAniSpeed's auto-bandage branch and Overhead.cc
-// @src ResetAllMercSpeeds (2026-11-06).
+// @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen (2026-11-07).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -329,8 +329,16 @@ export function changeSoldierState(t: TacticalState, s: Soldier, state: number, 
   initNewSoldierAnim(t, s, state, startCode, force);
 }
 
+function queenReadiesAtRest(s: Soldier): boolean {
+  return s.bodyType === Body.QUEENMONSTER && (s.ai.oppCount > 0 || s.team === Team.OUR);
+}
+
 export function soldierGotoStationaryStance(t: TacticalState, s: Soldier): void {
   const st = states(t.content.animations);
+  if (queenReadiesAtRest(s)) {
+    initNewSoldierAnim(t, s, anim(t.content, 'QUEEN_READY'), 0, true);
+    return;
+  }
   if (s.overTerrain === Terrain.DEEP_WATER) {
     initNewSoldierAnim(t, s, anim(t.content, 'DEEP_WATER_TRED'), 0, false);
     return;

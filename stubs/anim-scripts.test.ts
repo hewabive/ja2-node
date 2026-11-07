@@ -149,11 +149,11 @@ describe('stub animation scripts', () => {
     expect(script.slice(0, script.indexOf(0)).filter((c) => c > LAST_FRAME_CODE)).toEqual([JUMP_TO_START]);
   });
 
-  it('loop the treading in deep water, as the original script does', async () => {
+  it.each(['DEEP_WATER_TRED', 'QUEEN_READY'])('loop %s, as the original script does', async (state) => {
     const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
     const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
     const { codes } = parseAnimationScripts(await buildStubAnimationScripts());
-    const start = stateId(tables, 'DEEP_WATER_TRED') * MAX_FRAMES_PER_ANIM;
+    const start = stateId(tables, state) * MAX_FRAMES_PER_ANIM;
     const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
     expect(script[script.indexOf(0) - 1]).toBe(JUMP_TO_START);
   });

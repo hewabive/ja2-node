@@ -88,6 +88,7 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'VEHICLE_DIE',
   'TANK_SHOOT',
   'TANK_BURST',
+  'QUEEN_READY',
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set([
