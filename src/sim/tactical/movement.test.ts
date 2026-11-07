@@ -306,6 +306,7 @@ describe('walking', () => {
 
 describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.cc code 444)', () => {
   const LANDING = gridNo(80, 78);
+  const BEYOND_LANDING = gridNo(80, 76);
   const HOP_TICKS = 3_000;
   const ENEMY_TURN_TICKS = 20_000;
   const AMPLE_APS = 40;
@@ -380,6 +381,42 @@ describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.
     expect(getNewSoldierPath(t, enemy, LANDING, enemy.uiMovementMode)).toBe(true);
     runUntilIdle(sim, ENEMY_TURN_TICKS);
     expect([enemy.gridNo, t.turn.currentTeam]).toEqual([LANDING, Team.OUR]);
+  });
+
+  it('lets an enemy who crawls into a fence he already faces hop it and crawl on, so the enemy turn ends (deviation "Prone hop facing the fence")', () => {
+    const base = syntheticWorld(doorCosts, placeFence);
+    const sim = new TacticalSim({ ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 3);
+    const t = sim.state;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 88), Direction.NORTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, START, Direction.NORTH);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
+    layProne(t, enemy);
+    enemy.ai.newSituation = Situation.NOT_NEW;
+    enemy.ai.action = AiAction.RUN_AWAY;
+    enemy.ai.actionData = BEYOND_LANDING;
+    enemy.ai.actionInProgress = true;
+    expect(getNewSoldierPath(t, enemy, BEYOND_LANDING, enemy.uiMovementMode)).toBe(true);
+    runUntilIdle(sim, ENEMY_TURN_TICKS);
+    expect([enemy.gridNo, t.turn.currentTeam]).toEqual([BEYOND_LANDING, Team.OUR]);
+  });
+
+  it('gets a crawler who faces the fence up to a crouch, as turning to it would, so he hops it and crawls on (deviation "Prone hop facing the fence")', () => {
+    const t = tactical(placeFence);
+    const s = spawn(t, START);
+    s.direction = s.desiredDirection = Direction.NORTH;
+    layProne(t, s);
+    expect(getNewSoldierPath(t, s, BEYOND_LANDING, s.uiMovementMode)).toBe(true);
+    const played: string[] = [];
+    for (let tick = 0; tick < HOP_TICKS; tick++) {
+      executeOverhead(t);
+      const name = content.animations.controls[s.state]?.id ?? '';
+      if (played.at(-1) !== name) played.push(name);
+    }
+    expect([played, s.gridNo]).toEqual([
+      ['PRONE_UP', 'HOPFENCE', 'KNEEL_UP', 'KNEEL_DOWN', 'PRONE_DOWN', 'CRAWLING', 'PRONE'],
+      BEYOND_LANDING,
+    ]);
   });
 });
 

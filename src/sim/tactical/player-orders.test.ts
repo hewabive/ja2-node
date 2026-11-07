@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { layProne } from '../../../tests/support/prone-body.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
@@ -370,6 +371,19 @@ describe('jumping', () => {
     const open = newCombatSim(content);
     spawnSoldier(open, 0, Team.OUR, ORIGIN, Direction.SOUTH);
     expect(open.dispatch({ type: 'jump', soldier: 0 }).data).toEqual({ refusal: 'noFence' });
+  });
+
+  it('jumps a fence a prone merc already faces, getting up as a turn to it would (deviation "Prone hop facing the fence")', () => {
+    const fence = ORIGIN + EAST;
+    const sim = simWith((structures) =>
+      structures.add(fence, 0, syntheticStructure(StructureFlags.FENCE, Orientation.NONE, { height: 1 })),
+    );
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    layProne(sim.state, s);
+    combat(sim);
+    expect(sim.dispatch({ type: 'jump', soldier: 0 })).toEqual({ ok: true, data: { direction: Direction.EAST } });
+    runUntilIdle(sim);
+    expect(s.gridNo).toBe(ORIGIN + 2 * EAST);
   });
 });
 

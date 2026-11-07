@@ -15,7 +15,8 @@
 // @src Soldier_Ani.cc codes 412 and 413 (2026-11-05); BeginSoldierClimbFence's free turn and prone reset, code 444's free
 // @src stance change on the final tile (2026-11-06); SetSoldierAniSpeed's auto-bandage branch and Overhead.cc
 // @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen, SelectMoveAnimationFromStance after a
-// @src stance change that continues a move (2026-11-07).
+// @src stance change that continues a move; the crouch before a prone hop facing the fence (deviation "Prone hop facing
+// @src the fence", 2026-11-07).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -873,9 +874,18 @@ export function beginSoldierClimbFence(t: TacticalState, s: Soldier): void {
   s.dontChargeTurningAPs = true;
   s.reverse = false;
   setDesiredDirection(t, s, best);
+  if (liesFacingTheFence(t, s)) changeSoldierStance(t, s, AnimHeight.CROUCH);
   s.turningUntilDone = true;
   s.turningFromPronePosition = TurningFromProne.OFF;
   s.pendingAnimation = states(t.content.animations).HOPFENCE;
+}
+
+function liesFacingTheFence(t: TacticalState, s: Soldier): boolean {
+  return (
+    s.direction === s.desiredDirection &&
+    endHeight(t.content, s.state) === AnimHeight.PRONE &&
+    !hasAnimFlag(t.content, s.state, AnimFlags.TURNING)
+  );
 }
 
 export function findFenceJumpDirection(t: TacticalState, s: Soldier): number {
