@@ -13,7 +13,7 @@
 import { npcDialogueFile, textKey } from '../../../content/narrative/dialogue-text.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { InventoryItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
-import { EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
+import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { UiInputEvent } from '../../input/events.ts';
 import { ViewModelController } from '../../layout/controller.ts';
@@ -211,7 +211,7 @@ export class DialogueLayer {
     const cursor = this.#env.runtime.cursor;
     const graphic = item?.inventoryGraphics.small ?? null;
     if (!graphic || !this.#env.media.image(graphic.path)) {
-      if (this.#heldCursor) cursor.set(this.#env.runtime.regions.current?.cursor ?? 0, this.#now);
+      if (this.#heldCursor) cursor.set(this.#env.runtime.regions.pointedCursor ?? CursorId.NORMAL, this.#now);
       this.#heldCursor = false;
       return;
     }

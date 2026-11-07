@@ -164,6 +164,27 @@ describe('the region dispatcher', () => {
     expect(cursors).toEqual([9, 9, 3]);
   });
 
+  it('names the cursor the region under the pointer gives, its own or the one below, without setting it', () => {
+    const system = new RegionDispatcher(0);
+    const cursors: number[] = [];
+    system.onCursor((c) => cursors.push(c));
+    system.define({ x1: 0, y1: 0, x2: 100, y2: 100, priority: Priority.NORMAL, cursor: 9 });
+    const top = system.define({ x1: 10, y1: 10, x2: 20, y2: 20, priority: Priority.HIGH, cursor: NO_CURSOR });
+    expect(system.pointedCursor).toBeNull();
+    system.pointer(pointer('pointerMove', 15, 15), 0);
+    top.changeCursor(3);
+    system.define({ x1: 30, y1: 30, x2: 40, y2: 40, priority: Priority.HIGH, cursor: NO_CURSOR });
+    const seen = [system.pointedCursor];
+    system.pointer(pointer('pointerMove', 35, 35), 10);
+    seen.push(system.pointedCursor);
+    system.pointer(pointer('pointerMove', 200, 200), 20);
+    seen.push(system.pointedCursor);
+    expect([seen, cursors]).toEqual([
+      [3, 9, null],
+      [9, 3, 9],
+    ]);
+  });
+
   it('re-evaluates once per frame after the widgets change under a still pointer', () => {
     const system = new RegionDispatcher(0);
     const log: Log = [];

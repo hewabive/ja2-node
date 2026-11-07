@@ -275,6 +275,10 @@ export class RegionDispatcher {
     return this.#cursor;
   }
 
+  get pointedCursor(): number | null {
+    return this.#current ? this.#cursorOf(this.#current) : null;
+  }
+
   get mouseX(): number {
     return this.#mouseX;
   }
@@ -426,6 +430,10 @@ export class RegionDispatcher {
     return null;
   }
 
+  #cursorOf(region: MouseRegion): number | null {
+    return region.enabled && region.cursor !== NO_CURSOR ? region.cursor : this.#cursorBelow(region);
+  }
+
   #cursorBelow(region: MouseRegion): number | null {
     const start = this.#regions.indexOf(region);
     for (let i = start + 1; i < this.#regions.length; i++) {
@@ -454,11 +462,8 @@ export class RegionDispatcher {
       }
       if (current.enabled) current.onMove(current, MouseReason.GAIN_MOUSE);
     }
-    if (current.enabled && current.cursor !== NO_CURSOR) this.setCursor(current.cursor);
-    else {
-      const below = this.#cursorBelow(current);
-      if (below !== null) this.setCursor(below);
-    }
+    const cursor = this.#cursorOf(current);
+    if (cursor !== null) this.setCursor(cursor);
   }
 
   #track(region: MouseRegion): void {

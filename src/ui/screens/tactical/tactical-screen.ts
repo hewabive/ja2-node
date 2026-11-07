@@ -28,7 +28,8 @@
 // @src several; Handle_Items.cc HandleSoldierPickupItem counts the items of the click's z-level, 2026-11-02);
 // @src Interface.cc EndUIMessage (a key or click closes the feedback box); Interface_Items.cc HandleItemPointerClick (a
 // @src moving soldier under the pointer refused, the stale bad throw with CANNOT_THROW_TO_DEST_STR), DrawItemTileCursor (the
-// @src item's ground picture in the throw and give cursors, SetExternVOData), Interface.cc DrawSelectedUIAboveGuy (the
+// @src item's ground picture in the throw and give cursors, SetExternVOData), EndItemPointer (the normal cursor at once,
+// @src 2026-11-07), Interface.cc DrawSelectedUIAboveGuy (the
 // @src catcher's CATCH_STR, RELOAD_STR, MSG_PASS or GIVE_STR, 2026-11-03; a vehicle named in FONT_GRAY4 while nobody is
 // @src aboard, an empty vehicle of ours under its ASSIGNMENT_EMPTY in yellow, 2026-11-05); Interface_Panels.cc
 // @src TMClickSecondHandInvCallbackPrimary (ExitVehicle, 2026-11-05); src/game/Tactical/Squads.cc
@@ -1219,7 +1220,7 @@ export class TacticalScreen implements Screen {
     if (item && this.#itemTileCursorShown(item, now)) return;
     const graphic = item?.inventoryGraphics.small ?? null;
     if (!graphic || !this.#env.media.image(graphic.path) || this.controls.hidesHeldItem) {
-      if (this.#externCursor) this.#env.runtime.cursor.set(this.#env.runtime.regions.current?.cursor ?? CursorId.NORMAL, now);
+      if (this.#externCursor) this.#env.runtime.cursor.set(this.#env.runtime.regions.pointedCursor ?? CursorId.NORMAL, now);
       this.#externCursor = false;
       return;
     }

@@ -13,6 +13,7 @@ import type { InventoryQuery, StashEntryView } from '../../../protocol/map-inven
 import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, PlayerView, StrategicMercView } from '../../../protocol/view.ts';
+import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { HintAnswer, HintReply } from '../../game-client.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import type { LayoutModel } from '../../layout/model.ts';
@@ -337,6 +338,17 @@ describe('the map screen inventory over a scripted session', () => {
     h.info = h.client.view.strategic?.mercs[1] ?? null;
     await h.click('mercSlot7');
     expect(h.client.commands.at(-1)).toMatchObject({ type: 'moveItem', soldier: MERC, from: HAND, to: BIG_POCKET, toSoldier: OTHER });
+  });
+
+  it('shows the normal pointer as soon as the held item goes into a slot, with the mouse still (MAPEndItemPointer)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click('mercSlot5');
+    expect(h.t.runtime.cursor.current).toBe(EXTERN_CURSOR);
+    await h.click('mercSlot7');
+    expect([h.inventory.holding, h.t.runtime.cursor.current, h.t.runtime.cursorReport().visible]).toEqual([false, CursorId.NORMAL, true]);
   });
 
   it('splits money from the description box into the cursor and puts the split into another pocket', async () => {

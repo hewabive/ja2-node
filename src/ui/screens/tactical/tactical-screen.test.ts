@@ -16,7 +16,7 @@ import { createItem } from '../../../sim/items/object.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { addItemToPool, Visibility } from '../../../sim/tactical/world-items.ts';
-import { EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
+import { CursorId, EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
@@ -367,6 +367,18 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.inventory.cursor).toMatchObject({ item: 'CLIP9_15' });
     await f.click(`slot${BIG_POCKET}`);
     expect(inventory(f, 0).find((i) => i.slot === BIG_POCKET)).toMatchObject({ item: 'CLIP9_15', count: 2 });
+  });
+
+  it('shows the normal pointer as soon as the held item goes into a slot, with the mouse still (EndItemPointer)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    f.t.frame(FRAME_MS);
+    expect(f.t.runtime.cursor.current).toBe(EXTERN_CURSOR);
+    await f.click(`slot${NEXT_BIG_POCKET}`);
+    f.t.frame(FRAME_MS);
+    expect(f.screen.inventory.cursor).toBeNull();
+    expect([f.t.runtime.cursor.current, f.t.runtime.cursorReport().visible]).toEqual([CursorId.NORMAL, true]);
   });
 
   it('selects the owner of the item held over the map and moves the view to him once per object taken from a slot (DrawItemTileCursor)', async () => {

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc CreateDestroyMapInvButton, BltCharInvPanel (the armour as "{3d}%", the weight and
-// @src the camouflage as "{}%"), SetMapCursorItem and MAPEndItemPointer (the item picture as the cursor), HandleKeyESC;
+// @src the camouflage as "{}%"), SetMapCursorItem and MAPEndItemPointer (the item picture as the cursor, the normal cursor at
+// @src once, 2026-11-07), HandleKeyESC;
 // @src src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc CreateDestroyMapInventoryPoolButtons,
 // @src CancelSectorInventoryDisplayIfOn, HandleMouseInCompatableItemForMapSectorInventory (after 100 ms over a pool item:
 // @src the selected merc's and the page's compatible items outlined, HandleCompatibleAmmoUIForMapScreen and
@@ -355,7 +356,7 @@ export class MapInventory {
   #releaseCursor(now = this.#now): void {
     if (!this.#externCursor) return;
     const runtime = this.#host.env.runtime;
-    runtime.cursor.set(runtime.regions.current?.cursor ?? CursorId.NORMAL, now);
+    runtime.cursor.set(runtime.regions.pointedCursor ?? CursorId.NORMAL, now);
     this.#externCursor = false;
   }
 
