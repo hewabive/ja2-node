@@ -496,7 +496,7 @@ an enemy carrying one does the same for us. A `pickUp` or search on a tile in `k
 `buried` for the bomb under it, before the items there and without the pickup's APs: `yes` takes his disarm check,
 which digs the bomb up into his pockets, or onto the ground when they are full (a switch comes up as a remote bomb
 trigger, another action item as a detonator), and takes the blue flag off (`trapDisarmed`), or sets off every bomb of
-the tile (`trapSetOff` with CURSE1); `no` asks `removeBlueFlag`.
+the tile (`trapSetOff` with CURSE1) but those our mercs planted, which stay under their flag; `no` asks `removeBlueFlag`.
 
 `plantBomb {soldier, gridNo}` is the bomb cursor's click (`HandleItem`, `Handle_Items.cc:758`): it takes a mine, trip
 flare or trip klaxon in hand, or an explosive with a detonator or remote detonator attached, walks onto the tile (his own

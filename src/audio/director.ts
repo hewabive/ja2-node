@@ -701,6 +701,8 @@ export class SoundDirector {
       case 'enemySighted':
       case 'itemsPickedUp':
       case 'outOfBandages':
+      case 'trapDisarmed':
+      case 'trapSetOff':
         if (e.battleSound) this.#battleSound(e.soldier, e.battleSound, false);
         return;
       case 'nothingFound':

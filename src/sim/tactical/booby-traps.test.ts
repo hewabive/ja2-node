@@ -497,13 +497,16 @@ describe('the bomb under a tile our side knows to hold a mine (Handle_Items.cc H
     expect(t.explosionQueue.entries.map((e) => e.bomb)).toEqual([0, 1]);
   });
 
-  it('sets off nothing when the failed disarm is of a mine one of our mercs planted: our team never sets those off', () => {
+  it('sets off nothing when the failed disarm is of a mine one of our mercs planted, as our team never sets those off, yet the merc still curses with CURSE1 and keeps the blue flag (quirk)', () => {
     const { sim, t, merc } = scene();
-    bury(t, 'MINE', { owner: merc.id + SOLDIER_OWNER_OFFSET });
+    const mine = bury(t, 'MINE', { owner: merc.id + SOLDIER_OWNER_OFFSET });
     pickUp(sim);
     scriptedPre(t, [SURE_FAILURE, ...Array.from({ length: ROLLS_PER_DIFFICULTY_FOUND * EASY_TRAP }, () => NO_GAIN)]);
-    answer(sim, 'yes');
+    const events = answer(sim, 'yes');
     expect(t.explosionQueue.entries).toEqual([]);
+    expect(events.find((e) => e.type === 'trapSetOff')).toEqual(expect.objectContaining({ soldier: merc.id, battleSound: 'CURSE1' }));
+    expect(t.worldItems).toContain(mine);
+    expect(hasMineFlag(t, MERC_AT, MineFlag.PLAYER)).toBe(true);
   });
 
   it('asks on a no whether to take the blue flag off: yes takes it off, no leaves it', () => {

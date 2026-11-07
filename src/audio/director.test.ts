@@ -677,6 +677,18 @@ describe('the sound director', () => {
     expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
   });
 
+  it('has a merc who disarms a trap say COOL1 and one whose disarm fails curse with CURSE1, silent when the event brings no battle sound', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'trapDisarmed', tick: 10, soldier: 1, gridNo: G }])]);
+    r.director.applyFrames([frame(20, [], [{ type: 'trapSetOff', tick: 20, soldier: 2, gridNo: G }])]);
+    expect(files(r)).toEqual([]);
+    r.director.applyFrames([frame(30, [], [{ type: 'trapDisarmed', tick: 30, soldier: 1, gridNo: G, battleSound: 'COOL1' }])]);
+    r.director.applyFrames([frame(40, [], [{ type: 'trapSetOff', tick: 40, soldier: 2, gridNo: G, battleSound: 'CURSE1' }])]);
+    expect(files(r)[0]).toMatch(/^battlesnds\/007_cool/);
+    expect(files(r)[1]).toMatch(/^battlesnds\/011_curse/);
+  });
+
   it('has the merc an item was applied to say COOL1, except after a canteen, which plays its drinking sound instead', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
