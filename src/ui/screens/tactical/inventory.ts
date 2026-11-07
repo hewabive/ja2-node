@@ -35,15 +35,16 @@ import {
   combineCommand,
   cursorFromKeyRing,
   cursorFromSlot,
+  cursorOnLeftover,
   hidesSlot,
   type ItemCursor,
   keyRingCommand,
   moneyTaken,
   placeCommand,
+  putsBackUnchanged,
   REFUSAL_MERGE_PROMPT,
   REFUSAL_USE_ATTACH,
   remainingCursor,
-  returnsToItsSlot,
   shownCount,
   slotItem,
 } from './item-cursor.ts';
@@ -432,21 +433,21 @@ export class InventoryPanel {
   async place(target: SoldierView, slot: number, merge?: boolean): Promise<void> {
     const cursor = this.#cursor;
     if (!cursor) return;
-    if (returnsToItsSlot(cursor, target.id, slot)) {
-      this.#endPlacement();
+    if (putsBackUnchanged(cursor, target, slot)) {
+      this.#endPlacement(null);
       return;
     }
     const reply = await this.send(placeCommand(cursor, target.id, slot, merge));
     if (reply.ok) {
       if (merge === true) this.#cursor = null;
-      else this.#endPlacement();
+      else this.#endPlacement(cursorOnLeftover(reply.data));
       return;
     }
     await this.#attachOrMerge(target, slot, refusalOf(reply.data));
   }
 
-  #endPlacement(): void {
-    this.#cursor = null;
+  #endPlacement(leftover: ItemCursor | null): void {
+    this.#cursor = leftover;
     this.#hooks.placed?.();
   }
 

@@ -9,7 +9,8 @@
 // @src talkable target: an escort or the robot at any distance, 2026-11-01), RemoveMoney (the split amount goes into the cursor),
 // @src BeginKeyRingItemPointer (one key off the ring, SHIFT all of the position); Interface_Panels.cc
 // @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position); Handle_UI.cc IsValidTalkableNPC;
-// @src UIHandleItemPlacement (PlaceObject back into the slot the object came from, 2026-11-02; CTRL pools the cursor's
+// @src UIHandleItemPlacement (PlaceObject back into the slot the object came from, 2026-11-02, at the stack's end for
+// @src one object of a stack, and the cursor kept on what the placement leaves in it, 2026-11-07; CTRL pools the cursor's
 // @src objects into the stack clicked, any merc's and from any slot, a gun's magazine, an attachment, money or the key
 // @src ring, and leaves the rest in the cursor;
 // @src keys off the ring dropped, given, passed or thrown, 2026-11-03).
@@ -246,9 +247,24 @@ export function cancelCommand(cursor: ItemCursor): CommandEnvelope | null {
   return null;
 }
 
-export function returnsToItsSlot(cursor: ItemCursor, soldier: number, slot: number): boolean {
+export function putsBackUnchanged(cursor: ItemCursor, target: SoldierView, slot: number): boolean {
   const s = cursor.source;
-  return (s.kind === 'slot' || s.kind === 'money') && s.soldier === soldier && s.slot === slot;
+  if ((s.kind !== 'slot' && s.kind !== 'money') || s.soldier !== target.id || s.slot !== slot) return false;
+  return s.kind === 'money' || s.count === 'all' || (slotItem(target, slot)?.count ?? 0) <= 1;
+}
+
+interface LeftoverSpot {
+  readonly item: string;
+  readonly soldier: number;
+  readonly slot: number;
+  readonly count: CursorCount;
+  readonly index?: number;
+}
+
+export function cursorOnLeftover(data: unknown): ItemCursor | null {
+  const spot = (data as { readonly leftover?: LeftoverSpot } | undefined)?.leftover;
+  if (!spot) return null;
+  return { source: { kind: 'slot', soldier: spot.soldier, slot: spot.slot, count: spot.count, index: spot.index ?? 0 }, item: spot.item };
 }
 
 export function cursorObjectHeld(cursor: ItemCursor, holder: SoldierView | null): boolean {

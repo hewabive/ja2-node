@@ -11,7 +11,9 @@
 // @src then the drop places it: one command); Interface_Items.cc BeginItemPointer (SHIFT takes the stack onto the
 // @src portrait too) and Drugs_And_Alcohol.cc ApplyDrugs from SMInvClickCamoCallback (2026-11-04); Items.cc ApplyCanteen
 // @src (the drinking sound by the profile's sex) and SMInvClickCamoCallback (the item pointer ends only with no object
-// @src left in it, 2026-11-04).
+// @src left in it, 2026-11-04); UIHandleItemPlacement (what PlaceObject leaves in the item pointer stays there: kept
+// @src where it moves nothing else and named for the cursor; GetObjFrom and StackObjs put one object of a stack clicked
+// @src back onto it at the stack's end, 2026-11-07).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -196,6 +198,64 @@ export function cancelCursor(env: PanelEnv, owner: Soldier, sourceSlot: number, 
   if (cursor.count > 0) env.leftover(owner, cursor);
 }
 
+export interface LeftoverSpot {
+  readonly item: string;
+  readonly soldier: number;
+  readonly slot: number;
+  readonly count: Count;
+  readonly index?: number;
+}
+
+interface SlotFill {
+  readonly item: number;
+  readonly count: number;
+}
+
+const slotFills = (c: { readonly inv: readonly ItemObject[] }): SlotFill[] => c.inv.map((o) => ({ item: o.item, count: o.count }));
+
+function onlyAddsTo(before: readonly SlotFill[], after: readonly SlotFill[], slot: number, item: number): boolean {
+  return before.every((was, pos) => {
+    const now = after[pos] as SlotFill;
+    if (pos !== slot) return now.item === was.item && now.count === was.count;
+    return now.item === item && now.count > was.count && (was.count === 0 || was.item === item);
+  });
+}
+
+function takesWithoutMovingOthers(env: PanelEnv, owner: Soldier, slot: number, o: ItemObject): boolean {
+  const trial = clonedCarrier(owner);
+  const rest = cloneObject(o);
+  if (!placeObject(dryContext(env, owner), trial, slot, rest)) return false;
+  const kept = rest.count === 0 || rest.item === o.item;
+  return kept && onlyAddsTo(slotFills(owner), slotFills(trial), slot, o.item);
+}
+
+function spotOf(env: PanelEnv, owner: Soldier, before: readonly SlotFill[], item: number): LeftoverSpot | null {
+  const after = slotFills(owner);
+  const changed = after.flatMap((now, pos) => {
+    const was = before[pos] as SlotFill;
+    return now.item !== was.item || now.count !== was.count ? [pos] : [];
+  });
+  if (changed.length !== 1) return null;
+  const slot = changed[0] as number;
+  const was = before[slot] as SlotFill;
+  const now = after[slot] as SlotFill;
+  const spot = { item: name(env.items, item), soldier: owner.id, slot };
+  if (was.count === 0) return { ...spot, count: 'all' };
+  return now.count - was.count === 1 ? { ...spot, count: 1, index: was.count } : null;
+}
+
+function parkLeftover(env: PanelEnv, owner: Soldier, sourceSlot: number, cursor: ItemObject): LeftoverSpot | null {
+  if (cursor.count === 0) return null;
+  const item = cursor.item;
+  const before = slotFills(owner);
+  const ctx = env.context(owner);
+  if (sourceSlot !== NO_SLOT && takesWithoutMovingOthers(env, owner, sourceSlot, cursor)) placeObject(ctx, owner, sourceSlot, cursor);
+  if (cursor.count > 0) autoPlaceObject(ctx, owner, cursor);
+  if (cursor.count === 0) return spotOf(env, owner, before, item);
+  env.leftover(owner, cursor);
+  return null;
+}
+
 export function transferCheckRefusal(env: PanelEnv, mover: Soldier, target: Soldier, aps = TRANSFER_CHECK_APS): PanelRefusal | null {
   if (mover === target || !env.inCombat) return null;
   if (mover.life >= CONSCIOUSNESS && !enoughPoints(env.inCombat, mover, aps)) return PanelRefusal.NOT_ENOUGH_AP;
@@ -254,11 +314,15 @@ function attachOrMergeRefusal(env: PanelEnv, req: MoveRequest, cursorItem: numbe
   return attachOrMergeAt(env, req.to, itemIn(req.target.inv, req.to), cursorItem, req.merge);
 }
 
+function changesNothing(req: MoveRequest, source: ItemObject): boolean {
+  return req.mover === req.target && req.from === req.to && (req.count === 'all' || source.count <= 1);
+}
+
 export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
   const { mover, from, target, to } = req;
   const source = mover.inv[from] as ItemObject;
   if (source.item === NOTHING) return refuse(PanelRefusal.EMPTY_SLOT);
-  if (mover === target && from === to) return refuse(PanelRefusal.SAME_SLOT);
+  if (changesNothing(req, source)) return refuse(PanelRefusal.SAME_SLOT);
   if (nailsRefuses(env.items, mover, from, NOTHING)) return refuse(PanelRefusal.NAILS_VEST);
   const transfer = transferCheckRefusal(env, mover, target);
   if (transfer) return refuse(transfer);
@@ -284,14 +348,13 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
   if (merging) return mergeIntoSlot(env, req, cursor, cursorItem);
   const oldTarget = itemIn(target.inv, to);
   const placed = placeObject(env.context(target), target, to, cursor);
-  let owner = mover;
-  if (placed) {
-    chargeTransfer(env, mover, target);
-    env.equipmentChanged(target, to, oldTarget, cursorItem);
-    owner = env.mapScreen ? mover : target;
+  if (!placed) {
+    cancelCursor(env, mover, from, cursor);
+    return refuse(PanelRefusal.DOES_NOT_FIT);
   }
-  cancelCursor(env, owner, from, cursor);
-  if (!placed) return refuse(PanelRefusal.DOES_NOT_FIT);
+  chargeTransfer(env, mover, target);
+  env.equipmentChanged(target, to, oldTarget, cursorItem);
+  const leftover = parkLeftover(env, env.mapScreen ? mover : target, from, cursor);
   env.emit({
     type: 'itemMoved',
     soldier: mover.id,
@@ -301,7 +364,7 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
     to,
     ...(target !== mover ? { toSoldier: target.id } : {}),
   });
-  return { ok: true, data: { item: name(env.items, cursorItem), count: moved } };
+  return { ok: true, data: { item: name(env.items, cursorItem), count: moved, ...(leftover ? { leftover } : {}) } };
 }
 
 export interface SplitMoneyRequest {

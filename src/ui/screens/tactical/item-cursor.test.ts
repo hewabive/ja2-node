@@ -4,10 +4,12 @@ import {
   applyCommand,
   combineCommand,
   cursorFromSlot,
+  cursorOnLeftover,
   dropCommand,
   giveCommand,
   type ItemCursor,
   passCommand,
+  putsBackUnchanged,
   remainingCursor,
   tossCommand,
 } from './item-cursor.ts';
@@ -125,5 +127,38 @@ describe('the CTRL+click of a cursor on a stack (UIHandleItemPlacement, CleanUpS
     expect(remainingCursor(cursor, { combined: true, left: 0 })).toBeNull();
     expect(remainingCursor(cursor, { combined: true, left: 1, index: 2 })?.source).toMatchObject({ index: 2 });
     expect(remainingCursor(cursor, { combined: false, left: 1 })).toBe(cursor);
+  });
+});
+
+describe('the item cursor placed in a pocket (UIHandleItemPlacement)', () => {
+  const stack = { slot: SMALL_POCKET, item: 'CLIP9_15', index: CLIP_INDEX, count: 3, status: [15, 7, 3] };
+  const single = { slot: SMALL_POCKET + 1, item: 'CLIP9_15', index: CLIP_INDEX, count: 1, status: [15] };
+  const merc = view(0, OUR_TEAM, { inventory: [stack, single] });
+  const at = (slot: number, count: 1 | 'all'): ItemCursor => ({
+    source: { kind: 'slot', soldier: 0, slot, count, index: 0 },
+    item: 'CLIP9_15',
+  });
+
+  it('needs no command only where putting it back changes nothing: the whole stack or a lone object', () => {
+    expect(putsBackUnchanged(at(SMALL_POCKET, 1), merc, SMALL_POCKET)).toBe(false);
+    expect(putsBackUnchanged(at(SMALL_POCKET, 'all'), merc, SMALL_POCKET)).toBe(true);
+    expect(putsBackUnchanged(at(SMALL_POCKET + 1, 1), merc, SMALL_POCKET + 1)).toBe(true);
+    expect(putsBackUnchanged(at(SMALL_POCKET + 1, 1), merc, SMALL_POCKET)).toBe(false);
+    expect(putsBackUnchanged(at(SMALL_POCKET, 'all'), view(1, OUR_TEAM, { inventory: [stack] }), SMALL_POCKET)).toBe(false);
+  });
+
+  it('keeps the cursor on the leftover the server names, and ends it when none is named', () => {
+    expect(cursorOnLeftover({ item: 'CLIP9_15', count: 1 })).toBeNull();
+    expect(cursorOnLeftover({ leftover: { item: 'CLIP9_15_AP', soldier: 2, slot: 7, count: 1, index: 2 } })).toEqual({
+      source: { kind: 'slot', soldier: 2, slot: 7, count: 1, index: 2 },
+      item: 'CLIP9_15_AP',
+    });
+    expect(cursorOnLeftover({ leftover: { item: 'CLIP9_15', soldier: 0, slot: 11, count: 'all' } })?.source).toEqual({
+      kind: 'slot',
+      soldier: 0,
+      slot: 11,
+      count: 'all',
+      index: 0,
+    });
   });
 });

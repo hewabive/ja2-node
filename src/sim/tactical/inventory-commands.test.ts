@@ -32,6 +32,20 @@ function inCombat(sim: TacticalSim): void {
   expect(sim.state.inCombat).toBe(true);
 }
 
+function magazines(s: Soldier, slot: number, name: string, rounds: readonly number[]): void {
+  const o = createItems(content.items, item(name), 100, rounds.length);
+  o.status = [...rounds];
+  s.inv[slot] = o;
+}
+
+function glockWith(s: Soldier, rounds: number): void {
+  const gun = createItem(content.items, item('GLOCK_17'), 100);
+  gun.gunShotsLeft = rounds;
+  s.inv[InvSlot.HAND] = gun;
+}
+
+const roundsIn = (s: Soldier, slot: number): number[] => (s.inv[slot]?.status ?? []).slice(0, s.inv[slot]?.count ?? 0);
+
 describe('moving items inside one inventory', () => {
   it('puts a pocket item into the hand, swapping the old hand item back into the pocket, for free in combat', () => {
     const sim = newCombatSim(content);
@@ -61,6 +75,20 @@ describe('moving items inside one inventory', () => {
     });
     expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket2', to: 'vest' })).toMatchObject({ ok: true });
     expect(itemAt(merc, InvSlot.VEST)).toBe('FLAK_JACKET');
+  });
+
+  it('puts one object taken off a stack back at the end of that stack, as PlaceObject stacks it there', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    magazines(merc, InvSlot.BIGPOCK1, 'CLIP9_15', [15, 7, 3]);
+    merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('CLIP9_15'), 100);
+    const back = { type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'bigPocket1', count: 1 };
+    expect(sim.dispatch(back)).toEqual({ ok: true, data: { item: 'CLIP9_15', count: 1 } });
+    expect(roundsIn(merc, InvSlot.BIGPOCK1)).toEqual([7, 3, 15]);
+    expect(sim.dispatch({ ...back, index: 1 })).toMatchObject({ ok: true });
+    expect(roundsIn(merc, InvSlot.BIGPOCK1)).toEqual([7, 15, 3]);
+    expect(sim.dispatch({ ...back, count: 'all' })).toMatchObject({ ok: false, data: { refusal: 'sameSlot' } });
+    expect(sim.dispatch({ ...back, from: 'bigPocket2', to: 'bigPocket2' })).toMatchObject({ ok: false, data: { refusal: 'sameSlot' } });
   });
 
   it('asks before merging on a hand item and attaches through attach', () => {
@@ -250,6 +278,49 @@ describe('reloading and unloading', () => {
       ok: false,
       data: { refusal: 'emptySlot' },
     });
+  });
+
+  it('leaves the rest of a magazine that tops the gun off in its pocket and names it, where the cursor keeps it', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    glockWith(merc, 10);
+    magazines(merc, InvSlot.BIGPOCK1, 'CLIP9_15', [15, 15, 15]);
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand', count: 1 })).toMatchObject({
+      ok: true,
+      data: { leftover: { item: 'CLIP9_15', soldier: 0, slot: InvSlot.BIGPOCK1, count: 1, index: 2 } },
+    });
+    expect([merc.inv[InvSlot.HAND]?.gunShotsLeft, roundsIn(merc, InvSlot.BIGPOCK1)]).toEqual([15, [15, 15, 10]]);
+    glockWith(merc, 12);
+    magazines(merc, InvSlot.BIGPOCK2, 'CLIP9_15', [15]);
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket2', to: 'hand' })).toMatchObject({
+      data: { leftover: { item: 'CLIP9_15', slot: InvSlot.BIGPOCK2, count: 'all' } },
+    });
+    expect(roundsIn(merc, InvSlot.BIGPOCK2)).toEqual([12]);
+  });
+
+  it('keeps a magazine swapped out for another ammo type off the stack the new one came from', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    glockWith(merc, 10);
+    magazines(merc, InvSlot.BIGPOCK1, 'CLIP9_15_AP', [15, 15, 15]);
+    const moved = sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand', count: 1 });
+    expect(moved).toMatchObject({ ok: true, data: { leftover: { item: 'CLIP9_15', soldier: 0, count: 'all' } } });
+    const slot = (moved.data as { leftover: { slot: number } }).leftover.slot;
+    expect([itemAt(merc, slot), roundsIn(merc, slot)]).toEqual(['CLIP9_15', [10]]);
+    expect([itemAt(merc, InvSlot.BIGPOCK1), roundsIn(merc, InvSlot.BIGPOCK1)]).toEqual(['CLIP9_15_AP', [15, 15]]);
+  });
+
+  it('names no leftover when it finds no pocket and falls at his feet', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    glockWith(merc, 10);
+    magazines(merc, InvSlot.BIGPOCK1, 'CLIP9_15_AP', [15, 15]);
+    for (let slot: number = InvSlot.SECOND_HAND; slot <= InvSlot.SMALLPOCK8; slot++)
+      if (slot !== InvSlot.BIGPOCK1) merc.inv[slot] = createItem(content.items, item('CLIP9_15_AP'), 100);
+    const moved = sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand', count: 1 });
+    expect(moved).toMatchObject({ ok: true });
+    expect(moved.data).not.toHaveProperty('leftover');
+    expect(merc.inv.some((_, slot) => itemAt(merc, slot) === 'CLIP9_15')).toBe(false);
   });
 
   it('refuses ammunition of another calibre and a reload without ammo', () => {

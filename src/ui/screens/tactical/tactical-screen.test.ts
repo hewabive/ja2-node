@@ -29,6 +29,7 @@ import { MAX_AGE } from './message-log.ts';
 const HAND = 5;
 const BIG_POCKET = 7;
 const NEXT_BIG_POCKET = 8;
+const HAND_SLOT = 5;
 const SMALL_POCKET = 11;
 const STAT_FLASH_MS = 60_000;
 const FRAME_MS = 16;
@@ -562,10 +563,10 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([f.screen.inventory.cursor, f.screen.controls.input.mode]).toEqual([null, UiMode.MOVE_MODE]);
   });
 
-  it('keeps the held item through Esc and a right click on the map until it goes back into its slot, with no command', async () => {
+  it('keeps the held stack through Esc and a right click on the map until it goes back into its slot, with no command', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);
-    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${BIG_POCKET}`, MouseButton.LEFT, KeyModifier.SHIFT);
     const held = f.screen.inventory.cursor;
     f.key('Escape');
     const { width } = f.t.runtime.geometry();
@@ -575,6 +576,31 @@ describe('the tactical screen over a stub sandbox session', () => {
     await f.click(`slot${BIG_POCKET}`);
     pointerTo(f, width / 2, VIEW_ROW_Y);
     expect([f.screen.inventory.cursor, f.client.commands.length, f.screen.controls.input.mode]).toEqual([null, sent, UiMode.MOVE_MODE]);
+  });
+
+  it('puts one magazine taken off its stack back at the end of the stack, with a moveItem into the same slot', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${BIG_POCKET}`);
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'moveItem', from: BIG_POCKET, to: BIG_POCKET, count: 1 },
+      reply: { ok: true },
+    });
+    expect(f.screen.inventory.cursor).toBeNull();
+  });
+
+  it('keeps the magazine a reload leaves in the cursor, on the pocket the server put it in', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    const stack = inventory(f, 0).find((i) => i.slot === BIG_POCKET)?.count ?? 0;
+    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${HAND_SLOT}`);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'moveItem', from: BIG_POCKET, to: HAND_SLOT }, reply: { ok: true } });
+    expect(f.screen.inventory.cursor).toEqual({
+      source: { kind: 'slot', soldier: 0, slot: BIG_POCKET, count: 1, index: stack - 1 },
+      item: 'CLIP9_15',
+    });
   });
 
   it('puts the held item back when combat starts, as CommonEnterCombatModeCode cancels the item pointer', async () => {

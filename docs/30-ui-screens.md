@@ -111,8 +111,8 @@ talk").
 
 **The item cursor and the pickup menu live in the client.** The cursor is a local selection drawn as the mouse cursor
 until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it,
-and so does a `combineStack` or an `applyItem` that leaves objects in it, at the index its answer names (deviation "Item
-cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp` (deviation
+and so does a `combineStack` or an `applyItem` that leaves objects in it, at the index its answer names, and a
+`moveItem` that leaves one, on the pocket its `leftover` names (deviation "Item cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp` (deviation
 "Pickup menu").
 
 **The overhead map is the picture the player last saw.** The original composes it from the level nodes at every entry;
@@ -273,6 +273,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The item cursor's crosshair stays bad from the last landing check until the pointer rests long enough on another tile, and a click before that is refused as a bad throw (`Tactical/Interface_Items.cc:3078`, `:3475`) | `tactical/input/item-tile-cursor.test.ts` "turns the crosshair bad … until the next rest …" |
 | A real-time right click within the double-click time of the last one does not swap the item cursor's give and throw (`Tactical/Real_Time_Input.cc:931`) | `tactical/tactical-screen.test.ts` "passes the held item … a real-time double click does not swap back" |
 | On the map screen a CTRL+click on a stack without a cursor cleans the stack up and still picks it up, as `MAPInvClickCallbackPrimary` does not return after `CleanUpStack` (`Strategic/MapScreen.cc:3704`); the tactical panel returns | `map/map-inventory.test.ts` "cleans up a stack with CTRL+click on the map and still picks it up …" |
+| One object taken off a stack and put back onto it goes to the stack's end (`GetObjFrom`, `StackObjs`: `Tactical/Items.cc:935`, `:969`), so clicks cycle a stack of magazines and change the top one's rounds | `tactical/tactical-screen.test.ts` "puts one magazine taken off its stack back at the end of the stack …", `src/sim/tactical/inventory-commands.test.ts` "puts one object taken off a stack back at the end of that stack …" |
 | With an item held and an enemy in the loaded sector the map screen's info character changes to nobody, not even back to the merc the item came from (`Strategic/Map_Screen_Interface.cc:1457`) | `src/sim/campaign/item-passing.test.ts` "passes nothing to anybody while the loaded sector holds enemies …" |
 | On the map screen a right click on a key of the ring shows no description, as its call is commented out, while one on an empty position closes the ring (`Tactical/Interface_Panels.cc:3572`) | `map/map-inventory.test.ts` "takes keys off the ring of a merc in no loaded sector …" |
 | On the map screen every point a merc of ours bleeds makes him the info character and resets the selection, even when he already is the info character, so compressing time with a wounded merc keeps undoing a multi-selection (`Tactical/Soldier_Control.cc:7935`, `Strategic/MapScreen.cc:406`, `:7006`) | `map/map-screen.test.ts` "makes a merc who bleeds the info character, the selection reset even when he is one already …" |
