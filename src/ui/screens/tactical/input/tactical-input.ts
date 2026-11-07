@@ -40,8 +40,9 @@
 // @src HandleModNone 'n' (the soldier stack under the pointer, else the interactive tile stack, 2026-11-04);
 // @src Soldier_Find.cc CycleSoldierFindStack (gUIActionModeChangeDueToMouseOver cleared on the ground, gUITargetSoldier);
 // @src UI_Cursors.cc HandleBombCursor (the walk onto the tile and its move grid, MOVEUI_TARGET_BOMB of Handle_UI.cc
-// @src DrawUIMovementPath), Handle_UI.cc UIMouseOnValidAttackLocation (BOMBCURS: his own tile or one he could stand on)
-// @src and Handle_Items.cc HandleItem's bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04); UI_Cursors.cc
+// @src DrawUIMovementPath, plotted by HandleUIMovementCursor after its rest, 2026-11-07), Handle_UI.cc
+// @src UIMouseOnValidAttackLocation (BOMBCURS: his own tile or one he could stand on) and Handle_Items.cc HandleItem's
+// @src bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04); UI_Cursors.cc
 // @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the walk, the move grid and the AP in combat of
 // @src DrawUIMovementPath; the good cursor over a cuttable fence at ground level, a corpse, a door's interactive tile),
 // @src UIMouseOnValidAttackLocation (WIRECUTCURS) and HandleItem's wire cutters, jar and tin can (2026-11-04);
@@ -2298,7 +2299,7 @@ export class TacticalInput {
       if (this.#currentAp < 0 || !this.#combat()) this.#displayAp = false;
       else {
         this.#displayAp = true;
-        if (target === MoveUiTarget.INTTILES || target === MoveUiTarget.ITEMS) {
+        if (target === MoveUiTarget.INTTILES || target === MoveUiTarget.ITEMS || target === MoveUiTarget.BOMB) {
           this.#apOffX = 22;
           this.#apOffY = 15;
         } else if (this.moveModeOf(sel) === WALK) {
@@ -2324,6 +2325,7 @@ export class TacticalInput {
   #drawMovementPath(sel: SoldierView, mapPos: number, target: MoveUiTarget): boolean {
     const level = this.#host.interfaceLevel();
     if (target === MoveUiTarget.STEAL) return this.#drawStealPath(sel, mapPos, level);
+    if (target === MoveUiTarget.BOMB) return this.#drawBombPath(sel, mapPos);
     const tile = this.#interactiveTile();
     if ((target === MoveUiTarget.INTTILES && tile) || target === MoveUiTarget.ITEMS) {
       const kind = tile?.door ? 'door' : 'pickUp';
@@ -2565,6 +2567,7 @@ export class TacticalInput {
       onSelected: this.#hover.target?.id === sel.id,
     });
     this.#newCursor = result.cursor;
+    if (estimate.cursor === 'bomb') this.#bombCursor(sel, mapPos);
     if (result.apCost !== null) {
       this.#currentAp = result.apCost;
       this.#displayAp = this.#pathfindDone() || activated;
@@ -2592,7 +2595,6 @@ export class TacticalInput {
       }
     }
     if (estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#meleeWalkPath(sel, estimate, activated);
-    if (estimate.cursor === 'bomb') this.#bombWalkPath(sel, mapPos);
     if (isTileToolCursor(estimate.cursor)) this.#tileToolWalkPath(sel, estimate.cursor);
     if (
       (estimate.cursor === 'toss' || estimate.cursor === 'trajectory') &&
@@ -2610,18 +2612,27 @@ export class TacticalInput {
     this.#showMoveGrid = activated ? 2 : 1;
   }
 
-  #bombPreview(sel: SoldierView, mapPos: number): PreviewAction | null {
-    return dataOf(
-      this.#hint<PreviewAction>({ type: 'previewAction', soldier: sel.id, gridNo: mapPos, kind: 'bomb', mode: this.moveModeOf(sel) }),
-    );
+  #bombHint(sel: SoldierView, mapPos: number): HintState<PreviewAction> {
+    return this.#hint<PreviewAction>({ type: 'previewAction', soldier: sel.id, gridNo: mapPos, kind: 'bomb', mode: this.moveModeOf(sel) });
   }
 
-  #bombWalkPath(sel: SoldierView, mapPos: number): void {
-    const data = this.#bombPreview(sel, mapPos);
-    if (!data) return;
-    this.#steps = this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
+  #bombPreview(sel: SoldierView, mapPos: number): PreviewAction | null {
+    return dataOf(this.#bombHint(sel, mapPos));
+  }
+
+  #bombCursor(sel: SoldierView, mapPos: number): void {
+    this.#movementCursor(sel, mapPos, MoveUiTarget.BOMB);
+    if (this.#showMoveGridAt >= 0) this.#showMoveGrid = 1;
+  }
+
+  #drawBombPath(sel: SoldierView, mapPos: number): boolean {
+    const answer = this.#bombHint(sel, mapPos);
+    if (answer.state === 'pending') return false;
+    const data = dataOf(answer);
+    this.#currentAp = data?.apCost ?? 0;
+    this.#steps = data && this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
     this.#showMoveGridAt = mapPos;
-    this.#showMoveGrid = 1;
+    return true;
   }
 
   #tileToolPreview(sel: SoldierView, cursor: TileToolCursor): PreviewAction | null {

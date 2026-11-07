@@ -137,6 +137,7 @@ export const MoveUiTarget = {
   MERCS: 'mercs',
   MERCSFORAID: 'mercsForAid',
   STEAL: 'steal',
+  BOMB: 'bomb',
 } as const;
 export type MoveUiTarget = (typeof MoveUiTarget)[keyof typeof MoveUiTarget];
 

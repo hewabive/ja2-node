@@ -56,6 +56,7 @@ const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
 const CRATE_TILE = 7;
+const PAST_THE_PATH_REST_FRAMES = 6;
 const NOBODY = -1;
 const MALE = 0;
 const FEMALE = 1;
@@ -215,6 +216,34 @@ function locatorMs(f: TacticalUiTest, asset: string): number {
     ms += LOCATOR_FRAME_MS;
   }
   return ms;
+}
+
+interface PlantTile {
+  readonly tile: number;
+  readonly apCost: number;
+}
+
+async function sapperWithAMine(f: TacticalUiTest): Promise<PlantTile> {
+  const [first] = await plantTilesOfASapper(f);
+  if (!first) throw new Error('no tile to plant on beside merc 0');
+  return first;
+}
+
+async function plantTilesOfASapper(f: TacticalUiTest): Promise<PlantTile[]> {
+  const t = tacticalOf(f.session).state;
+  const sapper = t.soldiers.find((v) => v?.id === 0);
+  const mine = t.content.items.byName.get('MINE');
+  if (!sapper || !mine) throw new Error('no merc 0 or no mine');
+  sapper.inv[InvSlot.HAND] = createItem(t.content.items, mine.index, 100);
+  f.client.refresh();
+  const tiles: PlantTile[] = [];
+  for (const offset of [2, -2, 2 * WORLD_COLS, -2 * WORLD_COLS]) {
+    const tile = merc(f, 0).gridNo + offset;
+    const preview = await f.client.hintNow({ type: 'previewAction', soldier: 0, gridNo: tile, kind: 'bomb' });
+    const data = preview.data as { ok: boolean; apCost: number };
+    if (data.ok) tiles.push({ tile, apCost: data.apCost });
+  }
+  return tiles;
 }
 
 async function inCombat(): Promise<TacticalUiTest> {
@@ -1138,22 +1167,7 @@ describe('the tactical input on the tactical screen', () => {
 
   it('draws the walk onto the tile with the bomb cursor, shows the cost of the walk and the plant in combat and orders the plant on the click (HandleBombCursor)', async () => {
     const f = await inCombat();
-    const t = tacticalOf(f.session).state;
-    const sapper = t.soldiers.find((v) => v?.id === 0);
-    const mine = t.content.items.byName.get('MINE');
-    if (!sapper || !mine) throw new Error('no merc 0 or no mine');
-    sapper.inv[InvSlot.HAND] = createItem(t.content.items, mine.index, 100);
-    f.client.refresh();
-    let tile = -1;
-    let apCost = 0;
-    for (const offset of [2, -2, 2 * WORLD_COLS, -2 * WORLD_COLS]) {
-      const preview = await f.client.hintNow({ type: 'previewAction', soldier: 0, gridNo: merc(f, 0).gridNo + offset, kind: 'bomb' });
-      const data = preview.data as { ok: boolean; apCost: number };
-      if (!data.ok) continue;
-      tile = merc(f, 0).gridNo + offset;
-      apCost = data.apCost;
-      break;
-    }
+    const { tile, apCost } = await sapperWithAMine(f);
     expect(apCost).toBeGreaterThan(3);
     f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
     centreOn(f, tile);
@@ -1167,6 +1181,27 @@ describe('the tactical input on the tactical screen', () => {
     await f.clickAt(at.x, at.y);
     await f.settle();
     expect(commandsOf(f, 'plantBomb').at(-1)).toEqual({ type: 'plantBomb', soldier: 0, gridNo: tile });
+  });
+
+  it('draws the walk and the move grid of the bomb cursor only once the pointer rests on a tile, as HandleUIMovementCursor waits for PATHFINDCOUNTER (HandleBombCursor)', async () => {
+    const f = await inCombat();
+    const [first, second] = await plantTilesOfASapper(f);
+    if (!first || !second) throw new Error('two tiles to plant on needed');
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    centreOn(f, first.tile);
+    hover(f, first.tile);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    const walk = () => [
+      f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS')),
+      f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'))?.gridNo ?? null,
+    ];
+    expect(walk()).toEqual([true, first.tile]);
+    hover(f, second.tile);
+    await f.settle(2);
+    expect(f.screen.controls.input.uiCursor).toBe('PLACE_BOMB_GREY_UICURSOR');
+    expect(walk()).toEqual([false, null]);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(walk()).toEqual([true, second.tile]);
   });
 
   it('names the items under every hand cursor, by CTRL, by the hand button or after the pointer rests (gfUIOverItemPoolGridNo)', async () => {
