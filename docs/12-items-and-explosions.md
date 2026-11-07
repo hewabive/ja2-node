@@ -377,7 +377,7 @@ x-ray detector, reached through the remote branch of `HandleItem` (`bombs/planti
   goes to `pendingActionData2`, as `setPendingAction` sets `sPendingActionData2`, where code 769 finds the vehicle; the
   jar keeps the corpse's slot in `pendingActionData4` until its frame, as the original's `uiPendingActionData4`.
 - The cut is the fence structure swapped for its partner and recorded as a map change, so the sector keeps it and the
-  view shows it as a `swap` in `tileChanges`; the hints do not see it yet (gap "Structure changes in the hints").
+  view shows it as a `swap` in `tileChanges`, which the hints' projection replays (`knowledge/tactical.ts`).
 - A tin can is the door status's `hasTinCan` (`DOOR_HAS_TIN_CAN`), which the sector's door statuses and a native import
   keep, and which triples the door's opening noise (`perception/noise.ts`). Tying it sets the door status's real and
   perceived state to the structure's, as `ModifyDoorStatus` does.

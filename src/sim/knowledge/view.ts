@@ -3,6 +3,7 @@ import type { AdrenalineView, DrunkView } from '../tactical/drugs.ts';
 import type { InventoryItemView } from '../tactical/inventory-view.ts';
 import type { Stance } from '../tactical/movement-mode.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../tactical/soldier-view.ts';
+import type { TileChangeView } from '../tactical/world-view.ts';
 
 export interface OwnHintInputs {
   readonly skills: readonly [number, number];
@@ -135,6 +136,7 @@ export interface KnowledgeView {
   readonly light?: KnowledgeLight | null;
   readonly smoke?: readonly KnowledgeSmokeTile[];
   readonly corpses?: readonly KnowledgeCorpse[];
+  readonly tileChanges?: readonly TileChangeView[];
   readonly boxing?: KnowledgeBoxing | null;
   readonly strategic?: KnowledgeStrategic;
   readonly prompt?: KnowledgePrompt | null;

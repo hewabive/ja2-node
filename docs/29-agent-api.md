@@ -855,13 +855,17 @@ projection").
 
 **The projection** (`src/sim/knowledge/`, `knowledgeWorld`) builds from a player view and the rule content the minimal
 world the hints read. In tactical it is a `TacticalState` over a fresh copy of the sector's world with the view's
-doors, containers, items, known mines and light, the loaded sector of the strategic view (`worldSector`, which the phobias read), our
+structure changes replayed over it (`tileChanges`: a cut fence, a blown wall), its doors, containers, items, known mines
+and light, the loaded sector of the strategic view (`worldSector`, which the phobias read), our
 soldiers in full and the seen soldiers with their visible fields only: unseen
-soldiers do not exist, so they block no path, absorb no bullet and are no target. On the map it is a minimal strategic
-state from the strategic view. In strict mode (tests) every unsupplied field throws (`guard.ts`,
-`UnsuppliedFieldError`), so a hint that reads hidden state fails at once; each such read was decided: supplied by the
-view, given a neutral value (deviations "Movement penalty in the estimate", "Other soldiers in the projection") or
-dropped (the melee chance to hit).
+soldiers do not exist, so they block no path, absorb no bullet and are no target. A projection kept for the map replays
+only the structure changes added since the last view, with the doors and containers set back as the map placed them,
+since a removed door is named by its tile in the map; a view whose changes do not extend the replayed ones (a new entry
+to the sector, a landed helicopter's pieces, which come last) gets a fresh projection (`ProjectionCache`,
+`src/sim/knowledge/knowledge-world.ts`). On the map it is a minimal strategic state from the strategic view. In strict
+mode (tests) every unsupplied field throws (`guard.ts`, `UnsuppliedFieldError`), so a hint that reads hidden state
+fails at once; each such read was decided: supplied by the view, given a neutral value (deviations "Movement penalty in
+the estimate", "Other soldiers in the projection") or dropped (the melee chance to hit).
 
 **Server-only queries** (`SERVER_QUERY_KINDS`: the laptop's quotes and checks, `quoteTrade`, `contractOptions`,
 `inventory`) depend on state the player does not see or price a decision; the query service passes them to the

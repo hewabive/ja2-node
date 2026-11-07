@@ -1,7 +1,9 @@
+import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
-import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
+import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { idiv } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { setKnownMines } from '../tactical/bombs/mine-flags.ts';
 import { smokeChanged } from '../tactical/change-counts.ts';
@@ -26,6 +28,7 @@ import { Opp } from '../tactical/perception/opp.ts';
 import { addMercStructure, removeMercStructure } from '../tactical/person-structure.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import { clearOccupants, createTacticalState, placeOccupant, registerSoldier, type TacticalState } from '../tactical/state.ts';
+import type { TileChangeView } from '../tactical/world-view.ts';
 import { type GuardOptions, guardFields, UnsuppliedFieldError } from './guard.ts';
 import { worldItemFromView } from './objects.ts';
 import { soldierFromView } from './soldiers.ts';
@@ -34,6 +37,7 @@ import type { KnowledgeCorpse, KnowledgeLight, KnowledgeSoldier, KnowledgeView }
 
 const SANDBOX_HOUR = 12;
 const PROJECTION_SEED = 0;
+const NO_TILE_CHANGES: readonly TileChangeView[] = [];
 
 const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'world',
@@ -92,6 +96,28 @@ function lightKey(light: KnowledgeLight | null | undefined, hour: number): strin
   return light ? JSON.stringify(light) : `hour ${hour}`;
 }
 
+function sameTileChange(a: TileChangeView, b: TileChangeView | undefined): boolean {
+  return b !== undefined && a.kind === b.kind && a.gridNo === b.gridNo && a.level === b.level && a.tile === b.tile;
+}
+
+function startsWith(changes: readonly TileChangeView[], prefix: readonly TileChangeView[]): boolean {
+  return prefix.length <= changes.length && prefix.every((c, k) => sameTileChange(c, changes[k]));
+}
+
+function changedBase(t: TacticalState, c: TileChangeView, def: StructureDef): StructureInstance | null {
+  const at = t.world.structures.at(c.gridNo);
+  return at.find((s) => has(s.flags, StructureFlags.BASE_TILE) && s.def === def && idiv(s.cubeOffset, PROFILE_Z_SIZE) === c.level) ?? null;
+}
+
+function applyTileChange(t: TacticalState, c: TileChangeView): boolean {
+  const te = t.world.tiles?.[c.tile];
+  if (!te?.structure || c.kind === 'object') return false;
+  if (c.kind !== 'remove') return t.world.structures.add(c.gridNo, c.level, te.structure, undefined, te.structureFile) !== null;
+  const base = changedBase(t, c, te.structure);
+  if (base) t.world.structures.remove(base);
+  return base !== null;
+}
+
 export interface ViewNarrative {
   readonly epcs: ReadonlySet<number>;
   readonly controlledRobots: ReadonlySet<number>;
@@ -120,6 +146,9 @@ export class TacticalProjection {
   readonly #containers: readonly number[];
   readonly #mapDoors: ReadonlyMap<number, MapDoor>;
   readonly #projectedMapDoors: Map<number, MapDoor>;
+  readonly #loadedOpenDoors: ReadonlySet<number>;
+  readonly #loadedOpenContainers: ReadonlySet<number>;
+  #tileChanges: readonly TileChangeView[] = NO_TILE_CHANGES;
   #placed: Soldier[] = [];
   #lightKey = '';
   #corpseKey = '';
@@ -133,12 +162,20 @@ export class TacticalProjection {
     this.state = createTacticalState({ ...world, mapDoors: this.#projectedMapDoors }, content, Rng.fromSeed(PROJECTION_SEED));
     this.#doors = doorGridNos(world);
     this.#containers = containerGridNos(world);
+    this.#loadedOpenDoors = new Set(this.#doors.filter((g) => isDoorOpenAt(this.state, g)));
+    this.#loadedOpenContainers = new Set(this.#containers.filter((g) => isOpenableOpenAt(this.state, g)));
+  }
+
+  follows(changes: readonly TileChangeView[]): boolean {
+    return startsWith(changes, this.#tileChanges);
   }
 
   sync(view: KnowledgeView, guard: GuardOptions): TacticalState {
     const t = this.state;
     t.inCombat = view.combat !== null && view.combat !== undefined;
     t.sector = view.strategic?.worldSector ? sectorFromName(view.strategic.worldSector) : null;
+    this.#liftSoldiers();
+    this.#syncTileChanges(view.tileChanges ?? NO_TILE_CHANGES);
     this.#syncDoors(view, guard);
     this.#syncSoldiers(view.soldiers, guard);
     this.#syncItems(view, guard);
@@ -161,30 +198,47 @@ export class TacticalProjection {
     return guardFields({ ...t, perception, explosives, boxing }, STATE_FIELDS, 'state', guard);
   }
 
-  #syncDoors(view: KnowledgeView, guard: GuardOptions): void {
+  #syncTileChanges(changes: readonly TileChangeView[]): void {
     const t = this.state;
-    const open = new Set(view.openDoors ?? []);
+    const applied = this.#tileChanges.length;
+    if (changes.length === applied) return;
+    this.#liftCorpses();
+    this.#swapOpenables(this.#loadedOpenDoors, this.#loadedOpenContainers);
+    const touched = new Set<number>();
+    for (const c of changes.slice(applied)) if (applyTileChange(t, c)) touched.add(c.gridNo);
+    for (const g of touched) recompileLocalMovementCosts(t.world.costs, t.world, g);
+    this.#tileChanges = changes;
+  }
+
+  #swapOpenables(openDoors: ReadonlySet<number>, openContainers: ReadonlySet<number>): void {
+    const t = this.state;
     for (const g of this.#doors) {
-      if (open.has(g) === isDoorOpenAt(t, g)) continue;
+      if (openDoors.has(g) === isDoorOpenAt(t, g)) continue;
       const door = t.world.structures.find(g, StructureFlags.ANYDOOR);
       const swapped = door ? swapStructureForPartner(t, door) : null;
       if (swapped) recompileLocalMovementCosts(t.world.costs, t.world, g);
     }
-    const openContainers = new Set(view.openContainers ?? []);
     for (const g of this.#containers) {
       if (openContainers.has(g) === isOpenableOpenAt(t, g)) continue;
       const container = t.world.structures.find(g, StructureFlags.OPENABLE);
       const swapped = container ? swapStructureForPartner(t, container) : null;
       if (swapped) recompileLocalMovementCosts(t.world.costs, t.world, g);
     }
+  }
+
+  #syncDoors(view: KnowledgeView, guard: GuardOptions): void {
+    this.#swapOpenables(new Set(view.openDoors ?? []), new Set(view.openContainers ?? []));
     const known = new Map((view.doors ?? []).map((d) => [d.gridNo, d]));
     for (const [g, door] of this.#mapDoors) this.#projectedMapDoors.set(g, projectedDoor(door, known.get(g), guard));
   }
 
+  #liftSoldiers(): void {
+    for (const s of this.#placed) removeMercStructure(this.state, s);
+    this.#placed = [];
+  }
+
   #syncSoldiers(views: readonly KnowledgeSoldier[], guard: GuardOptions): void {
     const t = this.state;
-    for (const s of this.#placed) removeMercStructure(t, s);
-    this.#placed = [];
     t.soldiers.length = 0;
     t.mercSlots.length = 0;
     clearOccupants(t);
@@ -222,13 +276,18 @@ export class TacticalProjection {
     }
   }
 
+  #liftCorpses(): void {
+    for (const base of this.#corpseBases) this.state.world.structures.remove(base);
+    this.#corpseBases = [];
+    this.#corpseKey = '';
+  }
+
   #syncCorpses(corpses: readonly KnowledgeCorpse[]): void {
     const t = this.state;
     const key = corpses.map((c) => `${c.gridNo},${c.level},${c.type},${c.direction}`).join(';');
     if (key === this.#corpseKey) return;
+    this.#liftCorpses();
     this.#corpseKey = key;
-    for (const base of this.#corpseBases) t.world.structures.remove(base);
-    this.#corpseBases = [];
     for (const c of corpses) {
       const def = corpseStructureDef(t, c.type, c.direction);
       const base = def ? t.world.structures.add(c.gridNo, c.level, def) : null;

@@ -2,6 +2,7 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
+import type { TileChangeView } from '../tactical/world-view.ts';
 import type { GuardOptions } from './guard.ts';
 import { type StrategicKnowledge, type StrategicRules, strategicKnowledge } from './strategic.ts';
 import { TacticalProjection } from './tactical.ts';
@@ -23,12 +24,12 @@ export class ProjectionCache {
     this.#worlds = worlds;
   }
 
-  projection(mapPath: string): TacticalProjection | null {
+  projection(mapPath: string, tileChanges: readonly TileChangeView[]): TacticalProjection | null {
     const at = this.#projections.findIndex((p) => p.mapPath === mapPath);
-    if (at >= 0) {
-      const [hit] = this.#projections.splice(at, 1);
-      if (hit) this.#projections.unshift(hit);
-      return hit ?? null;
+    const [hit] = at >= 0 ? this.#projections.splice(at, 1) : [];
+    if (hit?.follows(tileChanges)) {
+      this.#projections.unshift(hit);
+      return hit;
     }
     const world = this.#worlds.world(mapPath);
     if (!world) return null;
@@ -75,7 +76,7 @@ export interface KnowledgeWorld {
 
 function tacticalKnowledge(view: KnowledgeView, rules: KnowledgeRules, guard: GuardOptions): TacticalKnowledge | null {
   if (!view.mapPath || !rules.projections) return null;
-  const projection = rules.projections.projection(view.mapPath);
+  const projection = rules.projections.projection(view.mapPath, view.tileChanges ?? []);
   if (!projection) return null;
   const state = projection.sync(view, guard);
   const views = new Map(view.soldiers.map((s) => [s.id, s]));

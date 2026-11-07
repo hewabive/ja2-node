@@ -45,11 +45,7 @@ NPC records, merc lines, the dialogue queue and quest scripting. Paths are under
 
 ## 4. Agent API
 
-Commands the API does not have yet, and what its hints do not read. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Structure changes in the hints | The cursor reads the live world: a cut fence, a blown wall or a structure a stay added counts at once for the path, the wire cutter cursor and the rest (`Tactical/Handle_UI.cc:3116`, `Tactical/UI_Cursors.cc:893`) | The hints' projection holds the map as loaded with the view's doors, corpses, items, mines and light, not its `tileChanges` (`knowledge/tactical.ts`): after a cut a fence still blocks `previewMove` and turns the wire cutter cursor good, while `cutFence` refuses it as `noFence` | Replaying the view's `tileChanges` into the projection, as the client's lighting does (`src/app/world/world-lighting.ts`) |
+Commands the API does not have yet, and what its hints do not read: none known. Paths are under `src/sim/`.
 
 ## 5. Savegame import
 
