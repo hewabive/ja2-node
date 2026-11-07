@@ -547,10 +547,11 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 
 The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage", `tools/oracle/auto-bandage-compare.ts`) check
 the checks, the question, the start, the decisions, the full check, the services and the end against the native build,
-the draws replayed strictly, and whole modes frame by frame for our team and the mode's globals. Not checked against
-the native build:
-- The civilians in a frame run: those of a native import do not act alike there (an off-map civilian's schedule, a
-  YELLOW civilian's choice; not traced yet), so the frame runs take the native draws in order and leave them out.
+the draws replayed strictly, and whole modes frame by frame for our team, the civilians and the mode's globals. Not
+checked against the native build:
+- When a breathing soldier's idle check rolls in a frame run: the native load restarts every animation at its saved
+  code and so passes some idle checks (gap "Animations on load"), whose counter the probes do not print; the frame runs
+  take the native draws in order, and no check in them picks an idle animation.
 - The keys, the panel's buttons, the start's and the end's `HandleTacticalUI` calls and the message box screen's pause:
   the oracle has no input queue and no panel.
 - The dialogue queue standing for the whole mode: the probes never run `HandleDialogue`, so it is read from

@@ -118,6 +118,10 @@ const has = (a: Json, key: string) => a[key] !== undefined;
 const grid = (g: number) => (g === NOWHERE ? NATIVE_NOWHERE : g);
 const id = (n: number) => (n === NOBODY ? NATIVE_NOBODY : n);
 
+function comparedInFrames(t: TacticalState, who: number): boolean {
+  return who < FIRST_OTHER_ID || t.soldiers[who]?.team === Team.CIV;
+}
+
 function setStanceImmediately(t: TacticalState, s: Soldier, name: string): void {
   const state = anim(t.content, name);
   s.state = state;
@@ -261,7 +265,6 @@ export class AutoBandageComparer {
   #started = false;
   #refused: string | null = null;
   #lastNative: Json | null = null;
-  #civiliansOwnWay = false;
   readonly #frames: Json[] = [];
 
   constructor(read: ReadFile, exists: FileExists) {
@@ -273,7 +276,6 @@ export class AutoBandageComparer {
     this.#bytes = bytes;
     this.#session = null;
     this.#started = false;
-    this.#civiliansOwnWay = false;
     this.#frames.length = 0;
   }
 
@@ -866,13 +868,9 @@ export class AutoBandageComparer {
       worldSeconds: c.state.clock.seconds,
       team: this.#team(t).map((s) => this.#mercRow(t, s)),
       others: t.soldiers
-        .filter((s): s is Soldier => !!s && s.team !== Team.OUR && s.placed && nativeOthers.has(s.id) && this.#comparedOther(s.team))
+        .filter((s): s is Soldier => !!s && s.team !== Team.OUR && s.placed && nativeOthers.has(s.id))
         .map((s) => this.#otherRow(s)),
     };
-  }
-
-  #comparedOther(team: number): boolean {
-    return !this.#civiliansOwnWay || team !== Team.CIV;
   }
 
   #nativeState(p: Json): Json {
@@ -891,7 +889,7 @@ export class AutoBandageComparer {
       enemies: s.enemies,
       worldSeconds: ((s.clock as number[] | undefined) ?? [])[0],
       team: ((s.team as Json[] | undefined) ?? []).map((m) => this.#nativeMercRow(m)),
-      others: ((s.others as Json[] | undefined) ?? []).filter((o) => this.#comparedOther(num(o.team))).map((o) => this.#nativeOtherRow(o)),
+      others: ((s.others as Json[] | undefined) ?? []).map((o) => this.#nativeOtherRow(o)),
     };
   }
 
@@ -954,7 +952,6 @@ export class AutoBandageComparer {
       problems.push(...this.#frameDifferences(t, frame, f, last, rows));
       last = rows;
     }
-    this.#civiliansOwnWay = true;
     if (problems.length > 0) return problems;
     let boxes: Json[] = [];
     const answered = replay(t, (p.draws as Draw[] | undefined) ?? [], () => {
@@ -972,11 +969,11 @@ export class AutoBandageComparer {
     const nativeChanged = new Map<number, Row | null>();
     for (const r of (f?.changed as unknown[][] | undefined) ?? []) nativeChanged.set(num(r[0]), this.#nativeFrameRow(r));
     for (const [who, row] of nativeChanged) {
-      if (who >= FIRST_OTHER_ID) continue;
+      if (!comparedInFrames(t, who)) continue;
       differences(rows.get(who) ?? null, row, `frame ${frame} soldier ${who}`, out);
     }
     for (const [who, row] of rows) {
-      if (who >= FIRST_OTHER_ID) continue;
+      if (!comparedInFrames(t, who)) continue;
       if (nativeChanged.has(who) || JSON.stringify(row) === JSON.stringify(last.get(who))) continue;
       differences(row, last.get(who) ?? null, `frame ${frame} soldier ${who} (unchanged natively)`, out);
     }

@@ -720,17 +720,21 @@ vehicle is the soldier the boarding's takeover leaves. `abmap` hands ja2-node th
 (`GenerateBuildings` picks them at random) and compares who stands on each. A soldier `abmerc` puts on a tile no person
 fits stays out of ja2-node's occupancy, as the native `WhoIsThere2` finds no person structure there.
 
-A frame run (`abframes`) is compared frame by frame for our team (every frame column but the animation frame, which
-ja2-node does not keep) and the mode's five globals, and by the closing state. Before a run the comparer takes from the
-native state printed just before it every soldier's animation code, frame delay, frame timer and AI timer, the AI slot
-cursors and their last pass time, the real-time turn stamp and the game pause: a native import keeps none of these
-phases (the load advances the animation scripts by one code), and the virtual clock's are printed only as time left.
-The 20 ms strategic poll's phase is not printed either; in a run outside the mode (`plain=1`) whose real-time turn the
-closing state shows, the comparer lets ja2-node's poll fall on that frame. The civilians of the native import do not act
-alike in the frames (an off-map civilian's schedule acts natively and not in ja2-node, and a YELLOW civilian chooses
-differently on the same draws; not traced yet), so the frame runs take the native draws in order (each request takes the
-next native draw of its range, ja2-node's own generator past them) and leave the civilians out of the frames and of every
-later state of the block.
+A frame run (`abframes`) is compared frame by frame for our team and the civilians (every frame column but the
+animation frame, which ja2-node does not keep) and the mode's five globals, and by the closing state; the other teams
+stay out of the frames (the fields of an `abhostile` enemy the native state does not print, his breath among them,
+are the comparer's own). Before a run the comparer takes from the native state printed
+just before it every soldier's animation code, frame delay, frame timer and AI timer, the AI slot cursors and their last
+pass time, the real-time turn stamp and the game pause: a native import keeps none of these phases (the load restarts
+every animation at its saved code, `Tactical/Soldier_Control.cc:615`, which runs the script on to the next frame; gap
+"Animations on load"), and the virtual clock's are printed only as time left. The 20 ms strategic poll's phase is not
+printed either; in a run outside the mode (`plain=1`) whose real-time turn the closing state shows, the comparer lets
+ja2-node's poll fall on that frame. The frame runs take the native draws in order (each request takes the next native
+draw of its range, ja2-node's own generator past them): the restart passes the idle check (code 491) of some breathing
+soldiers and counts it in `uiTimeOfLastRandomAction`, which no probe prints, so their idle checks roll one breathing
+loop earlier natively; none of them picks an idle animation in these runs. The GoAsFar fallback's `std::shuffle` draws
+on the engine past `Random` and leaves no trace natively; ja2-node's shuffle draws past `int` too (deviation "GoAsFar
+fallback"), so the replay leaves it to ja2-node's generator.
 
 ## Shipped probes
 

@@ -144,6 +144,6 @@ Inferred from reading the source:
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
 
-Not ported: gaps "Savegame import", "Unread savegame sections". Other
+Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections". Other
 deviations of the import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on the ground",
 "Difficulty and progress in tactical", "Corpse structure past its file".
