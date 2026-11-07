@@ -31,7 +31,8 @@
 // @src item's ground picture in the throw and give cursors, SetExternVOData), EndItemPointer (the normal cursor at once,
 // @src 2026-11-07), Interface.cc DrawSelectedUIAboveGuy (the
 // @src catcher's CATCH_STR, RELOAD_STR, MSG_PASS or GIVE_STR, 2026-11-03; a vehicle named in FONT_GRAY4 while nobody is
-// @src aboard, an empty vehicle of ours under its ASSIGNMENT_EMPTY in yellow, 2026-11-05); Interface_Panels.cc
+// @src aboard, an empty vehicle of ours under its ASSIGNMENT_EMPTY in yellow, 2026-11-05; any assignment from ON_DUTY
+// @src on in yellow under the merc's name, in yellow too, 2026-11-07); Interface_Panels.cc
 // @src TMClickSecondHandInvCallbackPrimary (ExitVehicle, 2026-11-05); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
 // @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody);
@@ -109,6 +110,7 @@ import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { Assignment } from '../map/character-list.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from '../map/event-boxes.ts';
 import { sectorNameIn } from '../map/facts.ts';
 import { DialogueLayer } from '../talk/dialogue-layer.ts';
@@ -161,6 +163,7 @@ import { ItemPickupMenu } from './pickup-menu.ts';
 import { drawRadarPicture } from './radar-picture.ts';
 import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-panel.ts';
 import {
+  assignmentOf,
   barValues,
   hasProfile,
   inCombat,
@@ -223,7 +226,6 @@ const MSG_INTERFACE_LOG_Y = 150;
 const CONTINUE_OVER_FACE_STR = 63;
 const STR_LATE_34 = 33;
 const ASSIGNMENT_STRINGS = 'pAssignmentStrings';
-const ASSIGNMENT_EMPTY = 34;
 const STR_LATE_15 = 14;
 const TICK_MS = 5;
 const ON_ROOF_COLOUR = rgb(150, 150, 0);
@@ -252,8 +254,12 @@ const RADAR_CONTACT_COLOURS: Readonly<Record<RadarContactKind, number>> = {
 const HANDPOS = 5;
 const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
 
-function emptyVehicleOfOurs(s: SoldierView): boolean {
-  return s.team === OUR_TEAM && nobodyAboard(s);
+function aboveGuyColours(s: SoldierView, onDuty: boolean, catching: boolean): { action: number; name: number } {
+  const assignmentShown = onDuty && !catching;
+  const action = assignmentShown ? FontColor.YELLOW : FontColor.MCOLOR_WHITE;
+  if (nobodyAboard(s)) return { action, name: FontColor.GRAY4 };
+  const nameYellow = isVehicleBody(s) ? assignmentShown : onDuty;
+  return { action, name: nameYellow ? FontColor.YELLOW : FontColor.MCOLOR_WHITE };
 }
 
 type PanelKind = 'team' | 'sm';
@@ -2409,10 +2415,13 @@ export class TacticalScreen implements Screen {
     const catcher = this.controls.input.itemTile.catcher;
     const caught = catcher?.soldier === s.id ? catcher.kind : null;
     if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled) {
-      const action = (caught && caught !== 'give' ? this.#catcherLabel(caught) : '') || this.#assignmentLabel(s, multiSelected);
-      if (action) printAboveGuy(list, font, x, y, action, emptyVehicleOfOurs(s) ? FontColor.YELLOW : FontColor.MCOLOR_WHITE);
+      const onDuty = this.#onDutyAssignment(s);
+      const catching = caught !== null && caught !== 'give';
+      const action = catching ? this.#catcherLabel(caught) : this.#assignmentLabel(s, onDuty, multiSelected);
+      const colours = aboveGuyColours(s, onDuty !== null, catching);
+      if (action) printAboveGuy(list, font, x, y, action, colours.action);
       const name = soldierName(this.#env.text, s);
-      printAboveGuy(list, font, x, action ? y - 10 : y, name, nobodyAboard(s) ? FontColor.GRAY4 : FontColor.MCOLOR_WHITE);
+      printAboveGuy(list, font, x, action ? y - 10 : y, name, colours.name);
       if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || isVehicleBody(s)) {
         x += selected ? 28 : 30;
         y += selected ? 5 : 7;
@@ -2435,8 +2444,14 @@ export class TacticalScreen implements Screen {
     printAboveGuy(list, font, x, y, healthString(this.#env.text, s.healthIndex ?? 0), FontColor.MCOLOR_DKRED);
   }
 
-  #assignmentLabel(s: SoldierView, multiSelected: boolean): string {
-    if (emptyVehicleOfOurs(s)) return `(${this.#env.text.string(ASSIGNMENT_STRINGS, ASSIGNMENT_EMPTY) ?? ''})`;
+  #onDutyAssignment(s: SoldierView): number | null {
+    if (s.team !== OUR_TEAM) return null;
+    const assignment = assignmentOf(this.#view(), s);
+    return assignment !== null && assignment >= Assignment.ON_DUTY ? assignment : null;
+  }
+
+  #assignmentLabel(s: SoldierView, onDuty: number | null, multiSelected: boolean): string {
+    if (onDuty !== null) return `(${this.#env.text.string(ASSIGNMENT_STRINGS, onDuty) ?? ''})`;
     if (s.team !== OUR_TEAM || squadOf(s) === this.#squad || multiSelected) return '';
     return (this.#env.text.string('gzLateLocalizedString', STR_LATE_34) ?? '').replace('%d', String(squadOf(s) + 1));
   }

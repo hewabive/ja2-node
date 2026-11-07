@@ -14,6 +14,7 @@ import { FontColor } from '../../../content/text/font-colors.ts';
 import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { createItem } from '../../../sim/items/object.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
+import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { addItemToPool, Visibility } from '../../../sim/tactical/world-items.ts';
 import { CursorId, EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
@@ -22,9 +23,12 @@ import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } fro
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
 import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, type SpeechLineRequest, textDelay } from '../../speech.ts';
+import { FontName } from '../../text/fonts.ts';
+import { glyphRun } from '../../text/print.ts';
 import { COMPATIBLE_HILIGHT, FaceShade } from './faces.ts';
 import { UiMode } from './input/ui-events.ts';
 import { MAX_AGE } from './message-log.ts';
+import { LocateFlag } from './overlays.ts';
 
 const HAND = 5;
 const BIG_POCKET = 7;
@@ -65,6 +69,8 @@ const PAST_DOUBLE_CLICK_MS = 400;
 const MSG_THROW = 37;
 const PICKUP_PAGE_ROWS = 6;
 const RADIO = 'interface/radio.sti';
+const DOCTOR = 21;
+const FULL_STATUS = 100;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -106,6 +112,17 @@ function line(item: DrawItem): string {
 
 function snapshot(f: TacticalUiTest): string {
   return `${f.draw().items.map(line).join('\n')}\n`;
+}
+
+function drawnAboveGuy(f: TacticalUiTest, text: string): number[] {
+  const wanted = glyphRun(f.t.runtime.fonts.get(FontName.TINYFONT1), text, 0, 0)
+    .glyphs.map((g) => g.index)
+    .join();
+  return f
+    .draw()
+    .items.flatMap((i) =>
+      i.kind === 'glyphs' && i.font === TINY_FONT && i.glyphs.map((g) => g.index).join() === wanted ? [i.foreground] : [],
+    );
 }
 
 function images(f: TacticalUiTest, asset: string): DrawItem[] {
@@ -1293,6 +1310,24 @@ describe('the tactical screen in a stub campaign', () => {
     f.frames([frame(tick, [], logLines(tick, 1))]);
     await f.settle(2);
     expect(f.screen.messageLines).toEqual(['Line 0']);
+  });
+
+  it('names a merc of ours on an assignment in yellow under the assignment in yellow, not under a squad (Interface.cc DrawSelectedUIAboveGuy)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const doctor = a10.mercs[1];
+    const t = tacticalOf(f.session).state;
+    const medkit = t.content.items.byName.get('MEDICKIT')?.index;
+    const soldier = doctor === undefined ? undefined : t.soldiers[doctor];
+    if (doctor === undefined || !soldier || medkit === undefined) throw new Error('no doctor with a medical kit');
+    soldier.inv[InvSlot.BIGPOCK4] = createItem(t.content.items, medkit, FULL_STATUS);
+    expect(await f.session.prepareAndDispatch({ type: 'assign', soldiers: [doctor], to: { kind: 'doctor' } })).toMatchObject({ ok: true });
+    f.deliver();
+    f.screen.locate(doctor, LocateFlag.SETLOCATOR);
+    await f.settle();
+    const name = f.client.view.soldiers.find((s) => s.id === doctor)?.name ?? '';
+    const assignment = `(${f.text.string('pAssignmentStrings', DOCTOR)})`;
+    expect([drawnAboveGuy(f, name), drawnAboveGuy(f, assignment)]).toEqual([[FontColor.YELLOW], [FontColor.YELLOW]]);
   });
 
   it('boxes a town the enemy took while in tactical, centred above the inventory panel', async () => {

@@ -97,6 +97,10 @@ export function hasFemaleProfile(view: PlayerView | null, s: SoldierView): boole
   return view?.strategic?.mercs.find((m) => m.id === s.id)?.female === true;
 }
 
+export function assignmentOf(view: PlayerView | null, s: SoldierView): number | null {
+  return view?.strategic?.mercs.find((m) => m.id === s.id)?.assignment ?? null;
+}
+
 export function isEpc(s: SoldierView): boolean {
   return s.kind === 'epc';
 }
