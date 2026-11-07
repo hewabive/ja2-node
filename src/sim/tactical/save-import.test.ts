@@ -435,6 +435,18 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect([merc.gridNo, merc.x, merc.y]).toEqual([at, centre.x, centre.y]);
   });
 
+  it('keeps the centre of the tile a walking soldier steps to and whether he is past it on each axis, which only a step sets (sDestXPos, sDestYPos, fPastXDest, fPastYDest)', () => {
+    const at = gridNo(38, 63);
+    const next = cellCentre(gridNo(39, 62));
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(CIVILIAN_ID, Team.CIV, at, { sDestination: gridNo(39, 62), sDestXPos: next.x, sDestYPos: next.y, fPastXDest: 1 }),
+      ],
+    });
+    const walker = soldierOf(importedSim(save), CIVILIAN_ID);
+    expect([walker.destX, walker.destY, walker.pastX, walker.pastY]).toEqual([next.x, next.y, true, false]);
+  });
+
   it('restores the fades in progress, a fade-in included: fBeginFade is a byte that keeps its 2 (LoadSaveSoldierType.cc ExtractSoldierType)', () => {
     const fadingIn = gridNo(80, 82);
     const fadingOut = gridNo(90, 82);

@@ -15,7 +15,8 @@
 // @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04); Tactical/LoadSaveSoldierType.cc bVehicleID of a
 // @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05);
 // @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05); LoadSaveTacticalStatusType.cc
-// @src fAutoBandagePending (2026-11-06).
+// @src fAutoBandagePending (2026-11-06); Tactical/LoadSaveSoldierType.cc sDestXPos, sDestYPos, fPastXDest and fPastYDest
+// @src (2026-11-07).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -553,6 +554,10 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.uiMovementMode = m.uiMovementMode;
   s.movementDirection = m.movementDirection;
   s.reverse = m.reverse !== 0;
+  s.destX = m.destXPos;
+  s.destY = m.destYPos;
+  s.pastX = m.pastXDest;
+  s.pastY = m.pastYDest;
   s.noAPToFinishMove = m.noAPToFinishMove;
   s.pendingStanceChange = unlessSentinel(m.pendingStanceChange, SAVED_NO_PENDING_STANCE, NO_DESIRED_HEIGHT);
   s.desiredHeight = m.desiredHeight;

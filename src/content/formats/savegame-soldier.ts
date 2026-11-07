@@ -574,6 +574,10 @@ export interface SoldierMotion {
   readonly uiMovementMode: number;
   readonly movementDirection: number;
   readonly reverse: number;
+  readonly destXPos: number;
+  readonly destYPos: number;
+  readonly pastXDest: boolean;
+  readonly pastYDest: boolean;
   readonly noAPToFinishMove: boolean;
   readonly pendingDirection: number;
   readonly pendingStanceChange: number;
@@ -966,6 +970,10 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       uiMovementMode: n('usUIMovementMode'),
       movementDirection: n('bMovementDirection'),
       reverse: n('bReverse'),
+      destXPos: n('sDestXPos'),
+      destYPos: n('sDestYPos'),
+      pastXDest: n('fPastXDest') !== 0,
+      pastYDest: n('fPastYDest') !== 0,
       noAPToFinishMove: r.bool('fNoAPToFinishMove'),
       pendingDirection: n('ubPendingDirection'),
       pendingStanceChange: n('ubPendingStanceChange'),
