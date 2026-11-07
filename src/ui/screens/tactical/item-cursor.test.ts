@@ -11,6 +11,7 @@ import {
   passCommand,
   putsBackUnchanged,
   remainingCursor,
+  shownStatus,
   tossCommand,
 } from './item-cursor.ts';
 
@@ -160,5 +161,21 @@ describe('the item cursor placed in a pocket (UIHandleItemPlacement)', () => {
       count: 'all',
       index: 0,
     });
+  });
+});
+
+describe('the stack an object was taken off into the cursor (GetObjFrom)', () => {
+  const stack = { slot: SMALL_POCKET, item: 'CLIP9_15', index: CLIP_INDEX, count: 3, status: [15, 7, 3] };
+  const at = (count: 1 | 'all', index: number, soldier = 0): ItemCursor => ({
+    source: { kind: 'slot', soldier, slot: SMALL_POCKET, count, index },
+    item: 'CLIP9_15',
+  });
+
+  it('shows the objects left, so the status bar reads the next object once the top one is taken', () => {
+    expect(shownStatus(at(1, 0), stack, 0)).toEqual([7, 3]);
+    expect(shownStatus(at(1, 1), stack, 0)).toEqual([15, 3]);
+    expect(shownStatus(at('all', 0), stack, 0)).toBe(stack.status);
+    expect(shownStatus(at(1, 0, 1), stack, 0)).toBe(stack.status);
+    expect(shownStatus(null, stack, 0)).toBe(stack.status);
   });
 });

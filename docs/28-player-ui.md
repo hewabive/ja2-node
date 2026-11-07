@@ -161,10 +161,11 @@ screen asks which hint: `30`.
   its screen has loaded, so the server answers the first hints. Each host opens its own.
 - `HintProvider` implements `GameClient`, polled every frame: a request is answered once the same request of its kind
   has been asked for 80 ms (the original's `PATHFINDCOUNTER`, `Utils/Timer_Control.cc:18`), on the latest received
-  view, with one projection per view and answers cached per view. It asks the server while the knowledge is
-  unusable, and for a hint that reads the loaded sector while its map is still loading (`hintReadsSectorWorld`); the
-  map screen's hints need only the strategic knowledge, so its Tactical button does not wait for the server after
-  every new view.
+  view, with one projection per view and answers cached per view; `placements` is answered at once, as the original's
+  item cursor and inventory panel light their slots and faces without that delay. It asks the server while the
+  knowledge is unusable, and for a hint that reads the loaded sector while its map is still loading
+  (`hintReadsSectorWorld`); the map screen's hints need only the strategic knowledge, so its Tactical button does not
+  wait for the server after every new view.
 - **Shadow mode** (`?shadowHints=1`, on in the e2e flows) also asks the server and compares over the view the client
   holds when the reply arrives. The `src/server/hints-*-stub.test.ts` suites and their `-original` twins compare client
   answers, built by the strict projection from the serialised view alone, with server answers over sampled points.

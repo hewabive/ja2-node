@@ -46,6 +46,7 @@ import {
   REFUSAL_USE_ATTACH,
   remainingCursor,
   shownCount,
+  shownStatus,
   slotItem,
 } from './item-cursor.ts';
 import { drawInventoryItem, itemStatusValue, type TileBox, type TileDrawContext } from './item-tile.ts';
@@ -483,7 +484,8 @@ export class InventoryPanel {
   #shownItem(view: InventoryItemView, soldier: number): InventoryItemView {
     const taken = moneyTaken(this.#cursor, soldier, view.slot);
     const count = shownCount(this.#cursor, view, soldier);
-    return taken > 0 ? { ...view, count, money: (view.money ?? 0) - taken } : { ...view, count };
+    const status = shownStatus(this.#cursor, view, soldier);
+    return taken > 0 ? { ...view, count, status, money: (view.money ?? 0) - taken } : { ...view, count, status };
   }
 
   cursorSource(): CursorSource | null {

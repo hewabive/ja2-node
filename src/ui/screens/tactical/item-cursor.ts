@@ -10,7 +10,8 @@
 // @src BeginKeyRingItemPointer (one key off the ring, SHIFT all of the position); Interface_Panels.cc
 // @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position); Handle_UI.cc IsValidTalkableNPC;
 // @src UIHandleItemPlacement (PlaceObject back into the slot the object came from, 2026-11-02, at the stack's end for
-// @src one object of a stack, and the cursor kept on what the placement leaves in it, 2026-11-07; CTRL pools the cursor's
+// @src one object of a stack, and the cursor kept on what the placement leaves in it, 2026-11-07; GetObjFrom leaves the
+// @src stack's next object on top, 2026-11-07; CTRL pools the cursor's
 // @src objects into the stack clicked, any merc's and from any slot, a gun's magazine, an attachment, money or the key
 // @src ring, and leaves the rest in the cursor;
 // @src keys off the ring dropped, given, passed or thrown, 2026-11-03).
@@ -304,6 +305,12 @@ export function hidesSlot(cursor: ItemCursor | null, view: InventoryItemView, so
 
 export function shownCount(cursor: ItemCursor | null, view: InventoryItemView, soldier: number): number {
   return takenFrom(cursor, soldier, view.slot) === 1 ? view.count - 1 : view.count;
+}
+
+export function shownStatus(cursor: ItemCursor | null, view: InventoryItemView, soldier: number): readonly number[] {
+  const s = cursor?.source;
+  if (s?.kind !== 'slot' || takenFrom(cursor, soldier, view.slot) !== 1) return view.status;
+  return view.status.filter((_, k) => k !== s.index);
 }
 
 export const REFUSAL_USE_ATTACH = 'useAttach';

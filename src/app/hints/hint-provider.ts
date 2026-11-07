@@ -6,6 +6,7 @@ import { type KnowledgeRules, type KnowledgeWorld, knowledgeWorld } from '../../
 import { type GameClient, type HintAnswer, type HintAnswerSource, type HintReply, PENDING_HINT } from '../../ui/game-client.ts';
 
 export const PATHFIND_REST_MS = 80;
+const KINDS_ANSWERED_AT_ONCE: ReadonlySet<string> = new Set(['placements']);
 const MAX_KEPT_MISMATCHES = 32;
 const MAX_KEPT_LATENCIES = 4096;
 
@@ -207,8 +208,7 @@ export class HintProvider implements GameClient {
       this.#cacheHits++;
       return { state: 'ready', ...cached };
     }
-    const now = this.#options.now();
-    if (!this.#rested(restKindOf(request), key, now)) return PENDING_HINT;
+    if (!KINDS_ANSWERED_AT_ONCE.has(request.type) && !this.#rested(restKindOf(request), key, this.#options.now())) return PENDING_HINT;
     return this.#resolve(request, key, view);
   }
 

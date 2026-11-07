@@ -72,6 +72,15 @@ describe('local hint provider', () => {
     expect(provider.stats.latency.count).toBe(1);
   });
 
+  it('answers placements at once, as the item cursor lights its slots and faces without waiting for the pointer to rest', () => {
+    const provider = new HintProvider({ channel: channel(), knowledge: () => knowledge(), now: () => 1000 });
+    const merc = view.soldiers.find((s) => s.team === 0 && (s.inventory?.length ?? 0) > 0);
+    const slot = merc?.inventory?.[0]?.slot;
+    if (!merc || slot === undefined) throw new Error('no merc with items');
+    expect(provider.hint({ type: 'placements', soldier: merc.id, slot }).state).toBe('ready');
+    expect(provider.hint({ type: 'placements', soldier: merc.id, slot, count: 1 }).state).toBe('ready');
+  });
+
   it('keeps its answers and its projection over a view where only the tick moved, and drops them on any other change', () => {
     let now = 1000;
     const ch = channel();
