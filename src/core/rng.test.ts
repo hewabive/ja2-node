@@ -63,6 +63,23 @@ describe('Rng', () => {
     expect(Math.abs(hits / n - 0.3)).toBeLessThan(0.01);
   });
 
+  it('shuffles on the engine without passing through int, as std::shuffle draws past Random, Fisher-Yates from the last item', () => {
+    const shuffling = Rng.fromSeed(5);
+    const drawing = Rng.fromSeed(5);
+    Object.assign(shuffling, {
+      int: () => {
+        throw new Error('drew through int');
+      },
+    });
+    const expected = [0, 1, 2, 3, 4, 5, 6, 7];
+    for (let i = expected.length - 1; i > 0; i--) {
+      const j = drawing.int(i + 1);
+      [expected[i], expected[j]] = [expected[j] as number, expected[i] as number];
+    }
+    expect(shuffling.shuffled([0, 1, 2, 3, 4, 5, 6, 7])).toEqual(expected);
+    expect(shuffling.nextU32()).toBe(drawing.nextU32());
+  });
+
   it('scales exactly at the edges', () => {
     expect(scaleU32ToRange(0, 100)).toBe(0);
     expect(scaleU32ToRange(0xffffffff, 100)).toBe(99);

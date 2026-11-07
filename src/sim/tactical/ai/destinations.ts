@@ -139,16 +139,7 @@ function larvaeCrawlDest(t: TacticalState, s: Soldier, triesIn: number, limited:
   return NOWHERE;
 }
 
-function shuffledDirections(t: TacticalState): number[] {
-  const dirs = [0, 1, 2, 3, 4, 5, 6, 7];
-  for (let i = dirs.length - 1; i > 0; i--) {
-    const j = t.rng.int(i + 1);
-    const tmp = dirs[i] as number;
-    dirs[i] = dirs[j] as number;
-    dirs[j] = tmp;
-  }
-  return dirs;
-}
+const EIGHT_DIRECTIONS: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7];
 
 export const GoFlag = { CAUTIOUS: 1, STOPSHORT: 2 } as const;
 const STOPSHORTDIST = 5;
@@ -178,7 +169,7 @@ export function internalGoAsFarAsPossibleTowards(
   if (!legalNPCDestination(t, s, dest, PathMode.ENSURE_PATH, false, pathFlags)) {
     if (isCreatureOrBloodcat(s)) return NOWHERE;
     let found = false;
-    for (const d of shuffledDirections(t)) {
+    for (const d of t.rng.shuffled(EIGHT_DIRECTIONS)) {
       const candidate = newGridNo(dest, directionInc(d));
       if (candidate === dest) continue;
       if (legalNPCDestination(t, s, candidate, PathMode.ENSURE_PATH, false, 0)) {

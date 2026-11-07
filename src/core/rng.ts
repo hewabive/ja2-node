@@ -100,6 +100,17 @@ export class Rng {
   coinToss(): boolean {
     return (this.nextU32() & 1) === 1;
   }
+
+  shuffled<T>(items: readonly T[]): T[] {
+    const out = [...items];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = scaleU32ToRange(this.nextU32(), i + 1);
+      const kept = out[i] as T;
+      out[i] = out[j] as T;
+      out[j] = kept;
+    }
+    return out;
+  }
 }
 
 export const PRE_RANDOM_RING_SIZE = 256;
