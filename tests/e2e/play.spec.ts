@@ -117,6 +117,16 @@ test.describe('the game page', () => {
     });
     expect(prevented).toBe(true);
   });
+
+  test('keeps keys from the browser except F11 and Meta chords', async ({ page }) => {
+    await openGamePage(page, '?screen=testPattern&pinClock=1');
+    const prevented = await page.evaluate(() =>
+      [{ key: 'F5' }, { key: 'F12' }, { key: 'F11' }, { key: 'r', metaKey: true }].map(
+        (init) => !window.dispatchEvent(new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true })),
+      ),
+    );
+    expect(prevented).toEqual([true, true, false, false]);
+  });
 });
 
 test.describe('the 640×480-only option', () => {

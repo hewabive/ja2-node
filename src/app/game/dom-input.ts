@@ -10,6 +10,7 @@ export interface DomInputOptions {
 const SUPPRESSED_BUTTONS: ReadonlySet<number> = new Set([MouseButton.MIDDLE, MouseButton.BACK, MouseButton.FORWARD]);
 const NUM_LOCK = 'NumLock';
 const FULLSCREEN_KEY = 'Enter';
+const BROWSER_FULLSCREEN_KEY = 'F11';
 
 function rawKey(event: KeyboardEvent): RawKey {
   return {
@@ -21,6 +22,10 @@ function rawKey(event: KeyboardEvent): RawKey {
     alt: event.altKey,
     numLock: event.getModifierState(NUM_LOCK),
   };
+}
+
+function leftToBrowser(event: KeyboardEvent): boolean {
+  return event.metaKey || event.key === BROWSER_FULLSCREEN_KEY;
 }
 
 function wheelStep(deltaY: number): number {
@@ -115,7 +120,7 @@ export function installDomInput(
   window.addEventListener(
     'keydown',
     (event) => {
-      if (event.metaKey) return;
+      if (leftToBrowser(event)) return;
       event.preventDefault();
       for (const e of keyDownEvents(rawKey(event))) sink(e);
     },
@@ -124,7 +129,7 @@ export function installDomInput(
   window.addEventListener(
     'keyup',
     (event) => {
-      if (event.metaKey) return;
+      if (leftToBrowser(event)) return;
       event.preventDefault();
       if (event.altKey && event.key === FULLSCREEN_KEY) {
         toggleFullscreen(stage);

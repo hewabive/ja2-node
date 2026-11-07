@@ -267,9 +267,12 @@ screen (`src/sgp/Input.cc:367-385`, `src/ui/input/events.ts`). Shift, Ctrl, Alt 
 Lock queue no event: the runtime takes the modifiers from them and passes them to no screen (`src/sgp/Input.cc:409`,
 `src/ui/runtime.ts`). The original hard-codes whether each hotkey fires on key-down or key-up and with which exact
 modifiers; ja2-node keeps both in hotkey tables per layout and modal (`src/ui/input/hotkeys.ts`), which would also allow
-remapping. Text fields get keys first. The page `preventDefault`s every key except with Meta; Ctrl+W, Ctrl+T, Ctrl+N and
-Ctrl+Tab cannot be overridden. Alt+Enter on release toggles fullscreen and takes the Keyboard Lock (Chromium), so Esc
-reaches the game instead of leaving fullscreen. Scroll Lock's mouse confinement and the Print Screen PNG are not built.
+remapping. Text fields get keys first. The page `preventDefault`s every key except F11 and Meta chords, which go to
+the browser and not to the game; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden. F11 is the browser's own
+fullscreen (the original uses it only at the debug cheat level, `Tactical/Turn_Based_Input.cc:1685`); Chrome leaves
+a single Esc to the page there and exits on a held one. Alt+Enter on release, Stracciatella's toggle
+(`src/sgp/Input.cc:468`), puts the stage into Fullscreen API fullscreen and takes the Keyboard Lock (Chromium), so Esc
+reaches the game there too. Scroll Lock's mouse confinement and the Print Screen PNG are not built.
 
 **Draw list and blits.** The draw list (`src/ui/draw-list.ts`) holds images, glyph runs, fills, rectangles, lines,
 shades, hatches, clips, captures and snapshots, with the original functions' coordinates. `src/render/ui-draw/` draws
