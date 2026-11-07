@@ -560,7 +560,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.inNonInterruptibleAnimation = m.inNonInterruptibleAnimation;
   s.rtNonInterruptible = m.rtNonInterruptible;
   s.turningUntilDone = m.turningUntilDone;
-  s.continueMoveAfterStanceChange = m.continueMoveAfterStanceChange ? 1 : 0;
+  s.continueMoveAfterStanceChange = m.continueMoveAfterStanceChange;
   s.path = [...r.path];
   s.pathIndex = r.pathIndex;
   s.pathSize = m.pathSize;
@@ -573,7 +573,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.servicePartner = m.servicePartner;
   s.skillCheckAttempts = m.skillCheckAttempts;
   s.skillCheckGridNo = grid(m.skillCheckGridNo);
-  s.delayedMovement = m.delayedMovement ? 1 : 0;
+  s.delayedMovement = m.delayedMovement;
   s.newOppCnt = m.newOppCount;
   s.movementNoiseHeard = m.movementNoiseHeard;
   s.oldLife = m.oldLife;

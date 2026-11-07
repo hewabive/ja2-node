@@ -457,6 +457,21 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(fadeOf(soldierOf(sim, CIVILIAN_ID + 1))).toEqual([Visible.FADING_OUT, Visible.FADING_OUT, SoldierFade.OUT, 7, NOWHERE]);
   });
 
+  it('restores the fence hop continuing a move and the wait for a tile at their stored byte values, not as flags (fContinueMoveAfterStanceChange, fDelayedMovement)', () => {
+    const fenceHopContinuation = 2;
+    const waitForTempBlockedTile = 100;
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), {
+          fContinueMoveAfterStanceChange: fenceHopContinuation,
+          fDelayedMovement: waitForTempBlockedTile,
+        }),
+      ],
+    });
+    const merc = soldierOf(importedSim(save), MERC_ID);
+    expect([merc.continueMoveAfterStanceChange, merc.delayedMovement]).toEqual([fenceHopContinuation, waitForTempBlockedTile]);
+  });
+
   it('restores an order to look for items, the item locator lock and a quote held for the end of an attack with its tile (SOLDIER_LOOKFOR_ITEMS, fLockItemLocators, fItemsSeenOnAttack, usItemsSeenOnAttackGridNo)', () => {
     const save = syntheticSave({
       soldiers: [

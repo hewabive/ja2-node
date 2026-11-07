@@ -54,7 +54,7 @@ export const SOLDIER_LAYOUT: Layout = [
   field('bBreathMax', 'i8'),
   field('bStealthMode', 'i8'),
   field('sBreathRed', 'i16'),
-  field('fDelayedMovement', 'bool'),
+  field('fDelayedMovement', 'u8'),
   skip(1),
   field('ubWaitActionToDo', 'u8'),
   skip(1),
@@ -121,7 +121,7 @@ export const SOLDIER_LAYOUT: Layout = [
   field('fPauseAllAnimation', 'bool'),
   field('bExpLevel', 'i8'),
   field('sInsertionGridNo', 'i16'),
-  field('fContinueMoveAfterStanceChange', 'bool'),
+  field('fContinueMoveAfterStanceChange', 'u8'),
   skip(15),
   field('bLife', 'i8'),
   field('bSide', 'u8'),
@@ -583,7 +583,7 @@ export interface SoldierMotion {
   readonly rtNonInterruptible: boolean;
   readonly turningUntilDone: boolean;
   readonly turningIncrement: number;
-  readonly continueMoveAfterStanceChange: boolean;
+  readonly continueMoveAfterStanceChange: number;
   readonly pathStored: number;
   readonly pathSize: number;
   readonly reservedGridNo: number;
@@ -592,7 +592,7 @@ export interface SoldierMotion {
   readonly lastSkillCheck: number;
   readonly skillCheckAttempts: number;
   readonly skillCheckGridNo: number;
-  readonly delayedMovement: boolean;
+  readonly delayedMovement: number;
   readonly weightCarriedAtTurnStart: number;
   readonly newOppCount: number;
   readonly movementNoiseHeard: number;
@@ -975,7 +975,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       rtNonInterruptible: r.bool('fRTInNonintAnim'),
       turningUntilDone: r.bool('fTurningUntilDone'),
       turningIncrement: n('bTurningIncrement'),
-      continueMoveAfterStanceChange: r.bool('fContinueMoveAfterStanceChange'),
+      continueMoveAfterStanceChange: n('fContinueMoveAfterStanceChange'),
       pathStored: n('bPathStored'),
       pathSize: pathSize,
       reservedGridNo: n('sReservedMovementGridNo'),
@@ -984,7 +984,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       lastSkillCheck: n('bLastSkillCheck'),
       skillCheckAttempts: n('ubSkillCheckAttempts'),
       skillCheckGridNo: n('sSkillCheckGridNo'),
-      delayedMovement: r.bool('fDelayedMovement'),
+      delayedMovement: n('fDelayedMovement'),
       weightCarriedAtTurnStart: n('sWeightCarriedAtTurnStart'),
       newOppCount: n('bNewOppCnt'),
       movementNoiseHeard: n('ubMovementNoiseHeard'),
