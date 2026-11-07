@@ -624,11 +624,11 @@ vehicle, so `vehicles.txt` makes them: a civilian Hummer in `SaveGame01` (B13) a
 replays every draw strictly with the pathfinder's, music and cosmetic marks dropped (warps excepted: they run on
 ja2-node's generator and compare the vehicle state, with the out-of-gas box as the `vehicleOutOfGas` event) and compares
 the result and the state field by field. Not compared: a native field the command leaves stale (the click's
-`bPendingActionData3`), positions of soldiers off the map (native `NOWHERE`), the sector flag of the dead (native
-soldiers stay `bInSector`), the current squad outside boarding and leaving (the native value outlives a save load), the
-selection while the map screen is up, and everything `vehicleleavesector` does after `OKForSectorExit`: ja2-node lets
-a vehicle leave with its passengers (deviation "Vehicle sector exit"), while the original sends it alone in a fresh
-squad's foot group and leaves its record and passengers behind, which the native output records.
+`bPendingActionData3`), the sector flag of the dead (native soldiers stay `bInSector`), the current squad outside
+boarding and leaving (the native value outlives a save load), the selection while the map screen is up, and everything
+`vehicleleavesector` does after `OKForSectorExit`: ja2-node lets a vehicle leave with its passengers (deviation "Vehicle
+sector exit"), while the original sends it alone in a fresh squad's foot group and leaves its record and passengers
+behind, which the native output records.
 
 ### Absent mercs
 
@@ -658,8 +658,11 @@ probe satisfies by sleeping, ja2-node's on `realMs`; each comparer poll sets `la
 that ends combat gets ja2-node's forced real-time turn inside the probe (deviation "Real-time turn after combat").
 Records are compared as what a command added since the block's first `abrecords` of the sector (native temp files of
 the loaded sector are not imported), and after an unload at the tiles of those additions. Not compared: the screen and
-compression before a block sets them, `gfDoLighting` before a light event (the native load sets it), and the tile and
-sector flag of the dead (native `RemoveSoldierFromGridNo` puts our dead at `NOWHERE` while they stay `bInSector`).
+compression before a block sets them, `gfDoLighting` before a light event (the native load sets it), the sector flag of
+the dead (native soldiers stay `bInSector`) and the tile of the dead after an unload: `TrashWorld` leaves our team on
+their tiles (`TileEngine/WorldDef.cc:2522`) until the next load's `RemoveMercsInSector` (`Strategic/StrategicMap.cc:858`),
+so a merc whose death animation the unload cut short keeps his there, while ja2-node's unload takes every merc of ours
+off the map (`handleDefiniteUnloadingOfWorld`, `src/sim/campaign/sector-flow.ts`).
 Dawn and dusk on the map are probed as far as a headless build reaches: the light event leaves the loaded map's ambient
 as it was; that only the game screen's frame runs `EnvironmentController` is read from the source
 (`GameScreen.cc:333`).

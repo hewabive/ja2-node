@@ -6,6 +6,7 @@ import type { CampaignSession } from '../../server/campaign-session.ts';
 import { Assignment, VehicleSeat } from '../strategic/forces/constants.ts';
 import { soldierTakeDamage } from '../tactical/combat/hit.ts';
 import { DamageReason } from '../tactical/combat/types.ts';
+import { NOWHERE } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import type { RosterMerc } from './roster.ts';
 
@@ -105,14 +106,13 @@ describe('the mercs aboard a ground vehicle destroyed in the loaded sector (Vehi
     soldierTakeDamage(t, hummerOf(session).soldier, WRECKING_GUNFIRE, 0, DamageReason.GUNFIRE, null);
   }
 
-  it('each take 100 life and 100 breath of bleeding as tactical damage and die on its tile at once, sitting with no fall to play', async () => {
+  it('each take 100 life and 100 breath of bleeding as tactical damage and die at once, sitting with no fall to play, off its tile', async () => {
     const session = await inTheLoadedSector();
-    const at = hummerOf(session).soldier.gridNo;
     wreck(session);
     const killed = aboard(session).map((m) => m.soldier);
     expect(killed.map((s) => [s.life, s.lastDamageReason, s.doingExternalDeath, s.placed, s.gridNo])).toEqual([
-      [0, DamageReason.BLOODLOSS, true, false, at],
-      [0, DamageReason.BLOODLOSS, true, false, at],
+      [0, DamageReason.BLOODLOSS, true, false, NOWHERE],
+      [0, DamageReason.BLOODLOSS, true, false, NOWHERE],
     ]);
     new ReloadingSession('wreck', session).advance({ worldSeconds: DEATH_SECONDS });
     const dead = roster(session).filter((m) => !m.isVehicle);

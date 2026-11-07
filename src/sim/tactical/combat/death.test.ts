@@ -18,8 +18,8 @@ import { loadTacticalContent } from '../load-content.ts';
 import { Profile } from '../narrative/constants.ts';
 import { calcActionPoints } from '../points.ts';
 import { SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from '../roofs.ts';
-import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { Body, NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { type TacticalState, whoIsThere } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { Visibility } from '../world-items.ts';
 import { corpseViews } from '../world-view.ts';
@@ -33,6 +33,7 @@ beforeAll(async () => {
 });
 
 const DEATH_OR_RELEASE = 497;
+const NOBODY_RESERVED = -1;
 const CLIMBED_ONTO_ROOF_HEIGHT = 50;
 
 describe('kill records (Overhead.cc HandleNPCTeamMemberDeath, Soldier_Ani.cc HandleSoldierDeath)', () => {
@@ -174,6 +175,23 @@ function shootBodyDead(bodyContent: TacticalContent, body: number) {
     spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, CREATURE_AT, Direction.NORTH, { life: 1, body }),
   );
 }
+
+describe('our merc shot dead (Rotting_Corpses.cc TurnSoldierIntoCorpse, Soldier_Control.cc InternalRemoveSoldierFromGridNo)', () => {
+  it('leaves his tile for NOWHERE and frees the tile he reserved, while his corpse lies where he fell', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const at = gridNo(80, 85);
+    const next = gridNo(81, 85);
+    const merc = spawnSoldier(sim, 0, Team.OUR, at, Direction.EAST);
+    t.reserved[next] = merc.id;
+    merc.reservedGridNo = next;
+    merc.state = anim(t.content, 'GENERIC_HIT_DEATH');
+    merc.life = 0;
+    handleSoldierDeath(t, merc);
+    expect([merc.gridNo, merc.placed, merc.reservedGridNo, t.reserved[next]]).toEqual([NOWHERE, false, NOWHERE, NOBODY_RESERVED]);
+    expect([whoIsThere(t, at, 0), t.corpses.map((c) => c.gridNo)]).toEqual([null, [at]]);
+  });
+});
 
 describe('creatures shot dead (Soldier_Ani.cc codes 465 and 440, Animation_Control.cc gubAnimSurfaceCorpseID)', () => {
   it('leaves the corpse its dying animation names: the larva’s, the infant’s and the queen’s die where they fall', () => {

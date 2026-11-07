@@ -7,7 +7,8 @@
 // @src chosen one, 2026-11-04); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
-// @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06).
+// @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06); TurnSoldierIntoCorpse taking our dead off the map
+// @src through RemoveSoldierFromGridNo (2026-11-07).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -33,7 +34,7 @@ import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { checkEquipmentForFragileItemDamage } from '../explosions/item-damage.ts';
 import { cancelAllServices } from '../first-aid.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
-import { directionToward } from '../movement.ts';
+import { directionToward, removeSoldierFromGridNo } from '../movement.ts';
 import { endBoxingMatch } from '../narrative/boxing.ts';
 import { boxingFight } from '../narrative/boxing-state.ts';
 import { Profile, TERRORISTS } from '../narrative/constants.ts';
@@ -374,9 +375,11 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   }
   allSoldiersLookForItems(t);
   const direction = corpseDirection(t, s, type);
-  removeOccupant(t, s);
-  removeMercStructure(t, s);
-  if (s.team !== Team.OUR) {
+  const gridNo = s.gridNo;
+  if (s.team === Team.OUR) removeSoldierFromGridNo(t, s);
+  else {
+    removeOccupant(t, s);
+    removeMercStructure(t, s);
     removeVehicleOfSoldier(t.vehicles, s);
     handleCrowLeave(t, s);
     unregisterSoldier(t, s);
@@ -384,7 +387,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   s.placed = false;
   if (type === NO_CORPSE) return true;
   const corpse: Corpse = {
-    gridNo: s.gridNo,
+    gridNo,
     level: s.level,
     heightAdjustment: heightAboveStorey(s),
     bodyType: s.bodyType,

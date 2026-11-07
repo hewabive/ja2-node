@@ -573,7 +573,11 @@ export class AbsentComparer {
 
   #nativeMercRow(m: Json): Json {
     const alive = (((m.life as number[] | undefined) ?? [])[0] ?? 0) > 0;
-    return { ...m, gridNo: alive ? m.gridNo : null, inSector: alive ? m.inSector : null };
+    return { ...m, gridNo: this.#tileCompared(alive) ? m.gridNo : null, inSector: alive ? m.inSector : null };
+  }
+
+  #tileCompared(alive: boolean): boolean {
+    return alive || !this.#unloaded;
   }
 
   #mercRow(m: RosterMerc): Json {
@@ -589,7 +593,7 @@ export class AbsentComparer {
       dead: s.dead,
       collapsed: s.collapsed,
       animState: s.state,
-      gridNo: s.life > 0 ? grid(s.gridNo) : null,
+      gridNo: this.#tileCompared(s.life > 0) ? grid(s.gridNo) : null,
       level: s.level,
       inSector: s.life > 0 ? s.placed : null,
       sector: [m.sector.x, m.sector.y, m.sector.z],

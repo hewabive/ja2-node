@@ -930,7 +930,7 @@ export class VehicleComparer {
       profile: s.profile,
       body: s.bodyType,
       vehicle: s.vehicleId,
-      gridNo: s.placed ? grid(s.gridNo) : NATIVE_NOWHERE,
+      gridNo: grid(s.gridNo),
       x: s.x,
       y: s.y,
       direction: s.direction,
@@ -952,7 +952,7 @@ export class VehicleComparer {
     const s = m.soldier;
     return {
       id: m.id,
-      gridNo: s.placed ? grid(s.gridNo) : NATIVE_NOWHERE,
+      gridNo: grid(s.gridNo),
       level: s.level,
       direction: s.direction,
       assignment: m.assignment,
