@@ -2,15 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { ourHummerOnTheMap, seatInVehicle } from '../../../tests/support/vehicles.ts';
+import { Orientation } from '../../content/formats/jsd.ts';
+import type { MapDoor } from '../../content/formats/map.ts';
 import { DIRECTION_COUNT, Direction, gridNo } from '../../content/world/grid.ts';
-import { TravelCost } from '../../content/world/movement-costs.ts';
+import { recompileLocalMovementCosts, TravelCost } from '../../content/world/movement-costs.ts';
 import { absoluteScreenXY, mapPosFromAbsoluteScreenXY, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
-import type { SyntheticWorld } from '../../content/world/synthetic.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { type SyntheticWorld, syntheticStructure } from '../../content/world/synthetic.ts';
 import { VehicleSeat } from '../strategic/forces/constants.ts';
 import { states } from './animation.ts';
 import { Insertion } from './insertion.ts';
 import { addExitGridToWorld } from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
+import { NOWHERE } from './pathfinding.ts';
 import {
   adjustSoldierPathToGoOffEdge,
   checkMercsWaiting,
@@ -172,5 +176,38 @@ describe('the way to an exit grid (Exit_Grids.cc FindGridNoFromSweetSpotCloseToE
     addExitGridToWorld(t, { mapIndex: EXIT_AT, gridNo: EXIT_AT, sector: BASEMENT });
     expect(findGridNoFromSweetSpotCloseToExitGrid(t, hummer, EXIT_AT, SEARCH_RADIUS)).toBe(EXIT_AT);
     expect(soldierOKForSectorExit(t, hummer, ExitDirection.EXIT_GRID, EXIT_AT)).toBe(true);
+  });
+
+  const HOUSE_WALL_Y = 79;
+  const DOOR_X = 80;
+  const DOOR_AT = gridNo(DOOR_X, HOUSE_WALL_Y);
+  const BEHIND_THE_DOOR = gridNo(80, 77);
+  const BEFORE_THE_DOOR = gridNo(80, 80);
+  const HOUSE_WEST = 70;
+  const HOUSE_EAST = 90;
+  const KEYS = 1;
+  const MERC = 0;
+
+  function houseWallWithADoor(world: SyntheticWorld): void {
+    for (let x = HOUSE_WEST; x <= HOUSE_EAST; x++) {
+      const flags = x === DOOR_X ? StructureFlags.DOOR | StructureFlags.OPENABLE : StructureFlags.WALL;
+      world.structures.add(gridNo(x, HOUSE_WALL_Y), 0, syntheticStructure(flags, Orientation.INSIDE_LEFT));
+    }
+    for (let x = HOUSE_WEST; x <= HOUSE_EAST; x++) recompileLocalMovementCosts(world.costs, world, gridNo(x, HOUSE_WALL_Y));
+  }
+
+  function doorRecord(locked: boolean): MapDoor {
+    return { gridNo: DOOR_AT, locked, trapLevel: 0, trapId: 0, lockId: 0, perceivedLocked: 0, perceivedTrapped: 0, lockDamage: 0 };
+  }
+
+  it('floods past a closed door as the zeroed dummy soldier, who has no keys: a locked one stops the search even for a merc carrying keys (quirk)', () => {
+    for (const locked of [false, true]) {
+      const sim = newCombatSim(kit.content, [], 3, new Set(), houseWallWithADoor, { exitGrids: [], doors: [doorRecord(locked)] });
+      const t = sim.state;
+      const merc = spawnSoldier(sim, MERC, Team.OUR, BEFORE_THE_DOOR, Direction.NORTH);
+      merc.hasKeys = KEYS;
+      addExitGridToWorld(t, { mapIndex: BEHIND_THE_DOOR, gridNo: BEHIND_THE_DOOR, sector: BASEMENT });
+      expect(findGridNoFromSweetSpotCloseToExitGrid(t, merc, BEHIND_THE_DOOR, SEARCH_RADIUS)).toBe(locked ? NOWHERE : BEHIND_THE_DOOR);
+    }
   });
 });
