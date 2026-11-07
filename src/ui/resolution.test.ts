@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignedOffset, autoUiScale, DEFAULT_SCALE_SETTING, resolveResolution, toLogical } from './resolution.ts';
+import { alignedOffset, autoUiScale, clampToView, DEFAULT_SCALE_SETTING, resolveResolution, toLogical } from './resolution.ts';
 
 describe('the UI scale and the logical resolution', () => {
   it('picks the largest integer scale that keeps 640×480', () => {
@@ -73,5 +73,12 @@ describe('the UI scale and the logical resolution', () => {
     expect(toLogical(r, 322, 62)).toEqual({ x: 1, y: 1 });
     expect(toLogical(r, 1599, 1019)).toEqual({ x: 639, y: 479 });
     expect(toLogical(r, 300, 50)).toEqual({ x: -10, y: -5 });
+  });
+
+  it('keeps a device point on the view, so a grabbed pointer stops at the logical screen edges', () => {
+    const r = resolveResolution(1920, 1080, { scale: 0, fixed640: true });
+    expect(clampToView(r, { x: 10.5, y: -40 })).toEqual({ x: 320, y: 60 });
+    expect(clampToView(r, { x: 5000, y: 5000 })).toEqual({ x: 1599, y: 1019 });
+    expect(clampToView(r, { x: 700.25, y: 300.5 })).toEqual({ x: 700.25, y: 300.5 });
   });
 });

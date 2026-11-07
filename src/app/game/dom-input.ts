@@ -1,5 +1,6 @@
 import { keyDownEvents, keyUpEvents, MouseButton, modifierMask, type RawKey, type UiInputEvent } from '../../ui/input/events.ts';
-import { type Resolution, toLogical } from '../../ui/resolution.ts';
+import { type DevicePoint, type Resolution, toLogical } from '../../ui/resolution.ts';
+import { MouseGrab } from './mouse-grab.ts';
 
 export type InputSink = (event: UiInputEvent) => void;
 
@@ -10,7 +11,8 @@ export interface DomInputOptions {
 const SUPPRESSED_BUTTONS: ReadonlySet<number> = new Set([MouseButton.MIDDLE, MouseButton.BACK, MouseButton.FORWARD]);
 const NUM_LOCK = 'NumLock';
 const FULLSCREEN_KEY = 'Enter';
-const BROWSER_FULLSCREEN_KEY = 'F11';
+const FULLSCREEN_PRESS_KEY = 'F11';
+const MOUSE_GRAB_KEY = 'ScrollLock';
 
 function rawKey(event: KeyboardEvent): RawKey {
   return {
@@ -25,7 +27,7 @@ function rawKey(event: KeyboardEvent): RawKey {
 }
 
 function leftToBrowser(event: KeyboardEvent): boolean {
-  return event.metaKey || event.key === BROWSER_FULLSCREEN_KEY;
+  return event.metaKey;
 }
 
 function wheelStep(deltaY: number): number {
@@ -42,15 +44,19 @@ function keyboardLock(): KeyboardLock | undefined {
   return (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
 }
 
-function toggleFullscreen(stage: HTMLElement): void {
+function lockEscape(): void {
+  void keyboardLock()
+    ?.lock(LOCKED_KEYS)
+    .catch(() => undefined);
+}
+
+function toggleFullscreen(stage: HTMLElement, grab: MouseGrab): void {
   if (document.fullscreenElement) {
     void document.exitFullscreen().catch(() => undefined);
     return;
   }
-  void stage
-    .requestFullscreen()
-    .then(() => keyboardLock()?.lock(LOCKED_KEYS))
-    .catch(() => undefined);
+  grab.engage();
+  void stage.requestFullscreen().then(lockEscape, () => grab.release());
 }
 
 export function installDomInput(
@@ -61,21 +67,19 @@ export function installDomInput(
 ): () => void {
   const controller = new AbortController();
   const options = { signal: controller.signal };
-  const logical = (event: MouseEvent) => {
-    const rect = stage.getBoundingClientRect();
-    const ratio = globalThis.devicePixelRatio || 1;
-    return toLogical(resolution(), (event.clientX - rect.left) * ratio, (event.clientY - rect.top) * ratio);
-  };
+  const grab = new MouseGrab(stage, resolution, controller.signal);
+  const logical = (device: DevicePoint) => toLogical(resolution(), device.x, device.y);
   const pointer = (kind: 'pointerDown' | 'pointerUp' | 'pointerMove', event: PointerEvent) => {
-    const { x, y } = logical(event);
+    const { x, y } = logical(kind === 'pointerMove' ? grab.movedTo(event) : grab.at(event));
     sink({ kind, x, y, button: event.button, buttons: event.buttons, wheel: 0, modifiers: modifierMask(eventModifiers(event)) });
   };
   stage.addEventListener(
     'pointerdown',
     (event) => {
-      stage.setPointerCapture(event.pointerId);
+      if (!grab.locked) stage.setPointerCapture(event.pointerId);
       if (SUPPRESSED_BUTTONS.has(event.button)) event.preventDefault();
       pointer('pointerDown', event);
+      grab.regain();
     },
     options,
   );
@@ -94,7 +98,7 @@ export function installDomInput(
     'wheel',
     (event) => {
       event.preventDefault();
-      const { x, y } = logical(event);
+      const { x, y } = logical(grab.at(event));
       sink({
         kind: 'wheel',
         x,
@@ -122,6 +126,10 @@ export function installDomInput(
     (event) => {
       if (leftToBrowser(event)) return;
       event.preventDefault();
+      if (event.key === FULLSCREEN_PRESS_KEY) {
+        if (!event.repeat) toggleFullscreen(stage, grab);
+        return;
+      }
       for (const e of keyDownEvents(rawKey(event))) sink(e);
     },
     options,
@@ -132,7 +140,12 @@ export function installDomInput(
       if (leftToBrowser(event)) return;
       event.preventDefault();
       if (event.altKey && event.key === FULLSCREEN_KEY) {
-        toggleFullscreen(stage);
+        toggleFullscreen(stage, grab);
+        return;
+      }
+      if (event.key === FULLSCREEN_PRESS_KEY) return;
+      if (event.key === MOUSE_GRAB_KEY) {
+        grab.toggle();
         return;
       }
       for (const e of keyUpEvents(rawKey(event))) sink(e);

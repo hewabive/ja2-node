@@ -118,15 +118,27 @@ test.describe('the game page', () => {
     expect(prevented).toBe(true);
   });
 
-  test('keeps keys from the browser except F11 and Meta chords', async ({ page }) => {
+  test('keeps keys from the browser except Meta chords', async ({ page }) => {
     await openGamePage(page, '?screen=testPattern&pinClock=1');
     const prevented = await page.evaluate(() =>
       [{ key: 'F5' }, { key: 'F12' }, { key: 'F11' }, { key: 'r', metaKey: true }].map(
         (init) => !window.dispatchEvent(new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true })),
       ),
     );
-    expect(prevented).toEqual([true, true, false, false]);
+    expect(prevented).toEqual([true, true, true, false]);
   });
+
+  for (const key of ['Alt+Enter', 'F11']) {
+    test(`grabs the pointer in ${key} fullscreen and lets it go on leaving`, async ({ page }) => {
+      await openGamePage(page, '?screen=testPattern&pinClock=1');
+      await page.keyboard.press(key);
+      await expect
+        .poll(() => page.evaluate(() => [document.fullscreenElement?.id, document.pointerLockElement?.id]))
+        .toEqual(['stage', 'stage']);
+      await page.keyboard.press(key);
+      await expect.poll(() => page.evaluate(() => [document.fullscreenElement, document.pointerLockElement])).toEqual([null, null]);
+    });
+  }
 });
 
 test.describe('the 640×480-only option', () => {
@@ -137,6 +149,27 @@ test.describe('the 640×480-only option', () => {
     expect(await page.evaluate(() => [window.__ja2Ui.scale, window.__ja2Ui.logical])).toEqual([1, { width: 640, height: 480 }]);
     await page.mouse.click(320 + 10, 160 + 20);
     expect(await page.evaluate(() => window.__ja2Ui.pointer)).toEqual({ x: 10, y: 20 });
+  });
+
+  test('grabs the pointer on Scroll Lock and moves it by the mouse movement within the frame', async ({ page }) => {
+    await openGamePage(page, '?screen=testPattern&pinClock=1&fixed640=1');
+    await page.keyboard.press('ScrollLock');
+    await expect.poll(() => page.evaluate(() => document.pointerLockElement?.id)).toBe('stage');
+    const report = (type: string, movementX: number, movementY: number) =>
+      page.evaluate(
+        ([type, movementX, movementY]) => {
+          const init = { bubbles: true, movementX, movementY, pointerId: 1, pointerType: 'mouse', isPrimary: true };
+          document.getElementById('stage')?.dispatchEvent(new PointerEvent(type, init));
+          return [window.__ja2Ui.pointer, window.__ja2Ui.presses];
+        },
+        [type, movementX, movementY] as const,
+      );
+    expect(await report('pointermove', -5000, -5000)).toEqual([{ x: 0, y: 0 }, 0]);
+    expect(await report('pointermove', 10, 20)).toEqual([{ x: 10, y: 20 }, 0]);
+    expect(await report('pointermove', 5000, 5)).toEqual([{ x: 639, y: 25 }, 0]);
+    expect(await report('pointerdown', 0, 0)).toEqual([{ x: 639, y: 25 }, 1]);
+    await page.keyboard.press('ScrollLock');
+    await expect.poll(() => page.evaluate(() => document.pointerLockElement)).toBeNull();
   });
 
   test('extends the logical screen at scale 1 without it and centres the std640 frame', async ({ page }) => {

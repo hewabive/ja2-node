@@ -36,6 +36,11 @@ export interface LogicalPoint {
   readonly y: number;
 }
 
+export interface DevicePoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 export function autoUiScale(deviceWidth: number, deviceHeight: number): number {
   return Math.max(1, Math.min(Math.floor(deviceWidth / STD_SCREEN_WIDTH), Math.floor(deviceHeight / STD_SCREEN_HEIGHT)));
 }
@@ -93,4 +98,15 @@ export function toLogical(resolution: Resolution, deviceX: number, deviceY: numb
   const x = Math.floor(((deviceX - resolution.viewX) * resolution.logicalWidth) / resolution.viewWidth);
   const y = Math.floor(((deviceY - resolution.viewY) * resolution.logicalHeight) / resolution.viewHeight);
   return { x, y };
+}
+
+function clampToSpan(value: number, start: number, length: number): number {
+  return Math.min(Math.max(value, start), start + length - 1);
+}
+
+export function clampToView(resolution: Resolution, point: DevicePoint): DevicePoint {
+  return {
+    x: clampToSpan(point.x, resolution.viewX, resolution.viewWidth),
+    y: clampToSpan(point.y, resolution.viewY, resolution.viewHeight),
+  };
 }

@@ -268,12 +268,23 @@ screen (`src/sgp/Input.cc:367-385`, `src/ui/input/events.ts`). Shift, Ctrl, Alt 
 Lock queue no event: the runtime takes the modifiers from them and passes them to no screen (`src/sgp/Input.cc:409`,
 `src/ui/runtime.ts`). The original hard-codes whether each hotkey fires on key-down or key-up and with which exact
 modifiers; ja2-node keeps both in hotkey tables per layout and modal (`src/ui/input/hotkeys.ts`), which would also allow
-remapping. Text fields get keys first. The page `preventDefault`s every key except F11 and Meta chords, which go to
-the browser and not to the game; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden. F11 is the browser's own
-fullscreen (the original uses it only at the debug cheat level, `Tactical/Turn_Based_Input.cc:1685`); Chrome leaves
-a single Esc to the page there and exits on a held one. Alt+Enter on release, Stracciatella's toggle
-(`src/sgp/Input.cc:468`), puts the stage into Fullscreen API fullscreen and takes the Keyboard Lock (Chromium), so Esc
-reaches the game there too. Scroll Lock's mouse confinement and the Print Screen PNG are not built.
+remapping. Text fields get keys first. The page `preventDefault`s every key except Meta chords, which go to the browser
+and not to the game; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden. Alt+Enter on release, Stracciatella's
+toggle (`src/sgp/Input.cc:468`), and F11 on press (the original uses F11 only at the debug cheat level,
+`Tactical/Turn_Based_Input.cc:1685`) put the stage into Fullscreen API fullscreen and take the Keyboard Lock (Chromium),
+so Esc reaches the game there. In any fullscreen Chrome keeps F11 for itself and leaves fullscreen on it (Chromium
+`chrome/browser/ui/browser_command_controller.cc`, `IsReservedCommandOrKey`), so F11 acts on its press: on its release
+the page would already be out and go back in. Stracciatella grabs the mouse in fullscreen and Scroll Lock toggles the
+grab on release (`src/sgp/Video.cc:82`, `src/sgp/Input.cc:460`); here both take a Pointer Lock on the stage
+(`src/app/game/mouse-grab.ts`). The game cursor then moves by the mouse's movement and stops at the edges of the logical
+screen, letterboxed or not, and Chrome shows no exit button at the top edge while the pointer is locked (Chromium
+`chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.cc`, `IsPointerLocked`), which edge scrolling up
+would otherwise call up every time. Both fullscreen keys ask for the lock before `requestFullscreen`, which consumes the
+key's user activation that a lock request needs (Blink `core/fullscreen/fullscreen.cc`); a lock lost in fullscreen, to a
+window switch, comes back on the next click. While the Keyboard Lock holds Esc, Chrome shows its hold-Esc bubble at
+every lock change, that loss included (Chromium `chrome/browser/ui/exclusive_access/pointer_lock_controller.cc`,
+`ShouldSuppressBubbleReshowForStateChange`). Outside the stage's fullscreen, the browser's own included, Chrome ends the
+lock on a single Esc, so there only Scroll Lock grabs, until that Esc. The Print Screen PNG is not built.
 
 **Draw list and blits.** The draw list (`src/ui/draw-list.ts`) holds images, glyph runs, fills, rectangles, lines,
 shades, hatches, clips, captures and snapshots, with the original functions' coordinates. `src/render/ui-draw/` draws
