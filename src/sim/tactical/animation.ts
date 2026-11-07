@@ -14,7 +14,8 @@
 // @src SOLDIER_PAUSEANIMOVE of a turning vehicle or creature in EVENT_InternalSetSoldierDesiredDirection and TurnSoldier,
 // @src Soldier_Ani.cc codes 412 and 413 (2026-11-05); BeginSoldierClimbFence's free turn and prone reset, code 444's free
 // @src stance change on the final tile (2026-11-06); SetSoldierAniSpeed's auto-bandage branch and Overhead.cc
-// @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen (2026-11-07).
+// @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen, SelectMoveAnimationFromStance after a
+// @src stance change that continues a move (2026-11-07).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -645,7 +646,7 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
         stepPastFenceLanding(s);
         if (s.pathIndex !== s.pathSize) initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
       } else {
-        initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
+        selectMoveAnimationFromStance(t, s);
       }
       s.continueMoveAfterStanceChange = 0;
       return;
@@ -660,6 +661,20 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
   else if (s.desiredHeight === AnimHeight.CROUCH && currentEnd === AnimHeight.PRONE) next = st.PRONE_UP;
   if (next === null) soldierGotoStationaryStance(t, s);
   else changeSoldierState(t, s, next);
+}
+
+function selectMoveAnimationFromStance(t: TacticalState, s: Soldier): void {
+  const st = states(t.content.animations);
+  switch (endHeight(t.content, s.state)) {
+    case AnimHeight.STAND:
+      initNewSoldierAnim(t, s, st.WALKING, 0, false);
+      return;
+    case AnimHeight.PRONE:
+      initNewSoldierAnim(t, s, st.CRAWLING, 0, false);
+      return;
+    case AnimHeight.CROUCH:
+      initNewSoldierAnim(t, s, st.SWATTING, 0, false);
+  }
 }
 
 function hopFenceStep(t: TacticalState, s: Soldier, southEast: readonly number[], northWest: readonly number[]): void {
@@ -968,6 +983,7 @@ function playsMeleeAttack(t: TacticalState, s: Soldier): boolean {
 }
 
 export const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
+export const CONTINUE_MOVE_AFTER_STANCE_CHANGE = 1;
 export const CONTINUE_MOVE_PAST_FENCE = 2;
 const isVehicleBody = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const isTankBody = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;

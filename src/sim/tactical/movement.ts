@@ -16,7 +16,8 @@
 // @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05); HandleGotoNewGridNo's walk on after a door for
 // @src our merc in auto-bandage, and the plain opening a merc of ours who never chose how to open a door gets there
 // @src (deviation "Door on the way in auto-bandage", 2026-11-06); ExecuteOverhead's arrival handling an AI soldier with
-// @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06).
+// @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06); HandleNextTile standing a crawler or swatter up into
+// @src water (2026-11-07).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
@@ -31,9 +32,12 @@ import {
   AnimHeight,
   adjustNoAPToFinishMove,
   beginSoldierClimbFence,
+  CONTINUE_MOVE_AFTER_STANCE_CHANGE,
   CONTINUE_MOVE_PAST_FENCE,
+  changeSoldierStance,
   endHeight,
   hasAnimFlag,
+  height,
   initNewSoldierAnim,
   setDesiredDirection,
   setSoldierAniSpeed,
@@ -368,9 +372,18 @@ export function handleNextTile(t: TacticalState, s: Soldier, direction: number, 
     return false;
   }
   if (!t.inCombat) markMovementReserved(t, s, g);
-  if (isWater(t.pathWorld, g) && s.state === states(t.content.animations).RUNNING)
-    initNewSoldierAnim(t, s, states(t.content.animations).WALKING, 0, false);
+  if (isWater(t.pathWorld, g)) wadeIntoWater(t, s);
   return true;
+}
+
+function wadeIntoWater(t: TacticalState, s: Soldier): void {
+  const st = states(t.content.animations);
+  const startHeight = height(t.content, s.state);
+  if (startHeight === AnimHeight.PRONE || startHeight === AnimHeight.CROUCH) {
+    s.continueMoveAfterStanceChange = CONTINUE_MOVE_AFTER_STANCE_CHANGE;
+    changeSoldierStance(t, s, AnimHeight.STAND);
+  }
+  if (s.state === st.RUNNING) initNewSoldierAnim(t, s, st.WALKING, 0, false);
 }
 
 export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boolean, animState: number): GotoResult {

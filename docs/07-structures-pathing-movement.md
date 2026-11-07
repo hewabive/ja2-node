@@ -115,6 +115,8 @@ personality line and some APs lost (`forgetful.ts`, `:1526`).
 the terrain and then, in the original's order, the water (`swimming.ts`: the forced walk, going under and coming up, the
 damage of `Tactical/Items.cc:3315`), the gas flag, the sneaking agility gain (`sneak-past.ts`) and the animation speed,
 which a merc waiting on a squad mate's tile borrows from him until he stops on his final tile (`setDelayedTileWaiting`).
+Before the step into water, `handleNextTile` stands a crawler or a swatter up and a runner walks
+(`Tactical/Soldier_Tile.cc:349`); the end of that stance change walks him on (`Tactical/Soldier_Ani.cc:1903`).
 The original's `fPrevInWater` always equals the water test of the terrain left, so no flag is kept. A move started in
 deep water swims, a stop there treads, and a non-swimmer treading or swimming spends breath five times as fast
 (`deductPoints`, `points.ts`). A soldier bleeding past 12 drops blood at the middle of each tile

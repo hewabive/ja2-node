@@ -35,8 +35,8 @@ interface Swim {
   readonly tiles: number[];
 }
 
-function walkTo(sim: TacticalSim, s: Soldier, to: number): Swim {
-  expect(sim.dispatch({ type: 'move', soldier: s.id, to, mode: 'walk' }).ok).toBe(true);
+function walkTo(sim: TacticalSim, s: Soldier, to: number, mode = 'walk'): Swim {
+  expect(sim.dispatch({ type: 'move', soldier: s.id, to, mode }).ok).toBe(true);
   const states: string[] = [];
   const tiles: number[] = [];
   for (let tick = 0; tick < MAX_TICKS && !sim.isIdle(); tick++) {
@@ -61,6 +61,18 @@ describe('swimming (Soldier_Control.cc SetSoldierGridNo, EVENT_InternalGetNewSol
     expect(s.gridNo).toBe(ORIGIN + 3 * EAST);
     const out = walkTo(sim, s, ORIGIN + 6 * EAST);
     expect(out.states).toEqual(['DEEP_WATER_SWIM', 'DEEP_TO_LOW_WATER', 'WALKING', 'STANDING']);
+  });
+
+  it('stands a crawler or a swatter up at the step into water and walks him on in (Soldier_Tile.cc HandleNextTile)', () => {
+    const wadeIn = (mode: string) => {
+      const sim = newCombatSim(content);
+      lake(sim, [], [ORIGIN + 2 * EAST, ORIGIN + 3 * EAST]);
+      const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+      const wade = walkTo(sim, s, ORIGIN + 3 * EAST, mode);
+      return [wade.states.slice(wade.states.indexOf(mode === 'crawl' ? 'CRAWLING' : 'SWATTING')), s.gridNo];
+    };
+    expect(wadeIn('crawl')).toEqual([['CRAWLING', 'PRONE_UP', 'KNEEL_UP', 'WALKING', 'STANDING'], ORIGIN + 3 * EAST]);
+    expect(wadeIn('swat')).toEqual([['SWATTING', 'KNEEL_UP', 'WALKING', 'STANDING'], ORIGIN + 3 * EAST]);
   });
 
   it('takes the step he went under on again from the tile he entered: going under on a diagonal he swims a tile off his path, then plans again', () => {
