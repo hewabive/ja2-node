@@ -152,6 +152,7 @@ function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: 
 }
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
+type VehicleEvent = Extract<FrameEvent, { readonly type: 'vehicleBoarded' | 'vehicleLeft' }>;
 
 const HEALTH_STAT = 'health';
 const INFO_STAT_KEYS: Readonly<Record<string, string>> = { experience: 'level', lifeMax: HEALTH_STAT };
@@ -819,8 +820,11 @@ export class MapScreen implements Screen {
       case 'mercDied':
         if (event.mapScreen) this.#env.sounds.mercDiedOffTheMap(event.soldier, event.cry ?? null);
         return;
-      default:
-        if (this.#entersOrLeavesGroundVehicle(event) && !inTacticalFlow(this.#playerView())) this.#env.sounds.vehicleEntered();
+      case 'vehicleBoarded':
+      case 'vehicleLeft':
+        if (this.#entersOrLeavesGroundVehicle(event) && !inTacticalFlow(this.#playerView()))
+          this.#env.sounds.vehicleEntered(event.gridNo ?? null);
+        return;
     }
   }
 
@@ -840,7 +844,7 @@ export class MapScreen implements Screen {
     else this.#faces.get(soldier)?.flash(this.#now);
   }
 
-  #entersOrLeavesGroundVehicle(event: FrameEvent): boolean {
+  #entersOrLeavesGroundVehicle(event: VehicleEvent): boolean {
     if (event.type === 'vehicleBoarded') return !this.#isHelicopter(event.vehicle);
     return event.type === 'vehicleLeft' && event.gridNo !== undefined;
   }

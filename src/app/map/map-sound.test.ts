@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FakeGraph, pcmWav, settle } from '../../../tests/support/fake-audio.ts';
 import { AudioEngine } from '../../audio/engine.ts';
-import type { Cue } from '../../content/audio/cue.ts';
+import { type Cue, mixCue } from '../../content/audio/cue.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { PlayerView, StrategicMercView } from '../../protocol/view.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
@@ -14,6 +14,13 @@ const PROFILE = 7;
 const OTHER_PROFILE = 8;
 const DOORCR_1 = 'sounds/doorcr.wav';
 const HEADCR_1 = 'sounds/ja2 death hit.wav';
+const INTO_VEHICLE = 'sounds/into vehicle.wav';
+const VEHICLE_TILE = 80 * 160 + 80;
+const FAR_RIGHT_OFF_SCREEN = 126;
+const MIDDLE = 64;
+const FULL = 127;
+const FAR_VOLUME = FULL - 25;
+const LAST_TACTICAL_VIEW = { centerX: 800, centerY: 1800, width: 640, height: 360 };
 
 function source(): AssetSource {
   return {
@@ -40,7 +47,7 @@ async function rig(talking = false) {
   const cut: number[] = [];
   const sound = new MapSound(engine, source(), view, 'map-sound-test', { isTalking: () => talking, cut: (s) => cut.push(s) });
   await sound.load();
-  return { sound, graph, cues, cut };
+  return { sound, engine, graph, cues, cut };
 }
 
 describe('the map screen battle sounds', () => {
@@ -68,6 +75,18 @@ describe('the map screen battle sounds', () => {
     ]);
     r.sound.mercDiedOffTheMap(MERC + 1, null);
     expect(r.cues.slice(3).map((c) => c.file)).toEqual(samples);
+  });
+
+  it("plays a vehicle's enter sound at its tile against the tactical view last shown, and off the loaded map at full volume in the middle (PlayLocationJA2Sample)", async () => {
+    const r = await rig();
+    r.engine.setListener(LAST_TACTICAL_VIEW);
+    r.sound.vehicleEntered(VEHICLE_TILE);
+    r.sound.vehicleEntered(null);
+    const full = { effects: FULL, speech: FULL, music: FULL, ambient: FULL };
+    expect(r.cues.map((c) => [c.file, mixCue(c, r.engine.listener, full)])).toEqual([
+      [INTO_VEHICLE, { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN }],
+      [INTO_VEHICLE, { volume: FULL, pan: MIDDLE }],
+    ]);
   });
 
   it('keeps the route confirmation of a merc who is talking silent', async () => {

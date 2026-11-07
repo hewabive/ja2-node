@@ -5,9 +5,12 @@
 // @src src/game/Tactical/Soldier_Control.cc InternalDoMercBattleSound (the merc's last battle sound and his talking
 // @src face decide over a new one, which may stop the old; uiBattleSoundID per merc for the dialogue's wait) (2026-11-03);
 // @src src/game/Utils/Message.cc PlayNewMessageSound (newbeep.wav, one at a time); src/game/Tactical/Vehicles.cc
-// @src AddSoldierToVehicle (the enter sound of a ground vehicle, vehicles.json enterSound, at HIGHVOLUME; the helicopter
-// @src has no vehicle soldier and stays silent); src/game/Tactical/Soldier_Control.cc HandleTakeDamageDeath (the DIE1
-// @src cry, DOORCR_1 and HEADCR_1 of a soldier dying while the map screen is up, 2026-11-06).
+// @src AddSoldierToVehicle and ExitVehicle (the enter sound of a ground vehicle, vehicles.json enterSound, at HIGHVOLUME at
+// @src the vehicle's tile, NOWHERE off the loaded map; the helicopter has no vehicle soldier and stays silent);
+// @src src/game/Utils/Sound_Control.cc PlayLocationJA2Sample (SoundVolume and SoundDir against the world view the last
+// @src ApplyScrolling left, the tactical screen's last, 2026-11-07); src/game/Tactical/Soldier_Control.cc
+// @src HandleTakeDamageDeath (the DIE1 cry, DOORCR_1 and HEADCR_1 of a soldier dying while the map screen is up,
+// @src 2026-11-06).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -84,9 +87,9 @@ export class MapSound implements MapSounds {
     this.#beep = this.#engine.play(cueOf(NEW_BEEP, 'fixed', MIDVOLUME));
   }
 
-  vehicleEntered(): void {
+  vehicleEntered(gridNo: number | null): void {
     const book = this.#book;
-    const cue = book ? effectCue(book, INTO_VEHICLE, 'fixed', HIGHVOLUME) : null;
+    const cue = book ? effectCue(book, INTO_VEHICLE, 'location', HIGHVOLUME, gridNo ?? NOWHERE) : null;
     if (cue) this.#engine.play(cue);
   }
 

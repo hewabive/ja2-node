@@ -312,7 +312,7 @@ describe('the map screen over the stub map-screen campaign', () => {
       const passenger = f.mercs[1] ?? -1;
       expect((await f.client.command({ type: 'boardVehicle', soldier: passenger, vehicle: 'helicopter' })).ok).toBe(true);
       await f.settle();
-      expect(f.sounds).not.toContain('vehicleEntered');
+      expect(f.sounds.filter((s) => s.startsWith('vehicleEntered'))).toEqual([]);
       await f.click('filter4');
       expect(f.screen.hook().filters).toMatchObject({ airspace: true, towns: false });
       await f.clickSector('D13');
@@ -552,7 +552,7 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.t.runtime.host.modal).toBeNull();
     }));
 
-  it('sounds a merc getting into a ground vehicle, or out of one on the loaded map, only while the map screen is up', () =>
+  it("sounds a merc getting into a ground vehicle, or out of one on the loaded map, at the vehicle's tile only while the map screen is up", () =>
     withMap(async (f) => {
       const hummer = addVehicleOfOurs((f.session.sim as CampaignSession).campaign, parseSectorString('B13'));
       f.client.refresh();
@@ -572,11 +572,12 @@ describe('the map screen over the stub map-screen campaign', () => {
           ],
         },
       ]);
-      expect(f.sounds.filter((s) => s === 'vehicleEntered')).toHaveLength(2);
+      const entered = () => f.sounds.filter((s) => s.startsWith('vehicleEntered'));
+      expect(entered()).toEqual(['vehicleEntered nowhere', 'vehicleEntered 12345']);
       (f.session.sim as CampaignSession).campaign.state.flow = 'tactical';
       f.client.refresh();
       f.frames([{ tick, changed: [], removed: [], events: [{ type: 'vehicleBoarded', tick, soldier: merc, vehicle }, leftOnTheMap] }]);
-      expect(f.sounds.filter((s) => s === 'vehicleEntered')).toHaveLength(2);
+      expect(entered()).toHaveLength(2);
     }));
 
   it('makes a merc who bleeds the info character, the selection reset even when he is one already, and flashes his face (SoldierBleed, SetInfoChar)', () =>

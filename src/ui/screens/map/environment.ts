@@ -60,7 +60,7 @@ export interface MapSounds {
   glowClick(): void;
   newMessageBeep(): void;
   confirmRoute(soldier: number): void;
-  vehicleEntered(): void;
+  vehicleEntered(gridNo: number | null): void;
   mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void;
 }
 

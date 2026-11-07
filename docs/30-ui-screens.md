@@ -162,12 +162,14 @@ screen asks for real time anew on entry.
 `DoScreenIndependantMessageBox` on whatever screen is up; ja2-node's map and tactical screens both hear every frame, so
 the tactical screen opens them in the tactical flow and the map screen otherwise, once it is on top again after
 autoresolve (`map/event-boxes.ts`). The enter sound of a ground vehicle follows the same split: the sound director plays
-it at the vehicle's tile in the tactical flow, the map screen otherwise (gaps "Sound coverage"). The invasion box of a
-SAM site or town held by militia alone, the bloodcat ambush and lair boxes and the box of an attack on mercs who cannot
-fight always go to the map screen, which the battle they announce brings up; the screen opens them before the
-pre-battle panel and its automatic autoresolve, which wait for OK as the boxes' callback `TriggerPrebattleInterface`
-does, and the map host keeps the events for a screen not built yet (`map/invasion.ts` from `invasion`,
-`map/battle-notice.ts` from the `preBattle` event's `notice`).
+it at the vehicle's tile in the tactical flow, the map screen otherwise, at the same tile against the tactical camera
+last shown, as the original's `SoundVolume` and `SoundDir` read the world view the last scroll left
+(`Utils/Sound_Control.cc:555`; `src/app/map/map-sound.ts`). The invasion box of a SAM site or town held by militia
+alone, the bloodcat ambush and lair boxes and the box of an attack on mercs who cannot fight always go to the map
+screen, which the battle they announce brings up; the screen opens them before the pre-battle panel and its automatic
+autoresolve, which wait for OK as the boxes' callback `TriggerPrebattleInterface` does, and the map host keeps the
+events for a screen not built yet (`map/invasion.ts` from `invasion`, `map/battle-notice.ts` from the `preBattle`
+event's `notice`).
 
 **The loaded sector's events reach the map screen too.** While time is compressed the map screen's real-time turn runs
 on the loaded sector (`15` §2), so its bleeding, deaths and sightings come with the campaign's tick to both screens. The
