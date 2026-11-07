@@ -20,6 +20,7 @@ import { NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
 import { DrawReplay, FactReplay, queueEntry, report } from './talk-compare.ts';
+import { withUntracedShuffle } from './untraced-shuffle.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -250,9 +251,10 @@ export class CivComparer {
 
   #withStreams<T>(c: CampaignSim, t: TacticalState, host: NarrativeHost, random: Random, facts: FactSource | null, run: () => T): T {
     const saved = { state: c.state.rng, tactical: t.rng, facts: host.facts, fx: host.talk.fx };
-    Object.assign(c.state, { rng: random });
-    Object.assign(t, { rng: random });
-    Object.assign(host.talk, { fx: random });
+    const stream = withUntracedShuffle(random, saved.tactical);
+    Object.assign(c.state, { rng: stream });
+    Object.assign(t, { rng: stream });
+    Object.assign(host.talk, { fx: stream });
     if (facts) Object.assign(host, { facts });
     try {
       return run();

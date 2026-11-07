@@ -15,6 +15,7 @@ import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags } from '../../
 import { registerSoldier, type TacticalState, unregisterSoldier } from '../../src/sim/tactical/state.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
+import { withUntracedShuffle } from './untraced-shuffle.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -106,7 +107,7 @@ function replayed<T>(t: TacticalState, trace: readonly Draw[], run: () => T): { 
     pre: new ReplayRandom('PreRandom', decisionDraws(trace, PRE_STREAM)),
   };
   const saved = { rng: t.rng, pre: t.pre };
-  Object.assign(t, { rng: replay.main, pre: replay.pre });
+  Object.assign(t, { rng: withUntracedShuffle(replay.main, saved.rng), pre: replay.pre });
   try {
     const result = run();
     return { result, left: replay.main.left + replay.pre.left };

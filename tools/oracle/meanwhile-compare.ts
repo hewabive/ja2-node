@@ -39,6 +39,7 @@ import { exitGridAt } from '../../src/sim/tactical/sector-exit.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { describeGroup } from './sai-compare.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
+import { withUntracedShuffle } from './untraced-shuffle.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -118,7 +119,7 @@ function replayed(c: CampaignSim, q: QueenContext, draws: readonly Draw[], run: 
     'PreRandom',
   );
   const saved = { rng: s.rng, pre: s.pre, random: q.random, preRandom: q.preRandom };
-  Object.assign(s, { rng: main, pre });
+  Object.assign(s, { rng: withUntracedShuffle(main, saved.rng), pre });
   Object.assign(q, { random: main, preRandom: pre });
   try {
     run();

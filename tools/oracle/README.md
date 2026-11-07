@@ -175,6 +175,9 @@ Most comparers replay the native random draws instead of seeding ja2-node:
   `src/sim/strategic/forces/autoresolve/replay-rng.ts`, or its own roll source), asserting each requested range.
   *Strict* = in order, none left over. A `d` entry replays as the `Random(100)` that falls into the same bucket (ja2-node
   draws one weighted `main(100)` per creature; `deviations.md`).
+- **`std::shuffle`** draws on the engine past `Random`, so the trace holds none of its draws (deviation "GoAsFar
+  fallback"): `Rng.shuffled` takes no traced value and shuffles on the stream's own generator, which the comparers that
+  patch `int` and `chance` keep and the ones that swap the stream for a replay hand it (`untraced-shuffle.ts`).
 - **Marks** bound the draws a comparer keeps or drops:
 
 | Mark | Patch | Around |

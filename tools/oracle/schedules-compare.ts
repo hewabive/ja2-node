@@ -17,6 +17,7 @@ import { postSchedules, processTacticalSchedule, setSoldierPositionNoCenter } fr
 import { NOWHERE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
+import { withUntracedShuffle } from './untraced-shuffle.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -99,7 +100,7 @@ function scheduleWindowDraws(draws: readonly Draw[]): Draw[] {
 function withReplayedSchedules(t: TacticalState, draws: Draw[], run: () => void): string | null {
   const replay = new StrictReplay(draws);
   const saved = t.rng;
-  Object.assign(t, { rng: replay });
+  Object.assign(t, { rng: withUntracedShuffle(replay, saved) });
   try {
     run();
     return replay.left ? `${replay.left} schedule draws left over` : null;

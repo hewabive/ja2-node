@@ -13,6 +13,7 @@ import type { SectorPosition } from '../../src/sim/strategic/state.ts';
 import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
 import { NO_PROFILE, Team } from '../../src/sim/tactical/soldier.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
+import { withUntracedShuffle } from './untraced-shuffle.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -87,7 +88,7 @@ function replayed(c: CampaignSim, draws: readonly Draw[], run: () => void): stri
     'PreRandom',
   );
   const saved = { rng: s.rng, pre: s.pre };
-  Object.assign(s, { rng: main, pre });
+  Object.assign(s, { rng: withUntracedShuffle(main, saved.rng), pre });
   try {
     run();
     if (main.left || pre.left) return `${main.left} Random and ${pre.left} PreRandom draws left over`;

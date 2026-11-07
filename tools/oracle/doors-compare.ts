@@ -21,6 +21,7 @@ import { STAT_KEYS, StatKind } from '../../src/sim/tactical/profiles.ts';
 import { NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
+import { withUntracedShuffle } from './untraced-shuffle.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -133,7 +134,7 @@ function replayed<T>(t: TacticalState, trace: readonly Draw[], run: () => T): { 
   const pre = new StrictReplay(trace.filter((d) => d[0] === PRE_STREAM));
   const main = new CosmeticTolerantReplay(trace.filter((d) => d[0] === MAIN_STREAM));
   const saved = { rng: t.rng, pre: t.pre };
-  Object.assign(t, { rng: main, pre });
+  Object.assign(t, { rng: withUntracedShuffle(main, saved.rng), pre });
   try {
     const result = run();
     return { result, preLeft: pre.left, mainSkipped: main.skipped + main.left };
