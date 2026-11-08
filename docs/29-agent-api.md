@@ -812,7 +812,8 @@ auto-bandage runs or its question waits, a line plays, another prompt is up or a
 battle ms, one per 200 ticks (`TICKS_PER_AUTORESOLVE_SLICE`): `{idle}` to the end or a prompt, `{ticks: n}` ⌊n / 200⌋
 slices (so a real-time driver paces it), `{events}` up to the slice in which one happened. Under the instant driver
 `answer autoresolve` runs to the first stop at once. `autoresolveRetreat` applies before the next slice. The end opens
-`autoresolveDone`: `bandage` answers and reopens it, `done` returns to the strategic flow.
+`autoresolveDone`: `bandage` answers and reopens it, `done` returns to the strategic flow. A battle that no fighter can
+change any more ends with the status `stalemate`, which the original never reaches (deviation "Autoresolve stalemate").
 
 ### 8.11 Laptop and hiring
 

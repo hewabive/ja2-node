@@ -37,7 +37,7 @@ export const CellGroup = {
   MALE_CREATURE: CellFlag.AM_CREATURE | CellFlag.YM_CREATURE,
 } as const;
 
-export const BattleStatus = { IN_PROGRESS: 0, VICTORY: 1, DEFEAT: 2, RETREAT: 3, SURRENDERED: 4, CAPTURED: 5 } as const;
+export const BattleStatus = { IN_PROGRESS: 0, VICTORY: 1, DEFEAT: 2, RETREAT: 3, SURRENDERED: 4, CAPTURED: 5, STALEMATE: 6 } as const;
 
 export const MAX_AR_MERCS = 20;
 export const MAX_AR_MILITIA = 20;

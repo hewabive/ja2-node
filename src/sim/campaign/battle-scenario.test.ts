@@ -393,6 +393,41 @@ describe('autoresolve from the strategic state', () => {
     expect(c.state.flow).toBe('autoresolve');
   });
 
+  it('ends a battle of unconscious fighters on both sides in a stalemate the close settles: no side wins, the enemies below OKLIFE die, the mercs lie on (deviation "Autoresolve stalemate")', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    for (const m of c.battle?.roster.all() ?? []) m.soldier.life = UNCONSCIOUS_LIFE;
+    sendEnemyGroup(c);
+    advance(c, { ticks: TICKS_TO_ARRIVAL, events: ['arStarted'] });
+    const ar = c.state.battle.autoresolve?.ar;
+    if (!ar) throw new Error('no autoresolve battle');
+    for (const e of ar.enemies) {
+      e.soldier.life = UNCONSCIOUS_LIFE;
+      e.nextHit.fill(0);
+    }
+    for (const m of ar.mercs) m.nextHit.fill(0);
+    const lives = ar.mercs.map((m) => m.soldier.life);
+    expect(lives.every((life) => life > 0 && life <= UNCONSCIOUS_LIFE)).toBe(true);
+    const controlBefore = c.state.map.elements[A9.x + A9.y * 18]?.enemyControlled;
+    const toEnd = advance(c, { idle: true });
+    expect(toEnd.events).toContainEqual(expect.objectContaining({ type: 'arBattleOver', status: 'stalemate' }));
+    const done = c.state.battle.prompt;
+    expect(done?.kind).toBe(PromptKind.AUTORESOLVE_DONE);
+    expect(c.dispatch({ type: 'answer', prompt: done?.id, choice: 'done' })).toMatchObject({ ok: true });
+    const closed = c.drainEvents();
+    expect(closed.find((e) => e.type === 'arSummary')).toMatchObject({
+      status: 'stalemate',
+      mercs: { died: [] },
+      enemiesKilled: ENEMY_TROOPS,
+      sectorControl: null,
+    });
+    expect([...toEnd.events, ...closed].some((e) => e.type === 'battleResult')).toBe(false);
+    expect(c.state.flow).toBe('strategic');
+    expect(c.battle?.roster.all().map((m) => m.soldier.life)).toEqual(lives);
+    expect(c.state.map.elements[A9.x + A9.y * 18]?.enemyControlled).toBe(controlBefore);
+  });
+
   it('names the bloodcat box on the panel of an ambush, and no box on an invasion panel', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
     landFirstSquad(c);

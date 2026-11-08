@@ -22,11 +22,8 @@ The loaded sector: doors, sight, walking, combat, items, explosions, the AI and 
 
 ## 2. Strategic layer
 
-The map, travel, vehicles, time compression, the economy, sector state and autoresolve. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Autoresolve stalemate | A battle of only unconscious fighters never ends, and Finish hangs (`Strategic/Auto_Resolve.cc:3267`) | The battle runs on without a freeze (`campaign/battle-flow.ts`) | Ending it would be a deviation (deviations "Watchdogs") |
+The map, travel, vehicles, time compression, the economy, sector state and autoresolve: none known. Paths are under
+`src/sim/`.
 
 ## 3. Campaign, laptop and narrative
 

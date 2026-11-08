@@ -157,6 +157,7 @@ const STATUS_NAMES: Readonly<Record<number, string>> = {
   [BattleStatus.RETREAT]: 'retreat',
   [BattleStatus.SURRENDERED]: 'surrendered',
   [BattleStatus.CAPTURED]: 'captured',
+  [BattleStatus.STALEMATE]: 'stalemate',
 };
 
 export function battleStatusName(status: number): string {

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Auto_Resolve.cc RetreatButtonCallback, MercCellMouseClickCallback, IsBattleOver,
-// @src AttemptPlayerCapture, AcceptSurrenderCallback, RejectSurrenderCallback.
+// @src src/game/Strategic/Auto_Resolve.cc RetreatButtonCallback, MercCellMouseClickCallback, IsBattleOver (and the end of a
+// @src battle no fighter can change any more, which ProcessBattleFrame runs for ever: deviation "Autoresolve stalemate",
+// @src 2026-11-08), AttemptPlayerCapture, AcceptSurrenderCallback, RejectSurrenderCallback.
 
 import { u8, u16 } from '../../../../core/int.ts';
 import type { RandomStream } from '../../../tactical/combat/context.ts';
@@ -16,6 +17,7 @@ import {
   emitEvent,
   hasFlag,
   hasRobotController,
+  isCreatureCell,
   robotCell,
 } from './state.ts';
 
@@ -141,7 +143,26 @@ export function isBattleOver(env: AutoresolveEnv, ar: AutoresolveState): boolean
     return finish(ar, BattleStatus.DEFEAT);
   }
   if (ar.aliveEnemies === 0) return finish(ar, BattleStatus.VICTORY);
+  if (!anyFighterCanChangeTheBattle(ar)) return finish(ar, BattleStatus.STALEMATE);
   return false;
+}
+
+function hasBulletInFlight(c: ArCell): boolean {
+  return !hasFlag(c, CellFlag.RETREATED) && c.nextHit.some((ms) => ms !== 0);
+}
+
+function isGroundedRobot(ar: AutoresolveState, c: ArCell): boolean {
+  return c.side === 'merc' && c.index === ar.robot && !hasRobotController(ar);
+}
+
+function canStillAct(ar: AutoresolveState, c: ArCell): boolean {
+  if (hasFlag(c, CellFlag.RETREATED) || c.soldier.life === 0) return false;
+  if (c.soldier.life < OKLIFE && !isCreatureCell(c)) return false;
+  return !isGroundedRobot(ar, c);
+}
+
+function anyFighterCanChangeTheBattle(ar: AutoresolveState): boolean {
+  return [...ar.mercs, ...ar.militia, ...ar.enemies].some((c) => canStillAct(ar, c) || hasBulletInFlight(c));
 }
 
 function captureConditions(env: AutoresolveEnv, ar: AutoresolveState): boolean {

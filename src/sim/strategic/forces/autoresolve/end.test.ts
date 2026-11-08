@@ -4,7 +4,8 @@ import { loadTestContent } from '../../../../../tests/support/tactical.ts';
 import { createItem } from '../../../items/object.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { InvSlot } from '../../../tactical/inventory.ts';
-import { Body } from '../../../tactical/soldier.ts';
+import { Body, OKLIFE } from '../../../tactical/soldier.ts';
+import { EncounterCode } from '../constants.ts';
 import { answerSurrender, attemptPlayerCapture, isBattleOver, orderRetreat, retreatAll, retreatOne } from './end.ts';
 import { processCell, runAutoresolve, runSlice } from './loop.ts';
 import { type ArCell, BattleStatus, CellFlag, updateRobotController } from './state.ts';
@@ -154,6 +155,60 @@ describe('isBattleOver', () => {
     expect(ar.status).toBe(BattleStatus.DEFEAT);
     expect(ar.aliveMercs).toBe(0);
     expect(controller.life).toBe(10);
+  });
+});
+
+describe('a battle no fighter can change any more (deviation "Autoresolve stalemate")', () => {
+  const UNCONSCIOUS = 10;
+  const IN_FLIGHT_MS = 500;
+  const STALL_BUDGET = { maxSlices: 100 };
+
+  function unconsciousOnBothSides() {
+    return arState({
+      mercs: [{ soldier: arSoldier(content, { life: UNCONSCIOUS }) }, { soldier: arSoldier(content, { life: 0 }) }],
+      militia: [militiaSoldier(content, { life: UNCONSCIOUS })],
+      enemies: [{ soldier: enemySoldier(content, { life: UNCONSCIOUS }) }, { soldier: enemySoldier(content, { life: UNCONSCIOUS }) }],
+    });
+  }
+
+  it('ends in a stalemate where the original runs its slices for ever, once the last bullet in flight has landed', () => {
+    const ar = unconsciousOnBothSides();
+    const enemy = cell(ar.enemies, 0);
+    enemy.nextHit[0] = IN_FLIGHT_MS;
+    const env = arEnv(content, { pre: scripted([], 0) });
+    expect(isBattleOver(env, ar)).toBe(false);
+    enemy.nextHit[0] = 0;
+    expect(isBattleOver(env, ar)).toBe(true);
+    expect(ar.status).toBe(BattleStatus.STALEMATE);
+    expect(ar.events.at(-1)).toMatchObject({ type: 'arBattleOver', status: BattleStatus.STALEMATE });
+    expect(runAutoresolve(env, unconsciousOnBothSides(), STALL_BUDGET)).toBe('over');
+  });
+
+  it('goes on while one fighter is conscious or a live creature, unconscious too, still attacks', () => {
+    const env = arEnv(content, { pre: scripted([], 0) });
+    const conscious = unconsciousOnBothSides();
+    cell(conscious.militia, 0).soldier.life = OKLIFE;
+    expect(isBattleOver(env, conscious)).toBe(false);
+    const creature = arState({
+      encounter: EncounterCode.CREATURE_ATTACK,
+      mercs: [{ soldier: arSoldier(content, { life: UNCONSCIOUS }) }],
+      enemies: [{ soldier: enemySoldier(content, { life: UNCONSCIOUS, body: Body.YAM_MONSTER, gun: null }) }],
+    });
+    expect(isBattleOver(env, creature)).toBe(false);
+  });
+
+  it('counts a conscious robot without a controller as one who can do nothing', () => {
+    const ar = arState({
+      mercs: [
+        { soldier: arSoldier(content, { life: UNCONSCIOUS }) },
+        { soldier: arSoldier(content, { id: 2, body: Body.ROBOTNOWEAPON }), robot: true },
+      ],
+      enemies: [{ soldier: enemySoldier(content, { life: UNCONSCIOUS }) }],
+    });
+    const env = arEnv(content);
+    updateRobotController(env, ar);
+    expect(isBattleOver(env, ar)).toBe(true);
+    expect(ar.status).toBe(BattleStatus.STALEMATE);
   });
 });
 
