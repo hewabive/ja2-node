@@ -129,6 +129,7 @@ import { preBattlePanel } from './pre-battle-panel.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
 import { addDeadSoldierToUnloadedSector, deadSoldierRecord, randomGridNo, removeRandomItemsInSector } from './sector-loot.ts';
+import { answerSomeoneElseInSector, SOMEONE_ELSE_IN_SECTOR_CHOICES } from './someone-else-in-sector.ts';
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
 
 export const TICKS_PER_AUTORESOLVE_SLICE = 200;
@@ -953,6 +954,8 @@ export class BattleFlow implements FateContext {
         return this.#answerSimultaneous(choice);
       case PromptKind.NPC_OF_NOTE:
         return this.#answerNpcOfNote(choice);
+      case PromptKind.SOMEONE_ELSE_IN_SECTOR:
+        return this.#answerSomeoneElse(choice);
       case PromptKind.CONTRACT_RENEWAL:
       case PromptKind.MERC_DEPARTURE:
       case PromptKind.INSURANCE_EXTENSION:
@@ -1041,6 +1044,13 @@ export class BattleFlow implements FateContext {
     if (!choices.includes(choice)) return badChoice(`choose ${choices.map((c) => `'${c}'`).join(' or ')}`);
     this.state.battle.prompt = null;
     answerNpcOfNotePrompt(this.economy, choice !== NPC_OF_NOTE_STOP);
+    this.settle();
+    return { ok: true };
+  }
+
+  #answerSomeoneElse(choice: string): CommandResult {
+    if (!answerSomeoneElseInSector(this.state.battle, choice))
+      return badChoice(`choose ${SOMEONE_ELSE_IN_SECTOR_CHOICES.map((c) => `'${c}'`).join(' or ')}`);
     this.settle();
     return { ok: true };
   }

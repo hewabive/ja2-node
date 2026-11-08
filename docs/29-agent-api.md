@@ -784,6 +784,12 @@ before the panel of an arrival comes as the event's `notice`: `bloodcatAmbush`, 
 battle sector while the locator is on, a compression attempt during a tactical battle), with its side effects;
 `autoresolveBattle` skips the panel (deviation "Non-persistent pre-battle interface").
 
+**Someone else in the sector.** Three seconds after a tactical battle is won, boxing included, in a wilderness sector
+whose profiled NPCs nobody has spoken with, the `someoneElseInSector` prompt (`ok`, the original's OK box) opens; while
+auto-bandage runs or its question waits, a line plays, another prompt is up or a conversation is open it looks again
+2 s later, and the map screen, a shop or a meanwhile drop it (`src/sim/campaign/someone-else-in-sector.ts`, deviation
+"Someone else in sector timer").
+
 **Autoresolve is a flow** (deviation "Autoresolve session"): world time is frozen and `advance` runs slices of 1000
 battle ms, one per 200 ticks (`TICKS_PER_AUTORESOLVE_SLICE`): `{idle}` to the end or a prompt, `{ticks: n}` ⌊n / 200⌋
 slices (so a real-time driver paces it), `{events}` up to the slice in which one happened. Under the instant driver

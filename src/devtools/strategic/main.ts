@@ -359,6 +359,8 @@ function promptSummary(prompt: PromptView): string {
       return `${prompt.groups} groups arrive at ${prompt.sector} together`;
     case 'npcOfNote':
       return `group ${prompt.group} meets someone in ${prompt.sector}`;
+    case 'someoneElseInSector':
+      return `someone else is in ${prompt.sector}`;
     case 'surrender':
       return 'the enemy offers to take the squad prisoner';
     case 'militiaPayment':

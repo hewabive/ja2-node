@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/PreBattle_Interface.h (saved PBI globals); Auto_Resolve.cc gsEnemyGainedControlOfSectorID,
 // @src gsCiviliansEatenByMonsters; Strategic/Quests.h FACT_FIRST_BATTLE_*; Tactical/Overhead_Types.h ubLastBattleSector,
-// @src fLastBattleWon.
+// @src fLastBattleWon; the Utils/Timer_Control.cc customizable timer that Tactical/Overhead.cc CheckForEndOfBattle sets
+// @src for HandleThePlayerBeNotifiedOfSomeoneElseInSector, and its OK box (2026-11-07).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { ArRng, AutoresolveState } from './autoresolve/state.ts';
@@ -36,6 +37,7 @@ export const PromptKind = {
   AUTORESOLVE_DONE: 'autoresolveDone',
   SIMULTANEOUS_ARRIVAL: 'simultaneousArrival',
   NPC_OF_NOTE: 'npcOfNote',
+  SOMEONE_ELSE_IN_SECTOR: 'someoneElseInSector',
   CONTRACT_RENEWAL: 'contractRenewal',
   MERC_DEPARTURE: 'mercDeparture',
   INSURANCE_EXTENSION: 'insuranceExtension',
@@ -56,6 +58,7 @@ export type BattlePrompt =
   | { readonly id: string; readonly kind: typeof PromptKind.AUTORESOLVE_DONE }
   | { readonly id: string; readonly kind: typeof PromptKind.SIMULTANEOUS_ARRIVAL }
   | { readonly id: string; readonly kind: typeof PromptKind.NPC_OF_NOTE }
+  | { readonly id: string; readonly kind: typeof PromptKind.SOMEONE_ELSE_IN_SECTOR }
   | { readonly id: string; readonly kind: typeof PromptKind.CONTRACT_RENEWAL; readonly soldier: number; readonly fromSequence: boolean }
   | {
       readonly id: string;
@@ -117,6 +120,7 @@ export interface BattleState {
   civiliansEaten: number;
   resetAllPlayerKnowsEnemiesFlags: boolean;
   lostBattleUnloadAtMs: number | null;
+  someoneElseLookAtMs: number | null;
   promptSeq: number;
   prompt: BattlePrompt | null;
   autoresolve: AutoresolveSession | null;
@@ -136,6 +140,7 @@ export function createBattleState(): BattleState {
     civiliansEaten: 0,
     resetAllPlayerKnowsEnemiesFlags: false,
     lostBattleUnloadAtMs: null,
+    someoneElseLookAtMs: null,
     promptSeq: 0,
     prompt: null,
     autoresolve: null,

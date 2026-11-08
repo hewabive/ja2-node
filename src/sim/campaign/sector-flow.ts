@@ -217,6 +217,7 @@ import {
 } from './sector-diff.ts';
 import { type AdjacentJump, allMercsHaveWalkedOffSector, allMercsWalkedToExitGrid, exitSectorCommand } from './sector-exits.ts';
 import { addCorpsesToBloodcatLair } from './sector-loot.ts';
+import { lookForSomeoneElseInSectorLater } from './someone-else-in-sector.ts';
 import { campaignTurnHooks, installCampaignPorts } from './turn-world.ts';
 import { loadedSectorVehicles } from './vehicle-boarding.ts';
 
@@ -676,6 +677,7 @@ export class SectorFlow {
       militiaFinishBattle: (t) => this.campaign.battle?.militiaFinishBattle(t) ?? false,
       battleLost: (t) => this.campaign.battle?.battleLost(t),
       battleEnded: (t, result) => this.campaign.battle?.tacticalBattleEnded(t, result === 'won'),
+      battleWon: (t) => lookForSomeoneElseInSectorLater(this.campaign, t),
       combatEntered: () => this.#combatEntered(),
       enemyPresence: () => this.#enemyPresence(),
       structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),

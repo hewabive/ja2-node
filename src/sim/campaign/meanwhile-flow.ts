@@ -4,7 +4,8 @@
 // @src DoneFadeOutMeanwhile, DoneFadeInMeanwhile, EndMeanwhile, RestoreNPCMeanwhile, DoneFadeOutMeanwhileOnceDone;
 // @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Tactical/Interface_Dialogue.cc NPC_ACTION_SHOOT_ELLIOT (Elliot's
 // @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map); the pending
-// @src auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears (2026-11-06).
+// @src auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears (2026-11-06), with the customizable timer
+// @src of a won battle's look for someone else (2026-11-07).
 
 import { sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';
@@ -37,6 +38,7 @@ import {
 import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { StoryEventWithoutTick } from './narrative/story-events.ts';
+import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
 const MEDUNA_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
 const INTERROGATION_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT, Npc.JOE];
@@ -93,6 +95,7 @@ export class MeanwhileFlow {
     if (!this.#gatesPass()) return;
     m.trying = false;
     setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
+    forgetSomeoneElseInSector(this.#campaign.state.battle);
     if (m.current.id === Meanwhile.INTERROGATION) this.#startInterrogation();
     else this.#resolveMeduna(m.current.id);
   }

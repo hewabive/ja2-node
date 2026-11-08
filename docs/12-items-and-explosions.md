@@ -468,10 +468,11 @@ the rest of its frame (`GameScreen.cc:283-288`), so those hooks are the normal p
 and `updateClock`, which the pause stops. It leaves out what `MainGameScreenHandle` runs after its early return: the
 interface lock's pause (`HandleTacticalUI`; `syncInterfaceLockPause` returns at once in the mode, so a lock that begins
 and ends inside it cannot lift the mode's pause), the environment controller, the NPC trigger timer, the dialogue step
-with the shop it may open, and the timers of `CheckCustomizableTimer` and `CheckForMeanwhileOKStart` (Carmen, the
-endgame, the meanwhile start). So the dialogue queue stands for the whole mode and the lines queued meanwhile play after
-it; `isIdle` reads only the mode's completion, not the frozen talk. The start's hook pauses the world clock; the end's
-hook unpauses it and warps it by the count with `Warp.NO_PROCESSING` (`campaign/sector-flow.ts`, `15`).
+with the shop it may open, and the timers of `CheckCustomizableTimer` and `CheckForMeanwhileOKStart` (Carmen, the look
+for someone else in the sector, the endgame, the meanwhile start). So the dialogue queue stands for the whole mode and
+the lines queued meanwhile play after it; `isIdle` reads only the mode's completion, not the frozen talk. The start's
+hook pauses the world clock; the end's hook unpauses it and warps it by the count with `Warp.NO_PROCESSING`
+(`campaign/sector-flow.ts`, `15`).
 
 **What the flag changes.**
 - The AI (`ai/control.ts`): `handleSoldierAI` lets our mercs through, and their real-time decision is

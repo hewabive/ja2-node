@@ -88,6 +88,8 @@ function choiceFor(prompt: BattlePrompt): string[] {
       return ['done'];
     case 'npcOfNote':
       return ['continue', 'ok'];
+    case 'someoneElseInSector':
+      return ['ok'];
     case 'simultaneousArrival':
       return ['separately', 'together'];
     case 'contractRenewal':

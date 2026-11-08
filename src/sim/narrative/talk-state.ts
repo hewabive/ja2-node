@@ -7,7 +7,7 @@
 // @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn, gubLogForMeTooBleeds, fWasPausedDuringDialogue;
 // @src TacticalAI/NPC.cc giNPCSpecialReferenceCount;
 // @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm; GameScreen.cc gfTacticalIsModal, gModalDoneCallback;
-// @src Faces.h FACE_MODAL (2026-11-04).
+// @src Faces.h FACE_MODAL (2026-11-04); Dialogue_Control.cc DialogueActive (2026-11-07).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -137,6 +137,10 @@ export function createTalkState(seed = 0): TalkState {
     lines: [],
     fx: Rng.fromSeed(seed ^ COSMETIC_SEED),
   };
+}
+
+export function dialogueActive(talk: TalkState): boolean {
+  return talk.face !== null;
 }
 
 export function dialogueQueueIsEmptyAndNobodyIsTalking(talk: TalkState): boolean {

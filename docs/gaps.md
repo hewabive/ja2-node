@@ -34,11 +34,7 @@ The map, travel, vehicles, time compression, the economy, sector state and autor
 
 ## 3. Campaign, laptop and narrative
 
-NPC records, merc lines, the dialogue queue and quest scripting. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Someone else in sector | Three seconds after a won battle, boxing included, an OK box says someone else is in the sector when it is a wilderness sector whose profiled NPCs nobody has spoken with; while auto-bandage runs or its question is pending, a line plays, a message box is up, or a tactical menu or the talk panel is open, it looks again two seconds later (`Tactical/Overhead.cc:4697`, `:6195-6215`) | No box after a battle (`checkForEndOfBattle`, `tactical/turns/turns.ts`); the same sector test opens the `npcOfNote` prompt when a squad arrives (`strategic/forces/npcs-of-note.ts`) | An `ok` prompt like `npcOfNote` (deviation "Strategic prompts") and its box in the client. The waits run on the one customizable timer, which the picked-ownership check and the death and capture timers also set, each firing or dropping the one before (`Utils/Timer_Control.cc:101`), and which leaving tactical clears (`GameScreen.cc:208`) |
+NPC records, merc lines, the dialogue queue and quest scripting: none known. Paths are under `src/sim/`.
 
 ## 4. Agent API
 

@@ -102,6 +102,7 @@ import { repairSamTerminal } from './sam-repair.ts';
 import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
+import { handleSomeoneElseInSectorTimer } from './someone-else-in-sector.ts';
 import { isQueryCommand, storyRefusal } from './story-refusals.ts';
 import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
 import { createUnloadedWorld, drainTurnWorldEvents, handleMapScreenRealtimeTurns } from './turn-world.ts';
@@ -680,6 +681,7 @@ export class CampaignSim {
     else if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
       this.talk?.beforeTacticalStep();
+      handleSomeoneElseInSectorTimer(this);
       this.tactical.step();
       s.realMs = this.tactical.state.clockMs;
       this.#events.push(...this.tactical.drainEvents());

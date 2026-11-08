@@ -34,6 +34,7 @@ import { rewindRealtimeTurnStamps, syncStrategicTurnTimes } from '../tactical/tu
 import type { CampaignSim } from './campaign-sim.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
+import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
 const ABSENT = new Set<number>([Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW, Assignment.ASSIGNMENT_DEAD]);
 const ABANDON_FIGHT_TEXT = 'a boxing match is under way; send "abandonFight": true to abandon it and open the map';
@@ -60,6 +61,7 @@ export function leaveTacticalScreen(campaign: CampaignSim): void {
   setAutoBandagePending(campaign.state.sectorFlow.autoBandage, false);
   const battle = campaign.state.battle;
   battle.lostBattleUnloadAtMs = null;
+  forgetSomeoneElseInSector(battle);
   if (!battle.autoStart) campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   enterMapScreen(campaign);
   syncInterfaceLockPause(campaign);

@@ -134,7 +134,9 @@ time and is not idle while it lasts, so `advance` runs it out (deviation "Enemy 
 
 **The end of combat.** `checkForEndOfBattle`, after every death and attack, wins when no capable enemy is left (a
 soldier in his death animation still counts) and no reinforcements wait, and loses when all our mercs are down, which
-may end in capture (`26`). A win leaves auto-bandage's question pending (`12` §8). `checkForEndOfCombatMode`, at the start of our turn and on End Turn, ends combat at once when
+may end in capture (`26`). A win leaves auto-bandage's question pending (`12` §8) and, boxing included, looks 3 s later for
+someone else in a wilderness sector whose NPCs nobody has met: the `someoneElseInSector` box (deviation "Someone else
+in sector timer"). `checkForEndOfCombatMode`, at the start of our turn and on End Turn, ends combat at once when
 none of ours sees anyone and no soldier outside our team who is not neutral is on red alert, else at the start of the
 second player turn in a row on which nobody has seen a hostile this turn or last. End Turn checks first; when combat
 ends, the turn does not (`data.combatEnded`).
@@ -240,8 +242,7 @@ merc off the loaded map, in real time on both screens and at our team turn in co
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's
   return changes nothing (`SelectSoldier` refuses on the shopkeeper screen).
 
-Not ported: gaps "Automatic selections" (the assignment menu's close), "Someone else in sector" (the box after a won
-battle).
+Not ported: gaps "Automatic selections" (the assignment menu's close).
 Other deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
 on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame
 timers", "Soldier fade without merc lights", "Hidden attacks start combat", "Interface lock per source".

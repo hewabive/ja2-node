@@ -492,6 +492,12 @@ export type PromptView =
     }
   | {
       readonly id: string;
+      readonly kind: 'someoneElseInSector';
+      readonly sector: string;
+      readonly choices: readonly string[];
+    }
+  | {
+      readonly id: string;
       readonly kind: 'militiaPayment';
       readonly trainer: number;
       readonly sectors: readonly string[];

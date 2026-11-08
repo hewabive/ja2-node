@@ -7,7 +7,8 @@
 // @src RepairIsDone (collected repairs shown as "REPAIRED"), GetShopKeeperInterfaceUserInput (SPACE: the next merc prices);
 // @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc, the previous and next merc buttons
 // @src change gpSMCurrentMerc inside the shop); Overhead.cc FindNextActiveAndAliveMerc (regular mercs only);
-// @src EnterShopKeeperInterfaceScreen's LeaveTacticalScreen, which clears a pending auto-bandage (2026-11-06).
+// @src EnterShopKeeperInterfaceScreen's LeaveTacticalScreen, which clears a pending auto-bandage (2026-11-06) and the
+// @src customizable timer of a won battle's look for someone else (2026-11-07).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -58,6 +59,7 @@ import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { addTransaction, FinanceCode } from './finances.ts';
 import { addToMercInventory } from './merc-placement.ts';
 import { type ShopRefusal, shopRefusal } from './shop-refusals.ts';
+import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
 export const AP_TALK = 6;
 export const NPC_TALK_RADIUS = 4;
@@ -274,6 +276,7 @@ export class ShopFlow {
   #begin(def: DealerDef, dealer: Soldier, merc: Soldier): CommandResult {
     const ctx = this.#ctx;
     setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
+    forgetSomeoneElseInSector(this.#campaign.state.battle);
     this.#session = {
       dealer: def.id,
       dealerSoldier: dealer.id,

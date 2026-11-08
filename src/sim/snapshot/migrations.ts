@@ -1690,6 +1690,24 @@ function addPendingActionCounterLock(snapshot: Readonly<Record<string, unknown>>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const BATTLE_KEY = 'battle';
+const LOST_BATTLE_UNLOAD_AT_MS_KEY = 'lostBattleUnloadAtMs';
+const SOMEONE_ELSE_LOOK_AT_MS_KEY = 'someoneElseLookAtMs';
+
+function withSomeoneElseLookTimer(strategic: JsonObject): JsonObject {
+  const battle = strategic[BATTLE_KEY];
+  if (!isObject(battle) || battle[REF] !== undefined) return strategic;
+  return { ...strategic, [BATTLE_KEY]: insertAfter(battle, LOST_BATTLE_UNLOAD_AT_MS_KEY, SOMEONE_ELSE_LOOK_AT_MS_KEY, null) };
+}
+
+function addSomeoneElseLookTimer(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withSomeoneElseLookTimer(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1749,5 +1767,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     55: dropFogMarkers,
     56: addAutoBandageState,
     57: addPendingActionCounterLock,
+    58: addSomeoneElseLookTimer,
   };
 }

@@ -4,6 +4,7 @@ import type { AutoresolveCellView, AutoresolveView, NpcRequestPromptView, Prompt
 import { battleStatusName } from '../sim/campaign/battle-flow.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { preBattlePanel } from '../sim/campaign/pre-battle-panel.ts';
+import { SOMEONE_ELSE_IN_SECTOR_CHOICES } from '../sim/campaign/someone-else-in-sector.ts';
 import { type ArCell, CellFlag, hasFlag } from '../sim/strategic/forces/autoresolve/state.ts';
 import { encounterName, PromptKind } from '../sim/strategic/forces/battle-state.ts';
 import { getGroup } from '../sim/strategic/forces/groups.ts';
@@ -95,6 +96,15 @@ function battlePromptView(campaign: CampaignSim): PromptView | null {
       const g = campaign.strategic ? getGroup(campaign.strategic, groupId) : undefined;
       const choices = campaign.battle?.npcOfNoteChoices() ?? [];
       return { id: prompt.id, kind: 'npcOfNote', group: groupId, sector: g ? sectorName(g.sector) : '', choices };
+    }
+    case PromptKind.SOMEONE_ELSE_IN_SECTOR: {
+      const world = campaign.state.worldSector;
+      return {
+        id: prompt.id,
+        kind: 'someoneElseInSector',
+        sector: world ? sectorName(world) : '',
+        choices: SOMEONE_ELSE_IN_SECTOR_CHOICES,
+      };
     }
     case PromptKind.MILITIA_PAYMENT:
       return {

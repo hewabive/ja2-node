@@ -35,6 +35,8 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
       return ['coordinate', 'separately'];
     case 'npcOfNote':
       return ['continue', 'ok'];
+    case 'someoneElseInSector':
+      return ['ok'];
     case 'militiaPayment':
     case 'militiaContinue':
       return prompt.cost <= balance ? ['yes', 'no'] : ['no'];

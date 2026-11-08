@@ -9,7 +9,8 @@
 // @src HandleNotifyPlayerCanAffordInsurance
 // @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340);
 // @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBox, SurrenderMessageBoxCallBack (the tactical surrender);
-// @src DoScreenIndependantMessageBox (the tactical item boxes on the map screen, 2026-11-04). The
+// @src DoScreenIndependantMessageBox (the tactical item boxes on the map screen, 2026-11-04); Tactical/Overhead.cc
+// @src HandleThePlayerBeNotifiedOfSomeoneElseInSector (its OK box, 2026-11-07). The
 // @src pre-battle interface and the autoresolve screen are screens of their own (src/ui/screens/battle).
 
 import type { PromptView, StrategicView } from '../../../protocol/view.ts';
@@ -18,6 +19,7 @@ import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type ItemPromptBox, itemPromptBox } from '../tactical/item-prompts.ts';
+import { SOMEONE_ELSE_ANSWER, someoneElseText } from '../tactical/someone-else-box.ts';
 import { surrenderChoice, surrenderQuestion } from '../talk/surrender-box.ts';
 import { mercById } from './character-list.ts';
 
@@ -85,6 +87,8 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
         ? { text: body, flags: MessageBoxFlag.OK, answer: () => 'ok' }
         : { text: body, flags: MessageBoxFlag.CONTINUESTOP, answer: (r) => (r === MessageBoxReturn.OK ? 'continue' : 'stop') };
     }
+    case 'someoneElseInSector':
+      return { text: someoneElseText(text), flags: MessageBoxFlag.OK, answer: () => SOMEONE_ELSE_ANSWER };
     case 'surrender': {
       const question = prompt.context === 'tactical' ? surrenderQuestion(text) : (text.string(STRATEGIC, STR_ENEMY_SURRENDER_OFFER) ?? '');
       return { text: question, flags: MessageBoxFlag.YESNO, answer: surrenderChoice };

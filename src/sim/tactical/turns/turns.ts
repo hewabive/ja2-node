@@ -669,6 +669,7 @@ export function checkForEndOfBattle(t: TacticalState, anEnemyRetreated = false):
     if (t.inCombat) exitCombatMode(t);
     if (boxing) {
       t.events.push({ type: 'combatEnded', reason: 'boxing' });
+      t.sectorHooks.battleWon(t);
       return true;
     }
     if (battleFought(t)) {
@@ -701,6 +702,7 @@ export function checkForEndOfBattle(t: TacticalState, anEnemyRetreated = false):
       ...(lastMercKillWasMonster(t) ? { monsterKill: true as const } : {}),
     });
     t.sectorHooks.battleEnded(t, 'won');
+    t.sectorHooks.battleWon(t);
     return true;
   }
   return false;
