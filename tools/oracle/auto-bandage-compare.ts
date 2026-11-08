@@ -143,7 +143,7 @@ function withoutDroppedDraws(trace: readonly Draw[]): Draw[] {
   return kept;
 }
 
-function differences(ours: unknown, theirs: unknown, path: string, out: string[]): void {
+export function differences(ours: unknown, theirs: unknown, path: string, out: string[]): void {
   if (out.length >= REPORTED_DIFFERENCES) return;
   if (Array.isArray(ours) && Array.isArray(theirs) && ours.length === theirs.length) {
     for (const [i, o] of ours.entries()) differences(o, theirs[i], `${path}[${i}]`, out);
@@ -185,7 +185,7 @@ function ownDraw(stream: object): (n: number) => number {
   return (n) => generator.int.call(stream, n);
 }
 
-function inOrder(t: TacticalState, trace: readonly Draw[], action: () => void): void {
+export function inOrder(t: Pick<TacticalState, 'rng' | 'pre'>, trace: readonly Draw[], action: () => void): void {
   const draws = withoutDroppedDraws(trace);
   const main = new InOrderReplay(
     draws.filter((d) => d[0] === MAIN_STREAM),

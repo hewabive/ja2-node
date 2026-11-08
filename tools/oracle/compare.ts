@@ -55,6 +55,7 @@ import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
 import { FACT_PROBES, FactComparer } from './facts-compare.ts';
 import { GIVE_PROBES, GiveComparer } from './give-compare.ts';
 import { HELI_PROBES, HeliComparer } from './heli-compare.ts';
+import { HeliDropComparer, isHeliDropOutput } from './helidrop-compare.ts';
 import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
 import { MEANWHILE_PROBES, MeanwhileComparer } from './meanwhile-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
@@ -589,6 +590,11 @@ const content = await loadTacticalContent(read);
 const worlds = new Map<string, TacticalWorld>();
 let failures = 0;
 for (const file of files) {
+  if (isHeliDropOutput(file)) {
+    const heliDrop = new HeliDropComparer(read, exists);
+    for (const p of readLines(file)) failures += await heliDrop.compare(p);
+    continue;
+  }
   const strategic = new StrategicComparer(read);
   const economy = new EconomyComparer(read);
   const sai = new SaiComparer(read);
