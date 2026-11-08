@@ -14,7 +14,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { calcActionPoints, calcNewActionPoints } from '../points.ts';
-import { AlertStatus, Body, CivilianGroup, NOBODY, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, CivilianGroup, NOBODY, OKLIFE, Orders, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import {
   anotherFightPossible,
@@ -47,6 +47,7 @@ const OUTSIDE_RING = grid(31, 70);
 const IN_RING = grid(36, 70);
 const IN_RING_2 = grid(38, 70);
 const ITEM_KNIFE = 'COMBAT_KNIFE';
+const HEARD = 5;
 
 interface Recorder extends NarrativePort {
   readonly calls: string[];
@@ -269,6 +270,27 @@ describe('a round', () => {
     expect(t.inCombat).toBe(false);
     expect(t.boxing.uiLocked).toBe(true);
     expect(port.calls).toContain('deleteTalkingMenu');
+  });
+
+  it('leaves the militia and the civilians alert: the end of a match skips the peaceful loops of a won battle', () => {
+    const { sim } = fight();
+    const t = sim.state;
+    const bystander = spawnSoldier(sim, 120, Team.CIV, grid(30, 64), NORTH);
+    const guard = spawnSoldier(sim, 84, Team.MILITIA, grid(30, 76), NORTH);
+    bystander.neutral = true;
+    guard.ai.orders = Orders.SEEKENEMY;
+    for (const s of [bystander, guard]) Object.assign(s.ai, { alertStatus: AlertStatus.RED, noiseGridNo: IN_RING, noiseVolume: HEARD });
+    for (const team of [Team.CIV, Team.MILITIA]) t.perception.awareOfOpposition[team] = true;
+    setBoxingState(t, BoxingState.WON_ROUND);
+    exitBoxing(t);
+    expect(t.events).toContainEqual({ type: 'combatEnded', reason: 'boxing' });
+    const alert = [AlertStatus.RED, IN_RING, HEARD];
+    expect([bystander, guard].map((s) => [s.ai.alertStatus, s.ai.noiseGridNo, s.ai.noiseVolume])).toEqual([alert, alert]);
+    expect([guard.ai.orders, t.perception.awareOfOpposition[Team.CIV], t.perception.awareOfOpposition[Team.MILITIA]]).toEqual([
+      Orders.SEEKENEMY,
+      true,
+      true,
+    ]);
   });
 
   it('unlocks the interface once the AI boxer is out when ours died in the ring, without closing the round', () => {

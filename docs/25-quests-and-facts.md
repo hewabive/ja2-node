@@ -209,6 +209,7 @@ says otherwise:
 | The hospital counts a tile's supplies once per doctors' ownership marker on it; the first theft fact stays when the supplies come back without the second | `hospital.test.ts` |
 | Brass knuckles are legal in the ring, though the comment says they disqualify | `src/sim/tactical/narrative/boxing.test.ts` |
 | The boxers are read from the ring tiles only while the first slot is empty, so ids from an earlier map still count until D5 is entered again | `src/sim/tactical/narrative/boxing.test.ts` |
+| The end of a match, which ends combat as a won battle, leaves the militia and the civilians alert, with their noises, orders and awareness: the won battle's peaceful loops sit inside its `NOT_BOXING` block (`Tactical/Overhead.cc:4641-4672`) | `src/sim/tactical/narrative/boxing.test.ts` "leaves the militia and the civilians alert …" |
 | The Kingpin alarm rings again at the next step: its "zap" clears the disabled flag it means to set | `src/sim/tactical/narrative/quest-items.test.ts` |
 | The museum alarm calls Eldin while sight is off, so he never sees the spot and always runs to it | `src/sim/tactical/narrative/quest-items.test.ts` |
 | A crash or a wreck that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts`, `src/sim/campaign/vehicle-destruction.test.ts`, `src/sim/campaign/vehicle-passengers.test.ts` "are spared behind a merc already dead …" |
