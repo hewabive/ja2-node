@@ -36,7 +36,9 @@
 // @src tactical screen is up, 2026-11-06; the cry by his team and sGridNo, NOWHERE off the map, 2026-11-07); GameScreen.cc MainGameScreenHandle (ExecuteOverhead, which runs the
 // @src animation codes, the final footsteps and code 491, only on the game screen; LeaveTacticalScreen's
 // @src SetPositionSndsInActive, which silences the position sounds off the game screen, 2026-11-06); Overhead.cc
-// @src HandlePlayerServices (the CURSE1 of a medic out of bandages, none in auto-bandage, 2026-11-06).
+// @src HandlePlayerServices (the CURSE1 of a medic out of bandages, none in auto-bandage, 2026-11-06); Merc_Entering.cc
+// @src StartHelicopterRun and HandleHeliDrop (HELI_1 through a run of the helicopter drop at the view's engine volume,
+// @src silent off the game screen, 2026-11-08).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
@@ -86,9 +88,10 @@ import type { AnimationScripts } from '../content/formats/ja2bin.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { vehicleTypeOfBody } from '../content/strategic/vehicle-types.ts';
 import { TICK_MS } from '../protocol/messages.ts';
-import type { SoldierView, ViewFrame } from '../protocol/view.ts';
+import type { HelicopterDropView, SoldierView, ViewFrame } from '../protocol/view.ts';
 import { ClientRandom } from './client-random.ts';
 import type { AudioEngine, VoiceHandle } from './engine.ts';
+import { HelicopterEngine } from './helicopter-engine.ts';
 import { PositionalLoops } from './positional.ts';
 
 export const CATCH_UP_TICKS = 100;
@@ -201,6 +204,8 @@ export class SoundDirector {
   readonly #o: DirectorOptions;
   readonly #rng: ClientRandom;
   readonly #loops: PositionalLoops;
+  readonly #helicopter: HelicopterEngine;
+  #helicopterDrop: HelicopterDropView | null = null;
   readonly #soldiers = new Map<number, SoldierView>();
   readonly #timelines = new Map<number, TimelinePosition>();
   readonly #lastFootstep = new Map<number, number>();
@@ -231,13 +236,19 @@ export class SoundDirector {
     this.#o = options;
     this.#rng = new ClientRandom(options.seed);
     this.#loops = new PositionalLoops(options.engine, options.book);
+    this.#helicopter = new HelicopterEngine(options.engine, options.book);
+  }
+
+  get helicopterEnginePlaying(): boolean {
+    return this.#helicopter.playing;
   }
 
   get rand(): (n: number) => number {
     return this.#rng.rand;
   }
 
-  reset(soldiers: readonly SoldierView[], openContainers: readonly number[] = []): void {
+  reset(soldiers: readonly SoldierView[], openContainers: readonly number[] = [], helicopterDrop: HelicopterDropView | null = null): void {
+    this.#helicopterDrop = helicopterDrop;
     for (const id of [...this.#driving.keys()]) this.#stopDriving(id);
     for (const id of [...this.#turrets.keys()]) this.#silenceTurret(id);
     this.#soldiers.clear();
@@ -299,6 +310,7 @@ export class SoundDirector {
       this.stats.frames++;
       const audible = newest - frame.tick <= CATCH_UP_TICKS;
       const events = frame.events ?? [];
+      if (frame.helicopterDrop !== undefined) this.#helicopterDrop = frame.helicopterDrop;
       for (const e of events) this.#remember(e);
       for (const id of frame.removed) this.#forget(id);
       for (const s of frame.changed) this.#soldierChanged(s, audible && animating);
@@ -318,6 +330,12 @@ export class SoundDirector {
 
   #updatePositionSounds(): void {
     this.#loops.update(this.#onTacticalScreen() ? [...this.#soldiers.values()] : []);
+    this.#helicopter.update(this.#helicopterEngineVolume());
+  }
+
+  #helicopterEngineVolume(): number | null {
+    const drop = this.#helicopterDrop;
+    return drop?.running && this.#onTacticalScreen() ? drop.engineVolume : null;
   }
 
   update(): void {
@@ -327,6 +345,7 @@ export class SoundDirector {
 
   stop(): void {
     this.#loops.stopAll();
+    this.#helicopter.stop();
     this.#silenceSpeech();
     for (const slot of this.#ambient) slot.voice?.stop();
     this.#o.engine.stopAll();

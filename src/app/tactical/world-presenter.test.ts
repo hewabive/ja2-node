@@ -55,6 +55,21 @@ describe('the tile under the pointer (GetMouseWorldCoords)', () => {
   });
 });
 
+describe('the render centre while scrolling is ignored (gfIgnoreScrolling)', () => {
+  it('moves neither by a scroll nor by a centring or a locate, as SetRenderCenter and ScrollWorld return, and moves again once it is lifted', () => {
+    const presenter = unrenderedPresenter();
+    const centre = presenter.camera;
+    presenter.ignoreScrolling(true);
+    expect(presenter.scrollBy(ONE_TILE_RIGHT_PX, 0)).toBe(false);
+    presenter.centerOn(gridNo(20, 20));
+    presenter.locate(gridNo(150, 150));
+    presenter.centerFromRadar(0, 0);
+    expect(presenter.camera).toEqual(centre);
+    presenter.ignoreScrolling(false);
+    expect(presenter.scrollBy(ONE_TILE_RIGHT_PX, 0)).toBe(true);
+  });
+});
+
 describe('the soldier under the pointer (FindSoldier, GetSoldierScreenRect)', () => {
   it('puts his screen rectangle at the render centre the next frame draws, so a scroll or a centring moves it at once', () => {
     const presenter = presenterWithSoldier(figure(20, 40, Array(800).fill(1)));

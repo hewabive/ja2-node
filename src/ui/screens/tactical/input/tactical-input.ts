@@ -29,7 +29,8 @@
 // @src the z-level of the pool, the search at z-level 0, 2026-11-02; the morale refusal the server says, 2026-11-03; the
 // @src items on a structure as an interactive tile, GetZLevelOfItemPoolGivenStructure, 2026-11-04),
 // @src HandleMoveModeInteractiveClick (GetLargestZLevelOfItemPool, 2026-11-02), HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
-// @src TacticalViewPortTouchCallbackTB (the wheel);
+// @src TacticalViewPortTouchCallbackTB (the wheel); Merc_Entering.cc HandleHeliDrop (LU_BEGINUILOCK through a run of the
+// @src helicopter drop, 2026-11-08);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor (for FindSoldier, the aid cursor of the last estimate for the selected merc, 2026-11-03), HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor (the AP offsets of the free-flowing move cursors, 2026-11-07); Interactive_Tiles.cc
@@ -105,6 +106,7 @@ import {
   tileToolTargetRefusal,
   wheelAdjust,
 } from './attack-cursors.ts';
+import { ESCAPE_KEY, HelicopterDropSkip, helicopterDropRunning } from './helicopter-drop-skip.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
 import { InteractiveTileCheck } from './interactive-tiles.ts';
 import { ITEM_AP_OFFSET, ItemTileCursor, type ItemTileText } from './item-tile-cursor.ts';
@@ -169,7 +171,9 @@ const STANCE_MOVE_MODES: Readonly<Record<Stance, MoveModeName>> = { run: RUN, st
 const TALKABLE = new Set(['npc', 'epc', 'civilian']);
 
 export type MoveModeName = 'walk' | 'run' | 'swat' | 'crawl';
-export type Lock = 'none' | 'enemyTurn' | 'ourTurn';
+export type Lock = 'none' | 'enemyTurn' | 'ourTurn' | 'helicopterDrop';
+
+const UI_LOCKS: ReadonlySet<Lock> = new Set(['enemyTurn', 'helicopterDrop']);
 
 export interface TacticalInputHost {
   readonly env: TacticalEnvironment;
@@ -315,6 +319,7 @@ export class TacticalInput {
   #showExitGrid = false;
   #lockRegion: MouseRegion | null = null;
   #lock: Lock = 'none';
+  readonly #helicopterDropSkip = new HelicopterDropSkip();
   #busy = false;
   #lastAttack: { cursor: EstimateAttack | null; soldier: number | null } = { cursor: null, soldier: null };
   #menuChoice: MovementChoice | null = null;
@@ -477,6 +482,7 @@ export class TacticalInput {
 
   frame(now: number, viewportInArea: boolean): void {
     this.#now = now;
+    this.#pollHelicopterDropSkip();
     this.#resetFrameFlags();
     this.#updateHover(viewportInArea);
     this.#checkInteractiveTiles();
@@ -696,10 +702,17 @@ export class TacticalInput {
   #syncLock(): void {
     const lock = this.#host.locked();
     if (lock === this.#lock) return;
-    if (lock === 'enemyTurn') this.#pending = UiEvent.LU_BEGINUILOCK;
+    if (UI_LOCKS.has(lock)) this.#pending = UiEvent.LU_BEGINUILOCK;
     else if (lock === 'ourTurn') this.#pending = UiEvent.LA_BEGINUIOURTURNLOCK;
-    else this.#pending = this.#lock === 'enemyTurn' ? UiEvent.LU_ENDUILOCK : UiEvent.LA_ENDUIOUTURNLOCK;
+    else this.#pending = UI_LOCKS.has(this.#lock) ? UiEvent.LU_ENDUILOCK : UiEvent.LA_ENDUIOUTURNLOCK;
     this.#lock = lock;
+  }
+
+  #pollHelicopterDropSkip(): void {
+    const running = helicopterDropRunning(this.#view());
+    this.#helicopterDropSkip.poll(running, this.#env().runtime.isKeyDown(ESCAPE_KEY), () =>
+      this.#host.send({ type: 'skipHelicopterDrop' }),
+    );
   }
 
   #gatherInput(current: UiEvent): UiEvent {

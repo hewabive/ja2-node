@@ -79,6 +79,7 @@ interface Loaded {
 
 interface SectorEntry {
   readonly located: number | null;
+  readonly dropZone: number | null;
 }
 
 export class TacticalHost {
@@ -268,7 +269,7 @@ export class TacticalHost {
       assets.then((a) => a.tables),
       session.session ?? 'local',
     );
-    this.#sound.director?.reset(session.soldiers, session.openContainers);
+    this.#sound.director?.reset(session.soldiers, session.openContainers, session.view?.helicopterDrop ?? null);
     this.#sound.director?.setSpeechOwner(this.#o.speech.owner);
   }
 
@@ -346,6 +347,7 @@ export class TacticalHost {
     this.#entry = null;
     if (entry || !reused) loaded.presenter.resetEffects(entry ? 'created' : 'restored');
     if (entry && entry.located !== null) screen.locateOnEntry(entry.located);
+    if (entry && entry.dropZone !== null) loaded.presenter.centerOn(entry.dropZone);
   }
 
   #createScreen(loaded: Loaded, flow: TacticalFlow): TacticalScreen {
@@ -458,9 +460,10 @@ export class TacticalHost {
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
       for (const event of frame.events ?? []) {
+        if (event.type === 'helicopterDropStarted' && this.#entry) this.#entry = { located: null, dropZone: event.gridNo };
         if (event.type !== 'sectorLoaded') continue;
         if (event.loadScreen) this.#loadScreen = event.loadScreen.id;
-        this.#entry = { located: event.located ?? null };
+        this.#entry = { located: event.located ?? null, dropZone: null };
       }
     if (this.#screen) this.#screen.frames(frames);
     else this.#keepDialogue(frames);
@@ -478,7 +481,8 @@ export class TacticalHost {
   }
 
   welcome(): void {
-    this.#sound.director?.reset(this.#o.session.soldiers, this.#o.session.openContainers);
+    const session = this.#o.session;
+    this.#sound.director?.reset(session.soldiers, session.openContainers, session.view?.helicopterDrop ?? null);
     this.#frames?.reset();
     this.#entry = null;
     this.#loaded?.presenter.resetEffects('restored');
@@ -551,6 +555,7 @@ export class TacticalHost {
       drawnSoldiers: 0,
       drawnBullets: 0,
       drawnImpacts: 0,
+      drawnEffects: 0,
       pendingImages: 0,
       enemyBar: { counter: 0, max: 0 },
       topMessage: null,
@@ -679,6 +684,7 @@ export class TacticalHost {
     hook.drawnSoldiers = presenter?.drawnSoldiers ?? 0;
     hook.drawnBullets = presenter?.drawnBullets ?? 0;
     hook.drawnImpacts = presenter?.drawnImpacts ?? 0;
+    hook.drawnEffects = presenter?.drawnEffects ?? 0;
     hook.pendingImages = this.#loaded?.media.loading ?? 0;
     if (!screen) return;
     hook.panel = screen.panel;

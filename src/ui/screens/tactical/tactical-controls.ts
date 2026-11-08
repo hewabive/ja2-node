@@ -15,7 +15,8 @@
 // @src ToggleItemGlow; Soldier_Control.cc HandlePlayerTogglingLightEffects; Turn_Based_Input.cc ToggleTreeTops,
 // @src ToggleWireFrame (the messages); src/game/TileEngine/RenderWorld.cc ScrollWorld (the arrow keys and the
 // @src 15-pixel screen edges, 20 << (SHIFT ? 2 : 1) pixels across and half down per NEXTSCROLL 20 ms, the pending first
-// @src step, no scrolling with ALT or while a menu is up, no input while the UI is locked; ClearInterface at the pending
+// @src step, no scrolling with ALT, while a menu is up or through a run of the helicopter drop (Merc_Entering.cc
+// @src HandleHeliDrop's gfIgnoreScrolling, 2026-11-08), no input while the UI is locked; ClearInterface at the pending
 // @src step and RestoreInterface as the scroll stops, Interface.cc, the viewport's cursor cleared with an item held too;
 // @src the slide to sSlideTarget in the direction of gScrollDirectionFlags, ignoring the input, until
 // @src SoldierLocationRelativeToScreen has had the target on screen for gScrollSlideInertiaDirection frames, its centre
@@ -63,6 +64,7 @@ import { type CommandReply, ScrollFlag, type TacticalEnvironment } from './envir
 import { ExitDialog, type ExitDialogArt, type ExitDirection } from './exit-dialog.ts';
 import { OKLIFE } from './faces.ts';
 import { arrowSprites } from './input/arrows.ts';
+import { helicopterDropRunning } from './input/helicopter-drop-skip.ts';
 import { hintNow } from './input/hints.ts';
 import { type HotkeyHost, handleTacticalKey, type SmButton } from './input/hotkeys.ts';
 import type { ItemTileCursor } from './input/item-tile-cursor.ts';
@@ -320,6 +322,7 @@ export class TacticalControls {
   lockState(): Lock {
     const client = this.#env().client;
     const view = client.view;
+    if (helicopterDropRunning(view)) return 'helicopterDrop';
     if (!inCombat(view)) return 'none';
     if (!ourTurn(view)) return 'enemyTurn';
     if (this.#busyOrders > 0 || view?.combat?.uiLocked || client.queuedFrames.some(locksOurInput)) return 'ourTurn';
@@ -391,7 +394,7 @@ export class TacticalControls {
   }
 
   #ignoreScrolling(): boolean {
-    return this.menuOpen || this.#screen.popupsOpen();
+    return this.menuOpen || this.#screen.popupsOpen() || helicopterDropRunning(this.#view());
   }
 
   #slideStillOn(inView: boolean, direction: number): boolean {

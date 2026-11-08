@@ -131,4 +131,15 @@ describe('corpses, smoke and crow shadows on the stub pack', () => {
     expect(tile).toMatchObject({ kind: 'crowShadow', gridNo: 12880, level: 0, at: { x: 805, y: 1287, z: 0 }, shaded: false });
     expect(tile?.sprite.x).toBe(framesPerDirection * 3 + 1);
   });
+
+  it('draws the helicopter shadow from the stub heli_sh.sti on the shadow layer at its position and height, in the frame it is given', async () => {
+    effects.setSprites(new FakeSprites());
+    expect(effects.helicopterShadowFrames()).toBeNull();
+    await effects.loaded();
+    const frames = effects.helicopterShadowFrames() ?? 0;
+    expect(frames).toBeGreaterThan(1);
+    const tile = effects.helicopterShadow({ gridNo: 1680, x: 795, y: 5, z: -29, frame: frames - 1 });
+    expect(tile).toMatchObject({ kind: 'helicopterShadow', gridNo: 1680, level: 0, at: { x: 795, y: 5, z: -29 }, shaded: false });
+    expect(tile?.sprite.x).toBe(frames - 1);
+  });
 });

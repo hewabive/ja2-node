@@ -151,6 +151,7 @@ export interface WorldPresenter {
   gridNoAt(x: number, y: number): number | null;
   radarViewport(): RadarBox | null;
   radarDot(gridNo: number): ScreenPoint | null;
+  ignoreScrolling(on: boolean): void;
   centerOn(gridNo: number): void;
   locate(gridNo: number): void;
   centerFromRadar(x: number, y: number): void;

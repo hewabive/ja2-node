@@ -79,6 +79,13 @@ that screen (`GameScreen.cc:216`), while battle sounds and samples the simulatio
 director follows the loaded sector's views while the map screen is up, whose real-time turn changes them, but plays
 only their events' sounds there (`audio/director.ts`, `onTacticalScreen`).
 
+**The helicopter's engine follows the view.** `HELI_1` starts once a run at the view's `helicopterDrop.engineVolume`,
+0 as the run starts (`Tactical/Merc_Entering.cc:433`), loops 10000 times at the middle pan and takes every volume the
+view brings, scaled as an effect, as the original's `SoundSetVolume` takes each fade step (the `fadingLoop` rule, not
+dropped for its silent start); it stops as the run ends or is skipped, and off the tactical screen like the position
+sounds (`audio/helicopter-engine.ts`, `25`). The simulation counts the fades as with a sample playing, so a muted client or one
+that dropped the voice still ends the run on time.
+
 **A death off the tactical map** cries in the voice `mercDied`'s `cry` names, then plays `DOORCR_1` and `HEADCR_1`
 at full volume in the middle (`Tactical/Soldier_Control.cc:5407`): the director while the tactical screen is up,
 `MapSound` while `mapScreen` marks the map screen. The cry comes from the soldier's tile, `cry.gridNo`, which only a
@@ -220,4 +227,4 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
   190 glyphs, and its block fonts are not corrected unless they are exactly one glyph short of that.
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
-Not ported: gaps "Sound coverage", "Data version detection", "Helicopter entrance", "Map screen speech".
+Not ported: gaps "Sound coverage", "Data version detection", "Map screen speech".

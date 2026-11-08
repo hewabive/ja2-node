@@ -104,6 +104,7 @@ export interface TacticalHook {
   drawnSoldiers: number;
   drawnBullets: number;
   drawnImpacts: number;
+  drawnEffects: number;
   pendingImages: number;
   enemyBar: { readonly counter: number; readonly max: number };
   topMessage: string | null;

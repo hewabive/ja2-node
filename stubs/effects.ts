@@ -33,6 +33,20 @@ const CROW_SHADOW_PATH = 'tilecache/fly_shdw.sti';
 const CROW_SHADOW_FRAMES = 4;
 const CROW_SHADOW_SIZE = 16;
 const CROW_WING_SPANS = [7, 5, 3, 5];
+const HELICOPTER_SHADOW_PATH = 'tilecache/heli_sh.sti';
+const HELICOPTER_SHADOW_FRAMES = 4;
+const HELICOPTER_SHADOW_WIDTH = 96;
+const HELICOPTER_SHADOW_HEIGHT = 56;
+const ROTOR_REACH = 34;
+const ROTOR_BLADES = 2;
+const ROTOR_TURN_PER_FRAME = Math.PI / (ROTOR_BLADES * HELICOPTER_SHADOW_FRAMES);
+const ISOMETRIC_SQUASH = 0.5;
+const FLIGHT_ON_SCREEN: readonly [number, number] = [-0.89, 0.45];
+const NOSE_REACH = 14;
+const TAIL_ROOT = 8;
+const TAIL_REACH = 36;
+const FUSELAGE_HALF_WIDTH = 4;
+const TAIL_ROTOR_HALF = 5;
 const SMOKE_RAMPS: Readonly<Record<string, RampName>> = { SMOKE: 'gray', TEARGAS: 'sand', MUSTARDGAS: 'olive', CREATUREGAS: 'teal' };
 const SCREEN_VECTOR_BY_DIRECTION: readonly (readonly [number, number])[] = [
   [0.7, -0.35],
@@ -139,6 +153,30 @@ function crowShadow(block: number, flap: number): StiSubImage {
   return { offsetX: -c, offsetY: -c, width: r.width, height: r.height, pixels: r.pixels };
 }
 
+function stroke(r: IndexedRaster, x0: number, y0: number, x1: number, y1: number, halfWidth: number): void {
+  const [fx, fy] = FLIGHT_ON_SCREEN;
+  for (let k = -halfWidth; k <= halfWidth; k++) r.line(x0 - fy * k, y0 + fx * k, x1 - fy * k, y1 + fx * k, SHADOW_INDEX);
+}
+
+function helicopterShadow(frame: number): StiSubImage {
+  const r = new IndexedRaster(HELICOPTER_SHADOW_WIDTH, HELICOPTER_SHADOW_HEIGHT);
+  const cx = HELICOPTER_SHADOW_WIDTH / 2;
+  const cy = HELICOPTER_SHADOW_HEIGHT / 2;
+  const [fx, fy] = FLIGHT_ON_SCREEN;
+  stroke(r, cx + fx * NOSE_REACH, cy + fy * NOSE_REACH, cx - fx * TAIL_ROOT, cy - fy * TAIL_ROOT, FUSELAGE_HALF_WIDTH);
+  stroke(r, cx - fx * TAIL_ROOT, cy - fy * TAIL_ROOT, cx - fx * TAIL_REACH, cy - fy * TAIL_REACH, 1);
+  const tx = cx - fx * TAIL_REACH;
+  const ty = cy - fy * TAIL_REACH;
+  r.line(tx - fy * TAIL_ROTOR_HALF, ty + fx * TAIL_ROTOR_HALF, tx + fy * TAIL_ROTOR_HALF, ty - fx * TAIL_ROTOR_HALF, SHADOW_INDEX);
+  for (let blade = 0; blade < ROTOR_BLADES; blade++) {
+    const a = frame * ROTOR_TURN_PER_FRAME + (blade * Math.PI) / ROTOR_BLADES;
+    const dx = Math.cos(a) * ROTOR_REACH;
+    const dy = Math.sin(a) * ROTOR_REACH * ISOMETRIC_SQUASH;
+    r.line(cx - dx, cy - dy, cx + dx, cy + dy, SHADOW_INDEX);
+  }
+  return { offsetX: -cx, offsetY: -cy, width: r.width, height: r.height, pixels: r.pixels };
+}
+
 async function writeSti(
   out: string,
   path: string,
@@ -189,6 +227,8 @@ export async function buildStubEffects(out: string, palette: Uint8Array): Promis
     crowShadow(Math.floor(f / CROW_SHADOW_FRAMES), f % CROW_SHADOW_FRAMES),
   );
   written.push(await writeSti(out, CROW_SHADOW_PATH, palette, crow, CROW_SHADOW_FRAMES));
+  const helicopter = Array.from({ length: HELICOPTER_SHADOW_FRAMES }, (_, f) => helicopterShadow(f));
+  written.push(await writeSti(out, HELICOPTER_SHADOW_PATH, palette, helicopter, HELICOPTER_SHADOW_FRAMES));
   for (const trail of TRAILS) {
     const puffs = Array.from({ length: TRAIL_FRAMES }, (_, f) => trailPuff(f, trail.ramp, trail.size));
     written.push(await writeSti(out, trail.path, palette, puffs, TRAIL_FRAMES));

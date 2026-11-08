@@ -17,7 +17,9 @@
 // @src TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
-// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld; the locators step in
+// @src shop too), MainGameScreenHandle (the locate on the north entry point, with no locate to the entry's merc, as a run
+// @src of the helicopter drop starts, and HandleHeliDrop's gfIgnoreScrolling through the run, 2026-11-08; ScrollString
+// @src after ScrollWorld; the locators step in
 // @src RenderTopmostTacticalInterface after HandleTacticalUI; while the overhead map is up no ScrollString,
 // @src HandleDialogue, ExecuteVideoOverlays or RenderTopmostTacticalInterface, 2026-11-03; Interface.cc
 // @src DrawSelectedUIAboveGuy leaves the locator of a soldier out of sight as it stands, 2026-11-03; Message.cc
@@ -128,6 +130,7 @@ import {
   OKLIFE,
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
+import { helicopterDropRunning } from './input/helicopter-drop-skip.ts';
 import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPointerAction } from './input/item-tile-cursor.ts';
 import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
@@ -1048,6 +1051,7 @@ export class TacticalScreen implements Screen {
     const view = this.#view();
     this.#env.client.sync();
     if (this.#autoBandage.update(view?.autoBandage ?? null)) return;
+    this.#env.world.ignoreScrolling(helicopterDropRunning(view));
     this.#locateToSoldierOnEntry();
     this.#followServer();
     this.#applyPanelSwitch();
@@ -1495,6 +1499,10 @@ export class TacticalScreen implements Screen {
         return;
       case 'trapSpotted':
         if (event.kind === 'ground') this.#env.world.locate(event.gridNo);
+        return;
+      case 'helicopterDropStarted':
+        this.#entryLocate = null;
+        this.#env.world.centerOn(event.gridNo);
         return;
       case 'mineLocator':
         this.#mineLocators.add(event, this.#now);

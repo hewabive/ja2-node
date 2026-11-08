@@ -1,7 +1,18 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import { AUTO_BANDAGE_SAVE, writeAutoBandageSave } from '../support/e2e-auto-bandage-save.ts';
 import { SAVE_DIR } from './env.ts';
-import { clickAt, imagesLoaded, modalIs, openTacticalSession, pointAt, rightClickWidget, showLatest, tacticalOrder } from './play-flow.ts';
+import {
+  clickAt,
+  imagesLoaded,
+  modalIs,
+  openTacticalSession,
+  pointAt,
+  rightClickWidget,
+  showLatest,
+  tacticalOrder,
+  waitWhileLoading,
+  watchLoading,
+} from './play-flow.ts';
 import { capture, clickWidget, expectGolden } from './ui-capture.ts';
 
 const COLS = 160;
@@ -21,6 +32,7 @@ const TICKS_INTO_FLIGHT = 1;
 const MISS_ROWS_SOUTH = 6;
 const MISS_COLUMNS_EAST = 2;
 const TICKS_INTO_DUST = 40;
+const TICKS_DOWN_THE_ROPE = 60;
 
 interface CommandReply {
   readonly ok: boolean;
@@ -188,6 +200,30 @@ test.describe('goldens of the tactical screen on stubs', () => {
       await restPointer(page);
       await imagesLoaded(page);
       await expectGolden('tactical-miss-dust', await capture(page));
+    } finally {
+      await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+    }
+  });
+
+  test('the helicopter shadow over the drop zone and the first merc on his way down, under the wait cursor', async ({ page, request }) => {
+    const session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4, land: false } });
+    try {
+      watchLoading(page);
+      await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual${PINNED}`);
+      await waitWhileLoading(page, () => (window.__ja2Ui?.screen === 'map' && window.__ja2Ui.map?.ready === true) || window.__ja2Ui?.error);
+      expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
+      const landed = (await page.evaluate(() => window.__ja2Ui.map?.command({ type: 'compressTime', mode: 2 }))) as CommandReply;
+      expect(landed.ok, landed.reason).toBe(true);
+      await waitWhileLoading(page, () => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.tactical?.ready === true);
+      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ events: ['mercDropped'] }));
+      await page.evaluate((ticks) => window.__ja2Ui.tactical?.advance({ ticks }), TICKS_DOWN_THE_ROPE);
+      await showLatest(page);
+      expect(await page.evaluate(() => window.__ja2Ui.tactical?.uiLock)).toBe('helicopterDrop');
+      await restPointer(page);
+      await imagesLoaded(page);
+      expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
+      expect(await page.evaluate(() => window.__ja2Ui.tactical?.drawnEffects)).toBe(1);
+      await expectGolden('tactical-helicopter-drop', await capture(page));
     } finally {
       await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
     }

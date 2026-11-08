@@ -6,6 +6,7 @@ import type {
   ClockView,
   CombatView,
   CorpseView,
+  HelicopterDropView,
   ItemView,
   SmokeTileView,
   SoldierView,
@@ -29,6 +30,7 @@ import {
   isCachedEffect,
 } from './effect-animations.ts';
 import { glowContext } from './glow-context.ts';
+import { HelicopterShadows } from './helicopter-shadows.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
 import { ROOF_MARKER_TILE, RoofMarkers, type SoldierOrigin } from './roof-markers.ts';
@@ -65,6 +67,7 @@ export interface TacticalViewState {
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
   readonly blood?: readonly BloodPoolView[];
+  readonly helicopterDrop?: HelicopterDropView | null;
 }
 
 export interface EffectOptions {
@@ -130,6 +133,7 @@ export class TacticalWorldView {
   readonly #bulletTiles: BulletTiles | null;
   readonly #effectAnimations = new EffectAnimations();
   readonly #crowShadows: CrowShadows;
+  readonly #helicopterShadows = new HelicopterShadows();
   readonly #roofMarkers: RoofMarkers;
   readonly #roofMarkerTile: number | null;
   #drawnEffects = 0;
@@ -305,6 +309,15 @@ export class TacticalWorldView {
       });
   }
 
+  #helicopterShadowTiles(drop: HelicopterDropView | null | undefined, clockMs: number): SceneAniTile[] {
+    const effects = this.#effects;
+    if (!effects) return [];
+    return this.#helicopterShadows.update(drop?.shadows ?? [], clockMs, effects.helicopterShadowFrames()).flatMap((h) => {
+      const tile = effects.helicopterShadow(h);
+      return tile ? [tile] : [];
+    });
+  }
+
   #cachedEffectTiles(shown: readonly EffectFrame[]): SceneAniTile[] {
     const effects = this.#effects;
     if (!effects) return [];
@@ -375,6 +388,7 @@ export class TacticalWorldView {
     const animatedTiles = [
       ...aniTiles,
       ...this.#crowShadowTiles(onMap, f.clockMs),
+      ...this.#helicopterShadowTiles(view.helicopterDrop, f.clockMs),
       ...this.#cachedEffectTiles(effects),
       ...this.#knifeTiles(bullets, Math.floor(shownTick)),
     ];

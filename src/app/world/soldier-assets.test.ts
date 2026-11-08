@@ -16,6 +16,8 @@ const OUR_TEAM = 0;
 const CREATURE_TEAM = 2;
 const EAST = 2;
 const PRONE_START_FRAME = 5;
+const HELIDROP_SHEETS = ['RGMHELIDROP', 'BGMHELIDROP', 'RGFHELIDROP'];
+const STUB_HELIDROP_FRAMES = 14;
 
 async function openAssets(dataDir?: string): Promise<{ data: DataVfs; assets: SoldierAssets }> {
   const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir, stubsDir: sharedStubPackDir() });
@@ -91,6 +93,15 @@ describe('soldier sheets and palettes on the stub pack', () => {
     expect(painted?.key).toBe(`own|${sheetId(assets, 'RGMSTANDING')}`);
   });
 
+  it('draws the helicopter drop of every merc body from the stub drop pose, its frames enough for the stub script', async () => {
+    for (const sheet of HELIDROP_SHEETS) {
+      const request = assets.sheetFor(viewOf(assets, { state: 'HELIDROP', sheet }));
+      expect(request?.id).toBe('stubs/anims/stub/helidrop.sprite.json');
+      const loaded = request ? await assets.ensure(request) : null;
+      expect(loaded?.layout.framesPerDirection).toBeGreaterThanOrEqual(STUB_HELIDROP_FRAMES);
+    }
+  });
+
   it('finds a palette for the bodies whose standing state is another state: the queen and the larvae', async () => {
     const queen = viewOf(assets, { bodyType: Body.QUEENMONSTER, team: CREATURE_TEAM, state: 'QUEEN_SPIT', sheet: 'QUEENMONSTERSPIT_E' });
     const larvae = viewOf(assets, { bodyType: Body.LARVAE_MONSTER, team: CREATURE_TEAM, state: 'LARVAE_WALK', sheet: 'LVWALK' });
@@ -115,6 +126,16 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('soldier palettes and z strips of the origin
     const request = assets.sheetFor(viewOf(assets, { state: 'STANDING', sheet }));
     return request ? (await assets.ensure(request))?.picture.palette : undefined;
   }
+
+  it('draws the helicopter drop from the original s_, m_ and f_helidrp sheets, one facing each', async () => {
+    for (const sheet of HELIDROP_SHEETS) {
+      const request = assets.sheetFor(viewOf(assets, { state: 'HELIDROP', sheet }));
+      expect(request?.id).toMatch(/^anims\/[smf]_merc\/[smf]_helidrp\.sti$/);
+      const loaded = request ? await assets.ensure(request) : null;
+      expect(loaded?.layout.directions).toBe(1);
+      expect(loaded?.picture.frames.length).toBeGreaterThan(0);
+    }
+  });
 
   it('wears the camouflage file when painted, and the fire sheet’s own palette while burning', async () => {
     const painted = await settledPalette(assets, viewOf(assets, { state: 'STANDING', sheet: 'RGMSTANDING', camouflaged: true }));

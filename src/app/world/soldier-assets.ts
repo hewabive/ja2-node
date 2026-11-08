@@ -49,6 +49,7 @@ export interface SoldierSheet {
 const STUB_SHEET_FRAMES_PER_DIRECTION = 18;
 
 function stubKind(surfaceName: string): string {
+  if (/HELIDROP/.test(surfaceName)) return 'helidrop';
   if (/PRONE|CRAWL/.test(surfaceName)) return 'prone';
   if (/CROUCH|SNEAK|SWAT|KNEEL|COWER/.test(surfaceName)) return 'crouch';
   if (/RUN/.test(surfaceName)) return 'run';

@@ -189,6 +189,7 @@ export class FakeWorld implements WorldPresenter {
   readonly centred: number[] = [];
   readonly radarCentred: ScreenPoint[] = [];
   camera = { centerX: 805, centerY: 725 };
+  scrollingIgnored = false;
   hovered: number | null = null;
   selected: number | null = null;
   roofLevel = false;
@@ -263,6 +264,10 @@ export class FakeWorld implements WorldPresenter {
 
   radarDot(gridNo: number): ScreenPoint | null {
     return { x: (gridNo % COLS) >> 1, y: Math.floor(gridNo / COLS) >> 2 };
+  }
+
+  ignoreScrolling(on: boolean): void {
+    this.scrollingIgnored = on;
   }
 
   centerOn(gridNo: number): void {

@@ -17,7 +17,8 @@
 // @src src/game/TileEngine/Interactive_Tiles.cc CheckVideoObjectScreenCoordinateInData (a vehicle's current frame tested
 // @src one pixel left of the pointer, its rows counted up from the bottom of the rectangle);
 // @src src/game/TileEngine/Overhead_Map.cc GoIntoOverheadMap (gfOverheadMapDirty: the overhead map composed again from the
-// @src world as last drawn at every entry, 2026-11-04).
+// @src world as last drawn at every entry, 2026-11-04); src/game/TileEngine/RenderWorld.cc SetRenderCenter and ScrollWorld
+// @src (nothing moves the view while gfIgnoreScrolling holds, 2026-11-08).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
@@ -119,6 +120,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   readonly #restrictedScrollId: number;
   readonly #palettes = new Map<string, Uint8Array>();
   #camera: Camera;
+  #scrollingIgnored = false;
   #viewport: Viewport = { width: 640, height: 360 };
   #top = 0;
   #roofLevel = false;
@@ -182,6 +184,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   get drawnImpacts(): number {
     return this.#world.drawnImpacts;
+  }
+
+  get drawnEffects(): number {
+    return this.#world.drawnEffects;
   }
 
   observeEffects(effects: readonly EffectEvent[]): void {
@@ -299,7 +305,12 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return radarDotOf(this.#restrictedScrollId, gridNo);
   }
 
+  ignoreScrolling(on: boolean): void {
+    this.#scrollingIgnored = on;
+  }
+
   centerOn(gridNo: number): void {
+    if (this.#scrollingIgnored) return;
     this.#camera = setRenderCenter(cameraOnGridNo(gridNo), this.#viewport, this.#limits);
   }
 
@@ -309,6 +320,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   centerFromRadar(x: number, y: number): void {
+    if (this.#scrollingIgnored) return;
     this.#camera = setRenderCenter(radarRenderCenter(this.#restrictedScrollId, x, y, this.#viewport), this.#viewport, this.#limits);
   }
 
@@ -463,6 +475,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   scrollBy(dx: number, dy: number): boolean {
+    if (this.#scrollingIgnored) return false;
     const next = this.#moved(dx, dy);
     if (next.centerX === this.#camera.centerX && next.centerY === this.#camera.centerY) return false;
     this.#camera = next;
@@ -550,6 +563,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
         light: view.light ?? null,
         tileChanges: view.tileChanges ?? [],
         blood: view.blood ?? [],
+        helicopterDrop: view.helicopterDrop ?? null,
       },
       hovered: this.#hovered,
       selected: this.#selected,

@@ -5,7 +5,7 @@ import { IndexedRaster } from './raster.ts';
 import type { StubFrame, StubSprite } from './sprites.ts';
 
 export const STUB_SOLDIER_FRAMES_PER_DIRECTION = 18;
-export const STUB_SOLDIER_KINDS = ['stand', 'walk', 'run', 'crouch', 'prone'] as const;
+export const STUB_SOLDIER_KINDS = ['stand', 'walk', 'run', 'crouch', 'prone', 'helidrop'] as const;
 export type StubSoldierKind = (typeof STUB_SOLDIER_KINDS)[number];
 
 const RANGES = {
@@ -19,6 +19,11 @@ const WIDTH = 28;
 const HEIGHT = 50;
 const FEET_X = 14;
 const FEET_Y = 45;
+const ROPE_DROP = 40;
+const ROPE_FRAMES = 10;
+const ROPE_GRIP = 8;
+const HANGING: Pose = { hip: 30, stride: 0, lean: 0, lying: false };
+const LANDED: Pose = { hip: 36, stride: 0, lean: 1, lying: false };
 const SCREEN_VECTOR_BY_BLOCK: readonly (readonly [number, number])[] = [
   [0, -1],
   [0.7, -0.35],
@@ -81,19 +86,43 @@ function drawLying(r: IndexedRaster, p: Pose, vx: number, vy: number): void {
   r.ellipse(cx + vx * 11, cy + vy * 3 - 2, 3, 1.5, () => shade(RANGES.hair, 0.5));
 }
 
-function shadowUnder(r: IndexedRaster, lying: boolean): void {
+function shadowUnder(r: IndexedRaster, lying: boolean, feetY = FEET_Y): void {
   const rx = lying ? 12 : 8;
   const ry = lying ? 4 : 3;
-  for (let y = FEET_Y - ry; y <= FEET_Y + ry; y++) {
+  for (let y = feetY - ry; y <= feetY + ry; y++) {
     for (let x = FEET_X - rx; x <= FEET_X + rx; x++) {
       const nx = (x - FEET_X) / rx;
-      const ny = (y - FEET_Y) / ry;
+      const ny = (y - feetY) / ry;
       if (nx * nx + ny * ny <= 1 && r.get(x, y) === 0) r.set(x, y, SOLDIER_SHADOW_INDEX);
     }
   }
 }
 
+function blitAbove(to: IndexedRaster, from: IndexedRaster, dy: number): void {
+  for (let y = 0; y < from.height; y++)
+    for (let x = 0; x < from.width; x++) {
+      const c = from.get(x, y);
+      if (c !== 0) to.set(x, y + dy, c);
+    }
+}
+
+function helidropFrame(block: number, frame: number): StubFrame {
+  const [vx, vy] = SCREEN_VECTOR_BY_BLOCK[block] ?? [0, 1];
+  const onRope = frame < ROPE_FRAMES;
+  const lift = onRope ? Math.round(ROPE_DROP * (1 - frame / ROPE_FRAMES)) : 0;
+  const figure = new IndexedRaster(WIDTH, HEIGHT);
+  drawStanding(figure, onRope ? HANGING : LANDED, vx, vy);
+  figure.outline(color('gray', 1));
+  const r = new IndexedRaster(WIDTH, HEIGHT + ROPE_DROP);
+  const top = ROPE_DROP - lift;
+  if (onRope) r.line(FEET_X + 1, 0, FEET_X + 1, top + HANGING.hip - ROPE_GRIP * 2, color('brown', 5));
+  blitAbove(r, figure, top);
+  shadowUnder(r, false, FEET_Y + ROPE_DROP);
+  return { raster: r, ox: -FEET_X, oy: -(FEET_Y + ROPE_DROP) };
+}
+
 function soldierFrame(kind: StubSoldierKind, block: number, frame: number): StubFrame {
+  if (kind === 'helidrop') return helidropFrame(block, frame);
   const r = new IndexedRaster(WIDTH, HEIGHT);
   const [vx, vy] = SCREEN_VECTOR_BY_BLOCK[block] ?? [0, 1];
   const p = pose(kind, frame);

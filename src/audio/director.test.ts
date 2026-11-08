@@ -7,6 +7,7 @@ import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, type AnimationTables, parseAnima
 import type { Cue } from '../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../content/audio/cue-book.ts';
 import { heardSoundTile } from '../content/audio/heard-place.ts';
+import { balanceGains, Pan, scaleVolume } from '../content/audio/sound-position.ts';
 import { type AmbientEntry, AmbientTime } from '../content/formats/ambient.ts';
 import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../content/formats/ja2bin.ts';
 import { Direction } from '../content/world/grid.ts';
@@ -763,6 +764,35 @@ describe('the sound director', () => {
     tactical = true;
     r.director.update();
     expect(files(r)).toEqual([loop, loop]);
+  });
+
+  it('plays the helicopter engine from silence through a run of the drop at the view’s volume, as an effect, and stops it as the run ends (Merc_Entering.cc:433)', async () => {
+    let tactical = true;
+    const r = rig(null, scripts, { onTacticalScreen: () => tactical });
+    const run = (tick: number, engineVolume: number): ViewFrame => ({
+      ...frame(tick, []),
+      helicopterDrop: { running: true, engineVolume, shadows: [] },
+    });
+    const voiceGains = () => r.graph.gains.slice(-2).map((g) => g.gain.value);
+    const engineAt = (volume: number) => {
+      const gains = balanceGains(scaleVolume(volume, r.engine.volumes.effects), Pan.MIDDLE);
+      return [gains.left, gains.right];
+    };
+    r.director.applyFrames([run(10, 0)]);
+    expect(r.cues).toEqual([expect.objectContaining({ file: book.paths.get('HELI_1'), baseVolume: 0, mix: 'fadingLoop', loops: 10000 })]);
+    await settle();
+    expect([r.graph.playing().length, voiceGains()]).toEqual([1, engineAt(0)]);
+    r.director.applyFrames([run(30, 65)]);
+    expect(voiceGains()).toEqual(engineAt(65));
+    tactical = false;
+    r.director.update();
+    expect(r.graph.playing()).toEqual([]);
+    tactical = true;
+    r.director.applyFrames([run(50, 127)]);
+    await settle();
+    expect([r.cues.length, voiceGains()]).toEqual([2, engineAt(127)]);
+    r.director.applyFrames([{ ...frame(70, []), helicopterDrop: null }]);
+    expect([r.graph.playing(), r.cues.length]).toEqual([[], 2]);
   });
 
   it('schedules ambient sounds of the active time window with gaps from the table', () => {

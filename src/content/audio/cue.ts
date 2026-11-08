@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Sound_Control.cc PlayJA2Sample, PlayLocationJA2Sample, PlaySoldierJA2Sample (the double scaling),
-// @src PlayJA2Ambient, SetPositionSndsVolumeAndPanning; Tactical/Soldier_Control.cc InternalDoMercBattleSound (volume and pan);
-// @src TileEngine/Ambient_Control.cc SetupNewAmbientSound.
+// @src PlayJA2Ambient, SetPositionSndsVolumeAndPanning; Tactical/Soldier_Control.cc InternalDoMercBattleSound (volume and
+// @src pan); TileEngine/Ambient_Control.cc SetupNewAmbientSound; Tactical/Merc_Entering.cc HandleHeliDrop (SoundSetVolume
+// @src with CalculateSoundEffectsVolume on the helicopter's engine, started at volume 0, 2026-11-08).
 
 import { type CueBook, soundPath } from './cue-book.ts';
 import { NOWHERE, Pan, positionSoundVolume, type ScreenView, scaleVolume, soundDir, soundVolume } from './sound-position.ts';
@@ -20,7 +21,8 @@ export type MixRule =
   | 'speech'
   | 'ambient'
   | 'music'
-  | 'positionLoop';
+  | 'positionLoop'
+  | 'fadingLoop';
 
 export interface Cue {
   readonly file: string;
@@ -61,7 +63,14 @@ const BUS_OF_RULE: Readonly<Record<MixRule, Bus>> = {
   ambient: 'ambient',
   music: 'music',
   positionLoop: 'effects',
+  fadingLoop: 'effects',
 };
+
+const REMIXED_WHILE_PLAYING: ReadonlySet<MixRule> = new Set(['positionLoop', 'fadingLoop']);
+
+export function remixedWhilePlaying(cue: Cue): boolean {
+  return REMIXED_WHILE_PLAYING.has(cue.mix);
+}
 
 export function cueOf(file: string, mix: MixRule, baseVolume: number, gridNo = NOWHERE, pan: number = Pan.MIDDLE, loops = 1): Cue {
   return { file, baseVolume, mix, bus: BUS_OF_RULE[mix], gridNo, pan, loops };
@@ -90,6 +99,7 @@ export function mixCue(cue: Cue, view: ScreenView, volumes: Volumes): Mixed {
     case 'soldier':
       return { volume: effects(effects(located(cue.baseVolume))), pan: dir };
     case 'fixed':
+    case 'fadingLoop':
       return { volume: effects(cue.baseVolume), pan: cue.pan };
     case 'panned':
       return { volume: effects(cue.baseVolume), pan: dir };

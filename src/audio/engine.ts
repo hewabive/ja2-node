@@ -3,7 +3,7 @@
 // @src src/sgp/SoundMan.cc SOUND_MAX_CHANNELS, SOUND_MAX_CACHED, SoundPlay, SoundGetFreeChannel (a new sound is dropped
 // @src when every channel is busy), SoundServiceStreams (linear balance), SoundStartSample (loops).
 
-import { type Bus, type Cue, mixCue, type Volumes } from '../content/audio/cue.ts';
+import { type Bus, type Cue, mixCue, remixedWhilePlaying, type Volumes } from '../content/audio/cue.ts';
 import { balanceGains, MAX_VOLUME, type ScreenView } from '../content/audio/sound-position.ts';
 import { decodeWav } from '../content/formats/wav.ts';
 import { LruCache, SOUND_CACHE_ENTRIES } from './buffer-cache.ts';
@@ -254,7 +254,7 @@ export class AudioEngine {
 
   #silent(cue: Cue): boolean {
     if (this.#volumes.master === 0) return true;
-    return cue.mix !== 'positionLoop' && mixCue(cue, this.#listener, this.#volumes).volume === 0;
+    return !remixedWhilePlaying(cue) && mixCue(cue, this.#listener, this.#volumes).volume === 0;
   }
 
   #buffer(path: string): Promise<AudioBuffer | null> {

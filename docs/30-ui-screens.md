@@ -94,6 +94,19 @@ frame before the answer, so the lock has no gap; only Esc passes. Playback merel
 lock: frames arrive unevenly under the real-time driver and a tick threshold made the lock and the cursor flicker
 (deviations "Turn-based UI lock", "Playback lock").
 
+**The helicopter drop is drawn from the view** (`25`; `29` §7). `helicopterDropStarted` centres the view on the north
+entry point and drops the locate to the entry's merc; for the first landing, whose screen is not up yet, the tactical host
+keeps the centre for the screen's entry (`src/app/tactical/tactical-host.ts`). While the view says
+`helicopterDrop.running` the input takes the original's LOCKUI lock, the full-screen region with `CURSOR_WAIT`
+(`'helicopterDrop'` beside the enemy turn's lock, `input/tactical-input.ts`), and nothing moves the view: no scrolling,
+no slide, no locate, as `gfIgnoreScrolling` stops `SetRenderCenter` (`ignoreScrolling`,
+`src/app/tactical/world-presenter.ts`). Esc held during a run sends `skipHelicopterDrop` once, polled every frame as
+`HandleHeliDrop` reads `_KeyDown(SDLK_ESCAPE)` (`input/helicopter-drop-skip.ts`), before the key reaches the tactical
+input, whose Esc then stops the selected merc as in a locked interface (`GameScreen.cc:407`, `:436`). The shadow is `tilecache/heli_sh.sti` on the shadow layer at the
+view's position, looping every 90 ms from frame 0 where the view first shows it (`src/app/world/helicopter-shadows.ts`).
+A merc in `HELIDROP` wears `s_`, `m_` or `f_helidrp.sti`; on stubs his own drop pose (`stubs/soldiers.ts`). The "has
+arrived" lines come with the message list (`mercDropped`, `src/server/message-entries.ts`).
+
 **Auto-bandage stops the tactical screen** (`tactical/auto-bandage-box.ts`). The `a` key sends `autoBandage`: a refusal
 shows its OK box (`REFUSAL_MESSAGES`), and the question is the `beginAutoBandage` prompt in the item prompts' yes/no box,
 the same box a won battle opens. While the view carries `autoBandage` the screen does what `MainGameScreenHandle` does
@@ -239,7 +252,7 @@ main menu music itself.
 
 **Not built.** The tactical placement GUI (deviation "Tactical placement"), the map-to-sector zoom (gap "Screen
 zooms"), meanwhile scene playback (gap "Meanwhile scene playback"), the 3D cursor and the cover and sight display
-(`28`'s decisions), the helicopter drop (gap "Helicopter entrance").
+(`28`'s decisions).
 
 ## 4. Quirks of the original the code keeps
 
@@ -260,6 +273,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The overhead map finds the cell under the pointer eight rows above it, for the click and the item lists, and at the pointer for the soldier it names (`TileEngine/Overhead_Map.cc:874`) | `src/app/tactical/overhead-map.test.ts` "finds the cell under the pointer …", "finds a soldier's cell …" |
 | The overhead map lists the items a pool holds on a structure only with the pointer on their cell; a pool next to the pointer lists its floor items, as `GetZLevelOfItemPoolGivenStructure` reads the pointer's cell (`TileEngine/Overhead_Map.cc:323`) | `tactical/overhead-map.test.ts` "lists the pool nearest the pointer …" |
 | Closing the overhead map enables the team panel's buttons and hands even under an item cursor, which disabled them, until the cursor ends (`TileEngine/Overhead_Map.cc:458`, `Tactical/Interface_Panels.cc:2628`) | `tactical/overhead-map.test.ts` "disables the team panel buttons …" |
+| Esc in a run of the helicopter drop lands the seats left and then stops the selected merc, who may be walking off the drop zone: `HandleHeliDrop` reads the key before `HandleTacticalUI` takes its press (`GameScreen.cc:407`, `:436`, `Tactical/Turn_Based_Input.cc:2313`) | `tactical/helicopter-drop.test.ts` "lands the seats left once while Esc is held …" |
 | A basement's overhead map blacks out its east edge from x 444, 8 pixels short of the west edge's mirror: `NORMAL_MAP_SCREEN_WIDTH` is 3160, 20 below the full map's screen width (`TileEngine/Overhead_Map.cc:56`, `:935`) | `src/app/tactical/overhead-map.test.ts` "blacks out a basement's edges …" |
 | The overhead map takes every key while it is up: only ESC, INSERT and ALT+x act, and Backspace stops no line (`TileEngine/Overhead_Map.cc:419`) | `tactical/tactical-controls.test.ts` "gives the overhead map every key while it is up …" |
 | While the overhead map is up the line already playing runs to its end with its voice and the panel face but no subtitle box or face popup, no other line starts, a civilian quote outlives its time unseen and the locators stand; all of it goes on as the map closes (`GameScreen.cc:366`, `TileEngine/Overhead_Map.cc:287`) | `tactical/tactical-screen.test.ts` "plays the line it opens over to its end …", "keeps a civilian quote past its lifetime under the overhead map …"; `tactical/tactical-controls.test.ts` "stops the locators under the overhead map …" |

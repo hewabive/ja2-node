@@ -143,11 +143,12 @@ export type AniTileKind =
   | 'knife'
   | 'knifeShadow'
   | 'crowShadow'
+  | 'helicopterShadow'
   | 'trail'
   | 'vaporize';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
-const SHADOW_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['knifeShadow', 'crowShadow']);
+const SHADOW_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['knifeShadow', 'crowShadow', 'helicopterShadow']);
 
 type AniLayer = 'paused' | 'shadows' | 'structs' | 'onRoof' | 'topmost';
 

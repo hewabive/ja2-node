@@ -13,7 +13,8 @@
 // @src VaporizeCorpse (gen_blow.sti in the struct layer, opaque); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
 // @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
 // @src thrower's tile); src/game/Tactical/Soldier_Control.cc HandleCrowShadowNewGridNo (fly_shdw.sti on the shadow layer
-// @src at the crow's position, on the ground).
+// @src at the crow's position, on the ground); src/game/Tactical/Merc_Entering.cc HandleHeliDrop HELI_SHOW_HELI (heli_sh.sti
+// @src on the shadow layer at the helicopter's position and height, 2026-11-08).
 
 import {
   CORPSES_TABLE_PATH,
@@ -43,6 +44,7 @@ import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-
 import { bulletGridNo } from './bullet-nodes.ts';
 import type { CrowShadow } from './crow-shadows.ts';
 import { type EffectFrame, isCachedEffect, knifeFrame } from './effect-animations.ts';
+import type { HelicopterShadowFrame } from './helicopter-shadows.ts';
 
 export type EffectSprites = Pick<WorldSprites, 'addSheet' | 'soldierFrame' | 'shadedPaletteBase' | 'plainPaletteRow'>;
 
@@ -58,6 +60,7 @@ const TRAIL_PATHS: Readonly<Record<string, string>> = {
 };
 const KNIFE_PATH = 'tilecache/knifing.sti';
 const CROW_SHADOW_PATH = 'tilecache/fly_shdw.sti';
+const HELICOPTER_SHADOW_PATH = 'tilecache/heli_sh.sti';
 const STUB_PREFIX = 'stubs/';
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
 const VEHICLE_CORPSE_FRAME_MS = 150;
@@ -419,6 +422,31 @@ export class WorldEffects {
       at: { x: c.x, y: c.y, z: 0 },
       sprite,
       paletteRow: sprites.plainPaletteRow(`effect|${CROW_SHADOW_PATH}`, () => loaded.picture.palette),
+      shaded: false,
+      zStrip: null,
+      zTileOffsetX: 0,
+      zTileOffsetY: 0,
+    };
+  }
+
+  helicopterShadowFrames(): number | null {
+    return this.#picture(HELICOPTER_SHADOW_PATH)?.framesPerDirection ?? null;
+  }
+
+  helicopterShadow(h: HelicopterShadowFrame): SceneAniTile | null {
+    const sprites = this.#sprites;
+    const loaded = this.#picture(HELICOPTER_SHADOW_PATH);
+    if (!sprites || !loaded) return null;
+    const sheet = this.#sheet(HELICOPTER_SHADOW_PATH, loaded.picture);
+    const sprite = sheet ? sprites.soldierFrame(sheet, h.frame) : null;
+    if (!sprite) return null;
+    return {
+      kind: 'helicopterShadow',
+      gridNo: h.gridNo,
+      level: 0,
+      at: { x: h.x, y: h.y, z: h.z },
+      sprite,
+      paletteRow: sprites.plainPaletteRow(`effect|${HELICOPTER_SHADOW_PATH}`, () => loaded.picture.palette),
       shaded: false,
       zStrip: null,
       zTileOffsetX: 0,
