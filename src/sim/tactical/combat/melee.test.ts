@@ -1,20 +1,25 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { countDraws } from '../../../../tests/support/explosives.ts';
-import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
+import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { PreRandom, Rng } from '../../../core/rng.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
-import { AnimHeight, initNewSoldierAnim, states } from '../animation.ts';
+import { AnimHeight, initNewSoldierAnim, soldierGotoStationaryStance, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { AP } from '../points.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
 import { NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
-import type { TacticalSim } from '../tactical-sim.ts';
+import { TacticalSim } from '../tactical-sim.ts';
+import { enterCombatMode } from '../turns/turns.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
 import { soldierDifficultyLevel } from './chance.ts';
 import { addCorpseStructure } from './death.ts';
@@ -48,6 +53,25 @@ function duel(attackerHand: string | null, targetAt: number, attackerFacing: num
   if (attackerHand === null) merc.inv[InvSlot.HAND] = emptyObject();
   const enemy = spawnSoldier(sim, 20, Team.ENEMY, targetAt, Direction.NORTH);
   sim.lookAround();
+  sim.drainEvents();
+  return { sim, merc, enemy };
+}
+
+const FENCE_ROW = 79;
+const FENCED_DUEL_APS = 40;
+const WALK_UP_TICKS = 400;
+
+function fencedDuel(mercAt: number, targetAt: number): { sim: TacticalSim; merc: Soldier; enemy: Soldier } {
+  const base = syntheticWorld(testDoorCosts(), (w) => {
+    for (let x = 60; x <= 100; x++) w.add(gridNo(x, FENCE_ROW), 0, syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT));
+  });
+  const sim = new TacticalSim({ ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 3);
+  const merc = spawnSoldier(sim, 0, Team.OUR, mercAt, Direction.NORTH);
+  merc.inv[InvSlot.HAND] = emptyObject();
+  const enemy = spawnSoldier(sim, 20, Team.ENEMY, targetAt, Direction.NORTH);
+  sim.lookAround();
+  enterCombatMode(sim.state, Team.OUR);
+  merc.actionPoints = FENCED_DUEL_APS;
   sim.drainEvents();
   return { sim, merc, enemy };
 }
@@ -305,6 +329,35 @@ describe('punches', () => {
     expect(merc.gridNo).toBe(elsewhere);
     expect(first(events, 'meleeStrike')).toBeUndefined();
     expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('punches after a walk-up that hops a fence on the way, as the hop locks the pending action counter until the walk goes on', () => {
+    const { sim, merc, enemy } = fencedDuel(gridNo(80, FENCE_ROW + 2), gridNo(80, FENCE_ROW - 3));
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(merc.gridNo).toBe(gridNo(80, FENCE_ROW - 2));
+    expect(first(events, 'meleeStrike')).toMatchObject({ soldier: 0, target: enemy.gridNo, weapon: 'punch' });
+    expect([merc.pendingMelee, merc.pendingActionCounterLocked]).toEqual([null, false]);
+  });
+
+  it('keeps the pending action counter locked after a hop whose landing ends the walk, so leaving a later walk-up keeps its punch', () => {
+    const landing = gridNo(80, FENCE_ROW - 1);
+    const stopsWalkingUp = (hopsFirst: boolean) => {
+      const { sim, merc, enemy } = fencedDuel(hopsFirst ? gridNo(80, FENCE_ROW + 1) : landing, gridNo(84, FENCE_ROW - 1));
+      if (hopsFirst) {
+        expect(sim.dispatch({ type: 'move', soldier: 0, to: landing })).toEqual({ ok: true });
+        runUntilIdle(sim);
+      }
+      expect(merc.gridNo).toBe(landing);
+      expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+      for (let i = 0; i < WALK_UP_TICKS && merc.gridNo === landing; i++) sim.step();
+      soldierGotoStationaryStance(sim.state, merc);
+      return [merc.pendingActionCounterLocked, merc.pendingMelee !== null];
+    };
+    expect([stopsWalkingUp(true), stopsWalkingUp(false)]).toEqual([
+      [true, true],
+      [false, false],
+    ]);
   });
 
   it('refuses with the NO_PATH message a punch at someone whose every side tile is taken', () => {

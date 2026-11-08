@@ -2809,3 +2809,52 @@ describe('snapshot version 56 (no auto-bandage state) migrates with the mode nev
     });
   });
 });
+
+const PENDING_ACTION_COUNTER_LOCKED_KEY = 'pendingActionCounterLocked';
+
+function withoutPendingActionCounterLock(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPendingActionCounterLock(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === PENDING_ACTION_COUNTER_LOCKED_KEY) expect(v).toBe(false);
+    else out[key] = withoutPendingActionCounterLock(v);
+  }
+  return out;
+}
+
+function versionFiftySeven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutPendingActionCounterLock(value)]);
+  return { ...snapshot, version: 57, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 57 (no pending action counter lock) migrates with nobody locked by a fence hop', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoCounterLocked(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftySeven(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${PENDING_ACTION_COUNTER_LOCKED_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${PENDING_ACTION_COUNTER_LOCKED_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoCounterLocked(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoCounterLocked(await createCampaignSession(kit.read, exists, 9));
+  });
+});

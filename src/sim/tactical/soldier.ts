@@ -4,7 +4,7 @@
 // @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment); Soldier_Create.cc
 // @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01; the slots of our vehicles and
 // @src bVehicleID, 2026-11-04); Tactical/Soldier_Control.h SOLDIER_DRIVER, SOLDIER_PASSENGER; Soldier_Macros.h EnterableVehicle
-// @src (2026-11-05)
+// @src (2026-11-05); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
@@ -70,6 +70,7 @@ export const SoldierStatusFlags = {
   ANIMAL: 0x00004000,
   VEHICLE: 0x00008000,
   BOXER: 0x00100000,
+  LOCKPENDINGACTIONCOUNTER: 0x00200000,
   COWERING: 0x00400000,
   GASSED: 0x01000000,
   OFF_MAP: 0x02000000,
@@ -533,6 +534,7 @@ export interface Soldier {
   walkToAttackGridNo: number;
   walkToAttackCost: number;
   pendingMelee: PendingMelee | null;
+  pendingActionCounterLocked: boolean;
   pendingActionData4: number;
   servicePartner: number;
   serviceCount: number;
@@ -940,6 +942,7 @@ function recordAndServices() {
     walkToAttackGridNo: NOWHERE,
     walkToAttackCost: 0,
     pendingMelee: null,
+    pendingActionCounterLocked: false,
     pendingActionData4: 0,
     servicePartner: NOBODY,
     serviceCount: 0,

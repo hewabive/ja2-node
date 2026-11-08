@@ -469,19 +469,24 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(fadeOf(soldierOf(sim, CIVILIAN_ID + 1))).toEqual([Visible.FADING_OUT, Visible.FADING_OUT, SoldierFade.OUT, 7, NOWHERE]);
   });
 
-  it('restores the fence hop continuing a move and the wait for a tile at their stored byte values, not as flags (fContinueMoveAfterStanceChange, fDelayedMovement)', () => {
+  it('restores the fence hop continuing a move and the wait for a tile at their stored byte values, not as flags, and the counter lock of the hop (fContinueMoveAfterStanceChange, fDelayedMovement, SOLDIER_LOCKPENDINGACTIONCOUNTER)', () => {
     const fenceHopContinuation = 2;
     const waitForTempBlockedTile = 100;
+    const SOLDIER_LOCKPENDINGACTIONCOUNTER = 0x00200000;
     const save = syntheticSave({
       soldiers: [
         savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), {
+          uiStatusFlags: SOLDIER_LOCKPENDINGACTIONCOUNTER,
           fContinueMoveAfterStanceChange: fenceHopContinuation,
           fDelayedMovement: waitForTempBlockedTile,
         }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82)),
       ],
     });
-    const merc = soldierOf(importedSim(save), MERC_ID);
+    const sim = importedSim(save);
+    const merc = soldierOf(sim, MERC_ID);
     expect([merc.continueMoveAfterStanceChange, merc.delayedMovement]).toEqual([fenceHopContinuation, waitForTempBlockedTile]);
+    expect([merc.pendingActionCounterLocked, soldierOf(sim, MERC_ID + 1).pendingActionCounterLocked]).toEqual([true, false]);
   });
 
   it('restores an order to look for items, the item locator lock and a quote held for the end of an attack with its tile (SOLDIER_LOOKFOR_ITEMS, fLockItemLocators, fItemsSeenOnAttack, usItemsSeenOnAttackGridNo)', () => {

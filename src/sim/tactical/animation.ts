@@ -16,7 +16,8 @@
 // @src stance change on the final tile (2026-11-06); SetSoldierAniSpeed's auto-bandage branch and Overhead.cc
 // @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen, SelectMoveAnimationFromStance after a
 // @src stance change that continues a move; the crouch before a prone hop facing the fence (deviation "Prone hop facing
-// @src the fence", 2026-11-07).
+// @src the fence", 2026-11-07); EVENT_InitNewSoldierAnim's SOLDIER_LOCKPENDINGACTIONCOUNTER and its clear on the walk
+// @src past a fence landing (2026-11-07).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -645,7 +646,10 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
     if (s.continueMoveAfterStanceChange) {
       if (s.continueMoveAfterStanceChange === CONTINUE_MOVE_PAST_FENCE) {
         stepPastFenceLanding(s);
-        if (s.pathIndex !== s.pathSize) initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
+        if (s.pathIndex !== s.pathSize) {
+          initNewSoldierAnim(t, s, s.uiMovementMode, 0, false);
+          s.pendingActionCounterLocked = false;
+        }
       } else {
         selectMoveAnimationFromStance(t, s);
       }
@@ -1115,7 +1119,7 @@ const PENDING_COUNT_RESET_STATES = ['WALKING', 'SWATTING', 'CRAWLING', 'RUNNING'
 
 function countPendingMeleeAnimation(t: TacticalState, s: Soldier, oldState: number, next: number): void {
   const pending = s.pendingMelee;
-  if (!pending) return;
+  if (!pending || s.pendingActionCounterLocked) return;
   if (pending.animCount > 0 && hasAnimFlag(t.content, oldState, AnimFlags.MOVING)) {
     s.pendingMelee = null;
     return;

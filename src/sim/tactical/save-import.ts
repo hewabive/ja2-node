@@ -16,7 +16,7 @@
 // @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05);
 // @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05); LoadSaveTacticalStatusType.cc
 // @src fAutoBandagePending (2026-11-06); Tactical/LoadSaveSoldierType.cc sDestXPos, sDestYPos, fPastXDest and fPastYDest
-// @src (2026-11-07).
+// @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -518,6 +518,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.dead = (r.statusFlags & SoldierStatusFlags.DEAD) !== 0;
   s.pauseAnimMove = (r.statusFlags & SoldierStatusFlags.PAUSEANIMOVE) !== 0;
   s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
+  s.pendingActionCounterLocked = (r.statusFlags & SoldierStatusFlags.LOCKPENDINGACTIONCOUNTER) !== 0;
   s.vehicleId = r.statusFlags & SoldierStatusFlags.VEHICLE ? r.vehicleSlot : NO_VEHICLE;
   s.vehicleSeat = seatOfStatusFlags(r.statusFlags);
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;

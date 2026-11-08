@@ -1673,6 +1673,23 @@ function addAutoBandageState(snapshot: Readonly<Record<string, unknown>>): Recor
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_MELEE_KEY = 'pendingMelee';
+const PENDING_ACTION_COUNTER_LOCKED_KEY = 'pendingActionCounterLocked';
+
+function withPendingActionCounterLock(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPendingActionCounterLock(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withPendingActionCounterLock(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, PENDING_MELEE_KEY, PENDING_ACTION_COUNTER_LOCKED_KEY, false) : mapped;
+}
+
+function addPendingActionCounterLock(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withPendingActionCounterLock(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1731,5 +1748,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     54: markStrategicDeathsOnSoldiers,
     55: dropFogMarkers,
     56: addAutoBandageState,
+    57: addPendingActionCounterLock,
   };
 }

@@ -404,6 +404,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     const overFence = newGridNo(next, step(nextDirection));
     if (handleNextTile(t, s, nextDirection, overFence, s.finalDestination)) {
       s.pathIndex++;
+      s.pendingActionCounterLocked = true;
       soldierGotoStationaryStance(t, s);
       beginSoldierClimbFence(t, s);
       s.continueMoveAfterStanceChange = CONTINUE_MOVE_PAST_FENCE;
