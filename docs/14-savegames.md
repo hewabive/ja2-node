@@ -143,10 +143,11 @@ The oracle loads the same files: `tools/oracle/save-probes.ts` writes probes for
 the AI's best shot, sight, paths and lights for every opposed pair), the native build runs them after its `save`
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
 "`save`"); most other comparers start from imported saves too, entering the loaded sector of a save made on the map
-screen first (`tools/oracle/tactical-import.ts`). With the original data, the subsystems' `save-import`
-tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one: a save with a
-world in tactical, one without on the map screen while its travelling squad reaches the next sector; the first save with
-a world is also played again with its world flag cleared.
+screen first (`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the native build
+writes itself, a tear gas cloud and a hit window (`tools/oracle/README.md` "Savegame temp files"). With the original
+data, the subsystems' `save-import` tests import every save in `SavedGames`, and `src/server/save-session.test.ts`
+keeps playing each one: a save with a world in tactical, one without on the map screen while its travelling squad
+reaches the next sector; the first save with a world is also played again with its world flag cleared.
 
 Inferred from reading the source:
 - The Linux layout has a synthetic test only, and no real file covers versions 100–105: the saves the tests use
@@ -156,6 +157,11 @@ Inferred from reading the source:
 - The zeroed half of the personal last-known locations: no probe dumps `gsLastKnownOppLoc`, and a load inside a running
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
+- Damage records and light effects of the loaded sector: no probe command makes them (a structure's damage needs an
+  explosion's tile animation frames, which no probe runs; nothing lights a flare), so only unit tests pin them
+  (`src/sim/tactical/native-temp-files.test.ts`, `src/sim/tactical/save-import.test.ts`). The window probe sees the
+  record written back, through the sector flag, not the swap itself: no probe dumps a tile's structures. The smoke
+  probe's cloud has no owner (`absmoke`), so the owner by id is pinned by a unit test only.
 
 Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections". Other deviations of the import:
 "Ambient sound events", "Blood on the ground", "Difficulty and progress in tactical", "Corpse structure past its file".

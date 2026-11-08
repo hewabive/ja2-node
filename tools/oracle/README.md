@@ -40,6 +40,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
 | Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop and the loads of its save), `heli-passengers-compare.ts` (the passengers) | 0031 | `25` |
+| Savegame temp files | the loaded sector's temp files on saves the native build writes: a tear gas cloud spread again at the load, aged and gassing over two turns; the map modifications flag with no record written back and with two window hits | `save-effects-setup.txt` (writes the saves), `save-effects.txt` | `absent-compare.ts`, `strategic-compare.ts`, `vehicles-compare.ts` | 0028, 0029, 0030, 0031 | `14` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -256,6 +257,18 @@ node tools/oracle/save-probes.ts SaveGame01 SaveGame02 SaveGame07 SaveGame08 Sav
   > ~/ja2-oracle/save-probes/all-saves.txt
 tools/oracle/run.sh ~/ja2-oracle/save-probes/all-saves.txt ~/ja2-oracle/save-probes/all-saves.jsonl
 ```
+
+### Savegame temp files
+
+The loaded sector's temp files after a native load, on saves the native build writes itself with `hdsave` (0031):
+`save-effects-setup.txt` writes `OracleSmoke` (`SaveGame01`, a tear gas cloud from `absmoke` on Shadow's tile) and
+`OracleWindow` (`SaveGame07`, Ira's shot at a window, `vehiclefire`, with the bullet flown by `hdframes`: two
+`WINDOW_HIT` records), each seeded before its load so the saves repeat; its `absmoke` and `vehiclefire` are compared as
+in their own domains, its frames and saves are not. `save-effects.txt` loads them: after `save OracleSmoke` the absent
+comparer follows the cloud the load spread again over two turns, with two mercs put in and beside it and the second
+turn four decay updates later (`abset`, `abclock seconds=`); `groups` compares the sector flags after each load (the
+map modifications flag cleared when no record is written back, kept when the window hits find their window). Not
+reached by any command: damage records and light effects, the window's swap itself, a cloud with an owner (`14` §4).
 
 ### Sector transitions
 
@@ -870,6 +883,10 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   so it runs after `helidrop.txt`, and writes `helidrop/load.jsonl`. The work dir keeps copies of both saves in
   `helidrop/`; a few bytes of `OracleHeliDrop` differ from run to run without changing `load.jsonl`. `compare-all.sh`
   compares both ("Helicopter drop").
+- `save-effects-setup.txt` writes `save-effects/setup.jsonl` and the saves `OracleSmoke` and `OracleWindow` into the
+  oracle's home; `save-effects.txt` reads them from there, so it runs after it, and writes `save-effects/effects.jsonl`.
+  The work dir keeps copies of both saves in `save-effects/`, where `compare.ts` finds them. `compare-all.sh` compares
+  both outputs ("Savegame temp files").
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;

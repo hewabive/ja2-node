@@ -1,0 +1,23 @@
+# The loaded sector's temp files after a native load (README "Savegame temp files"), on the saves
+# save-effects-setup.txt writes into the oracle's home (run it first).
+
+# 1. OracleSmoke: B13 with a tear gas cloud of radius 1 on Shadow's tile (6634). LoadSmokeEffectsFromMapTempFile
+# spreads it before the soldiers enter the map; Sidney steps into it and Ira three tiles east of it, where the cloud
+# reaches once it has aged: the second turn is 40 seconds later, four updates of DecaySmokeEffects. Shadow, saved
+# without SOLDIER_GASSED, is gassed again as he enters the map (SetSoldierGridNo). The groups dump, before the clock
+# moves, shows the sector flags: the map modifications flag cleared (no record written back), the smoke flag kept.
+save OracleSmoke
+groups
+abclock ja2clock=6050930 last=6050930 rotting=0 base=1
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+abset who=1 grid=6635
+abset who=2 grid=6637
+abturn
+abclock seconds=164290
+abturn
+
+# 2. OracleWindow: D13 with the two window hits of 12700 in its map modifications file. ModifyWindowStatus finds the
+# window for both, so they are written back and the flag stays.
+save OracleWindow
+groups

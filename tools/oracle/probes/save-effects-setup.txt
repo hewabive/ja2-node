@@ -1,0 +1,22 @@
+# The saves save-effects.txt loads (README "Savegame temp files"): each block changes the loaded sector and writes it
+# with hdsave (SaveGame into the oracle's home), which saves its temp files. Seeded before each load, so the draws, and
+# with them the saves, repeat (but for the header's real time).
+
+# 1. OracleSmoke: SaveGame01, B13 in real time, a tear gas cloud on Shadow's tile (6634). The clocks, the screen and
+# the compression are set as an absent block sets them.
+abtimer on=1
+seed value=7
+save SaveGame01
+abclock ja2clock=6050930 last=6050930 rotting=0 base=1
+abscreen screen=game
+abcompress mode=1 on=0 paused=0
+absmoke grid=6634 item=TEARGAS_GRENADE
+hdsave name=OracleSmoke
+
+# 2. OracleWindow: SaveGame07, D13 in turn-based combat; Ira (2, at 12867) shoots at the window of 12700 seven tiles
+# west, and the frames fly the bullet until it has hit the window (WindowHit: two WINDOW_HIT records).
+seed value=7
+save SaveGame07
+vehiclefire who=2 target=12700 ap=80
+hdframes count=400
+hdsave name=OracleWindow

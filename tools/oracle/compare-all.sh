@@ -15,6 +15,7 @@ PROBES=(
   schedules/schedules.jsonl give/give.jsonl recruit/recruit.jsonl civ/civ.jsonl meanwhile/meanwhile.jsonl
   boxing/boxing.jsonl drugs/drugs.jsonl bombs/bombs.jsonl vehicles/vehicles.jsonl absent/absent.jsonl
   autobandage/autobandage.jsonl knife-ai/knife-ai.jsonl helidrop/helidrop.jsonl helidrop/load.jsonl
+  save-effects/setup.jsonl save-effects/effects.jsonl
 )
 OPTIONAL_PROBES=(attach/attach.jsonl florist/florist.jsonl)
 for probe in "${OPTIONAL_PROBES[@]}"; do
