@@ -54,6 +54,7 @@ const OPEN = 8 * 60;
 const CLOSE = 20 * 60;
 const COLS = 160;
 const NEAR = [2, -2, 2 * COLS, -2 * COLS, 2 + COLS, -2 - COLS, 3, -3];
+const FAR_FROM_THE_TRADER = 10;
 
 type Driver = (c: CampaignSim, ticks: number) => void;
 const instant: Driver = (c, ticks) => {
@@ -268,6 +269,34 @@ describe('shop scenario on the stub village', () => {
     expect(repairmanIsFixingItemsButNoneAreDoneYet(c.merchants ?? never(), ARNIE)).toBe(true);
     const greeting = c.drainEvents().find((e) => e.type === 'shopkeeperQuote');
     expect(greeting).toMatchObject({ dealer: ARNIE_PROFILE, quote: SK_QUOTE_FIRST_ENTERS });
+  });
+});
+
+describe('the squad and the selection of a shop opened by its talk (Interface_Dialogue.cc InitTalkingMenu)', () => {
+  function withSecondSquad(): { readonly c: CampaignSim; readonly first: Soldier; readonly trader: Soldier } {
+    const c = startCampaign(7);
+    const [first, , trader] = ourSoldiers(c);
+    if (!first || !trader) throw new Error('three mercs expected');
+    expect(c.dispatch({ type: 'assignSquad', soldier: trader.id, squad: 'new' })).toMatchObject({ ok: true, data: { squad: 1 } });
+    expect([c.tactical?.state.turn.selected, c.state.forces.currentSquad]).toEqual([first.id, 0]);
+    return { c, first, trader };
+  }
+
+  it("makes the trader's squad current and selects him, as the talk does", () => {
+    const { c, trader } = withSecondSquad();
+    spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, trader);
+    expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: trader.id }).ok).toBe(true);
+    expect([c.tactical?.state.turn.selected, c.state.forces.currentSquad]).toEqual([trader.id, 1]);
+  });
+
+  it('leaves the current squad and the selection alone when it refuses the trader', () => {
+    const { c, first, trader } = withSecondSquad();
+    const dealer = spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, trader);
+    const t = c.tactical?.state;
+    if (!t) throw new Error('no sector loaded');
+    setSoldierPosition(t, dealer, trader.gridNo + FAR_FROM_THE_TRADER);
+    expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: trader.id })).toEqual(shopRefusal('tooFar'));
+    expect([c.tactical?.state.turn.selected, c.state.forces.currentSquad]).toEqual([first.id, 0]);
   });
 });
 

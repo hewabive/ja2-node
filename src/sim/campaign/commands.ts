@@ -3,7 +3,8 @@
 // @src src/game/Strategic/MapScreen.cc (plotting: legs, the Shift shortest route, the confirm on the last sector, the right
 // @src click on a path node); Map_Screen_Interface_Map.cc PlotPathForCharacter, ClearPathAfterThisSectorForCharacter;
 // @src Map_Screen_Interface.cc HandleMoveoutOfSectorMovementTroops, HandleSettingTheSelectedListOfMercs,
-// @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic.
+// @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic; Assignments.cc
+// @src CreateDestroyAssignmentPopUpBoxes (RebuildCurrentSquad as the assignment menu closes, 2026-11-08).
 
 import {
   parseSectorString,
@@ -286,6 +287,16 @@ function assignSquad(ctx: StrategicContext, cmd: StrategicCommand): CommandResul
     : refuse('cannotJoinSquad', 'cannot join that squad');
 }
 
+function closeAssignmentMenu(campaign: CampaignSim): void {
+  campaign.sectors?.rebuildCurrentSquad();
+}
+
+function assignSquadAndClose(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicCommand): CommandResult {
+  const result = assignSquad(ctx, cmd);
+  if (result.ok) closeAssignmentMenu(campaign);
+  return result;
+}
+
 function assign(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
   const economy = campaign.economy;
   if (!economy) return refuse('noEconomy', 'assignments need the economy');
@@ -293,6 +304,7 @@ function assign(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
   const to = cmd.to as AssignTarget | undefined;
   if (ids.length === 0 || !to || !ASSIGN_KINDS.has(String(to.kind))) return refuse('badAssignment', 'need soldiers and an assignment');
   const results = assignSoldiers(economy, ids, to).map(soldierAssignResult);
+  if (results.some((r) => r.ok)) closeAssignmentMenu(campaign);
   const failed = results.find((r) => !r.ok);
   if (failed && !failed.ok) return refuse(failed.refusal, failed.reason, { results });
   return { ok: true, data: { results } };
@@ -371,7 +383,7 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
     case 'routeGroup':
       return routeGroup(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'assignSquad':
-      return assignSquad(ctx, cmd);
+      return assignSquadAndClose(campaign, ctx, cmd);
     case 'assign':
       return assign(campaign, cmd);
     case 'sleep':

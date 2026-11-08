@@ -134,9 +134,11 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   tried, so a first merc who cannot be selected leaves the selection where it was. The server also changes it where
   the original does: a screen entry or an exit without a load while the current squad is off the map (the first squad
   on the map, or none), a merc joining a squad while the current one is empty, the selected merc joining another squad,
-  a talk, an escort's recruitment and a hospital assignment. A native save resumed in tactical selects its selected
-  merc again, forced, before the screen entry; a ja2-node save restores the selection and the current squad as they
-  were (deviation "Selection on load").
+  a talk and `openShop`, which stands for it, an escort's recruitment, a hospital assignment, and the close of the
+  assignment menu, which every accepted `assign`, `assignSquad` and `unescort` in tactical stands for with its choice
+  (`RebuildCurrentSquad`, `Strategic/Assignments.cc:5463`; on the map screen it changes nothing, as `SetCurrentSquad`
+  returns there). A native save resumed in tactical selects its selected merc again, forced, before the screen entry; a
+  ja2-node save restores the selection and the current squad as they were (deviation "Selection on load").
 - An order to one merc selects him first, once the turn locks and his own state let him act (`actRefusal`) and before
   the order reads its fields or draws, because the original's player selects a merc before ordering him. The selection,
   his wake-up and its draw stay when the order is then refused. An order given while he plays the wake-up takes over at

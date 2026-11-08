@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mainAdvance } from '../../tests/support/explosives.ts';
 import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { ReloadingSession } from '../../tests/support/session-reload.ts';
-import { STUB_DEALER, STUB_REPAIRMAN, stubCampaignInA10, walkNextToProfile } from '../../tests/support/stub-shops.ts';
+import { STUB_DEALER, STUB_REPAIRMAN, stubCampaignInA10, stubSoldierOfProfile, walkNextToProfile } from '../../tests/support/stub-shops.ts';
 import type { ShopView } from '../protocol/view.ts';
 import { shopRefusal } from '../sim/campaign/shop-refusals.ts';
-import { Team } from '../sim/tactical/soldier.ts';
+import { setSoldierPosition } from '../sim/tactical/movement.ts';
+import { Personality, Team } from '../sim/tactical/soldier.ts';
 import type { CampaignSession } from './campaign-session.ts';
 
 let kit: StubSectorKit;
@@ -21,13 +23,14 @@ afterAll(async () => {
 const DEALER = STUB_DEALER;
 const REPAIRMAN = STUB_REPAIRMAN;
 const REPAIR_WAIT_SECONDS = 3600;
+const FAR_FROM_THE_DEALER = 10;
 
 const OFFER_AREA_SLOTS = 12;
 const SK_QUOTE_FIRST_ENTERS = 11;
 const SK_QUOTE_REQUESTED_EVALUATION = 16;
 const SK_QUOTE_EXACTLY_ENOUGH = 22;
 
-const inA10 = (seed: number, mode?: RunMode): Promise<CampaignSession> => stubCampaignInA10(kit, seed, mode);
+const inA10 = (seed: number, mode?: RunMode, mercs?: number): Promise<CampaignSession> => stubCampaignInA10(kit, seed, mode, mercs);
 const walkNextTo = walkNextToProfile;
 
 describe('stub dealers in A10', () => {
@@ -80,6 +83,53 @@ describe('the shop screen fields of the stub dealer', () => {
       expect(session.dispatch(cmd)).toEqual(shopRefusal('noSuchPricingMerc'));
     expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });
     expect(session.dispatch({ type: 'setShopPricing', soldier: first.id })).toEqual(shopRefusal('shopNotOpen'));
+  });
+});
+
+describe('the squad and the selection as the stub dealer is talked to for his shop (Interface_Dialogue.cc InitTalkingMenu)', () => {
+  async function traderInASecondSquad(seed: number) {
+    const session = await inA10(seed);
+    const [first, trader] = session.view().strategic?.mercs ?? [];
+    if (!first || !trader) throw new Error('two mercs expected');
+    expect(session.dispatch({ type: 'assignSquad', soldier: trader.id, squad: 'new' })).toMatchObject({ ok: true, data: { squad: 1 } });
+    const squadAndSelection = () => [session.campaign.state.forces.currentSquad, session.campaign.tactical?.state.turn.selected];
+    return { session, first: first.id, trader: trader.id, squadAndSelection };
+  }
+
+  it("makes the trader's squad current and selects him, after its first merc, forced: a psycho first merc draws", async () => {
+    const opened = async (psycho: boolean) => {
+      const session = await inA10(6, undefined, 3);
+      const [first, leader, trader] = session.view().strategic?.mercs.map((m) => m.id) ?? [];
+      if (first === undefined || leader === undefined || trader === undefined) throw new Error('three mercs expected');
+      expect(session.dispatch({ type: 'assignSquad', soldier: leader, squad: 'new' })).toMatchObject({ ok: true, data: { squad: 1 } });
+      expect(session.dispatch({ type: 'assignSquad', soldier: trader, squad: 1 })).toMatchObject({ ok: true });
+      walkNextTo(session, trader, DEALER);
+      expect(session.dispatch({ type: 'selectSquad', squad: 0 })).toEqual({ ok: true });
+      const squadAndSelection = () => [session.campaign.state.forces.currentSquad, session.campaign.tactical?.state.turn.selected];
+      expect(squadAndSelection()).toEqual([0, first]);
+      const leaderSoldier = session.campaign.tactical?.state.soldiers[leader];
+      if (psycho && leaderSoldier) leaderSoldier.personalityTrait = Personality.PSYCHO;
+      const before = session.campaign.state.rng.state();
+      expect(session.dispatch({ type: 'openShop', dealer: DEALER, soldier: trader })).toMatchObject({ ok: true });
+      expect(squadAndSelection()).toEqual([1, trader]);
+      return mainAdvance(before, session.campaign.state.rng.state());
+    };
+    const [plain, psycho] = [await opened(false), await opened(true)];
+    expect(psycho - plain).toBe(1);
+  });
+
+  it('leaves the squad and the selection alone when the shop refuses a trader too far away', async () => {
+    const { session, first, trader, squadAndSelection } = await traderInASecondSquad(7);
+    const t = session.campaign.tactical?.state;
+    const soldier = t?.soldiers[trader];
+    if (!t || !soldier) throw new Error('no trader on the map');
+    setSoldierPosition(t, soldier, stubSoldierOfProfile(session, DEALER).gridNo + FAR_FROM_THE_DEALER);
+    expect(squadAndSelection()).toEqual([0, first]);
+    expect(session.dispatch({ type: 'openShop', dealer: DEALER, soldier: trader })).toMatchObject({
+      ok: false,
+      data: { refusal: 'tooFar' },
+    });
+    expect(squadAndSelection()).toEqual([0, first]);
   });
 });
 

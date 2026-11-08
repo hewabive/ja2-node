@@ -11,7 +11,7 @@
 // @src merc), SetDefaultSquadOnSectorEntry, RebuildCurrentSquad (its squad check; the team panel stays the client's),
 // @src the end of AddCharacterToSquad; SaveLoadGame.cc LoadSavedGame (the forced reselect in tactical) (2026-11-01);
 // @src HandlePlayerTeamMemberDeath's next selection among everyone in the sector, the helicopter's passengers included
-// @src (2026-11-08).
+// @src (2026-11-08); Tactical/Interface_Dialogue.cc InitTalkingMenu (the talker's squad and selection, 2026-11-08).
 
 import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
@@ -113,6 +113,11 @@ export function setDefaultSquadOnSectorEntry(t: TacticalState, force: boolean): 
 function firstSquadOnCurrentTacticalMap(t: TacticalState): number | null {
   for (let squad = 0; squad < NUMBER_OF_SQUADS; squad++) if (t.narrative.squadOnCurrentTacticalMap(squad)) return squad;
   return null;
+}
+
+export function selectTalker(t: TacticalState, s: Soldier): void {
+  setCurrentSquad(t, soldierAssignment(t, s), false);
+  selectSoldier(t, s);
 }
 
 export function rebuildCurrentSquad(t: TacticalState): void {

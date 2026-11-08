@@ -12,13 +12,14 @@ import {
   startFirstSquadsDrop,
   walkSquadToEastEdge,
 } from '../../../tests/support/campaign.ts';
-import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
+import { loadEconomyTestContent, kit as medicalKit } from '../../../tests/support/economy.ts';
 import { mainAdvance } from '../../../tests/support/explosives.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { putMercInAsleepState } from '../strategic/economy/rest.ts';
 import { setSoldierAssignmentHospital } from '../strategic/economy/set-assignment.ts';
 import { handleSoldierDeath } from '../tactical/combat/death.ts';
+import { InvSlot } from '../tactical/inventory.ts';
 import { NO_SELECTION } from '../tactical/selection.ts';
 import { Personality } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -377,6 +378,48 @@ describe('the current squad after a hospital assignment (Assignments.cc SetSoldi
     const second = soldierIds(c)[1];
     admit(c, roster);
     expect(selectedSquad(c)).toEqual([second, 1]);
+  });
+});
+
+describe('the current squad as the tactical assignment menu closes (Assignments.cc CreateDestroyAssignmentPopUpBoxes, RebuildCurrentSquad)', () => {
+  function withDoctorAlone(c: CampaignSim, roster: Roster): void {
+    landFirstSquad(c);
+    const [first, second] = soldierIds(c);
+    assignSquad(c, second ?? -1, 'new');
+    rosterMerc(roster, first ?? -1).soldier.inv[InvSlot.BIGPOCK4] = medicalKit(kit.economy.items, 'MEDICKIT', [100]);
+  }
+
+  function assignDoctor(c: CampaignSim): void {
+    expect(c.dispatch({ type: 'assign', soldiers: [soldierIds(c)[0]], to: { kind: 'doctor' } })).toMatchObject({ ok: true });
+  }
+
+  it('makes the first squad on the map current when the assignment takes the last merc of the current squad', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 58, mercs: 2, garrison: NO_GARRISON });
+    withDoctorAlone(c, roster);
+    const [first, second] = soldierIds(c);
+    expect(selectedSquad(c)).toEqual([first, 0]);
+    assignDoctor(c);
+    expect(selectedSquad(c)).toEqual([second, 1]);
+  });
+
+  it('makes the first squad on the map current after a squad change while the current squad is off the map', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 59, mercs: 3, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    const [first, second, third] = soldierIds(c);
+    assignSquad(c, third ?? -1, 'new');
+    rosterMerc(roster, third ?? -1).betweenSectors = true;
+    c.strategic?.mercs.removeFromTacticalSector(third ?? -1);
+    c.state.forces.currentSquad = 1;
+    assignSquad(c, second ?? -1, 'new');
+    expect(selectedSquad(c)).toEqual([first, 0]);
+  });
+
+  it('leaves the current squad as it is on the map screen, where SetCurrentSquad returns at once', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 58, mercs: 2, garrison: NO_GARRISON });
+    withDoctorAlone(c, roster);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    assignDoctor(c);
+    expect(c.state.forces.currentSquad).toBe(0);
   });
 });
 

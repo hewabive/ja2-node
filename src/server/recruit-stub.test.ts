@@ -32,6 +32,7 @@ const ROUTE_SLICE_SECONDS = 6 * 3600;
 const RPC_JOINED_TEAM = 23;
 const RECRUITED = 0x01;
 const EPC_ACTIVE = 0x40;
+const SQUAD_OFF_THE_MAP = 5;
 
 async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session; merc: number }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -182,5 +183,14 @@ describe('releasing the stub EPC', () => {
     expect(c.battle?.roster.byProfile(MIRELA)).toBeUndefined();
     expect(c.tactical?.state.soldiers.find((s) => s?.placed && s.profile === MIRELA)?.team).toBe(Team.CIV);
     expect(session.view().strategic?.mercs.some((m) => m.id === id)).toBe(false);
+  });
+
+  it('rebuilds the current squad in tactical as the assignment menu closes after its remove line (RebuildCurrentSquad)', async () => {
+    const { session, live, merc } = await inA10(25);
+    const id = escortMirela(session, live, merc);
+    if (session.view().conversation) session.dispatch({ type: 'closeTalk' });
+    session.campaign.state.forces.currentSquad = SQUAD_OFF_THE_MAP;
+    expect(session.dispatch({ type: 'unescort', soldier: id })).toMatchObject({ ok: true, data: { triggered: true } });
+    expect(session.campaign.state.forces.currentSquad).toBe(0);
   });
 });

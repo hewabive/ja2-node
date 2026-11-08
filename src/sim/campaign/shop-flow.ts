@@ -8,7 +8,8 @@
 // @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc, the previous and next merc buttons
 // @src change gpSMCurrentMerc inside the shop); Overhead.cc FindNextActiveAndAliveMerc (regular mercs only);
 // @src EnterShopKeeperInterfaceScreen's LeaveTacticalScreen, which clears a pending auto-bandage (2026-11-06) and the
-// @src customizable timer of a won battle's look for someone else (2026-11-07).
+// @src customizable timer of a won battle's look for someone else (2026-11-07); Interface_Dialogue.cc InitTalkingMenu (the
+// @src talker's squad made current and his selection, by the open that stands for the talk, 2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -51,6 +52,7 @@ import { NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { directionToward, stopMerc } from '../tactical/movement.ts';
 import { distanceVisible } from '../tactical/perception/sight.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
+import { selectTalker } from '../tactical/selection.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -68,6 +70,7 @@ const DIRECTION_IRRELEVANT = -1;
 const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const NOT_VISIBLE = -1;
+const NO_SQUAD = -1;
 const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing']);
 
 export interface ShopSession {
@@ -96,6 +99,7 @@ const refuse = (token: ShopRefusal, text?: string): never => {
 };
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
+const validSquad = (squad: number): boolean => squad >= 0 && squad < NUMBER_OF_SQUADS;
 
 function itemRef(ctx: MerchantContext, o: ItemObject): ShopItemRef {
   const count = ctx.items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY ? o.money : o.count;
@@ -172,11 +176,19 @@ export class ShopFlow {
     return this.#campaign.state.forces.currentSquad;
   }
 
-  #onCurrentSquad(s: Soldier): boolean {
+  #onSquad(s: Soldier, squad: number): boolean {
     if (!this.#campaign.strategic) return s.team === Team.OUR;
-    const q = this.#currentSquad();
-    if (q < 0 || q >= NUMBER_OF_SQUADS) return false;
-    return (this.#campaign.state.forces.squads[q] ?? []).includes(s.id);
+    if (!validSquad(squad)) return false;
+    return (this.#campaign.state.forces.squads[squad] ?? []).includes(s.id);
+  }
+
+  #onCurrentSquad(s: Soldier): boolean {
+    return this.#onSquad(s, this.#currentSquad());
+  }
+
+  #squadAfterTalk(s: Soldier): number {
+    const assignment = this.#campaign.strategic?.mercs.get(s.id)?.assignment ?? NO_SQUAD;
+    return validSquad(assignment) ? assignment : this.#currentSquad();
   }
 
   #mechanical(s: Soldier): boolean {
@@ -184,11 +196,11 @@ export class ShopFlow {
     return merc ? merc.isVehicle || merc.isRobot : false;
   }
 
-  #interactionRefusal(s: Soldier, dealer: Soldier): ShopRefusal | null {
+  #interactionRefusal(s: Soldier, dealer: Soldier, squad = this.#currentSquad()): ShopRefusal | null {
     const t = this.#t;
     if (!t || dealer.life < OKLIFE) return 'dealerDown';
     if (!s.placed || s.team !== Team.OUR) return 'mercCantTrade';
-    if (!this.#onCurrentSquad(s)) return 'notOnCurrentSquad';
+    if (!this.#onSquad(s, squad)) return 'notOnCurrentSquad';
     if (s.life < OKLIFE || this.#mechanical(s)) return 'mercCantTrade';
     const visible = distanceVisible(t, s, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, dealer.gridNo, dealer.level);
     if (!soldierTo3DLocationLos(t, s, dealer.gridNo, dealer.level, SHOP_LOS_CUBE_LEVEL, u8(visible), true)) return 'noLineOfSight';
@@ -219,6 +231,7 @@ export class ShopFlow {
     setDesiredDirection(t, merc, facing);
     setDesiredDirection(t, dealer, (facing + OPPOSITE) % DIRECTIONS);
     stopMerc(t, merc);
+    selectTalker(t, merc);
     return this.#begin(def, dealer, merc);
   }
 
@@ -245,8 +258,7 @@ export class ShopFlow {
     if (dealer.visible === NOT_VISIBLE) refuse('dealerHidden');
     if (!dealer.neutral) refuse('dealerHostile');
     if (!t.inCombat && hasAnimFlag(t.content, dealer.state, AnimFlags.MOVING)) refuse('dealerMoving');
-    this.#selectSquadOf(merc);
-    const interaction = this.#interactionRefusal(merc, dealer);
+    const interaction = this.#interactionRefusal(merc, dealer, this.#squadAfterTalk(merc));
     if (interaction) refuse(interaction);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
     if (withScriptHooks && ctx.hooks.buySellRecordPending(def.profile)) refuse('npcWantsToTalk');
@@ -269,7 +281,6 @@ export class ShopFlow {
     const dealer = this.dealerSoldier(dealerProfile);
     const merc = this.#t?.soldiers[soldier] ?? null;
     if (this.#session || !def || !dealer || !merc) return shopRefusal('shopUnavailable');
-    this.#selectSquadOf(merc);
     return this.#begin(def, dealer, merc);
   }
 
@@ -295,11 +306,6 @@ export class ShopFlow {
     this.#emit({ type: 'shopkeeperQuote', dealer: def.profile, quote: delayed ? ShopQuote.REPAIR_DELAYED : ShopQuote.FIRST_ENTERS });
     this.#initializeShopKeeper();
     return { ok: true, data: this.view() };
-  }
-
-  #selectSquadOf(s: Soldier): void {
-    const merc = this.#campaign.strategic?.mercs.get(s.id);
-    if (merc && merc.assignment >= 0 && merc.assignment < NUMBER_OF_SQUADS) this.#campaign.state.forces.currentSquad = merc.assignment;
   }
 
   #requireSession(): ShopSession {

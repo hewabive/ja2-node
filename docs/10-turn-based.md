@@ -207,6 +207,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A new current squad gets its first slot selected, not its first merc who may be selected: when that one cannot be, the squad changes and the selection stays on a merc of another squad | `selection.test.ts` "changes the squad but keeps the selection …" |
 | The selected merc who joins a squad, leaving his own, the current one, empty, loses the selection to the first merc of the squad he joins: his squad removal unselects him first | `src/sim/campaign/automatic-selection.test.ts` "selects the first merc of the squad the selected merc joins …" |
 | A native save resumed in tactical selects its selected merc twice, forced, before anything else can: a sleeper wakes and stays selected | `selection.test.ts`, `src/sim/campaign/automatic-selection.test.ts` |
+| The talk that opens a shop makes the trader's squad current through `SetCurrentSquad`, which selects that squad's first merc, forced, before the trader himself: a psycho first merc draws | `src/server/shop-stub.test.ts` "makes the trader's squad current and selects him …" |
 
 Not pinned yet:
 - A duel won by 127 points or more never interrupts: the margin is a `UINT8` and only margins below `NO_INTERRUPT` are
@@ -245,7 +246,6 @@ source:
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's
   return changes nothing (`SelectSoldier` refuses on the shopkeeper screen).
 
-Not ported: gaps "Automatic selections" (the assignment menu's close).
-Other deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
+Deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
 on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame
 timers", "Soldier fade without merc lights", "Hidden attacks start combat", "Interface lock per source".

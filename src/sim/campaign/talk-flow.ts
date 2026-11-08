@@ -13,7 +13,8 @@
 // @src line short); Interface_Dialogue.cc InitTalkingMenu (SetCurrentSquad before the talker's selection, 2026-11-01);
 // @src Handle_Items.cc ContinuePastBoobyTrap (SetStopTimeQuoteCallback, then TacticalCharacterDialogue), GameScreen.cc
 // @src HandleModalTactical (HandleDialogue alone while the stop-time quote plays, 2026-11-04); Handle_UI.cc HandleTalkInit's
-// @src MERC_TALK replacing a held MERC_GIVEITEM (2026-11-08).
+// @src MERC_TALK replacing a held MERC_GIVEITEM (2026-11-08); Assignments.cc CreateDestroyAssignmentPopUpBoxes
+// @src (RebuildCurrentSquad as the menu closes after its "remove escort" in tactical, 2026-11-08).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -121,7 +122,6 @@ import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { dropHeldGive, setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../tactical/movement.ts';
-import { soldierAssignment } from '../tactical/narrative/assignment.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import { sexSceneWarpSeconds } from '../tactical/narrative/npc-actions/san-mona.ts';
@@ -131,7 +131,7 @@ import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { refuse as refuseCommand } from '../tactical/refusal.ts';
 import { robotGunCalibre, robotReloadRefusal, soldierReloadRobot } from '../tactical/robot-reload.ts';
-import { selectOrderedMerc, selectSoldier, setCurrentSquad } from '../tactical/selection.ts';
+import { selectOrderedMerc, selectTalker } from '../tactical/selection.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
@@ -520,9 +520,7 @@ export class TalkFlow {
       pauseForLine: (on) => pauseUnderLock(state.clock, on, LOCK_PAUSE_MERC_TALKING),
       selectTalker: (s) => {
         const t = this.#t;
-        if (!t) return;
-        setCurrentSquad(t, soldierAssignment(t, s), false);
-        selectSoldier(t, s);
+        if (t) selectTalker(t, s);
       },
       isDealer: (profile) => (campaign.merchants ? isMercADealer(campaign.merchants, profile) : false),
       openShop: (dealer) => {
@@ -1105,6 +1103,7 @@ export class TalkFlow {
     let triggered = false;
     const result = this.#runAndReply(() => {
       triggered = this.npcActions.recruitFlow.triggerWrongSectorRecord(merc);
+      campaign.sectors?.rebuildCurrentSquad();
     });
     return { ...result, data: { ...result.data, triggered } };
   }
