@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../tests/support/autoresolve.ts';
 import {
   type CampaignKit,
   createTestCampaign,
@@ -88,6 +89,8 @@ const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const LONE_ADMIN = { admins: 1, troops: 0, elites: 0 };
 const WALK_OFF_TICKS = 2000;
+const LEAVER_PROFILE = 1;
+const RAN_AWAY_MORALE = -5;
 const TICKS_PER_WORLD_SECOND = 200;
 const QUICK_TRAVERSAL_MINUTES = 5;
 const MIN_CROWS_POSSIBLE = 5;
@@ -250,6 +253,20 @@ describe('leaving a sector', () => {
     expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect([campaign.tactical, campaign.state.worldSector]).toEqual([null, null]);
     expect(campaign.dispatch({ type: 'compressTime', mode: 2 })).toEqual({ ok: true });
+  });
+
+  it('counts the squad walked off the edge, still in the sector, in its strength at the retreat, so the run away hits its morale at once (PlayerStrength, Strategic_Town_Loyalty.cc:1153, Morale.cc:344)', () => {
+    const { campaign, roster } = createTestCampaign(kit, { seed: 11, mercs: 1, garrison: LONE_ADMIN });
+    landFirstSquad(campaign);
+    const leaver = ourSoldiers(campaign)[0];
+    if (!leaver) throw new Error('no merc');
+    leaver.profile = LEAVER_PROFILE;
+    campaign.state.profiles.set(LEAVER_PROFILE, progressFor(LEAVER_PROFILE));
+    walkSquadToEastEdge(campaign);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: leaver.id, direction: 'east', who: 'squad', load: true }).ok).toBe(true);
+    runTicks(campaign, WALK_OFF_TICKS, () => campaign.state.worldSector?.x === A10.x);
+    const left = roster.get(leaver.id)?.soldier;
+    expect([left?.strategicMoraleMod, left?.delayedStrategicMoraleMod]).toEqual([RAN_AWAY_MORALE, 0]);
   });
 
   it('stands the world clock while a merc walks off, the interface lock pausing the game, and runs it again once he is gone (StrategicMap.cc JumpIntoAdjacentSector LU_BEGINUILOCK)', () => {
