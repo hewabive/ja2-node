@@ -1941,6 +1941,22 @@ function registerHelicopterPassengers(snapshot: Readonly<Record<string, unknown>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MERC_ARRIVING_QUOTE_KEY = 'mercArrivingQuoteBeingUsed';
+
+function withMercArrivingQuoteFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withMercArrivingQuoteFlag(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withMercArrivingQuoteFlag(v);
+  return isTalkStateRecord(mapped) ? insertAfter(mapped, ME_TOO_BLEED_LOG_KEY, MERC_ARRIVING_QUOTE_KEY, false) : mapped;
+}
+
+function addMercArrivingQuoteFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withMercArrivingQuoteFlag(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2004,5 +2020,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     59: addHelicopterDrop,
     60: addHelicopterRunFlags,
     61: registerHelicopterPassengers,
+    62: addMercArrivingQuoteFlag,
   };
 }

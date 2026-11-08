@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc (the contract fields), MercArrivesCallback (status, contract end,
-// @src equipment complaint), HandleMercArrivesQuotes, SpeaksForItsVoice.
+// @src equipment complaint), HandleMercArrivesQuotes, SpeaksForItsVoice; MercArrivesCallback's QUOTE_MERC_REACHED_DESTINATION
+// @src under bMercArrivingQuoteBeingUsed and gfFirstHeliRun, with DialogueEventUnsetArrivesFlag (2026-11-08).
 
 import { i8, u8, u32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
@@ -95,7 +96,23 @@ export function handleMercArrivesQuotes(ctx: ContractContext, arrived: RosterMer
   }
 }
 
+function mercArrivingQuoteFree(ctx: ContractContext): boolean {
+  return !ctx.state.talk.dialogue.mercArrivingQuoteBeingUsed && !ctx.state.sectorFlow.helicopterDrop.firstHeliRun;
+}
+
+function sayReachedDestination(ctx: ContractContext, arrived: RosterMerc): void {
+  if (arrived.insertionCode === InsertionCode.CHOPPER || !mercArrivingQuoteFree(ctx)) return;
+  ctx.state.talk.dialogue.mercArrivingQuoteBeingUsed = true;
+  ctx.say(arrived, 'MERC_REACHED_DESTINATION');
+  ctx.queueMercArrivingQuoteRelease();
+}
+
+export function releaseMercArrivingQuote(ctx: Pick<ContractContext, 'state'>): void {
+  ctx.state.talk.dialogue.mercArrivingQuoteBeingUsed = false;
+}
+
 export function mercArrived(ctx: ContractContext, m: RosterMerc): void {
+  sayReachedDestination(ctx, m);
   const s = ctx.state;
   const now = worldTotalMinutes(s.clock);
   const c = m.contract;

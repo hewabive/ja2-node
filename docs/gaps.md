@@ -32,11 +32,7 @@ The map, travel, vehicles, time compression, the economy, sector state and autor
 
 ## 3. Campaign, laptop and narrative
 
-NPC records, merc lines, the dialogue queue and quest scripting. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Merc arrival line | A merc who arrives by any way but the helicopter says his "reached destination" line, unless another arrival's line is still queued or the first helicopter run is still to come (`Tactical/Merc_Hiring.cc:289`, `:294`) | The arrival emits `mercArrived` and the arrival quotes of the team (`campaign/laptop/laptop-flow.ts`, `campaign/contracts/hire-contract.ts`), but nobody says `QUOTE_MERC_REACHED_DESTINATION` | Needs the tactical status flag `bMercArrivingQuoteBeingUsed`, which the native save format carries but nothing reads (`src/content/formats/savegame-tactical.ts`), and `HelicopterDrop.firstHeliRun` (`tactical/helicopter-drop-state.ts`) |
+NPC records, merc lines, the dialogue queue and quest scripting: none known. Paths are under `src/sim/`.
 
 ## 4. Agent API
 

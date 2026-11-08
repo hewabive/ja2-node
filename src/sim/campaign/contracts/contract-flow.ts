@@ -11,7 +11,8 @@
 // @src DialogueEventContract, MakeCharacterDialogueEventContractEnding(NoAskEquip), MapScreen.cc
 // @src MakeDialogueEventEnterMapScreen, Map_Screen_Interface.cc MakeDialogueEventShowContractMenu (the endings and the
 // @src renewal menu as dialogue events behind the lines, 2026-11-01); Tactical/Overhead.cc HandlePlayerTeamMemberDeath's buddy
-// @src lines from everyone in the sector, the helicopter's passengers included (2026-11-08).
+// @src lines from everyone in the sector, the helicopter's passengers included (2026-11-08); Tactical/Merc_Hiring.cc
+// @src MercArrivesCallback's DialogueEventUnsetArrivesFlag, run whenever the queue reaches it (2026-11-08).
 
 import { type Sector, sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
@@ -78,7 +79,7 @@ import {
   strategicRemoveMerc,
 } from './departure.ts';
 import { type ExtensionResult, mercContractHandling } from './extension.ts';
-import { handleMercArrivesQuotes, hireContract, mercArrived } from './hire-contract.ts';
+import { handleMercArrivesQuotes, hireContract, mercArrived, releaseMercArrivingQuote } from './hire-contract.ts';
 import { dailyUpdateOfMercSite } from './merc-account.ts';
 import { HistoryCode, Quote, type QuoteName, quoteKey, SpecialProfile } from './quotes.ts';
 import {
@@ -107,6 +108,7 @@ const ContractCallback = {
   DEPARTURE: `${CONTRACT_CALLBACKS}:departure`,
   WITHOUT_EQUIPMENT: `${CONTRACT_CALLBACKS}:withoutEquipment`,
   ENTER_MAP_SCREEN: `${CONTRACT_CALLBACKS}:enterMapScreen`,
+  MERC_ARRIVING_QUOTE_RELEASE: `${CONTRACT_CALLBACKS}:mercArrivingQuoteRelease`,
 } as const;
 const ENDING_CALLBACKS: Readonly<Record<PendingEnding['kind'], string>> = {
   departure: ContractCallback.DEPARTURE,
@@ -274,6 +276,10 @@ export class ContractFlow implements ContractContext {
     });
   }
 
+  queueMercArrivingQuoteRelease(): void {
+    this.#queueCallback(ContractCallback.MERC_ARRIVING_QUOTE_RELEASE, []);
+  }
+
   queueEnding(e: PendingEnding): void {
     const host = this.#dialogue;
     const args = e.kind === 'departure' ? [e.soldier, e.rehire ? 1 : 0] : [e.soldier];
@@ -294,6 +300,10 @@ export class ContractFlow implements ContractContext {
 
   dialogueCallback(name: string, args: readonly number[]): boolean {
     const s = this.state;
+    if (name === ContractCallback.MERC_ARRIVING_QUOTE_RELEASE) {
+      releaseMercArrivingQuote(this);
+      return false;
+    }
     if (s.battle.prompt || s.flow === 'autoresolve') return true;
     const [soldier = -1, flag = 0] = args;
     switch (name) {

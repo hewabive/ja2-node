@@ -326,6 +326,7 @@ export interface TacticalStatus {
   readonly consecutiveTurnsWeHaventSeenButEnemyDoes: number;
   readonly someoneHit: boolean;
   readonly timeSinceLastOpplistDecay: number;
+  readonly mercArrivingQuoteBeingUsed: boolean;
   readonly decayBloodLastUpdate: number;
   readonly enemyFlags: number;
   readonly itemsSeenOnAttack: boolean;
@@ -523,6 +524,7 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     consecutiveTurnsWeHaventSeenButEnemyDoes: n('bConsNumTurnsWeHaventSeenButEnemyDoes'),
     someoneHit: b('fSomeoneHit'),
     timeSinceLastOpplistDecay: n('uiTimeSinceLastOpplistDecay'),
+    mercArrivingQuoteBeingUsed: n('bMercArrivingQuoteBeingUsed') !== 0,
     enemyFlags: n('fEnemyFlags'),
     itemsSeenOnAttack: b('fItemsSeenOnAttack'),
     itemsSeenOnAttackSoldier: n('items_seen_on_attack_soldier'),

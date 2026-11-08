@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
+import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { createCampaignSession } from '../../../server/campaign-factory.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Session } from '../../../server/session.ts';
 import type { SimEvent } from '../../events.ts';
+import { dialogueQueueIsEmptyAndNobodyIsTalking } from '../../narrative/talk-state.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { sectorInfo } from '../../strategic/map/sectors.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
@@ -25,6 +26,8 @@ const MARLOW = 8;
 const VOSS = 10;
 const DROP_TICKS = 10_000;
 const PC_DROPPED_OMERTA = 55;
+const MERC_REACHED_DESTINATION = 78;
+const LINES_TICKS = 10_000;
 let kit: StubSectorKit;
 
 beforeAll(async () => {
@@ -240,6 +243,82 @@ describe('after the landing', () => {
     expect(events.some((e) => e.type === 'mercArrived' && e.soldier === id)).toBe(true);
     expect(merc?.contract.contractEnd).toBe(2 * 1440 + 13 * 60);
     expect(merc?.sector).toEqual(parseSectorString('A9'));
+  });
+
+  function reachedDestinationLines(events: readonly SimEvent[]): number[] {
+    return events.flatMap((e) => (e.type === 'mercQuote' && e.id === MERC_REACHED_DESTINATION ? [e.soldier] : []));
+  }
+
+  function untilEverythingIsSaid(session: CampaignSession): SimEvent[] {
+    const events: SimEvent[] = [];
+    for (let tick = 0; tick < LINES_TICKS && !dialogueQueueIsEmptyAndNobodyIsTalking(session.campaign.state.talk.dialogue); tick++) {
+      session.step();
+      events.push(...session.drainEvents());
+    }
+    return events;
+  }
+
+  function hireFor(session: CampaignSession, count: number): number[] {
+    expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
+    const ids = available(session, [0, 1, 2, 3, 4, 5])
+      .slice(0, count)
+      .map((profile) => {
+        const hired = session.dispatch({ type: 'aimHire', profile, contract: 1, gear: false });
+        expect(hired).toMatchObject({ ok: true });
+        return (hired.data as { soldier: number }).soldier;
+      });
+    expect(ids).toHaveLength(count);
+    expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
+    session.drainEvents();
+    return ids;
+  }
+
+  async function landedWithTheZoneAway(seed: number): Promise<CampaignSession> {
+    const session = await landed(seed);
+    session.campaign.state.laptop.mercArriveSector = strategicIndex(parseSectorString('A10'));
+    return session;
+  }
+
+  it('has a merc landing away from the loaded sector say his reached-destination line, one arrival at a time: a second merc landing with him says none, a later one does (Merc_Hiring.cc:294)', async () => {
+    const session = await landedWithTheZoneAway(31);
+    const [first, second] = hireFor(session, 2);
+    const arriving = [...advanceTo(session, 1, 16), ...untilEverythingIsSaid(session)];
+    expect(arriving.filter((e) => e.type === 'mercArrived').map((e) => (e.type === 'mercArrived' ? e.soldier : -1))).toEqual([
+      first,
+      second,
+    ]);
+    expect(reachedDestinationLines(arriving)).toEqual([first]);
+    expect(session.campaign.state.talk.dialogue.mercArrivingQuoteBeingUsed).toBe(false);
+    const [third] = hireFor(session, 1);
+    expect(reachedDestinationLines(advanceTo(session, 2, 16))).toEqual([third]);
+  });
+
+  it('has a merc the helicopter brings into the loaded start sector say no reached-destination line (Merc_Hiring.cc:289)', async () => {
+    const session = await landed(31);
+    hireFor(session, 1);
+    const arriving = advanceTo(session, 1, 16);
+    expect(arriving.filter((e) => e.type === 'mercArrived').map((e) => (e.type === 'mercArrived' ? e.helicopter : false))).toEqual([true]);
+    expect(reachedDestinationLines(arriving)).toEqual([]);
+  });
+
+  it('has a merc landing away say no reached-destination line while the first helicopter run of the game is still to come (gfFirstHeliRun, Merc_Hiring.cc:294)', async () => {
+    const session = await landedWithTheZoneAway(31);
+    hireFor(session, 1);
+    session.campaign.state.sectorFlow.helicopterDrop.firstHeliRun = true;
+    const arriving = advanceTo(session, 1, 16);
+    expect(arriving.some((e) => e.type === 'mercArrived')).toBe(true);
+    expect(reachedDestinationLines(arriving)).toEqual([]);
+  });
+
+  it('keeps the reached-destination line taken for good once the queue is emptied before its release, as a load empties it (quirk)', async () => {
+    const session = await landedWithTheZoneAway(31);
+    hireFor(session, 1);
+    session.campaign.state.talk.dialogue.mercArrivingQuoteBeingUsed = true;
+    session.campaign.talk?.quietForLoad();
+    const arriving = advanceTo(session, 1, 16);
+    expect(arriving.some((e) => e.type === 'mercArrived')).toBe(true);
+    expect(reachedDestinationLines(arriving)).toEqual([]);
+    expect(session.campaign.state.talk.dialogue.mercArrivingQuoteBeingUsed).toBe(true);
   });
 
   it("re-evaluates everyone's nothing-to-do flag after a hire, as the hire stamps the new merc's assignment", async () => {

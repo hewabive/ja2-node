@@ -3175,3 +3175,53 @@ describe('snapshot version 61 (helicopter passengers out of the merc slots) migr
     await expectPassengerRegistered(session, true);
   });
 });
+
+const MERC_ARRIVING_QUOTE_KEY = 'mercArrivingQuoteBeingUsed';
+
+function withoutMercArrivingQuoteFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutMercArrivingQuoteFlag(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === MERC_ARRIVING_QUOTE_KEY) expect(v).toBe(false);
+    else out[key] = withoutMercArrivingQuoteFlag(v);
+  }
+  return out;
+}
+
+function versionSixtyTwo(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutMercArrivingQuoteFlag(value)]);
+  return { ...snapshot, version: 62, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 62 (no arrival line flag) migrates with the arrival line free', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectArrivalLineFree(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtyTwo(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain(`"${MERC_ARRIVING_QUOTE_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a landed campaign', async () => {
+    const session = await quietLandedCampaign(kit);
+    expect(JSON.stringify(snapshotSession(session).sim)).toContain(`"${MERC_ARRIVING_QUOTE_KEY}":false`);
+    await expectArrivalLineFree(session);
+  });
+
+  it('a campaign on its laptop before the first hire', async () => {
+    await expectArrivalLineFree(await createCampaignSession(kit.read, exists, 9, { hire: [] }));
+  });
+});

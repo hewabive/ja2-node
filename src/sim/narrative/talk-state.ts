@@ -7,7 +7,8 @@
 // @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn, gubLogForMeTooBleeds, fWasPausedDuringDialogue;
 // @src TacticalAI/NPC.cc giNPCSpecialReferenceCount;
 // @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm; GameScreen.cc gfTacticalIsModal, gModalDoneCallback;
-// @src Faces.h FACE_MODAL (2026-11-04); Dialogue_Control.cc DialogueActive (2026-11-07).
+// @src Faces.h FACE_MODAL (2026-11-04); Dialogue_Control.cc DialogueActive (2026-11-07); Tactical/Overhead.h
+// @src bMercArrivingQuoteBeingUsed (2026-11-08).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -91,6 +92,7 @@ export interface TalkState {
   lastQuoteSaid: number;
   lastQuoteProfile: number;
   meTooBleedLog: number;
+  mercArrivingQuoteBeingUsed: boolean;
   engagedSeen: boolean;
   pausedForLine: boolean;
   stopTimeCallback: string | null;
@@ -119,6 +121,7 @@ export function createTalkState(seed = 0): TalkState {
     lastQuoteSaid: 0,
     lastQuoteProfile: NO_PROFILE,
     meTooBleedLog: 0,
+    mercArrivingQuoteBeingUsed: false,
     engagedSeen: false,
     pausedForLine: false,
     stopTimeCallback: null,

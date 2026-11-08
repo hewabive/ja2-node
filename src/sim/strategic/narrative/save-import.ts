@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc LoadQuestInfoFromSavedGameFile; SaveLoadGame.cc LoadGeneralInfo (the narrative globals);
-// @src LoadSaveTacticalStatusType.cc (the guide description countdown), ExtractTacticalStatusTypeFromFile (bBoxingState).
+// @src LoadSaveTacticalStatusType.cc (the guide description countdown), ExtractTacticalStatusTypeFromFile (bBoxingState,
+// @src bMercArrivingQuoteBeingUsed, 2026-11-08).
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
 import type { StrategicState } from '../state.ts';
@@ -14,4 +15,5 @@ export function importNarrativeSave(state: StrategicState, save: SaveGame): void
   state.narrative.boxing.state = save.tactical.boxingState;
   state.terrorists.count = g.numTerrorists;
   Object.assign(state.narrative.guide, save.tactical.guideDescription);
+  state.talk.dialogue.mercArrivingQuoteBeingUsed = save.tactical.mercArrivingQuoteBeingUsed;
 }

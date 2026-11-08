@@ -86,7 +86,11 @@ helicopter; later hires land at the landing zone on the next arrival slot, and o
 gets a drop of his own (`campaign/helicopter-drop-flow.ts`, `25`). A hire wants to stand from his creation on, as the
 original's first `STANDING` animation sets it (`Tactical/Soldier_Control.cc:595`), so a merc hit in mid-drop gets up at
 the end of the hit. The zone is rerouted when the enemy holds it and reset to the start sector when the enemy takes its
-airspace; the original's message boxes become the events `arrivalRerouted` and `landingZoneReset`.
+airspace; the original's message boxes become the events `arrivalRerouted` and `landingZoneReset`. A merc arriving by any
+way but the helicopter says his reached-destination line through the dialogue queue, one arrival at a time and none
+before the first helicopter run is over: the flag the line takes is `TalkState.mercArrivingQuoteBeingUsed`, which a
+callback queued behind the line releases (`sayReachedDestination`, `contracts/hire-contract.ts`;
+`Tactical/Merc_Hiring.cc:289-311`), saved with the queue and read from a native save.
 
 **Money.** A.I.M. charges at hire; M.E.R.C. mercs accrue a day's salary every midnight and the player settles the
 account on the site, greedily in listing order; an I.M.P. character costs 3000 once and is never paid. Game logic reads
@@ -128,6 +132,7 @@ otherwise.
 | The I.M.P. attitude die is rolled even when one attitude leads alone | `rules.test.ts` "rolls the attitude die …" |
 | A skill the stats rule out is removed by moving the last skill into its place, which reorders the list before the draws | `rules.test.ts` "drops a skill the stats rule out …" |
 | The I.M.P. reminder is posted again on every exit from the laptop until it is sent | `laptop.test.ts` "posts the I.M.P. reminder on every exit …" |
+| The reached-destination line stays taken for good once the queue is emptied before the callback that releases it runs, as a load or the end of a meanwhile empties it (`SaveLoadGame.cc:689`, `Strategic/Meanwhile.cc:533`): no arrival says it again in that game | `laptop.test.ts` "keeps the reached-destination line taken for good …", `src/sim/strategic/narrative/save-import.test.ts` "keeps the arrival line taken …" |
 | Re-hiring a M.E.R.C. merc sets his unpaid days to 1: the old debt is forgotten | `laptop.test.ts` "forgets the unpaid days …" |
 | The account status changes on `!=`, so a smaller debt moves a suspended account back to a first warning and mails the warning again | `laptop.test.ts` "moves a suspended M.E.R.C. account back …" |
 | The new-merc event is posted again every midnight while a listing waits to be revealed | `rules.test.ts` "posts the new-merc event again …" |
