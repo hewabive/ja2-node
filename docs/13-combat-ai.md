@@ -122,6 +122,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/`:
 | A chosen one sent to an alarm trigger stays chosen when he collapses | `panic.test.ts` "a collapsing chosen one is replaced, unless …" |
 | A tank in RED already facing its loudest noise draws a facing at random, and a draw of its own facing leaves it standing without another draw; with full APs it turns without the turn chance's draw | `combat-decide.test.ts` "draws a facing when it already faces the noise", "leaves a tank as it is …", "… a draw full APs skip" |
 | The panic keys are a bit stack on an INT8: the eighth push wraps into a negative byte, which still opens locked doors | `panic.test.ts` "pushes a set bit onto the INT8 …", `../pathfinding.test.ts` "lets any keys byte but 0 …" |
+| A standing soldier who draws a throwing knife from a pocket throws it twice at the same tile: BLACK queues the throw behind a lower-gun action that its own result overwrites (`TacticalAI/DecideAction.cc:3325`); the queued throw takes the next knife from his pockets, or with none runs up and punches with the empty hand | `knife-throw-ai.test.ts` "queues a second throw …", "runs up and punches …" |
 
 Not pinned yet:
 - A prone soldier needs 6 APs to afford a turn that costs 2; a stance change is affordable at 2 APs whatever the stance.
@@ -135,13 +136,16 @@ Not pinned yet:
 - BLACK's crouch step checks the crouch cost also when the result is prone.
 - `calcBestThrow` counts the thrower among the friends kept out of the blast and keeps the first of equal tiles.
 - A creature advancing to firing range keeps the APs of an attack with its hand item, the claws for males.
+- A soldier carrying a throwing knife weighs the stance change before his shot with the knife as the attacking weapon:
+  BLACK looks at the knife after the gun, and `calcBestShot` leaves it in `attackingWeapon`.
 
 ## 4. Not checked against the native build
 
-Inferred from reading the source; no probe compares the human YELLOW, RED and BLACK decisions (the probes cover
-`CalcBestShot`, the surrender offer and named NPCs, boxing, the creature AI, and a tank's RED decisions with its
-look-around, `tools/oracle/README.md`):
+Inferred from reading the source; no probe compares the human YELLOW, RED and BLACK decisions beyond BLACK's throwing
+knife (the probes cover `CalcBestShot`, the throwing knife's choice in BLACK with its queued throw, the surrender offer
+and named NPCs, boxing, the creature AI, and a tank's RED decisions with its look-around, `tools/oracle/README.md`):
 - The turn and stance changes ending early and the APs a repeated turn drains.
+- The AI's knife throw once decided, and the queued second throw that finds an empty hand and runs up to punch.
 - The BLACK loop of a civilian whose `CanNPCAttack` fails other than for want of a weapon (deviation "Armed civilian
   without ammo").
 - A cowering civilian in combat standing up to run at each turn start and cowering again after it.
@@ -154,6 +158,5 @@ look-around, `tools/oracle/README.md`):
   (`tools/oracle/README.md` "Bombs") check the triggers the maps give, the chosen one with his keys, `PanicAI`, the
   pull and the detonator.
 
-Not ported: gaps "Combat AI specials". Kept differences: deviations "Armed civilian without ammo", "AI climb that
-cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies",
-"Multi-tile turning".
+Kept differences: deviations "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated
+path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies", "Multi-tile turning".

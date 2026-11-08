@@ -930,9 +930,16 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
       const minAP = minAPsToAttack(t, s, s.lastTarget, false);
       if (s.actionPoints >= minAP) {
-        const throwingKnife = t.content.items.byIndex.get(s.inv[InvSlot.HAND]?.item ?? NOTHING)?.itemClass === ItemClass.THROWING_KNIFE;
-        bestStab = { ...(throwingKnife ? throwingKnifeAttackNotPorted() : calcBestStab(t, s, true)), weaponIn };
-        if (bestStab.possible) hooks.npcDoesAct(t, s);
+        if (isThrowingKnife(t, s.inv[InvSlot.HAND]?.item ?? NOTHING)) {
+          bestStab = { ...calcBestShot(t, s), weaponIn };
+          if (bestStab.possible) {
+            if ((bestStab.opponent?.life ?? 0) < OKLIFE) bestStab.possible = false;
+            hooks.npcDoesAct(t, s);
+          }
+        } else {
+          bestStab = { ...calcBestStab(t, s, true), weaponIn };
+          if (bestStab.possible) hooks.npcDoesAct(t, s);
+        }
       }
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
     }
@@ -943,7 +950,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     }
     if (bestStab.possible && (bestStab.attackValue > value || bestAction === AiAction.NONE)) {
       value = bestStab.attackValue;
-      bestAction = AiAction.KNIFE_MOVE;
+      bestAction = isThrowingKnife(t, s.inv[bestStab.weaponIn]?.item ?? NOTHING) ? AiAction.THROW_KNIFE : AiAction.KNIFE_MOVE;
     }
     if (bestThrow.possible && (bestThrow.attackValue > value || bestAction === AiAction.NONE)) bestAction = AiAction.TOSS_PROJECTILE;
     if (bestAction === AiAction.NONE && tryPunching) {
@@ -966,7 +973,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
         ? bestShot
         : bestAction === AiAction.TOSS_PROJECTILE
           ? bestThrow
-          : bestAction === AiAction.KNIFE_MOVE
+          : bestAction === AiAction.KNIFE_MOVE || bestAction === AiAction.THROW_KNIFE
             ? bestStab
             : emptyAttackChoice();
   }
@@ -1227,6 +1234,8 @@ function executeAttackChoice(
       s.aimTime = 0;
       s.doBurst = 1;
     }
+  } else if (action === AiAction.THROW_KNIFE) {
+    if (best.weaponIn !== InvSlot.HAND && endHeight(t.content, s.state) === AnimHeight.STAND) queueThrowAfterLoweringGun(s, best);
   }
   if (best.weaponIn !== InvSlot.HAND && best.weaponIn >= 0) rearrangePocket(s, InvSlot.HAND, best.weaponIn);
   if (changeStanceFirst) {
@@ -1241,8 +1250,14 @@ function executeAttackChoice(
   return action;
 }
 
-function throwingKnifeAttackNotPorted(): AttackChoice {
-  return emptyAttackChoice();
+function isThrowingKnife(t: TacticalState, item: number): boolean {
+  return t.content.items.byIndex.get(item)?.itemClass === ItemClass.THROWING_KNIFE;
+}
+
+function queueThrowAfterLoweringGun(s: Soldier, best: AttackChoice): void {
+  s.ai.nextAction = AiAction.THROW_KNIFE;
+  s.ai.nextActionData = best.target;
+  s.ai.nextTargetLevel = best.targetLevel;
 }
 
 function weaponRaised(t: TacticalState, s: Soldier): boolean {

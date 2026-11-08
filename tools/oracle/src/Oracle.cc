@@ -3898,6 +3898,21 @@ void ApplyCaller(SOLDIERTYPE& s, std::string const& spec)
 	s.bCallPriority = static_cast<UINT8>(ParseInteger("caller", parts[2]));
 }
 
+void ApplyInventory(SOLDIERTYPE& s, std::string const& spec)
+{
+	for (std::string const& entry : SplitList(spec, ','))
+	{
+		std::vector<std::string> const parts = SplitList(entry, ':');
+		if (parts.size() < 2 || parts.size() > 4) throw std::runtime_error("inv looks like <slot>:<item>[:<status>[:<flags>]],...");
+		long long const slot = ParseInteger("inv", parts[0]);
+		if (slot < 0 || slot >= NUM_INV_SLOTS) throw std::runtime_error("inv slot out of range: " + parts[0]);
+		OBJECTTYPE& o = s.inv[slot];
+		INT8 const status = static_cast<INT8>(parts.size() > 2 ? ParseInteger("inv", parts[2]) : 100);
+		CreateItem(ItemArgument(parts[1]), status, &o);
+		if (parts.size() > 3) o.fFlags = static_cast<INT8>(ParseInteger("inv", parts[3]));
+	}
+}
+
 template<typename T>
 void SetIfGiven(Command const& c, char const* key, T& field)
 {
@@ -3924,6 +3939,7 @@ void ApplySoldierSettings(Command const& c, SOLDIERTYPE& s)
 	SetIfGiven(c, "lastTarget", s.sLastTarget);
 	if (Has(c, "noise")) ApplyNoise(s, Text(c, "noise", ""));
 	if (Has(c, "caller")) ApplyCaller(s, Text(c, "caller", ""));
+	if (Has(c, "inv")) ApplyInventory(s, Text(c, "inv", ""));
 	if (Has(c, "aware")) gTacticalStatus.Team[s.bTeam].bAwareOfOpposition = Integer(c, "aware", 0) != 0;
 	if (Has(c, "face"))
 	{

@@ -61,7 +61,7 @@ const MAX_DISTANCE_VISIBLE = 26;
 const IRRELEVANT = -1;
 const ProfileAttitude = { AGGRESSIVE: 5, COWARD: 9 } as const;
 const AiAttitude = { DEFENSIVE: 0, BRAVESOLO: 1, BRAVEAID: 2, AGGRESSIVE: 4 } as const;
-const NPC_ATTACK_ACTIONS: readonly number[] = [AiAction.FIRE_GUN, AiAction.TOSS_PROJECTILE, AiAction.KNIFE_STAB];
+const NPC_ATTACK_ACTIONS: readonly number[] = [AiAction.FIRE_GUN, AiAction.THROW_KNIFE, AiAction.TOSS_PROJECTILE, AiAction.KNIFE_STAB];
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
 

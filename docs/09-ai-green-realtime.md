@@ -158,5 +158,4 @@ boxers and the creature AI from GREEN up (`tools/oracle/README.md`). Inferred fr
 - `handleSystemNewAISituation` doing nothing in real time, where the current team stays ours.
 - The GoAsFar fallback and its shuffle never running for a random destination, which is legal already.
 
-Not ported: gaps "Combat AI specials". Kept differences: deviations "Timing",
-"Frame timers", "Game events", "GoAsFar fallback", "Away civilians".
+Kept differences: deviations "Timing", "Frame timers", "Game events", "GoAsFar fallback", "Away civilians".

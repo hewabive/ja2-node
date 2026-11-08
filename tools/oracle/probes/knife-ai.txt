@@ -1,0 +1,41 @@
+# The throwing knife in DecideActionBlack: an enemy probe soldier (id 20) on the saved D13 positions of SaveGame07
+# (turn-based; merc 0 at 8519 in a steel helmet and a Kevlar vest, three tiles north of 8999). Every scenario reloads
+# its save; inv= fills slots as <slot>:<item>[:<status>[:<flags>]] (5 is the hand, 11 the first small pocket).
+# A knife in hand with a spare in a pocket: the throw.
+save SaveGame07
+seed value=911 pre=reseed
+addsoldier team=enemy body=regmale at=8999 dir=0 inv=5:THROWING_KNIFE:90,11:THROWING_KNIFE:80
+seen who=20 opp=0
+decide who=20
+# The only opponent he sees is down: no throw, but he acts.
+save SaveGame07
+seed value=912 pre=reseed
+setsoldier who=0 life=5
+addsoldier team=enemy body=regmale at=8999 dir=0 inv=5:THROWING_KNIFE:90
+seen who=20 opp=0
+decide who=20
+# A pistol in hand and a knife in a pocket: the pistol wins; the knife is weighed after it and stays the attacking
+# weapon for the stance change.
+save SaveGame07
+seed value=913 pre=reseed
+addsoldier team=enemy body=regmale at=8999 dir=0 inv=5:GLOCK_17:100,11:THROWING_KNIFE:90
+seen who=20 opp=0
+decide who=20
+save SaveGame07
+seed value=914 pre=reseed
+addsoldier team=enemy body=regmale at=8999 dir=0 inv=5:SW38:100,11:THROWING_KNIFE:90,12:THROWING_KNIFE:80
+seen who=20 opp=0
+decide who=20
+# A sniper rifle he cannot afford to raise and a knife in a pocket, standing: the knife goes into his hand and the
+# throw is queued behind itself.
+save SaveGame07
+seed value=916 pre=reseed
+addsoldier team=enemy body=regmale at=8999 dir=0 ap=10 inv=5:M24:100,11:THROWING_KNIFE:90
+seen who=20 opp=0
+decide who=20
+# Beyond half his toss range: no throw.
+save SaveGame07
+seed value=915 pre=reseed
+addsoldier team=enemy body=regmale at=10119 dir=0 inv=5:THROWING_KNIFE:90
+seen who=20 opp=0
+decide who=20

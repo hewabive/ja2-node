@@ -20,7 +20,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Team morale | hourly and quarter-hour morale, buddy and hated counters | `morale.txt` | `morale-compare.ts` | 0006 | `18` |
 | Merchants | stock, restocks, prices, repairs, shop entry | `merchants.txt` | `merchant-compare.ts` | 0008 | `23` |
 | Contracts | daily merc update, renewal sequence, extensions, departures, leave list | `contracts.txt` | `contract-compare.ts` | 0007 | `22` |
-| Creature AI | creature and bloodcat decisions, melee, calls, smell | `creature-ai.txt` | `creature-ai-compare.ts` | 0009 | `13` |
+| Creature AI | creature and bloodcat decisions, melee, calls, smell; a human soldier's throwing knife in BLACK | `creature-ai.txt`, `knife-ai.txt` | `creature-ai-compare.ts` | 0009 | `13` |
 | Laptop | `InitNewGame`, A.I.M., M.E.R.C. and I.M.P. hires, Bobby Ray's, insurance, the florist | `laptop.txt`, `florist.txt` | `laptop-compare.ts` | 0010, 0025 | `21` |
 | Doors and civilian groups | locks, traps, door actions, civilian hostility | `doors.txt` | `doors-compare.ts` | 0011 | `35` |
 | Attachment AP | the item description box | `attach.txt` | `attach-compare.ts` | | `12` |
@@ -387,9 +387,11 @@ predicates, `FindRefusalReason`, `WillMercRenew` and the checks behind them), `d
 
 ### Creature AI
 
-Commands: `addsoldier` (any body, with settings), `setsoldier`, `seen` (a personal or public opplist entry), `decide`
-(`DecideAlertStatus`, then the creature, crow or general decision), `beststab`, `stab`, `creaturecall`, `smell`,
-`dropsmell`, `trackscent`. The soldier commands print the full soldier dump plus the AI state.
+Commands: `addsoldier` (any body, with settings; `inv=<slot>:<item>[:<status>[:<flags>]],…` fills inventory slots),
+`setsoldier`, `seen` (a personal or public opplist entry), `decide` (`DecideAlertStatus`, then the creature, crow or
+general decision), `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`. The soldier commands print
+the full soldier dump plus the AI state. `knife-ai.txt` puts an enemy with throwing knives in hand or pocket on the
+D13 positions of `SaveGame07` and takes his BLACK decision.
 
 `addsoldier` uses `TacticalCreateSoldier` with random stats, so seed the engine first. `decide` sets `gfTurnBasedAI`
 from `INCOMBAT` and traces the draws; the pathfinder's draws between marks 301/302 are dropped.

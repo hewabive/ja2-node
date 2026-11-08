@@ -424,13 +424,10 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
     case AiAction.TRAVERSE_DOWN:
       traverseDown(t, s);
       return false;
-    case AiAction.THROW_KNIFE:
-      cancelAIAction(t, s);
-      t.hooks.endAiGuysTurn(t, s);
-      return true;
     case AiAction.TOSS_PROJECTILE:
     case AiAction.KNIFE_MOVE:
-    case AiAction.FIRE_GUN: {
+    case AiAction.FIRE_GUN:
+    case AiAction.THROW_KNIFE: {
       if (ai.action === AiAction.TOSS_PROJECTILE) loadWeaponIfNeeded(t, s);
       if (ai.action === AiAction.KNIFE_MOVE) s.uiMovementMode = determineMovementMode(t, s, ai.action);
       const result = t.turnHooks.aiHandleItem(t, s, ai.actionData, s.targetLevel);

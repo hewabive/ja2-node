@@ -45,6 +45,7 @@ describe('the end of an attack', () => {
 
   it.each([
     ['gun', AiAction.FIRE_GUN],
+    ['knife throw', AiAction.THROW_KNIFE],
     ['throw', AiAction.TOSS_PROJECTILE],
     ['stab', AiAction.KNIFE_STAB],
   ])('frees an enemy whose %s our attack outlasted when ours empties the count', (_, action) => {
