@@ -31,7 +31,8 @@
 // @src AutoBandage pauses for the whole mode; CheckForEndOfBattle's ShouldBeginAutoBandage in both arms (2026-11-06); the
 // @src bInSector of the helicopter's passengers over the loaded sector in EVENT_BeginMercTurn, NonCombatDecayPublicOpplist,
 // @src CommonEnterCombatModeCode, ExitCombatMode, WeSeeNoOne, NobodyAlerted, CheckForEndOfCombatMode,
-// @src SoldierHasSeenEnemiesLastFewTurns, CheckForLosingEndOfBattle and CheckForEndOfBattle's battles fought; IsTeamActive's
+// @src SoldierHasSeenEnemiesLastFewTurns, CheckForLosingEndOfBattle, CheckForEndOfBattle's battles fought and EndTurn's
+// @src moved mark; IsTeamActive's
 // @src bMenInSector, which for our team counts every soldier made for it, Overhead.h, Soldier_Create.cc AddManToTeam
 // @src (2026-11-08).
 
@@ -385,7 +386,7 @@ export function endTurn(t: TacticalState, nextTeam: number): void {
   }
   t.sectorHooks.addPendingEnemies(t);
   const ctx = pointsContext(t);
-  for (const s of teamMembers(t, t.turn.currentTeam)) {
+  for (const s of teamInSector(t, t.turn.currentTeam)) {
     s.moved = true;
     if (enoughPoints(t.inCombat, s, ptsToMoveDirection(ctx, s, s.path[0] ?? 0, s.uiMovementMode))) {
       s.finalDestination = s.gridNo;

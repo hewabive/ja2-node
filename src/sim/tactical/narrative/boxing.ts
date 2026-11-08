@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Boxing.cc ExitBoxing, EndBoxingMatch, BoxingPlayerDisqualified, TriggerEndOfBoxingRecord,
 // @src CountPeopleInBoxingRing, CountPeopleInBoxingRingAndDoActions, CheckOnBoxers, BoxerExists, PickABoxer, BoxerAvailable,
 // @src BoxersAvailable, AnotherFightPossible, BoxingMovementCheck, SetBoxingState, ClearAllBoxerFlags; Tactical/Interface_Dialogue.cc
-// @src NPC_ACTION_START_BOXING_MATCH (the state part); TacticalAI/FindLocations.cc FindClosestBoxingRingSpot.
+// @src NPC_ACTION_START_BOXING_MATCH (the state part); TacticalAI/FindLocations.cc FindClosestBoxingRingSpot; AnotherFightPossible's
+// @src bInSector, a helicopter passenger over the loaded sector's included (2026-11-08).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
@@ -19,7 +20,7 @@ import { stopMerc } from '../movement.ts';
 import { recalculateOppCntsDueToBecomingNeutral, recalculateOppCntsDueToNoLongerNeutral } from '../perception/sight.ts';
 import { deductPoints } from '../points.ts';
 import { AlertStatus, Body, NOBODY, NOWHERE, OKBREATH, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
-import { mercs, soldiersById, type TacticalState, teamMembers, whoIsThere } from '../state.ts';
+import { mercs, soldiersById, type TacticalState, teamInSector, whoIsThere } from '../state.ts';
 import { checkForEndOfCombatMode, endAllAITurns, enterCombatMode } from '../turns/turns.ts';
 import {
   BOXER_GRIDNOS,
@@ -247,7 +248,7 @@ export function boxersAvailable(b: BoxingRecord): number {
 export function anotherFightPossible(b: BoxingRecord, t: TacticalState | null): boolean {
   const available = boxersAvailable(b);
   if (available === NUM_BOXERS || available === 0 || !t) return false;
-  return teamMembers(t, Team.OUR).some((s) => s.life > OKLIFE + LIFE_MARGIN_FOR_ANOTHER_FIGHT && !s.collapsed);
+  return teamInSector(t, Team.OUR).some((s) => s.life > OKLIFE + LIFE_MARGIN_FOR_ANOTHER_FIGHT && !s.collapsed);
 }
 
 export function boxingMovementCheck(t: TacticalState, s: Soldier): void {

@@ -14,13 +14,14 @@ import {
   unlockWhenNobodyLeavesTheRing,
 } from '../narrative/boxing.ts';
 import { BOXER_GRIDNOS, BOXING_RING, BoxingState, CENTER_OF_RING } from '../narrative/boxing-state.ts';
+import { closestPc } from '../narrative/closest-pc.ts';
 import { internalIsValidStance } from '../person-structure.ts';
 import { apsToLook } from '../points.ts';
 import { NOWHERE, Orders, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction } from './actions.ts';
 import { goAsFarAsPossibleTowards, roomAt } from './destinations.ts';
-import { closestPC, closestSeenOpponent } from './utils.ts';
+import { closestSeenOpponent } from './utils.ts';
 
 const NO_ROOM = 0;
 const MAX_DISTANCE_VISIBLE = 26;
@@ -30,7 +31,7 @@ type MovementMode = (s: Soldier, action: number) => number;
 export function decideActionBoxerEnteringRing(t: TacticalState, s: Soldier): number {
   const room = roomAt(t, s.gridNo);
   if (room === BOXING_RING) {
-    const pc = closestPC(t, s);
+    const pc = closestPc(t, s).gridNo;
     if (pc !== NOWHERE) {
       const direction = directionToward(s.gridNo, pc);
       if (s.direction !== direction && internalIsValidStance(t, s, direction, endHeight(t.content, s.state))) {

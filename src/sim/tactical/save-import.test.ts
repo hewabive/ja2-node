@@ -877,7 +877,7 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     expect(mercs.map((m) => [m?.vehicleSeat, m?.isPassengerOrDriver, m?.inSector, m?.statusFlags])).toEqual([
       [VehicleSeat.DRIVER, true, true, 0],
       [VehicleSeat.PASSENGER, true, true, 0],
-      [VehicleSeat.PASSENGER, true, false, 0],
+      [VehicleSeat.PASSENGER, true, true, 0],
     ]);
     expect(roster.get(FLYING_ID)?.soldier).toBe(flying);
     expect(roster.inTacticalSector(FLYING_ID)).toBe(true);

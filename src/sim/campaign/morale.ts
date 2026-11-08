@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEventForSoldier,
 // @src HandleMoraleEvent (the strategic events and the reputation change; MORALE_TEAMMATE_DIED for any dead soldier,
 // @src 2026-11-05); Strategic/Strategic_Status.h REPUTATION_*;
-// @src the drug term of RefreshSoldierMorale (2026-11-04).
+// @src the drug term of RefreshSoldierMorale (2026-11-04); HandleMoraleEventForSoldier's bInSector, a helicopter passenger
+// @src over the loaded sector's included (2026-11-08).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import { clamp, i8, idiv, u8 } from '../../core/int.ts';
@@ -240,7 +241,7 @@ function updateMercMorale(ctx: MoraleContext, m: RosterMerc, type: number, base:
   const s = m.soldier;
   const mod = adjustedChange(ctx, m, base);
   if (type === TACTICAL) s.tacticalMoraleMod = clamp(s.tacticalMoraleMod + mod, -MORALE_MOD_MAX, MORALE_MOD_MAX);
-  else if (ctx.enemyInSector && !s.placed)
+  else if (ctx.enemyInSector && !m.inSector)
     s.delayedStrategicMoraleMod = clamp(s.delayedStrategicMoraleMod + mod, -MORALE_MOD_MAX, MORALE_MOD_MAX);
   else s.strategicMoraleMod = clamp(s.strategicMoraleMod + mod, -MORALE_MOD_MAX, MORALE_MOD_MAX);
   refreshMercMorale(ctx, m);

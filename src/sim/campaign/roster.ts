@@ -44,7 +44,7 @@ const NO_ITEM = -1;
 const NO_ROOM = 0;
 const ROBOT_REMOTE_CONTROL = 'ROBOT_REMOTE_CONTROL';
 
-const loadedSectorOfPlaced = (m: RosterMerc): LoadedSector => ({ sector: m.inSector ? m.sector : null });
+const loadedSectorOf = (m: RosterMerc): LoadedSector => ({ sector: m.inSector ? m.sector : null });
 
 export class RosterMerc implements CrewMember {
   readonly record: MercRecord;
@@ -362,7 +362,7 @@ export class RosterMerc implements CrewMember {
   }
 
   get inSector(): boolean {
-    return this.soldier.placed;
+    return inSector(this.soldier);
   }
 
   get stats(): MercStats {
@@ -393,7 +393,7 @@ export class RosterMerc implements CrewMember {
       mechanical: effectiveMechanical(s),
       medical: effectiveMedical(s),
       explosives: effectiveExplosive(s),
-      expLevel: effectiveExpLevel(loadedSectorOfPlaced(this), s),
+      expLevel: effectiveExpLevel(loadedSectorOf(this), s),
     };
   }
 
@@ -690,8 +690,7 @@ export class Roster implements CrewPort {
   }
 
   inTacticalSector(id: number): boolean {
-    const merc = this.get(id);
-    return merc !== undefined && inSector(merc.soldier);
+    return this.get(id)?.inSector === true;
   }
 
   get robotRemote(): number {

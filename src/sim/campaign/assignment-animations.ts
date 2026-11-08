@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-31. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc PutMercInAsleepState, PutMercInAwakeState, AssignmentDone,
-// @src MakeSoldiersTacticalAnimationReflectAssignment (the gfWorldLoaded, bInSector and GAME_SCREEN tests).
+// @src MakeSoldiersTacticalAnimationReflectAssignment (the gfWorldLoaded, bInSector and GAME_SCREEN tests; a helicopter
+// @src passenger over the loaded sector in the sector, 2026-11-08).
 
 import type { EconomyHooks } from '../strategic/economy/ports.ts';
 import { animateAssignmentDone, animateFallingAsleep, animateWakingUp, reflectAssignment } from '../tactical/assignment-animations.ts';
@@ -24,7 +25,7 @@ interface MercInLoadedSector {
 function mercInLoadedSector(campaign: CampaignSim, id: number): MercInLoadedSector | null {
   const t = campaign.tactical?.state;
   const merc = campaign.battle?.roster.get(id);
-  if (!t || !merc || !registeredInTactical(t, merc) || !merc.soldier.placed) return null;
+  if (!t || !merc || !registeredInTactical(t, merc) || !merc.inSector) return null;
   return { t, soldier: merc.soldier, assignment: merc.assignment };
 }
 

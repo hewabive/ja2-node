@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { spawnSoldier } from '../../tests/support/combat.ts';
 import {
   type ClientSide,
   clientSide,
@@ -13,7 +14,7 @@ import { samplePassHints, sampleStrategicHints } from '../../tests/support/hints
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { driveOurHummerInto, stubCampaignAtTheHummer, stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
-import { Direction } from '../content/world/grid.ts';
+import { Direction, gridNo } from '../content/world/grid.ts';
 import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
@@ -28,8 +29,9 @@ import { QuestStatus, setFact } from '../sim/strategic/narrative/facts.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
-import { Body } from '../sim/tactical/soldier.ts';
+import { Body, Team } from '../sim/tactical/soldier.ts';
 import { apsToBeginRepair, apsToRefuelVehicle, walkCostTo } from '../sim/tactical/tile-tools.ts';
+import { enterCombatMode } from '../sim/tactical/turns/turns.ts';
 import { addFuelToVehicle } from '../sim/vehicles/vehicle-fuel.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
@@ -53,6 +55,10 @@ const QUIET = ['A9', 'A10', 'B9', 'B10'];
 const ROUTE_STEP_SECONDS = 600;
 const ENTER_VEHICLE_BUDGET = 20_000;
 const OUR_FIRST_VEHICLE = 18;
+const PASSENGER = 0;
+const WOUNDED = 50;
+const ENEMY_ID = 20;
+const ENEMY_AT = gridNo(80, 120);
 
 interface Campaign {
   readonly sim: CampaignSession;
@@ -92,6 +98,24 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(report.kinds.get('previewRoute')).toBeGreaterThan(0);
     expect(report.kinds.get('moveBoxOptions')).toBeGreaterThan(0);
     expect(report.answered).toBeGreaterThan(20);
+  });
+
+  it('offer a passenger aboard the helicopter over the loaded sector in combat the assignment menu the full state offers him: the view counts him in the sector (AreAssignmentConditionsMet, Assignments.cc:361)', async () => {
+    const c = await landedCampaign(34);
+    withHelicopter(c);
+    const campaign = c.sim.campaign;
+    const roster = campaign.battle?.roster;
+    const economy = campaign.economy;
+    const sim = campaign.tactical;
+    if (!roster || !economy || !sim) throw new Error('no campaign layers');
+    expect(c.sim.dispatch({ type: 'boardVehicle', soldier: PASSENGER, vehicle: 'helicopter' })).toMatchObject({ ok: true });
+    const passenger = roster.get(PASSENGER);
+    if (!passenger) throw new Error('no passenger');
+    passenger.soldier.life = WOUNDED;
+    spawnSoldier(sim, ENEMY_ID, Team.ENEMY, ENEMY_AT, Direction.SOUTH);
+    enterCombatMode(sim.state, Team.ENEMY);
+    const hint = await c.session.query({ type: 'assignmentOptions', soldier: PASSENGER });
+    expect(hint.data).toEqual(JSON.parse(JSON.stringify(assignmentOptionsFor(economy, passenger))));
   });
 
   it('agree while the squad travels between sectors', async () => {

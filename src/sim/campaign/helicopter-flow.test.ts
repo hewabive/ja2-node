@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../tests/support/autoresolve.ts';
 import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
 import { spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
@@ -12,14 +13,22 @@ import type { SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
+import { Fact } from '../strategic/narrative/fact-ids.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEventUsingSeconds } from '../strategic/time/event-queue.ts';
 import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
+import { anim } from '../tactical/anim-states.ts';
+import { states } from '../tactical/animation.ts';
+import { setSoldierPosition } from '../tactical/movement.ts';
 import { type ProfileProgress, progressFromProfile } from '../tactical/profiles.ts';
+import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
-import { checkForEndOfBattle, isTeamActive } from '../tactical/turns/turns.ts';
+import { checkForEndOfBattle, enterCombatMode, isTeamActive } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { contractRefusal } from './contracts/contract-flow.ts';
+import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 
 let kit: CampaignKit;
 
@@ -158,9 +167,17 @@ describe('the helicopter passengers over the loaded sector', () => {
   const WALKERS = [1, 2];
   const DOWN = OKLIFE - 1;
   const ENEMY_ID = 20;
+  const MERC_PROFILES = [1, 2, 3];
 
   function aboveTheBattle(): { readonly c: CampaignSim; readonly t: TacticalState; readonly soldier: (id: number) => Soldier } {
     const c = landedCampaign();
+    for (const id of [PASSENGER, ...WALKERS]) {
+      const s = c.battle?.roster.get(id)?.soldier;
+      const profile = MERC_PROFILES[id];
+      if (!s || profile === undefined) continue;
+      s.profile = profile;
+      c.state.profiles.set(profile, progressFor(profile));
+    }
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: PASSENGER, vehicle: 'helicopter' }).ok).toBe(true);
     expect(c.dispatch({ type: 'tacticalScreen' }).ok).toBe(true);
@@ -209,6 +226,87 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(c.tactical?.state.mercSlots.filter((s) => s.id === 0)).toHaveLength(1);
     expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
     expect(c.battle?.roster.get(1)?.inSector).toBe(true);
+  });
+
+  const TIRED = 50;
+  const WOUNDED = 50;
+
+  it('are refused sleep while enemies are in the sector below the landed helicopter, as the mercs on the map are (CanCharacterSleep, Assignments.cc:804)', () => {
+    const { c, soldier } = aboveTheBattle();
+    soldier(PASSENGER).breathMax = TIRED;
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(refusalOf(c.dispatch({ type: 'sleep', soldier: PASSENGER }))).toBe('sectorNotCleared');
+  });
+
+  it('are refused the assignments that need the sector clear while enemies are in it (AreAssignmentConditionsMet, Assignments.cc:361)', () => {
+    const { c, soldier } = aboveTheBattle();
+    soldier(PASSENGER).life = WOUNDED;
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(refusalOf(c.dispatch({ type: 'assign', soldiers: [PASSENGER], to: { kind: 'patient' } }))).toBe('notEligible');
+  });
+
+  it('cannot be dismissed while the sector below is in combat (the contract menu, MapScreen.cc:5208)', () => {
+    const { c, t } = aboveTheBattle();
+    enterCombatMode(t, Team.ENEMY);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'dismiss', soldier: PASSENGER })).toEqual(contractRefusal('inCombat'));
+  });
+
+  it('take a strategic morale event at once while enemies are in the sector, never delayed as for a merc away from it (HandleMoraleEventForSoldier, Morale.cc:344)', () => {
+    const { c, soldier } = aboveTheBattle();
+    const battle = c.battle;
+    if (!battle) throw new Error('no battle flow');
+    const before = soldier(PASSENGER).strategicMoraleMod;
+    handleMoraleEvent(battle.moraleContext(), null, MoraleEvent.TOWN_LIBERATED, A9);
+    expect([soldier(PASSENGER).strategicMoraleMod > before, soldier(PASSENGER).delayedStrategicMoraleMod]).toEqual([true, 0]);
+  });
+
+  it('count in the strength that makes a retreat from the sector below a run away, the walkers too weak alone (PlayerStrength, Strategic_Town_Loyalty.cc:1153)', () => {
+    const { c, t, soldier } = aboveTheBattle();
+    for (const id of WALKERS) soldier(id).life = 1;
+    const enemy = t.soldiers[ENEMY_ID];
+    if (enemy) Object.assign(enemy, { life: 100, breathMax: 100 });
+    Object.assign(soldier(PASSENGER), { life: 100, breathMax: 100 });
+    const before = soldier(PASSENGER).strategicMoraleMod;
+    c.sectors?.handleLoyaltyImplicationsOfMercRetreat(true, A9);
+    expect(soldier(PASSENGER).strategicMoraleMod).toBeLessThan(before);
+  });
+
+  const NPC_ID = 120;
+  const OUTDOORS = gridNo(80, 120);
+  const INDOORS = gridNo(81, 120);
+  const NPC_ROOM = 7;
+
+  it('stand in no room: an NPC outdoors has a player in his room with only them in the sector, one in a room has none (PCInSameRoom, Quests.cc:277; deviation, the original reads gubWorldRoomInfo at NOWHERE, past the map)', () => {
+    const { c, t, soldier } = aboveTheBattle();
+    for (const id of WALKERS) {
+      removeSoldierFromTacticalSector(t, soldier(id));
+    }
+    const sim = c.tactical;
+    if (!sim) throw new Error('no loaded sector');
+    const npc = spawnSoldier(sim, NPC_ID, Team.CIV, OUTDOORS, Direction.SOUTH, { profile: Npc.ANGEL });
+    t.world.level.rooms[INDOORS] = NPC_ROOM;
+    expect(c.narrative.checkFact(Fact.PLAYER_IN_SAME_ROOM, Npc.ANGEL)).toBe(true);
+    setSoldierPosition(t, npc, INDOORS);
+    expect(c.narrative.checkFact(Fact.PLAYER_IN_SAME_ROOM, Npc.ANGEL)).toBe(false);
+  });
+
+  it('fall asleep and wake up with the animations of a merc in the sector (PutMercInAsleepState, PutMercInAwakeState, Assignments.cc:6230, :6264)', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: PASSENGER, vehicle: 'helicopter' }).ok).toBe(true);
+    const flying = () => {
+      const s = c.battle?.roster.get(PASSENGER)?.soldier;
+      if (!s) throw new Error('no passenger');
+      return s;
+    };
+    const content = c.tactical?.state.content;
+    if (!content) throw new Error('no loaded sector');
+    flying().breathMax = TIRED;
+    expect(c.dispatch({ type: 'sleep', soldier: PASSENGER }).ok).toBe(true);
+    expect(flying().state).toBe(anim(content, 'SLEEPING'));
+    expect(c.dispatch({ type: 'wake', soldier: PASSENGER }).ok).toBe(true);
+    expect(flying().state).toBe(states(content.animations).STANDING);
   });
 });
 

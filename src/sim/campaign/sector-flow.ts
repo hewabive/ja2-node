@@ -36,7 +36,8 @@
 // @src AllowedToExitFromMapscreenTo (the checks shared by every exit before those of MAP_EXIT_TO_TACTICAL; a bloodcat
 // @src ambush as a battle going on, 2026-11-06); Tactical/Auto_Bandage.cc AutoBandage (PauseGame at the start, UnPauseGame
 // @src and WarpGameTime with WARPTIME_NO_PROCESSING_OF_EVENTS at the end) and ShouldBeginAutoBandage's
-// @src IN_DEIDRANNA_ENDGAME (2026-11-06).
+// @src IN_DEIDRANNA_ENDGAME (2026-11-06); Strategic/Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat,
+// @src EnemyStrength and PlayerStrength (its bInSector, a helicopter passenger over the loaded sector's included, 2026-11-08).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -1468,7 +1469,7 @@ export class SectorFlow {
         (m.prevSectorId % 16) + 1 === world.x &&
         idiv(m.prevSectorId, 16) + 1 === world.y &&
         m.sector.z === world.z;
-      if (s.placed || leftThisSector) total += idiv(s.life * (s.breathMax + 100), 200);
+      if (m.inSector || leftThisSector) total += idiv(s.life * (s.breathMax + 100), 200);
     }
     return total;
   }

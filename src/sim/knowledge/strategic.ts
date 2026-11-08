@@ -101,6 +101,15 @@ function helicopterPort(rules: StrategicRules, strategic: KnowledgeStrategic, gu
   };
 }
 
+function aboardTheHelicopterOverTheLoadedSector(strategic: KnowledgeStrategic, m: KnowledgeMerc): boolean {
+  const helicopter = strategic.helicopter?.vehicle;
+  return helicopter !== undefined && m.vehicle === helicopter && !m.betweenSectors && m.life > 0 && m.sector === strategic.worldSector;
+}
+
+function inLoadedSector(strategic: KnowledgeStrategic, view: KnowledgeView, m: KnowledgeMerc): boolean {
+  return view.soldiers.some((s) => s.id === m.id && s.team === 0) || aboardTheHelicopterOverTheLoadedSector(strategic, m);
+}
+
 function placementOf(strategic: KnowledgeStrategic, view: KnowledgeView, m: KnowledgeMerc) {
   const group = strategic.groups.find((g) => g.members.includes(m.id));
   const vehicle = m.vehicle !== undefined ? (strategic.vehicles ?? []).find((v) => v.id === m.vehicle) : undefined;
@@ -109,7 +118,7 @@ function placementOf(strategic: KnowledgeStrategic, view: KnowledgeView, m: Know
     sector: sectorFromName(m.sector),
     groupId: group?.id ?? 0,
     path: pathFromNames(path),
-    inSector: view.soldiers.some((s) => s.id === m.id && s.team === 0),
+    inSector: inLoadedSector(strategic, view, m),
     remoteHolder: null,
   };
 }

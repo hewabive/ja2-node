@@ -34,6 +34,7 @@ import { cancelAIAction } from '../tactical/ai/control.ts';
 import { initNewSoldierAnim, states } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
+import { closestPc } from '../tactical/narrative/closest-pc.ts';
 import { Opp } from '../tactical/perception/opp.ts';
 import { AlertStatus, NOWHERE, OKBREATH, OKLIFE, Side, type Soldier, Team, Visible } from '../tactical/soldier.ts';
 import { teamMembers, whoIsThere } from '../tactical/state.ts';
@@ -82,8 +83,6 @@ import { dialogueQueueIsEmptyAndNobodyIsTalking, type GiftObject } from './talk-
 
 export const TRIGGER_WAIT_MS = 500;
 const MAX_DISTANCE_VISIBLE = 26;
-const UNSEEN_PC_DISTANCE_PENALTY = 10;
-const WORLD_MAX_DISTANCE = 25600;
 const GIVE_MENU_WAIT_MS = 10000;
 const ON_DUTY = 20;
 const HAS_KEYS = 1;
@@ -627,19 +626,7 @@ function triggerClosestMercWhoCanSeeNpc(host: NarrativeHost, npc: number, q: Npc
 
 export function closestPC(host: NarrativeHost, s: Soldier): number {
   const t = host.tactical();
-  if (!t) return NOWHERE;
-  let best = WORLD_MAX_DISTANCE;
-  let gridNo = NOWHERE;
-  for (const m of teamMembers(t, Team.OUR)) {
-    if (!m.placed || m.life < OKLIFE || host.isEpc(m)) continue;
-    let d = pythSpacesAway(s.gridNo, m.gridNo);
-    if (m.team !== s.team && s.oppList[m.id] !== Opp.SEEN_CURRENTLY) d += UNSEEN_PC_DISTANCE_PENALTY;
-    if (d < best) {
-      best = d;
-      gridNo = m.gridNo;
-    }
-  }
-  return gridNo;
+  return t ? closestPc(t, s, (pc) => host.isEpc(pc)).gridNo : NOWHERE;
 }
 
 export function sourceSoldierValidAndReachableForGive(host: NarrativeHost, giver: Soldier | null): boolean {

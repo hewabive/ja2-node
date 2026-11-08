@@ -2,11 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
+import { VehicleSeat } from '../../strategic/forces/constants.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import type { TacticalContent } from '../content.ts';
 import { Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
+import { seatWithNoVehicleOnTheMap } from '../vehicle-passengers.ts';
 import { Profile } from './constants.ts';
 import { CHOPPER_GRIDNO, DRASSEN_AIRPORT, handleEscortArrival, TOURISTS_PLANE_GRIDNO } from './escort-arrival.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './port.ts';
@@ -120,6 +122,16 @@ describe('John and Mary at the Drassen airport (Overhead.cc HandleJohnArrival, H
     tourist(apart, 2, Profile.MARY, PLANE_NEAR + 12 * COLS);
     handleEscortArrival(apart.sim.state, tourist(apart, 1, Profile.JOHN, PLANE_NEAR));
     expect(apart.calls.records).toEqual([]);
+  });
+
+  it("keeps John waiting for Mary aboard the helicopter over the airport: she is found at the original's NOWHERE, far from him (FindSoldierByProfileID, Overhead.cc:1680)", () => {
+    const w = touristWorld({ facts: [Fact.MARY_ALIVE, Fact.JOHN_ALIVE], epcs: [1, 2] });
+    tourist(w, 0, SOME_MERC, PLANE_NEAR + 3);
+    const mary = tourist(w, 2, Profile.MARY, PLANE_NEAR + 2);
+    mary.vehicleSeat = VehicleSeat.PASSENGER;
+    seatWithNoVehicleOnTheMap(w.sim.state, mary);
+    handleEscortArrival(w.sim.state, tourist(w, 1, Profile.JOHN, PLANE_NEAR));
+    expect(w.calls.records).toEqual([]);
   });
 
   it('Mary only arrives when John is dead, with a merc within 8 tiles and near the plane', () => {

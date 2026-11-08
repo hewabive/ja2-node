@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the requestor actions, PROMPT_PLAYER_TO_LIE,
 // @src TRIGGER_MARRY_DARYL_PROMPT, REDUCE_CONRAD_SALARY_CONDITIONS), StartDialogueMessageBox, DialogueMessageBoxCallBack,
-// @src ubRecordThatTriggeredLiePrompt; Tactical/Overhead.cc PlayerTeamFull.
+// @src ubRecordThatTriggeredLiePrompt (the liar's bInSector, a helicopter passenger over the loaded sector's included,
+// @src 2026-11-08); Tactical/Overhead.cc PlayerTeamFull.
 
 import { i8, u8 } from '../../../../core/int.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';
@@ -15,7 +16,7 @@ import { MercStatus } from '../../profiles.ts';
 import { effectiveLeadership, effectiveWisdom } from '../../skills.ts';
 import { OKBREATH, OKLIFE, type Soldier, TEAM_SIZES, Team } from '../../soldier.ts';
 import { soldierInventoryContext } from '../../soldier-inventory.ts';
-import { teamMembers } from '../../state.ts';
+import { teamInSector } from '../../state.ts';
 import { NpcActionCode as A } from './codes.ts';
 import { closeMenu, destSoldier, npcSoldier, ProfileMiscFlag2, profileOf, tactical, trigger } from './common.ts';
 import type { NpcActionEnv } from './env.ts';
@@ -193,8 +194,8 @@ export function chooseLiar(env: NpcActionEnv): Soldier | null {
   const t = tactical(env);
   if (!t) return null;
   let liar: Soldier | null = null;
-  for (const s of teamMembers(t, Team.OUR)) {
-    if (!s.placed || s.life < OKLIFE || s.breath < OKBREATH) continue;
+  for (const s of teamInSector(t, Team.OUR)) {
+    if (s.life < OKLIFE || s.breath < OKBREATH) continue;
     if (!liar || effectiveWisdom(s) + effectiveLeadership(s) > effectiveWisdom(liar) + effectiveLeadership(s)) liar = s;
   }
   return liar;

@@ -6,7 +6,7 @@ import { NUM_NPC_QUOTE_RECORDS } from '../../../../content/formats/npc.ts';
 import { Approach } from '../../../../content/narrative/npc-constants.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../../strategic/narrative/npc-ids.ts';
-import { type Soldier, TEAM_FIRST_ID, Team } from '../../soldier.ts';
+import { NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../../soldier.ts';
 import { handleNpcDoAction } from './catalog.ts';
 import { NpcActionCode as A } from './codes.ts';
 import { answerNpcRequest, chooseLiar, npcRequestDetails, playerTeamFull } from './requestors.ts';
@@ -108,6 +108,20 @@ describe('requestors', () => {
       t.soldiers[1] = b;
     }
     expect((chooseLiar(e) as Soldier).id).toBe(0);
+  });
+
+  it('chooses the liar among the mercs aboard the helicopter over the loaded sector too, as it tests bInSector (Interface_Dialogue.cc:4357)', () => {
+    const e = env(Npc.QUEEN);
+    const walker = testSoldier(0, Team.OUR, 1, 100);
+    const passenger = testSoldier(1, Team.OUR, 2, NOWHERE);
+    Object.assign(walker, { stats: { ...walker.stats, wisdom: 60 } });
+    Object.assign(passenger, { placed: false, offMap: true, stats: { ...passenger.stats, wisdom: 70 } });
+    const t = e.host.tactical();
+    if (t) {
+      t.soldiers[0] = walker;
+      t.soldiers[1] = passenger;
+    }
+    expect(chooseLiar(e)).toBe(passenger);
   });
 
   it('believes the lie on 50 × the liar’s wisdom and leadership over the Queen’s', () => {

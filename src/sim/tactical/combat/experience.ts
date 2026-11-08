@@ -2,12 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.cc StatChange, ProcessStatChange, ChangeStat, ProcessUpdateStats, SubpointsPerPoint,
 // @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
-// @src AgilityForEnemyMissingPlayer.
+// @src AgilityForEnemyMissingPlayer; ProcessUpdateStats's bInSector and HandleAnyStatChangesAfterAttack's FOR_EACH_IN_TEAM, a
+// @src helicopter passenger over the loaded sector's included (2026-11-08).
 
 import { idiv, u16 } from '../../../core/int.ts';
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
-import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import { type TacticalState, teamMembers } from '../state.ts';
+import { Body, inSector, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { type TacticalState, teamInSector } from '../state.ts';
 import type { CombatContext } from './context.ts';
 import { CONSCIOUSNESS } from './types.ts';
 
@@ -149,7 +150,7 @@ function updateStats(p: ProfileProgress, change: (stat: number, points: number) 
 }
 
 export function processUpdateStats(t: CombatContext, s: Soldier): void {
-  if (t.turn.attackBusyCount > 0 && s.placed && t.inCombat) return;
+  if (t.turn.attackBusyCount > 0 && inSector(s) && t.inCombat) return;
   if (s.team !== Team.OUR || s.profile === NO_PROFILE) return;
   if (s.life < OKLIFE) return;
   const p = profileProgress(t, s.profile);
@@ -180,7 +181,7 @@ export function statChange(t: CombatContext, s: Soldier, stat: number, chances: 
 }
 
 export function handleAnyStatChangesAfterAttack(t: TacticalState): void {
-  for (const s of teamMembers(t, Team.OUR)) processUpdateStats(t, s);
+  for (const s of teamInSector(t, Team.OUR)) processUpdateStats(t, s);
 }
 
 export function modifyExpGainByTarget(gain: number, tgt: Soldier): number {

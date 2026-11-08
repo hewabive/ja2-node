@@ -197,12 +197,15 @@ entry: registered, `placed` false and `offMap` true (`inSector(s)`, the original
 that through `inTacticalSector`, and a native import seats them the same way (`14`). A loop gated on `placed` passes them
 by, as the original's loops on `IsSoldierValidForSightings` or `NOWHERE` do; a loop over the merc slots that takes
 `offMap` soldiers sees them, as the original's `FOR_EACH_MERC` does. Where the original tests `bInSector` for our team,
-the passenger counts here too: those branches test `inSector(s)` (`teamInSector`, `mercsInSector`, `tactical/state.ts`),
-and where they measure from his tile they take the original's `NOWHERE`, one row past the map, 25601 against ja2-node's
-−1 (`withOriginalNowhere`, `tactical/soldier.ts`). The tests: `tactical/vehicle-passengers.test.ts`,
-`tactical/turns/personality.test.ts`, `campaign/team-morale.test.ts`, `campaign/helicopter-flow.test.ts` and
-`campaign/death-in-the-map-screen.test.ts`; the helicopter-drop comparer's passenger blocks check them against the
-native build (`tools/oracle/README.md`, "Helicopter drop").
+the passenger counts here too: those branches test `inSector(s)` (`teamInSector`, `mercsInSector`, `tactical/state.ts`;
+`RosterMerc.inSector`, `campaign/roster.ts`, for the strategic ones), and where they measure from his tile they take the
+original's `NOWHERE`, one row past the map, 25601 against ja2-node's −1 (`withOriginalNowhere`, `tactical/soldier.ts`).
+The hints' crew counts him from the view, aboard the helicopter in the loaded sector (`knowledge/strategic.ts`). The
+tests: `tactical/vehicle-passengers.test.ts`, `tactical/turns/personality.test.ts`, `campaign/team-morale.test.ts`,
+`campaign/helicopter-flow.test.ts`, `campaign/death-in-the-map-screen.test.ts`, `tactical/narrative/boxing.test.ts`,
+`tactical/narrative/escort-arrival.test.ts`, `tactical/narrative/npc-actions/requestors.test.ts` and
+`server/hints-strategic-stub.test.ts`; the helicopter-drop comparer's passenger blocks check them against the native
+build (`tools/oracle/README.md`, "Helicopter drop").
 
 | The original | Counts him | ja2-node | Same |
 |---|---|---|---|
@@ -226,6 +229,14 @@ native build (`tools/oracle/README.md`, "Helicopter drop").
 | `CommonEnterCombatModeCode`, `ExitCombatMode`, `CencelAllActionsForTimeCompression` (`Tactical/Overhead.cc:3913`, `:4057`, `:5871`) | yes | `commonEnterCombatModeCode`, `exitCombatMode`, `cancelAllActionsForTimeCompression` | yes |
 | `CheckForEndOfBattle`'s count of the battles fought (`Tactical/Overhead.cc:4557`) | yes | `ourMercsFinishFoughtBattle` | yes |
 | `CivilianGroupMemberChangesSides` (`Tactical/Overhead.cc:2723`) | yes | `civilianGroupMemberChangesSides` (`placed`; deviation "Rebel aboard the helicopter") | no |
+| `EndTurn`'s moved mark (`Tactical/TeamTurns.cc:213`) | yes | `endTurn` | yes |
+| `ClosestPC` (`TacticalAI/AIUtils.cc:1150`): measured from `NOWHERE`, he may be the closest, and every caller takes his tile for nobody near | yes | `closestPc` (`tactical/narrative/closest-pc.ts`) | yes |
+| `FindSoldierByProfileID` for Mary at John's arrival (`Tactical/Overhead.cc:1680`) and for Maria when one of Kingpin's men is hurt or turns hostile (`Tactical/Soldier_Control.cc:5466`, `Tactical/Overhead.cc:2652`) | yes | `handleJohnArrival`, `soldierTakeDamage`, `makeCivHostile` | yes |
+| The assignment and sleep refusals in combat or with enemies about and the contract menu's dismissal (`Strategic/Assignments.cc:361`, `:804`, `Strategic/MapScreen.cc:5208`), the strategic morale held back for mercs away from a battle (`Tactical/Morale.cc:344`), the player's strength at a retreat (`Strategic/Strategic_Town_Loyalty.cc:1153`), the sleep and wake animations (`Strategic/Assignments.cc:6230`, `:6264`) | yes | `RosterMerc.inSector`; the hints from the view (`knowledge/strategic.ts`) | yes |
+| `AnotherFightPossible` (`Tactical/Boxing.cc:366`), the liar to the queen (`Tactical/Interface_Dialogue.cc:4357`), the stat changes held back during an attack in combat and made after it (`Tactical/Campaign.cc:762`, `:920`) | yes | `anotherFightPossible`, `chooseLiar`, `processUpdateStats`, `handleAnyStatChangesAfterAttack` | yes |
+| `PCInSameRoom` (`Strategic/Quests.cc:277`), which reads `gubWorldRoomInfo` at `NOWHERE`, past the array | yes | in no room (`campaignFactWorld`; deviation "Helicopter passenger's room") | no |
+| The facts' `FOR_EACH_MERC` distance tests and the hospital's patients (`Strategic/Quests.cc:194`, `:214`, `:342`, `:362`, `:411`, `Tactical/Interface_Dialogue.cc:4137`) | yes, at `NOWHERE`, 57 tiles or more from any visible tile, beyond their 10 | `campaignFactWorld` at the original's `NOWHERE`; `medicalCostAt` (`placed`) | yes |
+| Larry's hourly temptation and the hated-merc countdown (`Strategic/Hourly_Update.cc:193`, `Strategic/Strategic_Merc_Handler.cc:576`, `:645`) | never reached: both skip an assignment from `ON_DUTY` on (`Strategic/Hourly_Update.cc:185`, `Strategic/Strategic_Merc_Handler.cc:531`), and his is `VEHICLE` | `hourlyLarryUpdate`, `updateBuddyAndHatedCounters` (`placed`) | yes |
 
 **Boarding and leaving.** `AddSoldierToVehicle` and `ExitVehicle` keep their original order in the strategic code
 (`strategic/economy/vehicle-assignment.ts`, `strategic/forces/vehicles.ts`), which reaches the loaded map through
@@ -370,8 +381,7 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter passengers elsewhere" (the
-tests of `bInSector` outside the turn and battle hooks). Deviations of this domain: "Helicopter on load", "Toolkit repair
-in tactical", "Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short", "Helicopter drop lock in
-combat", "Helicopter drop in a native save", "Helicopter exit over the loaded sector", "Rebel
-aboard the helicopter".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded). Deviations of this domain:
+"Helicopter on load", "Toolkit repair in tactical", "Helicopter drop statics", "Helicopter run start", "Helicopter drop
+cut short", "Helicopter drop lock in combat", "Helicopter drop in a native save", "Helicopter exit over the loaded
+sector", "Rebel aboard the helicopter", "Helicopter passenger's room".

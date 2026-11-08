@@ -6,14 +6,18 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { ourHummerOnTheMap, seatInVehicle } from '../../../tests/support/vehicles.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { VehicleSeat } from '../strategic/forces/constants.ts';
-import { Fact } from '../strategic/narrative/fact-ids.ts';
+import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
+import { QuestStatus } from '../strategic/narrative/facts.ts';
 import { initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
+import { handleAnyStatChangesAfterAttack, processUpdateStats } from './combat/experience.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { newSmokeEffect } from './explosions/smoke.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
+import { makeCivHostile } from './narrative/civ-hostility.ts';
+import { closestPc } from './narrative/closest-pc.ts';
 import { Profile } from './narrative/constants.ts';
 import { playerTeamDeathRules } from './narrative/death-rules.ts';
 import { clearTacticalStuffDueToTimeCompression } from './overhead.ts';
@@ -22,13 +26,14 @@ import { validForSightings } from './perception/sight.ts';
 import { calcActionPoints } from './points.ts';
 import { removeSoldierFromTacticalSector } from './sector-presence.ts';
 import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from './selection.ts';
-import { NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { CivilianGroup, NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { mercs, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import {
   beginMercTurn,
   checkForEndOfBattle,
   checkForEndOfCombatMode,
+  endTurn,
   enterCombatMode,
   exitCombatMode,
   handleForcedRealtimeTurn,
@@ -191,6 +196,8 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
   });
 
   const ENEMY_ID = 20;
+  const CIV_ID = 120;
+  const ONE_ATTRIBUTE_POINT = 50;
   const ENEMY_AT = gridNo(80, 100);
   const DOWN = OKLIFE - 1;
   const PROFILE = 7;
@@ -313,5 +320,72 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     t.turn.numFoughtInBattle[Team.ENEMY] = 1;
     expect(checkForEndOfBattle(t)).toBe(true);
     expect(t.profiles.get(PROFILE)?.battlesFought).toBe(1);
+  });
+
+  it('is marked moved with every merc in the sector when our turn ends (EndTurn, TeamTurns.cc:213)', () => {
+    const { sim, t, merc, walker } = flying();
+    withAnEnemy(t, sim);
+    enterCombatMode(t, Team.OUR);
+    merc.moved = false;
+    walker.moved = false;
+    endTurn(t, Team.ENEMY);
+    expect([merc.moved, walker.moved]).toEqual([true, true]);
+  });
+
+  const SOUTH_WEST_EDGE = gridNo(41, 119);
+  const UNSEEN_DISTANCE_TO_ORIGINAL_NOWHERE = 67;
+
+  it("is an NPC's closest merc measured from the original's NOWHERE one row past the map, which every caller then takes for nobody near (ClosestPC, AIUtils.cc:1150)", () => {
+    const { sim, t } = flying();
+    const npc = spawnSoldier(sim, CIV_ID, Team.CIV, SOUTH_WEST_EDGE, Direction.NORTH);
+    expect(closestPc(t, npc)).toEqual({ gridNo: NOWHERE, distance: UNSEEN_DISTANCE_TO_ORIGINAL_NOWHERE });
+  });
+
+  function kingpinsManWithMariaAboard(): {
+    readonly sim: TacticalSim;
+    readonly t: TacticalState;
+    readonly goon: Soldier;
+    readonly facts: number[];
+  } {
+    const { sim, t, merc } = flying();
+    merc.profile = Profile.MARIA;
+    const facts: number[] = [];
+    t.narrative = {
+      ...t.narrative,
+      questStatus: (q) => (q === Quest.RESCUE_MARIA ? QuestStatus.IN_PROGRESS : QuestStatus.NOT_STARTED),
+      setFactTrue: (f) => facts.push(f),
+    };
+    const goon = spawnSoldier(sim, CIV_ID, Team.CIV, SOUTH_WEST_EDGE, Direction.NORTH, { life: 100 });
+    goon.civilianGroup = CivilianGroup.KINGPIN;
+    return { sim, t, goon, facts };
+  }
+
+  it("has Maria's escape noticed when one of Kingpin's men is hurt with her aboard above the sector (SoldierTakeDamage, Soldier_Control.cc:5466)", () => {
+    const { t, goon, facts } = kingpinsManWithMariaAboard();
+    soldierTakeDamage(t, goon, 1, 0, DamageReason.GUNFIRE, null);
+    expect(facts).toContain(Fact.MARIA_ESCAPE_NOTICED);
+  });
+
+  it("has Maria's escape noticed when one of Kingpin's men turns hostile with her aboard above the sector (MakeCivHostile, Overhead.cc:2652)", () => {
+    const { t, goon, facts } = kingpinsManWithMariaAboard();
+    makeCivHostile(t, goon);
+    expect(facts).toContain(Fact.MARIA_ESCAPE_NOTICED);
+  });
+
+  it('has his stat gains held back during an attack in combat and made after it, as a merc in the sector has (ProcessUpdateStats, Campaign.cc:762, HandleAnyStatChangesAfterAttack)', () => {
+    const { sim, t, merc } = flying();
+    withAnEnemy(t, sim);
+    merc.profile = PROFILE;
+    const p = progressFor(PROFILE);
+    t.profiles.set(PROFILE, p);
+    const strength = p.stats.strength;
+    p.gains.strength = ONE_ATTRIBUTE_POINT;
+    t.inCombat = true;
+    t.turn.attackBusyCount = 1;
+    processUpdateStats(t, merc);
+    expect([p.stats.strength, p.gains.strength]).toEqual([strength, ONE_ATTRIBUTE_POINT]);
+    t.turn.attackBusyCount = 0;
+    handleAnyStatChangesAfterAttack(t);
+    expect(p.stats.strength).toBe(strength + 1);
   });
 });

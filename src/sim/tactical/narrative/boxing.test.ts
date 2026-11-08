@@ -4,6 +4,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { VehicleSeat } from '../../strategic/forces/constants.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
@@ -16,6 +17,7 @@ import { setSoldierPosition } from '../movement.ts';
 import { calcActionPoints, calcNewActionPoints } from '../points.ts';
 import { AlertStatus, Body, CivilianGroup, NOBODY, OKLIFE, Orders, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { seatWithNoVehicleOnTheMap } from '../vehicle-passengers.ts';
 import {
   anotherFightPossible,
   boxerAvailable,
@@ -48,6 +50,7 @@ const IN_RING = grid(36, 70);
 const IN_RING_2 = grid(38, 70);
 const ITEM_KNIFE = 'COMBAT_KNIFE';
 const HEARD = 5;
+const LIFE_MARGIN = 5;
 
 interface Recorder extends NarrativePort {
   readonly calls: string[];
@@ -129,6 +132,19 @@ describe('the boxers', () => {
     expect(anotherFightPossible(b, sim.state)).toBe(false);
     expect(boxerExists(sim.state)).toBe(true);
     expect(boxerExists(null)).toBe(false);
+  });
+
+  it('count a fit merc aboard the helicopter over the sector for another fight, as AnotherFightPossible tests bInSector (Boxing.cc:366)', () => {
+    const { sim, merc } = setup();
+    const b = sim.state.boxing;
+    expect(boxerAvailable(b, sim.state)).toBe(true);
+    b.fought[0] = true;
+    merc.life = OKLIFE + LIFE_MARGIN;
+    expect(anotherFightPossible(b, sim.state)).toBe(false);
+    const passenger = spawnSoldier(sim, 1, Team.OUR, IN_RING, NORTH, { life: 100 });
+    passenger.vehicleSeat = VehicleSeat.PASSENGER;
+    seatWithNoVehicleOnTheMap(sim.state, passenger);
+    expect(anotherFightPossible(b, sim.state)).toBe(true);
   });
 });
 

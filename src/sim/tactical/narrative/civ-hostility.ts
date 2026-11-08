@@ -5,7 +5,8 @@
 // @src ProcessImplicationsOfPCAttack (civilian, militia, boxing and quest branches; our merc firing back and the head miner,
 // @src 2026-10-31); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
 // @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag, the AI pause and the
-// @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor; Overhead.cc HandleBrothelWallDestroyed.
+// @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor; Overhead.cc HandleBrothelWallDestroyed;
+// @src MakeCivHostile's Maria in the sector, a helicopter passenger over it included (2026-11-08).
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { Direction, directionIncrement, pythSpacesAway } from '../../../content/world/grid.ts';
@@ -20,7 +21,7 @@ import { changeWeaponMode, isGunBurstCapable } from '../hand-item.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { handleSight, recalculateOppCntsDueToNoLongerNeutral } from '../perception/sight.ts';
-import { AlertStatus, Body, CivilianGroup, NO_PROFILE, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, CivilianGroup, inSector, NO_PROFILE, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
 import { sectorMapOf, type TacticalState, teamMembers } from '../state.ts';
 import { checkForPotentialAddToBattleIncrement, enterCombatMode } from '../turns/turns.ts';
 import { boxingPlayerDisqualified, setBoxingState } from './boxing.ts';
@@ -51,11 +52,15 @@ const AGGRESSIVE_ATTITUDE = 5;
 const VISIBLE = 1;
 const SIGHT_LOOK_AND_RADIO = 3;
 
-const inSector = (t: TacticalState, sector: { readonly x: number; readonly y: number }) =>
+const loadedSectorIs = (t: TacticalState, sector: { readonly x: number; readonly y: number }) =>
   t.sector !== null && t.sector.x === sector.x && t.sector.y === sector.y && t.sector.z === 0;
 
 function findByProfile(t: TacticalState, profile: number): Soldier | null {
   return t.soldiers.find((s) => s?.placed && s.profile === profile) ?? null;
+}
+
+function mariaInSector(t: TacticalState): boolean {
+  return t.soldiers.some((s) => s !== undefined && s !== null && inSector(s) && s.profile === Profile.MARIA);
 }
 
 function mariaQuestActive(t: TacticalState): boolean {
@@ -87,7 +92,7 @@ export function makeCivHostile(t: TacticalState, s: Soldier): void {
       s.civilianGroup === CivilianGroup.KINGPIN &&
       t.narrative.questStatus(Quest.RESCUE_MARIA) === QuestStatus.IN_PROGRESS &&
       !boxingActive(t) &&
-      findByProfile(t, Profile.MARIA) !== null
+      mariaInSector(t)
     )
       t.narrative.setFactTrue(Fact.MARIA_ESCAPE_NOTICED);
     if (s.profile === Profile.BILLY) s.ai.orders = Orders.FARPATROL;
@@ -230,7 +235,7 @@ function townCaresAboutDeath(t: TacticalState, s: Soldier): boolean {
 }
 
 function neutralCivilianAttacked(t: TacticalState, attacker: Soldier, target: Soldier): void {
-  if (target.bodyType === Body.COW && inSector(t, HICKS_FARM_SECTOR)) {
+  if (target.bodyType === Body.COW && loadedSectorIs(t, HICKS_FARM_SECTOR)) {
     hickCowAttacked(t, attacker);
     return;
   }
@@ -316,11 +321,11 @@ export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldie
 }
 
 export function inBrothel(t: TacticalState, room: number): boolean {
-  return inSector(t, BROTHEL_SECTOR) && room >= BrothelRooms.FIRST && room <= BrothelRooms.LAST;
+  return loadedSectorIs(t, BROTHEL_SECTOR) && room >= BrothelRooms.FIRST && room <= BrothelRooms.LAST;
 }
 
 export function inBrothelGuardRoom(t: TacticalState, gridNo: number): boolean {
-  return inSector(t, BROTHEL_SECTOR) && sectorMapOf(t).rooms[gridNo] === BrothelRooms.GUARD_ROOM;
+  return loadedSectorIs(t, BROTHEL_SECTOR) && sectorMapOf(t).rooms[gridNo] === BrothelRooms.GUARD_ROOM;
 }
 
 function roomBesideWall(t: TacticalState, gridNo: number): number {
@@ -333,21 +338,21 @@ function roomBesideWall(t: TacticalState, gridNo: number): number {
 }
 
 export function handleBrothelWallDestroyed(t: TacticalState, gridNo: number, s: StructureInstance, destroyed: boolean): void {
-  if (!inSector(t, BROTHEL_SECTOR) || !has(s.flags, StructureFlags.WALLSTUFF) || !destroyed) return;
+  if (!loadedSectorIs(t, BROTHEL_SECTOR) || !has(s.flags, StructureFlags.WALLSTUFF) || !destroyed) return;
   const room = roomBesideWall(t, gridNo);
   if (room !== NO_ROOM && inBrothel(t, room)) civilianGroupChangesSides(t, CivilianGroup.KINGPIN);
 }
 
 export function processImplicationsOfPCMessingWithDoor(t: TacticalState, s: Soldier): void {
   const room = sectorMapOf(t).rooms[s.gridNo] ?? 0;
-  if (inBrothel(t, room) || (inSector(t, BOXING_SECTOR) && KINGPIN_DOOR_GRIDNOS.has(s.gridNo))) {
+  if (inBrothel(t, room) || (loadedSectorIs(t, BOXING_SECTOR) && KINGPIN_DOOR_GRIDNOS.has(s.gridNo))) {
     for (const goon of teamMembers(t, Team.CIV)) {
       if (goon.civilianGroup !== CivilianGroup.KINGPIN || goon.life < OKLIFE || goon.oppList[s.id] !== Opp.SEEN_CURRENTLY) continue;
       makeCivHostile(t, goon);
       if (!t.inCombat) enterCombatMode(t, goon.team);
     }
   }
-  if (inSector(t, TIXA_SECTOR)) {
+  if (loadedSectorIs(t, TIXA_SECTOR)) {
     const warden = findByProfile(t, Profile.WARDEN);
     if (warden && warden.ai.alertStatus < AlertStatus.RED && pythSpacesAway(s.gridNo, warden.gridNo) <= WARDEN_ALERT_RADIUS) {
       warden.ai.alertStatus = AlertStatus.RED;

@@ -3,7 +3,8 @@
 // @src src/game/Tactical/LOS.cc BulletHitMerc (with the blood spewed behind a pass-through); Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit
 // @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
-// @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
+// @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest, Maria aboard the helicopter
+// @src over the sector counted, 2026-11-08, and
 // @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04; the damage display of a soldier in the sector only,
 // @src 2026-11-05), HandleTakeDamageDeath (its strategic branch, 2026-11-05), HandleSoldierTakeDamageFeedback
 // @src (the portrait flash of a soldier the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
@@ -673,7 +674,8 @@ function calcNextBleed(s: Soldier): number {
 function noticeMariaEscapeWhenKingpinsManIsHurt(t: TacticalState, s: Soldier): void {
   if (s.team !== Team.CIV || s.civilianGroup !== CivilianGroup.KINGPIN || boxingActive(t)) return;
   if (t.narrative.questStatus(Quest.RESCUE_MARIA) !== QuestStatus.IN_PROGRESS) return;
-  if (t.soldiers.some((x) => x?.placed && x.profile === Npc.MARIA)) t.narrative.setFactTrue(Fact.MARIA_ESCAPE_NOTICED);
+  if (t.soldiers.some((x) => x !== undefined && x !== null && inSector(x) && x.profile === Npc.MARIA))
+    t.narrative.setFactTrue(Fact.MARIA_ESCAPE_NOTICED);
 }
 
 export function soldierTakeDamage(

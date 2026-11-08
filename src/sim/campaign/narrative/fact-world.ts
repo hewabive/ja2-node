@@ -3,14 +3,15 @@
 // @src src/game/Tactical/Soldier_Profile.cc FindSoldierByProfileID (every active soldier, OUR team first),
 // @src FindSoldierByProfileIDOnPlayerTeam; Tactical/Overhead.h FOR_EACH_MERC (the soldiers in the loaded sector),
 // @src CFOR_EACH_IN_TEAM; Tactical/Items.cc FindObjInObjRange; Tactical/Handle_Items.cc GetItemPool, IsItemPoolVisible,
-// @src ItemTypeExistsAtLocation.
+// @src ItemTypeExistsAtLocation; Strategic/Quests.cc PCInSameRoom and FOR_EACH_MERC with a helicopter passenger over the
+// @src loaded sector, in the sector at the original's NOWHERE (2026-11-08).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import type { FactSoldier, FactWorld } from '../../strategic/narrative/check-fact.ts';
 import { NO_FACT_WORLD } from '../../strategic/narrative/check-fact.ts';
 import type { SectorPosition } from '../../strategic/state.ts';
 import { Opp } from '../../tactical/perception/opp.ts';
-import { type Soldier, Team } from '../../tactical/soldier.ts';
+import { inSector, type Soldier, Team, withOriginalNowhere } from '../../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState } from '../../tactical/state.ts';
 import { itemsAt, Visibility } from '../../tactical/world-items.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
@@ -19,7 +20,7 @@ const NO_ASSIGNMENT = -1;
 const NO_KIND = -1;
 
 function inLoadedSector(t: TacticalState | null, s: Soldier): boolean {
-  return t !== null && t.soldiers[s.id] === s && s.placed;
+  return t !== null && t.soldiers[s.id] === s && inSector(s);
 }
 
 function mercSoldier(m: RosterMerc, t: TacticalState | null): FactSoldier {
@@ -35,7 +36,7 @@ function mercSoldier(m: RosterMerc, t: TacticalState | null): FactSoldier {
     lifeMax: s.lifeMax,
     bleeding: s.bleeding,
     strength: s.stats.strength,
-    gridNo: s.gridNo,
+    gridNo: withOriginalNowhere(s.gridNo),
     inSector: inLoadedSector(t, s),
     cowering: s.cowering,
     underFire: s.ai.underFire !== 0,
