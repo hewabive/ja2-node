@@ -381,7 +381,7 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded). Deviations of this domain:
-"Helicopter on load", "Toolkit repair in tactical", "Helicopter drop statics", "Helicopter run start", "Helicopter drop
-cut short", "Helicopter drop lock in combat", "Helicopter drop in a native save", "Helicopter exit over the loaded
-sector", "Rebel aboard the helicopter", "Helicopter passenger's room".
+Deviations of this domain: "Rooms of the map loaded last", "Helicopter on load", "Toolkit repair in tactical",
+"Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short", "Helicopter drop lock in combat",
+"Helicopter drop in a native save", "Helicopter exit over the loaded sector", "Rebel aboard the helicopter", "Helicopter
+passenger's room".

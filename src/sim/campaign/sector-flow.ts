@@ -37,7 +37,9 @@
 // @src ambush as a battle going on, 2026-11-06); Tactical/Auto_Bandage.cc AutoBandage (PauseGame at the start, UnPauseGame
 // @src and WarpGameTime with WARPTIME_NO_PROCESSING_OF_EVENTS at the end) and ShouldBeginAutoBandage's
 // @src IN_DEIDRANNA_ENDGAME (2026-11-06); Strategic/Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat,
-// @src EnemyStrength and PlayerStrength (its bInSector, a helicopter passenger over the loaded sector's included, 2026-11-08).
+// @src EnemyStrength and PlayerStrength (its bInSector, a helicopter passenger over the loaded sector's included, 2026-11-08);
+// @src TileEngine/Render_Fun.cc GetRoom for Map_Screen_Interface.cc CanCharacterMoveInStrategic (the rooms of the map loaded
+// @src last, which TrashWorld leaves in gubWorldRoomInfo, 2026-11-08).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -180,7 +182,7 @@ import { removeVehiclesNotOnOurTeam } from '../tactical/vehicle-soldiers.ts';
 import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
-import type { SectorFlowState } from './flow-state.ts';
+import { lastMapRooms, type SectorFlowState } from './flow-state.ts';
 import { cutHelicopterDropShort, handleFirstHeliDropOfGame, landHelicopterSeatsOfANativeSave } from './helicopter-drop-flow.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
@@ -291,7 +293,7 @@ export class SectorFlow {
       selectAfterRemoval: (merc) => this.#withTactical((t) => selectAfterRemovalFromSector(t, merc.soldier)),
       unselect: (merc) => this.#withTactical((t) => unselectRemovedSoldier(t, merc.soldier)),
       updateMercInSector: (merc) => this.updateMercInSector(merc),
-      roomOf: (merc) => this.#loadedMapRoom(merc.soldier.gridNo),
+      roomOf: (merc) => this.#lastMapRoom(merc.soldier.gridNo),
       seatAtVehicle: (merc, vehicle) => this.#seatAtVehicle(merc, vehicle),
     };
   }
@@ -315,9 +317,8 @@ export class SectorFlow {
     else this.setup.roster.removeFromGridNo(merc.id);
   }
 
-  #loadedMapRoom(gridNo: number): number {
-    const t = this.campaign.tactical?.state;
-    return t ? (sectorMapOf(t).rooms[gridNo] ?? NO_ROOM) : NO_ROOM;
+  #lastMapRoom(gridNo: number): number {
+    return lastMapRooms(this.campaign.state, this.campaign.tactical?.state ?? null)?.[gridNo] ?? NO_ROOM;
   }
 
   get #flow(): SectorFlowState {
@@ -515,6 +516,7 @@ export class SectorFlow {
       this.#worldTrashed();
     }
     s.worldSector = { x: sector.x, y: sector.y, z: sector.z };
+    this.#flow.trashedMapRooms = null;
     s.map.selectedSector = { ...sector };
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
     handleHelicopterOnGround(this.ctx, false);
@@ -1437,6 +1439,7 @@ export class SectorFlow {
     const sim = this.campaign.tactical;
     if (sim) {
       this.campaign.state.sectorFlow.trashedMapRestrictedScroll = restrictedScrollIdOf(sim.world);
+      this.campaign.state.sectorFlow.trashedMapRooms = sectorMapOf(sim.state).rooms.slice();
       this.#worldTrashed();
     }
     this.campaign.tactical = null;

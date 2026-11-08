@@ -513,8 +513,8 @@ function versionFifteen(snapshot: SimSnapshot): SimSnapshot {
   const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
     if (name !== 'strategic') return [name, value];
     const strategic = object(value);
-    const { trashedMapRestrictedScroll, preferredSelection, ...sectorFlow } = object(strategic.sectorFlow);
-    expect([trashedMapRestrictedScroll, preferredSelection]).toEqual([0, NOBODY_PREFERRED]);
+    const { trashedMapRestrictedScroll, trashedMapRooms, preferredSelection, ...sectorFlow } = object(strategic.sectorFlow);
+    expect([trashedMapRestrictedScroll, trashedMapRooms, preferredSelection]).toEqual([0, null, NOBODY_PREFERRED]);
     return [name, { ...strategic, sectorFlow }];
   });
   return { ...snapshot, version: 15, graph: { ...snapshot.graph, sections } };
@@ -3272,5 +3272,46 @@ describe('snapshot version 63 (no held give action) migrates with nobody holding
 
   it('a landed campaign', async () => {
     await expectNobodyHoldsAGive(await quietLandedCampaign(kit));
+  });
+});
+
+function versionSixtyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { trashedMapRooms, ...sectorFlow } = object(strategic.sectorFlow);
+    expect(trashedMapRooms).toBeNull();
+    return [name, { ...strategic, sectorFlow }];
+  });
+  return { ...snapshot, version: 64, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 64 (no rooms of the map trashed last) migrates with no room anywhere, as in a fresh process', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoTrashedRooms(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtyFour(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"trashedMapRooms"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a landed campaign', async () => {
+    await expectNoTrashedRooms(await quietLandedCampaign(kit));
+  });
+
+  it('a campaign on its laptop before the first hire', async () => {
+    await expectNoTrashedRooms(await createCampaignSession(kit.read, exists, 9, { hire: [] }));
   });
 });

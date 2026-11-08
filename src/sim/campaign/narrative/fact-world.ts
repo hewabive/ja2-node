@@ -4,7 +4,8 @@
 // @src FindSoldierByProfileIDOnPlayerTeam; Tactical/Overhead.h FOR_EACH_MERC (the soldiers in the loaded sector),
 // @src CFOR_EACH_IN_TEAM; Tactical/Items.cc FindObjInObjRange; Tactical/Handle_Items.cc GetItemPool, IsItemPoolVisible,
 // @src ItemTypeExistsAtLocation; Strategic/Quests.cc PCInSameRoom and FOR_EACH_MERC with a helicopter passenger over the
-// @src loaded sector, in the sector at the original's NOWHERE (2026-11-08).
+// @src loaded sector, in the sector at the original's NOWHERE (2026-11-08); TileEngine/Render_Fun.cc GetRoom (the rooms of
+// @src the map loaded last, which TrashWorld keeps, 2026-11-08).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import type { FactSoldier, FactWorld } from '../../strategic/narrative/check-fact.ts';
@@ -12,11 +13,12 @@ import { NO_FACT_WORLD } from '../../strategic/narrative/check-fact.ts';
 import type { SectorPosition } from '../../strategic/state.ts';
 import { Opp } from '../../tactical/perception/opp.ts';
 import { inSector, type Soldier, Team, withOriginalNowhere } from '../../tactical/soldier.ts';
-import { sectorMapOf, type TacticalState } from '../../tactical/state.ts';
+import type { TacticalState } from '../../tactical/state.ts';
 import { itemsAt, Visibility } from '../../tactical/world-items.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
 
 const NO_ASSIGNMENT = -1;
+const NO_ROOM = 0;
 const NO_KIND = -1;
 
 function inLoadedSector(t: TacticalState | null, s: Soldier): boolean {
@@ -76,6 +78,7 @@ export interface FactWorldSource {
   readonly roster: Roster | null;
   readonly tactical: TacticalState | null;
   readonly world: SectorPosition | null;
+  readonly lastMapRooms: Uint8Array | null;
 }
 
 export function factSoldierById(source: FactWorldSource, id: number): FactSoldier | null {
@@ -122,7 +125,7 @@ export function campaignFactWorld(source: FactWorldSource): FactWorld {
       const s = bySoldier(f);
       return s?.inv.some((o) => o.item >= first && o.item <= last) === true;
     },
-    room: (gridNo) => (t ? (sectorMapOf(t).rooms[gridNo] ?? 0) : 0),
+    room: (gridNo) => source.lastMapRooms?.[gridNo] ?? NO_ROOM,
     seesCurrently: (viewer, target) => {
       const s = bySoldier(viewer);
       return s !== null && s.oppList[target.id] === Opp.SEEN_CURRENTLY;

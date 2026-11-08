@@ -91,7 +91,7 @@ import type { Soldier } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { HistoryCode } from '../contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
-import type { TalkSoldiers } from '../flow-state.ts';
+import { lastMapRooms, type TalkSoldiers } from '../flow-state.ts';
 import { addHistory, timeQuestWasStarted } from '../laptop/records.ts';
 import { NUM_PROFILES } from '../profiles.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
@@ -285,7 +285,8 @@ export class NarrativeFlow {
   }
 
   #worldSource() {
-    return { roster: this.roster(), tactical: this.campaign.tactical?.state ?? null, world: this.state.worldSector };
+    const tactical = this.campaign.tactical?.state ?? null;
+    return { roster: this.roster(), tactical, world: this.state.worldSector, lastMapRooms: lastMapRooms(this.state, tactical) };
   }
 
   talkContext(): TalkContext {

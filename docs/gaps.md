@@ -27,7 +27,6 @@ The map, travel, vehicles, time compression, the economy, sector state and autor
 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
-| Strategic move refusals | With no map loaded the museum check reads the rooms of the last map loaded, which `TrashWorld` keeps (`GetRoom`, `TileEngine/Render_Fun.cc:32`) | With no map loaded a merc stands in no room (`campaign/sector-flow.ts`) | The stale rooms need the unloaded map's room table kept |
 | Autoresolve stalemate | A battle of only unconscious fighters never ends, and Finish hangs (`Strategic/Auto_Resolve.cc:3267`) | The battle runs on without a freeze (`campaign/battle-flow.ts`) | Ending it would be a deviation (deviations "Watchdogs") |
 
 ## 3. Campaign, laptop and narrative

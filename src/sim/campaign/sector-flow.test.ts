@@ -61,7 +61,7 @@ import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts
 import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
-import { type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
+import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
@@ -1134,6 +1134,32 @@ describe('the map loaded last', () => {
     expect(lastMap()).toBe(RestrictedScroll.NONE);
     flowOf(campaign).trashWorld();
     expect(lastMap()).toBe(RestrictedScroll.NONE);
+  });
+
+  it("keeps the trashed map's rooms under a merc's tile for the move and fact checks until the next map loads (GetRoom after TrashWorld)", () => {
+    const NO_ROOM = 0;
+    const { campaign, roster } = createTestCampaign(kit, { seed: 15, garrison: NO_GARRISON });
+    const factRoom = (gridNo: number) => campaign.narrative.factContext().world.room(gridNo);
+    expect([roster.roomOf(0), factRoom(0)]).toEqual([NO_ROOM, NO_ROOM]);
+    landFirstSquad(campaign);
+    const loaded = campaign.tactical?.state;
+    if (!loaded) throw new Error('no loaded sector');
+    const rooms = sectorMapOf(loaded).rooms.slice();
+    const roomTile = rooms.findIndex((room) => room !== NO_ROOM);
+    const merc = roster.get(0);
+    if (!merc) throw new Error('no merc');
+    merc.soldier.gridNo = roomTile;
+    flowOf(campaign).trashWorld();
+    reloadPoint(campaign);
+    expect(campaign.tactical).toBeNull();
+    expect([roster.roomOf(0), factRoom(roomTile)]).toEqual([rooms[roomTile], rooms[roomTile]]);
+    expect(rooms[roomTile]).not.toBe(NO_ROOM);
+    for (const m of roster.all()) m.sector = { ...A10, z: 1 };
+    expect(flowOf(campaign).setCurrentWorldSector({ ...A10, z: 1 })).toBe(true);
+    const basement = campaign.tactical?.state;
+    if (!basement) throw new Error('no basement');
+    expect(campaign.state.sectorFlow.trashedMapRooms).toBeNull();
+    expect(roster.roomOf(0)).toBe(sectorMapOf(basement).rooms[roster.get(0)?.soldier.gridNo ?? 0] ?? NO_ROOM);
   });
 });
 

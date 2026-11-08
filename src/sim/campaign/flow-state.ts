@@ -13,6 +13,8 @@ import {
   createCrowStatus,
   createRealtimeClock,
   type RealtimeClock,
+  sectorMapOf,
+  type TacticalWorldData,
 } from '../tactical/state.ts';
 import type { AdjacentJump } from './sector-exits.ts';
 import type { ShopSession } from './shop-flow.ts';
@@ -41,6 +43,7 @@ export interface SectorFlowState {
   powSquad: number;
   readonly powsSeen: number[];
   trashedMapRestrictedScroll: number;
+  trashedMapRooms: Uint8Array | null;
   preferredSelection: number;
 }
 
@@ -93,6 +96,7 @@ export function createSectorFlowState(
     powSquad: NO_CURRENT_SQUAD,
     powsSeen: [],
     trashedMapRestrictedScroll: RestrictedScroll.NONE,
+    trashedMapRooms: null,
     preferredSelection: NO_SELECTION,
   };
 }
@@ -102,6 +106,13 @@ export function lastMapRestrictedScroll(
   loaded: { readonly world: MapWithRestriction } | null,
 ): number {
   return loaded ? restrictedScrollIdOf(loaded.world) : state.sectorFlow.trashedMapRestrictedScroll;
+}
+
+export function lastMapRooms(
+  state: { readonly sectorFlow: SectorFlowState },
+  loaded: { readonly world: TacticalWorldData } | null,
+): Uint8Array | null {
+  return loaded ? sectorMapOf(loaded).rooms : state.sectorFlow.trashedMapRooms;
 }
 
 export function createTalkFlowState(seed: number): TalkFlowState {

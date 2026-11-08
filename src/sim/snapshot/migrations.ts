@@ -1974,6 +1974,22 @@ function addHeldGiveAction(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const TRASHED_MAP_ROOMS_KEY = 'trashedMapRooms';
+
+function withTrashedMapRooms(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: insertAfter(flow, TRASHED_MAP_RESTRICTED_SCROLL_KEY, TRASHED_MAP_ROOMS_KEY, null) };
+}
+
+function addTrashedMapRooms(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withTrashedMapRooms(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2039,5 +2055,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     61: registerHelicopterPassengers,
     62: addMercArrivingQuoteFlag,
     63: addHeldGiveAction,
+    64: addTrashedMapRooms,
   };
 }
