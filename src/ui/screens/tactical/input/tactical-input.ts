@@ -14,7 +14,8 @@
 // @src UIHandleJumpOver, UIHandleLUIBeginLock, UIHandleLUIEndLock, UIHandleLABeginLockOurTurn, UIHandleLAEndLockOurTurn,
 // @src UIHandleRubberBandOnTerrain, EndRubberBanding, EndMultiSoldierSelection, ResetMultiSelection, UIHandleOnMerc,
 // @src HandleUIMovementCursor (the 80 ms PATHFINDCOUNTER rest, the AP offsets, gfUIOverItemPoolGridNo of a standing merc's
-// @src item target, reset every frame, 2026-11-02), DrawUIMovementPath (the PLOT rule),
+// @src item target, reset every frame, 2026-11-02; MOVEUI_TARGET_INTTILES falling through to the move mode's offsets,
+// @src 2026-11-07), DrawUIMovementPath (the PLOT rule),
 // @src SetMovementModeCursor, SetConfirmMovementModeCursor, UIHandleInteractiveTilesAndItemsOnTerrain, GetCursorMovementFlags,
 // @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition
 // @src (gfOKForExchangeCursor: on as the pointer comes onto or leaves a valid soldier, flipped every second, 2026-11-02),
@@ -31,7 +32,7 @@
 // @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
-// @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor (for FindSoldier, the aid cursor of the last estimate for the selected merc, 2026-11-03), HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
+// @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor (for FindSoldier, the aid cursor of the last estimate for the selected merc, 2026-11-03), HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor (the AP offsets of the free-flowing move cursors, 2026-11-07); Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY;
 // @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
 // @src brought by the pointer over an enemy, 2026-11-01); Interface_Items.cc DrawItemTileCursor's frame (the item tile
@@ -513,6 +514,7 @@ export class TacticalInput {
     }
     if (!this.#combat()) this.#displayAp = false;
     this.#setUiMouseCursor();
+    this.#placeFreeMoveCursorActionPoints();
     if (this.multiSelected.size > 0 && !MULTI_SELECT_MODES.has(this.#mode)) this.multiSelected.clear();
   }
 
@@ -2299,19 +2301,30 @@ export class TacticalInput {
       if (this.#currentAp < 0 || !this.#combat()) this.#displayAp = false;
       else {
         this.#displayAp = true;
-        if (target === MoveUiTarget.INTTILES || target === MoveUiTarget.ITEMS || target === MoveUiTarget.BOMB) {
-          this.#apOffX = 22;
-          this.#apOffY = 15;
-        } else if (this.moveModeOf(sel) === WALK) {
-          this.#apOffX = 10;
-          this.#apOffY = 10;
-        } else if (this.moveModeOf(sel) === RUN) {
-          this.#apOffX = 21;
-          this.#apOffY = 15;
-        }
+        this.#placeMovementActionPoints(sel, target);
       }
     }
     return true;
+  }
+
+  #placeMovementActionPoints(sel: SoldierView, target: MoveUiTarget): void {
+    const mode = this.moveModeOf(sel);
+    if (target === MoveUiTarget.ITEMS || target === MoveUiTarget.BOMB) this.#placeActionPoints(HAND_CURSOR_AP_OFFSET);
+    else if (mode === WALK) this.#placeActionPoints(WALK_AP_OFFSET);
+    else if (mode === RUN) this.#placeActionPoints(RUN_AP_OFFSET);
+    else if (target === MoveUiTarget.INTTILES) this.#placeActionPoints(HAND_CURSOR_AP_OFFSET);
+  }
+
+  #placeActionPoints(offset: ApOffset): void {
+    this.#apOffX = offset.x;
+    this.#apOffY = offset.y;
+  }
+
+  #placeFreeMoveCursorActionPoints(): void {
+    const offset = FREE_MOVE_CURSOR_AP_OFFSETS[this.#cursor];
+    if (!offset || this.#host.itemInCursor() || this.#mapPos() === null) return;
+    this.#apCenter = false;
+    this.#placeActionPoints(offset);
   }
 
   #standsStill(s: SoldierView): boolean {
@@ -3260,6 +3273,21 @@ const CROW_HIT_LOCATION_STR = 105;
 const AP_BLINK_MS = 150;
 const CENTRE_PROBE_TILE = 'MOCKFLOOR1';
 const ROOF_LIFT = 50;
+interface ApOffset {
+  readonly x: number;
+  readonly y: number;
+}
+const HAND_CURSOR_AP_OFFSET: ApOffset = { x: 22, y: 15 };
+const WALK_AP_OFFSET: ApOffset = { x: 10, y: 10 };
+const RUN_AP_OFFSET: ApOffset = { x: 21, y: 15 };
+const UPRIGHT_MOVE_CURSOR_AP_OFFSET: ApOffset = { x: 16, y: 14 };
+const FREE_MOVE_CURSOR_AP_OFFSETS: Readonly<Record<string, ApOffset>> = {
+  MOVE_VEHICLE_UICURSOR: UPRIGHT_MOVE_CURSOR_AP_OFFSET,
+  MOVE_WALK_UICURSOR: UPRIGHT_MOVE_CURSOR_AP_OFFSET,
+  MOVE_RUN_UICURSOR: UPRIGHT_MOVE_CURSOR_AP_OFFSET,
+  MOVE_SWAT_UICURSOR: { x: 16, y: 10 },
+  MOVE_PRONE_UICURSOR: { x: 16, y: 9 },
+};
 const MOVE_CURSORS: Readonly<Record<string, string>> = {
   walk: 'MOVE_WALK_UICURSOR',
   run: 'MOVE_RUN_UICURSOR',

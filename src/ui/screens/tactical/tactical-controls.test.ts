@@ -1165,6 +1165,49 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.input.mouseText()?.actionPoints).toMatchObject({ value: apCost, center: true });
   });
 
+  it('puts the AP number over an interactive tile where the walk or the run puts it, as the INTTILES offsets of HandleUIMovementCursor fall through to the move mode', async () => {
+    const f = await inCombat();
+    const tile = merc(f, 0).gridNo + 3;
+    const at = f.world.pickPoint(tile);
+    const crate = { gridNo: tile, index: 0, tile: CRATE_TILE, bottom: at.y + 20, door: false, open: false };
+    f.world.interactiveNodes = () => [crate];
+    f.world.interactiveTiles.set(interactiveNodeKey(crate), { gridNo: tile, door: false, switch: false, open: false, itemOnTop: false });
+    const placed: unknown[] = [];
+    for (const stance of ['stand', 'run', 'crouch'] as const) {
+      tacticalOf(f.session).dispatch({ type: 'stance', soldier: 0, stance });
+      await playOut(f);
+      hover(f, merc(f, 0).gridNo - 2);
+      await f.settle(PAST_THE_PATH_REST_FRAMES);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+      await f.settle(PAST_THE_PATH_REST_FRAMES);
+      const ap = f.screen.controls.input.mouseText()?.actionPoints;
+      placed.push([f.screen.controls.input.uiCursor, ap?.center, ap?.offsetX, ap?.offsetY]);
+    }
+    expect(placed).toEqual([
+      ['NORMALHANDCURSOR_UICURSOR', false, 10, 10],
+      ['NORMALHANDCURSOR_UICURSOR', false, 21, 15],
+      ['NORMALHANDCURSOR_UICURSOR', false, 22, 15],
+    ]);
+  });
+
+  it('puts the AP number of the free-flowing move cursors where DrawUICursor sets it, over the offsets of the move mode', async () => {
+    const f = await inCombat();
+    const placed: unknown[] = [];
+    for (const stance of ['run', 'crouch', 'prone'] as const) {
+      tacticalOf(f.session).dispatch({ type: 'stance', soldier: 0, stance });
+      await playOut(f);
+      hover(f, merc(f, 0).gridNo - 2);
+      await f.settle(PAST_THE_PATH_REST_FRAMES);
+      const ap = f.screen.controls.input.mouseText()?.actionPoints;
+      placed.push([f.screen.controls.input.uiCursor, ap?.center, ap?.offsetX, ap?.offsetY]);
+    }
+    expect(placed).toEqual([
+      ['MOVE_RUN_UICURSOR', false, 16, 14],
+      ['MOVE_SWAT_UICURSOR', false, 16, 10],
+      ['MOVE_PRONE_UICURSOR', false, 16, 9],
+    ]);
+  });
+
   it('draws the walk onto the tile with the bomb cursor, shows the cost of the walk and the plant in combat and orders the plant on the click (HandleBombCursor)', async () => {
     const f = await inCombat();
     const { tile, apCost } = await sapperWithAMine(f);
