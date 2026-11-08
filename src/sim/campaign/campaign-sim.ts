@@ -720,7 +720,17 @@ export class CampaignSim {
   }
 
   #handleTacticalDoHeliRun(): void {
-    if (handleTacticalDoHeliRun(this) && this.tactical) this.#events.push(...this.tactical.drainEvents());
+    if (handleTacticalDoHeliRun(this)) this.#drainTacticalEvents();
+  }
+
+  #skipHelicopterDrop(): CommandResult {
+    if (!skipHelicopterDropOf(this)) return refuse('noHelicopterDrop', NO_HELICOPTER_DROP_TEXT);
+    this.#drainTacticalEvents();
+    return { ok: true };
+  }
+
+  #drainTacticalEvents(): void {
+    if (this.tactical) this.#events.push(...this.tactical.drainEvents());
   }
 
   #handleStrategicTurn(): void {
@@ -938,7 +948,7 @@ export class CampaignSim {
       case 'compressTime':
         return this.#compress(cmd);
       case 'skipHelicopterDrop':
-        return skipHelicopterDropOf(this) ? { ok: true } : refuse('noHelicopterDrop', NO_HELICOPTER_DROP_TEXT);
+        return this.#skipHelicopterDrop();
       case 'stopTime':
         stopTimeCompression(this.#clock, CompressionStop.REQUESTED);
         return { ok: true };

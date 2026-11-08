@@ -127,6 +127,18 @@ describe('the helicopter drop in a campaign', () => {
     ]);
   });
 
+  it('tells the mercs the Esc skip lands and the run’s end with the skip itself, so the map screen opened next does not hold them back', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 62, mercs: 2, garrison: NO_GARRISON });
+    startFirstSquadsDrop(c);
+    c.drainEvents();
+    expect(c.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    const told = c
+      .drainEvents()
+      .flatMap((e) => (e.type === 'mercDropped' ? [`dropped ${e.soldier}`] : e.type === 'helicopterDropEnded' ? [`ended ${e.first}`] : []));
+    expect(told).toEqual(['dropped 0', 'dropped 1', 'ended true']);
+  });
+
   it('keeps the world clock still for the whole drop, so no strategic event, an arrival included, can join a running drop', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 62, mercs: 3, garrison: NO_GARRISON });
     startFirstSquadsDrop(c);

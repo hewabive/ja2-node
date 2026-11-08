@@ -102,8 +102,9 @@ keeps the centre for the screen's entry (`src/app/tactical/tactical-host.ts`). W
 no slide, no locate, as `gfIgnoreScrolling` stops `SetRenderCenter` (`ignoreScrolling`,
 `src/app/tactical/world-presenter.ts`). Esc held during a run sends `skipHelicopterDrop` once, polled every frame as
 `HandleHeliDrop` reads `_KeyDown(SDLK_ESCAPE)` (`input/helicopter-drop-skip.ts`), before the key reaches the tactical
-input, whose Esc then stops the selected merc as in a locked interface (`GameScreen.cc:407`, `:436`). The shadow is `tilecache/heli_sh.sti` on the shadow layer at the
-view's position, looping every 90 ms from frame 0 where the view first shows it (`src/app/world/helicopter-shadows.ts`).
+input, whose Esc then stops the selected merc as in a locked interface (`GameScreen.cc:407`, `:436`). The shadow is
+`tilecache/heli_sh.sti` on the shadow layer at the view's position, looping every 90 ms from frame 0 where the view first
+shows it (`src/app/world/helicopter-shadows.ts`).
 A merc in `HELIDROP` wears `s_`, `m_` or `f_helidrp.sti`; on stubs his own drop pose (`stubs/soldiers.ts`). The "has
 arrived" lines come with the message list (`mercDropped`, `src/server/message-entries.ts`).
 
