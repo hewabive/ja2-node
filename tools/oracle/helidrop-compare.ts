@@ -1,4 +1,4 @@
-import { basename } from 'node:path';
+import { basename, dirname } from 'node:path';
 import { NOTHING } from '../../src/content/items/items.ts';
 import { Direction, WORLD_COLS } from '../../src/content/world/grid.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
@@ -33,11 +33,16 @@ import { STRATEGIC_OVERHEAD_MS } from '../../src/sim/tactical/turns/turns.ts';
 import { type Draw, report } from './actions-compare.ts';
 import { differences, inOrder } from './auto-bandage-compare.ts';
 import { HELI_PASSENGER_PROBES, HeliPassengerComparer } from './heli-passengers-compare.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Row = readonly unknown[];
 
 export const HELI_DROP_OUTPUT = 'helidrop.jsonl';
+const HELI_DROP_LOAD_OUTPUT = 'load.jsonl';
+const HELI_DROP_DIR = 'helidrop';
+const DROP_SAVE = 'OracleHeliDrop';
+const IMPORT_SEED = 1;
 
 const FACE_DRAWS = [30, 2, 2000];
 const ANIMATION_FRAME_DRAW = 10;
@@ -50,8 +55,19 @@ const Z_QUARTERS = 4;
 const FIRST_OTHER_ID = TEAM_FIRST_ID[Team.ENEMY];
 const COMBAT_BY_THE_GARRISON =
   'combat with the A9 garrison is begun by the AI, which the dump cannot replay (no placement outcome, no AI pass state); the soldiers but ours are not compared';
-const SAVES_LATER =
-  'the frames after a save in mid-drop: past the native SaveGame the merc it caught in HELIDROP starts another animation where ours stands, not explained yet';
+const SAVED =
+  'the probe’s own save, which the server refuses in a drop (helicopterDrop) and whose snapshot changes nothing; the native SaveGame’s header draw only moves the generator the frames are fed from';
+const RANDOM_IDLES_TAKEN =
+  'idle checks (code 491) of ours fed the dice of their frame that started their random idle animation natively: the replay’s A9 garrison stands and moves elsewhere (no placement outcome), so its idle checks draw in other frames and ours could take a garrison soldier’s dice';
+const IMPORT_LANDS_THE_SEATS =
+  'deviation "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
+const PHASES_TAKEN =
+  'the animation codes, frame delays and frame timers of the native load and the pause its save holds are taken for the frames: an import restarts no animation (gap "Animations on load") and starts unlocked (deviation "Pause state after an import")';
+const IMPORTED_GLOBALS: readonly string[] = ['seats', 'selected', 'lastUpdate'];
+const NATIVE_ROW_ANIM_STATE = 5;
+const RANDOM_ANIM_CHECK = 491;
+const IDLE_DICE = 100;
+const MAIN_STREAM = 'm';
 const OFF_THE_MAP = 'a soldier with no tile: ja2-node keeps no facing, destination or position for him';
 const INSERTION_DATA_IN_THE_LOADED_SECTOR = 'deviation "Insertion data in the loaded sector"';
 const GLOBAL = {
@@ -92,6 +108,33 @@ const bit = (v: boolean) => (v ? 1 : 0);
 const grid = (g: number) => (g === NOWHERE ? NATIVE_NOWHERE : g);
 const args = (p: Json): Record<string, string> => (p.args ?? {}) as Record<string, string>;
 
+function nativeIdleDice(t: TacticalState, f: Json | undefined): Map<number, number> {
+  const rolls = ((f?.draws as Draw[] | undefined) ?? []).filter((d) => d[0] === MAIN_STREAM && d[1] === IDLE_DICE).map((d) => d[2]);
+  const dice = new Map<number, number>();
+  for (const r of (f?.changed as unknown[][] | undefined) ?? []) {
+    const s = num(r[0]) < FIRST_OTHER_ID ? t.soldiers[num(r[0])] : null;
+    const state = num(r[NATIVE_ROW_ANIM_STATE]);
+    const idle = s && s.state !== state ? t.content.animations.randomAnims[s.bodyType]?.find((x) => x.state === state) : undefined;
+    const roll = idle ? rolls.find((v) => v >= idle.firstRoll && v <= idle.lastRoll) : undefined;
+    if (s && roll !== undefined) dice.set(s.id, roll);
+  }
+  return dice;
+}
+
+function withNextDraw<T>(t: TacticalState, n: number, value: number, act: () => T): T {
+  const rng = t.rng as unknown as Record<string, unknown>;
+  const own = rng.int as (k: number) => number;
+  rng.int = (k: number) => {
+    rng.int = own;
+    return k === n ? value : own(k);
+  };
+  try {
+    return act();
+  } finally {
+    rng.int = own;
+  }
+}
+
 function onTheMap(here: boolean, values: readonly unknown[]): readonly unknown[] {
   return here ? values : values.map(() => OFF_THE_MAP);
 }
@@ -130,7 +173,8 @@ function queuedLines(c: CampaignSim, act: () => void): number[][] {
 }
 
 export function isHeliDropOutput(path: string): boolean {
-  return basename(path) === HELI_DROP_OUTPUT;
+  const name = basename(path);
+  return name === HELI_DROP_OUTPUT || (name === HELI_DROP_LOAD_OUTPUT && basename(dirname(path)) === HELI_DROP_DIR);
 }
 
 function isFaceAt(draws: readonly Draw[], i: number): boolean {
@@ -198,8 +242,12 @@ function leftOver(rng: { readonly main: ReplayStream; readonly pre: ReplayStream
 export class HeliDropComparer {
   readonly #read: ReadFile;
   readonly #exists: FileExists;
+  readonly #save: (name: string) => Uint8Array;
   readonly #passengers: HeliPassengerComparer;
   #passengerBlock = false;
+  #imported = false;
+  #landedByImport: ReadonlySet<number> = new Set();
+  #phasesToTake = false;
   #session: CampaignSession | null = null;
   #frames: Json[] = [];
   #clockOffset: number | null = null;
@@ -209,12 +257,14 @@ export class HeliDropComparer {
   constructor(read: ReadFile, exists: FileExists, save: (name: string) => Uint8Array) {
     this.#read = read;
     this.#exists = exists;
+    this.#save = save;
     this.#passengers = new HeliPassengerComparer(read, exists, save);
   }
 
   async compare(p: Json): Promise<number> {
     const probe = String(p.probe);
     const label = `${probe} line ${String(p.line ?? '')}`;
+    if (probe === 'save' && p.name === DROP_SAVE) return this.#importDropSave(p);
     if (probe === 'save') {
       this.#passengerBlock = true;
       this.#frames = [];
@@ -234,6 +284,8 @@ export class HeliDropComparer {
     if (probe === 'end' || probe === 'seed' || probe === 'hdtimer') return 0;
     if (probe === 'hdrestart') {
       this.#session = null;
+      this.#imported = false;
+      this.#landedByImport = new Set();
       this.#skipping = null;
       this.#clockOffset = null;
       this.#passengerBlock = false;
@@ -280,8 +332,9 @@ export class HeliDropComparer {
       case 'hdhit':
         return this.#hit(label, p);
       case 'hdsave':
-        this.#skipping = SAVES_LATER;
-        return this.#skip(label, SAVES_LATER);
+        return this.#saved(label, p);
+      case 'hdstate':
+        return this.#importedState(label, p);
       default:
         return report(label, false, `no comparer for ${probe}`);
     }
@@ -447,6 +500,116 @@ export class HeliDropComparer {
     return report(label, true, `soldier ${s.id} ${String(a.mode ?? 'collapse')}`);
   }
 
+  async #importDropSave(p: Json): Promise<number> {
+    const label = `save ${String(p.name)}`;
+    this.#frames = [];
+    this.#clockOffset = null;
+    this.#skipping = null;
+    this.#passengerBlock = false;
+    this.#imported = true;
+    this.#phasesToTake = true;
+    try {
+      this.#session = (await createTacticalSaveSession(this.#read, this.#save(String(p.name)), IMPORT_SEED, this.#exists)).session;
+    } catch (e) {
+      this.#session = null;
+      this.#skipping = 'the drop save did not import';
+      return report(label, false, `threw: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+    }
+    const t = this.#tactical();
+    const native = ((p.soldiers as Json[] | undefined) ?? []).filter((s) => num(s.id) < FIRST_OTHER_ID);
+    const nativeIds = new Set(native.map((s) => num(s.id)));
+    const ours = t.soldiers.filter((s): s is Soldier => !!s && s.team === Team.OUR && inSector(s));
+    this.#landedByImport = new Set(ours.filter((s) => !nativeIds.has(s.id)).map((s) => s.id));
+    const problems: string[] = [];
+    differences(
+      ours.filter((s) => nativeIds.has(s.id)).map((s) => [s.id, grid(s.gridNo), s.state]),
+      native.map((s) => [s.id, s.gridNo, s.animState]),
+      'soldiers',
+      problems,
+    );
+    return report(
+      label,
+      problems.length === 0,
+      problems.join('; ') || `imported, ${[...this.#landedByImport].join(', ')} landed; ${IMPORT_LANDS_THE_SEATS}`,
+    );
+  }
+
+  #importedState(label: string, p: Json): number {
+    if (!this.#imported) return report(label, false, 'hdstate is compared after the import of the drop save only');
+    this.#lastTacticalRealTime = this.#nativeLastTacticalRealTime(p);
+    const problems: string[] = [];
+    differences(this.#asImported(this.#teamState()), this.#asImported(this.#nativeTeamState(p)), 'state', problems);
+    const taken = this.#phasesToTake ? `; ${PHASES_TAKEN}` : '';
+    if (this.#phasesToTake) this.#takeNativePhases(p.state as Json);
+    this.#phasesToTake = false;
+    return report(label, problems.length === 0, problems.join('; ') || `${IMPORT_LANDS_THE_SEATS}${taken}`);
+  }
+
+  #takeNativePhases(native: Json): void {
+    const t = this.#tactical();
+    const clock = this.#campaign().state.clock;
+    const [paused = 0, locked = 0, reason = 0] = ((native.tactical as Json).pause as number[] | undefined) ?? [];
+    clock.paused = paused !== 0;
+    clock.pauseLocked = locked !== 0;
+    clock.pauseLockReason = reason;
+    for (const row of [...((native.team as Json[] | undefined) ?? []), ...((native.others as Json[] | undefined) ?? [])]) {
+      const s = t.soldiers[num(row.id)];
+      if (!s || this.#landedByImport.has(s.id) || !inSector(s)) continue;
+      const [, code, , , , delay] = (row.anim as number[] | undefined) ?? [];
+      const [, update] = (row.counters as number[] | undefined) ?? [];
+      if (code !== undefined) s.pc = code;
+      if (delay !== undefined) s.aniDelay = delay;
+      if (update !== undefined) s.nextFrameAt = t.clockMs - FRAME_MS + update;
+    }
+  }
+
+  #asImported(state: Json): Json {
+    if (!this.#imported) return state;
+    const landed = (row: unknown[]) => (this.#landedByImport.has(num(row[0])) ? IMPORT_LANDS_THE_SEATS : row);
+    return {
+      ...state,
+      seats: IMPORT_LANDS_THE_SEATS,
+      runComing: IMPORT_LANDS_THE_SEATS,
+      firstHeliRun: IMPORT_LANDS_THE_SEATS,
+      selected: IMPORT_LANDS_THE_SEATS,
+      team: (state.team as unknown[][]).map(landed),
+    };
+  }
+
+  #asImportedGlobals(globals: Record<string, number>): Record<string, number | string> {
+    if (!this.#imported) return globals;
+    const out: Record<string, number | string> = { ...globals };
+    for (const key of IMPORTED_GLOBALS) out[key] = IMPORT_LANDS_THE_SEATS;
+    return out;
+  }
+
+  #saved(label: string, p: Json): number {
+    const problems: string[] = [];
+    differences(this.#teamState(), this.#nativeTeamState(p), 'state', problems);
+    return report(label, problems.length === 0, problems.join('; ') || SAVED);
+  }
+
+  #withNativeIdleDice(t: TacticalState, dice: Map<number, number>, act: () => void): number {
+    const hooks = t.hooks;
+    let taken = 0;
+    t.hooks = {
+      ...hooks,
+      opcode: (state, s, code) => {
+        const roll = code === RANDOM_ANIM_CHECK ? dice.get(s.id) : undefined;
+        if (roll === undefined) return hooks.opcode(state, s, code);
+        dice.delete(s.id);
+        taken++;
+        return withNextDraw(state, IDLE_DICE, roll, () => hooks.opcode(state, s, code));
+      },
+    };
+    try {
+      act();
+    } finally {
+      t.hooks = hooks;
+    }
+    return taken;
+  }
+
   #nativeLastTacticalRealTime(p: Json): number | null {
     const clock = ((p.state as Json | undefined)?.tactical as Json | undefined)?.clock as number[] | undefined;
     return clock?.[2] ?? null;
@@ -481,13 +644,15 @@ export class HeliDropComparer {
     this.#alignStrategicPoll(t, native, p);
     let last = this.#rows(t);
     let nativeCombat = t.inCombat;
+    let idlesTaken = 0;
     for (let frame = 1; frame <= count && problems.length === 0; frame++) {
       const f = byFrame.get(frame);
       if (f) nativeCombat = num((f.globals as number[])[GLOBAL.inCombat]) !== 0;
+      const before = this.#tactical();
       const lines = queuedLines(c, () =>
         inOrder(c.state, (f?.draws as Draw[] | undefined) ?? [], () => {
           if (frame === 1 && a.esc === '1') skipHelicopterDropOf(c);
-          c.step();
+          idlesTaken += this.#withNativeIdleDice(before, nativeIdleDice(before, f), () => c.step());
         }),
       );
       const rows = this.#rows(this.#tactical());
@@ -498,22 +663,30 @@ export class HeliDropComparer {
       problems.push(...this.#frameDifferences(frame, f, last, rows, lines));
       last = rows;
     }
-    if (problems.length === 0) differences(this.#teamState(), this.#nativeTeamState(p), 'state', problems);
-    return report(label, problems.length === 0, problems.join('; ') || `${count} frames`);
+    if (problems.length === 0)
+      differences(this.#asImported(this.#teamState()), this.#asImported(this.#nativeTeamState(p)), 'state', problems);
+    const idles = idlesTaken > 0 ? `; ${idlesTaken} ${RANDOM_IDLES_TAKEN}` : '';
+    return report(label, problems.length === 0, problems.join('; ') || `${count} frames${idles}`);
   }
 
   #frameDifferences(frame: number, f: Json | undefined, last: Map<number, Row>, rows: Map<number, Row>, lines: number[][]): string[] {
     const out: string[] = [];
-    if (f) differences(this.#globals(), this.#nativeGlobals(f.globals as number[]), `frame ${frame} globals`, out);
+    if (f)
+      differences(
+        this.#asImportedGlobals(this.#globals()),
+        this.#asImportedGlobals(this.#nativeGlobals(f.globals as number[])),
+        `frame ${frame} globals`,
+        out,
+      );
     differences(lines, f?.lines ?? [], `frame ${frame} lines`, out);
     const nativeChanged = new Map<number, Row | null>();
     for (const r of (f?.changed as unknown[][] | undefined) ?? []) nativeChanged.set(num(r[0]), this.#nativeRow(r));
     for (const [who, row] of nativeChanged) {
-      if (who >= FIRST_OTHER_ID) continue;
+      if (who >= FIRST_OTHER_ID || this.#landedByImport.has(who)) continue;
       differences(rows.get(who) ?? null, row, `frame ${frame} soldier ${who}`, out);
     }
     for (const [who, row] of rows) {
-      if (nativeChanged.has(who) || JSON.stringify(row) === JSON.stringify(last.get(who))) continue;
+      if (nativeChanged.has(who) || this.#landedByImport.has(who) || JSON.stringify(row) === JSON.stringify(last.get(who))) continue;
       differences(row, last.get(who) ?? null, `frame ${frame} soldier ${who} (unchanged natively)`, out);
     }
     return out.slice(0, REPORTED_DIFFERENCES);

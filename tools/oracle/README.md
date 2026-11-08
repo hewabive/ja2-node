@@ -39,7 +39,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
-| Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop), `heli-passengers-compare.ts` (the passengers; the loads not yet) | 0031 | `25` |
+| Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop and the loads of its save), `heli-passengers-compare.ts` (the passengers) | 0031 | `25` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -792,28 +792,41 @@ the next block shows their effect or nothing follows. A load over a running drop
 going with `gpHeli` pointing at a tile the load freed, and the script's next Z step writes through it
 (`Tactical/Merc_Entering.cc:650`): it crashes the process, so `helidrop-load.txt` runs no frame after that load.
 
-`helidrop-compare.ts` reads `helidrop/helidrop.jsonl`, which `compare.ts` hands to it whole (by its file name): the
-laptop comparer would miss the A.I.M. bookmark the native headless hire never sets and knows nothing of the drop. Each
-block replays the native new game and hires (`buildNewCampaign`, `aimHire`, the face and frame draws dropped), runs
-`hdjackedin` as the first `compressTime` and every frame as a campaign step, its draws fed in order (`inOrder`). It
-repeats the probe's own manipulations: `hdarrive` moves the arrival event and warps the clock (the run then starts as it
-does at the end of a step), `hdremove` takes the team off the map and clears the enemy presence, `hdenemy` and `hdhit`
-run at the JA2 clock of the last frame, as the native commands run between frames. The clock offset of a block comes
-from its first frame, and the real-time turn check's 20 ms phase, an unsaved timer, from the closing
-`lastTacticalRealTime`. Every frame it compares the drop's globals (`globalFields` but the sample, the scrolling, the
-UI's event and mode and the end-turn count; the shadow only while the run is handled, as the dump shows it), the lines
-queued and our team's rows (`rowFields` but the frame, the delay, the alert and the breath); the closing line compares
-the seats, the run flags, the selection, the current squad and the team. Labelled, not compared: the insertion code of a
-merc in the loaded sector (deviation "Insertion data in the loaded sector"), the facing, destination and position of a
-merc with no tile, the other soldiers, the "has arrived" messages (the event `mercDropped`), a block's rest once the A9
-garrison's AI begins combat (the dump carries no placement outcome and no AI pass state to replay it), the block with
-`live=0` (the fades ramp as with a sample playing, `25`), the frames after `hdsave` (past the native `SaveGame` the
-merc it caught in `HELIDROP` starts animation 134 on his step-away tile at frame 2868 where ours stands, not explained
-yet). `helidrop/load.jsonl` has no
-comparer: its first block loads the mid-drop save into a fresh process, which keeps the merc still in the helicopter in
-the seats, where ja2-node's import lands him as the Esc skip does (deviation "Helicopter drop in a native save"); an
-import of `OracleHeliDrop.sav` by hand lands him beside the north entry, and the merc saved in `HELIDROP` walks to
-4711 at code 467 as in the native load.
+`helidrop-compare.ts` reads `helidrop/helidrop.jsonl` and `helidrop/load.jsonl`, which `compare.ts` hands to it whole
+(by their file names): the laptop comparer would miss the A.I.M. bookmark the native headless hire never sets and knows
+nothing of the drop. Each block replays the native new game and hires (`buildNewCampaign`, `aimHire`, the face and frame
+draws dropped), runs `hdjackedin` as the first `compressTime` and every frame as a campaign step, its draws fed in order
+(`inOrder`). It repeats the probe's own manipulations: `hdarrive` moves the arrival event and warps the clock (the run
+then starts as it does at the end of a step), `hdremove` takes the team off the map and clears the enemy presence,
+`hdenemy` and `hdhit` run at the JA2 clock of the last frame, as the native commands run between frames, and `hdsave`
+compares the state only: the server refuses saves in a drop and a snapshot changes nothing, while the native
+`SaveGame`'s header draw (`SaveLoadGame.cc:380`) moves the generator, so the frames after it draw other values than the
+same drop without it. The clock offset of a block comes from its first frame, and the real-time turn check's 20 ms
+phase, an unsaved timer, from the closing `lastTacticalRealTime`. Every frame it compares the drop's globals
+(`globalFields` but the sample, the scrolling, the UI's event and mode and the end-turn count; the shadow only while the
+run is handled, as the dump shows it), the lines queued and our team's rows (`rowFields` but the frame, the delay, the
+alert and the breath); the closing line compares the seats, the run flags, the selection, the current squad and the
+team. The A9 garrison is placed and moves otherwise in the replay, so its idle checks (code 491,
+`Tactical/Soldier_Ani.cc:1384`) draw in other frames than natively and a merc of ours can take a garrison soldier's
+dice: after `hdsave` a native frame draws the dice 74, for the garrison soldier whose animation moves on in it, and 33,
+the range of `FEM_WIPE` (`Tactical/Animation_Control.cc:1881`) that merc 1 starts, while in the replay merc 1 takes the
+74 and stands. Where a merc of ours starts a random idle animation natively, the comparer feeds his idle check of that
+frame the frame's dice in the animation's range, and ja2-node's own check picks the animation (labelled with their
+count). Labelled, not compared: the insertion code of a merc in the loaded sector (deviation "Insertion data in the
+loaded sector"), the facing, destination and position of a merc with no tile, the other soldiers, the "has arrived"
+messages (the event `mercDropped`), a block's rest once the A9 garrison's AI begins combat (the dump carries no
+placement outcome and no AI pass state to replay it), the block with `live=0` (the fades ramp as with a sample playing,
+`25`).
+
+A `save` of `OracleHeliDrop` (`helidrop/load.jsonl`) imports the save from the output's folder and compares our mercs'
+tiles and animations with the native load's. The native load keeps the merc still in the helicopter in the seats, with
+no run, and the pause locked; the import lands him as the Esc skip does and selects him (deviation "Helicopter drop in a
+native save") and starts the drop's statics fresh (deviation "Helicopter drop statics"), so the seats, the run, the
+selection, the last step's time and the mercs it lands are labelled. The first `hdstate` after the import hands ja2-node
+the native animation codes, frame delays and frame timers (gap "Animations on load") and the saved pause, which the
+import lifts (deviation "Pause state after an import"), and the frames are compared as in the drop blocks: the merc
+saved in `HELIDROP` steps away at code 467 to 4711 as natively. The second block's load over a running drop is compared
+by its state only, the native drop's statics outliving the load (`Tactical/Merc_Entering.cc:650`).
 
 The passenger blocks, from the first `save` on, go to `heli-passengers-compare.ts`. Each `save` imports the save
 (`OracleHeliPassenger.sav` from the output's folder, where `hpsave` wrote it, the others from `SavedGames`) and every
@@ -853,7 +866,7 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   into the oracle's home (`$JA2_ORACLE_DIR/home/.ja2/SavedGames`); `helidrop-load.txt` reads `OracleHeliDrop` from there,
   so it runs after `helidrop.txt`, and writes `helidrop/load.jsonl`. The work dir keeps copies of both saves in
   `helidrop/`; a few bytes of `OracleHeliDrop` differ from run to run without changing `load.jsonl`. `compare-all.sh`
-  compares `helidrop.jsonl`, not `load.jsonl` yet ("Helicopter drop").
+  compares both ("Helicopter drop").
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;

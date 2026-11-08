@@ -356,8 +356,10 @@ Inferred from reading the source:
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
 - The drop: `tools/oracle/helidrop-compare.ts` replays the oracle's new games and compares our mercs and the drop frame
   by frame (`tools/oracle/README.md`, "Helicopter drop"), up to the frame where the A9 garrison's AI begins combat,
-  which the dump cannot replay. A native save in mid-drop was imported by hand only, as its import lands the seats
-  (deviation "Helicopter drop in a native save"), and the frames after the native `SaveGame` are not compared.
+  which the dump cannot replay, so nothing compares a drop in combat: the lock it keeps there is a deviation ("Helicopter
+  drop lock in combat"), and the step away at code 467 in turn-based, which the combat block records, is not compared.
+  The import of a native save in mid-drop and the frames after it are compared but for the seats it lands (deviation
+  "Helicopter drop in a native save").
 - The helicopter's passengers over the loaded sector: `tools/oracle/heli-passengers-compare.ts` imports `SaveGame01`
   and compares boarding in tactical, the turn starts in and out of combat, the nervous ones, quotes from anybody, damage
   and a death, the losing check with its capture and its kill, the frames after them and a native save with a passenger
