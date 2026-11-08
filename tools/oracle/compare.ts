@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../src/content/vfs/vfs.ts';
@@ -492,6 +492,11 @@ function spriteList(
     .join(' ');
 }
 
+function heliDropSave(dataDir: string, output: string, name: string): Uint8Array {
+  const written = join(dirname(output), `${name}.sav`);
+  return new Uint8Array(readFileSync(existsSync(written) ? written : join(savesDir(dataDir), `${name}.sav`)));
+}
+
 function savesDir(dataDir: string): string {
   if (process.env.JA2_SAVES_DIR) return process.env.JA2_SAVES_DIR;
   const root = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
@@ -591,7 +596,7 @@ const worlds = new Map<string, TacticalWorld>();
 let failures = 0;
 for (const file of files) {
   if (isHeliDropOutput(file)) {
-    const heliDrop = new HeliDropComparer(read, exists);
+    const heliDrop = new HeliDropComparer(read, exists, (name) => heliDropSave(dataDir, file, name));
     for (const p of readLines(file)) failures += await heliDrop.compare(p);
     continue;
   }

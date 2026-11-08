@@ -76,7 +76,7 @@ const has = (a: Json, key: string) => a[key] !== undefined;
 const grid = (g: number) => (g === NOWHERE ? NATIVE_NOWHERE : g);
 const bit = (b: boolean) => (b ? 1 : 0);
 
-function withoutDroppedDraws(trace: readonly Draw[]): Draw[] {
+export function withoutDroppedDraws(trace: readonly Draw[]): Draw[] {
   const kept: Draw[] = [];
   const open: number[] = [];
   for (const d of trace) {

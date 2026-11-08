@@ -174,7 +174,7 @@ function groupFacts(g: Group): Json {
   };
 }
 
-function heliFacts(ctx: EconomyContext): Json {
+export function heliFacts(ctx: EconomyContext): Json {
   const h = heliState(ctx);
   const facts: Json = {
     vehicleId: ctx.state.forces.helicopterVehicleId,

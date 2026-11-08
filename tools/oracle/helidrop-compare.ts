@@ -32,6 +32,7 @@ import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import { STRATEGIC_OVERHEAD_MS } from '../../src/sim/tactical/turns/turns.ts';
 import { type Draw, report } from './actions-compare.ts';
 import { differences, inOrder } from './auto-bandage-compare.ts';
+import { HELI_PASSENGER_PROBES, HeliPassengerComparer } from './heli-passengers-compare.ts';
 
 type Json = Record<string, unknown>;
 type Row = readonly unknown[];
@@ -49,23 +50,10 @@ const Z_QUARTERS = 4;
 const FIRST_OTHER_ID = TEAM_FIRST_ID[Team.ENEMY];
 const COMBAT_BY_THE_GARRISON =
   'combat with the A9 garrison is begun by the AI, which the dump cannot replay (no placement outcome, no AI pass state); the soldiers but ours are not compared';
-const PASSENGERS_LATER = 'the helicopter passengers over the loaded sector (their own comparer, gaps "Turn-based hooks")';
 const SAVES_LATER =
   'the frames after a save in mid-drop: past the native SaveGame the merc it caught in HELIDROP starts another animation where ours stands, not explained yet';
 const OFF_THE_MAP = 'a soldier with no tile: ja2-node keeps no facing, destination or position for him';
 const INSERTION_DATA_IN_THE_LOADED_SECTOR = 'deviation "Insertion data in the loaded sector"';
-const PASSENGER_PROBES: ReadonlySet<string> = new Set([
-  'hpset',
-  'hpsetup',
-  'hpboard',
-  'hpturn',
-  'hpenemy',
-  'hpdamage',
-  'hpend',
-  'hpquote',
-  'hpsave',
-  'hpstate',
-]);
 const GLOBAL = {
   handle: 0,
   state: 1,
@@ -210,30 +198,45 @@ function leftOver(rng: { readonly main: ReplayStream; readonly pre: ReplayStream
 export class HeliDropComparer {
   readonly #read: ReadFile;
   readonly #exists: FileExists;
+  readonly #passengers: HeliPassengerComparer;
+  #passengerBlock = false;
   #session: CampaignSession | null = null;
   #frames: Json[] = [];
   #clockOffset: number | null = null;
   #skipping: string | null = null;
   #lastTacticalRealTime: number | null = null;
 
-  constructor(read: ReadFile, exists: FileExists) {
+  constructor(read: ReadFile, exists: FileExists, save: (name: string) => Uint8Array) {
     this.#read = read;
     this.#exists = exists;
+    this.#passengers = new HeliPassengerComparer(read, exists, save);
   }
 
   async compare(p: Json): Promise<number> {
     const probe = String(p.probe);
     const label = `${probe} line ${String(p.line ?? '')}`;
+    if (probe === 'save') {
+      this.#passengerBlock = true;
+      this.#frames = [];
+      return this.#passengers.loadSave(p);
+    }
+    if (this.#passengerBlock && (HELI_PASSENGER_PROBES.has(probe) || probe === 'hdframes')) {
+      if (probe === 'hdframes' && p.frame !== undefined) {
+        this.#passengers.frame(p);
+        return 0;
+      }
+      return this.#passengers.compare(p);
+    }
     if (probe === 'hdframes' && p.frame !== undefined) {
       this.#frames.push(p);
       return 0;
     }
-    if (probe === 'save' || PASSENGER_PROBES.has(probe)) this.#skipping = PASSENGERS_LATER;
     if (probe === 'end' || probe === 'seed' || probe === 'hdtimer') return 0;
     if (probe === 'hdrestart') {
       this.#session = null;
       this.#skipping = null;
       this.#clockOffset = null;
+      this.#passengerBlock = false;
       return 0;
     }
     if (this.#skipping) return this.#skip(label, this.#skipping);

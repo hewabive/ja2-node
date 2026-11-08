@@ -39,7 +39,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
-| Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop; the passengers and the loads not yet) | 0031 | `25` |
+| Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop), `heli-passengers-compare.ts` (the passengers; the loads not yet) | 0031 | `25` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -809,11 +809,31 @@ merc with no tile, the other soldiers, the "has arrived" messages (the event `me
 garrison's AI begins combat (the dump carries no placement outcome and no AI pass state to replay it), the block with
 `live=0` (the fades ramp as with a sample playing, `25`), the frames after `hdsave` (past the native `SaveGame` the
 merc it caught in `HELIDROP` starts animation 134 on his step-away tile at frame 2868 where ours stands, not explained
-yet), and the passenger blocks from the first `save` on (gaps "Turn-based hooks"). `helidrop/load.jsonl` has no
+yet). `helidrop/load.jsonl` has no
 comparer: its first block loads the mid-drop save into a fresh process, which keeps the merc still in the helicopter in
 the seats, where ja2-node's import lands him as the Esc skip does (deviation "Helicopter drop in a native save"); an
 import of `OracleHeliDrop.sav` by hand lands him beside the north entry, and the merc saved in `HELIDROP` walks to
 4711 at code 467 as in the native load.
+
+The passenger blocks, from the first `save` on, go to `heli-passengers-compare.ts`. Each `save` imports the save
+(`OracleHeliPassenger.sav` from the output's folder, where `hpsave` wrote it, the others from `SavedGames`) and every
+command runs with its draws replayed strictly, the marked ones dropped as the absent comparer drops them (the
+pathfinder, the music pick, the cosmetic draws), then compares its result, the lines queued and the state: the screen,
+combat, the current team, the enemy presence, every team's `IsTeamActive`, the last battle won, the deaths, the
+helicopter (as the helicopter comparer reads it), the merc slots and away slots, the selection, the squads, our team's
+turn fields (slots, tile, sector, assignment, vehicle, group, the vehicle, seat, dead, off-map and gassed flags, life,
+breath, APs, shock, collapse, animation state and heights, morale, under fire, tiles moved, the weight at turn start,
+noise, quote flags, opponents, personality, sleep, insertion code) and the other soldiers in the sector. It repeats the
+probe's manipulations: `hpenemy` makes the soldier as the drop comparer does, with the standing frame draw of
+`CreateSoldierCommon`, and puts him on the probe's tile 12000, off the visible map, where ja2-node's sector entry places
+nobody, with the enemy presence his placement sets (`AddSoldierToSectorGridNo`, `Tactical/Soldier_Add.cc:926`);
+`hpturn` runs the real-time turn of a combat exit inside `ExitCombatMode`, where the original runs it, before the lull
+quote (deviation "Real-time turn after combat" puts it a tick later); `hpsave` writes nothing, and its `Random(RAND_MAX)`
+for the header is not drawn (deviation "Save side effects"). `hdframes` steps the campaign one tick a frame with the
+frame's draws in order and compares the lines queued and, at its end, our team's slot, tile, assignment, life and flags
+and the deaths. Labelled, not compared: `bMenInSector` (ja2-node keeps no counter; `IsTeamActive` is compared), the
+music mode, the position of a soldier with no tile, and the other soldiers once frames ran (their AI and animations
+take the drawn values in order, as in the drop blocks).
 
 ## Shipped probes
 
