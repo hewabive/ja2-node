@@ -148,7 +148,9 @@ export function isBattleOver(env: AutoresolveEnv, ar: AutoresolveState): boolean
 }
 
 function hasBulletInFlight(c: ArCell): boolean {
-  return !hasFlag(c, CellFlag.RETREATED) && c.nextHit.some((ms) => ms !== 0);
+  if (hasFlag(c, CellFlag.RETREATED)) return false;
+  for (const ms of c.nextHit) if (ms !== 0) return true;
+  return false;
 }
 
 function isGroundedRobot(ar: AutoresolveState, c: ArCell): boolean {
@@ -161,8 +163,13 @@ function canStillAct(ar: AutoresolveState, c: ArCell): boolean {
   return !isGroundedRobot(ar, c);
 }
 
+function anyCanChangeTheBattle(ar: AutoresolveState, cells: readonly ArCell[]): boolean {
+  for (const c of cells) if (canStillAct(ar, c) || hasBulletInFlight(c)) return true;
+  return false;
+}
+
 function anyFighterCanChangeTheBattle(ar: AutoresolveState): boolean {
-  return [...ar.mercs, ...ar.militia, ...ar.enemies].some((c) => canStillAct(ar, c) || hasBulletInFlight(c));
+  return anyCanChangeTheBattle(ar, ar.mercs) || anyCanChangeTheBattle(ar, ar.militia) || anyCanChangeTheBattle(ar, ar.enemies);
 }
 
 function captureConditions(env: AutoresolveEnv, ar: AutoresolveState): boolean {
