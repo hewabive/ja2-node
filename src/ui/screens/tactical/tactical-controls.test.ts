@@ -1247,6 +1247,47 @@ describe('the tactical input on the tactical screen', () => {
     expect(walk()).toEqual([true, second.tile]);
   });
 
+  it("plots the bomb cursor's walk to the tile of the soldier under the pointer, not to the tile his picture covers (GetProperItemCursor's tgt_grid_no)", async () => {
+    const f = await inCombat();
+    await sapperWithAMine(f);
+    const mate = merc(f, 1);
+    centreOn(f, mate.gridNo);
+    await f.settle();
+    const at = aboveTheFeetOf(f, mate.id);
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(f.screen.controls.input.uiCursor).toMatch(/^PLACE_BOMB_/);
+    expect(f.screen.controls.input.hover.target?.id).toBe(mate.id);
+    expect(f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'))?.gridNo).toBe(mate.gridNo);
+  });
+
+  it("plots the bomb cursor's walk to the tile under the pointer over an interactive tile's picture, while the click plants at the interactive tile (HandleBombCursor, UIHandleMercAttack)", async () => {
+    const f = await inCombat();
+    const { tile } = await sapperWithAMine(f);
+    const crateTile = tile + 1;
+    centreOn(f, tile);
+    await f.settle();
+    const at = f.world.pickPoint(tile);
+    const crate = { gridNo: crateTile, index: 0, tile: CRATE_TILE, bottom: at.y + 20, door: false, open: false };
+    f.world.interactiveNodes = () => [crate];
+    f.world.interactiveTiles.set(interactiveNodeKey(crate), {
+      gridNo: crateTile,
+      door: false,
+      switch: false,
+      open: false,
+      itemOnTop: false,
+    });
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(f.screen.controls.input.uiCursor).toMatch(/^PLACE_BOMB_/);
+    expect(f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'))?.gridNo).toBe(tile);
+    await f.clickAt(at.x, at.y);
+    await f.settle();
+    expect(commandsOf(f, 'plantBomb').at(-1)).toEqual({ type: 'plantBomb', soldier: 0, gridNo: crateTile });
+  });
+
   it('names the items under every hand cursor, by CTRL, by the hand button or after the pointer rests (gfUIOverItemPoolGridNo)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tile = merc(f, 0).gridNo + 3;

@@ -41,7 +41,8 @@
 // @src HandleModNone 'n' (the soldier stack under the pointer, else the interactive tile stack, 2026-11-04);
 // @src Soldier_Find.cc CycleSoldierFindStack (gUIActionModeChangeDueToMouseOver cleared on the ground, gUITargetSoldier);
 // @src UI_Cursors.cc HandleBombCursor (the walk onto the tile and its move grid, MOVEUI_TARGET_BOMB of Handle_UI.cc
-// @src DrawUIMovementPath, plotted by HandleUIMovementCursor after its rest, 2026-11-07), Handle_UI.cc
+// @src DrawUIMovementPath, plotted by HandleUIMovementCursor after its rest, 2026-11-07; at the tile of the soldier under
+// @src the pointer, GetProperItemCursor's tgt_grid_no, 2026-11-07), Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (BOMBCURS: his own tile or one he could stand on) and Handle_Items.cc HandleItem's
 // @src bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04); UI_Cursors.cc
 // @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the walk, the move grid and the AP in combat of
@@ -2580,7 +2581,7 @@ export class TacticalInput {
       onSelected: this.#hover.target?.id === sel.id,
     });
     this.#newCursor = result.cursor;
-    if (estimate.cursor === 'bomb') this.#bombCursor(sel, mapPos);
+    if (estimate.cursor === 'bomb') this.#bombCursor(sel, this.#hover.target?.gridNo ?? mapPos);
     if (result.apCost !== null) {
       this.#currentAp = result.apCost;
       this.#displayAp = this.#pathfindDone() || activated;
