@@ -201,6 +201,21 @@ describe('someone else in the sector after a won battle (Overhead.cc HandleThePl
     expect(promptKind(c)).toBe(PromptKind.SOMEONE_ELSE_IN_SECTOR);
   });
 
+  it('keeps advance idle running until the box opens', async () => {
+    const c = await vantInTheWilderness(67);
+    const { wonAt } = winTheBattle(c, false);
+    expect(c.live.advance({ idle: true }).reason).toBe('decision');
+    expect(promptKind(c)).toBe(PromptKind.SOMEONE_ELSE_IN_SECTOR);
+    expect(tactical(c).clockMs).toBe(wonAt + FIRST_LOOK_MS + TICK_MS);
+  });
+
+  it('lets advance idle stop before a look that will tell nothing', async () => {
+    const c = await vantInTheWilderness(69, SPOKEN_TO);
+    const { wonAt } = winTheBattle(c, false);
+    expect(c.live.advance({ idle: true }).reason).toBe('idle');
+    expect(battle(c).someoneElseLookAtMs).toBe(wonAt + FIRST_LOOK_MS);
+  });
+
   it('tells nothing once someone has spoken with the NPC', async () => {
     const c = await vantInTheWilderness(65, SPOKEN_TO);
     winTheBattle(c, false);

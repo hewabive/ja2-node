@@ -88,7 +88,8 @@ A decision is a choice the game waits for (`hasPendingDecision`): an interrupt i
 acting; an open prompt (`observe.prompt`, which in the sandbox too holds the loaded sector's prompts of §8.1,
 `observe.contractPrompt`, `observe.npcRequest`); a conversation waiting for a
 choice, also one an NPC opened (`initiatedBy: npc`, deviation "Conversation prompt"); an open shop; the question a won
-battle asks about auto-bandage once its lines are over (`beginAutoBandage`, §8.3). A running `advance`
+battle asks about auto-bandage once its lines are over (`beginAutoBandage`, §8.3) and its look for someone else in the
+sector (`someoneElseInSector`, §8.10); `advance {idle}` runs on until they open. A running `advance`
 stops with `decision` when one arises, and the real-time driver holds without running ticks; a new `advance` answers
 `decision` at once while a prompt is open and is refused while a conversation waits or a shop is open. Prompts are
 answered with `answer {prompt?, choice}` (a wrong id or choice is refused); while one is open the clock and the ticks
@@ -788,7 +789,8 @@ battle sector while the locator is on, a compression attempt during a tactical b
 whose profiled NPCs nobody has spoken with, the `someoneElseInSector` prompt (`ok`, the original's OK box) opens; while
 auto-bandage runs or its question waits, a line plays, another prompt is up or a conversation is open it looks again
 2 s later, and the map screen, a shop or a meanwhile drop it (`src/sim/campaign/someone-else-in-sector.ts`, deviation
-"Someone else in sector timer").
+"Someone else in sector timer"). While a look that will open the box waits, the session is not idle, so `advance
+{idle}` runs on to the box and stops with `decision`; a look in a sector with nobody to tell of does not hold it.
 
 **Autoresolve is a flow** (deviation "Autoresolve session"): world time is frozen and `advance` runs slices of 1000
 battle ms, one per 200 ticks (`TICKS_PER_AUTORESOLVE_SLICE`): `{idle}` to the end or a prompt, `{ticks: n}` ⌊n / 200⌋

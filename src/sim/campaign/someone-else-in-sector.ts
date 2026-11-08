@@ -28,6 +28,10 @@ function someoneImportantInSector(campaign: CampaignSim): boolean {
   return world !== null && campaign.strategic?.world.npcOfNoteInSector(world) === true;
 }
 
+export function someoneElseInSectorToTell(campaign: CampaignSim): boolean {
+  return campaign.state.battle.someoneElseLookAtMs !== null && someoneImportantInSector(campaign);
+}
+
 function messageBoxUp(campaign: CampaignSim, t: TacticalState): boolean {
   return campaign.state.battle.prompt !== null || t.prompt !== null;
 }
