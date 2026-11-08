@@ -714,9 +714,13 @@ export class CampaignSim {
     this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
     this.#reEvaluateNothingToDo();
-    handleTacticalDoHeliRun(this);
+    this.#handleTacticalDoHeliRun();
     this.#collectEvents();
     this.#syncClockEvents();
+  }
+
+  #handleTacticalDoHeliRun(): void {
+    if (handleTacticalDoHeliRun(this) && this.tactical) this.#events.push(...this.tactical.drainEvents());
   }
 
   #handleStrategicTurn(): void {
@@ -849,7 +853,7 @@ export class CampaignSim {
     this.battle?.settle();
     this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
-    handleTacticalDoHeliRun(this);
+    this.#handleTacticalDoHeliRun();
     this.#collectEvents();
     this.#syncClockEvents();
     return result;

@@ -52,14 +52,16 @@ export function chopperIntoLoadedStartSector(campaign: CampaignSim, merc: Choppe
   merc.insertionCode = InsertionCode.CHOPPER;
 }
 
-export function handleTacticalDoHeliRun(campaign: CampaignSim): void {
+export function handleTacticalDoHeliRun(campaign: CampaignSim): boolean {
   const drop = dropOf(campaign);
   const t = campaign.tactical?.state;
-  if (!drop.doHeliRun || !t || campaign.state.flow !== 'tactical') return;
-  if (startHelicopterRun(t, sectorMapOf(t).info.northGridNo)) interruptTime(campaign.state.clock);
+  if (!drop.doHeliRun || !t || campaign.state.flow !== 'tactical') return false;
+  const started = startHelicopterRun(t, sectorMapOf(t).info.northGridNo);
+  if (started) interruptTime(campaign.state.clock);
   setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
   drop.doHeliRun = false;
   syncInterfaceLockPause(campaign);
+  return started;
 }
 
 export function helicopterDropUnderWay(campaign: CampaignSim): boolean {

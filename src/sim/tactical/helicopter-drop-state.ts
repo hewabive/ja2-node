@@ -62,8 +62,32 @@ export function createHelicopterDrop(): HelicopterDrop {
   };
 }
 
+export interface HelicopterShadowView {
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+export interface HelicopterDropView {
+  readonly running: boolean;
+  readonly engineVolume: number;
+  readonly shadows: readonly HelicopterShadowView[];
+}
+
 export function helicopterDropRunning(t: { readonly helicopterDrop: HelicopterDrop }): boolean {
   return t.helicopterDrop.running;
+}
+
+function shadowView(s: HeliShadow): HelicopterShadowView {
+  return { gridNo: s.gridNo, x: s.x, y: s.y, z: s.z };
+}
+
+export function helicopterDropView(t: { readonly helicopterDrop: HelicopterDrop }): HelicopterDropView | null {
+  const d = t.helicopterDrop;
+  const shown = d.shadow ? [...d.strandedShadows, d.shadow] : d.strandedShadows;
+  if (!d.running && shown.length === 0) return null;
+  return { running: d.running, engineVolume: d.running ? d.volume : 0, shadows: shown.map(shadowView) };
 }
 
 export function forgetHelicopterShadows(drop: HelicopterDrop): void {

@@ -137,7 +137,12 @@ places him, with no sector check), the arrival quotes (`mercArrivesQuotes`, at 4
 `22`) and the end of a run (`helicopterRunEnded`: `HandleFirstHeliDropOfGame`, the turn times, the enemies called to the
 sweet spot and the enemy-presence line on the first run only, and the AI's unpause queued as a dialogue event every
 run); a bare tactical sim places a seat at the north entry itself. The end of a run is also the event
-`helicopterDropEnded {first}`, on which the session plays the enemy-present music after the first run.
+`helicopterDropEnded {first}`, on which the session plays the enemy-present music after the first run; its start is
+`helicopterDropStarted {gridNo}`, the north entry point the game screen centres on, reported with the step or command
+that starts it, and each merc it lands is `mercDropped {soldier}`, the original's "has arrived" line, which the
+arrival of a merc with the chopper code leaves to it (`Tactical/Merc_Hiring.cc:289`). The view's `helicopterDrop`
+carries the run, its engine volume and its shadows (`29` §7), from which the client locks its input, draws the shadow
+and plays the engine (`30`, `31`).
 
 A run starts as the original's `gfTacticalDoHeliRun` does (`campaign/helicopter-drop-flow.ts`): the first landing
 (`InitHelicopterEntranceByMercs`, which also marks the first run) and an arrival in the loaded start sector without the

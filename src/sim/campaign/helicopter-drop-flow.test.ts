@@ -107,6 +107,26 @@ describe('the helicopter drop in a campaign', () => {
     expect(dropEnds(c.drainEvents())).toEqual([true]);
   });
 
+  it('tells the run’s start at the north entry with the command that starts it, and each merc it drops on the tick he lands', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 62, mercs: 2, garrison: NO_GARRISON });
+    startFirstSquadsDrop(c);
+    const t = tactical(c);
+    expect(c.drainEvents().filter((e) => e.type === 'sectorLoaded' || e.type === 'helicopterDropStarted')).toMatchObject([
+      { type: 'sectorLoaded' },
+      { type: 'helicopterDropStarted', gridNo: sectorMapOf(t).info.northGridNo },
+    ]);
+    const dropped: { soldier: number; placed: boolean | undefined }[] = [];
+    runTicks(c, DROP_TICKS, () => {
+      for (const e of c.drainEvents())
+        if (e.type === 'mercDropped') dropped.push({ soldier: e.soldier, placed: t.soldiers[e.soldier]?.placed });
+      return !t.helicopterDrop.running;
+    });
+    expect(dropped).toEqual([
+      { soldier: 0, placed: true },
+      { soldier: 1, placed: true },
+    ]);
+  });
+
   it('keeps the world clock still for the whole drop, so no strategic event, an arrival included, can join a running drop', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 62, mercs: 3, garrison: NO_GARRISON });
     startFirstSquadsDrop(c);

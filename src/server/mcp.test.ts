@@ -142,6 +142,24 @@ describe('MCP endpoint', () => {
     await client.close();
   });
 
+  it('describes the helicopter drop: the skip, the view block and the events of a run', async () => {
+    const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
+    const app = createApp({
+      vfs: new Vfs([]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: false },
+      sessions,
+      defaultSession: 'sandbox',
+    });
+    const { client } = await mcpClient(app);
+    const described = new Map((await client.listTools()).tools.map((t) => [t.name, t.description ?? '']));
+    const mentions = (tool: string, words: readonly string[]) => expect(words.filter((w) => !described.get(tool)?.includes(w))).toEqual([]);
+    mentions('act', ['{"type":"skipHelicopterDrop"}', 'noHelicopterDrop', 'helicopterDrop']);
+    mentions('observe', ['helicopterDrop {running, engineVolume, shadows: [{gridNo, x, y, z}]}']);
+    mentions('advance', ['helicopterDropStarted {gridNo}', 'mercDropped {soldier}', 'helicopterDropEnded {first}']);
+    await client.close();
+  });
+
   it('requires the token', async () => {
     const app = createApp({ vfs: new Vfs([]), token, info: { originalData: false, slfCount: 0, stubs: false } });
     expect((await app.request('http://localhost/mcp', { method: 'POST' })).status).toBe(401);

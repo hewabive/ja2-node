@@ -1,9 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-08. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Entering.cc ubHeliScripts, AddMercToHeli, StartHelicopterRun, HandleHeliDrop (its Esc
-// @src branch, the script step, the fades, the drop of a seat and the rounds); HandleFirstHeliDropOfGame and the lock's
-// @src pause are the sector flow's; UILayout.cc and rust/stracciatella/src/config/resolution.rs REPEAT_HELI_MOVEAWAY at
-// @src the reference 640x480; Utils/Sound_Control.h HIGHVOLUME.
+// @src branch, the script step, the fades, the drop of a seat and the rounds, each seat's MERC_HAS_ARRIVED_STR line as
+// @src the event mercDropped); GameScreen.cc MainGameScreenHandle's locate on the north entry point as the run starts
+// @src (the event helicopterDropStarted); HandleFirstHeliDropOfGame and the lock's pause are the sector flow's; UILayout.cc
+// @src and rust/stracciatella/src/config/resolution.rs REPEAT_HELI_MOVEAWAY at the reference 640x480;
+// @src Utils/Sound_Control.h HIGHVOLUME.
 
 import { CELL_X_SIZE, CELL_Y_SIZE } from '../../content/world/grid.ts';
 import { i16, idiv, u32 } from '../../core/int.ts';
@@ -97,6 +99,7 @@ export function startHelicopterRun(t: TacticalState, sweetSpot: number): boolean
   d.fadingIn = true;
   d.running = true;
   d.firstGuyDown = true;
+  t.events.push({ type: 'helicopterDropStarted', gridNo: sweetSpot });
   return true;
 }
 
@@ -138,6 +141,10 @@ function stepEngineFade(t: TacticalState, d: HelicopterDrop): void {
   }
 }
 
+function mercDropped(t: TacticalState, s: Soldier): void {
+  t.events.push({ type: 'mercDropped', soldier: s.id });
+}
+
 function dropSeat(t: TacticalState, d: HelicopterDrop): void {
   const s = seatSoldier(t, d.seats[d.curDrop]);
   if (s) {
@@ -148,6 +155,7 @@ function dropSeat(t: TacticalState, d: HelicopterDrop): void {
     d.firstGuyDown = false;
     if (s) setCurrentSquad(t, soldierAssignment(t, s), true);
   }
+  if (s) mercDropped(t, s);
   d.curDrop++;
   d.engagedInDrop = true;
 }
@@ -282,6 +290,7 @@ export function skipHelicopterDrop(t: TacticalState): boolean {
     if (!s) continue;
     t.sectorHooks.placeHelicopterSeat(t, s);
     t.sectorHooks.mercArrivesQuotes(t, s);
+    mercDropped(t, s);
   }
   d.shadow = null;
   rebuildCurrentSquad(t);

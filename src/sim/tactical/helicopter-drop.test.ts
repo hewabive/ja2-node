@@ -2,12 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { combatStats } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { Direction } from '../../content/world/grid.ts';
+import type { SimEvent } from '../events.ts';
 import { restoreTactical, snapshotJson, snapshotTactical } from '../snapshot/session.ts';
 import { anim } from './anim-states.ts';
 import { states } from './animation.ts';
 import { soldierCollapse } from './combat/hit.ts';
 import { addMercToHeli, helicopterDropStalled, skipHelicopterDrop, startHelicopterRun } from './helicopter-drop.ts';
-import { type HelicopterDrop, HeliState } from './helicopter-drop-state.ts';
+import { type HelicopterDrop, HeliState, helicopterDropView } from './helicopter-drop-state.ts';
 import { playerInterfaceLocked } from './interface-lock.ts';
 import { NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { cellCentre, createSoldier, NOWHERE, type Soldier, Team } from './soldier.ts';
@@ -113,6 +114,10 @@ function inHelidrop(t: TacticalState, s: Soldier): boolean {
   return s.state === anim(t.content, 'HELIDROP');
 }
 
+function dropped(events: readonly SimEvent[]): number[] {
+  return events.flatMap((e) => (e.type === 'mercDropped' ? [e.soldier] : []));
+}
+
 describe('the helicopter drop (Merc_Entering.cc HandleHeliDrop)', () => {
   it('steps its script once more than 100 ms have passed since the last step, the start arming the first (ME_SCRIPT_DELAY)', () => {
     const scene = dropScene(1);
@@ -167,6 +172,29 @@ describe('the helicopter drop (Merc_Entering.cc HandleHeliDrop)', () => {
     expect([landed[0], landed[1] !== north, landed[2]]).toEqual([north, true, north]);
     stepUntil(scene, () => !drop(scene).running);
     for (const s of scene.seats) expect(s.gridNo).not.toBe(landed[scene.seats.indexOf(s)]);
+  });
+
+  it('tells its start at the sweet spot, the north entry the game screen centres on, and each merc it drops as he lands (GameScreen.cc:352, Merc_Entering.cc:607)', () => {
+    const scene = dropScene(2);
+    const t = scene.sim.state;
+    const [first, second] = scene.seats as [Soldier, Soldier];
+    expect(scene.sim.drainEvents()).toEqual([{ type: 'helicopterDropStarted', gridNo: northEntry(t), tick: 0 }]);
+    stepUntil(scene, () => first.placed);
+    expect(dropped(scene.sim.drainEvents())).toEqual([0]);
+    stepUntil(scene, () => second.placed);
+    expect(dropped(scene.sim.drainEvents())).toEqual([1]);
+  });
+
+  it('shows the player the run, its engine volume and its shadow, and nothing once it has left (the view of a drop)', () => {
+    const scene = dropScene(1);
+    const t = scene.sim.state;
+    expect(helicopterDropView(t)).toEqual({ running: true, engineVolume: 0, shadows: [] });
+    stepUntil(scene, () => drop(scene).shadow !== null);
+    const shadow = drop(scene).shadow;
+    expect(helicopterDropView(t)).toEqual({ running: true, engineVolume: HIGHVOLUME, shadows: [shadow] });
+    expect(helicopterDropView(t)?.shadows[0]).not.toBe(shadow);
+    stepUntil(scene, () => !drop(scene).running);
+    expect(helicopterDropView(t)).toBeNull();
   });
 
   it('keeps HELIDROP through the placement instead of the arrival stance (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
@@ -310,6 +338,17 @@ describe('the Esc skip of the helicopter drop (Merc_Entering.cc HandleHeliDrop, 
     expect(playerInterfaceLocked(t)).toBe(false);
   });
 
+  it('tells each merc it lands, after his lines, as the merc in mid-drop was told at his drop (MERC_HAS_ARRIVED_STR, Merc_Entering.cc:475, :607)', () => {
+    const scene = dropScene(3);
+    const t = scene.sim.state;
+    const [first] = scene.seats as [Soldier];
+    stepUntil(scene, () => first.placed);
+    expect(dropped(scene.sim.drainEvents())).toEqual([0]);
+    stepTicks(scene, 50);
+    skipHelicopterDrop(t);
+    expect(dropped(scene.sim.drainEvents())).toEqual([1, 2]);
+  });
+
   it('lets the merc in mid-drop finish his HELIDROP and walk away at code 467 while the seats left land at once', () => {
     const scene = dropScene(3);
     const t = scene.sim.state;
@@ -336,6 +375,7 @@ describe('the Esc skip of the helicopter drop (Merc_Entering.cc HandleHeliDrop, 
     expect(drop(scene)).toMatchObject({ state: HeliState.MOVETO, curDrop: 0, seats: [], fadingIn: false, fadingOut: false });
     expect(drop(scene).shadow).not.toBeNull();
     expect(later.placed).toBe(false);
+    expect(helicopterDropView(t)).toEqual({ running: false, engineVolume: 0, shadows: [drop(scene).shadow] });
   });
 
   it('does nothing outside a run', () => {

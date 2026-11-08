@@ -4,6 +4,7 @@ import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
+import type { HelicopterDropView } from '../sim/tactical/helicopter-drop-state.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
@@ -20,6 +21,7 @@ export type { ShopBoxView, ShopEta, ShopKind, ShopRepairedView, ShopView } from 
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
 export { LIFELESS_HEALTH_INDEX } from '../sim/tactical/health.ts';
+export type { HelicopterDropView, HelicopterShadowView } from '../sim/tactical/helicopter-drop-state.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { Stance } from '../sim/tactical/movement-mode.ts';
 export type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
@@ -1017,6 +1019,7 @@ export interface PlayerView {
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
   readonly radarContacts?: readonly RadarContactView[];
+  readonly helicopterDrop?: HelicopterDropView | null;
   readonly music?: MusicView;
 }
 
@@ -1064,6 +1067,7 @@ export interface ViewFrame {
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
   readonly radarContacts?: readonly RadarContactView[];
+  readonly helicopterDrop?: HelicopterDropView | null;
   readonly music?: MusicView;
 }
 
@@ -1147,6 +1151,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), itemLocatorsLocked: next.itemLocatorsLocked ?? false };
   if (!sameJson(previous.radarContacts ?? [], next.radarContacts ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), radarContacts: next.radarContacts ?? [] };
+  if (!sameJson(previous.helicopterDrop ?? null, next.helicopterDrop ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), helicopterDrop: next.helicopterDrop ?? null };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if ((previous.selected ?? null) !== (next.selected ?? null))

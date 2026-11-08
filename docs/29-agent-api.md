@@ -352,8 +352,11 @@ knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
 levels, bomb timers and owners are never shown (`12` §6). `radarContacts` is there only while an x-ray detector shows
 soldiers the squad does not see: their tile and the colour the radar draws them in (`enemy`, `creature`, `militia`,
-`civilian`, `hostileCivilian`, `namedCivilian`, `unconscious`), no id, as the radar shows no more. Animation schedules, palettes and light sprites serve the
-renderer and the devtools.
+`civilian`, `hostileCivilian`, `namedCivilian`, `unconscious`), no id, as the radar shows no more. `helicopterDrop` is
+there while a run of the helicopter drop goes on (`running`, the interface locked) and while a shadow it never took away
+stays on the map (`25`): `engineVolume`, the 0–127 volume its engine sound is at (`31`), and `shadows`, the
+helicopter's shadow at world pixels `x`, `y`, `z` pixels above the tile `gridNo` (`30`). Animation schedules, palettes
+and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured
@@ -396,8 +399,12 @@ maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
 `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
-a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropEnded {first}` ends a run of the
-helicopter drop, `first` on the first landing's, whose end plays the enemy-present music (`25`). While a run goes on
+a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropStarted {gridNo}` starts a run of the
+helicopter drop and centres the view on the north entry point, with no locate to the entry's merc
+(`GameScreen.cc:351`); `mercDropped {soldier}` comes as the helicopter lands a merc, at his drop or at the skip, with the
+original's "has arrived" line, which a `mercArrived` with `helicopter` (a merc the helicopter brings) leaves to it
+(`Tactical/Merc_Hiring.cc:289`); `helicopterDropEnded {first}` ends a run, `first` on the first landing's, whose end
+plays the enemy-present music (`25`). While a run goes on
 every other command is refused with `helicopterDrop` (§6's modal states); `skipHelicopterDrop`, the Esc key, lands
 the seats left at once and ends the run (`noHelicopterDrop` with none under way). The session copies the cosmetic animations into
 `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after every tick as

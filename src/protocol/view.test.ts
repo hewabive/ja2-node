@@ -104,6 +104,18 @@ describe('view frames', () => {
     expect(off && applyViewFrame(xrayed, off).radarContacts).toEqual([]);
   });
 
+  it('carry the helicopter drop as its engine fades and its shadow moves, and null once it has left', () => {
+    const shadow = { gridNo: 12000, x: 1500, y: 300, z: 0 };
+    const flying: PlayerView = { ...base, tick: 20, helicopterDrop: { running: true, engineVolume: 5, shadows: [] } };
+    expect(diffPlayerView(base, flying)).toEqual({ tick: 20, changed: [], removed: [], helicopterDrop: flying.helicopterDrop });
+    expect(diffPlayerView(flying, { ...flying, tick: 30 })).toBeNull();
+    const moved = { ...flying, tick: 30, helicopterDrop: { running: true, engineVolume: 10, shadows: [shadow] } };
+    expect(diffPlayerView(flying, moved)).toMatchObject({ helicopterDrop: { engineVolume: 10, shadows: [shadow] } });
+    const left = diffPlayerView(moved, { ...base, tick: 40 });
+    expect(left).toMatchObject({ helicopterDrop: null });
+    expect(left && applyViewFrame(moved, left).helicopterDrop).toBeNull();
+  });
+
   it('carry the box of auto-bandage as it opens, completes and closes', () => {
     const running: PlayerView = { ...base, tick: 20, autoBandage: { complete: false, medics: [2], patients: [0, 2] } };
     expect(diffPlayerView(base, running)).toEqual({ tick: 20, changed: [], removed: [], autoBandage: running.autoBandage });

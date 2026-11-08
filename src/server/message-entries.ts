@@ -4,7 +4,8 @@
 // @src DIALOGUE_COLOR, the 256-line ring); the ScreenMsg sites of Tactical/OppList.cc (noises), Overhead.cc (enemy in
 // @src sector, first aid), TeamTurns.cc (interrupt), Campaign.cc (stat gains), Items.cc (reload), Handle_Doors.cc and
 // @src Keys.cc (locks and traps), Interface_Dialogue.cc and TacticalAI/NPC.cc (recruits, escorts, balances),
-// @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, the death off the tactical map
+// @src Merc_Hiring.cc (arrivals, none for a merc with the chopper code), Merc_Entering.cc HandleHeliDrop (each merc the
+// @src helicopter drops, at his drop or at the Esc skip, 2026-11-08), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, the death off the tactical map
 // @src printed off the game screen, 2026-11-05; unpaid RPCs, worn-off camouflage),
 // @src Map_Screen_Interface.cc (equipment left, invasions), Map_Screen_Helicopter.cc (Skyrider's bill), Assignments.cc
 // @src (repairs, aborted assignments), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
@@ -97,6 +98,7 @@ const NEW_STRINGS = 'new-strings';
 const NS_SOLDIER_EQUIPS_ITEM = 0;
 const NS_SOLDIER_REMOVES_ITEM = 1;
 const GUN_GOT_FINGERPRINT = 111;
+const MERC_HAS_ARRIVED_STR = 80;
 const STR_LOSES_1_HP = 4;
 const STR_CAMO_WORN_OFF = 30;
 const STR_CAMO_WASHED_OFF = 31;
@@ -273,7 +275,9 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   doorTrap: (e) => (e.trap === SILENT_TRAP ? [] : [line('TacticalStr', 79, [ref('pDoorTrapStrings', TRAP_STRINGS[e.trap] ?? 0)])]),
   lockDestroyed: () => [line('TacticalStr', 133)],
   npcMessage,
-  mercArrived: (e, facts) => [line('TacticalStr', 80, [text(facts.soldierName(e.soldier) ?? facts.profileName(e.profile))])],
+  mercArrived: (e, facts) =>
+    e.helicopter ? [] : [line('TacticalStr', MERC_HAS_ARRIVED_STR, [text(facts.soldierName(e.soldier) ?? facts.profileName(e.profile))])],
+  mercDropped: (e, facts) => [line('TacticalStr', MERC_HAS_ARRIVED_STR, [text(facts.soldierName(e.soldier))])],
   historyAdded: () => [line('pMessageStrings', 67)],
   camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [text(facts.soldierName(e.soldier))])],
   camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [text(facts.soldierName(e.soldier))])],

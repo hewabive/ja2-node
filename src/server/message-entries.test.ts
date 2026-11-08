@@ -164,6 +164,22 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints MERC_HAS_ARRIVED_STR as a merc arrives, but for one the helicopter brings, whose line comes as it drops him', () => {
+    const arrived = { tick: 40, kind: 'interface', colour: 145, table: 'TacticalStr', index: 80 };
+    const entries = messageEntriesOf(
+      [
+        at({ type: 'mercArrived', soldier: 0, profile: 7, sector: 'B13' }),
+        at({ type: 'mercArrived', soldier: 1, profile: 8, sector: 'A9', helicopter: true }),
+        at({ type: 'mercDropped', soldier: 1 }),
+      ],
+      facts,
+    );
+    expect(entries).toEqual([
+      { ...arrived, args: [{ text: 'Ivan' }] },
+      { ...arrived, args: [{ text: 'Fox' }] },
+    ]);
+  });
+
   it('prints the refusals the original prints in the log, with the merc where the string names him', () => {
     const refused = (refusal: string) => refuse(refusal, refusal);
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, refused('notEnoughAP'), facts)).toEqual({

@@ -502,7 +502,8 @@ export class LaptopFlow implements LaptopContext {
       strategic.mercs.updateMercInSector(id, m.sector);
     } else m.insertionCode = InsertionCode.NORTH;
     this.campaign.contracts?.mercArrived(id);
-    this.emit({ type: 'mercArrived', soldier: id, profile: m.profile, sector: sectorShortString(m.sector) });
+    const helicopter = m.insertionCode === InsertionCode.CHOPPER ? { helicopter: true as const } : {};
+    this.emit({ type: 'mercArrived', soldier: id, profile: m.profile, sector: sectorShortString(m.sector), ...helicopter });
   }
 
   openRefusal(): LaptopRefusal | null {

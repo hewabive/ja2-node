@@ -26,6 +26,7 @@ export interface MercArrivedEvent extends LaptopEventBase {
   readonly soldier: number;
   readonly profile: number;
   readonly sector: string;
+  readonly helicopter?: true;
 }
 
 export interface ArrivalReroutedEvent extends LaptopEventBase {

@@ -495,6 +495,16 @@ export interface CreatureAttackEvent extends SimEventBase {
   readonly sector: string;
 }
 
+export interface HelicopterDropStartedEvent extends SimEventBase {
+  readonly type: 'helicopterDropStarted';
+  readonly gridNo: number;
+}
+
+export interface MercDroppedEvent extends SimEventBase {
+  readonly type: 'mercDropped';
+  readonly soldier: number;
+}
+
 export interface HelicopterDropEndedEvent extends SimEventBase {
   readonly type: 'helicopterDropEnded';
   readonly first: boolean;
@@ -720,6 +730,8 @@ export type SimEvent =
   | SectorLoadedEvent
   | EnemyPresenceEvent
   | CreatureAttackEvent
+  | HelicopterDropStartedEvent
+  | MercDroppedEvent
   | HelicopterDropEndedEvent
   | SectorUnloadedEvent
   | MercsLeftSectorEvent

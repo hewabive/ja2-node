@@ -215,6 +215,15 @@ describe('after the landing', () => {
     return session;
   }
 
+  it('marks the arrivals the helicopter brings into the loaded start sector, whose has-arrived lines come as it drops them (Merc_Hiring.cc:289)', async () => {
+    const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), 31, { mercs: 2, land: false });
+    const land = { type: 'compressTime', mode: 2 };
+    await session.prepare(land);
+    expect(session.dispatch(land).ok).toBe(true);
+    const arrivals = session.drainEvents().flatMap((e) => (e.type === 'mercArrived' ? [e.helicopter] : []));
+    expect(arrivals).toEqual([true, true]);
+  });
+
   it('flies a later hire in on the next slot with the contract end recomputed at arrival', async () => {
     const session = await landed(31);
     expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });

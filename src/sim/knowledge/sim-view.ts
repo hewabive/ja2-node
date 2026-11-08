@@ -2,6 +2,7 @@ import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { knownMineTiles } from '../tactical/bombs/mine-flags.ts';
 import type { Bullet } from '../tactical/combat/bullets.ts';
+import { helicopterDropView } from '../tactical/helicopter-drop-state.ts';
 import { revealedRooms } from '../tactical/perception/fov.ts';
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { currentSquad, selectedSoldier } from '../tactical/selection.ts';
@@ -24,6 +25,7 @@ function currentSquadView(t: TacticalState): number | null {
 
 export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTimeline = NO_PRESENTATION) {
   const contacts = radarContacts(sim.state);
+  const drop = helicopterDropView(sim.state);
   return {
     mapPath: sim.mapPath,
     soldiers: sim.snapshot(presentation, shownToPlayer),
@@ -44,6 +46,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     blood: bloodViews(sim.state),
     ...(sim.state.turn.lockItemLocators ? { itemLocatorsLocked: true } : {}),
     ...(contacts.length > 0 ? { radarContacts: contacts } : {}),
+    ...(drop ? { helicopterDrop: drop } : {}),
   };
 }
 
