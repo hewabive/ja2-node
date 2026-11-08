@@ -24,7 +24,7 @@ import {
   effectiveWisdom,
   type LoadedSector,
 } from '../tactical/skills.ts';
-import { Body, inVehicle, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
+import { Body, inSector, inVehicle, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { spendVehicleFuel } from '../vehicles/vehicle-fuel.ts';
 import type { MercContract } from './contracts/contract-state.ts';
@@ -245,14 +245,6 @@ export class RosterMerc implements CrewMember {
     this.record.vehicleUnderRepair = value;
   }
 
-  get offGridInSector(): boolean {
-    return this.record.offGridInSector;
-  }
-
-  set offGridInSector(value: boolean) {
-    this.record.offGridInSector = value;
-  }
-
   get contract(): MercContract {
     return this.record.contract;
   }
@@ -457,6 +449,7 @@ export function onTacticalMap(t: Pick<TacticalState, 'soldiers'>, merc: RosterMe
 
 export interface RosterHooks {
   removeFromTacticalSector(merc: RosterMerc): void;
+  removeFromGridNo(merc: RosterMerc): void;
   selectAfterRemoval(merc: RosterMerc): void;
   unselect(merc: RosterMerc): void;
   updateMercInSector(merc: RosterMerc, sector: Sector): void;
@@ -469,6 +462,7 @@ export interface RosterHooks {
 
 export const NO_ROSTER_HOOKS: RosterHooks = {
   removeFromTacticalSector: () => {},
+  removeFromGridNo: () => {},
   selectAfterRemoval: () => {},
   unselect: () => {},
   updateMercInSector: () => {},
@@ -604,7 +598,6 @@ export class Roster implements CrewPort {
   removeFromTacticalSector(id: number): void {
     const merc = this.get(id);
     if (!merc) return;
-    merc.offGridInSector = false;
     this.hooks.removeFromTacticalSector(merc);
     this.hooks.selectAfterRemoval(merc);
   }
@@ -612,23 +605,18 @@ export class Roster implements CrewPort {
   tacticalRemoveSoldier(id: number): void {
     const merc = this.get(id);
     if (!merc) return;
-    merc.offGridInSector = false;
     this.hooks.removeFromTacticalSector(merc);
     this.hooks.unselect(merc);
   }
 
   removeFromGridNo(id: number): void {
     const merc = this.get(id);
-    if (!merc?.inSector) return;
-    this.hooks.removeFromTacticalSector(merc);
-    merc.offGridInSector = true;
+    if (merc) this.hooks.removeFromGridNo(merc);
   }
 
   updateMercInSector(id: number, sector: Sector): void {
     const merc = this.get(id);
-    if (!merc) return;
-    merc.offGridInSector = false;
-    this.hooks.updateMercInSector(merc, sector);
+    if (merc) this.hooks.updateMercInSector(merc, sector);
   }
 
   tooTiredToTravel(id: number): boolean {
@@ -703,7 +691,7 @@ export class Roster implements CrewPort {
 
   inTacticalSector(id: number): boolean {
     const merc = this.get(id);
-    return merc !== undefined && (merc.inSector || merc.offGridInSector);
+    return merc !== undefined && inSector(merc.soldier);
   }
 
   get robotRemote(): number {

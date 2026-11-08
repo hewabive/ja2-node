@@ -348,8 +348,7 @@ export class ContractFlow implements ContractContext {
   }
 
   #inLoadedSector(m: RosterMerc): boolean {
-    const t = this.campaign.tactical?.state;
-    return t !== undefined && (m.offGridInSector || t.mercSlots.includes(m.soldier));
+    return this.campaign.tactical?.state.mercSlots.includes(m.soldier) === true;
   }
 
   removeFromWorld(m: RosterMerc): void {

@@ -38,7 +38,6 @@ export interface MercRecord {
   hospitalPriceModifier: number;
   fixingRobot: boolean;
   vehicleUnderRepair: number;
-  offGridInSector: boolean;
   readonly contract: MercContract;
   quoteSaidFlags: number;
   quoteSaidExtFlags: number;
@@ -114,7 +113,6 @@ export function createMercRecord(init: MercRecordInit): MercRecord {
     hospitalPriceModifier: 0,
     fixingRobot: false,
     vehicleUnderRepair: NO_VEHICLE,
-    offGridInSector: false,
     contract: createMercContract(init.contract),
     quoteSaidFlags: init.quoteSaidFlags ?? 0,
     quoteSaidExtFlags: init.quoteSaidExtFlags ?? 0,

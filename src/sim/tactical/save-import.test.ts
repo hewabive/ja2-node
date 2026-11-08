@@ -863,17 +863,23 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     expect([soldierOf(sim, DRIVER_ID).structure, soldierOf(sim, PASSENGER_ID).structure]).toEqual([null, null]);
   });
 
-  it("leaves the helicopter's passenger out of the tactical slots, in the sector with no tile, and the roster reads every seat from the soldier", () => {
+  it("puts the helicopter's passenger in his merc slot, in id order, with no tile, and the roster reads every seat from the soldier (Soldier_Add.cc InternalAddSoldierToSector)", () => {
     const save = seatedSave();
     const sim = importedSim(save);
-    expect(sim.state.soldiers[FLYING_ID]).toBeUndefined();
-    const roster = new Roster({ state: createRosterState(), content, combat: () => sim.state });
-    addSavedMercsToRoster(roster, save, sim.state);
+    const t = sim.state;
+    const flying = soldierOf(sim, FLYING_ID);
+    expect([flying.placed, flying.offMap, flying.gridNo, flying.structure]).toEqual([false, true, NOWHERE, null]);
+    expect(t.mercSlots.map((s) => s.id)).toEqual([DRIVER_ID, PASSENGER_ID, FLYING_ID, OUR_HUMMER_ID]);
+    expect(whoIsThere(t, gridNo(90, 90), 0)).toBeNull();
+    const roster = new Roster({ state: createRosterState(), content, combat: () => t });
+    addSavedMercsToRoster(roster, save, t);
     const mercs = [DRIVER_ID, PASSENGER_ID, FLYING_ID].map((id) => roster.get(id));
-    expect(mercs.map((m) => [m?.vehicleSeat, m?.isPassengerOrDriver, m?.offGridInSector, m?.statusFlags])).toEqual([
-      [VehicleSeat.DRIVER, true, false, 0],
-      [VehicleSeat.PASSENGER, true, false, 0],
+    expect(mercs.map((m) => [m?.vehicleSeat, m?.isPassengerOrDriver, m?.inSector, m?.statusFlags])).toEqual([
+      [VehicleSeat.DRIVER, true, true, 0],
       [VehicleSeat.PASSENGER, true, true, 0],
+      [VehicleSeat.PASSENGER, true, false, 0],
     ]);
+    expect(roster.get(FLYING_ID)?.soldier).toBe(flying);
+    expect(roster.inTacticalSector(FLYING_ID)).toBe(true);
   });
 });

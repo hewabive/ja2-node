@@ -14,6 +14,8 @@ import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEventUsingSeconds } from '../strategic/time/event-queue.ts';
 import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
 import { type ProfileProgress, progressFromProfile } from '../tactical/profiles.ts';
+import { NOWHERE } from '../tactical/soldier.ts';
+import { whoIsThere } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 let kit: CampaignKit;
@@ -125,21 +127,37 @@ describe('the helicopter commands', () => {
   });
 });
 
-describe('the helicopter passengers over the loaded sector (Soldier_Add.cc InternalAddSoldierToSector)', () => {
-  it('stay in the sector with no tile when it loads its mercs: a sector load never puts them on the map', () => {
+describe('the helicopter passengers over the loaded sector', () => {
+  function passengerState(c: CampaignSim, id: number): readonly unknown[] {
+    const t = c.tactical?.state;
+    const flying = c.battle?.roster.get(id);
+    if (!t || !flying) throw new Error('no loaded sector');
+    const s = flying.soldier;
+    return [flying.isPassengerOrDriver, s.placed, s.offMap, s.gridNo, t.mercSlots.includes(s), t.soldiers[id] === s];
+  }
+
+  it('keep their merc slot when they board on the loaded map, off their tile with no other (Vehicles.cc AddSoldierToVehicle, RemoveSoldierFromGridNo)', () => {
+    const c = landedCampaign();
+    const boarding = c.battle?.roster.get(0)?.soldier;
+    const slots = c.tactical?.state.mercSlots.map((s) => s.id);
+    if (!boarding || !slots) throw new Error('no loaded sector');
+    const [tile, level] = [boarding.gridNo, boarding.level];
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+    expect(passengerState(c, 0)).toEqual([true, false, true, NOWHERE, true, true]);
+    const t = c.tactical?.state;
+    expect(t?.mercSlots.map((s) => s.id)).toEqual(slots);
+    if (t) expect(whoIsThere(t, tile, level)).toBeNull();
+    expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
+  });
+
+  it('enter their merc slots with no tile when the sector loads its mercs: a sector load never puts them on the map (Soldier_Add.cc InternalAddSoldierToSector)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
     c.sectors?.updateMercsInSector();
-    const t = c.tactical?.state;
-    const flying = c.battle?.roster.get(0);
-    if (!t || !flying) throw new Error('no loaded sector');
-    expect([flying.isPassengerOrDriver, flying.inSector, t.mercSlots.includes(flying.soldier), flying.offGridInSector]).toEqual([
-      true,
-      false,
-      false,
-      true,
-    ]);
+    expect(passengerState(c, 0)).toEqual([true, false, true, NOWHERE, true, true]);
+    expect(c.tactical?.state.mercSlots.filter((s) => s.id === 0)).toHaveLength(1);
     expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
     expect(c.battle?.roster.get(1)?.inSector).toBe(true);
   });

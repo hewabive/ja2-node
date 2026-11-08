@@ -83,7 +83,7 @@ as `FindSoldierType` scans (`sim/strategic/map/save-import.ts`), and the list is
 shares it (`25`). The fuel patch of saves up to version 73 (`SaveLoadGame.cc:981`) never applies: those are refused.
 The seat (`SOLDIER_DRIVER`, `SOLDIER_PASSENGER`) moves onto the soldier (`Soldier.vehicleSeat`); the drivers and
 passengers of a ground vehicle in the loaded sector come into it at their saved tile, which is the vehicle's, with no
-occupant or structure, and a helicopter's stay out of the merc slots (`25`).
+occupant or structure, and a helicopter's take their merc slots with no tile (`25`).
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
 has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the

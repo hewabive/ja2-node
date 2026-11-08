@@ -16,7 +16,8 @@
 // @src vehicle soldier (2026-11-04); SOLDIER_DRIVER and SOLDIER_PASSENGER in the loaded sector (2026-11-05);
 // @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05); LoadSaveTacticalStatusType.cc
 // @src fAutoBandagePending (2026-11-06); Tactical/LoadSaveSoldierType.cc sDestXPos, sDestYPos, fPastXDest and fPastYDest
-// @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07).
+// @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); Tactical/Soldier_Add.cc InternalAddSoldierToSector (the
+// @src helicopter's passengers in their merc slots with no tile, 2026-11-08).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -78,6 +79,7 @@ import {
   type TacticalState,
 } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
+import { seatInTheHelicopterOnSectorEntry } from './vehicle-passengers.ts';
 import { addItemToPool, trashWorldItems } from './world-items.ts';
 
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
@@ -371,12 +373,11 @@ function seatedInGroundVehicle(save: SaveGame, s: SavedSoldier): boolean {
   return v !== undefined && v.type !== VehicleTypeId.HELICOPTER;
 }
 
-function onTheLoadedMap(save: SaveGame, s: SavedSoldier): boolean {
-  if (s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP)) return false;
-  return !(s.statusFlags & SEATED_FLAGS) || seatedInGroundVehicle(save, s);
+function seatedInHelicopter(save: SaveGame, s: SavedSoldier): boolean {
+  return (s.statusFlags & SEATED_FLAGS) !== 0 && !seatedInGroundVehicle(save, s);
 }
 
-export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
   const sector = save.tactical.worldSector;
   return (
     s.active !== 0 &&
@@ -384,8 +385,16 @@ export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
     s.sector.x === sector.x &&
     s.sector.y === sector.y &&
     s.sector.z === sector.z &&
-    onTheLoadedMap(save, s)
+    !(s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP))
   );
+}
+
+export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+  return enteringTheLoadedSector(save, s) && !seatedInHelicopter(save, s);
+}
+
+export function helicopterPassengerInLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+  return enteringTheLoadedSector(save, s) && seatedInHelicopter(save, s);
 }
 
 export function awayInLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
@@ -423,14 +432,27 @@ function importAwaySoldiers(t: TacticalState, save: SaveGame): void {
   }
 }
 
+function enteringTheMercSlots(save: SaveGame, s: SavedSoldier): boolean {
+  return s.id < TOTAL_SOLDIERS && (inLoadedSector(save, s) || helicopterPassengerInLoadedSector(save, s));
+}
+
 function importSoldiers(t: TacticalState, save: SaveGame, presentation: PresentationTimeline): number {
-  const entries = save.soldiers.filter((e) => e.soldier.id < TOTAL_SOLDIERS && inLoadedSector(save, e.soldier));
-  const created = entries.map((e) => placeSoldier(t, save, e, presentation));
+  const entries = save.soldiers.filter((e) => enteringTheMercSlots(save, e.soldier));
+  const created = entries.map((e) =>
+    helicopterPassengerInLoadedSector(save, e.soldier) ? seatPassenger(t, save, e, presentation) : placeSoldier(t, save, e, presentation),
+  );
   entries.forEach((e, k) => {
     const s = created[k];
     if (s) linkSoldier(t, s, e.soldier);
   });
-  return created.length;
+  return created.filter((s) => s.placed).length;
+}
+
+function seatPassenger(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry, presentation: PresentationTimeline): Soldier {
+  const s = createSavedSoldier(save, entry);
+  seatInTheHelicopterOnSectorEntry(t, s);
+  importMotion(t, s, entry.soldier, presentation);
+  return s;
 }
 
 function importFacing(s: Soldier, r: SavedSoldier): void {
@@ -446,6 +468,11 @@ function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry
   registerSoldier(t, s);
   s.destination = r.gridNo;
   setSoldierPosition(t, s, r.gridNo, { keepDestination: true, keepFinalDestination: true });
+  importMotion(t, s, r, presentation);
+  return s;
+}
+
+function importMotion(t: TacticalState, s: Soldier, r: SavedSoldier, presentation: PresentationTimeline): void {
   s.destination = grid(r.destination);
   s.finalDestination = grid(r.finalDestination);
   s.oldGridNo = grid(r.oldGridNo);
@@ -454,7 +481,6 @@ function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry
   s.pc = r.aniCode;
   s.frameSlot = frameSlotOfSpriteFrame(presentation, r.animState, r.aniCode, r.aniFrame);
   s.nextFrameAt = t.clockMs;
-  return s;
 }
 
 export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): Soldier {

@@ -174,7 +174,7 @@ import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactica
 import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
-import { seatAtVehicle } from '../tactical/vehicle-passengers.ts';
+import { seatAtVehicle, seatInTheHelicopterOnSectorEntry, seatWithNoVehicleOnTheMap } from '../tactical/vehicle-passengers.ts';
 import { removeVehiclesNotOnOurTeam } from '../tactical/vehicle-soldiers.ts';
 import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -286,6 +286,7 @@ export class SectorFlow {
     roster.hooks = {
       ...roster.hooks,
       removeFromTacticalSector: (merc) => this.removeMercFromTacticalSector(merc),
+      removeFromGridNo: (merc) => this.#seatWithNoTile(merc),
       selectAfterRemoval: (merc) => this.#withTactical((t) => selectAfterRemovalFromSector(t, merc.soldier)),
       unselect: (merc) => this.#withTactical((t) => unselectRemovedSoldier(t, merc.soldier)),
       updateMercInSector: (merc) => this.updateMercInSector(merc),
@@ -298,8 +299,12 @@ export class SectorFlow {
     for (const m of this.setup.roster.all()) {
       m.soldier.placed = false;
       m.soldier.offMap = false;
-      m.offGridInSector = false;
     }
+  }
+
+  #seatWithNoTile(merc: RosterMerc): void {
+    const t = this.campaign.tactical?.state;
+    if (t && registeredInTactical(t, merc)) seatWithNoVehicleOnTheMap(t, merc.soldier);
   }
 
   #seatAtVehicle(merc: RosterMerc, vehicle: RosterMerc): void {
@@ -1035,7 +1040,7 @@ export class SectorFlow {
     const t = this.campaign.tactical?.state;
     if (!t || m.assignment === EconomyAssignment.IN_TRANSIT) return;
     if (m.isPassengerOrDriver && inHelicopter(this.ctx, m)) {
-      m.offGridInSector = true;
+      seatInTheHelicopterOnSectorEntry(t, m.soldier);
       return;
     }
     const order: InsertionOrder = { code: m.insertionCode, data: m.soldier.insertionData, direction: m.insertionDirection };

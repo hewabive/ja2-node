@@ -7,7 +7,7 @@ import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
 import { hiResDirectionOf } from '../tactical/directions.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
-import { type EncodedGraph, type Json, SnapshotError } from './codec.ts';
+import { type EncodedGraph, type Json, SnapshotError, unescapeSegment } from './codec.ts';
 
 type JsonObject = { readonly [key: string]: Json };
 type Section = readonly [string, Json];
@@ -1783,6 +1783,164 @@ function addHelicopterRunFlags(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const OFF_GRID_IN_SECTOR_KEY = 'offGridInSector';
+const SOLDIERS_SECTION = 'soldiers';
+const SPARSE_TAG = '$sparse';
+const SPARSE_ENTRIES_KEY = '$e';
+const TAG_PREFIX = '$';
+const ROSTER_MERCS_PATH = 'strategic/roster/mercs';
+const SOLDIER_OF_ENTRY = '1/soldier';
+const NOWHERE_GRID_NO = -1;
+const OFF_MAP_AI_CURSOR = 0xffff;
+
+interface OffGridPassenger {
+  readonly id: number;
+  readonly path: string;
+}
+
+function offGridPassengers(strategic: Json | undefined): OffGridPassenger[] {
+  const passengers: OffGridPassenger[] = [];
+  rosterEntries(strategic).forEach((entry: Json, k) => {
+    if (!Array.isArray(entry)) return;
+    const [id, record] = entry;
+    if (typeof id !== 'number' || field(record, OFF_GRID_IN_SECTOR_KEY, false) !== true) return;
+    const ref = field(field(record, 'soldier', null), REF, null);
+    passengers.push({ id, path: typeof ref === 'string' ? ref : `${ROSTER_MERCS_PATH}/${k}/${SOLDIER_OF_ENTRY}` });
+  });
+  return passengers.sort((a, b) => a.id - b.id);
+}
+
+function rosterWithoutOffGridFlag(strategic: JsonObject): JsonObject {
+  const roster = strategic.roster;
+  const mercs = field(roster, 'mercs', null);
+  if (!isObject(roster) || !isObject(mercs)) return strategic;
+  const entries = rosterEntries(strategic).map((entry: Json): Json => {
+    if (!Array.isArray(entry)) return entry;
+    const [id, record] = entry;
+    return isObject(record) ? [id ?? null, withoutKeys(record, [OFF_GRID_IN_SECTOR_KEY])] : entry;
+  });
+  return { ...strategic, roster: { ...roster, mercs: { ...mercs, [MAP_ENTRIES]: entries } } };
+}
+
+function tagOfNode(o: JsonObject): string | null {
+  const [first] = Object.keys(o);
+  return first?.startsWith(TAG_PREFIX) ? first : null;
+}
+
+function sparseEntries(o: JsonObject): readonly (readonly [number, Json])[] {
+  const entries = o[SPARSE_ENTRIES_KEY];
+  return Array.isArray(entries) ? (entries as unknown as readonly (readonly [number, Json])[]) : [];
+}
+
+function childAt(node: Json | undefined, segment: string): Json | undefined {
+  if (Array.isArray(node)) return node[Number(segment)];
+  if (!isObject(node)) return undefined;
+  const tag = tagOfNode(node);
+  if (tag === SPARSE_TAG) return sparseEntries(node).find(([i]) => i === Number(segment))?.[1];
+  if (tag === MAP_ENTRIES) return childAt(node[MAP_ENTRIES], segment);
+  if (tag !== null) return childAt(node[tag], segment);
+  return node[unescapeSegment(segment)];
+}
+
+function withChildAt(node: Json, segment: string, child: (value: Json) => Json): Json {
+  if (Array.isArray(node)) return node.map((v: Json, i) => (i === Number(segment) ? child(v) : v));
+  if (!isObject(node)) return node;
+  const tag = tagOfNode(node);
+  if (tag === SPARSE_TAG) {
+    const entries = sparseEntries(node).map(([i, v]): Json => [i, i === Number(segment) ? child(v) : v]);
+    return { ...node, [SPARSE_ENTRIES_KEY]: entries };
+  }
+  if (tag !== null && tag !== REF) return { ...node, [tag]: withChildAt(node[tag] as Json, segment, child) };
+  const key = unescapeSegment(segment);
+  return node[key] === undefined ? node : { ...node, [key]: child(node[key] as Json) };
+}
+
+function withNodeAt(node: Json, segments: readonly string[], update: (value: Json) => Json): Json {
+  const [first, ...rest] = segments;
+  if (first === undefined) return update(node);
+  return withChildAt(node, first, (child) => withNodeAt(child, rest, update));
+}
+
+function nodeAt(sections: readonly Section[], path: string): Json | undefined {
+  const [name, ...rest] = path.split('/');
+  return rest.reduce((node: Json | undefined, segment) => childAt(node, segment), sectionOf(sections, name ?? ''));
+}
+
+function withSectionNodeAt(sections: readonly Section[], path: string, update: (value: Json) => Json): Section[] {
+  const [name, ...rest] = path.split('/');
+  return sections.map(([n, value]): Section => [n, n === name ? withNodeAt(value, rest, update) : value]);
+}
+
+function waitingWithNoTile(soldier: Json): Json {
+  return isObject(soldier) ? { ...soldier, placed: false, offMap: true, gridNo: NOWHERE_GRID_NO } : soldier;
+}
+
+function slotSoldierId(sections: readonly Section[], slot: Json): number {
+  const ref = field(slot, REF, null);
+  const soldier = typeof ref === 'string' ? nodeAt(sections, ref) : slot;
+  const id = field(soldier, 'id', null);
+  return typeof id === 'number' ? id : Number.MAX_SAFE_INTEGER;
+}
+
+function slotsWithPassenger(tactical: JsonObject, sections: readonly Section[], passenger: OffGridPassenger): JsonObject {
+  const slots = tactical[MERC_SLOTS_KEY];
+  if (!Array.isArray(slots) || slots.some((slot: Json) => field(slot, REF, null) === passenger.path)) return tactical;
+  const after = slots.findIndex((slot: Json) => slotSoldierId(sections, slot) > passenger.id);
+  const at = after < 0 ? slots.length : after;
+  const withSlot = [...slots.slice(0, at), { [REF]: passenger.path }, ...slots.slice(at)];
+  const pass = tactical[AI_PASS_KEY];
+  const cursor = field(pass, AI_CURSOR_KEY, null);
+  const shifted = isObject(pass) && typeof cursor === 'number' && cursor !== OFF_MAP_AI_CURSOR && cursor > at;
+  return { ...tactical, [MERC_SLOTS_KEY]: withSlot, ...(shifted ? { [AI_PASS_KEY]: { ...pass, [AI_CURSOR_KEY]: cursor + 1 } } : {}) };
+}
+
+function soldierRefOf(value: Json, index: number): Json {
+  if (!isObject(value) || tagOfNode(value) !== null) return value;
+  return { [REF]: `${SOLDIERS_SECTION}/${index}` };
+}
+
+function soldiersWithPassenger(soldiers: Json | undefined, passenger: OffGridPassenger): Json {
+  const ref: Json = { [REF]: passenger.path };
+  const dense = Array.isArray(soldiers) ? soldiers.map((v: Json, i): readonly [number, Json] => [i, v]) : [];
+  const entries = isObject(soldiers) && tagOfNode(soldiers) === SPARSE_TAG ? sparseEntries(soldiers) : dense;
+  const length = isObject(soldiers) && typeof soldiers[SPARSE_TAG] === 'number' ? soldiers[SPARSE_TAG] : dense.length;
+  const kept = entries.filter(([i]) => i !== passenger.id).map(([i, v]): readonly [number, Json] => [i, soldierRefOf(v, i)]);
+  const all = [...kept, [passenger.id, ref] as const].sort(([a], [b]) => a - b);
+  return { [SPARSE_TAG]: Math.max(length, passenger.id + 1), [SPARSE_ENTRIES_KEY]: all.map(([i, v]): Json => [i, v]) };
+}
+
+function tacticalSoldiers(tactical: JsonObject, sections: readonly Section[]): Json | undefined {
+  const own = tactical[SOLDIERS_SECTION];
+  return field(own, REF, null) === SOLDIERS_SECTION ? sectionOf(sections, SOLDIERS_SECTION) : own;
+}
+
+function holdsPassenger(soldiers: Json | undefined, passenger: OffGridPassenger): boolean {
+  const held = childAt(soldiers, String(passenger.id));
+  return passenger.path === `${SOLDIERS_SECTION}/${passenger.id}` || field(held, REF, null) === passenger.path;
+}
+
+function withPassengerRegistered(sections: readonly Section[], passenger: OffGridPassenger): Section[] {
+  const seated = withSectionNodeAt(sections, passenger.path, waitingWithNoTile);
+  return seated.map(([name, value]): Section => {
+    if (name !== 'tactical' || !isObject(value)) return [name, value];
+    const slotted = slotsWithPassenger(value, seated, passenger);
+    const soldiers = tacticalSoldiers(value, seated);
+    if (holdsPassenger(soldiers, passenger)) return [name, slotted];
+    return [name, { ...slotted, [SOLDIERS_SECTION]: soldiersWithPassenger(soldiers, passenger) }];
+  });
+}
+
+function registerHelicopterPassengers(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const passengers = offGridPassengers(sectionOf(graph.sections, 'strategic'));
+  const withoutFlags = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? rosterWithoutOffGridFlag(value) : value],
+  );
+  const loaded = isObject(sectionOf(withoutFlags, 'tactical'));
+  const sections = loaded ? passengers.reduce(withPassengerRegistered, withoutFlags) : withoutFlags;
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1845,5 +2003,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     58: addSomeoneElseLookTimer,
     59: addHelicopterDrop,
     60: addHelicopterRunFlags,
+    61: registerHelicopterPassengers,
   };
 }

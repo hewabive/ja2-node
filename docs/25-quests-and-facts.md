@@ -184,8 +184,36 @@ them to its own; a group arriving puts the vehicle in first, and its passengers 
 (`tactical/vehicle-passengers.ts`). Boarding on the map screen seats a merc on the loaded map at the vehicle; a wreck,
 like the helicopter shot down, kills every passenger through `SoldierTakeDamage` on his world: the loaded sector's, or
 with none loaded the unloaded one (`CampaignSim.turnWorld()`, `33`).
-Helicopter passengers over the loaded sector stay out of the merc slots, in the sector through the roster's
-`offGridInSector` (gaps "Turn-based hooks").
+
+Helicopter passengers over the loaded sector keep a merc slot with no tile, as in the original: boarding takes only the
+tile (`RemoveSoldierFromGridNo`, `Tactical/Vehicles.cc:261`), and a sector load gives the slot and stops before any tile
+(`Tactical/Soldier_Add.cc:701-709`). ja2-node holds them as it holds a ground vehicle's passengers waiting at a sector
+entry: registered, `placed` false and `offMap` true (`inSector(s)`, the original's `bInSector`), at `NOWHERE`
+(`seatWithNoVehicleOnTheMap`, `seatInTheHelicopterOnSectorEntry`, `tactical/vehicle-passengers.ts`). The roster reads
+that through `inTacticalSector`, and a native import seats them the same way (`14`). A loop gated on `placed` passes them
+by, as the original's loops on `IsSoldierValidForSightings` or `NOWHERE` do; a loop over the merc slots that takes
+`offMap` soldiers sees them, as the original's `FOR_EACH_MERC` does. Where the original tests `bInSector` for our team,
+the passenger counts, which ja2-node does not follow yet (gaps "Turn-based hooks"):
+
+| The original | Counts him | ja2-node | Same |
+|---|---|---|---|
+| Boarding: the tile goes, the slot stays (`Tactical/Vehicles.cc:261`) | yes | `seatWithNoVehicleOnTheMap`, which also clears his own opplist as `RemoveSoldierFromTacticalSector` does (`Tactical/Overhead.cc:5908`) | the slot; not the opplist |
+| A sector load: the slot, with no AP count and no stop (`Tactical/Soldier_Add.cc:701-709`) | yes | `seatInTheHelicopterOnSectorEntry`, from `SectorFlow.#placeMerc`, in id order | yes |
+| Leaving over the loaded sector: `UpdateMercInSector` pushes a second slot, `AddMercSlot` checking nothing (`Tactical/Vehicles.cc:345`, `Tactical/Overhead.cc:244`) | twice | `addSoldierToSector` keeps the one slot | no |
+| `ExecuteOverhead`'s slot loop: damage counter, fade, frames, the look for items (`Tactical/Overhead.cc:518`) | yes | `executeOverhead` (`placed` or `offMap`) | yes |
+| `NotifySoldiersToLookforItems` (`Tactical/Handle_Items.cc:1927`), whose look returns at `NOWHERE` (`Tactical/FOV.cc:222`) | flagged | `notifySoldiersToLookForItems`, `revealRoofsAndItems` | yes |
+| `ResetAllMercSpeeds` (`Tactical/Overhead.cc:5829`), `ChangeSoldierTeam`'s target relink (`Tactical/Soldier_Profile.cc:654`) | yes | `resetAllMercSpeeds` (`inSector`), `narrative/team-change.ts` | yes |
+| `NextAIToHandle` (`Tactical/Overhead.cc:403`) | skipped, ours | `nextAIToHandle` | yes |
+| `IsSoldierValidForSightings` and the loops on it or on `NOWHERE` (`Tactical/OppList.cc:629`, `:736`, `:1189`, `:1237`, `:4298`, `:4363`, `:4434`) | no | `validForSightings` (`placed`) | yes |
+| The other merc-slot loops of `Tactical/OppList.cc`, `TacticalAI/AIUtils.cc`, `TacticalAI/Attacks.cc` and `TacticalAI/Knowledge.cc`, which go by opplist entries | only through an entry, which no opponent holds: he is never seen, and boarding is refused with enemies in the loaded sector | `placed` | yes |
+| `SayQuoteFromAnyBodyInSector` (`Tactical/Dialogue_Control.cc:1342`) and an NPC starting a talk, which want a squad | no | `okControllableMerc`, `assignedBelowDuty` | yes |
+| `NonCombatDecayPublicOpplist`'s `VerifyAndDecayOpplist` (`Tactical/OppList.cc:4540`) | yes | `mercs(t)` (`turns/turns.ts`) | no |
+| `EVENT_BeginMercTurn`'s blood, breath collapse, getting up, opplist decay and personality (`Tactical/Soldier_Control.cc:4019-4077`) | yes | `beginMercTurn`, on `placed` | no |
+| `IsTeamActive` (`bMenInSector`, `Tactical/Overhead.h:178`) | yes | `isTeamActive` (`teamMembers`) | no |
+| `CheckForLosingEndOfBattle`, its capture and its kill loop (`Tactical/Overhead.cc:4959`, `:5041`) | yes | `checkForLosingEndOfBattle`, `BattleFlow.battleLost` | no |
+| `HandlePlayerTeamMemberDeath`'s buddy lines (`Tactical/Overhead.cc:2210`) | yes | `inSectorBuddyKilledQuotes` (`placed`) | no |
+| `SoldierTakeDamage`'s branch for a soldier in the sector, so he never dies at life 0 (`Tactical/Soldier_Control.cc:5366`, `:5401`) | yes | `diesOffTheTacticalMap` (`!placed`) | no |
+| `CommonEnterCombatModeCode`, `ExitCombatMode`, `CancelAllActionsForTimeCompression` (`Tactical/Overhead.cc:3913`, `:4057`, `:5871`) | yes | `placed` | no |
 
 **Boarding and leaving.** `AddSoldierToVehicle` and `ExitVehicle` keep their original order in the strategic code
 (`strategic/economy/vehicle-assignment.ts`, `strategic/forces/vehicles.ts`), which reaches the loaded map through
@@ -263,6 +291,8 @@ says otherwise:
 | The mercs aboard stay in the sector at the vehicle's tile: they look and are seen, yet the cursor and every order that names a soldier pass them by, though their merc slots come before the vehicle's | `src/sim/tactical/vehicle-presence.test.ts` "lets the mercs aboard look …", "are never found on the vehicle's tile …", "are no target of an order …" |
 | A vehicle of ours with nobody aboard is not ours: it cannot be selected or ordered, though it stays on our team and squad | `src/sim/tactical/vehicle-presence.test.ts` "is not ours to select or order …", `src/sim/campaign/vehicle-presence.test.ts` "is no longer ours to select …" |
 | The passengers enter a sector before their vehicle, in the slots below its 18 or 19, and come to its tile only when it is placed | `src/sim/tactical/insertion.test.ts` "is registered in his merc slot without a tile …", `src/sim/campaign/vehicle-passengers.test.ts` "come in with it …" |
+| A helicopter passenger over the loaded sector keeps a merc slot with no tile: boarding takes his tile and leaves the slot, and a sector load or a native import gives him one in id order, his APs and his walk left as they were | `src/sim/campaign/helicopter-flow.test.ts` "keep their merc slot when they board …", "enter their merc slots with no tile …", `src/sim/tactical/vehicle-passengers.test.ts` "takes his merc slot at a sector entry …", `src/sim/tactical/save-import.test.ts` "puts the helicopter's passenger in his merc slot …" |
+| The overhead pass handles a helicopter passenger like any merc slot, his frames running with no tile, while every loop gated on a tile or a sighting passes him by | `src/sim/tactical/vehicle-passengers.test.ts` "leaves his tile at boarding …", "is handled by the overhead pass …" |
 | A vehicle entering a sector takes the closest tile its structure fits on in the insertion direction, else in the first of the eight that fits, and keeps that direction as its insertion direction | `src/sim/tactical/insertion.test.ts` "turns to the first of the eight directions …" |
 | A vehicle joining our team takes soldier id 18, else 19, else it cannot join and is gone from the map: two ground vehicles at most (a boarding checks the slot first, deviation "Third vehicle of ours"); a tank of ours would search from id 0 | `src/sim/tactical/narrative/team-change.test.ts`, `src/sim/campaign/vehicle-registration.test.ts`, `src/sim/campaign/vehicle-boarding.test.ts` "takes a second vehicle over as soldier 19 …" |
 | A merc never boards from where he stands: his own tile is never free to him (`NewOKDestination` finds him there), so beside a vehicle he walks round it to the next free tile first; on arrival he gets into whatever enterable vehicle stands on the tile, allowed or not by then | `src/sim/tactical/vehicle-boarding.test.ts` "never boards from where the merc stands …", "walks to the free tile closest to the vehicle …" |
@@ -320,6 +350,6 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance". Deviations of
-this domain: "Helicopter on load", "Toolkit repair in tactical", "Helicopter drop statics", "Helicopter run start",
-"Helicopter drop cut short".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance", "Turn-based
+hooks" (the passengers' branches). Deviations of this domain: "Helicopter on load", "Toolkit repair in tactical",
+"Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short".

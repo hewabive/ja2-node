@@ -1,24 +1,31 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { firstDifference } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { addStubTank, stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
+import { strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { StructureFlags } from '../content/world/structures.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../sim/campaign/merc-fate.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
+import { UnloadCode } from '../sim/campaign/sector-flow.ts';
 import { createItem } from '../sim/items/object.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
 import { VehicleSeat } from '../sim/strategic/forces/constants.ts';
+import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
+import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creation.ts';
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
 import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
 import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
 import { setSoldierPosition } from '../sim/tactical/movement.ts';
+import type { ProfileProgress } from '../sim/tactical/profiles.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
-import { Body, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
+import { Body, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, registerSoldier, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -3017,5 +3024,154 @@ describe('snapshot version 60 (no pending run, no first-run flag) migrates with 
 
   it('a campaign after its first drop', async () => {
     await expectRunFlagsDown(await createCampaignSession(kit.read, exists, 9));
+  });
+});
+
+const OFF_GRID_IN_SECTOR_KEY = 'offGridInSector';
+const PASSENGER_ID = 0;
+const PASSENGER_SLOT_REF = `soldiers/${PASSENGER_ID}`;
+const HELICOPTER_BASE = { x: 9, y: 1, z: 0 };
+const OFF_MAP_AI_CURSOR = 0xffff;
+
+async function quietLandedCampaign(kit: StubSectorKit): Promise<CampaignSession> {
+  const session = await createCampaignSession(kit.read, (path) => kit.worlds.exists(path), 9, { land: false });
+  Object.assign(sectorInfo(session.campaign.state.map, HELICOPTER_BASE), { numAdmins: 0, numTroops: 0, numElites: 0 });
+  for (const cmd of [{ type: 'compressTime', mode: CompressMode.MIN5 }, { type: 'skipHelicopterDrop' }]) {
+    await session.prepare(cmd);
+    expect(session.dispatch(cmd).ok).toBe(true);
+  }
+  return session;
+}
+
+function boardTheHelicopterOverTheLoadedSector(session: CampaignSession): void {
+  const c = session.campaign;
+  const ctx = c.strategic;
+  if (!ctx) throw new Error('no strategic layer');
+  c.state.profiles.set(SKYRIDER, { balance: 0, life: 50 } as unknown as ProfileProgress);
+  const base = c.state.map.elements[strategicIndex(HELICOPTER_BASE)];
+  if (base) base.enemyControlled = false;
+  setUpHelicopterForPlayer(ctx, HELICOPTER_BASE);
+  expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+  expect(c.dispatch({ type: 'boardVehicle', soldier: PASSENGER_ID, vehicle: 'helicopter' })).toMatchObject({ ok: true });
+}
+
+function reloadTheSector(session: CampaignSession): void {
+  const flow = session.campaign.sectors;
+  if (!flow) throw new Error('no sector flow');
+  flow.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
+  flow.trashWorld();
+  expect(flow.setCurrentWorldSector(HELICOPTER_BASE)).toBe(true);
+}
+
+function withOffGridFlag(record: Json, flag: boolean): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(object(record))) {
+    out[key] = v;
+    if (key === 'vehicleUnderRepair') out[OFF_GRID_IN_SECTOR_KEY] = flag;
+  }
+  return out;
+}
+
+function legacyRoster(strategic: JsonObject, passengerSoldier: Json): JsonObject {
+  const roster = object(strategic.roster);
+  const mercs = object(roster.mercs);
+  const entries = (mercs.$map as readonly (readonly [Json, Json])[]).map(([id, record]): Json => {
+    if (id !== PASSENGER_ID) return [id, withOffGridFlag(record, false)];
+    return [id, { ...withOffGridFlag(record, true), soldier: passengerSoldier }];
+  });
+  return { ...strategic, roster: { ...roster, mercs: { ...mercs, $map: entries } } };
+}
+
+function legacyTactical(tactical: JsonObject): JsonObject {
+  const slots = tactical.mercSlots as readonly Json[];
+  const at = slots.findIndex((slot) => object(slot).$ref === PASSENGER_SLOT_REF);
+  expect(at).toBeGreaterThanOrEqual(0);
+  const pass = object(tactical.aiPass);
+  const cursor = pass.cursor as number;
+  const shifted = cursor !== OFF_MAP_AI_CURSOR && cursor > at ? { aiPass: { ...pass, cursor: cursor - 1 } } : {};
+  return { ...tactical, mercSlots: slots.filter((_, k) => k !== at), ...shifted };
+}
+
+function soldierEntries(soldiers: Json): readonly (readonly [number, Json])[] {
+  if (Array.isArray(soldiers)) return soldiers.map((v: Json, i): readonly [number, Json] => [i, v]);
+  return object(soldiers).$e as unknown as readonly (readonly [number, Json])[];
+}
+
+function soldiersLength(soldiers: Json): number {
+  return Array.isArray(soldiers) ? soldiers.length : (object(soldiers).$sparse as number);
+}
+
+function heldSoldier(soldiers: Json): JsonObject {
+  return object(soldierEntries(soldiers).find(([i]) => i === PASSENGER_ID)?.[1]);
+}
+
+function soldiersWith(soldiers: Json, passenger: JsonObject | null): Json {
+  const entries = soldierEntries(soldiers)
+    .filter(([i]) => passenger !== null || i !== PASSENGER_ID)
+    .map(([i, v]): Json => [i, i === PASSENGER_ID ? passenger : v]);
+  return { $sparse: soldiersLength(soldiers), $e: entries };
+}
+
+function legacyPassenger(soldier: JsonObject): JsonObject {
+  expect([soldier.placed, soldier.offMap, soldier.gridNo]).toEqual([false, true, NOWHERE]);
+  return { ...soldier, offMap: false };
+}
+
+function versionSixtyOne(snapshot: SimSnapshot, loadedAboard: boolean): SimSnapshot {
+  const graph = snapshot.graph;
+  const soldiers = graph.sections.find(([name]) => name === 'soldiers')?.[1] ?? null;
+  const passenger = legacyPassenger(heldSoldier(soldiers));
+  const legacySoldiers = loadedAboard
+    ? soldiersWith(soldiers, null)
+    : Array.isArray(soldiers)
+      ? soldiers.map((v: Json, i) => (i === PASSENGER_ID ? passenger : v))
+      : soldiersWith(soldiers, passenger);
+  const sections = graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name === 'soldiers') return [name, legacySoldiers];
+    if (name === 'strategic') return [name, legacyRoster(object(value), loadedAboard ? passenger : { $ref: PASSENGER_SLOT_REF })];
+    if (name === 'tactical') return [name, legacyTactical(object(value))];
+    return [name, value];
+  });
+  if (loadedAboard) expect(JSON.stringify(sections)).not.toContain(`"${PASSENGER_SLOT_REF}`);
+  return { ...snapshot, version: 61, graph: { ...graph, sections } };
+}
+
+describe('snapshot version 61 (helicopter passengers out of the merc slots) migrates with each passenger over the loaded sector in his merc slot with no tile', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectPassengerRegistered(session: CampaignSession, loadedAboard: boolean): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtyOne(current.sim, loadedAboard);
+    expect(JSON.stringify(current.sim)).not.toContain(`"${OFF_GRID_IN_SECTOR_KEY}"`);
+    if (!loadedAboard) expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = (await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists)) as CampaignSession;
+    const again = JSON.stringify(snapshotSession(restored));
+    const expected = JSON.stringify(current);
+    expect(again === expected ? '' : firstDifference(again, expected)).toBe('');
+    const t = restored.campaign.tactical?.state;
+    const passenger = restored.campaign.battle?.roster.get(PASSENGER_ID)?.soldier;
+    expect([t?.soldiers[PASSENGER_ID] === passenger, passenger !== undefined && t?.mercSlots.includes(passenger)]).toEqual([true, true]);
+  }
+
+  it('a campaign whose merc boarded the helicopter on the loaded map, still in the soldiers of the sector', async () => {
+    const session = await quietLandedCampaign(kit);
+    boardTheHelicopterOverTheLoadedSector(session);
+    await expectPassengerRegistered(session, false);
+  });
+
+  it('a campaign whose sector loaded with a merc aboard, held by the roster alone', async () => {
+    const session = await quietLandedCampaign(kit);
+    boardTheHelicopterOverTheLoadedSector(session);
+    reloadTheSector(session);
+    await expectPassengerRegistered(session, true);
   });
 });

@@ -235,8 +235,8 @@ merc off the loaded map, in real time on both screens and at our team turn in co
 - The turn starts of our mercs off the loaded map (the absent probes confirm that a merc breathes by the animation he
   left the map in and by his own terrain, so one who ran off regains nothing): a step since the last turn zeroes his
   first gain; a stale `GIVING_AID` state still looks for its patient on the loaded map; the helicopter's passengers
-  over the loaded sector, in its merc slots in the original, get the turn start of a merc elsewhere (gaps "Turn-based
-  hooks").
+  over the loaded sector, in their merc slots with no tile as in the original, still get the branches of a merc
+  elsewhere (gaps "Turn-based hooks").
 - The selections of a screen entry, a sector load, a death, a removal and a change of the current squad, and that the
   original reaches them at the moments `29` §4.3 names (the map, a load, the skull, a squad or sector removal, a squad
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's

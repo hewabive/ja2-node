@@ -3,24 +3,46 @@
 // @src src/game/Tactical/Vehicles.cc AddSoldierToVehicle (the seat at a ground vehicle), KillPersonInVehicle;
 // @src Tactical/Soldier_Add.cc InternalAddSoldierToSector (a driver or passenger stops after his merc slot);
 // @src Strategic/Strategic_Movement.cc GroupArrivedAtSector (the vehicle placed before its passengers); the EVENT_StopMerc of
-// @src AddSoldierToVehicle, for a merc who boarded off the loaded map, at his next sector entry.
+// @src AddSoldierToVehicle, for a merc who boarded off the loaded map, at his next sector entry; AddSoldierToVehicle's
+// @src RemoveSoldierFromGridNo for a vehicle with no soldier on the map, the helicopter, with the opplist reset of
+// @src Overhead.cc RemoveSoldierFromTacticalSector that the boarding keeps for now (gaps "Turn-based hooks"), and the
+// @src helicopter's passengers over the loaded sector in their merc slots with no tile (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { hasAnimFlag, soldierGotoStationaryStance } from './animation.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason } from './combat/types.ts';
 import { removeSoldierFromGridNo, setSoldierPositionXY, stopMerc } from './movement.ts';
-import type { Soldier } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import { initSoldierOppList } from './perception/opplist-reset.ts';
+import { inSector, NOWHERE, type Soldier } from './soldier.ts';
+import { registerSoldier, type TacticalState } from './state.ts';
 import { vehicleCarrying } from './vehicle-presence.ts';
 
 const KILLED_IN_VEHICLE_LIFE = 100;
 const KILLED_IN_VEHICLE_BREATH = 100;
 
+function waitInTheSectorWithNoTile(s: Soldier): void {
+  s.placed = false;
+  s.offMap = true;
+}
+
 export function seatAtVehicle(t: TacticalState, s: Soldier, vehicle: Soldier): void {
   removeSoldierFromGridNo(t, s);
   setSoldierPositionXY(t, s, vehicle.x, vehicle.y);
   stopMerc(t, s);
+}
+
+export function seatWithNoVehicleOnTheMap(t: TacticalState, s: Soldier): void {
+  if (!inSector(s)) return;
+  initSoldierOppList(t, s);
+  removeSoldierFromGridNo(t, s);
+  waitInTheSectorWithNoTile(s);
+}
+
+export function seatInTheHelicopterOnSectorEntry(t: TacticalState, s: Soldier): void {
+  if (!t.mercSlots.includes(s)) registerSoldier(t, s);
+  s.gridNo = NOWHERE;
+  waitInTheSectorWithNoTile(s);
 }
 
 function haltAsBoarded(t: TacticalState, s: Soldier): void {
@@ -30,8 +52,7 @@ function haltAsBoarded(t: TacticalState, s: Soldier): void {
 }
 
 export function seatOnSectorEntry(t: TacticalState, s: Soldier): void {
-  s.placed = false;
-  s.offMap = true;
+  waitInTheSectorWithNoTile(s);
   haltAsBoarded(t, s);
   const vehicle = vehicleCarrying(t, s);
   if (vehicle?.placed) setSoldierPositionXY(t, s, vehicle.x, vehicle.y);

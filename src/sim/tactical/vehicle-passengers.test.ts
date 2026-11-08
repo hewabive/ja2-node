@@ -10,9 +10,13 @@ import type { TacticalContent } from './content.ts';
 import { newSmokeEffect } from './explosions/smoke.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
-import { type Soldier, Team } from './soldier.ts';
-import { type TacticalState, whoIsThere } from './state.ts';
+import { validForSightings } from './perception/sight.ts';
+import { removeSoldierFromTacticalSector } from './sector-presence.ts';
+import { NOWHERE, type Soldier, Team } from './soldier.ts';
+import { mercs, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
+import { seatInTheHelicopterOnSectorEntry, seatWithNoVehicleOnTheMap } from './vehicle-passengers.ts';
+import { notifySoldiersToLookForItems } from './world-items.ts';
 
 let content: TacticalContent;
 
@@ -113,5 +117,57 @@ describe('a merc seated in a ground vehicle in the loaded sector (Vehicles.cc Ad
     board(t, bare, hummer, VehicleSeat.DRIVER);
     board(t, masked, hummer, VehicleSeat.PASSENGER);
     expect([bare.gassed, masked.gassed]).toEqual([true, false]);
+  });
+});
+
+describe('a helicopter passenger over the loaded sector, in his merc slot with no tile (Soldier_Add.cc InternalAddSoldierToSector)', () => {
+  const FIRST_FRAME_TICKS = 200;
+  const SAVED_APS = 3;
+  const SAVED_PATH_STEPS = 4;
+
+  function flying(): { readonly sim: TacticalSim; readonly t: TacticalState; readonly merc: Soldier; readonly walker: Soldier } {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, STANDING_AT, Direction.NORTH, { life: 100 });
+    const walker = spawnSoldier(sim, 1, Team.OUR, NEXT_TO_HIM, Direction.NORTH, { life: 100 });
+    merc.vehicleSeat = VehicleSeat.PASSENGER;
+    seatWithNoVehicleOnTheMap(t, merc);
+    return { sim, t, merc, walker };
+  }
+
+  it('leaves his tile at boarding but keeps his merc slot, and every loop gated on a tile or a sighting passes him by (Vehicles.cc:261, OppList.cc:629)', () => {
+    const { t, merc, walker } = flying();
+    expect([merc.placed, merc.offMap, merc.gridNo, merc.structure]).toEqual([false, true, NOWHERE, null]);
+    expect(t.mercSlots).toEqual([merc, walker]);
+    expect(whoIsThere(t, STANDING_AT, 0)).toBeNull();
+    expect([validForSightings(merc), mercs(t), teamMembers(t, Team.OUR)]).toEqual([false, [walker], [walker]]);
+  });
+
+  it('is handled by the overhead pass like every merc slot: his frames run and clear the order to look for items every slot gets (Overhead.cc ExecuteOverhead, Handle_Items.cc:1927)', () => {
+    const { sim, t, merc } = flying();
+    notifySoldiersToLookForItems(t);
+    expect(merc.lookForItems).toBe(true);
+    for (let tick = 0; tick < FIRST_FRAME_TICKS && merc.lookForItems; tick++) sim.step();
+    expect(merc.lookForItems).toBe(false);
+  });
+
+  it('takes his merc slot at a sector entry with his APs and his walk as they were: no stop and no count, unlike the passenger of a ground vehicle (Vehicles.cc AddSoldierToVehicle with no vehicle soldier)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const walker = spawnSoldier(sim, 1, Team.OUR, NEXT_TO_HIM, Direction.NORTH, { life: 100 });
+    const merc = spawnSoldier(sim, 0, Team.OUR, STANDING_AT, Direction.NORTH, { life: 100 });
+    removeSoldierFromTacticalSector(t, merc);
+    merc.vehicleSeat = VehicleSeat.PASSENGER;
+    merc.actionPoints = SAVED_APS;
+    merc.pathSize = SAVED_PATH_STEPS;
+    seatInTheHelicopterOnSectorEntry(t, merc);
+    expect([merc.placed, merc.offMap, merc.gridNo, merc.actionPoints, merc.pathSize]).toEqual([
+      false,
+      true,
+      NOWHERE,
+      SAVED_APS,
+      SAVED_PATH_STEPS,
+    ]);
+    expect([t.mercSlots, t.soldiers[merc.id]]).toEqual([[walker, merc], merc]);
   });
 });
