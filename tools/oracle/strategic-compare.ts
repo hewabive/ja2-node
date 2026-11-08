@@ -13,6 +13,7 @@ import {
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { i32 } from '../../src/core/int.ts';
+import type { SaveSession } from '../../src/server/save-session.ts';
 import { importNativeGameOptions } from '../../src/sim/options.ts';
 import { createStrategicContext, emptyMercPort } from '../../src/sim/strategic/forces/context.ts';
 import {
@@ -32,6 +33,7 @@ import { deleteStrategicEvent } from '../../src/sim/strategic/time/event-queue.t
 import { importStrategicTime } from '../../src/sim/strategic/time/save-import.ts';
 import { carriedWeightPercentOf } from '../../src/sim/tactical/points.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { takeMapModificationsFlagOfImport } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 
@@ -123,7 +125,7 @@ export class StrategicComparer {
     return ctx;
   }
 
-  async loadSave(savesDir: string, name: string, sim: TacticalSim | null): Promise<void> {
+  async loadSave(savesDir: string, name: string, sim: TacticalSim | null, imported: SaveSession | null): Promise<void> {
     const table = await this.#read(SAVE_ENCRYPTION_PATH);
     if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
     const bytes = new Uint8Array(readFileSync(join(savesDir, `${name}.sav`)));
@@ -132,6 +134,7 @@ export class StrategicComparer {
     importStrategicTime(state, save);
     const ctx = createStrategicContext({ state, content: await this.#loadContent(), mercs: savedMercPort(save, sim) });
     importStrategicMap(ctx, save);
+    takeMapModificationsFlagOfImport(state.map, imported);
     this.#ctx = ctx;
     this.#encumbranceKnown = (id) => sim?.state.soldiers[id] !== undefined;
   }

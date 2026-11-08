@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Structure.cc CreateStructureFromDB, OkayToAddStructureToTile, InternalOkayToAddStructureToWorld,
-// @src AddStructureToWorld, AddStructureToTile, FindStructure, FindStructureByID, StructureHeight; Structure_Internals.h
+// @src AddStructureToWorld, AddStructureToTile, FindStructure, FindStructureByID, StructureHeight; Structure_Internals.h;
+// @src FindStructureBySavedInfo (2026-11-08)
 
 import { u32 } from '../../core/int.ts';
 import { Orientation, type StructureDef, type StructureFile, type StructureTile } from '../formats/jsd.ts';
@@ -164,6 +165,16 @@ export class WorldStructures {
     for (let i = list.indexOf(s) + 1; i < list.length; i++) {
       const next = list[i] as StructureInstance;
       if (has(next.flags, mask)) return next;
+    }
+    return null;
+  }
+
+  findBySavedInfo(g: number, type: number, wallOrientation: number, level: number): StructureInstance | null {
+    for (const s of this.at(g)) {
+      if (!has(s.flags, u32(1 << type))) continue;
+      if (s.wallOrientation !== wallOrientation) continue;
+      if ((s.cubeOffset === 0) !== (level === 0)) continue;
+      return s;
     }
     return null;
   }

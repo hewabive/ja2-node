@@ -19,8 +19,8 @@ import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
 import type { StoredDoorStatus } from '../tactical/doors/door-status.ts';
 import { type OpenableStatus, setOpenableStructStatus } from '../tactical/doors.ts';
-import { restoreLightEffect } from '../tactical/explosions/light.ts';
-import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
+import { loadLightEffects } from '../tactical/explosions/light.ts';
+import { loadSmokeEffects } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
 import { loadedWorldItemGridNo } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
@@ -293,13 +293,14 @@ export function changeOpenableInUnloadedSector(diff: SectorDiff | undefined, gri
 }
 
 export function restoreSmoke(t: TacticalState, smoke: readonly DiffSmoke[]): void {
-  t.explosives.smokeClouds.length = 0;
-  for (const s of smoke) restoreSmokeCloud(t, { ...s, owner: null });
+  loadSmokeEffects(
+    t,
+    smoke.map((s) => ({ ...s, owner: null })),
+  );
 }
 
 export function restoreLights(t: TacticalState, lights: readonly DiffLight[]): void {
-  t.explosives.lights.length = 0;
-  for (const l of lights) restoreLightEffect(t, l);
+  loadLightEffects(t, lights);
 }
 
 export function restoreMapChanges(t: TacticalState, changes: readonly MapChange[]): void {

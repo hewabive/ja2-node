@@ -7,7 +7,7 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import { tileIndex, typeIndex } from '../../../content/world/tile-tables.ts';
 import { tacticalViewParts } from '../../knowledge/sim-view.ts';
 import { applyMapChanges, MapChangeKind, sectorTempFileChanges, structLayerAt } from '../map-changes.ts';
-import { initLoadedWorld, loadSavedSectorChanges } from '../save-import.ts';
+import { initLoadedWorld, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from '../save-import.ts';
 import type { TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { addBlueFlag, clearMineFlag, hasMineFlag, knownMineTiles, MineFlag, removeBlueFlag, setMineFlag } from './mine-flags.ts';
@@ -117,7 +117,7 @@ describe('the mine flags of a loaded sector (SetBlueFlagFlags)', () => {
       subImageIndex: BLUE_FLAG_SUB_INDEX,
       extra: 0,
     };
-    loadSavedSectorChanges(sim, { mapModifications: [flag], revealed: null, doorStatus: null });
+    loadSavedSectorChanges(sim, { ...NO_SAVED_SECTOR_CHANGES, mapModifications: [flag] });
     expect(knownMineTiles(sim.state)).toEqual([OPEN_GROUND]);
   });
 });

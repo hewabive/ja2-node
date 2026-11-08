@@ -1,5 +1,7 @@
 import { createSaveSession, type SaveSession } from '../../src/server/save-session.ts';
 import { openTacticalScreen } from '../../src/sim/campaign/screens.ts';
+import { SectorFlag } from '../../src/sim/strategic/forces/constants.ts';
+import { getSectorFlagStatus, resetSectorFlag, type StrategicMapState } from '../../src/sim/strategic/map/sectors.ts';
 
 export async function createTacticalSaveSession(...args: Parameters<typeof createSaveSession>): Promise<SaveSession> {
   const imported = await createSaveSession(...args);
@@ -9,4 +11,12 @@ export async function createTacticalSaveSession(...args: Parameters<typeof creat
     if (!entered.ok) throw new Error(`cannot enter the loaded sector of the save: ${entered.reason}`);
   }
   return imported;
+}
+
+export function takeMapModificationsFlagOfImport(map: StrategicMapState, imported: SaveSession | null): void {
+  const state = imported?.session.campaign.state;
+  const world = state?.worldSector;
+  if (!state || !world) return;
+  const flag = SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS;
+  if (!getSectorFlagStatus(state.map, world, flag)) resetSectorFlag(map, world, flag);
 }

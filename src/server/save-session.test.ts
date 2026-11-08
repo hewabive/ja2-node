@@ -6,6 +6,7 @@ import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH, SAVE_HEADER_BYTES } from '../content/formats/savegame-header.ts';
 import { layoutOffsets } from '../content/formats/savegame-layout.ts';
 import { TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
+import { MapModificationType } from '../content/formats/savegame-temp-files.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { Direction } from '../content/world/grid.ts';
@@ -17,6 +18,8 @@ import { musicMode } from '../protocol/music.ts';
 import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { advance } from '../sim/advance.ts';
 import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
+import { SectorFlag } from '../sim/strategic/forces/constants.ts';
+import { getSectorFlagStatus } from '../sim/strategic/map/sectors.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
 import { inLoadedSector } from '../sim/tactical/save-import.ts';
@@ -43,6 +46,12 @@ const noWorldSaves = saveFiles.filter((file) => !savedWithWorld(file));
 const TRAVEL_STEPS = 20_000;
 const DRASSEN_AIRPORT = { x: 13, y: 2, z: 0 };
 const DRASSEN_HELIPAD = 9001;
+const WRITTEN_BACK_ON_LOAD: ReadonlySet<number> = new Set([
+  MapModificationType.OBJECT,
+  MapModificationType.STRUCT,
+  MapModificationType.REMOVE_STRUCT,
+  MapModificationType.EXIT_GRIDS,
+]);
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign', () => {
   let data: DataVfs;
@@ -198,7 +207,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(c.state.clock.seconds - before).toBe(60);
     });
 
-    it(`imports the doors, key rings, key table and civilian groups of ${file}`, async () => {
+    it(`imports the doors, key rings, key table, civilian groups and map modifications flag of ${file}`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
       const save = parseSaveGame(bytes, table);
@@ -214,6 +223,12 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
         const ring = t.soldiers[entry.soldier.id]?.keyRing ?? null;
         expect(ring?.filter((k) => k.count > 0) ?? null).toEqual(entry.keyRing?.filter((k) => k.count > 0) ?? null);
       }
+      const records = save.currentSector.mapModifications ?? [];
+      expect(records.some((m) => m.type === MapModificationType.WINDOW_HIT)).toBe(false);
+      const writtenBack = records.some((m) => WRITTEN_BACK_ON_LOAD.has(m.type));
+      const world = session.campaign.state.worldSector;
+      const flagged = world ? getSectorFlagStatus(session.campaign.state.map, world, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS) : null;
+      expect(flagged).toBe(world ? writtenBack : null);
     });
   }
 

@@ -25,7 +25,8 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
       creatures, economy, contracts, laptop, narrative,
       assignments, NPC records
     the loaded sector: links, helicopter, map changes,          sim/campaign/sector-flow.ts adoptLoadedSector
-      door states, schedules
+      door states, smoke and lights, schedules
+    the loaded sector's map modifications flag                  sim/strategic/map/save-import.ts
 ```
 
 `savegame.ts` decodes the header (`savegame-header.ts`: both layouts, the encryption set, the record cipher), the
@@ -47,8 +48,12 @@ holds (`germanEncryption`). Since 11 ≡ 1 (mod 10), the factor changes the set 
 balances.
 
 **Only the loaded sector is rebuilt.** The game writes the loaded sector into its temp files right before saving, so
-those files are the sector's live state, and the import applies them. Every other sector's temp files stay raw bytes
-(`tempFiles`): those sectors load from their maps.
+those files are the sector's live state, and the import applies them in the order of
+`LoadCurrentSectorsInformationFromTempItemsFile` (`Tactical/Tactical_Save.cc:432`), its records as the original reads
+them (`src/sim/tactical/native-temp-files.ts`): the ones the stay changes again become ja2-node map changes, so the
+next exit keeps them, and the ones the native load writes back decide whether the sector keeps its map modifications
+flag (`SaveLoadMap.cc:236`). Every other sector's temp files stay raw bytes (`tempFiles`): those sectors load from
+their maps.
 
 **A save without a world.** A save made before the first arrival, or after the last merc left the loaded sector,
 has no world (`SaveLoadGame.cc:731`, `:748`): the original leaves the world sector invalid and opens the map screen. The
@@ -66,7 +71,8 @@ enters it (a 5–60 minute compression mode stays but stops, any other becomes X
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
 animation) after it has stood a landed helicopter on the map and applied the loaded sector's map changes, revealed
-tiles (which switch on the cave lights there, `20`) and door states, so the helicopter's bump moves nobody (deviation
+tiles (which switch on the cave lights there, `20`), door states and smoke and light effects, so the helicopter's bump
+moves nobody and the smoke gasses nobody, while a soldier entering a smoke tile without a mask is gassed (deviation
 "Helicopter on load"; `loadSavedSectorChanges` lifts the imported soldiers off the map meanwhile), recompiles the
 movement costs, sends crows to a rotting corpse by day as loading the corpses file does (deviation "Crows on load"),
 posts the schedules, powers the map lights for the saved hour, sets the ambient light and runs `LoadStrategicAI`'s
@@ -123,6 +129,8 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
 | No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5856`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |
 | A temp file is read by its count, the bytes past it unread: B11's item file in `SaveGame07`, `09` and `10` counts no record ahead of a live slot (`Tactical/Tactical_Save.cc:217`) | `content/formats/savegame.test.ts` "reads only the counted item records …", "reads nothing from B11's item file in SaveGame07 …" |
+| A damage record lands on the first structure of its tile with the saved type bit, wall orientation and level class, which can be a piece of another structure listed first: the next save rescans base tiles only and loses the damage (`Structure.cc:1853`, `SaveLoadMap.cc:344`) | `sim/tactical/native-temp-files.test.ts` "lets a damage record land on the piece of another structure …" |
+| The load spreads the saved smoke before the soldiers enter the map: a soldier saved ungassed on a smoke tile enters gassed, and nobody takes gas damage (`SaveLoadGame.cc:1016`, `:1036`; `Soldier_Control.cc:2066`) | `sim/tactical/save-import.test.ts` "restores the clouds in their slots …" |
 
 Not pinned yet:
 - A vanilla save's `uiFlags` holds `LOADING_SAVED_GAME`, set while writing, and two bits Stracciatella no longer defines
@@ -149,6 +157,5 @@ Inferred from reading the source:
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
 
-Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections". Other
-deviations of the import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on the ground",
-"Difficulty and progress in tactical", "Corpse structure past its file".
+Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections". Other deviations of the import:
+"Ambient sound events", "Blood on the ground", "Difficulty and progress in tactical", "Corpse structure past its file".

@@ -3,11 +3,11 @@
 // @src src/game/SaveLoadGame.cc LoadSavedGame (strategic info, underground, squads, groups, vehicles, general info);
 // @src Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile, LoadPlayerGroupList; Tactical/Squads.cc
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
-// @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset); LoadGeneralInfo (the helicopter globals).
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset, decided from the records written back, 2026-11-08);
+// @src LoadGeneralInfo (the helicopter globals).
 
 import { loadedWorldSector, type SaveGame, type StrategicGroup } from '../../../content/formats/savegame.ts';
 import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
-import { MapModificationType } from '../../../content/formats/savegame-temp-files.ts';
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';
 import {
@@ -21,16 +21,9 @@ import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
 import type { Group } from '../forces/groups.ts';
 import { type HelicopterState, REFUEL_SITES } from '../forces/helicopter-state.ts';
 import type { StrategicContext } from '../forces/ports.ts';
-import { type MapElement, resetSectorFlag, type SectorInfo, type UndergroundSector } from './sectors.ts';
+import { type MapElement, resetSectorFlag, type SectorInfo, type StrategicMapState, type UndergroundSector } from './sectors.ts';
 
 const PLAYER_TEAM = 0;
-const MAP_CHANGES_WRITTEN_BACK_ON_LOAD: ReadonlySet<number> = new Set([
-  MapModificationType.OBJECT,
-  MapModificationType.STRUCT,
-  MapModificationType.REMOVE_STRUCT,
-  MapModificationType.EXIT_GRIDS,
-  MapModificationType.WINDOW_HIT,
-]);
 const SOLDIER_VEHICLE_FLAG = 0x00008000;
 
 interface VehicleSoldierEntry extends VehicleSoldier {
@@ -157,11 +150,11 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   state.movement.disableMapInterfaceDueToBattle = info.disableMapInterfaceDueToBattle;
   const world = loadedWorldSector(save);
   state.worldSector = world ? { ...world } : null;
-  if (state.worldSector) applyLoadedSectorMapChanges(ctx, save, state.worldSector);
 }
 
-function applyLoadedSectorMapChanges(ctx: StrategicContext, save: SaveGame, world: Sector): void {
-  const changes = save.currentSector.mapModifications;
-  if (!changes || changes.some((m) => MAP_CHANGES_WRITTEN_BACK_ON_LOAD.has(m.type))) return;
-  resetSectorFlag(ctx.state.map, world, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
+export function dropLoadedSectorMapModificationsFile(state: {
+  readonly map: StrategicMapState;
+  readonly worldSector: Sector | null;
+}): void {
+  if (state.worldSector) resetSectorFlag(state.map, state.worldSector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
 }

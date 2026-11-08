@@ -7,6 +7,7 @@ import { type ArmyContent, loadArmyContent } from '../../src/content/strategic/a
 import { sectorFromId, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import type { SaveSession } from '../../src/server/save-session.ts';
 import { gameOptions, importNativeGameOptions } from '../../src/sim/options.ts';
 import type { MineIncomePort, QueenContext } from '../../src/sim/strategic/ai/context.ts';
 import { checkEnemyControlledSector } from '../../src/sim/strategic/ai/detection.ts';
@@ -29,6 +30,7 @@ import { EventKind, Warp } from '../../src/sim/strategic/time/constants.ts';
 import { deleteStrategicEvent } from '../../src/sim/strategic/time/event-queue.ts';
 import { importStrategicTime } from '../../src/sim/strategic/time/save-import.ts';
 import { warpGameTime } from '../../src/sim/strategic/time/world-clock.ts';
+import { takeMapModificationsFlagOfImport } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -317,7 +319,7 @@ export class SaiComparer {
     return { q: ai.bind(ctx), rolls, mines, loadHooksPending: false, loadDraws: null };
   }
 
-  async loadSave(savesDir: string, name: string): Promise<void> {
+  async loadSave(savesDir: string, name: string, imported: SaveSession | null): Promise<void> {
     const table = await this.#read(SAVE_ENCRYPTION_PATH);
     if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
     const bytes = new Uint8Array(readFileSync(join(savesDir, `${name}.sav`)));
@@ -326,6 +328,7 @@ export class SaiComparer {
     importStrategicTime(state, save);
     const session = await this.#newSession(state, savedMercPort(save), save.facts, save.tactical.enemyInSector);
     importStrategicMap(session.q, save);
+    takeMapModificationsFlagOfImport(state.map, imported);
     importStrategicAi(session.q, readStrategicAiSections(bytes, save), { runLoadHooks: false });
     session.loadHooksPending = true;
     this.#session = session;

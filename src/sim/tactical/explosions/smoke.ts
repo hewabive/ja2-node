@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/SmokeEffects.cc GetSmokeEffectOnTile, FromWorldFlagsToSmokeType, NewSmokeEffect,
-// @src AddSmokeEffectToTile, RemoveSmokeEffectFromTile, DecaySmokeEffects, IsSoldierAlreadyAffectedBySmokeEffect;
+// @src AddSmokeEffectToTile, RemoveSmokeEffectFromTile, DecaySmokeEffects, IsSoldierAlreadyAffectedBySmokeEffect,
+// @src LoadSmokeEffectsFromMapTempFile (the list replaced, then every allocated cloud spread, 2026-11-08);
 // @src Explosion_Control.cc DishOutGasDamage; Tactical/Overhead.cc running into gas (HandleGotoNewGridNo);
 // @src Soldier_Control.cc SOLDIER_GASSED in SetSoldierGridNo and EVENT_BeginMercTurn; TacticalAI/AIUtils.cc InGas,
 // @src InSmoke, WearGasMaskIfAvailable.
@@ -161,9 +162,10 @@ export function newSmokeEffect(t: TacticalState, g: number, item: number, level:
   spreadEffectSmoke(t, cloud, Spread.NORMAL, level);
 }
 
-export function restoreSmokeCloud(t: TacticalState, cloud: SmokeCloud): void {
-  t.explosives.smokeClouds.push(cloud);
-  spreadEffectSmoke(t, cloud, Spread.SUBSEQUENT, levelOf(cloud));
+export function loadSmokeEffects(t: TacticalState, clouds: readonly (SmokeCloud | null)[]): void {
+  const list = t.explosives.smokeClouds;
+  list.splice(0, list.length, ...clouds);
+  for (const cloud of clouds) if (cloud) spreadEffectSmoke(t, cloud, Spread.SUBSEQUENT, levelOf(cloud));
 }
 
 export function setSmokeFlagsAt(t: Pick<TacticalState, 'explosives' | 'changes'>, g: number, level: number, flags: number): void {

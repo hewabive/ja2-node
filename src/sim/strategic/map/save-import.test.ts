@@ -5,7 +5,6 @@ import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { loadStrategicTestContent, testContext } from '../../../../tests/support/strategic.ts';
 import { parseSaveGame, type SaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable } from '../../../content/formats/savegame-header.ts';
-import { MapModificationType } from '../../../content/formats/savegame-temp-files.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { SectorFlag } from '../forces/constants.ts';
 import { EventKind } from '../time/constants.ts';
@@ -52,7 +51,7 @@ function sectorRecord(flags = 0) {
   };
 }
 
-function syntheticSave(mapModificationType: number): SaveGame {
+function syntheticSave(): SaveGame {
   const group = (id: number, player: boolean, profiles: number[]) => ({
     id,
     debug: false,
@@ -132,14 +131,13 @@ function syntheticSave(mapModificationType: number): SaveGame {
     squadMovementGroups: Array.from({ length: 20 }, (_, q) => 30 + q),
     vehicles: [],
     vehicleMovementGroups: Array.from({ length: 10 }, (_, k) => 50 + k),
-    currentSector: { mapModifications: [{ gridNo: 1, imageType: 0, subImageIndex: 0, type: mapModificationType, extra: 0 }] },
   } as unknown as SaveGame;
 }
 
 describe('importStrategicMap on a synthetic save', () => {
   it('fills the map, the groups with their members and the squads', () => {
     const ctx = testContext({ content });
-    importStrategicMap(ctx, syntheticSave(MapModificationType.OPENABLE_STRUCT));
+    importStrategicMap(ctx, syntheticSave());
     const s = ctx.state;
     expect(s.forces.groups.map((g) => g.id)).toEqual([1, 30]);
     expect(s.forces.groups[1]).toMatchObject({ members: [0, 1], size: 2, next: { x: 13, y: 5, z: 0 } });
@@ -149,7 +147,7 @@ describe('importStrategicMap on a synthetic save', () => {
     expect(s.forces.deadSquadMembers[1]?.[0]).toBe(57);
     expect(s.map.secretsFound).toEqual([true, false, false, true, false, false]);
     expect(s.worldSector).toEqual(D13);
-    expect(s.map.sectors[D13_ID]?.flags).toBe(SectorFlag.ALREADY_VISITED);
+    expect(s.map.sectors[D13_ID]?.flags).toBe((SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS | SectorFlag.ALREADY_VISITED) >>> 0);
   });
 
   it('links each vehicle to the first active soldier who is it, on any team, and refills the list in place for the tactical layer that shares it (Vehicles.cc FindSoldierType)', () => {
@@ -171,7 +169,7 @@ describe('importStrategicMap on a synthetic save', () => {
     const vehicleSoldier = (id: number, team: number, bodyType: number, vehicleSlot: number, active = 1) => ({
       soldier: { id, profile: 200, team, groupId: 0, statusFlags: SOLDIER_VEHICLE, bodyType, vehicleSlot, active },
     });
-    const base = syntheticSave(MapModificationType.OPENABLE_STRUCT);
+    const base = syntheticSave();
     const save = {
       ...base,
       soldiers: [
@@ -188,12 +186,6 @@ describe('importStrategicMap on a synthetic save', () => {
     importStrategicMap(ctx, save);
     expect(ctx.state.forces.vehicles).toBe(shared);
     expect(shared.map((v) => v.soldierId)).toEqual([18, 120, -1]);
-  });
-
-  it('keeps the map modifications flag when the loaded sector writes records back', () => {
-    const ctx = testContext({ content });
-    importStrategicMap(ctx, syntheticSave(MapModificationType.REMOVE_STRUCT));
-    expect(ctx.state.map.sectors[D13_ID]?.flags).toBe((SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS | SectorFlag.ALREADY_VISITED) >>> 0);
   });
 });
 

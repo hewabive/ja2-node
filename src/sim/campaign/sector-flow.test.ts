@@ -58,6 +58,7 @@ import {
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
+import { NO_SAVED_SECTOR_CHANGES } from '../tactical/save-import.ts';
 import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
@@ -108,6 +109,7 @@ const TAIL_BOOM_GRIDNO = DRASSEN_HELIPAD - 800;
 const TAIL_BOOM_SUB_INDEX = 3;
 const BESIDE_HELIPAD = DRASSEN_HELIPAD + 2;
 const AIRFIELD_DOOR = 8060;
+const AIRFIELD_WINDOW = 7889;
 const DOOR_PERCEIVED_OPEN = 0x02;
 const NIGHT_LIGHTS_HOUR = 22;
 const HANGAR_DOOR = 8374;
@@ -528,12 +530,26 @@ describe('a native save loaded into its sector', () => {
       subImageIndex: TAIL_BOOM_SUB_INDEX,
       extra: 0,
     };
-    flow.adoptLoadedSector([], { mapModifications: [destroyedTailBoom], revealed: null, doorStatus: null });
+    flow.adoptLoadedSector([], { ...NO_SAVED_SECTOR_CHANGES, mapModifications: [destroyedTailBoom] });
     const t = sim.state;
     const vehicles = (g: number) => t.world.structures.at(g).filter((x) => (x.flags & StructureFlags.VEHICLE) !== 0).length;
     expect([vehicles(DRASSEN_HELIPAD), vehicles(TAIL_BOOM_GRIDNO)]).toEqual([1, 0]);
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(1);
     expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE_STRUCT_TILE, TAIL_BOOM_GRIDNO]]);
+  });
+
+  it('tells whether the loaded sector wrote a record of its map modifications file back: a window hit does when it finds its window (SaveLoadMap.cc:217)', () => {
+    const keptAfterAdopting = (hitAt: number): boolean => {
+      const { campaign } = createTestCampaign(kit, { seed: 11, garrison: NO_GARRISON });
+      landFirstSquad(campaign);
+      const flow = flowOf(campaign);
+      Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+      for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+      expect(flow.setCurrentWorldSector(B13)).toBe(true);
+      const hit = { type: MapModificationType.WINDOW_HIT, gridNo: hitAt, imageType: 0, subImageIndex: 0, extra: 0 };
+      return flow.adoptLoadedSector([], { ...NO_SAVED_SECTOR_CHANGES, mapModifications: [hit] });
+    };
+    expect([keptAfterAdopting(AIRFIELD_WINDOW), keptAfterAdopting(AIRFIELD_WINDOW + 1)]).toEqual([true, false]);
   });
 
   it("takes the door off the tile of a native save's door removal, whichever door graphic it names (SaveLoadMap.cc:156)", () => {
@@ -557,7 +573,7 @@ describe('a native save loaded into its sector', () => {
       subImageIndex: openGraphic - (tables.types[doorType]?.start ?? 0) + 1,
       extra: 0,
     };
-    flow.adoptLoadedSector([], { mapModifications: [removedOpenDoor], revealed: null, doorStatus: null });
+    flow.adoptLoadedSector([], { ...NO_SAVED_SECTOR_CHANGES, mapModifications: [removedOpenDoor] });
     const doors = t.world.structures.at(HANGAR_DOOR).filter((s) => has(s.flags, StructureFlags.ANYDOOR));
     expect([doors, structLayerAt(t, HANGAR_DOOR)]).toEqual([[], []]);
     expect(tileChangeViews(t).filter((c) => c.gridNo === HANGAR_DOOR)).toEqual([
@@ -595,11 +611,7 @@ describe('a native save loaded into its sector', () => {
     const sim = campaign.tactical;
     if (!sim) throw new Error('no sector');
     expect(isDoorOpenAt(sim.state, AIRFIELD_DOOR)).toBe(false);
-    flow.adoptLoadedSector([], {
-      mapModifications: null,
-      revealed: null,
-      doorStatus: [{ gridNo: AIRFIELD_DOOR, flags: DOOR_PERCEIVED_OPEN }],
-    });
+    flow.adoptLoadedSector([], { ...NO_SAVED_SECTOR_CHANGES, doorStatus: [{ gridNo: AIRFIELD_DOOR, flags: DOOR_PERCEIVED_OPEN }] });
     const t = sim.state;
     expect([isDoorOpenAt(t, AIRFIELD_DOOR), t.doorStatus.get(AIRFIELD_DOOR)?.open, sim.openDoors()]).toEqual([
       true,

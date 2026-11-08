@@ -706,10 +706,10 @@ export class SectorFlow {
   adoptLoadedSector(
     links: readonly { readonly nodeId: number; readonly soldierId: number }[],
     saved: SavedSectorChanges = NO_SAVED_SECTOR_CHANGES,
-  ): void {
+  ): boolean {
     const sim = this.campaign.tactical;
     const world = this.world;
-    if (!sim || !world) return;
+    if (!sim || !world) return true;
     const t = sim.state;
     t.campaign = this.#tacticalCampaign();
     t.edgepoints = loadMapEdgepoints(t, world);
@@ -722,11 +722,12 @@ export class SectorFlow {
       node.hasSoldier = true;
     }
     this.#installHooks(sim);
-    loadSavedSectorChanges(sim, saved, () => handleHelicopterOnGround(this.ctx, true));
+    const mapModificationsKept = loadSavedSectorChanges(sim, saved, () => handleHelicopterOnGround(this.ctx, true));
     handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
     landHelicopterSeatsOfANativeSave(this.campaign);
+    return mapModificationsKept;
   }
 
   reattachLoadedSector(): void {

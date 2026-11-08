@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/LightEffects.cc UpdateLightingSprite, NewLightEffect, DecayLightEffects.
+// @src src/game/TileEngine/LightEffects.cc UpdateLightingSprite, NewLightEffect, DecayLightEffects,
+// @src LoadLightEffectsFromMapTempFile (the list replaced, then every allocated light lit, 2026-11-08).
 
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { idiv, u16, u32, udiv } from '../../../core/int.ts';
@@ -24,10 +25,13 @@ function updateLightingSprite(t: TacticalState, light: LightEffect): void {
   lightSpritePosition(t, sprite, light.gridNo % WORLD_COLS, idiv(light.gridNo, WORLD_COLS));
 }
 
-export function restoreLightEffect(t: TacticalState, record: Omit<LightEffect, 'sprite'>): void {
-  const light: LightEffect = { ...record, sprite: null };
-  t.explosives.lights.push(light);
-  updateLightingSprite(t, light);
+export type LightEffectRecord = Omit<LightEffect, 'sprite'>;
+
+export function loadLightEffects(t: TacticalState, records: readonly (LightEffectRecord | null)[]): void {
+  const loaded = records.map((r): LightEffect | null => (r ? { ...r, sprite: null } : null));
+  const list = t.explosives.lights;
+  list.splice(0, list.length, ...loaded);
+  for (const light of loaded) if (light) updateLightingSprite(t, light);
 }
 
 export function newLightEffect(t: TacticalState, g: number, radius: number, duration: number): LightEffect | null {

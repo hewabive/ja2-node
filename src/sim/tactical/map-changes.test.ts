@@ -15,7 +15,7 @@ import {
   structLayerAt,
   structTileChange,
 } from './map-changes.ts';
-import { loadSavedSectorChanges } from './save-import.ts';
+import { loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from './save-import.ts';
 import type { TacticalState } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { tileChangeViews } from './world-view.ts';
@@ -143,12 +143,11 @@ describe('the map changes of a native save', () => {
     const tables = kit.world(A10).tables;
     const debris = { type: MapModificationType.OBJECT, gridNo: OPEN_GROUND, imageType: typeIndex(tables, 'FIRSTEXPLDEBRIS'), extra: 0 };
     loadSavedSectorChanges(sim, {
+      ...NO_SAVED_SECTOR_CHANGES,
       mapModifications: [
         { ...debris, subImageIndex: 3 },
         { ...debris, subImageIndex: 5 },
       ],
-      revealed: null,
-      doorStatus: null,
     });
     const tiles = [tileIndex(tables, 'FIRSTEXPLDEBRIS3'), tileIndex(tables, 'FIRSTEXPLDEBRIS5')];
     expect(objectLayerAt(sim.state, OPEN_GROUND)).toEqual([tiles[1], tiles[0]]);

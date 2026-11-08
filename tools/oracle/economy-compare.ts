@@ -11,6 +11,7 @@ import { parseSectorString, sectorFromId, strategicIndex } from '../../src/conte
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { idiv } from '../../src/core/int.ts';
+import type { SaveSession } from '../../src/server/save-session.ts';
 import { objectFromRecord } from '../../src/sim/items/object.ts';
 import { importNativeGameOptions } from '../../src/sim/options.ts';
 import { changeSoldiersAssignment, setTimeOfAssignmentChange } from '../../src/sim/strategic/economy/assignment-done.ts';
@@ -48,6 +49,7 @@ import { EventDispatch } from '../../src/sim/strategic/time/dispatch.ts';
 import { importStrategicTime } from '../../src/sim/strategic/time/save-import.ts';
 import { type ClockContext, warpGameTime, worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
 import { NOWHERE } from '../../src/sim/tactical/soldier.ts';
+import { takeMapModificationsFlagOfImport } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 
@@ -208,7 +210,7 @@ export class EconomyComparer {
     return { strategic: this.#strategic, economy: this.#economy, items: this.#items, encryption: this.#encryption };
   }
 
-  async loadSave(savesDir: string, name: string): Promise<void> {
+  async loadSave(savesDir: string, name: string, imported: SaveSession | null): Promise<void> {
     const content = await this.#content();
     const bytes = new Uint8Array(readFileSync(join(savesDir, `${name}.sav`)));
     const save = parseSaveGame(bytes, content.encryption);
@@ -230,6 +232,7 @@ export class EconomyComparer {
     state.worldSector = { ...save.currentSector.sector };
     const strategic = createStrategicContext({ state, content: content.strategic, mercs: crew, clock, world });
     importStrategicMap(strategic, save);
+    takeMapModificationsFlagOfImport(state.map, imported);
     importEconomy(state, readSavedEconomy(bytes, save.sections), save.laptop.currentBalance);
     const status = readStrategicAiSections(bytes, save).status;
     state.status.enricoEmailFlags = status.enricoEmailFlags;

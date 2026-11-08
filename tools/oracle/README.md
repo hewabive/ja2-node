@@ -163,7 +163,10 @@ would; the native `save` command loads without entering a screen, and the natura
 depends on the screen), applies the same commands and settings, replays
 the native draws (both streams) and the traced `CheckFact` results strictly ("Draw replay") and compares the printed
 state field by field after every command. The sections below give each comparer's commands and where it departs from
-that.
+that. The strategic, economy and strategic AI comparers rebuild the strategic layer alone, so they take the loaded
+sector's map modifications flag from the full import, whose replay of the sector's map changes decides it
+(`takeMapModificationsFlagOfImport`, `tactical-import.ts`). A `save` line names a save in the output's folder when
+one is there, else in `SavedGames`.
 
 ### Draw replay
 

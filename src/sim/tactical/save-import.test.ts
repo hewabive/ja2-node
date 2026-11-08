@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { stubProfiles } from '../../../tests/support/contracts.ts';
+import { itemId } from '../../../tests/support/explosives.ts';
 import { loadTestContent, loadTestTimelines, testDoorCosts } from '../../../tests/support/tactical.ts';
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -7,7 +8,8 @@ import type { SavedSoldierEntry, SavedVehicle, SaveGame } from '../../content/fo
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
-import type { SavedCorpse, SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
+import type { SavedCorpse, SavedSmokeEffect, SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
+import { SmokeEffectId } from '../../content/items/explosions.ts';
 import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
@@ -21,7 +23,8 @@ import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
-import { LightSpriteFlags, lightTrueLevel } from './lighting/lighting.ts';
+import { smokeEffectOnTile } from './explosions/smoke.ts';
+import { LightSpriteFlags, lightSetBaseLevel, lightTrueLevel, NORMAL_LIGHTLEVEL_NIGHT } from './lighting/lighting.ts';
 import { RevealedFlags, revealedRooms } from './perception/fov.ts';
 import { handleCrowLeave } from './rotting-corpses.ts';
 import { importCampaignWideState, importSave, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from './save-import.ts';
@@ -551,8 +554,7 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const sim = importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82))] }));
     const [canned, plain] = [gridNo(70, 70), gridNo(72, 70)];
     loadSavedSectorChanges(sim, {
-      mapModifications: null,
-      revealed: null,
+      ...NO_SAVED_SECTOR_CHANGES,
       doorStatus: [
         { gridNo: canned, flags: DOOR_HAS_TIN_CAN },
         { gridNo: plain, flags: 0 },
@@ -630,7 +632,7 @@ describe('the revealed map of the loaded sector (SaveLoadMap.cc LoadRevealedStat
     t.fog.revealed[ROOF_SEEN] = RevealedFlags.GROUND | RevealedFlags.ROOF;
     const revealed = new Uint8Array(WORLD_MAX);
     revealed[SEEN] = 1;
-    loadSavedSectorChanges(sim, { mapModifications: null, revealed, doorStatus: null });
+    loadSavedSectorChanges(sim, { ...NO_SAVED_SECTOR_CHANGES, revealed });
     expect([SEEN, UNSEEN, ROOF_SEEN].map((g) => t.fog.revealed[g])).toEqual([RevealedFlags.GROUND, 0, RevealedFlags.ROOF]);
     expect(revealedRooms(t)).toEqual([ROOM]);
     expect(t.lighting.sprites.flatMap((l) => (l ? [(l.flags & LightSpriteFlags.ON) !== 0] : []))).toEqual([true, false]);
@@ -643,6 +645,56 @@ describe('the revealed map of the loaded sector (SaveLoadMap.cc LoadRevealedStat
     loadSavedSectorChanges(sim, NO_SAVED_SECTOR_CHANGES);
     expect(sim.state.fog.revealed[UNSEEN]).toBe(RevealedFlags.GROUND);
     expect(revealedRooms(sim.state)).toEqual([]);
+  });
+});
+
+describe('the smoke and light effects of the loaded sector (SmokeEffects.cc LoadSmokeEffectsFromMapTempFile, LightEffects.cc LoadLightEffectsFromMapTempFile)', () => {
+  const CLOUD = gridNo(80, 84);
+  const OTHER_CLOUD = gridNo(100, 84);
+  const SAVED_SECONDS = 4321;
+
+  function savedSmoke(sim: TacticalSim, at: number, ownerId: number): SavedSmokeEffect {
+    const item = itemId(sim.state, 'TEARGAS_GRENADE');
+    return {
+      gridNo: at,
+      duration: 6,
+      radius: 2,
+      flags: 0,
+      age: 1,
+      allocated: true,
+      type: SmokeEffectId.TEARGAS,
+      item,
+      ownerId,
+      lastUpdate: SAVED_SECONDS,
+    };
+  }
+
+  it('restores the clouds in their slots, each with the soldier of its saved owner id, and spreads them before anybody stands on the map: nobody takes gas damage, and a soldier entering a gas tile without a mask is gassed (SetSoldierGridNo)', () => {
+    const sim = importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, CLOUD)] }));
+    const t = sim.state;
+    const merc = soldierOf(sim, MERC_ID);
+    const breath = merc.breath;
+    const owned = savedSmoke(sim, CLOUD, MERC_ID);
+    loadSavedSectorChanges(sim, {
+      ...NO_SAVED_SECTOR_CHANGES,
+      smoke: [owned, { ...owned, allocated: false }, savedSmoke(sim, OTHER_CLOUD, NOBODY)],
+    });
+    const [first, free, ownerless] = t.explosives.smokeClouds;
+    expect([first?.owner, free, ownerless?.owner]).toEqual([merc, null, null]);
+    expect(first).toMatchObject({ gridNo: CLOUD, radius: 2, age: 1, duration: 6, lastUpdate: SAVED_SECONDS });
+    expect([smokeEffectOnTile(t, CLOUD, 0), smokeEffectOnTile(t, OTHER_CLOUD, 0)]).toEqual([SmokeEffectId.TEARGAS, SmokeEffectId.TEARGAS]);
+    expect([merc.gassed, merc.breath, whoIsThere(t, CLOUD, 0)]).toEqual([true, breath, merc]);
+  });
+
+  it("lights each saved light effect's sprite, an unallocated record keeping its slot free", () => {
+    const sim = importedSim(syntheticSave({}));
+    const t = sim.state;
+    lightSetBaseLevel(t, NORMAL_LIGHTLEVEL_NIGHT);
+    const light = { gridNo: CLOUD, duration: 6, radius: 6, age: 2, allocated: true, type: 0, lastUpdate: SAVED_SECONDS };
+    loadSavedSectorChanges(sim, { ...NO_SAVED_SECTOR_CHANGES, lights: [{ ...light, allocated: false }, light] });
+    const [free, lit] = t.explosives.lights;
+    expect([free, lit?.sprite?.template.name, lit?.age, lit?.lastUpdate]).toEqual([null, 'Light6', 2, SAVED_SECONDS]);
+    expect(lightTrueLevel(t, CLOUD, 0)).toBeLessThan(NORMAL_LIGHTLEVEL_NIGHT);
   });
 });
 

@@ -7,6 +7,7 @@ import { structureHeight } from '../../src/content/world/structures.ts';
 import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
+import type { SaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import { calcBestShot } from '../../src/sim/tactical/ai/attack-choice.ts';
 import { plotPathCost } from '../../src/sim/tactical/ai/utils.ts';
@@ -78,6 +79,7 @@ interface Context {
   readonly save: boolean;
   readonly bytes?: Uint8Array;
   readonly worldless?: boolean;
+  readonly imported?: SaveSession;
 }
 
 const DEFAULT_MAP = 'maps/a9.dat';
@@ -492,9 +494,12 @@ function spriteList(
     .join(' ');
 }
 
+function saveDirFor(dataDir: string, output: string, name: string): string {
+  return existsSync(join(dirname(output), `${name}.sav`)) ? dirname(output) : savesDir(dataDir);
+}
+
 function heliDropSave(dataDir: string, output: string, name: string): Uint8Array {
-  const written = join(dirname(output), `${name}.sav`);
-  return new Uint8Array(readFileSync(existsSync(written) ? written : join(savesDir(dataDir), `${name}.sav`)));
+  return new Uint8Array(readFileSync(join(saveDirFor(dataDir, output, name), `${name}.sav`)));
 }
 
 function savesDir(dataDir: string): string {
@@ -536,14 +541,14 @@ async function saveContext(
   read: ReadFile,
   content: TacticalContent,
   worlds: Map<string, TacticalWorld>,
-  dataDir: string,
+  dir: string,
   p: Json,
 ): Promise<Context> {
-  const bytes = new Uint8Array(readFileSync(join(savesDir(dataDir), `${String(p.name)}.sav`)));
-  const { session } = await createTacticalSaveSession(read, bytes);
-  const loaded = session.campaign.tactical;
-  if (loaded) return { sim: loaded, save: true, bytes };
-  return { sim: (await sectorContext(read, content, worlds, null)).sim, save: true, bytes, worldless: true };
+  const bytes = new Uint8Array(readFileSync(join(dir, `${String(p.name)}.sav`)));
+  const imported = await createTacticalSaveSession(read, bytes);
+  const loaded = imported.session.campaign.tactical;
+  if (loaded) return { sim: loaded, save: true, bytes, imported };
+  return { sim: (await sectorContext(read, content, worlds, null)).sim, save: true, bytes, worldless: true, imported };
 }
 
 async function comparePreBattleProbe(read: ReadFile, exists: FileExists, ctx: Context | null, p: Json): Promise<number> {
@@ -639,14 +644,16 @@ for (const file of files) {
       sectors.loadSector(ctx.sim, p);
       meanwhiles.loadSector();
     } else if (p.probe === 'save') {
-      ctx = await saveContext(read, content, worlds, dataDir, p);
-      sectors.loadSave(savesDir(dataDir), String(p.name));
-      await strategic.loadSave(savesDir(dataDir), String(p.name), ctx.worldless ? null : ctx.sim);
-      await economy.loadSave(savesDir(dataDir), String(p.name));
-      await sai.loadSave(savesDir(dataDir), String(p.name));
+      const dir = saveDirFor(dataDir, file, String(p.name));
+      ctx = await saveContext(read, content, worlds, dir, p);
+      const imported = ctx.imported ?? null;
+      sectors.loadSave(dir, String(p.name));
+      await strategic.loadSave(dir, String(p.name), ctx.worldless ? null : ctx.sim, imported);
+      await economy.loadSave(dir, String(p.name), imported);
+      await sai.loadSave(dir, String(p.name), imported);
       if (ctx.bytes) creatures.loadSave(ctx.bytes);
       if (ctx.bytes) morale.loadSave(ctx.bytes);
-      await merchants.loadSave(savesDir(dataDir), String(p.name));
+      await merchants.loadSave(dir, String(p.name));
       if (ctx.bytes) contracts.loadSave(ctx.bytes);
       if (ctx.bytes) creatureAi.loadSave(ctx.bytes);
       if (ctx.bytes) laptop.loadSave(ctx.bytes);

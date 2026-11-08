@@ -30,7 +30,7 @@ import { type GameOptions, importNativeGameOptions } from '../sim/options.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
 import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
-import { importStrategicMap } from '../sim/strategic/map/save-import.ts';
+import { dropLoadedSectorMapModificationsFile, importStrategicMap } from '../sim/strategic/map/save-import.ts';
 import { importNarrativeSave } from '../sim/strategic/narrative/save-import.ts';
 import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
@@ -166,8 +166,7 @@ export async function createSaveSession(
       return profile ? { x: profile.sectorX, y: profile.sectorY, z: profile.sectorZ } : null;
     });
   }
-  if (sim && campaign.sectors) campaign.sectors.adoptLoadedSector(savedSoldierLinks(save), save.currentSector);
-  else if (sim) loadSavedSectorChanges(sim, save.currentSector);
+  if (!loadTheLoadedSector(campaign, sim, save)) dropLoadedSectorMapModificationsFile(strategic);
   const session = new CampaignSession(campaign, parts.presentation, roster, worlds, parts.narrative.texts, {
     kind: 'imported',
     parts,
@@ -175,6 +174,12 @@ export async function createSaveSession(
   });
   session.initialMusic = initialMusic(musicModeOfNativeByte(save.generalInfo.musicMode), MusicMode.MAIN_MENU);
   return { session, report };
+}
+
+function loadTheLoadedSector(campaign: CampaignSim, sim: TacticalSim | null, save: SaveGame): boolean {
+  if (!sim) return true;
+  if (campaign.sectors) return campaign.sectors.adoptLoadedSector(savedSoldierLinks(save), save.currentSector);
+  return loadSavedSectorChanges(sim, save.currentSector);
 }
 
 interface ImportStart {
