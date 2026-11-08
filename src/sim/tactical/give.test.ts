@@ -4,12 +4,19 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { cloneObject, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { soldierGotoStationaryStance } from './animation.ts';
+import { mercStealFromMerc } from './combat/steal.ts';
 import type { TacticalContent } from './content.ts';
-import { apsToGiveItem, giveItemAtOnce, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
+import { startInteractiveObject } from './doors/door-actions.ts';
+import { apsToGiveItem, giveItemAtOnce, holdsGiveItem, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
+import { soldierPickupItem } from './item-actions.ts';
+import { getNewSoldierPath } from './movement.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
+import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { soldierReloadRobot } from './robot-reload.ts';
+import { Body, type Soldier, Team } from './soldier.ts';
 
 let content: TacticalContent;
 
@@ -205,5 +212,74 @@ describe('a give in an NPC action', () => {
       expect.objectContaining({ type: 'npcGaveItem', npc: 60, profile: 87, to: 0, item: 'CLIP9_15', count: 2, dropped: false }),
     );
     expect(log.doneGiving).toEqual([87]);
+  });
+});
+
+describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_InitNewSoldierAnim, Overhead.cc:840)', () => {
+  function gaveOnTheSpot(sim: TacticalSim): { giver: Soldier; mate: Soldier } {
+    const giver = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    const mate = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 80), Direction.WEST);
+    soldierGiveItem(sim.state, giver, mate, cloneObject(withClips(giver, 1)), InvSlot.BIGPOCK1);
+    expect(giver.heldGiveAction).toEqual({ target: mate.id, animCount: 0 });
+    runUntilIdle(sim);
+    expect([clipsIn(mate), giver.pendingGive, giver.engagedInAction]).toEqual([1, null, false]);
+    return { giver, mate };
+  }
+
+  it('outlives the hand-over and counts the animations of the giver only once he is no longer engaged', () => {
+    const sim = newCombatSim(content);
+    const { giver } = gaveOnTheSpot(sim);
+    expect(giver.heldGiveAction?.animCount).toBeGreaterThan(0);
+    expect(hasPendingAction(giver)).toBe(true);
+  });
+
+  it('is dropped by the first change out of a moving animation once counted, freeing the soldier it names as target', () => {
+    const sim = newCombatSim(content);
+    const { giver, mate } = gaveOnTheSpot(sim);
+    mate.engagedInAction = true;
+    expect(getNewSoldierPath(sim.state, giver, gridNo(80, 84), giver.uiMovementMode, 0, false)).toBe(true);
+    stepUntil(sim, () => giver.gridNo !== gridNo(80, 80));
+    expect(giver.heldGiveAction).toEqual({ target: mate.id, animCount: 1 });
+    soldierGotoStationaryStance(sim.state, giver);
+    expect([giver.heldGiveAction, mate.engagedInAction, hasPendingAction(giver)]).toEqual([null, false, false]);
+  });
+
+  it.each([
+    ['a pickup', (sim: TacticalSim, giver: Soldier) => soldierPickupItem(sim.state, giver, gridNo(80, 84), 0, null)],
+    [
+      'a steal',
+      (sim: TacticalSim, giver: Soldier) => mercStealFromMerc(sim.state, giver, spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), 0)),
+    ],
+    ['an interactive object', (sim: TacticalSim, giver: Soldier) => startInteractiveObject(sim.state, giver, gridNo(80, 81))],
+  ])('is replaced by the next pending action of the giver: %s', (_name, act) => {
+    const sim = newCombatSim(content);
+    const { giver } = gaveOnTheSpot(sim);
+    act(sim, giver);
+    expect(holdsGiveItem(giver)).toBe(false);
+  });
+
+  it('starts its count again at a robot reload on the spot and is replaced by one walked up to', () => {
+    const sim = newCombatSim(content);
+    const { giver } = gaveOnTheSpot(sim);
+    const nextToRobot = spawnSoldier(sim, 2, Team.OUR, gridNo(80, 79), Direction.SOUTH, { body: Body.ROBOTNOWEAPON });
+    const farRobot = spawnSoldier(sim, 3, Team.OUR, gridNo(80, 86), Direction.NORTH, { body: Body.ROBOTNOWEAPON });
+    const clip = withClips(giver, 2);
+    const held = giver.heldGiveAction;
+    if (held) held.animCount = 5;
+    expect(soldierReloadRobot(sim.state, giver, nextToRobot, cloneObject(clip), InvSlot.BIGPOCK1)).not.toBeNull();
+    expect(giver.heldGiveAction?.animCount).toBe(1);
+    runUntilIdle(sim);
+    expect(soldierReloadRobot(sim.state, giver, farRobot, cloneObject(clip), InvSlot.BIGPOCK1)).not.toBeNull();
+    expect(holdsGiveItem(giver)).toBe(false);
+  });
+
+  it('is never held by a give walked up to: its MERC_GIVEITEM ends on arrival', () => {
+    const sim = newCombatSim(content);
+    const giver = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    const mate = spawnSoldier(sim, 1, Team.OUR, gridNo(85, 80), Direction.WEST);
+    soldierGiveItem(sim.state, giver, mate, cloneObject(withClips(giver, 1)), InvSlot.BIGPOCK1);
+    expect(hasPendingAction(giver)).toBe(true);
+    stepUntil(sim, () => sim.state.content.animations.controls[giver.state]?.id === 'GIVE_ITEM');
+    expect([giver.heldGiveAction, hasPendingAction(giver)]).toEqual([null, false]);
   });
 });

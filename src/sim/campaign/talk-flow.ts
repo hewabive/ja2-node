@@ -12,7 +12,8 @@
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
 // @src line short); Interface_Dialogue.cc InitTalkingMenu (SetCurrentSquad before the talker's selection, 2026-11-01);
 // @src Handle_Items.cc ContinuePastBoobyTrap (SetStopTimeQuoteCallback, then TacticalCharacterDialogue), GameScreen.cc
-// @src HandleModalTactical (HandleDialogue alone while the stop-time quote plays, 2026-11-04).
+// @src HandleModalTactical (HandleDialogue alone while the stop-time quote plays, 2026-11-04); Handle_UI.cc HandleTalkInit's
+// @src MERC_TALK replacing a held MERC_GIVEITEM (2026-11-08).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -117,7 +118,7 @@ import {
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
-import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
+import { dropHeldGive, setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../tactical/movement.ts';
 import { soldierAssignment } from '../tactical/narrative/assignment.ts';
@@ -866,6 +867,7 @@ export class TalkFlow {
     }
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
     merc.pendingTalk = target.id;
+    dropHeldGive(merc);
     if (to === NOWHERE || !getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {
       merc.pendingTalk = null;
       refuse('noPath');

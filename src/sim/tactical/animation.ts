@@ -18,7 +18,9 @@
 // @src stance change that continues a move; the crouch before a prone hop facing the fence (deviation "Prone hop facing
 // @src the fence", 2026-11-07); EVENT_InitNewSoldierAnim's SOLDIER_LOCKPENDINGACTIONCOUNTER and its clear on the walk
 // @src past a fence landing (2026-11-07); EVENT_InitNewSoldierAnim's ReevaluateEnemyStance and
-// @src SoldierGotoStationaryStance's cower states (2026-11-07).
+// @src SoldierGotoStationaryStance's cower states (2026-11-07); EVENT_InitNewSoldierAnim's pending action count for a
+// @src held MERC_GIVEITEM, freeing its target when it drops the action, and its SOLDIER_ENGAGEDINACTION test
+// @src (2026-11-08).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -548,7 +550,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   s.oldState = s.state;
   s.oldPc = s.pc;
   s.state = next;
-  countPendingMeleeAnimation(t, s, s.oldState, next);
+  countPendingActionAnimation(t, s, s.oldState, next);
   s.pc = nextName === 'CHARIOTS_OF_FIRE' || nextName === 'BODYEXPLODING' ? t.rng.int(10) : startCode;
   s.frameSlot = NO_FRAME_SLOT;
   s.stateTick = t.tick;
@@ -1104,7 +1106,8 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
       setSoldierHeight(t, s, 0);
       break;
   }
-  if (PENDING_COUNT_RESET_STATES.includes(name) && s.pendingMelee) s.pendingMelee.animCount = 0;
+  const counted = countedPendingAction(s);
+  if (PENDING_COUNT_RESET_STATES.includes(name) && counted) counted.animCount = 0;
 }
 
 const JUMP_OVER_TILES = 2;
@@ -1120,14 +1123,28 @@ function setJumpOverPath(t: TacticalState, s: Soldier, state: number): void {
 
 const PENDING_COUNT_RESET_STATES = ['WALKING', 'SWATTING', 'CRAWLING', 'RUNNING', 'ADULTMONSTER_WALKING', 'ROBOT_WALK'];
 
-function countPendingMeleeAnimation(t: TacticalState, s: Soldier, oldState: number, next: number): void {
-  const pending = s.pendingMelee;
+function countedPendingAction(s: Soldier): { animCount: number } | null {
+  return s.pendingMelee ?? s.heldGiveAction;
+}
+
+function dropCountedPendingAction(t: TacticalState, s: Soldier): void {
+  if (s.pendingMelee) {
+    s.pendingMelee = null;
+    return;
+  }
+  const target = s.heldGiveAction ? t.soldiers[s.heldGiveAction.target] : undefined;
+  if (target) target.engagedInAction = false;
+  s.heldGiveAction = null;
+}
+
+function countPendingActionAnimation(t: TacticalState, s: Soldier, oldState: number, next: number): void {
+  const pending = countedPendingAction(s);
   if (!pending || s.pendingActionCounterLocked) return;
   if (pending.animCount > 0 && hasAnimFlag(t.content, oldState, AnimFlags.MOVING)) {
-    s.pendingMelee = null;
+    dropCountedPendingAction(t, s);
     return;
   }
   const st = states(t.content.animations);
   if (next === st.START_SWAT || next === st.END_SWAT || hasAnimFlag(t.content, next, AnimFlags.NOCHANGE_PENDINGCOUNT)) return;
-  if (!s.delayedMovement) pending.animCount++;
+  if (!s.delayedMovement && !s.engagedInAction) pending.animCount++;
 }

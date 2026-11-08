@@ -325,6 +325,23 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
     expect(t.pathEnv.autoBandage).toBe(true);
   });
 
+  it('waits while a merc of ours still holds the MERC_GIVEITEM of a give on the spot, which outlives the hand-over', () => {
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
+    t.autoBandage.pending = true;
+    shadow.heldGiveAction = { target: IRA, animCount: 1 };
+    frame(sim);
+    const waited = pendingAndPrompt(t);
+    shadow.heldGiveAction = null;
+    frame(sim);
+    expect([waited, pendingAndPrompt(t)]).toEqual([
+      [true, null],
+      [false, 'beginAutoBandage'],
+    ]);
+  });
+
   it('checks everything again when it asks, so a changed sector gives the refusal instead and clears the flag (quirk)', () => {
     const sim = scene();
     const t = sim.state;

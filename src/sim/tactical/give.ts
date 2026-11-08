@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc SoldierGiveItem, VerifyGiveItem, SoldierGiveItemFromAnimation;
 // @src Soldier_Control.cc EVENT_SoldierBeginGiveItem, SoldierCollapse (issue #2265);
-// @src externalized/Soldier.cc handlePendingAction, anyoneHasPendingAction (MERC_GIVEITEM); Soldier_Ani.cc code 486;
+// @src externalized/Soldier.cc handlePendingAction, anyoneHasPendingAction (MERC_GIVEITEM, held after a give on the spot,
+// @src 2026-11-08); Soldier_Ani.cc code 486;
 // @src Points.cc GetMovePlusActionAPCosts, GetAPsToGiveItem; Dialogue_Control.cc SetEngagedInConvFromPCAction,
 // @src UnSetEngagedInConvFromPCAction.
 
@@ -56,10 +57,12 @@ export function soldierGiveItem(t: TacticalState, giver: Soldier, target: Soldie
   const approach = findAdjacentGridEx(t, giver, target.gridNo, true);
   if (!approach) return false;
   giver.pendingGive = { slot, targetGridNo: target.gridNo, direction: approach.direction, target: target.id, begun: false };
+  dropHeldGive(giver);
   giver.tempObject = cloneObject(object);
   giver.engagedInAction = true;
   if (giver.gridNo !== approach.actionGridNo) getNewSoldierPath(t, giver, approach.actionGridNo, giver.uiMovementMode, 0, true);
   else {
+    giver.heldGiveAction = { target: target.id, animCount: 0 };
     beginGiveItem(t, giver);
     setDesiredDirection(t, giver, approach.direction);
   }
@@ -67,8 +70,16 @@ export function soldierGiveItem(t: TacticalState, giver: Soldier, target: Soldie
   return true;
 }
 
-export function anyMercWalksToGiveItem(t: TacticalState): boolean {
-  return teamMembers(t, Team.OUR).some((s) => s.pendingGive !== null && !s.pendingGive.begun);
+export function holdsGiveItem(s: Soldier): boolean {
+  return (s.pendingGive !== null && !s.pendingGive.begun) || s.heldGiveAction !== null;
+}
+
+export function anyMercHoldsGiveItem(t: TacticalState): boolean {
+  return teamMembers(t, Team.OUR).some(holdsGiveItem);
+}
+
+export function dropHeldGive(s: Soldier): void {
+  s.heldGiveAction = null;
 }
 
 export function handlePendingGiveOnArrival(t: TacticalState, s: Soldier): boolean {

@@ -9,6 +9,7 @@ import type { ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem, createMoney } from '../sim/items/object.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { holdsGiveItem } from '../sim/tactical/give.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import { NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -280,6 +281,15 @@ describe('giving items and money to the stub NPC in A10', () => {
       });
     };
     expect(await digest(true)).toBe(await digest(false));
+  });
+
+  it('lets a talk walked up to replace the MERC_GIVEITEM a give on the spot left held (Handle_UI.cc HandleTalkInit)', async () => {
+    const { session } = await inA10(28);
+    const [merc, mate] = session.view().strategic?.mercs.map((m) => m.id) ?? [];
+    if (merc === undefined || mate === undefined) throw new Error('no squad of two');
+    soldier(session, merc).heldGiveAction = { target: mate, animCount: 1 };
+    expect(session.dispatch({ type: 'talk', soldier: merc, target: { npc: VASKO } })).toMatchObject({ ok: true, data: { walking: true } });
+    expect(holdsGiveItem(soldier(session, merc))).toBe(false);
   });
 });
 

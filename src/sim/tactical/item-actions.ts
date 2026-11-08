@@ -17,7 +17,8 @@
 // @src raised or openable structure on his own tile (2026-11-04); SoldierGetItemFromWorld's ContinuePastBoobyTrap stop,
 // @src the ACTIVATE_SWITCH_PROMPT box for a SWITCH left on the ground and no GOTIT after the booby-trap quote,
 // @src SwitchMessageBoxCallBack (2026-11-04); HandleSoldierPickupItem's DISARM_TRAP_PROMPT for the bomb under a tile our
-// @src side knows to hold a mine, through World_Items.cc FindWorldItemForBombInGridNo (2026-11-04).
+// @src side knows to hold a mine, through World_Items.cc FindWorldItemForBombInGridNo (2026-11-04); SoldierPickupItem's
+// @src removePendingAction dropping a held MERC_GIVEITEM (2026-11-08).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -50,7 +51,7 @@ import { findWorldItemForBombInGridNo } from './bombs/world-bombs.ts';
 import { askToDisarmBuriedBomb, continuePastBoobyTrap } from './booby-traps.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
-import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
+import { apsToMovePlusAction, dropHeldGive, giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
 import { MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
@@ -169,6 +170,7 @@ export function soldierPickupItem(
 ): boolean {
   const actionGridNo = adjustGridNoForItemPlacement(t, s, g);
   s.pendingPickup = { gridNo: g, actionGridNo, zLevel, selection };
+  dropHeldGive(s);
   if (s.gridNo === actionGridNo) {
     pickPickupAnimation(t, s, g, zLevel);
     return true;

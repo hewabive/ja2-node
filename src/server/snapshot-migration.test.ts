@@ -3225,3 +3225,52 @@ describe('snapshot version 62 (no arrival line flag) migrates with the arrival l
     await expectArrivalLineFree(await createCampaignSession(kit.read, exists, 9, { hire: [] }));
   });
 });
+
+const HELD_GIVE_ACTION_KEY = 'heldGiveAction';
+
+function withoutHeldGiveAction(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutHeldGiveAction(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === HELD_GIVE_ACTION_KEY) expect(v).toBeNull();
+    else out[key] = withoutHeldGiveAction(v);
+  }
+  return out;
+}
+
+function versionSixtyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutHeldGiveAction(value)]);
+  return { ...snapshot, version: 63, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 63 (no held give action) migrates with nobody holding a give made on the spot', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNobodyHoldsAGive(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtyThree(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${HELD_GIVE_ACTION_KEY}":null`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${HELD_GIVE_ACTION_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNobodyHoldsAGive(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNobodyHoldsAGive(await quietLandedCampaign(kit));
+  });
+});

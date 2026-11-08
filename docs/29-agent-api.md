@@ -542,8 +542,8 @@ with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt op
 ### 8.2 Doors, containers and remote triggers
 
 Rules: `35` (doors, locks, traps; `src/sim/tactical/doors/`). `door` walks next to the door, then acts, unless he gets
-there while dialogue plays or another merc still walks up to give an item: then the original drops the action and he
-only stands there. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
+there while dialogue plays or a merc of ours still holds a give (walking up to give, or after giving on the spot until
+his next order): then the original drops the action and he only stands there. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
 `openManually` is the menu's open button (deviation "Door menu"). `close` by our merc answers vanilla's closing menu
 (`{closed: false, options}` and a `doorMenu {closing: true}` event), where only `closeManually` is enabled; other
 soldiers close at once (deviation "Closing an open door"). A door swings for up to 375 ms after it changes; an order to

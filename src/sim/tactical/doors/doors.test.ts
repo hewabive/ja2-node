@@ -10,10 +10,12 @@ import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { states } from '../animation.ts';
 import { handleDoorChangeFromGridNo, swapStructureForPartner } from '../doors.ts';
+import { soldierGiveItem } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { InvSlot } from '../inventory.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
+import { hasPendingAction } from '../pending-action.ts';
 import { pickGridNoNearestEdge, setActionToDoOnceMercsGetToLocation } from '../sector-exit.ts';
 import { type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { WaitForMercs } from '../state.ts';
@@ -329,6 +331,45 @@ describe('a door order that arrives while something else is under way (Overhead.
   it('drops the order while another merc still walks up to give an item, not once he hands it over', () => {
     expect(walkToOpen(mercGiving(false))).toBe(false);
     expect(walkToOpen(mercGiving(true))).toBe(true);
+  });
+
+  function gaveOnTheSpot(sim: TacticalSim): Soldier {
+    const giver = spawnSoldier(sim, 1, Team.OUR, GIVER_AT, NORTH);
+    const mate = spawnSoldier(sim, 2, Team.OUR, GIVER_AT + 1, NORTH);
+    const clip = createItem(kit.content.items, kit.content.items.byName.get('CLIP9_15')?.index ?? -1, 100);
+    giver.inv[InvSlot.BIGPOCK1] = clip;
+    expect(soldierGiveItem(sim.state, giver, mate, clip, InvSlot.BIGPOCK1)).toBe(true);
+    runSimUntilIdle(sim);
+    expect([giver.pendingGive, giver.inv[InvSlot.BIGPOCK1]?.item]).toEqual([null, NOTHING]);
+    return giver;
+  }
+
+  it('drops the order while a merc who gave on the spot still holds MERC_GIVEITEM after the hand-over', () => {
+    expect(walkToOpen(gaveOnTheSpot)).toBe(false);
+  });
+
+  it('opens the door once a move order of the merc who gave on the spot has replaced his held give', () => {
+    const opened = walkToOpen((sim) => {
+      const giver = gaveOnTheSpot(sim);
+      expect(hasPendingAction(giver)).toBe(true);
+      expect(sim.dispatch({ type: 'move', soldier: giver.id, to: GIVER_AT + 160 })).toEqual({ ok: true });
+      expect(hasPendingAction(giver)).toBe(false);
+    });
+    expect(opened).toBe(true);
+  });
+
+  it('opens the door for the merc who gave on the spot himself: his door order replaces his held give', () => {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    sim.lookAround();
+    const giver = gaveOnTheSpot(sim);
+    expect(sim.dispatch({ type: 'door', soldier: giver.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true },
+    });
+    runSimUntilIdle(sim);
+    expect(giver.gridNo).toBe(OUTSIDE);
+    expect(doorStructure(sim).flags & StructureFlags.OPEN).not.toBe(0);
   });
 
   it('drops the order while another squad walks off the map edge, which locks the interface', () => {

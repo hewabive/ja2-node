@@ -5,7 +5,8 @@
 // @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01; the slots of our vehicles and
 // @src bVehicleID, 2026-11-04); Tactical/Soldier_Control.h SOLDIER_DRIVER, SOLDIER_PASSENGER; Soldier_Macros.h EnterableVehicle
 // @src (2026-11-05); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1, for
-// @src the distances taken from a soldier with no tile, 2026-11-08)
+// @src the distances taken from a soldier with no tile, 2026-11-08); ubPendingAction MERC_GIVEITEM held after a give on the
+// @src spot with its ubPendingActionAnimCount (2026-11-08)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
@@ -394,6 +395,7 @@ export interface Soldier {
   npcShooting: boolean;
   uiMovementFast: boolean;
   pendingGive: PendingGive | null;
+  heldGiveAction: HeldGiveAction | null;
   engagedInAction: boolean;
   keyRing: KeyOnRing[] | null;
   breathCollapsed: boolean;
@@ -606,6 +608,11 @@ export interface PendingGive {
   begun: boolean;
 }
 
+export interface HeldGiveAction {
+  readonly target: number;
+  animCount: number;
+}
+
 export interface PendingPickup {
   readonly gridNo: number;
   readonly actionGridNo: number;
@@ -755,6 +762,7 @@ function identityAndMovement(init: SoldierInit, centre: { x: number; y: number }
     npcShooting: false,
     uiMovementFast: false,
     pendingGive: null,
+    heldGiveAction: null,
     engagedInAction: false,
     keyRing: init.team === Team.OUR ? newKeyRing() : null,
     breathCollapsed: false,

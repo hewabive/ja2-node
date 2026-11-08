@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Interface_Items.cc HandleItemPointerClick (the robot branch: the APs, the temp object, the walk),
 // @src IsValidAmmoToReloadRobot, CompatibleAmmoForGun; Points.cc GetAPsToReloadRobot; Soldier_Control.cc
 // @src EVENT_SoldierBeginReloadRobot; externalized/Soldier.cc handlePendingAction (MERC_RELOADROBOT); Soldier_Ani.cc
-// @src code 756.
+// @src code 756; HandleItemPointerClick's ubPendingActionAnimCount reset and MERC_RELOADROBOT replacing a held
+// @src MERC_GIVEITEM (2026-11-08).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { NOTHING } from '../../content/items/items.ts';
@@ -11,7 +12,7 @@ import { cloneObject, type ItemObject, removeObjects } from '../items/object.ts'
 import { anim } from './anim-states.ts';
 import { faceAtOnce, initNewSoldierAnim } from './animation.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
-import { apsToMovePlusAction } from './give.ts';
+import { apsToMovePlusAction, dropHeldGive } from './give.ts';
 import { autoPlaceObject, InvSlot, itemIn, reloadGun } from './inventory.ts';
 import { compatibleAmmoForGun } from './item-compatibility.ts';
 import { getNewSoldierPath } from './movement.ts';
@@ -85,9 +86,11 @@ export function soldierReloadRobot(t: TacticalState, s: Soldier, robot: Soldier,
   s.tempObject = cloneObject(ammo);
   removeObjects(source, 1);
   s.pendingActionData2 = approach.targetGridNo;
+  if (s.heldGiveAction) s.heldGiveAction.animCount = 0;
   if (s.gridNo === approach.actionGridNo) beginReloadRobot(t, s, approach.targetGridNo, approach.direction);
   else {
     s.pendingRobotReload = { targetGridNo: approach.targetGridNo, direction: approach.direction };
+    dropHeldGive(s);
     if (!getNewSoldierPath(t, s, approach.actionGridNo, s.uiMovementMode, 0, false)) cancelPendingRobotReload(t, s);
   }
   return approach.actionGridNo;

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Control.cc MercStealFromMerc; Points.cc GetAPsToStealItem; Turn_Based_Input.cc
 // @src HandleHandCursorClick (the steal click); Soldier_Find.cc GetSoldierFindFlags (ENEMY_MERC, UNCONSCIOUS_MERC);
 // @src Weapons.cc UseHandToHand (the steal branch, without the curse sound, which the browser plays);
-// @src Soldier_Ani.cc opcode 485 (try steal).
+// @src Soldier_Ani.cc opcode 485 (try steal); MercStealFromMerc's MERC_STEAL replacing a held MERC_GIVEITEM (2026-11-08).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { NOTHING } from '../../../content/items/items.ts';
@@ -12,6 +12,7 @@ import type { StealAttemptEvent } from '../../events.ts';
 import { deleteObject, type ItemObject } from '../../items/object.ts';
 import { plotPathCost } from '../ai/utils.ts';
 import { AnimHeight } from '../animation.ts';
+import { dropHeldGive } from '../give.ts';
 import { reloadSoldierAnimationDueToHandItemChange } from '../hand-item.ts';
 import { autoPlaceObject, InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
@@ -54,6 +55,7 @@ export function mercStealFromMerc(t: TacticalState, s: Soldier, tgt: Soldier): b
   const approach = findAdjacentGridEx(t, s, tgt.gridNo, true);
   if (!approach) return false;
   s.pendingMelee = { kind: MeleeKind.STEAL, targetGridNo: tgt.gridNo, direction: approach.direction, animCount: 0 };
+  dropHeldGive(s);
   s.pendingActionData2 = tgt.gridNo;
   s.targetLevel = tgt.level;
   if (s.gridNo !== approach.actionGridNo)

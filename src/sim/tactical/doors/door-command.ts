@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
 // @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the
-// @src LOCKUI_MODE test, 2026-10-30; its fAutoBandagePending test, 2026-11-06);
+// @src LOCKUI_MODE test, 2026-10-30; its fAutoBandagePending test, 2026-11-06; its MERC_GIVEITEM held after a give on the
+// @src spot, 2026-11-08);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
 // @src stops the menu's merc, 2026-11-01).
 
@@ -10,7 +11,7 @@ import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
-import { anyMercWalksToGiveItem } from '../give.ts';
+import { anyMercHoldsGiveItem, dropHeldGive } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { enoughPoints } from '../points.ts';
@@ -199,6 +200,7 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   s.pendingDoorAction = null;
   if (approach.gridNo === s.gridNo) return { ok: true, data: performDoorAction(t, s, base, approach.direction, action) };
   s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action };
+  dropHeldGive(s);
   if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
     s.pendingDoorAction = null;
     return refuse('noPath');
@@ -214,7 +216,7 @@ function otherActivityUnderWay(t: TacticalState): boolean {
   return (
     !t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking() ||
     playerInterfaceLocked(t) ||
-    anyMercWalksToGiveItem(t) ||
+    anyMercHoldsGiveItem(t) ||
     autoBandageOnOrPending(t)
   );
 }
