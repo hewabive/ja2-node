@@ -163,5 +163,6 @@ Inferred from reading the source:
   record written back, through the sector flag, not the swap itself: no probe dumps a tile's structures. The smoke
   probe's cloud has no owner (`absmoke`), so the owner by id is pinned by a unit test only.
 
-Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections". Other deviations of the import:
-"Ambient sound events", "Blood on the ground", "Difficulty and progress in tactical", "Corpse structure past its file".
+Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections", "Pending actions on import".
+Other deviations of the import: "Ambient sound events", "Blood on the ground",
+"Difficulty and progress in tactical", "Corpse structure past its file".
