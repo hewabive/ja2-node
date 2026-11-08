@@ -17,7 +17,7 @@
 // @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen, SelectMoveAnimationFromStance after a
 // @src stance change that continues a move; the crouch before a prone hop facing the fence (deviation "Prone hop facing
 // @src the fence", 2026-11-07); EVENT_InitNewSoldierAnim's SOLDIER_LOCKPENDINGACTIONCOUNTER and its clear on the walk
-// @src past a fence landing (2026-11-07).
+// @src past a fence landing (2026-11-07); SoldierGotoStationaryStance's cower states (2026-11-07).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -352,10 +352,10 @@ export function soldierGotoStationaryStance(t: TacticalState, s: Soldier): void 
   }
   switch (endHeight(t.content, s.state)) {
     case AnimHeight.STAND:
-      initNewSoldierAnim(t, s, st.STANDING, 0, false);
+      initNewSoldierAnim(t, s, s.cowering ? st.START_COWER : st.STANDING, 0, false);
       return;
     case AnimHeight.CROUCH:
-      initNewSoldierAnim(t, s, st.CROUCHING, 0, false);
+      initNewSoldierAnim(t, s, s.cowering ? st.COWERING : st.CROUCHING, 0, false);
       return;
     case AnimHeight.PRONE:
       initNewSoldierAnim(t, s, st.PRONE, 0, false);

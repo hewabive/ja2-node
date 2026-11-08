@@ -5,8 +5,16 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { DIRECTION_COUNT, Direction, gridNo } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { Terrain } from '../../content/world/terrain.ts';
-import { animName } from './anim-states.ts';
-import { AnimHeight, changeSoldierStance, endHeight, initNewSoldierAnim, setSoldierCowerState, states } from './animation.ts';
+import { anim, animName } from './anim-states.ts';
+import {
+  AnimHeight,
+  changeSoldierStance,
+  endHeight,
+  initNewSoldierAnim,
+  setSoldierCowerState,
+  soldierGotoStationaryStance,
+  states,
+} from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { isValidStance } from './person-structure.ts';
 import { AP, ptsToMoveDirection } from './points.ts';
@@ -322,6 +330,27 @@ describe('a civilian body cowers instead of changing stance (Soldier_Control.cc 
     s.cowering = false;
     changeSoldierStance(sim.state, s, AnimHeight.STAND);
     expect(stateOf(s)).toBe('COWERING');
+  });
+
+  it('goes back to cowering at the end of a cowering civilian hit, not to a crouch his body has no animation for', () => {
+    const { sim, s } = civilian();
+    cowering(sim, s);
+    initNewSoldierAnim(sim.state, s, anim(content, 'CIV_COWER_HIT'), 0, false);
+    expect(playThrough(sim, s, 'CIV_COWER_HIT')).toBe('COWERING');
+  });
+
+  it('rests a cowering soldier in the cower of his height: getting down on his feet, cowering crouched (SoldierGotoStationaryStance)', () => {
+    const standing = civilian(Body.REGMALE);
+    standing.s.cowering = true;
+    soldierGotoStationaryStance(standing.sim.state, standing.s);
+    expect(stateOf(standing.s)).toBe('START_COWER');
+    expect(playThrough(standing.sim, standing.s, 'START_COWER')).toBe('COWERING');
+    const crouched = civilian(Body.REGMALE);
+    changeSoldierStance(crouched.sim.state, crouched.s, AnimHeight.CROUCH);
+    expect(playThrough(crouched.sim, crouched.s, 'KNEEL_DOWN')).toBe('CROUCHING');
+    crouched.s.cowering = true;
+    soldierGotoStationaryStance(crouched.sim.state, crouched.s);
+    expect(stateOf(crouched.s)).toBe('COWERING');
   });
 
   it('stops a cowering civilian whom a quote record sends walking: his standing animation takes the cower branch (NPC.cc)', () => {
