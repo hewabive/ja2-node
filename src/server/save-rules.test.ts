@@ -7,8 +7,11 @@ import { pythSpacesAway } from '../content/world/grid.ts';
 import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import { PromptKind } from '../sim/strategic/forces/battle-state.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { soldierCollapse } from '../sim/tactical/combat/hit.ts';
+import { helicopterDropStalled } from '../sim/tactical/helicopter-drop.ts';
 import { AlertStatus, Team } from '../sim/tactical/soldier.ts';
-import { mercs } from '../sim/tactical/state.ts';
+import { mercs, teamMembers } from '../sim/tactical/state.ts';
+import { enterCombatMode } from '../sim/tactical/turns/turns.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { inflateSave, parseSaveText, type SaveKind } from './save-file.ts';
 import { groupsAboutToArrive, saveRefusal, saveStatus, startsMeanwhile, startsOurTurn } from './save-rules.ts';
@@ -245,6 +248,34 @@ describe('save rules', () => {
       await k.saves.flush();
       expect(inCombat(session)).toBe(false);
       expect(writes.length).toBe(before);
+    });
+  });
+
+  it('in Dead is Dead save nothing while the helicopter drop runs, stalled too, as its lock holds LOCKUI_MODE (SaveLoadScreen.cc:1374), and save once it is skipped', async () => {
+    await withKit(async (k) => {
+      const writes = recordWrites(k);
+      const session = await k.open({
+        seed: 6,
+        campaign: { mercs: 2, land: false, saveMode: 'deadIsDead', deadIsDeadName: DEAD_IS_DEAD_NAME },
+      });
+      expect((await session.prepareAndDispatch({ type: 'compressTime', mode: 2 })).ok).toBe(true);
+      session.advance({ events: ['mercDropped'] });
+      const t = tacticalOf(session).state;
+      const dropped = teamMembers(t, Team.OUR)[0];
+      if (!dropped) throw new Error('no merc down');
+      soldierCollapse(t, dropped);
+      session.advance({ idle: true });
+      expect(helicopterDropStalled(t)).toBe(true);
+      await k.saves.flush();
+      const before = writes.length;
+      enterCombatMode(t, Team.OUR);
+      session.advance({ ticks: 1 });
+      await k.saves.flush();
+      expect(helicopterDropStalled(t)).toBe(true);
+      expect(writes.length).toBe(before);
+      expect(session.dispatch({ type: 'skipHelicopterDrop' })).toEqual({ ok: true });
+      await k.saves.flush();
+      expect(writes.slice(before).map((w) => w.name)).toEqual([DEAD_IS_DEAD_NAME]);
     });
   });
 

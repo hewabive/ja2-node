@@ -6,7 +6,8 @@
 // @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo;
 // @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04);
 // @src Tactical/Auto_Bandage.cc AutoBandage (its mask takes every key while the mode runs, 2026-11-06); Tactical/Turn_Based_Input.cc
-// @src GetKeyboardInput's gate for a locked UI, which the helicopter drop's LU_BEGINUILOCK holds (2026-11-08).
+// @src GetKeyboardInput's gate for a locked UI, which the helicopter drop's LU_BEGINUILOCK holds (2026-11-08); DoDeadIsDeadSave's
+// @src LOCKUI_MODE, which the drop holds stalled too (2026-11-08).
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -147,7 +148,7 @@ function actionInProgress(sim: SessionSim): boolean {
 }
 
 export function deadIsDeadWritable(sim: SessionSim): boolean {
-  if (!ourTurn(sim) || actionInProgress(sim) || autoBandaging(sim)) return false;
+  if (!ourTurn(sim) || actionInProgress(sim) || autoBandaging(sim) || helicopterDropping(sim)) return false;
   const campaign = campaignOf(sim);
   return campaign === null || modalRefusal(campaign) === null;
 }
