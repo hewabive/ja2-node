@@ -3,7 +3,8 @@
 // @src src/game/Strategic/StrategicMap.cc UpdateMercInSector; Tactical/Soldier_Add.cc InternalAddSoldierToSector,
 // @src AddSoldierToSectorGridNo, SoldierInSectorIncompaciated, InternalSoldierInSectorSleep, SoldierInSectorAnim;
 // @src TileEngine/Exit_Grids.cc FindClosestExitGrid; InternalAddSoldierToSector's vehicle sweet spot and its stop for a
-// @src driver or passenger (2026-11-05); the APs a vehicle keeps when added (InternalAddSoldierToSector computes none, 2026-11-05);
+// @src driver or passenger (2026-11-05); the APs every soldier keeps when added (InternalAddSoldierToSector computes none, 2026-11-05,
+// @src for our mercs too 2026-11-08);
 // @src AddSoldierToSectorGridNo's arrival stance, skipped for a merc already in HELIDROP (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
@@ -20,7 +21,6 @@ import { moveStateBasedOnStance } from './movement-mode.ts';
 import { clearCreatureTensionQuotesSaid } from './narrative/creature-tension.ts';
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
-import { calcActionPoints } from './points.ts';
 import { FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
 import { Body, inVehicle, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
@@ -225,10 +225,6 @@ function sectorEntrySpot(t: TacticalState, s: Soldier, order: InsertionOrder, ca
   return soldierSpot(t, s, order, calculateDirection);
 }
 
-function keepsActionPointsAtInsertion(s: Soldier): boolean {
-  return isVehicleBody(s.bodyType);
-}
-
 export function addSoldierToSector(
   t: TacticalState,
   s: Soldier,
@@ -238,7 +234,6 @@ export function addSoldierToSector(
   animation: PlacementAnimation | null = null,
 ): boolean {
   keepElliotAliveInMeanwhile(t, s);
-  if (!keepsActionPointsAtInsertion(s)) s.actionPoints = calcActionPoints(t, s);
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
   if (inVehicle(s)) {
     seatOnSectorEntry(t, s);

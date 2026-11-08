@@ -192,6 +192,19 @@ describe('InternalAddSoldierToSector for a merc seated in a vehicle (Soldier_Add
   });
 });
 
+describe('the APs of a soldier added to the sector (Soldier_Add.cc InternalAddSoldierToSector)', () => {
+  const LEFT_OVER = 3;
+
+  it('keeps the APs he had, which only his creation and his turn starts count: the sector entry counts none', () => {
+    const sim = newCombatSim(content);
+    const s = arrivingSoldier(sim);
+    removeSoldierFromTacticalSector(sim.state, s);
+    s.actionPoints = LEFT_OVER;
+    expect(insert(sim, s, ARRIVAL_FACING, true).placed).toBe(true);
+    expect(s.actionPoints).toBe(LEFT_OVER);
+  });
+});
+
 describe('a soldier added on the roof level (Soldier_Add.cc SECOND_LEVEL_Z_OFFSET)', () => {
   const CLIMBED_HEIGHT = 50;
   const roofAround = (g: number) => new Set([g - 1, g, g + 1, g - WORLD_COLS, g + WORLD_COLS]);
