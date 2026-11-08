@@ -17,7 +17,8 @@
 // @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen, SelectMoveAnimationFromStance after a
 // @src stance change that continues a move; the crouch before a prone hop facing the fence (deviation "Prone hop facing
 // @src the fence", 2026-11-07); EVENT_InitNewSoldierAnim's SOLDIER_LOCKPENDINGACTIONCOUNTER and its clear on the walk
-// @src past a fence landing (2026-11-07); SoldierGotoStationaryStance's cower states (2026-11-07).
+// @src past a fence landing (2026-11-07); EVENT_InitNewSoldierAnim's ReevaluateEnemyStance and
+// @src SoldierGotoStationaryStance's cower states (2026-11-07).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -67,6 +68,7 @@ import { moveStateBasedOnStance } from './movement-mode.ts';
 import { soldierAnimSurface } from './multi-tile.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
+import { reevaluateEnemyStance } from './perception/enemy-stance.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
 import { setSoldierHeight } from './roofs.ts';
@@ -491,6 +493,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   if (s.state === st.SWATTING && next === st.CROUCHING) next = st.END_SWAT;
   if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= Body.REGFEMALE && !inWater(s))
     next = st.END_HURT_WALKING;
+  if (reevaluateEnemyStance(t, s, next)) return;
   next = substituteBodyTypeAnimation(content, s, next);
   if (!isAnimationValidForBodyType(content, s, next)) return;
   next = bigMercStanceTransition(t, s, next);

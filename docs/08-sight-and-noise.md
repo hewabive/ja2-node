@@ -44,7 +44,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/look-memo.ts`, `change-counts.ts` | The look skipped while its inputs stand, and the change counts of the world layers it reads (§2) |
 | `perception/slant-roofs.ts` | The ceilings of slanted roofs: which roofs a look or a load examines, and the tiles that show a ceiling (`fog.slantRoofCeilings`) |
 | `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote with the tile it slides to and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`, `turn.itemsSeenOnAttackGridNo`) |
-| `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; what our sighting does (the quote or battle sound, the halt, the end of the virgin sector); the AI's stance after one |
+| `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; what our sighting does (the quote or battle sound, the halt, the end of the virgin sector); the AI's stance after one, and at each new animation of an enemy who sees us (`animation.ts`, `06` §3) |
 | `narrative/sighting-quotes.ts` | The sighting quotes: in trouble, creatures, bloodcats, the first enemy of the sector, the battle-sound roll |
 | `lighting/lighting.ts` | `lightTrueLevel` and the light scaling of vision (`20`) |
 
