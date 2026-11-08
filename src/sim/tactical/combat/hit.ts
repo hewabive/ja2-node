@@ -122,7 +122,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     if (slot === -1) {
       addItemToPool(t, tgt.gridNo, knife, Visibility.INVISIBLE, tgt.level, NO_FLAGS, LEVEL_HEIGHT);
       notifySoldiersToLookForItems(t);
-    } else copyObjectInto(knife, tgt.inv[slot] as ItemObject);
+    } else copyObjectInto(tgt.inv[slot] as ItemObject, knife);
     ammo = AmmoType.KNIFE;
   } else ammo = firer.inv[firer.attackingHand]?.gunAmmoType ?? AmmoType.REGULAR;
   if (isVehicle(tgt) || tgt.bodyType === Body.COW || tgt.bodyType === Body.CROW || tgt.bodyType === Body.BLOODCAT) location = AimShot.TORSO;

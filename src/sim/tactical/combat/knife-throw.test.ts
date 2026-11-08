@@ -114,6 +114,23 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     ]);
   });
 
+  it('puts the bloody knife into the first free pocket of the soldier it hits (LOS.cc BulletHitMerc)', () => {
+    const sim = simWith(() => undefined);
+    const thrower = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 82), Direction.SOUTH, { gun: 'THROWING_KNIFE', marksmanship: 100 });
+    thrower.inv[InvSlot.HAND] = createItem(content.items, thrower.inv[InvSlot.HAND]?.item ?? -1, KNIFE_STATUS_IN_POCKET);
+    const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), Direction.NORTH);
+    const rock = content.items.byName.get('ROCK')?.index ?? -1;
+    target.inv[InvSlot.BIGPOCK1] = createItem(content.items, rock, 100);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(target.life).toBeLessThan(80);
+    expect(target.life).toBeGreaterThan(0);
+    const bloody = content.items.byName.get('BLOODY_THROWING_KNIFE')?.index ?? -1;
+    expect(sim.state.soldiers[target.id]?.inv[InvSlot.BIGPOCK2]).toMatchObject({ item: bloody, status: [KNIFE_STATUS_IN_POCKET] });
+    expect(thrownKnives(sim, 'BLOODY_THROWING_KNIFE')).toEqual([]);
+  });
+
   it('lays the bloody knife of a target with full pockets on the raised shelf over his tile, not under it', () => {
     const at = gridNo(80, 84);
     const sim = simWith((structures) => {
