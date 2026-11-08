@@ -1,0 +1,263 @@
+# The helicopter drop and the helicopter's passengers over the loaded sector (0031, README "Helicopter drop").
+# hdtimer on=1 switches 0030's virtual clock on before the first load. Every drop block starts a new game the way the
+# main menu does after a game (hdrestart: ReStartingGame), hires through 0010 and runs the map screen's start
+# (hdjackedin: HandleTimeCompressWithTeamJackedInAndGearedToGo, with A9 and its enemies loaded); hdframes then runs the
+# game screen's frames on the virtual clock, 5 ms each. hdset live=1 lets the fades ramp as with a sample playing.
+# Every new game is seeded the same, so each block starts from the same profiles and A9 placements, and the AI's draws
+# repeat on every run.
+
+# 1. The first drop of a new game: three mercs, one round, enemies in A9, the end of the first run (turn times, the
+# enemies called to the sweet spot, the enemy presence quote, the music), then the step-aways and the AI after it.
+hdtimer on=1
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=end
+hdframes count=1000
+
+# 2. Eight mercs: two rounds of the script, six seats and two.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+aimhire profile=1 contract=7 gear=0
+aimhire profile=13 contract=7 gear=0
+aimhire profile=23 contract=7 gear=0
+aimhire profile=30 contract=7 gear=0
+aimhire profile=9 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=40000 until=end
+hdframes count=1000
+
+# 3. Esc during APPROACH: every seat lands at once at a sweet spot, with no HELIDROP and no step away.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=300
+hdframes count=1 esc=1
+hdframes count=600
+
+# 4. Esc mid-DROP: the first merc is in HELIDROP, the other two land at once; the first steps away at 467.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=dropped:1
+hdframes count=200
+hdframes count=1 esc=1
+hdframes count=1200
+
+# 5. Without the live-sample switch (-nosound as the oracle runs): the fade-in ends at the first step, the fade-out at
+# the first step after DONE.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+hdset live=0
+hdjackedin
+hdframes count=20000 until=end
+hdframes count=200
+
+# 6. Esc after EXIT, during the fade-out: nobody is left to land, the sound stops, and fFadingHeliOut stays set. The
+# next run in the sector (a later arrival) fades in and then straight out again: it ends after the fade-out, before the
+# merc in its seat has dropped, and he stays in the helicopter (in no sector slot, gbNumHeliSeatsOccupied reset).
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=state:EXIT
+hdframes count=700
+hdframes count=1 esc=1
+hdframes count=600
+aimhire profile=20 contract=7 gear=0
+hdarrive who=2 minutes=1
+hdframes count=20000 until=end
+hdframes count=600
+
+# 7. A later arrival in the loaded start sector: two mercs land, a third hired afterwards arrives while A9 is loaded
+# (his arrival event moved to the next minute), gets the chopper code and a run of his own, not the first run.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=end
+hdframes count=600
+aimhire profile=20 contract=7 gear=0
+hdarrive who=2 minutes=1
+hdframes count=20000 until=end
+hdframes count=1200
+
+# 7b. The same later arrival with A9's enemies taken off the map first (hdremove, fEnemyInSector cleared): the later run
+# does not sync the strategic turn times, so the first poll after its end runs a real-time turn at once.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=end
+hdremove team=enemy
+hdframes count=600
+aimhire profile=20 contract=7 gear=0
+hdarrive who=2 minutes=1
+hdframes count=20000 until=end
+hdframes count=1200
+
+# 8. An enemy in sight of the north entry: the first merc down sees him, combat starts mid-drop and the script goes on.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdenemy grid=6150 dir=0
+hdframes count=20000 until=end
+hdframes count=1000
+
+# 9. A save mid-drop, the second merc in HELIDROP (hdsave: SaveGame into the oracle's home), then the same drop to its
+# end. helidrop-load.txt loads the save: in a fresh process, and over a running drop in the same process.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=dropped:2
+hdframes count=100
+hdsave OracleHeliDrop
+hdframes count=20000 until=end
+hdframes count=600
+
+# 10. The stall: the first merc is hit (EVENT_SoldierGotHit from an A9 soldier) before 467, gfIngagedInDrop stays set
+# and the drop hovers in DROP until Esc, which leaves the flag set; the next run in the sector stalls in DROP before its
+# first merc, until Esc again.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=dropped:1
+hdframes count=100
+hdhit who=0 mode=hit by=20 damage=5
+hdframes count=2500
+hdframes count=1 esc=1
+hdframes count=600
+aimhire profile=20 contract=7 gear=0
+hdarrive who=2 minutes=1
+hdframes count=4000
+hdframes count=1 esc=1
+hdframes count=300
+
+# Passengers of the helicopter over the loaded sector, on SaveGame01 (B13, the helicopter's base; Shadow 0, Sidney 1,
+# Ira 2, profile 59). hpsetup gives the player the helicopter in B13, hpboard boards in tactical (PutSoldierInVehicle).
+
+# 11. Boarding, the turn starts out of and in combat (set with an enemy four tiles from Ira, so it goes on), a nervous
+# walker next to the passengers and a nervous passenger, quotes from anybody with and without a walker to say them.
+save SaveGame01
+hpset screen=game
+hpsetup sector=B13
+hpboard who=0
+hpboard who=1
+hpturn
+hpenemy grid=9675 dir=0
+hpset enemyInSector=1 combat=1
+hpturn
+hpturn
+hpset combat=0
+hpset who=2 personality=nervous morale=40
+hpturn
+hpset who=0 personality=nervous morale=40
+hpturn
+hpquote quote=59
+hpquote quote=59
+hpset who=2 asleep=1
+hpquote quote=59
+
+# 12. Damage to a passenger, his death over the loaded sector and the frames after it.
+save SaveGame01
+hpset screen=game
+hpsetup sector=B13
+hpboard who=0
+hpdamage who=0 damage=10 reason=gunfire
+hpdamage who=0 damage=100 reason=gunfire
+hdframes count=600
+hpstate
+
+# 13. The losing check with the walkers down: a passenger above keeps the battle from being lost, and is counted when
+# he is down too.
+save SaveGame01
+hpset screen=game
+hpsetup sector=B13
+hpboard who=0
+hpenemy grid=12000 dir=0
+hpset enemyInSector=1
+hpset who=1 life=5
+hpset who=2 life=5
+hpend mode=losing
+hpset who=0 life=5
+hpend mode=full
+
+# 14. The losing check with the walkers dead and the passenger down: one merc not OK, so no capture, and the battle's
+# loss kills the passenger above.
+save SaveGame01
+hpset screen=game
+hpsetup sector=B13
+hpboard who=0
+hpenemy grid=12000 dir=0
+hpset enemyInSector=1
+hpset who=1 life=0
+hpset who=2 life=0
+hpset who=0 life=5
+hpend mode=losing
+hdframes count=200
+hpstate
+
+# 15. A sector load with a passenger: a save and its load put him back in a merc slot with no tile.
+save SaveGame01
+hpset screen=game
+hpsetup sector=B13
+hpboard who=0
+hpsave OracleHeliPassenger
+save OracleHeliPassenger
+hpstate
+hpturn

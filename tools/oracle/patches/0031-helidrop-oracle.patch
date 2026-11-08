@@ -1,0 +1,289 @@
+Helicopter drop oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-08. See LICENSE (SFI-SCLA).
+Lets the helicopter drop probes run the game screen's part of the drop frame by frame: the start of a run
+(gfTacticalDoHeliRun) and the first-time block of MainGameScreenHandle move into HandleTacticalDoHeliRun and
+HandleFirstTimeInGameScreen, called where the code was. Two switches in Merc_Entering.cc, off in the game:
+gfOracleHeliEscape stands for _KeyDown(SDLK_ESCAPE) in HandleHeliDrop, and gfOracleHeliLiveSample gives the run a
+stand-in sample id when PlayJA2Sample returns NO_SAMPLE (-nosound), so the fades ramp as with sound (SoundSetVolume and
+SoundStop do nothing for it). Appended accessors read the file statics of Merc_Entering.cc (the seats, the script
+state, the fades, the heli tile, gubMoveAwayRepeated and REPEAT_HELI_MOVEAWAY), Tile_Animation.cc tells whether a tile
+is still in the anitile list, Overhead.cc exposes the static CheckForLosingEndOfBattle, and ScreenMsg hands every message
+to gOracleScreenMessageHook when the oracle sets one. No behaviour change while the switches and the hook are off.
+Applied by tools/oracle/build.sh after 0030.
+
+--- a/src/game/GameScreen.cc
++++ b/src/game/GameScreen.cc
+@@ -267,6 +267,45 @@
+ static void TacticalScreenLocateToSoldier(void);
+ 
+ 
++void HandleTacticalDoHeliRun(void)
++{
++	if ( gfTacticalDoHeliRun )
++	{
++		gfGameScreenLocateToSoldier = FALSE;
++		InternalLocateGridNo( gMapInformation.sNorthGridNo, TRUE );
++
++		// Start heli Run...
++		StartHelicopterRun( gMapInformation.sNorthGridNo );
++
++		// Update clock by one so that our DidGameJustStatrt() returns now false for things like LAPTOP, etc...
++		SetGameTimeCompressionLevel( TIME_COMPRESS_X1 );
++		//UpdateClock( 1 );
++
++		gfTacticalDoHeliRun = FALSE;
++		//SetMusicMode( MUSIC_TACTICAL_NOTHING );
++	}
++}
++
++
++void HandleFirstTimeInGameScreen(void)
++{
++	if ( fFirstTimeInGameScreen )
++	{
++		EnterTacticalScreen( );
++
++		// Select a guy if he hasn;'
++		if( !gfTacticalPlacementGUIActive )
++		{
++			SOLDIERTYPE* const sel = GetSelectedMan();
++			if (sel != NULL && OK_INTERRUPT_MERC(sel))
++			{
++				SelectSoldier(sel, SELSOLDIER_FORCE_RESELECT);
++			}
++		}
++	}
++}
++
++
+ ScreenID MainGameScreenHandle(void)
+ {
+ 	//DO NOT MOVE THIS FUNCTION CALL!!!
+@@ -346,21 +385,7 @@
+ 		HandleStrategicTurn( );
+ 	}
+ 
+-	if ( gfTacticalDoHeliRun )
+-	{
+-		gfGameScreenLocateToSoldier = FALSE;
+-		InternalLocateGridNo( gMapInformation.sNorthGridNo, TRUE );
+-
+-		// Start heli Run...
+-		StartHelicopterRun( gMapInformation.sNorthGridNo );
+-
+-		// Update clock by one so that our DidGameJustStatrt() returns now false for things like LAPTOP, etc...
+-		SetGameTimeCompressionLevel( TIME_COMPRESS_X1 );
+-		//UpdateClock( 1 );
+-
+-		gfTacticalDoHeliRun = FALSE;
+-		//SetMusicMode( MUSIC_TACTICAL_NOTHING );
+-	}
++	HandleTacticalDoHeliRun( );
+ 
+ 
+ 	if ( InOverheadMap( ) )
+@@ -375,20 +400,7 @@
+ 		gfGameScreenLocateToSoldier = FALSE;
+ 	}
+ 
+-	if ( fFirstTimeInGameScreen )
+-	{
+-		EnterTacticalScreen( );
+-
+-		// Select a guy if he hasn;'
+-		if( !gfTacticalPlacementGUIActive )
+-		{
+-			SOLDIERTYPE* const sel = GetSelectedMan();
+-			if (sel != NULL && OK_INTERRUPT_MERC(sel))
+-			{
+-				SelectSoldier(sel, SELSOLDIER_FORCE_RESELECT);
+-			}
+-		}
+-	}
++	HandleFirstTimeInGameScreen( );
+ 
+ 	if ( HandleFadeOutCallback( ) )
+ 	{
+--- a/src/game/Tactical/Merc_Entering.cc
++++ b/src/game/Tactical/Merc_Entering.cc
+@@ -375,6 +375,10 @@
+ static ANITILE* gpHeli;
+ BOOLEAN gfFirstHeliRun;
+ 
++bool gfOracleHeliEscape = false;
++bool gfOracleHeliLiveSample = false;
++#define ORACLE_LIVE_HELI_SAMPLE		0xfffffffe
++
+ 
+ void ResetHeliSeats( )
+ {
+@@ -431,6 +435,7 @@
+ 	// Start sound
+ 	uiSoundVolume = 0;
+ 	uiSoundSample = PlayJA2Sample(HELI_1, uiSoundVolume, 10000, MIDDLEPAN);
++	if (gfOracleHeliLiveSample && uiSoundSample == NO_SAMPLE) uiSoundSample = ORACLE_LIVE_HELI_SAMPLE;
+ 	fFadingHeliIn = TRUE;
+ 
+ 	gfHandleHeli = TRUE;
+@@ -459,7 +464,7 @@
+ 			guiPendingOverrideEvent = LU_BEGINUILOCK;
+ 		}
+ 
+-		if (_KeyDown(SDLK_ESCAPE))
++		if (gfOracleHeliEscape || _KeyDown(SDLK_ESCAPE))
+ 		{
+ 			// Loop through all mercs not yet placed
+ 			for ( cnt = gbCurDrop; cnt < gbNumHeliSeatsOccupied; cnt++ )
+@@ -800,3 +805,111 @@
+ 	// Send message to turn on ai again....
+ 	DialogueEvent::Add(new DialogueEventCallback<UnPauseAI>());
+ }
++
++
++BOOLEAN OracleHeliHandling()
++{
++	return gfHandleHeli;
++}
++
++INT8 OracleHeliSeatsOccupied()
++{
++	return gbNumHeliSeatsOccupied;
++}
++
++SOLDIERTYPE const* OracleHeliSeat(INT8 const i)
++{
++	return i >= 0 && i < MAX_MERC_IN_HELI ? gHeliSeats[i] : NULL;
++}
++
++BOOLEAN OracleHeliFirstGuyDown()
++{
++	return gfFirstGuyDown;
++}
++
++UINT32 OracleHeliSoundSample()
++{
++	return uiSoundSample;
++}
++
++UINT32 OracleHeliSoundVolume()
++{
++	return uiSoundVolume;
++}
++
++INT16 OracleHeliSweetSpot()
++{
++	return gsGridNoSweetSpot;
++}
++
++INT16 OracleHeliXPos()
++{
++	return gsHeliXPos;
++}
++
++INT16 OracleHeliYPos()
++{
++	return gsHeliYPos;
++}
++
++FLOAT OracleHeliZPos()
++{
++	return gdHeliZPos;
++}
++
++INT16 OracleHeliScript()
++{
++	return gsHeliScript;
++}
++
++UINT8 OracleHeliState()
++{
++	return gubHeliState;
++}
++
++UINT32 OracleHeliLastUpdate()
++{
++	return guiHeliLastUpdate;
++}
++
++INT8 OracleHeliCurDrop()
++{
++	return gbCurDrop;
++}
++
++INT8 OracleHeliExitCount()
++{
++	return gbExitCount;
++}
++
++INT8 OracleHeliRound()
++{
++	return gbHeliRound;
++}
++
++UINT8 OracleHeliMoveAwayRepeated()
++{
++	return gubMoveAwayRepeated;
++}
++
++INT32 OracleHeliMoveAwayRepeats()
++{
++	return REPEAT_HELI_MOVEAWAY;
++}
++
++BOOLEAN OracleHeliFadingIn()
++{
++	return fFadingHeliIn;
++}
++
++BOOLEAN OracleHeliFadingOut()
++{
++	return fFadingHeliOut;
++}
++
++BOOLEAN OracleAniTileExists(ANITILE const* a);
++
++ANITILE const* OracleHeliTile()
++{
++	return gfHandleHeli && OracleAniTileExists(gpHeli) ? gpHeli : NULL;
++}
+--- a/src/game/Tactical/Overhead.cc
++++ b/src/game/Tactical/Overhead.cc
+@@ -6285,3 +6285,8 @@
+ {
+ 	return AwaySlots[i];
+ }
++
++BOOLEAN OracleCheckForLosingEndOfBattle()
++{
++	return CheckForLosingEndOfBattle();
++}
+--- a/src/game/TileEngine/Tile_Animation.cc
++++ b/src/game/TileEngine/Tile_Animation.cc
+@@ -507,3 +507,13 @@
+ 		pAniTile->pLevelNode->uiFlags &= (~LEVELNODE_HIDDEN );
+ 	}
+ }
++
++
++BOOLEAN OracleAniTileExists(ANITILE const* const a)
++{
++	for (ANITILE const* i = pAniTileHead; i; i = i->pNext)
++	{
++		if (i == a) return TRUE;
++	}
++	return FALSE;
++}
+--- a/src/game/Utils/Message.cc
++++ b/src/game/Utils/Message.cc
+@@ -281,8 +281,12 @@
+ 
+ 
+ // new screen message
++void (*gOracleScreenMessageHook)(const ST::string& str) = NULL;
++
+ void ScreenMsg(UINT16 usColor, UINT8 ubPriority, const ST::string& str)
+ {
++	if (gOracleScreenMessageHook) gOracleScreenMessageHook(str);
++
+ 	// pass onto tactical message and mapscreen message
+ 	TacticalScreenMsg(usColor, ubPriority, str);
+ 	MapScreenMessage(usColor, ubPriority, str);

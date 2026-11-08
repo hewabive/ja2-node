@@ -1,0 +1,30 @@
+# The save helidrop.txt takes mid-drop (OracleHeliDrop in the oracle's home, scenario 9; run helidrop.txt first),
+# loaded back (0031, README "Helicopter drop").
+
+# 1. In a fresh process: the drop's statics start clean, so no run is going and none starts; LoadSavedGame puts the
+# undropped chopper mercs back into the seats (UpdateMercsInSector, AddMercToHeli); the saved pause and its lock stay,
+# so the strategic turns never run; the merc saved in HELIDROP restarts at his saved animation and steps away at 467.
+# Seeded before the load, so the frames' draws repeat.
+hdtimer on=1
+seed value=21
+save OracleHeliDrop
+hdstate
+hdframes count=2000
+hdstate
+
+# 2. Over a running drop in the same process: a new game is dropping its second merc when the save is loaded 50
+# frames later. The drop's statics outlive the load, gpHeli among them, whose tile the load has freed: the next Z step
+# of the script writes through it (Merc_Entering.cc:650) and crashes the process, so no frame runs after the load.
+hdrestart
+seed value=21 pre=reseed
+newgamefull difficulty=2
+setbalance amount=500000
+aimhire profile=15 contract=7 gear=0
+aimhire profile=4 contract=7 gear=0
+aimhire profile=20 contract=7 gear=0
+hdset live=1
+hdjackedin
+hdframes count=20000 until=dropped:2
+hdframes count=150
+save OracleHeliDrop
+hdstate

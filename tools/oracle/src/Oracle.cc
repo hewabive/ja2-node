@@ -30,6 +30,10 @@
 // @src (absent merc probes)
 // @src src/game/Tactical/Auto_Bandage.cc, TacticalAI/Medical.cc, Tactical/Overhead.cc ExecuteOverhead, HandleTeamServices,
 // @src TacticalAI/AIMain.cc ExecuteAction, TacticalAI/Realtime.cc RTHandleAI (auto-bandage probes)
+// @src src/game/Tactical/Merc_Entering.cc StartHelicopterRun, HandleHeliDrop, GameScreen.cc MainGameScreenHandle,
+// @src Strategic/Map_Screen_Interface.cc HandleTimeCompressWithTeamJackedInAndGearedToGo, Tactical/Merc_Hiring.cc
+// @src MercArrivesCallback, Tactical/Vehicles.cc PutSoldierInVehicle, Tactical/TeamTurns.cc BeginTeamTurn,
+// @src Tactical/Overhead.cc CheckForEndOfBattle, Tactical/Dialogue_Control.cc SayQuoteFromAnyBodyInSector (helicopter drop probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -10448,6 +10452,869 @@ void ProbeAutoBandageFrames(Command const& c)
 		.raw("state", DescribeAutoBandageState()));
 }
 
+}
+
+#include "Fade_Screen.h"
+#include "GameScreen.h"
+#include "Handle_UI.h"
+#include "Merc_Entering.h"
+#include "Message.h"
+#include "Music_Control.h"
+#include "RenderWorld.h"
+#include "Soldier_Functions.h"
+#include "SoundMan.h"
+#include "Sys_Globals.h"
+#include "Bullets.h"
+#include "Tile_Animation.h"
+
+extern bool gfOracleHeliEscape;
+extern bool gfOracleHeliLiveSample;
+extern BOOLEAN gfTacticalDoHeliRun;
+extern BOOLEAN gfFirstHeliRun;
+extern void (*gOracleScreenMessageHook)(const ST::string& str);
+void HandleTacticalDoHeliRun();
+void HandleFirstTimeInGameScreen();
+BOOLEAN OracleHeliHandling();
+INT8 OracleHeliSeatsOccupied();
+SOLDIERTYPE const* OracleHeliSeat(INT8 i);
+BOOLEAN OracleHeliFirstGuyDown();
+UINT32 OracleHeliSoundSample();
+UINT32 OracleHeliSoundVolume();
+INT16 OracleHeliSweetSpot();
+INT16 OracleHeliXPos();
+INT16 OracleHeliYPos();
+FLOAT OracleHeliZPos();
+INT16 OracleHeliScript();
+UINT8 OracleHeliState();
+UINT32 OracleHeliLastUpdate();
+INT8 OracleHeliCurDrop();
+INT8 OracleHeliExitCount();
+INT8 OracleHeliRound();
+UINT8 OracleHeliMoveAwayRepeated();
+INT32 OracleHeliMoveAwayRepeats();
+BOOLEAN OracleHeliFadingIn();
+BOOLEAN OracleHeliFadingOut();
+ANITILE const* OracleHeliTile();
+BOOLEAN OracleCheckForLosingEndOfBattle();
+
+namespace {
+
+constexpr long long Z_QUARTERS = 4;
+constexpr long long HELI_DROP_MAX_FRAMES = 40000;
+constexpr char const* HELI_DROP_SAVE_DESCRIPTION = "ja2-node oracle helicopter drop";
+
+std::vector<std::string> const HELI_STATES{"APPROACH", "MOVETO", "BEGINDROP", "DROP", "ENDDROP", "MOVEAWAY", "EXIT"};
+
+std::vector<std::string> const HELI_DROP_GLOBAL_FIELDS{
+	"handle", "state", "script", "round", "curDrop", "seats", "exitCount", "engaged", "volume", "fadingIn", "fadingOut",
+	"sampleLive", "lastUpdate", "firstGuyDown", "moveAwayRepeated", "tile", "tileY", "tileZ", "zQuarters",
+	"ignoreScrolling", "pendingUIEvent", "uiMode", "paused", "pauseLocked", "lockReason", "compressMode", "doHeliRun",
+	"firstHeliRun", "selected", "currentSquad", "inCombat", "currentTeam", "aiPaused", "realTimeTurns",
+};
+
+std::vector<std::string> const HELI_DROP_ROW_FIELDS{
+	"id", "inSector", "mercSlot", "gridNo", "level", "animState", "aniFrame", "direction", "desiredDirection",
+	"insertionCode", "insertionData", "finalDestination", "pathIndex", "pathSize", "pendingAnimation", "aniDelay",
+	"moveMode", "alert", "life", "breath", "ap", "position", "path",
+};
+
+std::vector<std::string>* gHeliDropMessages = nullptr;
+
+std::string DescribeScreenMessage(ST::string const& text)
+{
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (text == st_format_printf(TacticalStr[MERC_HAS_ARRIVED_STR], s->name)) return Json{}.str("kind", "arrived").num("who", s->ubID).text();
+	}
+	return Json{}.str("kind", "other").str("text", text.to_std_string()).text();
+}
+
+void RecordScreenMessage(ST::string const& text)
+{
+	if (gHeliDropMessages) gHeliDropMessages->push_back(DescribeScreenMessage(text));
+}
+
+constexpr long long PATHFINDER_MARK_BEGIN = 301;
+constexpr long long PATHFINDER_MARK_END = 302;
+
+std::string DescribeDrawsWithoutPathfinder(std::vector<OracleDraw> const& draws)
+{
+	std::vector<OracleDraw> kept;
+	int depth = 0;
+	for (OracleDraw const& d : draws)
+	{
+		bool const mark = d.stream == 'k';
+		if (mark && d.range == PATHFINDER_MARK_BEGIN) ++depth;
+		if (depth == 0 || mark) kept.push_back(d);
+		if (mark && d.range == PATHFINDER_MARK_END && depth > 0) --depth;
+	}
+	return DescribeDraws(kept);
+}
+
+bool InMercSlots(SOLDIERTYPE const& s)
+{
+	for (SOLDIERTYPE const* m : ActiveMercs())
+	{
+		if (m == &s) return true;
+	}
+	return false;
+}
+
+bool InAwaySlots(SOLDIERTYPE const& s)
+{
+	for (size_t i = 0; i < OracleAwaySlotCount(); ++i)
+	{
+		if (OracleAwaySlot(i) == &s) return true;
+	}
+	return false;
+}
+
+std::string HeliStateName(UINT8 const state)
+{
+	return state < HELI_STATES.size() ? HELI_STATES[state] : "state" + std::to_string(state);
+}
+
+std::vector<long long> HeliDropGlobalValues()
+{
+	ANITILE const* const tile = OracleHeliTile();
+	UINT32 aiTimer = 0;
+	BOOLEAN const aiPaused = OracleAiPause(&aiTimer);
+	return {
+		OracleHeliHandling(), OracleHeliState(), OracleHeliScript(), OracleHeliRound(), OracleHeliCurDrop(),
+		OracleHeliSeatsOccupied(), OracleHeliExitCount(), gfIngagedInDrop, OracleHeliSoundVolume(), OracleHeliFadingIn(),
+		OracleHeliFadingOut(), OracleHeliSoundSample() != NO_SAMPLE, OracleHeliLastUpdate(), OracleHeliFirstGuyDown(),
+		OracleHeliMoveAwayRepeated(), tile != NULL, tile ? tile->sRelativeY : 0,
+		tile && tile->pLevelNode ? tile->pLevelNode->sRelativeZ : 0, std::lround(OracleHeliZPos() * Z_QUARTERS),
+		gfIgnoreScrolling, guiPendingOverrideEvent, gCurrentUIMode, GamePaused(), PauseStateLocked(),
+		guiLockPauseStateLastReasonId, giTimeCompressMode, gfTacticalDoHeliRun, gfFirstHeliRun,
+		SoldierIdOrNone(GetSelectedMan()), CurrentSquad(), (gTacticalStatus.uiFlags & INCOMBAT) != 0,
+		gTacticalStatus.ubCurrentTeam, aiPaused, OracleTacticalEndTurns(),
+	};
+}
+
+std::string PathDirections(SOLDIERTYPE const& s)
+{
+	std::vector<long long> dirs;
+	for (UINT8 i = s.ubPathIndex; i < s.ubPathDataSize && i < MAX_PATH_LIST_SIZE; ++i) dirs.push_back(s.ubPathingData[i]);
+	return Numbers(dirs);
+}
+
+std::string HeliDropRow(SOLDIERTYPE const& s)
+{
+	std::string const numbers = Numbers({s.ubID, s.bInSector, InMercSlots(s), s.sGridNo, s.bLevel, s.usAnimState,
+		s.usAniFrame, s.bDirection, s.bDesiredDirection, s.ubStrategicInsertionCode, s.usStrategicInsertionData,
+		s.sFinalDestination, s.ubPathIndex, s.ubPathDataSize, s.usPendingAnimation, s.sAniDelay, s.usUIMovementMode,
+		s.bAlertStatus, s.bLife, s.bBreath, s.bActionPoints});
+	char position[64];
+	std::snprintf(position, sizeof(position), "[%.9g,%.9g]", s.dXPos, s.dYPos);
+	return numbers.substr(0, numbers.size() - 1) + "," + position + "," + PathDirections(s) + "]";
+}
+
+std::map<UINT8, std::string> HeliDropRows()
+{
+	std::map<UINT8, std::string> rows;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam == OUR_TEAM || s->bInSector) rows[s->ubID] = HeliDropRow(*s);
+	}
+	return rows;
+}
+
+std::string ChangedHeliDropRows(std::map<UINT8, std::string>& last)
+{
+	std::map<UINT8, std::string> const now = HeliDropRows();
+	std::vector<std::string> changed;
+	for (auto const& [id, row] : now)
+	{
+		auto const it = last.find(id);
+		if (it == last.end() || it->second != row) changed.push_back(row);
+	}
+	for (auto const& [id, row] : last)
+	{
+		if (!now.count(id)) changed.push_back("[" + std::to_string(id) + ",null]");
+	}
+	last = now;
+	return JsonArray(changed);
+}
+
+std::string DescribeHeliSeats()
+{
+	std::vector<long long> seats;
+	for (INT8 i = 0; i < OracleHeliSeatsOccupied(); ++i) seats.push_back(SoldierIdOrNone(OracleHeliSeat(i)));
+	return Numbers(seats);
+}
+
+std::string DescribeHeliDropGlobals()
+{
+	ANITILE const* const tile = OracleHeliTile();
+	return Json{}
+		.flag("handle", OracleHeliHandling())
+		.str("state", HeliStateName(OracleHeliState()))
+		.num("script", OracleHeliScript())
+		.num("round", OracleHeliRound())
+		.num("curDrop", OracleHeliCurDrop())
+		.raw("seats", DescribeHeliSeats())
+		.num("exitCount", OracleHeliExitCount())
+		.flag("engaged", gfIngagedInDrop)
+		.nums("sound", {OracleHeliSoundSample() != NO_SAMPLE, OracleHeliSoundVolume(), OracleHeliFadingIn(), OracleHeliFadingOut()})
+		.flag("liveSampleSwitch", gfOracleHeliLiveSample)
+		.num("lastUpdate", OracleHeliLastUpdate())
+		.flag("firstGuyDown", OracleHeliFirstGuyDown())
+		.nums("moveAway", {OracleHeliMoveAwayRepeated(), OracleHeliMoveAwayRepeats()})
+		.num("sweetSpot", OracleHeliSweetSpot())
+		.nums("heliXY", {OracleHeliXPos(), OracleHeliYPos()})
+		.real("z", OracleHeliZPos())
+		.raw("tile", tile ? Numbers({tile->sGridNo, tile->sRelativeX, tile->sRelativeY, tile->pLevelNode ? tile->pLevelNode->sRelativeZ : 0,
+			tile->sCurrentFrame, tile->sDelay, tile->ubLevelID}) : "null")
+		.flag("ignoreScrolling", gfIgnoreScrolling)
+		.flag("doHeliRun", gfTacticalDoHeliRun)
+		.flag("firstHeliRun", gfFirstHeliRun)
+		.flag("firstTimeInGameScreen", fFirstTimeInGameScreen)
+		.text();
+}
+
+std::string DescribeHeliDropMerc(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("profile", s.ubProfile)
+		.num("assignment", s.bAssignment)
+		.num("group", s.ubGroupID)
+		.raw("sector", StrategicSector(s.sSector))
+		.flag("between", s.fBetweenSectors)
+		.flag("inSector", s.bInSector)
+		.flag("mercSlot", InMercSlots(s))
+		.flag("awaySlot", InAwaySlots(s))
+		.nums("insertion", {s.ubStrategicInsertionCode, s.usStrategicInsertionData, s.sInsertionGridNo, s.ubInsertionDirection})
+		.flag("landingZone", s.fUseLandingZoneForArrival)
+		.num("arrives", s.uiTimeSoldierWillArrive)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.real("x", s.dXPos)
+		.real("y", s.dYPos)
+		.nums("direction", {s.bDirection, s.bDesiredDirection})
+		.nums("anim", AnimFields(s))
+		.str("animName", gAnimControl[s.usAnimState].zAnimStr)
+		.num("pendingAnimation", s.usPendingAnimation)
+		.nums("destination", {s.sFinalDestination, s.sAbsoluteFinalDestination, s.ubPathIndex, s.ubPathDataSize, s.fDelayedMovement})
+		.raw("path", PathDirections(s))
+		.num("moveMode", s.usUIMovementMode)
+		.nums("life", {s.bLife, s.bLifeMax, s.bBleeding})
+		.nums("breath", {s.bBreath, s.bBreathMax})
+		.nums("ap", {s.bActionPoints, s.bInitialActionPoints})
+		.num("alert", s.bAlertStatus)
+		.num("flags", s.uiStatusFlags & (VEHICLE_STATUS_FLAGS | SOLDIER_DEAD | SOLDIER_OFF_MAP))
+		.num("vehicleId", s.iVehicleId)
+		.nums("quoteFlags", {s.usQuoteSaidFlags, s.usQuoteSaidExtFlags})
+		.num("oppCnt", s.bOppCnt)
+		.num("visible", s.bVisible)
+		.nums("counters", {RemainingMs(s.AICounter), RemainingMs(s.UpdateCounter)})
+		.text();
+}
+
+std::string DescribeHeliDropOther(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("team", s.bTeam)
+		.num("profile", s.ubProfile)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.nums("direction", {s.bDirection, s.bDesiredDirection})
+		.nums("anim", AnimFields(s))
+		.nums("life", {s.bLife, s.bBleeding})
+		.num("alert", s.bAlertStatus)
+		.num("orders", s.bOrders)
+		.nums("action", ActionFields(s))
+		.nums("noise", {s.sNoiseGridno, s.ubNoiseVolume})
+		.num("newSituation", s.bNewSituation)
+		.num("head", s.inv[HEAD1POS].usItem)
+		.num("visible", s.bVisible)
+		.num("oppCnt", s.bOppCnt)
+		.num("finalDestination", s.sFinalDestination)
+		.nums("counters", {RemainingMs(s.AICounter), RemainingMs(s.UpdateCounter)})
+		.text();
+}
+
+std::string DescribeHeliDropTactical()
+{
+	UINT32 aiTimer = 0;
+	BOOLEAN const aiPaused = OracleAiPause(&aiTimer);
+	std::vector<long long> noise;
+	for (INT32 team = 0; team < MAXTEAMS; ++team)
+	{
+		noise.push_back(gsPublicNoiseGridno[team]);
+		noise.push_back(gubPublicNoiseVolume[team]);
+	}
+	std::vector<long long> menInSector;
+	for (INT32 team = 0; team < MAXTEAMS; ++team) menInSector.push_back(gTacticalStatus.Team[team].bMenInSector);
+	return Json{}
+		.str("screen", AbsentScreen())
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("currentTeam", gTacticalStatus.ubCurrentTeam)
+		.flag("enemyInSector", gTacticalStatus.fEnemyInSector)
+		.num("enemies", NumEnemyInSector())
+		.nums("menInSector", menInSector)
+		.flag("gameJustStarted", DidGameJustStart())
+		.nums("clock", {GetWorldTotalSeconds(), GetJA2Clock(), OracleLastTacticalRealTime()})
+		.nums("pause", {GamePaused(), PauseStateLocked(), guiLockPauseStateLastReasonId})
+		.nums("compression", {giTimeCompressMode, IsTimeCompressionOn()})
+		.nums("ui", {guiPendingOverrideEvent, gCurrentUIMode, gfDisableRegionActive})
+		.nums("fade", {gfFadeInitialized, gfFadeIn})
+		.nums("aiPause", {aiPaused, aiTimer})
+		.num("music", gubMusicMode)
+		.nums("encounter", {gubEnemyEncounterCode, gubPBSector.x, gubPBSector.y, gfBlitBattleSectorLocator})
+		.nums("publicNoise", noise)
+		.num("selected", SoldierIdOrNone(GetSelectedMan()))
+		.num("currentSquad", CurrentSquad())
+		.raw("squads", HeliSquads())
+		.raw("mercSlots", DescribeMercSlots())
+		.raw("awaySlots", DescribeAwaySlots())
+		.flag("dialogueIdle", DialogueQueueIsEmptyAndNobodyIsTalking())
+		.flag("arrivingQuote", gTacticalStatus.bMercArrivingQuoteBeingUsed)
+		.text();
+}
+
+std::string DescribeHeliDropState()
+{
+	std::vector<std::string> team;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM) team.push_back(DescribeHeliDropMerc(*s));
+	std::vector<std::string> others;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam != OUR_TEAM && s->bInSector) others.push_back(DescribeHeliDropOther(*s));
+	}
+	return Json{}
+		.raw("drop", DescribeHeliDropGlobals())
+		.raw("tactical", DescribeHeliDropTactical())
+		.raw("team", JsonArray(team))
+		.raw("others", JsonArray(others))
+		.text();
+}
+
+class HeliDropScope
+{
+public:
+	HeliDropScope(std::vector<OracleDraw>& draws, std::vector<std::vector<long long>>& lines, std::vector<std::string>& messages)
+	{
+		gAbsentLines = &lines;
+		gHeliDropMessages = &messages;
+		gOracleScreenMessageHook = RecordScreenMessage;
+		OracleTraceRandom(&draws);
+	}
+
+	HeliDropScope(HeliDropScope const&) = delete;
+	HeliDropScope& operator=(HeliDropScope const&) = delete;
+
+	~HeliDropScope()
+	{
+		OracleTraceRandom(nullptr);
+		gOracleScreenMessageHook = NULL;
+		gHeliDropMessages = nullptr;
+		gAbsentLines = nullptr;
+	}
+};
+
+template<typename Run>
+void RunHeliDropProbe(Command const& c, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::vector<std::string> messages;
+	std::string result;
+	{
+		HeliDropScope const scope(draws, lines, messages);
+		result = run();
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDrawsWithoutPathfinder(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.raw("lines", DescribeQueuedLines(lines))
+		.raw("messages", JsonArray(messages))
+		.raw("state", DescribeHeliDropState()));
+}
+
+void ShowGameScreen()
+{
+	guiCurrentScreen = GAME_SCREEN;
+	fInMapMode = FALSE;
+}
+
+void ProbeHeliDropState(Command const& c)
+{
+	RunHeliDropProbe(c, Nothing);
+}
+
+void ProbeHeliDropTimer(Command const& c)
+{
+	if (Has(c, "on"))
+	{
+		bool const on = Integer(c, "on", 1) != 0;
+		bool const wasOn = OracleVirtualClockOn();
+		OracleSetVirtualClock(on);
+		if (on && !wasOn) gAutoBandageClockStart = TimerControlNow();
+	}
+	if (Has(c, "ja2clock")) guiBaseJA2Clock = static_cast<UINT32>(Required(c, "ja2clock"));
+	RunHeliDropProbe(c, Nothing);
+}
+
+void ProbeHeliDropSet(Command const& c)
+{
+	if (Has(c, "live")) gfOracleHeliLiveSample = Integer(c, "live", 1) != 0;
+	if (Has(c, "screen"))
+	{
+		bool const map = Text(c, "screen", "game") == "map";
+		guiCurrentScreen = map ? MAP_SCREEN : GAME_SCREEN;
+		fInMapMode = map;
+	}
+	RunHeliDropProbe(c, Nothing);
+}
+
+void ProbeHeliDropRestart(Command const& c)
+{
+	RunHeliDropProbe(c, [] {
+		ReStartingGame();
+		return std::string{};
+	});
+}
+
+void ProbeHeliDropJackedIn(Command const& c)
+{
+	RunHeliDropProbe(c, [&] {
+		guiCurrentScreen = MAP_SCREEN;
+		fInMapMode = FALSE;
+		giTimeCompressMode = static_cast<INT32>(Integer(c, "mode", TIME_COMPRESS_5MINS));
+		OracleSetTimeCompressionOn(TRUE);
+		BOOLEAN const started = HandleTimeCompressWithTeamJackedInAndGearedToGo();
+		bool const fade = ARE_IN_FADE_IN();
+		gfFadeInitialized = FALSE;
+		gfFadeIn = FALSE;
+		ShowGameScreen();
+		return Json{}.flag("started", started).flag("fadeSkipped", fade).text();
+	});
+}
+
+SOLDIERTYPE& TeamMerc(long long const id)
+{
+	if (id < 0 || id >= MAX_NUM_SOLDIERS) throw std::runtime_error("soldier id out of range: " + std::to_string(id));
+	SOLDIERTYPE& s = GetMan(static_cast<UINT>(id));
+	if (!s.bActive || s.bTeam != OUR_TEAM) throw std::runtime_error("no merc of ours with id " + std::to_string(id));
+	return s;
+}
+
+STRATEGICEVENT* ArrivalEvent(SOLDIERTYPE const& s)
+{
+	for (STRATEGICEVENT* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_DELAYED_HIRING_OF_MERC && e->uiParam == s.ubID) return e;
+	}
+	return nullptr;
+}
+
+void ProbeHeliDropArrive(Command const& c)
+{
+	SOLDIERTYPE& s = TeamMerc(Required(c, "who"));
+	UINT32 const minutes = static_cast<UINT32>(Integer(c, "minutes", 1));
+	RunHeliDropProbe(c, [&] {
+		STRATEGICEVENT* const e = ArrivalEvent(s);
+		if (!e) throw std::runtime_error("no arrival event for soldier " + std::to_string(s.ubID));
+		UINT32 const original = e->uiTimeStamp;
+		UINT32 const at = GetWorldTotalMin() + minutes;
+		DeleteStrategicEvent(EVENT_DELAYED_HIRING_OF_MERC, s.ubID);
+		AddStrategicEvent(EVENT_DELAYED_HIRING_OF_MERC, at, s.ubID);
+		s.uiTimeSoldierWillArrive = at;
+		WarpGameTime(minutes * NUM_SEC_IN_MIN, WARPTIME_PROCESS_EVENTS_NORMALLY);
+		return Json{}.num("originalArrival", original).num("arrival", at).text();
+	});
+}
+
+std::string CreateProbeSoldier(Command const& c)
+{
+	GridNo const gridNo = GridArgument(c, "grid");
+	SOLDIERCREATE_STRUCT cs{};
+	cs.ubProfile        = NO_PROFILE;
+	cs.sSector          = gWorldSector;
+	cs.bTeam            = Lookup(TEAMS, c, "team", "enemy");
+	cs.bBodyType        = Lookup(BODIES, c, "body", "regmale");
+	cs.bDirection       = static_cast<INT8>(Integer(c, "dir", SOUTH));
+	cs.sInsertionGridNo = gridNo;
+	RandomizeNewSoldierStats(&cs);
+	SOLDIERTYPE* const s = TacticalCreateSoldier(cs);
+	if (!s) throw std::runtime_error("TacticalCreateSoldier failed");
+	AddSoldierToSectorNoCalculateDirection(s);
+	if (s->sGridNo != gridNo) EVENT_SetSoldierPosition(s, gridNo, SSP_NONE);
+	SetIfGiven(c, "orders", s->bOrders);
+	SetIfGiven(c, "alert", s->bAlertStatus);
+	if (Has(c, "item")) CreateItem(ItemArgument(Text(c, "item", "")), static_cast<INT8>(Integer(c, "status", DEFAULT_ITEM_STATUS)), &s->inv[HANDPOS]);
+	return Json{}.num("who", s->ubID).text();
+}
+
+void ProbeHeliDropEnemy(Command const& c)
+{
+	RunHeliDropProbe(c, [&] { return CreateProbeSoldier(c); });
+}
+
+void ProbeHeliDropRemove(Command const& c)
+{
+	INT8 const team = Lookup(TEAMS, c, "team", "enemy");
+	RunHeliDropProbe(c, [&] {
+		std::vector<long long> removed;
+		FOR_EACH_IN_TEAM(s, team)
+		{
+			if (!s->bInSector) continue;
+			removed.push_back(s->ubID);
+			TacticalRemoveSoldier(*s);
+		}
+		if (team == ENEMY_TEAM) gTacticalStatus.fEnemyInSector = FALSE;
+		return Json{}.nums("removed", removed).text();
+	});
+}
+
+void ProbeHeliDropHit(Command const& c)
+{
+	SOLDIERTYPE& s = TeamMerc(Required(c, "who"));
+	std::string const mode = Text(c, "mode", "collapse");
+	RunHeliDropProbe(c, [&] {
+		if (mode == "collapse")
+		{
+			SoldierCollapse(&s);
+		}
+		else if (mode == "hit")
+		{
+			SOLDIERTYPE& attacker = GetMan(static_cast<UINT>(Required(c, "by")));
+			INT16 const damage = static_cast<INT16>(Required(c, "damage"));
+			INT16 const breath = static_cast<INT16>(Integer(c, "breath", damage));
+			UINT16 const direction = GetDirectionFromGridNo(attacker.sGridNo, &s);
+			UINT16 const range = static_cast<UINT16>(GetRangeFromGridNoDiff(attacker.sGridNo, s.sGridNo));
+			EVENT_SoldierGotHit(&s, attacker.inv[HANDPOS].usItem, damage, breath, direction, range, &attacker, 0,
+				Lookup(AIM_LOCATIONS, c, "at", "torso"), s.sGridNo);
+		}
+		else
+		{
+			throw std::runtime_error("mode is collapse or hit: " + mode);
+		}
+		return std::string{};
+	});
+}
+
+void ProbeHeliDropSave(Command const& c)
+{
+	std::string const name = Text(c, "_0", Text(c, "name", ""));
+	if (name.empty()) throw std::runtime_error("hdsave needs a name");
+	RunHeliDropProbe(c, [&] {
+		BOOLEAN const saved = SaveGame(ST::string(name), ST::string(HELI_DROP_SAVE_DESCRIPTION));
+		return Json{}.str("name", name).flag("saved", saved).text();
+	});
+}
+
+bool HeliDropFrameDone(std::string const& until)
+{
+	if (until.empty()) return false;
+	if (until == "end") return !OracleHeliHandling();
+	if (until == "combat") return (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+	if (until == "engaged") return gfIngagedInDrop != FALSE;
+	auto const colon = until.find(':');
+	if (colon == std::string::npos) throw std::runtime_error("until is end, combat, engaged, state:<name> or dropped:<n>: " + until);
+	std::string const kind = until.substr(0, colon);
+	std::string const value = until.substr(colon + 1);
+	if (kind == "state")
+	{
+		auto const it = std::find(HELI_STATES.begin(), HELI_STATES.end(), value);
+		if (it == HELI_STATES.end()) throw std::runtime_error("no such heli state " + value);
+		return OracleHeliHandling() && OracleHeliState() == it - HELI_STATES.begin();
+	}
+	if (kind == "dropped") return OracleHeliCurDrop() >= ParseInteger("until", value);
+	throw std::runtime_error("unknown until " + until);
+}
+
+ScreenID RunHeliDropFrame(bool const escape, bool const ui)
+{
+	if (!ARE_IN_FADE_IN()) HandleStrategicTurn();
+	HandleTacticalDoHeliRun();
+	HandleFirstTimeInGameScreen();
+	gfOracleHeliEscape = escape;
+	HandleHeliDrop();
+	gfOracleHeliEscape = false;
+	if (!ARE_IN_FADE_IN())
+	{
+		UpdateBullets();
+		ExecuteOverhead();
+	}
+	ScreenID const screen = ui && gfWorldLoaded ? HandleTacticalUI() : GAME_SCREEN;
+	if (!ARE_IN_FADE_IN()) DequeAllGameEvents();
+	return screen;
+}
+
+void ProbeHeliDropFrames(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	long long const step = Integer(c, "step", DEFAULT_FRAME_STEP_MS);
+	std::string const until = Text(c, "until", "");
+	bool const escape = Integer(c, "esc", 0) != 0;
+	bool const ui = Integer(c, "ui", 1) != 0;
+	if (count < 1 || count > HELI_DROP_MAX_FRAMES) throw std::runtime_error("count out of range: " + std::to_string(count));
+	if (!OracleVirtualClockOn()) throw std::runtime_error("hdframes needs the virtual clock (hdtimer on=1)");
+	HeliDropFrameDone(until);
+	ShowGameScreen();
+	std::map<UINT8, std::string> last = HeliDropRows();
+	std::vector<long long> lastGlobals = HeliDropGlobalValues();
+	long long frames = 0;
+	bool reached = false;
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::vector<std::string> messages;
+	{
+		HeliDropScope const scope(draws, lines, messages);
+		while (frames < count)
+		{
+			OracleAdvanceVirtualClock(milliseconds{step});
+			guiBaseJA2Clock += static_cast<UINT32>(step);
+			draws.clear();
+			lines.clear();
+			messages.clear();
+			ScreenID const screen = RunHeliDropFrame(escape && frames == 0, ui);
+			++frames;
+			std::string const changed = ChangedHeliDropRows(last);
+			std::vector<long long> const globals = HeliDropGlobalValues();
+			if (changed != "[]" || !draws.empty() || !lines.empty() || !messages.empty() || globals != lastGlobals || screen != GAME_SCREEN)
+			{
+				Emit(Json{}
+					.str("probe", c.name)
+					.num("line", c.line)
+					.num("frame", frames)
+					.num("ja2clock", GetJA2Clock())
+					.num("uiScreen", screen)
+					.nums("globals", globals)
+					.raw("draws", DescribeDrawsWithoutPathfinder(draws))
+					.raw("lines", DescribeQueuedLines(lines))
+					.raw("messages", JsonArray(messages))
+					.raw("changed", changed));
+			}
+			lastGlobals = globals;
+			if (HeliDropFrameDone(until))
+			{
+				reached = true;
+				break;
+			}
+		}
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("frames", frames)
+		.flag("reached", until.empty() || reached)
+		.strs("globalFields", HELI_DROP_GLOBAL_FIELDS)
+		.strs("rowFields", HELI_DROP_ROW_FIELDS)
+		.raw("state", DescribeHeliDropState()));
+}
+
+std::string DescribePassenger(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("profile", s.ubProfile)
+		.flag("inSector", s.bInSector)
+		.flag("mercSlot", InMercSlots(s))
+		.flag("awaySlot", InAwaySlots(s))
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.real("x", s.dXPos)
+		.real("y", s.dYPos)
+		.raw("sector", StrategicSector(s.sSector))
+		.num("assignment", s.bAssignment)
+		.num("vehicleId", s.iVehicleId)
+		.num("group", s.ubGroupID)
+		.num("flags", s.uiStatusFlags & (VEHICLE_STATUS_FLAGS | SOLDIER_DEAD | SOLDIER_OFF_MAP | SOLDIER_GASSED))
+		.nums("life", {s.bLife, s.bLifeMax, s.bBleeding})
+		.nums("breath", {s.bBreath, s.bBreathMax, s.sBreathRed})
+		.nums("ap", {s.bActionPoints, s.bInitialActionPoints, CalcActionPoints(&s)})
+		.num("shock", s.bShock)
+		.flag("collapsed", s.bCollapsed)
+		.nums("anim", AnimFields(s))
+		.num("morale", s.bMorale)
+		.num("underFire", s.bUnderFire)
+		.num("tilesMoved", s.bTilesMoved)
+		.num("weightAtTurnStart", s.sWeightCarriedAtTurnStart)
+		.nums("noise", {s.sNoiseGridno, s.ubNoiseVolume})
+		.nums("quoteFlags", {s.usQuoteSaidFlags, s.usQuoteSaidExtFlags})
+		.num("oppCnt", s.bOppCnt)
+		.num("personality", GetProfile(s.ubProfile).bPersonalityTrait)
+		.flag("asleep", s.fMercAsleep)
+		.num("insertionCode", s.ubStrategicInsertionCode)
+		.text();
+}
+
+std::string DescribePassengerState()
+{
+	std::vector<std::string> team;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM) team.push_back(DescribePassenger(*s));
+	std::vector<std::string> others;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam != OUR_TEAM && s->bInSector) others.push_back(DescribeAbsentOther(*s));
+	}
+	std::vector<long long> menInSector, active;
+	for (INT32 team = 0; team < MAXTEAMS; ++team)
+	{
+		menInSector.push_back(gTacticalStatus.Team[team].bMenInSector);
+		active.push_back(IsTeamActive(team));
+	}
+	return Json{}
+		.str("screen", AbsentScreen())
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("currentTeam", gTacticalStatus.ubCurrentTeam)
+		.flag("enemyInSector", gTacticalStatus.fEnemyInSector)
+		.nums("menInSector", menInSector)
+		.nums("teamActive", active)
+		.flag("lastBattleWon", gTacticalStatus.fLastBattleWon)
+		.num("deaths", gStrategicStatus.ubMercDeaths)
+		.num("music", gubMusicMode)
+		.raw("heli", HeliState())
+		.raw("mercSlots", DescribeMercSlots())
+		.raw("awaySlots", DescribeAwaySlots())
+		.num("selected", SoldierIdOrNone(GetSelectedMan()))
+		.num("currentSquad", CurrentSquad())
+		.raw("squads", HeliSquads())
+		.raw("team", JsonArray(team))
+		.raw("others", JsonArray(others))
+		.text();
+}
+
+template<typename Run>
+void RunPassengerProbe(Command const& c, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::vector<std::string> messages;
+	std::string result;
+	{
+		HeliDropScope const scope(draws, lines, messages);
+		result = run();
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDrawsWithoutPathfinder(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.raw("lines", DescribeQueuedLines(lines))
+		.raw("messages", JsonArray(messages))
+		.raw("state", DescribePassengerState()));
+}
+
+void ProbePassengerState(Command const& c)
+{
+	RunPassengerProbe(c, Nothing);
+}
+
+void ProbePassengerSet(Command const& c)
+{
+	if (Has(c, "screen"))
+	{
+		bool const map = Text(c, "screen", "game") == "map";
+		guiCurrentScreen = map ? MAP_SCREEN : GAME_SCREEN;
+		fInMapMode = map;
+	}
+	if (Has(c, "combat"))
+	{
+		if (Integer(c, "combat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+		else gTacticalStatus.uiFlags &= ~INCOMBAT;
+	}
+	SetIfGiven(c, "enemyInSector", gTacticalStatus.fEnemyInSector);
+	if (Has(c, "who"))
+	{
+		SOLDIERTYPE& s = TeamMerc(Required(c, "who"));
+		SetIfGiven(c, "life", s.bLife);
+		SetIfGiven(c, "bleeding", s.bBleeding);
+		SetIfGiven(c, "breath", s.bBreath);
+		SetIfGiven(c, "morale", s.bMorale);
+		SetIfGiven(c, "collapsed", s.bCollapsed);
+		SetIfGiven(c, "ap", s.bActionPoints);
+		SetIfGiven(c, "asleep", s.fMercAsleep);
+		SetStatusFlag(c, "gassed", s, SOLDIER_GASSED);
+		if (Has(c, "personality")) GetProfile(s.ubProfile).bPersonalityTrait = Lookup(ABSENT_PERSONALITIES, c, "personality", "none");
+	}
+	RunPassengerProbe(c, Nothing);
+}
+
+void ProbePassengerSetUp(Command const& c)
+{
+	SGPSector const sector = StrategicSectorArgument(c, "sector");
+	RunPassengerProbe(c, [&] {
+		HeliBegin();
+		SetUpHelicopterForPlayer(sector);
+		return std::string{};
+	});
+}
+
+void ProbePassengerBoard(Command const& c)
+{
+	SOLDIERTYPE& s = TeamMerc(Required(c, "who"));
+	RunPassengerProbe(c, [&] {
+		HeliBegin();
+		VEHICLETYPE& v = GetHelicopter();
+		bool const accessible = IsThisVehicleAccessibleToSoldier(s, v);
+		bool const boarded = accessible && IsEnoughSpaceInVehicle(v) && PutSoldierInVehicle(s, v);
+		return Json{}.flag("accessible", accessible).flag("boarded", boarded).text();
+	});
+}
+
+void ProbePassengerEnemy(Command const& c)
+{
+	RunPassengerProbe(c, [&] { return CreateProbeSoldier(c); });
+}
+
+void ProbePassengerTurn(Command const& c)
+{
+	UINT8 const team = static_cast<UINT8>(Lookup(TEAMS, c, "team", "player"));
+	RunPassengerProbe(c, [&] {
+		BeginTeamTurn(team);
+		return std::string{};
+	});
+}
+
+void ProbePassengerDamage(Command const& c)
+{
+	SOLDIERTYPE& s = TeamMerc(Required(c, "who"));
+	INT16 const damage = static_cast<INT16>(Required(c, "damage"));
+	INT16 const breath = static_cast<INT16>(Integer(c, "breath", damage));
+	UINT8 const reason = Lookup(DAMAGE_REASONS, c, "reason", "bloodloss");
+	RunPassengerProbe(c, [&] { return Json{}.num("combined", SoldierTakeDamage(&s, damage, breath, reason, NULL)).text(); });
+}
+
+void ProbePassengerBattleEnd(Command const& c)
+{
+	std::string const mode = Text(c, "mode", "full");
+	RunPassengerProbe(c, [&] {
+		if (mode == "losing") return Json{}.flag("lost", OracleCheckForLosingEndOfBattle()).text();
+		if (mode == "full") return Json{}.flag("ended", CheckForEndOfBattle(FALSE)).text();
+		throw std::runtime_error("mode is losing or full: " + mode);
+	});
+}
+
+void ProbePassengerQuote(Command const& c)
+{
+	UINT16 const quote = static_cast<UINT16>(Required(c, "quote"));
+	RunPassengerProbe(c, [&] {
+		SayQuoteFromAnyBodyInSector(quote);
+		return std::string{};
+	});
+}
+
+void ProbePassengerSave(Command const& c)
+{
+	std::string const name = Text(c, "_0", Text(c, "name", ""));
+	if (name.empty()) throw std::runtime_error("hpsave needs a name");
+	RunPassengerProbe(c, [&] {
+		BOOLEAN const saved = SaveGame(ST::string(name), ST::string(HELI_DROP_SAVE_DESCRIPTION));
+		return Json{}.str("name", name).flag("saved", saved).text();
+	});
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -10751,6 +11618,27 @@ void Dispatch(Command const& c)
 	if (c.name == "abexecute") return ProbeAutoBandageExecute(c);
 	if (c.name == "abservices") return ProbeAutoBandageServices(c);
 	if (c.name == "abframes") return ProbeAutoBandageFrames(c);
+	if (c.name == "hdstate") return ProbeHeliDropState(c);
+	if (c.name == "hdtimer") return ProbeHeliDropTimer(c);
+	if (c.name == "hdset") return ProbeHeliDropSet(c);
+	if (c.name == "hdrestart") return ProbeHeliDropRestart(c);
+	if (c.name == "hdjackedin") return ProbeHeliDropJackedIn(c);
+	if (c.name == "hdarrive") return ProbeHeliDropArrive(c);
+	if (c.name == "hdenemy") return ProbeHeliDropEnemy(c);
+	if (c.name == "hdremove") return ProbeHeliDropRemove(c);
+	if (c.name == "hdhit") return ProbeHeliDropHit(c);
+	if (c.name == "hdsave") return ProbeHeliDropSave(c);
+	if (c.name == "hdframes") return ProbeHeliDropFrames(c);
+	if (c.name == "hpstate") return ProbePassengerState(c);
+	if (c.name == "hpset") return ProbePassengerSet(c);
+	if (c.name == "hpsetup") return ProbePassengerSetUp(c);
+	if (c.name == "hpboard") return ProbePassengerBoard(c);
+	if (c.name == "hpenemy") return ProbePassengerEnemy(c);
+	if (c.name == "hpturn") return ProbePassengerTurn(c);
+	if (c.name == "hpdamage") return ProbePassengerDamage(c);
+	if (c.name == "hpend") return ProbePassengerBattleEnd(c);
+	if (c.name == "hpquote") return ProbePassengerQuote(c);
+	if (c.name == "hpsave") return ProbePassengerSave(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

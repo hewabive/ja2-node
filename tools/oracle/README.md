@@ -39,6 +39,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Ground vehicles | vehicle soldiers made as map placements, the hand and move cursor click on a vehicle with its walk, boarding with the takeover's soldier ids, leaving, armour and damage draws, destruction with its passengers, repair points, the toolkit's and gas can's walks and the fuel poured, the move checks of a vehicle's group, a drive to the next sector that runs the tank dry, line of sight to the mercs aboard, a tank's APs and fuel read as breath, its turn through the 32 facings, its shot's recoil, the RED look-around, stealing its cannon and firing it, a vehicle's way out of the sector | `vehicles.txt` | `vehicles-compare.ts` | 0028 | `06`, `10`, `13`, `16`, `25` |
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
+| Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | none yet | 0031 | `25` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -129,7 +130,7 @@ with ja2-node" name the commands each comparer reads. Rules that hold across dom
 - **Virtual clock.** Every `TIMECOUNTER` of `Timer_Control` (the overhead pass, animation and AI counters) reads the
   steady clock of the machine. `abtimer on=1` (0030) switches it to a virtual one that only probes advance (`abframes`
   by 5 ms per frame, `abtimer advance=`); switched on before the first load, every counter a load or a frame sets is
-  reproducible.
+  reproducible. `hdtimer on=1` (0031) switches the same clock.
 - **Probe soldiers.** Without `who`, `path` and `los` create soldiers with `TacticalCreateSoldier` (no profile, default
   team `enemy`, body `regmale`) and remove them afterwards, so commands do not influence each other apart from the
   `Random()` state; creating them draws random stats, and `FindBestPath` draws skip-list levels, neither of which
@@ -741,6 +742,61 @@ loop earlier natively; none of them picks an idle animation in these runs. The G
 on the engine past `Random` and leaves no trace natively; ja2-node's shuffle draws past `int` too (deviation "GoAsFar
 fallback"), so the replay leaves it to ja2-node's generator.
 
+### Helicopter drop
+
+Commands (0031): `hdtimer` (0030's virtual clock), `hdset` (`live=` the live-sample switch, `screen=`), `hdrestart`
+(`ReStartingGame`, as the main menu runs it before a second new game), `hdjackedin` (the map screen's start of the game,
+`HandleTimeCompressWithTeamJackedInAndGearedToGo`, with 5-minute compression on and the map screen's own UI not up; the
+fade-in it starts is skipped), `hdarrive` (a hired merc's arrival event moved to `minutes=` from now, then
+`WarpGameTime`), `hdenemy` (a soldier made with `TacticalCreateSoldier`), `hdremove` (a team's soldiers taken off the map,
+`fEnemyInSector` cleared for the enemy team), `hdhit` (`SoldierCollapse`, or `EVENT_SoldierGotHit` from `by=` with his
+hand item), `hdsave` (`SaveGame` into the oracle's home), `hdstate` and `hdframes`. The new games come from `seed`,
+`newgamefull`, `setbalance` and `aimhire` ("Laptop"). The passenger commands run on a loaded save: `hpsetup`
+(`SetUpHelicopterForPlayer`), `hpboard` (`PutSoldierInVehicle` on the game screen), `hpset` (screen, combat, enemy
+presence; a merc's life, bleeding, breath, morale, collapse, APs, sleep, gas, personality), `hpenemy`, `hpturn`
+(`BeginTeamTurn`), `hpdamage` (`SoldierTakeDamage`), `hpend` (`CheckForLosingEndOfBattle` alone, `mode=losing`, or the
+whole `CheckForEndOfBattle`), `hpquote` (`SayQuoteFromAnyBodyInSector`), `hpsave` and `hpstate`.
+
+Every command but `hdframes` prints its draws (the pathfinder's between marks 301/302 left out), its result, the lines
+`CharacterDialogue` queued (0029's trace), the screen messages (`ScreenMsg` through 0031's hook, "has arrived" as the
+merc's id) and the state. The drop commands' state: the drop's statics (seats, state, script step, round, the merc
+being dropped, the exit count, `gfIngagedInDrop`, the sample, volume and fades, the last step's JA2 clock, the move-away
+repeats and `REPEAT_HELI_MOVEAWAY`, the sweet spot, the shadow tile while it exists, `gfIgnoreScrolling`,
+`gfTacticalDoHeliRun`, `gfFirstHeliRun`), the tactical status (screen, combat, the clocks, the pause and its lock with
+the last reason, compression, the UI event pending, the UI mode and the disable region, the fade, the AI pause, music,
+the encounter code, every team's public noise, the selection, the current squad, the squads, `MercSlots`, `AwaySlots`,
+the dialogue queue), our whole team (squad, group, sector, slots, insertion, position, animation, path, life, APs) and
+the loaded sector's other soldiers (animation, alert, AI action, noise, new situation, head item). The passenger
+commands print our team's turn fields (slots, tile, assignment, vehicle, the driver and passenger flags, life, breath,
+APs, shock, collapse, morale, under fire, tiles moved, the weight at turn start, noise, quote flags, personality,
+sleep), every team's men in sector and activity, the battle flags, the death count, music, the helicopter's record and
+the squads.
+
+`hdframes count= step= until= esc= ui=` runs the game screen's frame on the virtual clock, 5 ms per frame with the JA2
+clock moved along: `HandleStrategicTurn`, the start of a run (`HandleTacticalDoHeliRun`), the first-time block
+(`HandleFirstTimeInGameScreen`: `EnterTacticalScreen` and its selection), `HandleHeliDrop` (`esc=1` presses Esc for the
+first frame), `UpdateBullets`, `ExecuteOverhead`, `HandleTacticalUI` with no input (`ui=0` leaves it out; it turns the
+drop's `LU_BEGINUILOCK` into LOCKUI mode and the pause reason 16, as in the game) and `DequeAllGameEvents`, in
+`MainGameScreenHandle`'s order. `until=end|engaged|combat|state:<STATE>|dropped:<n>` stops it early. Every frame that
+changes anything prints a line with its number, the JA2 clock, the globals (`globalFields` of the closing line), its
+draws, lines and messages, and a row for every soldier of ours and every other soldier in the sector that changed
+(`rowFields`, with the position and the path left to walk at the end); the closing line carries the state. With the
+seeded new games and the virtual clock a run is byte for byte the same every time.
+
+Not probed: the help screen and the fade-in before the first frame, rendering and the shadow's frames
+(`UpdateAniTiles`), sound, `HandleDialogue` (lines stay queued, the `UnPauseAI` event is never run), `UpdateClock` (world
+time stands still in the frames), `HandleAutoBandagePending`, the keys but Esc (quick save, `M`), the map screen during a
+drop and the mouse (it rests at the screen's origin). The drop's statics outlive `ReStartingGame` (`gfIngagedInDrop`,
+`fFadingHeliOut`, `gubMoveAwayRepeated`, the disable region), so `helidrop.txt` puts the blocks that leave them set where
+the next block shows their effect or nothing follows. A load over a running drop in the same process keeps the drop
+going with `gpHeli` pointing at a tile the load freed, and the script's next Z step writes through it
+(`Tactical/Merc_Entering.cc:650`): it crashes the process, so `helidrop-load.txt` runs no frame after that load.
+
+No comparer reads these outputs yet, so `compare-all.sh` leaves them out: `compare.ts` would hand `newgamefull`,
+`aimhire` and `setbalance` to the laptop comparer, which misses the A.I.M. bookmark (the native headless hire never
+enters the laptop, whose `EnterLaptop` sets it) and knows nothing of the drop between the hires, and it would look for
+the oracle-made saves in `SavedGames`.
+
 ## Shipped probes
 
 `compare-all.sh` lists the outputs it compares, relative to the work dir. `probes/<name>.txt` writes
@@ -755,6 +811,11 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   battle of `autoresolve-d13.txt`); `compare-all.sh` requires them.
 - `attach` and `florist` are optional: `compare-all.sh` skips them with a hint when missing.
 - `auto-bandage.txt` writes `autobandage/autobandage.jsonl` (on `SaveGame01`, B13).
+- `helidrop.txt` writes `helidrop/helidrop.jsonl` and the saves `OracleHeliDrop` (mid-drop) and `OracleHeliPassenger`
+  into the oracle's home (`$JA2_ORACLE_DIR/home/.ja2/SavedGames`); `helidrop-load.txt` reads `OracleHeliDrop` from there,
+  so it runs after `helidrop.txt`, and writes `helidrop/load.jsonl`. The work dir keeps copies of both saves in
+  `helidrop/`; a few bytes of `OracleHeliDrop` differ from run to run without changing `load.jsonl`. Neither output is
+  in `compare-all.sh` yet ("Helicopter drop").
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;
@@ -787,5 +848,5 @@ The base of the diff is `reference/stracciatella` with the earlier patches appli
 only for files more than one patch touches: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004,
 0012, 0029), `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc`
 (0016, 0020), `Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc`
-(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027, 0030) and
+(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027, 0030, 0031) and
 `Tactical/Soldier_Control.cc` (0027, 0028).
