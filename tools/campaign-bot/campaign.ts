@@ -497,6 +497,7 @@ async function hireSquad(p: Player): Promise<void> {
     const result = await p.act(command);
     if (!result.ok) throw new CampaignStop('stuck', `${command.type} refused: ${result.reason ?? ''}`);
   }
+  await p.advance({ idle: true });
 }
 
 export async function playCampaign(game: Game, items: ItemTable, options: CampaignOptions): Promise<CampaignSummary> {

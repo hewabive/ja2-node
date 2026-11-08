@@ -46,7 +46,7 @@ async function mcp(): Promise<{ call: (name: string, args?: Record<string, unkno
 
 async function squadInA10(seed: number, mercs: number, near: number): Promise<{ session: string; leader: number }> {
   const { call, close } = await mcp();
-  const { session } = (await call('newSession', { seed, campaign: { difficulty: 1, mercs } })) as { session: string };
+  const { session } = (await call('newSession', { seed, campaign: { difficulty: 1, mercs, land: 'skip' } })) as { session: string };
   const observe = async () => (await call('observe', { session })) as View;
   const act: Act = async (command) => (await call('act', { session, command })) as { ok: boolean; reason?: string };
   const squad = async () => (await observe()).soldiers.filter((s) => s.team === 0);

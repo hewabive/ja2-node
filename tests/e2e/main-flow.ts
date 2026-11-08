@@ -238,6 +238,11 @@ export class MainFlow {
     await clickWidget(page, 'compressMore');
     await tacticalReady(page);
     await this.game.advance(this.session, { idle: true });
+    await showLatest(page);
+    const merc = await this.ourMerc();
+    await page.evaluate((g) => window.__ja2Ui.tactical?.centerOn(g), merc.gridNo);
+    await waitWhileLoading(page, () => (window.__ja2Ui.tactical?.drawnSoldiers ?? 0) > 0);
+    await tacticalReady(page);
     const view = await this.game.observe(this.session);
     expect(view.strategic?.flow).toBe('tactical');
     expect(view.soldiers.filter((s) => s.team === OUR_TEAM).length).toBeGreaterThan(0);

@@ -109,5 +109,5 @@ test('hires through the laptop panel and lands the hired merc', async ({ page })
   await page.click('#advance');
   await page.waitForFunction(() => window.__ja2Strategic.worldSector === 'A9');
   await page.click('#openLaptop');
-  await expect(page.locator('#result')).toHaveText('mapScreenOnly');
+  await expect(page.locator('#result')).toHaveText('helicopterDrop');
 });

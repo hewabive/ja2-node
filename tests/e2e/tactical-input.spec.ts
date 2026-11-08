@@ -169,7 +169,7 @@ test.describe('the sector exit dialog in a stub campaign', () => {
   let session = '';
 
   test.beforeAll(async ({ request }) => {
-    session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4 } });
+    session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4, land: 'skip' } });
   });
 
   test.afterAll(async ({ request }) => {

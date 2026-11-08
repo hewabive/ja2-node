@@ -72,7 +72,7 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
     const result = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
     return JSON.parse((result.content as { text: string }[])[0]?.text ?? 'null');
   };
-  const { session } = (await call('newSession', { seed: 5, campaign: { difficulty: 1, mercs: 4 } })) as { session: string };
+  const { session } = (await call('newSession', { seed: 7, campaign: { difficulty: 1, mercs: 4, land: 'skip' } })) as { session: string };
   const observe = async () => (await call('observe', { session })) as View;
   const act = async (command: Record<string, unknown>) => (await call('act', { session, command })) as ActResult;
   const squad = async () => (await observe()).soldiers.filter((s) => s.team === 0);

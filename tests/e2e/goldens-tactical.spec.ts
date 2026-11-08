@@ -194,7 +194,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
   });
 
   test('the sector exit dialog of a stub campaign', async ({ page, request }) => {
-    const session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4 } });
+    const session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4, land: 'skip' } });
     try {
       await openTacticalSession(page, session, PINNED);
       const mercs = (await page.evaluate(() => window.__ja2Ui.tactical?.soldiers() ?? [])).filter((s) => s.team === 0);
