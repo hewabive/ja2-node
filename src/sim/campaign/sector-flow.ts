@@ -180,7 +180,7 @@ import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } fro
 import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
 import type { SectorFlowState } from './flow-state.ts';
-import { cutHelicopterDropShort, handleFirstHeliDropOfGame } from './helicopter-drop-flow.ts';
+import { cutHelicopterDropShort, handleFirstHeliDropOfGame, landHelicopterSeatsOfANativeSave } from './helicopter-drop-flow.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
@@ -723,6 +723,7 @@ export class SectorFlow {
     handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
+    landHelicopterSeatsOfANativeSave(this.campaign);
   }
 
   reattachLoadedSector(): void {

@@ -5,7 +5,8 @@
 // @src SetGameTimeCompressionLevel(TIME_COMPRESS_X1)); Tactical/Merc_Hiring.cc MercArrivesCallback (a merc arriving in
 // @src the loaded start sector without the chopper code gets it, a run and the way out of the map screen);
 // @src Tactical/Merc_Entering.cc StartHelicopterRun's InterruptTime, HandleHeliDrop's Esc branch (the lock's end) and
-// @src HandleFirstHeliDropOfGame.
+// @src HandleFirstHeliDropOfGame; SaveLoadGame.cc LoadSavedGame's UpdateMercsInSector (the chopper seats of a save made in
+// @src mid-drop, landed as the Esc branch lands them, 2026-11-08).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import { addDialogueEvent } from '../narrative/dialogue-queue.ts';
@@ -14,7 +15,7 @@ import { CompressMode } from '../strategic/time/constants.ts';
 import { interruptTime, setGameTimeCompressionLevel } from '../strategic/time/world-clock.ts';
 import { unPauseAi } from '../tactical/ai/pause.ts';
 import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
-import { helicopterDropStalled, skipHelicopterDrop, startHelicopterRun } from '../tactical/helicopter-drop.ts';
+import { helicopterDropStalled, landSeatsWithNoRun, skipHelicopterDrop, startHelicopterRun } from '../tactical/helicopter-drop.ts';
 import { forgetHelicopterShadows, type HelicopterDrop } from '../tactical/helicopter-drop-state.ts';
 import { MercQuote, sayQuoteFromAnyBodyInSector } from '../tactical/narrative/merc-quotes.ts';
 import { StopTimeCallback } from '../tactical/narrative/port.ts';
@@ -75,6 +76,11 @@ export function skipHelicopterDropOf(campaign: CampaignSim): boolean {
   if (!t || campaign.state.flow !== 'tactical' || !skipHelicopterDrop(t)) return false;
   syncInterfaceLockPause(campaign);
   return true;
+}
+
+export function landHelicopterSeatsOfANativeSave(campaign: CampaignSim): void {
+  const t = campaign.tactical?.state;
+  if (t && landSeatsWithNoRun(t)) syncInterfaceLockPause(campaign);
 }
 
 function sendUnPauseAi(campaign: CampaignSim, t: TacticalState): void {

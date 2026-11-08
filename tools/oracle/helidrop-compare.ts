@@ -50,7 +50,8 @@ const FIRST_OTHER_ID = TEAM_FIRST_ID[Team.ENEMY];
 const COMBAT_BY_THE_GARRISON =
   'combat with the A9 garrison is begun by the AI, which the dump cannot replay (no placement outcome, no AI pass state); the soldiers but ours are not compared';
 const PASSENGERS_LATER = 'the helicopter passengers over the loaded sector (their own comparer, gaps "Turn-based hooks")';
-const SAVES_LATER = 'a save in mid-drop and what follows it (the native import of the drop, gaps "Helicopter entrance")';
+const SAVES_LATER =
+  'the frames after a save in mid-drop: past the native SaveGame the merc it caught in HELIDROP starts another animation where ours stands, not explained yet';
 const OFF_THE_MAP = 'a soldier with no tile: ja2-node keeps no facing, destination or position for him';
 const INSERTION_DATA_IN_THE_LOADED_SECTOR = 'deviation "Insertion data in the loaded sector"';
 const PASSENGER_PROBES: ReadonlySet<string> = new Set([

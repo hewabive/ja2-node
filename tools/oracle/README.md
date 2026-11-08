@@ -805,11 +805,15 @@ UI's event and mode and the end-turn count; the shadow only while the run is han
 queued and our team's rows (`rowFields` but the frame, the delay, the alert and the breath); the closing line compares
 the seats, the run flags, the selection, the current squad and the team. Labelled, not compared: the insertion code of a
 merc in the loaded sector (deviation "Insertion data in the loaded sector"), the facing, destination and position of a
-merc with no tile, the other soldiers, the "has arrived" messages (no such event yet, gaps "Helicopter entrance"), a
-block's rest once the A9 garrison's AI begins combat (the dump carries no placement outcome and no AI pass state to
-replay it), the block with `live=0` (the fades ramp as with a sample playing, `25`), the frames after `hdsave` (gaps
-"Helicopter entrance"), and the passenger blocks from the first `save` on (gaps "Turn-based hooks").
-`helidrop/load.jsonl` has no comparer yet.
+merc with no tile, the other soldiers, the "has arrived" messages (the event `mercDropped`), a block's rest once the A9
+garrison's AI begins combat (the dump carries no placement outcome and no AI pass state to replay it), the block with
+`live=0` (the fades ramp as with a sample playing, `25`), the frames after `hdsave` (past the native `SaveGame` the
+merc it caught in `HELIDROP` starts animation 134 on his step-away tile at frame 2868 where ours stands, not explained
+yet), and the passenger blocks from the first `save` on (gaps "Turn-based hooks"). `helidrop/load.jsonl` has no
+comparer: its first block loads the mid-drop save into a fresh process, which keeps the merc still in the helicopter in
+the seats, where ja2-node's import lands him as the Esc skip does (deviation "Helicopter drop in a native save"); an
+import of `OracleHeliDrop.sav` by hand lands him beside the north entry, and the merc saved in `HELIDROP` walks to
+4711 at code 467 as in the native load.
 
 ## Shipped probes
 

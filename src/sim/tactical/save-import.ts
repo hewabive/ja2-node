@@ -17,7 +17,8 @@
 // @src ubHiResDirection, bTurningIncrement and SOLDIER_PAUSEANIMOVE (2026-11-05); LoadSaveTacticalStatusType.cc
 // @src fAutoBandagePending (2026-11-06); Tactical/LoadSaveSoldierType.cc sDestXPos, sDestYPos, fPastXDest and fPastYDest
 // @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); Tactical/Soldier_Add.cc InternalAddSoldierToSector (the
-// @src helicopter's passengers in their merc slots with no tile, 2026-11-08).
+// @src helicopter's passengers in their merc slots with no tile) and Strategic/StrategicMap.cc UpdateMercInSector (a
+// @src chopper merc of a save made in mid-drop back in the seats, AddMercToHeli, 2026-11-08).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -48,6 +49,7 @@ import { placeLoadedCorpse } from './corpse-placement.ts';
 import { loadDoorStatusArray, type StoredDoorStatus } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
 import { setOpenableStructStatus } from './doors.ts';
+import { addMercToHeli } from './helicopter-drop.ts';
 import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
@@ -165,6 +167,7 @@ export function importSave(sim: TacticalSim, save: SaveGame, presentation: Prese
   const skippedMapModifications = skippedMapModificationCount(sim.world.tables, save.currentSector.mapModifications ?? []);
   t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
   const soldiers = importSoldiers(t, save, presentation);
+  seatHelicopterDropArrivals(t, save);
   importAwaySoldiers(t, save);
   t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
   importOpplists(t, save);
@@ -377,6 +380,10 @@ function seatedInHelicopter(save: SaveGame, s: SavedSoldier): boolean {
   return (s.statusFlags & SEATED_FLAGS) !== 0 && !seatedInGroundVehicle(save, s);
 }
 
+function waitingForTheHelicopterDrop(s: SavedSoldier): boolean {
+  return s.strategicInsertionCode === Insertion.CHOPPER;
+}
+
 function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
   const sector = save.tactical.worldSector;
   return (
@@ -390,11 +397,15 @@ function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
 }
 
 export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
-  return enteringTheLoadedSector(save, s) && !seatedInHelicopter(save, s);
+  return enteringTheLoadedSector(save, s) && !seatedInHelicopter(save, s) && !waitingForTheHelicopterDrop(s);
 }
 
 export function helicopterPassengerInLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
   return enteringTheLoadedSector(save, s) && seatedInHelicopter(save, s);
+}
+
+function helicopterSeatInLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+  return enteringTheLoadedSector(save, s) && !seatedInHelicopter(save, s) && waitingForTheHelicopterDrop(s);
 }
 
 export function awayInLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
@@ -453,6 +464,11 @@ function seatPassenger(t: TacticalState, save: SaveGame, entry: SavedSoldierEntr
   seatInTheHelicopterOnSectorEntry(t, s);
   importMotion(t, s, entry.soldier, presentation);
   return s;
+}
+
+function seatHelicopterDropArrivals(t: TacticalState, save: SaveGame): void {
+  for (const entry of save.soldiers)
+    if (helicopterSeatInLoadedSector(save, entry.soldier)) addMercToHeli(t.helicopterDrop, entry.soldier.id);
 }
 
 function importFacing(s: Soldier, r: SavedSoldier): void {

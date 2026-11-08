@@ -285,7 +285,19 @@ export function handleHeliDrop(t: TacticalState): void {
 export function skipHelicopterDrop(t: TacticalState): boolean {
   const d = t.helicopterDrop;
   if (!d.running) return false;
-  for (let seat = d.curDrop; seat < d.seats.length; seat++) {
+  landTheSeatsLeft(t, d, d.curDrop);
+  return true;
+}
+
+export function landSeatsWithNoRun(t: TacticalState): boolean {
+  const d = t.helicopterDrop;
+  if (d.running || d.seats.length === 0) return false;
+  landTheSeatsLeft(t, d, 0);
+  return true;
+}
+
+function landTheSeatsLeft(t: TacticalState, d: HelicopterDrop, from: number): void {
+  for (let seat = from; seat < d.seats.length; seat++) {
     const s = seatSoldier(t, d.seats[seat]);
     if (!s) continue;
     t.sectorHooks.placeHelicopterSeat(t, s);
@@ -299,7 +311,6 @@ export function skipHelicopterDrop(t: TacticalState): boolean {
   d.seats.length = 0;
   if (first) selectSoldier(t, first, SelectFlags.FORCE_RESELECT);
   runEnded(t);
-  return true;
 }
 
 export function placeHelicopterSeatAtTheNorthEntry(t: TacticalState, s: Soldier): void {

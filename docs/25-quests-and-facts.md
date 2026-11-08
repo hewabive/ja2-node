@@ -154,7 +154,9 @@ added (`AddMercToHeli` from `UpdateMercInSector`'s chopper branch), the north en
 compression at 1x and the lock's pause at once (deviation "Helicopter run start"). A world unload ends a run flagged or
 under way, the seats still in the helicopter taking the north code (deviation "Helicopter drop cut short"); only a run
 flagged on the map screen meets one, when the way to tactical is refused and a route takes the seat away, since the lock
-of a run under way refuses every way out and a battle lost or a surrender leaves the seats in the sector. The session
+of a run under way refuses every way out and a battle lost or a surrender leaves the seats in the sector. A native save
+made in mid-drop holds its seats with no run: the import lands them as the Esc skip does (deviation "Helicopter drop in
+a native save", `14`), and a merc it saved in `HELIDROP` steps away at code 467 as his animation runs on. The session
 factory runs the first drop to its end, or skips it with `land: "skip"` (`29`); the test helpers take the Esc path
 unless a test watches the drop (`tests/support/campaign.ts`).
 
@@ -344,12 +346,14 @@ Inferred from reading the source:
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
 - The drop: `tools/oracle/helidrop-compare.ts` replays the oracle's new games and compares our mercs and the drop frame
   by frame (`tools/oracle/README.md`, "Helicopter drop"), up to the frame where the A9 garrison's AI begins combat,
-  which the dump cannot replay; a native save in mid-drop is not compared (gaps "Helicopter entrance").
+  which the dump cannot replay. A native save in mid-drop was imported by hand only, as its import lands the seats
+  (deviation "Helicopter drop in a native save"), and the frames after the native `SaveGame` are not compared.
 - The helicopter on the map: no probe dumps the structures or the soldiers' tiles after a load of the airport with the
   helicopter on the ground; the stub helicopter (`stubs/helicopter.ts`) has its own shapes, so stub tests pin the pieces'
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance", "Turn-based
-hooks" (the passengers' branches). Deviations of this domain: "Helicopter on load", "Toolkit repair in tactical",
-"Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance" (the lock's two
+steps), "Turn-based hooks" (the passengers' branches). Deviations of this domain: "Helicopter on load", "Toolkit
+repair in tactical", "Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short", "Helicopter drop
+in a native save".

@@ -12,7 +12,7 @@ import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { NOTHING } from '../../content/items/items.ts';
-import { Direction } from '../../content/world/grid.ts';
+import { Direction, pythSpacesAway } from '../../content/world/grid.ts';
 import { createCampaignSession } from '../../server/campaign-factory.ts';
 import type { SimEvent } from '../events.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
@@ -23,8 +23,9 @@ import { anim } from '../tactical/anim-states.ts';
 import { AnimHeight } from '../tactical/animation.ts';
 import { eventSoldierGotHit, soldierCollapse } from '../tactical/combat/hit.ts';
 import { AimShot } from '../tactical/combat/types.ts';
-import { helicopterDropStalled } from '../tactical/helicopter-drop.ts';
+import { addMercToHeli, helicopterDropStalled } from '../tactical/helicopter-drop.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
+import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
 import { STRATEGIC_OVERHEAD_MS } from '../tactical/turns/turns.ts';
@@ -51,6 +52,7 @@ const DROP_TICKS = 40_000;
 const NONE_LEFT = 0;
 const FRAME_MS = 5;
 const LOCK_PAUSE_FOR_A_LINE = 1;
+const NORTH_SWEET_SPOT_RADIUS = 7;
 
 function holdBackArrivals(c: CampaignSim, ids: readonly number[]): void {
   const minute = FIRST_ARRIVAL_MINUTE + LATER_ARRIVAL_MINUTES;
@@ -221,6 +223,32 @@ describe('the helicopter drop in a campaign', () => {
     expect(flow.setCurrentWorldSector(A9)).toBe(true);
     expect(ourSoldiers(c).map((s) => s.id)).toEqual([0, 1]);
     expect(c.tactical?.state.helicopterDrop.running).toBe(false);
+  });
+
+  it('lands the seats a native save made in mid-drop holds, with no run, as the Esc skip lands them: at the north entry with their lines, the first selected (deviation "Helicopter drop in a native save")', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 65, mercs: 2, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    const t = tactical(c);
+    const seated = roster.get(1);
+    const flow = c.sectors;
+    if (!seated || !flow) throw new Error('no second merc');
+    removeSoldierFromTacticalSector(t, seated.soldier);
+    seated.insertionCode = InsertionCode.CHOPPER;
+    addMercToHeli(t.helicopterDrop, seated.id);
+    c.drainEvents();
+    flow.adoptLoadedSector([]);
+    expect([t.helicopterDrop.running, t.helicopterDrop.seats, seated.insertionCode, seated.soldier.placed]).toEqual([
+      false,
+      [],
+      InsertionCode.NORTH,
+      true,
+    ]);
+    expect(pythSpacesAway(seated.soldier.gridNo, sectorMapOf(t).info.northGridNo)).toBeLessThanOrEqual(NORTH_SWEET_SPOT_RADIUS);
+    expect(t.turn.selected).toBe(seated.id);
+    const told = t.events.flatMap((e) =>
+      e.type === 'mercDropped' ? [`dropped ${e.soldier}`] : e.type === 'helicopterDropEnded' ? [`ended ${e.first}`] : [],
+    );
+    expect(told).toEqual(['dropped 1', 'ended false']);
   });
 
   it('refuses every way out of the tactical screen while a run goes on, stalled or not, until skipHelicopterDrop: the drop’s lock takes every key but Esc (Turn_Based_Input.cc:2330)', () => {

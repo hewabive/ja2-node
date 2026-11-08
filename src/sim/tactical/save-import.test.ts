@@ -883,3 +883,29 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     expect(roster.inTacticalSector(FLYING_ID)).toBe(true);
   });
 });
+
+describe('a merc still in the helicopter in a save made in mid-drop (deviation "Helicopter drop in a native save")', () => {
+  const INSERTION_CODE_CHOPPER = 6;
+  const DROPPED_ID = 0;
+  const SEATED_IDS = [1, 2];
+  const DROPPED_AT = gridNo(80, 82);
+
+  function midDropSave(): SaveGame {
+    return syntheticSave({
+      soldiers: [
+        savedSoldier(DROPPED_ID, Team.OUR, DROPPED_AT),
+        ...SEATED_IDS.map((id) =>
+          savedSoldier(id, Team.OUR, SAVED_NOWHERE, { bInSector: 0, ubStrategicInsertionCode: INSERTION_CODE_CHOPPER }),
+        ),
+      ],
+    });
+  }
+
+  it('is no soldier of the loaded map: he is seated in the helicopter again, in id order, as the load puts the chopper mercs back into the seats (UpdateMercInSector, StrategicMap.cc:1160)', () => {
+    const sim = importedSim(midDropSave());
+    const t = sim.state;
+    expect(t.mercSlots.map((s) => s.id)).toEqual([DROPPED_ID]);
+    expect(SEATED_IDS.map((id) => t.soldiers[id])).toEqual([undefined, undefined]);
+    expect([t.helicopterDrop.seats, t.helicopterDrop.running]).toEqual([SEATED_IDS, false]);
+  });
+});
