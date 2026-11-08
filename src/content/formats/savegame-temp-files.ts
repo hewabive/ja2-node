@@ -3,7 +3,9 @@
 // @src src/game/Tactical/Tactical_Save.cc LoadMapTempFilesFromSavedGameFile, sectorFlagBits, GetMapTempFileName,
 // @src LoadWorldItemsFromTempItemFile; Tactical/World_Items.h WORLDITEM; Tactical/Keys.cc door table and door status files;
 // @src Tactical/Soldier_Init_List.cc NewWayOfLoadingEnemySoldierInitListLinks (link records);
-// @src TileEngine/SaveLoadMap.cc NUM_REVEALED_BYTES, LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus (bit order)
+// @src TileEngine/SaveLoadMap.cc NUM_REVEALED_BYTES, LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus (bit order);
+// @src the records read by their count, bytes past them unread (2026-11-08); TileEngine/LoadSaveSmokeEffect.cc
+// @src ExtractSmokeEffectFromFile, TileEngine/LoadSaveLightEffect.cc ExtractLightEffectFromFile (2026-11-08)
 
 import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
@@ -25,6 +27,9 @@ const CORPSE_TAIL_PADDING = 12;
 export const MAP_MODIFICATION_BYTES = 8;
 const NUM_REVEALED_BYTES = 3200;
 const BITS_PER_BYTE = 8;
+const EFFECT_RECORD_BYTES = 16;
+const SMOKE_EFFECT_PADDING = 1;
+const LIGHT_EFFECT_PADDING = 5;
 
 export const TEMP_FILE_KINDS = [
   { kind: 'items', flag: 0x10000000, prefix: 'i' },
@@ -116,6 +121,29 @@ export const MapModificationType = {
   WINDOW_HIT: 21,
 } as const;
 
+export interface SavedSmokeEffect {
+  readonly gridNo: number;
+  readonly duration: number;
+  readonly radius: number;
+  readonly flags: number;
+  readonly age: number;
+  readonly allocated: boolean;
+  readonly type: number;
+  readonly item: number;
+  readonly ownerId: number;
+  readonly lastUpdate: number;
+}
+
+export interface SavedLightEffect {
+  readonly gridNo: number;
+  readonly duration: number;
+  readonly radius: number;
+  readonly age: number;
+  readonly allocated: boolean;
+  readonly type: number;
+  readonly lastUpdate: number;
+}
+
 export interface SavedMapModification {
   readonly gridNo: number;
   readonly imageType: number;
@@ -134,15 +162,22 @@ export function readSectorTempFiles(c: SaveCursor, sector: SectorPosition, flags
   return files;
 }
 
-export function decodeWorldItemsFile(bytes: Uint8Array): SavedWorldItem[] {
+type CountField = (c: SaveCursor) => number;
+type RecordReader<T> = (c: SaveCursor, index: number) => T;
+
+const U32_COUNT: CountField = (c) => c.u32();
+const U8_COUNT: CountField = (c) => c.u8();
+
+function countedRecords<T>(bytes: Uint8Array, count: CountField, recordBytes: number, what: string, read: RecordReader<T>): T[] {
   if (bytes.length === 0) return [];
   const c = new SaveCursor(bytes);
-  const count = c.u32();
-  if (c.remaining !== count * WORLD_ITEM_BYTES) {
-    throw new FormatError(`item temp file: ${count} items need ${count * WORLD_ITEM_BYTES} bytes, have ${c.remaining}`);
-  }
-  const items: SavedWorldItem[] = [];
-  for (let index = 0; index < count; index++) {
+  const n = count(c);
+  if (c.remaining < n * recordBytes) throw new FormatError(`${what}: ${n} records need ${n * recordBytes} bytes, have ${c.remaining}`);
+  return Array.from({ length: n }, (_, index) => read(c, index));
+}
+
+export function decodeWorldItemsFile(bytes: Uint8Array): SavedWorldItem[] {
+  return countedRecords(bytes, U32_COUNT, WORLD_ITEM_BYTES, 'item temp file', (c, index) => {
     const at = c.pos;
     const exists = c.bool();
     c.skip(1);
@@ -156,22 +191,12 @@ export function decodeWorldItemsFile(bytes: Uint8Array): SavedWorldItem[] {
     const visible = c.i8();
     const nonExistChance = c.u8();
     c.skip(WORLD_ITEM_TAIL_PADDING);
-    items.push({ index, exists, gridNo, level, object, flags, renderZHeightAboveLevel, visible, nonExistChance });
-  }
-  return items;
-}
-
-function countedRecords<T>(bytes: Uint8Array, recordBytes: number, what: string, read: (c: SaveCursor) => T): T[] {
-  if (bytes.length === 0) return [];
-  const c = new SaveCursor(bytes);
-  const count = c.u8();
-  if (c.remaining !== count * recordBytes)
-    throw new FormatError(`${what}: ${count} records need ${count * recordBytes} bytes, have ${c.remaining}`);
-  return Array.from({ length: count }, () => read(c));
+    return { index, exists, gridNo, level, object, flags, renderZHeightAboveLevel, visible, nonExistChance };
+  });
 }
 
 export function decodeDoorTableFile(bytes: Uint8Array): SavedDoor[] {
-  return countedRecords(bytes, DOOR_RECORD_BYTES, 'door table temp file', (c) => {
+  return countedRecords(bytes, U8_COUNT, DOOR_RECORD_BYTES, 'door table temp file', (c) => {
     const door = {
       gridNo: c.i16(),
       locked: c.bool(),
@@ -188,7 +213,7 @@ export function decodeDoorTableFile(bytes: Uint8Array): SavedDoor[] {
 }
 
 export function decodeDoorStatusFile(bytes: Uint8Array): SavedDoorStatus[] {
-  return countedRecords(bytes, DOOR_STATUS_RECORD_BYTES, 'door status temp file', (c) => {
+  return countedRecords(bytes, U8_COUNT, DOOR_STATUS_RECORD_BYTES, 'door status temp file', (c) => {
     const status = { gridNo: c.i16(), flags: c.u8() };
     c.skip(DOOR_STATUS_PADDING_BYTES);
     return status;
@@ -196,12 +221,7 @@ export function decodeDoorStatusFile(bytes: Uint8Array): SavedDoorStatus[] {
 }
 
 export function decodeRottingCorpsesFile(bytes: Uint8Array): SavedCorpse[] {
-  if (bytes.length === 0) return [];
-  const c = new SaveCursor(bytes);
-  const count = c.u32();
-  if (c.remaining !== count * ROTTING_CORPSE_BYTES)
-    throw new FormatError(`corpse temp file: ${count} corpses need ${count * ROTTING_CORPSE_BYTES} bytes, have ${c.remaining}`);
-  return Array.from({ length: count }, () => {
+  return countedRecords(bytes, U32_COUNT, ROTTING_CORPSE_BYTES, 'corpse temp file', (c) => {
     const type = c.u8();
     const bodyType = c.u8();
     const gridNo = c.i16();
@@ -233,6 +253,32 @@ export function decodeRottingCorpsesFile(bytes: Uint8Array): SavedCorpse[] {
     };
     c.skip(CORPSE_TAIL_PADDING);
     return corpse;
+  });
+}
+
+export function decodeSmokeEffectsFile(bytes: Uint8Array): SavedSmokeEffect[] {
+  return countedRecords(bytes, U32_COUNT, EFFECT_RECORD_BYTES, 'smoke effects temp file', (c) => {
+    const smoke = {
+      gridNo: c.i16(),
+      duration: c.u8(),
+      radius: c.u8(),
+      flags: c.u8(),
+      age: c.i8(),
+      allocated: c.bool(),
+      type: c.i8(),
+      item: c.u16(),
+      ownerId: c.u8(),
+    };
+    c.skip(SMOKE_EFFECT_PADDING);
+    return { ...smoke, lastUpdate: c.u32() };
+  });
+}
+
+export function decodeLightEffectsFile(bytes: Uint8Array): SavedLightEffect[] {
+  return countedRecords(bytes, U32_COUNT, EFFECT_RECORD_BYTES, 'light effects temp file', (c) => {
+    const light = { gridNo: c.i16(), duration: c.u8(), radius: c.u8(), age: c.i8(), allocated: c.bool(), type: c.i8() };
+    c.skip(LIGHT_EFFECT_PADDING);
+    return { ...light, lastUpdate: c.u32() };
   });
 }
 

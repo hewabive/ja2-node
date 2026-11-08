@@ -51,15 +51,19 @@ import {
 import {
   decodeDoorStatusFile,
   decodeDoorTableFile,
+  decodeLightEffectsFile,
   decodeMapModificationsFile,
   decodeRevealedStatusFile,
   decodeRottingCorpsesFile,
+  decodeSmokeEffectsFile,
   decodeWorldItemsFile,
   readSectorTempFiles,
   type SavedCorpse,
   type SavedDoor,
   type SavedDoorStatus,
+  type SavedLightEffect,
   type SavedMapModification,
+  type SavedSmokeEffect,
   type SavedWorldItem,
   type SectorTempFile,
 } from './savegame-temp-files.ts';
@@ -291,6 +295,8 @@ export interface CurrentSectorState {
   readonly corpses: readonly SavedCorpse[] | null;
   readonly mapModifications: readonly SavedMapModification[] | null;
   readonly revealed: Uint8Array | null;
+  readonly smoke: readonly SavedSmokeEffect[] | null;
+  readonly lights: readonly SavedLightEffect[] | null;
 }
 
 export interface PreRandomTable {
@@ -598,6 +604,8 @@ function currentSectorState(sector: SectorPosition, files: readonly SectorTempFi
   const corpses = file('rottingCorpses');
   const modifications = file('mapModifications');
   const revealed = file('revealedStatus');
+  const smoke = file('smokeEffects');
+  const lights = file('lightingEffects');
   return {
     sector,
     worldItems: items ? decodeWorldItemsFile(items) : null,
@@ -606,6 +614,8 @@ function currentSectorState(sector: SectorPosition, files: readonly SectorTempFi
     corpses: corpses ? decodeRottingCorpsesFile(corpses) : null,
     mapModifications: modifications ? decodeMapModificationsFile(modifications) : null,
     revealed: revealed ? decodeRevealedStatusFile(revealed) : null,
+    smoke: smoke ? decodeSmokeEffectsFile(smoke) : null,
+    lights: lights ? decodeLightEffectsFile(lights) : null,
   };
 }
 

@@ -26,7 +26,13 @@ import {
   soldierChecksum,
 } from './savegame-soldier.ts';
 import { GENERAL_INFO_LAYOUT, INCOMBAT, TACTICAL_STATUS_LAYOUT, TEAM_TURNS_LAYOUT, TOTAL_SOLDIERS } from './savegame-tactical.ts';
-import { decodeRevealedStatusFile, decodeWorldItemsFile, WORLD_ITEM_BYTES } from './savegame-temp-files.ts';
+import {
+  decodeLightEffectsFile,
+  decodeRevealedStatusFile,
+  decodeSmokeEffectsFile,
+  decodeWorldItemsFile,
+  WORLD_ITEM_BYTES,
+} from './savegame-temp-files.ts';
 
 const encryption = parseSaveEncryptionTable(
   JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/save-encryption.json'), 'utf8')),
@@ -387,6 +393,26 @@ describe('parseSaveGame on a synthetic save', () => {
     expect(decodeWorldItemsFile(new Uint8Array([0, 0, 0, 0]))).toEqual([]);
     expect(() => decodeWorldItemsFile(new Uint8Array([1, 0, 0, 0]))).toThrow(FormatError);
   });
+
+  it('reads only the counted item records, as LoadWorldItemsFromTempItemFile does: a live slot past the count stays unread (Tactical_Save.cc:217)', () => {
+    const counted = worldItemsFile();
+    const uncounted = Uint8Array.from([...counted, ...counted.subarray(4)]);
+    new DataView(uncounted.buffer).setUint32(0, 0, true);
+    expect(decodeWorldItemsFile(Uint8Array.from([...counted, ...counted.subarray(4)]))).toHaveLength(1);
+    expect(decodeWorldItemsFile(uncounted)).toEqual([]);
+  });
+
+  it('decodes the 16-byte smoke and light effect records with the smoke owner by id (LoadSaveSmokeEffect.cc, LoadSaveLightEffect.cc)', () => {
+    const smoke = new BinaryWriter().u32(1).i16(12345).u8(5).u8(3).u8(2).u8(0xff).u8(1).u8(2).u16(0x123).u8(17).zeros(1).u32(4321);
+    expect(decodeSmokeEffectsFile(smoke.toBytes())).toEqual([
+      { gridNo: 12345, duration: 5, radius: 3, flags: 2, age: -1, allocated: true, type: 2, item: 0x123, ownerId: 17, lastUpdate: 4321 },
+    ]);
+    const light = new BinaryWriter().u32(1).i16(9000).u8(6).u8(4).u8(1).u8(1).u8(0).zeros(5).u32(777);
+    expect(decodeLightEffectsFile(light.toBytes())).toEqual([
+      { gridNo: 9000, duration: 6, radius: 4, age: 1, allocated: true, type: 0, lastUpdate: 777 },
+    ]);
+    expect(() => decodeSmokeEffectsFile(new BinaryWriter().u32(2).zeros(16).toBytes())).toThrow(FormatError);
+  });
 });
 
 const dataDir = ORIGINAL_DATA_DIR;
@@ -434,4 +460,15 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames next to the original data'
       for (const item of save.currentSector.worldItems ?? []) if (item.exists) expect(item.gridNo).toBeLessThan(25600);
     });
   }
+
+  it.skipIf(!saveFiles.includes('SaveGame07.sav'))(
+    "reads nothing from B11's item file in SaveGame07: it counts no record ahead of a live slot, and the load reads by the count",
+    () => {
+      const save = parseSaveGame(new Uint8Array(readFileSync(join(savesDir, 'SaveGame07.sav'))), encryption);
+      const b11 = save.tempFiles.find((f) => f.kind === 'items' && f.sector.x === 11 && f.sector.y === 2 && f.sector.z === 0);
+      expect(b11?.bytes.length).toBe(4 + 10 * WORLD_ITEM_BYTES);
+      expect(b11?.bytes[4]).toBe(1);
+      expect(decodeWorldItemsFile(b11?.bytes ?? new Uint8Array())).toEqual([]);
+    },
+  );
 });
