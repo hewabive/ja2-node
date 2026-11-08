@@ -45,6 +45,7 @@
 // @src first entry, the flag reset when no record is written back, 2026-11-08).
 
 import type { MapDoor } from '../../content/formats/map.ts';
+import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-files.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
 import {
   parseSectorString,
@@ -792,7 +793,7 @@ export class SectorFlow {
       }
       if (diff.openables) restoreOpenables(t, diff.openables);
       if (this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) {
-        if (diff.savedRevealed) loadRevealedStatusFromRevealedTempFile(t, diff.savedRevealed);
+        if (diff.savedRevealed) loadRevealedStatusFromRevealedTempFile(t, decodeRevealedStatusFile(diff.savedRevealed));
         else if (diff.revealed) restoreRevealed(t, diff.revealed);
       }
       if (diff.doorStatus && this.#flagged(sector, SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS)) loadDoorStatusArray(t, diff.doorStatus);

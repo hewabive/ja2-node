@@ -285,7 +285,7 @@ its load average shows.
 | Strategic world day, no sector loaded, p95 | ≤ 100 ms | met: 25–45 ms with the map's real-time turn for six mercs, about 10 ms a day more than without it |
 | Strategic world day, a town sector loaded, p95 | ≤ 100 ms | met at 60 minutes per second: 65 ms on the stubs and 80 ms on the original data; 415 ms and 750 ms at 5, under the bench's 1 s bound (130 ms, 165 ms, 1.3 s and 1.75 s before the look skip, §2.3; 455 ms, 545 ms, 4.5 s and 5.8 s before the sight memo and the shared soldier shape; 25–30 ms and about 0.18 s before the map ran the real-time turn). Every 20 ms poll runs the turn on the loaded sector, 14,400 polls a world day at 5 minutes per second: what is left is checking the remembered look's tape (a quarter to a third), the turn start of every soldier (a fifth to a quarter) and the campaign's per-step event collection (a tenth to a sixth) |
 | Autoresolve battle, 40 per side, p95 | ≤ 10 ms | met |
-| Save (snapshot, stringify, gzip) | ≤ 100 ms and ≤ 2 MB gzipped | size met widely; time met except the largest native import (at the target at the median) and a session's first save (§2.7) |
+| Save (snapshot, stringify, gzip) | ≤ 100 ms and ≤ 2 MB gzipped | size met widely; time met except the largest native import (at the target at the median with every sector's temp files, a tenth more than its loaded sector's alone) and a session's first save (§2.7) |
 | Load (parse, restore with fresh content) | ≤ 500 ms | met; most of a load is building the content again |
 | Stall of other sessions while one runs an instant battle | ≤ 50 ms | met: one 10 ms slice plus the longest single tick (`04` §5.9); in-process saves still stall (§2.7) |
 | Campaign (land and clear the first sector), peak RSS | ≤ 512 MB | met |

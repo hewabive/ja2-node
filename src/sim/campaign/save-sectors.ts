@@ -11,10 +11,10 @@ import {
   decodeDoorTableFile,
   decodeLightEffectsFile,
   decodeMapModificationsFile,
-  decodeRevealedStatusFile,
   decodeRottingCorpsesFile,
   decodeSmokeEffectsFile,
   decodeWorldItemsFile,
+  revealedStatusBits,
   type SavedLightEffect,
   type SavedSmokeEffect,
   type SavedWorldItem,
@@ -88,7 +88,7 @@ const READERS: Readonly<Record<TempFileKind, TempFileReader>> = {
     diff.doorTable = decodeDoorTableFile(file.bytes).map(savedMapDoor);
   },
   revealedStatus: (diff, file) => {
-    diff.savedRevealed = decodeRevealedStatusFile(file.bytes);
+    diff.savedRevealed = revealedStatusBits(file.bytes);
   },
   doorStatus: (diff, file) => {
     diff.doorStatus = decodeDoorStatusFile(file.bytes).map(storedDoorStatus);

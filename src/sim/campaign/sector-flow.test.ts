@@ -121,6 +121,7 @@ const HANGAR_WALL = HANGAR_DOOR + 1;
 const HANGAR_FLOOR = HANGAR_WALL - 160;
 const GROUND_LEVEL = 0;
 const LANDING_WALK_RADIUS = 3;
+const BITS_PER_BYTE = 8;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -824,8 +825,8 @@ describe("the other sectors' temp files of a native save", () => {
   it('reveals the tiles of the revealed file at the first entry, the rest hidden, and keeps them at the next in its own form (Tactical_Save.cc:468)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     const diff = nativeRecordsFor(campaign, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS);
-    const revealed = new Uint8Array(WORLD_MAX);
-    revealed[HANGAR_FLOOR] = 1;
+    const revealed = new Uint8Array(WORLD_MAX / BITS_PER_BYTE);
+    revealed[idiv(HANGAR_FLOOR, BITS_PER_BYTE)] = 1 << (HANGAR_FLOOR % BITS_PER_BYTE);
     diff.savedRevealed = revealed;
     reloadPoint(campaign);
     const groundRevealed = (s: TacticalState, g: number) => ((s.fog.revealed[g] ?? 0) & RevealedFlags.GROUND) !== 0;

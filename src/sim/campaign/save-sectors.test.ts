@@ -4,7 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { BinaryWriter } from '../../content/binary/writer.ts';
 import { calcSoldierCreateCheckSum, writeProfileDetailedPlacement } from '../../content/formats/placement.ts';
-import { MapModificationType, type SectorTempFile, type TempFileKind } from '../../content/formats/savegame-temp-files.ts';
+import {
+  decodeRevealedStatusFile,
+  MapModificationType,
+  type SectorTempFile,
+  type TempFileKind,
+} from '../../content/formats/savegame-temp-files.ts';
 import { withGraphicFacts } from '../../content/rules/graphic-facts.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
 import { vfsFileReader } from '../../content/vfs/vfs.ts';
@@ -158,8 +163,10 @@ describe('the temp files of the sectors a native save did not load', () => {
       [[MapModificationType.OPENABLE_STRUCT, DOOR_GRID, 1]],
     ]);
     expect(diff.doorTable?.map((d) => [d.gridNo, d.locked, d.lockId, d.perceivedLocked])).toEqual([[DOOR_GRID, true, 3, 1]]);
-    expect([diff.revealed, diff.savedRevealed?.indexOf(1), diff.savedRevealed?.lastIndexOf(1)]).toEqual([
+    const revealedTiles = decodeRevealedStatusFile(diff.savedRevealed ?? new Uint8Array(REVEALED_BYTES));
+    expect([diff.revealed, diff.savedRevealed?.length, revealedTiles.indexOf(1), revealedTiles.lastIndexOf(1)]).toEqual([
       null,
+      REVEALED_BYTES,
       REVEALED_GRID,
       REVEALED_GRID,
     ]);

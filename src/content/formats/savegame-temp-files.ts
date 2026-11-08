@@ -294,11 +294,16 @@ export function decodeMapModificationsFile(bytes: Uint8Array): SavedMapModificat
   }));
 }
 
-export function decodeRevealedStatusFile(bytes: Uint8Array): Uint8Array {
+export function revealedStatusBits(bytes: Uint8Array): Uint8Array {
   if (bytes.length < NUM_REVEALED_BYTES)
     throw new FormatError(`revealed status temp file: ${bytes.length} bytes, need ${NUM_REVEALED_BYTES}`);
+  return bytes.slice(0, NUM_REVEALED_BYTES);
+}
+
+export function decodeRevealedStatusFile(bytes: Uint8Array): Uint8Array {
+  const bits = revealedStatusBits(bytes);
   return Uint8Array.from(
     { length: NUM_REVEALED_BYTES * BITS_PER_BYTE },
-    (_, g) => ((bytes[idiv(g, BITS_PER_BYTE)] ?? 0) >> (g % BITS_PER_BYTE)) & 1,
+    (_, g) => ((bits[idiv(g, BITS_PER_BYTE)] ?? 0) >> (g % BITS_PER_BYTE)) & 1,
   );
 }
