@@ -130,7 +130,9 @@ the UI handler takes `LU_BEGINUILOCK` (`Tactical/Handle_UI.cc:4003`). The lock's
 gate for a locked UI (`Tactical/Turn_Based_Input.cc:2330`), so for a run under way, stalled or not, the campaign refuses
 every command with `helicopterDrop` but `skipHelicopterDrop` (the Esc key, the only way on from a stall), `answer`,
 `skipLine`, `setOption` and the queries (the map screen and sector exits included), and the server refuses the player's
-saves (`helicopterDrop`, `27`); snapshots stay exact. With the world clock paused no strategic event runs during a run,
+saves (`helicopterDrop`, `27`) and writes no Dead is Dead save, as `DoDeadIsDeadSave` skips the locked UI; snapshots stay
+exact. The lock holds through our turn starting mid-drop, which the original lifts for a frame (deviation "Helicopter
+drop lock in combat"). With the world clock paused no strategic event runs during a run,
 so no arrival can join one. The campaign's part goes through `sectorHooks`, wired by the sector flow: a seat's soldier
 (`helicopterSeat`, the roster merc), his placement with the north code (`placeHelicopterSeat`, as `UpdateMercInSector`
 places him, with no sector check), the arrival quotes (`mercArrivesQuotes`, at 467 and at the skip, over the whole team,
@@ -366,8 +368,8 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance" (the lock's two
-steps), "Helicopter passengers elsewhere" (the tests of `bInSector` outside the turn and battle hooks). Deviations of
-this domain: "Helicopter on load", "Toolkit repair in tactical", "Helicopter drop statics", "Helicopter run start",
-"Helicopter drop cut short", "Helicopter drop in a native save", "Helicopter exit over the loaded sector", "Rebel
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter passengers elsewhere" (the
+tests of `bInSector` outside the turn and battle hooks). Deviations of this domain: "Helicopter on load", "Toolkit repair
+in tactical", "Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short", "Helicopter drop lock in
+combat", "Helicopter drop in a native save", "Helicopter exit over the loaded sector", "Rebel
 aboard the helicopter".

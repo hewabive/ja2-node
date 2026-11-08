@@ -28,7 +28,7 @@ import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
-import { STRATEGIC_OVERHEAD_MS } from '../tactical/turns/turns.ts';
+import { enterCombatMode, STRATEGIC_OVERHEAD_MS } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { FIRST_ARRIVAL_MINUTE } from './hiring.ts';
 import { UnloadCode } from './sector-flow.ts';
@@ -53,6 +53,7 @@ const NONE_LEFT = 0;
 const FRAME_MS = 5;
 const LOCK_PAUSE_FOR_A_LINE = 1;
 const NORTH_SWEET_SPOT_RADIUS = 7;
+const LOCK_PAUSE_LOCKUI_MODE = 16;
 
 function holdBackArrivals(c: CampaignSim, ids: readonly number[]): void {
   const minute = FIRST_ARRIVAL_MINUTE + LATER_ARRIVAL_MINUTES;
@@ -249,6 +250,26 @@ describe('the helicopter drop in a campaign', () => {
       e.type === 'mercDropped' ? [`dropped ${e.soldier}`] : e.type === 'helicopterDropEnded' ? [`ended ${e.first}`] : [],
     );
     expect(told).toEqual(['dropped 1', 'ended false']);
+  });
+
+  it('keeps the drop’s lock and its pause under 16 through our turn starting mid-drop, where the original lifts them for a frame (deviation "Helicopter drop lock in combat")', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 69, mercs: 2, garrison: GARRISON });
+    startFirstSquadsDrop(c);
+    runTicks(c, DROP_TICKS, () => ourSoldiers(c).length > 0);
+    enterCombatMode(tactical(c), Team.OUR);
+    const turnStart = runTicks(c, 1);
+    const t = tactical(c);
+    const clock = c.state.clock;
+    expect([turnStart, t.inCombat, t.turn.currentTeam, t.helicopterDrop.running]).toEqual([1, true, Team.OUR, true]);
+    expect([clock.paused, clock.pauseLocked, clock.pauseLockReason]).toEqual([true, true, LOCK_PAUSE_LOCKUI_MODE]);
+    expect(c.dispatch({ type: 'endTurn' })).toMatchObject({ ok: false, data: { refusal: 'helicopterDrop' } });
+    const unlockedInTheRun = new Set<boolean>();
+    runTicks(c, DROP_TICKS, () => {
+      const running = tactical(c).helicopterDrop.running;
+      if (running) unlockedInTheRun.add(!c.state.clock.paused || c.state.clock.pauseLockReason !== LOCK_PAUSE_LOCKUI_MODE);
+      return !running;
+    });
+    expect([tactical(c).helicopterDrop.running, [...unlockedInTheRun]]).toEqual([false, [false]]);
   });
 
   it('refuses every way out of the tactical screen while a run goes on, stalled or not, until skipHelicopterDrop: the drop’s lock takes every key but Esc (Turn_Based_Input.cc:2330)', () => {
