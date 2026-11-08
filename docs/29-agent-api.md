@@ -289,6 +289,7 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 | Boxing UI lock (§8.6) | `estimateAttack`, `answer`, `skipLine` | `boxingUiLock` | runs the walk out of the ring |
 | Stop-time quote (§8.1) | `estimateAttack`, `answer`, `skipLine` | `stopTimeQuote` | runs the line to its end and its prompt |
 | Auto-bandage (§8.3) | `endAutoBandage`, `skipLine`, `setOption`, the queries; saves are refused too | `autoBandaging` | runs the mode, a frame a tick; `idle` once nobody more can be bandaged; a world-time target is refused (`autoBandaging: …`) |
+| Helicopter drop (`25`) | `skipHelicopterDrop`, `answer`, `skipLine`, `setOption`, the queries, loading a save; saves are refused too | `helicopterDrop` | runs the drop until the helicopter leaves; `idle` at its end or once it stalls, where only `skipHelicopterDrop` goes on |
 
 `setOption` is accepted in every state but an open prompt (`promptOpen`).
 
@@ -396,7 +397,9 @@ interface level the original switches to (`interfaceLevel {soldier, level}`: at 
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
 `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
 a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropEnded {first}` ends a run of the
-helicopter drop, `first` on the first landing's, whose end plays the enemy-present music (`25`). The session copies the cosmetic animations into
+helicopter drop, `first` on the first landing's, whose end plays the enemy-present music (`25`). While a run goes on
+every other command is refused with `helicopterDrop` (§6's modal states); `skipHelicopterDrop`, the Esc key, lands
+the seats left at once and ends the run (`noHelicopterDrop` with none under way). The session copies the cosmetic animations into
 `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after every tick as
 `ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and cosmetic
 animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never audio.

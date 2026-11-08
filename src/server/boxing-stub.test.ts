@@ -51,6 +51,7 @@ async function inTheClub(seed: number, mode?: RunMode): Promise<Club> {
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const c = session.campaign;
   const ctx = c.strategic;

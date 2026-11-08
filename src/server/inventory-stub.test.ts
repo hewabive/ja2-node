@@ -51,6 +51,7 @@ async function inA10(seed: number): Promise<Squad> {
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const mercs = session.view().strategic?.mercs.map((m) => m.id) ?? [];
   expect(session.dispatch({ type: 'route', soldier: mercs[0], to: 'A10' })).toMatchObject({ ok: true });

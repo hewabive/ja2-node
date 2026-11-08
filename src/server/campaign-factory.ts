@@ -10,7 +10,7 @@ import { loadStrategicContent, type StrategicContent } from '../content/strategi
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
-import { helicopterDropUnderWay, skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
+import { helicopterDropUnderWay } from '../sim/campaign/helicopter-drop-flow.ts';
 import { DEFAULT_AIM_CONTRACT } from '../sim/campaign/laptop/aim.ts';
 import { initNewGame } from '../sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../sim/campaign/off-map-combat.ts';
@@ -280,8 +280,13 @@ async function land(session: CampaignSession, skipDrop: boolean): Promise<void> 
   await session.prepare(command);
   const result = session.dispatch(command);
   if (!result.ok) throw new Error(`the squad cannot land: ${result.reason ?? 'refused'}`);
-  if (skipDrop) skipHelicopterDropOf(session.campaign);
+  if (skipDrop) skipTheHelicopterDrop(session);
   else runTheHelicopterDrop(session);
+}
+
+function skipTheHelicopterDrop(session: CampaignSession): void {
+  const result = session.dispatch({ type: 'skipHelicopterDrop' });
+  if (!result.ok) throw new Error(`the squad cannot land at once: ${result.reason ?? 'refused'}`);
 }
 
 function runTheHelicopterDrop(session: CampaignSession): void {

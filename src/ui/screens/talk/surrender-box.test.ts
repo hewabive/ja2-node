@@ -38,6 +38,7 @@ async function offeredSurrender(seed: number): Promise<{ f: TacticalUiTest; camp
   const land = { type: 'compressTime', mode: 2 };
   await campaign.prepare(land);
   expect(campaign.dispatch(land).ok).toBe(true);
+  expect(campaign.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   const session = new Session('surrender', campaign);
   const f = await tacticalUiTest(kit, ui, seed, session);
   for (let k = 0; k < OFFER_BUDGET && !campaign.view().prompt; k++) {

@@ -58,6 +58,7 @@ async function inA10(): Promise<Session> {
   const land = { type: 'compressTime', mode: 2 };
   await created.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const first = created.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');

@@ -4,6 +4,7 @@ import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import { pythSpacesAway } from '../content/world/grid.ts';
+import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import { PromptKind } from '../sim/strategic/forces/battle-state.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { AlertStatus, Team } from '../sim/tactical/soldier.ts';
@@ -70,6 +71,7 @@ async function inA10(k: SaveKit, seed: number): Promise<Session> {
   start.numTroops = 0;
   start.numElites = 0;
   expect((await session.prepareAndDispatch({ type: 'compressTime', mode: 2 })).ok).toBe(true);
+  skipHelicopterDropOf(campaign.campaign);
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const first = session.sim.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');
@@ -129,6 +131,20 @@ describe('save rules', () => {
       expect(saveRefusal(session.sim)).toBe('promptOpen');
       state.battle.prompt = null;
       expect(saveStatus(session.sim)).toEqual({ saveMode: 'anywhere', canSave: true });
+    });
+  });
+
+  it('refuse the player’s saves while the helicopter drops the mercs, whose lock takes the save keys (Turn_Based_Input.cc:2330), and allow them after it', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 6, campaign: { mercs: 2, land: false } });
+      expect((await session.prepareAndDispatch({ type: 'compressTime', mode: 2 })).ok).toBe(true);
+      expect(campaignOf(session).campaign.state.sectorFlow.helicopterDrop.running).toBe(true);
+      expect(saveRefusal(session.sim)).toBe('helicopterDrop');
+      expect(saveRefusal(session.sim, 'quick')).toBe('helicopterDrop');
+      expect(await k.saves.save(session, { name: 'dropping' })).toMatchObject({ ok: false, refused: 'helicopterDrop' });
+      expect(describeSession(session)).toMatchObject({ canSave: false, saveRefusal: 'helicopterDrop' });
+      session.advance({ events: ['helicopterDropEnded'] });
+      expect(saveRefusal(session.sim)).toBeNull();
     });
   });
 
@@ -241,6 +257,7 @@ describe('save rules', () => {
       start.numTroops = 0;
       start.numElites = 0;
       expect((await session.prepareAndDispatch({ type: 'compressTime', mode: 2 })).ok).toBe(true);
+      skipHelicopterDropOf(campaignOf(session).campaign);
       expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
       await k.saves.flush();
       const before = writes.length;

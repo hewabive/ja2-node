@@ -144,8 +144,9 @@ write goes through a temporary file and a rename. The Dead is Dead file is the n
 | Iron Man | also refused in turn-based combat and while the loaded sector holds enemies, even outside combat (`CanGameBeSaved`, `GameSettings.cc:233-259`) | the same rule, so none in combat | allowed |
 | Dead is Dead | an explicit save is refused; a quick save writes the Dead is Dead file | the one file, at the original's save points: our turn starts, `endTurn`, a meanwhile starts, a group is about to arrive, before another save is loaded into the session, at session close and server stop; written only on our turn (or outside combat) with nothing in progress and no auto-bandage, conversation, meanwhile, prompt or shop (`DoDeadIsDeadSave`, `SaveLoadScreen.cc:1363-1405`), after rotating two backups | never blocked |
 
-- **Check order** of `saveRefusal`: `deadIsDead` (an explicit save in that mode), `autoBandaging`, `conversation`, `stopTimeQuote`,
-  `meanwhileStarting`, `promptOpen`, `shopOpen`, then Iron Man (combat first, then enemies in the loaded sector).
+- **Check order** of `saveRefusal`: `deadIsDead` (an explicit save in that mode), `autoBandaging`, `helicopterDrop`
+  (the helicopter drop, whose locked UI takes the save keys, `25`), `conversation`, `stopTimeQuote`, `meanwhileStarting`,
+  `promptOpen`, `shopOpen`, then Iron Man (combat first, then enemies in the loaded sector).
 - **Automatic saves only read the simulation.** `SaveService` hooks every session (`Session.hooks`: before and after a
   dispatch and an advance, after a whole input, on a throw); a failing hook only logs. Before an `endTurn` in
   turn-based combat the service captures the save and writes it once the command is accepted without ending combat, so

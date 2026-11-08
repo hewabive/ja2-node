@@ -53,6 +53,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('strategic cursor hints on the original data
     const land = { type: 'compressTime', mode: 2 };
     await sim.prepare(land);
     expect(sim.dispatch(land).ok).toBe(true);
+    expect(sim.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
     const session = withQueries(new Session('strategic-hints', sim), sources);
     await prepared(session);
     const report = await expectHintsAgree(session, client, sampleStrategicHints(serialisedView(session), SAMPLE_STEP));

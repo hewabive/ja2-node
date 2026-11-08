@@ -58,6 +58,7 @@ async function landedInA9(seed: number): Promise<Campaign> {
   for (const g of ctx.state.forces.groups.filter((group) => !group.player)) removeGroup(ctx, g, true);
   const c = { session, live: new ReloadingSession('auto-bandage view', session) };
   await order(c, { type: 'compressTime', mode: 2 });
+  await order(c, { type: 'skipHelicopterDrop' });
   await order(c, { type: 'enterSector', sector: LANDING });
   c.live.advance({ idle: true });
   return c;

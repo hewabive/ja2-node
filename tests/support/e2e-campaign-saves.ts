@@ -105,6 +105,7 @@ export async function buildMapScreenCampaign(saves: SaveKit, kit: StubSectorKit)
   for (const name of QUIET) quietSector(sim, name);
   const landed = await session.prepareAndDispatch({ type: 'compressTime', mode: 2 });
   if (!landed.ok) throw new Error(`landing refused: ${landed.reason}`);
+  session.dispatch({ type: 'skipHelicopterDrop' });
   if (!session.dispatch({ type: 'mapScreen' }).ok) throw new Error('the map screen did not open');
   teleportSquad(sim, parseSectorString(APPROACH));
   liberateDrassen(sim);

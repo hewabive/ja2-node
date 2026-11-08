@@ -51,6 +51,7 @@ export async function writeAutoBandageSave(dir: string): Promise<void> {
     const session = await saves.open({ seed: SEED, campaign: { profiles: [KESTREL, VANT, MORAGA], land: false } });
     clearOfEnemies(session);
     await order(session, { type: 'compressTime', mode: 2 });
+    await order(session, { type: 'skipHelicopterDrop' });
     await order(session, { type: 'enterSector', sector: LANDING });
     session.advance({ idle: true });
     await order(session, { type: 'move', soldier: merc(session, VANT).id, to: FAR_FROM_THE_SQUAD, mode: 'run' });

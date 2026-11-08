@@ -14,7 +14,9 @@
 // @src MainGameScreenHandle in auto-bandage (HandleAutoBandage returns before HandleTacticalUI, EnvironmentController,
 // @src HandleWaitTimerForNPCTrigger, CheckCustomizableTimer, HandleDialogue and CheckForMeanwhileOKStart; its mask takes every
 // @src order) and GameLoop.cc UpdateClock after it (2026-11-06); GameScreen.cc MainGameScreenHandle's gfTacticalDoHeliRun,
-// @src the run started before the next input once the frame or command that set it is done (2026-11-08).
+// @src the run started before the next input once the frame or command that set it is done; Turn_Based_Input.cc
+// @src GetKeyboardInput's gate for a locked UI (Tactical/Turn_Based_Input.cc:2330) and Handle_UI.cc's full-screen
+// @src gDisableRegion, which leave the drop no key and no button but Esc (2026-11-08).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -73,6 +75,7 @@ import {
 import { AUTO_BANDAGING } from '../tactical/auto-bandage.ts';
 import { activeTimedBombExists } from '../tactical/bombs/world-bombs.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
+import { helicopterDropRunning } from '../tactical/helicopter-drop-state.ts';
 import { STOP_TIME_CALLBACKS } from '../tactical/narrative/port.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
@@ -88,7 +91,7 @@ import { CONTRACT_CALLBACKS, ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
 import { economyLineHooks } from './economy-lines.ts';
 import { EndgameFlow } from './endgame-flow.ts';
-import { handleTacticalDoHeliRun } from './helicopter-drop-flow.ts';
+import { handleTacticalDoHeliRun, skipHelicopterDropOf } from './helicopter-drop-flow.ts';
 import { HelicopterFlow, SKYRIDER_CALLBACKS } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
@@ -126,6 +129,10 @@ const AUTO_BANDAGE_HOLDS_THE_CLOCK =
 const ACCEPTED_DURING_STOP_TIME_QUOTE: ReadonlySet<string> = new Set(['estimateAttack', 'answer', 'skipLine']);
 const ACCEPTED_WITH_TACTICAL_PROMPT: ReadonlySet<string> = new Set(['answer', 'skipLine']);
 const ACCEPTED_DURING_AUTO_BANDAGE: ReadonlySet<string> = new Set(['endAutoBandage', 'skipLine']);
+const ACCEPTED_DURING_HELICOPTER_DROP: ReadonlySet<string> = new Set(['skipHelicopterDrop', 'answer', 'skipLine']);
+const HELICOPTER_DROP_LOCK_TEXT =
+  'helicopterDrop: the helicopter is dropping the mercs and the interface is locked: advance until it leaves, or skipHelicopterDrop (the Esc key) lands the rest at once, the only way on once the drop stalls';
+const NO_HELICOPTER_DROP_TEXT = 'no helicopter drop is under way';
 const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   ...PLAYER_ORDERS,
   'move',
@@ -854,6 +861,13 @@ export class CampaignSim {
     return refuse('boxingUiLock', BOXING_UI_LOCK_TEXT);
   }
 
+  #helicopterDropRefusal(cmd: CampaignCommand): CommandResult | null {
+    const t = this.tactical?.state;
+    if (this.state.flow !== 'tactical' || !t || !helicopterDropRunning(t)) return null;
+    if (ACCEPTED_DURING_HELICOPTER_DROP.has(cmd.type) || isQueryCommand(cmd.type)) return null;
+    return refuse('helicopterDrop', HELICOPTER_DROP_LOCK_TEXT);
+  }
+
   #autoBandageRefusal(cmd: CampaignCommand): CommandResult | null {
     if (!this.#autoBandaging() || ACCEPTED_DURING_AUTO_BANDAGE.has(cmd.type) || isQueryCommand(cmd.type)) return null;
     return refused(AUTO_BANDAGING);
@@ -901,6 +915,7 @@ export class CampaignSim {
     if (story) return story;
     const locked =
       this.#autoBandageRefusal(cmd) ??
+      this.#helicopterDropRefusal(cmd) ??
       this.#boxingUiLockRefusal(cmd) ??
       this.#offTacticalScreenRefusal(cmd) ??
       this.#stopTimeQuoteRefusal(cmd) ??
@@ -918,6 +933,8 @@ export class CampaignSim {
     switch (cmd.type) {
       case 'compressTime':
         return this.#compress(cmd);
+      case 'skipHelicopterDrop':
+        return skipHelicopterDropOf(this) ? { ok: true } : refuse('noHelicopterDrop', NO_HELICOPTER_DROP_TEXT);
       case 'stopTime':
         stopTimeCompression(this.#clock, CompressionStop.REQUESTED);
         return { ok: true };

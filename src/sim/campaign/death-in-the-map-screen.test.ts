@@ -102,6 +102,7 @@ async function landedInA9(seed: number): Promise<Campaign> {
   quiet(session);
   const c = { session, live: new ReloadingSession('death-in-the-map-screen', session) };
   await order(c, { type: 'compressTime', mode: 2 });
+  await order(c, { type: 'skipHelicopterDrop' });
   await order(c, { type: 'enterSector', sector: LANDING });
   c.live.advance({ idle: true });
   return c;

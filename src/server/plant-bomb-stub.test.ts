@@ -60,6 +60,7 @@ async function kestrelInA9(seed: number, mode?: RunMode): Promise<Campaign> {
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   const live = new ReloadingSession('plant bomb', session);
   const enter = { type: 'enterSector', sector: 'A9' };
   await session.prepare(enter);

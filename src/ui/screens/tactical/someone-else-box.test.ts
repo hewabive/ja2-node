@@ -71,6 +71,7 @@ function npcStandsInTheWilderness(campaign: CampaignSession): void {
 async function vantInTheWilderness(campaign: CampaignSession, session: Session): Promise<void> {
   quiet(campaign);
   await order(campaign, session, { type: 'compressTime', mode: 2 });
+  await order(campaign, session, { type: 'skipHelicopterDrop' });
   await order(campaign, session, { type: 'enterSector', sector: LANDING });
   session.advance({ idle: true });
   await order(campaign, session, { type: 'mapScreen' });

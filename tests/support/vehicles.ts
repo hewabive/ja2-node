@@ -106,6 +106,7 @@ async function arriveAtTheHummer(d: CampaignDriver): Promise<void> {
   for (const name of QUIET) quietSector(d.sim.campaign, name);
   removeEnemyGroups(d.sim.campaign);
   await d.order({ type: 'compressTime', mode: LANDING_COMPRESSION });
+  await d.order({ type: 'skipHelicopterDrop' });
   await d.order({ type: 'mapScreen' });
   teleportSquad(d.sim, parseSectorString(APPROACH));
   const first = d.sim.view().strategic?.mercs[0];
@@ -245,6 +246,7 @@ export async function stubCampaignWithOurHummer(kit: StubSectorKit, seed: number
   for (const name of [START, ...OUR_HUMMER_ROUTE]) quietSector(session.campaign, name);
   removeEnemyGroups(session.campaign);
   await dispatchPrepared(session, { type: 'compressTime', mode: LANDING_COMPRESSION });
+  await dispatchPrepared(session, { type: 'skipHelicopterDrop' });
   await dispatchPrepared(session, { type: 'mapScreen' });
   setFact(session.campaign.state.narrative, FACT_OK_USE_HUMMER, true);
   const hummer = addVehicleOfOurs(session.campaign, parseSectorString(START));

@@ -39,6 +39,7 @@ async function inA10(read: Parameters<typeof createCampaignSession>[0], data: Da
   const land = { type: 'compressTime', mode: 2 };
   await cs.prepare(land);
   expect(cs.dispatch(land).ok).toBe(true);
+  expect(cs.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   expect(cs.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const first = cs.view().strategic?.mercs[0];
   expect(cs.dispatch({ type: 'route', soldier: first?.id, to: 'A10' })).toMatchObject({ ok: true });

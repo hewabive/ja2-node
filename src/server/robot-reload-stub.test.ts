@@ -61,6 +61,7 @@ async function withRobot(seed: number, mode?: RunMode): Promise<Scene> {
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   const live = new ReloadingSession('robot', session);
   live.advance({ idle: true });
   return { session, live, merc: robotMerc.id === 0 ? 1 : 0, robot: robotMerc.id };

@@ -1,7 +1,7 @@
 import type { ArmyContent } from '../../src/content/strategic/army.ts';
 import type { MerchantContent } from '../../src/content/strategic/merchant-content.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../../src/sim/campaign/campaign-sim.ts';
-import { helicopterDropUnderWay, skipHelicopterDropOf } from '../../src/sim/campaign/helicopter-drop-flow.ts';
+import { helicopterDropUnderWay } from '../../src/sim/campaign/helicopter-drop-flow.ts';
 import { hireMerc } from '../../src/sim/campaign/hiring.ts';
 import { initNewGame } from '../../src/sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../../src/sim/campaign/off-map-combat.ts';
@@ -169,7 +169,8 @@ export function startFirstSquadsDrop(c: CampaignSim): void {
 
 export function landFirstSquad(c: CampaignSim): void {
   startFirstSquadsDrop(c);
-  skipHelicopterDropOf(c);
+  const r = c.dispatch({ type: 'skipHelicopterDrop' });
+  if (!r.ok) throw new Error(`cannot skip the drop: ${r.reason}`);
 }
 
 export function runTheHelicopterDrop(c: CampaignSim, budget = HELICOPTER_DROP_BUDGET): number {

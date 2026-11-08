@@ -18,11 +18,12 @@ import type { SimEvent } from '../events.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { CompressMode, EventKind, NUM_SEC_IN_MIN, Warp } from '../strategic/time/constants.ts';
 import { addStrategicEvent, deleteStrategicEvent } from '../strategic/time/event-queue.ts';
-import { warpGameTime } from '../strategic/time/world-clock.ts';
+import { lockPauseState, unLockPauseState, warpGameTime } from '../strategic/time/world-clock.ts';
 import { anim } from '../tactical/anim-states.ts';
 import { AnimHeight } from '../tactical/animation.ts';
-import { eventSoldierGotHit } from '../tactical/combat/hit.ts';
+import { eventSoldierGotHit, soldierCollapse } from '../tactical/combat/hit.ts';
 import { AimShot } from '../tactical/combat/types.ts';
+import { helicopterDropStalled } from '../tactical/helicopter-drop.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
@@ -49,6 +50,7 @@ const LATER_ARRIVAL_MINUTES = 1;
 const DROP_TICKS = 40_000;
 const NONE_LEFT = 0;
 const FRAME_MS = 5;
+const LOCK_PAUSE_FOR_A_LINE = 1;
 
 function holdBackArrivals(c: CampaignSim, ids: readonly number[]): void {
   const minute = FIRST_ARRIVAL_MINUTE + LATER_ARRIVAL_MINUTES;
@@ -168,20 +170,48 @@ describe('the helicopter drop in a campaign', () => {
     expect(merc.state).toBe(anim(t.content, 'KNEEL_UP'));
   });
 
-  it('cuts a running drop short when the world is unloaded: the seats still in the helicopter get the north entry and land there at the next load (deviation "Helicopter drop cut short")', () => {
-    const { campaign: c, roster } = createTestCampaign(kit, { seed: 64, mercs: 3, garrison: NO_GARRISON });
-    startFirstSquadsDrop(c);
-    runTicks(c, DROP_TICKS, () => ourSoldiers(c).length > 0);
-    const flow = c.sectors;
+  it('cuts a run flagged on the map screen short when the world unloads: the seat gets the north entry and lands there at the next load (deviation "Helicopter drop cut short")', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 64, mercs: 2, garrison: NO_GARRISON });
+    holdBackArrivals(c, [1]);
+    landFirstSquad(c);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    lockPauseState(c.state.clock, LOCK_PAUSE_FOR_A_LINE);
+    arriveLater(c);
     const drop = c.state.sectorFlow.helicopterDrop;
+    expect([c.state.flow, drop.doHeliRun, drop.running, drop.seats]).toEqual(['strategic', true, false, [1]]);
+    const flow = c.sectors;
     if (!flow) throw new Error('no sector flow');
-    expect([drop.curDrop, drop.seats.length]).toEqual([1, 3]);
     flow.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
     flow.trashWorld();
-    expect([drop.running, drop.seats.length, drop.shadow, drop.strandedShadows.length]).toEqual([false, NONE_LEFT, null, NONE_LEFT]);
-    expect([1, 2].map((id) => roster.get(id)?.insertionCode)).toEqual([InsertionCode.NORTH, InsertionCode.NORTH]);
+    expect([drop.doHeliRun, drop.running, drop.seats.length, drop.shadow]).toEqual([false, false, NONE_LEFT, null]);
+    expect(roster.get(1)?.insertionCode).toBe(InsertionCode.NORTH);
+    unLockPauseState(c.state.clock);
     expect(flow.setCurrentWorldSector(A9)).toBe(true);
-    expect(ourSoldiers(c).map((s) => s.id)).toEqual([0, 1, 2]);
+    expect(ourSoldiers(c).map((s) => s.id)).toEqual([0, 1]);
     expect(c.tactical?.state.helicopterDrop.running).toBe(false);
+  });
+
+  it('refuses every way out of the tactical screen while a run goes on, stalled or not, until skipHelicopterDrop: the drop’s lock takes every key but Esc (Turn_Based_Input.cc:2330)', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 68, mercs: 2, garrison: NO_GARRISON });
+    startFirstSquadsDrop(c);
+    runTicks(c, DROP_TICKS, () => ourSoldiers(c).length > 0);
+    const merc = ourSoldiers(c)[0]?.id ?? -1;
+    const ways = [
+      { type: 'mapScreen' },
+      { type: 'exitSector', soldier: merc, direction: 'east', who: 'squad' },
+      { type: 'enterSector', sector: 'A10' },
+      { type: 'move', soldier: merc, to: (tactical(c).soldiers[merc]?.gridNo ?? 0) + 2, mode: 'walk' },
+    ];
+    for (const cmd of ways) expect(c.dispatch(cmd)).toMatchObject({ ok: false, data: { refusal: 'helicopterDrop' } });
+    const t = tactical(c);
+    const dropping = t.soldiers[merc];
+    if (!dropping) throw new Error('no merc down');
+    soldierCollapse(t, dropping);
+    runTicks(c, DROP_TICKS, () => helicopterDropStalled(tactical(c)));
+    expect(helicopterDropStalled(tactical(c))).toBe(true);
+    expect(c.dispatch({ type: 'mapScreen' })).toMatchObject({ ok: false, data: { refusal: 'helicopterDrop' } });
+    expect(c.dispatch({ type: 'skipHelicopterDrop' })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'skipHelicopterDrop' })).toMatchObject({ ok: false, data: { refusal: 'noHelicopterDrop' } });
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   });
 });

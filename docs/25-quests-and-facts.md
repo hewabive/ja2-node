@@ -121,28 +121,35 @@ to), and before the saved soldiers enter the map, so its bump moves nobody (`14`
 it outlives a run and a sector load: the sector flow shares one record with every loaded sector (deviation "Helicopter
 drop statics"). Its seats are soldier ids. `handleHeliDrop` runs in the tactical step before `executeOverhead`, as
 `HandleHeliDrop` runs before `ExecuteOverhead` (`GameScreen.cc:407`), and only in a non-modal tactical frame; its 100 ms
-are `TacticalState.clockMs`, which stands still on the map screen and under a tactical prompt where the original's JA2
-clock runs on, so the first step after either comes up to 100 ms later. The fades ramp as with a sample playing (`31`).
-While it runs `playerInterfaceLocked` holds, which refuses orders (`uiLocked`) and pauses the world under lock 16
+are `TacticalState.clockMs`, which stands still under a tactical prompt where the original's JA2 clock runs on, so the
+first step after one comes up to 100 ms later. The fades ramp as with a sample playing (`31`). While it runs
+`playerInterfaceLocked` holds, which refuses orders (`uiLocked`) and pauses the world under lock 16
 (`campaign/interface-lock-pause.ts`); `StartHelicopterRun`'s own lock 20 gives way to 16 within its first frame, when
-the UI handler takes `LU_BEGINUILOCK` (`Tactical/Handle_UI.cc:4003`). With the world clock paused no strategic event runs
-during a run, so no arrival can join one. The campaign's part goes through `sectorHooks`, wired by the sector flow: a
-seat's soldier (`helicopterSeat`, the roster merc), his placement with the north code (`placeHelicopterSeat`, as
-`UpdateMercInSector` places him, with no sector check), the arrival quotes (`mercArrivesQuotes`, at 467 and at the skip,
-over the whole team, `22`) and the end of a run (`helicopterRunEnded`: `HandleFirstHeliDropOfGame`, the turn times, the
-enemies called to the sweet spot and the enemy-presence line on the first run only, and the AI's unpause queued as a
-dialogue event every run); a bare tactical sim places a seat at the north entry itself. The end of a run is also the
-event `helicopterDropEnded {first}`, on which the session plays the enemy-present music after the first run.
+the UI handler takes `LU_BEGINUILOCK` (`Tactical/Handle_UI.cc:4003`). The lock's full-screen `gDisableRegion`
+(`Tactical/Handle_UI.cc:4015`) takes every click and `GetKeyboardInput` drops every key but Esc, pause and load at its
+gate for a locked UI (`Tactical/Turn_Based_Input.cc:2330`), so for a run under way, stalled or not, the campaign refuses
+every command with `helicopterDrop` but `skipHelicopterDrop` (the Esc key, the only way on from a stall), `answer`,
+`skipLine`, `setOption` and the queries (the map screen and sector exits included), and the server refuses the player's
+saves (`helicopterDrop`, `27`); snapshots stay exact. With the world clock paused no strategic event runs during a run,
+so no arrival can join one. The campaign's part goes through `sectorHooks`, wired by the sector flow: a seat's soldier
+(`helicopterSeat`, the roster merc), his placement with the north code (`placeHelicopterSeat`, as `UpdateMercInSector`
+places him, with no sector check), the arrival quotes (`mercArrivesQuotes`, at 467 and at the skip, over the whole team,
+`22`) and the end of a run (`helicopterRunEnded`: `HandleFirstHeliDropOfGame`, the turn times, the enemies called to the
+sweet spot and the enemy-presence line on the first run only, and the AI's unpause queued as a dialogue event every
+run); a bare tactical sim places a seat at the north entry itself. The end of a run is also the event
+`helicopterDropEnded {first}`, on which the session plays the enemy-present music after the first run.
 
 A run starts as the original's `gfTacticalDoHeliRun` does (`campaign/helicopter-drop-flow.ts`): the first landing
 (`InitHelicopterEntranceByMercs`, which also marks the first run) and an arrival in the loaded start sector without the
 chopper code (`MercArrivesCallback`, `Tactical/Merc_Hiring.cc:257`, which opens tactical from the map screen) flag it,
-and the run starts once the step or command that flagged it is done, on the tactical screen only: the seats the
-arrivals added (`AddMercToHeli` from `UpdateMercInSector`'s chopper branch), the north entry as the sweet spot,
-`InterruptTime`, compression at 1x and the lock's pause at once (deviation "Helicopter run start"). A world unload while
-a run is under way or flagged ends it, the seats still in the helicopter taking the north code (deviation "Helicopter
-drop cut short"). The session factory runs the first drop to its end, or skips it with `land: "skip"` (`29`); the test
-helpers take the Esc path unless a test watches the drop (`tests/support/campaign.ts`).
+and the run starts once the step or command that flagged it is done, on the tactical screen only: the seats the arrivals
+added (`AddMercToHeli` from `UpdateMercInSector`'s chopper branch), the north entry as the sweet spot, `InterruptTime`,
+compression at 1x and the lock's pause at once (deviation "Helicopter run start"). A world unload ends a run flagged or
+under way, the seats still in the helicopter taking the north code (deviation "Helicopter drop cut short"); only a run
+flagged on the map screen meets one, when the way to tactical is refused and a route takes the seat away, since the lock
+of a run under way refuses every way out and a battle lost or a surrender leaves the seats in the sector. The session
+factory runs the first drop to its end, or skips it with `land: "skip"` (`29`); the test helpers take the Esc path
+unless a test watches the drop (`tests/support/campaign.ts`).
 
 **One vehicle list, shared.** `VehicleRecord` and the slot functions live in `vehicles/vehicle-list.ts`, which both
 layers import: `strategic/forces/vehicles.ts` imports tactical code, so tactical code reaches the list only there. In a

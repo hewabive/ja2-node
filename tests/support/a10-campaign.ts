@@ -29,6 +29,7 @@ export async function campaignInA10(kit: StubSectorKit, seed: number, mercs = 2)
   const land = { type: 'compressTime', mode: 2 };
   await campaign.prepare(land);
   if (!campaign.dispatch(land).ok) throw new Error('cannot land');
+  campaign.dispatch({ type: 'skipHelicopterDrop' });
   campaign.dispatch({ type: 'mapScreen' });
   const first = campaign.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');

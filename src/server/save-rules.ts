@@ -5,13 +5,15 @@
 // @src Strategic/Meanwhile.cc BeginMeanwhile; Strategic/Map_Screen_Interface.cc HandleGroupAboutToArrive;
 // @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo;
 // @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04);
-// @src Tactical/Auto_Bandage.cc AutoBandage (its mask takes every key while the mode runs, 2026-11-06).
+// @src Tactical/Auto_Bandage.cc AutoBandage (its mask takes every key while the mode runs, 2026-11-06); Tactical/Turn_Based_Input.cc
+// @src GetKeyboardInput's gate for a locked UI, which the helicopter drop's LU_BEGINUILOCK holds (2026-11-08).
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { GameOptions, SaveMode } from '../sim/options.ts';
 import { numEnemiesInAnySector } from '../sim/strategic/forces/groups.ts';
 import { EventKind } from '../sim/strategic/time/constants.ts';
+import { helicopterDropRunning } from '../sim/tactical/helicopter-drop-state.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { npcRequestView, promptView } from './battle-view.ts';
@@ -22,6 +24,7 @@ import type { SessionSim } from './session.ts';
 
 export const SAVE_REFUSALS = [
   'autoBandaging',
+  'helicopterDrop',
   'conversation',
   'stopTimeQuote',
   'meanwhileStarting',
@@ -37,6 +40,7 @@ export type SaveRequestKind = 'player' | 'quick';
 
 export const SAVE_REFUSAL_MESSAGES: Readonly<Record<SaveRefusal, string>> = {
   autoBandaging: 'auto-bandage is running: endAutoBandage ends it',
+  helicopterDrop: 'the helicopter is dropping the mercs and the interface is locked: advance until it leaves, or skipHelicopterDrop',
   conversation: 'a conversation is open, or someone has something to say outside tactical',
   stopTimeQuote: 'the game stands while a merc warns of a trap',
   meanwhileStarting: 'a meanwhile scene is starting or playing',
@@ -107,6 +111,11 @@ function autoBandaging(sim: SessionSim): boolean {
   return tacticalOf(sim)?.state.pathEnv.autoBandage ?? false;
 }
 
+function helicopterDropping(sim: SessionSim): boolean {
+  const t = tacticalOf(sim)?.state;
+  return t !== undefined && helicopterDropRunning(t);
+}
+
 function modalRefusal(campaign: CampaignSim): SaveRefusal | null {
   if (conversationOpen(campaign)) return 'conversation';
   if (campaign.talk?.stopTimeQuotePlaying()) return 'stopTimeQuote';
@@ -120,6 +129,7 @@ export function saveRefusal(sim: SessionSim, request: SaveRequestKind = 'player'
   const mode = saveModeOf(sim);
   if (mode === 'deadIsDead' && request === 'player') return 'deadIsDead';
   if (autoBandaging(sim)) return 'autoBandaging';
+  if (helicopterDropping(sim)) return 'helicopterDrop';
   const campaign = campaignOf(sim);
   const modal = campaign ? modalRefusal(campaign) : null;
   if (modal) return modal;

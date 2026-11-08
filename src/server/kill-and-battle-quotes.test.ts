@@ -46,6 +46,7 @@ async function squadInA9(seed: number): Promise<Campaign> {
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   const live = new ReloadingSession('quotes', session);
   const enter = { type: 'enterSector', sector: 'A9' };
   await session.prepare(enter);

@@ -47,6 +47,7 @@ export async function writeLaptopSitesSave(dir: string): Promise<LaptopSitesSave
       Object.assign(sectorInfo(sim.campaign.state.map, parseSectorString(name)), { numAdmins: 0, numTroops: 0, numElites: 0 });
     const landed = await session.prepareAndDispatch({ type: 'compressTime', mode: 2 });
     if (!landed.ok) throw new Error(`landing refused: ${landed.reason}`);
+    session.dispatch({ type: 'skipHelicopterDrop' });
     if (!session.dispatch({ type: 'mapScreen' }).ok) throw new Error('the map screen did not open');
     const opened = session.dispatch({ type: 'openLaptop' });
     if (!opened.ok) throw new Error(`the laptop did not open: ${opened.reason}`);

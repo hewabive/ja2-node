@@ -48,6 +48,7 @@ async function landedCampaign(seed: number, mercs: number, quiet: readonly strin
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const live = withQueries(new ReloadingSession('map-screen', session), {
     read: kit.read,

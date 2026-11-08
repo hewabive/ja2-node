@@ -45,6 +45,7 @@ describe('query purity: a query leaves the session byte-identical and out of the
     const land = { type: 'compressTime', mode: 2 };
     await created.prepare(land);
     expect(session.dispatch(land).ok).toBe(true);
+    expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
     expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     const merc = session.sim.view().strategic?.mercs[0];
     if (!merc) throw new Error('no merc');

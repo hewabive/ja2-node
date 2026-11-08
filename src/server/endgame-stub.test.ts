@@ -39,6 +39,7 @@ async function inThePalaceBasement(seed: number, mode?: RunMode): Promise<{ sess
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  expect(session.dispatch({ type: 'skipHelicopterDrop' }).ok).toBe(true);
   await session.worlds?.prepare(PALACE_MAPS);
   const c = session.campaign;
   const ctx = c.strategic;

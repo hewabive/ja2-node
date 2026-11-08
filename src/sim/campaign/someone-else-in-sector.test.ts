@@ -104,6 +104,7 @@ async function vantInTheWilderness(seed: number, lastDateSpokenTo = 0): Promise<
   quiet(session);
   const c = { session, live: new ReloadingSession('someone-else-in-sector', session) };
   await order(c, { type: 'compressTime', mode: 2 });
+  await order(c, { type: 'skipHelicopterDrop' });
   await order(c, { type: 'enterSector', sector: LANDING });
   c.live.advance({ idle: true });
   await order(c, { type: 'mapScreen' });
