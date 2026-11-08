@@ -95,10 +95,6 @@ export function handleMercArrivesQuotes(ctx: ContractContext, arrived: RosterMer
   }
 }
 
-function waitsForTheFirstHelicopterDrop(ctx: ContractContext): boolean {
-  return ctx.state.didGameJustStart;
-}
-
 export function mercArrived(ctx: ContractContext, m: RosterMerc): void {
   const s = ctx.state;
   const now = worldTotalMinutes(s.clock);
@@ -112,5 +108,5 @@ export function mercArrived(ctx: ContractContext, m: RosterMerc): void {
     if (worldMinutesInDay(s.clock) < minute)
       addSameDayStrategicEvent(s.queue, s.clock, EventKind.MERC_COMPLAIN_EQUIPMENT, minute, m.profile);
   }
-  if (!waitsForTheFirstHelicopterDrop(ctx)) handleMercArrivesQuotes(ctx, m);
+  handleMercArrivesQuotes(ctx, m);
 }

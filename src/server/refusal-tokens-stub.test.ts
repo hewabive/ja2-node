@@ -3,6 +3,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { drivenSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
+import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { CommandResult } from '../sim/command.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -29,6 +30,7 @@ async function landedCampaign(): Promise<CampaignSession> {
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  skipHelicopterDropOf(session.campaign);
   expect(session.campaign.state.flow).toBe('tactical');
   return session;
 }

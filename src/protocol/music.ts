@@ -83,7 +83,6 @@ type EventOf<T extends SimEvent['type']> = Extract<SimEvent, { type: T }>;
 function sectorLoaded(s: Setter, e: EventOf<'sectorLoaded'>): void {
   if (e.enemyPresence) s.set(MusicMode.TACTICAL_ENEMY_PRESENT);
   s.sectorEntry(e.hostiles ?? 0);
-  if (e.firstArrival) s.set(MusicMode.TACTICAL_ENEMY_PRESENT);
 }
 
 function combatEnded(s: Setter, e: EventOf<'combatEnded'>): void {
@@ -127,6 +126,9 @@ function apply(s: Setter, e: SimEvent, facts: MusicFacts): void {
       return;
     case 'enemyPresence':
       s.set(MusicMode.TACTICAL_ENEMY_PRESENT);
+      return;
+    case 'helicopterDropEnded':
+      if (e.first) s.set(MusicMode.TACTICAL_ENEMY_PRESENT);
       return;
     case 'combatStarted':
       s.set(MusicMode.TACTICAL_BATTLE);

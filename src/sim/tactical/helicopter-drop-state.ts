@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-08. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Entering.cc the drop's file statics (gHeliSeats, gfHandleHeli, the script position and
 // @src state, the round, the merc being dropped, the exit count, the volume and its fades, gfFirstGuyDown,
-// @src gfIngagedInDrop, gubMoveAwayRepeated, the shadow tile gpHeli) and HeliStateEnums.
+// @src gfIngagedInDrop, gubMoveAwayRepeated, the shadow tile gpHeli) and HeliStateEnums; gfFirstHeliRun and
+// @src GameScreen.cc gfTacticalDoHeliRun (2026-11-08).
 
 export const HeliState = { APPROACH: 0, MOVETO: 1, BEGINDROP: 2, DROP: 3, ENDDROP: 4, MOVEAWAY: 5, EXIT: 6 } as const;
 
@@ -32,6 +33,8 @@ export interface HelicopterDrop {
   moveAwayRepeated: number;
   shadow: HeliShadow | null;
   readonly strandedShadows: HeliShadow[];
+  doHeliRun: boolean;
+  firstHeliRun: boolean;
 }
 
 export function createHelicopterDrop(): HelicopterDrop {
@@ -54,6 +57,8 @@ export function createHelicopterDrop(): HelicopterDrop {
     moveAwayRepeated: 0,
     shadow: null,
     strandedShadows: [],
+    doHeliRun: false,
+    firstHeliRun: false,
   };
 }
 

@@ -39,9 +39,8 @@ async function landingMusic(session: Session): Promise<MusicState[]> {
   expect(session.dispatch({ type: 'closeLaptop' }).ok).toBe(true);
   seen.push(session.music);
   await session.prepareAndDispatch({ type: 'compressTime', mode: 2 });
-  session.advance({ idle: true });
   seen.push(session.music);
-  session.advance({ ticks: 1 });
+  session.advance({ events: ['helicopterDropEnded'] });
   seen.push(session.music);
   return seen;
 }
@@ -79,7 +78,7 @@ describe('the music mode of a session', () => {
     }
   });
 
-  it('follows a new campaign from the laptop to the first landing, and a save and a load keep it', async () => {
+  it('follows a new campaign from the laptop to the end of the first helicopter drop, and a save and a load keep it', async () => {
     const k = await createSaveKit(kit);
     try {
       const session = await k.factory('campaign', { seed: 3, campaign: { hire: [] } });
@@ -92,8 +91,8 @@ describe('the music mode of a session', () => {
       expect(session.music.mode).toBe(MusicMode.LAPTOP);
       const land = { type: 'compressTime', mode: 2 };
       await session.prepareAndDispatch(land);
-      session.advance({ idle: true });
-      session.advance({ ticks: 1 });
+      expect(session.music.mode).toBe(MusicMode.TACTICAL_NOTHING);
+      session.advance({ events: ['helicopterDropEnded'] });
       const sim = session.sim;
       if (!(sim instanceof CampaignSession)) throw new Error('not a campaign');
       expect(sim.campaign.state.worldSector).not.toBeNull();

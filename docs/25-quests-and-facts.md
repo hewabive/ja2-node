@@ -32,6 +32,7 @@ strategic checks: goods, money, hospital          strategic/narrative/npc-events
   over the campaign, sector loaded or not         campaign/narrative/quest-world.ts
 helicopter: flights, SAMs, hovering, the bill     strategic/forces/helicopter.ts, campaign/helicopter-flow.ts
   the mercs' drop on the loaded start sector      tactical/helicopter-drop.ts, helicopter-drop-state.ts, helicopter-landing.ts
+    its start, its seats and its end                campaign/helicopter-drop-flow.ts, sector-flow.ts
 vehicles: the list, a vehicle soldier's slot      vehicles/vehicle-list.ts, tactical/vehicle-soldiers.ts
   boarding and leaving on the loaded map          tactical/vehicle-boarding.ts, campaign/vehicle-boarding.ts
   repair and refuel with a toolkit or gas can     tactical/tile-tools.ts, vehicles/vehicle-fuel.ts
@@ -52,6 +53,7 @@ the quest log of the player view                  src/server/quest-view.ts
 | `tactical/narrative/boxing.ts`, `boxing-state.ts`, `boxing-events.ts`; `tactical/ai/decide-boxing.ts` | The match, the state tests the original spreads over tactical code, the boxers' AI |
 | `strategic/forces/helicopter.ts`, `helicopter-state.ts`, `helicopter-events.ts`, `vehicles.ts`; `campaign/helicopter-flow.ts` | Skyrider's helicopter; `HelicopterFlow`: the hover events, the hourly debt, the monologues, the KILL_CHOPPER meanwhile, the commands |
 | `tactical/helicopter-drop.ts`, `helicopter-drop-state.ts`, `helicopter-landing.ts` | The mercs' drop from the helicopter (`TacticalState.helicopterDrop`): the seats, the script and its rounds, the fades, the shadow, the Esc skip (`skipHelicopterDrop`) and code 467 at the end of `HELIDROP` |
+| `campaign/helicopter-drop-flow.ts` | The campaign's side of the drop: the first landing's and a later arrival's run (`gfTacticalDoHeliRun`, started once the step or command that set it is done), the Esc skip with the lock's end (`skipHelicopterDropOf`), `HandleFirstHeliDropOfGame` and the drop cut short by a world unload |
 | `tactical/landed-helicopter.ts` | The helicopter standing in the loaded map (`TacticalState.landedHelicopter`): its pieces, their structures, the bump and their tile changes |
 | `campaign/robot-control.ts`, `tactical/narrative/robot.ts` | `ControllingRobot` and the remote holder; an uncontrolled robot's orders and the controller's interrupt points |
 | `strategic/economy/vehicle-assignment.ts` | Boarding a vehicle (`AddSoldierToVehicle`, the takeover of a vehicle not ours included) and who must drive it |
@@ -123,11 +125,24 @@ are `TacticalState.clockMs`, which stands still on the map screen and under a ta
 clock runs on, so the first step after either comes up to 100 ms later. The fades ramp as with a sample playing (`31`).
 While it runs `playerInterfaceLocked` holds, which refuses orders (`uiLocked`) and pauses the world under lock 16
 (`campaign/interface-lock-pause.ts`); `StartHelicopterRun`'s own lock 20 gives way to 16 within its first frame, when
-the UI handler takes `LU_BEGINUILOCK` (`Tactical/Handle_UI.cc:4003`). The campaign's part goes through `sectorHooks`: a
-seat's soldier (`helicopterSeat`), his placement with the north code (`placeHelicopterSeat`, `UpdateMercInSector`), the
-arrival quotes (`mercArrivesQuotes`, at 467 and at the skip) and the end of a run (`helicopterRunEnded`,
-`HandleFirstHeliDropOfGame`); a bare tactical sim places a seat at the north entry itself. The campaign starts no run
-yet (gaps "Helicopter entrance").
+the UI handler takes `LU_BEGINUILOCK` (`Tactical/Handle_UI.cc:4003`). With the world clock paused no strategic event runs
+during a run, so no arrival can join one. The campaign's part goes through `sectorHooks`, wired by the sector flow: a
+seat's soldier (`helicopterSeat`, the roster merc), his placement with the north code (`placeHelicopterSeat`, as
+`UpdateMercInSector` places him, with no sector check), the arrival quotes (`mercArrivesQuotes`, at 467 and at the skip,
+over the whole team, `22`) and the end of a run (`helicopterRunEnded`: `HandleFirstHeliDropOfGame`, the turn times, the
+enemies called to the sweet spot and the enemy-presence line on the first run only, and the AI's unpause queued as a
+dialogue event every run); a bare tactical sim places a seat at the north entry itself. The end of a run is also the
+event `helicopterDropEnded {first}`, on which the session plays the enemy-present music after the first run.
+
+A run starts as the original's `gfTacticalDoHeliRun` does (`campaign/helicopter-drop-flow.ts`): the first landing
+(`InitHelicopterEntranceByMercs`, which also marks the first run) and an arrival in the loaded start sector without the
+chopper code (`MercArrivesCallback`, `Tactical/Merc_Hiring.cc:257`, which opens tactical from the map screen) flag it,
+and the run starts once the step or command that flagged it is done, on the tactical screen only: the seats the
+arrivals added (`AddMercToHeli` from `UpdateMercInSector`'s chopper branch), the north entry as the sweet spot,
+`InterruptTime`, compression at 1x and the lock's pause at once (deviation "Helicopter run start"). A world unload while
+a run is under way or flagged ends it, the seats still in the helicopter taking the north code (deviation "Helicopter
+drop cut short"). The session factory runs the first drop to its end, or skips it with `land: "skip"` (`29`); the test
+helpers take the Esc path unless a test watches the drop (`tests/support/campaign.ts`).
 
 **One vehicle list, shared.** `VehicleRecord` and the slot functions live in `vehicles/vehicle-list.ts`, which both
 layers import: `strategic/forces/vehicles.ts` imports tactical code, so tactical code reaches the list only there. In a
@@ -255,6 +270,7 @@ says otherwise:
 | The Esc skip leaves the fade flags as they were, so after a skip in the fade-out the next run fades in and straight out and ends in MOVETO before its seat drops, forgetting the seat and leaving its shadow on the map (`Tactical/Merc_Entering.cc:462-504`, `:542`) | `src/sim/tactical/helicopter-drop.test.ts` "leaves the fade flags set …" |
 | A merc taken out of `HELIDROP` before code 467 (a hit, a collapse) leaves the drop engaged: it hovers in DROP until the skip, and every later run hovers before its first merc, as only code 467 clears `gfIngagedInDrop` (`Tactical/Soldier_Ani.cc:980`) | `src/sim/tactical/helicopter-drop.test.ts` "stalls in DROP …", "stays engaged after a stall …" |
 | MOVEAWAY flies once, with no repeat: `REPEAT_HELI_MOVEAWAY` is the 640x480 screen's offset over 7, which is 0 (`Tactical/Merc_Entering.cc:37`, `UILayout.cc:68`) | `src/sim/tactical/helicopter-drop.test.ts` "flies MOVEAWAY once …" |
+| Only the first run syncs the strategic turn times, so a later run's end leaves the real-time turn due and the first poll after it runs one at once (`Tactical/Merc_Entering.cc:780`) | `src/sim/campaign/helicopter-drop-flow.test.ts` "flies a later arrival in the loaded start sector …" |
 | A helicopter piece destroyed in the sector stays off the map after a load, but comes back at the next sector entry: the entry adds the helicopter a second time after the map changes took the piece away (`Strategic/StrategicMap.cc:520` after `:880`) | `src/sim/campaign/sector-flow.test.ts` "brings a helicopter piece destroyed …", "keeps a helicopter piece destroyed before the save …" |
 
 Not pinned yet:
@@ -282,13 +298,14 @@ Inferred from reading the source:
 - The toolkit's repair assignment at the end of its walk (the probe stops the walk), and a vehicle's battle sound
   spoken by a passenger.
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
-- The drop: the oracle records it frame by frame (`tools/oracle/README.md`, "Helicopter drop"), but no comparer reads
-  the outputs yet; on the original A9 the first drop of its first block lands and walks the mercs on the native tiles
-  (`src/sim/tactical/helicopter-drop-original.test.ts`).
+- The drop: `tools/oracle/helidrop-compare.ts` replays the oracle's new games and compares our mercs and the drop frame
+  by frame (`tools/oracle/README.md`, "Helicopter drop"), up to the frame where the A9 garrison's AI begins combat,
+  which the dump cannot replay; a native save in mid-drop is not compared (gaps "Helicopter entrance").
 - The helicopter on the map: no probe dumps the structures or the soldiers' tiles after a load of the airport with the
   helicopter on the ground; the stub helicopter (`stubs/helicopter.ts`) has its own shapes, so stub tests pin the pieces'
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
 Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance". Deviations of
-this domain: "Helicopter on load", "Toolkit repair in tactical".
+this domain: "Helicopter on load", "Toolkit repair in tactical", "Helicopter drop statics", "Helicopter run start",
+"Helicopter drop cut short".

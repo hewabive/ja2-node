@@ -1,6 +1,7 @@
 import type { ArmyContent } from '../../src/content/strategic/army.ts';
 import type { MerchantContent } from '../../src/content/strategic/merchant-content.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../../src/sim/campaign/campaign-sim.ts';
+import { helicopterDropUnderWay, skipHelicopterDropOf } from '../../src/sim/campaign/helicopter-drop-flow.ts';
 import { hireMerc } from '../../src/sim/campaign/hiring.ts';
 import { initNewGame } from '../../src/sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../../src/sim/campaign/off-map-combat.ts';
@@ -32,6 +33,8 @@ const STATS = {
   medical: 30,
   experience: 3,
 };
+
+const HELICOPTER_DROP_BUDGET = 40_000;
 
 export interface CampaignKit {
   readonly sectors: StubSectorKit;
@@ -159,9 +162,29 @@ export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): 
   return mode ? drivenTestCampaign(kit, options, created, mode) : created;
 }
 
-export function landFirstSquad(c: CampaignSim): void {
+export function startFirstSquadsDrop(c: CampaignSim): void {
   const r = c.dispatch({ type: 'compressTime', mode: CompressMode.MIN5 });
   if (!r.ok) throw new Error(`cannot land: ${r.reason}`);
+}
+
+export function landFirstSquad(c: CampaignSim): void {
+  startFirstSquadsDrop(c);
+  skipHelicopterDropOf(c);
+}
+
+export function runTheHelicopterDrop(c: CampaignSim, budget = HELICOPTER_DROP_BUDGET): number {
+  let ticks = 0;
+  for (; helicopterDropUnderWay(c); ticks++) {
+    if (ticks >= budget) throw new Error('the helicopter drop did not end');
+    c.step();
+  }
+  reloadPoint(c);
+  return ticks;
+}
+
+export function dropFirstSquad(c: CampaignSim): number {
+  startFirstSquadsDrop(c);
+  return runTheHelicopterDrop(c);
 }
 
 export function runTicks(c: CampaignSim, ticks: number, until: () => boolean = () => false): number {

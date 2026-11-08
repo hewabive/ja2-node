@@ -237,6 +237,7 @@ export class MainFlow {
     expect(await page.evaluate(() => window.__ja2Ui.map?.screen?.flow)).toBe('strategic');
     await clickWidget(page, 'compressMore');
     await tacticalReady(page);
+    await this.game.advance(this.session, { idle: true });
     const view = await this.game.observe(this.session);
     expect(view.strategic?.flow).toBe('tactical');
     expect(view.soldiers.filter((s) => s.team === OUR_TEAM).length).toBeGreaterThan(0);

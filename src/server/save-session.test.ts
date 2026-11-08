@@ -128,7 +128,8 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       await session.prepare(compress);
       expect(session.dispatch(compress)).toEqual({ ok: true });
       expect([c.state.didGameJustStart, c.state.flow, c.state.worldSector]).toEqual([false, 'tactical', { x: 9, y: 1, z: 0 }]);
-      expect(session.drainEvents().find((e) => e.type === 'sectorLoaded')).toMatchObject({ sector: 'A9', firstArrival: true });
+      expect(session.drainEvents().find((e) => e.type === 'sectorLoaded')).toMatchObject({ sector: 'A9' });
+      expect(c.state.sectorFlow.helicopterDrop.firstHeliRun).toBe(true);
     },
   );
 

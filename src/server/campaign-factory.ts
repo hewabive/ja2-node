@@ -10,6 +10,7 @@ import { loadStrategicContent, type StrategicContent } from '../content/strategi
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
+import { helicopterDropUnderWay, skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import { DEFAULT_AIM_CONTRACT } from '../sim/campaign/laptop/aim.ts';
 import { initNewGame } from '../sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../sim/campaign/off-map-combat.ts';
@@ -39,7 +40,7 @@ export interface CampaignRequest {
   readonly hire?: readonly CampaignHire[] | undefined;
   readonly mercs?: number | undefined;
   readonly imp?: Readonly<Record<string, unknown>> | undefined;
-  readonly land?: boolean | undefined;
+  readonly land?: boolean | 'skip' | undefined;
   readonly saveMode?: SaveMode | undefined;
   readonly deadIsDeadName?: string | undefined;
   readonly deadIsDeadDescription?: string | undefined;
@@ -53,6 +54,7 @@ export const DEFAULT_STUB_SQUAD_SIZE = 4;
 export const STUB_SQUAD_PROFILES: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 export const MAX_SQUAD = 6;
 const IMP_INTRO_MAIL = 'IMP_EMAIL_INTRO';
+const HELICOPTER_DROP_BUDGET_TICKS = 100_000;
 
 async function withStubProfiles(read: ReadFile, content: TacticalContent): Promise<TacticalContent> {
   if (content.profiles.length > 0) return content;
@@ -269,13 +271,22 @@ export async function createCampaignSession(
   if (request.hire?.length === 0 && !request.imp) return session;
   const closed = campaign.dispatch({ type: 'closeLaptop' });
   if (!closed.ok) throw new Error(`cannot close the laptop: ${closed.reason ?? 'refused'}`);
-  if (request.land !== false) await land(session);
+  if (request.land !== false) await land(session, request.land === 'skip');
   return session;
 }
 
-async function land(session: CampaignSession): Promise<void> {
+async function land(session: CampaignSession, skipDrop: boolean): Promise<void> {
   const command = { type: 'compressTime', mode: CompressMode.MIN5 };
   await session.prepare(command);
   const result = session.dispatch(command);
   if (!result.ok) throw new Error(`the squad cannot land: ${result.reason ?? 'refused'}`);
+  if (skipDrop) skipHelicopterDropOf(session.campaign);
+  else runTheHelicopterDrop(session);
+}
+
+function runTheHelicopterDrop(session: CampaignSession): void {
+  for (let tick = 0; helicopterDropUnderWay(session.campaign); tick++) {
+    if (tick >= HELICOPTER_DROP_BUDGET_TICKS) throw new Error('the helicopter drop did not end');
+    session.step();
+  }
 }

@@ -7,6 +7,7 @@ import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { StrategicView } from '../protocol/view.ts';
+import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSaveSession } from './save-session.ts';
 
@@ -48,13 +49,14 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('map-screen view fields on the original data
     const land = { type: 'compressTime', mode: 2 };
     await sim.prepare(land);
     expect(sim.dispatch(land).ok).toBe(true);
+    skipHelicopterDropOf(sim.campaign);
     const view = sim.view();
     const s = view.strategic;
     if (!s) throw new Error('no strategic view');
     expectConsistentEconomy(s);
     expect(s.mines?.every((m) => !m.playerControls)).toBe(true);
     expect(view.clock?.canCompress).toBe(false);
-    expect(view.clock?.compressRefusal).toBe('enemiesPresent');
+    expect(view.clock?.compressRefusal).toBe('dialogueQueued');
     for (const m of s.mercs) expect(m.salary).toBeGreaterThan(0);
   });
 

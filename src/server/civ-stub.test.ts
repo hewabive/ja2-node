@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
+import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../sim/strategic/narrative/facts.ts';
@@ -32,6 +33,7 @@ async function landedUnderFire(seed: number, mode?: RunMode): Promise<{ session:
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  skipHelicopterDropOf(session.campaign);
   const live = new ReloadingSession('t', session);
   live.advance({ ticks: 20 });
   const t = session.campaign.tactical?.state;

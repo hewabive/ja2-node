@@ -13,7 +13,8 @@
 // @src UpdatePausedStatesDueToTimeCompression, all before GameLoop.cc UpdateClock, 2026-11-05); GameScreen.cc
 // @src MainGameScreenHandle in auto-bandage (HandleAutoBandage returns before HandleTacticalUI, EnvironmentController,
 // @src HandleWaitTimerForNPCTrigger, CheckCustomizableTimer, HandleDialogue and CheckForMeanwhileOKStart; its mask takes every
-// @src order) and GameLoop.cc UpdateClock after it (2026-11-06).
+// @src order) and GameLoop.cc UpdateClock after it (2026-11-06); GameScreen.cc MainGameScreenHandle's gfTacticalDoHeliRun,
+// @src the run started before the next input once the frame or command that set it is done (2026-11-08).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -87,6 +88,7 @@ import { CONTRACT_CALLBACKS, ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
 import { economyLineHooks } from './economy-lines.ts';
 import { EndgameFlow } from './endgame-flow.ts';
+import { handleTacticalDoHeliRun } from './helicopter-drop-flow.ts';
 import { HelicopterFlow, SKYRIDER_CALLBACKS } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
@@ -705,6 +707,7 @@ export class CampaignSim {
     this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
     this.#reEvaluateNothingToDo();
+    handleTacticalDoHeliRun(this);
     this.#collectEvents();
     this.#syncClockEvents();
   }
@@ -839,6 +842,7 @@ export class CampaignSim {
     this.battle?.settle();
     this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
+    handleTacticalDoHeliRun(this);
     this.#collectEvents();
     this.#syncClockEvents();
     return result;

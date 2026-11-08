@@ -48,6 +48,20 @@ describe('a new campaign session', () => {
     expect(session.view()).toMatchObject({ mapPath: 'stubs/world/maps/a9.dat', clock: { hour: 7 } });
   });
 
+  it('runs the first helicopter drop to its end, and with land: "skip" lands the squad at once as the Esc key does', async () => {
+    const dropped = await create(7, { mercs: 2 });
+    const skipped = await create(7, { mercs: 2, land: 'skip' });
+    expect(skipped.campaign.tick).toBe(0);
+    expect(dropped.campaign.tick).toBeGreaterThan(0);
+    skipped.step();
+    for (const session of [dropped, skipped]) {
+      const drop = session.campaign.state.sectorFlow.helicopterDrop;
+      expect([drop.running, drop.firstHeliRun, session.campaign.state.clock.paused]).toEqual([false, false, false]);
+      expect(session.view().soldiers.filter((s) => s.team === Team.OUR)).toHaveLength(2);
+      expect(session.drainEvents().filter((e) => e.type === 'helicopterDropEnded')).toMatchObject([{ first: true }]);
+    }
+  });
+
   it('is the same game for the same seed', async () => {
     const a = (await create(9, {})).view();
     const b = (await create(9, {})).view();

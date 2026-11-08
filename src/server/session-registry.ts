@@ -110,7 +110,12 @@ export const NEW_SESSION_SHAPE = {
         .max(6)
         .optional()
         .describe('size of the default squad (hired in order while affordable and available)'),
-      land: z.boolean().optional().describe('fly the squad in at once (default true); false closes the laptop at the first hour'),
+      land: z
+        .union([z.boolean(), z.literal('skip')])
+        .optional()
+        .describe(
+          'fly the squad in (default true: the helicopter drops the mercs one at a time, about 40 s of tactical time, and the session starts once it has left); "skip" lands them at once as the Esc key does; false closes the laptop at the first hour',
+        ),
       saveMode: z.enum(SAVE_MODES).optional().describe('alias of options.saveMode'),
       deadIsDeadName: z.string().regex(SAVE_FILE_NAME).optional().describe('the save name of a deadIsDead campaign (default DeadIsDead)'),
       deadIsDeadDescription: z

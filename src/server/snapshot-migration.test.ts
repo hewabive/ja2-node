@@ -14,6 +14,7 @@ import { VehicleSeat } from '../sim/strategic/forces/constants.ts';
 import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creation.ts';
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
+import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
 import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
 import { setSoldierPosition } from '../sim/tactical/movement.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
@@ -1331,7 +1332,7 @@ describe('snapshot version 32 (no random idle animation counter) migrates with e
   });
 
   it('a landed campaign', async () => {
-    await expectCountsAtZero(await createCampaignSession(kit.read, exists, 9));
+    await expectCountsAtZero(await createCampaignSession(kit.read, exists, 9, { land: 'skip' }));
   });
 });
 
@@ -2914,6 +2915,8 @@ const NO_HELICOPTER_DROP = {
   moveAwayRepeated: 0,
   shadow: null,
   strandedShadows: [],
+  doHeliRun: false,
+  firstHeliRun: false,
 };
 
 function withoutHelicopterDrop(value: Json): Json {
@@ -2960,9 +2963,59 @@ describe('snapshot version 59 (no helicopter drop) migrates with no drop running
   });
 
   it('a landed campaign, whose loaded sector shares the record of the sector flow, as the drop’s statics outlive a sector load', async () => {
-    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const campaign = await createCampaignSession(kit.read, exists, 9, { land: 'skip' });
+    Object.assign(campaign.campaign.state.sectorFlow.helicopterDrop, createHelicopterDrop());
     expect(campaign.campaign.tactical?.state.helicopterDrop).toBe(campaign.campaign.state.sectorFlow.helicopterDrop);
     const restored = (await expectNoHelicopterDrop(campaign)) as CampaignSession;
     expect(restored.campaign.tactical?.state.helicopterDrop).toBe(restored.campaign.state.sectorFlow.helicopterDrop);
+  });
+});
+
+const RUN_FLAG_KEYS = ['doHeliRun', 'firstHeliRun'];
+
+function withoutRunFlags(value: Json, inDrop = false): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutRunFlags(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (inDrop && RUN_FLAG_KEYS.includes(key)) expect(v).toBe(false);
+    else out[key] = withoutRunFlags(v, key === HELICOPTER_DROP_KEY);
+  }
+  return out;
+}
+
+function versionSixty(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutRunFlags(value)]);
+  return { ...snapshot, version: 60, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 60 (no pending run, no first-run flag) migrates with no run pending and the first run over', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectRunFlagsDown(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixty(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"strandedShadows":[],"doHeliRun":false,"firstHeliRun":false');
+    expect(JSON.stringify(legacy)).not.toContain('"firstHeliRun"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectRunFlagsDown(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a campaign after its first drop', async () => {
+    await expectRunFlagsDown(await createCampaignSession(kit.read, exists, 9));
   });
 });

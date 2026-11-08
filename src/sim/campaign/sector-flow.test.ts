@@ -6,6 +6,7 @@ import {
   ourSoldiers,
   runTicks,
   runUntilIdle,
+  startFirstSquadsDrop,
   walkSquadToEastEdge,
 } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
@@ -30,6 +31,7 @@ import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { PanicFlags } from '../tactical/ai/panic-triggers.ts';
+import { anim } from '../tactical/anim-states.ts';
 import { Detonator, PANIC_FREQUENCY, setDelay, setDetonator, setFrequency } from '../tactical/bombs/bomb-object.ts';
 import { addBlueFlag, knownMineTiles, MineFlag, setMineFlag } from '../tactical/bombs/mine-flags.ts';
 import { perceiveDoor } from '../tactical/doors/door-status.ts';
@@ -62,6 +64,7 @@ import { type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../ta
 import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
+import { helicopterDropUnderWay } from './helicopter-drop-flow.ts';
 import { sectorKey } from './sector-diff.ts';
 import { type SectorWorlds, UnloadCode } from './sector-flow.ts';
 
@@ -133,15 +136,27 @@ describe('loading a sector from the strategic layer', () => {
     expect(t.profiles).toBe(campaign.state.profiles);
   });
 
-  it('turns each dropped merc east and walks him to the closest free tile of his south-east quadrant (Soldier_Ani.cc code 467)', () => {
+  it('drops the mercs one at a time, the next once the one before reaches code 467, which turns him east and walks him to the closest free tile of his south-east quadrant (Merc_Entering.cc:579, Soldier_Ani.cc code 467)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 5, garrison: NO_GARRISON });
-    landFirstSquad(campaign);
+    startFirstSquadsDrop(campaign);
     const t = campaign.tactical?.state;
     if (!t) throw new Error('no sector');
-    const landed = new Map(
-      ourSoldiers(campaign).map((s) => [s.id, { gridNo: s.gridNo, eastFree: whoIsThere(t, s.gridNo + 1, 0) === null }]),
-    );
-    expect(new Set(ourSoldiers(campaign).map((s) => s.direction))).toEqual(new Set([Direction.EAST]));
+    const landed = new Map<number, { gridNo: number; eastFree: boolean; direction: number }>();
+    const helidrop = anim(t.content, 'HELIDROP');
+    let engaged = false;
+    for (let tick = 0; helicopterDropUnderWay(campaign); tick++) {
+      if (tick > 40_000) throw new Error('the drop did not end');
+      campaign.step();
+      const dropping = ourSoldiers(campaign).filter((s) => s.state === helidrop);
+      expect(dropping.length).toBeLessThanOrEqual(1);
+      const freed = engaged && !t.helicopterDrop.engagedInDrop;
+      engaged = t.helicopterDrop.engagedInDrop;
+      if (!freed) continue;
+      const s = ourSoldiers(campaign).find((m) => !landed.has(m.id));
+      if (s) landed.set(s.id, { gridNo: s.gridNo, eastFree: whoIsThere(t, s.gridNo + 1, 0) === null, direction: s.direction });
+    }
+    expect(landed.size).toBe(4);
+    expect(new Set([...landed.values()].map((l) => l.direction))).toEqual(new Set([Direction.EAST]));
     runUntilIdle(campaign);
     const steps = ourSoldiers(campaign).map((s) => {
       const from = landed.get(s.id) ?? { gridNo: s.gridNo, eastFree: false };
@@ -155,6 +170,7 @@ describe('loading a sector from the strategic layer', () => {
     const eastward = steps.filter((step) => step.eastFree);
     expect(eastward.length).toBeGreaterThan(0);
     expect(eastward).toEqual(eastward.map((step) => ({ ...step, east: 1, south: 0, direction: Direction.EAST })));
+    expect(steps.some((step) => !step.eastFree)).toBe(true);
   });
 
   it('uses the guide description of a described town sector once, H13 only with sci-fi', () => {

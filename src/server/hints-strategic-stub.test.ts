@@ -14,6 +14,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { driveOurHummerInto, stubCampaignAtTheHummer, stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction } from '../content/world/grid.ts';
+import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
@@ -65,6 +66,7 @@ async function landedCampaign(seed: number): Promise<Campaign> {
   const land = { type: 'compressTime', mode: 2 };
   await sim.prepare(land);
   expect(sim.dispatch(land).ok).toBe(true);
+  skipHelicopterDropOf(sim.campaign);
   expect(sim.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   const session = withQueries(new Session('strategic-hints', sim), sources);
   return { sim, session };

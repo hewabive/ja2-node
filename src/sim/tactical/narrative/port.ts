@@ -37,6 +37,7 @@ export const STOP_TIME_CALLBACKS = 'tactical';
 export const StopTimeCallback = {
   BOOBY_TRAP: `${STOP_TIME_CALLBACKS}:boobyTrap`,
   MINE_SPOTTED: `${STOP_TIME_CALLBACKS}:mineSpotted`,
+  UN_PAUSE_AI: `${STOP_TIME_CALLBACKS}:unPauseAi`,
 } as const;
 export type StopTimeCallback = (typeof StopTimeCallback)[keyof typeof StopTimeCallback];
 

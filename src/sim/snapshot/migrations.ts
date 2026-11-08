@@ -1753,6 +1753,36 @@ function addHelicopterDrop(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const STRANDED_SHADOWS_KEY = 'strandedShadows';
+const DO_HELI_RUN_KEY = 'doHeliRun';
+const FIRST_HELI_RUN_KEY = 'firstHeliRun';
+
+function dropWithRunFlags(drop: JsonObject): JsonObject {
+  return insertAfter(insertAfter(drop, STRANDED_SHADOWS_KEY, DO_HELI_RUN_KEY, false), DO_HELI_RUN_KEY, FIRST_HELI_RUN_KEY, false);
+}
+
+function withHelicopterRunFlags(holder: JsonObject): JsonObject {
+  const drop = holder[HELICOPTER_DROP_KEY];
+  if (!isObject(drop) || drop[REF] !== undefined) return holder;
+  return { ...holder, [HELICOPTER_DROP_KEY]: dropWithRunFlags(drop) };
+}
+
+function withSectorFlowHelicopterRunFlags(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: withHelicopterRunFlags(flow) };
+}
+
+function addHelicopterRunFlags(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    if (name === 'strategic' && isObject(value)) return [name, withSectorFlowHelicopterRunFlags(value)];
+    if (name === 'tactical' && isObject(value)) return [name, withHelicopterRunFlags(value)];
+    return [name, value];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1814,5 +1844,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     57: addPendingActionCounterLock,
     58: addSomeoneElseLookTimer,
     59: addHelicopterDrop,
+    60: addHelicopterRunFlags,
   };
 }

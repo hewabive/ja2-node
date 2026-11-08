@@ -65,7 +65,7 @@ import {
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './ai/decide.ts';
 import { makeClosestEnemyChosenOne } from './ai/panic.ts';
 import { pullTriggerOpcode } from './ai/panic-actions.ts';
-import { endTimedAiPause } from './ai/pause.ts';
+import { endTimedAiPause, unPauseAi } from './ai/pause.ts';
 import { handleSystemNewAISituation } from './ai/system-situation.ts';
 import { endAIGuysTurn, startNPCAI } from './ai/turn-based.ts';
 import {
@@ -780,6 +780,7 @@ export class TacticalSim {
   runStopTimeCallback(name: string): void {
     if (name === StopTimeCallback.BOOBY_TRAP) boobyTrapDialogueCallBack(this.state);
     else if (name === StopTimeCallback.MINE_SPOTTED) mineSpottedDialogueCallBack(this.state);
+    else if (name === StopTimeCallback.UN_PAUSE_AI) unPauseAi(this.state);
   }
 
   #answer(cmd: TacticalCommand): CommandResult {

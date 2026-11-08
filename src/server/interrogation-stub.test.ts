@@ -3,6 +3,7 @@ import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
+import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import { beginCaptureSequence, endCaptureSequence, enemyCapturesPlayerSoldier } from '../sim/campaign/merc-fate.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
@@ -45,6 +46,7 @@ async function capturedTwice(seed: number, mode?: RunMode): Promise<{ session: C
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  skipHelicopterDropOf(session.campaign);
   const c = session.campaign;
   c.state.narrative.quests[Quest.HELD_IN_ALMA] = QuestStatus.DONE;
   const battle = c.battle;

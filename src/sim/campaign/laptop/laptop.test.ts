@@ -23,6 +23,7 @@ const LASKO = 6;
 const PUIG = 7;
 const MARLOW = 8;
 const VOSS = 10;
+const DROP_TICKS = 10_000;
 const PC_DROPPED_OMERTA = 55;
 let kit: StubSectorKit;
 
@@ -438,13 +439,25 @@ describe('I.M.P.', () => {
     expect(session.campaign.state.profiles.get(51)?.mercStatus).toBe(MercStatus.HAS_NO_TEXT_FILE);
   });
 
-  it('queues his line about being dropped in Omerta when the helicopter has dropped him', async () => {
+  it('says his line about being dropped in Omerta at the end of his drop, code 467, and not while he sits in the helicopter', async () => {
     const session = await inLaptop(43);
     session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
     expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 51 } });
     expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
     await session.prepare({ type: 'compressTime', mode: 2 });
     expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(true);
-    expect(session.campaign.talk?.talk.queue).toEqual([expect.objectContaining({ kind: 'quote', speaker: 51, quote: PC_DROPPED_OMERTA })]);
+    const talk = () => session.campaign.state.talk.dialogue;
+    const said = () => [talk().lastQuoteProfile, talk().lastQuoteSaid];
+    const drop = session.campaign.state.sectorFlow.helicopterDrop;
+    let engaged = false;
+    let landedAt = -1;
+    for (let tick = 0; landedAt < 0 && tick < DROP_TICKS; tick++) {
+      expect(said()).not.toEqual([51, PC_DROPPED_OMERTA]);
+      session.step();
+      if (engaged && !drop.engagedInDrop) landedAt = tick;
+      engaged = drop.engagedInDrop;
+    }
+    expect(landedAt).toBeGreaterThan(0);
+    expect(said()).toEqual([51, PC_DROPPED_OMERTA]);
   });
 });

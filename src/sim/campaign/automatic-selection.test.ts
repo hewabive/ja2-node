@@ -2,11 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   type CampaignKit,
   createTestCampaign,
+  dropFirstSquad,
   eastEdgeTile,
   landFirstSquad,
   ourSoldiers,
+  runTheHelicopterDrop,
   runTicks,
   runUntilIdle,
+  startFirstSquadsDrop,
   walkSquadToEastEdge,
 } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
@@ -87,12 +90,25 @@ function returnTo(c: CampaignSim, roster: Roster): void {
 }
 
 describe('the selections the server makes when the tactical screen opens', () => {
-  it('selects the first merc the helicopter dropped when the first landing ends, forced (Merc_Entering.cc HandleHeliDrop)', () => {
+  it('selects the first seat, forced, when the Esc key lands the drop at once (Merc_Entering.cc HandleHeliDrop)', () => {
     const [plain, psycho] = psychoDraws(41, 2, () => {}, landFirstSquad);
     expect((psycho ?? 0) - (plain ?? 0)).toBe(1);
     const { campaign: c } = createTestCampaign(kit, { seed: 41, mercs: 2, garrison: NO_GARRISON });
     landFirstSquad(c);
     const [first] = ourSoldiers(c);
+    expect([selected(c), c.state.forces.currentSquad]).toEqual([first?.id, 0]);
+  });
+
+  it('makes the first merc down’s squad current, forced, and selects the first seat, forced, as the helicopter leaves (Merc_Entering.cc:605, :759)', () => {
+    const [plain, psycho] = psychoDraws(41, 2, () => {}, dropFirstSquad);
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(2);
+    const { campaign: c } = createTestCampaign(kit, { seed: 41, mercs: 2, garrison: NO_GARRISON });
+    startFirstSquadsDrop(c);
+    const firstDown = runTicks(c, 40_000, () => ourSoldiers(c).length > 0);
+    const [first] = ourSoldiers(c);
+    expect([firstDown, selected(c), c.state.forces.currentSquad]).toEqual([1912, first?.id, 0]);
+    expect(c.tactical?.state.helicopterDrop.running).toBe(true);
+    runTheHelicopterDrop(c);
     expect([selected(c), c.state.forces.currentSquad]).toEqual([first?.id, 0]);
   });
 
@@ -132,7 +148,7 @@ describe('the selections the server makes when the tactical screen opens', () =>
     const entries = () => c.drainEvents().filter((e) => e.type === 'sectorLoaded');
     landFirstSquad(c);
     const [arrival] = entries();
-    expect(arrival).toMatchObject({ firstArrival: true });
+    expect(arrival).toMatchObject({ sector: 'A9' });
     expect(arrival && 'located' in arrival).toBe(false);
     walkSquadToEastEdge(c);
     const [first, chosen] = ourSoldiers(c);

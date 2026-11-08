@@ -5,7 +5,8 @@
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
 // @src Soldier_Control.cc CreateSoldierCommon (the opplist reset), SetSoldierHeight (a placement on a flat roof);
 // @src Inventory_Choosing.cc AssignCreatureInventory; GeneratePaletteForSoldier running before TacticalCreateSoldier
-// @src sets bTeam, so no civilian takes its civilian clothes (2026-11-05).
+// @src sets bTeam, so no civilian takes its civilian clothes (2026-11-05); CreateSoldierCommon's EVENT_InitNewSoldierAnim(STANDING)
+// @src for a hired merc, which wants him standing (ubDesiredHeight, 2026-11-08).
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
@@ -18,7 +19,7 @@ import type { GameOptions } from '../options.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
-import { states } from './animation.ts';
+import { AnimHeight, states } from './animation.ts';
 import { soldierDifficultyLevel } from './combat/chance.ts';
 import type { RandomStream } from './combat/context.ts';
 import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
@@ -808,6 +809,10 @@ function createSoldierCommon(c: CreationContext, s: Soldier): void {
   if (mercSlots && perception && turn) initSoldierOppList({ mercSlots, perception, turn }, s);
 }
 
+function wantsToStand(s: Soldier): void {
+  s.desiredHeight = AnimHeight.STAND;
+}
+
 function creationContext(t: Pick<TacticalState, 'content'>): InventoryContext {
   return { items: t.content.items, inCombat: false, actionPoints: () => 0, spendActionPoints: () => {}, dropAtFeet: () => {} };
 }
@@ -818,7 +823,7 @@ export function createMercFromProfile(
   profile: MercProfile,
   direction: number,
 ): Soldier {
-  return createSoldier({
+  const s = createSoldier({
     id,
     team: Team.OUR,
     name: profile.nickname || profile.name,
@@ -841,6 +846,8 @@ export function createMercFromProfile(
     direction,
     state: states(t.content.animations).STANDING,
   });
+  wantsToStand(s);
+  return s;
 }
 
 export type HiredMercContext = BodyContext & Pick<CreationContext, 'sector' | 'soldiers' | 'boxing'>;
@@ -919,6 +926,7 @@ export function createHiredMerc(
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   bodyTypeSetup(c, s);
+  wantsToStand(s);
   return s;
 }
 

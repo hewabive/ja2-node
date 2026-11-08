@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, landFirstSquad } from '../../../../tests/support/campaign.ts';
+import { type CampaignKit, landFirstSquad, runTheHelicopterDrop, startFirstSquadsDrop } from '../../../../tests/support/campaign.ts';
 import { type ContractCampaign, type ContractHire, createContractCampaign } from '../../../../tests/support/contracts.ts';
 import { loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
@@ -15,12 +15,14 @@ import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { factValue, QuestStatus } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { EventKind, NUM_MIN_IN_DAY, NUM_SEC_IN_MIN, Warp } from '../../strategic/time/constants.ts';
+import { addStrategicEvent, deleteStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { warpGameTime, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { QUOTE_ACTION_CHECK_FOR_DEST } from '../../tactical/narrative/profile-insertion.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
 import { FinanceCode } from '../finances.ts';
+import { FIRST_ARRIVAL_MINUTE } from '../hiring.ts';
 import { MercAccountStatus } from '../laptop/laptop-state.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../merc-fate.ts';
 import { ProfileMiscFlag3 } from '../profiles.ts';
@@ -169,6 +171,30 @@ describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes, Speak
     expect(droppedInOmerta(landedEvents(cc))).toEqual([first, third]);
   });
 
+  it('lets only the lowest profile of a shared voice speak on a later drop as well: by his code 467 the whole flight has arrived (Soldier_Ani.cc:988)', () => {
+    const [first, second] = IMP_SLOTS;
+    const cc = impTeam(
+      [{ profile: STUB.kestrel }, imp(second), imp(first)],
+      new Map([
+        [first, SHARED_VOICE],
+        [second, SHARED_VOICE],
+      ]),
+    );
+    const c = cc.campaign;
+    const later = FIRST_ARRIVAL_MINUTE + 1;
+    for (const id of [1, 2]) {
+      deleteStrategicEvent(c.state.queue, EventKind.DELAYED_HIRING_OF_MERC, id);
+      addStrategicEvent(c.state.queue, EventKind.DELAYED_HIRING_OF_MERC, later, id);
+      merc(cc, id).insertionCode = InsertionCode.NORTH;
+    }
+    expect(droppedInOmerta(landedEvents(cc))).toEqual([]);
+    warpGameTime(c.clockContext, NUM_SEC_IN_MIN, Warp.NORMAL);
+    c.step();
+    expect(c.state.sectorFlow.helicopterDrop.seats).toEqual([1, 2]);
+    runTheHelicopterDrop(c);
+    expect(droppedInOmerta(c.drainEvents())).toEqual([first]);
+  });
+
   it('does not count a character of the same voice who is still in transit', () => {
     const [first, second] = IMP_SLOTS;
     const cc = impTeam(
@@ -182,6 +208,25 @@ describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes, Speak
     merc(cc, 0).assignment = Assignment.IN_TRANSIT;
     cc.flow.droppedFromHelicopter(1);
     expect(droppedInOmerta(cc.campaign.drainEvents())).toEqual([second]);
+  });
+});
+
+describe('the arrival lines of the helicopter drop (Merc_Hiring.cc HandleMercArrivesQuotes at Soldier_Ani.cc code 467)', () => {
+  it('has a hater still in the helicopter complain at the hated merc’s code 467: the lines go over the whole team, the seats not dropped yet included (quirk)', () => {
+    const cc = createContractCampaign(kit, {
+      seed: 3,
+      hires: [{ profile: STUB.kestrel }, { profile: STUB.hollis }, { profile: STUB.moraga }],
+    });
+    const c = cc.campaign;
+    startFirstSquadsDrop(c);
+    const moraga = merc(cc, 2);
+    let complaint: SimEvent | undefined;
+    for (let tick = 0; !complaint && tick < 40_000; tick++) {
+      c.step();
+      complaint = c.drainEvents().find((e) => e.type === 'mercQuote' && e.quote === 'hated1Arrives');
+    }
+    expect(complaint).toMatchObject({ soldier: moraga.id, subject: STUB.hollis });
+    expect([merc(cc, 1).soldier.placed, moraga.soldier.placed, moraga.insertionCode]).toEqual([true, false, InsertionCode.CHOPPER]);
   });
 });
 

@@ -108,8 +108,13 @@ describe("musicMode follows the original's setters", () => {
 
   it('TACTICAL_ENEMYPRESENT: leaving combat by a lull, the first helicopter drop, the prebattle screen, the end of the interrogation', () => {
     expect(following(at(MusicMode.TACTICAL_BATTLE), [{ type: 'combatEnded', reason: 'lull' }]).mode).toBe(MusicMode.TACTICAL_ENEMY_PRESENT);
-    const landed = following(at(MusicMode.LAPTOP, MusicMode.LAPTOP), [loaded({ firstArrival: true, hostiles: 6 })]);
-    expect(landed).toMatchObject({ mode: MusicMode.TACTICAL_ENEMY_PRESENT, previous: MusicMode.TACTICAL_NOTHING });
+    const landed = following(at(MusicMode.LAPTOP, MusicMode.LAPTOP), [loaded({ hostiles: 6 })]);
+    expect(landed).toMatchObject({ mode: MusicMode.TACTICAL_NOTHING, previous: MusicMode.LAPTOP });
+    const dropped = following(landed, [{ type: 'helicopterDropEnded', first: true }]);
+    expect(dropped).toMatchObject({ mode: MusicMode.TACTICAL_ENEMY_PRESENT, previous: MusicMode.TACTICAL_NOTHING });
+    expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'helicopterDropEnded', first: false }]).mode).toBe(
+      MusicMode.TACTICAL_NOTHING,
+    );
     expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'preBattle', autoStart: false }])).toMatchObject({
       mode: MusicMode.TACTICAL_ENEMY_PRESENT,
       previous: MusicMode.TACTICAL_ENEMY_PRESENT,

@@ -120,9 +120,10 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   the rest), and so do `EnterCombatMode`, the interrupts, `SelectNextAvailSoldier`, a conversation's talker and the
   original's own selections: the return from the map to the loaded sector (a selected merc out of control or asleep
   gives way to the team's first controllable merc, then the selected merc is selected again, forced), a sector load
-  (the merc selected when the squad left, else the first who may act, forced, then the return's), the end of the first
-  landing (the first merc dropped), the end of the selected merc's skull, his removal from his squad or from the
-  sector (the next merc of his squad, after a removal from the sector also the first of the next squad on the map).
+  (the merc selected when the squad left, else the first who may act, forced, then the return's), the helicopter drop
+  (the first merc down, forced, and its first seat as the helicopter leaves or the Esc skip lands the rest), the end of
+  the selected merc's skull, his removal from his squad or from the sector (the next merc of his squad, after a removal
+  from the sector also the first of the next squad on the map).
   Each has the checks, squad, wake-up and psycho `Random(50)` of `InternalSelectSoldier`. Any merc leaving the loaded
   sector while the map is up, and the departure of the selected merc, leave nobody selected, as in the original.
   It matters for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
@@ -298,7 +299,9 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 or a ja2-node save (§10). A new campaign (`createCampaignSession`, `src/server/campaign-factory.ts`) starts the way a
 player starts one: `initNewGame` leaves the game in the laptop on day 1, 01:00; the squad is hired through the
 laptop's own commands with real prices, deposits and refusals; then, unless `land: false`, the first `compressTime`
-lets the helicopter drop load the start sector at 07:00 (`15`). `hire: []` returns the session in the open laptop.
+loads the start sector at 07:00 (`15`) and the helicopter drops the squad one at a time, about 25 to 40 s of tactical
+time the session runs before it answers; `land: "skip"` lands them at once as the Esc key does (`25`). `hire: []`
+returns the session in the open laptop.
 
 **Closing.** WebSocket `closeSession` and `DELETE /api/sessions/:id` take the session's Dead is Dead save point (`27`)
 and release it; the default session cannot be closed. WebSocket `leave` (the Main Menu of the game page) closes the
@@ -392,7 +395,8 @@ maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
 `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
-a load sends no `sectorLoaded` (deviation "View after a load"). The session copies the cosmetic animations into
+a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropEnded {first}` ends a run of the
+helicopter drop, `first` on the first landing's, whose end plays the enemy-present music (`25`). The session copies the cosmetic animations into
 `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after every tick as
 `ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and cosmetic
 animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never audio.

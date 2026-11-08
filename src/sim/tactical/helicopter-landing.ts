@@ -29,11 +29,6 @@ function walkTo(t: TacticalState, s: Soldier, spot: number): void {
   if (spot !== NOWHERE) getNewSoldierPath(t, s, spot, states(t.content.animations).WALKING);
 }
 
-export function stepAwayFromHelicopter(t: TacticalState, s: Soldier): void {
-  faceEast(t, s);
-  walkTo(t, s, stepAwaySpot(t, s));
-}
-
 export function helicopterLandingOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   if (code !== OP_HELIDROP_LANDED) return null;
   faceEast(t, s);

@@ -53,11 +53,10 @@ conversation lines (`24`).
 "Speech"); the client, not the simulation, holds a merc's line while his battle sound plays and stops the voice at a
 critical one, so the simulation's line timing includes neither ("Speech playback"); the defeat track's end unloads the
 sector ("Defeat track"); Skyrider's destruction waits for a sound ("Helicopter destruction"); ambient sounds are
-strategic events ("Ambient sound events", "Ambient timing"); the first helicopter drop waits for the engine sound to
-fade (gaps "Helicopter entrance": once ported, its end follows the script's ticks). Sound picks on the gameplay
-generator are not drawn, or drawn on the client's `ClientRandom`, seeded from the session id ("Cosmetic draws …",
-"Footstep variants", "Music track choice"), the merc aboard who speaks for a vehicle among them
-(`PickRandomPassengerFromVehicle`).
+strategic events ("Ambient sound events", "Ambient timing"); the helicopter drop's engine fades follow the script's
+ticks as with a sample playing, whose end is the end of the drop (`25`). Sound picks on the gameplay generator are not
+drawn, or drawn on the client's `ClientRandom`, seeded from the session id ("Cosmetic draws …", "Footstep variants",
+"Music track choice"), the merc aboard who speaks for a vehicle among them (`PickRandomPassengerFromVehicle`).
 
 **The client hears what the squad hears.** The view has no position for an unseen soldier (D16), so an unseen source
 plays from where the squad hears it ("Sounds out of sight"), and only animals in sight make idle sounds ("Idle sounds

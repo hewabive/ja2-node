@@ -19,9 +19,9 @@
 // @src InternalAddSoldierToSector (the helicopter's passengers with no tile, 2026-11-05);
 // @src SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
-// @src with the merc it locates, and the screen entry after a load), Merc_Entering.cc
-// @src HandleHeliDrop (the first seat's selection; the arrival quotes of each drop, Soldier_Ani.cc:988, 2026-11-01; the
-// @src landing's code 467 for each merc in seat order, 2026-11-02),
+// @src with the merc it locates, and the screen entry after a load), StrategicMap.cc UpdateMercInSector (the chopper
+// @src code's AddMercToHeli), Merc_Entering.cc HandleHeliDrop (a seat placed with the north code, the arrival quotes of
+// @src Soldier_Ani.cc:988, the end of a run; the drop cut short by a world unload, 2026-11-08),
 // @src Squads.cc RemoveCharacterFromSquads
 // @src (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
 // @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);
@@ -120,7 +120,7 @@ import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import { sharedWeaponsDropped } from '../tactical/equipment.ts';
-import { stepAwayFromHelicopter } from '../tactical/helicopter-landing.ts';
+import { addMercToHeli } from '../tactical/helicopter-drop.ts';
 import {
   addCreaturesToBattle,
   addEnemiesToBattle,
@@ -135,7 +135,7 @@ import {
   type PopulationEnv,
   stripEnemyDetailedPlacements,
 } from '../tactical/init-list.ts';
-import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
+import { CENTER_GRIDNO, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
 import { sectorTempFileChanges } from '../tactical/map-changes.ts';
@@ -164,24 +164,14 @@ import {
   locateToSoldier,
   NO_SELECTION,
   rebuildCurrentSquad,
-  SelectFlags,
   selectAfterRemovalFromSector,
-  selectSoldier,
   setCurrentSquadAfterJoin,
   setDefaultSquadOnSectorEntry,
   unselectRemovedSoldier,
   updateCurrentlySelectedMerc,
 } from '../tactical/selection.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
-import {
-  NO_SECTOR_HOOKS,
-  type RealtimeClock,
-  type SectorHooks,
-  sectorMapOf,
-  type TacticalState,
-  teamMembers,
-  WaitForMercs,
-} from '../tactical/state.ts';
+import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import { seatAtVehicle } from '../tactical/vehicle-passengers.ts';
@@ -190,6 +180,7 @@ import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } fro
 import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
 import type { SectorFlowState } from './flow-state.ts';
+import { cutHelicopterDropShort, handleFirstHeliDropOfGame } from './helicopter-drop-flow.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
@@ -248,7 +239,6 @@ type SectorEvent =
       readonly hostiles: number;
       readonly loadScreen: LoadScreenView;
       readonly enemyPresence?: true;
-      readonly firstArrival?: true;
       readonly located?: number;
     };
 
@@ -288,7 +278,6 @@ export class SectorFlow {
   #loadingSector = false;
   #presenceWhileLoading = false;
   #loadScreen: number = LoadingScreen.NOTHING;
-  #heliSeats: Soldier[] = [];
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -542,7 +531,6 @@ export class SectorFlow {
       hostiles: numHostilesInSector(this.ctx, sector),
       loadScreen: this.#loadScreenView(),
       ...(enemyPresence ? { enemyPresence: true as const } : {}),
-      ...(s.didGameJustStart ? { firstArrival: true as const } : {}),
       ...(located !== null ? { located } : {}),
     });
     return true;
@@ -695,10 +683,10 @@ export class SectorFlow {
       autoBandageStarted: () => pauseGame(this.campaign.state.clock),
       autoBandageEnded: (_t, warpSeconds) => this.#autoBandageEnded(warpSeconds),
       inDeidrannaEndgame: () => this.campaign.state.ending.inDeidrannaEndgame,
-      helicopterSeat: NO_SECTOR_HOOKS.helicopterSeat,
-      placeHelicopterSeat: NO_SECTOR_HOOKS.placeHelicopterSeat,
-      mercArrivesQuotes: NO_SECTOR_HOOKS.mercArrivesQuotes,
-      helicopterRunEnded: NO_SECTOR_HOOKS.helicopterRunEnded,
+      helicopterSeat: (_t, id) => this.setup.roster.get(id)?.soldier ?? null,
+      placeHelicopterSeat: (_t, s) => this.#placeHelicopterSeat(s),
+      mercArrivesQuotes: (_t, s) => this.campaign.contracts?.droppedFromHelicopter(s.id),
+      helicopterRunEnded: (t) => handleFirstHeliDropOfGame(this.campaign, t),
     };
   }
 
@@ -981,29 +969,15 @@ export class SectorFlow {
       assignment: m?.assignment ?? 0,
       asleep: m?.asleep ?? false,
       isEpc: m?.isEpc ?? false,
-      heliDrop: (s, order) => this.#heliDrop(s, order),
+      heliDrop: (s) => addMercToHeli(this.#flow.helicopterDrop, s.id),
     };
   }
 
-  #heliDrop(s: Soldier, order: InsertionOrder): void {
-    const t = this.campaign.tactical?.state;
-    if (!t) return;
-    order.code = Insertion.NORTH;
-    const merc = this.setup.roster.get(s.id);
-    const placed = updateMercInSector(t, s, order, this.#insertionContext(merc ?? null));
-    if (this.campaign.state.didGameJustStart) this.#heliSeats.push(s);
-    else if (placed) stepAwayFromHelicopter(t, s);
-  }
-
-  endHelicopterDrop(): void {
-    const seats = this.#heliSeats;
-    this.#heliSeats = [];
-    for (const s of seats) {
-      if (s.placed) this.#withTactical((t) => stepAwayFromHelicopter(t, s));
-      this.campaign.contracts?.droppedFromHelicopter(s.id);
-    }
-    const first = seats[0];
-    if (first) this.#withTactical((t) => selectSoldier(t, first, SelectFlags.FORCE_RESELECT));
+  #placeHelicopterSeat(s: Soldier): void {
+    const m = this.setup.roster.get(s.id);
+    if (!m) return;
+    m.insertionCode = InsertionCode.NORTH;
+    this.#placeMerc(m);
   }
 
   removedFromSquad(id: number, squad: number): void {
@@ -1436,6 +1410,7 @@ export class SectorFlow {
   }
 
   #worldTrashed(): void {
+    cutHelicopterDropShort(this.campaign, (id) => this.#giveNorthCode(id));
     const t = this.campaign.tactical?.state;
     if (t) {
       destroyAllSchedules(t);
@@ -1443,6 +1418,11 @@ export class SectorFlow {
     }
     const q = this.queen;
     if (q) handleFirstMeanwhileSetUpWithTrashWorld(q);
+  }
+
+  #giveNorthCode(id: number): void {
+    const m = this.setup.roster.get(id);
+    if (m) m.insertionCode = InsertionCode.NORTH;
   }
 
   trashWorld(): void {

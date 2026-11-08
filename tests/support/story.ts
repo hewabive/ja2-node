@@ -2,6 +2,7 @@ import { parseSectorString, type Sector } from '../../src/content/strategic/sect
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import { Session } from '../../src/server/session.ts';
+import { skipHelicopterDropOf } from '../../src/sim/campaign/helicopter-drop-flow.ts';
 import { beginCaptureSequence, endCaptureSequence, enemyCapturesPlayerSoldier } from '../../src/sim/campaign/merc-fate.ts';
 import { getGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
@@ -30,6 +31,7 @@ export async function landSquad(session: CampaignSession, quietSectors: readonly
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   if (!session.dispatch(land).ok) throw new Error('the squad did not land');
+  skipHelicopterDropOf(session.campaign);
 }
 
 async function landed(kit: StubSectorKit, seed: number, mercs: number, quietSectors: readonly string[]): Promise<CampaignSession> {

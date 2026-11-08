@@ -2,9 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc, MercArrivesCallback (contract fields: contracts/contract-flow.ts);
 // @src Strategic/Map_Screen_Interface.cc
-// @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs; Tactical/Merc_Entering.cc
-// @src HandleHeliDrop (the end of the drop selects its first seat, 2026-10-31), HandleFirstHeliDropOfGame (its
-// @src SyncStrategicTurnTimes, 2026-11-05).
+// @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs, whose run starts
+// @src after the command (campaign/helicopter-drop-flow.ts, 2026-11-08); MercArrivesCallback's chopper for an arrival in
+// @src the loaded start sector (2026-11-08).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { type Sector, sectorFromId } from '../../content/strategic/sector-ids.ts';
@@ -12,15 +12,15 @@ import { createItem } from '../items/object.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { addCharacterToAnySquad } from '../strategic/forces/squads.ts';
-import { CompressMode, EventKind, FIRST_ARRIVAL_DELAY, NUM_SEC_IN_MIN, STARTING_TIME, Warp } from '../strategic/time/constants.ts';
+import { EventKind, FIRST_ARRIVAL_DELAY, NUM_SEC_IN_MIN, STARTING_TIME, Warp } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
-import { CompressionStop, setGameTimeCompressionLevel, stopTimeCompression, warpGameTime } from '../strategic/time/world-clock.ts';
+import { CompressionStop, stopTimeCompression, warpGameTime } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { createMercFromProfile } from '../tactical/creation.ts';
 import { autoPlaceObject } from '../tactical/inventory.ts';
 import { firstFreeSoldierId, type Soldier, Team } from '../tactical/soldier.ts';
-import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { chopperIntoLoadedStartSector, initHelicopterEntranceByMercs } from './helicopter-drop-flow.ts';
 import { createMercRecord } from './merc-record.ts';
 import { MercKind, type Roster, RosterMerc } from './roster.ts';
 
@@ -110,8 +110,10 @@ export function mercArrives(campaign: CampaignSim, id: number): void {
   stopTimeCompression(campaign.clockContext, CompressionStop.MERC_ARRIVED);
   addCharacterToAnySquad(strategic, id);
   const world = campaign.state.worldSector;
-  if (world && sameSector(world, merc.sector)) strategic.mercs.updateMercInSector(id, merc.sector);
-  else merc.insertionCode = InsertionCode.NORTH;
+  if (world && sameSector(world, merc.sector)) {
+    chopperIntoLoadedStartSector(campaign, merc);
+    strategic.mercs.updateMercInSector(id, merc.sector);
+  } else merc.insertionCode = InsertionCode.NORTH;
   campaign.contracts?.mercArrived(id);
 }
 
@@ -124,9 +126,7 @@ export function teamJackedInAndGearedToGo(campaign: CampaignSim, loadStartSector
   if (!s.didGameJustStart || (campaign.strategic?.mercs.all().length ?? 0) === 0) return;
   loadStartSector();
   warpGameTime(campaign.clockContext, FIRST_ARRIVAL_DELAY, Warp.NORMAL);
-  campaign.laptop?.firstLanding();
+  initHelicopterEntranceByMercs(campaign);
   s.didGameJustStart = false;
-  if (s.flow === 'tactical') setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
-  campaign.sectors?.endHelicopterDrop();
-  syncStrategicTurnTimes(s.sectorFlow.realtimeClock, s.realMs);
+  campaign.laptop?.firstLanding();
 }

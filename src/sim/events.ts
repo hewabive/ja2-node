@@ -482,7 +482,6 @@ export interface SectorLoadedEvent extends SimEventBase {
   readonly hostiles?: number;
   readonly loadScreen?: LoadScreenView;
   readonly enemyPresence?: true;
-  readonly firstArrival?: true;
   readonly located?: number;
 }
 
@@ -494,6 +493,11 @@ export interface EnemyPresenceEvent extends SimEventBase {
 export interface CreatureAttackEvent extends SimEventBase {
   readonly type: 'creatureAttack';
   readonly sector: string;
+}
+
+export interface HelicopterDropEndedEvent extends SimEventBase {
+  readonly type: 'helicopterDropEnded';
+  readonly first: boolean;
 }
 
 export interface SectorUnloadedEvent extends SimEventBase {
@@ -716,6 +720,7 @@ export type SimEvent =
   | SectorLoadedEvent
   | EnemyPresenceEvent
   | CreatureAttackEvent
+  | HelicopterDropEndedEvent
   | SectorUnloadedEvent
   | MercsLeftSectorEvent
   | ArrivedEvent

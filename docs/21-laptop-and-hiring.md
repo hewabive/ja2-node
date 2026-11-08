@@ -81,10 +81,12 @@ answer `noBookmark`, and an intro mail deleted unread locks its site for good, a
 
 **One hire for every site.** A.I.M., M.E.R.C. and I.M.P. go through `hireMercCore` and the contract flow's
 `hireContract`, and so do the session factory's squad (as `aimHire` and `impCreate` commands) and the campaigns that
-tests build without a laptop (`hiring.ts`). Every hire before the first landing comes in with the first squad's helicopter;
-later hires land at the landing zone on the next arrival slot. The zone is rerouted when the enemy holds it and reset to
-the start sector when the enemy takes its airspace; the original's message boxes become the events `arrivalRerouted`
-and `landingZoneReset`.
+tests build without a laptop (`hiring.ts`). Every hire before the first landing comes in with the first squad's
+helicopter; later hires land at the landing zone on the next arrival slot, and one arriving in the loaded start sector
+gets a drop of his own (`campaign/helicopter-drop-flow.ts`, `25`). A hire wants to stand from his creation on, as the
+original's first `STANDING` animation sets it (`Tactical/Soldier_Control.cc:595`), so a merc hit in mid-drop gets up at
+the end of the hit. The zone is rerouted when the enemy holds it and reset to the start sector when the enemy takes its
+airspace; the original's message boxes become the events `arrivalRerouted` and `landingZoneReset`.
 
 **Money.** A.I.M. charges at hire; M.E.R.C. mercs accrue a day's salary every midnight and the player settles the
 account on the site, greedily in listing order; an I.M.P. character costs 3000 once and is never paid. Game logic reads

@@ -114,11 +114,16 @@ function seatSoldier(t: TacticalState, id: number | undefined): Soldier | null {
   return id === undefined ? null : t.sectorHooks.helicopterSeat(t, id);
 }
 
+function runEnded(t: TacticalState): void {
+  t.events.push({ type: 'helicopterDropEnded', first: t.helicopterDrop.firstHeliRun });
+  t.sectorHooks.helicopterRunEnded(t);
+}
+
 function endOfTheRun(t: TacticalState, d: HelicopterDrop): void {
   d.running = false;
   d.seats.length = 0;
   rebuildCurrentSquad(t);
-  t.sectorHooks.helicopterRunEnded(t);
+  runEnded(t);
 }
 
 function stepEngineFade(t: TacticalState, d: HelicopterDrop): void {
@@ -284,7 +289,7 @@ export function skipHelicopterDrop(t: TacticalState): boolean {
   const first = seatSoldier(t, d.seats[0]);
   d.seats.length = 0;
   if (first) selectSoldier(t, first, SelectFlags.FORCE_RESELECT);
-  t.sectorHooks.helicopterRunEnded(t);
+  runEnded(t);
   return true;
 }
 

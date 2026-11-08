@@ -87,12 +87,12 @@ records: deviation "Contract presentation". A buddy's comment on a kill he witne
 low roll is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in the
 roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFlags`.
 
-**Arrival lines wait for the drop.** A merc who lands says nothing while he sits in the helicopter; when he is dropped,
-an I.M.P. character says he was dropped in Omerta while the letter quest runs, unless a teammate of his voice with a
-lower profile has already arrived, and every A.I.M. merc who hates him complains (`Tactical/Merc_Hiring.cc:395`). The
-drop is instant here (gaps "Helicopter entrance"): the first squad's lines come at the end of its landing
-(`SectorFlow.endHelicopterDrop`), once the whole squad has arrived, so one character speaks for each voice as in the
-original; a later merc's lines come at his own arrival.
+**Arrival lines wait for the drop.** A merc who lands says nothing while he sits in the helicopter (his chopper code);
+at the end of his drop (code 467, `25`), or at the Esc skip, an I.M.P. character says he was dropped in Omerta while the
+letter quest runs, unless a teammate of his voice with a lower profile has already arrived, and every A.I.M. merc who
+hates him complains, one still in the helicopter included (`Tactical/Merc_Hiring.cc:395`). By then the whole flight has
+arrived, so one character speaks for each voice, at the first landing and at a later one alike
+(`campaign/helicopter-drop-flow.ts`, `SectorFlow`'s `mercArrivesQuotes` hook).
 
 **Hooks.** `ContractHooks` (no-op defaults for sandbox sessions) connect the laptop (`LaptopFlow.contractHooks`:
 insurance, the M.E.R.C. site, Larry's relapse, Speck's lost-merc flag, history, mail, personnel) and the narrative
@@ -131,6 +131,7 @@ otherwise.
 | A hated teammate with his tolerance untouched already forces the hated team opinion; the scaling by spent tolerance is dead code | `team-morale.test.ts` "drops the whole opinion to hated …" |
 | The reputation moves once per morale event, however many mercs it reaches | `relations/relations.test.ts` "changes once per event …" |
 | The death rate wraps as an unsigned byte, and so does the death count | `relations/reputation.test.ts` "truncates deaths …", `contracts.test.ts` "logs the death …" |
+| A hater still sitting in the helicopter complains when the merc he hates lands: the arrival lines go over the whole team (`Tactical/Merc_Hiring.cc:410`) | `contracts.test.ts` "has a hater still in the helicopter complain …" |
 
 Not pinned yet:
 - An unresolved contract is listed again at the day's later warnings and on later days: the renewal list repeats him

@@ -39,10 +39,10 @@ import { mercArrivalTimeOfDay } from '../contracts/contract-times.ts';
 import type { MailKind } from '../contracts/events.ts';
 import { SpecialProfile } from '../contracts/quotes.ts';
 import type { FinanceRecord } from '../finances.ts';
+import { chopperIntoLoadedStartSector } from '../helicopter-drop-flow.ts';
 import { mapScreenExitRefusal } from '../map-screen-exits.ts';
 import { initProfileFromContent, ProfileMiscFlag3 } from '../profiles.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
-import { openTacticalScreen } from '../screens.ts';
 import {
   AIM_CONTRACT_LENGTHS,
   aimCharge,
@@ -498,10 +498,7 @@ export class LaptopFlow implements LaptopContext {
     addCharacterToAnySquad(strategic, id);
     if (m.contract.useLandingZone) m.sector = sectorFromId(this.laptop.mercArriveSector);
     if (world && sameSector(world, m.sector)) {
-      if (m.insertionCode !== InsertionCode.CHOPPER && sameSector(m.sector, start)) {
-        m.insertionCode = InsertionCode.CHOPPER;
-        if (s.flow === 'strategic') openTacticalScreen(this.campaign);
-      }
+      chopperIntoLoadedStartSector(this.campaign, m);
       strategic.mercs.updateMercInSector(id, m.sector);
     } else m.insertionCode = InsertionCode.NORTH;
     this.campaign.contracts?.mercArrived(id);
