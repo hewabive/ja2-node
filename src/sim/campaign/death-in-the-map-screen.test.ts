@@ -290,6 +290,7 @@ describe('a soldier of another team of the loaded sector dying while the map scr
     const t = turnWorld(c);
     const corpses = t.corpses.length;
     const draws = scriptTheMainStream(c, [...BODY_AT, DROPPED, FLYBACK]);
+    const tile = civilian.gridNo;
     bleedToDeath(t, civilian);
     vi.restoreAllMocks();
     expect(draws.requested).toEqual([160, 160, 100, 4]);
@@ -303,7 +304,9 @@ describe('a soldier of another team of the loaded sector dying while the map scr
     expect(a9.corpses).toMatchObject([{ gridNo: gridNoOf(BODY_AT), profile: ZEROED_CORPSE_PROFILE }]);
     expect((a9.items ?? []).filter((wi) => wi.exists).map((wi) => wi.object.item)).toEqual([civilian.inv[InvSlot.HAND]?.item]);
     const report = c.live.advance(ONE_TICK);
-    expect(ofType(report.events, 'mercDied')).toMatchObject([{ soldier: civilian.id, sector: LANDING, mapScreen: true }]);
+    expect(ofType(report.events, 'mercDied')).toMatchObject([
+      { soldier: civilian.id, sector: LANDING, mapScreen: true, cry: { team: civilian.team, gridNo: tile } },
+    ]);
     expect(ofType(report.events, 'compressionStopped')).toMatchObject([{ reason: 'mercDied' }]);
   });
 

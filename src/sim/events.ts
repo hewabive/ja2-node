@@ -663,12 +663,17 @@ export interface MercCapturedEvent extends SimEventBase {
   readonly sector: string;
 }
 
+export interface DeathCry extends UnseenVictim {
+  readonly team: number;
+  readonly gridNo?: number;
+}
+
 export interface MercDiedEvent extends SimEventBase {
   readonly type: 'mercDied';
   readonly soldier: number;
   readonly sector: string;
   readonly mapScreen?: true;
-  readonly cry?: UnseenVictim;
+  readonly cry?: DeathCry;
 }
 
 export interface CiviliansEatenEvent extends SimEventBase {

@@ -631,7 +631,7 @@ describe('the map screen over the stub map-screen campaign', () => {
     withMap(async (f) => {
       const tick = f.client.view.tick;
       const merc = f.mercs[0] ?? -1;
-      const cry = { voice: '005', bodyType: 0 };
+      const cry = { voice: '005', bodyType: 0, team: 0 };
       f.frames([
         {
           tick,

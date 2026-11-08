@@ -54,6 +54,8 @@ export interface MapFlow {
 export interface DeathCry {
   readonly voice: string;
   readonly bodyType: number;
+  readonly team: number;
+  readonly gridNo?: number;
 }
 
 export interface MapSounds {

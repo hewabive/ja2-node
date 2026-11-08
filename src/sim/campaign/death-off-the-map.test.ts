@@ -12,6 +12,7 @@ import { sectorInfo } from '../strategic/map/sectors.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { soldierTakeDamage } from '../tactical/combat/hit.ts';
 import { DamageReason } from '../tactical/combat/types.ts';
+import { Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { HistoryCode, Quote } from './contracts/quotes.ts';
 import type { RosterMerc } from './roster.ts';
@@ -155,7 +156,7 @@ describe('a merc of ours dying off the tactical map (Soldier_Control.cc HandleTa
         type: 'mercDied',
         soldier: kestrel.id,
         sector: ELSEWHERE,
-        cry: { voice: '000', bodyType: kestrel.soldier.bodyType },
+        cry: { voice: '000', bodyType: kestrel.soldier.bodyType, team: Team.OUR },
         tick: expect.any(Number),
       },
     ]);
@@ -227,12 +228,13 @@ describe('a merc of ours dying off the tactical map (Soldier_Control.cc HandleTa
     expect(buddyLines(events, merc(c, VANT).id)).toHaveLength(1);
   });
 
-  it('while the map screen is up, of a merc of the loaded sector lying collapsed: the bookkeeping at once and "%s is dead" in the list', async () => {
+  it('while the map screen is up, of a merc of the loaded sector lying collapsed: the bookkeeping at once, "%s is dead" in the list and the cry from his tile', async () => {
     const c = await landedInA9(35);
     collapse(c, VANT);
     await order(c, { type: 'mapScreen' });
     const vant = merc(c, VANT);
     const deaths = c.session.campaign.state.status.mercDeaths;
+    const tile = vant.soldier.gridNo;
     expect(vant.soldier.placed).toBe(true);
     bleedTheLastPoint(tactical(c), vant);
     const events = c.session.campaign.drainEvents();
@@ -242,7 +244,7 @@ describe('a merc of ours dying off the tactical map (Soldier_Control.cc HandleTa
         soldier: vant.id,
         sector: LANDING,
         mapScreen: true,
-        cry: { voice: '001', bodyType: vant.soldier.bodyType },
+        cry: { voice: '001', bodyType: vant.soldier.bodyType, team: Team.OUR, gridNo: tile },
         tick: expect.any(Number),
       },
     ]);

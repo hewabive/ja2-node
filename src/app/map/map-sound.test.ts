@@ -10,6 +10,9 @@ import type { AssetSource } from '../assets/asset-source.ts';
 import { MapSound } from './map-sound.ts';
 
 const MERC = 3;
+const ENEMY = 20;
+const OUR_TEAM = 0;
+const ENEMY_TEAM = 1;
 const PROFILE = 7;
 const OTHER_PROFILE = 8;
 const DOORCR_1 = 'sounds/doorcr.wav';
@@ -65,7 +68,7 @@ describe('the map screen battle sounds', () => {
 
   it('cries the death of a soldier on the map screen in the voice the event names, then DOORCR_1 and HEADCR_1, all at the middle', async () => {
     const r = await rig();
-    r.sound.mercDiedOffTheMap(MERC, { voice: '052', bodyType: 0 });
+    r.sound.mercDiedOffTheMap(MERC, { voice: '052', bodyType: 0, team: OUR_TEAM });
     const samples = [DOORCR_1, HEADCR_1];
     expect(r.cues.map((c) => c.file)).toEqual(['battlesnds/052_die.wav', ...samples]);
     expect(r.cues.map((c) => [c.gridNo, c.pan, c.baseVolume])).toEqual([
@@ -75,6 +78,23 @@ describe('the map screen battle sounds', () => {
     ]);
     r.sound.mercDiedOffTheMap(MERC + 1, null);
     expect(r.cues.slice(3).map((c) => c.file)).toEqual(samples);
+  });
+
+  it('pans the death cry of a soldier of the loaded sector by his tile against the tactical view last shown, fading only one not ours, and the two samples in the middle (InternalDoMercBattleSound)', async () => {
+    const r = await rig();
+    r.engine.setListener(LAST_TACTICAL_VIEW);
+    r.sound.mercDiedOffTheMap(MERC, { voice: '052', bodyType: 0, team: OUR_TEAM, gridNo: VEHICLE_TILE });
+    r.sound.mercDiedOffTheMap(ENEMY, { voice: 'bad1', bodyType: 0, team: ENEMY_TEAM, gridNo: VEHICLE_TILE });
+    const full = { effects: FULL, speech: FULL, music: FULL, ambient: FULL };
+    const samples = { volume: FULL, pan: MIDDLE };
+    expect(r.cues.map((c) => mixCue(c, r.engine.listener, full))).toEqual([
+      { volume: FULL, pan: FAR_RIGHT_OFF_SCREEN },
+      samples,
+      samples,
+      { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN },
+      samples,
+      samples,
+    ]);
   });
 
   it("plays a vehicle's enter sound at its tile against the tactical view last shown, and off the loaded map at full volume in the middle (PlayLocationJA2Sample)", async () => {

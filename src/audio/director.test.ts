@@ -721,14 +721,14 @@ describe('the sound director', () => {
   it('cries the death of a merc of ours off the loaded map on the tactical screen in the voice the event names, then DOORCR_1 and HEADCR_1', () => {
     const r = rig();
     const died = (soldier: number, extra: object = {}) => ({ type: 'mercDied', tick: 10, soldier, sector: 'B9', ...extra }) as const;
-    r.director.applyFrames([frame(10, [], [died(4, { cry: { voice: '005', bodyType: 0 } })])]);
+    r.director.applyFrames([frame(10, [], [died(4, { cry: { voice: '005', bodyType: 0, team: 0 } })])]);
     const samples = [book.paths.get('DOORCR_1'), book.paths.get('HEADCR_1')];
     expect(files(r)).toEqual(['battlesnds/005_die.wav', ...samples]);
     expect(r.cues[0]).toMatchObject({ gridNo: -1, mix: 'voiceOwn', baseVolume: 127 });
     expect(r.cues.slice(1)).toEqual(samples.map((file) => expect.objectContaining({ file, mix: 'fixed', baseVolume: 127, pan: 64 })));
     r.director.applyFrames([frame(20, [], [died(5)])]);
     expect(files(r).slice(3)).toEqual(samples);
-    r.director.applyFrames([frame(30, [], [died(6, { mapScreen: true, cry: { voice: '007', bodyType: 0 } })])]);
+    r.director.applyFrames([frame(30, [], [died(6, { mapScreen: true, cry: { voice: '007', bodyType: 0, team: 0 } })])]);
     expect(r.cues).toHaveLength(5);
   });
 

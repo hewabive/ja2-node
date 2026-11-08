@@ -8,7 +8,8 @@
 // @src Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat; Tactical/Overhead.cc CheckForEndOfBattle and
 // @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call; its buddy
 // @src comments first, 2026-11-05); Tactical/Soldier_Control.cc HandleTakeDamageDeath (the strategic branch, 2026-11-05;
-// @src its DIE1 cry in the voice of the profile's ubVoiceId, none from a SOLDIER_MUTE soldier, 2026-11-06);
+// @src its DIE1 cry in the voice of the profile's ubVoiceId, none from a SOLDIER_MUTE soldier, 2026-11-06;
+// @src InternalDoMercBattleSound placing the cry by the soldier's team and sGridNo, 2026-11-07);
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
 // @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack.
@@ -17,7 +18,7 @@ import { type Sector, sameSector, sectorFromId, sectorShortString, strategicInde
 import { spacesAway } from '../../content/world/grid.ts';
 import { idiv, u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
-import type { SimEvent, UnseenVictim } from '../events.ts';
+import type { DeathCry, SimEvent } from '../events.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
 import { handleFirstBattleEndingWhileInTown, scheduleInterrogation } from '../strategic/ai/meanwhile.ts';
 import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts';
@@ -96,7 +97,7 @@ import { healthCategory } from '../tactical/health.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import { leaveTacticalSector } from '../tactical/sector-presence.ts';
-import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import { battleFought, endBattleAfterSurrender, lastMercKillWasMonster } from '../tactical/turns/turns.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
@@ -1134,9 +1135,11 @@ export class BattleFlow implements FateContext {
     });
   }
 
-  #deathCry(soldier: Soldier): { readonly cry?: UnseenVictim } {
+  #deathCry(soldier: Soldier): { readonly cry?: DeathCry } {
     if (soldier.muted) return {};
-    return { cry: unseenVictim(soldier, (profile) => profileVoice(this.state.laptop.imp, profile)) };
+    const voice = unseenVictim(soldier, (profile) => profileVoice(this.state.laptop.imp, profile));
+    const at = soldier.gridNo === NOWHERE ? {} : { gridNo: soldier.gridNo };
+    return { cry: { ...voice, team: soldier.team, ...at } };
   }
 
   #strategicDeathOf(soldier: Soldier): Sector | null {

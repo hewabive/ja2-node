@@ -364,8 +364,9 @@ reads them (deviation "Message list").
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
 strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. His death
-cry and the samples `DOORCR_1` and `HEADCR_1` play for it (`Tactical/Soldier_Control.cc:5407`): `cry {voice, bodyType}`
-names the battle-sound voice, absent for a muted soldier, who makes only the samples (`31`). Off the tactical screen,
+cry and the samples `DOORCR_1` and `HEADCR_1` play for it (`Tactical/Soldier_Control.cc:5407`): `cry {voice, bodyType,
+team, gridNo?}` names the battle-sound voice and where it comes from, his team and, on the loaded map, his tile; it is
+absent for a muted soldier, who makes only the samples (`31`). Off the tactical screen,
 which `mapScreen` marks, `pMercDeadString` goes into the message list (`Strategic/Strategic_Merc_Handler.cc:71`). On
 the map screen his body, items and keys go into that sector's records, every able merc of ours says his buddy line and
 compression stops (`compressionStopped {reason: mercDied}`, `Strategic/Strategic.cc:32`). A soldier of another team of

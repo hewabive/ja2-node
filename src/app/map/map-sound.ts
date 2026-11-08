@@ -10,7 +10,8 @@
 // @src src/game/Utils/Sound_Control.cc PlayLocationJA2Sample (SoundVolume and SoundDir against the world view the last
 // @src ApplyScrolling left, the tactical screen's last, 2026-11-07); src/game/Tactical/Soldier_Control.cc
 // @src HandleTakeDamageDeath (the DIE1 cry, DOORCR_1 and HEADCR_1 of a soldier dying while the map screen is up,
-// @src 2026-11-06).
+// @src 2026-11-06; InternalDoMercBattleSound's cry at his tile against that world view, faded for another team's,
+// @src 2026-11-07).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -112,7 +113,7 @@ export class MapSound implements MapSounds {
   mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void {
     const book = this.#book;
     if (!book) return;
-    if (cry) this.#battleSound(book, soldier, { gridNo: NOWHERE, team: OUR_TEAM, ...cry, morale: NORMAL_MORALE }, 'DIE1');
+    if (cry) this.#battleSound(book, soldier, { gridNo: NOWHERE, ...cry, morale: NORMAL_MORALE }, 'DIE1');
     for (const cue of deathOffTheMapCues(book)) this.#engine.play(cue);
   }
 

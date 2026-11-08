@@ -33,7 +33,7 @@
 // @src 2026-11-05); Tactical/Soldier_Control.cc TurnSoldier (a tank's TURRET_MOVE loop from its first 32-facing step,
 // @src stopped with TURRET_STOP once it faces where it turns, 2026-11-05); Tactical/Soldier_Control.cc
 // @src HandleTakeDamageDeath (the DIE1 cry, DOORCR_1 and HEADCR_1 of a merc of ours dying off the loaded map while the
-// @src tactical screen is up, at NOWHERE, 2026-11-06); GameScreen.cc MainGameScreenHandle (ExecuteOverhead, which runs the
+// @src tactical screen is up, 2026-11-06; the cry by his team and sGridNo, NOWHERE off the map, 2026-11-07); GameScreen.cc MainGameScreenHandle (ExecuteOverhead, which runs the
 // @src animation codes, the final footsteps and code 491, only on the game screen; LeaveTacticalScreen's
 // @src SetPositionSndsInActive, which silences the position sounds off the game screen, 2026-11-06); Overhead.cc
 // @src HandlePlayerServices (the CURSE1 of a medic out of bandages, none in auto-bandage, 2026-11-06).
@@ -735,7 +735,7 @@ export class SoundDirector {
 
   #mercDiedOffTheMap(e: EventOf<'mercDied'>): void {
     if (e.cry) {
-      const absent = { id: e.soldier, gridNo: NOWHERE, team: OUR_TEAM, bodyType: e.cry.bodyType, voice: e.cry.voice };
+      const absent = { id: e.soldier, gridNo: e.cry.gridNo ?? NOWHERE, team: e.cry.team, bodyType: e.cry.bodyType, voice: e.cry.voice };
       this.#voiceSound(absent, 'DIE1', false);
     }
     for (const cue of deathOffTheMapCues(this.#o.book)) this.#play(cue);
