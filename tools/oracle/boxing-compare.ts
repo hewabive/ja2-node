@@ -248,6 +248,10 @@ export class BoxingComparer {
     c.state.clock.pauseLocked = false;
     c.state.clock.paused = false;
     const t = this.#t(c);
+    for (const id of who) {
+      const s = roster.get(id)?.soldier;
+      if (s?.placed) s.actionPoints = calcActionPoints(t, s);
+    }
     const items = t.content.items;
     const soldiers = t.soldiers
       .filter((s): s is Soldier => s?.placed === true)
