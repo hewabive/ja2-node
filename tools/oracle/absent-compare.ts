@@ -1,4 +1,4 @@
-import { parseSectorString, type Sector } from '../../src/content/strategic/sector-ids.ts';
+import { parseSectorString, type Sector, sameSector } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
@@ -135,9 +135,39 @@ function sortedRows(rows: readonly Row[]): Row[] {
   return [...rows].sort((x, y) => rowKey(x).localeCompare(rowKey(y)));
 }
 
-interface Records {
+export interface Records {
   readonly items: Row[];
   readonly corpses: Row[];
+}
+
+export function sectorRecords(c: CampaignSim, sector: Sector): Records {
+  const diff = c.state.sectorDiffs.get(sectorKey(sector));
+  const items = (diff?.items ?? [])
+    .filter((wi) => wi.exists)
+    .map((wi) => [wi.gridNo, wi.level, wi.flags, wi.visible, wi.object.item, wi.object.count, wi.object.status[0] ?? 0]);
+  const corpses = (diff?.corpses ?? []).map((k) => [
+    k.type,
+    k.bodyType,
+    k.gridNo,
+    k.level,
+    k.findSweetSpot ? CORPSE_FIND_SWEETSPOT : 0,
+    k.profile,
+    k.direction,
+    k.timeOfDeath,
+    k.heightAdjustment,
+  ]);
+  return { items, corpses };
+}
+
+export function nativeSectorRecords(p: Json): Records {
+  const r = (p.result as Json | undefined) ?? {};
+  const items = (r.items as number[][] | undefined) ?? [];
+  const corpses = ((r.corpses as number[][] | undefined) ?? []).map((row) => row.slice(0, 9));
+  return { items, corpses };
+}
+
+export function sortedRecords(r: Records): Records {
+  return { items: sortedRows(r.items), corpses: sortedRows(r.corpses) };
 }
 
 interface Baseline {
@@ -518,37 +548,14 @@ export class AbsentComparer {
     handleRealtimeTurns(t, this.#clock(c));
   }
 
-  #ourRecords(c: CampaignSim, sector: Sector): Records {
-    const diff = c.state.sectorDiffs.get(sectorKey(sector));
-    const items = (diff?.items ?? [])
-      .filter((wi) => wi.exists)
-      .map((wi) => [wi.gridNo, wi.level, wi.flags, wi.visible, wi.object.item, wi.object.count, wi.object.status[0] ?? 0]);
-    const corpses = (diff?.corpses ?? []).map((k) => [
-      k.type,
-      k.bodyType,
-      k.gridNo,
-      k.level,
-      k.findSweetSpot ? CORPSE_FIND_SWEETSPOT : 0,
-      k.profile,
-      k.direction,
-      k.timeOfDeath,
-      k.heightAdjustment,
-    ]);
-    return { items, corpses };
-  }
-
-  #nativeRecords(p: Json): Records {
-    const r = (p.result as Json | undefined) ?? {};
-    const items = (r.items as number[][] | undefined) ?? [];
-    const corpses = ((r.corpses as number[][] | undefined) ?? []).map((row) => row.slice(0, 9));
-    return { items, corpses };
-  }
-
   #records(c: CampaignSim, p: Json, a: Json): { result: Records; nativeResult: Records } {
     const sector = sectorArgument(a);
     const key = sectorKey(sector);
-    const native = this.#nativeRecords(p);
-    const ours = this.#ourRecords(c, sector);
+    const native = nativeSectorRecords(p);
+    const ours = sectorRecords(c, sector);
+    const world = c.state.worldSector;
+    if (!this.#unloaded && !(world && sameSector(world, sector)))
+      return { result: sortedRecords(ours), nativeResult: sortedRecords(native) };
     const base = this.#baselines.get(key);
     if (!base) {
       this.#baselines.set(key, { native, ours, watched: new Set() });

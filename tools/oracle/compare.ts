@@ -64,6 +64,7 @@ import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
 import { RECRUIT_PROBES, RecruitComparer } from './recruit-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
+import { isSaveSectorsOutput, SaveSectorsComparer } from './save-sectors-compare.ts';
 import { SCHEDULE_PROBES, ScheduleComparer } from './schedules-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
 import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
@@ -498,7 +499,7 @@ function saveDirFor(dataDir: string, output: string, name: string): string {
   return existsSync(join(dirname(output), `${name}.sav`)) ? dirname(output) : savesDir(dataDir);
 }
 
-function heliDropSave(dataDir: string, output: string, name: string): Uint8Array {
+function saveBytesFor(dataDir: string, output: string, name: string): Uint8Array {
   return new Uint8Array(readFileSync(join(saveDirFor(dataDir, output, name), `${name}.sav`)));
 }
 
@@ -601,8 +602,13 @@ const worlds = new Map<string, TacticalWorld>();
 let failures = 0;
 for (const file of files) {
   if (isHeliDropOutput(file)) {
-    const heliDrop = new HeliDropComparer(read, exists, (name) => heliDropSave(dataDir, file, name));
+    const heliDrop = new HeliDropComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
     for (const p of readLines(file)) failures += await heliDrop.compare(p);
+    continue;
+  }
+  if (isSaveSectorsOutput(file)) {
+    const saveSectors = new SaveSectorsComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
+    for (const p of readLines(file)) failures += await saveSectors.compare(p);
     continue;
   }
   const strategic = new StrategicComparer(read);

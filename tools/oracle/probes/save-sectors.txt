@@ -1,0 +1,54 @@
+# The other sectors' temp files of a native save (README "Savegame temp files"): kept by the load and applied at the
+# sector's next entry, as LoadCurrentSectorsInformationFromTempItemsFile applies the loaded sector's.
+
+# 1. SaveGame03, saved with no world: every sector's files are another sector's. abrecords reads a sector's item and
+# corpse files as they lie in the temp folder; groups shows the sector flags the files stand for.
+save SaveGame03
+abrecords sector=A9
+abrecords sector=A10
+abrecords sector=B11
+abrecords sector=B13
+abrecords sector=C13
+abrecords sector=A10 z=1
+groups
+
+# 2. SaveGame09: D13 loaded, the squad and an enemy in it. Each entry leaves the sector before it (its files written at
+# the exit) and loads the next from its files: C13 with 17 items, 5 corpses and 24 preserved civilians, B13 with 6
+# preserved civilians and 6 doors, A10 with struct, removed struct and exit grid records, B11 whose item file counts no
+# record ahead of a live slot. After each entry: the sector flags (the map modifications flag kept only where a record
+# is written back, A10's), the init list the preserved civilians went into, the door table, the movement costs the map
+# changes and the opened crates leave, the lights and every soldier.
+save SaveGame09
+entersector sector=C13
+groups
+initlist
+abmap
+costs
+lights level=0
+lights level=1
+soldiers detail=1
+abrecords sector=D13
+entersector sector=B13
+groups
+initlist
+abmap
+costs
+lights level=0
+lights level=1
+soldiers detail=1
+abrecords sector=C13
+entersector sector=A10
+groups
+initlist
+abmap
+costs
+lights level=0
+soldiers detail=1
+entersector sector=B11
+groups
+initlist
+abmap
+costs
+lights level=0
+soldiers detail=1
+abrecords sector=B11

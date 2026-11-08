@@ -40,7 +40,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
 | Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop and the loads of its save), `heli-passengers-compare.ts` (the passengers) | 0031 | `25` |
-| Savegame temp files | the loaded sector's temp files on saves the native build writes: a tear gas cloud spread again at the load, aged and gassing over two turns; the map modifications flag with no record written back and with two window hits | `save-effects-setup.txt` (writes the saves), `save-effects.txt` | `absent-compare.ts`, `strategic-compare.ts`, `vehicles-compare.ts` | 0028, 0029, 0030, 0031 | `14` |
+| Savegame temp files | the loaded sector's temp files on saves the native build writes: a tear gas cloud spread again at the load, aged and gassing over two turns; the map modifications flag with no record written back and with two window hits; the other sectors' files: every sector's item and corpse records, four sector entries after a load (flags, init list, doors, costs, lights, soldiers) | `save-effects-setup.txt` (writes the saves), `save-effects.txt`, `save-sectors.txt` | `absent-compare.ts`, `strategic-compare.ts`, `vehicles-compare.ts`, `save-sectors-compare.ts` | 0028, 0029, 0030, 0031 | `14` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -269,6 +269,18 @@ comparer follows the cloud the load spread again over two turns, with two mercs 
 turn four decay updates later (`abset`, `abclock seconds=`); `groups` compares the sector flags after each load (the
 map modifications flag cleared when no record is written back, kept when the window hits find their window). Not
 reached by any command: damage records and light effects, the window's swap itself, a cloud with an owner (`14` §4).
+
+The other sectors' temp files, which the load keeps for each sector's next entry: `save-sectors.txt` (no build) writes
+`save-sectors/entries.jsonl`, which `save-sectors-compare.ts` compares on its own import of each `save`. After
+`SaveGame03` (no world) `abrecords` reads every sector's item and corpse files, compared whole with the imported sector
+diffs, and `groups` the sector flags. After `SaveGame09` four `entersector` (C13, B13, A10, B11) each leave the sector
+before and load the next from its files; each is followed by `groups` (flags, last load time and visible item count of
+every sector), `initlist` (the list before the probe's sort: nodes, priority and detailed flags, soldier ids and
+classes), `abmap` (the door table), `costs`, `lights` and `soldiers` (id, team, profile, body, tile, level, class; life
+and stats are rerolled by draws the probe does not replay), and `abrecords` of a sector left (its files written at the
+exit) or loaded (its files as read). `entersector` compares the profiled NPCs of the sector, those away by schedule
+included. No save holds a preserved enemy record, smoke or light file or damage or window record outside the loaded
+sector, so those stay unit-tested (`14` §4).
 
 ### Sector transitions
 
@@ -541,8 +553,7 @@ Commands: `schedules` (the dump), `schedload` (loads its save itself, `PostSched
 `SectorFlow.postSchedulesOfLoadedSector`, on `schedload` after undoing the session's own post-load posting (saved
 schedules, soldier schedule ids, the events added after the saved ones). Not compared: body and life (the civilians'
 creation draws are not replayed) and a decision's data when it returns no action (stale fields). Sector entries come
-right after a load: the 04:00 event moves NPCs with draws that warps do not replay, and the temp files of other sectors
-are not imported from native saves.
+right after a load: the 04:00 event moves NPCs with draws that warps do not replay.
 
 ### Recruiting
 
@@ -678,8 +689,9 @@ strictly with the pathfinder's, music and cosmetic marks dropped, compares the q
 state field by field. The 20 ms counter's phase is not comparable: the native counter runs on the wall clock, which the
 probe satisfies by sleeping, ja2-node's on `realMs`; each comparer poll sets `lastOverheadMs` 20 ms back. A team turn
 that ends combat gets ja2-node's forced real-time turn inside the probe (deviation "Real-time turn after combat").
-Records are compared as what a command added since the block's first `abrecords` of the sector (native temp files of
-the loaded sector are not imported), and after an unload at the tiles of those additions. Not compared: the screen and
+Records of a sector the save did not load are compared whole, as imported from its temp files; those of the loaded
+sector, whose live state is the map and not a sector diff, as what a command added since the block's first `abrecords`
+of the sector, and after an unload at the tiles of those additions. Not compared: the screen and
 compression before a block sets them, `gfDoLighting` before a light event (the native load sets it), the sector flag of
 the dead (native soldiers stay `bInSector`) and the tile of the dead after an unload: `TrashWorld` leaves our team on
 their tiles (`TileEngine/WorldDef.cc:2522`) until the next load's `RemoveMercsInSector` (`Strategic/StrategicMap.cc:858`),
@@ -887,6 +899,7 @@ writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` 
   oracle's home; `save-effects.txt` reads them from there, so it runs after it, and writes `save-effects/effects.jsonl`.
   The work dir keeps copies of both saves in `save-effects/`, where `compare.ts` finds them. `compare-all.sh` compares
   both outputs ("Savegame temp files").
+- `save-sectors.txt` writes `save-sectors/entries.jsonl` ("Savegame temp files").
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;
