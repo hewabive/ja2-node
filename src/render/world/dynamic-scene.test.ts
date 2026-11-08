@@ -6,9 +6,18 @@ import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { buildLevel } from '../../content/world/level.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
-import { animatedTile, type DynamicFrame, DynamicScene, type SceneAniTile, type SceneSoldier } from './dynamic-scene.ts';
+import {
+  animatedTile,
+  type DynamicFrame,
+  DynamicScene,
+  flyingAniTileOnScreen,
+  flyingAniTileScreenPoint,
+  type SceneAniTile,
+  type SceneSoldier,
+} from './dynamic-scene.ts';
 import {
   animationTileZ,
+  cameraOffset,
   corpseZ,
   itemZ,
   mercZ,
@@ -248,6 +257,24 @@ describe('dynamic scene', () => {
     expect(drawnShadow).toMatchObject({ x: -100, y: 1630, z: 0 });
     expect(drawnKnife).toMatchObject({ x: -100, y: 1600, z: animationTileZ(worldY(80, 80, 860), 30) });
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.SHADOW_FLAT, DrawState.NEARER_OR_EQUAL]);
+  });
+
+  it('places a flying tile on the screen where it draws it, on screen while a pixel of its sprite is in the viewport', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const south = (by: number) => ({ x: 805, y: 805 + by, z: 0 });
+    const shadow: SceneAniTile = { ...aniTileOf('helicopterShadow', g(80, 80), 0, 8), at: south(40) };
+    const shown = frame({ aniTiles: [shadow] });
+    scene.build(shown);
+    const screen = flyingAniTileScreenPoint(shown, 0, south(40));
+    const offset = cameraOffset(shown.viewport, shown.camera, shown.renderHeight);
+    expect(decode(scene)[0]).toMatchObject({
+      x: screen.x + shadow.sprite.offsetX - offset.x,
+      y: screen.y + shadow.sprite.offsetY - offset.y,
+    });
+    const lastOnScreen = 169;
+    expect(flyingAniTileOnScreen(shown, 0, south(lastOnScreen), shadow.sprite)).toBe(true);
+    expect(flyingAniTileOnScreen(shown, 0, south(lastOnScreen + 1), shadow.sprite)).toBe(false);
   });
 
   it('draws a flying crow flat on the ground in the shadow layer, below the crow drawn at his height', () => {

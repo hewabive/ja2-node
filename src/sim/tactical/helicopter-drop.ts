@@ -9,6 +9,7 @@
 
 import { CELL_X_SIZE, CELL_Y_SIZE } from '../../content/world/grid.ts';
 import { i16, idiv, u32 } from '../../core/int.ts';
+import { msForTicks, ticksForMs } from '../clock.ts';
 import { anim } from './anim-states.ts';
 import { initNewSoldierAnim } from './animation.ts';
 import { type HelicopterDrop, type HeliShadow, HeliState } from './helicopter-drop-state.ts';
@@ -38,6 +39,7 @@ const HeliCode = {
 const MAX_MERC_IN_HELI = 20;
 const MAX_HELI_SCRIPT = 30;
 const ME_SCRIPT_DELAY = 100;
+export const HELI_SCRIPT_STEP_MS = msForTicks(ticksForMs(ME_SCRIPT_DELAY + 1));
 const NUM_PER_HELI_RUN = 6;
 const REFERENCE_STD_SCREEN_X = 0;
 const MOVEAWAY_REPEAT_DIVISOR = 7;
@@ -47,7 +49,7 @@ const VOLUME_STEP = 5;
 const HELI_OFFSET_X = 2 * CELL_X_SIZE;
 const HELI_OFFSET_Y = 10 * CELL_Y_SIZE;
 const MOVEY_STEP = 4;
-const MOVELARGERY_STEP = 6;
+export const MOVELARGERY_STEP = 6;
 const MOVE_STEP = 1;
 const MOVESMALL_STEP = 0.25;
 const EXIT_COUNT = 2;

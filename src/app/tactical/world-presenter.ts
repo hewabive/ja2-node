@@ -33,7 +33,7 @@ import {
   type Camera,
   cameraOffset,
   mapCenter,
-  ROOF_LEVEL_HEIGHT,
+  sceneRenderHeight,
   screenToGridNo,
   type Viewport,
   WALL_HEIGHT,
@@ -215,7 +215,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   #renderHeight(): number {
-    return this.#world.world.prepared.renderHeight + (this.#roofLevel ? ROOF_LEVEL_HEIGHT : 0);
+    return sceneRenderHeight(this.#world.world.prepared.renderHeight, this.#roofLevel);
   }
 
   soldierTrueScreenPosition(id: number): ScreenPoint | null {

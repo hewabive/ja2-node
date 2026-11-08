@@ -13,9 +13,11 @@ import { levelTilesAt } from '../../content/world/level.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import type { ZStripInfo } from '../../content/world/zstrip.ts';
 import { idiv, u16 } from '../../core/int.ts';
+import { clipRect } from './dirty-rects.ts';
 import {
   animationTileZ,
   type Camera,
+  cameraOffset,
   corpseZ,
   HALF_TILE_X,
   heightAdjusted,
@@ -125,6 +127,21 @@ export function soldierScreenPoint(view: SoldierScreenView, landHeight: number, 
   };
 }
 
+export function flyingAniTileScreenPoint(view: SoldierScreenView, landHeight: number, at: FlyingPoint): { x: number; y: number } {
+  const c = mapCenter(view.viewport);
+  const dx = Math.fround(at.x - view.camera.centerX);
+  const dy = Math.fround(at.y - view.camera.centerY);
+  return {
+    x: c.x + Math.trunc(Math.fround(2 * dx - 2 * dy)),
+    y: c.y + Math.trunc(Math.fround(dx + dy)) - landHeight - MERC_SCREEN_OFFSET_Y - at.z + view.renderHeight,
+  };
+}
+
+export function flyingAniTileOnScreen(view: SoldierScreenView, landHeight: number, at: FlyingPoint, sprite: OffsetSprite): boolean {
+  const p = flyingAniTileScreenPoint(view, landHeight, at);
+  return clipRect(p.x + sprite.offsetX, p.y + sprite.offsetY, sprite.width, sprite.height, view.viewport) !== null;
+}
+
 type MercPass = 'structMercs' | 'mercs' | 'highMercs';
 
 function inPass(m: SceneSoldier, pass: MercPass): boolean {
@@ -164,12 +181,16 @@ export interface WorldPoint {
   readonly y: number;
 }
 
+export interface FlyingPoint extends WorldPoint {
+  readonly z: number;
+}
+
 export interface SceneAniTile {
   readonly kind: AniTileKind;
   readonly gridNo: number;
   readonly level: number;
   readonly heightAdjustment?: number;
-  readonly at?: WorldPoint & { readonly z: number };
+  readonly at?: FlyingPoint;
   readonly translucent?: boolean;
   readonly sprite: OffsetSprite;
   readonly paletteRow: number;
@@ -431,17 +452,11 @@ export class DynamicScene {
     return { x: screenX + sprite.offsetX - offX, y: screenY + sprite.offsetY - offY };
   }
 
-  #cachedAniPosition(a: SceneAniTile, at: WorldPoint & { readonly z: number }): { x: number; y: number } {
+  #cachedAniPosition(a: SceneAniTile, at: FlyingPoint): { x: number; y: number } {
     const frame = this.#frame as DynamicFrame;
-    const c = mapCenter(frame.viewport);
-    const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
-    const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
-    const dx = Math.fround(at.x - frame.camera.centerX);
-    const dy = Math.fround(at.y - frame.camera.centerY);
-    const height = this.#world.level.heights[a.gridNo] ?? 0;
-    const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
-    const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y - at.z + frame.renderHeight;
-    return { x: screenX + a.sprite.offsetX - offX, y: screenY + a.sprite.offsetY - offY };
+    const screen = flyingAniTileScreenPoint(frame, this.#world.level.heights[a.gridNo] ?? 0, at);
+    const off = cameraOffset(frame.viewport, frame.camera, frame.renderHeight);
+    return { x: screen.x + a.sprite.offsetX - off.x, y: screen.y + a.sprite.offsetY - off.y };
   }
 
   #emitPausedAniTiles(g: number, x: number, y: number, level: number): void {
@@ -500,7 +515,7 @@ export class DynamicScene {
     );
   }
 
-  #emitFlyingAniTile(a: SceneAniTile, at: WorldPoint & { readonly z: number }, x: number, y: number): void {
+  #emitFlyingAniTile(a: SceneAniTile, at: FlyingPoint, x: number, y: number): void {
     const p = this.#cachedAniPosition(a, at);
     const out = this.instances;
     const s = a.sprite;

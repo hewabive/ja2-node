@@ -43,6 +43,10 @@ export interface Viewport {
   readonly height: number;
 }
 
+export function sceneRenderHeight(mapRenderHeight: number, roofLevel: boolean): number {
+  return mapRenderHeight + (roofLevel ? ROOF_LEVEL_HEIGHT : 0);
+}
+
 export function topYOf(restrictedScrollId: number): number {
   return renderBounds(restrictedScrollId).topY;
 }

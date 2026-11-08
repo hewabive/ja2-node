@@ -19,9 +19,9 @@ import {
   type Camera,
   cameraOffset,
   LIGHT_DUSK_CUTOFF,
-  ROOF_LEVEL_HEIGHT,
   ROW_COUNT,
   rowOf,
+  sceneRenderHeight,
   topYOf,
   type Viewport,
   visibleRows,
@@ -335,7 +335,7 @@ export class WorldRenderer {
       this.#shade.upload(f.shade.land, f.shade.roof);
       s.shadeVersion = f.shade.version;
     }
-    const renderHeight = s.world.prepared.renderHeight + (f.roofLevel ? ROOF_LEVEL_HEIGHT : 0);
+    const renderHeight = sceneRenderHeight(s.world.prepared.renderHeight, f.roofLevel);
     const rows = visibleRows(f.viewport, f.camera, renderHeight, assembled.reach);
     s.dynamic.build({
       viewport: f.viewport,

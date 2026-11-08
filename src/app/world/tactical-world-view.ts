@@ -13,8 +13,14 @@ import type {
   TileChangeView,
   WorldLightView,
 } from '../../protocol/view.ts';
-import type { SceneAniTile, SceneItem, SoldierSprite, WorldUiNode } from '../../render/world/dynamic-scene.ts';
-import type { Camera, Viewport } from '../../render/world/geometry.ts';
+import {
+  flyingAniTileOnScreen,
+  type SceneAniTile,
+  type SceneItem,
+  type SoldierSprite,
+  type WorldUiNode,
+} from '../../render/world/dynamic-scene.ts';
+import { type Camera, sceneRenderHeight, type Viewport } from '../../render/world/geometry.ts';
 import type { ShadeField, WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent } from '../../sim/events.ts';
 import { onTheMap } from '../../ui/screens/tactical/soldiers.ts';
@@ -30,7 +36,7 @@ import {
   isCachedEffect,
 } from './effect-animations.ts';
 import { glowContext } from './glow-context.ts';
-import { HelicopterShadows } from './helicopter-shadows.ts';
+import { type HelicopterShadowFrame, HelicopterShadows } from './helicopter-shadows.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
 import { ROOF_MARKER_TILE, RoofMarkers, type SoldierOrigin } from './roof-markers.ts';
@@ -274,6 +280,7 @@ export class TacticalWorldView {
 
   resetEffects(soldiers: SoldierOrigin): void {
     this.#effectAnimations.reset();
+    this.#helicopterShadows.reset();
     this.#roofMarkers.reset(soldiers);
   }
 
@@ -309,13 +316,24 @@ export class TacticalWorldView {
       });
   }
 
-  #helicopterShadowTiles(drop: HelicopterDropView | null | undefined, clockMs: number): SceneAniTile[] {
+  #helicopterShadowTiles(f: TacticalFrame): SceneAniTile[] {
     const effects = this.#effects;
     if (!effects) return [];
-    return this.#helicopterShadows.update(drop?.shadows ?? [], clockMs, effects.helicopterShadowFrames()).flatMap((h) => {
+    const screen = {
+      viewport: f.viewport,
+      camera: f.camera,
+      renderHeight: sceneRenderHeight(this.world.prepared.renderHeight, f.roofLevel),
+    };
+    const onScreen = (h: HelicopterShadowFrame) => {
       const tile = effects.helicopterShadow(h);
-      return tile ? [tile] : [];
-    });
+      return tile !== null && flyingAniTileOnScreen(screen, this.world.level.heights[h.gridNo] ?? 0, h, tile.sprite);
+    };
+    return this.#helicopterShadows
+      .update(f.view.helicopterDrop ?? null, f.clockMs, effects.helicopterShadowFrames(), onScreen)
+      .flatMap((h) => {
+        const tile = effects.helicopterShadow(h);
+        return tile ? [tile] : [];
+      });
   }
 
   #cachedEffectTiles(shown: readonly EffectFrame[]): SceneAniTile[] {
@@ -388,7 +406,7 @@ export class TacticalWorldView {
     const animatedTiles = [
       ...aniTiles,
       ...this.#crowShadowTiles(onMap, f.clockMs),
-      ...this.#helicopterShadowTiles(view.helicopterDrop, f.clockMs),
+      ...this.#helicopterShadowTiles(f),
       ...this.#cachedEffectTiles(effects),
       ...this.#knifeTiles(bullets, Math.floor(shownTick)),
     ];

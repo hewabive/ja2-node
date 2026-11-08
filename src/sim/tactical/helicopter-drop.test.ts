@@ -2,12 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { combatStats } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { Direction } from '../../content/world/grid.ts';
+import { msForTicks } from '../clock.ts';
 import type { SimEvent } from '../events.ts';
 import { restoreTactical, snapshotJson, snapshotTactical } from '../snapshot/session.ts';
 import { anim } from './anim-states.ts';
 import { states } from './animation.ts';
 import { soldierCollapse } from './combat/hit.ts';
-import { addMercToHeli, helicopterDropStalled, skipHelicopterDrop, startHelicopterRun } from './helicopter-drop.ts';
+import { addMercToHeli, HELI_SCRIPT_STEP_MS, helicopterDropStalled, skipHelicopterDrop, startHelicopterRun } from './helicopter-drop.ts';
 import { type HelicopterDrop, HeliState, helicopterDropView } from './helicopter-drop-state.ts';
 import { playerInterfaceLocked } from './interface-lock.ts';
 import { NO_NARRATIVE_PORT } from './narrative/port.ts';
@@ -134,6 +135,7 @@ describe('the helicopter drop (Merc_Entering.cc HandleHeliDrop)', () => {
       FIRST_STEP_TICK + 3 * STEP_TICKS,
     ]);
     expect(drop(scene).script).toBe(steps.length);
+    expect(msForTicks(STEP_TICKS)).toBe(HELI_SCRIPT_STEP_MS);
   });
 
   it('fades the engine in over 26 steps from silence and out over 26 more after the exit script, the silence ending the drop', () => {
