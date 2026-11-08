@@ -1,15 +1,28 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LoadSaveSoldierCreate.cc ExtractSoldierCreateFromFile, InjectSoldierCreateIntoFile (Windows layout).
+// @src src/game/Tactical/LoadSaveSoldierCreate.cc ExtractSoldierCreateFromFile, InjectSoldierCreateIntoFile (Windows layout;
+// @src the Linux layout's UTF-32 name and CalcSoldierCreateCheckSum, 2026-11-08).
 
+import { u16 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { decodeObject, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
 
 export const DETAILED_PLACEMENT_BYTES = 1040;
+const DETAILED_PLACEMENT_BYTES_STRAC_LINUX = 1060;
 const INVENTORY_SLOTS = 19;
 const PALETTE_BYTES = 30;
 const PATROL_POINTS = 10;
 const NAME_CHARS = 10;
+const NAME_OFFSET = 888;
+const UTF16_BYTES = 2;
+const UTF32_BYTES = 4;
+const MAX_CODE_POINT = 0x10ffff;
+const REPLACEMENT_CHARACTER = 0xfffd;
+const SECTOR_X_OFFSET = 6;
+const ON_ROOF_AFTER_NAME = 1;
+const CIVILIAN_GROUP_AFTER_NAME = 9;
+const SCHEDULE_ID_AFTER_NAME = 11;
+const HAS_KEYS_AFTER_NAME = 14;
 
 export interface DetailedStats {
   readonly lifeMax: number;
@@ -61,16 +74,38 @@ function ascii(bytes: Uint8Array, offset: number): string {
   return s;
 }
 
-export function parseDetailedPlacement(raw: Uint8Array): DetailedPlacement {
-  if (raw.length < DETAILED_PLACEMENT_BYTES) throw new FormatError(`detailed placement must be ${DETAILED_PLACEMENT_BYTES} bytes`);
+function nameCharBytes(stracLinux: boolean): number {
+  return stracLinux ? UTF32_BYTES : UTF16_BYTES;
+}
+
+function afterName(stracLinux: boolean): number {
+  return NAME_OFFSET + NAME_CHARS * nameCharBytes(stracLinux);
+}
+
+export function detailedPlacementBytes(stracLinux: boolean): number {
+  return stracLinux ? DETAILED_PLACEMENT_BYTES_STRAC_LINUX : DETAILED_PLACEMENT_BYTES;
+}
+
+function placementName(v: DataView, stracLinux: boolean): string {
+  const charBytes = nameCharBytes(stracLinux);
+  const codes: number[] = [];
+  for (let i = 0; i < NAME_CHARS; i++) {
+    const at = NAME_OFFSET + i * charBytes;
+    const c = stracLinux ? v.getUint32(at, true) : v.getUint16(at, true);
+    if (c === 0) break;
+    codes.push(c);
+  }
+  return stracLinux
+    ? String.fromCodePoint(...codes.map((c) => (c > MAX_CODE_POINT ? REPLACEMENT_CHARACTER : c)))
+    : String.fromCharCode(...codes);
+}
+
+export function parseDetailedPlacement(raw: Uint8Array, stracLinux = false): DetailedPlacement {
+  const size = detailedPlacementBytes(stracLinux);
+  if (raw.length < size) throw new FormatError(`detailed placement must be ${size} bytes`);
   const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
   const i8 = (o: number) => v.getInt8(o);
-  let name = '';
-  for (let i = 0; i < NAME_CHARS; i++) {
-    const c = v.getUint16(888 + i * 2, true);
-    if (c === 0) break;
-    name += String.fromCharCode(c);
-  }
+  const tail = afterName(stracLinux);
   return {
     isStatic: raw[0] !== 0,
     profile: raw[1] ?? 0,
@@ -101,13 +136,46 @@ export function parseDetailedPlacement(raw: Uint8Array): DetailedPlacement {
     patrolGrid: Array.from({ length: PATROL_POINTS }, (_, k) => v.getInt16(866 + k * 2, true)),
     patrolCount: i8(886),
     visible: raw[887] !== 0,
-    name,
-    soldierClass: raw[908] ?? 0,
-    onRoof: raw[909] !== 0,
-    civilianGroup: raw[917] ?? 0,
-    scheduleId: raw[919] ?? 0,
-    hasKeys: raw[922] ?? 0,
+    name: placementName(v, stracLinux),
+    soldierClass: raw[tail] ?? 0,
+    onRoof: raw[tail + ON_ROOF_AFTER_NAME] !== 0,
+    civilianGroup: raw[tail + CIVILIAN_GROUP_AFTER_NAME] ?? 0,
+    scheduleId: raw[tail + SCHEDULE_ID_AFTER_NAME] ?? 0,
+    hasKeys: raw[tail + HAS_KEYS_AFTER_NAME] ?? 0,
   };
+}
+
+export function calcSoldierCreateCheckSum(raw: Uint8Array, stracLinux = false): number {
+  const p = parseDetailedPlacement(raw, stracLinux);
+  const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+  const s = p.stats;
+  const sectorX = v.getInt16(SECTOR_X_OFFSET, true);
+  const onRoof = raw[afterName(stracLinux) + ON_ROOF_AFTER_NAME] ?? 0;
+  return u16(
+    s.life * 7 +
+      s.lifeMax * 8 -
+      s.agility * 2 +
+      s.dexterity * 1 +
+      s.experience * 5 -
+      s.marksmanship * 9 +
+      s.medical * 10 +
+      s.mechanical * 3 +
+      s.explosives * 4 +
+      s.leadership * 5 +
+      s.strength * 7 +
+      s.wisdom * 11 +
+      s.morale * 7 +
+      s.aiMorale * 3 -
+      p.bodyType * 7 +
+      4 * 6 +
+      sectorX * 7 -
+      p.soldierClass * 4 +
+      p.team * 7 +
+      p.direction * 5 +
+      onRoof * 17 +
+      p.insertionGridNo * 1 +
+      3,
+  );
 }
 
 const UNSET_STAT = -1;

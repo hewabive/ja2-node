@@ -24,6 +24,7 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
       time, roster, merchants, map, strategic AI, story,        sim/**/save-import.ts, sim/campaign/save-roster.ts
       creatures, economy, contracts, laptop, narrative,
       assignments, NPC records
+    the other sectors' temp files into their sector diffs      sim/campaign/save-sectors.ts
     the loaded sector: links, helicopter, map changes,          sim/campaign/sector-flow.ts adoptLoadedSector
       door states, smoke and lights, schedules
     the loaded sector's map modifications flag                  sim/strategic/map/save-import.ts
@@ -47,21 +48,29 @@ game build, not to the file, so the reader tries the plain set first and keeps t
 holds (`germanEncryption`). Since 11 ≡ 1 (mod 10), the factor changes the set only when the u32 product wraps, for large
 balances.
 
-**Only the loaded sector is rebuilt.** The game writes the loaded sector into its temp files right before saving, so
-those files are the sector's live state, and the import applies them in the order of
+**Every sector's temp files come along.** The game writes the loaded sector into its temp files right before saving,
+so those files are the sector's live state, and the import applies them in the order of
 `LoadCurrentSectorsInformationFromTempItemsFile` (`Tactical/Tactical_Save.cc:432`), its records as the original reads
 them (`src/sim/tactical/native-temp-files.ts`): the ones the stay changes again become ja2-node map changes, so the
 next exit keeps them, and the ones the native load writes back decide whether the sector keeps its map modifications
-flag (`SaveLoadMap.cc:236`). Every other sector's temp files stay raw bytes (`tempFiles`): those sectors load from
-their maps.
+flag (`SaveLoadMap.cc:236`). The load keeps every other sector's files for that sector's next entry
+(`Tactical/Tactical_Save.cc:164`), and the import turns them into its sector diff (`src/sim/campaign/save-sectors.ts`):
+items, corpses, the door table, door status, preserved enemies and civilians (each record in the layout its checksum
+holds in, `Tactical/LoadSaveSoldierCreate.cc:126`), smoke and lights become ja2-node's records at once; the map changes
+and revealed tiles stay the save's records (`SectorDiff.savedMapModifications`, `savedRevealed`), since damage, window
+and revealed records need the map. The sector's first entry replays those through the loaded sector's appliers, in
+the entry's order and before the diff's own changes, and decides the flag as a load does; the next exit writes
+ja2-node's form. A change made in the sector before that entry comes after the save's records, as it would in the
+file: a structure added or removed there joins the diff's own changes, and Bobby Ray closing a crate edits the
+openable record in place (`SaveLoadMap.cc:744`).
 
 **A save without a world.** A save made before the first arrival, or after the last merc left the loaded sector,
 has no world (`SaveLoadGame.cc:731`, `:748`): the original leaves the world sector invalid and opens the map screen. The
 import reads no map and starts as a campaign does after `trashWorld` or before its landing: the strategic flow, no
 tactical sim, `worldSector` null. What a loaded world would carry and outlives it goes into the strategic state
 (`importCampaignWideState`: the PreRandom ring, profiles, key table, civilian groups, the opplist decay time); the
-roster's soldiers are built from their records; the last sector's temp files are left, like every other sector's. An
-imported `didGameJustStart` lands the squad at the first compression, as in a new game.
+roster's soldiers are built from their records; the temp files of every sector, the last one's included, go into the
+sector diffs. An imported `didGameJustStart` lands the squad at the first compression, as in a new game.
 
 **The saved screen.** A save resumes on the screen it was made on (`SaveLoadScreen.cc:1188`): one made in tactical in
 the tactical flow, one made on the map screen, or without a world, on the map screen, entered as `MapScreenHandle`
@@ -128,9 +137,10 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A loaded creature pool is redrawn as human blood: its type lives in the smell byte, which the load sets after the redraw | `sim/tactical/blood-pools.test.ts` |
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
 | No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5856`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |
-| A temp file is read by its count, the bytes past it unread: B11's item file in `SaveGame07`, `09` and `10` counts no record ahead of a live slot (`Tactical/Tactical_Save.cc:217`) | `content/formats/savegame.test.ts` "reads only the counted item records …", "reads nothing from B11's item file in SaveGame07 …" |
+| A temp file is read by its count, the bytes past it unread: B11's item file in `SaveGame07`, `09` and `10` counts no record ahead of a live slot (`Tactical/Tactical_Save.cc:217`) | `content/formats/savegame.test.ts` "reads only the counted item records …", "reads nothing from B11's item file in SaveGame07 …", `sim/campaign/save-sectors.test.ts` "enters B11 of SaveGame09 with no item …" |
 | A damage record lands on the first structure of its tile with the saved type bit, wall orientation and level class, which can be a piece of another structure listed first: the next save rescans base tiles only and loses the damage (`Structure.cc:1853`, `SaveLoadMap.cc:344`) | `sim/tactical/native-temp-files.test.ts` "lets a damage record land on the piece of another structure …" |
 | The load spreads the saved smoke before the soldiers enter the map: a soldier saved ungassed on a smoke tile enters gassed, and nobody takes gas damage (`SaveLoadGame.cc:1016`, `:1036`; `Soldier_Control.cc:2066`) | `sim/tactical/save-import.test.ts` "restores the clouds in their slots …" |
+| The civilians' preserved file ends on a sector id that its load reads and never checks, while the enemies' is checked (`Tactical/Enemy_Soldier_Save.cc:255`, `:424`) | `content/formats/savegame-preserved-soldiers.test.ts` "checks the sector id after the records of an enemy file only …" |
 
 Not pinned yet:
 - A vanilla save's `uiFlags` holds `LOADING_SAVED_GAME`, set while writing, and two bits Stracciatella no longer defines
@@ -144,14 +154,16 @@ the AI's best shot, sight, paths and lights for every opposed pair), the native 
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
 "`save`"); most other comparers start from imported saves too, entering the loaded sector of a save made on the map
 screen first (`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the native build
-writes itself, a tear gas cloud and a hit window (`tools/oracle/README.md` "Savegame temp files"). With the original
+writes itself, a tear gas cloud and a hit window; the other sectors' at their first entries after `SaveGame09` and in
+the records of every sector of `SaveGame03` (`tools/oracle/README.md` "Savegame temp files"). With the original
 data, the subsystems' `save-import` tests import every save in `SavedGames`, and `src/server/save-session.test.ts`
 keeps playing each one: a save with a world in tactical, one without on the map screen while its travelling squad
 reaches the next sector; the first save with a world is also played again with its world flag cleared.
 
 Inferred from reading the source:
 - The Linux layout has a synthetic test only, and no real file covers versions 100–105: the saves the tests use
-  (`SaveGame01`–`03`, `07`–`10`) are vanilla version 99.
+  (`SaveGame01`–`03`, `07`–`10`) are vanilla version 99; so has a preserved soldier in the Linux layout. No save
+  holds a preserved enemy record, a smoke or light file of a sector not loaded, or a damage or window record there.
 - A save made before the first arrival: `SaveGame03` has no world because its squad is between sectors; for the first
   arrival the tests set the start flag, and clear the world flag, of a save made with one.
 - The zeroed half of the personal last-known locations: no probe dumps `gsLastKnownOppLoc`, and a load inside a running
@@ -163,6 +175,7 @@ Inferred from reading the source:
   record written back, through the sector flag, not the swap itself: no probe dumps a tile's structures. The smoke
   probe's cloud has no owner (`absmoke`), so the owner by id is pinned by a unit test only.
 
-Not ported: gaps "Savegame import", "Animations on load", "Unread savegame sections", "Pending actions on import".
+Not ported: gaps "Animations on load", "Unread savegame sections", "Pending actions on import", "Smoke owner in a
+sector diff".
 Other deviations of the import: "Ambient sound events", "Blood on the ground",
-"Difficulty and progress in tactical", "Corpse structure past its file".
+"Difficulty and progress in tactical", "Corpse structure past its file", "Preserved soldier checksums".

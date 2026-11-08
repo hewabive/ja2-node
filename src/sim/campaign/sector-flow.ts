@@ -39,7 +39,10 @@
 // @src IN_DEIDRANNA_ENDGAME (2026-11-06); Strategic/Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat,
 // @src EnemyStrength and PlayerStrength (its bInSector, a helicopter passenger over the loaded sector's included, 2026-11-08);
 // @src TileEngine/Render_Fun.cc GetRoom for Map_Screen_Interface.cc CanCharacterMoveInStrategic (the rooms of the map loaded
-// @src last, which TrashWorld leaves in gubWorldRoomInfo, 2026-11-08).
+// @src last, which TrashWorld leaves in gubWorldRoomInfo, 2026-11-08); Tactical/Tactical_Save.cc
+// @src LoadCurrentSectorsInformationFromTempItemsFile and TileEngine/SaveLoadMap.cc
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem (a native save's map changes and revealed tiles of a sector at its
+// @src first entry, the flag reset when no record is written back, 2026-11-08).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -158,6 +161,7 @@ import {
   updateSoldierPointerDataIntoProfile,
 } from '../tactical/narrative/profile-insertion.ts';
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
+import { loadAllMapChangesFromMapTempFile, loadRevealedStatusFromRevealedTempFile } from '../tactical/native-temp-files.ts';
 import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
 import { initLoadedWorld, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES, type SavedSectorChanges } from '../tactical/save-import.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
@@ -203,6 +207,7 @@ import {
   captureRevealed,
   captureSmoke,
   captureWorldItems,
+  dropSavedTempFileRecords,
   emptySectorDiff,
   loadPreservedCivilians,
   preserveSoldiers,
@@ -781,20 +786,33 @@ export class SectorFlow {
         restoreCorpses(t, diff.corpses, { nowMinute: now, inTown, loadingSave: false });
       }
       if (this.#flagged(sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)) {
+        this.#loadSavedMapModifications(sector, diff);
         if (diff.mapChanges) restoreMapChanges(t, diff.mapChanges);
         if (diff.bloodSmell) restoreBloodAndSmell(t, diff.bloodSmell);
       }
       if (diff.openables) restoreOpenables(t, diff.openables);
-      if (diff.revealed && this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) restoreRevealed(t, diff.revealed);
+      if (this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) {
+        if (diff.savedRevealed) loadRevealedStatusFromRevealedTempFile(t, diff.savedRevealed);
+        else if (diff.revealed) restoreRevealed(t, diff.revealed);
+      }
       if (diff.doorStatus && this.#flagged(sector, SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS)) loadDoorStatusArray(t, diff.doorStatus);
       if (diff.enemies && this.#flagged(sector, SectorFlag.ENEMY_PRESERVED_TEMP_FILE_EXISTS)) this.#loadPreservedEnemies(sector, diff);
       if (diff.civilians && this.#flagged(sector, SectorFlag.CIV_PRESERVED_TEMP_FILE_EXISTS))
         loadPreservedCivilians(t, diff.civilians, now);
       if (diff.smoke && this.#flagged(sector, SectorFlag.SMOKE_EFFECTS_TEMP_FILE_EXISTS)) restoreSmoke(t, diff.smoke);
       if (diff.lights && this.#flagged(sector, SectorFlag.LIGHTING_EFFECTS_TEMP_FILE_EXISTS)) restoreLights(t, diff.lights);
+      dropSavedTempFileRecords(diff);
     }
     initLoadedWorld(t);
     if (sector.z === 0 && sectorInfo(s.map, sector).timeLastPlayerLiberated !== 0) stripEnemyDetailedPlacements(t, this.populationEnv());
+  }
+
+  #loadSavedMapModifications(sector: Sector, diff: SectorDiff): void {
+    const t = this.campaign.tactical?.state;
+    const saved = diff.savedMapModifications;
+    if (!t || !saved) return;
+    const writtenBack = loadAllMapChangesFromMapTempFile(t, saved) || diff.mapChanges !== null;
+    if (!writtenBack) resetSectorFlag(this.campaign.state.map, sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
   }
 
   #loadItemDiff(sector: Sector, diff: SectorDiff): void {

@@ -17,7 +17,8 @@ import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
-import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
+import { Direction, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { levelTilesAt } from '../../content/world/level.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
@@ -27,9 +28,9 @@ import { createItem } from '../items/object.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
-import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
+import { getSectorFlagStatus, sectorInfo, setSectorFlag } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
-import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
+import { warpGameTime, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { PanicFlags } from '../tactical/ai/panic-triggers.ts';
 import { anim } from '../tactical/anim-states.ts';
@@ -57,6 +58,7 @@ import {
 } from '../tactical/map-changes.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
+import { RevealedFlags } from '../tactical/perception/fov.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { NO_SAVED_SECTOR_CHANGES } from '../tactical/save-import.ts';
 import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
@@ -69,6 +71,8 @@ import { lastMapRestrictedScroll } from './flow-state.ts';
 import { helicopterDropUnderWay } from './helicopter-drop-flow.ts';
 import { sectorKey } from './sector-diff.ts';
 import { type SectorWorlds, UnloadCode } from './sector-flow.ts';
+import { sectorDiffOf } from './sector-loot.ts';
+import { addStructToUnloadedSector } from './unloaded-map.ts';
 
 let kit: CampaignKit;
 
@@ -750,6 +754,86 @@ describe('a native save loaded into its sector', () => {
     if (!back) throw new Error('no sector');
     expect(structLayerAt(back, g)).toContain(tile);
     expect(objectLayerAt(back, g)[0]).toBe(debris);
+  });
+});
+
+describe("the other sectors' temp files of a native save", () => {
+  function nativeRecordsFor(campaign: ReturnType<typeof createTestCampaign>['campaign'], flag: number) {
+    landFirstSquad(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    setSectorFlag(campaign.state.map, B13, flag, worldDay(campaign.state.clock));
+    return sectorDiffOf(campaign.state, B13);
+  }
+
+  function enterAirfield(campaign: ReturnType<typeof createTestCampaign>['campaign']): TacticalState {
+    const flow = flowOf(campaign);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const t = campaign.tactical?.state;
+    if (!t) throw new Error('no sector');
+    return t;
+  }
+
+  function hangarDoorRemoval(campaign: ReturnType<typeof createTestCampaign>['campaign']) {
+    const world = kit.sectors.world('stubs/world/maps/airfield.dat');
+    const [closedDoor = -1] = levelTilesAt(world.level.layers.structs, HANGAR_DOOR);
+    const doorType = tileTypeOf(world.tables, closedDoor);
+    const record = {
+      type: MapModificationType.REMOVE_STRUCT,
+      gridNo: HANGAR_DOOR,
+      imageType: doorType,
+      subImageIndex: closedDoor - (world.tables.types[doorType]?.start ?? 0) + 1,
+      extra: 0,
+    };
+    expect(campaign.state.worldSector).not.toEqual(B13);
+    return { closedDoor, record };
+  }
+
+  it('replays the map changes a native save left for a sector at its first entry before the changes made since, which come after them in the file (Tactical_Save.cc:458, SaveLoadMap.cc:67)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const diff = nativeRecordsFor(campaign, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
+    const { closedDoor, record } = hangarDoorRemoval(campaign);
+    diff.savedMapModifications = [record];
+    addStructToUnloadedSector(campaign.state, HANGAR_DOOR, closedDoor, B13);
+    reloadPoint(campaign);
+    const t = enterAirfield(campaign);
+    expect(structLayerAt(t, HANGAR_DOOR)).toEqual([closedDoor]);
+    expect(getSectorFlagStatus(campaign.state.map, B13, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)).toBe(true);
+    const doorsAt = (s: TacticalState) => s.world.structures.at(HANGAR_DOOR).filter((x) => has(x.flags, StructureFlags.ANYDOOR)).length;
+    expect(doorsAt(t)).toBe(1);
+    const back = reenterAirfield(campaign);
+    expect(campaign.state.sectorDiffs.get(sectorKey(B13))?.savedMapModifications).toBeUndefined();
+    expect([structLayerAt(back, HANGAR_DOOR), doorsAt(back)]).toEqual([[closedDoor], 1]);
+  });
+
+  it('keeps the map modifications flag of that entry only when a record is written back, as the loaded sector of a load does (SaveLoadMap.cc:236)', () => {
+    const flagAfterEntry = (written: 'none' | 'native' | 'since') => {
+      const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+      const diff = nativeRecordsFor(campaign, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
+      const { closedDoor, record } = hangarDoorRemoval(campaign);
+      const blood = { type: MapModificationType.BLOOD_SMELL, gridNo: HANGAR_FLOOR, imageType: 1, subImageIndex: 0, extra: 0 };
+      diff.savedMapModifications = written === 'native' ? [blood, record] : [blood];
+      if (written === 'since') addStructToUnloadedSector(campaign.state, HANGAR_DOOR, closedDoor, B13);
+      const t = enterAirfield(campaign);
+      expect(t.smell.blood[HANGAR_FLOOR]).toBe(1);
+      return getSectorFlagStatus(campaign.state.map, B13, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
+    };
+    expect([flagAfterEntry('none'), flagAfterEntry('native'), flagAfterEntry('since')]).toEqual([false, true, true]);
+  });
+
+  it('reveals the tiles of the revealed file at the first entry, the rest hidden, and keeps them at the next in its own form (Tactical_Save.cc:468)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const diff = nativeRecordsFor(campaign, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS);
+    const revealed = new Uint8Array(WORLD_MAX);
+    revealed[HANGAR_FLOOR] = 1;
+    diff.savedRevealed = revealed;
+    reloadPoint(campaign);
+    const groundRevealed = (s: TacticalState, g: number) => ((s.fog.revealed[g] ?? 0) & RevealedFlags.GROUND) !== 0;
+    const t = enterAirfield(campaign);
+    expect([groundRevealed(t, HANGAR_FLOOR), groundRevealed(t, HANGAR_FLOOR + 1)]).toEqual([true, false]);
+    const back = reenterAirfield(campaign);
+    expect(campaign.state.sectorDiffs.get(sectorKey(B13))?.savedRevealed).toBeUndefined();
+    expect(groundRevealed(back, HANGAR_FLOOR)).toBe(true);
   });
 });
 

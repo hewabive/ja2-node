@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
+import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
 import { gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
@@ -12,7 +13,7 @@ import { LightSpriteFlags } from '../tactical/lighting/lighting.ts';
 import { createFogOfWar, RevealedFlags } from '../tactical/perception/fov.ts';
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
-import { restoreCorpses, restoreRevealed } from './sector-diff.ts';
+import { changeOpenableInUnloadedSector, emptySectorDiff, restoreCorpses, restoreRevealed } from './sector-diff.ts';
 
 let content: TacticalContent;
 
@@ -109,5 +110,27 @@ describe('restoring the revealed tiles of a sector diff', () => {
     fog.roomHidden[ROOM] = 0;
     restoreRevealed(t, { revealed: fog.revealed, roomHidden: fog.roomHidden });
     expect(slantRoofCeilingTiles(t)).toEqual(roofTiles.slice(1));
+  });
+});
+
+describe('a crate closed in a sector that is not loaded', () => {
+  it("closes the first openable record of its tile in a native save's map modifications, the others as they were (SaveLoadMap.cc:744)", () => {
+    const crate = gridNo(80, 84);
+    const openable = (g: number, open: number) => ({
+      type: MapModificationType.OPENABLE_STRUCT,
+      gridNo: g,
+      imageType: open,
+      subImageIndex: 0,
+      extra: 0,
+    });
+    const blood = { type: MapModificationType.BLOOD_SMELL, gridNo: crate, imageType: 1, subImageIndex: 0, extra: 0 };
+    const diff = { ...emptySectorDiff(), savedMapModifications: [blood, openable(crate + 1, 1), openable(crate, 1), openable(crate, 1)] };
+    changeOpenableInUnloadedSector(diff, crate, false);
+    expect(diff.savedMapModifications.map((m) => [m.type, m.gridNo, m.imageType])).toEqual([
+      [MapModificationType.BLOOD_SMELL, crate, 1],
+      [MapModificationType.OPENABLE_STRUCT, crate + 1, 1],
+      [MapModificationType.OPENABLE_STRUCT, crate, 0],
+      [MapModificationType.OPENABLE_STRUCT, crate, 1],
+    ]);
   });
 });

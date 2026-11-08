@@ -3315,3 +3315,29 @@ describe('snapshot version 64 (no rooms of the map trashed last) migrates with n
     await expectNoTrashedRooms(await createCampaignSession(kit.read, exists, 9, { hire: [] }));
   });
 });
+
+describe("snapshot version 65 (no native save's records in the sector diffs) migrates unchanged: none of its diffs came from a native save", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign with a sector left behind', async () => {
+    const session = await quietLandedCampaign(kit);
+    const diff = emptySectorDiff();
+    diff.doorStatus = [{ gridNo: SANDBOX_DOOR, open: true, perceivedOpen: false, perceivedNotSet: false, hasTinCan: false }];
+    session.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
+    const current = snapshotSession(session);
+    const legacy = { ...current.sim, version: 65 };
+    expect(JSON.stringify(current.sim)).not.toContain('"savedMapModifications"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

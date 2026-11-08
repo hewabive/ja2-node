@@ -4,8 +4,8 @@ import { readSavedEconomy, readSoldierAssignments } from '../content/formats/sav
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readSavedMerchants } from '../content/formats/savegame-merchants.ts';
 import { readSavedNpcRecords } from '../content/formats/savegame-npc.ts';
+import { decodePreservedSoldiersFile, type PreservedSoldierLink } from '../content/formats/savegame-preserved-soldiers.ts';
 import { readStrategicAiSections } from '../content/formats/savegame-strategic-ai.ts';
-import { decodePreservedSoldierLinks, type PreservedSoldierLink } from '../content/formats/savegame-temp-files.ts';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
@@ -24,6 +24,7 @@ import { campaignNarrativePort } from '../sim/campaign/narrative-port.ts';
 import { offMapCombatContext } from '../sim/campaign/off-map-combat.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
+import { importSectorTempFiles } from '../sim/campaign/save-sectors.ts';
 import { importStory, type SavedStory, storyImportRefusal } from '../sim/campaign/story-import.ts';
 import { importNpcRecords } from '../sim/narrative/save-import.ts';
 import { type GameOptions, importNativeGameOptions } from '../sim/options.ts';
@@ -82,7 +83,9 @@ function savedSoldierLinks(save: SaveGame): PreservedSoldierLink[] {
         f.sector.y === sector.y &&
         f.sector.z === sector.z,
     )
-    .flatMap((f) => decodePreservedSoldierLinks(f.bytes).filter((link) => linkedSoldier(f.kind, link)));
+    .flatMap((f) =>
+      decodePreservedSoldiersFile(f.bytes, f.sector, f.kind === 'enemyPreserved').links.filter((link) => linkedSoldier(f.kind, link)),
+    );
 }
 
 function savedStory(save: SaveGame, firstBattleSector: number): SavedStory {
@@ -142,6 +145,7 @@ export async function createSaveSession(
   );
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
+  importSectorTempFiles(strategic.sectorDiffs, save);
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
   importStory(strategic, story);
   campaign.creatures?.importDirectives(save.creatureDirectives, saiSections.creatureMeanwhileScenePlayed);

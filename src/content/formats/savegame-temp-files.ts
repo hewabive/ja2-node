@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc LoadMapTempFilesFromSavedGameFile, sectorFlagBits, GetMapTempFileName,
 // @src LoadWorldItemsFromTempItemFile; Tactical/World_Items.h WORLDITEM; Tactical/Keys.cc door table and door status files;
-// @src Tactical/Soldier_Init_List.cc NewWayOfLoadingEnemySoldierInitListLinks (link records);
 // @src TileEngine/SaveLoadMap.cc NUM_REVEALED_BYTES, LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus (bit order);
 // @src the records read by their count, bytes past them unread (2026-11-08); TileEngine/LoadSaveSmokeEffect.cc
 // @src ExtractSmokeEffectFromFile, TileEngine/LoadSaveLightEffect.cc ExtractLightEffectFromFile (2026-11-08)
@@ -302,18 +301,4 @@ export function decodeRevealedStatusFile(bytes: Uint8Array): Uint8Array {
     { length: NUM_REVEALED_BYTES * BITS_PER_BYTE },
     (_, g) => ((bytes[idiv(g, BITS_PER_BYTE)] ?? 0) >> (g % BITS_PER_BYTE)) & 1,
   );
-}
-
-export interface PreservedSoldierLink {
-  readonly nodeId: number;
-  readonly soldierId: number;
-}
-
-export function decodePreservedSoldierLinks(bytes: Uint8Array): PreservedSoldierLink[] {
-  const c = new SaveCursor(bytes, 0);
-  c.skip(2);
-  const count = c.u8();
-  const links: PreservedSoldierLink[] = [];
-  for (let i = 0; i < count; i++) links.push({ nodeId: c.u8(), soldierId: c.u8() });
-  return links;
 }

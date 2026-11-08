@@ -6,10 +6,12 @@
 // @src TileEngine/SaveLoadMap.cc revealed status (SetMapRevealedStatus with the cave lights and the slanted roof ceilings),
 // @src blood and smell, the openable statuses
 // @src (SaveBloodSmellAndRevealedStatesFromMapToTempFile, AddBloodOrSmellFromMapTempFileToMap,
-// @src ChangeStatusOfOpenableStructInUnloadedSector); SmokeEffects.cc, LightEffects.cc temp files.
+// @src ChangeStatusOfOpenableStructInUnloadedSector; its SLM_OPENABLE_STRUCT record of a native save, 2026-11-08);
+// @src SmokeEffects.cc, LightEffects.cc temp files.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { DetailedPlacement } from '../../content/formats/placement.ts';
+import { MapModificationType, type SavedMapModification } from '../../content/formats/savegame-temp-files.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { idiv, u8, u32 } from '../../core/int.ts';
@@ -80,8 +82,10 @@ export interface RevealedState {
 export interface SectorDiff {
   items: DiffWorldItem[] | null;
   corpses: Corpse[] | null;
+  savedMapModifications?: SavedMapModification[];
   mapChanges: MapChange[] | null;
   doorTable: MapDoor[] | null;
+  savedRevealed?: Uint8Array;
   revealed: RevealedState | null;
   doorStatus: StoredDoorStatus[] | null;
   openables?: OpenableStatus[];
@@ -115,6 +119,11 @@ export interface SectorKeyed {
 
 export function sectorKey(s: SectorKeyed): string {
   return `${s.x},${s.y},${s.z}`;
+}
+
+export function dropSavedTempFileRecords(diff: SectorDiff): void {
+  delete diff.savedMapModifications;
+  delete diff.savedRevealed;
 }
 
 const INDOOR_CORPSE_MAX_AGE_MINUTES = 30;
@@ -290,6 +299,10 @@ export function restoreOpenables(t: TacticalState, openables: readonly OpenableS
 export function changeOpenableInUnloadedSector(diff: SectorDiff | undefined, gridNo: number, open: boolean): void {
   const status = diff?.openables?.find((o) => o.gridNo === gridNo);
   if (status) status.open = open;
+  const saved = diff?.savedMapModifications;
+  const at = saved?.findIndex((m) => m.type === MapModificationType.OPENABLE_STRUCT && m.gridNo === gridNo) ?? -1;
+  const record = saved?.[at];
+  if (saved && record) saved[at] = { ...record, imageType: Number(open) };
 }
 
 export function restoreSmoke(t: TacticalState, smoke: readonly DiffSmoke[]): void {

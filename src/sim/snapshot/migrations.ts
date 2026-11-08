@@ -1990,6 +1990,10 @@ function addTrashedMapRooms(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+function sectorDiffsWithoutNativeRecords(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return { ...snapshot };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2056,5 +2060,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     62: addMercArrivingQuoteFlag,
     63: addHeldGiveAction,
     64: addTrashedMapRooms,
+    65: sectorDiffsWithoutNativeRecords,
   };
 }

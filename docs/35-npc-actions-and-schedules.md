@@ -92,7 +92,7 @@ change sets only the door status's real state, and the structure follows when a 
 **Saves keep schedules exactly.** ja2-node's own saves keep every schedule, temporary ones included, and its events, and
 do not post again (`SectorFlow.reattachLoadedSector`). A native save import posts again without auto-processing, as the
 original's load does (`SectorFlow.adoptLoadedSector`): each schedule gets a second event and the unsaved default
-schedules are drawn anew (gap "Savegame import").
+schedules are drawn anew.
 
 **Civilian groups are strategic state.** `StrategicState.civGroups` is shared with the loaded sector as
 `TacticalState.civGroups`; a created civilian is neutral unless he is the Warden or his group is hostile. Turning

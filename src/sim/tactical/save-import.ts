@@ -22,7 +22,6 @@
 // @src 2026-11-08).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
-import type { MapDoor } from '../../content/formats/map.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
@@ -45,9 +44,8 @@ import { type CivGroupState, importCivGroupHostility } from '../strategic/narrat
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { setAutoBandagePending } from './auto-bandage.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
-import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
-import { loadDoorStatusArray, type StoredDoorStatus } from './doors/door-status.ts';
+import { loadDoorStatusArray } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
 import { updateGassedOnNewGridNo } from './explosions/smoke.ts';
 import { addMercToHeli } from './helicopter-drop.ts';
@@ -60,10 +58,13 @@ import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import {
   loadAllMapChangesFromMapTempFile,
   loadLightEffectsFromMapTempFile,
+  loadRevealedStatusFromRevealedTempFile,
   loadSmokeEffectsFromMapTempFile,
+  savedCorpse,
+  savedMapDoor,
   skippedMapModificationCount,
+  storedDoorStatus,
 } from './native-temp-files.ts';
-import { setMapRevealedStatus } from './perception/fov.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
@@ -82,10 +83,6 @@ import { seatInTheHelicopterOnSectorEntry } from './vehicle-passengers.ts';
 import { addItemToPool, trashWorldItems } from './world-items.ts';
 
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
-const DOOR_OPEN = 0x01;
-const DOOR_PERCEIVED_OPEN = 0x02;
-const DOOR_PERCEIVED_NOTSET = 0x04;
-const DOOR_HAS_TIN_CAN = 0x10;
 const NOBODY = TOTAL_SOLDIERS;
 const SAVED_OPPLIST_ENTRIES = 148;
 const SOLDIER_QUOTE_SAID_BEING_PUMMELED = 0x0004;
@@ -148,17 +145,7 @@ export function saveMapPath(save: SaveGame): string {
 export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): TacticalWorld {
   const doors = save.currentSector.doors;
   if (!doors) return world;
-  const mapDoors: MapDoor[] = doors.map((d) => ({
-    gridNo: d.gridNo,
-    locked: d.locked,
-    trapLevel: d.trapLevel,
-    trapId: d.trapId,
-    lockId: d.lockId,
-    perceivedLocked: d.perceivedLocked,
-    perceivedTrapped: d.perceivedTrapped,
-    lockDamage: d.lockDamage,
-  }));
-  return { ...world, map: { ...world.map, doors: mapDoors } };
+  return { ...world, map: { ...world.map, doors: doors.map(savedMapDoor) } };
 }
 
 export function importSave(sim: TacticalSim, save: SaveGame, presentation: PresentationTimeline): SaveImportReport {
@@ -227,47 +214,6 @@ function importWorldItems(t: TacticalState, save: SaveGame, centre: number): num
   return t.worldItems.length;
 }
 
-const RottingCorpseFlags = {
-  FIND_SWEETSPOT_FROM_GRIDNO: 0x01,
-  USE_NORTH_ENTRY_POINT: 0x02,
-  USE_SOUTH_ENTRY_POINT: 0x04,
-  USE_EAST_ENTRY_POINT: 0x08,
-  USE_WEST_ENTRY_POINT: 0x10,
-  USE_CAMO_PALETTE: 0x20,
-} as const;
-
-const ENTRY_POINT_FLAGS: readonly (readonly [flag: number, entryPoint: number])[] = [
-  [RottingCorpseFlags.USE_NORTH_ENTRY_POINT, Insertion.NORTH],
-  [RottingCorpseFlags.USE_SOUTH_ENTRY_POINT, Insertion.SOUTH],
-  [RottingCorpseFlags.USE_EAST_ENTRY_POINT, Insertion.EAST],
-  [RottingCorpseFlags.USE_WEST_ENTRY_POINT, Insertion.WEST],
-];
-
-function corpsePlacement(flags: number): Pick<Corpse, 'findSweetSpot' | 'entryPoint'> {
-  if (flags & RottingCorpseFlags.FIND_SWEETSPOT_FROM_GRIDNO) return { findSweetSpot: true };
-  const entry = ENTRY_POINT_FLAGS.find(([flag]) => flags & flag);
-  return entry ? { entryPoint: entry[1] } : {};
-}
-
-function savedCorpse(c: SavedCorpse): Corpse {
-  return {
-    gridNo: c.gridNo,
-    level: c.level,
-    heightAdjustment: c.heightAdjustment,
-    bodyType: c.bodyType,
-    direction: c.direction,
-    state: 0,
-    profile: c.profile,
-    type: c.type,
-    timeOfDeath: c.timeOfDeath,
-    headTaken: c.headTaken,
-    servicingCrows: c.servicingCrows,
-    ...corpsePlacement(c.flags),
-    palettes: [c.palettes.head, c.palettes.skin, c.palettes.vest, c.palettes.pants],
-    ...(c.flags & RottingCorpseFlags.USE_CAMO_PALETTE ? { camo: true } : {}),
-  };
-}
-
 function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): number {
   removeAllCorpses(t);
   for (const saved of corpses) {
@@ -286,17 +232,13 @@ export function loadSavedSectorChanges(sim: TacticalSim, saved: SavedSectorChang
   withSoldiersOffTheMap(t, () => {
     standHelicopter();
     if (saved.mapModifications) mapModificationsKept = loadAllMapChangesFromMapTempFile(t, saved.mapModifications);
-    applyRevealedStatus(t, saved.revealed);
+    if (saved.revealed) loadRevealedStatusFromRevealedTempFile(t, saved.revealed);
     loadDoorStatusArray(t, (saved.doorStatus ?? []).map(storedDoorStatus));
     if (saved.smoke) loadSmokeEffectsFromMapTempFile(t, saved.smoke);
     if (saved.lights) loadLightEffectsFromMapTempFile(t, saved.lights);
     initLoadedWorld(t);
   });
   return mapModificationsKept;
-}
-
-function applyRevealedStatus(t: TacticalState, revealed: Uint8Array | null): void {
-  if (revealed) setMapRevealedStatus(t, (g) => revealed[g] === 1);
 }
 
 export function initLoadedWorld(t: TacticalState): void {
@@ -318,16 +260,6 @@ function withSoldiersOffTheMap(t: TacticalState, load: () => void): void {
     addMercStructure(t, s);
     updateGassedOnNewGridNo(t, s, s.gridNo);
   }
-}
-
-function storedDoorStatus(d: SavedDoorStatus): StoredDoorStatus {
-  return {
-    gridNo: d.gridNo,
-    open: (d.flags & DOOR_OPEN) !== 0,
-    perceivedOpen: (d.flags & DOOR_PERCEIVED_OPEN) !== 0,
-    perceivedNotSet: (d.flags & DOOR_PERCEIVED_NOTSET) !== 0,
-    hasTinCan: (d.flags & DOOR_HAS_TIN_CAN) !== 0,
-  };
 }
 
 const SEATED_FLAGS = SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER;
