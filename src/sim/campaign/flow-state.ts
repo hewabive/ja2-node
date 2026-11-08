@@ -4,6 +4,7 @@ import type { CivQuoteSaid } from '../narrative/civ-quotes.ts';
 import { createTalkState, type TalkState } from '../narrative/talk-state.ts';
 import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { SRC_PROFILE_AT_START } from '../strategic/narrative/check-fact.ts';
+import { createHelicopterDrop, type HelicopterDrop } from '../tactical/helicopter-drop-state.ts';
 import { NO_SELECTION } from '../tactical/selection.ts';
 import {
   type AutoBandageState,
@@ -30,6 +31,7 @@ export interface SectorFlowState {
   readonly realtimeClock: RealtimeClock;
   readonly crows: CrowStatus;
   readonly autoBandage: AutoBandageState;
+  readonly helicopterDrop: HelicopterDrop;
   jump: AdjacentJump | null;
   usingEdgepointsForEntry: boolean;
   overrideInsertionWithExitGrid: number | null;
@@ -75,11 +77,13 @@ export function createSectorFlowState(
   realtimeClock: RealtimeClock = createRealtimeClock(),
   crows: CrowStatus = createCrowStatus(),
   autoBandage: AutoBandageState = createAutoBandageState(),
+  helicopterDrop: HelicopterDrop = createHelicopterDrop(),
 ): SectorFlowState {
   return {
     realtimeClock,
     crows,
     autoBandage,
+    helicopterDrop,
     jump: null,
     usingEdgepointsForEntry: false,
     overrideInsertionWithExitGrid: null,

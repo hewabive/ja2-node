@@ -72,6 +72,8 @@ const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
 
 const GETUP_FROM_SLEEP = 474;
 const STANCE_TO_STANDING = 457;
+const HELIDROP_LANDED = 467;
+const HELIDROP_FRAMES = 14;
 const ASSIGNMENT_END_FRAMES = 4;
 const descendingFrames = (count: number) => frames(count).reverse();
 const ASSIGNMENT_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
@@ -89,6 +91,9 @@ const ASSIGNMENT_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     GETUP_FROM_SLEEP,
     stateJump(stateId(t, 'KNEEL_UP')),
   ],
+};
+const LANDING_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
+  HELIDROP: (t) => [...frames(HELIDROP_FRAMES), HELIDROP_LANDED, stateJump(stateId(t, 'KNEEL_UP'))],
 };
 
 const THROW_RELEASE = 460;
@@ -646,7 +651,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
       ...(control.flags & RT_NONINTERRUPT_FLAG ? [RT_NONINTERRUPTIBLE_DONE] : []),
     ];
     let script: number[];
-    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id] ?? ASSIGNMENT_SCRIPTS[control.id];
+    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id] ?? ASSIGNMENT_SCRIPTS[control.id] ?? LANDING_SCRIPTS[control.id];
     const fight = combat.get(control.id);
     if (fight) script = fight;
     else if (door) script = door(tables);

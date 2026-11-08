@@ -2893,3 +2893,76 @@ describe('snapshot version 58 (no look for someone else in the sector) migrates 
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const HELICOPTER_DROP_KEY = 'helicopterDrop';
+const NO_HELICOPTER_DROP = {
+  running: false,
+  seats: [],
+  sweetSpot: 0,
+  z: 0,
+  script: 0,
+  state: 0,
+  lastStepMs: 0,
+  curDrop: 0,
+  exitCount: 0,
+  round: 0,
+  volume: 0,
+  fadingIn: false,
+  fadingOut: false,
+  firstGuyDown: false,
+  engagedInDrop: false,
+  moveAwayRepeated: 0,
+  shadow: null,
+  strandedShadows: [],
+};
+
+function withoutHelicopterDrop(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutHelicopterDrop(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key !== HELICOPTER_DROP_KEY) out[key] = withoutHelicopterDrop(v);
+    else if (!isReference(v)) expect(v).toEqual(NO_HELICOPTER_DROP);
+  }
+  return out;
+}
+
+function versionFiftyNine(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutHelicopterDrop(value)]);
+  return { ...snapshot, version: 59, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 59 (no helicopter drop) migrates with no drop running, no seat taken and nobody in mid-drop', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoHelicopterDrop(session: SessionSim): Promise<SessionSim> {
+    const current = snapshotSession(session);
+    const legacy = versionFiftyNine(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${HELICOPTER_DROP_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${HELICOPTER_DROP_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    return restored;
+  }
+
+  it('a sandbox', async () => {
+    await expectNoHelicopterDrop(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign, whose loaded sector shares the record of the sector flow, as the drop’s statics outlive a sector load', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    expect(campaign.campaign.tactical?.state.helicopterDrop).toBe(campaign.campaign.state.sectorFlow.helicopterDrop);
+    const restored = (await expectNoHelicopterDrop(campaign)) as CampaignSession;
+    expect(restored.campaign.tactical?.state.helicopterDrop).toBe(restored.campaign.state.sectorFlow.helicopterDrop);
+  });
+});

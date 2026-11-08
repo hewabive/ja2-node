@@ -20,6 +20,7 @@ import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-mo
 import { createNpcRecordState, type NpcRecordState } from '../narrative/records.ts';
 import { type GameOptions, gameOptions } from '../options.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
+import type { HelicopterDrop } from '../tactical/helicopter-drop-state.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import type { AutoBandageState, CrowStatus, RealtimeClock } from '../tactical/state.ts';
 import type { VehicleRecord } from '../vehicles/vehicle-list.ts';
@@ -117,6 +118,7 @@ export interface StrategicStateOptions {
   readonly realtimeClock?: RealtimeClock;
   readonly crows?: CrowStatus;
   readonly autoBandage?: AutoBandageState;
+  readonly helicopterDrop?: HelicopterDrop;
 }
 
 const DEFAULT_SEED = 1;
@@ -161,7 +163,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     civGroups: options.civGroups ?? createCivGroupState(),
     keyTable: options.keyTable ?? createKeyTable(),
     roster: createRosterState(),
-    sectorFlow: createSectorFlowState(options.realtimeClock, options.crows, options.autoBandage),
+    sectorFlow: createSectorFlowState(options.realtimeClock, options.crows, options.autoBandage, options.helicopterDrop),
     shop: { session: null },
     talk: createTalkFlowState(seed),
     cosmetic: createCosmeticStreams(seed),

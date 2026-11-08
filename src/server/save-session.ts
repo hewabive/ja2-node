@@ -200,6 +200,7 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
     realtimeClock: sim.state.realtimeClock,
     crows: sim.state.crows,
     autoBandage: sim.state.autoBandage,
+    helicopterDrop: sim.state.helicopterDrop,
   });
   return { strategic, sim, report };
 }

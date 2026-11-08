@@ -67,4 +67,12 @@ describe('the locked player interface (LOCKUI_MODE) as simulation state', () => 
     scripted.state.narrative = { ...NO_NARRATIVE_PORT, scriptedSequence: () => true };
     for (const sim of [boxing, actionItems, scripted]) expect(playerInterfaceLocked(sim.state)).toBe(true);
   });
+
+  it('locks while the helicopter drops the mercs, from the start of the run to its end (Merc_Entering.cc StartHelicopterRun, HandleHeliDrop)', () => {
+    const sim = newCombatSim(content);
+    sim.state.helicopterDrop.running = true;
+    expect(playerInterfaceLocked(sim.state)).toBe(true);
+    sim.state.helicopterDrop.running = false;
+    expect(playerInterfaceLocked(sim.state)).toBe(false);
+  });
 });

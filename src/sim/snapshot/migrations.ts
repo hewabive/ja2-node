@@ -1708,6 +1708,51 @@ function addSomeoneElseLookTimer(snapshot: Readonly<Record<string, unknown>>): R
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const HELICOPTER_DROP_KEY = 'helicopterDrop';
+const SHARED_HELICOPTER_DROP: JsonObject = { [REF]: `strategic/${SECTOR_FLOW_KEY}/${HELICOPTER_DROP_KEY}` };
+const HELI_APPROACH = 0;
+
+function noHelicopterDrop(): JsonObject {
+  return {
+    running: false,
+    seats: [],
+    sweetSpot: 0,
+    z: 0,
+    script: 0,
+    state: HELI_APPROACH,
+    lastStepMs: 0,
+    curDrop: 0,
+    exitCount: 0,
+    round: 0,
+    volume: 0,
+    fadingIn: false,
+    fadingOut: false,
+    firstGuyDown: false,
+    engagedInDrop: false,
+    moveAwayRepeated: 0,
+    shadow: null,
+    strandedShadows: [],
+  };
+}
+
+function withSectorFlowHelicopterDrop(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: insertAfter(flow, AUTO_BANDAGE_KEY, HELICOPTER_DROP_KEY, noHelicopterDrop()) };
+}
+
+function addHelicopterDrop(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const shared = isObject(sectionOf(graph.sections, 'strategic'));
+  const sections = graph.sections.map(([name, value]): Section => {
+    if (name === 'strategic' && isObject(value)) return [name, withSectorFlowHelicopterDrop(value)];
+    if (name === 'tactical' && isObject(value))
+      return [name, insertAfter(value, AUTO_BANDAGE_KEY, HELICOPTER_DROP_KEY, shared ? SHARED_HELICOPTER_DROP : noHelicopterDrop())];
+    return [name, value];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1768,5 +1813,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     56: addAutoBandageState,
     57: addPendingActionCounterLock,
     58: addSomeoneElseLookTimer,
+    59: addHelicopterDrop,
   };
 }

@@ -34,6 +34,7 @@ import type { MapEdgepoints } from './edgepoints.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import { createExplosivesState, type ExplosivesState, type WorldClockSource } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
+import { createHelicopterDrop, type HelicopterDrop } from './helicopter-drop-state.ts';
 import type { LandedHelicopter } from './helicopter-pieces.ts';
 import type { SoldierInitNode } from './init-list.ts';
 import { createLightingState, type LightingState, NO_TIME_OF_DAY_LIGHT, type TimeOfDayLight } from './lighting/lighting.ts';
@@ -247,6 +248,10 @@ export interface SectorHooks {
   autoBandageStarted(t: TacticalState): void;
   autoBandageEnded(t: TacticalState, warpSeconds: number): void;
   inDeidrannaEndgame(t: TacticalState): boolean;
+  helicopterSeat(t: TacticalState, id: number): Soldier | null;
+  placeHelicopterSeat(t: TacticalState, s: Soldier): void;
+  mercArrivesQuotes(t: TacticalState, s: Soldier): void;
+  helicopterRunEnded(t: TacticalState): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -274,6 +279,10 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   autoBandageStarted: () => {},
   autoBandageEnded: () => {},
   inDeidrannaEndgame: () => false,
+  helicopterSeat: () => null,
+  placeHelicopterSeat: () => {},
+  mercArrivesQuotes: () => {},
+  helicopterRunEnded: () => {},
 };
 
 export interface TacticalState {
@@ -282,6 +291,7 @@ export interface TacticalState {
   readonly realtimeClock: RealtimeClock;
   readonly crows: CrowStatus;
   readonly autoBandage: AutoBandageState;
+  readonly helicopterDrop: HelicopterDrop;
   readonly aiPass: AiPassState;
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
@@ -437,6 +447,7 @@ export interface SharedCampaignState {
   readonly realtimeClock?: RealtimeClock;
   readonly crows?: CrowStatus;
   readonly autoBandage?: AutoBandageState;
+  readonly helicopterDrop?: HelicopterDrop;
 }
 
 export interface SectorRef {
@@ -514,6 +525,7 @@ export function createTacticalState(
     realtimeClock: shared.realtimeClock ?? createRealtimeClock(),
     crows: shared.crows ?? createCrowStatus(),
     autoBandage: shared.autoBandage ?? createAutoBandageState(),
+    helicopterDrop: shared.helicopterDrop ?? createHelicopterDrop(),
     aiPass: createAiPassState(),
     world,
     content,

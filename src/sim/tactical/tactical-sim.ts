@@ -24,7 +24,9 @@
 // @src vehicle at ground level) for the repair and refuel commands (2026-11-05); GameScreen.cc MainGameScreenHandle in
 // @src auto-bandage (HandleAutoBandage instead of the frame; its mask takes every order) and Turn_Based_Input.cc's 'a' key
 // @src (the autoBandage command), the Done and Cancel buttons of Auto_Bandage.cc (endAutoBandage, 2026-11-06);
-// @src MainGameScreenHandle's HandleAutoBandagePending after HandleStrategicTurn (2026-11-06).
+// @src MainGameScreenHandle's HandleAutoBandagePending after HandleStrategicTurn (2026-11-06); MainGameScreenHandle's
+// @src HandleHeliDrop before UpdateBullets and ExecuteOverhead, the LOCKUI mode the drop forces back on every frame and
+// @src Soldier_Ani.cc code 467 (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -128,6 +130,9 @@ import { cancelAllServices, firstAidOpcode, givingSoldierCancelServices, handleP
 import { dequeueAllGameEvents } from './game-events.ts';
 import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
 import { ensureConsistentWeaponMode, handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
+import { handleHeliDrop, helicopterDropStalled, SANDBOX_HELICOPTER_SEATS } from './helicopter-drop.ts';
+import { type HelicopterDrop, helicopterDropRunning } from './helicopter-drop-state.ts';
+import { helicopterLandingOpcode } from './helicopter-landing.ts';
 import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { dispatchInventoryCommand, INVENTORY_COMMANDS } from './inventory-commands.ts';
@@ -431,6 +436,7 @@ export interface TacticalSimOptions {
   readonly realtimeClock?: RealtimeClock;
   readonly crows?: CrowStatus;
   readonly autoBandage?: AutoBandageState;
+  readonly helicopterDrop?: HelicopterDrop;
   readonly hour?: number;
   readonly dayAmbient?: number;
 }
@@ -451,6 +457,7 @@ function createSimState(world: TacticalWorld, content: TacticalContent, seed: nu
       ...(options.realtimeClock ? { realtimeClock: options.realtimeClock } : {}),
       ...(options.crows ? { crows: options.crows } : {}),
       ...(options.autoBandage ? { autoBandage: options.autoBandage } : {}),
+      ...(options.helicopterDrop ? { helicopterDrop: options.helicopterDrop } : {}),
     },
   );
   t.clockMs = options.startMs ?? 0;
@@ -477,6 +484,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       tileToolOpcode(state, s, code) ??
       pullTriggerOpcode(state, s, code) ??
       crowOpcode(state, s, code) ??
+      helicopterLandingOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
     crowsFlyAway,
@@ -590,6 +598,7 @@ export class TacticalSim {
       mostImportantNoiseHeard: (state, s) => mostImportantNoiseHeard(state, s),
     });
     installTacticalHooks(this.state, this.ai);
+    this.state.sectorHooks = { ...this.state.sectorHooks, ...SANDBOX_HELICOPTER_SEATS };
     this.hooks = overheadHooks(this.ai);
     this.autoBandageHooks = autoBandageOverheadHooks(this.ai);
     if (existing) return;
@@ -648,6 +657,7 @@ export class TacticalSim {
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.explosionQueue.active) return false;
     if (t.mercsWaiting || t.boxing.uiLocked || t.turn.enemySightingOnTheirTurn) return false;
+    if (helicopterDropRunning(t) && !helicopterDropStalled(t)) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
   }
@@ -756,7 +766,10 @@ export class TacticalSim {
     const t = this.state;
     if (t.prompt) return;
     if (t.pathEnv.autoBandage) autoBandageFrame(t, this.autoBandageHooks);
-    else executeOverhead(t, this.hooks);
+    else {
+      handleHeliDrop(t);
+      executeOverhead(t, this.hooks);
+    }
     t.tick++;
   }
 
@@ -839,6 +852,7 @@ export class TacticalSim {
     if (prompt) return prompt;
     if (cmd.type === 'setOption') return this.#setOption(cmd);
     if (this.state.mercsWaiting) return refuse('uiLocked', 'the interface is locked while mercs leave the sector');
+    if (helicopterDropRunning(this.state)) return refuse('uiLocked', 'the interface is locked while the helicopter drops the mercs');
     if (this.state.boxing.uiLocked) return refuse('boxingUiLock', 'the interface is locked while the boxers leave the ring');
     if (INVENTORY_COMMANDS.has(cmd.type)) return this.#inventory(cmd);
     if (PLAYER_ORDERS.has(cmd.type)) return dispatchPlayerOrder(this.#orderContext(), cmd);

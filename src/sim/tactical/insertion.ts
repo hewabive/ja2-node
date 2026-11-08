@@ -3,7 +3,8 @@
 // @src src/game/Strategic/StrategicMap.cc UpdateMercInSector; Tactical/Soldier_Add.cc InternalAddSoldierToSector,
 // @src AddSoldierToSectorGridNo, SoldierInSectorIncompaciated, InternalSoldierInSectorSleep, SoldierInSectorAnim;
 // @src TileEngine/Exit_Grids.cc FindClosestExitGrid; InternalAddSoldierToSector's vehicle sweet spot and its stop for a
-// @src driver or passenger (2026-11-05); the APs a vehicle keeps when added (InternalAddSoldierToSector computes none, 2026-11-05).
+// @src driver or passenger (2026-11-05); the APs a vehicle keeps when added (InternalAddSoldierToSector computes none, 2026-11-05);
+// @src AddSoldierToSectorGridNo's arrival stance, skipped for a merc already in HELIDROP (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -263,6 +264,11 @@ function settleOnRoof(t: TacticalState, s: Soldier): void {
   setSoldierHeight(t, s, roof ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFSET);
 }
 
+function arrivalStance(t: TacticalState, s: Soldier, animation: PlacementAnimation | null): void {
+  if (animation) initNewSoldierAnim(t, s, animation.state, animation.code, true);
+  else if (s.bodyType !== Body.CROW) initNewSoldierAnim(t, s, states(t.content.animations).STANDING, PLACEMENT_ANIM_CODE, true);
+}
+
 function addSoldierToSectorGridNo(
   t: TacticalState,
   s: Soldier,
@@ -294,8 +300,7 @@ function addSoldierToSectorGridNo(
   if (s.dead) return;
   if (s.level === SECOND_LEVEL) settleOnRoof(t, s);
   if (insertionCode === Insertion.ARRIVING_GAME) return;
-  if (animation) initNewSoldierAnim(t, s, animation.state, animation.code, true);
-  else if (s.bodyType !== Body.CROW) initNewSoldierAnim(t, s, states(t.content.animations).STANDING, PLACEMENT_ANIM_CODE, true);
+  if (s.state !== anim(t.content, 'HELIDROP')) arrivalStance(t, s, animation);
   const special = placementAnimation(t, s, ctx);
   if (special !== null) initNewSoldierAnim(t, s, special, PLACEMENT_ANIM_CODE, true);
   s.uiMovementMode = moveStateBasedOnStance(t.content, s);

@@ -52,6 +52,16 @@ describe('the interface lock pause', () => {
     expect(pauseOf(state.clock)).toEqual([false, false, LOCK_PAUSE_LOCKUI_MODE]);
   });
 
+  it('pauses the game under LOCK_PAUSE_LOCKUI_MODE for the whole helicopter drop and lifts it at the drop’s end (Merc_Entering.cc:440, :542)', () => {
+    const { campaign, state, t } = rig();
+    t.helicopterDrop.running = true;
+    syncInterfaceLockPause(campaign);
+    expect(pauseOf(state.clock)).toEqual([true, true, LOCK_PAUSE_LOCKUI_MODE]);
+    t.helicopterDrop.running = false;
+    syncInterfaceLockPause(campaign);
+    expect(pauseOf(state.clock)).toEqual([false, false, LOCK_PAUSE_LOCKUI_MODE]);
+  });
+
   it('lifts any pause and pause lock when it ends, whoever set them, so a renewal lock set under it goes too', () => {
     const { campaign, state, t } = rig();
     pauseGame(state.clock);

@@ -173,7 +173,15 @@ import {
   updateCurrentlySelectedMerc,
 } from '../tactical/selection.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
-import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
+import {
+  NO_SECTOR_HOOKS,
+  type RealtimeClock,
+  type SectorHooks,
+  sectorMapOf,
+  type TacticalState,
+  teamMembers,
+  WaitForMercs,
+} from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import { seatAtVehicle } from '../tactical/vehicle-passengers.ts';
@@ -633,6 +641,7 @@ export class SectorFlow {
       realtimeClock: this.realtimeClock,
       crows: this.#flow.crows,
       autoBandage: this.#flow.autoBandage,
+      helicopterDrop: this.#flow.helicopterDrop,
       hour: worldHour(s.clock),
       dayAmbient,
     });
@@ -686,6 +695,10 @@ export class SectorFlow {
       autoBandageStarted: () => pauseGame(this.campaign.state.clock),
       autoBandageEnded: (_t, warpSeconds) => this.#autoBandageEnded(warpSeconds),
       inDeidrannaEndgame: () => this.campaign.state.ending.inDeidrannaEndgame,
+      helicopterSeat: NO_SECTOR_HOOKS.helicopterSeat,
+      placeHelicopterSeat: NO_SECTOR_HOOKS.placeHelicopterSeat,
+      mercArrivesQuotes: NO_SECTOR_HOOKS.mercArrivesQuotes,
+      helicopterRunEnded: NO_SECTOR_HOOKS.helicopterRunEnded,
     };
   }
 
