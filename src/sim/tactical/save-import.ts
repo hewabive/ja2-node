@@ -18,7 +18,8 @@
 // @src fAutoBandagePending (2026-11-06); Tactical/LoadSaveSoldierType.cc sDestXPos, sDestYPos, fPastXDest and fPastYDest
 // @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); Tactical/Soldier_Add.cc InternalAddSoldierToSector (the
 // @src helicopter's passengers in their merc slots with no tile) and Strategic/StrategicMap.cc UpdateMercInSector (a
-// @src chopper merc of a save made in mid-drop back in the seats, AddMercToHeli, 2026-11-08).
+// @src chopper merc of a save made in mid-drop back in the seats, AddMercToHeli, 2026-11-08; its return for a merc in transit,
+// @src 2026-11-08).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -39,7 +40,7 @@ import { i16, u8 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
-import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
+import { Assignment, NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { setAutoBandagePending } from './auto-bandage.ts';
@@ -392,6 +393,7 @@ function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
     s.sector.x === sector.x &&
     s.sector.y === sector.y &&
     s.sector.z === sector.z &&
+    s.assignment !== Assignment.IN_TRANSIT &&
     !(s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP))
   );
 }

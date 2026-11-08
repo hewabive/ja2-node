@@ -884,6 +884,25 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
   });
 });
 
+describe('a merc in transit whose arrival sector is the loaded one (UpdateMercInSector, StrategicMap.cc:1023)', () => {
+  const IN_TRANSIT = 24;
+  const WALKER_ID = 0;
+  const ARRIVING_ID = 1;
+  const WALKER_AT = gridNo(80, 82);
+
+  it('is no soldier of the loaded map: the load returns before his merc slot, so he gets no tile, not even NOWHERE', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(WALKER_ID, Team.OUR, WALKER_AT),
+        savedSoldier(ARRIVING_ID, Team.OUR, SAVED_NOWHERE, { bInSector: 0, bAssignment: IN_TRANSIT }),
+      ],
+    });
+    const t = importedSim(save).state;
+    expect(t.mercSlots.map((s) => s.id)).toEqual([WALKER_ID]);
+    expect(t.soldiers[ARRIVING_ID]).toBeUndefined();
+  });
+});
+
 describe('a merc still in the helicopter in a save made in mid-drop (deviation "Helicopter drop in a native save")', () => {
   const INSERTION_CODE_CHOPPER = 6;
   const DROPPED_ID = 0;

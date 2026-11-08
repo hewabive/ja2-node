@@ -85,7 +85,8 @@ The seat (`SOLDIER_DRIVER`, `SOLDIER_PASSENGER`) moves onto the soldier (`Soldie
 passengers of a ground vehicle in the loaded sector come into it at their saved tile, which is the vehicle's, with no
 occupant or structure, and a helicopter's take their merc slots with no tile (`25`). A save made in mid-drop holds the
 mercs still in the helicopter with the chopper insertion code and no tile: the import seats them in the drop, as the
-load's `UpdateMercsInSector` does, and lands them as the Esc skip does (deviation "Helicopter drop in a native save").
+load's `UpdateMercsInSector` does, and lands them as the Esc skip does (deviation "Helicopter drop in a native save"). A merc in transit whose arrival sector is the loaded one gets no merc slot,
+as `UpdateMercInSector` returns for him (`Strategic/StrategicMap.cc:1023`).
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
 has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
