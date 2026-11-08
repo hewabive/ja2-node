@@ -105,7 +105,7 @@ no slide, no locate, as `gfIgnoreScrolling` stops `SetRenderCenter` (`ignoreScro
 input, whose Esc then stops the selected merc as in a locked interface (`GameScreen.cc:407`, `:436`). The shadow is
 `tilecache/heli_sh.sti` on the shadow layer at the view's position, looping every 90 ms from frame 0 where the view first
 shows it (`src/app/world/helicopter-shadows.ts`); the one the view drops at the exit flies on while the run goes on, until
-it leaves the viewport (deviation "Helicopter shadow on wide screens").
+it leaves the viewport or the next round shows its own (deviation "Helicopter shadow on wide screens").
 A merc in `HELIDROP` wears `s_`, `m_` or `f_helidrp.sti`; on stubs his own drop pose (`stubs/soldiers.ts`). The "has
 arrived" lines come with the message list (`mercDropped`, `src/server/message-entries.ts`).
 

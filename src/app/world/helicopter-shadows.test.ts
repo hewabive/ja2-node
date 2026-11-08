@@ -143,6 +143,20 @@ describe('the helicopter shadow past HELI_GOTO_EXIT (REPEAT_HELI_MOVEAWAY on a w
     ]);
   });
 
+  it('is gone the moment the next round shows its own shadow, still on screen or not: one helicopter at a time', () => {
+    const shadows = droppedAtTheExit();
+    expect(shadows.update(running(), STEP, FRAMES, EVERYWHERE).map((s) => s.y)).toEqual([SHADOW.y + 2 * MOVELARGERY_STEP]);
+    expect(shadows.update(running(NEXT_RUN), 2 * STEP, FRAMES, EVERYWHERE)).toEqual([{ ...NEXT_RUN, frame: 0 }]);
+    expect(shadows.update(running(NEXT_RUN), 3 * STEP, FRAMES, EVERYWHERE).map((s) => [s.x, s.y])).toEqual([[NEXT_RUN.x, NEXT_RUN.y]]);
+    const besideLeftBehind = new HelicopterShadows();
+    besideLeftBehind.update(running(LEFT_BEHIND, SHADOW), 0, FRAMES, EVERYWHERE);
+    expect(besideLeftBehind.update(running(LEFT_BEHIND), STEP, FRAMES, EVERYWHERE)).toHaveLength(2);
+    expect(besideLeftBehind.update(running(LEFT_BEHIND, NEXT_RUN), 2 * STEP, FRAMES, EVERYWHERE).map((s) => [s.x, s.y])).toEqual([
+      [LEFT_BEHIND.x, LEFT_BEHIND.y],
+      [NEXT_RUN.x, NEXT_RUN.y],
+    ]);
+  });
+
   it('adds nothing on the 640x480 screen, off which the shadow is at the exit, and flies it across a wide one until it leaves', () => {
     expect(stepsDrawnAfterTheExit(REFERENCE_SCREEN)).toBe(0);
     expect(stepsDrawnAfterTheExit(WIDE_SCREEN)).toBe(STEPS_ACROSS_A_WIDE_SCREEN);

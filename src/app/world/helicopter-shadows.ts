@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-08. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Entering.cc HandleHeliDrop HELI_SHOW_HELI (heli_sh.sti on the shadow layer at the sweet
 // @src spot, ANITILE_FORWARD | ANITILE_LOOPING from frame 0 every sDelay 90 ms), HELI_MOVELARGERY (the steps
-// @src REPEAT_HELI_MOVEAWAY repeats on a wide screen before HELI_GOTO_EXIT deletes the shadow);
+// @src REPEAT_HELI_MOVEAWAY repeats on a wide screen before HELI_GOTO_EXIT deletes the shadow, ahead of the next round's
+// @src SHOW_HELI);
 // @src src/game/TileEngine/Tile_Animation.cc UpdateAniTiles (the next frame once the delay has passed, the first again
 // @src after the last); Tile_Cache.cc AddCachedTile (the frame count from the first picture's aux data).
 
@@ -44,9 +45,16 @@ function sameShadow(a: HelicopterShadowView, b: HelicopterShadowView | undefined
   return b !== undefined && a.gridNo === b.gridNo && a.x === b.x && a.y === b.y && a.z === b.z;
 }
 
+function oneShadowMore(fewer: readonly HelicopterShadowView[], more: readonly HelicopterShadowView[]): boolean {
+  return more.length === fewer.length + 1 && fewer.every((s, k) => sameShadow(s, more[k]));
+}
+
 function droppedAtTheExit(before: readonly HelicopterShadowView[], now: readonly HelicopterShadowView[]): HelicopterShadowView | null {
-  if (before.length !== now.length + 1 || !now.every((s, k) => sameShadow(s, before[k]))) return null;
-  return before.at(-1) ?? null;
+  return oneShadowMore(now, before) ? (before.at(-1) ?? null) : null;
+}
+
+function shownAtMoveTo(before: readonly HelicopterShadowView[], now: readonly HelicopterShadowView[]): boolean {
+  return oneShadowMore(before, now);
 }
 
 function stepsFlownOn(leaving: LeavingShadow, clockMs: number): number {
@@ -84,6 +92,7 @@ export class HelicopterShadows {
     }
     const dropped = droppedAtTheExit(this.#runShadows, shadows);
     if (dropped) this.#leaving = { from: dropped, droppedAtMs: clockMs, tile: this.#tiles[shadows.length] ?? newTile(clockMs) };
+    if (shownAtMoveTo(this.#runShadows, shadows)) this.#leaving = null;
     this.#runShadows = shadows;
   }
 
