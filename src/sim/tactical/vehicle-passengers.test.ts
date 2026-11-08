@@ -1,20 +1,39 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../tests/support/autoresolve.ts';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { itemId, objectOf } from '../../../tests/support/explosives.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { ourHummerOnTheMap, seatInVehicle } from '../../../tests/support/vehicles.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { VehicleSeat } from '../strategic/forces/constants.ts';
+import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
+import { soldierTakeDamage } from './combat/hit.ts';
+import { DamageReason } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { newSmokeEffect } from './explosions/smoke.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
+import { Profile } from './narrative/constants.ts';
+import { playerTeamDeathRules } from './narrative/death-rules.ts';
+import { clearTacticalStuffDueToTimeCompression } from './overhead.ts';
+import { Opp } from './perception/opp.ts';
 import { validForSightings } from './perception/sight.ts';
+import { calcActionPoints } from './points.ts';
 import { removeSoldierFromTacticalSector } from './sector-presence.ts';
-import { NOWHERE, type Soldier, Team } from './soldier.ts';
+import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from './selection.ts';
+import { NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { mercs, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
+import {
+  beginMercTurn,
+  checkForEndOfBattle,
+  checkForEndOfCombatMode,
+  enterCombatMode,
+  exitCombatMode,
+  handleForcedRealtimeTurn,
+  isTeamActive,
+} from './turns/turns.ts';
 import { seatInTheHelicopterOnSectorEntry, seatWithNoVehicleOnTheMap } from './vehicle-passengers.ts';
 import { notifySoldiersToLookForItems } from './world-items.ts';
 
@@ -169,5 +188,130 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
       SAVED_PATH_STEPS,
     ]);
     expect([t.mercSlots, t.soldiers[merc.id]]).toEqual([[walker, merc], merc]);
+  });
+
+  const ENEMY_ID = 20;
+  const ENEMY_AT = gridNo(80, 100);
+  const DOWN = OKLIFE - 1;
+  const PROFILE = 7;
+
+  function withAnEnemy(t: TacticalState, sim: TacticalSim): Soldier {
+    const enemy = spawnSoldier(sim, ENEMY_ID, Team.ENEMY, ENEMY_AT, Direction.SOUTH);
+    t.turn.enemyInSector = true;
+    return enemy;
+  }
+
+  it("keeps his opplist at boarding, which the real-time decay then ages as it ages every merc slot's (Vehicles.cc:261, OppList.cc:4540)", () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const enemy = spawnSoldier(sim, ENEMY_ID, Team.ENEMY, ENEMY_AT, Direction.SOUTH);
+    const merc = spawnSoldier(sim, 0, Team.OUR, STANDING_AT, Direction.NORTH, { life: 100 });
+    merc.oppList[enemy.id] = Opp.SEEN_THIS_TURN;
+    merc.vehicleSeat = VehicleSeat.PASSENGER;
+    seatWithNoVehicleOnTheMap(t, merc);
+    expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_THIS_TURN);
+    t.turn.forceRealtimeTurn = true;
+    handleForcedRealtimeTurn(t, t.realtimeClock, t.clockMs);
+    expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_LAST_TURN);
+  });
+
+  it('keeps combat going with the enemy he saw this turn, as anyone in the sector who saw one does (CheckForEndOfCombatMode, Overhead.cc:4162, :4273)', () => {
+    const { sim, t, merc } = flying();
+    const enemy = withAnEnemy(t, sim);
+    enterCombatMode(t, Team.OUR);
+    merc.oppList[enemy.id] = Opp.SEEN_THIS_TURN;
+    merc.ai.oppCount = 1;
+    expect(checkForEndOfCombatMode(t, true)).toBe(false);
+    expect(t.inCombat).toBe(true);
+  });
+
+  it('gets up at his turn start and has his opplist decayed in combat, as a merc in the sector does (EVENT_BeginMercTurn, Soldier_Control.cc:4077)', () => {
+    const { sim, t, merc } = flying();
+    const enemy = withAnEnemy(t, sim);
+    merc.collapsed = true;
+    merc.oppList[enemy.id] = Opp.SEEN_THIS_TURN;
+    t.inCombat = true;
+    beginMercTurn(t, merc);
+    expect([merc.collapsed, merc.oppList[enemy.id]]).toEqual([false, Opp.SEEN_LAST_TURN]);
+  });
+
+  it('keeps our team active with nobody of ours on the map, as bMenInSector counts every soldier made for our team wherever he is (IsTeamActive, Overhead.h:178, Soldier_Create.cc:453, quirk)', () => {
+    const { t, merc, walker } = flying();
+    removeSoldierFromTacticalSector(t, walker);
+    expect(teamMembers(t, Team.OUR)).toEqual([]);
+    expect(isTeamActive(t, Team.OUR)).toBe(true);
+    removeSoldierFromTacticalSector(t, merc);
+    expect(isTeamActive(t, Team.OUR)).toBe(true);
+  });
+
+  it('keeps the battle from being lost while he is conscious above it, and counts it lost once he is down too (CheckForLosingEndOfBattle, Overhead.cc:4959)', () => {
+    const { sim, t, merc, walker } = flying();
+    withAnEnemy(t, sim);
+    walker.life = DOWN;
+    expect(checkForEndOfBattle(t)).toBe(false);
+    merc.life = DOWN;
+    expect(checkForEndOfBattle(t)).toBe(true);
+    expect(sim.drainEvents()).toContainEqual(expect.objectContaining({ type: 'combatEnded', reason: 'lost' }));
+  });
+
+  it('is the one a death picks to select next while he is conscious, and the selection, which refuses a merc aboard, stays on the dead (HandlePlayerTeamMemberDeath, Overhead.cc:2192, quirk)', () => {
+    const { t, merc, walker } = flying();
+    t.turn.selected = walker.id;
+    walker.life = 0;
+    const successor = deathSuccessor(t, walker);
+    expect(successor).toBe(merc);
+    selectAfterPlayerTeamMemberDeath(t, walker, successor);
+    expect(t.turn.selected).toBe(walker.id);
+  });
+
+  it('is somebody left for the rules of a death of ours, which mark our robot destroyed only with a conscious merc in the sector (HandlePlayerTeamMemberDeath, Overhead.cc:2192)', () => {
+    const { t, merc, walker } = flying();
+    const set: number[] = [];
+    t.narrative = { ...t.narrative, fact: () => false, setFactTrue: (id) => set.push(id), setFactFalse: () => {} };
+    walker.profile = Profile.ROBOT;
+    walker.life = 0;
+    playerTeamDeathRules(t, walker);
+    expect(set).toEqual([Fact.FIRST_ROBOT_DESTROYED]);
+    merc.life = OKLIFE - 1;
+    playerTeamDeathRules(t, walker);
+    expect(set).toEqual([Fact.FIRST_ROBOT_DESTROYED]);
+  });
+
+  it('bleeds to death through the death of a soldier in the sector, never the death of one off the map (HandleTakeDamageDeath, Soldier_Control.cc:5366, :5401)', () => {
+    const { t, merc } = flying();
+    const offTheMap: Soldier[] = [];
+    t.sectorHooks = { ...t.sectorHooks, mercDiedOffTheMap: (_t, dead) => offTheMap.push(dead) };
+    soldierTakeDamage(t, merc, merc.life, 0, DamageReason.BLOODLOSS, null);
+    expect([merc.life, merc.dead, offTheMap]).toEqual([0, true, []]);
+    expect(t.pendingSkullReleases.map((r) => r.soldier)).toEqual([merc]);
+  });
+
+  it('never dies when shot down to life 0 above the sector: only a hit animation, which he never plays, turns a gunshot into a death (quirk)', () => {
+    const { sim, t, merc } = flying();
+    soldierTakeDamage(t, merc, merc.life, 0, DamageReason.GUNFIRE, null);
+    for (let tick = 0; tick < FIRST_FRAME_TICKS; tick++) sim.step();
+    expect([merc.life, merc.dead, t.pendingSkullReleases]).toEqual([0, false, []]);
+  });
+
+  it('gets a new turn of APs, his unused ones carried, when combat begins and loses his walk when time compression begins, as every soldier in the sector does (CommonEnterCombatModeCode, CencelAllActionsForTimeCompression, Overhead.cc:3913, :5871)', () => {
+    const { sim, t, merc } = flying();
+    withAnEnemy(t, sim);
+    merc.actionPoints = SAVED_APS;
+    enterCombatMode(t, Team.OUR);
+    expect(merc.actionPoints).toBe(calcActionPoints(t, merc) + SAVED_APS);
+    exitCombatMode(t);
+    merc.pathSize = SAVED_PATH_STEPS;
+    clearTacticalStuffDueToTimeCompression(t);
+    expect([merc.pathSize, merc.placed, merc.offMap, merc.gridNo]).toEqual([0, false, true, NOWHERE]);
+  });
+
+  it('counts the battle won for him among those who fought it (CheckForEndOfBattle, Overhead.cc:4557)', () => {
+    const { t, merc } = flying();
+    merc.profile = PROFILE;
+    t.profiles.set(PROFILE, progressFor(PROFILE));
+    t.turn.enemyInSector = true;
+    t.turn.numFoughtInBattle[Team.ENEMY] = 1;
+    expect(checkForEndOfBattle(t)).toBe(true);
+    expect(t.profiles.get(PROFILE)?.battlesFought).toBe(1);
   });
 });

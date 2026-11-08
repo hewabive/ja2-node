@@ -28,7 +28,12 @@
 // @src (IsTimeBeingCompressed) and its compressed check time (the dead NOT_USING_TIME_COMPRESSION branch left out), polled
 // @src by the map screen; DecayBloodAndSmells's gfWorldLoaded return and its read of the compression mode (2026-11-05);
 // @src Overhead.cc NumEnemyInSector, EVENT_BeginMercTurn's auto-bandage gate on bleeding, the game Auto_Bandage.cc's
-// @src AutoBandage pauses for the whole mode; CheckForEndOfBattle's ShouldBeginAutoBandage in both arms (2026-11-06).
+// @src AutoBandage pauses for the whole mode; CheckForEndOfBattle's ShouldBeginAutoBandage in both arms (2026-11-06); the
+// @src bInSector of the helicopter's passengers over the loaded sector in EVENT_BeginMercTurn, NonCombatDecayPublicOpplist,
+// @src CommonEnterCombatModeCode, ExitCombatMode, WeSeeNoOne, NobodyAlerted, CheckForEndOfCombatMode,
+// @src SoldierHasSeenEnemiesLastFewTurns, CheckForLosingEndOfBattle and CheckForEndOfBattle's battles fought; IsTeamActive's
+// @src bMenInSector, which for our team counts every soldier made for it, Overhead.h, Soldier_Create.cc AddManToTeam
+// @src (2026-11-08).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -101,7 +106,7 @@ import {
   shownToPlayer,
   Team,
 } from '../soldier.ts';
-import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
+import { mercs, mercsInSector, type RealtimeClock, soldiersById, type TacticalState, teamInSector, teamMembers } from '../state.ts';
 import { turnOffExpiredXRay, turnOffXRayAtCombatTurnStart } from '../xray.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { handlePersonalityAtTurnStart } from './personality.ts';
@@ -121,7 +126,8 @@ function pointsContext(t: TacticalState): PointsContext {
 }
 
 export function isTeamActive(t: TacticalState, team: number): boolean {
-  return teamMembers(t, team).length > 0;
+  if (team === Team.OUR) return t.sectorHooks.ourWholeTeam(t).length > 0;
+  return teamInSector(t, team).length > 0;
 }
 
 const CLOSE_CALL_QUOTE = 22;
@@ -149,7 +155,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   handleEndTurnDrugAdjustments(t, s);
   if (!t.pathEnv.autoBandage && bleedsAtTurnStart(s)) {
     const blood = checkBleeding(t, s);
-    if (blood !== NO_BLOOD && s.placed) dropBlood(t, s, u8(blood));
+    if (blood !== NO_BLOOD && inSector(s)) dropBlood(t, s, u8(blood));
   }
   if (s.life === 0) return;
   s.shock = idiv(s.shock, 2);
@@ -164,10 +170,10 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   unusedAPsToBreath(pointsContext(t), s, s.gassed, carriedPercent);
   resetLowBreathWarning(t, s);
   if (s.turnsUntilCanSayHeardNoise > 0) s.turnsUntilCanSayHeardNoise--;
-  if (s.placed) checkForBreathCollapse(t, s);
+  if (inSector(s)) checkForBreathCollapse(t, s);
   calcNewActionPoints(t, s);
   s.tilesMoved = 0;
-  if (s.placed) {
+  if (inSector(s)) {
     beginSoldierGetup(t, s);
     if (t.inCombat) {
       verifyAndDecayOpplist(t, s);
@@ -260,7 +266,7 @@ export function strategicTurnDue(clock: RealtimeClock, poll: StrategicTurnPoll):
 
 function nonCombatDecayPublicOpplist(t: TacticalState, clock: RealtimeClock, now: number): void {
   if (u32(now - clock.lastOpplistDecaySeconds) < TIME_BETWEEN_RT_OPPLIST_DECAYS) return;
-  for (const s of mercs(t)) verifyAndDecayOpplist(t, s);
+  for (const s of mercsInSector(t)) verifyAndDecayOpplist(t, s);
   for (let team = 0; team < TEAM_COUNT; team++) if (isTeamActive(t, team)) decayPublicOpplist(t, team);
   clock.lastOpplistDecaySeconds = now;
 }
@@ -480,7 +486,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
   t.turn.itemsSeenOnAttack = null;
   t.sectorHooks.combatEntered(t);
   for (const s of t.soldiers) {
-    if (!s?.placed || s.bodyType === Body.CROW) continue;
+    if (!s || !inSector(s) || s.bodyType === Body.CROW) continue;
     clearBattleSightingQuotes(t, s);
     stopMerc(t, s);
     t.turnHooks.cancelAIAction(t, s);
@@ -529,7 +535,7 @@ export function exitCombatMode(t: TacticalState): void {
   t.inCombat = false;
   t.turn.virginSector = true;
   for (const s of t.soldiers) {
-    if (!s?.placed) continue;
+    if (!s || !inSector(s)) continue;
     if (s.noAPToFinishMove && s.life >= OKLIFE) {
       adjustNoAPToFinishMove(s, false);
       soldierGotoStationaryStance(t, s);
@@ -551,7 +557,7 @@ export function exitCombatMode(t: TacticalState): void {
 
 function soldierHasSeenEnemiesLastFewTurns(t: TacticalState, s: Soldier): boolean {
   for (const other of t.soldiers) {
-    if (!other?.placed || TEAM_SIDE[other.team] === s.side) continue;
+    if (!other || !inSector(other) || TEAM_SIDE[other.team] === s.side) continue;
     if (other.team !== Team.OUR && other.life < OKLIFE) continue;
     if (consideredNeutral(s, other) || other.side === s.side) continue;
     const v = s.oppList[other.id];
@@ -568,13 +574,15 @@ export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): b
   if (boxingFight(t)) return false;
   if (checkForEndOfBattle(t)) return true;
   const turn = t.turn;
-  const weSeeNoOne = !mercs(t).some((s) => s.team === Team.OUR && s.ai.oppCount > 0);
-  const nobodyAlerted = !mercs(t).some((s) => s.team !== Team.OUR && !s.neutral && s.life >= OKLIFE && s.ai.alertStatus >= AlertStatus.RED);
+  const weSeeNoOne = !mercsInSector(t).some((s) => s.team === Team.OUR && s.ai.oppCount > 0);
+  const nobodyAlerted = !mercsInSector(t).some(
+    (s) => s.team !== Team.OUR && !s.neutral && s.life >= OKLIFE && s.ai.alertStatus >= AlertStatus.RED,
+  );
   if (weSeeNoOne && nobodyAlerted) turn.consNumTurnsNotSeen = TURNS_NOT_SEEN_WHEN_NOBODY_IS_AWARE;
   else {
     let someone = false;
     let we = false;
-    for (const s of mercs(t)) {
+    for (const s of mercsInSector(t)) {
       if (s.life < OKLIFE || s.neutral || !soldierHasSeenEnemiesLastFewTurns(t, s)) continue;
       turn.consNumTurnsNotSeen = 0;
       someone = true;
@@ -604,8 +612,8 @@ function militiaStillFighting(t: TacticalState): boolean {
   return teamMembers(t, Team.MILITIA).some((s) => s.side === Side.FRIENDLY && s.life >= OKLIFE);
 }
 
-function checkForLosingEndOfBattle(t: TacticalState): boolean {
-  const ours = teamMembers(t, Team.OUR).filter((s) => s.bodyType < Body.HUMVEE);
+export function checkForLosingEndOfBattle(t: TacticalState): boolean {
+  const ours = teamInSector(t, Team.OUR).filter((s) => s.bodyType < Body.HUMVEE);
   if (ours.length === 0) return false;
   if (!ours.every((s) => s.life < OKLIFE)) return false;
   if (militiaStillFighting(t) && t.sectorHooks.militiaFinishBattle(t)) return false;
@@ -642,7 +650,7 @@ export function endBattleAfterSurrender(t: TacticalState): void {
 }
 
 function ourMercsFinishFoughtBattle(t: TacticalState): void {
-  for (const s of teamMembers(t, Team.OUR)) {
+  for (const s of teamInSector(t, Team.OUR)) {
     const p = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
     if (p) p.battlesFought++;
     if (s.life >= OKLIFE && !s.collapsed && onSquad(t, s)) clearBuddyWitnessedQuotes(t, s);

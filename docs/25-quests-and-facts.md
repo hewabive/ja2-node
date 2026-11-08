@@ -195,27 +195,35 @@ entry: registered, `placed` false and `offMap` true (`inSector(s)`, the original
 that through `inTacticalSector`, and a native import seats them the same way (`14`). A loop gated on `placed` passes them
 by, as the original's loops on `IsSoldierValidForSightings` or `NOWHERE` do; a loop over the merc slots that takes
 `offMap` soldiers sees them, as the original's `FOR_EACH_MERC` does. Where the original tests `bInSector` for our team,
-the passenger counts, which ja2-node does not follow yet (gaps "Turn-based hooks"):
+the passenger counts here too: those branches test `inSector(s)` (`teamInSector`, `mercsInSector`, `tactical/state.ts`),
+and where they measure from his tile they take the original's `NOWHERE`, one row past the map, 25601 against ja2-node's
+−1 (`withOriginalNowhere`, `tactical/soldier.ts`). The tests: `tactical/vehicle-passengers.test.ts`,
+`tactical/turns/personality.test.ts`, `campaign/team-morale.test.ts`, `campaign/helicopter-flow.test.ts` and
+`campaign/death-in-the-map-screen.test.ts`; the helicopter-drop comparer's passenger blocks check them against the
+native build (`tools/oracle/README.md`, "Helicopter drop").
 
 | The original | Counts him | ja2-node | Same |
 |---|---|---|---|
-| Boarding: the tile goes, the slot stays (`Tactical/Vehicles.cc:261`) | yes | `seatWithNoVehicleOnTheMap`, which also clears his own opplist as `RemoveSoldierFromTacticalSector` does (`Tactical/Overhead.cc:5908`) | the slot; not the opplist |
+| Boarding: the tile goes, the slot and his opplist stay (`Tactical/Vehicles.cc:261`) | yes | `seatWithNoVehicleOnTheMap` | yes |
 | A sector load: the slot, with no AP count and no stop (`Tactical/Soldier_Add.cc:701-709`) | yes | `seatInTheHelicopterOnSectorEntry`, from `SectorFlow.#placeMerc`, in id order | yes |
-| Leaving over the loaded sector: `UpdateMercInSector` pushes a second slot, `AddMercSlot` checking nothing (`Tactical/Vehicles.cc:345`, `Tactical/Overhead.cc:244`) | twice | `addSoldierToSector` keeps the one slot | no |
-| `ExecuteOverhead`'s slot loop: damage counter, fade, frames, the look for items (`Tactical/Overhead.cc:518`) | yes | `executeOverhead` (`placed` or `offMap`) | yes |
+| Leaving over the loaded sector: `UpdateMercInSector` pushes a second slot, `AddMercSlot` checking nothing (`Tactical/Vehicles.cc:345`, `Tactical/Overhead.cc:244`) | twice | `addSoldierToSector` keeps the one slot (deviation "Helicopter exit over the loaded sector") | no |
+| `ExecuteOverhead`'s slot loop: damage counter, fade, frames, the look for items (`Tactical/Overhead.cc:518`) | yes | `executeOverhead` (`inSector`) | yes |
 | `NotifySoldiersToLookforItems` (`Tactical/Handle_Items.cc:1927`), whose look returns at `NOWHERE` (`Tactical/FOV.cc:222`) | flagged | `notifySoldiersToLookForItems`, `revealRoofsAndItems` | yes |
 | `ResetAllMercSpeeds` (`Tactical/Overhead.cc:5829`), `ChangeSoldierTeam`'s target relink (`Tactical/Soldier_Profile.cc:654`) | yes | `resetAllMercSpeeds` (`inSector`), `narrative/team-change.ts` | yes |
 | `NextAIToHandle` (`Tactical/Overhead.cc:403`) | skipped, ours | `nextAIToHandle` | yes |
 | `IsSoldierValidForSightings` and the loops on it or on `NOWHERE` (`Tactical/OppList.cc:629`, `:736`, `:1189`, `:1237`, `:4298`, `:4363`, `:4434`) | no | `validForSightings` (`placed`) | yes |
+| The real-time decay of every opplist and of the public ones (`Tactical/OppList.cc:4540`, `:4494`) | yes: his entries age, though he never looks again | `nonCombatDecayPublicOpplist`, `decayPublicOpplist` (`mercsInSector`) | yes |
+| The end-of-combat check's merc-slot loops on our opplists (`Tactical/Overhead.cc:4162`, `:4190`, `:4273`) | yes | `checkForEndOfCombatMode`, `weSawSomeoneThisTurn` (`mercsInSector`) | yes |
 | The other merc-slot loops of `Tactical/OppList.cc`, `TacticalAI/AIUtils.cc`, `TacticalAI/Attacks.cc` and `TacticalAI/Knowledge.cc`, which go by opplist entries | only through an entry, which no opponent holds: he is never seen, and boarding is refused with enemies in the loaded sector | `placed` | yes |
 | `SayQuoteFromAnyBodyInSector` (`Tactical/Dialogue_Control.cc:1342`) and an NPC starting a talk, which want a squad | no | `okControllableMerc`, `assignedBelowDuty` | yes |
-| `NonCombatDecayPublicOpplist`'s `VerifyAndDecayOpplist` (`Tactical/OppList.cc:4540`) | yes | `mercs(t)` (`turns/turns.ts`) | no |
-| `EVENT_BeginMercTurn`'s blood, breath collapse, getting up, opplist decay and personality (`Tactical/Soldier_Control.cc:4019-4077`) | yes | `beginMercTurn`, on `placed` | no |
-| `IsTeamActive` (`bMenInSector`, `Tactical/Overhead.h:178`) | yes | `isTeamActive` (`teamMembers`) | no |
-| `CheckForLosingEndOfBattle`, its capture and its kill loop (`Tactical/Overhead.cc:4959`, `:5041`) | yes | `checkForLosingEndOfBattle`, `BattleFlow.battleLost` | no |
-| `HandlePlayerTeamMemberDeath`'s buddy lines (`Tactical/Overhead.cc:2210`) | yes | `inSectorBuddyKilledQuotes` (`placed`) | no |
-| `SoldierTakeDamage`'s branch for a soldier in the sector, so he never dies at life 0 (`Tactical/Soldier_Control.cc:5366`, `:5401`) | yes | `diesOffTheTacticalMap` (`!placed`) | no |
-| `CommonEnterCombatModeCode`, `ExitCombatMode`, `CancelAllActionsForTimeCompression` (`Tactical/Overhead.cc:3913`, `:4057`, `:5871`) | yes | `placed` | no |
+| `EVENT_BeginMercTurn`'s blood, breath collapse, getting up, opplist decay in combat, x-ray and personality (`Tactical/Soldier_Control.cc:4019-4100`); a nervous merc's friend in the sector at his turn start and in the hourly morale (`TacticalAI/AIUtils.cc:1491`, `Tactical/Morale.cc:173`) | yes; two passengers stand no tile apart | `beginMercTurn`, `distanceToClosestFriend` (`turns/personality.ts`, `campaign/team-morale.ts`) | yes |
+| `IsTeamActive` (`bMenInSector`, `Tactical/Overhead.h:178`), which for our team counts every soldier made for it (`Tactical/Soldier_Create.cc:453`), wherever he is | yes | `isTeamActive`: our whole team, the soldiers in the sector of the others | yes |
+| `CheckForLosingEndOfBattle`, its capture and its kill loop, which leaves `SOLDIER_DEAD` to the strategic death (`Tactical/Overhead.cc:4959`, `:5041`, `Tactical/Soldier_Ani.cc:2885`); the surrender's capture (`Tactical/Civ_Quotes.cc:161`) | yes | `checkForLosingEndOfBattle`, `BattleFlow.battleLost`, `BattleFlow.#captureSurrenderedMercs` | yes |
+| `HandlePlayerTeamMemberDeath`'s next selection, which `SelectSoldier` then refuses, keeping the dead selected; its death rules and buddy lines (`Tactical/Overhead.cc:2192`, `:2210`) | yes | `deathSuccessor`, `playerTeamDeathRules`, `inSectorBuddyKilledQuotes` | yes |
+| `SoldierTakeDamage`'s branch for a soldier in the sector (`Tactical/Soldier_Control.cc:5366`, `:5401`): bleeding to death is a tactical death with no body at `NOWHERE` (`Tactical/Rotting_Corpses.cc:611`), and a gunshot with no hit animation leaves him at life 0 for good | yes | `handleTakeDamageDeath` | yes |
+| `CommonEnterCombatModeCode`, `ExitCombatMode`, `CencelAllActionsForTimeCompression` (`Tactical/Overhead.cc:3913`, `:4057`, `:5871`) | yes | `commonEnterCombatModeCode`, `exitCombatMode`, `cancelAllActionsForTimeCompression` | yes |
+| `CheckForEndOfBattle`'s count of the battles fought (`Tactical/Overhead.cc:4557`) | yes | `ourMercsFinishFoughtBattle` | yes |
+| `CivilianGroupMemberChangesSides` (`Tactical/Overhead.cc:2723`) | yes | `civilianGroupMemberChangesSides` (`placed`; deviation "Rebel aboard the helicopter") | no |
 
 **Boarding and leaving.** `AddSoldierToVehicle` and `ExitVehicle` keep their original order in the strategic code
 (`strategic/economy/vehicle-assignment.ts`, `strategic/forces/vehicles.ts`), which reaches the loaded map through
@@ -348,12 +356,18 @@ Inferred from reading the source:
   by frame (`tools/oracle/README.md`, "Helicopter drop"), up to the frame where the A9 garrison's AI begins combat,
   which the dump cannot replay. A native save in mid-drop was imported by hand only, as its import lands the seats
   (deviation "Helicopter drop in a native save"), and the frames after the native `SaveGame` are not compared.
+- The helicopter's passengers over the loaded sector: `tools/oracle/heli-passengers-compare.ts` imports `SaveGame01`
+  and compares boarding in tactical, the turn starts in and out of combat, the nervous ones, quotes from anybody, damage
+  and a death, the losing check with its capture and its kill, the frames after them and a native save with a passenger
+  and its load. Not probed: a death's buddy lines and selection, combat start and end and the compression stop, the
+  battles fought, the shoot-down over the loaded sector.
 - The helicopter on the map: no probe dumps the structures or the soldiers' tiles after a load of the airport with the
   helicopter on the ground; the stub helicopter (`stubs/helicopter.ts`) has its own shapes, so stub tests pin the pieces'
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
 Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Helicopter entrance" (the lock's two
-steps), "Turn-based hooks" (the passengers' branches). Deviations of this domain: "Helicopter on load", "Toolkit
-repair in tactical", "Helicopter drop statics", "Helicopter run start", "Helicopter drop cut short", "Helicopter drop
-in a native save".
+steps), "Helicopter passengers elsewhere" (the tests of `bInSector` outside the turn and battle hooks). Deviations of
+this domain: "Helicopter on load", "Toolkit repair in tactical", "Helicopter drop statics", "Helicopter run start",
+"Helicopter drop cut short", "Helicopter drop in a native save", "Helicopter exit over the loaded sector", "Rebel
+aboard the helicopter".

@@ -251,7 +251,8 @@ are not probed. Inferred from reading the source:
 - A merc aboard a ground vehicle is a valid sighting at the vehicle's tile (`IsSoldierValidForSightings`,
   `Tactical/OppList.cc:621`), and nothing in the line of sight treats the vehicle's own structure apart: he looks out
   from its tile and an enemy who sees that tile sees him (`../vehicle-presence.test.ts` "lets enemies see the mercs
-  aboard …"). The helicopter's passengers never count.
+  aboard …"). The helicopter's passengers never count; boarding keeps their opplists, which age with every decay and
+  never see again (`25`).
 
 Deviations of this domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light
 schedule", "Sounds out of sight", "Bullets of unseen shooters".

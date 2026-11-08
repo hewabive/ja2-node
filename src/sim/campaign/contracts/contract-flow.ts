@@ -10,7 +10,8 @@
 // @src (buddy quotes); Merc_Contract.cc
 // @src DialogueEventContract, MakeCharacterDialogueEventContractEnding(NoAskEquip), MapScreen.cc
 // @src MakeDialogueEventEnterMapScreen, Map_Screen_Interface.cc MakeDialogueEventShowContractMenu (the endings and the
-// @src renewal menu as dialogue events behind the lines, 2026-11-01).
+// @src renewal menu as dialogue events behind the lines, 2026-11-01); Tactical/Overhead.cc HandlePlayerTeamMemberDeath's buddy
+// @src lines from everyone in the sector, the helicopter's passengers included (2026-11-08).
 
 import { type Sector, sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
@@ -45,7 +46,7 @@ import type { ExperienceHooks } from '../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../tactical/content.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { type RefusalTexts, refuse, refuseWithText } from '../../tactical/refusal.ts';
-import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../../tactical/soldier.ts';
+import { Body, inSector, NO_PROFILE, OKLIFE, type Soldier, Team } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import type { MoraleContext } from '../morale.ts';
 import { campaignProfile, loadMercProfiles } from '../profiles.ts';
@@ -746,7 +747,7 @@ export class ContractFlow implements ContractContext {
   }
 
   inSectorBuddyKilledQuotes(dead: RosterMerc): void {
-    for (const m of this.team()) if (m.inSector) this.#buddyKilledQuote(m, dead.soldier);
+    for (const m of this.team()) if (inSector(m.soldier)) this.#buddyKilledQuote(m, dead.soldier);
   }
 
   #loadedTeam(team: number): Soldier[] {

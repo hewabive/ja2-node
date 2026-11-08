@@ -11,7 +11,8 @@
 // @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT; RadioSightings
 // @src and HandleSight with gfPlayerTeamSawCreatures and the first creature sighting's quote (2026-10-30); ManLooksForMan's
 // @src fMercAsleep (2026-10-31); ManSeesMan's SlideTo to an opponent turning visible in combat or in a virgin sector
-// @src (2026-11-03); ManLooksForMan's vehicle of ours, which never looks (2026-11-05).
+// @src (2026-11-03); ManLooksForMan's vehicle of ours, which never looks (2026-11-05); DecayPublicOpplist's FOR_EACH_MERC,
+// @src the helicopter's passengers over the loaded sector included (2026-11-08).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv, u8 } from '../../../core/int.ts';
@@ -53,7 +54,7 @@ import {
   Team,
   TOTAL_SOLDIERS,
 } from '../soldier.ts';
-import { mercs, type TacticalState, teamMembers, whoIsThere } from '../state.ts';
+import { mercs, mercsInSector, type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import {
   addToIntList,
   checkForPotentialAddToBattleIncrement,
@@ -775,7 +776,7 @@ function decayPublicOpponents(t: TacticalState, team: number): boolean {
   const table = t.perception.publicOpp[team];
   if (!table) return false;
   let anyPubliclyKnown = false;
-  for (const opp of mercs(t)) {
+  for (const opp of mercsInSector(t)) {
     if (!opp.life || opp.team === team) continue;
     const value = table[opp.id] ?? Opp.NOT_HEARD_OR_SEEN;
     if (value === Opp.NOT_HEARD_OR_SEEN) continue;

@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
+import { spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { Direction, gridNo } from '../../content/world/grid.ts';
 import { strategicView } from '../../server/strategic-view.ts';
 import type { SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
@@ -14,8 +16,9 @@ import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEventUsingSeconds } from '../strategic/time/event-queue.ts';
 import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
 import { type ProfileProgress, progressFromProfile } from '../tactical/profiles.ts';
-import { NOWHERE } from '../tactical/soldier.ts';
-import { whoIsThere } from '../tactical/state.ts';
+import { NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import { type TacticalState, whoIsThere } from '../tactical/state.ts';
+import { checkForEndOfBattle, isTeamActive } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 let kit: CampaignKit;
@@ -149,6 +152,52 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(t?.mercSlots.map((s) => s.id)).toEqual(slots);
     if (t) expect(whoIsThere(t, tile, level)).toBeNull();
     expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
+  });
+
+  const PASSENGER = 0;
+  const WALKERS = [1, 2];
+  const DOWN = OKLIFE - 1;
+  const ENEMY_ID = 20;
+
+  function aboveTheBattle(): { readonly c: CampaignSim; readonly t: TacticalState; readonly soldier: (id: number) => Soldier } {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: PASSENGER, vehicle: 'helicopter' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'tacticalScreen' }).ok).toBe(true);
+    const sim = c.tactical;
+    if (!sim) throw new Error('no loaded sector');
+    spawnSoldier(sim, ENEMY_ID, Team.ENEMY, gridNo(80, 120), Direction.SOUTH);
+    sim.state.turn.enemyInSector = true;
+    c.drainEvents();
+    const soldier = (id: number) => {
+      const s = c.battle?.roster.get(id)?.soldier;
+      if (!s) throw new Error(`no merc ${id}`);
+      return s;
+    };
+    return { c, t: sim.state, soldier };
+  }
+
+  it('keep a lost battle going while one of them is conscious, and are captured with the walkers when the battle is lost with everyone down (CheckForLosingEndOfBattle, Overhead.cc:4959, :5058)', () => {
+    const { c, t, soldier } = aboveTheBattle();
+    for (const id of WALKERS) soldier(id).life = DOWN;
+    expect(checkForEndOfBattle(t)).toBe(false);
+    soldier(PASSENGER).life = DOWN;
+    expect(checkForEndOfBattle(t)).toBe(true);
+    const captured = c.drainEvents().flatMap((e) => (e.type === 'mercCaptured' ? [e.soldier] : []));
+    expect(captured).toEqual([PASSENGER, ...WALKERS]);
+    expect(c.battle?.roster.get(PASSENGER)?.assignment).toBe(Assignment.ASSIGNMENT_POW);
+    expect(isTeamActive(t, Team.OUR)).toBe(true);
+    expect(strategicView(c)?.helicopter).toMatchObject({ passengers: [] });
+  });
+
+  it("are killed for a lost battle when the walkers are dead, with no corpse, and their death waits for its skull as a walker's does (Overhead.cc:5050, Soldier_Ani.cc:2885, Rotting_Corpses.cc:611)", () => {
+    const { t, soldier } = aboveTheBattle();
+    for (const id of WALKERS) soldier(id).life = 0;
+    soldier(PASSENGER).life = DOWN;
+    const corpses = t.corpses.length;
+    expect(checkForEndOfBattle(t)).toBe(true);
+    expect([soldier(PASSENGER).life, soldier(PASSENGER).dead, t.corpses.length]).toEqual([0, false, corpses]);
+    expect(t.pendingSkullReleases.map((r) => r.soldier.id)).toEqual([PASSENGER]);
   });
 
   it('enter their merc slots with no tile when the sector loads its mercs: a sector load never puts them on the map (Soldier_Add.cc InternalAddSoldierToSector)', () => {

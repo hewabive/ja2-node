@@ -2,14 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc HourlyMoraleUpdate, DecayTacticalMoraleModifiers, DecayStrategicMoraleModifiers,
 // @src DecayTacticalMorale, DecayStrategicMorale; Strategic/Strategic_Merc_Handler.cc UpdateBuddyAndHatedCounters;
-// @src TacticalAI/AIUtils.cc DistanceToClosestFriend; Soldier_Profile.cc WhichHated.
+// @src TacticalAI/AIUtils.cc DistanceToClosestFriend (helicopter passengers at NOWHERE included, 2026-11-08);
+// @src Soldier_Profile.cc WhichHated.
 
 import { sameSector } from '../../content/strategic/sector-ids.ts';
 import { clamp, i8, idiv } from '../../core/int.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership } from '../tactical/skills.ts';
-import { NO_PROFILE, OKLIFE, Personality } from '../tactical/soldier.ts';
+import { inSector, NO_PROFILE, OKLIFE, Personality, withOriginalNowhere } from '../tactical/soldier.ts';
 import { type QuoteName, SpecialProfile } from './contracts/quotes.ts';
 import { handleMoraleEvent, type MoraleContext, MoraleEvent, refreshMercMorale } from './morale.ts';
 import { BUDDY_OPINION, BuddySlot, HATED_OPINION, HatedSlot, whichHated } from './relations/relations.ts';
@@ -180,18 +181,18 @@ function distanceToClosestFriend(ctx: TeamMoraleContext, m: RosterMerc): number 
   let min = NO_FRIEND_DISTANCE;
   for (const other of ctx.team) {
     if (other === m) continue;
-    if (m.soldier.placed) {
-      if (!other.soldier.placed || other.soldier.life < OKLIFE) continue;
+    if (inSector(m.soldier)) {
+      if (!inSector(other.soldier) || other.soldier.life < OKLIFE) continue;
     } else if (!sameSector(m.sector, other.sector) || other.soldier.life < OKLIFE) continue;
     else return NEAR_FRIEND_DISTANCE;
-    min = Math.min(min, ctx.spacesAway(m.soldier.gridNo, other.soldier.gridNo));
+    min = Math.min(min, ctx.spacesAway(withOriginalNowhere(m.soldier.gridNo), withOriginalNowhere(other.soldier.gridNo)));
   }
   return min;
 }
 
 function nervousAndAlone(ctx: TeamMoraleContext, m: RosterMerc): boolean {
   if (m.groupId !== 0 && m.assignment <= Assignment.SQUAD_20 && ctx.groupInMotion(m.groupId)) return ctx.squadSize(m.assignment) === 1;
-  if (m.soldier.placed) return distanceToClosestFriend(ctx, m) > NERVOUS_RADIUS;
+  if (inSector(m.soldier)) return distanceToClosestFriend(ctx, m) > NERVOUS_RADIUS;
   return !ctx.team.some((other) => other !== m && sameSector(other.sector, m.sector));
 }
 

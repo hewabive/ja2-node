@@ -10,7 +10,7 @@
 // @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
-// @src spit gas).
+// @src spit gas); HandleTakeDamageDeath's bInSector for the helicopter's passengers over the loaded sector (2026-11-08).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -48,7 +48,7 @@ import { profileProgress, StatKind } from '../profiles.ts';
 import { cancelPendingRobotReload } from '../robot-reload.ts';
 import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
-import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
+import { Body, CivilianGroup, inSector, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { vehicleShareOfDamage, vehicleTakeDamage } from '../vehicle-damage.ts';
@@ -792,12 +792,12 @@ function handleSoldierTakeDamageFeedback(t: TacticalState, s: Soldier): void {
 }
 
 function diesOffTheTacticalMap(t: TacticalState, s: Soldier): boolean {
-  return (t.sectorHooks.inMapScreen(t) || !s.placed) && s.life === 0 && !s.dead;
+  return (t.sectorHooks.inMapScreen(t) || !inSector(s)) && s.life === 0 && !s.dead;
 }
 
 function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): void {
   if (reason === DamageReason.BLOODLOSS || reason === DamageReason.ELECTRICITY || reason === DamageReason.GAS) {
-    if (s.placed) {
+    if (inSector(s)) {
       if (reason === DamageReason.ELECTRICITY && s.life < OKLIFE) s.inNonInterruptibleAnimation = false;
       if (s.life < OKLIFE && s.life !== 0 && !s.collapsed) soldierCollapse(t, s);
       if (s.life === 0) s.doingExternalDeath = true;

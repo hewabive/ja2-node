@@ -12,7 +12,8 @@
 // @src InternalDoMercBattleSound placing the cry by the soldier's team and sGridNo, 2026-11-07);
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
-// @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack.
+// @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack; the bInSector of
+// @src the captures and the kill loop, the helicopter's passengers included, and IsTeamActive(ENEMY_TEAM) (2026-11-08).
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
@@ -97,9 +98,9 @@ import { healthCategory } from '../tactical/health.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import { leaveTacticalSector } from '../tactical/sector-presence.ts';
-import { Body, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, inSector, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
-import { battleFought, endBattleAfterSurrender, lastMercKillWasMonster } from '../tactical/turns/turns.ts';
+import { battleFought, endBattleAfterSurrender, isTeamActive, lastMercKillWasMonster } from '../tactical/turns/turns.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
 import {
   type ArStrategicContext,
@@ -978,7 +979,7 @@ export class BattleFlow implements FateContext {
   #captureSurrenderedMercs(t: TacticalState): void {
     const ours = this.roster
       .all()
-      .filter((m) => registeredInTactical(t, m) && m.soldier.placed && m.soldier.life !== 0)
+      .filter((m) => registeredInTactical(t, m) && inSector(m.soldier) && m.soldier.life !== 0)
       .sort((a, b) => a.id - b.id);
     beginCaptureSequence(this);
     for (const m of ours) {
@@ -1181,7 +1182,7 @@ export class BattleFlow implements FateContext {
   #captureAllowed(t: TacticalState, ours: readonly RosterMerc[]): boolean {
     const notOkReal = ours.filter((m) => m.life !== 0 && m.life < OKLIFE && !m.isEpc && !m.isRobot).length;
     if (notOkReal >= MAX_CAPTURED_REAL_MERCS || notOkReal <= MIN_CAPTURED_REAL_MERCS) return false;
-    if (teamMembers(t, Team.ENEMY).length === 0) return false;
+    if (!isTeamActive(t, Team.ENEMY)) return false;
     const n = this.state.narrative;
     const alma = questStatus(n, Quest.HELD_IN_ALMA);
     return (
@@ -1190,7 +1191,7 @@ export class BattleFlow implements FateContext {
   }
 
   battleLost(t: TacticalState): void {
-    const ours = this.roster.all().filter((m) => registeredInTactical(t, m) && m.soldier.placed);
+    const ours = this.roster.all().filter((m) => registeredInTactical(t, m) && inSector(m.soldier));
     const capture = this.#captureAllowed(t, ours);
     if (capture) beginCaptureSequence(this);
     for (const m of ours) {

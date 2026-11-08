@@ -8,7 +8,8 @@
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
 // @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06); TurnSoldierIntoCorpse taking our dead off the map
-// @src through RemoveSoldierFromGridNo (2026-11-07).
+// @src through RemoveSoldierFromGridNo (2026-11-07); HandleSoldierDeath's SOLDIER_DEAD left to the strategic death for
+// @src our mercs killed for a lost battle (2026-11-08).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -439,8 +440,9 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
     cancelAllServices(t, s);
     putOutMuzzleFlash(t, s);
     s.gettingHit = 0;
-    if (s.team === Team.OUR) s.dead = true;
-    else {
+    if (s.team === Team.OUR) {
+      if (!t.turn.killingGuysForLosingBattle) s.dead = true;
+    } else {
       const attacker = s.attacker;
       if (attacker?.team === Team.OUR && t.turn.attackBusyCount > 0)
         t.turn.killedEnemyOnAttack = { victim: s, killer: attacker, gridNo: s.gridNo, level: s.level };

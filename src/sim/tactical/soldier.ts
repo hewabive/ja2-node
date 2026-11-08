@@ -4,10 +4,12 @@
 // @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment); Soldier_Create.cc
 // @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01; the slots of our vehicles and
 // @src bVehicleID, 2026-11-04); Tactical/Soldier_Control.h SOLDIER_DRIVER, SOLDIER_PASSENGER; Soldier_Macros.h EnterableVehicle
-// @src (2026-11-05); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07)
+// @src (2026-11-05); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1, for
+// @src the distances taken from a soldier with no tile, 2026-11-08)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
+import { WORLD_MAX } from '../../content/world/grid.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -102,6 +104,7 @@ export const CivilianGroup = {
 } as const;
 export const NO_PROFILE = 200;
 export const NOWHERE = -1;
+export const ORIGINAL_NOWHERE = WORLD_MAX + 1;
 export const NO_CIV_QUOTE = -1;
 export const NO_PENDING_ANIMATION = -1;
 export const NO_PENDING_DIRECTION = -1;
@@ -150,6 +153,10 @@ export function onTheGrid(s: { readonly placed: boolean; readonly vehicleSeat: n
 
 export function inSector(s: { readonly placed: boolean; readonly offMap: boolean }): boolean {
   return s.placed || s.offMap;
+}
+
+export function withOriginalNowhere(g: number): number {
+  return g === NOWHERE ? ORIGINAL_NOWHERE : g;
 }
 
 export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier, 'neutral' | 'bodyType'>): boolean {

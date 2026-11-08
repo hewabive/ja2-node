@@ -2,18 +2,21 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc CheckForEndOfCombatMode and CheckForEndOfBattle (the merc quotes),
 // @src WeSawSomeoneThisTurn, NumEnemyInSectorNotDeadOrDying, NumBloodcatsInSectorNotDeadOrDying; the COOL1 battle sound
-// @src of SayBattleSoundFromAnyBodyInSector after bloodcats is not drawn (deviation "Battle sound after bloodcats").
+// @src of SayBattleSoundFromAnyBodyInSector after bloodcats is not drawn (deviation "Battle sound after bloodcats");
+// @src WeSawSomeoneThisTurn's FOR_EACH_MERC, the helicopter's passengers included (2026-11-08).
 
 import { Opp } from '../perception/opp.ts';
 import { Body, OKLIFE, Side, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
-import { mercs, type TacticalState } from '../state.ts';
+import { mercsInSector, type TacticalState } from '../state.ts';
 import { MercQuote, sayQuoteFromAnyBodyInSector } from './merc-quotes.ts';
 
 const MAX_NUM_SOLDIERS = 148;
 const FIRST_ENEMY_ID = TEAM_FIRST_ID[Team.ENEMY];
 
 export function weSawSomeoneThisTurn(t: TacticalState): boolean {
-  return mercs(t).some((s) => s.team === Team.OUR && s.oppList.subarray(FIRST_ENEMY_ID, MAX_NUM_SOLDIERS).includes(Opp.SEEN_THIS_TURN));
+  return mercsInSector(t).some(
+    (s) => s.team === Team.OUR && s.oppList.subarray(FIRST_ENEMY_ID, MAX_NUM_SOLDIERS).includes(Opp.SEEN_THIS_TURN),
+  );
 }
 
 function hostileNotDeadOrDying(s: Soldier | undefined): boolean {

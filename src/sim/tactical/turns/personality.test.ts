@@ -4,6 +4,7 @@ import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts'
 import { spawnCreature } from '../../../../tests/support/creatures.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { VehicleSeat } from '../../strategic/forces/constants.ts';
 import type { TacticalContent } from '../content.ts';
 import { MercQuote, QuoteSaidFlag } from '../narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from '../narrative/port.ts';
@@ -11,6 +12,7 @@ import { Opp } from '../perception/opp.ts';
 import { Body, OKLIFE, Personality, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { seatWithNoVehicleOnTheMap } from '../vehicle-passengers.ts';
 import { beginMercTurn } from './turns.ts';
 
 let content: TacticalContent;
@@ -159,6 +161,19 @@ describe('phobias at the turn start (Soldier_Control.cc EVENT_BeginMercTurn)', (
     beginMercTurn(s.t, s.merc);
     expect(s.merc.tacticalMoraleMod).toBe(PHOBIC_LIMIT);
     expect(s.said).toEqual(personalityQuote(s));
+  });
+
+  it('costs a nervous helicopter passenger above the sector a point alone, and keeps him company with another passenger aboard: both at NOWHERE, they are no tile apart (DistanceToClosestFriend, quirk)', () => {
+    const s = scene(Personality.NERVOUS);
+    const friend = friendAt(s, gridNo(80, 81));
+    for (const aboard of [s.merc, friend]) aboard.vehicleSeat = VehicleSeat.PASSENGER;
+    seatWithNoVehicleOnTheMap(s.t, s.merc);
+    lowMorale(s.merc, -1);
+    beginMercTurn(s.t, s.merc);
+    expect(s.merc.tacticalMoraleMod).toBe(-2);
+    seatWithNoVehicleOnTheMap(s.t, friend);
+    beginMercTurn(s.t, s.merc);
+    expect(s.merc.tacticalMoraleMod).toBe(-2);
   });
 
   it('leaves a phobic soldier of another team alone', () => {

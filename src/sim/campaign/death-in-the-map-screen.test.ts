@@ -336,7 +336,7 @@ function flyingOver(c: Campaign, name: string): boolean {
   return heli !== null && sameSector(heli.sector, parseSectorString(name)) && heliState(ctx).hovering;
 }
 
-async function aboardOverA10(seed: number, passengers: readonly number[], walker: number | null = null): Promise<Campaign> {
+async function aboardOverA9(seed: number, passengers: readonly number[]): Promise<Campaign> {
   const c = await landedInA9(seed);
   const campaign = c.session.campaign;
   const ctx = campaign.strategic ?? never('strategic layer');
@@ -346,6 +346,11 @@ async function aboardOverA10(seed: number, passengers: readonly number[], walker
   setUpHelicopterForPlayer(ctx, landing);
   await order(c, { type: 'mapScreen' });
   for (const profile of passengers) await order(c, { type: 'boardVehicle', soldier: merc(c, profile).id, vehicle: 'helicopter' });
+  return c;
+}
+
+async function aboardOverA10(seed: number, passengers: readonly number[], walker: number | null = null): Promise<Campaign> {
+  const c = await aboardOverA9(seed, passengers);
   if (walker !== null) await order(c, { type: 'route', soldier: merc(c, walker).id, to: ELSEWHERE });
   await order(c, { type: 'heliRoute', to: HOVER });
   c.live.advance({ idle: true });
@@ -400,5 +405,33 @@ describe('the helicopter shot down while the map screen is up (Vehicles.cc KillA
     const later = c.session.campaign.turnWorld() ?? never('turn world');
     expect(later.state.events).toEqual([]);
     expect(unloadedWorldSnapshot(c, later)).toBe(unloadedWorldSnapshot(c, createUnloadedWorld(c.session.campaign, later.state.content)));
+  });
+});
+
+describe('the helicopter passengers over the loaded sector at a death (Soldier_Control.cc HandleTakeDamageDeath, Overhead.cc HandlePlayerTeamMemberDeath)', () => {
+  it('say their buddy line when a walker of the loaded sector dies, as every conscious merc in the sector does (Overhead.cc:2210)', async () => {
+    const c = await aboardOverA9(35, [VANT]);
+    await order(c, { type: 'tacticalScreen' });
+    const kestrel = merc(c, KESTREL);
+    soldierTakeDamage(turnWorld(c), kestrel.soldier, KILLING_BLOW, KILLING_BLOW, DamageReason.BLOODLOSS, null);
+    const events = c.live.advance(LINE_TICKS).events;
+    expect(ofType(events, 'mercQuote').filter((e) => e.soldier === merc(c, VANT).id && e.id === Quote.BUDDY_ONE_KILLED)).toHaveLength(1);
+  });
+
+  it('die in tactical terms when it is shot down above the loaded sector with the map screen up: no body and no gear at NOWHERE, and the strategic death waits for the tactical screen (Soldier_Control.cc:5366, :5401, quirk)', async () => {
+    const c = await aboardOverA9(31, [VANT]);
+    const t = turnWorld(c);
+    const status = c.session.campaign.state.status;
+    const [deaths, items, corpses] = [status.mercDeaths, t.worldItems.length, t.corpses.length];
+    shootDown(c);
+    const report = c.live.advance(ONE_TICK);
+    expect([merc(c, VANT).soldier.life, merc(c, VANT).soldier.dead]).toEqual([0, true]);
+    expect(ofType(report.events, 'mercDied')).toEqual([]);
+    expect([status.mercDeaths, turnWorld(c).worldItems.length, turnWorld(c).corpses.length]).toEqual([deaths, items, corpses]);
+    c.live.advance({ idle: true });
+    expect([c.session.campaign.state.status.mercDeaths, merc(c, VANT).assignment]).toEqual([deaths, Assignment.VEHICLE]);
+    await order(c, { type: 'tacticalScreen' });
+    c.live.advance(LINE_TICKS);
+    expect([c.session.campaign.state.status.mercDeaths, merc(c, VANT).assignment]).toEqual([deaths + 1, Assignment.ASSIGNMENT_DEAD]);
   });
 });

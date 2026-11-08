@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldMan.cc WhoIsThere2; Tactical/Overhead.cc AddMercSlot, RemoveMercSlot (the vector of
-// @src Stracciatella, 2026-11-02); Soldier_Control.cc SetSoldierGridNo (no level node for a driver or passenger, 2026-11-05).
+// @src Stracciatella, 2026-11-02); Soldier_Control.cc SetSoldierGridNo (no level node for a driver or passenger, 2026-11-05);
+// @src FOR_EACH_MERC and FOR_EACH_IN_TEAM with bInSector (mercsInSector, teamInSector, 2026-11-08).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
@@ -50,7 +51,7 @@ import { createSightMemo, type SightMemo } from './perception/sight-memo.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
-import { inVehicle, NOBODY, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
+import { inSector, inVehicle, NOBODY, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from './vehicle-soldiers.ts';
 import type { WorldItem } from './world-items.ts';
@@ -264,7 +265,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   mercDied: () => {},
   mercDiedOffTheMap: () => {},
   inMapScreen: () => false,
-  ourWholeTeam: (t) => teamMembers(t, Team.OUR),
+  ourWholeTeam: (t) => t.soldiers.filter((s): s is Soldier => s !== undefined && s !== null && s.team === Team.OUR),
   pendingEnemies: () => false,
   militiaFinishBattle: () => false,
   battleLost: () => {},
@@ -684,10 +685,18 @@ export function mercs(t: Pick<TacticalState, 'mercSlots'>): readonly Soldier[] {
   return placed;
 }
 
+export function mercsInSector(t: Pick<TacticalState, 'mercSlots'>): readonly Soldier[] {
+  return t.mercSlots.filter((s) => inSector(s));
+}
+
 export function soldiersById(t: Pick<TacticalState, 'soldiers'>): Soldier[] {
   return t.soldiers.filter((s): s is Soldier => s?.placed === true);
 }
 
 export function teamMembers(t: Pick<TacticalState, 'soldiers'>, team: number): Soldier[] {
   return t.soldiers.filter((s): s is Soldier => s?.placed === true && s.team === team);
+}
+
+export function teamInSector(t: Pick<TacticalState, 'soldiers'>, team: number): Soldier[] {
+  return t.soldiers.filter((s): s is Soldier => s !== undefined && s !== null && s.team === team && inSector(s));
 }

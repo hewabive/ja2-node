@@ -4,8 +4,7 @@
 // @src Tactical/Soldier_Add.cc InternalAddSoldierToSector (a driver or passenger stops after his merc slot);
 // @src Strategic/Strategic_Movement.cc GroupArrivedAtSector (the vehicle placed before its passengers); the EVENT_StopMerc of
 // @src AddSoldierToVehicle, for a merc who boarded off the loaded map, at his next sector entry; AddSoldierToVehicle's
-// @src RemoveSoldierFromGridNo for a vehicle with no soldier on the map, the helicopter, with the opplist reset of
-// @src Overhead.cc RemoveSoldierFromTacticalSector that the boarding keeps for now (gaps "Turn-based hooks"), and the
+// @src RemoveSoldierFromGridNo for a vehicle with no soldier on the map, the helicopter, which keeps his opplist, and the
 // @src helicopter's passengers over the loaded sector in their merc slots with no tile (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
@@ -13,7 +12,6 @@ import { hasAnimFlag, soldierGotoStationaryStance } from './animation.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason } from './combat/types.ts';
 import { removeSoldierFromGridNo, setSoldierPositionXY, stopMerc } from './movement.ts';
-import { initSoldierOppList } from './perception/opplist-reset.ts';
 import { inSector, NOWHERE, type Soldier } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 import { vehicleCarrying } from './vehicle-presence.ts';
@@ -34,7 +32,6 @@ export function seatAtVehicle(t: TacticalState, s: Soldier, vehicle: Soldier): v
 
 export function seatWithNoVehicleOnTheMap(t: TacticalState, s: Soldier): void {
   if (!inSector(s)) return;
-  initSoldierOppList(t, s);
   removeSoldierFromGridNo(t, s);
   waitInTheSectorWithNoTile(s);
 }

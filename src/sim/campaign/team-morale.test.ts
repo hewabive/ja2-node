@@ -193,6 +193,19 @@ describe('DecayTacticalMoraleModifiers', () => {
   });
 });
 
+describe('DecayTacticalMoraleModifiers for a helicopter passenger over the loaded sector (Morale.cc:173)', () => {
+  it('measures a nervous passenger from NOWHERE to every friend in the sector, the walkers far below him, as for a merc in the sector', () => {
+    const team = [merc(0, { personality: Personality.NERVOUS }), merc(1, { placed: true, gridNo: 200 })];
+    const s = team[0]?.soldier;
+    if (!s) throw new Error('no merc');
+    s.offMap = true;
+    s.morale = 40;
+    s.tacticalMoraleMod = -4;
+    decayTacticalMoraleModifiers(context(team).ctx);
+    expect(s.tacticalMoraleMod).toBe(-5);
+  });
+});
+
 describe('UpdateBuddyAndHatedCounters', () => {
   it('counts down the hated time and makes a M.E.R.C. merc quit when it runs out', () => {
     const team = [merc(0, { kind: MercKind.MERC }), merc(1)];

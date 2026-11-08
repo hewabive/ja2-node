@@ -1,14 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc HandleNPCTeamMemberDeath (civilian profile cases), HandlePlayerTeamMemberDeath
-// @src (SLAY, ROBOT); TacticalAI/AIUtils.cc ClosestPC.
+// @src (SLAY, ROBOT; its bInSector gate, the helicopter's passengers included, 2026-11-08); TacticalAI/AIUtils.cc ClosestPC.
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { AlertStatus, Attitude, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import { type TacticalState, teamMembers } from '../state.ts';
+import { type TacticalState, teamInSector } from '../state.ts';
 import { closestPc } from './closest-pc.ts';
 import { ASSASSINS, Loyalty, Profile, TERRORISTS, Town } from './constants.ts';
 
@@ -81,7 +81,7 @@ export function civilianDeathRules(t: TacticalState, old: Soldier, killer: Soldi
 }
 
 export function playerTeamDeathRules(t: TacticalState, old: Soldier): void {
-  if (!teamMembers(t, Team.OUR).some((s) => s !== old && s.life >= OKLIFE)) return;
+  if (!teamInSector(t, Team.OUR).some((s) => s !== old && s.life >= OKLIFE)) return;
   if (old.profile === Profile.SLAY) {
     const carmen = findByProfile(t, Profile.CARMEN);
     if (carmen && carmen.ai.attitude === Attitude.ATTACKSLAYONLY && closestPc(t, carmen).gridNo !== NOWHERE)

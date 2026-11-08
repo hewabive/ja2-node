@@ -1,14 +1,15 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-01. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_BeginMercTurn (the personality switch); TacticalAI/AIUtils.cc
-// @src DistanceToClosestFriend (a soldier in the sector); Tactical/Soldier_Profile_Type.h NERVOUS_RADIUS.
+// @src DistanceToClosestFriend (a soldier in the sector, helicopter passengers at NOWHERE included, 2026-11-08);
+// @src Tactical/Soldier_Profile_Type.h NERVOUS_RADIUS.
 
 import { spacesAway } from '../../../content/world/grid.ts';
 import { handleMoraleEvent, MoraleEvent } from '../combat/morale.ts';
 import { clearQuoteSaid, MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from '../narrative/merc-quotes.ts';
 import { mercSeesCreature } from '../perception/opp.ts';
-import { NO_PROFILE, OKLIFE, Personality, type Soldier, Team } from '../soldier.ts';
-import { type TacticalState, teamMembers } from '../state.ts';
+import { NO_PROFILE, OKLIFE, Personality, type Soldier, Team, withOriginalNowhere } from '../soldier.ts';
+import { type TacticalState, teamInSector } from '../state.ts';
 
 const CLAUSTROPHOBIA_DIE_BASE = 6;
 const NERVOUS_RADIUS = 10;
@@ -18,9 +19,9 @@ const NO_FRIEND_DISTANCE = 1000;
 
 function distanceToClosestFriend(t: TacticalState, s: Soldier): number {
   let closest = NO_FRIEND_DISTANCE;
-  for (const friend of teamMembers(t, s.team)) {
+  for (const friend of teamInSector(t, s.team)) {
     if (friend === s || friend.life < OKLIFE) continue;
-    closest = Math.min(closest, spacesAway(s.gridNo, friend.gridNo));
+    closest = Math.min(closest, spacesAway(withOriginalNowhere(s.gridNo), withOriginalNowhere(friend.gridNo)));
   }
   return closest;
 }

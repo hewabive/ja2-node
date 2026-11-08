@@ -31,6 +31,7 @@ const OPTIONS: CampaignOptions = { seed: 15, garrison: NO_GARRISON };
 const PARKED_AT = 9000;
 const VEHICLE_LIFE = 80;
 const WRECKING_GUNFIRE = 3 * VEHICLE_LIFE;
+const SKULL_TICKS = 2_000;
 
 function tacticalOf(c: CampaignSim): TacticalState {
   const t = c.tactical?.state;
@@ -73,6 +74,7 @@ function wreckWithTwoAboard(firstAlreadyDead: boolean): { readonly first: Roster
   const wreck = t.soldiers[hummer.id];
   if (!wreck) throw new Error('the Hummer is gone');
   soldierTakeDamage(t, wreck, WRECKING_GUNFIRE, 0, DamageReason.GUNFIRE, null);
+  for (let tick = 0; tick < SKULL_TICKS && tacticalOf(campaign).pendingSkullReleases.length > 0; tick++) campaign.step();
   reloadPoint(campaign);
   const roster = campaign.battle?.roster;
   const reread = (m: RosterMerc) => {
@@ -84,7 +86,7 @@ function wreckWithTwoAboard(firstAlreadyDead: boolean): { readonly first: Roster
 }
 
 describe('the mercs aboard a destroyed vehicle (Vehicles.cc KillAllInVehicle)', () => {
-  it('die in seat order when their vehicle is destroyed in the loaded sector', () => {
+  it('die in seat order when their vehicle is destroyed in the loaded sector, in the sector until their skulls are done (HandleTakeDamageDeath, Soldier_Control.cc:5366)', () => {
     const { first, second } = wreckWithTwoAboard(false);
     expect([first.life, second.life]).toEqual([0, 0]);
     expect([first.assignment, second.assignment]).toEqual([Assignment.ASSIGNMENT_DEAD, Assignment.ASSIGNMENT_DEAD]);

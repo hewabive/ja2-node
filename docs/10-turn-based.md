@@ -225,8 +225,10 @@ Not pinned yet:
 No probe compares duel points or the interrupt queue; the oracle's soldier dump compares the APs of a new turn
 (`apPerTurn`) and the tactical status after a save load, the vehicle probe a vehicle's APs at its creation, at a
 takeover and at its turn starts, and its breath after a breath cost, the absent probes our team's turn starts with a
-merc off the loaded map, in real time on both screens and at our team turn in combat until it ends
-(`tools/oracle/README.md`). Inferred from reading the source:
+merc off the loaded map, in real time on both screens and at our team turn in combat until it ends, and the
+helicopter-drop probes those of the helicopter's passengers over the loaded sector, in their merc slots with no tile
+as in the original, with the losing check that counts them (`tools/oracle/README.md`, `25`). Inferred from reading the
+source:
 - Everyone entering combat with a full turn plus 5 carried APs.
 - A duel margin of 127 or more needs more shock than hits normally leave; ja2-node keeps the rule.
 - `CalcInterruptDuelPts` stores every step in an `INT8`; ja2-node wraps only the result, which differs only below −128.
@@ -234,9 +236,10 @@ merc off the loaded map, in real time on both screens and at our team turn in co
 - Boxing, vehicle and robot branches are ported as read, without probes.
 - The turn starts of our mercs off the loaded map (the absent probes confirm that a merc breathes by the animation he
   left the map in and by his own terrain, so one who ran off regains nothing): a step since the last turn zeroes his
-  first gain; a stale `GIVING_AID` state still looks for its patient on the loaded map; the helicopter's passengers
-  over the loaded sector, in their merc slots with no tile as in the original, still get the branches of a merc
-  elsewhere (gaps "Turn-based hooks").
+  first gain; a stale `GIVING_AID` state still looks for its patient on the loaded map.
+- Combat's start and end and the compression stop for the helicopter's passengers over the loaded sector, which take
+  them as soldiers in the sector (`25`); our team stays active, as `bMenInSector` counts every soldier made for it,
+  with none of ours in the sector (`isTeamActive`).
 - The selections of a screen entry, a sector load, a death, a removal and a change of the current squad, and that the
   original reaches them at the moments `29` §4.3 names (the map, a load, the skull, a squad or sector removal, a squad
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's

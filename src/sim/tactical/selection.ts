@@ -9,7 +9,9 @@
 // @src FindNextActiveSquad; Tactical/Squads.cc UpdateCurrentlySelectedMerc; Tactical/Soldier_Create.cc
 // @src InternalTacticalRemoveSoldier; Tactical/Squads.cc SetCurrentSquad (the forced selection of the squad's first
 // @src merc), SetDefaultSquadOnSectorEntry, RebuildCurrentSquad (its squad check; the team panel stays the client's),
-// @src the end of AddCharacterToSquad; SaveLoadGame.cc LoadSavedGame (the forced reselect in tactical) (2026-11-01).
+// @src the end of AddCharacterToSquad; SaveLoadGame.cc LoadSavedGame (the forced reselect in tactical) (2026-11-01);
+// @src HandlePlayerTeamMemberDeath's next selection among everyone in the sector, the helicopter's passengers included
+// @src (2026-11-08).
 
 import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
@@ -18,7 +20,7 @@ import { isVehicleBody } from './person-structure.ts';
 import type { Refusal } from './refusal.ts';
 import { NO_PROFILE, OKLIFE, Personality, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from './soldier.ts';
 import { okInterruptMerc } from './soldier-view.ts';
-import { type TacticalState, teamMembers } from './state.ts';
+import { type TacticalState, teamInSector, teamMembers } from './state.ts';
 
 export const NO_SELECTION = -1;
 
@@ -155,7 +157,7 @@ export function locateToSoldier(t: TacticalState, preferred: Soldier | null): So
 }
 
 export function deathSuccessor(t: TacticalState, dead: Soldier): Soldier | null {
-  return teamMembers(t, dead.team).find((s) => s.life >= OKLIFE) ?? null;
+  return teamInSector(t, dead.team).find((s) => s.life >= OKLIFE) ?? null;
 }
 
 export function selectAfterPlayerTeamMemberDeath(t: TacticalState, dead: Soldier, successor: Soldier | null): void {

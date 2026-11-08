@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls,
 // @src the fade before the animation update, the SOLDIER_LOOKFOR_ITEMS look at the frame, the HandleBloodForNewGridNo
-// @src of a tile's middle, 2026-11-04), CencelAllActionsForTimeCompression;
+// @src of a tile's middle, 2026-11-04), CencelAllActionsForTimeCompression (the helicopter's passengers over the loaded
+// @src sector included, 2026-11-08);
 // @src Strategic/Game_Clock.cc ClearTacticalStuffDueToTimeCompression (the tactical message queue is the browser's).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
@@ -24,7 +25,7 @@ import {
 } from './movement.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
-import type { Soldier } from './soldier.ts';
+import { inSector, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 function movementSpeed(t: TacticalState, s: Soldier): number {
@@ -71,16 +72,12 @@ function lookForItemsIfNotified(t: TacticalState, s: Soldier): void {
   s.lookForItems = false;
 }
 
-function inTacticalEngine(s: Soldier): boolean {
-  return s.placed || s.offMap;
-}
-
 function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
   lookForItemsIfNotified(t, s);
   const moving = hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE);
   if ((moving && s.noAPToFinishMove) || s.pauseAllAnimation) return true;
   adjustToNextAnimationFrame(t, s);
-  if (!inTacticalEngine(s)) return false;
+  if (!inSector(s)) return false;
   if (!hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) handleNextTileWaiting(t, s);
   if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE) && !s.pauseAnimMove) {
     if (!handleMovementFrame(t, s)) return false;
@@ -96,7 +93,7 @@ export interface OverheadHooks {
 }
 
 function handleSlot(t: TacticalState, s: Soldier, slot: number, hooks: OverheadHooks): void {
-  if (!inTacticalEngine(s)) return;
+  if (!inSector(s)) return;
   updateDamageDisplay(t, s);
   updateSoldierFade(t, s);
   if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;
@@ -112,7 +109,7 @@ export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): vo
 
 function cancelAllActionsForTimeCompression(t: TacticalState): void {
   for (const s of t.soldiers) {
-    if (!s?.placed) continue;
+    if (!s || !inSector(s)) continue;
     stopMerc(t, s);
     t.turnHooks.cancelAIAction(t, s);
   }
