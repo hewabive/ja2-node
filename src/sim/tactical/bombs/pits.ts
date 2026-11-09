@@ -15,7 +15,7 @@ import { setUnplacedSoldierHeight } from '../roofs.ts';
 import { exitGridAt } from '../sector-exit.ts';
 import { leaveTacticalSector } from '../sector-presence.ts';
 import { type Soldier, shownToPlayer } from '../soldier.ts';
-import { type SectorRef, type TacticalState, whoIsThere } from '../state.ts';
+import { onVisibleWorldTile, type SectorRef, type TacticalState, whoIsThere } from '../state.ts';
 
 export interface PitShape {
   readonly radius: number;
@@ -71,6 +71,7 @@ function makeSoldiersAroundFall(t: TacticalState, centre: number, radius: number
   for (let y = -radius; y <= radius; y++) {
     for (let x = -radius; x <= radius; x++) {
       const g = centre + y * WORLD_COLS + x;
+      if (!onVisibleWorldTile(t, g)) continue;
       const s = whoIsThere(t, g, GROUND_LEVEL);
       if (!s) continue;
       s.pendingActionData4 = g;
