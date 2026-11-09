@@ -3830,3 +3830,50 @@ describe("snapshot version 76 (a native save's pending action keeping bPendingAc
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const PENDING_DOOR_STRUCTURE_ID_KEY = 'pendingDoorStructureId';
+
+function withoutPendingDoorStructureId(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPendingDoorStructureId(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (key !== PENDING_DOOR_STRUCTURE_ID_KEY) out[key] = withoutPendingDoorStructureId(v);
+  return out;
+}
+
+function versionSeventySeven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutPendingDoorStructureId(value)]);
+  return { ...snapshot, version: 77, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 77 (no structure ID for a door or container interaction) migrates with the ID of the openable on its tile', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with a merc about to open a door and another who opens nothing', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const [opener, idle] = teamMembers(t, Team.OUR);
+    const doorTile = Array.from({ length: WORLD_MAX }, (_, g) => g).find((g) => t.world.structures.find(g, StructureFlags.OPENABLE));
+    const door = doorTile === undefined ? null : t.world.structures.find(doorTile, StructureFlags.OPENABLE);
+    if (!opener || !idle || doorTile === undefined || !door) throw new Error('no merc or no openable');
+    opener.pendingDoorGridNo = doorTile;
+    opener.pendingDoorStructureId = door.id;
+    expect(idle.pendingDoorGridNo).toBe(NOWHERE);
+    const current = snapshotSession(sandbox);
+    const legacy = versionSeventySeven(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${PENDING_DOOR_STRUCTURE_ID_KEY}":${door.id}`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${PENDING_DOOR_STRUCTURE_ID_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

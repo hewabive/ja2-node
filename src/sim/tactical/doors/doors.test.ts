@@ -10,7 +10,7 @@ import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { states } from '../animation.ts';
 import { handleDoorChangeFromGridNo, swapStructureForPartner } from '../doors.ts';
-import { soldierGiveItem } from '../give.ts';
+import { apsToMovePlusAction, soldierGiveItem } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { InvSlot } from '../inventory.ts';
 import { getNewSoldierPath } from '../movement.ts';
@@ -399,6 +399,70 @@ describe('a door order that arrives while something else is under way (Overhead.
       },
     );
     expect(opened).toBe(false);
+  });
+});
+
+describe('a door order on arrival (Overhead.cc:821-863, Interactive_Tiles.cc:98)', () => {
+  function walkingToOpen(sim: TacticalSim): Soldier {
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true, to: OUTSIDE },
+    });
+    return s;
+  }
+
+  const doorOpen = (sim: TacticalSim) => (doorStructure(sim).flags & StructureFlags.OPEN) !== 0;
+
+  it('halts a merc who gets there in combat short of the APs of his door handle code, keeping the order, which he carries out once he can pay', () => {
+    const sim = village();
+    sim.state.inCombat = true;
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
+    sim.lookAround();
+    s.doorHandleCode = HandleDoor.OPEN;
+    s.actionPoints = apsToMovePlusAction(sim.state, s, OUTSIDE, doorApCost(HandleDoor.OPEN) - 1);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true, to: OUTSIDE },
+    });
+    const events = runSimUntilIdle(sim);
+    expect([s.gridNo, doorOpen(sim), s.noAPToFinishMove, s.pendingDoorAction?.action, resultsOf(events)]).toEqual([
+      OUTSIDE,
+      false,
+      true,
+      'open',
+      ['open:notEnoughAp'],
+    ]);
+    s.actionPoints = doorApCost(HandleDoor.OPEN);
+    s.noAPToFinishMove = false;
+    runSimUntilIdle(sim);
+    expect([doorOpen(sim), s.pendingDoorAction]).toEqual([true, null]);
+  });
+
+  it('records the door when the order starts, not when the merc gets there', () => {
+    const sim = village();
+    const ordered = doorStructure(sim).id;
+    const s = walkingToOpen(sim);
+    expect([s.pendingDoorGridNo, s.pendingDoorStructureId]).toEqual([DOOR, ordered]);
+  });
+
+  it('plays the opening of a door swapped for its partner and back since the order, which stays shut: the codes look for the structure the order named', () => {
+    const sim = village();
+    const s = walkingToOpen(sim);
+    const ordered = s.pendingDoorStructureId;
+    expect(swapStructureForPartner(sim.state, doorStructure(sim))).not.toBeNull();
+    expect(swapStructureForPartner(sim.state, doorStructure(sim))).not.toBeNull();
+    expect([doorOpen(sim), doorStructure(sim).id === ordered]).toEqual([false, false]);
+    const events = runSimUntilIdle(sim);
+    expect([s.gridNo, doorOpen(sim), s.pendingDoorGridNo, events.some((e) => e.type === 'doorChanged')]).toEqual([
+      OUTSIDE,
+      false,
+      -1,
+      false,
+    ]);
   });
 });
 

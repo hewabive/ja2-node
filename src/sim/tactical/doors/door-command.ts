@@ -1,10 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
-// @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the
-// @src LOCKUI_MODE test, 2026-10-30; its fAutoBandagePending test, 2026-11-06; its MERC_GIVEITEM held after a give on the
-// @src spot, 2026-11-08; the doorAPs[ubDoorHandleCode] check of an openable, HaltMoveForSoldierOutOfPoints keeping the
-// @src action, 2026-11-09);
+// @src FindAdjacentGridEx for other openables; StartInteractiveObject after the path of a door order, 2026-11-09);
+// @src Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the LOCKUI_MODE test, 2026-10-30; its
+// @src fAutoBandagePending test, 2026-11-06; its MERC_GIVEITEM held after a give on the spot, 2026-11-08; the
+// @src doorAPs[ubDoorHandleCode] check of a door or other openable, HaltMoveForSoldierOutOfPoints keeping the action,
+// @src 2026-11-09);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
 // @src stops the menu's merc, 2026-11-01).
 
@@ -105,7 +106,6 @@ function openOrClose(t: TacticalState, s: Soldier, gridNo: number, direction: nu
 }
 
 function closeManually(t: TacticalState, s: Soldier, gridNo: number, direction: number): Record<string, unknown> {
-  startInteractiveObject(t, s, gridNo);
   s.reverse = false;
   if (stoppedAtBusyDoor(t, s, gridNo)) return { started: 'busy' };
   if (!s.collapsed) setDesiredDirection(t, s, direction);
@@ -114,7 +114,6 @@ function closeManually(t: TacticalState, s: Soldier, gridNo: number, direction: 
 }
 
 function menuAction(t: TacticalState, s: Soldier, gridNo: number, direction: number, action: DoorActionName): Record<string, unknown> {
-  startInteractiveObject(t, s, gridNo);
   s.reverse = false;
   if (stoppedAtBusyDoor(t, s, gridNo)) return { started: 'busy' };
   if (!s.collapsed) setDesiredDirection(t, s, direction);
@@ -133,19 +132,37 @@ function menuAction(t: TacticalState, s: Soldier, gridNo: number, direction: num
   return { started: action };
 }
 
-export function performDoorAction(
+const BY_THE_HANDLE: ReadonlySet<DoorActionName> = new Set(['open', 'close']);
+
+function refusedForAPs(t: TacticalState, s: Soldier, gridNo: number, action: DoorActionName): Record<string, unknown> | null {
+  if (enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return null;
+  t.events.push({ type: 'doorResult', soldier: s.id, gridNo, action, result: 'notEnoughAp' });
+  return { started: false, refusal: 'notEnoughAp' };
+}
+
+function carryOutMenuAction(
   t: TacticalState,
   s: Soldier,
   gridNo: number,
   direction: number,
   action: DoorActionName,
 ): Record<string, unknown> {
-  if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) {
-    t.events.push({ type: 'doorResult', soldier: s.id, gridNo, action, result: 'notEnoughAp' });
-    return { started: false, refusal: 'notEnoughAp' };
-  }
-  if (action === 'closeManually') return closeManually(t, s, gridNo, direction);
-  return action === 'open' || action === 'close' ? openOrClose(t, s, gridNo, direction) : menuAction(t, s, gridNo, direction, action);
+  return action === 'closeManually' ? closeManually(t, s, gridNo, direction) : menuAction(t, s, gridNo, direction, action);
+}
+
+function performDoorAction(
+  t: TacticalState,
+  s: Soldier,
+  door: StructureInstance,
+  direction: number,
+  action: DoorActionName,
+): Record<string, unknown> {
+  const gridNo = door.gridNo;
+  const refused = refusedForAPs(t, s, gridNo, action);
+  if (refused) return refused;
+  if (BY_THE_HANDLE.has(action)) return openOrClose(t, s, gridNo, direction);
+  startInteractiveObject(t, s, door, gridNo);
+  return carryOutMenuAction(t, s, gridNo, direction, action);
 }
 
 export const OPEN_STRUCT_ACTION = 'openStruct';
@@ -173,7 +190,7 @@ function containerCommand(t: TacticalState, s: Soldier, container: StructureInst
   const base = container.gridNo;
   s.pendingDoorAction = null;
   s.reverse = false;
-  startInteractiveObject(t, s, base);
+  startInteractiveObject(t, s, container, base);
   if (approach.gridNo === s.gridNo) {
     interactWithOpenableStruct(t, s, container, approach.direction);
     return { ok: true, data: { started: action } };
@@ -201,13 +218,14 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   if (!approach) return refuse('noPath');
   if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return refuse('notEnoughAp');
   s.pendingDoorAction = null;
-  if (approach.gridNo === s.gridNo) return { ok: true, data: performDoorAction(t, s, base, approach.direction, action) };
+  if (approach.gridNo === s.gridNo) return { ok: true, data: performDoorAction(t, s, door, approach.direction, action) };
   s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action };
   dropHeldActions(s);
   if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
     s.pendingDoorAction = null;
     return refuse('noPath');
   }
+  startInteractiveObject(t, s, door, base);
   return { ok: true, data: { walking: true, to: approach.gridNo } };
 }
 
@@ -235,25 +253,31 @@ function waitForTheAPsToOpen(t: TacticalState, s: Soldier, pending: PendingDoorA
   s.pendingDoorAction = pending;
 }
 
+function keepLookingForTheOpenable(s: Soldier, pending: PendingDoorAction): void {
+  s.pendingDoorAction = pending;
+}
+
 function interactWithPendingStruct(t: TacticalState, s: Soldier, pending: PendingDoorAction): void {
   const structure = t.world.structures.find(pending.gridNo, StructureFlags.OPENABLE);
-  if (!structure) soldierGotoStationaryStance(t, s);
+  if (!structure) keepLookingForTheOpenable(s, pending);
   else if (!enoughPoints(t.inCombat, s, doorApCost(s.doorHandleCode))) waitForTheAPsToOpen(t, s, pending, structure);
   else if (!otherActivityUnderWay(t)) interactWithOpenableStruct(t, s, structure, pending.direction);
 }
+
+const OPENED_ON_ARRIVAL: ReadonlySet<string> = new Set([OPEN_STRUCT_ACTION, ...BY_THE_HANDLE]);
 
 export function handlePendingDoorOnArrival(t: TacticalState, s: Soldier): boolean {
   const pending = s.pendingDoorAction;
   if (!pending) return false;
   s.pendingDoorAction = null;
   if (pending.actionGridNo !== s.gridNo) return false;
-  if (pending.action === OPEN_STRUCT_ACTION) {
+  if (OPENED_ON_ARRIVAL.has(pending.action)) {
     interactWithPendingStruct(t, s, pending);
     return true;
   }
   const action = pending.action as DoorActionName;
   if (enoughPoints(t.inCombat, s, actionCost(s, action).ap) && otherActivityUnderWay(t)) return true;
-  const result = performDoorAction(t, s, pending.gridNo, pending.direction, action);
+  const result = refusedForAPs(t, s, pending.gridNo, action) ?? carryOutMenuAction(t, s, pending.gridNo, pending.direction, action);
   if (result.started === false) soldierGotoStationaryStance(t, s);
   return true;
 }

@@ -16,7 +16,7 @@ import { apsToMovePlusAction } from './give.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { adoptSavedPendingAction } from './saved-pending-action.ts';
-import { Body, MERC_GIVE_ITEM, NOBODY, NOWHERE, type SavedPendingAction, type Soldier, Team } from './soldier.ts';
+import { Body, MERC_GIVE_ITEM, NOBODY, type SavedPendingAction, type Soldier, Team } from './soldier.ts';
 import { placeOutOfVehicle } from './vehicle-boarding.ts';
 import { addItemToPool, Visibility } from './world-items.ts';
 
@@ -269,7 +269,7 @@ describe('the typed record a saved pending action becomes (Soldier.cc handlePend
     s.pendingActionData1 = TALK_TARGET;
     s.pendingActionData2 = TARGET_TILE;
     s.pendingActionData4 = WALKED_TO;
-    adoptSavedPendingAction(sim.state, s);
+    adoptSavedPendingAction(s);
     return s;
   }
 
@@ -309,7 +309,8 @@ describe('the typed record a saved pending action becomes (Soldier.cc handlePend
     expect([adopted(saved(MERC_DROPBOMB)).pendingDropBomb, adopted(saved(MERC_TALK)).pendingTalk]).toEqual([true, TALK_TARGET]);
   });
 
-  it('takes sPendingActionData2 and bPendingActionData3 for a door or a container, to run on the tile the walk ended on, and the structure to handle only when uiPendingActionData1 is its ID', () => {
+  it('takes sPendingActionData2 and bPendingActionData3 for a door or a container, to run on the tile the walk ended on, and the low word of uiPendingActionData1 as the ID of the structure its codes 494 and 495 handle', () => {
+    const LOW_WORD_WRAP = 0x10000;
     for (const action of [MERC_OPENDOOR, MERC_OPENSTRUCT]) {
       const sim = newCombatSim(content);
       const id = addOpenable(sim, TARGET_TILE, 0).id;
@@ -320,13 +321,17 @@ describe('the typed record a saved pending action becomes (Soldier.cc handlePend
         direction: Direction.NORTH,
         action: OPEN_STRUCT_ACTION,
       });
-      const handled = [id, id + 1].map((structureId) => {
-        s.pendingActionData1 = structureId;
+      const interactions = [id, id + 1, id + LOW_WORD_WRAP].map((data1) => {
+        s.pendingActionData1 = data1;
         s.savedPendingAction = saved(action);
-        adoptSavedPendingAction(sim.state, s);
-        return s.pendingDoorGridNo;
+        adoptSavedPendingAction(s);
+        return [s.pendingDoorGridNo, s.pendingDoorStructureId];
       });
-      expect(handled).toEqual([TARGET_TILE, NOWHERE]);
+      expect(interactions).toEqual([
+        [TARGET_TILE, id],
+        [TARGET_TILE, id + 1],
+        [TARGET_TILE, id],
+      ]);
     }
   });
 

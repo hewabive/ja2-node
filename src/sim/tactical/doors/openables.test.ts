@@ -1,16 +1,19 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { createItem } from '../../items/object.ts';
+import { hasAnimFlag } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { openableStatuses, openContainerGridNos, setOpenableStructStatus } from '../doors.ts';
 import { apsToMovePlusAction } from '../give.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import type { TacticalSim } from '../tactical-sim.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { doorApCost, handleOpenableStruct } from './door-actions.ts';
 import { HandleDoor } from './door-table.ts';
@@ -23,6 +26,8 @@ beforeAll(async () => {
 });
 
 const CRATE = gridNo(81, 80);
+const WALK_TICKS = 2_000;
+const ON_THE_SPOT_TICKS = 200;
 const MATERIAL_THICKER_METAL = 22;
 
 function crateFile(flags = 0) {
@@ -151,6 +156,75 @@ describe('HandleStructChangeFromGridNo', () => {
     merc.noAPToFinishMove = false;
     runUntilIdle(sim);
     expect([crateOpen(t), merc.pendingDoorAction]).toEqual([true, null]);
+  });
+
+  it('plays the opening of a crate opened and closed again since the order, which stays shut: code 494 looks for the structure the order named (Interactive_Tiles.cc:98)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const { closed, file } = crateFile();
+    t.world.structures.add(CRATE, 0, closed, undefined, file);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(76, 80), Direction.EAST);
+    expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: CRATE, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true },
+    });
+    const ordered = merc.pendingDoorStructureId;
+    setOpenableStructStatus(t, CRATE, true);
+    setOpenableStructStatus(t, CRATE, false);
+    expect(t.world.structures.find(CRATE, StructureFlags.OPENABLE)?.id).not.toBe(ordered);
+    runUntilIdle(sim);
+    expect([merc.gridNo, crateOpen(t), merc.pendingDoorGridNo]).toEqual([gridNo(80, 80), false, -1]);
+  });
+
+  function walkingToACrateThatGoes(sim: TacticalSim): { merc: Soldier; beside: number; putBack: () => void } {
+    const t = sim.state;
+    const { closed, file } = crateFile();
+    const crate = t.world.structures.add(CRATE, 0, closed, undefined, file);
+    if (!crate) throw new Error('no crate');
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(76, 80), Direction.EAST);
+    const beside = gridNo(80, 80);
+    expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: CRATE, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true, to: beside },
+    });
+    t.world.structures.remove(crate);
+    for (let tick = 0; tick < WALK_TICKS && merc.gridNo !== beside; tick++) sim.step();
+    const putBack = () => {
+      t.world.structures.add(CRATE, 0, closed, undefined, file);
+    };
+    return { merc, beside, putBack };
+  }
+
+  it('walks on the spot beside a crate gone when he gets there, the order kept, until a crate is back there, whose opening he plays to no effect: it is not the structure his order named (Overhead.cc:829-833, Soldier_Control.cc:6268)', () => {
+    const sim = newCombatSim(content);
+    const { merc, beside, putBack } = walkingToACrateThatGoes(sim);
+    const passes: number[] = [];
+    for (let tick = 0; tick < ON_THE_SPOT_TICKS; tick++) {
+      sim.step();
+      passes.push(merc.tilesMoved);
+    }
+    expect([merc.gridNo, merc.finalDestination, merc.pendingDoorAction?.gridNo, sim.isIdle()]).toEqual([beside, beside, CRATE, false]);
+    expect(hasAnimFlag(content, merc.state, AnimFlags.MOVING)).toBe(true);
+    expect(new Set(passes).size).toBeGreaterThan(2);
+    putBack();
+    runUntilIdle(sim);
+    expect([merc.gridNo, crateOpen(sim.state), merc.pendingDoorAction, merc.pendingDoorGridNo]).toEqual([beside, false, null, -1]);
+  });
+
+  it('stops walking on the spot beside a crate gone when he gets there at a stop or a move order', () => {
+    for (const order of ['stop', 'move'] as const) {
+      const sim = newCombatSim(content);
+      const { merc, beside } = walkingToACrateThatGoes(sim);
+      for (let tick = 0; tick < ON_THE_SPOT_TICKS; tick++) sim.step();
+      const elsewhere = gridNo(80, 82);
+      expect(
+        sim.dispatch(order === 'stop' ? { type: 'stop', soldier: merc.id } : { type: 'move', soldier: merc.id, to: elsewhere }),
+      ).toEqual({
+        ok: true,
+      });
+      runUntilIdle(sim);
+      expect([merc.gridNo, merc.pendingDoorAction]).toEqual([order === 'stop' ? beside : elsewhere, null]);
+    }
   });
 
   it('records the status of every openable tile and puts a reloaded crate back as it was, contents included', () => {

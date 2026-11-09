@@ -1,7 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { cloneObject, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { pauseAiUntilManuallyUnpaused } from './ai/pause.ts';
@@ -35,6 +38,12 @@ function withClips(s: Soldier, count: number): ItemObject {
   const o = createItems(content.items, item('CLIP9_15'), 100, count);
   Object.assign(s.inv[InvSlot.BIGPOCK1] as object, o);
   return s.inv[InvSlot.BIGPOCK1] as ItemObject;
+}
+
+function crateAt(sim: TacticalSim, g: number): StructureInstance {
+  const crate = sim.state.world.structures.add(g, 0, syntheticStructure(StructureFlags.OPENABLE, Orientation.NONE));
+  if (!crate) throw new Error('no room for a crate');
+  return crate;
 }
 
 function stepUntil(sim: TacticalSim, done: () => boolean, ticks = 20_000): void {
@@ -248,7 +257,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
   const NEXT_PENDING_ACTIONS: readonly (readonly [string, (sim: TacticalSim, s: Soldier) => unknown])[] = [
     ['a pickup', (sim, s) => soldierPickupItem(sim.state, s, gridNo(80, 84), 0, null)],
     ['a steal', (sim, s) => mercStealFromMerc(sim.state, s, spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), 0))],
-    ['an interactive object', (sim, s) => startInteractiveObject(sim.state, s, gridNo(80, 81))],
+    ['an interactive object', (sim, s) => startInteractiveObject(sim.state, s, crateAt(sim, gridNo(80, 81)), gridNo(80, 81))],
   ];
 
   it.each(NEXT_PENDING_ACTIONS)('is replaced by the next pending action of the giver: %s', (_name, act) => {

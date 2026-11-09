@@ -6,12 +6,13 @@
 // @src bVehicleID, 2026-11-04); Tactical/Soldier_Control.h SOLDIER_DRIVER, SOLDIER_PASSENGER; Soldier_Macros.h EnterableVehicle
 // @src (2026-11-05); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); SOLDIER_ENGAGEDINACTION (2026-11-08);
 // @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1, for the distances taken from a soldier with no tile, 2026-11-08);
-// @src ubPendingAction MERC_GIVEITEM held after a give on the spot with its ubPendingActionAnimCount (2026-11-08)
+// @src ubPendingAction MERC_GIVEITEM held after a give on the spot with its ubPendingActionAnimCount (2026-11-08);
+// @src uiPendingActionData1 as the structure ID StartInteractiveObject records (2026-11-09)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import type { StructureInstance } from '../../content/world/structures.ts';
+import { INVALID_STRUCTURE_ID, type StructureInstance } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
 import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
@@ -394,6 +395,7 @@ export interface Soldier {
   endDoorOpenCode: number;
   endDoorOpenCodeData: number;
   pendingDoorGridNo: number;
+  pendingDoorStructureId: number;
   doorHandleCode: number;
   pendingDoorAction: PendingDoorAction | null;
   pendingTalk: number | null;
@@ -778,6 +780,7 @@ function identityAndMovement(init: SoldierInit, centre: { x: number; y: number }
     endDoorOpenCode: 0,
     endDoorOpenCodeData: NOWHERE,
     pendingDoorGridNo: NOWHERE,
+    pendingDoorStructureId: INVALID_STRUCTURE_ID,
     doorHandleCode: 0,
     pendingDoorAction: null,
     pendingTalk: null,

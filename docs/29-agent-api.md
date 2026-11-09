@@ -590,9 +590,11 @@ soldiers close at once (deviation "Closing an open door"). A door swings for up 
 act on it meanwhile stops the merc (`{started: busy}`), as `InteractWithOpenableStruct` does, and advance may reach idle
 before the door stops. A door that changes out of the squad's sight raises no `doorChanged` and keeps its place in
 `openDoors` until a merc sees it. Containers and switches take `open` and `close` with the
-original's walk-up and `HandleStructChangeFromGridNo`; one he reaches in combat without the APs of his door handle
-code halts him there with the order kept (`doorResult {result: notEnoughAp}`); a sector remembers which were open when
-it is left. `useRemote`
+original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. A door,
+container or switch he reaches in combat without the APs of his door handle code halts him there with the order kept
+(`doorResult {result: notEnoughAp}`). One gone when he gets there keeps him walking on the spot, never idle, until
+`stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
+effect, as the original looks for the structure the order named. `useRemote`
 presses the remote trigger in hand: the O3 statue's at once (`26`, deviation "Remote trigger"); the remote bomb trigger
 after its hand item roll (`itemBroken`) for 2 AP, standing through its animation for 2 more, then `remoteFrequency`
 asks, and the answer sets off every armed remote bomb of that frequency through the bomb queue (`remoteUsed {result:

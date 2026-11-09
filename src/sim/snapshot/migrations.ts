@@ -1,6 +1,6 @@
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
+import { INVALID_STRUCTURE_ID, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
 import { u32 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
@@ -2276,6 +2276,33 @@ function renameSavedPendingDirection(snapshot: Readonly<Record<string, unknown>>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_DOOR_GRID_NO_KEY = 'pendingDoorGridNo';
+const PENDING_DOOR_STRUCTURE_ID_KEY = 'pendingDoorStructureId';
+
+function openableIdAt(lists: Json, gridNo: Json | undefined): number {
+  const list = Array.isArray(lists) && typeof gridNo === 'number' ? lists[gridNo] : undefined;
+  const isOpenable = (s: Json) => isObject(s) && typeof s.flags === 'number' && (s.flags & StructureFlags.OPENABLE) !== 0;
+  const openable = Array.isArray(list) ? list.find(isOpenable) : undefined;
+  return isObject(openable) && typeof openable.id === 'number' ? openable.id : INVALID_STRUCTURE_ID;
+}
+
+function withPendingDoorStructureId(value: Json, lists: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPendingDoorStructureId(v, lists));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withPendingDoorStructureId(v, lists);
+  if (!isSoldierRecord(mapped)) return mapped;
+  const id = openableIdAt(lists, mapped[PENDING_DOOR_GRID_NO_KEY]);
+  return insertAfter(mapped, PENDING_DOOR_GRID_NO_KEY, PENDING_DOOR_STRUCTURE_ID_KEY, id);
+}
+
+function addPendingDoorStructureId(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const lists = structureListsOf(sectionOf(graph.sections, 'world'));
+  const sections = graph.sections.map(([name, value]): Section => [name, withPendingDoorStructureId(value, lists)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2354,5 +2381,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     74: addSoldierFaceFlag,
     75: addSavedPendingDirection,
     76: renameSavedPendingDirection,
+    77: addPendingDoorStructureId,
   };
 }

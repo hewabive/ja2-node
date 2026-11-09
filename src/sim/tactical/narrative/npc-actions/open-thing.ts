@@ -103,7 +103,7 @@ export function npcOpenThing(env: NpcActionEnv, t: TacticalState, s: Soldier, do
   updateDoor(t, gridNo, { locked: false });
   const approach = findAdjacentGridExForDoor(t, s, gridNo);
   if (!approach) return false;
-  startInteractiveObject(t, s, gridNo);
+  startInteractiveObject(t, s, structure, gridNo);
   if (s.gridNo === approach.actionGridNo) interactWithOpenableStruct(t, s, structure, approach.direction);
   else {
     s.pendingDoorAction = { gridNo, actionGridNo: approach.actionGridNo, direction: approach.direction, action: OPEN_STRUCT_ACTION };

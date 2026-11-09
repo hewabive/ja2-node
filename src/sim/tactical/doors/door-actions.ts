@@ -3,13 +3,15 @@
 // @src src/game/Tactical/Handle_Doors.cc GetAnimStateForInteraction, InteractWithClosedDoor, InteractWithOpenableStruct (the
 // @src busy door 2026-11-01), HandleOpenableStruct; Interface.cc PopupDoorOpenMenu, MakeButtonDoor, BtnDoorMenuCallback,
 // @src DoorAction;
-// @src Interactive_Tiles.cc StartInteractiveObject (its pending action replacing a held MERC_GIVEITEM, 2026-11-08),
-// @src SoldierHandleInteractiveObject; Soldier_Ani.cc code 495.
+// @src Interactive_Tiles.cc StartInteractiveObject (its pending action replacing a held MERC_GIVEITEM, 2026-11-08; the
+// @src structure ID it records, 2026-11-09), SoldierHandleInteractiveObject (FindStructureByID, 2026-11-09); Soldier_Ani.cc
+// @src code 495.
 // @src vanilla Build/Tactical/HandleDoors.c InteractWithOpenableStruct and Interface.c PopupDoorOpenMenu, BtnDoorMenuCallback (the
 // @src closing menu Stracciatella dropped).
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
+import { u16 } from '../../../core/int.ts';
 import { AiAction } from '../ai/actions.ts';
 import { AnimHeight, endHeight, initNewSoldierAnim, setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { handleDoorChangeFromGridNo } from '../doors.ts';
@@ -478,16 +480,17 @@ const OPEN_STRUCT_STATES: ReadonlySet<string> = new Set([
   'BEGIN_OPENSTRUCT_CROUCHED',
 ]);
 
-export function startInteractiveObject(t: TacticalState, s: Soldier, gridNo: number): void {
+export function startInteractiveObject(t: TacticalState, s: Soldier, structure: StructureInstance, gridNo: number): void {
   if (OPEN_STRUCT_STATES.has(t.content.animations.controls[s.state]?.id ?? '')) return;
   s.pendingDoorGridNo = gridNo;
+  s.pendingDoorStructureId = u16(structure.id);
   dropHeldActions(s);
 }
 
 export function interactWithDoorAt(t: TacticalState, s: Soldier, gridNo: number, direction: number): InteractionOutcome | null {
   const structure = t.world.structures.find(gridNo, StructureFlags.ANYDOOR);
   if (!structure) return null;
-  startInteractiveObject(t, s, gridNo);
+  startInteractiveObject(t, s, structure, gridNo);
   s.reverse = false;
   return interactWithOpenableStruct(t, s, structure, direction);
 }
@@ -496,7 +499,7 @@ export function soldierHandleInteractiveObject(t: TacticalState, s: Soldier, noi
   const gridNo = s.pendingDoorGridNo;
   s.pendingDoorGridNo = -1;
   if (gridNo < 0) return false;
-  const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+  const structure = t.world.structures.findById(gridNo, s.pendingDoorStructureId);
   if (!structure) return false;
   return handleOpenableStruct(t, s, gridNo, structure, noisy);
 }

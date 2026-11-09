@@ -102,8 +102,14 @@ everyone else just stops being neutral and keeps his side, where vanilla also se
 **Doors.** The `door` command returns the menu as data and offers `lock`, which the original's menu lacks; our merc gets
 vanilla's menu before closing an open door (deviations "Door menu", "Closing an open door"). A trap check before a menu
 action charges the open-door APs where the original reads past its table (deviation "Trap check cost of menu actions").
-A soldier who arrives to open a container or switch, or an NPC told to open a door, short of the APs of his door
-handle code halts there with the order kept (`Tactical/Overhead.cc:837`, `:863`; `doors/door-command.ts`).
+An order to open or close a door, container or switch records the structure's ID when it starts
+(`TileEngine/Interactive_Tiles.cc:78`), and the opening codes 494 and 495 handle only the structure of that ID on its
+tile (`:98`, `doors/door-actions.ts`), a native save's action included (`14`). Arriving, the soldier looks for an
+openable on the tile (`Tactical/Overhead.cc:829`; `doors/door-command.ts`): short of the APs of his door handle code
+he halts there with the order kept (`:837`, `:863`); with none there he keeps the order and walks on the spot, looking
+again at every pass of the tile's middle (`Tactical/Soldier_Control.cc:6268`), until an order, a stop or combat
+starting or ending ends it. On our turn the original also keeps the interface locked meanwhile, until its 25 s breaker
+(deviations "Turn-based UI lock", "Watchdogs").
 `ExamineDoorsOnEnteringSector` never fires in the original (the tactical time stamp is set just before it,
 `Strategic/StrategicMap.cc:498,509`), so it is not ported.
 
@@ -151,6 +157,8 @@ otherwise:
 | Our merc opens a door that has a lock entry for free; only a door without one costs the opening APs | `doors/doors.test.ts` |
 | A bash that misses by 10 to 39 never earns the token strength point: the failed check has just stored the merc's tile | `doors/doors.test.ts` |
 | An NPC told to open a door drops it on arrival during his own team's turn in combat: the interface is locked then | `narrative/npc-actions/open-thing.test.ts` |
+| A soldier whose door or container was swapped for its partner since his order, opened and closed again by somebody else, plays the opening to no effect: the codes look for the structure his order named | `doors/doors.test.ts` "plays the opening of a door swapped …", `doors/openables.test.ts` "plays the opening of a crate opened and closed again …" |
+| A soldier who arrives where the openable of his order is gone walks on the spot with the order kept until an order or a stop; one put back there is another structure, whose opening he plays to no effect | `doors/openables.test.ts` "walks on the spot beside a crate gone …" |
 | A merc who gave on the spot keeps `MERC_GIVEITEM` past the hand-over until his next order or the end of a walk he did not order: meanwhile every soldier arriving to open a door drops it and the auto-bandage question waits | `doors/doors.test.ts`, `give.test.ts`, `auto-bandage.test.ts` |
 | A soldier still holding the give he made on the spot when a walk he did not order ends begins it again from the old target's tile: the target still there gets the give animation with nothing in it and an NPC giver's done-giving record fires again; with nobody there the record fires, and he walks on the spot to his tile's middle before he stands | `give.test.ts` "begins the give again …", "leaves the walker in his walking animation …" |
 | A merc's look updates at most one door, the first whose status was made (the `break` in `MercLooksForDoors`) | `doors/door-status.test.ts` |

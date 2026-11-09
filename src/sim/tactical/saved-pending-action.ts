@@ -12,8 +12,7 @@
 import { i16, u16 } from '../../core/int.ts';
 import { MeleeKind } from './combat/melee.ts';
 import { OPEN_STRUCT_ACTION } from './doors/door-command.ts';
-import { MERC_GIVE_ITEM, NOWHERE, type SavedPendingAction, type Soldier, type TileTool } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import { MERC_GIVE_ITEM, type SavedPendingAction, type Soldier, type TileTool } from './soldier.ts';
 
 const SavedAction = {
   OPEN_DOOR: 0,
@@ -65,14 +64,11 @@ function adoptedAsTileTool(s: Soldier, saved: SavedPendingAction): boolean {
   return true;
 }
 
-function savedStructureNamed(t: TacticalState, s: Soldier, gridNo: number): boolean {
-  return t.world.structures.findById(gridNo, u16(s.pendingActionData1)) !== null;
-}
-
-function adoptedAsOpenable(t: TacticalState, s: Soldier, saved: SavedPendingAction): boolean {
+function adoptedAsOpenable(s: Soldier, saved: SavedPendingAction): boolean {
   if (!OPENABLE_ACTIONS.has(saved.action)) return false;
   const gridNo = s.pendingActionData2;
-  s.pendingDoorGridNo = savedStructureNamed(t, s, gridNo) ? gridNo : NOWHERE;
+  s.pendingDoorGridNo = gridNo;
+  s.pendingDoorStructureId = u16(s.pendingActionData1);
   s.pendingDoorAction = { gridNo, actionGridNo: s.gridNo, direction: saved.data3, action: OPEN_STRUCT_ACTION };
   return true;
 }
@@ -106,17 +102,17 @@ function adoptedAsOther(s: Soldier, saved: SavedPendingAction): boolean {
   }
 }
 
-function adopted(t: TacticalState, s: Soldier, saved: SavedPendingAction): boolean {
+function adopted(s: Soldier, saved: SavedPendingAction): boolean {
   return (
     adoptedAsMelee(s, saved) ||
     adoptedAsTileTool(s, saved) ||
-    adoptedAsOpenable(t, s, saved) ||
+    adoptedAsOpenable(s, saved) ||
     adoptedAsPickup(s, saved) ||
     adoptedAsOther(s, saved)
   );
 }
 
-export function adoptSavedPendingAction(t: TacticalState, s: Soldier): void {
+export function adoptSavedPendingAction(s: Soldier): void {
   const saved = s.savedPendingAction;
-  if (saved && adopted(t, s, saved)) s.savedPendingAction = null;
+  if (saved && adopted(s, saved)) s.savedPendingAction = null;
 }
