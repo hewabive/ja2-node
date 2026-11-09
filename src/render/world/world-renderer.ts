@@ -2,7 +2,7 @@ import type { Level } from '../../content/world/level.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
-import type { TileRun } from '../../protocol/view.ts';
+import { sameTileRuns, type TileRun } from '../../protocol/view.ts';
 import { type ScreenRect, type ScreenShift, wholeViewport } from './dirty-rects.ts';
 import {
   ANIMATED_TILE_FRAME_MS,
@@ -34,7 +34,15 @@ import { noBurnAfterChanges } from './no-burn.ts';
 import { PartialRedrawCheck, type PartialRedrawChecks } from './partial-redraw-check.ts';
 import { pickSoldierAt, type SoldierPickable } from './picking.ts';
 import { PictureMemo, type PictureUpdate } from './picture-memo.ts';
-import { changedRevealTiles, computeReveal, NO_TILE_RUNS, type RevealState } from './reveal.ts';
+import {
+  changedRevealTiles,
+  computeReveal,
+  followWireframes,
+  NO_TILE_RUNS,
+  type RevealInputs,
+  type RevealState,
+  type WireframeHistory,
+} from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
 import {
   type AssembledScene,
@@ -98,6 +106,7 @@ export interface WorldFrameInput {
   readonly openStructures: ReadonlySet<number>;
   readonly revealedRooms: ReadonlySet<number>;
   readonly revealedAtLoad?: readonly TileRun[];
+  readonly revealedTiles?: readonly TileRun[];
   readonly slantRoofCeilings?: ReadonlySet<number>;
   readonly soldiers: readonly SceneSoldier[];
   readonly items: readonly SceneItem[];
@@ -153,8 +162,8 @@ interface LoadedScene {
   changes: readonly TileChange[];
   pools: readonly BloodPool[];
   reveal: RevealState;
-  revealedRooms: ReadonlySet<number>;
-  revealedAtLoad: readonly TileRun[];
+  revealInputs: RevealInputs;
+  wireframes: WireframeHistory | null;
   ceilings: ReadonlySet<number>;
   uploaded: boolean;
   shadeVersion: number;
@@ -167,10 +176,24 @@ function sameSet(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
   return true;
 }
 
-function sameRuns(a: readonly TileRun[], b: readonly TileRun[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  return a.every((run, i) => run[0] === b[i]?.[0] && run[1] === b[i]?.[1]);
+function sameRevealInputs(a: RevealInputs, b: RevealInputs): boolean {
+  return (
+    sameSet(a.revealedRooms, b.revealedRooms) &&
+    sameTileRuns(a.revealedAtLoad, b.revealedAtLoad) &&
+    sameTileRuns(a.revealedTiles, b.revealedTiles)
+  );
+}
+
+const NO_REVEAL_INPUTS: RevealInputs = { revealedRooms: new Set(), revealedAtLoad: NO_TILE_RUNS, revealedTiles: NO_TILE_RUNS };
+
+function changedTileGridNos(before: readonly TileChange[], after: readonly TileChange[]): number[] {
+  const key = (c: TileChange) => tileChangesKey([c]);
+  const kept = new Set(before.map(key));
+  const now = new Set(after.map(key));
+  const changed = new Set<number>();
+  for (const c of before) if (!now.has(key(c))) changed.add(c.gridNo);
+  for (const c of after) if (!kept.has(key(c))) changed.add(c.gridNo);
+  return [...changed];
 }
 
 function changedOpenableRows(a: ReadonlySet<number>, b: ReadonlySet<number>): number[] {
@@ -240,8 +263,8 @@ export class WorldRenderer {
       changes: [],
       pools: [],
       reveal,
-      revealedRooms: new Set(),
-      revealedAtLoad: NO_TILE_RUNS,
+      revealInputs: NO_REVEAL_INPUTS,
+      wireframes: null,
       ceilings: NO_CEILINGS,
       uploaded: false,
       shadeVersion: -1,
@@ -265,6 +288,7 @@ export class WorldRenderer {
     if (key === s.tileChanges) return;
     const started = performance.now();
     const both = [...s.changes, ...changes];
+    const previousChanges = s.changes;
     const touched = new Set([...both, ...s.pools, ...pools].map((c) => c.gridNo));
     const level = applyBloodPools(applyTileChanges(s.original.level, changes), s.original.tables, pools);
     const noBurn = noBurnAfterChanges(s.original.prepared.noBurn, s.original.structures, s.original.tiles, changes);
@@ -276,7 +300,7 @@ export class WorldRenderer {
     s.changes = changes;
     s.pools = pools;
     s.staticWorld = this.#staticWorld(world, s.sprites);
-    s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms, s.ceilings, s.revealedAtLoad);
+    s.reveal = this.#followReveal(s, s.revealInputs, s.ceilings, changedTileGridNos(previousChanges, changes));
     const rows = new Set([...touched].map(rowOf));
     for (const g of changedRevealTiles(previousReveal, s.reveal, level)) rows.add(rowOf(g));
     s.scene.replaceWorld(s.staticWorld, { ...s.scene.state, reveal: s.reveal }, rows);
@@ -290,17 +314,41 @@ export class WorldRenderer {
     return { level: w.level, tiles: w.tiles, tables: w.tables, structures: w.structures, basement: w.basement };
   }
 
+  #followReveal(
+    s: LoadedScene,
+    inputs: RevealInputs,
+    ceilings: ReadonlySet<number>,
+    changedTiles: readonly number[] | null = null,
+  ): RevealState {
+    const w = this.#revealWorld(s.world);
+    const before = s.wireframes;
+    const wireframes = followWireframes(w, before, inputs, changedTiles ?? []);
+    const onlySightChanged =
+      before !== null &&
+      changedTiles === null &&
+      wireframes.sameWiresAs(before.wireframes) &&
+      sameSet(before.inputs.revealedRooms, inputs.revealedRooms) &&
+      sameTileRuns(before.inputs.revealedAtLoad, inputs.revealedAtLoad) &&
+      sameSet(s.ceilings, ceilings);
+    s.wireframes = { inputs, wireframes };
+    s.revealInputs = inputs;
+    s.ceilings = ceilings;
+    if (onlySightChanged) return { ...s.reveal, revealed: wireframes.revealed };
+    return computeReveal(w, inputs.revealedRooms, ceilings, inputs.revealedAtLoad, wireframes);
+  }
+
   #syncStatic(s: LoadedScene, f: WorldFrameInput): void {
     const old = s.scene.state;
     const rows = new Set<number>();
     const ceilings = f.slantRoofCeilings ?? NO_CEILINGS;
-    const revealedAtLoad = f.revealedAtLoad ?? NO_TILE_RUNS;
-    if (!sameSet(s.revealedRooms, f.revealedRooms) || !sameSet(s.ceilings, ceilings) || !sameRuns(s.revealedAtLoad, revealedAtLoad)) {
+    const inputs: RevealInputs = {
+      revealedRooms: f.revealedRooms,
+      revealedAtLoad: f.revealedAtLoad ?? NO_TILE_RUNS,
+      revealedTiles: f.revealedTiles ?? NO_TILE_RUNS,
+    };
+    if (!sameRevealInputs(s.revealInputs, inputs) || !sameSet(s.ceilings, ceilings)) {
       const previous = s.reveal;
-      s.revealedRooms = new Set(f.revealedRooms);
-      s.revealedAtLoad = revealedAtLoad;
-      s.ceilings = new Set(ceilings);
-      s.reveal = computeReveal(this.#revealWorld(s.world), s.revealedRooms, s.ceilings, s.revealedAtLoad);
+      s.reveal = this.#followReveal(s, { ...inputs, revealedRooms: new Set(inputs.revealedRooms) }, new Set(ceilings));
       for (const g of changedRevealTiles(previous, s.reveal, s.world.level)) rows.add(rowOf(g));
     }
     const next: StaticState = {

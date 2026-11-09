@@ -5,10 +5,13 @@
 // @src last load, 2026-11-09); src/game/TileEngine/WorldMan.cc
 // @src SetStructAframeFlags, FindLevelNodeBasedOnStructure, SetRoofIndexFlagsFromTypeRange;
 // @src src/game/TileEngine/WorldDef.cc CalculateWorldWireFrameTiles, AddWireFrame, GetWireframeGraphicNumToUseForWall,
-// @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere.
+// @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere; InitLoadedWorld (every wire frame against the tiles revealed at
+// @src the load), CalculateWorldWireFrameTiles(FALSE) on the tiles SetRecalculateWireFrameFlagRadius flags (Render_Fun.cc,
+// @src radius 2 around the tiles of a room RemoveRoomRoof reveals; Explosion_Control.cc SpreadEffect around what a blast
+// @src changed), against every MAPELEMENT_REVEALED tile, the others kept (2026-11-09).
 
 import type { LayerName } from '../../content/formats/map.ts';
-import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { type Level, levelTilesAt } from '../../content/world/level.ts';
 import {
   has,
@@ -21,7 +24,7 @@ import {
 } from '../../content/world/structures.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import { type TileTables, tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
-import type { TileRun } from '../../protocol/view.ts';
+import { addedTileRuns, sameTileRuns, type TileRun } from '../../protocol/view.ts';
 
 export const NodeFlags = { HIDDEN: 1, SHOW_THROUGH: 2 } as const;
 
@@ -62,17 +65,14 @@ function nodeKey(g: number, index: number): number {
 class RevealBuilder {
   readonly revealed = new Uint8Array(WORLD_MAX);
   readonly flags = new Map<LayerName, Map<number, number>>(NODE_LAYERS.map((l) => [l, new Map()]));
-  readonly wires = new Map<number, WireframeNode[]>();
   readonly #w: RevealWorld;
   readonly #firstRoof: number;
   readonly #fourthRoof: number;
-  readonly #wireframeBase: number;
 
   constructor(w: RevealWorld) {
     this.#w = w;
     this.#firstRoof = typeIndex(w.tables, 'FIRSTROOF');
     this.#fourthRoof = typeIndex(w.tables, 'FOURTHROOF');
-    this.#wireframeBase = tileIndex(w.tables, 'WIREFRAMES1') - 1;
   }
 
   #mark(layer: LayerName, g: number, index: number, flag: number): void {
@@ -123,6 +123,20 @@ class RevealBuilder {
       this.#mark(node.layer, node.gridNo, node.index, NodeFlags.SHOW_THROUGH | (slanted ? NodeFlags.HIDDEN : 0));
     }
   }
+}
+
+class WireframeBuilder {
+  readonly wires: Map<number, readonly WireframeNode[]>;
+  readonly #w: RevealWorld;
+  readonly #revealed: Uint8Array;
+  readonly #wireframeBase: number;
+
+  constructor(w: RevealWorld, revealed: Uint8Array, wires: ReadonlyMap<number, readonly WireframeNode[]>) {
+    this.#w = w;
+    this.#revealed = revealed;
+    this.wires = new Map(wires);
+    this.#wireframeBase = tileIndex(w.tables, 'WIREFRAMES1') - 1;
+  }
 
   #roofVisible(g: number): boolean {
     return this.#w.basement || this.#w.structures.find(g, StructureFlags.ROOF) !== null;
@@ -132,8 +146,7 @@ class RevealBuilder {
     const tile = this.#wireframeBase + wireframe;
     const list = this.wires.get(g) ?? [];
     if (list.some((n) => n.tile === tile)) return;
-    list.push({ tile, optional });
-    this.wires.set(g, list);
+    this.wires.set(g, [...list, { tile, optional }]);
   }
 
   #wallWireframe(g: number, s: StructureInstance): number {
@@ -158,7 +171,7 @@ class RevealBuilder {
 
   #openingWire(g: number, s: StructureInstance, left: number, right: number): void {
     const n = this.#neighbour(g, s.wallOrientation & ORIENT_LEFT ? Direction.SOUTH : Direction.EAST);
-    if (this.#roofVisible(n) && !this.revealed[n]) this.#addWire(g, s.wallOrientation & ORIENT_LEFT ? left : right, false);
+    if (this.#roofVisible(n) && !this.#revealed[n]) this.#addWire(g, s.wallOrientation & ORIENT_LEFT ? left : right, false);
   }
 
   #wallWires(g: number, s: StructureInstance, wallsOnTile: { count: number }): void {
@@ -167,27 +180,28 @@ class RevealBuilder {
       const n = this.#neighbour(g, Direction.SOUTH);
       if (this.#roofVisible(n)) {
         wallsOnTile.count++;
-        this.#addWire(g, wire, this.revealed[n] === 1);
+        this.#addWire(g, wire, this.#revealed[n] === 1);
         const corner = this.#neighbour(this.#neighbour(g, Direction.WEST), Direction.SOUTH);
-        if (!this.#roofVisible(corner)) this.#addWire(g, 9, this.revealed[corner] === 1);
+        if (!this.#roofVisible(corner)) this.#addWire(g, 9, this.#revealed[corner] === 1);
       }
     } else {
       const n = this.#neighbour(g, Direction.EAST);
       if (this.#roofVisible(n)) {
         wallsOnTile.count++;
-        this.#addWire(g, wire, this.revealed[n] === 1);
+        this.#addWire(g, wire, this.#revealed[n] === 1);
         const corner = this.#neighbour(this.#neighbour(g, Direction.NORTH), Direction.EAST);
-        if (!this.#roofVisible(corner)) this.#addWire(g, 8, this.revealed[corner] === 1);
+        if (!this.#roofVisible(corner)) this.#addWire(g, 8, this.#revealed[corner] === 1);
       }
     }
     if (wallsOnTile.count === 2) {
       const corner = this.#neighbour(this.#neighbour(g, Direction.EAST), Direction.SOUTH);
-      this.#addWire(g, 7, this.revealed[corner] === 1);
+      this.#addWire(g, 7, this.#revealed[corner] === 1);
     }
   }
 
-  wireframesAt(g: number): void {
-    if (this.#roofVisible(g) && !this.revealed[g]) return;
+  workOut(g: number): void {
+    this.wires.delete(g);
+    if (this.#roofVisible(g) && !this.#revealed[g]) return;
     const wallsOnTile = { count: 0 };
     for (const s of this.#w.structures.at(g)) {
       if (has(s.flags, StructureFlags.ANYDOOR)) {
@@ -200,29 +214,149 @@ class RevealBuilder {
   }
 }
 
+export class WallWireframes {
+  readonly revealed: Uint8Array;
+  readonly #wires: ReadonlyMap<number, readonly WireframeNode[]>;
+
+  constructor(revealed: Uint8Array, wires: ReadonlyMap<number, readonly WireframeNode[]>) {
+    this.revealed = revealed;
+    this.#wires = wires;
+  }
+
+  static workedOut(w: RevealWorld, revealed: Uint8Array): WallWireframes {
+    return new WallWireframes(revealed, new Map()).workedOutAgain(w, revealed, null);
+  }
+
+  get tiles(): Iterable<number> {
+    return this.#wires.keys();
+  }
+
+  at(g: number): readonly WireframeNode[] {
+    return this.#wires.get(g) ?? NO_WIREFRAMES;
+  }
+
+  workedOutAgain(w: RevealWorld, revealed: Uint8Array, area: ReadonlySet<number> | null): WallWireframes {
+    const b = new WireframeBuilder(w, revealed, this.#wires);
+    if (area) for (const g of area) b.workOut(g);
+    else for (let g = 0; g < WORLD_MAX; g++) b.workOut(g);
+    return new WallWireframes(revealed, b.wires);
+  }
+
+  withRevealed(revealed: Uint8Array): WallWireframes {
+    return new WallWireframes(revealed, this.#wires);
+  }
+
+  sameWiresAs(other: WallWireframes): boolean {
+    return this.#wires === other.#wires;
+  }
+}
+
+export interface RevealInputs {
+  readonly revealedRooms: ReadonlySet<number>;
+  readonly revealedAtLoad: readonly TileRun[];
+  readonly revealedTiles: readonly TileRun[];
+}
+
+export interface WireframeHistory {
+  readonly inputs: RevealInputs;
+  readonly wireframes: WallWireframes;
+}
+
+const ROOM_REVEAL_RECALCULATION_RADIUS = 2;
+
+function markRuns(revealed: Uint8Array, runs: readonly TileRun[]): void {
+  for (const [first, count] of runs) revealed.fill(1, Math.max(0, first), Math.min(WORLD_MAX, first + count));
+}
+
+function tilesOfRooms(w: RevealWorld, rooms: ReadonlySet<number>): number[] {
+  if (rooms.size === 0) return [];
+  const tiles: number[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) if (rooms.has(w.level.rooms[g] ?? 0)) tiles.push(g);
+  return tiles;
+}
+
+function revealedTileSet(w: RevealWorld, inputs: RevealInputs): Uint8Array {
+  const revealed = new Uint8Array(WORLD_MAX);
+  markRuns(revealed, inputs.revealedTiles);
+  markRuns(revealed, inputs.revealedAtLoad);
+  for (const g of tilesOfRooms(w, inputs.revealedRooms)) revealed[g] = 1;
+  return revealed;
+}
+
+export function recalculationArea(tiles: Iterable<number>, radius: number): Set<number> {
+  const area = new Set<number>();
+  for (const g of tiles) {
+    const row = Math.floor(g / WORLD_COLS);
+    const col = g % WORLD_COLS;
+    for (let y = row - radius; y < row + radius + 2; y++) {
+      if (y < 0 || y >= WORLD_ROWS) continue;
+      for (let x = col - radius; x < col + radius + 2; x++) if (x >= 0 && x < WORLD_COLS) area.add(y * WORLD_COLS + x);
+    }
+  }
+  return area;
+}
+
+function roomsAdded(before: ReadonlySet<number>, after: ReadonlySet<number>): Set<number> {
+  return new Set([...after].filter((room) => !before.has(room)));
+}
+
+function startsAfresh(before: RevealInputs, after: RevealInputs): boolean {
+  if (!sameTileRuns(before.revealedAtLoad, after.revealedAtLoad)) return true;
+  if ([...before.revealedRooms].some((room) => !after.revealedRooms.has(room))) return true;
+  return addedTileRuns(before.revealedTiles, after.revealedTiles) === null;
+}
+
+function roomsRevealedSinceTheLoad(w: RevealWorld, inputs: RevealInputs): Set<number> {
+  const atLoad = new Uint8Array(WORLD_MAX);
+  markRuns(atLoad, inputs.revealedAtLoad);
+  const later = new Set<number>();
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const room = w.level.rooms[g] ?? 0;
+    if (room !== 0 && inputs.revealedRooms.has(room) && !atLoad[g]) later.add(room);
+  }
+  return later;
+}
+
+function wireframesAfterLoad(w: RevealWorld, inputs: RevealInputs, revealed: Uint8Array): WallWireframes {
+  const atLoad = new Uint8Array(WORLD_MAX);
+  markRuns(atLoad, inputs.revealedAtLoad);
+  const loaded = WallWireframes.workedOut(w, atLoad);
+  const area = recalculationArea(tilesOfRooms(w, roomsRevealedSinceTheLoad(w, inputs)), ROOM_REVEAL_RECALCULATION_RADIUS);
+  return area.size > 0 ? loaded.workedOutAgain(w, revealed, area) : loaded.withRevealed(revealed);
+}
+
+export function followWireframes(
+  w: RevealWorld,
+  history: WireframeHistory | null,
+  inputs: RevealInputs,
+  changedTiles: readonly number[] = [],
+): WallWireframes {
+  const revealed = revealedTileSet(w, inputs);
+  if (!history || startsAfresh(history.inputs, inputs)) return wireframesAfterLoad(w, inputs, revealed);
+  const rooms = roomsAdded(history.inputs.revealedRooms, inputs.revealedRooms);
+  const area = recalculationArea([...tilesOfRooms(w, rooms), ...changedTiles], ROOM_REVEAL_RECALCULATION_RADIUS);
+  return area.size > 0 ? history.wireframes.workedOutAgain(w, revealed, area) : history.wireframes.withRevealed(revealed);
+}
+
 export function computeReveal(
   w: RevealWorld,
   revealedRooms: ReadonlySet<number>,
   slantRoofCeilings: ReadonlySet<number> = NO_CEILING_TILES,
   revealedAtLoad: readonly TileRun[] = NO_TILE_RUNS,
+  wireframes: WallWireframes | null = null,
 ): RevealState {
   const b = new RevealBuilder(w);
   for (const [first, count] of revealedAtLoad) for (let g = first; g < first + count && g < WORLD_MAX; g++) b.revealTile(g);
-  if (revealedRooms.size > 0) {
-    for (let g = 0; g < WORLD_MAX; g++) {
-      const room = w.level.rooms[g] ?? 0;
-      if (room !== 0 && revealedRooms.has(room)) b.revealTile(g);
-    }
-  }
-  for (let g = 0; g < WORLD_MAX; g++) b.wireframesAt(g);
-  const touched = new Set<number>([...b.wires.keys(), ...slantRoofCeilings]);
+  for (const g of tilesOfRooms(w, revealedRooms)) b.revealTile(g);
+  const wires = wireframes ?? WallWireframes.workedOut(w, b.revealed);
+  const touched = new Set<number>([...wires.tiles, ...slantRoofCeilings]);
   for (const m of b.flags.values()) for (const key of m.keys()) touched.add(Math.floor(key / MAX_NODES_PER_TILE));
   const ceiling = [tileIndex(w.tables, SLANT_ROOF_CEILING)];
   return {
-    revealed: b.revealed,
+    revealed: wires.revealed,
     touched,
     nodeFlags: (layer, g, index) => b.flags.get(layer)?.get(nodeKey(g, index)) ?? 0,
-    wireframes: (g) => b.wires.get(g) ?? NO_WIREFRAMES,
+    wireframes: (g) => wires.at(g),
     ceilings: (g) => (slantRoofCeilings.has(g) ? ceiling : NO_CEILINGS),
   };
 }

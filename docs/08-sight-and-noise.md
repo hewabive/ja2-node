@@ -156,9 +156,9 @@ basement or a cave by the map's flags, a tile under a flat roof is revealed only
 shows its items; in a cave every tile revealed, by a look, a room or a load of the revealed tiles, switches on its map
 light (`20`). A sector entry with saved revealed tiles and a native import reveal every one as a room reveal does, outside
 rooms too, and the fog keeps those tiles for the picture (`fog.revealedAtLoad`; a ja2-node load keeps them, deviation
-"Revealed tiles on load"). The client derives hidden roofs, show-through and wireframes from the revealed rooms and those
-tiles (`render/world/reveal.ts`; the wire frames a room reveal works out again during a stay are gaps "Room reveal at a
-load"). Above ground there is no terrain fog.
+"Revealed tiles on load"). The client derives hidden roofs and show-through from the revealed rooms and those tiles, and
+the wire frames also from every tile revealed so far, which the view carries as `revealedTiles` (`render/world/reveal.ts`,
+`05`). Above ground there is no terrain fog.
 
 **Slanted roofs keep a ceiling.** A revealed room, and a load that reveals a tile of it, take off every slanted roof
 with a tile there; the tiles of such a

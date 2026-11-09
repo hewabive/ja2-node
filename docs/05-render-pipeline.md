@@ -106,8 +106,13 @@ interactive tile by the pixels of the pictures of the shown map (`renderer.shown
 pass sweeps (`app/world/interactive-nodes.ts`, `30`). `picking.ts`'s pixel pick serves the developer pages.
 
 **The picture is the client's.** Room reveals arrive as the view's `revealedRooms`, and the tiles the last sector entry
-or native import revealed as `revealedAtLoad` (`08`); the client applies the original's node flags to both and
-recomputes the wireframes of the whole map (`reveal.ts`). The ceilings of slanted roofs arrive as
+or native import revealed as `revealedAtLoad` (`08`); the client applies the original's node flags to both. Every tile
+revealed so far, the ones sight revealed outside rooms included, arrives as `revealedTiles`, whole with the welcome and
+then as the tiles each frame adds (`revealedTilesAdded`). The wall wire frames follow the original's: every one worked
+out against the tiles the load revealed, then again against every revealed tile within two tiles of the tiles of a room
+revealed since and of a structure a tile change touched, the others kept as they were (`followWireframes`,
+`reveal.ts`); a welcome on an open link, which leaves the client no history, starts again from the load. The roof
+checks of the picking read every revealed tile too (`IsRoofVisible`, `app/world/interactive-nodes.ts`). The ceilings of slanted roofs arrive as
 `slantRoofCeilings`, which the simulation's fog of war keeps (`08`), and are drawn at the head of their tile's roofs. Structure changes, blood pools, corpses, smoke,
 bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. The
 roof marker under a soldier on a roof is placed and taken off where the view shows the original's triggers: a move
@@ -134,6 +139,7 @@ unless a path is given:
 | The roof level shows the hidden roofs again, but not the hidden A-frame walls | `static-scene.test.ts` |
 | On-roof objects stay over a revealed room | `static-scene.test.ts` |
 | A wireframe towards a roofed tile not yet revealed always shows; only one towards a revealed tile follows the option | `reveal.test.ts` (original data) |
+| The wall wire frames stay as the load worked them out while sight reveals tiles outside rooms; only a room reveal or an explosion works out again the ones around it, then counting every revealed tile (`TileEngine/WorldDef.cc:2681`) | `reveal.test.ts` "leave the wire frames as the load worked them out …", "work them out again within two tiles of a room …" |
 | Soldiers on roofs are drawn twice, in the struct-merc and the high-merc passes | `dynamic-scene.test.ts` |
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
 | A structure added at the head of a tile makes it a no-burn tile only where a wall stands, the reverse of one added at the tail; removals and partner swaps leave the flag as it was | `no-burn.test.ts` |

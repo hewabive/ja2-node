@@ -214,3 +214,58 @@ describe('applying view frames', () => {
     expect(next).not.toHaveProperty('events');
   });
 });
+
+describe('the revealed tiles in view frames', () => {
+  const at = (tick: number, revealedTiles: NonNullable<PlayerView['revealedTiles']>): PlayerView => ({ ...base, tick, revealedTiles });
+
+  it('send only the tiles revealed since the last frame while tiles are only added', () => {
+    const frame = diffPlayerView(
+      at(10, [
+        [100, 5],
+        [200, 3],
+      ]),
+      at(20, [
+        [98, 9],
+        [200, 4],
+        [300, 1],
+      ]),
+    );
+    expect(frame).toEqual({
+      tick: 20,
+      changed: [],
+      removed: [],
+      revealedTilesAdded: [
+        [98, 2],
+        [105, 2],
+        [203, 1],
+        [300, 1],
+      ],
+    });
+  });
+
+  it('send the whole set once a tile is no longer revealed, as at a load or a new sector', () => {
+    const frame = diffPlayerView(at(10, [[100, 5]]), at(20, [[101, 6]]));
+    expect(frame).toMatchObject({ revealedTiles: [[101, 6]] });
+    expect(frame).not.toHaveProperty('revealedTilesAdded');
+  });
+
+  it('rebuild the whole set on the client from the increments', () => {
+    const steps = [
+      at(10, []),
+      at(20, [[40, 2]]),
+      at(30, [[38, 6]]),
+      at(40, [
+        [38, 6],
+        [50, 1],
+      ]),
+      at(50, [[50, 2]]),
+    ];
+    let mirrored = steps[0] as PlayerView;
+    for (const next of steps.slice(1)) {
+      const frame = diffPlayerView(mirrored, next);
+      if (!frame) throw new Error('every step changes the revealed tiles');
+      mirrored = applyViewFrame(mirrored, JSON.parse(JSON.stringify(frame)));
+      expect(mirrored).toEqual(next);
+    }
+  });
+});

@@ -253,6 +253,7 @@ function render(): void {
       openContainers: client?.openContainers ?? [],
       revealedRooms: client?.revealedRooms ?? [],
       revealedAtLoad: client?.view?.revealedAtLoad ?? [],
+      revealedTiles: client?.view?.revealedTiles ?? [],
       slantRoofCeilings: client?.view?.slantRoofCeilings ?? [],
       clock: client?.clock ?? null,
       combat: client?.combat ?? null,

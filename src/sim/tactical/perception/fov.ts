@@ -6,7 +6,8 @@
 // @src SetGridNoRevealedFlag and the spotted-something quote; without a soldier for the REVEAL_ROOM action item 2026-11-04);
 // @src Tactical/Handle_Items.cc AllSoldiersLookforItems;
 // @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04; the tiles its
-// @src SetGridNoRevealedFlag flags for the picture 2026-11-09); RevealRoofsAndItems' OUR_MERCS_AUTO_MOVE (2026-11-06).
+// @src SetGridNoRevealedFlag flags for the picture 2026-11-09); RevealRoofsAndItems' OUR_MERCS_AUTO_MOVE (2026-11-06); the
+// @src MAPELEMENT_REVEALED tiles for the picture's wire frames (2026-11-09).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
@@ -281,15 +282,23 @@ export function markRevealedAtLoad(t: TacticalState): void {
   fogChanged(t);
 }
 
-export function revealedAtLoadRuns(t: TacticalState): TileRun[] {
+function tileRuns(tiles: number, inRun: (g: number) => boolean): TileRun[] {
   const runs: [number, number][] = [];
-  t.fog.revealedAtLoad.forEach((revealed, g) => {
-    if (!revealed) return;
+  for (let g = 0; g < tiles; g++) {
+    if (!inRun(g)) continue;
     const last = runs.at(-1);
     if (last && last[0] + last[1] === g) last[1]++;
     else runs.push([g, 1]);
-  });
+  }
   return runs;
+}
+
+export function revealedAtLoadRuns(t: TacticalState): TileRun[] {
+  return tileRuns(WORLD_MAX, (g) => t.fog.revealedAtLoad[g] === 1);
+}
+
+export function revealedTileRuns(t: TacticalState): TileRun[] {
+  return tileRuns(WORLD_MAX, (g) => groundRevealed(t, g));
 }
 
 export function examineSlantRoofsOverRevealedTiles(t: TacticalState): void {

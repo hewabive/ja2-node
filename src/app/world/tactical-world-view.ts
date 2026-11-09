@@ -68,6 +68,7 @@ export interface TacticalViewState {
   readonly openContainers?: readonly number[];
   readonly revealedRooms: readonly number[];
   readonly revealedAtLoad?: readonly TileRun[];
+  readonly revealedTiles?: readonly TileRun[];
   readonly slantRoofCeilings?: readonly number[];
   readonly clock: ClockView | null;
   readonly combat: CombatView | null;
@@ -418,6 +419,7 @@ export class TacticalWorldView {
       openStructures: new Set([...view.openDoors, ...(view.openContainers ?? [])]),
       revealedRooms: new Set(view.revealedRooms),
       revealedAtLoad: view.revealedAtLoad ?? NO_TILE_RUNS,
+      revealedTiles: view.revealedTiles ?? NO_TILE_RUNS,
       slantRoofCeilings: new Set(view.slantRoofCeilings ?? NO_CEILINGS),
       soldiers,
       items: this.#items(view.items),

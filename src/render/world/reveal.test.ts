@@ -15,7 +15,16 @@ import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { rowOf } from './geometry.ts';
-import { changedRevealTiles, computeReveal, NO_REVEAL, NodeFlags, type RevealWorld } from './reveal.ts';
+import {
+  changedRevealTiles,
+  computeReveal,
+  followWireframes,
+  NO_REVEAL,
+  NodeFlags,
+  type RevealInputs,
+  type RevealWorld,
+  type WallWireframes,
+} from './reveal.ts';
 import { StaticScene, StaticSegment, type StaticWorld } from './static-scene.ts';
 
 const ROOM = 1;
@@ -152,6 +161,90 @@ describe('the tiles revealed at the last load (SaveLoadMap.cc SetMapRevealedStat
         .find((n) => n.tile === wallWire)?.optional;
     expect(optional([])).toBe(false);
     expect(optional([[AT + WORLD_COLS, 1]])).toBe(true);
+  });
+});
+
+describe('the wall wire frames worked out again during a stay (Render_Fun.cc RemoveRoomRoof, WorldDef.cc CalculateWorldWireFrameTiles)', () => {
+  const wall = tileIndex(tables, 'FIRSTWALL1');
+  const roofTile = tileIndex(tables, 'FIRSTROOF1');
+  const nearRoom = AT;
+  const farWall = AT + 20;
+  const roomTile = nearRoom - WORLD_COLS;
+  const w = syntheticRevealWorld({
+    structs: new Map([
+      [nearRoom, [wall]],
+      [farWall, [wall]],
+    ]),
+    roofs: new Map([
+      [nearRoom + WORLD_COLS, [roofTile]],
+      [farWall + WORLD_COLS, [roofTile]],
+    ]),
+    rooms: new Map([[roomTile, ROOM]]),
+    defs: new Map([
+      [wall, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT)],
+      [roofTile, syntheticStructure(StructureFlags.NORMAL_ROOF)],
+    ]),
+  });
+  const wallWire = tileIndex(tables, 'WIREFRAMES6');
+  const followsTheOption = (wires: WallWireframes) =>
+    [nearRoom, farWall].map((g) => wires.at(g).find((n) => n.tile === wallWire)?.optional);
+  const inputs = (
+    rooms: readonly number[],
+    tiles: readonly (readonly [number, number])[],
+    atLoad: readonly (readonly [number, number])[] = [],
+  ): RevealInputs => ({
+    revealedRooms: new Set(rooms),
+    revealedAtLoad: atLoad,
+    revealedTiles: tiles,
+  });
+  const fresh = inputs([], []);
+  const seen = inputs(
+    [],
+    [
+      [nearRoom + WORLD_COLS, 1],
+      [farWall + WORLD_COLS, 1],
+    ],
+  );
+  const roomSeen = inputs(
+    [ROOM],
+    [
+      [roomTile, 1],
+      [nearRoom + WORLD_COLS, 1],
+      [farWall + WORLD_COLS, 1],
+    ],
+  );
+  const afterSight = () => {
+    const loaded = followWireframes(w, null, fresh);
+    return { inputs: seen, wireframes: followWireframes(w, { inputs: fresh, wireframes: loaded }, seen) };
+  };
+
+  it('leave the wire frames as the load worked them out while sight only reveals tiles outside rooms', () => {
+    expect(followsTheOption(afterSight().wireframes)).toEqual([false, false]);
+  });
+
+  it('work them out again within two tiles of a room a look reveals, counting every tile sight revealed outside rooms', () => {
+    expect(followsTheOption(followWireframes(w, afterSight(), roomSeen))).toEqual([true, false]);
+  });
+
+  it('work them out again within two tiles of a structure an explosion changed (Explosion_Control.cc SpreadEffect)', () => {
+    expect(followsTheOption(followWireframes(w, afterSight(), seen, [nearRoom]))).toEqual([true, false]);
+  });
+
+  it('work every one out against the tiles revealed at the load, then those near a room revealed since, when the client has no history', () => {
+    expect(followsTheOption(followWireframes(w, null, roomSeen))).toEqual([true, false]);
+    const farAtLoad = inputs([ROOM], roomSeen.revealedTiles, [[farWall + WORLD_COLS, 1]]);
+    expect(followsTheOption(followWireframes(w, null, farAtLoad))).toEqual([true, true]);
+  });
+
+  it('start afresh once a tile is no longer revealed, as at a load', () => {
+    const lit = followWireframes(w, afterSight(), roomSeen);
+    expect(followsTheOption(followWireframes(w, { inputs: roomSeen, wireframes: lit }, fresh))).toEqual([false, false]);
+  });
+
+  it('report every tile revealed so far, those of sight too, to the roof checks of the picking (WorldMan.cc IsRoofVisible)', () => {
+    const { wireframes } = afterSight();
+    const reveal = computeReveal(w, new Set(), new Set(), [], wireframes);
+    expect([reveal.revealed[nearRoom + WORLD_COLS], reveal.revealed[farWall + WORLD_COLS], reveal.revealed[roomTile]]).toEqual([1, 1, 0]);
   });
 });
 

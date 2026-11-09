@@ -1025,6 +1025,7 @@ export interface PlayerView {
   readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
   readonly revealedAtLoad?: readonly TileRun[];
+  readonly revealedTiles?: readonly TileRun[];
   readonly slantRoofCeilings?: readonly number[];
   readonly knownMines?: readonly number[];
   readonly items?: readonly ItemView[];
@@ -1074,6 +1075,8 @@ export interface ViewFrame {
   readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
   readonly revealedAtLoad?: readonly TileRun[];
+  readonly revealedTiles?: readonly TileRun[];
+  readonly revealedTilesAdded?: readonly TileRun[];
   readonly slantRoofCeilings?: readonly number[];
   readonly knownMines?: readonly number[];
   readonly items?: readonly ItemView[];
@@ -1138,10 +1141,54 @@ function sameList(a: readonly number[] | undefined, b: readonly number[] | undef
   return a.every((v, i) => v === b[i]);
 }
 
-function sameRuns(a: readonly TileRun[] | undefined, b: readonly TileRun[] | undefined): boolean {
+export function sameTileRuns(a: readonly TileRun[] | undefined, b: readonly TileRun[] | undefined): boolean {
   if (a === b) return true;
   if (!a || !b || a.length !== b.length) return false;
   return a.every((run, i) => run[0] === b[i]?.[0] && run[1] === b[i]?.[1]);
+}
+
+function tilesIn(runs: readonly TileRun[]): number {
+  return runs.reduce((sum, run) => sum + run[1], 0);
+}
+
+function runsNotIn(runs: readonly TileRun[], others: readonly TileRun[]): TileRun[] {
+  const out: TileRun[] = [];
+  let k = 0;
+  for (const [first, count] of runs) {
+    const end = first + count;
+    let at = first;
+    while (at < end) {
+      while (k < others.length && (others[k]?.[0] ?? 0) + (others[k]?.[1] ?? 0) <= at) k++;
+      const other = others[k];
+      const from = other ? Math.max(at, Math.min(end, other[0])) : end;
+      if (from > at) out.push([at, from - at]);
+      at = other ? Math.min(end, Math.max(from, other[0] + other[1])) : end;
+    }
+  }
+  return out;
+}
+
+export function addedTileRuns(previous: readonly TileRun[], next: readonly TileRun[]): TileRun[] | null {
+  const added = runsNotIn(next, previous);
+  return tilesIn(next) - tilesIn(added) === tilesIn(previous) ? added : null;
+}
+
+export function mergedTileRuns(runs: readonly TileRun[], added: readonly TileRun[]): TileRun[] {
+  const merged: [number, number][] = [];
+  for (const [first, count] of [...runs, ...added].sort((a, b) => a[0] - b[0])) {
+    const last = merged.at(-1);
+    if (last && first <= last[0] + last[1]) last[1] = Math.max(last[1], first + count - last[0]);
+    else merged.push([first, count]);
+  }
+  return merged;
+}
+
+function revealedTilesFrame(
+  previous: readonly TileRun[],
+  next: readonly TileRun[],
+): Pick<ViewFrame, 'revealedTiles' | 'revealedTilesAdded'> {
+  const added = addedTileRuns(previous, next);
+  return added ? { revealedTilesAdded: added } : { revealedTiles: next };
 }
 
 export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFrame | null {
@@ -1154,8 +1201,13 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), doors: next.doors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
-  if (!sameRuns(previous.revealedAtLoad, next.revealedAtLoad))
+  if (!sameTileRuns(previous.revealedAtLoad, next.revealedAtLoad))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedAtLoad: next.revealedAtLoad ?? [] };
+  if (!sameTileRuns(previous.revealedTiles ?? [], next.revealedTiles ?? []))
+    frame = {
+      ...(frame ?? { tick: next.tick, changed: [], removed: [] }),
+      ...revealedTilesFrame(previous.revealedTiles ?? [], next.revealedTiles ?? []),
+    };
   if (!sameList(previous.slantRoofCeilings, next.slantRoofCeilings))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), slantRoofCeilings: next.slantRoofCeilings ?? [] };
   if (!sameList(previous.knownMines, next.knownMines))
@@ -1334,7 +1386,7 @@ export function applyFrame(soldiers: readonly SoldierView[], frame: ViewFrame): 
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
 
-const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages', 'bullets', 'effects'] as const;
+const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages', 'bullets', 'effects', 'revealedTilesAdded'] as const;
 type FrameFields = Omit<ViewFrame, (typeof FRAME_ONLY_KEYS)[number]>;
 
 function frameFields(frame: ViewFrame): FrameFields {
@@ -1345,9 +1397,11 @@ function frameFields(frame: ViewFrame): FrameFields {
 
 export function applyViewFrame(view: PlayerView, frame: ViewFrame): PlayerView {
   const soldiersChanged = frame.changed.length > 0 || frame.removed.length > 0;
+  const added = frame.revealedTilesAdded;
   return {
     ...view,
     ...frameFields(frame),
+    ...(added ? { revealedTiles: mergedTileRuns(view.revealedTiles ?? [], added) } : {}),
     tick: frame.tick,
     soldiers: soldiersChanged ? applyFrame(view.soldiers, frame) : view.soldiers,
   };

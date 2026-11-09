@@ -364,7 +364,10 @@ next entry drops, `12` §6), then the pieces of a helicopter standing in the sec
 draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
 or a load took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `revealedAtLoad` lists, as runs
 `[first gridNo, count]`, the tiles the last sector entry with saved revealed tiles or native import revealed, outside
-rooms too, which the original reveals as a room reveal does (`08`). `knownMines` lists the tiles our side
+rooms too, which the original reveals as a room reveal does (`08`). `revealedTiles` lists, as runs, every tile revealed
+so far, by sight, a room reveal or a load, outside rooms too, which the wall wire frames worked out again during a stay
+and the picking's roof checks read (`05`); a frame carries only the runs it adds (`revealedTilesAdded`), or the whole
+list once a tile is no longer revealed (a load, another sector). `knownMines` lists the tiles our side
 knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our mercs planted), which the
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
 levels, bomb timers and owners are never shown (`12` §6). `radarContacts` is there only while an x-ray detector shows

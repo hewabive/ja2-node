@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
-import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
@@ -10,7 +10,7 @@ import type { TacticalContent } from '../content.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
-import { RevealedFlags, revealedAtLoadRuns, revealRoofsAndItems, setMapRevealedStatus } from './fov.ts';
+import { RevealedFlags, revealedAtLoadRuns, revealedTileRuns, revealRoofsAndItems, setMapRevealedStatus } from './fov.ts';
 import { slantRoofCeilingTiles } from './slant-roofs.ts';
 import { perceptionHooks } from './wiring.ts';
 
@@ -158,5 +158,17 @@ describe('the tiles a load reveals (SaveLoadMap.cc SetMapRevealedStatus)', () =>
     look(t, VIEWER, Direction.SOUTH);
     expect(groundRevealed(t, VIEWER + gridNo(0, 1))).toBe(true);
     expect(revealedAtLoadRuns(t)).toEqual([[ROOM_TILE_IN_VIEW, 1], ...roofTiles(3).map((g) => [g, 1])]);
+  });
+});
+
+describe('the tiles revealed so far (FOV.cc MAPELEMENT_REVEALED)', () => {
+  it('are every tile a load, a room reveal or sight revealed, in runs, outside rooms too', () => {
+    const t = roofOverAFarRoom();
+    setMapRevealedStatus(t, (g) => roofTiles(3).includes(g));
+    look(t, VIEWER, Direction.SOUTH);
+    const tiles = revealedTileRuns(t).flatMap(([first, count]) => Array.from({ length: count }, (_, k) => first + k));
+    const revealed = Array.from({ length: WORLD_MAX }, (_, g) => g).filter((g) => groundRevealed(t, g));
+    expect(tiles).toEqual(revealed);
+    expect(tiles).toEqual(expect.arrayContaining([VIEWER + gridNo(0, 1), ROOM_TILE_IN_VIEW, ...roofTiles(3)]));
   });
 });
