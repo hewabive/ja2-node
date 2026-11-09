@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc BOMB_QUEUE_DELAY, MAX_BOMB_QUEUE, gExplosionQueue, AddBombToQueue,
 // @src HandleExplosionQueue, DecayBombTimers, SetOffBombsByFrequency, SetOffPanicBombs, SetOffBombsInGridNo,
-// @src ActivateSwitchInGridNo, RemoveAllActiveTimedBombs; Explosion_Control.h ExplosionQueueElement.
+// @src ActivateSwitchInGridNo, RemoveAllActiveTimedBombs; Explosion_Control.h ExplosionQueueElement;
+// @src LoadExplosionTableFromSavedGameFile (the queue; SaveLoadGame.cc LoadGeneralInfo gfExplosionQueueActive; the unsaved
+// @src gfExplosionQueueMayHaveChangedSight and gPersonToSetOffExplosions as a fresh process holds them, 2026-11-08).
 
 import { type ExplosiveDef, ItemClass } from '../../../content/items/items.ts';
 import type { ItemObject } from '../../items/object.ts';
@@ -84,6 +86,15 @@ function addBombToQueue(t: TacticalState, bomb: number, timestamp: number): void
 function queueBomb(t: TacticalState, bomb: number, o: ItemObject, timestamp: number): number {
   addBombToQueue(t, bomb, timestamp);
   return blowsUp(t, o) ? timestamp + bombQueueDelay(t) : timestamp;
+}
+
+export function loadExplosionQueue(t: TacticalState, entries: readonly QueuedBomb[], active: boolean): void {
+  const q = t.explosionQueue;
+  q.entries.length = 0;
+  for (const e of entries) q.entries.push({ ...e });
+  q.active = active;
+  q.mayHaveChangedSight = false;
+  q.person = null;
 }
 
 export function decayBombTimers(t: TacticalState): void {

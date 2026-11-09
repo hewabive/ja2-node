@@ -7,8 +7,10 @@
 // @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames; the door tiles
 // @src in the same pass 2026-11-01; sight left off while the bomb queue runs 2026-11-04);
-// @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
+// @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier);
+// @src LoadExplosionTableFromSavedGameFile (each explosion generated again at its saved frame, 2026-11-08).
 
+import type { ExplosionAnimation } from '../../../content/items/explosions.ts';
 import { NOTHING } from '../../../content/items/items.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, recompileLocalMovementCosts, TravelCost } from '../../../content/world/movement-costs.ts';
@@ -108,6 +110,51 @@ function explosionLight(t: TacticalState, x: number, y: number): LightSprite | n
   return light;
 }
 
+export interface ExplosionRecord {
+  readonly owner: Soldier | null;
+  readonly animation: ExplosionAnimation;
+  readonly item: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly gridNo: number;
+  readonly level: number;
+  readonly frame: number;
+}
+
+export function generateExplosion(t: TacticalState, e: ExplosionRecord): void {
+  const { owner, animation, item, gridNo: g, level, frame } = e;
+  const animations = t.content.explosions.animations;
+  const water = isWaterTile(t, g) && animation.waterAnimation ? animations.get(animation.waterAnimation) : undefined;
+  const shown = water ?? animation;
+  const z = e.z === 0 && level > 0 ? ROOF_LEVEL_HEIGHT : e.z;
+  const x = i16(e.x);
+  const y = i16(e.y);
+  const delay = animation.blastSpeed;
+  t.explosives.aniTiles.unshift({
+    kind: 'explosion',
+    owner,
+    item,
+    x,
+    y,
+    z,
+    gridNo: g,
+    level,
+    animation: shown,
+    delay,
+    light: explosionLight(t, x, y),
+    frame,
+    lastUpdate: t.clockMs,
+  });
+  const resumed = frame === 0 ? {} : { frame };
+  t.events.push({ type: 'explosion', item, gridNo: g, level, owner: owner?.id ?? null, animation: shown.name, x, y, z, delay, ...resumed });
+}
+
+export function explosionAnimationById(t: TacticalState, id: number): ExplosionAnimation | null {
+  for (const a of t.content.explosions.animations.values()) if (a.id === id) return a;
+  return null;
+}
+
 export function internalIgniteExplosion(
   t: TacticalState,
   owner: Soldier | null,
@@ -126,39 +173,9 @@ export function internalIgniteExplosion(
   }
   t.turn.attackBusyCount++;
   if (explosionCount(t) >= NUM_EXPLOSION_SLOTS) return;
-  const animations = t.content.explosions.animations;
-  const animation = explosive.animation ? animations.get(explosive.animation) : undefined;
+  const animation = explosive.animation ? t.content.explosions.animations.get(explosive.animation) : undefined;
   if (!animation) return;
-  const water = isWaterTile(t, g) && animation.waterAnimation ? animations.get(animation.waterAnimation) : undefined;
-  const shown = water ?? animation;
-  const shownZ = z === 0 && level > 0 ? ROOF_LEVEL_HEIGHT : z;
-  t.explosives.aniTiles.unshift({
-    kind: 'explosion',
-    owner,
-    item,
-    x: i16(x),
-    y: i16(y),
-    z: shownZ,
-    gridNo: g,
-    level,
-    animation: shown,
-    delay: animation.blastSpeed,
-    light: explosionLight(t, i16(x), i16(y)),
-    frame: 0,
-    lastUpdate: t.clockMs,
-  });
-  t.events.push({
-    type: 'explosion',
-    item,
-    gridNo: g,
-    level,
-    owner: owner?.id ?? null,
-    animation: shown.name,
-    x: i16(x),
-    y: i16(y),
-    z: shownZ,
-    delay: animation.blastSpeed,
-  });
+  generateExplosion(t, { owner, animation, item, x, y, z, gridNo: g, level, frame: 0 });
 }
 
 export function igniteExplosion(t: TacticalState, owner: Soldier | null, z: number, g: number, item: number, level: number): void {

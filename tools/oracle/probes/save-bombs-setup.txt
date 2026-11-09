@@ -1,0 +1,39 @@
+# The saves save-bombs.txt loads (README "Savegame bombs and explosions"): each block sets bombs off with the bomb
+# commands (0027) and writes the game with hdsave (0031). The oracle runs no tile animation, so an ignited explosion
+# stays allocated and on the busy count, and SaveGame keeps it with its frame 0. Seeded before each load, so the
+# draws, and with them the saves, repeat (but for the header's real time).
+
+# 1. OracleExplosion: SaveGame09, D13 in real time. Lynx's own mine (owner=2: soldier 0) on 8521, set off by enemy 23:
+# the queue's DISALLOW_SIGHT, the explosion with its owner, the busy count 1; the queue stays active, its person waiting
+# for the busy count.
+seed value=7
+save SaveGame09
+armbomb grid=8521 item=MINE setting=0 owner=2
+stepon who=23 grid=8521
+bombqueue ms=0
+hdsave name=OracleExplosion
+
+# 2. OracleBombQueue: a world bomb slot freed and refilled out of item order. P (8523) goes off and frees its item index
+# and slot 0; a canteen takes the item index, R (8527) the slot, so the slots hold R then Q (8525) while the items hold
+# Q then R. Stepping on R queues slot 0 and the game is saved before the queue runs.
+bombreset
+armbomb grid=8523 item=MINE setting=0
+armbomb grid=8525 item=MINE setting=0
+stepon who=0 grid=8523
+bombqueue ms=0
+bombreset
+armbomb grid=8526 item=CANTEEN flags=0
+armbomb grid=8527 item=MINE setting=0
+stepon who=0 grid=8527
+hdsave name=OracleBombQueue
+
+# 3. OracleCombatBlast: SaveGame07, D13 in turn-based combat on our turn; two mines on 8521 both go off, so the busy
+# count is 2 when the game is saved.
+seed value=7
+save SaveGame07
+bombreset
+armbomb grid=8521 item=MINE setting=0
+armbomb grid=8521 item=MINE setting=0
+stepon who=0 grid=8521
+bombqueue ms=2000
+hdsave name=OracleCombatBlast

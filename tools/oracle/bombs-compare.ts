@@ -53,6 +53,7 @@ import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { addItemToPool, loadWorldItemsFromMap, type WorldItem, WorldItemFlags } from '../../src/sim/tactical/world-items.ts';
 import { activateXRayDevice, turnOffXRayEffects } from '../../src/sim/tactical/xray.ts';
 import { type Draw, firstDifference, ReplayMismatch, report, StrictReplay } from './actions-compare.ts';
+import { inOrder } from './auto-bandage-compare.ts';
 import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
@@ -331,6 +332,7 @@ export class BombComparer {
   readonly #exists: FileExists;
   readonly #content: TacticalContent;
   #bytes: Uint8Array | null = null;
+  #loadDraws: readonly Draw[] = [];
   #session: CampaignSession | null = null;
   #quoteSaid = false;
   #nativeBoobyTrap: readonly number[] = [];
@@ -341,8 +343,9 @@ export class BombComparer {
     this.#content = content;
   }
 
-  loadSave(bytes: Uint8Array): void {
+  loadSave(bytes: Uint8Array, loadDraws: readonly Draw[]): void {
     this.#bytes = bytes;
+    this.#loadDraws = loadDraws;
     this.#session = null;
   }
 
@@ -380,7 +383,12 @@ export class BombComparer {
   async #tactical(): Promise<TacticalState> {
     if (!this.#session) {
       if (!this.#bytes) throw new Error('bomb probes need a save');
-      this.#session = (await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
+      const loadDraws = this.#loadDraws;
+      this.#session = (
+        await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists, undefined, undefined, (t, restart) =>
+          inOrder(t, loadDraws, restart),
+        )
+      ).session;
       const t = this.#tacticalOf(this.#session);
       this.#installNarrative(t);
       this.#keepBoobyTrapGlobals(t);

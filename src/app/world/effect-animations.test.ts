@@ -96,6 +96,27 @@ describe('effect animations', () => {
     expect(effects.at(0, () => 20).map((e) => e.kind)).toEqual(['explosion', 'ripple']);
   });
 
+  it('resumes an explosion a native save carried at its saved frame', () => {
+    const effects = new EffectAnimations();
+    const blast: EffectEvent = {
+      type: 'explosion',
+      item: 1,
+      gridNo: WHERE,
+      level: 0,
+      owner: null,
+      animation: 'BLAST_1',
+      x: 805,
+      y: 805,
+      z: 0,
+      delay: 80,
+      frame: 7,
+      tick: 100,
+    };
+    effects.observe([blast]);
+    expect(effects.at(100, () => 20).map((e) => e.frame)).toEqual([7]);
+    expect(effects.at(117, () => 20).map((e) => e.frame)).toEqual([8]);
+  });
+
   it('blows a vaporized corpse apart on its tile every 80 ms, drawn from the tile cache', () => {
     const effects = new EffectAnimations();
     effects.observe([{ type: 'corpseVaporized', gridNo: WHERE, x: 805, y: 805, z: 0, tick: 0 }]);

@@ -398,6 +398,7 @@ export interface GeneralInfo {
   readonly contractRehireSoldier: number;
   readonly gameOptions: SavedGameOptions;
   readonly baseJA2Clock: number;
+  readonly explosionQueueActive: boolean;
   readonly currentInterfacePanel: number;
   readonly smCurrentMerc: number;
   readonly helicopterVehicleId: number;
@@ -593,6 +594,7 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       saveMode: n('ubGameSaveMode'),
     },
     baseJA2Clock: n('guiBaseJA2Clock'),
+    explosionQueueActive: r.bool('gfExplosionQueueActive'),
     currentInterfacePanel: n('cur_interface_panel'),
     smCurrentMerc: n('sm_current_merc'),
     helicopterVehicleId: n('iHelicopterVehicleId'),

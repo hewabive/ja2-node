@@ -87,8 +87,9 @@ function startedAs(kind: FixedPaceKind): { kind: EffectKind; period: number } {
 
 function startedExplosion(e: ExplosionEvent): RunningEffect[] {
   if (e.animation === undefined || e.x === undefined || e.y === undefined || e.delay === undefined) return [];
-  const at = { start: e.tick, gridNo: e.gridNo, x: e.x, y: e.y, z: e.z ?? 0 };
-  return [{ kind: 'explosion', period: framePeriodTicks(e.delay), ...at, tile: e.animation }];
+  const period = framePeriodTicks(e.delay);
+  const at = { start: e.tick - (e.frame ?? 0) * period, gridNo: e.gridNo, x: e.x, y: e.y, z: e.z ?? 0 };
+  return [{ kind: 'explosion', period, ...at, tile: e.animation }];
 }
 
 function started(e: EffectEvent): RunningEffect[] {

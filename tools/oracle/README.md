@@ -40,6 +40,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Our mercs off the loaded map | the real-time turn on both screens (our whole team in id order, an absent merc's bleeding, breath by the animation he left in, the gas test at `NOWHERE`, drug courses and regeneration, the looks and their draws), the map screen's poll gate and check time per compression mode and pause, the blood decay per mode, deaths off the tactical map on each screen, a merc and a civilian of the loaded sector dying on the map, the claustrophobe's roll, the team turn in combat | `absent.txt` | `absent-compare.ts` | 0029 | `10`, `12`, `15`, `33` |
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
 | Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop and the loads of its save), `heli-passengers-compare.ts` (the passengers) | 0031 | `25` |
+| Savegame bombs and explosions | the bomb queue and the explosions in flight after a native load, on saves the native build writes: a queue saved running whose slot names another bomb, an explosion with its owner in real time, two in combat | `save-bombs-setup.txt` (writes the saves), `save-bombs.txt` | `bombs-compare.ts` | 0027, 0031 | `14` |
 | Savegame temp files | the loaded sector's temp files on saves the native build writes: a tear gas cloud spread again at the load, aged and gassing over two turns; the map modifications flag with no record written back and with two window hits; the other sectors' files: every sector's item and corpse records, four sector entries after a load (flags, init list, doors, costs, lights, soldiers) | `save-effects-setup.txt` (writes the saves), `save-effects.txt`, `save-sectors.txt` | `absent-compare.ts`, `strategic-compare.ts`, `vehicles-compare.ts`, `save-sectors-compare.ts` | 0028, 0029, 0030, 0031 | `14` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
@@ -284,6 +285,23 @@ and stats are rerolled by draws the probe does not replay), and `abrecords` of a
 exit) or loaded (its files as read). `entersector` compares the profiled NPCs of the sector, those away by schedule
 included. No save holds a preserved enemy record, smoke or light file or damage or window record outside the loaded
 sector, so those stay unit-tested (`14` §4).
+
+### Savegame bombs and explosions
+
+The bomb queue and the explosions in flight after a native load, on saves the native build writes with `hdsave`
+(0031): `save-bombs-setup.txt` (no build) sets bombs off with the bomb commands ("Bombs") and writes `OracleExplosion`
+(`SaveGame09`, enemy 23 sets off Lynx's mine: an explosion with its owner, the busy count 1), `OracleBombQueue` (a mine
+gone off frees world bomb slot 0, a canteen takes its item index and the next mine the slot, so the slots and the items
+list two mines in opposite orders, and the game is saved with that mine queued) and `OracleCombatBlast` (`SaveGame07`
+in combat, two mines gone off: the busy count 2), each seeded before its load so the saves repeat. The oracle runs no
+tile animation, so every explosion stays allocated at frame 0. `save-bombs.txt` loads them, each load's draws traced
+and fed to the import's restart; `bombqueue steps=0` prints the bomb state and runs nothing. The first load, in a fresh
+process, shows the queue running as saved (`gfExplosionQueueActive` is in the general info) with its slot now naming
+the other mine, which goes off at the next `bombqueue`; a `bombreset` stands for a fresh process before each of the
+other loads, which show the explosions generated again and the busy count zeroed in real time and in combat. Both
+outputs go to `bombs-compare.ts`, which imports the saves from the output's folder. Not reached: a saved frame past 0,
+an explosion's light and its end after the load, the interface lock of the load (deviation "Interface lock after a
+load"; `14` §4).
 
 ### Sector transitions
 
@@ -625,7 +643,8 @@ oracle runs no game loop. A message box goes to the probe instead of the screen 
 (`answers=yes,no,1..4`); a pending stop-time quote callback runs as the quote would end, with the item locator it
 starts.
 
-`bombs-compare.ts` imports the save, replays the draws strictly with the pathfinder's and the cosmetic marks dropped,
+`bombs-compare.ts` imports the save (the load's traced draws, if any, fed to its restart in order), replays the draws
+strictly with the pathfinder's and the cosmetic marks dropped,
 runs the same ja2-node functions and compares everything field by field (native `NOWHERE` is 25601, an explosion's
 height on a roof is the raised one). A `bombmap` loads the map into a fresh sandbox state and replays the item rolls'
 `PreRandom` draws; the load's `Random` draws (the edgepoints) are left out. The comparer's narrative port reports every
@@ -909,6 +928,10 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
   The work dir keeps copies of both saves in `save-effects/`, where `compare.ts` finds them. `compare-all.sh` compares
   both outputs ("Savegame temp files").
 - `save-sectors.txt` writes `save-sectors/entries.jsonl` ("Savegame temp files").
+- `save-bombs-setup.txt` writes `save-bombs/setup.jsonl` and the saves `OracleExplosion`, `OracleBombQueue` and
+  `OracleCombatBlast` into the oracle's home; `save-bombs.txt` reads them from there, so it runs after it, and writes
+  `save-bombs/loads.jsonl`. The work dir keeps copies of the saves in `save-bombs/`, where `compare.ts` finds them.
+  `compare-all.sh` compares both outputs ("Savegame bombs and explosions").
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;

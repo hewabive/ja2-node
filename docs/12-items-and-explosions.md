@@ -293,7 +293,8 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   `1000 + Random(500)` ms apart in slot order and queues action items with no gap and no draw. The count shrinks only
   over entries at its end that went off. While the queue is active sight is off, the AI waits and the player interface
   is locked (`interface-lock.ts`); at its end all teams look and our mercs reveal roofs and items if a blast or a door
-  may have changed sight, and the soldier who set it off, unless one of ours, is freed from any pending action.
+  may have changed sight, and the soldier who set it off, unless one of ours, is freed from any pending action. A
+  native import brings the queue and the explosions in flight back (`14`).
 - A dud that passes its second roll lies as a timed bomb (`34`); leaving the sector deletes every active timed bomb
   with its item before the sector's state is kept, and while one is on the map time compression is refused
   (`activeTimedBomb`).

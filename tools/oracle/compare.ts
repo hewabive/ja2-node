@@ -724,7 +724,7 @@ for (const file of files) {
       if (ctx.bytes) meanwhiles.loadSave(ctx.bytes);
       if (ctx.bytes) boxing.loadSave(ctx.bytes);
       if (ctx.bytes) drugs.loadSave(ctx.bytes);
-      if (ctx.bytes) bombs.loadSave(ctx.bytes);
+      if (ctx.bytes) bombs.loadSave(ctx.bytes, loadDraws);
       if (ctx.bytes) vehicles.loadSave(ctx.bytes);
       if (ctx.bytes) absent.loadSave(ctx.bytes);
       if (ctx.bytes) autoBandage.loadSave(ctx.bytes, loadDraws);

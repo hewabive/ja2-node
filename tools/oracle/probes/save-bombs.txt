@@ -1,0 +1,39 @@
+# The bomb queue and the explosions of a save after a native load (README "Savegame bombs and explosions"), on the
+# saves save-bombs-setup.txt writes into the oracle's home (run it first). Seeded before each load, each load's draws
+# traced for the import's restart of every saved animation; bombqueue steps=0 prints the bomb state and runs nothing.
+
+# 1. OracleBombQueue, first in the process, so the queue's statics are a fresh process's: gfExplosionQueueActive is
+# not saved, so the loaded queue waits however late it is, with the saved DISALLOW_SIGHT still on. The load lists the
+# bombs again in item order, Q (8525) before R (8527): the queued slot 0 names Q now. A new bomb set off (8529) starts
+# the queue, which sets off Q and the new one and leaves R.
+seed value=7
+draws on
+save OracleBombQueue
+draws dump
+draws off
+bombqueue steps=0
+bombqueue ms=2000
+armbomb grid=8529 item=MINE setting=0
+stepon who=0 grid=8529
+bombqueue ms=0
+
+# 2. OracleExplosion: the explosion generated again at its frame with its owner, its saved busy count kept in real time
+# and the queue empty and idle. bombreset stands for the fresh process: in the same process the earlier block's queue
+# and explosions would outlive the load.
+bombreset
+seed value=7
+draws on
+save OracleExplosion
+draws dump
+draws off
+bombqueue steps=0
+
+# 3. OracleCombatBlast: in combat the load sets the busy count to 0 after it has locked the interface for the count
+# above 1 (SetUIBusy, not printed); both explosions come back.
+bombreset
+seed value=7
+draws on
+save OracleCombatBlast
+draws dump
+draws off
+bombqueue steps=0

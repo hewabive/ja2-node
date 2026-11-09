@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { stubProfiles } from '../../../tests/support/contracts.ts';
-import { itemId } from '../../../tests/support/explosives.ts';
+import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SavedVehicle, SaveGame } from '../../content/formats/savegame.ts';
+import { NO_SAVED_EXPLOSIONS, type SavedExplosionTable } from '../../content/formats/savegame-effects.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
@@ -22,11 +23,18 @@ import { createStrategicState } from '../strategic/state.ts';
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { anim, animName } from './anim-states.ts';
 import { computedAnimationDelay, states } from './animation.ts';
+import { handleExplosionQueue } from './bombs/bomb-queue.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
 import { smokeEffectOnTile } from './explosions/smoke.ts';
 import { InvSlot } from './inventory.ts';
-import { LightSpriteFlags, lightSetBaseLevel, lightTrueLevel, NORMAL_LIGHTLEVEL_NIGHT } from './lighting/lighting.ts';
+import {
+  LightSpriteFlags,
+  lightSetBaseLevel,
+  lightTrueLevel,
+  NORMAL_LIGHTLEVEL_DAY,
+  NORMAL_LIGHTLEVEL_NIGHT,
+} from './lighting/lighting.ts';
 import { hasPendingAction } from './pending-action.ts';
 import { RevealedFlags, revealedRooms } from './perception/fov.ts';
 import { handleCrowLeave } from './rotting-corpses.ts';
@@ -147,6 +155,8 @@ interface SyntheticSave {
   readonly worldItems?: readonly SavedWorldItem[];
   readonly corpses?: readonly SavedCorpse[];
   readonly tactical?: Readonly<Record<string, unknown>>;
+  readonly explosionTable?: SavedExplosionTable;
+  readonly envLightValue?: number;
 }
 
 function levelRows(count: number, entries: readonly (readonly [row: number, opponent: number, level: number])[] = []): number[][] {
@@ -164,12 +174,15 @@ function syntheticSave({
   worldItems,
   corpses,
   tactical,
+  explosionTable = NO_SAVED_EXPLOSIONS,
+  envLightValue = NORMAL_LIGHTLEVEL_DAY,
 }: SyntheticSave): SaveGame {
   return {
-    generalInfo: { baseJA2Clock: 0, selectedSoldier: NOBODY },
+    generalInfo: { baseJA2Clock: 0, selectedSoldier: NOBODY, explosionQueueActive: false },
     tactical: {
       worldSector: SECTOR,
       civGroupHostile: [],
+      flags: 0,
       inCombat: false,
       currentTeam: Team.OUR,
       attackBusyCount: 0,
@@ -204,7 +217,7 @@ function syntheticSave({
     keyTable: [],
     profiles: [],
     worldTime: { hour: 12 },
-    clock: { envLightValue: 3 },
+    clock: { envLightValue },
     currentSector: { worldItems: worldItems ?? null, corpses: corpses ?? null, mapModifications: null, doorStatus: null, doors: null },
     soldiers,
     vehicles,
@@ -221,6 +234,7 @@ function syntheticSave({
     },
     watchedLocations: { gridNo: [], level: [], points: [], reset: [] },
     teamTurns: { outOfTurnOrder: [], hiddenInterrupt: false, lastInterruptedGuy: NOBODY, whoThrewRock: NOBODY },
+    explosionTable,
     preRandom: { index: 0, numbers: Array.from({ length: 256 }, () => 0) },
   } as unknown as SaveGame;
 }
@@ -1187,5 +1201,120 @@ describe('a merc still in the helicopter in a save made in mid-drop (deviation "
     expect(t.mercSlots.map((s) => s.id)).toEqual([DROPPED_ID]);
     expect(SEATED_IDS.map((id) => t.soldiers[id])).toEqual([undefined, undefined]);
     expect([t.helicopterDrop.seats, t.helicopterDrop.running]).toEqual([SEATED_IDS, false]);
+  });
+});
+
+describe('the bomb queue and the explosions in flight of a save (Explosion_Control.cc LoadExplosionTableFromSavedGameFile)', () => {
+  const MINE_AT = [gridNo(70, 80), gridNo(72, 80), gridNo(74, 80)] as const;
+  const BLAST_1 = 1;
+  const ROOF = 1;
+  const ROOF_LEVEL_HEIGHT = 50;
+  const SAVED_FRAME = 1;
+  const DISALLOW_SIGHT = 0x1000;
+  const CHECK_SIGHT_AT_END_OF_ATTACK = 0x2000;
+  const PRESSURE = 3;
+  const DUE = 0;
+  const LATER = 1500;
+
+  function itemIndexOf(name: string): number {
+    const def = content.items.byName.get(name);
+    if (!def) throw new Error(`unknown item ${name}`);
+    return def.index;
+  }
+
+  function savedMine(at: number, exists = true): SavedWorldItem {
+    const mine = savedWorldItem(itemIndexOf('MINE'), at, WorldItemFlags.ARMED_BOMB);
+    return { ...mine, exists, object: { ...mine.object, gunAmmoType: PRESSURE, gunShotsLeft: itemIndexOf('MINE') } };
+  }
+
+  function queued(worldBombIndex: number, exists = true, timestamp = DUE): SavedExplosionTable['queue'][number] {
+    return { worldBombIndex, timestamp, exists };
+  }
+
+  function explosionAt(at: number, level = 0): SavedExplosionTable['explosions'][number] {
+    const { x, y } = cellCentre(at);
+    return { ownerId: MERC_ID, animationId: BLAST_1, item: itemIndexOf('MINE'), x, y, z: 0, gridNo: at, level, frame: SAVED_FRAME };
+  }
+
+  function runningQueueSave(worldItems: readonly SavedWorldItem[], queue: SavedExplosionTable['queue']): SaveGame {
+    const save = syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, CENTRE)],
+      worldItems,
+      tactical: { flags: DISALLOW_SIGHT },
+      explosionTable: { queue, explosions: [] },
+    });
+    return { ...save, generalInfo: { ...save.generalInfo, explosionQueueActive: true } };
+  }
+
+  function explosionGrids(sim: TacticalSim): number[] {
+    return sim.state.explosives.aniTiles.flatMap((a) => (a.kind === 'explosion' ? [a.gridNo] : []));
+  }
+
+  function bombGrids(sim: TacticalSim): number[] {
+    return sim.state.worldBombs.flatMap((b) => (b.exists ? [b.item.gridNo] : []));
+  }
+
+  it('sets off the bomb the rebuilt list holds at a saved index, another one than was queued: the load lists the bombs again in item order with no gaps (LoadAndAddWorldItemsFromTempFile)', () => {
+    const items = [savedMine(MINE_AT[0], false), savedMine(MINE_AT[1]), savedMine(MINE_AT[2])];
+    const sim = importedSim(runningQueueSave(items, [queued(0, false), queued(1)]));
+    const t = sim.state;
+    expect(t.explosionQueue.entries).toEqual([
+      { bomb: 0, timestamp: DUE, exists: false },
+      { bomb: 1, timestamp: DUE, exists: true },
+    ]);
+    expect(bombGrids(sim)).toEqual([MINE_AT[1], MINE_AT[2]]);
+    handleExplosionQueue(t);
+    expect([explosionGrids(sim), bombGrids(sim)]).toEqual([[MINE_AT[2]], [MINE_AT[1]]]);
+  });
+
+  it('runs a queue saved running, sight off, and ends it at its last bomb without waiting for the blasts: who set it off is not saved (gPersonToSetOffExplosions)', () => {
+    const items = [savedMine(MINE_AT[0]), savedMine(MINE_AT[1])];
+    const sim = importedSim(runningQueueSave(items, [queued(0), queued(1, true, LATER)]));
+    const t = sim.state;
+    expect([t.explosionQueue.active, t.explosionQueue.person, t.perception.disallowSight]).toEqual([true, null, true]);
+    handleExplosionQueue(t);
+    expect([explosionGrids(sim), t.explosionQueue.active]).toEqual([[MINE_AT[0]], true]);
+    t.clockMs += LATER;
+    handleExplosionQueue(t);
+    expect(explosionGrids(sim).sort()).toEqual([MINE_AT[0], MINE_AT[1]]);
+    expect([t.turn.attackBusyCount, t.explosionQueue.active, t.perception.disallowSight]).toEqual([2, false, false]);
+  });
+
+  it('starts a saved explosion again at its frame with its owner, its raised height on a roof and a light by night', () => {
+    const at = MINE_AT[1];
+    const save = syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, CENTRE)],
+      tactical: { flags: DISALLOW_SIGHT | CHECK_SIGHT_AT_END_OF_ATTACK },
+      explosionTable: { queue: [], explosions: [explosionAt(at, ROOF)] },
+      envLightValue: NORMAL_LIGHTLEVEL_NIGHT,
+    });
+    const sim = importedSim(save);
+    const t = sim.state;
+    const [blast] = t.explosives.aniTiles;
+    if (blast?.kind !== 'explosion') throw new Error('no explosion was loaded');
+    expect([blast.gridNo, blast.frame, blast.owner?.id, blast.z, blast.lastUpdate]).toEqual([
+      at,
+      SAVED_FRAME,
+      MERC_ID,
+      ROOF_LEVEL_HEIGHT,
+      t.clockMs,
+    ]);
+    expect(blast.light).not.toBeNull();
+    expect([t.perception.disallowSight, t.turn.checkSightAtEndOfAttack]).toEqual([true, true]);
+    runExplosivesUntilIdle(sim);
+    expect([t.turn.attackBusyCount, t.perception.disallowSight, t.turn.checkSightAtEndOfAttack]).toEqual([0, false, false]);
+  });
+
+  it('lights no explosion loaded by day', () => {
+    const sim = importedSim(syntheticSave({ explosionTable: { queue: [], explosions: [explosionAt(MINE_AT[1])] } }));
+    const [blast] = sim.state.explosives.aniTiles;
+    expect(blast?.kind === 'explosion' && blast.light).toBeNull();
+  });
+
+  it('zeroes the saved busy count, in combat and in real time, explosions in flight or not (SaveLoadGame.cc:1100, :1179)', () => {
+    const blast = { queue: [], explosions: [explosionAt(MINE_AT[1])] };
+    const combat = importedSim(syntheticSave({ tactical: { inCombat: true, attackBusyCount: 2 } }));
+    const realTime = importedSim(syntheticSave({ tactical: { inCombat: false, attackBusyCount: 1 }, explosionTable: blast }));
+    expect([combat.state.turn.attackBusyCount, realTime.state.turn.attackBusyCount]).toEqual([0, 0]);
   });
 });

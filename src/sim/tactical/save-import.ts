@@ -19,10 +19,14 @@
 // @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); Tactical/Soldier_Add.cc InternalAddSoldierToSector (the
 // @src helicopter's passengers in their merc slots with no tile) and Strategic/StrategicMap.cc UpdateMercInSector (a
 // @src chopper merc of a save made in mid-drop back in the seats, AddMercToHeli, 2026-11-08; its return for a merc in transit,
-// @src 2026-11-08); SOLDIER_ENGAGEDINACTION (2026-11-08).
+// @src 2026-11-08); SOLDIER_ENGAGEDINACTION (2026-11-08); TileEngine/Explosion_Control.cc LoadExplosionTableFromSavedGameFile
+// @src (the bomb queue and the explosions in flight, after the soldiers and the world load's light level) with
+// @src LoadGeneralInfo's gfExplosionQueueActive, the DISALLOW_SIGHT and CHECK_SIGHT_AT_END_OF_ATTACK bits of the saved
+// @src uiFlags, and the busy count LoadSavedGame zeroes in combat and out of it (2026-11-08).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
+import type { SavedExplosionTable } from '../../content/formats/savegame-effects.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
 import type {
   SavedCorpse,
@@ -44,11 +48,13 @@ import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { anim } from './anim-states.ts';
 import { restartAnimationOnLoad } from './animation.ts';
 import { setAutoBandagePending } from './auto-bandage.ts';
+import { loadExplosionQueue } from './bombs/bomb-queue.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import type { TacticalContent } from './content.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
 import { loadDoorStatusArray } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
+import { explosionAnimationById, generateExplosion } from './explosions/explosion.ts';
 import { updateGassedOnNewGridNo } from './explosions/smoke.ts';
 import { addMercToHeli } from './helicopter-drop.ts';
 import { Insertion } from './insertion.ts';
@@ -195,7 +201,24 @@ export function importSave(sim: TacticalSim, save: SaveGame, aroundRestart = RES
   linkTacticalStatus(t, save);
   importCampaignWideState(t, save);
   lightSetBaseLevel(t, savedAmbientLight(sim, save));
+  loadExplosionTable(t, save.explosionTable, save.generalInfo.explosionQueueActive);
+  dropSavedAttackBusyCount(t);
   return { report: { mapPath: sim.mapPath, soldiers: placed, worldItems, corpses, skippedMapModifications }, soldiers };
+}
+
+function dropSavedAttackBusyCount(t: TacticalState): void {
+  t.turn.attackBusyCount = 0;
+}
+
+function loadExplosionTable(t: TacticalState, table: SavedExplosionTable, queueActive: boolean): void {
+  const entries = table.queue.map((e) => ({ bomb: e.worldBombIndex, timestamp: e.timestamp, exists: e.exists }));
+  loadExplosionQueue(t, entries, queueActive);
+  for (const e of table.explosions) {
+    const animation = explosionAnimationById(t, e.animationId);
+    if (!animation) continue;
+    const { item, x, y, z, gridNo, level, frame } = e;
+    generateExplosion(t, { owner: soldierById(t, e.ownerId), animation, item, x, y, z, gridNo, level, frame });
+  }
 }
 
 function whileLoadingSave<T>(t: TacticalState, load: () => T): T {
@@ -769,6 +792,8 @@ function importOpplists(t: TacticalState, save: SaveGame): void {
 }
 
 const ENEMY_OFFERED_SURRENDER = 0x01;
+const DISALLOW_SIGHT = 0x00001000;
+const CHECK_SIGHT_AT_END_OF_ATTACK = 0x00002000;
 
 function importTacticalStatus(t: TacticalState, save: SaveGame): void {
   const ts = save.tactical;
@@ -776,6 +801,8 @@ function importTacticalStatus(t: TacticalState, save: SaveGame): void {
   t.inCombat = ts.inCombat;
   turn.currentTeam = ts.currentTeam;
   turn.attackBusyCount = ts.attackBusyCount;
+  t.perception.disallowSight = (ts.flags & DISALLOW_SIGHT) !== 0;
+  turn.checkSightAtEndOfAttack = (ts.flags & CHECK_SIGHT_AT_END_OF_ATTACK) !== 0;
   turn.interruptOccurred = ts.interruptOccurred;
   turn.virginSector = ts.virginSector;
   turn.enemyInSector = ts.enemyInSector;

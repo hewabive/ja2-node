@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls (the loaded world test, 2026-10-30);
-// @src SaveLoadScreen.cc DoneFadeOutForSaveLoadScreen (the screen a save resumes on)
+// @src SaveLoadScreen.cc DoneFadeOutForSaveLoadScreen (the screen a save resumes on); the explosion table (2026-11-08)
 
 import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { decryptRecord as decryptWithOldKey } from './prof.ts';
 import { SaveCursor } from './savegame-cursor.ts';
+import { readExplosionTable, type SavedExplosionTable } from './savegame-effects.ts';
 import {
   decryptSaveRecord,
   encryptionSetIndex,
@@ -118,9 +119,6 @@ const TOWN_LOYALTY_BYTES = 26;
 const BULLET_RECORD_BYTES = 128;
 const REAL_OBJECT_RECORD_BYTES = 256;
 const AIR_RAID_BYTES = 132;
-const MAX_BOMB_QUEUE = 40;
-const EXPLOSION_QUEUE_ENTRY_BYTES = 12;
-const EXPLOSION_RECORD_BYTES = 36;
 const STRATEGIC_STATUS_BYTES = 192;
 const SAI_PADDING_BYTES = 97;
 const SAVED_ARMY_COMPOSITIONS = 60;
@@ -338,6 +336,7 @@ export interface SaveGame {
   readonly preRandom: PreRandomTable;
   readonly generalInfo: GeneralInfo;
   readonly teamTurns: TeamTurns;
+  readonly explosionTable: SavedExplosionTable;
   readonly watchedLocations: WatchedLocations;
   readonly gameStates: string | null;
   readonly creatureDirectives: SavedCreatureDirectives;
@@ -552,11 +551,6 @@ function skipCountedRecords(c: SaveCursor, recordBytes: number): void {
   c.skip(c.u32() * recordBytes);
 }
 
-function skipExplosions(c: SaveCursor): void {
-  c.skip(4 + MAX_BOMB_QUEUE * EXPLOSION_QUEUE_ENTRY_BYTES);
-  skipCountedRecords(c, EXPLOSION_RECORD_BYTES);
-}
-
 function skipStrategicAi(c: SaveCursor): void {
   const r = readLayout(c, STRATEGIC_AI_LAYOUT, false, 'strategic AI');
   c.skip(r.num('iPatrolArraySize'));
@@ -697,7 +691,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'physics objects', () => skipCountedRecords(c, REAL_OBJECT_RECORD_BYTES));
   section(ctx, 'air raid (unused)', () => c.skip(AIR_RAID_BYTES));
   const teamTurns = section(ctx, 'team turns', () => readTeamTurns(c));
-  section(ctx, 'explosions', () => skipExplosions(c));
+  const explosionTable = section(ctx, 'explosions', () => readExplosionTable(c));
   const creatureDirectives = section(ctx, 'creature directives', () => readCreatureDirectives(c, version));
   section(ctx, 'strategic status', () => c.skip(STRATEGIC_STATUS_BYTES));
   section(ctx, 'strategic ai', () => skipStrategicAi(c));
@@ -744,6 +738,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     preRandom,
     generalInfo,
     teamTurns,
+    explosionTable,
     watchedLocations,
     gameStates,
     creatureDirectives,

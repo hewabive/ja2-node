@@ -441,6 +441,7 @@ export interface ExplosionEvent extends SimEventBase {
   readonly y?: number;
   readonly z?: number;
   readonly delay?: number;
+  readonly frame?: number;
 }
 
 export interface CorpseVaporizedEvent extends SimEventBase {
