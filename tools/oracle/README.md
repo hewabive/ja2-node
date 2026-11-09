@@ -41,6 +41,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Auto-bandage | `BeginAutoBandage`'s boxes in their order, `ShouldBeginAutoBandage` and the pending flag (a battle won in tactical and on the map screen), the start's lists and resets, `FindBestPatient` and `DecideAutoBandage` (priorities, ties, take-overs, roof patients, passengers), `CanAutoBandage`'s full-check rotation and failure, the services, the end, whole runs frame by frame on a virtual clock | `auto-bandage.txt` | `auto-bandage-compare.ts` | 0030 | `12` |
 | Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop and the loads of its save), `heli-passengers-compare.ts` (the passengers) | 0031 | `25` |
 | Savegame bombs and explosions | the bomb queue and the explosions in flight after a native load, on saves the native build writes: a queue saved running whose slot names another bomb, an explosion with its owner in real time, two in combat | `save-bombs-setup.txt` (writes the saves), `save-bombs.txt` | `bombs-compare.ts` | 0027, 0031 | `14` |
+| Savegame bullets and thrown objects | the bullets and thrown objects in flight after a native load, on saves the native build writes: a bullet flown on frame by frame into its target, a grenade loaded where it left the thrower's hand | `save-flight-setup.txt` (writes the saves), `save-flight.txt` | `vehicles-compare.ts` (the shots), `save-flight-compare.ts` | 0028, 0031 | `14` |
 | Savegame temp files | the loaded sector's temp files on saves the native build writes: a tear gas cloud spread again at the load, aged and gassing over two turns; the map modifications flag with no record written back and with two window hits; the other sectors' files: every sector's item and corpse records, four sector entries after a load (flags, init list, doors, costs, lights, soldiers) | `save-effects-setup.txt` (writes the saves), `save-effects.txt`, `save-sectors.txt` | `absent-compare.ts`, `strategic-compare.ts`, `vehicles-compare.ts`, `save-sectors-compare.ts` | 0028, 0029, 0030, 0031 | `14` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
@@ -302,6 +303,21 @@ other loads, which show the explosions generated again and the busy count zeroed
 outputs go to `bombs-compare.ts`, which imports the saves from the output's folder. Not reached: a saved frame past 0,
 an explosion's light and its end after the load, the interface lock of the load (deviation "Interface lock after a
 load"; `14` §4).
+
+### Savegame bullets and thrown objects
+
+The bullets and physics objects in flight after a native load, on saves the native build writes with `hdsave` (0031):
+`save-flight-setup.txt` (no build) starts two attacks with `vehiclefire`, whose animation frames fire the shot but run no
+game frame, and saves while the shot is in flight: `OracleBullet` (`SaveGame07` in combat, Ira's shot at enemy 23, fired
+and moved once by `FireBullet`) and `OracleThrow` (the same with a hand grenade put in her hand by `vehicleinv`: the
+physics object where it left her hand), each seeded before its load so the saves repeat; the shots and the hand item are
+compared in the vehicles domain. `save-flight.txt` loads them, each load's draws traced and fed to the import's restart,
+and runs 300 frames after `OracleBullet`: the loaded bullet moves on at the first `UpdateBullets` and hits enemy 23 in
+frame 13. `save-flight-compare.ts` imports the saves from the output's folder, compares the soldiers' tiles and
+animations after each load, runs the frames as campaign steps with each frame's draws in order, and compares the life
+and breath of every soldier whose native row changes, frame by frame, and that no bullet is left. Not reached: a thrown
+object's flight after the load (no command runs `SimulateWorld`, and no probe prints the physics table), a thrown
+knife's status from the hand, the item cursor (`14` §4).
 
 ### Sector transitions
 
@@ -932,6 +948,10 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
   `OracleCombatBlast` into the oracle's home; `save-bombs.txt` reads them from there, so it runs after it, and writes
   `save-bombs/loads.jsonl`. The work dir keeps copies of the saves in `save-bombs/`, where `compare.ts` finds them.
   `compare-all.sh` compares both outputs ("Savegame bombs and explosions").
+- `save-flight-setup.txt` writes `save-flight/setup.jsonl` and the saves `OracleBullet` and `OracleThrow` into the
+  oracle's home; `save-flight.txt` reads them from there, so it runs after it, and writes `save-flight/loads.jsonl`. The
+  work dir keeps copies of both saves in `save-flight/`, where `compare.ts` finds them. `compare-all.sh` compares both
+  outputs ("Savegame bullets and thrown objects").
 - **Saves.** The shipped scripts name the maintainer's seven saves (`SaveGame01`, `02`, `03`, `07`, `08`, `09`, `10`;
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;

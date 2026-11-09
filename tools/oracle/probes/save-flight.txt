@@ -1,0 +1,21 @@
+# The bullets and thrown objects of a save after a native load (README "Savegame bullets and thrown objects"), on the
+# saves save-flight-setup.txt writes into the oracle's home (run it first). Seeded before each load, each load's draws
+# traced for the import's restart of every saved animation.
+
+# 1. OracleBullet: the load takes the bullet back with its last update 0, so the first frame's UpdateBullets moves it
+# on; the frames fly it into enemy 23 and run the hit and its animations.
+hdtimer on=1
+seed value=7
+draws on
+save OracleBullet
+draws dump
+draws off
+hdframes count=300
+
+# 2. OracleThrow: the load takes the grenade back with no level node; no command runs SimulateWorld, so it stays
+# where it left Ira's hand, and only the load is traced.
+seed value=7
+draws on
+save OracleThrow
+draws dump
+draws off

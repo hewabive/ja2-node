@@ -215,10 +215,12 @@ on the map screen first (`tools/oracle/tactical-import.ts`). The loaded sector's
 native build writes itself, a tear gas cloud and a hit window; the other sectors' at their first entries after
 `SaveGame09` and in the records of every sector of `SaveGame03` (`tools/oracle/README.md` "Savegame temp files"); the
 bomb queue and the explosions in flight on saves it writes too, a queue whose slot names another bomb after the load and
-explosions in real time and in combat ("Savegame bombs and explosions" there). With the original data, the subsystems'
-`save-import` tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one: a
-save with a world in tactical, one without on the map screen while its travelling squad reaches the next sector; the
-first save with a world is also played again with its world flag cleared.
+explosions in real time and in combat ("Savegame bombs and explosions" there); a bullet saved in flight, flown on frame
+by frame after the load into its target, the hit's draws and the target's life and breath in the native frame ("Savegame
+bullets and thrown objects" there). With the original data, the subsystems' `save-import` tests import every save in
+`SavedGames`, and `src/server/save-session.test.ts` keeps playing each one: a save with a world in tactical, one without
+on the map screen while its travelling squad reaches the next sector; the first save with a world is also played again
+with its world flag cleared.
 
 Inferred from reading the source:
 - The Linux layout has a synthetic test only, and no real file covers versions 100–105: the saves the tests use
@@ -241,8 +243,10 @@ Inferred from reading the source:
 - An explosion's saved frame and its light: the oracle runs no tile animation, so its saves hold frame 0 and the probe
   prints no light; unit tests pin both (`src/sim/tactical/save-import.test.ts`). No probe follows a loaded explosion to
   its end.
-- The bullets and thrown objects in flight, a thrown knife's status from the hand, a bullet saved stopped and the
-  cursor item: no shipped save holds one, so unit tests pin them (`src/sim/tactical/save-import.test.ts`).
+- A thrown object after the load: the oracle writes a save with a grenade in flight, which the import reads, but no
+  probe command runs `SimulateWorld` or prints the physics table, so its flight, its missing level node and its end are
+  pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's status from the hand, a
+  bullet saved stopped and the cursor item: no probe makes them.
 
 Not ported: gaps "Animations on load", "Pending actions on import", "Smoke owner in a sector diff".
 Other deviations of the import: "Ambient sound events", "Blood on the ground",

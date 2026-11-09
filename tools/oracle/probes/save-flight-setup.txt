@@ -1,0 +1,19 @@
+# The saves save-flight.txt loads (README "Savegame bullets and thrown objects"): each block starts an attack with
+# vehiclefire, whose animation frames fire the shot but run no game frame, and writes the game with hdsave (0031) while
+# the shot is in flight. Seeded before each load, so the draws, and with them the saves, repeat (but for the header's
+# real time).
+
+# 1. OracleBullet: SaveGame07, D13 in turn-based combat on our turn. Ira (2, at 12867) shoots at enemy 23 (12397): the
+# bullet is fired and moved once (FireBullet), and no UpdateBullets moves it on.
+seed value=7
+save SaveGame07
+vehiclefire who=2 target=12397 ap=80
+hdsave name=OracleBullet
+
+# 2. OracleThrow: the same, with a hand grenade in Ira's hand: her throw creates the physics object, which no command
+# simulates, so it is saved where it left her hand.
+seed value=7
+save SaveGame07
+vehicleinv who=2 slot=5 item=HAND_GRENADE status=100
+vehiclefire who=2 target=12397 ap=80
+hdsave name=OracleThrow

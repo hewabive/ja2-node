@@ -69,6 +69,7 @@ import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
 import { RECRUIT_PROBES, RecruitComparer } from './recruit-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
+import { isSaveFlightOutput, SaveFlightComparer } from './save-flight-compare.ts';
 import { isSaveSectorsOutput, SaveSectorsComparer } from './save-sectors-compare.ts';
 import { SCHEDULE_PROBES, ScheduleComparer } from './schedules-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
@@ -651,6 +652,12 @@ for (const file of files) {
     const heliDrop = new HeliDropComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
     const lines = readLines(file);
     for (const [at, p] of lines.entries()) failures += await heliDrop.compare(p, loadDrawsAfter(lines, at));
+    continue;
+  }
+  if (isSaveFlightOutput(file)) {
+    const saveFlight = new SaveFlightComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
+    const lines = readLines(file);
+    for (const [at, p] of lines.entries()) failures += await saveFlight.compare(p, loadDrawsAfter(lines, at));
     continue;
   }
   if (isSaveSectorsOutput(file)) {
