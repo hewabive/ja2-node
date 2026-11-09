@@ -1,5 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { type SheetLayout, soldierSheetFrame } from '../../src/content/anim/soldier-sprite.ts';
+import { requireAnimationTimelines, spriteFrameAt } from '../../src/content/anim/timelines.ts';
+import { decodeSti } from '../../src/content/formats/sti.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import { WORLD_MAX } from '../../src/content/world/grid.ts';
@@ -23,6 +26,7 @@ import { InvSlot, itemIn } from '../../src/sim/tactical/inventory.ts';
 import { LightSpriteFlags, lightSetBaseLevel, lightTrueLevel, loadMapLights } from '../../src/sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../../src/sim/tactical/load-content.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
+import { shownAnimSurface } from '../../src/sim/tactical/multi-tile.ts';
 import { findBestPath, type MoveMode } from '../../src/sim/tactical/pathfinding.ts';
 import { landHeightUnits, lineOfSightTest } from '../../src/sim/tactical/perception/los.ts';
 import { distanceVisible } from '../../src/sim/tactical/perception/sight.ts';
@@ -38,9 +42,10 @@ import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactic
 import { registerSoldier, type TacticalState, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { ABSENT_PROBES, AbsentComparer } from './absent-compare.ts';
+import type { Draw } from './actions-compare.ts';
 import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
 import { ATTACH_PROBES, AttachComparer } from './attach-compare.ts';
-import { AUTO_BANDAGE_PROBES, AutoBandageComparer } from './auto-bandage-compare.ts';
+import { AUTO_BANDAGE_PROBES, AutoBandageComparer, inOrder } from './auto-bandage-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
@@ -300,20 +305,52 @@ function oracleFacts(o: Json): Json {
   };
 }
 
-function compareSoldier(ctx: Context, o: Json, line: unknown): number {
+const sheetLayouts = new Map<string, Promise<SheetLayout | null>>();
+
+async function loadSheetLayout(file: string, directions: number, noFrames: boolean): Promise<SheetLayout | null> {
+  const bytes = await read(file);
+  if (!bytes) return null;
+  const sti = decodeSti(bytes, false);
+  const frameCount = sti.kind === 'indexed' ? sti.subImages.length : 0;
+  const framesPerDirection =
+    (sti.kind === 'indexed' ? sti.appData?.[0]?.numberOfFrames : 0) || Math.max(1, Math.floor(frameCount / directions));
+  return { directions, framesPerDirection, noFrames, frameCount };
+}
+
+function sheetLayoutOf(t: TacticalState, s: Soldier): Promise<SheetLayout | null> {
+  const surface = t.content.animations.surfaces[shownAnimSurface(t.content, s)];
+  if (!surface) return Promise.resolve(null);
+  let layout = sheetLayouts.get(surface.file);
+  if (!layout) {
+    layout = loadSheetLayout(surface.file, surface.directions, surface.noFrames);
+    sheetLayouts.set(surface.file, layout);
+  }
+  return layout;
+}
+
+async function animationFacts(t: TacticalState, s: Soldier): Promise<Json> {
+  const layout = await sheetLayoutOf(t, s);
+  const scriptFrame = spriteFrameAt(presentation, s.frameSlot);
+  const facing = { direction: s.direction, hiResDirection: s.hiResDirection };
+  return { aniCode: s.pc, aniFrame: layout ? soldierSheetFrame(layout, scriptFrame, facing) : null };
+}
+
+async function compareSoldier(ctx: Context, o: Json, line: unknown): Promise<number> {
   const s = ctx.sim.state.soldiers[Number(o.id)];
   if (!s?.placed) return report(`soldier ${o.id} line ${line}`, false, 'missing in ja2-node');
-  const ours = soldierFacts(ctx.sim.state, s);
-  const theirs = oracleFacts(o);
+  const ours: Json = { ...soldierFacts(ctx.sim.state, s), ...(ctx.save ? await animationFacts(ctx.sim.state, s) : {}) };
+  const theirs: Json = { ...oracleFacts(o), ...(ctx.save ? { aniCode: o.aniCode, aniFrame: o.aniFrame } : {}) };
   const differing = Object.keys(theirs).filter((k) => JSON.stringify(ours[k]) !== JSON.stringify(theirs[k]));
   const detail = differing.map((k) => `${k} ${JSON.stringify(ours[k])}/${JSON.stringify(theirs[k])}`).join('; ');
   return report(`soldier ${o.id} line ${line}`, differing.length === 0, detail);
 }
 
-function compareSoldiers(ctx: Context, p: Json): number {
+async function compareSoldiers(ctx: Context, p: Json): Promise<number> {
   if (p.probe === 'soldier') return compareSoldier(ctx, p.soldier as Json, p.line);
   if (!p.detail) return 0;
-  return (p.soldiers as Json[]).reduce((n, o) => n + compareSoldier(ctx, o, p.line), 0);
+  let failures = 0;
+  for (const o of p.soldiers as Json[]) failures += await compareSoldier(ctx, o, p.line);
+  return failures;
 }
 
 const LOCATION_PART: Readonly<Record<string, number>> = {
@@ -538,15 +575,23 @@ async function sectorContext(
   return { sim, save: false };
 }
 
+function loadDrawsAfter(lines: readonly Json[], at: number): readonly Draw[] {
+  const next = lines[at + 1];
+  return next?.probe === 'draws' && next.mode === 'dump' ? ((next.draws as Draw[] | undefined) ?? []) : [];
+}
+
 async function saveContext(
   read: ReadFile,
   content: TacticalContent,
   worlds: Map<string, TacticalWorld>,
   dir: string,
   p: Json,
+  loadDraws: readonly Draw[],
 ): Promise<Context> {
   const bytes = new Uint8Array(readFileSync(join(dir, `${String(p.name)}.sav`)));
-  const imported = await createTacticalSaveSession(read, bytes);
+  const imported = await createTacticalSaveSession(read, bytes, undefined, null, undefined, undefined, (t, restart) =>
+    inOrder(t, loadDraws, restart),
+  );
   const loaded = imported.session.campaign.tactical;
   if (loaded) return { sim: loaded, save: true, bytes, imported };
   return { sim: (await sectorContext(read, content, worlds, null)).sim, save: true, bytes, worldless: true, imported };
@@ -598,6 +643,7 @@ if (dataDir === null) {
 const read: ReadFile = withGraphicFacts(vfsFileReader(data.vfs));
 const exists: FileExists = (p) => data.vfs.stat(p) !== undefined;
 const content = await loadTacticalContent(read);
+const { presentation } = await requireAnimationTimelines(read);
 const worlds = new Map<string, TacticalWorld>();
 let failures = 0;
 for (const file of files) {
@@ -640,7 +686,8 @@ for (const file of files) {
   const autoBandage = new AutoBandageComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
-  for (const p of readLines(file)) {
+  const lines = readLines(file);
+  for (const [at, p] of lines.entries()) {
     if (p.error) failures += report(`${p.probe} line ${p.line}`, false, `oracle error: ${p.error}`);
     else if (p.probe === 'arsetup') {
       arSetup = p;
@@ -651,7 +698,7 @@ for (const file of files) {
       meanwhiles.loadSector();
     } else if (p.probe === 'save') {
       const dir = saveDirFor(dataDir, file, String(p.name));
-      ctx = await saveContext(read, content, worlds, dir, p);
+      ctx = await saveContext(read, content, worlds, dir, p, loadDrawsAfter(lines, at));
       const imported = ctx.imported ?? null;
       sectors.loadSave(dir, String(p.name));
       await strategic.loadSave(dir, String(p.name), ctx.worldless ? null : ctx.sim, imported);
@@ -718,7 +765,7 @@ for (const file of files) {
       if (p.probe === 'costs') failures += compareCosts(ctx, p);
       else if (p.probe === 'path') failures += comparePath(ctx, p);
       else if (p.probe === 'los') failures += compareLos(ctx, p);
-      else if (p.probe === 'soldier' || p.probe === 'soldiers') failures += compareSoldiers(ctx, p);
+      else if (p.probe === 'soldier' || p.probe === 'soldiers') failures += await compareSoldiers(ctx, p);
       else if (p.probe === 'cth') failures += compareCth(ctx, p);
       else if (p.probe === 'bestshot') failures += compareBestShot(ctx, p);
       else if (p.probe === 'light') failures += compareLight(ctx, p);

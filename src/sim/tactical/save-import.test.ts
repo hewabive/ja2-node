@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { stubProfiles } from '../../../tests/support/contracts.ts';
 import { itemId } from '../../../tests/support/explosives.ts';
-import { loadTestContent, loadTestTimelines, testDoorCosts } from '../../../tests/support/tactical.ts';
-import type { PresentationTimeline } from '../../content/anim/timelines.ts';
+import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
+import { SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SavedVehicle, SaveGame } from '../../content/formats/savegame.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
@@ -20,14 +20,25 @@ import { addSavedMercsToRoster } from '../campaign/save-roster.ts';
 import { NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { createStrategicState } from '../strategic/state.ts';
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
-import { states } from './animation.ts';
+import { anim, animName } from './anim-states.ts';
+import { computedAnimationDelay, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
 import { smokeEffectOnTile } from './explosions/smoke.ts';
+import { InvSlot } from './inventory.ts';
 import { LightSpriteFlags, lightSetBaseLevel, lightTrueLevel, NORMAL_LIGHTLEVEL_NIGHT } from './lighting/lighting.ts';
 import { RevealedFlags, revealedRooms } from './perception/fov.ts';
 import { handleCrowLeave } from './rotting-corpses.ts';
-import { importCampaignWideState, importSave, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from './save-import.ts';
+import {
+  type AroundAnimationRestart,
+  createWorldlessSavedSoldiers,
+  importCampaignWideState,
+  importSave,
+  loadSavedSectorChanges,
+  NO_SAVED_SECTOR_CHANGES,
+  RESTART_ON_OWN_DRAWS,
+  type SavedSoldiers,
+} from './save-import.ts';
 import {
   Body,
   cellCentre,
@@ -45,11 +56,9 @@ import { TacticalSim } from './tactical-sim.ts';
 import { WorldItemFlags } from './world-items.ts';
 
 let content: TacticalContent;
-let presentation: PresentationTimeline;
 
 beforeAll(async () => {
   content = await loadTestContent();
-  presentation = (await loadTestTimelines()).presentation;
 });
 
 const SAVE_VERSION = 99;
@@ -214,6 +223,15 @@ function syntheticSave({
 }
 
 function importedSim(save: SaveGame, blocked: readonly number[] = [], mapFields: Readonly<Record<string, unknown>> = {}): TacticalSim {
+  return importedSave(save, blocked, mapFields).sim;
+}
+
+function importedSave(
+  save: SaveGame,
+  blocked: readonly number[] = [],
+  mapFields: Readonly<Record<string, unknown>> = {},
+  aroundRestart: AroundAnimationRestart = RESTART_ON_OWN_DRAWS,
+): { readonly sim: TacticalSim; readonly soldiers: SavedSoldiers } {
   const base = syntheticWorld(testDoorCosts(), (structures) => {
     for (const g of blocked) structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
   });
@@ -223,8 +241,7 @@ function importedSim(save: SaveGame, blocked: readonly number[] = [], mapFields:
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   const sim = new TacticalSim(world, content, 1);
-  importSave(sim, save, presentation);
-  return sim;
+  return { sim, soldiers: importSave(sim, save, aroundRestart).soldiers };
 }
 
 function soldierOf(sim: TacticalSim, id: number): Soldier {
@@ -436,6 +453,14 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const save = syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, at, { dXPos: centre.x + 3, dYPos: centre.y - 2 })] });
     const merc = soldierOf(importedSim(save), MERC_ID);
     expect([merc.gridNo, merc.x, merc.y]).toEqual([at, centre.x, centre.y]);
+  });
+
+  it('keeps a walker saved between two tiles on his saved tile with his destination on the next: setting a position while loading does not move a walker on to his destination (Soldier_Control.cc:1891)', () => {
+    const at = gridNo(80, 82);
+    const next = gridNo(81, 82);
+    const walking = { usAnimState: states(content.animations).WALKING, sDestination: next, sFinalDestination: gridNo(84, 82) };
+    const walker = soldierOf(importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, at, walking)] })), MERC_ID);
+    expect([walker.gridNo, walker.destination, walker.placed]).toEqual([at, next, true]);
   });
 
   it('keeps the centre of the tile a walking soldier steps to and whether he is past it on each axis, which only a step sets (sDestXPos, sDestYPos, fPastXDest, fPastYDest)', () => {
@@ -711,6 +736,169 @@ function savedProfile(p: MercProfile, nickname: string): SavedMercProfile {
   return { ...p, nickname, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, checksum: 0 };
 }
 
+describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Control.cc:615; EVENT_InitNewSoldierAnim, :897)', () => {
+  const RANDOM_ANIM_CHECK = 491;
+  const END_OF_ANIMATION = 499;
+  const GO_BACK = 496;
+  const DICE = 100;
+  const NO_IDLE_ANIMATION_ROLL = 99;
+  const ANIM_CROUCH = 3;
+  const MERC_AT = gridNo(80, 82);
+
+  function codeOfOpcode(state: number, opcode: number): number {
+    for (let pc = 0; ; pc++) {
+      const slot = timelineSlot(state, pc);
+      if (slotKind(content.timeline, slot) === SlotKind.OP && slotArgument(content.timeline, slot) === opcode) return pc;
+      if (slotKind(content.timeline, slot) === SlotKind.EMPTY) throw new Error(`no code ${opcode} in state ${state}`);
+    }
+  }
+
+  function scriptedDraws(rolls: number[], draws: number[]): AroundAnimationRestart {
+    return (t, restart) => {
+      const rng = t.rng as unknown as { int(n: number): number };
+      rng.int = (n) => {
+        draws.push(n);
+        return rolls.shift() ?? 0;
+      };
+      try {
+        restart();
+      } finally {
+        delete (rng as { int?: unknown }).int;
+      }
+    };
+  }
+
+  function holding(entry: SavedSoldierEntry, item: number): SavedSoldierEntry {
+    const inventory = entry.soldier.inventory.map((o, slot) =>
+      slot === InvSlot.HAND ? { ...o, item, count: 1, status: o.status.map((_, k) => (k === 0 ? 100 : 0)) } : o,
+    );
+    return { ...entry, soldier: { ...entry.soldier, inventory } };
+  }
+
+  it('runs the script on from the saved code to the next frame, works the frame delay out again and starts its timer anew', () => {
+    const save = syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, MERC_AT, { usAniCode: 3 })] });
+    const sim = importedSim(save);
+    const merc = soldierOf(sim, MERC_ID);
+    const standing = states(content.animations).STANDING;
+    expect([merc.state, merc.pc, merc.frameSlot]).toEqual([standing, 4, timelineSlot(standing, 3)]);
+    expect([merc.aniDelay, merc.nextFrameAt]).toEqual([computedAnimationDelay(sim.state, merc), sim.state.clockMs + merc.aniDelay]);
+  });
+
+  it('counts the idle check of a breathing soldier saved right before it, and rolls Random(100) at its threshold (Soldier_Ani.cc:1384)', () => {
+    const standing = states(content.animations).STANDING;
+    const atCheck = codeOfOpcode(standing, RANDOM_ANIM_CHECK);
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, MERC_AT, { usAniCode: atCheck, uiTimeOfLastRandomAction: 1 }),
+        savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(84, 82), { usAniCode: atCheck, uiTimeOfLastRandomAction: 2 }),
+      ],
+    });
+    const draws: number[] = [];
+    const { sim } = importedSave(save, [], {}, scriptedDraws([NO_IDLE_ANIMATION_ROLL], draws));
+    const counted = [MERC_ID, CIVILIAN_ID].map((id) => soldierOf(sim, id));
+    expect(draws).toEqual([DICE]);
+    expect(counted.map((s) => [s.timeOfLastRandomAction, s.state, s.pc])).toEqual([
+      [2, standing, 1],
+      [0, standing, 1],
+    ]);
+  });
+
+  it('holds the saved pending animation through the restart, whose own state changes take the loading branch too: a soldier saved at the end of kneeling down with a walk pending goes straight into the walk, with no stance change (Soldier_Control.cc:897)', () => {
+    const st = states(content.animations);
+    const kneelDown = anim(content, 'KNEEL_DOWN');
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(84, 82), {
+          usAnimState: kneelDown,
+          usAniCode: codeOfOpcode(kneelDown, END_OF_ANIMATION),
+          ubDesiredHeight: ANIM_CROUCH,
+          usPendingAnimation: st.WALKING,
+        }),
+      ],
+    });
+    const walker = soldierOf(importedSim(save), CIVILIAN_ID);
+    expect([walker.state, walker.oldState, walker.pendingAnimation]).toEqual([st.WALKING, kneelDown, NO_PENDING_ANIMATION]);
+  });
+
+  it('lays a soldier saved at the end of a death twitch down in his stance: the go-back of code 496 would start the twitch the restart made his previous animation again and again (deviation "Twitch going back to itself")', () => {
+    const twitch = anim(content, 'GENERIC_HIT_DEATHTWITCHB');
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(84, 82), {
+          usAnimState: twitch,
+          usAniCode: codeOfOpcode(twitch, GO_BACK),
+          service_partner: NOBODY,
+        }),
+      ],
+    });
+    expect(animName(content, soldierOf(importedSim(save), CIVILIAN_ID).state)).toBe('PRONE');
+  });
+
+  it('charges a soldier saved readying his rifle in combat the points to ready it again, unless he was not to be charged, which the restart clears (Soldier_Control.cc:1407)', () => {
+    const rifle = content.items.byName.get('M14')?.index ?? 0;
+    const readyTime = content.items.byIndex.get(rifle)?.weapon?.readyTime ?? 0;
+    const ready = { usAnimState: anim(content, 'READY_RIFLE_STAND'), bActionPoints: 20 };
+    const save = syntheticSave({
+      soldiers: [
+        holding(savedSoldier(MERC_ID, Team.OUR, MERC_AT, ready), rifle),
+        holding(savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82), { ...ready, fDontChargeReadyAPs: 1 }), rifle),
+      ],
+      tactical: { inCombat: true },
+    });
+    const sim = importedSim(save);
+    const [charged, spared] = [MERC_ID, MERC_ID + 1].map((id) => soldierOf(sim, id));
+    expect(readyTime).toBeGreaterThan(0);
+    expect([charged?.actionPoints, spared?.actionPoints, spared?.dontChargeReadyAPs]).toEqual([20 - readyTime, 20, false]);
+  });
+
+  it('drops the last target of a soldier saved in a state that aims at nothing, and keeps the one of a soldier readying his rifle (Soldier_Control.cc:1360)', () => {
+    const target = gridNo(90, 90);
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, MERC_AT, { sLastTarget: target }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82), { sLastTarget: target, usAnimState: anim(content, 'READY_RIFLE_STAND') }),
+      ],
+    });
+    const sim = importedSim(save);
+    expect([MERC_ID, MERC_ID + 1].map((id) => soldierOf(sim, id).lastTarget)).toEqual([NOWHERE, target]);
+  });
+
+  it('restarts the soldiers of no map too: our merc off the map counts his idle check, and so does a soldier of another team the load drops, each drawing on the main stream in id order', () => {
+    const standing = states(content.animations).STANDING;
+    const atCheck = codeOfOpcode(standing, RANDOM_ANIM_CHECK);
+    const elsewhere = { usAniCode: atCheck, uiTimeOfLastRandomAction: 2, sSectorX: SECTOR.x + 1 };
+    const save = syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, MERC_AT, elsewhere), savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(84, 82), elsewhere)],
+    });
+    const draws: number[] = [];
+    const { sim, soldiers } = importedSave(save, [], {}, scriptedDraws([NO_IDLE_ANIMATION_ROLL, NO_IDLE_ANIMATION_ROLL], draws));
+    expect(draws).toEqual([DICE, DICE]);
+    expect([sim.state.soldiers[MERC_ID], sim.state.soldiers[CIVILIAN_ID]]).toEqual([undefined, undefined]);
+    expect(soldiers.get(MERC_ID)?.timeOfLastRandomAction).toBe(0);
+  });
+});
+
+describe('the soldiers of a save with no world (deviation "Animations on load without a world")', () => {
+  it('stands a soldier saved climbing or hopping a fence up at code 0, as CreateSoldierCommon does with no world loaded, and runs no script (Soldier_Control.cc:598-615)', () => {
+    const standing = states(content.animations).STANDING;
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { usAnimState: anim(content, 'HOPFENCE'), usAniCode: 5 }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82), { usAniCode: 12, uiTimeOfLastRandomAction: 2 }),
+      ],
+    });
+    const soldiers = createWorldlessSavedSoldiers(save, content);
+    const facts = (id: number) => {
+      const s = soldiers.get(id);
+      return [s?.state, s?.pc, s?.timeOfLastRandomAction];
+    };
+    expect([facts(MERC_ID), facts(MERC_ID + 1)]).toEqual([
+      [standing, 0, 0],
+      [standing, 12, 2],
+    ]);
+  });
+});
+
 describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', () => {
   it("keeps a saved nickname that differs from the content profile's, as the terrorists' reveal leaves it", () => {
     const [renamed, kept] = stubProfiles(content.items).filter((p) => p.nickname !== '');
@@ -740,9 +928,9 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
         savedSoldier(DEAD_ID, Team.OUR, gridNo(82, 82), { uiStatusFlags: SOLDIER_DEAD, bLife: 0 }),
       ],
     });
-    const sim = importedSim(save);
+    const { sim, soldiers } = importedSave(save);
     const roster = new Roster({ state: createRosterState(), content, combat: () => sim.state });
-    addSavedMercsToRoster(roster, save, sim.state);
+    addSavedMercsToRoster(roster, save, soldiers);
     const merc = (id: number) => roster.get(id);
     expect([merc(MERC_ID)?.soldier.dead, merc(DEAD_ID)?.soldier.dead]).toEqual([false, true]);
     expect(((merc(DEAD_ID)?.statusFlags ?? 0) & SOLDIER_DEAD) !== 0).toBe(true);
@@ -815,10 +1003,10 @@ describe('the vehicle ids of an import (LoadSaveSoldierType.cc bVehicleID, iVehi
 
   it('gives our vehicle merc the vehicle he is, not the iVehicleId the original never sets for him, and a merc the one he rides', () => {
     const save = vehicleSave();
-    const sim = importedSim(save);
+    const { sim, soldiers } = importedSave(save);
     const state = createRosterState();
     const roster = new Roster({ state, content, combat: () => sim.state });
-    addSavedMercsToRoster(roster, save, sim.state);
+    addSavedMercsToRoster(roster, save, soldiers);
     expect([roster.get(OUR_HUMMER_ID)?.vehicleId, roster.get(MERC_ID)?.vehicleId]).toEqual([OUR_HUMMER_SLOT, RIDDEN_SLOT]);
   });
 
@@ -917,14 +1105,14 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
 
   it("puts the helicopter's passenger in his merc slot, in id order, with no tile, and the roster reads every seat from the soldier (Soldier_Add.cc InternalAddSoldierToSector)", () => {
     const save = seatedSave();
-    const sim = importedSim(save);
+    const { sim, soldiers } = importedSave(save);
     const t = sim.state;
     const flying = soldierOf(sim, FLYING_ID);
     expect([flying.placed, flying.offMap, flying.gridNo, flying.structure]).toEqual([false, true, NOWHERE, null]);
     expect(t.mercSlots.map((s) => s.id)).toEqual([DRIVER_ID, PASSENGER_ID, FLYING_ID, OUR_HUMMER_ID]);
     expect(whoIsThere(t, gridNo(90, 90), 0)).toBeNull();
     const roster = new Roster({ state: createRosterState(), content, combat: () => t });
-    addSavedMercsToRoster(roster, save, t);
+    addSavedMercsToRoster(roster, save, soldiers);
     const mercs = [DRIVER_ID, PASSENGER_ID, FLYING_ID].map((id) => roster.get(id));
     expect(mercs.map((m) => [m?.vehicleSeat, m?.isPassengerOrDriver, m?.inSector, m?.statusFlags])).toEqual([
       [VehicleSeat.DRIVER, true, true, 0],

@@ -22,7 +22,7 @@ import { SectorFlag } from '../sim/strategic/forces/constants.ts';
 import { getSectorFlagStatus } from '../sim/strategic/map/sectors.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
-import { inLoadedSector } from '../sim/tactical/save-import.ts';
+import { type AroundAnimationRestart, inLoadedSector } from '../sim/tactical/save-import.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { whoIsThere } from '../sim/tactical/state.ts';
 import { createSaveSession } from './save-session.ts';
@@ -44,6 +44,8 @@ const savedWithWorld = (file: string) => parseSaveHeader(new Uint8Array(readFile
 const worldSaves = saveFiles.filter(savedWithWorld);
 const noWorldSaves = saveFiles.filter((file) => !savedWithWorld(file));
 const TRAVEL_STEPS = 20_000;
+const IDLE_DICE = 100;
+const IDLE_ROLLERS_OF_THE_NATIVE_LOAD: Readonly<Record<string, readonly number[]>> = { 'SaveGame01.sav': [121], 'SaveGame07.sav': [0] };
 const DRASSEN_AIRPORT = { x: 13, y: 2, z: 0 };
 const DRASSEN_HELIPAD = 9001;
 const WRITTEN_BACK_ON_LOAD: ReadonlySet<number> = new Set([
@@ -141,6 +143,36 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(c.state.sectorFlow.helicopterDrop.firstHeliRun).toBe(true);
     },
   );
+
+  for (const file of worldSaves) {
+    it(`restarts the animations of ${file} with the idle checks the native load rolls: one in SaveGame01 and SaveGame07, by the soldier its draw trace shows, none in the others (CreateSoldierCommon, Soldier_Control.cc:615)`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const draws: number[] = [];
+      const counted: AroundAnimationRestart = (t, restart) => {
+        const rng = t.rng as unknown as { int(n: number): number };
+        const own = rng.int.bind(rng);
+        rng.int = (n) => {
+          draws.push(n);
+          return own(n);
+        };
+        try {
+          restart();
+        } finally {
+          delete (rng as { int?: unknown }).int;
+        }
+      };
+      const { session } = await createSaveSession(read, bytes, undefined, null, undefined, undefined, counted);
+      const t = session.campaign.tactical?.state;
+      const rolled = save.soldiers
+        .map((e) => e.soldier)
+        .filter((r) => r.motion.timeOfLastRandomAction > 0 && t?.soldiers[r.id]?.timeOfLastRandomAction === 0)
+        .map((r) => r.id);
+      const rollers = IDLE_ROLLERS_OF_THE_NATIVE_LOAD[file] ?? [];
+      expect([draws, rolled]).toEqual([rollers.map(() => IDLE_DICE), rollers]);
+    });
+  }
 
   for (const file of saveFiles) {
     it(`imports the game options and the music mode of ${file}`, async () => {

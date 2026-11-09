@@ -17,7 +17,8 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
     the loaded world: loadedWorldSector                         content/formats/savegame.ts
     the screen it resumes on: resumesOnMapScreen                content/formats/savegame.ts
     with one: TacticalSim on the saved map and door table,      sim/tactical/save-import.ts
-      importSave, strategic state on the tactical random streams
+      importSave, strategic state on the tactical random streams;
+      every saved soldier created and his animation restarted
     without one: strategic state on its own streams,            sim/tactical/save-import.ts
       importCampaignWideState
     then one import per subsystem:
@@ -77,6 +78,22 @@ the tactical flow, one made on the map screen, or without a world, on the map sc
 enters it (a 5–60 minute compression mode stays but stops, any other becomes X0; `createOnMapScreen`,
 `sim/campaign/campaign-sim.ts`), its sector, if any, loaded behind it until `tacticalScreen`.
 
+**Every saved animation starts again.** `LoadSoldierStructure` creates every saved soldier, of every team and wherever
+he is, in id order, and each creation starts his saved animation again at its saved code (`SaveLoadGame.cc:1396`,
+`Tactical/Soldier_Create.cc:459`, `Tactical/Soldier_Control.cc:615`), before the temp files load and before anybody
+enters the map. The import does the same in `importSave` (`restartSavedSoldiers`, `src/sim/tactical/save-import.ts`):
+it creates every soldier of the save, puts those of the loaded sector at their saved tiles without standing them on the
+map, links them, and restarts each through `restartAnimationOnLoad` (`src/sim/tactical/animation.ts`) after the
+tactical status, as `LoadTacticalStatusFromSavedGame` comes first. `TacticalState.loadingSave` stands for
+`LOADING_SAVED_GAME` from the restart to the last soldier placed: every animation started meanwhile, the ones a restart
+starts included, takes `EVENT_InitNewSoldierAnim`'s loading branch, which skips every check of a new animation
+(`Tactical/Soldier_Control.cc:897`), and a soldier placed meanwhile is not stepped on to his destination (`:1891`). The
+restart runs the script with its opcodes, and its draws are the main stream's, as all of `Random` is (deviation "Player
+loads"); the saved pending animation is held through it and dropped after, as entering the sector does
+(`Tactical/Soldier_Add.cc:871`); the roster takes the restarted soldiers of the mercs on no map. A save with no world
+only stands a climber up (deviation "Animations on load without a world"). The restart runs before the campaign hooks
+the sector, so an opcode that reports to the campaign does not reach it (gap "Animations on load").
+
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
 animation) after it has stood a landed helicopter on the map and applied the loaded sector's map changes, revealed
@@ -129,6 +146,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 |---|---|
 | The last-known opponent locations are saved with their element count as byte count ("TODO000F", `SaveLoadGame.cc:1661`): only soldiers 0–77 get theirs back, the others keep a fresh process's zeroed memory; the public lists of teams 3–5 and their noise tiles keep the world load's `NOWHERE` | `sim/tactical/save-import.test.ts` |
 | A soldier saved mid-step comes back at the centre of his tile | `sim/tactical/save-import.test.ts` |
+| The load starts every saved animation again at its saved code and runs the script on to the next frame: a breathing soldier saved before his idle check counts it and may roll an idle animation, one readying his rifle in combat pays for it again, and an animation the restart starts skips every check of a new one (`Tactical/Soldier_Control.cc:615`, `:897`, `Tactical/Soldier_Ani.cc:1384`) | `sim/tactical/save-import.test.ts` "runs the script on from the saved code …", "counts the idle check …", "charges a soldier saved readying his rifle …", "holds the saved pending animation …"; `server/save-session.test.ts` "restarts the animations of …" |
 | Loading drops every soldier's movement reservation and pending animation | `sim/tactical/save-import.test.ts` |
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
 | So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
@@ -152,8 +170,9 @@ Not pinned yet:
 The oracle loads the same files: `tools/oracle/save-probes.ts` writes probes for any saves (soldier dumps, hit chance,
 the AI's best shot, sight, paths and lights for every opposed pair), the native build runs them after its `save`
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
-"`save`"); most other comparers start from imported saves too, entering the loaded sector of a save made on the map
-screen first (`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the native build
+"`save`"), the load's traced draws fed to the restart and each soldier's animation code and frame compared; most other
+comparers start from imported saves too, entering the loaded sector of a save made on the map screen first
+(`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the native build
 writes itself, a tear gas cloud and a hit window; the other sectors' at their first entries after `SaveGame09` and in
 the records of every sector of `SaveGame03` (`tools/oracle/README.md` "Savegame temp files"). With the original
 data, the subsystems' `save-import` tests import every save in `SavedGames`, and `src/server/save-session.test.ts`
@@ -169,6 +188,9 @@ Inferred from reading the source:
 - The zeroed half of the personal last-known locations: no probe dumps `gsLastKnownOppLoc`, and a load inside a running
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
+- The restart's opcodes past the idle check: every soldier of the shipped saves stands, walks, crouches, aims or cowers,
+  so the native restarts reach no opcode but code 491; the others are pinned by unit tests
+  (`src/sim/tactical/save-import.test.ts`).
 - Damage records and light effects of the loaded sector: no probe command makes them (a structure's damage needs an
   explosion's tile animation frames, which no probe runs; nothing lights a flare), so only unit tests pin them
   (`src/sim/tactical/native-temp-files.test.ts`, `src/sim/tactical/save-import.test.ts`). The window probe sees the

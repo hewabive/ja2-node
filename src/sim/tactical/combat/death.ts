@@ -9,7 +9,8 @@
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
 // @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06); TurnSoldierIntoCorpse taking our dead off the map
 // @src through RemoveSoldierFromGridNo (2026-11-07); HandleSoldierDeath's SOLDIER_DEAD left to the strategic death for
-// @src our mercs killed for a lost battle (2026-11-08).
+// @src our mercs killed for a lost battle (2026-11-08); code 496 going back to itself (deviation "Twitch going back to
+// @src itself", 2026-11-08).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -30,6 +31,7 @@ import {
   initNewSoldierAnim,
   setDesiredDirection,
   setSoldierDirection,
+  soldierGotoStationaryStance,
 } from '../animation.ts';
 import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { checkEquipmentForFragileItemDamage } from '../explosions/item-damage.ts';
@@ -635,6 +637,15 @@ function dropFlybackBlood(t: TacticalState, s: Soldier): void {
   internalDropBlood(t, behind, s.level, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, DROPPED_IN_SIGHT);
 }
 
+function goesBackToItself(s: Soldier): boolean {
+  return s.oldState === s.state && s.oldPc === s.pc;
+}
+
+function goBackToPreviousAnimation(t: TacticalState, s: Soldier): void {
+  if (goesBackToItself(s)) soldierGotoStationaryStance(t, s);
+  else changeSoldierState(t, s, s.oldState, s.oldPc);
+}
+
 export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   switch (code) {
     case 433:
@@ -672,7 +683,7 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       s.gettingHit = 0;
       return 'continue';
     case 496:
-      changeSoldierState(t, s, s.oldState, s.oldPc);
+      goBackToPreviousAnimation(t, s);
       return 'stop';
     case 497:
       return deathOrRelease(t, s);

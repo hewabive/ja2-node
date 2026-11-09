@@ -17,7 +17,7 @@
 // @src our merc in auto-bandage, and the plain opening a merc of ours who never chose how to open a door gets there
 // @src (deviation "Door on the way in auto-bandage", 2026-11-06); ExecuteOverhead's arrival handling an AI soldier with
 // @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06); HandleNextTile standing a crawler or swatter up into
-// @src water (2026-11-07).
+// @src water (2026-11-07); SetSoldierGridNo's LOADING_SAVED_GAME branch, no step on to the destination (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
@@ -179,7 +179,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   let g = requested;
   const seated = inVehicle(s);
   if (g === s.gridNo && s.placed && !seated) return;
-  if (isMovingState(t, s.state)) {
+  if (isMovingState(t, s.state) && !t.loadingSave) {
     if (g !== s.destination) g = s.destination;
     if (g === s.gridNo) return;
   }

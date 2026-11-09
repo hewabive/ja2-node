@@ -63,7 +63,7 @@ for (const name of names) {
   const save = parseSaveGame(new Uint8Array(readFileSync(join(savesDir, `${name}.sav`))), table);
   const soldiers = save.soldiers.map((e) => e.soldier).filter((s) => inLoadedSector(save, s));
   const fighters = soldiers.filter((s) => SHOOTING_TEAMS.includes(s.team) && alive(s));
-  lines.push(`save ${name}`, 'soldiers detail=1', 'lights', 'lights level=1');
+  lines.push('draws on', `save ${name}`, 'draws dump', 'draws off', 'soldiers detail=1', 'lights', 'lights level=1');
   for (const shooter of fighters.filter(hasGun)) {
     for (const target of soldiers.filter((t) => opposed(shooter, t)))
       for (const location of LOCATIONS) lines.push(`cth shooter=${shooter.id} target=${target.id} location=${location}`);

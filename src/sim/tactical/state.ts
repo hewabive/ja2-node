@@ -305,6 +305,7 @@ export interface TacticalState {
   readonly rng: Rng;
   readonly pre: PreRandom;
   inCombat: boolean;
+  loadingSave: boolean;
   readonly options: GameOptions;
   campaign: CampaignState;
   readonly events: TacticalEvent[];
@@ -539,6 +540,7 @@ export function createTacticalState(
     rng,
     pre: shared.pre ?? PreRandom.create(rng),
     inCombat: false,
+    loadingSave: false,
     options,
     campaign: { difficultyModifier: 30, progress: 0 },
     events: [],

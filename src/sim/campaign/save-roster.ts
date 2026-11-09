@@ -1,17 +1,17 @@
 import type { SaveGame } from '../../content/formats/savegame.ts';
-import { createSavedSoldier } from '../tactical/save-import.ts';
+import type { SavedSoldiers } from '../tactical/save-import.ts';
 import { NOBODY, SoldierStatusFlags, Team } from '../tactical/soldier.ts';
-import type { TacticalState } from '../tactical/state.ts';
 import { createMercRecord } from './merc-record.ts';
 import { type Roster, RosterMerc } from './roster.ts';
 
 const SEATED_FLAGS = SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER;
 
-export function addSavedMercsToRoster(roster: Roster, save: SaveGame, tactical: TacticalState | null): void {
+export function addSavedMercsToRoster(roster: Roster, save: SaveGame, soldiers: SavedSoldiers): void {
   for (const entry of save.soldiers) {
     const r = entry.soldier;
     if (r.team !== Team.OUR || r.active === 0) continue;
-    const soldier = tactical?.soldiers[r.id] ?? createSavedSoldier(save, entry);
+    const soldier = soldiers.get(r.id);
+    if (!soldier) throw new Error(`soldier ${r.id} of the save was not created`);
     soldier.insertionData = r.strategicInsertionData;
     const merc = new RosterMerc(
       createMercRecord({

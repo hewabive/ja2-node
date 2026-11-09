@@ -7,7 +7,7 @@ O="${JA2_ORACLE_DIR:-$HOME/ja2-oracle}"
 : "${JA2_DATA_DIR:?JA2_DATA_DIR is required}"
 
 PROBES=(
-  a9-costs.jsonl a9-paths.jsonl a9-los.jsonl save-probes/all-saves.jsonl strategic.jsonl
+  a9-costs.jsonl a9-paths.jsonl a9-los.jsonl save-probes/all-saves-draws.jsonl strategic.jsonl
   ar/d13.jsonl ar/capture.jsonl ar/stress.jsonl ar/smoke.jsonl economy.jsonl sai/newgame.jsonl sai/saves.jsonl
   sectors.jsonl battle/battle.jsonl creatures/creatures.jsonl creatures/battles.jsonl creatures/placement.jsonl
   morale/morale.jsonl merchants/merchants.jsonl contracts/contracts.jsonl creatures/creature-ai.jsonl

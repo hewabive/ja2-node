@@ -246,16 +246,19 @@ node tools/oracle/compare.ts ~/ja2-oracle/map-lights.jsonl
 
 ### Savegames
 
-`save-probes.ts <SaveGame name>...` writes a probe script for any saves: a soldier dump; `lights` for both levels; `cth`
-(torso, head, legs) and `bestshot` for every armed soldier of the player, enemy and militia teams against every opposed
-soldier; `los` for every opposed pair; `path` from each fighter to each opposed fighter and twelve tiles out in eight
-directions; `light` with each fighter as viewer at every opposed soldier and four and eight tiles out in eight
-directions; a second dump.
+`save-probes.ts <SaveGame name>...` writes a probe script for any saves: the load with its draws traced; a soldier
+dump; `lights` for both levels; `cth` (torso, head, legs) and `bestshot` for every armed soldier of the player, enemy
+and militia teams against every opposed soldier; `los` for every opposed pair; `path` from each fighter to each opposed
+fighter and twelve tiles out in eight directions; `light` with each fighter as viewer at every opposed soldier and four
+and eight tiles out in eight directions; a second dump. The comparer feeds the load's draws to the import's restart of
+every saved animation in order (each request takes the next native draw of its range), so an idle check the restart
+rolls rolls as natively, and the dumps compare each soldier's animation code and sprite frame as well, the frame worked
+out from the surface's STI as `ConvertAniCodeToAniFrame` does (`Tactical/Soldier_Control.cc:4155`).
 
 ```sh
 node tools/oracle/save-probes.ts SaveGame01 SaveGame02 SaveGame07 SaveGame08 SaveGame09 SaveGame10 \
-  > ~/ja2-oracle/save-probes/all-saves.txt
-tools/oracle/run.sh ~/ja2-oracle/save-probes/all-saves.txt ~/ja2-oracle/save-probes/all-saves.jsonl
+  > ~/ja2-oracle/save-probes/all-saves-draws.txt
+tools/oracle/run.sh ~/ja2-oracle/save-probes/all-saves-draws.txt ~/ja2-oracle/save-probes/all-saves-draws.jsonl
 ```
 
 ### Savegame temp files
@@ -759,14 +762,14 @@ animation frame, which ja2-node does not keep) and the mode's five globals, and 
 stay out of the frames (the fields of an `abhostile` enemy the native state does not print, his breath among them,
 are the comparer's own). Before a run the comparer takes from the native state printed
 just before it every soldier's animation code, frame delay, frame timer and AI timer, the AI slot cursors and their last
-pass time, the real-time turn stamp and the game pause: a native import keeps none of these phases (the load restarts
-every animation at its saved code, `Tactical/Soldier_Control.cc:615`, which runs the script on to the next frame; gap
-"Animations on load"), and the virtual clock's are printed only as time left. The 20 ms strategic poll's phase is not
+pass time, the real-time turn stamp and the game pause: the import restarts every animation at its saved code as the
+load does (`Tactical/Soldier_Control.cc:615`), on its own draws, as these recordings trace none of the load's, and keeps
+none of the timers' phases, and the virtual clock's are printed only as time left. The 20 ms strategic poll's phase is not
 printed either; in a run outside the mode (`plain=1`) whose real-time turn the closing state shows, the comparer lets
 ja2-node's poll fall on that frame. The frame runs take the native draws in order (each request takes the next native
 draw of its range, ja2-node's own generator past them): the restart passes the idle check (code 491) of some breathing
-soldiers and counts it in `uiTimeOfLastRandomAction`, which no probe prints, so their idle checks roll one breathing
-loop earlier natively; none of them picks an idle animation in these runs. The GoAsFar fallback's `std::shuffle` draws
+soldiers, natively and in the import alike, and counts it in `uiTimeOfLastRandomAction`, which no probe prints; none of
+them picks an idle animation in these runs. The GoAsFar fallback's `std::shuffle` draws
 on the engine past `Random` and leaves no trace natively; ja2-node's shuffle draws past `int` too (deviation "GoAsFar
 fallback"), so the replay leaves it to ja2-node's generator.
 
@@ -851,7 +854,8 @@ tiles and animations with the native load's. The native load keeps the merc stil
 no run, and the pause locked; the import lands him as the Esc skip does and selects him (deviation "Helicopter drop in a
 native save") and starts the drop's statics fresh (deviation "Helicopter drop statics"), so the seats, the run, the
 selection, the last step's time and the mercs it lands are labelled. The first `hdstate` after the import hands ja2-node
-the native animation codes, frame delays and frame timers (gap "Animations on load") and the saved pause, which the
+the native animation codes, frame delays and frame timers (the import's restart of every animation runs on its own
+draws, the recording tracing none of the load's) and the saved pause, which the
 import lifts (deviation "Pause state after an import"), and the frames are compared as in the drop blocks: the merc
 saved in `HELIDROP` steps away at code 467 to 4711 as natively. The second block's load over a running drop is compared
 by its state only, the native drop's statics outliving the load (`Tactical/Merc_Entering.cc:650`).
@@ -882,7 +886,7 @@ take the drawn values in order, as in the drop blocks).
 `<name>/<name>.jsonl`, except `a9-*.txt`, `sectors.txt`, `strategic.txt` and `economy.txt` (`<name>.jsonl` at the top),
 `sai-*.txt` (`sai/newgame.jsonl`, `sai/saves.jsonl`), `autoresolve-*.txt` (`ar/d13.jsonl`, `ar/capture.jsonl`) and the
 creature scripts (`creatures/creatures.jsonl`, `battles.jsonl`, `placement.jsonl`, `creature-ai.jsonl`); `save-probes.ts`
-writes `save-probes/all-saves.jsonl` ("Savegames"). Produce one with `mkdir -p` on its directory and
+writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdir -p` on its directory and
 `tools/oracle/run.sh tools/oracle/probes/<script> "$JA2_ORACLE_DIR/<output>"`.
 
 - `ar/stress.jsonl` and `ar/smoke.jsonl` come from work-dir scripts with no generator in the repository (30 random

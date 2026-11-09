@@ -18,6 +18,8 @@ load: ja2bin.dat → logic and presentation timelines   content/formats/ja2bin.t
   animation structure files                           content/anim/structures.ts
 creation: placement or profile → Soldier              init-list.ts, creation.ts, creation-basic.ts, profiles.ts
 new state: initNewSoldierAnim                         animation.ts
+  its checks, skipped while a native load restarts    animation.ts restartAnimationOnLoad (14)
+  every saved animation
   body substitutions, validity from the surface table anim-substitution.ts, multi-tile.ts,
                                                       content/anim/surface-choice.ts
   person structure for state and facing               person-structure.ts

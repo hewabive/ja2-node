@@ -21,7 +21,6 @@
 // @src chopper merc of a save made in mid-drop back in the seats, AddMercToHeli, 2026-11-08; its return for a merc in transit,
 // @src 2026-11-08).
 
-import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
@@ -42,8 +41,11 @@ import type { DroppedNativeOption } from '../options.ts';
 import { Assignment, NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
+import { anim } from './anim-states.ts';
+import { restartAnimationOnLoad } from './animation.ts';
 import { setAutoBandagePending } from './auto-bandage.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
+import type { TacticalContent } from './content.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
 import { loadDoorStatusArray } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
@@ -68,7 +70,16 @@ import {
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
-import { copyDrugCourses, createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
+import {
+  copyDrugCourses,
+  createSoldier,
+  NO_PENDING_ANIMATION,
+  NO_PENDING_DIRECTION,
+  NOWHERE,
+  type Soldier,
+  SoldierStatusFlags,
+  TOTAL_SOLDIERS,
+} from './soldier.ts';
 import {
   type AutoBandageState,
   type CrowStatus,
@@ -90,6 +101,8 @@ const SOLDIER_QUOTE_SAID_EXT_CLOSE_CALL = 0x0008;
 const INT16_BYTES = 2;
 const MAX_TEAMS = 6;
 const SAVED_NO_PENDING_STANCE = 254;
+const SAVED_NO_PENDING_ANIMATION = 32001;
+const SAVED_NO_PENDING_DIRECTION = 253;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
 const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
@@ -148,24 +161,109 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
   return { ...world, map: { ...world.map, doors: doors.map(savedMapDoor) } };
 }
 
-export function importSave(sim: TacticalSim, save: SaveGame, presentation: PresentationTimeline): SaveImportReport {
+export type SavedSoldiers = ReadonlyMap<number, Soldier>;
+
+export interface ImportedSave {
+  readonly report: SaveImportReport;
+  readonly soldiers: SavedSoldiers;
+}
+
+export type AroundAnimationRestart = (t: TacticalState, restart: () => void) => void;
+
+export const RESTART_ON_OWN_DRAWS: AroundAnimationRestart = (_t, restart) => restart();
+
+export function importSave(sim: TacticalSim, save: SaveGame, aroundRestart = RESTART_ON_OWN_DRAWS): ImportedSave {
   const t = sim.state;
   applyClock(t, save);
   t.sector = { ...save.tactical.worldSector };
+  importTacticalStatus(t, save);
   loadSavedSectorLights(sim, save);
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
   const corpses = importCorpses(t, save.currentSector.corpses ?? []);
   const skippedMapModifications = skippedMapModificationCount(sim.world.tables, save.currentSector.mapModifications ?? []);
   t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
-  const soldiers = importSoldiers(t, save, presentation);
-  seatHelicopterDropArrivals(t, save);
-  importAwaySoldiers(t, save);
+  const soldiers = createSavedSoldiers(save);
+  const placed = whileLoadingSave(t, () => {
+    restartSavedSoldiers(t, save, soldiers, aroundRestart);
+    const count = importSoldiers(t, save, soldiers);
+    seatHelicopterDropArrivals(t, save);
+    importAwaySoldiers(t, save, soldiers);
+    return count;
+  });
   t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
   importOpplists(t, save);
-  importTurnState(t, save);
+  linkTacticalStatus(t, save);
   importCampaignWideState(t, save);
   lightSetBaseLevel(t, savedAmbientLight(sim, save));
-  return { mapPath: sim.mapPath, soldiers, worldItems, corpses, skippedMapModifications };
+  return { report: { mapPath: sim.mapPath, soldiers: placed, worldItems, corpses, skippedMapModifications }, soldiers };
+}
+
+function whileLoadingSave<T>(t: TacticalState, load: () => T): T {
+  t.loadingSave = true;
+  try {
+    return load();
+  } finally {
+    t.loadingSave = false;
+  }
+}
+
+function createSavedSoldiers(save: SaveGame): SavedSoldiers {
+  return new Map(save.soldiers.filter((e) => e.soldier.id < TOTAL_SOLDIERS).map((e) => [e.soldier.id, createSavedSoldier(save, e)]));
+}
+
+const CLIMBING_STATES = ['HOPFENCE', 'CLIMBDOWNROOF', 'FALLFORWARD_ROOF', 'FALLOFF', 'CLIMBUPROOF'];
+
+export function createWorldlessSavedSoldiers(save: SaveGame, content: TacticalContent): SavedSoldiers {
+  const soldiers = createSavedSoldiers(save);
+  for (const s of soldiers.values()) standUpFromClimbingWithoutWorld(content, s);
+  return soldiers;
+}
+
+function standUpFromClimbingWithoutWorld(content: TacticalContent, s: Soldier): void {
+  if (!CLIMBING_STATES.includes(content.animations.controls[s.state]?.id ?? '')) return;
+  s.state = anim(content, 'STANDING');
+  s.pc = 0;
+}
+
+function withSavedRecords(save: SaveGame, soldiers: SavedSoldiers): (readonly [Soldier, SavedSoldier])[] {
+  return save.soldiers.flatMap(({ soldier: r }) => {
+    const s = soldiers.get(r.id);
+    return s ? [[s, r] as const] : [];
+  });
+}
+
+function restartSavedSoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSoldiers, aroundRestart: AroundAnimationRestart): void {
+  const pairs = withSavedRecords(save, soldiers);
+  const entering = pairs.filter(([, r]) => enteringTheMercSlots(save, r));
+  for (const [s, r] of pairs) {
+    holdSavedPendingAnimation(s, r);
+    if (enteringTheMercSlots(save, r) || awayInLoadedSector(save, r)) putAtSavedPosition(s, r);
+  }
+  for (const [s] of entering) t.soldiers[s.id] = s;
+  for (const [s, r] of entering) linkSoldier(t, s, r);
+  aroundRestart(t, () => {
+    for (const s of soldiers.values()) restartAnimationOnLoad(t, s, s.pc);
+  });
+  for (const s of soldiers.values()) dropPendingAnimation(s);
+}
+
+function holdSavedPendingAnimation(s: Soldier, r: SavedSoldier): void {
+  s.pendingAnimation = unlessSentinel(r.pendingAnimation, SAVED_NO_PENDING_ANIMATION, NO_PENDING_ANIMATION);
+  s.pendingDirection = unlessSentinel(r.motion.pendingDirection, SAVED_NO_PENDING_DIRECTION, NO_PENDING_DIRECTION);
+}
+
+function dropPendingAnimation(s: Soldier): void {
+  s.pendingAnimation = NO_PENDING_ANIMATION;
+  s.pendingDirection = NO_PENDING_DIRECTION;
+}
+
+function putAtSavedPosition(s: Soldier, r: SavedSoldier): void {
+  s.gridNo = grid(r.gridNo);
+  s.oldGridNo = grid(r.oldGridNo);
+  s.destination = grid(r.destination);
+  s.finalDestination = grid(r.finalDestination);
+  s.x = Math.fround(r.xPos);
+  s.y = Math.fround(r.yPos);
 }
 
 export function importCampaignWideState(state: CampaignWideState, save: SaveGame): void {
@@ -325,18 +423,10 @@ function activeSoldier(t: TacticalState, id: number): boolean {
   return s !== undefined && (s.placed || s.offMap || s.away);
 }
 
-function importAwaySoldiers(t: TacticalState, save: SaveGame): void {
-  for (const entry of save.soldiers) {
-    const r = entry.soldier;
-    if (r.id >= TOTAL_SOLDIERS || !awayInLoadedSector(save, r)) continue;
-    const s = createSavedSoldier(save, entry);
+function importAwaySoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSoldiers): void {
+  for (const [s, r] of withSavedRecords(save, soldiers)) {
+    if (!awayInLoadedSector(save, r)) continue;
     t.soldiers[s.id] = s;
-    const g = grid(r.gridNo);
-    s.gridNo = g;
-    s.oldGridNo = grid(r.oldGridNo);
-    s.destination = grid(r.destination);
-    s.finalDestination = grid(r.finalDestination);
-    importFacing(s, r);
     s.away = true;
     t.awaySlots.push(s);
   }
@@ -346,23 +436,16 @@ function enteringTheMercSlots(save: SaveGame, s: SavedSoldier): boolean {
   return s.id < TOTAL_SOLDIERS && (inLoadedSector(save, s) || helicopterPassengerInLoadedSector(save, s));
 }
 
-function importSoldiers(t: TacticalState, save: SaveGame, presentation: PresentationTimeline): number {
-  const entries = save.soldiers.filter((e) => enteringTheMercSlots(save, e.soldier));
-  const created = entries.map((e) =>
-    helicopterPassengerInLoadedSector(save, e.soldier) ? seatPassenger(t, save, e, presentation) : placeSoldier(t, save, e, presentation),
-  );
-  entries.forEach((e, k) => {
-    const s = created[k];
-    if (s) linkSoldier(t, s, e.soldier);
-  });
-  return created.filter((s) => s.placed).length;
-}
-
-function seatPassenger(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry, presentation: PresentationTimeline): Soldier {
-  const s = createSavedSoldier(save, entry);
-  seatInTheHelicopterOnSectorEntry(t, s);
-  importMotion(t, s, entry.soldier, presentation);
-  return s;
+function importSoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSoldiers): number {
+  let placed = 0;
+  for (const [s, r] of withSavedRecords(save, soldiers)) {
+    if (!enteringTheMercSlots(save, r)) continue;
+    if (helicopterPassengerInLoadedSector(save, r)) seatInTheHelicopterOnSectorEntry(t, s);
+    else placeSoldier(t, s);
+    keepSavedMotion(s, r);
+    if (s.placed) placed++;
+  }
+  return placed;
 }
 
 function seatHelicopterDropArrivals(t: TacticalState, save: SaveGame): void {
@@ -377,25 +460,14 @@ function importFacing(s: Soldier, r: SavedSoldier): void {
   s.turnIncrement = r.motion.turningIncrement;
 }
 
-function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry, presentation: PresentationTimeline): Soldier {
-  const r = entry.soldier;
-  const s = createSavedSoldier(save, entry);
+function placeSoldier(t: TacticalState, s: Soldier): void {
   registerSoldier(t, s);
-  s.destination = r.gridNo;
-  setSoldierPosition(t, s, r.gridNo, { keepDestination: true, keepFinalDestination: true });
-  importMotion(t, s, r, presentation);
-  return s;
+  setSoldierPosition(t, s, s.gridNo, { keepDestination: true, keepFinalDestination: true });
 }
 
-function importMotion(t: TacticalState, s: Soldier, r: SavedSoldier, presentation: PresentationTimeline): void {
-  s.destination = grid(r.destination);
-  s.finalDestination = grid(r.finalDestination);
+function keepSavedMotion(s: Soldier, r: SavedSoldier): void {
   s.oldGridNo = grid(r.oldGridNo);
-  importFacing(s, r);
   s.overTerrain = r.overTerrainType;
-  s.pc = r.aniCode;
-  s.frameSlot = frameSlotOfSpriteFrame(presentation, r.animState, r.aniCode, r.aniFrame);
-  s.nextFrameAt = t.clockMs;
 }
 
 export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): Soldier {
@@ -437,6 +509,9 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
     civilianGroup: r.civilianGroup,
   });
   copyScalars(s, r);
+  importFacing(s, r);
+  s.overTerrain = r.overTerrainType;
+  s.pc = r.aniCode;
   s.keyRing = entry.keyRing ? entry.keyRing.map((k) => ({ keyId: k.keyId, count: k.count })) : null;
   return s;
 }
@@ -694,7 +769,7 @@ function importOpplists(t: TacticalState, save: SaveGame): void {
 
 const ENEMY_OFFERED_SURRENDER = 0x01;
 
-function importTurnState(t: TacticalState, save: SaveGame): void {
+function importTacticalStatus(t: TacticalState, save: SaveGame): void {
   const ts = save.tactical;
   const turn = t.turn;
   t.inCombat = ts.inCombat;
@@ -705,7 +780,6 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.enemyInSector = ts.enemyInSector;
   turn.someoneHit = ts.someoneHit;
   turn.enemyOfferedSurrender = (ts.enemyFlags & ENEMY_OFFERED_SURRENDER) !== 0;
-  turn.itemsSeenOnAttack = ts.itemsSeenOnAttack ? soldierById(t, ts.itemsSeenOnAttackSoldier) : null;
   turn.itemsSeenOnAttackGridNo = ts.itemsSeenOnAttack ? ts.itemsSeenOnAttackGridNo : NOWHERE;
   turn.lockItemLocators = ts.lockItemLocators;
   turn.spottersCalledForBy = ts.spottersCalledForBy;
@@ -718,16 +792,24 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   });
   ts.teams.forEach((team, k) => {
     t.perception.awareOfOpposition[k] = team.awareOfOpposition !== 0;
-    t.perception.lastMercToRadio[k] = soldierById(t, team.lastMercToRadio);
   });
   turn.enemySightingOnTheirTurn = null;
+  turn.hiddenInterrupt = save.teamTurns.hiddenInterrupt;
+}
+
+function linkTacticalStatus(t: TacticalState, save: SaveGame): void {
+  const ts = save.tactical;
+  const turn = t.turn;
+  turn.itemsSeenOnAttack = ts.itemsSeenOnAttack ? soldierById(t, ts.itemsSeenOnAttackSoldier) : null;
+  ts.teams.forEach((team, k) => {
+    t.perception.lastMercToRadio[k] = soldierById(t, team.lastMercToRadio);
+  });
   const turns = save.teamTurns;
   turn.intList.length = 0;
   for (const id of turns.outOfTurnOrder) {
     const s = soldierById(t, id);
     if (s) turn.intList.push(s);
   }
-  turn.hiddenInterrupt = turns.hiddenInterrupt;
   turn.lastInterruptedGuy = soldierById(t, turns.lastInterruptedGuy);
   turn.whoThrewRock = soldierById(t, turns.whoThrewRock);
   turn.selected = save.generalInfo.selectedSoldier < NOBODY ? save.generalInfo.selectedSoldier : turn.selected;

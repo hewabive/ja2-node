@@ -37,9 +37,13 @@ import { createStrategicState, type StrategicState } from '../sim/strategic/stat
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import {
+  type AroundAnimationRestart,
+  createWorldlessSavedSoldiers,
   importCampaignWideState,
   importSave,
   loadSavedSectorChanges,
+  RESTART_ON_OWN_DRAWS,
+  type SavedSoldiers,
   type SaveImportReport,
   saveMapPath,
   worldWithSavedDoors,
@@ -109,6 +113,7 @@ export async function createSaveSession(
   exists: FileExists | null = null,
   layers?: LayerCount,
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
+  aroundRestart: AroundAnimationRestart = RESTART_ON_OWN_DRAWS,
 ): Promise<SaveSession> {
   const table = await read(SAVE_ENCRYPTION_PATH);
   if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
@@ -126,7 +131,7 @@ export async function createSaveSession(
   const { strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
   const imported = importNativeGameOptions(save.generalInfo.gameOptions);
   const start = world
-    ? startInSavedWorld(world, save, parts, seed, imported.options)
+    ? startInSavedWorld(world, save, parts, seed, imported.options, aroundRestart)
     : startWithoutWorld(save, parts, seed, imported.options);
   const { strategic, sim } = start;
   const report: SaveImportReport = { ...start.report, droppedOptions: imported.dropped };
@@ -140,7 +145,7 @@ export async function createSaveSession(
     strategic,
     sim,
     worlds,
-    (r) => addSavedMercsToRoster(r, save, sim?.state ?? null),
+    (r) => addSavedMercsToRoster(r, save, start.soldiers),
     resumesOnMapScreen(save) ? 'createOnMapScreen' : 'create',
   );
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
@@ -190,13 +195,21 @@ interface ImportStart {
   readonly strategic: StrategicState;
   readonly sim: TacticalSim | null;
   readonly report: SaveImportReport;
+  readonly soldiers: SavedSoldiers;
 }
 
 const NO_WORLD_REPORT: SaveImportReport = { mapPath: null, soldiers: 0, worldItems: 0, corpses: 0, skippedMapModifications: 0 };
 
-function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: CampaignParts, seed: number, options: GameOptions): ImportStart {
+function startInSavedWorld(
+  world: TacticalWorld,
+  save: SaveGame,
+  parts: CampaignParts,
+  seed: number,
+  options: GameOptions,
+  aroundRestart: AroundAnimationRestart,
+): ImportStart {
   const sim = new TacticalSim(worldWithSavedDoors(world, save), parts.content, seed, { options });
-  const report = importSave(sim, save, parts.presentation);
+  const { report, soldiers } = importSave(sim, save, aroundRestart);
   const strategic = createStrategicState({
     seed,
     options: sim.state.options,
@@ -211,7 +224,7 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
     autoBandage: sim.state.autoBandage,
     helicopterDrop: sim.state.helicopterDrop,
   });
-  return { strategic, sim, report };
+  return { strategic, sim, report, soldiers };
 }
 
 function startWithoutWorld(save: SaveGame, parts: CampaignParts, seed: number, options: GameOptions): ImportStart {
@@ -219,7 +232,7 @@ function startWithoutWorld(save: SaveGame, parts: CampaignParts, seed: number, o
   const { civGroups, keyTable, profiles, pre } = strategic;
   const { realtimeClock, crows, autoBandage } = strategic.sectorFlow;
   importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, crows, autoBandage, content: parts.content }, save);
-  return { strategic, sim: null, report: NO_WORLD_REPORT };
+  return { strategic, sim: null, report: NO_WORLD_REPORT, soldiers: createWorldlessSavedSoldiers(save, parts.content) };
 }
 
 export async function loadImportParts(

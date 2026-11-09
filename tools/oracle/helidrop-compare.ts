@@ -62,7 +62,7 @@ const RANDOM_IDLES_TAKEN =
 const IMPORT_LANDS_THE_SEATS =
   'deviation "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
 const PHASES_TAKEN =
-  'the animation codes, frame delays and frame timers of the native load and the pause its save holds are taken for the frames: an import restarts no animation (gap "Animations on load") and starts unlocked (deviation "Pause state after an import")';
+  'the animation codes, frame delays and frame timers of the native load and the pause its save holds are taken for the frames: an import restarts every animation on its own draws, the recording tracing none of the load draws, and starts unlocked (deviation "Pause state after an import")';
 const IMPORTED_GLOBALS: readonly string[] = ['seats', 'selected', 'lastUpdate'];
 const NATIVE_ROW_ANIM_STATE = 5;
 const RANDOM_ANIM_CHECK = 491;

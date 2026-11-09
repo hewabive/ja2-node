@@ -629,6 +629,8 @@ export class AutoBandageComparer {
     const rows = [...((state.team as Json[] | undefined) ?? []), ...((state.others as Json[] | undefined) ?? [])];
     const row = rows.find((r) => num(r.id) === s.id);
     if (row?.medical !== undefined) s.stats.medical = num(row.medical);
+    const [life, lifeMax] = (row?.life as number[] | undefined) ?? [];
+    if (life !== undefined && lifeMax !== undefined) [s.life, s.lifeMax] = [life, lifeMax];
   }
 
   #vehicle(c: CampaignSim, t: TacticalState, a: Json, p: Json): unknown {

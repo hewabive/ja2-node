@@ -3341,3 +3341,44 @@ describe("snapshot version 65 (no native save's records in the sector diffs) mig
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionSixtySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const { loadingSave, ...tactical } = object(value);
+    expect(loadingSave).toBe(false);
+    return [name, tactical];
+  });
+  return { ...snapshot, version: 66, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 66 (no loading flag) migrates with no native load in progress, as outside every import', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoLoadInProgress(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtySix(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"loadingSave":false');
+    expect(JSON.stringify(legacy)).not.toContain('"loadingSave"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoLoadInProgress(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoLoadInProgress(await quietLandedCampaign(kit));
+  });
+});

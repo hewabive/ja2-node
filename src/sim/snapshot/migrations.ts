@@ -1994,6 +1994,20 @@ function sectorDiffsWithoutNativeRecords(snapshot: Readonly<Record<string, unkno
   return { ...snapshot };
 }
 
+const IN_COMBAT_KEY = 'inCombat';
+const LOADING_SAVE_KEY = 'loadingSave';
+
+function addLoadingSaveFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [
+      name,
+      name === 'tactical' && isObject(value) ? insertAfter(value, IN_COMBAT_KEY, LOADING_SAVE_KEY, false) : value,
+    ],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2061,5 +2075,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     63: addHeldGiveAction,
     64: addTrashedMapRooms,
     65: sectorDiffsWithoutNativeRecords,
+    66: addLoadingSaveFlag,
   };
 }
