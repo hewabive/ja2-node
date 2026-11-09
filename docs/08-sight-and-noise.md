@@ -95,8 +95,8 @@ the light sprites. The world's large layers count their changes instead, and eve
 only writers), and `TacticalState.changes` (transient): `smoke` by `setSmokeFlagsAt`, the only writer of the smoke
 layer; `light` by `traceLight` (every draw and erase) and `resetTileLights` (every render and map load, which
 `lightSetBaseLevel`, `initLighting` and the save import run after writing the ambient level or the cave flags); `fog` by
-`setRevealedFlags`, `setRoomRevealed`, `restoreFogOfWar`, `examineSlantRoofsOverRevealedTiles` and `setCeiling`, every
-write of the revealed tiles, the room roofs and the slanted roof ceilings; `blood` by `setBloodReevaluation`, every write
+`setRevealedFlags`, `setRoomRevealed`, `restoreFogOfWar`, `markRevealedAtLoad`, `examineSlantRoofsOverRevealedTiles` and
+`setCeiling`, every write of the revealed tiles, the room roofs, the tiles a load revealed and the slanted roof ceilings; `blood` by `setBloodReevaluation`, every write
 of the blood to redraw; `occupancy` by `placeOccupant`, `removeOccupant` and `clearOccupants`. A writer of these that
 does not count, or a read the tape misses, would let a skipped look miss a change. The last merc to radio, which a look
 writes and never reads and the opplist decay clears, is set again from the remembered look's radio callers. Two paths
