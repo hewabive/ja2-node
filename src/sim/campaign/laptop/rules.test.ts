@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { withImpPolicy } from '../../../../tests/support/game-policy.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { ScriptedRolls } from '../../../../tests/support/strategic.ts';
 import { parseSectorString, type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
@@ -33,8 +34,8 @@ afterAll(async () => {
   await kit.dispose();
 });
 
-async function laptopFlow(seed: number): Promise<LaptopFlow> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { hire: [] });
+async function laptopFlow(seed: number, read = kit.read): Promise<LaptopFlow> {
+  const session = await createCampaignSession(read, (p) => kit.worlds.exists(p), seed, { hire: [] });
   const flow = session.campaign.laptop;
   if (!flow) throw new Error('no laptop');
   return flow;
@@ -229,6 +230,18 @@ describe('I.M.P. quiz', () => {
     const created = flow.campaign.dispatch(IMP_WITHOUT_LOCKPICKING_STATS);
     expect(rolls.ranges.slice(0, 3)).toEqual([1, 6, 6]);
     expect(created).toMatchObject({ ok: true, data: { skills: [SkillTrait.THROWING, SkillTrait.MARTIALARTS] } });
+  });
+});
+
+describe('I.M.P. specialties picked directly (imp_pick_skills_directly)', () => {
+  const directPickFlow = (seed: number) => laptopFlow(seed, withImpPolicy(kit.read, { pick_skills_directly: true }));
+  const { answers: _answers, ...character } = IMP_WITHOUT_LOCKPICKING_STATS;
+
+  it('gives a woman who kept Martial Arts from her pass as a man expert hand to hand', async () => {
+    const flow = await directPickFlow(7);
+    setBookmark(flow.laptop, Bookmark.IMP);
+    const created = flow.campaign.dispatch({ ...character, gender: 'female', skills: [SkillTrait.MARTIALARTS] });
+    expect(created).toMatchObject({ ok: true, data: { skills: [SkillTrait.HANDTOHAND, SkillTrait.HANDTOHAND] } });
   });
 });
 

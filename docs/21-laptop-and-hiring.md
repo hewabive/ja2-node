@@ -92,6 +92,11 @@ before the first helicopter run is over: the flag the line takes is `TalkState.m
 callback queued behind the line releases (`sayReachedDestination`, `contracts/hire-contract.ts`;
 `Tactical/Merc_Hiring.cc:289-311`), saved with the queue and read from a native save.
 
+**The specialties page.** With the rule pack's `imp.pick_skills_directly` the I.M.P. site shows the specialties page
+in place of the quiz (`src/ui/screens/laptop/imp/imp-skill-traits.ts`): the picks go to `impCreate` as `skills`, give
+no personality or attitude, and the attribute pool grows by the bonus the view's `imp.attributes.specialtyBonus` gives
+for them, the simulation's own `directPickBonus` (`29`).
+
 **Money.** A.I.M. charges at hire; M.E.R.C. mercs accrue a day's salary every midnight and the player settles the
 account on the site, greedily in listing order; an I.M.P. character costs 3000 once and is never paid. Game logic reads
 only the balance. The finance page's day figures are computed in the simulation (`finance-summary.ts`), so their quirks
@@ -131,6 +136,7 @@ otherwise.
 | An I.M.P. character's endless contract (−1 days) leaves his profile status at −1, the status of a merc without text | `laptop.test.ts` "lands the character with the profile status …" |
 | The I.M.P. attitude die is rolled even when one attitude leads alone | `rules.test.ts` "rolls the attitude die …" |
 | A skill the stats rule out is removed by moving the last skill into its place, which reorders the list before the draws | `rules.test.ts` "drops a skill the stats rule out …" |
+| With `imp.pick_skills_directly` a woman keeps a Martial Arts pick made as a man before a change of gender on the begin page, though the page offers it to men only, and lands with expert hand to hand (`Laptop/IMP_Compile_Character.cc:561`) | `rules.test.ts` "gives a woman who kept Martial Arts …" |
 | The I.M.P. reminder is posted again on every exit from the laptop until it is sent | `laptop.test.ts` "posts the I.M.P. reminder on every exit …" |
 | The reached-destination line stays taken for good once the queue is emptied before the callback that releases it runs, as a load or the end of a meanwhile empties it (`SaveLoadGame.cc:689`, `Strategic/Meanwhile.cc:533`): no arrival says it again in that game | `laptop.test.ts` "keeps the reached-destination line taken for good …", `src/sim/strategic/narrative/save-import.test.ts` "keeps the arrival line taken …" |
 | Re-hiring a M.E.R.C. merc sets his unpaid days to 1: the old debt is forgotten | `laptop.test.ts` "forgets the unpaid days …" |

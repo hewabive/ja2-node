@@ -738,6 +738,12 @@ export interface ImpAttributeRulesView {
   readonly zeroBonus: number;
   readonly order: readonly ImpAttributeName[];
   readonly zeroable: readonly ImpAttributeName[];
+  readonly specialtyBonus: ImpSpecialtyBonusView | null;
+}
+
+export interface ImpSpecialtyBonusView {
+  readonly withoutSpecialty: number;
+  readonly loneSpecialty: readonly number[];
 }
 
 export interface ImpGenderListsView {
@@ -756,6 +762,7 @@ export interface ImpSiteView {
   readonly portraits: ImpGenderListsView;
   readonly voices: ImpGenderListsView;
   readonly quizAnswers: readonly number[];
+  readonly specialties: readonly number[];
 }
 
 export type BobbyRayCatalogue = 'guns' | 'ammo' | 'armour' | 'misc' | 'used';

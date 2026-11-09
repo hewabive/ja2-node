@@ -135,6 +135,7 @@ export const LAPTOP_LAYOUTS: readonly string[] = [
   'imp-begin',
   'imp-personality',
   'imp-quiz',
+  'imp-skill-traits',
   'imp-personality-finish',
   'imp-attribute-entrance',
   'imp-attributes',

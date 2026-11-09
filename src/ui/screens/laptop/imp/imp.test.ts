@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { AttributeSliders } from './imp-attributes.ts';
-import { FEMALE, ImpDraft, ImpPage, MALE, NO_ANSWER, ProfileMode, QUIZ_QUESTIONS } from './imp-draft.ts';
+import {
+  DEFAULT_ATTRIBUTE_RULES,
+  FEMALE,
+  ImpDraft,
+  ImpPage,
+  MALE,
+  NO_ANSWER,
+  ProfileMode,
+  QUIZ_QUESTIONS,
+  Specialty,
+} from './imp-draft.ts';
 import { questionRecord, quizIndent } from './imp-quiz.ts';
 
 const ANSWER_COUNTS = [6, 4, 4, 5, 4, 5, 4, 4, 4, 4, 5, 8, 4, 4, 4, 4];
@@ -148,6 +158,96 @@ describe('the I.M.P. draft', () => {
     draft.enterFinish();
     draft.cancel();
     expect([draft.page, draft.profileMode]).toEqual([ImpPage.MAIN, ProfileMode.VOICE]);
+  });
+});
+
+describe('the I.M.P. specialties picked directly', () => {
+  const LOCKPICK = 0;
+  const ELECTRONICS = 2;
+  const NIGHT_OPS = 3;
+  const TEACHING = 5;
+  const SKILLS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15, 12];
+  const BONUS_RULES = {
+    ...DEFAULT_ATTRIBUTE_RULES,
+    specialtyBonus: { withoutSpecialty: 10, loneSpecialty: [0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0, 5, 0] },
+  };
+  const picked = (draft: ImpDraft) => draft.specialties.flatMap((on, i) => (on ? [i] : []));
+
+  function onPage(): ImpDraft {
+    const draft = begun();
+    draft.page = ImpPage.SKILLTRAITS;
+    draft.enterSpecialties();
+    return draft;
+  }
+
+  it('starts with None picked and keeps the two newest picks, a third dropping the older one', () => {
+    const draft = onPage();
+    expect(picked(draft)).toEqual([Specialty.NONE]);
+    expect(draft.pickSpecialty(LOCKPICK)).toBe(true);
+    draft.pickSpecialty(ELECTRONICS);
+    expect(picked(draft)).toEqual([LOCKPICK, ELECTRONICS]);
+    expect(draft.pickSpecialty(ELECTRONICS)).toBe(false);
+    draft.pickSpecialty(NIGHT_OPS);
+    expect(picked(draft)).toEqual([ELECTRONICS, NIGHT_OPS]);
+  });
+
+  it('clears the other picks for None and drops None like any older pick', () => {
+    const draft = onPage();
+    draft.pickSpecialty(LOCKPICK);
+    draft.pickSpecialty(Specialty.NONE);
+    expect(picked(draft)).toEqual([Specialty.NONE]);
+    draft.pickSpecialty(ELECTRONICS);
+    draft.pickSpecialty(NIGHT_OPS);
+    expect(picked(draft)).toEqual([ELECTRONICS, NIGHT_OPS]);
+  });
+
+  it('clears the picks on every entry until the character is done, then keeps them and ignores presses', () => {
+    const draft = onPage();
+    draft.pickSpecialty(TEACHING);
+    draft.enterSpecialties();
+    expect(picked(draft)).toEqual([Specialty.NONE]);
+    draft.pickSpecialty(TEACHING);
+    draft.profileMode = ProfileMode.DONE;
+    draft.enterSpecialties();
+    expect(draft.pickSpecialty(LOCKPICK)).toBe(false);
+    expect(picked(draft)).toEqual([TEACHING]);
+    draft.specialtiesFinished();
+    expect([draft.page, draft.profileMode]).toEqual([ImpPage.FINISH, ProfileMode.DONE]);
+  });
+
+  it('finishes to the main page with the attributes next and cancels back to the personality page', () => {
+    const draft = onPage();
+    draft.specialtiesFinished();
+    expect([draft.page, draft.profileMode]).toEqual([ImpPage.MAIN, ProfileMode.ATTRIBUTES]);
+    draft.page = ImpPage.SKILLTRAITS;
+    draft.cancel();
+    expect(draft.page).toBe(ImpPage.PERSONALITY);
+  });
+
+  it('adds ten points to the pool without a pick, a lone pick its own bonus and two picks nothing', () => {
+    const draft = onPage();
+    draft.setAttributes(BONUS_RULES);
+    expect(draft.bonusPoints).toBe(50);
+    draft.pickSpecialty(ELECTRONICS);
+    draft.setAttributes(BONUS_RULES);
+    expect(draft.bonusPoints).toBe(45);
+    draft.pickSpecialty(LOCKPICK);
+    draft.setAttributes(BONUS_RULES);
+    expect(draft.bonusPoints).toBe(40);
+    draft.pickSpecialty(Specialty.NONE);
+    draft.setAttributes(DEFAULT_ATTRIBUTE_RULES);
+    expect(draft.bonusPoints).toBe(40);
+  });
+
+  it('sends the picked specialties as skills in page order instead of the answers', () => {
+    const draft = onPage();
+    draft.pickSpecialty(NIGHT_OPS);
+    draft.pickSpecialty(LOCKPICK);
+    const request = draft.request(SKILLS);
+    expect(request.skills).toEqual([1, 4]);
+    expect(request.answers).toBeUndefined();
+    draft.pickSpecialty(Specialty.NONE);
+    expect(draft.request(SKILLS).skills).toEqual([]);
   });
 });
 

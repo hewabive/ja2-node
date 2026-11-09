@@ -28,6 +28,7 @@ import {
 } from './imp-pages.ts';
 import { personalityFinishPage, quizPage } from './imp-quiz.ts';
 import { IMP_POPUP_TEXT, IMP_TEXT_FILE, type ImpContext, type ImpPageFactory } from './imp-site.ts';
+import { skillTraitsPage } from './imp-skill-traits.ts';
 
 export const IMP_FRAME_LAYOUT = 'imp-frame';
 const NO_PAGE = -1;
@@ -41,6 +42,7 @@ const PAGE_FACTORIES: Readonly<Record<number, ImpPageFactory>> = {
   [ImpPage.BEGIN]: beginPage,
   [ImpPage.PERSONALITY]: personalityEntrancePage,
   [ImpPage.QUIZ]: quizPage,
+  [ImpPage.SKILLTRAITS]: skillTraitsPage,
   [ImpPage.PERSONALITY_FINISH]: personalityFinishPage,
   [ImpPage.ATTRIBUTE_ENTRANCE]: attributeEntrancePage,
   [ImpPage.ATTRIBUTE_PAGE]: attributesPage,

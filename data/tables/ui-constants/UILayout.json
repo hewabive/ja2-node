@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/UILayout.h",
+  "source": "JA2 Stracciatella ae6bf01: src/game/UILayout.h, src/game/UILayout.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls); panelRelative: the names whose value contains INTERFACE_START_X, INTERFACE_START_Y or INV_INTERFACE_START_Y, evaluated as 0 (positions inside the tactical panel frames)",
   "constants": {
@@ -13,7 +13,9 @@
     "DEFAULT_EXTERN_PANEL_Y_POS": 40,
     "TEAMPANEL_SLOT_WIDTH": 83,
     "TEAMPANEL_BUTTONSBOX_WIDTH": 142,
-    "TEAMPANEL_HEIGHT": 120
+    "TEAMPANEL_HEIGHT": 120,
+    "MIN_INTERFACE_WIDTH": 640,
+    "MIN_INTERFACE_HEIGHT": 480
   },
   "stdScreen": ["DEFAULT_EXTERN_PANEL_X_POS", "DEFAULT_EXTERN_PANEL_Y_POS"],
   "panelRelative": ["SM_BODYINV_X", "SM_BODYINV_Y"],

@@ -5,8 +5,9 @@
 // @src CreatePlayerAttitude, AddAnAttitudeToAttitudeList, AddSkillToSkillList, RemoveSkillFromSkillsList, ValidateSkillsList,
 // @src CreatePlayerSkills, AddAPersonalityToPersonalityList, CreatePlayerPersonality, SelectMercFace,
 // @src HandleMercStatsForChangesInFace; IMP_Personality_Quiz.cc CompileQuestionsInStatsAndWhatNot (table in data/tables);
-// @src IMP_SkillTraits.cc AddSelectedSkillsToSkillsList, DoesPlayerHaveExtraAttibutePointsToDistributeBasedOnSkillSelection,
-// @src ShouldTraitBeSkipped; IMP_Attribute_Selection.cc SetAttributes, IncrementStat, DecrementStat, the attribute enum (the
+// @src IMP_SkillTraits.cc skillTraitsMapping, AddSelectedSkillsToSkillsList (any picked specialty, a woman's martial arts
+// @src kept from a pass as a man too), DoesPlayerHaveExtraAttibutePointsToDistributeBasedOnSkillSelection;
+// @src IMP_Attribute_Selection.cc SetAttributes, IncrementStat, DecrementStat, the attribute enum (the
 // @src page's value order); IMP_Begin_Screen.cc
 // @src BtnIMPBeginScreenDoneCallback (names); IMP_HomePage.cc ProcessPlayerInputActivationString; IMP_MainPage.cc (begin);
 // @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, FirstFreeBigEnoughPocket, GiveItemsToPC; CharProfile.h
@@ -47,7 +48,7 @@ const SKILL_CONDITION = 'SKILL';
 const MAX_DIRECT_SKILLS = 2;
 const NO_EXPERT_LEVEL: ReadonlySet<number> = new Set([SkillTrait.ELECTRONICS, SkillTrait.AMBIDEXT, SkillTrait.CAMOUFLAGED]);
 const DIRECT_PICK_BONUS = { none: 10, oneWithoutExpert: 5 } as const;
-const IMP_SKILL_ORDER: readonly number[] = [
+export const IMP_SKILL_ORDER: readonly number[] = [
   SkillTrait.LOCKPICKING,
   SkillTrait.HANDTOHAND,
   SkillTrait.ELECTRONICS,
@@ -336,9 +337,9 @@ function validAnswers(ctx: LaptopContext, answers: readonly number[] | undefined
   return answers.every((a, q) => Number.isInteger(a) && a >= 0 && a < (ctx.content.impQuiz[q]?.length ?? 0));
 }
 
-function validDirectSkills(skills: readonly number[] | undefined, male: boolean): boolean {
+function validDirectSkills(skills: readonly number[] | undefined): boolean {
   if (!skills || skills.length > MAX_DIRECT_SKILLS || new Set(skills).size !== skills.length) return false;
-  return skills.every((s) => IMP_SKILL_ORDER.includes(s) && (male || s !== SkillTrait.MARTIALARTS));
+  return skills.every((s) => IMP_SKILL_ORDER.includes(s));
 }
 
 export function impRefusal(ctx: LaptopContext, r: ImpRequest): ImpRefusal | null {
@@ -351,7 +352,7 @@ export function impRefusal(ctx: LaptopContext, r: ImpRequest): ImpRefusal | null
   if (!impNames(r.name, r.nickname) || (r.gender !== 'male' && r.gender !== 'female')) return 'badName';
   const male = r.gender === 'male';
   if (imp.pickSkillsDirectly) {
-    if (!validDirectSkills(r.skills, male)) return 'badSkills';
+    if (!validDirectSkills(r.skills)) return 'badSkills';
   } else if (!validAnswers(ctx, r.answers)) return 'badAnswers';
   if (!attributesValid(ctx, r.attributes, r.skills ?? [])) return 'badAttributes';
   if (genderIndex(imp.portraits, male, r.portrait) < 0) return 'badPortrait';

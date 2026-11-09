@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { withImpPolicy } from '../../../../tests/support/game-policy.ts';
 import {
   click,
   dismissModal,
@@ -483,5 +484,54 @@ describe('I.M.P. on the canvas laptop', () => {
     expect(h.requestedImages).toContain(portraitPath(face, 'small'));
     expect(h.requestedImages).toContain(portraitPath(face, 'big'));
     expect(h.requestedImages).not.toContain(portraitPath(profile, 'small'));
+  });
+});
+
+describe('I.M.P. with its specialties picked directly (imp_pick_skills_directly)', () => {
+  it('picks the specialties on their own page, adds their bonus to the attribute pool and sends them as skills', async () => {
+    const read = withImpPolicy(kit.read, { pick_skills_directly: true });
+    const h = await openLaptopHarness(kit, ui, { seed: 24, prepare: bookmark(Bookmark.IMP), read });
+    const { t } = h;
+    await toBookmark(h, 1);
+    await waitFor(h, 'impHomeTitle');
+    await click(t, 'impCode');
+    await type(t, 'XEP624');
+    await key(t, 'Enter', 'up');
+    await waitFor(h, 'impMainTitle');
+    await clickThrough(h, 'impBegin', 'impBeginTitle');
+    await click(t, 'impFullName');
+    await type(t, 'Ivan Testov');
+    await click(t, 'impMaleBox');
+    await clickThrough(h, 'impBeginDone', 'impMainTitle');
+
+    await clickThrough(h, 'impProfile0', 'impPersonalityTitle');
+    await clickThrough(h, 'impPersonalityBegin', 'impSkillTraitsTitle');
+    expect(shown(t, 'impSpecialty14').state).toBe(true);
+    for (const specialty of [0, 2, 3]) await click(t, `impSpecialty${specialty}`);
+    expect([0, 2, 3, 14].map((s) => shown(t, `impSpecialty${s}`).state)).toEqual([false, true, true, false]);
+    await click(t, 'impSpecialty14');
+    await click(t, 'impSpecialty2');
+    await clickThrough(h, 'impSkillTraitsFinish', 'impMainTitle');
+    expect(shown(t, 'impProfile1').enabled).toBe(true);
+
+    await clickThrough(h, 'impProfile1', 'impAttributeEntranceTitle');
+    await clickThrough(h, 'impAttributeEntranceBegin', 'impAttributesTitle');
+    expect(shown(t, 'impBonusPoints').text).toBe('45');
+    await clickThrough(h, 'impAttributesFinish', 'impAttributeFinishTitle');
+    await clickThrough(h, 'impAttributesYes', 'impMainTitle');
+    await clickThrough(h, 'impProfile2', 'impPortraitTitle');
+    await clickThrough(h, 'impPortraitDone', 'impMainTitle');
+    await clickThrough(h, 'impProfile3', 'impVoiceTitle');
+    await clickThrough(h, 'impVoiceDone', 'impFinishName');
+    await clickThrough(h, 'impFinishDone', 'impConfirmTitle');
+    await click(t, 'impConfirmYes');
+    await settle(t);
+
+    const electronics = h.session.view().laptop?.imp.specialties[2];
+    const created = h.commands.find((c) => c.type === 'impCreate') as Record<string, unknown> | undefined;
+    expect(created?.skills).toEqual([electronics]);
+    expect(created?.answers).toBeUndefined();
+    const reply = h.replies[h.commands.findIndex((c) => c.type === 'impCreate')];
+    expect(reply).toMatchObject({ ok: true, data: { skills: [electronics, 0] } });
   });
 });

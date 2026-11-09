@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { withImpPolicy } from '../../tests/support/game-policy.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
@@ -11,6 +12,7 @@ import { impBeginRefusal } from '../sim/campaign/laptop/imp.ts';
 import { Bookmark, MercAccountStatus } from '../sim/campaign/laptop/laptop-state.ts';
 import { SpeckQuote } from '../sim/campaign/laptop/merc-site.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
+import { SkillTrait } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import type { Session } from './session.ts';
@@ -37,10 +39,10 @@ interface Laptop {
   readonly live: Session;
 }
 
-async function newGame(seed: number): Promise<Laptop> {
-  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { hire: [] });
+async function newGame(seed: number, read = kit.read): Promise<Laptop> {
+  const created = await createCampaignSession(read, (p) => kit.worlds.exists(p), seed, { hire: [] });
   created.useLabels(await loadUiStrings(kit.read, 'eng'));
-  const session = drivenSession(created, stubSessionSources(kit));
+  const session = drivenSession(created, { ...stubSessionSources(kit), read });
   return { session, live: new ReloadingSession('laptop-sites', session) };
 }
 
@@ -172,6 +174,29 @@ describe("Speck's lines and the M.E.R.C. pages (X6)", () => {
 });
 
 describe('the I.M.P. form rules (X12)', () => {
+  it('sends the specialties in page order and their attribute bonus under imp_pick_skills_directly', async () => {
+    const { session } = await newGame(205, withImpPolicy(kit.read, { pick_skills_directly: true }));
+    const imp = laptopOf(session).imp;
+    expect(imp.pickSkillsDirectly).toBe(true);
+    expect(imp.specialties).toEqual([
+      SkillTrait.LOCKPICKING,
+      SkillTrait.HANDTOHAND,
+      SkillTrait.ELECTRONICS,
+      SkillTrait.NIGHTOPS,
+      SkillTrait.THROWING,
+      SkillTrait.TEACHING,
+      SkillTrait.HEAVY_WEAPS,
+      SkillTrait.AUTO_WEAPS,
+      SkillTrait.STEALTHY,
+      SkillTrait.AMBIDEXT,
+      SkillTrait.KNIFING,
+      SkillTrait.ONROOF,
+      SkillTrait.CAMOUFLAGED,
+      SkillTrait.MARTIALARTS,
+    ]);
+    expect(imp.attributes.specialtyBonus).toEqual({ withoutSpecialty: 10, loneSpecialty: [0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0, 5, 0] });
+  });
+
   it('checks the code, refuses the begin page on funds before team size and sends the attribute rules', async () => {
     const { session, live } = await newGame(205);
     expect(live.dispatch({ type: 'impCheckCode', code: IMP_CODE })).toEqual({ ok: true, data: { result: 'ok' } });
@@ -186,6 +211,7 @@ describe('the I.M.P. form rules (X12)', () => {
       zeroBonus: 15,
       order: ['health', 'dexterity', 'agility', 'strength', 'wisdom', 'leadership', 'marksmanship', 'explosives', 'medical', 'mechanical'],
       zeroable: ['marksmanship', 'medical', 'mechanical', 'explosives'],
+      specialtyBonus: null,
     });
     expect(imp.quizAnswers).toEqual([6, 4, 4, 5, 4, 5, 4, 4, 4, 4, 5, 8, 4, 4, 4, 4]);
     expect(imp.portraits.male.length).toBeGreaterThan(0);

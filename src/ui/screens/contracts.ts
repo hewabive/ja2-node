@@ -54,6 +54,7 @@ import {
 } from './laptop/imp/imp-pages.ts';
 import { IMP_FRAME_CONTRACT } from './laptop/imp/imp-profile.ts';
 import { IMP_PERSONALITY_FINISH_CONTRACT, IMP_QUIZ_CONTRACT } from './laptop/imp/imp-quiz.ts';
+import { IMP_SKILL_TRAITS_CONTRACT } from './laptop/imp/imp-skill-traits.ts';
 import {
   INSURANCE_CHROME_CONTRACT,
   INSURANCE_COMMENTS_CONTRACT,
@@ -147,6 +148,7 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     IMP_BEGIN_CONTRACT,
     IMP_PERSONALITY_CONTRACT,
     IMP_QUIZ_CONTRACT,
+    IMP_SKILL_TRAITS_CONTRACT,
     IMP_PERSONALITY_FINISH_CONTRACT,
     IMP_ATTRIBUTE_ENTRANCE_CONTRACT,
     IMP_ATTRIBUTES_CONTRACT,

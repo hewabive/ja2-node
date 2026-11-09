@@ -9,7 +9,11 @@
 // @src BtnIMPPersonalityQuizStartOverCallback, MoveAheadAQuestion, MoveBackAQuestion, ToggleQuestionNumberButtonOn;
 // @src IMP_Personality_Finish.cc the yes/no/ok buttons; IMP_Attribute_Selection.cc EnterIMPAttributeSelection, SetAttributes,
 // @src IncrementStat, DecrementStat, ProcessAttributes, StatAtZeroBoxCallBack, MouseXPosToSkillValue, SetGeneratedCharacterAttributes;
-// @src IMP_Attribute_Finish.cc the yes/no buttons; IMP_Portraits.cc IncrementPictureIndex, DecrementPicture,
+// @src IMP_Attribute_Finish.cc the yes/no buttons; IMP_SkillTraits.cc the ImpSkillTrait order, EnterIMPSkillTrait and
+// @src AddImpSkillTraitButtons (the picks cleared and None picked unless the character is done, the last picks forgotten),
+// @src HandleIMPSkillTraitAnswers, HandleLastSelectedTraits (a third pick drops the oldest of the two before it, None
+// @src included), CountNumSkillStraitsSelected, BtnIMPSkillTraitFinishCallback, CameBackToSpecialtiesPageButNotFinished,
+// @src DoesPlayerHaveExtraAttibutePointsToDistributeBasedOnSkillSelection, AddSelectedSkillsToSkillsList; IMP_Portraits.cc IncrementPictureIndex, DecrementPicture,
 // @src BtnIMPPortraitDoneCallback; IMP_Voices.cc IncrementVoice, DecrementVoice, BtnIMPVoicesDoneCallback; IMP_Finish.cc
 // @src EnterIMPFinish, BtnIMPFinishDoneCallback, FinishMessageBoxCallBack; IMP_Confirm.cc BtnIMPConfirmYes, BtnIMPConfirmNo.
 
@@ -44,6 +48,10 @@ export const MALE = 1;
 export const MAX_NICKNAME_LENGTH = 8;
 const LAST_QUESTION = QUIZ_QUESTIONS - 1;
 
+export const Specialty = { MARTIAL_ARTS: 13, NONE: 14 } as const;
+export const SPECIALTY_COUNT = Specialty.NONE + 1;
+const NO_SPECIALTY = -1;
+
 export const ATTRIBUTE_NAMES: readonly ImpAttributeName[] = [
   'health',
   'agility',
@@ -65,11 +73,24 @@ export const DEFAULT_ATTRIBUTE_RULES: ImpAttributeRulesView = {
   zeroBonus: 15,
   order: ['health', 'dexterity', 'agility', 'strength', 'wisdom', 'leadership', 'marksmanship', 'explosives', 'medical', 'mechanical'],
   zeroable: ['marksmanship', 'medical', 'mechanical', 'explosives'],
+  specialtyBonus: null,
 };
 
 export type ImpAttributes = Record<ImpAttributeName, number>;
 
 export type BeginOutcome = 'main' | 'needsNameAndGender';
+
+export interface ImpRequestDraft {
+  readonly code: string;
+  readonly name: string;
+  readonly nickname: string;
+  readonly gender: 'male' | 'female';
+  readonly answers?: readonly number[];
+  readonly skills?: readonly number[];
+  readonly attributes: ImpAttributes;
+  readonly portrait: number;
+  readonly voice: number;
+}
 
 function startingAttributes(start: number): ImpAttributes {
   return Object.fromEntries(ATTRIBUTE_NAMES.map((name) => [name, start])) as ImpAttributes;
@@ -91,6 +112,8 @@ export class ImpDraft {
   maxQuestion = 0;
   answer = NO_ANSWER;
   startOver = false;
+  readonly specialties: boolean[] = new Array<boolean>(SPECIALTY_COUNT).fill(false);
+  readonly #lastSpecialties: number[] = [NO_SPECIALTY, NO_SPECIALTY];
   rules: ImpAttributeRulesView = DEFAULT_ATTRIBUTE_RULES;
   current: ImpAttributes = startingAttributes(DEFAULT_ATTRIBUTE_RULES.start);
   committed: ImpAttributes = startingAttributes(DEFAULT_ATTRIBUTE_RULES.start);
@@ -274,10 +297,60 @@ export class ImpDraft {
     this.page = ImpPage.MAIN;
   }
 
+  enterSpecialties(): void {
+    if (this.profileMode !== ProfileMode.DONE) {
+      this.specialties.fill(false);
+      this.specialties[Specialty.NONE] = true;
+    }
+    this.#lastSpecialties.fill(NO_SPECIALTY);
+  }
+
+  pickSpecialty(specialty: number): boolean {
+    if (this.profileMode === ProfileMode.DONE) return false;
+    if (specialty < 0 || specialty >= SPECIALTY_COUNT || this.specialties[specialty]) return false;
+    this.#rememberSpecialty(specialty);
+    this.specialties[specialty] = true;
+    if (specialty === Specialty.NONE) {
+      this.specialties.fill(false);
+      this.specialties[Specialty.NONE] = true;
+    } else this.specialties[Specialty.NONE] = false;
+    return true;
+  }
+
+  #rememberSpecialty(specialty: number): void {
+    const [newest, older] = this.#lastSpecialties as [number, number];
+    if (newest !== NO_SPECIALTY && older !== NO_SPECIALTY) this.specialties[older] = false;
+    this.#lastSpecialties[1] = newest;
+    this.#lastSpecialties[0] = specialty;
+  }
+
+  specialtiesFinished(): void {
+    if (this.profileMode === ProfileMode.DONE) {
+      this.page = ImpPage.FINISH;
+      return;
+    }
+    this.page = ImpPage.MAIN;
+    if (this.profileMode !== ProfileMode.ATTRIBUTES) this.profileMode = ProfileMode.ATTRIBUTES;
+  }
+
+  #pickedSpecialties(): number[] {
+    const picked: number[] = [];
+    for (let s = 0; s < Specialty.NONE; s++) if (this.specialties[s]) picked.push(s);
+    return picked;
+  }
+
+  #specialtyBonus(rules: ImpAttributeRulesView): number {
+    const bonus = rules.specialtyBonus;
+    if (!bonus) return 0;
+    const picked = this.#pickedSpecialties();
+    if (picked.length === 0) return bonus.withoutSpecialty;
+    return picked.length === 1 ? (bonus.loneSpecialty[picked[0] ?? NO_SPECIALTY] ?? 0) : 0;
+  }
+
   setAttributes(rules: ImpAttributeRulesView = this.rules): void {
     this.rules = rules;
     this.current = startingAttributes(rules.start);
-    this.bonusPoints = rules.bonus;
+    this.bonusPoints = rules.bonus + this.#specialtyBonus(rules);
   }
 
   enterAttributes(rules: ImpAttributeRulesView): void {
@@ -440,22 +513,16 @@ export class ImpDraft {
     }
   }
 
-  request(): {
-    readonly code: string;
-    readonly name: string;
-    readonly nickname: string;
-    readonly gender: 'male' | 'female';
-    readonly answers: readonly number[];
-    readonly attributes: ImpAttributes;
-    readonly portrait: number;
-    readonly voice: number;
-  } {
+  request(specialtySkills: readonly number[] | null = null): ImpRequestDraft {
+    const choice = specialtySkills
+      ? { skills: this.#pickedSpecialties().map((s) => specialtySkills[s] ?? NO_SPECIALTY) }
+      : { answers: [...this.answers] };
     return {
       code: this.code,
       name: this.fullName,
       nickname: this.nickName,
       gender: this.male ? 'male' : 'female',
-      answers: [...this.answers],
+      ...choice,
       attributes: { ...this.committed },
       portrait: this.portraitNumber,
       voice: this.voiceId,

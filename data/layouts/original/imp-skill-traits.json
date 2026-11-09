@@ -1,0 +1,185 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_SkillTraits.cc EnterIMPSkillTrait (button_5.sti with pImpButtonText[11] at LAPTOP_SCREEN_UL_X + 350, LAPTOP_SCREEN_WEB_UL_Y + 340, MSYS_PRIORITY_HIGH), AddImpSkillTraitButtons (button_6.sti toggles at MSYS_PRIORITY_HIGHEST - 3 with no sound scheme, seven to a column from the left column start, the right column from the seventh, None at IMP_SKILL_TRAIT__NONE_BTN_LOC_X below them; a woman's Martial Arts left out), IMPSkillTraitDisplaySkills (the title gzIMPSkillTraitsText[IMP_SKILL_TRAIT__TITLE_TEXT] at the screen's y IMP_SKILL_TRAIT__TITLE_Y, the specialty names in FONT12ARIAL FONT_MCOLOR_WHITE at the text offset from the button, the grey or gold box at the grey box offset before the name)",
+    "src/game/UILayout.cc:68 (STD_SCREEN_X is (SCREEN_WIDTH - MIN_INTERFACE_WIDTH) / 2, which the title's x has and its y has not)",
+    "assets/externalized/sti/laptop/SkillTraitSmallGreyIdent.sti (Stracciatella's own art, 161 × 24: a dark top row and left column, a light right column and bottom row, grey or gold inside; drawn as fills, deviation \"I.M.P. specialty boxes\")"
+  ],
+  "screen": "impSkillTraits",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_SkillTraits", "UILayout", "Button_Sound_Control"],
+  "assets": {
+    "button6": {
+      "sti": "laptop/button_6.sti",
+      "stub": {
+        "frames": 2,
+        "size": [52, 35],
+        "states": ["normal", "pressed"],
+        "hollow": false
+      }
+    },
+    "button5": {
+      "sti": "laptop/button_5.sti",
+      "stub": {
+        "frames": 2,
+        "size": [135, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "id": "impSkillTraitsTitle",
+      "within": "screen",
+      "x": "($screenWidth - MIN_INTERFACE_WIDTH) / 2 + IMP_SKILL_TRAIT__TITLE_X",
+      "y": "IMP_SKILL_TRAIT__TITLE_Y",
+      "width": "IMP_SKILL_TRAIT__TITLE_WIDTH",
+      "font": "IMP_SKILL_TRAIT__TITLE_FONT",
+      "color": "IMP_SKILL_TRAIT__COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["gzIMPSkillTraitsText", "IMP_SKILL_TRAIT__TITLE_TEXT"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": "IMP_SKILL_TRAIT__SKILL_TRAIT_TO_START_RIGHT_COL + 1",
+      "x": "IMP_SKILL_TRAIT__LEFT_COLUMN_START_X",
+      "y": "IMP_SKILL_TRAIT__LEFT_COLUMN_START_Y",
+      "dy": "IMP_SKILL_TRAIT__SPACE_BTN_BUTTONS",
+      "template": [
+        { "type": "fill", "x": 60, "y": 5, "width": 161, "height": 1, "color": [42, 43, 42] },
+        { "type": "fill", "x": 60, "y": 6, "width": 1, "height": 23, "color": [42, 43, 42] },
+        { "type": "fill", "x": 220, "y": 6, "width": 1, "height": 22, "color": [213, 212, 212] },
+        { "type": "fill", "x": 61, "y": 28, "width": 160, "height": 1, "color": [213, 212, 212] },
+        { "type": "fill", "x": 61, "y": 6, "width": 159, "height": 22, "color": [85, 85, 85], "visible": "!specialties[$i].on" },
+        { "type": "fill", "x": 61, "y": 6, "width": 159, "height": 22, "color": [170, 170, 85], "visible": "specialties[$i].on" },
+        {
+          "type": "text",
+          "id": "impSpecialtyText$i",
+          "x": "IMP_SKILL_TRAIT__TEXT_OFFSET_X",
+          "y": "IMP_SKILL_TRAIT__TEXT_OFFSET_Y",
+          "font": "IMP_SKILL_TRAIT__FONT",
+          "color": "IMP_SKILL_TRAIT__COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": { "key": ["gzIMPSkillTraitsText", "$i"] }
+        },
+        {
+          "type": "button",
+          "id": "impSpecialty$i",
+          "x": 0,
+          "y": 0,
+          "asset": "button6",
+          "frames": { "offNormal": 0, "onNormal": 1 },
+          "priority": "HIGHEST-3",
+          "cursor": "CURSOR_WWW",
+          "sound": "NONE",
+          "kind": "toggle",
+          "down": "pick($i)",
+          "checked": "specialties[$i].pressed"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": { "bind": "rightColumnCount" },
+      "start": "IMP_SKILL_TRAIT__SKILL_TRAIT_TO_START_RIGHT_COL + 1",
+      "x": "IMP_SKILL_TRAIT__RIGHT_COLUMN_START_X",
+      "y": "IMP_SKILL_TRAIT__RIGHT_COLUMN_START_Y",
+      "dy": "IMP_SKILL_TRAIT__SPACE_BTN_BUTTONS",
+      "template": [
+        { "type": "fill", "x": 60, "y": 5, "width": 161, "height": 1, "color": [42, 43, 42] },
+        { "type": "fill", "x": 60, "y": 6, "width": 1, "height": 23, "color": [42, 43, 42] },
+        { "type": "fill", "x": 220, "y": 6, "width": 1, "height": 22, "color": [213, 212, 212] },
+        { "type": "fill", "x": 61, "y": 28, "width": 160, "height": 1, "color": [213, 212, 212] },
+        { "type": "fill", "x": 61, "y": 6, "width": 159, "height": 22, "color": [85, 85, 85], "visible": "!specialties[$i].on" },
+        { "type": "fill", "x": 61, "y": 6, "width": 159, "height": 22, "color": [170, 170, 85], "visible": "specialties[$i].on" },
+        {
+          "type": "text",
+          "id": "impSpecialtyText$i",
+          "x": "IMP_SKILL_TRAIT__TEXT_OFFSET_X",
+          "y": "IMP_SKILL_TRAIT__TEXT_OFFSET_Y",
+          "font": "IMP_SKILL_TRAIT__FONT",
+          "color": "IMP_SKILL_TRAIT__COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": { "key": ["gzIMPSkillTraitsText", "$i"] }
+        },
+        {
+          "type": "button",
+          "id": "impSpecialty$i",
+          "x": 0,
+          "y": 0,
+          "asset": "button6",
+          "frames": { "offNormal": 0, "onNormal": 1 },
+          "priority": "HIGHEST-3",
+          "cursor": "CURSOR_WWW",
+          "sound": "NONE",
+          "kind": "toggle",
+          "down": "pick($i)",
+          "checked": "specialties[$i].pressed"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "start": "IMP_SKILL_TRAITS__NONE",
+      "x": "IMP_SKILL_TRAIT__NONE_BTN_LOC_X",
+      "y": "IMP_SKILL_TRAIT__LEFT_COLUMN_START_Y + (IMP_SKILL_TRAIT__SKILL_TRAIT_TO_START_RIGHT_COL + 1) * IMP_SKILL_TRAIT__SPACE_BTN_BUTTONS",
+      "template": [
+        { "type": "fill", "x": 60, "y": 5, "width": 161, "height": 1, "color": [42, 43, 42] },
+        { "type": "fill", "x": 60, "y": 6, "width": 1, "height": 23, "color": [42, 43, 42] },
+        { "type": "fill", "x": 220, "y": 6, "width": 1, "height": 22, "color": [213, 212, 212] },
+        { "type": "fill", "x": 61, "y": 28, "width": 160, "height": 1, "color": [213, 212, 212] },
+        { "type": "fill", "x": 61, "y": 6, "width": 159, "height": 22, "color": [85, 85, 85], "visible": "!specialties[$i].on" },
+        { "type": "fill", "x": 61, "y": 6, "width": 159, "height": 22, "color": [170, 170, 85], "visible": "specialties[$i].on" },
+        {
+          "type": "text",
+          "id": "impSpecialtyText$i",
+          "x": "IMP_SKILL_TRAIT__TEXT_OFFSET_X",
+          "y": "IMP_SKILL_TRAIT__TEXT_OFFSET_Y",
+          "font": "IMP_SKILL_TRAIT__FONT",
+          "color": "IMP_SKILL_TRAIT__COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": { "key": ["gzIMPSkillTraitsText", "$i"] }
+        },
+        {
+          "type": "button",
+          "id": "impSpecialty$i",
+          "x": 0,
+          "y": 0,
+          "asset": "button6",
+          "frames": { "offNormal": 0, "onNormal": 1 },
+          "priority": "HIGHEST-3",
+          "cursor": "CURSOR_WWW",
+          "sound": "NONE",
+          "kind": "toggle",
+          "down": "pick($i)",
+          "checked": "specialties[$i].pressed"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "impSkillTraitsFinish",
+      "x": "LAPTOP_SCREEN_UL_X + 350",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 340",
+      "asset": "button5",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "down": "finish",
+      "text": {
+        "source": { "key": ["pImpButtonText", 11] },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

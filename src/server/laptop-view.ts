@@ -10,6 +10,7 @@ import type {
   BobbyRayView,
   ImpGenderListsView,
   ImpSiteView,
+  ImpSpecialtyBonusView,
   InsuranceOfferView,
   InTransitView,
   LaptopItemView,
@@ -26,7 +27,9 @@ import { bobbyRayItemPrice, bobbyRayUnitPrice, shippingCost } from '../sim/campa
 import {
   COST_OF_PROFILE,
   canCreateAnotherImpCharacter,
+  directPickBonus,
   IMP_ATTRIBUTE_PAGE_ORDER,
+  IMP_SKILL_ORDER,
   IMP_ZEROABLE_ATTRIBUTES,
   impBeginRefusal,
   impCharactersCreated,
@@ -280,11 +283,17 @@ function impView(flow: LaptopFlow): ImpSiteView {
       zeroBonus: imp.zeroAttributePointsBonus,
       order: IMP_ATTRIBUTE_PAGE_ORDER,
       zeroable: IMP_ZEROABLE_ATTRIBUTES,
+      specialtyBonus: imp.pickSkillsDirectly ? specialtyBonusView() : null,
     },
     portraits: genderLists(imp.portraits, (p) => p.face),
     voices: genderLists(imp.voices, (v) => v.profile),
     quizAnswers: flow.content.impQuiz.map((question) => question.length),
+    specialties: IMP_SKILL_ORDER,
   };
+}
+
+function specialtyBonusView(): ImpSpecialtyBonusView {
+  return { withoutSpecialty: directPickBonus([]), loneSpecialty: IMP_SKILL_ORDER.map((skill) => directPickBonus([skill])) };
 }
 
 function insuranceView(flow: LaptopFlow): InsuranceOfferView[] {

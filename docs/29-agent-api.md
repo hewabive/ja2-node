@@ -842,7 +842,9 @@ stands still while it is open. One command per decision of the pages: `aimHire`,
 `bobbyRayOrder` (the whole cart, atomic), `insure`, `orderFlowers`. `visitSite` is entering a page where entering has
 effects: Bobby Ray's construction mail, bookmarks, the M.E.R.C. visit counter and Speck's opening, the florist order
 form's draw (deviations "Speck's opening", "Florist order form entry"). The I.M.P. draft stays in the client until
-`impCreate`. The laptop's queries answer before money moves; `emailText` is answered by the server's campaign adapter
+`impCreate`; under the rule pack's `imp.pick_skills_directly` (`imp.pickSkillsDirectly` in the view) it takes `skills`,
+at most two of the view's `imp.specialties`, in place of `answers`, and `imp.attributes.specialtyBonus` gives what they
+add to the attribute pool. The laptop's queries answer before money moves; `emailText` is answered by the server's campaign adapter
 (`src/server/campaign-session.ts`, `mail-text.ts`) with the original's substitutions and the I.M.P. report, not by the
 simulation, and goes through the command path although it changes nothing. Silent profile changes (a merc back home,
 away, dead elsewhere, the M.E.R.C. outage) raise no event; they show in the view. The view carries `newGameLaptop` and

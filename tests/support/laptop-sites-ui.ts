@@ -3,6 +3,7 @@ import { decodeSti } from '../../src/content/formats/sti.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { STUB_DATA_VERSION } from '../../src/content/text/data-version.ts';
 import { loadUiStrings } from '../../src/content/text/strings.ts';
+import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { STUBS_PREFIX } from '../../src/node/data-vfs.ts';
 import type { CatalogueItem } from '../../src/protocol/items.ts';
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
@@ -60,6 +61,7 @@ export interface LaptopHarness {
 
 export interface LaptopHarnessOptions {
   readonly seed: number;
+  readonly read?: ReadFile;
   readonly prepare?: (session: CampaignSession) => void;
   readonly loadingTimeScale?: number;
 }
@@ -121,10 +123,11 @@ function serverProfiles(session: CampaignSession): Map<number, LaptopProfile> {
 }
 
 export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, options: LaptopHarnessOptions): Promise<LaptopHarness> {
-  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), options.seed, { hire: [] });
+  const read = options.read ?? kit.read;
+  const created = await createCampaignSession(read, (p) => kit.worlds.exists(p), options.seed, { hire: [] });
   const strings = await loadUiStrings(kit.read, 'eng');
   created.useLabels(strings);
-  const session = drivenSession(created, stubSessionSources(kit));
+  const session = drivenSession(created, { ...stubSessionSources(kit), read });
   options.prepare?.(session);
   const live = new Session('laptop-sites', session);
   let draws = 0;
