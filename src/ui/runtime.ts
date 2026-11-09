@@ -5,6 +5,7 @@ import { type ComposedCursor, CursorState } from './cursors/cursor-state.ts';
 import type { CursorTable } from './cursors/cursor-table.ts';
 import { DiagnosticsOverlay } from './diagnostics-overlay.ts';
 import type { DrawList } from './draw-list.ts';
+import { TextInputState } from './input/composition.ts';
 import { isPointerEvent, queuesNoEvent, type UiInputEvent } from './input/events.ts';
 import { RegionDispatcher } from './input/regions.ts';
 import { FastHelp } from './input/tooltips.ts';
@@ -41,6 +42,7 @@ export class UiRuntime implements UiServices {
   readonly regions = new RegionDispatcher(CursorId.NORMAL);
   readonly clock = new UiClock();
   readonly host = new ScreenHost(() => (this.images.imagesLoading ?? 0) > 0);
+  readonly textInput = new TextInputState();
   readonly diagnostics = new DiagnosticsOverlay();
   readonly fonts: FontSet;
   readonly images: ImageCatalog;

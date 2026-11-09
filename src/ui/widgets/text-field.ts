@@ -6,13 +6,14 @@
 // @src MouseMovedInTextRegionCallback, MouseClickedInTextRegionCallback, RenderBackgroundField, RenderActiveTextField
 // @src (the caret blinks with GetJA2Clock() % 1000 < 500), RenderInactiveTextFieldNode, SelectNextField, SelectPrevField
 // @src (back on the field it started from, editing stops), AddUserInputField (a field without text whose callback hears
-// @src it gain and lose the focus), SetActiveField, SetActiveFieldMouse; src/game/Utils/Text_Input.h
-// @src TEXT_CURSOR_BLINK_INTERVAL.
+// @src it gain and lose the focus), SetActiveField, SetActiveFieldMouse, SetEditingStatus (text input runs while a field
+// @src is edited); src/game/Utils/Text_Input.h TEXT_CURSOR_BLINK_INTERVAL.
 
 import { FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';
 import { CursorId } from '../cursors/cursor-ids.ts';
 import { type DrawList, type RgbColor, rgb } from '../draw-list.ts';
+import type { TextInputState } from '../input/composition.ts';
 import { KeyModifier, type UiInputEvent } from '../input/events.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../input/mouse.ts';
 import type { MouseRegion, RegionDispatcher } from '../input/regions.ts';
@@ -136,6 +137,7 @@ export class TextFieldGroup {
   readonly owner: unknown;
   readonly #regions: RegionDispatcher;
   readonly #sounds: UiSoundSink;
+  readonly #textInput: TextInputState | null;
   #scheme: TextFieldScheme;
   readonly #nodes: InputField[] = [];
   #active: InputField | null = null;
@@ -143,11 +145,18 @@ export class TextFieldGroup {
   #cursor = 0;
   #startHilite = 0;
 
-  constructor(regions: RegionDispatcher, sounds: UiSoundSink, scheme: TextFieldScheme, owner: unknown = {}) {
+  constructor(
+    regions: RegionDispatcher,
+    sounds: UiSoundSink,
+    scheme: TextFieldScheme,
+    owner: unknown = {},
+    textInput: TextInputState | null = null,
+  ) {
     this.#regions = regions;
     this.#sounds = sounds;
     this.#scheme = scheme;
     this.owner = owner;
+    this.#textInput = textInput;
   }
 
   get fields(): readonly TextField[] {
@@ -164,6 +173,11 @@ export class TextFieldGroup {
 
   get editing(): boolean {
     return this.#editing;
+  }
+
+  #setEditing(editing: boolean): void {
+    this.#editing = editing;
+    this.#textInput?.set(this, editing);
   }
 
   get cursor(): number {
@@ -207,7 +221,7 @@ export class TextFieldGroup {
     this.#nodes.push(node);
     if (this.#nodes.length > 1) return;
     this.#active = node;
-    this.#editing = node instanceof TextField;
+    this.#setEditing(node instanceof TextField);
     this.#startHilite = 0;
     this.#cursor = textLength(node);
   }
@@ -220,7 +234,7 @@ export class TextFieldGroup {
     if (this.#active !== node) return;
     const first = this.#nodes[0] ?? null;
     this.#active = first;
-    this.#editing = first instanceof TextField;
+    this.#setEditing(first instanceof TextField);
     this.#cursor = first ? textLength(first) : 0;
     this.#startHilite = this.#cursor;
   }
@@ -229,7 +243,7 @@ export class TextFieldGroup {
     for (const field of this.fields) field.region.remove();
     this.#nodes.length = 0;
     this.#active = null;
-    this.#editing = false;
+    this.#setEditing(false);
   }
 
   setActive(id: string): void {
@@ -246,13 +260,13 @@ export class TextFieldGroup {
 
   #enter(node: InputField): void {
     if (node instanceof UserField) {
-      this.#editing = false;
+      this.#setEditing(false);
       node.focus?.(true);
       return;
     }
     this.#startHilite = 0;
     this.#cursor = node.length;
-    this.#editing = true;
+    this.#setEditing(true);
   }
 
   #play(sample: string): void {
@@ -288,7 +302,7 @@ export class TextFieldGroup {
   #mouseClicked(field: TextField, region: MouseRegion, reason: number): void {
     if (!(reason & MouseReason.LBUTTON_DWN)) return;
     this.#setActiveByMouse(field);
-    this.#editing = true;
+    this.#setEditing(true);
     const position = this.#cursorAt(field, this.#regions.mouseX - region.x1);
     this.#cursor = position;
     this.#startHilite = position;
@@ -305,7 +319,7 @@ export class TextFieldGroup {
       this.#active = next;
       if (next.enabled) this.#enter(next);
       if (next === start) {
-        this.#editing = false;
+        this.#setEditing(false);
         return;
       }
       if (next.enabled) return;

@@ -1,5 +1,6 @@
 import type { ImageCatalog } from './assets.ts';
 import type { UiClock } from './clock.ts';
+import type { TextInputState } from './input/composition.ts';
 import type { RegionDispatcher } from './input/regions.ts';
 import type { ScreenHost } from './screen.ts';
 import type { FontSet } from './text/fonts.ts';
@@ -21,6 +22,7 @@ export interface UiServices {
   readonly sounds: UiSoundSink;
   readonly clock: UiClock;
   readonly host: ScreenHost;
+  readonly textInput?: TextInputState;
   geometry(): ScreenGeometry;
   pauseGame?(paused: boolean): void;
 }

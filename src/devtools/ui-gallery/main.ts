@@ -29,7 +29,7 @@ const fail = (error: unknown) => {
   page.hook.error = error instanceof Error ? error.message : String(error);
 };
 
-installDomInput(
+const domInput = installDomInput(
   stage,
   (event) => page.input(event),
   () => page.resolution,
@@ -39,6 +39,7 @@ startFrameLoop({ now: clock, requestFrame: (run) => requestAnimationFrame(run), 
 
 async function boot(): Promise<void> {
   const ui = await bootUi(page);
+  domInput.followTextInput(ui.runtime.textInput);
   stage.addEventListener('pointerdown', () => ui.audio.unlock());
   window.addEventListener('keydown', () => ui.audio.unlock());
   const skin = params.get(SKIN_PARAM) ?? ORIGINAL_SKIN;

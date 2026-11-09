@@ -1,3 +1,4 @@
+import { TextComposition, type TextInputState } from '../../ui/input/composition.ts';
 import { keyDownEvents, keyUpEvents, MouseButton, modifierMask, type RawKey, type UiInputEvent } from '../../ui/input/events.ts';
 import { type DevicePoint, type Resolution, toLogical } from '../../ui/resolution.ts';
 import { MouseGrab } from './mouse-grab.ts';
@@ -6,6 +7,11 @@ export type InputSink = (event: UiInputEvent) => void;
 
 export interface DomInputOptions {
   readonly pointerLeft?: () => void;
+}
+
+export interface DomInput {
+  followTextInput(state: TextInputState): void;
+  dispose(): void;
 }
 
 const SUPPRESSED_BUTTONS: ReadonlySet<number> = new Set([MouseButton.MIDDLE, MouseButton.BACK, MouseButton.FORWARD]);
@@ -64,10 +70,13 @@ export function installDomInput(
   sink: InputSink,
   resolution: () => Resolution,
   domOptions: DomInputOptions = {},
-): () => void {
+): DomInput {
   const controller = new AbortController();
   const options = { signal: controller.signal };
   const grab = new MouseGrab(stage, resolution, controller.signal);
+  const composition = new TextComposition();
+  const ime = imeTarget(stage);
+  installComposition(ime, composition, sink, controller.signal);
   const logical = (device: DevicePoint) => toLogical(resolution(), device.x, device.y);
   const pointer = (kind: 'pointerDown' | 'pointerUp' | 'pointerMove', event: PointerEvent) => {
     const { x, y } = logical(kind === 'pointerMove' ? grab.movedTo(event) : grab.at(event));
@@ -112,7 +121,8 @@ export function installDomInput(
     { ...options, passive: false },
   );
   stage.addEventListener('contextmenu', (event) => event.preventDefault(), options);
-  for (const type of ['mousedown', 'mouseup', 'auxclick'] as const) {
+  stage.addEventListener('mousedown', (event) => event.preventDefault(), options);
+  for (const type of ['mouseup', 'auxclick'] as const) {
     stage.addEventListener(
       type,
       (event) => {
@@ -124,7 +134,7 @@ export function installDomInput(
   window.addEventListener(
     'keydown',
     (event) => {
-      if (leftToBrowser(event)) return;
+      if (leftToBrowser(event) || composition.takesKeyDown(event, document.activeElement === ime)) return;
       event.preventDefault();
       if (event.key === FULLSCREEN_PRESS_KEY) {
         if (!event.repeat) toggleFullscreen(stage, grab);
@@ -137,7 +147,7 @@ export function installDomInput(
   window.addEventListener(
     'keyup',
     (event) => {
-      if (leftToBrowser(event)) return;
+      if (leftToBrowser(event) || composition.takesKeyUp(event)) return;
       event.preventDefault();
       if (event.altKey && event.key === FULLSCREEN_KEY) {
         toggleFullscreen(stage, grab);
@@ -152,7 +162,81 @@ export function installDomInput(
     },
     options,
   );
-  return () => controller.abort();
+  return {
+    followTextInput: (state) => followEditing(ime, state, controller.signal),
+    dispose: () => {
+      controller.abort();
+      ime.remove();
+    },
+  };
+}
+
+const IME_TARGET_STYLE: Partial<CSSStyleDeclaration> = {
+  position: 'absolute',
+  left: '0',
+  top: '0',
+  width: '20em',
+  margin: '0',
+  padding: '2px 4px',
+  border: '1px solid #808080',
+  font: '16px sans-serif',
+  color: '#000',
+  background: '#fff',
+  opacity: '0',
+  pointerEvents: 'none',
+  zIndex: '1',
+};
+const COMPOSING_OPACITY = '1';
+const IDLE_OPACITY = '0';
+
+function imeTarget(stage: HTMLElement): HTMLInputElement {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.tabIndex = -1;
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.setAttribute('autocapitalize', 'off');
+  input.setAttribute('aria-hidden', 'true');
+  Object.assign(input.style, IME_TARGET_STYLE);
+  stage.append(input);
+  return input;
+}
+
+function installComposition(input: HTMLInputElement, composition: TextComposition, sink: InputSink, signal: AbortSignal): void {
+  const options = { signal };
+  input.addEventListener(
+    'compositionstart',
+    () => {
+      composition.start();
+      input.style.opacity = COMPOSING_OPACITY;
+    },
+    options,
+  );
+  input.addEventListener(
+    'compositionend',
+    (event) => {
+      input.style.opacity = IDLE_OPACITY;
+      input.value = '';
+      for (const e of composition.commit(event.data)) sink(e);
+    },
+    options,
+  );
+  input.addEventListener(
+    'input',
+    () => {
+      if (!composition.composing) input.value = '';
+    },
+    options,
+  );
+}
+
+function followEditing(input: HTMLInputElement, state: TextInputState, signal: AbortSignal): void {
+  const follow = (editing: boolean) => {
+    if (editing) input.focus({ preventScroll: true });
+    else input.blur();
+  };
+  follow(state.editing);
+  signal.addEventListener('abort', state.listen(follow), { once: true });
 }
 
 function eventModifiers(event: MouseEvent): Pick<RawKey, 'shift' | 'ctrl' | 'alt'> {

@@ -55,7 +55,7 @@ let testScreen: TestPatternScreen | null = null;
 let frontEnd: FrontEnd | null = null;
 const pause = new ModalPause(() => frontEnd?.client.client ?? null);
 
-installDomInput(
+const domInput = installDomInput(
   page.stage,
   (event) => {
     page.input(event);
@@ -84,6 +84,7 @@ async function bootTestPattern(): Promise<void> {
 
 async function bootFrontEnd(): Promise<void> {
   const ui = await bootUi(page, { pauseGame: (paused) => pause.set(paused) });
+  domInput.followTextInput(ui.runtime.textInput);
   frontEnd = await startFrontEnd(page, ui);
   const started = frontEnd;
   page.hook.music = started.music.page.hook;

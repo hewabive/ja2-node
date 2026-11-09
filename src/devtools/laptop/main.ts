@@ -45,7 +45,7 @@ const fail = (error: unknown) => {
   page.hook.error = error instanceof Error ? error.message : String(error);
 };
 
-installDomInput(
+const domInput = installDomInput(
   stage,
   (event) => page.input(event),
   () => page.resolution,
@@ -104,6 +104,7 @@ async function boot(): Promise<void> {
   page.hook.session = client.session;
   hook.command = (cmd) => client.command(cmd);
   const ui = await bootUi(page);
+  domInput.followTextInput(ui.runtime.textInput);
   stage.addEventListener('pointerdown', () => ui.audio.unlock());
   window.addEventListener('keydown', () => ui.audio.unlock());
   await laptopView(client);

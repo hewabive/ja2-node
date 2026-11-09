@@ -839,7 +839,7 @@ export class LayoutView {
   }
 
   #textFieldGroup(scheme: TextFieldScheme): TextFieldGroup {
-    this.#fields ??= new TextFields(this.services.regions, this.services.sounds, scheme, this.owner);
+    this.#fields ??= new TextFields(this.services.regions, this.services.sounds, scheme, this.owner, this.services.textInput ?? null);
     return this.#fields;
   }
 

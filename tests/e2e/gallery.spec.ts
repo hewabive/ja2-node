@@ -86,6 +86,21 @@ test.describe('the widget gallery on stubs', () => {
     await nextFrames(page);
     expect(await page.evaluate(() => window.__ja2Ui.cursor)).toMatchObject({ name: 'CURSOR_IBEAM', visible: true });
   });
+
+  test('takes nothing of an IME composition before its commit and the committed text as typed characters', async ({ page }) => {
+    await openUiPage(page, `${GALLERY}?pinClock=1`);
+    await clickWidget(page, 'name');
+    await page.keyboard.press('Control+Delete');
+    await nextFrames(page);
+    expect(await widgetText(page, 'name')).toBe('');
+    const ime = await page.context().newCDPSession(page);
+    await ime.send('Input.imeSetComposition', { text: 'zoe', selectionStart: 3, selectionEnd: 3 });
+    await nextFrames(page);
+    expect(await widgetText(page, 'name')).toBe('');
+    await ime.send('Input.insertText', { text: 'Zoë中' });
+    await nextFrames(page);
+    expect(await widgetText(page, 'name')).toBe('Zoë');
+  });
 });
 
 test.describe('the widget gallery with a running clock', () => {

@@ -352,4 +352,4 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "IME composition", "I.M.P. skill page and saved profiles".
+Not ported: gap "I.M.P. skill page and saved profiles".

@@ -249,7 +249,7 @@ tested with scripted event sequences next to the code, on the stub fonts in CI a
   neither scale with the canvas nor carry the live text the original prints in it (hit chance, AP cost).
 - **Fades** step every 16 ms on the UI clock and multiply the frozen frame once (deviation "Fades"); zooms capture the
   frame into a texture and stretch it in the shader. No pointer warp and no mouse confinement (deviations "Pointer
-  warp", "Mouse confinement"); text fields have no editor input types and no IME (deviation "Text input").
+  warp", "Mouse confinement"); text fields have no editor input types (deviation "Text input").
 
 **Fonts and text.** `FontSet` (`src/ui/text/fonts.ts`) maps the original's 16 font macros to their STIs; one glyph
 table per data version maps a code point to a glyph index for all fonts (`src/content/text/glyph-table.ts`, `31`).
@@ -269,7 +269,16 @@ Lock queue no event: the runtime takes the modifiers from them and passes them t
 `src/ui/runtime.ts`). The original hard-codes whether each hotkey fires on key-down or key-up and with which exact
 modifiers; ja2-node keeps both in hotkey tables per layout and modal (`src/ui/input/hotkeys.ts`), which would also allow
 remapping. Text fields get keys first. The page `preventDefault`s every key except Meta chords, which go to the browser
-and not to the game; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden. Alt+Enter on release, Stracciatella's
+and not to the game, and the keys an IME takes; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden.
+
+**IME.** The original starts SDL's text input while a field is edited and stops it after (`SetEditingStatus`,
+`Utils/Text_Input.cc:126`), queues committed text as one `TEXT_INPUT` event and ignores the composition
+(`src/sgp/SGP.cc:173`). A browser composes only into a focused editable element, so while a field is edited
+(`TextInputState`, `src/ui/input/composition.ts`) the page focuses a hidden input in the stage, and a press on the stage
+keeps that focus (`src/app/game/dom-input.ts`). Nothing of a composition reaches the game before its commit: the keys the
+IME takes (`Process`, and every key while it composes) and the key-up of each of them are dropped, the committed text
+goes in as typed characters, through the field's limit and filters. The browser draws the composition in that input,
+shown at the stage's top left while it lasts, as SDL leaves it to the system's IME window. Alt+Enter on release, Stracciatella's
 toggle (`src/sgp/Input.cc:468`), and F11 on press (the original uses F11 only at the debug cheat level,
 `Tactical/Turn_Based_Input.cc:1685`) put the stage into Fullscreen API fullscreen and take the Keyboard Lock (Chromium),
 so Esc reaches the game there. In any fullscreen Chrome keeps F11 for itself and leaves fullscreen on it (Chromium
@@ -309,6 +318,7 @@ slices.
 | Tab that finds no other enabled field comes back to the field it left and stops editing there | `widgets/widgets.test.ts` |
 | Keypad 5 with NumLock off reaches no screen, so it does not even end the player's pause | `input/events.test.ts` |
 | Shift, Ctrl, Alt, Print Screen and Scroll Lock pressed alone reach no screen, so they do not even end the player's pause | `runtime.test.ts` |
+| A numeric field keeps only the ASCII digits of an IME commit, so the full-width digits a Chinese IME commits are dropped (`INPUTTYPE_NUMERICSTRICT`, `Utils/Text_Input.cc:720`) | `input/composition.test.ts` |
 
 ## 8. Layouts as data
 
