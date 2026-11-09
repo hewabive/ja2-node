@@ -498,7 +498,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
     turnFinished: freeUpFromTurning,
     stanceFreeUp: freeUpFromStanceChange,
     pendingAction: (state, s) => {
-      adoptSavedPendingAction(s);
+      adoptSavedPendingAction(state, s);
       return (
         handlePendingMeleeOnArrival(state, s) ||
         handlePendingPickupOnArrival(state, s) ||

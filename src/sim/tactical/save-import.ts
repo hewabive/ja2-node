@@ -582,8 +582,8 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
 }
 
 function savedPendingAction(r: SavedSoldier): SavedPendingAction | null {
-  const { pendingAction: action, pendingActionAnimCount: animCount, pendingActionData3: direction } = r.motion;
-  return action === SAVED_NO_PENDING_ACTION ? null : { action, giveTarget: r.ai.pendingActionData4, direction, animCount };
+  const { pendingAction: action, pendingActionAnimCount: animCount, pendingActionData3: data3 } = r.motion;
+  return action === SAVED_NO_PENDING_ACTION ? null : { action, giveTarget: r.ai.pendingActionData4, data3, animCount };
 }
 
 function emptyRecord(r: SavedSoldier): SavedSoldier['inventory'][number] {

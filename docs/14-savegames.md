@@ -94,17 +94,18 @@ starts included, takes `EVENT_InitNewSoldierAnim`'s loading branch, which skips 
 restart runs the script with its opcodes, and its draws are the main stream's, as all of `Random` is (deviation "Player
 loads"); the saved pending animation is held through it and dropped after, as entering the sector does
 (`Tactical/Soldier_Add.cc:871`); the roster takes the restarted soldiers of the mercs on no map. A saved pending action
-stays as its code, count, a give's target and its direction (`Soldier.savedPendingAction`; its other data are the
-soldier's `pendingActionData1` and `pendingActionData2`): the restart counts it, freeing a dropped give's target in any
-sector (`TacticalState.soldiersOfTheLoad`, the save's soldiers while it runs), placing the soldier on the map drops it,
-and one the load leaves off the map (seated in a vehicle or the helicopter, in another sector) keeps it until he enters
-a map or stops, holding the auto-bandage question back meanwhile, the helicopter drop's seats too, and, for a give,
-every door or container opened on arrival. Boarding drops it as `EVENT_StopMerc` does unless he waits for a tile, also
-where the vehicle has no soldier on the loaded map (`stopAsBoardedAwayFromTheVehicle`); one kept past getting out of a
-vehicle becomes ja2-node's typed record at the end of his next walk and runs there (`saved-pending-action.ts`; deviation
-"Saved robot reload"; gap "Pending actions on import" for the codes left). A save with no world
-only stands a climber up (deviation "Animations on load without a world"). The restart runs before the campaign hooks
-the sector, so an opcode that reports to the campaign does not reach it (gap "Animations on load").
+stays as its code, count, a give's target and its `bPendingActionData3` (`Soldier.savedPendingAction`; its other data
+are the soldier's `pendingActionData1`, `pendingActionData2` and `pendingActionData4`): the restart counts it, freeing
+a dropped give's target in any sector (`TacticalState.soldiersOfTheLoad`, the save's soldiers while it runs), placing
+the soldier on the map drops it, and one the load leaves off the map (seated in a vehicle or the helicopter, in another
+sector) keeps it until he enters a map or stops, holding the auto-bandage question back meanwhile, the helicopter
+drop's seats too, and, for a give, every door or container opened on arrival. Boarding drops it as `EVENT_StopMerc`
+does unless he waits for a tile, also where the vehicle has no soldier on the loaded map
+(`stopAsBoardedAwayFromTheVehicle`); one kept past getting out of a vehicle becomes ja2-node's typed record at the end
+of his next walk and runs there (`saved-pending-action.ts`; deviations "Saved robot reload", "Pickup menu"; §3), all
+but `MERC_WAITFOROTHERSTOTRIGGER`, which no order sets. A save with no world only stands a climber up (deviation
+"Animations on load without a world"). The restart runs before the campaign hooks the sector, so an opcode that
+reports to the campaign does not reach it (gap "Animations on load").
 
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
@@ -206,6 +207,8 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A loaded thrown knife takes its status from what its thrower holds at the load, not its own: `HandleBulletSpecialFlags` reads the hand again (`Tactical/Bullets.cc:102`) | `sim/tactical/save-import.test.ts` "gives a loaded thrown knife the status of what its thrower holds now …" |
 | A bullet saved stopped stays in its slot for good: the miss animation that would end it is not saved (`Tactical/Bullets.cc:405`) | `sim/tactical/save-import.test.ts` "keeps a bullet saved stopped in its slot for good …" |
 | A loaded object has no level node, so its first move looks at the catch again on the tile it was saved on, measured from there, where a drawn object waits for its next tile (`TileEngine/LoadSaveRealObject.cc:40`, `TileEngine/Physics.cc:1097`) | `sim/tactical/save-import.test.ts` "looks at the catch again on the tile an object was saved on …" |
+| A saved door or container action runs from wherever his walk ends and handles the structure at its tile only if the saved structure ID is its own: the load numbers the structures anew from the process's counter, so a save from a process that had loaded other worlds plays the opening at a door that stays shut (`Tactical/Overhead.cc:821`, `TileEngine/Interactive_Tiles.cc:98`, `TileEngine/Structure.cc:777`) | `sim/tactical/saved-pending-action.test.ts` "opens the door or container its saved structure ID names …", "plays the opening of a saved door whose structure ID names no structure …" |
+| A saved pickup of our merc takes the pile at its saved tile and height whatever item index it saved: only another team's pickup reads it (`Tactical/Handle_Items.cc:1316`) | `sim/tactical/saved-pending-action.test.ts` "steps onto the tile a saved pickup names …" |
 | The civilians' preserved file ends on a sector id that its load reads and never checks, while the enemies' is checked (`Tactical/Enemy_Soldier_Save.cc:255`, `:424`) | `content/formats/savegame-preserved-soldiers.test.ts` "checks the sector id after the records of an enemy file only …" |
 
 Not pinned yet:
@@ -242,6 +245,9 @@ Inferred from reading the source:
   process keeps whatever the previous game left there.
 - The dropped reservations, pending animations and pending actions, the engagement a give keeps and the items' new
   tiles: the soldier dump compares none of them, and no shipped save holds a pending action or an engaged soldier.
+- The structure IDs a saved door or container action is checked against: the import numbers the structures in the
+  order of a sector load (`placeWorldStructures`, `src/content/world/placement.ts`), taken to be the native load's in
+  a fresh process; no probe dumps a structure ID.
 - The restart's opcodes past the idle check: every soldier of the shipped saves stands, walks, crouches, aims or cowers,
   so the native restarts reach no opcode but code 491; the others are pinned by unit tests
   (`src/sim/tactical/save-import.test.ts`).
@@ -258,6 +264,6 @@ Inferred from reading the source:
   pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's status from the hand, a
   bullet saved stopped and the cursor item: no probe makes them.
 
-Not ported: gaps "Animations on load", "Pending actions on import".
+Not ported: gap "Animations on load".
 Other deviations of the import: "Ambient sound events", "Blood on the ground",
 "Difficulty and progress in tactical", "Corpse structure past its file", "Preserved soldier checksums".

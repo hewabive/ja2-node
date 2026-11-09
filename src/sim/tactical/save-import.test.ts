@@ -1217,7 +1217,7 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
     const away = soldiers.get(AWAY_ID);
     expect([soldierOf(sim, MERC_ID).savedPendingAction, away?.savedPendingAction]).toEqual([
       null,
-      { action: MERC_PICKUPITEM, giveTarget: CIVILIAN_ID, direction: 0, animCount: 1 },
+      { action: MERC_PICKUPITEM, giveTarget: CIVILIAN_ID, data3: 0, animCount: 1 },
     ]);
     expect(away && hasPendingAction(away)).toBe(true);
   });

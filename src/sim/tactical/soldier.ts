@@ -620,7 +620,7 @@ export const MERC_GIVE_ITEM = 6;
 export interface SavedPendingAction {
   readonly action: number;
   readonly giveTarget: number;
-  readonly direction: number;
+  readonly data3: number;
   animCount: number;
 }
 

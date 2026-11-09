@@ -240,7 +240,7 @@ describe('a merc boarding a vehicle that has no soldier on the loaded map (Vehic
     const hummer = hummerOf(session);
     const roster = session.campaign.battle?.roster;
     if (!stopped || !waiting || !roster) throw new Error('nobody aboard');
-    const talk = { action: MERC_TALK, giveTarget: 0, direction: Direction.EAST, animCount: 0 };
+    const talk = { action: MERC_TALK, giveTarget: 0, data3: Direction.EAST, animCount: 0 };
     stopped.soldier.savedPendingAction = { ...talk };
     waiting.soldier.savedPendingAction = { ...talk };
     waiting.soldier.delayedMovement = WAITING_FOR_A_TILE;

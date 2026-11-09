@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
 // @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the
 // @src LOCKUI_MODE test, 2026-10-30; its fAutoBandagePending test, 2026-11-06; its MERC_GIVEITEM held after a give on the
-// @src spot, 2026-11-08);
+// @src spot, 2026-11-08; the doorAPs[ubDoorHandleCode] check of an openable, HaltMoveForSoldierOutOfPoints keeping the
+// @src action, 2026-11-09);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
 // @src stops the menu's merc, 2026-11-01).
 
@@ -13,9 +14,9 @@ import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.t
 import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
 import { anyMercHoldsGiveItem, dropHeldActions } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
-import { getNewSoldierPath } from '../movement.ts';
+import { getNewSoldierPath, haltMoveForSoldierOutOfPoints } from '../movement.ts';
 import { enoughPoints } from '../points.ts';
-import type { Soldier } from '../soldier.ts';
+import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import {
   ACTION_HANDLE_CODE,
@@ -23,6 +24,7 @@ import {
   closeDoorByHand,
   closingDoorMenu,
   type DoorActionName,
+  doorApCost,
   doorMenu,
   interactWithClosedDoor,
   interactWithDoorAt,
@@ -33,6 +35,7 @@ import {
 import { type DoorApproach, findAdjacentGridExAdvanced } from './door-approach.ts';
 import { findDoorInfo, PerceivedTrap } from './door-table.ts';
 import { doTrapCheckOnStartingMenu } from './door-traps.ts';
+import type { PendingDoorAction } from './key-ring.ts';
 import { soldierHasKey } from './keys.ts';
 import { findCrowbar, findLocksmithKit, findShapedCharge, NO_SLOT } from './lock-attempts.ts';
 
@@ -221,10 +224,22 @@ function otherActivityUnderWay(t: TacticalState): boolean {
   );
 }
 
-function interactWithPendingStruct(t: TacticalState, s: Soldier, gridNo: number, direction: number): void {
-  const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+function waitForTheAPsToOpen(t: TacticalState, s: Soldier, pending: PendingDoorAction, structure: StructureInstance): void {
+  if (s.team === Team.OUR) {
+    const action = has(structure.flags, StructureFlags.OPEN) ? 'close' : 'open';
+    t.events.push({ type: 'doorResult', soldier: s.id, gridNo: pending.gridNo, action, result: 'notEnoughAp' });
+  }
+  haltMoveForSoldierOutOfPoints(t, s);
+  s.pendingAnimation = NO_PENDING_ANIMATION;
+  s.pendingDirection = NO_PENDING_DIRECTION;
+  s.pendingDoorAction = pending;
+}
+
+function interactWithPendingStruct(t: TacticalState, s: Soldier, pending: PendingDoorAction): void {
+  const structure = t.world.structures.find(pending.gridNo, StructureFlags.OPENABLE);
   if (!structure) soldierGotoStationaryStance(t, s);
-  else if (!otherActivityUnderWay(t)) interactWithOpenableStruct(t, s, structure, direction);
+  else if (!enoughPoints(t.inCombat, s, doorApCost(s.doorHandleCode))) waitForTheAPsToOpen(t, s, pending, structure);
+  else if (!otherActivityUnderWay(t)) interactWithOpenableStruct(t, s, structure, pending.direction);
 }
 
 export function handlePendingDoorOnArrival(t: TacticalState, s: Soldier): boolean {
@@ -233,7 +248,7 @@ export function handlePendingDoorOnArrival(t: TacticalState, s: Soldier): boolea
   s.pendingDoorAction = null;
   if (pending.actionGridNo !== s.gridNo) return false;
   if (pending.action === OPEN_STRUCT_ACTION) {
-    interactWithPendingStruct(t, s, pending.gridNo, pending.direction);
+    interactWithPendingStruct(t, s, pending);
     return true;
   }
   const action = pending.action as DoorActionName;

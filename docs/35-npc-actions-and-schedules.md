@@ -102,6 +102,8 @@ everyone else just stops being neutral and keeps his side, where vanilla also se
 **Doors.** The `door` command returns the menu as data and offers `lock`, which the original's menu lacks; our merc gets
 vanilla's menu before closing an open door (deviations "Door menu", "Closing an open door"). A trap check before a menu
 action charges the open-door APs where the original reads past its table (deviation "Trap check cost of menu actions").
+A soldier who arrives to open a container or switch, or an NPC told to open a door, short of the APs of his door
+handle code halts there with the order kept (`Tactical/Overhead.cc:837`, `:863`; `doors/door-command.ts`).
 `ExamineDoorsOnEnteringSector` never fires in the original (the tactical time stamp is set just before it,
 `Strategic/StrategicMap.cc:498,509`), so it is not ported.
 

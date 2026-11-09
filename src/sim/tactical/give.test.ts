@@ -264,7 +264,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
       const MERC_PICKUPITEM = 2;
       const sim = newCombatSim(content);
       const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
-      s.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, direction: 0, animCount: 1 };
+      s.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, data3: 0, animCount: 1 };
       act(sim, s);
       expect(s.savedPendingAction).toBeNull();
     },
@@ -334,7 +334,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     const sim = newCombatSim(content);
     const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
     const robot = spawnSoldier(sim, 2, Team.OUR, gridNo(80, 79), Direction.SOUTH, { body: Body.ROBOTNOWEAPON });
-    s.savedPendingAction = { action: MERC_GIVE_ITEM, giveTarget: robot.id, direction: 0, animCount: 5 };
+    s.savedPendingAction = { action: MERC_GIVE_ITEM, giveTarget: robot.id, data3: 0, animCount: 5 };
     expect(soldierReloadRobot(sim.state, s, robot, cloneObject(withClips(s, 2)), InvSlot.BIGPOCK1)).not.toBeNull();
     expect(s.savedPendingAction?.animCount).toBe(1);
   });

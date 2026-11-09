@@ -350,7 +350,7 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
     medic(sim, IRA, MEDIC);
     const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
     t.autoBandage.pending = true;
-    shadow.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, direction: 0, animCount: 1 };
+    shadow.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, data3: 0, animCount: 1 };
     frame(sim);
     const waited = pendingAndPrompt(t);
     stopMerc(t, shadow);
@@ -366,7 +366,7 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
     medic(sim, IRA, MEDIC);
     patient(sim, SHADOW, FAR_FROM_MEDIC);
     const seat = mercElsewhere(SEAT_ID, st().STANDING);
-    seat.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, direction: 0, animCount: 1 };
+    seat.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, data3: 0, animCount: 1 };
     t.sectorHooks = { ...t.sectorHooks, helicopterSeat: (_t, id) => (id === SEAT_ID ? seat : null) };
     t.helicopterDrop.seats.push(SEAT_ID);
     t.autoBandage.pending = true;

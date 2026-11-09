@@ -338,7 +338,7 @@ describe('a door order that arrives while something else is under way (Overhead.
     return (sim: TacticalSim) => {
       const away = spawnSoldier(sim, 1, Team.OUR, GIVER_AT, NORTH);
       removeSoldierFromTacticalSector(sim.state, away);
-      away.savedPendingAction = { action, giveTarget: 0, direction: 0, animCount: 1 };
+      away.savedPendingAction = { action, giveTarget: 0, data3: 0, animCount: 1 };
     };
   }
 

@@ -8,10 +8,11 @@ import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { createItem } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { openableStatuses, openContainerGridNos, setOpenableStructStatus } from '../doors.ts';
+import { apsToMovePlusAction } from '../give.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
-import { handleOpenableStruct } from './door-actions.ts';
+import { doorApCost, handleOpenableStruct } from './door-actions.ts';
 import { HandleDoor } from './door-table.ts';
 import { handleStructChangeFromGridNo } from './openables.ts';
 
@@ -128,6 +129,28 @@ describe('HandleStructChangeFromGridNo', () => {
     runUntilIdle(sim);
     expect(crateOpen(t)).toBe(false);
     expect(sim.openContainers()).toEqual([]);
+  });
+
+  it('halts a merc who reaches a crate in combat without the APs of his door handle code, keeping the order, which he carries out once he can pay (Overhead.cc:837, :863)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const { closed, file } = crateFile();
+    t.world.structures.add(CRATE, 0, closed, undefined, file);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(76, 80), Direction.EAST);
+    const beside = gridNo(80, 80);
+    merc.doorHandleCode = HandleDoor.OPEN;
+    t.inCombat = true;
+    merc.actionPoints = apsToMovePlusAction(t, merc, beside, doorApCost(HandleDoor.OPEN) - 1);
+    expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: CRATE, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { to: beside },
+    });
+    runUntilIdle(sim);
+    expect([merc.gridNo, crateOpen(t), merc.noAPToFinishMove, merc.pendingDoorAction?.gridNo]).toEqual([beside, false, true, CRATE]);
+    merc.actionPoints = doorApCost(HandleDoor.OPEN);
+    merc.noAPToFinishMove = false;
+    runUntilIdle(sim);
+    expect([crateOpen(t), merc.pendingDoorAction]).toEqual([true, null]);
   });
 
   it('records the status of every openable tile and puts a reloaded crate back as it was, contents included', () => {

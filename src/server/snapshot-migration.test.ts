@@ -3743,16 +3743,20 @@ describe("snapshot version 74 (a talking face without the soldier face flag) mig
 });
 
 const SAVED_PENDING_DIRECTION_KEY = 'direction';
+const SAVED_PENDING_DATA3_KEY = 'data3';
 
-function withoutSavedPendingDirection(value: Json): Json {
-  if (Array.isArray(value)) return value.map((v: Json) => withoutSavedPendingDirection(v));
+function withSavedPendingActionAs(value: Json, legacy: (saved: JsonObject) => JsonObject): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSavedPendingActionAs(v, legacy));
   if (typeof value !== 'object' || value === null) return value;
   const out: Record<string, Json> = {};
-  for (const [key, v] of Object.entries(value)) out[key] = withoutSavedPendingDirection(v);
+  for (const [key, v] of Object.entries(value)) out[key] = withSavedPendingActionAs(v, legacy);
   const saved = out[SAVED_PENDING_ACTION_KEY];
   if (typeof saved !== 'object' || saved === null || Array.isArray(saved)) return out;
-  const { [SAVED_PENDING_DIRECTION_KEY]: _direction, ...kept } = saved as JsonObject;
-  return { ...out, [SAVED_PENDING_ACTION_KEY]: kept };
+  return { ...out, [SAVED_PENDING_ACTION_KEY]: legacy(saved as JsonObject) };
+}
+
+function withoutSavedPendingDirection(value: Json): Json {
+  return withSavedPendingActionAs(value, ({ [SAVED_PENDING_DATA3_KEY]: _data3, ...kept }) => kept);
 }
 
 function versionSeventyFive(snapshot: SimSnapshot): SimSnapshot {
@@ -3777,10 +3781,50 @@ describe("snapshot version 75 (a native save's pending action without its direct
     const sandbox = await createSandboxSession(kit.read, false, 5);
     const [talker] = teamMembers(sandbox.sim.state, Team.OUR);
     if (!talker) throw new Error('no merc');
-    talker.savedPendingAction = { action: MERC_TALK, giveTarget: 0, direction: talker.direction, animCount: 1 };
+    talker.savedPendingAction = { action: MERC_TALK, giveTarget: 0, data3: talker.direction, animCount: 1 };
     const current = snapshotSession(sandbox);
     const legacy = versionSeventyFive(current.sim);
     expect(JSON.stringify(legacy)).toContain(`"${SAVED_PENDING_ACTION_KEY}":{"action":${MERC_TALK},"giveTarget":0,"animCount":1}`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+function withSavedPendingDirection(value: Json): Json {
+  return withSavedPendingActionAs(value, (saved) =>
+    Object.fromEntries(Object.entries(saved).map(([key, v]) => [key === SAVED_PENDING_DATA3_KEY ? SAVED_PENDING_DIRECTION_KEY : key, v])),
+  );
+}
+
+function versionSeventySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withSavedPendingDirection(value)]);
+  return { ...snapshot, version: 76, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 76 (a native save's pending action keeping bPendingActionData3 as its direction) migrates with it as its data3", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const MERC_PICKUPITEM = 2;
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const [picker] = teamMembers(sandbox.sim.state, Team.OUR);
+    if (!picker) throw new Error('no merc');
+    picker.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, data3: 1, animCount: 1 };
+    const current = snapshotSession(sandbox);
+    const legacy = versionSeventySix(current.sim);
+    expect(JSON.stringify(legacy)).toContain(
+      `"${SAVED_PENDING_ACTION_KEY}":{"action":${MERC_PICKUPITEM},"giveTarget":0,"${SAVED_PENDING_DIRECTION_KEY}":1,"animCount":1}`,
+    );
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

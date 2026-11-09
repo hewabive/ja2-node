@@ -2257,6 +2257,25 @@ function addSavedPendingDirection(snapshot: Readonly<Record<string, unknown>>): 
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SAVED_PENDING_DATA3_KEY = 'data3';
+
+function withSavedPendingData3(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSavedPendingData3(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSavedPendingData3(v);
+  const saved = mapped[SAVED_PENDING_ACTION_KEY];
+  if (!isSoldierRecord(mapped) || !isObject(saved) || saved[SAVED_PENDING_DIRECTION_KEY] === undefined) return mapped;
+  const data3 = replaceKey(saved, SAVED_PENDING_DIRECTION_KEY, SAVED_PENDING_DATA3_KEY, saved[SAVED_PENDING_DIRECTION_KEY] as Json, []);
+  return { ...mapped, [SAVED_PENDING_ACTION_KEY]: data3 };
+}
+
+function renameSavedPendingDirection(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withSavedPendingData3(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2334,5 +2353,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     73: addMonologueHighlights,
     74: addSoldierFaceFlag,
     75: addSavedPendingDirection,
+    76: renameSavedPendingDirection,
   };
 }
