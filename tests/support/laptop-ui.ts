@@ -81,9 +81,42 @@ export async function laptopUiKit(kit: StubSectorKit): Promise<LaptopUiKit> {
   return { layouts, items, edtLayouts: EdtLayouts.parse(await json(kit, EDT_LAYOUTS_PATH)) };
 }
 
+class MediaLoads {
+  readonly #pending = new Set<Promise<void>>();
+
+  track(load: Promise<void>): Promise<void> {
+    this.#pending.add(load);
+    const done = () => this.#pending.delete(load);
+    load.then(done, done);
+    return load;
+  }
+
+  async settled(): Promise<void> {
+    await Promise.allSettled([...this.#pending]);
+  }
+}
+
+const mediaLoads = new WeakMap<TestRuntime, MediaLoads>();
+
+function pendingMediaLoads(t: TestRuntime): MediaLoads {
+  const known = mediaLoads.get(t);
+  if (known) return known;
+  const created = new MediaLoads();
+  mediaLoads.set(t, created);
+  return created;
+}
+
 async function readStubText(kit: StubSectorKit, file: string): Promise<Uint8Array | null> {
   for (const path of [file, `${STUBS_PREFIX}/${file}`]) if (kit.vfs.stat(path)) return kit.vfs.read(path);
   return null;
+}
+
+async function loadStubTexts(kit: StubSectorKit, edt: EdtTextCache, files: readonly string[]): Promise<void> {
+  for (const file of files) {
+    if (edt.has(file)) continue;
+    const bytes = await readStubText(kit, file);
+    if (bytes) edt.add(file, bytes);
+  }
 }
 
 export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, options: LaptopHarnessOptions = {}): Promise<LaptopHarness> {
@@ -110,6 +143,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     },
   };
   const t = await testRuntime();
+  const loads = pendingMediaLoads(t);
   const edt = new EdtTextCache(ui.edtLayouts, edtEncodingOf(STUB_DATA_VERSION));
   const text = new StringsTextService(strings, (file, row) => edt.field(file, row));
   const box = ui.layouts.get(MESSAGE_BOX_LAYOUT);
@@ -149,13 +183,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     },
     media: {
       loadImages: async () => undefined,
-      loadTexts: async (files) => {
-        for (const file of files) {
-          if (edt.has(file)) continue;
-          const bytes = await readStubText(kit, file);
-          if (bytes) edt.add(file, bytes);
-        }
-      },
+      loadTexts: (files) => loads.track(loadStubTexts(kit, edt, files)),
       gaps: () => null,
       random: () => 0,
     },
@@ -173,11 +201,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
   for (const name of LAPTOP_LAYOUTS) {
     const model = ui.layouts.get(name);
     if (!model) continue;
-    for (const file of edtFilesOf(model)) {
-      if (edt.has(file)) continue;
-      const bytes = await readStubText(kit, file);
-      if (bytes) edt.add(file, bytes);
-    }
+    await loadStubTexts(kit, edt, edtFilesOf(model));
   }
   t.runtime.host.push(screen);
   await settleLaptop(t);
@@ -203,6 +227,7 @@ function edtFilesOf(model: LayoutModel): string[] {
 export async function settleLaptop(t: TestRuntime, frames = SETTLE_FRAMES): Promise<void> {
   for (let i = 0; i < frames; i++) {
     t.frame();
+    await pendingMediaLoads(t).settled();
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
