@@ -10,7 +10,10 @@
 // @src HandleDialogueEnd (with SPEECH on only: the face's overlay and the region go, for a tactical line only while
 // @src gfFacePanelActive is set), HandleShutDownOfMapScreenWhileExternfaceIsTalking (the talking face's overlay goes as
 // @src the map screen closes while the region exists), RenderFaceOverlay (every registered overlay shows the talking face
-// @src while gfFacePanelActive is set), ExecuteTacticalTextBox (the box stays where it was created).
+// @src while gfFacePanelActive is set), ExecuteTacticalTextBox (the box stays where it was created); Faces.cc DeleteFace
+// @src (SetAutoFaceInActive takes the face's overlay down, and a face still talking ends its talking UI as
+// @src HandleDialogueEnd does) from DeleteSoldierFace, for every soldier at a load (SaveLoadGame.cc LoadSavedGame,
+// @src TrashAllSoldiers) and for a merc leaving the team (Merc_Contract.cc StrategicRemoveMerc, TacticalRemoveSoldier).
 
 import { type ActiveLine, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import type { SubtitlePlace } from './subtitle-box.ts';
@@ -30,16 +33,29 @@ export interface SpeechPlacement {
   carriedPopup(line: SpeechLine): UiPoint | null;
 }
 
+const FaceOwner = { SOLDIER: 'soldier', TALK_PANEL: 'talkPanel' } as const;
+type FaceOwner = (typeof FaceOwner)[keyof typeof FaceOwner] | SpeechSurface;
+
 interface FaceOverlay {
   face: string | null;
+  readonly owner: FaceOwner;
   readonly at: UiPoint;
 }
 
 const NO_LINE = -1;
 const talkingUis = new WeakMap<SpeechPresenter, TalkingUi>();
 
+function faceOwner(line: SpeechLine): FaceOwner {
+  if (line.surface === SpeechSurface.TACTICAL && line.npcUi !== true) return FaceOwner.SOLDIER;
+  return line.npcUi ? FaceOwner.TALK_PANEL : line.surface;
+}
+
+function faceKey(owner: FaceOwner, profile: number): string {
+  return `${owner}:${profile}`;
+}
+
 function faceOf(line: SpeechLine): string {
-  return `${line.surface}:${line.profile}`;
+  return faceKey(faceOwner(line), line.profile);
 }
 
 export class TalkingUi {
@@ -49,6 +65,7 @@ export class TalkingUi {
   #overlays: FaceOverlay[] = [];
   #panelActive = false;
   #region: UiPoint | null = null;
+  readonly #facesToDelete = new Set<string>();
 
   static of(presenter: SpeechPresenter): TalkingUi {
     let ui = talkingUis.get(presenter);
@@ -78,6 +95,7 @@ export class TalkingUi {
   follow(current: ActiveLine | null, placement: SpeechPlacement, speechOn: boolean): void {
     const line = this.#line;
     if (line && line.id !== current?.line.id) this.#end(line, speechOn);
+    this.#deleteFacesDoneTalking(current);
     if (!current) return;
     if (!this.#line) this.#create(current.line, placement, speechOn);
     else if (this.#screen !== placement.screen) this.#carry(current.line, placement);
@@ -87,26 +105,45 @@ export class TalkingUi {
     if (this.#region && this.#line) this.#removeOverlayOf(faceOf(this.#line));
   }
 
+  deleteSoldierFace(profile: number): void {
+    this.#facesToDelete.add(faceKey(FaceOwner.SOLDIER, profile));
+  }
+
+  deleteSoldierFaces(speechOn: boolean): void {
+    this.#facesToDelete.clear();
+    this.#overlays = this.#overlays.filter((o) => o.face === null || o.owner !== FaceOwner.SOLDIER);
+    const line = this.#line;
+    if (line && faceOwner(line) === FaceOwner.SOLDIER) this.#end(line, speechOn);
+  }
+
+  #deleteFacesDoneTalking(current: ActiveLine | null): void {
+    const talking = current ? faceOf(current.line) : null;
+    for (const face of this.#facesToDelete) {
+      if (face === talking) continue;
+      this.#removeOverlayOf(face);
+      this.#facesToDelete.delete(face);
+    }
+  }
+
   #create(line: SpeechLine, placement: SpeechPlacement, speechOn: boolean): void {
     this.#line = line;
     this.#screen = placement.screen;
     this.#textBox = placement.textBox(line);
     const popup = speechOn ? placement.facePopup(line) : null;
-    if (popup) this.#register(faceOf(line), popup);
+    if (popup) this.#register(line, popup);
   }
 
   #carry(line: SpeechLine, placement: SpeechPlacement): void {
     if (placement.screen === SpeechScreen.MAP) this.#carryToMap(line, placement);
-    else this.#registerIfAny(faceOf(line), placement.carriedPopup(line));
+    else this.#registerIfAny(line, placement.carriedPopup(line));
     this.#screen = placement.screen;
   }
 
   #carryToMap(line: SpeechLine, placement: SpeechPlacement): void {
     if (!this.#panelActive) return;
-    const face = faceOf(line);
-    this.#removeOverlayOf(face);
+    this.#removeOverlayOf(faceOf(line));
     this.#region = null;
-    this.#registerIfAny(face, placement.carriedPopup(line));
+    this.#registerIfAny(line, placement.carriedPopup(line));
     this.#panelActive = false;
   }
 
@@ -124,13 +161,14 @@ export class TalkingUi {
     return line.surface === SpeechSurface.TACTICAL && this.#panelActive;
   }
 
-  #registerIfAny(face: string, popup: UiPoint | null): void {
-    if (popup) this.#register(face, popup);
+  #registerIfAny(line: SpeechLine, popup: UiPoint | null): void {
+    if (popup) this.#register(line, popup);
   }
 
-  #register(face: string, popup: UiPoint): void {
+  #register(line: SpeechLine, popup: UiPoint): void {
+    const face = faceOf(line);
     for (const o of this.#overlays) if (o.face === face) o.face = null;
-    this.#overlays.push({ face, at: popup });
+    this.#overlays.push({ face, owner: faceOwner(line), at: popup });
     this.#region ??= popup;
     this.#panelActive = true;
   }

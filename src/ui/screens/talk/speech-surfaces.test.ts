@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { type TacticalUiKit, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { idiv } from '../../../core/int.ts';
 import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, SpeechSurface, textDelay } from '../../speech.ts';
 import { civQuotePosition } from './speech-surfaces.ts';
 import { type SpeechPlacement, SpeechScreen, TalkingUi } from './talking-ui.ts';
@@ -10,6 +11,22 @@ const COLS = 160;
 const VILLAGER_TILE = 75 * COLS + 88;
 const NEAR_VILLAGER = VILLAGER_TILE + 2;
 const MINER_SOLDIER = 40;
+const MINER_KEY = { file: 'npcdata/106.edt', row: 3, width: 240 };
+const SPEECH_ON = { speech: true, subtitles: true, keyAdvance: false };
+const BAR_HEIGHT = 42;
+const POPUP_LIFE_BAR_X = 10 + 69 + 1;
+const POPUP_BARS_BOTTOM = 20 + 47;
+
+function lifeBarTop(f: TacticalUiTest): number | null {
+  const bar = f.draw().items.find((item) => item.kind === 'line' && item.x1 === POPUP_LIFE_BAR_X && item.y1 === POPUP_BARS_BOTTOM);
+  return bar?.kind === 'line' ? bar.y2 : null;
+}
+
+function panels(f: TacticalUiTest): Set<string> {
+  return new Set(
+    f.draw().items.flatMap((item) => (item.kind === 'image' && item.asset.includes('communicationpopup') ? [item.asset] : [])),
+  );
+}
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -139,6 +156,52 @@ describe('speech surfaces in a stub campaign', () => {
     };
     expect(carried(MINER_SOLDIER)).toEqual(new Set(['interface/communicationpopup.sti']));
     expect(carried()).toEqual(new Set(['interface/communicationpopup_2.sti']));
+  });
+
+  it("draws the bars a line carries for Skyrider's or a head miner's soldier in his popup (RenderFaceOverlay, DrawSoldierUIBars)", async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.speechSettings = SPEECH_ON;
+    const tick = f.client.view.tick;
+    const miner = { type: 'headMinerQuote', tick, mine: 1, profile: 106, quote: 3, textKey: MINER_KEY, chars: 10, text: 'Out of ore' };
+    const bars = { life: 61, lifeMax: 75, bleeding: 4, breath: 50, breathMax: 90, morale: 33 };
+    f.frames([{ tick, changed: [], removed: [], events: [{ ...miner, soldier: MINER_SOLDIER, bars } as never] }]);
+    expect(f.widget('speechFacePopup').rect).toMatchObject({ x: 10, y: 20 });
+    expect(lifeBarTop(f)).toBe(POPUP_BARS_BOTTOM - idiv(BAR_HEIGHT * bars.life, 100));
+    f.screen.dialogue.presenter.skip(f.t.now, true);
+    f.t.frame(FINAL_TALKING_DELAY_MS + 1);
+    f.frames([{ tick, changed: [], removed: [], events: [{ ...miner, soldier: MINER_SOLDIER } as never] }]);
+    expect(f.widget('speechFacePopup').rect).toMatchObject({ x: 10, y: 20 });
+    expect(lifeBarTop(f)).toBeNull();
+  });
+
+  it("draws the bars of a merc of ours off the loaded map from his strategic entry, in the soldier's panel (FindSoldierByProfileID)", async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    f.speechSettings = SPEECH_ON;
+    const away = a10.mercs[0] ?? 0;
+    const soldier = a10.campaign.campaign.tactical?.state.soldiers[away];
+    if (!soldier) throw new Error('no soldier');
+    soldier.placed = false;
+    f.deliver();
+    const merc = f.client.view.strategic?.mercs.find((m) => m.id === away);
+    if (!merc) throw new Error('no strategic merc');
+    const tick = f.client.view.tick;
+    const textKey = { file: `mercedt/${String(merc.profile).padStart(3, '0')}.edt`, row: 17, width: 240 };
+    const line = {
+      type: 'mercQuote',
+      tick,
+      soldier: away,
+      profile: merc.profile,
+      quote: 'quote17',
+      id: 17,
+      textKey,
+      chars: 3,
+      text: 'Hm.',
+    };
+    f.frames([{ tick, changed: [], removed: [], events: [{ ...line, sector: 'B9' } as never] }]);
+    expect(f.client.view.soldiers.some((s) => s.id === away)).toBe(false);
+    expect(panels(f)).toEqual(new Set(['interface/communicationpopup.sti']));
+    expect(lifeBarTop(f)).toBe(POPUP_BARS_BOTTOM - idiv(BAR_HEIGHT * merc.life, 100));
   });
 
   it('takes no line from a frame the map screen took first, as both screens hear every frame', async () => {

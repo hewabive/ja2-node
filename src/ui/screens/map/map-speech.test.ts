@@ -285,6 +285,8 @@ const DRASSEN_MINE = 1;
 const DRASSEN_MINE_FACE_Y = 135;
 const AWAY_PROFILE = 30;
 const MINER_SOLDIER = 40;
+const POPUP_BARS = { x: 69, y: 47 };
+const BAR_HEIGHT = 42;
 
 type Panel = { readonly monologue: 'drassenSam' | 'cambriaHospital' | 'otherSams' | 'estoniRefuel' } | { readonly mine: number };
 
@@ -293,6 +295,7 @@ interface ExternalExtras {
   readonly sector?: string;
   readonly helicopter?: boolean;
   readonly soldier?: number;
+  readonly bars?: { life: number; lifeMax: number; bleeding: number; breath: number; breathMax: number; morale: number };
 }
 
 function externalFrame(f: MapUiTest, profile: number, extra: ExternalExtras): ViewFrame {
@@ -371,6 +374,22 @@ describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Cont
       expect(panels()).toEqual(['interface/communicationpopup.sti']);
       sayExternal(f, FRED, { sector: 'D13' });
       expect(panels()).toEqual(['interface/communicationpopup_2.sti']);
+    }));
+
+  it("draws the bars the line carries for a head miner's soldier in his popup, none without a soldier (RenderFaceOverlay)", () =>
+    withMap(async (f) => {
+      const bars = { life: 61, lifeMax: 75, bleeding: 4, breath: 50, breathMax: 90, morale: 33 };
+      const { stdX, stdY } = f.t.runtime.geometry();
+      const lifeBarTop = () => {
+        const x = stdX + EXTERN_X + POPUP_BARS.x + 1;
+        const y = stdY + EXTERN_Y + POPUP_BARS.y;
+        const bar = f.draw().items.find((item) => item.kind === 'line' && item.x1 === x && item.y1 === y);
+        return bar?.kind === 'line' ? y - bar.y2 : null;
+      };
+      sayExternal(f, FRED, { soldier: MINER_SOLDIER, sector: 'D13', bars });
+      expect(lifeBarTop()).toBe(Math.trunc((BAR_HEIGHT * bars.life) / 100));
+      sayExternal(f, FRED, { sector: 'D13' });
+      expect(lifeBarTop()).toBeNull();
     }));
 
   it('keeps a click region at 10, 20 for a line carried over from the tactical screen only for a speaker without a soldier', () =>

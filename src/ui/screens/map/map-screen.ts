@@ -176,6 +176,7 @@ const EXTERN_PANEL = 'externPanel';
 const EXTERN_FACE = 'externFace';
 const EXTERN_FACE_PANEL = 'commPanelNpc';
 const EXTERN_FACE_SOLDIER_PANEL = 'commPanel';
+const BARS = 'bars';
 const UPDATE_REASONS = 'pUpdateMercStrings';
 const UPDATE_BOX_PROMPT = 'updateBox';
 const UPDATE_CONTINUE = 1;
@@ -433,6 +434,7 @@ export class MapScreen implements Screen {
       externTextOffset: () => this.#model.number(this.#externPanelStyle().textOffsetX as number),
       screenPopup: () => this.#screenPopup(),
       faceStyle: () => this.#externFaceStyle(),
+      drawBars: (list, values, x, y) => drawSoldierBars(list, values, x, y, { asset: this.#model.asset(BARS).path, gold: false }),
       speechOn: () => env.speechSettings?.().speech ?? false,
       airspaceShown: () => this.filters.airspace,
       routing: () => this.#speechRouting(),
@@ -493,6 +495,7 @@ export class MapScreen implements Screen {
       nameWithSoldier: area(style.nameWithSoldier),
       sector: area(style.sector),
       sectorWidth: n(style.sectorWidth),
+      bars: this.#stylePoint(style.bars),
     };
   }
 

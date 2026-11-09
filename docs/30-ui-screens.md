@@ -161,7 +161,10 @@ face; the box, the face, Backspace and Esc cut it, opening the contract menu or 
 (`map/map-speech.ts`). Skyrider and the head miners talk there in the external face popup with their box 97 to its
 right, at the panel the line event names (a Skyrider monologue's or the miner's mine's, `panel`; the default
 otherwise), and a merc line without a soldier in the popup at the screen's 10, 20. An external speaker with a soldier
-(the line event's `soldier`) gets the soldier's panel and name. The yellow locator takes the sector the line event names
+(the line event's `soldier`) gets the soldier's panel, name and bars, the life, breath and morale the line event carries
+for him (`bars`, the original draws them while he talks, D16); in tactical a merc of ours off the loaded map gets his
+panel and the bars of his strategic entry; an NPC's line carried in from the map gets the popup at 10, 20 like every
+line, with the bars its event carries when it is said on the map. The yellow locator takes the sector the line event names
 as the line starts (`sector`, an NPC's line too; Skyrider's helicopter, `helicopter`, not while the airspace shows). A
 Skyrider monologue turns the airspace filter on as it starts and at each of its special events (`skyriderMonologue`,
 `TurnOnAirSpaceMode`), and the sectors he talks about flash red in place of the speaker's locator
@@ -169,7 +172,11 @@ Skyrider monologue turns the airspace filter on as it starts and at each of its 
 held by the session presenter, keeps which screen a line started on, where its box went, every popup registered, the
 click region and whether the face panel is active, as `Dialogue_Control.cc` keeps them in globals, so a line carried
 across a screen switch keeps its box where it was and takes the original's popup changes, and a popup the original
-leaves registered stays and shows later lines (quirks below). The rest is gap "Map screen speech".
+leaves registered stays and shows later lines (quirks below). A face deleted with its soldier takes its popup down
+(`DeleteFace`): every soldier face at a load in place (`discardLines`), the one still talking ending its talking UI as
+at the end of its line, and a departing merc's as `mercLeft` comes (`src/app/sound/session-speech.ts`), once a line of
+his still playing is over, as the original removes him only after the lines queued before; a face the original never
+deletes, Skyrider's or a head miner's, keeps a popup it left up.
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes, the parts a repairman leaves drawn in

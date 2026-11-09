@@ -466,6 +466,32 @@ describe('an external face (Dialogue_Control.cc CharacterDialogue with DIALOGUE_
     expect(host.emitted[1]).not.toHaveProperty('soldier');
   });
 
+  it("carries the bars of the head miner's soldier, which his popup draws while he talks (RenderFaceOverlay, DrawSoldierUIBars)", () => {
+    const fred = testSoldier(5, Team.CIV, FRED, MERC_AT);
+    Object.assign(fred, { life: 61, lifeMax: 75, bleeding: 4, breath: 50, breathMax: 90, morale: 33 });
+    const host = fakeHost({ soldiers: [fred] });
+    externalNpcDialogue(host, FRED, FRED_RUNNING_OUT);
+    externalNpcDialogue(host, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    runQueueToTheEnd(host);
+    const bars = { life: 61, lifeMax: 75, bleeding: 4, breath: 50, breathMax: 90, morale: 33 };
+    expect(host.emitted[0]).toMatchObject({ type: 'headMinerQuote', soldier: fred.id, bars });
+    expect(host.emitted[1]).not.toHaveProperty('bars');
+  });
+
+  it("carries an NPC's bars on a line said on the map screen only, the one a switch to tactical gives his popup (HandleDialogue)", () => {
+    const fred = testSoldier(5, Team.CIV, FRED, MERC_AT);
+    const host = fakeHost({ soldiers: [fred], inMapMode: true });
+    characterDialogue(host, FRED, FRED_RUNNING_OUT, true, false);
+    runQueueToTheEnd(host);
+    host.mapMode = false;
+    characterDialogue(host, FRED, FRED_RUNNING_OUT, true, false);
+    runQueueToTheEnd(host);
+    const said = host.emitted.filter((e) => e.type === 'npcQuote');
+    expect(said[0]).toMatchObject({ soldier: fred.id, bars: { life: 80, lifeMax: 80, breath: 100, morale: fred.morale } });
+    expect(said[1]).toMatchObject({ soldier: fred.id });
+    expect(said[1]).not.toHaveProperty('bars');
+  });
+
   it('waits its turn behind the lines queued before it', () => {
     const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
     const host = fakeHost({ soldiers: [merc], inMapMode: true });

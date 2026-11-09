@@ -3,6 +3,7 @@ import type { MercQuoteEvent } from '../campaign/contracts/events.ts';
 import type { ItemsLocatedEvent, SimEventBase, SoldierLocatedEvent } from '../events.ts';
 import type { EconomyEvent } from '../strategic/economy/events.ts';
 import type { SkyriderQuoteEvent } from '../strategic/forces/helicopter-events.ts';
+import type { SpeakerBars } from './speaker-bars.ts';
 
 export interface ConversationOpenedEvent extends SimEventBase {
   readonly type: 'conversationOpened';
@@ -29,6 +30,7 @@ export interface NpcQuoteEvent extends SimEventBase {
   readonly chars: number;
   readonly skipped?: boolean;
   readonly sector?: string;
+  readonly bars?: SpeakerBars;
 }
 
 export interface LineCutEvent extends SimEventBase {

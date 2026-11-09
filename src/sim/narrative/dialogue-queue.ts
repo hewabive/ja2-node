@@ -21,7 +21,8 @@
 // @src MainGameScreenHandle (one more full frame after the modal starts, then HandleModalTactical, 2026-11-04);
 // @src Dialogue_Control.cc HandleExternNPCSpeechFace and DisplayTextForExternalNPC (an external line takes the panel
 // @src placement set since the last line ended), HandleDialogueEnd (the default placement again, 2026-11-09);
-// @src RenderFaceOverlay (an external speaker's soldier, FindSoldierByProfileID, picks the popup's panel, 2026-11-09).
+// @src RenderFaceOverlay (an external speaker's soldier, FindSoldierByProfileID, picks the popup's panel, 2026-11-09;
+// @src his bars, and an NPC's whose line said on the map screen HandleDialogue carries into the tactical popup).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -34,6 +35,7 @@ import type { NarrativeEventWithoutTick } from './events.ts';
 import type { NarrativeHost } from './host.ts';
 import { NarrativeProfile, ProfileFlag } from './narrative-ids.ts';
 import { isNpcOrRpc } from './records.ts';
+import { type SpeakerBars, speakerBars } from './speaker-bars.ts';
 import { type DialogueEvent, TacticalModal, type TalkState } from './talk-state.ts';
 
 export const TEXT_DELAY_MODIFIER_MS = 60;
@@ -236,19 +238,24 @@ function externalLineEvent(
   host: NarrativeHost,
   speaker: number,
   quote: number,
-  soldier: number | null,
+  soldier: Soldier | null,
   said: SaidLine,
 ): NarrativeEventWithoutTick {
   const panel = host.talk.externPanel;
-  const withSoldier = soldier === null ? said : { ...said, soldier };
+  const withSoldier = soldier ? { ...said, soldier: soldier.id, bars: speakerBars(soldier) } : said;
   const placed = panel ? { ...withSoldier, panel } : withSoldier;
   if (speaker === NarrativeProfile.SKYRIDER) return { type: 'skyriderQuote', quote, profile: speaker, ...placed };
   return { type: 'headMinerQuote', mine: host.headMinerMine?.(speaker) ?? -1, profile: speaker, quote, ...placed };
 }
 
-function lineEvent(host: NarrativeHost, speaker: number, quote: number, soldier: number | null, ui: LineUi, said: SaidLine) {
-  if (ui.external) return externalLineEvent(host, speaker, quote, soldier, said);
-  if (ui.npcUi) return { type: 'npcQuote', profile: speaker, soldier, quote, ...said } as const;
+function carriedPopupBars(host: NarrativeHost, soldier: Soldier | null): { readonly bars?: SpeakerBars } {
+  return soldier && soldier.team !== Team.OUR && host.inMapMode?.() ? { bars: speakerBars(soldier) } : {};
+}
+
+function lineEvent(host: NarrativeHost, speaker: number, quote: number, s: Soldier | null, ui: LineUi, said: SaidLine) {
+  if (ui.external) return externalLineEvent(host, speaker, quote, s, said);
+  const soldier = s?.id ?? null;
+  if (ui.npcUi) return { type: 'npcQuote', profile: speaker, soldier, quote, ...said, ...carriedPopupBars(host, s) } as const;
   const about = ui.subject !== undefined ? { subject: ui.subject } : {};
   return { type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, ...about, ...said } as const;
 }
@@ -265,7 +272,7 @@ export function executeCharacterDialogue(host: NarrativeHost, speaker: number, q
   const skipped = host.skipsSpeech?.() ?? false;
   const busyUntil = skipped ? tick : tick + talkingTicks(host, speaker, key, chars);
   host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null, modal: false };
-  const soldier = (s ?? soldierByProfile(host, speaker))?.id ?? null;
+  const soldier = s ?? soldierByProfile(host, speaker);
   const withRecord = ui.record !== null ? { record: ui.record } : {};
   const said = { ...withRecord, textKey: key, chars, ...(skipped ? { skipped } : {}) };
   host.talk.lines.push({ profile: speaker, quote, ...withRecord, textKey: key, chars });

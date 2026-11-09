@@ -58,7 +58,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight; unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -203,8 +203,10 @@ speaker can no longer talk when its turn comes is not said, and a save is refuse
 or head miner line carries `panel` when a monologue (`{monologue}`) or the miner's mine (`{mine}`) placed the map
 screen's face popup since the last line ended, `sector`, where the map screen's locator goes as it starts
 (`helicopter` when that is Skyrider's helicopter), and `soldier` when a soldier has the speaker's profile, whose panel
-the face popup takes; a merc line without a soldier carries his profile's `sector`, and an `npcQuote` the `sector` of
-the NPC's soldier or profile (none in a meanwhile). A Skyrider monologue brings `skyriderMonologue {topic, step}` as it
+the face popup takes, with `bars` `{life, lifeMax, bleeding, breath, breathMax, morale}`, his bars the popup draws while
+he talks; a merc line without a soldier carries his profile's `sector`, and an `npcQuote` the `sector` of the NPC's
+soldier or profile (none in a meanwhile) and, said on the map screen, his soldier's `bars`, which the popup a switch to
+tactical gives the line draws. A Skyrider monologue brings `skyriderMonologue {topic, step}` as it
 starts (`step` 0) and as the queue reaches each of its special events (1, 2): the map screen turns its airspace filter on
 at each, and while he talks about them `strategic.skyriderHighlights` names the sectors that flash red there (the SAM
 sites, the Cambria hospital or Estoni), in place of the speaker's locator.

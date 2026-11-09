@@ -13,8 +13,8 @@
 // @src Strategic/Map_Screen_Interface.cc TurnOnSectorLocator (the locator as the line starts, none on Skyrider's
 // @src helicopter while the aircraft show), Map_Screen_Helicopter.cc HandleAnimationOfSectors (the yellow locator)
 // @src (2026-11-09); MapScreen.cc EndMapScreen (HandleShutDownOfMapScreenWhileExternfaceIsTalking); RenderFaceOverlay (an external speaker with a soldier: the soldier's panel, his name and his sector
-// @src when it is not the loaded one), HandleDialogue (a line carried to the map keeps no popup for a speaker with a
-// @src soldier, 2026-11-09).
+// @src when it is not the loaded one, and his bars, DrawSoldierUIBars), HandleDialogue (a line carried to the map keeps no
+// @src popup for a speaker with a soldier, 2026-11-09).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -40,8 +40,9 @@ import { fontColors, mprint } from '../../text/print.ts';
 import { reduceStringLength } from '../../text/wrap.ts';
 import type { MercTextBoxArt, MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import type { BarValues } from '../tactical/bars.ts';
 import { drawTalkingFace, FaceAnimator } from '../tactical/faces.ts';
-import { smallFaceRecord } from '../talk/speech-surfaces.ts';
+import { smallFaceRecord, speakerBarValues } from '../talk/speech-surfaces.ts';
 import { SubtitleBox, type SubtitlePlace, skipRegion } from '../talk/subtitle-box.ts';
 import { type SpeechPlacement, SpeechScreen, TalkingUi, type UiPoint } from '../talk/talking-ui.ts';
 
@@ -65,6 +66,7 @@ export interface ExternFaceStyle {
   readonly nameWithSoldier: FaceArea;
   readonly sector: FaceArea;
   readonly sectorWidth: number;
+  readonly bars: UiPoint;
 }
 
 export interface MapSpeechHooks {
@@ -77,6 +79,7 @@ export interface MapSpeechHooks {
   readonly externTextOffset: () => number;
   readonly screenPopup: () => UiPoint;
   readonly faceStyle: () => ExternFaceStyle;
+  readonly drawBars: (list: DrawList, values: BarValues, x: number, y: number) => void;
   readonly speechOn: () => boolean;
   readonly airspaceShown: () => boolean;
   readonly routing: () => SpeechRouting;
@@ -297,6 +300,8 @@ export class MapSpeech {
       this.#printOnPopup(list, at, style.nameWithSoldier, this.#hooks.soldierName(soldier) ?? nickname);
       const sector = current.line.sector;
       if (sector && sector !== this.#hooks.worldSector()) this.#printOnPopup(list, at, style.sector, sector, style.sectorWidth);
+      const bars = current.line.bars;
+      if (bars) this.#hooks.drawBars(list, speakerBarValues(bars), at.x + style.bars.x, at.y + style.bars.y);
     }
     const face = this.#popupFace;
     if (face) drawTalkingFace(list, this.#hooks.services.images, face, at.x + style.face.x, at.y + style.face.y);

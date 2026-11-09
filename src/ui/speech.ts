@@ -62,6 +62,7 @@ export interface SpeechLineRequest {
   readonly panel?: ExternPanelRef;
   readonly helicopter?: boolean;
   readonly externalSoldier?: number;
+  readonly bars?: SpeakerBarsRef;
 }
 
 export function speakerHasSoldier(line: SpeechLineRequest): boolean {
@@ -402,6 +403,7 @@ export type QuoteEvent = Extract<
 >;
 
 export type ExternPanelRef = NonNullable<Extract<QuoteEvent, { type: 'skyriderQuote' }>['panel']>;
+export type SpeakerBarsRef = NonNullable<Extract<QuoteEvent, { type: 'skyriderQuote' }>['bars']>;
 
 export interface SpeechRouting {
   readonly conversationProfile: number | null;
@@ -459,6 +461,7 @@ interface LineExtras {
   readonly panel?: ExternPanelRef | undefined;
   readonly helicopter?: boolean | undefined;
   readonly externalSoldier?: number | undefined;
+  readonly bars?: SpeakerBarsRef | undefined;
 }
 
 function request(
@@ -485,6 +488,7 @@ function request(
     ...(extra.panel ? { panel: extra.panel } : {}),
     ...(extra.helicopter ? { helicopter: true } : {}),
     ...(extra.externalSoldier !== undefined ? { externalSoldier: extra.externalSoldier } : {}),
+    ...(extra.bars ? { bars: extra.bars } : {}),
   };
 }
 
@@ -527,7 +531,7 @@ function speechRequestOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineR
   switch (event.type) {
     case 'npcQuote': {
       const surface = routing.conversationProfile === event.profile ? SpeechSurface.PANEL : SpeechSurface.TACTICAL;
-      return request(surface, event.profile, event.soldier, fields, routing, { npcUi: true, sector: event.sector });
+      return request(surface, event.profile, event.soldier, fields, routing, { npcUi: true, sector: event.sector, bars: event.bars });
     }
     case 'mercQuote': {
       const soldier = event.soldier >= 0 ? event.soldier : null;
@@ -542,6 +546,7 @@ function speechRequestOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineR
         panel: event.panel,
         helicopter: event.helicopter,
         externalSoldier: event.soldier,
+        bars: event.bars,
       });
     case 'headMinerQuote':
       if (event.quote < 0) return null;
@@ -549,6 +554,7 @@ function speechRequestOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineR
         sector: event.sector,
         panel: event.panel,
         externalSoldier: event.soldier,
+        bars: event.bars,
       });
     case 'shopkeeperQuote':
       return request(SpeechSurface.SHOPKEEPER, event.dealer, null, fields, routing);

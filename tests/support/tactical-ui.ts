@@ -54,6 +54,7 @@ import {
   type DisplaySettings,
   updateSettings,
 } from '../../src/ui/settings.ts';
+import type { SpeechSettings } from '../../src/ui/speech.ts';
 import { StringsTextService } from '../../src/ui/text/text-service.ts';
 import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
@@ -419,6 +420,7 @@ export interface TacticalUiTest {
   readonly quickSaves: { failure: string | null; count: number };
   display: DisplaySettings;
   settings: ClientSettings;
+  speechSettings: SpeechSettings;
   readonly redItemGlow: boolean;
   widget(id: string): WidgetInfo;
   find(id: string): WidgetInfo | undefined;
@@ -505,6 +507,7 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
   const uiCursors = parseUiCursorTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/ui-cursors.json'), 'utf8')));
   let display: DisplaySettings = DEFAULT_DISPLAY_SETTINGS;
   let settings: ClientSettings = DEFAULT_SETTINGS;
+  let speechSettings: SpeechSettings = { speech: false, subtitles: true, keyAdvance: false };
   let redItemGlow = false;
   const quickSaves: { failure: string | null; count: number } = { failure: null, count: 0 };
   let die = 0;
@@ -547,6 +550,7 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     changeSettings: (change) => {
       settings = updateSettings(settings, change);
     },
+    speechSettings: () => speechSettings,
     toggleRedItemGlow: () => {
       redItemGlow = !redItemGlow;
     },
@@ -611,6 +615,12 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     },
     set settings(next: ClientSettings) {
       settings = next;
+    },
+    get speechSettings() {
+      return speechSettings;
+    },
+    set speechSettings(next: SpeechSettings) {
+      speechSettings = next;
     },
     get redItemGlow() {
       return redItemGlow;

@@ -1,6 +1,14 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-11-09. See LICENSE (SFI-SCLA).
+// @src src/game/SaveLoadGame.cc LoadSavedGame (TrashAllSoldiers deletes every soldier's face before EmptyDialogueQueue and
+// @src StopAnyCurrentlyTalkingSpeech); src/game/Strategic/Merc_Contract.cc StrategicRemoveMerc (TacticalRemoveSoldier
+// @src deletes the departing merc's face, Tactical/Faces.cc DeleteSoldierFace).
+
 import type { SpeechOwner } from '../../audio/director.ts';
 import type { AudioEngine } from '../../audio/engine.ts';
+import type { ViewFrame } from '../../protocol/view.ts';
 import { gameScreenOf } from '../../ui/screens/front-end/flow.ts';
+import { TalkingUi } from '../../ui/screens/talk/talking-ui.ts';
 import { DialogueHold, reportStoppedLines, type SpeakerBattleSounds, SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { engineSpeechVoices, storedSpeechSettings } from '../tactical/speech-voices.ts';
@@ -46,7 +54,13 @@ export class SessionSpeech {
     this.presenter.holdDialogue(gameScreenOf(this.client.view) === 'laptop', DialogueHold.LAPTOP);
   }
 
+  frames(frames: readonly ViewFrame[]): void {
+    const ui = TalkingUi.of(this.presenter);
+    for (const frame of frames) for (const event of frame.events ?? []) if (event.type === 'mercLeft') ui.deleteSoldierFace(event.profile);
+  }
+
   discardLines(): void {
+    TalkingUi.of(this.presenter).deleteSoldierFaces(this.settings().speech);
     this.presenter.discardLines();
   }
 }

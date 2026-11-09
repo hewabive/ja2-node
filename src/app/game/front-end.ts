@@ -303,6 +303,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     if (!session) return;
     session.onFrames = (frames) => {
       speechFor(session).followScreen();
+      speechFor(session).frames(frames);
       music.frames(frames);
       lastLoadScreen = loadScreenOf(frames) ?? lastLoadScreen;
       if (!tactical && gameScreenOf(session.view) === 'tactical' && session.view?.mapPath) tacticalFor(session);

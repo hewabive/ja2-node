@@ -9,7 +9,8 @@
 // @src viewport), QuoteOverlayClickCallback, ShutDownQuoteBox; src/game/Tactical/Faces.cc GetFaceRelativeCoordinates
 // @src (FACE_FORCE_SMALL uses the RPC small face offsets); HandleDialogue (a line carried over from the map screen takes
 // @src the popup and keeps the subtitle box and click region where they were, through TalkingUi, 2026-11-09);
-// @src RenderFaceOverlay (Skyrider or a head miner with a soldier gets the soldier's panel, 2026-11-09).
+// @src RenderFaceOverlay (Skyrider or a head miner with a soldier gets the soldier's panel, 2026-11-09; the bars of the
+// @src soldier with the speaker's profile, ours off the map or not ours, from FindSoldierByProfileID).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -22,13 +23,22 @@ import type { ControllerContract } from '../../layout/controller.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { CustomRenderer } from '../../layout/view.ts';
 import type { UiServices } from '../../services.ts';
-import { type ActiveLine, type CivQuoteLine, quoted, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
+import {
+  type ActiveLine,
+  type CivQuoteLine,
+  quoted,
+  type SpeakerBarsRef,
+  type SpeechLine,
+  type SpeechPresenter,
+  SpeechSurface,
+} from '../../speech.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { reduceStringLength } from '../../text/wrap.ts';
 import { MercTextBox, type MercTextBoxArt, type MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { mercBars } from '../map/merc-soldier.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { drawTalkingFace, FaceAnimator, type FaceRecord, faceFileOf } from '../tactical/faces.ts';
 import { SubtitleBox, skipRegion } from './subtitle-box.ts';
@@ -104,8 +114,13 @@ function speakerSoldierId(line: SpeechLine): number | null {
   return line.surface === SpeechSurface.EXTERNAL ? (line.externalSoldier ?? null) : null;
 }
 
-function tacticalSurface(surface: SpeechSurface): boolean {
-  return surface === SpeechSurface.TACTICAL || surface === SpeechSurface.EXTERNAL;
+function talkingUiOnTactical(line: SpeechLine): boolean {
+  if (line.surface === SpeechSurface.EXTERNAL) return true;
+  return line.surface === SpeechSurface.TACTICAL;
+}
+
+export function speakerBarValues(bars: SpeakerBarsRef): BarValues {
+  return { ...bars, robot: false, vehicle: false };
 }
 
 export function smallFaceRecord(profile: ProfilePresentation): FaceRecord {
@@ -153,8 +168,8 @@ export class SpeechSurfaces {
 
   readonly #placement: SpeechPlacement = {
     screen: SpeechScreen.TACTICAL,
-    textBox: (line) => (tacticalSurface(line.surface) ? this.#textBoxPlace() : null),
-    facePopup: (line) => (tacticalSurface(line.surface) ? this.#facePopupPlace() : null),
+    textBox: (line) => (talkingUiOnTactical(line) ? this.#textBoxPlace() : null),
+    facePopup: (line) => (talkingUiOnTactical(line) ? this.#facePopupPlace() : null),
     carriedPopup: () => this.#facePopupPlace(),
   };
 
@@ -317,7 +332,7 @@ export class SpeechSurfaces {
   #renderFacePopupAt(list: DrawList, rect: UiPoint, current: ActiveLine, params: Readonly<Record<string, unknown>>): void {
     const s = this.#style('facePopup');
     const soldier = this.#speakerSoldier(current);
-    const withSoldier = soldier !== null || current.line.externalSoldier !== undefined;
+    const withSoldier = speakerSoldierId(current.line) !== null;
     const panel = this.#hooks.model.asset(String(withSoldier ? params.panel : params.panelWithoutSoldier)).path;
     list.image(panel, 0, rect.x, rect.y);
     const font = this.#hooks.services.fonts.get(FontName.BLOCKFONT2);
@@ -334,14 +349,25 @@ export class SpeechSurfaces {
       if (sector && !this.#hooks.sectorShown(sector))
         print(this.#rect4(s.sector), reduceStringLength(sector, this.#number(s.sectorWidth), font));
     } else print(this.#rect4(s.nameWithoutSoldier), nickname);
-    if (soldier?.team === OUR_TEAM) {
+    const bars = this.#speakerBars(current.line, soldier);
+    if (bars) {
       const [barsX, barsY] = this.#rect4([...(s.bars as unknown[]), 0, 0]);
-      this.#hooks.drawBars(list, this.#hooks.barValues(soldier), rect.x + barsX, rect.y + barsY);
+      this.#hooks.drawBars(list, bars, rect.x + barsX, rect.y + barsY);
+    }
+    if (soldier?.team === OUR_TEAM) {
       this.#hooks.drawSoldierFace(list, soldier, rect.x + faceX, rect.y + faceY);
       return;
     }
     const face = this.#popupFace;
     if (face) drawTalkingFace(list, this.#hooks.services.images, face, rect.x + faceX, rect.y + faceY);
+  }
+
+  #speakerBars(line: SpeechLine, soldier: SoldierView | null): BarValues | null {
+    if (soldier?.team === OUR_TEAM) return this.#hooks.barValues(soldier);
+    if (line.bars) return speakerBarValues(line.bars);
+    const id = line.surface === SpeechSurface.TACTICAL ? line.soldier : null;
+    const merc = id === null ? undefined : this.#hooks.view()?.strategic?.mercs.find((m) => m.id === id);
+    return merc ? mercBars(merc) : null;
   }
 
   #renderTextBox(list: DrawList): void {

@@ -248,4 +248,4 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
   190 glyphs, and its block fonts are not corrected unless they are exactly one glyph short of that.
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
-Not ported: gaps "Map screen speech".
+Not ported: none known.
