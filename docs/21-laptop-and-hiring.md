@@ -187,4 +187,4 @@ source:
 The content identity hashes text files by presence, so a data folder whose florist gallery text carries other bouquet
 prices is not told apart from the one a save was made with.
 
-Not ported: gap "I.M.P. skill page and saved profiles".
+Not ported: gap "I.M.P. saved profiles".
