@@ -201,6 +201,7 @@ import {
   findLowerLevel,
   roofOpcode,
 } from './roofs.ts';
+import { adoptSavedPendingAction } from './saved-pending-action.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
 import { Body, inVehicle, isTank, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
@@ -496,16 +497,20 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
     crowsSeeingAttackerFlyAway,
     turnFinished: freeUpFromTurning,
     stanceFreeUp: freeUpFromStanceChange,
-    pendingAction: (state, s) =>
-      handlePendingMeleeOnArrival(state, s) ||
-      handlePendingPickupOnArrival(state, s) ||
-      handlePendingDoorOnArrival(state, s) ||
-      handlePendingTalkOnArrival(state, s) ||
-      handlePendingGiveOnArrival(state, s) ||
-      handlePendingAidOnArrival(state, s) ||
-      handlePendingRobotReloadOnArrival(state, s) ||
-      handlePendingDropBombOnArrival(state, s) ||
-      handlePendingTileToolOnArrival(state, s),
+    pendingAction: (state, s) => {
+      adoptSavedPendingAction(s);
+      return (
+        handlePendingMeleeOnArrival(state, s) ||
+        handlePendingPickupOnArrival(state, s) ||
+        handlePendingDoorOnArrival(state, s) ||
+        handlePendingTalkOnArrival(state, s) ||
+        handlePendingGiveOnArrival(state, s) ||
+        handlePendingAidOnArrival(state, s) ||
+        handlePendingRobotReloadOnArrival(state, s) ||
+        handlePendingDropBombOnArrival(state, s) ||
+        handlePendingTileToolOnArrival(state, s)
+      );
+    },
     runningIntoGas: checkForRunningIntoGas,
     enteredGridNo: updateGassedOnNewGridNo,
     endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),

@@ -26,7 +26,8 @@
 // @src physics objects before the explosion table; Tactical/Interface_Items.cc LoadItemCursorFromSavedGame, its object
 // @src put back as CancelItemPointer puts it (2026-11-08); ubPendingAction, ubPendingActionAnimCount and a give's
 // @src uiPendingActionData4, dropped by AddSoldierToSectorGridNo but kept by the soldiers it does not reach
-// @src (Soldier_Add.cc:707-708, :871, 2026-11-08).
+// @src (Soldier_Add.cc:707-708, :871, 2026-11-08), with its bPendingActionData3, and every soldier of the load in reach of
+// @src the restart's GetMan (Soldier_Control.cc:1680, 2026-11-09).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -297,9 +298,14 @@ function restartSavedSoldiers(t: TacticalState, save: SaveGame, soldiers: SavedS
   }
   for (const [s] of entering) t.soldiers[s.id] = s;
   for (const [s, r] of entering) linkSoldier(t, s, r);
-  aroundRestart(t, () => {
-    for (const s of soldiers.values()) restartAnimationOnLoad(t, s, s.pc);
-  });
+  t.soldiersOfTheLoad = soldiers;
+  try {
+    aroundRestart(t, () => {
+      for (const s of soldiers.values()) restartAnimationOnLoad(t, s, s.pc);
+    });
+  } finally {
+    t.soldiersOfTheLoad = null;
+  }
   for (const s of soldiers.values()) dropPendingAnimation(s);
 }
 
@@ -576,8 +582,8 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
 }
 
 function savedPendingAction(r: SavedSoldier): SavedPendingAction | null {
-  const { pendingAction: action, pendingActionAnimCount: animCount } = r.motion;
-  return action === SAVED_NO_PENDING_ACTION ? null : { action, giveTarget: r.ai.pendingActionData4, animCount };
+  const { pendingAction: action, pendingActionAnimCount: animCount, pendingActionData3: direction } = r.motion;
+  return action === SAVED_NO_PENDING_ACTION ? null : { action, giveTarget: r.ai.pendingActionData4, direction, animCount };
 }
 
 function emptyRecord(r: SavedSoldier): SavedSoldier['inventory'][number] {

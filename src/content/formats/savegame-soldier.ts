@@ -620,6 +620,7 @@ export interface SoldierMotion {
   readonly pendingActionAnimCount: number;
   readonly pendingActionData1: number;
   readonly pendingActionData2: number;
+  readonly pendingActionData3: number;
   readonly timeOfLastRandomAction: number;
   readonly serviceCount: number;
   readonly servicePartner: number;
@@ -1017,6 +1018,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       pendingActionAnimCount: n('ubPendingActionAnimCount'),
       pendingActionData1: n('uiPendingActionData1'),
       pendingActionData2: n('sPendingActionData2'),
+      pendingActionData3: n('bPendingActionData3'),
       timeOfLastRandomAction: n('uiTimeOfLastRandomAction'),
       serviceCount: n('ubServiceCount'),
       servicePartner: n('service_partner'),

@@ -94,11 +94,15 @@ starts included, takes `EVENT_InitNewSoldierAnim`'s loading branch, which skips 
 restart runs the script with its opcodes, and its draws are the main stream's, as all of `Random` is (deviation "Player
 loads"); the saved pending animation is held through it and dropped after, as entering the sector does
 (`Tactical/Soldier_Add.cc:871`); the roster takes the restarted soldiers of the mercs on no map. A saved pending action
-has no typed record of ja2-node's to go into, so it stays as its code, count and a give's target
-(`Soldier.savedPendingAction`): the restart counts it, placing the soldier on the map drops it, and one the load leaves
-off the map (seated in a vehicle or the helicopter, in another sector) keeps it until he enters a map or stops, holding
-the auto-bandage question back meanwhile and, for a give, every door or container opened on arrival (gap "Pending
-actions on import" for the rest). A save with no world
+stays as its code, count, a give's target and its direction (`Soldier.savedPendingAction`; its other data are the
+soldier's `pendingActionData1` and `pendingActionData2`): the restart counts it, freeing a dropped give's target in any
+sector (`TacticalState.soldiersOfTheLoad`, the save's soldiers while it runs), placing the soldier on the map drops it,
+and one the load leaves off the map (seated in a vehicle or the helicopter, in another sector) keeps it until he enters
+a map or stops, holding the auto-bandage question back meanwhile, the helicopter drop's seats too, and, for a give,
+every door or container opened on arrival. Boarding drops it as `EVENT_StopMerc` does unless he waits for a tile, also
+where the vehicle has no soldier on the loaded map (`stopAsBoardedAwayFromTheVehicle`); one kept past getting out of a
+vehicle becomes ja2-node's typed record at the end of his next walk and runs there (`saved-pending-action.ts`; deviation
+"Saved robot reload"; gap "Pending actions on import" for the codes left). A save with no world
 only stands a climber up (deviation "Animations on load without a world"). The restart runs before the campaign hooks
 the sector, so an opcode that reports to the campaign does not reach it (gap "Animations on load").
 

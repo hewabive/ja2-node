@@ -22,7 +22,8 @@
 // @src held MERC_GIVEITEM, freeing its target when it drops the action, and its SOLDIER_ENGAGEDINACTION test
 // @src (2026-11-08); EVENT_InitNewSoldierAnim's LOADING_SAVED_GAME branch and Soldier_Control.cc CreateSoldierCommon's
 // @src restart of a loaded soldier (2026-11-08); EVENT_InitNewSoldierAnim's enemy-sighting unlock (2026-11-08); its count
-// @src of a native save's pending action, freeing a give's target the load made before the giver (2026-11-08);
+// @src of a native save's pending action, freeing a give's target the load made before the giver (2026-11-08; GetMan
+// @src reaches the target in any sector, 2026-11-09);
 // @src SetSoldierLocatorOffsets at the end of EVENT_InitNewSoldierAnim and EVENT_SetSoldierDirection, the frame
 // @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09).
 
@@ -1180,8 +1181,12 @@ function dropCountedPendingAction(t: TacticalState, s: Soldier): void {
   s.heldGiveAction = null;
 }
 
+function soldierOfTheLoad(t: TacticalState, id: number): Soldier | undefined {
+  return t.soldiersOfTheLoad?.get(id) ?? t.soldiers[id];
+}
+
 function dropSavedPendingAction(t: TacticalState, s: Soldier, saved: SavedPendingAction): void {
-  const target = saved.action === MERC_GIVE_ITEM ? t.soldiers[saved.giveTarget] : undefined;
+  const target = saved.action === MERC_GIVE_ITEM ? soldierOfTheLoad(t, saved.giveTarget) : undefined;
   if (target && createdBeforeInTheLoad(t, target, s)) target.engagedInAction = false;
   s.savedPendingAction = null;
 }

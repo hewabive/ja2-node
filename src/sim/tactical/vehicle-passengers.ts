@@ -5,14 +5,18 @@
 // @src Strategic/Strategic_Movement.cc GroupArrivedAtSector (the vehicle placed before its passengers); the EVENT_StopMerc of
 // @src AddSoldierToVehicle, for a merc who boarded off the loaded map, at his next sector entry; AddSoldierToVehicle's
 // @src RemoveSoldierFromGridNo for a vehicle with no soldier on the map, the helicopter, which keeps his opplist, and the
-// @src helicopter's passengers over the loaded sector in their merc slots with no tile (2026-11-08).
+// @src helicopter's passengers over the loaded sector in their merc slots with no tile (2026-11-08); that EVENT_StopMerc's
+// @src removePendingAnimation unless fDelayedMovement, and its fDelayedMovement cleared, as he boards off the loaded map or
+// @src a vehicle off it (Vehicles.cc:266, Soldier_Control.cc:7381, 2026-11-09).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { hasAnimFlag, soldierGotoStationaryStance } from './animation.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason } from './combat/types.ts';
+import { dropHeldActions } from './give.ts';
 import { removeSoldierFromGridNo, setSoldierPositionXY, stopMerc } from './movement.ts';
-import { inSector, NOWHERE, type Soldier } from './soldier.ts';
+import { removePendingAction } from './pending-action.ts';
+import { inSector, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 import { vehicleCarrying } from './vehicle-presence.ts';
 
@@ -28,6 +32,16 @@ export function seatAtVehicle(t: TacticalState, s: Soldier, vehicle: Soldier): v
   removeSoldierFromGridNo(t, s);
   setSoldierPositionXY(t, s, vehicle.x, vehicle.y);
   stopMerc(t, s);
+}
+
+export function stopAsBoardedAwayFromTheVehicle(t: TacticalState | null, s: Soldier): void {
+  if (!s.delayedMovement) {
+    s.pendingAnimation = NO_PENDING_ANIMATION;
+    s.pendingDirection = NO_PENDING_DIRECTION;
+    if (t) removePendingAction(t, s);
+    else dropHeldActions(s);
+  }
+  s.delayedMovement = 0;
 }
 
 export function seatWithNoVehicleOnTheMap(t: TacticalState, s: Soldier): void {

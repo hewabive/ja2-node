@@ -229,3 +229,27 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
     expect(vehicleView(session)).toMatchObject({ sector: NEXT_IN_TOWN, betweenSectors: false });
   });
 });
+
+describe('a merc boarding a vehicle that has no soldier on the loaded map (Vehicles.cc:266 EVENT_StopMerc)', () => {
+  const MERC_TALK = 11;
+  const WAITING_FOR_A_TILE = 1;
+
+  it("loses a native save's pending action unless he waits for a tile, and waits no more", async () => {
+    const session = await stubCampaignWithOurHummer(kit, SEED);
+    const [stopped, waiting] = aboard(session);
+    const hummer = hummerOf(session);
+    const roster = session.campaign.battle?.roster;
+    if (!stopped || !waiting || !roster) throw new Error('nobody aboard');
+    const talk = { action: MERC_TALK, giveTarget: 0, direction: Direction.EAST, animCount: 0 };
+    stopped.soldier.savedPendingAction = { ...talk };
+    waiting.soldier.savedPendingAction = { ...talk };
+    waiting.soldier.delayedMovement = WAITING_FOR_A_TILE;
+    roster.seatAtVehicle(stopped.id, hummer.id);
+    roster.seatAtVehicle(waiting.id, hummer.id);
+    expect([stopped.soldier.savedPendingAction, waiting.soldier.savedPendingAction, waiting.soldier.delayedMovement]).toEqual([
+      null,
+      talk,
+      0,
+    ]);
+  });
+});

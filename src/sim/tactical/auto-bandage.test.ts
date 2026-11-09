@@ -350,12 +350,31 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
     medic(sim, IRA, MEDIC);
     const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
     t.autoBandage.pending = true;
-    shadow.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, animCount: 1 };
+    shadow.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, direction: 0, animCount: 1 };
     frame(sim);
     const waited = pendingAndPrompt(t);
     stopMerc(t, shadow);
     frame(sim);
     expect([waited, shadow.savedPendingAction, pendingAndPrompt(t)]).toEqual([[true, null], null, [false, 'beginAutoBandage']]);
+  });
+
+  it("waits while a seat of a helicopter drop under way keeps a native save's pending action, though the seat is not on the map yet (Auto_Bandage.cc:151-160)", () => {
+    const MERC_PICKUPITEM = 2;
+    const SEAT_ID = 4;
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    patient(sim, SHADOW, FAR_FROM_MEDIC);
+    const seat = mercElsewhere(SEAT_ID, st().STANDING);
+    seat.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, direction: 0, animCount: 1 };
+    t.sectorHooks = { ...t.sectorHooks, helicopterSeat: (_t, id) => (id === SEAT_ID ? seat : null) };
+    t.helicopterDrop.seats.push(SEAT_ID);
+    t.autoBandage.pending = true;
+    frame(sim);
+    const waited = pendingAndPrompt(t);
+    seat.savedPendingAction = null;
+    frame(sim);
+    expect([t.soldiers[SEAT_ID], waited, pendingAndPrompt(t)]).toEqual([undefined, [true, null], [false, 'beginAutoBandage']]);
   });
 
   it('checks everything again when it asks, so a changed sector gives the refusal instead and clears the flag (quirk)', () => {

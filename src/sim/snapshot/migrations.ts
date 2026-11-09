@@ -2237,6 +2237,26 @@ function addSoldierFaceFlag(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SAVED_GIVE_TARGET_KEY = 'giveTarget';
+const SAVED_PENDING_DIRECTION_KEY = 'direction';
+
+function withSavedPendingDirection(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSavedPendingDirection(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSavedPendingDirection(v);
+  const saved = mapped[SAVED_PENDING_ACTION_KEY];
+  if (!isSoldierRecord(mapped) || !isObject(saved)) return mapped;
+  const facing = field(mapped, SAVED_PENDING_DIRECTION_KEY, 0);
+  return { ...mapped, [SAVED_PENDING_ACTION_KEY]: insertAfter(saved, SAVED_GIVE_TARGET_KEY, SAVED_PENDING_DIRECTION_KEY, facing) };
+}
+
+function addSavedPendingDirection(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withSavedPendingDirection(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2313,5 +2333,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     72: addExternPanel,
     73: addMonologueHighlights,
     74: addSoldierFaceFlag,
+    75: addSavedPendingDirection,
   };
 }

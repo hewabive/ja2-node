@@ -15,7 +15,8 @@
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
 // @src WorldDef.cc TrashWorld (DestroyAllSchedules; the vehicles of the soldiers not on our team, 2026-11-04);
-// @src Tactical/Vehicles.cc AddSoldierToVehicle (the seat at a vehicle on the loaded map); Soldier_Add.cc
+// @src Tactical/Vehicles.cc AddSoldierToVehicle (the seat at a vehicle on the loaded map; EVENT_StopMerc's pending action
+// @src for a merc or a vehicle off it, 2026-11-09); Soldier_Add.cc
 // @src InternalAddSoldierToSector (the helicopter's passengers with no tile, 2026-11-05);
 // @src SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
@@ -182,7 +183,12 @@ import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactica
 import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
-import { seatAtVehicle, seatInTheHelicopterOnSectorEntry, seatWithNoVehicleOnTheMap } from '../tactical/vehicle-passengers.ts';
+import {
+  seatAtVehicle,
+  seatInTheHelicopterOnSectorEntry,
+  seatWithNoVehicleOnTheMap,
+  stopAsBoardedAwayFromTheVehicle,
+} from '../tactical/vehicle-passengers.ts';
 import { removeVehiclesNotOnOurTeam } from '../tactical/vehicle-soldiers.ts';
 import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -323,10 +329,14 @@ export class SectorFlow {
   }
 
   #seatAtVehicle(merc: RosterMerc, vehicle: RosterMerc): void {
-    const t = this.campaign.tactical?.state;
-    if (!t || !onTacticalMap(t, merc)) return;
-    if (onTacticalMap(t, vehicle)) seatAtVehicle(t, merc.soldier, vehicle.soldier);
-    else this.setup.roster.removeFromGridNo(merc.id);
+    const t = this.campaign.tactical?.state ?? null;
+    const onTheMap = t !== null && onTacticalMap(t, merc);
+    if (t && onTheMap && onTacticalMap(t, vehicle)) {
+      seatAtVehicle(t, merc.soldier, vehicle.soldier);
+      return;
+    }
+    stopAsBoardedAwayFromTheVehicle(t, merc.soldier);
+    if (onTheMap) this.setup.roster.removeFromGridNo(merc.id);
   }
 
   #lastMapRoom(gridNo: number): number {

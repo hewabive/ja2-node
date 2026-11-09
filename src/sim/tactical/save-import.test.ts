@@ -1217,7 +1217,7 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
     const away = soldiers.get(AWAY_ID);
     expect([soldierOf(sim, MERC_ID).savedPendingAction, away?.savedPendingAction]).toEqual([
       null,
-      { action: MERC_PICKUPITEM, giveTarget: CIVILIAN_ID, animCount: 1 },
+      { action: MERC_PICKUPITEM, giveTarget: CIVILIAN_ID, direction: 0, animCount: 1 },
     ]);
     expect(away && hasPendingAction(away)).toBe(true);
   });
@@ -1239,6 +1239,21 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
       [null, null],
       [false, true],
     ]);
+  });
+
+  it('frees the target of a dropped give in another sector too, as GetMan reaches every slot the load made: one made after the giver is engaged again', () => {
+    const engaged = { uiStatusFlags: SOLDIER_ENGAGEDINACTION };
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(EARLIER_TARGET_ID, Team.OUR, SAVED_NOWHERE, { ...engaged, ...ELSEWHERE }),
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), sideStepping(EARLIER_TARGET_ID)),
+        savedSoldier(AWAY_ID, Team.OUR, gridNo(82, 82), sideStepping(LATER_TARGET_ID)),
+        savedSoldier(LATER_TARGET_ID, Team.OUR, SAVED_NOWHERE, { ...engaged, ...ELSEWHERE }),
+      ],
+    });
+    const { sim, soldiers } = importedSave(save);
+    const targets = [EARLIER_TARGET_ID, LATER_TARGET_ID].map((id) => soldiers.get(id)?.engagedInAction);
+    expect([targets, sim.state.soldiers[EARLIER_TARGET_ID], sim.state.soldiersOfTheLoad]).toEqual([[false, true], undefined, null]);
   });
 });
 

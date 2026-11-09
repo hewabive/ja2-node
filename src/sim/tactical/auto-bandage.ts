@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Auto_Bandage.cc BeginAutoBandage, BeginAutoBandageCallBack, HandleAutoBandage (the frame; the
 // @src panel, the shadow and the keys are the client's), SetAutoBandageComplete, AutoBandage, SetUpAutoBandageUpdatePanel
 // @src (the lists); Tactical/Overhead.cc ExecuteOverhead (the completion check after the away-slot AI); Auto_Bandage.cc
-// @src ShouldBeginAutoBandage, HandleAutoBandagePending and SetAutoBandagePending (2026-11-06).
+// @src ShouldBeginAutoBandage, HandleAutoBandagePending and SetAutoBandagePending (2026-11-06; the pending actions of our
+// @src whole team in the loaded sector, the seats of a helicopter drop under way too, 2026-11-09).
 
 import type { CommandResult } from '../command.ts';
 import { type ItemObject, swapObjects } from '../items/object.ts';
@@ -70,9 +71,17 @@ export function shouldBeginAutoBandage(t: TacticalState): void {
   if (canAutoBandage(t, false)) setAutoBandagePending(t.autoBandage, true);
 }
 
+function helicopterDropSeats(t: TacticalState): Soldier[] {
+  return t.helicopterDrop.seats.flatMap((id) => t.sectorHooks.helicopterSeat(t, id) ?? []);
+}
+
+function ourTeamInTheLoadedSector(t: TacticalState): Soldier[] {
+  return [...ourTeam(t), ...helicopterDropSeats(t)];
+}
+
 function pendingQuestionWaits(t: TacticalState): boolean {
   if (!t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking()) return true;
-  if (ourTeam(t).some(hasPendingAction)) return true;
+  if (ourTeamInTheLoadedSector(t).some(hasPendingAction)) return true;
   return playerInterfaceLocked(t);
 }
 

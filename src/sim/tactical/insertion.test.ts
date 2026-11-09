@@ -184,7 +184,7 @@ describe('InternalAddSoldierToSector for a merc seated in a vehicle (Soldier_Add
   it('keeps the pending action a native save left him, as the entry stops before it places him (Soldier_Add.cc:707-708)', () => {
     const sim = newCombatSim(content);
     const merc = seated(sim, arrivingHummer(sim), 0);
-    merc.savedPendingAction = { action: 2, giveTarget: 0, animCount: 1 };
+    merc.savedPendingAction = { action: 2, giveTarget: 0, direction: 0, animCount: 1 };
     expect(enter(sim, merc)).toBe(false);
     expect(merc.savedPendingAction?.action).toBe(2);
   });
@@ -206,7 +206,7 @@ describe('the pending action of a soldier added to the sector (Soldier_Add.cc Ad
   it('is dropped once he stands on the map, for any team, the one a native save left him included', () => {
     const sim = newCombatSim(content);
     const militia = arrivingSoldier(sim);
-    militia.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, animCount: 1 };
+    militia.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, direction: 0, animCount: 1 };
     militia.pendingTalk = 0;
     expect(insert(sim, militia, ARRIVAL_FACING, true)).toMatchObject({ placed: true });
     expect([militia.savedPendingAction, militia.pendingTalk]).toEqual([null, null]);

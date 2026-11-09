@@ -452,8 +452,8 @@ The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
 - A won battle sets the question pending in both arms of `checkForEndOfBattle` (`shouldBeginAutoBandage`): out of combat,
   outside the Deidranna endgame (the sector hook `inDeidrannaEndgame`) and with a medic for a patient. The normal pass
   runs `handleAutoBandagePending` right after the real-time turn, as `MainGameScreenHandle` runs it after
-  `HandleStrategicTurn`. It waits while the dialogue is busy, a merc of ours has a pending action or the interface is
-  locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
+  `HandleStrategicTurn`. It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
+  seats of a helicopter drop under way included) or the interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
   original's OK box), otherwise the same prompt opens, and the rest of the pass runs. While the question is due the sim is
   not idle. Leaving tactical (the map screen, a contract's switch to it), opening a shop and a meanwhile's start drop it
   (deviation "Pending auto-bandage and client screens"); a sector change does not. A soldier arriving to open a door

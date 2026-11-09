@@ -28,7 +28,7 @@ import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 75;
+export const SNAPSHOT_VERSION = 76;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -64,9 +64,10 @@ const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'lookMemo',
   'changes',
   'viewMarkers',
+  'soldiersOfTheLoad',
 ]);
 
-type DerivedTacticalField = 'pathEnv' | 'sightMemo' | 'lookMemo' | 'changes' | 'viewMarkers';
+type DerivedTacticalField = 'pathEnv' | 'sightMemo' | 'lookMemo' | 'changes' | 'viewMarkers' | 'soldiersOfTheLoad';
 
 function tacticalData(t: TacticalState): Record<string, unknown> {
   const data: Record<string, unknown> = {};
@@ -93,6 +94,7 @@ function reviveTactical(data: unknown): TacticalState {
     lookMemo: createLookMemo(),
     changes: createChangeCounts(),
     viewMarkers: createViewMarkers(),
+    soldiersOfTheLoad: null,
   };
 }
 
