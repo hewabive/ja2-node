@@ -171,14 +171,16 @@ Not pinned yet:
 The oracle loads the same files: `tools/oracle/save-probes.ts` writes probes for any saves (soldier dumps, hit chance,
 the AI's best shot, sight, paths and lights for every opposed pair), the native build runs them after its `save`
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
-"`save`"), the load's traced draws fed to the restart and each soldier's animation code and frame compared; most other
-comparers start from imported saves too, entering the loaded sector of a save made on the map screen first
-(`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the native build
-writes itself, a tear gas cloud and a hit window; the other sectors' at their first entries after `SaveGame09` and in
-the records of every sector of `SaveGame03` (`tools/oracle/README.md` "Savegame temp files"). With the original
-data, the subsystems' `save-import` tests import every save in `SavedGames`, and `src/server/save-session.test.ts`
-keeps playing each one: a save with a world in tactical, one without on the map screen while its travelling squad
-reaches the next sector; the first save with a world is also played again with its world flag cleared.
+"`save`"), the load's traced draws fed to the restart and each soldier's animation code and frame compared, as the
+auto-bandage and helicopter drop comparers compare the codes and frame delays their loads leave ("Auto-bandage",
+"Helicopter drop" there); most other comparers start from imported saves too, entering the loaded sector of a save made
+on the map screen first (`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the
+native build writes itself, a tear gas cloud and a hit window; the other sectors' at their first entries after
+`SaveGame09` and in the records of every sector of `SaveGame03` (`tools/oracle/README.md` "Savegame temp files"). With
+the original data, the subsystems' `save-import` tests import every save in `SavedGames`, and
+`src/server/save-session.test.ts` keeps playing each one: a save with a world in tactical, one without on the map screen
+while its travelling squad reaches the next sector; the first save with a world is also played again with its world flag
+cleared.
 
 Inferred from reading the source:
 - The Linux layout has a synthetic test only, and no real file covers versions 100–105: the saves the tests use
