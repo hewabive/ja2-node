@@ -156,7 +156,7 @@ export interface LaptopBootOptions {
   readonly settings?: Partial<LaptopSettings>;
   readonly zoomOnOpen?: boolean;
   readonly zoomOnClose?: boolean;
-  readonly backdrop?: readonly DrawItem[];
+  readonly backdrop?: () => readonly DrawItem[];
   readonly onClosed?: () => void;
   readonly onQuitRequest?: () => void;
   readonly onHelp?: () => void;

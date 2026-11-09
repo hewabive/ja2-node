@@ -9,6 +9,7 @@ import {
   TITLE_BAR_ITERATIONS,
   titleBarSlideRect,
   UNIT_TIME,
+  zoomGravity,
   zoomPercentage,
   zoomRect,
 } from './laptop-timers.ts';
@@ -87,5 +88,12 @@ describe('the laptop timers', () => {
     const half = zoomRect(50);
     expect(half.width).toBe(24);
     expect(half.height).toBe(18);
+  });
+
+  it('truncates the zoom percentage after the gravity step is added, so 20 % zooms as 8 % and not 9 %', () => {
+    expect(zoomGravity(20)).toBe(8);
+    expect(zoomGravity(1)).toBe(0);
+    expect(zoomGravity(75)).toBe(88);
+    expect(zoomRect(20)).toEqual({ x: 463, y: 417, width: 12, height: 9 });
   });
 });

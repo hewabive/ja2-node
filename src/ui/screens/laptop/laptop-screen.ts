@@ -1,15 +1,17 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Laptop.cc EnterLaptop (music LAPTOP is the server's music mode), LaptopScreenHandle (the opening
-// @src zoom out of the map screen button with "laptop power up (8-11).wav"; the overlays after the page: bookmarks, the
-// @src download box, the bookmark hint, the side texts, the title-bar slide, the lights), LeaveLapTopScreen (the closing
-// @src zoom with "laptop power down (8-11).wav"), InitTitleBarMaximizeGraphics (the bar, the icon at +5, +2 and the title in
-// @src FONT14ARIAL at +29, +8), HandleLapTopESCKey and HandleRightButtonUpEvent (the new-mail box, the delete box, the
-// @src bookmarks, the open mail, in that order), NewEmailIconCallback (the oldest unread mail), NewFileIconCallback,
-// @src DoLapTopMessageBox (MSG_BOX_LAPTOP_DEFAULT centred on the laptop screen), PrintDate, PrintNumberOnTeam,
-// @src DisplayTaskBarIcons, HandleLapTopHandles (no page is handled while a page loads, so its content and timers
-// @src hold until the wait ends); src/game/Laptop/EMail.cc CreateDestroyNewMailButton, DisplayNewMailBox (hidden during the A.I.M.
-// @src video conference and shown again after it, AIMMembers.cc DisableNewMailMessage).
+// @src zoom out of the map screen button with "laptop power up (8-11).wav", no cursor meanwhile; the overlays after the
+// @src page: bookmarks, the download box, the bookmark hint, the side texts, the title-bar slide, the lights),
+// @src LeaveLapTopScreen (the closing zoom with "laptop power down (8-11).wav" over the map screen the opening left,
+// @src only with a merc hired and the new game's laptop left before), InitTitleBarMaximizeGraphics (the bar, the icon
+// @src at +5, +2 and the title in FONT14ARIAL at +29, +8), HandleLapTopESCKey and HandleRightButtonUpEvent (the
+// @src new-mail box, the delete box, the bookmarks, the open mail, in that order), NewEmailIconCallback (the oldest
+// @src unread mail), NewFileIconCallback, DoLapTopMessageBox (MSG_BOX_LAPTOP_DEFAULT centred on the laptop screen),
+// @src PrintDate, PrintNumberOnTeam, DisplayTaskBarIcons, HandleLapTopHandles (no page is handled while a page loads,
+// @src so its content and timers hold until the wait ends); src/game/Laptop/EMail.cc CreateDestroyNewMailButton,
+// @src DisplayNewMailBox (hidden during the A.I.M. video conference and shown again after it, AIMMembers.cc
+// @src DisableNewMailMessage).
 
 import type { LaptopView } from '../../../protocol/view.ts';
 import type { Area, DrawItem, DrawList } from '../../draw-list.ts';
@@ -290,7 +292,7 @@ export interface LaptopScreenOptions {
   readonly memory?: LaptopMemory;
   readonly zoomOnOpen?: boolean;
   readonly zoomOnClose?: boolean;
-  readonly backdrop?: readonly DrawItem[];
+  readonly backdrop?: () => readonly DrawItem[];
   readonly onClosed?: () => void;
   readonly onQuitRequest?: () => void;
   readonly onHelp?: () => void;
@@ -328,6 +330,8 @@ export class LaptopScreen implements Screen {
   #openUnreadFile = false;
   #highlighted = -1;
   #zoom: Zoom | null = null;
+  #backdrop: readonly DrawItem[] | null = null;
+  #closeZooms = false;
   #closing = false;
   #closed = false;
   #lastItems: readonly DrawItem[] = [];
@@ -636,6 +640,7 @@ export class LaptopScreen implements Screen {
     });
     this.#refreshShell();
     this.#shellView.build();
+    this.#backdrop = this.#options.backdrop?.() ?? null;
     if (this.#options.zoomOnOpen) {
       this.#zoom = { opening: true, start: this.#runtime.clock.now };
       this.#runtime.sounds.play({ file: POWER_UP_SOUND, volume: HIGH_VOLUME });
@@ -648,8 +653,18 @@ export class LaptopScreen implements Screen {
     this.#shellView = null;
   }
 
+  get hidesCursor(): boolean {
+    return this.#zoom !== null;
+  }
+
+  #noteCloseZoom(): void {
+    const laptop = this.#view();
+    if (laptop && !this.#closedElsewhere()) this.#closeZooms = laptop.atLeastOneMercHired && !laptop.newGameLaptop;
+  }
+
   #updateClose(now: number): void {
     if (this.#closing) return;
+    this.#noteCloseZoom();
     if (this.shell.exited) {
       void this.#options.client.command({ type: 'closeLaptop' });
       this.#beginClose(now);
@@ -663,7 +678,7 @@ export class LaptopScreen implements Screen {
 
   #beginClose(now: number): void {
     this.#closing = true;
-    if (this.#options.zoomOnClose) {
+    if (this.#options.zoomOnClose && this.#closeZooms) {
       this.#zoom = { opening: false, start: now };
       this.#runtime.sounds.play({ file: POWER_DOWN_SOUND, volume: HIGH_VOLUME });
     } else this.#finishClose();
@@ -753,7 +768,7 @@ export class LaptopScreen implements Screen {
   #renderZoom(list: DrawList, zoom: Zoom): void {
     const { width, height, stdX, stdY } = this.#runtime.geometry();
     list.capture(ZOOM_SOURCE);
-    if (this.#options.backdrop) list.items.push(...this.#options.backdrop);
+    if (this.#backdrop) list.items.push(...this.#backdrop);
     else list.fill(0, 0, width, height, BLACK);
     const rect: Area = zoomRect(zoomPercentage(this.#runtime.clock.now - zoom.start, zoom.opening));
     list.snapshot(
@@ -778,7 +793,26 @@ export class LaptopScreen implements Screen {
     if (this.#zoom) this.#renderZoom(list, this.#zoom);
   }
 
+  #describeZoom(zoom: Zoom): WidgetInfo {
+    const { stdX, stdY } = this.#runtime.geometry();
+    const rect = zoomRect(zoomPercentage(this.#runtime.clock.now - zoom.start, zoom.opening));
+    return {
+      id: ZOOM_SOURCE,
+      kind: 'snapshotZoom',
+      rect: { x: stdX + rect.x, y: stdY + rect.y, width: rect.width, height: rect.height },
+      visible: true,
+      enabled: true,
+      state: zoom.opening ? 'opening' : 'closing',
+      text: null,
+      frame: null,
+    };
+  }
+
   describe(): readonly WidgetInfo[] {
-    return [...(this.#shellView?.describe() ?? []), ...(this.#page?.views ?? []).flatMap((v) => v.describe())];
+    return [
+      ...(this.#shellView?.describe() ?? []),
+      ...(this.#page?.views ?? []).flatMap((v) => v.describe()),
+      ...(this.#zoom ? [this.#describeZoom(this.#zoom)] : []),
+    ];
   }
 }

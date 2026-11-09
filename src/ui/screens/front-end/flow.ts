@@ -10,7 +10,11 @@
 // @src DoQuickLoad (the quick save loads without the warning box; nothing happens without one),
 // @src StartFadeOutForSaveLoadScreen and DoneFadeOutForSaveLoadScreen (fade out, load, fade in on the saved screen);
 // @src src/game/GameLoop.cc EndGameMessageBoxCallBack; src/game/Credits.cc (back to the main menu); src/game/JAScreens.cc
-// @src SexScreenHandle (a fade into the game).
+// @src SexScreenHandle (a fade into the game); src/game/Strategic/StrategicMap.cc BeginLoadScreen (the zoom into a sector
+// @src entered from the map screen, not in a meanwhile; EnterSector, and SetCurrentWorldSector with
+// @src gfGotoSectorTransition, which only the pre-battle panel's Enter into the loaded sector sets);
+// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc HandleExitsFromMapScreen (MAP_EXIT_TO_LAPTOP: the laptop zooms
+// @src out of the map screen's picture).
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import type { GameOptions, SaveListing } from '../../client/api-types.ts';
@@ -39,6 +43,7 @@ import { SanMonaController, sanMonaScreen } from './san-mona.ts';
 import { listedSaves, SaveLoadController, type SaveLoadMode, saveLoadScreen } from './save-load.ts';
 import { saveLocationName } from './save-location.ts';
 import { type GameScreenActions, type GameScreenKind, unavailableScreen } from './screen-unavailable.ts';
+import { SectorZoom } from './sector-zoom.ts';
 
 export type FrontEndMusic = 'mainMenu' | 'none' | 'session';
 export type SaveLoadOrigin = 'mainMenu' | 'options' | 'game' | 'gameInit';
@@ -65,6 +70,7 @@ export interface MapPort {
 }
 
 export interface LaptopFlow {
+  readonly fromMap: boolean;
   closed(): void;
   quit(): void;
 }
@@ -75,6 +81,7 @@ export interface LaptopPort {
 
 export interface FrontEndHost {
   readonly version: string;
+  readonly zooms?: boolean;
   tactical?(): TacticalPort | null;
   map?(): MapPort | null;
   laptop?(): LaptopPort | null;
@@ -91,6 +98,9 @@ const DEAD_IS_DEAD_SAVED_GAME_SLOT = 0;
 const BOXING_IN_PROGRESS = 'boxingInProgress';
 const TACTICAL_SCREEN_ID = 'tactical';
 const MAP_SCREEN_ID = 'map';
+const SECTOR_LOADED = 'sectorLoaded';
+const PRE_BATTLE_PROMPT = 'preBattle';
+const TACTICAL_FLOW = 'tactical';
 const BLACK_SCREEN = 'black';
 export const RECONNECTING_BOX = 'reconnecting';
 export const SESSION_ENDED_BOX = 'sessionEnded';
@@ -146,6 +156,8 @@ export class FrontEndFlow {
   readonly #settings: SettingsStore;
   readonly #host: FrontEndHost;
   #leavingLaptop: string | null = null;
+  #battlePanelOpen = false;
+  #zoomingIntoSector = false;
   readonly #menu: MainMenuModel;
   #choice: GameInitChoice = INITIAL_GAME_CHOICE;
   #pendingOptions: GameOptions | null = null;
@@ -412,7 +424,7 @@ export class FrontEndFlow {
     this.#show(creditsScreen(this.#env, controller, { feed: () => this.#host.rowFeed() }));
   }
 
-  enterGame(): void {
+  enterGame(fromMap = false): void {
     const session = this.#client.session;
     if (!session) {
       this.mainMenu();
@@ -420,6 +432,7 @@ export class FrontEndFlow {
     }
     const kind = gameScreenOf(this.#client.view);
     this.#host.music('session');
+    this.#noteBattlePanel();
     const tactical = kind === 'tactical' ? (this.#host.tactical?.() ?? null) : null;
     if (tactical) {
       void this.#enterTactical(tactical, session);
@@ -427,7 +440,7 @@ export class FrontEndFlow {
     }
     const laptop = kind === 'laptop' ? (this.#host.laptop?.() ?? null) : null;
     if (laptop) {
-      void this.#enterLaptop(laptop, session);
+      void this.#enterLaptop(laptop, session, fromMap);
       return;
     }
     const map = kind === 'map' ? (this.#host.map?.() ?? null) : null;
@@ -490,10 +503,10 @@ export class FrontEndFlow {
     if (!entry.ok && entry.refusal === BOXING_IN_PROGRESS && (await this.#env.boxes.confirm(entry.reason ?? ''))) await port.enter(true);
   }
 
-  async #enterLaptop(port: LaptopPort, session: string): Promise<void> {
+  async #enterLaptop(port: LaptopPort, session: string, fromMap: boolean): Promise<void> {
     let screen: Screen;
     try {
-      screen = await port.open({ closed: () => this.#laptopClosed(session), quit: () => this.exitBox('laptop') });
+      screen = await port.open({ fromMap, closed: () => this.#laptopClosed(session), quit: () => this.exitBox('laptop') });
     } catch (err) {
       this.#unavailable('laptop', session, err);
       return;
@@ -562,11 +575,38 @@ export class FrontEndFlow {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#afterLaptop();
+    const battlePanelWasOpen = this.#battlePanelOpen;
+    this.#noteBattlePanel();
+    if (this.#zoomingIntoSector) return;
     const showing = this.#screens.screen?.id;
     const kind = gameScreenOf(this.#client.view);
     if (frames.some((f) => f.events?.some((e) => e.type === SEX_SCENE))) this.sexScene();
     else if (showing === TACTICAL_SCREEN_ID && (kind === 'map' || this.#host.tactical?.()?.stale)) this.enterGame();
-    else if (showing === MAP_SCREEN_ID && kind !== 'map') this.enterGame();
+    else if (showing === MAP_SCREEN_ID && kind !== 'map') this.#leaveMap(frames, battlePanelWasOpen);
+  }
+
+  #noteBattlePanel(): void {
+    this.#battlePanelOpen = this.#client.view?.prompt?.kind === PRE_BATTLE_PROMPT;
+  }
+
+  #leaveMap(frames: readonly ViewFrame[], battlePanelWasOpen: boolean): void {
+    const entersSector = battlePanelWasOpen || frames.some((f) => f.events?.some((e) => e.type === SECTOR_LOADED));
+    const session = this.#client.session;
+    if (this.#host.zooms && session && entersSector && this.#client.view?.strategic?.flow === TACTICAL_FLOW) {
+      this.#zoomIntoSector(session);
+      return;
+    }
+    this.enterGame(true);
+  }
+
+  #zoomIntoSector(session: string): void {
+    this.#zoomingIntoSector = true;
+    this.#screens.openModal(
+      new SectorZoom(this.#env.runtime, () => {
+        this.#zoomingIntoSector = false;
+        if (this.#client.session === session) this.enterGame();
+      }),
+    );
   }
 
   sexScene(): void {

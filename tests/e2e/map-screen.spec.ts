@@ -201,7 +201,7 @@ test.describe('the map screen on the stub map-screen campaign', () => {
   test('opens the laptop from the map and comes back to it', async ({ page }) => {
     await openMap(page, session);
     await clickWidget(page, 'laptopButton');
-    await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop');
+    await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop' && !window.__ja2Ui.widgets.some((w) => w.id === 'laptopZoom'));
     await nextFrames(page, 4);
     if (await page.evaluate(() => window.__ja2Ui.widgets.some((w) => w.id === 'newMailOk' && w.visible)))
       await clickWidget(page, 'newMailOk');

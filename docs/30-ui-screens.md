@@ -218,8 +218,11 @@ evenly over the slice, then settles the cells on the view (deviation "Autoresolv
 **The laptop is a modal flow on the server and pages in the client.** Pages, popups, the Bobby Ray's cart and the I.M.P.
 draft stay in the client until one command carries the decision (deviation "Laptop as commands"); `LaptopMemory` keeps
 them for the page's life, not in saves (deviation "Laptop page state"). The World Wide Wait follows the original's
-units, scaled by the client setting `websiteLoadingTimeScale`. The zoom out of the map screen is built but off on
-`/play` (gap "Screen zooms"). The A.I.M. and M.E.R.C. video faces (`laptop/video-face.ts`) are the tactical
+units, scaled by the client setting `websiteLoadingTimeScale`. Opened from the map screen, the laptop zooms out of the
+map screen's laptop button over the picture the map screen last drew (`MapHost.picture`), as `MAP_EXIT_TO_LAPTOP` keeps
+the frame in the extra buffer (`Strategic/Map_Screen_Interface_Bottom.cc:1095`); it powers down into the button over that
+picture only with `atLeastOneMercHired` and without `newGameLaptop` in the view, read before its own `closeLaptop`
+clears the latter (`Laptop/Laptop.cc:1351`), and over black when it did not open from the map. The A.I.M. and M.E.R.C. video faces (`laptop/video-face.ts`) are the tactical
 `FaceAnimator` with a queue of their speaker's quotes: no server event carries these quotes, so the pages say them
 outside `SpeechPresenter` and play the voice through the handle `UiSoundSink.play` returns. The A.I.M. conference runs
 the merc's impatience on the UI clock (`laptop/aim/aim-conference.ts`); the annoyance his hang-up raises is not
@@ -252,8 +255,16 @@ modals pause a running real-time driver (`28`).
 inherits the scheme of the screen that opened it. Music in a game is the server's mode (`31`); the front end plays the
 main menu music itself.
 
-**Not built.** The tactical placement GUI (deviation "Tactical placement"), the map-to-sector zoom (gap "Screen
-zooms"), meanwhile scene playback (gap "Meanwhile scene playback"), the 3D cursor and the cover and sight display
+**The zoom into a sector** (`front-end/sector-zoom.ts`). The original zooms into the map screen's picture for 2000 ms
+whenever a sector loads while the map screen is up, outside a meanwhile and a savegame load, and when the pre-battle
+panel's Enter goes to the loaded sector (`BeginLoadScreen`, `Strategic/StrategicMap.cc:196`;
+`Strategic/PreBattle_Interface.cc:1023`); the Tactical button into the loaded sector does not zoom. The flow zooms when
+the batch that leaves the map screen for the tactical flow carries `sectorLoaded`, or when a pre-battle panel was open
+before it, and shows the loading or the tactical screen after the zoom. The zoom holds game time as a client modal does
+(`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
+them.
+
+**Not built.** The tactical placement GUI (deviation "Tactical placement"), meanwhile scene playback (gap "Meanwhile scene playback"), the 3D cursor and the cover and sight display
 (`28`'s decisions).
 
 ## 4. Quirks of the original the code keeps
@@ -329,6 +340,9 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | While the pointer is on the enabled Retreat button the map shows only the arrows out of the battle group's sector, and that sector's enemies keep the icon position of the sector drawn before it, as its team icons are skipped | `battle/battle-entry.test.ts` "draws the enemies of the sector the squad retreats from after the icons …" |
 | The Retreat button's bounds for the retreat arrows include the pixel past its bottom right | `battle/battle-entry.test.ts` "counts the pixel past the bottom right of the Retreat button …" |
 | While the pre-battle panel is up, a group leaving the battle group's sector also shows an about-to-arrive arrow toward its previous sector | `battle/battle-entry.test.ts` "shows a group leaving the battle sector as about to arrive …" |
+| The laptop zoom truncates its percentage after the gravity step is added, so 20 % of its time zooms as 8 % (`Laptop/Laptop.cc:1025`) | `laptop/laptop-timers.test.ts` "truncates the zoom percentage after the gravity step is added …" |
+| The zoom into a sector adds 0.05 past half way where the first half adds 0.5, so it reaches 100 % at 99 % of its time (`Strategic/StrategicMap.cc:223`) | `front-end/sector-zoom.test.ts` "adds 0.05 where the first half adds 0.5 …" |
+| The zoom into a sector aims at the same pixels at any screen size: its target is not moved by `STD_SCREEN_X` and `STD_SCREEN_Y` (`Strategic/StrategicMap.cc:232`) | `front-end/sector-zoom.test.ts` "aims at the same pixels on a wider screen …" |
 | Alt+Load and Alt+C open the load screen until a Dead is Dead game names its save, then load the newest save of any kind for good: Stracciatella sets `bLastSavedGameSlot` (the client setting `lastSavedGameSlot`) only there, to the first list entry | `front-end/front-end.test.ts` "sets the last saved slot to 0 for good …" |
 
 Not pinned yet:

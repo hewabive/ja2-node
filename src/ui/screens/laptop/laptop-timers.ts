@@ -139,11 +139,15 @@ export function zoomPercentage(elapsed: number, opening: boolean): number {
   return opening ? linear : PERCENT - linear;
 }
 
-export function zoomRect(realPercentage: number): Area {
-  let p = realPercentage;
+export function zoomGravity(realPercentage: number): number {
+  const p = realPercentage;
   const factor = (p - HALF) * 2;
-  if (p < HALF) p += trunc(p * factor * 0.01 + 0.5);
-  else p += trunc((PERCENT - p) * factor * 0.01 + 0.5);
+  if (p < HALF) return trunc(p + (p * factor * 0.01 + 0.5));
+  return trunc(p + ((PERCENT - p) * factor * 0.01 + 0.5));
+}
+
+export function zoomRect(realPercentage: number): Area {
+  const p = zoomGravity(realPercentage);
   const scale = p < 99 ? trunc(10000 / (PERCENT - p)) : ZOOM_SCALE_MAX;
   const width = u16(trunc((ZOOM_BASE.width * scale) / PERCENT));
   const height = u16(trunc((ZOOM_BASE.height * scale) / PERCENT));

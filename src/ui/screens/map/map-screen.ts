@@ -453,6 +453,10 @@ export class MapScreen implements Screen {
     return this.#inventory;
   }
 
+  get picture(): readonly DrawItem[] {
+    return this.#lastItems;
+  }
+
   get battle(): BattleEntry {
     return this.#battle;
   }

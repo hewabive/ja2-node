@@ -51,6 +51,7 @@ const FRONT_END_RANDOM_SEED = 'front-end';
 const LOADING_PICTURE_PREFIX = 'picture';
 const SHORT_COMMIT = 7;
 const BASIC_TEXT_BOX = 'basic';
+const PIN_CLOCK_PARAM = 'pinClock';
 
 export interface FrontEnd {
   readonly flow: FrontEndFlow;
@@ -228,8 +229,10 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   };
   const video = createSequenceMonitor();
   let saveMapFacts: Promise<MapFacts | null> | null = null;
+  const zooms = !new URLSearchParams(location.search).has(PIN_CLOCK_PARAM);
   const host: FrontEndHost = {
     version: versionLabel(health?.engine),
+    zooms,
     playBeginning: async () => {
       if (!sequenceEnabled('beginning', settings.current())) return;
       await playSequence(beginningPlan(), { sound: engineSound(ui.audio.engine), monitor: video });
@@ -256,6 +259,9 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
           bootLaptopScreen(ui, {
             session,
             memory: laptopMemoryFor(id),
+            zoomOnOpen: zooms && flow.fromMap,
+            zoomOnClose: zooms,
+            ...(flow.fromMap ? { backdrop: () => map?.picture ?? [] } : {}),
             onClosed: flow.closed,
             onQuitRequest: flow.quit,
             onHelp: () => help.force('laptop'),

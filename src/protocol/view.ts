@@ -933,6 +933,8 @@ export interface LaptopView {
   readonly landingZone: string;
   readonly aimMercsOnTeam: boolean;
   readonly florist: FloristView;
+  readonly newGameLaptop: boolean;
+  readonly atLeastOneMercHired: boolean;
 }
 
 export interface TextKeyView {

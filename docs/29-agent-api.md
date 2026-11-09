@@ -841,7 +841,9 @@ form's draw (deviations "Speck's opening", "Florist order form entry"). The I.M.
 `impCreate`. The laptop's queries answer before money moves; `emailText` is answered by the server's campaign adapter
 (`src/server/campaign-session.ts`, `mail-text.ts`) with the original's substitutions and the I.M.P. report, not by the
 simulation, and goes through the command path although it changes nothing. Silent profile changes (a merc back home,
-away, dead elsewhere, the M.E.R.C. outage) raise no event; they show in the view.
+away, dead elsewhere, the M.E.R.C. outage) raise no event; they show in the view. The view carries `newGameLaptop` and
+`atLeastOneMercHired` (`gfNewGameLaptop`, `gfAtLeastOneMercWasHired`), which decide whether the canvas laptop powers down
+with its zoom (`30`).
 
 ### 8.12 Contracts
 

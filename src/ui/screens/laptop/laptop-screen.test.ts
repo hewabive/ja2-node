@@ -4,9 +4,10 @@ import { drivenSession, stubSessionSources } from '../../../../tests/support/ses
 import { projectLayoutLoader, type TestRuntime, testRuntime } from '../../../../tests/support/ui-runtime.ts';
 import { STUB_DATA_VERSION } from '../../../content/text/data-version.ts';
 import { loadUiStrings } from '../../../content/text/strings.ts';
+import type { LaptopView } from '../../../protocol/view.ts';
 import { createCampaignSession } from '../../../server/campaign-factory.ts';
 import { Session } from '../../../server/session.ts';
-import type { ImageItem } from '../../draw-list.ts';
+import type { DrawItem, ImageItem } from '../../draw-list.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import { messageBoxStyles } from '../../layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../layout/types.ts';
@@ -48,12 +49,28 @@ interface Harness {
   closed: boolean;
 }
 
-async function openLaptop(slideStepMs = 0): Promise<Harness> {
+type Dispatch = (cmd: LaptopCommand) => void;
+
+interface LaptopOptions {
+  readonly slideStepMs?: number;
+  readonly zooms?: boolean;
+  readonly backdrop?: () => readonly DrawItem[];
+  readonly prepare?: (dispatch: Dispatch, laptop: () => LaptopView | null) => void;
+}
+
+async function openLaptop(options: LaptopOptions = {}): Promise<Harness> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), SEED, { hire: [] });
   const strings = await loadUiStrings(kit.read, 'eng');
   created.useLabels(strings);
   const sim = drivenSession(created, stubSessionSources(kit));
   const live = new Session('laptop-screen', sim);
+  options.prepare?.(
+    (cmd) => {
+      const reply = live.dispatch(cmd as Parameters<Session['dispatch']>[0]);
+      if (!reply.ok) throw new Error(`${cmd.type} refused: ${reply.reason}`);
+    },
+    () => sim.view().laptop ?? null,
+  );
   const commands: string[] = [];
   const client: LaptopClient = {
     laptop: () => sim.view().laptop ?? null,
@@ -95,9 +112,10 @@ async function openLaptop(slideStepMs = 0): Promise<Harness> {
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),
     messageBoxLabels: messageBoxLabels(text),
     dataVersion: STUB_DATA_VERSION,
-    settings: { loadingTimeScale: 0, slideStepMs, subtitles: true, speech: false },
-    zoomOnOpen: false,
-    zoomOnClose: false,
+    settings: { loadingTimeScale: 0, slideStepMs: options.slideStepMs ?? 0, subtitles: true, speech: false },
+    zoomOnOpen: options.zooms === true,
+    zoomOnClose: options.zooms === true,
+    ...(options.backdrop ? { backdrop: options.backdrop } : {}),
     onClosed: () => {
       harness.closed = true;
     },
@@ -146,6 +164,35 @@ async function toAimMember(h: Harness): Promise<void> {
   await click(h.t, 'toMugShotsLink');
   await click(h.t, 'mugRegion0_0');
   expect(h.screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS);
+}
+
+const MAP_PICTURE: DrawItem = { kind: 'fill', x: 1, y: 2, width: 3, height: 4, color: 0x123456 };
+const ZOOM = 'laptopZoom';
+const ZOOM_MS = 1000;
+const CONTRACT_DAYS = 7;
+
+function hireOne(dispatch: Dispatch, laptop: () => LaptopView | null): void {
+  const profile = laptop()?.aim.find((a) => a.face === 'available')?.profile;
+  if (profile === undefined) throw new Error('no A.I.M. merc available');
+  dispatch({ type: 'aimHire', profile, contract: CONTRACT_DAYS, gear: false });
+}
+
+function leftWithAMercHired(dispatch: Dispatch, laptop: () => LaptopView | null): void {
+  hireOne(dispatch, laptop);
+  dispatch({ type: 'closeLaptop' });
+  dispatch({ type: 'openLaptop' });
+}
+
+async function powerDown(h: Harness): Promise<void> {
+  if (find(h.t, 'newMailOk')?.visible) await click(h.t, 'newMailOk');
+  await click(h.t, 'powerButton');
+  for (let i = 0; i < 10 && !h.commands.includes('closeLaptop'); i++) await settle(h.t);
+  expect(h.commands).toContain('closeLaptop');
+}
+
+async function waitMs(t: TestRuntime, ms: number): Promise<void> {
+  for (let elapsed = 0; elapsed < ms; elapsed += STEP_MS) t.frame(STEP_MS);
+  await settle(t, 1);
 }
 
 function drawnImages(t: TestRuntime): string[] {
@@ -246,7 +293,7 @@ describe('the canvas laptop on a stub campaign', () => {
   });
 
   it("brings the merc's face back under its snow, without the terminal, to a page left while the title bar rose", async () => {
-    const h = await openLaptop(STEP_MS);
+    const h = await openLaptop({ slideStepMs: STEP_MS });
     const { t, screen } = h;
     await click(t, 'newMailOk');
     await click(t, 'webButton');
@@ -262,6 +309,44 @@ describe('the canvas laptop on a stub campaign', () => {
     expect(screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS);
     expect(find(t, 'terminal')?.visible ?? false).toBe(false);
     expect(drawnImages(t)).toContain(BW_SNOW);
+  });
+
+  it("zooms out of the map screen's picture taken as it opens, with no cursor and no input until the zoom ends", async () => {
+    let picture: readonly DrawItem[] = [MAP_PICTURE];
+    const h = await openLaptop({ zooms: true, backdrop: () => picture });
+    picture = [];
+    expect(h.t.sounds.played).toContainEqual({ file: 'sounds/laptop power up (8-11).wav', volume: 127 });
+    expect(h.screen.hidesCursor).toBe(true);
+    expect(find(h.t, ZOOM)?.state).toBe('opening');
+    expect(h.t.list.items).toContainEqual(MAP_PICTURE);
+    expect(h.t.list.items.find((i) => i.kind === 'snapshot')).toMatchObject({ sourceArea: { x: 0, y: 0, width: 640, height: 480 } });
+    await waitMs(h.t, ZOOM_MS);
+    expect(find(h.t, ZOOM)).toBeUndefined();
+    expect(h.screen.hidesCursor).toBe(false);
+    expect(h.t.list.items).not.toContainEqual(MAP_PICTURE);
+  });
+
+  it("powers down without the zoom while nobody was hired, and with a merc hired on the new game's laptop", async () => {
+    const nobody = await openLaptop({ zooms: true });
+    await waitMs(nobody.t, ZOOM_MS);
+    await powerDown(nobody);
+    expect(nobody.closed).toBe(true);
+    const newGame = await openLaptop({ zooms: true, prepare: hireOne });
+    await waitMs(newGame.t, ZOOM_MS);
+    await powerDown(newGame);
+    expect(newGame.closed).toBe(true);
+  });
+
+  it("powers down into the laptop button over the map screen's picture once the new game's laptop was left with a merc hired", async () => {
+    const h = await openLaptop({ zooms: true, prepare: leftWithAMercHired, backdrop: () => [MAP_PICTURE] });
+    await waitMs(h.t, ZOOM_MS);
+    await powerDown(h);
+    expect(h.closed).toBe(false);
+    expect(find(h.t, ZOOM)?.state).toBe('closing');
+    expect(h.t.sounds.played).toContainEqual({ file: 'sounds/laptop power down (8-11).wav', volume: 127 });
+    expect(h.t.list.items).toContainEqual(MAP_PICTURE);
+    await waitMs(h.t, ZOOM_MS);
+    expect(h.closed).toBe(true);
   });
 
   it('closes without a command of its own when another client closes the laptop', async () => {

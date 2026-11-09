@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/support/front-end.ts';
 import { loadMapTestFacts } from '../../../../tests/support/strategic.ts';
+import type { PlayerView, PromptView, ViewFrame } from '../../../protocol/view.ts';
 import { KeyModifier } from '../../input/events.ts';
 import type { Screen } from '../../screen.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
-import { type LaptopFlow, RECONNECTING_BOX, SESSION_ENDED_BOX } from './flow.ts';
+import { type LaptopFlow, type MapPort, RECONNECTING_BOX, SESSION_ENDED_BOX, type TacticalPort } from './flow.ts';
 import { OPTION_TOGGLES } from './options.ts';
+import { SECTOR_ZOOM, SECTOR_ZOOM_TIME } from './sector-zoom.ts';
 
 let f: FrontEndTest;
 
@@ -488,6 +490,122 @@ describe('in the game', () => {
   });
 });
 
+function idleScreen(id: string): Screen {
+  return { id, enter: () => undefined, exit: () => undefined, update: () => undefined, input: () => false, render: () => undefined };
+}
+
+function showView(flow: NonNullable<PlayerView['strategic']>['flow'], prompt: PromptView | null = null): void {
+  f.client.view = { tick: 0, mapPath: 'maps/a9.dat', soldiers: [], strategic: { flow } as NonNullable<PlayerView['strategic']>, prompt };
+}
+
+function frame(events: ViewFrame['events'] = []): ViewFrame {
+  return { tick: 1, changed: [], removed: [], events };
+}
+
+const SECTOR_LOADED = { type: 'sectorLoaded', sector: 'A9', hostiles: 0 } as NonNullable<ViewFrame['events']>[number];
+const PRE_BATTLE = { id: 'pbi-1', kind: 'preBattle' } as PromptView;
+const SECTOR_ZOOM_SOUND = { file: 'sounds/final psionic blast 01 (16-44).wav', volume: 127 };
+
+describe('the zooms out of the map screen', () => {
+  let tacticalLoads: number;
+  let tacticalLoaded: boolean;
+  let laptopFlows: LaptopFlow[];
+
+  beforeEach(async () => {
+    tacticalLoads = 0;
+    tacticalLoaded = false;
+    laptopFlows = [];
+    const map: MapPort = { loaded: true, load: async () => undefined, screen: () => idleScreen('map'), enter: async () => ({ ok: true }) };
+    const tactical: TacticalPort = {
+      get loaded() {
+        return tacticalLoaded;
+      },
+      stale: false,
+      loadScreen: null,
+      load: async () => {
+        tacticalLoads++;
+        tacticalLoaded = true;
+      },
+      screen: () => idleScreen('tactical'),
+    };
+    f.host.mapPort = map;
+    f.host.tacticalPort = tactical;
+    f.host.laptopPort = {
+      open: async (opened) => {
+        laptopFlows.push(opened);
+        return idleScreen('laptop');
+      },
+    };
+    f.host.zooms = true;
+    f.client.session = 'session-1';
+    showView('strategic');
+    f.flow.enterGame();
+    await until(() => f.screen() === 'map');
+  });
+
+  async function zoomFor(ms: number): Promise<void> {
+    for (let elapsed = 0; elapsed <= ms; elapsed += 16) f.t.frame(16);
+    await f.settle(1);
+  }
+
+  it('zooms into a sector the map screen loads with the game held, then loads the sector', async () => {
+    showView('tactical');
+    f.flow.frames([frame([SECTOR_LOADED])]);
+    expect(f.modal()).toBe(SECTOR_ZOOM);
+    expect(f.pauses).toEqual([true]);
+    expect(f.t.sounds.played).toContainEqual(SECTOR_ZOOM_SOUND);
+    f.flow.frames([frame()]);
+    await zoomFor(SECTOR_ZOOM_TIME / 2);
+    expect(f.screen()).toBe('map');
+    expect(f.t.list.items.some((i) => i.kind === 'snapshot')).toBe(true);
+    expect(tacticalLoads).toBe(0);
+    await zoomFor(SECTOR_ZOOM_TIME / 2);
+    await until(() => f.screen() === 'tactical');
+    expect(f.modal()).toBeNull();
+    expect(f.pauses).toEqual([true, false]);
+    expect(tacticalLoads).toBe(1);
+  });
+
+  it("zooms into the loaded sector the pre-battle panel's Enter goes to, but not into the one the Tactical button goes to", async () => {
+    showView('strategic', PRE_BATTLE);
+    f.flow.frames([frame()]);
+    showView('tactical');
+    f.flow.frames([frame()]);
+    expect(f.modal()).toBe(SECTOR_ZOOM);
+    await zoomFor(SECTOR_ZOOM_TIME);
+    await until(() => f.screen() === 'tactical');
+    showView('strategic');
+    f.flow.frames([frame()]);
+    await until(() => f.screen() === 'map');
+    showView('tactical');
+    f.flow.frames([frame()]);
+    await until(() => f.screen() === 'tactical');
+    expect(f.t.sounds.played.filter((s) => 'file' in s && s.file === SECTOR_ZOOM_SOUND.file)).toHaveLength(1);
+  });
+
+  it('zooms into no sector a meanwhile loads, nor with the zooms off', async () => {
+    showView('meanwhile');
+    f.flow.frames([frame([SECTOR_LOADED])]);
+    await until(() => f.screen() === 'tactical');
+    expect(f.modal()).toBeNull();
+    showView('strategic');
+    f.flow.frames([frame()]);
+    await until(() => f.screen() === 'map');
+    f.host.zooms = false;
+    showView('tactical');
+    f.flow.frames([frame([SECTOR_LOADED])]);
+    await until(() => f.screen() === 'tactical');
+    expect(f.t.sounds.played).not.toContainEqual(SECTOR_ZOOM_SOUND);
+  });
+
+  it('opens the laptop as coming from the map screen', async () => {
+    showView('laptop');
+    f.flow.frames([frame()]);
+    await until(() => f.screen() === 'laptop');
+    expect(laptopFlows.map((l) => l.fromMap)).toEqual([true]);
+  });
+});
+
 describe('the laptop port', () => {
   it('opens the laptop screen for a laptop session and enters the map once the server has left the laptop', async () => {
     let flow: LaptopFlow | null = null;
@@ -513,6 +631,7 @@ describe('the laptop port', () => {
     f.click('start');
     await answer('messageBox', 'yes');
     await until(() => f.screen() === 'laptop');
+    expect((flow as LaptopFlow | null)?.fromMap).toBe(false);
     (flow as LaptopFlow | null)?.closed();
     await f.settle();
     expect(f.screen()).toBe('laptop');

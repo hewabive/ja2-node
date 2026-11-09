@@ -18,7 +18,14 @@ import {
   FrontEndLayout,
   type SettingsStore,
 } from '../../src/ui/screens/front-end/environment.ts';
-import { FrontEndFlow, type FrontEndHost, type FrontEndMusic, type LaptopPort } from '../../src/ui/screens/front-end/flow.ts';
+import {
+  FrontEndFlow,
+  type FrontEndHost,
+  type FrontEndMusic,
+  type LaptopPort,
+  type MapPort,
+  type TacticalPort,
+} from '../../src/ui/screens/front-end/flow.ts';
 import type { MapFacts } from '../../src/ui/screens/map/facts.ts';
 import { type ClientSettings, DEFAULT_SETTINGS, type SettingsChange, updateSettings } from '../../src/ui/settings.ts';
 import { Labels } from '../../src/ui/text/labels.ts';
@@ -183,10 +190,21 @@ export class FakeHost implements FrontEndHost {
   quits = 0;
   beginnings = 0;
   laptopPort: LaptopPort | null = null;
+  mapPort: MapPort | null = null;
+  tacticalPort: TacticalPort | null = null;
+  zooms = false;
   facts: MapFacts | null = null;
 
   laptop(): LaptopPort | null {
     return this.laptopPort;
+  }
+
+  map(): MapPort | null {
+    return this.mapPort;
+  }
+
+  tactical(): TacticalPort | null {
+    return this.tacticalPort;
   }
 
   async mapFacts(): Promise<MapFacts | null> {
@@ -275,6 +293,11 @@ export async function frontEndTest(): Promise<FrontEndTest> {
   const host = new FakeHost();
   const flow = new FrontEndFlow(env, client, settings, {
     version: host.version,
+    get zooms() {
+      return host.zooms;
+    },
+    map: () => host.map(),
+    tactical: () => host.tactical(),
     playBeginning: () => host.playBeginning(),
     music: (mode) => host.music(mode),
     quit: () => host.quit(),

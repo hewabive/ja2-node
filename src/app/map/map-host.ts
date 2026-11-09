@@ -3,6 +3,7 @@ import { rpcSpeechPrefixed, type UiLanguage } from '../../content/text/data-vers
 import { restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import type { GameOptions } from '../../ui/client/api-types.ts';
+import type { DrawItem } from '../../ui/draw-list.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../../ui/screens/battle/environment.ts';
@@ -110,6 +111,10 @@ export class MapHost implements MapPort {
 
   get loaded(): boolean {
     return this.#loaded !== null;
+  }
+
+  get picture(): readonly DrawItem[] {
+    return this.#screen?.picture ?? [];
   }
 
   load(onProgress: (done: number, total: number) => void): Promise<void> {

@@ -376,6 +376,8 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
     landingZone: sectorShortString(sectorFromId(l.mercArriveSector)),
     aimMercsOnTeam: aimMercsOnTeam(flow),
     florist: { orderNumber: l.floristOrderNumber, bouquetPrices: flow.content.bouquetPrices },
+    newGameLaptop: l.newGameLaptop,
+    atLeastOneMercHired: campaign.state.atLeastOneMercHired,
   };
 }
 
