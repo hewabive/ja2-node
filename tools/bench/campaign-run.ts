@@ -89,6 +89,7 @@ function choiceFor(prompt: BattlePrompt): string[] {
     case 'npcOfNote':
       return ['continue', 'ok'];
     case 'someoneElseInSector':
+    case 'meanwhile':
       return ['ok'];
     case 'simultaneousArrival':
       return ['separately', 'together'];

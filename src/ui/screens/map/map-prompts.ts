@@ -95,6 +95,7 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
     }
     case 'preBattle':
     case 'autoresolveDone':
+    case 'meanwhile':
       return null;
     case 'disarmTrap':
     case 'activateSwitch':

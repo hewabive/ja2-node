@@ -1,4 +1,4 @@
-import { type ClientSettings, normalizeSettings } from '../../ui/settings.ts';
+import { type ClientSettings, meanwhileScenesSeenIn, normalizeSettings, withMeanwhileScenesSeen } from '../../ui/settings.ts';
 
 export const SETTINGS_FILE_FORMAT = 'ja2-node-settings';
 export const SETTINGS_FILE_NAME = 'ja2-node-settings.json';
@@ -9,12 +9,20 @@ interface SettingsFile {
   readonly settings: ClientSettings;
 }
 
-export function settingsFileText(settings: ClientSettings): string {
-  const file: SettingsFile = { format: SETTINGS_FILE_FORMAT, settings: normalizeSettings(settings) };
+export interface ImportedSettings {
+  readonly settings: ClientSettings;
+  readonly meanwhileScenesSeen: number;
+}
+
+export function settingsFileText(settings: ClientSettings, meanwhileScenesSeen = 0): string {
+  const file: SettingsFile = {
+    format: SETTINGS_FILE_FORMAT,
+    settings: withMeanwhileScenesSeen(normalizeSettings(settings), meanwhileScenesSeen),
+  };
   return `${JSON.stringify(file, null, JSON_INDENT)}\n`;
 }
 
-export function parseSettingsFile(text: string): ClientSettings | null {
+export function parseSettingsFile(text: string): ImportedSettings | null {
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -24,5 +32,5 @@ export function parseSettingsFile(text: string): ClientSettings | null {
   if (typeof value !== 'object' || value === null) return null;
   const file = value as Partial<Record<keyof SettingsFile, unknown>>;
   if (file.format !== SETTINGS_FILE_FORMAT || typeof file.settings !== 'object' || file.settings === null) return null;
-  return normalizeSettings(file.settings);
+  return { settings: normalizeSettings(file.settings), meanwhileScenesSeen: meanwhileScenesSeenIn(file.settings) };
 }

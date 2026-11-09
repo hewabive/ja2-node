@@ -37,7 +37,7 @@ const scheduler = new SliceScheduler();
 const cacheDir = cacheDirFromEnv();
 const hashes = await VfsHashes.open(data.vfs, cacheDir);
 const rules = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir, onDigest: hashes.remember });
-const { store, saves, sources, engine, welcome } = createSaveEnvironment({
+const { store, installation, saves, sources, engine, welcome } = createSaveEnvironment({
   vfs: data.vfs,
   pack: rules.pack,
   dataDir: data.dataDir,
@@ -56,7 +56,11 @@ const workerConfig = {
 const createSession: HostFactory =
   hostKind === 'worker'
     ? workerHostFactory(workerConfig)
-    : inProcessHostFactory(createSessionFactory({ ...sources, text: sessionText, saves, identity: welcome }), saves, scheduler);
+    : inProcessHostFactory(
+        createSessionFactory({ ...sources, text: sessionText, saves, identity: welcome, installation }),
+        saves,
+        scheduler,
+      );
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;
@@ -76,6 +80,7 @@ const app = createApp({
   texts,
   defaultLanguage,
   saves,
+  installation,
   ...(existsSync(clientDir) ? { clientDir } : {}),
   info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },
 });
@@ -93,7 +98,7 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   );
   if (sandbox) console.log(`  sandbox: ${String(sandbox.map)}, ${String(sandbox.soldiers)} visible soldiers`);
   console.log(`  sessions: ${hostKind === 'worker' ? 'one worker thread each' : 'in process, time-sliced'} (JA2_SESSION_HOST)`);
-  console.log(`  saves: ${store.dir}${store.nativeDir ? `, native saves: ${store.nativeDir}` : ''}`);
+  console.log(`  saves: ${store.dir}${store.nativeDir ? `, native saves: ${store.nativeDir}` : ''}, installation: ${installation.path}`);
   console.log('  token: .ja2/token (or $JA2_TOKEN)');
   if (existsSync(clientDir)) console.log(`  built client: http://${host}:${addr.port}/login?token=${token}`);
 });

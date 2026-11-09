@@ -361,6 +361,8 @@ function promptSummary(prompt: PromptView): string {
       return `group ${prompt.group} meets someone in ${prompt.sector}`;
     case 'someoneElseInSector':
       return `someone else is in ${prompt.sector}`;
+    case 'meanwhile':
+      return `meanwhile (${prompt.scene}): a scene seen before, ok plays it, skip skips it`;
     case 'surrender':
       return 'the enemy offers to take the squad prisoner';
     case 'militiaPayment':

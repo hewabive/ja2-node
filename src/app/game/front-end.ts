@@ -278,7 +278,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     view: () => client.client?.view ?? null,
   });
   await help.load();
-  const story = createStoryLayer({ page, ui, env, flow, client, settings, music, video, tacticalLoaded: () => tactical?.loaded ?? false });
+  const story = createStoryLayer({ page, ui, env, flow, client, music, video, tacticalLoaded: () => tactical?.loaded ?? false });
   page.hook.help = help.hook;
   page.hook.story = story.hook;
   stories = { help, story };

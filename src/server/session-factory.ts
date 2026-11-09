@@ -5,6 +5,7 @@ import type { DataDecoding } from '../content/text/data-version.ts';
 import { loadUiStrings } from '../content/text/strings.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
+import type { InstallationSettings } from '../sim/campaign/installation.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { campaignIdOfOrigin, campaignIdOfSave } from './campaign-id.ts';
 import { CampaignSession } from './campaign-session.ts';
@@ -33,6 +34,7 @@ export interface SessionFactoryOptions extends SessionSources {
   readonly text: SessionText;
   readonly saves: SaveService | null;
   readonly identity?: WelcomeIdentity;
+  readonly installation?: InstallationSettings;
 }
 
 function digestOf(bytes: Uint8Array): string {
@@ -77,6 +79,7 @@ async function openLoad(saves: SaveService | null, name: string): Promise<Opened
 export function createSessionFactory(options: SessionFactoryOptions): SessionFactory {
   return async (id: string, request: SessionRequest): Promise<Session> => {
     const session = await createSession(options, id, request);
+    if (options.installation) session.useInstallation(options.installation);
     session.queries = new QueryService(options.read, options.exists);
     if (options.identity) session.identity = options.identity;
     if (request.language) session.language = request.language;

@@ -10,7 +10,9 @@
 // @src DoneFadeInMeanwhile (SHOW_ALL_MERCS and the Queen's record 0 for every palace scene), EndMeanwhile (the way back
 // @src after its fade, once the step or the command is done), StrategicMap.cc SetCurrentWorldSector
 // @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector), Tactical/Turn_Based_Input.cc GetKeyboardInput
-// @src (Esc ends a meanwhile but the interrogation: DeleteTalkingMenu, EndMeanwhile) (2026-11-09).
+// @src (Esc ends a meanwhile but the interrogation: DeleteTalkingMenu, EndMeanwhile) (2026-11-09); BringupMeanwhileBox
+// @src (OK and Skip for a scene seen before, but the interrogation), BeginMeanwhileCallBack (Skip: the implications, the
+// @src pause lock and the pause lifted, nothing else) and EndMeanwhile's SetMeanwhileSceneSeen (2026-11-09).
 
 import { sectorFromStrategicIndex } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';
@@ -27,8 +29,15 @@ import {
   meanwhileSceneName,
   processImplicationsOfMeanwhile,
 } from '../strategic/ai/meanwhile.ts';
-import { type MeanwhileNpcSave, type MeanwhileReturnTrip, type MeanwhileSector, meanwhileUnderWay } from '../strategic/ai/queen-state.ts';
+import {
+  type MeanwhileLogEntry,
+  type MeanwhileNpcSave,
+  type MeanwhileReturnTrip,
+  type MeanwhileSector,
+  meanwhileUnderWay,
+} from '../strategic/ai/queen-state.ts';
 import { numberOfWholeTownsUnderControlExcluding, townOf } from '../strategic/economy/towns.ts';
+import { type BattlePrompt, nextPromptId, PromptKind } from '../strategic/forces/battle-state.ts';
 import { isThereAFunctionalSamSiteInSector, numberOfSamSitesUnderPlayerControl } from '../strategic/map/sam.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { changeNpcToDifferentSector } from '../strategic/narrative/presence.ts';
@@ -37,6 +46,7 @@ import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { setShowAllMercs } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { type InstallationSettings, NO_INSTALLATION } from './installation.ts';
 import type { StoryEventWithoutTick } from './narrative/story-events.ts';
 import { leaveTacticalScreenForTheMap } from './screens.ts';
 import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
@@ -46,6 +56,10 @@ const INTERROGATION_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT, Npc.JOE];
 const SCRIPTED_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
 const NO_PALACE_SCENE = 'noPalaceScene';
 const NO_PALACE_SCENE_TEXT = 'endMeanwhile (the Esc key) ends a palace meanwhile scene under way; the interrogation cannot be cut short';
+const MEANWHILE_SKIP = 'skip';
+export const MEANWHILE_CHOICES: readonly string[] = ['ok', MEANWHILE_SKIP];
+
+type MeanwhilePrompt = Extract<BattlePrompt, { readonly kind: typeof PromptKind.MEANWHILE }>;
 
 function sceneNpcs(id: number): readonly number[] {
   if (id === Meanwhile.INTERROGATION) return INTERROGATION_NPCS;
@@ -59,6 +73,7 @@ function sceneSector(id: number): MeanwhileSector {
 export class MeanwhileFlow {
   readonly #campaign: CampaignSim;
   readonly #events: SimEvent[] = [];
+  #installation: InstallationSettings = NO_INSTALLATION;
 
   constructor(campaign: CampaignSim) {
     this.#campaign = campaign;
@@ -66,6 +81,14 @@ export class MeanwhileFlow {
 
   get #state() {
     return this.#campaign.state.meanwhile;
+  }
+
+  get installation(): InstallationSettings {
+    return this.#installation;
+  }
+
+  useInstallation(installation: InstallationSettings): void {
+    this.#installation = installation;
   }
 
   drainEvents(): SimEvent[] {
@@ -116,15 +139,52 @@ export class MeanwhileFlow {
     m.trying = false;
     setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
     forgetSomeoneElseInSector(this.#campaign.state.battle);
-    this.#releasePause();
-    this.#startScene();
+    this.#bringUpMeanwhileBox();
   }
 
-  #startScene(): void {
+  #bringUpMeanwhileBox(): void {
+    if (this.#skipOffered()) {
+      this.#openBox();
+      return;
+    }
+    this.#releasePause();
+    this.#startScene(null);
+  }
+
+  #skipOffered(): boolean {
+    const id = this.#state.current.id;
+    return id !== Meanwhile.INTERROGATION && this.#installation.meanwhileSceneSeen(id);
+  }
+
+  #openBox(): void {
+    const battle = this.#campaign.state.battle;
+    battle.prompt = { id: nextPromptId(battle, PromptKind.MEANWHILE), kind: PromptKind.MEANWHILE };
+  }
+
+  answer(prompt: MeanwhilePrompt, choice: string): CommandResult {
+    if (!MEANWHILE_CHOICES.includes(choice)) return refuse('badChoice', `choose ${MEANWHILE_CHOICES.map((c) => `'${c}'`).join(' or ')}`);
+    this.#campaign.state.battle.prompt = null;
+    this.#releasePause();
+    const skipped = choice === MEANWHILE_SKIP;
+    if (skipped) this.#skipScene(prompt.id);
+    else this.#startScene(prompt.id);
+    return { ok: true, data: { scene: meanwhileSceneName(this.#state.current.id), skipped } };
+  }
+
+  #skipScene(prompt: string): void {
+    const q = this.#campaign.queen;
+    const id = this.#state.current.id;
+    if (q) processImplicationsOfMeanwhile(q, id);
+    this.#releasePause();
+    const entry = this.#logScene(id, true);
+    this.#emit({ type: 'meanwhileSkipped', seq: entry.seq, scene: meanwhileSceneName(id), prompt });
+  }
+
+  #startScene(prompt: string | null): void {
     const c = this.#campaign;
     const m = this.#state;
     const id = m.current.id;
-    this.#emit({ type: 'meanwhileStarted', seq: m.log.length + 1, scene: meanwhileSceneName(id) });
+    this.#emit({ type: 'meanwhileStarted', seq: m.log.length + 1, scene: meanwhileSceneName(id), ...(prompt !== null ? { prompt } : {}) });
     const loaded = id === Meanwhile.INTERROGATION ? this.#goToTheInterrogation() : this.goToThePalace();
     if (!loaded) m.returnTrip = null;
     const talk = c.talk;
@@ -260,9 +320,10 @@ export class MeanwhileFlow {
     if (host) shutUpTalkingFace(host);
   }
 
-  #logScene(id: number): void {
-    const seq = this.#state.log.length + 1;
-    this.#state.log.push({ seq, id, at: this.#campaign.state.clock.seconds });
+  #logScene(id: number, skipped: boolean): MeanwhileLogEntry {
+    const entry = { seq: this.#state.log.length + 1, id, at: this.#campaign.state.clock.seconds, skipped };
+    this.#state.log.push(entry);
+    return entry;
   }
 
   #emitEnded(): void {
@@ -289,7 +350,8 @@ export class MeanwhileFlow {
     const id = m.current.id;
     this.#emptyDialogueQueue();
     if (q) processImplicationsOfMeanwhile(q, id);
-    this.#logScene(id);
+    this.#installation.setMeanwhileSceneSeen(id);
+    this.#logScene(id, false);
     m.inScene = false;
     if (c.talk) {
       c.talk.talk.referenceCount = 0;

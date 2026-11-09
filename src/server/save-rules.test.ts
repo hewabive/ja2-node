@@ -14,7 +14,7 @@ import { mercs, teamMembers } from '../sim/tactical/state.ts';
 import { enterCombatMode } from '../sim/tactical/turns/turns.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { inflateSave, parseSaveText, type SaveKind } from './save-file.ts';
-import { groupsAboutToArrive, saveRefusal, saveStatus, startsMeanwhile, startsOurTurn } from './save-rules.ts';
+import { groupsAboutToArrive, meanwhileBoxUp, saveRefusal, saveStatus, startsMeanwhile, startsOurTurn } from './save-rules.ts';
 import type { SaveWrite } from './save-store.ts';
 import type { Session } from './session.ts';
 import { describeSession } from './session-registry.ts';
@@ -132,6 +132,9 @@ describe('save rules', () => {
       state.meanwhile.trying = false;
       state.battle.prompt = { kind: PromptKind.SURRENDER, id: 'p1' };
       expect(saveRefusal(session.sim)).toBe('promptOpen');
+      expect(meanwhileBoxUp(session.sim)).toBe(false);
+      state.battle.prompt = { kind: PromptKind.MEANWHILE, id: 'p2' };
+      expect([saveRefusal(session.sim), meanwhileBoxUp(session.sim)]).toEqual(['promptOpen', true]);
       state.battle.prompt = null;
       expect(saveStatus(session.sim)).toEqual({ saveMode: 'anywhere', canSave: true });
     });

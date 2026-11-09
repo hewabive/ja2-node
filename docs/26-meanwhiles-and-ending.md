@@ -27,6 +27,7 @@ posting: towns, SAMs, outskirts, flowers, chopper,     strategic/ai/meanwhile.ts
 EVENT_MEANWHILE: repost while enemies are loaded,       strategic/ai/meanwhile.ts (handleMeanwhileEvent, beginMeanwhile)
   else pause, lock, trying
   gates: no battle decision, dialogue idle              campaign/meanwhile-flow.ts (MeanwhileFlow.afterStep)
+    the box: OK and Skip for a scene seen before        MeanwhileFlow.answer, the seen flags via campaign/installation.ts
     a palace scene → P3_m loads, the Queen's record 0   MeanwhileFlow.goToThePalace → campaign/sector-flow.ts
     the interrogation → N7 loads, the Queen's record 0  MeanwhileFlow → campaign/sector-flow.ts
       rules while a scene runs                          tactical/narrative/meanwhile-rules.ts, queen-slap.ts
@@ -46,7 +47,8 @@ a queen dies                                            tactical/combat/death.ts
 |---|---|
 | `strategic/ai/meanwhile.ts` | Scheduling, the posting functions, the event, `areInMeanwhile`, the implications, scene names |
 | `strategic/ai/queen-state.ts` | `MeanwhileState`: flags, definitions, the current scene, `trying`, `inScene`, the NPC saves, the return trip, the skip of the scene map's save, the scene log |
-| `campaign/meanwhile-flow.ts` | `MeanwhileFlow`: the gates, a scene's start and end, the round trip to P3_m, Esc, the scene NPCs' moves, the record selectors' queries, the log |
+| `campaign/meanwhile-flow.ts` | `MeanwhileFlow`: the gates, the box and Skip, a scene's start and end, the round trip to P3_m, Esc, the scene NPCs' moves, the record selectors' queries, the log |
+| `campaign/installation.ts`; `src/server/installation-store.ts` | The installation's seen flags as the simulation reads and sets them (`InstallationSettings`); the server's file of them |
 | `tactical/narrative/meanwhile-rules.ts`, `queen-slap.ts` | The tactical rules while a scene runs (hits, punches, Elliot, the slap check, the kept attacker); the slap's opcodes |
 | `tactical/narrative/npc-actions/meanwhile.ts`, `requestors.ts`; `campaign/narrative/meanwhile-actions.ts` | The scene and endgame NPC actions (`35`'s catalog dispatches them); the lie prompt and the liar; the campaign side: slaps, punches, Elliot's shot, the endgame states |
 | `campaign/merc-fate.ts` | The capture sequence and each captive (`19` calls it) |
@@ -60,21 +62,34 @@ a queen dies                                            tactical/combat/death.ts
 `inMeanwhile()` with `areInMeanwhile`, and is not idle while a scene tries to start or runs or the endgame is active.
 The tactical narrative port (`campaign/narrative-port.ts`) routes the queens' deaths and the POW path checks.
 `SectorFlow.mapsNeededSoon` prepares N7 while the interrogation may come, P3_m from the posting of a palace scene until
-it has played, P3 and P3 b1 in P3, O3 b1 in O3. Inside a meanwhile `SectorFlow.mapPathOf` names `P3_m` for P3, as
+it has played or been skipped, P3 and P3 b1 in P3, O3 b1 in O3. Inside a meanwhile `SectorFlow.mapPathOf` names `P3_m` for P3, as
 `GetMapFileName` does with `AreInMeanwhile`.
 
 ## 2. Design
 
-**Every scene is played.** Once the gates pass, the box's OK is taken as given (the box is a client modal, deviation
-"Meanwhile box timing"): it lifts the pause lock and the pause as the original's box does on its way out, and the scene
-starts. Its NPCs move, the scene's sector loads through the sector flow, the conversation is engaged with one reference,
-and the Queen's record 0 plays on `24`'s record engine and `11`'s combat; the conversation locks the pause again at its
-next dialogue pass, so world time stands while the scene runs. Tactical ticks run; the freeze an idle conversation puts
-on ticks does not apply inside a scene, as the original keeps animating. Commands other than queries, `answer`,
-`skipLine` and `endMeanwhile` are refused (`inMeanwhile`), and the scene is reported as the `meanwhile` flow with
-`meanwhileStarted` and `meanwhileEnded` (`29`). Skip and the seen flags are not ported yet (gap "Meanwhile scene
-playback"). A scene whose map cannot load, or whose Queen's or Elliot's record file is missing, ends at once (deviation
-"Meanwhile scene without its files").
+**The box.** Once the gates pass, the box comes up as `BringupMeanwhileBox` shows it. For the interrogation or a scene
+not seen yet it offers OK alone, and that OK is taken as given (the box is a client modal, deviation "Meanwhile box
+timing"): it lifts the pause lock and the pause as the original's box does on its way out, and the scene starts. A
+scene seen before opens the `meanwhile` decision prompt (D15, `ok` and `skip`) instead, under the pause and the lock
+`BeginMeanwhile` set, and waits for its answer. `skip` runs the original's skip branch alone: the implications, the
+pause lock and the pause lifted, a log entry marked skipped and `meanwhileSkipped`; nothing moves, nothing loads, the
+dialogue queue is kept and on the map compression goes on. `ok` starts the scene as an unseen one starts.
+
+**The seen flags belong to the server, as `Ja2.set` belongs to the installation.** The simulation reads a scene's flag
+through `InstallationSettings` when its box comes up (never for the interrogation) and sets it in `endMeanwhile`, as
+`EndMeanwhile` calls `SetMeanwhileSceneSeen` (Esc included; a skipped scene is not set). The server keeps them in
+`installation.json` beside its saves (`InstallationStore`, read and written at each use, so every session and worker
+shares them), and the browser hands over the flags an older page kept (`/api/installation`, merged by OR). The read is
+not state: the prompt it opened is, so a reload with the box up reads nothing again, and the session logs each read
+in its input log, from which a replay answers the box (`27` §1.7).
+
+**Every scene that starts is played.** Its NPCs move, the scene's sector loads through the sector flow, the
+conversation is engaged with one reference, and the Queen's record 0 plays on `24`'s record engine and `11`'s combat;
+the conversation locks the pause again at its next dialogue pass, so world time stands while the scene runs. Tactical
+ticks run; the freeze an idle conversation puts on ticks does not apply inside a scene, as the original keeps animating.
+Commands other than queries, `answer`, `skipLine` and `endMeanwhile` are refused (`inMeanwhile`), and the scene is
+reported as the `meanwhile` flow with `meanwhileStarted` and `meanwhileEnded` (`29`). A scene whose map cannot load, or
+whose Queen's or Elliot's record file is missing, ends at once (deviation "Meanwhile scene without its files").
 
 **Palace scenes and the round trip.** `goToThePalace` records where to come back to (`MeanwhileState.returnTrip`: the
 loaded sector or none, the selected sector, the screen), moves the scene NPCs and loads P3_m, so the player's sector is
@@ -152,6 +167,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A scene after the Queen's death wakes her AI again: nothing checks that she is dead | `strategic/ai/meanwhile.test.ts` |
 | A played scene clears the scene NPCs' profile insertion and truncates their profile gridno to `INT8`; on the map it stops compression and loses the mode | `src/server/meduna-scene-stub.test.ts`, `campaign/meanwhile-flow.test.ts` |
 | The box's OK lifts the meanwhile pause lock; the scene's conversation locks the pause again at its next dialogue pass | `src/server/meduna-scene-stub.test.ts` |
+| Skip changes the outcome: it runs the implications alone, so the scene NPCs keep their profile insertion, gridno and records, on the map compression runs on, and the scene is not marked seen; Esc in a played scene marks it | `src/server/meduna-scene-stub.test.ts` |
 | A palace scene stalls when the player holds all four missile sites: the site count picks no record, and only Esc goes on. The outskirts shot cannot miss into a stall: a meanwhile shot's chance is 100 whatever the marksmanship | `src/server/meduna-scene-stub.test.ts` |
 | With no world loaded the interrogation's load of N7 leaves a pending first-battle scene waiting for the next trash: `TrashWorld` returns at once | `campaign/meanwhile-flow.test.ts` |
 | The hall's load uses up the guide's description of P3: it sets the sector's guide flag and draws the countdown | `src/server/palace-trip-stub.test.ts` |
@@ -180,7 +196,7 @@ moves, the first-battle rules and the trash hook, the hourly milestones, capture
 the O3 statue (`tools/oracle/README.md`, "Meanwhile"), and the lie's answer through the actions probes ("NPC actions").
 That probe compares the triggered record and the draws, which a check with the wrong chance can still match, so the
 lie's chance is pinned by `requestors.test.ts`. Not probed: a scene running in tactical, a palace scene's round trip,
-the interrogation sequence, the same-second precedence in a running campaign and the endgame; the stub scenarios cover
+the box and Skip, the interrogation sequence, the same-second precedence in a running campaign and the endgame; the stub scenarios cover
 them (`src/server/interrogation-stub.test.ts`, `src/server/meduna-scene-stub.test.ts`,
 `src/server/endgame-stub.test.ts`). Inferred from reading the source:
 - The tactical AI keeps running under the conversation lock during the 2 s and 3 s endgame timers.

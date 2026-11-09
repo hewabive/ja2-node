@@ -129,7 +129,8 @@ two modes:
 ### 1.6 Names, folders and save rules
 
 **Folders.** `$JA2_SAVE_DIR`, default `.ja2/saves/` in the repository (gitignored): a developer server keeps its saves
-beside the code. Native saves stay in `$JA2_SAVES_DIR`, read only; `newSession {save}` imports one (`14`), which can
+beside the code, and the installation settings beside them (`installation.json`, §2.1), so a test's or e2e run's
+temporary saves folder gives it a fresh installation. Native saves stay in `$JA2_SAVES_DIR`, read only; `newSession {save}` imports one (`14`), which can
 then be saved in ja2-node's format.
 
 **Names.** Clients pass names, never paths (`29` §10). `QuickSave`, `Auto01`, `Auto02` and `Error` are reserved. Every
@@ -173,6 +174,7 @@ running it; queries are never logged. Besides commands and prompt answers:
 | `reseed` | a player load's step with its seed (§1.5) |
 | `load` | the name and digest of a load in place; a replay refuses a save that changed since |
 | `speech` | the session's speech mode (`29` §4.5) |
+| `installation` | a meanwhile box's read of the installation's seen flag (`26` §2), logged as it happens during the input: the file changes between runs, so a replay answers the box's reads from these entries in order (`recordedInstallation`, `src/server/replay.ts`) |
 | `drive` | informational: the advances a driver causes are logged themselves, so a replay uses the manual driver |
 
 A save writes the segment since the last load as `<name>.log.jsonl.gz`, headed by its origin: a seed (and the campaign
@@ -321,7 +323,8 @@ line, and gameplay values in the policy files. ja2-node sorts them by whether th
 |---|---|---|---|
 | **Game options** | session state, chosen at `newSession`, saved, shown in `status` and `observe` | yes | difficulty, sci-fi, gun nut, save mode, blood and gore |
 | **Game policy** | engine content (`data/externalized`, the `ja2-node-data` layer) | yes | `game.json`, `imp.json`, `strategic-ai-policy.json` values |
-| **Client settings** | the browser (`localStorage`); never sent to the simulation | no | volumes, speech, subtitles, display toggles, playback speed, language, scenes and help screens seen |
+| **Client settings** | the browser (`localStorage`); never sent to the simulation | no | volumes, speech, subtitles, display toggles, playback speed, language, help screens seen |
+| **Installation settings** | `installation.json` in the server's saves folder (`src/server/installation-store.ts`), shared by every session; read by the simulation through a port, never saved in a game | yes | the meanwhile scenes seen, which decide whether a scene's box offers Skip (`26` §2) |
 | **Server settings** | the environment, one per process; never enter a session | no | data and stubs folders, data version, default language, saves folder, host, port |
 
 Stracciatella's engine options become server settings (the folders, the data version) or client settings (the
@@ -378,12 +381,15 @@ simulation, not worth it for an option nobody can choose (deviation "Timed turns
 
 One versioned JSON object in the browser's `localStorage` (`src/ui/settings.ts`: the model, its defaults and
 normalization; `src/app/settings.ts`: the storage). Every storage access may fail, and the pages work without storage;
-agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes, seen flags and the main
+agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes, help flags and the main
 menu's last saved game slot (`30`) with their defaults, and add ja2-node's own: ambient and master volume, mute, playback speed, language, UI scale, the splash and
 intro switches, the website loading time scale. `bloodAndGore` there is only what the new game form preselects; in a
 game the options screen sends `setOption`. The help screens seen are kept per campaign identity instead of in the save
-(deviation "Help screens seen"). The launcher exports and imports them as a file
-(`src/app/launcher/settings-file.ts`).
+(deviation "Help screens seen"). The meanwhile scenes seen moved to the server: a page that finds them in the stored
+settings of an older page hands them over (`/api/installation`, merged by OR) and drops them once the server took
+them, keeping them through every write until then (`src/app/settings.ts`). The launcher exports and imports the
+settings as a file (`src/app/launcher/settings-file.ts`), with the server's scenes seen where older files kept them, and
+hands an imported file's scenes to the server.
 
 Stored but read by nothing: the cover and LOS display sizes (the display is not built, `28`); "don't move mouse" is inert
 by design (deviation "Pointer warp"). Show misses moves the view where the original's does
@@ -393,4 +399,4 @@ from `bulletLocated`, which the simulation sends whatever the setting (deviation
 ### 2.5 Deviations
 
 "API default difficulty", "Game policy keys", "Key-advance speech", "Hide bullets", "Show misses", "Sleep and wake
-notification", "Timed turns", "Help screens seen", "Pointer warp", "Cheats".
+notification", "Timed turns", "Help screens seen", "Meanwhile scenes seen", "Pointer warp", "Cheats".

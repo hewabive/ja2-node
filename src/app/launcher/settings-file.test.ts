@@ -13,7 +13,17 @@ describe('settings export and import', () => {
     });
     const text = settingsFileText(changed);
     expect(JSON.parse(text)).toMatchObject({ format: SETTINGS_FILE_FORMAT, settings: { version: 2, language: 'rus' } });
-    expect(parseSettingsFile(text)).toEqual(changed);
+    expect(JSON.parse(text).settings).not.toHaveProperty('meanwhileScenesSeen');
+    expect(parseSettingsFile(text)).toEqual({ settings: changed, meanwhileScenesSeen: 0 });
+  });
+
+  it("carry the installation's meanwhile scenes seen beside the settings, where an older file kept them, for the server to merge", () => {
+    const seen = (1 << 1) | (1 << 7);
+    const text = settingsFileText(DEFAULT_SETTINGS, seen);
+    expect(JSON.parse(text).settings).toMatchObject({ meanwhileScenesSeen: seen });
+    expect(parseSettingsFile(text)).toEqual({ settings: DEFAULT_SETTINGS, meanwhileScenesSeen: seen });
+    const older = JSON.stringify({ format: SETTINGS_FILE_FORMAT, settings: { version: 2, muted: true, meanwhileScenesSeen: 1 << 3 } });
+    expect(parseSettingsFile(older)).toEqual({ settings: updateSettings(DEFAULT_SETTINGS, { muted: true }), meanwhileScenesSeen: 1 << 3 });
   });
 
   it('refuse other files and normalize what they hold', () => {
@@ -24,9 +34,11 @@ describe('settings export and import', () => {
     const odd = parseSettingsFile(
       JSON.stringify({ format: SETTINGS_FILE_FORMAT, settings: { volumes: { effects: 500 }, speech: false, subtitles: false } }),
     );
-    expect(odd?.volumes.effects).toBe(127);
-    expect(odd?.speech && odd.subtitles).toBe(true);
-    expect(parseSettingsFile(JSON.stringify({ format: SETTINGS_FILE_FORMAT, settings: { version: 99 } }))).toEqual(DEFAULT_SETTINGS);
+    expect(odd?.settings.volumes.effects).toBe(127);
+    expect(odd?.settings.speech && odd.settings.subtitles).toBe(true);
+    expect(parseSettingsFile(JSON.stringify({ format: SETTINGS_FILE_FORMAT, settings: { version: 99 } }))?.settings).toEqual(
+      DEFAULT_SETTINGS,
+    );
   });
 
   it('keep speech or subtitles on', () => {

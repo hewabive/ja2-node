@@ -1,21 +1,23 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Meanwhile.cc CheckForMeanwhileOKStart (the box over the screen the event reached),
-// @src BeginMeanwhileCallBack (OK starts the scene, Skip skips it), StartMeanwhile and DoneFadeOutMeanwhile (a fade out,
+// @src BeginMeanwhileCallBack (OK starts the scene, Skip skips it, 2026-11-09), StartMeanwhile and DoneFadeOutMeanwhile (a fade out,
 // @src the scene's sector loaded, a fade in); src/game/Tactical/End_Game.cc HandleDeidrannaDeath (after the quotes a
 // @src fade out into DoneFadeOutKilledQueen), DoneFadeOutKilledQueen (P3 loaded, then a fade in),
 // @src EndQueenDeathEndgameBeginEndCimenatic and DoneFadeOutEndCinematic (after the end-game comments a fade out into
 // @src the ending videos).
 
-import type { CampaignEndingView, ViewFrame } from '../../../protocol/view.ts';
+import type { CampaignEndingView, MeanwhilePromptView, ViewFrame } from '../../../protocol/view.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiTextService } from '../../text/text-service.ts';
-import { MEANWHILE_BOX, meanwhileBoxButtons, meanwhileBoxText } from './meanwhile-box.ts';
+import { MessageBoxReturn } from '../../widgets/message-box.ts';
+import { MEANWHILE_BOX, meanwhileBoxButtons, meanwhileBoxChoice, meanwhileBoxText } from './meanwhile-box.ts';
 
 export interface StoryPort {
   readonly boxes: MessageBoxes;
   readonly text: UiTextService;
-  sceneSeen(scene: number): boolean;
+  meanwhilePrompt(): MeanwhilePromptView | null;
+  answer(prompt: string, choice: string): void;
   fadeOut(): Promise<void>;
   clearBlack(): void;
   fadeIn(): Promise<void>;
@@ -28,7 +30,8 @@ type FrameEvent = NonNullable<ViewFrame['events']>[number];
 const MEANWHILE_PROMPT = 'meanwhile';
 
 type StoryStep =
-  | { readonly kind: 'meanwhile'; readonly scene: string; readonly prompt: string }
+  | { readonly kind: 'meanwhileBox'; readonly prompt: MeanwhilePromptView }
+  | { readonly kind: 'meanwhile'; readonly scene: string; readonly prompt: string; readonly answered: boolean }
   | { readonly kind: 'upstairs' }
   | { readonly kind: 'ending'; readonly ending: CampaignEndingView };
 
@@ -44,7 +47,7 @@ export interface StoryHook {
 function stepOf(event: FrameEvent): StoryStep | null {
   switch (event.type) {
     case 'meanwhileStarted':
-      return { kind: 'meanwhile', scene: event.scene, prompt: `${MEANWHILE_PROMPT}-${event.tick}` };
+      return { kind: 'meanwhile', scene: event.scene, prompt: `${MEANWHILE_PROMPT}-${event.tick}`, answered: event.prompt !== undefined };
     case 'squadMovedUpstairs':
       return { kind: 'upstairs' };
     case 'campaignWon':
@@ -65,6 +68,7 @@ export class StoryLayer {
   #running = false;
   #ended = false;
   #shownWaiter: ((fadeIn: Promise<void>) => void) | null = null;
+  #askedPrompt: string | null = null;
 
   constructor(port: StoryPort) {
     this.#port = port;
@@ -87,6 +91,7 @@ export class StoryLayer {
   }
 
   frame(): void {
+    this.#askMeanwhilePrompt();
     if (this.#shownWaiter && this.#port.gameShown()) {
       const resolve = this.#shownWaiter;
       this.#shownWaiter = null;
@@ -98,6 +103,7 @@ export class StoryLayer {
     this.#steps.length = 0;
     this.#held.length = 0;
     this.#ended = false;
+    this.#askedPrompt = null;
     this.#enqueued = this.#started;
     const waiter = this.#shownWaiter;
     this.#shownWaiter = null;
@@ -106,9 +112,20 @@ export class StoryLayer {
 
   #enqueue(event: FrameEvent): void {
     const step = stepOf(event);
-    if (!step) return;
+    if (step) this.#push(step);
+  }
+
+  #push(step: StoryStep): void {
     this.#steps.push(step);
     this.#enqueued++;
+  }
+
+  #askMeanwhilePrompt(): void {
+    const prompt = this.#port.meanwhilePrompt();
+    if (!prompt || prompt.id === this.#askedPrompt || this.#ended) return;
+    this.#askedPrompt = prompt.id;
+    this.#push({ kind: 'meanwhileBox', prompt });
+    if (!this.#running) void this.#run();
   }
 
   async #run(): Promise<void> {
@@ -135,6 +152,9 @@ export class StoryLayer {
 
   async #play(step: StoryStep): Promise<void> {
     switch (step.kind) {
+      case 'meanwhileBox':
+        await this.#meanwhileBox(step.prompt);
+        return;
       case 'meanwhile':
         await this.#meanwhile(step);
         return;
@@ -147,14 +167,26 @@ export class StoryLayer {
     }
   }
 
-  async #meanwhile(step: Extract<StoryStep, { kind: 'meanwhile' }>): Promise<void> {
+  async #meanwhileBox(prompt: MeanwhilePromptView): Promise<void> {
     this.hook.meanwhileBoxes++;
     const port = this.#port;
-    await port.boxes.ask(
-      meanwhileBoxText(port.text),
-      meanwhileBoxButtons(step.scene, (id) => port.sceneSeen(id)),
-      { id: MEANWHILE_BOX, viewer: { id: step.prompt, kind: MEANWHILE_PROMPT } },
-    );
+    const answeredElsewhere = () => port.meanwhilePrompt()?.id !== prompt.id;
+    const result = await port.boxes.ask(meanwhileBoxText(port.text), meanwhileBoxButtons(prompt), {
+      id: MEANWHILE_BOX,
+      closeWhen: answeredElsewhere,
+    });
+    if (result !== MessageBoxReturn.NONE) port.answer(prompt.id, meanwhileBoxChoice(result));
+  }
+
+  async #meanwhile(step: Extract<StoryStep, { kind: 'meanwhile' }>): Promise<void> {
+    if (!step.answered) {
+      this.hook.meanwhileBoxes++;
+      const port = this.#port;
+      await port.boxes.ask(meanwhileBoxText(port.text), meanwhileBoxButtons(null), {
+        id: MEANWHILE_BOX,
+        viewer: { id: step.prompt, kind: MEANWHILE_PROMPT },
+      });
+    }
     await this.#reloadThroughFades();
   }
 

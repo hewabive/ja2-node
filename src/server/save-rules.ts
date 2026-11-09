@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/GameSettings.cc CanGameBeSaved, DoDeadIsDeadSaveIfNecessary; SaveLoadScreen.cc DoQuickSave, DoAutoSave,
 // @src DoDeadIsDeadSave; Tactical/Handle_UI.cc UIHandleEndTurn; Tactical/TeamTurns.cc StartPlayerTeamTurn, EndTurn;
-// @src Strategic/Meanwhile.cc BeginMeanwhile; Strategic/Map_Screen_Interface.cc HandleGroupAboutToArrive;
+// @src Strategic/Meanwhile.cc BeginMeanwhile (before the box, which may wait for OK or Skip); Strategic/Map_Screen_Interface.cc
+// @src HandleGroupAboutToArrive;
 // @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo;
 // @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04);
 // @src Tactical/Auto_Bandage.cc AutoBandage (its mask takes every key while the mode runs, 2026-11-06); Tactical/Turn_Based_Input.cc
@@ -12,6 +13,7 @@
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { GameOptions, SaveMode } from '../sim/options.ts';
+import { PromptKind } from '../sim/strategic/forces/battle-state.ts';
 import { numEnemiesInAnySector } from '../sim/strategic/forces/groups.ts';
 import { EventKind } from '../sim/strategic/time/constants.ts';
 import { helicopterDropRunning } from '../sim/tactical/helicopter-drop-state.ts';
@@ -158,6 +160,10 @@ export function startsOurTurn(events: readonly SimEvent[]): boolean {
 
 export function startsMeanwhile(events: readonly SimEvent[]): boolean {
   return events.some((e) => e.type === 'meanwhileStarted');
+}
+
+export function meanwhileBoxUp(sim: SessionSim): boolean {
+  return campaignOf(sim)?.state.battle.prompt?.kind === PromptKind.MEANWHILE;
 }
 
 export interface PendingArrival {

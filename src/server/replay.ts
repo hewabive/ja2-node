@@ -1,5 +1,6 @@
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
+import type { InstallationSettings } from '../sim/campaign/installation.ts';
 import type { LogOrigin } from './input-log.ts';
 import { decodeInputLog, type InputEntry, type LogSegment } from './input-log.ts';
 import { inflateSave, parseSaveText, snapshotOf, snapshotText } from './save-file.ts';
@@ -47,12 +48,19 @@ async function applyEntry(session: Session, entry: InputEntry, saves: SaveServic
       session.setSpeech(p.mode === 'skip' ? 'skip' : 'listen');
       return;
     case 'drive':
+    case 'installation':
       return;
   }
 }
 
+export function recordedInstallation(entries: readonly InputEntry[]): InstallationSettings {
+  const answers = entries.filter((e) => e.kind === 'installation').map((e) => e.payload.seen === true);
+  return { meanwhileSceneSeen: () => answers.shift() ?? false, setMeanwhileSceneSeen: () => {} };
+}
+
 export async function replaySegment(segment: LogSegment, build: OriginBuilder, saves: SaveService | null): Promise<Session> {
   const session = new Session('replay', await build(segment.origin), DEFAULT_SESSION_TEXT, segment.origin);
+  session.useInstallation(recordedInstallation(segment.entries));
   for (const entry of segment.entries) await applyEntry(session, entry, saves);
   return session;
 }

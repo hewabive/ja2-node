@@ -53,6 +53,7 @@ export async function openSessionEnvironment(
       text: config.text,
       saves: environment.saves,
       identity: environment.welcome,
+      installation: environment.installation,
     });
     return {
       createHost: inProcessHostFactory(factory, environment.saves, scheduler),

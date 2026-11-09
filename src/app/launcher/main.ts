@@ -1,12 +1,14 @@
 import { AudioEngine } from '../../audio/engine.ts';
 import { type DataVersion, STUB_DATA_VERSION, UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
+import { u32 } from '../../core/int.ts';
 import type { Health, SessionSummary } from '../../ui/client/api-types.ts';
 import { type CampaignProblem, campaignRequest, pageUrl, playUrl, type StartPage } from '../../ui/client/campaign-form.ts';
 import { type ClientSettings, effectiveMaster, type SettingsChange, updateSettings } from '../../ui/settings.ts';
 import { LABELS, type LabelId, Labels } from '../../ui/text/labels.ts';
 import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../credits/scroller.ts';
+import { fetchInstallation, handOverMeanwhileScenesSeen } from '../net/installation.ts';
 import { readVfsFileOrNull } from '../net/vfs.ts';
-import { loadSettings, saveSettings } from '../settings.ts';
+import { handOverSeenMeanwhileScenes, loadSettings, pendingMeanwhileScenesSeen, saveSettings } from '../settings.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
 import { beginningPlan, dataPlaysSplash, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
 import { engineSound } from '../video/sound.ts';
@@ -133,6 +135,11 @@ function replaceSettings(next: ClientSettings): void {
   if (languageChanged) void reloadLabels();
 }
 
+async function meanwhileScenesSeen(): Promise<number> {
+  const installation = await fetchInstallation().catch(() => null);
+  return u32((installation?.meanwhileScenesSeen ?? 0) | pendingMeanwhileScenesSeen());
+}
+
 function openPage(page: StartPage, session: string): void {
   location.assign(pageUrl(page, session));
 }
@@ -142,6 +149,8 @@ const settingsPanel = new SettingsPanel({
   settings: () => settings,
   change: changeSettings,
   replace: replaceSettings,
+  meanwhileScenesSeen,
+  handOver: (imported) => handOverSeenMeanwhileScenes(handOverMeanwhileScenesSeen, imported),
   labels: () => labels,
   box,
   status,
@@ -314,6 +323,7 @@ async function start(): Promise<void> {
   }
   await reloadLabels();
   await savePanel.refresh();
+  await handOverSeenMeanwhileScenes(handOverMeanwhileScenesSeen);
   hook.ready = true;
   offerSplash();
 }

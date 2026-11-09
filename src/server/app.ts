@@ -24,9 +24,11 @@ import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { clientPagePath } from '../node/client-pages.ts';
 import { ASSET_MANIFEST_ROUTE, isAssetHash, PINNED_PREFIX, VFS_ROUTE } from '../protocol/assets.ts';
+import { INSTALLATION_ROUTE } from '../protocol/installation.ts';
 import { ITEM_CATALOGUE_ROUTE } from '../protocol/items.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { type EncodedAssetManifest, encodeAssetManifest, VfsHashes } from './assets-manifest.ts';
+import type { InstallationStore } from './installation-store.ts';
 import { buildItemCatalogue, type EncodedCatalogue } from './item-catalogue.ts';
 import { handleMcpRequest } from './mcp.ts';
 import { SAVE_EXTENSION } from './save-file.ts';
@@ -58,6 +60,7 @@ export interface AppOptions {
   readonly texts?: TextService;
   readonly defaultLanguage?: UiLanguage;
   readonly saves?: SaveService;
+  readonly installation?: InstallationStore;
 }
 
 export const TOKEN_COOKIE = 'ja2_token';
@@ -89,6 +92,7 @@ const PROFILES_ETAG_DIGITS = 16;
 const GZIP_ETAG_SUFFIX = '-gzip';
 const HASHED_CLIENT_FILES = '/assets/';
 const HTTP_ERROR_FROM = 400;
+const MAX_U32 = 0xffffffff;
 
 interface VfsRequest {
   readonly path: string;
@@ -114,6 +118,7 @@ function acceptsGzip(header: string | undefined): boolean {
 
 const saveRequest = z.object({ name: z.string().max(64).optional(), description: z.string().max(200).optional() }).strict();
 const loadRequest = z.object({ name: z.string().max(64), reseed: z.boolean().optional() }).strict();
+const installationRequest = z.object({ meanwhileScenesSeen: z.number().int().min(0).max(MAX_U32) }).strict();
 
 function loadFailure(c: Context, err: unknown): Response {
   const problem = loadProblemOf(err);
@@ -360,6 +365,16 @@ export function createApp(options: AppOptions): Hono {
     if (outcome === 'closed') return c.json({ closed: true });
     return c.json({ closed: false, refused: outcome }, outcome === 'notFound' ? 404 : 409);
   });
+
+  const installation = options.installation;
+  if (installation) {
+    app.get(INSTALLATION_ROUTE, (c) => c.json(installation.view()));
+    app.post(INSTALLATION_ROUTE, async (c) => {
+      const parsed = installationRequest.safeParse(await c.req.json().catch(() => ({})));
+      if (!parsed.success) return c.json({ error: 'expected {meanwhileScenesSeen}' }, 400);
+      return c.json(installation.mergeMeanwhileScenesSeen(parsed.data.meanwhileScenesSeen));
+    });
+  }
 
   const saves = options.saves;
   if (saves) {

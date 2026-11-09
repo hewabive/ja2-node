@@ -3,8 +3,10 @@ import { idiv } from '../core/int.ts';
 import type { AutoresolveCellView, AutoresolveView, NpcRequestPromptView, PromptView } from '../protocol/view.ts';
 import { battleStatusName } from '../sim/campaign/battle-flow.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { MEANWHILE_CHOICES } from '../sim/campaign/meanwhile-flow.ts';
 import { preBattlePanel } from '../sim/campaign/pre-battle-panel.ts';
 import { SOMEONE_ELSE_IN_SECTOR_CHOICES } from '../sim/campaign/someone-else-in-sector.ts';
+import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
 import { type ArCell, CellFlag, hasFlag } from '../sim/strategic/forces/autoresolve/state.ts';
 import { encounterName, PromptKind } from '../sim/strategic/forces/battle-state.ts';
 import { getGroup } from '../sim/strategic/forces/groups.ts';
@@ -106,6 +108,13 @@ function battlePromptView(campaign: CampaignSim): PromptView | null {
         choices: SOMEONE_ELSE_IN_SECTOR_CHOICES,
       };
     }
+    case PromptKind.MEANWHILE:
+      return {
+        id: prompt.id,
+        kind: 'meanwhile',
+        scene: meanwhileSceneName(campaign.state.meanwhile.current.id),
+        choices: MEANWHILE_CHOICES,
+      };
     case PromptKind.MILITIA_PAYMENT:
       return {
         id: prompt.id,

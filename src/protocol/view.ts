@@ -346,6 +346,14 @@ export interface MeanwhileLogView {
   readonly seq: number;
   readonly scene: string;
   readonly at: number;
+  readonly skipped?: true;
+}
+
+export interface MeanwhilePromptView {
+  readonly id: string;
+  readonly kind: 'meanwhile';
+  readonly scene: string;
+  readonly choices: readonly string[];
 }
 
 export interface MeanwhileSceneView {
@@ -504,6 +512,7 @@ export type PromptView =
       readonly sector: string;
       readonly choices: readonly string[];
     }
+  | MeanwhilePromptView
   | {
       readonly id: string;
       readonly kind: 'militiaPayment';

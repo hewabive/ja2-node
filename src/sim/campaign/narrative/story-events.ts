@@ -6,6 +6,14 @@ export interface MeanwhileStartedEvent extends StoryEventBase {
   readonly type: 'meanwhileStarted';
   readonly seq: number;
   readonly scene: string;
+  readonly prompt?: string;
+}
+
+export interface MeanwhileSkippedEvent extends StoryEventBase {
+  readonly type: 'meanwhileSkipped';
+  readonly seq: number;
+  readonly scene: string;
+  readonly prompt: string;
 }
 
 export interface MeanwhileEndedEvent extends StoryEventBase {
@@ -80,6 +88,7 @@ export interface RemoteUsedEvent extends StoryEventBase {
 
 export type StoryEvent =
   | MeanwhileStartedEvent
+  | MeanwhileSkippedEvent
   | MeanwhileEndedEvent
   | PowsFoundEvent
   | PowFreedEvent

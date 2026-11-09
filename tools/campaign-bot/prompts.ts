@@ -39,6 +39,7 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
     case 'npcOfNote':
       return ['continue', 'ok'];
     case 'someoneElseInSector':
+    case 'meanwhile':
       return ['ok'];
     case 'militiaPayment':
     case 'militiaContinue':

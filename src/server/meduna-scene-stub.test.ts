@@ -6,10 +6,13 @@ import { QuoteFlag } from '../content/formats/npc.ts';
 import { type Sector, sectorFromId, sectorFromStrategicIndex, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { i8 } from '../core/int.ts';
+import { MemoryInstallation, meanwhileSceneBit } from '../sim/campaign/installation.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Meanwhile, Town } from '../sim/strategic/ai/constants.ts';
 import { scheduleMeanwhileEvent } from '../sim/strategic/ai/meanwhile.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../sim/strategic/narrative/facts.ts';
 import { Npc } from '../sim/strategic/narrative/npc-ids.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { type Soldier, Team } from '../sim/tactical/soldier.ts';
@@ -297,5 +300,159 @@ describe('a palace meanwhile scene played in the stub hall P3_m (Meanwhile.cc St
     expect(sectorsLoaded(events)).toEqual([PALACE, sectorShortString(A9)]);
     expect([c.state.worldSector, c.meanwhile.underWay()]).toEqual([A9, false]);
     expect(c.state.queen.awake).toBe(true);
+  });
+});
+
+class CountedInstallation extends MemoryInstallation {
+  reads = 0;
+  readonly marked: number[] = [];
+
+  override meanwhileSceneSeen(scene: number): boolean {
+    this.reads++;
+    return super.meanwhileSceneSeen(scene);
+  }
+
+  override setMeanwhileSceneSeen(scene: number): void {
+    this.marked.push(scene);
+    super.setMeanwhileSceneSeen(scene);
+  }
+}
+
+function seenBefore(...scenes: number[]): CountedInstallation {
+  return new CountedInstallation(scenes.reduce((flags, scene) => flags | meanwhileSceneBit(scene), 0));
+}
+
+const TICKS_PER_REAL_SECOND = 200;
+const PLACED_BY_PROFILE = { gridNo: 12248, useProfileInsertion: true };
+
+function randomStreams(session: CampaignSession): string {
+  const s = session.campaign.state;
+  const cosmetic = [s.cosmetic.helicopter, s.cosmetic.autoresolve, s.cosmetic.movement].map((rng) => rng.state());
+  return JSON.stringify([s.rng.state(), s.pre.state(), cosmetic, session.campaign.tactical?.state.rng.state() ?? null]);
+}
+
+function profilesOf(session: CampaignSession, npcs: readonly number[]): string {
+  return JSON.stringify(npcs.map((npc) => session.campaign.narrative.profile(npc) ?? never()));
+}
+
+function sceneRecordsOf(session: CampaignSession): string {
+  const arrays = session.campaign.talk?.host.records.arrays ?? never();
+  return JSON.stringify([Npc.QUEEN, Npc.ELLIOT, Npc.JOE].map((npc) => arrays[npc] ?? null));
+}
+
+function untilTheBox(live: Session): SimEvent[] {
+  const opened = live.advance({ ticks: SCENE_STOP_BUDGET });
+  expect(opened.reason).toBe('decision');
+  expect(types(opened.events)).not.toContain('meanwhileStarted');
+  return [...opened.events];
+}
+
+function boxPrompt(session: CampaignSession, scene: string): string {
+  const prompt = session.view().prompt;
+  expect(prompt).toEqual({ id: expect.any(String), kind: 'meanwhile', scene, choices: ['ok', 'skip'] });
+  const clock = session.campaign.state.clock;
+  expect([clock.paused, clock.pauseLocked, session.campaign.meanwhile.underWay()]).toEqual([true, true, false]);
+  return prompt?.id ?? never();
+}
+
+async function skippedInTactical(mode?: RunMode): Promise<CampaignSession> {
+  const { session, live } = await landed(87, mode);
+  const installation = seenBefore(Meanwhile.AWOL_SCIENTIST);
+  live.useInstallation(installation);
+  for (const npc of SCENE_NPCS) Object.assign(session.campaign.narrative.profile(npc) ?? never(), PLACED_BY_PROFILE);
+  schedule(session, Meanwhile.AWOL_SCIENTIST);
+  const npcs = profilesOf(session, SCENE_NPCS);
+  session.drainEvents();
+  untilTheBox(live);
+  const prompt = boxPrompt(session, 'awolScientist');
+  expect(live.advance({ idle: true }).reason).toBe('decision');
+  expect(session.dispatch({ type: 'stopTime' })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
+  const records = sceneRecordsOf(session);
+  const streams = randomStreams(session);
+  expect(questStatus(session.campaign.state.narrative, Quest.FIND_SCIENTIST)).toBe(QuestStatus.NOT_STARTED);
+  expect(session.dispatch({ type: 'answer', prompt, choice: 'skip' })).toEqual({
+    ok: true,
+    data: { scene: 'awolScientist', skipped: true },
+  });
+  const events = session.drainEvents();
+  expect(events.filter((e) => e.type.startsWith('meanwhile'))).toEqual([
+    expect.objectContaining({ type: 'meanwhileSkipped', seq: 1, scene: 'awolScientist', prompt }),
+  ]);
+  expect(sectorsLoaded(events)).toEqual([]);
+  const c = session.campaign;
+  expect(randomStreams(session)).toBe(streams);
+  expect(questStatus(c.state.narrative, Quest.FIND_SCIENTIST)).toBe(QuestStatus.IN_PROGRESS);
+  expect(profilesOf(session, SCENE_NPCS)).toBe(npcs);
+  expect(sceneRecordsOf(session)).toBe(records);
+  expect([c.state.flow, c.state.worldSector, c.state.clock.paused, c.state.clock.pauseLocked]).toEqual(['tactical', A9, false, false]);
+  expect([session.view().prompt, c.meanwhile.underWay()]).toEqual([null, false]);
+  expect(c.state.meanwhile.log).toEqual([{ seq: 1, id: Meanwhile.AWOL_SCIENTIST, at: expect.any(Number), skipped: true }]);
+  expect(session.view().strategic?.meanwhiles).toEqual([{ seq: 1, scene: 'awolScientist', at: expect.any(Number), skipped: true }]);
+  expect([installation.reads, installation.marked]).toEqual([1, []]);
+  const read = live.log.entries().filter((e) => e.kind === 'installation');
+  expect(read.map((e) => e.payload)).toEqual([{ meanwhileScene: Meanwhile.AWOL_SCIENTIST, seen: true }]);
+  return session;
+}
+
+describe('the box of a palace scene seen before (Meanwhile.cc BringupMeanwhileBox, BeginMeanwhileCallBack)', () => {
+  it("waits for the meanwhile prompt (ok, skip) under BeginMeanwhile's pause lock, and Skip runs the implications alone: no NPC moves or record reloads, no trip to P3_m, no other draw, nothing marked seen, the seen flag read once whatever the reloads", async () => {
+    await expectReloadsInvisible(skippedInTactical);
+  });
+
+  it('on the map Skip leaves the compression running, as no map screen is entered again', async () => {
+    const { session, live } = await landed(88);
+    live.useInstallation(seenBefore(Meanwhile.LOST_TOWN));
+    expect(session.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    schedule(session, Meanwhile.LOST_TOWN, 1);
+    const stopped = live.advance({ compressionStopped: true, mode: CompressMode.MIN5 });
+    expect(stopped.reason).toBe('decision');
+    const prompt = boxPrompt(session, 'lostTown');
+    expect(session.dispatch({ type: 'answer', prompt, choice: 'skip' }).ok).toBe(true);
+    const clock = session.campaign.state.clock;
+    expect([session.campaign.state.flow, clock.mode, clock.paused]).toEqual(['strategic', CompressMode.MIN5, false]);
+    const seconds = clock.seconds;
+    live.advance({ ticks: TICKS_PER_REAL_SECOND });
+    expect(session.campaign.state.clock.seconds).toBeGreaterThan(seconds);
+  });
+
+  it("OK plays the scene as an unseen one starts at the gates, the box's prompt on its meanwhileStarted, and its end marks it seen again", async () => {
+    const { session, live } = await landed(89);
+    const installation = seenBefore(Meanwhile.DRASSEN_LIBERATED);
+    live.useInstallation(installation);
+    const before = spotsOf(session, [Npc.QUEEN, Npc.ELLIOT]);
+    schedule(session, Meanwhile.DRASSEN_LIBERATED);
+    session.drainEvents();
+    untilTheBox(live);
+    const prompt = boxPrompt(session, 'drassenLiberated');
+    expect(session.dispatch({ type: 'answer', prompt, choice: 'ok' })).toEqual({
+      ok: true,
+      data: { scene: 'drassenLiberated', skipped: false },
+    });
+    const events = session.drainEvents();
+    expect(events).toContainEqual(expect.objectContaining({ type: 'meanwhileStarted', seq: 1, scene: 'drassenLiberated', prompt }));
+    events.push(...live.advance({ events: ['conversationOpened'] }, SCENE_STOP_BUDGET).events);
+    expectInTheHall(session, 'drassenLiberated');
+    untilEnded(live, events);
+    const c = session.campaign;
+    expect(sectorsLoaded(events)).toEqual([PALACE, sectorShortString(A9)]);
+    expect([c.state.flow, c.state.worldSector, c.meanwhile.underWay()]).toEqual(['tactical', A9, false]);
+    expectNpcsBack(session, before);
+    expect(c.state.meanwhile.log).toEqual([{ seq: 1, id: Meanwhile.DRASSEN_LIBERATED, at: expect.any(Number), skipped: false }]);
+    expect([installation.reads, installation.marked]).toEqual([1, [Meanwhile.DRASSEN_LIBERATED]]);
+  });
+
+  it('a scene not seen yet starts at the gates with no prompt, and Esc ending it marks it seen (EndMeanwhile, SetMeanwhileSceneSeen)', async () => {
+    const { session, live } = await landed(90);
+    const installation = seenBefore(Meanwhile.CREATURES);
+    live.useInstallation(installation);
+    schedule(session, Meanwhile.DRASSEN_LIBERATED);
+    session.drainEvents();
+    const events = untilStarted(live);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'meanwhileStarted', seq: 1, scene: 'drassenLiberated' }));
+    expect(events.find((e) => e.type === 'meanwhileStarted')).not.toHaveProperty('prompt');
+    expect([installation.reads, installation.marked, session.view().prompt]).toEqual([1, [], null]);
+    expect(session.dispatch({ type: 'endMeanwhile' })).toEqual({ ok: true });
+    expect(installation.marked).toEqual([Meanwhile.DRASSEN_LIBERATED]);
+    expect(installation.meanwhileSceneSeen(Meanwhile.DRASSEN_LIBERATED)).toBe(true);
   });
 });

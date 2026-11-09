@@ -36,6 +36,8 @@ export interface SettingsPanelContext {
   readonly settings: () => ClientSettings;
   readonly change: (change: SettingsChange) => void;
   readonly replace: (settings: ClientSettings) => void;
+  readonly meanwhileScenesSeen: () => Promise<number>;
+  readonly handOver: (meanwhileScenesSeen: number) => Promise<boolean>;
   readonly labels: () => Labels;
   readonly box: MessageBox;
   readonly status: (text: string, error?: boolean) => void;
@@ -73,7 +75,7 @@ export class SettingsPanel {
       }),
     );
     this.#speed.addEventListener('change', () => ctx.change({ playbackSpeed: Number(this.#speed.value) }));
-    document.getElementById('exportSettings')?.addEventListener('click', () => this.#export());
+    document.getElementById('exportSettings')?.addEventListener('click', () => void this.#export());
     const importInput = document.getElementById('importSettings') as HTMLInputElement;
     importInput.addEventListener('change', () => void this.#import(importInput));
   }
@@ -102,8 +104,9 @@ export class SettingsPanel {
     this.#speed.value = String(settings.playbackSpeed);
   }
 
-  #export(): void {
-    const blob = new Blob([settingsFileText(this.#ctx.settings())], { type: 'application/json' });
+  async #export(): Promise<void> {
+    const seen = await this.#ctx.meanwhileScenesSeen();
+    const blob = new Blob([settingsFileText(this.#ctx.settings(), seen)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -120,7 +123,8 @@ export class SettingsPanel {
     if (!file) return;
     const imported = parseSettingsFile(await file.text());
     if (!imported) return this.#ctx.status(this.#ctx.labels().text('notSettingsFile'), true);
-    this.#ctx.replace(imported);
+    this.#ctx.replace(imported.settings);
+    await this.#ctx.handOver(imported.meanwhileScenesSeen);
     this.#ctx.status(this.#ctx.labels().text('settingsImported'));
   }
 }

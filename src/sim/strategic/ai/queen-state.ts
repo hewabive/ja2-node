@@ -106,6 +106,7 @@ export interface MeanwhileLogEntry {
   readonly seq: number;
   readonly id: number;
   readonly at: number;
+  readonly skipped: boolean;
 }
 
 export interface MeanwhileState {

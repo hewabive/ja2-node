@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS,
   effectiveMaster,
-  markMeanwhileSceneSeen,
-  meanwhileSceneSeen,
+  meanwhileScenesHandedOver,
+  meanwhileScenesSeenIn,
+  meanwhileScenesToBeHandedOver,
+  meanwhileScenesToHandOver,
   normalizeSettings,
   readSettings,
   SETTINGS_KEY,
@@ -16,6 +18,8 @@ function memory(): SettingsStorage & { data: Map<string, string> } {
   const data = new Map<string, string>();
   return { data, getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v) };
 }
+
+const OLDER_PAGE_SCENES = ((1 << 3) | (1 << 31)) >>> 0;
 
 const broken: SettingsStorage = {
   getItem: () => {
@@ -85,7 +89,6 @@ describe('client settings', () => {
       sleepWakeNotification: true,
       playbackSpeed: 1,
       language: null,
-      meanwhileScenesSeen: 0,
       helpHidden: false,
       coverSize: 4,
       losSize: 4,
@@ -102,13 +105,22 @@ describe('client settings', () => {
     expect(changed.keyAdvanceSpeech).toBe(true);
   });
 
-  it('remember the meanwhile scenes seen as flags', () => {
-    const seen = markMeanwhileSceneSeen(markMeanwhileSceneSeen(DEFAULT_SETTINGS, 3), 31);
-    expect(meanwhileSceneSeen(seen, 3)).toBe(true);
-    expect(meanwhileSceneSeen(seen, 31)).toBe(true);
-    expect(meanwhileSceneSeen(seen, 4)).toBe(false);
-    expect(markMeanwhileSceneSeen(seen, 40)).toBe(seen);
-    expect(normalizeSettings({ meanwhileScenesSeen: -1 }).meanwhileScenesSeen).toBe(0);
+  it('keep the meanwhile scenes seen an older page stored out of the settings, through every write, until the server has them', () => {
+    const storage = memory();
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ version: 2, muted: true, meanwhileScenesSeen: OLDER_PAGE_SCENES }));
+    expect(readSettings(storage)).not.toHaveProperty('meanwhileScenesSeen');
+    expect(meanwhileScenesToHandOver(storage)).toBe(OLDER_PAGE_SCENES);
+    writeSettings(updateSettings(readSettings(storage), { playIntro: false }), storage);
+    expect(JSON.parse(storage.getItem(SETTINGS_KEY) ?? '{}')).toMatchObject({ muted: true, playIntro: false });
+    expect(meanwhileScenesToHandOver(storage)).toBe(OLDER_PAGE_SCENES);
+    meanwhileScenesHandedOver(1 << 3, storage);
+    expect(meanwhileScenesToHandOver(storage)).toBe((1 << 31) >>> 0);
+    meanwhileScenesHandedOver(1 << 31, storage);
+    expect(JSON.parse(storage.getItem(SETTINGS_KEY) ?? '{}')).not.toHaveProperty('meanwhileScenesSeen');
+    expect(readSettings(storage)).toMatchObject({ muted: true, playIntro: false });
+    meanwhileScenesToBeHandedOver(1 << 5, storage);
+    expect(meanwhileScenesToHandOver(storage)).toBe(1 << 5);
+    expect(meanwhileScenesSeenIn({ meanwhileScenesSeen: -1 })).toBe(0);
   });
 
   it('silence the master while muted without losing its value', () => {

@@ -958,6 +958,8 @@ export class BattleFlow implements FateContext {
         return this.#answerNpcOfNote(choice);
       case PromptKind.SOMEONE_ELSE_IN_SECTOR:
         return this.#answerSomeoneElse(choice);
+      case PromptKind.MEANWHILE:
+        return this.campaign.meanwhile.answer(prompt, choice);
       case PromptKind.CONTRACT_RENEWAL:
       case PromptKind.MERC_DEPARTURE:
       case PromptKind.INSURANCE_EXTENSION:

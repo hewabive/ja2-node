@@ -13,6 +13,7 @@ import {
   welcomeIdentityOf,
 } from './content-identity.ts';
 import type { LogOrigin } from './input-log.ts';
+import { InstallationStore } from './installation-store.ts';
 import { type OriginBuilder, replaySave } from './replay.ts';
 import { gitRepositoryHistory } from './repository-history.ts';
 import { SaveService } from './save-service.ts';
@@ -39,6 +40,7 @@ export interface SaveEnvironment {
   readonly identity: LogicIdentity;
   readonly welcome: WelcomeIdentity;
   readonly store: SaveStore;
+  readonly installation: InstallationStore;
   readonly saves: SaveService;
   readonly sources: SessionSources;
   readonly build: OriginBuilder;
@@ -84,7 +86,8 @@ export function createSaveEnvironment(input: SaveEnvironmentInput): SaveEnvironm
   });
   const sources: SessionSources = { read, exists, layers, decoding, originalData: dataDir !== null, store };
   const build = (origin: LogOrigin): Promise<SessionSim> => simFromOrigin(sources, origin, saves);
-  return { engine, identity, welcome: welcomeIdentityOf(engine, pack), store, saves, sources, build };
+  const installation = new InstallationStore(store.dir, input.warn);
+  return { engine, identity, welcome: welcomeIdentityOf(engine, pack), store, installation, saves, sources, build };
 }
 
 export function replayStoredSave(environment: SaveEnvironment, name: string): ReturnType<typeof replaySave> {

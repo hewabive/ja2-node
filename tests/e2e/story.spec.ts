@@ -1,4 +1,7 @@
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
+import { INSTALLATION_FILE } from '../../src/server/installation-store.ts';
 import { STORY_MAP_SAVE, STORY_MEANWHILE_SAVE, STORY_PALACE_SAVE, STORY_SCENE, writeStorySaves } from '../support/e2e-story-saves.ts';
 import { SAVE_DIR } from './env.ts';
 import { capture, clickWidget, expectGolden, nextFrames, waitForSettledFrames, widget } from './ui-capture.ts';
@@ -9,6 +12,8 @@ const GOLDEN_QUERY = '&pinClock=1&fixed640=1&scale=1';
 const TIME_HELD = '&holdTime=1';
 const SCENE_DUE_WITHIN_SECONDS = 120;
 const SCENE_TIMEOUT_MS = 60_000;
+const STORY_SCENE_SEEN = 1 << STORY_SCENE;
+const SKIPPED_SCENE_FRAMES = 20;
 
 const sessions: string[] = [];
 
@@ -58,6 +63,27 @@ async function advanceToTheScene(page: Page): Promise<void> {
   await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), SCENE_DUE_WITHIN_SECONDS);
 }
 
+async function handedOverToTheServer(page: Page): Promise<void> {
+  await page.waitForFunction((key) => {
+    try {
+      return JSON.parse(localStorage.getItem(key) ?? '{}').meanwhileScenesSeen === undefined;
+    } catch {
+      return false;
+    }
+  }, SETTINGS_KEY);
+}
+
+async function installationScenesSeen(request: APIRequestContext): Promise<number> {
+  const response = await request.get('/api/installation');
+  expect(response.ok()).toBe(true);
+  return ((await response.json()) as { meanwhileScenesSeen: number }).meanwhileScenesSeen;
+}
+
+async function boxOffersOkAndSkip(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
+  expect([(await widget(page, 'meanwhileBox.yes')).text, (await widget(page, 'meanwhileBox.no')).text]).toEqual(['OK', 'Skip']);
+}
+
 async function playedInThePalace(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.story?.step === null);
   await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
@@ -68,6 +94,7 @@ async function playedInThePalace(page: Page): Promise<void> {
 test.describe('the story and the help screens on /play', () => {
   test.beforeAll(async () => {
     await writeStorySaves(SAVE_DIR);
+    await rm(join(SAVE_DIR, INSTALLATION_FILE), { force: true });
   });
 
   test.afterAll(async ({ request }) => {
@@ -93,22 +120,40 @@ test.describe('the story and the help screens on /play', () => {
     await clickWidget(page, 'meanwhileBox.ok');
     await page.waitForFunction(() => window.__ja2Ui.modal === 'fade-out' && window.__ja2Ui.story?.step === 'meanwhile');
     expect(await page.evaluate(() => window.__ja2Ui.story?.meanwhileBoxes)).toBe(1);
-    const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}').meanwhileScenesSeen ?? 0, SETTINGS_KEY);
-    expect(stored).toBe(0);
   });
 
-  test('a scene seen before offers OK and Skip, and Skip too plays the scene in the hall and comes back to the map, until Skip is ported', async ({
+  test('a page hands the scenes an older page marked seen to the server, whose box then offers OK and Skip, and Skip stays on the map: no fade, no hall', async ({
     page,
     request,
   }) => {
-    await settings(page, { helpHidden: true, meanwhileScenesSeen: 1 << STORY_SCENE });
+    await settings(page, { helpHidden: true, meanwhileScenesSeen: STORY_SCENE_SEEN });
+    const session = await loadSession(request, STORY_MEANWHILE_SAVE);
+    await openMap(page, session);
+    await handedOverToTheServer(page);
+    expect((await installationScenesSeen(request)) & STORY_SCENE_SEEN).toBe(STORY_SCENE_SEEN);
+    await compressTime(page);
+    await boxOffersOkAndSkip(page);
+    await clickWidget(page, 'meanwhileBox.no');
+    await page.waitForFunction(() => window.__ja2Ui.modal === null && window.__ja2Ui.story?.step === null);
+    await nextFrames(page, SKIPPED_SCENE_FRAMES);
+    expect(await page.evaluate(() => [window.__ja2Ui.screen, window.__ja2Ui.modal, window.__ja2Ui.story?.played])).toEqual([
+      'map',
+      null,
+      ['meanwhileBox'],
+    ]);
+  });
+
+  test('OK at the box of a scene seen before plays it in the hall and comes back to the map', async ({ page, request }) => {
+    const handed = await request.post('/api/installation', { data: { meanwhileScenesSeen: STORY_SCENE_SEEN } });
+    expect(handed.ok()).toBe(true);
+    await settings(page, { helpHidden: true });
     const session = await loadSession(request, STORY_MEANWHILE_SAVE);
     await openMap(page, session);
     await compressTime(page);
-    await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
-    expect([(await widget(page, 'meanwhileBox.yes')).text, (await widget(page, 'meanwhileBox.no')).text]).toEqual(['OK', 'Skip']);
-    await clickWidget(page, 'meanwhileBox.no');
+    await boxOffersOkAndSkip(page);
+    await clickWidget(page, 'meanwhileBox.yes');
     await playedInThePalace(page);
+    expect(await page.evaluate(() => window.__ja2Ui.story?.played)).toEqual(['meanwhileBox', 'meanwhile']);
   });
 
   test('the Queen dies in the palace basement and the ending runs to the videos, the silent credits and the main menu', async ({

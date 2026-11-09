@@ -27,6 +27,7 @@ import {
   type StopReason,
   type StopReport,
 } from '../sim/advance.ts';
+import type { InstallationSettings } from '../sim/campaign/installation.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
 import { type EffectEvent, isEffectEvent, type SimEvent, type SimEventType } from '../sim/events.ts';
@@ -60,6 +61,7 @@ export type SpeechMode = (typeof SPEECH_MODES)[number];
 export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   skipSpeech?(skip: boolean): void;
+  useInstallation?(installation: InstallationSettings): void;
   view(): PlayerView;
   tacticalContent?(): TacticalContent | null;
   animationTimelines?(): AnimationTimelines | null;
@@ -161,6 +163,7 @@ export class Session {
   #depth = 0;
   #messages: MessageEntry[] = [];
   #labels: UiStrings | null = null;
+  #installation: InstallationSettings | null = null;
   #campaign: string | null = null;
   readonly #framedMessages: MessageEntry[] = [];
   readonly #framedBullets: BulletAtTick[] = [];
@@ -190,6 +193,22 @@ export class Session {
   useLabels(labels: UiStrings | null): void {
     this.#labels = labels;
     this.#sim.useLabels?.(labels);
+  }
+
+  useInstallation(installation: InstallationSettings): void {
+    this.#installation = this.#loggedInstallation(installation);
+    this.#sim.useInstallation?.(this.#installation);
+  }
+
+  #loggedInstallation(installation: InstallationSettings): InstallationSettings {
+    return {
+      meanwhileSceneSeen: (scene) => {
+        const seen = installation.meanwhileSceneSeen(scene);
+        this.log.append('installation', this.#sim.tick, { meanwhileScene: scene, seen });
+        return seen;
+      },
+      setMeanwhileSceneSeen: (scene) => installation.setMeanwhileSceneSeen(scene),
+    };
   }
 
   get music(): MusicState {
@@ -723,6 +742,7 @@ export class Session {
     this.#presentationUntil = -1;
     this.#sim = sim;
     sim.useLabels?.(this.#labels);
+    if (this.#installation) sim.useInstallation?.(this.#installation);
     if (this.#speech !== 'listen') this.setSpeech(this.#speech);
     this.#music = music;
     this.#campaign = campaign;

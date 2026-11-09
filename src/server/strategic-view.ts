@@ -288,7 +288,12 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     campaign: campaignStatus(campaign.state.ending),
     ...(campaign.noUsableMercs() ? { noUsableMercs: true } : {}),
     ...(campaign.state.didGameJustStart ? { gameJustStarted: true } : {}),
-    meanwhiles: campaign.state.meanwhile.log.map((e) => ({ seq: e.seq, scene: meanwhileSceneName(e.id), at: e.at })),
+    meanwhiles: campaign.state.meanwhile.log.map((e) => ({
+      seq: e.seq,
+      scene: meanwhileSceneName(e.id),
+      at: e.at,
+      ...(e.skipped ? { skipped: true as const } : {}),
+    })),
     sectors,
     mercs: ctx.mercs.all().map((m) => {
       const arrival = arrivalTime(campaign, m.id);

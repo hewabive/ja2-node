@@ -95,6 +95,7 @@ import {
 import { mineIdForSector } from '../strategic/economy/mine-status.ts';
 import { areThereMinersInsideThisMine } from '../strategic/economy/mines.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { PromptKind } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/forces/groups.ts';
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
@@ -460,7 +461,8 @@ export class SectorFlow {
   #medunaScenePending(): boolean {
     const s = this.campaign.state;
     const m = s.meanwhile;
-    if ((m.trying || m.inScene) && m.current.id !== Meanwhile.INTERROGATION) return true;
+    const boxUp = s.battle.prompt?.kind === PromptKind.MEANWHILE;
+    if ((m.trying || boxUp || m.inScene) && m.current.id !== Meanwhile.INTERROGATION) return true;
     return s.queue.events.some((e) => e.kind === EventKind.MEANWHILE && e.param !== Meanwhile.INTERROGATION);
   }
 

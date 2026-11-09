@@ -34,6 +34,7 @@ import {
   deadIsDeadWritable,
   groupsAboutToArrive,
   inTurnBasedCombat,
+  meanwhileBoxUp,
   type PendingArrival,
   SAVE_REFUSAL_MESSAGES,
   type SaveRefusal,
@@ -591,8 +592,8 @@ export class SaveService {
   #afterAdvance(session: Session, report: StopReport): void {
     if (saveModeOf(session.sim) !== 'deadIsDead') return;
     const state = this.#state(session);
-    if (startsOurTurn(report.events) || startsMeanwhile(report.events) || aboutToArriveFired(session.sim, state.arrivals))
-      state.deadIsDeadDue = true;
+    const meanwhile = startsMeanwhile(report.events) || meanwhileBoxUp(session.sim);
+    if (startsOurTurn(report.events) || meanwhile || aboutToArriveFired(session.sim, state.arrivals)) state.deadIsDeadDue = true;
     state.arrivals = [];
   }
 

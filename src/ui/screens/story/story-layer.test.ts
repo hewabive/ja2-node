@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { CampaignEndingView, ViewFrame } from '../../../protocol/view.ts';
+import type { CampaignEndingView, MeanwhilePromptView, ViewFrame } from '../../../protocol/view.ts';
 import type { MessageBoxButtons, MessageBoxes, MessageBoxRequest } from '../../message-boxes.ts';
 import { MessageString } from '../../text/string-ids.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import { gameScreenOf } from '../front-end/flow.ts';
-import { MEANWHILE_BOX, meanwhileBoxButtons, meanwhileBoxText } from './meanwhile-box.ts';
+import { MEANWHILE_BOX, meanwhileBoxButtons, meanwhileBoxChoice, meanwhileBoxText } from './meanwhile-box.ts';
 import { StoryLayer, type StoryPort } from './story-layer.ts';
 
-const DRASSEN_LIBERATED = 1;
+const SEEN_SCENE_BOX: MeanwhilePromptView = { id: 'meanwhile-3', kind: 'meanwhile', scene: 'drassenLiberated', choices: ['ok', 'skip'] };
 const TEXT: UiTextService = {
   string: (table, index) => (table === 'pMessageStrings' && index === MessageString.MEANWHILE ? 'Meanwhile' : null),
   edt: () => null,
@@ -26,7 +26,8 @@ class FakePort implements StoryPort {
   readonly asks: Ask[] = [];
   readonly calls: string[] = [];
   readonly endings: CampaignEndingView[] = [];
-  readonly seen = new Set<number>();
+  readonly answers: (readonly [string, string])[] = [];
+  prompt: MeanwhilePromptView | null = null;
   shown = false;
   #fadeOut: (() => void) | null = null;
   #fadeIn: (() => void) | null = null;
@@ -41,8 +42,14 @@ class FakePort implements StoryPort {
       }),
   };
 
-  sceneSeen(scene: number): boolean {
-    return this.seen.has(scene);
+  meanwhilePrompt(): MeanwhilePromptView | null {
+    return this.prompt;
+  }
+
+  answer(prompt: string, choice: string): void {
+    this.calls.push(`answer ${choice}`);
+    this.answers.push([prompt, choice]);
+    this.prompt = null;
   }
 
   fadeOut(): Promise<void> {
@@ -99,14 +106,12 @@ function story(): { port: FakePort; layer: StoryLayer; released: number[] } {
   return { port, layer: new StoryLayer(port), released: [] };
 }
 
-describe('the meanwhile box (Meanwhile.cc BringupMeanwhileBox)', () => {
-  it('reads "Meanwhile....." and offers Skip only for a scene seen before, never for the interrogation', () => {
+describe('the meanwhile box (Meanwhile.cc BringupMeanwhileBox, BeginMeanwhileCallBack)', () => {
+  it('reads "Meanwhile....." and offers Skip only when the simulation asks with the meanwhile prompt; OK or YES plays, anything else skips', () => {
     expect(meanwhileBoxText(TEXT)).toBe('Meanwhile.....');
-    const seen = (scene: number) => scene === DRASSEN_LIBERATED;
-    expect(meanwhileBoxButtons('drassenLiberated', seen)).toBe('okSkip');
-    expect(meanwhileBoxButtons('cambriaLiberated', seen)).toBe('ok');
-    expect(meanwhileBoxButtons('interrogation', () => true)).toBe('ok');
-    expect(meanwhileBoxButtons('unknownScene', () => true)).toBe('ok');
+    expect(meanwhileBoxButtons(SEEN_SCENE_BOX)).toBe('okSkip');
+    expect(meanwhileBoxButtons(null)).toBe('ok');
+    expect([MessageBoxReturn.OK, MessageBoxReturn.YES, MessageBoxReturn.NO].map(meanwhileBoxChoice)).toEqual(['ok', 'ok', 'skip']);
   });
 });
 
@@ -118,18 +123,21 @@ describe('the story layer', () => {
     expect(layer.holdsFlow).toBe(false);
   });
 
-  it('holds the whole batch that brings a palace scene while its box is up, since the view already shows the hall, and, OK or Skip alike, fades into it, marking nothing seen', async () => {
+  it('holds the whole batch that brings a palace scene not seen yet while its OK box is up, since the view already shows the hall, then fades into it', async () => {
     const { port, layer, released } = story();
     const release = (f: readonly ViewFrame[]) => released.push(...f.map((x) => x.tick));
-    port.seen.add(DRASSEN_LIBERATED);
     layer.frames([frame(1), frame(2, [{ type: 'meanwhileStarted', seq: 1, scene: 'drassenLiberated' }])], release);
     layer.frames([frame(3)], release);
     await settle();
     expect(port.asks).toHaveLength(1);
-    expect(port.asks[0]).toMatchObject({ text: 'Meanwhile.....', buttons: 'okSkip', request: { id: MEANWHILE_BOX } });
+    expect(port.asks[0]).toMatchObject({
+      text: 'Meanwhile.....',
+      buttons: 'ok',
+      request: { id: MEANWHILE_BOX, viewer: { kind: 'meanwhile' } },
+    });
     expect(released).toEqual([]);
     expect(layer.holdsFlow).toBe(true);
-    port.asks[0]?.answer(MessageBoxReturn.NO);
+    port.asks[0]?.answer(MessageBoxReturn.OK);
     await settle();
     port.finishFadeOut();
     await settle();
@@ -141,6 +149,59 @@ describe('the story layer', () => {
     expect(layer.holdsFlow).toBe(false);
     expect(port.calls).toEqual(['box', 'fadeOut', 'clearBlack', 'fadeIn']);
     expect(layer.hook.meanwhileBoxes).toBe(1);
+  });
+
+  it('asks the meanwhile prompt of a scene seen before with OK and Skip, and Skip answers it with no fade', async () => {
+    const { port, layer, released } = story();
+    const release = (f: readonly ViewFrame[]) => released.push(...f.map((x) => x.tick));
+    port.prompt = SEEN_SCENE_BOX;
+    layer.frame();
+    layer.frame();
+    layer.frames([frame(4)], release);
+    await settle();
+    expect(port.asks).toHaveLength(1);
+    expect(port.asks[0]).toMatchObject({ text: 'Meanwhile.....', buttons: 'okSkip', request: { id: MEANWHILE_BOX } });
+    expect(port.asks[0]?.request?.viewer).toBeUndefined();
+    expect([released, layer.holdsFlow]).toEqual([[], true]);
+    port.asks[0]?.answer(MessageBoxReturn.NO);
+    await settle();
+    expect(port.answers).toEqual([['meanwhile-3', 'skip']]);
+    expect([released, layer.holdsFlow, port.calls]).toEqual([[4], false, ['box', 'answer skip']]);
+  });
+
+  it('OK answers the prompt, and the scene it starts fades in with no second box', async () => {
+    const { port, layer, released } = story();
+    const release = (f: readonly ViewFrame[]) => released.push(...f.map((x) => x.tick));
+    port.prompt = SEEN_SCENE_BOX;
+    layer.frame();
+    await settle();
+    port.asks[0]?.answer(MessageBoxReturn.YES);
+    await settle();
+    expect(port.answers).toEqual([['meanwhile-3', 'ok']]);
+    layer.frames([frame(5, [{ type: 'meanwhileStarted', seq: 1, scene: 'drassenLiberated', prompt: 'meanwhile-3' }])], release);
+    await settle();
+    port.finishFadeOut();
+    await settle();
+    port.shown = true;
+    layer.frame();
+    port.finishFadeIn();
+    await settle();
+    expect(released).toEqual([5]);
+    expect(port.calls).toEqual(['box', 'answer ok', 'fadeOut', 'clearBlack', 'fadeIn']);
+    expect(layer.hook.meanwhileBoxes).toBe(1);
+  });
+
+  it('closes the box of a prompt another viewer or an agent answered, without answering it again', async () => {
+    const { port, layer } = story();
+    port.prompt = SEEN_SCENE_BOX;
+    layer.frame();
+    await settle();
+    expect(port.asks[0]?.request?.closeWhen?.()).toBe(false);
+    port.prompt = null;
+    expect(port.asks[0]?.request?.closeWhen?.()).toBe(true);
+    port.asks[0]?.answer(MessageBoxReturn.NONE);
+    await settle();
+    expect([port.answers, layer.holdsFlow]).toEqual([[], false]);
   });
 
   it('answers the interrogation’s OK box with a fade out, the flow released into N7 and a fade in once it is shown', async () => {

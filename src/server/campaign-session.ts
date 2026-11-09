@@ -16,6 +16,7 @@ import type {
 } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import type { InstallationSettings } from '../sim/campaign/installation.ts';
 import { isImpSlotType } from '../sim/campaign/laptop/imp.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
@@ -215,6 +216,14 @@ export class CampaignSession implements SessionSim {
 
   skipSpeech(skip: boolean): void {
     this.campaign.talk?.skipSpeech(skip);
+  }
+
+  get installation(): InstallationSettings {
+    return this.campaign.meanwhile.installation;
+  }
+
+  useInstallation(installation: InstallationSettings): void {
+    this.campaign.meanwhile.useInstallation(installation);
   }
 
   #emailText(cmd: CommandEnvelope): CommandResult {

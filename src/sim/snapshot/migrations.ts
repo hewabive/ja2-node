@@ -2434,6 +2434,29 @@ function dropMeanwhileSceneContexts(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const AT_KEY = 'at';
+const SKIPPED_KEY = 'skipped';
+
+function withSkippedFlag(entry: Json): Json {
+  return isObject(entry) && entry[REF] === undefined ? insertAfter(entry, AT_KEY, SKIPPED_KEY, false) : entry;
+}
+
+function withMeanwhileLogSkippedFlags(strategic: JsonObject): JsonObject {
+  const meanwhile = strategic[MEANWHILE_KEY];
+  if (!isObject(meanwhile) || meanwhile[REF] !== undefined) return strategic;
+  const log = meanwhile[LOG_KEY];
+  if (!Array.isArray(log)) return strategic;
+  return { ...strategic, [MEANWHILE_KEY]: { ...meanwhile, [LOG_KEY]: log.map((entry: Json) => withSkippedFlag(entry)) } };
+}
+
+function markPlayedMeanwhileScenes(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withMeanwhileLogSkippedFlags(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2517,5 +2540,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     79: moveInsertionCodesOntoSoldiers,
     80: addMeanwhileReturnTrip,
     81: dropMeanwhileSceneContexts,
+    82: markPlayedMeanwhileScenes,
   };
 }

@@ -19,6 +19,7 @@ export const MAX_DISPLAY_SIZE = 11;
 export const PLAYBACK_SPEEDS: readonly number[] = [0.25, 0.5, 1, 2, 4, 8, 16];
 const DEFAULT_PLAYBACK_SPEED = 1;
 const MEANWHILE_SCENE_BITS = 32;
+const MEANWHILE_SCENES_SEEN = 'meanwhileScenesSeen';
 export const DEFAULT_WEBSITE_LOADING_TIME_SCALE = 1;
 export const MAX_WEBSITE_LOADING_TIME_SCALE = 10;
 const HELP_SCREEN_BITS = 16;
@@ -66,7 +67,6 @@ export interface ClientSettings {
   readonly display: DisplaySettings;
   readonly playbackSpeed: number;
   readonly language: UiLanguage | null;
-  readonly meanwhileScenesSeen: number;
   readonly helpHidden: boolean;
   readonly helpScreensSeen: Readonly<Record<string, number>>;
   readonly bloodAndGore: boolean;
@@ -118,7 +118,6 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   display: DEFAULT_DISPLAY_SETTINGS,
   playbackSpeed: DEFAULT_PLAYBACK_SPEED,
   language: null,
-  meanwhileScenesSeen: 0,
   helpHidden: false,
   helpScreensSeen: {},
   bloodAndGore: true,
@@ -234,7 +233,6 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     display: display(o.display),
     playbackSpeed: playbackSpeed(o.playbackSpeed),
     language: language(o.language),
-    meanwhileScenesSeen: sceneFlags(o.meanwhileScenesSeen),
     helpHidden: flag(o.helpHidden, d.helpHidden),
     helpScreensSeen: helpScreens(o.helpScreensSeen),
     bloodAndGore: flag(o.bloodAndGore, d.bloodAndGore),
@@ -249,22 +247,59 @@ export function normalizeSettings(raw: unknown): ClientSettings {
   };
 }
 
-export function readSettings(storage: SettingsStorage | null): ClientSettings {
+function storedSettings(storage: SettingsStorage | null): unknown {
   try {
     const text = storage?.getItem(SETTINGS_KEY);
-    return text ? normalizeSettings(JSON.parse(text)) : DEFAULT_SETTINGS;
+    return text ? JSON.parse(text) : null;
   } catch {
-    return DEFAULT_SETTINGS;
+    return null;
   }
+}
+
+export function readSettings(storage: SettingsStorage | null): ClientSettings {
+  const stored = storedSettings(storage);
+  return stored === null ? DEFAULT_SETTINGS : normalizeSettings(stored);
+}
+
+export function meanwhileScenesSeenIn(raw: unknown): number {
+  return sceneFlags(record(raw)[MEANWHILE_SCENES_SEEN]);
+}
+
+export function withMeanwhileScenesSeen(settings: ClientSettings, flags: number): ClientSettings {
+  if (flags === 0) return settings;
+  const handedOver: ClientSettings & { readonly meanwhileScenesSeen: number } = { ...settings, meanwhileScenesSeen: flags };
+  return handedOver;
+}
+
+function settingsText(settings: ClientSettings, handOver: number): string {
+  return JSON.stringify(withMeanwhileScenesSeen(normalizeSettings(settings), handOver));
 }
 
 export function writeSettings(settings: ClientSettings, storage: SettingsStorage | null): boolean {
   try {
-    storage?.setItem(SETTINGS_KEY, JSON.stringify(normalizeSettings(settings)));
+    storage?.setItem(SETTINGS_KEY, settingsText(settings, meanwhileScenesToHandOver(storage)));
     return storage !== null;
   } catch {
     return false;
   }
+}
+
+export function meanwhileScenesToHandOver(storage: SettingsStorage | null): number {
+  return meanwhileScenesSeenIn(storedSettings(storage));
+}
+
+function keepMeanwhileScenesToHandOver(flags: number, storage: SettingsStorage | null): void {
+  try {
+    storage?.setItem(SETTINGS_KEY, settingsText(readSettings(storage), flags));
+  } catch {}
+}
+
+export function meanwhileScenesToBeHandedOver(flags: number, storage: SettingsStorage | null): void {
+  keepMeanwhileScenesToHandOver((meanwhileScenesToHandOver(storage) | sceneFlags(flags)) >>> 0, storage);
+}
+
+export function meanwhileScenesHandedOver(flags: number, storage: SettingsStorage | null): void {
+  keepMeanwhileScenesToHandOver((meanwhileScenesToHandOver(storage) & ~flags) >>> 0, storage);
 }
 
 export type SettingsChange = Partial<Omit<ClientSettings, 'version' | 'volumes' | 'display'>> & {
@@ -279,15 +314,6 @@ export function updateSettings(settings: ClientSettings, change: SettingsChange)
     volumes: { ...settings.volumes, ...change.volumes },
     display: { ...settings.display, ...change.display },
   });
-}
-
-export function markMeanwhileSceneSeen(settings: ClientSettings, scene: number): ClientSettings {
-  if (!Number.isInteger(scene) || scene < 0 || scene >= MEANWHILE_SCENE_BITS) return settings;
-  return updateSettings(settings, { meanwhileScenesSeen: (settings.meanwhileScenesSeen | (1 << scene)) >>> 0 });
-}
-
-export function meanwhileSceneSeen(settings: ClientSettings, scene: number): boolean {
-  return scene >= 0 && scene < MEANWHILE_SCENE_BITS && ((settings.meanwhileScenesSeen >>> scene) & 1) === 1;
 }
 
 export function effectiveMaster(settings: ClientSettings): number {

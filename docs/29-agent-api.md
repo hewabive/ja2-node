@@ -89,7 +89,8 @@ acting; an open prompt (`observe.prompt`, which in the sandbox too holds the loa
 `observe.contractPrompt`, `observe.npcRequest`); a conversation waiting for a
 choice, also one an NPC opened (`initiatedBy: npc`, deviation "Conversation prompt"); an open shop; the question a won
 battle asks about auto-bandage once its lines are over (`beginAutoBandage`, §8.3) and its look for someone else in the
-sector (`someoneElseInSector`, §8.10); `advance {idle}` runs on until they open. A running `advance`
+sector (`someoneElseInSector`, §8.10); the box of a meanwhile scene seen before (`meanwhile`, §8.14); `advance {idle}`
+runs on until they open. A running `advance`
 stops with `decision` when one arises, and the real-time driver holds without running ticks; a new `advance` answers
 `decision` at once while a prompt is open and is refused while a conversation waits or a shop is open. Prompts are
 answered with `answer {prompt?, choice}` (a wrong id or choice is refused); while one is open the clock and the ticks
@@ -257,8 +258,8 @@ holds time for (`04` §4.3): `modal` (a message box, menu or screen on the page 
 viewer leaves, the session falls back to the manual driver and a waiting `advance` answers `refused`.
 
 **Viewer prompts.** A box a page shows for the game, not for its player's own action, is also a prompt any client may
-answer: the meanwhile box (`ok`, or `ok` and `skip` for a scene seen before, as `BringupMeanwhileBox`,
-`Strategic/Meanwhile.cc:225`), the map screen's update box (`continue`, `stop`), the lost sector, invasion and
+answer: the meanwhile box of a scene not seen yet or the interrogation (`ok`; a scene seen before asks with the
+`meanwhile` decision prompt instead, §8.14), the map screen's update box (`continue`, `stop`), the lost sector, invasion and
 pre-battle notices and the auto-bandage notices (`ok`). The page publishes it with an id taken from the game event, so every page shows the same id
 (`showPrompt`, `src/ui/viewer-prompts.ts`); `observe.viewerPrompts` and `status` list the open ones, and `answer` with
 that id closes the box on every page as the click would (`Session.answerViewerPrompt`). A viewer's own click answers it
@@ -297,7 +298,7 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 | Laptop open (§8.11) | laptop commands and queries, `skipLine` | `laptopOpen` | `refused` (`laptopOpen: …`) |
 | Conversation waiting for a choice (§8.4) | `approach`, `give`, `closeTalk`, `skipLine` | `conversationOpen` | `refused` (`conversationOpen`) |
 | Scripted sequence | `skipLine` | `scriptedSequence` | runs it until it ends or a panel or prompt opens |
-| A meanwhile scene (flow `meanwhile`, §8.14) | `answer`, `skipLine`, `endMeanwhile` (a palace scene) | `inMeanwhile` | runs; stops at the interrogation's prompt and at `meanwhileEnded` |
+| A meanwhile scene (flow `meanwhile`, §8.14) | `answer`, `skipLine`, `endMeanwhile` (a palace scene) | `inMeanwhile` | runs; stops at the interrogation's prompt and at `meanwhileEnded`; the box of a scene seen before is a prompt before the flow |
 | The endgame (§8.14) | `answer`, `skipLine` | `endgameInProgress` | plays the sequence, `ended` at `campaignWon` |
 | Won and over (flow `ended`) | nothing (`status` and `newSession` work) | `campaignOver`, also for the server-only queries | `ended` at once, no ticks |
 | Boxing UI lock (§8.6) | `estimateAttack`, `answer`, `skipLine` | `boxingUiLock` | runs the walk out of the ring |
@@ -903,8 +904,8 @@ pointer (`IsGunOrAmmoOfSameTypeSelected`).
 ### 8.14 Quests, meanwhiles and the ending
 
 Rules: `25` (quests), `26` (meanwhiles, prisoners, the end). Scenes and the ending are not player actions: they have no
-prompt of their own but the interrogation's lie, and no command but Esc's in a palace scene; the flows `meanwhile`,
-`endgame` and `ended` lock the UI as the original does (§5).
+prompt of their own but the box of a scene seen before and the interrogation's lie, and no command but Esc's in a
+palace scene; the flows `meanwhile`, `endgame` and `ended` lock the UI as the original does (§5).
 
 - **Quests** are hidden state: `strategic.quests` (`src/server/quest-view.ts`) lists only quests with a "started" or
   "finished" history line, so a quest changed without one (Alma's skip, a silent restart) stays invisible.
@@ -912,12 +913,18 @@ prompt of their own but the interrogation's lie, and no command but Esc's in a p
   pass, each between `meanwhileStarted {seq, scene}` and `meanwhileEnded {seq, scene}`, where `advance` always stops;
   on the map the clock stops (`compressionStopped {reason: meanwhile}`), and while a scene waits for its gates
   compression is refused. `observe.meanwhile` names the scene under way and `strategic.meanwhiles` logs the scenes
-  played.
+  played and skipped (`{seq, scene, at, skipped?: true}`).
+- **The box of a scene seen before** on this server (`installation.json` beside its saves, as the original's `Ja2.set`;
+  never the interrogation) is the `meanwhile` prompt (`{scene, choices: ['ok', 'skip']}`), where `advance` stops with
+  `decision` under the meanwhile pause. `ok` plays the scene, its `meanwhileStarted` carrying the prompt's id; `skip`
+  runs the scene's implications alone and reports `meanwhileSkipped {seq, scene, prompt}`: no flow `meanwhile`, no
+  `meanwhileStarted` or `meanwhileEnded`, no NPC moved, nothing loaded, the clock running as before the box. The answer
+  says `{scene, skipped}`. A scene that ends played, by Esc too, is marked seen; a skipped one is not.
 - **Palace scenes** load P3 (`sectorLoaded`), play the Queen's records and load the sector before again (or unload the
   hall when none was loaded) as they end; the view shows every soldier of the hall while one runs. `endMeanwhile`, the
   Esc key, ends one at once with its implications and the way back; it is the only way on once a scene stalls (the
   missile-site count with all four sites held picks no line), and it is refused with `noPalaceScene` outside a palace
-  scene and in the interrogation. The box's Skip does not skip yet (gap "Meanwhile scene playback").
+  scene and in the interrogation.
 - **The interrogation** is a scripted tactical scene in N7: the Queen's lines are a conversation, her lie question an
   `npcRequest`; `advance` stops at the prompt.
 - **The end** (`src/sim/campaign/endgame-flow.ts`): `queenKilled` starts the `endgame` flow and `advance` plays the

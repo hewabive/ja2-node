@@ -11,6 +11,7 @@ import { meanwhileScheduledIn, scheduleMeanwhileEvent } from '../strategic/ai/me
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { MemoryInstallation } from './installation.ts';
 
 let kit: CampaignKit;
 
@@ -26,6 +27,7 @@ afterAll(async () => {
 const STEP_BUDGET = 50_000;
 const SCENE_GRIDNO = 12248;
 const SCENE_GRIDNO_AS_INT8 = -40;
+const EVERY_SCENE_SEEN = 0xffffffff;
 
 function landed(seed: number, mode?: RunMode): CampaignSim {
   const { campaign: c } = createTestCampaign(kit, {
@@ -137,5 +139,24 @@ describe('meanwhile scenes in a campaign', () => {
     expect([c.state.worldSector, c.state.meanwhile.log.map((e) => e.id)]).toEqual([{ x: 7, y: 14, z: 0 }, [Meanwhile.INTERROGATION]]);
     expect(c.state.queen.firstBattleMeanwhilePending).toBe(true);
     expect(meanwhileScheduledIn(c.state.meanwhile, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE)).toBe(false);
+  });
+
+  it('offers no Skip for the interrogation even once seen, and does not read the seen flags for it (BringupMeanwhileBox)', () => {
+    const c = landed(36);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    let reads = 0;
+    const installation = new MemoryInstallation(EVERY_SCENE_SEEN);
+    c.meanwhile.useInstallation({
+      meanwhileSceneSeen: (scene) => {
+        reads++;
+        return installation.meanwhileSceneSeen(scene);
+      },
+      setMeanwhileSceneSeen: (scene) => installation.setMeanwhileSceneSeen(scene),
+    });
+    c.state.meanwhile.current = { sector: { x: 7, y: 14 }, trigger: 0, id: Meanwhile.INTERROGATION, npc: Npc.QUEEN };
+    c.state.meanwhile.trying = true;
+    c.meanwhile.afterStep();
+    expect([c.state.battle.prompt, reads]).toEqual([null, 0]);
+    expect(c.state.meanwhile.log.map((e) => [e.id, e.skipped])).toEqual([[Meanwhile.INTERROGATION, false]]);
   });
 });

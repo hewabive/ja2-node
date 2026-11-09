@@ -54,6 +54,7 @@ export function sessionAdapter(sources: SessionSources): ReloadAdapter<SessionSi
       if (previous instanceof CampaignSession) {
         restored.useLabels?.(previous.labels);
         restored.skipSpeech?.(previous.skipsSpeech);
+        restored.useInstallation?.(previous.installation);
       }
       return restored;
     },

@@ -3,7 +3,8 @@
 // @src src/game/Strategic/PreBattle_Interface.h (saved PBI globals); Auto_Resolve.cc gsEnemyGainedControlOfSectorID,
 // @src gsCiviliansEatenByMonsters; Strategic/Quests.h FACT_FIRST_BATTLE_*; Tactical/Overhead_Types.h ubLastBattleSector,
 // @src fLastBattleWon; the Utils/Timer_Control.cc customizable timer that Tactical/Overhead.cc CheckForEndOfBattle sets
-// @src for HandleThePlayerBeNotifiedOfSomeoneElseInSector, and its OK box (2026-11-07).
+// @src for HandleThePlayerBeNotifiedOfSomeoneElseInSector, and its OK box (2026-11-07); Strategic/Meanwhile.cc
+// @src BringupMeanwhileBox (the OK and Skip box of a scene seen before, 2026-11-09).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { ArRng, AutoresolveState } from './autoresolve/state.ts';
@@ -44,6 +45,7 @@ export const PromptKind = {
   NPC_REQUEST: 'npcRequest',
   MILITIA_PAYMENT: 'militiaPayment',
   MILITIA_CONTINUE: 'militiaContinue',
+  MEANWHILE: 'meanwhile',
 } as const;
 export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
 
@@ -59,6 +61,7 @@ export type BattlePrompt =
   | { readonly id: string; readonly kind: typeof PromptKind.SIMULTANEOUS_ARRIVAL }
   | { readonly id: string; readonly kind: typeof PromptKind.NPC_OF_NOTE }
   | { readonly id: string; readonly kind: typeof PromptKind.SOMEONE_ELSE_IN_SECTOR }
+  | { readonly id: string; readonly kind: typeof PromptKind.MEANWHILE }
   | { readonly id: string; readonly kind: typeof PromptKind.CONTRACT_RENEWAL; readonly soldier: number; readonly fromSequence: boolean }
   | {
       readonly id: string;

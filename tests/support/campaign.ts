@@ -132,12 +132,15 @@ export function testCampaignAdapter(kit: CampaignKit, options: CampaignOptions):
   return {
     drainBeforeReload: () => true,
     snapshot: (c) => snapshotCampaign(c, content),
-    restore: (snapshot) =>
-      restoreCampaign(snapshot, {
+    restore: (snapshot, previous) => {
+      const restored = restoreCampaign(snapshot, {
         content,
         world,
         assemble: (state, tactical) => assembleTestCampaign(kit, options, state, 'restore', tactical).campaign,
-      }),
+      });
+      restored.meanwhile.useInstallation(previous.meanwhile.installation);
+      return restored;
+    },
   };
 }
 
