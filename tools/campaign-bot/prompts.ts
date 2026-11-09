@@ -3,6 +3,9 @@ import { autoBandage, autoBandageQuestion, finishAutoBandage } from './auto-band
 import type { Observation } from './mcp-game.ts';
 import type { Player } from './player.ts';
 
+const SCENE_TICKS = 20_000;
+const INTERROGATION_SCENE = 'interrogation';
+
 export interface PromptPolicy {
   preBattle(prompt: Extract<PromptView, { kind: 'preBattle' }>): readonly string[];
   npcRequest(prompt: NpcRequestPromptView): readonly string[];
@@ -105,5 +108,16 @@ export async function answerPrompts(p: Player, view: Observation): Promise<boole
     await p.advance({ idle: true });
     return true;
   }
+  if (view.strategic?.flow === 'meanwhile') {
+    await playTheScene(p, view);
+    return true;
+  }
   return false;
+}
+
+async function playTheScene(p: Player, view: Observation): Promise<void> {
+  const report = await p.advance({ idle: true, ticks: SCENE_TICKS });
+  if (report.events.some((e) => e.type === 'meanwhileEnded') || view.meanwhile?.scene === INTERROGATION_SCENE) return;
+  const ended = await p.act({ type: 'endMeanwhile' });
+  if (ended.ok) p.log(`  ended the stalled ${view.meanwhile?.scene ?? 'meanwhile'} scene`);
 }

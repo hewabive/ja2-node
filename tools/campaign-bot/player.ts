@@ -28,7 +28,7 @@ const KEPT_EVENTS: ReadonlySet<string> = new Set([
   'battleResult',
   'queenKilled',
   'campaignWon',
-  'meanwhile',
+  'meanwhileEnded',
   'mercHired',
   'mercArrived',
   'shipmentDelivered',
