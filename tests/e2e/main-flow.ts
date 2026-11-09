@@ -72,6 +72,17 @@ async function tacticalReady(page: Page): Promise<void> {
   await nextFrames(page, 4);
 }
 
+async function showLanding(page: Page, landed: readonly SoldierView[]): Promise<void> {
+  const tiles = landed.map((s): readonly [number, number] => [s.id, s.gridNo]);
+  await page.waitForFunction((wanted) => {
+    window.__ja2Ui.skipPlayback();
+    const t = window.__ja2Ui.tactical;
+    const shown = t?.soldiers() ?? [];
+    return t?.uiLock !== 'helicopterDrop' && wanted.every(([id, gridNo]) => shown.some((s) => s.id === id && s.gridNo === gridNo));
+  }, tiles);
+  await showLatest(page);
+}
+
 async function mapReady(page: Page): Promise<void> {
   await waitWhileLoading(page, () => window.__ja2Ui.screen === 'map' && window.__ja2Ui.map?.ready === true);
   await modalIs(page, null);
@@ -238,12 +249,13 @@ export class MainFlow {
     await clickWidget(page, 'compressMore');
     await tacticalReady(page);
     await this.game.advance(this.session, { idle: true });
-    await showLatest(page);
+    const view = await this.game.observe(this.session);
+    const landed = view.soldiers.filter((s) => s.team === OUR_TEAM);
+    await showLanding(page, landed);
     await waitWhileLoading(page, () => (window.__ja2Ui.tactical?.drawnSoldiers ?? 0) > 0);
     await tacticalReady(page);
-    const view = await this.game.observe(this.session);
     expect(view.strategic?.flow).toBe('tactical');
-    expect(view.soldiers.filter((s) => s.team === OUR_TEAM).length).toBeGreaterThan(0);
+    expect(landed.length).toBeGreaterThan(0);
   }
 
   async ourMerc(): Promise<{ readonly id: number; readonly gridNo: number }> {
