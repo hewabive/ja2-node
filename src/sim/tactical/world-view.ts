@@ -48,7 +48,13 @@ export interface BloodPoolView {
   readonly creature?: boolean;
 }
 
-export type TileChangeKind = 'remove' | 'add' | 'swap' | 'append' | 'object';
+export type TileChangeKind = 'remove' | 'add' | 'swap' | 'append' | 'object' | 'appendObject';
+
+const OBJECT_LAYER_CHANGES: ReadonlySet<TileChangeKind> = new Set(['object', 'appendObject']);
+
+export function changesObjectLayer(c: { readonly kind: TileChangeKind }): boolean {
+  return OBJECT_LAYER_CHANGES.has(c.kind);
+}
 
 export interface TileChangeView {
   readonly kind: TileChangeKind;

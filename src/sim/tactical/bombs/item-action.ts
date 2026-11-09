@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Explosion_Control.cc PerformItemAction (every action but the pits),
+// @src src/game/TileEngine/Explosion_Control.cc PerformItemAction (the pits 2026-11-09),
 // @src ToggleActionItemsByFrequency, TogglePressureActionItemsInGridNo.
 
 import { has, StructureFlags } from '../../../content/world/structures.ts';
@@ -23,6 +23,7 @@ import {
   ItemAction,
   toggleDisabledBomb,
 } from './bomb-object.ts';
+import { LARGE_PIT, openPit, SMALL_PIT } from './pits.ts';
 import { worldBombItems } from './world-bombs.ts';
 
 type DoorChange = 'open' | 'close' | 'toggle';
@@ -86,6 +87,12 @@ export function performItemAction(t: TacticalState, gridNo: number, o: ItemObjec
       return false;
     case ItemAction.UNTRAP_DOOR:
       disarmDoorTrap(t, gridNo);
+      return false;
+    case ItemAction.SMALL_PIT:
+      openPit(t, gridNo, SMALL_PIT);
+      return false;
+    case ItemAction.LARGE_PIT:
+      openPit(t, gridNo, LARGE_PIT);
       return false;
     case ItemAction.TOGGLE_PRESSURE_ITEMS:
       togglePressureActionItemsInGridNo(t, gridNo);

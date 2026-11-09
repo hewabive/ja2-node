@@ -36,6 +36,7 @@ import {
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { DoorStatus, PathEnv, PathWorld } from '../../sim/tactical/pathfinding.ts';
 import type { TacticalState } from '../../sim/tactical/state.ts';
+import { changesObjectLayer } from '../../sim/tactical/world-view.ts';
 
 const SHADE_MAX = 1;
 const SHADE_MIN = 15;
@@ -118,7 +119,7 @@ function changedBase(structures: WorldStructures, c: TileChangeView, def: Struct
 
 function applyStructureChange(world: TacticalWorld, structures: WorldStructures, c: TileChangeView): boolean {
   const te = world.tiles[c.tile];
-  if (!te?.structure || c.kind === 'object') return false;
+  if (!te?.structure || changesObjectLayer(c)) return false;
   if (c.kind !== 'remove') return structures.add(c.gridNo, c.level, te.structure, undefined, te.structureFile) !== null;
   const base = changedBase(structures, c, te.structure);
   if (base) structures.remove(base);

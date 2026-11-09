@@ -93,6 +93,7 @@ import {
 } from './auto-bandage.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
 import { answerPlaceBlueFlag, mineSpottedDialogueCallBack } from './bombs/mine-detection.ts';
+import { pitOpcode } from './bombs/pits.ts';
 import {
   answerBombMessageBox,
   bombOpcode,
@@ -485,6 +486,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       pullTriggerOpcode(state, s, code) ??
       crowOpcode(state, s, code) ??
       helicopterLandingOpcode(state, s, code) ??
+      pitOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
     crowsFlyAway,

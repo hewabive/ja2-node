@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { buildStubAnimationScripts } from '../../stubs/anim-scripts.ts';
 import { FakeGraph, pcmWav, settle } from '../../tests/support/fake-audio.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, type AnimationTables, parseAnimationTables, stateId } from '../content/anim/tables.ts';
-import type { Cue } from '../content/audio/cue.ts';
+import { type Cue, VolumeLevel } from '../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../content/audio/cue-book.ts';
 import { heardSoundTile } from '../content/audio/heard-place.ts';
 import { balanceGains, Pan, scaleVolume } from '../content/audio/sound-position.ts';
@@ -360,6 +360,14 @@ describe('the sound director', () => {
     expect(whistle?.active).toBe(true);
     r.director.applyFrames([frame(20, [], [{ type: 'mortarWhistle', tick: 19, sounding: false }])]);
     expect(whistle?.active).toBe(false);
+  });
+
+  it('plays the cave collapse at an opened pit, at high volume', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    r.director.applyFrames([frame(10, [], [{ type: 'pitOpened', tick: 9, gridNo: G }])]);
+    expect(files(r)).toEqual([book.paths.get('CAVE_COLLAPSE')]);
+    expect(r.cues[0]).toMatchObject({ mix: 'location', gridNo: G, baseVolume: VolumeLevel.HIGH, loops: 1 });
   });
 
   it('plays the rocket rifle ID sounds, unplaced at high volume: one when it is imprinted, one when it is denied', () => {

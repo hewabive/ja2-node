@@ -3,7 +3,8 @@
 // @src src/game/Strategic/StrategicMap.cc SoldierOKForSectorExit, PickGridNoNearestEdge, AdjustSoldierPathToGoOffEdge,
 // @src PickGridNoToWalkIn, SetupTacticalTraversalInformation (mirror gridno);
 // @src TileEngine/Exit_Grids.cc FindGridNoFromSweetSpotCloseToExitGrid; Tactical/Overhead.cc
-// @src SetActionToDoOnceMercsGetToLocation, ExecuteOverhead (wait actions and the 2500 ms timer).
+// @src SetActionToDoOnceMercsGetToLocation, ExecuteOverhead (wait actions and the 2500 ms timer); Exit_Grids.cc
+// @src GetExitGrid and AddExitGridToWorld (an exit grid added on the map replaces the map's own, 2026-11-09).
 
 import {
   CELL_X_SIZE,
@@ -55,7 +56,7 @@ export function exitGridAt(
   g: number,
 ): { readonly gridNo: number; readonly sector: { x: number; y: number; z: number } } | null {
   if (!t.world.exitGrids.has(g)) return null;
-  const e = sectorMapOf(t).exitGrids.find((x) => x.mapIndex === g) ?? t.addedExitGrids.find((x) => x.mapIndex === g);
+  const e = t.addedExitGrids.find((x) => x.mapIndex === g) ?? sectorMapOf(t).exitGrids.find((x) => x.mapIndex === g);
   return e ? { gridNo: e.gridNo, sector: { ...e.sector } } : null;
 }
 

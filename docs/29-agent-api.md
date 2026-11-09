@@ -347,7 +347,8 @@ reinforcements repaired, `18`; `swap` in place of the tile removed just before i
 such as a broken window; `append` at its tail, for a tile the original adds with `AddStructToTail`: the rebel hideout's
 trapdoor and crate, a SAM terminal repaired while its sector was not loaded, the structures earlier stays added, which a
 sector entry and a native import add again, most wall end pieces; `object` at the head of the tile's object layer: a
-destroyed structure's debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
+destroyed structure's debris, `12`; `appendObject` at its tail: the hole of an opened pit, which the stay keeps and the
+next entry drops, `12` §6), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
 draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
 took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `knownMines` lists the tiles our side
 knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our mercs planted), which the
@@ -515,6 +516,12 @@ an enemy carrying one does the same for us. A `pickUp` or search on a tile in `k
 which digs the bomb up into his pockets, or onto the ground when they are full (a switch comes up as a remote bomb
 trigger, another action item as a detonator), and takes the blue flag off (`trapDisarmed`), or sets off every bomb of
 the tile (`trapSetOff` with CURSE1) but those our mercs planted, which stay under their flag; `no` asks `removeBlueFlag`.
+
+An armed pit action item our merc steps on opens a pit around its tile (`pitOpened {gridNo}`, the cave collapse
+sound): its hole in `tileChanges`, exit grids down to the sector below on its tiles, which paths then avoid, and every
+soldier standing on it with a body that has the fall animation, of any team, falls through and leaves the map
+(`fellIntoPit {soldier, gridNo}` for those the squad sees). A merc of ours goes to the sector below on a squad of his
+own, to come in at the pit's tile (`12` §6). The original maps hold no pit, and a map's pit loads unarmed.
 
 `plantBomb {soldier, gridNo}` is the bomb cursor's click (`HandleItem`, `Handle_Items.cc:758`): it takes a mine, trip
 flare or trip klaxon in hand, or an explosive with a detonator or remote detonator attached, walks onto the tile (his own

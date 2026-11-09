@@ -7,7 +7,8 @@
 // @src IndexExistsInStructLayer (the replayed tile records, over the structure layer the landed helicopter's pieces are
 // @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer; Structure.cc InternalSwapStructureForPartner
 // @src (a partner swap keeps its node's place, 2026-11-04); the door removal of
-// @src LoadAllMapChangesFromMapTempFileAndApplyThem with WorldMan.cc RemoveAllStructsOfTypeRange (2026-11-04).
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem with WorldMan.cc RemoveAllStructsOfTypeRange (2026-11-04);
+// @src WorldMan.cc AddObjectToTail, which writes nothing to the temp file (2026-11-09).
 
 import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
@@ -28,6 +29,7 @@ export const MapChangeKind = {
   APPEND_STRUCT_TILE: 'appendStructTile',
   REMOVE_STRUCT_TILE: 'removeStructTile',
   ADD_OBJECT: 'addObject',
+  APPEND_OBJECT: 'appendObject',
 } as const;
 export type MapChangeKind = (typeof MapChangeKind)[keyof typeof MapChangeKind];
 export type StructTileChangeKind = typeof MapChangeKind.APPEND_STRUCT_TILE | typeof MapChangeKind.REMOVE_STRUCT_TILE;
@@ -218,6 +220,7 @@ export class StructLayerReplay {
 
   edits(c: MapChange): readonly StructLayerEdit[] {
     if (c.kind === MapChangeKind.ADD_OBJECT) return c.tile === undefined ? NO_EDITS : [{ kind: 'object', tile: c.tile }];
+    if (c.kind === MapChangeKind.APPEND_OBJECT) return c.tile === undefined ? NO_EDITS : [{ kind: 'appendObject', tile: c.tile }];
     if (c.kind === MapChangeKind.APPEND_STRUCT_TILE) return this.#appendTile(c);
     if (c.kind === MapChangeKind.REMOVE_STRUCT_TILE) return this.#removeTile(c);
     if (c.kind === MapChangeKind.ADD) return this.#addStructure(c);
@@ -314,14 +317,21 @@ export function structLayerAt(t: TacticalState, gridNo: number): readonly number
 }
 
 export function objectLayerAt(t: TacticalState, gridNo: number): readonly number[] {
-  const added = t.mapChanges.flatMap((c) =>
-    c.kind === MapChangeKind.ADD_OBJECT && c.gridNo === gridNo && c.tile !== undefined ? [c.tile] : [],
-  );
-  return [...added.reverse(), ...levelTilesAt(t.world.level.layers.objects, gridNo)];
+  const layer = [...levelTilesAt(t.world.level.layers.objects, gridNo)];
+  for (const c of t.mapChanges) {
+    if (c.gridNo !== gridNo || c.tile === undefined) continue;
+    if (c.kind === MapChangeKind.ADD_OBJECT) layer.unshift(c.tile);
+    else if (c.kind === MapChangeKind.APPEND_OBJECT) layer.push(c.tile);
+  }
+  return layer;
 }
 
 export function addObjectToHead(t: TacticalState, gridNo: number, tile: number): void {
   t.mapChanges.push(objectChange(gridNo, tile));
+}
+
+export function addObjectToTail(t: TacticalState, gridNo: number, tile: number): void {
+  t.mapChanges.push({ ...objectChange(gridNo, tile), kind: MapChangeKind.APPEND_OBJECT, liveOnly: true });
 }
 
 export function levelNodeTile(t: TacticalState, base: StructureInstance): number | null {
@@ -379,7 +389,7 @@ export function addStructTileToHead(t: TacticalState, gridNo: number, tile: numb
 }
 
 function applyMapChange(t: TacticalState, c: MapChange): void {
-  if (c.kind === MapChangeKind.ADD_OBJECT) return;
+  if (c.kind === MapChangeKind.ADD_OBJECT || c.kind === MapChangeKind.APPEND_OBJECT) return;
   if (c.kind === MapChangeKind.ADD_EXIT_GRID) {
     if (c.exitGrid) addExitGridToWorld(t, c.exitGrid);
     return;

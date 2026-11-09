@@ -223,7 +223,13 @@ import {
   sectorKey,
   visibleItemCount,
 } from './sector-diff.ts';
-import { type AdjacentJump, allMercsHaveWalkedOffSector, allMercsWalkedToExitGrid, exitSectorCommand } from './sector-exits.ts';
+import {
+  type AdjacentJump,
+  allMercsHaveWalkedOffSector,
+  allMercsWalkedToExitGrid,
+  exitSectorCommand,
+  mercFellIntoPit,
+} from './sector-exits.ts';
 import { addCorpsesToBloodcatLair } from './sector-loot.ts';
 import { lookForSomeoneElseInSectorLater } from './someone-else-in-sector.ts';
 import { campaignTurnHooks, installCampaignPorts } from './turn-world.ts';
@@ -680,6 +686,7 @@ export class SectorFlow {
       soldierTakingDamage: (_t, hurt) => this.#soldierTakingDamage(hurt),
       addPendingEnemies: () => this.addPossiblePendingEnemiesToBattle(),
       soldierLeftMap: (_t, gone) => this.#soldierLeftMap(gone),
+      soldierFellIntoPit: (_t, fallen, below) => mercFellIntoPit(this, fallen, below),
       mercsWaitOver: (_t, code) => {
         this.#pendingWait = code;
       },

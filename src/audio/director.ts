@@ -38,7 +38,8 @@
 // @src SetPositionSndsInActive, which silences the position sounds off the game screen, 2026-11-06); Overhead.cc
 // @src HandlePlayerServices (the CURSE1 of a medic out of bandages, none in auto-bandage, 2026-11-06); Merc_Entering.cc
 // @src StartHelicopterRun and HandleHeliDrop (HELI_1 through a run of the helicopter drop at the view's engine volume,
-// @src silent off the game screen, 2026-11-08).
+// @src silent off the game screen, 2026-11-08); TileEngine/Pits.cc SearchForOtherMembersWithinPitRadiusAndMakeThemFall
+// @src (CAVE_COLLAPSE at the pit, HIGHVOLUME, 2026-11-09).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
@@ -701,6 +702,9 @@ export class SoundDirector {
         return;
       case 'corpseVaporized':
         this.#play(effectCue(book, 'BODY_EXPLODE_1', 'location', VolumeLevel.HIGH, e.gridNo));
+        return;
+      case 'pitOpened':
+        this.#play(effectCue(book, 'CAVE_COLLAPSE', 'location', VolumeLevel.HIGH, e.gridNo));
         return;
       case 'doorChanged':
         this.#door(e.gridNo, e.kind ?? 'wood', e.open, e.noisy ?? false);

@@ -121,7 +121,8 @@ scripts carry the original's codes in its order: `REFUEL_VEHICLE` passes the ref
 `GOTO_REPAIRMAN` goes on to `BEING_REPAIRMAN` after its release, and `VEHICLE_DIE` loops. A tank fires its cannon
 once in `TANK_SHOOT` and six rounds in `TANK_BURST`, between the attack busy codes, as the original's scripts do.
 `HOPFENCE` ends with its release, the end of the hop (code 444) and the end of the animation, in the original's order:
-a hop that ends the move changes stance at code 444, which a non-interruptible animation would refuse.
+a hop that ends the move changes stance at code 444, which a non-interruptible animation would refuse. `FALL_INTO_PIT`
+sinks with code 409 and ends with its release and the fall code 754, which takes the soldier off the map (`12` §6).
 
 **Vehicles.** The structure files `hmmv` (the Hummer, the Eldorado, the ice cream truck and the jeep) and `tnk_sht`,
 `tnk2_rot` (the two tanks) are own shapes (`STUB_VEHICLE_SHAPES`, `src/content/anim/structures.ts`): per facing, the
@@ -140,7 +141,7 @@ and put a tank on any loaded map with `addStubTank` (`tests/support/vehicles.ts`
 and share the camp map. Dave and his sale are not in the pack: a test that boards the car sets `FACT_OK_USE_HUMMER`
 itself.
 
-**Tile types.** The stub tileset fills grounds, a floor, two wall families (each with the end pieces at sub-indices 48
+**Tile types.** The stub tileset fills grounds (the water with the 34 sub-indices a pit lays, `12`), a floor, two wall families (each with the end pieces at sub-indices 48
 to 55 that a destroyed wall leaves its neighbours, `12`; the frames between are unused), roofs (flat climbable, slanted,
 high), barrels, doors, wooden and wire fences, low and high sandbags, a cliff with its lip, debris, the item graphics
 (every `tileGraphic` of the item tables), the effect tiles and the roof marker `FIRSTPOINTERS11` (the cursor pointers

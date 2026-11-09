@@ -28,6 +28,8 @@ const END_BURST = 449;
 const LOCATE_TARGET = 477;
 const BEGIN_HOP_FENCE = 450;
 const END_HOP_FENCE = 444;
+const MOVE_DOWN = 409;
+const FALL_INTO_PIT_CODE = 754;
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
   'CROUCH_SHOOT_UNJAM',
@@ -147,6 +149,17 @@ describe('stub animation scripts', () => {
     const start = stateId(tables, 'VEHICLE_DIE') * MAX_FRAMES_PER_ANIM;
     const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
     expect(script.slice(0, script.indexOf(0)).filter((c) => c > LAST_FRAME_CODE)).toEqual([JUMP_TO_START]);
+  });
+
+  it('sink into the pit with the move-down code 409 and end FALL_INTO_PIT with the release and the fall code 754, as the original script does', async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const { codes } = parseAnimationScripts(await buildStubAnimationScripts());
+    const start = stateId(tables, 'FALL_INTO_PIT') * MAX_FRAMES_PER_ANIM;
+    const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
+    const end = script.indexOf(0);
+    expect(script.slice(end - 2, end)).toEqual([NONINTERRUPTIBLE_DONE, FALL_INTO_PIT_CODE]);
+    expect(script.filter((c) => c === MOVE_DOWN).length).toBeGreaterThan(0);
   });
 
   it.each(['DEEP_WATER_TRED', 'QUEEN_READY'])('loop %s, as the original script does', async (state) => {

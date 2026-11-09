@@ -28,7 +28,7 @@ import { Opp } from '../tactical/perception/opp.ts';
 import { addMercStructure, removeMercStructure } from '../tactical/person-structure.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import { clearOccupants, createTacticalState, placeOccupant, registerSoldier, type TacticalState } from '../tactical/state.ts';
-import type { TileChangeView } from '../tactical/world-view.ts';
+import { changesObjectLayer, type TileChangeView } from '../tactical/world-view.ts';
 import { type GuardOptions, guardFields, UnsuppliedFieldError } from './guard.ts';
 import { worldItemFromView } from './objects.ts';
 import { soldierFromView } from './soldiers.ts';
@@ -111,7 +111,7 @@ function changedBase(t: TacticalState, c: TileChangeView, def: StructureDef): St
 
 function applyTileChange(t: TacticalState, c: TileChangeView): boolean {
   const te = t.world.tiles?.[c.tile];
-  if (!te?.structure || c.kind === 'object') return false;
+  if (!te?.structure || changesObjectLayer(c)) return false;
   if (c.kind !== 'remove') return t.world.structures.add(c.gridNo, c.level, te.structure, undefined, te.structureFile) !== null;
   const base = changedBase(t, c, te.structure);
   if (base) t.world.structures.remove(base);

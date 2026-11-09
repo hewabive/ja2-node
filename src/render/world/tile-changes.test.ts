@@ -77,6 +77,13 @@ describe('tile changes', () => {
     expect(tileChangesKey([{ kind: 'object', gridNo: 5, level: 0, tile: 7 }])).toBe('o5.0.7');
   });
 
+  it("puts a pit's texture at the tail of the tile's object layer, after the map's objects (WorldMan.cc AddObjectToTail)", () => {
+    const pit = tileIndex(tables, 'REGWATERTEXTURE5');
+    const opened = applyTileChanges(level(), [{ kind: 'appendObject', gridNo: AT, level: 0, tile: pit }]);
+    expect([...levelTilesAt(opened.layers.objects, AT)]).toEqual([DEBRIS, OLD_POOL, pit]);
+    expect(tileChangesKey([{ kind: 'appendObject', gridNo: 5, level: 0, tile: 7 }])).not.toBe('o5.0.7');
+  });
+
   it('returns the same level when nothing changed and keys a change list by its content', () => {
     const l = level();
     expect(applyTileChanges(l, [])).toBe(l);

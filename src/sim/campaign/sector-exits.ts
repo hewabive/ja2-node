@@ -6,7 +6,8 @@
 // @src DoneFadeOutAdjacentSector, AllMercsWalkedToExitGrid, DoneFadeOutExitGridSector (SetDefaultSquadOnSectorEntry after
 // @src an exit without a load, 2026-11-01);
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu,
-// @src InitSectorExitMenu, WarpToSurfaceCallback, DoneFadeOutWarpCallback (the warp out of a creature lair).
+// @src InitSectorExitMenu, WarpToSurfaceCallback, DoneFadeOutWarpCallback (the warp out of a creature lair);
+// @src TileEngine/Pits.cc HandleFallIntoPitFromAnimation (the merc's sector and squad, 2026-11-09).
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { Direction } from '../../content/world/grid.ts';
@@ -56,7 +57,7 @@ import {
   soldierOKForSectorExit,
 } from '../tactical/sector-exit.ts';
 import { NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
-import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
+import { type SectorRef, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { type RosterMerc, registeredInTactical } from './roster.ts';
 import type { SectorFlow } from './sector-flow.ts';
 
@@ -446,6 +447,14 @@ function leaveOnOwnSquad(flow: SectorFlow, selected: RosterMerc, jumpCode: numbe
   if (selected.isVehicle) return;
   if (jumpCode === JumpCode.SINGLE_NO_LOAD) handleSoldierLeavingSectorByThemSelf(flow.ctx, selected.id);
   else addCharacterToUniqueSquad(flow.ctx, selected.id);
+}
+
+export function mercFellIntoPit(flow: SectorFlow, s: Soldier, below: SectorRef): void {
+  const m = flow.setup.roster.get(s.id);
+  if (!m || m.soldier !== s) return;
+  m.insertionCode = InsertionCode.GRIDNO;
+  m.sector = { x: below.x, y: below.y, z: below.z };
+  handleSoldierLeavingSectorByThemSelf(flow.ctx, m.id);
 }
 
 function setLeavingGroupSector(flow: SectorFlow, group: Group, target: Sector): void {

@@ -230,6 +230,7 @@ export interface SectorHooks {
   soldierTakingDamage(t: TacticalState, s: Soldier): void;
   addPendingEnemies(t: TacticalState): void;
   soldierLeftMap(t: TacticalState, s: Soldier): void;
+  soldierFellIntoPit(t: TacticalState, s: Soldier, below: SectorRef): void;
   mercsWaitOver(t: TacticalState, code: number): void;
   mercDied(t: TacticalState, s: Soldier): void;
   mercDiedOffTheMap(t: TacticalState, s: Soldier): void;
@@ -261,6 +262,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   soldierTakingDamage: () => {},
   addPendingEnemies: () => {},
   soldierLeftMap: () => {},
+  soldierFellIntoPit: () => {},
   mercsWaitOver: () => {},
   mercDied: () => {},
   mercDiedOffTheMap: () => {},

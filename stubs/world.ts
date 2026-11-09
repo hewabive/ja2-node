@@ -69,6 +69,14 @@ function barrel(): StubFrame {
   return { raster: r, ox: 12, oy: -14 };
 }
 
+const PIT_FRAMES = 33;
+const PIT_SHADE = 3;
+const FIRST_PIT_SEED = 100;
+
+function pitFrames(): StubFrame[] {
+  return Array.from({ length: PIT_FRAMES }, (_, k) => groundTile('water', PIT_SHADE, FIRST_PIT_SEED + k));
+}
+
 function numbered(defs: readonly StructureDef[]): StructureDef[] {
   return defs.map((d, number) => ({ ...d, number }));
 }
@@ -100,7 +108,7 @@ const SURFACES: readonly StubSurface[] = [
   { type: 'FIRSTTEXTURE', sprite: { path: 'grass', frames: [groundTile('green', 7, 1), groundTile('green', 6, 2)] } },
   { type: 'SECONDTEXTURE', sprite: { path: 'dirt', frames: [groundTile('brown', 8, 3), groundTile('brown', 7, 4)] } },
   { type: 'THIRDTEXTURE', sprite: { path: 'road', frames: [groundTile('gray', 7, 5)] } },
-  { type: 'REGWATERTEXTURE', sprite: { path: 'water', frames: [groundTile('water', 7, 6)] } },
+  { type: 'REGWATERTEXTURE', sprite: { path: 'water', frames: [groundTile('water', 7, 6), ...pitFrames()] } },
   { type: 'FIRSTFLOOR', sprite: { path: 'floor', frames: [groundTile('khaki', 9, 7)] } },
   { type: 'FIRSTWALL', sprite: { path: 'wall', frames: WALLS.frames }, structures: WALLS.structures },
   { type: 'FIRSTROOF', sprite: { path: 'roof', frames: [groundTile('red', 6, 8)] } },

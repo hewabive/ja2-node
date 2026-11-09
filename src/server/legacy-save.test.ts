@@ -90,6 +90,7 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'TANK_BURST',
   'QUEEN_READY',
   'HELIDROP',
+  'FALL_INTO_PIT',
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set([
@@ -102,6 +103,9 @@ const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set([
 const WALL_FRAMES_AT_070: Readonly<Record<string, number>> = {
   'stubs/world/tilesets/0/wall': 2,
   'stubs/world/tilesets/0/stonewall': 6,
+};
+const GROUND_FRAMES_AT_070: Readonly<Record<string, number>> = {
+  'stubs/world/tilesets/0/water': 1,
 };
 const MANIFEST_FRAMES_START = '  "frames": [';
 const MANIFEST_FRAME_INDENT = '    {';
@@ -202,7 +206,7 @@ async function recordedWallStructures(vfs: Vfs, family: string, frames: number):
   return writeStructureFile({ structureCount: frames, structures });
 }
 
-async function recordedWallSprite(vfs: Vfs, family: string, frames: number): Promise<Uint8Array> {
+async function recordedSprite(vfs: Vfs, family: string, frames: number): Promise<Uint8Array> {
   const lines = new TextDecoder().decode(await vfs.read(`${family}.sprite.json`)).split('\n');
   const start = lines.indexOf(MANIFEST_FRAMES_START) + 1;
   const end = lines.findIndex((line, k) => k >= start && !line.startsWith(MANIFEST_FRAME_INDENT));
@@ -214,7 +218,15 @@ async function recordedWallFamilies(vfs: Vfs): Promise<[string, Uint8Array][]> {
   const files: [string, Uint8Array][] = [];
   for (const [family, frames] of Object.entries(WALL_FRAMES_AT_070)) {
     files.push([`${family}.jsd`, await recordedWallStructures(vfs, family, frames)]);
-    files.push([`${family}.sprite.json`, await recordedWallSprite(vfs, family, frames)]);
+    files.push([`${family}.sprite.json`, await recordedSprite(vfs, family, frames)]);
+  }
+  return files;
+}
+
+async function recordedGroundSprites(vfs: Vfs): Promise<[string, Uint8Array][]> {
+  const files: [string, Uint8Array][] = [];
+  for (const [family, frames] of Object.entries(GROUND_FRAMES_AT_070)) {
+    files.push([`${family}.sprite.json`, await recordedSprite(vfs, family, frames)]);
   }
   return files;
 }
@@ -294,6 +306,7 @@ async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<V
     [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
     [STUB_ANIMATION_SCRIPTS_PATH, await recordedStubScripts(vfs, tables)],
     ...(await recordedWallFamilies(vfs)),
+    ...(await recordedGroundSprites(vfs)),
   ]);
   const recordedTables = new MemoryLayer(PROJECT_DATA_LAYER, [
     [CORPSES_TABLE_PATH, await recordedCorpseTable(vfs)],

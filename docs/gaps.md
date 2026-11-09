@@ -12,12 +12,8 @@ start with `src/`, `data/` or `tools/`.
 
 ## 1. Tactical rules and AI
 
-The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map. Paths are under
-`src/sim/tactical/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Map items | The pit action items open a pit and drop the soldiers around into it (`PerformItemAction`, `TileEngine/Explosion_Control.cc:1671`; `Add3X3Pit`, `TileEngine/Pits.cc:24`) | Do nothing (`performItemAction`, `bombs/item-action.ts`) | No shipped map holds a pit (`12` §6) |
+The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map: none known. Paths are
+under `src/sim/tactical/`.
 
 ## 2. Strategic layer
 

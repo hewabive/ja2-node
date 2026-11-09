@@ -170,6 +170,9 @@ const ClimbOp = {
   DOWN: 456,
   DOWN_COMMIT: 475,
 } as const;
+const FALL_INTO_PIT_CODE = 754;
+const PIT_EDGE_FRAMES = 4;
+const PIT_SINK_FRAMES = 8;
 const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   PICKUP_ITEM: () => [
     ...frames(2),
@@ -258,6 +261,12 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   LOB_ITEM: (t) => [...frames(6), LOB_RELEASE, ...frames(7, 7), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'STANDING'))],
   FALLOFF: () => [...fallScript(ClimbOp.BACKWARD_FALL, 19, 25), ClimbOp.GROUND_HEIGHT, NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE],
   FALLFORWARD_ROOF: () => [...fallScript(ClimbOp.FORWARD_FALL, 23, 26), ClimbOp.GROUND_HEIGHT, NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE],
+  FALL_INTO_PIT: () => [
+    ...frames(PIT_EDGE_FRAMES),
+    ...interleave(ClimbOp.MOVE_DOWN, PIT_SINK_FRAMES, PIT_EDGE_FRAMES + 1),
+    NONINTERRUPTIBLE_DONE,
+    FALL_INTO_PIT_CODE,
+  ],
   SHOOT_ROCKET: () => [Op.BUSY_UP, ...frames(8), Op.OK_FIRE, Op.FIRE, ...frames(6, 9), Op.BUSY_DOWN, END_OF_ANIMATION],
   THROW_KNIFE: () => [
     Op.BUSY_UP,

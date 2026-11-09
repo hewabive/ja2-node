@@ -4,7 +4,8 @@
 // @src the partner delta); SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem (RemoveStruct, AddStructToHead,
 // @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue; Smell.cc UpdateBloodGraphics (the pool graphic replacing the
 // @src tile's first blood object at the head of its object layer); WorldMan.cc AddStructToTail (the landed helicopter),
-// @src AddObjectToHead (a destroyed structure's debris).
+// @src AddObjectToHead (a destroyed structure's debris), AddObjectToTail (the pits of Pits.cc Add3X3Pit, Add5X5Pit,
+// @src 2026-11-09).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
@@ -13,7 +14,7 @@ import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } fro
 import { idiv } from '../../core/int.ts';
 
 export interface TileChange {
-  readonly kind: 'remove' | 'add' | 'swap' | 'append' | 'object';
+  readonly kind: 'remove' | 'add' | 'swap' | 'append' | 'object' | 'appendObject';
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
@@ -108,6 +109,10 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
       objects.at(c.gridNo).unshift(c.tile);
       continue;
     }
+    if (c.kind === 'appendObject') {
+      objects.at(c.gridNo).push(c.tile);
+      continue;
+    }
     if (c.kind === 'remove') {
       lastRemoved = removeTile(edits, c);
       continue;
@@ -133,7 +138,14 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
   };
 }
 
-const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = { remove: 'r', add: 'a', swap: 's', append: 't', object: 'o' };
+const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = {
+  remove: 'r',
+  add: 'a',
+  swap: 's',
+  append: 't',
+  object: 'o',
+  appendObject: 'p',
+};
 
 export function tileChangesKey(changes: readonly TileChange[]): string {
   return changes.map((c) => `${KIND_KEYS[c.kind]}${c.gridNo}.${c.level}.${c.tile}`).join(',');

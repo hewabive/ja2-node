@@ -120,14 +120,16 @@ structure's armour. A structure is swapped for its damaged graphic or removed.
 **Wreckage is map changes.** A wrecked structure leaves debris in the object layer, swaps the fences beside it to their
 damaged graphic, takes the decals off its wall, replaces the walls beside it with end pieces, removes what hangs on it
 and drains the fountain (`wreckSurroundings`). Every such change is a `MapChange` (`map-changes.ts`): structure records
-where the change has a structure, tile records for the structure layer and the object layer (`addObject`) otherwise.
+where the change has a structure, tile records for the structure layer and the object layer (`addObject` at its head,
+`appendObject` at its tail) otherwise.
 A door's removal names the structure it had, open or closed, and its replay takes any door off the tile, as the
 original's removal of a door type does (`TileEngine/SaveLoadMap.cc:156`), so a door blown up open stays gone.
 The simulation keeps no tile layers: it reads a tile's structure and object layer as the map's tiles with the records
 replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the view's `tileChanges` carry to the client
-(`29`). A change the original makes outside `ApplyMapChangesToMapTempFile` (the decals) is `liveOnly`: it stays for
-the stay and in ja2-node saves but is left out of the sector diff (`sectorTempFileChanges`), so it is undone at the
-next entry as in the original; a native save never holds it (deviation "Wall decals after a load"). The end piece's
+(`29`). A change the original never writes to the temp file (the decals, made outside
+`ApplyMapChangesToMapTempFile`, and a pit's textures, §6) is `liveOnly`: it stays for the stay and in ja2-node saves but
+is left out of the sector diff (`sectorTempFileChanges`), so it is undone at the next entry as in the original; a native
+save never holds it (deviations "Wall decals after a load", "Pit tiles after a load"). The end piece's
 insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
 roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
@@ -310,6 +312,14 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   and their answer reads his hand item as the original's callback does.
 - The walk onto a tile to plant is a pending action of its own (`Soldier.pendingDropBomb`, `MERC_DROPBOMB`), with the
   tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
+- A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures are `liveOnly`, as `AddObjectToTail`
+  writes no temp file record (`TileEngine/WorldMan.cc:103`), its exit grids recorded ones, and an exit grid added on a
+  tile replaces the map's (`exitGridAt`, `TileEngine/Exit_Grids.cc:53`). The fall's code 754 takes the soldier off the
+  map; `SectorHooks.soldierFellIntoPit` gives the campaign the strategic half for a merc of the roster
+  (`mercFellIntoPit`, `src/sim/campaign/sector-exits.ts`), and the computer's soldiers only leave the map (deviation
+  "Pit falls of the computer's soldiers"). A map's pit loads unarmed (`loadWorldItemsFromMap`,
+  `Tactical/World_Items.cc:309`), so only a pit already armed in the bomb list opens, and no original map holds one.
+  The editor's pits (`AddAllPits`) are not ported.
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 
@@ -343,6 +353,9 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | A timed or remote bomb our merc planted is a booby trap of his trap level to our own mercs | `tactical/bombs/planting.test.ts` "leaves a booby trap of his own trap level …" |
 | A merc whose attacking hand is still his second hand gets the setting box at once, and the bomb lands on the clicked tile without a walk (the detonator box at the end of `HandleItem`) | `tactical/bombs/planting.test.ts` "asks for the setting at once and puts the bomb on the clicked tile …" |
 | The hand item roll comes before the remote's APs: a broken remote bomb trigger costs nothing | `tactical/bombs/planting.test.ts` "refuses a broken trigger before its APs …" |
+| A pit stays armed: every step on its centre opens it again and lays a second set of textures | `tactical/bombs/pits.test.ts` "opens again at every step on its centre …" |
+| A pit's hole is gone at the next entry while its exit grids stay: its textures never reach the temp file | `tactical/bombs/pits.test.ts` "loses its textures at the next entry …" |
+| A soldier whose body has no fall animation, a civilian's, stands on the opened pit with its tile in his pending action data | `tactical/bombs/pits.test.ts` "lets a civilian whose body has no fall animation stand …" |
 
 The oracle's bomb probes (`tools/oracle/README.md` "Bombs") check the map loads (bomb lists, mine flags, panic
 triggers), the set-offs by step, frequency and timer with the queue's times and draws, the action items on doors and
@@ -563,9 +576,10 @@ checked against the native build:
   (`Tactical/Turn_Based_Input.cc:2142`): by reading, the box drains every key event before its callback starts the
   mode (`MessageBoxScreen.cc:457-460`).
 
-Not ported: gaps "Map items" (the pits). Other deviations of this domain: "Object union", "Item cursor", "Key ring
+Deviations of this domain: "Object union", "Item cursor", "Key ring
 cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
 pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
-draws in explosions", "Wall decals after a load", "Drugs in the projection", "Mine locator", "Blue flag without a bomb",
+draws in explosions", "Wall decals after a load", "Pit tiles after a load", "Pit falls of the computer's soldiers",
+"Drugs in the projection", "Mine locator", "Blue flag without a bomb",
 "Auto-bandage statics", "AI first aid without a path", "Door on the way in auto-bandage", "Auto-bandage", "Pending
 auto-bandage and client screens", "Auto-bandage key in a talk".

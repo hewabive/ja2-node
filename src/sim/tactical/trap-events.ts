@@ -45,6 +45,17 @@ export interface BombFumbledEvent extends SimEventBase {
   readonly gridNo: number;
 }
 
+export interface PitOpenedEvent extends SimEventBase {
+  readonly type: 'pitOpened';
+  readonly gridNo: number;
+}
+
+export interface FellIntoPitEvent extends SimEventBase {
+  readonly type: 'fellIntoPit';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
 export type TrapEvent =
   | TrapSpottedEvent
   | TrapDisarmedEvent
@@ -52,4 +63,6 @@ export type TrapEvent =
   | SwitchActivatedEvent
   | MineLocatorEvent
   | BombPlantedEvent
-  | BombFumbledEvent;
+  | BombFumbledEvent
+  | PitOpenedEvent
+  | FellIntoPitEvent;
