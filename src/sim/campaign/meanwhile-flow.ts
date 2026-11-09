@@ -5,7 +5,8 @@
 // @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Tactical/Interface_Dialogue.cc NPC_ACTION_SHOOT_ELLIOT (Elliot's
 // @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map); the pending
 // @src auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears (2026-11-06), with the customizable timer
-// @src of a won battle's look for someone else (2026-11-07).
+// @src of a won battle's look for someone else (2026-11-07); StartMeanwhile, DoneFadeOutMeanwhile and
+// @src DoneFadeOutMeanwhileOnceDone (the round trip to P3_m and back, 2026-11-09).
 
 import { sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';
@@ -22,7 +23,7 @@ import {
   meanwhileSceneName,
   processImplicationsOfMeanwhile,
 } from '../strategic/ai/meanwhile.ts';
-import type { MeanwhileContext, MeanwhileNpcSave, MeanwhileSector } from '../strategic/ai/queen-state.ts';
+import type { MeanwhileContext, MeanwhileNpcSave, MeanwhileReturnTrip, MeanwhileSector } from '../strategic/ai/queen-state.ts';
 import { numberOfWholeTownsUnderControlExcluding, townOf } from '../strategic/economy/towns.ts';
 import { isThereAFunctionalSamSiteInSector, numberOfSamSitesUnderPlayerControl } from '../strategic/map/sam.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
@@ -38,6 +39,7 @@ import {
 import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { StoryEventWithoutTick } from './narrative/story-events.ts';
+import { leaveTacticalScreenForTheMap } from './screens.ts';
 import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
 const MEDUNA_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
@@ -201,7 +203,52 @@ export class MeanwhileFlow {
     m.inScene = false;
     this.#releasePause();
     this.restoreNpcMeanwhile();
-    this.#logScene(id, context, 'meanwhile');
+    const seq = this.#logScene(id, context);
+    this.#emit({
+      type: 'meanwhile',
+      seq,
+      scene: meanwhileSceneName(id),
+      sector: sectorShortString(sceneSector(id)),
+      at: c.state.clock.seconds,
+    });
+  }
+
+  goToThePalace(): boolean {
+    const m = this.#state;
+    const id = m.current.id;
+    this.#stopCompressionOnMap(false);
+    m.returnTrip = this.#returnTrip();
+    m.inScene = true;
+    const palace = sceneSector(id);
+    for (const profile of sceneNpcs(id)) this.setNpcMeanwhile(profile, palace);
+    return this.#campaign.sectors?.setCurrentWorldSector({ x: palace.x, y: palace.y, z: 0 }) ?? false;
+  }
+
+  #returnTrip(): MeanwhileReturnTrip {
+    const c = this.#campaign;
+    const s = c.state;
+    const world = c.tactical ? s.worldSector : null;
+    return {
+      sector: world ? { x: world.x, y: world.y, z: world.z } : null,
+      selectedSector: { ...s.map.selectedSector },
+      screen: s.flow === 'tactical' ? 'tactical' : 'strategic',
+    };
+  }
+
+  returnFromThePalace(): void {
+    const m = this.#state;
+    const trip = m.returnTrip;
+    m.returnTrip = null;
+    if (trip) this.#restoreTheOldWorld(trip);
+    this.restoreNpcMeanwhile();
+    if (trip?.screen === 'strategic') leaveTacticalScreenForTheMap(this.#campaign);
+  }
+
+  #restoreTheOldWorld(trip: MeanwhileReturnTrip): void {
+    const c = this.#campaign;
+    if (trip.sector) c.sectors?.setCurrentWorldSector(trip.sector);
+    else c.sectors?.trashWorld();
+    c.state.map.selectedSector = { ...trip.selectedSector };
   }
 
   #shootElliot(): void {
@@ -209,13 +256,9 @@ export class MeanwhileFlow {
     if (elliot) elliot.npcData = ELLIOT_MAX_SLAPS;
   }
 
-  #logScene(id: number, context: MeanwhileContext | null, kind: 'meanwhile' | 'interrogation'): number {
-    const s = this.#campaign.state;
+  #logScene(id: number, context: MeanwhileContext | null): number {
     const seq = this.#state.log.length + 1;
-    this.#state.log.push({ seq, id, at: s.clock.seconds, context });
-    const scene = meanwhileSceneName(id);
-    if (kind === 'meanwhile')
-      this.#emit({ type: 'meanwhile', seq, scene, sector: sectorShortString(sceneSector(id)), at: s.clock.seconds });
+    this.#state.log.push({ seq, id, at: this.#campaign.state.clock.seconds, context });
     return seq;
   }
 
@@ -254,8 +297,9 @@ export class MeanwhileFlow {
       c.talk.host.setEngaged(false);
     }
     this.#releasePause();
-    this.restoreNpcMeanwhile();
-    const seq = this.#logScene(id, null, 'interrogation');
+    if (id === Meanwhile.INTERROGATION) this.restoreNpcMeanwhile();
+    else this.returnFromThePalace();
+    const seq = this.#logScene(id, null);
     this.#emit({ type: 'meanwhileEnded', seq, scene: meanwhileSceneName(id) });
   }
 }

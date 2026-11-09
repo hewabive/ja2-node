@@ -38,7 +38,7 @@ What the client does not show or play yet; none of it changes an outcome. Paths 
 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
-| Meanwhile scene playback | OK plays the scene, Skip skips it, a played scene is marked seen (`Strategic/Meanwhile.cc:396`, `:535`) | The box only; OK and Skip both continue, nothing is marked seen (`ui/screens/story/story-layer.ts`) | No scene sandbox (`26`) |
+| Meanwhile scene playback | OK plays the scene, Skip skips it, a played scene is marked seen (`Strategic/Meanwhile.cc:396`, `:535`) | The box only; OK and Skip both continue, nothing is marked seen (`ui/screens/story/story-layer.ts`) | The round trip to P3_m and back is in place but unused (`sim/campaign/meanwhile-flow.ts`); the scene, Skip and the client remain (`26`) |
 
 ## 7. Code conventions
 

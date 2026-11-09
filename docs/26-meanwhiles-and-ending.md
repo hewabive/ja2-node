@@ -28,6 +28,7 @@ EVENT_MEANWHILE: repost while enemies are loaded,       strategic/ai/meanwhile.t
   else pause, lock, trying
   gates: no battle decision, dialogue idle              campaign/meanwhile-flow.ts (MeanwhileFlow.afterStep)
     a Meduna scene → resolved at once and logged        MeanwhileFlow → processImplicationsOfMeanwhile
+    the round trip to P3_m and back (not used yet)      MeanwhileFlow.goToThePalace, endMeanwhile → returnFromThePalace
     the interrogation → N7 loads, the Queen's record 0  MeanwhileFlow → campaign/sector-flow.ts
       rules while it runs                               tactical/narrative/meanwhile-rules.ts
       its actions, the lie prompt                       tactical/narrative/npc-actions/meanwhile.ts, requestors.ts
@@ -44,8 +45,8 @@ a queen dies                                            tactical/combat/death.ts
 | Module | Holds |
 |---|---|
 | `strategic/ai/meanwhile.ts` | Scheduling, the posting functions, the event, `areInMeanwhile`, the implications, scene names |
-| `strategic/ai/queen-state.ts` | `MeanwhileState`: flags, definitions, the current scene, `trying`, `inScene`, the NPC saves, the scene log |
-| `campaign/meanwhile-flow.ts` | `MeanwhileFlow`: the gates, a Meduna scene's resolution, the interrogation's start and end, the scene NPCs' moves, the record selectors' queries, the log |
+| `strategic/ai/queen-state.ts` | `MeanwhileState`: flags, definitions, the current scene, `trying`, `inScene`, the NPC saves, the return trip, the skip of the scene map's save, the scene log |
+| `campaign/meanwhile-flow.ts` | `MeanwhileFlow`: the gates, a Meduna scene's resolution, the round trip to P3_m, the interrogation's start and end, the scene NPCs' moves, the record selectors' queries, the log |
 | `tactical/narrative/meanwhile-rules.ts` | The tactical rules while a scene runs (hits, punches, Elliot, the slap check, the kept attacker) |
 | `tactical/narrative/npc-actions/meanwhile.ts`, `requestors.ts`; `campaign/narrative/meanwhile-actions.ts` | The scene and endgame NPC actions (`35`'s catalog dispatches them); the lie prompt and the liar; the campaign side: slaps, punches, Elliot's shot, the endgame states |
 | `campaign/merc-fate.ts` | The capture sequence and each captive (`19` calls it) |
@@ -71,6 +72,16 @@ stopped on the map, the implications), never the skipped variant's: the first vi
 flags are an installation setting, so "played" is what a campaign gets. The player's sector is not unloaded and
 reloaded; only the first-battle trash hook runs, even with no world loaded, because loading `P3_m` trashes one. A
 resolution makes no draws (deviations "Meanwhile scenes", "Meanwhile without sector reload").
+
+**The round trip is built for the playback, not used yet.** `goToThePalace` records where to come back to
+(`MeanwhileState.returnTrip`: the loaded sector or none, the selected sector, the screen), moves the scene NPCs and loads
+P3_m through `SectorFlow.setCurrentWorldSector`, so the player's sector is saved and left with its exit quest code, and
+the hall's load adds no enemies, skips the palace's civilian setup and sets no `ALREADY_VISITED`. `endMeanwhile` of a
+palace scene runs `returnFromThePalace`: the hall is left unsaved (`skipSectorSave`, the original's `gfWasInMeanwhile`),
+the old sector loads again, or the hall is trashed when none was loaded, the selected sector comes back, the NPCs are
+restored, and a scene started on the map enters the map again. Mercs come back on their tiles because every step sets
+their insertion to the tile, as the original's does; the insertion code lives on the soldier for that. Only tests drive
+the trip until the playback calls it (`src/server/palace-trip-stub.test.ts`).
 
 **The waiting window is kept.** `trying` spans the event to the gates, as `gfMeanwhileTryingToStart` does: while it
 is set, compression and saves are refused and the campaign is not idle, so a scene still waits for a battle decision,
@@ -143,6 +154,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | The scientist scene puts Madlab and the robot in sector (0, 0) when no alternate map was chosen | `strategic/ai/meanwhile.test.ts` |
 | A scene after the Queen's death wakes her AI again: nothing checks that she is dead | `strategic/ai/meanwhile.test.ts` |
 | A played scene clears the scene NPCs' profile insertion and truncates their profile gridno to `INT8`; on the map it stops compression and loses the mode | `campaign/meanwhile-flow.test.ts` |
+| The hall's load uses up the guide's description of P3: it sets the sector's guide flag and draws the countdown | `src/server/palace-trip-stub.test.ts` |
+| With no world loaded the way back trashes the hall without its exit quest code, and the skip of the hall's save lasts until the next load | `src/server/palace-trip-stub.test.ts` |
+| A load of P3 in the second a palace scene is due loads P3_m without enemies but with the palace's civilian setup: the enemies read `AreInMeanwhile`, the setup only a scene under way | `src/server/palace-trip-stub.test.ts` |
 | With Alma holding no enemies the first capture skips Alma silently and goes straight to the interrogation | `campaign/battle-scenario.test.ts` |
 | The liar is chosen by wisdom alone: the comparison adds the candidate's leadership on both sides | `tactical/narrative/npc-actions/requestors.test.ts` |
 | The creature queen's death begins only when somebody killed her, so a killer-less death after Deidranna's never ends the campaign | `tactical/combat/death.test.ts` |

@@ -4009,3 +4009,37 @@ describe("snapshot version 79 (a merc's insertion code in his record) migrates w
     await expectCodesOnSoldiers(session);
   });
 });
+
+function versionEighty(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { returnTrip, skipSectorSave, ...meanwhile } = object(strategic.meanwhile);
+    expect([returnTrip, skipSectorSave]).toEqual([null, false]);
+    return [name, { ...strategic, meanwhile }];
+  });
+  return { ...snapshot, version: 80, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 80 (a meanwhile without its round trip) migrates with no trip under way and the next sector save made, as no palace scene loaded P3_m then', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    const current = snapshotSession(campaign);
+    const legacy = versionEighty(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"skipSectorSave"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

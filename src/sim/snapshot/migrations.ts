@@ -2391,6 +2391,26 @@ function moveInsertionCodesOntoSoldiers(snapshot: Readonly<Record<string, unknow
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MEANWHILE_KEY = 'meanwhile';
+const NPC_SAVES_KEY = 'npcSaves';
+const RETURN_TRIP_KEY = 'returnTrip';
+const SKIP_SECTOR_SAVE_KEY = 'skipSectorSave';
+
+function withMeanwhileReturnTrip(strategic: JsonObject): JsonObject {
+  const meanwhile = strategic[MEANWHILE_KEY];
+  if (!isObject(meanwhile) || meanwhile[REF] !== undefined) return strategic;
+  const trip = insertAfter(meanwhile, NPC_SAVES_KEY, RETURN_TRIP_KEY, null);
+  return { ...strategic, [MEANWHILE_KEY]: insertAfter(trip, RETURN_TRIP_KEY, SKIP_SECTOR_SAVE_KEY, false) };
+}
+
+function addMeanwhileReturnTrip(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withMeanwhileReturnTrip(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2472,5 +2492,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     77: addPendingDoorStructureId,
     78: countPickupsInTheSlot,
     79: moveInsertionCodesOntoSoldiers,
+    80: addMeanwhileReturnTrip,
   };
 }

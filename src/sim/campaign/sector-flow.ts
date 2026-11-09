@@ -44,8 +44,9 @@
 // @src LoadCurrentSectorsInformationFromTempItemsFile and TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (a native save's map changes and revealed tiles of a sector at its
 // @src first entry, the flag reset when no record is written back, 2026-11-08); StrategicMap.cc GetMapFileName (the
-// @src palace's meanwhile map while AreInMeanwhile, 2026-11-09); UpdateMercInSector (the insertion code left on the soldier
-// @src for SetSoldierGridNo to rewrite, 2026-11-09).
+// @src palace's meanwhile map while AreInMeanwhile, 2026-11-09); PrepareLoadedSector (no enemies in a meanwhile load but the
+// @src interrogation's), Tactical_Save.cc gfWasInMeanwhile (the scene map never saved), UpdateMercInSector (the insertion
+// @src code left on the soldier for SetSoldierGridNo to rewrite, 2026-11-09).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-files.ts';
@@ -474,6 +475,8 @@ export class SectorFlow {
   #storySectors(): Sector[] {
     const found: Sector[] = [];
     if (this.#interrogationMayLoad()) found.push({ x: INTERROGATION_SECTOR.x, y: INTERROGATION_SECTOR.y, z: 0 });
+    const back = this.campaign.state.meanwhile.returnTrip?.sector;
+    if (back) found.push({ ...back });
     const world = this.world;
     if (world && world.x === PALACE.x && world.y === PALACE.y) found.push({ ...PALACE }, { ...PALACE, z: 1 });
     if (world && world.x === STATUE_SECTOR.x && world.y === STATUE_SECTOR.y) found.push({ ...STATUE_SECTOR, z: 1 });
@@ -808,7 +811,9 @@ export class SectorFlow {
     if (!t) return;
     const s = this.campaign.state;
     const now = this.nowMinutes();
+    s.meanwhile.skipSectorSave = false;
     if (this.#inMeanwhile()) {
+      s.meanwhile.skipSectorSave = !this.#interrogationScene();
       if (diff && this.#interrogationScene()) this.#loadItemDiff(sector, diff);
       t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
       return;
@@ -957,7 +962,7 @@ export class SectorFlow {
     this.prepareMilitiaForTactical();
     t.turn.virginSector = true;
     addProfilesNotUsingProfileInsertionData(t, env, this.#profileInsertionHooks());
-    this.prepareEnemyForSectorBattle();
+    if (this.#enemiesJoinTheLoad()) this.prepareEnemyForSectorBattle();
     addProfilesUsingProfileInsertionData(t, world, env, this.#profileInsertionHooks());
     this.postSchedulesOfLoadedSector(t, false);
     this.#callAvailableTeamEnemiesToAmbush(t);
@@ -965,6 +970,10 @@ export class SectorFlow {
     this.campaign.state.encounter.battleGroup = null;
     if (this.campaign.state.movement.tacticalTraversal.active && this.economy) calculateNonPersistentPbiInfo(this.economy);
     sim.lookAround();
+  }
+
+  #enemiesJoinTheLoad(): boolean {
+    return !this.#inMeanwhile() || this.#interrogationScene();
   }
 
   #civiliansInSector(world: SectorPosition): boolean {
@@ -1335,10 +1344,14 @@ export class SectorFlow {
   }
 
   saveCurrentSectorsInformation(): void {
+    const s = this.campaign.state;
+    if (s.meanwhile.skipSectorSave) {
+      s.meanwhile.skipSectorSave = false;
+      return;
+    }
     const t = this.campaign.tactical?.state;
     const world = this.world;
     if (!t || !world) return;
-    const s = this.campaign.state;
     const map = s.map;
     const day = worldDay(s.clock);
     const key = sectorKey(world);

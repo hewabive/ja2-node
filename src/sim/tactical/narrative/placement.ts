@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Init_List.cc AddPlacementToWorld (the profile filter, the ice-cream truck test and the
-// @src civilian quest overrides for Kingpin's men, the Queen's palace, Tixa and the freed kids).
+// @src civilian quest overrides for Kingpin's men, the Queen's palace, Tixa and the freed kids; the palace's skipped on
+// @src gfInMeanwhile, not AreInMeanwhile, 2026-11-09).
 
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { SectorPosition } from '../../strategic/state.ts';
@@ -43,7 +44,7 @@ export interface PlacementNarrative {
   questStatus(quest: number): number;
   checkFact(id: number, profile: number): boolean;
   rawFact(id: number): number;
-  inMeanwhile(): boolean;
+  inMeanwhileScene(): boolean;
   useAlternateQueenPosition(): boolean;
   sectorEnemyControlled(sector: SectorPosition): boolean;
   random(n: number): number;
@@ -110,7 +111,7 @@ function isKid(body: number): boolean {
 export function civilianPlacementOverride(n: PlacementNarrative, pp: SoldierCreate): number {
   const world = n.world;
   if (same(world, KINGPIN_SECTOR)) return kingpinOverride(n, pp);
-  if (same(world, QUEEN_SECTOR) && !n.inMeanwhile()) return queenPalaceOverride(n, pp);
+  if (same(world, QUEEN_SECTOR) && !n.inMeanwhileScene()) return queenPalaceOverride(n, pp);
   if (same(world, TIXA_SECTOR)) {
     const liberated = !n.sectorEnemyControlled(TIXA_SECTOR);
     return liberated && pp.profile === NO_PROFILE && !isKid(pp.bodyType) ? PlacementVerdict.SKIP : PlacementVerdict.CREATE;

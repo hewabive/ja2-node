@@ -721,7 +721,7 @@ export class NarrativeFlow {
       questStatus: (quest) => questStatus(s.narrative, quest),
       checkFact: (id, profile) => this.checkFact(id, profile),
       rawFact: (id) => factValue(s.narrative, id),
-      inMeanwhile: () => this.campaign.strategic?.world.inMeanwhile() ?? false,
+      inMeanwhileScene: () => s.meanwhile.inScene,
       useAlternateQueenPosition: () => s.queen.useAlternateQueenPosition,
       sectorEnemyControlled: (sector) => s.map.elements[strategicIndex(sector)]?.enemyControlled ?? true,
       random: (n) => s.rng.int(n),

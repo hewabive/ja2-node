@@ -44,7 +44,7 @@ function narrative(o: {
     questStatus: (q) => o.quests?.[q] ?? 0,
     checkFact: (id) => (o.facts?.[id] ?? 0) !== 0,
     rawFact: (id) => o.facts?.[id] ?? 0,
-    inMeanwhile: () => false,
+    inMeanwhileScene: () => false,
     useAlternateQueenPosition: () => o.alternateQueen ?? false,
     sectorEnemyControlled: () => o.enemyControlled ?? true,
     random: (k) => rolls.int(k),

@@ -10,7 +10,8 @@
 // @src CheckForDisabledRegionRemove, 2026-11-03); Map_Screen_Interface_Bottom.cc HandleExitsFromMapScreen (the
 // @src SyncStrategicTurnTimes of MAP_EXIT_TO_TACTICAL's SetCurrentWorldSector), Strategic_Turns.cc guiLastTacticalRealTime
 // @src on the JA2 clock that never goes back (2026-11-05); Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (the
-// @src checks of MAP_EXIT_TO_TACTICAL, 2026-11-06).
+// @src checks of MAP_EXIT_TO_TACTICAL, 2026-11-06); Meanwhile.cc DoneFadeOutMeanwhileOnceDone (InternalLeaveTacticalScreen to the map
+// @src with no world loaded, 2026-11-09).
 
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -58,6 +59,10 @@ export function openMapScreen(campaign: CampaignSim, abandonFight = false): Comm
 
 export function leaveTacticalScreen(campaign: CampaignSim): void {
   if (campaign.state.flow !== 'tactical') return;
+  leaveTacticalScreenForTheMap(campaign);
+}
+
+export function leaveTacticalScreenForTheMap(campaign: CampaignSim): void {
   setAutoBandagePending(campaign.state.sectorFlow.autoBandage, false);
   const battle = campaign.state.battle;
   battle.lostBattleUnloadAtMs = null;

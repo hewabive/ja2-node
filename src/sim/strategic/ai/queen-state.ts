@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.h ARMY_COMPOSITION, PATROL_GROUP, GARRISON_GROUP; Strategic_AI.cc globals;
 // @src Strategic_Status.h STRATEGIC_STATUS; Meanwhile.cc uiMeanWhileFlags, ubCurrentMeanWhileId, gMeanwhileDef,
-// @src gCurrentMeanwhileDef, gfMeanwhileTryingToStart, gfInMeanwhile, gNPCSaveData.
+// @src gCurrentMeanwhileDef, gfMeanwhileTryingToStart, gfInMeanwhile, gNPCSaveData; gsOldSector, gsOldSelectedSector,
+// @src guiOldScreen, gfWorldWasLoaded and Tactical/Tactical_Save.cc gfWasInMeanwhile (the round trip, 2026-11-09).
 
 import type { ArmyCompositionTemplate, PatrolTemplate } from '../../../content/strategic/army.ts';
 
@@ -93,6 +94,14 @@ export interface MeanwhileNpcSave {
   readonly gridNo: number;
 }
 
+export type MeanwhileScreen = 'strategic' | 'tactical';
+
+export interface MeanwhileReturnTrip {
+  readonly sector: { readonly x: number; readonly y: number; readonly z: number } | null;
+  readonly selectedSector: { readonly x: number; readonly y: number; readonly z: number };
+  readonly screen: MeanwhileScreen;
+}
+
 export interface MeanwhileContext {
   readonly wholeTownsExceptOmerta: number;
   readonly samSitesControlled: number;
@@ -119,6 +128,8 @@ export interface MeanwhileState {
   trying: boolean;
   inScene: boolean;
   readonly npcSaves: MeanwhileNpcSave[];
+  returnTrip: MeanwhileReturnTrip | null;
+  skipSectorSave: boolean;
   readonly log: MeanwhileLogEntry[];
 }
 
@@ -180,6 +191,8 @@ export function createMeanwhileState(): MeanwhileState {
     trying: false,
     inScene: false,
     npcSaves: [],
+    returnTrip: null,
+    skipSectorSave: false,
     log: [],
   };
 }
