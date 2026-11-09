@@ -7,7 +7,7 @@ import { parseSectorString, type Sector } from '../src/content/strategic/sector-
 export const SECTOR_KINDS_FILE = join(import.meta.dirname, 'maps', 'sector-kinds.json');
 export const SECTOR_KINDS_FORMAT = 'ja2-node stub sector kinds v1';
 
-const SECTOR_NAME = /^([A-P]\d{1,2})(?:_b([1-3]))?(_a)?$/;
+const SECTOR_NAME = /^([A-P]\d{1,2})(?:_b([1-3]))?(_a)?(_m)?$/;
 const MAP_NAME = /^[a-z0-9_-]+$/;
 const MAP_SUFFIX = '.dat';
 
@@ -25,12 +25,13 @@ export interface SectorKindTable {
 
 export interface NamedSector extends Sector {
   readonly alternate: boolean;
+  readonly inMeanwhile: boolean;
 }
 
 export function parseSectorName(name: string): NamedSector {
   const m = SECTOR_NAME.exec(name);
   if (!m) throw new FormatError(`stub sector kinds: bad sector name ${name}`);
-  return { ...parseSectorString(m[1] ?? '', Number(m[2] ?? 0)), alternate: m[3] !== undefined };
+  return { ...parseSectorString(m[1] ?? '', Number(m[2] ?? 0)), alternate: m[3] !== undefined, inMeanwhile: m[4] !== undefined };
 }
 
 export function sectorMapFile(name: string): string {

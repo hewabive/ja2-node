@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapDef, parseMap } from '../src/content/formats/map.ts';
 import { parseDetailedPlacement } from '../src/content/formats/placement.ts';
+import { NPC_RECORD_PATHS, parseProfileInfo } from '../src/content/narrative/npc-records.ts';
+import { NARRATIVE_SCENES_PATH, parseNarrativeScenes } from '../src/content/narrative/scenes.ts';
 import { asArray, asInt, asObject, asString } from '../src/content/strategic/json-fields.ts';
 import { parseJsonc } from '../src/content/strategic/jsonc.ts';
 import { sectorShortString } from '../src/content/strategic/sector-ids.ts';
@@ -22,6 +24,9 @@ const TOWN_KINDS = ['town', 'prison', 'mine', 'sam', 'airport', 'palace'];
 const UNDERGROUND_KINDS = ['mine-level', 'lair', 'basement'];
 const LAIR_PARTS = ['QUEEN_LAIR', 'LAIR', 'LAIR_ENTRANCE'];
 const ALMA_CAPTIVE_GRIDNOS = [9208, 9688, 9215];
+const MEDUNA_SCENES = 16;
+const NO_CIV_GROUP = 0;
+const QUEENS_CIV_GROUP = 14;
 const CHOPPER_GRIDNO = 8842;
 
 async function externalized(file: string): Promise<readonly unknown[]> {
@@ -99,6 +104,7 @@ describe('the stub sector kinds table', () => {
     expect(() => parseSectorName('Q1')).toThrow(/bad sector name/);
     expect(() => parseSectorName('A1_b4')).toThrow(/bad sector name/);
     expect(sectorMapFile('D13_b1')).toBe('d13_b1.dat');
+    expect(parseSectorName('P3_m')).toEqual({ x: 3, y: 16, z: 0, alternate: false, inMeanwhile: true });
   });
 });
 
@@ -115,7 +121,7 @@ describe('the stub sector maps', () => {
     }
     for (const name of table.handMade.keys()) {
       const sector = parseSectorName(name);
-      expect(sectorMapPath(exists, sector, false)).toBe(`${STUB_MAPS_DIR}${sectorMapFile(name)}`);
+      expect(sectorMapPath(exists, sector, sector.alternate, sector.inMeanwhile)).toBe(`${STUB_MAPS_DIR}${sectorMapFile(name)}`);
     }
     expect(sectorMapPath(exists, parseSectorName('B9'), false)).toBe(STUB_FALLBACK_MAP);
     expect(sectorMapPath(exists, parseSectorName('B13'), true)).toBe(STUB_FALLBACK_MAP);
@@ -174,5 +180,33 @@ describe('the stub sector maps', () => {
     const dy = Math.trunc(g / WORLD_COLS) - Math.trunc(CHOPPER_GRIDNO / WORLD_COLS);
     expect(Math.hypot(dx, dy)).toBeLessThan(11);
     expect(sectorShortString(parseSectorName('B13'))).toBe('B13');
+  });
+
+  it('put the NPCs of every palace meanwhile in one hall of P3_m around the camera, beside a free civilian and two guards', async () => {
+    const hall = await stubMap(`${STUB_MAPS_DIR}${sectorMapFile('P3_m')}`);
+    const scenes = parseNarrativeScenes(parseJsonc(await readFile(join(PROJECT_DATA_DIR, NARRATIVE_SCENES_PATH), 'utf8'))).scenes;
+    const { ids } = parseProfileInfo(parseJsonc(await readFile(join(PROJECT_DATA_DIR, NPC_RECORD_PATHS.profileInfo), 'utf8')));
+    const palaceScenes = scenes.filter((s) => s.sector === sectorShortString(parseSectorName('P3_m')));
+    expect(palaceScenes).toHaveLength(MEDUNA_SCENES);
+    const roomOf = (npc: string) => {
+      const p = hall.placements.find((q) => q.detailedRaw && parseDetailedPlacement(q.detailedRaw).profile === ids.get(npc));
+      return p ? hall.rooms[p.basic.startingGridNo] : undefined;
+    };
+    const room = roomOf('QUEEN');
+    expect(room).toBeGreaterThan(0);
+    for (const scene of palaceScenes) {
+      expect(hall.rooms[scene.cameraGridNo], scene.name).toBe(room);
+      for (const npc of scene.npcs) expect(roomOf(npc), npc).toBe(room);
+    }
+    const civilians = hall.placements.filter((p) => p.basic.team === CIV_TEAM && hall.rooms[p.basic.startingGridNo] === room);
+    expect(civilians.map((p) => p.basic.civilianGroup).sort((a, b) => a - b)).toEqual([
+      NO_CIV_GROUP,
+      QUEENS_CIV_GROUP,
+      QUEENS_CIV_GROUP,
+      QUEENS_CIV_GROUP,
+      QUEENS_CIV_GROUP,
+    ]);
+    expect(hall.placements.filter((p) => p.basic.team === ENEMY_TEAM)).toHaveLength(2);
+    expect(hall.exitGrids).toEqual([]);
   });
 });

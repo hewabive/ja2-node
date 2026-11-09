@@ -773,6 +773,587 @@
   },
   "meanwhiles": [
     {
+      "file": "160.npc",
+      "note": "the stub Queen's first-battle scene (meanwhile 0)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 9,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 215
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "161.npc",
+      "note": "the stub Queen's town-liberation scene with the town count scene (meanwhile 1)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 29
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 7,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 11,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 8,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 13,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 11,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 9,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 11,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 10,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 11,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 11,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 16,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "162.npc",
+      "note": "the stub Queen's second town's scene (meanwhile 2)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 17,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "163.npc",
+      "note": "the stub Queen's barracks town's scene (meanwhile 3)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 20,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "164.npc",
+      "note": "the stub Queen's factory town's scene (meanwhile 4)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 21,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "165.npc",
+      "note": "the stub Queen's border town's scene (meanwhile 5)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 23,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 24,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "166.npc",
+      "note": "the stub Queen's missile-site scene with the site count scene (meanwhile 6)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 25,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 26,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 32
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 7,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 27,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 8,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 9,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 29,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "167.npc",
+      "note": "the stub Queen's second missile site's scene (meanwhile 7)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 31,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "168.npc",
+      "note": "the stub Queen's third missile site's scene (meanwhile 8)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 32,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 33,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "169.npc",
+      "note": "the stub Queen's flowers scene (meanwhile 9)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 34,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 35,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "170.npc",
+      "note": "the stub Queen's town-won-back scene (meanwhile 10)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 36,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 37,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
       "file": "171.npc",
       "note": "the stub Queen's interrogation (meanwhile 11)",
       "records": [
@@ -846,6 +1427,532 @@
       ]
     },
     {
+      "file": "172.npc",
+      "note": "the stub Queen's creatures scene (meanwhile 12)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 38,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 39,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 8,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 40,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "173.npc",
+      "note": "the stub Queen's helicopter scene (meanwhile 13)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 41,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 42,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "174.npc",
+      "note": "the stub Queen's missing-scientist scene (meanwhile 14)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 43,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 44,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "175.npc",
+      "note": "the stub Queen's outskirts scene (meanwhile 15)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 45,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "quoteNum": 46,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 38
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 47,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "176.npc",
+      "note": "the stub Queen's rich town's scene (meanwhile 16)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 11928,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11928,
+          "quoteNum": 48,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 0,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 12248,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 12248,
+          "actionData": {
+            "code": 28
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "DONE_SLAPPED",
+          "quoteNum": 49,
+          "numQuotes": 1,
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1,
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "180.npc",
+      "note": "the stub aide's first-battle lines (meanwhile 0)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 3,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 6,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 4,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 8,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 5,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "181.npc",
+      "note": "the stub aide's town-liberation scene with the town count lines (meanwhile 1)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 6,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "182.npc",
+      "note": "the stub aide's second town's lines (meanwhile 2)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 7,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "183.npc",
+      "note": "the stub aide's barracks town's lines (meanwhile 3)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "184.npc",
+      "note": "the stub aide's factory town's lines (meanwhile 4)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 9,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "185.npc",
+      "note": "the stub aide's border town's lines (meanwhile 5)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "186.npc",
+      "note": "the stub aide's missile-site scene with the site count lines (meanwhile 6)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "187.npc",
+      "note": "the stub aide's second missile site's lines (meanwhile 7)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "188.npc",
+      "note": "the stub aide's third missile site's lines (meanwhile 8)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 13,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "189.npc",
+      "note": "the stub aide's flowers lines (meanwhile 9)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "190.npc",
+      "note": "the stub aide's town-won-back lines (meanwhile 10)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
       "file": "191.npc",
       "note": "the stub aide's interrogation lines (meanwhile 11)",
       "records": [
@@ -868,6 +1975,141 @@
           "actionData": {
             "code": 223
           }
+        }
+      ]
+    },
+    {
+      "file": "192.npc",
+      "note": "the stub aide's creatures lines (meanwhile 12)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 16,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 17,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 224
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "193.npc",
+      "note": "the stub aide's helicopter lines (meanwhile 13)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "194.npc",
+      "note": "the stub aide's missing-scientist lines (meanwhile 14)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "195.npc",
+      "note": "the stub aide's outskirts lines (meanwhile 15)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 20,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 21,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "file": "196.npc",
+      "note": "the stub aide's rich town's lines (meanwhile 16)",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "triggerNPC": "QUEEN",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 170
+          },
+          "eraseOnceSaid": true
         }
       ]
     }

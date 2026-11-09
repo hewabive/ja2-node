@@ -69,7 +69,7 @@ Everything else must be own work, so that the dedication can cover it.
 
 | Area | Source | What it covers |
 |---|---|---|
-| Sector maps | `stubs/maps/*.map.txt`, compiled by `stubs/world.ts` | hand-made A9, A10, A10_b1, D5, L10, N7, P3, P3_b1; `village` (the sandbox map, `STUB_SANDBOX_MAP`); `wilderness` for every sector without another map; five kind maps behind the sectors of `stubs/maps/sector-kinds.json` (§1.6) |
+| Sector maps | `stubs/maps/*.map.txt`, compiled by `stubs/world.ts` | hand-made A9, A10, A10_b1, D5, L10, N7, P3, P3_b1, P3_m; `village` (the sandbox map, `STUB_SANDBOX_MAP`); `wilderness` for every sector without another map; five kind maps behind the sectors of `stubs/maps/sector-kinds.json` (§1.6) |
 | Tileset and structures | `stubs/world.ts`, `stubs/tiles.ts`, `stubs/effects.ts`, `stubs/helicopter.ts`; person, vehicle and corpse structure files from `src/content/anim/` | tileset 0 with the tile types of §1.6; tileset 17 (the airstrip) with the helicopter |
 | Soldiers | `stubs/soldiers.ts`, `stubs/anim-scripts.ts` | stand, walk, run, crouch and prone sheets for every animation surface (the vehicles' too); an invented script for every animation state; palettes |
 | Characters and text | `stubs/profiles.json` (defaults in `src/content/formats/stub-profiles.ts`), `stubs/npc/`, `stubs/text/`, built by `stubs/npc.ts` and `stubs/text.ts` | the profiles of §1.6, their NPC records and EDTs, merc quotes, the item descriptions the stub campaign and tests use, credits, mails, help and laptop texts |
@@ -113,6 +113,20 @@ which the arrival rule sets up the helicopter), a head miner's first line starti
 profile that speaks has its merc EDT and a speech blip. Skyrider's stub EDT has only his escort lines, so the dialogue
 queue says none of his helicopter and monologue lines in a stub campaign: each still holds the map screen's pause for one
 pass and runs the special events queued behind it (`24`).
+
+**Meanwhile scenes.** `stubs/npc/records.json` holds the Queen's and her aide's record file of every meanwhile
+(`160`–`176`, `180`–`196`; `171` and `191` are the interrogation's), and `stubs/maps/p3_m.map.txt` the hall where the
+sixteen palace scenes play, the map P3 loads inside a meanwhile (`mapFileName`, `src/content/strategic/sector-ids.ts`).
+Their shape is the original's: the Queen walks to her aide in two stops, speaks and slaps him, and the scene's last
+line ends it with `END_MEANWHILE`. The lines are silent (quote numbers past the stub EDT rows, as the stub dealers'),
+since rows added to the Queen's and her aide's EDTs would change the text identity of the 0.7.0 stub saves
+(`src/server/legacy-save.test.ts`). Four of the original's record selectors appear, in one scene each: the first
+battle picks its end by the battle result, the northern town's scene by the town count, the first missile site's by
+the site count, the creatures' by `NO_SCI_FI_END_MEANWHILE`; the outskirts scene shoots the aide instead of the slap.
+The hall holds the three scene NPCs and every palace scene's camera gridno, plus a civilian of the Queen's group, a
+free one and two guards, so that the palace setup and the enemies a meanwhile load leaves out show in a test.
+`stubs/npc.test.ts` follows every path through each scene to its end and checks the walks; `stubs/sector-kinds.test.ts`
+checks the hall.
 
 **Animation scripts** (`stubs/anim-scripts.ts`) are invented, except that the seven unjam scripts end like the
 original's with the non-interruptible release and opcode 476, which returns to the shooting animation the jam

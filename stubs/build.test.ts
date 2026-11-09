@@ -72,6 +72,12 @@ import {
 const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts', 'cursors', 'interface', 'laptop', 'loadscreens'];
 const SPLASH_BUDGET_BYTES = 64 * 1024;
 const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
+const MEANWHILE_SCENE_RECORDS = [160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 172, 173, 174, 175, 176];
+const AIDE_RECORDS_AFTER_QUEENS = 20;
+const MEANWHILE_SCENE_FILES = [
+  'world/maps/p3_m.dat',
+  ...MEANWHILE_SCENE_RECORDS.flatMap((n) => [`npcdata/${n}.npc`, `npcdata/${n + AIDE_RECORDS_AFTER_QUEENS}.npc`]),
+];
 const STUB_PROFILE_FILE = 'profiles.json';
 const AIRSTRIP_TILESET_ID = 17;
 const HELICOPTER_PIECES = 6;
@@ -142,6 +148,7 @@ describe('stub pack', () => {
   it('builds deterministically', async () => {
     const [a, b] = [sharedStubPackDir(), await build()];
     const content = (await Promise.all(CONTENT_DIRS.map((d) => filesUnder(a, d)))).flat();
+    expect(content).toEqual(expect.arrayContaining(MEANWHILE_SCENE_FILES));
     for (const f of [
       'soldier/capsule.png',
       'soldier/capsule.sprite.json',

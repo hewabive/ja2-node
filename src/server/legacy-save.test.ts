@@ -93,12 +93,17 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'FALL_INTO_PIT',
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
+const PALACE_SCENE_RECORDS_ADDED_AFTER_070 = [
+  160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 172, 173, 174, 175, 176, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190,
+  192, 193, 194, 195, 196,
+].map((file) => `stubs/npcdata/${file}.npc`);
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set([
   'stubs/anims/structdata/j_r_bret.jsd',
   'stubs/anims/structdata/hmmv.jsd',
   'stubs/anims/structdata/tnk_sht.jsd',
   'stubs/anims/structdata/tnk2_rot.jsd',
   'stubs/world/maps/l10.dat',
+  ...PALACE_SCENE_RECORDS_ADDED_AFTER_070,
 ]);
 const WALL_FRAMES_AT_070: Readonly<Record<string, number>> = {
   'stubs/world/tilesets/0/wall': 2,

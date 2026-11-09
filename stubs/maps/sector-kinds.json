@@ -1,6 +1,6 @@
 {
   "format": "ja2-node stub sector kinds v1",
-  "note": "Which generic stub map each sector loads on the stub data version. Sector names follow the map file names (A9, D13_b1 for a level below, B15_a for an alternate map). Every listed sector becomes an alias of its kind's map in the stub pack's aliases.json; a sector with its own hand-made map loads that map; every other sector loads the fallback. Original maps always win. Kinds are game design for the stub campaign, not a description of the original maps.",
+  "note": "Which generic stub map each sector loads on the stub data version. Sector names follow the map file names (A9, D13_b1 for a level below, B15_a for an alternate map, P3_m for the map a meanwhile scene loads). Every listed sector becomes an alias of its kind's map in the stub pack's aliases.json; a sector with its own hand-made map loads that map; every other sector loads the fallback. Original maps always win. Kinds are game design for the stub campaign, not a description of the original maps.",
   "fallback": "wilderness",
   "handMade": {
     "A9": "Omerta, the landing",
@@ -9,7 +9,8 @@
     "D5": "San Mona, the boxing hall",
     "L10": "a garage yard with a parked car, the stub vehicle tests' sector",
     "N7": "the interrogation house",
-    "P3_b1": "the palace basement, the Queen's last room"
+    "P3_b1": "the palace basement, the Queen's last room",
+    "P3_m": "the Queen's hall, where the meanwhile scenes in the palace play"
   },
   "kinds": [
     {
