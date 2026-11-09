@@ -204,6 +204,24 @@ describe('speech surfaces in a stub campaign', () => {
     expect(lifeBarTop(f)).toBe(POPUP_BARS_BOTTOM - idiv(BAR_HEIGHT * merc.life, 100));
   });
 
+  it("gives an NPC's line outside a conversation neither the popup nor the subtitle box with speech on (CreateTalkingUI, HandleTacticalNPCTextUI)", async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.speechSettings = SPEECH_ON;
+    const tick = f.client.view.tick;
+    const textKey = { file: 'npcdata/060.edt', row: 3, width: 240 };
+    const npc = { type: 'npcQuote', tick, profile: 60, soldier: null, quote: 3, textKey, chars: 12, text: 'Hello there.' };
+    f.frames([{ tick, changed: [], removed: [], events: [npc as never] }]);
+    expect(f.screen.dialogue.presenter.current?.line).toMatchObject({ surface: 'tactical', npcUi: true, text: 'Hello there.' });
+    expect(f.find('speechFacePopup')).toBeUndefined();
+    expect(f.find('speechTextBox')).toBeUndefined();
+    f.screen.dialogue.presenter.skip(f.t.now, true);
+    f.t.frame(FINAL_TALKING_DELAY_MS + 1);
+    const skyrider = { type: 'skyriderQuote', tick, quote: 3, profile: 97, textKey: MINER_KEY, chars: 12, text: 'Hop in, mate' };
+    f.frames([{ tick, changed: [], removed: [], events: [skyrider as never] }]);
+    expect(f.widget('speechFacePopup').rect).toMatchObject({ x: 10, y: 20 });
+    expect(f.widget('speechTextBox').text).toBe('"Hop in, mate"');
+  });
+
   it('takes no line from a frame the map screen took first, as both screens hear every frame', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tick = f.client.view.tick;

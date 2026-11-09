@@ -163,8 +163,10 @@ right, at the panel the line event names (a Skyrider monologue's or the miner's 
 otherwise), and a merc line without a soldier in the popup at the screen's 10, 20. An external speaker with a soldier
 (the line event's `soldier`) gets the soldier's panel, name and bars, the life, breath and morale the line event carries
 for him (`bars`, the original draws them while he talks, D16); in tactical a merc of ours off the loaded map gets his
-panel and the bars of his strategic entry; an NPC's line carried in from the map gets the popup at 10, 20 like every
-line, with the bars its event carries when it is said on the map. The yellow locator takes the sector the line event names
+panel and the bars of his strategic entry. On tactical an NPC's line outside a conversation takes neither the face
+popup nor a subtitle box, as the original's `DIALOGUE_NPC_UI` shows its text in the talk panel alone and puts it in
+the message list (`HandleTacticalNPCTextUI`); one carried in from the map gets the popup at 10, 20 like every line, with
+the bars its event carries when it is said on the map. The yellow locator takes the sector the line event names
 as the line starts (`sector`, an NPC's line too; Skyrider's helicopter, `helicopter`, not while the airspace shows). A
 Skyrider monologue turns the airspace filter on as it starts and at each of its special events (`skyriderMonologue`,
 `TurnOnAirSpaceMode`), and the sectors he talks about flash red in place of the speaker's locator

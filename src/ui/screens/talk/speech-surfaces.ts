@@ -10,7 +10,8 @@
 // @src (FACE_FORCE_SMALL uses the RPC small face offsets); HandleDialogue (a line carried over from the map screen takes
 // @src the popup and keeps the subtitle box and click region where they were, through TalkingUi, 2026-11-09);
 // @src RenderFaceOverlay (Skyrider or a head miner with a soldier gets the soldier's panel, 2026-11-09; the bars of the
-// @src soldier with the speaker's profile, ours off the map or not ours, from FindSoldierByProfileID).
+// @src soldier with the speaker's profile, ours off the map or not ours, from FindSoldierByProfileID); CreateTalkingUI
+// @src (DIALOGUE_NPC_UI makes no face popup and HandleTacticalNPCTextUI no subtitle box outside the talk panel).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -116,7 +117,7 @@ function speakerSoldierId(line: SpeechLine): number | null {
 
 function talkingUiOnTactical(line: SpeechLine): boolean {
   if (line.surface === SpeechSurface.EXTERNAL) return true;
-  return line.surface === SpeechSurface.TACTICAL;
+  return line.surface === SpeechSurface.TACTICAL && line.npcUi !== true;
 }
 
 export function speakerBarValues(bars: SpeakerBarsRef): BarValues {
