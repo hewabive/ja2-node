@@ -79,6 +79,7 @@ import { DoorMenu, type MenuArt, MovementMenu, type MovementMenuSubject } from '
 import {
   hasFemaleProfile,
   inCombat,
+  inPalaceScene,
   isDead,
   isEpc,
   isInVehicle,
@@ -849,6 +850,9 @@ export class TacticalControls {
       get smPanel() {
         return screen.panel() === 'sm';
       },
+      get inPalaceScene() {
+        return inPalaceScene(self.#view());
+      },
       keyHeld: (key) => env.runtime.isKeyDown(key),
       smButtonEnabled: (button) => screen.panelButtonEnabled(button),
       hasSelected: () => screen.selected() !== null,
@@ -925,6 +929,7 @@ export class TacticalControls {
       quickSave: () => void this.#quickSave(),
       quickLoad: () => env.flow.quickLoad(),
       autoBandage: () => void this.#autoBandage(),
+      endMeanwhile: () => void screen.send({ type: 'endMeanwhile' }),
     };
   }
 

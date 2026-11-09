@@ -20,7 +20,7 @@ source file in `data/tables/ui-constants/`, the UI cursors in `data/tables/ui-cu
 in a game the server's flow picks the screen (gameScreenOf):
    tactical ⇄ map screen ⇄ laptop      tactical: panels, talk panel, shop, overhead map, San Mona screen
    map screen → pre-battle panel → autoresolve
-   story layer over any screen: meanwhile box, interrogation, ending → videos → credits → main menu
+   story layer over any screen: meanwhile box and fade into the scene, ending → videos → credits → main menu
    modals anywhere: options, save/load, help, message boxes, the exit box
 ```
 
@@ -60,7 +60,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 | Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
 | Laptop | `hireCheck`, `aimQuote`, `bobbyRayQuote`, `impCheckCode`, `emailText` | `visitSite`, `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, `orderFlowers`, `closeLaptop`, … | `observe.laptop` |
-| Story | | `answer` (the lie) | `meanwhile`, `meanwhileStarted`, `queenKilled`, `squadMovedUpstairs`, `endgameDeferred`, `campaignWon`, `sexScene` |
+| Story | | `answer` (the lie), `endMeanwhile` (Esc in a palace scene) | `meanwhileStarted`, `meanwhileEnded`, `queenKilled`, `squadMovedUpstairs`, `endgameDeferred`, `campaignWon`, `sexScene` |
 
 The front end talks REST (saves, sessions, status) and uses the session socket only for an in-place `load`,
 `setOption` and `leave`; the launcher shares its DOM-free parts (save rows and `SaveController`, the campaign form, the
@@ -289,7 +289,7 @@ before it, and shows the loading or the tactical screen after the zoom. The zoom
 (`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
 them.
 
-**Not built.** The tactical placement GUI (deviation "Tactical placement"), meanwhile scene playback (gap "Meanwhile scene playback"), the 3D cursor and the cover and sight display
+**Not built.** The tactical placement GUI (deviation "Tactical placement"), a meanwhile scene's Skip and camera (gap "Meanwhile scene playback"), the 3D cursor and the cover and sight display
 (`28`'s decisions).
 
 ## 4. Quirks of the original the code keeps

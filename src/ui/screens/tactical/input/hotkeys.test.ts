@@ -8,7 +8,9 @@ interface Recorder {
   readonly calls: string[];
 }
 
-type HostState = Partial<Pick<HotkeyHost, 'mode' | 'locked' | 'inCombat' | 'ourTurn' | 'inConversation' | 'itemInCursor' | 'smPanel'>> & {
+type HostState = Partial<
+  Pick<HotkeyHost, 'mode' | 'locked' | 'inCombat' | 'ourTurn' | 'inConversation' | 'itemInCursor' | 'smPanel' | 'inPalaceScene'>
+> & {
   readonly held?: readonly string[];
 };
 
@@ -27,6 +29,7 @@ function recorder(state: HostState = {}): Recorder {
     inConversation: false,
     itemInCursor: false,
     smPanel: false,
+    inPalaceScene: false,
     ...state,
     smButtonEnabled: () => true,
     keyHeld: (key: string) => state.held?.includes(key) === true,
@@ -119,6 +122,17 @@ describe('the gameplay keys of Turn_Based_Input.cc', () => {
     expect(handleTacticalKey(r.host, down('c'), UiEvent.U_MOVEMENT_MENU)).toBe(UiEvent.U_MOVEMENT_MENU);
     expect(handleTacticalKey(r.host, up('Escape'), UiEvent.U_MOVEMENT_MENU)).toBe(UiEvent.A_CHANGE_TO_MOVE);
     expect(r.calls).toEqual(['closeMenu']);
+  });
+
+  it('ends a palace scene on the ESC key release, even locked and before a menu mode takes the key, and nowhere else', () => {
+    const scene = recorder({ inPalaceScene: true, locked: true, inConversation: true, mode: UiMode.MENU_MODE });
+    handleTacticalKey(scene.host, down('Escape'), UiEvent.M_ON_TERRAIN);
+    expect(scene.calls).toEqual([]);
+    expect(handleTacticalKey(scene.host, up('Escape'), UiEvent.U_MOVEMENT_MENU)).toBe(UiEvent.A_CHANGE_TO_MOVE);
+    expect(scene.calls).toEqual(['endMeanwhile', 'closeMenu']);
+    const elsewhere = recorder();
+    handleTacticalKey(elsewhere.host, up('Escape'), UiEvent.M_ON_TERRAIN);
+    expect(elsewhere.calls).toEqual([]);
   });
 
   it('starts auto-bandage with a alone, on its press, never while the UI is locked, on the enemy turn or in a talk', () => {

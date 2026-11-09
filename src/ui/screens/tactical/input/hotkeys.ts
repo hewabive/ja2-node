@@ -11,7 +11,8 @@
 // @src GameSettings.cc DisplayGameSettings; Soldier_Control.cc HandlePlayerTogglingLightEffects; DisplayCover.cc
 // @src ChangeSizeOfDisplayCover, ChangeSizeOfLOS (- and = with Delete or End held); SwitchHeadGear (CTRL+N, alternating
 // @src from the night gear); DoQuickSave, DoQuickLoad (ALT+S, ALT+L outside a conversation); MusicSetVolume (ALT+-);
-// @src BeginAutoBandage (a, outside a conversation, which is modal, 2026-11-06).
+// @src BeginAutoBandage (a, outside a conversation, which is modal, 2026-11-06); Esc released in a meanwhile but the
+// @src interrogation: DeleteTalkingMenu and EndMeanwhile, before the menu modes (2026-11-09).
 
 import type { UiKeyEvent } from '../../../input/events.ts';
 import { UiEvent, UiMode } from './ui-events.ts';
@@ -26,6 +27,7 @@ export interface HotkeyHost {
   readonly inConversation: boolean;
   readonly itemInCursor: boolean;
   readonly smPanel: boolean;
+  readonly inPalaceScene: boolean;
   keyHeld(key: string): boolean;
   smButtonEnabled(button: SmButton): boolean;
   hasSelected(): boolean;
@@ -75,6 +77,7 @@ export interface HotkeyHost {
   quickSave(): void;
   quickLoad(): void;
   autoBandage(): void;
+  endMeanwhile(): void;
 }
 
 export type SmButton = 'updown' | 'nextMerc' | 'burst' | 'look' | 'done' | 'map' | 'options' | 'stealth';
@@ -92,6 +95,7 @@ const MENU_MODES: ReadonlySet<UiMode> = new Set([
 
 export function handleTacticalKey(h: HotkeyHost, key: UiKeyEvent, event: UiEvent): UiEvent {
   if (key.kind === 'keyDown' && h.dismissFeedback()) return event;
+  if (key.kind === 'keyUp' && key.key === 'Escape' && h.inPalaceScene) h.endMeanwhile();
   if (MENU_MODES.has(h.mode)) return menuKey(h, key, event);
   if (key.kind !== 'keyDown') return event;
   let next = event;

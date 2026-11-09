@@ -151,6 +151,13 @@ export function inCombat(view: PlayerView | null): boolean {
   return (view?.combat ?? null) !== null;
 }
 
+const INTERROGATION_SCENE = 'interrogation';
+
+export function inPalaceScene(view: PlayerView | null): boolean {
+  const scene = view?.meanwhile?.scene;
+  return scene !== undefined && scene !== INTERROGATION_SCENE;
+}
+
 export function ourTurn(view: PlayerView | null): boolean {
   const combat = view?.combat ?? null;
   return combat === null || combat.team === OUR_TEAM;

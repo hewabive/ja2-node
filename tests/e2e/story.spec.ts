@@ -8,6 +8,7 @@ const SETTINGS_VERSION = 2;
 const GOLDEN_QUERY = '&pinClock=1&fixed640=1&scale=1';
 const TIME_HELD = '&holdTime=1';
 const SCENE_DUE_WITHIN_SECONDS = 120;
+const SCENE_TIMEOUT_MS = 60_000;
 
 const sessions: string[] = [];
 
@@ -57,6 +58,13 @@ async function advanceToTheScene(page: Page): Promise<void> {
   await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), SCENE_DUE_WITHIN_SECONDS);
 }
 
+async function playedInThePalace(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.story?.step === null);
+  await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
+  await page.waitForFunction(() => window.__ja2Ui.screen === 'map', undefined, { timeout: SCENE_TIMEOUT_MS });
+  expect(await page.evaluate(() => window.__ja2Ui.modal)).toBeNull();
+}
+
 test.describe('the story and the help screens on /play', () => {
   test.beforeAll(async () => {
     await writeStorySaves(SAVE_DIR);
@@ -66,7 +74,7 @@ test.describe('the story and the help screens on /play', () => {
     for (const session of sessions.splice(0)) await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
   });
 
-  test('a due Meduna scene opens the meanwhile box over the map screen, with OK alone the first time, and the game goes on', async ({
+  test('a due palace scene opens the meanwhile box over the map screen, with OK alone the first time, whose OK fades out into the scene', async ({
     page,
     request,
   }) => {
@@ -83,14 +91,16 @@ test.describe('the story and the help screens on /play', () => {
     expect(await page.evaluate(() => window.__ja2Ui.map?.holds ?? [])).toEqual([]);
     await expectGolden('story-meanwhile-box', await capture(page));
     await clickWidget(page, 'meanwhileBox.ok');
-    await page.waitForFunction(() => window.__ja2Ui.modal === null && window.__ja2Ui.story?.step === null);
-    expect(await page.evaluate(() => window.__ja2Ui.screen)).toBe('map');
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'fade-out' && window.__ja2Ui.story?.step === 'meanwhile');
     expect(await page.evaluate(() => window.__ja2Ui.story?.meanwhileBoxes)).toBe(1);
     const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}').meanwhileScenesSeen ?? 0, SETTINGS_KEY);
     expect(stored).toBe(0);
   });
 
-  test('a scene seen before offers OK and Skip, and Skip goes on without a scene', async ({ page, request }) => {
+  test('a scene seen before offers OK and Skip, and Skip too plays the scene in the hall and comes back to the map, until Skip is ported', async ({
+    page,
+    request,
+  }) => {
     await settings(page, { helpHidden: true, meanwhileScenesSeen: 1 << STORY_SCENE });
     const session = await loadSession(request, STORY_MEANWHILE_SAVE);
     await openMap(page, session);
@@ -98,8 +108,7 @@ test.describe('the story and the help screens on /play', () => {
     await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
     expect([(await widget(page, 'meanwhileBox.yes')).text, (await widget(page, 'meanwhileBox.no')).text]).toEqual(['OK', 'Skip']);
     await clickWidget(page, 'meanwhileBox.no');
-    await page.waitForFunction(() => window.__ja2Ui.modal === null && window.__ja2Ui.story?.step === null);
-    expect(await page.evaluate(() => window.__ja2Ui.screen)).toBe('map');
+    await playedInThePalace(page);
   });
 
   test('the Queen dies in the palace basement and the ending runs to the videos, the silent credits and the main menu', async ({

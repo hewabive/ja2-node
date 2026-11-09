@@ -118,22 +118,28 @@ describe('the story layer', () => {
     expect(layer.holdsFlow).toBe(false);
   });
 
-  it('holds the flow while a Meduna scene’s box is up and lets OK or Skip continue alike, marking nothing seen', async () => {
+  it('holds the whole batch that brings a palace scene while its box is up, since the view already shows the hall, and, OK or Skip alike, fades into it, marking nothing seen', async () => {
     const { port, layer, released } = story();
     const release = (f: readonly ViewFrame[]) => released.push(...f.map((x) => x.tick));
     port.seen.add(DRASSEN_LIBERATED);
-    layer.frames([frame(1), frame(2, [{ type: 'meanwhile', seq: 1, scene: 'drassenLiberated', sector: 'P3', at: 60 }])], release);
+    layer.frames([frame(1), frame(2, [{ type: 'meanwhileStarted', seq: 1, scene: 'drassenLiberated' }])], release);
     layer.frames([frame(3)], release);
     await settle();
     expect(port.asks).toHaveLength(1);
     expect(port.asks[0]).toMatchObject({ text: 'Meanwhile.....', buttons: 'okSkip', request: { id: MEANWHILE_BOX } });
-    expect(released).toEqual([1]);
+    expect(released).toEqual([]);
     expect(layer.holdsFlow).toBe(true);
     port.asks[0]?.answer(MessageBoxReturn.NO);
     await settle();
+    port.finishFadeOut();
+    await settle();
+    port.shown = true;
+    layer.frame();
+    port.finishFadeIn();
+    await settle();
     expect(released).toEqual([1, 2, 3]);
     expect(layer.holdsFlow).toBe(false);
-    expect(port.calls).toEqual(['box']);
+    expect(port.calls).toEqual(['box', 'fadeOut', 'clearBlack', 'fadeIn']);
     expect(layer.hook.meanwhileBoxes).toBe(1);
   });
 
