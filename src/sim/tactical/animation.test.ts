@@ -156,6 +156,21 @@ describe('the end of a hurt walk', () => {
   });
 });
 
+describe('the enemy-sighting pause of their turn (EVENT_InitNewSoldierAnim, Soldier_Control.cc:1324)', () => {
+  it('ends when the paused enemy starts an animation, and not when anybody else does', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.EAST);
+    const other = spawnSoldier(sim, 21, Team.ENEMY, gridNo(84, 80), Direction.EAST);
+    enemy.pauseAllAnimation = true;
+    t.turn.enemySightingOnTheirTurn = { enemy, since: t.clockMs };
+    initNewSoldierAnim(t, other, anim(content, 'CROUCHING'), 0, false);
+    expect([t.turn.enemySightingOnTheirTurn?.enemy, enemy.pauseAllAnimation]).toEqual([enemy, true]);
+    initNewSoldierAnim(t, enemy, anim(content, 'CROUCHING'), 0, false);
+    expect([t.turn.enemySightingOnTheirTurn, enemy.pauseAllAnimation]).toEqual([null, false]);
+  });
+});
+
 describe("the creature queen's stationary stance (Soldier_Control.cc SoldierGotoStationaryStance)", () => {
   it('readies a queen who sees somebody or is on our team, and lets the others breathe', () => {
     const sim = newCombatSim(content);

@@ -21,7 +21,7 @@
 // @src SoldierGotoStationaryStance's cower states (2026-11-07); EVENT_InitNewSoldierAnim's pending action count for a
 // @src held MERC_GIVEITEM, freeing its target when it drops the action, and its SOLDIER_ENGAGEDINACTION test
 // @src (2026-11-08); EVENT_InitNewSoldierAnim's LOADING_SAVED_GAME branch and Soldier_Control.cc CreateSoldierCommon's
-// @src restart of a loaded soldier (2026-11-08).
+// @src restart of a loaded soldier (2026-11-08); EVENT_InitNewSoldierAnim's enemy-sighting unlock (2026-11-08).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -539,8 +539,15 @@ function decidedAnimation(t: TacticalState, s: Soldier, requested: number, start
   return tryingToRestart ? null : next;
 }
 
+function releaseEnemySightingPause(t: TacticalState, s: Soldier): void {
+  if (t.turn.enemySightingOnTheirTurn?.enemy !== s) return;
+  s.pauseAllAnimation = false;
+  t.turn.enemySightingOnTheirTurn = null;
+}
+
 function beginAnimation(t: TacticalState, s: Soldier, next: number, startCode: number): void {
   const content = t.content;
+  releaseEnemySightingPause(t, s);
   if (hasAnimFlag(content, next, AnimFlags.NONINTERRUPT)) s.inNonInterruptibleAnimation = true;
   if (hasAnimFlag(content, next, AnimFlags.RT_NONINTERRUPT)) s.rtNonInterruptible = true;
   if (hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) adjustNoAPToFinishMove(s, false);

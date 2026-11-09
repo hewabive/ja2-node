@@ -129,8 +129,9 @@ his action is NONE; his turn ends when he decides on nothing, cannot afford his 
 moved, and `endAIGuysTurn` passes to the next on the list. Nothing breaks a hang (deviation "Watchdogs").
 
 **Enemy sighted on their turn.** When our merc reveals an enemy on another team's turn, that enemy's animation and all
-AI decisions pause for 3000 ms, and a soldier reaching a tile centre meanwhile halts. ja2-node counts the pause in game
-time and is not idle while it lasts, so `advance` runs it out (deviation "Enemy sighted on their turn").
+AI decisions pause for 3000 ms, or until that enemy starts an animation, as one stopping on the tile he walked to does
+(`Tactical/Soldier_Control.cc:1324`), and a soldier reaching a tile centre meanwhile halts. ja2-node counts the pause in
+game time and is not idle while it lasts, so `advance` runs it out (deviation "Enemy sighted on their turn").
 
 **The end of combat.** `checkForEndOfBattle`, after every death and attack, wins when no capable enemy is left (a
 soldier in his death animation still counts) and no reinforcements wait, and loses when all our mercs are down, which
