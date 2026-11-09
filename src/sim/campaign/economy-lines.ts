@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Assignments.cc AssignmentDone and HandleRestFatigueAndSleepStatus (TacticalCharacterDialogue,
 // @src MakeCharacterDialogueEventSleep), AnyMercInGroupCantContinueMoving (HandleImportantMercQuote, 2026-11-03);
 // @src Strategic/Map_Screen_Interface.cc HandleMinerEvent (LeaveTacticalScreen to the
-// @src map screen before CharacterDialogue with DIALOGUE_EXTERNAL_NPC_UI).
+// @src map screen before CharacterDialogue with DIALOGUE_EXTERNAL_NPC_UI); Strategic/Strategic_Mines.cc IssueHeadMinerQuote
+// @src (SetExternMapscreenSpeechPanelXY clear of the mine before the line, 2026-11-09).
 
 import {
   externalNpcDialogue,
@@ -39,6 +40,7 @@ export function economyLineHooks(campaign: CampaignSim): EconomyLineHooks {
       if (host && s) handleImportantMercQuote(host, s, quote);
     },
     headMinerDialogue: (mine, profile, quote, forceMapScreen) => {
+      campaign.state.talk.dialogue.externPanel = { mine };
       if (forceMapScreen) campaign.leaveTacticalScreenForMap();
       const host = campaign.talk?.host;
       if (host) externalNpcDialogue(host, profile, quote);

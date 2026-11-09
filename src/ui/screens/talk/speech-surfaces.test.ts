@@ -2,8 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
-import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, textDelay } from '../../speech.ts';
+import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, SpeechSurface, textDelay } from '../../speech.ts';
 import { civQuotePosition } from './speech-surfaces.ts';
+import { type SpeechPlacement, SpeechScreen, TalkingUi } from './talking-ui.ts';
 
 const COLS = 160;
 const VILLAGER_TILE = 75 * COLS + 88;
@@ -99,6 +100,25 @@ describe('speech surfaces in a stub campaign', () => {
     f.t.frame(textDelay(12) + FINAL_TALKING_DELAY_MS + 1);
     f.t.frame();
     expect(f.find('speechTextBox')).toBeUndefined();
+  });
+
+  it('gives a line carried over from the map screen the popup at 10, 20 with speech off, its box staying where the map put it', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const presenter = f.screen.dialogue.presenter;
+    const mapBox = { x: 417, y: 117, width: 240 };
+    const map: SpeechPlacement = {
+      screen: SpeechScreen.MAP,
+      textBox: () => mapBox,
+      facePopup: () => null,
+      carriedPopup: () => null,
+    };
+    const skyrider = { surface: SpeechSurface.EXTERNAL, profile: 97, soldier: null, text: 'Hop in, mate', chars: 12, voice: null };
+    presenter.enqueue({ ...skyrider, sector: null, keyWait: false });
+    TalkingUi.of(presenter).follow(presenter.current, map, false);
+    expect(f.find('speechFacePopup')).toBeUndefined();
+    f.t.frame();
+    expect(f.widget('speechFacePopup').rect).toMatchObject({ x: 10, y: 20, width: 99, height: 98 });
+    expect(f.widget('speechTextBox').rect).toMatchObject({ x: mapBox.x, y: mapBox.y });
   });
 
   it('takes no line from a frame the map screen took first, as both screens hear every frame', async () => {

@@ -48,7 +48,9 @@
 // @src point of maximum life lost while dying, which DrawCharacterInfo prints red), Campaign.cc ProcessStatChange
 // @src (uiChangeHealthTime of a health gain), HandleTakeDamageDeath (the cry and the samples of a death on the map
 // @src screen) (2026-11-06); Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (an item held, the town box, the
-// @src militia popup and the sector inventory shut every exit; the shared game checks by the clock view, 2026-11-06).
+// @src militia popup and the sector inventory shut every exit; the shared game checks by the clock view, 2026-11-06);
+// @src Strategic/Map_Screen_Helicopter.cc HandleSkyRiderMonologueEvent (SetExternMapscreenSpeechPanelXY, the panel of
+// @src each monologue), Strategic_Mines.cc IssueHeadMinerQuote (the panel clear of the miner's mine, 2026-11-09).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -66,7 +68,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { popupBoxStyle } from '../../layout/styles.ts';
 import { type CustomRenderer, LayoutView } from '../../layout/view.ts';
 import type { Screen } from '../../screen.ts';
-import { recruitedSpeaker, SpeechPresenter, type SpeechRouting } from '../../speech.ts';
+import { type ExternPanelRef, recruitedSpeaker, SpeechPresenter, type SpeechRouting } from '../../speech.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { printf } from '../../text/printf.ts';
@@ -117,7 +119,7 @@ import { type MapAction, MapScreenController } from './map-controller.ts';
 import { accessibleInventory, MapInventory } from './map-inventory.ts';
 import { MenuMask } from './map-menu.ts';
 import { departureBox, insuranceBox, type PromptBox, type PromptContext, promptBox } from './map-prompts.ts';
-import { MapSpeech } from './map-speech.ts';
+import { type ExternFaceStyle, MapSpeech } from './map-speech.ts';
 import {
   allowedToHighlight,
   helicopterIconPosition,
@@ -168,6 +170,9 @@ const RADAR_ITEM_FLASH_ON = rgb(0, 255, 0);
 const RADAR_ITEM_FLASH_OFF = rgb(255, 255, 255);
 const SILENT_SPEECH = { speech: false, subtitles: true, keyAdvance: false } as const;
 const SUBTITLE_BOX = 'subtitleBox';
+const EXTERN_PANEL = 'externPanel';
+const EXTERN_FACE = 'externFace';
+const EXTERN_FACE_PANEL = 'commPanelNpc';
 const UPDATE_REASONS = 'pUpdateMercStrings';
 const UPDATE_BOX_PROMPT = 'updateBox';
 const UPDATE_CONTINUE = 1;
@@ -258,6 +263,7 @@ export interface MapScreenHook {
   readonly updateBox: { readonly reason: number; readonly soldiers: readonly number[] } | null;
   readonly subtitle: string | null;
   readonly faceTalking: boolean;
+  readonly speakerLocator: string | null;
 }
 
 type Point = { readonly x: number; readonly y: number };
@@ -419,10 +425,19 @@ export class MapScreen implements Screen {
       boxArt: env.basicTextBox,
       boxFonts: () => ({ text: this.#font(FontName.FONT12ARIAL), bold: this.#font(FontName.FONT10ARIALBOLD) }),
       place: () => this.#subtitlePlace(),
+      externPanel: (line) => this.#externPanel(line.panel),
+      externTextOffset: () => this.#model.number(this.#externPanelStyle().textOffsetX as number),
+      screenPopup: () => this.#screenPopup(),
+      faceStyle: () => this.#externFaceStyle(),
       speechOn: () => env.speechSettings?.().speech ?? false,
+      airspaceShown: () => this.filters.airspace,
       routing: () => this.#speechRouting(),
       listed: (soldier) => this.list.rowOf(soldier) >= 0,
       select: (soldier) => this.#selectSpeaker(soldier),
+      profile: (id) => env.media.profile(id),
+      ensureImage: (path) => env.media.image(path),
+      gaps: (file) => env.media.gaps(file),
+      random: env.random,
     });
   }
 
@@ -431,6 +446,41 @@ export class MapScreen implements Screen {
     const o = this.#origin();
     const n = (key: string) => this.#model.number(style[key] ?? 0);
     return { x: o.x + n('x'), y: o.y + n('y'), width: n('width') };
+  }
+
+  #externPanelStyle(): Readonly<Record<string, unknown>> {
+    return this.#model.style(EXTERN_PANEL) as Readonly<Record<string, unknown>>;
+  }
+
+  #stylePoint(value: unknown): { readonly x: number; readonly y: number } {
+    const [x = 0, y = 0] = (value as readonly (number | string)[]).map((v) => this.#model.number(v));
+    return { x, y };
+  }
+
+  #externPanel(panel: ExternPanelRef | undefined): { readonly x: number; readonly y: number } {
+    const style = this.#externPanelStyle();
+    const o = this.#origin();
+    const at = panel && 'monologue' in panel ? this.#stylePoint(style[panel.monologue]) : this.#stylePoint(style.default);
+    if (!panel || !('mine' in panel)) return { x: o.x + at.x, y: o.y + at.y };
+    const offset = this.#env.facts.mines[panel.mine]?.faceDisplayYOffset ?? 0;
+    return { x: o.x + this.#model.number(style.mineX as number | string), y: o.y + (offset || at.y) };
+  }
+
+  #screenPopup(): { readonly x: number; readonly y: number } {
+    return this.#stylePoint((this.#model.style(EXTERN_FACE) as Readonly<Record<string, unknown>>).screenPopup);
+  }
+
+  #externFaceStyle(): ExternFaceStyle {
+    const style = this.#model.style(EXTERN_FACE) as Readonly<Record<string, unknown>>;
+    const n = (value: unknown) => this.#model.number(value as number | string);
+    const [nameX, nameY, nameWidth, nameHeight] = (style.name as readonly unknown[]).map(n);
+    return {
+      panel: this.#model.asset(EXTERN_FACE_PANEL).path,
+      width: n(style.width),
+      height: n(style.height),
+      face: this.#stylePoint(style.face),
+      name: [nameX ?? 0, nameY ?? 0, nameWidth ?? 0, nameHeight ?? 0],
+    };
   }
 
   #speechRouting(): SpeechRouting {
@@ -580,6 +630,7 @@ export class MapScreen implements Screen {
       updateBox: this.#updateBox.batch,
       subtitle: this.#speech.subtitle,
       faceTalking: this.#infoFace()?.talking ?? false,
+      speakerLocator: this.#speech.locator,
     };
   }
 
@@ -2186,8 +2237,8 @@ export class MapScreen implements Screen {
     const locator = this.#strategic()?.battleLocator ?? (prompt?.kind === 'preBattle' ? prompt.sector : null);
     const battle = locator ? parseSectorLabel(locator) : null;
     if (battle) locators.push({ sector: battle, colour: 'red' });
-    const speaker = mercById(this.#strategic(), this.#speech.speaker);
-    const at = speaker ? parseSectorLabel(speaker.sector) : null;
+    const spoken = this.#speech.locator;
+    const at = spoken ? parseSectorLabel(spoken) : null;
     if (at && at.z === this.#level) locators.push({ sector: at, colour: 'yellow' });
     return locators;
   }

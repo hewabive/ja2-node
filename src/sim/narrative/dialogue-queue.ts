@@ -18,7 +18,9 @@
 // @src LoadSavedGame (EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech, the silenced face ending at the next
 // @src HandleDialogue, 2026-11-04); Dialogue_Control.cc gusStopTimeQuoteList, IsStopTimeQuote, CheckForStopTimeQuotes,
 // @src SetStopTimeQuoteCallback, HandleDialogue (FACE_MODAL), GameScreen.cc EnterModalTactical, EndModalTactical and
-// @src MainGameScreenHandle (one more full frame after the modal starts, then HandleModalTactical, 2026-11-04).
+// @src MainGameScreenHandle (one more full frame after the modal starts, then HandleModalTactical, 2026-11-04);
+// @src Dialogue_Control.cc HandleExternNPCSpeechFace and DisplayTextForExternalNPC (an external line takes the panel
+// @src placement set since the last line ended), HandleDialogueEnd (the default placement again, 2026-11-09).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -230,8 +232,10 @@ interface SaidLine {
 }
 
 function externalLineEvent(host: NarrativeHost, speaker: number, quote: number, said: SaidLine): NarrativeEventWithoutTick {
-  if (speaker === NarrativeProfile.SKYRIDER) return { type: 'skyriderQuote', quote, profile: speaker, ...said };
-  return { type: 'headMinerQuote', mine: host.headMinerMine?.(speaker) ?? -1, profile: speaker, quote, ...said };
+  const panel = host.talk.externPanel;
+  const placed = panel ? { ...said, panel } : said;
+  if (speaker === NarrativeProfile.SKYRIDER) return { type: 'skyriderQuote', quote, profile: speaker, ...placed };
+  return { type: 'headMinerQuote', mine: host.headMinerMine?.(speaker) ?? -1, profile: speaker, quote, ...placed };
 }
 
 function lineEvent(host: NarrativeHost, speaker: number, quote: number, soldier: number | null, ui: LineUi, said: SaidLine) {
@@ -415,6 +419,7 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
   if (face.modal) endModalTactical(host, h);
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
+  talk.externPanel = null;
   endLinePause(host);
   return true;
 }
@@ -425,6 +430,7 @@ function dropTalkingFace(host: NarrativeHost): void {
   if (talk.face.modal) talk.tacticalModal = TacticalModal.OFF;
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
+  talk.externPanel = null;
   endLinePause(host);
 }
 

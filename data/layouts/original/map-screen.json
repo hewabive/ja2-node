@@ -9,7 +9,8 @@
     "src/game/Strategic/Map_Screen_Interface.cc CreateDestroyAssignmentPopUpBoxes and the PopUpBox margins of the assignment family (6, 6, 4, 4, line space 2), CreateTownInfoBox (margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6), CreateDestroyMovementBox (the move box at 450, 100)",
     "src/game/Strategic/Map_Screen_Interface_TownMine_Info.cc CreateDestroyTownInfoBox (popup.sti, the box margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6 and line space 2, BLOCKFONT2 yellow with a light green title and a white second column at least 20 to the right), MakeButton (mapinvbtns.sti 0/2 and 1/3, white text); src/game/Strategic/Map_Screen_Interface_Map.cc DrawMilitiaPopUpBox (militia.sti, militiamaps.sti, militiamapsectoroutline.sti and militiamapsectoroutline2.sti, FONT10ARIAL white), CreateDestroyMilitiaSectorButtons (militia.sti 3/4, gsMilitiaSectorButtonColors), CreateMilitiaPanelBottomButton (militia.sti 1/2, black text)",
     "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Strategic/Map_Screen_Interface.cc AddSoldierToUpdateBox (panels.sti), CreateDestroyUpdatePanelButtons (group_confirm_tactical.sti 7/8)",
-    "src/game/Tactical/Dialogue_Control.cc HandleTacticalTextUI and ExecuteTacticalTextBox, src/game/UILayout.cc getTacticalTextBoxX and getTacticalTextBoxY (a merc's subtitle box on the map screen at STD_SCREEN_X + 110, DEFAULT_EXTERN_PANEL_Y_POS, DIALOGUE_DEFAULT_SUBTITLE_WIDTH wide)"
+    "src/game/Tactical/Dialogue_Control.cc HandleTacticalTextUI and ExecuteTacticalTextBox, src/game/UILayout.cc getTacticalTextBoxX and getTacticalTextBoxY (a merc's subtitle box on the map screen at STD_SCREEN_X + 110, DEFAULT_EXTERN_PANEL_Y_POS, DIALOGUE_DEFAULT_SUBTITLE_WIDTH wide)",
+    "src/game/Tactical/Dialogue_Control.cc HandleExternNPCSpeechFace (the face popup of Skyrider and the head miners, 99 × 98, at gsExternPanelXPosition, gsExternPanelYPosition), DisplayTextForExternalNPC (their subtitle box 97 to its right), HandleTacticalSpeechUI (a merc line without a soldier takes the popup at the screen's 10, 20), RenderFaceOverlay (communicationpopup_2.sti, the nickname in BLOCKFONT2 FONT_MCOLOR_LTGRAY centred in 9, 55, 73 × 9, the face at 14, 6); src/game/UILayout.h DEFAULT_EXTERN_PANEL_X_POS, DEFAULT_EXTERN_PANEL_Y_POS; src/game/Strategic/Map_Screen_Helicopter.cc:709-721 HandleSkyRiderMonologueEvent (the panel for each monologue); src/game/Strategic/Strategic_Mines.cc:780-787 IssueHeadMinerQuote (STD_SCREEN_Y + faceDisplayYOffset below the default x)"
   ],
   "screen": "mapScreen",
   "frame": "std640",
@@ -30,6 +31,12 @@
     "Text"
   ],
   "assets": {
+    "commPanelNpc": {
+      "sti": "interface/communicationpopup_2.sti",
+      "stub": {
+        "size": [98, 90]
+      }
+    },
     "charInfo": {
       "sti": "interface/charinfo.sti",
       "stub": {
@@ -584,6 +591,22 @@
       }
     },
     "subtitleBox": { "x": 110, "y": "DEFAULT_EXTERN_PANEL_Y_POS", "width": "DIALOGUE_DEFAULT_SUBTITLE_WIDTH" },
+    "externPanel": {
+      "default": ["DEFAULT_EXTERN_PANEL_X_POS", "DEFAULT_EXTERN_PANEL_Y_POS"],
+      "drassenSam": ["DEFAULT_EXTERN_PANEL_X_POS", 117],
+      "cambriaHospital": ["DEFAULT_EXTERN_PANEL_X_POS", 172],
+      "otherSams": [335, "DEFAULT_EXTERN_PANEL_Y_POS"],
+      "estoniRefuel": ["DEFAULT_EXTERN_PANEL_X_POS", "DEFAULT_EXTERN_PANEL_Y_POS"],
+      "mineX": "DEFAULT_EXTERN_PANEL_X_POS",
+      "textOffsetX": 97
+    },
+    "externFace": {
+      "width": 99,
+      "height": 98,
+      "face": [14, 6],
+      "name": [9, 55, 73, 9],
+      "screenPopup": [10, 20]
+    },
     "townButtons": {
       "asset": "townBoxButtons",
       "inventory": [0, 2],

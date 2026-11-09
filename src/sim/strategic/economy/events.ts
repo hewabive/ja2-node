@@ -1,4 +1,5 @@
 import type { TextKey } from '../../../content/narrative/dialogue-text.ts';
+import type { ExternPanel } from '../../narrative/talk-state.ts';
 import type { ImportantSectorKind } from './sector-loss.ts';
 import type { EconomyPrompt } from './state.ts';
 
@@ -29,6 +30,8 @@ export type EconomyEvent =
       readonly textKey?: TextKey;
       readonly chars?: number;
       readonly skipped?: boolean;
+      readonly panel?: ExternPanel;
+      readonly sector?: string;
     }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
   | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }

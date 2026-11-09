@@ -5,7 +5,8 @@
 // @src TakeOffHelicopter, StartHoverTime, HandleHeliHoverLong, HandleHeliHoverTooLong, DoesSkyriderNoticeEnemiesInSector,
 // @src SetUpHelicopterForMovement, IsRefuelSiteInSector, IsRefuelAvailableInSector, UpdateRefuelSiteAvailability,
 // @src SetUpHelicopterForPlayer, MoveAllInHelicopterToFootMovementGroup, SkyriderDialogue, SkyriderDialogueWithSpecialEvent,
-// @src HandleSkyRiderMonologueEvent and the monologue handlers (special events through the dialogue queue, 2026-11-01),
+// @src HandleSkyRiderMonologueEvent (SetExternMapscreenSpeechPanelXY at every special event, 2026-11-09) and the monologue
+// @src handlers (special events through the dialogue queue, 2026-11-01),
 // @src CheckAndHandleSkyriderMonologues,
 // @src HandleHelicopterOnGround, IsHelicopterOnGroundAtRefuelingSite, HandleSAMSiteAttackOfHelicopterInSector,
 // @src CanHelicopterTakeOff, IsSkyriderFlyingInSector, PaySkyriderBill, PayOffSkyriderDebtIfAny, MakeHeliReturnToBase,
@@ -653,6 +654,7 @@ export function isSkyriderMonologue(event: number): event is SkyriderMonologue {
 }
 
 export function handleSkyriderMonologueEvent(ctx: StrategicContext, event: SkyriderMonologue, code: number): void {
+  ctx.state.talk.dialogue.externPanel = { monologue: MONOLOGUE_TOPICS[event] };
   if (code === MonologueCode.START) ctx.helicopter.emit({ type: 'skyriderMonologue', topic: MONOLOGUE_TOPICS[event] });
   MONOLOGUES[event](ctx, code as MonologueCode);
   heliState(ctx).lastMonologueMinute = now(ctx);

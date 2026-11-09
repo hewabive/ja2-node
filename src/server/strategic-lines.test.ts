@@ -3,7 +3,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../sim/events.ts';
-import { tacticalCharacterDialogue } from '../sim/narrative/dialogue-queue.ts';
+import { characterDialogue, tacticalCharacterDialogue } from '../sim/narrative/dialogue-queue.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { EventKind } from '../sim/strategic/time/constants.ts';
@@ -128,6 +128,19 @@ describe("Skyrider's monologue (Map_Screen_Helicopter.cc SkyriderDialogueWithSpe
   });
 });
 
+describe("the locator of a merc's line without a soldier (Map_Screen_Interface.cc TurnOnSectorLocator)", () => {
+  it("marks the sector of a merc's profile for his line without a soldier", async () => {
+    const c = await onTheMap(127);
+    const talk = c.session.campaign.talk;
+    const away = c.session.campaign.state.profiles.get(VANT + 2);
+    if (!talk || !away) throw new Error('no talk flow or no profile away from the team');
+    Object.assign(away, { sectorX: 13, sectorY: 2, sectorZ: 0 });
+    characterDialogue(talk.host, VANT + 2, MercQuote.HEADSHOT, false, false);
+    const line = c.live.advance({ events: ['mercQuote'] }).events.find((e) => e.type === 'mercQuote');
+    expect(line).toMatchObject({ soldier: -1, profile: VANT + 2, sector: 'B13' });
+  });
+});
+
 describe('a bark at an own merc (Handle_UI.cc HandleTalkInit, TacticalCharacterDialogue)', () => {
   it('passes the speaker checks of the dialogue queue: a gassed merc says nothing', async () => {
     const c = await squadInA9(125);
@@ -200,6 +213,7 @@ describe("a head miner's line (Map_Screen_Interface.cc HandleMinerEvent, Strateg
     expect(c.session.campaign.state.flow).toBe('strategic');
     const said = c.live.advance({ events: ['headMinerQuote'], ticks: TEN_MINUTES_OF_TICKS });
     expect(minerLines(said.events)).toEqual([FRED_RUNNING_OUT]);
+    expect(said.events.find((e) => e.type === 'headMinerQuote')).toMatchObject({ panel: { mine: DRASSEN_MINE } });
     expect(c.session.campaign.state.flow).toBe('strategic');
   });
 

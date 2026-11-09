@@ -8,12 +8,16 @@
 // @src TacticalAI/NPC.cc giNPCSpecialReferenceCount;
 // @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm; GameScreen.cc gfTacticalIsModal, gModalDoneCallback;
 // @src Faces.h FACE_MODAL (2026-11-04); Dialogue_Control.cc DialogueActive (2026-11-07); Tactical/Overhead.h
-// @src bMercArrivingQuoteBeingUsed (2026-11-08).
+// @src bMercArrivingQuoteBeingUsed (2026-11-08); Dialogue_Control.cc gsExternPanelXPosition and gsExternPanelYPosition,
+// @src SetExternMapscreenSpeechPanelXY, HandleDialogueEnd (back to the default as a line ends) (2026-11-09).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
 import { Rng } from '../../core/rng.ts';
 import type { ItemObject } from '../items/object.ts';
+import type { SkyriderTopic } from '../strategic/forces/helicopter-events.ts';
+
+export type ExternPanel = { readonly monologue: SkyriderTopic } | { readonly mine: number };
 
 export interface TalkContext {
   src: number | null;
@@ -93,6 +97,7 @@ export interface TalkState {
   lastQuoteProfile: number;
   meTooBleedLog: number;
   mercArrivingQuoteBeingUsed: boolean;
+  externPanel: ExternPanel | null;
   engagedSeen: boolean;
   pausedForLine: boolean;
   stopTimeCallback: string | null;
@@ -122,6 +127,7 @@ export function createTalkState(seed = 0): TalkState {
     lastQuoteProfile: NO_PROFILE,
     meTooBleedLog: 0,
     mercArrivingQuoteBeingUsed: false,
+    externPanel: null,
     engagedSeen: false,
     pausedForLine: false,
     stopTimeCallback: null,

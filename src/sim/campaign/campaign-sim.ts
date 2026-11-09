@@ -18,7 +18,7 @@
 // @src GetKeyboardInput's gate for a locked UI (Tactical/Turn_Based_Input.cc:2330) and Handle_UI.cc's full-screen
 // @src gDisableRegion, which leave the drop no key and no button but Esc (2026-11-08).
 
-import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
@@ -46,6 +46,7 @@ import {
   handleGroupArrivalEvent,
   type StrategicContextOptions,
 } from '../strategic/forces/context.ts';
+import { helicopterVehicle, SKYRIDER } from '../strategic/forces/helicopter.ts';
 import { wildernessSectorWithAllProfiledNpcsNotSpokenWith } from '../strategic/forces/npcs-of-note.ts';
 import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
@@ -108,6 +109,7 @@ import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen 
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
 import { handleSomeoneElseInSectorTimer, someoneElseInSectorToTell } from './someone-else-in-sector.ts';
+import { type SpeakerLocator, sectorLabel, speakerLocator } from './speaker-locator.ts';
 import { isQueryCommand, storyRefusal } from './story-refusals.ts';
 import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
 import { createUnloadedWorld, drainTurnWorldEvents, handleMapScreenRealtimeTurns } from './turn-world.ts';
@@ -837,7 +839,13 @@ export class CampaignSim {
     if (!talk) return e;
     switch (e.type) {
       case 'mercQuote': {
-        const sector = this.#speakerSector(e.soldier);
+        const sector = e.soldier >= 0 ? this.#speakerSector(e.soldier) : this.#speakerLocator(e.profile)?.sector;
+        return sector ? { ...e, sector } : e;
+      }
+      case 'skyriderQuote':
+        return { ...e, ...this.#speakerLocator(e.profile ?? SKYRIDER) };
+      case 'headMinerQuote': {
+        const sector = this.#speakerLocator(e.profile)?.sector;
         return sector ? { ...e, sector } : e;
       }
       case 'shopkeeperQuote':
@@ -849,9 +857,36 @@ export class CampaignSim {
 
   #speakerSector(soldier: number): string | null {
     const merc = this.battle?.roster.get(soldier);
-    if (!merc) return null;
-    const s = merc.sector;
-    return s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s);
+    return merc ? sectorLabel(merc.sector) : null;
+  }
+
+  #speakerLocator(profile: number): SpeakerLocator | null {
+    return speakerLocator(
+      {
+        soldierSector: (id) => this.#soldierSector(id),
+        helicopterSector: () => this.#helicopterSector(),
+        profileSector: (id) => this.#profileSector(id),
+      },
+      profile,
+    );
+  }
+
+  #soldierSector(profile: number): Sector | null {
+    const merc = this.battle?.roster.byProfile(profile);
+    if (merc) return merc.sector;
+    const loaded = this.tactical?.state.soldiers.some((s) => s?.profile === profile) ?? false;
+    return loaded ? this.state.worldSector : null;
+  }
+
+  #helicopterSector(): Sector | null {
+    const ctx = this.strategic;
+    if (!ctx?.state.forces.helicopter.setUp) return null;
+    return helicopterVehicle(ctx)?.sector ?? null;
+  }
+
+  #profileSector(profile: number): Sector | null {
+    const p = this.state.profiles.get(profile);
+    return p && p.sectorX > 0 && p.sectorY > 0 ? { x: p.sectorX, y: p.sectorY, z: p.sectorZ } : null;
   }
 
   dispatch(cmd: CampaignCommand): CommandResult {

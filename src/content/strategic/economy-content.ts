@@ -4,6 +4,7 @@
 // @src (starting_cash_*, enable_stat_healing); src/externalized/mercs/MercProfileInfo.cc (type). Tables in data/tables
 // @src from tools/transcribe/town-loyalty.ts and head-miners.ts.
 
+import { i16 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 import { asArray, asBool, asInt, asObject, asString, intArray, optionalBool } from './json-fields.ts';
@@ -37,6 +38,7 @@ export interface MineDef {
   readonly delayDepletion: boolean;
   readonly minimumMineProduction: number;
   readonly mineSectors: readonly MineSectorRef[];
+  readonly faceDisplayYOffset: number;
 }
 
 export interface GlobalLoyaltyEventDef {
@@ -116,6 +118,7 @@ export function parseMines(json: unknown, towns: readonly Town[]): MineDef[] {
         const pair = asArray(s, `${what}.mineSectors[${k}]`);
         return { sector: parseSectorId(asString(pair[0], `${what}.mineSectors[${k}]`)), z: asInt(pair[1], `${what}.mineSectors[${k}]`) };
       }),
+      faceDisplayYOffset: o.faceDisplayYOffset === undefined ? 0 : i16(asInt(o.faceDisplayYOffset, `${what}.faceDisplayYOffset`)),
     };
   });
 }

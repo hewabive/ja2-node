@@ -2178,6 +2178,22 @@ function addRevealedAtLoad(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const EXTERN_PANEL_KEY = 'externPanel';
+
+function withExternPanel(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withExternPanel(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withExternPanel(v);
+  return isTalkStateRecord(mapped) ? insertAfter(mapped, MERC_ARRIVING_QUOTE_KEY, EXTERN_PANEL_KEY, null) : mapped;
+}
+
+function addExternPanel(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withExternPanel(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2251,5 +2267,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     69: addSavedPendingAction,
     70: addBoundingFrame,
     71: addRevealedAtLoad,
+    72: addExternPanel,
   };
 }

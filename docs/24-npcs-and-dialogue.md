@@ -202,6 +202,7 @@ otherwise:
 | A line on the map screen pauses before the speaker checks, so a line its speaker can no longer say pauses the game until the next pass ends the empty face | `dialogue-queue.test.ts` |
 | The end of a map screen line lifts whatever pause lock is on: a conversation engaged during the line loses its pause | `dialogue-queue.test.ts` |
 | An important line queues its wake and sleep events even when the merc may not say it | `dialogue-queue.test.ts` |
+| Skyrider's or a head miner's line takes the panel placement set since the last line ended, so a monologue or a miner's line that waits behind another line opens at the default placement: that line's end puts it back (`Tactical/Dialogue_Control.cc:1239`) | `dialogue-queue.test.ts` "loses a placement set while another line plays …" |
 | A boxing round decided at a team's turn start returns before the ME_TOO log closes, so later bleeding warnings keep turning into ME_TOO | `tactical/turns/turns.test.ts` |
 | A stop-time quote freezes tactical one full frame after its line starts | `dialogue-queue.test.ts` "quote %i of our merc makes tactical modal …", `src/server/stop-time-quote.test.ts` |
 | A stop-time line its merc cannot say leaves its callback waiting: nothing stops and nothing asks | `dialogue-queue.test.ts` "keeps its callback waiting …" |

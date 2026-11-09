@@ -7,7 +7,8 @@
 // @src FaceOverlayClickCallback (a click shuts the face up after 500 ms), HandleDialogueEnd; src/game/Tactical/Civ_Quotes.cc
 // @src BeginCivQuote (the quoted line in a basic box centred on GetSoldierScreenPos, clamped to the screen width and the
 // @src viewport), QuoteOverlayClickCallback, ShutDownQuoteBox; src/game/Tactical/Faces.cc GetFaceRelativeCoordinates
-// @src (FACE_FORCE_SMALL uses the RPC small face offsets).
+// @src (FACE_FORCE_SMALL uses the RPC small face offsets); HandleDialogue (a line carried over from the map screen takes
+// @src the popup and keeps the subtitle box and click region where they were, through TalkingUi, 2026-11-09).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -30,6 +31,7 @@ import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { drawTalkingFace, FaceAnimator, type FaceRecord, faceFileOf } from '../tactical/faces.ts';
 import { SubtitleBox, skipRegion } from './subtitle-box.ts';
+import { type SpeechPlacement, SpeechScreen, TalkingUi, type UiPoint } from './talking-ui.ts';
 
 export const TACTICAL_SPEECH_SCREEN = 'tacticalSpeech';
 export const TACTICAL_SPEECH_LAYOUT = 'tactical-speech';
@@ -96,6 +98,10 @@ export function civQuotePosition(
   return { x, y };
 }
 
+function tacticalSurface(surface: SpeechSurface): boolean {
+  return surface === SpeechSurface.TACTICAL || surface === SpeechSurface.EXTERNAL;
+}
+
 export function smallFaceRecord(profile: ProfilePresentation): FaceRecord {
   const small = profile.smallFace;
   return {
@@ -113,7 +119,7 @@ export class SpeechSurfaces {
   #now = 0;
   #civBox: PlacedBox | null = null;
   #faceRegion: MouseRegion | null = null;
-  #faceLine = -1;
+  #faceRegionAt: UiPoint | null = null;
   #popupFace: FaceAnimator | null = null;
   #popupProfile = -1;
   #civAnchor: { readonly id: number; readonly x: number; readonly y: number } | null = null;
@@ -125,15 +131,26 @@ export class SpeechSurfaces {
 
   renderers(): Readonly<Record<string, CustomRenderer>> {
     return {
-      speechFacePopup: (list, rect, params) => this.#renderFacePopup(list, rect, params),
+      speechFacePopup: (list, _rect, params) => this.#renderFacePopup(list, params),
       speechTextBox: (list) => this.#renderTextBox(list),
       civQuoteBox: (list) => this.#renderCivBox(list),
     };
   }
 
   get facePopupShown(): boolean {
-    return this.#faceRegion !== null;
+    return this.#ui.popups.length > 0;
   }
+
+  get #ui(): TalkingUi {
+    return TalkingUi.of(this.#hooks.presenter);
+  }
+
+  readonly #placement: SpeechPlacement = {
+    screen: SpeechScreen.TACTICAL,
+    textBox: (line) => (tacticalSurface(line.surface) ? this.#textBoxPlace() : null),
+    facePopup: (line) => (tacticalSurface(line.surface) ? this.#facePopupPlace() : null),
+    carriedPopup: () => this.#facePopupPlace(),
+  };
 
   get textBoxText(): string | null {
     return this.#textBox.text;
@@ -146,17 +163,19 @@ export class SpeechSurfaces {
   update(now: number): void {
     this.#now = now;
     const current = this.#hooks.presenter.current;
-    const surface = current?.line.surface;
-    const tactical = surface === SpeechSurface.TACTICAL || surface === SpeechSurface.EXTERNAL;
-    this.#syncFaceRegion(tactical && this.#hooks.speechOn() ? current : null);
-    this.#textBox.sync(tactical && current?.subtitles ? current : null, () => this.#textBoxPlace());
-    this.#syncPopupFace(now, tactical && !this.#ownSpeaker(current) ? current : null);
+    const ui = this.#ui;
+    ui.follow(current, this.#placement, this.#hooks.speechOn());
+    this.#syncFaceRegion(ui.region);
+    const box = ui.textBox;
+    this.#textBox.sync(box && current?.subtitles ? current : null, () => box ?? this.#textBoxPlace());
+    this.#syncPopupFace(now, ui.popups.length > 0 && !this.#ownSpeaker(current) ? current : null);
     this.#syncCivBox(this.#hooks.presenter.civQuote);
   }
 
   dispose(): void {
     this.#faceRegion?.remove();
     this.#faceRegion = null;
+    this.#faceRegionAt = null;
     this.#textBox.dispose();
     this.#civBox?.region.remove();
     this.#civBox = null;
@@ -202,25 +221,22 @@ export class SpeechSurfaces {
     return { x: this.#number(s.x), y: this.#number(s.y), width: this.#number(s.width) };
   }
 
-  #syncFaceRegion(line: ActiveLine | null): void {
-    if (!line) {
-      this.#faceRegion?.remove();
+  #facePopupPlace(): UiPoint {
+    const s = this.#style('facePopup');
+    return { x: this.#number(s.x), y: this.#number(s.y) };
+  }
+
+  #syncFaceRegion(at: UiPoint | null): void {
+    if (at === this.#faceRegionAt) return;
+    this.#faceRegion?.remove();
+    this.#faceRegionAt = at;
+    if (!at) {
       this.#faceRegion = null;
-      this.#faceLine = -1;
       return;
     }
-    if (this.#faceRegion && this.#faceLine === line.line.id) return;
-    this.#faceRegion?.remove();
     const s = this.#style('facePopup');
-    this.#faceRegion = skipRegion(
-      { ...this.#hooks, owner: OWNER, now: () => this.#now },
-      'speechFacePopup',
-      this.#number(s.x),
-      this.#number(s.y),
-      this.#number(s.width),
-      this.#number(s.height),
-    );
-    this.#faceLine = line.line.id;
+    const hooks = { ...this.#hooks, owner: OWNER, now: () => this.#now };
+    this.#faceRegion = skipRegion(hooks, 'speechFacePopup', at.x, at.y, this.#number(s.width), this.#number(s.height));
   }
 
   #syncPopupFace(now: number, line: ActiveLine | null): void {
@@ -286,10 +302,13 @@ export class SpeechSurfaces {
     this.#civBox = { id: civ.id, box, x: at.x, y: at.y, region };
   }
 
-  #renderFacePopup(list: DrawList, rect: { x: number; y: number }, params: Readonly<Record<string, unknown>>): void {
-    if (!this.#faceRegion) return;
+  #renderFacePopup(list: DrawList, params: Readonly<Record<string, unknown>>): void {
     const current = this.#hooks.presenter.current;
     if (!current) return;
+    for (const at of this.#ui.popups) this.#renderFacePopupAt(list, at, current, params);
+  }
+
+  #renderFacePopupAt(list: DrawList, rect: UiPoint, current: ActiveLine, params: Readonly<Record<string, unknown>>): void {
     const s = this.#style('facePopup');
     const soldier = this.#speakerSoldier(current);
     const panel = this.#hooks.model.asset(String(soldier ? params.panel : params.panelWithoutSoldier)).path;

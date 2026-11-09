@@ -1,5 +1,6 @@
 import type { TextKey } from '../../../content/narrative/dialogue-text.ts';
 import type { SimEventBase } from '../../events.ts';
+import type { ExternPanel } from '../../narrative/talk-state.ts';
 
 export type HoverStage = 'started' | 'long' | 'tooLong';
 export type SkyriderTopic = 'drassenSam' | 'cambriaHospital' | 'otherSams' | 'estoniRefuel';
@@ -16,6 +17,9 @@ export interface SkyriderQuoteEvent extends SimEventBase {
   readonly textKey?: TextKey;
   readonly chars?: number;
   readonly skipped?: boolean;
+  readonly panel?: ExternPanel;
+  readonly sector?: string;
+  readonly helicopter?: boolean;
 }
 
 export interface HeliTakeOffEvent extends SimEventBase {

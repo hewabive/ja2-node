@@ -158,7 +158,12 @@ takes none while another screen is up, so its routing never decides a tactical l
 the lips of the info face, makes him the info character with speech on (on entry whatever the option, as
 `ContinueDialogue`; with an item held only if he could take it, `passTargets`) and is subtitled in a box beside the
 face; the box, the face, Backspace and Esc cut it, opening the contract menu or the laptop stops it
-(`map/map-speech.ts`). The external faces there are gap "Map screen speech".
+(`map/map-speech.ts`). Skyrider and the head miners talk there in the external face popup with their box 97 to its
+right, at the panel the line event names (a Skyrider monologue's or the miner's mine's, `panel`; the default
+otherwise), and a merc line without a soldier in the popup at the screen's 10, 20. The yellow locator takes the sector the line event names as the line starts (`sector`; Skyrider's helicopter,
+`helicopter`, not while the airspace shows). Which screen a line started on and where its box and popups went is the
+session presenter's `TalkingUi` (`talk/talking-ui.ts`), so a line carried across a screen switch keeps its box where it
+was and takes the original's popup changes. The rest is gap "Map screen speech".
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes, the parts a repairman leaves drawn in
@@ -279,6 +284,8 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The plotting ETA counts the remaining leg twice and drops the first temporary edge while the squad travels | `src/server/hints-strategic-stub.test.ts` "count the remaining leg twice …" |
 | The move box's Other header counts vehicle passengers and skips doctors | `map/move-selection.test.ts` "keeps the original test of the others header …" |
 | While a subtitle box is up the map screen's contract button and the contract column of the team list open no contract menu (the column still selects its merc), while the c key does (`Strategic/MapScreen.cc:4239`, `:5134`) | `map/map-speech.test.ts` "opens no contract menu from the contract button or column while the subtitle box is up …" |
+| A line carried from tactical to the map loses its face popup, and one without a soldier (Skyrider, a head miner, a merc without a soldier) leaves an unseen popup at 10, 20 whose click region still cuts the line: `HandleDialogue` clears `gfFacePanelActive` after `HandleTacticalSpeechUI` registered it (`Tactical/Dialogue_Control.cc:352`) | `talk/talking-ui.test.ts` "takes the popup off a line carried to the map …" |
+| A line carried from the map into tactical gets the face popup at 10, 20 whatever the speech option, beside a popup the map screen put up for Skyrider or a miner, and keeps the map's click region (`Tactical/Dialogue_Control.cc:386`) | `talk/talking-ui.test.ts` "gives a line carried from the map the popup …", "shows a popup the map put up beside …"; `talk/speech-surfaces.test.ts` "gives a line carried over from the map screen the popup …" |
 | A head miner's line leaves the map on the level it shows: Stracciatella's switch to the surface passes the selected sector, whose level `iCurrentMapSectorZ` is (`Strategic/Map_Screen_Interface.cc:1623`, `Strategic/Map_Screen_Interface.h:229`) | `map/map-screen.test.ts` "keeps the level it shows while a head miner speaks …" |
 | Space in autoresolve toggles pause and play but keeps Fast or Finish | `battle/autoresolve-screen.test.ts` "… keeps Fast through Space and Pause …" |
 | The description box over a dealer box drifts down by column (the slot is multiplied before the division by the row length); over the offer area near the face it moves down instead of right | `shop/shop-panel.test.ts` "places the description box with the original quirks" |

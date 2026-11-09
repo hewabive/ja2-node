@@ -199,7 +199,10 @@ the exits from the map with `dialogueQueued` or, while a line is said under its 
 strategic lines go through this queue as in the original: assignment done, the tired complaint, contract,
 relationship and morale lines, Skyrider and the head miners. Their `mercQuote`, `skyriderQuote` and `headMinerQuote`
 events come when the queue says them, after the lines queued before, not at the step that caused them; a line whose
-speaker can no longer talk when its turn comes is not said, and a save is refused while lines play (`27`).
+speaker can no longer talk when its turn comes is not said, and a save is refused while lines play (`27`). A Skyrider
+or head miner line carries `panel` when a monologue (`{monologue}`) or the miner's mine (`{mine}`) placed the map
+screen's face popup since the last line ended, and `sector`, where the map screen's locator goes as it starts
+(`helicopter` when that is Skyrider's helicopter); a merc line without a soldier carries his profile's `sector`.
 
 ### 4.5 Conversations in game time
 

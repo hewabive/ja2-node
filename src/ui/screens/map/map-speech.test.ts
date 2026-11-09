@@ -271,3 +271,132 @@ describe('cutting a line on the map screen', () => {
       expect(f.speech.presenter.current).toBeNull();
     }));
 });
+
+const SKYRIDER = 97;
+const FRED = 106;
+const EXTERN_X = 320;
+const EXTERN_Y = 40;
+const EXTERN_TEXT_OFFSET = 97;
+const POPUP = { width: 99, height: 98 };
+const DRASSEN_MINE = 1;
+const DRASSEN_MINE_FACE_Y = 135;
+const AWAY_PROFILE = 30;
+
+type Panel = { readonly monologue: 'drassenSam' | 'cambriaHospital' | 'otherSams' | 'estoniRefuel' } | { readonly mine: number };
+
+interface ExternalExtras {
+  readonly panel?: Panel;
+  readonly sector?: string;
+  readonly helicopter?: boolean;
+}
+
+function externalFrame(f: MapUiTest, profile: number, extra: ExternalExtras): ViewFrame {
+  const tick = f.client.view.tick;
+  const textKey = { file: `npcdata/${profile}.edt`, row: QUOTE, width: 240 };
+  const said = { tick, profile, quote: QUOTE, textKey, chars: LINE.length, text: LINE, ...extra };
+  const event =
+    profile === SKYRIDER
+      ? ({ type: 'skyriderQuote', ...said } as const)
+      : ({ type: 'headMinerQuote', mine: DRASSEN_MINE, ...said } as const);
+  return { tick, changed: [], removed: [], events: [event] };
+}
+
+function sayExternal(f: MapUiTest, profile: number, extra: ExternalExtras = {}): void {
+  f.speech.presenter.skip(f.t.now, true);
+  f.t.frame();
+  f.frames([externalFrame(f, profile, extra)]);
+}
+
+describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Control.cc HandleExternNPCSpeechFace)", () => {
+  it('puts the face popup at the external panel and the subtitle box 97 to its right', () =>
+    withMap(async (f) => {
+      sayExternal(f, SKYRIDER);
+      const { stdX, stdY } = f.t.runtime.geometry();
+      expect(f.widget('speechFacePopup').rect).toEqual({ x: stdX + EXTERN_X, y: stdY + EXTERN_Y, ...POPUP });
+      expect(f.widget('speechTextBox').rect).toMatchObject({ x: stdX + EXTERN_X + EXTERN_TEXT_OFFSET, y: stdY + EXTERN_Y });
+      expect(f.screen.hook().subtitle).toBe(`"${LINE}"`);
+    }));
+
+  it("places the panel for each Skyrider monologue and clear of the miner's mine", () =>
+    withMap(async (f) => {
+      const { stdX, stdY } = f.t.runtime.geometry();
+      const at = () => {
+        const { x, y } = f.widget('speechFacePopup').rect;
+        return [x - stdX, y - stdY];
+      };
+      sayExternal(f, SKYRIDER, { panel: { monologue: 'drassenSam' } });
+      expect(at()).toEqual([EXTERN_X, 117]);
+      sayExternal(f, SKYRIDER, { panel: { monologue: 'cambriaHospital' } });
+      expect(at()).toEqual([EXTERN_X, 172]);
+      sayExternal(f, SKYRIDER, { panel: { monologue: 'otherSams' } });
+      expect(at()).toEqual([335, EXTERN_Y]);
+      sayExternal(f, SKYRIDER, { panel: { monologue: 'estoniRefuel' } });
+      expect(at()).toEqual([EXTERN_X, EXTERN_Y]);
+      sayExternal(f, FRED, { panel: { mine: DRASSEN_MINE } });
+      expect(at()).toEqual([EXTERN_X, DRASSEN_MINE_FACE_Y]);
+      sayExternal(f, FRED, { panel: { mine: 0 } });
+      expect(at()).toEqual([EXTERN_X, EXTERN_Y]);
+    }));
+
+  it('shows the popup only with speech on as the line starts, and the box with subtitles', () =>
+    withMap(async (f) => {
+      f.speech.settings.speech = false;
+      sayExternal(f, SKYRIDER);
+      expect(f.find('speechFacePopup')).toBeUndefined();
+      expect(f.widget('speechTextBox').text).toBe(`"${LINE}"`);
+      f.speech.settings.speech = true;
+      f.t.frame();
+      expect(f.find('speechFacePopup')).toBeUndefined();
+    }));
+
+  it('cuts the line from a click on the popup after its first 500 ms', () =>
+    withMap(async (f) => {
+      sayExternal(f, SKYRIDER);
+      f.t.frame(MIN_TALK_BEFORE_SKIP_MS);
+      await f.click('speechFacePopup');
+      expect(f.speech.presenter.current).toBeNull();
+      expect(skipLines(f)).toHaveLength(1);
+    }));
+
+  it("marks Skyrider's helicopter with the locator unless the aircraft show as his line starts", () =>
+    withMap(async (f) => {
+      sayExternal(f, SKYRIDER, { sector: 'B13', helicopter: true });
+      expect(f.screen.hook().speakerLocator).toBe('B13');
+      f.screen.filters.airspace = true;
+      f.t.frame();
+      expect(f.screen.hook().speakerLocator).toBe('B13');
+      sayExternal(f, SKYRIDER, { sector: 'B13', helicopter: true });
+      expect(f.screen.hook().speakerLocator).toBeNull();
+      sayExternal(f, FRED, { sector: 'D13' });
+      expect(f.screen.hook().speakerLocator).toBe('D13');
+    }));
+});
+
+describe('a merc line without a soldier on the map screen (Dialogue_Control.cc HandleTacticalSpeechUI)', () => {
+  function awayLineFrame(f: MapUiTest): ViewFrame {
+    const tick = f.client.view.tick;
+    const textKey = { file: `mercedt/0${AWAY_PROFILE}.edt`, row: LINE_ROW, width: 240 };
+    const quote = {
+      type: 'mercQuote',
+      tick,
+      soldier: -1,
+      profile: AWAY_PROFILE,
+      quote: `quote${QUOTE}`,
+      id: QUOTE,
+      textKey,
+      chars: LINE.length,
+      text: LINE,
+      sector: 'C5',
+    } as const;
+    return { tick, changed: [], removed: [], events: [quote] };
+  }
+
+  it("puts it in the popup at the screen's 10, 20 with its box where a merc's goes, and marks the profile's sector", () =>
+    withMap(async (f) => {
+      f.frames([awayLineFrame(f)]);
+      const { stdX, stdY } = f.t.runtime.geometry();
+      expect(f.widget('speechFacePopup').rect).toEqual({ x: 10, y: 20, ...POPUP });
+      expect(f.widget('speechTextBox').rect).toMatchObject({ x: stdX + SUBTITLE_X, y: stdY + SUBTITLE_Y });
+      expect(f.screen.hook().speakerLocator).toBe('C5');
+    }));
+});

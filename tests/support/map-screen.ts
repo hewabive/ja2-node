@@ -48,6 +48,7 @@ const MINES: readonly MineDef[] = [
       { sector: sectorNumber('D13'), z: 1 },
       { sector: sectorNumber('E13'), z: 1 },
     ],
+    faceDisplayYOffset: 0,
   },
 ];
 

@@ -432,6 +432,17 @@ describe('monologues', () => {
     expect(said(ESTONI_REFUEL)).toEqual(['event 3:1', `quote ${SkyriderQuote.SPIEL_ABOUT_ESTONI_AIRSPACE}`, 'event 3:2']);
   });
 
+  it('places the external panel for the monologue at its start and again at every special event (SetExternMapscreenSpeechPanelXY)', () => {
+    const w = withHelicopter();
+    Object.assign(w.ctx.helicopter, { skyriderDialogue: () => {}, skyriderMonologueEvent: () => {} });
+    const talk = w.ctx.state.talk.dialogue;
+    handleSkyriderMonologueEvent(w.ctx, SkyriderMonologue.OTHER_SAM_SITES, 0);
+    expect(talk.externPanel).toEqual({ monologue: 'otherSams' });
+    talk.externPanel = null;
+    handleSkyriderMonologueEvent(w.ctx, SkyriderMonologue.CAMBRIA_HOSPITAL, 1);
+    expect(talk.externPanel).toEqual({ monologue: 'cambriaHospital' });
+  });
+
   it('reveals the SAM sites and refreshes the monologue time only when the queue runs the special event', () => {
     const w = withHelicopter();
     const ctx = w.ctx;

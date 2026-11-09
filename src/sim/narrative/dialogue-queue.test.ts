@@ -466,6 +466,28 @@ describe('an external face (Dialogue_Control.cc CharacterDialogue with DIALOGUE_
     runQueueToTheEnd(host);
     expect(host.emitted.map((e) => e.type)).toEqual(['mercQuote', 'skyriderQuote']);
   });
+  it('takes the panel placement set since the last line ended, and puts the default back as the line ends (HandleDialogueEnd)', () => {
+    const host = onTheMap();
+    host.talk.externPanel = { monologue: 'drassenSam' };
+    externalNpcDialogue(host, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    externalNpcDialogue(host, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    runQueueToTheEnd(host);
+    const panels = host.emitted.flatMap((e) => (e.type === 'skyriderQuote' ? [e.panel ?? null] : []));
+    expect(panels).toEqual([{ monologue: 'drassenSam' }, null]);
+    expect(host.talk.externPanel).toBeNull();
+  });
+
+  it('loses a placement set while another line plays, as that line ends before the external one starts', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc], inMapMode: true });
+    Object.assign(host, { headMinerMine: (profile: number) => (profile === FRED ? FREDS_MINE : -1) });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    host.talk.externPanel = { mine: FREDS_MINE };
+    externalNpcDialogue(host, FRED, FRED_RUNNING_OUT);
+    runQueueToTheEnd(host);
+    expect(host.emitted.find((e) => e.type === 'headMinerQuote')).not.toHaveProperty('panel');
+  });
 });
 
 describe('a special event that waits (DialogueEvent::Execute returning true)', () => {
