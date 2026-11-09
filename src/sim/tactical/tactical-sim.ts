@@ -621,6 +621,7 @@ export class TacticalSim {
 
   setAmbientLight(level: number): void {
     lightSetBaseLevel(this.state, level);
+    this.state.events.push({ type: 'ambientLightSet', level });
   }
 
   powerNightLights(on: boolean): void {

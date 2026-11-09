@@ -31,6 +31,11 @@ interface TrackedSoldier extends Standing {
   readonly wasMoving: boolean;
 }
 
+export type RoofMarkerChange =
+  | { readonly kind: 'placed'; readonly gridNo: number }
+  | { readonly kind: 'removed'; readonly gridNo: number }
+  | { readonly kind: 'stopped'; readonly soldier: number; readonly team: number };
+
 export interface RoofMarkerRules {
   readonly climbUpRoof: number;
   readonly stationary: (animation: number) => boolean;
@@ -45,6 +50,7 @@ export class RoofMarkers {
   readonly #rules: RoofMarkerRules;
   readonly #markers = new Set<number>();
   readonly #soldiers = new Map<number, TrackedSoldier>();
+  #changes: RoofMarkerChange[] = [];
   #started = false;
   #origin: SoldierOrigin = 'created';
 
@@ -52,7 +58,12 @@ export class RoofMarkers {
     this.#rules = rules;
   }
 
+  get changes(): readonly RoofMarkerChange[] {
+    return this.#changes;
+  }
+
   update(soldiers: readonly SoldierView[]): readonly number[] {
+    this.#changes = [];
     const present = new Set<number>();
     for (const s of soldiers) {
       present.add(s.id);
@@ -64,6 +75,7 @@ export class RoofMarkers {
   }
 
   reset(origin: SoldierOrigin): void {
+    this.#changes = [];
     this.#markers.clear();
     this.#soldiers.clear();
     this.#started = false;
@@ -95,6 +107,7 @@ export class RoofMarkers {
     if (stationary) {
       if (wasMoving && shown === 'seen') {
         this.#place(now, shown, false);
+        this.#changes.push({ kind: 'stopped', soldier: s.id, team: s.team });
         wasMoving = false;
       }
     } else if (!wasMoving) {
@@ -120,10 +133,12 @@ export class RoofMarkers {
   }
 
   #place(at: Standing, shown: Shown, forced: boolean): void {
-    if (shown !== 'gone' && this.#onRoof(at, forced)) this.#markers.add(at.gridNo);
+    if (shown === 'gone' || !this.#onRoof(at, forced) || this.#markers.has(at.gridNo)) return;
+    this.#markers.add(at.gridNo);
+    this.#changes.push({ kind: 'placed', gridNo: at.gridNo });
   }
 
   #remove(at: Standing): void {
-    if (this.#onRoof(at, false)) this.#markers.delete(at.gridNo);
+    if (this.#onRoof(at, false) && this.#markers.delete(at.gridNo)) this.#changes.push({ kind: 'removed', gridNo: at.gridNo });
   }
 }

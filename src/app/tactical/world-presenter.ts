@@ -41,7 +41,7 @@ import {
 } from '../../render/world/geometry.ts';
 import { NO_TILE_RUNS } from '../../render/world/reveal.ts';
 import type { WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
-import type { EffectEvent } from '../../sim/events.ts';
+import type { EffectEvent, SimEvent } from '../../sim/events.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
 import { TEAMPANEL_HEIGHT } from '../../ui/layout/frames.ts';
 import type {
@@ -197,6 +197,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   resetEffects(soldiers: SoldierOrigin): void {
     this.#world.resetEffects(soldiers);
+  }
+
+  followEvents(events: readonly SimEvent[]): void {
+    if (events.some((e) => e.type === 'ambientLightSet')) this.#world.baseLightSet();
   }
 
   get night(): boolean {

@@ -555,6 +555,7 @@ async function start(): Promise<void> {
     client.onFrames = (frames) => {
       sound.frames(frames);
       sleepWake.frames(frames);
+      if (frames.some((f) => f.events?.some((e) => e.type === 'ambientLightSet'))) view?.baseLightSet();
     };
     client.onReceive = (frames) => {
       for (const frame of frames) soldierFrames?.observe(frame.events ?? []);

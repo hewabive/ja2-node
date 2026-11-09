@@ -34,7 +34,7 @@ gameplay: lightTrueLevel(g, level)                              perception/, com
 | `src/content/formats/lht.ts`, `load-content.ts` | `.LHT` files and Stracciatella's `light-templates.json` (`TacticalContent.lightTemplates`) |
 | `save-import.ts` | Map lights for the saved hour, then the saved ambient level |
 | `src/sim/knowledge/tactical.ts` | The agent's projection, lit from the view's `light` (`lightView`) |
-| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights, across the map's structures with the view's `tileChanges` applied (`05`) |
+| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights, across the map's structures with the view's `tileChanges` applied (`05`); the roof light of each merc's light, which the roof marker adds and erases as its own node's (`src/app/world/roof-marker-shades.ts`) |
 
 ## 2. Design
 

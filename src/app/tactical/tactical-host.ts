@@ -457,6 +457,7 @@ export class TacticalHost {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#sound.frames(frames);
+    this.#loaded?.presenter.followEvents(frames.flatMap((f) => f.events ?? []));
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
       for (const event of frame.events ?? []) {

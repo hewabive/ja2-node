@@ -425,7 +425,9 @@ character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMax
 maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
-`:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
+`:1165`). `ambientLightSet {level}` comes each time the original sets its base light again and draws every light over it
+(`LightSetBaseLevel`: every dawn and dusk step and every temperature update, the level unchanged too), from when on the
+roof marker takes the roof's shade (`05`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
 a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropStarted {gridNo}` starts a run of the
 helicopter drop and centres the view on the north entry point, with no locate to the entry's merc
 (`GameScreen.cc:351`); `mercDropped {soldier}` comes as the helicopter lands a merc, at his drop or at the skip, with the

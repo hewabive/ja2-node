@@ -103,6 +103,20 @@ describe('client lighting on the stub village', () => {
     expect(lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).land[g]).toBe(without);
   });
 
+  it("keeps the roof light of each merc's light on a roof, which a roof node drawn under it takes, and none for a merc on the ground", () => {
+    const template = new LightTemplates().resolve(MERC_LIGHT)?.template;
+    const roofed = Array.from({ length: WORLD_MAX }, (_, g) => g).find((g) => levelTilesAt(world.level.layers.roofs, g).length > 0);
+    if (!template || roofed === undefined) throw new Error('no merc light or roof on the stub village');
+    const at = { x: (roofed % 160) * 10 + 5, y: Math.floor(roofed / 160) * 10 + 5, template };
+    const lighting = new WorldLighting(world.tactical);
+    const onRoof = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [{ soldier: 7, level: 1, ...at }] });
+    const amount = lighting.mercRoofLights.get(7)?.roof.get(roofed) ?? 0;
+    expect(amount).toBeGreaterThan(0);
+    expect(onRoof.roof[roofed]).toBe(Math.max(1, onRoof.natural - amount));
+    lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [{ soldier: 7, level: 0, ...at }] });
+    expect(lighting.mercRoofLights.get(7)?.roof.size).toBe(0);
+  });
+
   it('lights the map lights the view reports powered instead of those the hour would power, as a cave light sight switched on', () => {
     const lamp = world.map.lights?.sprites[0];
     if (!lamp) throw new Error('no stub lamp');

@@ -41,6 +41,7 @@ import { glowContext } from './glow-context.ts';
 import { type HelicopterShadowFrame, HelicopterShadows } from './helicopter-shadows.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
+import { RoofMarkerShades } from './roof-marker-shades.ts';
 import { ROOF_MARKER_TILE, RoofMarkers, type SoldierOrigin } from './roof-markers.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
 import type { BoundingBox } from './soldier-bounding-boxes.ts';
@@ -145,6 +146,7 @@ export class TacticalWorldView {
   readonly #crowShadows: CrowShadows;
   readonly #helicopterShadows = new HelicopterShadows();
   readonly #roofMarkers: RoofMarkers;
+  readonly #roofMarkerShades = new RoofMarkerShades();
   readonly #roofMarkerTile: number | null;
   #drawnEffects = 0;
   #drawnBullets = 0;
@@ -281,12 +283,24 @@ export class TacticalWorldView {
     this.#effectAnimations.reset();
     this.#helicopterShadows.reset();
     this.#roofMarkers.reset(soldiers);
+    this.#roofMarkerShades.reset();
   }
 
-  #roofMarkerNodes(soldiers: readonly SoldierView[]): WorldUiNode[] {
+  baseLightSet(): void {
+    this.#roofMarkerShades.baseLevelSet();
+  }
+
+  #roofMarkerNodes(soldiers: readonly SoldierView[], shade: ShadeField, options: SoldierLightOptions): WorldUiNode[] {
     const gridNos = this.#roofMarkers.update(soldiers);
+    this.#roofMarkerShades.update(this.lighting.mercRoofLights, this.#roofMarkers.changes, !options.mercAlwaysLit);
     const tile = this.#roofMarkerTile;
-    return tile === null ? [] : gridNos.map((gridNo) => ({ gridNo, layer: 'roof', tile }));
+    if (tile === null) return [];
+    return gridNos.map((gridNo) => ({
+      gridNo,
+      layer: 'roof',
+      tile,
+      shade: this.#roofMarkerShades.shade(gridNo, shade.roof[gridNo] ?? shade.natural),
+    }));
   }
 
   #effectFrameCount(kind: EffectKind, tile: string | null): number | null {
@@ -423,7 +437,7 @@ export class TacticalWorldView {
       slantRoofCeilings: new Set(view.slantRoofCeilings ?? NO_CEILINGS),
       soldiers,
       items: this.#items(view.items),
-      uiNodes: [...f.uiNodes, ...this.#roofMarkerNodes(onMap)],
+      uiNodes: [...f.uiNodes, ...this.#roofMarkerNodes(onMap, shade, f.options)],
       aniTiles: animatedTiles,
       structNodes: [
         ...effectStructNodes(effects, this.world.tables, this.world.tiles),

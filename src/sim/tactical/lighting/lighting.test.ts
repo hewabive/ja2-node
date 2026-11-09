@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim } from '../../../../tests/support/combat.ts';
 import { loadTestContent, readDataJson, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { LightTime, parseMap, writeMap } from '../../../content/formats/map.ts';
@@ -223,6 +224,17 @@ describe('map lights and the clock', () => {
     expect(level(t, X, Y)).toBe(NIGHT - 3);
     lightSpriteRenderAll(t);
     expect(level(t, X, Y)).toBe(NIGHT);
+  });
+
+  it('tells every set of the base light, the level unchanged too, which draws every light again (LightSetBaseLevel)', () => {
+    const sim = newCombatSim(content);
+    sim.drainEvents();
+    sim.setAmbientLight(NORMAL_LIGHTLEVEL_DAY);
+    sim.setAmbientLight(NORMAL_LIGHTLEVEL_DAY);
+    expect(sim.drainEvents().filter((e) => e.type === 'ambientLightSet')).toMatchObject([
+      { level: NORMAL_LIGHTLEVEL_DAY },
+      { level: NORMAL_LIGHTLEVEL_DAY },
+    ]);
   });
 
   it('takes the ambient level of an underground map and keeps cave lights off', () => {

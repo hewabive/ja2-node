@@ -181,3 +181,27 @@ describe('the overhead map picture (GoIntoOverheadMap, gfOverheadMapDirty)', () 
     expect([added, removed, reads()]).toEqual([['overhead:maps/test.dat:1', 'overhead:maps/test.dat:2'], ['overhead:maps/test.dat:1'], 2]);
   });
 });
+
+describe('the base light the frames show set again (LightSetBaseLevel)', () => {
+  it('hands each set to the world view once, for the roof markers to take the roof shade', () => {
+    let sets = 0;
+    const world = {
+      world: { map: { info: { restrictedScrollId: 0, centerGridNo: MAP_CENTRE } } },
+      baseLightSet: () => sets++,
+    } as unknown as TacticalWorldView;
+    const presenter = new TacticalWorldPresenter(
+      world,
+      {} as WorldRenderer,
+      {} as UiAssets,
+      {} as AnimationTables,
+      {} as PresenterSources,
+      null,
+    );
+    presenter.followEvents([{ type: 'roomRevealed', tick: 1, room: 2 }]);
+    presenter.followEvents([
+      { type: 'ambientLightSet', tick: 2, level: 3 },
+      { type: 'ambientLightSet', tick: 2, level: 3 },
+    ]);
+    expect(sets).toBe(1);
+  });
+});

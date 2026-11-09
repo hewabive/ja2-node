@@ -47,6 +47,7 @@ const RECOMPILE_RADIUS = 1;
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
 
 export interface MercLight {
+  readonly soldier?: number;
   readonly x: number;
   readonly y: number;
   readonly level: number;
@@ -64,11 +65,19 @@ export interface MapLight extends DynamicLight {
 }
 
 interface PlacedLight {
+  readonly soldier?: number;
   readonly x: number;
   readonly y: number;
   readonly flags: number;
   readonly template: LightTemplate;
 }
+
+export interface RoofLight {
+  readonly key: string;
+  readonly roof: ReadonlyMap<number, number>;
+}
+
+const NO_ROOF_LIGHTS: ReadonlyMap<number, RoofLight> = new Map();
 
 export interface LightingTime {
   readonly hour: number;
@@ -154,6 +163,7 @@ export class WorldLighting {
   #structureKey = '';
   #static: LightMaxima | null = null;
   #field: ShadeField | null = null;
+  #mercRoofLights: ReadonlyMap<number, RoofLight> = NO_ROOF_LIGHTS;
 
   constructor(world: TacticalWorld) {
     this.#world = world;
@@ -192,6 +202,10 @@ export class WorldLighting {
     this.#host = this.#hostOver(standingStructures(this.#world, changes), this.#host.lighting);
   }
 
+  get mercRoofLights(): ReadonlyMap<number, RoofLight> {
+    return this.#mercRoofLights;
+  }
+
   get underground(): boolean {
     return this.#map.ambient !== null && this.#map.ambient !== undefined;
   }
@@ -210,7 +224,7 @@ export class WorldLighting {
     const doors = [...input.openDoors].sort((a, b) => a - b).join(',');
     const staticKey = `${input.time.hour}|${ambient}|${doors}|${mapLightsKey(input.mapLights ?? null)}`;
     const placed = placedLights(input);
-    const mercKey = placed.map((m) => `${m.x},${m.y},${m.flags},${m.template.name}`).join(';');
+    const mercKey = placed.map(placedLightKey).join(';');
     this.#followStructureChanges(input.tileChanges ?? NO_TILE_CHANGES);
     if (this.#field && staticKey === this.#staticKey && mercKey === this.#mercKey) return this.#field;
     const t = this.#host as TacticalState;
@@ -222,7 +236,9 @@ export class WorldLighting {
       this.#staticKey = staticKey;
     }
     this.#mercKey = mercKey;
-    const maxima = placed.length > 0 ? this.#withLights(t, this.#static, placed) : this.#static;
+    const roofLights = new Map<number, RoofLight>();
+    const maxima = placed.length > 0 ? this.#withLights(t, this.#static, placed, roofLights) : this.#static;
+    this.#mercRoofLights = roofLights;
     this.#field = this.#shade(t.lighting.ambient, t.lighting.natural, maxima);
     return this.#field;
   }
@@ -258,7 +274,7 @@ export class WorldLighting {
     return { land, roof };
   }
 
-  #withLights(t: TacticalState, base: LightMaxima, lights: readonly PlacedLight[]): LightMaxima {
+  #withLights(t: TacticalState, base: LightMaxima, lights: readonly PlacedLight[], roofLights: Map<number, RoofLight>): LightMaxima {
     const land = base.land.slice();
     const roof = base.roof.slice();
     for (const m of lights) {
@@ -270,6 +286,7 @@ export class WorldLighting {
       lightSpritePosition(t, l, m.x, m.y);
       accumulate(l, t.lighting.landLight, land);
       accumulate(l, t.lighting.roofLight, roof);
+      if (m.soldier !== undefined) roofLights.set(m.soldier, { key: placedLightKey(m), roof: litTiles(l, t.lighting.roofLight) });
       lightSpriteDestroy(t, l);
     }
     return { land, roof };
@@ -287,6 +304,10 @@ export class WorldLighting {
   }
 }
 
+function placedLightKey(m: PlacedLight): string {
+  return `${m.x},${m.y},${m.flags},${m.template.name}`;
+}
+
 function mapLightsKey(lights: readonly MapLight[] | null): string {
   if (!lights) return 'map';
   return lights.map((l) => `${l.x},${l.y},${l.roof ? 1 : 0},${l.template.name}`).join(';');
@@ -294,6 +315,7 @@ function mapLightsKey(lights: readonly MapLight[] | null): string {
 
 function placedLights(input: LightingInput): PlacedLight[] {
   const mercs = input.mercLights.map((m) => ({
+    ...(m.soldier !== undefined ? { soldier: m.soldier } : {}),
     x: idiv(m.x, CELLS_PER_TILE),
     y: idiv(m.y, CELLS_PER_TILE),
     flags: LightSpriteFlags.MERC_LIGHT | (m.level > 0 ? LightSpriteFlags.ONROOF : 0),
@@ -301,6 +323,16 @@ function placedLights(input: LightingInput): PlacedLight[] {
   }));
   const dynamic = (input.dynamicLights ?? []).map((d) => ({ x: d.x, y: d.y, flags: 0, template: d.template }));
   return [...mercs, ...dynamic];
+}
+
+function litTiles(l: LightSprite, sums: Uint8Array): Map<number, number> {
+  const lit = new Map<number, number>();
+  for (const n of l.template.lights) {
+    const g = (l.y + n.dy) * WORLD_COLS + (l.x + n.dx);
+    const sum = g >= 0 && g < WORLD_MAX ? (sums[g] ?? 0) : 0;
+    if (sum > 0) lit.set(g, sum);
+  }
+  return lit;
 }
 
 function accumulate(l: LightSprite, sums: Uint8Array, max: Uint8Array): void {

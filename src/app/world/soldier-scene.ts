@@ -158,7 +158,7 @@ export class SoldierScene {
       const template = templateOf(s);
       if (!template) return [];
       const at = input.lights.mercAlwaysLit ? s : (this.#stationary.get(s.id) ?? s);
-      return [{ x: at.x, y: at.y, level: s.level, template }];
+      return [{ soldier: s.id, x: at.x, y: at.y, level: s.level, template }];
     });
   }
 

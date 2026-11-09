@@ -178,6 +178,11 @@ export interface RoomRevealedEvent extends SimEventBase {
   readonly room: number;
 }
 
+export interface AmbientLightSetEvent extends SimEventBase {
+  readonly type: 'ambientLightSet';
+  readonly level: number;
+}
+
 export interface HeardFrom {
   readonly by: number;
   readonly direction: number | 'above' | 'below';
@@ -783,6 +788,7 @@ export type SimEvent =
   | NoiseHeardEvent
   | EnemySightedEvent
   | RoomRevealedEvent
+  | AmbientLightSetEvent
   | ShotFiredEvent
   | MeleeStrikeEvent
   | StealAttemptEvent

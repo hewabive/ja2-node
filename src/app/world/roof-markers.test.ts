@@ -147,6 +147,21 @@ describe('the roof marker under a soldier on a roof (HandlePlacingRoofMarker)', 
     expect(roof.update([soldier(), enemy({ gridNo: NEXT_ROOF })])).toEqual([ROOF]);
   });
 
+  it('reports the markers placed and taken off in order, and every stop of a seen soldier, on a roof or not', () => {
+    const roof = markers();
+    roof.update([soldier(), enemy({ gridNo: GROUND, level: 0 })]);
+    expect(roof.changes).toEqual([
+      { kind: 'placed', gridNo: ROOF },
+      { kind: 'stopped', soldier: MERC, team: OUR_TEAM },
+      { kind: 'stopped', soldier: ENEMY, team: ENEMY_TEAM },
+    ]);
+    roof.update([soldier({ animation: WALKING })]);
+    expect(roof.changes).toEqual([{ kind: 'removed', gridNo: ROOF }]);
+    roof.update([soldier()]);
+    roof.update([soldier()]);
+    expect(roof.changes).toEqual([]);
+  });
+
   it('marks the tile where a soldier walking at the load stops', () => {
     const roof = markers();
     roof.reset('restored');
