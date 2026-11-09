@@ -781,7 +781,7 @@ export class CampaignSim {
     const s = this.state;
     if (this.ended()) return true;
     if (this.#autoBandaging()) return this.tactical?.isIdle() ?? true;
-    if (this.endgame.active() || s.meanwhile.trying || s.meanwhile.inScene) return false;
+    if (this.endgame.active() || s.meanwhile.trying || this.meanwhile.underWay()) return false;
     if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
     if (s.flow === 'tactical' && this.tactical) return this.#tacticalIdle(this.tactical);
     return !isTimeBeingCompressed(s.clock) && !this.#linePauseHeld() && (this.talk?.dialogueIdle() ?? true);
@@ -896,6 +896,7 @@ export class CampaignSim {
 
   dispatch(cmd: CampaignCommand): CommandResult {
     const result = this.#dispatch(cmd);
+    this.meanwhile.settle();
     flagNothingToDoAfterItemMove(this.state, cmd, result);
     this.#reEvaluateNothingToDo();
     if (this.state.flow === 'strategic') this.talk?.afterStrategicStep();
@@ -953,6 +954,13 @@ export class CampaignSim {
     return this.battle?.hasPendingDecision() !== true && this.talk?.requestOpen() !== true;
   }
 
+  #endMeanwhile(cmd: CampaignCommand): CommandResult {
+    const modal = this.#stopTimeQuoteRefusal(cmd);
+    if (modal) return modal;
+    if (this.#promptOpen()) return refuse('promptOpen', PROMPT_OPEN_REFUSAL);
+    return this.meanwhile.endByThePlayer();
+  }
+
   #setOption(cmd: CampaignCommand): CommandResult {
     if (this.#promptOpen()) return refuse('promptOpen', PROMPT_OPEN_REFUSAL);
     const change = parseOptionChange(cmd);
@@ -967,6 +975,7 @@ export class CampaignSim {
     if (cmd.type === 'setOption') return this.#setOption(cmd);
     const story = storyRefusal(this, cmd);
     if (story) return story;
+    if (cmd.type === 'endMeanwhile') return this.#endMeanwhile(cmd);
     const locked =
       this.#autoBandageRefusal(cmd) ??
       this.#helicopterDropRefusal(cmd) ??

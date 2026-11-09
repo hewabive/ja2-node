@@ -2,14 +2,6 @@ export interface StoryEventBase {
   readonly tick: number;
 }
 
-export interface MeanwhileResolvedEvent extends StoryEventBase {
-  readonly type: 'meanwhile';
-  readonly seq: number;
-  readonly scene: string;
-  readonly sector: string;
-  readonly at: number;
-}
-
 export interface MeanwhileStartedEvent extends StoryEventBase {
   readonly type: 'meanwhileStarted';
   readonly seq: number;
@@ -87,7 +79,6 @@ export interface RemoteUsedEvent extends StoryEventBase {
 }
 
 export type StoryEvent =
-  | MeanwhileResolvedEvent
   | MeanwhileStartedEvent
   | MeanwhileEndedEvent
   | PowsFoundEvent

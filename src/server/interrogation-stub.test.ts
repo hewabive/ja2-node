@@ -88,6 +88,7 @@ async function untilThePrompt(seed: number, mode?: RunMode) {
   expect(session.view().meanwhile).toEqual({ seq: 1, scene: 'interrogation' });
   expect(session.view().strategic?.flow).toBe('meanwhile');
   expect(session.dispatch({ type: 'stopTime' })).toMatchObject({ ok: false, data: { refusal: 'inMeanwhile' } });
+  expect(session.dispatch({ type: 'endMeanwhile' })).toMatchObject({ ok: false, data: { refusal: 'noPalaceScene' } });
   const prompt = live.advance({ idle: true });
   expect(prompt.reason).toBe('decision');
   expect(session.view().npcRequest).toMatchObject({ request: 'lie', choices: ['yes', 'no', 'lie'] });
@@ -127,7 +128,7 @@ async function answeredYes(mode?: RunMode): Promise<CampaignSession> {
 }
 
 describe('the interrogation in the stub prison yard', () => {
-  it('loads N7 with the captives, asks the lie question and leaves the captives free on a squad, the same across reloads', async () => {
+  it('loads N7 with the captives, refuses to be cut short (Esc ends only a palace scene), asks the lie question and leaves the captives free on a squad, the same across reloads', async () => {
     await expectReloadsInvisible(answeredYes);
   });
 

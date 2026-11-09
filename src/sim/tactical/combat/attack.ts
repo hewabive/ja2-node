@@ -46,8 +46,8 @@ import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
 import { deductPoints, enoughPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
-import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, Team, Visible } from '../soldier.ts';
+import { shownInSector, type TacticalState, whoIsThere } from '../state.ts';
 import { handleTileTool } from '../tile-tools.ts';
 import { heardOnly } from '../unseen-sources.ts';
 import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './ap.ts';
@@ -525,7 +525,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
     reduceAttackBusyCount(t, s, false);
   }
   const volume = gunfireVolume(t, s, d?.weapon?.attackVolume ?? 0, knife || law);
-  const shot = shownToPlayer(s) ? { target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
+  const shot = shownInSector(t, s) ? { target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
   t.events.push({ type: 'shotFired', soldier: s.id, ...shot, ...shotSound(t, s, item) });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, i16(chance - roll), buckshot, false);
   if (knife) takeThrownKnife(t, s);

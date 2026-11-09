@@ -84,8 +84,7 @@ function conversationOpen(campaign: CampaignSim): boolean {
 }
 
 function meanwhileStarting(campaign: CampaignSim): boolean {
-  const m = campaign.state.meanwhile;
-  return m.trying || m.inScene;
+  return campaign.state.meanwhile.trying || campaign.meanwhile.underWay();
 }
 
 function promptOpen(campaign: CampaignSim): boolean {
@@ -158,7 +157,7 @@ export function startsOurTurn(events: readonly SimEvent[]): boolean {
 }
 
 export function startsMeanwhile(events: readonly SimEvent[]): boolean {
-  return events.some((e) => e.type === 'meanwhile' || e.type === 'meanwhileStarted');
+  return events.some((e) => e.type === 'meanwhileStarted');
 }
 
 export interface PendingArrival {

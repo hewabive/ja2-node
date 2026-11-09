@@ -51,7 +51,7 @@ import { createSightMemo, type SightMemo } from './perception/sight-memo.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
-import { inSector, inVehicle, NOBODY, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
+import { inSector, inVehicle, NOBODY, type Soldier, shownToPlayer, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from './vehicle-soldiers.ts';
 import type { WorldItem } from './world-items.ts';
@@ -428,6 +428,14 @@ export function createAutoBandageState(): AutoBandageState {
 
 export function setAutoBandageMode(t: Pick<TacticalState, 'pathEnv'>, on: boolean): void {
   t.pathEnv.autoBandage = on;
+}
+
+export function setShowAllMercs(t: Pick<TacticalState, 'pathEnv'>, on: boolean): void {
+  t.pathEnv.showAllMercs = on;
+}
+
+export function shownInSector(t: Pick<TacticalState, 'pathEnv'>, s: { readonly team: number; readonly visible: number }): boolean {
+  return shownToPlayer(s) || t.pathEnv.showAllMercs;
 }
 
 export const RESET_AWAY_AI_CURSOR = 0xffff;

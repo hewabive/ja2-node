@@ -4043,3 +4043,49 @@ describe('snapshot version 80 (a meanwhile without its round trip) migrates with
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const FROZEN_SCENE_CONTEXT = {
+  wholeTownsExceptOmerta: 1,
+  samSitesControlled: 0,
+  lastBattleWon: true,
+  functionalSamInLastBattleSector: false,
+  firstBattleTown: 'other',
+  sciFi: true,
+  elliotBefore: 3,
+  elliotAfter: 3,
+};
+
+function versionEightyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const meanwhile = object(strategic.meanwhile);
+    const log = (meanwhile.log as Json[]).map((entry) => ({ ...object(entry), context: FROZEN_SCENE_CONTEXT }));
+    return [name, { ...strategic, meanwhile: { ...meanwhile, log } }];
+  });
+  return { ...snapshot, version: 81, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 81 (a resolved palace scene logged with the context it froze) migrates with the scene log alone, as the scenes play now', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign with a scene in its log', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    campaign.campaign.state.meanwhile.log.push({ seq: 1, id: 1, at: campaign.campaign.state.clock.seconds });
+    const current = snapshotSession(campaign);
+    const legacy = versionEightyOne(current.sim);
+    expect(JSON.stringify(legacy)).toContain('"elliotBefore"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

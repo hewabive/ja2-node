@@ -6,8 +6,7 @@ import { helicopterDropView } from '../tactical/helicopter-drop-state.ts';
 import { revealedAtLoadRuns, revealedRooms, revealedTileRuns } from '../tactical/perception/fov.ts';
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { currentSquad, selectedSoldier } from '../tactical/selection.ts';
-import { shownToPlayer } from '../tactical/soldier.ts';
-import type { TacticalState } from '../tactical/state.ts';
+import { shownInSector, type TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { type BulletView, bloodViews, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
 import { radarContacts } from '../tactical/xray.ts';
@@ -15,7 +14,7 @@ import { radarContacts } from '../tactical/xray.ts';
 const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
 
 export function bulletsShownToPlayer(t: TacticalState, since: (b: Bullet) => number): BulletView[] {
-  return bulletViews(t, shownToPlayer, since);
+  return bulletViews(t, (firer) => shownInSector(t, firer), since);
 }
 
 function currentSquadView(t: TacticalState): number | null {
@@ -28,7 +27,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
   const drop = helicopterDropView(sim.state);
   return {
     mapPath: sim.mapPath,
-    soldiers: sim.snapshot(presentation, shownToPlayer),
+    soldiers: sim.snapshot(presentation, (s) => shownInSector(sim.state, s)),
     openDoors: sim.openDoors(),
     openContainers: sim.openContainers(),
     doors: sim.doors(),

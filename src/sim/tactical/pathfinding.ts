@@ -90,7 +90,7 @@ export interface PathEnv {
   readonly restrictedScrollId: number;
   whoIsThere(g: number, level: number): PathSoldier | null;
   doorStatus(g: number): DoorStatus | null;
-  readonly showAllMercs: boolean;
+  showAllMercs: boolean;
   autoBandage: boolean;
   globalFlags?: number;
   readonly minAPsToStartMovement?: (s: PathSoldier, mode: MoveMode) => number;

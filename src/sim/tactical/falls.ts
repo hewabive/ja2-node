@@ -10,8 +10,8 @@ import { states } from './animation.ts';
 import { okFallDirection, soldierCollapse } from './combat/hit.ts';
 import { DIRECTION_INCREMENT } from './directions.ts';
 import { DrunkLevel, drunkLevel } from './drugs.ts';
-import { type Soldier, shownToPlayer } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import type { Soldier } from './soldier.ts';
+import { shownInSector, type TacticalState } from './state.ts';
 import { itemsAt, removeWorldItem, type WorldItem } from './world-items.ts';
 
 type FallCause = FellDownEvent['cause'];
@@ -51,7 +51,7 @@ function marblesUnderfoot(t: TacticalState, s: Soldier): WorldItem | undefined {
 function slipsOnMarbles(t: TacticalState, s: Soldier): boolean {
   const marbles = marblesUnderfoot(t, s);
   if (!marbles) return false;
-  if (shownToPlayer(s)) t.events.push({ type: 'slippedOnMarbles', soldier: s.id });
+  if (shownInSector(t, s)) t.events.push({ type: 'slippedOnMarbles', soldier: s.id });
   removeWorldItem(t, marbles);
   soldierCollapse(t, s);
   loseSomeActionPoints(t, s);
@@ -63,7 +63,7 @@ export function tripsAndFalls(t: TacticalState, s: Soldier): boolean {
   if (slipsOnMarbles(t, s)) return true;
   const cause = fallCause(t, s);
   if (cause === null) return false;
-  if (shownToPlayer(s)) t.events.push({ type: 'fellDown', soldier: s.id, cause });
+  if (shownInSector(t, s)) t.events.push({ type: 'fellDown', soldier: s.id, cause });
   soldierCollapse(t, s);
   loseSomeActionPoints(t, s);
   return true;

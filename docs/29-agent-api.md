@@ -297,7 +297,7 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 | Laptop open (§8.11) | laptop commands and queries, `skipLine` | `laptopOpen` | `refused` (`laptopOpen: …`) |
 | Conversation waiting for a choice (§8.4) | `approach`, `give`, `closeTalk`, `skipLine` | `conversationOpen` | `refused` (`conversationOpen`) |
 | Scripted sequence | `skipLine` | `scriptedSequence` | runs it until it ends or a panel or prompt opens |
-| The interrogation (flow `meanwhile`, §8.14) | `answer`, `skipLine` | `inMeanwhile` | runs; stops at its prompt and at `meanwhileEnded` |
+| A meanwhile scene (flow `meanwhile`, §8.14) | `answer`, `skipLine`, `endMeanwhile` (a palace scene) | `inMeanwhile` | runs; stops at the interrogation's prompt and at `meanwhileEnded` |
 | The endgame (§8.14) | `answer`, `skipLine` | `endgameInProgress` | plays the sequence, `ended` at `campaignWon` |
 | Won and over (flow `ended`) | nothing (`status` and `newSession` work) | `campaignOver`, also for the server-only queries | `ended` at once, no ticks |
 | Boxing UI lock (§8.6) | `estimateAttack`, `answer`, `skipLine` | `boxingUiLock` | runs the walk out of the ring |
@@ -902,16 +902,24 @@ pointer (`IsGunOrAmmoOfSameTypeSelected`).
 
 ### 8.14 Quests, meanwhiles and the ending
 
-Rules: `25` (quests), `26` (meanwhiles, prisoners, the end). Scenes and the ending are not player actions and have no
-command or prompt of their own; the flows `meanwhile`, `endgame` and `ended` lock the UI as the original does (§5).
+Rules: `25` (quests), `26` (meanwhiles, prisoners, the end). Scenes and the ending are not player actions: they have no
+prompt of their own but the interrogation's lie, and no command but Esc's in a palace scene; the flows `meanwhile`,
+`endgame` and `ended` lock the UI as the original does (§5).
 
 - **Quests** are hidden state: `strategic.quests` (`src/server/quest-view.ts`) lists only quests with a "started" or
   "finished" history line, so a quest changed without one (Alma's skip, a silent restart) stays invisible.
-- **Meduna scenes** (`src/sim/campaign/meanwhile-flow.ts`) resolve with the original's "played" semantics once their
-  gates pass; on the map the clock stops (`compressionStopped {reason: meanwhile}`), and while a scene waits for its
-  gates compression is refused.
-- **The interrogation** is a scripted tactical scene in N7 played in the `meanwhile` flow: the Queen's lines are a
-  conversation, her lie question an `npcRequest`; `advance` stops at the prompt and at `meanwhileEnded`.
+- **Meanwhile scenes** (`src/sim/campaign/meanwhile-flow.ts`) are played in the `meanwhile` flow once their gates
+  pass, each between `meanwhileStarted {seq, scene}` and `meanwhileEnded {seq, scene}`, where `advance` always stops;
+  on the map the clock stops (`compressionStopped {reason: meanwhile}`), and while a scene waits for its gates
+  compression is refused. `observe.meanwhile` names the scene under way and `strategic.meanwhiles` logs the scenes
+  played.
+- **Palace scenes** load P3 (`sectorLoaded`), play the Queen's records and load the sector before again (or unload the
+  hall when none was loaded) as they end; the view shows every soldier of the hall while one runs. `endMeanwhile`, the
+  Esc key, ends one at once with its implications and the way back; it is the only way on once a scene stalls (the
+  missile-site count with all four sites held picks no line), and it is refused with `noPalaceScene` outside a palace
+  scene and in the interrogation. The box's Skip does not skip yet (gap "Meanwhile scene playback").
+- **The interrogation** is a scripted tactical scene in N7: the Queen's lines are a conversation, her lie question an
+  `npcRequest`; `advance` stops at the prompt.
 - **The end** (`src/sim/campaign/endgame-flow.ts`): `queenKilled` starts the `endgame` flow and `advance` plays the
   sequence; with the creature quest open `endgameDeferred` stops it and the campaign plays on until
   `creatureQueenKilled`; `campaignWon` ends it. There is no game over: with no usable merc left compression is refused

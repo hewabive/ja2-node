@@ -107,14 +107,7 @@ function combatEnded(s: Setter, e: EventOf<'combatEnded'>): void {
   }
 }
 
-function meanwhileResolved(s: Setter, facts: MusicFacts): void {
-  s.set(MusicMode.MAIN_MENU);
-  if (!facts.sectorLoaded) return;
-  if (facts.hostiles > 0) s.set(MusicMode.TACTICAL_ENEMY_PRESENT);
-  s.sectorEntry(facts.hostiles);
-}
-
-function interrogationStarted(s: Setter, facts: MusicFacts): void {
+function meanwhileStarted(s: Setter, facts: MusicFacts): void {
   s.set(MusicMode.MAIN_MENU);
   if (facts.sectorLoaded) s.sectorEntry(facts.hostiles);
 }
@@ -156,11 +149,8 @@ function apply(s: Setter, e: SimEvent, facts: MusicFacts): void {
     case 'laptopClosed':
       s.set(facts.gameJustStarted ? MusicMode.LAPTOP : MusicMode.RESTORE);
       return;
-    case 'meanwhile':
-      meanwhileResolved(s, facts);
-      return;
     case 'meanwhileStarted':
-      interrogationStarted(s, facts);
+      meanwhileStarted(s, facts);
       return;
     case 'meanwhileEnded':
       if (e.scene === INTERROGATION_SCENE) s.set(MusicMode.TACTICAL_ENEMY_PRESENT);

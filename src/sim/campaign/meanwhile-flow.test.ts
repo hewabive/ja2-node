@@ -7,7 +7,7 @@ import { expectReloadsInvisible, type RunMode, reloadPoint } from '../../../test
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
-import { scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { meanwhileScheduledIn, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -63,15 +63,17 @@ function sceneOnTheMap(mode?: RunMode): CampaignSim {
   c.drainEvents();
   runUntilLogged(c);
   const events = c.drainEvents();
-  expect(events).toContainEqual(expect.objectContaining({ type: 'meanwhile', seq: 1, scene: 'outskirtsMeduna', sector: 'P3' }));
+  expect(events.filter((e) => e.type.startsWith('meanwhile'))).toEqual([
+    expect.objectContaining({ type: 'meanwhileStarted', seq: 1, scene: 'outskirtsMeduna' }),
+    expect.objectContaining({ type: 'meanwhileEnded', seq: 1, scene: 'outskirtsMeduna' }),
+  ]);
   expect(events).toContainEqual(expect.objectContaining({ type: 'compressionStopped', reason: 'meanwhile' }));
-  expect(c.state.clock.mode).toBe(CompressMode.X0);
-  expect(c.state.clock.pauseLocked).toBe(false);
-  expect(c.state.meanwhile.trying || c.state.meanwhile.inScene).toBe(false);
+  expect(events.filter((e) => e.type === 'sectorLoaded').map((e) => (e as { sector?: string }).sector)).toEqual(['P3', 'A9']);
+  expect([c.state.flow, c.state.clock.mode, c.state.clock.pauseLocked]).toEqual(['strategic', CompressMode.X0, false]);
+  expect([c.state.meanwhile.trying, c.meanwhile.underWay()]).toEqual([false, false]);
   for (const id of [Npc.QUEEN, Npc.ELLIOT, Npc.JOE])
     expect(c.state.profiles.get(id)).toMatchObject({ sectorX: 3, sectorY: 16, gridNo: SCENE_GRIDNO_AS_INT8, useProfileInsertion: false });
-  expect(c.state.profiles.get(Npc.ELLIOT)?.npcData).toBe(17);
-  expect(c.state.meanwhile.log[0]?.context).toMatchObject({ elliotBefore: 6, elliotAfter: 17, firstBattleTown: 'other' });
+  expect(c.state.profiles.get(Npc.ELLIOT)?.npcData).toBe(6);
   return c;
 }
 
@@ -80,20 +82,19 @@ function sceneInTactical(mode?: RunMode): CampaignSim {
   expect(c.state.flow).toBe('tactical');
   scheduleMeanwhileEvent(queenOf(c), Meanwhile.LOST_TOWN, nowMinutes(c) + 1);
   runUntilLogged(c);
-  expect(c.state.flow).toBe('tactical');
-  expect(c.state.clock.mode).toBe(CompressMode.X1);
+  expect([c.state.flow, c.state.worldSector, c.state.clock.mode]).toEqual(['tactical', { x: 9, y: 1, z: 0 }, CompressMode.X1]);
   expect(c.state.profiles.get(Npc.JOE)).toMatchObject({ useProfileInsertion: true, gridNo: SCENE_GRIDNO });
   expect(c.state.profiles.get(Npc.QUEEN)).toMatchObject({ useProfileInsertion: false });
-  expect(c.drainEvents()).toContainEqual(expect.objectContaining({ type: 'meanwhile', scene: 'lostTown' }));
+  expect(c.drainEvents()).toContainEqual(expect.objectContaining({ type: 'meanwhileEnded', scene: 'lostTown' }));
   return c;
 }
 
 describe('meanwhile scenes in a campaign', () => {
-  it('resolves a scene on the map with the played effects: compression stopped and reset, NPC profile side effects, the same across reloads', async () => {
+  it('ends a scene without its record files as it starts (deviation): the trip to P3_m and back from the map, the NPC moves undone with their side effects, compression stopped and the mode lost, the same across reloads', async () => {
     await expectReloadsInvisible(sceneOnTheMap);
   });
 
-  it('resolves a scene in tactical without touching the compression mode or Joe, the same across reloads', async () => {
+  it('ends a scene without its record files as it starts in tactical, back in the loaded sector without touching the compression mode or Joe, the same across reloads', async () => {
     await expectReloadsInvisible(sceneInTactical);
   });
 
@@ -122,5 +123,19 @@ describe('meanwhile scenes in a campaign', () => {
     c.state.sectorFlow.autoBandage.pending = true;
     c.meanwhile.afterStep();
     expect([c.state.meanwhile.trying, c.state.sectorFlow.autoBandage.pending]).toEqual([false, false]);
+  });
+
+  it('leaves a pending first-battle scene alone when the interrogation loads N7 with no world loaded: TrashWorld returns at once (WorldDef.cc TrashWorld)', () => {
+    const c = landed(35);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    c.sectors?.trashWorld();
+    expect([c.tactical, c.state.worldSector]).toEqual([null, null]);
+    c.state.queen.firstBattleMeanwhilePending = true;
+    c.state.meanwhile.current = { sector: { x: 7, y: 14 }, trigger: 0, id: Meanwhile.INTERROGATION, npc: Npc.QUEEN };
+    c.state.meanwhile.trying = true;
+    c.meanwhile.afterStep();
+    expect([c.state.worldSector, c.state.meanwhile.log.map((e) => e.id)]).toEqual([{ x: 7, y: 14, z: 0 }, [Meanwhile.INTERROGATION]]);
+    expect(c.state.queen.firstBattleMeanwhilePending).toBe(true);
+    expect(meanwhileScheduledIn(c.state.meanwhile, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE)).toBe(false);
   });
 });

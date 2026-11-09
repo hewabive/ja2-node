@@ -102,22 +102,10 @@ export interface MeanwhileReturnTrip {
   readonly screen: MeanwhileScreen;
 }
 
-export interface MeanwhileContext {
-  readonly wholeTownsExceptOmerta: number;
-  readonly samSitesControlled: number;
-  readonly lastBattleWon: boolean;
-  readonly functionalSamInLastBattleSector: boolean;
-  readonly firstBattleTown: 'drassen' | 'cambria' | 'other';
-  readonly sciFi: boolean;
-  readonly elliotBefore: number;
-  readonly elliotAfter: number;
-}
-
 export interface MeanwhileLogEntry {
   readonly seq: number;
   readonly id: number;
   readonly at: number;
-  readonly context: MeanwhileContext | null;
 }
 
 export interface MeanwhileState {
@@ -134,6 +122,10 @@ export interface MeanwhileState {
 }
 
 export const NUM_MEANWHILES = 17;
+
+export function meanwhileUnderWay(m: Pick<MeanwhileState, 'inScene' | 'returnTrip'>): boolean {
+  return m.inScene || m.returnTrip !== null;
+}
 
 export function emptyMeanwhileDefinition(): MeanwhileDefinition {
   return { sector: { x: 0, y: 0 }, trigger: 0, id: 0, npc: 0 };

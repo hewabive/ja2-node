@@ -2411,6 +2411,29 @@ function addMeanwhileReturnTrip(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LOG_KEY = 'log';
+const SCENE_CONTEXT_KEY = 'context';
+
+function withoutSceneContext(entry: Json): Json {
+  return isObject(entry) && entry[REF] === undefined ? withoutKeys(entry, [SCENE_CONTEXT_KEY]) : entry;
+}
+
+function withMeanwhileLogWithoutContexts(strategic: JsonObject): JsonObject {
+  const meanwhile = strategic[MEANWHILE_KEY];
+  if (!isObject(meanwhile) || meanwhile[REF] !== undefined) return strategic;
+  const log = meanwhile[LOG_KEY];
+  if (!Array.isArray(log)) return strategic;
+  return { ...strategic, [MEANWHILE_KEY]: { ...meanwhile, [LOG_KEY]: log.map((entry: Json) => withoutSceneContext(entry)) } };
+}
+
+function dropMeanwhileSceneContexts(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withMeanwhileLogWithoutContexts(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2493,5 +2516,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     78: countPickupsInTheSlot,
     79: moveInsertionCodesOntoSoldiers,
     80: addMeanwhileReturnTrip,
+    81: dropMeanwhileSceneContexts,
   };
 }

@@ -165,6 +165,13 @@ function goToThePalace(session: CampaignSession): Leg {
   return out;
 }
 
+function endTheScene(session: CampaignSession): void {
+  const flow = session.campaign.meanwhile;
+  flow.endMeanwhile();
+  expect(session.campaign.state.meanwhile.returnTrip).not.toBeNull();
+  flow.settle();
+}
+
 function civilians(t: TacticalState): { readonly profiled: number[]; readonly unprofiled: number } {
   const placed = teamMembers(t, Team.CIV).filter((s) => s.placed);
   return {
@@ -242,7 +249,7 @@ async function fromTactical(mode?: RunMode): Promise<CampaignSession> {
   expect(c0.sectors?.mapsNeededSoon()).toContain(B13_MAP);
   expect([c0.state.sectorDiffs.has(sectorKey(B13)), sectorInfo(c0.state.map, B13).timeLastLoaded]).toEqual([true, nowMinutes(session)]);
 
-  const back = recordedLeg(session, () => session.campaign.meanwhile.endMeanwhile());
+  const back = recordedLeg(session, () => endTheScene(session));
   expect([back.left, back.entered, back.pre, back.main.slice(-ENTRY_DRAWS.length), back.museumAlarmLeft]).toEqual([
     [PALACE],
     [B13],
@@ -281,7 +288,7 @@ async function fromTheMapWithTheAirfieldLoaded(mode?: RunMode): Promise<Campaign
   expect([c0.state.flow, c0.state.clock.pauseLocked, c0.state.clock.paused]).toEqual(['tactical', false, false]);
   expect([out.left, out.entered, out.museumAlarmLeft]).toEqual([[B13], [PALACE], false]);
 
-  const back = recordedLeg(session, () => session.campaign.meanwhile.endMeanwhile());
+  const back = recordedLeg(session, () => endTheScene(session));
   expect([back.left, back.entered, back.pre, back.museumAlarmLeft]).toEqual([[PALACE], [B13], [], false]);
   const c = session.campaign;
   expectThePalaceLeftUnsaved(session);
@@ -308,7 +315,7 @@ async function fromTheMapWithNoWorld(mode?: RunMode): Promise<CampaignSession> {
   expect([out.left, out.entered, out.museumAlarmLeft]).toEqual([[], [PALACE], true]);
   expect(session.campaign.state.meanwhile.returnTrip).toEqual({ sector: null, selectedSector: selected, screen: 'strategic' });
 
-  const back = recordedLeg(session, () => session.campaign.meanwhile.endMeanwhile());
+  const back = recordedLeg(session, () => endTheScene(session));
   expect(back).toEqual({ main: [], pre: [], entered: [], left: [], museumAlarmLeft: true });
   const c = session.campaign;
   expectThePalaceLeftUnsaved(session);

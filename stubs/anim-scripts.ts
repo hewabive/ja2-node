@@ -576,7 +576,27 @@ function meleeScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
     ['KNIFE_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
     ['PUNCH_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
     ...martialArtsScripts(),
+    ...queenSlapScripts(),
   ]);
+}
+
+const SlapOp = { SLAPPED: 759, AFTER_SLAP: 758 } as const;
+const SLAP_WIND_UP_FRAMES = 5;
+const SLAP_FOLLOW_THROUGH_FRAMES = 4;
+
+function queenSlapScripts(): [string, number[]][] {
+  const slap = [
+    ...frames(SLAP_WIND_UP_FRAMES),
+    SlapOp.SLAPPED,
+    ...frames(SLAP_FOLLOW_THROUGH_FRAMES, SLAP_WIND_UP_FRAMES + 1),
+    NONINTERRUPTIBLE_DONE,
+    SlapOp.AFTER_SLAP,
+    END_OF_ANIMATION,
+  ];
+  return [
+    ['QUEEN_SLAP', slap],
+    ['QUEEN_FRUSTRATED_SLAP', slap],
+  ];
 }
 
 const CreatureOp = { QUEEN_SWIPE_DAMAGE: 755, EAT_FLESH_DAMAGE: 761 } as const;

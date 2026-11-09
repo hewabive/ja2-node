@@ -14,8 +14,8 @@ import { type AddedExitGrid, addExitGridToWorld, addObjectToTail, recordExitGrid
 import { setUnplacedSoldierHeight } from '../roofs.ts';
 import { exitGridAt } from '../sector-exit.ts';
 import { leaveTacticalSector } from '../sector-presence.ts';
-import { type Soldier, shownToPlayer } from '../soldier.ts';
-import { onVisibleWorldTile, type SectorRef, type TacticalState, whoIsThere } from '../state.ts';
+import type { Soldier } from '../soldier.ts';
+import { onVisibleWorldTile, type SectorRef, shownInSector, type TacticalState, whoIsThere } from '../state.ts';
 
 export interface PitShape {
   readonly radius: number;
@@ -89,7 +89,7 @@ export function openPit(t: TacticalState, centre: number, shape: PitShape): void
 function handleFallIntoPitFromAnimation(t: TacticalState, s: Soldier): void {
   const pit = s.pendingActionData4;
   const exit = exitGridAt(t, pit) ?? NO_EXIT_GRID;
-  if (shownToPlayer(s)) t.events.push({ type: 'fellIntoPit', soldier: s.id, gridNo: pit });
+  if (shownInSector(t, s)) t.events.push({ type: 'fellIntoPit', soldier: s.id, gridNo: pit });
   s.insertionData = exit.gridNo;
   leaveTacticalSector(t, s);
   t.sectorHooks.soldierFellIntoPit(t, s, exit.sector);

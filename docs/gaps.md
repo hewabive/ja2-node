@@ -22,7 +22,11 @@ The map, travel, vehicles, time compression, the economy, sector state and autor
 
 ## 3. Campaign, laptop and narrative
 
-NPC records, merc lines, the dialogue queue and quest scripting: none known. Paths are under `src/sim/`.
+NPC records, merc lines, the dialogue queue and quest scripting. Paths are under `src/sim/`.
+
+| Area | Original | ja2-node | Notes |
+|---|---|---|---|
+| Meanwhile scene playback | Skip runs only the implications, without the scene NPCs' moves, the round trip and the emptied queue; a played scene is marked seen in `Ja2.set`, so its next box offers Skip (`Strategic/Meanwhile.cc:405-410`, `:535`); the camera goes to the scene's gridno, then to the Queen (`:367`, `:623-630`) | Every scene is played: the box's Skip continues as OK does and nothing is marked seen (`campaign/meanwhile-flow.ts`, `src/ui/screens/story/story-layer.ts`); the client shows the hall with the story layer's fades | Skip as a decision prompt with the seen flags kept by the server (maintainer decision S1), then the client's scene camera (`26`) |
 
 ## 4. Agent API
 
@@ -34,11 +38,7 @@ What a native savegame import leaves out: none known. Paths are under `src/`.
 
 ## 6. Presentation: screens, graphics, text, sound and video
 
-What the client does not show or play yet; none of it changes an outcome. Paths are under `src/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Meanwhile scene playback | OK plays the scene, Skip skips it, a played scene is marked seen (`Strategic/Meanwhile.cc:396`, `:535`) | The box only; OK and Skip both continue, nothing is marked seen (`ui/screens/story/story-layer.ts`) | The round trip to P3_m and back is in place but unused (`sim/campaign/meanwhile-flow.ts`); the scene, Skip and the client remain (`26`) |
+What the client does not show or play yet; none of it changes an outcome: none known. Paths are under `src/`.
 
 ## 7. Code conventions
 

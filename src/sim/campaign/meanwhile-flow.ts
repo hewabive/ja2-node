@@ -2,41 +2,40 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Meanwhile.cc CheckForMeanwhileOKStart, BeginMeanwhileCallBack, StartMeanwhile, SetNPCMeanwhile,
 // @src DoneFadeOutMeanwhile, DoneFadeInMeanwhile, EndMeanwhile, RestoreNPCMeanwhile, DoneFadeOutMeanwhileOnceDone;
-// @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Tactical/Interface_Dialogue.cc NPC_ACTION_SHOOT_ELLIOT (Elliot's
-// @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map); the pending
-// @src auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears (2026-11-06), with the customizable timer
-// @src of a won battle's look for someone else (2026-11-07); StartMeanwhile, DoneFadeOutMeanwhile and
-// @src DoneFadeOutMeanwhileOnceDone (the round trip to P3_m and back, 2026-11-09).
+// @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Strategic/MapScreen.cc (the compression mode lost after a
+// @src played scene on the map); the pending auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears
+// @src (2026-11-06), with the customizable timer of a won battle's look for someone else (2026-11-07); StartMeanwhile,
+// @src DoneFadeOutMeanwhile and DoneFadeOutMeanwhileOnceDone (the round trip to P3_m and back, 2026-11-09);
+// @src MessageBoxScreen.cc ExitMsgBox (the box's OK lifts the pause lock and the pause before BeginMeanwhileCallBack),
+// @src DoneFadeInMeanwhile (SHOW_ALL_MERCS and the Queen's record 0 for every palace scene), EndMeanwhile (the way back
+// @src after its fade, once the step or the command is done), StrategicMap.cc SetCurrentWorldSector
+// @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector), Tactical/Turn_Based_Input.cc GetKeyboardInput
+// @src (Esc ends a meanwhile but the interrogation: DeleteTalkingMenu, EndMeanwhile) (2026-11-09).
 
-import { sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { sectorFromStrategicIndex } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';
+import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { triggerNpcRecordImmediately } from '../narrative/converse.ts';
+import { deleteTalkingMenu, shutUpTalkingFace, triggerNpcRecordImmediately } from '../narrative/converse.ts';
 import { emptyDialogueQueue } from '../narrative/dialogue-queue.ts';
 import { reloadQuoteFile } from '../narrative/records.ts';
 import { dialogueQueueIsEmptyAndNobodyIsTalking } from '../narrative/talk-state.ts';
-import { ELLIOT_MAX_SLAPS, Meanwhile, Town } from '../strategic/ai/constants.ts';
+import { Meanwhile, Town } from '../strategic/ai/constants.ts';
 import {
-  handleFirstMeanwhileSetUpWithTrashWorld,
   INTERROGATION_SECTOR,
   MEDUNA_QUEEN_SECTOR,
   meanwhileSceneName,
   processImplicationsOfMeanwhile,
 } from '../strategic/ai/meanwhile.ts';
-import type { MeanwhileContext, MeanwhileNpcSave, MeanwhileReturnTrip, MeanwhileSector } from '../strategic/ai/queen-state.ts';
+import { type MeanwhileNpcSave, type MeanwhileReturnTrip, type MeanwhileSector, meanwhileUnderWay } from '../strategic/ai/queen-state.ts';
 import { numberOfWholeTownsUnderControlExcluding, townOf } from '../strategic/economy/towns.ts';
 import { isThereAFunctionalSamSiteInSector, numberOfSamSitesUnderPlayerControl } from '../strategic/map/sam.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { changeNpcToDifferentSector } from '../strategic/narrative/presence.ts';
-import { CompressMode } from '../strategic/time/constants.ts';
-import {
-  CompressionStop,
-  setGameTimeCompressionLevel,
-  stopTimeCompression,
-  unLockPauseState,
-  unPauseGame,
-} from '../strategic/time/world-clock.ts';
+import { CompressionStop, stopTimeCompression, unLockPauseState, unPauseGame } from '../strategic/time/world-clock.ts';
 import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
+import { refuse } from '../tactical/refusal.ts';
+import { setShowAllMercs } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { StoryEventWithoutTick } from './narrative/story-events.ts';
 import { leaveTacticalScreenForTheMap } from './screens.ts';
@@ -44,6 +43,9 @@ import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
 const MEDUNA_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
 const INTERROGATION_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT, Npc.JOE];
+const SCRIPTED_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
+const NO_PALACE_SCENE = 'noPalaceScene';
+const NO_PALACE_SCENE_TEXT = 'endMeanwhile (the Esc key) ends a palace meanwhile scene under way; the interrogation cannot be cut short';
 
 function sceneNpcs(id: number): readonly number[] {
   if (id === Meanwhile.INTERROGATION) return INTERROGATION_NPCS;
@@ -78,6 +80,10 @@ export class MeanwhileFlow {
     return this.#state.inScene;
   }
 
+  underWay(): boolean {
+    return meanwhileUnderWay(this.#state);
+  }
+
   sceneView(): { readonly seq: number; readonly scene: string } | null {
     if (!this.#state.inScene) return null;
     return { seq: this.#state.log.length + 1, scene: meanwhileSceneName(this.#state.current.id) };
@@ -91,6 +97,18 @@ export class MeanwhileFlow {
   }
 
   afterStep(): void {
+    this.#checkForMeanwhileOkStart();
+    this.settle();
+  }
+
+  settle(): void {
+    const m = this.#state;
+    if (m.inScene || m.returnTrip === null) return;
+    this.returnFromThePalace();
+    this.#emitEnded();
+  }
+
+  #checkForMeanwhileOkStart(): void {
     const m = this.#state;
     const flow = this.#campaign.state.flow;
     if (!m.trying || (flow !== 'tactical' && flow !== 'strategic')) return;
@@ -98,15 +116,37 @@ export class MeanwhileFlow {
     m.trying = false;
     setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
     forgetSomeoneElseInSector(this.#campaign.state.battle);
-    if (m.current.id === Meanwhile.INTERROGATION) this.#startInterrogation();
-    else this.#resolveMeduna(m.current.id);
+    this.#releasePause();
+    this.#startScene();
   }
 
-  #stopCompressionOnMap(lostMode: boolean): void {
+  #startScene(): void {
     const c = this.#campaign;
-    if (c.state.flow !== 'strategic') return;
-    stopTimeCompression(c.clockContext, CompressionStop.MEANWHILE);
-    if (lostMode) setGameTimeCompressionLevel(c.clockContext, CompressMode.X0);
+    const m = this.#state;
+    const id = m.current.id;
+    this.#emit({ type: 'meanwhileStarted', seq: m.log.length + 1, scene: meanwhileSceneName(id) });
+    const loaded = id === Meanwhile.INTERROGATION ? this.#goToTheInterrogation() : this.goToThePalace();
+    if (!loaded) m.returnTrip = null;
+    const talk = c.talk;
+    if (!loaded || !talk || !this.#sceneRecordsLoaded()) {
+      this.endMeanwhile();
+      return;
+    }
+    talk.host.setEngaged(true);
+    talk.talk.referenceCount = 1;
+    const t = c.tactical?.state;
+    if (t && id !== Meanwhile.INTERROGATION) setShowAllMercs(t, true);
+    triggerNpcRecordImmediately(talk.host, m.current.npc, m.current.trigger);
+  }
+
+  #sceneRecordsLoaded(): boolean {
+    const arrays = this.#campaign.talk?.host.records.arrays;
+    return arrays !== undefined && SCRIPTED_SCENE_NPCS.every((profile) => arrays[profile] !== null);
+  }
+
+  #stopCompressionOnMap(): void {
+    const c = this.#campaign;
+    if (c.state.flow === 'strategic') stopTimeCompression(c.clockContext, CompressionStop.MEANWHILE);
   }
 
   #reloadRecords(profile: number): void {
@@ -135,10 +175,6 @@ export class MeanwhileFlow {
     }
   }
 
-  #elliotData(): number {
-    return this.#campaign.narrative.profile(Npc.ELLIOT)?.npcData ?? 0;
-  }
-
   firstBattleTown(): number {
     const ctx = this.#campaign.strategic;
     if (!ctx) return Town.BLANK_SECTOR;
@@ -161,21 +197,6 @@ export class MeanwhileFlow {
     return ctx !== null && last !== null && isThereAFunctionalSamSiteInSector(ctx, { x: last.x, y: last.y, z: 0 });
   }
 
-  #sceneContext(elliotBefore: number, elliotAfter: number): MeanwhileContext {
-    const s = this.#campaign.state;
-    const town = this.firstBattleTown();
-    return {
-      wholeTownsExceptOmerta: this.wholeTownsUnderControlExceptOmerta(),
-      samSitesControlled: this.samSitesUnderPlayerControl(),
-      lastBattleWon: s.battle.lastBattleWon,
-      functionalSamInLastBattleSector: this.functionalSamSiteInLastBattleSector(),
-      firstBattleTown: town === Town.DRASSEN ? 'drassen' : town === Town.CAMBRIA ? 'cambria' : 'other',
-      sciFi: s.options.sciFi,
-      elliotBefore,
-      elliotAfter,
-    };
-  }
-
   #emptyDialogueQueue(): void {
     const host = this.#campaign.talk?.host;
     if (host) emptyDialogueQueue(host);
@@ -187,36 +208,17 @@ export class MeanwhileFlow {
     unPauseGame(clock);
   }
 
-  #resolveMeduna(id: number): void {
-    const c = this.#campaign;
-    const q = c.queen;
-    const m = this.#state;
-    this.#stopCompressionOnMap(true);
-    if (q) handleFirstMeanwhileSetUpWithTrashWorld(q);
-    m.inScene = true;
-    for (const profile of sceneNpcs(id)) this.setNpcMeanwhile(profile, sceneSector(id));
-    const elliotBefore = this.#elliotData();
-    if (id === Meanwhile.OUTSKIRTS_MEDUNA) this.#shootElliot();
-    const context = this.#sceneContext(elliotBefore, this.#elliotData());
-    this.#emptyDialogueQueue();
-    if (q) processImplicationsOfMeanwhile(q, id);
-    m.inScene = false;
-    this.#releasePause();
-    this.restoreNpcMeanwhile();
-    const seq = this.#logScene(id, context);
-    this.#emit({
-      type: 'meanwhile',
-      seq,
-      scene: meanwhileSceneName(id),
-      sector: sectorShortString(sceneSector(id)),
-      at: c.state.clock.seconds,
-    });
+  #goToTheInterrogation(): boolean {
+    this.#stopCompressionOnMap();
+    this.#state.inScene = true;
+    for (const profile of INTERROGATION_NPCS) this.setNpcMeanwhile(profile, INTERROGATION_SECTOR);
+    return this.#campaign.sectors?.setCurrentWorldSector({ x: INTERROGATION_SECTOR.x, y: INTERROGATION_SECTOR.y, z: 0 }) ?? false;
   }
 
   goToThePalace(): boolean {
     const m = this.#state;
     const id = m.current.id;
-    this.#stopCompressionOnMap(false);
+    this.#stopCompressionOnMap();
     m.returnTrip = this.#returnTrip();
     m.inScene = true;
     const palace = sceneSector(id);
@@ -246,41 +248,37 @@ export class MeanwhileFlow {
 
   #restoreTheOldWorld(trip: MeanwhileReturnTrip): void {
     const c = this.#campaign;
-    if (trip.sector) c.sectors?.setCurrentWorldSector(trip.sector);
-    else c.sectors?.trashWorld();
+    if (trip.sector) {
+      this.#stopAnyCurrentlyTalkingSpeech();
+      c.sectors?.setCurrentWorldSector(trip.sector);
+    } else c.sectors?.trashWorld();
     c.state.map.selectedSector = { ...trip.selectedSector };
   }
 
-  #shootElliot(): void {
-    const elliot = this.#campaign.narrative.profile(Npc.ELLIOT);
-    if (elliot) elliot.npcData = ELLIOT_MAX_SLAPS;
+  #stopAnyCurrentlyTalkingSpeech(): void {
+    const host = this.#campaign.talk?.host;
+    if (host) shutUpTalkingFace(host);
   }
 
-  #logScene(id: number, context: MeanwhileContext | null): number {
+  #logScene(id: number): void {
     const seq = this.#state.log.length + 1;
-    this.#state.log.push({ seq, id, at: this.#campaign.state.clock.seconds, context });
-    return seq;
+    this.#state.log.push({ seq, id, at: this.#campaign.state.clock.seconds });
   }
 
-  #startInterrogation(): void {
-    const c = this.#campaign;
+  #emitEnded(): void {
     const m = this.#state;
-    const q = c.queen;
-    this.#stopCompressionOnMap(false);
-    if (q && !c.tactical) handleFirstMeanwhileSetUpWithTrashWorld(q);
-    m.inScene = true;
-    for (const profile of INTERROGATION_NPCS) this.setNpcMeanwhile(profile, INTERROGATION_SECTOR);
-    const seq = m.log.length + 1;
-    this.#emit({ type: 'meanwhileStarted', seq, scene: meanwhileSceneName(Meanwhile.INTERROGATION) });
-    const loaded = c.sectors?.setCurrentWorldSector({ x: INTERROGATION_SECTOR.x, y: INTERROGATION_SECTOR.y, z: 0 }) ?? false;
-    const host = c.talk?.host;
-    if (!loaded || !host || !c.talk) {
-      this.endMeanwhile();
-      return;
-    }
-    host.setEngaged(true);
-    c.talk.talk.referenceCount = 1;
-    triggerNpcRecordImmediately(host, m.current.npc, m.current.trigger);
+    const last = m.log.at(-1);
+    if (last) this.#emit({ type: 'meanwhileEnded', seq: last.seq, scene: meanwhileSceneName(last.id) });
+  }
+
+  endByThePlayer(): CommandResult {
+    const m = this.#state;
+    if (!m.inScene || m.current.id === Meanwhile.INTERROGATION)
+      return refuse(NO_PALACE_SCENE, `${NO_PALACE_SCENE}: ${NO_PALACE_SCENE_TEXT}`);
+    const host = this.#campaign.talk?.host;
+    if (host) deleteTalkingMenu(host, 'script');
+    this.endMeanwhile();
+    return { ok: true };
   }
 
   endMeanwhile(): void {
@@ -291,15 +289,17 @@ export class MeanwhileFlow {
     const id = m.current.id;
     this.#emptyDialogueQueue();
     if (q) processImplicationsOfMeanwhile(q, id);
+    this.#logScene(id);
     m.inScene = false;
     if (c.talk) {
       c.talk.talk.referenceCount = 0;
       c.talk.host.setEngaged(false);
     }
     this.#releasePause();
-    if (id === Meanwhile.INTERROGATION) this.restoreNpcMeanwhile();
-    else this.returnFromThePalace();
-    const seq = this.#logScene(id, null);
-    this.#emit({ type: 'meanwhileEnded', seq, scene: meanwhileSceneName(id) });
+    const t = c.tactical?.state;
+    if (t && id !== Meanwhile.INTERROGATION) setShowAllMercs(t, false);
+    if (m.returnTrip !== null) return;
+    this.restoreNpcMeanwhile();
+    this.#emitEnded();
   }
 }

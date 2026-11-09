@@ -174,6 +174,7 @@ import { npcDrawsFirstOnAttack } from './narrative/first-draw.ts';
 import { okControllableMerc } from './narrative/merc-quotes.ts';
 import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { StopTimeCallback } from './narrative/port.ts';
+import { queenSlapOpcode } from './narrative/queen-slap.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
 import { pressStatueRemote } from './narrative/statue.ts';
@@ -491,6 +492,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       crowOpcode(state, s, code) ??
       helicopterLandingOpcode(state, s, code) ??
       pitOpcode(state, s, code) ??
+      queenSlapOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
     crowsFlyAway,

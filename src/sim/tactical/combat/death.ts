@@ -54,8 +54,8 @@ import { checkSoldierHitRoof } from '../roofs.ts';
 import { addRottingCorpse, handleCrowLeave, nowMinuteOf } from '../rotting-corpses.ts';
 import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from '../selection.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
-import { AlertStatus, Body, NO_PROFILE, NOBODY, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
-import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
+import { AlertStatus, Body, NO_PROFILE, NOBODY, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { removeOccupant, shownInSector, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
 import { loudestScream, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { removeVehicleOfSoldier } from '../vehicle-soldiers.ts';
@@ -461,12 +461,12 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
       } else if (assister?.placed && assister !== attacker && assister.team === Team.MILITIA)
         assister.militiaKills += MILITIA_ASSIST_POINTS;
     }
-    const killerShown = s.attacker !== null && shownToPlayer(s.attacker);
+    const killerShown = s.attacker !== null && shownInSector(t, s.attacker);
     t.events.push({
       type: 'soldierDied',
       soldier: s.id,
       killer: s.attacker?.id ?? null,
-      ...(shownToPlayer(s)
+      ...(shownInSector(t, s)
         ? { gridNo: s.gridNo }
         : { unseen: unseenVictim(s), ...soundPlace(t, s, killerShown, loudestScream(t, s), NoiseKind.SCREAM) }),
     });

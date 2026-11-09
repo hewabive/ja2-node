@@ -41,10 +41,11 @@ describe("musicMode follows the original's setters", () => {
     expect(following(at(MusicMode.NONE), []).mode).toBe(MusicMode.NONE);
   });
 
-  it('MAIN_MENU: a resolved meanwhile scene with no loaded sector leaves the menu music playing', () => {
-    expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhile', scene: 'drassen', seq: 1 }], { sectorLoaded: false }).mode).toBe(
-      MusicMode.MAIN_MENU,
-    );
+  it('MAIN_MENU: a meanwhile scene that loads no sector leaves the menu music playing', () => {
+    expect(
+      following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhileStarted', scene: 'drassenLiberated', seq: 1 }], { sectorLoaded: false })
+        .mode,
+    ).toBe(MusicMode.MAIN_MENU);
     expect(
       following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhileStarted', scene: 'interrogation', seq: 1 }], { sectorLoaded: false })
         .mode,
@@ -106,7 +107,7 @@ describe("musicMode follows the original's setters", () => {
     );
   });
 
-  it('TACTICAL_ENEMYPRESENT: leaving combat by a lull, the first helicopter drop, the prebattle screen, the end of the interrogation', () => {
+  it('TACTICAL_ENEMYPRESENT: leaving combat by a lull, the first helicopter drop, the prebattle screen, the end of the interrogation but not of a palace scene', () => {
     expect(following(at(MusicMode.TACTICAL_BATTLE), [{ type: 'combatEnded', reason: 'lull' }]).mode).toBe(MusicMode.TACTICAL_ENEMY_PRESENT);
     const landed = following(at(MusicMode.LAPTOP, MusicMode.LAPTOP), [loaded({ hostiles: 6 })]);
     expect(landed).toMatchObject({ mode: MusicMode.TACTICAL_NOTHING, previous: MusicMode.LAPTOP });
@@ -126,10 +127,7 @@ describe("musicMode follows the original's setters", () => {
     expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhileEnded', scene: 'interrogation', seq: 1 }]).mode).toBe(
       MusicMode.TACTICAL_ENEMY_PRESENT,
     );
-    expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhile', scene: 'drassen', seq: 1 }], { hostiles: 4 }).mode).toBe(
-      MusicMode.TACTICAL_ENEMY_PRESENT,
-    );
-    expect(following(at(MusicMode.TACTICAL_ENEMY_PRESENT), [{ type: 'meanwhile', scene: 'drassen', seq: 1 }]).mode).toBe(
+    expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhileEnded', scene: 'drassenLiberated', seq: 1 }]).mode).toBe(
       MusicMode.TACTICAL_NOTHING,
     );
   });

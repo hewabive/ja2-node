@@ -137,6 +137,8 @@ once in `TANK_SHOOT` and six rounds in `TANK_BURST`, between the attack busy cod
 `HOPFENCE` ends with its release, the end of the hop (code 444) and the end of the animation, in the original's order:
 a hop that ends the move changes stance at code 444, which a non-interruptible animation would refuse. `FALL_INTO_PIT`
 sinks with code 409 and ends with its release and the fall code 754, which takes the soldier off the map (`12` §6).
+`QUEEN_SLAP` and `QUEEN_FRUSTRATED_SLAP` carry the original's slap codes in its order: the aide takes the slap (759)
+halfway, and after the release the Queen's next record comes (758); without them a palace scene stops at the slap.
 
 **Vehicles.** The structure files `hmmv` (the Hummer, the Eldorado, the ice cream truck and the jeep) and `tnk_sht`,
 `tnk2_rot` (the two tanks) are own shapes (`STUB_VEHICLE_SHAPES`, `src/content/anim/structures.ts`): per facing, the

@@ -38,13 +38,14 @@ describe('the stub saves the story e2e loads', () => {
     expect(session.campaign).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('resolves the due Drassen scene once time is compressed on the map screen', async () => {
+  it('plays the due Drassen scene in the palace hall once time is compressed on the map screen, and comes back to the map', async () => {
     const session = await saves.open({ load: STORY_MEANWHILE_SAVE });
     expect(session.dispatch({ type: 'compressTime', mode: 2 })).toMatchObject({ ok: true });
     const seen: string[] = [];
-    for (let k = 0; k < COMPRESS_STEPS && !seen.includes('meanwhile'); k++)
+    for (let k = 0; k < COMPRESS_STEPS && !seen.includes('meanwhileEnded'); k++)
       seen.push(...types(session.advance({ ticks: COMPRESS_TICKS }).events));
-    expect(seen).toContain('meanwhile');
+    expect(seen).toEqual(expect.arrayContaining(['meanwhileStarted', 'meanwhileEnded']));
+    expect(session.sim.view().strategic).toMatchObject({ flow: 'strategic', worldSector: 'A9' });
     expect(session.sim.view().strategic?.meanwhiles).toEqual([expect.objectContaining({ seq: 1, scene: 'drassenLiberated' })]);
   });
 

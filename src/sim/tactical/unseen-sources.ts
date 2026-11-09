@@ -9,8 +9,8 @@ import { u8 } from '../../core/int.ts';
 import type { HeardFrom, UnseenVictim } from '../events.ts';
 import { squadHears } from './perception/noise.ts';
 import { effectiveExpLevel, type LoadedSector } from './skills.ts';
-import { NO_PROFILE, type Soldier, shownToPlayer } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import { NO_PROFILE, type Soldier } from './soldier.ts';
+import { shownInSector, type TacticalState } from './state.ts';
 
 const LOUDEST_SCREAM = 10;
 
@@ -45,5 +45,5 @@ export function soundPlace(
   volume: number,
   kind: number,
 ): { readonly gridNo?: number; readonly heard?: HeardFrom } {
-  return shownToPlayer(s) || positionKnown ? { gridNo: s.gridNo } : heardOnly(t, s, volume, kind);
+  return shownInSector(t, s) || positionKnown ? { gridNo: s.gridNo } : heardOnly(t, s, volume, kind);
 }
