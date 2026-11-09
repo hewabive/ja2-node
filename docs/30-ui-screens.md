@@ -169,7 +169,7 @@ the message list (`HandleTacticalNPCTextUI`); one carried in from the map gets t
 the bars its event carries when it is said on the map. The yellow locator takes the sector the line event names
 as the line starts (`sector`, an NPC's line too; Skyrider's helicopter, `helicopter`, not while the airspace shows). A
 Skyrider monologue turns the airspace filter on as it starts and at each of its special events (`skyriderMonologue`,
-`TurnOnAirSpaceMode`), and the sectors he talks about flash red in place of the speaker's locator
+`TurnOnAirSpaceMode`; the filters are the page's, deviation "Map filters"), and the sectors he talks about flash red in place of the speaker's locator
 (`strategic.skyriderHighlights`). The face popups are the original's face overlays: `TalkingUi` (`talk/talking-ui.ts`),
 held by the session presenter, keeps which screen a line started on, where its box went, every popup registered, the
 click region and whether the face panel is active, as `Dialogue_Control.cc` keeps them in globals, so a line carried
