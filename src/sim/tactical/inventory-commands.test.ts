@@ -256,6 +256,34 @@ describe('throwing a grenade from a pocket', () => {
   });
 });
 
+describe('what a detach or an unload into an occupied pocket swaps out (Interface_Items.cc CancelItemPointer)', () => {
+  function droppedAtFeet(sim: TacticalSim, merc: Soldier): string[] {
+    return sim.state.worldItems
+      .filter((wi) => wi.gridNo === merc.gridNo)
+      .map((wi) => content.items.byIndex.get(wi.object.item)?.name ?? '');
+  }
+
+  it("drops it at the merc's feet with free pockets left, as the cursor of a detached attachment or an unloaded magazine has no slot to go back to", () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    glockWith(merc, 15);
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('SILENCER'), 90);
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket1', to: 'hand' })).toMatchObject({ ok: true });
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('HAND_GRENADE'), 100);
+    merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('SMOKE_GRENADE'), 100);
+    expect(sim.dispatch({ type: 'detach', soldier: 0, slot: 'hand', attachment: 'SILENCER', to: 'bigPocket1' })).toMatchObject({
+      ok: true,
+    });
+    expect(sim.dispatch({ type: 'unload', soldier: 0, slot: 'hand', to: 'bigPocket2' })).toMatchObject({ ok: true });
+    expect([itemAt(merc, InvSlot.BIGPOCK1), itemAt(merc, InvSlot.BIGPOCK2), itemAt(merc, InvSlot.BIGPOCK3)]).toEqual([
+      'SILENCER',
+      'CLIP9_15',
+      'NOTHING',
+    ]);
+    expect(droppedAtFeet(sim, merc)).toEqual(['HAND_GRENADE', 'SMOKE_GRENADE']);
+  });
+});
+
 describe('reloading and unloading', () => {
   it('unloads for free, reloads by hand for 5 AP in combat and 10 AP with a magazine of another size', () => {
     const sim = newCombatSim(content);

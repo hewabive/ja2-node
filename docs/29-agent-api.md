@@ -578,8 +578,9 @@ Rules: `12`. D15: everything the inventory panel, the item description box, the 
 box do is a command on the original's code paths (`src/sim/tactical/inventory-panel.ts`, `inventory-commands.ts`; the
 map screen's `src/sim/campaign/map-inventory.ts`; `money-flow.ts`). The API replaces only the item cursor: a command
 picks up, places and returns what is left in the cursor the way the original's cancel does (`CancelItemPointer`: the
-slot it came from, else a free pocket, else the feet; on the map screen the sector inventory; deviation "Item
-cursor"). `moveItem` puts its leftover back into that slot only when it moves nothing else there, and `data.leftover`
+slot it came from, else a free pocket, else the feet, and the feet at once for what `detach` or `unload` swaps out of
+their `to` pocket, as a cursor that took nothing out of a slot has none to go back to; on the map screen the sector
+inventory; deviation "Item cursor"). `moveItem` puts its leftover back into that slot only when it moves nothing else there, and `data.leftover`
 names the pocket it went to, on which the UI keeps its cursor; one object of a stack moved into its own slot goes to the
 stack's end, as the original's put-back stacks it. A placement runs on copies first, so a refused move changes nothing. The message boxes for merges and
 permanent attachments become refusals to repeat with `merge` or `permanent`; the description box charges its AP per

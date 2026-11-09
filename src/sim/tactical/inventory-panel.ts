@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary, UIHandleItemPlacement, MergeMessageBoxCallBack,
 // @src HandleNailsVestFetish, SMInvClickCamoCallback, TMClickFirstHandInvCallbackSecondary; Interface_Items.cc
-// @src BeginItemPointer, CancelItemPointer, ItemDescAttachmentsCallbackPrimary, DoAttachment, ItemDescAmmoCallback,
+// @src BeginItemPointer, CancelItemPointer (with no source slot straight to the feet, 2026-11-08),
+// @src ItemDescAttachmentsCallbackPrimary, DoAttachment, ItemDescAmmoCallback,
 // @src DeleteItemDescriptionBox (AP_RELOAD_GUN when the attachments changed, charged per command),
 // @src ItemPopupRegionCallbackPrimary (one object of a stack), CompatibleItemForApplyingOnMerc; Turn_Based_Input.cc
 // @src HandleUIReloading; Points.cc GetAPsToAutoReload; Items.cc RemoveObjectFromSlot, ApplyCamo, ApplyCanteen,
@@ -192,8 +193,12 @@ export function clonedCarrier(s: Soldier): { inv: ItemObject[] } {
 
 export function cancelCursor(env: PanelEnv, owner: Soldier, sourceSlot: number, cursor: ItemObject): void {
   if (cursor.count === 0) return;
+  if (sourceSlot === NO_SLOT) {
+    env.leftover(owner, cursor);
+    return;
+  }
   const ctx = env.context(owner);
-  if (sourceSlot !== NO_SLOT) placeObject(ctx, owner, sourceSlot, cursor);
+  placeObject(ctx, owner, sourceSlot, cursor);
   if (cursor.count > 0) autoPlaceObject(ctx, owner, cursor);
   if (cursor.count > 0) env.leftover(owner, cursor);
 }
