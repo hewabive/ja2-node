@@ -232,6 +232,14 @@ describe('the identity of the rule pack', () => {
     for (const changes of STUB_CHANGES) expect((await identityOf('stubs', changes)).hash, Object.keys(changes).join()).not.toBe(base.hash);
   });
 
+  it('leaves out the resource packs of the data version guess, which the simulation never reads', async () => {
+    const base = await identityOf('original');
+    const changes = { 'externalized/resource_packs/gog_jagged_alliance_2.json': text('{}') };
+    expect(await identityOf('original', changes)).toEqual(base);
+    const pack = await packOf(stubbedDataSet(changes), { source: 'original' });
+    expect(pack.manifest.files.map((f) => f.path)).not.toContain('externalized/resource_packs/gog_jagged_alliance_2.json');
+  });
+
   it('keeps the hash over every layer that U0b used as the identity, and verifies both hashes of a cached manifest', async () => {
     const input: RulePackIdentityInput = {
       source: 'original',

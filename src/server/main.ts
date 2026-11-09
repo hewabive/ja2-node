@@ -24,7 +24,7 @@ const data = await openDataVfs({
   dataDir: process.env.JA2_DATA_DIR || undefined,
   stubsDir: process.env.JA2_STUBS_DIR ?? DEFAULT_STUBS_DIR,
 });
-const dataVersion = detectDataVersion(data.vfs, data.dataDir !== null, process.env);
+const dataVersion = await detectDataVersion(data, process.env);
 const defaultLanguage = chooseDisplayLanguage(process.env[LANGUAGE_ENV], dataVersion.version);
 const decoding = dataDecoding(dataVersion.version);
 const texts = new TextService({ vfs: data.vfs, dataVersion: dataVersion.version });

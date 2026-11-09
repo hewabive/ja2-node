@@ -24,6 +24,7 @@ video   sequence plan → downloads → Worker → frames          app/video/, c
           indexed colour on WebGL2, sound as one buffer      render/indexed-frame.ts, app/video/sound.ts
 credits /api/text rows → the roll                           app/credits/rows.ts → ui/screens/credit-roll.ts
 text    data version → decodings; language → UI tables       content/text/data-version.ts, server/data-version.ts
+          the guess by resource packs                        content/text/resource-packs.ts, node/data-dir-files.ts
           EDT rows and strings for routes and observe        server/text-service.ts, server/text-keys.ts
 ```
 
@@ -33,7 +34,7 @@ text    data version → decodings; language → UI tables       content/text/da
 | `content/audio/` | Cue tables, cues per source (footsteps, gunfire, impacts, doors, codes 700–798, battle sounds, creature cries, code 491), the original's mix rule per call site, ambient scheduling, the tile an unseen sound plays from, speech files and voice lengths |
 | `audio/` | `AudioEngine`, `SoundDirector` (per-soldier presentation memory, ambient, the developer pages' speech queue), `MusicPlayer`, `ClientRandom` |
 | `app/sound/`, `app/map/map-sound.ts`, `app/battle/battle-sound.ts`, `app/game/ui-audio.ts` | The wiring per screen: tactical, map screen, autoresolve, the engine of `/play` |
-| `content/text/` | Data versions and their decodings, UI string tables, EDT record layouts, glyph tables |
+| `content/text/` | Data versions and their decodings, the guess by Stracciatella's resource packs, UI string tables, EDT record layouts, glyph tables |
 
 `data/tables/l10n.json` gives each `L10n` key its array size, `edt-layouts.json` every EDT file's record layout (the
 row counts in the `EDT.h` comments are twice the real ones but for `help.edt`, so they are not transcribed),
@@ -154,13 +155,21 @@ scroller ("Credits screen").
 
 **Two switches instead of one** (deviation "Display language"). Stracciatella's version picks the data's text and the
 UI strings together; ja2-node splits it:
-- the **data version** is a property of the content, detected at server start from the language folders inside the
-  SLFs (gaps "Data version detection") or named by `JA2_DATA_VERSION`; `stubs` without original data. It selects what
+- the **data version** is a property of the content, detected at server start as Stracciatella's launcher guesses it,
+  from the language folders inside the SLFs, then by the files of the data directory against its resource packs
+  (`data/externalized/resource_packs`), or named by `JA2_DATA_VERSION`; `stubs` without original data. It selects what
   must match the files: the EDT decoding, the Russian NPC record layout and profile names, the Russian R.P.C. speech
   prefix, the glyph table of the data's fonts, the MLG pictures (`28`);
 - the **display language** picks the UI string tables: the data's by default, `JA2_LANG` on the server, per session
   and per client; changing it never touches a session. Russian labels over English dialogue, item names and mails are
   possible, which the original cannot do; the MLG pictures keep the data's language.
+
+**The resource pack guess hashes only what can change its answer.** Stracciatella reads and hashes every file of the
+data directory for each pack (`rust/stracciatella/src/guess.rs:321`, `res.rs:298`); ja2-node hashes a file, smallest
+first and once for all packs, only while its hash can still decide which pack differs least, which gives the same
+pack: on the English Gold data 163 of its 483 files, 10 MB, about 0.1 s at every server start. A failed guess (an
+unreadable file, a pack it cannot use) falls back to English with a warning, the version Stracciatella's configuration
+starts with.
 
 **Text stays out of the simulation**: never in state, saves or logs (`29`). Views and events carry machine tokens and
 text keys that each client resolves in the tables it loaded; `server/text-keys.ts` maps every token to its `L10n`
@@ -214,6 +223,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | The credits never read row 0: the original counts its record up before the first read | `ui/screens/credit-roll.test.ts` |
 | Russian decoding shifts only 0xC0–0xFF, so Ё, ё and № stay CP1252 characters | `content/formats/edt.test.ts` |
 | Both Russian versions read `translation-rusgold.json` for the UI and the `-rus` files for the rest; `translation-rus.json` is never read | `content/text/strings.test.ts`, `data-version.test.ts` |
+| A resource pack's own files count twice in its difference, and the data directory's own files only in the count they are divided by (`rust/stracciatella/src/guess.rs:90`) | `content/text/resource-packs.test.ts` "counts the pack's own files twice …" |
 
 Not pinned yet:
 - The map screen never sets a music mode, so whatever played goes on.
@@ -228,11 +238,14 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
 - That `decodeAudioData` does not decode IMA ADPCM reliably (from the browsers' codec lists).
 - That vanilla looped a positional sound on `loop = 0` (deviation "Queen's positional sound").
 - That the Steam package renames the intro archive so that its own executable skips the intro.
-- That Stracciatella cannot guess Russian Gold (it has no resource pack); that Ё and № cannot render with Russian data;
-  that a speech archive speaks whatever language it holds; that mixed-case Russian on the original's fonts needs
-  Russian data (from the glyph tables).
+- That Stracciatella cannot guess Russian Gold or Simplified Chinese (it has no resource pack for them; the least
+  different pack wins, so their data needs `JA2_DATA_VERSION`); that the guess finds French data: only the English Gold
+  data has been tried, as no other release is at hand; that a tie between equally different packs goes by
+  Stracciatella's directory order, which ja2-node takes as the file names' order; that Ё and № cannot render with
+  Russian data; that a speech archive speaks whatever language it holds; that mixed-case Russian on the original's
+  fonts needs Russian data (from the glyph tables).
 - The stand-ins for Ч and П (deviation "Missing Cyrillic capitals") are checked on English fonts only: French data needs
   190 glyphs, and its block fonts are not corrected unless they are exactly one glyph short of that.
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
-Not ported: gaps "Data version detection", "Map screen speech".
+Not ported: gaps "Map screen speech".

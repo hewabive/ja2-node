@@ -31,7 +31,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('ja2-node saves with the original data', () 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });
     saveDir = await mkdtemp(join(tmpdir(), 'ja2-original-saves-'));
-    const version = detectDataVersion(data.vfs, true, process.env).version;
+    const version = (await detectDataVersion(data, process.env)).version;
     const { pack } = await openRulePack({ vfs: data.vfs, source: 'original', cacheDir: null });
     environment = createSaveEnvironment({
       vfs: data.vfs,

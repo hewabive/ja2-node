@@ -3,10 +3,12 @@ import { TILESET_DATABASE_PATH } from '../formats/ja2set.ts';
 import { LOCKS_PATH } from '../formats/locks.ts';
 import { PROFILES_PATH } from '../formats/prof.ts';
 import { STUB_PROFILES_PATH } from '../formats/stub-profiles.ts';
+import { RESOURCE_PACKS_DIR } from '../text/resource-packs.ts';
 import { vfsExtension } from '../vfs/path.ts';
 
 const BINARY_RULE_FILES: readonly string[] = [ANIMATION_SCRIPTS_PATH, TILESET_DATABASE_PATH, PROFILES_PATH, LOCKS_PATH];
 const PROJECT_TABLE_DIRS: readonly string[] = ['externalized/', 'tables/'];
+const PROJECT_DIRS_OUTSIDE_RULES: readonly string[] = [`${RESOURCE_PACKS_DIR}/`];
 const PROJECT_TABLE_EXTENSION = 'json';
 const STRUCTURE_EXTENSION = 'jsd';
 const NPC_RECORD_EXTENSION = 'npc';
@@ -25,7 +27,11 @@ function parentDirName(path: string): string {
 }
 
 export function isProjectTable(path: string): boolean {
-  return vfsExtension(path) === PROJECT_TABLE_EXTENSION && PROJECT_TABLE_DIRS.some((dir) => path.startsWith(dir));
+  return (
+    vfsExtension(path) === PROJECT_TABLE_EXTENSION &&
+    PROJECT_TABLE_DIRS.some((dir) => path.startsWith(dir)) &&
+    !PROJECT_DIRS_OUTSIDE_RULES.some((dir) => path.startsWith(dir))
+  );
 }
 
 export function isMapFile(path: string): boolean {
@@ -52,6 +58,7 @@ export function isRuleFile(path: string): boolean {
 export const RULE_FAMILIES_SIGNATURE = [
   ...BINARY_RULE_FILES,
   ...PROJECT_TABLE_DIRS,
+  ...PROJECT_DIRS_OUTSIDE_RULES.map((dir) => `!${dir}`),
   PROJECT_TABLE_EXTENSION,
   STRUCTURE_EXTENSION,
   NPC_RECORD_EXTENSION,

@@ -36,7 +36,7 @@ describe.skipIf(!dataDir)('the U11 laptop pages on the original data', () => {
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });
     session = await createCampaignSession(read, (p) => data.vfs.stat(p) !== undefined, SEED, { hire: [] });
-    texts = new TextService({ vfs: data.vfs, dataVersion: detectDataVersion(data.vfs, true, {}).version });
+    texts = new TextService({ vfs: data.vfs, dataVersion: (await detectDataVersion(data, {})).version });
   });
   afterAll(async () => {
     await data.close();

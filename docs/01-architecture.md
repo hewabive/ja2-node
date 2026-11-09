@@ -39,7 +39,9 @@ derived from it: extracted files, JSON produced from `Ja2bin.dat`, oracle probe 
 by default in `~/ja2-oracle`), screenshots. The repository ships:
 - `data/externalized/`: Stracciatella's JSON tables (`assets/externalized` at `ae6bf01`), copied unchanged; they were
   extracted from the source code, so they are SFI-SCLA. Exception: `script-records-NPCs.json`, whose comments quote game
-  dialogue; its records are in `data/tables/npc-script-records.json`.
+  dialogue; its records are in `data/tables/npc-script-records.json`. Its `resource_packs/` are Stracciatella's own data
+  for its version guess: the names, sizes and MD5 hashes of known releases' files, no game content; they stay out of
+  the rule pack.
 - `data/tables/`: tables transcribed from the source code by `tools/transcribe/*.ts` (regenerated, never edited).
 - `stubs/`: the stub pack (§4.4), ja2-node's own work, neither traced, converted nor extracted from the original. Its
   content is CC0 1.0 (`stubs/LICENSE.txt`); `stubs/NOTICE.txt` lists what that covers. The generator code and the files
@@ -379,7 +381,8 @@ Decoders (`src/content/formats/`, one module per format, from SLF archives and S
 and the browser; the map module also writes `.dat` files, which the stub maps compile to. `pnpm cli inspect verify`
 decodes every STI, PCX, TGA, JSD and map of the user's data. The server reads the logic content into the rule pack and
 serves media through `/vfs`; STI decodes in the browser, because WebGL needs the colour indices. The data version
-(English or a localized release) is detected like Stracciatella's guesser (`src/content/text/data-version.ts`) and is
+(English or a localized release) is detected like Stracciatella's guesser (`src/content/text/data-version.ts`,
+`resource-packs.ts`) and is
 separate from the display language (`31`). Native saves import into sessions (`14`).
 
 ### 4.4 Stubs

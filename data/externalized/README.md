@@ -6,5 +6,8 @@ NPC script tables plus the `strings/` and `translation_tables/` directories. Str
 these tables from the Jagged Alliance 2 source code; they are covered by the SFI-SCLA (see
 `../../LICENSE`). Do not edit by hand; re-copy from a newer Stracciatella snapshot instead.
 
+`resource_packs/` holds Stracciatella's file lists of known releases for its data version guess: file names, sizes and
+MD5 hashes, no game content. The server reads them at start (`src/server/data-version.ts`); they are no rule tables.
+
 Exception: `script-records-NPCs.json` is not copied, because its comments quote dialogue from the game data; its
 records without the comments are in `../tables/npc-script-records.json` (`tools/transcribe/npc-script-records.ts`).

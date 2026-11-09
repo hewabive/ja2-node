@@ -5,7 +5,7 @@ import { cacheDirFromEnv, openRulePack } from '../src/server/rule-pack.ts';
 import { contentSourceOf, createSaveEnvironment, replayStoredSave } from '../src/server/save-environment.ts';
 
 export async function runReplay(data: DataVfs, name: string): Promise<number> {
-  const dataVersion = detectDataVersion(data.vfs, data.dataDir !== null, process.env);
+  const dataVersion = await detectDataVersion(data, process.env);
   const { pack } = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir: cacheDirFromEnv() });
   const environment = createSaveEnvironment({
     vfs: data.vfs,

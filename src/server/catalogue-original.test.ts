@@ -58,7 +58,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the profile and item catalogues on the orig
       if (!bytes) throw new Error(`missing ${path}`);
       return JSON.parse(new TextDecoder().decode(bytes));
     });
-    const texts = new TextService({ vfs, dataVersion: detectDataVersion(vfs, true, {}).version });
+    const texts = new TextService({ vfs, dataVersion: (await detectDataVersion(data, {})).version });
     const { catalogue } = await buildItemCatalogue(items, texts, 'eng');
     const glock = catalogue.items.find((i) => i.index === GLOCK_17);
     expect(glock).toMatchObject({ shortName: 'Glock 17', class: 'GUN', weapon: { calibre: { name: '9mm' } } });

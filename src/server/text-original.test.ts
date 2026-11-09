@@ -38,9 +38,9 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('text on the original data', () => {
     await data.close();
   });
 
-  it('detects the English data version from the SLFs and honours an override', () => {
-    expect(detectDataVersion(data.vfs, true, {}).version).toBe('english');
-    expect(detectDataVersion(data.vfs, true, { JA2_DATA_VERSION: 'russianGold' })).toEqual({ version: 'russianGold', source: 'override' });
+  it('detects the English data version by its resource pack and honours an override', async () => {
+    expect(await detectDataVersion(data, {})).toEqual({ version: 'english', source: 'detected' });
+    expect(await detectDataVersion(data, { JA2_DATA_VERSION: 'russianGold' })).toEqual({ version: 'russianGold', source: 'override' });
   });
 
   it('decodes every fixed EDT file the game reads to whole records of its layout', async () => {

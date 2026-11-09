@@ -23,7 +23,7 @@ import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { ContentLedger } from './content-identity.ts';
-import { detectDataVersion } from './data-version.ts';
+import { type DataSource, detectDataVersion } from './data-version.ts';
 import { openRulePack, ruleSourceKey } from './rule-pack.ts';
 import { createSandboxSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -34,15 +34,17 @@ const OLD_PACKS = 6;
 const KEPT_PACKS = 4;
 const MIN_ORIGINAL_MAP_ITEMS = 3000;
 
-function decodingOf(vfs: Vfs, originalData: boolean) {
-  return dataDecoding(detectDataVersion(vfs, originalData, {}).version);
+async function decodingOf(source: DataSource) {
+  return dataDecoding((await detectDataVersion(source, {})).version);
 }
 
-async function recordedReads(vfs: Vfs, originalData: boolean): Promise<{ ledger: ContentLedger; live: ReadFile }> {
+async function recordedReads(source: DataSource): Promise<{ ledger: ContentLedger; live: ReadFile }> {
+  const { vfs } = source;
+  const originalData = source.dataDir !== null;
   const live = withSpeechLengths(withGraphicFacts(vfsFileReader(vfs)), vfs);
   const ledger = new ContentLedger(originalData ? 'original' : 'stubs', live, (path) => vfs.stat(path) !== undefined);
   const layers = (path: string) => vfs.layerCount(path);
-  const decoding = decodingOf(vfs, originalData);
+  const decoding = await decodingOf(source);
   await createCampaignSession(ledger.read, ledger.exists, 1, {}, layers, decoding);
   await createSandboxSession(ledger.read, originalData, 1, decoding);
   for (const f of vfs.list()) if (isMapFile(f.path)) await loadTacticalWorldInputs(ledger.read, f.path);
@@ -53,8 +55,8 @@ function sameBytes(a: Uint8Array | null, b: Uint8Array | null): boolean {
   return a !== null && b !== null && Buffer.from(a).equals(Buffer.from(b));
 }
 
-async function expectPackAnswersLikeTheData(vfs: Vfs, pack: RulePack, originalData: boolean): Promise<number> {
-  const { ledger, live } = await recordedReads(vfs, originalData);
+async function expectPackAnswersLikeTheData(source: DataSource, pack: RulePack): Promise<number> {
+  const { ledger, live } = await recordedReads(source);
   const entries = ledger.files();
   for (const [path, state] of entries) {
     if (state === 'f') expect(sameBytes(await pack.read(path), await live(path)), path).toBe(true);
@@ -77,9 +79,10 @@ function walkSquad(session: SessionSim): void {
   for (let i = 0; i < RUN_TICKS; i++) session.step();
 }
 
-async function expectRunsWithoutGraphics(vfs: Vfs, pack: RulePack, originalData: boolean): Promise<void> {
+async function expectRunsWithoutGraphics(source: DataSource, pack: RulePack): Promise<void> {
+  const originalData = source.dataDir !== null;
   const read = withoutGraphics(pack);
-  const decoding = decodingOf(vfs, originalData);
+  const decoding = await decodingOf(source);
   const campaign = await createCampaignSession(read, pack.exists, 3, {}, pack.layers, decoding);
   walkSquad(campaign);
   expect(campaign.view().soldiers.filter((s) => s.team === Team.OUR).length).toBeGreaterThan(0);
@@ -138,11 +141,11 @@ describe('the rule pack on the stub data', () => {
   });
 
   it('answers every read and probe of the content loaders as the data does', async () => {
-    expect(await expectPackAnswersLikeTheData(kit.vfs, pack, false)).toBeGreaterThan(500);
+    expect(await expectPackAnswersLikeTheData({ vfs: kit.vfs, dataDir: null }, pack)).toBeGreaterThan(500);
   });
 
   it('runs a campaign and a sandbox while every graphic read throws', async () => {
-    await expectRunsWithoutGraphics(kit.vfs, pack, false);
+    await expectRunsWithoutGraphics({ vfs: kit.vfs, dataDir: null }, pack);
   });
 
   it('is cached on disk, reads back plain byte arrays, is reused while the data stays, rebuilt when it changes, and old packs are pruned', async () => {
@@ -201,11 +204,11 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => 
   });
 
   it('answers every read and probe of the content loaders as the data does', async () => {
-    expect(await expectPackAnswersLikeTheData(data.vfs, pack, true)).toBeGreaterThan(3000);
+    expect(await expectPackAnswersLikeTheData(data, pack)).toBeGreaterThan(3000);
   });
 
   it('runs a campaign and a sandbox while every graphic read throws', async () => {
-    await expectRunsWithoutGraphics(data.vfs, pack, true);
+    await expectRunsWithoutGraphics(data, pack);
   });
 
   it('reads the item records of every map from a pack cached on disk as from the data', async () => {
