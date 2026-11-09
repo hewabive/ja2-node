@@ -17,6 +17,8 @@ const ONE_TILE_RIGHT_PX = 40;
 const POINTER = { x: 320, y: 170 };
 const MAP_CENTRE_POSITION = 805;
 const SOLDIER = 9;
+const HALL_SCENE_TILE = gridNo(88, 76);
+const HALL_THRONE = gridNo(88, 72);
 
 function unrenderedPresenter(): TacticalWorldPresenter {
   const world = { world: { map: { info: { restrictedScrollId: 0, centerGridNo: MAP_CENTRE } } } } as unknown as TacticalWorldView;
@@ -67,6 +69,21 @@ describe('the render centre while scrolling is ignored (gfIgnoreScrolling)', () 
     expect(presenter.camera).toEqual(centre);
     presenter.ignoreScrolling(false);
     expect(presenter.scrollBy(ONE_TILE_RIGHT_PX, 0)).toBe(true);
+  });
+});
+
+describe('a locate without force (LocateSoldier(…, FALSE), InternalLocateGridNo(…, FALSE))', () => {
+  it("leaves the view where it shows the tile, so the Queen on the stub hall's throne after the scene's tile moves nothing, and centres a tile off screen", () => {
+    const presenter = unrenderedPresenter();
+    presenter.centerOn(HALL_SCENE_TILE);
+    const scene = presenter.camera;
+    presenter.locate(HALL_THRONE);
+    expect(presenter.camera).toEqual(scene);
+    presenter.locate(gridNo(20, 20));
+    const away = presenter.camera;
+    expect(away).not.toEqual(scene);
+    presenter.centerOn(gridNo(20, 20));
+    expect(presenter.camera).toEqual(away);
   });
 });
 

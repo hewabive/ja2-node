@@ -6,6 +6,8 @@ export interface MeanwhileStartedEvent extends StoryEventBase {
   readonly type: 'meanwhileStarted';
   readonly seq: number;
   readonly scene: string;
+  readonly gridNo?: number;
+  readonly mapScreen?: true;
   readonly prompt?: string;
 }
 

@@ -910,7 +910,9 @@ palace scene; the flows `meanwhile`, `endgame` and `ended` lock the UI as the or
 - **Quests** are hidden state: `strategic.quests` (`src/server/quest-view.ts`) lists only quests with a "started" or
   "finished" history line, so a quest changed without one (Alma's skip, a silent restart) stays invisible.
 - **Meanwhile scenes** (`src/sim/campaign/meanwhile-flow.ts`) are played in the `meanwhile` flow once their gates
-  pass, each between `meanwhileStarted {seq, scene}` and `meanwhileEnded {seq, scene}`, where `advance` always stops;
+  pass, each between `meanwhileStarted {seq, scene, gridNo, mapScreen?}` and `meanwhileEnded {seq, scene}`, where
+  `advance` always stops; `gridNo` is the tile the view goes to as the scene's sector loads, the camera tile of the
+  meanwhile scheduled last (`26` §3), and `mapScreen` marks a scene started on the map screen;
   on the map the clock stops (`compressionStopped {reason: meanwhile}`), and while a scene waits for its gates
   compression is refused. `observe.meanwhile` names the scene under way and `strategic.meanwhiles` logs the scenes
   played and skipped (`{seq, scene, at, skipped?: true}`).

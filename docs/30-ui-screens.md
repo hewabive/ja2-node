@@ -259,9 +259,13 @@ laptop session drops it, as in the original.
 a story event until its step allows, so a screen switch the event brings waits for the box or the fade. The meanwhile
 box of a scene seen before is the simulation's `meanwhile` prompt: the layer shows it with OK and Skip and answers it,
 closes it when another page or an agent answered, and fades into the scene its OK starts without a second box; the box
-of any other scene offers OK alone and the browser keeps no seen flags (`26` §2); the story
-camera locates the Queen in a meanwhile and the original's fixed tile in the endgame (deviations "Meanwhile box timing",
-"Endgame timing").
+of any other scene offers OK alone and the browser keeps no seen flags (`26` §2; deviations "Meanwhile box timing",
+"Endgame timing"). The camera of a tactical screen entry keeps the original's order at the screen's first update
+(`tactical/story-camera.ts`): the scene's tile from `meanwhileStarted` after the scene's load, forced; the merc the load
+located (`sectorLoaded.located`); then the locates of entering the game screen: the Queen in a meanwhile, only when she
+is off screen, and the fixed tile in the endgame, which so wins over the merc. A scene started in tactical entered the
+game screen before its load (`CheckForMeanwhileOKStart`'s `LeaveTacticalScreen`), where the Queen was not there yet, so
+its load locates her only when `meanwhileStarted` carries `mapScreen`.
 
 **Draws the original makes for a screen.** The loading screen's town picture draws `Random(2)` on the gameplay stream at
 sector entry; the simulation makes that draw and sends the picture as `sectorLoaded.loadScreen`, and the draw the
@@ -292,7 +296,7 @@ before it, and shows the loading or the tactical screen after the zoom. The zoom
 (`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
 them.
 
-**Not built.** The tactical placement GUI (deviation "Tactical placement"), a meanwhile scene's camera (gap "Meanwhile scene playback"), the 3D cursor and the cover and sight display
+**Not built.** The tactical placement GUI (deviation "Tactical placement"), the 3D cursor and the cover and sight display
 (`28`'s decisions).
 
 ## 4. Quirks of the original the code keeps

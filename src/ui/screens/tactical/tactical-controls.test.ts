@@ -38,7 +38,7 @@ import { COMPATIBLE_HILIGHT } from './faces.ts';
 import { Arrows } from './input/arrows.ts';
 import { GO_MOVE_ONE, GO_MOVE_TWO } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
-import { LOCATOR_FRAME_MS, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
+import { LOCATOR_FRAME_MS, LocateFlag, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
@@ -58,6 +58,7 @@ const PICTURE_TOP_PX = 5;
 const CRATE_TILE = 7;
 const PAST_THE_PATH_REST_FRAMES = 6;
 const NOBODY = -1;
+const SCENE_TILE = 12248;
 const MALE = 0;
 const FEMALE = 1;
 const RADIO = 'interface/radio.sti';
@@ -1604,11 +1605,30 @@ describe('the tactical input on the tactical screen', () => {
   it('centres the view on the merc a sector entry located at the next update, even on screen, with the normal locator (TacticalScreenLocateToSoldier)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const entered = merc(f, f.screen.selected ?? NOBODY);
-    f.screen.locateOnEntry(entered.id);
+    f.screen.cameraOnEntry([{ kind: 'soldier', soldier: entered.id, flag: LocateFlag.CENTER_AND_SETLOCATOR }]);
     expect(f.world.centred).toEqual([]);
     f.t.frame();
     expect(f.world.centred).toEqual([entered.gridNo]);
     expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS);
+  });
+
+  it("moves the camera of a sector entry at the next update in its order: a scene's tile forced, the merc located there centred, then a soldier located only off screen with no locator (DoneFadeOutMeanwhile, TacticalScreenLocateToSoldier, LocateToMeanwhileCharacter)", async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const [entered, other] = f.client.view.soldiers.filter((v) => v.team === 0);
+    if (!entered || !other) throw new Error('two mercs');
+    const moves: string[] = [];
+    f.world.centerOn = (gridNo) => void moves.push(`centre ${gridNo}`);
+    f.world.locate = (gridNo) => void moves.push(`locate ${gridNo}`);
+    f.screen.cameraOnEntry([
+      { kind: 'gridNo', gridNo: SCENE_TILE },
+      { kind: 'soldier', soldier: entered.id, flag: LocateFlag.CENTER_AND_SETLOCATOR },
+      { kind: 'soldier', soldier: other.id, flag: LocateFlag.DONTSETLOCATOR },
+    ]);
+    expect(moves).toEqual([]);
+    f.t.frame();
+    expect(moves).toEqual([`centre ${SCENE_TILE}`, `centre ${entered.gridNo}`, `locate ${other.gridNo}`]);
+    f.t.frame();
+    expect(moves).toHaveLength(3);
   });
 
   it('moves the view to a soldier the simulation locates only off screen, with the locator it names (soldierLocated)', async () => {

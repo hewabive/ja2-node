@@ -34,11 +34,7 @@ What a native savegame import leaves out: none known. Paths are under `src/`.
 
 ## 6. Presentation: screens, graphics, text, sound and video
 
-What the client does not show or play yet, where nothing changes an outcome. Paths are under `src/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Meanwhile scene playback | The fade into a scene puts the camera on the scene's gridno, picked by the meanwhile scheduled last (`Strategic/Meanwhile.cc:46-65`, `:367`), before entering the game screen locates the Queen (`:623-630`, `GameScreen.cc:180-183`) | The story layer fades into the hall and the tactical screen locates the Queen alone (`app/tactical/story-camera.ts`); the scene's gridno is not used | The scene camera in the client, which needs the last scheduled id in the view (`26`) |
+What the client does not show or play yet, where nothing changes an outcome: none known. Paths are under `src/`.
 
 ## 7. Code conventions
 

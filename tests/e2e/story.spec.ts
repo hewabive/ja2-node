@@ -10,6 +10,8 @@ const SETTINGS_KEY = 'ja2-node:settings';
 const SETTINGS_VERSION = 2;
 const GOLDEN_QUERY = '&pinClock=1&fixed640=1&scale=1';
 const TIME_HELD = '&holdTime=1';
+const MANUAL_DRIVE = '&drive=manual';
+const HALL_SCENE_TILE = 12248;
 const SCENE_DUE_WITHIN_SECONDS = 120;
 const SCENE_TIMEOUT_MS = 60_000;
 const STORY_SCENE_SEEN = 1 << STORY_SCENE;
@@ -84,6 +86,11 @@ async function boxOffersOkAndSkip(page: Page): Promise<void> {
   expect([(await widget(page, 'meanwhileBox.yes')).text, (await widget(page, 'meanwhileBox.no')).text]).toEqual(['OK', 'Skip']);
 }
 
+async function tacticalCamera(page: Page): Promise<unknown> {
+  await nextFrames(page);
+  return page.evaluate(() => window.__ja2Ui.tactical?.camera ?? null);
+}
+
 async function playedInThePalace(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.story?.step === null);
   await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
@@ -120,6 +127,26 @@ test.describe('the story and the help screens on /play', () => {
     await clickWidget(page, 'meanwhileBox.ok');
     await page.waitForFunction(() => window.__ja2Ui.modal === 'fade-out' && window.__ja2Ui.story?.step === 'meanwhile');
     expect(await page.evaluate(() => window.__ja2Ui.story?.meanwhileBoxes)).toBe(1);
+  });
+
+  test("OK fades out of the map into the hall, whose first frame shows the scene's tile: the Queen stands on screen there, so locating her leaves the view", async ({
+    page,
+    request,
+  }) => {
+    await rm(join(SAVE_DIR, INSTALLATION_FILE), { force: true });
+    await settings(page, { helpHidden: true });
+    const session = await loadSession(request, STORY_MEANWHILE_SAVE);
+    await openMap(page, session, `${TIME_HELD}${MANUAL_DRIVE}`);
+    await compressTimeShownSettled(page);
+    await advanceToTheScene(page);
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
+    await clickWidget(page, 'meanwhileBox.ok');
+    await page.waitForFunction(() => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.story?.step === null, undefined, {
+      timeout: SCENE_TIMEOUT_MS,
+    });
+    const shown = await tacticalCamera(page);
+    await page.evaluate((tile) => window.__ja2Ui.tactical?.centerOn(tile), HALL_SCENE_TILE);
+    expect(shown).toEqual(await tacticalCamera(page));
   });
 
   test('a page hands the scenes an older page marked seen to the server, whose box then offers OK and Skip, and Skip stays on the map: no fade, no hall', async ({

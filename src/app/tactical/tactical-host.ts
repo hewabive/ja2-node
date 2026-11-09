@@ -41,7 +41,7 @@ import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WireframeRecalculationLog } from '../world/wireframe-recalculations.ts';
 import { WorldEffects } from '../world/world-effects.ts';
 import { loadOverheadTiles } from './overhead-map.ts';
-import { storyCameraTarget } from './story-camera.ts';
+import { type CameraEntry, entryCamera, type SceneCamera } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 import { attachTacticalHook, LOAD_PHASES, type LoadPhase, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
 import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
@@ -78,10 +78,11 @@ interface Loaded {
   readonly uiCursors: UiCursorTable;
 }
 
-interface SectorEntry {
-  readonly located: number | null;
+interface SectorEntry extends CameraEntry {
   readonly dropZone: number | null;
 }
+
+type FrameEvent = NonNullable<ViewFrame['events']>[number];
 
 export class TacticalHost {
   readonly hook: TacticalHook;
@@ -105,6 +106,7 @@ export class TacticalHost {
   #screenFor: Loaded | null = null;
   #loadScreen: number | null = null;
   #entry: SectorEntry | null = null;
+  #scene: SceneCamera | null = null;
   #redItemGlow = false;
   #refreshing = false;
   readonly #requestedProfiles = new Set<number>();
@@ -337,8 +339,6 @@ export class TacticalHost {
     const loaded = this.#loaded;
     if (!loaded) throw new Error('the tactical sector is not loaded');
     this.#o.page.world = this.#worldLayer();
-    const target = storyCameraTarget(this.#o.session.view);
-    if (target !== null) loaded.presenter.centerOn(target);
     const reused = this.#screenFor === loaded ? this.#screen : null;
     const screen = reused ?? this.#createScreen(loaded, flow);
     this.#startSoldiers(loaded, screen, reused !== null);
@@ -349,7 +349,8 @@ export class TacticalHost {
     const entry = this.#entry;
     this.#entry = null;
     if (entry || !reused) loaded.presenter.resetEffects(entry ? 'created' : 'restored');
-    if (entry && entry.located !== null) screen.locateOnEntry(entry.located);
+    const camera = entryCamera(this.#o.session.view, entry);
+    if (camera.length > 0) screen.cameraOnEntry(camera);
     if (entry && entry.dropZone !== null) loaded.presenter.centerOn(entry.dropZone);
   }
 
@@ -464,15 +465,30 @@ export class TacticalHost {
     this.#wireframes.follow(events);
     this.#loaded?.presenter.followEvents(events);
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
-    for (const frame of frames)
-      for (const event of frame.events ?? []) {
-        if (event.type === 'helicopterDropStarted' && this.#entry) this.#entry = { located: null, dropZone: event.gridNo };
-        if (event.type !== 'sectorLoaded') continue;
-        if (event.loadScreen) this.#loadScreen = event.loadScreen.id;
-        this.#entry = { located: event.located ?? null, dropZone: null };
-      }
+    for (const frame of frames) for (const event of frame.events ?? []) this.#followEntry(event);
     if (this.#screen) this.#screen.frames(frames);
     else this.#keepDialogue(frames);
+  }
+
+  #followEntry(event: FrameEvent): void {
+    switch (event.type) {
+      case 'meanwhileStarted':
+        this.#scene = { gridNo: event.gridNo ?? null, mapScreen: event.mapScreen === true };
+        return;
+      case 'meanwhileEnded':
+        this.#scene = null;
+        return;
+      case 'helicopterDropStarted':
+        if (this.#entry) this.#entry = { ...this.#entry, located: null, dropZone: event.gridNo };
+        return;
+      case 'sectorLoaded':
+        if (event.loadScreen) this.#loadScreen = event.loadScreen.id;
+        this.#entry = { located: event.located ?? null, dropZone: null, scene: this.#scene };
+        this.#scene = null;
+        return;
+      default:
+        return;
+    }
   }
 
   #keepDialogue(frames: readonly ViewFrame[]): void {
@@ -492,6 +508,7 @@ export class TacticalHost {
     this.#sound.director?.reset(session.soldiers, session.openContainers, session.view?.helicopterDrop ?? null);
     this.#frames?.reset();
     this.#entry = null;
+    this.#scene = null;
     this.#loaded?.presenter.resetEffects('restored');
   }
 

@@ -12,8 +12,12 @@
 // @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector), Tactical/Turn_Based_Input.cc GetKeyboardInput
 // @src (Esc ends a meanwhile but the interrogation: DeleteTalkingMenu, EndMeanwhile) (2026-11-09); BringupMeanwhileBox
 // @src (OK and Skip for a scene seen before, but the interrogation), BeginMeanwhileCallBack (Skip: the implications, the
-// @src pause lock and the pause lifted, nothing else) and EndMeanwhile's SetMeanwhileSceneSeen (2026-11-09).
+// @src pause lock and the pause lifted, nothing else) and EndMeanwhile's SetMeanwhileSceneSeen (2026-11-09);
+// @src DoneFadeOutMeanwhile's camera gridno, gusMeanWhileGridNo indexed by ubCurrentMeanWhileId, the meanwhile scheduled
+// @src last, and CheckForMeanwhileOKStart's guiOldScreen, which decides whether the game screen is entered after the load
+// @src (2026-11-09).
 
+import { NO_NARRATIVE_SCENES, sceneCameraGridNo } from '../../content/narrative/scenes.ts';
 import { sectorFromStrategicIndex } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
@@ -184,7 +188,13 @@ export class MeanwhileFlow {
     const c = this.#campaign;
     const m = this.#state;
     const id = m.current.id;
-    this.#emit({ type: 'meanwhileStarted', seq: m.log.length + 1, scene: meanwhileSceneName(id), ...(prompt !== null ? { prompt } : {}) });
+    this.#emit({
+      type: 'meanwhileStarted',
+      seq: m.log.length + 1,
+      scene: meanwhileSceneName(id),
+      ...this.#sceneCamera(),
+      ...(prompt !== null ? { prompt } : {}),
+    });
     const loaded = id === Meanwhile.INTERROGATION ? this.#goToTheInterrogation() : this.goToThePalace();
     if (!loaded) m.returnTrip = null;
     const talk = c.talk;
@@ -197,6 +207,12 @@ export class MeanwhileFlow {
     const t = c.tactical?.state;
     if (t && id !== Meanwhile.INTERROGATION) setShowAllMercs(t, true);
     triggerNpcRecordImmediately(talk.host, m.current.npc, m.current.trigger);
+  }
+
+  #sceneCamera(): { readonly gridNo?: number; readonly mapScreen?: true } {
+    const c = this.#campaign;
+    const gridNo = sceneCameraGridNo(c.talk?.scenes ?? NO_NARRATIVE_SCENES, this.#state.currentId);
+    return { ...(gridNo !== null ? { gridNo } : {}), ...(c.state.flow === 'strategic' ? { mapScreen: true as const } : {}) };
   }
 
   #sceneRecordsLoaded(): boolean {

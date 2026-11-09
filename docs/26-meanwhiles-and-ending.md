@@ -56,7 +56,7 @@ a queen dies                                            tactical/combat/death.ts
 | `tactical/ai/queen-escape.ts`, `tactical/narrative/statue.ts` | The Queen and Joe running for the basement stairs; the O3 statue |
 | `campaign/endgame-flow.ts`, `ending-state.ts` | `EndgameFlow`, the phases from a queen's death to the victory; `EndingState`, `campaignStatus` |
 | `campaign/story-refusals.ts`, `story-import.ts`, `narrative/story-events.ts` | The story refusals and the reported flow; the native import; the story events |
-| `src/content/narrative/scenes.ts` | Loader of `narrative-scenes.json`; the simulation reads only the witness sets |
+| `src/content/narrative/scenes.ts` | Loader of `narrative-scenes.json`; the simulation reads the witness sets and the camera tiles |
 
 `CampaignSim` runs `meanwhile.afterStep()` and `endgame.afterStep()` after every tick, answers the strategic world's
 `inMeanwhile()` with `areInMeanwhile`, and is not idle while a scene tries to start or runs or the endgame is active.
@@ -88,8 +88,11 @@ conversation is engaged with one reference, and the Queen's record 0 plays on `2
 the conversation locks the pause again at its next dialogue pass, so world time stands while the scene runs. Tactical
 ticks run; the freeze an idle conversation puts on ticks does not apply inside a scene, as the original keeps animating.
 Commands other than queries, `answer`, `skipLine` and `endMeanwhile` are refused (`inMeanwhile`), and the scene is
-reported as the `meanwhile` flow with `meanwhileStarted` and `meanwhileEnded` (`29`). A scene whose map cannot load, or
-whose Queen's or Elliot's record file is missing, ends at once (deviation "Meanwhile scene without its files").
+reported as the `meanwhile` flow with `meanwhileStarted` and `meanwhileEnded` (`29`). `meanwhileStarted` carries the
+tile the view goes to after the load, the camera table's entry for `currentId`, the meanwhile scheduled last (§3), and
+`mapScreen` for a scene started on the map screen, the only one whose entry into the game screen comes after its load
+and so locates the Queen; the client moves the camera (`30`). A scene whose map cannot load, or whose Queen's or
+Elliot's record file is missing, ends at once (deviation "Meanwhile scene without its files").
 
 **Palace scenes and the round trip.** `goToThePalace` records where to come back to (`MeanwhileState.returnTrip`: the
 loaded sector or none, the selected sector, the screen), moves the scene NPCs and loads P3_m, so the player's sector is
@@ -148,7 +151,8 @@ the interrogation's box is defined: the lost battle unloads first (deviation "Me
 
 **Saving.** ja2-node saves the meanwhile state and the ending whole and refuses a save while a scene tries to start or
 runs. A native import refuses a save made in a scene or the endgame and restores `trying` with the clock paused and
-locked again. The last scheduled id is an unsaved static of the original that only its scene camera reads.
+locked again. The last scheduled id, an unsaved static of the original that only its scene camera reads, is saved
+with the meanwhile state (deviation "Last scheduled meanwhile").
 
 ## 3. Quirks of the original the code keeps
 
@@ -158,6 +162,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 |---|---|
 | Elliot's beating counter counts each scene when it is posted, skipped or not, stops at 17 and wraps as `INT8` below it | `strategic/ai/meanwhile.test.ts` |
 | Elliot's beaten face skips 16: no variant matches it | `narrative/face-variant.test.ts` |
+| A scene's camera goes to the tile of the meanwhile scheduled last, not of the scene that plays: a palace scene playing after the interrogation was posted looks at the interrogation's tile (`Strategic/Meanwhile.cc:179`, `:367`) | `src/server/meduna-scene-stub.test.ts` |
 | The interrogation is posted at absolute minute 10, and a repost while enemies are loaded counts from that stamp, so it fires again at every event pass | `strategic/ai/meanwhile.test.ts` |
 | A meanwhile due in the current second takes precedence, except during a tactical traversal | `strategic/ai/meanwhile.test.ts`, `campaign/helicopter-flow.test.ts` |
 | A first battle won or lost in a town in tactical waits for the next world trash, which any map load brings | `strategic/ai/meanwhile.test.ts` |
@@ -195,13 +200,11 @@ The oracle compares the posting functions with their draws, the event with and w
 moves, the first-battle rules and the trash hook, the hourly milestones, captures with their history, `QUEEN_DEAD` and
 the O3 statue (`tools/oracle/README.md`, "Meanwhile"), and the lie's answer through the actions probes ("NPC actions").
 That probe compares the triggered record and the draws, which a check with the wrong chance can still match, so the
-lie's chance is pinned by `requestors.test.ts`. Not probed: a scene running in tactical, a palace scene's round trip,
-the box and Skip, the interrogation sequence, the same-second precedence in a running campaign and the endgame; the stub scenarios cover
-them (`src/server/interrogation-stub.test.ts`, `src/server/meduna-scene-stub.test.ts`,
+lie's chance is pinned by `requestors.test.ts`. Not probed: a scene running in tactical, a palace scene's round trip
+and camera tile, the box and Skip, the interrogation sequence, the same-second precedence in a running campaign and the
+endgame; the stub scenarios cover them (`src/server/interrogation-stub.test.ts`, `src/server/meduna-scene-stub.test.ts`,
 `src/server/endgame-stub.test.ts`). Inferred from reading the source:
 - The tactical AI keeps running under the conversation lock during the 2 s and 3 s endgame timers.
 - The softlock without Derek and the surface-death overwrite.
 - A surrender of five or more leaves the mercs past the fourth uncaptured.
 - A native save is never made in a scene or the endgame.
-
-Not ported: gap "Meanwhile scene playback".

@@ -9,7 +9,7 @@ import { i8 } from '../core/int.ts';
 import { MemoryInstallation, meanwhileSceneBit } from '../sim/campaign/installation.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Meanwhile, Town } from '../sim/strategic/ai/constants.ts';
-import { scheduleMeanwhileEvent } from '../sim/strategic/ai/meanwhile.ts';
+import { INTERROGATION_SECTOR, scheduleMeanwhileEvent } from '../sim/strategic/ai/meanwhile.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
 import { QuestStatus, questStatus } from '../sim/strategic/narrative/facts.ts';
@@ -48,6 +48,9 @@ const SCENE_STOPS = 20;
 const SCENE_STOP_BUDGET = 3000;
 const QUEEN_RECORDS_WITH_TWO_TOWNS = [0, 1, 2, 3, 4, 7, 11];
 const QUEEN_RECORDS_BEFORE_THE_SITE_COUNT = [0, 1, 2, 3, 4];
+const HALL_CAMERA = 12248;
+const INTERROGATION_CAMERA = 8075;
+const INTERROGATION_LATER_MINUTES = 60;
 
 function never(): never {
   throw new Error('missing');
@@ -204,6 +207,7 @@ async function townSceneFromTheMap(mode?: RunMode): Promise<CampaignSession> {
   const begun = live.advance({ compressionStopped: true, mode: CompressMode.MIN5 });
   expect(types(begun.events)).toEqual(expect.arrayContaining(['meanwhileStarted', 'sectorLoaded']));
   expect(begun.events).toContainEqual(expect.objectContaining({ type: 'compressionStopped', reason: 'meanwhile' }));
+  expect(begun.events).toContainEqual(expect.objectContaining({ type: 'meanwhileStarted', gridNo: HALL_CAMERA, mapScreen: true }));
   expect(session.campaign.state.meanwhile.returnTrip).toEqual({ sector: A9, selectedSector: SELECTED, screen: 'strategic' });
   const events = [...begun.events];
   events.push(...live.advance({ events: ['conversationOpened'] }, SCENE_STOP_BUDGET).events);
@@ -229,7 +233,7 @@ describe('a palace meanwhile scene played in the stub hall P3_m (Meanwhile.cc St
     await expectReloadsInvisible(outskirtsInTactical);
   });
 
-  it("a town scene from the map: the scene's NPCs shown to the player, the town count picking the Queen's line for two towns, and the map entered again with the mode lost and the selected sector back, the same across reloads", async () => {
+  it("a town scene from the map: its camera on the hall's tile and marked as started on the map screen, the scene's NPCs shown to the player, the town count picking the Queen's line for two towns, and the map entered again with the mode lost and the selected sector back, the same across reloads", async () => {
     await expectReloadsInvisible(townSceneFromTheMap);
   });
 
@@ -272,6 +276,22 @@ describe('a palace meanwhile scene played in the stub hall P3_m (Meanwhile.cc St
     expect(saidRecords(session, Npc.QUEEN)).toEqual(QUEEN_RECORDS_BEFORE_THE_SITE_COUNT);
     expect(session.dispatch({ type: 'endMeanwhile' })).toEqual({ ok: true });
     expect([session.campaign.state.worldSector, session.campaign.meanwhile.underWay()]).toEqual([A9, false]);
+  });
+
+  it('points the camera of a scene at the tile of the meanwhile scheduled last, not of the scene that plays (quirk): a town scene started in tactical after the interrogation was posted looks at its 8075', async () => {
+    const { session, live } = await landed(91);
+    schedule(session, Meanwhile.DRASSEN_LIBERATED);
+    scheduleMeanwhileEvent(
+      session.campaign.queen ?? never(),
+      Meanwhile.INTERROGATION,
+      nowMinutes(session) + INTERROGATION_LATER_MINUTES,
+      INTERROGATION_SECTOR,
+    );
+    session.drainEvents();
+    const started = untilStarted(live).find((e) => e.type === 'meanwhileStarted');
+    expect(started).toMatchObject({ scene: 'drassenLiberated', gridNo: INTERROGATION_CAMERA });
+    expect(started).not.toHaveProperty('mapScreen');
+    expect(session.view().strategic?.worldSector).toBe(PALACE);
   });
 
   it('ends at once without the hall P3_m (deviation: the original stops on the missing file): the implications run and nothing loads', async () => {

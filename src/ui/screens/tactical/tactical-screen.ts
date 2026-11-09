@@ -41,7 +41,8 @@
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, centred above
 // @src INV_INTERFACE_START_Y); Interface_Panels.cc KeyRingSlotInvClickCallbackPrimary (a key off the ring into the
 // @src cursor, selecting its owner; only a key in the cursor goes onto the ring); GameScreen.cc
-// @src TacticalScreenLocateToSoldier (LocateSoldier(…, 10) at the first update after a sector entry, 2026-11-02);
+// @src TacticalScreenLocateToSoldier (LocateSoldier(…, 10) at the first update after a sector entry, 2026-11-02; with the
+// @src scene tile and the locates of EnterTacticalScreen around it in their order, 2026-11-09);
 // @src Interface_Panels.cc RenderTownIDString (the detailed GetSectorIDString of the loaded sector, 2026-11-03);
 // @src TeamTurns.cc StartPlayerTeamTurn, StartInterrupt, EndInterrupt, DisplayHiddenInterrupt (the slides to the
 // @src selected merc, the interrupted soldier and the AI interrupter, 2026-11-03);
@@ -147,6 +148,7 @@ import { MoneyActions } from './money-actions.ts';
 import {
   aboveGuyPosition,
   DamageNumber,
+  type EntryCameraMove,
   FeedbackBox,
   healthString,
   LocateFlag,
@@ -349,7 +351,7 @@ export class TacticalScreen implements Screen {
   #radarBlink = false;
   #radarBlinkAt = 0;
   #entered = false;
-  #entryLocate: number | null = null;
+  #entryCamera: readonly EntryCameraMove[] = [];
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
   readonly #eventBoxes: EventBox[] = [];
   readonly #autoBandage: AutoBandageBox;
@@ -1052,7 +1054,7 @@ export class TacticalScreen implements Screen {
     this.#env.client.sync();
     if (this.#autoBandage.update(view?.autoBandage ?? null)) return;
     this.#env.world.ignoreScrolling(helicopterDropRunning(view));
-    this.#locateToSoldierOnEntry();
+    this.#moveCameraOnEntry();
     this.#followServer();
     this.#applyPanelSwitch();
     this.dialogue.update(this.#now);
@@ -1501,7 +1503,7 @@ export class TacticalScreen implements Screen {
         if (event.kind === 'ground') this.#env.world.locate(event.gridNo);
         return;
       case 'helicopterDropStarted':
-        this.#entryLocate = null;
+        this.#entryCamera = [];
         this.#env.world.centerOn(event.gridNo);
         return;
       case 'mineLocator':
@@ -1550,15 +1552,17 @@ export class TacticalScreen implements Screen {
     if (s) this.#locateSoldier(s, flag);
   }
 
-  locateOnEntry(id: number): void {
-    this.#entryLocate = id;
+  cameraOnEntry(moves: readonly EntryCameraMove[]): void {
+    this.#entryCamera = moves;
   }
 
-  #locateToSoldierOnEntry(): void {
-    const id = this.#entryLocate;
-    if (id === null) return;
-    this.#entryLocate = null;
-    this.locate(id, LocateFlag.CENTER_AND_SETLOCATOR);
+  #moveCameraOnEntry(): void {
+    const moves = this.#entryCamera;
+    this.#entryCamera = [];
+    for (const move of moves) {
+      if (move.kind === 'gridNo') this.#env.world.centerOn(move.gridNo);
+      else this.locate(move.soldier, move.flag);
+    }
   }
 
   #locateSoldier(s: SoldierView, flag: LocateFlag): void {

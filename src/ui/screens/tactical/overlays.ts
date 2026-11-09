@@ -163,6 +163,10 @@ export const LocateFlag = {
 } as const;
 export type LocateFlag = (typeof LocateFlag)[keyof typeof LocateFlag];
 
+export type EntryCameraMove =
+  | { readonly kind: 'gridNo'; readonly gridNo: number }
+  | { readonly kind: 'soldier'; readonly soldier: number; readonly flag: LocateFlag };
+
 export const SOLDIER_LOCATE_FLAGS = {
   none: LocateFlag.DONTSETLOCATOR,
   normal: LocateFlag.SETLOCATOR,

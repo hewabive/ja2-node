@@ -54,6 +54,10 @@ export function parseNarrativeScenes(json: unknown): NarrativeScenes {
   };
 }
 
+export function sceneCameraGridNo(scenes: NarrativeScenes, id: number): number | null {
+  return scenes.scenes.find((s) => s.id === id)?.cameraGridNo ?? null;
+}
+
 export async function loadNarrativeScenes(read: ReadFile): Promise<NarrativeScenes> {
   const bytes = await read(NARRATIVE_SCENES_PATH);
   return bytes ? parseNarrativeScenes(parseJsoncBytes(bytes)) : NO_NARRATIVE_SCENES;
