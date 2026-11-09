@@ -51,7 +51,7 @@ import { findWorldItemForBombInGridNo } from './bombs/world-bombs.ts';
 import { askToDisarmBuriedBomb, continuePastBoobyTrap } from './booby-traps.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
-import { apsToMovePlusAction, dropHeldGive, giveItemOpcode } from './give.ts';
+import { apsToMovePlusAction, dropHeldActions, giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
 import { MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
@@ -170,7 +170,7 @@ export function soldierPickupItem(
 ): boolean {
   const actionGridNo = adjustGridNoForItemPlacement(t, s, g);
   s.pendingPickup = { gridNo: g, actionGridNo, zLevel, selection };
-  dropHeldGive(s);
+  dropHeldActions(s);
   if (s.gridNo === actionGridNo) {
     pickPickupAnimation(t, s, g, zLevel);
     return true;

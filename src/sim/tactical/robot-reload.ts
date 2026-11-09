@@ -12,7 +12,7 @@ import { cloneObject, type ItemObject, removeObjects } from '../items/object.ts'
 import { anim } from './anim-states.ts';
 import { faceAtOnce, initNewSoldierAnim } from './animation.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
-import { apsToMovePlusAction, dropHeldGive } from './give.ts';
+import { apsToMovePlusAction, dropHeldActions } from './give.ts';
 import { autoPlaceObject, InvSlot, itemIn, reloadGun } from './inventory.ts';
 import { compatibleAmmoForGun } from './item-compatibility.ts';
 import { getNewSoldierPath } from './movement.ts';
@@ -86,11 +86,12 @@ export function soldierReloadRobot(t: TacticalState, s: Soldier, robot: Soldier,
   s.tempObject = cloneObject(ammo);
   removeObjects(source, 1);
   s.pendingActionData2 = approach.targetGridNo;
-  if (s.heldGiveAction) s.heldGiveAction.animCount = 0;
+  const held = s.heldGiveAction ?? s.savedPendingAction;
+  if (held) held.animCount = 0;
   if (s.gridNo === approach.actionGridNo) beginReloadRobot(t, s, approach.targetGridNo, approach.direction);
   else {
     s.pendingRobotReload = { targetGridNo: approach.targetGridNo, direction: approach.direction };
-    dropHeldGive(s);
+    dropHeldActions(s);
     if (!getNewSoldierPath(t, s, approach.actionGridNo, s.uiMovementMode, 0, false)) cancelPendingRobotReload(t, s);
   }
   return approach.actionGridNo;

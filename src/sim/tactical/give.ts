@@ -58,7 +58,7 @@ export function soldierGiveItem(t: TacticalState, giver: Soldier, target: Soldie
   const approach = findAdjacentGridEx(t, giver, target.gridNo, true);
   if (!approach) return false;
   giver.pendingGive = { slot, targetGridNo: target.gridNo, direction: approach.direction, target: target.id, begun: false };
-  dropHeldGive(giver);
+  dropHeldActions(giver);
   giver.tempObject = cloneObject(object);
   giver.engagedInAction = true;
   if (giver.gridNo !== approach.actionGridNo) getNewSoldierPath(t, giver, approach.actionGridNo, giver.uiMovementMode, 0, true);
@@ -83,8 +83,9 @@ export function anyMercHoldsGiveItem(t: TacticalState): boolean {
   return teamMembers(t, Team.OUR).some(holdsGiveItem) || t.sectorHooks.ourWholeTeam(t).some(holdsSavedGiveItem);
 }
 
-export function dropHeldGive(s: Soldier): void {
+export function dropHeldActions(s: Soldier): void {
   s.heldGiveAction = null;
+  s.savedPendingAction = null;
 }
 
 export function handlePendingGiveOnArrival(t: TacticalState, s: Soldier): boolean {
@@ -107,7 +108,7 @@ function beginHeldGiveAgain(t: TacticalState, s: Soldier, held: HeldGiveAction):
     unsetEngagedInConvFromPcAction(t, s);
     s.tempObject = null;
   }
-  dropHeldGive(s);
+  dropHeldActions(s);
 }
 
 export function cancelGiveOnCollapse(t: TacticalState, s: Soldier): void {

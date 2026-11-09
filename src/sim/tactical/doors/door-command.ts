@@ -11,7 +11,7 @@ import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
-import { anyMercHoldsGiveItem, dropHeldGive } from '../give.ts';
+import { anyMercHoldsGiveItem, dropHeldActions } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { enoughPoints } from '../points.ts';
@@ -200,7 +200,7 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   s.pendingDoorAction = null;
   if (approach.gridNo === s.gridNo) return { ok: true, data: performDoorAction(t, s, base, approach.direction, action) };
   s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action };
-  dropHeldGive(s);
+  dropHeldActions(s);
   if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
     s.pendingDoorAction = null;
     return refuse('noPath');

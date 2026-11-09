@@ -17,7 +17,7 @@ import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
 import { soldierReloadRobot } from './robot-reload.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
+import { Body, MERC_GIVE_ITEM, type Soldier, Team } from './soldier.ts';
 
 let content: TacticalContent;
 
@@ -245,19 +245,30 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect([giver.heldGiveAction, mate.engagedInAction, hasPendingAction(giver)]).toEqual([null, false, false]);
   });
 
-  it.each([
-    ['a pickup', (sim: TacticalSim, giver: Soldier) => soldierPickupItem(sim.state, giver, gridNo(80, 84), 0, null)],
-    [
-      'a steal',
-      (sim: TacticalSim, giver: Soldier) => mercStealFromMerc(sim.state, giver, spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), 0)),
-    ],
-    ['an interactive object', (sim: TacticalSim, giver: Soldier) => startInteractiveObject(sim.state, giver, gridNo(80, 81))],
-  ])('is replaced by the next pending action of the giver: %s', (_name, act) => {
+  const NEXT_PENDING_ACTIONS: readonly (readonly [string, (sim: TacticalSim, s: Soldier) => unknown])[] = [
+    ['a pickup', (sim, s) => soldierPickupItem(sim.state, s, gridNo(80, 84), 0, null)],
+    ['a steal', (sim, s) => mercStealFromMerc(sim.state, s, spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), 0))],
+    ['an interactive object', (sim, s) => startInteractiveObject(sim.state, s, gridNo(80, 81))],
+  ];
+
+  it.each(NEXT_PENDING_ACTIONS)('is replaced by the next pending action of the giver: %s', (_name, act) => {
     const sim = newCombatSim(content);
     const { giver } = gaveOnTheSpot(sim);
     act(sim, giver);
     expect(holdsGiveItem(giver)).toBe(false);
   });
+
+  it.each(NEXT_PENDING_ACTIONS)(
+    "replaces a native save's pending action as it replaces the held give, in the one slot: %s",
+    (_name, act) => {
+      const MERC_PICKUPITEM = 2;
+      const sim = newCombatSim(content);
+      const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+      s.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, animCount: 1 };
+      act(sim, s);
+      expect(s.savedPendingAction).toBeNull();
+    },
+  );
 
   it('starts its count again at a robot reload on the spot and is replaced by one walked up to', () => {
     const sim = newCombatSim(content);
@@ -317,6 +328,15 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect([animationOf(sim, npc), npc.heldGiveAction, log.doneGiving]).toEqual(['WALKING', null, [NPC_PROFILE, NPC_PROFILE]]);
     stepUntil(sim, () => animationOf(sim, npc) === 'STANDING');
     expect([animationOf(sim, npc), npc.gridNo, log.doneGiving.length]).toEqual(['STANDING', WALKED_TO, 2]);
+  });
+
+  it("starts the count of a native save's pending action again too at a robot reload on the spot (Interface_Items.cc:3276)", () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    const robot = spawnSoldier(sim, 2, Team.OUR, gridNo(80, 79), Direction.SOUTH, { body: Body.ROBOTNOWEAPON });
+    s.savedPendingAction = { action: MERC_GIVE_ITEM, giveTarget: robot.id, animCount: 5 };
+    expect(soldierReloadRobot(sim.state, s, robot, cloneObject(withClips(s, 2)), InvSlot.BIGPOCK1)).not.toBeNull();
+    expect(s.savedPendingAction?.animCount).toBe(1);
   });
 
   it('is never held by a give walked up to: its MERC_GIVEITEM ends on arrival', () => {

@@ -119,7 +119,7 @@ import {
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
-import { dropHeldGive, setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
+import { dropHeldActions, setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../tactical/movement.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
@@ -865,7 +865,7 @@ export class TalkFlow {
     }
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
     merc.pendingTalk = target.id;
-    dropHeldGive(merc);
+    dropHeldActions(merc);
     if (to === NOWHERE || !getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {
       merc.pendingTalk = null;
       refuse('noPath');

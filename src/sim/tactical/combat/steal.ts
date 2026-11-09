@@ -12,7 +12,7 @@ import type { StealAttemptEvent } from '../../events.ts';
 import { deleteObject, type ItemObject } from '../../items/object.ts';
 import { plotPathCost } from '../ai/utils.ts';
 import { AnimHeight } from '../animation.ts';
-import { dropHeldGive } from '../give.ts';
+import { dropHeldActions } from '../give.ts';
 import { reloadSoldierAnimationDueToHandItemChange } from '../hand-item.ts';
 import { autoPlaceObject, InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
@@ -55,7 +55,7 @@ export function mercStealFromMerc(t: TacticalState, s: Soldier, tgt: Soldier): b
   const approach = findAdjacentGridEx(t, s, tgt.gridNo, true);
   if (!approach) return false;
   s.pendingMelee = { kind: MeleeKind.STEAL, targetGridNo: tgt.gridNo, direction: approach.direction, animCount: 0 };
-  dropHeldGive(s);
+  dropHeldActions(s);
   s.pendingActionData2 = tgt.gridNo;
   s.targetLevel = tgt.level;
   if (s.gridNo !== approach.actionGridNo)

@@ -5,7 +5,7 @@
 // @src give's MERC_GIVEITEM is held while walking up and after a give on the spot, 2026-11-08; a native save's action
 // @src stays its code alone, 2026-11-08).
 
-import { clearPendingGive, dropHeldGive, holdsGiveItem } from './give.ts';
+import { clearPendingGive, dropHeldActions, holdsGiveItem } from './give.ts';
 import { cancelPendingRobotReload } from './robot-reload.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -33,8 +33,7 @@ export function removePendingAction(t: TacticalState, s: Soldier): void {
   s.pendingAid = null;
   s.pendingDropBomb = false;
   s.pendingTileTool = null;
-  s.savedPendingAction = null;
   clearPendingGive(t, s);
-  dropHeldGive(s);
+  dropHeldActions(s);
   cancelPendingRobotReload(t, s);
 }

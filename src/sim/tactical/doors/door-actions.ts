@@ -13,7 +13,7 @@ import { has, StructureFlags, type StructureInstance } from '../../../content/wo
 import { AiAction } from '../ai/actions.ts';
 import { AnimHeight, endHeight, initNewSoldierAnim, setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { handleDoorChangeFromGridNo } from '../doors.ts';
-import { dropHeldGive } from '../give.ts';
+import { dropHeldActions } from '../give.ts';
 import { stopMerc } from '../movement.ts';
 import { processImplicationsOfPCMessingWithDoor } from '../narrative/civ-hostility.ts';
 import { AP, BP, DOOR_APS, deductPoints, enoughPoints } from '../points.ts';
@@ -481,7 +481,7 @@ const OPEN_STRUCT_STATES: ReadonlySet<string> = new Set([
 export function startInteractiveObject(t: TacticalState, s: Soldier, gridNo: number): void {
   if (OPEN_STRUCT_STATES.has(t.content.animations.controls[s.state]?.id ?? '')) return;
   s.pendingDoorGridNo = gridNo;
-  dropHeldGive(s);
+  dropHeldActions(s);
 }
 
 export function interactWithDoorAt(t: TacticalState, s: Soldier, gridNo: number, direction: number): InteractionOutcome | null {
