@@ -38,7 +38,7 @@ What a native savegame import leaves out: none known. Paths are under `src/`.
 
 ## 6. Presentation: screens, graphics, text, sound and video
 
-What the client does not show or play yet; none of it changes an outcome: none known. Paths are under `src/`.
+What the client does not show or play yet, where nothing changes an outcome: none known. Paths are under `src/`.
 
 ## 7. Code conventions
 
