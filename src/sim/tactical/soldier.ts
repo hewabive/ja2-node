@@ -397,6 +397,7 @@ export interface Soldier {
   uiMovementFast: boolean;
   pendingGive: PendingGive | null;
   heldGiveAction: HeldGiveAction | null;
+  savedPendingAction: SavedPendingAction | null;
   engagedInAction: boolean;
   keyRing: KeyOnRing[] | null;
   breathCollapsed: boolean;
@@ -609,6 +610,14 @@ export interface PendingGive {
   begun: boolean;
 }
 
+export const MERC_GIVE_ITEM = 6;
+
+export interface SavedPendingAction {
+  readonly action: number;
+  readonly giveTarget: number;
+  animCount: number;
+}
+
 export interface HeldGiveAction {
   readonly target: number;
   readonly targetGridNo: number;
@@ -766,6 +775,7 @@ function identityAndMovement(init: SoldierInit, centre: { x: number; y: number }
     uiMovementFast: false,
     pendingGive: null,
     heldGiveAction: null,
+    savedPendingAction: null,
     engagedInAction: false,
     keyRing: init.team === Team.OUR ? newKeyRing() : null,
     breathCollapsed: false,

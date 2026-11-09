@@ -17,7 +17,8 @@ import { getNewSoldierPath } from '../movement.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { hasPendingAction } from '../pending-action.ts';
 import { pickGridNoNearestEdge, setActionToDoOnceMercsGetToLocation } from '../sector-exit.ts';
-import { type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
+import { MERC_GIVE_ITEM, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { WaitForMercs } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { doorApCost, doorMenu, handleOpenableStruct } from './door-actions.ts';
@@ -331,6 +332,20 @@ describe('a door order that arrives while something else is under way (Overhead.
   it('drops the order while another merc still walks up to give an item, not once he hands it over', () => {
     expect(walkToOpen(mercGiving(false))).toBe(false);
     expect(walkToOpen(mercGiving(true))).toBe(true);
+  });
+
+  function offTheMapKeeping(action: number) {
+    return (sim: TacticalSim) => {
+      const away = spawnSoldier(sim, 1, Team.OUR, GIVER_AT, NORTH);
+      removeSoldierFromTacticalSector(sim.state, away);
+      away.savedPendingAction = { action, giveTarget: 0, animCount: 1 };
+    };
+  }
+
+  it('drops the order while a merc of ours off the map keeps the MERC_GIVEITEM of a native save, not another saved action (Overhead.cc:840, Soldier.cc:62)', () => {
+    const MERC_PICKUPITEM = 2;
+    expect(walkToOpen(offTheMapKeeping(MERC_GIVE_ITEM))).toBe(false);
+    expect(walkToOpen(offTheMapKeeping(MERC_PICKUPITEM))).toBe(true);
   });
 
   function gaveOnTheSpot(sim: TacticalSim): Soldier {

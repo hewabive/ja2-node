@@ -21,7 +21,8 @@
 // @src SoldierGotoStationaryStance's cower states (2026-11-07); EVENT_InitNewSoldierAnim's pending action count for a
 // @src held MERC_GIVEITEM, freeing its target when it drops the action, and its SOLDIER_ENGAGEDINACTION test
 // @src (2026-11-08); EVENT_InitNewSoldierAnim's LOADING_SAVED_GAME branch and Soldier_Control.cc CreateSoldierCommon's
-// @src restart of a loaded soldier (2026-11-08); EVENT_InitNewSoldierAnim's enemy-sighting unlock (2026-11-08).
+// @src restart of a loaded soldier (2026-11-08); EVENT_InitNewSoldierAnim's enemy-sighting unlock (2026-11-08); its count
+// @src of a native save's pending action, freeing a give's target the load made before the giver (2026-11-08).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -81,11 +82,13 @@ import {
   hasThreatenStance,
   inSector,
   isCreatureOrBloodcat,
+  MERC_GIVE_ITEM,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
   NOBODY,
   NOWHERE,
   OKLIFE,
+  type SavedPendingAction,
   type Soldier,
   Team,
   Visible,
@@ -1144,7 +1147,7 @@ function setJumpOverPath(t: TacticalState, s: Soldier, state: number): void {
 const PENDING_COUNT_RESET_STATES = ['WALKING', 'SWATTING', 'CRAWLING', 'RUNNING', 'ADULTMONSTER_WALKING', 'ROBOT_WALK'];
 
 function countedPendingAction(s: Soldier): { animCount: number } | null {
-  return s.pendingMelee ?? s.heldGiveAction;
+  return s.pendingMelee ?? s.heldGiveAction ?? s.savedPendingAction;
 }
 
 function dropCountedPendingAction(t: TacticalState, s: Soldier): void {
@@ -1152,9 +1155,23 @@ function dropCountedPendingAction(t: TacticalState, s: Soldier): void {
     s.pendingMelee = null;
     return;
   }
+  if (s.savedPendingAction) {
+    dropSavedPendingAction(t, s, s.savedPendingAction);
+    return;
+  }
   const target = s.heldGiveAction ? t.soldiers[s.heldGiveAction.target] : undefined;
   if (target) target.engagedInAction = false;
   s.heldGiveAction = null;
+}
+
+function dropSavedPendingAction(t: TacticalState, s: Soldier, saved: SavedPendingAction): void {
+  const target = saved.action === MERC_GIVE_ITEM ? t.soldiers[saved.giveTarget] : undefined;
+  if (target && createdBeforeInTheLoad(t, target, s)) target.engagedInAction = false;
+  s.savedPendingAction = null;
+}
+
+function createdBeforeInTheLoad(t: TacticalState, other: Soldier, s: Soldier): boolean {
+  return !t.loadingSave || other.id < s.id;
 }
 
 function countPendingActionAnimation(t: TacticalState, s: Soldier, oldState: number, next: number): void {

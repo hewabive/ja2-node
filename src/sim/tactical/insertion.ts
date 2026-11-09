@@ -5,7 +5,8 @@
 // @src TileEngine/Exit_Grids.cc FindClosestExitGrid; InternalAddSoldierToSector's vehicle sweet spot and its stop for a
 // @src driver or passenger (2026-11-05); the APs every soldier keeps when added (InternalAddSoldierToSector computes none, 2026-11-05,
 // @src for our mercs too 2026-11-08);
-// @src AddSoldierToSectorGridNo's arrival stance, skipped for a merc already in HELIDROP (2026-11-08).
+// @src AddSoldierToSectorGridNo's arrival stance, skipped for a merc already in HELIDROP (2026-11-08), and its
+// @src removePendingAnimation, which drops the pending action too (2026-11-08).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -20,6 +21,7 @@ import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
 import { clearCreatureTensionQuotesSaid } from './narrative/creature-tension.ts';
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
+import { removePendingAction } from './pending-action.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
 import { FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
 import { Body, inVehicle, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
@@ -276,6 +278,7 @@ function addSoldierToSectorGridNo(
   s.reservedGridNo = NOWHERE;
   s.pendingAnimation = NO_PENDING_ANIMATION;
   s.pendingDirection = NO_PENDING_DIRECTION;
+  removePendingAction(t, s);
   if (insertionCode !== Insertion.CHOPPER) {
     if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE)) s.state = states(t.content.animations).STANDING;
     setSoldierPosition(t, s, gridNo);

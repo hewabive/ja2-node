@@ -93,7 +93,12 @@ starts included, takes `EVENT_InitNewSoldierAnim`'s loading branch, which skips 
 (`Tactical/Soldier_Control.cc:897`), and a soldier placed meanwhile is not stepped on to his destination (`:1891`). The
 restart runs the script with its opcodes, and its draws are the main stream's, as all of `Random` is (deviation "Player
 loads"); the saved pending animation is held through it and dropped after, as entering the sector does
-(`Tactical/Soldier_Add.cc:871`); the roster takes the restarted soldiers of the mercs on no map. A save with no world
+(`Tactical/Soldier_Add.cc:871`); the roster takes the restarted soldiers of the mercs on no map. A saved pending action
+has no typed record of ja2-node's to go into, so it stays as its code, count and a give's target
+(`Soldier.savedPendingAction`): the restart counts it, placing the soldier on the map drops it, and one the load leaves
+off the map (seated in a vehicle or the helicopter, in another sector) keeps it until he enters a map or stops, holding
+the auto-bandage question back meanwhile and, for a give, every door or container opened on arrival (gap "Pending
+actions on import" for the rest). A save with no world
 only stands a climber up (deviation "Animations on load without a world"). The restart runs before the campaign hooks
 the sector, so an opcode that reports to the campaign does not reach it (gap "Animations on load").
 
@@ -180,6 +185,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | The load starts every saved animation again at its saved code and runs the script on to the next frame: a breathing soldier saved before his idle check counts it and may roll an idle animation, one readying his rifle in combat pays for it again, and an animation the restart starts skips every check of a new one (`Tactical/Soldier_Control.cc:615`, `:897`, `Tactical/Soldier_Ani.cc:1384`) | `sim/tactical/save-import.test.ts` "runs the script on from the saved code …", "counts the idle check …", "charges a soldier saved readying his rifle …", "holds the saved pending animation …"; `server/save-session.test.ts` "restarts the animations of …" |
 | Loading drops every soldier's movement reservation and pending animation | `sim/tactical/save-import.test.ts` |
 | Placing a loaded giver drops his pending give but frees nobody: he and his target stay engaged in action, the target out of the AI (`Tactical/Soldier_Add.cc:871`, `TacticalAI/AIMain.cc:91`) | `sim/tactical/save-import.test.ts` "keeps the giver and the target of a give saved under way engaged …" |
+| The restart frees the target of a saved give it drops only if the load made that target before the giver: a later one is made from his own save, engaged again (`Tactical/Soldier_Control.cc:1672-1681`, `SaveLoadGame.cc:1404`) | `sim/tactical/save-import.test.ts` "lets the restart drop it from a soldier saved in a moving animation …" |
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
 | So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
 | A corpse with no free tile within five tiles is lost: the wider retry searches around the `NOWHERE` the first search left (`Tactical/Tactical_Save.cc:650-652`) | `sim/tactical/corpse-placement.test.ts` |

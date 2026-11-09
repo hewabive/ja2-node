@@ -3540,3 +3540,52 @@ describe("snapshot version 68 (a held give without its target's tile) migrates w
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const SAVED_PENDING_ACTION_KEY = 'savedPendingAction';
+
+function withoutSavedPendingAction(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutSavedPendingAction(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key !== SAVED_PENDING_ACTION_KEY) out[key] = withoutSavedPendingAction(v);
+    else expect(v).toBeNull();
+  }
+  return out;
+}
+
+function versionSixtyNine(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutSavedPendingAction(value)]);
+  return { ...snapshot, version: 69, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 69 (no saved pending action) migrates with none, as only a native save's import sets one", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoSavedPendingAction(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtyNine(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${SAVED_PENDING_ACTION_KEY}":null`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${SAVED_PENDING_ACTION_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoSavedPendingAction(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoSavedPendingAction(await quietLandedCampaign(kit));
+  });
+});

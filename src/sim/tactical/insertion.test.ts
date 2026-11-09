@@ -181,6 +181,14 @@ describe('InternalAddSoldierToSector for a merc seated in a vehicle (Soldier_Add
     expect(whoIsThere(t, SWEET, 0)).toBe(hummer);
   });
 
+  it('keeps the pending action a native save left him, as the entry stops before it places him (Soldier_Add.cc:707-708)', () => {
+    const sim = newCombatSim(content);
+    const merc = seated(sim, arrivingHummer(sim), 0);
+    merc.savedPendingAction = { action: 2, giveTarget: 0, animCount: 1 };
+    expect(enter(sim, merc)).toBe(false);
+    expect(merc.savedPendingAction?.action).toBe(2);
+  });
+
   it("takes the vehicle's tile at once when the vehicle is already placed, as a group arriving puts the vehicle in first", () => {
     const sim = newCombatSim(content);
     const hummer = arrivingHummer(sim);
@@ -189,6 +197,19 @@ describe('InternalAddSoldierToSector for a merc seated in a vehicle (Soldier_Add
     expect(enter(sim, merc)).toBe(false);
     expect([merc.placed, merc.gridNo, merc.structure]).toEqual([true, SWEET, null]);
     expect(whoIsThere(sim.state, SWEET, 0)).toBe(hummer);
+  });
+});
+
+describe('the pending action of a soldier added to the sector (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
+  const MERC_PICKUPITEM = 2;
+
+  it('is dropped once he stands on the map, for any team, the one a native save left him included', () => {
+    const sim = newCombatSim(content);
+    const militia = arrivingSoldier(sim);
+    militia.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: 0, animCount: 1 };
+    militia.pendingTalk = 0;
+    expect(insert(sim, militia, ARRIVAL_FACING, true)).toMatchObject({ placed: true });
+    expect([militia.savedPendingAction, militia.pendingTalk]).toEqual([null, null]);
   });
 });
 

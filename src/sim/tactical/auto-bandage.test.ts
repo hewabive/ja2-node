@@ -14,6 +14,7 @@ import { isMoving, states } from './animation.ts';
 import { shouldBeginAutoBandage, startAutoBandage } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
+import { stopMerc } from './movement.ts';
 import { createSoldier, NOBODY, NOWHERE, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
@@ -340,6 +341,21 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
       [true, null],
       [false, 'beginAutoBandage'],
     ]);
+  });
+
+  it('waits while a merc of ours in the loaded sector keeps the pending action of a native save, until he stops (Auto_Bandage.cc:151-160)', () => {
+    const MERC_PICKUPITEM = 2;
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
+    t.autoBandage.pending = true;
+    shadow.savedPendingAction = { action: MERC_PICKUPITEM, giveTarget: NOBODY, animCount: 1 };
+    frame(sim);
+    const waited = pendingAndPrompt(t);
+    stopMerc(t, shadow);
+    frame(sim);
+    expect([waited, shadow.savedPendingAction, pendingAndPrompt(t)]).toEqual([[true, null], null, [false, 'beginAutoBandage']]);
   });
 
   it('checks everything again when it asks, so a changed sector gives the refusal instead and clears the flag (quirk)', () => {

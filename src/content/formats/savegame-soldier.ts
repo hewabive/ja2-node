@@ -617,6 +617,7 @@ export interface SoldierMotion {
   readonly overrideMoveSpeed: number;
   readonly useOverrideMoveSpeed: boolean;
   readonly pendingAction: number;
+  readonly pendingActionAnimCount: number;
   readonly pendingActionData1: number;
   readonly pendingActionData2: number;
   readonly timeOfLastRandomAction: number;
@@ -1013,6 +1014,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       overrideMoveSpeed: n('bOverrideMoveSpeed'),
       useOverrideMoveSpeed: r.bool('fUseMoverrideMoveSpeed'),
       pendingAction: n('ubPendingAction'),
+      pendingActionAnimCount: n('ubPendingActionAnimCount'),
       pendingActionData1: n('uiPendingActionData1'),
       pendingActionData2: n('sPendingActionData2'),
       timeOfLastRandomAction: n('uiTimeOfLastRandomAction'),

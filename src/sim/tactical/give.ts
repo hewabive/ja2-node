@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_Items.cc SoldierGiveItem, VerifyGiveItem, SoldierGiveItemFromAnimation;
 // @src Soldier_Control.cc EVENT_SoldierBeginGiveItem, SoldierCollapse (issue #2265);
 // @src externalized/Soldier.cc handlePendingAction, anyoneHasPendingAction (MERC_GIVEITEM, held after a give on the spot,
-// @src 2026-11-08; begun again at the end of a walk, Overhead.cc ExecuteOverhead, 2026-11-08); Soldier_Ani.cc code 486;
+// @src 2026-11-08; begun again at the end of a walk, Overhead.cc ExecuteOverhead, 2026-11-08; a native save's give anywhere
+// @src in our team, 2026-11-08); Soldier_Ani.cc code 486;
 // @src Points.cc GetMovePlusActionAPCosts, GetAPsToGiveItem; Dialogue_Control.cc SetEngagedInConvFromPCAction,
 // @src UnSetEngagedInConvFromPCAction.
 
@@ -18,7 +19,7 @@ import { autoPlaceObject, NO_SLOT } from './inventory.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { AP, deductPoints } from './points.ts';
 import { profileProgress } from './profiles.ts';
-import { type HeldGiveAction, NO_PROFILE, NOBODY, type PendingGive, type Soldier, Team } from './soldier.ts';
+import { type HeldGiveAction, MERC_GIVE_ITEM, NO_PROFILE, NOBODY, type PendingGive, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
@@ -71,11 +72,15 @@ export function soldierGiveItem(t: TacticalState, giver: Soldier, target: Soldie
 }
 
 export function holdsGiveItem(s: Soldier): boolean {
-  return (s.pendingGive !== null && !s.pendingGive.begun) || s.heldGiveAction !== null;
+  return (s.pendingGive !== null && !s.pendingGive.begun) || s.heldGiveAction !== null || holdsSavedGiveItem(s);
+}
+
+function holdsSavedGiveItem(s: Soldier): boolean {
+  return s.savedPendingAction?.action === MERC_GIVE_ITEM;
 }
 
 export function anyMercHoldsGiveItem(t: TacticalState): boolean {
-  return teamMembers(t, Team.OUR).some(holdsGiveItem);
+  return teamMembers(t, Team.OUR).some(holdsGiveItem) || t.sectorHooks.ourWholeTeam(t).some(holdsSavedGiveItem);
 }
 
 export function dropHeldGive(s: Soldier): void {

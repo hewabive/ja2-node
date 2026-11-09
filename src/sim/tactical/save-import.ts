@@ -24,7 +24,9 @@
 // @src LoadGeneralInfo's gfExplosionQueueActive, the DISALLOW_SIGHT and CHECK_SIGHT_AT_END_OF_ATTACK bits of the saved
 // @src uiFlags, and the busy count LoadSavedGame zeroes in combat and out of it (2026-11-08); the bullets and the
 // @src physics objects before the explosion table; Tactical/Interface_Items.cc LoadItemCursorFromSavedGame, its object
-// @src put back as CancelItemPointer puts it (2026-11-08).
+// @src put back as CancelItemPointer puts it (2026-11-08); ubPendingAction, ubPendingActionAnimCount and a give's
+// @src uiPendingActionData4, dropped by AddSoldierToSectorGridNo but kept by the soldiers it does not reach
+// @src (Soldier_Add.cc:707-708, :871, 2026-11-08).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -85,6 +87,7 @@ import {
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
   NOWHERE,
+  type SavedPendingAction,
   type Soldier,
   SoldierStatusFlags,
   TOTAL_SOLDIERS,
@@ -112,6 +115,7 @@ const INT16_BYTES = 2;
 const MAX_TEAMS = 6;
 const SAVED_NO_PENDING_STANCE = 254;
 const SAVED_NO_PENDING_ANIMATION = 32001;
+const SAVED_NO_PENDING_ACTION = 255;
 const SAVED_NO_PENDING_DIRECTION = 253;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
@@ -479,6 +483,7 @@ function importAwaySoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSol
   for (const [s, r] of withSavedRecords(save, soldiers)) {
     if (!awayInLoadedSector(save, r)) continue;
     t.soldiers[s.id] = s;
+    s.savedPendingAction = null;
     s.away = true;
     t.awaySlots.push(s);
   }
@@ -514,6 +519,7 @@ function importFacing(s: Soldier, r: SavedSoldier): void {
 
 function placeSoldier(t: TacticalState, s: Soldier): void {
   registerSoldier(t, s);
+  if (s.vehicleSeat === VehicleSeat.NONE) s.savedPendingAction = null;
   setSoldierPosition(t, s, s.gridNo, { keepDestination: true, keepFinalDestination: true });
 }
 
@@ -561,11 +567,17 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
     civilianGroup: r.civilianGroup,
   });
   copyScalars(s, r);
+  s.savedPendingAction = savedPendingAction(r);
   importFacing(s, r);
   s.overTerrain = r.overTerrainType;
   s.pc = r.aniCode;
   s.keyRing = entry.keyRing ? entry.keyRing.map((k) => ({ keyId: k.keyId, count: k.count })) : null;
   return s;
+}
+
+function savedPendingAction(r: SavedSoldier): SavedPendingAction | null {
+  const { pendingAction: action, pendingActionAnimCount: animCount } = r.motion;
+  return action === SAVED_NO_PENDING_ACTION ? null : { action, giveTarget: r.ai.pendingActionData4, animCount };
 }
 
 function emptyRecord(r: SavedSoldier): SavedSoldier['inventory'][number] {

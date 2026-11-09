@@ -2114,6 +2114,22 @@ function addHeldGiveTargetTiles(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SAVED_PENDING_ACTION_KEY = 'savedPendingAction';
+
+function withSavedPendingAction(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSavedPendingAction(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSavedPendingAction(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, HELD_GIVE_ACTION_KEY, SAVED_PENDING_ACTION_KEY, null) : mapped;
+}
+
+function addSavedPendingAction(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withSavedPendingAction(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2184,5 +2200,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     66: addLoadingSaveFlag,
     67: smokeOwnersById,
     68: addHeldGiveTargetTiles,
+    69: addSavedPendingAction,
   };
 }

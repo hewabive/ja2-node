@@ -1120,13 +1120,14 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     };
   }
 
-  function seatedSave(): SaveGame {
+  function seatedSave(extra: SoldierFields = {}): SaveGame {
     return syntheticSave({
       soldiers: [
-        savedSoldier(DRIVER_ID, Team.OUR, PARKED_AT, { uiStatusFlags: SOLDIER_DRIVER, iVehicleId: HUMMER_SLOT }),
-        savedSoldier(PASSENGER_ID, Team.OUR, PARKED_AT, { uiStatusFlags: SOLDIER_PASSENGER, iVehicleId: HUMMER_SLOT }),
-        savedSoldier(FLYING_ID, Team.OUR, gridNo(90, 90), { uiStatusFlags: SOLDIER_PASSENGER, iVehicleId: HELICOPTER_SLOT }),
+        savedSoldier(DRIVER_ID, Team.OUR, PARKED_AT, { ...extra, uiStatusFlags: SOLDIER_DRIVER, iVehicleId: HUMMER_SLOT }),
+        savedSoldier(PASSENGER_ID, Team.OUR, PARKED_AT, { ...extra, uiStatusFlags: SOLDIER_PASSENGER, iVehicleId: HUMMER_SLOT }),
+        savedSoldier(FLYING_ID, Team.OUR, gridNo(90, 90), { ...extra, uiStatusFlags: SOLDIER_PASSENGER, iVehicleId: HELICOPTER_SLOT }),
         savedSoldier(OUR_HUMMER_ID, Team.OUR, PARKED_AT, {
+          ...extra,
           uiStatusFlags: SOLDIER_VEHICLE,
           ubBodyType: Body.HUMVEE,
           bVehicleID: HUMMER_SLOT,
@@ -1150,6 +1151,13 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     ]);
     expect(seated.every((s) => t.mercSlots.includes(s))).toBe(true);
     expect(whoIsThere(t, PARKED_AT, 0)).toBe(soldierOf(sim, OUR_HUMMER_ID));
+  });
+
+  it("leaves the saved pending action with the seated mercs, as the load stops before it places them (Soldier_Add.cc:707-708), and drops the vehicle's own", () => {
+    const MERC_PICKUPITEM = 2;
+    const sim = importedSim(seatedSave({ ubPendingAction: MERC_PICKUPITEM }));
+    const kept = [DRIVER_ID, PASSENGER_ID, FLYING_ID, OUR_HUMMER_ID].map((id) => soldierOf(sim, id).savedPendingAction?.action ?? null);
+    expect(kept).toEqual([MERC_PICKUPITEM, MERC_PICKUPITEM, MERC_PICKUPITEM, null]);
   });
 
   it('keeps them off the grid when the saved changes of the sector lift everyone off it and put them back', () => {
@@ -1178,6 +1186,59 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     ]);
     expect(roster.get(FLYING_ID)?.soldier).toBe(flying);
     expect(roster.inTacticalSector(FLYING_ID)).toBe(true);
+  });
+});
+
+describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.cc:1670-1697)', () => {
+  const MERC_PICKUPITEM = 2;
+  const ELSEWHERE = { sSectorX: SECTOR.x + 1, bInSector: 0 };
+  const AWAY_ID = MERC_ID + 1;
+  const LATER_TARGET_ID = MERC_ID + 2;
+  const EARLIER_TARGET_ID = MERC_ID - 1;
+
+  function sideStepping(target: number): Readonly<Record<string, number>> {
+    return {
+      usAnimState: anim(content, 'SIDE_STEP'),
+      ubPendingAction: MERC_GIVEITEM,
+      ubPendingActionAnimCount: 1,
+      uiPendingActionData4: target,
+    };
+  }
+
+  it('keeps it for a merc the load leaves in another sector, his animation counted once more at the restart, and drops it for one it places on the map', () => {
+    const pickup = { ubPendingAction: MERC_PICKUPITEM, uiPendingActionData4: CIVILIAN_ID };
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), pickup),
+        savedSoldier(AWAY_ID, Team.OUR, SAVED_NOWHERE, { ...pickup, ...ELSEWHERE }),
+      ],
+    });
+    const { sim, soldiers } = importedSave(save);
+    const away = soldiers.get(AWAY_ID);
+    expect([soldierOf(sim, MERC_ID).savedPendingAction, away?.savedPendingAction]).toEqual([
+      null,
+      { action: MERC_PICKUPITEM, giveTarget: CIVILIAN_ID, animCount: 1 },
+    ]);
+    expect(away && hasPendingAction(away)).toBe(true);
+  });
+
+  it('lets the restart drop it from a soldier saved in a moving animation it does not reset, with a count above 0, freeing the target of his give only if the load made that target before him: a later one is made from his save, engaged again', () => {
+    const engaged = { uiStatusFlags: SOLDIER_ENGAGEDINACTION };
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(EARLIER_TARGET_ID, Team.OUR, gridNo(80, 84), engaged),
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), sideStepping(EARLIER_TARGET_ID)),
+        savedSoldier(AWAY_ID, Team.OUR, gridNo(82, 82), sideStepping(LATER_TARGET_ID)),
+        savedSoldier(LATER_TARGET_ID, Team.OUR, gridNo(82, 84), engaged),
+      ],
+    });
+    const { sim, soldiers } = importedSave(save);
+    const givers = [MERC_ID, AWAY_ID].map((id) => soldiers.get(id)?.savedPendingAction);
+    const targets = [EARLIER_TARGET_ID, LATER_TARGET_ID].map((id) => soldierOf(sim, id).engagedInAction);
+    expect([givers, targets]).toEqual([
+      [null, null],
+      [false, true],
+    ]);
   });
 });
 
