@@ -3,7 +3,7 @@ import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { knownMineTiles } from '../tactical/bombs/mine-flags.ts';
 import type { Bullet } from '../tactical/combat/bullets.ts';
 import { helicopterDropView } from '../tactical/helicopter-drop-state.ts';
-import { revealedRooms } from '../tactical/perception/fov.ts';
+import { revealedAtLoadRuns, revealedRooms } from '../tactical/perception/fov.ts';
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { currentSquad, selectedSoldier } from '../tactical/selection.ts';
 import { shownToPlayer } from '../tactical/soldier.ts';
@@ -36,6 +36,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     selected: selectedSoldier(sim.state)?.id ?? null,
     currentSquad: currentSquadView(sim.state),
     revealedRooms: revealedRooms(sim.state),
+    revealedAtLoad: revealedAtLoadRuns(sim.state),
     slantRoofCeilings: slantRoofCeilingTiles(sim.state),
     knownMines: knownMineTiles(sim.state),
     items: sim.visibleItems(),

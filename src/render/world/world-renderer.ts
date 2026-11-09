@@ -2,6 +2,7 @@ import type { Level } from '../../content/world/level.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
+import type { TileRun } from '../../protocol/view.ts';
 import { type ScreenRect, type ScreenShift, wholeViewport } from './dirty-rects.ts';
 import {
   ANIMATED_TILE_FRAME_MS,
@@ -33,7 +34,7 @@ import { noBurnAfterChanges } from './no-burn.ts';
 import { PartialRedrawCheck, type PartialRedrawChecks } from './partial-redraw-check.ts';
 import { pickSoldierAt, type SoldierPickable } from './picking.ts';
 import { PictureMemo, type PictureUpdate } from './picture-memo.ts';
-import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
+import { changedRevealTiles, computeReveal, NO_TILE_RUNS, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
 import {
   type AssembledScene,
@@ -96,6 +97,7 @@ export interface WorldFrameInput {
   readonly shade: ShadeField;
   readonly openStructures: ReadonlySet<number>;
   readonly revealedRooms: ReadonlySet<number>;
+  readonly revealedAtLoad?: readonly TileRun[];
   readonly slantRoofCeilings?: ReadonlySet<number>;
   readonly soldiers: readonly SceneSoldier[];
   readonly items: readonly SceneItem[];
@@ -152,6 +154,7 @@ interface LoadedScene {
   pools: readonly BloodPool[];
   reveal: RevealState;
   revealedRooms: ReadonlySet<number>;
+  revealedAtLoad: readonly TileRun[];
   ceilings: ReadonlySet<number>;
   uploaded: boolean;
   shadeVersion: number;
@@ -162,6 +165,12 @@ function sameSet(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
   if (a.size !== b.size) return false;
   for (const v of a) if (!b.has(v)) return false;
   return true;
+}
+
+function sameRuns(a: readonly TileRun[], b: readonly TileRun[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((run, i) => run[0] === b[i]?.[0] && run[1] === b[i]?.[1]);
 }
 
 function changedOpenableRows(a: ReadonlySet<number>, b: ReadonlySet<number>): number[] {
@@ -232,6 +241,7 @@ export class WorldRenderer {
       pools: [],
       reveal,
       revealedRooms: new Set(),
+      revealedAtLoad: NO_TILE_RUNS,
       ceilings: NO_CEILINGS,
       uploaded: false,
       shadeVersion: -1,
@@ -266,7 +276,7 @@ export class WorldRenderer {
     s.changes = changes;
     s.pools = pools;
     s.staticWorld = this.#staticWorld(world, s.sprites);
-    s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms, s.ceilings);
+    s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms, s.ceilings, s.revealedAtLoad);
     const rows = new Set([...touched].map(rowOf));
     for (const g of changedRevealTiles(previousReveal, s.reveal, level)) rows.add(rowOf(g));
     s.scene.replaceWorld(s.staticWorld, { ...s.scene.state, reveal: s.reveal }, rows);
@@ -284,11 +294,13 @@ export class WorldRenderer {
     const old = s.scene.state;
     const rows = new Set<number>();
     const ceilings = f.slantRoofCeilings ?? NO_CEILINGS;
-    if (!sameSet(s.revealedRooms, f.revealedRooms) || !sameSet(s.ceilings, ceilings)) {
+    const revealedAtLoad = f.revealedAtLoad ?? NO_TILE_RUNS;
+    if (!sameSet(s.revealedRooms, f.revealedRooms) || !sameSet(s.ceilings, ceilings) || !sameRuns(s.revealedAtLoad, revealedAtLoad)) {
       const previous = s.reveal;
       s.revealedRooms = new Set(f.revealedRooms);
+      s.revealedAtLoad = revealedAtLoad;
       s.ceilings = new Set(ceilings);
-      s.reveal = computeReveal(this.#revealWorld(s.world), s.revealedRooms, s.ceilings);
+      s.reveal = computeReveal(this.#revealWorld(s.world), s.revealedRooms, s.ceilings, s.revealedAtLoad);
       for (const g of changedRevealTiles(previous, s.reveal, s.world.level)) rows.add(rowOf(g));
     }
     const next: StaticState = {

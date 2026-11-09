@@ -105,8 +105,9 @@ then, `app/world/soldier-bounding-boxes.ts`) at the current camera
 interactive tile by the pixels of the pictures of the shown map (`renderer.shownWorld`) that the original's dynamic
 pass sweeps (`app/world/interactive-nodes.ts`, `30`). `picking.ts`'s pixel pick serves the developer pages.
 
-**The picture is the client's.** Room reveals arrive as the view's `revealedRooms`; the client applies the original's
-node flags and recomputes the wireframes of the whole map (`reveal.ts`). The ceilings of slanted roofs arrive as
+**The picture is the client's.** Room reveals arrive as the view's `revealedRooms`, and the tiles the last sector entry
+or native import revealed as `revealedAtLoad` (`08`); the client applies the original's node flags to both and
+recomputes the wireframes of the whole map (`reveal.ts`). The ceilings of slanted roofs arrive as
 `slantRoofCeilings`, which the simulation's fog of war keeps (`08`), and are drawn at the head of their tile's roofs. Structure changes, blood pools, corpses, smoke,
 bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. The
 roof marker under a soldier on a roof is placed and taken off where the view shows the original's triggers: a move
@@ -171,6 +172,6 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - A light change makes the original redraw only the marked areas without clearing its z-buffer; ja2-node always draws
   whole frames.
 
-Not ported: gaps "Room reveal at a load". Other deviations of this domain: "Structures on load", "Sweep window",
+Not ported: gaps "Room reveal at a load". Other deviations of this domain: "Revealed tiles on load", "Structures on load", "Sweep window",
 "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall translucency template",
 "Bullets of unseen shooters", "Soldier frame on turning".

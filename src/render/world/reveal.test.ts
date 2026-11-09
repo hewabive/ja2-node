@@ -116,6 +116,45 @@ describe('room reveals find a structure by its base tile', () => {
   });
 });
 
+describe('the tiles revealed at the last load (SaveLoadMap.cc SetMapRevealedStatus)', () => {
+  const crate = tileIndex(tables, 'FIRSTOSTRUCT1');
+  const roofTile = tileIndex(tables, 'FIRSTROOF1');
+  const outdoors = () =>
+    syntheticRevealWorld({
+      structs: new Map([[AT, [crate]]]),
+      roofs: new Map([[AT, [roofTile]]]),
+      defs: new Map([
+        [crate, syntheticStructure(StructureFlags.GENERIC)],
+        [roofTile, syntheticStructure(StructureFlags.NORMAL_ROOF)],
+      ]),
+    });
+
+  it('take the roof off a revealed tile outside any room and show its obstacle through, as a room reveal does', () => {
+    const revealed = computeReveal(outdoors(), new Set(), new Set(), [[AT, 1]]);
+    expect([revealed.nodeFlags('roofs', AT, 0), revealed.nodeFlags('structs', AT, 0)]).toEqual([NodeFlags.HIDDEN, NodeFlags.SHOW_THROUGH]);
+    expect(computeReveal(outdoors(), new Set()).nodeFlags('roofs', AT, 0)).toBe(0);
+  });
+
+  it('count as revealed for the wall wire frames towards them, which then follow the option', () => {
+    const wall = tileIndex(tables, 'FIRSTWALL1');
+    const w = syntheticRevealWorld({
+      structs: new Map([[AT, [wall]]]),
+      roofs: new Map([[AT + WORLD_COLS, [roofTile]]]),
+      defs: new Map([
+        [wall, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT)],
+        [roofTile, syntheticStructure(StructureFlags.NORMAL_ROOF)],
+      ]),
+    });
+    const wallWire = tileIndex(tables, 'WIREFRAMES6');
+    const optional = (runs: readonly (readonly [number, number])[]) =>
+      computeReveal(w, new Set(), new Set(), runs)
+        .wireframes(AT)
+        .find((n) => n.tile === wallWire)?.optional;
+    expect(optional([])).toBe(false);
+    expect(optional([[AT + WORLD_COLS, 1]])).toBe(true);
+  });
+});
+
 describe('revealed rooms on the stub village', () => {
   let data: DataVfs;
   let world: LoadedWorld;

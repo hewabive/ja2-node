@@ -352,7 +352,9 @@ sector entry and a native import add again, most wall end pieces; `object` at th
 destroyed structure's debris, `12`; `appendObject` at its tail: the hole of an opened pit, which the stay keeps and the
 next entry drops, `12` §6), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
 draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
-took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `knownMines` lists the tiles our side
+or a load took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `revealedAtLoad` lists, as runs
+`[first gridNo, count]`, the tiles the last sector entry with saved revealed tiles or native import revealed, outside
+rooms too, which the original reveals as a room reveal does (`08`). `knownMines` lists the tiles our side
 knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our mercs planted), which the
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
 levels, bomb timers and owners are never shown (`12` §6). `radarContacts` is there only while an x-ray detector shows

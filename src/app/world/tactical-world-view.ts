@@ -11,6 +11,7 @@ import type {
   SmokeTileView,
   SoldierView,
   TileChangeView,
+  TileRun,
   WorldLightView,
 } from '../../protocol/view.ts';
 import {
@@ -21,6 +22,7 @@ import {
   type WorldUiNode,
 } from '../../render/world/dynamic-scene.ts';
 import { type Camera, sceneRenderHeight, type Viewport } from '../../render/world/geometry.ts';
+import { NO_TILE_RUNS } from '../../render/world/reveal.ts';
 import type { ShadeField, WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent } from '../../sim/events.ts';
 import { onTheMap } from '../../ui/screens/tactical/soldiers.ts';
@@ -65,6 +67,7 @@ export interface TacticalViewState {
   readonly openDoors: readonly number[];
   readonly openContainers?: readonly number[];
   readonly revealedRooms: readonly number[];
+  readonly revealedAtLoad?: readonly TileRun[];
   readonly slantRoofCeilings?: readonly number[];
   readonly clock: ClockView | null;
   readonly combat: CombatView | null;
@@ -414,6 +417,7 @@ export class TacticalWorldView {
       shade,
       openStructures: new Set([...view.openDoors, ...(view.openContainers ?? [])]),
       revealedRooms: new Set(view.revealedRooms),
+      revealedAtLoad: view.revealedAtLoad ?? NO_TILE_RUNS,
       slantRoofCeilings: new Set(view.slantRoofCeilings ?? NO_CEILINGS),
       soldiers,
       items: this.#items(view.items),

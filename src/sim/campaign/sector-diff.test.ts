@@ -13,7 +13,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { Direction } from '../tactical/directions.ts';
 import { decaySmokeEffects, newSmokeEffect } from '../tactical/explosions/smoke.ts';
 import { LightSpriteFlags } from '../tactical/lighting/lighting.ts';
-import { createFogOfWar, RevealedFlags } from '../tactical/perception/fov.ts';
+import { createFogOfWar, RevealedFlags, revealedAtLoadRuns } from '../tactical/perception/fov.ts';
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { Team } from '../tactical/soldier.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -121,6 +121,18 @@ describe('restoring the revealed tiles of a sector diff', () => {
     fog.roomHidden[ROOM] = 0;
     restoreRevealed(t, { revealed: fog.revealed, roomHidden: fog.roomHidden });
     expect(slantRoofCeilingTiles(t)).toEqual(roofTiles.slice(1));
+  });
+
+  it('reveals every revealed tile for the picture, outside rooms too, as loading the revealed map does', () => {
+    const t = sectorWithLamps(false).state;
+    const fog = createFogOfWar();
+    for (const g of [TWO_LAMPS, TWO_LAMPS + 1, ONE_LAMP]) fog.revealed[g] = RevealedFlags.GROUND;
+    fog.revealed[UNSEEN_LAMP] = RevealedFlags.ROOF;
+    restoreRevealed(t, { revealed: fog.revealed, roomHidden: fog.roomHidden });
+    expect(revealedAtLoadRuns(t)).toEqual([
+      [TWO_LAMPS, 2],
+      [ONE_LAMP, 1],
+    ]);
   });
 });
 

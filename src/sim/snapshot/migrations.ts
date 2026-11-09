@@ -2161,6 +2161,23 @@ function addBoundingFrame(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const REVEALED_AT_LOAD_KEY = 'revealedAtLoad';
+
+function withRevealedAtLoad(tactical: JsonObject): JsonObject {
+  const fog = tactical[FOG_KEY];
+  if (!isObject(fog) || fog[REF] !== undefined) return tactical;
+  const none: Json = { [BYTES_TAG]: encodeBase64(new Uint8Array(WORLD_MAX)) };
+  return { ...tactical, [FOG_KEY]: insertAfter(fog, SLANT_ROOF_CEILINGS_KEY, REVEALED_AT_LOAD_KEY, none) };
+}
+
+function addRevealedAtLoad(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withRevealedAtLoad(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2233,5 +2250,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     68: addHeldGiveTargetTiles,
     69: addSavedPendingAction,
     70: addBoundingFrame,
+    71: addRevealedAtLoad,
   };
 }

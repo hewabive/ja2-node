@@ -3653,3 +3653,49 @@ describe('snapshot version 70 (no bounding frame) migrates with the box of the f
     await expectBoxOfTheFrameShown(campaign, t);
   });
 });
+
+const REVEALED_AT_LOAD_KEY = 'revealedAtLoad';
+
+function withoutRevealedAtLoad(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutRevealedAtLoad(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (key !== REVEALED_AT_LOAD_KEY) out[key] = withoutRevealedAtLoad(v);
+  return out;
+}
+
+function versionSeventyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutRevealedAtLoad(value)]);
+  return { ...snapshot, version: 71, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 71 (no tiles revealed at the load) migrates with none, keeping the picture of the stay', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoTilesRevealedAtLoad(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSeventyOne(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${REVEALED_AT_LOAD_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${REVEALED_AT_LOAD_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoTilesRevealedAtLoad(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoTilesRevealedAtLoad(await quietLandedCampaign(kit));
+  });
+});

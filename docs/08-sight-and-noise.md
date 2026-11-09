@@ -154,11 +154,14 @@ in it with a "spotted something" quote, and in the boxing sector takes the ring 
 saved in the sector diff (`sim/campaign/sector-diff.ts`). Vehicles and blinded mercs reveal nothing. Underground, in a
 basement or a cave by the map's flags, a tile under a flat roof is revealed only inside a room, though the look still
 shows its items; in a cave every tile revealed, by a look, a room or a load of the revealed tiles, switches on its map
-light (`20`). The client derives hidden roofs, show-through and wireframes from the revealed rooms
-(`render/world/reveal.ts`; a load's reveal of every revealed tile is gaps "Room reveal at a load"). Above ground there
-is no terrain fog.
+light (`20`). A sector entry with saved revealed tiles and a native import reveal every one as a room reveal does, outside
+rooms too, and the fog keeps those tiles for the picture (`fog.revealedAtLoad`; a ja2-node load keeps them, deviation
+"Revealed tiles on load"). The client derives hidden roofs, show-through and wireframes from the revealed rooms and those
+tiles (`render/world/reveal.ts`; the wire frames a room reveal works out again during a stay are gaps "Room reveal at a
+load"). Above ground there is no terrain fog.
 
-**Slanted roofs keep a ceiling.** A revealed room takes off every slanted roof with a tile in it; the tiles of such a
+**Slanted roofs keep a ceiling.** A revealed room, and a load that reveals a tile of it, take off every slanted roof
+with a tile there; the tiles of such a
 roof that sight has not revealed show its flat ceiling instead (the original's `SLANTROOFCEILING1` at the head of their
 roof layer). The ceilings are fog of war state (`fog.slantRoofCeilings`), not derived from the revealed tiles: the
 original puts them on and takes them off only when a look or a load examines a roof, and a look examines the first
@@ -218,6 +221,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Only a look forgets which creature the team saw last: a radio outside a look (a noise, an unseen attacker) that reveals a soldier brings the creature line | `../narrative/sighting-quotes.test.ts` |
 | A merc counts himself among the allies who see half the enemies, so the in-trouble line needs four opponents in his sight when he stands alone | `../narrative/sighting-quotes.test.ts` |
 | A look examines only the first slanted roof on a tile, so a hidden roof whose base lies under another gets its ceiling only once a tile of its own is seen | `slant-roofs.test.ts` |
+| Sight takes no roof off a tile outside any room, but the load of the sector's revealed tiles takes off the roofs and slanted roofs of every one of them, so the picture of a sector entered again differs from the one its stay left | `slant-roofs.test.ts` "takes off a slanted roof over a tile a load revealed outside any room …", `src/render/world/reveal.test.ts` "take the roof off a revealed tile outside any room …" |
 | The mercs aboard a vehicle of ours look, hear and radio from its tile, while the vehicle never looks and notices no unseen attacker, though enemies see it | `../vehicle-presence.test.ts` "lets the mercs aboard look …", "lets the vehicle notice no unseen attacker …" |
 
 Not pinned yet:

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Render_Fun.cc SetGridNoRevealedFlag, RemoveRoomRoof, ExamineGridNoForSlantRoofExtraGraphic (the
-// @src ceiling's graphic, AddRoofToHead); src/game/TileEngine/WorldMan.cc
+// @src ceiling's graphic, AddRoofToHead); TileEngine/SaveLoadMap.cc SetMapRevealedStatus (every tile revealed at the
+// @src last load, 2026-11-09); src/game/TileEngine/WorldMan.cc
 // @src SetStructAframeFlags, FindLevelNodeBasedOnStructure, SetRoofIndexFlagsFromTypeRange;
 // @src src/game/TileEngine/WorldDef.cc CalculateWorldWireFrameTiles, AddWireFrame, GetWireframeGraphicNumToUseForWall,
 // @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere.
@@ -20,6 +21,7 @@ import {
 } from '../../content/world/structures.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import { type TileTables, tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import type { TileRun } from '../../protocol/view.ts';
 
 export const NodeFlags = { HIDDEN: 1, SHOW_THROUGH: 2 } as const;
 
@@ -48,6 +50,7 @@ const MAX_NODES_PER_TILE = 64;
 const NO_WIREFRAMES: readonly WireframeNode[] = [];
 const NO_CEILINGS: readonly number[] = [];
 const NO_CEILING_TILES: ReadonlySet<number> = new Set();
+export const NO_TILE_RUNS: readonly TileRun[] = [];
 const BROKEN_WALL_WIREFRAMES: Readonly<Record<number, number>> = { 48: 12, 52: 12, 49: 13, 53: 13, 50: 10, 54: 10, 51: 11, 55: 11 };
 const NODE_LAYERS: readonly LayerName[] = ['structs', 'roofs', 'objects', 'onRoof'];
 const SLANT_ROOF_CEILING = 'SLANTROOFCEILING1';
@@ -201,8 +204,10 @@ export function computeReveal(
   w: RevealWorld,
   revealedRooms: ReadonlySet<number>,
   slantRoofCeilings: ReadonlySet<number> = NO_CEILING_TILES,
+  revealedAtLoad: readonly TileRun[] = NO_TILE_RUNS,
 ): RevealState {
   const b = new RevealBuilder(w);
+  for (const [first, count] of revealedAtLoad) for (let g = first; g < first + count && g < WORLD_MAX; g++) b.revealTile(g);
   if (revealedRooms.size > 0) {
     for (let g = 0; g < WORLD_MAX; g++) {
       const room = w.level.rooms[g] ?? 0;

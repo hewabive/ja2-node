@@ -5,8 +5,8 @@
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
 // @src SetGridNoRevealedFlag and the spotted-something quote; without a soldier for the REVEAL_ROOM action item 2026-11-04);
 // @src Tactical/Handle_Items.cc AllSoldiersLookforItems;
-// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04); RevealRoofsAndItems'
-// @src OUR_MERCS_AUTO_MOVE (2026-11-06).
+// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04; the tiles its
+// @src SetGridNoRevealedFlag flags for the picture 2026-11-09); RevealRoofsAndItems' OUR_MERCS_AUTO_MOVE (2026-11-06).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
@@ -148,7 +148,10 @@ export interface FogOfWar {
   readonly roomHidden: Uint8Array;
   readonly revealed: Uint8Array;
   readonly slantRoofCeilings: Uint8Array;
+  readonly revealedAtLoad: Uint8Array;
 }
+
+export type TileRun = readonly [first: number, count: number];
 
 export interface ViewMarkers {
   readonly tiles: Uint8Array;
@@ -166,6 +169,7 @@ export function createFogOfWar(): FogOfWar {
     roomHidden: new Uint8Array(MAX_ROOMS).fill(1),
     revealed: new Uint8Array(WORLD_MAX),
     slantRoofCeilings: new Uint8Array(WORLD_MAX),
+    revealedAtLoad: new Uint8Array(WORLD_MAX),
   };
 }
 
@@ -268,7 +272,24 @@ export function setMapRevealedStatus(t: TacticalState, revealed: (g: number) => 
     if (revealed(g)) setGridNoRevealed(t, g);
     else setRevealedFlags(t, g, (t.fog.revealed[g] ?? 0) & ~RevealedFlags.GROUND);
   }
+  markRevealedAtLoad(t);
   examineSlantRoofsOverRevealedTiles(t);
+}
+
+export function markRevealedAtLoad(t: TacticalState): void {
+  for (let g = 0; g < WORLD_MAX; g++) t.fog.revealedAtLoad[g] = groundRevealed(t, g) ? 1 : 0;
+  fogChanged(t);
+}
+
+export function revealedAtLoadRuns(t: TacticalState): TileRun[] {
+  const runs: [number, number][] = [];
+  t.fog.revealedAtLoad.forEach((revealed, g) => {
+    if (!revealed) return;
+    const last = runs.at(-1);
+    if (last && last[0] + last[1] === g) last[1]++;
+    else runs.push([g, 1]);
+  });
+  return runs;
 }
 
 export function examineSlantRoofsOverRevealedTiles(t: TacticalState): void {

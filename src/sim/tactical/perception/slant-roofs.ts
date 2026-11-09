@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/FOV.cc AddSlantRoofFOVSlot, ExamineSlantRoofFOVSlots, RevealRoofsAndItems (the slanted roof
 // @src check); TileEngine/Render_Fun.cc ExamineGridNoForSlantRoofExtraGraphic, SetGridNoRevealedFlag (the slanted roofs
-// @src it hides)
+// @src it hides, at a room reveal and at a load of the revealed tiles, 2026-11-09)
 
 import { WORLD_MAX } from '../../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
@@ -38,10 +38,15 @@ export class SlantRoofSlots {
   }
 }
 
-function hiddenByRevealedRoom(t: TacticalState, base: StructureInstance): boolean {
+function inRevealedRoom(t: TacticalState, gridNo: number): boolean {
+  const room = t.world.level.rooms[gridNo] ?? NO_ROOM;
+  return room !== NO_ROOM && t.fog.roomHidden[room] === 0;
+}
+
+function hiddenByAReveal(t: TacticalState, base: StructureInstance): boolean {
   return base.def.tiles.some((tile) => {
-    const room = t.world.level.rooms[base.gridNo + tile.posRelToBase] ?? NO_ROOM;
-    return room !== NO_ROOM && t.fog.roomHidden[room] === 0;
+    const gridNo = base.gridNo + tile.posRelToBase;
+    return inRevealedRoom(t, gridNo) || t.fog.revealedAtLoad[gridNo] === 1;
   });
 }
 
@@ -49,7 +54,7 @@ function examineSlantRoof(t: TacticalState, gridNo: number, revealed: (gridNo: n
   const roof = t.world.structures.find(gridNo, StructureFlags.SLANTED_ROOF);
   const base = roof ? t.world.structures.findBase(roof) : null;
   if (!base) return;
-  const hidden = hiddenByRevealedRoom(t, base);
+  const hidden = hiddenByAReveal(t, base);
   for (const tile of base.def.tiles) {
     const at = base.gridNo + tile.posRelToBase;
     if (at < 0 || at >= WORLD_MAX) continue;

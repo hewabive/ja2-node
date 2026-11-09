@@ -7,6 +7,7 @@ import type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
 import type { HelicopterDropView } from '../sim/tactical/helicopter-drop-state.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { Stance } from '../sim/tactical/movement-mode.ts';
+import type { TileRun } from '../sim/tactical/perception/fov.ts';
 import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 import type { BloodPoolView, BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
@@ -24,6 +25,7 @@ export { LIFELESS_HEALTH_INDEX } from '../sim/tactical/health.ts';
 export type { HelicopterDropView, HelicopterShadowView } from '../sim/tactical/helicopter-drop-state.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { Stance } from '../sim/tactical/movement-mode.ts';
+export type { TileRun } from '../sim/tactical/perception/fov.ts';
 export type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
@@ -1014,6 +1016,7 @@ export interface PlayerView {
   readonly selected?: number | null;
   readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
+  readonly revealedAtLoad?: readonly TileRun[];
   readonly slantRoofCeilings?: readonly number[];
   readonly knownMines?: readonly number[];
   readonly items?: readonly ItemView[];
@@ -1062,6 +1065,7 @@ export interface ViewFrame {
   readonly selected?: number | null;
   readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
+  readonly revealedAtLoad?: readonly TileRun[];
   readonly slantRoofCeilings?: readonly number[];
   readonly knownMines?: readonly number[];
   readonly items?: readonly ItemView[];
@@ -1126,6 +1130,12 @@ function sameList(a: readonly number[] | undefined, b: readonly number[] | undef
   return a.every((v, i) => v === b[i]);
 }
 
+function sameRuns(a: readonly TileRun[] | undefined, b: readonly TileRun[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((run, i) => run[0] === b[i]?.[0] && run[1] === b[i]?.[1]);
+}
+
 export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFrame | null {
   let frame = diffView(previous.soldiers, next.soldiers, next.tick);
   if (!sameList(previous.openDoors, next.openDoors))
@@ -1136,6 +1146,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), doors: next.doors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
+  if (!sameRuns(previous.revealedAtLoad, next.revealedAtLoad))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedAtLoad: next.revealedAtLoad ?? [] };
   if (!sameList(previous.slantRoofCeilings, next.slantRoofCeilings))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), slantRoofCeilings: next.slantRoofCeilings ?? [] };
   if (!sameList(previous.knownMines, next.knownMines))

@@ -10,7 +10,7 @@ import type { TacticalContent } from '../content.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
-import { RevealedFlags, revealRoofsAndItems, setMapRevealedStatus } from './fov.ts';
+import { RevealedFlags, revealedAtLoadRuns, revealRoofsAndItems, setMapRevealedStatus } from './fov.ts';
 import { slantRoofCeilingTiles } from './slant-roofs.ts';
 import { perceptionHooks } from './wiring.ts';
 
@@ -126,6 +126,21 @@ describe('slanted roof ceilings (Render_Fun.cc ExamineGridNoForSlantRoofExtraGra
     expect(ceilings).toEqual(roofTiles().filter((g) => !groundRevealed(t, g)));
   });
 
+  it('takes off a slanted roof over a tile a load revealed outside any room and covers its unseen tiles with the ceiling (SetGridNoRevealedFlag)', () => {
+    const t = tactical((w) => w.add(ROOF_BASE, ROOF_LEVEL, slantedRoofRunningSouth(ROOF_LENGTH)));
+    setMapRevealedStatus(t, (g) => roofTiles(2).includes(g));
+    expect(slantRoofCeilingTiles(t)).toEqual(roofTiles().slice(2));
+  });
+
+  it('keeps a slanted roof a load took off hidden for the looks of the stay', () => {
+    const t = tactical((w) => w.add(ROOF_BASE, ROOF_LEVEL, slantedRoofRunningSouth(ROOF_LENGTH)));
+    setMapRevealedStatus(t, (g) => roofTiles(2).includes(g));
+    look(t, SECOND_VIEWER, Direction.SOUTH);
+    const ceilings = slantRoofCeilingTiles(t);
+    expect(ceilings.length).toBeGreaterThan(0);
+    expect(ceilings).toEqual(roofTiles().filter((g) => !groundRevealed(t, g)));
+  });
+
   it('builds the ceilings from the revealed tiles as the load of a native save does (SaveLoadMap.cc SetMapRevealedStatus)', () => {
     const played = roofOverAFarRoom();
     look(played, VIEWER, Direction.SOUTH);
@@ -133,5 +148,15 @@ describe('slanted roof ceilings (Render_Fun.cc ExamineGridNoForSlantRoofExtraGra
     loaded.fog.slantRoofCeilings.fill(1);
     setMapRevealedStatus(loaded, (g) => groundRevealed(played, g));
     expect(slantRoofCeilingTiles(loaded)).toEqual(roofTiles().slice(2));
+  });
+});
+
+describe('the tiles a load reveals (SaveLoadMap.cc SetMapRevealedStatus)', () => {
+  it('are every tile the load reveals, in runs, outside rooms too, and no tile sight reveals during the stay', () => {
+    const t = roofOverAFarRoom();
+    setMapRevealedStatus(t, (g) => g === ROOM_TILE_IN_VIEW || roofTiles(3).includes(g));
+    look(t, VIEWER, Direction.SOUTH);
+    expect(groundRevealed(t, VIEWER + gridNo(0, 1))).toBe(true);
+    expect(revealedAtLoadRuns(t)).toEqual([[ROOM_TILE_IN_VIEW, 1], ...roofTiles(3).map((g) => [g, 1])]);
   });
 });

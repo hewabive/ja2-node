@@ -39,6 +39,7 @@ import {
   WALL_HEIGHT,
   worldOrigin,
 } from '../../render/world/geometry.ts';
+import { NO_TILE_RUNS } from '../../render/world/reveal.ts';
 import type { WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent } from '../../sim/events.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
@@ -555,6 +556,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
         openDoors: view.openDoors ?? [],
         openContainers: view.openContainers ?? [],
         revealedRooms: view.revealedRooms ?? [],
+        revealedAtLoad: view.revealedAtLoad ?? NO_TILE_RUNS,
         slantRoofCeilings: view.slantRoofCeilings ?? [],
         clock: view.clock ?? null,
         combat: view.combat ?? null,
