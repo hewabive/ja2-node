@@ -6,8 +6,10 @@
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest, Maria aboard the helicopter
 // @src over the sector counted, 2026-11-08, and
 // @src QUOTE_TAKEN_A_BREATING; its vehicle branch, 2026-11-04; the damage display of a soldier in the sector only,
-// @src 2026-11-05), HandleTakeDamageDeath (its strategic branch, 2026-11-05), HandleSoldierTakeDamageFeedback
-// @src (the portrait flash of a soldier the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
+// @src 2026-11-05), HandleTakeDamageDeath (its strategic branch, 2026-11-05; the DIE1 and fDeadSoundPlayed of a seen
+// @src soldier hurt by gas or electricity, 2026-11-09), HandleSoldierTakeDamageFeedback (the portrait flash of a soldier
+// @src the squad sees, 2026-11-03; for every soldier, with the voice of his HIT1 grunt, which the client times, and the
+// @src second grunt of DishOutGasDamage, 2026-11-09), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
 // @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
@@ -20,6 +22,7 @@ import { TravelCost } from '../../../content/world/movement-costs.ts';
 import type { StructureInstance } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv, u8, u16 } from '../../../core/int.ts';
+import type { DamageCause, DamageFeedbackEvent } from '../../events.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
@@ -51,7 +54,7 @@ import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, inSector, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
-import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
+import { heardOnly, loudestScream, screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { vehicleShareOfDamage, vehicleTakeDamage } from '../vehicle-damage.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
@@ -789,8 +792,28 @@ function countHitForBeatingQuote(t: TacticalState, s: Soldier): void {
   s.numHitsThisTurn = 0;
 }
 
-function handleSoldierTakeDamageFeedback(t: TacticalState, s: Soldier): void {
-  if (shownToPlayer(s)) t.events.push({ type: 'damageFeedback', soldier: s.id });
+const DAMAGE_CAUSES: Readonly<Partial<Record<number, DamageCause>>> = {
+  [DamageReason.BLOODLOSS]: 'bleeding',
+  [DamageReason.GAS]: 'gas',
+  [DamageReason.ELECTRICITY]: 'electricity',
+};
+
+function feedbackVoice(t: TacticalState, s: Soldier): Pick<DamageFeedbackEvent, 'unseen' | 'heard' | 'cry'> {
+  if (s.muted) return {};
+  if (!inSector(s)) return { cry: { ...unseenVictim(s, (profile) => t.sectorHooks.profileVoice(t, profile)), team: s.team } };
+  if (shownToPlayer(s)) return {};
+  return { unseen: unseenVictim(s), ...heardOnly(t, s, loudestScream(t, s), NoiseKind.SCREAM) };
+}
+
+function handleSoldierTakeDamageFeedback(t: TacticalState, s: Soldier, cause: DamageCause): void {
+  t.events.push({
+    type: 'damageFeedback',
+    soldier: s.id,
+    cause,
+    ...(cause === 'gas' && s.life >= CONSCIOUSNESS ? { conscious: true } : {}),
+    ...(t.sectorHooks.inMapScreen(t) ? { mapScreen: true } : {}),
+    ...feedbackVoice(t, s),
+  });
 }
 
 function diesOffTheTacticalMap(t: TacticalState, s: Soldier): boolean {
@@ -798,14 +821,16 @@ function diesOffTheTacticalMap(t: TacticalState, s: Soldier): boolean {
 }
 
 function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): void {
-  if (reason === DamageReason.BLOODLOSS || reason === DamageReason.ELECTRICITY || reason === DamageReason.GAS) {
+  const cause = DAMAGE_CAUSES[reason];
+  if (cause) {
     if (inSector(s)) {
+      if (s.visible !== Visible.HIDDEN && cause !== 'bleeding') s.deadSoundPlayed = true;
       if (reason === DamageReason.ELECTRICITY && s.life < OKLIFE) s.inNonInterruptibleAnimation = false;
       if (s.life < OKLIFE && s.life !== 0 && !s.collapsed) soldierCollapse(t, s);
       if (s.life === 0) s.doingExternalDeath = true;
       checkForAndHandleSoldierDyingNotFromHit(t, s);
     }
-    handleSoldierTakeDamageFeedback(t, s);
+    handleSoldierTakeDamageFeedback(t, s, cause);
     if (diesOffTheTacticalMap(t, s)) t.sectorHooks.mercDiedOffTheMap(t, s);
   }
   if (reason === DamageReason.ELECTRICITY && s.life >= OKLIFE) releaseSoldiersAttacker(t, s);

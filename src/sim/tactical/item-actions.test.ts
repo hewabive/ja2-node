@@ -76,6 +76,23 @@ describe('picking up and dropping items', () => {
     expect(t.worldItems).toHaveLength(0);
   });
 
+  it('has our merc confirm a pickup or a search whose path is longer than 5 steps, and nobody else (SoldierPickupItem)', () => {
+    const confirmed = (team: number, steps: number, search = false) => {
+      const sim = newCombatSim(content);
+      const t = sim.state;
+      const s = spawnSoldier(sim, team === Team.OUR ? 0 : 20, team, gridNo(80, 80), Direction.SOUTH);
+      const at = gridNo(80 + steps, 80);
+      if (!search) addItemToPool(t, at, createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+      t.events.length = 0;
+      expect(soldierPickupItem(t, s, at, 0, null)).toBe(true);
+      return [s.pathSize, t.events.filter((e) => e.type === 'pickupConfirmed')] as const;
+    };
+    expect(confirmed(Team.OUR, 5)).toEqual([5, []]);
+    expect(confirmed(Team.OUR, 6)).toEqual([6, [{ type: 'pickupConfirmed', soldier: 0 }]]);
+    expect(confirmed(Team.OUR, 6, true)).toEqual([6, [{ type: 'pickupConfirmed', soldier: 0 }]]);
+    expect(confirmed(Team.ENEMY, 6)).toEqual([6, []]);
+  });
+
   it('turns a standing merc to the wall cabinet on his own tile before he reaches into it (PickPickupAnimation)', () => {
     const turnsTo = (orientation: number) => {
       const sim = newCombatSim(content);

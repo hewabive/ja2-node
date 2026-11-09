@@ -5,7 +5,7 @@ import { FakeGraph, pcmWav, settle } from '../../../tests/support/fake-audio.ts'
 import { AudioEngine } from '../../audio/engine.ts';
 import { type Cue, mixCue } from '../../content/audio/cue.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
-import type { PlayerView, StrategicMercView } from '../../protocol/view.ts';
+import type { PlayerView, SoldierView, StrategicMercView } from '../../protocol/view.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 import { MapSound } from './map-sound.ts';
 
@@ -37,7 +37,7 @@ function view(): PlayerView {
   return { soldiers: [], strategic: { mercs: [merc] } } as unknown as PlayerView;
 }
 
-async function rig(talking = false) {
+async function rig(talking = false, viewOf: () => PlayerView = view) {
   const graph = new FakeGraph();
   const engine = new AudioEngine({ createGraph: () => graph.asGraph(), load: async () => pcmWav(200) });
   engine.unlock();
@@ -48,7 +48,7 @@ async function rig(talking = false) {
     return play(cue);
   };
   const cut: number[] = [];
-  const sound = new MapSound(engine, source(), view, 'map-sound-test', { isTalking: () => talking, cut: (s) => cut.push(s) });
+  const sound = new MapSound(engine, source(), viewOf, 'map-sound-test', { isTalking: () => talking, cut: (s) => cut.push(s) });
   await sound.load();
   return { sound, engine, graph, cues, cut };
 }
@@ -94,6 +94,30 @@ describe('the map screen battle sounds', () => {
       { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN },
       samples,
       samples,
+    ]);
+  });
+
+  it('grunts at bleeding, gas and electric damage on the map screen: an absent merc in the middle, an unseen soldier in the middle faded, a seen one at his tile with DIE1 first at gas (HandleSoldierTakeDamageFeedback)', async () => {
+    const seen = { id: ENEMY, team: ENEMY_TEAM, bodyType: 0, gridNo: VEHICLE_TILE, voice: 'bad0', morale: 50 } as unknown as SoldierView;
+    const r = await rig(false, () => ({ ...view(), soldiers: [seen] }));
+    r.engine.setListener(LAST_TACTICAL_VIEW);
+    const feedback = { type: 'damageFeedback', tick: 1, mapScreen: true } as const;
+    r.sound.damageFeedback({ ...feedback, soldier: MERC, cause: 'bleeding', cry: { voice: '052', bodyType: 0, team: OUR_TEAM } });
+    r.sound.damageFeedback({ ...feedback, soldier: MERC, cause: 'bleeding', cry: { voice: '052', bodyType: 0, team: OUR_TEAM } });
+    r.sound.damageFeedback({ ...feedback, soldier: ENEMY + 1, cause: 'bleeding', unseen: { voice: 'bad1', bodyType: 0 } });
+    r.sound.damageFeedback({ ...feedback, soldier: ENEMY, cause: 'gas', conscious: true });
+    expect(r.cues.map((c) => c.file)).toEqual([
+      expect.stringMatching(/^battlesnds\/052_hit[12]\.wav$/),
+      expect.stringMatching(/^battlesnds\/bad1_hit[12]\.wav$/),
+      'battlesnds/bad0_die.wav',
+      expect.stringMatching(/^battlesnds\/bad0_hit[12]\.wav$/),
+    ]);
+    const full = { effects: FULL, speech: FULL, music: FULL, ambient: FULL };
+    expect(r.cues.map((c) => mixCue(c, r.engine.listener, full))).toEqual([
+      { volume: FULL, pan: MIDDLE },
+      { volume: FAR_VOLUME, pan: MIDDLE },
+      { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN },
+      { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN },
     ]);
   });
 

@@ -394,9 +394,16 @@ and to an opponent turning visible in combat or before the sector's first sighti
 deviation "Locates of unseen soldiers"), the items' tile the view slides to as the items-seen quote starts or an escort
 sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a mine a merc of ours spotted, after
 his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3154`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
-(`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), the portrait flash of a seen soldier hurt by
-bleeding, gas or electricity, a merc of ours off the loaded map included (`damageFeedback {soldier}`,
-`Tactical/Soldier_Control.cc:8770`), a point of life a merc of ours bleeds, which makes him the map screen's info
+(`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), a soldier hurt by bleeding, gas or electricity
+(`damageFeedback {soldier, cause, conscious?, mapScreen?, unseen?, heard?, cry?}`, `Tactical/Soldier_Control.cc:8760`):
+the portrait of a seen one flashes, a merc of ours off the loaded map included, and he grunts, at most once a second;
+one in sight hurt by gas or electricity cries his death sound first (`:5370`), and `conscious` marks a gassed one who
+grunts again (`TileEngine/Explosion_Control.cc:845`); one out of sight carries `unseen` and `heard` as a hit does, a
+merc of ours off the loaded map `cry` as `mercDied` does, a muted soldier neither, and `mapScreen` routes the sound as
+`mercDied`'s does (`31`); the sounds of a few more moments: our merc's OK as a pickup or search sets out on a path longer
+than 5 steps (`pickupConfirmed {soldier}`, `Tactical/Handle_Items.cc:1130`), the glass of jars a fall broke
+(`jarsBroken {soldier}`, `Tactical/Items.cc:3243`), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
+{soldier, spinKick?}`, `Tactical/Soldier_Control.cc:504`), a point of life a merc of ours bleeds, which makes him the map screen's info
 character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMaxLost` when, dying, he lost a point of
 maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected

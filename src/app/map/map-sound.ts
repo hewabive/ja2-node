@@ -11,7 +11,9 @@
 // @src ApplyScrolling left, the tactical screen's last, 2026-11-07); src/game/Tactical/Soldier_Control.cc
 // @src HandleTakeDamageDeath (the DIE1 cry, DOORCR_1 and HEADCR_1 of a soldier dying while the map screen is up,
 // @src 2026-11-06; InternalDoMercBattleSound's cry at his tile against that world view, faded for another team's,
-// @src 2026-11-07).
+// @src 2026-11-07); HandleSoldierTakeDamageFeedback and HandleTakeDamageDeath, TileEngine/Explosion_Control.cc
+// @src DishOutGasDamage (the DIE1 and HIT1 grunts at bleeding, gas and electric damage while the map screen is up, an
+// @src unseen soldier's in the middle, 2026-11-09).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -26,8 +28,10 @@ import {
 import { cueOf, effectCue } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import { deathOffTheMapCues } from '../../content/audio/cues.ts';
+import { BleedGrunts, damageFeedbackSounds } from '../../content/audio/damage-feedback.ts';
+import { offScreenVolume } from '../../content/audio/sound-position.ts';
 import type { PlayerView } from '../../protocol/view.ts';
-import type { DeathCry, MapSounds } from '../../ui/screens/map/environment.ts';
+import type { DamageFeedback, DeathCry, MapSounds } from '../../ui/screens/map/environment.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 import { loadSettings } from '../settings.ts';
 
@@ -37,6 +41,7 @@ const INTO_VEHICLE = 'S_VECH1_INTO';
 const HIGHVOLUME = 127;
 const MIDVOLUME = 65;
 const OUR_TEAM = 0;
+const UNSEEN_TEAM = 1;
 const REGULAR_MALE = 0;
 const NOWHERE = -1;
 const VOICE_DIGITS = 3;
@@ -53,6 +58,7 @@ export class MapSound implements MapSounds {
   readonly #speech: SpeechOwner;
   readonly #memory = new Map<number, BattleMemory>();
   readonly #battleVoices = new Map<number, VoiceHandle>();
+  readonly #bleedGrunts = new BleedGrunts();
   #book: CueBook | null = null;
   #glow: Voice | null = null;
   #beep: Voice | null = null;
@@ -117,7 +123,26 @@ export class MapSound implements MapSounds {
     for (const cue of deathOffTheMapCues(book)) this.#engine.play(cue);
   }
 
-  #battleSound(book: CueBook, soldier: number, voiced: VoiceSoldier, sound: BattleSoundName): void {
+  damageFeedback(feedback: DamageFeedback): void {
+    const book = this.#book;
+    const gruntDue = this.#bleedGrunts.due(feedback.soldier, performance.now());
+    const voiced = this.#feedbackVoice(feedback);
+    if (!book || !voiced) return;
+    const facts = { cause: feedback.cause, seen: !feedback.cry && !feedback.unseen, conscious: feedback.conscious === true };
+    const offScreen = feedback.unseen !== undefined;
+    for (const sound of damageFeedbackSounds(facts, gruntDue)) this.#battleSound(book, feedback.soldier, voiced, sound, offScreen);
+  }
+
+  #feedbackVoice(feedback: DamageFeedback): VoiceSoldier | null {
+    if (feedback.cry) return { gridNo: NOWHERE, ...feedback.cry, morale: NORMAL_MORALE };
+    const unseen = feedback.unseen;
+    if (unseen) return { gridNo: NOWHERE, team: UNSEEN_TEAM, bodyType: unseen.bodyType, voice: unseen.voice, morale: NORMAL_MORALE };
+    const s = this.#view()?.soldiers.find((v) => v.id === feedback.soldier);
+    if (!s || s.muted) return null;
+    return { gridNo: s.gridNo, team: s.team, bodyType: s.bodyType, voice: s.voice ?? null, morale: s.morale ?? NORMAL_MORALE };
+  }
+
+  #battleSound(book: CueBook, soldier: number, voiced: VoiceSoldier, sound: BattleSoundName, offScreen = false): void {
     const playing = this.#battleVoices.get(soldier);
     const outcome = battleSoundCue(
       book,
@@ -138,7 +163,7 @@ export class MapSound implements MapSounds {
     if (outcome.stopPrevious) playing?.stop();
     if (outcome.cutSpeech) this.#speech.cut(soldier);
     for (const cue of outcome.cues) {
-      const voice = this.#engine.play(cue);
+      const voice = this.#engine.play(offScreen ? { ...cue, baseVolume: offScreenVolume(cue.baseVolume) } : cue);
       if (cue.bus === SPEECH_BUS) this.#battleVoices.set(soldier, voice);
     }
   }

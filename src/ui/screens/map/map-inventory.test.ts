@@ -229,6 +229,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
       confirmRoute: () => undefined,
       vehicleEntered: () => undefined,
       mercDiedOffTheMap: () => undefined,
+      damageFeedback: () => undefined,
     },
     random: () => 0,
     metric: () => true,

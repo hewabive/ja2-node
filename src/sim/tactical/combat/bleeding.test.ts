@@ -326,29 +326,78 @@ describe('the damage feedback (Soldier_Control.cc HandleSoldierTakeDamageFeedbac
     s.bleeding = 30;
     s.nextBleed = 1;
     beginMercTurn(sim.state, s);
-    expect(feedback(sim)).toEqual([{ type: 'damageFeedback', soldier: s.id }]);
+    expect(feedback(sim)).toEqual([{ type: 'damageFeedback', soldier: s.id, cause: 'bleeding' }]);
   });
 
-  it('follows gas and electric damage, breath only included, but not a hit', () => {
+  it('follows gas and electric damage, breath only included, but not a hit, and says whether gas left him conscious for his second grunt', () => {
     const sim = newCombatSim(content);
     const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 50 });
     soldierTakeDamage(sim.state, s, 0, 500, DamageReason.GAS, null);
     soldierTakeDamage(sim.state, s, 2, 0, DamageReason.ELECTRICITY, null);
     soldierTakeDamage(sim.state, s, 2, 0, DamageReason.GUNFIRE, null);
+    soldierTakeDamage(sim.state, s, 40, 0, DamageReason.GAS, null);
     expect(feedback(sim)).toEqual([
-      { type: 'damageFeedback', soldier: s.id },
-      { type: 'damageFeedback', soldier: s.id },
+      { type: 'damageFeedback', soldier: s.id, cause: 'gas', conscious: true },
+      { type: 'damageFeedback', soldier: s.id, cause: 'electricity' },
+      { type: 'damageFeedback', soldier: s.id, cause: 'gas' },
     ]);
   });
 
-  it('is sent for a soldier the squad sees, not for one out of sight', () => {
+  it('carries the voice of a soldier out of sight and where the squad hears him instead of his tile, and nothing of a muted one', () => {
     const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
     const seen = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY] ?? 20, Team.ENEMY, gridNo(80, 84), Direction.SOUTH);
-    const unseen = spawnSoldier(sim, (TEAM_FIRST_ID[Team.ENEMY] ?? 20) + 1, Team.ENEMY, gridNo(80, 88), Direction.SOUTH);
+    const unseen = spawnSoldier(sim, (TEAM_FIRST_ID[Team.ENEMY] ?? 20) + 1, Team.ENEMY, gridNo(81, 81), Direction.SOUTH);
+    const muted = spawnSoldier(sim, (TEAM_FIRST_ID[Team.ENEMY] ?? 20) + 2, Team.ENEMY, gridNo(80, 90), Direction.SOUTH);
     seen.visible = Visible.SEEN;
     unseen.visible = Visible.HIDDEN;
-    soldierTakeDamage(sim.state, seen, 1, 0, DamageReason.GAS, null);
-    soldierTakeDamage(sim.state, unseen, 1, 0, DamageReason.GAS, null);
-    expect(feedback(sim)).toEqual([{ type: 'damageFeedback', soldier: seen.id }]);
+    muted.visible = Visible.HIDDEN;
+    muted.muted = true;
+    for (const s of [seen, unseen, muted]) soldierTakeDamage(sim.state, s, 1, 0, DamageReason.BLOODLOSS, null);
+    expect(feedback(sim)).toEqual([
+      { type: 'damageFeedback', soldier: seen.id, cause: 'bleeding' },
+      {
+        type: 'damageFeedback',
+        soldier: unseen.id,
+        cause: 'bleeding',
+        unseen: { voice: `bad${unseen.battleSoundId}`, bodyType: unseen.bodyType },
+        heard: expect.objectContaining({ by: 0 }),
+      },
+      { type: 'damageFeedback', soldier: muted.id, cause: 'bleeding' },
+    ]);
+  });
+
+  it('carries the voice of a merc of ours off the loaded map, an I.M.P. by the voice he chose, and marks the map screen', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 50, profile: 51 });
+    Object.assign(merc, { placed: false, offMap: false });
+    t.sectorHooks = { ...t.sectorHooks, profileVoice: (_t, profile) => (profile === 51 ? 52 : profile), inMapScreen: () => true };
+    soldierTakeDamage(t, merc, 1, 0, DamageReason.BLOODLOSS, null);
+    expect(feedback(sim)).toEqual([
+      {
+        type: 'damageFeedback',
+        soldier: merc.id,
+        cause: 'bleeding',
+        mapScreen: true,
+        cry: { voice: '052', bodyType: merc.bodyType, team: Team.OUR },
+      },
+    ]);
+  });
+});
+
+describe("the death sound of a seen soldier hurt by gas or electricity (Soldier_Control.cc HandleTakeDamageDeath's DIE1)", () => {
+  it('counts as played at every gas or electric hurt of a soldier in sight, alive or not, never at bleeding or out of sight', () => {
+    const played = (reason: number, visible: number) => {
+      const sim = newCombatSim(content);
+      const s = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY] ?? 20, Team.ENEMY, gridNo(80, 84), Direction.SOUTH, { life: 50 });
+      s.visible = visible;
+      soldierTakeDamage(sim.state, s, 1, 0, reason, null);
+      return [s.life > 0, s.deadSoundPlayed];
+    };
+    expect(played(DamageReason.GAS, Visible.SEEN)).toEqual([true, true]);
+    expect(played(DamageReason.ELECTRICITY, Visible.LIMBO)).toEqual([true, true]);
+    expect(played(DamageReason.BLOODLOSS, Visible.SEEN)).toEqual([true, false]);
+    expect(played(DamageReason.GAS, Visible.HIDDEN)).toEqual([true, false]);
   });
 });

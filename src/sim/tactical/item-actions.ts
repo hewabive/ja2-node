@@ -18,7 +18,8 @@
 // @src the ACTIVATE_SWITCH_PROMPT box for a SWITCH left on the ground and no GOTIT after the booby-trap quote,
 // @src SwitchMessageBoxCallBack (2026-11-04); HandleSoldierPickupItem's DISARM_TRAP_PROMPT for the bomb under a tile our
 // @src side knows to hold a mine, through World_Items.cc FindWorldItemForBombInGridNo (2026-11-04); SoldierPickupItem's
-// @src removePendingAction dropping a held MERC_GIVEITEM (2026-11-08).
+// @src removePendingAction dropping a held MERC_GIVEITEM (2026-11-08), and its BATTLE_SOUND_OK1 for our merc whose path
+// @src there is longer than 5, played by the client (2026-11-09).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -116,6 +117,7 @@ export const ITEM_IGNORE_Z_LEVEL = -1;
 const ON_STRUCTURE_Z_LEVEL = 1;
 const FLOOR_Z_LEVEL = 0;
 const SEARCH_MIN_MORALE = 30;
+const PICKUP_OK_PATH_SIZE = 5;
 
 export function largestZLevelOfItemPool(t: TacticalState, g: number, level: number): number {
   return itemsAt(t, g, level).some((wi) => wi.zHeight > 0) ? ON_STRUCTURE_Z_LEVEL : FLOOR_Z_LEVEL;
@@ -175,7 +177,10 @@ export function soldierPickupItem(
     pickPickupAnimation(t, s, g, zLevel);
     return true;
   }
-  if (getNewSoldierPath(t, s, actionGridNo, s.uiMovementMode, s.team === Team.OUR ? 1 : 0, true)) return true;
+  if (getNewSoldierPath(t, s, actionGridNo, s.uiMovementMode, s.team === Team.OUR ? 1 : 0, true)) {
+    if (s.team === Team.OUR && s.pathSize > PICKUP_OK_PATH_SIZE) t.events.push({ type: 'pickupConfirmed', soldier: s.id });
+    return true;
+  }
   s.pendingPickup = null;
   return false;
 }

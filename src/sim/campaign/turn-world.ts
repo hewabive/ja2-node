@@ -18,18 +18,23 @@ import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { handleForcedRealtimeTurn, handleTacticalEndTurn, type StrategicTurnPoll, strategicTurnDue } from '../tactical/turns/turns.ts';
 import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from '../tactical/vehicle-soldiers.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { profileVoice } from './laptop/laptop-state.ts';
 import { handleRpcDescription } from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
 import { campaignVehicleBoarding } from './vehicle-boarding.ts';
 
 const NO_SOLDIERS: readonly Soldier[] = [];
 
-export type CampaignTurnHooks = Pick<SectorHooks, 'mercDiedOffTheMap' | 'inMapScreen' | 'ourWholeTeam' | 'tacticalTurnEnded'>;
+export type CampaignTurnHooks = Pick<
+  SectorHooks,
+  'mercDiedOffTheMap' | 'inMapScreen' | 'profileVoice' | 'ourWholeTeam' | 'tacticalTurnEnded'
+>;
 
 export function campaignTurnHooks(campaign: CampaignSim): CampaignTurnHooks {
   return {
     mercDiedOffTheMap: (_t, dead) => campaign.battle?.mercDiedOffTheMap(dead),
     inMapScreen: () => campaign.state.flow === 'strategic',
+    profileVoice: (_t, profile) => profileVoice(campaign.state.laptop.imp, profile),
     ourWholeTeam: () => campaign.battle?.roster.soldiers() ?? NO_SOLDIERS,
     tacticalTurnEnded: () => handleRpcDescription(campaign),
   };

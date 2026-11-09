@@ -96,6 +96,12 @@ tiles (`Strategic/StrategicMap.cc:858`, `Strategic/Strategic_Movement.cc:1794`).
 the voice is the profile's voice id, an I.M.P.'s chosen one, as in the views. A muted soldier has no `cry` and makes
 only the samples.
 
+**Grunts at bleeding, gas and electricity** follow `damageFeedback`, routed by `mapScreen` like a death off the
+tactical map. The once-a-second limit of `uiTimeSinceLastBleedGrunt` (`Tactical/Soldier_Control.cc:8764`) lives in the
+client beside the 2 s repeat filter, both on `GetJA2Clock` in the original, which runs at real time whatever the
+compression (`content/audio/damage-feedback.ts`). An unseen soldier grunts from where the squad hears him, heard as
+loud as his loudest scream like a death cry; on the map screen he and a merc off the loaded map grunt in the middle.
+
 **Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
 waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`, on the map screen
 `MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it. On
@@ -191,6 +197,8 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | Soldier samples (footsteps, the robot's beep) go through the effects volume twice | `content/audio/sound-position.test.ts`, `cues.test.ts` |
 | Our mercs' battle sounds keep their volume off screen; only other teams' drop | `content/audio/sound-position.test.ts` |
 | A muted confirmation still counts for the 2 s repeat filter | `content/audio/cues.test.ts` |
+| A seen soldier hurt by gas or electricity cries DIE1, alive or not, and the grunt after it cuts it at once; gas that leaves him conscious asks for a second grunt, which the repeat filter drops unless the timed one was not due | `content/audio/damage-feedback.test.ts`, `audio/director.test.ts` "cries DIE1 for a seen soldier …" |
+| The bleeding grunt's one-second limit is thinned to two by the repeat filter, and a grunt the filter drops still restarts the second | `audio/director.test.ts` "grunts HIT1 at bleeding at most once a second …" |
 | A merc's line waits for his battle sound with speech off too, only its subtitle shown | `ui/speech.test.ts` |
 | Only a merc on our team holds his line for his battle sound; an NPC's line plays over his | `audio/director.test.ts` |
 | A vehicle's battle sound is said by a merc aboard drawn anew each time; an empty vehicle says nothing | `audio/director.test.ts` "is spoken by a passenger drawn with Random(passengers) …", "says nothing with nobody aboard …" |
@@ -227,4 +235,4 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
   190 glyphs, and its block fonts are not corrected unless they are exactly one glyph short of that.
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
-Not ported: gaps "Sound coverage", "Data version detection", "Map screen speech".
+Not ported: gaps "Data version detection", "Map screen speech".

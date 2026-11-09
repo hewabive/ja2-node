@@ -350,6 +350,21 @@ describe('jars in a fall (Soldier_Ani.cc codes 721 and 722, Items.cc CheckEquipm
     expect([elixir.count, elixir.status[0]]).toEqual([1, 100]);
   });
 
+  it('tells the client to crack glass once for every jar stack the fall broke, and not when no jar broke', () => {
+    const sim = newCombatSim(content);
+    const { s } = carrier(sim);
+    s.state = anim(sim.state.content, 'FALLFORWARD_FROMHIT_STAND');
+    scriptPre(sim.state, [10, 6, 3, 2, 0]);
+    deathOpcode(sim.state, s, FALL_TO_GROUND);
+    expect(sim.state.events.filter((e) => e.type === 'jarsBroken')).toEqual([{ type: 'jarsBroken', soldier: s.id }]);
+    const whole = newCombatSim(content);
+    const unharmed = carrier(whole).s;
+    unharmed.state = anim(whole.state.content, 'FALLFORWARD_FROMHIT_STAND');
+    scriptPre(whole.state, [0, 0, 0]);
+    deathOpcode(whole.state, unharmed, FALL_TO_GROUND);
+    expect(whole.state.events.filter((e) => e.type === 'jarsBroken')).toEqual([]);
+  });
+
   it('rolls the crouched fall forward from a hit at 15', () => {
     const sim = newCombatSim(content);
     const { s } = carrier(sim);

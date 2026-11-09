@@ -71,6 +71,10 @@ export function soundVolume(base: number, gridNo: number, view: ScreenView): num
   const { dx, dy } = offsetFromCentre(gridNo, view);
   const nearCentre = Math.abs(dx) <= CENTRE_TOLERANCE && Math.abs(dy) <= CENTRE_TOLERANCE;
   if (nearCentre || onScreen(gridNo, view)) return base;
+  return offScreenVolume(base);
+}
+
+export function offScreenVolume(base: number): number {
   return Math.max(LOW_VOLUME, base - FAR_VOLUME_MOD);
 }
 

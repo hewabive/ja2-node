@@ -235,6 +235,7 @@ export interface SectorHooks {
   mercDied(t: TacticalState, s: Soldier): void;
   mercDiedOffTheMap(t: TacticalState, s: Soldier): void;
   inMapScreen(t: TacticalState): boolean;
+  profileVoice(t: TacticalState, profile: number): number;
   ourWholeTeam(t: TacticalState): readonly Soldier[];
   pendingEnemies(t: TacticalState): boolean;
   militiaFinishBattle(t: TacticalState): boolean;
@@ -267,6 +268,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   mercDied: () => {},
   mercDiedOffTheMap: () => {},
   inMapScreen: () => false,
+  profileVoice: (_t, profile) => profile,
   ourWholeTeam: (t) => t.soldiers.filter((s): s is Soldier => s !== undefined && s !== null && s.team === Team.OUR),
   pendingEnemies: () => false,
   militiaFinishBattle: () => false,

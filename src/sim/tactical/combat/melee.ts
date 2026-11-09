@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch, blade and tentacle paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
-// @src EVENT_SoldierBeginPunchAttack, DoNinjaAttack (2026-10-31, without Dr. Q's chop sound); externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK, MERC_STEAL);
+// @src EVENT_SoldierBeginPunchAttack, DoNinjaAttack (2026-10-31; Dr. Q's chop, played by the client, 2026-11-09);
+// @src externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK, MERC_STEAL);
 // @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH (the steal mode 2026-10-31), CalcChanceToStab, CalcChanceToPunch,
 // @src CalcChanceToSteal, DishoutQueenSwipeDamage;
 // @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 752 (decapitate), 755 (queen swipe)
@@ -12,6 +13,7 @@ import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts
 import { Direction, pythSpacesAway } from '../../../content/world/grid.ts';
 import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
@@ -304,9 +306,7 @@ function turnUnawareTargetToward(t: TacticalState, s: Soldier, tgt: Soldier): vo
   t.gameEvents.push({ kind: 'desiredDirection', soldier: tgt.id, direction: directionToward(tgt.gridNo, s.gridNo) });
 }
 
-function doNinjaAttack(t: TacticalState, s: Soldier): void {
-  const tgt = whoIsThere(t, s.targetGridNo, s.level);
-  if (!tgt) return;
+function strikeAtNinjaTarget(t: TacticalState, s: Soldier, tgt: Soldier): void {
   const stance = endHeight(t.content, tgt.state);
   if (stance === AnimHeight.PRONE) attackProneTarget(t, s, 'PUNCH_LOW');
   else if (finishesWithSpinKick(tgt)) changeSoldierState(t, s, anim(t.content, 'NINJA_SPINKICK'));
@@ -314,6 +314,18 @@ function doNinjaAttack(t: TacticalState, s: Soldier): void {
     changeSoldierState(t, s, anim(t.content, t.rng.int(2) === 0 ? 'NINJA_LOWKICK' : 'NINJA_PUNCH'));
     turnUnawareTargetToward(t, s, tgt);
   }
+}
+
+function chopOfDrQ(t: TacticalState, s: Soldier): void {
+  if (s.profile !== Npc.DR_Q) return;
+  const spinKick = animName(t.content, s.state) === 'NINJA_SPINKICK';
+  t.events.push({ type: 'martialArtsChop', soldier: s.id, ...(spinKick ? { spinKick } : {}) });
+}
+
+function doNinjaAttack(t: TacticalState, s: Soldier): void {
+  const tgt = whoIsThere(t, s.targetGridNo, s.level);
+  if (tgt) strikeAtNinjaTarget(t, s, tgt);
+  chopOfDrQ(t, s);
 }
 
 function fightsWithMartialArts(t: TacticalState, s: Soldier, crowbar: boolean): boolean {

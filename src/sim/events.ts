@@ -103,9 +103,17 @@ export interface CorpseLocatedEvent extends SimEventBase {
   readonly level: number;
 }
 
+export type DamageCause = 'bleeding' | 'gas' | 'electricity';
+
 export interface DamageFeedbackEvent extends SimEventBase {
   readonly type: 'damageFeedback';
   readonly soldier: number;
+  readonly cause: DamageCause;
+  readonly conscious?: true;
+  readonly mapScreen?: true;
+  readonly unseen?: UnseenVictim;
+  readonly heard?: HeardFrom;
+  readonly cry?: DeathCry;
 }
 
 export interface MercBledEvent extends SimEventBase {
@@ -260,6 +268,17 @@ export interface CatchEndedEvent extends SimEventBase {
   readonly soldier: number;
 }
 
+export interface JarsBrokenEvent extends SimEventBase {
+  readonly type: 'jarsBroken';
+  readonly soldier: number;
+}
+
+export interface MartialArtsChopEvent extends SimEventBase {
+  readonly type: 'martialArtsChop';
+  readonly soldier: number;
+  readonly spinKick?: true;
+}
+
 export interface ItemCaughtEvent extends SimEventBase {
   readonly type: 'itemCaught';
   readonly soldier: number;
@@ -401,6 +420,11 @@ export interface NothingFoundEvent extends SimEventBase {
   readonly type: 'nothingFound';
   readonly soldier: number;
   readonly gridNo: number;
+}
+
+export interface PickupConfirmedEvent extends SimEventBase {
+  readonly type: 'pickupConfirmed';
+  readonly soldier: number;
 }
 
 export interface ItemsRevealedEvent extends SimEventBase {
@@ -775,6 +799,8 @@ export type SimEvent =
   | MortarWhistleEvent
   | StealthyFootstepEvent
   | CatchEndedEvent
+  | JarsBrokenEvent
+  | MartialArtsChopEvent
   | ItemCaughtEvent
   | CreatureCallEvent
   | SoldierHitEvent
@@ -790,6 +816,7 @@ export type SimEvent =
   | StructureDamagedEvent
   | ItemsPickedUpEvent
   | NothingFoundEvent
+  | PickupConfirmedEvent
   | ItemsRevealedEvent
   | ItemDroppedEvent
   | ItemPassedEvent

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc CheckItemForDamage, CheckForChainReaction, DamageItem, CheckEquipmentForDamage,
-// @src CheckEquipmentForFragileItemDamage, DamageItemOnGround.
+// @src CheckEquipmentForFragileItemDamage (with its GLASS_CRACK, played by the client, 2026-11-09), DamageItemOnGround.
 
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { i8, idiv } from '../../../core/int.ts';
@@ -94,7 +94,14 @@ export function checkEquipmentForDamage(t: TacticalState, s: Soldier, damage: nu
 }
 
 export function checkEquipmentForFragileItemDamage(t: TacticalState, s: Soldier, damage: number): void {
-  for (const o of s.inv) if (isJar(t, o.item)) damageItem(t, o, damage, false);
+  let broken = false;
+  for (const o of s.inv) {
+    if (!isJar(t, o.item)) continue;
+    const count = o.count;
+    damageItem(t, o, damage, false);
+    if (o.count !== count) broken = true;
+  }
+  if (broken) t.events.push({ type: 'jarsBroken', soldier: s.id });
 }
 
 export function damageItemOnGround(

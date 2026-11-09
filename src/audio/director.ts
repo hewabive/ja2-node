@@ -39,7 +39,11 @@
 // @src HandlePlayerServices (the CURSE1 of a medic out of bandages, none in auto-bandage, 2026-11-06); Merc_Entering.cc
 // @src StartHelicopterRun and HandleHeliDrop (HELI_1 through a run of the helicopter drop at the view's engine volume,
 // @src silent off the game screen, 2026-11-08); TileEngine/Pits.cc SearchForOtherMembersWithinPitRadiusAndMakeThemFall
-// @src (CAVE_COLLAPSE at the pit, HIGHVOLUME, 2026-11-09).
+// @src (CAVE_COLLAPSE at the pit, HIGHVOLUME, 2026-11-09); Tactical/Handle_Items.cc StartBombMessageBox (USE_STATUE_REMOTE
+// @src at HIGHVOLUME, MIDDLEPAN, then OK1 by the opened statue or CURSE1), SoldierPickupItem (OK1), Tactical/Items.cc
+// @src CheckEquipmentForFragileItemDamage (GLASS_CRACK at the soldier, MIDVOLUME), Tactical/Soldier_Control.cc DoNinjaAttack
+// @src (Dr. Q's chop as his battle sound), HandleTakeDamageDeath and HandleSoldierTakeDamageFeedback, TileEngine/
+// @src Explosion_Control.cc DishOutGasDamage (DIE1 and the HIT1 grunts at bleeding, gas and electric damage, 2026-11-09).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
@@ -68,6 +72,7 @@ import {
   isSoundOpcode,
   isTankBody,
   lockOutcomeCue,
+  martialArtsChopCue,
   materialHitCue,
   missCue,
   offMapMissCue,
@@ -80,9 +85,10 @@ import {
   turretMoveCue,
   turretStopCue,
 } from '../content/audio/cues.ts';
+import { BleedGrunts, damageFeedbackSounds } from '../content/audio/damage-feedback.ts';
 import { type Heard, heardSoundTile } from '../content/audio/heard-place.ts';
 import { hasIdleSounds, idleCheck, idleCheckLoopFrames } from '../content/audio/idle-sounds.ts';
-import { NOWHERE, onScreen } from '../content/audio/sound-position.ts';
+import { NOWHERE, offScreenVolume, onScreen } from '../content/audio/sound-position.ts';
 import { speechCue, speechPathForLine } from '../content/audio/speech.ts';
 import type { AmbientEntry } from '../content/formats/ambient.ts';
 import type { AnimationScripts } from '../content/formats/ja2bin.ts';
@@ -103,7 +109,6 @@ const MISS_CURSE_CHANCE = 40;
 const GUN_KINDS: ReadonlySet<string> = new Set(['handgun', 'smg', 'rifle', 'shotgun', 'lmg']);
 const isGunKind = (kind: string | undefined) => kind !== undefined && GUN_KINDS.has(kind);
 const NO_VARIANT = 0;
-const FAR_VOLUME_MOD = 25;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const RECRUITED_KINDS = new Set(['rpc', 'epc']);
 const CONTENTS_EXCLAMATION_DELAY_MS = 500;
@@ -191,6 +196,10 @@ interface Place {
   readonly far: boolean;
 }
 
+function absentVoice(id: number, cry: NonNullable<EventOf<'mercDied'>['cry']>): Voiced {
+  return { id, gridNo: cry.gridNo ?? NOWHERE, team: cry.team, bodyType: cry.bodyType, voice: cry.voice };
+}
+
 export class SoundDirector {
   readonly stats: DirectorStats = {
     frames: 0,
@@ -213,6 +222,7 @@ export class SoundDirector {
   readonly #battle = new Map<number, BattleMemory>();
   readonly #battleVoices = new Map<number, VoiceHandle>();
   readonly #dead = new Set<number>();
+  readonly #bleedGrunts = new BleedGrunts();
   readonly #struckVehicles = new Set<number>();
   readonly #driving = new Map<number, VoiceHandle>();
   readonly #turrets = new Map<number, VoiceHandle>();
@@ -556,7 +566,7 @@ export class SoundDirector {
   #placed(cue: Cue | null, place: Place): Cue | null {
     if (!cue) return null;
     if (!place.far) return { ...cue, gridNo: place.gridNo };
-    return { ...cue, gridNo: NOWHERE, baseVolume: Math.max(VolumeLevel.LOW, cue.baseVolume - FAR_VOLUME_MOD) };
+    return { ...cue, gridNo: NOWHERE, baseVolume: offScreenVolume(cue.baseVolume) };
   }
 
   #randomPassenger(vehicle: number): Voiced | undefined {
@@ -673,8 +683,19 @@ export class SoundDirector {
         this.#play(this.#placed(effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID), this.#sourcePlace(e.soldier)));
         return;
       case 'remoteUsed':
-        if (e.result === 'xray')
-          this.#play(this.#placed(effectCue(book, 'USE_X_RAY_MACHINE', 'location', VolumeLevel.HIGH), this.#sourcePlace(e.soldier)));
+        this.#remoteUsed(e);
+        return;
+      case 'jarsBroken':
+        this.#play(this.#placed(effectCue(book, 'GLASS_CRACK', 'location', VolumeLevel.MID), this.#sourcePlace(e.soldier)));
+        return;
+      case 'martialArtsChop':
+        this.#martialArtsChop(e);
+        return;
+      case 'pickupConfirmed':
+        this.#battleSound(e.soldier, 'OK1', false);
+        return;
+      case 'damageFeedback':
+        if (!e.mapScreen) this.#damageFeedback(e);
         return;
       case 'mortarWhistle':
         this.#mortarWhistle(e.sounding);
@@ -757,11 +778,33 @@ export class SoundDirector {
   }
 
   #mercDiedOffTheMap(e: EventOf<'mercDied'>): void {
-    if (e.cry) {
-      const absent = { id: e.soldier, gridNo: e.cry.gridNo ?? NOWHERE, team: e.cry.team, bodyType: e.cry.bodyType, voice: e.cry.voice };
-      this.#voiceSound(absent, 'DIE1', false);
-    }
+    if (e.cry) this.#voiceSound(absentVoice(e.soldier, e.cry), 'DIE1', false);
     for (const cue of deathOffTheMapCues(this.#o.book)) this.#play(cue);
+  }
+
+  #damageFeedback(e: EventOf<'damageFeedback'>): void {
+    const soldier = e.cry
+      ? absentVoice(e.soldier, e.cry)
+      : this.#victim(e.soldier, this.#sourcePlace(e.soldier, undefined, e.heard), e.unseen);
+    const facts = { cause: e.cause, seen: !e.cry && !e.unseen, conscious: e.conscious === true };
+    for (const sound of damageFeedbackSounds(facts, this.#bleedGrunts.due(e.soldier, this.#o.now())))
+      this.#voiceSound(soldier, sound, false);
+  }
+
+  #remoteUsed(e: EventOf<'remoteUsed'>): void {
+    if (e.result === 'xray')
+      this.#play(this.#placed(effectCue(this.#o.book, 'USE_X_RAY_MACHINE', 'location', VolumeLevel.HIGH), this.#sourcePlace(e.soldier)));
+    if (e.result !== 'statueOpened' && e.result !== 'nothing') return;
+    this.#play(effectCue(this.#o.book, 'USE_STATUE_REMOTE', 'fixed', VolumeLevel.HIGH));
+    this.#battleSound(e.soldier, e.result === 'statueOpened' ? 'OK1' : 'CURSE1', false);
+  }
+
+  #martialArtsChop(e: EventOf<'martialArtsChop'>): void {
+    const place = this.#sourcePlace(e.soldier);
+    const team = this.#soldiers.get(e.soldier)?.team ?? UNSEEN_VICTIM_TEAM;
+    const chop = martialArtsChopCue(this.#o.book, place.gridNo, team, e.spinKick === true, this.#rng.rand);
+    const voice = this.#play(this.#placed(chop, place));
+    if (voice) this.#battleVoices.set(e.soldier, voice);
   }
 
   #enterSound(gridNo: number): void {

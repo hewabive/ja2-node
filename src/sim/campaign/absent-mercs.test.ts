@@ -16,7 +16,7 @@ import { DamageReason } from '../tactical/combat/types.ts';
 import { newSmokeEffect, smokeEffectOnTile } from '../tactical/explosions/smoke.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
-import { NOWHERE } from '../tactical/soldier.ts';
+import { NOWHERE, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { RT_TURN_MS, STRATEGIC_OVERHEAD_MS } from '../tactical/turns/turns.ts';
 import { Quote } from './contracts/quotes.ts';
@@ -148,6 +148,11 @@ describe('our mercs off the loaded map at its real-time turns (Tactical_Turns.cc
     const report = c.live.advance(NEXT_TURN);
     expect(merc(c, VANT).soldier.life).toBe(WOUNDED.life - 1);
     expect(ofType(report.events, 'damageFeedback').map((e) => e.soldier)).toContain(vant.id);
+    expect(ofType(report.events, 'damageFeedback').find((e) => e.soldier === vant.id)?.cry).toEqual({
+      voice: String(VANT).padStart(3, '0'),
+      bodyType: vant.soldier.bodyType,
+      team: Team.OUR,
+    });
     expect(ofType(report.events, 'lifeLost').filter((e) => e.soldier === vant.id)).toEqual([]);
   });
 

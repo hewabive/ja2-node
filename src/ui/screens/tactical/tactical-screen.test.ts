@@ -874,7 +874,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     if (!merc) throw new Error('no merc');
     const shade = () => f.screen.faceOf(merc.id)?.shade(merc, false);
     expect(shade()).not.toBe(FaceShade.STARTSHADE);
-    f.frames([frame(view.tick, [{ tick: view.tick, type: 'damageFeedback', soldier: merc.id }])]);
+    f.frames([frame(view.tick, [{ tick: view.tick, type: 'damageFeedback', soldier: merc.id, cause: 'bleeding' }])]);
     expect(shade()).toBe(FaceShade.STARTSHADE);
   });
 

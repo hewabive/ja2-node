@@ -361,6 +361,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
       confirmRoute: (soldier) => sounds.push(`confirmRoute ${soldier}`),
       vehicleEntered: (gridNo) => sounds.push(`vehicleEntered ${gridNo ?? 'nowhere'}`),
       mercDiedOffTheMap: (soldier, cry) => sounds.push(`mercDiedOffTheMap ${soldier} ${cry?.voice ?? 'mute'}`),
+      damageFeedback: (feedback) => sounds.push(`damageFeedback ${feedback.soldier} ${feedback.cause}`),
     },
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,

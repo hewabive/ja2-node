@@ -741,6 +741,140 @@ describe('the sound director', () => {
     expect(r.cues).toHaveLength(5);
   });
 
+  it('plays the statue remote in the middle at high volume, then has the merc say OK1 at an opened statue and curse otherwise (StartBombMessageBox)', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'remoteUsed', tick: 10, soldier: 1, result: 'statueOpened' }])]);
+    r.director.applyFrames([frame(20, [], [{ type: 'remoteUsed', tick: 20, soldier: 2, result: 'nothing' }])]);
+    r.director.applyFrames([frame(30, [], [{ type: 'remoteUsed', tick: 30, soldier: 2, result: 'bombs', frequency: 1 }])]);
+    const remote = book.paths.get('USE_STATUE_REMOTE');
+    expect(files(r)).toEqual([
+      remote,
+      expect.stringMatching(/^battlesnds\/007_ok\d\.wav$/),
+      remote,
+      expect.stringMatching(/^battlesnds\/011_curse/),
+    ]);
+    expect(r.cues[0]).toMatchObject({ mix: 'fixed', baseVolume: VolumeLevel.HIGH, pan: Pan.MIDDLE });
+  });
+
+  it('cracks glass at a soldier whose jars broke in a fall, at mid volume, off screen for one out of sight (CheckEquipmentForFragileItemDamage)', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'jarsBroken', tick: 10, soldier: 1 },
+          { type: 'jarsBroken', tick: 10, soldier: 70 },
+        ],
+      ),
+    ]);
+    const crack = book.paths.get('GLASS_CRACK');
+    expect(r.cues).toEqual([
+      expect.objectContaining({ file: crack, mix: 'location', gridNo: G, baseVolume: VolumeLevel.MID }),
+      expect.objectContaining({ file: crack, mix: 'location', gridNo: -1, baseVolume: VolumeLevel.BUTTON }),
+    ]);
+  });
+
+  it('has a merc whose pickup walk is long enough say OK1 (SoldierPickupItem)', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'pickupConfirmed', tick: 10, soldier: 1 }])]);
+    expect(files(r)).toEqual([expect.stringMatching(/^battlesnds\/007_ok\d\.wav$/)]);
+  });
+
+  it("plays Dr. Q's chop as his battle sound: chop2 at the spin kick, chop3 or chop1 drawn on the client generator otherwise (DoNinjaAttack)", () => {
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const chops = seeds.map((seed) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset([soldier(33, 'STANDING', 0, { team: 1, voice: '033' })], []);
+      r.director.applyFrames([frame(10, [], [{ type: 'martialArtsChop', tick: 10, soldier: 33 }])]);
+      return r.cues[0];
+    });
+    const expected = seeds.map((seed) => (new ClientRandom(seed).rand(2) === 0 ? 'battlesnds/033_chop3.wav' : 'battlesnds/033_chop1.wav'));
+    expect(chops.map((c) => c?.file)).toEqual(expected);
+    expect(new Set(expected).size).toBe(2);
+    expect(chops[0]).toMatchObject({ mix: 'voiceOther', gridNo: G, baseVolume: VolumeLevel.HIGH });
+    const r = rig(world(1));
+    r.director.reset([soldier(33, 'STANDING', 0, { voice: '033' })], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'martialArtsChop', tick: 10, soldier: 33, spinKick: true }])]);
+    expect(r.cues).toEqual([expect.objectContaining({ file: 'battlesnds/033_chop2.wav', mix: 'voiceOwn' })]);
+    r.director.curse(33);
+    expect(r.cues).toHaveLength(1);
+  });
+
+  it('grunts HIT1 at bleeding at most once a second, which the 2 s repeat filter thins further, in the voice of a merc off the map or an unseen soldier (HandleSoldierTakeDamageFeedback)', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    const bled = (tick: number) => frame(tick, [], [{ type: 'damageFeedback', tick, soldier: 1, cause: 'bleeding' }]);
+    r.director.applyFrames([bled(10)]);
+    r.clock += 1_500;
+    r.director.applyFrames([bled(20)]);
+    r.clock += 600;
+    r.director.applyFrames([bled(30)]);
+    r.clock += 500;
+    r.director.applyFrames([bled(40)]);
+    expect(files(r)).toEqual([
+      expect.stringMatching(/^battlesnds\/007_hit[12]\.wav$/),
+      expect.stringMatching(/^battlesnds\/007_hit[12]\.wav$/),
+    ]);
+    const offMap = {
+      type: 'damageFeedback',
+      tick: 40,
+      soldier: 4,
+      cause: 'bleeding',
+      cry: { voice: '005', bodyType: 0, team: 0 },
+    } as const;
+    const unseen = { type: 'damageFeedback', tick: 40, soldier: 70, cause: 'bleeding', unseen: { voice: 'bad2', bodyType: 0 } } as const;
+    r.director.applyFrames([frame(40, [], [offMap, unseen, { ...offMap, soldier: 6, mapScreen: true }])]);
+    expect(r.cues.slice(2)).toEqual([
+      expect.objectContaining({
+        file: expect.stringMatching(/^battlesnds\/005_hit[12]\.wav$/),
+        gridNo: -1,
+        mix: 'voiceOwn',
+        baseVolume: 127,
+      }),
+      expect.objectContaining({
+        file: expect.stringMatching(/^battlesnds\/bad2_hit[12]\.wav$/),
+        gridNo: -1,
+        mix: 'voiceOther',
+        baseVolume: 102,
+      }),
+    ]);
+  });
+
+  it('cries DIE1 for a seen soldier at every gas or electric hurt, alive or not, and grunts again at gas that leaves him conscious (HandleTakeDamageDeath, DishOutGasDamage)', () => {
+    const r = rig(world(1));
+    const voices: VoiceHandle[] = [];
+    const play = r.engine.play.bind(r.engine);
+    r.engine.play = (cue) => {
+      const voice = play(cue);
+      voices.push(voice);
+      return voice;
+    };
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'damageFeedback', tick: 10, soldier: 1, cause: 'electricity' }])]);
+    expect(files(r)).toEqual(['battlesnds/007_die.wav', expect.stringMatching(/^battlesnds\/007_hit[12]\.wav$/)]);
+    expect(voices.map((v) => v.active)).toEqual([false, true]);
+    r.clock += 500;
+    r.director.applyFrames([
+      frame(20, [soldier(1, 'STANDING', 0)], [{ type: 'damageFeedback', tick: 20, soldier: 1, cause: 'gas', conscious: true }]),
+    ]);
+    expect(files(r).slice(2)).toEqual(['battlesnds/007_die.wav', expect.stringMatching(/^battlesnds\/007_hit[12]\.wav$/)]);
+    r.clock += 5_000;
+    const unseenGas = {
+      type: 'damageFeedback',
+      tick: 30,
+      soldier: 70,
+      cause: 'gas',
+      conscious: true,
+      unseen: { voice: 'bad2', bodyType: 0 },
+    } as const;
+    r.director.applyFrames([frame(30, [], [unseenGas])]);
+    expect(files(r).slice(4)).toEqual([expect.stringMatching(/^battlesnds\/bad2_hit[12]\.wav$/)]);
+  });
+
   it('plays no animation codes, final footsteps or code 491 of the loaded sector while the tactical screen is not up, and the events still', () => {
     let tactical = false;
     const r = rig(world(1), withScript('STANDING', [1, 2, 3, 491, 501, 999]), { onTacticalScreen: () => tactical });

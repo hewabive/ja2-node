@@ -604,9 +604,9 @@ describe('the map screen over the stub map-screen campaign', () => {
       const info = f.screen.hook().info ?? -1;
       const other = f.mercs.find((m) => m !== info) ?? -1;
       const tick = f.client.view.tick;
-      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: other }] }]);
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: other, cause: 'bleeding' }] }]);
       expect([f.screen.hook().info, whiteFaces(f)]).toEqual([info, 0]);
-      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: info }] }]);
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: info, cause: 'bleeding' }] }]);
       expect([f.screen.hook().info, whiteFaces(f) > 0]).toEqual([info, true]);
     }));
 
@@ -648,6 +648,24 @@ describe('the map screen over the stub map-screen campaign', () => {
         `mercDiedOffTheMap ${merc} 005`,
         `mercDiedOffTheMap ${merc} mute`,
       ]);
+    }));
+
+  it('grunts at a damage on the map screen through its own sounds, and leaves one on the tactical screen to the tactical director', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const merc = f.mercs[0] ?? -1;
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [
+            { type: 'damageFeedback', tick, soldier: merc, cause: 'bleeding', mapScreen: true },
+            { type: 'damageFeedback', tick, soldier: merc, cause: 'gas' },
+          ],
+        },
+      ]);
+      expect(f.sounds.filter((s) => s.startsWith('damageFeedback'))).toEqual([`damageFeedback ${merc} bleeding`]);
     }));
 
   it("boxes an escort's lone move with pMapErrorString 6 or 7 by the sex of his profile, naming the escort", () =>

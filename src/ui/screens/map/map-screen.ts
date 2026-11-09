@@ -816,6 +816,7 @@ export class MapScreen implements Screen {
         return;
       case 'damageFeedback':
         this.#faces.get(event.soldier)?.flash(this.#now);
+        if (event.mapScreen) this.#env.sounds.damageFeedback(event);
         return;
       case 'mercDied':
         if (event.mapScreen) this.#env.sounds.mercDiedOffTheMap(event.soldier, event.cry ?? null);

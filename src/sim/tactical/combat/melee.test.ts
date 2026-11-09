@@ -10,6 +10,7 @@ import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { PreRandom, Rng } from '../../../core/rng.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, initNewSoldierAnim, soldierGotoStationaryStance, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
@@ -511,6 +512,25 @@ describe('martial arts (DoNinjaAttack)', () => {
     crowbar.merc.targetGridNo = crowbar.enemy.gridNo;
     eventSoldierBeginPunchAttack(crowbar.sim.state, crowbar.merc, crowbar.enemy.gridNo, Direction.SOUTH);
     expect(animName(content, crowbar.merc.state)).toBe('CROWBAR_ATTACK');
+  });
+
+  it("chops as Dr. Q at every strike, the spin kick's own chop at a finish and one at a missing target, and no other martial artist chops", () => {
+    const chops = (profile: number, weaken: (s: Soldier) => void, targetGone = false) => {
+      const { sim, merc, enemy } = martialArtsDuel();
+      const t = sim.state;
+      merc.profile = profile;
+      weaken(enemy);
+      strikeFromStance(sim, merc, enemy);
+      if (targetGone) merc.targetGridNo = gridNo(90, 90);
+      t.events.length = 0;
+      meleeOpcode(t, merc, MARTIAL_ARTS_ATTACK);
+      return t.events.filter((e) => e.type === 'martialArtsChop');
+    };
+    const asIs = () => {};
+    expect(chops(Npc.DR_Q, asIs)).toEqual([{ type: 'martialArtsChop', soldier: 0 }]);
+    expect(chops(Npc.DR_Q, (s) => Object.assign(s, { life: 30 }))).toEqual([{ type: 'martialArtsChop', soldier: 0, spinKick: true }]);
+    expect(chops(Npc.DR_Q, asIs, true)).toEqual([{ type: 'martialArtsChop', soldier: 0 }]);
+    expect(chops(MERC_PROFILE, asIs)).toEqual([]);
   });
 });
 

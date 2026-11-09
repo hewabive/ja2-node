@@ -115,6 +115,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A martial arts strike turns an unaware target without stopping him or cancelling his AI action, where a plain punch does both | `melee.test.ts` |
+| Dr. Q chops at a martial arts strike whose target has left the tile too: the chop is outside the target test (`Tactical/Soldier_Control.cc:504`) | `melee.test.ts` "chops as Dr. Q at every strike …" |
 | Cutting off a head costs only the kneel: `DECAPITATE` has no fire code, and a blade pays its APs only when it strikes (`UseBlade`) | `melee.test.ts` |
 | A creature, the robot or a tank, which the steal chance of 0 should protect, is robbed on a roll of 0: the roll only has to reach the chance | `steal.test.ts` |
 | A steal ends the attack twice, at codes 442 and 753 of `STEAL_ITEM`, so the end-of-attack checks run twice | `steal.test.ts` |

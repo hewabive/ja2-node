@@ -58,12 +58,15 @@ export interface DeathCry {
   readonly gridNo?: number;
 }
 
+export type DamageFeedback = Extract<NonNullable<ViewFrame['events']>[number], { type: 'damageFeedback' }>;
+
 export interface MapSounds {
   glowClick(): void;
   newMessageBeep(): void;
   confirmRoute(soldier: number): void;
   vehicleEntered(gridNo: number | null): void;
   mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void;
+  damageFeedback(feedback: DamageFeedback): void;
 }
 
 export interface MapMedia extends TacticalMedia {

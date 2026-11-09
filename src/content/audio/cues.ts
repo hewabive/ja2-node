@@ -10,12 +10,13 @@
 // @src 2026-11-04); Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down); Tactical/Soldier_Control.cc
 // @src TurnSoldier (TURRET_MOVE and TURRET_STOP, 2026-11-05), HandleTakeDamageDeath (DOORCR_1 and HEADCR_1 of a death off the
-// @src tactical map, HIGHVOLUME, MIDDLEPAN, 2026-11-06).
+// @src tactical map, HIGHVOLUME, MIDDLEPAN, 2026-11-06), DoNinjaAttack (Dr. Q's chop, its Random(2) drawn by the client,
+// @src 2026-11-09).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook, WeaponSounds } from './cue-book.ts';
 import { NOWHERE } from './sound-position.ts';
-import { BURST_ROUNDS_PLACEHOLDER } from './sound-table.ts';
+import { BURST_ROUNDS_PLACEHOLDER, battleSoundPath } from './sound-table.ts';
 
 export const GENERIC_BURST_SOUND = 'sounds/weapons/bursttype1.wav';
 export const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
@@ -324,6 +325,17 @@ export function doorTrapCue(book: CueBook, trap: string, gridNo: number): Cue | 
 
 export function dropCue(book: CueBook, gridNo: number): Cue | null {
   return effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, gridNo);
+}
+
+const DR_Q_VOICE = '033';
+const SPIN_KICK_CHOP = 'chop2';
+const CHOPS = ['chop3', 'chop1'] as const;
+const OUR_TEAM = 0;
+
+export function martialArtsChopCue(book: CueBook, gridNo: number, team: number, spinKick: boolean, rand: Rand): Cue {
+  const chop = spinKick ? SPIN_KICK_CHOP : CHOPS[rand(CHOPS.length)];
+  const mix = team === OUR_TEAM ? 'voiceOwn' : 'voiceOther';
+  return cueOf(battleSoundPath(book.battle, DR_Q_VOICE, chop ?? SPIN_KICK_CHOP), mix, VolumeLevel.HIGH, gridNo);
 }
 
 const DEATH_OFF_THE_MAP_SAMPLES = ['DOORCR_1', 'HEADCR_1'] as const;
