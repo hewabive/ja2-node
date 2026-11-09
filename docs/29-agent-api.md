@@ -337,7 +337,9 @@ drawn above his tile (`06`); a corpse carries it while it is not 0, the pixels i
 tank turning toward a new facing carries `turning`, and `hiResDirection`, its facing in 32 steps (0 north, clockwise,
 four a direction), while that lies between two directions (`06`). Every
 soldier in the view carries `surface`, the animation sheet he shows (an index of `tables/anim-surfaces.json`, chosen by
-the simulation from his state, body, hand items, wounds, water and stance), and `camouflaged` while he wears camouflage
+the simulation from his state, body, hand items, wounds, water and stance), `boundingFrame`, the script frame his
+screen rectangle is measured on (the frame his last animation start or turn left, `SetSoldierLocatorOffsets`), with
+`boundingDirection` and `boundingHiResDirection` while the facing that frame was converted in is not his own (`05`), and `camouflaged` while he wears camouflage
 paint, ours and theirs alike, as the screen shows both (`06`). A soldier the squad has just lost stays while he fades
 out, with `fadingOut` (`06`): he can still be targeted and his hits are told, as in the original, until the fade ends or
 he reaches the next tile. The tactical world (corpses, smoke, light, structure changes, blood;

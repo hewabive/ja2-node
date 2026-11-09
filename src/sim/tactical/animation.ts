@@ -22,7 +22,9 @@
 // @src held MERC_GIVEITEM, freeing its target when it drops the action, and its SOLDIER_ENGAGEDINACTION test
 // @src (2026-11-08); EVENT_InitNewSoldierAnim's LOADING_SAVED_GAME branch and Soldier_Control.cc CreateSoldierCommon's
 // @src restart of a loaded soldier (2026-11-08); EVENT_InitNewSoldierAnim's enemy-sighting unlock (2026-11-08); its count
-// @src of a native save's pending action, freeing a give's target the load made before the giver (2026-11-08).
+// @src of a native save's pending action, freeing a give's target the load made before the giver (2026-11-08);
+// @src SetSoldierLocatorOffsets at the end of EVENT_InitNewSoldierAnim and EVENT_SetSoldierDirection, the frame
+// @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -294,6 +296,19 @@ export function setSoldierDirection(t: TacticalState, s: Soldier, direction: num
     if (s.direction !== s.desiredDirection) s.aniDelay = FAST_TURN_DELAY;
     else setSoldierAniSpeed(t, s);
   }
+  setSoldierLocatorOffsets(s);
+}
+
+function convertFrame(s: Soldier, slot: number): void {
+  s.frameSlot = slot;
+  s.frameDirection = s.direction;
+  s.frameHiResDirection = s.hiResDirection;
+}
+
+function setSoldierLocatorOffsets(s: Soldier): void {
+  s.boundingSlot = s.frameSlot;
+  s.boundingDirection = s.frameDirection;
+  s.boundingHiResDirection = s.frameHiResDirection;
 }
 
 export function faceAtOnce(s: Soldier, direction: number): void {
@@ -575,11 +590,12 @@ function beginAnimation(t: TacticalState, s: Soldier, next: number, startCode: n
   s.state = next;
   countPendingActionAnimation(t, s, s.oldState, next);
   s.pc = nextName === 'CHARIOTS_OF_FIRE' || nextName === 'BODYEXPLODING' ? t.rng.int(10) : startCode;
-  s.frameSlot = NO_FRAME_SLOT;
+  convertFrame(s, NO_FRAME_SLOT);
   s.stateTick = t.tick;
   setSoldierAniSpeed(t, s);
   resetFrameTimer(t, s);
   adjustToNextAnimationFrame(t, s);
+  setSoldierLocatorOffsets(s);
   t.hooks.stanceFreeUp(t, s);
   checkForFreeupFromHit(t, s, oldFlags, newFlags, s.oldState, next);
 }
@@ -775,7 +791,7 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
       case SlotKind.EMPTY:
       case SlotKind.FRAME:
         countMuzzleFlashFrame(t, s);
-        s.frameSlot = slot;
+        convertFrame(s, slot);
         s.pc++;
         return;
       case SlotKind.JUMP:

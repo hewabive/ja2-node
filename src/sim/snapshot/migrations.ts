@@ -1,3 +1,4 @@
+import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
 import { u32 } from '../../core/int.ts';
@@ -2130,6 +2131,36 @@ function addSavedPendingAction(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const BOUNDING_FIELD_KEYS = ['frameDirection', 'frameHiResDirection', 'boundingSlot', 'boundingDirection', 'boundingHiResDirection'];
+
+function boundingFieldsOf(soldier: JsonObject, direction: number): readonly Json[] {
+  const hiResDirection = field(soldier, HI_RES_DIRECTION_KEY, hiResDirectionOf(direction));
+  return [direction, hiResDirection, field(soldier, FRAME_SLOT_KEY, NO_FRAME_SLOT), direction, hiResDirection];
+}
+
+function withBoundingFrame(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withBoundingFrame(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withBoundingFrame(v);
+  const direction = mapped[DIRECTION_KEY];
+  if (!isSoldierRecord(mapped) || typeof direction !== 'number') return mapped;
+  const values = boundingFieldsOf(mapped, direction);
+  let out: JsonObject = mapped;
+  let after = FRAME_SLOT_KEY;
+  BOUNDING_FIELD_KEYS.forEach((key, i) => {
+    out = insertAfter(out, after, key, values[i] ?? null);
+    after = key;
+  });
+  return out;
+}
+
+function addBoundingFrame(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withBoundingFrame(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2201,5 +2232,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     67: smokeOwnersById,
     68: addHeldGiveTargetTiles,
     69: addSavedPendingAction,
+    70: addBoundingFrame,
   };
 }

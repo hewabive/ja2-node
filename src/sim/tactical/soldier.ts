@@ -327,6 +327,11 @@ export interface Soldier {
   state: number;
   pc: number;
   frameSlot: number;
+  frameDirection: number;
+  frameHiResDirection: number;
+  boundingSlot: number;
+  boundingDirection: number;
+  boundingHiResDirection: number;
   stateTick: number;
   aniDelay: number;
   nextFrameAt: number;
@@ -707,6 +712,11 @@ function identityAndMovement(init: SoldierInit, centre: { x: number; y: number }
     state: init.state,
     pc: 0,
     frameSlot: NO_FRAME_SLOT,
+    frameDirection: init.direction,
+    frameHiResDirection: hiResDirectionOf(init.direction),
+    boundingSlot: NO_FRAME_SLOT,
+    boundingDirection: init.direction,
+    boundingHiResDirection: hiResDirectionOf(init.direction),
     stateTick: 0,
     aniDelay: 0,
     nextFrameAt: 0,

@@ -66,12 +66,6 @@ describe('soldier frames from the animation schedule', () => {
     expect(frames.frameOf(1, schedule, 104)).toBe(4);
   });
 
-  it("finds a state's first frame past its jumps and opcodes, whatever frame the schedule shows", () => {
-    const opened = scripted({ [STATE]: [JUMP_TO_START + 2, frameCode(19), FIRE_WEAPON_OPCODE, frameCode(20), END_OF_ANIMATION] });
-    expect(new SoldierFrames(opened, true, TICK_MS).firstFrame(STATE)).toBe(20);
-    expect(new SoldierFrames(client, false, TICK_MS).firstFrame(STATE + 1)).toBe(10);
-  });
-
   it('plays a looping state at its frame delay', () => {
     const frames = new SoldierFrames(client, false, TICK_MS);
     const schedule = { animation: STATE + 1, frameSlot: 0, stateTick: 0, frameDelay: 50 };

@@ -3589,3 +3589,67 @@ describe("snapshot version 69 (no saved pending action) migrates with none, as o
     await expectNoSavedPendingAction(await quietLandedCampaign(kit));
   });
 });
+
+const BOUNDING_FRAME_KEYS = ['frameDirection', 'frameHiResDirection', 'boundingSlot', 'boundingDirection', 'boundingHiResDirection'];
+
+function withoutBoundingFrame(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutBoundingFrame(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (!BOUNDING_FRAME_KEYS.includes(key)) out[key] = withoutBoundingFrame(v);
+  return out;
+}
+
+function versionSeventy(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutBoundingFrame(value)]);
+  return { ...snapshot, version: 70, graph: { ...snapshot.graph, sections } };
+}
+
+function boxTheFrameShown(soldiers: readonly (Soldier | undefined)[]): void {
+  for (const s of soldiers) {
+    if (!s) continue;
+    Object.assign(s, {
+      frameDirection: s.direction,
+      frameHiResDirection: s.hiResDirection,
+      boundingSlot: s.frameSlot,
+      boundingDirection: s.direction,
+      boundingHiResDirection: s.hiResDirection,
+    });
+  }
+}
+
+describe('snapshot version 70 (no bounding frame) migrates with the box of the frame each soldier shows, in his facing', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectBoxOfTheFrameShown(session: SessionSim, t: TacticalState): Promise<void> {
+    boxTheFrameShown(t.soldiers);
+    const current = snapshotSession(session);
+    const legacy = versionSeventy(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"boundingSlot"');
+    expect(JSON.stringify(legacy)).not.toContain('"boundingSlot"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    await expectBoxOfTheFrameShown(sandbox, sandbox.sim.state);
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    await expectBoxOfTheFrameShown(campaign, t);
+  });
+});

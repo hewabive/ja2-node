@@ -68,10 +68,6 @@ export class SoldierFrames {
     return track;
   }
 
-  firstFrame(animation: number): number {
-    return trackFrame(this.#track(animation), 0);
-  }
-
   markersOf(soldier: number, since: number): number[] {
     return (this.#markers.get(soldier) ?? []).filter((t) => t >= since);
   }

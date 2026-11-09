@@ -5,7 +5,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { addStubTank, addStubVehicle } from '../../../tests/support/vehicles.ts';
 import { ticksPerFrame } from '../../content/anim/schedule-track.ts';
 import { stateId } from '../../content/anim/tables.ts';
-import { splitAnimationScripts } from '../../content/anim/timelines.ts';
+import { splitAnimationScripts, timelineSlot } from '../../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
@@ -137,6 +137,45 @@ describe('fast turns', () => {
     merc.turningFromHit = true;
     turnOneOctant(t, merc);
     expect(merc.aniDelay).toBe(computedAnimationDelay(t, merc));
+  });
+});
+
+describe('the bounding frame (SetSoldierLocatorOffsets)', () => {
+  const AT = gridNo(80, 80);
+
+  it('takes the frame of the code an animation starts at, not of its first code, and keeps it while later frames show', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, AT, Direction.EAST);
+    const standing = anim(content, 'STANDING');
+    initNewSoldierAnim(t, merc, standing, 1, true);
+    expect(merc.boundingSlot).toBe(timelineSlot(standing, 1));
+    adjustToNextAnimationFrame(t, merc);
+    expect(merc.frameSlot).toBe(timelineSlot(standing, 2));
+    expect(merc.boundingSlot).toBe(timelineSlot(standing, 1));
+  });
+
+  it('keeps the frame shown at a turn in the facing it was converted in, as EVENT_SetSoldierDirection converts no frame', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, AT, Direction.EAST);
+    const standing = anim(content, 'STANDING');
+    initNewSoldierAnim(t, merc, standing, 0, true);
+    setSoldierDirection(t, merc, Direction.SOUTHEAST);
+    setSoldierDirection(t, merc, Direction.SOUTH);
+    expect([merc.boundingSlot, merc.boundingDirection]).toEqual([timelineSlot(standing, 0), Direction.EAST]);
+    adjustToNextAnimationFrame(t, merc);
+    expect(merc.boundingSlot).toBe(timelineSlot(standing, 0));
+    setSoldierDirection(t, merc, Direction.SOUTHWEST);
+    expect([merc.boundingSlot, merc.boundingDirection]).toEqual([timelineSlot(standing, 1), Direction.SOUTH]);
+  });
+
+  it("takes a tank's 32-step facing of the frame converted just before its direction changes", () => {
+    const t = newCombatSim(content).state;
+    const tank = addStubTank(t, { body: Body.TANK_NW, team: Team.ENEMY, gridNo: AT, direction: Direction.NORTH });
+    setDesiredDirection(t, tank, Direction.EAST);
+    for (let tick = 0; tick < 2_000 && tank.direction === Direction.NORTH; tick++) executeOverhead(t);
+    expect([tank.direction, tank.boundingDirection, tank.boundingHiResDirection]).toEqual([Direction.NORTHEAST, Direction.NORTH, 3]);
   });
 });
 

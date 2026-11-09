@@ -84,7 +84,6 @@ function input(soldiers: readonly SoldierView[]): SoldierSceneInput {
     glow: { ourTurn: false, frame: 0, hovered: null, hoveredHostile: false, selectedSees: () => null, underAiControl: () => false },
     lights: { mercCastsLight: false, mercAlwaysLit: false },
     frameOf: (s) => s.frame,
-    firstFrameOf: () => FIRST_FRAME,
   };
 }
 
@@ -96,10 +95,10 @@ describe('the bounding box of a shown soldier (GetActualSoldierAnimDims)', () =>
   it('measures the sheet frame of his bounding frame and facing, not the frame drawn', () => {
     const scene = new SoldierScene(assets);
     scene.setSprites(sprites);
-    scene.build(input([soldier({ frame: 2 })]));
+    scene.build(input([soldier({ frame: 2, boundingFrame: FIRST_FRAME })]));
     expect(dims(scene.shownSprite(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(2, NORTH))));
     expect(dims(scene.shownBoundingBox(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(FIRST_FRAME, NORTH))));
-    scene.build(input([soldier({ frame: 1, direction: NORTHEAST })]));
+    scene.build(input([soldier({ frame: 1, direction: NORTHEAST, boundingFrame: 1, boundingDirection: NORTH })]));
     expect(dims(scene.shownSprite(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(1, NORTHEAST))));
     expect(dims(scene.shownBoundingBox(SOLDIER))).toEqual(dims(sheetFrame(sheetIndex(1, NORTH))));
   });

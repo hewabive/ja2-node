@@ -59,6 +59,9 @@ export interface SoldierView {
   readonly hand: string;
   readonly surface: number;
   readonly frameSlot: number;
+  readonly boundingFrame?: number;
+  readonly boundingDirection?: number;
+  readonly boundingHiResDirection?: number;
   readonly stateTick: number;
   readonly frameDelay: number;
   readonly nextFrameTick?: number;

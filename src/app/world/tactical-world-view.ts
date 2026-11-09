@@ -269,11 +269,6 @@ export class TacticalWorldView {
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
   }
 
-  #firstFrameOf(): (s: SoldierView) => number {
-    const frames = this.#frames;
-    return frames ? (s) => frames.firstFrame(s.animation) : (s) => s.frame;
-  }
-
   observeEffects(effects: readonly EffectEvent[]): void {
     this.#effectAnimations.observe(effects);
   }
@@ -387,7 +382,6 @@ export class TacticalWorldView {
       hostile,
       lights: f.options,
       frameOf: this.#frameOf(view.tick),
-      firstFrameOf: this.#firstFrameOf(),
     });
     this.#effects?.prepareCorpses(view.soldiers, f.options.bloodAndGore);
     const aniTiles =

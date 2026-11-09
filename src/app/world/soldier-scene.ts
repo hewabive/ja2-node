@@ -43,7 +43,6 @@ export interface SoldierSceneInput {
   readonly hostile?: (s: SoldierView) => boolean;
   readonly lights: SoldierLightOptions;
   readonly frameOf: (s: SoldierView) => number;
-  readonly firstFrameOf: (s: SoldierView) => number;
 }
 
 interface DrawnSprite {
@@ -177,11 +176,7 @@ export class SoldierScene {
     const out: SceneSoldier[] = [];
     let drawn = 0;
     this.#shown.clear();
-    this.#boundingBoxes.update(input.soldiers, {
-      sheetFor: (s) => this.#assets.sheetFor(s),
-      firstFrameOf: input.firstFrameOf,
-      frameOf: input.frameOf,
-    });
+    this.#boundingBoxes.update(input.soldiers, (s) => this.#assets.sheetFor(s));
     for (const s of input.soldiers) {
       if (this.#fades.fadedOut(s, input.clockMs)) continue;
       const current = this.#currentSprite(s, input.frameOf(s));

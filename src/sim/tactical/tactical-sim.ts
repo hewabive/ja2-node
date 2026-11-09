@@ -204,7 +204,7 @@ import {
 import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
 import { Body, inVehicle, isTank, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
-import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
+import { boundingFrameView, type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import {
   type AutoBandageState,
   type CrowStatus,
@@ -260,6 +260,9 @@ export interface SoldierSnapshot {
   readonly hand: string;
   readonly surface: number;
   readonly frameSlot: number;
+  readonly boundingFrame: number;
+  readonly boundingDirection?: number;
+  readonly boundingHiResDirection?: number;
   readonly stateTick: number;
   readonly frameDelay: number;
   readonly nextFrameTick: number;
@@ -1457,6 +1460,7 @@ export class TacticalSim {
       hand: handClass(this.state.content.items, itemIn(s.inv, InvSlot.HAND)),
       surface: shownAnimSurface(this.state.content, s),
       frameSlot: s.frameSlot,
+      ...boundingFrameView(presentation, s),
       stateTick: s.stateTick,
       frameDelay: s.aniDelay,
       nextFrameTick: nextFrameTick(this.state, s),

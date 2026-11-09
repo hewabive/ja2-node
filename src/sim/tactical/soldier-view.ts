@@ -11,8 +11,10 @@
 // @src flash) (2026-11-03); Interface_Panels.cc PrintAP and Faces.cc HandleRenderFaceAdjustments (the drug state behind
 // @src the light blue AP number and the drug icons: MercUnderTheInfluence, GetDrugEffect, GetDrunkLevel; 2026-11-04);
 // @src Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle's passengers in its squad's panel, 2026-11-05);
-// @src Interface.cc DrawSelectedUIAboveGuy and DrawBarsInUIBox (the life and fuel bars over any vehicle, 2026-11-05).
+// @src Interface.cc DrawSelectedUIAboveGuy and DrawBarsInUIBox (the life and fuel bars over any vehicle, 2026-11-05);
+// @src Soldier_Control.cc SetSoldierLocatorOffsets (the frame and facing behind sBoundingBox*, 2026-11-09).
 
+import { type PresentationTimeline, spriteFrameAt } from '../../content/anim/timelines.ts';
 import type { OwnHintInputs } from '../knowledge/view.ts';
 import { VehicleSeat } from '../strategic/forces/constants.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
@@ -20,6 +22,7 @@ import { findFenceJumpDirection } from './animation.ts';
 import { minAPsToAttack } from './combat/ap.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
+import { hiResDirectionOf } from './directions.ts';
 import { type AdrenalineView, type DrunkView, drugView } from './drugs.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
 import { type Stance, soldierStance } from './movement-mode.ts';
@@ -197,6 +200,20 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     ...(vehicleOfOurs(s) ? { passengers: passengersAboard(t, s) } : {}),
     ...drugView(s),
     hint: ownHintInputs(s),
+  };
+}
+
+export interface BoundingFrameView {
+  readonly boundingFrame: number;
+  readonly boundingDirection?: number;
+  readonly boundingHiResDirection?: number;
+}
+
+export function boundingFrameView(presentation: PresentationTimeline, s: Soldier): BoundingFrameView {
+  return {
+    boundingFrame: spriteFrameAt(presentation, s.boundingSlot),
+    ...(s.boundingDirection !== s.direction ? { boundingDirection: s.boundingDirection } : {}),
+    ...(s.boundingHiResDirection !== hiResDirectionOf(s.boundingDirection) ? { boundingHiResDirection: s.boundingHiResDirection } : {}),
   };
 }
 
