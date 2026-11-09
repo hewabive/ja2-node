@@ -13,10 +13,20 @@ describe('sector map paths', () => {
     expect(sectorMapPath(exists, sector(3, 3), true)).toBe(STUB_FALLBACK_MAP);
   });
 
+  it('takes the palace map of a meanwhile scene, the original before the stub', () => {
+    const palace = sector(3, 16);
+    const stubOnly = new Set(['stubs/world/maps/p3.dat', 'stubs/world/maps/p3_m.dat']);
+    expect(sectorMapPath((p) => stubOnly.has(p), palace, false, true)).toBe('stubs/world/maps/p3_m.dat');
+    expect(sectorMapPath((p) => stubOnly.has(p), palace, false)).toBe('stubs/world/maps/p3.dat');
+    const both = new Set([...stubOnly, 'maps/p3_m.dat']);
+    expect(sectorMapPath((p) => both.has(p), palace, false, true)).toBe('maps/p3_m.dat');
+  });
+
   it('reads the sector back from a sector map file name', () => {
     expect(sectorOfMapPath('stubs/world/maps/d13.dat')).toEqual(sector(13, 4));
     expect(sectorOfMapPath('stubs/world/maps/e13_b2.dat')).toEqual(sector(13, 5, 2));
     expect(sectorOfMapPath('maps/b15_a.dat')).toEqual(sector(15, 2));
+    expect(sectorOfMapPath('maps/p3_m.dat')).toEqual(sector(3, 16));
     expect(sectorOfMapPath(STUB_FALLBACK_MAP)).toBeNull();
     expect(sectorOfMapPath('stubs/world/maps/mine.dat')).toBeNull();
   });

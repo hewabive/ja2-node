@@ -13,6 +13,10 @@ export const MAP_WORLD_CELLS = MAP_WORLD_X * MAP_WORLD_Y;
 export const SECTOR_COUNT = MAP_SIDE * MAP_SIDE;
 export const MAX_SECTOR_Z = 3;
 export const NO_PREVIOUS_SECTOR_ID = 255;
+export const MEANWHILE_MAP_SECTOR: Sector = { x: 3, y: 16, z: 0 };
+
+const ALTERNATE_MAP_SUFFIX = '_a';
+const MEANWHILE_MAP_SUFFIX = '_m';
 
 export interface Sector {
   readonly x: number;
@@ -72,7 +76,9 @@ export function parseSectorId(text: string): number {
   return sectorId(parseSectorString(text));
 }
 
-export function mapFileName(s: Sector, alternate: boolean): string {
+export function mapFileName(s: Sector, alternate: boolean, inMeanwhile = false): string {
   const base = s.z === 0 ? sectorShortString(s) : sectorLongString(s, true);
-  return `${base}${alternate ? '_a' : ''}.dat`;
+  const alternateSuffix = alternate ? ALTERNATE_MAP_SUFFIX : '';
+  const meanwhileSuffix = inMeanwhile && sameSector(s, MEANWHILE_MAP_SECTOR) ? MEANWHILE_MAP_SUFFIX : '';
+  return `${base}${alternateSuffix}${meanwhileSuffix}.dat`;
 }

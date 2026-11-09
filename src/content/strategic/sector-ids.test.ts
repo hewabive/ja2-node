@@ -48,6 +48,15 @@ describe('sector ids', () => {
     expect(sectorLongString({ x: 9, y: 10, z: 2 }, false)).toBe('J9-2');
   });
 
+  it('names the palace map of a meanwhile scene with the _m suffix and no other sector or level', () => {
+    const palace = { x: 3, y: 16, z: 0 };
+    expect(mapFileName(palace, false, true)).toBe('P3_m.dat');
+    expect(mapFileName(palace, false, false)).toBe('P3.dat');
+    expect(mapFileName({ ...palace, z: 1 }, false, true)).toBe('P3_b1.dat');
+    expect(mapFileName({ x: 7, y: 14, z: 0 }, false, true)).toBe('N7.dat');
+    expect(mapFileName(palace, true, true)).toBe('P3_a_m.dat');
+  });
+
   it('rejects malformed sector strings', () => {
     expect(() => parseSectorString('Q1')).toThrow();
     expect(() => parseSectorString('A17')).toThrow();
