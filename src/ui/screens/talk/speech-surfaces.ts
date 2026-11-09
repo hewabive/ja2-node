@@ -8,7 +8,8 @@
 // @src BeginCivQuote (the quoted line in a basic box centred on GetSoldierScreenPos, clamped to the screen width and the
 // @src viewport), QuoteOverlayClickCallback, ShutDownQuoteBox; src/game/Tactical/Faces.cc GetFaceRelativeCoordinates
 // @src (FACE_FORCE_SMALL uses the RPC small face offsets); HandleDialogue (a line carried over from the map screen takes
-// @src the popup and keeps the subtitle box and click region where they were, through TalkingUi, 2026-11-09).
+// @src the popup and keeps the subtitle box and click region where they were, through TalkingUi, 2026-11-09);
+// @src RenderFaceOverlay (Skyrider or a head miner with a soldier gets the soldier's panel, 2026-11-09).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -21,7 +22,7 @@ import type { ControllerContract } from '../../layout/controller.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { CustomRenderer } from '../../layout/view.ts';
 import type { UiServices } from '../../services.ts';
-import { type ActiveLine, type CivQuoteLine, quoted, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
+import { type ActiveLine, type CivQuoteLine, quoted, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
@@ -96,6 +97,11 @@ export function civQuotePosition(
   if (y < bounds.viewportTop) y = bounds.viewportTop;
   y = Math.min(y, bounds.viewportBottom - height);
   return { x, y };
+}
+
+function speakerSoldierId(line: SpeechLine): number | null {
+  if (line.surface === SpeechSurface.TACTICAL) return line.soldier;
+  return line.surface === SpeechSurface.EXTERNAL ? (line.externalSoldier ?? null) : null;
 }
 
 function tacticalSurface(surface: SpeechSurface): boolean {
@@ -195,8 +201,8 @@ export class SpeechSurfaces {
   }
 
   #speakerSoldier(line: ActiveLine | null): SoldierView | null {
-    const id = line?.line.surface === SpeechSurface.TACTICAL ? line.line.soldier : null;
-    if (id === null || id === undefined) return null;
+    const id = line ? speakerSoldierId(line.line) : null;
+    if (id === null) return null;
     return this.#hooks.view()?.soldiers.find((v) => v.id === id) ?? null;
   }
 
@@ -311,7 +317,8 @@ export class SpeechSurfaces {
   #renderFacePopupAt(list: DrawList, rect: UiPoint, current: ActiveLine, params: Readonly<Record<string, unknown>>): void {
     const s = this.#style('facePopup');
     const soldier = this.#speakerSoldier(current);
-    const panel = this.#hooks.model.asset(String(soldier ? params.panel : params.panelWithoutSoldier)).path;
+    const withSoldier = soldier !== null || current.line.externalSoldier !== undefined;
+    const panel = this.#hooks.model.asset(String(withSoldier ? params.panel : params.panelWithoutSoldier)).path;
     list.image(panel, 0, rect.x, rect.y);
     const font = this.#hooks.services.fonts.get(FontName.BLOCKFONT2);
     const colors = fontColors(NAME_COLOR, SHADOW_FOR_NAME);
@@ -320,12 +327,13 @@ export class SpeechSurfaces {
       mprint(list, font, at.x, at.y, text, colors);
     };
     const [faceX, faceY] = this.#rect4([...(s.face as unknown[]), 0, 0]);
-    if (soldier) {
-      print(this.#rect4(s.name), soldier.name);
+    const nickname = this.#hooks.profile(current.line.profile)?.nickname ?? '';
+    if (withSoldier) {
+      print(this.#rect4(s.name), soldier?.name ?? nickname);
       const sector = current.line.sector;
       if (sector && !this.#hooks.sectorShown(sector))
         print(this.#rect4(s.sector), reduceStringLength(sector, this.#number(s.sectorWidth), font));
-    } else print(this.#rect4(s.nameWithoutSoldier), this.#hooks.profile(current.line.profile)?.nickname ?? '');
+    } else print(this.#rect4(s.nameWithoutSoldier), nickname);
     if (soldier?.team === OUR_TEAM) {
       const [barsX, barsY] = this.#rect4([...(s.bars as unknown[]), 0, 0]);
       this.#hooks.drawBars(list, this.#hooks.barValues(soldier), rect.x + barsX, rect.y + barsY);

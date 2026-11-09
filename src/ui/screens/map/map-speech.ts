@@ -12,7 +12,9 @@
 // @src in the popup at the screen's 10, 20), RenderFaceOverlay (the panel without a soldier: the nickname and the face);
 // @src Strategic/Map_Screen_Interface.cc TurnOnSectorLocator (the locator as the line starts, none on Skyrider's
 // @src helicopter while the aircraft show), Map_Screen_Helicopter.cc HandleAnimationOfSectors (the yellow locator)
-// @src (2026-11-09).
+// @src (2026-11-09); MapScreen.cc EndMapScreen (HandleShutDownOfMapScreenWhileExternfaceIsTalking); RenderFaceOverlay (an external speaker with a soldier: the soldier's panel, his name and his sector
+// @src when it is not the loaded one), HandleDialogue (a line carried to the map keeps no popup for a speaker with a
+// @src soldier, 2026-11-09).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -29,11 +31,13 @@ import {
   type SpeechPresenter,
   type SpeechRouting,
   SpeechSurface,
+  speakerHasSoldier,
   speechLineOf,
 } from '../../speech.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
+import { reduceStringLength } from '../../text/wrap.ts';
 import type { MercTextBoxArt, MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { drawTalkingFace, FaceAnimator } from '../tactical/faces.ts';
@@ -49,12 +53,18 @@ const SHADOW_FOR_NAME = 2;
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 
+export type FaceArea = readonly [number, number, number, number];
+
 export interface ExternFaceStyle {
   readonly panel: string;
+  readonly panelWithSoldier: string;
   readonly width: number;
   readonly height: number;
   readonly face: UiPoint;
-  readonly name: readonly [number, number, number, number];
+  readonly name: FaceArea;
+  readonly nameWithSoldier: FaceArea;
+  readonly sector: FaceArea;
+  readonly sectorWidth: number;
 }
 
 export interface MapSpeechHooks {
@@ -73,6 +83,8 @@ export interface MapSpeechHooks {
   readonly listed: (soldier: number) => boolean;
   readonly select: (soldier: number) => void;
   readonly profile: (id: number) => ProfilePresentation | null;
+  readonly soldierName: (soldier: number) => string | null;
+  readonly worldSector: () => string | null;
   readonly ensureImage: (path: string) => boolean;
   readonly gaps: (file: string) => readonly { readonly start: number; readonly end: number }[] | null;
   readonly random: (range: number) => number;
@@ -131,7 +143,7 @@ export class MapSpeech {
     screen: SpeechScreen.MAP,
     textBox: (line) => this.#textBoxPlace(line),
     facePopup: (line) => this.#facePopupPlace(line),
-    carriedPopup: (line) => (line.soldier === null ? this.#hooks.screenPopup() : null),
+    carriedPopup: (line) => (speakerHasSoldier(line) ? null : this.#hooks.screenPopup()),
   };
 
   frames(frames: readonly ViewFrame[]): void {
@@ -187,6 +199,7 @@ export class MapSpeech {
     this.#faceRegion?.remove();
     this.#faceRegion = null;
     this.#faceRegionAt = null;
+    this.#ui.endMapScreen();
   }
 
   render(list: DrawList): void {
@@ -276,14 +289,25 @@ export class MapSpeech {
     const current = this.#hooks.presenter.current;
     if (!current) return;
     const style = this.#hooks.faceStyle();
-    list.image(style.panel, 0, at.x, at.y);
-    const font = this.#hooks.services.fonts.get(FontName.BLOCKFONT2);
-    const name = this.#hooks.profile(current.line.profile)?.nickname ?? '';
-    const [nameX, nameY, nameWidth, nameHeight] = style.name;
-    const text = hCenterVCenterAlign(at.x + nameX, at.y + nameY, nameWidth, nameHeight, name, font);
-    mprint(list, font, text.x, text.y, name, fontColors(NAME_COLOR, SHADOW_FOR_NAME));
+    const soldier = current.line.externalSoldier;
+    list.image(soldier === undefined ? style.panel : style.panelWithSoldier, 0, at.x, at.y);
+    const nickname = this.#hooks.profile(current.line.profile)?.nickname ?? '';
+    if (soldier === undefined) this.#printOnPopup(list, at, style.name, nickname);
+    else {
+      this.#printOnPopup(list, at, style.nameWithSoldier, this.#hooks.soldierName(soldier) ?? nickname);
+      const sector = current.line.sector;
+      if (sector && sector !== this.#hooks.worldSector()) this.#printOnPopup(list, at, style.sector, sector, style.sectorWidth);
+    }
     const face = this.#popupFace;
     if (face) drawTalkingFace(list, this.#hooks.services.images, face, at.x + style.face.x, at.y + style.face.y);
+  }
+
+  #printOnPopup(list: DrawList, at: UiPoint, area: FaceArea, text: string, maxWidth?: number): void {
+    const font = this.#hooks.services.fonts.get(FontName.BLOCKFONT2);
+    const shown = maxWidth === undefined ? text : reduceStringLength(text, maxWidth, font);
+    const [x, y, width, height] = area;
+    const to = hCenterVCenterAlign(at.x + x, at.y + y, width, height, shown, font);
+    mprint(list, font, to.x, to.y, shown, fontColors(NAME_COLOR, SHADOW_FOR_NAME));
   }
 
   #mercLine(line: ActiveLine | null): ActiveLine | null {

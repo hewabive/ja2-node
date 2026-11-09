@@ -456,6 +456,16 @@ describe('an external face (Dialogue_Control.cc CharacterDialogue with DIALOGUE_
     ]);
   });
 
+  it("names the head miner's soldier in the loaded sector, whose panel his popup takes (RenderFaceOverlay)", () => {
+    const fred = testSoldier(5, Team.CIV, FRED, MERC_AT);
+    const host = fakeHost({ soldiers: [fred], inMapMode: true });
+    externalNpcDialogue(host, FRED, FRED_RUNNING_OUT);
+    externalNpcDialogue(host, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    runQueueToTheEnd(host);
+    expect(host.emitted[0]).toMatchObject({ type: 'headMinerQuote', soldier: fred.id });
+    expect(host.emitted[1]).not.toHaveProperty('soldier');
+  });
+
   it('waits its turn behind the lines queued before it', () => {
     const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
     const host = fakeHost({ soldiers: [merc], inMapMode: true });

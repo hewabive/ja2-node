@@ -1,7 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, economyTestContext, loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { ScriptedRolls } from '../../../../tests/support/strategic.ts';
-import { parseSectorString, type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import {
+  parseSectorString,
+  type Sector,
+  sectorFromId,
+  sectorId,
+  sectorShortString,
+  strategicIndex,
+} from '../../../content/strategic/sector-ids.ts';
 import { FinanceCode } from '../../campaign/finances.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { passengersOf } from '../../vehicles/vehicle-list.ts';
@@ -31,6 +38,7 @@ import {
   helicopterGroup,
   helicopterVehicle,
   heliState,
+  monologueHighlightSectors,
   payOffSkyriderDebtIfAny,
   plotPathForHelicopter,
   requestGiveSkyriderNewDestination,
@@ -441,6 +449,35 @@ describe('monologues', () => {
     talk.externPanel = null;
     handleSkyriderMonologueEvent(w.ctx, SkyriderMonologue.CAMBRIA_HOSPITAL, 1);
     expect(talk.externPanel).toEqual({ monologue: 'cambriaHospital' });
+  });
+
+  it('flashes what each monologue is about between its special events, the Cambria hospital from its start (HandleAnimationOfSectors)', () => {
+    const w = withHelicopter();
+    Object.assign(w.ctx.helicopter, { skyriderDialogue: () => {}, skyriderMonologueEvent: () => {} });
+    const flashed = (event: SkyriderMonologue): string[][] =>
+      [0, 1, 2].map((step) => {
+        handleSkyriderMonologueEvent(w.ctx, event, step);
+        return monologueHighlightSectors(w.ctx).map(sectorShortString);
+      });
+    const { DRASSEN_SAM_SITE, CAMBRIA_HOSPITAL, OTHER_SAM_SITES, ESTONI_REFUEL } = SkyriderMonologue;
+    expect(flashed(DRASSEN_SAM_SITE)).toEqual([[], ['D15'], []]);
+    expect(flashed(CAMBRIA_HOSPITAL)).toEqual([['F8'], [], []]);
+    expect(flashed(OTHER_SAM_SITES)).toEqual([[], ['D2', 'I8', 'N4'], []]);
+    expect(flashed(ESTONI_REFUEL)).toEqual([[], ['I6'], []]);
+  });
+
+  it('announces the start and every special event of a monologue with its step, for the map screen to show the airspace', () => {
+    const w = withHelicopter();
+    Object.assign(w.ctx.helicopter, { skyriderDialogue: () => {}, skyriderMonologueEvent: () => {} });
+    handleSkyriderMonologueEvent(w.ctx, SkyriderMonologue.OTHER_SAM_SITES, 0);
+    handleSkyriderMonologueEvent(w.ctx, SkyriderMonologue.OTHER_SAM_SITES, 1);
+    handleSkyriderMonologueEvent(w.ctx, SkyriderMonologue.OTHER_SAM_SITES, 2);
+    const steps = w.events.flatMap((e) => (e.type === 'skyriderMonologue' ? [[e.topic, e.step]] : []));
+    expect(steps).toEqual([
+      ['otherSams', 0],
+      ['otherSams', 1],
+      ['otherSams', 2],
+    ]);
   });
 
   it('reveals the SAM sites and refreshes the monologue time only when the queue runs the special event', () => {

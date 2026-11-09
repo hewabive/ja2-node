@@ -72,13 +72,52 @@ describe('the talking UI of a line across screens (Dialogue_Control.cc CreateTal
     expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], SCREEN_POPUP]);
   });
 
-  it("shows a popup the map put up beside the one a carried line gets, and keeps the map's click region", () => {
+  it("drops the map's popup as the map screen closes and keeps its click region for the popup a carried line gets (EndMapScreen)", () => {
     const ui = talkingUi();
     const skyrider = line(SpeechSurface.EXTERNAL, null);
     ui.follow(skyrider, map, true);
+    ui.endMapScreen();
     ui.follow(skyrider, tactical, true);
-    expect([ui.popups, ui.region]).toEqual([[EXTERN_PANEL, SCREEN_POPUP], EXTERN_PANEL]);
+    expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], EXTERN_PANEL]);
     ui.follow(null, tactical, true);
     expect([ui.popups, ui.region, ui.textBox]).toEqual([[], null, null]);
+  });
+
+  it('keeps for good the popup a face had registered when it registers another (RegisterVideoOverlay into f.video_overlay)', () => {
+    const ui = talkingUi();
+    const away = line(SpeechSurface.TACTICAL, null);
+    ui.follow(away, tactical, true);
+    ui.follow(away, map, true);
+    ui.follow(line(SpeechSurface.TACTICAL, null, 2), map, true);
+    expect(ui.popups).toEqual([SCREEN_POPUP, SCREEN_POPUP]);
+    ui.follow(null, map, true);
+    ui.follow(line(SpeechSurface.EXTERNAL, null, 3), map, true);
+    expect(ui.popups).toEqual([SCREEN_POPUP, EXTERN_PANEL]);
+  });
+
+  it('leaves the popup of a line carried from the map up with speech off after it ends, showing every later line in it', () => {
+    const ui = talkingUi();
+    const merc = line(SpeechSurface.TACTICAL, 3);
+    ui.follow(merc, map, false);
+    ui.follow(merc, tactical, false);
+    ui.follow(null, tactical, false);
+    expect([ui.popups, ui.region]).toEqual([[], SCREEN_POPUP]);
+    ui.follow(line(SpeechSurface.TACTICAL, 4, 2), tactical, false);
+    expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], SCREEN_POPUP]);
+    ui.follow(line(SpeechSurface.EXTERNAL, null, 3), map, false);
+    expect(ui.popups).toEqual([SCREEN_POPUP]);
+  });
+
+  it('leaves the unseen popup of a line without a soldier carried to the map registered, so a later popup shows there too', () => {
+    const ui = talkingUi();
+    const away = line(SpeechSurface.TACTICAL, null);
+    ui.follow(away, tactical, true);
+    ui.follow(away, map, true);
+    ui.follow(null, map, true);
+    expect([ui.popups, ui.region]).toEqual([[], SCREEN_POPUP]);
+    ui.follow(line(SpeechSurface.EXTERNAL, null, 2), map, true);
+    expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP, EXTERN_PANEL], SCREEN_POPUP]);
+    ui.follow(null, map, true);
+    expect([ui.popups, ui.region]).toEqual([[], null]);
   });
 });

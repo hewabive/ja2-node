@@ -20,6 +20,7 @@ export interface SkyriderQuoteEvent extends SimEventBase {
   readonly panel?: ExternPanel;
   readonly sector?: string;
   readonly helicopter?: boolean;
+  readonly soldier?: number;
 }
 
 export interface HeliTakeOffEvent extends SimEventBase {
@@ -91,6 +92,7 @@ export interface SamSitesRevealedEvent extends SimEventBase {
 export interface SkyriderMonologueEvent extends SimEventBase {
   readonly type: 'skyriderMonologue';
   readonly topic: SkyriderTopic;
+  readonly step: number;
 }
 
 export interface PassengersDroppedEvent extends SimEventBase {

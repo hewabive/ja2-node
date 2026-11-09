@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Helicopter.cc InitializeHelicopter, g_refuel_site, the helicopter globals;
 // @src Map_Screen_Helicopter.h DRASSEN_REFUELING_SITE, ESTONI_REFUELING_SITE; TileEngine/TileDat.h FIRSTOSTRUCT,
-// @src FOURTHOSTRUCT.
+// @src FOURTHOSTRUCT; Map_Screen_Helicopter.cc fShowDrassenSAMHighLight, fShowCambriaHospitalHighLight,
+// @src fShowOtherSAMHighLight, fShowEstoniRefuelHighLight (2026-11-09).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 
@@ -22,6 +23,17 @@ export const REFUEL_SITES: readonly RefuelSite[] = [
   { sector: { x: 6, y: 9, z: 0 }, gridNo: 13067, heliTileType: FOURTHOSTRUCT },
 ];
 
+export interface MonologueHighlights {
+  drassenSam: boolean;
+  cambriaHospital: boolean;
+  otherSams: boolean;
+  estoniRefuel: boolean;
+}
+
+export function noMonologueHighlights(): MonologueHighlights {
+  return { drassenSam: false, cambriaHospital: false, otherSams: false, estoniRefuel: false };
+}
+
 export interface HelicopterState {
   setUp: boolean;
   returningToBase: boolean;
@@ -36,6 +48,7 @@ export interface HelicopterState {
   saidCongratsOnTakingSam: boolean;
   progressLastCommentedOn: number;
   readonly refuelSiteAvailable: boolean[];
+  readonly highlights: MonologueHighlights;
 }
 
 export function createHelicopterState(): HelicopterState {
@@ -53,5 +66,6 @@ export function createHelicopterState(): HelicopterState {
     saidCongratsOnTakingSam: false,
     progressLastCommentedOn: 0,
     refuelSiteAvailable: REFUEL_SITES.map(() => false),
+    highlights: noMonologueHighlights(),
   };
 }

@@ -393,6 +393,7 @@ export interface StrategicView {
   readonly quests: readonly QuestLogEntryView[];
   readonly battleLocator?: string | null;
   readonly surfaceWarp?: string;
+  readonly skyriderHighlights?: readonly string[];
 }
 
 export interface PromptOptionView {

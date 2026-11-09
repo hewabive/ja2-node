@@ -440,6 +440,14 @@ export interface SavedHelicopter {
   readonly saidCongratsOnTakingSam: boolean;
   readonly progressLastCommentedOn: number;
   readonly refuelSiteAvailable: readonly boolean[];
+  readonly highlights: SavedMonologueHighlights;
+}
+
+export interface SavedMonologueHighlights {
+  readonly drassenSam: boolean;
+  readonly cambriaHospital: boolean;
+  readonly otherSams: boolean;
+  readonly estoniRefuel: boolean;
 }
 
 export interface TeamTurns {
@@ -613,6 +621,12 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       saidCongratsOnTakingSam: r.bool('gfSkyriderSaidCongratsOnTakingSAM'),
       progressLastCommentedOn: n('gubPlayerProgressSkyriderLastCommentedOn'),
       refuelSiteAvailable: r.bools('fRefuelingSiteAvailable'),
+      highlights: {
+        drassenSam: r.bool('fShowDrassenSAMHighLight'),
+        cambriaHospital: r.bool('fShowCambriaHospitalHighLight'),
+        otherSams: r.bool('fShowOtherSAMHighLight'),
+        estoniRefuel: r.bool('fShowEstoniRefuelHighLight'),
+      },
     },
     disableMapInterfaceDueToBattle: r.bool('fDisableMapInterfaceDueToBattle'),
     foundTixa: r.bool('fFoundTixa'),

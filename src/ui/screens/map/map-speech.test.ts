@@ -2,8 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
+import type { CampaignSession } from '../../../server/campaign-session.ts';
+import { heliState } from '../../../sim/strategic/forces/helicopter.ts';
 import { MouseButton } from '../../input/events.ts';
-import { FINAL_TALKING_DELAY_MS, MIN_TALK_BEFORE_SKIP_MS, textDelay } from '../../speech.ts';
+import { FINAL_TALKING_DELAY_MS, MIN_TALK_BEFORE_SKIP_MS, SpeechSurface, textDelay } from '../../speech.ts';
+import { type SpeechPlacement, SpeechScreen, TalkingUi } from '../talk/talking-ui.ts';
 
 const LINE = 'Contract is up soon.';
 const SHORT_LINE = 'Hm.';
@@ -281,6 +284,7 @@ const POPUP = { width: 99, height: 98 };
 const DRASSEN_MINE = 1;
 const DRASSEN_MINE_FACE_Y = 135;
 const AWAY_PROFILE = 30;
+const MINER_SOLDIER = 40;
 
 type Panel = { readonly monologue: 'drassenSam' | 'cambriaHospital' | 'otherSams' | 'estoniRefuel' } | { readonly mine: number };
 
@@ -288,6 +292,7 @@ interface ExternalExtras {
   readonly panel?: Panel;
   readonly sector?: string;
   readonly helicopter?: boolean;
+  readonly soldier?: number;
 }
 
 function externalFrame(f: MapUiTest, profile: number, extra: ExternalExtras): ViewFrame {
@@ -358,6 +363,39 @@ describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Cont
       expect(skipLines(f)).toHaveLength(1);
     }));
 
+  it("takes the soldier's panel for a head miner with a soldier, the panel without one otherwise (RenderFaceOverlay)", () =>
+    withMap(async (f) => {
+      const panels = () =>
+        f.draw().items.flatMap((item) => (item.kind === 'image' && item.asset.includes('communicationpopup') ? [item.asset] : []));
+      sayExternal(f, FRED, { soldier: MINER_SOLDIER, sector: 'D13' });
+      expect(panels()).toEqual(['interface/communicationpopup.sti']);
+      sayExternal(f, FRED, { sector: 'D13' });
+      expect(panels()).toEqual(['interface/communicationpopup_2.sti']);
+    }));
+
+  it('keeps a click region at 10, 20 for a line carried over from the tactical screen only for a speaker without a soldier', () =>
+    withMap(async (f) => {
+      const tacticalPopup = { x: 10, y: 20 };
+      const tactical: SpeechPlacement = {
+        screen: SpeechScreen.TACTICAL,
+        textBox: () => ({ x: 110, y: 20, width: 240 }),
+        facePopup: () => tacticalPopup,
+        carriedPopup: () => tacticalPopup,
+      };
+      const carried = (externalSoldier?: number) => {
+        const presenter = f.speech.presenter;
+        presenter.skip(f.t.now, true);
+        f.t.frame();
+        const line = { surface: SpeechSurface.EXTERNAL, profile: FRED, soldier: null, text: LINE, chars: LINE.length, voice: null };
+        presenter.enqueue({ ...line, sector: null, keyWait: false, ...(externalSoldier === undefined ? {} : { externalSoldier }) });
+        TalkingUi.of(presenter).follow(presenter.current, tactical, true);
+        f.t.frame();
+        return f.find('speechFacePopup');
+      };
+      expect(carried(MINER_SOLDIER)).toBeUndefined();
+      expect(carried()).toMatchObject({ rect: { x: 10, y: 20 }, visible: false });
+    }));
+
   it("marks Skyrider's helicopter with the locator unless the aircraft show as his line starts", () =>
     withMap(async (f) => {
       sayExternal(f, SKYRIDER, { sector: 'B13', helicopter: true });
@@ -369,6 +407,49 @@ describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Cont
       expect(f.screen.hook().speakerLocator).toBeNull();
       sayExternal(f, FRED, { sector: 'D13' });
       expect(f.screen.hook().speakerLocator).toBe('D13');
+    }));
+});
+
+describe("Skyrider's monologue on the map screen (Map_Screen_Helicopter.cc HandleSkyRiderMonologueEvent)", () => {
+  function monologueStep(f: MapUiTest, step: number): ViewFrame {
+    const tick = f.client.view.tick;
+    return { tick, changed: [], removed: [], events: [{ type: 'skyriderMonologue', tick, topic: 'drassenSam', step }] };
+  }
+
+  function flashDrassenSam(f: MapUiTest, shown: boolean): void {
+    const ctx = (f.session.sim as CampaignSession).campaign.strategic;
+    if (!ctx) throw new Error('no strategic layer');
+    heliState(ctx).highlights.drassenSam = shown;
+    f.client.refresh();
+    f.t.frame();
+  }
+
+  it('turns the airspace on over the towns as a monologue starts and at each special event, back on the surface (TurnOnAirSpaceMode)', () =>
+    withMap(async (f) => {
+      f.key('Delete');
+      await f.settle();
+      expect(f.screen.hook()).toMatchObject({ level: 1, filters: { towns: true, airspace: false } });
+      f.frames([monologueStep(f, 0)]);
+      expect(f.screen.hook()).toMatchObject({ level: 0, filters: { towns: false, airspace: true } });
+      f.key('a', 0, 'KeyA');
+      expect(f.screen.hook().filters.airspace).toBe(false);
+      f.frames([monologueStep(f, 1)]);
+      expect(f.screen.hook().filters.airspace).toBe(true);
+    }));
+
+  it("flashes what Skyrider talks about in red instead of the speaker's locator, on the surface only (HandleAnimationOfSectors)", () =>
+    withMap(async (f) => {
+      sayExternal(f, SKYRIDER, { sector: 'D13' });
+      expect(f.screen.hook().locators).toEqual([{ sector: 'D13', colour: 'yellow' }]);
+      flashDrassenSam(f, true);
+      expect(f.screen.hook()).toMatchObject({ speakerLocator: 'D13', locators: [{ sector: 'D15', colour: 'red' }] });
+      f.key('Delete');
+      await f.settle();
+      expect(f.screen.hook().locators).toEqual([]);
+      f.key('Insert');
+      await f.settle();
+      flashDrassenSam(f, false);
+      expect(f.screen.hook().locators).toEqual([{ sector: 'D13', colour: 'yellow' }]);
     }));
 });
 
@@ -398,5 +479,16 @@ describe('a merc line without a soldier on the map screen (Dialogue_Control.cc H
       expect(f.widget('speechFacePopup').rect).toEqual({ x: 10, y: 20, ...POPUP });
       expect(f.widget('speechTextBox').rect).toMatchObject({ x: stdX + SUBTITLE_X, y: stdY + SUBTITLE_Y });
       expect(f.screen.hook().speakerLocator).toBe('C5');
+    }));
+});
+
+describe("an NPC's line on the map screen (Faces.cc SetFaceTalking)", () => {
+  it('marks the sector the line event names with the locator as the line starts', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const textKey = { file: `npcdata/${FRED}.edt`, row: QUOTE, width: 240 };
+      const said = { type: 'npcQuote', tick, profile: FRED, soldier: null, quote: QUOTE, textKey, chars: LINE.length, text: LINE } as const;
+      f.frames([{ tick, changed: [], removed: [], events: [{ ...said, sector: 'D13' }] }]);
+      expect(f.screen.hook().speakerLocator).toBe('D13');
     }));
 });

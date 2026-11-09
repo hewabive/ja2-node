@@ -124,7 +124,8 @@ bark, and the external faces of Skyrider and the head miners (`externalNpcDialog
 `headMinerQuote`). An important line (`handleImportantMercQuote`, the contract lines) wraps a sleeping merc's line in a
 wake event and a sleep event. Special events the original queues with these lines are `callback` events with numeric
 arguments, run when the queue reaches them: the renewal step after the merc's lines that says the raise and opens the
-menu, the contract endings and the map screen switch (`22`), and Skyrider's SAM reveals and monologue time (`25`). A
+menu, the contract endings and the map screen switch (`22`), and Skyrider's SAM reveals, highlights and monologue time
+(`25`). A
 callback may wait at the head of the queue (the contract ones while a prompt is open). A campaign without a talk flow
 (test campaigns) keeps shortcuts: contract and Skyrider lines are plain events, a head miner's line a `headMinerQuote`
 event, the economy's lines are not said, Skyrider's special events run at once and the contract endings wait in

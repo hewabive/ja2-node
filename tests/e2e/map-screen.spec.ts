@@ -29,7 +29,14 @@ async function openMap(page: Page, session: string, extra = ''): Promise<void> {
   await waitWhileLoading(page, () => window.__ja2Ui?.map?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.modal === null);
+  await hearSkyridersFirstMonologue(page);
   await nextFrames(page, 4);
+}
+
+async function hearSkyridersFirstMonologue(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__ja2Ui.map?.screen?.filters.airspace === true);
+  await page.evaluate(() => window.__ja2Ui.map?.advance({ idle: true }));
+  await page.waitForFunction(() => window.__ja2Ui.lagTicks === 0 && window.__ja2Ui.map?.screen?.speakerLocator === null);
 }
 
 async function mapHook(page: Page): Promise<MapHook['screen']> {
@@ -178,7 +185,6 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await clickWidget(page, `assignmentMenu.line${ASSIGNMENT_VEHICLE}`);
     await clickWidget(page, 'vehicleMenu.line0');
     await page.waitForFunction(() => window.__ja2Ui.map?.commands.some((c) => c.type === 'boardVehicle' && c.ok) === true);
-    await clickWidget(page, 'filter4');
     expect((await mapHook(page))?.filters.airspace).toBe(true);
     const heli = await page.evaluate(() => window.__ja2Ui.map?.helicopterPoint() ?? null);
     if (!heli) throw new Error('no helicopter on the map');
@@ -212,6 +218,8 @@ test.describe('the map screen on the stub map-screen campaign', () => {
 
   test('goes to tactical in the squad sector and back to the map', async ({ page }) => {
     await openMap(page, session);
+    await clickWidget(page, 'filter4');
+    expect((await mapHook(page))?.filters.airspace).toBe(false);
     await clickSector(page, save.sector);
     expect((await mapHook(page))?.selectedSector).toBe(save.sector);
     await clickWidget(page, 'tacticalButton');

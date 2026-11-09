@@ -16,6 +16,7 @@ import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
 import { militiaTrainingAllowedInSector } from '../sim/strategic/economy/militia-rules.ts';
 import { Assignment, SectorFlag } from '../sim/strategic/forces/constants.ts';
 import { type Group, isSurfaceMapSector, numEnemiesInEverySurfaceSector } from '../sim/strategic/forces/groups.ts';
+import { monologueHighlightSectors } from '../sim/strategic/forces/helicopter.ts';
 import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/ports.ts';
 import { isSecretFoundAt, isThisSectorASamSector } from '../sim/strategic/map/control.ts';
 import { EnemyKnowledge, surfaceKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
@@ -314,7 +315,13 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     quests: questLog(campaign),
     ...battleLocator(campaign),
     ...surfaceWarp(campaign),
+    ...skyriderHighlights(ctx),
   };
+}
+
+function skyriderHighlights(ctx: StrategicContext): Pick<StrategicView, 'skyriderHighlights'> {
+  const sectors = monologueHighlightSectors(ctx);
+  return sectors.length > 0 ? { skyriderHighlights: sectors.map(sectorName) } : {};
 }
 
 function surfaceWarp(campaign: CampaignSim): Pick<StrategicView, 'surfaceWarp'> {

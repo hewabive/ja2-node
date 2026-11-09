@@ -20,7 +20,8 @@
 // @src SetStopTimeQuoteCallback, HandleDialogue (FACE_MODAL), GameScreen.cc EnterModalTactical, EndModalTactical and
 // @src MainGameScreenHandle (one more full frame after the modal starts, then HandleModalTactical, 2026-11-04);
 // @src Dialogue_Control.cc HandleExternNPCSpeechFace and DisplayTextForExternalNPC (an external line takes the panel
-// @src placement set since the last line ended), HandleDialogueEnd (the default placement again, 2026-11-09).
+// @src placement set since the last line ended), HandleDialogueEnd (the default placement again, 2026-11-09);
+// @src RenderFaceOverlay (an external speaker's soldier, FindSoldierByProfileID, picks the popup's panel, 2026-11-09).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -231,15 +232,22 @@ interface SaidLine {
   readonly skipped?: boolean;
 }
 
-function externalLineEvent(host: NarrativeHost, speaker: number, quote: number, said: SaidLine): NarrativeEventWithoutTick {
+function externalLineEvent(
+  host: NarrativeHost,
+  speaker: number,
+  quote: number,
+  soldier: number | null,
+  said: SaidLine,
+): NarrativeEventWithoutTick {
   const panel = host.talk.externPanel;
-  const placed = panel ? { ...said, panel } : said;
+  const withSoldier = soldier === null ? said : { ...said, soldier };
+  const placed = panel ? { ...withSoldier, panel } : withSoldier;
   if (speaker === NarrativeProfile.SKYRIDER) return { type: 'skyriderQuote', quote, profile: speaker, ...placed };
   return { type: 'headMinerQuote', mine: host.headMinerMine?.(speaker) ?? -1, profile: speaker, quote, ...placed };
 }
 
 function lineEvent(host: NarrativeHost, speaker: number, quote: number, soldier: number | null, ui: LineUi, said: SaidLine) {
-  if (ui.external) return externalLineEvent(host, speaker, quote, said);
+  if (ui.external) return externalLineEvent(host, speaker, quote, soldier, said);
   if (ui.npcUi) return { type: 'npcQuote', profile: speaker, soldier, quote, ...said } as const;
   const about = ui.subject !== undefined ? { subject: ui.subject } : {};
   return { type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, ...about, ...said } as const;

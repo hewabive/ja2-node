@@ -61,6 +61,11 @@ export interface SpeechLineRequest {
   readonly npcUi?: boolean;
   readonly panel?: ExternPanelRef;
   readonly helicopter?: boolean;
+  readonly externalSoldier?: number;
+}
+
+export function speakerHasSoldier(line: SpeechLineRequest): boolean {
+  return line.soldier !== null || line.externalSoldier !== undefined;
 }
 
 export interface SpeechLine extends SpeechLineRequest {
@@ -453,6 +458,7 @@ interface LineExtras {
   readonly npcUi?: boolean;
   readonly panel?: ExternPanelRef | undefined;
   readonly helicopter?: boolean | undefined;
+  readonly externalSoldier?: number | undefined;
 }
 
 function request(
@@ -478,6 +484,7 @@ function request(
     ...(extra.npcUi ? { npcUi: true } : {}),
     ...(extra.panel ? { panel: extra.panel } : {}),
     ...(extra.helicopter ? { helicopter: true } : {}),
+    ...(extra.externalSoldier !== undefined ? { externalSoldier: extra.externalSoldier } : {}),
   };
 }
 
@@ -520,7 +527,7 @@ function speechRequestOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineR
   switch (event.type) {
     case 'npcQuote': {
       const surface = routing.conversationProfile === event.profile ? SpeechSurface.PANEL : SpeechSurface.TACTICAL;
-      return request(surface, event.profile, event.soldier, fields, routing, { npcUi: true });
+      return request(surface, event.profile, event.soldier, fields, routing, { npcUi: true, sector: event.sector });
     }
     case 'mercQuote': {
       const soldier = event.soldier >= 0 ? event.soldier : null;
@@ -534,10 +541,15 @@ function speechRequestOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineR
         sector: event.sector,
         panel: event.panel,
         helicopter: event.helicopter,
+        externalSoldier: event.soldier,
       });
     case 'headMinerQuote':
       if (event.quote < 0) return null;
-      return request(SpeechSurface.EXTERNAL, event.profile, null, fields, routing, { sector: event.sector, panel: event.panel });
+      return request(SpeechSurface.EXTERNAL, event.profile, null, fields, routing, {
+        sector: event.sector,
+        panel: event.panel,
+        externalSoldier: event.soldier,
+      });
     case 'shopkeeperQuote':
       return request(SpeechSurface.SHOPKEEPER, event.dealer, null, fields, routing);
     default:

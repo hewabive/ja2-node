@@ -9,6 +9,7 @@ import { type SpeechPlacement, SpeechScreen, TalkingUi } from './talking-ui.ts';
 const COLS = 160;
 const VILLAGER_TILE = 75 * COLS + 88;
 const NEAR_VILLAGER = VILLAGER_TILE + 2;
+const MINER_SOLDIER = 40;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -119,6 +120,25 @@ describe('speech surfaces in a stub campaign', () => {
     f.t.frame();
     expect(f.widget('speechFacePopup').rect).toMatchObject({ x: 10, y: 20, width: 99, height: 98 });
     expect(f.widget('speechTextBox').rect).toMatchObject({ x: mapBox.x, y: mapBox.y });
+  });
+
+  it("gives Skyrider or a head miner with a soldier the soldier's panel, the panel without a soldier otherwise (RenderFaceOverlay)", async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const presenter = f.screen.dialogue.presenter;
+    const map: SpeechPlacement = { screen: SpeechScreen.MAP, textBox: () => null, facePopup: () => null, carriedPopup: () => null };
+    const panels = () =>
+      new Set(f.draw().items.flatMap((item) => (item.kind === 'image' && item.asset.includes('communicationpopup') ? [item.asset] : [])));
+    const miner = { surface: SpeechSurface.EXTERNAL, profile: 106, soldier: null, text: 'Out of ore', chars: 10, voice: null };
+    const carried = (externalSoldier?: number) => {
+      presenter.skip(f.t.now, true);
+      f.t.frame(FINAL_TALKING_DELAY_MS + 1);
+      presenter.enqueue({ ...miner, sector: null, keyWait: false, ...(externalSoldier === undefined ? {} : { externalSoldier }) });
+      TalkingUi.of(presenter).follow(presenter.current, map, false);
+      f.t.frame();
+      return panels();
+    };
+    expect(carried(MINER_SOLDIER)).toEqual(new Set(['interface/communicationpopup.sti']));
+    expect(carried()).toEqual(new Set(['interface/communicationpopup_2.sti']));
   });
 
   it('takes no line from a frame the map screen took first, as both screens hear every frame', async () => {

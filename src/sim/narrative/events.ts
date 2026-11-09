@@ -28,6 +28,7 @@ export interface NpcQuoteEvent extends SimEventBase {
   readonly textKey: TextKey;
   readonly chars: number;
   readonly skipped?: boolean;
+  readonly sector?: string;
 }
 
 export interface LineCutEvent extends SimEventBase {

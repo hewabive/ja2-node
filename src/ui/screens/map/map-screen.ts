@@ -50,7 +50,9 @@
 // @src screen) (2026-11-06); Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (an item held, the town box, the
 // @src militia popup and the sector inventory shut every exit; the shared game checks by the clock view, 2026-11-06);
 // @src Strategic/Map_Screen_Helicopter.cc HandleSkyRiderMonologueEvent (SetExternMapscreenSpeechPanelXY, the panel of
-// @src each monologue), Strategic_Mines.cc IssueHeadMinerQuote (the panel clear of the miner's mine, 2026-11-09).
+// @src each monologue; TurnOnAirSpaceMode at its start and every special event), HandleAnimationOfSectors (the red
+// @src highlights first, the speaker's locator only without them, then the battle locator of RenderMapCursorsIndexesAnims),
+// @src Strategic_Mines.cc IssueHeadMinerQuote (the panel clear of the miner's mine, 2026-11-09).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -111,7 +113,7 @@ import { ContractMenu } from './contract-menu.ts';
 import { type MapEnvironment, MapLayout } from './environment.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from './event-boxes.ts';
 import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn } from './facts.ts';
-import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnTeams } from './filters.ts';
+import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnAirspace, turnOnTeams } from './filters.ts';
 import { cornerIcons, infoGeometry, renderCharacterInfo } from './info-panel.ts';
 import { type InvasionEvent, invasionBoxesOf, invasionText } from './invasion.ts';
 import { LayoutParams, type Params } from './layout-params.ts';
@@ -119,7 +121,7 @@ import { type MapAction, MapScreenController } from './map-controller.ts';
 import { accessibleInventory, MapInventory } from './map-inventory.ts';
 import { MenuMask } from './map-menu.ts';
 import { departureBox, insuranceBox, type PromptBox, type PromptContext, promptBox } from './map-prompts.ts';
-import { type ExternFaceStyle, MapSpeech } from './map-speech.ts';
+import { type ExternFaceStyle, type FaceArea, MapSpeech } from './map-speech.ts';
 import {
   allowedToHighlight,
   helicopterIconPosition,
@@ -173,6 +175,7 @@ const SUBTITLE_BOX = 'subtitleBox';
 const EXTERN_PANEL = 'externPanel';
 const EXTERN_FACE = 'externFace';
 const EXTERN_FACE_PANEL = 'commPanelNpc';
+const EXTERN_FACE_SOLDIER_PANEL = 'commPanel';
 const UPDATE_REASONS = 'pUpdateMercStrings';
 const UPDATE_BOX_PROMPT = 'updateBox';
 const UPDATE_CONTINUE = 1;
@@ -264,6 +267,7 @@ export interface MapScreenHook {
   readonly subtitle: string | null;
   readonly faceTalking: boolean;
   readonly speakerLocator: string | null;
+  readonly locators: readonly { readonly sector: string; readonly colour: Locator['colour'] }[];
 }
 
 type Point = { readonly x: number; readonly y: number };
@@ -435,6 +439,8 @@ export class MapScreen implements Screen {
       listed: (soldier) => this.list.rowOf(soldier) >= 0,
       select: (soldier) => this.#selectSpeaker(soldier),
       profile: (id) => env.media.profile(id),
+      soldierName: (soldier) => mercById(this.#strategic(), soldier)?.name ?? null,
+      worldSector: () => this.#strategic()?.worldSector ?? null,
       ensureImage: (path) => env.media.image(path),
       gaps: (file) => env.media.gaps(file),
       random: env.random,
@@ -473,13 +479,20 @@ export class MapScreen implements Screen {
   #externFaceStyle(): ExternFaceStyle {
     const style = this.#model.style(EXTERN_FACE) as Readonly<Record<string, unknown>>;
     const n = (value: unknown) => this.#model.number(value as number | string);
-    const [nameX, nameY, nameWidth, nameHeight] = (style.name as readonly unknown[]).map(n);
+    const area = (value: unknown): FaceArea => {
+      const [x = 0, y = 0, width = 0, height = 0] = (value as readonly unknown[]).map(n);
+      return [x, y, width, height];
+    };
     return {
       panel: this.#model.asset(EXTERN_FACE_PANEL).path,
+      panelWithSoldier: this.#model.asset(EXTERN_FACE_SOLDIER_PANEL).path,
       width: n(style.width),
       height: n(style.height),
       face: this.#stylePoint(style.face),
-      name: [nameX ?? 0, nameY ?? 0, nameWidth ?? 0, nameHeight ?? 0],
+      name: area(style.name),
+      nameWithSoldier: area(style.nameWithSoldier),
+      sector: area(style.sector),
+      sectorWidth: n(style.sectorWidth),
     };
   }
 
@@ -631,6 +644,7 @@ export class MapScreen implements Screen {
       subtitle: this.#speech.subtitle,
       faceTalking: this.#infoFace()?.talking ?? false,
       speakerLocator: this.#speech.locator,
+      locators: this.#locators().map((l) => ({ sector: sectorLabel(l.sector), colour: l.colour })),
     };
   }
 
@@ -875,6 +889,9 @@ export class MapScreen implements Screen {
         return;
       case 'mercDied':
         if (event.mapScreen) this.#env.sounds.mercDiedOffTheMap(event.soldier, event.cry ?? null);
+        return;
+      case 'skyriderMonologue':
+        this.#applyFilterEffects(turnOnAirspace(this.filters));
         return;
       case 'vehicleBoarded':
       case 'vehicleLeft':
@@ -2232,14 +2249,15 @@ export class MapScreen implements Screen {
   }
 
   #locators(): Locator[] {
-    const locators: Locator[] = [];
+    const highlights = (this.#strategic()?.skyriderHighlights ?? []).flatMap((label) => parseSectorLabel(label) ?? []);
+    const locators: Locator[] = highlights.filter((s) => s.z === this.#level).map((sector) => ({ sector, colour: 'red' }));
+    const spoken = highlights.length > 0 ? null : this.#speech.locator;
+    const at = spoken ? parseSectorLabel(spoken) : null;
+    if (at && at.z === this.#level) locators.push({ sector: at, colour: 'yellow' });
     const prompt = this.#playerView()?.prompt;
     const locator = this.#strategic()?.battleLocator ?? (prompt?.kind === 'preBattle' ? prompt.sector : null);
     const battle = locator ? parseSectorLabel(locator) : null;
     if (battle) locators.push({ sector: battle, colour: 'red' });
-    const spoken = this.#speech.locator;
-    const at = spoken ? parseSectorLabel(spoken) : null;
-    if (at && at.z === this.#level) locators.push({ sector: at, colour: 'yellow' });
     return locators;
   }
 

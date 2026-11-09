@@ -32,6 +32,7 @@ export type EconomyEvent =
       readonly skipped?: boolean;
       readonly panel?: ExternPanel;
       readonly sector?: string;
+      readonly soldier?: number;
     }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
   | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }

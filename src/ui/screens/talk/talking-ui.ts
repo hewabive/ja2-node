@@ -4,11 +4,15 @@
 // @src screen a line starts on, guiScreenIDUsedWhenUICreated), HandleDialogue (a talking face carried from the game screen
 // @src to the map screen loses its popup, and one without a soldier gets an unseen popup at 10, 20 whose click region
 // @src stays, as gfFacePanelActive is cleared after HandleTacticalSpeechUI; one carried from the map screen to the game
-// @src screen gets the popup at 10, 20 whatever the speech option, beside a popup the map screen showed, and keeps the
-// @src click region it had), HandleTacticalSpeechUI and HandleExternNPCSpeechFace (RegisterVideoOverlay, the region only
-// @src while fExternFaceBoxRegionCreated is clear), ExecuteTacticalTextBox (the box stays where it was created).
+// @src screen gets the popup at 10, 20 whatever the speech option and keeps the click region it had),
+// @src HandleTacticalSpeechUI and HandleExternNPCSpeechFace (RegisterVideoOverlay into the face's one overlay, so a face
+// @src that already has one leaves it registered for good; the region only while fExternFaceBoxRegionCreated is clear),
+// @src HandleDialogueEnd (with SPEECH on only: the face's overlay and the region go, for a tactical line only while
+// @src gfFacePanelActive is set), HandleShutDownOfMapScreenWhileExternfaceIsTalking (the talking face's overlay goes as
+// @src the map screen closes while the region exists), RenderFaceOverlay (every registered overlay shows the talking face
+// @src while gfFacePanelActive is set), ExecuteTacticalTextBox (the box stays where it was created).
 
-import type { ActiveLine, SpeechLine, SpeechPresenter } from '../../speech.ts';
+import { type ActiveLine, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import type { SubtitlePlace } from './subtitle-box.ts';
 
 export const SpeechScreen = { TACTICAL: 'tactical', MAP: 'map' } as const;
@@ -26,15 +30,24 @@ export interface SpeechPlacement {
   carriedPopup(line: SpeechLine): UiPoint | null;
 }
 
+interface FaceOverlay {
+  face: string | null;
+  readonly at: UiPoint;
+}
+
 const NO_LINE = -1;
 const talkingUis = new WeakMap<SpeechPresenter, TalkingUi>();
 
+function faceOf(line: SpeechLine): string {
+  return `${line.surface}:${line.profile}`;
+}
+
 export class TalkingUi {
-  #line = NO_LINE;
+  #line: SpeechLine | null = null;
   #screen: SpeechScreen = SpeechScreen.TACTICAL;
   #textBox: SubtitlePlace | null = null;
-  #popups: UiPoint[] = [];
-  #popupShown = false;
+  #overlays: FaceOverlay[] = [];
+  #panelActive = false;
   #region: UiPoint | null = null;
 
   static of(presenter: SpeechPresenter): TalkingUi {
@@ -47,7 +60,7 @@ export class TalkingUi {
   }
 
   get line(): number {
-    return this.#line;
+    return this.#line?.id ?? NO_LINE;
   }
 
   get textBox(): SubtitlePlace | null {
@@ -55,7 +68,7 @@ export class TalkingUi {
   }
 
   get popups(): readonly UiPoint[] {
-    return this.#popupShown ? this.#popups : [];
+    return this.#panelActive && this.#line ? this.#overlays.map((o) => o.at) : [];
   }
 
   get region(): UiPoint | null {
@@ -63,49 +76,66 @@ export class TalkingUi {
   }
 
   follow(current: ActiveLine | null, placement: SpeechPlacement, speechOn: boolean): void {
-    if (!current) this.#clear();
-    else if (current.line.id !== this.#line) this.#create(current.line, placement, speechOn);
+    const line = this.#line;
+    if (line && line.id !== current?.line.id) this.#end(line, speechOn);
+    if (!current) return;
+    if (!this.#line) this.#create(current.line, placement, speechOn);
     else if (this.#screen !== placement.screen) this.#carry(current.line, placement);
   }
 
-  #clear(): void {
-    this.#line = NO_LINE;
-    this.#textBox = null;
-    this.#popups = [];
-    this.#popupShown = false;
-    this.#region = null;
+  endMapScreen(): void {
+    if (this.#region && this.#line) this.#removeOverlayOf(faceOf(this.#line));
   }
 
   #create(line: SpeechLine, placement: SpeechPlacement, speechOn: boolean): void {
-    this.#clear();
-    this.#line = line.id;
+    this.#line = line;
     this.#screen = placement.screen;
     this.#textBox = placement.textBox(line);
     const popup = speechOn ? placement.facePopup(line) : null;
-    if (popup) this.#register(popup);
+    if (popup) this.#register(faceOf(line), popup);
   }
 
   #carry(line: SpeechLine, placement: SpeechPlacement): void {
     if (placement.screen === SpeechScreen.MAP) this.#carryToMap(line, placement);
-    else this.#registerIfAny(placement.carriedPopup(line));
+    else this.#registerIfAny(faceOf(line), placement.carriedPopup(line));
     this.#screen = placement.screen;
   }
 
   #carryToMap(line: SpeechLine, placement: SpeechPlacement): void {
-    if (!this.#popupShown) return;
-    this.#popups.pop();
+    if (!this.#panelActive) return;
+    const face = faceOf(line);
+    this.#removeOverlayOf(face);
     this.#region = null;
-    this.#registerIfAny(placement.carriedPopup(line));
-    this.#popupShown = false;
+    this.#registerIfAny(face, placement.carriedPopup(line));
+    this.#panelActive = false;
   }
 
-  #registerIfAny(popup: UiPoint | null): void {
-    if (popup) this.#register(popup);
+  #end(line: SpeechLine, speechOn: boolean): void {
+    this.#line = null;
+    this.#textBox = null;
+    if (!speechOn || !this.#endTakesFaceDown(line)) return;
+    this.#removeOverlayOf(faceOf(line));
+    this.#panelActive = false;
+    this.#region = null;
   }
 
-  #register(popup: UiPoint): void {
-    this.#popups.push(popup);
+  #endTakesFaceDown(line: SpeechLine): boolean {
+    if (line.surface === SpeechSurface.EXTERNAL) return true;
+    return line.surface === SpeechSurface.TACTICAL && this.#panelActive;
+  }
+
+  #registerIfAny(face: string, popup: UiPoint | null): void {
+    if (popup) this.#register(face, popup);
+  }
+
+  #register(face: string, popup: UiPoint): void {
+    for (const o of this.#overlays) if (o.face === face) o.face = null;
+    this.#overlays.push({ face, at: popup });
     this.#region ??= popup;
-    this.#popupShown = true;
+    this.#panelActive = true;
+  }
+
+  #removeOverlayOf(face: string): void {
+    this.#overlays = this.#overlays.filter((o) => o.face !== face);
   }
 }

@@ -2194,6 +2194,31 @@ function addExternPanel(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const REFUEL_SITE_AVAILABLE_KEY = 'refuelSiteAvailable';
+const HIGHLIGHTS_KEY = 'highlights';
+
+function isHelicopterStateRecord(o: JsonObject): boolean {
+  return typeof o.talkState === 'number' && typeof o.saidCongratsOnTakingSam === 'boolean' && o[REFUEL_SITE_AVAILABLE_KEY] !== undefined;
+}
+
+function noHighlights(): JsonObject {
+  return { drassenSam: false, cambriaHospital: false, otherSams: false, estoniRefuel: false };
+}
+
+function withMonologueHighlights(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withMonologueHighlights(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withMonologueHighlights(v);
+  return isHelicopterStateRecord(mapped) ? insertAfter(mapped, REFUEL_SITE_AVAILABLE_KEY, HIGHLIGHTS_KEY, noHighlights()) : mapped;
+}
+
+function addMonologueHighlights(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withMonologueHighlights(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2268,5 +2293,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     70: addBoundingFrame,
     71: addRevealedAtLoad,
     72: addExternPanel,
+    73: addMonologueHighlights,
   };
 }

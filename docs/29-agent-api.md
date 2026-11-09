@@ -201,8 +201,13 @@ relationship and morale lines, Skyrider and the head miners. Their `mercQuote`, 
 events come when the queue says them, after the lines queued before, not at the step that caused them; a line whose
 speaker can no longer talk when its turn comes is not said, and a save is refused while lines play (`27`). A Skyrider
 or head miner line carries `panel` when a monologue (`{monologue}`) or the miner's mine (`{mine}`) placed the map
-screen's face popup since the last line ended, and `sector`, where the map screen's locator goes as it starts
-(`helicopter` when that is Skyrider's helicopter); a merc line without a soldier carries his profile's `sector`.
+screen's face popup since the last line ended, `sector`, where the map screen's locator goes as it starts
+(`helicopter` when that is Skyrider's helicopter), and `soldier` when a soldier has the speaker's profile, whose panel
+the face popup takes; a merc line without a soldier carries his profile's `sector`, and an `npcQuote` the `sector` of
+the NPC's soldier or profile (none in a meanwhile). A Skyrider monologue brings `skyriderMonologue {topic, step}` as it
+starts (`step` 0) and as the queue reaches each of its special events (1, 2): the map screen turns its airspace filter on
+at each, and while he talks about them `strategic.skyriderHighlights` names the sectors that flash red there (the SAM
+sites, the Cambria hospital or Estoni), in place of the speaker's locator.
 
 ### 4.5 Conversations in game time
 

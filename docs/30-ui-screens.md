@@ -160,10 +160,16 @@ the lips of the info face, makes him the info character with speech on (on entry
 face; the box, the face, Backspace and Esc cut it, opening the contract menu or the laptop stops it
 (`map/map-speech.ts`). Skyrider and the head miners talk there in the external face popup with their box 97 to its
 right, at the panel the line event names (a Skyrider monologue's or the miner's mine's, `panel`; the default
-otherwise), and a merc line without a soldier in the popup at the screen's 10, 20. The yellow locator takes the sector the line event names as the line starts (`sector`; Skyrider's helicopter,
-`helicopter`, not while the airspace shows). Which screen a line started on and where its box and popups went is the
-session presenter's `TalkingUi` (`talk/talking-ui.ts`), so a line carried across a screen switch keeps its box where it
-was and takes the original's popup changes. The rest is gap "Map screen speech".
+otherwise), and a merc line without a soldier in the popup at the screen's 10, 20. An external speaker with a soldier
+(the line event's `soldier`) gets the soldier's panel and name. The yellow locator takes the sector the line event names
+as the line starts (`sector`, an NPC's line too; Skyrider's helicopter, `helicopter`, not while the airspace shows). A
+Skyrider monologue turns the airspace filter on as it starts and at each of its special events (`skyriderMonologue`,
+`TurnOnAirSpaceMode`), and the sectors he talks about flash red in place of the speaker's locator
+(`strategic.skyriderHighlights`). The face popups are the original's face overlays: `TalkingUi` (`talk/talking-ui.ts`),
+held by the session presenter, keeps which screen a line started on, where its box went, every popup registered, the
+click region and whether the face panel is active, as `Dialogue_Control.cc` keeps them in globals, so a line carried
+across a screen switch keeps its box where it was and takes the original's popup changes, and a popup the original
+leaves registered stays and shows later lines (quirks below). The rest is gap "Map screen speech".
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes, the parts a repairman leaves drawn in
@@ -352,6 +358,10 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The zoom into a sector adds 0.05 past half way where the first half adds 0.5, so it reaches 100 % at 99 % of its time (`Strategic/StrategicMap.cc:223`) | `front-end/sector-zoom.test.ts` "adds 0.05 where the first half adds 0.5 …" |
 | The zoom into a sector aims at the same pixels at any screen size: its target is not moved by `STD_SCREEN_X` and `STD_SCREEN_Y` (`Strategic/StrategicMap.cc:232`) | `front-end/sector-zoom.test.ts` "aims at the same pixels on a wider screen …" |
 | Alt+Load and Alt+C open the load screen until a Dead is Dead game names its save, then load the newest save of any kind for good: Stracciatella sets `bLastSavedGameSlot` (the client setting `lastSavedGameSlot`) only there, to the first list entry | `front-end/front-end.test.ts` "sets the last saved slot to 0 for good …" |
+| With speech off a line carried from the map into tactical keeps its popup at 10, 20 and its click region after it ends, as only `HandleDialogueEnd` with speech on takes them down; every later line shows in that popup while the face panel is active (`Tactical/Dialogue_Control.cc:386`, `:1128`) | `talk/talking-ui.test.ts` "leaves the popup of a line carried from the map up with speech off …" |
+| A line without a soldier carried from tactical to the map leaves an unseen popup at 10, 20 and its click region after it ends, as `HandleDialogueEnd` takes a tactical face down only while the face panel is active; the next popup shows there too (`Tactical/Dialogue_Control.cc:352`, `:1145`) | `talk/talking-ui.test.ts` "leaves the unseen popup of a line without a soldier carried to the map registered …" |
+| A face that registers a popup while it has one leaves the old one registered for good, as `RegisterVideoOverlay` overwrites the face's one overlay (`Tactical/Dialogue_Control.cc:1035`, `:1096`) | `talk/talking-ui.test.ts` "keeps for good the popup a face had registered …" |
+| A popup the map showed goes as the map screen closes, while its click region stays for the popup at 10, 20 a carried line gets (`Strategic/MapScreen.cc:3121`, `Tactical/Dialogue_Control.cc:1605`) | `talk/talking-ui.test.ts` "drops the map's popup as the map screen closes …" |
 
 Not pinned yet:
 - `GlowTrashCan` never shows a glow: its colour index stays 0 (`map/merc-inventory.ts`).

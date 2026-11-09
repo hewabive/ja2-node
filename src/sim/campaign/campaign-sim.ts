@@ -16,7 +16,8 @@
 // @src order) and GameLoop.cc UpdateClock after it (2026-11-06); GameScreen.cc MainGameScreenHandle's gfTacticalDoHeliRun,
 // @src the run started before the next input once the frame or command that set it is done; Turn_Based_Input.cc
 // @src GetKeyboardInput's gate for a locked UI (Tactical/Turn_Based_Input.cc:2330) and Handle_UI.cc's full-screen
-// @src gDisableRegion, which leave the drop no key and no button but Esc (2026-11-08).
+// @src gDisableRegion, which leave the drop no key and no button but Esc (2026-11-08); Tactical/Faces.cc SetFaceTalking
+// @src (an NPC's line turns the sector locator on too, never in a meanwhile, 2026-11-09).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -846,6 +847,10 @@ export class CampaignSim {
         return { ...e, ...this.#speakerLocator(e.profile ?? SKYRIDER) };
       case 'headMinerQuote': {
         const sector = this.#speakerLocator(e.profile)?.sector;
+        return sector ? { ...e, sector } : e;
+      }
+      case 'npcQuote': {
+        const sector = this.queen && areInMeanwhile(this.queen) ? null : this.#speakerLocator(e.profile)?.sector;
         return sector ? { ...e, sector } : e;
       }
       case 'shopkeeperQuote':

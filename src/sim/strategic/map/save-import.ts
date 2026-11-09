@@ -95,7 +95,11 @@ function passengerSlots(saved: readonly (number | null)[], byProfile: Map<number
 }
 
 function importHelicopter(saved: SavedHelicopter): HelicopterState {
-  return { ...saved, refuelSiteAvailable: REFUEL_SITES.map((_, i) => saved.refuelSiteAvailable[i] === true) };
+  return {
+    ...saved,
+    refuelSiteAvailable: REFUEL_SITES.map((_, i) => saved.refuelSiteAvailable[i] === true),
+    highlights: { ...saved.highlights },
+  };
 }
 
 function savedVehicleSoldiers(save: SaveGame): VehicleSoldierEntry[] {

@@ -38,6 +38,7 @@ const DRASSEN_TOWN = 2;
 const LOYAL = 50;
 const DRASSEN_MINE = 1;
 const DRASSEN_SECTORS = ['B13', 'C13', 'D13'];
+const FRED = 106;
 const FRED_RUNNING_OUT = 17;
 const FRED_CREATURES_GONE = 27;
 const TEN_MINUTES_OF_TICKS = 200 * 600;
@@ -126,6 +127,23 @@ describe("Skyrider's monologue (Map_Screen_Helicopter.cc SkyriderDialogueWithSpe
     expect(queued()).toEqual([secondHalf, 'callback']);
     expect(map()?.secretsFound).toContain(DRASSEN_SAM);
   });
+
+  it('announces each special event as the queue runs it and flashes the Drassen SAM site between the two', async () => {
+    const c = await onTheMap(124);
+    const campaign = c.session.campaign;
+    const ctx = campaign.strategic;
+    if (!ctx) throw new Error('no strategic layer');
+    const skyrider = kit.content.profiles[SKYRIDER];
+    if (skyrider) campaign.state.profiles.set(SKYRIDER, progressFromProfile(skyrider));
+    setUpHelicopterForPlayer(ctx, parseSectorString('B13'));
+    const steps = (events: readonly SimEvent[]) => events.flatMap((e) => (e.type === 'skyriderMonologue' ? [e.step] : []));
+    expect(steps(c.live.advance({ events: ['skyriderMonologue'] }).events)).toEqual([0]);
+    expect(c.session.view().strategic?.skyriderHighlights).toBeUndefined();
+    expect(steps(c.live.advance({ events: ['skyriderMonologue'] }).events)).toEqual([1]);
+    expect(c.session.view().strategic?.skyriderHighlights).toEqual([DRASSEN_SAM]);
+    expect(steps(c.live.advance({ events: ['skyriderMonologue'] }).events)).toEqual([2]);
+    expect(c.session.view().strategic?.skyriderHighlights).toBeUndefined();
+  });
 });
 
 describe("the locator of a merc's line without a soldier (Map_Screen_Interface.cc TurnOnSectorLocator)", () => {
@@ -138,6 +156,29 @@ describe("the locator of a merc's line without a soldier (Map_Screen_Interface.c
     characterDialogue(talk.host, VANT + 2, MercQuote.HEADSHOT, false, false);
     const line = c.live.advance({ events: ['mercQuote'] }).events.find((e) => e.type === 'mercQuote');
     expect(line).toMatchObject({ soldier: -1, profile: VANT + 2, sector: 'B13' });
+  });
+});
+
+describe("the locator of an NPC's line (Faces.cc SetFaceTalking, Map_Screen_Interface.cc TurnOnSectorLocator)", () => {
+  async function npcLine(seed: number, inMeanwhile: boolean): Promise<SimEvent | undefined> {
+    const c = await onTheMap(seed);
+    const talk = c.session.campaign.talk;
+    const fred = c.session.campaign.state.profiles.get(FRED);
+    if (!talk || !fred) throw new Error('no talk flow or no profile for Fred');
+    Object.assign(fred, { sectorX: 13, sectorY: 4, sectorZ: 0 });
+    characterDialogue(talk.host, FRED, FRED_RUNNING_OUT, true, false);
+    c.session.campaign.state.meanwhile.inScene = inMeanwhile;
+    return c.live.advance({ events: ['npcQuote'] }).events.find((e) => e.type === 'npcQuote');
+  }
+
+  it("marks the sector of the NPC's profile as his line starts", async () => {
+    expect(await npcLine(129, false)).toMatchObject({ profile: FRED, sector: 'D13' });
+  });
+
+  it('marks no sector in a meanwhile', async () => {
+    const line = await npcLine(130, true);
+    expect(line).toMatchObject({ profile: FRED });
+    expect(line).not.toHaveProperty('sector');
   });
 });
 
