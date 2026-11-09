@@ -176,9 +176,11 @@ click region and whether the face panel is active, as `Dialogue_Control.cc` keep
 across a screen switch keeps its box where it was and takes the original's popup changes, and a popup the original
 leaves registered stays and shows later lines (quirks below). A face deleted with its soldier takes its popup down
 (`DeleteFace`): every soldier face at a load in place (`discardLines`), the one still talking ending its talking UI as
-at the end of its line, and a departing merc's as `mercLeft` comes (`src/app/sound/session-speech.ts`), once a line of
-his still playing is over, as the original removes him only after the lines queued before; a face the original never
-deletes, Skyrider's or a head miner's, keeps a popup it left up.
+at the end of its line, a departing merc's as `mercLeft` comes and a released escort's as `epcReleased` comes
+(`src/app/sound/session-speech.ts`), once a line of his still playing is over, as the original removes him only after
+the lines queued before (the map screen's release of an escort queues it after his line), and the face of the profile
+Larry leaves as the view shows his profile swapped (`SwapLarrysProfiles`), the same way; a face the original never
+deletes, Skyrider's or a head miner's, keeps a popup it left up. The rest is gaps "Soldier face deletion".
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes, the parts a repairman leaves drawn in

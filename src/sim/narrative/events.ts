@@ -129,6 +129,12 @@ export interface AlarmEvent extends SimEventBase {
   readonly kind: 'kingpin' | 'museum' | 'klaxon';
 }
 
+export interface EpcReleasedEvent extends SimEventBase {
+  readonly type: 'epcReleased';
+  readonly profile: number;
+  readonly soldier: number | null;
+}
+
 export type GiveEvent = ItemGivenEvent | GiveAbortedEvent | NpcTookItemEvent | ItemReturnedEvent | NpcGaveItemEvent;
 
 export type NarrativeEvent =
@@ -143,7 +149,8 @@ export type NarrativeEvent =
   | TalkAbortedEvent
   | GiveEvent
   | SexSceneEvent
-  | AlarmEvent;
+  | AlarmEvent
+  | EpcReleasedEvent;
 
 type Emitted = NarrativeEvent | MercQuoteEvent | SkyriderQuoteEvent | SoldierLocatedEvent | ItemsLocatedEvent;
 
