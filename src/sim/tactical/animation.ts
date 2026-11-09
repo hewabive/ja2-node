@@ -25,7 +25,8 @@
 // @src of a native save's pending action, freeing a give's target the load made before the giver (2026-11-08; GetMan
 // @src reaches the target in any sector, 2026-11-09);
 // @src SetSoldierLocatorOffsets at the end of EVENT_InitNewSoldierAnim and EVENT_SetSoldierDirection, the frame
-// @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09).
+// @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09); its count of a MERC_PICKUPITEM
+// @src (2026-11-09).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -82,6 +83,7 @@ import { setSoldierHeight } from './roofs.ts';
 import { effectiveAgility } from './skills.ts';
 import {
   Body,
+  dropPickupFromTheSlot,
   hasThreatenStance,
   inSector,
   isCreatureOrBloodcat,
@@ -91,6 +93,7 @@ import {
   NOBODY,
   NOWHERE,
   OKLIFE,
+  pickupInTheSlot,
   type SavedPendingAction,
   type Soldier,
   Team,
@@ -1164,12 +1167,16 @@ function setJumpOverPath(t: TacticalState, s: Soldier, state: number): void {
 const PENDING_COUNT_RESET_STATES = ['WALKING', 'SWATTING', 'CRAWLING', 'RUNNING', 'ADULTMONSTER_WALKING', 'ROBOT_WALK'];
 
 function countedPendingAction(s: Soldier): { animCount: number } | null {
-  return s.pendingMelee ?? s.heldGiveAction ?? s.savedPendingAction;
+  return s.pendingMelee ?? pickupInTheSlot(s) ?? s.heldGiveAction ?? s.savedPendingAction;
 }
 
 function dropCountedPendingAction(t: TacticalState, s: Soldier): void {
   if (s.pendingMelee) {
     s.pendingMelee = null;
+    return;
+  }
+  if (pickupInTheSlot(s)) {
+    dropPickupFromTheSlot(s);
     return;
   }
   if (s.savedPendingAction) {

@@ -3877,3 +3877,49 @@ describe('snapshot version 77 (no structure ID for a door or container interacti
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function withoutPickupCount(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPickupCount(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutPickupCount(v);
+  const pickup = out.pendingPickup;
+  if (typeof pickup !== 'object' || pickup === null || Array.isArray(pickup)) return out;
+  const { animCount: _animCount, dropped: _dropped, ...data } = pickup as JsonObject;
+  return { ...out, pendingPickup: data };
+}
+
+function versionSeventyEight(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutPickupCount(value)]);
+  return { ...snapshot, version: 78, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 78 (a pending pickup without its count) migrates with the count of a walk up to it, still the pending action', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with a merc walking up to a pile and another picking one up on the spot', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const [walker, onTheSpot] = teamMembers(sandbox.sim.state, Team.OUR);
+    if (!walker || !onTheSpot) throw new Error('no mercs');
+    walker.pathSize = 3;
+    const ahead = walker.gridNo + 3;
+    walker.pendingPickup = { gridNo: ahead, actionGridNo: ahead, zLevel: 0, selection: null, animCount: 1, dropped: false };
+    const here = onTheSpot.gridNo;
+    onTheSpot.pendingPickup = { gridNo: here, actionGridNo: here, zLevel: 0, selection: null, animCount: 0, dropped: false };
+    const current = snapshotSession(sandbox);
+    const legacy = versionSeventyEight(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"dropped"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

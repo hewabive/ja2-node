@@ -2303,6 +2303,32 @@ function addPendingDoorStructureId(snapshot: Readonly<Record<string, unknown>>):
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_PICKUP_KEY = 'pendingPickup';
+const PICKUP_SELECTION_KEY = 'selection';
+const COUNTED_BY_THE_WALK = 1;
+
+function withPickupInTheSlot(soldier: JsonObject): JsonObject {
+  const pickup = soldier[PENDING_PICKUP_KEY];
+  if (!isObject(pickup) || pickup.animCount !== undefined) return soldier;
+  const animCount = numberField(soldier, 'pathSize') > 0 ? COUNTED_BY_THE_WALK : 0;
+  const counted = insertAfter(pickup, PICKUP_SELECTION_KEY, 'animCount', animCount);
+  return { ...soldier, [PENDING_PICKUP_KEY]: insertAfter(counted, 'animCount', 'dropped', false) };
+}
+
+function withCountedPickups(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withCountedPickups(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withCountedPickups(v);
+  return isSoldierRecord(mapped) ? withPickupInTheSlot(mapped) : mapped;
+}
+
+function countPickupsInTheSlot(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withCountedPickups(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2382,5 +2408,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     75: addSavedPendingDirection,
     76: renameSavedPendingDirection,
     77: addPendingDoorStructureId,
+    78: countPickupsInTheSlot,
   };
 }

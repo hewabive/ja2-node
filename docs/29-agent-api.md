@@ -515,7 +515,8 @@ his refusing line) but no AP check, so in combat he may stop short of the tile. 
 `previewAction pickUp` answers too. Hidden items turn up with his
 spotted-something line; otherwise, and whenever a pile is gone by the time he gets there, the `nothingFound` event
 carries his NOTHING battle sound. `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
-pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A melee attack at a
+pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A `stop` during the
+pickup animation still picks up, as the animation reads the order's data (`12` §3). A melee attack at a
 soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
@@ -659,7 +660,8 @@ gear, night first, and the client keeps that turn.
 Auto-bandage (`src/sim/tactical/auto-bandage.ts`, `12` §8; deviation "Auto-bandage") is the `a` key and the end-of-battle
 question as commands. `autoBandage` refuses with the original's OK boxes in its order (`sectorNotCleared`,
 `nobodyToBandage`, `noMedKit`, `cannotAutoBandage`, after `uiLocked`) or opens the `beginAutoBandage` prompt; a won
-battle opens the same prompt by itself once its lines are over and nobody of ours walks up to act, or gives
+battle opens the same prompt by itself once its lines are over and nobody of ours has an action pending (walking up to
+act, or after a give or a pickup on the spot that left one until his next order, `12` §3), or gives
 `autoBandageRefused {refusal}` when the sector changed meanwhile. `yes` starts the mode (`autoBandageStarted {medics,
 patients}`): the world clock stands, every tick is one frame of the original's `HandleAutoBandage`, and
 `observe.autoBandage {complete, medics, patients}` is the box of medics and patients, whose bars the soldiers' own

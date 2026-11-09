@@ -165,6 +165,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
 | A pass to a merc without room for all of it still costs both mercs their 3 AP, and what fits stays with him: the APs go before `AutoPlaceObject` | `item-pointer.test.ts` |
 | An item dropped on the second tile of a long table rolls to its base, but the mark stays on the tile it was dropped on: its pickup clears the base tile alone | `world-items.test.ts` "keeps the mark on the tile an item was dropped on …" |
+| A pickup on his own tile crouched, prone or in water takes the items at once and leaves `MERC_PICKUPITEM` pending, which holds the auto-bandage question back until his next order; a walk-up one counted its walk, so the stance change that ends it drops the action (`Tactical/Soldier_Control.cc:8156-8164`, `:8220-8228`, `:1674`) | `item-actions.test.ts` "keeps it after a pickup on the spot …", "holds the auto-bandage question back …", "is dropped by the change out of the swat …" |
+| A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1560`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts
@@ -453,7 +455,8 @@ The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
   outside the Deidranna endgame (the sector hook `inDeidrannaEndgame`) and with a medic for a patient. The normal pass
   runs `handleAutoBandagePending` right after the real-time turn, as `MainGameScreenHandle` runs it after
   `HandleStrategicTurn`. It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
-  seats of a helicopter drop under way included) or the interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
+  seats of a helicopter drop under way included; a pickup on the spot crouched, prone or in water leaves one, §3) or
+  the interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
   original's OK box), otherwise the same prompt opens, and the rest of the pass runs. While the question is due the sim is
   not idle. Leaving tactical (the map screen, a contract's switch to it), opening a shop and a meanwhile's start drop it
   (deviation "Pending auto-bandage and client screens"); a sector change does not. A soldier arriving to open a door

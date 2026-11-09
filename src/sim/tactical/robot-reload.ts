@@ -17,7 +17,7 @@ import { autoPlaceObject, InvSlot, itemIn, reloadGun } from './inventory.ts';
 import { compatibleAmmoForGun } from './item-compatibility.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { enoughPoints } from './points.ts';
-import { Body, type Soldier } from './soldier.ts';
+import { Body, pickupInTheSlot, type Soldier } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
@@ -86,7 +86,7 @@ export function soldierReloadRobot(t: TacticalState, s: Soldier, robot: Soldier,
   s.tempObject = cloneObject(ammo);
   removeObjects(source, 1);
   s.pendingActionData2 = approach.targetGridNo;
-  const held = s.heldGiveAction ?? s.savedPendingAction;
+  const held = s.heldGiveAction ?? s.savedPendingAction ?? pickupInTheSlot(s);
   if (held) held.animCount = 0;
   if (s.gridNo === approach.actionGridNo) beginReloadRobot(t, s, approach.targetGridNo, approach.direction);
   else {

@@ -335,12 +335,14 @@ describe('the typed record a saved pending action becomes (Soldier.cc handlePend
     }
   });
 
-  it('takes uiPendingActionData4 as the tile, sPendingActionData2 as the tile to pick up from and bPendingActionData3 as the height for a pickup, with no item chosen', () => {
-    expect(adopted({ ...saved(MERC_PICKUPITEM), data3: ON_A_STRUCTURE }).pendingPickup).toEqual({
+  it('takes uiPendingActionData4 as the tile, sPendingActionData2 as the tile to pick up from and bPendingActionData3 as the height for a pickup, with no item chosen and the saved count', () => {
+    expect(adopted({ ...saved(MERC_PICKUPITEM), data3: ON_A_STRUCTURE, animCount: 2 }).pendingPickup).toEqual({
       gridNo: WALKED_TO,
       actionGridNo: TARGET_TILE,
       zLevel: ON_A_STRUCTURE,
       selection: null,
+      animCount: 2,
+      dropped: false,
     });
   });
 

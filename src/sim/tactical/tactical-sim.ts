@@ -655,7 +655,6 @@ export class TacticalSim {
       s.inNonInterruptibleAnimation ||
       s.delayedMovement !== 0 ||
       s.pendingAnimation !== -1 ||
-      s.pendingPickup !== null ||
       s.tempObject !== null ||
       s.breathCollapsed
     );

@@ -19,7 +19,16 @@ import { autoPlaceObject, NO_SLOT } from './inventory.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { AP, deductPoints } from './points.ts';
 import { profileProgress } from './profiles.ts';
-import { type HeldGiveAction, MERC_GIVE_ITEM, NO_PROFILE, NOBODY, type PendingGive, type Soldier, Team } from './soldier.ts';
+import {
+  dropPickupFromTheSlot,
+  type HeldGiveAction,
+  MERC_GIVE_ITEM,
+  NO_PROFILE,
+  NOBODY,
+  type PendingGive,
+  type Soldier,
+  Team,
+} from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
@@ -86,6 +95,7 @@ export function anyMercHoldsGiveItem(t: TacticalState): boolean {
 export function dropHeldActions(s: Soldier): void {
   s.heldGiveAction = null;
   s.savedPendingAction = null;
+  dropPickupFromTheSlot(s);
 }
 
 export function handlePendingGiveOnArrival(t: TacticalState, s: Soldier): boolean {

@@ -8,12 +8,14 @@ import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { ItemsPickedUpEvent, SimEvent } from '../events.ts';
 import { createItem } from '../items/object.ts';
-import { changeSoldierStance } from './animation.ts';
+import { AnimHeight, changeSoldierStance } from './animation.ts';
+import { autoBandageQuestionDue } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { adjustGridNoForItemPlacement, apsToPickupItem, apsToReachItems, soldierPickupItem } from './item-actions.ts';
 import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from './narrative/port.ts';
+import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
@@ -26,6 +28,7 @@ beforeAll(async () => {
 });
 
 const item = (name: string) => content.items.byName.get(name)?.index ?? -1;
+const WALK_TICKS = 2_000;
 
 describe('picking up and dropping items', () => {
   it('picks up every visible item on the tile with the pickup animation and charges AP_PICKUP_ITEM once', () => {
@@ -256,6 +259,66 @@ function pickUp(s: PickupScene, name: string, status = COOL_STATUS): ItemsPicked
   }
   return events.find((e): e is ItemsPickedUpEvent => e.type === 'itemsPickedUp');
 }
+
+describe('the MERC_PICKUPITEM a pickup leaves pending (Soldier_Control.cc PickPickupAnimation, EVENT_InitNewSoldierAnim)', () => {
+  const PILE = gridNo(80, 80);
+  const AWAY = gridNo(84, 80);
+
+  function pickerAt(sim: TacticalSim, at: number, stance: number): Soldier {
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, at, Direction.SOUTH);
+    if (stance !== AnimHeight.STAND) changeSoldierStance(t, merc, stance);
+    runUntilIdle(sim);
+    addItemToPool(t, PILE, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0);
+    return merc;
+  }
+
+  function pickedUpOnTheSpot(stance: number, terrain: number | null = null): { sim: TacticalSim; merc: Soldier } {
+    const sim = newCombatSim(content);
+    if (terrain !== null) sim.state.world.terrain[PILE] = terrain;
+    const merc = pickerAt(sim, PILE, stance);
+    expect(sim.dispatch({ type: 'pickUp', soldier: merc.id })).toEqual({ ok: true });
+    expect([merc.inv.some((o) => o.item === item('CANTEEN')), sim.isIdle()]).toEqual([true, true]);
+    return { sim, merc };
+  }
+
+  it('keeps it after a pickup on the spot crouched, prone or in water, which takes the items at once with no animation (:8156-8164, :8220-8228)', () => {
+    const kept = [
+      pickedUpOnTheSpot(AnimHeight.CROUCH),
+      pickedUpOnTheSpot(AnimHeight.PRONE),
+      pickedUpOnTheSpot(AnimHeight.STAND, Terrain.LOW_WATER),
+    ].map(({ merc }) => hasPendingAction(merc));
+    expect(kept).toEqual([true, true, true]);
+  });
+
+  it('holds the auto-bandage question back while kept, until his next order replaces it (Auto_Bandage.cc:156)', () => {
+    const { sim, merc } = pickedUpOnTheSpot(AnimHeight.CROUCH);
+    sim.state.autoBandage.pending = true;
+    expect(autoBandageQuestionDue(sim.state)).toBe(false);
+    expect(sim.dispatch({ type: 'move', soldier: merc.id, to: AWAY })).toEqual({ ok: true });
+    expect([hasPendingAction(merc), autoBandageQuestionDue(sim.state)]).toEqual([false, true]);
+  });
+
+  it('is dropped by the change out of the swat that ends a walk-up crouched pickup, as the walk counted once (Soldier_Control.cc:1674)', () => {
+    const sim = newCombatSim(content);
+    const merc = pickerAt(sim, AWAY, AnimHeight.CROUCH);
+    expect(sim.dispatch({ type: 'pickUp', soldier: merc.id, gridNo: PILE })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect([merc.gridNo, merc.inv.some((o) => o.item === item('CANTEEN')), hasPendingAction(merc)]).toEqual([PILE, true, false]);
+  });
+
+  it('leaves the pickup animation its data once the change into it dropped the action, so a stop meanwhile still picks up (Soldier_Ani.cc:1560)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = pickerAt(sim, AWAY, AnimHeight.STAND);
+    expect(sim.dispatch({ type: 'pickUp', soldier: merc.id, gridNo: PILE })).toEqual({ ok: true });
+    for (let tick = 0; tick < WALK_TICKS && t.content.animations.controls[merc.state]?.id !== 'PICKUP_ITEM'; tick++) sim.step();
+    expect([merc.gridNo, hasPendingAction(merc)]).toEqual([PILE, false]);
+    expect(sim.dispatch({ type: 'stop', soldier: merc.id })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect([merc.inv.some((o) => o.item === item('CANTEEN')), merc.pendingPickup]).toEqual([true, null]);
+  });
+});
 
 describe('the found-something-special line (Handle_Items.cc SoldierGetItemFromWorld, Items.cc ItemIsCool)', () => {
   it('has a merc with that quote say it once for a weapon of deadliness 30 in 60% shape, and the GOTIT sound after that', () => {

@@ -19,7 +19,9 @@
 // @src SwitchMessageBoxCallBack (2026-11-04); HandleSoldierPickupItem's DISARM_TRAP_PROMPT for the bomb under a tile our
 // @src side knows to hold a mine, through World_Items.cc FindWorldItemForBombInGridNo (2026-11-04); SoldierPickupItem's
 // @src removePendingAction dropping a held MERC_GIVEITEM (2026-11-08), and its BATTLE_SOUND_OK1 for our merc whose path
-// @src there is longer than 5, played by the client (2026-11-09).
+// @src there is longer than 5, played by the client (2026-11-09); PickPickupAnimation leaving MERC_PICKUPITEM pending after a
+// @src pickup with no animation, handlePendingAction leaving it after a walk ending off its tile, code 493 reading the
+// @src data the action leaves (2026-11-09).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -61,7 +63,7 @@ import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
 import { openTacticalPrompt, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
-import { type PendingPickup, type Soldier, Team } from './soldier.ts';
+import { type PendingPickup, type Pickup, pickupInTheSlot, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
 import {
@@ -171,10 +173,11 @@ export function soldierPickupItem(
   selection: readonly WorldItem[] | null,
 ): boolean {
   const actionGridNo = adjustGridNoForItemPlacement(t, s, g);
-  s.pendingPickup = { gridNo: g, actionGridNo, zLevel, selection };
   dropHeldActions(s);
+  const pickup: PendingPickup = { gridNo: g, actionGridNo, zLevel, selection, animCount: 0, dropped: false };
+  s.pendingPickup = pickup;
   if (s.gridNo === actionGridNo) {
-    pickPickupAnimation(t, s, g, zLevel);
+    pickPickupAnimation(t, s, pickup);
     return true;
   }
   if (getNewSoldierPath(t, s, actionGridNo, s.uiMovementMode, s.team === Team.OUR ? 1 : 0, true)) {
@@ -186,20 +189,20 @@ export function soldierPickupItem(
 }
 
 export function handlePendingPickupOnArrival(t: TacticalState, s: Soldier): boolean {
-  const pending = s.pendingPickup;
+  const pending = pickupInTheSlot(s);
   if (!pending) return false;
   if (pending.actionGridNo !== s.gridNo) {
-    s.pendingPickup = null;
     soldierGotoStationaryStance(t, s);
     return true;
   }
   if (!t.inCombat && pending.actionGridNo !== pending.gridNo && newOKDestination(t.pathEnv, s, pending.gridNo, true, s.level))
     return soldierPickupItem(t, s, pending.gridNo, pending.zLevel, pending.selection);
-  pickPickupAnimation(t, s, pending.gridNo, pending.zLevel);
+  pickPickupAnimation(t, s, pending);
   return true;
 }
 
-function pickPickupAnimation(t: TacticalState, s: Soldier, g: number, zLevel: number): void {
+function pickPickupAnimation(t: TacticalState, s: Soldier, pickup: Pickup): void {
+  const g = pickup.gridNo;
   if (g !== s.gridNo) {
     s.pendingDirection = directionToward(s.gridNo, g);
     initNewSoldierAnim(t, s, anim(t.content, 'ADJACENT_GET_ITEM'), 0, false);
@@ -207,12 +210,12 @@ function pickPickupAnimation(t: TacticalState, s: Soldier, g: number, zLevel: nu
     return;
   }
   if (isWater(t.pathWorld, s.gridNo) || height(t.content, s.state) !== AnimHeight.STAND) {
-    handleSoldierPickupItem(t, s);
+    handleSoldierPickupItem(t, s, pickup);
     soldierGotoStationaryStance(t, s);
     if (s.team !== Team.OUR) t.turnHooks.actionDone(t, s);
     return;
   }
-  const raised = zLevel > 0 ? t.world.structures.find(g, StructureFlags.HASITEMONTOP | StructureFlags.OPENABLE) : null;
+  const raised = pickup.zLevel > 0 ? t.world.structures.find(g, StructureFlags.HASITEMONTOP | StructureFlags.OPENABLE) : null;
   if (raised) turnToRaisedItems(t, s, raised);
   initNewSoldierAnim(t, s, anim(t.content, raised ? 'ADJACENT_GET_ITEM' : 'PICKUP_ITEM'), 0, false);
   if (s.team !== Team.OUR) s.ai.action = AiAction.PENDING_ACTION;
@@ -226,10 +229,7 @@ function turnToRaisedItems(t: TacticalState, s: Soldier, structure: StructureIns
   setSoldierDirection(t, s, direction);
 }
 
-export function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
-  const pending = s.pendingPickup;
-  s.pendingPickup = null;
-  if (!pending) return;
+export function handleSoldierPickupItem(t: TacticalState, s: Soldier, pending: Pickup): void {
   const pool = itemsAt(t, pending.gridNo, s.level);
   if (pool.length === 0) {
     sayNothingFound(t, s, pending.gridNo);
@@ -277,7 +277,7 @@ export function answerActivateSwitch(
   setOffBombsByFrequency(t, prompt.soldier, prompt.frequency);
 }
 
-function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingPickup): void {
+function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: Pickup): void {
   const ctx = soldierInventoryContext(t, s);
   const selected = pending.selection ?? pickupCandidates(t, s, pending.gridNo, pending.zLevel);
   const switchItem = t.content.items.byName.get('SWITCH')?.index;
@@ -382,7 +382,9 @@ export function itemOpcode(t: TacticalState, s: Soldier, code: number): OpOutcom
     return 'continue';
   }
   if (code === Code.PICKUP_ITEM) {
-    handleSoldierPickupItem(t, s);
+    const pickup = s.pendingPickup;
+    if (pickup) handleSoldierPickupItem(t, s, pickup);
+    s.pendingPickup = null;
     return 'continue';
   }
   return null;

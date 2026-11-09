@@ -620,8 +620,7 @@ export class BombComparer {
   #pickup(t: TacticalState, a: Json): Outcome {
     const s = this.#soldier(t, a.who);
     const g = has(a, 'grid') ? num(a.grid) : s.gridNo;
-    s.pendingPickup = { gridNo: g, actionGridNo: s.gridNo, zLevel: 0, selection: null };
-    handleSoldierPickupItem(t, s);
+    handleSoldierPickupItem(t, s, { gridNo: g, actionGridNo: s.gridNo, zLevel: 0, selection: null });
     const boxes = this.#answer(t, a, this.#quoteSaid);
     return { result: { boxes, pool: poolRows(t, g, s.level) }, who: s };
   }

@@ -7,7 +7,8 @@
 // @src (2026-11-05); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); SOLDIER_ENGAGEDINACTION (2026-11-08);
 // @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1, for the distances taken from a soldier with no tile, 2026-11-08);
 // @src ubPendingAction MERC_GIVEITEM held after a give on the spot with its ubPendingActionAnimCount (2026-11-08);
-// @src uiPendingActionData1 as the structure ID StartInteractiveObject records (2026-11-09)
+// @src uiPendingActionData1 as the structure ID StartInteractiveObject records (2026-11-09); MERC_PICKUPITEM with its
+// @src ubPendingActionAnimCount, its data outliving it in the slot (2026-11-09)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
@@ -633,11 +634,25 @@ export interface HeldGiveAction {
   animCount: number;
 }
 
-export interface PendingPickup {
+export interface Pickup {
   readonly gridNo: number;
   readonly actionGridNo: number;
   readonly zLevel: number;
   readonly selection: readonly WorldItem[] | null;
+}
+
+export interface PendingPickup extends Pickup {
+  animCount: number;
+  dropped: boolean;
+}
+
+export function pickupInTheSlot(s: Pick<Soldier, 'pendingPickup'>): PendingPickup | null {
+  const pickup = s.pendingPickup;
+  return pickup && !pickup.dropped ? pickup : null;
+}
+
+export function dropPickupFromTheSlot(s: Pick<Soldier, 'pendingPickup'>): void {
+  if (s.pendingPickup) s.pendingPickup.dropped = true;
 }
 
 export interface SoldierInit {

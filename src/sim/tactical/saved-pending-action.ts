@@ -75,7 +75,14 @@ function adoptedAsOpenable(s: Soldier, saved: SavedPendingAction): boolean {
 
 function adoptedAsPickup(s: Soldier, saved: SavedPendingAction): boolean {
   if (saved.action !== SavedAction.PICKUP_ITEM) return false;
-  s.pendingPickup = { gridNo: i16(s.pendingActionData4), actionGridNo: s.pendingActionData2, zLevel: saved.data3, selection: null };
+  s.pendingPickup = {
+    gridNo: i16(s.pendingActionData4),
+    actionGridNo: s.pendingActionData2,
+    zLevel: saved.data3,
+    selection: null,
+    animCount: saved.animCount,
+    dropped: false,
+  };
   return true;
 }
 
