@@ -35,10 +35,13 @@ import { dropLoadedSectorMapModificationsFile, importStrategicMap } from '../sim
 import { importNarrativeSave } from '../sim/strategic/narrative/save-import.ts';
 import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
+import { type CampaignReach, campaignReachRefusal } from '../sim/tactical/campaign-reach.ts';
+import type { TacticalContent } from '../sim/tactical/content.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import {
   type AroundAnimationRestart,
   createWorldlessSavedSoldiers,
+  type ImportedSave,
   importCampaignWideState,
   importSave,
   loadSavedSectorChanges,
@@ -121,8 +124,7 @@ export async function createSaveSession(
   const save = parseSaveGame(saveBytes, encryption);
   const saiSections = readStrategicAiSections(saveBytes, save);
   const story = savedStory(save, saiSections.firstBattleSector);
-  const refusal = storyImportRefusal(story);
-  if (refusal) throw new Error(`cannot continue this save: ${refusal}`);
+  refuseImport(storyImportRefusal(story));
   const worldSector = loadedWorldSector(save);
   const [world, parts] = await Promise.all([
     worldSector ? loadTacticalWorld(read, saveMapPath(save)) : null,
@@ -133,6 +135,7 @@ export async function createSaveSession(
   const start = world
     ? startInSavedWorld(world, save, parts, seed, imported.options, aroundRestart)
     : startWithoutWorld(save, parts, seed, imported.options);
+  refuseImport(campaignReachRefusal(start.campaignReach));
   const { strategic, sim } = start;
   const report: SaveImportReport = { ...start.report, droppedOptions: imported.dropped };
   importStrategicTime(strategic, save);
@@ -185,6 +188,10 @@ export async function createSaveSession(
   return { session, report };
 }
 
+function refuseImport(refusal: string | null): void {
+  if (refusal) throw new Error(`cannot continue this save: ${refusal}`);
+}
+
 function loadTheLoadedSector(campaign: CampaignSim, sim: TacticalSim | null, save: SaveGame): boolean {
   if (!sim) return true;
   if (campaign.sectors) return campaign.sectors.adoptLoadedSector(savedSoldierLinks(save), save.currentSector);
@@ -196,9 +203,37 @@ interface ImportStart {
   readonly sim: TacticalSim | null;
   readonly report: SaveImportReport;
   readonly soldiers: SavedSoldiers;
+  readonly campaignReach: CampaignReach | null;
 }
 
 const NO_WORLD_REPORT: SaveImportReport = { mapPath: null, soldiers: 0, worldItems: 0, corpses: 0, skippedMapModifications: 0 };
+
+interface SavedWorldImport extends ImportedSave {
+  readonly sim: TacticalSim;
+}
+
+function importSavedWorld(
+  world: TacticalWorld,
+  save: SaveGame,
+  content: TacticalContent,
+  seed: number,
+  options: GameOptions,
+  aroundRestart: AroundAnimationRestart,
+): SavedWorldImport {
+  const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed, { options });
+  return { sim, ...importSave(sim, save, aroundRestart) };
+}
+
+export async function campaignReachOfSave(
+  read: ReadFile,
+  save: SaveGame,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
+): Promise<CampaignReach | null> {
+  if (!loadedWorldSector(save)) return null;
+  const [world, content] = await Promise.all([loadTacticalWorld(read, saveMapPath(save)), loadTacticalContent(read, decoding)]);
+  const { options } = importNativeGameOptions(save.generalInfo.gameOptions);
+  return importSavedWorld(world, save, content, DEFAULT_SEED, options, RESTART_ON_OWN_DRAWS).campaignReach;
+}
 
 function startInSavedWorld(
   world: TacticalWorld,
@@ -208,8 +243,7 @@ function startInSavedWorld(
   options: GameOptions,
   aroundRestart: AroundAnimationRestart,
 ): ImportStart {
-  const sim = new TacticalSim(worldWithSavedDoors(world, save), parts.content, seed, { options });
-  const { report, soldiers } = importSave(sim, save, aroundRestart);
+  const { sim, report, soldiers, campaignReach } = importSavedWorld(world, save, parts.content, seed, options, aroundRestart);
   const strategic = createStrategicState({
     seed,
     options: sim.state.options,
@@ -224,7 +258,7 @@ function startInSavedWorld(
     autoBandage: sim.state.autoBandage,
     helicopterDrop: sim.state.helicopterDrop,
   });
-  return { strategic, sim, report, soldiers };
+  return { strategic, sim, report, soldiers, campaignReach };
 }
 
 function startWithoutWorld(save: SaveGame, parts: CampaignParts, seed: number, options: GameOptions): ImportStart {
@@ -232,7 +266,13 @@ function startWithoutWorld(save: SaveGame, parts: CampaignParts, seed: number, o
   const { civGroups, keyTable, profiles, pre } = strategic;
   const { realtimeClock, crows, autoBandage } = strategic.sectorFlow;
   importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, crows, autoBandage, content: parts.content }, save);
-  return { strategic, sim: null, report: NO_WORLD_REPORT, soldiers: createWorldlessSavedSoldiers(save, parts.content) };
+  return {
+    strategic,
+    sim: null,
+    report: NO_WORLD_REPORT,
+    soldiers: createWorldlessSavedSoldiers(save, parts.content),
+    campaignReach: null,
+  };
 }
 
 export async function loadImportParts(

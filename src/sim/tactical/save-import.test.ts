@@ -5,7 +5,7 @@ import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.
 import { SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
 import type { ObjectRecord } from '../../content/formats/object.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
-import type { SavedSoldierEntry, SavedVehicle, SaveGame } from '../../content/formats/savegame.ts';
+import type { SavedSoldierEntry, SavedVehicle, SaveGame, StrategicEvent } from '../../content/formats/savegame.ts';
 import {
   NO_SAVED_EXPLOSIONS,
   type SavedBullet,
@@ -31,6 +31,7 @@ import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { anim, animName } from './anim-states.ts';
 import { computedAnimationDelay, states } from './animation.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
+import { type CampaignReach, campaignReachRefusal } from './campaign-reach.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
 import { smokeEffectOnTile } from './explosions/smoke.ts';
@@ -78,6 +79,7 @@ beforeAll(async () => {
 });
 
 const SAVE_VERSION = 99;
+const SAVED_SECOND = 7 * 3600;
 const SECTOR = { x: 13, y: 4, z: 0 };
 const CENTRE = gridNo(80, 80);
 const MERC_ID = 3;
@@ -169,6 +171,7 @@ interface SyntheticSave {
   readonly realObjects?: readonly SavedRealObject[];
   readonly itemCursor?: SavedItemCursor;
   readonly envLightValue?: number;
+  readonly strategicEvents?: readonly StrategicEvent[];
 }
 
 function levelRows(count: number, entries: readonly (readonly [row: number, opponent: number, level: number])[] = []): number[][] {
@@ -191,6 +194,7 @@ function syntheticSave({
   realObjects = [],
   itemCursor = NO_ITEM_CURSOR,
   envLightValue = NORMAL_LIGHTLEVEL_DAY,
+  strategicEvents = [],
 }: SyntheticSave): SaveGame {
   return {
     generalInfo: { baseJA2Clock: 0, selectedSoldier: NOBODY, explosionQueueActive: false },
@@ -231,7 +235,8 @@ function syntheticSave({
     },
     keyTable: [],
     profiles: [],
-    worldTime: { hour: 12 },
+    worldTime: { hour: 12, totalSeconds: SAVED_SECOND },
+    strategicEvents,
     clock: { envLightValue },
     currentSector: { worldItems: worldItems ?? null, corpses: corpses ?? null, mapModifications: null, doorStatus: null, doors: null },
     soldiers,
@@ -266,7 +271,7 @@ function importedSave(
   blocked: readonly number[] = [],
   mapFields: Readonly<Record<string, unknown>> = {},
   aroundRestart: AroundAnimationRestart = RESTART_ON_OWN_DRAWS,
-): { readonly sim: TacticalSim; readonly soldiers: SavedSoldiers } {
+): { readonly sim: TacticalSim; readonly soldiers: SavedSoldiers; readonly campaignReach: CampaignReach | null } {
   const base = syntheticWorld(testDoorCosts(), (structures) => {
     for (const g of blocked) structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
   });
@@ -276,7 +281,16 @@ function importedSave(
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   const sim = new TacticalSim(world, content, 1);
-  return { sim, soldiers: importSave(sim, save, aroundRestart).soldiers };
+  const { soldiers, campaignReach } = importSave(sim, save, aroundRestart);
+  return { sim, soldiers, campaignReach };
+}
+
+function codeOfOpcode(state: number, opcode: number): number {
+  for (let pc = 0; ; pc++) {
+    const slot = timelineSlot(state, pc);
+    if (slotKind(content.timeline, slot) === SlotKind.OP && slotArgument(content.timeline, slot) === opcode) return pc;
+    if (slotKind(content.timeline, slot) === SlotKind.EMPTY) throw new Error(`no code ${opcode} in state ${state}`);
+  }
 }
 
 function soldierOf(sim: TacticalSim, id: number): Soldier {
@@ -802,14 +816,6 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
   const ANIM_CROUCH = 3;
   const MERC_AT = gridNo(80, 82);
 
-  function codeOfOpcode(state: number, opcode: number): number {
-    for (let pc = 0; ; pc++) {
-      const slot = timelineSlot(state, pc);
-      if (slotKind(content.timeline, slot) === SlotKind.OP && slotArgument(content.timeline, slot) === opcode) return pc;
-      if (slotKind(content.timeline, slot) === SlotKind.EMPTY) throw new Error(`no code ${opcode} in state ${state}`);
-    }
-  }
-
   function scriptedDraws(rolls: number[], draws: number[]): AroundAnimationRestart {
     return (t, restart) => {
       const rng = t.rng as unknown as { int(n: number): number };
@@ -932,6 +938,77 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
     expect(draws).toEqual([DICE, DICE]);
     expect([sim.state.soldiers[MERC_ID], sim.state.soldiers[CIVILIAN_ID]]).toEqual([undefined, undefined]);
     expect(soldiers.get(MERC_ID)?.timeOfLastRandomAction).toBe(0);
+  });
+});
+
+describe('the campaign a restart reaches (deviation "Animations on load reaching the campaign")', () => {
+  const HELIDROP_LANDED = 467;
+  const DEATH_COMMIT = 440;
+  const RANDOM_ANIM_CHECK = 491;
+  const RELEASE_ATTACK_BUSY_COUNT = 753;
+  const NO_PROFILE = 200;
+  const ENEMY_ID = 40;
+  const MERC_AT = gridNo(80, 82);
+  const EVENT_MEANWHILE = 44;
+
+  function savedAt(id: number, team: number, state: string, opcode: number, extra: SoldierFields = {}): SavedSoldierEntry {
+    const s = anim(content, state);
+    return savedSoldier(id, team, MERC_AT, { usAnimState: s, usAniCode: codeOfOpcode(s, opcode), ubProfile: NO_PROFILE, ...extra });
+  }
+
+  function reachOf(soldiers: readonly SavedSoldierEntry[], strategicEvents: readonly StrategicEvent[] = []): CampaignReach | null {
+    return importedSave(syntheticSave({ soldiers, strategicEvents })).campaignReach;
+  }
+
+  function meanwhileAt(timeStamp: number): StrategicEvent {
+    return { timeStamp, param: 0, timeOffset: 0, eventType: 0, callbackId: EVENT_MEANWHILE, flags: 0 };
+  }
+
+  it('names the first campaign hook a restart calls, with the soldier, his saved animation and code: a merc saved with the end of his helicopter drop next says his arrival lines (Soldier_Ani.cc code 467, HandleMercArrivesQuotes)', () => {
+    const helidrop = anim(content, 'HELIDROP');
+    const reach = reachOf([savedAt(MERC_ID, Team.OUR, 'HELIDROP', HELIDROP_LANDED)]);
+    const code = codeOfOpcode(helidrop, HELIDROP_LANDED);
+    expect(reach).toEqual({ soldier: MERC_ID, name: '', animation: 'HELIDROP', code, hook: 'sectorHooks.mercArrivesQuotes' });
+    expect(campaignReachRefusal(reach)).toBe(
+      `the restart of soldier ${MERC_ID}, saved in HELIDROP at code ${code}, reaches the campaign through sectorHooks.mercArrivesQuotes`,
+    );
+  });
+
+  it('names the death of an enemy saved dead with code 440 next, which the campaign counts (HandleSoldierDeath)', () => {
+    const reach = reachOf([savedAt(ENEMY_ID, Team.ENEMY, 'GENERIC_HIT_DEATH', DEATH_COMMIT, { bLife: 0 })]);
+    expect(reach).toMatchObject({ soldier: ENEMY_ID, animation: 'GENERIC_HIT_DEATH', hook: 'sectorHooks.soldierDied' });
+  });
+
+  it('reaches nothing with a merc saved breath-collapsed: he collapses, and the sight of his collapse looks at nobody, as no soldier of the load stands on the map yet (Soldier_Control.cc:7970)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, MERC_AT, { bBreath: 0, bBreathCollapsed: 1, ubProfile: NO_PROFILE }),
+        savedSoldier(ENEMY_ID, Team.ENEMY, gridNo(82, 82), { ubProfile: NO_PROFILE }),
+      ],
+    });
+    const onTheMap: boolean[] = [];
+    const watching: AroundAnimationRestart = (t, restart) => {
+      onTheMap.push(...[MERC_ID, ENEMY_ID].map((id) => t.soldiers[id]?.placed === true));
+      restart();
+    };
+    const { sim, campaignReach } = importedSave(save, [], {}, watching);
+    const merc = soldierOf(sim, MERC_ID);
+    expect([merc.collapsed, merc.breathCollapsed, animName(content, merc.state)]).toEqual([true, false, 'FALLFORWARD_FROMHIT_STAND']);
+    expect(onTheMap).toEqual([false, false]);
+    expect(campaignReach).toBeNull();
+  });
+
+  it('reaches nothing with a soldier saved right before his idle check', () => {
+    const standing = anim(content, 'STANDING');
+    const atCheck = { usAniCode: codeOfOpcode(standing, RANDOM_ANIM_CHECK), uiTimeOfLastRandomAction: 1, ubProfile: NO_PROFILE };
+    expect(reachOf([savedSoldier(MERC_ID, Team.OUR, MERC_AT, atCheck)])).toBeNull();
+  });
+
+  it("lets a restart ask whether a meanwhile runs, as the release of an attack's busy count does, unless a meanwhile is due at the saved second, where the original's AreInMeanwhile finds it among the events already loaded and says yes (Overhead.cc:5585, Meanwhile.cc:417)", () => {
+    const shooting = [savedAt(MERC_ID, Team.OUR, 'SHOOT_RIFLE_STAND', RELEASE_ATTACK_BUSY_COUNT)];
+    expect(reachOf(shooting)).toBeNull();
+    expect(reachOf(shooting, [meanwhileAt(SAVED_SECOND + 1)])).toBeNull();
+    expect(reachOf(shooting, [meanwhileAt(SAVED_SECOND)])).toMatchObject({ soldier: MERC_ID, hook: 'narrative.inMeanwhile' });
   });
 });
 

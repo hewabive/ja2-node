@@ -4,7 +4,8 @@ Reading the original's savegames (`.sav` of vanilla JA2 Gold 1.12 and of Stracci
 ja2-node campaign. Siblings: `27` ja2-node's own saves and the save list; `15` the clock and the event queue of an
 import; `16`–`18`, `21`–`26`, `35` the state each import step fills; `29` `newSession {save}`. The byte layouts are the
 `src/content/formats/savegame-*.ts` modules; their `@src` headers name the Stracciatella loaders, and `LoadSavedGame`
-(`SaveLoadGame.cc:644`) gives the section order. `pnpm cli inspect save <file.sav>` summarises a file.
+(`SaveLoadGame.cc:644`) gives the section order. `pnpm cli inspect save <file.sav>` summarises a file and, with the
+original data, tells whether its animation restart reaches the campaign (§2).
 
 ## 1. The path of an import
 
@@ -104,8 +105,10 @@ does unless he waits for a tile, also where the vehicle has no soldier on the lo
 (`stopAsBoardedAwayFromTheVehicle`); one kept past getting out of a vehicle becomes ja2-node's typed record at the end
 of his next walk and runs there (`saved-pending-action.ts`; deviations "Saved robot reload", "Pickup menu"; §3), all
 but `MERC_WAITFOROTHERSTOTRIGGER`, which no order sets. A save with no world only stands a climber up (deviation
-"Animations on load without a world"). The restart runs before the campaign hooks the sector, so an opcode that
-reports to the campaign does not reach it (gap "Animations on load").
+"Animations on load without a world"). The restart runs on the import's own `TacticalSim`, before the campaign exists,
+so the import records the first campaign hook it calls and `createSaveSession` refuses such a save, naming the soldier,
+his saved animation and code and the hook (`src/sim/tactical/campaign-reach.ts`; deviation
+"Animations on load reaching the campaign").
 
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
@@ -177,7 +180,8 @@ reinitialise it on load; neither does the import.
 **Options and origin.** `importNativeGameOptions` keeps difficulty, sci-fi, gun nut and save mode and reports a turn
 time limit as dropped (deviation "Timed turns"). Native saves come from `$JA2_SAVES_DIR` (default `SavedGames` next to
 the data folder) and need the original data; the input log records the file's digest, and a replay refuses a changed
-file. A save made in a meanwhile scene or the endgame sequence is refused (`26`), before any map is read.
+file. A save made in a meanwhile scene or the endgame sequence is refused (`26`), before any map is read; one whose
+animation restart reaches the campaign is refused after the tactical import (above).
 
 ## 3. Quirks of the original the code keeps
 
@@ -250,7 +254,9 @@ Inferred from reading the source:
   a fresh process; no probe dumps a structure ID.
 - The restart's opcodes past the idle check: every soldier of the shipped saves stands, walks, crouches, aims or cowers,
   so the native restarts reach no opcode but code 491; the others are pinned by unit tests
-  (`src/sim/tactical/save-import.test.ts`).
+  (`src/sim/tactical/save-import.test.ts`). None reaches a campaign hook, so the refusal is pinned by those tests and by
+  a merc of the first save with a world put right before the end of a helicopter drop
+  (`src/server/save-session.test.ts`).
 - Damage records and light effects of the loaded sector: no probe command makes them (a structure's damage needs an
   explosion's tile animation frames, which no probe runs; nothing lights a flare), so only unit tests pin them
   (`src/sim/tactical/native-temp-files.test.ts`, `src/sim/tactical/save-import.test.ts`). The window probe sees the
@@ -264,6 +270,6 @@ Inferred from reading the source:
   pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's status from the hand, a
   bullet saved stopped and the cursor item: no probe makes them.
 
-Not ported: gap "Animations on load".
 Other deviations of the import: "Ambient sound events", "Blood on the ground",
-"Difficulty and progress in tactical", "Corpse structure past its file", "Preserved soldier checksums".
+"Difficulty and progress in tactical", "Corpse structure past its file", "Preserved soldier checksums",
+"Animations on load reaching the campaign".

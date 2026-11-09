@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
+import { type LogicTimeline, SlotKind, slotArgument, slotKind, timelineSlot } from '../content/anim/timelines.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH, SAVE_HEADER_BYTES } from '../content/formats/savegame-header.ts';
 import { layoutOffsets } from '../content/formats/savegame-layout.ts';
@@ -21,6 +22,7 @@ import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
 import { SectorFlag } from '../sim/strategic/forces/constants.ts';
 import { getSectorFlagStatus } from '../sim/strategic/map/sectors.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
+import { anim } from '../sim/tactical/anim-states.ts';
 import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
 import { type AroundAnimationRestart, inLoadedSector } from '../sim/tactical/save-import.ts';
 import { Team } from '../sim/tactical/soldier.ts';
@@ -47,6 +49,15 @@ const TRAVEL_STEPS = 20_000;
 const IDLE_DICE = 100;
 const IDLE_ROLLERS_OF_THE_NATIVE_LOAD: Readonly<Record<string, readonly number[]>> = { 'SaveGame01.sav': [121], 'SaveGame07.sav': [0] };
 const DRASSEN_AIRPORT = { x: 13, y: 2, z: 0 };
+const HELIDROP_LANDED = 467;
+
+function codeOfOpcode(timeline: LogicTimeline, state: number, opcode: number): number {
+  for (let pc = 0; ; pc++) {
+    const slot = timelineSlot(state, pc);
+    if (slotKind(timeline, slot) === SlotKind.OP && slotArgument(timeline, slot) === opcode) return pc;
+    if (slotKind(timeline, slot) === SlotKind.EMPTY) throw new Error(`no code ${opcode} in state ${state}`);
+  }
+}
 const DRASSEN_HELIPAD = 9001;
 const WRITTEN_BACK_ON_LOAD: ReadonlySet<number> = new Set([
   MapModificationType.OBJECT,
@@ -141,6 +152,23 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect([c.state.didGameJustStart, c.state.flow, c.state.worldSector]).toEqual([false, 'tactical', { x: 9, y: 1, z: 0 }]);
       expect(session.drainEvents().find((e) => e.type === 'sectorLoaded')).toMatchObject({ sector: 'A9' });
       expect(c.state.sectorFlow.helicopterDrop.firstHeliRun).toBe(true);
+    },
+  );
+
+  it.skipIf(worldSaves.length === 0)(
+    'refuses a save whose animation restart reaches a campaign hook, naming the soldier, his animation and code and the hook: a merc of the loaded sector put right before the end of a helicopter drop says his arrival lines (deviation "Animations on load reaching the campaign")',
+    async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, [...worldSaves].sort()[0] ?? '')));
+      const landing: AroundAnimationRestart = (t, restart) => {
+        const merc = t.soldiers.find((s) => s?.team === Team.OUR);
+        if (!merc) throw new Error('no merc of ours in the loaded sector');
+        merc.state = anim(t.content, 'HELIDROP');
+        merc.pc = codeOfOpcode(t.content.timeline, merc.state, HELIDROP_LANDED);
+        restart();
+      };
+      await expect(createSaveSession(read, bytes, undefined, null, undefined, undefined, landing)).rejects.toThrow(
+        /^cannot continue this save: the restart of soldier \d+ \(.+\), saved in HELIDROP at code \d+, reaches the campaign through sectorHooks\.mercArrivesQuotes$/,
+      );
     },
   );
 

@@ -27,7 +27,8 @@
 // @src put back as CancelItemPointer puts it (2026-11-08); ubPendingAction, ubPendingActionAnimCount and a give's
 // @src uiPendingActionData4, dropped by AddSoldierToSectorGridNo but kept by the soldiers it does not reach
 // @src (Soldier_Add.cc:707-708, :871, 2026-11-08), with its bPendingActionData3, and every soldier of the load in reach of
-// @src the restart's GetMan (Soldier_Control.cc:1680, 2026-11-09).
+// @src the restart's GetMan (Soldier_Control.cc:1680, 2026-11-09); Strategic/Meanwhile.cc AreInMeanwhile as the restart
+// @src finds it, the events and the clock loaded and gfInMeanwhile not yet (2026-11-09).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -49,12 +50,14 @@ import { type ItemObject, objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { Assignment, NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
+import { EventKind } from '../strategic/time/constants.ts';
 import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { anim } from './anim-states.ts';
 import { restartAnimationOnLoad } from './animation.ts';
 import { setAutoBandagePending } from './auto-bandage.ts';
 import { loadExplosionQueue } from './bombs/bomb-queue.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
+import { type CampaignReach, firstCampaignReach, queriesTheRestartMayAsk } from './campaign-reach.ts';
 import type { TacticalContent } from './content.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
 import { loadDoorStatusArray } from './doors/door-status.ts';
@@ -181,6 +184,7 @@ export type SavedSoldiers = ReadonlyMap<number, Soldier>;
 export interface ImportedSave {
   readonly report: SaveImportReport;
   readonly soldiers: SavedSoldiers;
+  readonly campaignReach: CampaignReach | null;
 }
 
 export type AroundAnimationRestart = (t: TacticalState, restart: () => void) => void;
@@ -198,12 +202,12 @@ export function importSave(sim: TacticalSim, save: SaveGame, aroundRestart = RES
   const skippedMapModifications = skippedMapModificationCount(sim.world.tables, save.currentSector.mapModifications ?? []);
   t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
   const soldiers = createSavedSoldiers(save);
-  const placed = whileLoadingSave(t, () => {
-    restartSavedSoldiers(t, save, soldiers, aroundRestart);
+  const { placed, campaignReach } = whileLoadingSave(t, () => {
+    const reach = restartSavedSoldiers(t, save, soldiers, aroundRestart);
     const count = importSoldiers(t, save, soldiers);
     seatHelicopterDropArrivals(t, save);
     importAwaySoldiers(t, save, soldiers);
-    return count;
+    return { placed: count, campaignReach: reach };
   });
   t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
   importOpplists(t, save);
@@ -215,7 +219,7 @@ export function importSave(sim: TacticalSim, save: SaveGame, aroundRestart = RES
   loadExplosionTable(t, save.explosionTable, save.generalInfo.explosionQueueActive);
   dropSavedAttackBusyCount(t);
   returnSavedCursorItem(t, save.itemCursor);
-  return { report: { mapPath: sim.mapPath, soldiers: placed, worldItems, corpses, skippedMapModifications }, soldiers };
+  return { report: { mapPath: sim.mapPath, soldiers: placed, worldItems, corpses, skippedMapModifications }, soldiers, campaignReach };
 }
 
 function dropSavedAttackBusyCount(t: TacticalState): void {
@@ -289,7 +293,12 @@ function withSavedRecords(save: SaveGame, soldiers: SavedSoldiers): (readonly [S
   });
 }
 
-function restartSavedSoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSoldiers, aroundRestart: AroundAnimationRestart): void {
+function restartSavedSoldiers(
+  t: TacticalState,
+  save: SaveGame,
+  soldiers: SavedSoldiers,
+  aroundRestart: AroundAnimationRestart,
+): CampaignReach | null {
   const pairs = withSavedRecords(save, soldiers);
   const entering = pairs.filter(([, r]) => enteringTheMercSlots(save, r));
   for (const [s, r] of pairs) {
@@ -298,15 +307,39 @@ function restartSavedSoldiers(t: TacticalState, save: SaveGame, soldiers: SavedS
   }
   for (const [s] of entering) t.soldiers[s.id] = s;
   for (const [s, r] of entering) linkSoldier(t, s, r);
+  const reach = restartWithTheLoadInReach(t, save, soldiers, aroundRestart);
+  for (const s of soldiers.values()) dropPendingAnimation(s);
+  return reach;
+}
+
+function restartWithTheLoadInReach(
+  t: TacticalState,
+  save: SaveGame,
+  soldiers: SavedSoldiers,
+  aroundRestart: AroundAnimationRestart,
+): CampaignReach | null {
   t.soldiersOfTheLoad = soldiers;
   try {
-    aroundRestart(t, () => {
-      for (const s of soldiers.values()) restartAnimationOnLoad(t, s, s.pc);
-    });
+    return firstCampaignReach(t, queriesTheRestartMayAsk(meanwhileDueAtTheSavedSecond(save)), (restarting) =>
+      aroundRestart(t, () => {
+        for (const s of soldiers.values()) {
+          restarting(s);
+          restartAnimationOnLoad(t, s, s.pc);
+        }
+      }),
+    );
   } finally {
     t.soldiersOfTheLoad = null;
   }
-  for (const s of soldiers.values()) dropPendingAnimation(s);
+}
+
+function meanwhileDueAtTheSavedSecond(save: SaveGame): boolean {
+  const now = save.worldTime.totalSeconds;
+  for (const e of save.strategicEvents) {
+    if (e.timeStamp !== now) return false;
+    if (e.callbackId === EventKind.MEANWHILE) return true;
+  }
+  return false;
 }
 
 function holdSavedPendingAnimation(s: Soldier, r: SavedSoldier): void {

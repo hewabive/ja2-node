@@ -8,14 +8,20 @@ import { LAYER_NAMES, parseMap } from '../src/content/formats/map.ts';
 import { decodePcx } from '../src/content/formats/pcx.ts';
 import { encodePngIndexed, encodePngRgba } from '../src/content/formats/png.ts';
 import { rgb565ToRgba } from '../src/content/formats/rgb565.ts';
-import { parseSaveGame } from '../src/content/formats/savegame.ts';
+import { parseSaveGame, type SaveGame } from '../src/content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../src/content/formats/savegame-header.ts';
 import { readSlf } from '../src/content/formats/slf.ts';
 import { decodeSti, type Sti } from '../src/content/formats/sti.ts';
 import { decodeTga } from '../src/content/formats/tga.ts';
+import { withGraphicFacts } from '../src/content/rules/graphic-facts.ts';
+import { dataDecoding } from '../src/content/text/data-version.ts';
 import { vfsExtension } from '../src/content/vfs/path.ts';
+import { vfsFileReader } from '../src/content/vfs/vfs.ts';
 import { openDataVfs } from '../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
+import { detectDataVersion } from '../src/server/data-version.ts';
+import { campaignReachOfSave } from '../src/server/save-session.ts';
+import { campaignReachRefusal } from '../src/sim/tactical/campaign-reach.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -55,7 +61,8 @@ const USAGE = `usage: pnpm cli inspect <command> [--data DIR] [--stubs DIR]
   sti <path> [--png DIR]      describe an STI, optionally dump frames as PNG
   map <path>                  describe a map (.dat)
   tilesets                    list tilesets from ja2set.dat
-  save <file.sav>             summarise a native savegame (sector, time, soldiers, items, PreRandom)
+  save <file.sav>             summarise a native savegame (sector, time, soldiers, items, PreRandom) and, with the
+                              original data, whether its animation restart reaches the campaign (refused on import)
   cat <path> --out <file>     extract a file from the VFS
   verify                      decode every STI, JSD and map and report failures
 
@@ -75,6 +82,16 @@ async function withVfs<T>(fn: (v: Awaited<ReturnType<typeof openDataVfs>>) => Pr
   } finally {
     await data.close();
   }
+}
+
+async function restartReach(save: SaveGame): Promise<string> {
+  if (!(values.data ?? process.env.JA2_DATA_DIR)) return 'not run, it needs the original data (--data or JA2_DATA_DIR)';
+  return withVfs(async (data) => {
+    const decoding = dataDecoding((await detectDataVersion(data, process.env)).version);
+    const reach = await campaignReachOfSave(withGraphicFacts(vfsFileReader(data.vfs)), save, decoding);
+    const refusal = campaignReachRefusal(reach);
+    return refusal ? `the import refuses the save: ${refusal}` : 'reaches no campaign hook';
+  });
 }
 
 function describeSti(sti: Sti): string {
@@ -271,6 +288,7 @@ async function main(): Promise<void> {
           `  #${String(s.id).padStart(3)} team ${s.team} profile ${String(s.profile).padStart(3)} ${s.name.padEnd(10)} grid ${String(s.gridNo).padStart(5)} lvl ${s.level} life ${s.stats.life}/${s.stats.lifeMax} AP ${s.actionPoints} alert ${s.ai.alertStatus}`,
         );
       }
+      console.log(`  animation restart: ${await restartReach(save)}`);
       return;
     }
     case 'verify':
