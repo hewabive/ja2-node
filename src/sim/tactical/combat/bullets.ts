@@ -4,6 +4,7 @@
 // @src ChanceOfBulletHittingStructure, StructureResistanceIncreasedByRange, HandleBulletStructureInteraction,
 // @src CTGTHandleBulletStructureInteraction, CalcChanceToGetThrough, *ChanceToGetThrough; Bullets.cc CreateBullet,
 // @src RemoveBullet, StopBullet, LocateBullet (without TOPTION_SHOW_MISSES, which the client applies), UpdateBullets,
+// @src HandleBulletSpecialFlags (a real knife's status from the firer's hand, at the shot and at a load, 2026-11-08),
 // @src AddMissileTrail (fGoingOver is never reset within one MoveBullet);
 // @src Weapons.cc StructureHit, ShotMiss, WindowHit;
 // @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE.
@@ -253,6 +254,11 @@ function createBullet(t: TacticalState, firer: Soldier, fake: boolean, flags: nu
   };
 }
 
+export function handleBulletSpecialFlags(b: Bullet): void {
+  if (!b.real || (b.flags & (BulletFlag.KNIFE | BulletFlag.CREATURE_SPIT)) !== BulletFlag.KNIFE) return;
+  b.itemStatus = b.firer.inv[InvSlot.HAND]?.status[0] ?? 0;
+}
+
 export function removeBullet(t: TacticalState, b: Bullet): void {
   if (!b.real) return;
   b.toDelete = true;
@@ -320,7 +326,7 @@ function fireBullet(t: TacticalState, b: Bullet, fake: boolean): number {
   if (firer.profile !== NO_PROFILE && firer.team === Team.OUR && firer.target && firer.target.life > 0) firer.shotsFired++;
   const knife = t.content.items.byIndex.get(firer.attackingWeapon)?.itemClass === ItemClass.THROWING_KNIFE;
   b.msPerUpdate = knife ? 30 : idiv(t.content.items.byIndex.get(firer.attackingWeapon)?.weapon?.bulletSpeed ?? 0, 10);
-  if (b.flags & BulletFlag.KNIFE) b.itemStatus = firer.inv[InvSlot.HAND]?.status[0] ?? 0;
+  handleBulletSpecialFlags(b);
   t.bullets.push(b);
   moveBullet(t, b);
   return 1;
@@ -960,6 +966,14 @@ export function updateBullets(t: TacticalState): void {
     moveBullet(t, b);
   }
   for (let i = t.bullets.length - 1; i >= 0; i--) if (t.bullets[i]?.toDelete) t.bullets.splice(i, 1);
+}
+
+function stuck(t: TacticalState, b: Bullet): boolean {
+  return (b.flags & BulletFlag.STOPPED) !== 0 && !b.toDelete && !t.missAnimations.some((a) => a.bullet === b);
+}
+
+export function bulletsResolving(t: TacticalState): boolean {
+  return t.bullets.some((b) => !stuck(t, b));
 }
 
 export function updateMissAnimations(t: TacticalState): void {

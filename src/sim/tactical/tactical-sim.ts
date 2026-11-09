@@ -104,7 +104,7 @@ import { answerDisarmTrap, answerRemoveBlueFlag, boobyTrapDialogueCallBack } fro
 import { generateBuildings } from './buildings.ts';
 import { enoughAmmo, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
-import { updateBullets, updateMissAnimations } from './combat/bullets.ts';
+import { bulletsResolving, updateBullets, updateMissAnimations } from './combat/bullets.ts';
 import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
 import { handlePendingMeleeOnArrival } from './combat/melee.ts';
@@ -654,7 +654,7 @@ export class TacticalSim {
     const t = this.state;
     if (t.pathEnv.autoBandage) return t.autoBandage.complete;
     if (autoBandageQuestionDue(t)) return false;
-    if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
+    if (t.turn.attackBusyCount > 0 || bulletsResolving(t) || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.explosionQueue.active) return false;
     if (t.mercsWaiting || t.boxing.uiLocked || t.turn.enemySightingOnTheirTurn) return false;
     if (helicopterDropRunning(t) && !helicopterDropStalled(t)) return false;

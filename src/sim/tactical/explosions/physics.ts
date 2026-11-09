@@ -73,7 +73,7 @@ const WINDOW_BOTTOM = 87;
 const WINDOW_TOP = 220;
 const MATERIAL_LIGHT_VEGETATION = 4;
 const MAX_NUM_SOLDIERS = 148;
-const NOBODY = -1;
+export const NO_TARGET_TAKEN_DAMAGE = -1;
 const CUBE_UNITS = HEIGHT_UNITS / PROFILE_Z_SIZE;
 const PIXELS_PER_STOREY = 50;
 const OBJECT_LEVEL_LIFT = 10;
@@ -187,7 +187,7 @@ export function createRealObject(
     endedWithCollisionPositionSet: false,
     endedWithCollisionPosition: vec3(),
     haveHitGround: false,
-    lastTargetTakenDamage: NOBODY,
+    lastTargetTakenDamage: NO_TARGET_TAKEN_DAMAGE,
     levelNode: false,
     attemptedCatch: false,
     catchAnimOn: false,

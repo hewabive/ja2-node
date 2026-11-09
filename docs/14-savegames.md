@@ -19,7 +19,8 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
     with one: TacticalSim on the saved map and door table,      sim/tactical/save-import.ts
       importSave, strategic state on the tactical random streams;
       every saved soldier created and his animation restarted;
-      the bomb queue and the explosions in flight
+      the bullets, thrown objects, bomb queue and explosions    sim/tactical/native-in-flight.ts
+      in flight; the cursor item put back
     without one: strategic state on its own streams,            sim/tactical/save-import.ts
       importCampaignWideState
     then one import per subsystem:
@@ -33,8 +34,9 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
 ```
 
 `savegame.ts` decodes the header (`savegame-header.ts`: both layouts, the encryption set, the record cipher), the
-soldier and profile records (`savegame-soldier.ts`, `savegame-profile.ts`), the tactical and strategic sections and the
-temp files; the laptop, contract, economy, merchant, NPC and strategic AI readers decode the sections it steps over.
+soldier and profile records (`savegame-soldier.ts`, `savegame-profile.ts`), the tactical and strategic sections, what is
+in flight and the item cursor (`savegame-effects.ts`) and the temp files; the laptop, contract, economy, merchant, NPC
+and strategic AI readers decode the sections it steps over. Only the map messages are read past (§2).
 
 ## 2. Design
 
@@ -109,39 +111,57 @@ tactical screen (deviation "Selection on load"). The import does the same; ja2-n
 load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start
 sector for an invalid landing zone.
 
-**Bombs and explosions in flight.** The bomb queue comes back with its entries, its active flag, which the general info
-keeps (`SaveLoadGame.cc:2092`), and the sight bits of the tactical status; an entry names a world bomb by its slot, and
-the load lists the bombs again from the item file (`loadExplosionTable`, `src/sim/tactical/save-import.ts`). Each
-explosion in flight is generated again at its saved frame (`TileEngine/Explosion_Control.cc:2319`, `:159`), after the
-soldiers, who own them, and at the world load's light level, which decides whether it gets its light; it adds nothing
-to the busy count, which the load zeroes anyway. The queue's interface lock is not saved (deviation "Interface lock
-after a load").
+**Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own
+and catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
+`loadPhysicsTable`, `src/sim/tactical/native-in-flight.ts`; `Tactical/Bullets.cc:390`, `TileEngine/Physics.cc:2150`). A
+bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:405`), and a thrown knife takes its
+status from what its thrower holds then (`HandleBulletSpecialFlags`, `:102`); its tiles per update stay as saved
+(deviation "Hide bullets"). A bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped
+stays in its slot until the sector is left, which the AI's wait for the bullets sees, as in the original, and the
+server's idle test passes over (`bulletsResolving`, `src/sim/tactical/combat/bullets.ts`). An object comes back with no
+level node (`TileEngine/LoadSaveRealObject.cc:40`), which its next move takes for an object not drawn yet
+(`TileEngine/Physics.cc:1097`): every use of the node checks it, so nothing breaks, and the object gets one again at
+its next tile; its float fields are read as the float32 they are. Neither holds the busy count, which the load zeroes,
+so their end releases nothing that was held. The bomb queue comes back with its entries, its active flag, which the
+general info keeps (`SaveLoadGame.cc:2092`), and the sight bits of the tactical status; an entry names a world bomb by
+its slot, and the load lists the bombs again from the item file (`loadExplosionTable`,
+`src/sim/tactical/save-import.ts`). Each explosion in flight is generated again at its saved frame
+(`TileEngine/Explosion_Control.cc:2319`, `:159`), after the soldiers, who own them, and at the world load's light
+level, which decides whether it gets its light; it adds nothing to the busy count. The queue's interface lock is not
+saved (deviation "Interface lock after a load").
+
+**The cursor item and the map messages.** A save keeps the item cursor with its holder and source slot, and the load
+hands it back (`Tactical/Interface_Items.cc:5119`); ja2-node keeps no cursor on the server, so the import puts the
+item back as `CancelItemPointer` would (`:5086`, deviation "Item cursor on the canvas"). The 256 lines of the message
+list are finished text in the saving build's language, so an import starts with an empty list (`Utils/Message.cc:545`,
+deviation "Map messages of a native save").
 
 **Vehicle ids.** A soldier's `bVehicleID` is the vehicle he is and `iVehicleId` the one he rides. The import keeps them
 apart: every vehicle soldier, on any team, gets his `bVehicleID` (`Soldier.vehicleId`, -1 for anyone else, whose byte
 the original leaves at 0), the roster record keeps `iVehicleId`, and a vehicle merc's `RosterMerc.vehicleId` reads his
 soldier's (`sim/campaign/roster.ts`). Each vehicle is linked to the first active soldier who is it, whatever his team,
 as `FindSoldierType` scans (`sim/strategic/map/save-import.ts`), and the list is refilled in place, as the tactical sim
-shares it (`25`). The fuel patch of saves up to version 73 (`SaveLoadGame.cc:981`) never applies: those are refused.
-The seat (`SOLDIER_DRIVER`, `SOLDIER_PASSENGER`) moves onto the soldier (`Soldier.vehicleSeat`); the drivers and
-passengers of a ground vehicle in the loaded sector come into it at their saved tile, which is the vehicle's, with no
-occupant or structure, and a helicopter's take their merc slots with no tile (`25`). A save made in mid-drop holds the
-mercs still in the helicopter with the chopper insertion code and no tile: the import seats them in the drop, as the
-load's `UpdateMercsInSector` does, and lands them as the Esc skip does (deviation "Helicopter drop in a native save"). A merc in transit whose arrival sector is the loaded one gets no merc slot,
-as `UpdateMercInSector` returns for him (`Strategic/StrategicMap.cc:1023`).
+shares it (`25`). The fuel patch of saves up to version 73 (`SaveLoadGame.cc:981`) never applies: those are refused. The
+seat (`SOLDIER_DRIVER`, `SOLDIER_PASSENGER`) moves onto the soldier (`Soldier.vehicleSeat`); the drivers and passengers
+of a ground vehicle in the loaded sector come into it at their saved tile, which is the vehicle's, with no occupant or
+structure, and a helicopter's take their merc slots with no tile (`25`). A save made in mid-drop holds the mercs still
+in the helicopter with the chopper insertion code and no tile: the import seats them in the drop, as the load's
+`UpdateMercsInSector` does, and lands them as the Esc skip does (deviation "Helicopter drop in a native save"). A merc
+in transit whose arrival sector is the loaded one gets no merc slot, as `UpdateMercInSector` returns for him
+(`Strategic/StrategicMap.cc:1023`).
 
-**Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
-has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
-underground traversal flag, the current squad (the first, before the load's selections), the talk context, the
-strategic morale decay counter, Pablo's theft counter, the team change flag of a hit, the visible area and the rooms of
-the map loaded last, the bomb queue's setter and its sight check (deviations "Underground traversal flag", "Selection on
-load", "Talk context after a load", "Strategic morale decay counter", "Bobby Ray theft counter", "Team change during a
-hit", "Visible area of the map loaded last", "Rooms of the map loaded last"; `gPersonToSetOffExplosions`,
-`gfExplosionQueueMayHaveChangedSight`, `TileEngine/Explosion_Control.cc:68`). The clock
-starts unpaused (deviation "Pause state after an import"); the enemy-sighting pause of an enemy turn is not restored.
+**Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that has
+just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
+underground traversal flag, the current squad (the first, before the load's selections), the talk context, the strategic
+morale decay counter, Pablo's theft counter, the team change flag of a hit, the visible area and the rooms of the map
+loaded last, the bomb queue's setter and its sight check (deviations "Underground traversal flag", "Selection on load",
+"Talk context after a load", "Strategic morale decay counter", "Bobby Ray theft counter", "Team change during a hit",
+"Visible area of the map loaded last", "Rooms of the map loaded last"; `gPersonToSetOffExplosions`,
+`gfExplosionQueueMayHaveChangedSight`, `TileEngine/Explosion_Control.cc:68`). The clock starts unpaused (deviation
+"Pause state after an import"); the enemy-sighting pause of an enemy turn is not restored.
 
-**The save's tables win.** A native save keeps the strategic traversability its campaign started with (vanilla's
-differs from the shipped JSON on the I2/I3 border, `tools/oracle/README.md` "Strategic movement"), and Stracciatella does not
+**The save's tables win.** A native save keeps the strategic traversability its campaign started with (vanilla's differs
+from the shipped JSON on the I2/I3 border, `tools/oracle/README.md` "Strategic movement"), and Stracciatella does not
 reinitialise it on load; neither does the import.
 
 **Options and origin.** `importNativeGameOptions` keeps difficulty, sci-fi, gun nut and save mode and reports a turn
@@ -173,6 +193,9 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A queued bomb is named by its world bomb slot, and the load lists the bombs again in item order without gaps: an entry can set off another bomb than the one it was queued for (`TileEngine/Explosion_Control.cc:1955`, `Tactical/Tactical_Save.cc:571`) | `sim/tactical/save-import.test.ts` "sets off the bomb the rebuilt list holds at a saved index …" |
 | A queue saved running runs on at once, but ends at its last bomb without waiting for the blasts in flight: who set it off is not saved (`TileEngine/Explosion_Control.cc:2017`) | `sim/tactical/save-import.test.ts` "runs a queue saved running …" |
 | The load zeroes the busy count, explosions in flight or not (`SaveLoadGame.cc:1100`, `:1179`) | `sim/tactical/save-import.test.ts` "zeroes the saved busy count …" |
+| A loaded thrown knife takes its status from what its thrower holds at the load, not its own: `HandleBulletSpecialFlags` reads the hand again (`Tactical/Bullets.cc:102`) | `sim/tactical/save-import.test.ts` "gives a loaded thrown knife the status of what its thrower holds now …" |
+| A bullet saved stopped stays in its slot for good: the miss animation that would end it is not saved (`Tactical/Bullets.cc:405`) | `sim/tactical/save-import.test.ts` "keeps a bullet saved stopped in its slot for good …" |
+| A loaded object has no level node, so its first move looks at the catch again on the tile it was saved on, measured from there, where a drawn object waits for its next tile (`TileEngine/LoadSaveRealObject.cc:40`, `TileEngine/Physics.cc:1097`) | `sim/tactical/save-import.test.ts` "looks at the catch again on the tile an object was saved on …" |
 | The civilians' preserved file ends on a sector id that its load reads and never checks, while the enemies' is checked (`Tactical/Enemy_Soldier_Save.cc:255`, `:424`) | `content/formats/savegame-preserved-soldiers.test.ts` "checks the sector id after the records of an enemy file only …" |
 
 Not pinned yet:
@@ -191,12 +214,11 @@ auto-bandage and helicopter drop comparers compare the codes and frame delays th
 on the map screen first (`tools/oracle/tactical-import.ts`). The loaded sector's temp files are probed on saves the
 native build writes itself, a tear gas cloud and a hit window; the other sectors' at their first entries after
 `SaveGame09` and in the records of every sector of `SaveGame03` (`tools/oracle/README.md` "Savegame temp files"); the
-bomb queue and the explosions in flight on saves it writes too, a queue whose slot names another bomb after the load
-and explosions in real time and in combat ("Savegame bombs and explosions" there). With
-the original data, the subsystems' `save-import` tests import every save in `SavedGames`, and
-`src/server/save-session.test.ts` keeps playing each one: a save with a world in tactical, one without on the map screen
-while its travelling squad reaches the next sector; the first save with a world is also played again with its world flag
-cleared.
+bomb queue and the explosions in flight on saves it writes too, a queue whose slot names another bomb after the load and
+explosions in real time and in combat ("Savegame bombs and explosions" there). With the original data, the subsystems'
+`save-import` tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one: a
+save with a world in tactical, one without on the map screen while its travelling squad reaches the next sector; the
+first save with a world is also played again with its world flag cleared.
 
 Inferred from reading the source:
 - The Linux layout has a synthetic test only, and no real file covers versions 100–105: the saves the tests use
@@ -219,8 +241,9 @@ Inferred from reading the source:
 - An explosion's saved frame and its light: the oracle runs no tile animation, so its saves hold frame 0 and the probe
   prints no light; unit tests pin both (`src/sim/tactical/save-import.test.ts`). No probe follows a loaded explosion to
   its end.
+- The bullets and thrown objects in flight, a thrown knife's status from the hand, a bullet saved stopped and the
+  cursor item: no shipped save holds one, so unit tests pin them (`src/sim/tactical/save-import.test.ts`).
 
-Not ported: gaps "Animations on load", "Unread savegame sections", "Pending actions on import", "Smoke owner in a
-sector diff".
+Not ported: gaps "Animations on load", "Pending actions on import", "Smoke owner in a sector diff".
 Other deviations of the import: "Ambient sound events", "Blood on the ground",
 "Difficulty and progress in tactical", "Corpse structure past its file", "Preserved soldier checksums".

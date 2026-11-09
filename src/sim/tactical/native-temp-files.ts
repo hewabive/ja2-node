@@ -169,7 +169,7 @@ function savedSmokeCloud(t: TacticalState, s: SavedSmokeEffect): SmokeCloud {
   };
 }
 
-function soldierOfSavedId(t: TacticalState, id: number): Soldier | null {
+export function soldierOfSavedId(t: TacticalState, id: number): Soldier | null {
   return id === NOBODY ? null : (t.soldiers[id] ?? null);
 }
 

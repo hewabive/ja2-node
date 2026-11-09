@@ -140,6 +140,5 @@ the source:
 - The window rule skips the original's test for a struct node on the window tile: all 1,853 window structures of the
   260 original maps are single-tile and carry their own node.
 
-Deviations of this domain: "Light on structures",
-"Ambient light and light schedule", "Doors and light in the projection", "World clock for smoke and light", "Soldier
-fade without merc lights", "Merc light in a vehicle".
+Deviations of this domain: "Light on structures", "Ambient light and light schedule", "Doors and light in the
+projection", "World clock for smoke and light", "Soldier fade without merc lights", "Merc light in a vehicle".

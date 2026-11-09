@@ -76,9 +76,10 @@ water goes off when its ripple reaches its key frame, without a dud test. Only a
 be a dud; a dud that passes a second roll is laid down as a timed bomb of one or two turns (`12` §6).
 
 **One barrier.** Every object in flight holds the attack busy count until it dies; an explosion raises its own hold
-before the object's is released (`12`), so the attack ends after the blast. Holds the original leaves to its watchdog
-are released or refused where they arise: an aborted throw releases its count, and `attack` refuses a launcher without
-a round (`noAmmo`), which the original's cursor turns into a reload (deviation "Watchdogs").
+before the object's is released (`12`), so the attack ends after the blast. An object a native import brings back holds
+nothing, as the load zeroes the count (`14`). Holds the original leaves to its watchdog are released or refused where
+they arise: an aborted throw releases its count, and `attack` refuses a launcher without a round (`noAmmo`), which the
+original's cursor turns into a reload (deviation "Watchdogs").
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), the mortar's smoke-trail delay
 included: a cosmetic draw on `pre` in the original, kept there. Battle and impact sounds and the curse after a dud are

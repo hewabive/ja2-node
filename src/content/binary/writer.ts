@@ -56,6 +56,18 @@ export class BinaryWriter {
     return this;
   }
 
+  f32(v: number): this {
+    const at = this.#ensure(4);
+    this.#view.setFloat32(at, v, true);
+    return this;
+  }
+
+  f64(v: number): this {
+    const at = this.#ensure(8);
+    this.#view.setFloat64(at, v, true);
+    return this;
+  }
+
   u64(v: bigint): this {
     const at = this.#ensure(8);
     this.#view.setBigUint64(at, v, true);

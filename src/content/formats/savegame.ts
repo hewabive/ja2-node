@@ -1,13 +1,23 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls (the loaded world test, 2026-10-30);
-// @src SaveLoadScreen.cc DoneFadeOutForSaveLoadScreen (the screen a save resumes on); the explosion table (2026-11-08)
+// @src SaveLoadScreen.cc DoneFadeOutForSaveLoadScreen (the screen a save resumes on); the explosion table (2026-11-08);
+// @src the bullets, the physics objects and the item cursor (2026-11-08)
 
 import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { decryptRecord as decryptWithOldKey } from './prof.ts';
 import { SaveCursor } from './savegame-cursor.ts';
-import { readExplosionTable, type SavedExplosionTable } from './savegame-effects.ts';
+import {
+  readBullets,
+  readExplosionTable,
+  readItemCursor,
+  readRealObjects,
+  type SavedBullet,
+  type SavedExplosionTable,
+  type SavedItemCursor,
+  type SavedRealObject,
+} from './savegame-effects.ts';
 import {
   decryptSaveRecord,
   encryptionSetIndex,
@@ -116,8 +126,6 @@ const NUM_MINES = 6;
 const MINE_STATUS_BYTES = 44;
 const NUM_TOWNS = 13;
 const TOWN_LOYALTY_BYTES = 26;
-const BULLET_RECORD_BYTES = 128;
-const REAL_OBJECT_RECORD_BYTES = 256;
 const AIR_RAID_BYTES = 132;
 const STRATEGIC_STATUS_BYTES = 192;
 const SAI_PADDING_BYTES = 97;
@@ -127,7 +135,6 @@ const SAVED_PATROL_GROUPS = 50;
 const PATROL_GROUP_BYTES = 20;
 const SAVED_GARRISON_GROUPS = 100;
 const GARRISON_GROUP_BYTES = 14;
-const ITEM_CURSOR_BYTES = 44;
 const NUM_CIV_QUOTES = 50;
 const NUM_MEANWHILES = 17;
 const MEANWHILE_DEFINITION_BYTES = 8;
@@ -336,7 +343,10 @@ export interface SaveGame {
   readonly preRandom: PreRandomTable;
   readonly generalInfo: GeneralInfo;
   readonly teamTurns: TeamTurns;
+  readonly bullets: readonly SavedBullet[];
+  readonly realObjects: readonly SavedRealObject[];
   readonly explosionTable: SavedExplosionTable;
+  readonly itemCursor: SavedItemCursor;
   readonly watchedLocations: WatchedLocations;
   readonly gameStates: string | null;
   readonly creatureDirectives: SavedCreatureDirectives;
@@ -547,10 +557,6 @@ function skipArmsDealers(c: SaveCursor): void {
   c.skip(specialItems * DEALER_SPECIAL_ITEM_BYTES);
 }
 
-function skipCountedRecords(c: SaveCursor, recordBytes: number): void {
-  c.skip(c.u32() * recordBytes);
-}
-
 function skipStrategicAi(c: SaveCursor): void {
   const r = readLayout(c, STRATEGIC_AI_LAYOUT, false, 'strategic AI');
   c.skip(r.num('iPatrolArraySize'));
@@ -687,8 +693,8 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'mine status', () => c.skip(NUM_MINES * MINE_STATUS_BYTES));
   section(ctx, 'town loyalty', () => c.skip(NUM_TOWNS * TOWN_LOYALTY_BYTES));
   const vehicles = section(ctx, 'vehicles', () => readVehicles(c, version));
-  section(ctx, 'bullets', () => skipCountedRecords(c, BULLET_RECORD_BYTES));
-  section(ctx, 'physics objects', () => skipCountedRecords(c, REAL_OBJECT_RECORD_BYTES));
+  const bullets = section(ctx, 'bullets', () => readBullets(c));
+  const realObjects = section(ctx, 'physics objects', () => readRealObjects(c));
   section(ctx, 'air raid (unused)', () => c.skip(AIR_RAID_BYTES));
   const teamTurns = section(ctx, 'team turns', () => readTeamTurns(c));
   const explosionTable = section(ctx, 'explosions', () => readExplosionTable(c));
@@ -696,7 +702,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'strategic status', () => c.skip(STRATEGIC_STATUS_BYTES));
   section(ctx, 'strategic ai', () => skipStrategicAi(c));
   const watchedLocations = section(ctx, 'watched locations', () => readWatchedLocations(c));
-  section(ctx, 'item cursor', () => c.skip(ITEM_CURSOR_BYTES));
+  const itemCursor = section(ctx, 'item cursor', () => readItemCursor(c));
   section(ctx, 'civ quotes', () => c.skip(NUM_CIV_QUOTES * 2));
   section(ctx, 'backup npc info', () => skipNpcQuoteArrays(c, profilesInSave(version)));
   const meanwhileDefinitions = section(ctx, 'meanwhile definitions', () => readMeanwhileDefinitions(c));
@@ -738,7 +744,10 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     preRandom,
     generalInfo,
     teamTurns,
+    bullets,
+    realObjects,
     explosionTable,
+    itemCursor,
     watchedLocations,
     gameStates,
     creatureDirectives,

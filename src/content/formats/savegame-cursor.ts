@@ -61,6 +61,10 @@ export class SaveCursor {
     return this.#view.getFloat32(this.#take(4), true);
   }
 
+  f64(): number {
+    return this.#view.getFloat64(this.#take(8), true);
+  }
+
   skip(n: number): void {
     this.#take(n);
   }

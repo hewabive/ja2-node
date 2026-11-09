@@ -22,11 +22,13 @@
 // @src 2026-11-08); SOLDIER_ENGAGEDINACTION (2026-11-08); TileEngine/Explosion_Control.cc LoadExplosionTableFromSavedGameFile
 // @src (the bomb queue and the explosions in flight, after the soldiers and the world load's light level) with
 // @src LoadGeneralInfo's gfExplosionQueueActive, the DISALLOW_SIGHT and CHECK_SIGHT_AT_END_OF_ATTACK bits of the saved
-// @src uiFlags, and the busy count LoadSavedGame zeroes in combat and out of it (2026-11-08).
+// @src uiFlags, and the busy count LoadSavedGame zeroes in combat and out of it (2026-11-08); the bullets and the
+// @src physics objects before the explosion table; Tactical/Interface_Items.cc LoadItemCursorFromSavedGame, its object
+// @src put back as CancelItemPointer puts it (2026-11-08).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
-import type { SavedExplosionTable } from '../../content/formats/savegame-effects.ts';
+import type { SavedExplosionTable, SavedItemCursor } from '../../content/formats/savegame-effects.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
 import type {
   SavedCorpse,
@@ -40,7 +42,7 @@ import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { i16, u8 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
-import { objectFromRecord } from '../items/object.ts';
+import { type ItemObject, objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { Assignment, NO_VEHICLE, VehicleSeat } from '../strategic/forces/constants.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
@@ -58,11 +60,12 @@ import { explosionAnimationById, generateExplosion } from './explosions/explosio
 import { updateGassedOnNewGridNo } from './explosions/smoke.ts';
 import { addMercToHeli } from './helicopter-drop.ts';
 import { Insertion } from './insertion.ts';
-import { NUM_INV_SLOTS } from './inventory.ts';
+import { autoPlaceObject, NO_SLOT, NUM_INV_SLOTS, placeObject } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, lightSpriteRenderAll, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
+import { loadBulletTable, loadPhysicsTable } from './native-in-flight.ts';
 import {
   loadAllMapChangesFromMapTempFile,
   loadLightEffectsFromMapTempFile,
@@ -86,6 +89,7 @@ import {
   SoldierStatusFlags,
   TOTAL_SOLDIERS,
 } from './soldier.ts';
+import { soldierInventoryContext } from './soldier-inventory.ts';
 import {
   type AutoBandageState,
   type CrowStatus,
@@ -97,7 +101,7 @@ import {
 } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { seatInTheHelicopterOnSectorEntry } from './vehicle-passengers.ts';
-import { addItemToPool, trashWorldItems } from './world-items.ts';
+import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, trashWorldItems, Visibility } from './world-items.ts';
 
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
 const NOBODY = TOTAL_SOLDIERS;
@@ -201,13 +205,38 @@ export function importSave(sim: TacticalSim, save: SaveGame, aroundRestart = RES
   linkTacticalStatus(t, save);
   importCampaignWideState(t, save);
   lightSetBaseLevel(t, savedAmbientLight(sim, save));
+  loadBulletTable(t, save.bullets);
+  loadPhysicsTable(t, save.realObjects);
   loadExplosionTable(t, save.explosionTable, save.generalInfo.explosionQueueActive);
   dropSavedAttackBusyCount(t);
+  returnSavedCursorItem(t, save.itemCursor);
   return { report: { mapPath: sim.mapPath, soldiers: placed, worldItems, corpses, skippedMapModifications }, soldiers };
 }
 
 function dropSavedAttackBusyCount(t: TacticalState): void {
   t.turn.attackBusyCount = 0;
+}
+
+function returnSavedCursorItem(t: TacticalState, cursor: SavedItemCursor): void {
+  const holder = cursor.active ? soldierById(t, cursor.holderId) : null;
+  if (!holder) return;
+  const o = objectFromRecord(cursor.object);
+  if (cursor.sourceSlot === NO_SLOT) {
+    dropAtHoldersTile(t, holder, o);
+    return;
+  }
+  const ctx = soldierInventoryContext(t, holder);
+  if (isInventorySlot(cursor.sourceSlot)) placeObject(ctx, holder, cursor.sourceSlot, o);
+  if (o.count > 0 && !autoPlaceObject(ctx, holder, o)) dropAtHoldersTile(t, holder, o);
+}
+
+function isInventorySlot(slot: number): boolean {
+  return slot >= 0 && slot < NUM_INV_SLOTS;
+}
+
+function dropAtHoldersTile(t: TacticalState, holder: Soldier, o: ItemObject): void {
+  addItemToPool(t, holder.gridNo, o, Visibility.VISIBLE, holder.level, 0, FORCE_ON_GROUND);
+  notifySoldiersToLookForItems(t);
 }
 
 function loadExplosionTable(t: TacticalState, table: SavedExplosionTable, queueActive: boolean): void {

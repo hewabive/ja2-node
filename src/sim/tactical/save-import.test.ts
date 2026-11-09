@@ -3,9 +3,16 @@ import { stubProfiles } from '../../../tests/support/contracts.ts';
 import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
+import type { ObjectRecord } from '../../content/formats/object.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SavedVehicle, SaveGame } from '../../content/formats/savegame.ts';
-import { NO_SAVED_EXPLOSIONS, type SavedExplosionTable } from '../../content/formats/savegame-effects.ts';
+import {
+  NO_SAVED_EXPLOSIONS,
+  type SavedBullet,
+  type SavedExplosionTable,
+  type SavedItemCursor,
+  type SavedRealObject,
+} from '../../content/formats/savegame-effects.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
@@ -89,6 +96,8 @@ const SOLDIER_DEAD = 0x00000080;
 const SOLDIER_MISC_XRAYED = 0x04;
 const DOOR_HAS_TIN_CAN = 0x10;
 
+const NO_ITEM_CURSOR: SavedItemCursor = { object: objectRecord(0), holderId: NOBODY, sourceSlot: -1, active: false };
+
 type SoldierFields = Readonly<Record<string, number>>;
 
 function soldierRecord(fields: SoldierFields): Uint8Array {
@@ -156,6 +165,9 @@ interface SyntheticSave {
   readonly corpses?: readonly SavedCorpse[];
   readonly tactical?: Readonly<Record<string, unknown>>;
   readonly explosionTable?: SavedExplosionTable;
+  readonly bullets?: readonly SavedBullet[];
+  readonly realObjects?: readonly SavedRealObject[];
+  readonly itemCursor?: SavedItemCursor;
   readonly envLightValue?: number;
 }
 
@@ -175,6 +187,9 @@ function syntheticSave({
   corpses,
   tactical,
   explosionTable = NO_SAVED_EXPLOSIONS,
+  bullets = [],
+  realObjects = [],
+  itemCursor = NO_ITEM_CURSOR,
   envLightValue = NORMAL_LIGHTLEVEL_DAY,
 }: SyntheticSave): SaveGame {
   return {
@@ -235,6 +250,9 @@ function syntheticSave({
     watchedLocations: { gridNo: [], level: [], points: [], reset: [] },
     teamTurns: { outOfTurnOrder: [], hiddenInterrupt: false, lastInterruptedGuy: NOBODY, whoThrewRock: NOBODY },
     explosionTable,
+    bullets,
+    realObjects,
+    itemCursor,
     preRandom: { index: 0, numbers: Array.from({ length: 256 }, () => 0) },
   } as unknown as SaveGame;
 }
@@ -274,29 +292,33 @@ function lastKnownOppLocBytes(entries: readonly (readonly [viewer: number, oppon
   return bytes;
 }
 
+function objectRecord(item: number, status = 100): ObjectRecord {
+  return {
+    item,
+    count: item === 0 ? 0 : 1,
+    status: [status, 0, 0, 0, 0, 0, 0, 0],
+    gunStatus: status,
+    gunAmmoType: 0,
+    gunShotsLeft: 0,
+    gunAmmoItem: 0,
+    gunAmmoStatus: 0,
+    money: 0,
+    attachments: [],
+    flags: 0,
+    mission: 0,
+    trap: 0,
+    imprintId: 0,
+    keyId: 0,
+  };
+}
+
 function savedWorldItem(item: number, at: number, flags: number): SavedWorldItem {
   return {
     index: 0,
     exists: true,
     gridNo: at,
     level: 0,
-    object: {
-      item,
-      count: 1,
-      status: [100, 0, 0, 0, 0, 0, 0, 0],
-      gunStatus: 100,
-      gunAmmoType: 0,
-      gunShotsLeft: 0,
-      gunAmmoItem: 0,
-      gunAmmoStatus: 0,
-      money: 0,
-      attachments: [],
-      flags: 0,
-      mission: 0,
-      trap: 0,
-      imprintId: 0,
-      keyId: 0,
-    },
+    object: objectRecord(item),
     flags,
     renderZHeightAboveLevel: 0,
     visible: 1,
@@ -1316,5 +1338,236 @@ describe('the bomb queue and the explosions in flight of a save (Explosion_Contr
     const combat = importedSim(syntheticSave({ tactical: { inCombat: true, attackBusyCount: 2 } }));
     const realTime = importedSim(syntheticSave({ tactical: { inCombat: false, attackBusyCount: 1 }, explosionTable: blast }));
     expect([combat.state.turn.attackBusyCount, realTime.state.turn.attackBusyCount]).toEqual([0, 0]);
+  });
+});
+
+describe('the bullets, thrown objects and item cursor of a save (Bullets.cc LoadBulletStructureFromSavedGameFile, Physics.cc LoadPhysicsTableFromSavedGameFile, Interface_Items.cc LoadItemCursorFromSavedGame)', () => {
+  const FIX = 1 << 20;
+  const ROW = 80;
+  const FIRER_AT = gridNo(74, ROW);
+  const BULLET_COLUMN = 76;
+  const TARGET_ID = 20;
+  const CHEST_HEIGHT = 100;
+  const CUBE_UNITS = 64;
+  const KNIFE = 0x0002;
+  const SAVED_KNIFE_STATUS = 40;
+  const KNIFE_STATUS_IN_HAND = 77;
+  const MAX_TICKS = 2000;
+  const ARM_ITEM = 1;
+  const TARGET_MERC_CATCH = 2;
+  const CATCHER_ID = 4;
+  const HIGH_UP = 600;
+  const SAVED_TILES_MOVED = 3;
+  const KEY_RING_POSITION_PAST_THE_SLOTS = 20;
+  const STOPPED = 0x0010;
+  const SETTLING_TICKS = 200;
+  const NO_SOURCE_SLOT = -1;
+
+  function itemIndexOf(name: string): number {
+    const def = content.items.byName.get(name);
+    if (!def) throw new Error(`unknown item ${name}`);
+    return def.index;
+  }
+
+  function holding(entry: SavedSoldierEntry, slot: number, record: ObjectRecord): SavedSoldierEntry {
+    const inventory = entry.soldier.inventory.map((o, k) => (k === slot ? record : o));
+    return { ...entry, soldier: { ...entry.soldier, inventory } };
+  }
+
+  function bulletEastAlongTheRow(fields: Partial<SavedBullet> = {}): SavedBullet {
+    const x = BULLET_COLUMN * 10 + 5;
+    const y = ROW * 10 + 5;
+    return {
+      firerId: MERC_ID,
+      targetId: TARGET_ID,
+      startCubesAbove: 1,
+      endCubesAbove: 1,
+      gridNo: gridNo(BULLET_COLUMN, ROW),
+      lastStructureHit: 0,
+      x: x * FIX,
+      y: y * FIX,
+      z: CHEST_HEIGHT * FIX,
+      incX: FIX,
+      incY: 0,
+      incZ: 0,
+      horizAngle: 0,
+      tileX: BULLET_COLUMN,
+      tileY: ROW,
+      losX: (x % 10) >> 1,
+      losY: (y % 10) >> 1,
+      checkForRoof: false,
+      cubesZ: Math.trunc(CHEST_HEIGHT / CUBE_UNITS),
+      loop: 20,
+      toDelete: false,
+      located: false,
+      real: true,
+      aimed: true,
+      tilesPerUpdate: 1,
+      msPerUpdate: 5,
+      targetGrid: CENTRE,
+      hitBy: 10,
+      impact: 30,
+      impactReduction: 0,
+      range: 300,
+      distanceLimit: 60,
+      flags: 0,
+      itemStatus: 0,
+      ...fields,
+    };
+  }
+
+  function duelSave(extra: Partial<SyntheticSave> = {}): SaveGame {
+    return syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, FIRER_AT), savedSoldier(TARGET_ID, Team.ENEMY, CENTRE)],
+      ...extra,
+    });
+  }
+
+  function stepUntil(sim: TacticalSim, done: () => boolean): void {
+    for (let tick = 0; tick < MAX_TICKS && !done(); tick++) sim.step();
+    expect(done()).toBe(true);
+  }
+
+  it('flies a saved bullet on at the first update, its last update 0, and hits the target it names by id', () => {
+    const sim = importedSim(duelSave({ bullets: [bulletEastAlongTheRow()] }));
+    const t = sim.state;
+    const [bullet] = t.bullets;
+    expect([bullet?.firer.id, bullet?.target?.id, bullet?.lastUpdate]).toEqual([MERC_ID, TARGET_ID, 0]);
+    stepUntil(sim, () => t.bullets.length === 0);
+    expect(soldierOf(sim, TARGET_ID).life).toBeLessThan(50);
+  });
+
+  it('gives a loaded thrown knife the status of what its thrower holds now, not its own: HandleBulletSpecialFlags reads the hand again', () => {
+    const knife = bulletEastAlongTheRow({ flags: KNIFE, itemStatus: SAVED_KNIFE_STATUS });
+    const inHand = objectRecord(itemIndexOf('THROWING_KNIFE'), KNIFE_STATUS_IN_HAND);
+    const thrower = holding(savedSoldier(MERC_ID, Team.OUR, FIRER_AT), InvSlot.HAND, inHand);
+    const armed = importedSim(syntheticSave({ soldiers: [thrower, savedSoldier(TARGET_ID, Team.ENEMY, CENTRE)], bullets: [knife] }));
+    const emptyHanded = importedSim(duelSave({ bullets: [knife] }));
+    expect([armed.state.bullets[0]?.itemStatus, emptyHanded.state.bullets[0]?.itemStatus]).toEqual([KNIFE_STATUS_IN_HAND, 0]);
+  });
+
+  it('keeps a bullet saved stopped in its slot for good, as no miss animation comes back to remove it, and lets the sim stand idle', () => {
+    const sim = importedSim(duelSave({ bullets: [bulletEastAlongTheRow({ flags: STOPPED })] }));
+    for (let tick = 0; tick < SETTLING_TICKS; tick++) sim.step();
+    expect([sim.state.bullets.length, sim.isIdle()]).toEqual([1, true]);
+  });
+
+  function savedObject(item: number, at: number, fields: Partial<SavedRealObject> = {}): SavedRealObject {
+    const { x, y } = cellCentre(at);
+    const still = { x: 0, y: 0, z: 0 };
+    return {
+      alive: true,
+      applyFriction: false,
+      visible: true,
+      inWater: false,
+      testObject: 0,
+      testEndedWithCollision: false,
+      testPositionNotSet: false,
+      testZTarget: 0,
+      appliedMu: 0,
+      position: { x, y, z: 0 },
+      testTargetPosition: still,
+      oldPosition: { x, y, z: 0 },
+      velocity: still,
+      oldVelocity: still,
+      initialForce: still,
+      force: still,
+      collisionNormal: still,
+      collisionVelocity: still,
+      collisionElasticity: 0,
+      gridNo: at,
+      consecutiveCollisions: 0,
+      consecutiveZeroVelocityCollisions: 0,
+      oldCollisionCode: 1,
+      lifeLength: 10,
+      lifeSpan: 9,
+      object: objectRecord(item),
+      firstTimeMoved: false,
+      firstGridNo: FIRER_AT,
+      ownerId: MERC_ID,
+      action: ARM_ITEM,
+      targetId: NOBODY,
+      dropItem: true,
+      numTilesMoved: SAVED_TILES_MOVED,
+      catchGood: false,
+      attemptedCatch: false,
+      catchAnimOn: false,
+      catchCheckDone: false,
+      endedWithCollisionPositionSet: false,
+      endedWithCollisionPosition: still,
+      haveHitGround: true,
+      lastTargetTakenDamage: NOBODY,
+      ...fields,
+    };
+  }
+
+  it('lets a grenade saved in flight go off at the end of its life, its owner by id', () => {
+    const at = gridNo(78, ROW);
+    const sim = importedSim(duelSave({ realObjects: [savedObject(itemIndexOf('HAND_GRENADE'), at)] }));
+    const t = sim.state;
+    expect(t.explosives.objects.map((o) => [o?.owner?.id, o?.gridNo, o?.levelNode])).toEqual([[MERC_ID, at, false]]);
+    stepUntil(sim, () => t.explosives.aniTiles.some((a) => a.kind === 'explosion'));
+    const blast = t.explosives.aniTiles.find((a) => a.kind === 'explosion');
+    expect([blast?.kind === 'explosion' && blast.owner?.id, blast?.gridNo, t.explosives.objects]).toEqual([MERC_ID, at, []]);
+  });
+
+  it('looks at the catch again on the tile an object was saved on, measured from there: the load leaves it no level node, which PhysicsMoveObject takes for an object not drawn yet (Physics.cc:1097)', () => {
+    const at = gridNo(78, ROW);
+    const catcher = savedSoldier(CATCHER_ID, Team.OUR, gridNo(79, ROW));
+    const pass = savedObject(itemIndexOf('CANTEEN'), at, {
+      action: TARGET_MERC_CATCH,
+      targetId: CATCHER_ID,
+      attemptedCatch: true,
+      position: { ...cellCentre(at), z: HIGH_UP },
+      oldCollisionCode: 0,
+      lifeLength: -1,
+      haveHitGround: false,
+    });
+    const sim = importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, FIRER_AT), catcher], realObjects: [pass] }));
+    const [o] = sim.state.explosives.objects;
+    sim.step();
+    expect([o?.gridNo, o?.catchCheckDone]).toEqual([at, true]);
+  });
+
+  function cursorOf(record: ObjectRecord, sourceSlot: number): SavedItemCursor {
+    return { object: record, holderId: MERC_ID, sourceSlot, active: true };
+  }
+
+  function holderSave(cursor: SavedItemCursor, holder = savedSoldier(MERC_ID, Team.OUR, CENTRE)): TacticalSim {
+    return importedSim(syntheticSave({ soldiers: [holder], itemCursor: cursor }));
+  }
+
+  const itemsAt = (sim: TacticalSim, at: number) => sim.state.worldItems.filter((w) => w.gridNo === at).map((w) => w.object.item);
+  const carried = (s: Soldier) => s.inv.map((o) => o.item).filter((item) => item !== 0);
+
+  it('puts a saved cursor item back into its source slot, as CancelItemPointer does', () => {
+    const canteen = itemIndexOf('CANTEEN');
+    const sim = holderSave(cursorOf(objectRecord(canteen), InvSlot.SMALLPOCK3));
+    expect([soldierOf(sim, MERC_ID).inv[InvSlot.SMALLPOCK3]?.item, itemsAt(sim, CENTRE)]).toEqual([canteen, []]);
+  });
+
+  it('auto-places what the source slot swaps out, and leaves an inactive cursor alone', () => {
+    const [canteen, glock] = [itemIndexOf('CANTEEN'), itemIndexOf('GLOCK_17')];
+    const holder = holding(savedSoldier(MERC_ID, Team.OUR, CENTRE), InvSlot.BIGPOCK1, objectRecord(glock));
+    const swapped = soldierOf(holderSave(cursorOf(objectRecord(canteen), InvSlot.BIGPOCK1), holder), MERC_ID);
+    expect([swapped.inv[InvSlot.BIGPOCK1]?.item, swapped.inv[InvSlot.HAND]?.item]).toEqual([canteen, glock]);
+    const idle = soldierOf(holderSave({ ...cursorOf(objectRecord(canteen), InvSlot.SMALLPOCK3), active: false }), MERC_ID);
+    expect(carried(idle)).toEqual([]);
+  });
+
+  it('drops a cursor item with no source slot on its holder tile, free pockets or not', () => {
+    const canteen = itemIndexOf('CANTEEN');
+    const sim = holderSave(cursorOf(objectRecord(canteen), NO_SOURCE_SLOT));
+    expect([itemsAt(sim, CENTRE), carried(soldierOf(sim, MERC_ID))]).toEqual([[canteen], []]);
+  });
+
+  it('auto-places a cursor item from a key ring position past the inventory slots, and drops one no pocket takes', () => {
+    const [canteen, glock] = [itemIndexOf('CANTEEN'), itemIndexOf('GLOCK_17')];
+    const fromTheRing = soldierOf(holderSave(cursorOf(objectRecord(canteen), KEY_RING_POSITION_PAST_THE_SLOTS)), MERC_ID);
+    expect(fromTheRing.inv[InvSlot.SMALLPOCK1]?.item).toBe(canteen);
+    let full = savedSoldier(MERC_ID, Team.OUR, CENTRE);
+    for (let slot: number = InvSlot.HAND; slot <= InvSlot.SMALLPOCK8; slot++) full = holding(full, slot, objectRecord(glock));
+    const dropped = holderSave(cursorOf(objectRecord(canteen), InvSlot.SMALLPOCK3), full);
+    expect(itemsAt(dropped, CENTRE)).toEqual([glock]);
   });
 });

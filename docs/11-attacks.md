@@ -75,7 +75,7 @@ more than 20 ms after it was queued, 25 ms.
 **The bullet is the line of sight, continued.** It keeps the original's float32 deltas, double angles and 20-bit fixed
 point and steps through the LOS cells of `08`, but on the 2D distance and past the target until something stops it or
 it leaves the visible map (`onVisibleWorldTile`; in a basement, its visible area). Its last bullet releases the
-attack's hold, whatever ended it.
+attack's hold, whatever ended it. A native import brings the bullets in flight back, holding nothing (`14`).
 
 **The chance to get through is a fake bullet.** The same flight without draws, weighting what could stop it; the hint,
 the AI and the marksmanship gain use it. The hint and the AI call `calcChanceToHitGun` with `modify = false`, so only a
