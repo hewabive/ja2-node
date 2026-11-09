@@ -649,7 +649,8 @@ let failures = 0;
 for (const file of files) {
   if (isHeliDropOutput(file)) {
     const heliDrop = new HeliDropComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
-    for (const p of readLines(file)) failures += await heliDrop.compare(p);
+    const lines = readLines(file);
+    for (const [at, p] of lines.entries()) failures += await heliDrop.compare(p, loadDrawsAfter(lines, at));
     continue;
   }
   if (isSaveSectorsOutput(file)) {
@@ -698,7 +699,8 @@ for (const file of files) {
       meanwhiles.loadSector();
     } else if (p.probe === 'save') {
       const dir = saveDirFor(dataDir, file, String(p.name));
-      ctx = await saveContext(read, content, worlds, dir, p, loadDrawsAfter(lines, at));
+      const loadDraws = loadDrawsAfter(lines, at);
+      ctx = await saveContext(read, content, worlds, dir, p, loadDraws);
       const imported = ctx.imported ?? null;
       sectors.loadSave(dir, String(p.name));
       await strategic.loadSave(dir, String(p.name), ctx.worldless ? null : ctx.sim, imported);
@@ -725,7 +727,7 @@ for (const file of files) {
       if (ctx.bytes) bombs.loadSave(ctx.bytes);
       if (ctx.bytes) vehicles.loadSave(ctx.bytes);
       if (ctx.bytes) absent.loadSave(ctx.bytes);
-      if (ctx.bytes) autoBandage.loadSave(ctx.bytes);
+      if (ctx.bytes) autoBandage.loadSave(ctx.bytes, loadDraws);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);

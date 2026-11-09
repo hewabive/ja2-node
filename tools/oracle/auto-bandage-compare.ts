@@ -128,6 +128,11 @@ function setStanceImmediately(t: TacticalState, s: Soldier, name: string): void 
   initNewSoldierAnim(t, s, state, 0, true);
 }
 
+function takeNativeAnimation(s: Soldier, row: Json | undefined): void {
+  const [, code, , , , delay] = (row?.anim as number[] | undefined) ?? [];
+  if (code !== undefined && delay !== undefined) [s.pc, s.aniDelay] = [code, delay];
+}
+
 function withoutDroppedDraws(trace: readonly Draw[]): Draw[] {
   const kept: Draw[] = [];
   const open: number[] = [];
@@ -260,6 +265,7 @@ export class AutoBandageComparer {
   readonly #read: ReadFile;
   readonly #exists: FileExists;
   #bytes: Uint8Array | null = null;
+  #loadDraws: readonly Draw[] = [];
   #session: CampaignSession | null = null;
   #statics: NativeStatics | null = null;
   #started = false;
@@ -272,8 +278,9 @@ export class AutoBandageComparer {
     this.#exists = exists;
   }
 
-  loadSave(bytes: Uint8Array): void {
+  loadSave(bytes: Uint8Array, loadDraws: readonly Draw[]): void {
     this.#bytes = bytes;
+    this.#loadDraws = loadDraws;
     this.#session = null;
     this.#started = false;
     this.#frames.length = 0;
@@ -282,7 +289,12 @@ export class AutoBandageComparer {
   async #campaign(): Promise<CampaignSim> {
     if (!this.#session) {
       if (!this.#bytes) throw new Error('auto-bandage probes need a save');
-      this.#session = (await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
+      const loadDraws = this.#loadDraws;
+      this.#session = (
+        await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists, undefined, undefined, (t, restart) =>
+          inOrder(t, loadDraws, restart),
+        )
+      ).session;
       this.#carryStatics(this.#sim(this.#session.campaign).state);
     }
     return this.#session.campaign;
@@ -620,6 +632,7 @@ export class AutoBandageComparer {
     const created = ((p.state as Json | undefined)?.others as Json[] | undefined)?.find((o) => num(o.id) === nativeId);
     const life = (created?.life as number[] | undefined) ?? [];
     if (!has(a, 'life') && life[0] !== undefined) s.life = life[0];
+    if (!has(a, 'anim')) takeNativeAnimation(s, created);
     return s;
   }
 
@@ -631,6 +644,7 @@ export class AutoBandageComparer {
     if (row?.medical !== undefined) s.stats.medical = num(row.medical);
     const [life, lifeMax] = (row?.life as number[] | undefined) ?? [];
     if (life !== undefined && lifeMax !== undefined) [s.life, s.lifeMax] = [life, lifeMax];
+    takeNativeAnimation(s, row);
   }
 
   #vehicle(c: CampaignSim, t: TacticalState, a: Json, p: Json): unknown {
@@ -789,7 +803,7 @@ export class AutoBandageComparer {
       gridNo: grid(s.gridNo),
       level: s.level,
       direction: s.direction,
-      anim: [s.state, height(c, s.state), endHeight(c, s.state)],
+      anim: [s.state, s.pc, height(c, s.state), endHeight(c, s.state), s.aniDelay],
       alert: s.ai.alertStatus,
       moveMode: s.uiMovementMode,
       action: this.#actionFields(s),
@@ -815,7 +829,7 @@ export class AutoBandageComparer {
       gridNo: m.gridNo,
       level: m.level,
       direction: m.direction,
-      anim: [animFields[0], animFields[3], animFields[4]],
+      anim: [animFields[0], animFields[1], animFields[3], animFields[4], animFields[5]],
       alert: m.alert,
       moveMode: m.moveMode,
       action: m.action,
@@ -830,7 +844,20 @@ export class AutoBandageComparer {
   }
 
   #otherRow(s: Soldier): Row {
-    return [s.id, s.team, grid(s.gridNo), s.level, s.state, s.life, s.bleeding, s.collapsed, s.ai.alertStatus, ...this.#actionFields(s)];
+    return [
+      s.id,
+      s.team,
+      grid(s.gridNo),
+      s.level,
+      s.state,
+      s.pc,
+      s.aniDelay,
+      s.life,
+      s.bleeding,
+      s.collapsed,
+      s.ai.alertStatus,
+      ...this.#actionFields(s),
+    ];
   }
 
   #nativeOtherRow(o: Json): Row {
@@ -842,6 +869,8 @@ export class AutoBandageComparer {
       o.gridNo,
       o.level,
       animFields[0],
+      animFields[1],
+      animFields[5],
       life[0],
       life[1],
       o.collapsed,
@@ -1011,10 +1040,7 @@ export class AutoBandageComparer {
   }
 
   #syncSoldierTimers(s: Soldier, row: Json, now: number): void {
-    const [, code, , , , delay] = (row.anim as number[] | undefined) ?? [];
     const [ai = NOT_MEASURED, update = NOT_MEASURED] = (row.counters as number[] | undefined) ?? [];
-    if (code !== undefined) s.pc = code;
-    if (delay !== undefined) s.aniDelay = delay;
     if (update !== NOT_MEASURED) s.nextFrameAt = now + update;
     if (ai !== NOT_MEASURED) s.ai.counter = now + ai;
   }

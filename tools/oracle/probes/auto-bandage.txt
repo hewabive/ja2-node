@@ -3,15 +3,19 @@
 # hand); civilians 116-118 and 121-123 in the sector, 119 and 120 away. Building 1 spans x105-114, y40-51 with six climb
 # spots; 7786 is a blocked tile inside it.
 # abtimer on=1 switches the virtual steady clock on before the first load, so every timer the loads and frames set is
-# deterministic; abframes advances it and the JA2 clock by 5 ms per frame. Every block starts from a fresh load with the
-# AI cursors reset and the engine seeded; abmerc, abkit, abhostile, abvehicle and abtactical set the scene, abbegin,
-# abshould, abpending, abstart, abcan, abpatient, abdecide, abexecute, abservices, abframes and abend run the original.
+# deterministic; abframes advances it and the JA2 clock by 5 ms per frame. Every block starts from a fresh load, its draws
+# traced for the import's restart of every saved animation, with the AI cursors reset and the engine seeded; abmerc,
+# abkit, abhostile, abvehicle and abtactical set the scene, abbegin, abshould, abpending, abstart, abcan, abpatient,
+# abdecide, abexecute, abservices, abframes and abend run the original.
 abtimer on=1
 
 # 1. BeginAutoBandage's boxes in their order: nobody to bandage, no kit, a kit only with a merc at medical 0 or dying,
 # combat, an unconscious enemy nobody has seen, a hostile civilian; the question answered no.
 seed value=11
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=11 pre=reseed
 abstate                                             # B13 holds no hostile: enemies 0
@@ -31,7 +35,10 @@ abbegin answer=no
 abhostile grid=14462 team=enemy life=5 anim=STAND_FALLFORWARD_STOP collapsed=1
 abbegin                                             # unconscious and unseen, still counted
 seed value=12
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=12 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -42,7 +49,10 @@ abbegin                                             # a civilian who is not neut
 # waits for a queued line, a pending action and the UI lock, then asks; a condition changed since the battle's end
 # gives the OK box instead of the question.
 seed value=13
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=13 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -65,7 +75,10 @@ abpending                                           # nobody bleeds any more: th
 # the game screen (blood on), the won branch sets the pending flag, the victory line holds it until the queue is empty,
 # then the question comes and is answered yes.
 seed value=14
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=14 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -79,7 +92,10 @@ abframes plain=1 count=20 answer=yes
 # 4. The same death on the map screen: with blood on the death animation waits for the game screen and nothing is set;
 # with blood off the battle ends on the map and the flag stays set until tactical runs again.
 seed value=14
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=14 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -88,7 +104,10 @@ abtactical enemyInSector=1 fought=1
 abhurt who=20 damage=2 breath=0 screen=map
 abstate screen=map
 seed value=14
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=14 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -102,7 +121,10 @@ abpending answer=no
 # 5. The start: Sidney bleeding with a kit is on both lists; the slot and medic fields reset, every soldier's frame delay
 # becomes 0. With no medic left, both lists are emptied.
 seed value=15
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=15 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -121,7 +143,10 @@ abend
 # decide nothing. The real-time AI first runs the next action left in the save (stand up), then turns the decision into
 # a wait of 10000 + Random(1000).
 seed value=16
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=16 pre=reseed
 abkit who=1 slot=12 item=none
@@ -157,7 +182,10 @@ abend
 # then finds nobody. Sidney farther than Ira leaves him; once Ira, still assigned, stands on the roof with no path to
 # Shadow, FindAdjacentGridEx finds no tile for him and Sidney takes Shadow over.
 seed value=17
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=17 pre=reseed
 abmerc who=0 life=60 bleeding=5 grid=7755
@@ -177,7 +205,10 @@ abend
 # 8. A patient on the roof: any reachable patient on the ground wins whatever the priorities; alone, he makes Ira
 # move to a climb spot, climb and dress him.
 seed value=18
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=18 pre=reseed
 abmap
@@ -199,7 +230,10 @@ abframes count=1 end=1
 # civilians on all five real spots leave it passing; on the ground floor under the roof-side spots only three of them
 # can stand (two are blocked tiles), so it passes again. A medic on the roof passes a ground patient nobody can reach.
 seed value=19
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=19 pre=reseed
 abmerc who=0 life=60 bleeding=5
@@ -242,7 +276,10 @@ abend
 # he swaps the second kit in and bSlotItemTakenFrom is overwritten; the end swaps the hand back with the second pocket.
 # Every frame of dressing draws the stat chances on the PreRandom stream.
 seed value=20
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=20 pre=reseed
 abkit who=1 slot=12 item=none
@@ -256,7 +293,10 @@ abframes count=1 end=1
 
 # 11. Out of kits: Ira's only kit (3 points) runs out with Sidney still bleeding; the mode completes with no warning.
 seed value=21
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=21 pre=reseed
 abkit who=1 slot=12 item=none
@@ -269,7 +309,10 @@ abframes count=1 end=1
 # 12. The end: Shadow crouched and then sent to B12, Sidney crouched and bleeding, Ira dressing him when Cancel comes;
 # one call of HandleTeamServices on its own first.
 seed value=22
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=22 pre=reseed
 abkit who=1 slot=12 item=none
@@ -285,7 +328,10 @@ abframes count=1 end=1
 # FindBestPatient keeps the passenger (in sector at the Hummer's tile) as a candidate, but FindAdjacentGridEx finds no
 # tile next to him, so Ira dresses Sidney and then finds nobody, the passenger still bleeding.
 seed value=23
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=23 pre=reseed
 abvehicle grid=7598 dir=2 board=0
@@ -304,7 +350,10 @@ abframes count=1 end=1
 # frame, Ira's wait of 10000 + Random(1000); after completion the mode runs on with the counter held at 125; the end warps
 # the clock by 125 s.
 seed value=24
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=24 pre=reseed
 abmerc who=0 life=60 bleeding=8 alert=0
@@ -319,7 +368,10 @@ abframes count=1 end=1
 # 15. An early end with a real-time turn due: nobody bleeds in the four frames, Done warps 25 s, and the first real-time
 # turn after the mode comes in the first frames of the game screen.
 seed value=25
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535 last=6044930
 seed value=25 pre=reseed
 abmerc who=0 life=60 bleeding=8
@@ -330,7 +382,10 @@ abframes plain=1 count=8
 
 # 16. Mercs at GREEN while the team knows of opposition: the medic's first decision raises him to RED and he runs.
 seed value=26
+draws on
 save SaveGame01
+draws dump
+draws off
 abtimer aislot=0 awayslot=65535
 seed value=26 pre=reseed
 abmerc who=0 life=60 bleeding=8 alert=0

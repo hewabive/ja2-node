@@ -14,7 +14,7 @@ PROBES=(
   laptop/laptop.jsonl doors/doors.jsonl heli/heli.jsonl talk/talk.jsonl facts/facts.jsonl actions/actions.jsonl
   schedules/schedules.jsonl give/give.jsonl recruit/recruit.jsonl civ/civ.jsonl meanwhile/meanwhile.jsonl
   boxing/boxing.jsonl drugs/drugs.jsonl bombs/bombs.jsonl vehicles/vehicles.jsonl absent/absent.jsonl
-  autobandage/autobandage.jsonl knife-ai/knife-ai.jsonl helidrop/helidrop.jsonl helidrop/load.jsonl
+  autobandage/autobandage-draws.jsonl knife-ai/knife-ai.jsonl helidrop/helidrop.jsonl helidrop/load-draws.jsonl
   save-effects/setup.jsonl save-effects/effects.jsonl save-sectors/entries.jsonl
 )
 OPTIONAL_PROBES=(attach/attach.jsonl florist/florist.jsonl)

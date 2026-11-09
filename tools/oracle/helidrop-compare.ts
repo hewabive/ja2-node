@@ -39,7 +39,7 @@ type Json = Record<string, unknown>;
 type Row = readonly unknown[];
 
 export const HELI_DROP_OUTPUT = 'helidrop.jsonl';
-const HELI_DROP_LOAD_OUTPUT = 'load.jsonl';
+const HELI_DROP_LOAD_OUTPUTS: ReadonlySet<string> = new Set(['load.jsonl', 'load-draws.jsonl']);
 const HELI_DROP_DIR = 'helidrop';
 const DROP_SAVE = 'OracleHeliDrop';
 const IMPORT_SEED = 1;
@@ -62,7 +62,7 @@ const RANDOM_IDLES_TAKEN =
 const IMPORT_LANDS_THE_SEATS =
   'deviation "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
 const PHASES_TAKEN =
-  'the animation codes, frame delays and frame timers of the native load and the pause its save holds are taken for the frames: an import restarts every animation on its own draws, the recording tracing none of the load draws, and starts unlocked (deviation "Pause state after an import")';
+  'the animation codes and frame delays of the restart compared, the frame timers of the native load and the pause its save holds taken for the frames: the timers run on the process’s clock, which no save holds, and an import starts unlocked (deviation "Pause state after an import")';
 const IMPORTED_GLOBALS: readonly string[] = ['seats', 'selected', 'lastUpdate'];
 const NATIVE_ROW_ANIM_STATE = 5;
 const RANDOM_ANIM_CHECK = 491;
@@ -174,7 +174,7 @@ function queuedLines(c: CampaignSim, act: () => void): number[][] {
 
 export function isHeliDropOutput(path: string): boolean {
   const name = basename(path);
-  return name === HELI_DROP_OUTPUT || (name === HELI_DROP_LOAD_OUTPUT && basename(dirname(path)) === HELI_DROP_DIR);
+  return name === HELI_DROP_OUTPUT || (HELI_DROP_LOAD_OUTPUTS.has(name) && basename(dirname(path)) === HELI_DROP_DIR);
 }
 
 function isFaceAt(draws: readonly Draw[], i: number): boolean {
@@ -261,10 +261,10 @@ export class HeliDropComparer {
     this.#passengers = new HeliPassengerComparer(read, exists, save);
   }
 
-  async compare(p: Json): Promise<number> {
+  async compare(p: Json, loadDraws: readonly Draw[]): Promise<number> {
     const probe = String(p.probe);
     const label = `${probe} line ${String(p.line ?? '')}`;
-    if (probe === 'save' && p.name === DROP_SAVE) return this.#importDropSave(p);
+    if (probe === 'save' && p.name === DROP_SAVE) return this.#importDropSave(p, loadDraws);
     if (probe === 'save') {
       this.#passengerBlock = true;
       this.#frames = [];
@@ -281,7 +281,7 @@ export class HeliDropComparer {
       this.#frames.push(p);
       return 0;
     }
-    if (probe === 'end' || probe === 'seed' || probe === 'hdtimer') return 0;
+    if (probe === 'end' || probe === 'seed' || probe === 'hdtimer' || probe === 'draws') return 0;
     if (probe === 'hdrestart') {
       this.#session = null;
       this.#imported = false;
@@ -500,7 +500,7 @@ export class HeliDropComparer {
     return report(label, true, `soldier ${s.id} ${String(a.mode ?? 'collapse')}`);
   }
 
-  async #importDropSave(p: Json): Promise<number> {
+  async #importDropSave(p: Json, loadDraws: readonly Draw[]): Promise<number> {
     const label = `save ${String(p.name)}`;
     this.#frames = [];
     this.#clockOffset = null;
@@ -509,7 +509,17 @@ export class HeliDropComparer {
     this.#imported = true;
     this.#phasesToTake = true;
     try {
-      this.#session = (await createTacticalSaveSession(this.#read, this.#save(String(p.name)), IMPORT_SEED, this.#exists)).session;
+      this.#session = (
+        await createTacticalSaveSession(
+          this.#read,
+          this.#save(String(p.name)),
+          IMPORT_SEED,
+          this.#exists,
+          undefined,
+          undefined,
+          (t, restart) => inOrder(t, loadDraws, restart),
+        )
+      ).session;
     } catch (e) {
       this.#session = null;
       this.#skipping = 'the drop save did not import';
@@ -540,9 +550,37 @@ export class HeliDropComparer {
     const problems: string[] = [];
     differences(this.#asImported(this.#teamState()), this.#asImported(this.#nativeTeamState(p)), 'state', problems);
     const taken = this.#phasesToTake ? `; ${PHASES_TAKEN}` : '';
-    if (this.#phasesToTake) this.#takeNativePhases(p.state as Json);
+    if (this.#phasesToTake) {
+      differences(this.#animations(), this.#nativeAnimations(p.state as Json), 'animations after the load', problems);
+      this.#takeNativePhases(p.state as Json);
+    }
     this.#phasesToTake = false;
     return report(label, problems.length === 0, problems.join('; ') || `${IMPORT_LANDS_THE_SEATS}${taken}`);
+  }
+
+  #restartedSoldiers(native: Json): [Soldier, Json][] {
+    const t = this.#tactical();
+    return [...((native.team as Json[] | undefined) ?? []), ...((native.others as Json[] | undefined) ?? [])].flatMap((row) => {
+      const s = t.soldiers[num(row.id)];
+      return s && !this.#landedByImport.has(s.id) && inSector(s) ? [[s, row] as [Soldier, Json]] : [];
+    });
+  }
+
+  #animations(): Row[] {
+    const t = this.#tactical();
+    return t.soldiers
+      .filter((s): s is Soldier => !!s && !this.#landedByImport.has(s.id) && inSector(s))
+      .map((s) => [s.id, s.state, s.pc, s.aniDelay]);
+  }
+
+  #nativeAnimations(native: Json): Row[] {
+    return [...((native.team as Json[] | undefined) ?? []), ...((native.others as Json[] | undefined) ?? [])]
+      .filter((row) => row.inSector !== false && !this.#landedByImport.has(num(row.id)))
+      .map((row) => {
+        const [state, code, , , , delay] = (row.anim as number[] | undefined) ?? [];
+        return [num(row.id), state, code, delay];
+      })
+      .sort((x, y) => num(x[0]) - num(y[0]));
   }
 
   #takeNativePhases(native: Json): void {
@@ -552,13 +590,8 @@ export class HeliDropComparer {
     clock.paused = paused !== 0;
     clock.pauseLocked = locked !== 0;
     clock.pauseLockReason = reason;
-    for (const row of [...((native.team as Json[] | undefined) ?? []), ...((native.others as Json[] | undefined) ?? [])]) {
-      const s = t.soldiers[num(row.id)];
-      if (!s || this.#landedByImport.has(s.id) || !inSector(s)) continue;
-      const [, code, , , , delay] = (row.anim as number[] | undefined) ?? [];
+    for (const [s, row] of this.#restartedSoldiers(native)) {
       const [, update] = (row.counters as number[] | undefined) ?? [];
-      if (code !== undefined) s.pc = code;
-      if (delay !== undefined) s.aniDelay = delay;
       if (update !== undefined) s.nextFrameAt = t.clockMs - FRAME_MS + update;
     }
   }

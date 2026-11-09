@@ -4,10 +4,13 @@
 # 1. In a fresh process: the drop's statics start clean, so no run is going and none starts; LoadSavedGame puts the
 # undropped chopper mercs back into the seats (UpdateMercsInSector, AddMercToHeli); the saved pause and its lock stay,
 # so the strategic turns never run; the merc saved in HELIDROP restarts at his saved animation and steps away at 467.
-# Seeded before the load, so the frames' draws repeat.
+# Seeded before the load, so the frames' draws repeat; each load's draws are traced for the import's restart.
 hdtimer on=1
 seed value=21
+draws on
 save OracleHeliDrop
+draws dump
+draws off
 hdstate
 hdframes count=2000
 hdstate
@@ -26,5 +29,8 @@ hdset live=1
 hdjackedin
 hdframes count=20000 until=dropped:2
 hdframes count=150
+draws on
 save OracleHeliDrop
+draws dump
+draws off
 hdstate

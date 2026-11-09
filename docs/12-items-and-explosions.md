@@ -550,9 +550,8 @@ The oracle's auto-bandage probes (`tools/oracle/README.md` "Auto-bandage", `tool
 the checks, the question, the start, the decisions, the full check, the services and the end against the native build,
 the draws replayed strictly, and whole modes frame by frame for our team, the civilians and the mode's globals. Not
 checked against the native build:
-- When a breathing soldier's idle check rolls in a frame run: the load restarts every animation at its saved code and so
-  passes some idle checks, as the import does on its own draws (the auto-bandage recording traces none of the load's),
-  whose counter the probes do not print; the frame runs take the native draws in order, and no check in them picks an
+- When a breathing soldier's idle check rolls in a frame run: the probes do not print its counter, which the load's
+  restart counts as the import's does; the frame runs take the native draws in order, and no check in them picks an
   idle animation.
 - The keys, the panel's buttons, the start's and the end's `HandleTacticalUI` calls and the message box screen's pause:
   the oracle has no input queue and no panel.
