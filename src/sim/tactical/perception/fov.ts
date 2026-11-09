@@ -7,9 +7,12 @@
 // @src Tactical/Handle_Items.cc AllSoldiersLookforItems;
 // @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04; the tiles its
 // @src SetGridNoRevealedFlag flags for the picture 2026-11-09); RevealRoofsAndItems' OUR_MERCS_AUTO_MOVE (2026-11-06); the
-// @src MAPELEMENT_REVEALED tiles for the picture's wire frames (2026-11-09).
+// @src MAPELEMENT_REVEALED tiles for the picture's wire frames (2026-11-09); TileEngine/Render_Fun.cc
+// @src SetRecalculateWireFrameFlagRadius and TileEngine/WorldDef.cc CalculateWorldWireFrameTiles(FALSE) (the tiles a
+// @src recalculation flags and the MAPELEMENT_REVEALED tiles it reads then, for the picture, from RemoveRoomRoof and
+// @src Explosion_Control.cc SpreadEffect, 2026-11-09).
 
-import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -48,6 +51,7 @@ const MAX_ROOMS = 256;
 const ROOM_SURROUNDING_BOXING_RING = 3;
 const SPOTTED_SOMETHING_QUOTE = 11;
 const SPOTTED_SOMETHING_QUOTES = 2;
+const ROOM_REVEAL_WIREFRAME_RADIUS = 2;
 
 const Blocking = {
   NOTHING: 0,
@@ -301,6 +305,33 @@ export function revealedTileRuns(t: TacticalState): TileRun[] {
   return tileRuns(WORLD_MAX, (g) => groundRevealed(t, g));
 }
 
+function flagWireframesAround(flagged: Set<number>, g: number, radius: number): void {
+  const row = idiv(g, WORLD_COLS);
+  const col = g % WORLD_COLS;
+  for (let y = row - radius; y < row + radius + 2; y++) {
+    if (y < 0 || y >= WORLD_ROWS) continue;
+    for (let x = col - radius; x < col + radius + 2; x++) if (x >= 0 && x < WORLD_COLS) flagged.add(y * WORLD_COLS + x);
+  }
+}
+
+const step = (g: number, direction: number) => newGridNo(g, DIRECTION_INCREMENT[direction] ?? 0);
+
+function tilesAWireframeReads(g: number): readonly number[] {
+  return [g, step(g, SOUTH), step(g, EAST), step(step(g, WEST), SOUTH), step(step(g, NORTH), EAST), step(step(g, EAST), SOUTH)];
+}
+
+export function recalculateWireframesAround(t: TacticalState, tiles: Iterable<number>, radius: number): void {
+  const flagged = new Set<number>();
+  for (const g of tiles) flagWireframesAround(flagged, g, radius);
+  const read = new Set<number>();
+  for (const g of flagged) for (const n of tilesAWireframeReads(g)) read.add(n);
+  t.events.push({
+    type: 'wireframesRecalculated',
+    tiles: tileRuns(WORLD_MAX, (g) => flagged.has(g)),
+    revealed: tileRuns(WORLD_MAX, (g) => read.has(g) && groundRevealed(t, g)),
+  });
+}
+
 export function examineSlantRoofsOverRevealedTiles(t: TacticalState): void {
   t.fog.slantRoofCeilings.fill(0);
   fogChanged(t);
@@ -320,9 +351,11 @@ function sightRevealsGround(t: TacticalState, g: number, underground: boolean): 
 
 function removeRoomRoof(t: TacticalState, room: number, s: Soldier | null, slots: SlantRoofSlots): void {
   const rooms = t.world.level.rooms;
+  const roomTiles: number[] = [];
   let saidItemSeenQuote = false;
   for (let g = 0; g < WORLD_MAX; g++) {
     if (rooms[g] !== room) continue;
+    roomTiles.push(g);
     setGridNoRevealed(t, g);
     slots.addRoofsHiddenOver(t, g);
     if (!setItemsVisibilityOn(t, g, 0, Visibility.INVISIBLE, true) || saidItemSeenQuote) continue;
@@ -330,6 +363,7 @@ function removeRoomRoof(t: TacticalState, room: number, s: Soldier | null, slots
     if (s) t.narrative.sayQuote(s, SPOTTED_SOMETHING_QUOTE + t.rng.int(SPOTTED_SOMETHING_QUOTES));
   }
   t.events.push({ type: 'roomRevealed', room });
+  recalculateWireframesAround(t, roomTiles, ROOM_REVEAL_WIREFRAME_RADIUS);
 }
 
 function hiddenRoomAt(t: TacticalState, g: number): number {

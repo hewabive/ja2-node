@@ -38,6 +38,7 @@ import { radarPathForMap } from '../world/radar.ts';
 import { SoldierAssets } from '../world/soldier-assets.ts';
 import { loadSoldierFrames, type SoldierFrames } from '../world/soldier-frames.ts';
 import { TacticalWorldView } from '../world/tactical-world-view.ts';
+import { WireframeRecalculationLog } from '../world/wireframe-recalculations.ts';
 import { WorldEffects } from '../world/world-effects.ts';
 import { loadOverheadTiles } from './overhead-map.ts';
 import { storyCameraTarget } from './story-camera.ts';
@@ -87,6 +88,7 @@ export class TacticalHost {
   readonly #o: TacticalHostOptions;
   readonly #renderer: WorldRenderer;
   readonly #sound: TacticalSound;
+  readonly #wireframes = new WireframeRecalculationLog();
   readonly #hints: HintProvider;
   readonly #hintHook: HintHook;
   readonly #client: SessionTacticalClient;
@@ -247,6 +249,7 @@ export class TacticalHost {
         bullets: () => session.bullets,
         clockMs: () => this.#o.ui.runtime.clock.ja2Now,
         options: () => tacticalOptionsOf(loadSettings(), { redItemGlow: this.#redItemGlow }),
+        wireframeRecalculations: () => this.#wireframes.recalculations,
       },
       loadedMedia.radarImage,
     );
@@ -457,7 +460,9 @@ export class TacticalHost {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#sound.frames(frames);
-    this.#loaded?.presenter.followEvents(frames.flatMap((f) => f.events ?? []));
+    const events = frames.flatMap((f) => f.events ?? []);
+    this.#wireframes.follow(events);
+    this.#loaded?.presenter.followEvents(events);
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
       for (const event of frame.events ?? []) {
@@ -481,7 +486,8 @@ export class TacticalHost {
     this.#loaded?.presenter.observeEffects(frames.flatMap((f) => f.effects ?? []));
   }
 
-  welcome(): void {
+  welcome(stateReplaced: boolean): void {
+    if (stateReplaced) this.#wireframes.restart();
     const session = this.#o.session;
     this.#sound.director?.reset(session.soldiers, session.openContainers, session.view?.helicopterDrop ?? null);
     this.#frames?.reset();

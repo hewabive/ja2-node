@@ -12,6 +12,7 @@ import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
 import type { BoxingEvent } from './tactical/narrative/boxing-events.ts';
 import type { OrderEvent } from './tactical/order-events.ts';
+import type { TileRun } from './tactical/perception/fov.ts';
 import type { TileToolEvent } from './tactical/tile-tool-events.ts';
 import type { TrapEvent } from './tactical/trap-events.ts';
 
@@ -176,6 +177,12 @@ export interface EnemySightedEvent extends SimEventBase {
 export interface RoomRevealedEvent extends SimEventBase {
   readonly type: 'roomRevealed';
   readonly room: number;
+}
+
+export interface WireframesRecalculatedEvent extends SimEventBase {
+  readonly type: 'wireframesRecalculated';
+  readonly tiles: readonly TileRun[];
+  readonly revealed: readonly TileRun[];
 }
 
 export interface AmbientLightSetEvent extends SimEventBase {
@@ -789,6 +796,7 @@ export type SimEvent =
   | EnemySightedEvent
   | RoomRevealedEvent
   | AmbientLightSetEvent
+  | WireframesRecalculatedEvent
   | ShotFiredEvent
   | MeleeStrikeEvent
   | StealAttemptEvent

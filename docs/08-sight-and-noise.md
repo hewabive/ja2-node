@@ -157,8 +157,9 @@ shows its items; in a cave every tile revealed, by a look, a room or a load of t
 light (`20`). A sector entry with saved revealed tiles and a native import reveal every one as a room reveal does, outside
 rooms too, and the fog keeps those tiles for the picture (`fog.revealedAtLoad`; a ja2-node load keeps them, deviation
 "Revealed tiles on load"). The client derives hidden roofs and show-through from the revealed rooms and those tiles, and
-the wire frames also from every tile revealed so far, which the view carries as `revealedTiles` (`render/world/reveal.ts`,
-`05`). Above ground there is no terrain fog.
+the wire frames from the recalculations a room reveal and a blast make, each with the tiles revealed then
+(`wireframesRecalculated`, `recalculateWireframesAround`), and every tile revealed so far, which the view carries as
+`revealedTiles` (`render/world/reveal.ts`, `05`). Above ground there is no terrain fog.
 
 **Slanted roofs keep a ceiling.** A revealed room, and a load that reveals a tile of it, take off every slanted roof
 with a tile there; the tiles of such a

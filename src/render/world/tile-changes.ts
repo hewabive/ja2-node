@@ -5,11 +5,14 @@
 // @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue; Smell.cc UpdateBloodGraphics (the pool graphic replacing the
 // @src tile's first blood object at the head of its object layer); WorldMan.cc AddStructToTail (the landed helicopter),
 // @src AddObjectToHead (a destroyed structure's debris), AddObjectToTail (the pits of Pits.cc Add3X3Pit, Add5X5Pit,
-// @src 2026-11-09).
+// @src 2026-11-09); Structure.cc AddStructureToWorld, DeleteStructureFromWorld (the structures a change adds and
+// @src removes, by its base tile, 2026-11-09).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/level.ts';
+import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type WorldStructures } from '../../content/world/structures.ts';
+import type { TileElement } from '../../content/world/tile-database.ts';
 import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } from '../../content/world/tile-tables.ts';
 import { idiv } from '../../core/int.ts';
 
@@ -136,6 +139,44 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
       objects: objects.changed ? objects.build() : level.layers.objects,
     },
   };
+}
+
+export interface StructuresAfterChanges {
+  readonly structures: WorldStructures;
+  readonly touched: ReadonlySet<number>;
+}
+
+function changesObjectLayer(c: TileChange): boolean {
+  return c.kind === 'object' || c.kind === 'appendObject';
+}
+
+function changedBase(structures: WorldStructures, c: TileChange, def: TileElement['structure']): StructureInstance | null {
+  const at = structures.at(c.gridNo);
+  return at.find((s) => has(s.flags, StructureFlags.BASE_TILE) && s.def === def && idiv(s.cubeOffset, PROFILE_Z_SIZE) === c.level) ?? null;
+}
+
+function applyStructureChange(tiles: readonly TileElement[], structures: WorldStructures, c: TileChange): boolean {
+  const te = tiles[c.tile];
+  if (!te?.structure || changesObjectLayer(c)) return false;
+  if (c.kind !== 'remove') return structures.add(c.gridNo, c.level, te.structure, undefined, te.structureFile) !== null;
+  const base = changedBase(structures, c, te.structure);
+  if (base) structures.remove(base);
+  return base !== null;
+}
+
+export function structuresAfterTileChanges(
+  structures: WorldStructures,
+  tiles: readonly TileElement[],
+  changes: readonly TileChange[],
+): StructuresAfterChanges {
+  if (changes.length === 0) return { structures, touched: new Set() };
+  const after = structures.clone();
+  const touched = new Set<number>();
+  for (const c of changes) {
+    if (!applyStructureChange(tiles, after, c)) continue;
+    for (const tile of tiles[c.tile]?.structure?.tiles ?? []) touched.add(c.gridNo + tile.posRelToBase);
+  }
+  return { structures: after, touched };
 }
 
 const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = {

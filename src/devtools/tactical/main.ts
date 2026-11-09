@@ -10,6 +10,7 @@ import { SoldierAssets } from '../../app/world/soldier-assets.ts';
 import { loadSoldierFrames, type SoldierFrames } from '../../app/world/soldier-frames.ts';
 import type { SoldierScene } from '../../app/world/soldier-scene.ts';
 import { type TacticalDisplayOptions, type TacticalPresentation, TacticalWorldView } from '../../app/world/tactical-world-view.ts';
+import { WireframeRecalculationLog } from '../../app/world/wireframe-recalculations.ts';
 import { WorldEffects } from '../../app/world/world-effects.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
@@ -148,6 +149,7 @@ const OPTION_BOXES: readonly [keyof MutableOptions, string][] = [
 ];
 
 let view: TacticalWorldView | null = null;
+const wireframes = new WireframeRecalculationLog();
 let assets: SoldierAssets | null = null;
 let soldierScene: SoldierScene | null = null;
 let soldierFrames: SoldierFrames | null = null;
@@ -254,6 +256,7 @@ function render(): void {
       revealedRooms: client?.revealedRooms ?? [],
       revealedAtLoad: client?.view?.revealedAtLoad ?? [],
       revealedTiles: client?.view?.revealedTiles ?? [],
+      wireframeRecalculations: wireframes.recalculations,
       slantRoofCeilings: client?.view?.slantRoofCeilings ?? [],
       clock: client?.clock ?? null,
       combat: client?.combat ?? null,
@@ -556,11 +559,13 @@ async function start(): Promise<void> {
       sound.frames(frames);
       sleepWake.frames(frames);
       if (frames.some((f) => f.events?.some((e) => e.type === 'ambientLightSet'))) view?.baseLightSet();
+      wireframes.follow(frames.flatMap((f) => f.events ?? []));
     };
     client.onReceive = (frames) => {
       for (const frame of frames) soldierFrames?.observe(frame.events ?? []);
     };
     client.onWelcome = () => {
+      wireframes.restart();
       sound.director?.reset(client?.soldiers ?? []);
       sound.music.reset(client?.view?.music);
       soldierFrames?.reset();

@@ -205,6 +205,21 @@ describe('blasts and structures', () => {
     expect(events.filter((e) => e.type === 'structureDamaged')).toEqual([expect.objectContaining({ gridNo: wall, destroyed: true })]);
   });
 
+  it('works the wire frames out within its radius around the bomb only when it changed a structure (SpreadEffect)', () => {
+    const recalculated = (walls: readonly number[]) => {
+      const sim = simWith(() => walls, 10);
+      const t = sim.state;
+      igniteExplosion(t, null, 0, BOMB, itemId(t, 'TNT'), 0);
+      return runExplosivesUntilIdle(sim).flatMap((e) => (e.type === 'wireframesRecalculated' ? [e.tiles] : []));
+    };
+    const explosive = content.items.byName.get('TNT')?.explosive;
+    const radius = Math.max(explosive?.blast?.radius ?? 0, explosive?.stun?.radius ?? 0);
+    const rows = Array.from({ length: 2 * radius + 2 }, (_, k) => [gridNo(80 - radius, 80 - radius + k), 2 * radius + 2]);
+    expect(radius).toBeGreaterThan(0);
+    expect(recalculated([north(1)])).toEqual([rows]);
+    expect(recalculated([])).toEqual([]);
+  });
+
   it('stops the blast at a wall but not in the open', () => {
     const sim = simWith((g) => Array.from({ length: 9 }, (_, k) => g(76 + k, 78)));
     const t = sim.state;

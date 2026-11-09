@@ -36,12 +36,12 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `no-burn.ts` | The no-burn tiles, where a soldier sorts 2 z units nearer and is never shown through: set as the map loads and as the view's structure changes add structures |
 | `static-scene.ts` | The static layers: node filters, segments, z strips, the obscured pass |
 | `dynamic-scene.ts` | Dynamic and animated map nodes, soldiers, items, corpses, smoke, effect nodes and UI nodes, every frame |
-| `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes, the ceilings of slanted roofs; structure and object changes (debris) and blood pools |
+| `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes, the ceilings of slanted roofs; structure and object changes (debris), the structures they leave, and blood pools |
 | `world-program.ts`, `instances.ts`, `world-framebuffer.ts` | The shader, the draw states, the instance records, the framebuffers |
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |
 | `content/world/zstrip.ts`, `shading.ts`, `render-bounds.ts` | ZStripInfo, the shade palettes, the scroll rectangle and absolute screen frame (shared with the simulation) |
-| `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), crow shadows (`crow-shadows.ts`), the roof marker (`roof-markers.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
+| `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), crow shadows (`crow-shadows.ts`), the roof marker and its light (`roof-markers.ts`, `roof-marker-shades.ts`), the wire frame recalculations since the load (`wireframe-recalculations.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
 | `app/tactical/overhead-map.ts` | The overhead map, composed from the small tiles at every entry from the world as last drawn: tile changes, room reveals, open doors and the shade field (`30`) |
 | `devtools/map-viewer/` | A developer page that renders any map with picking |
 
@@ -109,10 +109,14 @@ pass sweeps (`app/world/interactive-nodes.ts`, `30`). `picking.ts`'s pixel pick 
 or native import revealed as `revealedAtLoad` (`08`); the client applies the original's node flags to both. Every tile
 revealed so far, the ones sight revealed outside rooms included, arrives as `revealedTiles`, whole with the welcome and
 then as the tiles each frame adds (`revealedTilesAdded`). The wall wire frames follow the original's: every one worked
-out against the tiles the load revealed, then again against every revealed tile within two tiles of the tiles of a room
-revealed since and of a structure a tile change touched, the others kept as they were (`followWireframes`,
-`reveal.ts`); a welcome on an open link, which leaves the client no history, starts again from the load. The roof
-checks of the picking read every revealed tile too (`IsRoofVisible`, `app/world/interactive-nodes.ts`). The ceilings of slanted roofs arrive as
+out against the tiles the load revealed, then again at each recalculation the simulation names, in order, on its tiles
+and against the tiles revealed at that moment (`wireframesRecalculated`: a room reveal, in the middle of the look,
+within two tiles of the room; an explosion that changed a structure, in its radius around the bomb), the others kept as
+they were, over the structures the view's tile changes leave (`followWireframes`, `reveal.ts`). The client keeps the
+recalculations since the last sector entry or load (`app/world/wireframe-recalculations.ts`); one without that history,
+a welcome on an open link, starts again from the load, works the rooms revealed since out against every revealed tile,
+then the recalculations it has. The roof checks of the picking read every revealed tile (`IsRoofVisible`,
+`app/world/interactive-nodes.ts`). The ceilings of slanted roofs arrive as
 `slantRoofCeilings`, which the simulation's fog of war keeps (`08`), and are drawn at the head of their tile's roofs. Structure changes, blood pools, corpses, smoke,
 bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. The
 roof marker under a soldier on a roof is placed and taken off where the view shows the original's triggers: a move
@@ -143,7 +147,9 @@ unless a path is given:
 | The roof level shows the hidden roofs again, but not the hidden A-frame walls | `static-scene.test.ts` |
 | On-roof objects stay over a revealed room | `static-scene.test.ts` |
 | A wireframe towards a roofed tile not yet revealed always shows; only one towards a revealed tile follows the option | `reveal.test.ts` (original data) |
-| The wall wire frames stay as the load worked them out while sight reveals tiles outside rooms; only a room reveal or an explosion works out again the ones around it, then counting every revealed tile (`TileEngine/WorldDef.cc:2681`) | `reveal.test.ts` "leave the wire frames as the load worked them out …", "work them out again within two tiles of a room …" |
+| The wall wire frames stay as the load worked them out while sight reveals tiles outside rooms; only a room reveal or an explosion works out again the ones around it, then counting every revealed tile (`TileEngine/WorldDef.cc:2681`) | `reveal.test.ts` "leave the wire frames as the load worked them out …", "work them out again within two tiles of a room …", "… within the radius around the bomb …" |
+| A room reveal works out the wire frames around the room in the middle of the look, so the tiles the rest of the look reveals count only at the next recalculation (`TileEngine/Render_Fun.cc:224`) | `reveal.test.ts` "leave out of a room reveal the tiles the rest of the look reveals", `src/sim/tactical/perception/perception.test.ts` "works the wire frames out around the room as the look reveals it …" |
+| An explosion works out again the wire frames in its whole radius around the bomb, and only when it changed a structure (`TileEngine/Explosion_Control.cc:1434`) | `src/sim/tactical/explosions/explosion.test.ts` "works the wire frames out within its radius …" |
 | Soldiers on roofs are drawn twice, in the struct-merc and the high-merc passes | `dynamic-scene.test.ts` |
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
 | A structure added at the head of a tile makes it a no-burn tile only where a wall stands, the reverse of one added at the tail; removals and partner swaps leave the flag as it was | `no-burn.test.ts` |
@@ -161,6 +167,8 @@ unless a path is given:
 | A light going out cuts the roof marker's strongest light to the light left, even a light the marker never got | `roof-marker-shades.test.ts` |
 
 Not pinned yet:
+- A structure changed otherwise than by an explosion (a shot window, a repaired SAM site) leaves the wire frames as they
+  were worked out before it.
 - Cliff-hang objects sort at z 0, so they lose to every object pixel drawn before them.
 - Buddy shadows go before the map's shadows, in reverse order of their structures, and are added in basements and
   caves outside floors: the loader tests `GridNoIndoors` before it knows the map is underground.
@@ -183,7 +191,9 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - The obscured dither assumes a frame buffer aligned to 4 bytes, so its parity follows screen pixels.
 - A light change makes the original redraw only the marked areas without clearing its z-buffer; ja2-node always draws
   whole frames.
+- A wire frame recalculation reads the structures the frame that carries it ends with, where the original reads them as
+  they stand at its moment; only two blasts changing structures within one frame could show it.
 
-Not ported: gaps "Room reveal at a load". Other deviations of this domain: "Revealed tiles on load", "Structures on load", "Sweep window",
+Not ported: none known. Deviations of this domain: "Revealed tiles on load", "Structures on load", "Sweep window",
 "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall translucency template",
 "Bullets of unseen shooters", "Soldier frame on turning".

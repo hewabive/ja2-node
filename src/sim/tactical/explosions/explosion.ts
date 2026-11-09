@@ -4,7 +4,8 @@
 // @src 2026-11-04), IgniteExplosion, IgniteExplosionXY,
 // @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect (with the blood of BLOOD_SPREAD_EFFECT; the
 // @src HandleBuldingDestruction call 2026-10-31),
-// @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
+// @src GetRayStopInfo, SpreadEffect (the wire frames in its radius around the bomb when a structure changed, for the
+// @src picture, 2026-11-09), SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames; the door tiles
 // @src in the same pass 2026-11-01; sight left off while the bomb queue runs 2026-11-04);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier);
@@ -39,6 +40,7 @@ import {
 } from '../lighting/lighting.ts';
 import { handleBuildingDestruction } from '../narrative/minor-offenses.ts';
 import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
+import { recalculateWireframesAround } from '../perception/fov.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { doorTravelCost, type PointsContext } from '../points.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
@@ -506,6 +508,7 @@ export function spreadEffect(
   expAffect(t, ctx, g, 0);
   for (let dir = Direction.NORTH; dir <= Direction.NORTHWEST; dir++) spreadRay(t, ctx, g, blastRange, dir, isSmoke);
   if (ctx.changes.gridNos.size > 0) {
+    recalculateWireframesAround(t, [g], radius);
     recompileChangedTiles(t, ctx.changes);
     recompileLocalMovementCosts(t.world.costs, t.world, g, MAX_RECOMPILE_RADIUS);
     checkPowPathsInAlmaPrison(t);

@@ -245,6 +245,24 @@ describe('fog of war', () => {
     expect(t.events.filter((e) => e.type === 'roomRevealed')).toEqual([{ type: 'roomRevealed', room: 5 }]);
   });
 
+  it('works the wire frames out around the room as the look reveals it, against the tiles revealed until then (RemoveRoomRoof)', () => {
+    const t = tactical();
+    markRoom(t, 5, 78, 82, 84, 87);
+    revealRoofsAndItems(t, spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH), true);
+    const recalculations = t.events.flatMap((e) => (e.type === 'wireframesRecalculated' ? [e] : []));
+    expect(recalculations.map((r) => r.tiles)).toEqual([Array.from({ length: 9 }, (_, k) => [gridNo(76, 82 + k), 10])]);
+    const revealedThen = new Set(
+      (recalculations[0]?.revealed ?? []).flatMap(([first, count]) => Array.from({ length: count }, (_, k) => first + k)),
+    );
+    const room = Array.from({ length: 20 }, (_, k) => gridNo(78 + (k % 5), 84 + Math.floor(k / 5)));
+    expect(room.every((g) => revealedThen.has(g))).toBe(true);
+    const revealedLater = [gridNo(80, 88), gridNo(80, 89)];
+    expect(revealedLater.map((g) => [revealedThen.has(g), (t.fog.revealed[g] ?? 0) !== 0])).toEqual([
+      [false, true],
+      [false, true],
+    ]);
+  });
+
   it('keeps rooms behind walls, behind the viewer and in enemy view hidden', () => {
     const t = tactical((w) => {
       for (let x = 70; x <= 90; x++) w.add(gridNo(x, 85), 0, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT));

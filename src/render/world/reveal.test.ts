@@ -14,6 +14,7 @@ import { buildTileDatabase, type TileSurface } from '../../content/world/tile-da
 import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
+import type { TileRun } from '../../protocol/view.ts';
 import { rowOf } from './geometry.ts';
 import {
   changedRevealTiles,
@@ -24,6 +25,8 @@ import {
   type RevealInputs,
   type RevealWorld,
   type WallWireframes,
+  type WireframeRecalculation,
+  type WireframeRecalculations,
 } from './reveal.ts';
 import { StaticScene, StaticSegment, type StaticWorld } from './static-scene.ts';
 
@@ -213,32 +216,60 @@ describe('the wall wire frames worked out again during a stay (Render_Fun.cc Rem
       [farWall + WORLD_COLS, 1],
     ],
   );
-  const afterSight = () => {
-    const loaded = followWireframes(w, null, fresh);
-    return { inputs: seen, wireframes: followWireframes(w, { inputs: fresh, wireframes: loaded }, seen) };
-  };
+  const afterSight = () => followWireframes(w, followWireframes(w, null, fresh), seen);
+  const square = (g: number, radius: number): TileRun[] =>
+    Array.from({ length: 2 * radius + 2 }, (_, k) => [g - radius + (k - radius) * WORLD_COLS, 2 * radius + 2] as const);
+  const recalculations = (generation: number, ...list: WireframeRecalculation[]): WireframeRecalculations => ({ generation, list });
+  const roomRevealed = (...revealed: number[]): WireframeRecalculation => ({
+    tiles: square(roomTile, 2),
+    revealed: revealed.map((g) => [g, 1] as const),
+  });
 
   it('leave the wire frames as the load worked them out while sight only reveals tiles outside rooms', () => {
     expect(followsTheOption(afterSight().wireframes)).toEqual([false, false]);
   });
 
-  it('work them out again within two tiles of a room a look reveals, counting every tile sight revealed outside rooms', () => {
-    expect(followsTheOption(followWireframes(w, afterSight(), roomSeen))).toEqual([true, false]);
+  it('work them out again within two tiles of a room as the look reveals it, counting every tile sight revealed outside rooms until then', () => {
+    const revealedFirst = recalculations(0, roomRevealed(roomTile, nearRoom + WORLD_COLS));
+    expect(followsTheOption(followWireframes(w, afterSight(), roomSeen, revealedFirst).wireframes)).toEqual([true, false]);
   });
 
-  it('work them out again within two tiles of a structure an explosion changed (Explosion_Control.cc SpreadEffect)', () => {
-    expect(followsTheOption(followWireframes(w, afterSight(), seen, [nearRoom]))).toEqual([true, false]);
+  it('leave out of a room reveal the tiles the rest of the look reveals (FOV.cc RevealRoofsAndItems)', () => {
+    const revealedAfter = recalculations(0, roomRevealed(roomTile));
+    expect(followsTheOption(followWireframes(w, afterSight(), roomSeen, revealedAfter).wireframes)).toEqual([false, false]);
+  });
+
+  it('work out again only the tiles the simulation names, a room revealed or not', () => {
+    expect(followsTheOption(followWireframes(w, afterSight(), roomSeen).wireframes)).toEqual([false, false]);
+  });
+
+  it('work them out again within the radius around the bomb a blast that changed a structure names (Explosion_Control.cc SpreadEffect)', () => {
+    const blast = recalculations(0, { tiles: square(farWall, 1), revealed: [[farWall + WORLD_COLS, 1]] });
+    expect(followsTheOption(followWireframes(w, afterSight(), seen, blast).wireframes)).toEqual([false, true]);
   });
 
   it('work every one out against the tiles revealed at the load, then those near a room revealed since, when the client has no history', () => {
-    expect(followsTheOption(followWireframes(w, null, roomSeen))).toEqual([true, false]);
+    expect(followsTheOption(followWireframes(w, null, roomSeen).wireframes)).toEqual([true, false]);
     const farAtLoad = inputs([ROOM], roomSeen.revealedTiles, [[farWall + WORLD_COLS, 1]]);
-    expect(followsTheOption(followWireframes(w, null, farAtLoad))).toEqual([true, true]);
+    expect(followsTheOption(followWireframes(w, null, farAtLoad).wireframes)).toEqual([true, true]);
+  });
+
+  it('then work out every recalculation since the load in order, each against the tiles revealed then', () => {
+    expect(followsTheOption(followWireframes(w, null, roomSeen, recalculations(0, roomRevealed(roomTile))).wireframes)).toEqual([
+      false,
+      false,
+    ]);
   });
 
   it('start afresh once a tile is no longer revealed, as at a load', () => {
-    const lit = followWireframes(w, afterSight(), roomSeen);
-    expect(followsTheOption(followWireframes(w, { inputs: roomSeen, wireframes: lit }, fresh))).toEqual([false, false]);
+    const lit = followWireframes(w, afterSight(), roomSeen, recalculations(0, roomRevealed(roomTile, nearRoom + WORLD_COLS)));
+    expect(followsTheOption(followWireframes(w, lit, fresh).wireframes)).toEqual([false, false]);
+  });
+
+  it('start afresh at the next load, whose recalculations come as a new list', () => {
+    const lit = followWireframes(w, afterSight(), seen, recalculations(0, roomRevealed(roomTile, nearRoom + WORLD_COLS)));
+    expect(followsTheOption(lit.wireframes)).toEqual([true, false]);
+    expect(followsTheOption(followWireframes(w, lit, seen, recalculations(1)).wireframes)).toEqual([false, false]);
   });
 
   it('report every tile revealed so far, those of sight too, to the roof checks of the picking (WorldMan.cc IsRoofVisible)', () => {

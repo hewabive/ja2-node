@@ -8,7 +8,8 @@
 // @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere; InitLoadedWorld (every wire frame against the tiles revealed at
 // @src the load), CalculateWorldWireFrameTiles(FALSE) on the tiles SetRecalculateWireFrameFlagRadius flags (Render_Fun.cc,
 // @src radius 2 around the tiles of a room RemoveRoomRoof reveals; Explosion_Control.cc SpreadEffect around what a blast
-// @src changed), against every MAPELEMENT_REVEALED tile, the others kept (2026-11-09).
+// @src changed), against every MAPELEMENT_REVEALED tile, the others kept (2026-11-09); each one at the moment and on the
+// @src tiles the simulation names, against the tiles revealed then (2026-11-09).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -257,9 +258,23 @@ export interface RevealInputs {
   readonly revealedTiles: readonly TileRun[];
 }
 
+export interface WireframeRecalculation {
+  readonly tiles: readonly TileRun[];
+  readonly revealed: readonly TileRun[];
+}
+
+export interface WireframeRecalculations {
+  readonly generation: number;
+  readonly list: readonly WireframeRecalculation[];
+}
+
+export const NO_RECALCULATIONS: WireframeRecalculations = { generation: 0, list: [] };
+
 export interface WireframeHistory {
   readonly inputs: RevealInputs;
   readonly wireframes: WallWireframes;
+  readonly generation: number;
+  readonly applied: number;
 }
 
 const ROOM_REVEAL_RECALCULATION_RADIUS = 2;
@@ -283,7 +298,7 @@ function revealedTileSet(w: RevealWorld, inputs: RevealInputs): Uint8Array {
   return revealed;
 }
 
-export function recalculationArea(tiles: Iterable<number>, radius: number): Set<number> {
+function recalculationArea(tiles: Iterable<number>, radius: number): Set<number> {
   const area = new Set<number>();
   for (const g of tiles) {
     const row = Math.floor(g / WORLD_COLS);
@@ -294,10 +309,6 @@ export function recalculationArea(tiles: Iterable<number>, radius: number): Set<
     }
   }
   return area;
-}
-
-function roomsAdded(before: ReadonlySet<number>, after: ReadonlySet<number>): Set<number> {
-  return new Set([...after].filter((room) => !before.has(room)));
 }
 
 function startsAfresh(before: RevealInputs, after: RevealInputs): boolean {
@@ -325,17 +336,39 @@ function wireframesAfterLoad(w: RevealWorld, inputs: RevealInputs, revealed: Uin
   return area.size > 0 ? loaded.workedOutAgain(w, revealed, area) : loaded.withRevealed(revealed);
 }
 
+function tilesOfRuns(runs: readonly TileRun[]): Set<number> {
+  const tiles = new Set<number>();
+  for (const [first, count] of runs) for (let g = Math.max(0, first); g < Math.min(WORLD_MAX, first + count); g++) tiles.add(g);
+  return tiles;
+}
+
+function revealedThen(r: WireframeRecalculation): Uint8Array {
+  const revealed = new Uint8Array(WORLD_MAX);
+  markRuns(revealed, r.revealed);
+  return revealed;
+}
+
+export function recalculationsPending(history: WireframeHistory | null, recalculations: WireframeRecalculations): boolean {
+  return !history || history.generation !== recalculations.generation || history.applied !== recalculations.list.length;
+}
+
 export function followWireframes(
   w: RevealWorld,
   history: WireframeHistory | null,
   inputs: RevealInputs,
-  changedTiles: readonly number[] = [],
-): WallWireframes {
+  recalculations: WireframeRecalculations = NO_RECALCULATIONS,
+): WireframeHistory {
   const revealed = revealedTileSet(w, inputs);
-  if (!history || startsAfresh(history.inputs, inputs)) return wireframesAfterLoad(w, inputs, revealed);
-  const rooms = roomsAdded(history.inputs.revealedRooms, inputs.revealedRooms);
-  const area = recalculationArea([...tilesOfRooms(w, rooms), ...changedTiles], ROOM_REVEAL_RECALCULATION_RADIUS);
-  return area.size > 0 ? history.wireframes.workedOutAgain(w, revealed, area) : history.wireframes.withRevealed(revealed);
+  const fresh = !history || history.generation !== recalculations.generation || startsAfresh(history.inputs, inputs);
+  let wireframes = fresh ? wireframesAfterLoad(w, inputs, revealed) : history.wireframes;
+  for (const r of recalculations.list.slice(fresh ? 0 : history.applied))
+    wireframes = wireframes.workedOutAgain(w, revealedThen(r), tilesOfRuns(r.tiles));
+  return {
+    inputs,
+    wireframes: wireframes.withRevealed(revealed),
+    generation: recalculations.generation,
+    applied: recalculations.list.length,
+  };
 }
 
 export function computeReveal(

@@ -5,15 +5,14 @@
 // @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel; Lighting.cc LightIlluminateWall (the live
 // @src structures a light is drawn over).
 
-import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { MovementCosts, recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
-import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type WorldStructures } from '../../content/world/structures.ts';
+import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { clamp, idiv } from '../../core/int.ts';
 import type { TileChangeView } from '../../protocol/view.ts';
-import { tileChangesKey } from '../../render/world/tile-changes.ts';
+import { structuresAfterTileChanges, tileChangesKey } from '../../render/world/tile-changes.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import { EventKind } from '../../sim/strategic/time/constants.ts';
 import { buildDayLightLevels, NORMAL_LIGHTLEVEL_NIGHT } from '../../sim/strategic/time/environment.ts';
@@ -36,7 +35,6 @@ import {
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { DoorStatus, PathEnv, PathWorld } from '../../sim/tactical/pathfinding.ts';
 import type { TacticalState } from '../../sim/tactical/state.ts';
-import { changesObjectLayer } from '../../sim/tactical/world-view.ts';
 
 const SHADE_MAX = 1;
 const SHADE_MIN = 15;
@@ -121,28 +119,9 @@ interface StandingStructures {
   readonly costs: MovementCosts;
 }
 
-function changedBase(structures: WorldStructures, c: TileChangeView, def: StructureDef): StructureInstance | null {
-  const at = structures.at(c.gridNo);
-  return at.find((s) => has(s.flags, StructureFlags.BASE_TILE) && s.def === def && idiv(s.cubeOffset, PROFILE_Z_SIZE) === c.level) ?? null;
-}
-
-function applyStructureChange(world: TacticalWorld, structures: WorldStructures, c: TileChangeView): boolean {
-  const te = world.tiles[c.tile];
-  if (!te?.structure || changesObjectLayer(c)) return false;
-  if (c.kind !== 'remove') return structures.add(c.gridNo, c.level, te.structure, undefined, te.structureFile) !== null;
-  const base = changedBase(structures, c, te.structure);
-  if (base) structures.remove(base);
-  return base !== null;
-}
-
 function standingStructures(world: TacticalWorld, changes: readonly TileChangeView[]): StandingStructures {
   if (changes.length === 0) return world;
-  const structures = world.structures.clone();
-  const touched = new Set<number>();
-  for (const c of changes) {
-    if (!applyStructureChange(world, structures, c)) continue;
-    for (const tile of world.tiles[c.tile]?.structure?.tiles ?? []) touched.add(c.gridNo + tile.posRelToBase);
-  }
+  const { structures, touched } = structuresAfterTileChanges(world.structures, world.tiles, changes);
   const costs = MovementCosts.fromSnapshot(world.costs.toSnapshot());
   const changed = { ...world, structures };
   for (const g of touched) recompileLocalMovementCosts(costs, changed, g, RECOMPILE_RADIUS);

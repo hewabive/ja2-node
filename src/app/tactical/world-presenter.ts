@@ -39,7 +39,7 @@ import {
   WALL_HEIGHT,
   worldOrigin,
 } from '../../render/world/geometry.ts';
-import { NO_TILE_RUNS } from '../../render/world/reveal.ts';
+import { NO_RECALCULATIONS, NO_TILE_RUNS, type WireframeRecalculations } from '../../render/world/reveal.ts';
 import type { WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent, SimEvent } from '../../sim/events.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
@@ -95,6 +95,7 @@ export interface PresenterSources {
   readonly bullets: () => readonly BulletView[];
   readonly clockMs: () => number;
   readonly options: () => TacticalDisplayOptions;
+  readonly wireframeRecalculations?: () => WireframeRecalculations;
 }
 
 function heightName(height: number): SoldierHeight {
@@ -562,6 +563,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
         revealedRooms: view.revealedRooms ?? [],
         revealedAtLoad: view.revealedAtLoad ?? NO_TILE_RUNS,
         revealedTiles: view.revealedTiles ?? NO_TILE_RUNS,
+        wireframeRecalculations: this.#sources.wireframeRecalculations?.() ?? NO_RECALCULATIONS,
         slantRoofCeilings: view.slantRoofCeilings ?? [],
         clock: view.clock ?? null,
         combat: view.combat ?? null,

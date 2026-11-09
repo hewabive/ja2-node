@@ -317,7 +317,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       const sessionSpeech = speechFor(session);
       if (stateReplaced) sessionSpeech.discardLines();
       sessionSpeech.followScreen();
-      tactical?.welcome();
+      tactical?.welcome(stateReplaced);
     };
   };
   return { flow, client, music, video };

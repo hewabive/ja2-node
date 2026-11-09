@@ -365,9 +365,9 @@ draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles wher
 or a load took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `revealedAtLoad` lists, as runs
 `[first gridNo, count]`, the tiles the last sector entry with saved revealed tiles or native import revealed, outside
 rooms too, which the original reveals as a room reveal does (`08`). `revealedTiles` lists, as runs, every tile revealed
-so far, by sight, a room reveal or a load, outside rooms too, which the wall wire frames worked out again during a stay
-and the picking's roof checks read (`05`); a frame carries only the runs it adds (`revealedTilesAdded`), or the whole
-list once a tile is no longer revealed (a load, another sector). `knownMines` lists the tiles our side
+so far, by sight, a room reveal or a load, outside rooms too, which the picking's roof checks read, and the wire frames of
+a client that missed the stay's recalculations (`05`); a frame carries only the runs it adds (`revealedTilesAdded`), or
+the whole list once a tile is no longer revealed (a load, another sector). `knownMines` lists the tiles our side
 knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our mercs planted), which the
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
 levels, bomb timers and owners are never shown (`12` §6). `radarContacts` is there only while an x-ray detector shows
@@ -425,7 +425,10 @@ character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMax
 maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
-`:1165`). `ambientLightSet {level}` comes each time the original sets its base light again and draws every light over it
+`:1165`). `wireframesRecalculated {tiles, revealed}` comes each time the original works the wall wire frames out again
+(`CalculateWorldWireFrameTiles`): as a look reveals a room, within two tiles of it, and after a blast that changed a
+structure, in its radius around the bomb; `tiles` are the tiles worked out and `revealed` those of the tiles it reads that
+were revealed then, both as runs (`05`). `ambientLightSet {level}` comes each time the original sets its base light again and draws every light over it
 (`LightSetBaseLevel`: every dawn and dusk step and every temperature update, the level unchanged too), from when on the
 roof marker takes the roof's shade (`05`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
 a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropStarted {gridNo}` starts a run of the
