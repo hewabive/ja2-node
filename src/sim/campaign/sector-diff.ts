@@ -47,6 +47,7 @@ export interface DiffSmoke {
   readonly gridNo: number;
   readonly item: number;
   readonly type: number;
+  readonly ownerId: number;
   readonly duration: number;
   readonly radius: number;
   readonly age: number;
@@ -166,6 +167,7 @@ export function captureSmoke(t: TacticalState): DiffSmoke[] {
       gridNo: c.gridNo,
       item: c.item,
       type: c.type,
+      ownerId: c.ownerId,
       duration: c.duration,
       radius: c.radius,
       age: c.age,
@@ -308,7 +310,7 @@ export function changeOpenableInUnloadedSector(diff: SectorDiff | undefined, gri
 export function restoreSmoke(t: TacticalState, smoke: readonly DiffSmoke[]): void {
   loadSmokeEffects(
     t,
-    smoke.map((s) => ({ ...s, owner: null })),
+    smoke.map((s) => ({ ...s })),
   );
 }
 

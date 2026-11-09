@@ -47,7 +47,7 @@ import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts'
 import { itemsAt, removeWorldItem } from '../world-items.ts';
 import { damageSoldierFromBlast, reduceDamageAmount } from './blast-damage.ts';
 import { damageItemOnGround } from './item-damage.ts';
-import { addSmokeEffectToTile, dishOutGasDamage, newSmokeEffect, removeSmokeEffectFromTile, smokeTypeOf } from './smoke.ts';
+import { addSmokeEffectToTile, dishOutGasDamage, newSmokeEffect, removeSmokeEffectFromTile, smokeOwner, smokeTypeOf } from './smoke.ts';
 import { type AniTile, type ExplosionTile, type RippleTile, removeAniTile, type SmokeCloud } from './state.ts';
 import { explosiveDamageGridNo, recompileChangedTiles, windowHit } from './structure-damage.ts';
 import type { StructureChanges } from './wreckage.ts';
@@ -515,5 +515,5 @@ export function spreadEffect(
 }
 
 export function spreadEffectSmoke(t: TacticalState, cloud: SmokeCloud, sub: number, level: number): void {
-  spreadEffect(t, cloud.gridNo, cloud.radius, cloud.item, cloud.owner, sub, level, cloud);
+  spreadEffect(t, cloud.gridNo, cloud.radius, cloud.item, smokeOwner(t, cloud), sub, level, cloud);
 }

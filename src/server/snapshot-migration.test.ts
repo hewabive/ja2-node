@@ -20,12 +20,13 @@ import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creation.ts';
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
+import { newSmokeEffect } from '../sim/tactical/explosions/smoke.ts';
 import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
 import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
 import { setSoldierPosition } from '../sim/tactical/movement.ts';
 import type { ProfileProgress } from '../sim/tactical/profiles.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
-import { Body, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
+import { Body, NOBODY, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, registerSoldier, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -3380,5 +3381,119 @@ describe('snapshot version 66 (no loading flag) migrates with no native load in 
 
   it('a landed campaign', async () => {
     await expectNoLoadInProgress(await quietLandedCampaign(kit));
+  });
+});
+
+const SMOKE_OWNER_ID_KEY = 'ownerId';
+
+function legacySmokeOwner(cloud: JsonObject, inSector: boolean): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const [key, value] of Object.entries(cloud)) {
+    if (key !== SMOKE_OWNER_ID_KEY) out[key] = value;
+    else if (inSector) out.owner = value === NOBODY ? null : { $ref: `soldiers/${value}` };
+  }
+  return out;
+}
+
+function withLegacySmokeOwners(value: Json, inSector: boolean): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withLegacySmokeOwners(v, inSector));
+  if (typeof value !== 'object' || value === null) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withLegacySmokeOwners(v, inSector);
+  return typeof mapped[SMOKE_OWNER_ID_KEY] === 'number' && mapped.lastUpdate !== undefined ? legacySmokeOwner(mapped, inSector) : mapped;
+}
+
+function versionSixtySeven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    withLegacySmokeOwners(value, name === 'tactical'),
+  ]);
+  return { ...snapshot, version: 67, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 67 (smoke owners as soldiers) migrates each cloud of the loaded sector to its owner's id, and a sector diff's cloud to none, as it kept none", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  function smokeIn(t: TacticalState, thrower: Soldier): void {
+    const gas = t.content.items.byName.get('TEARGAS_GRENADE')?.index ?? -1;
+    newSmokeEffect(t, thrower.gridNo + 2 * WORLD_COLS, gas, 0, thrower);
+    newSmokeEffect(t, thrower.gridNo - 2 * WORLD_COLS, gas, 0, null);
+  }
+
+  async function expectOwnersById(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSixtySeven(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain(`"${SMOKE_OWNER_ID_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const merc = teamMembers(t, Team.OUR)[0];
+    if (!merc) throw new Error('no merc');
+    smokeIn(t, merc);
+    expect(t.explosives.smokeClouds.map((c) => c?.ownerId)).toEqual([merc.id, NOBODY]);
+    await expectOwnersById(sandbox);
+  });
+
+  it('keeps a soldier the snapshot held first in a cloud, under the old key, for what refers to him there later', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const merc = teamMembers(t, Team.OUR)[0];
+    if (!merc) throw new Error('no merc');
+    newSmokeEffect(t, merc.gridNo + 2 * WORLD_COLS, t.content.items.byName.get('TEARGAS_GRENADE')?.index ?? -1, 0, null);
+    const current = snapshotSession(sandbox);
+    const legacy = versionSixtySeven(current.sim);
+    const soldiers = object(legacy.graph.sections.find(([name]) => name === 'soldiers')?.[1]);
+    const held = (soldiers.$e as readonly (readonly [number, Json])[]).find(([id]) => id === merc.id)?.[1];
+    const ownerPath = 'tactical/explosives/smokeClouds/0/owner';
+    const sections = legacy.graph.sections.map(([name, value]): readonly [string, Json] => {
+      if (name !== 'tactical') return [name, value];
+      const tactical = object(value);
+      const explosives = object(tactical.explosives);
+      const [cloud] = explosives.smokeClouds as readonly Json[];
+      const smokeClouds = [{ ...object(cloud), owner: held ?? null }];
+      const explosionQueue = { ...object(tactical.explosionQueue), person: { $ref: ownerPath } };
+      return [name, { ...tactical, explosives: { ...explosives, smokeClouds }, explosionQueue }];
+    });
+    const restored = await restoreSession(
+      JSON.parse(JSON.stringify({ ...current, sim: { ...legacy, graph: { ...legacy.graph, sections } } })),
+      kit.read,
+      exists,
+    );
+    const r = (restored as TacticalSession).sim.state;
+    const [cloud] = r.explosives.smokeClouds;
+    expect([cloud?.ownerId, r.explosionQueue.person?.id, r.explosionQueue.person === r.soldiers[merc.id]]).toEqual([
+      merc.id,
+      merc.id,
+      false,
+    ]);
+    expect((cloud as unknown as { readonly owner: Soldier }).owner).toBe(r.explosionQueue.person);
+  });
+
+  it('a landed campaign with a cloud left behind in another sector', async () => {
+    const session = await quietLandedCampaign(kit);
+    const t = session.campaign.tactical?.state;
+    const merc = t ? teamMembers(t, Team.OUR)[0] : undefined;
+    if (!t || !merc) throw new Error('no merc in the loaded sector');
+    smokeIn(t, merc);
+    const diff = emptySectorDiff();
+    const [left] = t.explosives.smokeClouds;
+    if (!left) throw new Error('no cloud');
+    diff.smoke = [{ ...left, ownerId: NOBODY }];
+    session.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
+    await expectOwnersById(session);
   });
 });

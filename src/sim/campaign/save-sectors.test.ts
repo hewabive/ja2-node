@@ -177,7 +177,9 @@ describe('the temp files of the sectors a native save did not load', () => {
       [[0, 116]],
       [[CIV_TEAM, CIVILIAN_INSERTION]],
     ]);
-    expect(diff.smoke).toEqual([{ gridNo: SMOKE_GRID, item: 0x123, type: 2, duration: 5, radius: 3, age: 2, flags: 0, lastUpdate: 4321 }]);
+    expect(diff.smoke).toEqual([
+      { gridNo: SMOKE_GRID, item: 0x123, type: 2, ownerId: SMOKE_OWNER, duration: 5, radius: 3, age: 2, flags: 0, lastUpdate: 4321 },
+    ]);
     expect(diff.lights).toEqual([{ gridNo: SMOKE_GRID, radius: 4, duration: 6, age: 1, lastUpdate: 777 }]);
   });
 

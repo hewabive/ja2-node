@@ -53,6 +53,7 @@ function diffSmoke(s: SavedSmokeEffect): DiffSmoke {
     gridNo: s.gridNo,
     item: s.item,
     type: s.type,
+    ownerId: s.ownerId,
     duration: s.duration,
     radius: s.radius,
     age: s.age,

@@ -5,6 +5,7 @@ import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
 import { hiResDirectionOf } from '../tactical/directions.ts';
+import { NOBODY } from '../tactical/soldier.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError, unescapeSegment } from './codec.ts';
@@ -2008,6 +2009,79 @@ function addLoadingSaveFlag(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SMOKE_CLOUDS_KEY = 'smokeClouds';
+const SMOKE_OWNER_KEY = 'owner';
+const SMOKE_OWNER_ID_KEY = 'ownerId';
+const SMOKE_KEYS_BEFORE_OWNER = ['gridNo', 'item', 'type'];
+const SMOKE_KEYS_AFTER_OWNER = ['duration', 'radius', 'age', 'flags', 'lastUpdate'];
+const DIFF_SMOKE_KEYS = [...SMOKE_KEYS_BEFORE_OWNER, ...SMOKE_KEYS_AFTER_OWNER];
+const SMOKE_CLOUD_KEYS = [...DIFF_SMOKE_KEYS, SMOKE_OWNER_KEY];
+
+function hasKeySet(o: JsonObject, keys: readonly string[]): boolean {
+  return Object.keys(o).length === keys.length && keys.every((key) => o[key] !== undefined);
+}
+
+function smokeWithOwnerId(o: JsonObject, ownerId: number, kept: JsonObject): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const key of SMOKE_KEYS_BEFORE_OWNER) out[key] = o[key] as Json;
+  out[SMOKE_OWNER_ID_KEY] = ownerId;
+  for (const key of SMOKE_KEYS_AFTER_OWNER) out[key] = o[key] as Json;
+  return { ...out, ...kept };
+}
+
+function withDiffSmokeOwnerIds(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDiffSmokeOwnerIds(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withDiffSmokeOwnerIds(v);
+  return hasKeySet(mapped, DIFF_SMOKE_KEYS) ? smokeWithOwnerId(mapped, NOBODY, {}) : mapped;
+}
+
+function referenceTargets(value: Json, into: string[]): string[] {
+  if (Array.isArray(value)) for (const v of value as Json[]) referenceTargets(v, into);
+  else if (isObject(value)) {
+    const target = value[REF];
+    if (typeof target === 'string') into.push(target);
+    else for (const v of Object.values(value)) referenceTargets(v, into);
+  }
+  return into;
+}
+
+function soldierIdOf(sections: readonly Section[], owner: Json): number {
+  const target = field(owner, REF, null);
+  const soldier = typeof target === 'string' ? nodeAt(sections, target) : owner;
+  const id = field(soldier, 'id', NOBODY);
+  return typeof id === 'number' ? id : NOBODY;
+}
+
+function cloudWithOwnerId(sections: readonly Section[], targets: readonly string[], cloud: Json, path: string): Json {
+  if (!isObject(cloud) || !hasKeySet(cloud, SMOKE_CLOUD_KEYS)) return cloud;
+  const owner = cloud[SMOKE_OWNER_KEY] as Json;
+  const inline = isObject(owner) && owner[REF] === undefined;
+  const referenced = inline && targets.some((target) => target === path || target.startsWith(`${path}/`));
+  return smokeWithOwnerId(cloud, soldierIdOf(sections, owner), referenced ? { [SMOKE_OWNER_KEY]: owner } : {});
+}
+
+function tacticalWithSmokeOwnerIds(sections: readonly Section[], tactical: JsonObject): JsonObject {
+  const explosives = tactical[EXPLOSIVES_KEY];
+  if (!isObject(explosives) || explosives[REF] !== undefined) return tactical;
+  const clouds = explosives[SMOKE_CLOUDS_KEY];
+  if (!Array.isArray(clouds)) return tactical;
+  const targets = sections.flatMap(([, value]) => referenceTargets(value, []));
+  const prefix = `tactical/${EXPLOSIVES_KEY}/${SMOKE_CLOUDS_KEY}`;
+  const migrated = clouds.map((cloud: Json, k) => cloudWithOwnerId(sections, targets, cloud, `${prefix}/${k}/${SMOKE_OWNER_KEY}`));
+  return { ...tactical, [EXPLOSIVES_KEY]: { ...explosives, [SMOKE_CLOUDS_KEY]: migrated } };
+}
+
+function smokeOwnersById(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const diffs = withDiffSmokeOwnerIds(value);
+    return [name, name === 'tactical' && isObject(diffs) ? tacticalWithSmokeOwnerIds(graph.sections, diffs) : diffs];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2076,5 +2150,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     64: addTrashedMapRooms,
     65: sectorDiffsWithoutNativeRecords,
     66: addLoadingSaveFlag,
+    67: smokeOwnersById,
   };
 }

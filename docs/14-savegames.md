@@ -248,6 +248,6 @@ Inferred from reading the source:
   pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's status from the hand, a
   bullet saved stopped and the cursor item: no probe makes them.
 
-Not ported: gaps "Animations on load", "Pending actions on import", "Smoke owner in a sector diff".
+Not ported: gaps "Animations on load", "Pending actions on import".
 Other deviations of the import: "Ambient sound events", "Blood on the ground",
 "Difficulty and progress in tactical", "Corpse structure past its file", "Preserved soldier checksums".

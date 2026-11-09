@@ -5,7 +5,7 @@
 // @src LoadSmokeEffectsFromMapTempFile (the list replaced, then every allocated cloud spread, 2026-11-08);
 // @src Explosion_Control.cc DishOutGasDamage; Tactical/Overhead.cc running into gas (HandleGotoNewGridNo);
 // @src Soldier_Control.cc SOLDIER_GASSED in SetSoldierGridNo and EVENT_BeginMercTurn; TacticalAI/AIUtils.cc InGas,
-// @src InSmoke, WearGasMaskIfAvailable.
+// @src InSmoke, WearGasMaskIfAvailable; Tactical/Overhead.h ID2Soldier (a cloud's owner by his id, 2026-11-08).
 
 import { SmokeEffectId, type SmokeEffectType } from '../../../content/items/explosions.ts';
 import { NOTHING } from '../../../content/items/items.ts';
@@ -19,7 +19,7 @@ import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts'
 import { stopMerc } from '../movement.ts';
 import { AttackReason, processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
-import { Body, type Soldier, Team } from '../soldier.ts';
+import { Body, NOBODY, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { Spread, spreadEffectSmoke } from './explosion.ts';
 import { type SmokeCloud, SmokeFlags, worldSeconds } from './state.ts';
@@ -151,7 +151,7 @@ export function newSmokeEffect(t: TacticalState, g: number, item: number, level:
     gridNo: g,
     item,
     type: type.id,
-    owner,
+    ownerId: owner?.id ?? NOBODY,
     duration: def.duration + (indoors ? INDOOR_EXTRA_DURATION : 0),
     radius: def.initialRadius,
     age: 0,
@@ -160,6 +160,10 @@ export function newSmokeEffect(t: TacticalState, g: number, item: number, level:
   };
   clouds[slot] = cloud;
   spreadEffectSmoke(t, cloud, Spread.NORMAL, level);
+}
+
+export function smokeOwner(t: TacticalState, cloud: SmokeCloud): Soldier | null {
+  return cloud.ownerId === NOBODY ? null : (t.soldiers[cloud.ownerId] ?? null);
 }
 
 export function loadSmokeEffects(t: TacticalState, clouds: readonly (SmokeCloud | null)[]): void {

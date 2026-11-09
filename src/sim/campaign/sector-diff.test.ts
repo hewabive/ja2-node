@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { itemId } from '../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
@@ -9,11 +11,20 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import type { Corpse } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { Direction } from '../tactical/directions.ts';
+import { decaySmokeEffects, newSmokeEffect } from '../tactical/explosions/smoke.ts';
 import { LightSpriteFlags } from '../tactical/lighting/lighting.ts';
 import { createFogOfWar, RevealedFlags } from '../tactical/perception/fov.ts';
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
+import { Team } from '../tactical/soldier.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
-import { changeOpenableInUnloadedSector, emptySectorDiff, restoreCorpses, restoreRevealed } from './sector-diff.ts';
+import {
+  captureSmoke,
+  changeOpenableInUnloadedSector,
+  emptySectorDiff,
+  restoreCorpses,
+  restoreRevealed,
+  restoreSmoke,
+} from './sector-diff.ts';
 
 let content: TacticalContent;
 
@@ -132,5 +143,35 @@ describe('a crate closed in a sector that is not loaded', () => {
       [MapModificationType.OPENABLE_STRUCT, crate, 0],
       [MapModificationType.OPENABLE_STRUCT, crate, 1],
     ]);
+  });
+});
+
+describe('the smoke of a sector diff', () => {
+  const CLOUD = gridNo(80, 84);
+  const AWAY = gridNo(80, 100);
+  const MERC_ID = 3;
+  const CIVILIAN_ID = 120;
+
+  function cloudLeftBy(ownerId: number): ReturnType<typeof captureSmoke> {
+    const sim = newCombatSim(content);
+    const thrower = spawnSoldier(sim, ownerId, Team.OUR, AWAY, Direction.NORTH, { life: 100 });
+    newSmokeEffect(sim.state, CLOUD, itemId(sim.state, 'TEARGAS_GRENADE'), 0, thrower);
+    return captureSmoke(sim.state);
+  }
+
+  it("keeps each cloud's owner by his soldier id (LoadSaveSmokeEffect.cc:23)", () => {
+    expect(cloudLeftBy(MERC_ID).map((c) => [c.gridNo, c.ownerId])).toEqual([[CLOUD, MERC_ID]]);
+  });
+
+  it('spreads the cloud at the entry before anybody is in the sector and credits whoever holds the id when the gas hits: a neutral civilian gassed after the merc came in is his attack (SmokeEffects.cc:495, Explosion_Control.cc:850)', () => {
+    const smoke = cloudLeftBy(MERC_ID);
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    restoreSmoke(t, smoke);
+    spawnSoldier(sim, MERC_ID, Team.OUR, AWAY, Direction.NORTH, { life: 100 });
+    const civilian = spawnSoldier(sim, CIVILIAN_ID, Team.CIV, CLOUD, Direction.NORTH, { life: 100 });
+    t.inCombat = true;
+    decaySmokeEffects(t);
+    expect([civilian.breath < 100, t.hostileQuoteList]).toEqual([true, [civilian]]);
   });
 });

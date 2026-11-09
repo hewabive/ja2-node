@@ -751,7 +751,7 @@ describe('the smoke and light effects of the loaded sector (SmokeEffects.cc Load
     };
   }
 
-  it('restores the clouds in their slots, each with the soldier of its saved owner id, and spreads them before anybody stands on the map: nobody takes gas damage, and a soldier entering a gas tile without a mask is gassed (SetSoldierGridNo)', () => {
+  it('restores the clouds in their slots, each with its saved owner id, and spreads them before anybody stands on the map: nobody takes gas damage, and a soldier entering a gas tile without a mask is gassed (SetSoldierGridNo)', () => {
     const sim = importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, CLOUD)] }));
     const t = sim.state;
     const merc = soldierOf(sim, MERC_ID);
@@ -762,7 +762,7 @@ describe('the smoke and light effects of the loaded sector (SmokeEffects.cc Load
       smoke: [owned, { ...owned, allocated: false }, savedSmoke(sim, OTHER_CLOUD, NOBODY)],
     });
     const [first, free, ownerless] = t.explosives.smokeClouds;
-    expect([first?.owner, free, ownerless?.owner]).toEqual([merc, null, null]);
+    expect([first?.ownerId, free, ownerless?.ownerId]).toEqual([MERC_ID, null, NOBODY]);
     expect(first).toMatchObject({ gridNo: CLOUD, radius: 2, age: 1, duration: 6, lastUpdate: SAVED_SECONDS });
     expect([smokeEffectOnTile(t, CLOUD, 0), smokeEffectOnTile(t, OTHER_CLOUD, 0)]).toEqual([SmokeEffectId.TEARGAS, SmokeEffectId.TEARGAS]);
     expect([merc.gassed, merc.breath, whoIsThere(t, CLOUD, 0)]).toEqual([true, breath, merc]);

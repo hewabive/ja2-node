@@ -115,7 +115,7 @@ export interface SmokeCloud {
   readonly gridNo: number;
   readonly item: number;
   readonly type: number;
-  readonly owner: Soldier | null;
+  readonly ownerId: number;
   duration: number;
   radius: number;
   age: number;

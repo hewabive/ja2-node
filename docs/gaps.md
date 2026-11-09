@@ -22,11 +22,8 @@ The loaded sector: doors, sight, walking, combat, items, explosions, the AI and 
 
 ## 2. Strategic layer
 
-The map, travel, vehicles, time compression, the economy, sector state and autoresolve. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Smoke owner in a sector diff | A sector's smoke file keeps each cloud's owner by soldier id (`TileEngine/LoadSaveSmokeEffect.cc:23`), and the next entry spreads the cloud with whoever has that id then (`TileEngine/SmokeEffects.cc:495`): a cloud our merc threw makes the NPC owning the building grumpy once more (`HandleBuldingDestruction`, `TileEngine/Explosion_Control.cc:2363`), and its gas damage counts as his attack (`:1037`) | A sector diff's cloud comes back with no owner (`restoreSmoke`, `campaign/sector-diff.ts`), and so does one a native save keeps for a sector not loaded (`campaign/save-sectors.ts`) | Needs the owner's id in `DiffSmoke`, a snapshot field, kept as an id past the entry: the entry spreads the cloud before the sector's soldiers exist; a native import resolves the loaded sector's owners by id (`tactical/native-temp-files.ts`) |
+The map, travel, vehicles, time compression, the economy, sector state and autoresolve: none known. Paths are under
+`src/sim/`.
 
 ## 3. Campaign, laptop and narrative
 

@@ -151,16 +151,16 @@ function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, s
 export function loadSmokeEffectsFromMapTempFile(t: TacticalState, smoke: readonly SavedSmokeEffect[]): void {
   loadSmokeEffects(
     t,
-    smoke.map((s) => (s.allocated ? savedSmokeCloud(t, s) : null)),
+    smoke.map((s) => (s.allocated ? savedSmokeCloud(s) : null)),
   );
 }
 
-function savedSmokeCloud(t: TacticalState, s: SavedSmokeEffect): SmokeCloud {
+function savedSmokeCloud(s: SavedSmokeEffect): SmokeCloud {
   return {
     gridNo: s.gridNo,
     item: s.item,
     type: s.type,
-    owner: soldierOfSavedId(t, s.ownerId),
+    ownerId: s.ownerId,
     duration: s.duration,
     radius: s.radius,
     age: s.age,
