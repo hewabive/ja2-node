@@ -6,7 +6,8 @@
 // @src driver or passenger (2026-11-05); the APs every soldier keeps when added (InternalAddSoldierToSector computes none, 2026-11-05,
 // @src for our mercs too 2026-11-08);
 // @src AddSoldierToSectorGridNo's arrival stance, skipped for a merc already in HELIDROP (2026-11-08), and its
-// @src removePendingAnimation, which drops the pending action too (2026-11-08).
+// @src removePendingAnimation, which drops the pending action too (2026-11-08); UpdateMercInSector's insertion code kept on the
+// @src soldier, as SOLDIERTYPE keeps it (2026-11-09).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -17,6 +18,7 @@ import { anim } from './anim-states.ts';
 import { hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
 import { assignmentPose } from './assignment-animations.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
+import { Insertion } from './insertion-codes.ts';
 import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
 import { clearCreatureTensionQuotesSaid } from './narrative/creature-tension.ts';
@@ -35,18 +37,7 @@ import {
 import { checkForPotentialAddToBattleIncrement, setEnemyPresence } from './turns/turns.ts';
 import { seatOnSectorEntry } from './vehicle-passengers.ts';
 
-export const Insertion = {
-  NORTH: 0,
-  SOUTH: 1,
-  EAST: 2,
-  WEST: 3,
-  GRIDNO: 4,
-  ARRIVING_GAME: 5,
-  CHOPPER: 6,
-  PRIMARY_EDGEINDEX: 7,
-  SECONDARY_EDGEINDEX: 8,
-  CENTER: 9,
-} as const;
+export { Insertion };
 
 export const CENTER_GRIDNO = (WORLD_ROWS / 2) * WORLD_COLS + WORLD_COLS / 2;
 export const ARRIVING_GAME_GRIDNO = 4379;
@@ -136,6 +127,7 @@ function insertionGridNo(t: TacticalState, s: Soldier, order: InsertionOrder, ct
 export function updateMercInSector(t: TacticalState, s: Soldier, order: InsertionOrder, ctx: InsertionContext): boolean {
   if (isEdgeIndex(order.code) && !ctx.usingEdgepoints) order.code = order.data;
   const found = insertionGridNo(t, s, order, ctx);
+  s.insertionCode = order.code;
   if (found === null) {
     ctx.heliDrop?.(s, order);
     return false;

@@ -7,6 +7,7 @@ import { TravelCost } from '../content/world/movement-costs.ts';
 import type { NpcRequestPromptView, StrategicSectorView } from '../protocol/view.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { InsertionCode } from '../sim/strategic/forces/constants.ts';
 import { getGroup, setGroupSectorValue } from '../sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { profileSector, profileSectorValid } from '../sim/strategic/narrative/presence.ts';
@@ -82,6 +83,7 @@ function teleportSquad(session: CampaignSession, sector: Sector): void {
     const group = getGroup(ctx, m.groupId);
     if (group) setGroupSectorValue(ctx, sector, group);
     m.sector = { ...sector };
+    m.insertionCode = InsertionCode.NORTH;
   }
 }
 

@@ -21,7 +21,6 @@ export interface MercRecord {
   betweenSectors: boolean;
   groupId: number;
   prevSectorId: number;
-  insertionCode: number;
   insertionDirection: number;
   path: number[];
   assignment: number;
@@ -87,6 +86,7 @@ export function profileRecordTraits(profile: MercProfile | null): ProfileRecordT
 }
 
 export function createMercRecord(init: MercRecordInit): MercRecord {
+  init.soldier.insertionCode = init.insertionCode;
   return {
     soldier: init.soldier,
     profileRecord: profileRecordTraits(init.profile),
@@ -96,7 +96,6 @@ export function createMercRecord(init: MercRecordInit): MercRecord {
     betweenSectors: init.betweenSectors,
     groupId: init.groupId,
     prevSectorId: init.prevSectorId,
-    insertionCode: init.insertionCode,
     insertionDirection: init.insertionDirection,
     path: [...init.path],
     assignment: init.assignment,

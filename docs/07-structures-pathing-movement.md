@@ -201,5 +201,5 @@ Inferred from reading the source:
 
 Not ported: gaps "Doors", "Unseen soldiers in combat".
 Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and
-bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the loaded sector", "Fence landing on the
-final tile", "Prone hop facing the fence".
+bloodcat stub bodies", "Frame timers", "Continue a move", "Fence landing on the final tile", "Prone hop facing the
+fence".

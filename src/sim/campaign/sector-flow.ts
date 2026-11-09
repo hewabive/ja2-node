@@ -44,7 +44,8 @@
 // @src LoadCurrentSectorsInformationFromTempItemsFile and TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (a native save's map changes and revealed tiles of a sector at its
 // @src first entry, the flag reset when no record is written back, 2026-11-08); StrategicMap.cc GetMapFileName (the
-// @src palace's meanwhile map while AreInMeanwhile, 2026-11-09).
+// @src palace's meanwhile map while AreInMeanwhile, 2026-11-09); UpdateMercInSector (the insertion code left on the soldier
+// @src for SetSoldierGridNo to rewrite, 2026-11-09).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-files.ts';
@@ -1101,7 +1102,6 @@ export class SectorFlow {
     }
     const order: InsertionOrder = { code: m.insertionCode, data: m.soldier.insertionData, direction: m.insertionDirection };
     updateMercInSector(t, m.soldier, order, this.#insertionContext(m));
-    m.insertionCode = order.code;
     m.insertionDirection = order.direction;
   }
 

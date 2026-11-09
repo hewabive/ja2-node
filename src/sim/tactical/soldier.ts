@@ -529,6 +529,7 @@ export interface Soldier {
   targetHeightAdjustment: number;
   groupId: number;
   insertionGridNo: number;
+  insertionCode: number;
   insertionData: number;
   initialGridNo: number;
   useExitGridForReentryDirection: boolean;
@@ -975,6 +976,7 @@ function recordAndServices() {
     targetHeightAdjustment: 0,
     groupId: 0,
     insertionGridNo: NOWHERE,
+    insertionCode: 0,
     insertionData: 0,
     initialGridNo: 0,
     useExitGridForReentryDirection: false,

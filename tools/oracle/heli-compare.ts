@@ -217,12 +217,9 @@ const SOLDIER_KEYS = [
   'role',
   'life',
 ];
-const INSERTION_KEYS = new Set(['insertionCode', 'insertionData']);
-
 function soldierRecord(source: Json): Json {
-  const tactical = source.inSector === true;
-  const withData = !tactical && num(source.insertionCode) === INSERTION_GRIDNO;
-  const keys = SOLDIER_KEYS.filter((k) => !(tactical && INSERTION_KEYS.has(k)) && (withData || k !== 'insertionData'));
+  const withData = num(source.insertionCode) === INSERTION_GRIDNO;
+  const keys = SOLDIER_KEYS.filter((k) => withData || k !== 'insertionData');
   return Object.fromEntries(keys.map((k) => [k, source[k]]));
 }
 

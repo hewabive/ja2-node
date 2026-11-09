@@ -2329,6 +2329,68 @@ function countPickupsInTheSlot(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const INSERTION_CODE_KEY = 'insertionCode';
+const INSERTION_GRID_NO_KEY = 'insertionGridNo';
+const INSERTION_DATA_KEY = 'insertionData';
+const PLACED_KEY = 'placed';
+const GRID_NO_KEY = 'gridNo';
+const INSERTION_CODE_NORTH = 0;
+const INSERTION_CODE_GRIDNO = 4;
+
+function insertionCodesByMerc(strategic: Json | undefined): Map<number, number> {
+  const codes = new Map<number, number>();
+  for (const entry of rosterEntries(strategic)) {
+    if (!Array.isArray(entry)) continue;
+    const [id, record] = entry;
+    const code = field(record, INSERTION_CODE_KEY, null);
+    if (typeof id === 'number' && typeof code === 'number') codes.set(id, code);
+  }
+  return codes;
+}
+
+function withoutInsertionCode(entry: Json): Json {
+  if (!Array.isArray(entry)) return entry;
+  const [id, record] = entry;
+  return isObject(record) ? [id ?? null, withoutKeys(record, [INSERTION_CODE_KEY])] : entry;
+}
+
+function rosterWithoutInsertionCodes(strategic: JsonObject): JsonObject {
+  const roster = strategic.roster;
+  const mercs = field(roster, 'mercs', null);
+  if (!isObject(roster) || !isObject(mercs)) return strategic;
+  const entries = rosterEntries(strategic).map((entry: Json) => withoutInsertionCode(entry));
+  return { ...strategic, roster: { ...roster, mercs: { ...mercs, [MAP_ENTRIES]: entries } } };
+}
+
+function insertionCodeOf(soldier: JsonObject, codes: ReadonlyMap<number, number>): number {
+  const { id, team } = soldier;
+  return typeof id === 'number' && team === OUR_TEAM ? (codes.get(id) ?? INSERTION_CODE_NORTH) : INSERTION_CODE_NORTH;
+}
+
+function withInsertion(soldier: JsonObject, codes: ReadonlyMap<number, number>): JsonObject {
+  if (soldier[PLACED_KEY] !== true) return insertAfter(soldier, INSERTION_GRID_NO_KEY, INSERTION_CODE_KEY, insertionCodeOf(soldier, codes));
+  const coded = insertAfter(soldier, INSERTION_GRID_NO_KEY, INSERTION_CODE_KEY, INSERTION_CODE_GRIDNO);
+  return { ...coded, [INSERTION_DATA_KEY]: soldier[GRID_NO_KEY] ?? null };
+}
+
+function withInsertionCodes(value: Json, codes: ReadonlyMap<number, number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withInsertionCodes(v, codes));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withInsertionCodes(v, codes);
+  return isSoldierRecord(mapped) ? withInsertion(mapped, codes) : mapped;
+}
+
+function moveInsertionCodesOntoSoldiers(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const codes = insertionCodesByMerc(sectionOf(graph.sections, 'strategic'));
+  const sections = graph.sections.map(([name, value]): Section => {
+    const coded = withInsertionCodes(value, codes);
+    return [name, name === 'strategic' && isObject(coded) ? rosterWithoutInsertionCodes(coded) : coded];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2409,5 +2471,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     76: renameSavedPendingDirection,
     77: addPendingDoorStructureId,
     78: countPickupsInTheSlot,
+    79: moveInsertionCodesOntoSoldiers,
   };
 }

@@ -69,7 +69,6 @@ const RANDOM_ANIM_CHECK = 491;
 const IDLE_DICE = 100;
 const MAIN_STREAM = 'm';
 const OFF_THE_MAP = 'a soldier with no tile: ja2-node keeps no facing, destination or position for him';
-const INSERTION_DATA_IN_THE_LOADED_SECTOR = 'deviation "Insertion data in the loaded sector"';
 const GLOBAL = {
   handle: 0,
   state: 1,
@@ -137,10 +136,6 @@ function withNextDraw<T>(t: TacticalState, n: number, value: number, act: () => 
 
 function onTheMap(here: boolean, values: readonly unknown[]): readonly unknown[] {
   return here ? values : values.map(() => OFF_THE_MAP);
-}
-
-function insertionOutsideTheSector(inTheSector: boolean, code: number, data: number): readonly (number | string)[] {
-  return inTheSector ? [INSERTION_DATA_IN_THE_LOADED_SECTOR, INSERTION_DATA_IN_THE_LOADED_SECTOR] : [code, data];
 }
 
 function atTheLastFrame(t: TacticalState, draws: readonly Draw[], act: () => void): void {
@@ -772,7 +767,6 @@ export class HeliDropComparer {
   }
 
   #row(t: TacticalState, s: Soldier): Row {
-    const m = this.#campaign().battle?.roster.get(s.id);
     const here = inSector(s);
     return [
       s.id,
@@ -782,7 +776,8 @@ export class HeliDropComparer {
       s.level,
       s.state,
       ...onTheMap(here, [s.direction, s.desiredDirection]),
-      ...insertionOutsideTheSector(here, m?.insertionCode ?? 0, s.insertionData),
+      s.insertionCode,
+      s.insertionData,
       ...onTheMap(here, [grid(s.finalDestination)]),
       s.pathIndex,
       s.pathSize,
@@ -832,7 +827,8 @@ export class HeliDropComparer {
       level,
       animState,
       ...onTheMap(here, [direction, desired]),
-      ...insertionOutsideTheSector(here, num(code), num(data)),
+      num(code),
+      num(data),
       ...onTheMap(here, [finalDest]),
       pathIndex,
       pathSize,
@@ -864,7 +860,8 @@ export class HeliDropComparer {
         m.id,
         m.assignment,
         bit(inSector(m.soldier)),
-        ...insertionOutsideTheSector(inSector(m.soldier), m.insertionCode, m.soldier.insertionData),
+        m.insertionCode,
+        m.soldier.insertionData,
         grid(m.soldier.gridNo),
       ]),
     };
@@ -882,7 +879,7 @@ export class HeliDropComparer {
       currentSquad: tactical.currentSquad,
       team: ((s.team as Json[]) ?? []).map((m) => {
         const [code = 0, data = 0] = (m.insertion as number[] | undefined) ?? [];
-        return [m.id, m.assignment, bit(m.inSector === true), ...insertionOutsideTheSector(m.inSector === true, code, data), m.gridNo];
+        return [m.id, m.assignment, bit(m.inSector === true), code, data, m.gridNo];
       }),
     };
   }

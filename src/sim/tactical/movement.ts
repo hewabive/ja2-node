@@ -17,7 +17,8 @@
 // @src our merc in auto-bandage, and the plain opening a merc of ours who never chose how to open a door gets there
 // @src (deviation "Door on the way in auto-bandage", 2026-11-06); ExecuteOverhead's arrival handling an AI soldier with
 // @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06); HandleNextTile standing a crawler or swatter up into
-// @src water (2026-11-07); SetSoldierGridNo's LOADING_SAVED_GAME branch, no step on to the destination (2026-11-08).
+// @src water (2026-11-07); SetSoldierGridNo's LOADING_SAVED_GAME branch, no step on to the destination (2026-11-08);
+// @src SetSoldierGridNo's strategic insertion at the new tile on every step (2026-11-09).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
@@ -60,6 +61,7 @@ import { handleDoorChangeFromGridNo } from './doors.ts';
 import { cancelFadeOutAwayFromStart } from './fade.ts';
 import { tripsAndFalls } from './falls.ts';
 import { forgetsTheWay } from './forgetful.ts';
+import { Insertion } from './insertion-codes.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
@@ -175,6 +177,11 @@ export function removeSoldierFromGridNo(t: TacticalState, s: Soldier): void {
   s.gridNo = NOWHERE;
 }
 
+function insertAtTheTileOnReentry(s: Soldier, g: number): void {
+  s.insertionCode = Insertion.GRIDNO;
+  s.insertionData = g;
+}
+
 function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void {
   let g = requested;
   const seated = inVehicle(s);
@@ -194,6 +201,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
     handleDoorChangeFromGridNo(t, s, s.endDoorOpenCodeData);
   }
   s.walkToAttackGridNo = NOWHERE;
+  insertAtTheTileOnReentry(s, g);
   if (!seated) unmarkMovementReserved(t, s);
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
   if (s.initialGridNo === 0) s.initialGridNo = g;

@@ -567,8 +567,8 @@ instead of queued (0014). The probes set `fShowAircraftFlag`, as the map screen 
 
 `heli-compare.ts` replays `PreRandom` strictly (SAM fire, scouting) and matches `Random` in order with the native extras
 skipped (other systems' events during the warps, the cosmetic "enemies spotted" quote pick). The "enemies spotted" quotes
-34 and 35 are compared as one. A merc's insertion code and data are compared only outside the loaded tactical sector:
-the original rewrites them on every tile step (`SetSoldierGridNo`), ja2-node keeps them in the roster.
+34 and 35 are compared as one. A merc's insertion data is compared with the gridno insertion code, in the loaded
+sector too, where every tile step sets both (`SetSoldierGridNo`).
 
 ### NPC actions
 
@@ -881,11 +881,10 @@ dice: after `hdsave` a native frame draws the dice 74, for the garrison soldier 
 the range of `FEM_WIPE` (`Tactical/Animation_Control.cc:1881`) that merc 1 starts, while in the replay merc 1 takes the
 74 and stands. Where a merc of ours starts a random idle animation natively, the comparer feeds his idle check of that
 frame the frame's dice in the animation's range, and ja2-node's own check picks the animation (labelled with their
-count). Labelled, not compared: the insertion code of a merc in the loaded sector (deviation "Insertion data in the
-loaded sector"), the facing, destination and position of a merc with no tile, the other soldiers, the "has arrived"
-messages (the event `mercDropped`), a block's rest once the A9 garrison's AI begins combat (the dump carries no
-placement outcome and no AI pass state to replay it), the block with `live=0` (the fades ramp as with a sample playing,
-`25`).
+count). Labelled, not compared: the facing, destination and position of a merc with no tile, the other soldiers, the
+"has arrived" messages (the event `mercDropped`), a block's rest once the A9 garrison's AI begins combat (the dump
+carries no placement outcome and no AI pass state to replay it), the block with `live=0` (the fades ramp as with a
+sample playing, `25`).
 
 A `save` of `OracleHeliDrop` (`helidrop/load-draws.jsonl`) imports the save from the output's folder, the load's draws
 traced and fed to the import's restart of every saved animation in order, and compares our mercs' tiles and animations

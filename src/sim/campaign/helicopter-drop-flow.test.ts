@@ -165,7 +165,11 @@ describe('the helicopter drop in a campaign', () => {
     expect([later()?.insertionCode, drop.seats, drop.running, drop.firstHeliRun]).toEqual([InsertionCode.CHOPPER, [1], true, false]);
     const syncedAtTheFirstRun = tactical(c).realtimeClock.lastTurnMs;
     runTheHelicopterDrop(c, DROP_TICKS);
-    expect([later()?.insertionCode, later()?.soldier.placed]).toEqual([InsertionCode.NORTH, true]);
+    expect([later()?.insertionCode, later()?.soldier.insertionData, later()?.soldier.placed]).toEqual([
+      InsertionCode.GRIDNO,
+      later()?.soldier.gridNo,
+      true,
+    ]);
     expect(dropEnds(c.drainEvents())).toEqual([true, false]);
     expect(tactical(c).realtimeClock.lastTurnMs).toBe(syncedAtTheFirstRun);
     const end = tactical(c).clockMs;
@@ -238,12 +242,13 @@ describe('the helicopter drop in a campaign', () => {
     addMercToHeli(t.helicopterDrop, seated.id);
     c.drainEvents();
     flow.adoptLoadedSector([]);
-    expect([t.helicopterDrop.running, t.helicopterDrop.seats, seated.insertionCode, seated.soldier.placed]).toEqual([
-      false,
-      [],
-      InsertionCode.NORTH,
-      true,
-    ]);
+    expect([
+      t.helicopterDrop.running,
+      t.helicopterDrop.seats,
+      seated.insertionCode,
+      seated.soldier.insertionData,
+      seated.soldier.placed,
+    ]).toEqual([false, [], InsertionCode.GRIDNO, seated.soldier.gridNo, true]);
     expect(pythSpacesAway(seated.soldier.gridNo, sectorMapOf(t).info.northGridNo)).toBeLessThanOrEqual(NORTH_SWEET_SPOT_RADIUS);
     expect(t.turn.selected).toBe(seated.id);
     const told = t.events.flatMap((e) =>

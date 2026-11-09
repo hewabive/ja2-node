@@ -3,6 +3,7 @@ import { progressFor } from '../../../tests/support/autoresolve.ts';
 import {
   type CampaignKit,
   createTestCampaign,
+  eastEdgeTile,
   landFirstSquad,
   ourSoldiers,
   runTicks,
@@ -73,7 +74,7 @@ import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
 import { helicopterDropUnderWay } from './helicopter-drop-flow.ts';
 import { sectorKey } from './sector-diff.ts';
-import { type SectorWorlds, UnloadCode } from './sector-flow.ts';
+import { type SectorFlow, type SectorWorlds, UnloadCode } from './sector-flow.ts';
 import { sectorDiffOf } from './sector-loot.ts';
 import { addStructToUnloadedSector } from './unloaded-map.ts';
 
@@ -409,6 +410,23 @@ describe('leaving a sector', () => {
     for (let g = 0; g < revealed.length; g++) if (revealed[g]) expect(back.fog.revealed[g]).toBeTruthy();
   });
 
+  it('brings a squad left behind by another sector load back on the tiles it walked to, as every step sets its insertion to the tile (Soldier_Control.cc SetSoldierGridNo)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    walkSquadToEastEdge(campaign);
+    const flow = flowOf(campaign);
+    const walked = ourSoldiers(campaign).map((s) => s.gridNo);
+    expect(walked).toEqual(ourSoldiers(campaign).map((s) => eastEdgeTile(s.id)));
+    for (const m of flow.setup.roster.all())
+      expect([m.insertionCode, m.soldier.insertionData]).toEqual([InsertionCode.GRIDNO, m.soldier.gridNo]);
+    Object.assign(sectorInfo(campaign.state.map, A10), NO_GARRISON_COUNTS);
+    expect(flow.setCurrentWorldSector(A10)).toBe(true);
+    reloadPoint(campaign);
+    expect(ourSoldiers(campaign)).toEqual([]);
+    expect(flowOf(campaign).setCurrentWorldSector(A9)).toBe(true);
+    expect(ourSoldiers(campaign).map((s) => s.gridNo)).toEqual(walked);
+  });
+
   it('keeps the crow count drawn at the sector entry (StrategicMap.cc SetCurrentWorldSector)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     expect(campaign.state.sectorFlow.crows).toEqual({ possible: 0, dontAddNew: false });
@@ -645,9 +663,9 @@ describe('a native save loaded into its sector', () => {
       shownOpen: true,
       hasTinCan: false,
     });
-    for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
+    arriveFromTheNorth(flow, A9);
     expect(flow.setCurrentWorldSector(A9)).toBe(true);
-    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    arriveFromTheNorth(flow, B13);
     expect(flow.setCurrentWorldSector(B13)).toBe(true);
     const sim = campaign.tactical;
     if (!sim) throw new Error('no sector');
@@ -901,6 +919,13 @@ function redrawnLightLevel(t: TacticalState, gridNo: number): number {
 
 function spacesApart(a: number, b: number): [number, number] {
   return [Math.abs((a % 160) - (b % 160)), Math.abs(Math.trunc(a / 160) - Math.trunc(b / 160))];
+}
+
+function arriveFromTheNorth(flow: SectorFlow, sector: Sector): void {
+  for (const m of flow.setup.roster.all()) {
+    m.sector = { ...sector };
+    m.insertionCode = InsertionCode.NORTH;
+  }
 }
 
 function lyingCorpse(gridNo: number) {

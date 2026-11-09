@@ -180,9 +180,10 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
     const hummer = hummerOf(session);
     expect(session.campaign.state.worldSector).toEqual(parseSectorString(NEXT_IN_TOWN));
     const walkingIn = t.mercsWaiting?.remaining ?? 0;
-    expect([hummer.soldier.gridNo, hummer.insertionCode, hummer.soldier.pathSize, walkingIn]).toEqual([
+    expect([hummer.soldier.gridNo, hummer.insertionCode, hummer.soldier.insertionData, hummer.soldier.pathSize, walkingIn]).toEqual([
       A9_EAST_ENTRY,
-      InsertionCode.EAST,
+      InsertionCode.GRIDNO,
+      A9_EAST_ENTRY,
       0,
       0,
     ]);

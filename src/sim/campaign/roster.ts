@@ -110,11 +110,11 @@ export class RosterMerc implements CrewMember {
   }
 
   get insertionCode(): number {
-    return this.record.insertionCode;
+    return this.record.soldier.insertionCode;
   }
 
   set insertionCode(value: number) {
-    this.record.insertionCode = value;
+    this.record.soldier.insertionCode = value;
   }
 
   get insertionDirection(): number {

@@ -13,7 +13,7 @@ import { createItem } from '../sim/items/object.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
-import { VehicleSeat } from '../sim/strategic/forces/constants.ts';
+import { InsertionCode, VehicleSeat } from '../sim/strategic/forces/constants.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
@@ -25,6 +25,7 @@ import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
 import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
 import { setSoldierPosition } from '../sim/tactical/movement.ts';
 import type { ProfileProgress } from '../sim/tactical/profiles.ts';
+import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
 import { Body, NOBODY, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, registerSoldier, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
@@ -3921,5 +3922,90 @@ describe('snapshot version 78 (a pending pickup without its count) migrates with
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const INSERTION_CODE_KEY = 'insertionCode';
+const RECORD_KEY_BEFORE_INSERTION_CODE = 'prevSectorId';
+
+function withoutSoldierInsertionCodes(value: Json, codes: Map<number, number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutSoldierInsertionCodes(v, codes));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutSoldierInsertionCodes(v, codes);
+  if (!SOLDIER_RECORD_KEYS.every((key) => key in out)) return out;
+  const { [INSERTION_CODE_KEY]: code, ...older } = out;
+  expect(typeof code).toBe('number');
+  if (older.team === Team.OUR && typeof older.id === 'number' && typeof code === 'number') codes.set(older.id, code);
+  return older;
+}
+
+function withRecordInsertionCode(record: JsonObject, code: number): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const [key, value] of Object.entries(record)) {
+    out[key] = value;
+    if (key === RECORD_KEY_BEFORE_INSERTION_CODE) out[INSERTION_CODE_KEY] = code;
+  }
+  return out;
+}
+
+function withRecordInsertionCodes(strategic: JsonObject, codes: ReadonlyMap<number, number>): JsonObject {
+  const roster = object(strategic.roster);
+  const mercs = object(roster.mercs);
+  const entries = (mercs[MAP_ENTRIES] as Json[]).map((entry: Json) => {
+    const [id, record] = entry as [number, JsonObject];
+    return [id, withRecordInsertionCode(record, codes.get(id) ?? 0)];
+  });
+  return { ...strategic, roster: { ...roster, mercs: { ...mercs, [MAP_ENTRIES]: entries } } };
+}
+
+function versionSeventyNine(snapshot: SimSnapshot): SimSnapshot {
+  const codes = new Map<number, number>();
+  const uncoded = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    withoutSoldierInsertionCodes(value, codes),
+  ]);
+  const sections = uncoded.map(([name, value]): readonly [string, Json] => [
+    name,
+    name === 'strategic' ? withRecordInsertionCodes(object(value), codes) : value,
+  ]);
+  return { ...snapshot, version: 79, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 79 (a merc's insertion code in his record) migrates with the code on every soldier: at his tile for one on the map, as SetSoldierGridNo writes it at every step, the record's for a merc off it", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+  const AWAY = { x: 10, y: 1, z: 0 };
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectCodesOnSoldiers(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSeventyNine(current.sim);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectCodesOnSoldiers(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign with a merc gone east to the next sector', async () => {
+    const session = await quietLandedCampaign(kit);
+    const t = session.campaign.tactical?.state;
+    const [gone, ...here] = session.campaign.battle?.roster.all() ?? [];
+    if (!t || !gone) throw new Error('no landed squad');
+    removeSoldierFromTacticalSector(t, gone.soldier);
+    gone.sector = AWAY;
+    gone.insertionCode = InsertionCode.WEST;
+    expect(here.map((m) => [m.insertionCode, m.soldier.insertionData])).toEqual(here.map((m) => [InsertionCode.GRIDNO, m.soldier.gridNo]));
+    await expectCodesOnSoldiers(session);
   });
 });
