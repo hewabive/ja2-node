@@ -19,7 +19,7 @@
 // @src (2026-11-07); SOLDIER_LOCKPENDINGACTIONCOUNTER (2026-11-07); Tactical/Soldier_Add.cc InternalAddSoldierToSector (the
 // @src helicopter's passengers in their merc slots with no tile) and Strategic/StrategicMap.cc UpdateMercInSector (a
 // @src chopper merc of a save made in mid-drop back in the seats, AddMercToHeli, 2026-11-08; its return for a merc in transit,
-// @src 2026-11-08).
+// @src 2026-11-08); SOLDIER_ENGAGEDINACTION (2026-11-08).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -535,6 +535,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.pauseAnimMove = (r.statusFlags & SoldierStatusFlags.PAUSEANIMOVE) !== 0;
   s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
   s.pendingActionCounterLocked = (r.statusFlags & SoldierStatusFlags.LOCKPENDINGACTIONCOUNTER) !== 0;
+  s.engagedInAction = (r.statusFlags & SoldierStatusFlags.ENGAGEDINACTION) !== 0;
   s.vehicleId = r.statusFlags & SoldierStatusFlags.VEHICLE ? r.vehicleSlot : NO_VEHICLE;
   s.vehicleSeat = seatOfStatusFlags(r.statusFlags);
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;

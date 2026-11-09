@@ -148,6 +148,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A soldier saved mid-step comes back at the centre of his tile | `sim/tactical/save-import.test.ts` |
 | The load starts every saved animation again at its saved code and runs the script on to the next frame: a breathing soldier saved before his idle check counts it and may roll an idle animation, one readying his rifle in combat pays for it again, and an animation the restart starts skips every check of a new one (`Tactical/Soldier_Control.cc:615`, `:897`, `Tactical/Soldier_Ani.cc:1384`) | `sim/tactical/save-import.test.ts` "runs the script on from the saved code …", "counts the idle check …", "charges a soldier saved readying his rifle …", "holds the saved pending animation …"; `server/save-session.test.ts` "restarts the animations of …" |
 | Loading drops every soldier's movement reservation and pending animation | `sim/tactical/save-import.test.ts` |
+| Placing a loaded giver drops his pending give but frees nobody: he and his target stay engaged in action, the target out of the AI (`Tactical/Soldier_Add.cc:871`, `TacticalAI/AIMain.cc:91`) | `sim/tactical/save-import.test.ts` "keeps the giver and the target of a give saved under way engaged …" |
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
 | So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
 | A corpse with no free tile within five tiles is lost: the wider retry searches around the `NOWHERE` the first search left (`Tactical/Tactical_Save.cc:650-652`) | `sim/tactical/corpse-placement.test.ts` |
@@ -187,7 +188,8 @@ Inferred from reading the source:
   arrival the tests set the start flag, and clear the world flag, of a save made with one.
 - The zeroed half of the personal last-known locations: no probe dumps `gsLastKnownOppLoc`, and a load inside a running
   process keeps whatever the previous game left there.
-- The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
+- The dropped reservations, pending animations and pending actions, the engagement a give keeps and the items' new
+  tiles: the soldier dump compares none of them, and no shipped save holds a pending action or an engaged soldier.
 - The restart's opcodes past the idle check: every soldier of the shipped saves stands, walks, crouches, aims or cowers,
   so the native restarts reach no opcode but code 491; the others are pinned by unit tests
   (`src/sim/tactical/save-import.test.ts`).

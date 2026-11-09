@@ -27,6 +27,7 @@ import { Direction } from './directions.ts';
 import { smokeEffectOnTile } from './explosions/smoke.ts';
 import { InvSlot } from './inventory.ts';
 import { LightSpriteFlags, lightSetBaseLevel, lightTrueLevel, NORMAL_LIGHTLEVEL_NIGHT } from './lighting/lighting.ts';
+import { hasPendingAction } from './pending-action.ts';
 import { RevealedFlags, revealedRooms } from './perception/fov.ts';
 import { handleCrowLeave } from './rotting-corpses.ts';
 import {
@@ -74,6 +75,8 @@ const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
 const SOLDIER_LOOKFOR_ITEMS = 0x200;
 const SOLDIER_GASSED = 0x01000000;
+const SOLDIER_ENGAGEDINACTION = 0x00000800;
+const MERC_GIVEITEM = 6;
 const SOLDIER_DEAD = 0x00000080;
 const SOLDIER_MISC_XRAYED = 0x04;
 const DOOR_HAS_TIN_CAN = 0x10;
@@ -597,6 +600,24 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     });
     const sim = importedSim(save);
     expect([soldierOf(sim, MERC_ID).gassed, soldierOf(sim, MERC_ID + 1).gassed]).toEqual([true, false]);
+  });
+
+  it('keeps the giver and the target of a give saved under way engaged in action: placing the giver drops his pending give without freeing either, so the target stays out of the AI (SOLDIER_ENGAGEDINACTION; Soldier_Add.cc:871, AIMain.cc:91)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), {
+          uiStatusFlags: SOLDIER_ENGAGEDINACTION,
+          ubPendingAction: MERC_GIVEITEM,
+          uiPendingActionData4: CIVILIAN_ID,
+        }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82)),
+        savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(80, 85), { uiStatusFlags: SOLDIER_ENGAGEDINACTION }),
+      ],
+    });
+    const sim = importedSim(save);
+    const engaged = [MERC_ID, MERC_ID + 1, CIVILIAN_ID].map((id) => soldierOf(sim, id).engagedInAction);
+    expect(engaged).toEqual([true, false, true]);
+    expect(hasPendingAction(soldierOf(sim, MERC_ID))).toBe(false);
   });
 
   it('restores an out-of-ammo quote pending until the end of an attack (fSayAmmoQuotePending)', () => {
