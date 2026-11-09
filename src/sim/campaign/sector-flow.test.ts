@@ -26,9 +26,12 @@ import { tileIndex, tileTypeOf, typeIndex } from '../../content/world/tile-table
 import { idiv } from '../../core/int.ts';
 import { createItem } from '../items/object.ts';
 import { assignGameOptions } from '../options.ts';
+import { Meanwhile } from '../strategic/ai/constants.ts';
+import { scheduleInterrogation, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
 import { getSectorFlagStatus, sectorInfo, setSectorFlag } from '../strategic/map/sectors.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
@@ -1311,5 +1314,69 @@ describe('exit grids', () => {
     expect(flow.setCurrentWorldSector(A10)).toBe(true);
     expect(campaign.tactical?.state.world.exitGrids.size).toBe(0);
     expect(flow.mapsNeededSoon()).toContain(flow.mapPathOf({ ...A10, z: 1 }));
+  });
+});
+
+describe('the palace map of a meanwhile scene', () => {
+  const PALACE = { x: 3, y: 16, z: 0 };
+  const N7 = { x: 7, y: 14, z: 0 };
+  const STUB_P3_MAP = 'stubs/world/maps/p3.dat';
+  const STUB_P3_M_MAP = 'stubs/world/maps/p3_m.dat';
+  const STUB_N7_MAP = 'stubs/world/maps/n7.dat';
+  const IN_AN_HOUR = 60;
+
+  function landedCampaign(seed: number) {
+    const { campaign } = createTestCampaign(kit, { seed, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    return campaign;
+  }
+
+  function scene(id: number, at: { readonly x: number; readonly y: number } = PALACE) {
+    return { sector: { x: at.x, y: at.y }, trigger: 0, id, npc: Npc.QUEEN };
+  }
+
+  it('is P3_m inside a meanwhile and P3 outside it; no other sector or level changes its map', () => {
+    const campaign = landedCampaign(17);
+    const flow = flowOf(campaign);
+    expect(flow.mapPathOf(PALACE)).toBe(STUB_P3_MAP);
+    campaign.state.meanwhile.current = scene(Meanwhile.FLOWERS);
+    campaign.state.meanwhile.inScene = true;
+    expect(flow.mapPathOf(PALACE)).toBe(STUB_P3_M_MAP);
+    expect(flow.setup.worlds.world(STUB_P3_M_MAP)?.mapPath).toBe(STUB_P3_M_MAP);
+    expect(flow.mapPathOf({ ...PALACE, z: 1 })).toBe('stubs/world/maps/p3_b1.dat');
+    expect(flow.mapPathOf(N7)).toBe(STUB_N7_MAP);
+  });
+
+  it('is prepared from the posting of a palace scene, never for the interrogation', () => {
+    const campaign = landedCampaign(18);
+    const flow = flowOf(campaign);
+    const queen = campaign.queen ?? never();
+    expect(flow.mapsNeededSoon()).not.toContain(STUB_P3_M_MAP);
+    scheduleInterrogation(queen);
+    expect(flow.mapsNeededSoon()).toContain(STUB_N7_MAP);
+    expect(flow.mapsNeededSoon()).not.toContain(STUB_P3_M_MAP);
+    scheduleMeanwhileEvent(queen, Meanwhile.FLOWERS, flow.nowMinutes() + IN_AN_HOUR);
+    expect(flow.mapsNeededSoon()).toContain(STUB_P3_M_MAP);
+    expect(flow.mapsNeededSoon()).not.toContain(STUB_P3_MAP);
+  });
+
+  it('stays prepared while a palace scene waits at its gates or plays, and not once it has played', () => {
+    const campaign = landedCampaign(19);
+    const flow = flowOf(campaign);
+    const m = campaign.state.meanwhile;
+    m.current = scene(Meanwhile.FLOWERS);
+    m.trying = true;
+    campaign.state.battle.prompt = { id: 'p', kind: 'surrender' };
+    campaign.meanwhile.afterStep();
+    expect(m.trying).toBe(true);
+    expect(flow.mapsNeededSoon()).toContain(STUB_P3_M_MAP);
+    campaign.state.battle.prompt = null;
+    campaign.meanwhile.afterStep();
+    expect(m.log.map((e) => e.id)).toEqual([Meanwhile.FLOWERS]);
+    expect(flow.mapsNeededSoon()).not.toContain(STUB_P3_M_MAP);
+    m.inScene = true;
+    expect(flow.mapsNeededSoon()).toContain(STUB_P3_M_MAP);
+    m.current = scene(Meanwhile.INTERROGATION, N7);
+    expect(flow.mapsNeededSoon()).not.toContain(STUB_P3_M_MAP);
   });
 });

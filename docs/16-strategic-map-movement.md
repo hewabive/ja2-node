@@ -105,8 +105,9 @@ without the write.
 **Runs on stubs.** The externalized tables ship unchanged in `data/externalized`, and the tables that exist only in
 C are transcribed to `data/tables/strategic-travel.json` and `sector-facilities.json`, so the whole strategic layer
 runs in CI. `sectorMapPath` takes the original map, else the stub pack's map of the sector, hand-made or a kind map
-(`stubs/maps/sector-kinds.json`), else `wilderness.dat` (`32`). The stub map keys of this domain are `entry`, `exit`,
-`scroll` and `optional` on `soldier:` lines (`src/content/formats/stub-map.ts`).
+(`stubs/maps/sector-kinds.json`), else `wilderness.dat` (`32`); inside a meanwhile the map of P3 is `P3_m` (`26`). The
+stub map keys of this domain are `entry`, `exit`, `scroll` and `optional` on `soldier:` lines
+(`src/content/formats/stub-map.ts`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), including draws whose result
 ja2-node does not use: the creature tense-quote delay at every sector load. Speaker picks are not drawn, and the

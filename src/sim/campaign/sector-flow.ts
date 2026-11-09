@@ -43,12 +43,14 @@
 // @src last, which TrashWorld leaves in gubWorldRoomInfo, 2026-11-08); Tactical/Tactical_Save.cc
 // @src LoadCurrentSectorsInformationFromTempItemsFile and TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (a native save's map changes and revealed tiles of a sector at its
-// @src first entry, the flag reset when no record is written back, 2026-11-08).
+// @src first entry, the flag reset when no record is written back, 2026-11-08); StrategicMap.cc GetMapFileName (the
+// @src palace's meanwhile map while AreInMeanwhile, 2026-11-09).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-files.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
 import {
+  MEANWHILE_MAP_SECTOR,
   parseSectorString,
   type Sector,
   sameSector,
@@ -116,7 +118,7 @@ import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
-import { CompressMode, Warp } from '../strategic/time/constants.ts';
+import { CompressMode, EventKind, Warp } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { pauseGame, setGameTimeCompressionLevel, unPauseGame, warpGameTime, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import { initPanicSystem } from '../tactical/ai/panic-triggers.ts';
@@ -448,7 +450,16 @@ export class SectorFlow {
     const wanted = parseSector(target);
     if (wanted) sectors.push(wanted);
     sectors.push(...this.#battleSectors(), ...this.#storySectors());
-    return sectors.map((s) => this.mapPathOf(s));
+    const paths = sectors.map((s) => this.mapPathOf(s));
+    if (this.#medunaScenePending()) paths.push(this.#mapPath(MEANWHILE_MAP_SECTOR, true));
+    return paths;
+  }
+
+  #medunaScenePending(): boolean {
+    const s = this.campaign.state;
+    const m = s.meanwhile;
+    if ((m.trying || m.inScene) && m.current.id !== Meanwhile.INTERROGATION) return true;
+    return s.queue.events.some((e) => e.kind === EventKind.MEANWHILE && e.param !== Meanwhile.INTERROGATION);
   }
 
   #interrogationMayLoad(): boolean {
@@ -488,8 +499,12 @@ export class SectorFlow {
   }
 
   mapPathOf(sector: Sector): string {
+    return this.#mapPath(sector, this.#inMeanwhile());
+  }
+
+  #mapPath(sector: Sector, inMeanwhile: boolean): string {
     const alternate = getSectorFlagStatus(this.campaign.state.map, sector, SectorFlag.USE_ALTERNATE_MAP);
-    return sectorMapPath((p) => this.setup.worlds.exists(p), sector, alternate);
+    return sectorMapPath((p) => this.setup.worlds.exists(p), sector, alternate, inMeanwhile);
   }
 
   canGoToTacticalInSector(sector: Sector): boolean {

@@ -11,8 +11,9 @@ module's `@src` header names the Stracciatella functions it ports; read those fo
 scene flags, sectors, NPCs, camera gridnos and the queens' witness sets in `data/tables/narrative-scenes.json`
 (`tools/transcribe/narrative-scenes.ts`); the Queen's and Elliot's per-scene record files in
 `data/externalized/script-records-control.json`; the milestones in `game.json` `progress`. The records of the Queen,
-Joe, Elliot, Derek and Oliver and the maps P3, P3 b1, N7, O3, I13 are the user's data or the stub pack's
-(`stubs/npc/records.json`, `stubs/maps/n7.map.txt`, `p3.map.txt`, `p3_b1.map.txt`; none for O3 or I13).
+Joe, Elliot, Derek and Oliver and the maps P3, P3 b1, P3_m, N7, O3, I13 are the user's data or the stub pack's
+(`stubs/npc/records.json` with every scene's record files, `stubs/maps/n7.map.txt`, `p3.map.txt`, `p3_b1.map.txt`,
+`p3_m.map.txt`; none for O3 or I13; `32` §1.6).
 
 ## 1. Where things live
 
@@ -57,7 +58,9 @@ a queen dies                                            tactical/combat/death.ts
 `CampaignSim` runs `meanwhile.afterStep()` and `endgame.afterStep()` after every tick, answers the strategic world's
 `inMeanwhile()` with `areInMeanwhile`, and is not idle while a scene tries to start or runs or the endgame is active.
 The tactical narrative port (`campaign/narrative-port.ts`) routes the queens' deaths and the POW path checks.
-`SectorFlow.mapsNeededSoon` prepares N7 while the interrogation may come, P3 and P3 b1 in P3, O3 b1 in O3.
+`SectorFlow.mapsNeededSoon` prepares N7 while the interrogation may come, P3_m from the posting of a palace scene until
+it has played, P3 and P3 b1 in P3, O3 b1 in O3. Inside a meanwhile `SectorFlow.mapPathOf` names `P3_m` for P3, as
+`GetMapFileName` does with `AreInMeanwhile`.
 
 ## 2. Design
 
