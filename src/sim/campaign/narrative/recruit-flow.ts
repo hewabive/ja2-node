@@ -7,14 +7,16 @@
 // @src FindGridNoFromSweetSpotExcludingSweetSpot; Strategic/Assignments.cc InternalUnescortEPC, UnEscortEPC; Laptop/Personnel.cc
 // @src AddCharacterToOtherList, RemoveNewlyHiredMercFromPersonnelDepartedList; Strategic/Strategic_Town_Loyalty.cc
 // @src HandleTownLoyaltyForNPCRecruitment; Tactical/Vehicles.cc AddSoldierToVehicle (ChangeSoldierTeam of a vehicle not ours: a
-// @src vehicle merc with the original's zeroed squad and group, and no slot past 19 checked before the soldier goes, 2026-11-05).
+// @src vehicle merc with the original's zeroed squad and group, and no slot past 19 checked before the soldier goes, 2026-11-05);
+// @src ChangeSoldierTeam's InternalTacticalRemoveSoldier deletes a soldier of ours' face (Tactical/Faces.cc DeleteSoldierFace):
+// @src an escort released, a merc married off, our soldiers of a civilian group turned hostile (2026-11-09).
 
 import { isTwoHanded, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { Approach } from '../../../content/narrative/npc-constants.ts';
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { swapObjects } from '../../items/object.ts';
 import { deleteTalkingMenu, getInfoForAbandoningEpc, triggerNpcRecord, triggerNpcWithGivenApproach } from '../../narrative/converse.ts';
-import { soldierByProfile, tacticalCharacterDialogue } from '../../narrative/dialogue-queue.ts';
+import { deleteSoldierFace, soldierByProfile, tacticalCharacterDialogue } from '../../narrative/dialogue-queue.ts';
 import type { NarrativeHost } from '../../narrative/host.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { updateDarrelScriptToGoTo } from '../../narrative/records.ts';
@@ -141,6 +143,7 @@ export class RecruitFlow {
     const t = this.#t;
     const leaving = this.#roster?.get(old.id);
     if (leaving?.soldier === old) this.#leaveTeam(leaving);
+    if (old.team === Team.OUR) deleteSoldierFace(this.#host, old.profile);
     if (!t) return null;
     return changeSoldierTeam(t, old, team, { freeSoldierId: (to, bodyType) => this.#freeSoldierId(t, to, bodyType) });
   }

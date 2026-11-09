@@ -135,6 +135,12 @@ export interface EpcReleasedEvent extends SimEventBase {
   readonly soldier: number | null;
 }
 
+export interface SoldierFaceDeletedEvent extends SimEventBase {
+  readonly type: 'soldierFaceDeleted';
+  readonly profile: number;
+  readonly saidAt?: number;
+}
+
 export type GiveEvent = ItemGivenEvent | GiveAbortedEvent | NpcTookItemEvent | ItemReturnedEvent | NpcGaveItemEvent;
 
 export type NarrativeEvent =
@@ -150,7 +156,8 @@ export type NarrativeEvent =
   | GiveEvent
   | SexSceneEvent
   | AlarmEvent
-  | EpcReleasedEvent;
+  | EpcReleasedEvent
+  | SoldierFaceDeletedEvent;
 
 type Emitted = NarrativeEvent | MercQuoteEvent | SkyriderQuoteEvent | SoldierLocatedEvent | ItemsLocatedEvent;
 

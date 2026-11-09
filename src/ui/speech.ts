@@ -14,7 +14,8 @@
 // @src (HandleCivQuote), while Faces.cc HandleTalkingAutoFaces plays the current line to its end (2026-11-03);
 // @src Dialogue_Control.cc gpCurrentTalkingFace is one face for every screen: a line goes on across a screen switch
 // @src (2026-11-03); SaveLoadGame.cc LoadSavedGame (EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech before a load)
-// @src and Laptop/Laptop.cc, whose screen leaves out HandleDialogue (2026-11-04).
+// @src and Laptop/Laptop.cc, whose screen leaves out HandleDialogue (2026-11-04); Faces.cc DeleteFace (a face deleted while
+// @src it talks stops talking at once and leaves its sample playing, 2026-11-09).
 
 import { speechPathForLine } from '../content/audio/speech.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -142,6 +143,7 @@ interface Running {
   voice: SpeechVoice | null;
   talkingUntil: number | null;
   tailFrom: number;
+  faceDeleted: boolean;
 }
 
 export function textDelay(chars: number): number {
@@ -194,7 +196,7 @@ export class SpeechPresenter {
   }
 
   get current(): ActiveLine | null {
-    const r = this.#running;
+    const r = this.#talking;
     if (!r) return null;
     return { line: r.line, startedAt: r.startedAt, phase: r.phase, subtitles: this.#showsSubtitles(r), voice: r.voice };
   }
@@ -204,7 +206,7 @@ export class SpeechPresenter {
   }
 
   get speaking(): SpeakingFace | null {
-    const r = this.#running;
+    const r = this.#talking;
     if (!r) return null;
     const voice = r.voice && !r.voice.failed ? r.voice : null;
     return {
@@ -272,7 +274,7 @@ export class SpeechPresenter {
   }
 
   skip(now: number, force: boolean): boolean {
-    const r = this.#running;
+    const r = this.#talking;
     if (!r) return false;
     if (!force && now - r.startedAt < MIN_TALK_BEFORE_SKIP_MS) return false;
     this.#cutShort(r);
@@ -280,17 +282,17 @@ export class SpeechPresenter {
   }
 
   advanceKey(now: number): boolean {
-    if (this.#running?.phase !== 'keyWait') return false;
+    if (this.#talking?.phase !== 'keyWait') return false;
     return this.skip(now, false);
   }
 
   get waitingForKey(): boolean {
-    return this.#running?.phase === 'keyWait';
+    return this.#talking?.phase === 'keyWait';
   }
 
   flush(): void {
     this.#queue.length = 0;
-    const r = this.#running;
+    const r = this.#talking;
     if (r) this.#cutShort(r);
     this.#queue.length = 0;
   }
@@ -314,8 +316,24 @@ export class SpeechPresenter {
   }
 
   cutSpeaker(soldier: number): void {
-    const r = this.#running;
+    const r = this.#talking;
     if (r && r.line.soldier === soldier && r.voice?.active) this.#finish(r);
+  }
+
+  endDeletedFace(profile: number, saidAt: number): void {
+    const said = (line: SpeechLine) => line.profile === profile && line.saidAt === saidAt;
+    const r = this.#running;
+    if (r && said(r.line)) {
+      r.faceDeleted = true;
+      return;
+    }
+    const queued = this.#queue.findIndex(said);
+    if (queued >= 0) this.#queue.splice(queued, 1);
+  }
+
+  get #talking(): Running | null {
+    const r = this.#running;
+    return r && !r.faceDeleted ? r : null;
   }
 
   #showsSubtitles(r: Running): boolean {
@@ -332,7 +350,7 @@ export class SpeechPresenter {
     this.#queue.shift();
     const settings = this.#o.settings();
     const voice = settings.speech && line.voice ? (this.#o.voices?.play(line.voice) ?? null) : null;
-    const running: Running = { line, startedAt: now, phase: 'talking', voice, talkingUntil: null, tailFrom: 0 };
+    const running: Running = { line, startedAt: now, phase: 'talking', voice, talkingUntil: null, tailFrom: 0, faceDeleted: false };
     if (!voice || voice.failed) running.talkingUntil = now + textDelay(line.chars);
     this.#running = running;
     for (const listener of this.#started) listener(line);
@@ -344,6 +362,7 @@ export class SpeechPresenter {
   }
 
   #advance(r: Running, now: number): boolean {
+    if (r.faceDeleted) return this.#voiceOfDeletedFaceDone(r);
     if (r.phase === 'talking') {
       if (r.voice?.failed && r.talkingUntil === null) r.talkingUntil = r.startedAt + textDelay(r.line.chars);
       const done = r.talkingUntil !== null ? now >= r.talkingUntil : !(r.voice?.active ?? false);
@@ -354,6 +373,12 @@ export class SpeechPresenter {
     }
     if (r.phase === 'keyWait') return false;
     if (now - r.tailFrom < FINAL_TALKING_DELAY_MS) return false;
+    this.#finish(r);
+    return true;
+  }
+
+  #voiceOfDeletedFaceDone(r: Running): boolean {
+    if (r.voice?.active) return false;
     this.#finish(r);
     return true;
   }

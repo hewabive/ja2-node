@@ -1,11 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-09. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame (TrashAllSoldiers deletes every soldier's face before EmptyDialogueQueue and
-// @src StopAnyCurrentlyTalkingSpeech); src/game/Strategic/Merc_Contract.cc StrategicRemoveMerc (TacticalRemoveSoldier
-// @src deletes the departing merc's face, Tactical/Faces.cc DeleteSoldierFace); Tactical/Soldier_Profile.cc UnRecruitEPC
-// @src (ChangeSoldierTeam deletes the escort's face; the map screen's release queues it after his line,
-// @src Strategic/Assignments.cc DialogueEventRemoveEPC) and SwapLarrysProfiles (the face of the profile he leaves,
-// @src 2026-11-09).
+// @src StopAnyCurrentlyTalkingSpeech); Tactical/Faces.cc DeleteSoldierFace wherever the simulation deletes a face
+// @src (soldierFaceDeleted: Strategic/Merc_Contract.cc StrategicRemoveMerc, Tactical/Soldier_Profile.cc ChangeSoldierTeam
+// @src and SwapLarrysProfiles, 2026-11-09).
 
 import type { SpeechOwner } from '../../audio/director.ts';
 import type { AudioEngine } from '../../audio/engine.ts';
@@ -22,7 +20,6 @@ export class SessionSpeech {
   readonly settings: () => SpeechSettings;
   readonly owner: SpeechOwner;
   readonly #battleSounds: SpeakerBattleSounds[] = [];
-  #mercProfiles = new Map<number, number>();
   #spoken = 0;
 
   constructor(client: SessionClient, engine: AudioEngine) {
@@ -61,19 +58,7 @@ export class SessionSpeech {
   frames(frames: readonly ViewFrame[]): void {
     const ui = TalkingUi.of(this.presenter);
     for (const frame of frames)
-      for (const event of frame.events ?? [])
-        if (event.type === 'mercLeft' || event.type === 'epcReleased') ui.deleteSoldierFace(event.profile);
-    this.#followProfileSwaps(ui);
-  }
-
-  #followProfileSwaps(ui: TalkingUi): void {
-    const mercs = this.client.view?.strategic?.mercs ?? [];
-    const now = new Map(mercs.flatMap((m) => (m.profile === undefined ? [] : [[m.id, m.profile] as const])));
-    for (const [id, profile] of now) {
-      const before = this.#mercProfiles.get(id);
-      if (before !== undefined && before !== profile) ui.deleteSoldierFace(before);
-    }
-    this.#mercProfiles = now;
+      for (const event of frame.events ?? []) if (event.type === 'soldierFaceDeleted') ui.deleteSoldierFace(event.profile);
   }
 
   discardLines(): void {

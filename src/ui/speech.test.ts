@@ -312,6 +312,39 @@ describe('SpeechPresenter', () => {
     expect(silent.p.busy).toBe(false);
   });
 
+  it('ends the line of a face deleted while it talks: no line is current or speaking, its voice plays on unreported and holds the next', () => {
+    const { p, voices } = presenter();
+    const stopped: number[] = [];
+    p.onLineStopped((l) => stopped.push(l.profile));
+    p.update(0);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 1, saidAt: 10 }));
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 2, saidAt: 20 }));
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 3, saidAt: 30 }));
+    p.endDeletedFace(3, 30);
+    p.endDeletedFace(1, 10);
+    expect([p.current, p.speaking, p.busy, voices[0]?.stopped]).toEqual([null, null, true, false]);
+    expect([p.skip(1000, true), p.queued.map((l) => l.profile)]).toEqual([false, [2]]);
+    p.cutSpeaker(7);
+    p.flush();
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 2, saidAt: 20 }));
+    p.update(1000);
+    expect([p.current, voices[0]?.stopped]).toEqual([null, false]);
+    voices[0]?.end();
+    p.update(1001);
+    expect(p.current?.line.profile).toBe(2);
+    expect(stopped).toEqual([]);
+  });
+
+  it('ends at once the line of a deleted face that has no voice playing', () => {
+    const { p } = presenter({ speech: false });
+    p.update(0);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 1, saidAt: 10 }));
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 2, saidAt: 20 }));
+    p.endDeletedFace(1, 10);
+    p.update(1);
+    expect(p.current?.line.profile).toBe(2);
+  });
+
   it('shows no line the server skipped as it was said, and does not count it as one still to come', () => {
     const event = {
       type: 'npcQuote',

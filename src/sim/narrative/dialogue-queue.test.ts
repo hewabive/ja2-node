@@ -13,6 +13,7 @@ import {
   characterDialogue,
   characterDialogueUsingAlternateFile,
   delayedTacticalCharacterDialogue,
+  deleteSoldierFace,
   emptyDialogueQueue,
   externalNpcDialogue,
   FINAL_TALKING_DELAY_TICKS,
@@ -681,5 +682,74 @@ describe('stop-time quotes (Dialogue_Control.cc CheckForStopTimeQuotes, GameScre
     stepDialogue(host);
     quietDialogueForLoad(host);
     expect([ran, host.talk.tacticalModal]).toEqual([[], TacticalModal.OFF]);
+  });
+});
+
+describe('a soldier face deleted while it talks (Faces.cc DeleteFace from DeleteSoldierFace, Dialogue_Control.cc HandleDialogue)', () => {
+  const SKYRIDER_SAYS_HI = 23;
+  const NPC_LINE = 4;
+
+  function twoMercs(inMapMode = false): { host: FakeHost; merc: Soldier; other: Soldier } {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const other = testSoldier(1, Team.OUR, OTHER_PROFILE, OTHER_AT);
+    return { host: fakeHost({ soldiers: [merc, other], inMapMode }), merc, other };
+  }
+
+  function facesDeleted(host: FakeHost): unknown[] {
+    return host.emitted.filter((e) => e.type === 'soldierFaceDeleted');
+  }
+
+  it('ends his line there, with the ticks it had left, and the next pass says the next line', () => {
+    const { host, merc, other } = twoMercs();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    tacticalCharacterDialogue(host, other, MercQuote.KILLED_AN_ENEMY);
+    stepDialogue(host);
+    host.advance();
+    deleteSoldierFace(host, MERC_PROFILE);
+    expect(facesDeleted(host)).toEqual([{ type: 'soldierFaceDeleted', profile: MERC_PROFILE, saidAt: 0 }]);
+    stepDialogue(host);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT, MercQuote.KILLED_AN_ENEMY]);
+    expect(host.talk.face).toMatchObject({ speaker: OTHER_PROFILE, saidAt: 1 });
+  });
+
+  it('lifts the map screen pause of his line as the next pass ends the face, without its closing 300 ms', () => {
+    const { host, merc } = twoMercs(true);
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    deleteSoldierFace(host, MERC_PROFILE);
+    expect(host.paused).toBe(true);
+    stepDialogue(host);
+    expect([host.talk.face, host.paused, host.pauseLocked]).toEqual([null, false, false]);
+  });
+
+  it("leaves talking every face that is not his soldier face: another merc's, his NPC line's and an external face's", () => {
+    const { host, merc } = twoMercs();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    deleteSoldierFace(host, OTHER_PROFILE);
+    const npcLine = fakeHost({ soldiers: [merc] });
+    characterDialogue(npcLine, MERC_PROFILE, NPC_LINE, true, false);
+    stepDialogue(npcLine);
+    deleteSoldierFace(npcLine, MERC_PROFILE);
+    const external = fakeHost({ inMapMode: true });
+    externalNpcDialogue(external, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    stepDialogue(external);
+    deleteSoldierFace(external, NarrativeProfile.SKYRIDER);
+    const stillTalking = [host, npcLine, external].map((h) => (h.talk.face?.busyUntil ?? 0) > h.now);
+    expect(stillTalking).toEqual([true, true, true]);
+    expect([host, npcLine, external].flatMap(facesDeleted)).toEqual([
+      { type: 'soldierFaceDeleted', profile: OTHER_PROFILE },
+      { type: 'soldierFaceDeleted', profile: MERC_PROFILE },
+      { type: 'soldierFaceDeleted', profile: NarrativeProfile.SKYRIDER },
+    ]);
+  });
+
+  it('ends no line once his own is over, and names none', () => {
+    const { host, merc } = twoMercs();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    runQueueToTheEnd(host);
+    deleteSoldierFace(host, MERC_PROFILE);
+    deleteSoldierFace(host, NO_PROFILE);
+    expect(facesDeleted(host)).toEqual([{ type: 'soldierFaceDeleted', profile: MERC_PROFILE }]);
   });
 });

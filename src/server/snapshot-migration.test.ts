@@ -2150,7 +2150,7 @@ describe('snapshot version 46 (no tactical prompt, booby-trap globals or stop-ti
     const campaign = await createCampaignSession(kit.read, exists, 9);
     const talk = campaign.campaign.talk?.talk;
     if (!talk) throw new Error('the campaign has no talk flow');
-    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false };
+    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: false };
     const current = snapshotSession(campaign);
     const legacy = versionFortySix(current.sim);
     expect(JSON.stringify(legacy)).not.toContain('"tacticalModal"');
@@ -3697,5 +3697,47 @@ describe('snapshot version 71 (no tiles revealed at the load) migrates with none
 
   it('a landed campaign', async () => {
     await expectNoTilesRevealedAtLoad(await quietLandedCampaign(kit));
+  });
+});
+
+const SOLDIER_FACE_KEY = 'soldierFace';
+
+function withoutSoldierFaceFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutSoldierFaceFlag(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (key !== SOLDIER_FACE_KEY) out[key] = withoutSoldierFaceFlag(v);
+  return out;
+}
+
+function versionSeventyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutSoldierFaceFlag(value)]);
+  return { ...snapshot, version: 74, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 74 (a talking face without the soldier face flag) migrates with a face that is not a soldier's, which a deleted soldier face leaves talking", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign with a merc talking', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    const talk = campaign.campaign.talk?.talk;
+    if (!talk) throw new Error('the campaign has no talk flow');
+    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: false };
+    const current = snapshotSession(campaign);
+    const legacy = versionSeventyFour(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${SOLDIER_FACE_KEY}":false`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${SOLDIER_FACE_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });

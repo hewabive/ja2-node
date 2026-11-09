@@ -2219,6 +2219,24 @@ function addMonologueHighlights(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const FACE_SOLDIER_FACE_KEY = 'soldierFace';
+
+function withSoldierFaceFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSoldierFaceFlag(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSoldierFaceFlag(v);
+  const face = mapped[FACE_KEY];
+  if (!isTalkStateRecord(mapped) || !isObject(face)) return mapped;
+  return { ...mapped, [FACE_KEY]: insertAfter(face, FACE_MODAL_KEY, FACE_SOLDIER_FACE_KEY, false) };
+}
+
+function addSoldierFaceFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withSoldierFaceFlag(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2294,5 +2312,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     71: addRevealedAtLoad,
     72: addExternPanel,
     73: addMonologueHighlights,
+    74: addSoldierFaceFlag,
   };
 }

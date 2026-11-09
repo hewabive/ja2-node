@@ -7,7 +7,7 @@
 // @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry, HandleQuestCodeOnSectorExit; Tactical/Overhead.cc
 // @src HandleNPCTeamMemberDeath (MakeRemainingTerroristsTougher, MakeRemainingAssassinsTougher, the DYNAMO, KINGPIN and DOREEN
 // @src cases); Strategic/Hourly_Update.cc HourlyLarryUpdate (the merc side); Tactical/Soldier_Profile.cc SwapLarrysProfiles
-// @src (the soldier side); Strategic/Quests.cc CheckFact (the boxing inputs: AnotherFightPossible, BoxerAvailable, BoxerExists);
+// @src (the soldier side; DeleteSoldierFace of the profile he leaves, 2026-11-09); Strategic/Quests.cc CheckFact (the boxing inputs: AnotherFightPossible, BoxerAvailable, BoxerExists);
 // @src StrategicMap.cc HandleQuestCodeOnSectorEntry (gBoxer cleared in D5).
 
 import { NOTHING } from '../../../content/items/items.ts';
@@ -15,6 +15,7 @@ import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sectorFromId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../../events.ts';
 import { copyObjectInto, createItem, createItems, createMoney, emptyObject } from '../../items/object.ts';
+import { deleteSoldierFace } from '../../narrative/dialogue-queue.ts';
 import { StrategicAiAction } from '../../strategic/ai/constants.ts';
 import { type ProgressMilestones, queenProgress } from '../../strategic/ai/difficulty.ts';
 import { executeStrategicAIAction } from '../../strategic/ai/reactions.ts';
@@ -540,6 +541,8 @@ export class NarrativeFlow {
     const record = content.profiles[toId] ?? null;
     if (!from || !to) return;
     swapLarrysProfileRecords(this.state.narrative, from, to);
+    const host = this.campaign.talk?.host;
+    if (host) deleteSoldierFace(host, fromId);
     m.swapProfile(toId, record, to.stats);
   }
 

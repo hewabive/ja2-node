@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawnSoldier } from '../../tests/support/combat.ts';
+import { testProfile } from '../../tests/support/profiles.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -9,11 +10,14 @@ import { deleteTalkingMenu } from '../sim/narrative/converse.ts';
 import { FINAL_TALKING_DELAY_TICKS, tacticalCharacterDialogue } from '../sim/narrative/dialogue-queue.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Fact } from '../sim/strategic/narrative/fact-ids.ts';
+import { Npc } from '../sim/strategic/narrative/npc-ids.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
+import { civilianGroupMemberChangesSides } from '../sim/tactical/narrative/civ-hostility.ts';
 import { MercQuote, QuoteSaidFlag } from '../sim/tactical/narrative/merc-quotes.ts';
+import { NpcActionCode } from '../sim/tactical/narrative/npc-actions/codes.ts';
 import { SightFlags } from '../sim/tactical/perception/opp.ts';
 import { handleSight } from '../sim/tactical/perception/sight.ts';
-import { type Soldier, TEAM_FIRST_ID, Team } from '../sim/tactical/soldier.ts';
+import { CivilianGroup, type Soldier, TEAM_FIRST_ID, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalState } from '../sim/tactical/state.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { addItemToPool, Visibility } from '../sim/tactical/world-items.ts';
@@ -330,5 +334,83 @@ describe('the map screen pause for a line in a campaign (Dialogue_Control.cc Dia
     const c = await squadInA9(107);
     sayLine(c);
     expect(clockOf(c)).toMatchObject({ paused: false, pauseLocked: false });
+  });
+});
+
+describe("a merc's face deleted while he talks, in a campaign (Faces.cc DeleteFace from DeleteSoldierFace)", () => {
+  const LINE = MercQuote.OUT_OF_AMMO;
+  const NEXT_LINE = MercQuote.HEADSHOT;
+  const LINE_TICKS_LEFT = 100;
+
+  interface Talking {
+    readonly c: Campaign;
+    readonly kestrel: Soldier;
+    readonly saidAt: number;
+  }
+
+  function talkOf(c: Campaign) {
+    const talk = c.session.campaign.talk;
+    if (!talk) throw new Error('the campaign has no talk flow');
+    return talk;
+  }
+
+  async function kestrelTalking(seed: number): Promise<Talking> {
+    const c = await squadInA9(seed);
+    const t = loadedSector(c).state;
+    const talk = talkOf(c);
+    expect(tacticalCharacterDialogue(talk.host, ours(t, KESTREL), LINE)).toBe(true);
+    expect(tacticalCharacterDialogue(talk.host, ours(t, VANT), NEXT_LINE)).toBe(true);
+    const said = c.live.advance({ events: ['mercQuote'] }).events.find((e) => e.type === 'mercQuote' && e.id === LINE);
+    if (!said) throw new Error('the line was not said');
+    return { c, kestrel: ours(loadedSector(c).state, KESTREL), saidAt: said.tick };
+  }
+
+  function expectLineEndedForTheNext(talking: Talking, profile: number): void {
+    const { c, saidAt } = talking;
+    expect(talkOf(c).talk.face?.busyUntil).toBe(c.session.campaign.tick);
+    const events = c.live.advance({ events: ['mercQuote'] }).events;
+    expect(events).toContainEqual(expect.objectContaining({ type: 'soldierFaceDeleted', profile, saidAt }));
+    expect(quotesSaid(events, [NEXT_LINE])).toEqual([[VANT, NEXT_LINE]]);
+  }
+
+  it('ends the line of a merc married off and goes on to the next (NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE, ChangeSoldierTeam)', async () => {
+    const talking = await kestrelTalking(119);
+    talkOf(talking.c).npcActions.handle(KESTREL, NpcActionCode.REMOVE_MERC_FOR_MARRIAGE, 0);
+    expectLineEndedForTheNext(talking, KESTREL);
+  });
+
+  it('ends the line of a merc of ours whose civilian group turns hostile (CivilianGroupMemberChangesSides, ChangeSoldierTeam)', async () => {
+    const talking = await kestrelTalking(113);
+    const sim = loadedSector(talking.c);
+    const { kestrel } = talking;
+    const beggar = spawnSoldier(sim, NPC_ID, Team.CIV, kestrel.gridNo + TILES_AHEAD, kestrel.direction, {});
+    beggar.civilianGroup = CivilianGroup.BEGGARS;
+    kestrel.civilianGroup = CivilianGroup.BEGGARS;
+    civilianGroupMemberChangesSides(sim.state, beggar);
+    expectLineEndedForTheNext(talking, KESTREL);
+  });
+
+  it('ends the line of a merc leaving the team (StrategicRemoveMerc, TacticalRemoveSoldier)', async () => {
+    const talking = await kestrelTalking(115);
+    const { c, kestrel } = talking;
+    const merc = c.session.campaign.battle?.roster.get(kestrel.id);
+    if (!merc) throw new Error('Kestrel is not on the roster');
+    c.session.campaign.contracts?.removeFromWorld(merc);
+    expectLineEndedForTheNext(talking, KESTREL);
+  });
+
+  it("ends Larry's line at the swap of his profiles (SwapLarrysProfiles)", async () => {
+    const talking = await kestrelTalking(117);
+    const { c, kestrel } = talking;
+    const campaign = c.session.campaign;
+    campaign.state.profiles.set(Npc.LARRY_NORMAL, testProfile(Npc.LARRY_NORMAL));
+    campaign.state.profiles.set(Npc.LARRY_DRUNK, testProfile(Npc.LARRY_DRUNK));
+    const larry = campaign.battle?.roster.get(kestrel.id);
+    const face = talkOf(c).talk.face;
+    if (!larry || !face) throw new Error('Kestrel is not talking');
+    larry.soldier.profile = Npc.LARRY_NORMAL;
+    talkOf(c).talk.face = { ...face, speaker: Npc.LARRY_NORMAL, busyUntil: campaign.tick + LINE_TICKS_LEFT };
+    campaign.narrative.swapLarrysProfiles(larry);
+    expectLineEndedForTheNext(talking, Npc.LARRY_NORMAL);
   });
 });

@@ -9,7 +9,8 @@
 // @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm; GameScreen.cc gfTacticalIsModal, gModalDoneCallback;
 // @src Faces.h FACE_MODAL (2026-11-04); Dialogue_Control.cc DialogueActive (2026-11-07); Tactical/Overhead.h
 // @src bMercArrivingQuoteBeingUsed (2026-11-08); Dialogue_Control.cc gsExternPanelXPosition and gsExternPanelYPosition,
-// @src SetExternMapscreenSpeechPanelXY, HandleDialogueEnd (back to the default as a line ends) (2026-11-09).
+// @src SetExternMapscreenSpeechPanelXY, HandleDialogueEnd (back to the default as a line ends) (2026-11-09); a line said
+// @src through the speaker's soldier face (SOLDIERTYPE::face, which Faces.cc DeleteSoldierFace deletes, 2026-11-09).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -62,6 +63,7 @@ export interface TalkingFace {
   readonly busyUntil: number;
   pcTrigger: { readonly npc: number; readonly record: number } | null;
   modal: boolean;
+  readonly soldierFace: boolean;
 }
 
 export const TacticalModal = { OFF: 0, ENTERED: 1, FROZEN: 2 } as const;

@@ -44,7 +44,6 @@ What the client does not show or play yet; none of it changes an outcome. Paths 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Meanwhile scene playback | OK plays the scene, Skip skips it, a played scene is marked seen (`Strategic/Meanwhile.cc:396`, `:535`) | The box only; OK and Skip both continue, nothing is marked seen (`ui/screens/story/story-layer.ts`) | No scene sandbox (`26`) |
-| Soldier face deletion | A face deleted while it talks ends its line there, its talking UI with it, and the dialogue queue goes on to the next line (`DeleteFace`, `Tactical/Faces.cc:231`; `Tactical/Dialogue_Control.cc:342`): Larry's profile swap in the middle of a line of his (`Tactical/Soldier_Profile.cc:1011`); `ChangeSoldierTeam` also deletes the face of a merc married off (`Tactical/Interface_Dialogue.cc:3835`) and of our soldiers of a civilian group turned hostile (`Tactical/Overhead.cc:2734`) | A deleted face waits for the end of a line of his still playing, which plays out; those two team changes delete no face (`app/sound/session-speech.ts`, `ui/screens/talk/talking-ui.ts`) | The line's end needs the simulation's dialogue queue to end the speaker's line at the swap; the team changes need an event, or the client to take a merc gone from the roster for a deleted face (`30`) |
 
 ## 7. Code conventions
 

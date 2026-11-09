@@ -274,6 +274,10 @@ export class DialogueLayer {
       this.presenter.cut(event.profile, event.saidAt, event.tail);
       return;
     }
+    if (event.type === 'soldierFaceDeleted') {
+      if (event.saidAt !== undefined) this.presenter.endDeletedFace(event.profile, event.saidAt);
+      return;
+    }
     if (!isQuoteEvent(event)) return;
     const routing = this.#routing();
     if (event.type === 'civQuote') {

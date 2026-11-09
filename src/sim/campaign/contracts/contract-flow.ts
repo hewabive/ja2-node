@@ -12,7 +12,8 @@
 // @src MakeDialogueEventEnterMapScreen, Map_Screen_Interface.cc MakeDialogueEventShowContractMenu (the endings and the
 // @src renewal menu as dialogue events behind the lines, 2026-11-01); Tactical/Overhead.cc HandlePlayerTeamMemberDeath's buddy
 // @src lines from everyone in the sector, the helicopter's passengers included (2026-11-08); Tactical/Merc_Hiring.cc
-// @src MercArrivesCallback's DialogueEventUnsetArrivesFlag, run whenever the queue reaches it (2026-11-08).
+// @src MercArrivesCallback's DialogueEventUnsetArrivesFlag, run whenever the queue reaches it (2026-11-08); Merc_Contract.cc
+// @src StrategicRemoveMerc (TacticalRemoveSoldier deletes the merc's face, Tactical/Faces.cc DeleteSoldierFace, 2026-11-09).
 
 import { type Sector, sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
@@ -21,6 +22,7 @@ import type { SimEvent } from '../../events.ts';
 import {
   addDialogueEvent,
   delayedTacticalCharacterDialogue,
+  deleteSoldierFace,
   handleImportantMercQuote,
   tacticalCharacterDialogue,
 } from '../../narrative/dialogue-queue.ts';
@@ -365,6 +367,8 @@ export class ContractFlow implements ContractContext {
   removeFromWorld(m: RosterMerc): void {
     removeCharacterFromSquads(this.economy, m.id);
     this.roster.tacticalRemoveSoldier(m.id);
+    const host = this.#dialogue;
+    if (host) deleteSoldierFace(host, m.soldier.profile);
     this.roster.remove(m.id);
     this.campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   }

@@ -163,6 +163,10 @@ export class MapSpeech {
       presenter.cut(event.profile, event.saidAt, event.tail);
       return;
     }
+    if (event.type === 'soldierFaceDeleted') {
+      if (event.saidAt !== undefined) presenter.endDeletedFace(event.profile, event.saidAt);
+      return;
+    }
     if (!isQueuedQuoteEvent(event)) return;
     const line = speechLineOf(event as QuoteEvent, this.#hooks.routing());
     if (line) presenter.enqueue(line);

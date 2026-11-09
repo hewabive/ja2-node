@@ -315,6 +315,37 @@ function sayExternal(f: MapUiTest, profile: number, extra: ExternalExtras = {}):
   f.frames([externalFrame(f, profile, extra)]);
 }
 
+describe('a face deleted while it talks on the map screen (Faces.cc DeleteFace, Dialogue_Control.cc HandleDialogueEnd)', () => {
+  function faceDeletedFrame(tick: number, profile: number, saidAt?: number): ViewFrame {
+    const deleted = { type: 'soldierFaceDeleted', tick, profile, ...(saidAt !== undefined ? { saidAt } : {}) } as const;
+    return { tick, changed: [], removed: [], events: [deleted] };
+  }
+
+  it('takes the subtitle box down at once, leaves the voice playing and reports nothing; Backspace no longer cuts it', () =>
+    withMap(async (f) => {
+      f.speech.voiced = true;
+      const speaker = otherMerc(f);
+      const said = say(f, speaker);
+      expect(f.find('speechTextBox')).toBeDefined();
+      f.frames([faceDeletedFrame(said.tick + 1, profileOf(f, speaker), said.tick)]);
+      f.t.frame();
+      expect([f.find('speechTextBox'), f.screen.hook().subtitle, f.speech.presenter.current]).toEqual([undefined, null, null]);
+      f.key('Backspace');
+      await f.settle();
+      expect(f.speech.voices.map((v) => v.active)).toEqual([true]);
+      expect(skipLines(f)).toEqual([]);
+    }));
+
+  it("keeps a line the deletion did not end: the sim's face was no longer talking", () =>
+    withMap(async (f) => {
+      const speaker = otherMerc(f);
+      const said = say(f, speaker);
+      f.frames([faceDeletedFrame(said.tick + 1, profileOf(f, speaker))]);
+      f.t.frame();
+      expect(f.screen.hook().subtitle).toBe(`"${LINE}"`);
+    }));
+});
+
 describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Control.cc HandleExternNPCSpeechFace)", () => {
   it('puts the face popup at the external panel and the subtitle box 97 to its right', () =>
     withMap(async (f) => {

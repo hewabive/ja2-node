@@ -86,7 +86,12 @@ sound; only the client holds his line until it ends (`31`). Voice lengths come f
 `@rules/speech/lengths.json` and stay out of its hash, so saves and logs match across installs. The 500 ms trigger wait,
 the 1500 ms AI pause and the minute a named NPC idles after talking run on the tactical clock. A viewer cuts a line with
 the `skipLine` input (logged and replayed): a click or Backspace ends it at once, the end of a viewer's voice or text
-keeps the closing 300 ms, and every cut emits `lineCut` so all viewers end it. Agents can set `speech: skip`.
+keeps the closing 300 ms, and every cut emits `lineCut` so all viewers end it. Agents can set `speech: skip`. A soldier
+face the original deletes while it talks ends its line at once, without the closing 300 ms, and the next pass goes on
+(`DeleteFace`, `Tactical/Faces.cc:231`; `deleteSoldierFace`): a merc leaving the team, an escort released, a merc
+married off or turned hostile with his civilian group (`ChangeSoldierTeam`), the profile Larry leaves. Only a line said
+through the soldier's own face ends (`TalkingFace.soldierFace`): his line in the talk panel and an external face's
+stay. Every such deletion emits `soldierFaceDeleted {profile, saidAt?}`, `saidAt` naming the line it ended.
 
 **A line on the map screen pauses the game.** A quote the queue says while the map screen is up pauses the world clock
 under pause lock 15 (`LOCK_PAUSE_MERC_TALKING`, `TalkState.pausedForLine`) until its face ends, however it ends: its

@@ -232,7 +232,9 @@ queue, which says the next line when the face stops talking or at once on a clic
   click after 500 ms, Backspace, Esc with nothing queued) sends `skipLine {profile, tick}` and the face stops at once.
   `profile` and `tick` name the quote event, so a late skip does not cut the next line. With several viewers the first
   to finish moves the line on, and `lineCut` makes every screen follow; the menu greys out while `conversation.busy`,
-  as `RenderTalkingMenu` shades it.
+  as `RenderTalkingMenu` shades it. A merc's face the original deletes while he talks (he leaves the team, is released
+  as an escort, is married off or turns hostile with his civilian group, or Larry's profile swaps) ends his line on that
+  tick: `soldierFaceDeleted {profile, saidAt}`, and the next line follows.
 - **Agents playing alone**: the speech mode `skip` (`newSession {speech}` or `setSpeech`) ends every line on the tick
   after it is said, as if Backspace were pressed at once; its quote event carries `skipped: true`. It is a session
   setting, logged and kept across loads but never saved, so a player loading the agent's save hears the lines. Under

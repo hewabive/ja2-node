@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FakeGraph } from '../../../tests/support/fake-audio.ts';
 import { AudioEngine } from '../../audio/engine.ts';
-import type { PlayerView, StrategicMercView, ViewFrame } from '../../protocol/view.ts';
+import type { ViewFrame } from '../../protocol/view.ts';
 import { type SpeechPlacement, SpeechScreen, TalkingUi, type UiPoint } from '../../ui/screens/talk/talking-ui.ts';
 import { SpeechSurface } from '../../ui/speech.ts';
 import type { SessionClient } from '../net/session-client.ts';
@@ -17,20 +17,9 @@ const tactical: SpeechPlacement = {
   carriedPopup: () => SCREEN_POPUP,
 };
 
-const LARRY_NORMAL = 31;
-const LARRY_DRUNK = 47;
-
-interface FakeClient {
-  view: PlayerView | null;
-}
-
-function sessionSpeech(client: FakeClient = { view: null }): SessionSpeech {
+function sessionSpeech(): SessionSpeech {
   const engine = new AudioEngine({ createGraph: () => new FakeGraph().asGraph(), load: async () => null });
-  return new SessionSpeech(Object.assign(client, { command: async () => ({ ok: true }) }) as unknown as SessionClient, engine);
-}
-
-function withMercs(...mercs: readonly Pick<StrategicMercView, 'id' | 'profile'>[]): PlayerView {
-  return { tick: 1, soldiers: [], strategic: { mercs } } as unknown as PlayerView;
+  return new SessionSpeech({ command: async () => ({ ok: true }), view: null } as unknown as SessionClient, engine);
 }
 
 const map: SpeechPlacement = { screen: SpeechScreen.MAP, textBox: () => null, facePopup: () => null, carriedPopup: () => null };
@@ -39,16 +28,10 @@ function say(speech: SessionSpeech, surface: SpeechSurface, soldier: number | nu
   speech.presenter.enqueue({ surface, profile: MERC_PROFILE, soldier, text: 'Hi.', chars: 3, voice: null, sector: null, keyWait: false });
 }
 
-function mercLeft(profile: number): ViewFrame {
-  const left = { type: 'mercLeft', tick: 1, soldier: 3, profile, cause: 'fired', history: 0, equipment: 'here', personnel: 'fired' };
-  return { tick: 1, changed: [], removed: [], events: [left as never] };
+function faceDeleted(profile: number, saidAt?: number): ViewFrame {
+  const deleted = { type: 'soldierFaceDeleted', tick: 1, profile, ...(saidAt !== undefined ? { saidAt } : {}) } as const;
+  return { tick: 1, changed: [], removed: [], events: [deleted] };
 }
-
-function epcReleased(profile: number): ViewFrame {
-  return { tick: 1, changed: [], removed: [], events: [{ type: 'epcReleased', tick: 1, profile, soldier: null }] };
-}
-
-const NO_FRAME: ViewFrame = { tick: 1, changed: [], removed: [] };
 
 function leaveFacePopupUp(speech: SessionSpeech, profile = MERC_PROFILE): TalkingUi {
   const ui = TalkingUi.of(speech.presenter);
@@ -75,49 +58,43 @@ function popupsAfterTheNextLine(speech: SessionSpeech, ui: TalkingUi): readonly 
 }
 
 describe('the session speech deletes the soldier faces the original deletes (Faces.cc DeleteSoldierFace)', () => {
-  it("hands a merc's departure to the talking UI, which takes down the popup his face left up (StrategicRemoveMerc)", () => {
-    const speech = sessionSpeech();
-    const presenter = speech.presenter;
-    const ui = TalkingUi.of(presenter);
-    say(speech, SpeechSurface.TACTICAL, 3);
-    ui.follow(presenter.current, map, false);
-    ui.follow(presenter.current, tactical, false);
-    speech.frames([mercLeft(MERC_PROFILE)]);
-    presenter.skip(0, true);
-    say(speech, SpeechSurface.EXTERNAL, null);
-    ui.follow(presenter.current, tactical, false);
-    expect([ui.popups, ui.region]).toEqual([[], SCREEN_POPUP]);
-  });
-
-  it("takes down the popup a released escort's face left up, once his line is over (UnRecruitEPC, ChangeSoldierTeam)", () => {
+  it('takes down the popup a deleted face left up once a line of his still playing is over (soldierFaceDeleted)', () => {
     const speech = sessionSpeech();
     const ui = leaveFacePopupUp(speech);
-    speech.frames([epcReleased(MERC_PROFILE)]);
+    speech.frames([faceDeleted(MERC_PROFILE)]);
     expect(ui.popups).toEqual([SCREEN_POPUP]);
     expect(popupsAfterTheNextLine(speech, ui)).toEqual([]);
   });
 
-  it("takes down the popup of the face Larry's profile swap leaves behind (SwapLarrysProfiles)", () => {
-    const client: FakeClient = { view: withMercs({ id: 3, profile: LARRY_NORMAL }) };
-    const speech = sessionSpeech(client);
-    speech.frames([NO_FRAME]);
-    const ui = leaveFacePopupUp(speech, LARRY_NORMAL);
-    client.view = withMercs({ id: 3, profile: LARRY_DRUNK });
-    speech.frames([NO_FRAME]);
-    expect(popupsAfterTheNextLine(speech, ui)).toEqual([]);
+  it('keeps the popup of a face the simulation did not delete', () => {
+    const speech = sessionSpeech();
+    const ui = leaveFacePopupUp(speech);
+    speech.frames([faceDeleted(MERC_PROFILE + 1)]);
+    expect(popupsAfterTheNextLine(speech, ui)).toEqual([SCREEN_POPUP]);
   });
 
-  it('keeps the popup of a face whose merc keeps his profile, or whose merc is new in a slot another merc left', () => {
-    const client: FakeClient = { view: withMercs({ id: 3, profile: LARRY_NORMAL }) };
-    const speech = sessionSpeech(client);
-    speech.frames([NO_FRAME]);
-    const ui = leaveFacePopupUp(speech, LARRY_NORMAL);
-    speech.frames([NO_FRAME]);
-    client.view = withMercs();
-    speech.frames([NO_FRAME]);
-    client.view = withMercs({ id: 3, profile: LARRY_DRUNK });
-    speech.frames([NO_FRAME]);
-    expect(popupsAfterTheNextLine(speech, ui)).toEqual([SCREEN_POPUP]);
+  it('ends at once the box, the popup and the click region of the line the deletion ended (DeleteFace, HandleDialogueEnd)', () => {
+    const SAID_AT = 7;
+    const speech = sessionSpeech();
+    const presenter = speech.presenter;
+    const ui = TalkingUi.of(presenter);
+    presenter.enqueue({
+      surface: SpeechSurface.TACTICAL,
+      profile: MERC_PROFILE,
+      soldier: 3,
+      text: 'Hi.',
+      chars: 3,
+      voice: null,
+      sector: null,
+      keyWait: false,
+      saidAt: SAID_AT,
+    });
+    ui.follow(presenter.current, tactical, true);
+    expect([ui.popups, ui.region, ui.textBox === null]).toEqual([[SCREEN_POPUP], SCREEN_POPUP, false]);
+    speech.frames([faceDeleted(MERC_PROFILE, SAID_AT)]);
+    presenter.endDeletedFace(MERC_PROFILE, SAID_AT);
+    ui.follow(presenter.current, tactical, true);
+    expect([ui.popups, ui.region, ui.textBox]).toEqual([[], null, null]);
   });
 
   it('ends a soldier face talking as a load discards the lines (LoadSavedGame, TrashAllSoldiers)', () => {

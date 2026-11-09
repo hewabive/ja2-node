@@ -13,7 +13,7 @@
 // @src while gfFacePanelActive is set), ExecuteTacticalTextBox (the box stays where it was created); Faces.cc DeleteFace
 // @src (SetAutoFaceInActive takes the face's overlay down, and a face still talking ends its talking UI as
 // @src HandleDialogueEnd does) from DeleteSoldierFace, for every soldier at a load (SaveLoadGame.cc LoadSavedGame,
-// @src TrashAllSoldiers) and for a merc leaving the team (Merc_Contract.cc StrategicRemoveMerc, TacticalRemoveSoldier).
+// @src TrashAllSoldiers) and wherever the simulation deletes a soldier's face, his line ending with it (2026-11-09).
 
 import { type ActiveLine, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import type { SubtitlePlace } from './subtitle-box.ts';

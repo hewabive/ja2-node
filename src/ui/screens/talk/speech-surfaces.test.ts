@@ -222,6 +222,34 @@ describe('speech surfaces in a stub campaign', () => {
     expect(f.widget('speechTextBox').text).toBe('"Hop in, mate"');
   });
 
+  it('takes the face popup and the subtitle box of a line down at once as the simulation deletes the face talking (DeleteFace)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    f.speechSettings = SPEECH_ON;
+    const speaker = a10.mercs[0] ?? 0;
+    const merc = f.client.view.strategic?.mercs.find((m) => m.id === speaker);
+    if (!merc) throw new Error('no strategic merc');
+    const tick = f.client.view.tick;
+    const textKey = { file: `mercedt/${String(merc.profile).padStart(3, '0')}.edt`, row: 17, width: 240 };
+    const line = {
+      type: 'mercQuote',
+      tick,
+      soldier: speaker,
+      profile: merc.profile,
+      quote: 'quote17',
+      id: 17,
+      textKey,
+      chars: 3,
+      text: 'Hm.',
+    };
+    f.frames([{ tick, changed: [], removed: [], events: [line as never] }]);
+    expect(f.find('speechTextBox')).toBeDefined();
+    const deleted = { type: 'soldierFaceDeleted', tick: tick + 1, profile: merc.profile ?? -1, saidAt: tick } as const;
+    f.frames([{ tick: tick + 1, changed: [], removed: [], events: [deleted] }]);
+    f.t.frame();
+    expect([f.find('speechTextBox'), f.find('speechFacePopup'), f.screen.dialogue.presenter.current]).toEqual([undefined, undefined, null]);
+  });
+
   it('takes no line from a frame the map screen took first, as both screens hear every frame', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tick = f.client.view.tick;

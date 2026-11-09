@@ -22,7 +22,9 @@
 // @src Dialogue_Control.cc HandleExternNPCSpeechFace and DisplayTextForExternalNPC (an external line takes the panel
 // @src placement set since the last line ended), HandleDialogueEnd (the default placement again, 2026-11-09);
 // @src RenderFaceOverlay (an external speaker's soldier, FindSoldierByProfileID, picks the popup's panel, 2026-11-09;
-// @src his bars, and an NPC's whose line said on the map screen HandleDialogue carries into the tactical popup).
+// @src his bars, and an NPC's whose line said on the map screen HandleDialogue carries into the tactical popup);
+// @src Faces.cc DeleteFace from DeleteSoldierFace (a soldier face still talking stops talking, so the next
+// @src HandleDialogue ends its line and goes on, Dialogue_Control.cc:342, 2026-11-09).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -36,7 +38,7 @@ import type { NarrativeHost } from './host.ts';
 import { NarrativeProfile, ProfileFlag } from './narrative-ids.ts';
 import { isNpcOrRpc } from './records.ts';
 import { type SpeakerBars, speakerBars } from './speaker-bars.ts';
-import { type DialogueEvent, TacticalModal, type TalkState } from './talk-state.ts';
+import { type DialogueEvent, TacticalModal, type TalkingFace, type TalkState } from './talk-state.ts';
 
 export const TEXT_DELAY_MODIFIER_MS = 60;
 export const TICKS_PER_CHARACTER = TEXT_DELAY_MODIFIER_MS / TICK_MS;
@@ -260,9 +262,14 @@ function lineEvent(host: NarrativeHost, speaker: number, quote: number, s: Soldi
   return { type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, ...about, ...said } as const;
 }
 
+function saidThroughSoldierFace(ui: LineUi): boolean {
+  return !ui.npcUi && ui.external !== true;
+}
+
 export function executeCharacterDialogue(host: NarrativeHost, speaker: number, quote: number, ui: LineUi): boolean {
   const tick = host.tick();
-  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null, modal: false };
+  const soldierFace = saidThroughSoldierFace(ui);
+  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null, modal: false, soldierFace };
   const s = playerTeamSoldier(host, speaker);
   if (!s && ui.fromSoldier) return false;
   if (s && speakerSilenced(host, s, quote)) return false;
@@ -271,7 +278,7 @@ export function executeCharacterDialogue(host: NarrativeHost, speaker: number, q
   if (chars === 0) return false;
   const skipped = host.skipsSpeech?.() ?? false;
   const busyUntil = skipped ? tick : tick + talkingTicks(host, speaker, key, chars);
-  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null, modal: false };
+  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null, modal: false, soldierFace };
   const soldier = s ?? soldierByProfile(host, speaker);
   const withRecord = ui.record !== null ? { record: ui.record } : {};
   const said = { ...withRecord, textKey: key, chars, ...(skipped ? { skipped } : {}) };
@@ -289,6 +296,17 @@ export function cutTalkingFace(talk: TalkState, tick: number): boolean {
 
 export function finishTalking(talk: TalkState, tick: number): boolean {
   return cutTalkingFace(talk, tick + FINAL_TALKING_DELAY_TICKS);
+}
+
+function talksThroughSoldierFaceOf(face: TalkingFace | null, profile: number): face is TalkingFace {
+  return face?.soldierFace === true && face.speaker === profile;
+}
+
+export function deleteSoldierFace(host: Pick<NarrativeHost, 'talk' | 'tick' | 'emit'>, profile: number): void {
+  if (profile === NO_PROFILE) return;
+  const face = host.talk.face;
+  const endedLine = talksThroughSoldierFaceOf(face, profile) && cutTalkingFace(host.talk, host.tick()) ? { saidAt: face.saidAt } : {};
+  host.emit({ type: 'soldierFaceDeleted', profile, ...endedLine });
 }
 
 function wakeSpeakerForHisLine(host: NarrativeHost, speaker: number): void {
