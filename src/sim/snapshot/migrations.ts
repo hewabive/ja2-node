@@ -2082,6 +2082,38 @@ function smokeOwnersById(snapshot: Readonly<Record<string, unknown>>): Record<st
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const HELD_GIVE_TARGET_GRIDNO_KEY = 'targetGridNo';
+
+function heldGiveWithTargetTile(sections: readonly Section[], held: JsonObject, giverDirection: Json): JsonObject {
+  const target = field(held, 'target', null);
+  const soldier = typeof target === 'number' ? nodeAt(sections, `${SOLDIERS_SECTION}/${target}`) : undefined;
+  const resolved = field(soldier, REF, null);
+  const targetSoldier = typeof resolved === 'string' ? nodeAt(sections, resolved) : soldier;
+  return {
+    target: held.target ?? null,
+    [HELD_GIVE_TARGET_GRIDNO_KEY]: field(targetSoldier, 'gridNo', NOWHERE_GRID_NO),
+    direction: giverDirection,
+    animCount: held.animCount ?? 0,
+  };
+}
+
+function withHeldGiveTargetTiles(sections: readonly Section[], value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withHeldGiveTargetTiles(sections, v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withHeldGiveTargetTiles(sections, v);
+  const held = mapped[HELD_GIVE_ACTION_KEY];
+  if (!isSoldierRecord(mapped) || !isObject(held) || held[REF] !== undefined || held[HELD_GIVE_TARGET_GRIDNO_KEY] !== undefined)
+    return mapped;
+  return { ...mapped, [HELD_GIVE_ACTION_KEY]: heldGiveWithTargetTile(sections, held, mapped.direction ?? 0) };
+}
+
+function addHeldGiveTargetTiles(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withHeldGiveTargetTiles(graph.sections, value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2151,5 +2183,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     65: sectorDiffsWithoutNativeRecords,
     66: addLoadingSaveFlag,
     67: smokeOwnersById,
+    68: addHeldGiveTargetTiles,
   };
 }

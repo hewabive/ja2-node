@@ -18,7 +18,6 @@ The loaded sector: doors, sight, walking, combat, items, explosions, the AI and 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Map items | The pit action items open a pit and drop the soldiers around into it (`PerformItemAction`, `TileEngine/Explosion_Control.cc:1671`; `Add3X3Pit`, `TileEngine/Pits.cc:24`) | Do nothing (`performItemAction`, `bombs/item-action.ts`) | No shipped map holds a pit (`12` §6) |
-| Held give on arrival | A soldier who still holds the `MERC_GIVEITEM` of a give on the spot when a walk ends begins that give again from its old target and tile instead of standing (`Tactical/Overhead.cc:817`, `src/externalized/Soldier.cc:209`): the same target still there gets the give animation with nothing to hand over, and an NPC giver's done-giving record fires again | The walk ends standing, and the change out of the walk drops the held give (`arriveAtFinalDestination`, `tactical/movement.ts`; `countPendingActionAnimation`, `tactical/animation.ts`) | Only a walk no order started reaches it, as every order replaces the held give: an NPC's walk after giving from the talk panel; when the target is gone the original leaves the walker in his walking animation, what that does next needs checking first |
 
 ## 2. Strategic layer
 

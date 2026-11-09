@@ -611,6 +611,8 @@ export interface PendingGive {
 
 export interface HeldGiveAction {
   readonly target: number;
+  readonly targetGridNo: number;
+  readonly direction: number;
   animCount: number;
 }
 

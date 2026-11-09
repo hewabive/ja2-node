@@ -287,7 +287,7 @@ describe('giving items and money to the stub NPC in A10', () => {
     const { session } = await inA10(28);
     const [merc, mate] = session.view().strategic?.mercs.map((m) => m.id) ?? [];
     if (merc === undefined || mate === undefined) throw new Error('no squad of two');
-    soldier(session, merc).heldGiveAction = { target: mate, animCount: 1 };
+    soldier(session, merc).heldGiveAction = { target: mate, targetGridNo: soldier(session, mate).gridNo, direction: 0, animCount: 1 };
     expect(session.dispatch({ type: 'talk', soldier: merc, target: { npc: VASKO } })).toMatchObject({ ok: true, data: { walking: true } });
     expect(holdsGiveItem(soldier(session, merc))).toBe(false);
   });

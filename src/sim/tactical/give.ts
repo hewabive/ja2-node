@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Handle_Items.cc SoldierGiveItem, VerifyGiveItem, SoldierGiveItemFromAnimation;
 // @src Soldier_Control.cc EVENT_SoldierBeginGiveItem, SoldierCollapse (issue #2265);
 // @src externalized/Soldier.cc handlePendingAction, anyoneHasPendingAction (MERC_GIVEITEM, held after a give on the spot,
-// @src 2026-11-08); Soldier_Ani.cc code 486;
+// @src 2026-11-08; begun again at the end of a walk, Overhead.cc ExecuteOverhead, 2026-11-08); Soldier_Ani.cc code 486;
 // @src Points.cc GetMovePlusActionAPCosts, GetAPsToGiveItem; Dialogue_Control.cc SetEngagedInConvFromPCAction,
 // @src UnSetEngagedInConvFromPCAction.
 
@@ -18,7 +18,7 @@ import { autoPlaceObject, NO_SLOT } from './inventory.ts';
 import { getNewSoldierPath } from './movement.ts';
 import { AP, deductPoints } from './points.ts';
 import { profileProgress } from './profiles.ts';
-import { NO_PROFILE, NOBODY, type Soldier, Team } from './soldier.ts';
+import { type HeldGiveAction, NO_PROFILE, NOBODY, type PendingGive, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
@@ -62,7 +62,7 @@ export function soldierGiveItem(t: TacticalState, giver: Soldier, target: Soldie
   giver.engagedInAction = true;
   if (giver.gridNo !== approach.actionGridNo) getNewSoldierPath(t, giver, approach.actionGridNo, giver.uiMovementMode, 0, true);
   else {
-    giver.heldGiveAction = { target: target.id, animCount: 0 };
+    giver.heldGiveAction = { target: target.id, targetGridNo: target.gridNo, direction: approach.direction, animCount: 0 };
     beginGiveItem(t, giver);
     setDesiredDirection(t, giver, approach.direction);
   }
@@ -84,9 +84,25 @@ export function dropHeldGive(s: Soldier): void {
 
 export function handlePendingGiveOnArrival(t: TacticalState, s: Soldier): boolean {
   const pending = s.pendingGive;
-  if (!pending || pending.begun) return false;
-  beginGiveItem(t, s);
+  if (pending && !pending.begun) {
+    beginGiveItem(t, s);
+    return true;
+  }
+  const held = s.heldGiveAction;
+  if (!held) return false;
+  beginHeldGiveAgain(t, s, held);
   return true;
+}
+
+function beginHeldGiveAgain(t: TacticalState, s: Soldier, held: HeldGiveAction): void {
+  if (verifyGiveTo(t, s, held)) {
+    faceAtOnce(s, held.direction);
+    initNewSoldierAnim(t, s, anim(t.content, 'GIVE_ITEM'), 0, false);
+  } else {
+    unsetEngagedInConvFromPcAction(t, s);
+    s.tempObject = null;
+  }
+  dropHeldGive(s);
 }
 
 export function cancelGiveOnCollapse(t: TacticalState, s: Soldier): void {
@@ -120,7 +136,10 @@ function beginGiveItem(t: TacticalState, s: Soldier): void {
 
 export function verifyGiveItem(t: TacticalState, s: Soldier): Soldier | null {
   const pending = s.pendingGive;
-  if (!pending) return null;
+  return pending ? verifyGiveTo(t, s, pending) : null;
+}
+
+function verifyGiveTo(t: TacticalState, s: Soldier, pending: Pick<PendingGive, 'target' | 'targetGridNo'>): Soldier | null {
   const there = whoIsThere(t, pending.targetGridNo, s.level);
   if (there) {
     if (there.id === pending.target) return there;

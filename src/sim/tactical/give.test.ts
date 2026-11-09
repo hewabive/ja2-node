@@ -4,6 +4,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { cloneObject, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { pauseAiUntilManuallyUnpaused } from './ai/pause.ts';
 import { soldierGotoStationaryStance } from './animation.ts';
 import { mercStealFromMerc } from './combat/steal.ts';
 import type { TacticalContent } from './content.ts';
@@ -220,7 +221,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     const giver = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
     const mate = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 80), Direction.WEST);
     soldierGiveItem(sim.state, giver, mate, cloneObject(withClips(giver, 1)), InvSlot.BIGPOCK1);
-    expect(giver.heldGiveAction).toEqual({ target: mate.id, animCount: 0 });
+    expect(giver.heldGiveAction).toEqual({ target: mate.id, targetGridNo: mate.gridNo, direction: Direction.EAST, animCount: 0 });
     runUntilIdle(sim);
     expect([clipsIn(mate), giver.pendingGive, giver.engagedInAction]).toEqual([1, null, false]);
     return { giver, mate };
@@ -239,7 +240,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     mate.engagedInAction = true;
     expect(getNewSoldierPath(sim.state, giver, gridNo(80, 84), giver.uiMovementMode, 0, false)).toBe(true);
     stepUntil(sim, () => giver.gridNo !== gridNo(80, 80));
-    expect(giver.heldGiveAction).toEqual({ target: mate.id, animCount: 1 });
+    expect(giver.heldGiveAction).toMatchObject({ target: mate.id, animCount: 1 });
     soldierGotoStationaryStance(sim.state, giver);
     expect([giver.heldGiveAction, mate.engagedInAction, hasPendingAction(giver)]).toEqual([null, false, false]);
   });
@@ -271,6 +272,51 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     runUntilIdle(sim);
     expect(soldierReloadRobot(sim.state, giver, farRobot, cloneObject(clip), InvSlot.BIGPOCK1)).not.toBeNull();
     expect(holdsGiveItem(giver)).toBe(false);
+  });
+
+  const NPC_PROFILE = 87;
+  const WALKED_TO = gridNo(80, 84);
+
+  function npcGaveOnTheSpot(sim: TacticalSim): { npc: Soldier; merc: Soldier; log: PortLog } {
+    const log = port(sim, { isNpcProfile: () => true });
+    pauseAiUntilManuallyUnpaused(sim.state);
+    const npc = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.SOUTH, { profile: NPC_PROFILE });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(81, 80), Direction.WEST);
+    soldierGiveItem(sim.state, npc, merc, cloneObject(withClips(npc, 1)), InvSlot.BIGPOCK1);
+    stepUntil(sim, () => animationOf(sim, npc) === 'STANDING');
+    expect([clipsIn(merc), log.doneGiving, npc.heldGiveAction?.target]).toEqual([1, [NPC_PROFILE], merc.id]);
+    return { npc, merc, log };
+  }
+
+  function animationOf(sim: TacticalSim, s: Soldier): string | undefined {
+    return sim.state.content.animations.controls[s.state]?.id;
+  }
+
+  function walkWithoutAnOrder(sim: TacticalSim, s: Soldier): void {
+    s.direction = Direction.SOUTH;
+    s.desiredDirection = Direction.SOUTH;
+    expect(getNewSoldierPath(sim.state, s, WALKED_TO, s.uiMovementMode, 0, false)).toBe(true);
+    stepUntil(sim, () => s.gridNo === WALKED_TO && s.pathSize === 0);
+  }
+
+  it('begins the give again from its old target and tile when a walk no order started ends: the NPC turns his old way, gives nothing, and his done-giving record fires again (Overhead.cc:817, Soldier.cc:209, Soldier_Ani.cc:1339)', () => {
+    const sim = newCombatSim(content);
+    const { npc, merc, log } = npcGaveOnTheSpot(sim);
+    walkWithoutAnOrder(sim, npc);
+    expect([animationOf(sim, npc), npc.direction, npc.heldGiveAction]).toEqual(['GIVE_ITEM', Direction.EAST, null]);
+    stepUntil(sim, () => animationOf(sim, npc) === 'STANDING');
+    expect([clipsIn(merc), clipsIn(npc), log.doneGiving]).toEqual([1, 0, [NPC_PROFILE, NPC_PROFILE]]);
+  });
+
+  it('leaves the walker in his walking animation when the old tile holds nobody, with the done-giving record fired, and stands him at his next tile middle on the same tile (Soldier_Control.cc:6567, Handle_Items.cc:2298)', () => {
+    const sim = newCombatSim(content);
+    const { npc, merc, log } = npcGaveOnTheSpot(sim);
+    sim.state.occupant[0]?.fill(-1, merc.gridNo, merc.gridNo + 1);
+    merc.placed = false;
+    walkWithoutAnOrder(sim, npc);
+    expect([animationOf(sim, npc), npc.heldGiveAction, log.doneGiving]).toEqual(['WALKING', null, [NPC_PROFILE, NPC_PROFILE]]);
+    stepUntil(sim, () => animationOf(sim, npc) === 'STANDING');
+    expect([animationOf(sim, npc), npc.gridNo, log.doneGiving.length]).toEqual(['STANDING', WALKED_TO, 2]);
   });
 
   it('is never held by a give walked up to: its MERC_GIVEITEM ends on arrival', () => {

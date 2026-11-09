@@ -150,6 +150,7 @@ otherwise:
 | A bash that misses by 10 to 39 never earns the token strength point: the failed check has just stored the merc's tile | `doors/doors.test.ts` |
 | An NPC told to open a door drops it on arrival during his own team's turn in combat: the interface is locked then | `narrative/npc-actions/open-thing.test.ts` |
 | A merc who gave on the spot keeps `MERC_GIVEITEM` past the hand-over until his next order or the end of a walk he did not order: meanwhile every soldier arriving to open a door drops it and the auto-bandage question waits | `doors/doors.test.ts`, `give.test.ts`, `auto-bandage.test.ts` |
+| A soldier still holding the give he made on the spot when a walk he did not order ends begins it again from the old target's tile: the target still there gets the give animation with nothing in it and an NPC giver's done-giving record fires again; with nobody there the record fires, and he walks on the spot to his tile's middle before he stands | `give.test.ts` "begins the give again …", "leaves the walker in his walking animation …" |
 | A merc's look updates at most one door, the first whose status was made (the `break` in `MercLooksForDoors`) | `doors/door-status.test.ts` |
 | Only a soldier hidden at −1 changes a door unseen: one fading out at −2 still animates it and shows the player the change | `doors/door-status.test.ts` |
 | A door that already shows its new state runs its animation backward and is busy one frame, not five | `doors/door-status.test.ts` |
@@ -199,6 +200,6 @@ every profile's sector. Inferred from reading the source:
 - The "robot under construction" graphic: its gridno is never assigned in Stracciatella or vanilla, so its removal is a
   no-op; ja2-node only sets the fact.
 
-Not ported: gap "Held give on arrival". Other deviations of this domain:
+Deviations of this domain:
 "Terrorist names", "NPC gives an item", "Interface lock per source", "Team change during a hit", "Ownership check
 timer".

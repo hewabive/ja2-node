@@ -331,7 +331,7 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
     medic(sim, IRA, MEDIC);
     const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
     t.autoBandage.pending = true;
-    shadow.heldGiveAction = { target: IRA, animCount: 1 };
+    shadow.heldGiveAction = { target: IRA, targetGridNo: MEDIC, direction: 0, animCount: 1 };
     frame(sim);
     const waited = pendingAndPrompt(t);
     shadow.heldGiveAction = null;

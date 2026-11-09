@@ -3497,3 +3497,46 @@ describe("snapshot version 67 (smoke owners as soldiers) migrates each cloud of 
     await expectOwnersById(session);
   });
 });
+
+function withoutHeldGiveTargetTile(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutHeldGiveTargetTile(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withoutHeldGiveTargetTile(v);
+  const held = mapped[HELD_GIVE_ACTION_KEY];
+  if (typeof held !== 'object' || held === null || Array.isArray(held)) return mapped;
+  const { targetGridNo, direction, ...kept } = held as JsonObject;
+  expect([typeof targetGridNo, typeof direction]).toEqual(['number', 'number']);
+  return { ...mapped, [HELD_GIVE_ACTION_KEY]: kept };
+}
+
+function versionSixtyEight(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutHeldGiveTargetTile(value)]);
+  return { ...snapshot, version: 68, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 68 (a held give without its target's tile) migrates with the target's tile and the giver's facing, where a give on the spot left them unless one moved since", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const [giver, mate] = teamMembers(sandbox.sim.state, Team.OUR);
+    if (!giver || !mate) throw new Error('no two mercs');
+    giver.heldGiveAction = { target: mate.id, targetGridNo: mate.gridNo, direction: giver.direction, animCount: 1 };
+    const current = snapshotSession(sandbox);
+    const legacy = versionSixtyEight(current.sim);
+    expect(JSON.stringify(legacy)).toContain(`"${HELD_GIVE_ACTION_KEY}":{"target":${mate.id},"animCount":1}`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
