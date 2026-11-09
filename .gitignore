@@ -13,6 +13,7 @@ dist/
 test-results/
 playwright-report/
 out/
+/tmp/
 
 # Local agent worktrees
 .claude/worktrees/
