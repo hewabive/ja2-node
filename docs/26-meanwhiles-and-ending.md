@@ -206,10 +206,14 @@ The oracle compares the posting functions with their draws, the event with and w
 moves, the first-battle rules and the trash hook, the hourly milestones, captures with their history, `QUEEN_DEAD` and
 the O3 statue (`tools/oracle/README.md`, "Meanwhile"), and the lie's answer through the actions probes ("NPC actions").
 That probe compares the triggered record and the draws, which a check with the wrong chance can still match, so the
-lie's chance is pinned by `requestors.test.ts`. Not probed: a scene running in tactical, a palace scene's round trip
-and camera tile, the box and Skip, the interrogation sequence, the same-second precedence in a running campaign and the
-endgame; the stub scenarios cover them (`src/server/interrogation-stub.test.ts`, `src/server/meduna-scene-stub.test.ts`,
-`src/server/endgame-stub.test.ts`). Inferred from reading the source:
+lie's chance is pinned by `requestors.test.ts`. Palace scenes are played natively frame by frame ("Meanwhile scenes"):
+the outskirts scene from the game screen, a town scene from the map with compression on, a SAM scene from the map with
+no world, Skip on a scene seen before and a scene with P3 itself loaded ended by Esc; the comparer replays both loads of
+each trip draw for draw and compares the box, the hall, the camera tile, the lines said, the records, the NPC moves and
+the reloaded sector. Not probed: the box's own pause lock (deviation "Meanwhile box timing"), OK on a scene seen before,
+the interrogation sequence, the same-second precedence in a running campaign and the endgame; the stub scenarios cover
+them (`src/server/interrogation-stub.test.ts`, `src/server/meduna-scene-stub.test.ts`, `src/server/endgame-stub.test.ts`).
+Inferred from reading the source:
 - The tactical AI keeps running under the conversation lock during the 2 s and 3 s endgame timers.
 - The softlock without Derek and the surface-death overwrite.
 - A surrender of five or more leaves the mercs past the fourth uncaptured.

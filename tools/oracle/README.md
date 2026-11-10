@@ -33,6 +33,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Schedules | posting, the 24-hour replay, processing, the AI's schedule steps | `schedules.txt` | `schedules-compare.ts` | 0016 | `35` |
 | Recruiting | R.P.C.s, E.P.C. escort and release, the robot | `recruit.txt` | `recruit-compare.ts` | 0018 | `24` |
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
+| Meanwhile scenes | palace scenes played frame by frame through the box, the fades, the hall's load, the Queen's records and the way back: from the game screen, from the map with compression on and a sector selected, from the map with no world, Skip on a scene seen before, a scene with P3 itself loaded ended by Esc | `meanwhile-scenes.txt` | `meanwhile-scenes-compare.ts` | 0019, 0030, 0031, 0032 | `26` |
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
 | Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
@@ -195,6 +196,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 1000 + node id / 999 | 0004 | every `AddPlacementToWorld`: draws inside a placement are skipped and the native outcome answers it |
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
+| 5101 / 5100, 5201 / 5200 | 0032 (in `Oracle.cc`) | a fade-out and a fade-in callback run by a scene frame (`mwframes`): the loads of a palace scene's trip there and back |
 | 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle, absent and auto-bandage comparers (deviations "Cosmetic draws …", "Footstep variants") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
@@ -613,6 +615,49 @@ session: native loads keep the saved pause (ja2-node save sessions resume unpaus
 that survives loads. A `begun` scene is skipped the native way (trying flag cleared, implications, unlock, unpause). The
 statue probes run on a fresh O3 world per `sector` line and compare the statue tiles only.
 
+### Meanwhile scenes
+
+Commands (0032): `mwset` (`seen=` the installation's seen flags, `screen=game|map` as the screen's own entry finds it: the
+game screen with X1 and the map screen's pause lifted, the map screen still to be entered, so its first frame runs
+`MapScreenHandle`'s entry; `compress=` `SetGameTimeCompressionLevel`; `select=` `ChangeSelectedMapSector`), `mwbegin` (the
+first `EVENT_MEANWHILE` executed now), `mwsquad` (the squad moved to a sector with grid insertion, its stationary
+garrison zeroed, `SetCurrentWorldSector`), `mwstate` and `mwframes`; the postings are the meanwhile commands
+("Meanwhile"), `setnpcprofile` moves a profile ("Facts and NPC presence").
+
+`mwframes count= step= until= answer= esc=1` runs the game loop's screens on the virtual clock (0030), 5 ms a frame with
+the JA2 clock moved along: the game screen as `MainGameScreenHandle` orders it (`HandleStrategicTurn`, the first-time
+block, the fade-out callback and the start of a fade out, `HandleHeliDrop`, `ExecuteOverhead`, `HandleTacticalUI` with
+`HandleTalkingAutoFaces`, `DequeAllGameEvents`, `HandleDialogue`, `CheckForMeanwhileOKStart`, the fade-in callback and
+`HandleTacticalLeaveScreen`, 0032), the map screen through the real `MapScreenHandle`, the fade screen through
+`FadeScreenHandle`, and the message box screen, which the probe stands for: 0027's hook takes the box with its flags
+(0032), the probe pauses and locks as `DoMessageBox` does, and answers it at its first frame as `ExitMsgBox` does (the
+lock and the pause lifted, then the callback; `answer=ok` gives `MSG_BOX_RETURN_OK` or `_YES` by the box's flags,
+`skip` `_NO`). The screen switches follow `GameLoop`, `EndMapScreen(FALSE)` included. `esc=1` queues Esc down and up
+through SGP's `KeyDown`/`KeyUp` before the first frame, so `GetKeyboardInput` ends the scene. `until=box|loaded|scene|
+ended|back` stops at the box up, the hall loaded, the Queen's record 0 triggered, the scene ended, or the old screen
+back with no fade left. Every frame that changes anything prints its draws (the fade callbacks marked 5101/5100 and
+5201/5200), the lines `CharacterDialogue` queued (0029), the dialogue events (0013), the boxes, the globals
+(`globalFields`) and the rows of the soldiers that changed (`rowFields`); the closing line and `mwstate` print the
+state: the meanwhile dump ("Meanwhile"), the screen, the world and selected sectors, the statics the way back reads
+(old sector, selection, screen, world flag), the camera tile and the render centre, the NPC saves, the reference count,
+the engaged and show-all flags, the seen flags, compression, the pause, every sector's flags, the soldiers in the sector
+and our team with their insertion, the world items and the records said by the Queen, Elliot and Joe.
+
+`meanwhile-scenes-compare.ts` imports each save into a session of the tactical flow (the load's draws fed to the
+restart), sets the same screen, seen flags, compression and selection (the pause from the native state, deviation
+"Pause state after an import"), posts and begins the scene with its draws replayed strictly, then runs campaign steps
+for each phase until ja2-node reaches it: the box (a prompt for a box with Skip; an OK box is taken as given at once,
+deviation "Meanwhile box timing", so its frame comes with the next phase), the scene started, the conversation's pause
+lock, and the way back (ja2-node ends a scene and comes back in one step; the native end is compared at the end
+ja2-node's `endMeanwhile` leaves). The frames' draws feed the steps in order; each load of the trip (the fade-out
+callbacks) is replayed strictly against `goToThePalace` and `returnFromThePalace`, the same-sector branch with P3 loaded
+included. Compared: the meanwhile state, the profiles, the pause, the box's flags, the world and selected sectors, every
+changed sector flag, the camera tile and the render centre, the NPC saves, the return trip, the engaged state, the
+reference count and show-all, the seen flags, compression, the lines said in order, the records said, the hall's
+soldiers at the end (Elliot shot, Joe moved), and after the way back the soldiers in the sector, our team with its
+insertion and the world items. Not compared: the box's own lock reason, the frames' timing (the dialogue's in-order
+draws), the world clock (no frame runs `UpdateClock`).
+
 ### Boxing
 
 No save stands in San Mona, so every block starts with `boxingsquad`: the listed mercs and their groups move to D5 with
@@ -943,6 +988,7 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
   The work dir keeps copies of both saves in `save-effects/`, where `compare.ts` finds them. `compare-all.sh` compares
   both outputs ("Savegame temp files").
 - `save-sectors.txt` writes `save-sectors/entries.jsonl` ("Savegame temp files").
+- `meanwhile-scenes.txt` writes `meanwhile-scenes/scenes.jsonl` ("Meanwhile scenes"); it needs a build with 0032.
 - `save-bombs-setup.txt` writes `save-bombs/setup.jsonl` and the saves `OracleExplosion`, `OracleBombQueue` and
   `OracleCombatBlast` into the oracle's home; `save-bombs.txt` reads them from there, so it runs after it, and writes
   `save-bombs/loads.jsonl`. The work dir keeps copies of the saves in `save-bombs/`, where `compare.ts` finds them.
@@ -983,5 +1029,6 @@ The base of the diff is `reference/stracciatella` with the earlier patches appli
 only for files more than one patch touches: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004,
 0012, 0029), `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc`
 (0016, 0020), `Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc`
-(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027, 0030, 0031) and
-`Tactical/Soldier_Control.cc` (0027, 0028).
+(0007, 0027), `Tactical/Handle_Items.cc` (0017, 0027), `Tactical/Overhead.cc` (0020, 0027, 0030, 0031),
+`Tactical/Soldier_Control.cc` (0027, 0028), `GameScreen.cc` (0031, 0032), `MessageBoxScreen.cc` (0027, 0032) and
+`Strategic/Meanwhile.cc` (0019, 0032).

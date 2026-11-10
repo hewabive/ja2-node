@@ -11315,6 +11315,611 @@ void ProbePassengerSave(Command const& c)
 	});
 }
 
+}
+
+#include "Faces.h"
+#include "GameLoop.h"
+#include "GameSettings.h"
+#include "HelpScreen.h"
+#include "Input.h"
+#include "Interface_Dialogue.h"
+#include "MapScreen.h"
+#include "Map_Screen_Interface_Map.h"
+#include "MessageBoxScreen.h"
+#include "Physics.h"
+
+extern MessageBoxFlags gOracleMessageBoxFlags;
+extern BOOLEAN gfFadeOut;
+extern BOOLEAN gfFadeOutDone;
+extern BOOLEAN gfFadeInDone;
+UINT16 OracleMeanwhileCameraGridNo();
+SGPSector OracleMeanwhileOldSector();
+SGPSector OracleMeanwhileOldSelectedSector();
+UINT32 OracleMeanwhileOldScreen();
+BOOLEAN OracleMeanwhileWorldWasLoaded();
+UINT32 OracleMeanwhileNpcSaveCount();
+void OracleMeanwhileNpcSave(UINT32 i, UINT8* profile, SGPSector* sector, INT16* gridNo);
+void HandleTacticalLeaveScreen();
+
+namespace {
+
+constexpr long long SCENE_MAX_FRAMES = 40000;
+constexpr UINT32 FADE_OUT_CALLBACK_BEGIN = 5101;
+constexpr UINT32 FADE_OUT_CALLBACK_END = 5100;
+constexpr UINT32 FADE_IN_CALLBACK_BEGIN = 5201;
+constexpr UINT32 FADE_IN_CALLBACK_END = 5200;
+std::vector<ProfileID> const SCENE_RECORD_PROFILES = {QUEEN, ELLIOT, JOE};
+
+std::vector<std::string> const SCENE_GLOBAL_FIELDS{
+	"screen", "pending", "boxUp", "trying", "inScene", "fadeOut", "fadeOutDone", "fadeIn", "fadeInDone", "fadeInitialized",
+	"paused", "pauseLocked", "lockReason", "compressMode", "compressionOn", "engaged", "refCount", "showAll", "worldLoaded",
+	"worldX", "worldY", "worldZ", "selectedX", "selectedY", "renderGridNo", "dialogueIdle", "music", "inMapMode",
+};
+
+std::vector<std::string> const SCENE_ROW_FIELDS{"id", "team", "profile", "inSector", "gridNo", "level", "animState", "life", "direction"};
+
+struct SceneBox
+{
+	bool up;
+	MessageBoxFlags flags;
+	MSGBOX_CALLBACK callback;
+	ScreenID exit;
+};
+
+SceneBox const NO_SCENE_BOX{false, MSG_BOX_FLAG_OK, nullptr, GAME_SCREEN};
+SceneBox gSceneBox = NO_SCENE_BOX;
+std::vector<std::string>* gSceneBoxes = nullptr;
+
+std::string ScreenName(UINT32 const s)
+{
+	switch (s)
+	{
+		case GAME_SCREEN: return "game";
+		case MAP_SCREEN: return "map";
+		case MSG_BOX_SCREEN: return "box";
+		case FADE_SCREEN: return "fade";
+		case NO_PENDING_SCREEN: return "none";
+		default: return "screen" + std::to_string(s);
+	}
+}
+
+std::string BoxFlagsName(MessageBoxFlags const f)
+{
+	if (f == MSG_BOX_FLAG_OKSKIP) return "okskip";
+	if (f == MSG_BOX_FLAG_OK) return "ok";
+	return "flags" + std::to_string(f);
+}
+
+void RecordSceneBox(ST::string const& str, MSGBOX_CALLBACK const callback)
+{
+	gSceneBox = {true, gOracleMessageBoxFlags, callback, guiCurrentScreen};
+	if (gSceneBoxes)
+	{
+		gSceneBoxes->push_back(Json{}.str("flags", BoxFlagsName(gOracleMessageBoxFlags)).str("text", str.to_std_string())
+			.str("exit", ScreenName(guiCurrentScreen)).text());
+	}
+	SetPendingNewScreen(MSG_BOX_SCREEN);
+	InterruptTime();
+	PauseGame();
+	LockPauseState(LOCK_PAUSE_MSGBOX);
+	PauseTime(TRUE);
+	gfInMsgBox = true;
+}
+
+MessageBoxReturnValue SceneBoxAnswer(std::string const& answer)
+{
+	if (answer == "skip")
+	{
+		if (gSceneBox.flags != MSG_BOX_FLAG_OKSKIP) throw std::runtime_error("the box offers no Skip");
+		return MSG_BOX_RETURN_NO;
+	}
+	if (answer == "ok") return gSceneBox.flags == MSG_BOX_FLAG_OKSKIP ? MSG_BOX_RETURN_YES : MSG_BOX_RETURN_OK;
+	throw std::runtime_error("answer is ok or skip: " + answer);
+}
+
+ScreenID SceneBoxFrame(std::string const& answer)
+{
+	if (answer.empty()) return MSG_BOX_SCREEN;
+	MessageBoxReturnValue const code = SceneBoxAnswer(answer);
+	SceneBox const box = gSceneBox;
+	gSceneBox = NO_SCENE_BOX;
+	UnLockPauseState();
+	UnPauseGame();
+	PauseTime(FALSE);
+	gfInMsgBox = false;
+	if (box.callback) box.callback(code);
+	return box.exit;
+}
+
+std::vector<OracleDraw>* gSceneDraws = nullptr;
+FADE_HOOK gSceneFadeOutCallback = NULL;
+FADE_HOOK gSceneFadeInCallback = NULL;
+
+void PushSceneMark(UINT32 const mark)
+{
+	if (gSceneDraws) gSceneDraws->push_back({'k', mark, 0, 0});
+}
+
+void MarkedFadeOutCallback()
+{
+	FADE_HOOK const callback = gSceneFadeOutCallback;
+	gSceneFadeOutCallback = NULL;
+	PushSceneMark(FADE_OUT_CALLBACK_BEGIN);
+	callback();
+	PushSceneMark(FADE_OUT_CALLBACK_END);
+}
+
+void MarkedFadeInCallback()
+{
+	FADE_HOOK const callback = gSceneFadeInCallback;
+	gSceneFadeInCallback = NULL;
+	PushSceneMark(FADE_IN_CALLBACK_BEGIN);
+	callback();
+	PushSceneMark(FADE_IN_CALLBACK_END);
+}
+
+void MarkFadeCallbacks()
+{
+	if (gFadeOutDoneCallback != NULL && gFadeOutDoneCallback != MarkedFadeOutCallback)
+	{
+		gSceneFadeOutCallback = gFadeOutDoneCallback;
+		gFadeOutDoneCallback = MarkedFadeOutCallback;
+	}
+	if (gFadeInDoneCallback != NULL && gFadeInDoneCallback != MarkedFadeInCallback)
+	{
+		gSceneFadeInCallback = gFadeInDoneCallback;
+		gFadeInDoneCallback = MarkedFadeInCallback;
+	}
+}
+
+void UnmarkFadeCallbacks()
+{
+	if (gFadeOutDoneCallback == MarkedFadeOutCallback) gFadeOutDoneCallback = gSceneFadeOutCallback;
+	if (gFadeInDoneCallback == MarkedFadeInCallback) gFadeInDoneCallback = gSceneFadeInCallback;
+	gSceneFadeOutCallback = NULL;
+	gSceneFadeInCallback = NULL;
+}
+
+ScreenID SceneGameFrame()
+{
+	if (!ARE_IN_FADE_IN())
+	{
+		HandleWaitTimerForNPCTrigger();
+		CheckCustomizableTimer();
+		SimulateWorld();
+		HandleStrategicTurn();
+	}
+	HandleTacticalDoHeliRun();
+	HandleFirstTimeInGameScreen();
+	if (HandleFadeOutCallback()) return GAME_SCREEN;
+	if (guiCurrentScreen != MSG_BOX_SCREEN && HandleBeginFadeOut(GAME_SCREEN)) return GAME_SCREEN;
+	HandleHeliDrop();
+	if (!ARE_IN_FADE_IN()) HandleAutoBandagePending();
+	if (!ARE_IN_FADE_IN())
+	{
+		UpdateBullets();
+		ExecuteOverhead();
+	}
+	if (gfWorldLoaded)
+	{
+		ScreenID const ui = HandleTacticalUI();
+		HandleTalkingAutoFaces();
+		if (ui != GAME_SCREEN) return ui;
+	}
+	else if (!gfEnteringMapScreen)
+	{
+		gfEnteringMapScreen = TRUE;
+	}
+	if (!ARE_IN_FADE_IN()) DequeAllGameEvents();
+	if (!ARE_IN_FADE_IN()) HandleDialogue();
+	CheckForMeanwhileOKStart();
+	HandleFadeInCallback();
+	HandleTacticalLeaveScreen();
+	if (gfEnteringMapScreen == 2)
+	{
+		gfEnteringMapScreen = FALSE;
+		LeaveTacticalScreen(MAP_SCREEN);
+	}
+	if (gfEnteringMapScreen > 0) gfEnteringMapScreen++;
+	return GAME_SCREEN;
+}
+
+ScreenID RunSceneFrame(std::string const& answer)
+{
+	if (gfInMsgBox) guiPendingScreen = MSG_BOX_SCREEN;
+	if (guiPendingScreen != NO_PENDING_SCREEN)
+	{
+		if (guiPendingScreen != guiCurrentScreen && guiCurrentScreen == MAP_SCREEN && guiPendingScreen != MSG_BOX_SCREEN)
+		{
+			EndMapScreen(FALSE);
+		}
+		guiCurrentScreen = guiPendingScreen;
+		guiPendingScreen = NO_PENDING_SCREEN;
+	}
+	MarkFadeCallbacks();
+	ScreenID next;
+	switch (guiCurrentScreen)
+	{
+		case GAME_SCREEN: next = SceneGameFrame(); break;
+		case MAP_SCREEN: next = MapScreenHandle(); break;
+		case MSG_BOX_SCREEN: next = SceneBoxFrame(answer); break;
+		case FADE_SCREEN: next = FadeScreenHandle(); break;
+		default: throw std::runtime_error("no scene frame for screen " + ScreenName(guiCurrentScreen));
+	}
+	UnmarkFadeCallbacks();
+	guiCurrentScreen = next;
+	return next;
+}
+
+long long RenderCenterGridNo()
+{
+	return GETWORLDINDEXFROMWORLDCOORDS(gsRenderCenterY, gsRenderCenterX);
+}
+
+std::vector<long long> SceneGlobalValues()
+{
+	return {
+		guiCurrentScreen, guiPendingScreen, gSceneBox.up, gfMeanwhileTryingToStart, gfInMeanwhile, gfFadeOut, gfFadeOutDone,
+		gfFadeIn, gfFadeInDone, gfFadeInitialized, GamePaused(), PauseStateLocked(), guiLockPauseStateLastReasonId,
+		giTimeCompressMode, IsTimeCompressionOn(), (gTacticalStatus.uiFlags & ENGAGED_IN_CONV) != 0, giNPCReferenceCount,
+		(gTacticalStatus.uiFlags & SHOW_ALL_MERCS) != 0, gfWorldLoaded, gWorldSector.x, gWorldSector.y, gWorldSector.z,
+		sSelMap.x, sSelMap.y, RenderCenterGridNo(), DialogueQueueIsEmptyAndNobodyIsTalking(), gubMusicMode, fInMapMode,
+	};
+}
+
+std::string SceneRow(SOLDIERTYPE const& s)
+{
+	return Numbers({s.ubID, s.bTeam, s.ubProfile, s.bInSector, s.sGridNo, s.bLevel, s.usAnimState, s.bLife, s.bDirection});
+}
+
+std::map<UINT8, std::string> SceneRows()
+{
+	std::map<UINT8, std::string> rows;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam == OUR_TEAM || s->bInSector) rows[s->ubID] = SceneRow(*s);
+	}
+	return rows;
+}
+
+std::string ChangedSceneRows(std::map<UINT8, std::string>& last)
+{
+	std::map<UINT8, std::string> const now = SceneRows();
+	std::vector<std::string> changed;
+	for (auto const& [id, row] : now)
+	{
+		auto const it = last.find(id);
+		if (it == last.end() || it->second != row) changed.push_back(row);
+	}
+	for (auto const& [id, row] : last)
+	{
+		if (!now.count(id)) changed.push_back("[" + std::to_string(id) + ",null]");
+	}
+	last = now;
+	return JsonArray(changed);
+}
+
+std::string SectorTriple(SGPSector const& s)
+{
+	return Numbers({s.x, s.y, s.z});
+}
+
+std::string DescribeSceneNpcSaves()
+{
+	std::vector<std::string> saves;
+	for (UINT32 i = 0; i < OracleMeanwhileNpcSaveCount(); ++i)
+	{
+		UINT8 profile = NO_PROFILE;
+		SGPSector sector;
+		INT16 gridNo = 0;
+		OracleMeanwhileNpcSave(i, &profile, &sector, &gridNo);
+		saves.push_back(Numbers({profile, sector.x, sector.y, sector.z, gridNo}));
+	}
+	return JsonArray(saves);
+}
+
+std::string DescribeSceneSectorFlags()
+{
+	std::vector<long long> flags;
+	for (SECTORINFO const& si : SectorInfo) flags.push_back(si.uiFlags);
+	return Numbers(flags);
+}
+
+std::string DescribeSceneSoldiers()
+{
+	std::vector<std::string> rows;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam != OUR_TEAM && !s->bInSector) continue;
+		rows.push_back(Numbers({s->ubID, s->bTeam, s->ubProfile, s->bInSector, s->sGridNo, s->bLevel, s->bLife, s->ubBodyType,
+			s->usAnimState, s->sSector.x, s->sSector.y, s->sSector.z, s->ubStrategicInsertionCode, s->usStrategicInsertionData,
+			s->bNeutral, s->bOrders, s->bAttitude}));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeSceneItems()
+{
+	std::vector<std::string> items;
+	for (WORLDITEM const& w : gWorldItems)
+	{
+		if (!w.fExists) continue;
+		items.push_back(Numbers({w.sGridNo, w.ubLevel, w.o.usItem, w.o.ubNumberOfObjects, w.bVisible, w.usFlags}));
+	}
+	std::sort(items.begin(), items.end());
+	return JsonArray(items);
+}
+
+std::string DescribeSceneRecordsSaid()
+{
+	std::vector<std::string> said;
+	for (ProfileID const npc : SCENE_RECORD_PROFILES)
+	{
+		NPCQuoteInfo const* const quotes = OracleQuoteArray(npc, false);
+		std::vector<long long> records;
+		if (quotes)
+		{
+			for (int i = 0; i < NUM_NPC_QUOTE_RECORDS; ++i)
+			{
+				if (quotes[i].fFlags & QUOTE_FLAG_SAID) records.push_back(i);
+			}
+		}
+		said.push_back(Json{}.num("profile", npc).flag("loaded", quotes != nullptr).nums("said", records).text());
+	}
+	return JsonArray(said);
+}
+
+std::string DescribeSceneState()
+{
+	return Json{}
+		.raw("meanwhile", DescribeMeanwhileState())
+		.str("screen", ScreenName(guiCurrentScreen))
+		.flag("inMapMode", fInMapMode)
+		.flag("worldLoaded", gfWorldLoaded)
+		.raw("world", SectorTriple(gWorldSector))
+		.raw("selected", SectorTriple(sSelMap))
+		.raw("oldSector", SectorTriple(OracleMeanwhileOldSector()))
+		.raw("oldSelected", SectorTriple(OracleMeanwhileOldSelectedSector()))
+		.str("oldScreen", ScreenName(OracleMeanwhileOldScreen()))
+		.flag("worldWasLoaded", OracleMeanwhileWorldWasLoaded())
+		.num("camera", OracleMeanwhileCameraGridNo())
+		.num("renderGridNo", RenderCenterGridNo())
+		.raw("npcSaves", DescribeSceneNpcSaves())
+		.num("refCount", giNPCReferenceCount)
+		.flag("engaged", (gTacticalStatus.uiFlags & ENGAGED_IN_CONV) != 0)
+		.flag("showAll", (gTacticalStatus.uiFlags & SHOW_ALL_MERCS) != 0)
+		.num("seen", gGameSettings.uiMeanwhileScenesSeenFlags)
+		.nums("compression", {giTimeCompressMode, IsTimeCompressionOn()})
+		.num("lockReason", guiLockPauseStateLastReasonId)
+		.num("music", gubMusicMode)
+		.flag("dialogueIdle", DialogueQueueIsEmptyAndNobodyIsTalking())
+		.flag("boxUp", gSceneBox.up)
+		.raw("sectorFlags", DescribeSceneSectorFlags())
+		.raw("soldiers", DescribeSceneSoldiers())
+		.raw("items", DescribeSceneItems())
+		.raw("records", DescribeSceneRecordsSaid())
+		.text();
+}
+
+class SceneScope
+{
+public:
+	SceneScope(std::vector<OracleDraw>& draws, std::vector<std::vector<long long>>& lines, std::vector<OracleDialogueEntry>& dialogue,
+		std::vector<std::string>& boxes)
+	{
+		gAbsentLines = &lines;
+		gOracleDialogueTrace = &dialogue;
+		gSceneBoxes = &boxes;
+		gSceneDraws = &draws;
+		gOracleMessageBoxHook = RecordSceneBox;
+		OracleTraceRandom(&draws);
+	}
+
+	SceneScope(SceneScope const&) = delete;
+	SceneScope& operator=(SceneScope const&) = delete;
+
+	~SceneScope()
+	{
+		OracleTraceRandom(nullptr);
+		gOracleMessageBoxHook = NULL;
+		gSceneDraws = nullptr;
+		gSceneBoxes = nullptr;
+		gOracleDialogueTrace = nullptr;
+		gAbsentLines = nullptr;
+	}
+};
+
+template<typename Run>
+void RunSceneProbe(Command const& c, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<std::string> boxes;
+	std::string result;
+	{
+		SceneScope const scope(draws, lines, dialogue, boxes);
+		result = run();
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDrawsWithoutPathfinder(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.raw("lines", DescribeQueuedLines(lines))
+		.raw("dialogue", DescribeDialogueTrace(dialogue))
+		.raw("boxes", JsonArray(boxes))
+		.raw("state", DescribeSceneState()));
+}
+
+void ProbeSceneState(Command const& c)
+{
+	RunSceneProbe(c, Nothing);
+}
+
+void ProbeSceneSet(Command const& c)
+{
+	if (Has(c, "seen")) gGameSettings.uiMeanwhileScenesSeenFlags = static_cast<UINT32>(Integer(c, "seen", 0));
+	if (Has(c, "screen"))
+	{
+		bool const map = Text(c, "screen", "game") == "map";
+		guiCurrentScreen = map ? MAP_SCREEN : GAME_SCREEN;
+		guiPendingScreen = NO_PENDING_SCREEN;
+		fInMapMode = FALSE;
+		gHelpScreen.usHasPlayerSeenHelpScreenInCurrentScreen = 0;
+		gHelpScreen.fHaveAlreadyBeenInHelpScreenSinceEnteringCurrenScreen = TRUE;
+		if (!map)
+		{
+			SetGameTimeCompressionLevel(TIME_COMPRESS_X1);
+			UnLockPauseState();
+			if (!gfPauseDueToPlayerGamePause) UnPauseGame();
+		}
+	}
+	if (Has(c, "compress")) SetGameTimeCompressionLevel(static_cast<UINT32>(Integer(c, "compress", TIME_COMPRESS_X0)));
+	if (Has(c, "select")) ChangeSelectedMapSector(StrategicSectorArgument(c, "select"));
+	RunSceneProbe(c, Nothing);
+}
+
+void ProbeSceneBegin(Command const& c)
+{
+	STRATEGICEVENT const* head = nullptr;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_MEANWHILE)
+		{
+			head = e;
+			break;
+		}
+	}
+	if (!head) throw std::runtime_error("no meanwhile event");
+	STRATEGICEVENT event = *head;
+	event.next = nullptr;
+	RunSceneProbe(c, [&] {
+		DeleteStrategicEvent(EVENT_MEANWHILE, event.uiParam);
+		ExecuteStrategicEvent(&event);
+		return Json{}.raw("event", Numbers({event.uiTimeStamp, event.uiParam, event.uiTimeOffset})).text();
+	});
+}
+
+void ProbeSceneSquad(Command const& c)
+{
+	SGPSector const sector = StrategicSectorArgument(c, "sector");
+	std::vector<long long> const who = ListArgument(c, "who");
+	std::vector<long long> const grids = ListArgument(c, "grids");
+	if (who.size() != grids.size()) throw std::runtime_error("mwsquad needs as many grids as soldiers");
+	RunSceneProbe(c, [&] {
+		SECTORINFO& si = SectorInfo[sector.AsByte()];
+		si.ubNumAdmins = 0;
+		si.ubNumTroops = 0;
+		si.ubNumElites = 0;
+		if (NumEnemiesInSector(sector) != 0) throw std::runtime_error("mwsquad: enemy groups stand in the sector");
+		for (size_t i = 0; i < who.size(); ++i)
+		{
+			SOLDIERTYPE& s = TeamMerc(who[i]);
+			GROUP* const g = GetGroup(s.ubGroupID);
+			if (g) SetGroupSectorValue(sector, *g);
+			else s.sSector = sector;
+			s.ubStrategicInsertionCode = INSERTION_CODE_GRIDNO;
+			s.usStrategicInsertionData = static_cast<UINT16>(grids[i]);
+		}
+		SetCurrentWorldSector(sector);
+		return std::string{};
+	});
+}
+
+void QueueEscapeKey()
+{
+	SDL_KeyboardEvent event{};
+	event.key = SDLK_ESCAPE;
+	event.type = SDL_EVENT_KEY_DOWN;
+	KeyDown(&event);
+	event.type = SDL_EVENT_KEY_UP;
+	KeyUp(&event);
+}
+
+bool SceneFramesDone(std::string const& until)
+{
+	if (until.empty()) return false;
+	if (until == "box") return gSceneBox.up;
+	if (until == "loaded") return gfInMeanwhile && gFadeOutDoneCallback == NULL && !gfFadeOutDone && gfWorldLoaded && gWorldSector == gCurrentMeanwhileDef.sSector;
+	if (until == "scene") return gfInMeanwhile && giNPCReferenceCount == 1 && gFadeInDoneCallback == NULL && !gfFadeIn && !gfFadeInitialized;
+	if (until == "ended") return !gfInMeanwhile && !gfMeanwhileTryingToStart && !gSceneBox.up;
+	if (until == "back")
+	{
+		return !gfInMeanwhile && !gfMeanwhileTryingToStart && !gSceneBox.up && !gfFadeOut && !gfFadeOutDone && !gfFadeIn && !gfFadeInDone &&
+			!gfFadeInitialized && gFadeOutDoneCallback == NULL && gFadeInDoneCallback == NULL && guiPendingScreen == NO_PENDING_SCREEN &&
+			(guiCurrentScreen == GAME_SCREEN || guiCurrentScreen == MAP_SCREEN);
+	}
+	throw std::runtime_error("until is box, loaded, scene, ended or back: " + until);
+}
+
+void ProbeSceneFrames(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	long long const step = Integer(c, "step", DEFAULT_FRAME_STEP_MS);
+	std::string const until = Text(c, "until", "");
+	std::string const answer = Text(c, "answer", "");
+	if (count < 1 || count > SCENE_MAX_FRAMES) throw std::runtime_error("count out of range: " + std::to_string(count));
+	if (!OracleVirtualClockOn()) throw std::runtime_error("mwframes needs the virtual clock (hdtimer on=1)");
+	SceneFramesDone(until);
+	if (Integer(c, "esc", 0) != 0) QueueEscapeKey();
+	std::map<UINT8, std::string> last = SceneRows();
+	std::vector<long long> lastGlobals = SceneGlobalValues();
+	long long frames = 0;
+	bool reached = false;
+	std::vector<OracleDraw> draws;
+	std::vector<std::vector<long long>> lines;
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<std::string> boxes;
+	{
+		SceneScope const scope(draws, lines, dialogue, boxes);
+		while (frames < count)
+		{
+			OracleAdvanceVirtualClock(milliseconds{step});
+			guiBaseJA2Clock += static_cast<UINT32>(step);
+			draws.clear();
+			lines.clear();
+			dialogue.clear();
+			boxes.clear();
+			ScreenID const screen = RunSceneFrame(answer);
+			++frames;
+			std::string const changed = ChangedSceneRows(last);
+			std::vector<long long> const globals = SceneGlobalValues();
+			if (changed != "[]" || !draws.empty() || !lines.empty() || !dialogue.empty() || !boxes.empty() || globals != lastGlobals)
+			{
+				Emit(Json{}
+					.str("probe", c.name)
+					.num("line", c.line)
+					.num("frame", frames)
+					.num("ja2clock", GetJA2Clock())
+					.str("screen", ScreenName(screen))
+					.nums("globals", globals)
+					.raw("draws", DescribeDrawsWithoutPathfinder(draws))
+					.raw("lines", DescribeQueuedLines(lines))
+					.raw("dialogue", DescribeDialogueTrace(dialogue))
+					.raw("boxes", JsonArray(boxes))
+					.raw("changed", changed));
+			}
+			lastGlobals = globals;
+			if (SceneFramesDone(until))
+			{
+				reached = true;
+				break;
+			}
+		}
+	}
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("frames", frames)
+		.flag("reached", until.empty() || reached)
+		.strs("globalFields", SCENE_GLOBAL_FIELDS)
+		.strs("rowFields", SCENE_ROW_FIELDS)
+		.raw("state", DescribeSceneState()));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -11639,6 +12244,11 @@ void Dispatch(Command const& c)
 	if (c.name == "hpend") return ProbePassengerBattleEnd(c);
 	if (c.name == "hpquote") return ProbePassengerQuote(c);
 	if (c.name == "hpsave") return ProbePassengerSave(c);
+	if (c.name == "mwstate") return ProbeSceneState(c);
+	if (c.name == "mwset") return ProbeSceneSet(c);
+	if (c.name == "mwbegin") return ProbeSceneBegin(c);
+	if (c.name == "mwsquad") return ProbeSceneSquad(c);
+	if (c.name == "mwframes") return ProbeSceneFrames(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

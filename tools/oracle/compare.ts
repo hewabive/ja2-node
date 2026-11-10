@@ -64,6 +64,7 @@ import { HELI_PROBES, HeliComparer } from './heli-compare.ts';
 import { HeliDropComparer, isHeliDropOutput } from './helidrop-compare.ts';
 import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
 import { MEANWHILE_PROBES, MeanwhileComparer } from './meanwhile-compare.ts';
+import { isMeanwhileScenesOutput, MeanwhileSceneComparer } from './meanwhile-scenes-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
@@ -652,6 +653,12 @@ for (const file of files) {
     const heliDrop = new HeliDropComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
     const lines = readLines(file);
     for (const [at, p] of lines.entries()) failures += await heliDrop.compare(p, loadDrawsAfter(lines, at));
+    continue;
+  }
+  if (isMeanwhileScenesOutput(file)) {
+    const scenes = new MeanwhileSceneComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
+    const lines = readLines(file);
+    for (const [at, p] of lines.entries()) failures += await scenes.compare(p, loadDrawsAfter(lines, at));
     continue;
   }
   if (isSaveFlightOutput(file)) {

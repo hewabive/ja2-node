@@ -108,7 +108,7 @@ class StrictReplay {
   }
 }
 
-function replayed(c: CampaignSim, q: QueenContext, draws: readonly Draw[], run: () => void): string | null {
+export function replayedOnQueen(c: CampaignSim, q: QueenContext, draws: readonly Draw[], run: () => void): string | null {
   const s = c.state;
   const main = new StrictReplay(
     draws.filter((d) => d[0] === MAIN_STREAM),
@@ -158,14 +158,14 @@ function definition(d: MeanwhileDefinition | null): number[] {
   return d ? [d.sector.x, d.sector.y, d.trigger, d.id, d.npc] : [0, 0, 0, 0, 0];
 }
 
-function profiles(c: CampaignSim): number[][] {
+export function meanwhileProfiles(c: CampaignSim): number[][] {
   return MEANWHILE_PROFILES.map((id) => {
     const p = c.narrative.profile(id);
     return p ? [id, p.sectorX, p.sectorY, p.sectorZ, p.gridNo, p.useProfileInsertion ? 1 : 0, p.npcData] : [id];
   });
 }
 
-function ourState(c: CampaignSim): Json {
+export function ourMeanwhileState(c: CampaignSim): Json {
   const s = c.state;
   const m = s.meanwhile;
   return {
@@ -178,7 +178,7 @@ function ourState(c: CampaignSim): Json {
     events: s.queue.events.filter((e) => e.kind === EventKind.MEANWHILE).map((e) => [e.stamp, e.param, e.offset]),
     firstBattlePending: s.queen.firstBattleMeanwhilePending,
     firstBattleSector: s.economy.firstBattleSector,
-    profiles: profiles(c),
+    profiles: meanwhileProfiles(c),
     quests: [Quest.FIND_SCIENTIST, Quest.HELD_IN_ALMA, Quest.INTERROGATION, Quest.CREATURES].map((q) => s.narrative.quests[q] ?? 0),
     mikeFact: s.narrative.facts[Fact.MIKE_AVAILABLE_TO_ARMY] ?? 0,
     highestProgress: s.status.highestProgress,
@@ -191,8 +191,7 @@ function ourState(c: CampaignSim): Json {
   };
 }
 
-function theirState(p: Json): Json {
-  const m = p.meanwhile as Json;
+export function nativeMeanwhileState(m: Json): Json {
   return { ...m };
 }
 
@@ -205,6 +204,41 @@ function alignProcessState(c: CampaignSim, native: Json): void {
 function sectorArg(a: Json, key: string): { x: number; y: number; z: number } {
   const s = parseSectorString(String(a[key]));
   return { x: s.x, y: s.y, z: 0 };
+}
+
+export function postMeanwhile(q: QueenContext, a: Json): void {
+  const param = num(a.param);
+  switch (String(a.kind)) {
+    case 'town':
+      handleMeanwhileEventPostingForTownLiberation(q, param);
+      return;
+    case 'townloss':
+      handleMeanwhileEventPostingForTownLoss(q);
+      return;
+    case 'sam':
+      handleMeanwhileEventPostingForSamLiberation(q, param);
+      return;
+    case 'outskirts':
+      handleOutskirtsOfMedunaMeanwhileScene(q);
+      return;
+    case 'creature':
+      handleCreatureRelease(q);
+      return;
+    case 'flowers':
+      handleFlowersMeanwhileScene(q, param);
+      return;
+    case 'chopper':
+      handleKillChopperMeanwhileScene(q);
+      return;
+    case 'awol':
+      handleScientistAwolMeanwhileScene(q);
+      return;
+    case 'interrogation':
+      scheduleInterrogation(q);
+      return;
+    default:
+      throw new Error(`unknown meanwhile kind ${String(a.kind)}`);
+  }
 }
 
 export class MeanwhileComparer {
@@ -261,7 +295,7 @@ export class MeanwhileComparer {
         alignProcessState(c, p.meanwhile as Json);
         break;
       case 'meanwhilepost':
-        replay = replayed(c, q, draws, () => this.#post(q, a));
+        replay = replayedOnQueen(c, q, draws, () => postMeanwhile(q, a));
         break;
       case 'firstbattle':
         handleFirstBattleEndingWhileInTown(q, sectorArg(a, 'sector'), num(a.autoresolve) !== 0);
@@ -271,7 +305,7 @@ export class MeanwhileComparer {
         break;
       case 'meanwhilerun': {
         const outcome: { value: unknown } = { value: null };
-        replay = replayed(c, q, draws, () => {
+        replay = replayedOnQueen(c, q, draws, () => {
           outcome.value = this.#run(c, q, num(a.enemy) !== 0);
         });
         result = outcome.value;
@@ -281,11 +315,11 @@ export class MeanwhileComparer {
         result = this.#played(c, num(a.id));
         break;
       case 'hourlyprogress':
-        replay = replayed(c, q, draws, () => this.#progress(c, q, a));
+        replay = replayedOnQueen(c, q, draws, () => this.#progress(c, q, a));
         break;
       case 'capture': {
         const outcome: { value: unknown } = { value: null };
-        replay = replayed(c, q, draws, () => {
+        replay = replayedOnQueen(c, q, draws, () => {
           outcome.value = this.#capture(c, a);
         });
         result = outcome.value;
@@ -300,43 +334,11 @@ export class MeanwhileComparer {
     }
     if (replay) return report(label, false, replay);
     const theirResult = p.result ?? null;
-    const diff = firstDifference({ state: ourState(c), result }, { state: theirState(p), result: theirResult });
+    const diff = firstDifference(
+      { state: ourMeanwhileState(c), result },
+      { state: nativeMeanwhileState(p.meanwhile as Json), result: theirResult },
+    );
     return report(label, diff === null, diff ?? `flags ${c.state.meanwhile.flags}`);
-  }
-
-  #post(q: QueenContext, a: Json): void {
-    const param = num(a.param);
-    switch (String(a.kind)) {
-      case 'town':
-        handleMeanwhileEventPostingForTownLiberation(q, param);
-        return;
-      case 'townloss':
-        handleMeanwhileEventPostingForTownLoss(q);
-        return;
-      case 'sam':
-        handleMeanwhileEventPostingForSamLiberation(q, param);
-        return;
-      case 'outskirts':
-        handleOutskirtsOfMedunaMeanwhileScene(q);
-        return;
-      case 'creature':
-        handleCreatureRelease(q);
-        return;
-      case 'flowers':
-        handleFlowersMeanwhileScene(q, param);
-        return;
-      case 'chopper':
-        handleKillChopperMeanwhileScene(q);
-        return;
-      case 'awol':
-        handleScientistAwolMeanwhileScene(q);
-        return;
-      case 'interrogation':
-        scheduleInterrogation(q);
-        return;
-      default:
-        throw new Error(`unknown meanwhile kind ${String(a.kind)}`);
-    }
   }
 
   #run(c: CampaignSim, q: QueenContext, enemy: boolean): Json {
@@ -374,12 +376,12 @@ export class MeanwhileComparer {
   #played(c: CampaignSim, id: number): Json {
     const flow = c.meanwhile;
     c.state.meanwhile.npcSaves.length = 0;
-    const before = profiles(c);
+    const before = meanwhileProfiles(c);
     const sector = id === Meanwhile.INTERROGATION ? INTERROGATION_SECTOR : MEDUNA_QUEEN_SECTOR;
     flow.setNpcMeanwhile(Npc.QUEEN, sector);
     flow.setNpcMeanwhile(Npc.ELLIOT, sector);
     if (id === Meanwhile.OUTSKIRTS_MEDUNA || id === Meanwhile.INTERROGATION) flow.setNpcMeanwhile(Npc.JOE, sector);
-    const during = profiles(c);
+    const during = meanwhileProfiles(c);
     flow.restoreNpcMeanwhile();
     return { before, during };
   }

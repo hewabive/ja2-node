@@ -1,0 +1,86 @@
+# Palace meanwhile scenes played frame by frame on the virtual clock (0030, 0031, 0032): the event, the box (answered OK
+# or Skip through its callback, as the message box screen does), the fade out, the load of P3_m, the fade in, the Queen's
+# records with their quotes, actions and walks until END_MEANWHILE, the fade out, the way back and the fade in. Each block
+# loads its save with the draws traced (the import's restart takes them), reseeds the engine and the PreRandom ring (the
+# saves hold an all-zero ring) and stops at each phase: the box up, the hall loaded, the scene under way, the scene ended,
+# the old screen back. With the virtual clock and the seeds a run is byte for byte the same every time.
+
+hdtimer on=1
+seed value=3
+
+# The outskirts scene started on the game screen in B13: Elliot shot, Joe walks off, the way back reloads B13.
+draws on
+save SaveGame01
+draws dump
+seed value=7 pre=reseed
+mwset screen=game seen=0
+meanwhilepost kind=outskirts
+mwbegin
+mwframes count=2000 until=box
+mwframes count=2000 answer=ok until=loaded
+mwframes count=2000 until=scene
+mwframes count=30000 until=ended
+mwframes count=2000 until=back
+
+# Drassen liberated started on the map screen with 30-minute compression on and A9 selected: the map screen's entry
+# runs in the first frame; the scene stops compression, and the way back restores the selection before the map
+# screen's entry selects the loaded sector again.
+draws on
+save SaveGame01
+draws dump
+seed value=11 pre=reseed
+mwset screen=map seen=0
+mwframes count=1
+mwset compress=3 select=A9
+meanwhilepost kind=town param=2
+mwbegin
+mwframes count=2000 until=box
+mwframes count=2000 answer=ok until=loaded
+mwframes count=2000 until=scene
+mwframes count=30000 until=ended
+mwframes count=2000 until=back
+
+# A scene seen before on the game screen: the box offers OK and Skip; Skip runs the implications alone.
+draws on
+save SaveGame01
+draws dump
+seed value=13 pre=reseed
+mwset screen=game seen=4
+meanwhilepost kind=town param=6
+mwbegin
+mwframes count=2000 until=box
+mwframes count=2000 answer=skip until=back
+
+# The NE SAM site scene on the map with no world loaded: the hall's load trashes nothing, the way back trashes the hall.
+draws on
+save SaveGame03
+draws dump
+seed value=17 pre=reseed
+mwset screen=map seen=0
+mwframes count=1
+meanwhilepost kind=sam param=1
+mwbegin
+mwframes count=2000 until=box
+mwframes count=2000 answer=ok until=loaded
+mwframes count=2000 until=scene
+mwframes count=30000 until=ended
+mwframes count=2000 until=back
+
+# A palace scene while P3 itself is the loaded sector: the squad stands in P3 with its garrison gone and the Queen
+# fled to the basement; SetCurrentWorldSector finds P3 loaded both ways and loads nothing. With no Queen in the sector
+# her record 0 says nothing and the scene stands until Esc ends it.
+draws on
+save SaveGame01
+draws dump
+seed value=19 pre=reseed
+setnpcprofile id=75 sector=P3 z=1
+mwsquad sector=P3 who=0,1,2 grids=12088,12090,12092
+mwset screen=game seen=0
+meanwhilepost kind=town param=6
+mwbegin
+mwframes count=2000 until=box
+mwframes count=2000 answer=ok until=loaded
+mwframes count=2000 until=scene
+mwframes count=400
+mwframes count=2000 esc=1 until=ended
+mwframes count=2000 until=back

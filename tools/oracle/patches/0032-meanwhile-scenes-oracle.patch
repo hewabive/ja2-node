@@ -1,0 +1,114 @@
+Meanwhile scene oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-09. See LICENSE (SFI-SCLA).
+Lets the meanwhile scene probes play a palace scene frame by frame through its box, fades and loads: the tail of
+MainGameScreenHandle (the fade-in's start and the leave of the tactical screen) moves into HandleTacticalLeaveScreen,
+called where the code was; DoMessageBox hands the box's flags to the probe in gOracleMessageBoxFlags before the 0027
+hook, so the probe tells an OK box from an OK and Skip one; appended accessors read the file statics of Meanwhile.cc
+(the scene's camera tile, the sector, selected sector, screen and world flag the way back reloads, the NPC save slots).
+No behaviour change. Applied by tools/oracle/build.sh after 0031.
+--- a/src/game/GameScreen.cc
++++ b/src/game/GameScreen.cc
+@@ -306,6 +306,22 @@
+ }
+ 
+ 
++void HandleTacticalLeaveScreen(void)
++{
++	if ( HandleBeginFadeIn( GAME_SCREEN ) )
++	{
++		guiTacticalLeaveScreenID = FADE_SCREEN;
++	}
++
++	if ( guiTacticalLeaveScreen )
++	{
++		guiTacticalLeaveScreen		= FALSE;
++
++		InternalLeaveTacticalScreen( guiTacticalLeaveScreenID );
++	}
++}
++
++
+ ScreenID MainGameScreenHandle(void)
+ {
+ 	//DO NOT MOVE THIS FUNCTION CALL!!!
+@@ -549,17 +565,7 @@
+ 		fInterfacePanelDirty = DIRTYLEVEL2;
+ 	}
+ 
+-	if ( HandleBeginFadeIn( GAME_SCREEN ) )
+-	{
+-		guiTacticalLeaveScreenID = FADE_SCREEN;
+-	}
+-
+-	if ( guiTacticalLeaveScreen )
+-	{
+-		guiTacticalLeaveScreen		= FALSE;
+-
+-		InternalLeaveTacticalScreen( guiTacticalLeaveScreenID );
+-	}
++	HandleTacticalLeaveScreen();
+ 
+ 	// Check if we are to enter map screen
+ 	if ( gfEnteringMapScreen == 2 )
+--- a/src/game/MessageBoxScreen.cc
++++ b/src/game/MessageBoxScreen.cc
+@@ -86,10 +86,15 @@
+ 
+ 
+ void (*gOracleMessageBoxHook)(const ST::string& str, MSGBOX_CALLBACK ReturnCallback) = NULL;
++MessageBoxFlags gOracleMessageBoxFlags = MSG_BOX_FLAG_OK;
+ 
+ void DoMessageBox(MessageBoxStyleID ubStyle, const ST::string& str, ScreenID uiExitScreen, MessageBoxFlags usFlags, MSGBOX_CALLBACK ReturnCallback, const SGPBox* centering_rect)
+ {
+-	if (gOracleMessageBoxHook) return gOracleMessageBoxHook(str, ReturnCallback);
++	if (gOracleMessageBoxHook)
++	{
++		gOracleMessageBoxFlags = usFlags;
++		return gOracleMessageBoxHook(str, ReturnCallback);
++	}
+ 
+ 	pOldMousePosition = GetMousePos();
+ 
+--- a/src/game/Strategic/Meanwhile.cc
++++ b/src/game/Strategic/Meanwhile.cc
+@@ -847,3 +847,41 @@
+ 		si->ubProfile = NO_PROFILE;
+ 	}
+ }
++
++UINT16 OracleMeanwhileCameraGridNo()
++{
++	return gusMeanWhileGridNo[ubCurrentMeanWhileId];
++}
++
++SGPSector OracleMeanwhileOldSector()
++{
++	return gsOldSector;
++}
++
++SGPSector OracleMeanwhileOldSelectedSector()
++{
++	return gsOldSelectedSector;
++}
++
++UINT32 OracleMeanwhileOldScreen()
++{
++	return guiOldScreen;
++}
++
++BOOLEAN OracleMeanwhileWorldWasLoaded()
++{
++	return gfWorldWasLoaded;
++}
++
++UINT32 OracleMeanwhileNpcSaveCount()
++{
++	return guiNumNPCSaves;
++}
++
++void OracleMeanwhileNpcSave(UINT32 const i, UINT8* const profile, SGPSector* const sector, INT16* const gridNo)
++{
++	NPC_SAVE_INFO const& si = gNPCSaveData[i];
++	*profile = si.ubProfile;
++	*sector = si.sector;
++	*gridNo = si.sGridNo;
++}
