@@ -7,6 +7,7 @@ import { buy, closeConversation, leadMerc, openDoor, say, talk, walkTo } from '.
 import { Quartermaster } from './outfit.ts';
 import { descend, killTheQueen, playEnding, storm } from './palace.ts';
 import { Player } from './player.ts';
+import { actAnswering } from './refusals.ts';
 import { NO_RELOADS, type ReloadPlan, type ReloadReport, Reloads } from './reload.ts';
 import type { Edge } from './retreat.ts';
 import {
@@ -109,18 +110,13 @@ export class CampaignBot {
   }
 
   async go(sector: string): Promise<void> {
-    const result = await travel(this.p, sector, fightHere, () => this.recover());
+    const result = await travel(this.p, sector, fightHere, (where) => this.heal(where));
     if (result !== 'arrived') throw new CampaignStop(result === 'lost' ? 'lost' : 'stuck', `travel to ${sector}: ${result}`);
   }
 
   async outfit(sector: string): Promise<void> {
     if (!(await mapScreen(this.p))) return;
     await new Quartermaster(this.p, sector, this.p.medics).run();
-  }
-
-  async recover(): Promise<void> {
-    const here = squad(await this.p.observe()).find((m) => !m.betweenSectors)?.sector;
-    if (here) await restAndHeal(this.p, here, this.p.medics, HEAL_HOURS);
   }
 
   async heal(sector: string): Promise<void> {
@@ -173,7 +169,7 @@ export class CampaignBot {
 
   async laptop<T>(work: () => Promise<T>): Promise<T | null> {
     if (!(await mapScreen(this.p))) return null;
-    const opened = await this.p.act({ type: 'openLaptop' });
+    const opened = await actAnswering(this.p, { type: 'openLaptop' });
     if (!opened.ok) {
       this.p.log(`  the laptop did not open: ${opened.reason ?? ''}`);
       return null;
@@ -343,7 +339,7 @@ export class CampaignBot {
         this.p,
         sector,
         (p) => fightHere(p, { retreat: edge, casualtyLimit: ASSAULT_CASUALTY_LIMIT }),
-        () => this.recover(),
+        (where) => this.heal(where),
       );
       if (result === 'arrived') {
         await this.outfit(sector);
@@ -368,7 +364,7 @@ export class CampaignBot {
   }
 
   async palace(): Promise<void> {
-    const reached = await travel(this.p, Palace.sector, storm, () => this.recover());
+    const reached = await travel(this.p, Palace.sector, storm, (where) => this.heal(where));
     if (reached !== 'arrived') throw new CampaignStop(reached === 'lost' ? 'lost' : 'stuck', `the palace: ${reached}`);
     if (!(await descend(this.p))) throw new CampaignStop('stuck', 'the stairs down to the Queen');
     if (!(await killTheQueen(this.p))) throw new CampaignStop('stuck', 'the Queen is still alive');

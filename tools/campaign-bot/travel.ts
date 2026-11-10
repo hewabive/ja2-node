@@ -3,6 +3,7 @@ import { type BattleResult, fightHere, ourTurn, sectorEnemies } from './battle.t
 import type { Observation } from './mcp-game.ts';
 import type { Player } from './player.ts';
 import { answerPrompts } from './prompts.ts';
+import { actAnswering, needsRest, refusalOf } from './refusals.ts';
 
 export type TravelResult = 'arrived' | 'lost' | 'stuck' | 'retreated';
 
@@ -13,9 +14,8 @@ const WAIT_SLICE_SECONDS = 3600;
 const DAY_SECONDS = 86_400;
 const HOUR_SECONDS = 3600;
 const MINUTE_SECONDS = 60;
-const TOO_INJURED = 'tooInjured';
 export const PRISONER = 32;
-const DEAD_MEMBER = ': dead';
+const DEAD_MEMBER = 'dead';
 const COMBAT_GOING_ON = 'combat is in progress';
 const ABANDONED_COMBAT_TURNS = 20;
 
@@ -37,7 +37,7 @@ function allIn(view: Observation, sector: string): boolean {
 export async function mapScreen(p: Player): Promise<boolean> {
   const view = await p.observe();
   if (view.strategic?.flow === 'strategic') return true;
-  const opened = await p.act({ type: 'mapScreen' });
+  const opened = await actAnswering(p, { type: 'mapScreen' });
   if (!opened.ok) p.log(`  mapScreen refused: ${opened.reason ?? ''}`);
   return opened.ok;
 }
@@ -63,23 +63,28 @@ async function battleOrPrompt(p: Player, view: Observation, fight: Fight): Promi
   return 'none';
 }
 
-type RouteOutcome = 'routed' | 'injured' | 'refused';
+interface RouteOutcome {
+  readonly routed: boolean;
+  readonly restIn: string | null;
+}
 
 async function routeSquads(p: Player, view: Observation, to: string): Promise<RouteOutcome> {
   const leaders = new Map<number, StrategicMercView>();
   for (const m of travellers(view)) if (m.squad !== null && !leaders.has(m.squad)) leaders.set(m.squad, m);
-  let outcome: RouteOutcome = 'refused';
+  let routed = false;
+  let restIn: string | null = null;
   for (const leader of leaders.values()) {
     if (leader.sector === to && !leader.betweenSectors) continue;
     const result = await p.act({ type: 'route', soldier: leader.id, to });
-    if (result.ok) outcome = 'routed';
-    else {
-      p.log(`  route ${leader.name} to ${to} refused: ${result.reason ?? ''}`);
-      if (outcome !== 'routed' && result.reason?.includes(TOO_INJURED)) outcome = 'injured';
-      if (result.reason?.endsWith(DEAD_MEMBER)) await removeTheDead(p, view);
+    if (result.ok) {
+      routed = true;
+      continue;
     }
+    p.log(`  route ${leader.name} to ${to} refused: ${result.reason ?? ''}`);
+    if (needsRest(result)) restIn ??= leader.sector;
+    if (refusalOf(result) === DEAD_MEMBER) await removeTheDead(p, view);
   }
-  return outcome;
+  return { routed, restIn };
 }
 
 async function removeTheDead(p: Player, view: Observation): Promise<void> {
@@ -90,7 +95,7 @@ async function removeTheDead(p: Player, view: Observation): Promise<void> {
 }
 
 async function finishAbandonedCombat(p: Player): Promise<void> {
-  await p.act({ type: 'tacticalScreen' });
+  await actAnswering(p, { type: 'tacticalScreen' });
   for (let turn = 0; turn < ABANDONED_COMBAT_TURNS; turn++) {
     const view = await p.observe();
     if (!view.combat) break;
@@ -100,7 +105,7 @@ async function finishAbandonedCombat(p: Player): Promise<void> {
   await mapScreen(p);
 }
 
-export type Recover = () => Promise<void>;
+export type Recover = (sector: string) => Promise<void>;
 
 export async function travel(p: Player, to: string, fight: Fight = fightHere, recover?: Recover): Promise<TravelResult> {
   let attempts = 0;
@@ -120,12 +125,12 @@ export async function travel(p: Player, to: string, fight: Fight = fightHere, re
     );
     if (!moving) {
       if (attempts++ >= MAX_ROUTE_ATTEMPTS) return 'stuck';
-      const routed = await routeSquads(p, p.view, to);
-      if (routed === 'injured' && recover) {
-        await recover();
+      const { routed, restIn } = await routeSquads(p, p.view, to);
+      if (!routed && restIn !== null && recover) {
+        await recover(restIn);
         continue;
       }
-      if (routed !== 'routed') {
+      if (!routed) {
         await p.advance({ worldSeconds: WAIT_SLICE_SECONDS });
         continue;
       }
@@ -143,7 +148,7 @@ export async function travel(p: Player, to: string, fight: Fight = fightHere, re
 export async function enter(p: Player, sector: string): Promise<boolean> {
   const view = await p.observe();
   if (view.strategic?.flow === 'tactical' && view.strategic.worldSector === sector) return true;
-  const entered = await p.act({ type: 'enterSector', sector });
+  const entered = await actAnswering(p, { type: 'enterSector', sector });
   if (!entered.ok) {
     p.log(`  enterSector ${sector} refused: ${entered.reason ?? ''}`);
     return false;

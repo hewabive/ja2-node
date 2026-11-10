@@ -202,7 +202,10 @@ and an example of an agent against the API. It uses the MCP tools alone over Str
 campaign every time. Without `--server` it builds the stub pack if needed and starts its own stub server
 (`stub-server.ts`: `src/server/main.ts` with an empty `JA2_DATA_DIR`, a random token, a temporary save folder). The
 battle, retreat, outfitting, healing and prompt policies live in their modules (`battle.ts`, `retreat.ts`, `outfit.ts`,
-`heal.ts`, `prompts.ts`, …).
+`heal.ts`, `prompts.ts`, …). A refusal whose text names the next step is answered and the command sent again
+(`refusals.ts`): `mapScreen`, `tacticalScreen`, `enterSector` and `openLaptop` wait for an open prompt to be answered
+and, with time stopped, `advance {idle}` past queued lines, a meanwhile about to start or a pause lock; a squad too
+injured or too tired to travel rests in its sector before it is routed again.
 
 - **Reload checks** (`reload.ts`). *Exact load*: in the first battle that reaches round 2 the bot saves, loads with
   `reseed: false` into a new session, then sends every `observe`, `act` and `advance` to both sessions until the battle
