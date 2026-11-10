@@ -173,9 +173,9 @@ const STANCE_MOVE_MODES: Readonly<Record<Stance, MoveModeName>> = { run: RUN, st
 const TALKABLE = new Set(['npc', 'epc', 'civilian']);
 
 export type MoveModeName = 'walk' | 'run' | 'swat' | 'crawl';
-export type Lock = 'none' | 'enemyTurn' | 'ourTurn' | 'helicopterDrop';
+export type Lock = 'none' | 'enemyTurn' | 'ourTurn' | 'helicopterDrop' | 'interface';
 
-const UI_LOCKS: ReadonlySet<Lock> = new Set(['enemyTurn', 'helicopterDrop']);
+const UI_LOCKS: ReadonlySet<Lock> = new Set(['enemyTurn', 'helicopterDrop', 'interface']);
 
 export interface TacticalInputHost {
   readonly env: TacticalEnvironment;

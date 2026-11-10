@@ -1054,6 +1054,7 @@ export interface PlayerView {
   readonly addedExitGrids?: readonly AddedExitGridView[];
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
+  readonly interfaceLocked?: boolean;
   readonly radarContacts?: readonly RadarContactView[];
   readonly helicopterDrop?: HelicopterDropView | null;
   readonly music?: MusicView;
@@ -1106,6 +1107,7 @@ export interface ViewFrame {
   readonly addedExitGrids?: readonly AddedExitGridView[];
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
+  readonly interfaceLocked?: boolean;
   readonly radarContacts?: readonly RadarContactView[];
   readonly helicopterDrop?: HelicopterDropView | null;
   readonly music?: MusicView;
@@ -1252,6 +1254,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), blood: next.blood ?? [] };
   if ((previous.itemLocatorsLocked ?? false) !== (next.itemLocatorsLocked ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), itemLocatorsLocked: next.itemLocatorsLocked ?? false };
+  if ((previous.interfaceLocked ?? false) !== (next.interfaceLocked ?? false))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), interfaceLocked: next.interfaceLocked ?? false };
   if (!sameJson(previous.radarContacts ?? [], next.radarContacts ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), radarContacts: next.radarContacts ?? [] };
   if (!sameJson(previous.helicopterDrop ?? null, next.helicopterDrop ?? null))

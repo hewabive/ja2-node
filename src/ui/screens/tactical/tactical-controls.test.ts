@@ -864,6 +864,28 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.lockState()).toBe('none');
   });
 
+  it('locks the interface under the wait cursor while the simulation locks it out of combat, as a bomb queue does (Explosion_Control.cc:1937, Handle_UI.cc:4015)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const queue = tacticalOf(f.session).state.explosionQueue;
+    const regions = f.t.runtime.regions;
+    const show = () => {
+      f.client.refresh();
+      f.t.frame();
+      f.t.move(100, 100);
+      f.t.frame();
+    };
+    queue.active = true;
+    show();
+    expect([f.screen.controls.lockState(), regions.current?.id, regions.current?.cursor]).toEqual([
+      'interface',
+      'tacticalLock',
+      f.t.runtime.cursor.idOf('CURSOR_WAIT'),
+    ]);
+    queue.active = false;
+    show();
+    expect([f.screen.controls.lockState(), regions.current?.id]).toEqual(['none', 'tacticalViewport']);
+  });
+
   it('scrolls the view at the screen edge after the pending step', async () => {
     const f = await tacticalUiTest(kit, ui);
     pointer(f, 'pointerMove', 2, 100, MouseButton.LEFT);

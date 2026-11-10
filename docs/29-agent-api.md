@@ -354,8 +354,10 @@ AP number as `drunk` (`feelingGood`, `borderline`, `drunk`, `hungover`) and `adr
 after-effect), each absent without it; strategic mercs carry the same two for the map screen's faces). The drug
 counters, and so the turns a course has left, are never shown, and other soldiers carry no drug state (`12` §5).
 `itemLocatorsLocked` stands while the original's item locators wait for the items-seen quote (`fLockItemLocators`,
-`08`). A soldier off the ground (on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is
-drawn above his tile (`06`); a corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). A
+`08`). `interfaceLocked` stands while the original locks the interface under the wait cursor (`LOCKUI_MODE`;
+`playerInterfaceLocked`, `src/sim/tactical/interface-lock.ts`), when tactical orders answer `uiLocked`. A soldier off
+the ground (on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile
+(`06`); a corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). A
 tank turning toward a new facing carries `turning`, and `hiResDirection`, its facing in 32 steps (0 north, clockwise,
 four a direction), while that lies between two directions (`06`). Every
 soldier in the view carries `surface`, the animation sheet he shows (an index of `tables/anim-surfaces.json`, chosen by

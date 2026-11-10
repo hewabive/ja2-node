@@ -45,6 +45,7 @@ const EVERY_FIELD: Record<ObservationField, true> = {
   addedExitGrids: true,
   blood: true,
   itemLocatorsLocked: true,
+  interfaceLocked: true,
   radarContacts: true,
   helicopterDrop: true,
   music: true,

@@ -324,8 +324,9 @@ export class TacticalControls {
     const client = this.#env().client;
     const view = client.view;
     if (helicopterDropRunning(view)) return 'helicopterDrop';
+    if (inCombat(view) && !ourTurn(view)) return 'enemyTurn';
+    if (view?.interfaceLocked) return 'interface';
     if (!inCombat(view)) return 'none';
-    if (!ourTurn(view)) return 'enemyTurn';
     if (this.#busyOrders > 0 || view?.combat?.uiLocked || client.queuedFrames.some(locksOurInput)) return 'ourTurn';
     return 'none';
   }

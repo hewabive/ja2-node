@@ -87,11 +87,13 @@ click and the move mode's cursor take it, as only they ask the original for such
 picks its items up and the move mode leaves them alone; the view holds only the items the squad has seen, so a
 structure with hidden items on it stays plain (D16).
 
-**The input lock follows the server, not the clock.** The enemy's turn locks input; on our turn in combat it locks
-while the view says `combat.uiLocked`, while a received frame not yet played back locks the interface or passes the
-turn, and while an order the original sends through `SetUIBusy` waits for its answer. The server publishes the locked
-frame before the answer, so the lock has no gap; only Esc passes. Playback merely trailing the newest tick does not
-lock: frames arrive unevenly under the real-time driver and a tick threshold made the lock and the cursor flicker
+**The input lock follows the server, not the clock.** The enemy's turn locks input, and so does the view's
+`interfaceLocked`, the simulation's other LOCKUI reasons (a scripted sequence, a bomb queue, boxing, the walk to a
+sector edge), under `CURSOR_WAIT` in real time too (`'interface'`, `tactical-controls.ts`); on our turn in combat it
+locks while the view says `combat.uiLocked`, while a received frame not yet played back locks the interface or passes
+the turn, and while an order the original sends through `SetUIBusy` waits for its answer. The server publishes the
+locked frame before the answer, so the lock has no gap; only Esc passes. Playback merely trailing the newest tick does
+not lock: frames arrive unevenly under the real-time driver and a tick threshold made the lock and the cursor flicker
 (deviations "Turn-based UI lock", "Playback lock").
 
 **The helicopter drop is drawn from the view** (`25`; `29` §7). `helicopterDropStarted` centres the view on the north
