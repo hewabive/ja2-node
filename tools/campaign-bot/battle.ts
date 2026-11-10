@@ -3,7 +3,7 @@ import { bandageWounded, hasKit, holdsKit, kitInHand } from './first-aid.ts';
 import { handGun, readyHand } from './gear.ts';
 import { centroid, gridNo, nearest, ring, tiles, towards, WORLD_SIDE } from './grid.ts';
 import type { AdvanceReport, Observation } from './mcp-game.ts';
-import { isHostile, newMemory, OK_LIFE, ourMercs, type Player, Team, usable } from './player.ts';
+import { type BattleMemory, isHostile, newMemory, OK_LIFE, ourMercs, type Player, Team, usable } from './player.ts';
 import { answerPrompts } from './prompts.ts';
 import { type Edge, planRetreat, type Retreat, retreatStep, shouldRetreat } from './retreat.ts';
 
@@ -37,6 +37,7 @@ const SWEEP_STEP = 12;
 const SWEEP_RADIUS = 36;
 const REACHED_TILES = 5;
 const SWEEP_PATIENCE = 4;
+const NOISE_PATIENCE = 4;
 const TIRED_FRACTION = 0.4;
 const FULL_BREATH = 100;
 const MAX_BREATHERS = 12;
@@ -296,6 +297,13 @@ function sweepGoal(p: Player, anchor: number): number {
   return m.sweepTarget ?? WORLD_CENTER;
 }
 
+export function noiseGoal(m: BattleMemory, anchor: number): number | null {
+  if (m.noise !== null && (reached(anchor, m.noise) || m.noiseSteps >= NOISE_PATIENCE)) m.noise = null;
+  if (m.noise === null) return null;
+  m.noiseSteps++;
+  return m.noise;
+}
+
 function seekGoal(p: Player, view: Observation): number {
   const anchor = squadAnchor(view) ?? WORLD_CENTER;
   const m = p.memory;
@@ -303,9 +311,7 @@ function seekGoal(p: Player, view: Observation): number {
   const known = nearest(anchor, [...m.lastSeen.values()]);
   if (known !== null) return known;
   if (m.objective !== null) return m.objective;
-  if (m.noise !== null && reached(anchor, m.noise)) m.noise = null;
-  if (m.noise !== null) return m.noise;
-  return sweepGoal(p, anchor);
+  return noiseGoal(m, anchor) ?? sweepGoal(p, anchor);
 }
 
 function breathMax(view: Observation, id: number): number {

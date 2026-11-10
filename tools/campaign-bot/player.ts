@@ -48,6 +48,7 @@ export interface BattleMemory {
   readonly visited: Set<number>;
   shots: number;
   noise: number | null;
+  noiseSteps: number;
   sweepTarget: number | null;
   sweepSteps: number;
   objective: number | null;
@@ -79,6 +80,7 @@ export function newMemory(): BattleMemory {
     visited: new Set(),
     shots: 0,
     noise: null,
+    noiseSteps: 0,
     sweepTarget: null,
     sweepSteps: 0,
     objective: null,
@@ -210,7 +212,10 @@ export class Player {
     const [dx, dy] = DIRECTION_STEPS[direction] ?? [0, 0];
     const x = Math.min(WORLD_SIDE - 1, Math.max(0, column(at) + dx * NOISE_DISTANCE));
     const y = Math.min(WORLD_SIDE - 1, Math.max(0, row(at) + dy * NOISE_DISTANCE));
-    this.memory.noise = gridNo(x, y);
+    const heard = gridNo(x, y);
+    if (heard === this.memory.noise) return;
+    this.memory.noise = heard;
+    this.memory.noiseSteps = 0;
   }
 
   #remember(view: Observation): void {
