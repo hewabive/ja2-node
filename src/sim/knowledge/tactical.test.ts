@@ -4,22 +4,27 @@ import { spawnCreature } from '../../../tests/support/creatures.ts';
 import { objectOf } from '../../../tests/support/explosives.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
-import { Direction, gridNo } from '../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
+import { TravelCost } from '../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { CommandResult } from '../command.ts';
 import { answerHint } from '../hints/answer.ts';
 import type { PreviewAction } from '../hints/preview-action.ts';
 import type { PreviewMove } from '../hints/preview-move.ts';
+import { openPit, SMALL_PIT } from '../tactical/bombs/pits.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { isDoorOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
 import { explosiveDamageGridNo } from '../tactical/explosions/structure-damage.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { findBestPath } from '../tactical/pathfinding.ts';
 import { calcActionPoints } from '../tactical/points.ts';
+import { exitGridAt } from '../tactical/sector-exit.ts';
 import { Body, Personality, type Soldier, Team } from '../tactical/soldier.ts';
+import type { TacticalState } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { type KnowledgeRules, knowledgeRules, knowledgeWorld } from './knowledge-world.ts';
 import { knowledgeViewOf } from './sim-view.ts';
-import type { KnowledgeStrategic } from './view.ts';
+import type { KnowledgeStrategic, KnowledgeView } from './view.ts';
 
 let content: TacticalContent;
 
@@ -161,5 +166,78 @@ describe("the view's structure changes in the projection of the hints", () => {
     runUntilIdle(cut);
     expect(cutterHint(cut, rules)).toMatchObject({ ok: false, refusal: 'noFence' });
     expect(cutterHint(village(), rules)).toMatchObject({ ok: true });
+  });
+});
+
+describe("the view's added exit grids in the projection of the hints", () => {
+  const A9 = 'stubs/world/maps/a9.dat';
+  const A10 = 'stubs/world/maps/a10.dat';
+  const A9_SECTOR = { x: 9, y: 1, z: 0 };
+  const PIT = gridNo(100, 100);
+  const WEST_OF_THE_PIT = PIT - 3;
+  const EAST_OF_THE_PIT = PIT + 3;
+  const MAP_EXIT_GRID = gridNo(72, 71);
+  const OPEN_GROUND = gridNo(100, 100);
+  const A10_BASEMENT = { x: 10, y: 1, z: 1 };
+  const WALKER = 0;
+
+  let kit: StubSectorKit;
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  function rulesOver(mapPath: string): KnowledgeRules {
+    return knowledgeRules(kit.content, { world: () => kit.world(mapPath) });
+  }
+
+  function projected(view: KnowledgeView, rules: KnowledgeRules): TacticalState {
+    const tactical = knowledgeWorld(view, rules, { strict: true }).tactical;
+    if (!tactical) throw new Error('no projection');
+    return tactical.state;
+  }
+
+  it("walks around an opened pit's exit grids as the order does", () => {
+    const sim = new TacticalSim(kit.world(A9), kit.content, 5);
+    sim.state.sector = A9_SECTOR;
+    const merc = spawnSoldier(sim, WALKER, Team.OUR, WEST_OF_THE_PIT, Direction.EAST);
+    openPit(sim.state, PIT, SMALL_PIT);
+    const preview = answerHint(knowledgeWorld(knowledgeViewOf(sim), rulesOver(A9), { strict: true }), {
+      type: 'previewMove',
+      soldier: WALKER,
+      to: EAST_OF_THE_PIT,
+    }).data as PreviewMove;
+    const order = findBestPath(sim.state.pathEnv, merc, EAST_OF_THE_PIT, merc.level).steps;
+    const tilesOf = (steps: readonly number[]) =>
+      steps.map((_, k) => steps.slice(0, k + 1).reduce((g, d) => g + (DIRECTION_INCREMENT[d] ?? 0), merc.gridNo));
+    expect(tilesOf(order)).not.toContain(PIT);
+    expect(preview.steps.map((step) => step.gridNo)).toEqual(tilesOf(order).slice(0, -1));
+  });
+
+  it("puts an added exit grid over the map's own on its tile and gives the map's back to a view without it", () => {
+    const sim = new TacticalSim(kit.world(A10), kit.content, 5);
+    const rules = rulesOver(A10);
+    const plain = knowledgeViewOf(sim);
+    const mapExit = exitGridAt(sim.state, MAP_EXIT_GRID);
+    if (!mapExit) throw new Error('no exit grid on the stub map');
+    const added = {
+      ...plain,
+      addedExitGrids: [
+        { gridNo: MAP_EXIT_GRID, sector: 'A10-1' },
+        { gridNo: OPEN_GROUND, sector: 'A10-1' },
+      ],
+    };
+    const opened = projected(added, rules);
+    expect(exitGridAt(opened, MAP_EXIT_GRID)?.sector).toEqual(A10_BASEMENT);
+    expect(exitGridAt(opened, OPEN_GROUND)?.sector).toEqual(A10_BASEMENT);
+    expect(opened.world.costs.get(OPEN_GROUND, Direction.NORTH, 0)).toBe(TravelCost.EXITGRID);
+    const closed = projected(plain, rules);
+    expect(exitGridAt(closed, MAP_EXIT_GRID)?.sector).toEqual(mapExit.sector);
+    expect(exitGridAt(closed, OPEN_GROUND)).toBeNull();
+    expect(closed.world.costs.get(OPEN_GROUND, Direction.NORTH, 0)).toBe(sim.state.world.costs.get(OPEN_GROUND, Direction.NORTH, 0));
   });
 });

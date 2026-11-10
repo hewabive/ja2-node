@@ -18,7 +18,8 @@
 // @src one pixel left of the pointer, its rows counted up from the bottom of the rectangle);
 // @src src/game/TileEngine/Overhead_Map.cc GoIntoOverheadMap (gfOverheadMapDirty: the overhead map composed again from the
 // @src world as last drawn at every entry, 2026-11-04); src/game/TileEngine/RenderWorld.cc SetRenderCenter and ScrollWorld
-// @src (nothing moves the view while gfIgnoreScrolling holds, 2026-11-08).
+// @src (nothing moves the view while gfIgnoreScrolling holds, 2026-11-08); src/game/TileEngine/Exit_Grids.cc
+// @src ExitGridAtGridNo over AddExitGridToWorld (an exit grid added while the sector runs is one at once, 2026-11-09).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
@@ -455,7 +456,8 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   exitGridAt(gridNo: number): boolean {
-    return this.#world.world.tactical.exitGrids.has(gridNo);
+    if (this.#world.world.tactical.exitGrids.has(gridNo)) return true;
+    return (this.#sources.view()?.addedExitGrids ?? []).some((e) => e.gridNo === gridNo);
   }
 
   #moved(dx: number, dy: number): Camera {

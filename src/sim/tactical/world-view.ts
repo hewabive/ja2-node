@@ -5,8 +5,11 @@
 // @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes, objects); Bullets.cc
 // @src UpdateBullets (where a bullet tile is drawn), HandleBulletSpecialFlags (the knife's tile, its direction and the
 // @src tile it hangs on); Physics.cc PhysicsMoveObject (a thrown object's tile at its position, raised by the land
-// @src height under it; none for an armed mortar shell); Smell.cc UpdateBloodGraphics (the pool a tile shows).
+// @src height under it; none for an armed mortar shell); Smell.cc UpdateBloodGraphics (the pool a tile shows);
+// @src TileEngine/Exit_Grids.cc AddExitGridToWorld (an exit grid added on the map, which the cursor reads at once,
+// @src 2026-11-09).
 
+import { isValidSector, type Sector, sectorLongString, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { i16 } from '../../core/int.ts';
 import { type Bullet, bulletHeightPixels, bulletWorldXY, drawnInFlight, isKnife, knifeDirection } from './combat/bullets.ts';
@@ -61,6 +64,11 @@ export interface TileChangeView {
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
+}
+
+export interface AddedExitGridView {
+  readonly gridNo: number;
+  readonly sector: string | null;
 }
 
 export interface KnifeFlight {
@@ -143,6 +151,15 @@ export function tileChangeViews(t: TacticalState): TileChangeView[] {
     for (const edit of replay.edits(c)) out.push({ kind: edit.kind, gridNo: c.gridNo, level: c.level, tile: edit.tile });
   }
   return [...out, ...landedHelicopterTileChanges(t)];
+}
+
+function sectorLabel(s: Sector): string | null {
+  if (!isValidSector(s)) return null;
+  return s.z ? sectorLongString(s, false) : sectorShortString(s);
+}
+
+export function addedExitGridViews(t: TacticalState): AddedExitGridView[] {
+  return t.addedExitGrids.map((e) => ({ gridNo: e.mapIndex, sector: sectorLabel(e.sector) }));
 }
 
 export function bulletViews(t: TacticalState, shown: (firer: Soldier) => boolean, since: (b: Bullet) => number): BulletView[] {

@@ -325,7 +325,7 @@ export class FakeWorld implements WorldPresenter {
   }
 
   exitGridAt(gridNo: number): boolean {
-    return this.exitGrids.has(gridNo);
+    return this.exitGrids.has(gridNo) || (this.#view().addedExitGrids ?? []).some((e) => e.gridNo === gridNo);
   }
 
   scrollEdges(): ScrollEdges {

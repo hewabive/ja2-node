@@ -45,6 +45,20 @@ function presenterWithSoldier(sprite: SoldierSprite, bounds: BoundingBox = sprit
   return new TacticalWorldPresenter(world, {} as WorldRenderer, {} as UiAssets, {} as AnimationTables, sources, null);
 }
 
+describe('the exit grids the cursor finds (ExitGridAtGridNo)', () => {
+  it("finds the map's own and those the view adds while the sector runs, which AddExitGridToWorld puts into the world at once", () => {
+    const mapExit = gridNo(72, 71);
+    const added = gridNo(100, 100);
+    const view = { soldiers: [], addedExitGrids: [{ gridNo: added, sector: 'A9-1' }] } as unknown as PlayerView;
+    const world = {
+      world: { map: { info: { restrictedScrollId: 0, centerGridNo: MAP_CENTRE } }, tactical: { exitGrids: new Set([mapExit]) } },
+    } as unknown as TacticalWorldView;
+    const sources = { view: () => view } as unknown as PresenterSources;
+    const presenter = new TacticalWorldPresenter(world, {} as WorldRenderer, {} as UiAssets, {} as AnimationTables, sources, null);
+    expect([mapExit, added, added + 1].map((g) => presenter.exitGridAt(g))).toEqual([true, true, false]);
+  });
+});
+
 describe('the tile under the pointer (GetMouseWorldCoords)', () => {
   it('is picked against the render centre the next frame draws, so a scroll or a centring moves it at once', () => {
     const presenter = unrenderedPresenter();

@@ -1,5 +1,6 @@
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
+import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -21,6 +22,7 @@ import {
   lightSpritePower,
   NORMAL_LIGHTLEVEL_DAY,
 } from '../tactical/lighting/lighting.ts';
+import { type AddedExitGrid, addExitGridToWorld } from '../tactical/map-changes.ts';
 import type { BoxingStateName } from '../tactical/narrative/boxing-events.ts';
 import { BOXING_STATE_NAMES } from '../tactical/narrative/boxing-state.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
@@ -28,7 +30,7 @@ import { Opp } from '../tactical/perception/opp.ts';
 import { addMercStructure, removeMercStructure } from '../tactical/person-structure.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import { clearOccupants, createTacticalState, placeOccupant, registerSoldier, type TacticalState } from '../tactical/state.ts';
-import { changesObjectLayer, type TileChangeView } from '../tactical/world-view.ts';
+import { type AddedExitGridView, changesObjectLayer, type TileChangeView } from '../tactical/world-view.ts';
 import { type GuardOptions, guardFields, UnsuppliedFieldError } from './guard.ts';
 import { worldItemFromView } from './objects.ts';
 import { soldierFromView } from './soldiers.ts';
@@ -38,6 +40,9 @@ import type { KnowledgeCorpse, KnowledgeLight, KnowledgeSoldier, KnowledgeView }
 const SANDBOX_HOUR = 12;
 const PROJECTION_SEED = 0;
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
+const NO_EXIT_GRIDS: readonly AddedExitGridView[] = [];
+const NO_SECTOR: Sector = { x: 0, y: 0, z: 0 };
+const ARRIVAL_NOT_SHOWN = 0;
 
 const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'world',
@@ -118,6 +123,10 @@ function applyTileChange(t: TacticalState, c: TileChangeView): boolean {
   return base !== null;
 }
 
+function projectedExitGrid(v: AddedExitGridView): AddedExitGrid {
+  return { mapIndex: v.gridNo, gridNo: ARRIVAL_NOT_SHOWN, sector: v.sector === null ? NO_SECTOR : sectorFromName(v.sector) };
+}
+
 export interface ViewNarrative {
   readonly epcs: ReadonlySet<number>;
   readonly controlledRobots: ReadonlySet<number>;
@@ -148,7 +157,9 @@ export class TacticalProjection {
   readonly #projectedMapDoors: Map<number, MapDoor>;
   readonly #loadedOpenDoors: ReadonlySet<number>;
   readonly #loadedOpenContainers: ReadonlySet<number>;
+  readonly #mapExitGrids: ReadonlySet<number>;
   #tileChanges: readonly TileChangeView[] = NO_TILE_CHANGES;
+  #exitGridsKey = '';
   #placed: Soldier[] = [];
   #lightKey = '';
   #corpseKey = '';
@@ -164,6 +175,7 @@ export class TacticalProjection {
     this.#containers = containerGridNos(world);
     this.#loadedOpenDoors = new Set(this.#doors.filter((g) => isDoorOpenAt(this.state, g)));
     this.#loadedOpenContainers = new Set(this.#containers.filter((g) => isOpenableOpenAt(this.state, g)));
+    this.#mapExitGrids = new Set(world.exitGrids);
   }
 
   follows(changes: readonly TileChangeView[]): boolean {
@@ -177,6 +189,7 @@ export class TacticalProjection {
     this.#liftSoldiers();
     this.#syncTileChanges(view.tileChanges ?? NO_TILE_CHANGES);
     this.#syncDoors(view, guard);
+    this.#syncExitGrids(view.addedExitGrids ?? NO_EXIT_GRIDS);
     this.#syncSoldiers(view.soldiers, guard);
     this.#syncItems(view, guard);
     setKnownMines(t, view.knownMines ?? []);
@@ -208,6 +221,22 @@ export class TacticalProjection {
     for (const c of changes.slice(applied)) if (applyTileChange(t, c)) touched.add(c.gridNo);
     for (const g of touched) recompileLocalMovementCosts(t.world.costs, t.world, g);
     this.#tileChanges = changes;
+  }
+
+  #syncExitGrids(views: readonly AddedExitGridView[]): void {
+    const key = JSON.stringify(views);
+    if (key === this.#exitGridsKey) return;
+    this.#exitGridsKey = key;
+    this.#liftCorpses();
+    const t = this.state;
+    const touched = new Set(t.addedExitGrids.map((e) => e.mapIndex));
+    for (const g of touched) if (!this.#mapExitGrids.has(g)) t.world.exitGrids.delete(g);
+    t.addedExitGrids.length = 0;
+    for (const v of views) {
+      addExitGridToWorld(t, projectedExitGrid(v));
+      touched.add(v.gridNo);
+    }
+    for (const g of touched) recompileLocalMovementCosts(t.world.costs, t.world, g);
   }
 
   #swapOpenables(openDoors: ReadonlySet<number>, openContainers: ReadonlySet<number>): void {

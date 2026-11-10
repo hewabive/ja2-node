@@ -364,8 +364,14 @@ trapdoor and crate, a SAM terminal repaired while its sector was not loaded, the
 sector entry and a native import add again, most wall end pieces; `object` at the head of the tile's object layer: a
 destroyed structure's debris, `12`; `appendObject` at its tail: the hole of an opened pit, which the stay keeps and the
 next entry drops, `12` §6), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
-draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
-or a load took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `revealedAtLoad` lists, as runs
+draws them and lights over them (`20`). `addedExitGrids` lists the exit grids the sector added since its map loaded,
+`{gridNo, sector}` with the sector each leads to (null for a pit opened in the sandbox, which has no sector): the O3
+statue's way down (`26`), the rebel hideout's trapdoor (`35`), an opened pit's tiles (`12` §6), and those its earlier
+stays added, which a sector entry and a native import add again. Each replaces the map's own exit grid on its tile, and
+the client's exit grid cursor and exit box treat it as one of the map's at once, as `AddExitGridToWorld` puts it into
+the world the cursor reads (`TileEngine/Exit_Grids.cc:53`); the tile it brings a merc to is not sent.
+`slantRoofCeilings` lists the tiles where a slanted roof that a revealed room or a load took off shows its ceiling, the
+tiles of the roof no merc has seen yet (`08`). `revealedAtLoad` lists, as runs
 `[first gridNo, count]`, the tiles the last sector entry with saved revealed tiles or native import revealed, outside
 rooms too, which the original reveals as a room reveal does (`08`). `revealedTiles` lists, as runs, every tile revealed
 so far, by sight, a room reveal or a load, outside rooms too, which the picking's roof checks read, and the wire frames of
@@ -551,10 +557,10 @@ trigger, another action item as a detonator), and takes the blue flag off (`trap
 the tile (`trapSetOff` with CURSE1) but those our mercs planted, which stay under their flag; `no` asks `removeBlueFlag`.
 
 An armed pit action item our merc steps on opens a pit around its tile (`pitOpened {gridNo}`, the cave collapse
-sound): its hole in `tileChanges`, exit grids down to the sector below on its tiles, which paths then avoid, and every
-soldier standing on it with a body that has the fall animation, of any team, falls through and leaves the map
-(`fellIntoPit {soldier, gridNo}` for those the squad sees). A merc of ours goes to the sector below on a squad of his
-own, to come in at the pit's tile (`12` §6). The original maps hold no pit, and a map's pit loads unarmed.
+sound): its hole in `tileChanges`, exit grids down to the sector below on its tiles (`addedExitGrids`), which paths
+then avoid, and every soldier standing on it with a body that has the fall animation, of any team, falls through and
+leaves the map (`fellIntoPit {soldier, gridNo}` for those the squad sees). A merc of ours goes to the sector below on a
+squad of his own, to come in at the pit's tile (`12` §6). The original maps hold no pit, and a map's pit loads unarmed.
 
 `plantBomb {soldier, gridNo}` is the bomb cursor's click (`HandleItem`, `Handle_Items.cc:758`): it takes a mine, trip
 flare or trip klaxon in hand, or an explosive with a detonator or remote detonator attached, walks onto the tile (his own
@@ -949,7 +955,8 @@ projection").
 
 **The projection** (`src/sim/knowledge/`, `knowledgeWorld`) builds from a player view and the rule content the minimal
 world the hints read. In tactical it is a `TacticalState` over a fresh copy of the sector's world with the view's
-structure changes replayed over it (`tileChanges`: a cut fence, a blown wall), its doors, containers, items, known mines
+structure changes replayed over it (`tileChanges`: a cut fence, a blown wall), the exit grids it added
+(`addedExitGrids`, which paths keep off and the exit hints lead through), its doors, containers, items, known mines
 and light, the loaded sector of the strategic view (`worldSector`, which the phobias read), our
 soldiers in full and the seen soldiers with their visible fields only: unseen
 soldiers do not exist, so they block no path, absorb no bullet and are no target. A projection kept for the map replays

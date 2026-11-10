@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { tacticalViewParts } from '../../knowledge/sim-view.ts';
 import { applyMapChanges, MapChangeKind } from '../map-changes.ts';
 import { RevealedFlags } from '../perception/fov.ts';
 import { exitGridAt } from '../sector-exit.ts';
@@ -47,6 +48,13 @@ describe('the O3 statue', () => {
       t.mapChanges.filter((c) => c.kind === MapChangeKind.ADD_EXIT_GRID),
     );
     expect(exitGridAt(restored.state, STATUE_EXIT)?.gridNo).toBe(13037);
+  });
+
+  it('shows its way down in the view at once, where the cursor and the hints find it as AddExitGridToWorld puts it into the world', () => {
+    const sim = inO3();
+    expect(tacticalViewParts(sim).addedExitGrids).toEqual([]);
+    statueTakesExplosion(sim.state, STATUE, 1);
+    expect(tacticalViewParts(sim).addedExitGrids).toEqual([{ gridNo: STATUE_EXIT, sector: 'O3-1' }]);
   });
 
   it('opens with the remote trigger only in the statue room of O3', () => {

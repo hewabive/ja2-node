@@ -8,7 +8,15 @@ import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { currentSquad, selectedSoldier } from '../tactical/selection.ts';
 import { shownInSector, type TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
-import { type BulletView, bloodViews, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
+import {
+  addedExitGridViews,
+  type BulletView,
+  bloodViews,
+  bulletViews,
+  corpseViews,
+  smokeViews,
+  tileChangeViews,
+} from '../tactical/world-view.ts';
 import { radarContacts } from '../tactical/xray.ts';
 
 const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
@@ -44,6 +52,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     corpses: corpseViews(sim.state),
     smoke: smokeViews(sim.state),
     tileChanges: tileChangeViews(sim.state),
+    addedExitGrids: addedExitGridViews(sim.state),
     blood: bloodViews(sim.state),
     ...(sim.state.turn.lockItemLocators ? { itemLocatorsLocked: true } : {}),
     ...(contacts.length > 0 ? { radarContacts: contacts } : {}),

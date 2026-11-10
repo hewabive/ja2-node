@@ -94,6 +94,16 @@ describe('view frames', () => {
     expect(cleared && applyViewFrame(marked, cleared).knownMines).toEqual([]);
   });
 
+  it('carry the exit grids added while the sector runs as soon as one is added, and an empty list in a sector without them', () => {
+    const none: PlayerView = { ...base, addedExitGrids: [] };
+    const opened: PlayerView = { ...base, tick: 20, addedExitGrids: [{ gridNo: 13669, sector: 'O3-1' }] };
+    expect(diffPlayerView(none, { ...none, tick: 20 })).toBeNull();
+    expect(diffPlayerView(none, opened)).toEqual({ tick: 20, changed: [], removed: [], addedExitGrids: opened.addedExitGrids });
+    const left = diffPlayerView(opened, { ...base, tick: 30 });
+    expect(left).toMatchObject({ addedExitGrids: [] });
+    expect(left && applyViewFrame(opened, left).addedExitGrids).toEqual([]);
+  });
+
   it('carry the radar contacts of x-rayed soldiers while the x-ray shows them, and an empty list once it stops', () => {
     const contact = { gridNo: 12000, kind: 'enemy' as const };
     const xrayed: PlayerView = { ...base, tick: 20, radarContacts: [contact] };

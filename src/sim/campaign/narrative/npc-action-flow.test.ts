@@ -3,6 +3,7 @@ import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { tileIndex } from '../../../content/world/tile-tables.ts';
+import { tacticalViewParts } from '../../knowledge/sim-view.ts';
 import { SectorFlag } from '../../strategic/forces/constants.ts';
 import { getSectorFlagStatus } from '../../strategic/map/sectors.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
@@ -89,6 +90,7 @@ describe('the rebel hideout', () => {
     const t = c.tactical?.state;
     if (!t) throw new Error('no sector');
     expect(exitGridAt(t, TRAPDOOR)).toEqual({ gridNo: BASEMENT_LANDING, sector: BASEMENT });
+    expect(c.tactical && tacticalViewParts(c.tactical).addedExitGrids).toEqual([{ gridNo: TRAPDOOR, sector: 'A10-1' }]);
     expect(t.world.structures.at(MOVED_CRATE).filter((s) => has(s.flags, StructureFlags.BASE_TILE))).toHaveLength(1);
     expect(tileChangeViews(t).filter((v) => v.gridNo === TRAPDOOR || v.gridNo === MOVED_CRATE)).toEqual([
       { kind: 'append', gridNo: MOVED_CRATE, level: 0, tile: tile(c, 'SECONDOSTRUCT1') },

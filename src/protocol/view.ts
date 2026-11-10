@@ -10,7 +10,15 @@ import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { TileRun } from '../sim/tactical/perception/fov.ts';
 import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
-import type { BloodPoolView, BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
+import type {
+  AddedExitGridView,
+  BloodPoolView,
+  BulletView,
+  CorpseView,
+  SmokeTileView,
+  TileChangeView,
+  WorldLightView,
+} from '../sim/tactical/world-view.ts';
 import type { RadarContactView } from '../sim/tactical/xray.ts';
 import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
@@ -29,6 +37,7 @@ export type { TileRun } from '../sim/tactical/perception/fov.ts';
 export type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
+  AddedExitGridView,
   BloodPoolView,
   BulletView,
   CorpseView,
@@ -1042,6 +1051,7 @@ export interface PlayerView {
   readonly smoke?: readonly SmokeTileView[];
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
+  readonly addedExitGrids?: readonly AddedExitGridView[];
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
   readonly radarContacts?: readonly RadarContactView[];
@@ -1093,6 +1103,7 @@ export interface ViewFrame {
   readonly smoke?: readonly SmokeTileView[];
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
+  readonly addedExitGrids?: readonly AddedExitGridView[];
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
   readonly radarContacts?: readonly RadarContactView[];
@@ -1231,6 +1242,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), light: next.light ?? null };
   if (!sameJson(previous.tileChanges ?? [], next.tileChanges ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), tileChanges: next.tileChanges ?? [] };
+  if (!sameJson(previous.addedExitGrids ?? [], next.addedExitGrids ?? []))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), addedExitGrids: next.addedExitGrids ?? [] };
   if (!sameJson(previous.blood ?? [], next.blood ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), blood: next.blood ?? [] };
   if ((previous.itemLocatorsLocked ?? false) !== (next.itemLocatorsLocked ?? false))

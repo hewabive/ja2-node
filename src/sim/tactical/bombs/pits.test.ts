@@ -6,6 +6,7 @@ import { Direction, gridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { tileIndexFromTypeSubIndex, typeIndex } from '../../../content/world/tile-tables.ts';
 import type { SimEvent } from '../../events.ts';
+import { tacticalViewParts } from '../../knowledge/sim-view.ts';
 import { anim } from '../anim-states.ts';
 import { applyMapChanges, objectLayerAt, sectorTempFileChanges } from '../map-changes.ts';
 import { exitGridAt } from '../sector-exit.ts';
@@ -109,6 +110,19 @@ describe('the pit action items (Explosion_Control.cc PerformItemAction, Pits.cc 
     expect(sim.drainEvents()).toContainEqual(expect.objectContaining({ type: 'pitOpened', gridNo: PIT }));
   });
 
+  it('shows its exit grids in the view at once, where the cursor and the hints find them as AddExitGridToWorld puts them into the world', () => {
+    const sim = a9();
+    spawnSoldier(sim, MERC, Team.OUR, PIT - 2 * WORLD_COLS, Direction.SOUTH);
+    expect(tacticalViewParts(sim).addedExitGrids).toEqual([]);
+    placePit(sim.state, PIT, ItemAction.SMALL_PIT);
+    stepOnPit(sim, PIT);
+    const shown = tilesOf(PIT, SMALL_PIT_OFFSETS).map((g) => ({ gridNo: g, sector: 'A9-1' }));
+    expect(tacticalViewParts(sim).addedExitGrids).toEqual(shown);
+    const entered = a9();
+    applyMapChanges(entered.state, sectorTempFileChanges(sim.state.mapChanges));
+    expect(tacticalViewParts(entered).addedExitGrids).toEqual(shown);
+  });
+
   it('opens a large pit with the textures 10 to 34 in the order of Add5X5Pit', () => {
     const sim = a9();
     const t = sim.state;
@@ -192,6 +206,9 @@ describe('the pit action items (Explosion_Control.cc PerformItemAction, Pits.cc 
     placePit(t, centre, ItemAction.SMALL_PIT);
     stepOnPit(sim, centre);
     expect(exitGridAt(t, A10_EXIT_GRID)).toEqual({ gridNo: centre, sector: A10_BASEMENT });
+    expect(tacticalViewParts(sim).addedExitGrids?.filter((e) => e.gridNo === A10_EXIT_GRID)).toEqual([
+      { gridNo: A10_EXIT_GRID, sector: 'A10-1' },
+    ]);
   });
 
   it('loses its textures at the next entry but keeps its exit grids: AddObjectToTail writes nothing to the temp file', () => {

@@ -22,10 +22,12 @@ import type { ClimbView, SoldierView, ViewFrame } from '../../../protocol/view.t
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
+import { Npc } from '../../../sim/strategic/narrative/npc-ids.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
+import { NpcActionCode } from '../../../sim/tactical/narrative/npc-actions/codes.ts';
 import { Orders } from '../../../sim/tactical/soldier.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
@@ -1887,6 +1889,24 @@ describe('the exit texts of a merc escorting someone, in a stub campaign', () =>
       '<merc> cannot leave this sector alone as he is escorting <escort>.',
       '<merc> cannot leave this sector alone as she is escorting <escort>.',
     ]);
+  });
+});
+
+describe('the exit grid cursor over an exit grid added while the sector ran, in a stub campaign', () => {
+  const TRAPDOOR = 7887;
+
+  it("shows over the rebels' trapdoor once the squad is back up from the hideout, as over the map's own exit grids", async () => {
+    const a10 = await campaignInA10(kit, 5);
+    await a10.campaign.prepare({ type: 'talk' });
+    const actions = a10.campaign.campaign.talk?.npcActions;
+    if (!actions) throw new Error('no NPC actions');
+    actions.handle(Npc.FATIMA, NpcActionCode.GOTO_HIDEOUT, 0);
+    actions.handle(Npc.FATIMA, NpcActionCode.LEAVE_HIDEOUT, 0);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    f.world.camera = { centerX: (TRAPDOOR % WORLD_COLS) * 10 + 5, centerY: Math.floor(TRAPDOOR / WORLD_COLS) * 10 + 5 };
+    hover(f, TRAPDOOR);
+    f.t.frame(EXCHANGE_CURSOR_SAMPLE_MS);
+    expect(f.screen.controls.input.uiCursor).toBe('EXIT_GRID_UICURSOR');
   });
 });
 

@@ -43,6 +43,7 @@ export function canonicalView(
     smoke: view.smoke ?? [],
     light: view.light ?? null,
     tileChanges: view.tileChanges ?? [],
+    addedExitGrids: view.addedExitGrids ?? [],
     music: view.music ? { mode: view.music.mode, creature: view.music.creature } : undefined,
   };
 }
