@@ -34,6 +34,9 @@
 // @src Strategic/Map_Screen_Interface.cc HandleTimeCompressWithTeamJackedInAndGearedToGo, Tactical/Merc_Hiring.cc
 // @src MercArrivesCallback, Tactical/Vehicles.cc PutSoldierInVehicle, Tactical/TeamTurns.cc BeginTeamTurn,
 // @src Tactical/Overhead.cc CheckForEndOfBattle, Tactical/Dialogue_Control.cc SayQuoteFromAnyBodyInSector (helicopter drop probes)
+// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc RequestTriggerExitFromMapscreen, Tactical/Interface_Panels.cc
+// @src GoToMapScreenFromTactical, Strategic/Strategic_Movement.cc SetGroupSectorValue, Strategic/Game_Clock.cc UpdateClock
+// @src (map-to-sector entry probes, 2026-11-10)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -11323,7 +11326,9 @@ void ProbePassengerSave(Command const& c)
 #include "HelpScreen.h"
 #include "Input.h"
 #include "Interface_Dialogue.h"
+#include "Interface_Panels.h"
 #include "MapScreen.h"
+#include "Map_Screen_Interface_Bottom.h"
 #include "Map_Screen_Interface_Map.h"
 #include "MessageBoxScreen.h"
 #include "Physics.h"
@@ -11758,6 +11763,21 @@ void ProbeSceneState(Command const& c)
 	RunSceneProbe(c, Nothing);
 }
 
+void PlaceSquadGroups(SGPSector const& sector)
+{
+	std::vector<UINT8> groups;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (s->bLife == 0 || s->ubGroupID == 0) continue;
+		if (std::find(groups.begin(), groups.end(), s->ubGroupID) == groups.end()) groups.push_back(s->ubGroupID);
+	}
+	for (UINT8 const id : groups)
+	{
+		GROUP* const g = GetGroup(id);
+		if (g && g->fPlayer) SetGroupSectorValue(sector, *g);
+	}
+}
+
 void ProbeSceneSet(Command const& c)
 {
 	if (Has(c, "seen")) gGameSettings.uiMeanwhileScenesSeenFlags = static_cast<UINT32>(Integer(c, "seen", 0));
@@ -11777,8 +11797,41 @@ void ProbeSceneSet(Command const& c)
 		}
 	}
 	if (Has(c, "compress")) SetGameTimeCompressionLevel(static_cast<UINT32>(Integer(c, "compress", TIME_COMPRESS_X0)));
+	if (Integer(c, "stop", 0) != 0) StopTimeCompression();
+	if (Has(c, "place")) PlaceSquadGroups(StrategicSectorArgument(c, "place"));
 	if (Has(c, "select")) ChangeSelectedMapSector(StrategicSectorArgument(c, "select"));
 	RunSceneProbe(c, Nothing);
+}
+
+void ProbeSceneExit(Command const& c)
+{
+	std::string const to = Text(c, "to", "");
+	if (to != "tactical" && to != "map") throw std::runtime_error("mwexit to is tactical or map: " + to);
+	RunSceneProbe(c, [&] {
+		if (to == "map")
+		{
+			GoToMapScreenFromTactical();
+			return std::string{};
+		}
+		bool const allowed = AllowedToExitFromMapscreenTo(MAP_EXIT_TO_TACTICAL);
+		RequestTriggerExitFromMapscreen(MAP_EXIT_TO_TACTICAL);
+		return Json{}.flag("allowed", allowed).text();
+	});
+}
+
+void ProbeSceneClock(Command const& c)
+{
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.str("screen", ScreenName(guiCurrentScreen))
+		.flag("inMapMode", fInMapMode)
+		.flag("worldLoaded", gfWorldLoaded)
+		.raw("world", SectorTriple(gWorldSector))
+		.nums("compression", {giTimeCompressMode, IsTimeCompressionOn(), IsTimeBeingCompressed()})
+		.nums("pause", {GamePaused(), PauseStateLocked(), gfPauseDueToPlayerGamePause})
+		.num("worldSeconds", GetWorldTotalSeconds())
+		.num("ja2clock", GetJA2Clock()));
 }
 
 void ProbeSceneBegin(Command const& c)
@@ -11860,6 +11913,7 @@ void ProbeSceneFrames(Command const& c)
 	long long const step = Integer(c, "step", DEFAULT_FRAME_STEP_MS);
 	std::string const until = Text(c, "until", "");
 	std::string const answer = Text(c, "answer", "");
+	bool const clock = Integer(c, "clock", 0) != 0;
 	if (count < 1 || count > SCENE_MAX_FRAMES) throw std::runtime_error("count out of range: " + std::to_string(count));
 	if (!OracleVirtualClockOn()) throw std::runtime_error("mwframes needs the virtual clock (hdtimer on=1)");
 	SceneFramesDone(until);
@@ -11883,6 +11937,7 @@ void ProbeSceneFrames(Command const& c)
 			dialogue.clear();
 			boxes.clear();
 			ScreenID const screen = RunSceneFrame(answer);
+			if (clock) UpdateClock();
 			++frames;
 			std::string const changed = ChangedSceneRows(last);
 			std::vector<long long> const globals = SceneGlobalValues();
@@ -12249,6 +12304,8 @@ void Dispatch(Command const& c)
 	if (c.name == "mwbegin") return ProbeSceneBegin(c);
 	if (c.name == "mwsquad") return ProbeSceneSquad(c);
 	if (c.name == "mwframes") return ProbeSceneFrames(c);
+	if (c.name == "mwexit") return ProbeSceneExit(c);
+	if (c.name == "mwclock") return ProbeSceneClock(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

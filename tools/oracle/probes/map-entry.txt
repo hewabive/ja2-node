@@ -1,0 +1,88 @@
+# The compression mode a sector entry from the map leaves (0030, 0031, 0032 for the frame driver): the map screen's
+# tactical button (mwexit to=tactical: RequestTriggerExitFromMapscreen, then HandleExitsFromMapScreen's
+# SetCurrentWorldSector two frames later) for a sector that is not loaded and for the loaded one, from X0, a stopped
+# 30-minute mode and a running one; the tactical clock over 5 s of frames that run UpdateClock as the game loop does
+# (clock=1), the tactical screen's map button (mwexit to=map) and the way back. mwset place moves every player group
+# with SetGroupSectorValue, whose CheckAndHandleUnloadingOfCurrentWorld unloads the sector the squad left. Each block
+# loads SaveGame01 (the squad in B13, loaded, on the map screen) on the virtual clock.
+
+hdtimer on=1
+seed value=3
+
+# 1. X0, B12 not loaded: the load keeps X0 and the clock stands; the map keeps X0; the way back sets X1.
+save SaveGame01
+seed value=5 pre=reseed
+mwset screen=map
+mwframes count=1
+mwset compress=0 place=B12 select=B12
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock
+mwframes count=1000 clock=1
+mwclock
+mwexit to=map
+mwframes count=60
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock
+mwframes count=1000 clock=1
+mwclock
+
+# 2. A stopped 30-minute mode, B12 not loaded: the load keeps the mode, stopped, and the map keeps it.
+save SaveGame01
+seed value=5 pre=reseed
+mwset screen=map
+mwframes count=1
+mwset compress=3 stop=1 place=B12 select=B12
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock
+mwframes count=1000 clock=1
+mwclock
+mwexit to=map
+mwframes count=60
+mwclock
+
+# 3. A running 30-minute mode, B12 not loaded: the load stops it and keeps the mode through the stay and the map.
+save SaveGame01
+seed value=5 pre=reseed
+mwset screen=map
+mwframes count=1
+mwset compress=3 place=B12 select=B12
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock
+mwframes count=1000 clock=1
+mwclock
+mwexit to=map
+mwframes count=60
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock
+
+# 4. X0 and a running 30-minute mode with B13 loaded: the pending game screen's EndMapScreen sets X1.
+save SaveGame01
+seed value=5 pre=reseed
+mwset screen=map
+mwframes count=1
+mwset compress=0 select=B13
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock
+mwframes count=1000 clock=1
+mwclock
+save SaveGame01
+seed value=5 pre=reseed
+mwset screen=map
+mwframes count=1
+mwset compress=3 select=B13
+mwclock
+mwexit to=tactical
+mwframes count=60
+mwclock

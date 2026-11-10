@@ -34,6 +34,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Recruiting | R.P.C.s, E.P.C. escort and release, the robot | `recruit.txt` | `recruit-compare.ts` | 0018 | `24` |
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
 | Meanwhile scenes | palace scenes played frame by frame through the box, the fades, the hall's load, the Queen's records and the way back: from the game screen, from the map with compression on and a sector selected, from the map with no world, Skip on a scene seen before, a scene with P3 itself loaded ended by Esc | `meanwhile-scenes.txt` | `meanwhile-scenes-compare.ts` | 0019, 0030, 0031, 0032 | `26` |
+| Map-to-sector entry | the compression mode and the tactical clock after the map's tactical button, for a sector not loaded and for the loaded one, from X0, a stopped and a running 30-minute mode; the map screen after the stay and the way back | `map-entry.txt` | `map-entry-compare.ts` | 0030, 0031, 0032 | `15` |
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
 | Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
@@ -658,6 +659,24 @@ soldiers at the end (Elliot shot, Joe moved), and after the way back the soldier
 insertion and the world items. Not compared: the box's own lock reason, the frames' timing (the dialogue's in-order
 draws), the world clock (no frame runs `UpdateClock`).
 
+### Map-to-sector entry
+
+Commands (in `Oracle.cc`, on 0032's frame driver): `mwset` also takes `stop=1` (`StopTimeCompression` after `compress=`)
+and `place=` (every player group moved there with `SetGroupSectorValue`, whose `CheckAndHandleUnloadingOfCurrentWorld`
+unloads the sector the squad left); `mwexit to=tactical` presses the map screen's tactical button
+(`RequestTriggerExitFromMapscreen(MAP_EXIT_TO_TACTICAL)`, `allowed` is `AllowedToExitFromMapscreenTo` before it; the
+exit runs in `HandleExitsFromMapScreen` two frames later), `mwexit to=map` the tactical screen's map button
+(`GoToMapScreenFromTactical`); `mwframes clock=1` runs `UpdateClock` after each frame as `GameLoop` does; `mwclock` prints
+the screen, the world sector, the mode with `IsTimeCompressionOn` and `IsTimeBeingCompressed`, the pause and the world
+time.
+
+`map-entry-compare.ts` imports the save into a session of the tactical flow, sets the same screen, mode, stop, squad
+sector and selection (the pause from the native state), takes `mwexit to=tactical` as `enterSector` of the selected
+sector and `to=map` as `mapScreen`, runs one campaign step a frame for `mwframes clock=1` and none for the other frames
+(the load is done in the command), and compares the screen, the world sector and the compression state at every
+`mwset`, `mwframes` and `mwclock`, with the world time at `mwclock`. Not compared: the loads themselves (no draw
+replay), the pause on the map (the native one comes from the save).
+
 ### Boxing
 
 No save stands in San Mona, so every block starts with `boxingsquad`: the listed mercs and their groups move to D5 with
@@ -989,6 +1008,7 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
   both outputs ("Savegame temp files").
 - `save-sectors.txt` writes `save-sectors/entries.jsonl` ("Savegame temp files").
 - `meanwhile-scenes.txt` writes `meanwhile-scenes/scenes.jsonl` ("Meanwhile scenes"); it needs a build with 0032.
+- `map-entry.txt` writes `map-entry/map-entry.jsonl` ("Map-to-sector entry"); it needs a build with 0032.
 - `save-bombs-setup.txt` writes `save-bombs/setup.jsonl` and the saves `OracleExplosion`, `OracleBombQueue` and
   `OracleCombatBlast` into the oracle's home; `save-bombs.txt` reads them from there, so it runs after it, and writes
   `save-bombs/loads.jsonl`. The work dir keeps copies of the saves in `save-bombs/`, where `compare.ts` finds them.

@@ -63,6 +63,7 @@ import { GIVE_PROBES, GiveComparer } from './give-compare.ts';
 import { HELI_PROBES, HeliComparer } from './heli-compare.ts';
 import { HeliDropComparer, isHeliDropOutput } from './helidrop-compare.ts';
 import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
+import { isMapEntryOutput, MapEntryComparer } from './map-entry-compare.ts';
 import { MEANWHILE_PROBES, MeanwhileComparer } from './meanwhile-compare.ts';
 import { isMeanwhileScenesOutput, MeanwhileSceneComparer } from './meanwhile-scenes-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
@@ -659,6 +660,11 @@ for (const file of files) {
     const scenes = new MeanwhileSceneComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
     const lines = readLines(file);
     for (const [at, p] of lines.entries()) failures += await scenes.compare(p, loadDrawsAfter(lines, at));
+    continue;
+  }
+  if (isMapEntryOutput(file)) {
+    const entry = new MapEntryComparer(read, exists, (name) => saveBytesFor(dataDir, file, name));
+    for (const p of readLines(file)) failures += await entry.compare(p);
     continue;
   }
   if (isSaveFlightOutput(file)) {
