@@ -379,6 +379,7 @@ export interface LifeLostEvent extends SimEventBase {
   readonly type: 'lifeLost';
   readonly soldier: number;
   readonly amount: number;
+  readonly shown?: number;
 }
 
 export interface SoldierDiedEvent extends SimEventBase {

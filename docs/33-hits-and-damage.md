@@ -167,6 +167,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A stat change rolls `PreRandom` once per chance, even at chance 0 | `experience.test.ts` |
 | Bad news hurts one point more on a roof: the original reads the map level where it meant the experience level | `morale.test.ts` |
 | A militia kill counts three | `death.test.ts` |
+| The floating damage number shows the damage taken since it last faded, out of sight too, not the life lost: a dying enemy whom the bleeding kills outright shows 1, an overkill the whole hit (`lifeLost.shown`) | `src/sim/tactical/hud-view.test.ts` "shows the deductions added up …", "adds the damage a soldier took out of sight …" |
 | A soldier knocked out on his own team's turn counts two turns down, also in a pose with no unconscious stop: the original runs its getting-up check twice | `death.test.ts` |
 | A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
 | A soldier in sight hurt by gas or electricity cries his death sound at every hurt, alive or not, and counts it as played, so code 497 of a later death stays silent (`Tactical/Soldier_Control.cc:5370`) | `bleeding.test.ts` "counts as played at every gas or electric hurt …", `src/audio/director.test.ts` "cries DIE1 for a seen soldier …" |

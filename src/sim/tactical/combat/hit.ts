@@ -84,6 +84,7 @@ const HEIGHT_UNITS = 256;
 const AP_GET_WOUNDED_DIVISOR = 4;
 const DAMAGE_DISPLAY_DELAY = 250;
 const DAMAGE_DISPLAY_STEPS = 8;
+const MAX_DISPLAYED_DAMAGE = 1000;
 const NO_FLAGS = 0;
 const LEVEL_HEIGHT = 0;
 const MIN_GORE_BLAST_RADIUS = 3;
@@ -727,7 +728,9 @@ export function soldierTakeDamage(
   }
   s.damageWindow = i16(s.damageWindow + life);
   if (s.life < 0) s.life = 0;
-  if (s.life < oldLife && s.placed && s.visible !== -1) t.events.push({ type: 'lifeLost', soldier: s.id, amount: oldLife - s.life });
+  const displaysDamage = s.placed && s.visible !== -1 && oldLife !== 0 && life !== 0 && life < MAX_DISPLAYED_DAMAGE;
+  if (s.life < oldLife && s.placed && s.visible !== -1)
+    t.events.push({ type: 'lifeLost', soldier: s.id, amount: oldLife - s.life, ...(displaysDamage ? { shown: s.damageWindow } : {}) });
   if (reason === DamageReason.EXPLOSION || reason === DamageReason.STRUCTURE_EXPLOSION) checkEquipmentForDamage(t, s, life);
   if (reason !== DamageReason.GAS && !isRobot(s)) {
     if (reason === DamageReason.HANDTOHAND) {
@@ -739,7 +742,7 @@ export function soldierTakeDamage(
   const combined = u8(idiv(u8(life), 10) + idiv(breath, 2000));
   if (!isRobot(s)) s.shock = i8(s.shock + combined);
   s.nextBleed = calcNextBleed(s);
-  if (s.placed && s.visible !== -1 && oldLife !== 0 && life !== 0 && life < 1000) {
+  if (displaysDamage) {
     s.displayDamage = true;
     s.damageWindowSteps = 0;
   }

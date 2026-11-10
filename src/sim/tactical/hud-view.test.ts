@@ -440,4 +440,31 @@ describe('life deductions (lifeLost)', () => {
     checkBleeding(sim.state, bleeder);
     expect(eventsOf(sim.drainEvents(), 'lifeLost')).toMatchObject([{ soldier: 1, amount: 1 }]);
   });
+
+  it('shows the deductions added up since the number last faded, not the life lost: a dying enemy the bleeding kills shows 1 (Soldier_Control.cc:5636, :5697)', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 30 });
+    const dying = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), Direction.NORTH, { life: 12 });
+    sim.lookAround();
+    sim.drainEvents();
+    soldierTakeDamage(sim.state, merc, 50, 0, DamageReason.GUNFIRE, null);
+    soldierTakeDamage(sim.state, dying, 1, 0, DamageReason.BLOODLOSS, null);
+    expect(dying.life).toBe(0);
+    expect(eventsOf(sim.drainEvents(), 'lifeLost')).toEqual([
+      expect.objectContaining({ soldier: 0, amount: 30, shown: 50 }),
+      expect.objectContaining({ soldier: 20, amount: 12, shown: 1 }),
+    ]);
+  });
+
+  it('adds the damage a soldier took out of sight to the number his next seen hit shows (Soldier_Control.cc:5636)', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 150), Direction.WEST, { life: 60 });
+    sim.drainEvents();
+    soldierTakeDamage(sim.state, enemy, 5, 0, DamageReason.GUNFIRE, null);
+    expect(eventsOf(sim.drainEvents(), 'lifeLost')).toEqual([]);
+    enemy.visible = Visible.SEEN;
+    soldierTakeDamage(sim.state, enemy, 3, 0, DamageReason.GUNFIRE, null);
+    expect(eventsOf(sim.drainEvents(), 'lifeLost')).toEqual([expect.objectContaining({ soldier: 20, amount: 3, shown: 8 })]);
+  });
 });

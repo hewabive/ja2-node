@@ -245,7 +245,6 @@ export class Locator {
 
 const DAMAGE_DISPLAY_DELAY_MS = 250;
 const DAMAGE_STEPS = 8;
-const MAX_SHOWN_DAMAGE = 1000;
 
 export class DamageNumber {
   amount = 0;
@@ -275,10 +274,6 @@ export class DamageNumber {
     this.dy--;
     return this.#steps < DAMAGE_STEPS;
   }
-}
-
-export function showsDamage(oldLife: number, amount: number): boolean {
-  return oldLife !== 0 && amount !== 0 && amount < MAX_SHOWN_DAMAGE;
 }
 
 const HEALTH_THRESHOLDS = [15, 30, 45, 60, 75, 90, 101] as const;

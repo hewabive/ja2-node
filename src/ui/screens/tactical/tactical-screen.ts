@@ -157,7 +157,6 @@ import {
   locateLocatorCycles,
   printAboveGuy,
   SOLDIER_LOCATE_FLAGS,
-  showsDamage,
   slideLocatorCycles,
   TimeCounter,
   TOP_BAR_HEIGHT,
@@ -1445,26 +1444,20 @@ export class TacticalScreen implements Screen {
     });
   }
 
+  #showDamage(soldier: number, amount: number): void {
+    const offset = this.#boundingOffset(soldier);
+    const number = this.#damage.get(soldier) ?? new DamageNumber(this.#simMs(), offset.x, offset.y);
+    number.restart(this.#simMs(), offset.x, offset.y);
+    number.amount = amount;
+    this.#damage.set(soldier, number);
+  }
+
   #event(event: FrameEvent, frame: ViewFrame): void {
     const view = this.#view();
     switch (event.type) {
-      case 'lifeLost': {
-        const after = frame.changed.find((c) => c.id === event.soldier) ?? soldierById(view, event.soldier);
-        if (!after) return;
-        const oldLife = (after.life ?? 0) + event.amount;
-        if (!showsDamage(oldLife, event.amount)) return;
-        const offset = this.#boundingOffset(event.soldier);
-        const shown = this.#damage.get(event.soldier);
-        if (shown) {
-          shown.amount += event.amount;
-          shown.restart(this.#simMs(), offset.x, offset.y);
-        } else {
-          const number = new DamageNumber(this.#simMs(), offset.x, offset.y);
-          number.amount = event.amount;
-          this.#damage.set(event.soldier, number);
-        }
+      case 'lifeLost':
+        if (event.shown !== undefined) this.#showDamage(event.soldier, event.shown);
         return;
-      }
       case 'statChanged': {
         const key = event.stat === 'experience' ? 'level' : event.stat;
         if (!STAT_KEYS.includes(key as StatKey) || event.change === 0) return;

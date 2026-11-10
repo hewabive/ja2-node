@@ -49,7 +49,7 @@ function lowerCondition(t: TacticalState, vs: Soldier, damage: number): void {
   if (!vs.placed || vs.visible === Visible.HIDDEN || damage === 0) return;
   vs.displayDamage = true;
   vs.damageWindowSteps = 0;
-  if (vs.life < before) t.events.push({ type: 'lifeLost', soldier: vs.id, amount: before - vs.life });
+  if (vs.life < before) t.events.push({ type: 'lifeLost', soldier: vs.id, amount: before - vs.life, shown: vs.damageWindow });
 }
 
 function active(s: Soldier | null | undefined): s is Soldier {
