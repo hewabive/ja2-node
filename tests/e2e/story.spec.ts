@@ -17,6 +17,22 @@ const SCENE_TIMEOUT_MS = 60_000;
 const STORY_SCENE_SEEN = 1 << STORY_SCENE;
 const SKIPPED_SCENE_FRAMES = 20;
 
+const VIDEO_OVERLAY_CLASS = 'ja2-video';
+
+async function recordVideoParents(page: Page): Promise<void> {
+  await page.addInitScript((overlayClass) => {
+    const parents: string[] = [];
+    (window as unknown as { __videoParents: string[] }).__videoParents = parents;
+    new MutationObserver((records) => {
+      for (const record of records)
+        for (const node of record.addedNodes)
+          if (node instanceof HTMLElement && node.classList.contains(overlayClass)) parents.push(node.parentElement?.id ?? '');
+    }).observe(document, { childList: true, subtree: true });
+  }, VIDEO_OVERLAY_CLASS);
+}
+
+const videoParents = (page: Page) => page.evaluate(() => (window as unknown as { __videoParents: string[] }).__videoParents);
+
 const sessions: string[] = [];
 
 async function loadSession(request: APIRequestContext, name: string): Promise<string> {
@@ -183,14 +199,16 @@ test.describe('the story and the help screens on /play', () => {
     expect(await page.evaluate(() => window.__ja2Ui.story?.played)).toEqual(['meanwhileBox', 'meanwhile']);
   });
 
-  test('the Queen dies in the palace basement and the ending runs to the videos, the silent credits and the main menu', async ({
+  test('the Queen dies in the palace basement and the ending runs to the videos inside the stage that goes fullscreen, the silent credits and the main menu', async ({
     page,
     request,
   }) => {
     await settings(page, { helpHidden: true });
     const session = await loadSession(request, STORY_PALACE_SAVE);
+    await recordVideoParents(page);
     await openGame(page, session, 'tactical');
     await page.waitForFunction(() => window.__ja2Ui.screen === 'credits');
+    expect(await videoParents(page)).toEqual(['stage']);
     expect(await page.evaluate(() => window.__ja2Ui.story?.played)).toEqual(['upstairs', 'ending']);
     const ending = await page.evaluate(() => window.__ja2Ui.video?.sequences.at(-1) ?? null);
     expect(ending?.plan).toMatchObject({ sequence: 'ending', followedBy: 'credits' });

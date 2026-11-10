@@ -235,7 +235,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     zooms,
     playBeginning: async () => {
       if (!sequenceEnabled('beginning', settings.current())) return;
-      await playSequence(beginningPlan(), { sound: engineSound(ui.audio.engine), monitor: video });
+      await playSequence(beginningPlan(), { parent: page.stage, sound: engineSound(ui.audio.engine), monitor: video });
     },
     music: (mode: FrontEndMusic) => music.show(mode, client.client?.music ?? null),
     quit: () => location.assign(LAUNCHER_PAGE),

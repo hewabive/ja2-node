@@ -45,7 +45,7 @@ export function createStoryLayer(o: StoryHostOptions): StoryLayer {
     if (host.depth === 0) host.push(new StoryBlackScreen(() => runtime.geometry()));
     else host.replace(new StoryBlackScreen(() => runtime.geometry()));
     clearBlack();
-    await playSequence(endingPlan(ending), { sound: engineSound(o.ui.audio.engine), monitor: o.video });
+    await playSequence(endingPlan(ending), { parent: o.page.stage, sound: engineSound(o.ui.audio.engine), monitor: o.video });
     o.flow.credits();
   };
   return new StoryLayer({
