@@ -1,5 +1,5 @@
 import type { ItemTable } from '../../src/content/items/items.ts';
-import { fightHere } from './battle.ts';
+import { type BattleOptions, fightHere } from './battle.ts';
 import { rearm } from './first-aid.ts';
 import { rejoinSquad, restAndHeal } from './heal.ts';
 import type { Game, GameEvent, Observation } from './mcp-game.ts';
@@ -338,7 +338,7 @@ export class CampaignBot {
       const result = await travel(
         this.p,
         sector,
-        (p) => fightHere(p, { retreat: edge, casualtyLimit: ASSAULT_CASUALTY_LIMIT }),
+        (p) => fightHere(p, assaultOptions(p.view, sector, edge)),
         (where) => this.heal(where),
       );
       if (result === 'arrived') {
@@ -404,6 +404,10 @@ export function edgeToward(sector: string, from: string): Edge {
   if (fromRow < row) return 'north';
   if (fromRow > row) return 'south';
   return fromColumn < column ? 'west' : 'east';
+}
+
+export function assaultOptions(view: Observation, sector: string, edge: Edge): BattleOptions {
+  return view.strategic?.worldSector === sector ? { retreat: edge, casualtyLimit: ASSAULT_CASUALTY_LIMIT } : {};
 }
 
 interface HireOrder {

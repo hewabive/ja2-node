@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { edgeToward } from './campaign.ts';
+import { assaultOptions, edgeToward } from './campaign.ts';
 import { centroid, gridNo, tiles, towards } from './grid.ts';
+import type { Observation } from './mcp-game.ts';
+
+function loaded(sector: string): Observation {
+  return { soldiers: [], strategic: { flow: 'tactical', worldSector: sector } } as unknown as Observation;
+}
 
 describe('the campaign bot geometry', () => {
   it('leaves an attacked sector by the edge it came in from', () => {
@@ -8,6 +13,11 @@ describe('the campaign bot geometry', () => {
     expect(edgeToward('N3', 'O3')).toBe('south');
     expect(edgeToward('O3', 'O4')).toBe('east');
     expect(edgeToward('O4', 'O3')).toBe('west');
+  });
+
+  it('retreats by that edge only from the attacked sector, and defends the sector it fell back to', () => {
+    expect(assaultOptions(loaded('M3'), 'M3', 'north')).toMatchObject({ retreat: 'north' });
+    expect(assaultOptions(loaded('L3'), 'M3', 'north')).toEqual({});
   });
 
   it('steps towards a goal without overshooting it', () => {
