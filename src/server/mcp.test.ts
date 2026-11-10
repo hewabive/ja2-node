@@ -6,6 +6,7 @@ import { Vfs } from '../content/vfs/vfs.ts';
 import type { SoldierView } from '../protocol/view.ts';
 import { refuse } from '../sim/tactical/refusal.ts';
 import { createApp } from './app.ts';
+import { OBSERVATION_FIELDS } from './observation.ts';
 import { Session, type SessionSim } from './session.ts';
 import { InProcessHost, type SessionHost } from './session-host.ts';
 import { SliceScheduler, TimeSlicer } from './slicing.ts';
@@ -116,6 +117,49 @@ describe('MCP endpoint', () => {
     expect(await agents[1]?.call('status', { session: 'battle' })).toMatchObject({ tick: LONG_TURN_TICKS, idle: true });
     expect(slow.slices).toBeGreaterThan(1);
     for (const agent of agents) await agent?.client.close();
+  });
+
+  it('lets observe answer only the top-level fields asked for, the whole observation without them', async () => {
+    const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
+    const app = createApp({
+      vfs: new Vfs([]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: false },
+      sessions,
+      defaultSession: 'sandbox',
+    });
+    const { client, call } = await mcpClient(app);
+    const whole = await call('observe');
+    expect(whole).toEqual({
+      tick: 0,
+      mapPath: 'maps/a9.dat',
+      soldiers: [{ id: 1, name: 'Ivan' }],
+      language: 'eng',
+      dataVersion: 'stubs',
+      saveMode: 'anywhere',
+      canSave: true,
+    });
+    expect(await call('observe', { fields: ['soldiers', 'tick'] })).toEqual({ tick: 0, soldiers: [{ id: 1, name: 'Ivan' }] });
+    expect(await call('observe', { fields: [...OBSERVATION_FIELDS] })).toEqual(whole);
+    expect(await call('observe', { fields: ['laptop', 'combat'] })).toEqual({});
+    await client.close();
+  });
+
+  it('refuses an observe field that is not a top-level key, naming the valid ones', async () => {
+    const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
+    const app = createApp({
+      vfs: new Vfs([]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: false },
+      sessions,
+      defaultSession: 'sandbox',
+    });
+    const { client } = await mcpClient(app);
+    const refused = await client.callTool({ name: 'observe', arguments: { fields: ['soldiers', 'turn'] } }, undefined, MCP_CALL_OPTIONS);
+    const answer = (refused.content as { text: string }[])[0]?.text ?? '';
+    expect(refused.isError).toBe(true);
+    expect(answer).toContain(`"turn" is not an observe field; the fields are ${OBSERVATION_FIELDS.join(', ')}`);
+    await client.close();
   });
 
   it('describes auto-bandage: its two commands, the prompt, the view block, the events and every refusal', async () => {

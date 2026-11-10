@@ -17,7 +17,7 @@ import type { LogSegment } from './input-log.ts';
 import { threadLoopDelay } from './loop-delay.ts';
 import { isQueryCommand, type QueryAnswer } from './query.ts';
 import { snapshotText } from './save-file.ts';
-import { saveStatus } from './save-rules.ts';
+import { type SaveStatus, saveStatus } from './save-rules.ts';
 import { type LoadOutcome, SaveLoadError, type SaveOutcome, type SaveRequest, type SaveService, sessionSnapshot } from './save-service.ts';
 import type { Listener, Session } from './session.ts';
 import {
@@ -37,11 +37,13 @@ export type SessionHostKind = (typeof SESSION_HOST_KINDS)[number];
 
 export type SessionDescription = Record<string, unknown>;
 
+export type ObservationStatus = ReturnType<typeof optionsStatus> & SaveStatus & ReturnType<typeof viewerPromptsStatus>;
+
 export interface SessionObservation {
   readonly view: PlayerView;
   readonly language: UiLanguage;
   readonly dataVersion: DataVersion;
-  readonly status: Readonly<Record<string, unknown>>;
+  readonly status: ObservationStatus;
 }
 
 export interface CreationReport {

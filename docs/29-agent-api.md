@@ -41,6 +41,14 @@ never with `observe`.
 then `advance` to idle, a decision or a watched event; the report's events and messages say what happened. A long
 campaign is thousands of actions: read the events instead of observing after every step.
 
+**Observing less.** `observe` with `fields`, a list of top-level keys (`["soldiers", "combat", "prompt"]`), answers only
+those (`src/server/observation.ts`, the one function behind the tool). It only leaves keys out (D16): a named key the
+observation does not carry now stays absent, and an unknown key is refused with the list of the valid ones, which the
+compiler keeps equal to the keys of the observation's type. Measured on the stub pack, a new campaign with six mercs
+landed observes about 45 KB (`strategic` 25 KB, of it `mercs` 14 KB and `sectors` 6 KB; `soldiers` 15 KB) and a new
+game in the laptop about 34 KB (`laptop` 21 KB, of it the A.I.M. listing 12.5 KB). Building the whole observation takes
+about 2 ms, so the filter runs on the finished observation instead of skipping parts of it.
+
 **Strengths and limits.** Turn-based combat, strategy and management suit an agent; the queries spare it the
 arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak part. Real time is played through the
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
