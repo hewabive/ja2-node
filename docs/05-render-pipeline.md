@@ -151,6 +151,7 @@ unless a path is given:
 | A room reveal works out the wire frames around the room in the middle of the look, so the tiles the rest of the look reveals count only at the next recalculation (`TileEngine/Render_Fun.cc:224`) | `reveal.test.ts` "leave out of a room reveal the tiles the rest of the look reveals", `src/sim/tactical/perception/perception.test.ts` "works the wire frames out around the room as the look reveals it …" |
 | An explosion works out again the wire frames in its whole radius around the bomb, and only when it changed a structure (`TileEngine/Explosion_Control.cc:1434`) | `src/sim/tactical/explosions/explosion.test.ts` "works the wire frames out within its radius …" |
 | Soldiers on roofs are drawn twice, in the struct-merc and the high-merc passes | `dynamic-scene.test.ts` |
+| A soldier in z strips (prone, a creature, a vehicle) is drawn in full only where he is nearer than the z buffer and dithered where they tie, where a one-tile soldier is drawn in full on a tie (`TileEngine/RenderWorld.cc:2785`, `src/sgp/VObject_Blitters.cc:715`) | `dynamic-scene.test.ts` "dithers a soldier in z strips where his strip ties …" |
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
 | A structure added at the head of a tile makes it a no-burn tile only where a wall stands, the reverse of one added at the tail; removals and partner swaps leave the flag as it was | `no-burn.test.ts` |
 | As the map loads, a tile's no-burn flag sees only the wall pieces of structures loaded before it: a multi-tile wall based on a later tile does not count | `no-burn.test.ts` |
@@ -167,6 +168,10 @@ unless a path is given:
 | A light going out cuts the roof marker's strongest light to the light left, even a light the marker never got | `roof-marker-shades.test.ts` |
 
 Not pinned yet:
+- A soldier in z strips sorts per 20 px column, never by the height on screen, and the prone body's tile offset sorts
+  the columns of its front tiles one row nearer (`TileEngine/RenderWorld.cc:1043-1051`, `TileEngine/Structure.cc:1567`):
+  a merc lying facing W or SW along a wall on his south side shows his legs dithered through the wall and his head and
+  torso drawn over it in full. A pin needs a two-tile prone body, which the stub pack does not have.
 - A structure changed otherwise than by an explosion (a shot window, a repaired SAM site) leaves the wire frames as they
   were worked out before it.
 - Cliff-hang objects sort at z 0, so they lose to every object pixel drawn before them.

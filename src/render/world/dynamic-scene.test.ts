@@ -473,6 +473,19 @@ describe('dynamic scene', () => {
     expect(scene.placedSoldiers.map((p) => p.id)).toEqual([4, 5]);
   });
 
+  it('dithers a soldier in z strips where his strip ties with the z buffer, as BltTransZTransShadowIncObscure draws in full only nearer (RenderWorld.cc:2785)', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const strip = { zChanges: [0], initialZChange: 0, firstStripWidth: 10 };
+    const prone = { ...soldier(4, g(80, 80), 0), multiTile: { zStrip: strip, zTileOffsetX: 0, zTileOffsetY: 0, vehicle: false } };
+    scene.build(frame({ soldiers: [prone] }));
+    expect(scene.runs.slice(0, 3).map((r) => r.state)).toEqual([
+      DrawState.NEARER_SHADOW,
+      DrawState.NEARER_WRITE,
+      DrawState.FARTHER_OR_EQUAL,
+    ]);
+  });
+
   it('raises items lying on a structure by their height, at the struct z plus the height', () => {
     const { staticWorld, prepared } = world({}, tiles);
     const scene = new DynamicScene(staticWorld, prepared);

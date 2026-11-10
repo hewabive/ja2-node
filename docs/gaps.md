@@ -34,7 +34,11 @@ What a native savegame import leaves out: none known. Paths are under `src/`.
 
 ## 6. Presentation: screens, graphics, text, sound and video
 
-What the client does not show or play yet, where nothing changes an outcome: none known. Paths are under `src/`.
+What the client does not show or play yet, where nothing changes an outcome. Paths are under `src/`.
+
+| Area | Original | ja2-node | Notes |
+|---|---|---|---|
+| Dithered strip pixels | A soldier drawn in z strips writes his z on the dithered pixels too, and dithers his shadow pixels with his body (`TileEngine/RenderWorld.cc:2785-2792`) | The dithered pass writes no depth, and only the nearer pass draws the shadow (`render/world/dynamic-scene.ts`) | A depth-writing dithered state for the strip parts; what it changes shows only where later draws of the same frame meet those pixels |
 
 ## 7. Code conventions
 

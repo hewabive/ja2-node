@@ -634,7 +634,7 @@ export class DynamicScene {
         : out.push(p.x, p.y, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, flags, 0);
     this.#push(out, this.runs, DrawState.NEARER_SHADOW, part(SHADOW_INDEX_FLAGS));
     this.#push(out, this.runs, strip ? DrawState.NEARER_WRITE : DrawState.NEARER_OR_EQUAL, part(BODY_FLAGS));
-    if (!noBurn) this.#push(out, this.runs, DrawState.FARTHER, part(OBSCURED_FLAGS));
+    if (!noBurn) this.#push(out, this.runs, strip ? DrawState.FARTHER_OR_EQUAL : DrawState.FARTHER, part(OBSCURED_FLAGS));
   }
 
   #emitSoldiers(g: number, x: number, y: number, pass: MercPass): void {
