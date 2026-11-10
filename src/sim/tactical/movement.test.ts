@@ -678,6 +678,67 @@ describe('waiting for a blocked tile in a corridor (Soldier_Tile.cc HandleNextTi
   });
 });
 
+describe('waiting on a squad mate who stopped in a corridor (Soldier_Tile.cc HandleNextTileWaiting)', () => {
+  const WAITING_TILE = START + 1;
+  const MATE_TILE = START + 2;
+  const HIGHEST_COUNT = 100;
+  const GIVE_UP_DISTANCE = 5;
+  const WALK_TICKS = 1000;
+  const SEALED_END = gridNo(70, 80);
+
+  function walkIntoAStoppedMate(spacesBeyondTheWait: number) {
+    const t = corridor((w) => w.add(SEALED_END, 0, syntheticStructure(StructureFlags.GENERIC)));
+    const merc = spawn(t, START);
+    const destination = WAITING_TILE + spacesBeyondTheWait;
+    expect(getNewSoldierPath(t, merc, destination, merc.uiMovementMode)).toBe(true);
+    const mate = spawn(t, MATE_TILE);
+    for (let tick = 0; tick < WALK_TICKS && !merc.delayedMovement; tick++) executeOverhead(t);
+    expect([merc.gridNo, merc.delayedMovement, merc.delayedMovementCause]).toEqual([WAITING_TILE, 1, MATE_TILE]);
+    return { t, merc, mate, destination };
+  }
+
+  function countsOfChecks(t: TacticalState, s: Soldier, checks: number): number[] {
+    const counts: number[] = [];
+    for (let check = 0; check < checks; check++) {
+      t.clockMs = s.nextTileCheckAt;
+      handleNextTileWaiting(t, s);
+      counts.push(s.delayedMovement);
+    }
+    return counts;
+  }
+
+  function run(first: number, last: number): number[] {
+    return Array.from({ length: last - first + 1 }, (_, k) => first + k);
+  }
+
+  it('waits without end 5 tiles or more from his final tile: the count runs to 100, the cap at 99 sets 99, and it starts again at 1', () => {
+    const { t, merc, destination } = walkIntoAStoppedMate(GIVE_UP_DISTANCE);
+    const cycle = run(2, HIGHEST_COUNT);
+    expect(countsOfChecks(t, merc, 2 * cycle.length)).toEqual([...cycle, ...cycle]);
+    expect([merc.gridNo, merc.finalDestination]).toEqual([WAITING_TILE, destination]);
+    expect(t.events.filter((e) => e.type === 'noPath')).toEqual([]);
+  });
+
+  it('gives up silently at the 21st wait closer than 5 tiles to his final tile', () => {
+    const { t, merc } = walkIntoAStoppedMate(GIVE_UP_DISTANCE - 1);
+    expect(countsOfChecks(t, merc, 20)).toEqual([...run(2, 20), 0]);
+    expect([merc.gridNo, merc.finalDestination]).toEqual([WAITING_TILE, WAITING_TILE]);
+    expect(t.events.filter((e) => e.type === 'noPath')).toEqual([]);
+  });
+
+  it('ends when the mate walks off or the merc gets a new order', () => {
+    const left = walkIntoAStoppedMate(GIVE_UP_DISTANCE);
+    expect(getNewSoldierPath(left.t, left.mate, CORRIDOR_END - 1, left.mate.uiMovementMode)).toBe(true);
+    runUntilStill(left.t);
+    expect(left.merc.gridNo).toBe(left.destination);
+    const ordered = walkIntoAStoppedMate(GIVE_UP_DISTANCE);
+    expect(getNewSoldierPath(ordered.t, ordered.merc, START - 3, ordered.merc.uiMovementMode)).toBe(true);
+    expect(ordered.merc.delayedMovement).toBe(0);
+    runUntilStill(ordered.t);
+    expect(ordered.merc.gridNo).toBe(START - 3);
+  });
+});
+
 describe("a follower's speed (Soldier_Tile.cc SetDelayedTileWaiting, Soldier_Control.cc SetSoldierAniSpeed, EVENT_StopMerc)", () => {
   function walkingDelay(t: TacticalState, s: Soldier): number {
     s.state = states(content.animations).WALKING;

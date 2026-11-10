@@ -505,7 +505,10 @@ movement mode reaches on his APs (in real time every band is 4). A new `move` re
 give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `moveGroup` sends every merc to the one tile
 (`HandleMultiSelectionMove`), and the walk shares it out as the original's does (`07`): the first there keeps it, a merc
 whose next step is onto his final tile while somebody takes it stops where he is with no `arrived`, and one held up by a
-squad mate heads for the closest free tile around his final tile and reports `arrived` there. A `move` with `reverse` is
+squad mate heads for the closest free tile around his final tile and reports `arrived` there. A merc whose way is barred
+by a squad mate standing on his own final tile, with no way around, waits there without end while his final tile is
+5 tiles or more away (`07`): `advance {idle}` runs to its budget until the mate moves or the merc gets a new order or a
+`stop`. A `move` with `reverse` is
 the Alt move (`bReverse`): he walks or swats backwards facing away from his path, or side-steps when he faces across it,
 for one more AP a tile; a body without those states, as a civilian escort's, pays the first step and stays where he is
 (`06`). A blinded merc who runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls

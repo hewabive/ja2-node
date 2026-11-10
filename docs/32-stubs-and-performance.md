@@ -205,7 +205,9 @@ battle, retreat, outfitting, healing and prompt policies live in their modules (
 `heal.ts`, `prompts.ts`, …). A refusal whose text names the next step is answered and the command sent again
 (`refusals.ts`): `mapScreen`, `tacticalScreen`, `enterSector` and `openLaptop` wait for an open prompt to be answered
 and, with time stopped, `advance {idle}` past queued lines, a meanwhile about to start or a pause lock; a squad too
-injured or too tired to travel rests in its sector before it is routed again.
+injured or too tired to travel rests in its sector before it is routed again. Every move it orders is followed by an
+`advance` with a tick limit; a merc still under way after it is ordered anew at the next step in real time and stopped
+in turn-based combat (`settleOrder`), so a merc who waits without end behind a squad mate (`07` §3) costs it one step.
 
 - **Reload checks** (`reload.ts`). *Exact load*: in the first battle that reaches round 2 the bot saves, loads with
   `reseed: false` into a new session, then sends every `observe`, `act` and `advance` to both sessions until the battle
@@ -228,8 +230,6 @@ P3_b1, the Queen, the ending) reach the victory with mercs placed in O3, not yet
 
 **Open findings** (seen by the bot, not traced against the original, not reproduced on demand):
 
-- In real time a merc whose next tile is taken by a squad mate who stopped on it waits in `HandleNextTileWaiting`
-  without end (G11, seed 3).
 - After a retreat that leaves unconscious mercs behind in a sector in turn-based combat, the sector stays in combat and
   the map screen refuses `advance` ("combat is in progress") until someone goes back and ends the turn.
 - Once, after a player load, `route` answered "the squad cannot move: dead" after a won battle (D13, seed 1), although
