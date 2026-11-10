@@ -97,7 +97,7 @@ waits for the next map frame; the hand-over is refused while an automatic AR is 
 **The PBI is a prompt.** It opens at the end of the step that made the hand-off, without the speaking merc's quote time,
 and carries the encounter, the options with their disabled reasons and the panel. The persistent PBI comes before a
 battle; the non-persistent one summarises a running tactical battle (`showBattle`, `autoresolveBattle`). There is no
-placement screen: entering keeps the automatic edgepoints (deviation "Tactical placement").
+placement screen yet: entering keeps the automatic edgepoints (gaps "Tactical placement").
 
 **Tactical battles report through hooks.** Merc deaths, pending enemies, the militia hand-off, a lost battle (2–3 downed
 mercs captured, otherwise killed) and the end of a battle reach `BattleFlow` through `SectorHooks`. After a defeat the

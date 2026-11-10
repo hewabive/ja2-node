@@ -87,14 +87,14 @@ soldiers are created when a sector loads and dropped when it unloads, as `TrashW
 escapes, pending enemies, the end of the merc wait and of the battle back through `TacticalState.sectorHooks`.
 
 **Entering and leaving are commands.** Map screen and tactical are views, not simulation steps (deviation "Map and
-tactical screens"); the only gate to entering a sector is `SectorFlow.enterSectorRefusal`. There is no placement GUI:
-entering from the PBI uses the automatic start (deviation "Tactical placement"). `exitSector` evaluates the exit check
+tactical screens"); the only gate to entering a sector is `SectorFlow.enterSectorRefusal`. There is no placement GUI
+yet: entering from the PBI uses the automatic start (gaps "Tactical placement"). `exitSector` evaluates the exit check
 and the exit menu's rules and refuses a choice the menu would not offer (deviation "Exit dialog"); the client's exit
 hint runs the same check over the player's knowledge (`src/sim/hints/exit-sector.ts`, D16). The merc wait counts 2500
 game ms (deviation "Waiting for mercs to exit"). A vehicle of ours that leaves drives off as its own group with
-everybody aboard, where the original sends its soldier alone in a squad's foot group (deviation "Vehicle sector exit"). The lair's "Travel to surface?" question is `exitSector` with `warp`,
-offered through the view because which lair was destroyed is hidden state (`surfaceWarp`,
-`strategic/creatures/creatures.ts`).
+everybody aboard, where the original sends its soldier alone in a squad's foot group (deviation "Vehicle sector exit").
+The lair's "Travel to surface?" question is `exitSector` with `warp`, offered through the view because which lair was
+destroyed is hidden state (`surfaceWarp`, `strategic/creatures/creatures.ts`).
 
 **Edgepoints are generated where the map has none.** Original maps load their saved edgepoints; stub maps carry none,
 so they always run the generator, which is ported literally and matched against the oracle.

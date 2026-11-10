@@ -17,8 +17,11 @@ under `src/sim/tactical/`.
 
 ## 2. Strategic layer
 
-The map, travel, vehicles, time compression, the economy, sector state and autoresolve: none known. Paths are under
-`src/sim/`.
+The map, travel, vehicles, time compression, the economy, sector state and autoresolve. Paths are under `src/sim/`.
+
+| Area | Original | ja2-node | Notes |
+|---|---|---|---|
+| Tactical placement | "Go to sector" from the persistent PBI of our group, out of an ambush or a creature or bloodcat attack, opens the placement GUI as the map loads (`Strategic/PreBattle_Interface.cc:1007-1013`, `Strategic/StrategicMap.cc:892-896`): every merc of the sector waits on his side of the overhead map, none placed under the default Clear (`TileEngine/Tactical_Placement_GUI.cc:72`, `:572-590`), until the player puts each on an edge point of his side or Spread or Group does, and Done prepares the loaded sector (`:491-540`) | The same condition passes `autoPlacement`, which puts each merc on a random edge point of his side, Spread's choice, and the battle starts at once (`campaign/battle-flow.ts`, `#chooseRandomEdgepoints` in `campaign/sector-flow.ts`); it does not turn the edge-index insertion codes into sides (`TileEngine/Tactical_Placement_GUI.cc:167-175`) or check for the dead, captured and in-transit mercs the GUI leaves out (`:150-175`), and the saved default button is parsed but unused | A placement decision prompt that holds the load before `prepareLoadedSector`, the flag kept for the next load when the sector is loaded already (`Strategic/StrategicMap.cc:438-466`); commands to put a merc on an edge point and for Spread, Group, Clear and Done; the prompt in the view with each side's edge points; the client's panel over the overhead map (`29`, `30`) |
 
 ## 3. Campaign, laptop and narrative
 

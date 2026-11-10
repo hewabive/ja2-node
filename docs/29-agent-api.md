@@ -55,7 +55,7 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows it disabled): the placement GUI (deviation "Tactical placement").
+**Not built as commands** (the client shows it disabled): the placement GUI (gaps "Tactical placement").
 
 ## 3. Fairness: what the agent never sees
 
