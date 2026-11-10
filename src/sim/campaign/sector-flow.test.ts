@@ -1374,6 +1374,18 @@ describe('exit grids', () => {
     expect(campaign.state.worldSector).toEqual(A10);
   });
 
+  it('goes back from the map to the loaded basement by its long string, the sector the map screen selects there', () => {
+    const { campaign } = squadInA10(15);
+    markGroundRevealed(campaign.tactical?.state ?? never(), A10_STAIRS);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: A10_STAIRS, who: 'squad' }).ok).toBe(true);
+    runTicks(campaign, 4000, () => campaign.state.worldSector?.z === 1);
+    runUntilIdle(campaign);
+    expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect([campaign.state.flow, campaign.state.map.selectedSector]).toEqual(['strategic', { x: 10, y: 1, z: 1 }]);
+    expect(campaign.dispatch({ type: 'enterSector', sector: 'A10-1' })).toMatchObject({ ok: true, data: { sector: 'A10-1' } });
+    expect([campaign.state.flow, campaign.state.worldSector]).toEqual(['tactical', { x: 10, y: 1, z: 1 }]);
+  });
+
   it('prepares the rebel basement in A10 before any exit grid leads there: going down to the hideout loads it at once', () => {
     const withoutStairs: SectorWorlds = {
       exists: (path) => kit.sectors.worlds.exists(path),

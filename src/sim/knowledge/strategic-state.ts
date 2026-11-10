@@ -1,5 +1,5 @@
 import { TransportMask } from '../../content/strategic/policy.ts';
-import { parseSectorString, type Sector, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { parseSectorLongString, type Sector, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../content/strategic/strategic-content.ts';
 import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS, SectorFlag } from '../strategic/forces/constants.ts';
 import type { Group } from '../strategic/forces/groups.ts';
@@ -14,7 +14,6 @@ import { emptyPassengerSlots, NO_VEHICLE_SOLDIER, type VehicleRecord } from '../
 import { type GuardOptions, guardFields } from './guard.ts';
 import type { KnowledgeGroup, KnowledgeMerc, KnowledgeSector, KnowledgeStrategic, KnowledgeVehicle } from './view.ts';
 
-const UNDERGROUND_SEPARATOR = '-';
 const NO_HELICOPTER = -1;
 const UNKNOWN_ENEMY_COUNT = 1;
 const NO_LAST_REASSIGNMENT = 255;
@@ -61,8 +60,7 @@ const VEHICLE_FIELDS: ReadonlySet<PropertyKey> = new Set([
 ]);
 
 export function sectorFromName(name: string): Sector {
-  const [short, z] = name.split(UNDERGROUND_SEPARATOR);
-  return parseSectorString(short ?? name, z === undefined ? 0 : Number(z));
+  return parseSectorLongString(name);
 }
 
 export function pathFromNames(names: readonly string[]): number[] {

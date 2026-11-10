@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   isValidSector,
+  MAX_SECTOR_Z,
   mapFileName,
   NO_PREVIOUS_SECTOR_ID,
   parseSectorId,
+  parseSectorLongString,
   parseSectorString,
   sectorFromId,
   sectorFromStrategicIndex,
@@ -61,5 +63,12 @@ describe('sector ids', () => {
     expect(() => parseSectorString('Q1')).toThrow();
     expect(() => parseSectorString('A17')).toThrow();
     expect(() => parseSectorString('A0')).toThrow();
+  });
+
+  it('reads the long string of every level back, and a short string as the surface', () => {
+    for (let z = 0; z <= MAX_SECTOR_Z; z++)
+      expect(parseSectorLongString(sectorLongString({ x: 13, y: 4, z }, false))).toEqual({ x: 13, y: 4, z });
+    expect(parseSectorLongString('D13')).toEqual({ x: 13, y: 4, z: 0 });
+    for (const text of ['D13-4', 'D13-', 'D13-1-1', 'D13_b1', 'Q1-1']) expect(() => parseSectorLongString(text)).toThrow();
   });
 });

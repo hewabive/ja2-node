@@ -72,6 +72,12 @@ export function parseSectorString(text: string, z = 0): Sector {
   return s;
 }
 
+export function parseSectorLongString(text: string): Sector {
+  const m = /^([A-Pa-p]\d{1,2})(?:-(\d))?$/.exec(text.trim());
+  if (!m) throw new FormatError(`not a sector: ${text}`);
+  return parseSectorString(m[1] as string, m[2] === undefined ? 0 : Number(m[2]));
+}
+
 export function parseSectorId(text: string): number {
   return sectorId(parseSectorString(text));
 }

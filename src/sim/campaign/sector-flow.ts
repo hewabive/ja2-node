@@ -56,11 +56,12 @@ import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-fi
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
 import {
   MEANWHILE_MAP_SECTOR,
-  parseSectorString,
+  parseSectorLongString,
   type Sector,
   sameSector,
   sectorFromId,
   sectorId,
+  sectorLongString,
   sectorShortString,
 } from '../../content/strategic/sector-ids.ts';
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
@@ -1621,7 +1622,7 @@ export function sectorWorldPort(base: TacticalWorldPort, flowOf: () => SectorFlo
 function parseSector(value: unknown): Sector | null {
   if (typeof value === 'string') {
     try {
-      return parseSectorString(value);
+      return parseSectorLongString(value);
     } catch {
       return null;
     }
@@ -1653,11 +1654,11 @@ export function canGoToTacticalInSector(mercs: readonly TacticalEntrant[], secto
 
 function enterSectorCommand(flow: SectorFlow, cmd: { readonly [key: string]: unknown }): CommandResult {
   const sector = parseSector(cmd.sector);
-  if (!sector) return refuse('badSector', "sector must be like 'B9' or {x, y, z}");
+  if (!sector) return refuse('badSector', "sector must be like 'B9', 'B9-1' or {x, y, z}");
   const refusal = flow.enterSectorRefusalOf(sector);
   if (refusal) return refused(refusal);
   if (!flow.setCurrentWorldSector(sector)) return refuse('mapNotLoaded', 'sector map is not loaded');
-  return { ok: true, data: { sector: sectorShortString(sector) } };
+  return { ok: true, data: { sector: sector.z ? sectorLongString(sector, false) : sectorShortString(sector) } };
 }
 
 export function dispatchSectorCommand(
