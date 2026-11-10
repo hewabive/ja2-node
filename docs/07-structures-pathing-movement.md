@@ -159,6 +159,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A waiting soldier with no route around his blocker tests the first step of the route through him again (the search leaves `guiPathingData` as it was) | `movement.test.ts` |
 | A multi-tile soldier blocked head-on leaves the other blocked, with his final destination on his own tile | `movement.test.ts` |
 | A sweet spot search floods as a merc-bodied dummy whoever searches, so a crow's spot may lie in water | `sweet-spots.test.ts` |
+| A waiting merc whose final tile is taken heads for the closest free tile around it (ties go to the north, then the west) and, when somebody takes that one first, searches around it, not around the tile he was sent to: mercs sent to one tile drift two tiles and more from it, while the first there keeps it (`Tactical/Soldier_Tile.cc:436`) | `movement.test.ts` "searches again around the free tile he took …", `player-orders.test.ts` "keeps the first merc there on the target …" |
 | The tiles moved since a turn began count in a signed byte: the 128th wraps the count to −128, which camouflage, bleeding and the moving-target penalty read | `movement.test.ts` |
 | A creature that cannot turn pays the step where it starts backwards twice, the second time with the reverse surcharge: the forced backward walk takes the step again | `movement.test.ts` |
 | A creature that cannot turn at the first step of a move goes backwards in the walk it set out in: the move's own state overwrites the backward walk | `movement.test.ts` |

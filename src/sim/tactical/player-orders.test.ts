@@ -29,6 +29,8 @@ beforeAll(async () => {
 const ORIGIN = gridNo(80, 80);
 const EAST = DIRECTION_INCREMENT[Direction.EAST] ?? 0;
 const SOUTH = DIRECTION_INCREMENT[Direction.SOUTH] ?? 0;
+const WEST = -EAST;
+const NORTH = -SOUTH;
 const FATIMA = 101;
 const item = (name: string) => content.items.byName.get(name)?.index ?? 0;
 
@@ -419,6 +421,37 @@ describe('group moves (HandleMultiSelectionMove, the all-move)', () => {
     expect([a.uiMovementMode, b.uiMovementMode]).toEqual([states(content.animations).RUNNING, states(content.animations).RUNNING]);
     runUntilIdle(sim);
     expect([a.gridNo, b.gridNo].sort()).toContain(ORIGIN + 5 * EAST);
+  });
+
+  it('keeps the first merc there on the target and stops or settles the rest near it, each on the free tile closest to the spot he last headed for', () => {
+    const sim = newCombatSim(content);
+    const target = gridNo(90, 80);
+    const starts = [gridNo(78, 76), gridNo(79, 78), gridNo(77, 80), gridNo(80, 82), gridNo(78, 84), gridNo(76, 79)];
+    const group = starts.map((g, id) => spawnSoldier(sim, id, Team.OUR, g, Direction.EAST));
+    spawnSoldier(sim, 6, Team.OUR, target + WEST, Direction.EAST);
+    spawnSoldier(sim, 7, Team.OUR, target + NORTH, Direction.EAST);
+    expect(sim.dispatch({ type: 'moveGroup', soldiers: [0, 1, 2, 3, 4, 5], to: target }).data).toEqual({
+      moved: [0, 1, 2, 3, 4, 5],
+      noPath: [],
+    });
+    const events = runUntilIdle(sim);
+    expect(group.map((s) => s.gridNo)).toEqual([
+      target + EAST,
+      target + EAST + 2 * NORTH,
+      target + 2 * EAST + NORTH,
+      target,
+      target + EAST + NORTH,
+      target + 2 * NORTH,
+    ]);
+    const arrivals = events.flatMap((e) => (e.type === 'arrived' ? [[e.soldier, e.gridNo]] : []));
+    expect(arrivals).toEqual([
+      [3, target],
+      [0, target + EAST],
+      [4, target + EAST + NORTH],
+      [1, target + EAST + 2 * NORTH],
+      [2, target + 2 * EAST + NORTH],
+    ]);
+    expect(events.filter((e) => e.type === 'noPath')).toEqual([]);
   });
 
   it('is a real-time order', () => {

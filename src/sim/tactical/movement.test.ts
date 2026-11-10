@@ -843,6 +843,20 @@ describe('a blocked final destination', () => {
     }
   });
 
+  it('searches again around the free tile he took, not the tile first ordered, once somebody stands on that one too', () => {
+    const t = tactical();
+    spawn(t, DESTINATION);
+    const mover = waiting(t, 1);
+    handleNextTileWaiting(t, mover);
+    expect(mover.finalDestination).toBe(DESTINATION + NORTH);
+    spawn(t, DESTINATION + NORTH);
+    setDelayedTileWaiting(t, mover, START + 1, 1);
+    t.clockMs = mover.nextTileCheckAt;
+    handleNextTileWaiting(t, mover);
+    expect(mover.finalDestination).toBe(DESTINATION + 2 * NORTH);
+    expect([DESTINATION + WEST, DESTINATION - WEST, DESTINATION - NORTH].map((g) => whoIsThere(t, g, 0))).toEqual([null, null, null]);
+  });
+
   it('keeps waiting when no free tile is reachable from it', () => {
     const t = tactical((w) => {
       for (const step of DIRECTION_INCREMENT) w.add(DESTINATION + step, 0, syntheticStructure(StructureFlags.GENERIC));

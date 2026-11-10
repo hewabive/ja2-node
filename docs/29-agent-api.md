@@ -501,17 +501,20 @@ against his `actionPoints`, the check that turns the cursor's AP figure red (`Ha
 `Handle_UI.cc:2956`); per tile, the footsteps in `steps` (every tile before the destination) take band 4 from where no
 movement mode reaches on his APs (in real time every band is 4). A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
-give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `move` with `reverse` is the Alt move (`bReverse`):
-he walks or swats backwards facing away from his path, or side-steps when he faces across it, for one more AP a tile; a
-body without those states, as a civilian escort's, pays the first step and stays where he is (`06`). A blinded merc who
-runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls where he stands with some
-APs lost, the move ends there, and `fellDown {soldier, cause: blind|drunk}` brings his CURSE1 and the original's line,
-for our soldiers and those the squad sees (deviation "Falls out of sight"). Marbles on a floor or road tile, hidden ones
-too, make anyone slip there the same way and are gone: `slippedOnMarbles {soldier}`, with the line for our mercs only.
-A FORGETFUL merc may stop on the way with his personality line once he has walked 200 tiles since he last forgot. In
-deep water a soldier swims and treads; a non-swimmer loses breath five times as fast there, and medium or deep water
-damages items and washes camouflage off (`camoWashedOff {soldier}`). A merc waiting on a squad mate walks at the mate's
-speed until he stops at his destination (`07`).
+give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `moveGroup` sends every merc to the one tile
+(`HandleMultiSelectionMove`), and the walk shares it out as the original's does (`07`): the first there keeps it, a merc
+whose next step is onto his final tile while somebody takes it stops where he is with no `arrived`, and one held up by a
+squad mate heads for the closest free tile around his final tile and reports `arrived` there. A `move` with `reverse` is
+the Alt move (`bReverse`): he walks or swats backwards facing away from his path, or side-steps when he faces across it,
+for one more AP a tile; a body without those states, as a civilian escort's, pays the first step and stays where he is
+(`06`). A blinded merc who runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls
+where he stands with some APs lost, the move ends there, and `fellDown {soldier, cause: blind|drunk}` brings his CURSE1
+and the original's line, for our soldiers and those the squad sees (deviation "Falls out of sight"). Marbles on a floor
+or road tile, hidden ones too, make anyone slip there the same way and are gone: `slippedOnMarbles {soldier}`, with the
+line for our mercs only. A FORGETFUL merc may stop on the way with his personality line once he has walked 200 tiles
+since he last forgot. In deep water a soldier swims and treads; a non-swimmer loses breath five times as fast there, and
+medium or deep water damages items and washes camouflage off (`camoWashedOff {soldier}`). A merc waiting on a squad mate
+walks at the mate's speed until he stops at his destination (`07`).
 A merc aboard a vehicle in the loaded sector is no controllable merc (`OK_CONTROLLABLE_MERC`, his assignment is the
 vehicle): every order to him, `stop`, `mute` and the inventory and money commands included, refuses `inVehicle` (`talk`,
 `give` and `openShop` refuse `canAct` with its reason), and so does an inventory command that names him as the other
