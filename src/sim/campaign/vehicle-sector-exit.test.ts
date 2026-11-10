@@ -5,6 +5,7 @@ import { driveOurHummerInto, stubCampaignWithOurHummer } from '../../../tests/su
 import { parseSectorString, sameSector } from '../../content/strategic/sector-ids.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import type { CampaignSession } from '../../server/campaign-session.ts';
+import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import { InsertionCode, VehicleSeat } from '../strategic/forces/constants.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
@@ -39,6 +40,7 @@ const FUEL_PER_MINUTE = 6;
 const WALK_OFF_SECONDS = 5;
 const UNLOCK_SECONDS = 1;
 const TRAVEL_SECONDS = 3600;
+const MS_PER_SECOND = 1000;
 const A9_EAST_ENTRY = gridNo(STUB_MAP_ORIGIN + 28, STUB_MAP_ORIGIN + 9);
 const BESIDE_THE_EXIT_GRID = gridNo(120, 77);
 const EXIT_GRID = gridNo(117, 77);
@@ -102,8 +104,12 @@ async function exitSector(session: CampaignSession, cmd: Record<string, unknown>
   return session.dispatch(order);
 }
 
-function advance(session: CampaignSession, worldSeconds: number): void {
+function travel(session: CampaignSession, worldSeconds: number): void {
   new ReloadingSession('vehicle-exit', session).advance({ worldSeconds });
+}
+
+function drive(session: CampaignSession, realSeconds: number): void {
+  new ReloadingSession('vehicle-exit', session).advance({ ticks: (realSeconds * MS_PER_SECOND) / TICK_MS });
 }
 
 function seatedAtTheHummer(session: CampaignSession): unknown[] {
@@ -125,7 +131,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
       ok: true,
       data: { minutes: CAR_MINUTES_ON_THE_ROAD, who: 'merc', load: false, target: DOWN_THE_ROAD },
     });
-    advance(session, WALK_OFF_SECONDS);
+    drive(session, WALK_OFF_SECONDS);
     return { session, riders };
   }
 
@@ -152,7 +158,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
   it('burns the fuel of the trip at the arrival, where its record and everybody aboard stand, still seated, and a merc gets off there', async () => {
     const { session, riders } = await offTheRoadsEastEdge();
     const fuelAtDeparture = hummerOf(session).soldier.breathRed;
-    advance(session, TRAVEL_SECONDS);
+    travel(session, TRAVEL_SECONDS);
     expect(hummerOf(session).soldier.breathRed).toBe(fuelAtDeparture - CAR_MINUTES_ON_THE_ROAD * FUEL_PER_MINUTE);
     expect(vehicleView(session)).toMatchObject({ sector: DOWN_THE_ROAD, betweenSectors: false, passengers: riders, path: [] });
     expect(everyoneIn(session, DOWN_THE_ROAD)).toBe(true);
@@ -175,7 +181,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
       ok: true,
       data: { minutes: CAR_MINUTES_THROUGH_TOWN, who: 'merc', load: true, target: NEXT_IN_TOWN },
     });
-    advance(session, WALK_OFF_SECONDS);
+    drive(session, WALK_OFF_SECONDS);
     const t = tactical(session);
     const hummer = hummerOf(session);
     expect(session.campaign.state.worldSector).toEqual(parseSectorString(NEXT_IN_TOWN));
@@ -190,7 +196,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
     expect(whoIsThere(t, hummer.soldier.gridNo, 0)).toBe(hummer.soldier);
     expect(seatedAtTheHummer(session)).toEqual(SEATED);
     expect(vehicleView(session)).toMatchObject({ sector: NEXT_IN_TOWN, betweenSectors: false, path: [] });
-    advance(session, UNLOCK_SECONDS);
+    drive(session, UNLOCK_SECONDS);
     const [, passenger] = aboard(session);
     expect(session.dispatch({ type: 'exitVehicle', soldier: passenger?.id })).toMatchObject({ ok: true });
   });
@@ -209,7 +215,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
       ok: true,
       data: { minutes: 0, who: 'merc', load: false, target: NEXT_IN_TOWN },
     });
-    advance(session, WALK_OFF_SECONDS);
+    drive(session, WALK_OFF_SECONDS);
     const hummer = hummerOf(session);
     expect(vehicleGroupView(session)).toMatchObject({ members: [hummer.id, ...riders], sector: NEXT_IN_TOWN, betweenSectors: false });
     expect(vehicleView(session)).toMatchObject({ sector: NEXT_IN_TOWN, betweenSectors: false, passengers: riders });
@@ -223,7 +229,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (dev
     if (!passenger) throw new Error('no passenger');
     passenger.soldier.life = OKLIFE - 1;
     expect(await exitSector(session, { exitGrid: EXIT_GRID, load: true })).toMatchObject({ ok: true, data: { load: true } });
-    advance(session, WALK_OFF_SECONDS);
+    drive(session, WALK_OFF_SECONDS);
     expect(session.campaign.state.worldSector).toEqual(parseSectorString(NEXT_IN_TOWN));
     expect(hummerOf(session).soldier.gridNo).toBe(EXIT_GRID_LANDING);
     expect(seatedAtTheHummer(session)).toEqual(SEATED);

@@ -129,6 +129,8 @@ const STOP_TIME_QUOTE_TEXT = 'the game stands while a merc warns of a trap: adva
 const PROMPT_OPEN_REFUSAL = 'promptOpen: a prompt is open, answer it first';
 const AUTO_BANDAGE_HOLDS_THE_CLOCK =
   'autoBandaging: the world clock stands while auto-bandage runs: advance idle or ticks, then endAutoBandage';
+const TACTICAL_CLOCK_STANDS =
+  'clockStands: the world clock stands in tactical at the stopped speed a sector load from the map left: advance idle or ticks, or mapScreen then tacticalScreen for x1';
 const ACCEPTED_DURING_STOP_TIME_QUOTE: ReadonlySet<string> = new Set(['estimateAttack', 'answer', 'skipLine']);
 const ACCEPTED_WITH_TACTICAL_PROMPT: ReadonlySet<string> = new Set(['answer', 'skipLine']);
 const ACCEPTED_DURING_AUTO_BANDAGE: ReadonlySet<string> = new Set(['endAutoBandage', 'skipLine']);
@@ -616,7 +618,10 @@ export class CampaignSim {
         if (this.shop?.isOpen()) return 'shopOpen: a shop is open, closeShop first';
         return this.laptop?.modalRefusal() ?? null;
       },
-      worldTimeRefusal: () => (this.#autoBandaging() ? AUTO_BANDAGE_HOLDS_THE_CLOCK : null),
+      worldTimeRefusal: () => {
+        if (this.#autoBandaging()) return AUTO_BANDAGE_HOLDS_THE_CLOCK;
+        return this.#tacticalClockStands() ? TACTICAL_CLOCK_STANDS : null;
+      },
       compressing: () => this.#compressing(),
       dialogueHoldsTime: () => this.#dialogueHoldsTime(),
       startCompression: (mode?: number) => {
@@ -739,6 +744,10 @@ export class CampaignSim {
   #handleStrategicTurn(): void {
     handleMapScreenRealtimeTurns(this);
     if (this.tactical) this.#events.push(...drainTurnWorldEvents(this.tactical, this.tick));
+  }
+
+  #tacticalClockStands(): boolean {
+    return this.state.flow === 'tactical' && this.state.clock.secondsPerRealSecond === 0;
   }
 
   #autoBandaging(): boolean {

@@ -37,6 +37,31 @@ function landed(troops: number): CampaignSim {
   return landedWithRoster(troops).campaign;
 }
 
+function onTheMapWithA9Unloaded(): CampaignSim {
+  const { campaign: c, roster } = landedWithRoster(0);
+  expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  for (const m of roster.all()) m.betweenSectors = true;
+  expect(c.sectors?.checkAndHandleUnloadingOfCurrentWorld()).toBe(true);
+  for (const m of roster.all()) m.betweenSectors = false;
+  return c;
+}
+
+function worldSecondsOver(c: CampaignSim, ticks: number): number {
+  const start = c.state.clock.seconds;
+  for (let k = 0; k < ticks; k++) c.step();
+  return c.state.clock.seconds - start;
+}
+
+const MAP_MODES = [
+  { name: 'X0', set: [] as const, mode: CompressMode.X0 },
+  {
+    name: 'stopped 30-minute mode',
+    set: [{ type: 'compressTime', mode: CompressMode.MIN30 }, { type: 'stopTime' }],
+    mode: CompressMode.MIN30,
+  },
+  { name: 'running 30-minute mode', set: [{ type: 'compressTime', mode: CompressMode.MIN30 }], mode: CompressMode.MIN30 },
+] as const;
+
 describe('map and tactical screens', () => {
   it('compresses time only on the map and never with enemies in the loaded sector', () => {
     const c = landed(3);
@@ -168,11 +193,7 @@ describe('leaving the map screen', () => {
   });
 
   it('stops compression and lifts the pause lock when a sector loads from the map past the exit checks, so the load unpauses the game (StrategicMap.cc EnterSector)', () => {
-    const { campaign: c, roster } = landedWithRoster(0);
-    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
-    for (const m of roster.all()) m.betweenSectors = true;
-    expect(c.sectors?.checkAndHandleUnloadingOfCurrentWorld()).toBe(true);
-    for (const m of roster.all()) m.betweenSectors = false;
+    const c = onTheMapWithA9Unloaded();
     expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toEqual({ ok: true });
     const clock = c.state.clock;
     pauseGame(clock);
@@ -182,6 +203,56 @@ describe('leaving the map screen', () => {
     expect(c.sectors?.setCurrentWorldSector(A9)).toBe(true);
     expect([c.state.flow, c.state.clock.paused, c.state.clock.pauseLocked]).toEqual(['tactical', false, false]);
     expect([c.state.clock.compressionOn, c.state.clock.stopReason]).toEqual([false, CompressionStop.MAP_EXIT]);
+  });
+});
+
+describe('the compression mode a sector load from the map leaves', () => {
+  it.each(MAP_MODES)(
+    "keeps the map's $name, stopped, when a sector loads from the map, so the tactical clock stands until the way back to the loaded sector sets X1 (StrategicMap.cc EnterSector: EndMapScreen with nothing pending)",
+    ({ set, mode }) => {
+      const c = onTheMapWithA9Unloaded();
+      for (const command of set) expect(c.dispatch(command)).toEqual({ ok: true });
+      expect(c.dispatch({ type: 'enterSector', sector: 'A9' })).toMatchObject({ ok: true });
+      expect([c.state.flow, c.state.clock.mode, c.state.clock.compressionOn]).toEqual(['tactical', mode, false]);
+      expect(worldSecondsOver(c, TEN_REAL_SECONDS_OF_TICKS)).toBe(0);
+      expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+      expect([c.state.clock.mode, c.state.clock.compressionOn]).toEqual([mode, false]);
+      expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+      expect(c.state.clock.mode).toBe(CompressMode.X1);
+      expect(worldSecondsOver(c, ONE_REAL_SECOND_OF_TICKS)).toBe(1);
+    },
+  );
+
+  it('refuses an advance to a world time while the tactical clock stands, and runs one once the way back set X1', () => {
+    const c = onTheMapWithA9Unloaded();
+    expect(c.dispatch({ type: 'enterSector', sector: 'A9' })).toMatchObject({ ok: true });
+    const held = advance(c, { worldSeconds: SIX_REAL_SECONDS });
+    expect([held.reason, held.refusal?.split(':')[0], held.tick]).toEqual(['refused', 'clockStands', c.tick]);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    expect(advance(c, { worldSeconds: SIX_REAL_SECONDS }).reason).toBe('worldTime');
+  });
+
+  it('sets X1 when the pre-battle panel loads the sector for the placement GUI, whose pending game screen EndMapScreen finds (StrategicMap.cc EnterSector, gfEnterTacticalPlacementGUI)', () => {
+    const c = onTheMapWithA9Unloaded();
+    expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'stopTime' })).toEqual({ ok: true });
+    lockPauseState(c.state.clock, LOCK_PAUSE_MERC_TALKING);
+    expect(c.sectors?.setCurrentWorldSector(A9, { autoPlacement: true })).toBe(true);
+    expect([c.state.flow, c.state.clock.mode, c.state.clock.paused, c.state.clock.pauseLocked]).toEqual([
+      'tactical',
+      CompressMode.X1,
+      false,
+      false,
+    ]);
+    expect(worldSecondsOver(c, ONE_REAL_SECOND_OF_TICKS)).toBe(1);
+  });
+
+  it('leaves the speed alone when the loaded sector is set again from the tactical screen, where EndMapScreen does not run (StrategicMap.cc SetCurrentWorldSector)', () => {
+    const c = onTheMapWithA9Unloaded();
+    expect(c.dispatch({ type: 'enterSector', sector: 'A9' })).toMatchObject({ ok: true });
+    expect(c.sectors?.setCurrentWorldSector(A9)).toBe(true);
+    expect([c.state.flow, c.state.clock.mode]).toEqual(['tactical', CompressMode.X0]);
   });
 });
 

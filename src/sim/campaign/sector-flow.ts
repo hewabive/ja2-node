@@ -31,7 +31,8 @@
 // @src for a native import (2026-11-01); SaveLoadGame.cc LoadSavedGame (HandleRottingCorpses of
 // @src LoadRottingCorpsesFromTempCorpseFile) for a native import (2026-11-01); Overhead.cc ExecuteOverhead (the LU_ENDUILOCK
 // @src that ends the wait for mercs on our turn before AllMercsHaveWalkedOffSector, 2026-11-03); StrategicMap.cc EnterSector
-// @src (its EndMapScreen before PrepareLoadedSector on a load from the map, 2026-11-03); StrategicMap.cc
+// @src (its EndMapScreen before PrepareLoadedSector on a load from the map, with nothing pending, so the load sets no
+// @src speed; the placement GUI's GAME_SCREEN pending instead, whose EndMapScreen sets X1, 2026-11-03, 2026-11-10); StrategicMap.cc
 // @src SetCurrentWorldSector (its SyncStrategicTurnTimes, the loaded sector's included), the strategic merc list as our team
 // @src of the turn starts (FOR_EACH_IN_TEAM(OUR_TEAM), 2026-11-05); Map_Screen_Interface_Bottom.cc
 // @src AllowedToExitFromMapscreenTo (the checks shared by every exit before those of MAP_EXIT_TO_TACTICAL; a bloodcat
@@ -122,9 +123,9 @@ import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
-import { CompressMode, EventKind, Warp } from '../strategic/time/constants.ts';
+import { EventKind, Warp } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
-import { pauseGame, setGameTimeCompressionLevel, unPauseGame, warpGameTime, worldDay, worldHour } from '../strategic/time/world-clock.ts';
+import { pauseGame, unPauseGame, warpGameTime, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import { initPanicSystem } from '../tactical/ai/panic-triggers.ts';
 import { removeAllActiveTimedBombs } from '../tactical/bombs/bomb-queue.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -211,7 +212,7 @@ import {
   startGuideCountdown,
 } from './narrative/guide-description.ts';
 import { onTacticalMap, type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
-import { endMapScreenForSectorLoad, returnToLoadedSector } from './screens.ts';
+import { endMapScreen, returnToLoadedSector } from './screens.ts';
 import {
   addDiffWorldItems,
   applyPreservedEnemyRecord,
@@ -274,7 +275,6 @@ export const UnloadCode = { ABOUT_TO_LOAD_NEW_MAP: 0, ABOUT_TO_TRASH_WORLD: 1 } 
 export interface LoadOptions {
   readonly autoPlacement?: boolean;
   readonly battleLocatorShown?: boolean;
-  readonly keepCompressionMode?: boolean;
 }
 
 const PALACE: Sector = { x: 3, y: 16, z: 0 };
@@ -581,7 +581,6 @@ export class SectorFlow {
     drawFirstCreatureTenseQuoteDelay(this.#flow.realtimeClock, s.rng);
     this.#flow.crows.possible = CROWS_POSSIBLE_BASE + s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
-    if (!options.keepCompressionMode) setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
     const located = this.#selectOnArrival();
     this.#event({
       type: 'sectorLoaded',
@@ -805,7 +804,7 @@ export class SectorFlow {
     handleHelicopterOnGround(this.ctx, true);
     this.#loadCurrentSectorsInformation(sector, diff);
     if (options.autoPlacement) this.#chooseRandomEdgepoints(sector);
-    if (s.flow === 'strategic') endMapScreenForSectorLoad(this.campaign);
+    if (s.flow === 'strategic') endMapScreen(this.campaign, options.autoPlacement === true);
     this.prepareLoadedSector(options);
     initPanicSystem(sim.state);
     updateDoorGraphicsFromStatus(sim.state);

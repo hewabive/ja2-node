@@ -105,12 +105,13 @@ the log entry, the conversation and the pause released. The way back is the fade
 or the command is done (`MeanwhileFlow.settle`): a line still talking is cut as the load starts, the hall is left
 unsaved (`skipSectorSave`, the original's `gfWasInMeanwhile`), the old sector loads again or the hall is trashed when
 none was loaded, the selected sector comes back, the NPCs are restored after the reload, and a scene started on the map
-enters the map again, whose entry selects the loaded sector. Neither load of the trip sets compression to X1
-(`LoadOptions.keepCompressionMode`): the original's `EnterSector` ends the map screen before any screen is pending, so a
-scene started on the map keeps its compression mode, stopped. Mercs come back on their tiles because every step sets
-their insertion to the tile, as the original's does; the insertion code lives on the soldier for that. With P3 itself
-the loaded sector, `SetCurrentWorldSector` loads nothing either way: the scene plays on the palace map with whoever
-stands there, and the way back cuts no line, as the original stops speech only in its load branch.
+enters the map again, whose entry selects the loaded sector. Neither load of the trip sets compression to X1: a load
+from the map keeps the mode, stopped (`15`), and the way back loads from the scene's tactical screen, so a scene started
+on the map keeps its compression mode, stopped, and so does the interrogation's load of N7 from the map. Mercs come back
+on their tiles because every step sets their insertion to the tile, as the original's does; the insertion code lives on
+the soldier for that. With P3 itself the loaded sector, `SetCurrentWorldSector` loads nothing either way: the scene plays
+on the palace map with whoever stands there, and the way back cuts no line, as the original stops speech only in its
+load branch.
 
 **The waiting window is kept.** `trying` spans the event to the gates, as `gfMeanwhileTryingToStart` does: while it
 is set, compression and saves are refused and the campaign is not idle, so a scene still waits for a battle decision,

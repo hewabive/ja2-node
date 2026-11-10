@@ -63,7 +63,6 @@ const SCRIPTED_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
 const NO_PALACE_SCENE = 'noPalaceScene';
 const NO_PALACE_SCENE_TEXT = 'endMeanwhile (the Esc key) ends a palace meanwhile scene under way; the interrogation cannot be cut short';
 const MEANWHILE_SKIP = 'skip';
-const PALACE_TRIP_LOAD = { keepCompressionMode: true } as const;
 export const MEANWHILE_CHOICES: readonly string[] = ['ok', MEANWHILE_SKIP];
 
 type MeanwhilePrompt = Extract<BattlePrompt, { readonly kind: typeof PromptKind.MEANWHILE }>;
@@ -302,7 +301,7 @@ export class MeanwhileFlow {
     m.inScene = true;
     const palace = sceneSector(id);
     for (const profile of sceneNpcs(id)) this.setNpcMeanwhile(profile, palace);
-    return this.#campaign.sectors?.setCurrentWorldSector({ x: palace.x, y: palace.y, z: 0 }, PALACE_TRIP_LOAD) ?? false;
+    return this.#campaign.sectors?.setCurrentWorldSector({ x: palace.x, y: palace.y, z: 0 }) ?? false;
   }
 
   #returnTrip(): MeanwhileReturnTrip {
@@ -329,7 +328,7 @@ export class MeanwhileFlow {
     const c = this.#campaign;
     if (trip.sector) {
       if (!c.sectors?.isLoaded(trip.sector)) this.#stopAnyCurrentlyTalkingSpeech();
-      c.sectors?.setCurrentWorldSector(trip.sector, PALACE_TRIP_LOAD);
+      c.sectors?.setCurrentWorldSector(trip.sector);
     } else c.sectors?.trashWorld();
     c.state.map.selectedSector = { ...trip.selectedSector };
   }

@@ -2,8 +2,10 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc MapScreenHandle (entering: keep a 5-60 min mode but stop it, else X0; the
 // @src loaded sector selected, or the start sector with nobody hired, 2026-11-09),
-// @src EndMapScreen (to tactical: X1; the pause lock and a pause the player did not set lifted, and for a sector load
-// @src compression stopped and the lock lifted, 2026-11-03); StrategicMap.cc CanGoToTacticalInSector;
+// @src EndMapScreen (with the game screen pending, the way back to the loaded sector and the placement GUI's load: X1,
+// @src the pause lock and a pause the player did not set lifted; with nothing pending, EnterSector's own call for any
+// @src other load from the map: compression stopped with its mode kept, so the tactical clock stands, and the lock
+// @src lifted, 2026-11-03, 2026-11-10); StrategicMap.cc CanGoToTacticalInSector;
 // @src Tactical/Interface_Panels.cc GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a
 // @src flag); GameScreen.cc EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the
 // @src loaded sector (2026-10-31);
@@ -25,7 +27,6 @@ import {
   stopTimeCompression,
   unLockPauseState,
   unPauseGame,
-  type WorldClock,
 } from '../strategic/time/world-clock.ts';
 import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
@@ -115,17 +116,14 @@ export function returnToLoadedSector(campaign: CampaignSim): void {
     s.clock.driver.lastSecondMs = t.clockMs;
   }
   s.flow = 'tactical';
-  setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
-  if (fromMap) endMapScreenForTactical(s.clock);
+  if (fromMap) endMapScreen(campaign, true);
   if (t && entering) enterTacticalScreen(t);
 }
 
-function endMapScreenForTactical(clock: WorldClock): void {
-  unLockPauseState(clock);
-  if (!clock.playerPause) unPauseGame(clock);
-}
-
-export function endMapScreenForSectorLoad(campaign: CampaignSim): void {
-  stopTimeCompression(campaign.clockContext, CompressionStop.MAP_EXIT);
-  unLockPauseState(campaign.state.clock);
+export function endMapScreen(campaign: CampaignSim, tacticalScreenPending: boolean): void {
+  const ctx = campaign.clockContext;
+  if (tacticalScreenPending) setGameTimeCompressionLevel(ctx, CompressMode.X1, 'tactical');
+  else stopTimeCompression(ctx, CompressionStop.MAP_EXIT);
+  unLockPauseState(ctx.clock);
+  if (tacticalScreenPending && !ctx.clock.playerPause) unPauseGame(ctx.clock);
 }

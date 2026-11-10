@@ -146,6 +146,21 @@ describe('meanwhile scenes in a campaign', () => {
     expect(meanwhileScheduledIn(c.state.meanwhile, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE)).toBe(false);
   });
 
+  it("keeps the map's compression mode, stopped, as the interrogation loads N7 from the map: EnterSector ends the map screen with nothing pending (StrategicMap.cc EnterSector)", () => {
+    const c = landed(37);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 }).ok).toBe(true);
+    c.state.meanwhile.current = { sector: { x: 7, y: 14 }, trigger: 0, id: Meanwhile.INTERROGATION, npc: Npc.QUEEN };
+    c.state.meanwhile.trying = true;
+    c.meanwhile.afterStep();
+    expect([c.state.flow, c.state.worldSector, c.state.clock.mode, c.state.clock.compressionOn]).toEqual([
+      'tactical',
+      { x: 7, y: 14, z: 0 },
+      CompressMode.MIN30,
+      false,
+    ]);
+  });
+
   it('offers no Skip for the interrogation even once seen, and does not read the seen flags for it (BringupMeanwhileBox)', () => {
     const c = landed(36);
     expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
