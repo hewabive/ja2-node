@@ -3,7 +3,7 @@ import { type BattleResult, fightHere, ourTurn, sectorEnemies } from './battle.t
 import type { Observation } from './mcp-game.ts';
 import type { Player } from './player.ts';
 import { answerPrompts } from './prompts.ts';
-import { actAnswering, needsRest, refusalOf } from './refusals.ts';
+import { actAnswering, needsRest, refusalOfResult } from './refusals.ts';
 
 export type TravelResult = 'arrived' | 'lost' | 'stuck' | 'retreated';
 
@@ -82,7 +82,7 @@ async function routeSquads(p: Player, view: Observation, to: string): Promise<Ro
     }
     p.log(`  route ${leader.name} to ${to} refused: ${result.reason ?? ''}`);
     if (needsRest(result)) restIn ??= leader.sector;
-    if (refusalOf(result) === DEAD_MEMBER) await removeTheDead(p, view);
+    if (refusalOfResult(result) === DEAD_MEMBER) await removeTheDead(p, view);
   }
   return { routed, restIn };
 }

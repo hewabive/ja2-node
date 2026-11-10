@@ -1,3 +1,4 @@
+import { refusalOf } from '../../src/protocol/refusals.ts';
 import type { ActResult, Command } from './mcp-game.ts';
 import type { Player } from './player.ts';
 import { answerPrompts } from './prompts.ts';
@@ -7,13 +8,12 @@ const ADVANCE_FIRST: ReadonlySet<string> = new Set(['dialogueQueued', 'meanwhile
 const REST_FIRST: ReadonlySet<string> = new Set(['tooInjured', 'tooTired']);
 const RETRIES = 4;
 
-export function refusalOf(result: ActResult): string | null {
-  const token = result.data?.refusal;
-  return typeof token === 'string' ? token : null;
+export function refusalOfResult(result: ActResult): string | null {
+  return refusalOf(result.data);
 }
 
 export function needsRest(result: ActResult): boolean {
-  const refusal = refusalOf(result);
+  const refusal = refusalOfResult(result);
   return refusal !== null && REST_FIRST.has(refusal);
 }
 
@@ -34,7 +34,7 @@ async function takeTheNextStep(p: Player, refusal: string): Promise<void> {
 export async function actAnswering(p: Player, command: Command): Promise<ActResult> {
   let result = await p.act(command);
   for (let retry = 0; !result.ok && retry < RETRIES; retry++) {
-    const refusal = refusalOf(result);
+    const refusal = refusalOfResult(result);
     if (!namesTheNextStep(refusal)) break;
     p.log(`  ${command.type} refused (${refusal}): taking the step it names first`);
     await takeTheNextStep(p, refusal);
