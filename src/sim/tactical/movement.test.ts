@@ -930,6 +930,38 @@ describe('a blocked final destination', () => {
   });
 });
 
+describe('a new move for a merc halted for want of APs (Handle_UI.cc UIHandleCMoveMerc, EVENT_InitNewSoldierAnim)', () => {
+  const FEW_WALKING_STEPS_AP = 8;
+  const FAR_EAST = gridNo(90, 80);
+  const FULL_AP = 25;
+  const STEPS = 4000;
+
+  it('restarts his frozen walk, so he sets out on the first step of the new path', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, START, Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    sim.lookAround();
+    merc.actionPoints = FEW_WALKING_STEPS_AP;
+    expect(sim.dispatch({ soldier: merc.id, type: 'move', to: FAR_EAST }).ok).toBe(true);
+    runUntilIdle(sim);
+    const halted = merc.gridNo;
+    expect([merc.noAPToFinishMove, content.animations.controls[merc.state]?.id]).toEqual([true, 'WALKING']);
+    merc.actionPoints = FULL_AP;
+    const target = halted - WORLD_COLS - 4;
+    expect(sim.dispatch({ soldier: merc.id, type: 'move', to: target }).ok).toBe(true);
+    const route = merc.path.slice(0, merc.pathSize);
+    expect(route[0]).toBe(Direction.NORTHWEST);
+    const visited = [merc.gridNo];
+    for (let step = 0; step < STEPS; step++) {
+      sim.step();
+      if (visited.at(-1) !== merc.gridNo) visited.push(merc.gridNo);
+    }
+    let g = halted;
+    const planned = [halted, ...route.map((d) => (g += DIRECTION_INCREMENT[d] ?? 0))];
+    expect(visited).toEqual(planned);
+  });
+});
+
 describe('stopping a soldier in combat', () => {
   function shooterTurningAway() {
     const sim = newCombatSim(content);

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMovementMenu (the run), UIHandleSoldierStanceChange (the stance change,
 // @src a moving merc's gait in real time), UIHandleCMoveMerc and SelectedMercCanAffordMove (the move: its mode, the
-// @src first step's APs and the continue location), MakeSoldierTurn (the turn), UIHandlePADJAdjustStance (the climb),
+// @src first step's APs, the continue location and a halted move's forced restart, 2026-11-10), MakeSoldierTurn (the turn), UIHandlePADJAdjustStance (the climb),
 // @src UIOkForItemPickup (the pick-up), UIHandleEndTurn (CheckForEndOfCombatMode before the turn passes);
 // @src Interface.cc PopupMovementMenu (who cannot run); Handle_Items.cc HandleItem (the attack, the remote's APs);
 // @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE; the plantBomb command and the remote bomb trigger go through
@@ -1260,7 +1260,6 @@ export class TacticalSim {
         return refuse('notEnoughAP', `not enough APs: the first step costs ${first}, ${s.actionPoints} left`);
       }
     }
-    if (s.noAPToFinishMove) s.noAPToFinishMove = false;
     const kept = { mode: s.uiMovementMode, fast: s.uiMovementFast };
     this.#takeMoveMode(s, mode);
     if (!getNewSoldierPath(t, s, to, mode, 1, s.noAPToFinishMove)) {
