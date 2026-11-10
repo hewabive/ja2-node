@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { campaignInA10 } from '../../tests/support/a10-campaign.ts';
+import { A10_STAIRS, campaignInA10, hideRoomOf } from '../../tests/support/a10-campaign.ts';
 import { spawnSoldier } from '../../tests/support/combat.ts';
 import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serialisedView, withQueries } from '../../tests/support/hints.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
@@ -8,7 +8,7 @@ import { Direction, WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { EdgeExit, ExitBand, SectorExits } from '../sim/hints/sector-exits.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
-import { markGroundRevealed, restoreFogOfWar } from '../sim/tactical/perception/fov.ts';
+import { markGroundRevealed } from '../sim/tactical/perception/fov.ts';
 import { atExitEdge, ExitDirection } from '../sim/tactical/sector-exit.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { onVisibleWorldTile, type TacticalState } from '../sim/tactical/state.ts';
@@ -16,7 +16,6 @@ import { createCampaignSession } from './campaign-factory.ts';
 import { createSandboxSession } from './sandbox.ts';
 import { Session } from './session.ts';
 
-const A10_STAIRS = 11432;
 const UNSEEN_ENEMY = 20;
 const EXIT_DIRECTIONS = { north: ExitDirection.NORTH, east: ExitDirection.EAST, south: ExitDirection.SOUTH, west: ExitDirection.WEST };
 
@@ -145,15 +144,25 @@ describe('sectorExits on the stub campaign', () => {
     const a10 = await campaignInA10(kit, 32);
     const session = withQueries(a10.session, sources);
     const t = tacticalStateOf(session);
-    const room = t.world.level.rooms[A10_STAIRS] ?? 0;
-    expect(room).not.toBe(0);
-    const revealed = t.fog.revealed.map((flags, g) => ((t.world.level.rooms[g] ?? 0) === room ? 0 : flags));
-    const roomHidden = t.fog.roomHidden.map((hidden, r) => (r === room ? 1 : hidden));
-    restoreFogOfWar(t, revealed, roomHidden);
+    expect(hideRoomOf(t, A10_STAIRS)).not.toBe(0);
     expect(t.world.exitGrids.has(A10_STAIRS)).toBe(true);
     expect((await exitsOf(session)).exitGrids).toEqual([]);
     markGroundRevealed(t, A10_STAIRS);
     expect((await exitsOf(session)).exitGrids).toEqual([{ to: 'A10', level: 1, gridNos: [A10_STAIRS], exit: 'ok' }]);
+  });
+
+  it('refuses the exit dry run through an exit grid inside a room as notRevealed until its tile is revealed, agreeing with the client', async () => {
+    const a10 = await campaignInA10(kit, 32);
+    const session = withQueries(a10.session, sources);
+    const t = tacticalStateOf(session);
+    expect(hideRoomOf(t, A10_STAIRS)).not.toBe(0);
+    const soldier = serialisedView(session).selected;
+    const dryRun = { type: 'exitSector', soldier, exitGrid: A10_STAIRS, who: 'squad', dryRun: true };
+    expect(await session.query(dryRun)).toMatchObject({ ok: false, data: { refusal: 'notRevealed' } });
+    await expectHintsAgree(session, client, [dryRun]);
+    markGroundRevealed(t, A10_STAIRS);
+    expect(await session.query(dryRun)).toMatchObject({ ok: true, data: { target: 'A10', level: 1 } });
+    await expectHintsAgree(session, client, [dryRun]);
   });
 
   it('is refused in the sandbox, which has no sector to leave', async () => {

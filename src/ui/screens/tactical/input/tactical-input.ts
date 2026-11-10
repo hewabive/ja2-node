@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc HandleTacticalUI (the frame flags, the input order mouse position, polled keys,
 // @src mouse buttons, queued keys, the pending override event, the single events, the menu modes, the multi-selection
-// @src reset), SetUIMouseCursor (the exit arrows at the scrolled map edges and exit grids), the event handlers
+// @src reset), SetUIMouseCursor (the exit arrows at the scrolled map edges and exit grids; none on a tile in a room until
+// @src it is revealed, 2026-11-10), the event handlers
 // @src UIHandleIDoNothing, UIHandleSelectMerc, UIHandleMOnTerrain (the 1.5 s over items, the exit grid flag, the height
 // @src check, the next merc for a dying one, CANNOT_MOVE_UICURSOR, the exchange cursor), UIHandleAOnTerrain (the out-of-range line once per target),
 // @src UIHandleCWait, UIHandleCMoveMerc (the all-move and the multi-selection through people, bReverse, the OK battle sound
@@ -58,10 +59,11 @@
 // @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05).
 
 import { Body } from '../../../../content/anim/body-types.ts';
+import { exitGridCursorShownOver } from '../../../../content/world/exit-grid-cursor.ts';
 import { idiv } from '../../../../core/int.ts';
 import type { EstimateAttack, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';
-import type { PlayerView, SoldierView, Stance } from '../../../../protocol/view.ts';
+import { inTileRuns, type PlayerView, type SoldierView, type Stance } from '../../../../protocol/view.ts';
 import { VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from '../../../cursors/cursor-ids.ts';
 import type { MouseText } from '../../../cursors/cursor-state.ts';
 import { CursorFlag } from '../../../cursors/cursor-table.ts';
@@ -3096,7 +3098,7 @@ export class TacticalInput {
       if (this.#showExitGrid) {
         this.#displayAp = false;
         this.#erasePath();
-        this.#newCursor = this.#exitCursor('exitGrid');
+        if (this.#exitGridCursorShown()) this.#newCursor = this.#exitCursor('exitGrid');
       }
     }
     if (this.#timedCursor && this.#now < this.#timedCursor.until) this.#cursor = this.#timedCursor.cursor;
@@ -3104,6 +3106,13 @@ export class TacticalInput {
       this.#timedCursor = null;
       this.#cursor = this.#newCursor;
     }
+  }
+
+  #exitGridCursorShown(): boolean {
+    const mapPos = this.#mapPos();
+    const sel = this.#sel();
+    if (mapPos === null || !sel || sel.level !== 0) return false;
+    return exitGridCursorShownOver(this.#env().world.roomAt(mapPos), inTileRuns(this.#view()?.revealedTiles, mapPos));
   }
 
   #edgeExit(edges: ScrollEdges, x: number, y: number, width: number, height: number): ExitDirection | null {

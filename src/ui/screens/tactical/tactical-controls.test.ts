@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
+import { A10_STAIRS, campaignInA10, hideRoomOf, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
@@ -28,6 +28,7 @@ import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { NpcActionCode } from '../../../sim/tactical/narrative/npc-actions/codes.ts';
+import { markGroundRevealed } from '../../../sim/tactical/perception/fov.ts';
 import { Orders } from '../../../sim/tactical/soldier.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
@@ -1907,6 +1908,36 @@ describe('the exit grid cursor over an exit grid added while the sector ran, in 
     hover(f, TRAPDOOR);
     f.t.frame(EXCHANGE_CURSOR_SAMPLE_MS);
     expect(f.screen.controls.input.uiCursor).toBe('EXIT_GRID_UICURSOR');
+  });
+});
+
+describe('the exit grid cursor over an exit grid inside a room, in a stub campaign', () => {
+  function stairsCursor(f: TacticalUiTest): string {
+    f.deliver();
+    f.world.camera = { centerX: (A10_STAIRS % WORLD_COLS) * 10 + 5, centerY: Math.floor(A10_STAIRS / WORLD_COLS) * 10 + 5 };
+    hover(f, A10_STAIRS);
+    f.t.frame(EXCHANGE_CURSOR_SAMPLE_MS);
+    return f.screen.controls.input.uiCursor;
+  }
+
+  it('keeps the move cursor over the A10 stairs in their room until the tile is revealed, a click there a move (Handle_UI.cc:839)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const t = tacticalOf(a10.session).state;
+    const room = hideRoomOf(t, A10_STAIRS);
+    f.world.exitGrids.add(A10_STAIRS);
+    f.world.rooms.set(A10_STAIRS, room);
+    const hidden = stairsCursor(f);
+    const at = f.world.pickPoint(A10_STAIRS);
+    await f.clickAt(at.x, at.y);
+    expect([room === 0, hidden, commandsOf(f, 'exitSectorOptions'), commandsOf(f, 'move').at(-1)?.to]).toEqual([
+      false,
+      'MOVE_REALTIME_UICURSOR',
+      [],
+      A10_STAIRS,
+    ]);
+    markGroundRevealed(t, A10_STAIRS);
+    expect(stairsCursor(f)).toMatch(/^(CONFIRM_)?EXIT_GRID_UICURSOR$/);
   });
 });
 

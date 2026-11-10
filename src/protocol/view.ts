@@ -1167,6 +1167,10 @@ export function sameTileRuns(a: readonly TileRun[] | undefined, b: readonly Tile
   return a.every((run, i) => run[0] === b[i]?.[0] && run[1] === b[i]?.[1]);
 }
 
+export function inTileRuns(runs: readonly TileRun[] | undefined, gridNo: number): boolean {
+  return (runs ?? []).some(([first, count]) => gridNo >= first && gridNo < first + count);
+}
+
 function tilesIn(runs: readonly TileRun[]): number {
   return runs.reduce((sum, run) => sum + run[1], 0);
 }

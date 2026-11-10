@@ -1,8 +1,11 @@
 import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
+import { WORLD_COLS } from '../../src/content/world/grid.ts';
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import { Session } from '../../src/server/session.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
+import { restoreFogOfWar } from '../../src/sim/tactical/perception/fov.ts';
+import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import type { StubSectorKit } from './sectors.ts';
 
 const ROUTE_BUDGET = 10;
@@ -13,6 +16,7 @@ const TARGET = 'A10';
 export const STUB_NPC = 94;
 export const STUB_DEALER = 91;
 export const STUB_RPC = 65;
+export const A10_STAIRS = 71 * WORLD_COLS + 72;
 
 export interface A10Campaign {
   readonly campaign: CampaignSession;
@@ -49,4 +53,12 @@ export async function campaignInA10(kit: StubSectorKit, seed: number, mercs = 2)
       .soldiers.filter((s) => s.team === 0)
       .map((s) => s.id),
   };
+}
+
+export function hideRoomOf(t: TacticalState, gridNo: number): number {
+  const room = t.world.level.rooms[gridNo] ?? 0;
+  const revealed = t.fog.revealed.map((flags, g) => ((t.world.level.rooms[g] ?? 0) === room ? 0 : flags));
+  const roomHidden = t.fog.roomHidden.map((hidden, r) => (r === room ? 1 : hidden));
+  restoreFogOfWar(t, revealed, roomHidden);
+  return room;
 }

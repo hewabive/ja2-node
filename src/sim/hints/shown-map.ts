@@ -5,6 +5,7 @@
 // @src ExamineGridNoForSlantRoofExtraGraphic (a slanted roof's ceiling over the tiles no merc has seen).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
+import { exitGridCursorShownOver, NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { KnowledgeView } from '../knowledge/view.ts';
@@ -12,8 +13,6 @@ import type { TileRun } from '../tactical/perception/fov.ts';
 import { exitGridAt } from '../tactical/sector-exit.ts';
 import { onVisibleWorldTile, type TacticalState } from '../tactical/state.ts';
 import { flatRoofAboveGridNo } from '../tactical/world-items.ts';
-
-const NO_ROOM = 0;
 
 export interface ShownExitGrid {
   readonly gridNo: number;
@@ -26,15 +25,11 @@ export function tilesOfRuns(runs: readonly TileRun[] | undefined): Uint8Array {
   return tiles;
 }
 
-function exitGridCursorShownAt(t: TacticalState, revealed: Uint8Array, g: number): boolean {
-  return (t.world.level.rooms[g] ?? NO_ROOM) === NO_ROOM || revealed[g] === 1;
-}
-
 export function shownExitGrids(t: TacticalState, view: KnowledgeView): ShownExitGrid[] {
   const revealed = tilesOfRuns(view.revealedTiles);
   const shown: ShownExitGrid[] = [];
   for (const g of [...t.world.exitGrids].sort((a, b) => a - b)) {
-    if (!onVisibleWorldTile(t, g) || !exitGridCursorShownAt(t, revealed, g)) continue;
+    if (!onVisibleWorldTile(t, g) || !exitGridCursorShownOver(t.world.level.rooms[g] ?? NO_ROOM, revealed[g] === 1)) continue;
     const exit = exitGridAt(t, g);
     if (exit) shown.push({ gridNo: g, sector: exit.sector });
   }

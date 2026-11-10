@@ -27,6 +27,7 @@ import { getGroup } from '../strategic/forces/groups.ts';
 import { numberOfPlayerControllableMercsInSquad } from '../strategic/forces/squads.ts';
 import { DIRECTION_EXITGRID } from '../tactical/sector-exit.ts';
 import { createSoldier, type Soldier } from '../tactical/soldier.ts';
+import { tilesOfRuns } from './shown-map.ts';
 import { actingSoldier } from './soldier-check.ts';
 import { type HintRefusal, type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 
@@ -109,6 +110,7 @@ function projectedExitWorld(sk: StrategicKnowledge, tactical: TacticalKnowledge)
     sector: m.sector,
     soldier: tactical.ownSoldier(m.id) ?? unplacedSoldier(m.id, 0),
   }));
+  let revealed: Uint8Array | null = null;
   return {
     tactical: tactical.state,
     world,
@@ -130,6 +132,10 @@ function projectedExitWorld(sk: StrategicKnowledge, tactical: TacticalKnowledge)
     surfaceWarp: () => {
       const surface = sk.view.strategic?.surfaceWarp;
       return surface ? parseSectorString(surface) : null;
+    },
+    tileRevealed: (g) => {
+      revealed ??= tilesOfRuns(sk.view.revealedTiles);
+      return revealed[g] === 1;
     },
   };
 }

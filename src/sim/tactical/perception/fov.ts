@@ -191,7 +191,7 @@ function nextViewMarker(markers: ViewMarkers): number {
   return markers.value;
 }
 
-function groundRevealed(t: TacticalState, g: number): boolean {
+export function groundRevealed(t: TacticalState, g: number): boolean {
   return ((t.fog.revealed[g] ?? 0) & RevealedFlags.GROUND) !== 0;
 }
 

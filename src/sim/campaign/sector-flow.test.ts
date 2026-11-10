@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { A10_STAIRS } from '../../../tests/support/a10-campaign.ts';
 import { progressFor } from '../../../tests/support/autoresolve.ts';
 import {
   type CampaignKit,
@@ -63,7 +64,7 @@ import {
 } from '../tactical/map-changes.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
-import { RevealedFlags } from '../tactical/perception/fov.ts';
+import { groundRevealed, markGroundRevealed, RevealedFlags } from '../tactical/perception/fov.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { NO_SAVED_SECTOR_CHANGES } from '../tactical/save-import.ts';
 import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
@@ -1320,22 +1321,45 @@ describe('the map loaded last', () => {
 });
 
 describe('exit grids', () => {
-  it('takes the squad down the A10 stairs into the basement and back up', () => {
-    const { campaign, roster } = createTestCampaign(kit, { seed: 15, garrison: NO_GARRISON });
+  function squadInA10(seed: number) {
+    const { campaign, roster } = createTestCampaign(kit, { seed, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
-    const a10 = sectorInfo(campaign.state.map, A10);
-    a10.numAdmins = 0;
-    a10.numTroops = 0;
-    a10.numElites = 0;
+    Object.assign(sectorInfo(campaign.state.map, A10), NO_GARRISON_COUNTS);
     for (const m of roster.all()) {
       m.sector = { ...A10 };
       m.insertionCode = InsertionCode.CENTER;
     }
     for (const g of campaign.state.forces.groups) if (g.player) g.sector = { ...A10 };
     expect(flow.setCurrentWorldSector(A10)).toBe(true);
-    const stairs = 71 * 160 + 72;
-    const r = campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: stairs, who: 'squad' });
+    return { campaign, roster };
+  }
+
+  it('refuses an exit grid on a tile inside a room no merc has seen yet, as the exit grid cursor shows none there (Handle_UI.cc:839)', () => {
+    const { campaign } = squadInA10(15);
+    const t = campaign.tactical?.state ?? never();
+    const room = t.world.level.rooms[A10_STAIRS] ?? 0;
+    const floor = t.world.level.rooms.findIndex((r, g) => r === room && !t.world.exitGrids.has(g));
+    expect([room === 0, groundRevealed(t, A10_STAIRS), groundRevealed(t, floor)]).toEqual([false, false, false]);
+    const notRevealed = { ok: false, data: { refusal: 'notRevealed' } };
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: A10_STAIRS, who: 'squad' })).toMatchObject(notRevealed);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: floor, who: 'squad' })).toMatchObject(notRevealed);
+    markGroundRevealed(campaign.tactical?.state ?? never(), floor);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: floor, who: 'squad' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'noExitGrid' },
+    });
+    markGroundRevealed(campaign.tactical?.state ?? never(), A10_STAIRS);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: A10_STAIRS, who: 'squad' })).toMatchObject({
+      ok: true,
+      data: { target: 'A10', level: 1 },
+    });
+  });
+
+  it('takes the squad down the A10 stairs into the basement and back up', () => {
+    const { campaign, roster } = squadInA10(15);
+    markGroundRevealed(campaign.tactical?.state ?? never(), A10_STAIRS);
+    const r = campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: A10_STAIRS, who: 'squad' });
     expect(r).toMatchObject({ ok: true, data: { minutes: 0, load: true, target: 'A10' } });
     runTicks(campaign, 4000, () => campaign.state.worldSector?.z === 1);
     expect(campaign.state.worldSector).toEqual({ x: 10, y: 1, z: 1 });

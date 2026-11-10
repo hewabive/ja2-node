@@ -12,12 +12,8 @@ start with `src/`, `data/` or `tools/`.
 
 ## 1. Tactical rules and AI
 
-The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map. Paths are under
-`src/sim/tactical/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Exit grids in unrevealed rooms | The exit grid cursor shows only over a tile outside rooms or revealed (`Tactical/Handle_UI.cc:838-839`); over an exit grid in a room no merc has seen into the tile keeps the move cursor and a click there is a move, so no merc can take it yet | The client's exit grid cursor and `exitSector {exitGrid}` take any exit grid (`src/ui/screens/tactical/input/tactical-input.ts`, `src/sim/campaign/sector-exits.ts`); the `sectorExits` query already hides such grids (`src/sim/hints/shown-map.ts`) | The check before the client's exit grid cursor and in `exitSector`'s exit grid case; the stub A10's stairs in its room show it (`src/server/sector-exits-stub.test.ts`) |
+The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map: none known. Paths are
+under `src/sim/tactical/`.
 
 ## 2. Strategic layer
 

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import type { ProfilePresentation } from '../../src/content/narrative/profile-presentation.ts';
 import { loadUiStrings } from '../../src/content/text/strings.ts';
+import { NO_ROOM } from '../../src/content/world/exit-grid-cursor.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import type { CatalogueItem, ItemCatalogue } from '../../src/protocol/items.ts';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
@@ -200,6 +201,7 @@ export class FakeWorld implements WorldPresenter {
   interactiveNodes: (x: number, y: number) => readonly InteractiveNode[] = () => [];
   readonly interactiveTiles = new Map<string, InteractiveTile>();
   exitGrids = new Set<number>();
+  rooms = new Map<number, number>();
   edges: ScrollEdges = { left: false, right: false, top: false, bottom: false };
   readonly scrolled: { readonly dx: number; readonly dy: number }[] = [];
   overhead: OverheadMapView | null = null;
@@ -326,6 +328,10 @@ export class FakeWorld implements WorldPresenter {
 
   exitGridAt(gridNo: number): boolean {
     return this.exitGrids.has(gridNo) || (this.#view().addedExitGrids ?? []).some((e) => e.gridNo === gridNo);
+  }
+
+  roomAt(gridNo: number): number {
+    return this.rooms.get(gridNo) ?? NO_ROOM;
   }
 
   scrollEdges(): ScrollEdges {

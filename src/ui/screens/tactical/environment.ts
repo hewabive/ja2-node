@@ -167,6 +167,7 @@ export interface WorldPresenter {
   interactiveNodesAt(x: number, y: number): readonly InteractiveNode[];
   interactiveTile(node: InteractiveNodeRef): InteractiveTile | null;
   exitGridAt(gridNo: number): boolean;
+  roomAt(gridNo: number): number;
   scrollEdges(): ScrollEdges;
   scrollBy(dx: number, dy: number): boolean;
   slideView(gridNo: number): SlideView;

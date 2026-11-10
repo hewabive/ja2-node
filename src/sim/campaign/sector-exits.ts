@@ -7,9 +7,11 @@
 // @src an exit without a load, 2026-11-01);
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu,
 // @src InitSectorExitMenu, WarpToSurfaceCallback, DoneFadeOutWarpCallback (the warp out of a creature lair);
-// @src TileEngine/Pits.cc HandleFallIntoPitFromAnimation (the merc's sector and squad, 2026-11-09).
+// @src TileEngine/Pits.cc HandleFallIntoPitFromAnimation (the merc's sector and squad, 2026-11-09); Tactical/Handle_UI.cc
+// @src SetUIMouseCursor (no exit grid cursor on a tile in a room until the tile is revealed, 2026-11-10).
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { exitGridCursorShownOver, NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
 import { Direction } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
@@ -44,6 +46,7 @@ import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { states } from '../tactical/animation.ts';
 import { calcMapEdgepointClassInsertionCode } from '../tactical/edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition } from '../tactical/movement.ts';
+import { groundRevealed } from '../tactical/perception/fov.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import {
   DIRECTION_EXITGRID,
@@ -153,6 +156,7 @@ export interface ExitWorld {
   controllableInSquad(squad: number): number;
   militiaInWorld(): number;
   surfaceWarp(): Sector | null;
+  tileRevealed(gridNo: number): boolean;
 }
 
 function soldierOf(flow: SectorFlow, m: RosterMerc): Soldier | null {
@@ -221,6 +225,7 @@ export function flowExitWorld(flow: SectorFlow): ExitWorld {
     controllableInSquad: (squad) => numberOfPlayerControllableMercsInSquad(flow.ctx, squad),
     militiaInWorld: () => (flow.world ? countAllMilitiaInSector(flow.ctx, flow.world) : 0),
     surfaceWarp: () => flow.campaign.creatures?.surfaceWarp(flow.world)?.sector ?? null,
+    tileRevealed: (g) => t !== null && groundRevealed(t, g),
   };
 }
 
@@ -641,6 +646,7 @@ function refusalOf(check: ExitCheck): ExitRefusalToken {
 type ExitRefusalToken =
   | 'noSector'
   | 'badDirection'
+  | 'notRevealed'
   | 'noExitGrid'
   | 'invalidTraversal'
   | 'uncontrolledRobot'
@@ -668,6 +674,7 @@ export type ExitDecision =
 const EXIT_REFUSAL_TEXT: RefusalTexts<ExitRefusalToken> = {
   noSector: 'no sector is loaded',
   badDirection: "give direction 'north'|'east'|'south'|'west' or exitGrid: gridNo",
+  notRevealed: 'the tile is inside a room and no merc has seen it yet: the exit grid cursor shows there only once one has',
   noExitGrid: 'no exit grid at that gridNo',
   invalidTraversal: 'the sector cannot be left on that side',
   uncontrolledRobot: 'the robot cannot leave without a merc using its controller',
@@ -695,13 +702,20 @@ interface PlannedExit {
   readonly exitGridNo: number;
 }
 
+function exitGridCursorShownAt(w: ExitWorld, t: TacticalState, g: number): boolean {
+  return exitGridCursorShownOver(t.world.level.rooms[g] ?? NO_ROOM, w.tileRevealed(g));
+}
+
 function plannedExit(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): PlannedExit | ExitRefusal {
   const t = w.tactical;
   if (!t) return declined('noSector');
   const direction = cmd.exitGrid !== undefined ? DIRECTION_EXITGRID : parseDirection(cmd.direction);
   if (direction === null) return declined('badDirection');
   const exitGridNo = typeof cmd.exitGrid === 'number' ? cmd.exitGrid : 0;
-  if (direction === DIRECTION_EXITGRID && !exitGridAt(t, exitGridNo)) return declined('noExitGrid');
+  if (direction === DIRECTION_EXITGRID) {
+    if (!exitGridCursorShownAt(w, t, exitGridNo)) return declined('notRevealed');
+    if (!exitGridAt(t, exitGridNo)) return declined('noExitGrid');
+  }
   const plan = exitCheck(w, selected, direction, exitGridNo);
   if (!plan.menu) return declined(refusalOf(plan.check), plan.check.minutes);
   return { plan, menu: plan.menu, direction, exitGridNo };

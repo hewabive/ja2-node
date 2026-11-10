@@ -996,12 +996,14 @@ the estimate", "Other soldiers in the projection") or dropped (the melee chance 
 exit grid cursor answer for one merc: per edge the adjacent sector, the travel time, `exitSector`'s answer now, and the
 edge's band, the tiles from which `SoldierOKForSectorExit` lets a merc leave (`Strategic/StrategicMap.cc:1945`), as a
 bound on `x - y` or `x + y`, since the band is a strip of the screen. The exit grids are those the cursor shows: it
-shows none on a tile in a room until that tile is revealed (`Tactical/Handle_UI.cc:838`; gaps "Exit grids in unrevealed
-rooms"). `walkTo` is ja2-node's own pick, not the original's `PickGridNoNearestEdge`, which the exit itself still uses
-for the mercs it walks off: for each merc of the squad the nearest band tile he can reach and stand on, none shared,
-from one flood per group of mercs that can reach each other, so an agent can send the squad there and leave together.
-Measured on the original data (A9 after the landing, B13, C13 and D13 from native saves) the answer is 630–690 bytes and
-takes about 5 ms.
+shows none on a tile in a room until that tile is revealed (`Tactical/Handle_UI.cc:838`), and the client's cursor and
+`exitSector` follow the same check (`src/content/world/exit-grid-cursor.ts`): `exitSector` refuses such a tile as
+`notRevealed` before it looks for an exit grid there, so the refusal does not tell whether the room holds one, and a
+click there is a move, which the exit grid's tile blocks (`noPath`). `walkTo` is ja2-node's own pick, not the original's
+`PickGridNoNearestEdge`, which the exit itself still uses for the mercs it walks off: for each merc of the squad the
+nearest band tile he can reach and stand on, none shared, from one flood per group of mercs that can reach each other,
+so an agent can send the squad there and leave together. Measured on the original data (A9 after the landing, B13, C13
+and D13 from native saves) the answer is 630–690 bytes and takes about 5 ms.
 
 **Layout.** `sectorLayout` (`src/sim/hints/sector-layout.ts`) draws the loaded sector as text, one character per cell of
 `cell` × `cell` tiles, laid out by gridNo (x right, y down) rather than as the screen's diamond, so that a cell's corner

@@ -22,6 +22,7 @@
 // @src ExitGridAtGridNo over AddExitGridToWorld (an exit grid added while the sector runs is one at once, 2026-11-09).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
+import { NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { NORMAL_SHADE, shadedDisplayPalette } from '../../content/world/shading.ts';
 import { tileIndexFromTypeSubIndex } from '../../content/world/tile-tables.ts';
@@ -458,6 +459,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
   exitGridAt(gridNo: number): boolean {
     if (this.#world.world.tactical.exitGrids.has(gridNo)) return true;
     return (this.#sources.view()?.addedExitGrids ?? []).some((e) => e.gridNo === gridNo);
+  }
+
+  roomAt(gridNo: number): number {
+    return this.#world.world.tactical.level.rooms[gridNo] ?? NO_ROOM;
   }
 
   #moved(dx: number, dy: number): Camera {
