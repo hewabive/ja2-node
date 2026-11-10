@@ -1,4 +1,4 @@
-export const SPLASH_SHOWN_KEY = 'ja2-node:splashShown';
+export const SPLASH_SHOWN_KEY = 'ja2-node:gameSplashShown';
 export const SPLASH_SHOWN = '1';
 
 export function splashShownThisTab(): boolean {
