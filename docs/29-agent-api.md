@@ -66,7 +66,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -773,7 +773,8 @@ sector short of its destination stops there: its paths are cleared, compression 
 his need for sleep (the next ones "me too") and drops asleep, `collapsed` until rested (`fellAsleep {collapsed: true}`),
 so `wake` refuses him. `routeGroup` is the move box: mercs parting from their unit regroup on this command rather than
 at Done (deviation "Move box regrouping"). `enterSector` loads with automatic placement (deviation "Tactical
-placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`.
+placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
+`sectorExits` answers for every edge and exit grid at once where a squad can leave and from which tiles (§9).
 On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector the exit dialog
 first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every conscious merc of
 the sector there and loads it (`campaign/sector-exits.ts`).
@@ -988,6 +989,17 @@ to the sector, a landed helicopter's pieces, which come last) gets a fresh proje
 mode (tests) every unsupplied field throws (`guard.ts`, `UnsuppliedFieldError`), so a hint that reads hidden state
 fails at once; each such read was decided: supplied by the view, given a neutral value (deviations "Movement penalty in
 the estimate", "Other soldiers in the projection") or dropped (the melee chance to hit).
+
+**Exits.** `sectorExits` (`src/sim/hints/sector-exits.ts`) gathers what the exit arrows at the four screen edges and
+the exit grid cursor answer for one merc: per edge the adjacent sector, the travel time, `exitSector`'s
+answer now, and the edge's band, the tiles from which `SoldierOKForSectorExit` lets a merc leave
+(`Strategic/StrategicMap.cc:1945`), as a bound on `x - y` or `x + y`, since the band is a strip of the screen. The
+exit grids are those the cursor shows: it shows none on a tile in a room until that tile is revealed
+(`Tactical/Handle_UI.cc:838`; gaps "Exit grids in unrevealed rooms"). `walkTo` is ja2-node's own pick, not the
+original's `PickGridNoNearestEdge`, which the exit itself still uses for the mercs it walks off: for each merc of the
+squad the nearest band tile he can reach and stand on, none shared, from one flood per group of mercs that can reach
+each other, so an agent can send the squad there and leave together. Measured on the original data (A9 after the
+landing, B13, C13 and D13 from native saves) the answer is 630–690 bytes and takes 20–90 ms.
 
 **Server-only queries** (`SERVER_QUERY_KINDS`: the laptop's quotes and checks, `quoteTrade`, `contractOptions`,
 `inventory`) depend on state the player does not see or price a decision; the query service passes them to the

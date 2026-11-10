@@ -15,6 +15,7 @@ import { previewAction } from './preview-action.ts';
 import { previewHeliRoute } from './preview-heli-route.ts';
 import { previewMove } from './preview-move.ts';
 import { previewRoute } from './preview-route.ts';
+import { sectorExits } from './sector-exits.ts';
 import { type HintKind, type HintRequestBase, isHintKind, refuseHint } from './types.ts';
 
 type HintAnswerer = (world: KnowledgeWorld, req: HintRequestBase) => CommandResult;
@@ -36,6 +37,7 @@ const ANSWERERS: Readonly<Partial<Record<HintKind, HintAnswerer>>> = {
   exitSectorOptions,
   movementOptions,
   passTargets,
+  sectorExits,
 };
 
 export function answerHint(world: KnowledgeWorld, req: HintRequestBase): CommandResult {

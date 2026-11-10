@@ -2,6 +2,7 @@ import type { DoorView, KeyView } from '../tactical/doors/door-view.ts';
 import type { AdrenalineView, DrunkView } from '../tactical/drugs.ts';
 import type { InventoryItemView } from '../tactical/inventory-view.ts';
 import type { Stance } from '../tactical/movement-mode.ts';
+import type { TileRun } from '../tactical/perception/fov.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../tactical/soldier-view.ts';
 import type { AddedExitGridView, TileChangeView } from '../tactical/world-view.ts';
 
@@ -126,6 +127,10 @@ export interface KnowledgeView {
   readonly tick: number;
   readonly mapPath: string | null;
   readonly soldiers: readonly KnowledgeSoldier[];
+  readonly selected?: number | null;
+  readonly revealedRooms?: readonly number[];
+  readonly revealedAtLoad?: readonly TileRun[];
+  readonly revealedTiles?: readonly TileRun[];
   readonly openDoors?: readonly number[];
   readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];

@@ -168,6 +168,19 @@ function exitControllable(w: ExitWorld, m: ExitMerc): boolean {
   return w.inTactical(m) && m.life >= OKLIFE && m.assignment < Assignment.ON_DUTY;
 }
 
+export function exitSquad(w: ExitWorld, selected: ExitMerc): ExitMerc[] {
+  return w.mercs().filter((m) => exitControllable(w, m) && m.assignment === selected.assignment);
+}
+
+export function edgeTraverseMinutes(w: ExitWorld, m: ExitMerc, direction: number): number {
+  return w.traverseTime(m.groupId, STRATEGIC_MOVE_OF[direction] ?? 0, UNDERGROUND_FROM_LEVEL);
+}
+
+export function adjacentSector(world: Sector, direction: number): Sector {
+  const [dx, dy] = SECTOR_STEP[direction] ?? [0, 0];
+  return { x: world.x + dx, y: world.y + dy, z: world.z };
+}
+
 function undergroundTraversalTime(t: TacticalState | null, exitDirection: number): number {
   if (!t) return TRAVERSE_TIME_IMPOSSIBLE;
   const info = sectorMapOf(t).info;
@@ -732,8 +745,7 @@ export function exitTarget(w: ExitWorld, direction: number, exitGridNo: number):
   const world = w.world;
   if (!world || !w.tactical) return null;
   if (direction === DIRECTION_EXITGRID) return exitGridAt(w.tactical, exitGridNo)?.sector ?? null;
-  const [dx, dy] = SECTOR_STEP[direction] ?? [0, 0];
-  return { x: world.x + dx, y: world.y + dy, z: world.z };
+  return adjacentSector(world, direction);
 }
 
 export function exitResultData(check: ExitCheck, menu: ExitMenu, jumpCode: number, target: Sector) {

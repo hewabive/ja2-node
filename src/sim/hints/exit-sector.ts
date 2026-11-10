@@ -134,26 +134,33 @@ function projectedExitWorld(sk: StrategicKnowledge, tactical: TacticalKnowledge)
   };
 }
 
-interface ExitSubject {
+export interface ExitSubject {
   readonly world: ExitWorld;
   readonly selected: ExitMerc;
   readonly tactical: TacticalKnowledge;
+  readonly blocked: string | null;
 }
 
-function exitSubject(world: KnowledgeWorld, req: ExitSectorRequest): ExitSubject | { readonly refusal: HintRefusal } {
+export function exitSubjectOf(world: KnowledgeWorld, soldier: unknown): ExitSubject | { readonly refusal: HintRefusal } {
   const sk = world.strategic;
   const tactical = world.tactical;
   if (!sk || !tactical) return { refusal: refuseHint('noSector', 'no sector is loaded') };
-  const acting = actingSoldier(world, req.soldier);
+  const acting = actingSoldier(world, soldier);
   if ('refusal' in acting) return acting;
   const exitWorld = projectedExitWorld(sk, tactical);
   const selected = exitWorld.mercs().find((m) => m.id === acting.soldier.id);
   if (!selected) return { refusal: refuseHint('noSuchSoldier', 'no such soldier of yours in this sector') };
-  if (acting.blocked) return { refusal: refuseHint(acting.blocked, acting.blocked) };
-  return { world: exitWorld, selected, tactical };
+  return { world: exitWorld, selected, tactical, blocked: acting.blocked };
 }
 
-function withMovementModesKept<R>(tactical: TacticalKnowledge, world: ExitWorld, run: () => R): R {
+function exitSubject(world: KnowledgeWorld, req: ExitSectorRequest): ExitSubject | { readonly refusal: HintRefusal } {
+  const subject = exitSubjectOf(world, req.soldier);
+  if ('refusal' in subject) return subject;
+  if (subject.blocked) return { refusal: refuseHint(subject.blocked, subject.blocked) };
+  return subject;
+}
+
+export function withMovementModesKept<R>(tactical: TacticalKnowledge, world: ExitWorld, run: () => R): R {
   const soldiers = world
     .mercs()
     .map((m) => tactical.ownSoldier(m.id))

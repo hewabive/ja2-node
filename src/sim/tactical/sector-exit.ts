@@ -94,12 +94,12 @@ export function findGridNoFromSweetSpotCloseToExitGrid(t: TacticalState, s: Sold
   return lowest;
 }
 
-export function soldierOKForSectorExit(t: TacticalState, s: Soldier, exitDirection: number, exitGridNo: number): boolean {
-  if (!s.placed || s.gridNo === NOWHERE) return false;
-  if (s.level > 0) return false;
+const EDGE_EXITS: ReadonlySet<number> = new Set([ExitDirection.NORTH, ExitDirection.EAST, ExitDirection.SOUTH, ExitDirection.WEST]);
+
+export function atExitEdge(t: { readonly world: TacticalState['world'] }, g: number, exitDirection: number): boolean {
   const restriction = restrictedScrollIdOf(t.world);
   const size = renderedScreenSize(restriction);
-  const { x, y } = absoluteScreenXY(restriction, s.gridNo);
+  const { x, y } = absoluteScreenXY(restriction, g);
   switch (exitDirection) {
     case ExitDirection.EAST:
       return x >= size.width - CHECK_DIR_X_DELTA;
@@ -109,14 +109,20 @@ export function soldierOKForSectorExit(t: TacticalState, s: Soldier, exitDirecti
       return y >= size.height - CHECK_DIR_Y_DELTA;
     case ExitDirection.NORTH:
       return y <= CHECK_DIR_Y_DELTA;
-    default: {
-      if (!t.inCombat) s.uiMovementMode = moveStateBasedOnStance(t.content, s);
-      const g = findGridNoFromSweetSpotCloseToExitGrid(t, s, exitGridNo, EXIT_SWEET_SPOT_RADIUS);
-      if (g === NOWHERE) return false;
-      if (t.inCombat && !enoughPoints(t.inCombat, s, plotPathCost(t, s, g, s.uiMovementMode))) return false;
-      return true;
-    }
+    default:
+      return false;
   }
+}
+
+export function soldierOKForSectorExit(t: TacticalState, s: Soldier, exitDirection: number, exitGridNo: number): boolean {
+  if (!s.placed || s.gridNo === NOWHERE) return false;
+  if (s.level > 0) return false;
+  if (EDGE_EXITS.has(exitDirection)) return atExitEdge(t, s.gridNo, exitDirection);
+  if (!t.inCombat) s.uiMovementMode = moveStateBasedOnStance(t.content, s);
+  const g = findGridNoFromSweetSpotCloseToExitGrid(t, s, exitGridNo, EXIT_SWEET_SPOT_RADIUS);
+  if (g === NOWHERE) return false;
+  if (t.inCombat && !enoughPoints(t.inCombat, s, plotPathCost(t, s, g, s.uiMovementMode))) return false;
+  return true;
 }
 
 interface EdgeWalk {
