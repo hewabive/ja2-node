@@ -9,6 +9,7 @@ import { buildTacticalWorldFromInputs, loadTacticalWorldInputs, type TacticalWor
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { SectorExits } from '../sim/hints/sector-exits.ts';
+import type { SectorLayout } from '../sim/hints/sector-layout.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSaveSession } from './save-session.ts';
 import { Session } from './session.ts';
@@ -16,9 +17,10 @@ import { Session } from './session.ts';
 const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const SAVES = ['SaveGame01.sav', 'SaveGame02.sav', 'SaveGame07.sav', 'SaveGame10.sav'].map((name) => join(gameRoot, 'SavedGames', name));
-const MAX_ANSWER_CHARS = 1500;
+const MAX_EXITS_CHARS = 1500;
+const MAX_LAYOUT_CHARS = 2500;
 
-describe.skipIf(!ORIGINAL_DATA_DIR)('sectorExits on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('sectorExits and sectorLayout on the original data', () => {
   let data: DataVfs;
   let sources: HintSources;
   let client: ClientSide;
@@ -46,15 +48,20 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('sectorExits on the original data', () => {
   async function expectCompactAgreement(session: Session): Promise<void> {
     const path = session.sim.view().mapPath;
     if (path && !inputs.has(path)) inputs.set(path, await loadTacticalWorldInputs(read, path));
-    await expectHintsAgree(session, client, [{ type: 'sectorExits' }]);
-    const answer = await session.query({ type: 'sectorExits' });
-    expect(answer.ok, answer.reason).toBe(true);
-    expect(JSON.stringify(answer).length).toBeLessThan(MAX_ANSWER_CHARS);
-    const exits = answer.data as SectorExits;
-    expect(exits.edges.some((e) => e.minutes !== null && Object.keys(e.walkTo).length + e.inBand.length > 0)).toBe(true);
+    await expectHintsAgree(session, client, [{ type: 'sectorExits' }, { type: 'sectorLayout' }, { type: 'sectorLayout', level: 1 }]);
+    const exits = await session.query({ type: 'sectorExits' });
+    expect(exits.ok, exits.reason).toBe(true);
+    expect(JSON.stringify(exits).length).toBeLessThan(MAX_EXITS_CHARS);
+    const edges = (exits.data as SectorExits).edges;
+    expect(edges.some((e) => e.minutes !== null && Object.keys(e.walkTo).length + e.inBand.length > 0)).toBe(true);
+    const layout = await session.query({ type: 'sectorLayout' });
+    expect(layout.ok, layout.reason).toBe(true);
+    expect(JSON.stringify(layout).length).toBeLessThan(MAX_LAYOUT_CHARS);
+    const rows = (layout.data as SectorLayout).rows.join('');
+    for (const kind of ['.', 'R', '@']) expect(rows).toContain(kind);
   }
 
-  it('answers compactly on a new campaign after the landing, the client as the server', async () => {
+  it('answer compactly on a new campaign after the landing, the client as the server', async () => {
     const sim = await createCampaignSession(read, exists, 41, { land: false });
     const land = { type: 'compressTime', mode: 2 };
     await sim.prepare(land);
@@ -64,7 +71,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('sectorExits on the original data', () => {
   });
 
   for (const path of SAVES)
-    it.skipIf(!existsSync(path))(`answers compactly on the imported ${basename(path)}, the client as the server`, async () => {
+    it.skipIf(!existsSync(path))(`answer compactly on the imported ${basename(path)}, the client as the server`, async () => {
       const { session: sim } = await createSaveSession(read, new Uint8Array(readFileSync(path)), 1, exists);
       await expectCompactAgreement(withQueries(new Session('sector-exits', sim), sources));
     });

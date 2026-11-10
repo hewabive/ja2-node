@@ -50,7 +50,8 @@ game in the laptop about 34 KB (`laptop` 21 KB, of it the A.I.M. listing 12.5 KB
 about 2 ms, so the filter runs on the finished observation instead of skipping parts of it.
 
 **Strengths and limits.** Turn-based combat, strategy and management suit an agent; the queries spare it the
-arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak part. Real time is played through the
+arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak part; `sectorExits` and `sectorLayout`
+(§9) give the sector's exits and a text picture of it. Real time is played through the
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
@@ -66,7 +67,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) and the inside of a room under its roof (`sectorLayout`) |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -774,7 +775,8 @@ his need for sleep (the next ones "me too") and drops asleep, `collapsed` until 
 so `wake` refuses him. `routeGroup` is the move box: mercs parting from their unit regroup on this command rather than
 at Done (deviation "Move box regrouping"). `enterSector` loads with automatic placement (deviation "Tactical
 placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
-`sectorExits` answers for every edge and exit grid at once where a squad can leave and from which tiles (§9).
+`sectorExits` answers for every edge and exit grid at once where a squad can leave and from which tiles, and
+`sectorLayout` draws the sector around them (§9).
 On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector the exit dialog
 first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every conscious merc of
 the sector there and loads it (`campaign/sector-exits.ts`).
@@ -990,16 +992,30 @@ mode (tests) every unsupplied field throws (`guard.ts`, `UnsuppliedFieldError`),
 fails at once; each such read was decided: supplied by the view, given a neutral value (deviations "Movement penalty in
 the estimate", "Other soldiers in the projection") or dropped (the melee chance to hit).
 
-**Exits.** `sectorExits` (`src/sim/hints/sector-exits.ts`) gathers what the exit arrows at the four screen edges and
-the exit grid cursor answer for one merc: per edge the adjacent sector, the travel time, `exitSector`'s
-answer now, and the edge's band, the tiles from which `SoldierOKForSectorExit` lets a merc leave
-(`Strategic/StrategicMap.cc:1945`), as a bound on `x - y` or `x + y`, since the band is a strip of the screen. The
-exit grids are those the cursor shows: it shows none on a tile in a room until that tile is revealed
-(`Tactical/Handle_UI.cc:838`; gaps "Exit grids in unrevealed rooms"). `walkTo` is ja2-node's own pick, not the
-original's `PickGridNoNearestEdge`, which the exit itself still uses for the mercs it walks off: for each merc of the
-squad the nearest band tile he can reach and stand on, none shared, from one flood per group of mercs that can reach
-each other, so an agent can send the squad there and leave together. Measured on the original data (A9 after the
-landing, B13, C13 and D13 from native saves) the answer is 630–690 bytes and takes 20–90 ms.
+**Exits.** `sectorExits` (`src/sim/hints/sector-exits.ts`) gathers what the exit arrows at the four screen edges and the
+exit grid cursor answer for one merc: per edge the adjacent sector, the travel time, `exitSector`'s answer now, and the
+edge's band, the tiles from which `SoldierOKForSectorExit` lets a merc leave (`Strategic/StrategicMap.cc:1945`), as a
+bound on `x - y` or `x + y`, since the band is a strip of the screen. The exit grids are those the cursor shows: it
+shows none on a tile in a room until that tile is revealed (`Tactical/Handle_UI.cc:838`; gaps "Exit grids in unrevealed
+rooms"). `walkTo` is ja2-node's own pick, not the original's `PickGridNoNearestEdge`, which the exit itself still uses
+for the mercs it walks off: for each merc of the squad the nearest band tile he can reach and stand on, none shared,
+from one flood per group of mercs that can reach each other, so an agent can send the squad there and leave together.
+Measured on the original data (A9 after the landing, B13, C13 and D13 from native saves) the answer is 630–690 bytes and
+takes about 5 ms.
+
+**Layout.** `sectorLayout` (`src/sim/hints/sector-layout.ts`) draws the loaded sector as text, one character per cell of
+`cell` × `cell` tiles, laid out by gridNo (x right, y down) rather than as the screen's diamond, so that a cell's corner
+is plain gridNo arithmetic. Every cell comes from what the client draws for the whole map, over the projection: the
+movement costs of the map with the view's structure changes and doors, the terrain, our soldiers and the exit grids
+`sectorExits` lists. The ground under a roof the screen still draws is `R` and nothing else: a flat roof stays on until
+its room is revealed or a load took it off, as `SetGridNoRevealedFlag` takes it off (`TileEngine/Render_Fun.cc:73`), and
+a slanted roof's ceiling covers each tile no merc has seen (`:131`; the client's `src/render/world/reveal.ts`);
+underground, where the map's roofs cover the rock for good, that is the rock. The roof level (`level: 1`) is the roof
+view, which draws every roof (`Tactical/Handle_UI.cc:1137`), and marks where a merc can stand by the roof's movement
+costs. Items, mines and soldiers other than ours never enter it. A cave is drawn as its light leaves it, dark but drawn,
+so the layout shows it whole. Measured on the original data (A9, B13, C13, D13) the whole sector is 1.8 KB at the
+default cell 4 (the legend is 0.3 KB of it), 2.7 KB at cell 3, 5.2 KB at cell 2, the roof level 1.5 KB and a window of
+radius 12 at cell 1 1.3 KB; the answer takes about 5 ms.
 
 **Server-only queries** (`SERVER_QUERY_KINDS`: the laptop's quotes and checks, `quoteTrade`, `contractOptions`,
 `inventory`) depend on state the player does not see or price a decision; the query service passes them to the

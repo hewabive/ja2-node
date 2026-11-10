@@ -34,6 +34,7 @@ export const TACTICAL_HINT_KINDS = [
   'exitSector',
   'movementOptions',
   'sectorExits',
+  'sectorLayout',
 ] as const;
 
 export const STRATEGIC_HINT_KINDS = [
