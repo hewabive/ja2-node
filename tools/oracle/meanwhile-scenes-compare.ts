@@ -15,7 +15,7 @@ import { handleMeanwhileEvent } from '../../src/sim/strategic/ai/meanwhile.ts';
 import { PromptKind } from '../../src/sim/strategic/forces/battle-state.ts';
 import { getGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
-import { EventKind } from '../../src/sim/strategic/time/constants.ts';
+import { CompressMode, EventKind } from '../../src/sim/strategic/time/constants.ts';
 import { setGameTimeCompressionLevel } from '../../src/sim/strategic/time/world-clock.ts';
 import { Insertion } from '../../src/sim/tactical/insertion.ts';
 import { inSector, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
@@ -53,6 +53,8 @@ const SCENE_NPC_RECORDS = 'records';
 const NO_GARRISON = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const REPORTED = 8;
 const NO_PROFILE = 200;
+const SPEED_DEVIATION =
+  'deviation "Speed on a sector load from the map": the hall loaded from the map at X1, so the map came back at X0 where Stracciatella keeps its mode';
 const ENDED_WITH_THE_WAY_BACK =
   'ja2-node ends a palace scene and comes back in one step (the fade’s callback waits only for the step): the end is compared with the way back';
 
@@ -578,11 +580,12 @@ export class MeanwhileSceneComparer {
     if (nativeEnded && ended.snapshot) problems.push(...differencesOf(ended.snapshot, this.#theirEnd(nativeEnded), 'at the end'));
     else if (nativeEnded) problems.push('ja2-node never ended the scene');
     problems.push(...this.#checkpoint(c, until, state));
+    const deviation = until === 'back' && this.#speedDeviates(state) ? `; ${SPEED_DEVIATION}` : '';
     return report(
       label,
       problems.length === 0,
       problems.slice(0, REPORTED).join('; ') ||
-        `${until}: ${p.frames} native frames, ${steps} ja2-node steps, ${draws.loadsChecked} loads replayed`,
+        `${until}: ${p.frames} native frames, ${steps} ja2-node steps, ${draws.loadsChecked} loads replayed${deviation}`,
     );
   }
 
@@ -737,7 +740,7 @@ export class MeanwhileSceneComparer {
           showAll: state.showAll,
           engaged: state.engaged,
           refCount: state.refCount,
-          compression: ((state.compression as number[]) ?? [])[0],
+          compression: this.#speedDeviates(state) ? CompressMode.X0 : this.#nativeMode(state),
         },
         'after the scene',
       );
@@ -745,6 +748,15 @@ export class MeanwhileSceneComparer {
     }
     if (t) problems.push(...this.#loadedSector(c, t, state));
     return problems;
+  }
+
+  #nativeMode(state: Json): number {
+    return num(((state.compression as number[]) ?? [])[0]);
+  }
+
+  #speedDeviates(state: Json): boolean {
+    const mode = this.#nativeMode(state);
+    return this.#mapScreen && mode >= CompressMode.MIN5 && mode <= CompressMode.MIN60;
   }
 
   #hall(c: CampaignSim, state: Json): string[] {

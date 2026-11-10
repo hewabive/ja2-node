@@ -223,7 +223,7 @@ async function townSceneFromTheMap(mode?: RunMode): Promise<CampaignSession> {
   const c = session.campaign;
   expect(sectorsLoaded(events)).toEqual([PALACE, sectorShortString(A9)]);
   expect([c.state.flow, c.state.worldSector, c.state.map.selectedSector]).toEqual(['strategic', A9, A9]);
-  expect([c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([CompressMode.MIN5, false, false]);
+  expect([c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([CompressMode.X0, false, false]);
   expectNpcsBack(session, before);
   return session;
 }
@@ -233,7 +233,7 @@ describe('a palace meanwhile scene played in the stub hall P3_m (Meanwhile.cc St
     await expectReloadsInvisible(outskirtsInTactical);
   });
 
-  it("a town scene from the map: its camera on the hall's tile and marked as started on the map screen, the scene's NPCs shown to the player, the town count picking the Queen's line for two towns, and the map entered again with the compression mode kept stopped and the loaded sector selected, the same across reloads", async () => {
+  it("a town scene from the map: its camera on the hall's tile and marked as started on the map screen, the scene's NPCs shown to the player, the town count picking the Queen's line for two towns, and the map entered again at X0, as the hall loaded at X1 (deviation \"Speed on a sector load from the map\"), with the loaded sector selected, the same across reloads", async () => {
     await expectReloadsInvisible(townSceneFromTheMap);
   });
 

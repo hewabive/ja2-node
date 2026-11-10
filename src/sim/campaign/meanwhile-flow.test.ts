@@ -73,7 +73,7 @@ function sceneOnTheMap(mode?: RunMode): CampaignSim {
   expect(events.filter((e) => e.type === 'sectorLoaded').map((e) => (e as { sector?: string }).sector)).toEqual(['P3', 'A9']);
   expect([c.state.flow, c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([
     'strategic',
-    CompressMode.MIN30,
+    CompressMode.X0,
     false,
     false,
   ]);
@@ -97,7 +97,7 @@ function sceneInTactical(mode?: RunMode): CampaignSim {
 }
 
 describe('meanwhile scenes in a campaign', () => {
-  it('ends a scene without its record files as it starts (deviation): the trip to P3_m and back from the map, the NPC moves undone with their side effects, compression stopped with its mode kept, the same across reloads', async () => {
+  it('ends a scene without its record files as it starts (deviation): the trip to P3_m and back from the map, the NPC moves undone with their side effects, compression stopped and the map back at X0 as the hall loaded at X1 (deviation "Speed on a sector load from the map"; V:Strategic/MapScreen.c:2699-2706), the same across reloads', async () => {
     await expectReloadsInvisible(sceneOnTheMap);
   });
 
@@ -146,7 +146,7 @@ describe('meanwhile scenes in a campaign', () => {
     expect(meanwhileScheduledIn(c.state.meanwhile, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE)).toBe(false);
   });
 
-  it("keeps the map's compression mode, stopped, as the interrogation loads N7 from the map: EnterSector ends the map screen with nothing pending (StrategicMap.cc EnterSector)", () => {
+  it('sets X1 as the interrogation loads N7 from the map, as vanilla ends the map screen after the fade with the game screen pending (deviation "Speed on a sector load from the map"; V:Strategic/MapScreen.c:3071-3074)', () => {
     const c = landed(37);
     expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
     expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 }).ok).toBe(true);
@@ -156,7 +156,7 @@ describe('meanwhile scenes in a campaign', () => {
     expect([c.state.flow, c.state.worldSector, c.state.clock.mode, c.state.clock.compressionOn]).toEqual([
       'tactical',
       { x: 7, y: 14, z: 0 },
-      CompressMode.MIN30,
+      CompressMode.X1,
       false,
     ]);
   });

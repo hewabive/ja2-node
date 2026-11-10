@@ -34,7 +34,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Recruiting | R.P.C.s, E.P.C. escort and release, the robot | `recruit.txt` | `recruit-compare.ts` | 0018 | `24` |
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
 | Meanwhile scenes | palace scenes played frame by frame through the box, the fades, the hall's load, the Queen's records and the way back: from the game screen, from the map with compression on and a sector selected, from the map with no world, Skip on a scene seen before, a scene with P3 itself loaded ended by Esc | `meanwhile-scenes.txt` | `meanwhile-scenes-compare.ts` | 0019, 0030, 0031, 0032 | `26` |
-| Map-to-sector entry | the compression mode and the tactical clock after the map's tactical button, for a sector not loaded and for the loaded one, from X0, a stopped and a running 30-minute mode; the map screen after the stay and the way back | `map-entry.txt` | `map-entry-compare.ts` | 0030, 0031, 0032 | `15` |
+| Map-to-sector entry | the compression mode and the tactical clock after the map's tactical button, for a sector not loaded (deviation "Speed on a sector load from the map") and for the loaded one, from X0, a stopped and a running 30-minute mode; the map screen after the stay and the way back | `map-entry.txt` | `map-entry-compare.ts` | 0030, 0031, 0032 | `15` |
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
 | Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
 | Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
@@ -654,10 +654,11 @@ ja2-node's `endMeanwhile` leaves). The frames' draws feed the steps in order; ea
 callbacks) is replayed strictly against `goToThePalace` and `returnFromThePalace`, the same-sector branch with P3 loaded
 included. Compared: the meanwhile state, the profiles, the pause, the box's flags, the world and selected sectors, every
 changed sector flag, the camera tile and the render centre, the NPC saves, the return trip, the engaged state, the
-reference count and show-all, the seen flags, compression, the lines said in order, the records said, the hall's
-soldiers at the end (Elliot shot, Joe moved), and after the way back the soldiers in the sector, our team with its
-insertion and the world items. Not compared: the box's own lock reason, the frames' timing (the dialogue's in-order
-draws), the world clock (no frame runs `UpdateClock`).
+reference count and show-all, the seen flags, compression (after a scene started on the map ja2-node's X0 against the
+5–60 minute mode Stracciatella keeps, deviation "Speed on a sector load from the map"), the lines said in order, the
+records said, the hall's soldiers at the end (Elliot shot, Joe moved), and after the way back the soldiers in the sector,
+our team with its insertion and the world items. Not compared: the box's own lock reason, the frames' timing (the
+dialogue's in-order draws), the world clock (no frame runs `UpdateClock`).
 
 ### Map-to-sector entry
 
@@ -674,8 +675,11 @@ time.
 sector and selection (the pause from the native state), takes `mwexit to=tactical` as `enterSector` of the selected
 sector and `to=map` as `mapScreen`, runs one campaign step a frame for `mwframes clock=1` and none for the other frames
 (the load is done in the command), and compares the screen, the world sector and the compression state at every
-`mwset`, `mwframes` and `mwclock`, with the world time at `mwclock`. Not compared: the loads themselves (no draw
-replay), the pause on the map (the native one comes from the save).
+`mwset`, `mwframes` and `mwclock`, with the world time at `mwclock`. After a load of a sector that was not loaded it
+expects deviation "Speed on a sector load from the map": X1 in tactical and X0 on the map where the oracle shows the
+mode the map had, stopped, and a tactical clock that runs at X1 while the oracle's stands; the seconds it ran ahead are
+taken off the world time compared from then on. Not compared: the loads themselves (no draw replay), the pause on the
+map (the native one comes from the save).
 
 ### Boxing
 

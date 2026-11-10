@@ -9,8 +9,9 @@
 // @src MessageBoxScreen.cc ExitMsgBox (the box's OK lifts the pause lock and the pause before BeginMeanwhileCallBack),
 // @src DoneFadeInMeanwhile (SHOW_ALL_MERCS and the Queen's record 0 for every palace scene), EndMeanwhile (the way back
 // @src after its fade, once the step or the command is done), StrategicMap.cc SetCurrentWorldSector
-// @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector, only in the load branch; EnterSector's
-// @src EndMapScreen with no screen pending, which keeps the compression mode of a scene from the map, 2026-11-09),
+// @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector, only in the load branch, 2026-11-09; the
+// @src hall's load from the map sets X1 as vanilla's EndMapScreen after the fade-out callback does, V:Strategic/MapScreen.c:3071-3074,
+// @src deviation "Speed on a sector load from the map", 2026-11-10),
 // @src Tactical/Turn_Based_Input.cc GetKeyboardInput
 // @src (Esc ends a meanwhile but the interrogation: DeleteTalkingMenu, EndMeanwhile) (2026-11-09); BringupMeanwhileBox
 // @src (OK and Skip for a scene seen before, but the interrogation), BeginMeanwhileCallBack (Skip: the implications, the

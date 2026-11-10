@@ -288,6 +288,7 @@ async function fromTheMapWithTheAirfieldLoaded(mode?: RunMode): Promise<Campaign
   const c0 = session.campaign;
   expect(c0.state.meanwhile.returnTrip).toEqual({ sector: B13, selectedSector: A9, screen: 'strategic' });
   expect([c0.state.flow, c0.state.clock.pauseLocked, c0.state.clock.paused]).toEqual(['tactical', false, false]);
+  expect([c0.state.clock.mode, c0.state.clock.compressionOn]).toEqual([CompressMode.X1, false]);
   expect([out.left, out.entered, out.museumAlarmLeft]).toEqual([[B13], [PALACE], false]);
 
   const back = recordedLeg(session, () => endTheScene(session));
@@ -300,7 +301,7 @@ async function fromTheMapWithTheAirfieldLoaded(mode?: RunMode): Promise<Campaign
     'strategic',
     B13,
   ]);
-  expect([c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([CompressMode.MIN30, false, false]);
+  expect([c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([CompressMode.X0, false, false]);
   expect(ours(session).map((s) => s.gridNo)).toEqual(tiles);
   reloadPoint(session);
   return session;
@@ -334,7 +335,7 @@ describe('the round trip of a palace scene to P3_m and back (Meanwhile.cc StartM
     await expectReloadsInvisible(fromTactical);
   });
 
-  it('from the map with a world loaded: reloads it, restores the selected sector and enters the map again, whose entry selects the loaded sector and keeps the stopped compression mode, which no load of the trip sets to X1, the same across reloads', async () => {
+  it('from the map with a world loaded: loads the hall at X1, reloads the old sector, restores the selected sector and enters the map again, whose entry selects the loaded sector and turns X1 into X0 (deviation "Speed on a sector load from the map"; V:Strategic/MapScreen.c:2699-2706), the same across reloads', async () => {
     await expectReloadsInvisible(fromTheMapWithTheAirfieldLoaded);
   });
 

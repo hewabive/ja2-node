@@ -182,13 +182,6 @@ before its own checks. Advancing past the lines opens the way: `advance {idle}` 
 client keeps its Laptop, Tactical and Options buttons and its save keys shut on the same token, and on its own boxes as
 the original does (an item held, the town box, the militia popup, the sector inventory).
 
-**The world clock after a sector load from the map.** `enterSector` of a sector that is not loaded keeps the map's
-speed, stopped (`clock.mode` 0 or the 5–60 minute mode): in tactical the world clock then stands, as in the original,
-while real-time turns, walks and the AI run on, and an `advance` with a world-time target is refused (`clockStands: …`;
-`advance {idle}` and `{ticks}` run). `mapScreen` and then `tacticalScreen` (or `enterSector` of the loaded sector) set
-×1; so do the helicopter drop of a new game and the pre-battle panel's entry into a sector the squad has just reached
-(`15`).
-
 While time is compressed the map screen runs the real-time turn every 20 ms of real time, at every speed, for every merc
 of ours wherever he is and for the loaded sector's soldiers (`15` §2): wounded mercs bleed, tired ones get their
 breath back, drugs wear off and the regeneration booster heals once per turn. Bleeding, breath and drugs per world

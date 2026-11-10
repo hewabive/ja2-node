@@ -86,24 +86,22 @@ decision prompt stops the whole simulation (D15, deviation "Prompt time").
 
 **Compression is state that commands change.** `compressTime {mode?}` and `stopTime` are the map's buttons; `mapScreen`
 and `tacticalScreen` apply the original's rules (entering the map keeps a 5–60 minute mode but stops it, anything else
-becomes X0). Leaving the map lifts the pause lock, whoever set it. Only a way into tactical that finds the game screen
-pending sets X1 and lifts any pause but the player's: the way back to the loaded sector and the pre-battle panel's load
-for the placement GUI (`EndMapScreen`, `Strategic/MapScreen.cc:3238-3256`). Any other sector load from the map ends the
-map screen in `EnterSector` before a screen is pending: it stops compression and keeps the mode before the load's own
-unpause (`Strategic/StrategicMap.cc:892-899`), so the tactical clock stands at X0 or the stopped mode until a way in
-sets X1, as the native probe `map-entry` shows (`campaign/screens.ts`, `campaign/sector-flow.ts`). No load from the
-tactical screen touches the speed, and `HandleStrategicTurn`'s turn of `NOT_USING_TIME_COMPRESSION` into X1
+becomes X0; tactical is always X1: every way in from the map sets it, a sector load from the map too, as vanilla's
+does, deviation "Speed on a sector load from the map"). Leaving the map lifts the pause lock, whoever set it: the way
+back to the loaded sector also lifts any pause but the player's, and a sector load from the map stops compression before
+the load's own unpause (`EndMapScreen`, `Strategic/MapScreen.cc:3238-3256`; `campaign/screens.ts`). A load from the
+tactical screen sets no speed, and `HandleStrategicTurn`'s turn of `NOT_USING_TIME_COMPRESSION` into X1
 (`Strategic/Strategic_Turns.cc:47-50`) never runs: nothing sets that mode (`Strategic/Game_Clock.cc:466-485` have no
 callers). The map's own exits (`tacticalScreen`, `enterSector`, `openLaptop`) are refused while a lock holds, lines wait
 in the dialogue queue or a meanwhile is about to start (`AllowedToExitFromMapscreenTo`,
 `Strategic/Map_Screen_Interface_Bottom.cc:987`; `campaign/map-screen-exits.ts`), so only the loads that skip those
 checks find a lock to lift: the pre-battle panel's way into a sector and the scripted ones; autoresolve starts from the
 pre-battle interface, which leaves neither compression nor a lock for the exit to end. Every stop carries a reason
-(`CompressionStop`) that the `compressionStopped` event reports. The automatic pause pauses a compression that is no longer allowed and resumes it
-once it is, so a refusal that comes and goes stops time without stopping compression. The refusal checks game states
-only (deviation "Time compression checks"). Under the instant driver `compressTime` compresses until something stops or
-pauses it; an `advance` to a world time stops compression at the first slice end at or past the target, at most 59
-seconds over.
+(`CompressionStop`) that the `compressionStopped` event reports. The automatic pause pauses a compression that is no
+longer allowed and resumes it once it is, so a refusal that comes and goes stops time without stopping compression. The
+refusal checks game states only (deviation "Time compression checks"). Under the instant driver `compressTime`
+compresses until something stops or pauses it; an `advance` to a world time stops compression at the first slice end at
+or past the target, at most 59 seconds over.
 
 **The queue keeps the original's order.** The original's linked list is an array sorted by stamp, ties in posting order
 (`seq`, assigned at every insertion, reposts included; a native import assigns it in file order). Every kind keeps its
@@ -198,7 +196,6 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
 | Auto-bandage's warp is 5 s a frame up to 125 s however long the mode ran, and the events inside it wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |
 | Leaving the map lifts the pause lock, whoever set it, and the way back to the loaded sector every pause but the player's; only a way out past the exit checks, such as the pre-battle panel's, can find a lock | `campaign/screens.test.ts` |
-| A sector loaded from the map keeps the map's speed, stopped: the tactical clock stands at X0 or a stopped 5–60 minute mode until the way back to the loaded sector sets X1, as `EnterSector` ends the map screen before any screen is pending (`Strategic/StrategicMap.cc:892-899`; vanilla left it to the game loop, which found the game screen pending and set X1: `V:Strategic/StrategicMap.c:1410-1415`, `V:GameLoop.c:249`) | `campaign/screens.test.ts` "keeps the map's …", `campaign/meanwhile-flow.test.ts` "keeps the map's compression mode, stopped, as the interrogation …"; oracle `map-entry` |
 | The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |

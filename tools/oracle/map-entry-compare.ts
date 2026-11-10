@@ -1,11 +1,14 @@
 import { basename, dirname } from 'node:path';
 import { parseSectorString, type Sector, sectorShortString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { idiv } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { leaveTacticalScreenForTheMap } from '../../src/sim/campaign/screens.ts';
+import { TICK_MS } from '../../src/sim/clock.ts';
 import { setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
+import { CompressMode } from '../../src/sim/strategic/time/constants.ts';
 import {
   CompressionStop,
   isTimeBeingCompressed,
@@ -24,6 +27,8 @@ const MAP_SCREEN = 'map';
 const GAME_SCREEN = 'game';
 const NO_WORLD = [0, 0, -1];
 const SKIPPED = new Set(['hdtimer', 'seed', 'draws', 'end']);
+const MS_PER_SECOND = 1000;
+const SPEED_DEVIATION = 'deviation "Speed on a sector load from the map"';
 
 const num = (v: unknown) => Number(v ?? 0);
 const bit = (v: boolean) => (v ? 1 : 0);
@@ -46,6 +51,8 @@ export class MapEntryComparer {
   readonly #exists: FileExists;
   readonly #save: (name: string) => Uint8Array;
   #session: CampaignSession | null = null;
+  #keptByTheOracle: number | null = null;
+  #secondsAhead = 0;
 
   constructor(read: ReadFile, exists: FileExists, save: (name: string) => Uint8Array) {
     this.#read = read;
@@ -87,6 +94,8 @@ export class MapEntryComparer {
   async #load(label: string, p: Json): Promise<number> {
     const imported = await createTacticalSaveSession(this.#read, this.#save(String(p.name)), IMPORT_SEED, this.#exists);
     this.#session = imported.session;
+    this.#keptByTheOracle = null;
+    this.#secondsAhead = 0;
     return report(label, true, `imported ${String(p.name)}`);
   }
 
@@ -127,37 +136,79 @@ export class MapEntryComparer {
       return report(label, result.ok, result.ok ? 'map screen' : `mapScreen refused: ${result.reason}`);
     }
     const allowed = (p.result as Json | null)?.allowed === true;
-    const command = { type: 'enterSector', sector: sectorShortString(c.state.map.selectedSector) };
+    const selected = c.state.map.selectedSector;
+    const fresh = c.sectors?.isLoaded(selected) !== true;
+    const command = { type: 'enterSector', sector: sectorShortString(selected) };
     await session.prepare(command);
     const result = c.dispatch(command);
-    return report(label, result.ok === allowed, result.ok ? `entered ${command.sector}` : `refused: ${result.reason}`);
+    const mapMode = num(((p.state as Json).compression as number[])[0]);
+    this.#keptByTheOracle = result.ok && fresh ? mapMode : null;
+    const entered = fresh
+      ? `entered ${command.sector} at X1, ${SPEED_DEVIATION}: Stracciatella keeps mode ${mapMode}, stopped`
+      : `entered ${command.sector}`;
+    return report(label, result.ok === allowed, result.ok ? entered : `refused: ${result.reason}`);
   }
 
   #frames(label: string, p: Json): number {
     const c = this.#campaign();
     const a = args(p);
-    if (a.clock === '1') for (let k = 0; k < num(p.frames); k++) c.step();
+    const problems: string[] = [];
+    if (a.clock === '1') problems.push(...this.#runTheClock(c, num(p.frames)));
     const state = p.state as Json;
+    const theirs = this.#theirSpeed(state.compression as number[], String(state.screen));
     const diff = firstDifference(
       { screen: this.#screen(c), compression: [c.state.clock.mode, bit(c.state.clock.compressionOn)], world: this.#world(c) },
-      { screen: state.screen, compression: state.compression, world: state.worldLoaded === true ? state.world : NO_WORLD },
+      { screen: state.screen, compression: theirs.compression, world: state.worldLoaded === true ? state.world : NO_WORLD },
     );
-    return report(label, diff === null, diff ?? `${String(p.frames)} frames`);
+    if (diff) problems.push(diff);
+    return report(label, problems.length === 0, problems.join('; ') || `${String(p.frames)} frames${theirs.note}`);
+  }
+
+  #runTheClock(c: CampaignSim, frames: number): string[] {
+    const start = c.state.clock.seconds;
+    for (let k = 0; k < frames; k++) c.step();
+    if (this.#keptByTheOracle === null || c.state.flow !== 'tactical') return [];
+    const ran = c.state.clock.seconds - start;
+    this.#secondsAhead += ran;
+    const atX1 = idiv(frames * TICK_MS, MS_PER_SECOND);
+    return ran === atX1 ? [] : [`the tactical clock ran ${ran} s, ${atX1} s at X1`];
+  }
+
+  #theirSpeed(native: readonly number[], screen: string): { readonly compression: readonly number[]; readonly note: string } {
+    const kept = this.#keptByTheOracle;
+    if (kept === null || native[0] !== kept || native[1] !== 0) return { compression: native, note: '' };
+    const ours = screen === GAME_SCREEN ? CompressMode.X1 : CompressMode.X0;
+    if (ours === kept) return { compression: native, note: '' };
+    return {
+      compression: [ours, ...native.slice(1)],
+      note: `, ${SPEED_DEVIATION}: ours ${ours}, Stracciatella's ${kept}`,
+    };
   }
 
   #clock(label: string, p: Json): number {
     const c = this.#campaign();
     const clock = c.state.clock;
+    const theirs = this.#theirSpeed(p.compression as number[], String(p.screen));
+    const ahead = this.#secondsAhead > 0 ? `, ${this.#secondsAhead} s ahead of Stracciatella's standing clock (${SPEED_DEVIATION})` : '';
     const diff = firstDifference(
       {
         screen: this.#screen(c),
         world: this.#world(c),
         compression: [clock.mode, bit(clock.compressionOn), bit(isTimeBeingCompressed(clock))],
-        worldSeconds: clock.seconds,
+        worldSeconds: clock.seconds - this.#secondsAhead,
       },
-      { screen: p.screen, world: p.worldLoaded === true ? p.world : NO_WORLD, compression: p.compression, worldSeconds: p.worldSeconds },
+      {
+        screen: p.screen,
+        world: p.worldLoaded === true ? p.world : NO_WORLD,
+        compression: theirs.compression,
+        worldSeconds: p.worldSeconds,
+      },
     );
-    return report(label, diff === null, diff ?? `${this.#screen(c)}, mode ${clock.mode}, world second ${clock.seconds}`);
+    return report(
+      label,
+      diff === null,
+      diff ?? `${this.#screen(c)}, mode ${clock.mode}, world second ${clock.seconds}${theirs.note}${ahead}`,
+    );
   }
 
   #screen(c: CampaignSim): string {

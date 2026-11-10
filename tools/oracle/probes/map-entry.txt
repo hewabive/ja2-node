@@ -4,7 +4,7 @@
 # 30-minute mode and a running one; the tactical clock over 5 s of frames that run UpdateClock as the game loop does
 # (clock=1), the tactical screen's map button (mwexit to=map) and the way back. mwset place moves every player group
 # with SetGroupSectorValue, whose CheckAndHandleUnloadingOfCurrentWorld unloads the sector the squad left. Each block
-# loads SaveGame01 (the squad in B13, loaded, on the map screen) on the virtual clock.
+# loads SaveGame01 (B13 loaded, map); ja2-node sets X1 on a fresh load, deviation "Speed on a sector load from the map".
 
 hdtimer on=1
 seed value=3

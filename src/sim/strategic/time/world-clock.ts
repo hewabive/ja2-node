@@ -201,7 +201,8 @@ export function decreaseGameTimeCompressionRate(ctx: ClockContext): string | nul
   return null;
 }
 
-export function setGameTimeCompressionLevel(ctx: ClockContext, requested: number, screen: ClockScreen = ctx.screen()): string | null {
+export function setGameTimeCompressionLevel(ctx: ClockContext, requested: number): string | null {
+  const screen = ctx.screen();
   let mode = requested;
   if (screen === 'tactical' && mode !== CompressMode.X1) mode = CompressMode.X1;
   if (screen === 'strategic' && mode === CompressMode.X1) mode = CompressMode.X0;
