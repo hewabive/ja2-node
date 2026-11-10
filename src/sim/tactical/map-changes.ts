@@ -8,7 +8,8 @@
 // @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer; Structure.cc InternalSwapStructureForPartner
 // @src (a partner swap keeps its node's place, 2026-11-04); the door removal of
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem with WorldMan.cc RemoveAllStructsOfTypeRange (2026-11-04);
-// @src WorldMan.cc AddObjectToTail, which writes nothing to the temp file (2026-11-09).
+// @src WorldMan.cc AddObjectToTail, which writes nothing to the temp file (2026-11-09);
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem's count of the records it writes back, all but damage (2026-11-09).
 
 import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
@@ -202,6 +203,10 @@ export function objectChange(gridNo: number, tile: number): MapChange {
 
 export function sectorTempFileChanges(changes: readonly MapChange[]): MapChange[] {
   return changes.filter((c) => c.liveOnly !== true);
+}
+
+export function mapChangesWrittenBack(changes: readonly MapChange[] | null): boolean {
+  return changes?.some((c) => c.kind !== MapChangeKind.DAMAGE) ?? false;
 }
 
 interface RemovedNode {

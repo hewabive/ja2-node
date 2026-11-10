@@ -56,6 +56,7 @@ import {
   addObjectToHead,
   MapChangeKind,
   objectLayerAt,
+  recordStructureDamaged,
   recordStructureRemoved,
   removeStructTile,
   structLayerAt,
@@ -700,6 +701,36 @@ describe('a native save loaded into its sector', () => {
     if (!t) throw new Error('no sector');
     expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE, TAIL_BOOM_GRIDNO]]);
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(2);
+  });
+
+  it('drops the map modifications flag at the next entry when the sector was left with blood, smell or damage alone, which no record writes back, and keeps it with a structure gone (SaveLoadMap.cc:236)', () => {
+    const flagsLeavingAndBack = (change: 'blood' | 'damage' | 'removal') => {
+      const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+      const left = enterAirfieldAtNight(campaign);
+      const wall = left.world.structures.at(HANGAR_WALL).find((s) => has(s.flags, StructureFlags.WALL));
+      if (!wall) throw new Error('no hangar wall');
+      if (change === 'blood') left.smell.blood[HANGAR_FLOOR] = 1;
+      else if (change === 'damage') {
+        wall.hitPoints -= 1;
+        recordStructureDamaged(left, wall);
+      } else {
+        recordStructureRemoved(left, wall);
+        left.world.structures.remove(wall);
+      }
+      const flow = flowOf(campaign);
+      const flag = () => getSectorFlagStatus(campaign.state.map, B13, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
+      for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
+      expect(flow.setCurrentWorldSector(A9)).toBe(true);
+      const leaving = flag();
+      for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+      expect(flow.setCurrentWorldSector(B13)).toBe(true);
+      return [leaving, flag()];
+    };
+    expect([flagsLeavingAndBack('blood'), flagsLeavingAndBack('damage'), flagsLeavingAndBack('removal')]).toEqual([
+      [true, false],
+      [true, false],
+      [true, true],
+    ]);
   });
 
   it('forgets at a sector entry every mine flag but the blue flags: enemies walk into their own map mines (SetBlueFlagFlags)', () => {

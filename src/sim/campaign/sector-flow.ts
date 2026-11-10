@@ -43,7 +43,8 @@
 // @src last, which TrashWorld leaves in gubWorldRoomInfo, 2026-11-08); Tactical/Tactical_Save.cc
 // @src LoadCurrentSectorsInformationFromTempItemsFile and TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (a native save's map changes and revealed tiles of a sector at its
-// @src first entry, the flag reset when no record is written back, 2026-11-08); StrategicMap.cc GetMapFileName (the
+// @src first entry, the flag reset when no record is written back, 2026-11-08; the same reset at any entry from the sector's
+// @src own records, 2026-11-09); StrategicMap.cc GetMapFileName (the
 // @src palace's meanwhile map while AreInMeanwhile, 2026-11-09); PrepareLoadedSector (no enemies in a meanwhile load but the
 // @src interrogation's), Tactical_Save.cc gfWasInMeanwhile (the scene map never saved), UpdateMercInSector (the insertion
 // @src code left on the soldier for SetSoldierGridNo to rewrite, 2026-11-09).
@@ -151,7 +152,7 @@ import {
 import { CENTER_GRIDNO, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
-import { sectorTempFileChanges } from '../tactical/map-changes.ts';
+import { mapChangesWrittenBack, sectorTempFileChanges } from '../tactical/map-changes.ts';
 import { drawFirstCreatureTenseQuoteDelay } from '../tactical/narrative/creature-tension.ts';
 import {
   civilianPlacementOverride,
@@ -826,11 +827,7 @@ export class SectorFlow {
         const inTown = sector.z === 0 && townIdOfSector(this.ctx, sector) !== NO_DIFFICULTY_TOWN;
         restoreCorpses(t, diff.corpses, { nowMinute: now, inTown, loadingSave: false });
       }
-      if (this.#flagged(sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)) {
-        this.#loadSavedMapModifications(sector, diff);
-        if (diff.mapChanges) restoreMapChanges(t, diff.mapChanges);
-        if (diff.bloodSmell) restoreBloodAndSmell(t, diff.bloodSmell);
-      }
+      if (this.#flagged(sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)) this.#loadMapModifications(sector, diff);
       if (diff.openables) restoreOpenables(t, diff.openables);
       if (this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) {
         if (diff.savedRevealed) loadRevealedStatusFromRevealedTempFile(t, decodeRevealedStatusFile(diff.savedRevealed));
@@ -848,12 +845,15 @@ export class SectorFlow {
     if (sector.z === 0 && sectorInfo(s.map, sector).timeLastPlayerLiberated !== 0) stripEnemyDetailedPlacements(t, this.populationEnv());
   }
 
-  #loadSavedMapModifications(sector: Sector, diff: SectorDiff): void {
+  #loadMapModifications(sector: Sector, diff: SectorDiff): void {
     const t = this.campaign.tactical?.state;
+    if (!t) return;
     const saved = diff.savedMapModifications;
-    if (!t || !saved) return;
-    const writtenBack = loadAllMapChangesFromMapTempFile(t, saved) || diff.mapChanges !== null;
-    if (!writtenBack) resetSectorFlag(this.campaign.state.map, sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
+    const savedWrittenBack = saved ? loadAllMapChangesFromMapTempFile(t, saved) : false;
+    if (diff.mapChanges) restoreMapChanges(t, diff.mapChanges);
+    if (diff.bloodSmell) restoreBloodAndSmell(t, diff.bloodSmell);
+    if (!savedWrittenBack && !mapChangesWrittenBack(diff.mapChanges))
+      resetSectorFlag(this.campaign.state.map, sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
   }
 
   #loadItemDiff(sector: Sector, diff: SectorDiff): void {

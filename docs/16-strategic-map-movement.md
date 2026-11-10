@@ -76,7 +76,9 @@ commands; informational boxes before the PBI close at once (deviations "Strategi
 The hand-off lists the speaker candidates instead of drawing one (deviation "Cosmetic draws in strategic movement").
 
 **One loaded sector, the rest as diffs.** The campaign keeps one `SectorDiff` per sector instead of the temp files
-(deviation "Sector temp files"); a null member is a missing file and the `SF_*_TEMP_FILE_EXISTS` flags mirror them. Our
+(deviation "Sector temp files"); a null member is a missing file and the `SF_*_TEMP_FILE_EXISTS` flags mirror them,
+the map modifications flag dropping at an entry that writes none of its records back, blood, smell and damage alone
+(`TileEngine/SaveLoadMap.cc:236`), as the meanwhile scene probe shows on the sector a palace scene reloads. Our
 mercs live in the campaign roster across loads and strategic code sees them as `StrategicMerc` through `MercPort`, which
 hands a squad join's soldier side (waking him, stamping the assignment change) and travel fatigue (the too-tired test of
 a move and of an arrival short of the destination, the line and collapse that stop the group) to the economy; non-player
