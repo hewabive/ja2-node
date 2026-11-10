@@ -275,11 +275,12 @@ original repeats at every save is not made, since a ja2-node save changes nothin
 warp and its draw are the simulation's at the action (`35`). Cosmetic draws (blinks, the disk light, the confirming
 merc) use the client's `ClientRandom`.
 
-**Front end.** `/play` opens on the main menu and starts its music on the first gesture; the splash stays in the
-launcher (deviation "Game page start"). A new game sends `hire: []`, so the laptop opens with nobody hired as in the
-original. Blood and gore is a campaign option in ja2-node (`setOption`, `27`); the help screens seen are kept per
-campaign identity in the client settings (deviation "Help screens seen"); the options the original screen has no room
-for (ambient and master volume, language, UI scale, the video switches) stay in the launcher.
+**Front end.** `/play` plays the splash, then opens on the main menu, whose music starts at once when the browser lets
+the page start its audio and on the first gesture otherwise (deviations "Splash start", "Game page start"). A new game
+sends `hire: []`, so the laptop opens with nobody hired as in the original. Blood and gore is a campaign option in
+ja2-node (`setOption`, `27`); the help screens seen are kept per campaign identity in the client settings (deviation
+"Help screens seen"); the options the original screen has no room for (ambient and master volume, language, UI scale,
+the video switches) stay in the launcher.
 
 **Timers.** UI timers (cursor animation, flashes, blinks, the path rest, scrolling, locators, damage drift) run on the
 client clock; timers tied to game events (the enemy turn bar, message ageing) on displayed simulation time. Client

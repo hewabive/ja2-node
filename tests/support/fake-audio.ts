@@ -63,13 +63,21 @@ export class FakeSource extends FakeNode {
 export class FakeGraph {
   currentTime = 0;
   state = 'suspended';
+  allowed = true;
+  closed = false;
   readonly destination = new FakeNode();
   readonly sources: FakeSource[] = [];
   readonly gains: FakeNode[] = [];
   readonly splitters: FakeNode[] = [];
 
   resume(): Promise<void> {
-    this.state = 'running';
+    if (this.allowed) this.state = 'running';
+    return Promise.resolve();
+  }
+
+  close(): Promise<void> {
+    this.closed = true;
+    this.state = 'closed';
     return Promise.resolve();
   }
 

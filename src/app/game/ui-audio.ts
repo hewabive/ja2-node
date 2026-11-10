@@ -34,6 +34,10 @@ export class UiAudio implements UiSoundSink {
     this.engine.unlock();
   }
 
+  unlockIfAllowed(): Promise<boolean> {
+    return this.engine.unlockIfAllowed();
+  }
+
   play(request: ButtonSoundRequest): UiSoundHandle {
     this.requests.push(request);
     const file = 'sample' in request ? this.#paths.get(request.sample) : request.file;

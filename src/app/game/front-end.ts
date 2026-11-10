@@ -2,13 +2,16 @@ import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import { liveRuleReader } from '../../content/rules/rule-reader.ts';
 import { loadEconomyContent } from '../../content/strategic/economy-content.ts';
 import { loadStrategicContent } from '../../content/strategic/strategic-content.ts';
+import { type DataVersion, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
+import type { Health } from '../../ui/client/api-types.ts';
 import type { AssetKey } from '../../ui/draw-list.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { collectReferences } from '../../ui/layout/references.ts';
 import { messageBoxStyles, textBoxArt } from '../../ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../ui/message-boxes.ts';
+import { ClickToStartScreen } from '../../ui/screens/front-end/click-to-start.ts';
 import { FRONT_END_LAYOUTS, type FrontEndEnvironment, FrontEndLayout } from '../../ui/screens/front-end/environment.ts';
 import {
   FrontEndFlow,
@@ -22,6 +25,7 @@ import { LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
 import { type LaptopMemory, laptopMemory } from '../../ui/screens/laptop/laptop-client.ts';
 import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
 import type { StoryLayer } from '../../ui/screens/story/story-layer.ts';
+import type { ClientSettings } from '../../ui/settings.ts';
 import type { Labels } from '../../ui/text/labels.ts';
 import { messageBoxLabels } from '../../ui/widgets/message-box.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
@@ -36,13 +40,15 @@ import { manifestRuleListing } from '../rules/client-rules.ts';
 import { SessionSpeech } from '../sound/session-speech.ts';
 import { TacticalHost } from '../tactical/tactical-host.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
-import { beginningPlan, sequenceEnabled } from '../video/sequences.ts';
+import { beginningPlan, dataPlaysSplash, sequenceEnabled, splashPlan } from '../video/sequences.ts';
 import { engineSound } from '../video/sound.ts';
+import { splashShownThisTab } from '../video/splash-shown.ts';
 import { HttpFrontEndClient } from './front-end-client.ts';
 import { FrontEndMusicPlayer } from './front-end-music.ts';
 import type { GamePage } from './game-page.ts';
 import { HelpHost } from './help-host.ts';
 import { BrowserSettingsStore, engineVolumes } from './settings-store.ts';
+import { playSplashAtStart } from './splash-start.ts';
 import { createStoryLayer } from './story-host.ts';
 import type { UiBoot } from './ui-boot.ts';
 
@@ -58,6 +64,7 @@ export interface FrontEnd {
   readonly client: HttpFrontEndClient;
   readonly music: FrontEndMusicPlayer;
   readonly video: SequenceMonitor;
+  playSplash(audible: Promise<boolean>): Promise<void>;
 }
 
 function deferredAssets(model: LayoutModel): ReadonlySet<string> {
@@ -97,6 +104,11 @@ async function loadMapFacts(source: AssetSource): Promise<MapFacts> {
   const reader = liveRuleReader(manifestRuleListing(source.manifest), (path) => source.read(path));
   const content = await loadStrategicContent(reader.read);
   return mapFacts(content, await loadEconomyContent(reader.read, content.towns));
+}
+
+function splashDue(settings: ClientSettings, health: Health | null): boolean {
+  const dataVersion = (health?.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
+  return sequenceEnabled('splash', settings) && dataPlaysSplash(dataVersion) && !splashShownThisTab();
 }
 
 function versionLabel(engine: { readonly version: string; readonly commit: string } | undefined): string {
@@ -320,5 +332,17 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       tactical?.welcome(stateReplaced);
     };
   };
-  return { flow, client, music, video };
+  const playSplash = (audible: Promise<boolean>) =>
+    playSplashAtStart({
+      due: splashDue(settings.current(), health),
+      audible,
+      stage: page.stage,
+      host: ui.runtime.host,
+      clickToStart: new ClickToStartScreen(env),
+      play: () => playSequence(splashPlan(), { parent: page.stage, sound: engineSound(ui.audio.engine), monitor: video }),
+      state: (state) => {
+        page.hook.splash = state;
+      },
+    });
+  return { flow, client, music, video, playSplash };
 }

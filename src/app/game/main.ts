@@ -86,6 +86,7 @@ async function bootTestPattern(): Promise<void> {
 async function bootFrontEnd(): Promise<void> {
   void handOverSeenMeanwhileScenes(handOverMeanwhileScenesSeen);
   const ui = await bootUi(page, { pauseGame: (paused) => pause.set(paused) });
+  const audible = ui.audio.unlockIfAllowed();
   domInput.followTextInput(ui.runtime.textInput);
   frontEnd = await startFrontEnd(page, ui);
   const started = frontEnd;
@@ -97,11 +98,17 @@ async function bootFrontEnd(): Promise<void> {
   };
   page.stage.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', unlock);
+  void audible.then((running) => {
+    if (running) started.music.page.unlocked();
+  });
   const session = params.get(SESSION_PARAM);
   if (session) {
     await started.client.connect(session);
     started.flow.enterGame();
-  } else started.flow.mainMenu();
+  } else {
+    await started.playSplash(audible);
+    started.flow.mainMenu();
+  }
   markReady();
 }
 

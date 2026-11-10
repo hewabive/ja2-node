@@ -2,6 +2,7 @@ import { type Browser, expect, type Page, test } from '@playwright/test';
 import { decodePng, type PngImage } from '../../src/content/formats/png.ts';
 import { type Resolution, resolveResolution } from '../../src/ui/resolution.ts';
 import { WEB_PORT } from '../e2e/env.ts';
+import { skipSplash } from '../e2e/ui-capture.ts';
 
 const ORIGIN = `http://127.0.0.1:${WEB_PORT}`;
 const STORAGE = {
@@ -67,6 +68,7 @@ async function presentationMismatch(browser: Browser, ratio: number, size: (type
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: ratio, baseURL: ORIGIN, storageState: STORAGE });
   try {
     const page = await context.newPage();
+    await skipSplash(page);
     await page.goto(fixed640 ? '/play?fixed640=1' : '/play');
     await page.waitForFunction(() => {
       const ui = window.__ja2Ui;

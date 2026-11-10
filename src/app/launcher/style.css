@@ -58,8 +58,6 @@ button.primary { background: #4a3d22; border-color: var(--accent); margin-top: 1
 .status { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 20px; background: #101215; border-top: 1px solid var(--line); min-height: 20px; white-space: pre-line; }
 .status:empty { display: none; }
 .status.error { color: var(--error); }
-.start { position: fixed; inset: 0; z-index: 900; background: #000; display: grid; place-items: center; }
-.start button { font-size: 20px; padding: 14px 28px; background: #1e2126; border-color: var(--accent); }
 .message-box { background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; max-width: 520px; }
 .message-box::backdrop { background: rgb(0 0 0 / 60%); }
 .message-box p { white-space: pre-line; }

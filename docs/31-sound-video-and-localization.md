@@ -141,12 +141,12 @@ on WebGL2 at an integer scale ("Video scaling"), paced by the audio clock ("Vide
 full volume under the master gain, like the original's `MAXVOLUME`. A missing file is skipped, as in the original. A
 sequence's files download one after another, so the next video arrives while one plays.
 
-**Where videos play.** The splash in the launcher after a first click ("Splash start"), never on `/play` ("Game page
-start"), and only with English or Chinese data or the stubs, as the original plays it only for those versions
-(`src/sgp/SGP.cc:441`, `JAScreens.cc:124`); the beginning after a new game, the ending after the victory; the client
-settings can turn off the splash and the beginning, never the ending ("Intro and splash switches"). Steam's data keeps
-the videos in `Intro-old.slf`; ja2-node mounts every SLF by its library path as Stracciatella does, so they resolve as
-`intro/<name>.smk` either way.
+**Where videos play.** The splash on `/play` before the main menu, behind "Click to start" when the browser holds the
+audio until a gesture ("Splash start"), and only with English or Chinese data or the stubs, as the original plays it
+only for those versions (`src/sgp/SGP.cc:441`, `JAScreens.cc:124`); the beginning after a new game, the ending after the
+victory; the client settings can turn off the splash and the beginning, never the ending ("Intro and splash switches").
+Steam's data keeps the videos in `Intro-old.slf`; ja2-node mounts every SLF by its library path as Stracciatella does,
+so they resolve as `intro/<name>.smk` either way.
 
 **Credits.** `CreditRoll` runs the original's roll for the canvas screen of `/play` (`30`) and the launcher's DOM
 scroller ("Credits screen").

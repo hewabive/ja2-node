@@ -64,6 +64,22 @@ async function routeForGoldens(page: Page): Promise<void> {
   });
 }
 
+async function holdFirstAudioContext(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const Native = window.AudioContext;
+    let held = false;
+    window.AudioContext = class extends Native {
+      constructor(options?: AudioContextOptions) {
+        super(options);
+        if (held) return;
+        held = true;
+        Object.defineProperty(this, 'state', { get: () => 'suspended' });
+        this.resume = () => new Promise<void>(() => undefined);
+      }
+    };
+  });
+}
+
 async function screenIs(page: Page, id: string): Promise<void> {
   await page.waitForFunction((wanted) => window.__ja2Ui.screen === wanted, id);
   await nextFrames(page);
@@ -185,6 +201,39 @@ test.describe('the canvas front end on stubs', () => {
       await other.close();
       if (await listed()) await request.delete(`/api/sessions/${encodeURIComponent(created.session)}`);
     }
+  });
+
+  test('plays the splash behind Click to start while the browser holds the audio, inside the stage, once per tab, then the main menu with its music', async ({
+    page,
+  }) => {
+    await holdFirstAudioContext(page);
+    await page.goto(PLAY);
+    await page.waitForFunction(() => window.__ja2Ui?.splash === 'waiting');
+    await screenIs(page, 'clickToStart');
+    await page.mouse.click(320, 240);
+    await page.waitForFunction(() => (window.__ja2Ui.video?.progress.framesShown ?? 0) > 0);
+    await expect(page.locator('#stage > .ja2-video canvas')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => window.__ja2Ui.splash === 'done');
+    await screenIs(page, 'mainMenu');
+    expect(await page.evaluate(() => window.__ja2Ui.video?.sequences.at(-1)?.outcome)).toBe('escaped');
+    await page.waitForFunction(() => window.__ja2Ui.music?.mode === 'mainMenu' && window.__ja2Ui.music.track !== null);
+    await page.reload();
+    await page.waitForFunction(() => window.__ja2Ui?.ready === true);
+    expect(await page.evaluate(() => [window.__ja2Ui.splash, window.__ja2Ui.screen])).toEqual(['off', 'mainMenu']);
+  });
+
+  test("plays the splash and the main menu music with no input when the browser lets the page start its audio, as after the launcher's Play link", async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => (window as unknown as { __ja2Launcher?: { ready: boolean } }).__ja2Launcher?.ready === true);
+    await page.click('#playLink');
+    await page.waitForFunction(() => (window.__ja2Ui?.video?.progress.framesShown ?? 0) > 0);
+    await page.waitForFunction(() => window.__ja2Ui.splash === 'done');
+    expect(await page.evaluate(() => window.__ja2Ui.video?.sequences.at(-1)?.outcome)).toBe('finished');
+    await screenIs(page, 'mainMenu');
+    await page.waitForFunction(() => window.__ja2Ui.music?.mode === 'mainMenu' && window.__ja2Ui.music.track !== null);
   });
 
   test('keeps the options toggles across a reload', async ({ page }) => {

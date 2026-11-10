@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
 import type { CapturedPixels } from '../../src/app/game/ui-hook.ts';
+import { SPLASH_SHOWN, SPLASH_SHOWN_KEY } from '../../src/app/video/splash-shown.ts';
 import { decodePng, encodePngRgba, PngColorType } from '../../src/content/formats/png.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
 import { ORIGINAL_DATA_MODE } from './env.ts';
@@ -26,7 +27,19 @@ export interface Capture {
   readonly multiplyAreas: readonly Area[];
 }
 
+export async function skipSplash(page: Page): Promise<void> {
+  await page.addInitScript(
+    ([key, shown]) => {
+      try {
+        sessionStorage.setItem(key, shown);
+      } catch {}
+    },
+    [SPLASH_SHOWN_KEY, SPLASH_SHOWN] as const,
+  );
+}
+
 export async function openUiPage(page: Page, path: string): Promise<void> {
+  await skipSplash(page);
   await page.goto(path);
   await page.waitForFunction(() => window.__ja2Ui?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();

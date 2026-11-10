@@ -3,7 +3,6 @@ import { expect, type Page, test } from '@playwright/test';
 
 interface LauncherHook {
   readonly ready: boolean;
-  readonly splash: string;
   readonly language: string | null;
   readonly campaign: string | null;
   readonly message: string;
@@ -71,14 +70,6 @@ test('the launcher starts a campaign with options, the tactical page quick saves
   await page.goto('/?seed=1');
   await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
   await deleteSaves(page);
-  expect((await launcher(page)).splash).toBe('waiting');
-  await expect(page.locator('#start')).toBeVisible();
-  await page.click('#startButton');
-  await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher.video.progress.framesShown > 0);
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher.splash === 'done');
-  expect((await launcher(page)).video.sequences.at(-1)?.outcome).toBe('escaped');
-  await expect(page.locator('#start')).toBeHidden();
 
   await expect(page.locator('input[name="difficulty"][value="1"]')).toBeChecked();
   await expect(page.locator('input[name="style"][value="sciFi"]')).toBeChecked();
@@ -120,7 +111,6 @@ test('the launcher starts a campaign with options, the tactical page quick saves
 
   await page.goto(`/?session=${session}#saves`);
   await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
-  expect((await launcher(page)).splash).toBe('off');
   const quickRow = page.locator('tr[data-save="QuickSave"]');
   await expect(quickRow).toBeVisible();
   await expect(quickRow).toContainText('A9');

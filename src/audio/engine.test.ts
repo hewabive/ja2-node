@@ -21,7 +21,56 @@ function engineWith(files: Record<string, Uint8Array>, options: { maxVoices?: nu
 
 const fixed = (file: string, loops = 1) => cueOf(file, 'fixed', 127, NOWHERE, 64, loops);
 
+function engineOver(graphs: FakeGraph[]) {
+  let made = 0;
+  return new AudioEngine({
+    createGraph: () => (graphs[made++] as FakeGraph).asGraph(),
+    load: async () => null,
+  });
+}
+
+function runningGraph(): FakeGraph {
+  const graph = new FakeGraph();
+  graph.state = 'running';
+  return graph;
+}
+
+function blockedGraph(): FakeGraph {
+  const graph = new FakeGraph();
+  graph.allowed = false;
+  return graph;
+}
+
 describe('the audio engine', () => {
+  it('unlocks without a gesture when the browser runs a new context, at once or as it resumes', async () => {
+    for (const graph of [runningGraph(), new FakeGraph()]) {
+      const engine = engineOver([graph]);
+      expect(await engine.unlockIfAllowed()).toBe(true);
+      expect([engine.unlocked, graph.gains.length, graph.closed]).toEqual([true, 5, false]);
+    }
+  });
+
+  it('closes the context the browser keeps suspended without a gesture and stays locked for the gesture', async () => {
+    const held = blockedGraph();
+    const later = new FakeGraph();
+    const engine = engineOver([held, later]);
+    expect(await engine.unlockIfAllowed()).toBe(false);
+    expect([engine.unlocked, held.closed, held.gains.length]).toEqual([false, true, 0]);
+    engine.unlock();
+    expect([engine.unlocked, later.state]).toEqual([true, 'running']);
+    expect(await engine.unlockIfAllowed()).toBe(true);
+  });
+
+  it('keeps the context a gesture built while the check waited and closes the checked one', async () => {
+    const checked = new FakeGraph();
+    const gestured = new FakeGraph();
+    const engine = engineOver([checked, gestured]);
+    const check = engine.unlockIfAllowed();
+    engine.unlock();
+    expect(await check).toBe(true);
+    expect([checked.closed, gestured.gains.length]).toEqual([true, 5]);
+  });
+
   it('ignores cues until the first gesture unlocks it, then builds four buses into a master gain', async () => {
     const { graph, engine } = engineWith({ 'a.wav': pcmWav(100) });
     expect(engine.play(fixed('a.wav')).state).toBe('silent');

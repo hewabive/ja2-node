@@ -9,6 +9,7 @@ import type { OpenRead } from '../assets/http-vfs-layer.ts';
 import type { MusicHook } from '../net/music.ts';
 import type { SequenceMonitor } from '../video/sequence-player.ts';
 import type { HelpHook } from './help-host.ts';
+import type { SplashState } from './splash-start.ts';
 import type { TimeSummary } from './time-samples.ts';
 
 export interface CapturedPixels {
@@ -47,6 +48,7 @@ export interface UiHook {
   draw: UiDrawStats | null;
   music: MusicHook | null;
   video: SequenceMonitor | null;
+  splash: SplashState;
   help: HelpHook | null;
   story: StoryHook | null;
   reads: AssetReads | null;
@@ -111,6 +113,7 @@ export function createUiHook(controls: UiHookControls): UiHook {
     draw: null,
     music: null,
     video: null,
+    splash: 'pending',
     help: null,
     story: null,
     reads: null,

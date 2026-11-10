@@ -9,6 +9,8 @@ import { decodeWav } from '../content/formats/wav.ts';
 import { LruCache, SOUND_CACHE_ENTRIES } from './buffer-cache.ts';
 
 export const MAX_VOICES = 16;
+export const AUTOPLAY_WAIT_MS = 200;
+const RUNNING = 'running';
 const MS_PER_SECOND = 1000;
 const BUSES: readonly Bus[] = ['effects', 'speech', 'music', 'ambient'];
 const STEREO = 2;
@@ -24,6 +26,7 @@ export interface AudioGraph {
   readonly state: string;
   readonly destination: AudioNode;
   resume(): Promise<void>;
+  close(): Promise<void>;
   createGain(): GainNode;
   createBufferSource(): AudioBufferSourceNode;
   createBuffer(channels: number, length: number, sampleRate: number): AudioBuffer;
@@ -119,6 +122,17 @@ class Voice implements VoiceHandle {
   }
 }
 
+async function runsWithoutGesture(graph: AudioGraph): Promise<boolean> {
+  if (graph.state === RUNNING) return true;
+  const waited = new Promise<void>((resolve) => setTimeout(resolve, AUTOPLAY_WAIT_MS));
+  await Promise.race([graph.resume().catch(() => undefined), waited]);
+  return graph.state === RUNNING;
+}
+
+function closeQuietly(graph: AudioGraph): void {
+  void graph.close().catch(() => undefined);
+}
+
 export class AudioEngine {
   readonly counters: AudioCounters = {
     cuesResolved: 0,
@@ -164,7 +178,17 @@ export class AudioEngine {
   unlock(): void {
     if (!this.#graph) this.#build(this.#options.createGraph());
     const graph = this.#graph;
-    if (graph && graph.state !== 'running') void graph.resume().catch(() => undefined);
+    if (graph && graph.state !== RUNNING) void graph.resume().catch(() => undefined);
+  }
+
+  async unlockIfAllowed(): Promise<boolean> {
+    if (!this.#graph) {
+      const graph = this.#options.createGraph();
+      const running = await runsWithoutGesture(graph);
+      if (running && !this.#graph) this.#build(graph);
+      else closeQuietly(graph);
+    }
+    return this.#graph?.state === RUNNING;
   }
 
   #build(graph: AudioGraph): void {

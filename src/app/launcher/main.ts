@@ -1,5 +1,5 @@
 import { AudioEngine } from '../../audio/engine.ts';
-import { type DataVersion, STUB_DATA_VERSION, UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
+import { UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
 import { u32 } from '../../core/int.ts';
 import type { Health, SessionSummary } from '../../ui/client/api-types.ts';
 import { type CampaignProblem, campaignRequest, pageUrl, playUrl, type StartPage } from '../../ui/client/campaign-form.ts';
@@ -10,7 +10,7 @@ import { fetchInstallation, handOverMeanwhileScenesSeen } from '../net/installat
 import { readVfsFileOrNull } from '../net/vfs.ts';
 import { handOverSeenMeanwhileScenes, loadSettings, pendingMeanwhileScenesSeen, saveSettings } from '../settings.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
-import { beginningPlan, dataPlaysSplash, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
+import { beginningPlan, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
 import { engineSound } from '../video/sound.ts';
 import { createSession, fetchHealth } from './api.ts';
 import { CampaignPanel } from './campaign-panel.ts';
@@ -19,11 +19,8 @@ import { MessageBox } from './message-box.ts';
 import { SavePanel, type SavePanelHook } from './save-panel.ts';
 import { SettingsPanel } from './settings-panel.ts';
 
-type SplashState = 'pending' | 'off' | 'waiting' | 'playing' | 'done';
-
 interface LauncherHook {
   ready: boolean;
-  splash: SplashState;
   language: UiLanguage | null;
   busy: boolean;
   campaign: string | null;
@@ -40,7 +37,6 @@ declare global {
   }
 }
 
-const SPLASH_SHOWN_KEY = 'ja2-node:splashShown';
 const SEED_PARAM = 'seed';
 const SESSION_PARAM = 'session';
 const LANGUAGE_NAMES: Readonly<Record<UiLanguage, string>> = {
@@ -67,7 +63,6 @@ const PROBLEM_LABELS: Readonly<Record<CampaignProblem, LabelId>> = { deadIsDeadN
 
 const hook: LauncherHook = {
   ready: false,
-  splash: 'pending',
   language: null,
   busy: false,
   campaign: null,
@@ -85,24 +80,9 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-function splashShownThisTab(): boolean {
-  try {
-    return sessionStorage.getItem(SPLASH_SHOWN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markSplashShown(): void {
-  try {
-    sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
-  } catch {}
-}
-
 const params = new URLSearchParams(location.search);
 const statusEl = element('status');
 const languageSelect = element<HTMLSelectElement>('language');
-const startOverlay = element('start');
 let settings: ClientSettings = loadSettings();
 let health: Health | null = null;
 let labels = new Labels(settings.language ?? 'eng', null);
@@ -283,26 +263,6 @@ async function startCampaign(): Promise<void> {
   campaignPanel.busy(false);
 }
 
-async function playSplash(): Promise<void> {
-  startOverlay.hidden = true;
-  engine.unlock();
-  markSplashShown();
-  hook.splash = 'playing';
-  await exclusive(() => playPlan(splashPlan()));
-  hook.splash = 'done';
-}
-
-function offerSplash(): void {
-  const dataVersion = (health?.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
-  if (!sequenceEnabled('splash', settings) || !dataPlaysSplash(dataVersion) || splashShownThisTab()) {
-    hook.splash = 'off';
-    return;
-  }
-  hook.splash = 'waiting';
-  startOverlay.hidden = false;
-  element('startButton').addEventListener('click', () => void playSplash(), { once: true });
-}
-
 element('playSplash').addEventListener('click', () => void exclusive(() => playPlan(splashPlan())));
 element('playIntro').addEventListener('click', () => void exclusive(() => playPlan(beginningPlan())));
 element('playCredits').addEventListener('click', () => void exclusive(() => playCredits({ monitor: hook.credits })));
@@ -325,7 +285,6 @@ async function start(): Promise<void> {
   await savePanel.refresh();
   await handOverSeenMeanwhileScenes(handOverMeanwhileScenesSeen);
   hook.ready = true;
-  offerSplash();
 }
 
 void start();
