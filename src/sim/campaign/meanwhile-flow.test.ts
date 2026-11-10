@@ -71,7 +71,12 @@ function sceneOnTheMap(mode?: RunMode): CampaignSim {
   ]);
   expect(events).toContainEqual(expect.objectContaining({ type: 'compressionStopped', reason: 'meanwhile' }));
   expect(events.filter((e) => e.type === 'sectorLoaded').map((e) => (e as { sector?: string }).sector)).toEqual(['P3', 'A9']);
-  expect([c.state.flow, c.state.clock.mode, c.state.clock.pauseLocked]).toEqual(['strategic', CompressMode.X0, false]);
+  expect([c.state.flow, c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([
+    'strategic',
+    CompressMode.MIN30,
+    false,
+    false,
+  ]);
   expect([c.state.meanwhile.trying, c.meanwhile.underWay()]).toEqual([false, false]);
   for (const id of [Npc.QUEEN, Npc.ELLIOT, Npc.JOE])
     expect(c.state.profiles.get(id)).toMatchObject({ sectorX: 3, sectorY: 16, gridNo: SCENE_GRIDNO_AS_INT8, useProfileInsertion: false });
@@ -92,7 +97,7 @@ function sceneInTactical(mode?: RunMode): CampaignSim {
 }
 
 describe('meanwhile scenes in a campaign', () => {
-  it('ends a scene without its record files as it starts (deviation): the trip to P3_m and back from the map, the NPC moves undone with their side effects, compression stopped and the mode lost, the same across reloads', async () => {
+  it('ends a scene without its record files as it starts (deviation): the trip to P3_m and back from the map, the NPC moves undone with their side effects, compression stopped with its mode kept, the same across reloads', async () => {
     await expectReloadsInvisible(sceneOnTheMap);
   });
 

@@ -81,6 +81,13 @@ describe('map and tactical screens', () => {
     expect(c.dispatch(turn)).toMatchObject({ ok: true });
   });
 
+  it('selects the loaded sector as the map screen opens, whatever was selected before (MapScreen.cc MapScreenHandle)', () => {
+    const c = landed(0);
+    c.state.map.selectedSector = { x: 5, y: 5, z: 0 };
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(c.state.map.selectedSector).toEqual(A9);
+  });
+
   it('enters the loaded sector from the map screen into the tactical screen', () => {
     const c = landed(0);
     expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });

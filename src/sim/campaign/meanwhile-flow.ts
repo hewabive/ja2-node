@@ -2,14 +2,16 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Meanwhile.cc CheckForMeanwhileOKStart, BeginMeanwhileCallBack, StartMeanwhile, SetNPCMeanwhile,
 // @src DoneFadeOutMeanwhile, DoneFadeInMeanwhile, EndMeanwhile, RestoreNPCMeanwhile, DoneFadeOutMeanwhileOnceDone;
-// @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Strategic/MapScreen.cc (the compression mode lost after a
-// @src played scene on the map); the pending auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears
+// @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Strategic/MapScreen.cc (compression stopped after a played
+// @src scene on the map); the pending auto-bandage that CheckForMeanwhileOKStart's LeaveTacticalScreen clears
 // @src (2026-11-06), with the customizable timer of a won battle's look for someone else (2026-11-07); StartMeanwhile,
 // @src DoneFadeOutMeanwhile and DoneFadeOutMeanwhileOnceDone (the round trip to P3_m and back, 2026-11-09);
 // @src MessageBoxScreen.cc ExitMsgBox (the box's OK lifts the pause lock and the pause before BeginMeanwhileCallBack),
 // @src DoneFadeInMeanwhile (SHOW_ALL_MERCS and the Queen's record 0 for every palace scene), EndMeanwhile (the way back
 // @src after its fade, once the step or the command is done), StrategicMap.cc SetCurrentWorldSector
-// @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector), Tactical/Turn_Based_Input.cc GetKeyboardInput
+// @src (StopAnyCurrentlyTalkingSpeech as the way back loads the old sector, only in the load branch; EnterSector's
+// @src EndMapScreen with no screen pending, which keeps the compression mode of a scene from the map, 2026-11-09),
+// @src Tactical/Turn_Based_Input.cc GetKeyboardInput
 // @src (Esc ends a meanwhile but the interrogation: DeleteTalkingMenu, EndMeanwhile) (2026-11-09); BringupMeanwhileBox
 // @src (OK and Skip for a scene seen before, but the interrogation), BeginMeanwhileCallBack (Skip: the implications, the
 // @src pause lock and the pause lifted, nothing else) and EndMeanwhile's SetMeanwhileSceneSeen (2026-11-09);
@@ -61,6 +63,7 @@ const SCRIPTED_SCENE_NPCS: readonly number[] = [Npc.QUEEN, Npc.ELLIOT];
 const NO_PALACE_SCENE = 'noPalaceScene';
 const NO_PALACE_SCENE_TEXT = 'endMeanwhile (the Esc key) ends a palace meanwhile scene under way; the interrogation cannot be cut short';
 const MEANWHILE_SKIP = 'skip';
+const PALACE_TRIP_LOAD = { keepCompressionMode: true } as const;
 export const MEANWHILE_CHOICES: readonly string[] = ['ok', MEANWHILE_SKIP];
 
 type MeanwhilePrompt = Extract<BattlePrompt, { readonly kind: typeof PromptKind.MEANWHILE }>;
@@ -299,7 +302,7 @@ export class MeanwhileFlow {
     m.inScene = true;
     const palace = sceneSector(id);
     for (const profile of sceneNpcs(id)) this.setNpcMeanwhile(profile, palace);
-    return this.#campaign.sectors?.setCurrentWorldSector({ x: palace.x, y: palace.y, z: 0 }) ?? false;
+    return this.#campaign.sectors?.setCurrentWorldSector({ x: palace.x, y: palace.y, z: 0 }, PALACE_TRIP_LOAD) ?? false;
   }
 
   #returnTrip(): MeanwhileReturnTrip {
@@ -325,8 +328,8 @@ export class MeanwhileFlow {
   #restoreTheOldWorld(trip: MeanwhileReturnTrip): void {
     const c = this.#campaign;
     if (trip.sector) {
-      this.#stopAnyCurrentlyTalkingSpeech();
-      c.sectors?.setCurrentWorldSector(trip.sector);
+      if (!c.sectors?.isLoaded(trip.sector)) this.#stopAnyCurrentlyTalkingSpeech();
+      c.sectors?.setCurrentWorldSector(trip.sector, PALACE_TRIP_LOAD);
     } else c.sectors?.trashWorld();
     c.state.map.selectedSector = { ...trip.selectedSector };
   }

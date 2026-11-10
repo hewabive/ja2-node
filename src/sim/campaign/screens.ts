@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/MapScreen.cc MapScreenHandle (entering: keep a 5-60 min mode but stop it, else X0),
+// @src src/game/Strategic/MapScreen.cc MapScreenHandle (entering: keep a 5-60 min mode but stop it, else X0; the
+// @src loaded sector selected, or the start sector with nobody hired, 2026-11-09),
 // @src EndMapScreen (to tactical: X1; the pause lock and a pause the player did not set lifted, and for a sector load
 // @src compression stopped and the lock lifted, 2026-11-03); StrategicMap.cc CanGoToTacticalInSector;
 // @src Tactical/Interface_Panels.cc GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a
@@ -13,7 +14,7 @@
 // @src checks of MAP_EXIT_TO_TACTICAL, 2026-11-06); Meanwhile.cc DoneFadeOutMeanwhileOnceDone (InternalLeaveTacticalScreen to the map
 // @src with no world loaded, 2026-11-09).
 
-import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import type { StrategicMerc } from '../strategic/forces/ports.ts';
@@ -77,6 +78,16 @@ export function enterMapScreen(campaign: CampaignSim): void {
   const ctx = campaign.clockContext;
   if (ctx.clock.mode >= CompressMode.MIN5 && ctx.clock.mode <= CompressMode.MIN60) stopTimeCompression(ctx, CompressionStop.MAP_EXIT);
   else setGameTimeCompressionLevel(ctx, CompressMode.X0);
+  selectSectorOnMapEntry(campaign);
+}
+
+function selectSectorOnMapEntry(campaign: CampaignSim): void {
+  const strategic = campaign.strategic;
+  if (!strategic) return;
+  const s = campaign.state;
+  const world = campaign.tactical ? s.worldSector : null;
+  if (strategic.mercs.all().length === 0) s.map.selectedSector = sectorFromId(strategic.content.policy.startSector);
+  else if (world) s.map.selectedSector = { ...world };
 }
 
 export function openTacticalScreen(campaign: CampaignSim): CommandResult {

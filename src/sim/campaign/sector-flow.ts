@@ -274,6 +274,7 @@ export const UnloadCode = { ABOUT_TO_LOAD_NEW_MAP: 0, ABOUT_TO_TRASH_WORLD: 1 } 
 export interface LoadOptions {
   readonly autoPlacement?: boolean;
   readonly battleLocatorShown?: boolean;
+  readonly keepCompressionMode?: boolean;
 }
 
 const PALACE: Sector = { x: 3, y: 16, z: 0 };
@@ -543,11 +544,16 @@ export class SectorFlow {
     return this.campaign.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH && hostileBloodcatsPresent(t);
   }
 
+  isLoaded(sector: Sector): boolean {
+    const world = this.world;
+    return world !== null && this.campaign.tactical !== null && sameSector(world, sector);
+  }
+
   setCurrentWorldSector(sector: Sector, options: LoadOptions = {}): boolean {
     const s = this.campaign.state;
     syncStrategicTurnTimes(this.realtimeClock, s.realMs);
     const world = this.world;
-    if (world && this.campaign.tactical && sameSector(world, sector)) {
+    if (this.isLoaded(sector)) {
       this.#reenterLoadedSector();
       returnToLoadedSector(this.campaign);
       return true;
@@ -575,7 +581,7 @@ export class SectorFlow {
     drawFirstCreatureTenseQuoteDelay(this.#flow.realtimeClock, s.rng);
     this.#flow.crows.possible = CROWS_POSSIBLE_BASE + s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
-    setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
+    if (!options.keepCompressionMode) setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
     const located = this.#selectOnArrival();
     this.#event({
       type: 'sectorLoaded',

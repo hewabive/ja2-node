@@ -36,6 +36,8 @@ const A9: Sector = { x: 9, y: 1, z: 0 };
 const B13: Sector = { x: 13, y: 2, z: 0 };
 const PALACE: Sector = { x: 3, y: 16, z: 0 };
 const P3_M_MAP = 'stubs/world/maps/p3_m.dat';
+const P3_MAP = 'stubs/world/maps/p3.dat';
+const LINE_TICKS_LEFT = 400;
 const B13_MAP = 'stubs/world/maps/b13.dat';
 const NO_GARRISON = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const PALACE_GUARDS = { numAdmins: 0, numTroops: 0, numElites: 2 };
@@ -296,9 +298,9 @@ async function fromTheMapWithTheAirfieldLoaded(mode?: RunMode): Promise<Campaign
     B13,
     B13_MAP,
     'strategic',
-    A9,
+    B13,
   ]);
-  expect([c.state.clock.mode, c.state.clock.pauseLocked]).toEqual([CompressMode.X0, false]);
+  expect([c.state.clock.mode, c.state.clock.compressionOn, c.state.clock.pauseLocked]).toEqual([CompressMode.MIN30, false, false]);
   expect(ours(session).map((s) => s.gridNo)).toEqual(tiles);
   reloadPoint(session);
   return session;
@@ -332,7 +334,7 @@ describe('the round trip of a palace scene to P3_m and back (Meanwhile.cc StartM
     await expectReloadsInvisible(fromTactical);
   });
 
-  it('from the map with a world loaded: reloads it, restores the selected sector and enters the map again, where the compression mode is lost, the same across reloads', async () => {
+  it('from the map with a world loaded: reloads it, restores the selected sector and enters the map again, whose entry selects the loaded sector and keeps the stopped compression mode, which no load of the trip sets to X1, the same across reloads', async () => {
     await expectReloadsInvisible(fromTheMapWithTheAirfieldLoaded);
   });
 
@@ -351,5 +353,26 @@ describe('the round trip of a palace scene to P3_m and back (Meanwhile.cc StartM
     expect(teamMembers(t, Team.ENEMY)).toEqual([]);
     expect(civilians(t)).toEqual({ profiled: SCENE_NPCS, unprofiled: THE_SERVANT });
     expect(getSectorFlagStatus(c.state.map, PALACE, SectorFlag.ALREADY_VISITED)).toBe(false);
+  });
+
+  it('with P3 itself loaded loads nothing either way, so the scene plays on the palace map, and a line still talking at its end goes on: the way back cuts speech only when it loads (StrategicMap.cc:438, :488)', async () => {
+    const session = await newCampaign(75);
+    Object.assign(sectorInfo(session.campaign.state.map, PALACE), NO_GARRISON);
+    await session.worlds?.prepare([P3_MAP]);
+    await land(session);
+    moveSquadTo(session, PALACE);
+    const c = session.campaign;
+    palaceSceneBegun(session, Meanwhile.LOST_TOWN);
+    const out = recordedLeg(session, () => expect(c.meanwhile.goToThePalace()).toBe(true));
+    expect([c.state.worldSector, c.tactical?.world.mapPath, c.state.meanwhile.inScene]).toEqual([PALACE, P3_MAP, true]);
+    expect([out.entered, out.left]).toEqual([[], []]);
+    const talk = c.talk?.talk ?? never();
+    const busyUntil = c.tick + LINE_TICKS_LEFT;
+    talk.face = { speaker: Npc.QUEEN, saidAt: c.tick, busyUntil, pcTrigger: null, modal: false, soldierFace: false };
+    c.drainEvents();
+    const back = recordedLeg(session, () => endTheScene(session));
+    expect([back.entered, back.left, c.state.worldSector, c.tactical?.world.mapPath]).toEqual([[], [], PALACE, P3_MAP]);
+    expect(c.drainEvents().filter((e) => e.type === 'lineCut')).toEqual([]);
+    expect(talk.face?.busyUntil).toBe(busyUntil);
   });
 });

@@ -105,8 +105,12 @@ the log entry, the conversation and the pause released. The way back is the fade
 or the command is done (`MeanwhileFlow.settle`): a line still talking is cut as the load starts, the hall is left
 unsaved (`skipSectorSave`, the original's `gfWasInMeanwhile`), the old sector loads again or the hall is trashed when
 none was loaded, the selected sector comes back, the NPCs are restored after the reload, and a scene started on the map
-enters the map again. Mercs come back on their tiles because every step sets their insertion to the tile, as the
-original's does; the insertion code lives on the soldier for that.
+enters the map again, whose entry selects the loaded sector. Neither load of the trip sets compression to X1
+(`LoadOptions.keepCompressionMode`): the original's `EnterSector` ends the map screen before any screen is pending, so a
+scene started on the map keeps its compression mode, stopped. Mercs come back on their tiles because every step sets
+their insertion to the tile, as the original's does; the insertion code lives on the soldier for that. With P3 itself
+the loaded sector, `SetCurrentWorldSector` loads nothing either way: the scene plays on the palace map with whoever
+stands there, and the way back cuts no line, as the original stops speech only in its load branch.
 
 **The waiting window is kept.** `trying` spans the event to the gates, as `gfMeanwhileTryingToStart` does: while it
 is set, compression and saves are refused and the campaign is not idle, so a scene still waits for a battle decision,
@@ -170,7 +174,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | The creature scene is posted before the quest looks for an infestible mine, so Rat arrives even when the quest does not start | `strategic/creatures/creatures.test.ts` |
 | The scientist scene puts Madlab and the robot in sector (0, 0) when no alternate map was chosen | `strategic/ai/meanwhile.test.ts` |
 | A scene after the Queen's death wakes her AI again: nothing checks that she is dead | `strategic/ai/meanwhile.test.ts` |
-| A played scene clears the scene NPCs' profile insertion and truncates their profile gridno to `INT8`; on the map it stops compression and loses the mode | `src/server/meduna-scene-stub.test.ts`, `campaign/meanwhile-flow.test.ts` |
+| A played scene clears the scene NPCs' profile insertion and truncates their profile gridno to `INT8`; on the map it stops compression for good, its mode kept for the player to start again | `src/server/meduna-scene-stub.test.ts`, `campaign/meanwhile-flow.test.ts`; the oracle ("Meanwhile scenes") |
+| The way back from a scene started on the map restores the selected sector, and the map screen's entry right after selects the loaded sector instead (`Strategic/Meanwhile.cc:591`, `Strategic/MapScreen.cc:1462`) | `src/server/palace-trip-stub.test.ts` "from the map with a world loaded …", `campaign/screens.test.ts` "selects the loaded sector …"; the oracle |
+| A palace scene while P3 itself is the loaded sector loads neither P3_m nor anything on the way back (`Strategic/StrategicMap.cc:438`): it plays on the palace map, where a Queen fled to the basement says nothing and the scene stands until Esc | `src/server/palace-trip-stub.test.ts` "with P3 itself loaded …"; the oracle |
 | The box's OK lifts the meanwhile pause lock; the scene's conversation locks the pause again at its next dialogue pass | `src/server/meduna-scene-stub.test.ts` |
 | Skip changes the outcome: it runs the implications alone, so the scene NPCs keep their profile insertion, gridno and records, on the map compression runs on, and the scene is not marked seen; Esc in a played scene marks it | `src/server/meduna-scene-stub.test.ts` |
 | A palace scene stalls when the player holds all four missile sites: the site count picks no record, and only Esc goes on. The outskirts shot cannot miss into a stall: a meanwhile shot's chance is 100 whatever the marksmanship | `src/server/meduna-scene-stub.test.ts` |
