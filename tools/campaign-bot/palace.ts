@@ -1,9 +1,11 @@
 import type { SoldierView } from '../../src/protocol/view.ts';
 import { type BattleResult, fightHere, hostilesInSight } from './battle.ts';
 import { readyHand } from './gear.ts';
-import { centroid, tiles } from './grid.ts';
+import { centroid, ring, tiles } from './grid.ts';
 import type { Observation } from './mcp-game.ts';
+import { walkTo } from './npc.ts';
 import { ourMercs, type Player, QUEEN, usable } from './player.ts';
+import { refusalOfResult } from './refusals.ts';
 import { Palace } from './stub-world.ts';
 
 const NEAR_STAIRS = 6;
@@ -11,6 +13,7 @@ const DESCEND_TICKS = 20_000;
 const HUNT_STEPS = 60;
 const ENDGAME_STEPS = 20;
 const AIM = 2;
+const WALKS_TO_SEE_THE_STAIRS = 3;
 
 function anchor(view: Observation): number | null {
   const points = ourMercs(view)
@@ -32,18 +35,42 @@ export function storm(p: Player): Promise<BattleResult> {
   return fightHere(p, { objective: Palace.stairsDown, done: (view) => nearStairs(view) || inBasement(view) });
 }
 
-export async function descend(p: Player): Promise<boolean> {
-  const view = await p.observe();
-  if (inBasement(view)) return true;
-  const lead = ourMercs(view)
+function leadToTheStairs(view: Observation): SoldierView | undefined {
+  return ourMercs(view)
     .filter((m) => usable(m) && m.kind !== 'epc')
     .sort((a, b) => tiles(a.gridNo, Palace.stairsDown) - tiles(b.gridNo, Palace.stairsDown) || a.id - b.id)[0];
-  if (!lead) return false;
-  const exited = await p.act({ type: 'exitSector', soldier: lead.id, exitGrid: Palace.stairsDown, who: 'squad' });
-  if (!exited.ok) {
-    p.log(`  the stairs down are refused: ${exited.reason ?? ''}`);
-    return false;
+}
+
+async function walkBesideTheStairs(p: Player, lead: SoldierView): Promise<boolean> {
+  const beside = ring(Palace.stairsDown, 1)
+    .filter((g) => g !== lead.gridNo)
+    .sort((a, b) => tiles(lead.gridNo, a) - tiles(lead.gridNo, b) || a - b);
+  for (const to of beside) if (await walkTo(p, lead, to)) return true;
+  return false;
+}
+
+async function leaveByTheStairs(p: Player): Promise<boolean> {
+  for (let walks = 0; walks <= WALKS_TO_SEE_THE_STAIRS; walks++) {
+    const lead = leadToTheStairs(await p.observe());
+    if (!lead) return false;
+    const exited = await p.act({ type: 'exitSector', soldier: lead.id, exitGrid: Palace.stairsDown, who: 'squad' });
+    if (exited.ok) return true;
+    if (refusalOfResult(exited) !== 'notRevealed' || walks === WALKS_TO_SEE_THE_STAIRS) {
+      p.log(`  the stairs down are refused: ${exited.reason ?? ''}`);
+      return false;
+    }
+    p.log(`  no merc has seen the stairs down yet: ${lead.name} walks into their room`);
+    if (!(await walkBesideTheStairs(p, lead))) {
+      p.log(`  ${lead.name} cannot reach the stairs down`);
+      return false;
+    }
   }
+  return false;
+}
+
+export async function descend(p: Player): Promise<boolean> {
+  if (inBasement(await p.observe())) return true;
+  if (!(await leaveByTheStairs(p))) return false;
   await p.advance({ idle: true, ticks: DESCEND_TICKS, events: ['sectorLoaded'] });
   await p.advance({ idle: true, ticks: DESCEND_TICKS });
   return inBasement(await p.observe());

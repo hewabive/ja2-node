@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { ItemTable } from '../../src/content/items/items.ts';
 import type { StrategicMercView } from '../../src/protocol/view.ts';
 import { CampaignBot } from './campaign.ts';
+import { gridNo, tiles } from './grid.ts';
 import type { ActResult, AdvanceRequest, Command, Game, Observation } from './mcp-game.ts';
+import { descend } from './palace.ts';
 import { Player } from './player.ts';
+import { Palace } from './stub-world.ts';
 import { enter, mapScreen, travel } from './travel.ts';
 
 interface Table {
@@ -16,6 +19,7 @@ const ACCEPTED: ActResult = { ok: true };
 const NO_ITEMS = { byName: new Map(), byIndex: new Map() } as unknown as ItemTable;
 const TOO_TIRED_TO_TRAVEL = 30;
 const RESTED = 80;
+const SOUTH_OF_THE_STAIRS_ROOM = gridNo(66, 80);
 
 function refusedWith(refusal: string): ActResult {
   return { ok: false, reason: `${refusal}: refused`, data: { refusal } };
@@ -25,7 +29,7 @@ function unused(): never {
   throw new Error('not used by these tests');
 }
 
-function playerAt(table: Table, trail: string[]): Player {
+function playerAt(table: Table, trail: string[], lines: string[] = []): Player {
   const game: Game = {
     calls: 0,
     newSession: unused,
@@ -45,11 +49,38 @@ function playerAt(table: Table, trail: string[]): Player {
     deleteSave: unused,
     close: async () => {},
   };
-  return new Player(game, 'session', NO_ITEMS, () => {});
+  return new Player(game, 'session', NO_ITEMS, (line) => lines.push(line));
 }
 
 function screen(flow: string, extra: Record<string, unknown> = {}, mercs: readonly StrategicMercView[] = []): unknown {
   return { soldiers: [], strategic: { flow, mercs, groups: [], sectors: [] }, ...extra };
+}
+
+interface PalaceGrounds {
+  sector: string;
+  lead: number;
+  stairsSeen: boolean;
+}
+
+function palace(grounds: PalaceGrounds): unknown {
+  const lead = { id: 0, name: 'Ivan', team: 0, life: 80, gridNo: grounds.lead, level: 0 };
+  return { soldiers: [lead], strategic: { flow: 'tactical', worldSector: grounds.sector, mercs: [], groups: [], sectors: [] } };
+}
+
+function palaceStairs(grounds: PalaceGrounds, seenFromBeside: boolean): Table {
+  return {
+    view: () => palace(grounds),
+    act: (command) => {
+      if (command.type === 'move') {
+        grounds.lead = command.to as number;
+        grounds.stairsSeen = seenFromBeside && tiles(grounds.lead, Palace.stairsDown) <= 1;
+      }
+      if (command.type !== 'exitSector') return ACCEPTED;
+      if (!grounds.stairsSeen) return refusedWith('notRevealed');
+      grounds.sector = Palace.basement;
+      return ACCEPTED;
+    },
+  };
 }
 
 function merc(fields: Partial<StrategicMercView>): StrategicMercView {
@@ -161,5 +192,25 @@ describe('the campaign bot answers the refusals that name the next step', () => 
     expect(await travel(p, 'B13', async () => 'won', rest)).toBe('arrived');
     expect(rested).toEqual(['A13']);
     expect(trail).toEqual(['route', 'route', 'advance worldSeconds']);
+  });
+
+  it('walks the lead beside the palace stairs when no merc has seen them yet, then takes them down', async () => {
+    const grounds = { sector: Palace.sector, lead: SOUTH_OF_THE_STAIRS_ROOM, stairsSeen: false };
+    const trail: string[] = [];
+    const p = playerAt(palaceStairs(grounds, true), trail);
+    expect(await descend(p)).toBe(true);
+    expect(grounds.lead).toBe(gridNo(66, 75));
+    expect(trail).toEqual(['exitSector', 'move', 'advance idle+ticks', 'exitSector', 'advance idle+ticks+events', 'advance idle+ticks']);
+  });
+
+  it('gives up on the palace stairs after a few walks that never reveal them', async () => {
+    const grounds = { sector: Palace.sector, lead: SOUTH_OF_THE_STAIRS_ROOM, stairsSeen: false };
+    const trail: string[] = [];
+    const lines: string[] = [];
+    const p = playerAt(palaceStairs(grounds, false), trail, lines);
+    expect(await descend(p)).toBe(false);
+    expect(trail.filter((step) => step === 'exitSector')).toHaveLength(4);
+    expect(trail.filter((step) => step === 'move')).toHaveLength(3);
+    expect(lines.at(-1)).toBe('  the stairs down are refused: notRevealed: refused');
   });
 });
