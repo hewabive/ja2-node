@@ -137,6 +137,10 @@ export const TICKS_PER_AUTORESOLVE_SLICE = 200;
 const NPC_OF_NOTE_STOP = 'stop';
 const NPC_OF_NOTE_ON_THE_WAY: readonly string[] = ['continue', NPC_OF_NOTE_STOP];
 const NPC_OF_NOTE_AT_DESTINATION: readonly string[] = ['ok'];
+const DONE_CHOICE = 'done';
+const BANDAGE_CHOICE = 'bandage';
+const AUTORESOLVE_DONE_CHOICES: readonly string[] = [BANDAGE_CHOICE, DONE_CHOICE];
+const AUTORESOLVE_DONE_WITHOUT_BANDAGE: readonly string[] = [DONE_CHOICE];
 const PACOS_FIRST_BATTLE_RECORD = 18;
 const NO_TACTICAL: Pick<TacticalState, 'soldiers'> = { soldiers: [] };
 const CREATURE_COMPOSITION_KEYS: Readonly<Record<number, keyof CreatureComposition>> = {
@@ -766,16 +770,21 @@ export class BattleFlow implements FateContext {
     return session !== null && canBandage(this.#arEnv(session), session.ar);
   }
 
+  autoresolveDoneChoices(): readonly string[] {
+    return this.canBandage() ? AUTORESOLVE_DONE_CHOICES : AUTORESOLVE_DONE_WITHOUT_BANDAGE;
+  }
+
   bandageRefusal(): BandageRefusal | null {
     const session = this.session;
     return session === null ? null : bandageRefusal(this.#arEnv(session), session.ar);
   }
 
-  #bandage(session: AutoresolveSession): boolean {
+  #bandage(session: AutoresolveSession): CommandResult {
     const result = autoBandageMercs(this.#arEnv(session), session.ar);
     this.#drainArEvents(session);
-    this.#openPrompt(PromptKind.AUTORESOLVE_DONE);
-    return result.complete;
+    const reopened = this.#openPrompt(PromptKind.AUTORESOLVE_DONE);
+    const bandaged = result.complete ? 'complete' : 'incomplete';
+    return { ok: true, data: { bandaged, prompt: reopened.id, choices: this.autoresolveDoneChoices() } };
   }
 
   #closeAutoresolve(session: AutoresolveSession): void {
@@ -1020,11 +1029,11 @@ export class BattleFlow implements FateContext {
   #answerDone(choice: string): CommandResult {
     const session = this.session;
     if (!session) return refuse('noAutoresolve', 'no autoresolve is open');
-    if (choice === 'bandage') {
+    if (choice === BANDAGE_CHOICE) {
       if (!this.canBandage()) return refuse(this.bandageRefusal() ?? 'noDoctor', 'nobody can bandage');
-      return { ok: true, data: { bandaged: this.#bandage(session) ? 'complete' : 'incomplete' } };
+      return this.#bandage(session);
     }
-    if (choice !== 'done') return badChoice("choose 'done' or 'bandage'");
+    if (choice !== DONE_CHOICE) return badChoice("choose 'done' or 'bandage'");
     this.#closeAutoresolve(session);
     this.settle();
     return { ok: true };

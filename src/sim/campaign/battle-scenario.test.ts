@@ -9,8 +9,10 @@ import { sectorId } from '../../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { gridNoOnVisibleWorldTile, RestrictedScroll } from '../../content/world/render-bounds.ts';
 import type { SimEvent } from '../events.ts';
+import { createItem } from '../items/object.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { meanwhileScheduledIn } from '../strategic/ai/meanwhile.ts';
+import { BattleStatus } from '../strategic/forces/autoresolve/state.ts';
 import { PromptKind } from '../strategic/forces/battle-state.ts';
 import { EncounterCode } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/groups.ts';
@@ -22,7 +24,8 @@ import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { keyItemForKeyId } from '../tactical/doors/keys.ts';
-import { TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { InvSlot } from '../tactical/inventory.ts';
+import { OKLIFE, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { checkForEndOfBattle } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -52,6 +55,7 @@ const CIVILIAN_DISTANCE = 4 * WORLD_COLS;
 const WEAK_LIFE = 15;
 const KEY_POSITION = 3;
 const KEYS_ON_RING = 2;
+const BLEEDING = 10;
 
 function sendEnemyGroup(c: CampaignSim): number {
   const ctx = c.strategic;
@@ -207,6 +211,30 @@ describe('autoresolve from the strategic state', () => {
       expect(keys).toMatchObject([{ count: KEYS_ON_RING }]);
       expect(m.soldier.keyRing?.[KEY_POSITION]?.count).toBe(0);
     }
+  });
+
+  it("keeps the end prompt open after a bandage, as the original's two buttons: the answer names the reopened prompt and its choices, and done closes it", () => {
+    const { c } = landedTown(5);
+    advance(c, { ticks: TICKS_TO_ARRIVAL });
+    const prompt = c.state.battle.prompt;
+    expect(prompt && c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'autoresolve' })).toMatchObject({ ok: true });
+    advance(c, { idle: true });
+    const done = c.state.battle.prompt;
+    const ar = c.state.battle.autoresolve?.ar;
+    const medic = ar?.mercs.find((m) => m.soldier.life >= OKLIFE)?.soldier;
+    if (!done || !ar || !medic) throw new Error('no won autoresolve battle with a merc standing');
+    expect(ar.status).toBe(BattleStatus.VICTORY);
+    Object.assign(medic, { bleeding: BLEEDING, life: medic.life - BLEEDING });
+    const items = kit.sectors.content.items;
+    medic.inv[InvSlot.BIGPOCK1] = createItem(items, items.byName.get('FIRSTAIDKIT')?.index ?? -1, 100);
+    const bandaged = c.dispatch({ type: 'answer', prompt: done.id, choice: 'bandage' });
+    const reopened = c.state.battle.prompt;
+    expect(reopened?.kind).toBe(PromptKind.AUTORESOLVE_DONE);
+    expect(reopened?.id).not.toBe(done.id);
+    expect(bandaged).toEqual({ ok: true, data: { bandaged: 'complete', prompt: reopened?.id, choices: ['done'] } });
+    expect(c.dispatch({ type: 'answer', prompt: done.id, choice: 'done' })).toMatchObject({ ok: false, data: { refusal: 'wrongPrompt' } });
+    expect(c.dispatch({ type: 'answer', prompt: reopened?.id, choice: 'done' })).toEqual({ ok: true });
+    expect(c.state.flow).toBe('strategic');
   });
 
   it('continues exactly when the campaign is saved and restored after every input', async () => {

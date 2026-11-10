@@ -79,7 +79,7 @@ function battlePromptView(campaign: CampaignSim): PromptView | null {
         kind: 'autoresolveDone',
         status: battleStatusName(flow.session?.ar.status ?? 0),
         canBandage,
-        choices: canBandage ? ['bandage', 'done'] : ['done'],
+        choices: flow.autoresolveDoneChoices(),
         bandageRefusal: flow.bandageRefusal(),
       };
     }

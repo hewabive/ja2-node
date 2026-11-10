@@ -485,7 +485,13 @@ in `EndMultiSoldierSelection`, and `data.woke` lists who woke. A selection wakes
 `wake` refuses. `selectSquad` is the squad key's
 `ChangeCurrentSquad`: it refuses a squad with nobody in the loaded sector (`squadNotHere`, `IsSquadOnCurrentTacticalMap`),
 a number outside 0..19 (`badSquad`) and another screen (`notInTactical`), and takes `select`'s order locks for the
-squad's first merc; the current squad itself changes nothing. A new `move` re-plans a halted move for any merc
+squad's first merc; the current squad itself changes nothing. `previewMove`'s `affordable` is
+`SelectedMercCanAffordMove` (`Handle_UI.cc:2478`): only the first step with the stance change into the mode
+(`firstStepCost`), the one AP check `move` makes before it accepts (`notEnoughAP` otherwise); on a path that costs
+more he walks until his APs run out (`stopped` with `outOfAPs`). Whether the whole path fits his turn is `apCost`
+against his `actionPoints`, the check that turns the cursor's AP figure red (`HandleUIMovementCursor`,
+`Handle_UI.cc:2956`); per tile, the footsteps in `steps` (every tile before the destination) take band 4 from where no
+movement mode reaches on his APs (in real time every band is 4). A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
 give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `move` with `reverse` is the Alt move (`bReverse`):
 he walks or swats backwards facing away from his path, or side-steps when he faces across it, for one more AP a tile; a
@@ -530,8 +536,10 @@ lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the han
 soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` gives the cost and the walk the cursor
 shows, and the `stealAttempt` event what came of it. Our merc's first pull of a
 virgin rocket rifle takes his fingerprints and fires nothing, as the original's: `attack` answers `gunImprinted`, and
-the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. A launcher without
-a round refuses `attack` with `noAmmo`, where the original shows the reload cursor. Out of combat, a neutral NPC with a
+the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. An empty gun or a
+launcher without a round refuses `attack` with `noAmmo`, where the original shows the reload cursor
+(`UI_Cursors.cc:413-420`): `data.canReload` and `data.reloadAp` are that cursor, as `estimateAttack`'s `ammo` gives it,
+so the next step is a `reload` for those APs, or none when no matching ammunition is carried. Out of combat, a neutral NPC with a
 usable weapon who sees the merc may draw first on an `attack` made with a weapon in hand (`NPCFirstDraw`, `35`): nothing
 is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
 of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
@@ -864,7 +872,9 @@ auto-bandage runs or its question waits, a line plays, another prompt is up or a
 battle ms, one per 200 ticks (`TICKS_PER_AUTORESOLVE_SLICE`): `{idle}` to the end or a prompt, `{ticks: n}` ⌊n / 200⌋
 slices (so a real-time driver paces it), `{events}` up to the slice in which one happened. Under the instant driver
 `answer autoresolve` runs to the first stop at once. `autoresolveRetreat` applies before the next slice. The end opens
-`autoresolveDone`: `bandage` answers and reopens it, `done` returns to the strategic flow. A battle that no fighter can
+`autoresolveDone`: `bandage` leaves it open, as the original's two buttons leave the box up: it answers
+`data.bandaged` (`complete` or `incomplete`) with the reopened prompt's new id in `data.prompt` and its answers in
+`data.choices`; only `done` closes it and returns to the strategic flow. A battle that no fighter can
 change any more ends with the status `stalemate`, which the original never reaches (deviation "Autoresolve stalemate").
 
 ### 8.11 Laptop and hiring

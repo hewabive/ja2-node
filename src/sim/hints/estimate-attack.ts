@@ -20,15 +20,13 @@ import { calcTotalAPsToAttack, enoughAmmo, minAPsToThrow } from '../tactical/com
 import { soldierToLocationChanceToGetThrough, soldierToSoldierBodyPartChanceToGetThrough } from '../tactical/combat/bullets.ts';
 import { calcChanceToHitGun, gunRange, rangeInUnits } from '../tactical/combat/chance.ts';
 import { findAdjacentGridEx, meleeSpot } from '../tactical/combat/melee-reach.ts';
-import { findAmmoToReload } from '../tactical/combat/reload.ts';
 import { AimShot, WeaponMode } from '../tactical/combat/types.ts';
 import { HEIGHT_UNITS } from '../tactical/explosions/physics.ts';
 import { calcMaxTossRange, calcThrownChanceToHit } from '../tactical/explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../tactical/explosions/trajectory.ts';
 import { consistentWeaponMode } from '../tactical/hand-item.ts';
-import { InvSlot, NO_SLOT } from '../tactical/inventory.ts';
-import { tacticalPanelEnv } from '../tactical/inventory-commands.ts';
-import { apsToAutoReload } from '../tactical/inventory-panel.ts';
+import { InvSlot } from '../tactical/inventory.ts';
+import { type ReloadCursor, reloadCursor } from '../tactical/inventory-commands.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
 import type { Footstep } from '../tactical/plot-path.ts';
 import { AP } from '../tactical/points.ts';
@@ -61,10 +59,8 @@ export type AttackCursor =
   | 'invalid'
   | 'other';
 
-export interface AmmoState {
+export interface AmmoState extends ReloadCursor {
   readonly empty: boolean;
-  readonly canReload: boolean;
-  readonly reloadAp: number;
 }
 
 export interface EstimateAttack {
@@ -148,8 +144,7 @@ function ammoState(t: TacticalState, s: Soldier, cursor: number): AmmoState {
   const cls = t.content.items.byIndex.get(hand.item)?.itemClass;
   const checks = cursor === ItemCursor.TRAJECTORY || (cursor === ItemCursor.TARGET && cls !== ItemClass.THROWING_KNIFE);
   if (!checks || enoughAmmo(t, s, InvSlot.HAND)) return NO_AMMO_STATE;
-  const canReload = findAmmoToReload(t.content.items, s, InvSlot.HAND, NO_SLOT) !== NO_SLOT;
-  return { empty: true, canReload, reloadAp: canReload ? apsToAutoReload(tacticalPanelEnv(t), s) : 0 };
+  return { empty: true, ...reloadCursor(t, s) };
 }
 
 function launchedObject(t: TacticalState, s: Soldier): ItemObject {

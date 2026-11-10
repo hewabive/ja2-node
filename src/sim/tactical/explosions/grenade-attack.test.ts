@@ -179,9 +179,17 @@ describe('launchers through the attack command', () => {
     sim.lookAround();
     expect(t.inCombat).toBe(true);
     const before = merc.actionPoints;
-    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 95) })).toMatchObject({ ok: false, data: { refusal: 'noAmmo' } });
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 95) })).toMatchObject({
+      ok: false,
+      data: { refusal: 'noAmmo', canReload: false, reloadAp: 0 },
+    });
     expect(t.turn.attackBusyCount).toBe(0);
     expect(merc.actionPoints).toBe(before);
+    merc.inv[InvSlot.BIGPOCK1] = createItem(t.content.items, t.content.items.byName.get('GL_HE_GRENADE')?.index ?? -1, 100);
+    const refused = sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 95) });
+    const { ammo } = estimateAttack(sim, { soldier: 0, target: gridNo(80, 95) }).data as { ammo: { canReload: boolean; reloadAp: number } };
+    expect(ammo.canReload).toBe(true);
+    expect(refused).toMatchObject({ ok: false, data: { refusal: 'noAmmo', canReload: true, reloadAp: ammo.reloadAp } });
   });
 });
 

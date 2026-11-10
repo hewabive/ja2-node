@@ -136,7 +136,7 @@ import { type HelicopterDrop, helicopterDropRunning } from './helicopter-drop-st
 import { helicopterLandingOpcode } from './helicopter-landing.ts';
 import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot, itemIn } from './inventory.ts';
-import { dispatchInventoryCommand, INVENTORY_COMMANDS } from './inventory-commands.ts';
+import { dispatchInventoryCommand, INVENTORY_COMMANDS, reloadCursor } from './inventory-commands.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import {
   answerActivateSwitch,
@@ -336,6 +336,14 @@ const ATTACK_REFUSAL_TOKENS: Readonly<Record<number, string>> = {
   [ItemHandle.NOROOM]: 'noRoomToFire',
   [ItemHandle.REFUSAL]: 'refusesOrder',
 };
+
+function noAmmoRefusal(t: TacticalState, s: Soldier): CommandResult {
+  return refuse(
+    ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo',
+    ATTACK_REFUSALS[ItemHandle.NOAMMO] ?? 'out of ammo',
+    reloadCursor(t, s),
+  );
+}
 
 function launcherWithoutRound(t: TacticalState, s: Soldier): boolean {
   return t.content.items.byIndex.get(s.attackingWeapon)?.cursor === ItemCursor.TRAJECTORY && !enoughAmmo(t, s, InvSlot.HAND);
@@ -1402,8 +1410,7 @@ export class TacticalSim {
     if ('error' in setup) return refuse(setup.token, setup.error);
     const { s, target, level, aimTime, melee } = setup;
     if (target === s.gridNo) return refuse('ownTile', 'cannot attack own tile');
-    if (launcherWithoutRound(t, s))
-      return refuse(ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo', ATTACK_REFUSALS[ItemHandle.NOAMMO] ?? 'out of ammo');
+    if (launcherWithoutRound(t, s)) return noAmmoRefusal(t, s);
     const meleeRefusal = melee ? meleeOrderRefusal(t, s, target, aimTime) : null;
     if (meleeRefusal) return refuse(meleeRefusal, MELEE_ORDER_REFUSALS[meleeRefusal]);
     if (npcDrawsFirstOnAttack(t, s, target, level)) return refuse('npcDrewFirst', NPC_DREW_FIRST);
@@ -1414,6 +1421,7 @@ export class TacticalSim {
       s.doSpread = 0;
       const imprint = t.events.slice(eventsBefore).find((e): e is GunImprintEvent => e.type === 'gunImprint');
       if (imprint) return refuse(...IMPRINT_REFUSALS[imprint.result]);
+      if (result === ItemHandle.NOAMMO) return noAmmoRefusal(t, s);
       return refuse(ATTACK_REFUSAL_TOKENS[result] ?? 'attackRefused', ATTACK_REFUSALS[result] ?? `attack refused (${result})`);
     }
     return { ok: true };

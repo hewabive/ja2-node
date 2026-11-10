@@ -7,7 +7,8 @@
 // @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket); Interface_Panels.cc
 // @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts); Squads.cc
 // @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01); Soldier_Find.cc FindSoldier (the
-// @src medkit's patient is never a passenger, 2026-11-05).
+// @src medkit's patient is never a passenger, 2026-11-05); UI_Cursors.cc HandleNonActivatedTargetCursor (the good or bad
+// @src reload cursor over a target and its APs, 2026-11-09).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
@@ -15,15 +16,16 @@ import type { CommandResult } from '../command.ts';
 import { createItem, type ItemObject } from '../items/object.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
-import { autoReload } from './combat/reload.ts';
+import { autoReload, findAmmoToReload } from './combat/reload.ts';
 import type { TacticalContent } from './content.ts';
 import { NUM_KEYS } from './doors/key-ring.ts';
 import { createKeyObject } from './doors/keys.ts';
 import { beginFirstAid, FirstAidRefusal, firstAidTargetRefusal } from './first-aid.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
-import { InvSlot, NUM_INV_SLOTS } from './inventory.ts';
+import { InvSlot, NO_SLOT, NUM_INV_SLOTS } from './inventory.ts';
 import {
   applyItem,
+  apsToAutoReload,
   attachItem,
   type Count,
   detachItem,
@@ -197,6 +199,16 @@ export function tacticalPanelEnv(t: TacticalState): PanelEnv {
       t.events.push(event);
     },
   };
+}
+
+export interface ReloadCursor {
+  readonly canReload: boolean;
+  readonly reloadAp: number;
+}
+
+export function reloadCursor(t: TacticalState, s: Soldier): ReloadCursor {
+  const canReload = findAmmoToReload(t.content.items, s, InvSlot.HAND, NO_SLOT) !== NO_SLOT;
+  return { canReload, reloadAp: canReload ? apsToAutoReload(tacticalPanelEnv(t), s) : 0 };
 }
 
 function seesTile(t: TacticalState, viewer: Soldier, target: Soldier): boolean {
