@@ -1,27 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, type Page, test } from '@playwright/test';
-import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
-
-interface AudioCounters {
-  readonly cuesResolved: number;
-  readonly voicesStarted: number;
-  readonly voicesSilent: number;
-  readonly filesMissing: number;
-  readonly decodeErrors: number;
-}
-
-declare global {
-  interface Window {
-    __ja2Audio: {
-      ready: boolean;
-      unlocked: boolean;
-      error: string | null;
-      counters: AudioCounters;
-      played: string[];
-    };
-  }
-}
+import type {} from '../../src/app/sound/tactical-sound.ts';
+import { MCP_CALL_OPTIONS, SERVER, TOKEN, WEB_PORT } from './env.ts';
+import { flowStorage, openTacticalSession } from './play-flow.ts';
 
 interface SoldierView {
   readonly id: number;
@@ -37,10 +19,17 @@ interface View {
 
 const COLS = 160;
 const ROUNDS = 6;
+const FAST_PLAYBACK = 16;
 const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), Math.trunc(a / COLS) - Math.trunc(b / COLS));
-const counters = (page: Page) => page.evaluate(() => ({ ...window.__ja2Audio.counters }));
+const counters = async (page: Page) => {
+  const read = await page.evaluate(() => (window.__ja2Audio.counters ? { ...window.__ja2Audio.counters } : null));
+  if (!read) throw new Error('the audio engine has no counters');
+  return read;
+};
 
-test('the tactical page plays a stub firefight with sound after the first gesture, and nothing at master volume 0', async ({ page }) => {
+test.use({ storageState: flowStorage(`http://127.0.0.1:${WEB_PORT}`, { playbackSpeed: FAST_PLAYBACK }) });
+
+test('the game page plays a stub firefight with sound after the first gesture, and nothing at master volume 0', async ({ page }) => {
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });
@@ -52,16 +41,17 @@ test('the tactical page plays a stub firefight with sound after the first gestur
   };
   const { session } = (await call('newSession', { seed: 7 })) as { session: string };
   const observe = async () => (await call('observe', { session })) as View;
-  const act = async (command: Record<string, unknown>) => (await call('act', { session, command })) as { ok: boolean };
+  const act = async (command: Record<string, unknown>) => {
+    const reply = (await call('act', { session, command })) as { ok: boolean };
+    if (reply.ok) await call('advance', { session, idle: true });
+    return reply;
+  };
 
-  await page.goto(`/src/devtools/tactical/?session=${session}`);
-  await page.waitForFunction(() => (window.__ja2Tactical?.ready && window.__ja2Audio?.ready) || window.__ja2Audio?.error);
+  await openTacticalSession(page, session);
+  await page.waitForFunction(() => window.__ja2Audio?.ready || window.__ja2Audio?.error);
   expect(await page.evaluate(() => window.__ja2Audio.error)).toBeNull();
-  expect(await page.evaluate(() => window.__ja2Audio.unlocked)).toBe(false);
-  await page.click('#status');
-  expect(await page.evaluate(() => window.__ja2Audio.unlocked)).toBe(true);
-  await page.click('[data-speed="instant"]');
-  await page.click('[data-playback="16"]');
+  await page.keyboard.press('Shift');
+  await expect.poll(() => page.evaluate(() => window.__ja2Audio.unlocked)).toBe(true);
 
   for (let step = 0; step < 12 && !(await observe()).combat; step++)
     for (const s of (await observe()).soldiers.filter((x) => x.team === 0))
@@ -84,11 +74,7 @@ test('the tactical page plays a stub firefight with sound after the first gestur
   expect(fought.filesMissing).toBe(0);
   expect(fought.decodeErrors).toBe(0);
 
-  await page.locator('#volume').evaluate((el) => {
-    const slider = el as HTMLInputElement;
-    slider.value = '0';
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await page.evaluate(() => window.__ja2Audio.setMaster(0));
   await page.waitForTimeout(1500);
   const muted = await counters(page);
   for (const s of (await observe()).soldiers.filter((x) => x.team === 0 && (x.life ?? 0) >= 15))

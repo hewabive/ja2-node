@@ -2,23 +2,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
 import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
+import { openTacticalSession } from './play-flow.ts';
 
 const COLS = 160;
 const MAX_ROUNDS = 40;
 const STUB_SANDBOX_AMBIENT = 3;
-
-interface WorldHook {
-  readonly ready: boolean;
-  readonly error: string | null;
-  readonly framePolicy: string | null;
-  readonly mercLightOrigin: string | null;
-  readonly ambient: number | null;
-  readonly corpses: number;
-  readonly bloodPools: number;
-  readonly drawnEffects: number;
-}
-
-const worldHook = () => (window as unknown as { __ja2Tactical?: WorldHook }).__ja2Tactical;
 
 interface SoldierView {
   readonly id: number;
@@ -95,17 +83,19 @@ test('an MCP agent fights the stub garrison through its own session; the rendere
   expect(blood.length).toBeGreaterThan(0);
   await client.close();
 
-  await page.goto(`/src/devtools/tactical/?session=${session}`);
-  await page.waitForFunction(() => {
-    const h = (window as unknown as { __ja2Tactical?: WorldHook }).__ja2Tactical;
-    return h?.ready || (h?.error ?? null) !== null;
+  await openTacticalSession(page, session);
+  const world = await page.evaluate(() => {
+    const t = window.__ja2Ui.tactical;
+    return t
+      ? { framePolicy: t.framePolicy, mercLightOrigin: t.mercLightOrigin, ambient: t.ambient, corpses: t.corpses, bloodPools: t.bloodPools }
+      : null;
   });
-  const world = (await page.evaluate(worldHook)) as WorldHook;
-  expect(world.error).toBeNull();
-  expect(world.framePolicy).toBe('exact');
-  expect(world.mercLightOrigin).toBe('data');
-  expect(world.ambient).toBe(STUB_SANDBOX_AMBIENT);
-  expect(world.corpses).toBe(corpses.length);
-  expect(world.bloodPools).toBe(blood.length);
-  await expect.poll(async () => (await page.evaluate(worldHook))?.drawnEffects).toBe(corpses.length);
+  expect(world).toEqual({
+    framePolicy: 'exact',
+    mercLightOrigin: 'data',
+    ambient: STUB_SANDBOX_AMBIENT,
+    corpses: corpses.length,
+    bloodPools: blood.length,
+  });
+  await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.drawnEffects)).toBe(corpses.length);
 });

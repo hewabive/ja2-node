@@ -2,12 +2,16 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
 import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
+import { clickAt } from './play-flow.ts';
+import { clickWidget } from './ui-capture.ts';
 
 const COLS = 160;
 const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
 const STUB_RPC = 65;
 const STUB_ESCORT = 123;
+const ASSIGNMENT_COLUMN = 1;
+const EPC_MENU_REMOVE = 3;
 const NEAR_STUB_RPC = 72 * COLS + 81;
 
 interface SoldierView {
@@ -48,7 +52,7 @@ interface ActResult {
   };
 }
 
-test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases her twice, the second time in the browser', async ({
+test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases her twice, the second time on the map screen of the game page', async ({
   page,
 }) => {
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
@@ -119,10 +123,23 @@ test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases h
   if ((await observe()).conversation) await act({ type: 'closeTalk' });
   const again = (await observe()).soldiers.find((s) => s.profile === STUB_ESCORT && s.team === 0);
   expect(await act({ type: 'mapScreen' })).toMatchObject({ ok: true });
-  await page.goto(`/src/devtools/strategic/?session=${session}`);
-  await page.waitForFunction(() => window.__ja2Strategic?.ready || window.__ja2Strategic?.error !== null);
-  await page.click(`[data-unescort="${again?.id}"]`);
-  await expect(page.locator('#result')).toHaveText(/ released$/);
+  await page.goto(`/play?session=${encodeURIComponent(session)}`);
+  await page.waitForFunction(() => window.__ja2Ui?.map?.ready === true || window.__ja2Ui?.error);
+  expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
+  await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.modal === null && window.__ja2Ui.lagTicks === 0);
+  const row = await page.evaluate((id) => window.__ja2Ui.map?.screen?.rows.indexOf(id) ?? -1, again?.id ?? -1);
+  expect(row).toBeGreaterThanOrEqual(0);
+  const assignment = await page.evaluate(({ r, column }) => window.__ja2Ui.map?.rowPoint(r, column) ?? null, {
+    r: row,
+    column: ASSIGNMENT_COLUMN,
+  });
+  if (!assignment) throw new Error('no assignment column');
+  await clickAt(page, assignment.x, assignment.y);
+  await page.waitForFunction(() => window.__ja2Ui.map?.screen?.menu === 'assignment');
+  await clickWidget(page, `assignmentMenu.line${EPC_MENU_REMOVE}`);
+  await expect
+    .poll(() => page.evaluate(() => window.__ja2Ui.map?.commands.at(-1) ?? null))
+    .toEqual({ type: 'unescort', ok: true, reason: null });
   expect((await observe()).strategic?.mercs.some((m) => m.id === again?.id)).toBe(false);
   await client.close();
 });

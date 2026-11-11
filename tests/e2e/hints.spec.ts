@@ -2,11 +2,14 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, type Page, test } from '@playwright/test';
 import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
+import { openTacticalSession, waitShadowSettled } from './play-flow.ts';
+import { devicePoint, nextFrames } from './ui-capture.ts';
 
 const COLS = 160;
 const REST_MS = 140;
-const READY_PATIENCE_MS = 30_000;
-const GRID_STEPS = 6;
+const HOVER_REACH = 2;
+const HOVER_STEP = 2;
+const SPRITE_ABOVE_FEET = 15;
 const MAX_LOCAL_P95_MS = 250;
 
 interface HintStatsView {
@@ -29,15 +32,7 @@ interface HintHookView {
   readonly last: { readonly reply: { readonly state: string } } | null;
 }
 
-interface TacticalHookView {
-  readonly ready: boolean;
-  readonly error: string | null;
-  readonly zoom: number;
-  readonly soldierBoxes: readonly { id: number; x: number; y: number; width: number; height: number }[];
-  readonly soldierTeams: readonly number[];
-}
-
-type HintWindow = Window & { __ja2Ui?: { hints?: HintHookView }; __ja2Tactical?: TacticalHookView };
+type HintWindow = Window & { __ja2Ui?: { hints?: HintHookView } };
 
 async function battleSession(): Promise<string> {
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
@@ -62,18 +57,33 @@ async function battleSession(): Promise<string> {
   return session;
 }
 
-async function restedHint(page: Page): Promise<void> {
+async function hover(page: Page, point: { readonly x: number; readonly y: number }): Promise<void> {
+  const at = await devicePoint(page, point.x, point.y);
+  await page.mouse.move(at.x, at.y);
   await page.waitForTimeout(REST_MS);
-  await page
-    .waitForFunction(() => (window as unknown as HintWindow).__ja2Ui?.hints?.last?.reply.state === 'ready', null, {
-      timeout: READY_PATIENCE_MS,
-    })
-    .catch(() => undefined);
+  await nextFrames(page);
 }
 
-async function hover(page: Page, x: number, y: number): Promise<void> {
-  await page.mouse.move(x, y);
-  await restedHint(page);
+async function hoverPoints(page: Page): Promise<{ readonly x: number; readonly y: number }[]> {
+  return page.evaluate(
+    ({ cols, reach, step, above }) => {
+      const tactical = window.__ja2Ui.tactical;
+      if (!tactical) return [];
+      const soldiers = tactical.soldiers();
+      const tiles = soldiers
+        .filter((s) => s.team === 0)
+        .flatMap((s) => {
+          const around: number[] = [];
+          for (let dy = -reach; dy <= reach; dy += step)
+            for (let dx = -reach; dx <= reach; dx += step) around.push(s.gridNo + dx + dy * cols);
+          return around;
+        })
+        .map((g) => tactical.gridNoScreen(g));
+      const bodies = soldiers.map((s) => tactical.soldierScreen(s.id)).map((p) => (p ? { x: p.x, y: p.y - above } : null));
+      return [...tiles, ...bodies].filter((p): p is { x: number; y: number } => p !== null);
+    },
+    { cols: COLS, reach: HOVER_REACH, step: HOVER_STEP, above: SPRITE_ABOVE_FEET },
+  );
 }
 
 test('the shadow mode computes cursor hints in the browser and finds no difference with the server', async ({ page }) => {
@@ -89,30 +99,15 @@ test('the shadow mode computes cursor hints in the browser and finds no differen
 });
 
 async function shadowHover(page: Page, session: string): Promise<void> {
-  await page.goto(`/src/devtools/tactical/?session=${encodeURIComponent(session)}&shadowHints=1`);
-  await page.waitForFunction(() => (window as unknown as HintWindow).__ja2Tactical?.ready);
+  await openTacticalSession(page, session, '&shadowHints=1');
   await page.waitForFunction(() => (window as unknown as HintWindow).__ja2Ui?.hints?.ready === true);
   const hook = await page.evaluate(() => (window as unknown as HintWindow).__ja2Ui?.hints as HintHookView);
   expect(hook.error).toBeNull();
   expect(hook.usable, 'the client rules and engine match the server').toBe(true);
   expect(hook.shadow).toBe(true);
 
-  const box = await page.locator('#canvas').boundingBox();
-  if (!box) throw new Error('canvas has no box');
-  for (let i = 1; i < GRID_STEPS; i++)
-    for (let j = 1; j < GRID_STEPS; j++) await hover(page, box.x + (box.width * i) / GRID_STEPS, box.y + (box.height * j) / GRID_STEPS);
-
-  const tactical = await page.evaluate(() => (window as unknown as HintWindow).__ja2Tactical as TacticalHookView);
-  const dpr = await page.evaluate(() => window.devicePixelRatio || 1);
-  const scale = tactical.zoom / dpr;
-  for (const s of tactical.soldierBoxes) await hover(page, box.x + (s.x + s.width / 2) * scale, box.y + (s.y + s.height / 2) * scale);
-
-  const slots = page.locator('#hints .hint-slots button');
-  const count = await slots.count();
-  for (let k = 0; k < count; k++) {
-    await slots.nth(k).hover();
-    await restedHint(page);
-  }
+  for (const point of await hoverPoints(page)) await hover(page, point);
+  await waitShadowSettled(page, 'tactical');
 
   await expect
     .poll(() => page.evaluate(() => (window as unknown as HintWindow).__ja2Ui?.hints?.stats.shadowCompared ?? 0))

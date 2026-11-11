@@ -133,7 +133,10 @@ function closeQuietly(graph: AudioGraph): void {
   void graph.close().catch(() => undefined);
 }
 
+export const PLAYED_LOG = 200;
+
 export class AudioEngine {
+  readonly played: string[] = [];
   readonly counters: AudioCounters = {
     cuesResolved: 0,
     cuesWhileLocked: 0,
@@ -217,12 +220,18 @@ export class AudioEngine {
     this.#listener = view;
   }
 
+  #logPlayed(file: string): void {
+    this.played.push(file);
+    if (this.played.length > PLAYED_LOG) this.played.shift();
+  }
+
   cachedPaths(): string[] {
     return this.#buffers.keys();
   }
 
   play(cue: Cue): VoiceHandle {
     this.counters.cuesResolved++;
+    this.#logPlayed(cue.file);
     const voice = new Voice(cue, (v) => this.#release(v));
     if (!this.#graph) {
       this.counters.cuesWhileLocked++;

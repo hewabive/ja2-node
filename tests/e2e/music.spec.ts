@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, type Page, test } from '@playwright/test';
 import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
+import { openTacticalSession, showLatest } from './play-flow.ts';
 
 interface MusicHook {
   readonly ready: boolean;
@@ -10,11 +11,6 @@ interface MusicHook {
   readonly track: string | null;
   readonly tracks: readonly string[];
   readonly error: string | null;
-}
-
-interface MusicWindow {
-  readonly __ja2Audio?: { readonly ready: boolean; readonly error: string | null; readonly music: MusicHook };
-  readonly __ja2Tactical?: { readonly ready: boolean };
 }
 
 interface SoldierView {
@@ -29,9 +25,9 @@ interface View {
 }
 
 const COLS = 160;
-const music = (page: Page) => page.evaluate(() => ({ ...(window as unknown as MusicWindow).__ja2Audio?.music }) as MusicHook);
+const music = (page: Page) => page.evaluate(() => ({ ...window.__ja2Ui.music }) as MusicHook);
 
-test('the tactical page plays the music of the session mode after the first gesture and switches to battle music in combat', async ({
+test('the game page plays the music of the session mode after the first gesture and switches to battle music in combat', async ({
   page,
 }) => {
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
@@ -47,26 +43,21 @@ test('the tactical page plays the music of the session mode after the first gest
   const observe = async () => (await call('observe', { session })) as View;
   const act = async (command: Record<string, unknown>) => (await call('act', { session, command })) as { ok: boolean };
 
-  await page.goto(`/src/devtools/tactical/?session=${session}`);
-  await page.waitForFunction(() => {
-    const w = window as unknown as MusicWindow;
-    return (w.__ja2Tactical?.ready && w.__ja2Audio?.ready) || w.__ja2Audio?.error;
-  });
+  await openTacticalSession(page, session);
+  await page.waitForFunction(() => window.__ja2Ui.music?.ready || window.__ja2Ui.music?.error);
+  await page.keyboard.press('Shift');
   const before = await music(page);
   expect(before.error).toBeNull();
-  expect(before.ready).toBe(true);
   expect(before.serverMode).toBe('tacticalEnemyPresent');
-  expect(before.track).toBeNull();
-
-  await page.click('#status');
   await expect.poll(async () => (await music(page)).track).toMatch(/^music\/tensor /);
 
-  await page.click('[data-speed="instant"]');
-  await page.click('[data-playback="16"]');
-  for (let step = 0; step < 12 && !(await observe()).combat; step++)
+  for (let step = 0; step < 12 && !(await observe()).combat; step++) {
     for (const s of (await observe()).soldiers.filter((x) => x.team === 0))
       await act({ type: 'move', soldier: s.id, to: s.gridNo + COLS * 3, mode: 'swat' });
+    await call('advance', { session, idle: true });
+  }
   expect((await observe()).combat).toBeTruthy();
+  await showLatest(page);
 
   await expect.poll(async () => (await music(page)).serverMode).toBe('tacticalBattle');
   await expect.poll(async () => (await music(page)).track).toMatch(/^music\/battle /);

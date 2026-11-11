@@ -1,79 +1,43 @@
-import { expect, test } from '@playwright/test';
-
-declare global {
-  interface Window {
-    __ja2Tactical: {
-      ready: boolean;
-      map: string | null;
-      soldiers: number;
-      drawnSoldiers: number;
-      selected: number | null;
-      selectedGridNo: number | null;
-      tick: number;
-      error: string | null;
-      lastResult: string | null;
-      drawCalls: number;
-      camera: { centerX: number; centerY: number } | null;
-      hoveredSoldier: number | null;
-      zoom: number;
-      soldierBoxes: { id: number; x: number; y: number; width: number; height: number }[];
-    };
-  }
-}
+import { type APIRequestContext, expect, test } from '@playwright/test';
+import { openTacticalSession } from './play-flow.ts';
 
 const SQUAD_SIZE = 4;
 const MAX_WORLD_DRAW_CALLS = 60;
+const TILE_CENTRE = 5;
+const TILE_STEP = 10;
+const SPRITE_ABOVE_FEET = 15;
+const SANDBOX_SEED = 11;
 
-test('shows the stub sandbox squad and walks the selected merc to a clicked tile', async ({ page }) => {
-  await page.goto('/src/devtools/tactical/');
-  await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
-  expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
-  expect(await page.evaluate(() => window.__ja2Tactical.map)).toBe('stubs/world/maps/village.dat');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.drawnSoldiers)).toBeGreaterThanOrEqual(SQUAD_SIZE);
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.drawnSoldiers === window.__ja2Tactical.soldiers)).toBe(true);
-  const start = await page.evaluate(() => window.__ja2Tactical.selectedGridNo);
-  expect(start).not.toBeNull();
+async function newSandbox(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/sessions', { data: { seed: SANDBOX_SEED } });
+  expect(response.ok()).toBe(true);
+  return ((await response.json()) as { session: string }).session;
+}
 
-  const box = await page.locator('#canvas').boundingBox();
-  if (!box) throw new Error('canvas has no box');
-  await page.mouse.click(box.x + box.width / 2 - 200, box.y + box.height / 2 + 60);
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toContain(': ok');
-  await page.click('[data-speed="8"]');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.selectedGridNo)).not.toBe(start);
-});
+test('draws the stub sandbox in few batches on a tile-centred camera and picks a merc by his sprite', async ({ page, request }) => {
+  const session = await newSandbox(request);
+  try {
+    await openTacticalSession(page, session);
+    expect(await page.evaluate(() => window.__ja2Ui.tactical?.map)).toBe('stubs/world/maps/village.dat');
+    await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.drawnSoldiers ?? 0)).toBeGreaterThanOrEqual(SQUAD_SIZE);
+    const drawn = await page.evaluate(() => ({
+      drawCalls: window.__ja2Ui.tactical?.drawCalls ?? 0,
+      camera: window.__ja2Ui.tactical?.camera,
+    }));
+    expect(drawn.drawCalls).toBeGreaterThan(0);
+    expect(drawn.drawCalls).toBeLessThanOrEqual(MAX_WORLD_DRAW_CALLS);
+    expect((drawn.camera?.centerX ?? 0) % TILE_STEP).toBe(TILE_CENTRE);
+    expect((drawn.camera?.centerY ?? 0) % TILE_STEP).toBe(TILE_CENTRE);
 
-test('runs orders instantly on the server and plays them back at the chosen speed', async ({ page }) => {
-  await page.goto('/src/devtools/tactical/');
-  await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
-  expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
-  await page.click('[data-speed="instant"]');
-  await page.click('[data-playback="16"]');
-  const start = await page.evaluate(() => window.__ja2Tactical.selectedGridNo);
-  const box = await page.locator('#canvas').boundingBox();
-  if (!box) throw new Error('canvas has no box');
-  await page.mouse.click(box.x + box.width / 2 + 150, box.y + box.height / 2 + 90);
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toContain(': ok');
-  await expect(page.locator('#info')).toContainText('instant');
-  await page.click('#skip');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.selectedGridNo)).not.toBe(start);
-});
-
-test('draws the world in few batches on a tile-centred camera and picks soldiers by their sprite', async ({ page }) => {
-  await page.goto('/src/devtools/tactical/');
-  await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
-  expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.soldierBoxes.length)).toBeGreaterThanOrEqual(SQUAD_SIZE);
-  const hook = await page.evaluate(() => window.__ja2Tactical);
-  expect(hook.drawCalls).toBeGreaterThan(0);
-  expect(hook.drawCalls).toBeLessThanOrEqual(MAX_WORLD_DRAW_CALLS);
-  expect(((hook.camera?.centerX ?? 0) % 10) - 5).toBe(0);
-  expect(((hook.camera?.centerY ?? 0) % 10) - 5).toBe(0);
-  const box = await page.locator('#canvas').boundingBox();
-  if (!box) throw new Error('canvas has no box');
-  const target = hook.soldierBoxes[0];
-  if (!target) throw new Error('no soldier drawn');
-  const dpr = await page.evaluate(() => window.devicePixelRatio || 1);
-  const scale = hook.zoom / dpr;
-  await page.mouse.move(box.x + (target.x + target.width / 2) * scale, box.y + (target.y + target.height / 2) * scale);
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.hoveredSoldier)).not.toBeNull();
+    const picked = await page.evaluate((above) => {
+      const tactical = window.__ja2Ui.tactical;
+      const merc = tactical?.soldiers().find((s) => s.team === 0);
+      const at = merc ? tactical?.soldierScreen(merc.id) : null;
+      return merc && at ? { merc: merc.id, hit: tactical?.soldierAt(at.x, at.y - above) ?? null } : null;
+    }, SPRITE_ABOVE_FEET);
+    expect(picked).not.toBeNull();
+    expect(picked?.hit).toBe(picked?.merc);
+  } finally {
+    await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+  }
 });

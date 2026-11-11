@@ -14,6 +14,9 @@ const ASSIGNMENT_ON_DUTY = 0;
 const SQUAD_LINE_2 = 1;
 const DESTINATION = 4;
 const ASSIGNMENT = 1;
+const CONTRACT = 5;
+const CONTRACT_DAY = 2;
+const CONTRACT_DISMISS = 5;
 
 let save: MapScreenSave;
 
@@ -164,6 +167,24 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     expect(await lastCommand(page)).toMatchObject({ type: 'answer', ok: true });
     const assigned = await page.evaluate(() => window.__ja2Ui.map?.commands.find((c) => c.type === 'assign') ?? null);
     expect(assigned).toMatchObject({ ok: true });
+  });
+
+  test('extends a contract by a day and dismisses a merc through the contract menu', async ({ page }) => {
+    await openMap(page, session);
+    await clickRow(page, 0, CONTRACT);
+    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.menu === 'contract');
+    await clickWidget(page, `contractMenu.line${CONTRACT_DAY}`);
+    await expect.poll(() => lastCommand(page)).toMatchObject({ type: 'extendContract', ok: true });
+    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.menu === null);
+    await page.evaluate(() => window.__ja2Ui.map?.advance({ idle: true }));
+    await page.waitForFunction(() => window.__ja2Ui.lagTicks === 0 && window.__ja2Ui.map?.screen?.speakerLocator === null);
+
+    await clickRow(page, 0, CONTRACT);
+    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.menu === 'contract');
+    await clickWidget(page, `contractMenu.line${CONTRACT_DISMISS}`);
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'messageBox');
+    await clickWidget(page, 'messageBox.yes');
+    await expect.poll(() => lastCommand(page)).toMatchObject({ type: 'dismiss', ok: true });
   });
 
   test('moves a merc to another squad through the assignment popup', async ({ page }) => {

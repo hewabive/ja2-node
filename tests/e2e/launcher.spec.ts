@@ -19,22 +19,14 @@ interface DevHook {
   readonly saves: SavesHook;
 }
 
-interface SaveKeysHook {
-  readonly ready: boolean;
-  readonly busy: boolean;
-  readonly saves: number;
-  readonly loads: number;
-  readonly last: { readonly action: string; readonly ok: boolean; readonly text: string } | null;
-}
-
 interface PageHooks {
   readonly __ja2Launcher: LauncherHook;
   readonly __ja2Dev: DevHook;
-  readonly __ja2SaveKeys?: SaveKeysHook;
 }
 
 interface SessionSummary {
   readonly session: string;
+  readonly tick?: number;
   readonly options?: Record<string, unknown>;
   readonly language?: string;
 }
@@ -44,16 +36,18 @@ type Tables = Readonly<Record<string, string | readonly string[]>>;
 const GZIP_MAGIC = [0x1f, 0x8b];
 const UPLOADED = 'launcher-upload';
 const SLG_LOAD_SELECTED = 4;
-const MSG_SAVE_SUCCESS = 8;
-const SLG_LOAD_GAME_OK = 7;
 const MSG_YES = 2;
 const STR_PB_SECTOR = 41;
 const OWN_SAVES = ['QuickSave', UPLOADED];
+const TICKS_AFTER_SAVE = 50;
 
 const launcher = (page: Page) => page.evaluate(() => (window as unknown as PageHooks).__ja2Launcher);
 const launcherReady = (page: Page) => page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
 const devReady = (page: Page) => page.waitForFunction(() => (window as unknown as PageHooks).__ja2Dev?.ready);
-const saveKeys = (page: Page) => page.evaluate(() => (window as unknown as PageHooks).__ja2SaveKeys ?? null);
+const sessionOf = async (page: Page, session: string) =>
+  ((await page.evaluate(async () => (await fetch('/api/sessions')).json())) as SessionSummary[]).find((s) => s.session === session);
+const saveNames = async (page: Page) =>
+  ((await page.evaluate(async () => (await fetch('/api/saves')).json())) as { readonly name: string }[]).map((s) => s.name);
 
 async function strings(page: Page, lang: string): Promise<Tables> {
   return page.evaluate(async (l) => ((await (await fetch(`/api/strings?lang=${l}`)).json()) as { tables: Tables }).tables, lang);
@@ -68,12 +62,6 @@ async function deleteSaves(page: Page): Promise<void> {
   await page.evaluate(async (names) => {
     for (const name of names) await fetch(`/api/saves/${name}`, { method: 'DELETE' });
   }, OWN_SAVES);
-}
-
-async function quick(page: Page, key: 'KeyS' | 'KeyL', count: 'saves' | 'loads', before: number): Promise<SaveKeysHook> {
-  await page.keyboard.press(`Alt+${key}`);
-  await expect.poll(async () => (await saveKeys(page))?.[count]).toBe(before + 1);
-  return (await saveKeys(page)) as SaveKeysHook;
 }
 
 async function closeFromDevPage(page: Page, session: string): Promise<void> {
@@ -102,7 +90,7 @@ test("the launcher's UI scale and 640×480 settings reach the game page", async 
   expect(await page.evaluate(() => [window.__ja2Ui.scale, window.__ja2Ui.logical])).toEqual([2, { width: 640, height: 480 }]);
 });
 
-test('the developer page starts a campaign with options and lists the session with its saves; the launcher loads into /play, downloads, uploads and speaks Russian', async ({
+test('the developer page starts a campaign with options on /play, which quick saves and loads; the developer page lists the session with its saves; the launcher loads into /play, downloads, uploads and speaks Russian', async ({
   page,
 }) => {
   await page.goto('/dev?seed=1');
@@ -119,12 +107,10 @@ test('the developer page starts a campaign with options and lists the session wi
   await page.check('input[name="difficulty"][value="3"]');
   await page.check('input[name="guns"][value="gunNut"]');
   await page.uncheck('#bloodAndGore');
-  await page.check('input[name="page"][value="tactical"]');
   await page.click('#startCampaign');
-  await page.waitForURL(/\/src\/devtools\/tactical\/\?session=/);
+  await page.waitForURL(/\/play\?session=/);
   const session = new URL(page.url()).searchParams.get('session') ?? '';
-  const sessions = (await page.evaluate(async () => (await fetch('/api/sessions')).json())) as SessionSummary[];
-  expect(sessions.find((s) => s.session === session)?.options).toEqual({
+  expect((await sessionOf(page, session))?.options).toEqual({
     difficulty: 3,
     sciFi: true,
     gunNut: true,
@@ -132,22 +118,19 @@ test('the developer page starts a campaign with options and lists the session wi
     bloodAndGore: false,
   });
 
-  await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
-  expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
-  await page.waitForFunction(() => (window as unknown as PageHooks).__ja2SaveKeys?.ready);
+  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
+  expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
+  await page.waitForFunction(() => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.modal === null);
+  await page.keyboard.press('Alt+KeyS');
+  await expect.poll(async () => (await saveNames(page)).includes('QuickSave')).toBe(true);
+  const savedAt = (await sessionOf(page, session))?.tick ?? 0;
+  await expect.poll(async () => (await sessionOf(page, session))?.tick ?? 0).toBeGreaterThan(savedAt + TICKS_AFTER_SAVE);
+  const beforeLoad = (await sessionOf(page, session))?.tick ?? 0;
+  await page.keyboard.press('Alt+KeyL');
+  await expect.poll(async () => (await sessionOf(page, session))?.tick ?? 0).toBeLessThan(beforeLoad);
+  await page.waitForFunction(() => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.tactical?.ready === true);
+  expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   const english = await strings(page, 'eng');
-  const savedAt = await page.evaluate(() => window.__ja2Tactical.tick);
-  const saved = await quick(page, 'KeyS', 'saves', 0);
-  expect(saved.last).toEqual({ action: 'save', ok: true, text: entry(english, 'pMessageStrings', MSG_SAVE_SUCCESS) });
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toBe(saved.last?.text);
-
-  await page.click('[data-speed="8"]');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.tick)).toBeGreaterThan(savedAt + 50);
-  const loaded = await quick(page, 'KeyL', 'loads', 0);
-  expect(loaded.last).toMatchObject({ action: 'load', ok: true });
-  expect(loaded.last?.text.startsWith(entry(english, 'zSaveLoadText', SLG_LOAD_GAME_OK))).toBe(true);
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.tick)).toBe(savedAt);
-  expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
 
   await page.goto(`/dev?session=${session}`);
   await devReady(page);

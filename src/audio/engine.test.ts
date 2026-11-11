@@ -3,7 +3,7 @@ import { FakeGraph, pcmWav, settle } from '../../tests/support/fake-audio.ts';
 import { cueOf } from '../content/audio/cue.ts';
 import { NOWHERE } from '../content/audio/sound-position.ts';
 import { LruCache } from './buffer-cache.ts';
-import { AudioEngine, DEFAULT_ENGINE_VOLUMES, MAX_VOICES } from './engine.ts';
+import { AudioEngine, DEFAULT_ENGINE_VOLUMES, MAX_VOICES, PLAYED_LOG } from './engine.ts';
 
 function engineWith(files: Record<string, Uint8Array>, options: { maxVoices?: number; cacheEntries?: number } = {}) {
   const graph = new FakeGraph();
@@ -83,6 +83,14 @@ describe('the audio engine', () => {
     await settle();
     expect(voice.state).toBe('playing');
     expect(engine.counters.voicesStarted).toBe(1);
+  });
+
+  it('logs the files of the last cues it was asked to play, locked or not', () => {
+    const { engine } = engineWith({});
+    for (let i = 0; i <= PLAYED_LOG; i++) engine.play(fixed(`${i}.wav`));
+    expect(engine.played).toHaveLength(PLAYED_LOG);
+    expect(engine.played[0]).toBe('1.wav');
+    expect(engine.played.at(-1)).toBe(`${PLAYED_LOG}.wav`);
   });
 
   it('pans with two linear gains from the mixed volume and pan, splitting stereo buffers', async () => {

@@ -38,8 +38,6 @@ declare global {
   }
 }
 
-const PLAYED_LOG = 200;
-
 export interface SoundContext {
   readonly camera: { readonly centerX: number; readonly centerY: number };
   readonly width: number;
@@ -89,24 +87,14 @@ export class TacticalSound {
       error: null,
       counters: this.engine.counters,
       director: null,
-      played: [],
+      played: this.engine.played,
       settings: this.#settings,
       music: this.music.hook,
       setMaster: (volume) => this.change({ volumes: { master: volume } }),
       setMusicVolume: (volume) => this.change({ volumes: { music: volume } }),
     };
     window.__ja2Audio = this.hook;
-    if (!options.engine) this.#logPlayed();
     this.#applySettings();
-  }
-
-  #logPlayed(): void {
-    const play = this.engine.play.bind(this.engine);
-    this.engine.play = (cue) => {
-      this.hook.played.push(cue.file);
-      if (this.hook.played.length > PLAYED_LOG) this.hook.played.shift();
-      return play(cue);
-    };
   }
 
   get settings(): ClientSettings {

@@ -1,7 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
+import { openTacticalSession, tacticalOrder } from './play-flow.ts';
+import { clickWidget } from './ui-capture.ts';
 
 const COLS = 160;
 const EAST_EDGE_ROW = 75;
@@ -60,7 +62,9 @@ interface AdvanceReport {
   readonly events: readonly { readonly type: string; readonly text?: string }[];
 }
 
-test('an MCP agent walks a stub squad to A10, hears a villager and talks to the stub NPC, then the browser talks again', async ({
+const lastCommand = (page: Page) => page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1) ?? null);
+
+test('an MCP agent walks a stub squad to A10, hears a villager and talks to the stub NPC, then the game page talks again', async ({
   page,
 }) => {
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
@@ -127,26 +131,17 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
   expect((await observe()).conversation).toBeNull();
   await client.close();
 
-  await page.goto(`/src/devtools/tactical/?session=${session}`);
-  await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
-  expect(await page.evaluate(() => window.__ja2Tactical.selected)).toBe(leader.id);
-  await page.click('[data-speed="instant"]');
-  await expect(page.locator('#talkButton')).toBeEnabled();
-  await page.click('#talkButton');
-  await expect(page.locator('#talk')).toBeVisible();
-  await expect(page.locator('#talkTitle')).not.toHaveText('Talk');
-  const before = await page.locator('#talkLines p').count();
-  await page.click('#talkMenu button[data-approach="direct"]');
-  await expect(page.locator('#talkResult')).toHaveText('direct ok');
-  await expect.poll(() => page.locator('#talkLines p').count()).toBeGreaterThan(before);
-  await page.click('#talkMenu button[data-approach="recruit"]');
-  await expect(page.locator('#talkRequest')).toBeVisible();
-  await expect(page.locator('#talkRequest button[data-choice="lie"]')).toBeVisible();
-  await page.click('#talkRequest button[data-choice="lie"]');
-  await expect(page.locator('#talkResult')).toHaveText('answered lie');
-  await expect(page.locator('#talkRequest')).toBeHidden();
-  await page.locator('#talkGive button', { hasText: 'CLIP9_15' }).first().click();
-  await expect(page.locator('#talkResult')).toHaveText('gave CLIP9_15');
-  await page.click('#closeTalk');
-  await expect(page.locator('#talk')).toBeHidden();
+  await openTacticalSession(page, session);
+  expect(await page.evaluate(() => window.__ja2Ui.tactical?.selected)).toBe(leader.id);
+  await tacticalOrder(page, { type: 'talk', soldier: leader.id, target: { npc: STUB_NPC } });
+  await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true && window.__ja2Ui.tactical.talk.busy === false);
+  const spoken = (await page.evaluate(() => window.__ja2Ui.tactical?.talk.spoken)) ?? 0;
+  await clickWidget(page, 'talkOption2');
+  await expect.poll(() => lastCommand(page)).toEqual({ type: 'approach', ok: true, reason: null });
+  await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
+  await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.talk.spoken ?? 0)).toBeGreaterThan(spoken);
+  await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.busy === false);
+  await clickWidget(page, 'talkDone');
+  await expect.poll(() => lastCommand(page)).toEqual({ type: 'closeTalk', ok: true, reason: null });
+  await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === false);
 });

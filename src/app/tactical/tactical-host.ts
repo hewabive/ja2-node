@@ -33,7 +33,7 @@ import { loadSettings, saveSettings } from '../settings.ts';
 import type { SessionSpeech } from '../sound/session-speech.ts';
 import { TacticalSound } from '../sound/tactical-sound.ts';
 import { tacticalOptionsOf } from '../world/display-options.ts';
-import { LightTemplates } from '../world/light-templates.ts';
+import { LightTemplates, MERC_LIGHT } from '../world/light-templates.ts';
 import { radarPathForMap } from '../world/radar.ts';
 import { SoldierAssets } from '../world/soldier-assets.ts';
 import { loadSoldierFrames, type SoldierFrames } from '../world/soldier-frames.ts';
@@ -97,6 +97,7 @@ export class TacticalHost {
   readonly #frameTimes = new TimeSamples();
   readonly #worldTimes = new TimeSamples();
   #frames: SoldierFrames | null = null;
+  #lightTemplates: LightTemplates | null = null;
   #knowledge: ClientKnowledge | null = null;
   #knowledgeOpening: Promise<void> | null = null;
   #facts: MapFacts | null = null;
@@ -224,6 +225,7 @@ export class TacticalHost {
     const preparing = TacticalWorldView.prepare(mapPath, available).then(timed('map'));
     const worldView = Promise.all([presentation, preparing]).then(([[soldierAssets, frames, effects, lightTemplates], prepared]) => {
       this.#frames = frames;
+      this.#lightTemplates = lightTemplates;
       const presented = { soldiers: TacticalWorldView.soldierScene(soldierAssets), frames, effects, lightTemplates };
       return reached('world')(TacticalWorldView.create(this.#renderer, prepared, presented));
     });
@@ -580,6 +582,11 @@ export class TacticalHost {
       drawnBullets: 0,
       drawnImpacts: 0,
       drawnEffects: 0,
+      corpses: 0,
+      bloodPools: 0,
+      ambient: null,
+      framePolicy: null,
+      mercLightOrigin: null,
       pendingImages: 0,
       enemyBar: { counter: 0, max: 0 },
       topMessage: null,
@@ -692,6 +699,15 @@ export class TacticalHost {
     };
   }
 
+  #syncWorldHook(hook: TacticalHook): void {
+    const view = this.#client.view;
+    hook.corpses = view?.corpses?.length ?? 0;
+    hook.bloodPools = view?.blood?.length ?? 0;
+    hook.ambient = view?.light?.ambient ?? null;
+    hook.framePolicy = this.#frames?.policy ?? null;
+    hook.mercLightOrigin = this.#lightTemplates?.resolve(MERC_LIGHT)?.origin ?? null;
+  }
+
   #syncHook(): void {
     const hook = this.hook;
     const screen = this.#screen;
@@ -709,6 +725,7 @@ export class TacticalHost {
     hook.drawnBullets = presenter?.drawnBullets ?? 0;
     hook.drawnImpacts = presenter?.drawnImpacts ?? 0;
     hook.drawnEffects = presenter?.drawnEffects ?? 0;
+    this.#syncWorldHook(hook);
     hook.pendingImages = this.#loaded?.media.loading ?? 0;
     if (!screen) return;
     hook.panel = screen.panel;

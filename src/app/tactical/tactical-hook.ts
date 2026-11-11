@@ -105,6 +105,11 @@ export interface TacticalHook {
   drawnBullets: number;
   drawnImpacts: number;
   drawnEffects: number;
+  corpses: number;
+  bloodPools: number;
+  ambient: number | null;
+  framePolicy: string | null;
+  mercLightOrigin: string | null;
   pendingImages: number;
   enemyBar: { readonly counter: number; readonly max: number };
   topMessage: string | null;
