@@ -384,7 +384,9 @@ animation scripts); a client compares them with its own code and data (`src/app/
   text answer under the original names (`32` §1.4).
 - **The built client** (`dist/client`, `pnpm build`), when present, is served gzipped, hashed files as immutable.
   Remotely it is the cheaper way to play: the Vite dev server sends some 700 modules and revalidates each on every
-  opening, the built client a few dozen files once.
+  opening, the built client a few dozen files once. The game page needs nearly all of it within a session (every
+  screen, and the simulation's hint functions, `28` §4), so it is not split by `import()`; two of its chunks pass Vite's
+  default 500 kB warning, so `vite.config.ts` raises the limit, keeping the warning for a chunk that doubles.
 
 ---
 
