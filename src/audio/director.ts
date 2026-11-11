@@ -89,10 +89,8 @@ import { BleedGrunts, damageFeedbackSounds } from '../content/audio/damage-feedb
 import { type Heard, heardSoundTile } from '../content/audio/heard-place.ts';
 import { hasIdleSounds, idleCheck, idleCheckLoopFrames } from '../content/audio/idle-sounds.ts';
 import { NOWHERE, offScreenVolume, onScreen } from '../content/audio/sound-position.ts';
-import { speechCue, speechPathForLine } from '../content/audio/speech.ts';
 import type { AmbientEntry } from '../content/formats/ambient.ts';
 import type { AnimationScripts } from '../content/formats/ja2bin.ts';
-import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { vehicleTypeOfBody } from '../content/strategic/vehicle-types.ts';
 import { TICK_MS } from '../protocol/messages.ts';
 import type { HelicopterDropView, SoldierView, ViewFrame } from '../protocol/view.ts';
@@ -110,7 +108,6 @@ const GUN_KINDS: ReadonlySet<string> = new Set(['handgun', 'smg', 'rifle', 'shot
 const isGunKind = (kind: string | undefined) => kind !== undefined && GUN_KINDS.has(kind);
 const NO_VARIANT = 0;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
-const RECRUITED_KINDS = new Set(['rpc', 'epc']);
 const CONTENTS_EXCLAMATION_DELAY_MS = 500;
 const UNSEEN_VICTIM_TEAM = 1;
 const NOBODY = -1;
@@ -129,7 +126,6 @@ export interface SoundWorld {
 }
 
 export interface DirectorSettings {
-  readonly speech: boolean;
   readonly muteConfirmations: boolean;
 }
 
@@ -151,7 +147,6 @@ export interface DirectorOptions {
   readonly animations: AnimationTables | null;
   readonly exists: FileExists;
   readonly seed: number;
-  readonly rpcSpeechPrefixed: boolean;
   readonly now: () => number;
   readonly later: (ms: number, run: () => void) => void;
   readonly onTacticalScreen?: () => boolean;
@@ -163,7 +158,6 @@ export interface DirectorStats {
   opcodes: number;
   footsteps: number;
   battleSounds: number;
-  speechLines: number;
   ambientPlays: number;
   cues: number;
 }
@@ -179,11 +173,6 @@ interface IdleLoop {
   readonly state: number;
   readonly since: number;
   passes: number;
-}
-
-interface QueuedLine {
-  readonly cue: Cue;
-  readonly speaker: number | null;
 }
 
 type Voiced = Pick<SoldierView, 'id' | 'gridNo' | 'team' | 'bodyType' | 'voice' | 'morale' | 'muted'> & { readonly far?: boolean };
@@ -207,7 +196,6 @@ export class SoundDirector {
     opcodes: 0,
     footsteps: 0,
     battleSounds: 0,
-    speechLines: 0,
     ambientPlays: 0,
     cues: 0,
   };
@@ -235,12 +223,10 @@ export class SoundDirector {
   #openContainers = new Set<number>();
   #whistle: VoiceHandle | null = null;
   readonly #attacks = new Map<number, AttackKind>();
-  readonly #speechQueue: QueuedLine[] = [];
-  #speech: { voice: VoiceHandle; speaker: number | null } | null = null;
   #speechOwner: SpeechOwner | null = null;
   #world: SoundWorld | null = null;
   #ambient: AmbientSlot[] = [];
-  #settings: DirectorSettings = { speech: true, muteConfirmations: false };
+  #settings: DirectorSettings = { muteConfirmations: false };
   #context: DirectorContext = { selected: null, inCombat: false, minuteOfDay: null };
 
   constructor(options: DirectorOptions) {
@@ -276,12 +262,10 @@ export class SoundDirector {
 
   setSettings(settings: DirectorSettings): void {
     this.#settings = settings;
-    if (!settings.speech) this.#silenceSpeech();
   }
 
   setSpeechOwner(owner: SpeechOwner | null): void {
     this.#speechOwner = owner;
-    if (owner) this.#silenceSpeech();
   }
 
   setContext(context: DirectorContext): void {
@@ -357,7 +341,6 @@ export class SoundDirector {
   stop(): void {
     this.#loops.stopAll();
     this.#helicopter.stop();
-    this.#silenceSpeech();
     for (const slot of this.#ambient) slot.voice?.stop();
     this.#o.engine.stopAll();
   }
@@ -591,7 +574,7 @@ export class SoundDirector {
     const id = s.id;
     const playing = this.#battleVoices.get(id);
     const owner = this.#speechOwner;
-    const talking = owner ? owner.isTalking(id) : this.#speech?.speaker === id && this.#speech.voice.active;
+    const talking = owner?.isTalking(id) ?? false;
     const outcome = battleSoundCue(
       this.#o.book,
       { gridNo: s.gridNo, team: s.team, bodyType: s.bodyType, voice: s.voice ?? null, morale: s.morale ?? NORMAL_MORALE },
@@ -609,8 +592,7 @@ export class SoundDirector {
     );
     this.#battle.set(id, outcome.memory);
     if (outcome.stopPrevious) playing?.stop();
-    if (outcome.cutSpeech && owner) owner.cut(id);
-    else if (outcome.cutSpeech && this.#speech?.speaker === id) this.#speech.voice.stop();
+    if (outcome.cutSpeech) owner?.cut(id);
     for (const cue of outcome.cues) {
       this.stats.battleSounds++;
       const voice = this.#play(s.far ? this.#placed(cue, { gridNo: NOWHERE, far: true }) : cue);
@@ -766,12 +748,6 @@ export class SoundDirector {
       case 'vehicleLeft':
         if (e.gridNo !== undefined) this.#enterSound(e.gridNo);
         return;
-      case 'mercQuote':
-        if (e.textKey) this.#speak(e.profile, e.soldier >= 0 ? e.soldier : null, e.textKey);
-        return;
-      case 'npcQuote':
-        this.#speak(e.profile, e.soldier, e.textKey);
-        return;
       default:
         return;
     }
@@ -926,52 +902,6 @@ export class SoundDirector {
     const soldierGridNo = this.#soldiers.get(e.soldier)?.gridNo ?? e.gridNo;
     this.#play(lockOutcomeCue(this.#o.book, { action: e.action, result: e.result, doorGridNo: e.gridNo, soldierGridNo }));
     if (e.action === 'open' && e.result === 'locked') this.#battleSound(e.soldier, 'LOCKED', false);
-  }
-
-  #speak(profile: number, soldier: number | null, textKey: TextKey): void {
-    if (!this.#settings.speech || this.#speechOwner) return;
-    const view = soldier !== null ? this.#soldiers.get(soldier) : undefined;
-    const recruitedNpcOrRpc = view?.kind !== undefined && RECRUITED_KINDS.has(view.kind);
-    const path = speechPathForLine({ profile, textKey, recruitedNpcOrRpc }, this.#o.rpcSpeechPrefixed);
-    if (!path) return;
-    this.#speechQueue.push({ cue: speechCue(path), speaker: soldier });
-    this.#nextLine();
-  }
-
-  #nextLine(): void {
-    if (this.#speech?.voice.active) return;
-    const line = this.#speechQueue.shift();
-    if (!line) {
-      this.#speech = null;
-      return;
-    }
-    this.stats.speechLines++;
-    const voice = this.#play(line.cue);
-    if (!voice) return;
-    this.#speech = { voice, speaker: line.speaker };
-    if (!voice.active) {
-      this.#nextLine();
-      return;
-    }
-    voice.onEnded = () => this.#nextLine();
-  }
-
-  get speaking(): { readonly speaker: number; readonly file: string; readonly elapsedMs: number; readonly playing: boolean } | null {
-    const current = this.#speech;
-    if (!current || current.speaker === null || !current.voice.active) return null;
-    return {
-      speaker: current.speaker,
-      file: current.voice.cue.file,
-      elapsedMs: current.voice.elapsedMs,
-      playing: current.voice.state === 'playing',
-    };
-  }
-
-  #silenceSpeech(): void {
-    this.#speechQueue.length = 0;
-    const current = this.#speech;
-    this.#speech = null;
-    current?.voice.stop();
   }
 
   #scheduleAmbient(): void {

@@ -188,7 +188,6 @@ export class MapHost implements MapPort {
       edt: ui.edt,
       catalogue,
       profiles,
-      speech: () => ({ speaking: this.#o.speech.presenter.soldierSpeaking }),
       gunNut,
       messages: () => session.messages,
     });

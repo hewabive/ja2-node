@@ -190,7 +190,6 @@ export interface TacticalMedia {
   item(name: string): CatalogueItem | null;
   itemByIndex(index: number): CatalogueItem | null;
   gaps(file: string): readonly AudioGap[] | null;
-  speech(): SpeechPlayback | null;
   keyItem(key: KeyView): string | null;
   readonly gunNut: boolean;
 }

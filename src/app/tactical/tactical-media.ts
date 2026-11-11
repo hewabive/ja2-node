@@ -3,13 +3,9 @@ import type { ProfilePresentation } from '../../content/narrative/profile-presen
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import { type CatalogueItem, ITEM_CATALOGUE_ROUTE, type ItemCatalogue } from '../../protocol/items.ts';
 import type { KeyView } from '../../protocol/view.ts';
-import type { SpeechPlayback, TacticalMedia } from '../../ui/screens/tactical/environment.ts';
+import type { TacticalMedia } from '../../ui/screens/tactical/environment.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import { readVfsFileOrNull } from '../net/vfs.ts';
-
-export interface SpeechSource {
-  readonly speaking: SpeechPlayback | null;
-}
 
 async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url);
@@ -35,17 +31,9 @@ export class TacticalMediaStore implements TacticalMedia {
   readonly #profiles = new Map<number, ProfilePresentation>();
   readonly #loading = new Set<string>();
   readonly #gaps = new Map<string, readonly AudioGap[] | null>();
-  readonly #speech: () => SpeechSource | null;
 
-  constructor(
-    assets: UiAssets,
-    catalogue: ItemCatalogue,
-    profiles: readonly ProfilePresentation[],
-    speech: () => SpeechSource | null,
-    gunNut: boolean,
-  ) {
+  constructor(assets: UiAssets, catalogue: ItemCatalogue, profiles: readonly ProfilePresentation[], gunNut: boolean) {
     this.#assets = assets;
-    this.#speech = speech;
     this.gunNut = gunNut;
     for (const item of catalogue.items) {
       this.#items.set(item.name, item);
@@ -102,10 +90,6 @@ export class TacticalMediaStore implements TacticalMedia {
       }
     });
     return null;
-  }
-
-  speech(): SpeechPlayback | null {
-    return this.#speech()?.speaking ?? null;
   }
 
   keyItem(key: KeyView): string | null {

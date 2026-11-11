@@ -64,7 +64,6 @@ function rig(world: SoundWorld | null = null, animationScripts = scripts, option
     animations: tables,
     exists: () => true,
     seed: 1,
-    rpcSpeechPrefixed: false,
     now: () => r.clock,
     later: (_ms, run) => r.later.push(run),
     ...options,
@@ -550,28 +549,24 @@ describe('the sound director', () => {
     expect(files(r)).toEqual(['sounds/explosion 12.wav']);
   });
 
-  it('queues speech lines so a new line waits for the previous sample to end', async () => {
+  it('leaves the quote lines to the speech presenter and drops the confirmations the settings mute', () => {
     const r = rig();
     r.director.reset([soldier(1, 'STANDING', 0)]);
-    const line = (row: number) =>
-      ({
-        type: 'mercQuote',
-        tick: 1,
-        soldier: 1,
-        profile: 7,
-        quote: `quote${row}`,
-        id: row,
-        textKey: { file: 'mercedt/007.edt', row, width: 160 },
-      }) as const;
-    r.director.applyFrames([frame(10, [], [line(1), line(2)])]);
-    expect(files(r)).toEqual(['speech/007_001.wav']);
-    await settle();
-    r.graph.playing()[0]?.finish();
-    expect(files(r)).toEqual(['speech/007_001.wav', 'speech/007_002.wav']);
-    r.director.setSettings({ speech: false, muteConfirmations: true });
-    r.director.applyFrames([frame(20, [], [line(3)])]);
+    const textKey = { file: 'mercedt/007.edt', row: 1, width: 160 };
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'mercQuote', tick: 1, soldier: 1, profile: 7, quote: 'quote1', id: 1, textKey },
+          { type: 'npcQuote', tick: 1, soldier: 1, profile: 7, quote: 1, textKey, chars: 10 },
+        ],
+      ),
+    ]);
+    expect(r.cues).toEqual([]);
+    r.director.setSettings({ muteConfirmations: true });
     r.director.confirm(1);
-    expect(files(r)).toHaveLength(2);
+    expect(r.cues).toEqual([]);
   });
 
   it('delays the door close sound to the key frame and plays the open sound only for a noisy opener', () => {

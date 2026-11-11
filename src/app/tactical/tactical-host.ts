@@ -44,7 +44,7 @@ import { loadOverheadTiles } from './overhead-map.ts';
 import { type CameraEntry, entryCamera, type SceneCamera } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 import { attachTacticalHook, LOAD_PHASES, type LoadPhase, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
-import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
+import { fetchItemCatalogue, fetchProfiles, TacticalMediaStore } from './tactical-media.ts';
 import { TacticalWorldPresenter } from './world-presenter.ts';
 
 const NEW_MESSAGE_SOUND = 'sounds/newbeep.wav';
@@ -286,7 +286,7 @@ export class TacticalHost {
       fetchProfiles(this.#o.session.session ?? ''),
       this.#o.gunNut().catch(() => false),
     ]);
-    return new TacticalMediaStore(this.#o.ui.assets, catalogue, profiles, () => this.#speech(), gunNut);
+    return new TacticalMediaStore(this.#o.ui.assets, catalogue, profiles, gunNut);
   }
 
   async #preloadMedia(
@@ -331,10 +331,6 @@ export class TacticalHost {
     if (!strategic) return null;
     this.#facts ??= mapFacts(strategic.content, strategic.economy);
     return this.#facts;
-  }
-
-  #speech(): SpeechSource | null {
-    return this.#sound.director;
   }
 
   screen(flow: TacticalFlow): TacticalScreen {

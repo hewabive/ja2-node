@@ -110,7 +110,7 @@ export class TacticalSound {
   #applySettings(): void {
     const s = this.#settings;
     this.engine.setVolumes({ ...s.volumes, master: effectiveMaster(s) });
-    this.#director?.setSettings({ speech: s.speech, muteConfirmations: s.muteConfirmations });
+    this.#director?.setSettings({ muteConfirmations: s.muteConfirmations });
     this.music.setLevel(musicLevel(s));
     this.hook.settings = s;
   }
@@ -151,7 +151,6 @@ export class TacticalSound {
         animations,
         exists: this.exists,
         seed: seedFromText(session),
-        rpcSpeechPrefixed: rpcSpeechPrefixed(this.#version),
         now: () => performance.now(),
         later: (ms, run) => {
           setTimeout(run, ms);

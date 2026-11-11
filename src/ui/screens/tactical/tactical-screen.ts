@@ -1110,7 +1110,7 @@ export class TacticalScreen implements Screen {
 
   #updateFaces(): void {
     const view = this.#view();
-    const speech = this.dialogue.speaking ?? this.#env.media.speech();
+    const speech = this.dialogue.speaking;
     for (const s of ownSoldiers(view)) {
       const profile = s.profile === undefined ? null : this.#env.media.profile(s.profile);
       const record = faceRecordOf(s, profile);
