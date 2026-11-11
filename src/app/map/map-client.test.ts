@@ -8,6 +8,7 @@ import { SessionMapClient } from './map-client.ts';
 class FakeSession {
   latestView: PlayerView | null = null;
   driver: DriverMode = { mode: 'manual' };
+  realtimeSpeed = 1;
   readonly drives: DriverMode['mode'][] = [];
   readonly held = new Set<string>();
   shownTick = 0;
@@ -15,6 +16,7 @@ class FakeSession {
 
   async drive(driver: DriverMode): Promise<void> {
     this.driver = driver;
+    if (driver.mode === 'realtime') this.realtimeSpeed = driver.speed;
     this.drives.push(driver.mode);
   }
 
@@ -96,6 +98,20 @@ describe('the map client clock', () => {
     session.driver = TACTICAL_REAL_TIME;
     client.stop();
     expect(session.drives).toEqual(['realtime']);
+  });
+
+  it('keeps the speed the session last ran at in real time, adding its box events, and restarts at it after a stop', () => {
+    const session = new FakeSession();
+    session.latestView = viewIn('strategic');
+    session.driver = { mode: 'realtime', speed: 4 };
+    session.realtimeSpeed = 4;
+    const client = mapClientOn(session);
+    client.start();
+    expect(session.driver).toMatchObject({ mode: 'realtime', speed: 4, pauseOn: expect.arrayContaining(['sectorLost']) });
+    session.driver = { mode: 'manual' };
+    client.sync();
+    expect(session.driver).toMatchObject({ mode: 'realtime', speed: 4 });
+    expect(session.drives).toEqual(['realtime', 'realtime']);
   });
 
   it('restarts real time at once after the server stopped it and holds it until the page has played up to the stop', () => {

@@ -19,7 +19,7 @@ interface View {
 
 const COLS = 160;
 const ROUNDS = 6;
-const FAST_PLAYBACK = 16;
+const FAST_CATCH_UP = 16;
 const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), Math.trunc(a / COLS) - Math.trunc(b / COLS));
 const counters = async (page: Page) => {
   const read = await page.evaluate(() => (window.__ja2Audio.counters ? { ...window.__ja2Audio.counters } : null));
@@ -27,7 +27,7 @@ const counters = async (page: Page) => {
   return read;
 };
 
-test.use({ storageState: flowStorage(`http://127.0.0.1:${WEB_PORT}`, { playbackSpeed: FAST_PLAYBACK }) });
+test.use({ storageState: flowStorage(`http://127.0.0.1:${WEB_PORT}`, { catchUpSpeed: FAST_CATCH_UP }) });
 
 test('the game page plays a stub firefight with sound after the first gesture, and nothing at master volume 0', async ({ page }) => {
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {

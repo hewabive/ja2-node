@@ -9,7 +9,7 @@ describe('settings export and import', () => {
       language: 'rus',
       playIntro: false,
       sleepWakeNotification: false,
-      playbackSpeed: 4,
+      catchUpSpeed: 4,
     });
     const text = settingsFileText(changed);
     expect(JSON.parse(text)).toMatchObject({ format: SETTINGS_FILE_FORMAT, settings: { version: 2, language: 'rus' } });

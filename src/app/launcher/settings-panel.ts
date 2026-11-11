@@ -1,7 +1,7 @@
 import { AUTO_UI_SCALE, MAX_UI_SCALE } from '../../ui/resolution.ts';
 import {
+  CATCH_UP_SPEEDS,
   type ClientSettings,
-  PLAYBACK_SPEEDS,
   type SettingsChange,
   speechOrSubtitlesKept,
   type VolumeSettings,
@@ -57,7 +57,7 @@ function isVolumeSetting(value: string | undefined): value is keyof VolumeSettin
 
 export class SettingsPanel {
   readonly #ctx: SettingsPanelContext;
-  readonly #speed = document.getElementById('playbackSpeed') as HTMLSelectElement;
+  readonly #catchUpSpeed = document.getElementById('catchUpSpeed') as HTMLSelectElement;
   readonly #scale = document.getElementById('uiScale') as HTMLSelectElement;
 
   constructor(ctx: SettingsPanelContext) {
@@ -71,15 +71,15 @@ export class SettingsPanel {
     for (const input of document.querySelectorAll<HTMLInputElement>('[data-setting]')) {
       input.addEventListener('change', () => void this.#toggle(input));
     }
-    this.#speed.replaceChildren(
-      ...PLAYBACK_SPEEDS.map((speed) => {
+    this.#catchUpSpeed.replaceChildren(
+      ...CATCH_UP_SPEEDS.map((speed) => {
         const o = document.createElement('option');
         o.value = String(speed);
         o.textContent = `${speed}×`;
         return o;
       }),
     );
-    this.#speed.addEventListener('change', () => ctx.change({ playbackSpeed: Number(this.#speed.value) }));
+    this.#catchUpSpeed.addEventListener('change', () => ctx.change({ catchUpSpeed: Number(this.#catchUpSpeed.value) }));
     this.#scale.addEventListener('change', () => ctx.change({ uiScale: Number(this.#scale.value) }));
     document.getElementById('exportSettings')?.addEventListener('click', () => void this.#export());
     const importInput = document.getElementById('importSettings') as HTMLInputElement;
@@ -107,7 +107,7 @@ export class SettingsPanel {
       const key = input.dataset.setting;
       if (isFlagSetting(key)) input.checked = settings[key];
     }
-    this.#speed.value = String(settings.playbackSpeed);
+    this.#catchUpSpeed.value = String(settings.catchUpSpeed);
     this.#renderScales(settings.uiScale);
   }
 

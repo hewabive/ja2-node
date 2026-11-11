@@ -156,7 +156,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   settings.listen((current) => {
     ui.audio.engine.setVolumes(engineVolumes(current));
     music.settings(current);
-    if (client.client) client.client.playbackSpeed = current.playbackSpeed;
+    if (client.client) client.client.catchUpSpeed = current.catchUpSpeed;
   });
   const random = new ClientRandom(seedFromText(FRONT_END_RANDOM_SEED));
   let speech: SessionSpeech | null = null;
@@ -300,7 +300,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       speech = null;
     }
     page.client = session;
-    if (session) session.playbackSpeed = settings.current().playbackSpeed;
+    if (session) session.catchUpSpeed = settings.current().catchUpSpeed;
     page.hook.session = session?.session ?? null;
     if (tactical && tactical.session !== session) {
       tactical.dispose();

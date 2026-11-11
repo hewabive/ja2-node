@@ -455,11 +455,12 @@ may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev
   table links each session to `/play` with the debug parameters ticked above it (kept in the browser), sets its time
   driver (paused, real time at 1× to 8×, instant) and runs it until idle over a socket it opens for the command, and
   closes it (`DELETE /api/sessions/:id`, refused for the default session). Real time set there lasts while a page
-  watches the session: the server pauses an unwatched one (`04`). A new campaign takes the game init screen's choices
-  with `InitGameOptions`'s defaults preselected (`ORIGINAL_OPTIONS`); the form always sends all five options, so the
-  API's own default difficulty never applies. Besides them: the seed, the Dead is Dead save name and the squad (the
-  server's default, 1–6 mercs, or hiring in the laptop); a sandbox takes the seed. Both open `/play`. Its save panel
-  adds the session to save, Save as new or over the selected save, and loading into a running session.
+  watches the session: the server pauses an unwatched one (`04`); the game page plays at its speed. A new campaign
+  takes the game init screen's choices with `InitGameOptions`'s defaults preselected (`ORIGINAL_OPTIONS`); the form
+  always sends all five options, so the API's own default difficulty never applies. Besides them: the seed, the Dead
+  is Dead save name and the squad (the server's default, 1–6 mercs, or hiring in the laptop); a sandbox takes the
+  seed. Both open `/play`. Its save panel adds the session to save, Save as new or over the selected save, and loading
+  into a running session.
 - **Labels** (`src/ui/text/labels.ts`, `src/ui/text/string-ids.ts`): every label is either an original string
   `{table, index}` of the string tables or a ja2-node label with an English and a Russian text, loaded from
   `GET /api/strings?lang=`. A ja2-node label falls back to English in the other six languages; a missing original
@@ -467,9 +468,13 @@ may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev
   `MessageBoxes` interface (`src/ui/message-boxes.ts`).
 - **Loads in place.** The session client (`src/app/net/session-client.ts`) drops its queued frames whenever a `welcome`
   arrives, so no frame of a replaced simulation is applied after a load in place.
-- **Playback speed.** `/play` plays the frames at the stored playback speed (`front-end.ts` sets it on the session
-  client at connect and on every change); above 1× it only shortens a backlog, since playback never passes the
-  newest frame.
+- **Playback pace.** `/play` plays the frames at the speed of the session's real-time driver, or at the stored catch-up
+  speed when that is faster or time is not real time (`SessionClient.playFor`, `src/app/net/session-client.ts`). The
+  catch-up speed only shortens a backlog the server ran ahead (an agent's advance, the instant driver, a run until
+  idle), since playback never passes the newest frame; it cannot speed up the game, whose pace is the server's driver.
+  `front-end.ts` sets it on the session client at connect and on every change on that page, so a change on the start
+  page reaches a `/play` tab only when it loads. The tactical and map screens restart real time at the speed the session
+  last ran at (`SessionClient.realtimeSpeed`), so a speed set on `/dev` outlasts the server's stops.
 
 ---
 

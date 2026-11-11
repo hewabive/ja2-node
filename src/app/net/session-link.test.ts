@@ -297,3 +297,33 @@ describe('the heartbeat', () => {
     expect(socket.sent.some((m) => m.t === 'ping')).toBe(false);
   });
 });
+
+describe('playback', () => {
+  const emptyFrames = (ticks: readonly number[]): ServerMessage => ({
+    t: 'frames',
+    frames: ticks.map((tick) => ({ tick, changed: [], removed: [] })),
+  });
+
+  it('keeps pace with a real-time driver faster than the catch-up speed and plays at the catch-up speed otherwise', async () => {
+    const rig = await connected();
+    const socket = rig.sockets[0] as FakeSocket;
+    socket.deliver(emptyFrames([10, 20, 30, 40, 50, 60, 70, 80]));
+    rig.client.playFor(50);
+    expect(rig.client.shownTick).toBe(10);
+    socket.deliver({ t: 'time', driver: { mode: 'realtime', speed: 2 }, held: false });
+    rig.client.playFor(50);
+    expect(rig.client.shownTick).toBe(30);
+    rig.client.catchUpSpeed = 4;
+    rig.client.playFor(50);
+    expect(rig.client.shownTick).toBe(70);
+  });
+
+  it('remembers the real-time speed after the server stops the driver', async () => {
+    const rig = await connected();
+    const socket = rig.sockets[0] as FakeSocket;
+    socket.deliver({ t: 'time', driver: { mode: 'realtime', speed: 4 }, held: false });
+    socket.deliver({ t: 'stopped', id: 0, report: { tick: 0, reason: 'event', events: [] } });
+    expect(rig.client.driver).toEqual({ mode: 'manual' });
+    expect(rig.client.realtimeSpeed).toBe(4);
+  });
+});

@@ -54,7 +54,7 @@ pnpm dev                           # server (7420) + Vite (5173)
    first, with the original's row fields (day and time, sector, mercs, balance, description, a mark for Dead is Dead)
    and the options in the tooltip. Load one into a new session on `/play`, import a native save, delete, download a
    `.j2s` file and upload one.
-5. **Settings**: volumes, mute, speech and subtitles, mute confirmations, the sleep/wake notification, playback speed,
+5. **Settings**: volumes, mute, speech and subtitles, mute confirmations, the sleep/wake notification, catch-up speed,
    the splash and intro switches, the UI scale and the 640×480 frame, the display language, and export or import of the
    settings as a file. They live in the browser and never reach the game.
 6. In the game pages Alt+S quick saves and Alt+L quick loads.

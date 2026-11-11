@@ -87,7 +87,7 @@ describe('client settings', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({
       keyAdvanceSpeech: false,
       sleepWakeNotification: true,
-      playbackSpeed: 1,
+      catchUpSpeed: 1,
       language: null,
       helpHidden: false,
       coverSize: 4,
@@ -96,10 +96,10 @@ describe('client settings', () => {
     expect(DEFAULT_SETTINGS.display).toMatchObject({ useMetricSystem: true, snapCursorToDoor: true, cursor3d: false, trackingMode: true });
   });
 
-  it('clamp the display sizes, the playback speed and the language, and keep the display toggles apart', () => {
+  it('clamp the display sizes, the catch-up speed and the language, and keep the display toggles apart', () => {
     expect(normalizeSettings({ coverSize: 30, losSize: 1 })).toMatchObject({ coverSize: 11, losSize: 4 });
-    expect(normalizeSettings({ playbackSpeed: 3, language: 'xx' })).toMatchObject({ playbackSpeed: 1, language: null });
-    expect(normalizeSettings({ playbackSpeed: 4, language: 'rus' })).toMatchObject({ playbackSpeed: 4, language: 'rus' });
+    expect(normalizeSettings({ catchUpSpeed: 0.5, language: 'xx' })).toMatchObject({ catchUpSpeed: 1, language: null });
+    expect(normalizeSettings({ catchUpSpeed: 4, language: 'rus' })).toMatchObject({ catchUpSpeed: 4, language: 'rus' });
     const changed = updateSettings(DEFAULT_SETTINGS, { display: { glowItems: false }, keyAdvanceSpeech: true });
     expect(changed.display).toEqual({ ...DEFAULT_SETTINGS.display, glowItems: false });
     expect(changed.keyAdvanceSpeech).toBe(true);

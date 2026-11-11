@@ -5,7 +5,6 @@ import type { CommandReply, TacticalClient } from '../../ui/screens/tactical/env
 import type { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 
-const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1 };
 const PAUSED_REFUSAL = 'paused';
 const PAUSE_HOLD = 'tacticalPause';
 
@@ -60,7 +59,7 @@ export class SessionTacticalClient implements TacticalClient {
 
   sync(): void {
     if (this.#keepDriver || !this.#active || this.#session.driver.mode !== 'manual') return;
-    void this.#session.drive(REAL_TIME);
+    void this.#session.drive({ mode: 'realtime', speed: this.#session.realtimeSpeed });
   }
 
   stop(): void {

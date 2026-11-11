@@ -75,9 +75,8 @@ const SESSION_ENDED = 'the game session ended';
 const LEFT = 'left the game session';
 
 export class SessionClient implements ViewerPromptPort {
-  driver: DriverMode = { mode: 'manual' };
   timeHeld = false;
-  playbackSpeed = 1;
+  catchUpSpeed = 1;
   session: string | null = null;
   campaign: string | null = null;
   identity: WelcomeIdentity | null = null;
@@ -99,6 +98,8 @@ export class SessionClient implements ViewerPromptPort {
   readonly #prompts = new Map<string, ViewerPromptView>();
   readonly #answers = new Map<string, string>();
   #nextId = 1;
+  #driver: DriverMode = { mode: 'manual' };
+  #realtimeSpeed = 1;
   #shown: PlayerView | null = null;
   #latest: PlayerView | null = null;
   #shownTick = 0;
@@ -113,6 +114,19 @@ export class SessionClient implements ViewerPromptPort {
     const client = new SessionClient(session, options);
     await client.#link.start();
     return client;
+  }
+
+  get driver(): DriverMode {
+    return this.#driver;
+  }
+
+  get realtimeSpeed(): number {
+    return this.#realtimeSpeed;
+  }
+
+  #setDriver(driver: DriverMode): void {
+    this.#driver = driver;
+    if (driver.mode === 'realtime') this.#realtimeSpeed = driver.speed;
   }
 
   get view(): PlayerView | null {
@@ -268,7 +282,7 @@ export class SessionClient implements ViewerPromptPort {
         this.campaign = m.campaign ?? null;
         this.identity = { engine: m.engine, rules: m.rules };
         this.rules = m.rules;
-        this.driver = m.driver;
+        this.#setDriver(m.driver);
         this.timeHeld = m.held;
         this.#shown = m.view;
         this.#latest = m.view;
@@ -280,7 +294,7 @@ export class SessionClient implements ViewerPromptPort {
         break;
       }
       case 'time':
-        this.driver = m.driver;
+        this.#setDriver(m.driver);
         this.timeHeld = m.held;
         break;
       case 'promptAnswered':
@@ -296,7 +310,7 @@ export class SessionClient implements ViewerPromptPort {
       case 'answer':
       case 'pong':
       case 'stopped': {
-        if (m.t === 'stopped' && m.id === DRIVER_STOP_ID) this.driver = { mode: 'manual' };
+        if (m.t === 'stopped' && m.id === DRIVER_STOP_ID) this.#setDriver({ mode: 'manual' });
         const p = this.#pending.get(m.id);
         this.#pending.delete(m.id);
         if (p) this.onReply?.(p.label, performance.now() - p.sentAt);
@@ -333,7 +347,11 @@ export class SessionClient implements ViewerPromptPort {
   }
 
   playFor(elapsedMs: number): boolean {
-    return this.playUntil(this.#shownTick + (elapsedMs / TICK_MS) * this.playbackSpeed);
+    return this.playUntil(this.#shownTick + (elapsedMs / TICK_MS) * this.#playbackRate());
+  }
+
+  #playbackRate(): number {
+    return this.#driver.mode === 'realtime' ? Math.max(this.catchUpSpeed, this.#driver.speed) : this.catchUpSpeed;
   }
 
   skipToLatest(): void {
@@ -376,7 +394,7 @@ export class SessionClient implements ViewerPromptPort {
   }
 
   async drive(driver: DriverMode): Promise<void> {
-    this.driver = driver;
+    this.#setDriver(driver);
     if (!this.#link.open) return;
     await this.#request({ t: 'drive', id: this.#nextId++, driver }, 'drive').catch((error: unknown) => {
       if (this.#link.open) throw error;

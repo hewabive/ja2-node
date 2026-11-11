@@ -324,7 +324,7 @@ line, and gameplay values in the policy files. ja2-node sorts them by whether th
 |---|---|---|---|
 | **Game options** | session state, chosen at `newSession`, saved, shown in `status` and `observe` | yes | difficulty, sci-fi, gun nut, save mode, blood and gore |
 | **Game policy** | engine content (`data/externalized`, the `ja2-node-data` layer) | yes | `game.json`, `imp.json`, `strategic-ai-policy.json` values |
-| **Client settings** | the browser (`localStorage`); never sent to the simulation | no | volumes, speech, subtitles, display toggles, playback speed, language, help screens seen |
+| **Client settings** | the browser (`localStorage`); never sent to the simulation | no | volumes, speech, subtitles, display toggles, catch-up speed, language, help screens seen |
 | **Installation settings** | `installation.json` in the server's saves folder (`src/server/installation-store.ts`), shared by every session; read by the simulation through a port, never saved in a game | yes | the meanwhile scenes seen, which decide whether a scene's box offers Skip (`26` §2) |
 | **Server settings** | the environment, one per process; never enter a session | no | data and stubs folders, data version, default language, saves folder, host, port |
 
@@ -384,7 +384,7 @@ One versioned JSON object in the browser's `localStorage` (`src/ui/settings.ts`:
 normalization; `src/app/settings.ts`: the storage). Every storage access may fail, and the pages work without storage;
 agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes, help flags and the main
 menu's last saved game slot (`30`) with their defaults, and add ja2-node's own: ambient and master volume, mute,
-playback speed, language, UI scale and 640×480 only, the splash and intro switches, the website loading time scale.
+catch-up speed, language, UI scale and 640×480 only, the splash and intro switches, the website loading time scale.
 `bloodAndGore` there is only what the new game form preselects; in a game the options screen sends `setOption`. The help
 screens seen are kept per campaign identity instead of in the save (deviation "Help screens seen"). The meanwhile scenes
 seen moved to the server: a page that finds them in the stored settings of an older page hands them over

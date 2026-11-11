@@ -10,7 +10,6 @@ import type { SessionClient } from '../net/session-client.ts';
 const UPDATE_BOX_EVENTS: readonly SimEventType[] = ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon'];
 const SCREEN_INDEPENDENT_BOX_EVENTS: readonly SimEventType[] = ['sectorLost', 'invasion', 'vehicleOutOfGas'];
 const BOX_EVENTS: readonly SimEventType[] = [...UPDATE_BOX_EVENTS, ...SCREEN_INDEPENDENT_BOX_EVENTS];
-const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1, pauseOn: BOX_EVENTS };
 const MANUAL: DriverMode = { mode: 'manual' };
 const PAUSED_REFUSAL = 'paused';
 const AUTORESOLVE_FLOW = 'autoresolve';
@@ -82,6 +81,10 @@ export class SessionMapClient implements MapClient {
     this.sync();
   }
 
+  #realTime(): DriverMode {
+    return { mode: 'realtime', speed: this.#session.realtimeSpeed, pauseOn: BOX_EVENTS };
+  }
+
   #runsTime(): boolean {
     const view = this.#session.latestView;
     return this.#enabled && !view?.prompt && !view?.contractPrompt && view?.strategic?.flow !== AUTORESOLVE_FLOW;
@@ -109,10 +112,11 @@ export class SessionMapClient implements MapClient {
     if (this.#driving && !realtime) this.#serverStopped = true;
     if (this.#serverStopped && this.caughtUp) this.#serverStopped = false;
     const runs = this.#runsTime();
-    const ours = sameJson(this.#session.driver, REAL_TIME);
-    if (runs && !ours) void this.#session.drive(REAL_TIME);
+    const realTime = this.#realTime();
+    const ours = sameJson(this.#session.driver, realTime);
+    if (runs && !ours) void this.#session.drive(realTime);
     else if (!runs && ours) void this.#session.drive(MANUAL);
-    this.#driving = sameJson(this.#session.driver, REAL_TIME);
+    this.#driving = sameJson(this.#session.driver, realTime);
     this.#sendHolds(runs ? this.#timeHolds() : new Set());
   }
 

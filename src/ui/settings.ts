@@ -16,8 +16,8 @@ export const MAX_SETTING_VOLUME = 127;
 const DEFAULT_CATEGORY_VOLUME = 63;
 export const MIN_DISPLAY_SIZE = 4;
 export const MAX_DISPLAY_SIZE = 11;
-export const PLAYBACK_SPEEDS: readonly number[] = [0.25, 0.5, 1, 2, 4, 8, 16];
-const DEFAULT_PLAYBACK_SPEED = 1;
+export const CATCH_UP_SPEEDS: readonly number[] = [1, 2, 4, 8, 16];
+const DEFAULT_CATCH_UP_SPEED = 1;
 const MEANWHILE_SCENE_BITS = 32;
 const MEANWHILE_SCENES_SEEN = 'meanwhileScenesSeen';
 export const DEFAULT_WEBSITE_LOADING_TIME_SCALE = 1;
@@ -65,7 +65,7 @@ export interface ClientSettings {
   readonly muteConfirmations: boolean;
   readonly sleepWakeNotification: boolean;
   readonly display: DisplaySettings;
-  readonly playbackSpeed: number;
+  readonly catchUpSpeed: number;
   readonly language: UiLanguage | null;
   readonly helpHidden: boolean;
   readonly helpScreensSeen: Readonly<Record<string, number>>;
@@ -116,7 +116,7 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   muteConfirmations: false,
   sleepWakeNotification: true,
   display: DEFAULT_DISPLAY_SETTINGS,
-  playbackSpeed: DEFAULT_PLAYBACK_SPEED,
+  catchUpSpeed: DEFAULT_CATCH_UP_SPEED,
   language: null,
   helpHidden: false,
   helpScreensSeen: {},
@@ -154,8 +154,8 @@ function displaySize(value: unknown, fallback: number): number {
   return clampDisplaySize(Math.round(value));
 }
 
-function playbackSpeed(value: unknown): number {
-  return typeof value === 'number' && PLAYBACK_SPEEDS.includes(value) ? value : DEFAULT_PLAYBACK_SPEED;
+function catchUpSpeed(value: unknown): number {
+  return typeof value === 'number' && CATCH_UP_SPEEDS.includes(value) ? value : DEFAULT_CATCH_UP_SPEED;
 }
 
 function uiScale(value: unknown): number {
@@ -231,7 +231,7 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     muteConfirmations: flag(o.muteConfirmations, d.muteConfirmations),
     sleepWakeNotification: flag(o.sleepWakeNotification, d.sleepWakeNotification),
     display: display(o.display),
-    playbackSpeed: playbackSpeed(o.playbackSpeed),
+    catchUpSpeed: catchUpSpeed(o.catchUpSpeed),
     language: language(o.language),
     helpHidden: flag(o.helpHidden, d.helpHidden),
     helpScreensSeen: helpScreens(o.helpScreensSeen),

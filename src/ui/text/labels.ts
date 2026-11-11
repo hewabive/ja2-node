@@ -114,7 +114,7 @@ export const LABELS = {
   ambientVolume: own('Ambient', 'Окружение'),
   masterVolume: own('Master', 'Общая громкость'),
   mute: own('Mute', 'Без звука'),
-  playbackSpeed: own('Playback speed', 'Скорость воспроизведения'),
+  catchUpSpeed: own('Catch-up speed', 'Скорость догоняния'),
   uiScale: own('UI scale', 'Масштаб интерфейса'),
   uiScaleAuto: own('fit the window', 'по размеру окна'),
   fixed640: own('640×480 only', 'Только 640×480'),
