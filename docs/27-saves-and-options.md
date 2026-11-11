@@ -383,14 +383,15 @@ simulation, not worth it for an option nobody can choose (deviation "Timed turns
 One versioned JSON object in the browser's `localStorage` (`src/ui/settings.ts`: the model, its defaults and
 normalization; `src/app/settings.ts`: the storage). Every storage access may fail, and the pages work without storage;
 agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes, help flags and the main
-menu's last saved game slot (`30`) with their defaults, and add ja2-node's own: ambient and master volume, mute, playback speed, language, UI scale, the splash and
-intro switches, the website loading time scale. `bloodAndGore` there is only what the new game form preselects; in a
-game the options screen sends `setOption`. The help screens seen are kept per campaign identity instead of in the save
-(deviation "Help screens seen"). The meanwhile scenes seen moved to the server: a page that finds them in the stored
-settings of an older page hands them over (`/api/installation`, merged by OR) and drops them once the server took
-them, keeping them through every write until then (`src/app/settings.ts`). The launcher exports and imports the
-settings as a file (`src/app/launcher/settings-file.ts`), with the server's scenes seen where older files kept them, and
-hands an imported file's scenes to the server.
+menu's last saved game slot (`30`) with their defaults, and add ja2-node's own: ambient and master volume, mute,
+playback speed, language, UI scale and 640×480 only, the splash and intro switches, the website loading time scale.
+`bloodAndGore` there is only what the new game form preselects; in a game the options screen sends `setOption`. The help
+screens seen are kept per campaign identity instead of in the save (deviation "Help screens seen"). The meanwhile scenes
+seen moved to the server: a page that finds them in the stored settings of an older page hands them over
+(`/api/installation`, merged by OR) and drops them once the server took them, keeping them through every write until
+then (`src/app/settings.ts`). The launcher exports and imports the settings as a file
+(`src/app/launcher/settings-file.ts`), with the server's scenes seen where older files kept them, and hands an imported
+file's scenes to the server.
 
 Stored but read by nothing: the cover and LOS display sizes (the display is not built, `28`); "don't move mouse" is inert
 by design (deviation "Pointer warp"). Show misses moves the view where the original's does

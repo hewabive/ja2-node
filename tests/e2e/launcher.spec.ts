@@ -84,6 +84,24 @@ async function closeFromDevPage(page: Page, session: string): Promise<void> {
   await expect(row).toHaveCount(0);
 }
 
+test("the launcher's UI scale and 640×480 settings reach the game page", async ({ page }) => {
+  await page.goto('/');
+  await launcherReady(page);
+  await expect(page.locator('#uiScale')).toHaveValue('0');
+  await page.selectOption('#uiScale', '2');
+  await page.check('input[data-setting="fixed640"]');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ja2-node:settings') ?? '{}'));
+  expect(stored).toMatchObject({ uiScale: 2, fixed640: true });
+  await page.reload();
+  await launcherReady(page);
+  await expect(page.locator('#uiScale')).toHaveValue('2');
+  await expect(page.locator('input[data-setting="fixed640"]')).toBeChecked();
+
+  await page.click('#playLink');
+  await page.waitForFunction(() => window.__ja2Ui?.ready === true);
+  expect(await page.evaluate(() => [window.__ja2Ui.scale, window.__ja2Ui.logical])).toEqual([2, { width: 640, height: 480 }]);
+});
+
 test('the developer page starts a campaign with options and lists the session with its saves; the launcher loads into /play, downloads, uploads and speaks Russian', async ({
   page,
 }) => {

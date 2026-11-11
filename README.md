@@ -49,14 +49,14 @@ pnpm dev                           # server (7420) + Vite (5173)
    until the page gets a click or a key (once per browser tab; the "play the splash" setting turns it off). A new game
    plays the beginning intro (Escape ends it, Space or a click skips a video; the "play the intro" setting turns it
    off). `/play?session=<id>` joins a running session; `?scale=2` forces a scale and `?fixed640=1` keeps a 640×480
-   frame (both are client settings too).
+   frame (both are launcher settings too).
 4. **Saved games** in the launcher: ja2-node saves and the native savegames of the game's `SavedGames` folder, newest
    first, with the original's row fields (day and time, sector, mercs, balance, description, a mark for Dead is Dead)
    and the options in the tooltip. Load one into a new session on `/play`, import a native save, delete, download a
    `.j2s` file and upload one.
 5. **Settings**: volumes, mute, speech and subtitles, mute confirmations, the sleep/wake notification, playback speed,
-   the splash and intro switches, the display language, and export or import of the settings as a file. They live in
-   the browser and never reach the game.
+   the splash and intro switches, the UI scale and the 640×480 frame, the display language, and export or import of the
+   settings as a file. They live in the browser and never reach the game.
 6. In the game pages Alt+S quick saves and Alt+L quick loads.
 
 ## Developer pages, agents and the API

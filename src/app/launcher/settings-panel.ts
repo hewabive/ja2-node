@@ -1,3 +1,4 @@
+import { AUTO_UI_SCALE, MAX_UI_SCALE } from '../../ui/resolution.ts';
 import {
   type ClientSettings,
   PLAYBACK_SPEEDS,
@@ -17,7 +18,8 @@ type FlagSetting =
   | 'muteConfirmations'
   | 'sleepWakeNotification'
   | 'playSplash'
-  | 'playIntro';
+  | 'playIntro'
+  | 'fixed640';
 
 const FLAG_SETTINGS: readonly FlagSetting[] = [
   'muted',
@@ -28,7 +30,9 @@ const FLAG_SETTINGS: readonly FlagSetting[] = [
   'sleepWakeNotification',
   'playSplash',
   'playIntro',
+  'fixed640',
 ];
+const UI_SCALES: readonly number[] = [AUTO_UI_SCALE, ...Array.from({ length: MAX_UI_SCALE }, (_, i) => i + 1)];
 const VOLUME_SETTINGS: readonly (keyof VolumeSettings)[] = ['effects', 'speech', 'music', 'ambient', 'master'];
 const REVOKE_DELAY_MS = 1000;
 
@@ -54,6 +58,7 @@ function isVolumeSetting(value: string | undefined): value is keyof VolumeSettin
 export class SettingsPanel {
   readonly #ctx: SettingsPanelContext;
   readonly #speed = document.getElementById('playbackSpeed') as HTMLSelectElement;
+  readonly #scale = document.getElementById('uiScale') as HTMLSelectElement;
 
   constructor(ctx: SettingsPanelContext) {
     this.#ctx = ctx;
@@ -75,6 +80,7 @@ export class SettingsPanel {
       }),
     );
     this.#speed.addEventListener('change', () => ctx.change({ playbackSpeed: Number(this.#speed.value) }));
+    this.#scale.addEventListener('change', () => ctx.change({ uiScale: Number(this.#scale.value) }));
     document.getElementById('exportSettings')?.addEventListener('click', () => void this.#export());
     const importInput = document.getElementById('importSettings') as HTMLInputElement;
     importInput.addEventListener('change', () => void this.#import(importInput));
@@ -102,6 +108,20 @@ export class SettingsPanel {
       if (isFlagSetting(key)) input.checked = settings[key];
     }
     this.#speed.value = String(settings.playbackSpeed);
+    this.#renderScales(settings.uiScale);
+  }
+
+  #renderScales(chosen: number): void {
+    const labels = this.#ctx.labels();
+    this.#scale.replaceChildren(
+      ...UI_SCALES.map((scale) => {
+        const o = document.createElement('option');
+        o.value = String(scale);
+        o.textContent = scale === AUTO_UI_SCALE ? labels.text('uiScaleAuto') : `${scale}×`;
+        o.selected = scale === chosen;
+        return o;
+      }),
+    );
   }
 
   async #export(): Promise<void> {

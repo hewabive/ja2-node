@@ -279,8 +279,8 @@ merc) use the client's `ClientRandom`.
 the page start its audio and on the first gesture otherwise (deviations "Splash start", "Game page start"). A new game
 sends `hire: []`, so the laptop opens with nobody hired as in the original. Blood and gore is a campaign option in
 ja2-node (`setOption`, `27`); the help screens seen are kept per campaign identity in the client settings (deviation
-"Help screens seen"); the options the original screen has no room for (ambient and master volume, language, UI scale,
-the video switches) stay in the launcher.
+"Help screens seen"); the options the original screen has no room for (ambient and master volume, language, UI scale and
+640×480 only, the video switches) stay in the launcher.
 
 **Timers.** UI timers (cursor animation, flashes, blinks, the path rest, scrolling, locators, damage drift) run on the
 client clock; timers tied to game events (the enemy turn bar, message ageing) on displayed simulation time. Client

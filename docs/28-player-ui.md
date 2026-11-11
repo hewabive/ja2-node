@@ -210,9 +210,9 @@ Stracciatella keeps every fixed screen at 640×480 centred at `STD_SCREEN_X/Y` w
 tactical viewport and centres the tactical bottom panel, whose team slots follow the `squad_size` policy, 6 by default
 (`UILayout.cc:55-138`, `:167-176`). ja2-node adopts that model with an integer **UI scale** (`src/ui/resolution.ts`):
 - auto scale = the largest integer that keeps 640×480 in the window, or a forced scale from the client setting
-  `uiScale` or `?scale=`; the logical size is the window divided by the scale, at least 640×480 (1920×1080 → scale 2,
-  logical 960×540, a 960×420 tactical viewport). The "640×480 only" option (`fixed640`) keeps the logical size at
-  640×480 on every screen;
+  `uiScale` (the launcher's UI scale) or `?scale=`; the logical size is the window divided by the scale, at least
+  640×480 (1920×1080 → scale 2, logical 960×540, a 960×420 tactical viewport). The "640×480 only" option (`fixed640`)
+  keeps the logical size at 640×480 on every screen;
 - fixed screens are laid out in the `std640` frame; the few full-screen elements (the main menu buttons and copyright,
   message box centring, tooltips) use the logical screen (§8);
 - the frame is drawn into a framebuffer at the logical size and copied into a canvas of the same size, which the
