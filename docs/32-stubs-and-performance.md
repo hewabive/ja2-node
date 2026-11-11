@@ -452,13 +452,14 @@ may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev
   screen").
 - **The developer hub** speaks English like every developer page, with English string tables for the save rows and
   message boxes; the sessions it creates and loads take the display language of the client settings. The sessions
-  table links each session to `/play` with the debug parameters ticked above it (kept in the browser) and to the
-  strategic and tactical developer pages, and closes it (`DELETE /api/sessions/:id`, refused for the default session).
-  A new campaign takes the game init screen's choices with `InitGameOptions`'s defaults preselected
-  (`ORIGINAL_OPTIONS`); the form always sends all five options, so the API's own default difficulty never applies.
-  Besides them: the seed, the Dead is Dead save name, the squad (the server's default, 1–6 mercs, or hiring in the
-  laptop) and the page to open; a sandbox takes the seed and the page. Its save panel adds the session to save, Save
-  as new or over the selected save, and loading into a running session.
+  table links each session to `/play` with the debug parameters ticked above it (kept in the browser), sets its time
+  driver (paused, real time at 1× to 8×, instant) and runs it until idle over a socket it opens for the command, and
+  closes it (`DELETE /api/sessions/:id`, refused for the default session). Real time set there lasts while a page
+  watches the session: the server pauses an unwatched one (`04`). A new campaign takes the game init screen's choices
+  with `InitGameOptions`'s defaults preselected (`ORIGINAL_OPTIONS`); the form always sends all five options, so the
+  API's own default difficulty never applies. Besides them: the seed, the Dead is Dead save name and the squad (the
+  server's default, 1–6 mercs, or hiring in the laptop); a sandbox takes the seed. Both open `/play`. Its save panel
+  adds the session to save, Save as new or over the selected save, and loading into a running session.
 - **Labels** (`src/ui/text/labels.ts`, `src/ui/text/string-ids.ts`): every label is either an original string
   `{table, index}` of the string tables or a ja2-node label with an English and a Russian text, loaded from
   `GET /api/strings?lang=`. A ja2-node label falls back to English in the other six languages; a missing original
@@ -468,7 +469,7 @@ may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev
   arrives, so no frame of a replaced simulation is applied after a load in place.
 - **Playback speed.** `/play` plays the frames at the stored playback speed (`front-end.ts` sets it on the session
   client at connect and on every change); above 1× it only shortens a backlog, since playback never passes the
-  newest frame. The developer pages keep their own playback buttons.
+  newest frame.
 
 ---
 

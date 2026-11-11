@@ -8,7 +8,7 @@
 // @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
 // @src HandleDoorTrap; TileEngine/Explosion_Control.cc PerformItemAction and HandleExplosionQueue (the klaxon,
 // @src 2026-11-04); Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
-// @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down); Tactical/Soldier_Control.cc
+// @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up); Tactical/Soldier_Control.cc
 // @src TurnSoldier (TURRET_MOVE and TURRET_STOP, 2026-11-05), HandleTakeDamageDeath (DOORCR_1 and HEADCR_1 of a death off the
 // @src tactical map, HIGHVOLUME, MIDDLEPAN, 2026-11-06), DoNinjaAttack (Dr. Q's chop, its Random(2) drawn by the client,
 // @src 2026-11-09).
@@ -20,7 +20,6 @@ import { BURST_ROUNDS_PLACEHOLDER, battleSoundPath } from './sound-table.ts';
 
 export const GENERIC_BURST_SOUND = 'sounds/weapons/bursttype1.wav';
 export const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
-export const LAPTOP_POWER_DOWN = 'sounds/laptop power down (8-11).wav';
 
 export const TerrainKind = {
   FLAT_FLOOR: 2,
@@ -479,8 +478,4 @@ export function opcodeSound(book: CueBook, code: number, ctx: OpContext, rand: R
     cue = op ? simpleOpCue(book, op, ctx, rand) : null;
   }
   return cue ? { kind: 'cue', cue } : null;
-}
-
-export function laptopPowerCue(open: boolean): Cue {
-  return cueOf(open ? LAPTOP_POWER_UP : LAPTOP_POWER_DOWN, 'fixed', VolumeLevel.HIGH);
 }

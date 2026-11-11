@@ -45,8 +45,6 @@ export default defineConfig(() => {
           ),
           assets: fileURLToPath(new URL('./src/devtools/asset-browser/index.html', import.meta.url)),
           maps: fileURLToPath(new URL('./src/devtools/map-viewer/index.html', import.meta.url)),
-          tactical: fileURLToPath(new URL('./src/devtools/tactical/index.html', import.meta.url)),
-          strategic: fileURLToPath(new URL('./src/devtools/strategic/index.html', import.meta.url)),
           video: fileURLToPath(new URL('./src/devtools/video/index.html', import.meta.url)),
           uiGallery: fileURLToPath(new URL('./src/devtools/ui-gallery/index.html', import.meta.url)),
           laptop: fileURLToPath(new URL('./src/devtools/laptop/index.html', import.meta.url)),

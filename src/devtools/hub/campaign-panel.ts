@@ -1,15 +1,12 @@
 import type { Difficulty, SaveMode } from '../../ui/client/api-types.ts';
 import { type CampaignForm, DEFAULT_CAMPAIGN_FORM, MAX_SQUAD_SIZE, type SquadChoice } from '../../ui/client/campaign-form.ts';
-import type { OpenPage } from './open-page.ts';
 
 export interface CampaignChoice {
   readonly form: CampaignForm;
-  readonly page: OpenPage;
   readonly seed: number | null;
 }
 
 const SERVER_DEFAULT_SIZE = '';
-const DEFAULT_PAGE: OpenPage = 'play';
 const SEED = /^\d+$/;
 
 function element<T extends HTMLElement>(id: string): T {
@@ -80,7 +77,6 @@ export class CampaignPanel {
         squadSize: size === SERVER_DEFAULT_SIZE ? null : Number(size),
         land: this.#land.checked,
       },
-      page: (this.#radio('page') || DEFAULT_PAGE) as OpenPage,
       seed: SEED.test(seed) ? Number(seed) : null,
     };
   }

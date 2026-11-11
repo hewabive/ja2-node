@@ -62,13 +62,11 @@ pnpm dev                           # server (7420) + Vite (5173)
 ## Developer pages, agents and the API
 
 **Developer pages** start at http://127.0.0.1:5173/dev, linked from the launcher: the running sessions with links to
-`/play` and its debug parameters, closing a session, a new campaign with the game init options, the seed, the squad (the
-server's default or 1–6 mercs, hiring in the laptop, flying in at once) and the page to open, a new sandbox, and saving
-a chosen session or loading into a running one. It links the tactical sandbox (click a merc to select it, click a tile
-to walk, right-click to run, ctrl+click a door to open it or get its menu; paused, real-time and instant time buttons;
-trading and talking with the nearest merchant or NPC), the strategic map (a new campaign, routes, the clock, contracts,
-battle and contract prompts, the quest log, the helicopter, the laptop), the asset browser, the map viewer, video and
-credits, the widget gallery and the laptop on a new campaign. Stub dealers and NPCs stand in A10, east of A9.
+`/play` and its debug parameters, their time driver (paused, real time, instant) and a run until idle, closing a
+session, a new campaign with the game init options, the seed and the squad (the server's default or 1–6 mercs, hiring in
+the laptop, flying in at once), a new sandbox, and saving a chosen session or loading into a running one. It links the
+asset browser, the map viewer, video and credits, the widget gallery, the test pattern and the laptop on a new campaign.
+Stub dealers and NPCs stand in A10, east of A9.
 
 **Agents** connect to `http://127.0.0.1:7420/mcp` with `Authorization: Bearer <.ja2/token>` and use nine tools:
 `status`, `observe`, `act`, `advance`, `newSession`, `save`, `load`, `listSaves` and `deleteSave`. For example

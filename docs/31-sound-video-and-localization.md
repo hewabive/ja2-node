@@ -32,7 +32,7 @@ text    data version → decodings; language → UI tables       content/text/da
 |---|---|
 | `content/formats/` | WAV (PCM and IMA ADPCM), `.gap`, `.bad` ambient tables, Smacker, credit codes, EDT rows in four decodings |
 | `content/audio/` | Cue tables, cues per source (footsteps, gunfire, impacts, doors, codes 700–798, battle sounds, creature cries, code 491), the original's mix rule per call site, ambient scheduling, the tile an unseen sound plays from, speech files and voice lengths |
-| `audio/` | `AudioEngine`, `SoundDirector` (per-soldier presentation memory, ambient, the developer pages' speech queue), `MusicPlayer`, `ClientRandom` |
+| `audio/` | `AudioEngine`, `SoundDirector` (per-soldier presentation memory, ambient, a speech queue for a page without a speech presenter), `MusicPlayer`, `ClientRandom` |
 | `app/sound/`, `app/map/map-sound.ts`, `app/battle/battle-sound.ts`, `app/game/ui-audio.ts` | The wiring per screen: tactical, map screen, autoresolve, the engine of `/play` |
 | `content/text/` | Data versions and their decodings, the guess by Stracciatella's resource packs, UI string tables, EDT record layouts, glyph tables |
 

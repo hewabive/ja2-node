@@ -1,4 +1,6 @@
-import type { PlayFlag } from './open-page.ts';
+import { playUrl } from '../../ui/client/campaign-form.ts';
+
+export type PlayFlag = readonly [param: string, value: string];
 
 const STORAGE_KEY = 'ja2-node:dev-play-flags';
 const DEFAULT_VALUE = '1';
@@ -26,6 +28,10 @@ function storeParams(params: readonly string[]): void {
   } catch {
     return;
   }
+}
+
+export function gamePageUrl(session: string, flags: readonly PlayFlag[]): string {
+  return `${playUrl(session)}${flags.map(([param, value]) => `&${param}=${value}`).join('')}`;
 }
 
 export class PlayFlags {

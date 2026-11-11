@@ -2,14 +2,16 @@ import { closeSession, createSession, fetchHealth, fetchSessions } from '../../a
 import { fetchLabels } from '../../app/launcher/labels.ts';
 import { MessageBox } from '../../app/launcher/message-box.ts';
 import { SavePanel, type SavePanelHook } from '../../app/launcher/save-panel.ts';
+import { SessionClient } from '../../app/net/session-client.ts';
 import { loadSettings } from '../../app/settings.ts';
 import type { UiLanguage } from '../../content/text/data-version.ts';
+import type { DriverMode } from '../../protocol/messages.ts';
 import type { Health, SessionSummary } from '../../ui/client/api-types.ts';
 import { type CampaignProblem, campaignRequest } from '../../ui/client/campaign-form.ts';
 import { Labels } from '../../ui/text/labels.ts';
 import { CampaignPanel } from './campaign-panel.ts';
-import { gamePageUrl, openPageUrl, reachablePage } from './open-page.ts';
-import { PlayFlags } from './play-flags.ts';
+import { driverChoiceOf } from './drivers.ts';
+import { gamePageUrl, PlayFlags } from './play-flags.ts';
 import { SessionList } from './session-list.ts';
 import { SessionSaves } from './session-saves.ts';
 
@@ -78,6 +80,8 @@ async function exclusive(task: () => Promise<unknown>): Promise<void> {
 const flags = new PlayFlags(() => sessionList.render(sessions));
 const sessionList = new SessionList({
   gameUrl: (session) => gamePageUrl(session, flags.current()),
+  drive: (session, driver) => void exclusive(() => drive(session, driver)),
+  runUntilIdle: (session) => void exclusive(() => runUntilIdle(session)),
   close: (session) => void exclusive(() => closeOne(session)),
 });
 const campaign = new CampaignPanel(
@@ -129,16 +133,34 @@ async function startCampaign(): Promise<void> {
   if (!request.ok) return status(PROBLEM_TEXT[request.problem], true);
   status('Starting the campaign…');
   const created = await createSession(request.body);
-  const landed = choice.form.squad === 'default' && choice.form.land;
-  const page = reachablePage(choice.page, { strategic: true, tactical: landed });
-  location.assign(openPageUrl(page, created.session, flags.current()));
+  location.assign(gamePageUrl(created.session, flags.current()));
 }
 
 async function startSandbox(): Promise<void> {
   const choice = campaign.read();
   const created = await createSession({ ...(choice.seed !== null ? { seed: choice.seed } : {}), ...languagePart() });
-  const page = reachablePage(choice.page, { strategic: false, tactical: true });
-  location.assign(openPageUrl(page, created.session, flags.current()));
+  location.assign(gamePageUrl(created.session, flags.current()));
+}
+
+async function withSession<T>(session: string, task: (client: SessionClient) => Promise<T>): Promise<T> {
+  const client = await SessionClient.connect(session);
+  try {
+    return await task(client);
+  } finally {
+    client.close();
+  }
+}
+
+async function drive(session: string, driver: DriverMode): Promise<void> {
+  await withSession(session, (client) => client.drive(driver));
+  status(`${session}: ${driverChoiceOf(driver).label}.`);
+  await refreshSessions();
+}
+
+async function runUntilIdle(session: string): Promise<void> {
+  const report = await withSession(session, (client) => client.advance({ idle: true }));
+  status(report ? `${session} ran to tick ${report.tick}: ${report.reason}.` : `${session} did not run.`, !report);
+  await refreshSessions();
 }
 
 async function closeOne(session: string): Promise<void> {

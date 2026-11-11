@@ -17,6 +17,6 @@ describe('client page aliases', () => {
     expect(clientPagePath('/')).toBe('/');
     expect(clientPagePath('/player')).toBe('/player');
     expect(clientPagePath('/developer')).toBe('/developer');
-    expect(clientPagePath('/src/devtools/tactical/?session=x')).toBe('/src/devtools/tactical/?session=x');
+    expect(clientPagePath('/src/devtools/laptop/?session=x')).toBe('/src/devtools/laptop/?session=x');
   });
 });

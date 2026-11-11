@@ -77,7 +77,7 @@ export const NUMBERED_CHOICES = ['1', '2', '3', '4'] as const;
 
 const NUMBERED_KINDS: ReadonlySet<TacticalPromptKind> = new Set([TacticalPromptKind.BOMB_SETTING, TacticalPromptKind.REMOTE_FREQUENCY]);
 
-export function promptChoices(prompt: Pick<TacticalPrompt, 'kind'>): readonly string[] {
+function promptChoices(prompt: Pick<TacticalPrompt, 'kind'>): readonly string[] {
   return NUMBERED_KINDS.has(prompt.kind) ? NUMBERED_CHOICES : YES_NO_CHOICES;
 }
 

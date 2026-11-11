@@ -1,14 +1,18 @@
 import type { DriverMode } from '../../protocol/messages.ts';
 import type { SessionSummary } from '../../ui/client/api-types.ts';
-import { type OpenPage, openPageUrl } from './open-page.ts';
+import { driverChoiceOf, driverChoices } from './drivers.ts';
 
 export interface SessionListContext {
   readonly gameUrl: (session: string) => string;
+  readonly drive: (session: string, driver: DriverMode) => void;
+  readonly runUntilIdle: (session: string) => void;
   readonly close: (session: string) => void;
 }
 
-const COLUMNS = ['session', 'screen', 'sector', 'tick', 'driver', 'viewers', 'pages', ''] as const;
+const COLUMNS = ['session', 'screen', 'sector', 'tick', 'time', 'viewers', ''] as const;
 const SANDBOX_SCREEN = 'sandbox';
+const IDLE_MARK = 'idle';
+const REALTIME_HINT = 'Real time runs while a page watches the session; the server pauses it when the last one leaves.';
 
 function cell(text: string): HTMLTableCellElement {
   const td = document.createElement('td');
@@ -16,17 +20,13 @@ function cell(text: string): HTMLTableCellElement {
   return td;
 }
 
-function driverText(driver: DriverMode | undefined): string {
-  if (!driver) return '';
-  return driver.mode === 'realtime' ? `realtime ${driver.speed}×` : driver.mode;
-}
-
-function link(text: string, href: string, page: OpenPage): HTMLAnchorElement {
-  const a = document.createElement('a');
-  a.textContent = text;
-  a.href = href;
-  a.dataset.page = page;
-  return a;
+function button(text: string, className: string, click: () => void): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = className;
+  b.textContent = text;
+  b.addEventListener('click', click);
+  return b;
 }
 
 export class SessionList {
@@ -51,37 +51,58 @@ export class SessionList {
   #row(s: SessionSummary): HTMLTableRowElement {
     const tr = document.createElement('tr');
     tr.dataset.session = s.session;
-    const idle = s.idle ? ' · idle' : '';
     tr.append(
-      cell(s.session),
+      this.#gameCell(s.session),
       cell(s.flow ?? SANDBOX_SCREEN),
       cell(s.sector ?? ''),
       cell(s.tick === undefined ? '' : String(s.tick)),
-      cell(`${driverText(s.driver)}${idle}`),
+      this.#timeCell(s),
       cell(s.viewers === undefined ? '' : String(s.viewers)),
-      this.#pages(s),
-      this.#closeCell(s.session),
+      this.#actionsCell(s.session),
     );
     return tr;
   }
 
-  #pages(s: SessionSummary): HTMLTableCellElement {
+  #gameCell(session: string): HTMLTableCellElement {
     const td = document.createElement('td');
-    const links = [link('game', this.#ctx.gameUrl(s.session), 'play')];
-    if (s.flow) links.push(link('strategic page', openPageUrl('strategic', s.session, []), 'strategic'));
-    if (s.map) links.push(link('tactical page', openPageUrl('tactical', s.session, []), 'tactical'));
-    td.append(...links.flatMap((a, i) => (i > 0 ? [' · ', a] : [a])));
+    const a = document.createElement('a');
+    a.className = 'game';
+    a.textContent = session;
+    a.href = this.#ctx.gameUrl(session);
+    td.append(a);
     return td;
   }
 
-  #closeCell(session: string): HTMLTableCellElement {
+  #timeCell(s: SessionSummary): HTMLTableCellElement {
     const td = document.createElement('td');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'close-session';
-    button.textContent = 'close';
-    button.addEventListener('click', () => this.#ctx.close(session));
-    td.append(button);
+    const select = document.createElement('select');
+    select.className = 'driver';
+    select.title = REALTIME_HINT;
+    const choices = driverChoices(s.driver);
+    const current = s.driver ? driverChoiceOf(s.driver).value : '';
+    for (const choice of choices) {
+      const o = document.createElement('option');
+      o.value = choice.value;
+      o.textContent = choice.label;
+      o.selected = choice.value === current;
+      select.append(o);
+    }
+    select.addEventListener('change', () => {
+      const chosen = choices.find((c) => c.value === select.value);
+      if (chosen) this.#ctx.drive(s.session, chosen.driver);
+    });
+    td.append(select);
+    if (s.idle) td.append(` ${IDLE_MARK}`);
+    return td;
+  }
+
+  #actionsCell(session: string): HTMLTableCellElement {
+    const td = document.createElement('td');
+    td.append(
+      button('run until idle', 'run-idle', () => this.#ctx.runUntilIdle(session)),
+      ' ',
+      button('close', 'close-session', () => this.#ctx.close(session)),
+    );
     return td;
   }
 }

@@ -14,7 +14,6 @@ import {
   STR_PB_NOTAPPLICABLE_ABBREVIATION,
   STR_PB_SECTOR,
   TCTL_MSG_IRON_MAN_CANT_SAVE_NOW,
-  UpdateBoxReason,
 } from './string-ids.ts';
 
 export interface OriginalLabel {
@@ -77,7 +76,6 @@ export const LABELS = {
   ok: message(MessageString.OK),
   yes: message(MessageString.YES),
   no: message(MessageString.NO),
-  gameSaved: message(MessageString.SAVE_SUCCESS),
   day: message(MessageString.DAY),
   mercs: message(MessageString.MERCS),
   merc: original('MercAccountText', MERC_ACCOUNT_MERC),
@@ -87,8 +85,6 @@ export const LABELS = {
   mercsColumn: original('gpStrategicString', STR_PB_MERCS),
   balanceColumn: original('pFinanceHeaders', FINANCE_HEADER_BALANCE),
   ironManCannotSave: original('zNewTacticalMessages', TCTL_MSG_IRON_MAN_CANT_SAVE_NOW),
-  mercsAsleep: original('pUpdateMercStrings', UpdateBoxReason.ASLEEP_GOING_AUTO),
-  mercsAwake: original('pUpdateMercStrings', UpdateBoxReason.ASSIGNMENT_RETURNING),
   tagline: own('A non-commercial reimplementation of Jagged Alliance 2', 'Некоммерческая реимплементация Jagged Alliance 2'),
   play: own('Play', 'Играть'),
   data: own('Data', 'Данные'),
@@ -130,9 +126,6 @@ export const LABELS = {
   notSettingsFile: own('This is not a ja2-node settings file.', 'Это не файл настроек ja2-node.'),
   clickToStart: own('Click to start', 'Щёлкните, чтобы начать'),
   developerPages: own('Developer pages', 'Страницы разработчика'),
-  quickSave: own('quick save', 'быстрое сохранение'),
-  quickLoad: own('quick load', 'быстрая загрузка'),
-  noQuickSave: own('There is no quick save.', 'Быстрого сохранения нет.'),
   mercTransferFailed: own('Transfer failed.  No funds available.', 'Перевод не выполнен. Нет средств.'),
   gameUnavailable: own('The game could not start.', 'Не удалось запустить игру.'),
   laptopUnavailable: own('The laptop could not be opened.', 'Не удалось открыть ноутбук.'),

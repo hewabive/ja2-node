@@ -19,7 +19,7 @@
       <section id="sessions" class="panel wide">
         <h2>Running sessions</h2>
         <div class="row flags">
-          <span class="hint">The game links open /play with</span>
+          <span class="hint">The session links open /play with</span>
           <label title="The cursor hints are computed in the browser too, and every difference with the server is reported"><input type="checkbox" data-param="shadowHints" /> shadow hints</label>
           <label title="Every partial redraw of the world is compared with a full one"><input type="checkbox" data-param="worldCheck" /> world redraw check</label>
           <label title="The tactical screen keeps the session's time driver instead of switching it to real time"><input type="checkbox" data-param="drive" data-value="manual" /> keep the time driver</label>
@@ -73,12 +73,6 @@
             <label><input type="radio" name="squad" value="laptop" /> hire in the laptop</label>
             <label><input type="checkbox" id="land" checked /> fly in at once</label>
           </fieldset>
-          <fieldset>
-            <legend>Then open</legend>
-            <label><input type="radio" name="page" value="play" checked /> game page</label>
-            <label><input type="radio" name="page" value="strategic" /> strategic page</label>
-            <label><input type="radio" name="page" value="tactical" /> tactical page</label>
-          </fieldset>
           <div class="row actions">
             <button type="submit" id="startCampaign" class="primary">Start a campaign</button>
             <button type="button" id="startSandbox" class="primary">Start a sandbox</button>
@@ -95,7 +89,6 @@
           <li><a href="/src/devtools/ui-gallery/">Widget gallery</a></li>
           <li><a href="/src/devtools/laptop/">Laptop on a new campaign</a></li>
           <li><a href="/src/devtools/video/">Video and credits</a>: the splash, the beginning, the endings, the credits</li>
-          <li><a href="/src/devtools/tactical/">Tactical sandbox</a> and <a href="/src/devtools/strategic/">strategic map</a>: the DOM pages</li>
         </ul>
       </section>
 

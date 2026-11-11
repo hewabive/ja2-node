@@ -288,7 +288,7 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
   `32` §3) adds the session to save, Save as new or over a player or quick save, and loading into a running session.
   Their row location and tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
 - On `/play` the map and tactical screens bind quick save and quick load (Alt+S, Alt+L) and the main menu Alt+Load and
-  Alt+C (`30`). The developer tactical and strategic pages bind Alt+S and Alt+L (`src/app/net/save-controls.ts`).
+  Alt+C (`30`).
 
 ### 1.12 Quirks of the original the code keeps
 
@@ -370,11 +370,11 @@ other policy values. If saves must survive policy edits, that is a migration, no
 
 **Pacing options become presentation or stop conditions, never state.** The simulation's timing is fixed: a line lasts
 the longer of its voice and its text (`24`, deviation "Speech"), a bullet moves one tile per tick (deviation "Hide
-bullets"), and key-advance speech only holds the subtitle (deviation "Key-advance speech").
-`SLEEPWAKE_NOTIFICATION` maps onto the client's or agent's choice to stop a strategic `advance` on `fellAsleep` and
-`wokeUp` (`advance {until: {events}}`, `04` §4.2): the pages apply the client setting (`src/app/sleep-wake.ts`), an
-agent passes the events it cares about (deviation "Sleep and wake notification"). The outcome then depends only on
-when commands arrive. **Timed turns** (`fTurnTimeLimit`, unreachable since JA2 Gold removed the setting,
+bullets"), and key-advance speech only holds the subtitle (deviation "Key-advance speech"). `SLEEPWAKE_NOTIFICATION`
+maps onto the client's or agent's choice to stop a strategic `advance` on `fellAsleep` and `wokeUp` (`advance {until:
+{events}}`, `04` §4.2): the map screen applies the client setting (`src/ui/screens/map/update-box.ts`), an agent passes
+the events it cares about (deviation "Sleep and wake notification"). The outcome then depends only on when commands
+arrive. **Timed turns** (`fTurnTimeLimit`, unreachable since JA2 Gold removed the setting,
 `GameInitOptionsScreen.cc:94-103`) are not offered: a deterministic port would need a wall-clock rule outside the
 simulation, not worth it for an option nobody can choose (deviation "Timed turns").
 

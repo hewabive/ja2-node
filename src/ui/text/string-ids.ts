@@ -1,8 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Text.h (the SLG_, GIO_, OPT_, MSG_, MERC_ACCOUNT_, STR_LATE_, STR_PB_ and TCTL_MSG__ enums);
-// @src src/game/GameSettings.h TOPTION_*; src/game/Laptop/Finances.cc DisplayFinancePageOfRecords (pFinanceHeaders[4]);
-// @src src/game/Strategic/Map_Screen_Interface.h UpdateBoxReason.
+// @src src/game/GameSettings.h TOPTION_*; src/game/Laptop/Finances.cc DisplayFinancePageOfRecords (pFinanceHeaders[4]).
 
 export const SaveLoadText = {
   SAVE_GAME: 0,
@@ -81,8 +80,3 @@ export const STR_PB_NOTAPPLICABLE_ABBREVIATION = 43;
 export const FINANCE_HEADER_BALANCE = 4;
 export const TCTL_MSG_IRON_MAN_CANT_SAVE_NOW = 4;
 export const DEAD_IS_DEAD_TAB = 1;
-
-export const UpdateBoxReason = {
-  ASSIGNMENT_RETURNING: 3,
-  ASLEEP_GOING_AUTO: 4,
-} as const;

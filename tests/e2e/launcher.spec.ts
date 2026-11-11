@@ -27,6 +27,7 @@ interface PageHooks {
 interface SessionSummary {
   readonly session: string;
   readonly tick?: number;
+  readonly driver?: { readonly mode: string };
   readonly options?: Record<string, unknown>;
   readonly language?: string;
 }
@@ -90,7 +91,7 @@ test("the launcher's UI scale and 640×480 settings reach the game page", async 
   expect(await page.evaluate(() => [window.__ja2Ui.scale, window.__ja2Ui.logical])).toEqual([2, { width: 640, height: 480 }]);
 });
 
-test('the developer page starts a campaign with options on /play, which quick saves and loads; the developer page lists the session with its saves; the launcher loads into /play, downloads, uploads and speaks Russian', async ({
+test('the developer page starts a campaign with options on /play, which quick saves and loads; the developer page lists the session, drives its time and lists its saves; the launcher loads into /play, downloads, uploads and speaks Russian', async ({
   page,
 }) => {
   await page.goto('/dev?seed=1');
@@ -103,7 +104,6 @@ test('the developer page starts a campaign with options on /play, which quick sa
   await expect(page.locator('input[name="guns"][value="reduced"]')).toBeChecked();
   await expect(page.locator('input[name="saveMode"][value="anywhere"]')).toBeChecked();
   await expect(page.locator('#bloodAndGore')).toBeChecked();
-  await expect(page.locator('input[name="page"][value="play"]')).toBeChecked();
   await page.check('input[name="difficulty"][value="3"]');
   await page.check('input[name="guns"][value="gunNut"]');
   await page.uncheck('#bloodAndGore');
@@ -134,11 +134,20 @@ test('the developer page starts a campaign with options on /play, which quick sa
 
   await page.goto(`/dev?session=${session}`);
   await devReady(page);
-  const gameLink = page.locator(`#sessionList tr[data-session="${session}"] a[data-page="play"]`);
+  const sessionRow = page.locator(`#sessionList tr[data-session="${session}"]`);
+  const gameLink = sessionRow.locator('a.game');
   await expect(gameLink).toHaveAttribute('href', `/play?session=${session}`);
   await page.check('input[data-param="shadowHints"]');
   await page.check('input[data-param="drive"]');
   await expect(gameLink).toHaveAttribute('href', `/play?session=${session}&shadowHints=1&drive=manual`);
+  await sessionRow.locator('select.driver').selectOption('instant');
+  await expect(page.locator('#status')).toHaveText(`${session}: instant.`);
+  expect((await sessionOf(page, session))?.driver).toEqual({ mode: 'instant' });
+  await sessionRow.locator('button.run-idle').click();
+  await expect(page.locator('#status')).toContainText(`${session} ran to tick `);
+  await sessionRow.locator('select.driver').selectOption('manual');
+  await expect(page.locator('#status')).toHaveText(`${session}: paused.`);
+  expect((await sessionOf(page, session))?.driver).toEqual({ mode: 'manual' });
   await expect(page.locator('#saveSession')).toHaveValue(session);
   const devQuickRow = page.locator('tr[data-save="QuickSave"]');
   await expect(devQuickRow).toBeVisible();
