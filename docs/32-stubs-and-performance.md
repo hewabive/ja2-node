@@ -1,7 +1,7 @@
-# 32 — Stub pack, performance, launcher and data tables
+# 32 — Stub pack, performance, launcher, developer hub and data tables
 
 **Scope.** The stub pack (ja2-node's own content that runs every platform feature and a campaign without the original
-data), the benchmarks, their targets and profiling, session host costs, CI, test runs and gates, the launcher page, and
+data), the benchmarks, their targets and profiling, session host costs, CI, test runs and gates, the launcher and the developer hub, and
 the data tables. Siblings: `27` (saves, options, client settings), `28` (the stub skin, UI performance), `31` (sound,
 video, localization), `tools/oracle/README.md` (the native oracle). Paths without a prefix are relative to
 `reference/stracciatella/src/game/`.
@@ -433,25 +433,32 @@ base is unknown). A push or pull request that touches only `docs/`, Markdown fil
 
 ---
 
-## 3. The launcher
+## 3. The launcher and the developer hub
 
 The launcher (`src/app/launcher/`, served at `/` from the repository's root `index.html`) is a DOM page for what the
-canvas game at `/play` (`28` §3) does not show: the data source and version, the display language, the running
-sessions with links to `/play` and to the developer pages, a new campaign, the save files, the client settings, the
-splash and the credits. Its logic is DOM-free in `ui` and shared with the canvas screens (`30`): the campaign form
+canvas game at `/play` (`28` §3) does not offer the player: the data source and version, the display language, the save
+files and the client settings. The developer hub at `/dev` (`src/devtools/hub/`) serves development: the running
+sessions, new sessions with the developer's choices, saving and loading a chosen session, and the links to the other
+developer pages. Their logic is DOM-free in `ui` and shared with the canvas screens (`30`): the campaign form
 (`src/ui/client/campaign-form.ts`), the save controller and rows (`src/ui/saves/`), the settings model
-(`src/ui/settings.ts`); the launcher keeps only the DOM glue, with `api.ts` for the fetch calls, since `app` may not
-import `server`. Debug hook `window.__ja2Launcher`; e2e `tests/e2e/launcher.spec.ts`.
+(`src/ui/settings.ts`); the pages keep only the DOM glue, with `src/app/launcher/api.ts` for the fetch calls, since `app`
+may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev`; e2e `tests/e2e/launcher.spec.ts`.
 
-- **New campaign.** The game init screen's choices with `InitGameOptions`'s defaults preselected (`ORIGINAL_OPTIONS`);
-  the form always sends all five options, so the API's own default difficulty never applies. Also the Dead is Dead save
-  name, the squad (the server's default, 1–6 mercs, or hiring in the laptop) and the developer page to open; `?seed=N`
-  passes a seed (tests).
-- **Saved games**: `27` §1.11 (the panel), deviations "Save list in the launcher and on the canvas". Download and upload
-  of save files and loading into another session stay in the launcher only.
-- **Settings**: `27` §2.4. Settings apply at once; the volumes drive the launcher's own audio engine.
-- **Splash**: the game page plays it (deviation "Splash start"); the launcher's "Video and credits" buttons replay the
-  splash and the beginning. The credits play in a DOM scroller (deviation "Credits screen").
+- **Saved games** on `/`: `27` §1.11 (the panel), deviation "Save list in the launcher and on the canvas". Load opens
+  the loaded session on `/play`. Download and upload of save files stay off the canvas.
+- **Settings**: `27` §2.4. Settings apply at once.
+- **Splash**: the game page plays it (deviation "Splash start"); the video developer page (`src/devtools/video/`)
+  replays the splash, the beginning, the endings and the credits, the credits in a DOM scroller (deviation "Credits
+  screen").
+- **The developer hub** speaks English like every developer page, with English string tables for the save rows and
+  message boxes; the sessions it creates and loads take the display language of the client settings. The sessions
+  table links each session to `/play` with the debug parameters ticked above it (kept in the browser) and to the
+  strategic and tactical developer pages, and closes it (`DELETE /api/sessions/:id`, refused for the default session).
+  A new campaign takes the game init screen's choices with `InitGameOptions`'s defaults preselected
+  (`ORIGINAL_OPTIONS`); the form always sends all five options, so the API's own default difficulty never applies.
+  Besides them: the seed, the Dead is Dead save name, the squad (the server's default, 1–6 mercs, or hiring in the
+  laptop) and the page to open; a sandbox takes the seed and the page. Its save panel adds the session to save, Save
+  as new or over the selected save, and loading into a running session.
 - **Labels** (`src/ui/text/labels.ts`, `src/ui/text/string-ids.ts`): every label is either an original string
   `{table, index}` of the string tables or a ja2-node label with an English and a Russian text, loaded from
   `GET /api/strings?lang=`. A ja2-node label falls back to English in the other six languages; a missing original

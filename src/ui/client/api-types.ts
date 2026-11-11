@@ -1,4 +1,5 @@
 import type { UiLanguage } from '../../content/text/data-version.ts';
+import type { DriverMode } from '../../protocol/messages.ts';
 
 export type SaveMode = 'anywhere' | 'ironMan' | 'deadIsDead';
 export type Difficulty = 1 | 2 | 3;
@@ -86,6 +87,10 @@ export type LoadWarning = 'dataVersionDiffers' | 'engineDiffers' | 'stubPackDiff
 
 export interface SessionSummary {
   readonly session: string;
+  readonly tick?: number;
+  readonly driver?: DriverMode;
+  readonly viewers?: number;
+  readonly idle?: boolean;
   readonly map: string | null;
   readonly language?: UiLanguage;
   readonly options?: GameOptions;

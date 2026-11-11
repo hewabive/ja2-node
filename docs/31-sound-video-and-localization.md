@@ -148,8 +148,8 @@ victory; the client settings can turn off the splash and the beginning, never th
 Steam's data keeps the videos in `Intro-old.slf`; ja2-node mounts every SLF by its library path as Stracciatella does,
 so they resolve as `intro/<name>.smk` either way.
 
-**Credits.** `CreditRoll` runs the original's roll for the canvas screen of `/play` (`30`) and the launcher's DOM
-scroller ("Credits screen").
+**Credits.** `CreditRoll` runs the original's roll for the canvas screen of `/play` (`30`) and the video developer
+page's DOM scroller ("Credits screen").
 
 ### Text and languages
 

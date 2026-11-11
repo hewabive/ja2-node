@@ -551,7 +551,7 @@ Files are `docs/NN-<name>.md`. Two kinds:
 | `29` agent-api | The agent API by topic: transport, tools, commands, refusals, decisions, the player view, events, queries |
 | `30` ui-screens | The original screens in the client: front end, tactical panels and input, map screen, battle entry, laptop, story |
 | `31` sound-video-and-localization | Sound, music, speech, video, data versions and display languages |
-| `32` stubs-and-performance | The stub pack, benchmarks and profiling, CI, test runs and gates, the launcher, data tables |
+| `32` stubs-and-performance | The stub pack, benchmarks and profiling, CI, test runs and gates, the launcher and the developer hub, data tables |
 | `33` hits-and-damage | From a hit to the end of the attack: hit location, armour, damage, death, the busy count, suppression, morale, experience |
 | `34` throwing-and-physics | Throws, launchers, item physics, duds |
 | `35` npc-actions-and-schedules | NPC actions, NPC presence between sector loads, schedules, civilian groups, keys, locks and doors |

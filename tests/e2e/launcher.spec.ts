@@ -1,13 +1,22 @@
 import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 
+interface SavesHook {
+  readonly rows: readonly string[];
+  readonly selected: string | null;
+}
+
 interface LauncherHook {
   readonly ready: boolean;
   readonly language: string | null;
-  readonly campaign: string | null;
   readonly message: string;
-  readonly video: { readonly progress: { readonly framesShown: number }; readonly sequences: readonly { readonly outcome: string }[] };
-  readonly saves: { readonly rows: readonly string[]; readonly selected: string | null };
+  readonly saves: SavesHook;
+}
+
+interface DevHook {
+  readonly ready: boolean;
+  readonly sessions: readonly string[];
+  readonly saves: SavesHook;
 }
 
 interface SaveKeysHook {
@@ -20,6 +29,7 @@ interface SaveKeysHook {
 
 interface PageHooks {
   readonly __ja2Launcher: LauncherHook;
+  readonly __ja2Dev: DevHook;
   readonly __ja2SaveKeys?: SaveKeysHook;
 }
 
@@ -34,13 +44,15 @@ type Tables = Readonly<Record<string, string | readonly string[]>>;
 const GZIP_MAGIC = [0x1f, 0x8b];
 const UPLOADED = 'launcher-upload';
 const SLG_LOAD_SELECTED = 4;
-const GIO_DIF_LEVEL = 7;
 const MSG_SAVE_SUCCESS = 8;
 const SLG_LOAD_GAME_OK = 7;
 const MSG_YES = 2;
+const STR_PB_SECTOR = 41;
 const OWN_SAVES = ['QuickSave', UPLOADED];
 
 const launcher = (page: Page) => page.evaluate(() => (window as unknown as PageHooks).__ja2Launcher);
+const launcherReady = (page: Page) => page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
+const devReady = (page: Page) => page.waitForFunction(() => (window as unknown as PageHooks).__ja2Dev?.ready);
 const saveKeys = (page: Page) => page.evaluate(() => (window as unknown as PageHooks).__ja2SaveKeys ?? null);
 
 async function strings(page: Page, lang: string): Promise<Tables> {
@@ -64,18 +76,28 @@ async function quick(page: Page, key: 'KeyS' | 'KeyL', count: 'saves' | 'loads',
   return (await saveKeys(page)) as SaveKeysHook;
 }
 
-test('the launcher starts a campaign with options, the tactical page quick saves and loads, the save list downloads, uploads and speaks Russian', async ({
+async function closeFromDevPage(page: Page, session: string): Promise<void> {
+  const row = page.locator(`#sessionList tr[data-session="${session}"]`);
+  await row.locator('button.close-session').click();
+  await expect(page.locator('#messageBox')).toBeVisible();
+  await page.click('#messageYes');
+  await expect(row).toHaveCount(0);
+}
+
+test('the developer page starts a campaign with options and lists the session with its saves; the launcher loads into /play, downloads, uploads and speaks Russian', async ({
   page,
 }) => {
-  await page.goto('/?seed=1');
-  await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
+  await page.goto('/dev?seed=1');
+  await devReady(page);
   await deleteSaves(page);
 
+  await expect(page.locator('#seed')).toHaveValue('1');
   await expect(page.locator('input[name="difficulty"][value="1"]')).toBeChecked();
   await expect(page.locator('input[name="style"][value="sciFi"]')).toBeChecked();
   await expect(page.locator('input[name="guns"][value="reduced"]')).toBeChecked();
   await expect(page.locator('input[name="saveMode"][value="anywhere"]')).toBeChecked();
   await expect(page.locator('#bloodAndGore')).toBeChecked();
+  await expect(page.locator('input[name="page"][value="play"]')).toBeChecked();
   await page.check('input[name="difficulty"][value="3"]');
   await page.check('input[name="guns"][value="gunNut"]');
   await page.uncheck('#bloodAndGore');
@@ -109,15 +131,25 @@ test('the launcher starts a campaign with options, the tactical page quick saves
   await expect.poll(() => page.evaluate(() => window.__ja2Tactical.tick)).toBe(savedAt);
   expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
 
-  await page.goto(`/?session=${session}#saves`);
-  await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
+  await page.goto(`/dev?session=${session}`);
+  await devReady(page);
+  const gameLink = page.locator(`#sessionList tr[data-session="${session}"] a[data-page="play"]`);
+  await expect(gameLink).toHaveAttribute('href', `/play?session=${session}`);
+  await page.check('input[data-param="shadowHints"]');
+  await page.check('input[data-param="drive"]');
+  await expect(gameLink).toHaveAttribute('href', `/play?session=${session}&shadowHints=1&drive=manual`);
+  await expect(page.locator('#saveSession')).toHaveValue(session);
+  const devQuickRow = page.locator('tr[data-save="QuickSave"]');
+  await expect(devQuickRow).toBeVisible();
+  await expect(devQuickRow).toContainText('A9');
+  await expect(devQuickRow).toContainText('$');
+  expect(await devQuickRow.getAttribute('title')).toContain('stubs');
+
+  await page.goto('/');
+  await launcherReady(page);
+  await expect(page.locator('#saveSession')).toHaveCount(0);
   const quickRow = page.locator('tr[data-save="QuickSave"]');
   await expect(quickRow).toBeVisible();
-  await expect(quickRow).toContainText('A9');
-  await expect(quickRow).toContainText('$');
-  expect(await quickRow.getAttribute('title')).toContain('stubs');
-  await expect(page.locator('#saveSession')).toHaveValue(session);
-
   await quickRow.click();
   const downloading = page.waitForEvent('download');
   await page.click('#downloadSave');
@@ -134,13 +166,11 @@ test('the launcher starts a campaign with options, the tactical page quick saves
   const russian = await strings(page, 'rus');
   await page.selectOption('#language', 'rus');
   await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher.language === 'rus');
-  await expect(page.locator('#campaign h2')).toHaveText('Новая кампания');
   await expect(page.locator('#saves h2')).toHaveText('Сохранённые игры');
-  await expect(page.locator('#campaign legend').first()).toHaveText(entry(russian, 'gzGIOScreenText', GIO_DIF_LEVEL));
   await expect(page.locator('#loadSave')).toHaveText(entry(russian, 'zSaveLoadText', SLG_LOAD_SELECTED));
   expect(entry(russian, 'zSaveLoadText', SLG_LOAD_SELECTED)).not.toBe(entry(english, 'zSaveLoadText', SLG_LOAD_SELECTED));
   await page.reload();
-  await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
+  await launcherReady(page);
   expect((await launcher(page)).language).toBe('rus');
   await expect(page.locator('#language')).toHaveValue('rus');
 
@@ -150,6 +180,17 @@ test('the launcher starts a campaign with options, the tactical page quick saves
   await expect(page.locator('#messageYes')).toHaveText(entry(russian, 'pMessageStrings', MSG_YES));
   await page.click('#messageYes');
   await expect(page.locator(`tr[data-save="${UPLOADED}"]`)).toHaveCount(0);
-  await expect(page.locator('tr[data-save="QuickSave"]')).toBeVisible();
+
+  await quickRow.click();
+  await page.click('#loadSave');
+  await page.waitForURL(/\/play\?session=/);
+  const loadedSession = new URL(page.url()).searchParams.get('session') ?? '';
+  expect(loadedSession).not.toBe(session);
+
+  await page.goto('/dev');
+  await devReady(page);
+  await expect(page.locator('#saveList th').nth(2)).toHaveText(entry(english, 'gpStrategicString', STR_PB_SECTOR));
+  await closeFromDevPage(page, loadedSession);
+  await closeFromDevPage(page, session);
   await deleteSaves(page);
 });

@@ -1,19 +1,12 @@
-import { AudioEngine } from '../../audio/engine.ts';
 import { UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
 import { u32 } from '../../core/int.ts';
-import type { Health, SessionSummary } from '../../ui/client/api-types.ts';
-import { type CampaignProblem, campaignRequest, pageUrl, playUrl, type StartPage } from '../../ui/client/campaign-form.ts';
-import { type ClientSettings, effectiveMaster, type SettingsChange, updateSettings } from '../../ui/settings.ts';
+import type { Health } from '../../ui/client/api-types.ts';
+import { playUrl } from '../../ui/client/campaign-form.ts';
+import { type ClientSettings, type SettingsChange, updateSettings } from '../../ui/settings.ts';
 import { LABELS, type LabelId, Labels } from '../../ui/text/labels.ts';
-import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../credits/scroller.ts';
 import { fetchInstallation, handOverMeanwhileScenesSeen } from '../net/installation.ts';
-import { readVfsFileOrNull } from '../net/vfs.ts';
 import { handOverSeenMeanwhileScenes, loadSettings, pendingMeanwhileScenesSeen, saveSettings } from '../settings.ts';
-import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
-import { beginningPlan, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
-import { engineSound } from '../video/sound.ts';
-import { createSession, fetchHealth } from './api.ts';
-import { CampaignPanel } from './campaign-panel.ts';
+import { fetchHealth } from './api.ts';
 import { fetchLabels } from './labels.ts';
 import { MessageBox } from './message-box.ts';
 import { SavePanel, type SavePanelHook } from './save-panel.ts';
@@ -22,12 +15,8 @@ import { SettingsPanel } from './settings-panel.ts';
 interface LauncherHook {
   ready: boolean;
   language: UiLanguage | null;
-  busy: boolean;
-  campaign: string | null;
   message: string;
   error: string | null;
-  video: SequenceMonitor;
-  credits: CreditsMonitor;
   saves: SavePanelHook | null;
 }
 
@@ -37,8 +26,6 @@ declare global {
   }
 }
 
-const SEED_PARAM = 'seed';
-const SESSION_PARAM = 'session';
 const LANGUAGE_NAMES: Readonly<Record<UiLanguage, string>> = {
   chs: '简体中文',
   dut: 'Nederlands',
@@ -59,17 +46,12 @@ const DOCUMENT_LANGUAGE: Readonly<Record<UiLanguage, string>> = {
   pl: 'pl',
   rus: 'ru',
 };
-const PROBLEM_LABELS: Readonly<Record<CampaignProblem, LabelId>> = { deadIsDeadName: 'deadIsDeadName', squadSize: 'squad' };
 
 const hook: LauncherHook = {
   ready: false,
   language: null,
-  busy: false,
-  campaign: null,
   message: '',
   error: null,
-  video: createSequenceMonitor(),
-  credits: createCreditsMonitor(),
   saves: null,
 };
 window.__ja2Launcher = hook;
@@ -80,15 +62,11 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-const params = new URLSearchParams(location.search);
 const statusEl = element('status');
 const languageSelect = element<HTMLSelectElement>('language');
 let settings: ClientSettings = loadSettings();
 let health: Health | null = null;
 let labels = new Labels(settings.language ?? 'eng', null);
-let sessions: readonly SessionSummary[] = [];
-const engine = new AudioEngine({ createGraph: () => new AudioContext(), load: readVfsFileOrNull });
-const sound = engineSound(engine);
 const box = new MessageBox(() => labels);
 
 function status(text: string, error = false): void {
@@ -96,10 +74,6 @@ function status(text: string, error = false): void {
   statusEl.classList.toggle('error', error);
   hook.message = text;
   if (error) hook.error = text;
-}
-
-function applyVolumes(): void {
-  engine.setVolumes({ ...settings.volumes, master: effectiveMaster(settings) });
 }
 
 function changeSettings(change: SettingsChange): void {
@@ -110,7 +84,6 @@ function replaceSettings(next: ClientSettings): void {
   const languageChanged = next.language !== settings.language;
   settings = next;
   saveSettings(settings);
-  applyVolumes();
   settingsPanel.render();
   if (languageChanged) void reloadLabels();
 }
@@ -120,11 +93,6 @@ async function meanwhileScenesSeen(): Promise<number> {
   return u32((installation?.meanwhileScenesSeen ?? 0) | pendingMeanwhileScenesSeen());
 }
 
-function openPage(page: StartPage, session: string): void {
-  location.assign(pageUrl(page, session));
-}
-
-const campaignPanel = new CampaignPanel(() => void startCampaign());
 const settingsPanel = new SettingsPanel({
   settings: () => settings,
   change: changeSettings,
@@ -135,21 +103,15 @@ const settingsPanel = new SettingsPanel({
   box,
   status,
 });
-const savePanel = new SavePanel(
-  {
-    labels: () => labels,
-    health: () => health,
-    language: () => settings.language,
-    box,
-    status,
-    open: openPage,
-    sessionsChanged: (list) => {
-      sessions = list;
-      renderSessions();
-    },
-  },
-  params.get(SESSION_PARAM),
-);
+const savePanel = new SavePanel({
+  labels: () => labels,
+  health: () => health,
+  language: () => settings.language,
+  box,
+  status,
+  loadTarget: () => ({ kind: 'newSession' }),
+  loaded: (session) => location.assign(playUrl(session)),
+});
 hook.saves = savePanel.hook;
 
 function isLabelId(value: string | undefined): value is LabelId {
@@ -186,39 +148,11 @@ function renderLanguages(): void {
   );
 }
 
-function link(text: string, href: string): HTMLAnchorElement {
-  const a = document.createElement('a');
-  a.textContent = text;
-  a.href = href;
-  return a;
-}
-
-function pageLink(text: string, page: StartPage, session: string): HTMLAnchorElement {
-  return link(text, pageUrl(page, session));
-}
-
-function renderSessions(): void {
-  const items = sessions.map((s) => {
-    const li = document.createElement('li');
-    li.dataset.session = s.session;
-    const where = [s.flow, s.sector].filter(Boolean).join(' ');
-    li.append(`${s.session}${where ? ` (${where})` : ''}: `);
-    if (s.flow || s.map) li.append(link(labels.text('play'), playUrl(s.session)), ' · ');
-    if (s.flow) li.append(pageLink(labels.text('strategicPage'), 'strategic', s.session));
-    if (s.flow && s.map) li.append(' · ');
-    if (s.map) li.append(pageLink(labels.text('tacticalPage'), 'tactical', s.session));
-    return li;
-  });
-  element('sessionList').replaceChildren(...items);
-}
-
 function renderAll(): void {
   applyLabels();
   renderDataInfo();
   renderLanguages();
-  campaignPanel.renderSizes(labels);
   savePanel.render();
-  renderSessions();
   settingsPanel.render();
   hook.language = labels.language;
 }
@@ -228,52 +162,10 @@ async function reloadLabels(): Promise<void> {
   renderAll();
 }
 
-async function exclusive(task: () => Promise<unknown>): Promise<void> {
-  if (hook.busy) return;
-  hook.busy = true;
-  try {
-    await task();
-  } catch (err) {
-    status((err as Error).message, true);
-  } finally {
-    hook.busy = false;
-  }
-}
-
-const playPlan = (plan: SequencePlan) => playSequence(plan, { sound, monitor: hook.video });
-
-function seed(): number | null {
-  const value = params.get(SEED_PARAM);
-  return value !== null && /^\d+$/.test(value) ? Number(value) : null;
-}
-
-async function startCampaign(): Promise<void> {
-  const form = campaignPanel.read();
-  const request = campaignRequest(form, settings.language, seed());
-  if (!request.ok) return status(`${labels.text(PROBLEM_LABELS[request.problem])}?`, true);
-  engine.unlock();
-  campaignPanel.busy(true);
-  await exclusive(async () => {
-    status(labels.text('starting'));
-    const created = await createSession(request.body);
-    hook.campaign = created.session;
-    if (sequenceEnabled('beginning', settings)) await playPlan(beginningPlan());
-    openPage(request.page, created.session);
-  });
-  campaignPanel.busy(false);
-}
-
-element('playSplash').addEventListener('click', () => void exclusive(() => playPlan(splashPlan())));
-element('playIntro').addEventListener('click', () => void exclusive(() => playPlan(beginningPlan())));
-element('playCredits').addEventListener('click', () => void exclusive(() => playCredits({ monitor: hook.credits })));
 languageSelect.addEventListener('change', () => {
   const value = languageSelect.value;
   changeSettings({ language: UI_LANGUAGES.includes(value as UiLanguage) ? (value as UiLanguage) : null });
 });
-const unlock = () => engine.unlock();
-window.addEventListener('pointerdown', unlock, { capture: true });
-window.addEventListener('keydown', unlock, { capture: true });
-applyVolumes();
 
 async function start(): Promise<void> {
   try {

@@ -283,9 +283,10 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
   (`src/app/game/front-end.ts`, `src/ui/screens/front-end/save-location.ts`): the current tables, not those the save
   was made with, as in the original. With no map loaded the header takes a merc's sector
   (`src/sim/strategic/forces/save-sector.ts`); a campaign without mercs shows N/A or `STR_LATE_14`.
-- The launcher's save panel (`src/app/launcher/save-panel.ts`) shows the same rows: Load with one warning box, Save as
-  new or over a player or quick save, Delete, Download, Upload, and the native saves to import. Its row location and
-  tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
+- The launcher's save panel (`src/app/launcher/save-panel.ts`) shows the same rows: Load into a new session with one
+  warning box, Delete, Download, Upload, and the native saves to import. The developer hub's (`src/devtools/hub/`,
+  `32` §3) adds the session to save, Save as new or over a player or quick save, and loading into a running session.
+  Their row location and tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
 - On `/play` the map and tactical screens bind quick save and quick load (Alt+S, Alt+L) and the main menu Alt+Load and
   Alt+C (`30`). The developer tactical and strategic pages bind Alt+S and Alt+L (`src/app/net/save-controls.ts`).
 

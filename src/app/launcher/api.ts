@@ -38,6 +38,13 @@ export async function createSession(body: unknown): Promise<SessionSummary & { r
   return json(await post('/api/sessions', body));
 }
 
+export async function closeSession(session: string): Promise<{ readonly closed: boolean; readonly refused?: string }> {
+  const res = await fetch(sessionPath(session), { method: 'DELETE' });
+  const body = (await res.json().catch(() => ({}))) as { readonly closed?: boolean; readonly refused?: string } & ErrorBody;
+  if (res.ok || body.refused) return { closed: body.closed === true, ...(body.refused ? { refused: body.refused } : {}) };
+  throw new ApiError(res.status, body.error ?? `HTTP ${res.status}`, null);
+}
+
 export async function saveSession(session: string, request: { name?: string; description?: string }): Promise<SaveSuccess | Refusal> {
   const res = await post(`${sessionPath(session)}/save`, request);
   const body = (await res.json().catch(() => ({}))) as (SaveSuccess | Refusal) & ErrorBody;

@@ -7,7 +7,6 @@ import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { Difficulty, GameOptions, SaveMode } from './api-types.ts';
 
 export type SquadChoice = 'default' | 'laptop';
-export type StartPage = 'strategic' | 'tactical';
 
 export interface CampaignForm {
   readonly difficulty: Difficulty;
@@ -20,7 +19,6 @@ export interface CampaignForm {
   readonly squad: SquadChoice;
   readonly squadSize: number | null;
   readonly land: boolean;
-  readonly page: StartPage;
 }
 
 const DEFAULT_DEAD_IS_DEAD_NAME = 'DeadIsDead';
@@ -42,7 +40,6 @@ export const DEFAULT_CAMPAIGN_FORM: CampaignForm = {
   squad: 'default',
   squadSize: null,
   land: true,
-  page: 'strategic',
 };
 
 export interface CampaignBody {
@@ -61,7 +58,7 @@ export interface CampaignBody {
 export type CampaignProblem = 'deadIsDeadName' | 'squadSize';
 
 export type CampaignRequest =
-  | { readonly ok: true; readonly body: CampaignBody; readonly page: StartPage }
+  | { readonly ok: true; readonly body: CampaignBody }
   | { readonly ok: false; readonly problem: CampaignProblem };
 
 export function validDeadIsDeadName(name: string): boolean {
@@ -74,11 +71,6 @@ function squadPart(form: CampaignForm): Pick<CampaignBody['campaign'], 'hire' | 
     ...(form.squadSize !== null ? { mercs: form.squadSize } : {}),
     ...(form.land ? {} : { land: false as const }),
   };
-}
-
-function startPage(form: CampaignForm): StartPage {
-  const landed = form.squad === 'default' && form.land;
-  return landed ? form.page : 'strategic';
 }
 
 function deadIsDeadPart(form: CampaignForm): { readonly deadIsDeadName?: string; readonly deadIsDeadDescription?: string } | null {
@@ -103,17 +95,12 @@ export function campaignRequest(form: CampaignForm, language: UiLanguage | null,
   };
   return {
     ok: true,
-    page: startPage(form),
     body: {
       ...(seed !== null ? { seed } : {}),
       ...(language ? { language } : {}),
       campaign: { options, ...deadIsDead, ...squadPart(form) },
     },
   };
-}
-
-export function pageUrl(page: StartPage, session: string): string {
-  return `/src/devtools/${page}/?session=${encodeURIComponent(session)}`;
 }
 
 export function playUrl(session: string): string {

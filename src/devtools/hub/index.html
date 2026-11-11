@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Developer pages · ja2-node</title>
+    <link rel="stylesheet" href="/src/app/launcher/style.css" />
+    <link rel="stylesheet" href="/src/devtools/hub/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <h1><a href="/" class="home">ja2-node</a></h1>
+        <p class="tagline">developer pages</p>
+      </div>
+      <div id="dataInfo" class="data-info"></div>
+    </header>
+    <main class="launcher">
+      <section id="sessions" class="panel wide">
+        <h2>Running sessions</h2>
+        <div class="row flags">
+          <span class="hint">The game links open /play with</span>
+          <label title="The cursor hints are computed in the browser too, and every difference with the server is reported"><input type="checkbox" data-param="shadowHints" /> shadow hints</label>
+          <label title="Every partial redraw of the world is compared with a full one"><input type="checkbox" data-param="worldCheck" /> world redraw check</label>
+          <label title="The tactical screen keeps the session's time driver instead of switching it to real time"><input type="checkbox" data-param="drive" data-value="manual" /> keep the time driver</label>
+          <label title="The map screen keeps the time compression held"><input type="checkbox" data-param="holdTime" /> hold map time</label>
+          <label title="The UI clock stands still and screens open without their animations, as for the goldens"><input type="checkbox" data-param="pinClock" /> pinned clock</label>
+          <button type="button" id="refreshSessions">refresh</button>
+        </div>
+        <div class="table-box">
+          <table id="sessionList" class="save-list sessions"></table>
+        </div>
+      </section>
+
+      <section id="campaign" class="panel">
+        <h2>New session</h2>
+        <form id="campaignForm">
+          <fieldset>
+            <label>seed <input id="seed" type="text" inputmode="numeric" pattern="\d*" placeholder="server default" size="12" /></label>
+          </fieldset>
+          <fieldset>
+            <legend>Difficulty</legend>
+            <label><input type="radio" name="difficulty" value="1" checked /> easy</label>
+            <label><input type="radio" name="difficulty" value="2" /> medium</label>
+            <label><input type="radio" name="difficulty" value="3" /> hard</label>
+          </fieldset>
+          <fieldset>
+            <legend>Game style</legend>
+            <label><input type="radio" name="style" value="realistic" /> realistic</label>
+            <label><input type="radio" name="style" value="sciFi" checked /> sci-fi</label>
+          </fieldset>
+          <fieldset>
+            <legend>Guns</legend>
+            <label><input type="radio" name="guns" value="gunNut" /> gun nut</label>
+            <label><input type="radio" name="guns" value="reduced" checked /> reduced guns</label>
+          </fieldset>
+          <fieldset>
+            <legend>Save mode</legend>
+            <label><input type="radio" name="saveMode" value="anywhere" checked /> save anywhere</label>
+            <label><input type="radio" name="saveMode" value="ironMan" /> Iron Man</label>
+            <label><input type="radio" name="saveMode" value="deadIsDead" /> Dead is Dead</label>
+            <div id="deadIsDeadBox" class="indent" hidden>
+              <label>Dead is Dead save name <input id="deadIsDeadName" type="text" maxlength="64" value="DeadIsDead" /></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <label><input type="checkbox" id="bloodAndGore" checked /> blood and gore</label>
+          </fieldset>
+          <fieldset>
+            <legend>Squad</legend>
+            <label><input type="radio" name="squad" value="default" checked /> default squad</label>
+            <select id="squadSize"></select>
+            <label><input type="radio" name="squad" value="laptop" /> hire in the laptop</label>
+            <label><input type="checkbox" id="land" checked /> fly in at once</label>
+          </fieldset>
+          <fieldset>
+            <legend>Then open</legend>
+            <label><input type="radio" name="page" value="play" checked /> game page</label>
+            <label><input type="radio" name="page" value="strategic" /> strategic page</label>
+            <label><input type="radio" name="page" value="tactical" /> tactical page</label>
+          </fieldset>
+          <div class="row actions">
+            <button type="submit" id="startCampaign" class="primary">Start a campaign</button>
+            <button type="button" id="startSandbox" class="primary">Start a sandbox</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="tools" class="panel">
+        <h2>Tools</h2>
+        <ul class="links">
+          <li><a href="/play">Game page</a> · <a href="/play?screen=testPattern">test pattern</a></li>
+          <li><a href="/src/devtools/asset-browser/">Asset browser</a></li>
+          <li><a href="/src/devtools/map-viewer/">Map viewer</a></li>
+          <li><a href="/src/devtools/ui-gallery/">Widget gallery</a></li>
+          <li><a href="/src/devtools/laptop/">Laptop on a new campaign</a></li>
+          <li><a href="/src/devtools/video/">Video and credits</a>: the splash, the beginning, the endings, the credits</li>
+          <li><a href="/src/devtools/tactical/">Tactical sandbox</a> and <a href="/src/devtools/strategic/">strategic map</a>: the DOM pages</li>
+        </ul>
+      </section>
+
+      <section id="saves" class="panel wide">
+        <h2>Saved games</h2>
+        <div class="row">
+          <label>Session <select id="saveSession"></select></label>
+          <label>Load into <select id="loadTarget"></select></label>
+        </div>
+        <div class="table-box">
+          <table id="saveList" class="save-list"></table>
+        </div>
+        <div class="row">
+          <label class="grow">Description <input id="saveDescription" type="text" maxlength="46" /></label>
+        </div>
+        <div class="row actions">
+          <button type="button" id="saveNew">Save as new</button>
+          <button type="button" id="saveOver" disabled>Save over selected</button>
+          <button type="button" id="loadSave" disabled>Load selected</button>
+          <button type="button" id="deleteSave" disabled>Delete</button>
+          <button type="button" id="downloadSave" disabled>Download</button>
+          <label class="button">Upload<input id="uploadSave" type="file" accept=".j2s,.gz" hidden /></label>
+        </div>
+      </section>
+    </main>
+    <footer id="status" class="status" role="status"></footer>
+    <dialog id="messageBox" class="message-box">
+      <p id="messageText"></p>
+      <div class="actions">
+        <button type="button" id="messageYes" value="yes"></button>
+        <button type="button" id="messageNo" value="no"></button>
+      </div>
+    </dialog>
+    <script type="module" src="/src/devtools/hub/main.ts"></script>
+  </body>
+</html>

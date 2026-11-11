@@ -32,8 +32,8 @@ describe('launcher labels', () => {
     expect(russian.text('saveGame')).toBe(originalText(rus.tables, LABELS.saveGame));
     expect(russian.text('saveGame')).not.toBe(english.text('saveGame'));
     expect(russian.text('saveGame')).toMatch(CYRILLIC);
-    expect(russian.text('newCampaign')).toBe(LABELS.newCampaign.rus);
-    expect(english.text('newCampaign')).toBe(LABELS.newCampaign.eng);
+    expect(russian.text('savedGames')).toBe(LABELS.savedGames.rus);
+    expect(english.text('savedGames')).toBe(LABELS.savedGames.eng);
   });
 
   it('give every ja2-node label an English and a Russian text', () => {
@@ -46,17 +46,15 @@ describe('launcher labels', () => {
 
   it('fall back to English for ja2-node labels in other languages and to the id without string tables', () => {
     const german = new Labels('ger', null);
-    expect(german.text('newCampaign')).toBe(LABELS.newCampaign.eng);
+    expect(german.text('savedGames')).toBe(LABELS.savedGames.eng);
     expect(german.text('saveGame')).toBe('saveGame');
     expect(german.loaded).toBe(false);
     expect(new Labels('rus', { zSaveLoadText: [] }).text('saveGame')).toBe('saveGame');
-    expect(new Labels('rus', { str_dead_is_dead_mode_enter_name: ['not a single string'] }).text('deadIsDeadHint')).toBe('deadIsDeadHint');
+    expect(new Labels('rus', { gs_dead_is_dead_mode_tab_name: 'not an array' }).text('deadIsDeadMark')).toBe('deadIsDeadMark');
   });
 
-  it('read single strings and array entries', () => {
-    const tables = { str_dead_is_dead_mode_enter_name: 'hint', gs_dead_is_dead_mode_tab_name: ['Normal', 'DiD'] };
-    const labels = new Labels('eng', tables);
-    expect(labels.text('deadIsDeadHint')).toBe('hint');
+  it('read array entries', () => {
+    const labels = new Labels('eng', { gs_dead_is_dead_mode_tab_name: ['Normal', 'DiD'] });
     expect(labels.text('deadIsDeadMark')).toBe('DiD');
   });
 

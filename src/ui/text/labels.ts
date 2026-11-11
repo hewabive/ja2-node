@@ -19,7 +19,7 @@ import {
 
 export interface OriginalLabel {
   readonly table: string;
-  readonly index: number | null;
+  readonly index: number;
 }
 
 export interface OwnLabel {
@@ -30,7 +30,7 @@ export interface OwnLabel {
 export type LabelSource = OriginalLabel | OwnLabel;
 export type StringTables = Readonly<Record<string, string | readonly string[]>>;
 
-const original = (table: string, index: number | null = null): OriginalLabel => ({ table, index });
+const original = (table: string, index: number): OriginalLabel => ({ table, index });
 const own = (eng: string, rus: string): OwnLabel => ({ eng, rus });
 const saveLoad = (index: number) => original('zSaveLoadText', index);
 const gameInit = (index: number) => original('gzGIOScreenText', index);
@@ -41,7 +41,6 @@ export const LABELS = {
   saveGame: saveLoad(SaveLoadText.SAVE_GAME),
   loadGame: saveLoad(SaveLoadText.LOAD_GAME),
   cancel: saveLoad(SaveLoadText.CANCEL),
-  saveSelected: saveLoad(SaveLoadText.SAVE_SELECTED),
   loadSelected: saveLoad(SaveLoadText.LOAD_SELECTED),
   saveOk: saveLoad(SaveLoadText.SAVE_GAME_OK),
   saveError: saveLoad(SaveLoadText.SAVE_GAME_ERROR),
@@ -58,23 +57,12 @@ export const LABELS = {
   realisticStyle: saveLoad(SaveLoadText.REALISTIC),
   sciFiStyle: saveLoad(SaveLoadText.SCIFI),
   difficultySuffix: saveLoad(SaveLoadText.DIFF),
-  initialSettings: gameInit(GameInitText.INITIAL_GAME_SETTINGS),
-  gameStyle: gameInit(GameInitText.GAME_STYLE),
-  realistic: gameInit(GameInitText.REALISTIC),
-  sciFi: gameInit(GameInitText.SCI_FI),
-  gunOptions: gameInit(GameInitText.GUN_OPTIONS),
-  gunNut: gameInit(GameInitText.GUN_NUT),
-  reducedGuns: gameInit(GameInitText.REDUCED_GUNS),
-  difficultyLevel: gameInit(GameInitText.DIF_LEVEL),
   easy: gameInit(GameInitText.EASY),
   medium: gameInit(GameInitText.MEDIUM),
   hard: gameInit(GameInitText.HARD),
-  startGame: gameInit(GameInitText.OK),
-  saveStyle: gameInit(GameInitText.GAME_SAVE_STYLE),
   saveAnywhere: gameInit(GameInitText.SAVE_ANYWHERE),
   ironMan: gameInit(GameInitText.IRON_MAN),
   deadIsDead: gameInit(GameInitText.DEAD_IS_DEAD),
-  deadIsDeadHint: original('str_dead_is_dead_mode_enter_name'),
   deadIsDeadMark: original('gs_dead_is_dead_mode_tab_name', DEAD_IS_DEAD_TAB),
   effectsVolume: original('zOptionsText', OptionsText.SOUND_FX),
   speechVolume: original('zOptionsText', OptionsText.SPEECH),
@@ -109,21 +97,9 @@ export const LABELS = {
   dataVersion: own('data version', 'версия данных'),
   language: own('Display language', 'Язык интерфейса'),
   serverDefault: own('server default', 'по умолчанию сервера'),
-  newCampaign: own('New campaign', 'Новая кампания'),
-  deadIsDeadName: own('Dead is Dead save name', 'Имя сохранения Dead is Dead'),
-  squad: own('Squad', 'Отряд'),
-  defaultSquad: own('default squad', 'отряд по умолчанию'),
-  hireInLaptop: own('hire in the laptop', 'нанять в ноутбуке'),
-  landAtOnce: own('fly in at once', 'сразу высадиться'),
-  openPage: own('Then open', 'Затем открыть'),
-  strategicPage: own('strategic map', 'стратегическую карту'),
-  tacticalPage: own('tactical view', 'тактический экран'),
   savedGames: own('Saved games', 'Сохранённые игры'),
   session: own('Session', 'Сессия'),
-  newSession: own('a new session', 'новую сессию'),
-  loadInto: own('Load into', 'Загрузить в'),
   description: own('Description', 'Описание'),
-  saveAsNew: own('Save as new', 'Сохранить как новую'),
   delete: own('Delete', 'Удалить'),
   download: own('Download', 'Скачать'),
   upload: own('Upload', 'Загрузить файл'),
@@ -149,14 +125,8 @@ export const LABELS = {
   importSettings: own('Import settings', 'Импорт настроек'),
   settingsImported: own('Settings imported.', 'Настройки импортированы.'),
   notSettingsFile: own('This is not a ja2-node settings file.', 'Это не файл настроек ja2-node.'),
-  media: own('Video and credits', 'Видео и титры'),
-  splash: own('Splash', 'Заставка'),
-  intro: own('Intro', 'Вступление'),
-  credits: own('Credits', 'Титры'),
   clickToStart: own('Click to start', 'Щёлкните, чтобы начать'),
-  sessions: own('Running sessions', 'Запущенные сессии'),
   developerPages: own('Developer pages', 'Страницы разработчика'),
-  starting: own('Starting the campaign…', 'Запуск кампании…'),
   quickSave: own('quick save', 'быстрое сохранение'),
   quickLoad: own('quick load', 'быстрая загрузка'),
   noQuickSave: own('There is no quick save.', 'Быстрого сохранения нет.'),
@@ -195,9 +165,7 @@ function ownText(label: OwnLabel, language: UiLanguage): string {
 
 export function originalText(tables: StringTables | null, label: OriginalLabel): string | null {
   const value = tables?.[label.table];
-  if (value === undefined) return null;
-  if (label.index === null) return typeof value === 'string' ? value : null;
-  if (typeof value === 'string') return null;
+  if (value === undefined || typeof value === 'string') return null;
   return value[label.index] ?? null;
 }
 

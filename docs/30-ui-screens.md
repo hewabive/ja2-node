@@ -63,8 +63,8 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 | Story | | `answer` (the meanwhile box of a scene seen before, the lie), `endMeanwhile` (Esc in a palace scene) | the `meanwhile` prompt, `meanwhileStarted`, `meanwhileSkipped`, `meanwhileEnded`, `queenKilled`, `squadMovedUpstairs`, `endgameDeferred`, `campaignWon`, `sexScene` |
 
 The front end talks REST (saves, sessions, status) and uses the session socket only for an in-place `load`,
-`setOption` and `leave`; the launcher shares its DOM-free parts (save rows and `SaveController`, the campaign form, the
-settings model, the credits roll, `MessageBoxes`).
+`setOption` and `leave`; the launcher and the developer pages share its DOM-free parts (save rows and `SaveController`,
+the campaign form, the settings model, the credits roll, `MessageBoxes`).
 
 ## 3. Design
 

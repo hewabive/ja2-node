@@ -1,21 +1,10 @@
 import type { UiLanguage } from '../../content/text/data-version.ts';
-import type { Health, SaveListing, SessionSummary } from '../../ui/client/api-types.ts';
-import type { StartPage } from '../../ui/client/campaign-form.ts';
+import type { Health, SaveListing } from '../../ui/client/api-types.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
-import { type SaveApi, SaveController } from '../../ui/saves/save-controller.ts';
-import { overwriteTarget, type SaveRow, saveRow, uploadName } from '../../ui/saves/save-rows.ts';
+import { type LoadTarget, type SaveApi, SaveController } from '../../ui/saves/save-controller.ts';
+import { type SaveRow, saveRow, uploadName } from '../../ui/saves/save-rows.ts';
 import type { LabelId, Labels } from '../../ui/text/labels.ts';
-import {
-  ApiError,
-  createSession,
-  deleteSave,
-  fetchSaves,
-  fetchSessions,
-  loadIntoSession,
-  saveFileUrl,
-  saveSession,
-  uploadSave,
-} from './api.ts';
+import { ApiError, createSession, deleteSave, fetchSaves, loadIntoSession, saveFileUrl, saveSession, uploadSave } from './api.ts';
 
 export interface SavePanelContext {
   readonly labels: () => Labels;
@@ -23,17 +12,17 @@ export interface SavePanelContext {
   readonly language: () => UiLanguage | null;
   readonly box: MessageBoxes;
   readonly status: (text: string, error?: boolean) => void;
-  readonly open: (page: StartPage, session: string) => void;
-  readonly sessionsChanged: (sessions: readonly SessionSummary[]) => void;
+  readonly loadTarget: () => LoadTarget;
+  readonly loaded: (session: string) => void;
+  readonly selectionChanged?: () => void;
 }
 
 export interface SavePanelHook {
   rows: string[];
   selected: string | null;
-  sessions: string[];
 }
 
-const LAUNCHER_SAVE_API: SaveApi = {
+export const LAUNCHER_SAVE_API: SaveApi = {
   save: saveSession,
   loadInPlace: loadIntoSession,
   createSession: async (start) => {
@@ -44,7 +33,6 @@ const LAUNCHER_SAVE_API: SaveApi = {
 };
 
 const SAVE_EXTENSION = '.j2s';
-const SANDBOX_SESSION = 'sandbox';
 const COLUMNS: readonly (LabelId | null)[] = [null, null, 'sectorColumn', 'mercsColumn', 'balanceColumn', 'description'];
 
 function element<T extends HTMLElement>(id: string): T {
@@ -60,84 +48,41 @@ function cell(text: string, className?: string): HTMLTableCellElement {
   return td;
 }
 
-function sessionLabel(s: SessionSummary): string {
-  const where = [s.flow, s.sector].filter(Boolean).join(' ');
-  return where ? `${s.session} (${where})` : s.session;
-}
-
-function option(value: string, text: string, selected: boolean): HTMLOptionElement {
-  const o = document.createElement('option');
-  o.value = value;
-  o.textContent = text;
-  o.selected = selected;
-  return o;
-}
-
 export class SavePanel {
-  readonly hook: SavePanelHook = { rows: [], selected: null, sessions: [] };
+  readonly hook: SavePanelHook = { rows: [], selected: null };
   readonly #ctx: SavePanelContext;
-  readonly #sessionSelect = element<HTMLSelectElement>('saveSession');
-  readonly #loadTarget = element<HTMLSelectElement>('loadTarget');
   readonly #table = element<HTMLTableElement>('saveList');
-  readonly #description = element<HTMLInputElement>('saveDescription');
-  readonly #saveNew = element<HTMLButtonElement>('saveNew');
-  readonly #saveOver = element<HTMLButtonElement>('saveOver');
   readonly #load = element<HTMLButtonElement>('loadSave');
   readonly #delete = element<HTMLButtonElement>('deleteSave');
   readonly #download = element<HTMLButtonElement>('downloadSave');
   readonly #upload = element<HTMLInputElement>('uploadSave');
   #listings: SaveListing[] = [];
   #rows: SaveRow[] = [];
-  #sessions: SessionSummary[] = [];
   #selected: string | null = null;
-  #preferredSession: string | null;
   readonly #saves: SaveController;
 
-  constructor(ctx: SavePanelContext, preferredSession: string | null) {
+  constructor(ctx: SavePanelContext) {
     this.#ctx = ctx;
     this.#saves = new SaveController({ labels: ctx.labels, health: ctx.health, box: ctx.box, api: LAUNCHER_SAVE_API });
-    this.#preferredSession = preferredSession;
-    this.#saveNew.addEventListener('click', () => void this.#save(false));
-    this.#saveOver.addEventListener('click', () => void this.#save(true));
     this.#load.addEventListener('click', () => void this.#loadSelected());
     this.#delete.addEventListener('click', () => void this.#deleteSelected());
     this.#download.addEventListener('click', () => this.#downloadSelected());
     this.#upload.addEventListener('change', () => void this.#uploadFile());
-    this.#sessionSelect.addEventListener('change', () => {
-      this.#preferredSession = this.#sessionSelect.value || null;
-      this.#updateButtons();
-    });
   }
 
   async refresh(): Promise<void> {
-    const [listings, sessions] = await Promise.all([fetchSaves().catch(() => this.#listings), fetchSessions().catch(() => this.#sessions)]);
-    this.#listings = listings;
-    this.#sessions = sessions;
-    if (this.#selected && !listings.some((l) => l.name === this.#selected)) this.#selected = null;
+    this.#listings = await fetchSaves().catch(() => this.#listings);
+    if (this.#selected && !this.#listings.some((l) => l.name === this.#selected)) this.#selected = null;
     this.render();
-    this.#ctx.sessionsChanged(sessions);
   }
 
   render(): void {
     const labels = this.#ctx.labels();
     this.#rows = this.#listings.map((l) => saveRow(l, labels));
     this.hook.rows = this.#rows.map((r) => r.name);
-    this.hook.sessions = this.#sessions.map((s) => s.session);
-    this.#renderSessions(labels);
+    this.hook.selected = this.#selected;
     this.#renderTable(labels);
     this.#updateButtons();
-  }
-
-  #renderSessions(labels: Labels): void {
-    const wanted = this.#preferredSession ?? this.#sessionSelect.value;
-    const fallback = this.#sessions.at(-1)?.session ?? '';
-    const chosen = this.#sessions.some((s) => s.session === wanted) ? wanted : fallback;
-    this.#sessionSelect.replaceChildren(...this.#sessions.map((s) => option(s.session, sessionLabel(s), s.session === chosen)));
-    const target = this.#loadTarget.value;
-    this.#loadTarget.replaceChildren(
-      option('', labels.text('newSession'), target === ''),
-      ...this.#sessions.map((s) => option(s.session, sessionLabel(s), s.session === target)),
-    );
   }
 
   #renderTable(labels: Labels): void {
@@ -194,7 +139,7 @@ export class SavePanel {
     this.#updateButtons();
   }
 
-  #selectedRow(): SaveRow | null {
+  selectedRow(): SaveRow | null {
     return this.#rows.find((r) => r.name === this.#selected) ?? null;
   }
 
@@ -204,18 +149,16 @@ export class SavePanel {
 
   #updateButtons(): void {
     const labels = this.#ctx.labels();
-    const row = this.#selectedRow();
-    const session = this.#sessionSelect.value;
-    this.#saveNew.disabled = !session;
-    this.#saveOver.disabled = !session || row === null || overwriteTarget(row) === null;
+    const row = this.selectedRow();
     this.#load.disabled = row === null || !row.compatible;
     this.#load.textContent = labels.text(row?.native ? 'importNative' : 'loadSelected');
     this.#delete.disabled = !row || row.native;
     this.#download.disabled = !row || row.native;
+    this.#ctx.selectionChanged?.();
   }
 
   #downloadSelected(): void {
-    const row = this.#selectedRow();
+    const row = this.selectedRow();
     if (!row || row.native) return;
     const link = document.createElement('a');
     link.href = saveFileUrl(row.name);
@@ -225,49 +168,22 @@ export class SavePanel {
     link.remove();
   }
 
-  async #save(overwrite: boolean): Promise<void> {
-    const labels = this.#ctx.labels();
-    const session = this.#sessionSelect.value;
-    if (!session) return;
-    const row = this.#selectedRow();
-    if (overwrite && !row) return;
-    if (!overwrite) this.#ctx.status(labels.text('saving'));
-    const outcome =
-      overwrite && row
-        ? await this.#saves.saveOver(session, row, this.#description.value)
-        : await this.#saves.saveNew(session, this.#description.value);
-    if (!outcome.ok) {
-      if (!outcome.cancelled) this.#ctx.status(outcome.text, true);
-      return;
-    }
-    this.#ctx.status(labels.text('saveOk'));
-    this.#description.value = '';
-    await this.refresh();
-    this.select(outcome.name);
-  }
-
   async #loadSelected(): Promise<void> {
     const labels = this.#ctx.labels();
     const listing = this.#selectedListing();
     if (!listing?.compatible) return;
-    const target = this.#loadTarget.value;
-    const outcome = await this.#saves.load(
-      listing,
-      target ? { kind: 'inPlace', session: target } : { kind: 'newSession' },
-      this.#ctx.language(),
-    );
+    const outcome = await this.#saves.load(listing, this.#ctx.loadTarget(), this.#ctx.language());
     if (!outcome.ok) {
       if (!outcome.cancelled) this.#ctx.status(outcome.text, true);
       return;
     }
     this.#ctx.status(outcome.warnings.length > 0 ? `${labels.text('loadOk')} (${outcome.warnings.join(', ')})` : labels.text('loadOk'));
-    const sandbox = !listing.native && listing.header?.session === SANDBOX_SESSION;
-    this.#ctx.open(sandbox ? 'tactical' : 'strategic', outcome.session);
+    this.#ctx.loaded(outcome.session);
   }
 
   async #deleteSelected(): Promise<void> {
     const labels = this.#ctx.labels();
-    const row = this.#selectedRow();
+    const row = this.selectedRow();
     if (!row) return;
     const outcome = await this.#saves.delete(row);
     if (!outcome.ok) {

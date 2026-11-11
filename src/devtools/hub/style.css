@@ -1,0 +1,6 @@
+h1 .home { color: inherit; text-decoration: none; }
+.flags { gap: 4px 14px; }
+.flags label { white-space: nowrap; }
+.sessions td:last-child { text-align: right; }
+.sessions button { padding: 1px 8px; }
+#campaign .actions button.primary { margin-top: 4px; }

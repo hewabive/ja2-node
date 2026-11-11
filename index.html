@@ -15,72 +15,15 @@
       <a id="playLink" class="play" href="/play" data-label="play">Play</a>
       <div id="dataInfo" class="data-info"></div>
       <label class="language"><span data-label="language">Display language</span> <select id="language"></select></label>
+      <a id="devLink" class="dev-link" href="/dev" data-label="developerPages">Developer pages</a>
     </header>
     <main class="launcher">
-      <section id="campaign" class="panel">
-        <h2 data-label="newCampaign">New campaign</h2>
-        <p class="sub" data-label="initialSettings">Initial game settings</p>
-        <form id="campaignForm">
-          <fieldset>
-            <legend data-label="difficultyLevel">Difficulty</legend>
-            <label><input type="radio" name="difficulty" value="1" checked /> <span data-label="easy">easy</span></label>
-            <label><input type="radio" name="difficulty" value="2" /> <span data-label="medium">medium</span></label>
-            <label><input type="radio" name="difficulty" value="3" /> <span data-label="hard">hard</span></label>
-          </fieldset>
-          <fieldset>
-            <legend data-label="gameStyle">Game style</legend>
-            <label><input type="radio" name="style" value="realistic" /> <span data-label="realistic">realistic</span></label>
-            <label><input type="radio" name="style" value="sciFi" checked /> <span data-label="sciFi">sci-fi</span></label>
-          </fieldset>
-          <fieldset>
-            <legend data-label="gunOptions">Guns</legend>
-            <label><input type="radio" name="guns" value="gunNut" /> <span data-label="gunNut">gun nut</span></label>
-            <label><input type="radio" name="guns" value="reduced" checked /> <span data-label="reducedGuns">reduced guns</span></label>
-          </fieldset>
-          <fieldset>
-            <legend data-label="saveStyle">Save mode</legend>
-            <label><input type="radio" name="saveMode" value="anywhere" checked /> <span data-label="saveAnywhere">save anywhere</span></label>
-            <label><input type="radio" name="saveMode" value="ironMan" /> <span data-label="ironMan">Iron Man</span></label>
-            <label><input type="radio" name="saveMode" value="deadIsDead" /> <span data-label="deadIsDead">Dead is Dead</span></label>
-            <div id="deadIsDeadBox" class="indent" hidden>
-              <label><span data-label="deadIsDeadName">Dead is Dead save name</span> <input id="deadIsDeadName" type="text" maxlength="64" value="DeadIsDead" /></label>
-              <p class="hint" data-label="deadIsDeadHint">The save name stays with the campaign.</p>
-            </div>
-          </fieldset>
-          <fieldset>
-            <label><input type="checkbox" id="bloodAndGore" checked /> <span data-label="bloodAndGore">blood and gore</span></label>
-          </fieldset>
-          <fieldset>
-            <legend data-label="squad">Squad</legend>
-            <label><input type="radio" name="squad" value="default" checked /> <span data-label="defaultSquad">default squad</span></label>
-            <select id="squadSize"></select>
-            <label><input type="radio" name="squad" value="laptop" /> <span data-label="hireInLaptop">hire in the laptop</span></label>
-            <label><input type="checkbox" id="land" checked /> <span data-label="landAtOnce">fly in at once</span></label>
-          </fieldset>
-          <fieldset>
-            <legend data-label="openPage">Then open</legend>
-            <label><input type="radio" name="page" value="strategic" checked /> <span data-label="strategicPage">strategic map</span></label>
-            <label><input type="radio" name="page" value="tactical" /> <span data-label="tacticalPage">tactical view</span></label>
-          </fieldset>
-          <button type="submit" id="startCampaign" class="primary" data-label="startGame">Start</button>
-        </form>
-      </section>
-
       <section id="saves" class="panel wide">
         <h2 data-label="savedGames">Saved games</h2>
-        <div class="row">
-          <label><span data-label="session">Session</span> <select id="saveSession"></select></label>
-          <label><span data-label="loadInto">Load into</span> <select id="loadTarget"></select></label>
-        </div>
         <div class="table-box">
           <table id="saveList" class="save-list"></table>
         </div>
-        <div class="row">
-          <label class="grow"><span data-label="description">Description</span> <input id="saveDescription" type="text" maxlength="46" /></label>
-        </div>
         <div class="row actions">
-          <button type="button" id="saveNew" data-label="saveAsNew">Save as new</button>
-          <button type="button" id="saveOver" data-label="saveSelected" disabled>Save over selected</button>
           <button type="button" id="loadSave" data-label="loadSelected" disabled>Load selected</button>
           <button type="button" id="deleteSave" data-label="delete" disabled>Delete</button>
           <button type="button" id="downloadSave" data-label="download" disabled>Download</button>
@@ -112,27 +55,6 @@
           <button type="button" id="exportSettings" data-label="exportSettings">Export settings</button>
           <label class="button"><span data-label="importSettings">Import settings</span><input id="importSettings" type="file" accept=".json,application/json" hidden /></label>
         </div>
-      </section>
-
-      <section id="media" class="panel">
-        <h2 data-label="media">Video and credits</h2>
-        <div class="row actions">
-          <button type="button" id="playSplash" data-label="splash">Splash</button>
-          <button type="button" id="playIntro" data-label="intro">Intro</button>
-          <button type="button" id="playCredits" data-label="credits">Credits</button>
-        </div>
-        <h2 data-label="sessions">Running sessions</h2>
-        <ul id="sessionList" class="links"></ul>
-        <h2 data-label="developerPages">Developer pages</h2>
-        <ul class="links">
-          <li><a href="/src/devtools/tactical/">Tactical sandbox</a></li>
-          <li><a href="/src/devtools/strategic/">Strategic map</a></li>
-          <li><a href="/src/devtools/asset-browser/">Asset browser</a></li>
-          <li><a href="/src/devtools/map-viewer/">Map viewer</a></li>
-          <li><a href="/src/devtools/video/">Video and credits</a></li>
-          <li><a href="/src/devtools/ui-gallery/">Widget gallery</a></li>
-          <li><a href="/src/devtools/laptop/">Laptop on a new campaign</a></li>
-        </ul>
       </section>
     </main>
     <footer id="status" class="status" role="status"></footer>

@@ -42,33 +42,33 @@ pnpm dev                           # server (7420) + Vite (5173)
 1. Start the server and the client: `pnpm dev` (with `JA2_DATA_DIR` set for the original data, without it on the stub
    pack). For a built client run `pnpm build` once, then `pnpm server`, and open the `login?token=…` link the server
    prints (it sets the token cookie).
-2. Open the launcher at http://127.0.0.1:5173/. It shows the data source, the data version and the display language,
-   and starts with "Click to start": browsers block sound until the page gets a click or a key, so the splash waits for
-   one (once per browser tab; the "play the splash" setting turns it off).
+2. Open the launcher at http://127.0.0.1:5173/. It shows the data source, the data version and the display language.
 3. **Play** opens the game page `/play`: the original's main menu, game init, options and save/load screens, the
    laptop, the map screen, the tactical screen with its panels, the shop, talk, battle entry and story screens, drawn on
-   a canvas at a whole-number UI scale. `/play?session=<id>` joins a running session; `?scale=2` forces a scale and
-   `?fixed640=1` keeps a 640×480 frame (both are client settings too).
-4. **New campaign** in the launcher: the game init screen's options with the original's defaults preselected (easy,
-   sci-fi, reduced guns, save anywhere, blood on), the Dead is Dead save name, the default squad (optionally of a chosen
-   size) or hiring in the laptop. The beginning intro plays (Escape ends it, Space or a click skips a video; the "play
-   the intro" setting turns it off).
-5. **Saved games**: ja2-node saves and the native savegames of the game's `SavedGames` folder, newest first, with the
-   original's row fields (day and time, sector, mercs, balance, description, a mark for Dead is Dead) and the options in
-   the tooltip. Load into a new session or a running one, import a native save, save the chosen session as a new save
-   or over the selected one, delete, download a `.j2s` file and upload one.
-6. **Settings**: volumes, mute, speech and subtitles, mute confirmations, the sleep/wake notification, playback speed,
+   a canvas at a whole-number UI scale. It starts with the splash, behind "Click to start" when the browser blocks sound
+   until the page gets a click or a key (once per browser tab; the "play the splash" setting turns it off). A new game
+   plays the beginning intro (Escape ends it, Space or a click skips a video; the "play the intro" setting turns it
+   off). `/play?session=<id>` joins a running session; `?scale=2` forces a scale and `?fixed640=1` keeps a 640×480
+   frame (both are client settings too).
+4. **Saved games** in the launcher: ja2-node saves and the native savegames of the game's `SavedGames` folder, newest
+   first, with the original's row fields (day and time, sector, mercs, balance, description, a mark for Dead is Dead)
+   and the options in the tooltip. Load one into a new session on `/play`, import a native save, delete, download a
+   `.j2s` file and upload one.
+5. **Settings**: volumes, mute, speech and subtitles, mute confirmations, the sleep/wake notification, playback speed,
    the splash and intro switches, the display language, and export or import of the settings as a file. They live in
    the browser and never reach the game.
-7. In the game pages Alt+S quick saves and Alt+L quick loads.
+6. In the game pages Alt+S quick saves and Alt+L quick loads.
 
 ## Developer pages, agents and the API
 
-**Developer pages**, linked from the launcher: the tactical sandbox (click a merc to select it, click a tile to walk,
-right-click to run, ctrl+click a door to open it or get its menu; paused, real-time and instant time buttons; trading
-and talking with the nearest merchant or NPC), the strategic map (a new campaign, routes, the clock, contracts, battle
-and contract prompts, the quest log, the helicopter, the laptop), the asset browser, the map viewer, video and credits,
-the widget gallery and the laptop on a new campaign. Stub dealers and NPCs stand in A10, east of A9.
+**Developer pages** start at http://127.0.0.1:5173/dev, linked from the launcher: the running sessions with links to
+`/play` and its debug parameters, closing a session, a new campaign with the game init options, the seed, the squad (the
+server's default or 1–6 mercs, hiring in the laptop, flying in at once) and the page to open, a new sandbox, and saving
+a chosen session or loading into a running one. It links the tactical sandbox (click a merc to select it, click a tile
+to walk, right-click to run, ctrl+click a door to open it or get its menu; paused, real-time and instant time buttons;
+trading and talking with the nearest merchant or NPC), the strategic map (a new campaign, routes, the clock, contracts,
+battle and contract prompts, the quest log, the helicopter, the laptop), the asset browser, the map viewer, video and
+credits, the widget gallery and the laptop on a new campaign. Stub dealers and NPCs stand in A10, east of A9.
 
 **Agents** connect to `http://127.0.0.1:7420/mcp` with `Authorization: Bearer <.ja2/token>` and use nine tools:
 `status`, `observe`, `act`, `advance`, `newSession`, `save`, `load`, `listSaves` and `deleteSave`. For example

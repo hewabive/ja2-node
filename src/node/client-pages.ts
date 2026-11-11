@@ -1,5 +1,6 @@
 export const CLIENT_PAGE_ALIASES: Readonly<Record<string, string>> = {
   '/play': '/src/app/game/index.html',
+  '/dev': '/src/devtools/hub/index.html',
 };
 
 export function clientPagePath(url: string): string {
