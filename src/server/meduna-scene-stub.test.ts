@@ -237,7 +237,7 @@ describe('a palace meanwhile scene played in the stub hall P3_m (Meanwhile.cc St
     await expectReloadsInvisible(townSceneFromTheMap);
   });
 
-  it('endMeanwhile (Esc) ends a palace scene at once: the implications, the way back and the NPCs restored; it is refused outside one', async () => {
+  it('endMeanwhile (Esc) ends a palace scene at once, once an NPC of the scene, shown to the player, has walked in: the implications, the way back and the NPCs restored; it is refused outside one', async () => {
     const { session, live } = await landed(83);
     expect(session.dispatch({ type: 'endMeanwhile' })).toMatchObject({ ok: false, data: { refusal: 'noPalaceScene' } });
     const before = spotsOf(session, [Npc.QUEEN, Npc.ELLIOT]);
@@ -245,7 +245,9 @@ describe('a palace meanwhile scene played in the stub hall P3_m (Meanwhile.cc St
     schedule(session, Meanwhile.DRASSEN_LIBERATED);
     session.drainEvents();
     const events = untilStarted(live);
-    events.push(...live.advance({ events: ['arrived'] }, SCENE_STOP_BUDGET).events);
+    const walkedIn = live.advance({ events: ['arrived'] }, SCENE_STOP_BUDGET);
+    expect([walkedIn.reason, walkedIn.events.at(-1)?.type]).toEqual(['event', 'arrived']);
+    events.push(...walkedIn.events);
     expect(session.campaign.state.meanwhile.inScene).toBe(true);
     expect(session.dispatch({ type: 'endMeanwhile' })).toEqual({ ok: true });
     events.push(...session.drainEvents());

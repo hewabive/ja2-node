@@ -97,7 +97,7 @@ import {
   type Soldier,
   Team,
 } from './soldier.ts';
-import { onVisibleWorldTile, placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
+import { onVisibleWorldTile, placeOccupant, removeOccupant, shownInSector, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 import { findGridNoFromSweetSpot, findGridNoFromSweetSpotThroughPeople } from './sweet-spots.ts';
 import { handleWaterOnNewGridNo, moveStateInWater } from './swimming.ts';
 import { swapMercPositions } from './teleport.ts';
@@ -690,7 +690,7 @@ export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
     if (!pendingActionHandled && !hadPendingAnimation && s.life >= OKLIFE && !crowInTheAir(s)) soldierGotoStationaryStance(t, s);
   }
   if (!pendingActionHandled && s.quoteActionId === QuoteActionId.CHECKFORDEST) s.ai.handleEveryFrame = true;
-  t.events.push({ type: 'arrived', soldier: s.id, gridNo: s.gridNo });
+  if (shownInSector(t, s)) t.events.push({ type: 'arrived', soldier: s.id, gridNo: s.gridNo });
 }
 
 export function pathExhausted(t: TacticalState, s: Soldier): boolean {

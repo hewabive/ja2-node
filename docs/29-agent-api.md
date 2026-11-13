@@ -468,8 +468,12 @@ source out of sight carries `heard {by, direction, volumeClass}` instead of its 
 loudest by `CalcEffVolume`, the side as `TellPlayerAboutNoise` names it, the loudness class of `pNoiseVolStr`. A
 `shotFired` of an unseen shooter drops `target`, `chance` and `hit`; a `soldierHit` or `soldierDied` of an unseen
 victim carries `unseen` and a grid only when the attacker is seen or ours; bullets are recorded only for our soldiers
-and those the squad sees. A death cry and a creature's call make no noise in the original; they are heard as loud as
-the crier's loudest scream (`CalcScreamVolume`'s cap of 10 − experience level).
+and those the squad sees. `arrived`, ja2-node's event for the end of a walk, which nothing on the original's screen
+shows for a soldier out of sight, comes only for our soldiers and those the squad sees as they arrive, or for everyone
+while the original shows every soldier (`SHOW_ALL_MERCS` in a palace meanwhile scene, `Strategic/Meanwhile.cc:385`;
+`shownInSector`, `src/sim/tactical/state.ts`), so an unseen patrol neither stops an `advance {events: ['arrived']}`
+nor shows its tiles. A death cry and a creature's call make no noise in the original; they are heard as loud as the
+crier's loudest scream (`CalcScreamVolume`'s cap of 10 − experience level).
 
 ## 8. Commands by domain
 

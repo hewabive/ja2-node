@@ -44,7 +44,7 @@ import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
 import { bloodFloorStrength } from './smell.ts';
 import { Body, createSoldier, NO_PENDING_DIRECTION, Orders, type Soldier, Team, Visible } from './soldier.ts';
-import { createTacticalState, registerSoldier, setAutoBandageMode, type TacticalState, whoIsThere } from './state.ts';
+import { createTacticalState, registerSoldier, setAutoBandageMode, setShowAllMercs, type TacticalState, whoIsThere } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 
 const doorCosts = testDoorCosts();
@@ -131,6 +131,26 @@ describe('walking', () => {
     expect(whoIsThere(t, START, 0)).toBeNull();
     expect(t.reserved.every((r) => r === -1)).toBe(true);
     expect(t.events).toContainEqual({ type: 'arrived', soldier: s.id, gridNo: gridNo(85, 80) });
+  });
+
+  it('reports the arrival of a soldier of another team only while the squad sees him or every soldier is shown (D16)', () => {
+    const arrivals = (shown: (t: TacticalState, s: Soldier) => void) => {
+      const t = tactical();
+      const s = spawn(t, START, Team.ENEMY);
+      shown(t, s);
+      expect(getNewSoldierPath(t, s, gridNo(85, 80), s.uiMovementMode)).toBe(true);
+      runUntilStill(t);
+      expect(s.gridNo).toBe(gridNo(85, 80));
+      return t.events.filter((e) => e.type === 'arrived');
+    };
+    expect(arrivals(() => {})).toEqual([]);
+    const seen = [{ type: 'arrived', soldier: 0, gridNo: gridNo(85, 80) }];
+    expect(
+      arrivals((_, s) => {
+        s.visible = Visible.SEEN;
+      }),
+    ).toEqual(seen);
+    expect(arrivals((t) => setShowAllMercs(t, true))).toEqual(seen);
   });
 
   it('has an AI soldier who walks with QUOTE_ACTION_ID_CHECKFORDEST handled the very frame after he arrives, and nobody else', () => {
