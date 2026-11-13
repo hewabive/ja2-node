@@ -18,10 +18,16 @@ type Layer =
   | 'tools'
   | 'test';
 
+interface Forbidden {
+  readonly pattern: RegExp;
+  readonly reason: string;
+  readonly except?: readonly string[];
+}
+
 interface Rule {
   readonly layers: readonly Layer[];
   readonly packages: readonly string[];
-  readonly forbid?: readonly RegExp[];
+  readonly forbid?: readonly Forbidden[];
   readonly typeOnly?: readonly Layer[];
 }
 
@@ -38,17 +44,33 @@ const TEST_MODES: readonly TestMode[] = [
 
 const ROOT_CONFIG = /^[^/]+\.config\.ts$/;
 
-const NONDETERMINISM = [/\bMath\.random\b/, /\bDate\.now\b/, /\bnew Date\b/, /\bperformance\.now\b/, /\bset(Timeout|Interval|Immediate)\b/];
+const NONDETERMINISM: readonly Forbidden[] = [
+  /\bMath\.random\b/,
+  /\bDate\.now\b/,
+  /\bnew Date\b/,
+  /\bperformance\.now\b/,
+  /\bset(Timeout|Interval|Immediate)\b/,
+].map((pattern) => ({ pattern, reason: 'determinism' }));
+
+const REPOSITORY_PATHS = 'src/node/repo.ts';
+const LOCATION_DEPENDENCE: readonly Forbidden[] = [
+  {
+    pattern: /\bimport\.meta\b/,
+    reason: 'the entry point passes the paths: a packaged server must not depend on where its files lie',
+    except: [REPOSITORY_PATHS],
+  },
+];
 
 const RULES: Record<Layer, Rule> = {
   core: { layers: ['core'], packages: [], forbid: NONDETERMINISM },
   content: { layers: ['core', 'content'], packages: ['fflate'], forbid: NONDETERMINISM },
   sim: { layers: ['core', 'content', 'sim'], packages: [], forbid: NONDETERMINISM },
   protocol: { layers: ['core', 'content', 'sim', 'protocol'], packages: [] },
-  node: { layers: ['core', 'content', 'node'], packages: ['node:*'] },
+  node: { layers: ['core', 'content', 'node'], packages: ['node:*'], forbid: LOCATION_DEPENDENCE },
   server: {
     layers: ['core', 'content', 'sim', 'protocol', 'node', 'server'],
     packages: ['node:*', 'hono', 'hono/*', '@hono/node-server', '@hono/node-server/*', 'ws', 'zod', '@modelcontextprotocol/sdk/*'],
+    forbid: LOCATION_DEPENDENCE,
   },
   ui: { layers: ['core', 'content', 'protocol', 'ui'], packages: [], forbid: NONDETERMINISM },
   render: { layers: ['core', 'content', 'protocol', 'ui', 'render'], packages: [], typeOnly: ['ui'] },
@@ -102,7 +124,7 @@ function packageAllowed(spec: string, allowed: readonly string[]): boolean {
   return allowed.some((a) => (a.endsWith('*') ? spec.startsWith(a.slice(0, -1)) : spec === a));
 }
 
-const CONFIG_FILES = ['vite.config.ts', 'vitest.config.ts', 'playwright.config.ts'].map((f) => join(REPO_ROOT, f));
+const CONFIG_FILES = ['vite.config.ts', 'vite.server.config.ts', 'vitest.config.ts', 'playwright.config.ts'].map((f) => join(REPO_ROOT, f));
 
 async function* files(roots: readonly string[], extra: readonly string[]): AsyncGenerator<string> {
   for (const root of roots) yield* walk(root);
@@ -130,8 +152,10 @@ export async function checkImports(roots: readonly string[], extra: readonly str
         problems.push(`${where}: layer '${layer}' must not import package '${spec}'`);
       }
     }
-    for (const re of rule.forbid ?? []) {
-      if (re.test(src)) problems.push(`${where}: '${re.source}' is not allowed in layer '${layer}' (determinism)`);
+    const rel = where.split(sep).join('/');
+    for (const { pattern, reason, except } of rule.forbid ?? []) {
+      if (pattern.test(src) && !except?.includes(rel))
+        problems.push(`${where}: '${pattern.source}' is not allowed in layer '${layer}' (${reason})`);
     }
     if (layer === 'test') problems.push(...testModeProblems(relative(REPO_ROOT, file).split(sep).join('/'), src));
   }

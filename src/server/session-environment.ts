@@ -1,6 +1,7 @@
 import { dataDecoding } from '../content/text/data-version.ts';
 import { openDataVfs } from '../node/data-vfs.ts';
 import type { EngineIdentity } from './content-identity.ts';
+import { repositoryHistoryOf } from './repository-history.ts';
 import { openRulePack } from './rule-pack.ts';
 import { contentSourceOf, createSaveEnvironment } from './save-environment.ts';
 import type { SaveService } from './save-service.ts';
@@ -19,7 +20,9 @@ export interface SessionEnvironmentConfig {
   readonly data: SessionDataDirs;
   readonly text: SessionText;
   readonly engine: EngineIdentity;
-  readonly env: Readonly<Record<string, string>>;
+  readonly saveDir: string;
+  readonly nativeSavesDir: string | null;
+  readonly repositoryRoot: string | null;
   readonly cacheDir?: string | null;
 }
 
@@ -44,8 +47,10 @@ export async function openSessionEnvironment(
       dataDir: data.dataDir,
       dataVersion,
       decoding: dataDecoding(dataVersion),
-      env: { ...config.env },
+      saveDir: config.saveDir,
+      nativeSavesDir: config.nativeSavesDir,
       engine: config.engine,
+      savedRepositoryFile: repositoryHistoryOf(config.repositoryRoot, config.data.projectDataDir),
       warn,
     });
     const factory = createSessionFactory({

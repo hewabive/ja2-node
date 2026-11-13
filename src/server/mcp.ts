@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import type { WorldTimeTarget } from '../sim/advance.ts';
-import { packageVersion } from './content-identity.ts';
+import { UNKNOWN_VERSION } from './content-identity.ts';
 import { OBSERVE_SHAPE, observation } from './observation.ts';
 import { loadProblemOf, type SaveService } from './save-service.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
@@ -27,7 +27,7 @@ const LIST_SAVES_DESCRIPTION =
 const DELETE_SAVE_DESCRIPTION =
   'Delete a ja2-node save (and its input log) by name; native savegames are never deleted. Returns {deleted}.';
 
-const SERVER_INFO = { name: 'ja2-node', version: packageVersion() };
+const SERVER_NAME = 'ja2-node';
 
 function worldTimeTarget(target: number | { day: number; hour?: number | undefined; minute?: number | undefined }): WorldTimeTarget {
   if (typeof target === 'number') return target;
@@ -51,7 +51,7 @@ function refusal(err: unknown): Record<string, unknown> {
 }
 
 export function buildMcpServer({ sessions, defaultSession, createSession, texts, saves }: McpOptions): McpServer {
-  const server = new McpServer(SERVER_INFO);
+  const server = new McpServer({ name: SERVER_NAME, version: saves?.engine.version ?? UNKNOWN_VERSION });
   const pick = (id: string | undefined): SessionHost => {
     const s = sessions.get(id ?? defaultSession);
     if (!s) throw new Error(`no session ${id ?? defaultSession}`);

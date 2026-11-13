@@ -71,7 +71,8 @@ into `docs/`.
 - `docs/24`–`26`: NPCs and dialogue, quests/facts/campaign rules, meanwhiles and the ending.
 - `docs/27`: saves and options. `docs/28`: the player UI's `ui` layer, widgets, layouts as data, fonts, cursor hints.
 - `docs/29-agent-api.md`: the agent API by topic.
-- `docs/30`–`32`: the original screens in the client; sound, music, video, localization; stub pack, performance, launcher.
+- `docs/30`–`32`: the original screens in the client; sound, music, video, localization; stub pack, performance, launcher,
+  the npm package and its `ja2-node` command.
 - `docs/33`–`35`: hits and damage; throwing and item physics; NPC actions, presence and schedules.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/gaps.md`: behaviour not ported yet and code that does not follow this file yet; add to it when leaving

@@ -2,11 +2,9 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseSaveHeader, type SaveGameHeader } from '../content/formats/savegame-header.ts';
-import { REPO_ROOT } from '../node/repo.ts';
 import { readSaveHead, SAVE_EXTENSION, type SaveFileHead } from './save-file.ts';
 
 export const SAVE_DIR_ENV = 'JA2_SAVE_DIR';
-export const DEFAULT_SAVE_DIR = join(REPO_ROOT, '.ja2', 'saves');
 export const QUICK_SAVE_NAME = 'QuickSave';
 export const AUTO_SAVE_NAMES = ['Auto01', 'Auto02'] as const;
 export const ERROR_LOG_NAME = 'Error';
@@ -23,8 +21,8 @@ const NATIVE_HEADER_BYTES = 2048;
 const TEMP_SUFFIX = '.tmp';
 const RESERVED_NAMES: ReadonlySet<string> = new Set([QUICK_SAVE_NAME, ...AUTO_SAVE_NAMES, ERROR_LOG_NAME].map((n) => n.toLowerCase()));
 
-export function saveDirFromEnv(env: NodeJS.ProcessEnv = process.env): string {
-  return env[SAVE_DIR_ENV]?.trim() || DEFAULT_SAVE_DIR;
+export function saveDirFromEnv(fallback: string, env: NodeJS.ProcessEnv = process.env): string {
+  return env[SAVE_DIR_ENV]?.trim() || fallback;
 }
 
 export function isValidSaveName(name: string): boolean {

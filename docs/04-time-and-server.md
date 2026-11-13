@@ -201,8 +201,10 @@ the time slicing and the worker host of §5.9. Benchmarks and measured turns: `3
              └─────────────────────────────────────────────────────────────┘
 ```
 
-`src/server/main.ts` opens the data VFS (`JA2_DATA_DIR`, the stub pack, the project tables), detects the data version
-(`31`), builds the rule pack (§5.10), opens the save environment and creates the default session `sandbox`.
+`startServer` (`src/server/start.ts`) opens the data VFS (the game folder, the stub pack, the project tables), detects
+the data version (`31`), builds the rule pack (§5.10), opens the save environment and creates the default session
+`sandbox`. Two entry points call it: the developer server `src/server/main.ts` (the environment and the checkout) and
+the player command `ja2-node` (its settings and the package, `32` §5).
 
 ### 5.1. Session
 
@@ -211,7 +213,7 @@ the time slicing and the worker host of §5.9. Benchmarks and measured turns: `3
   campaign identity) and its `QueryService`.
 - `newSession` (MCP) and `POST /api/sessions` create sessions through `src/server/session-registry.ts`, up to a limit
   (`JA2_MAX_SESSIONS`). The default session `sandbox` is the A9 sandbox, a native save or a new campaign (`JA2_SEED`,
-  `JA2_SAVE`, `JA2_CAMPAIGN` in `main.ts`).
+  `JA2_SAVE`, `JA2_CAMPAIGN` in `start.ts`).
 - Logic content is read only through the server's rule pack (§5.10), never from the raw data; no graphic is read. The
   in-process host shares the pack, read-only, between sessions; the worker host loads it once per worker (§5.9).
 - The world cache (`src/server/world-cache.ts`) prepares maps before each command (`Session.prepareAndDispatch`); the
@@ -298,8 +300,9 @@ The core and the protocol depend on neither the DOM nor Node, so a session could
 
 - `JA2_HOST` and `JA2_PORT` set the address (default `127.0.0.1:7420`).
 - `/api`, `/vfs`, `/mcp` and `/ws` take the token of `.ja2/token` (or `$JA2_TOKEN`) as `Authorization: Bearer`, the
-  HttpOnly cookie set by `/login?token=…`, or a `token` query. A Host check (`localhost`, `127.0.0.1`, `[::1]`) guards
-  against DNS rebinding.
+  HttpOnly cookie set by `/login?token=…`, or a `token` query. `ja2-node` keeps its token in the player's data folder
+  (`32` §5.2). A Host check (`localhost`, `127.0.0.1`, `[::1]`) guards against DNS rebinding; `ja2-node` with local
+  network access adds the machine's addresses and name (`allowedHostsFor`, `src/server/player/network.ts`).
 - The API accepts game commands and save names, never file paths from the client (`29` §10).
 
 ### 5.9. Heavy sessions: `SessionHost`
@@ -324,7 +327,8 @@ The server surfaces (MCP tools, the WebSocket endpoint, the HTTP routes) never t
   - *What still blocks.* A single tick cannot be split: the longest AI decision of a tick is the floor. A save's
     snapshot and its serialization are synchronous (the gzip runs on the thread pool), and opening a session or loading
     a save builds its content.
-- **`worker`** (`WorkerHost`, `src/server/worker-host.ts`; the worker is `src/server/session-worker.ts`): each session
+- **`worker`** (`WorkerHost`, `src/server/worker-host.ts`; the worker is `src/server/session-worker.ts`, bundled as
+  `dist/server/session-worker.js` in the package, whose layout names it): each session
   runs in its own `worker_threads` worker inside an `InProcessHost`, so ordering and reads are the same; calls and
   subscription messages cross by structured clone, no simulation object does. The worker opens its own data VFS and
   save environment with the server's engine identity and save directory and writes its save files itself (atomic

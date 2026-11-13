@@ -20,10 +20,8 @@ import {
   verifyRulePackManifest,
 } from '../content/rules/pack.ts';
 import type { Vfs } from '../content/vfs/vfs.ts';
-import { REPO_ROOT } from '../node/repo.ts';
 
 export const CACHE_DIR_ENV = 'JA2_CACHE_DIR';
-export const DEFAULT_CACHE_DIR = join(REPO_ROOT, '.ja2', 'cache');
 const PACK_DIR_PREFIX = 'rules-';
 const BUILD_DIR_PREFIX = 'build-rules-';
 const PACK_FILE = 'pack.json';
@@ -51,8 +49,8 @@ export interface OpenedRulePack {
 
 export const nodeSha256: Sha256 = async (bytes) => createHash('sha256').update(bytes).digest('hex');
 
-export function cacheDirFromEnv(env: NodeJS.ProcessEnv = process.env): string {
-  return env[CACHE_DIR_ENV] || DEFAULT_CACHE_DIR;
+export function cacheDirFromEnv(fallback: string, env: NodeJS.ProcessEnv = process.env): string {
+  return env[CACHE_DIR_ENV] || fallback;
 }
 
 export function vfsRuleListing(vfs: Vfs): RuleListingEntry[] {

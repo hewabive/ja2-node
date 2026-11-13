@@ -49,8 +49,8 @@ jobs:
           name: bench
           path: bench.jsonl
           if-no-files-found: ignore
-      - name: Client build
-        run: pnpm build
+      - name: Package (client and server build, contents check, npm install and start of the tarball)
+        run: pnpm package --smoke
 
   e2e:
     name: e2e (${{ matrix.shard }}/3)

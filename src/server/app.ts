@@ -27,6 +27,7 @@ import { ASSET_MANIFEST_ROUTE, isAssetHash, PINNED_PREFIX, VFS_ROUTE } from '../
 import { INSTALLATION_ROUTE } from '../protocol/installation.ts';
 import { ITEM_CATALOGUE_ROUTE } from '../protocol/items.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
+import { LOOPBACK_HOSTS } from './allowed-hosts.ts';
 import { type EncodedAssetManifest, encodeAssetManifest, VfsHashes } from './assets-manifest.ts';
 import type { InstallationStore } from './installation-store.ts';
 import { buildItemCatalogue, type EncodedCatalogue } from './item-catalogue.ts';
@@ -65,7 +66,6 @@ export interface AppOptions {
 
 export const TOKEN_COOKIE = 'ja2_token';
 
-const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 const MAX_TEXT_ROW = 4096;
 const STRINGS_CACHE_CONTROL = 'private, max-age=3600';
 const LANGUAGE_ERROR = `lang must be one of ${UI_LANGUAGES.join(', ')}`;
@@ -178,7 +178,7 @@ export function createApp(options: AppOptions): Hono {
     const wanted = value?.toLowerCase() ?? defaultLanguage;
     return isUiLanguage(wanted) ? wanted : null;
   };
-  const hosts = new Set(options.allowedHosts ?? DEFAULT_HOSTS);
+  const hosts = new Set(options.allowedHosts ?? LOOPBACK_HOSTS);
   const hashes = options.hashes ?? VfsHashes.memory(vfs);
   const stubFallback = texts.dataVersion === STUB_DATA_VERSION;
   const gzipCache = new VfsGzipCache();

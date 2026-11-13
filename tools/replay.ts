@@ -1,18 +1,26 @@
 import { dataDecoding } from '../src/content/text/data-version.ts';
 import type { DataVfs } from '../src/node/data-vfs.ts';
 import { detectDataVersion } from '../src/server/data-version.ts';
-import { cacheDirFromEnv, openRulePack } from '../src/server/rule-pack.ts';
-import { contentSourceOf, createSaveEnvironment, replayStoredSave } from '../src/server/save-environment.ts';
+import { repoLayout, repoStateDirs } from '../src/server/repo-layout.ts';
+import { repositoryHistoryOf } from '../src/server/repository-history.ts';
+import { openRulePack } from '../src/server/rule-pack.ts';
+import { contentSourceOf, createSaveEnvironment, nativeSavesDir, replayStoredSave } from '../src/server/save-environment.ts';
 
 export async function runReplay(data: DataVfs, name: string): Promise<number> {
   const dataVersion = await detectDataVersion(data, process.env);
-  const { pack } = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir: cacheDirFromEnv() });
+  const layout = repoLayout();
+  const state = repoStateDirs();
+  const { pack } = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir: state.cacheDir });
   const environment = createSaveEnvironment({
     vfs: data.vfs,
     pack,
     dataDir: data.dataDir,
     dataVersion: dataVersion.version,
     decoding: dataDecoding(dataVersion.version),
+    saveDir: state.saveDir,
+    nativeSavesDir: nativeSavesDir(data.dataDir),
+    engine: layout.engine,
+    savedRepositoryFile: repositoryHistoryOf(layout.repositoryRoot, layout.projectDataDir),
     warn: (message) => console.error(message),
   });
   const t0 = performance.now();

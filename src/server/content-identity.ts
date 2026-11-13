@@ -7,7 +7,6 @@ import { civHintFile, civQuoteFile, DialogueTexts, dialogueFileCandidates } from
 import { CIV_QUOTE_SECTORS, NUM_CIV_QUOTES } from '../content/narrative/npc-constants.ts';
 import { isIdentityLayer, type RulePack, type RuleSource } from '../content/rules/pack.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
-import { REPO_ROOT } from '../node/repo.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import type { FileExists } from './world-cache.ts';
 
@@ -53,6 +52,7 @@ export const NO_TEXT_IDENTITY = 'none';
 const TEXT_EXTENSION = '.edt';
 const COMMIT_ENV = 'JA2_COMMIT';
 const UNKNOWN_COMMIT = 'unknown';
+export const UNKNOWN_VERSION = '0.0.0';
 const VCS_COMMAND = ['git', ['rev-parse', 'HEAD']] as const;
 
 interface FileRecord {
@@ -219,20 +219,27 @@ export function textIdentityOf(texts: unknown): string {
   return texts instanceof DialogueTexts ? quoteLengthIdentity(texts) : NO_TEXT_IDENTITY;
 }
 
-function sourceCommit(): string {
+function checkoutCommit(root: string): string {
   try {
     const [command, args] = VCS_COMMAND;
-    return execFileSync(command, args, { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync(command, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return UNKNOWN_COMMIT;
   }
 }
 
-export function packageVersion(): string {
-  const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')) as { version?: unknown };
-  return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
+function packageVersionIn(root: string): string {
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version?: unknown };
+  return typeof pkg.version === 'string' ? pkg.version : UNKNOWN_VERSION;
 }
 
-export function engineIdentity(env: NodeJS.ProcessEnv = process.env): EngineIdentity {
-  return { version: packageVersion(), commit: env[COMMIT_ENV]?.trim() || sourceCommit() };
+export function checkoutEngineIdentity(root: string, env: NodeJS.ProcessEnv = process.env): EngineIdentity {
+  return { version: packageVersionIn(root), commit: env[COMMIT_ENV]?.trim() || checkoutCommit(root) };
+}
+
+export function parseEngineIdentity(text: string): EngineIdentity {
+  const value = JSON.parse(text) as Partial<Record<keyof EngineIdentity, unknown>> | null;
+  if (typeof value?.version !== 'string' || typeof value.commit !== 'string')
+    throw new Error('an engine identity needs a version and a commit');
+  return { version: value.version, commit: value.commit };
 }

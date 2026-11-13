@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **The player package** (`32` §5). `pnpm package` builds the npm tarball of ja2-node with a `ja2-node` command: a
+  setup on the first start (the game folder, found in the Steam and GOG folders and checked for its data version; this
+  computer or the local network; the port), then the game in the browser; `ja2-node setup` and `ja2-node config` change
+  and show the settings. Settings, token, saves and cache live in the user's folders. The server runs from a JavaScript
+  build that finds no file from its own location, so a later single executable or desktop build can supply its own.
+  Not published to npm yet.
 - **Auto-bandage** (`12` §8). The `a` key and the question after a won battle start the original's mode: the mercs of
   ours who carry a medical kit bandage every bleeding merc in the sector on the AI's medical decisions, a frame a tick,
   while the world clock stands; Done or Cancel ends it, everybody stands up and the clock jumps by up to 125 s. Agents

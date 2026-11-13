@@ -1,19 +1,19 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { REPO_ROOT } from './repo.ts';
+import { dirname } from 'node:path';
 
-export const TOKEN_FILE = join(REPO_ROOT, '.ja2', 'token');
+export const TOKEN_ENV = 'JA2_TOKEN';
+const MIN_TOKEN_CHARS = 16;
 
-export function loadOrCreateToken(file = TOKEN_FILE): string {
-  const fromEnv = process.env.JA2_TOKEN?.trim();
+export function loadOrCreateToken(file: string, env: NodeJS.ProcessEnv = process.env): string {
+  const fromEnv = env[TOKEN_ENV]?.trim();
   if (fromEnv) return fromEnv;
   if (existsSync(file)) {
     const t = readFileSync(file, 'utf8').trim();
-    if (t.length >= 16) return t;
+    if (t.length >= MIN_TOKEN_CHARS) return t;
   }
   const token = randomBytes(24).toString('hex');
-  mkdirSync(join(file, '..'), { recursive: true });
+  mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${token}\n`, { mode: 0o600 });
   return token;
 }

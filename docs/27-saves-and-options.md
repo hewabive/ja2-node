@@ -130,7 +130,8 @@ two modes:
 
 **Folders.** `$JA2_SAVE_DIR`, default `.ja2/saves/` in the repository (gitignored): a developer server keeps its saves
 beside the code, and the installation settings beside them (`installation.json`, §2.1), so a test's or e2e run's
-temporary saves folder gives it a fresh installation. Native saves stay in `$JA2_SAVES_DIR`, read only; `newSession {save}` imports one (`14`), which can
+temporary saves folder gives it a fresh installation. An installed `ja2-node` keeps both in the player's data folder
+(`32` §5.2). Native saves stay in `$JA2_SAVES_DIR`, read only; `newSession {save}` imports one (`14`), which can
 then be saved in ja2-node's format.
 
 **Names.** Clients pass names, never paths (`29` §10). `QuickSave`, `Auto01`, `Auto02` and `Error` are reserved. Every

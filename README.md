@@ -37,6 +37,21 @@ export JA2_DATA_DIR="/path/to/Jagged Alliance 2 Gold/Data"   # optional
 pnpm dev                           # server (7420) + Vite (5173)
 ```
 
+### As a player, from the package
+
+ja2-node is not on npm yet; `pnpm package` builds the tarball it would publish:
+
+```sh
+pnpm package                                   # dist/package/ja2-node-<version>.tgz
+npm install -g dist/package/ja2-node-*.tgz
+ja2-node                                       # a short setup on the first start, then the game in the browser
+```
+
+`ja2-node setup` chooses the game folder again (it looks in the Steam and GOG folders), the access (this computer or
+the local network) and the port; `ja2-node config` shows the settings and where each comes from; `ja2-node --help`
+lists the options of a single run. Settings, saves and cache live in the user's folders, never in the package
+([`docs/32-stubs-and-performance.md`](docs/32-stubs-and-performance.md) §5).
+
 ## How to play
 
 1. Start the server and the client: `pnpm dev` (with `JA2_DATA_DIR` set for the original data, without it on the stub
@@ -102,6 +117,8 @@ adds the token, so it never appears in page code.
 | `pnpm server` / `pnpm web` | Separately |
 | `pnpm build` | Client build into `dist/client`, served by `pnpm server` |
 | `pnpm stubs` | Stub pack into `dist/stubs` |
+| `pnpm build:server` | Server build into `dist/server` (the package's JavaScript) |
+| `pnpm package` | Build and pack the npm tarball into `dist/package` and check its contents; `--smoke` installs it into a temporary prefix and starts it |
 | `pnpm check` | Biome (any warning fails), types (`tsc -b`), layer boundaries, unit tests |
 | `pnpm gates` | The test gates the changed files can affect (`--list` shows the plan, `--all` runs every one) |
 | `pnpm test:data` / `pnpm test:reload` | The unit tests that need the original data (`JA2_DATA_DIR`) / that reload every test campaign at every input |
@@ -129,6 +146,7 @@ adds the token, so it never appears in page code.
 | `JA2_SAVE`, `JA2_CAMPAIGN`, `JA2_SEED` | The default session: a native save (`JA2_SAVE=SaveGame07`), a new campaign of difficulty N (`JA2_CAMPAIGN=2`), its seed (default 1); otherwise the sandbox |
 | `JA2_CACHE_DIR` | The rule pack and hash cache (default `.ja2/cache`) |
 | `JA2_TOKEN` | Use this token instead of `.ja2/token` |
+| `JA2_HOME` | `ja2-node` only: keep its settings, token, saves and cache in this one folder instead of the user's folders |
 
 ## Layout
 

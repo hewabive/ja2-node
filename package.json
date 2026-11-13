@@ -5,6 +5,16 @@
   "description": "Non-commercial web reimplementation of Jagged Alliance 2: Node server, browser client",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
+  "bin": {
+    "ja2-node": "bin/ja2-node.js"
+  },
+  "files": [
+    "bin/",
+    "data/",
+    "dist/client/",
+    "dist/server/",
+    "dist/stubs/"
+  ],
   "packageManager": "pnpm@11.28.5",
   "engines": {
     "node": ">=24.11"
@@ -14,7 +24,10 @@
     "server": "node src/server/main.ts",
     "web": "vite",
     "build": "vite build",
+    "build:server": "vite build -c vite.server.config.ts",
     "stubs": "node stubs/build.ts",
+    "package": "node tools/package.ts",
+    "prepack": "node tools/package.ts build",
     "cli": "node tools/cli.ts",
     "typecheck": "tsc -b",
     "lint": "biome check --error-on-warnings .",

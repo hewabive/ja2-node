@@ -8,8 +8,9 @@ import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { ServerMessage, SessionHealthView } from '../protocol/messages.ts';
 import type { ViewFrame } from '../protocol/view.ts';
 import { Team } from '../sim/tactical/soldier.ts';
+import { SOURCE_SESSION_WORKER } from './repo-layout.ts';
 import { inflateSave, parseSaveText, SAVE_EXTENSION, snapshotOf, snapshotText } from './save-file.ts';
-import { SAVE_DIR_ENV, SaveStore } from './save-store.ts';
+import { SaveStore } from './save-store.ts';
 import { DEFAULT_SESSION_TEXT } from './session.ts';
 import { openSessionEnvironment, type SessionEnvironmentConfig } from './session-environment.ts';
 import type { HostFactory, SessionHost } from './session-host.ts';
@@ -40,13 +41,15 @@ async function rig(kind: HostKindUnderTest): Promise<Rig> {
     data: { projectDataDir: PROJECT_DATA_DIR, stubsDir },
     text: DEFAULT_SESSION_TEXT,
     engine: TEST_ENGINE,
-    env: { [SAVE_DIR_ENV]: dir },
+    saveDir: dir,
+    nativeSavesDir: null,
+    repositoryRoot: null,
   };
   const warnings: string[] = [];
   const store = new SaveStore(dir);
   const remove = () => rm(dir, { recursive: true, force: true });
   if (kind === 'worker') {
-    return { dir, store, create: workerHostFactory(config, { warn: (m) => warnings.push(m) }), close: remove };
+    return { dir, store, create: workerHostFactory(SOURCE_SESSION_WORKER, config, { warn: (m) => warnings.push(m) }), close: remove };
   }
   const environment = await openSessionEnvironment(config, (m) => warnings.push(m));
   return {

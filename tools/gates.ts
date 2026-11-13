@@ -6,7 +6,7 @@ import { delimiter, join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { REPO_ROOT } from '../src/node/repo.ts';
 
-export const GATES = ['check', 'data', 'reload', 'oracle', 'e2e', 'e2e:data', 'e2e:browsers'] as const;
+export const GATES = ['check', 'data', 'reload', 'oracle', 'e2e', 'e2e:data', 'e2e:browsers', 'package'] as const;
 export type Gate = (typeof GATES)[number];
 
 interface Area {
@@ -18,6 +18,7 @@ const SIMULATION: readonly Gate[] = ['check', 'data', 'reload', 'oracle', 'e2e',
 const SERVER: readonly Gate[] = ['check', 'data', 'reload', 'e2e', 'e2e:data'];
 const CLIENT: readonly Gate[] = ['check', 'data', 'e2e', 'e2e:data'];
 const PRESENTATION: readonly Gate[] = ['check', 'e2e', 'e2e:data', 'e2e:browsers'];
+const PACKAGE: readonly Gate[] = ['check', 'package'];
 
 const AREAS: readonly Area[] = [
   { paths: ['docs/', 'README.md', 'CLAUDE.md', 'LICENSE', '.github/', '.gitignore'], gates: [] },
@@ -48,6 +49,21 @@ const AREAS: readonly Area[] = [
   { paths: ['tests/e2e-data/', 'playwright.data.config.ts'], gates: ['check', 'e2e:data'] },
   { paths: ['tests/e2e-browsers/', 'playwright.browsers.config.ts'], gates: ['check', 'e2e:browsers'] },
   { paths: ['tools/oracle/'], gates: ['check', 'oracle'] },
+  {
+    paths: [
+      'bin/',
+      'package.json',
+      'vite.server.config.ts',
+      'tools/package.ts',
+      'src/server/player/',
+      'src/server/start.ts',
+      'src/server/layout.ts',
+      'src/server/package-layout.ts',
+      'src/server/session-worker.ts',
+      'src/server/worker-host.ts',
+    ],
+    gates: PACKAGE,
+  },
   { paths: ['tools/', 'package.json', 'biome.json', 'tsconfig.json', 'tsconfig.base.json', 'tests/tsconfig.json'], gates: ['check'] },
   { paths: ['pnpm-lock.yaml', 'pnpm-workspace.yaml'], gates: GATES },
 ];
@@ -116,6 +132,8 @@ function gateRun(gate: Gate, env: NodeJS.ProcessEnv): GateRun | string {
       return onPath('xvfb-run', env)
         ? { command: ['xvfb-run', '-a', 'pnpm', 'e2e:browsers'], env: {} }
         : 'needs a display for Firefox (DISPLAY or xvfb-run)';
+    case 'package':
+      return onPath('npm', env) ? { command: ['pnpm', 'package', '--smoke'], env: {} } : 'needs npm to install the package';
   }
 }
 
@@ -156,7 +174,8 @@ const USAGE = `usage: pnpm gates [gate ...] [--all] [--since REV] [--list | --pl
 
 Runs the gates that the files changed since REV can affect (default: the merge base with the upstream branch,
 so commits not pushed yet count, plus the working tree and untracked files). Named gates or --all run regardless.
-Gates: ${GATES.join(', ')}. data, oracle and e2e:data need JA2_DATA_DIR; e2e:browsers needs DISPLAY or xvfb-run.
+Gates: ${GATES.join(', ')}. data, oracle and e2e:data need JA2_DATA_DIR; e2e:browsers needs DISPLAY or xvfb-run;
+package installs the packed tarball with npm (its dependencies come from the registry).
 Each gate writes its output to ${relative(REPO_ROOT, LOG_DIR)}/<gate>.log. --list shows the plan with the file that
 selected each gate, --plan prints only the gate names (for CI), and neither runs anything.`;
 

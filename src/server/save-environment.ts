@@ -6,7 +6,6 @@ import type { WelcomeIdentity } from '../protocol/messages.ts';
 import {
   ContentLedger,
   type EngineIdentity,
-  engineIdentity,
   type LogicIdentity,
   logicIdentityOf,
   type SavedRepositoryFile,
@@ -15,9 +14,8 @@ import {
 import type { LogOrigin } from './input-log.ts';
 import { InstallationStore } from './installation-store.ts';
 import { type OriginBuilder, replaySave } from './replay.ts';
-import { gitRepositoryHistory } from './repository-history.ts';
 import { SaveService } from './save-service.ts';
-import { SAVE_DIR_ENV, SaveStore, saveDirFromEnv } from './save-store.ts';
+import { SaveStore } from './save-store.ts';
 import type { SessionSim } from './session.ts';
 import { type SessionSources, simFromOrigin } from './session-factory.ts';
 import { restoreSession } from './session-snapshot.ts';
@@ -30,8 +28,10 @@ export interface SaveEnvironmentInput {
   readonly dataDir: string | null;
   readonly dataVersion: DataVersion;
   readonly decoding: DataDecoding;
-  readonly env?: NodeJS.ProcessEnv;
-  readonly engine?: EngineIdentity;
+  readonly saveDir: string;
+  readonly nativeSavesDir: string | null;
+  readonly engine: EngineIdentity;
+  readonly savedRepositoryFile: SavedRepositoryFile;
   readonly warn?: (message: string) => void;
 }
 
@@ -50,19 +50,11 @@ export function nativeSavesDir(dataDir: string | null, env: NodeJS.ProcessEnv = 
   return env[NATIVE_SAVES_ENV] || (dataDir ? join(dirname(dataDir), 'SavedGames') : null);
 }
 
-export function saveDirsEnv(store: SaveStore): Record<string, string> {
-  return { [SAVE_DIR_ENV]: store.dir, ...(store.nativeDir ? { [NATIVE_SAVES_ENV]: store.nativeDir } : {}) };
-}
-
 export function contentSourceOf(dataDir: string | null): 'original' | 'stubs' {
   return dataDir !== null ? 'original' : 'stubs';
 }
 
-export function legacyContentLedger(
-  vfs: Vfs,
-  pack: RulePack,
-  savedRepositoryFile: SavedRepositoryFile = gitRepositoryHistory(),
-): ContentLedger {
+export function legacyContentLedger(vfs: Vfs, pack: RulePack, savedRepositoryFile: SavedRepositoryFile): ContentLedger {
   return new ContentLedger(pack.source, vfsFileReader(vfs), (path) => vfs.stat(path) !== undefined, {
     layerOf: (path) => vfs.stat(path)?.layer ?? null,
     savedRepositoryFile,
@@ -70,12 +62,10 @@ export function legacyContentLedger(
 }
 
 export function createSaveEnvironment(input: SaveEnvironmentInput): SaveEnvironment {
-  const { vfs, pack, dataDir, decoding } = input;
-  const env = input.env ?? process.env;
+  const { vfs, pack, dataDir, decoding, engine } = input;
   const { read, exists, layers } = pack;
-  const identity = logicIdentityOf(pack, legacyContentLedger(vfs, pack));
-  const store = new SaveStore(saveDirFromEnv(env), nativeSavesDir(dataDir, env));
-  const engine = input.engine ?? engineIdentity(env);
+  const identity = logicIdentityOf(pack, legacyContentLedger(vfs, pack, input.savedRepositoryFile));
+  const store = new SaveStore(input.saveDir, input.nativeSavesDir);
   const saves = new SaveService({
     store,
     identity,

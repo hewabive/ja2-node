@@ -3,12 +3,14 @@ import { DIALOGUE_SIZE } from '../content/formats/edt.ts';
 import { DialogueTexts } from '../content/narrative/dialogue-text.ts';
 import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs, vfsFileReader } from '../content/vfs/vfs.ts';
+import { REPO_ROOT } from '../node/repo.ts';
 import {
   type ContentFileEntry,
   ContentLedger,
   type ContentSource,
-  engineIdentity,
+  checkoutEngineIdentity,
   NO_TEXT_IDENTITY,
+  parseEngineIdentity,
   quoteLengthIdentity,
   type SavedRepositoryFile,
   textIdentityOf,
@@ -126,8 +128,14 @@ describe('content identity', () => {
     expect(textIdentityOf(null)).toBe(NO_TEXT_IDENTITY);
   });
 
-  it('names the engine version and commit', () => {
-    expect(engineIdentity({ JA2_COMMIT: 'abc123' })).toEqual({ version: expect.any(String), commit: 'abc123' });
+  it('names the engine version and commit of a checkout', () => {
+    expect(checkoutEngineIdentity(REPO_ROOT, { JA2_COMMIT: 'abc123' })).toEqual({ version: expect.any(String), commit: 'abc123' });
+  });
+
+  it('reads an engine identity written at packaging and refuses an incomplete one', () => {
+    const engine = { version: '1.2.3', commit: 'abc123' };
+    expect(parseEngineIdentity(JSON.stringify(engine))).toEqual(engine);
+    expect(() => parseEngineIdentity(JSON.stringify({ version: '1.2.3' }))).toThrow(/version and a commit/);
   });
 
   it('checks a 0.7.0 file list on the original data against the user data only', async () => {

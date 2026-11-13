@@ -1,8 +1,8 @@
 # 32 — Stub pack, performance, launcher, developer hub and data tables
 
 **Scope.** The stub pack (ja2-node's own content that runs every platform feature and a campaign without the original
-data), the benchmarks, their targets and profiling, session host costs, CI, test runs and gates, the launcher and the developer hub, and
-the data tables. Siblings: `27` (saves, options, client settings), `28` (the stub skin, UI performance), `31` (sound,
+data), the benchmarks, their targets and profiling, session host costs, CI, test runs and gates, the launcher and the developer hub,
+the data tables, and the package with its player command. Siblings: `27` (saves, options, client settings), `28` (the stub skin, UI performance), `31` (sound,
 video, localization), `tools/oracle/README.md` (the native oracle). Paths without a prefix are relative to
 `reference/stracciatella/src/game/`.
 
@@ -370,7 +370,7 @@ kind, with no automatic choice: switching when a second session opens would move
 
 ### 2.5 CI
 
-`.github/workflows/ci.yml` runs `pnpm check`; the stub pack, the bench smoke runs and `pnpm build`; `pnpm e2e` in
+`.github/workflows/ci.yml` runs `pnpm check`; the stub pack, the bench smoke runs and `pnpm package --smoke` (§5.3); `pnpm e2e` in
 three shards; and the browser suite only when `tools/gates.ts --plan` selects `e2e:browsers` for the change (or the
 base is unknown). A push or pull request that touches only `docs/`, Markdown files or `LICENSE` starts no CI.
 
@@ -393,7 +393,7 @@ base is unknown). A push or pull request that touches only `docs/`, Markdown fil
   (`tools/check-imports.ts`) refuses a test-side file that names `JA2_DATA_DIR` or `JA2_RELOAD` outside its module,
   since `vitest related` would then miss it.
 - **`pnpm gates`** (`tools/gates.ts`, options in its usage text) runs the gates the changed files can affect, in order
-  `check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browsers`. `AREAS` maps paths to gates: the simulation
+  `check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browsers`, `package` (§5.3). `AREAS` maps paths to gates: the simulation
   layers and `data/` reach everything but the browser suite, the client layers skip `reload` and `oracle`, only the
   canvas presentation files reach `e2e:browsers`, docs reach nothing, and a path no area names (or the lockfile) runs
   everything; `--list` shows the plan and the file that selected each gate. CI's `browsers` job uses the same plan.
@@ -491,3 +491,66 @@ may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev
   only, so no test carries content derived from it.
 - **Native save import**: the format and the import, `14`; the imported game options, `27` §2.2; the music mode,
   `31`.
+
+## 5. The package and the player command
+
+ja2-node is meant to reach players as an npm package: `npm install -g ja2-node`, then `ja2-node`. The package is not
+published yet (`package.json` keeps `private: true` until then); `pnpm package` builds the tarball that would be.
+
+### 5.1 Where it lives
+
+| Part | Path |
+|---|---|
+| Server start, shared by both entry points | `src/server/start.ts` (`startServer`) |
+| Developer entry: the environment and the repository | `src/server/main.ts`, `src/server/repo-layout.ts` |
+| Player entry: commands, settings, setup, folders, network | `src/server/player/`, `bin/ja2-node.js` |
+| Resource layout of an installed package | `src/server/package-layout.ts`, `src/server/layout.ts` |
+| Server build (two bundles and the engine identity) | `vite.server.config.ts` (`pnpm build:server`) |
+| Packing, the contents check and the install smoke run | `tools/package.ts` (`pnpm package [--smoke]`, `prepack`) |
+
+### 5.2 Decisions
+
+- **Two entry points, one start.** `startServer` takes the resource layout (project tables, stub pack, built client,
+  session worker, engine identity, repository root) and the state folders (token, saves, cache) from its caller; no
+  server or node module finds files from its own location. The developer server reads the environment and the
+  checkout; `ja2-node` reads its settings and the package root, which only `bin/ja2-node.js` derives. A future
+  single-executable or Electron build passes its own root the same way. `pnpm imports` refuses `import.meta` in the
+  `server` and `node` layers except `src/node/repo.ts`, and `pnpm package` refuses it in the bundles.
+- **A built server.** Node refuses to strip types under `node_modules`, so the package carries JavaScript:
+  `dist/server/player.js` and `dist/server/session-worker.js` (the worker host's entry, named by the layout), with the
+  dependencies left external. The engine identity is written into `dist/server/engine.json` at build time, from the
+  same `checkoutEngineIdentity` the client build defines `__JA2_ENGINE__` with; an installed package runs no git, so
+  it has no repository history and cannot verify the file lists of version 1 saves (`27` §1.4).
+- **The player's folders** (`playerDirs`): the settings in the configuration folder, the token and the saves in the
+  data folder, the rule pack cache in the cache folder (XDG on Linux, `Application Support` and `Caches` on macOS,
+  `%APPDATA%` and `%LOCALAPPDATA%` on Windows), or all in one folder named by `JA2_HOME`. The package folder itself is
+  never written: `npm update -g` replaces it.
+- **Settings** (`src/server/player/settings.ts`): `config.json` with the game folder, the data version (only when the
+  player overrides the detected one), the address and the port. JSON, not a dotenv file: Node's dotenv parser turns
+  `\n` in `"C:\new games\…"` into a line break. Each value comes from the command line, else the variable the
+  developer server reads (`JA2_DATA_DIR`, `JA2_DATA_VERSION`, `JA2_HOST`, `JA2_PORT`; set but empty means no game
+  data or detection), else the file, else the default; `ja2-node config` shows which.
+- **Setup** (`src/server/player/setup.ts`) runs on the first start in a terminal and on `ja2-node setup`: it looks for
+  the game in the home folder, the Steam libraries (`libraryfolders.vdf`), the GOG folders, the program folders and Wine's drive C,
+  checks a folder by opening it and detecting its version (`31`), and offers two accesses instead of a list of
+  interfaces. A start without a terminal and without settings runs on the stub pack and says how to set it up.
+- **Local network access** binds `0.0.0.0` and passes the machine's addresses and name (with `.local`) to the Host
+  check of `/api` and `/ws` (`04` §5.8), which otherwise admits the loopback names only; the token stays the guard.
+- **One instance.** Before starting, `ja2-node` asks the port's health route with its token: a running ja2-node is
+  opened in the browser instead of a second server, another program on the port is an error.
+
+### 5.3 The package gate
+
+`pnpm package` packs with `pnpm pack` (whose `prepack` builds the stub pack if its inputs changed, the client and the
+server) and checks the tarball: only `bin/`, `data/`, `dist/client/`, `dist/server/`, `dist/stubs/` and the root files,
+every `data/` file tracked by git (so nothing generated beside the tables ships), the entry points and the stub
+licence present, no `import.meta` in the bundles (`tools/package.test.ts`). `--smoke` installs the tarball with
+`npm install --global` into an empty prefix and starts the installed command on the stub pack with in-process and with
+worker sessions; `pnpm gates` runs it as `package` for the player command, the server build and the manifest, and CI's
+`build` job runs it on every push. Its dependencies come from the npm registry.
+
+### 5.4 Not verified
+
+- `ja2-node` has run on Linux only: the Windows and macOS folders, the browser opener and the game search are unit
+  tested, not tried.
+- The setup and the messages of `ja2-node` are in English only.

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RulePack } from '../../src/content/rules/pack.ts';
 import type { Vfs } from '../../src/content/vfs/vfs.ts';
+import { PROJECT_DATA_DIR, REPO_ROOT } from '../../src/node/repo.ts';
 import {
   type ContentLedger,
   type ContentSource,
@@ -13,6 +14,7 @@ import {
 } from '../../src/server/content-identity.ts';
 import type { LogOrigin } from '../../src/server/input-log.ts';
 import { type OriginBuilder, replaySave } from '../../src/server/replay.ts';
+import { gitRepositoryHistory } from '../../src/server/repository-history.ts';
 import { legacyContentLedger } from '../../src/server/save-environment.ts';
 import { SaveService } from '../../src/server/save-service.ts';
 import { SaveStore } from '../../src/server/save-store.ts';
@@ -25,6 +27,7 @@ import { SliceScheduler, TimeSlicer } from '../../src/server/slicing.ts';
 import type { StubSectorKit } from './sectors.ts';
 
 export const TEST_ENGINE: EngineIdentity = { version: '0.0.0-test', commit: 'test' };
+const REPOSITORY_HISTORY = gitRepositoryHistory({ root: REPO_ROOT, projectDataDir: PROJECT_DATA_DIR });
 export const TEST_SAVED_AT = new Date('2026-10-18T12:00:00Z');
 
 export interface SaveKitOptions {
@@ -58,7 +61,7 @@ export interface SaveKit {
 export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions = {}): Promise<SaveKit> {
   const dir = options.dir ?? (await mkdtemp(join(tmpdir(), 'ja2-saves-')));
   const pack = await kit.rulePack();
-  const legacy = legacyContentLedger(options.legacyVfs ?? kit.vfs, pack);
+  const legacy = legacyContentLedger(options.legacyVfs ?? kit.vfs, pack, REPOSITORY_HISTORY);
   const packIdentity = logicIdentityOf(pack, legacy);
   const identity = options.source ? { ...packIdentity, source: options.source } : packIdentity;
   const store = new SaveStore(dir, options.nativeDir ?? null);

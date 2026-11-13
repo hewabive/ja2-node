@@ -6,8 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { dataDecoding } from '../content/text/data-version.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
-import { PROJECT_DATA_DIR } from '../node/repo.ts';
+import { PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts';
+import { checkoutEngineIdentity } from './content-identity.ts';
 import { detectDataVersion } from './data-version.ts';
+import { gitRepositoryHistory } from './repository-history.ts';
 import { openRulePack } from './rule-pack.ts';
 import { createSaveEnvironment, replayStoredSave, type SaveEnvironment } from './save-environment.ts';
 import { snapshotText } from './save-file.ts';
@@ -39,7 +41,10 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('ja2-node saves with the original data', () 
       dataDir,
       dataVersion: version,
       decoding: dataDecoding(version),
-      env: { JA2_SAVE_DIR: saveDir, JA2_SAVES_DIR: savesDir, JA2_COMMIT: 'test' },
+      saveDir,
+      nativeSavesDir: savesDir,
+      engine: checkoutEngineIdentity(REPO_ROOT, { JA2_COMMIT: 'test' }),
+      savedRepositoryFile: gitRepositoryHistory({ root: REPO_ROOT, projectDataDir: PROJECT_DATA_DIR }),
     });
     factory = createSessionFactory({ ...environment.sources, text: DEFAULT_SESSION_TEXT, saves: environment.saves });
   });

@@ -29,8 +29,6 @@ import {
 } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
-const WORKER_ENTRY = new URL('./session-worker.ts', import.meta.url);
-
 export interface WorkerStart {
   readonly id: string;
   readonly request: SessionRequest;
@@ -122,9 +120,15 @@ export class WorkerHost implements SessionHost {
     worker.on('exit', (code) => this.#lost(new Error(`session ${id}: worker exited with code ${code}`)));
   }
 
-  static open(id: string, request: SessionRequest, config: SessionEnvironmentConfig, options: WorkerHostOptions = {}): Promise<WorkerHost> {
+  static open(
+    entry: URL,
+    id: string,
+    request: SessionRequest,
+    config: SessionEnvironmentConfig,
+    options: WorkerHostOptions = {},
+  ): Promise<WorkerHost> {
     const start: WorkerStart = { id, request, config };
-    const worker = new Worker(WORKER_ENTRY, { workerData: start });
+    const worker = new Worker(entry, { workerData: start });
     const warn = options.warn ?? ((message: string) => console.warn(message));
     return new Promise((resolve, reject) => {
       const settle = () => {
@@ -311,6 +315,6 @@ export class WorkerHost implements SessionHost {
   }
 }
 
-export function workerHostFactory(config: SessionEnvironmentConfig, options: WorkerHostOptions = {}): HostFactory {
-  return (id, request) => WorkerHost.open(id, request, config, options);
+export function workerHostFactory(entry: URL, config: SessionEnvironmentConfig, options: WorkerHostOptions = {}): HostFactory {
+  return (id, request) => WorkerHost.open(entry, id, request, config, options);
 }

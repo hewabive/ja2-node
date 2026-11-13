@@ -36,6 +36,13 @@ describe('the gates a change selects', () => {
     expect(gates('tests/e2e/golden/laptop-aim-alumni.png')).toEqual(['e2e']);
   });
 
+  it('packs, installs and starts the package for the player command, the server bundle and the manifest', () => {
+    expect(gates('src/server/player/setup.ts')).toEqual(['check', 'data', 'reload', 'oracle', 'e2e', 'e2e:data', 'package']);
+    expect(gates('bin/ja2-node.js', 'vite.server.config.ts', 'tools/package.ts')).toEqual(['check', 'package']);
+    expect(gates('package.json')).toEqual(['check', 'package']);
+    expect(gates('src/server/app.ts')).not.toContain('package');
+  });
+
   it('runs the unit gates alone for a unit test', () => {
     expect(gates('src/ui/screens/map/map-screen.test.ts')).toEqual(['check', 'data', 'reload']);
     expect(gates('src/sim/tactical/perception/los.test.ts')).toEqual(['check', 'data', 'reload']);
