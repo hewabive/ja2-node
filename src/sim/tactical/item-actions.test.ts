@@ -12,12 +12,12 @@ import { AnimHeight, changeSoldierStance } from './animation.ts';
 import { autoBandageQuestionDue } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot, itemIn } from './inventory.ts';
-import { adjustGridNoForItemPlacement, apsToPickupItem, apsToReachItems, soldierPickupItem } from './item-actions.ts';
+import { adjustGridNoForItemPlacement, apsToPickupItem, apsToReachItems, soldierDropItem, soldierPickupItem } from './item-actions.ts';
 import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from './narrative/port.ts';
 import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from './world-items.ts';
 
@@ -252,12 +252,16 @@ function pickUp(s: PickupScene, name: string, status = COOL_STATUS): ItemsPicked
   addItemToPool(t, s.merc.gridNo, createItem(t.content.items, item(name), status), Visibility.VISIBLE, 0);
   if (s.merc.team === Team.OUR) expect(s.sim.dispatch({ type: 'pickUp', soldier: s.merc.id })).toEqual({ ok: true });
   else soldierPickupItem(t, s.merc, s.merc.gridNo, 0, null);
+  return pickupTicks(s).find((e): e is ItemsPickedUpEvent => e.type === 'itemsPickedUp');
+}
+
+function pickupTicks(s: PickupScene): SimEvent[] {
   const events: SimEvent[] = [];
   for (let tick = 0; tick < PICKUP_TICKS; tick++) {
     s.sim.step();
     events.push(...s.sim.drainEvents());
   }
-  return events.find((e): e is ItemsPickedUpEvent => e.type === 'itemsPickedUp');
+  return events;
 }
 
 describe('the MERC_PICKUPITEM a pickup leaves pending (Soldier_Control.cc PickPickupAnimation, EVENT_InitNewSoldierAnim)', () => {
@@ -357,9 +361,21 @@ describe('the found-something-special line (Handle_Items.cc SoldierGetItemFromWo
 
   it('keeps an enemy who picks something up quiet', () => {
     const s = pickupScene(IVAN, Team.ENEMY);
+    s.merc.visible = Visible.SEEN;
     const picked = pickUp(s, 'AK74');
     expect(picked).toBeDefined();
     expect([picked?.battleSound, s.said]).toEqual([undefined, []]);
+  });
+
+  it('tells nothing of the pickup or the drop of an enemy the squad does not see (D16), who takes and leaves the items all the same', () => {
+    const s = pickupScene(IVAN, Team.ENEMY);
+    const t = s.sim.state;
+    expect(pickUp(s, 'AK74')).toBeUndefined();
+    expect([s.merc.inv.some((o) => o.item === item('AK74')), t.worldItems.length]).toEqual([true, 0]);
+    const hand = itemIn(s.merc.inv, InvSlot.HAND);
+    soldierDropItem(t, s.merc, InvSlot.HAND);
+    expect(pickupTicks(s).filter((e) => e.type === 'itemDropped')).toEqual([]);
+    expect(t.worldItems.map((wi) => [wi.gridNo, wi.object.item])).toEqual([[s.merc.gridNo, hand]]);
   });
 });
 
@@ -508,11 +524,6 @@ describe('searching a tile that shows no item (Turn_Based_Input.cc HandleHandCur
   it('has a soldier whose pile is gone when he gets there say the NOTHING battle sound (:1313)', () => {
     const s = pickupScene(IVAN, Team.ENEMY);
     soldierPickupItem(s.sim.state, s.merc, s.merc.gridNo, 0, null);
-    const events: SimEvent[] = [];
-    for (let tick = 0; tick < PICKUP_TICKS; tick++) {
-      s.sim.step();
-      events.push(...s.sim.drainEvents());
-    }
-    expect(nothingFound(events)).toEqual([expect.objectContaining({ soldier: s.merc.id, gridNo: s.merc.gridNo })]);
+    expect(nothingFound(pickupTicks(s))).toEqual([expect.objectContaining({ soldier: s.merc.id, gridNo: s.merc.gridNo })]);
   });
 });

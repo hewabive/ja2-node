@@ -180,9 +180,10 @@ function checkScheduledNow(s: Scene, picker: Soldier, at: number): void {
 }
 
 function stepUntilPickedUp(s: Scene): number {
+  const canteenOnTheGround = () => s.t.worldItems.some((wi) => wi.object.item === itemId(s.t, 'CANTEEN'));
   for (let k = 0; k < PICKUP_TICKS; k++) {
     s.sim.step();
-    if (s.sim.drainEvents().some((e) => e.type === 'itemsPickedUp')) return s.t.clockMs - TICK_MS;
+    if (!canteenOnTheGround()) return s.t.clockMs - TICK_MS;
   }
   throw new Error('nothing was picked up');
 }

@@ -16,7 +16,7 @@ import { Opp } from '../perception/opp.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
 import { AP, calcActionPoints } from '../points.ts';
 import { setSoldierHeight } from '../roofs.ts';
-import { createSoldier, type Soldier, Team } from '../soldier.ts';
+import { createSoldier, type Soldier, Team, Visible } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { CAN_ATTACK, calcBestShot, canNPCAttack, checkIfTossPossible, NoShoot } from './attack-choice.ts';
 
@@ -251,5 +251,22 @@ describe('canNPCAttack', () => {
     expect(gun.gunShotsLeft).toBe(15);
     expect(enemy.inv[InvSlot.SMALLPOCK3]?.count).toBe(1);
     expect(before - enemy.actionPoints).toBe(AP.RELOAD_GUN);
+  });
+
+  it('tells the reload only while the squad sees him, as ReloadGun plays its sound for a visible soldier alone (D16, Items.cc:1288)', () => {
+    const reloads = (visible: number) => {
+      const t = newState();
+      const enemy = spawn(t, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+      enemy.visible = visible;
+      const gun = enemy.inv[InvSlot.HAND];
+      if (!gun) throw new Error('no gun');
+      gun.gunShotsLeft = 0;
+      enemy.inv[InvSlot.SMALLPOCK3] = createItems(content.items, item('CLIP9_15'), 100, 2);
+      expect(canNPCAttack(t, enemy)).toBe(CAN_ATTACK);
+      expect(gun.gunShotsLeft).toBe(15);
+      return t.events.filter((e) => e.type === 'reloaded');
+    };
+    expect(reloads(Visible.HIDDEN)).toEqual([]);
+    expect(reloads(Visible.SEEN)).toEqual([{ type: 'reloaded', soldier: 20, item: item('GLOCK_17') }]);
   });
 });

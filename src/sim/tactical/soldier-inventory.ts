@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc PlaceObject (the robot controller, the face-item sight update and
-// @src EnsureConsistentWeaponMode at the end of a placement).
+// @src EnsureConsistentWeaponMode at the end of a placement); ReloadGun (the reload sound only for a visible soldier).
 
 import { ItemClass } from '../../content/items/items.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -12,7 +12,7 @@ import { SightFlags } from './perception/opp.ts';
 import { handleSight } from './perception/sight.ts';
 import { deductPoints } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import { shownInSector, type TacticalState } from './state.ts';
 import { addItemToPool, Visibility } from './world-items.ts';
 
 const ROBOT_REMOTE_CONTROL = 'ROBOT_REMOTE_CONTROL';
@@ -36,7 +36,7 @@ export function soldierInventoryContext(t: TacticalState, s: Soldier): Inventory
     collectKey: (o: ItemObject) => collectKey(t, s, o),
     placed: (item: number) => afterPlacement(t, s, item),
     reloaded: (gun: number) => {
-      t.events.push({ type: 'reloaded', soldier: s.id, item: gun });
+      if (shownInSector(t, s)) t.events.push({ type: 'reloaded', soldier: s.id, item: gun });
     },
   };
 }

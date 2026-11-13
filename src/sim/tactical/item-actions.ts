@@ -65,7 +65,7 @@ import { StatKind } from './profiles.ts';
 import { openTacticalPrompt, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
 import { type PendingPickup, type Pickup, pickupInTheSlot, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
-import { type TacticalState, whoIsThere } from './state.ts';
+import { shownInSector, type TacticalState, whoIsThere } from './state.ts';
 import {
   addItemToPool,
   FORCE_ON_GROUND,
@@ -305,7 +305,8 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: Pickup):
   const gotIt = s.team === Team.OUR && !(cool && saidFoundSomethingSpecial(t, s)) && !saidBoobyTrapQuote;
   if (s.team === Team.OUR && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
   if (!dontCharge) deductPoints(t, s, AP.PICKUP_ITEM, 0);
-  t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });
+  if (shownInSector(t, s))
+    t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });
   schedulePickedOwnershipCheck(t, s, pending.gridNo);
 }
 
@@ -332,7 +333,7 @@ function soldierHandleDropItem(t: TacticalState, s: Soldier): void {
   s.tempObject = null;
   addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
   notifySoldiersToLookForItems(t);
-  t.events.push({ type: 'itemDropped', soldier: s.id, gridNo: s.gridNo });
+  if (shownInSector(t, s)) t.events.push({ type: 'itemDropped', soldier: s.id, gridNo: s.gridNo });
 }
 
 export function dropsBeside(t: TacticalState, s: Soldier, g: number): boolean {
