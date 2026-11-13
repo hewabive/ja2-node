@@ -167,13 +167,13 @@ function performDoorAction(
 
 export const OPEN_STRUCT_ACTION = 'openStruct';
 
-function containerAt(t: TacticalState, gridNo: number): StructureInstance | null {
+export function containerAt(t: TacticalState, gridNo: number): StructureInstance | null {
   const openable = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
   if (!openable || has(openable.flags, StructureFlags.ANYDOOR)) return null;
   return t.world.structures.findBase(openable) ?? openable;
 }
 
-function containerApproach(t: TacticalState, s: Soldier, container: StructureInstance): DoorApproach | null {
+export function containerApproach(t: TacticalState, s: Soldier, container: StructureInstance): DoorApproach | null {
   if (has(container.flags, StructureFlags.SWITCH)) return findAdjacentGridExAdvanced(t, s, container, container.gridNo);
   const approach = findAdjacentGridExForDoor(t, s, container.gridNo);
   return approach ? { gridNo: approach.actionGridNo, direction: approach.direction } : null;

@@ -16,7 +16,8 @@
 // @src corpse, a door; 2026-11-04); Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (the enter-vehicle cursor) and
 // @src Turn_Based_Input.cc CheckForAndHandleHandleVehicleInteractiveClick (its walk and APs, 2026-11-05); Handle_UI.cc
 // @src DrawUIMovementPath (MOVEUI_TARGET_REPAIR, MOVEUI_TARGET_REFUEL) and UI_Cursors.cc HandleRepairCursor,
-// @src HandleRefuelCursor (the good cursor: a vehicle at ground level, 2026-11-05).
+// @src HandleRefuelCursor (the good cursor: a vehicle at ground level, 2026-11-05); Handle_UI.cc DrawUIMovementPath
+// @src (MOVEUI_TARGET_INTTILES over a container or switch: FindAdjacentGridEx and doorAPs[HANDLE_DOOR_OPEN], 2026-11-13).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -32,8 +33,9 @@ import { apsToDropBomb, bombTileRefusal } from '../tactical/bombs/planting.ts';
 import { findAdjacentGridEx, findAdjacentGridExForDoor } from '../tactical/combat/melee-reach.ts';
 import { canBeStolenFrom, stealActionGridNo } from '../tactical/combat/steal.ts';
 import { closingDoorMenu, doorApCost, doorMenu } from '../tactical/doors/door-actions.ts';
-import { findAdjacentGridExAdvanced } from '../tactical/doors/door-approach.ts';
-import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
+import { type DoorApproach, findAdjacentGridExAdvanced } from '../tactical/doors/door-approach.ts';
+import { containerApproach, containerAt } from '../tactical/doors/door-command.ts';
+import { findDoorInfo, HandleDoor, PerceivedLock } from '../tactical/doors/door-table.ts';
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
 import { apsToBeginFirstAid, firstAidMedicRefusal, firstAidNeedRefusal } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
@@ -159,31 +161,45 @@ function menuOnArrival(c: ActionContext, base: number, arrival: Arrival, open: b
   return withTemporaryFields(c.s, arrival, () => (open ? closingDoorMenu(c.t, c.s) : doorMenu(c.t, c.s, base)));
 }
 
+function walkUpAndHandle(c: ActionContext, approach: DoorApproach | null, handleCode: number, gridNo: number, open: boolean): ActionPart {
+  const actionGridNo = approach?.gridNo ?? gridNo;
+  const walk = walkTo(c, actionGridNo);
+  return {
+    ok: approach !== null,
+    ...(approach ? {} : { refusal: 'noPath' }),
+    apCost: doorApCost(handleCode) + walk.cost + apsToChangeStance(c.t.content, c.s, AnimHeight.STAND),
+    actionGridNo,
+    steps: walk.steps,
+    open,
+  };
+}
+
+function containerAction(c: ActionContext): ActionPart {
+  const { t, s } = c;
+  const container = containerAt(t, c.g);
+  if (!container) return refused(c, 'noDoor');
+  const isSwitch = has(container.flags, StructureFlags.SWITCH);
+  const { approach, handleCode } = preservingFields(s, ['doorHandleCode'], () => {
+    const nearest = containerApproach(t, s, container);
+    return { approach: nearest, handleCode: isSwitch ? s.doorHandleCode : HandleDoor.OPEN };
+  });
+  return walkUpAndHandle(c, approach, handleCode, container.gridNo, has(container.flags, StructureFlags.OPEN));
+}
+
 function doorAction(c: ActionContext): ActionPart {
   const { t, s } = c;
   const found = t.world.structures.find(c.g, StructureFlags.ANYDOOR);
   const door = found ? (t.world.structures.findBase(found) ?? found) : null;
-  if (!door) return refused(c, 'noDoor');
+  if (!door) return containerAction(c);
   const base = door.gridNo;
   const { approach, handleCode } = preservingFields(s, ['doorHandleCode'], () => {
     const nearest = findAdjacentGridExAdvanced(t, s, door, base);
     return { approach: nearest, handleCode: s.doorHandleCode };
   });
-  const handleCost = doorApCost(handleCode);
-  const actionGridNo = approach?.gridNo ?? base;
-  const walk = walkTo(c, actionGridNo);
   const open = has(door.flags, StructureFlags.OPEN);
   const locked = !open && findDoorInfo(t, base)?.perceivedLocked === PerceivedLock.LOCKED;
   const menu = approach ? menuOnArrival(c, base, { desiredDirection: approach.direction, doorHandleCode: handleCode }, open, locked) : null;
-  return {
-    ok: approach !== null,
-    ...(approach ? {} : { refusal: 'noPath' }),
-    apCost: handleCost + walk.cost + apsToChangeStance(t.content, s, AnimHeight.STAND),
-    actionGridNo,
-    steps: walk.steps,
-    open,
-    ...(menu ? { menu } : {}),
-  };
+  return { ...walkUpAndHandle(c, approach, handleCode, base, open), ...(menu ? { menu } : {}) };
 }
 
 function pickUpAction(c: ActionContext, zLevel: unknown): ActionPart {

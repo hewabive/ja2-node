@@ -148,6 +148,8 @@ otherwise.
 | A gun ordered alone arrives empty, every gun of a larger line is recreated loaded | `rules.test.ts` "delivers a gun ordered alone empty …" |
 | In an unloaded sector Pablo never steals the first two units of a line | `rules.test.ts` "never lets Pablo steal …" |
 | A delivery outside Drassen reads its line count from shipment 0 | `rules.test.ts` "delivers outside Drassen only …" |
+| A shipment to Drassen is lost to the agents while the town's loyalty is below 20, though the airport is ours (`Strategic/Strategic_Event_Handler.cc:89`) | `rules.test.ts` "loses a Drassen shipment to the agents while the town's loyalty is below 20 …" |
+| A delivery to Drassen lies hidden in the closed crate, loaded or not: a search of the crate's tile finds nothing, sight never shows it, only opening the crate does (`Tactical/Handle_Items.cc:1511`) | `src/server/bobby-ray-crate-original.test.ts` (original data) |
 | An insurance purchase refused for lack of funds still adds its length | `rules.test.ts` "adds the length of a purchase it refused …" |
 | The payout slot of a death found to be fraud is never freed | `rules.test.ts` "keeps the payout slot …" |
 | The insurance day counts are unsigned and wrap | `rules.test.ts` "wraps the unsigned day counts …" |

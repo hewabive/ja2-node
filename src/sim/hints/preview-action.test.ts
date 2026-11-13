@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { hintAnswer, knowledgeOf, newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { addSyntheticCrate, hintAnswer, knowledgeOf, newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
 import { createItem } from '../items/object.ts';
@@ -7,6 +7,9 @@ import { knowledgeViewOf } from '../knowledge/sim-view.ts';
 import { AnimHeight, states } from '../tactical/animation.ts';
 import { apsToDropBomb } from '../tactical/bombs/planting.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { doorApCost } from '../tactical/doors/door-actions.ts';
+import { HandleDoor } from '../tactical/doors/door-table.ts';
+import { handleStructChangeFromGridNo } from '../tactical/doors/openables.ts';
 import { apsToBeginFirstAid } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
@@ -105,6 +108,26 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     const hidden = action(sim, 'pickUp', ORIGIN + 3 * EAST);
     expect([empty.ok, empty.actionGridNo, empty.steps.length, empty.apCost > AP.PICKUP_ITEM]).toEqual([true, ORIGIN + 3 * SOUTH, 2, true]);
     expect([hidden.ok, hidden.apCost, hidden.steps.length]).toEqual([true, empty.apCost, 2]);
+  });
+
+  it('previews the door order on a container as the cursor over an interactive tile: the walk beside it plus doorAPs[HANDLE_DOOR_OPEN]', () => {
+    const crate = ORIGIN + 3 * EAST;
+    const sim = newCombatSim(content, [], 3, new Set(), (world) => addSyntheticCrate(world.structures, crate));
+    const merc = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const far = action(sim, 'door', crate);
+    expect(far).toMatchObject({ ok: true, open: false });
+    expect(far.apCost).toBeGreaterThan(doorApCost(HandleDoor.OPEN));
+    expect(far.steps).not.toHaveLength(0);
+    expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: crate, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true, to: far.actionGridNo },
+    });
+    const near = newCombatSim(content, [], 3, new Set(), (world) => addSyntheticCrate(world.structures, crate));
+    const beside = spawnSoldier(near, 0, Team.OUR, far.actionGridNo, Direction.EAST);
+    expect(action(near, 'door', crate)).toMatchObject({ ok: true, open: false, apCost: doorApCost(HandleDoor.OPEN), steps: [] });
+    handleStructChangeFromGridNo(near.state, beside, crate);
+    expect(action(near, 'door', crate)).toMatchObject({ ok: true, open: true });
+    expect(action(near, 'door', ORIGIN + 3 * SOUTH)).toMatchObject({ ok: false, refusal: 'noDoor' });
   });
 
   it('looks for GetAPsToLook unless already facing, and talks to a squad mate for a bark', () => {

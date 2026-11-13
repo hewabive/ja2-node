@@ -7,7 +7,7 @@ import { TravelCost } from '../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
-import { isDoorOpenAt } from '../tactical/doors.ts';
+import { containerGridNos, isDoorOpenAt, isOpenableOpenAt } from '../tactical/doors.ts';
 import { isWater } from '../tactical/pathfinding.ts';
 import { Team } from '../tactical/soldier.ts';
 import { onVisibleWorldTile, type TacticalState } from '../tactical/state.ts';
@@ -48,6 +48,8 @@ const MAX_RADIUS = 40;
 
 const MERC = '@';
 const EXIT_GRID = 'E';
+const CLOSED_CONTAINER = 'C';
+const OPEN_CONTAINER = 'c';
 const OFF_MAP = ' ';
 
 const TILE_CHARS: Readonly<Record<TileKind, string>> = {
@@ -89,6 +91,9 @@ const TILE_GROUND_LEGEND: Readonly<Record<string, string>> = {
   '+': 'a fence a merc jumps',
   D: 'a closed door',
   d: 'an open door',
+  [CLOSED_CONTAINER]:
+    'a closed container (a crate, cabinet, locker) or switch, which door opens: a container shows what it holds once open',
+  [OPEN_CONTAINER]: 'an open container or switch, which door closes',
 };
 
 const ROOF_LEGEND: Readonly<Record<string, string>> = {
@@ -200,6 +205,12 @@ function layoutRows(w: Window, cell: number, kindAt: (g: number) => TileKind, ma
   return rows;
 }
 
+function containerMarks(t: TacticalState, covered: Uint8Array): [number, string][] {
+  return containerGridNos(t.world)
+    .filter((g) => onVisibleWorldTile(t, g) && covered[g] !== 1)
+    .map((g) => [g, isOpenableOpenAt(t, g) ? OPEN_CONTAINER : CLOSED_CONTAINER]);
+}
+
 function legendOf(level: number, cell: number): Readonly<Record<string, string>> {
   if (level === ROOF) return ROOF_LEGEND;
   return cell === 1 ? TILE_GROUND_LEGEND : CELL_GROUND_LEGEND;
@@ -222,7 +233,7 @@ export function sectorLayout(world: KnowledgeWorld, req: SectorLayoutRequest): H
   const mercs = world.view.soldiers
     .filter((s) => s.team === Team.OUR && s.level === level && !s.vehicle)
     .map((s) => ({ soldier: s.id, gridNo: s.gridNo }));
-  const marks = new Map<number, string>();
+  const marks = new Map<number, string>(level === GROUND && cell === WINDOW_CELL ? containerMarks(t, covered) : []);
   if (level === GROUND) for (const e of shownExitGrids(t, world.view)) marks.set(e.gridNo, EXIT_GRID);
   for (const m of mercs) marks.set(m.gridNo, MERC);
   const w = windowed ? windowAround(center, radius) : visibleBounds(t, cell);

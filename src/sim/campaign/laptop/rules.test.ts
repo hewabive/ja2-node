@@ -7,7 +7,7 @@ import { createCampaignSession } from '../../../server/campaign-factory.ts';
 import type { ItemObject } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
-import { setFact } from '../../strategic/narrative/facts.ts';
+import { fact, setFact } from '../../strategic/narrative/facts.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../../strategic/time/constants.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
 import { SkillTrait } from '../../tactical/soldier.ts';
@@ -311,6 +311,25 @@ describe("Bobby Ray's deliveries", () => {
       [beretta, true],
       [beretta, true],
     ]);
+  });
+
+  it("loses a Drassen shipment to the agents while the town's loyalty is below 20, though the airport is ours", async () => {
+    const outcomes: string[] = [];
+    for (const rating of [19, 20]) {
+      const flow = await laptopFlow(3);
+      const drassen = flow.content.destinations.findIndex((d) => d.isPrimary);
+      const sector = openDeliverySector(flow, drassen);
+      const town = flow.state.economy.towns[flow.state.map.elements[strategicIndex(sector)]?.nameId ?? 0];
+      if (!town) throw new Error('no Drassen loyalty');
+      town.rating = rating;
+      flow.laptop.bobbyRay.shipments.push(shipment(flow, drassen, [['GLOCK_17', 1]]));
+      bobbyRayPurchaseEvent(flow, 0, null);
+      const event = flow.drainEvents().find((e) => e.type === 'shipmentLost' || e.type === 'shipmentDelivered');
+      outcomes.push(event?.type === 'shipmentLost' ? event.reason : (event?.type ?? 'none'));
+      expect(fact(flow.state.narrative, Fact.AGENTS_PREVENTED_SHIPMENT)).toBe(rating === 19);
+      expect(deliveredItems(flow, sector)).toHaveLength(rating === 19 ? 0 : 1);
+    }
+    expect(outcomes).toEqual(['prevented', 'shipmentDelivered']);
   });
 
   it('never lets Pablo steal the first two units of a line delivered to an unloaded sector', async () => {

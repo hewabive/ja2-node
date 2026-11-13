@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Orientation } from '../../src/content/formats/jsd.ts';
 import type { MapDef } from '../../src/content/formats/map.ts';
-import { StructureFlags } from '../../src/content/world/structures.ts';
+import { StructureFlags, type WorldStructures } from '../../src/content/world/structures.ts';
 import { type SyntheticWorld, syntheticMap, syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { advance } from '../../src/sim/advance.ts';
@@ -38,6 +38,20 @@ export function combatStats(marksmanship: number): SoldierStats {
 }
 
 const WORLD_BUILDERS = new WeakMap<TacticalSim, () => TacticalWorld>();
+const MATERIAL_THICKER_METAL = 22;
+
+export function addSyntheticCrate(structures: WorldStructures, at: number): void {
+  const closed = {
+    ...syntheticStructure(StructureFlags.OPENABLE, Orientation.NONE, { armour: MATERIAL_THICKER_METAL }),
+    partnerDelta: 1,
+  };
+  const open = {
+    ...syntheticStructure(StructureFlags.OPENABLE | StructureFlags.OPEN, Orientation.NONE, { armour: MATERIAL_THICKER_METAL }),
+    number: 1,
+    partnerDelta: -1,
+  };
+  structures.add(at, 0, closed, undefined, { structureCount: 2, auxData: null, tileLocations: [], structures: [closed, open] });
+}
 
 export function newCombatSim(
   content: TacticalContent,

@@ -544,7 +544,8 @@ his refusing line) but no AP check, so in combat he may stop short of the tile. 
 `escortCannotDoThat`, the hand cursor's `EPC_CANNOT_DO_THAT` (`Turn_Based_Input.cc:3051`, `:3081`, `:3148`), which
 `previewAction pickUp` answers too. Hidden items turn up with his
 spotted-something line; otherwise, and whenever a pile is gone by the time he gets there, the `nothingFound` event
-carries his NOTHING battle sound. `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
+carries his NOTHING battle sound, as on the tile of a closed container, whose items stay hidden until it is opened
+(§8.2). `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
 pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A `stop` during the
 pickup animation still picks up, as the animation reads the order's data (`12` §3). A melee attack at a
 soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
@@ -627,7 +628,14 @@ original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which 
 container or switch he reaches in combat without the APs of his door handle code halts him there with the order kept
 (`doorResult {result: notEnoughAp}`). One gone when he gets there keeps him walking on the spot, never idle, until
 `stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
-effect, as the original looks for the structure the order named. `useRemote`
+effect, as the original looks for the structure the order named. A closed container hides what it holds: items put
+into it, a Bobby Ray delivery to the Drassen crate among them, go in hidden (`Handle_Items.cc:1511`), sight never shows
+them (`FOV.cc:545` takes only `INVISIBLE` ones), a `pickUp` on its tile searches and finds nothing (`nothingFound`,
+`Handle_Items.cc:1369`) and `door open` shows them (`TileEngine/Interactive_Tiles.cc:164`). The original's hand cursor
+over a container opens it (`Turn_Based_Input.cc:3062`); the API leaves that choice to the agent, so `sectorLayout` marks
+containers and switches at cell 1 (`C` closed, `c` open) and `previewAction` kind `door` gives their walk beside, the
+3 AP of `doorAPs[HANDLE_DOOR_OPEN]` and the stand-up, as the cursor over an interactive tile does
+(`Handle_UI.cc:3161`; `src/server/bobby-ray-crate-original.test.ts`). `useRemote`
 presses the remote trigger in hand: the O3 statue's at once (`26`, deviation "Remote trigger"); the remote bomb trigger
 after its hand item roll (`itemBroken`) for 2 AP, standing through its animation for 2 more, then `remoteFrequency`
 asks, and the answer sets off every armed remote bomb of that frequency through the bomb queue (`remoteUsed {result:
@@ -1014,7 +1022,8 @@ and D13 from native saves) the answer is 630–690 bytes and takes about 5 ms.
 `cell` × `cell` tiles, laid out by gridNo (x right, y down) rather than as the screen's diamond, so that a cell's corner
 is plain gridNo arithmetic. Every cell comes from what the client draws for the whole map, over the projection: the
 movement costs of the map with the view's structure changes and doors, the terrain, our soldiers and the exit grids
-`sectorExits` lists. The ground under a roof the screen still draws is `R` and nothing else: a flat roof stays on until
+`sectorExits` lists; at cell 1 also the containers and switches the screen draws, which `door` opens and closes (§8.2).
+The ground under a roof the screen still draws is `R` and nothing else: a flat roof stays on until
 its room is revealed or a load took it off, as `SetGridNoRevealedFlag` takes it off (`TileEngine/Render_Fun.cc:73`), and
 a slanted roof's ceiling covers each tile no merc has seen (`:131`; the client's `src/render/world/reveal.ts`);
 underground, where the map's roofs cover the rock for good, that is the rock. The roof level (`level: 1`) is the roof
