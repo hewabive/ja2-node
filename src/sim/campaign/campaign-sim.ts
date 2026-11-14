@@ -738,7 +738,7 @@ export class CampaignSim {
 
   #handleStrategicTurn(): void {
     handleMapScreenRealtimeTurns(this);
-    if (this.tactical) this.#events.push(...drainTurnWorldEvents(this.tactical, this.tick));
+    this.#drainLoadedSectorEvents();
   }
 
   #autoBandaging(): boolean {
@@ -907,7 +907,15 @@ export class CampaignSim {
     this.#handleTacticalDoHeliRun();
     this.#collectEvents();
     this.#syncClockEvents();
+    this.#drainLoadedSectorEvents();
     return result;
+  }
+
+  #drainLoadedSectorEvents(): void {
+    const tactical = this.tactical;
+    if (!tactical) return;
+    const onTacticalScreen = this.state.flow === 'tactical';
+    this.#events.push(...(onTacticalScreen ? tactical.drainEvents() : drainTurnWorldEvents(tactical, this.tick)));
   }
 
   #boxingUiLockRefusal(cmd: CampaignCommand): CommandResult | null {

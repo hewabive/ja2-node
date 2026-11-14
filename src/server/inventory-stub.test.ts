@@ -218,6 +218,23 @@ describe('inventory commands in a stub campaign', () => {
     ).toMatchObject({ ok: false, data: { refusal: 'notInSector' } });
   });
 
+  it('sends the reload of a merc in the loaded sector on the map screen with the command, while time stands', async () => {
+    const squad = await inA10(6);
+    const merc = squad.mercs[0] as number;
+    const session = squad.session;
+    expect(session.dispatch({ type: 'unload', soldier: merc })).toMatchObject({ ok: true });
+    squad.live.advance({ idle: true });
+    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    session.drainEvents();
+    const tick = session.tick;
+    const ammo = slotOf(soldier(squad, merc), 'CLIP9_15');
+    expect(session.dispatch({ type: 'reload', soldier: merc, ammo })).toMatchObject({ ok: true });
+    expect(session.drainEvents().filter((e) => e.type === 'reloaded')).toEqual([
+      { type: 'reloaded', soldier: merc, item: def('GLOCK_17')?.index, tick },
+    ]);
+    expect(session.tick).toBe(tick);
+  });
+
   it('moves the keys of mercs in no loaded sector and pools their stacks with CTRL on the map screen', async () => {
     const squad = await inA10(8);
     const [a, b] = squad.mercs as [number, number];

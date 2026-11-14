@@ -405,8 +405,8 @@ helicopter's shadow at world pixels `x`, `y`, `z` pixels above the tile `gridNo`
 and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
-`ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured
-right after the command, and the `Session` holds them for the next report.
+`ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events, the loaded sector's own
+such as a reload's) reach the frame captured right after the command, and the `Session` holds them for the next report.
 
 **The message list** (`src/server/message-entries.ts`, `src/protocol/message-log.ts`): a presentation module outside
 `sim` turns events, and the refusals the original prints, into entries of the original's message list
