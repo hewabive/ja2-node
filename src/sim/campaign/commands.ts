@@ -79,6 +79,7 @@ const ASSIGNMENT_REFUSAL_TEXT: RefusalTexts<AssignmentRefusal> = {
   squadElsewhere: 'that squad is in another sector',
   squadMoving: 'that squad is on the move',
   squadHasVehicle: 'that squad is a vehicle squad',
+  leaderRefused: 'the first merc was refused, so the others keep their assignments',
   conditions: 'the merc cannot rest now',
   walking: 'the merc is on the road',
   driving: 'the merc drives the vehicle',

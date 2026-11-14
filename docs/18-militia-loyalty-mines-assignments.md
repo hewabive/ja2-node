@@ -79,8 +79,8 @@ his `usStrategicInsertionData`, which `SetSoldierGridNo` keeps on his own tile (
 ja2-node only changes his state. The assignment menu's leader and the mercs `SetAssignmentForList` gives the same
 assignment take their poses at different moments (`set-assignment.ts`).
 
-**Commands instead of screens.** `assignSoldiers` runs the original's list assignment soldier by soldier in the order
-given and re-evaluates the nothing-to-do flags at once, where the original waits for a map screen frame (deviation
+**Commands instead of screens.** `assignSoldiers` gives the first soldier the assignment as the menu gives it to its
+merc, runs the original's list assignment for the others in the order given and re-evaluates the nothing-to-do flags at once, where the original waits for a map screen frame (deviation
 "Nothing-to-do re-evaluation"). The original's other triggers (an assignment time stamp, a plotted route of ours, an
 item that passes through the cursor on a panel) raise `economy.reEvaluateNothingToDo`, and the campaign acts on it at the
 end of the command or tick; `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
@@ -168,6 +168,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A mechanic on a vehicle turns only whole tens of his hour's points into condition and leaves the rest unused, so with fewer than 10 an hour he repairs nothing and stops as not skilled enough | `vehicle-repair.test.ts` |
 | A rested squad merc swings around 95 breath; a dying squad merc cannot sleep, so he is worn out | `assignments.test.ts` |
 | The menu's leader made a patient or trainee takes the pose of his old assignment; the mercs listed with him take the new one, and a repairman of the menu takes none | `assignments.test.ts` |
+| The squad menu sets its list after the refusal box of its merc, while every other menu sets the list only once its merc passes (`Assignments.cc:4591-4656`, `:4702-4775`) | `assignments.test.ts`, `militia.test.ts` |
 | A doctor, repairman or patient who stays done shows the end of his work again at every update that finds him done | `assignments.test.ts` |
 | A merc woken while he lies down goes on lying down awake: `GOTO_SLEEP` cannot be interrupted | `campaign/assignment-animations.test.ts` |
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |

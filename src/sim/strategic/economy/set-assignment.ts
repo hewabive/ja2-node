@@ -7,7 +7,8 @@
 // @src Tactical/Squads.cc AddCharacterToSquad (soldier side); the MakeSoldiersTacticalAnimationReflectAssignment calls of
 // @src AssignmentMenuBtnCallback, EPCMenuBtnCallback, SquadMenuBtnCallback, AttributesMenuBtnCallback,
 // @src TrainingMenuBtnCallback and SetAssignmentForList (2026-10-31); SetSoldierAssignmentHospital's RebuildCurrentSquad
-// @src through the world port (2026-11-01).
+// @src through the world port (2026-11-01); the menus' SetAssignmentForList only once the menu's merc passes his check,
+// @src SquadMenuBtnCallback's after its refusal box too (2026-11-14).
 
 import { addCharacterToAnySquad, addCharacterToSquad, assignMercToAMovementGroup, removeCharacterFromSquads } from '../forces/squads.ts';
 import { takeSoldierOutOfVehicle } from '../forces/vehicles.ts';
@@ -59,7 +60,8 @@ export type AssignRefusal =
   | 'squadFull'
   | 'squadElsewhere'
   | 'squadMoving'
-  | 'squadHasVehicle';
+  | 'squadHasVehicle'
+  | 'leaderRefused';
 
 export type AssignResult =
   | { readonly ok: true; readonly militia?: MilitiaPaymentOutcome }
@@ -298,23 +300,46 @@ function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewM
   return setLeaderFromMenu(ctx, s, to) ? { ok: true } : { ok: false, reason: 'notEligible' };
 }
 
+const UNKNOWN_SOLDIER: AssignResult = { ok: false, reason: 'unknownSoldier' };
+const NOT_ELIGIBLE: AssignResult = { ok: false, reason: 'notEligible' };
+const LEADER_REFUSED: AssignResult = { ok: false, reason: 'leaderRefused' };
+const ASSIGNED: AssignResult = { ok: true };
+
+function listFollowsRefusedLeader(to: AssignTarget): boolean {
+  return to.kind === 'squad';
+}
+
+function listMemberResult(ctx: EconomyContext, o: CrewMember | undefined, leader: CrewMember, to: AssignTarget): AssignResult {
+  if (!o) return UNKNOWN_SOLDIER;
+  if (o.isVehicle) return NOT_ELIGIBLE;
+  return setForListMember(ctx, o, leader, to) ? ASSIGNED : NOT_ELIGIBLE;
+}
+
+function trainerResult(o: CrewMember | undefined): AssignResult {
+  if (!o) return UNKNOWN_SOLDIER;
+  return o.assignment === Assignment.TRAIN_TOWN ? ASSIGNED : NOT_ELIGIBLE;
+}
+
+function untouchedResult(o: CrewMember | undefined): AssignResult {
+  return o ? LEADER_REFUSED : UNKNOWN_SOLDIER;
+}
+
+function assignWithList(
+  ctx: EconomyContext,
+  leader: CrewMember,
+  rest: readonly (CrewMember | undefined)[],
+  to: AssignTarget,
+): AssignResult[] {
+  const others = rest.filter((m): m is CrewMember => m !== undefined && !m.isVehicle);
+  const led = assignLeader(ctx, leader, others, to);
+  if (!led.ok && !listFollowsRefusedLeader(to)) return [led, ...rest.map(untouchedResult)];
+  if (led.ok && to.kind === 'trainMilitia') return [led, ...rest.map(trainerResult)];
+  return [led, ...rest.map((o) => listMemberResult(ctx, o, leader, to))];
+}
+
 export function assignSoldiers(ctx: EconomyContext, ids: readonly number[], to: AssignTarget): AssignResult[] {
-  const soldiers = ids.map((id) => ctx.crew.get(id));
-  const [leader, ...rest] = soldiers;
-  const results: AssignResult[] = [];
-  if (!leader) results.push({ ok: false, reason: 'unknownSoldier' });
-  else {
-    const others = rest.filter((m): m is CrewMember => m !== undefined && !m.isVehicle);
-    results.push(assignLeader(ctx, leader, others, to));
-    if (to.kind !== 'trainMilitia' || !results[0]?.ok) {
-      for (const o of rest) {
-        if (!o) results.push({ ok: false, reason: 'unknownSoldier' });
-        else if (o.isVehicle) results.push({ ok: false, reason: 'notEligible' });
-        else results.push(setForListMember(ctx, o, leader, to) ? { ok: true } : { ok: false, reason: 'notEligible' });
-      }
-    } else
-      for (const o of rest) results.push(o && o.assignment === Assignment.TRAIN_TOWN ? { ok: true } : { ok: false, reason: 'notEligible' });
-  }
+  const [leader, ...rest] = ids.map((id) => ctx.crew.get(id));
+  const results = leader ? assignWithList(ctx, leader, rest, to) : [UNKNOWN_SOLDIER, ...rest.map(untouchedResult)];
   reEvaluateEveryonesNothingToDo(ctx);
   return results;
 }

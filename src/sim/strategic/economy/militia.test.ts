@@ -87,6 +87,37 @@ describe('eligibility and payment', () => {
     expect(made.ctx.state.finances.balance).toBe(3500);
   });
 
+  it('leaves the listed mercs as they are when the leader is refused, as TRAIN_MENU_TOWN breaks before SetAssignmentForList', () => {
+    const made = context('defer');
+    setTownLoyalty(made.ctx, Town.DRASSEN, 19);
+    made.crew.add({ id: 0, sector: C13 });
+    const listed = made.crew.add({ id: 1, sector: D15 });
+    expect(canCharacterTrainMilitia(made.ctx, listed)).toBe(true);
+    expect(assignSoldiers(made.ctx, [0, 1, 7], { kind: 'trainMilitia' })).toEqual([
+      { ok: false, reason: 'loyaltyTooLow' },
+      { ok: false, reason: 'leaderRefused' },
+      { ok: false, reason: 'unknownSoldier' },
+    ]);
+    expect(listed.assignment).toBe(Assignment.ON_DUTY);
+    expect(made.ctx.state.economy.prompts).toEqual([]);
+    expect(made.ctx.state.finances.balance).toBe(5000);
+    expect(sectorInfo(made.ctx.state.map, D15).militiaTrainingPaid).toBe(false);
+  });
+
+  it('asks to pay for the unpaid sector of a listed merc when the leader trains in a paid one, as SetSoldierAssignmentTrainTown does', () => {
+    const made = context('defer');
+    sectorInfo(made.ctx.state.map, C13).militiaTrainingPaid = true;
+    const leader = made.crew.add({ id: 0, sector: C13 });
+    const listed = made.crew.add({ id: 1, sector: D15 });
+    expect(assignSoldiers(made.ctx, [0, 1], { kind: 'trainMilitia' })).toEqual([{ ok: true, militia: 'pending' }, { ok: true }]);
+    expect(made.ctx.state.economy.prompts).toEqual([
+      { kind: 'militiaPayment', trainer: 1, leader: 0, soldiers: [1], sectors: [sectorId(D15)], cost: 750, balance: 5000 },
+    ]);
+    expect(answerPendingMilitiaPrompt(made.ctx, false)).toBe('declined');
+    expect([leader.assignment, listed.assignment]).toEqual([Assignment.TRAIN_TOWN, Assignment.SQUAD_1]);
+    expect(made.ctx.state.finances.balance).toBe(5000);
+  });
+
   it('puts the trainers of unpaid sectors on a squad when the payment is declined or unaffordable', () => {
     const made = context('no');
     made.crew.add({ id: 0, sector: C13 });

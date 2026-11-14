@@ -9,6 +9,7 @@ import {
 } from '../../../../tests/support/economy.ts';
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import { NOWHERE } from '../../tactical/soldier.ts';
+import { initSquads } from '../forces/squads.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import { assignmentDone, reEvaluateNothingToDoIfFlagged, setTimeOfAssignmentChange } from './assignment-done.ts';
@@ -42,7 +43,7 @@ import {
   putMercInAwakeState,
   restCharacter,
 } from './rest.ts';
-import { assignSoldiers, sleepSoldier, wakeSoldier } from './set-assignment.ts';
+import { type AssignTarget, assignSoldiers, sleepSoldier, wakeSoldier } from './set-assignment.ts';
 import { updateAssignments } from './update.ts';
 
 const OMERTA = parseSectorString('A9');
@@ -341,6 +342,37 @@ describe('assigning and the hourly order', () => {
     reEvaluateNothingToDoIfFlagged(made.ctx);
     expect(d.nothingToDo).toBe(true);
     expect(made.ctx.state.economy.reEvaluateNothingToDo).toBe(false);
+  });
+
+  it('assigns nobody listed with a leader the menu refuses: each menu sets the list only after his own check', () => {
+    const made = context();
+    const listed = merc(made, { id: 1, life: 50, stats: { medical: 30 } });
+    listed.inv[Slot.BIGPOCK2] = kit(content.items, 'MEDICKIT', [100]);
+    listed.inv[Slot.BIGPOCK3] = kit(content.items, 'TOOLKIT', [100]);
+    listed.inv[Slot.BIGPOCK4] = item(content.items, 'GLOCK_17', 50);
+    merc(made, { id: 0, stats: { medical: 85 } });
+    const targets: AssignTarget[] = [
+      { kind: 'doctor' },
+      { kind: 'patient' },
+      { kind: 'repair' },
+      { kind: 'trainSelf', stat: TrainStat.MEDICAL },
+    ];
+    for (const to of targets) {
+      expect(assignSoldiers(made.ctx, [0, 1], to)).toEqual([
+        { ok: false, reason: 'notEligible' },
+        { ok: false, reason: 'leaderRefused' },
+      ]);
+      expect(listed.assignment).toBe(Assignment.ON_DUTY);
+    }
+  });
+
+  it('runs the squad list after the refusal box of the leader, as SquadMenuBtnCallback does', () => {
+    const made = context();
+    initSquads(made.ctx);
+    merc(made, { id: 0, life: 5 });
+    const listed = merc(made, { id: 1 });
+    expect(assignSoldiers(made.ctx, [0, 1], { kind: 'squad', squad: 0 })).toEqual([{ ok: false, reason: 'notEligible' }, { ok: true }]);
+    expect(listed.assignment).toBe(Assignment.SQUAD_1);
   });
 
   it('pays nobody during the first 45 minutes and trains self-trainers afterwards', () => {

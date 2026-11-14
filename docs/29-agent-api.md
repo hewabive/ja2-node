@@ -926,8 +926,11 @@ and its `soldierDied`; the mercs aboard die with it.
 
 ### 8.9 Towns, militia, mines and assignments
 
-Rules: `18`. `assign` runs `SetAssignmentForList` per soldier in the given order, each checked on its own; the original
-shows one failure box for the batch, so `data.refusal` names the first failure (§5). Militia training asks before it charges:
+Rules: `18`. `assign` gives the first soldier the assignment as the menu gives it to its merc, then runs
+`SetAssignmentForList` for the others in the given order, each checked on its own; the original shows one failure box
+for the batch, so `data.refusal` names the first failure (§5). When the first soldier is refused, the others keep their
+assignments (`leaderRefused`), as every menu but the squad menu sets the list only after its merc's check; a squad's
+list runs after the refusal. Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and
 continue prompts"). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
 with hostiles are dealt out while they also stay there (`18`). A merc who joins another squad (`assignSquad`, `assign`
