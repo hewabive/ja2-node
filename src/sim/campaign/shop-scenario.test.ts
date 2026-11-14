@@ -268,7 +268,7 @@ describe('shop scenario on the stub village', () => {
     const fredo = merchants.content.dealers[FREDO]?.profile ?? -1;
     spawnDealer(c, fredo, DEALER_SLOT, merc);
     const rifle = () => {
-      merc.inv[InvSlot.HAND] = createItem(merchants.items, item('ROCKET_RIFLE'), 100);
+      firstMerc(c).inv[InvSlot.HAND] = createItem(merchants.items, item('ROCKET_RIFLE'), 100);
     };
     const repair = [{ soldier: merc.id, slot: 'hand' }];
     const quotes = () => (c.dispatch({ type: 'quoteTrade', repair }).data as { readonly quotes: readonly number[] }).quotes;
