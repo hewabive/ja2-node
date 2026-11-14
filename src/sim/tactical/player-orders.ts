@@ -9,7 +9,8 @@
 // @src Soldier_Tile.cc CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
 // @src Isometric_Utils.cc IsFacingClimableWindow; Structure_Wrap.cc IsJumpableWindowPresentAtGridNo;
 // @src Points.cc GetAPsToJumpFence; Turn_Based_Input.cc SwitchHeadGear (CTRL+N: the squad's living non-vehicles in
-// @src squad order, refused with the interface locked as the key is).
+// @src squad order, refused with the interface locked as the key is); UIHandleJumpOver and BtnClimbCallback taking a merc
+// @src on the move without a stop (2026-11-14).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { Direction, isVisibleTile, newGridNo } from '../../content/world/grid.ts';
@@ -240,10 +241,6 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   return { ok: true };
 }
 
-function mustBeStationary(t: TacticalState, s: Soldier): CommandResult | null {
-  return hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY) ? null : refuse('mustStopFirst', 'stop the soldier first');
-}
-
 function jumpOverPerson(ctx: OrderContext, s: Soldier, to: unknown, level: number): CommandResult {
   const t = ctx.t;
   if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to)) return refuse('badDestination', 'to must be a visible gridNo');
@@ -273,8 +270,6 @@ function jumpFence(ctx: OrderContext, s: Soldier): CommandResult {
 function jump(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const s = orderedSoldier(ctx, cmd.soldier);
   if (isRefusal(s)) return refused(s);
-  const stopped = mustBeStationary(ctx.t, s);
-  if (stopped) return stopped;
   if (isRobot(s)) return refuse('cannotAct', 'the robot cannot jump');
   const level = cmd.level === 1 ? 1 : cmd.level === 0 ? 0 : s.level;
   return cmd.to === undefined ? jumpFence(ctx, s) : jumpOverPerson(ctx, s, cmd.to, level);

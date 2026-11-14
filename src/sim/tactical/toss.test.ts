@@ -4,6 +4,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { createItem } from '../items/object.ts';
 import { ScriptedStream } from '../strategic/forces/autoresolve/replay-rng.ts';
+import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
 import { OKLIFE, type Soldier, Team } from './soldier.ts';
@@ -21,6 +22,7 @@ const THROWER_AT = gridNo(70, 80);
 const FAR_TILE = gridNo(76, 80);
 const DEXTEROUS = 80;
 const RELEASE_TICKS = 2_000;
+const WALK_TICKS = 40;
 
 function kitIndex(): number {
   return content.items.byName.get(KIT)?.index ?? -1;
@@ -112,5 +114,15 @@ describe('tossing an item from the item cursor', () => {
       ok: false,
       data: { refusal: 'passInstead' },
     });
+  });
+
+  it('throws it from a walk, as HandleItemPointerClick never asks the merc to stop first', () => {
+    const { sim, merc } = thrower();
+    expect(sim.dispatch({ type: 'move', soldier: merc.id, to: gridNo(70, 90) })).toEqual({ ok: true });
+    for (let tick = 0; tick < WALK_TICKS; tick++) sim.step();
+    expect(animName(content, merc.state)).toBe('WALKING');
+    expect(sim.dispatch({ type: 'toss', soldier: merc.id, slot: 'bigPocket1', gridNo: FAR_TILE })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect([carries(merc), kitsOnGround(sim)]).toEqual([false, [FAR_TILE]]);
   });
 });

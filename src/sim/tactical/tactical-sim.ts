@@ -26,7 +26,8 @@
 // @src (the autoBandage command), the Done and Cancel buttons of Auto_Bandage.cc (endAutoBandage, 2026-11-06);
 // @src MainGameScreenHandle's HandleAutoBandagePending after HandleStrategicTurn (2026-11-06); MainGameScreenHandle's
 // @src HandleHeliDrop before UpdateBullets and ExecuteOverhead, the LOCKUI mode the drop forces back on every frame and
-// @src Soldier_Ani.cc code 467 (2026-11-08).
+// @src Soldier_Ani.cc code 467 (2026-11-08); the door, pickup, item cursor and climb orders of a merc on the move, which
+// @src the original's clicks and keys never stop first, the item cursor's SelectedGuyInBusyAnimation (2026-11-14).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -153,7 +154,15 @@ import {
   soldierDropObjectBeside,
   soldierPickupItem,
 } from './item-actions.ts';
-import { DROPPING_DISTANCE, itemPointerHolderBlocked, PASS_REFUSALS, passItem } from './item-pointer.ts';
+import {
+  BUSY_ANIMATION_REASON,
+  BUSY_ANIMATION_REFUSAL,
+  DROPPING_DISTANCE,
+  inBusyAnimation,
+  itemPointerHolderBlocked,
+  PASS_REFUSALS,
+  passItem,
+} from './item-pointer.ts';
 import { ITEM_SOURCE_REFUSALS, type ItemSource, isRingSource, parseItemSource, takeSourceObject } from './item-source.ts';
 import {
   initLighting,
@@ -978,7 +987,6 @@ export class TacticalSim {
     const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (t.narrative.isEpc(s)) return refuse('escortCannotDoThat', ESCORT_CANNOT_PICK_UP);
-    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     if (cmd.items === undefined && !showsItems(t, s, g)) return this.#search(s, g);
     const zLevel = requestedZLevel(t, s, g, cmd.zLevel);
     const candidates = pickupCandidates(t, s, g, zLevel);
@@ -1032,7 +1040,6 @@ export class TacticalSim {
     const action = cmd.action ?? 'open';
     if (typeof action !== 'string' || !(DOOR_ACTIONS as readonly string[]).includes(action))
       return refuse('badAction', `action must be one of ${DOOR_ACTIONS.join(', ')}`);
-    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
     const outcome = doorCommand(t, s, g, action as DoorActionName);
     if (!outcome.ok) return refuse(outcome.refusal, `${outcome.refusal}: ${DOOR_REFUSALS[outcome.refusal] ?? 'refused'}`);
@@ -1066,7 +1073,7 @@ export class TacticalSim {
     const g = cmd.gridNo ?? s.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (pythSpacesAway(s.gridNo, g) > DROPPING_DISTANCE) return refuse('tooFar', 'drop takes his tile or one next to it: toss farther');
-    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    if (inBusyAnimation(t, s)) return refuse(BUSY_ANIMATION_REFUSAL, BUSY_ANIMATION_REASON);
     if (itemPointerHolderBlocked(t, s))
       return refuse('cannotDrop', 'escorts, the unconscious and swimmers in deep water cannot drop items');
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
@@ -1092,7 +1099,7 @@ export class TacticalSim {
     const target = this.soldier(cmd.target);
     if (!target || !onTheGrid(target) || target === s || !shownToPlayer(target))
       return refuse('noSuchTarget', 'target must be another soldier the squad sees');
-    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    if (inBusyAnimation(t, s)) return refuse(BUSY_ANIMATION_REFUSAL, BUSY_ANIMATION_REASON);
     const outcome = passItem(t, s, target, source);
     if (typeof outcome === 'string') return refuse(outcome, PASS_REFUSALS[outcome]);
     return { ok: true, data: { passed: outcome.passed } };
@@ -1111,7 +1118,7 @@ export class TacticalSim {
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const level = cmd.level ?? 0;
     if (level !== 0 && level !== 1) return refuse('badLevel', 'level must be 0 or 1');
-    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    if (inBusyAnimation(t, s)) return refuse(BUSY_ANIMATION_REFUSAL, BUSY_ANIMATION_REASON);
     const tossRefusal = tossItem(t, s, { source, gridNo: g, level });
     if (tossRefusal) return refuse(tossRefusal, TOSS_REFUSALS[tossRefusal]);
     return { ok: true };
@@ -1124,7 +1131,6 @@ export class TacticalSim {
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
     selectOrderedMerc(t, s);
-    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     const down = s.level > 0;
     if ((down ? findLowerLevel(t, s) : findHigherLevel(t, s)) < 0)
       return refuse('noRoofEdge', down ? 'no free ground next to the roof edge' : 'no roof edge next to the soldier');

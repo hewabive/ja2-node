@@ -32,6 +32,7 @@ const SOUTH = DIRECTION_INCREMENT[Direction.SOUTH] ?? 0;
 const WEST = -EAST;
 const NORTH = -SOUTH;
 const FATIMA = 101;
+const WALK_TICKS = 3_000;
 const item = (name: string) => content.items.byName.get(name)?.index ?? 0;
 
 function combat(sim: TacticalSim): void {
@@ -386,6 +387,34 @@ describe('jumping', () => {
     expect(sim.dispatch({ type: 'jump', soldier: 0 })).toEqual({ ok: true, data: { direction: Direction.EAST } });
     runUntilIdle(sim);
     expect(s.gridNo).toBe(ORIGIN + 2 * EAST);
+  });
+
+  function walkingThrough(sim: TacticalSim, id: number, from: number, step: number): void {
+    expect(sim.dispatch({ type: 'move', soldier: id, to: from + 10 * step })).toEqual({ ok: true });
+    const s = sim.state.soldiers[id];
+    for (let tick = 0; tick < WALK_TICKS && s?.gridNo !== ORIGIN; tick++) sim.step();
+    expect([s?.gridNo, animName(content, s?.state ?? 0)]).toEqual([ORIGIN, 'WALKING']);
+  }
+
+  it('jumps a fence from a walk past it, as BtnClimbCallback never asks him to stop first', () => {
+    const sim = simWith((structures) =>
+      structures.add(ORIGIN + EAST, 0, syntheticStructure(StructureFlags.FENCE, Orientation.NONE, { height: 1 })),
+    );
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN + 4 * NORTH, Direction.SOUTH);
+    walkingThrough(sim, 0, ORIGIN + 4 * NORTH, SOUTH);
+    expect(sim.dispatch({ type: 'jump', soldier: 0 })).toEqual({ ok: true, data: { direction: Direction.EAST } });
+    runUntilIdle(sim);
+    expect(s.gridNo).toBe(ORIGIN + 2 * EAST);
+  });
+
+  it('jumps over a prone merc from a walk past him, as UIHandleJumpOver never asks him to stop first', () => {
+    const sim = newCombatSim(content);
+    const jumper = spawnSoldier(sim, 0, Team.OUR, ORIGIN + 4 * WEST, Direction.EAST);
+    proneAt(sim, 1, ORIGIN + SOUTH);
+    walkingThrough(sim, 0, ORIGIN + 4 * WEST, EAST);
+    expect(sim.dispatch({ type: 'jump', soldier: 0, to: ORIGIN + 2 * SOUTH })).toEqual({ ok: true, data: { to: ORIGIN + 2 * SOUTH } });
+    runUntilIdle(sim);
+    expect(jumper.gridNo).toBe(ORIGIN + 2 * SOUTH);
   });
 });
 

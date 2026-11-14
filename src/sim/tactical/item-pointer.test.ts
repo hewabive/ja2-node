@@ -15,6 +15,7 @@ import { AP } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { enterCombatMode } from './turns/turns.ts';
+import { addItemToPool, Visibility } from './world-items.ts';
 
 let content: TacticalContent;
 
@@ -169,5 +170,49 @@ describe('passing an item from the item cursor (Interface_Items.cc HandleItemPoi
     tired.buddy.actionPoints = AP_PASS_ITEM - 1;
     expect(pass(tired.sim, tired.buddy.id)).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
     expect([carries(far.merc), carries(escort.merc), carries(tired.merc)]).toEqual([true, true, true]);
+  });
+});
+
+describe('the item cursor on a merc on the move (HandleItemPointerClick checks no stop, only SelectedGuyInBusyAnimation)', () => {
+  const WALK_AWAY = gridNo(80, 90);
+  const TICKS_UNDER_WAY = 40;
+
+  function underWay(sim: TacticalSim, merc: Soldier): void {
+    expect(sim.dispatch({ type: 'move', soldier: merc.id, to: WALK_AWAY })).toEqual({ ok: true });
+    for (let tick = 0; tick < TICKS_UNDER_WAY; tick++) sim.step();
+    expect(animName(content, merc.state)).toBe('WALKING');
+  }
+
+  it('drops the item where he is with DROP_ITEM', () => {
+    const sim = newCombatSim(content);
+    const merc = holder(sim);
+    underWay(sim, merc);
+    const there = merc.gridNo;
+    expect(sim.dispatch({ type: 'drop', soldier: 0, slot: 'bigPocket1' })).toEqual({ ok: true });
+    expect(animName(content, merc.state)).toBe('DROP_ITEM');
+    runUntilIdle(sim);
+    expect([kitsAt(sim), carries(merc), merc.gridNo]).toEqual([[there], false, there]);
+  });
+
+  it('passes it to a merc of ours within 3 tiles', () => {
+    const sim = newCombatSim(content);
+    const merc = holder(sim);
+    const buddy = spawnSoldier(sim, 1, Team.OUR, gridNo(82, 81), Direction.WEST);
+    underWay(sim, merc);
+    expect(pass(sim, buddy.id)).toEqual({ ok: true, data: { passed: true } });
+    expect([carries(merc), carries(buddy)]).toEqual([false, true]);
+  });
+
+  it('refuses the item cursor while he picks something up, as SelectedGuyInBusyAnimation ignores the click', () => {
+    const sim = newCombatSim(content);
+    const merc = holder(sim);
+    addItemToPool(sim.state, MERC_AT, createItem(content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0 })).toEqual({ ok: true });
+    expect(animName(content, merc.state)).toBe('PICKUP_ITEM');
+    const busy = { ok: false, data: { refusal: 'busyAnimation' } };
+    expect(drop(sim, MERC_AT)).toMatchObject(busy);
+    expect(pass(sim, spawnSoldier(sim, 1, Team.OUR, TWO_EAST, Direction.WEST).id)).toMatchObject(busy);
+    expect(sim.dispatch({ type: 'toss', soldier: 0, slot: 'bigPocket1', gridNo: gridNo(80, 88) })).toMatchObject(busy);
+    expect(carries(merc)).toBe(true);
   });
 });

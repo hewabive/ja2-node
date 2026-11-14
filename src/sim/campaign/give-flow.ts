@@ -9,38 +9,17 @@
 import { ItemClass } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { cloneObject, createMoney, deleteObject, type ItemObject } from '../items/object.ts';
-import { animName } from '../tactical/anim-states.ts';
 import { createKeyObject } from '../tactical/doors/keys.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
 import { InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { parseKeySpot } from '../tactical/inventory-commands.ts';
+import { inBusyAnimation } from '../tactical/item-pointer.ts';
 import { removeKeysFromPosition } from '../tactical/key-ring-panel.ts';
 import { enoughPoints } from '../tactical/points.ts';
 import { OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 
 const MONEY_BOX_STEP = 10;
-const BUSY_STATES: ReadonlySet<string> = new Set([
-  'LOB_ITEM',
-  'THROW_ITEM',
-  'PICKUP_ITEM',
-  'DROP_ITEM',
-  'OPEN_DOOR',
-  'OPEN_STRUCT',
-  'END_OPEN_DOOR',
-  'END_OPEN_LOCKED_DOOR',
-  'ADJACENT_GET_ITEM',
-  'DROP_ADJACENT_OBJECT',
-  'OPEN_DOOR_CROUCHED',
-  'BEGIN_OPENSTRUCT_CROUCHED',
-  'CLOSE_DOOR_CROUCHED',
-  'OPEN_STRUCT_CROUCHED',
-  'END_OPENSTRUCT_CROUCHED',
-  'END_OPEN_DOOR_CROUCHED',
-  'END_OPEN_LOCKED_DOOR_CROUCHED',
-  'END_OPENSTRUCT_LOCKED_CROUCHED',
-  'BEGIN_OPENSTRUCT',
-]);
 
 export interface GiveRequest {
   readonly slot: number;
@@ -67,7 +46,7 @@ function slotOf(value: unknown): number | null {
 
 export function giverRefusal(t: TacticalState, merc: Soldier, isEpc: boolean): GiveRefusal | null {
   if (isEpc || merc.life < OKLIFE || merc.overTerrain === Terrain.DEEP_WATER) return 'giverCannotGive';
-  if (BUSY_STATES.has(animName(t.content, merc.state)) || merc.tempObject !== null || merc.pendingGive !== null) return 'giverBusy';
+  if (inBusyAnimation(t, merc) || merc.tempObject !== null || merc.pendingGive !== null) return 'giverBusy';
   return null;
 }
 

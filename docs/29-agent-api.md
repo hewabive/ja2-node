@@ -546,7 +546,10 @@ against his `actionPoints`, the check that turns the cursor's AP figure red (`Ha
 `Handle_UI.cc:2956`); per tile, the footsteps in `steps` (every tile before the destination) take band 4 from where no
 movement mode reaches on his APs (in real time every band is 4). A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
-give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `moveGroup` sends every merc to the one tile
+give, first aid or a robot reload), as `UIHandleCMoveMerc` does. No order asks a merc on the move to stop first, as
+the original's clicks and keys never do: `door` and `pickUp` give him a new path from where he is and drop what he was
+walking up to do, as `move` does (`UIHandleCMoveMerc`, `SoldierPickupItem`), and `drop`, `toss`, `pass`, `climb` and
+`jump` act where he is. A `moveGroup` sends every merc to the one tile
 (`HandleMultiSelectionMove`), and the walk shares it out as the original's does (`07`): the first there keeps it, a merc
 whose next step is onto his final tile while somebody takes it stops where he is with no `arrived`, and one held up by a
 squad mate heads for the closest free tile around his final tile and reports `arrived` there. A merc whose way is barred
@@ -760,7 +763,9 @@ for anything farther or anybody else (`src/sim/tactical/item-pointer.ts`, `toss.
 when that tile is no place to stand on or one step away (`DROP_ADJACENT_OBJECT`, `itemDropped` with `beside`), else at his
 feet. An escort, an unconscious merc and a swimmer in deep water click for nothing (`Interface_Items.cc:3146`): `drop`,
 `toss` and `pass` refuse them as `cannotDrop`, `cannotToss` and `cannotPass`, and `give` as `giverCannotGive`; an
-escort takes a give like a named NPC (`Handle_UI.cc:4606`) but never a pass or a catch. `pass` charges both mercs their
+escort takes a give like a named NPC (`Handle_UI.cc:4606`) but never a pass or a catch. While he picks up, drops,
+throws or works a door the click does nothing (`SelectedGuyInBusyAnimation`, `Handle_UI.cc:5085`): `drop`, `toss` and
+`pass` refuse `busyAnimation`, `give` `giverBusy`. `pass` charges both mercs their
 3 AP before the object goes into the catcher's pockets, so a catcher without room
 for all of it keeps what fits and both have paid (`data.passed` false and `passFailed`). `previewAction` kind `toss` is
 the cursor's landing tile (`landsAt`, `landsOnLevel`, `pathClear`) with the refusals of the command but its AP.

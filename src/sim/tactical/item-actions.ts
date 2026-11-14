@@ -22,7 +22,8 @@
 // @src there is longer than 5, played by the client (2026-11-09); PickPickupAnimation leaving MERC_PICKUPITEM pending after a
 // @src pickup with no animation, handlePendingAction leaving it after a walk ending off its tile, code 493 reading the
 // @src data the action leaves (2026-11-09); Soldier_Control.cc InternalDoMercBattleSound's BATTLE_SOUND_NOTHING, which a
-// @src soldier without a profile or a muted one never makes (2026-11-13).
+// @src soldier without a profile or a muted one never makes (2026-11-13); SoldierPickupItem's removePendingAction dropping
+// @src whatever a merc on the move was walking up to do (2026-11-14).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -55,12 +56,13 @@ import { findWorldItemForBombInGridNo } from './bombs/world-bombs.ts';
 import { askToDisarmBuriedBomb, continuePastBoobyTrap } from './booby-traps.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
-import { apsToMovePlusAction, dropHeldActions, giveItemOpcode } from './give.ts';
+import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
 import { MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
 import { schedulePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding.ts';
+import { removePendingAction } from './pending-action.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
 import { openTacticalPrompt, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
@@ -175,7 +177,7 @@ export function soldierPickupItem(
   selection: readonly WorldItem[] | null,
 ): boolean {
   const actionGridNo = adjustGridNoForItemPlacement(t, s, g);
-  dropHeldActions(s);
+  removePendingAction(t, s);
   const pickup: PendingPickup = { gridNo: g, actionGridNo, zLevel, selection, animCount: 0, dropped: false };
   s.pendingPickup = pickup;
   if (s.gridNo === actionGridNo) {

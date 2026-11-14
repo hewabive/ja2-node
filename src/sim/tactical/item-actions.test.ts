@@ -7,7 +7,7 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { ItemsPickedUpEvent, SimEvent } from '../events.ts';
-import { createItem } from '../items/object.ts';
+import { createItem, emptyObject } from '../items/object.ts';
 import { AnimHeight, changeSoldierStance } from './animation.ts';
 import { autoBandageQuestionDue } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
@@ -29,6 +29,7 @@ beforeAll(async () => {
 
 const item = (name: string) => content.items.byName.get(name)?.index ?? -1;
 const WALK_TICKS = 2_000;
+const WALK_UP_TICKS = 40;
 
 describe('picking up and dropping items', () => {
   it('picks up every visible item on the tile with the pickup animation and charges AP_PICKUP_ITEM once', () => {
@@ -77,6 +78,36 @@ describe('picking up and dropping items', () => {
     expect(events.some((e) => e.type === 'itemsPickedUp')).toBe(true);
     expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
     expect(t.worldItems).toHaveLength(0);
+  });
+
+  it('sends a merc on the move to the item with a new path and picks it up, as SoldierPickupItem never asks him to stop', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    addItemToPool(t, gridNo(82, 84), createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: gridNo(90, 80) })).toEqual({ ok: true });
+    for (let tick = 0; tick < WALK_UP_TICKS; tick++) sim.step();
+    expect(t.content.animations.controls[merc.state]?.id).toBe('WALKING');
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: gridNo(82, 84) })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect([merc.gridNo, merc.inv.some((o) => o.item === item('CROWBAR'))]).toEqual([gridNo(82, 84), true]);
+  });
+
+  it('drops the walk-up punch of a merc a pickup sends elsewhere, as SoldierPickupItem removes the pending action', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.HAND] = emptyObject();
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    addItemToPool(t, gridNo(83, 83), createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    for (let tick = 0; tick < WALK_UP_TICKS && merc.gridNo === gridNo(80, 80); tick++) sim.step();
+    expect(merc.pendingMelee).not.toBeNull();
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: gridNo(83, 83) })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(events.some((e) => e.type === 'meleeStrike')).toBe(false);
+    expect([merc.gridNo, merc.inv.some((o) => o.item === item('CROWBAR'))]).toEqual([gridNo(83, 83), true]);
   });
 
   it('has our merc confirm a pickup or a search whose path is longer than 5 steps, and nobody else (SoldierPickupItem)', () => {

@@ -8,6 +8,7 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { animName } from '../anim-states.ts';
 import { states } from '../animation.ts';
 import { handleDoorChangeFromGridNo, swapStructureForPartner } from '../doors.ts';
 import { apsToMovePlusAction, soldierGiveItem } from '../give.ts';
@@ -36,6 +37,8 @@ const IN_SIGHT_OF_DOOR = DOOR + 3;
 const FAR = OUTSIDE + 160 * 4;
 const NORTH = 0;
 const MERC_PROFILE = 5;
+const WALK_UNDER_WAY_TICKS = 40;
+const DOOR_WALK_TICKS = 3_000;
 
 let kit: StubSectorKit;
 
@@ -113,6 +116,29 @@ describe('the stub village door', () => {
     ]);
     const again = sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' });
     expect(again).toMatchObject({ ok: true, data: { opened: false, locked: true } });
+  });
+
+  it('sends a merc on the move to the door with a new path, walking forwards, and opens it (UIHandleCMoveMerc asks no stop)', () => {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, Direction.WEST);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'move', soldier: s.id, to: FAR + 6, reverse: true })).toEqual({ ok: true });
+    for (let tick = 0; tick < WALK_UNDER_WAY_TICKS; tick++) sim.step();
+    expect(animName(sim.state.content, s.state)).toBe('WALK_BACKWARDS');
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true, to: OUTSIDE },
+    });
+    const gaits = new Set<string>();
+    for (let tick = 0; tick < DOOR_WALK_TICKS && s.gridNo !== OUTSIDE; tick++) {
+      sim.step();
+      gaits.add(animName(sim.state.content, s.state));
+    }
+    expect([gaits.has('WALK_BACKWARDS'), gaits.has('SIDE_STEP')]).toEqual([false, false]);
+    runSimUntilIdle(sim);
+    expect(s.gridNo).toBe(OUTSIDE);
+    expect(doorStructure(sim).flags & StructureFlags.OPEN).not.toBe(0);
   });
 
   it('asks with the closing menu before our merc closes an open door, as vanilla does', () => {

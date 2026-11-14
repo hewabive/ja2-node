@@ -5,7 +5,8 @@
 // @src PASSING_ITEM_DISTANCE_OKLIFE who is no escort and no vehicle: 3 AP each checked, his line of sight to the giver at
 // @src cube level 3, the 3 AP charged before AutoPlaceObject, MSG_ITEM_PASSED_TO_MERC or MSG_NO_ROOM_TO_PASS_ITEM, the
 // @src catcher stopped and both turned to each other into PASS_OBJECT when standing out of water; keys off the ring passed
-// @src as BeginKeyRingItemPointer takes them, 2026-11-03).
+// @src as BeginKeyRingItemPointer takes them, 2026-11-03); Handle_UI.cc SelectedGuyInBusyAnimation (the click ignored while
+// @src the merc picks up, drops, throws or works a door, and no check that he stands still, 2026-11-14).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { NOTHING } from '../../content/items/items.ts';
@@ -13,7 +14,7 @@ import { pythSpacesAway } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { u8 } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
-import { anim } from './anim-states.ts';
+import { anim, animName } from './anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, setDesiredDirection } from './animation.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { oppositeDirection } from './directions.ts';
@@ -52,6 +53,35 @@ export interface PassOutcome {
 }
 
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+
+const BUSY_ANIMATIONS: ReadonlySet<string> = new Set([
+  'LOB_ITEM',
+  'THROW_ITEM',
+  'PICKUP_ITEM',
+  'DROP_ITEM',
+  'OPEN_DOOR',
+  'OPEN_STRUCT',
+  'END_OPEN_DOOR',
+  'END_OPEN_LOCKED_DOOR',
+  'ADJACENT_GET_ITEM',
+  'DROP_ADJACENT_OBJECT',
+  'OPEN_DOOR_CROUCHED',
+  'BEGIN_OPENSTRUCT_CROUCHED',
+  'CLOSE_DOOR_CROUCHED',
+  'OPEN_STRUCT_CROUCHED',
+  'END_OPENSTRUCT_CROUCHED',
+  'END_OPEN_DOOR_CROUCHED',
+  'END_OPEN_LOCKED_DOOR_CROUCHED',
+  'END_OPENSTRUCT_LOCKED_CROUCHED',
+  'BEGIN_OPENSTRUCT',
+]);
+
+export const BUSY_ANIMATION_REFUSAL = 'busyAnimation';
+export const BUSY_ANIMATION_REASON = 'the soldier is busy with an item or a door';
+
+export function inBusyAnimation(t: TacticalState, s: Soldier): boolean {
+  return BUSY_ANIMATIONS.has(animName(t.content, s.state));
+}
 
 export function itemPointerHolderBlocked(t: TacticalState, s: Soldier): boolean {
   return t.narrative.isEpc(s) || s.life < OKLIFE || s.overTerrain === Terrain.DEEP_WATER;

@@ -7,15 +7,17 @@
 // @src doorAPs[ubDoorHandleCode] check of a door or other openable, HaltMoveForSoldierOutOfPoints keeping the action,
 // @src 2026-11-09);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
-// @src stops the menu's merc, 2026-11-01).
+// @src stops the menu's merc, 2026-11-01); UIHandleCMoveMerc for a merc on the move (no check that he stands still: his
+// @src pending action removed, bReverse off and a new path from where he is, 2026-11-14).
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
-import { anyMercHoldsGiveItem, dropHeldActions } from '../give.ts';
+import { anyMercHoldsGiveItem } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { getNewSoldierPath, haltMoveForSoldierOutOfPoints } from '../movement.ts';
+import { removePendingAction } from '../pending-action.ts';
 import { enoughPoints } from '../points.ts';
 import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -188,7 +190,7 @@ function containerCommand(t: TacticalState, s: Soldier, container: StructureInst
   if (!approach) return refuse('noPath');
   if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return refuse('notEnoughAp');
   const base = container.gridNo;
-  s.pendingDoorAction = null;
+  removePendingAction(t, s);
   s.reverse = false;
   startInteractiveObject(t, s, container, base);
   if (approach.gridNo === s.gridNo) {
@@ -217,10 +219,10 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   const approach = findAdjacentGridExAdvanced(t, s, door, base);
   if (!approach) return refuse('noPath');
   if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return refuse('notEnoughAp');
-  s.pendingDoorAction = null;
+  removePendingAction(t, s);
   if (approach.gridNo === s.gridNo) return { ok: true, data: performDoorAction(t, s, door, approach.direction, action) };
   s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action };
-  dropHeldActions(s);
+  s.reverse = false;
   if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
     s.pendingDoorAction = null;
     return refuse('noPath');

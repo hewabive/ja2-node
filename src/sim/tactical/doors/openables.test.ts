@@ -6,11 +6,12 @@ import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
-import { createItem } from '../../items/object.ts';
+import { createItem, emptyObject } from '../../items/object.ts';
 import { hasAnimFlag } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { openableStatuses, openContainerGridNos, setOpenableStructStatus } from '../doors.ts';
 import { apsToMovePlusAction } from '../give.ts';
+import { InvSlot } from '../inventory.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
@@ -134,6 +135,24 @@ describe('HandleStructChangeFromGridNo', () => {
     runUntilIdle(sim);
     expect(crateOpen(t)).toBe(false);
     expect(sim.openContainers()).toEqual([]);
+  });
+
+  it('drops the walk-up punch of a merc the door command sends to a crate, as UIHandleCMoveMerc removes the pending action', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const { closed, file } = crateFile();
+    t.world.structures.add(CRATE, 0, closed, undefined, file);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(76, 80), Direction.SOUTH);
+    merc.inv[InvSlot.HAND] = emptyObject();
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(76, 86), Direction.NORTH);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'attack', soldier: merc.id, target: enemy.gridNo })).toEqual({ ok: true });
+    for (let tick = 0; tick < WALK_TICKS && merc.gridNo === gridNo(76, 80); tick++) sim.step();
+    expect(merc.pendingMelee).not.toBeNull();
+    expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: CRATE, action: 'open' })).toMatchObject({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(events.some((e) => e.type === 'meleeStrike')).toBe(false);
+    expect(crateOpen(t)).toBe(true);
   });
 
   it('halts a merc who reaches a crate in combat without the APs of his door handle code, keeping the order, which he carries out once he can pay (Overhead.cc:837, :863)', () => {

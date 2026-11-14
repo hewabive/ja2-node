@@ -5,6 +5,7 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import type { InterfaceLevelEvent, SimEvent } from '../events.ts';
 import { tacticalViewParts } from '../knowledge/sim-view.ts';
 import { AiAction } from './ai/actions.ts';
+import { animName } from './anim-states.ts';
 import { AnimHeight, endHeight, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Opp } from './perception/opp.ts';
@@ -82,6 +83,17 @@ describe('climbing roofs', () => {
     expect(merc.level).toBe(1);
     expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_CURRENTLY);
     expect(t.inCombat).toBe(true);
+  });
+
+  it('climbs up from a walk past the roof edge, as the climb button and the j key never ask him to stop first', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 74), Direction.SOUTH);
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: gridNo(84, 88) })).toEqual({ ok: true });
+    for (let tick = 0; tick < CLIMB_TICKS && merc.gridNo !== gridNo(84, 80); tick++) sim.step();
+    expect([merc.gridNo, animName(sim.state.content, merc.state)]).toEqual([gridNo(84, 80), 'WALKING']);
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect([merc.level, merc.gridNo]).toEqual([1, gridNo(85, 80)]);
   });
 });
 
