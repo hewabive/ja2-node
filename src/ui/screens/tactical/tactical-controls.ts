@@ -863,7 +863,7 @@ export class TacticalControls {
       closePopups: () => screen.closePopups(),
       stopSelected: () => {
         const sel = screen.selected();
-        if (sel) void screen.send({ type: 'stop', soldier: sel.id });
+        if (sel && !this.input.escapeOfTheSkip()) void screen.send({ type: 'stop', soldier: sel.id });
         this.input.stopRubberBandedMercs();
       },
       nextMerc: () => this.#nextMerc(),

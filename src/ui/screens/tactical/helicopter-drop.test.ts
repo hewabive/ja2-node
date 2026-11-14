@@ -79,7 +79,7 @@ describe('the tactical screen through a run of the helicopter drop', () => {
     expect([f.world.scrollingIgnored, f.world.scrolled]).toEqual([true, []]);
   });
 
-  it('lands the seats left once while Esc is held during a run, then stops the selected merc as the key reaches the tactical UI, and sends no skip once the run is over (Merc_Entering.cc:462, Turn_Based_Input.cc:2313)', async () => {
+  it('lands the seats left once while Esc is held during a run, leaves the stop of that press to the skip, which stops the merc it selects on the server, and sends no skip once the run is over (Merc_Entering.cc:462, Turn_Based_Input.cc:2313)', async () => {
     const { f, campaign } = await dropping();
     f.session.advance({ events: ['mercDropped'] });
     f.deliver();
@@ -88,14 +88,18 @@ describe('the tactical screen through a run of the helicopter drop', () => {
     escapeKey(f, 'keyDown');
     for (let frame = 0; frame < FRAMES; frame++) f.t.frame();
     await f.settle();
-    expect(f.client.commands.map((c) => [c.cmd.type, c.reply.ok])).toEqual([
-      ['skipHelicopterDrop', true],
-      ['stop', true],
-    ]);
-    expect(campaign.campaign.tactical?.state.helicopterDrop.running).toBe(false);
+    expect(f.client.commands.map((c) => [c.cmd.type, c.reply.ok])).toEqual([['skipHelicopterDrop', true]]);
+    const t = campaign.campaign.tactical?.state;
+    const first = t?.soldiers[t.turn.selected];
+    expect([t?.helicopterDrop.running, first?.id, first?.finalDestination]).toEqual([false, 0, first?.gridNo]);
     f.deliver();
     for (let frame = 0; frame < FRAMES; frame++) f.t.frame();
     expect([skips(f), f.world.scrollingIgnored]).toEqual([1, false]);
+    escapeKey(f, 'keyUp');
+    escapeKey(f, 'keyDown');
+    f.t.frame();
+    await f.settle();
+    expect(f.client.commands.map((c) => c.cmd.type)).toEqual(['skipHelicopterDrop', 'stop']);
     escapeKey(f, 'keyUp');
   });
 });

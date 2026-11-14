@@ -233,6 +233,8 @@ export class TacticalInput {
   readonly #pointer = new PointerQueue();
   readonly #events = new Map<UiEvent, EventState>();
   readonly #keys: UiKeyEvent[] = [];
+  #keyInHand: UiKeyEvent | null = null;
+  #escapeOfTheSkip: UiKeyEvent | null = null;
   readonly #cycledModes = new Map<number, MoveModeName>();
   readonly #aims = new Map<number, AimState>();
   readonly multiSelected = new Set<number>();
@@ -714,9 +716,14 @@ export class TacticalInput {
 
   #pollHelicopterDropSkip(): void {
     const running = helicopterDropRunning(this.#view());
-    this.#helicopterDropSkip.poll(running, this.#env().runtime.isKeyDown(ESCAPE_KEY), () =>
-      this.#host.send({ type: 'skipHelicopterDrop' }),
-    );
+    this.#helicopterDropSkip.poll(running, this.#env().runtime.isKeyDown(ESCAPE_KEY), () => {
+      this.#escapeOfTheSkip = this.#keys.find((key) => key.kind === 'keyDown' && key.key === ESCAPE_KEY) ?? null;
+      return this.#host.send({ type: 'skipHelicopterDrop' });
+    });
+  }
+
+  escapeOfTheSkip(): boolean {
+    return this.#keyInHand !== null && this.#keyInHand === this.#escapeOfTheSkip;
   }
 
   #gatherInput(current: UiEvent): UiEvent {
@@ -1014,7 +1021,11 @@ export class TacticalInput {
 
   #keyboard(event: UiEvent): UiEvent {
     let next = event;
-    while (this.#keys.length > 0) next = this.#host.key(this.#keys.shift() as UiKeyEvent, next);
+    while (this.#keys.length > 0) {
+      this.#keyInHand = this.#keys.shift() as UiKeyEvent;
+      next = this.#host.key(this.#keyInHand, next);
+    }
+    this.#keyInHand = null;
     return next;
   }
 

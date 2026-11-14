@@ -5,7 +5,9 @@
 // @src the event mercDropped); GameScreen.cc MainGameScreenHandle's locate on the north entry point as the run starts
 // @src (the event helicopterDropStarted); HandleFirstHeliDropOfGame and the lock's pause are the sector flow's; UILayout.cc
 // @src and rust/stracciatella/src/config/resolution.rs REPEAT_HELI_MOVEAWAY at the reference 640x480;
-// @src Utils/Sound_Control.h HIGHVOLUME.
+// @src Utils/Sound_Control.h HIGHVOLUME; Turn_Based_Input.cc's Esc key, which stops the merc the Esc branch selected
+// @src (StopSoldier) unless ENGAGED_IN_CONV, in the skip itself rather than after the frame's ExecuteOverhead (deviation
+// @src "Esc stop after the helicopter skip", 2026-11-14).
 
 import { CELL_X_SIZE, CELL_Y_SIZE } from '../../content/world/grid.ts';
 import { i16, idiv, u32 } from '../../core/int.ts';
@@ -15,9 +17,10 @@ import { initNewSoldierAnim } from './animation.ts';
 import { type HelicopterDrop, type HeliShadow, HeliState } from './helicopter-drop-state.ts';
 import { Insertion, updateMercInSector } from './insertion.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
-import { rebuildCurrentSquad, SelectFlags, selectSoldier, setCurrentSquad } from './selection.ts';
+import { rebuildCurrentSquad, SelectFlags, selectedSoldier, selectSoldier, setCurrentSquad } from './selection.ts';
 import { cellCentre, inSector, type Soldier } from './soldier.ts';
 import type { SectorHooks, TacticalState } from './state.ts';
+import { stopSoldier } from './stop-soldier.ts';
 
 const HeliCode = {
   REST: 0,
@@ -288,7 +291,14 @@ export function skipHelicopterDrop(t: TacticalState): boolean {
   const d = t.helicopterDrop;
   if (!d.running) return false;
   landTheSeatsLeft(t, d, d.curDrop);
+  escapeKeyReachesTheInterface(t);
   return true;
+}
+
+function escapeKeyReachesTheInterface(t: TacticalState): void {
+  if (t.engagedInConv) return;
+  const selected = selectedSoldier(t);
+  if (selected) stopSoldier(t, selected);
 }
 
 export function landSeatsWithNoRun(t: TacticalState): boolean {

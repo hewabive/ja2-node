@@ -128,9 +128,9 @@ import { checkForRunningIntoGas, updateGassedOnNewGridNo } from './explosions/sm
 import type { WorldClockSource } from './explosions/state.ts';
 import { explosivesBusy } from './explosions/state.ts';
 import { throwOpcode } from './explosions/throwing.ts';
-import { cancelAllServices, firstAidOpcode, givingSoldierCancelServices, handlePendingAidOnArrival } from './first-aid.ts';
+import { firstAidOpcode, givingSoldierCancelServices, handlePendingAidOnArrival } from './first-aid.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
-import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
+import { handlePendingGiveOnArrival } from './give.ts';
 import { ensureConsistentWeaponMode, handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { handleHeliDrop, helicopterDropStalled, SANDBOX_HELICOPTER_SEATS } from './helicopter-drop.ts';
 import { type HelicopterDrop, helicopterDropRunning } from './helicopter-drop-state.ts';
@@ -174,7 +174,7 @@ import {
   turnOnNightLights,
   turnOnPrimeLights,
 } from './lighting/lighting.ts';
-import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
+import { directionToward, getNewSoldierPath } from './movement.ts';
 import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
 import { shownAnimSurface } from './multi-tile.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
@@ -202,7 +202,7 @@ import type { ProfileProgress } from './profiles.ts';
 import { promptOpenRefusal, TacticalPromptKind, takeAnswer } from './prompts.ts';
 import { randomAnimOpcode } from './random-anims.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
-import { cancelPendingRobotReload, handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
+import { handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
 import {
   apsToClimbRoof,
   beginSoldierClimbDownRoof,
@@ -225,6 +225,7 @@ import {
   teamMembers,
   whoIsThere,
 } from './state.ts';
+import { stopSoldier } from './stop-soldier.ts';
 import {
   fenceCuttableBy,
   handlePendingTileToolOnArrival,
@@ -939,14 +940,7 @@ export class TacticalSim {
         if (!s || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
         const crew = crewRefusal(this.state, s);
         if (crew) return refused(crew);
-        cancelAllServices(this.state, s);
-        s.pendingAid = null;
-        s.pendingDoorAction = null;
-        s.pendingTalk = null;
-        clearPendingGive(this.state, s);
-        cancelPendingRobotReload(this.state, s);
-        stopMerc(this.state, s);
-        s.finalDestination = s.gridNo;
+        stopSoldier(this.state, s);
         return { ok: true };
       }
       default:

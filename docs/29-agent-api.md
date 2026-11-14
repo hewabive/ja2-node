@@ -478,7 +478,9 @@ original's "has arrived" line, which a `mercArrived` with `helicopter` (a merc t
 (`Tactical/Merc_Hiring.cc:289`); `helicopterDropEnded {first}` ends a run, `first` on the first landing's, whose end
 plays the enemy-present music (`25`). While a run goes on
 every other command is refused with `helicopterDrop` (§6's modal states); `skipHelicopterDrop`, the Esc key, lands
-the seats left at once and ends the run (`noHelicopterDrop` with none under way). The session copies the cosmetic animations into
+the seats left at once and ends the run (`noHelicopterDrop` with none under way), and as the same key reaches the
+tactical interface it stops the merc it selects, as `stop` does, unless a conversation holds the key
+(`GameScreen.cc:407`, `:436`; deviation "Esc stop after the helicopter skip"). The session copies the cosmetic animations into
 `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after every tick as
 `ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and cosmetic
 animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never audio.
@@ -549,7 +551,9 @@ movement mode reaches on his APs (in real time every band is 4). A new `move` re
 give, first aid or a robot reload), as `UIHandleCMoveMerc` does. No order asks a merc on the move to stop first, as
 the original's clicks and keys never do: `door` and `pickUp` give him a new path from where he is and drop what he was
 walking up to do, as `move` does (`UIHandleCMoveMerc`, `SoldierPickupItem`), and `drop`, `toss`, `pass`, `climb` and
-`jump` act where he is. A `moveGroup` sends every merc to the one tile
+`jump` act where he is. `stop` is `StopSoldier`: it halts a moving merc on his tile, but a merc in a stationary
+animation, as kneeling up into a walk, only gets his own tile as his final destination, so a pending step still runs
+and he walks back (`07`). A `moveGroup` sends every merc to the one tile
 (`HandleMultiSelectionMove`), and the walk shares it out as the original's does (`07`): the first there keeps it, a merc
 whose next step is onto his final tile while somebody takes it stops where he is with no `arrived`, and one held up by a
 squad mate heads for the closest free tile around his final tile and reports `arrived` there. A merc whose way is barred

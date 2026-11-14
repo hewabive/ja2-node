@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-08. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Entering.cc HandleHeliDrop (_KeyDown(SDLK_ESCAPE), polled on every frame of a run before
-// @src the tactical UI, lands the seats left).
+// @src the tactical UI, lands the seats left); Turn_Based_Input.cc's Esc key, whose StopSoldier of the press that skipped
+// @src the run the skip command does on the server (2026-11-14).
 
 import type { PlayerView } from '../../../../protocol/view.ts';
 import type { CommandReply } from '../environment.ts';

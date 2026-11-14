@@ -5,7 +5,7 @@ import { Direction } from '../../content/world/grid.ts';
 import { msForTicks } from '../clock.ts';
 import type { SimEvent } from '../events.ts';
 import { restoreTactical, snapshotJson, snapshotTactical } from '../snapshot/session.ts';
-import { anim } from './anim-states.ts';
+import { anim, animName } from './anim-states.ts';
 import { states } from './animation.ts';
 import { soldierCollapse } from './combat/hit.ts';
 import { addMercToHeli, HELI_SCRIPT_STEP_MS, helicopterDropStalled, skipHelicopterDrop, startHelicopterRun } from './helicopter-drop.ts';
@@ -378,6 +378,35 @@ describe('the Esc skip of the helicopter drop (Merc_Entering.cc HandleHeliDrop, 
     expect(drop(scene).shadow).not.toBeNull();
     expect(later.placed).toBe(false);
     expect(helicopterDropView(t)).toEqual({ running: false, engineVolume: 0, shadows: [drop(scene).shadow] });
+  });
+
+  it('stops the merc it selects as its Esc key reaches the tactical interface: kneeling up into his walk away he walks off and back (GameScreen.cc:407, :436, Turn_Based_Input.cc:2313)', () => {
+    const scene = dropScene(2);
+    const t = scene.sim.state;
+    const [first] = scene.seats as [Soldier];
+    stepUntil(scene, () => first.placed && !drop(scene).engagedInDrop);
+    const [landedAt, stepAway] = [first.gridNo, first.finalDestination];
+    expect(animName(t.content, first.state)).toBe('KNEEL_UP');
+    skipHelicopterDrop(t);
+    expect([t.turn.selected, animName(t.content, first.state), first.finalDestination]).toEqual([first.id, 'KNEEL_UP', landedAt]);
+    const tiles = new Set<number>();
+    stepUntil(scene, () => {
+      tiles.add(first.gridNo);
+      return scene.sim.isIdle();
+    });
+    expect([...tiles]).toEqual([landedAt, stepAway]);
+    expect(first.gridNo).toBe(landedAt);
+  });
+
+  it('stops nobody at a skip during a conversation, which keeps the Esc key from the stop (ENGAGED_IN_CONV)', () => {
+    const scene = dropScene(2);
+    const t = scene.sim.state;
+    const [first] = scene.seats as [Soldier];
+    stepUntil(scene, () => first.placed && !drop(scene).engagedInDrop);
+    const stepAway = first.finalDestination;
+    t.engagedInConv = true;
+    skipHelicopterDrop(t);
+    expect(first.finalDestination).toBe(stepAway);
   });
 
   it('does nothing outside a run', () => {
