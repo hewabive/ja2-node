@@ -82,9 +82,10 @@ they arise: an aborted throw releases its count, and `attack` refuses a launcher
 original's cursor turns into a reload (deviation "Watchdogs").
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), the mortar's smoke-trail delay
-included: a cosmetic draw on `pre` in the original, kept there. Battle and impact sounds and the curse after a dud are
-not drawn there: the client picks them, the curse from `dudCursed` (deviations "Cosmetic draws in attacks", "Cosmetic
-draws in explosions"); the dud test's unsequenced operands are drawn left to right (deviation "Dud test operand order").
+included: a cosmetic draw on `pre` in the original, kept there. Battle and impact sounds are not drawn there: the
+client picks them (deviations "Cosmetic draws in attacks", "Cosmetic draws in explosions"), the owner's curse at a dud
+from `dudCursed`, which draws nothing (CURSE1 has one variant); the dud test's unsequenced operands are drawn left to
+right (deviation "Dud test operand order").
 
 ## 3. Quirks of the original the code keeps
 
