@@ -333,6 +333,10 @@ export interface TacticalStatus {
   readonly itemsSeenOnAttackSoldier: number;
   readonly itemsSeenOnAttackGridNo: number;
   readonly lockItemLocators: boolean;
+  readonly cantGetThrough: boolean;
+  readonly cantGetThroughGridNo: number;
+  readonly cantGetThroughSoldierGridNo: number;
+  readonly cantGetThroughSoldier: number;
   readonly guideDescription: {
     readonly counting: boolean;
     readonly countdown: number;
@@ -540,6 +544,10 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     itemsSeenOnAttackSoldier: n('items_seen_on_attack_soldier'),
     itemsSeenOnAttackGridNo: n('usItemsSeenOnAttackGridNo'),
     lockItemLocators: b('fLockItemLocators'),
+    cantGetThrough: b('fCantGetThrough'),
+    cantGetThroughGridNo: n('sCantGetThroughGridNo'),
+    cantGetThroughSoldierGridNo: n('sCantGetThroughSoldierGridNo'),
+    cantGetThroughSoldier: n('cant_get_through'),
     guideDescription: {
       counting: b('fCountingDownForGuideDescription'),
       countdown: n('bGuideDescriptionCountDown'),

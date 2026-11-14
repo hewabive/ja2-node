@@ -587,8 +587,8 @@ no squad), when it drives toward the edge as the original's walk-off does, as fa
 leaves as its own group with everybody aboard at the vehicle's speed, burning its fuel on arrival (deviation "Vehicle
 sector exit"): a load seats them at the vehicle, which enters at the entry point of its side.
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
-(no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
-("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
+(no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the first click's check of
+someone else's rocket rifle ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
 click passes: 1 for the items lying on a structure (`height` in the view: a table, inside an open cabinet, which the
 world does not draw), 0 for the floor, by default 1 when any item of the tile lies on a structure
 (`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). On a tile that shows no item, `pickUp` without `items` is the
@@ -607,7 +607,14 @@ lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the han
 soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` gives the cost and the walk the cursor
 shows, and the `stealAttempt` event what came of it. Our merc's first pull of a
 virgin rocket rifle takes his fingerprints and fires nothing, as the original's: `attack` answers `gunImprinted`, and
-the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. An empty gun or a
+the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. `attack`,
+`plantBomb`, the tile tools and `useRemote` are clicks to `HandleItem` (`11`): after the hand item roll a merc may refuse
+with his refusing line (`refusesOrder`) to turn anything but a medkit on a soldier of ours or a neutral one: a good guy
+spares good guys and nameless neutral civilians, everybody his buddies, a recruited rebel rebels and nameless neutral
+civilians; so a good guy or a rebel will not plant a bomb at his own feet, the original's click naming him as its
+target. In combat a shot or knife throw with `estimateAttack`'s `chanceToGetThrough` below 10 is held with his
+no-line-of-fire line and costs nothing (`noLineOfFire`); the same `attack` again from the same tile fires, and so do
+later ones at that tile until a shot with a fair chance or another case. An empty gun or a
 launcher without a round refuses `attack` with `noAmmo`, where the original shows the reload cursor
 (`UI_Cursors.cc:413-420`): `data.canReload` and `data.reloadAp` are that cursor, as `estimateAttack`'s `ammo` gives it,
 so the next step is a `reload` for those APs, or none when no matching ammunition is carried. Out of combat, a neutral NPC with a

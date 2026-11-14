@@ -222,6 +222,10 @@ function syntheticSave({
       itemsSeenOnAttackSoldier: NOBODY,
       itemsSeenOnAttackGridNo: 0,
       lockItemLocators: false,
+      cantGetThrough: false,
+      cantGetThroughGridNo: 0,
+      cantGetThroughSoldierGridNo: 0,
+      cantGetThroughSoldier: NOBODY,
       numCrowsPossible: 0,
       dontAddNewCrows: false,
       autoBandagePending: false,
@@ -609,6 +613,28 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect([merc.lookForItems, soldierOf(sim, MERC_ID + 1).lookForItems]).toEqual([true, false]);
     const turn = sim.state.turn;
     expect([turn.lockItemLocators, turn.itemsSeenOnAttack, turn.itemsSeenOnAttackGridNo]).toEqual([true, merc, gridNo(80, 86)]);
+  });
+
+  it('restores a poor shot held for no line of fire with its shooter by id and both tiles (fCantGetThrough, cant_get_through, sCantGetThroughGridNo, sCantGetThroughSoldierGridNo)', () => {
+    const held = (cantGetThrough: boolean) =>
+      importedSim(
+        syntheticSave({
+          soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82))],
+          tactical: {
+            cantGetThrough,
+            cantGetThroughSoldier: MERC_ID,
+            cantGetThroughGridNo: gridNo(80, 90),
+            cantGetThroughSoldierGridNo: gridNo(80, 82),
+          },
+        }),
+      );
+    const sim = held(true);
+    expect(sim.state.turn.cantGetThrough).toEqual({
+      soldier: soldierOf(sim, MERC_ID),
+      gridNo: gridNo(80, 90),
+      soldierGridNo: gridNo(80, 82),
+    });
+    expect(held(false).state.turn.cantGetThrough).toBeNull();
   });
 
   it('restores the panic state, the chosen one by id, and a keys byte as the INT8 the panic stack may have wrapped (LoadSaveTacticalStatusType.cc, bHasKeys)', () => {

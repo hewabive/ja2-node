@@ -2531,6 +2531,22 @@ function addPlacementButton(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const CANT_GET_THROUGH_KEY = 'cantGetThrough';
+
+function withCantGetThrough(tactical: JsonObject): JsonObject {
+  const turn = tactical.turn;
+  if (!isObject(turn) || turn[REF] !== undefined) return tactical;
+  return { ...tactical, turn: insertAfter(turn, LOCK_ITEM_LOCATORS_KEY, CANT_GET_THROUGH_KEY, null) };
+}
+
+function addCantGetThrough(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withCantGetThrough(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2618,5 +2634,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     83: dropPlacementNames,
     84: addProfileStatDeltas,
     85: addPlacementButton,
+    86: addCantGetThrough,
   };
 }

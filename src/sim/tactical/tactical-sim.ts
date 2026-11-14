@@ -111,6 +111,7 @@ import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
 import { handlePendingMeleeOnArrival } from './combat/melee.ts';
 import { type MeleeOrderRefusal, meleeOrderRefusal } from './combat/melee-order.ts';
+import { heldShotWithoutLineOfFire } from './combat/player-refusals.ts';
 import { parseSpread, pickBurstLocations } from './combat/spread-burst.ts';
 import { apsToStealItem, canBeStolenFrom, mercStealFromMerc, stealActionGridNo, stealOpcode } from './combat/steal.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
@@ -214,7 +215,20 @@ import {
 import { adoptSavedPendingAction } from './saved-pending-action.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
-import { Body, inVehicle, isTank, NO_PROFILE, OKBREATH, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
+import {
+  Body,
+  inVehicle,
+  isTank,
+  NO_PROFILE,
+  NOWHERE,
+  OKBREATH,
+  OKLIFE,
+  onTheGrid,
+  type Soldier,
+  shownToPlayer,
+  Team,
+  Visible,
+} from './soldier.ts';
 import { boundingFrameView, type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import {
   type AutoBandageState,
@@ -319,6 +333,12 @@ const BAD_GROUP: Refusal = {
   reason: 'group must list controllable mercs of yours in the sector, neither vehicles nor the mercs aboard them',
 };
 
+const FROM_UI = true;
+const REMOTE_PRESS_TILE = NOWHERE;
+const NO_LINE_OF_FIRE_REFUSAL = 'noLineOfFire';
+const NO_LINE_OF_FIRE_REASON =
+  'the merc says he has no line of fire and holds the shot (chance to get through below 10); the same attack again from the same tile fires';
+
 const AIM_PARTS: Readonly<Record<string, number>> = {
   random: AimShot.RANDOM,
   head: AimShot.HEAD,
@@ -333,7 +353,8 @@ const ATTACK_REFUSALS: Readonly<Record<number, string>> = {
   [ItemHandle.BROKEN]: 'the weapon does not work',
   [ItemHandle.CANNOT_GETTO_LOCATION]: 'cannot reach the target',
   [ItemHandle.NOROOM]: 'no room to fire here',
-  [ItemHandle.REFUSAL]: 'the soldier refuses',
+  [ItemHandle.REFUSAL]:
+    'the merc refuses and says so: a good guy spares good guys and nameless neutral civilians, nobody turns on a buddy, a recruited rebel spares rebels and nameless neutral civilians',
 };
 
 const ATTACK_REFUSAL_TOKENS: Readonly<Record<number, string>> = {
@@ -1144,7 +1165,7 @@ export class TacticalSim {
     const hand = itemIn(s.inv, InvSlot.HAND);
     const remotes = [REMOTE_TRIGGER, REMOTE_BOMB_TRIGGER, XRAY_DEVICE].map((name) => t.content.items.byName.get(name)?.index);
     if (!remotes.includes(hand)) return refuse('noRemote', 'the soldier holds no remote trigger or x-ray detector');
-    return this.#handItemResult(handleItem(t, s, s.gridNo, s.level, hand));
+    return this.#handItemResult(handleItem(t, s, REMOTE_PRESS_TILE, s.level, hand, FROM_UI));
   }
 
   #plantBomb(cmd: TacticalCommand): CommandResult {
@@ -1158,7 +1179,7 @@ export class TacticalSim {
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const planting = plantBombRefusal(t, s, g, t.narrative.isEpc(s));
     if (planting) return refuse(planting, PLANT_BOMB_REFUSALS[planting]);
-    return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
+    return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND), FROM_UI));
   }
 
   #useTileTool(cmd: TacticalCommand): CommandResult {
@@ -1173,7 +1194,7 @@ export class TacticalSim {
     const order = TILE_TOOL_ORDERS[cmd.type] as TileToolOrder;
     if (actionModeCursor(t, s, t.narrative.isEpc(s)) !== order.cursor) return refuse(...order.refusal);
     if (order.target && !order.target.valid(t, s, g)) return refuse(...order.target.refusal);
-    return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
+    return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND), FROM_UI));
   }
 
   #boardingRules(boarding: VehicleBoarding): BoardingRules {
@@ -1405,7 +1426,9 @@ export class TacticalSim {
     if (npcDrawsFirstOnAttack(t, s, target, level)) return refuse('npcDrewFirst', NPC_DREW_FIRST);
     s.aimTime = aimTime;
     const eventsBefore = t.events.length;
-    const result = handleItem(t, s, target, level, s.attackingWeapon);
+    const cantGetThroughBefore = t.turn.cantGetThrough;
+    const result = handleItem(t, s, target, level, s.attackingWeapon, FROM_UI);
+    if (heldShotWithoutLineOfFire(t, cantGetThroughBefore)) return refuse(NO_LINE_OF_FIRE_REFUSAL, NO_LINE_OF_FIRE_REASON);
     if (result !== ItemHandle.OK) {
       s.doSpread = 0;
       const imprint = t.events.slice(eventsBefore).find((e): e is GunImprintEvent => e.type === 'gunImprint');

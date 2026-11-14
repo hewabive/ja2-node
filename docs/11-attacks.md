@@ -91,10 +91,17 @@ click's checks before it (`combat/melee-order.ts`). A punch at a tile its target
 where the original leaks it until its 25 s watchdog (deviation "Melee hold leaks"); a prone attacker who turns is not
 laid down mid-attack (deviation "Melee from a prone turn").
 
-**Refusals.** `HandleItem`'s player refusals are not ported (deviation "Attack refusals"). The rocket rifle's imprint
-is (`rocketRifleImprintAccepts`, `combat/attack.ts`): our merc's first pull of a virgin rifle only takes his
-fingerprints, and the agent's `attack` answers it as the `gunImprinted` refusal, someone else's rifle as
-`wrongFingerprint`.
+**Refusals.** Every order of ours that goes through `HandleItem` (`attack`, `plantBomb`, the tile tools, `useRemote`)
+is its click, `fFromUI` (`combat/player-refusals.ts`): after the hand item roll a merc refuses with his refusing line
+to turn anything but a medkit on a good guy (when he is one), a buddy, or as a recruited rebel on a rebel or a nameless
+neutral civilian (`Handle_Items.cc:229-262`; `refusesOrder`). In combat a shot or knife throw whose chance to get
+through is below 10 is held with his no-line-of-fire line and costs nothing (`noLineOfFire`); the same attack again,
+from the same tile, fires, as `TurnState.cantGetThrough` keeps the case until a shot with a fair chance or another case
+(`HandleCheckForBadChangeToGetThrough`, `:112-173`). The AI and a civilian firing back never refuse. The rocket
+rifle's imprint is checked too (`rocketRifleImprintAccepts`, `combat/attack.ts`): our merc's first pull of a virgin
+rifle only takes his fingerprints, and the agent's `attack` answers it as the `gunImprinted` refusal, someone else's
+rifle as `wrongFingerprint`; the first click's check before `HandleItem` is the client's (deviation "Attack
+refusals").
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6): each call is made where the
 original makes it, so call order is draw order, and a draw whose result is thrown away is still made. Curses, laughs,
@@ -124,6 +131,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A seen soldier of any team but ours turning to shoot moves the view to him, militia and real time included; a hit moves it only to our merc and only in combat (`EVENT_FireSoldierWeapon`, `EVENT_SoldierGotHit`) | `soldier-located.test.ts` |
 | A bullet is marked located at the first window it meets out of combat too, so it never moves the view at a later window should combat start during its flight; a militia bullet moves it like ours, by side, where a miss moves it for our team only (`LocateBullet`) | `impacts.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
+| A merc with the good guy flag, or a recruited rebel, refuses to plant a bomb at his own feet: the soldier on the tile of his click is himself, and he spares good guys and rebels | `player-refusals.test.ts` "makes a good guy refuse to plant a bomb …" |
+| A poor shot held for no line of fire stays confirmed after it fires: the same merc from the same tile at the same tile fires on without a word until a shot with a fair chance or another case clears it | `player-refusals.test.ts` "holds the first shot …" |
 | The adjacent-tile search never answers the soldier's own tile when a switch is on it (`Tactical/Overhead.cc:3293`), with or without its door handling: a merc bandaging himself on a switch tile first walks to a tile beside it | `src/sim/tactical/first-aid.test.ts` |
 
 Not pinned yet:

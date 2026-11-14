@@ -39,6 +39,11 @@ function raisedSurface(cubes: number, tileFlags = 0): StructureDef {
   return { ...surface, tiles };
 }
 
+function throwPastNoLineOfFire(sim: TacticalSim, target: number): void {
+  expect(sim.dispatch({ type: 'attack', soldier: 0, target })).toMatchObject({ ok: false, data: { refusal: 'noLineOfFire' } });
+  expect(sim.dispatch({ type: 'attack', soldier: 0, target })).toEqual({ ok: true });
+}
+
 const thrownKnives = (sim: TacticalSim, name: string) =>
   sim.state.worldItems.filter((i) => content.items.byIndex.get(i.object.item)?.name === name);
 
@@ -74,7 +79,7 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
     sim.state.inCombat = true;
     thrower.oppList[target.id] = Opp.SEEN_CURRENTLY;
-    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    throwPastNoLineOfFire(sim, target.gridNo);
     const events = runUntilIdle(sim);
     expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'structure' });
     expect(target.life).toBe(80);
@@ -105,7 +110,7 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
     sim.state.inCombat = true;
     thrower.oppList[target.id] = Opp.SEEN_CURRENTLY;
-    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    throwPastNoLineOfFire(sim, target.gridNo);
     const events = runUntilIdle(sim);
     expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'structure' });
     expect(target.life).toBe(80);

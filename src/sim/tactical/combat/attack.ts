@@ -9,7 +9,7 @@
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
 // @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths; Soldier_Control.cc
 // @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun); Handle_Items.cc HandleItem
-// @src dispatch to the medkit branch (2026-11-06).
+// @src dispatch to the medkit branch (2026-11-06); the fFromUI refusals and poor shot of HandleItem (2026-11-14).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -57,6 +57,7 @@ import { calcChanceToHitGun } from './chance.ts';
 import { modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
 import { eventSoldierGotHit, okFallDirection } from './hit.ts';
 import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
+import { holdsShotWithoutLineOfFire, refusesToUseItemOn } from './player-refusals.ts';
 import { calculateSoldierZPos, targetZFromStructureHeight } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
 import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
@@ -114,7 +115,7 @@ export function sendBeginFireWeaponEvent(t: TacticalState, s: Soldier, target: n
   t.gameEvents.push({ kind: 'beginFireWeapon', soldier: s.id, target, level: s.targetLevel, cubeLevel: s.targetCubeLevel });
 }
 
-export function handleItem(t: TacticalState, s: Soldier, g: number, level: number, handItem: number): number {
+export function handleItem(t: TacticalState, s: Soldier, g: number, level: number, handItem: number, fromUi = false): number {
   removePendingAction(t, s);
   s.attackingWeapon = handItem;
   s.targetLevel = level;
@@ -123,8 +124,9 @@ export function handleItem(t: TacticalState, s: Soldier, g: number, level: numbe
   if (tgt) tgt.beingAttackedCount = 0;
   if (s.life < OKLIFE) return ItemHandle.UNCONSCIOUS;
   if (!handItemWorks(t, s, InvSlot.HAND)) return ItemHandle.BROKEN;
+  if (fromUi && refusesToUseItemOn(t, s, tgt, handItem)) return ItemHandle.REFUSAL;
   const cls = def(t, handItem)?.itemClass ?? ItemClass.NONE;
-  if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, tgt, handItem);
+  if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, level, tgt, handItem, fromUi);
   if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
   if (cls === ItemClass.MEDKIT) return handleMedKit(t, s, g);
   const tileTool = handleTileTool(t, s, g, handItem);
@@ -199,7 +201,15 @@ function rocketRifleImprintAccepts(t: TacticalState, s: Soldier): boolean {
   return false;
 }
 
-function handleGunAttack(t: TacticalState, s: Soldier, g: number, tgt: Soldier | null, handItem: number): number {
+function handleGunAttack(
+  t: TacticalState,
+  s: Soldier,
+  g: number,
+  level: number,
+  tgt: Soldier | null,
+  handItem: number,
+  fromUi: boolean,
+): number {
   const d = def(t, handItem);
   if (!d) return ItemHandle.BROKEN;
   if (isRocketRifle(t, handItem) && !rocketRifleImprintAccepts(t, s)) return ItemHandle.BROKEN;
@@ -208,6 +218,7 @@ function handleGunAttack(t: TacticalState, s: Soldier, g: number, tgt: Soldier |
     return ItemHandle.NOAMMO;
   }
   const targetGrid = tgt ? tgt.gridNo : g;
+  if (fromUi && t.inCombat && !s.doSpread && holdsShotWithoutLineOfFire(t, s, tgt, targetGrid, level)) return ItemHandle.OK;
   const apCost = calcTotalAPsToAttack(t, s, targetGrid, true, s.aimTime);
   const charge = apChargeForShootOrStab(t, s, targetGrid, true, false);
   if (height(t.content, s.state) === AnimHeight.STAND) {

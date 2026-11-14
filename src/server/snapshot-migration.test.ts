@@ -4261,3 +4261,45 @@ describe('snapshot version 85 (no saved placement button) migrates with Clear, t
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionEightySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const { cantGetThrough, ...turn } = object(tactical.turn);
+    expect(cantGetThrough).toBeNull();
+    return [name, { ...tactical, turn }];
+  });
+  return { ...snapshot, version: 86, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 86 (no poor shot held for no line of fire) migrates with no case held, as after a shot with a fair chance', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoCaseHeld(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionEightySix(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"cantGetThrough":null');
+    expect(JSON.stringify(legacy)).not.toContain('"cantGetThrough"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoCaseHeld(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoCaseHeld(await quietLandedCampaign(kit));
+  });
+});

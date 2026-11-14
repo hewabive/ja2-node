@@ -156,5 +156,5 @@ expiry and refusal predicates, the first buddy, the tolerance checks and the pro
 - That a moving merc's sector is the one he left (`16`) for the equipment drop and the same-sector tests.
 - That the death rate's float quotient never rounds across an integer for realistic counts.
 
-Refusing to attack a buddy is deviation "Attack refusals". Kept difference: deviation "Visible area of the map loaded
-last".
+Refusing to attack a buddy is `HandleItem`'s (`11`, `combat/player-refusals.ts`). Kept difference: deviation "Visible
+area of the map loaded last".

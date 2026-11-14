@@ -408,7 +408,7 @@ describe('gun attacks', () => {
     expect(merc.pendingAnimation).toBe(crouch);
   });
 
-  it('stops bullets in a wall between shooter and target', () => {
+  it('stops bullets in a wall between shooter and target, fired when the attack held for no line of fire is repeated', () => {
     const wallRow = 84;
     const walls = Array.from({ length: 9 }, (_, k) => gridNo(76 + k, wallRow));
     const sim = newSim(walls);
@@ -419,6 +419,12 @@ describe('gun attacks', () => {
     merc.oppList[enemy.id] = 1;
     const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
     expect((estimate.data as { chanceToGetThrough: number }).chanceToGetThrough).toBe(0);
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toMatchObject({
+      ok: false,
+      data: { refusal: 'noLineOfFire' },
+    });
+    expect(merc.actionPoints).toBe(before);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo }).ok).toBe(true);
     const events = run(sim);
     expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'structure' });

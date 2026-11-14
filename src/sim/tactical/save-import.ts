@@ -110,6 +110,7 @@ import {
   type TacticalState,
 } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
+import type { CantGetThrough } from './turns/turn-state.ts';
 import { seatInTheHelicopterOnSectorEntry } from './vehicle-passengers.ts';
 import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, trashWorldItems, Visibility } from './world-items.ts';
 
@@ -913,10 +914,16 @@ function importTacticalStatus(t: TacticalState, save: SaveGame): void {
   turn.hiddenInterrupt = save.teamTurns.hiddenInterrupt;
 }
 
+function importedCantGetThrough(t: TacticalState, ts: SaveGame['tactical']): CantGetThrough | null {
+  const soldier = ts.cantGetThrough ? soldierById(t, ts.cantGetThroughSoldier) : null;
+  return soldier ? { soldier, gridNo: ts.cantGetThroughGridNo, soldierGridNo: ts.cantGetThroughSoldierGridNo } : null;
+}
+
 function linkTacticalStatus(t: TacticalState, save: SaveGame): void {
   const ts = save.tactical;
   const turn = t.turn;
   turn.itemsSeenOnAttack = ts.itemsSeenOnAttack ? soldierById(t, ts.itemsSeenOnAttackSoldier) : null;
+  turn.cantGetThrough = importedCantGetThrough(t, ts);
   ts.teams.forEach((team, k) => {
     t.perception.lastMercToRadio[k] = soldierById(t, team.lastMercToRadio);
   });

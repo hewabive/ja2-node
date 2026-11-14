@@ -4,7 +4,8 @@
 // @src OppList.cc gbSeenOpponents, watched locations; Overhead.cc gfPauseAllAI, guiPauseAllAITimer; Overhead.h
 // @src ENEMY_OFFERED_SURRENDER; Soldier_Profile.cc gfPotentialTeamChangeDuringDeath; Overhead_Types.h fKilledEnemyOnAttack,
 // @src enemy_killed_on_attack, enemy_killed_on_attack_killer, ubEnemyKilledOnAttackLocation, bEnemyKilledOnAttackLevel
-// @src (2026-10-30); usItemsSeenOnAttackGridNo (2026-11-03).
+// @src (2026-10-30); usItemsSeenOnAttackGridNo (2026-11-03); fCantGetThrough, sCantGetThroughGridNo, cant_get_through,
+// @src sCantGetThroughSoldierGridNo (2026-11-14).
 
 import { NOWHERE, type Soldier } from '../soldier.ts';
 import type { AiProgress, TopMessage } from './top-message.ts';
@@ -26,6 +27,12 @@ export interface EnemyKilledOnAttack {
   readonly killer: Soldier;
   readonly gridNo: number;
   readonly level: number;
+}
+
+export interface CantGetThrough {
+  readonly soldier: Soldier;
+  readonly gridNo: number;
+  readonly soldierGridNo: number;
 }
 
 export interface AiListEntry {
@@ -55,6 +62,7 @@ export interface TurnState {
   itemsSeenOnAttack: Soldier | null;
   itemsSeenOnAttackGridNo: number;
   lockItemLocators: boolean;
+  cantGetThrough: CantGetThrough | null;
   killingGuysForLosingBattle: boolean;
   checkSightAtEndOfAttack: boolean;
   selected: number;
@@ -99,6 +107,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     itemsSeenOnAttack: null,
     itemsSeenOnAttackGridNo: NOWHERE,
     lockItemLocators: false,
+    cantGetThrough: null,
     killingGuysForLosingBattle: false,
     checkSightAtEndOfAttack: false,
     selected: -1,
