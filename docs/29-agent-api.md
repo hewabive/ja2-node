@@ -445,7 +445,9 @@ grunts again (`TileEngine/Explosion_Control.cc:845`); one out of sight carries `
 merc of ours off the loaded map `cry` as `mercDied` does, a muted soldier neither, and `mapScreen` routes the sound as
 `mercDied`'s does (`31`); the sounds of a few more moments: our merc's OK as a pickup or search sets out on a path longer
 than 5 steps (`pickupConfirmed {soldier}`, `Tactical/Handle_Items.cc:1130`), the glass of jars a fall broke
-(`jarsBroken {soldier}`, `Tactical/Items.cc:3243`), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
+(`jarsBroken {soldier}`, `Tactical/Items.cc:3243`), the attack of a bloodcat out of sight (`bloodcatAttack`, no
+fields: the original plays it in the middle of the screen for every bloodcat, `Tactical/Soldier_Ani.cc:2412`, and a
+seen one's comes with his animation), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
 {soldier, spinKick?}`, `Tactical/Soldier_Control.cc:504`), a point of life a merc of ours bleeds, which makes him the map screen's info
 character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMaxLost` when, dying, he lost a point of
 maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the

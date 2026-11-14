@@ -1,7 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { spawnCreature } from '../../../../tests/support/creatures.ts';
 import { countDraws } from '../../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
+import { isSimulationOpcode } from '../../../content/anim/timelines.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
@@ -18,8 +20,8 @@ import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { AP } from '../points.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
-import { NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team, Visible } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { Body, NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team, Visible } from '../soldier.ts';
+import { setShowAllMercs, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
@@ -293,6 +295,29 @@ describe('the strike of a soldier the squad does not see (D16; the swoosh plays 
       { type: 'meleeStrike', soldier: enemy.id, target: merc.gridNo, weapon: 'blade', chance: expect.any(Number), hit: true },
     ]);
     expect(hitLanded(t, merc, enemy)).toEqual([expect.objectContaining({ soldier: merc.id, attacker: enemy.id, blade: true })]);
+  });
+});
+
+describe("a bloodcat's attack sound (Soldier_Ani.cc:2412, unplaced for every bloodcat)", () => {
+  const BLOODCAT_ATTACK_SOUND = 771;
+
+  it.each([
+    ['out of sight', Visible.HIDDEN, false, [{ type: 'bloodcatAttack' }]],
+    ['in sight, whose animation the client plays', Visible.SEEN, false, []],
+    ['out of sight while every soldier is shown, whose animation the client plays', Visible.HIDDEN, true, []],
+  ] as const)('is told as an event for a bloodcat %s', (_, visible, showAll, told) => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const cat = spawnCreature(sim, 52, Body.BLOODCAT, gridNo(80, 90), Direction.NORTH);
+    cat.visible = visible;
+    setShowAllMercs(sim.state, showAll);
+    sim.state.events.length = 0;
+    expect(meleeOpcode(sim.state, cat, BLOODCAT_ATTACK_SOUND)).toBe('continue');
+    expect(sim.state.events).toEqual(told);
+  });
+
+  it('keeps its code in the logic timeline, so the animation of an unseen bloodcat reaches it', () => {
+    expect(isSimulationOpcode(BLOODCAT_ATTACK_SOUND)).toBe(true);
   });
 });
 

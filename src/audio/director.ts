@@ -696,6 +696,9 @@ export class SoundDirector {
       case 'creatureCall':
         if (e.unseen) this.#unseenCall(e.call, e.unseen.bodyType, this.#placeOf(undefined, e.heard));
         return;
+      case 'bloodcatAttack':
+        this.#play(effectCue(book, 'BLOODCAT_ATTACK', 'fixed', VolumeLevel.HIGH));
+        return;
       case 'explosion':
         this.#play(explosionCue(book, e.animation ?? '', e.gridNo, rand));
         return;

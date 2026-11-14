@@ -683,6 +683,14 @@ describe('the sound director', () => {
     expect(files(r)[2]).not.toBe(knife);
   });
 
+  it("plays a bloodcat's attack out of sight unplaced at high volume, as the original plays it for every bloodcat", () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    r.director.applyFrames([frame(10, [], [{ type: 'bloodcatAttack', tick: 9 }])]);
+    expect(files(r)).toEqual([book.paths.get('BLOODCAT_ATTACK')]);
+    expect(r.cues[0]).toMatchObject({ mix: 'fixed', baseVolume: VolumeLevel.HIGH });
+  });
+
   it('picks the miss sounds of a shooter out of sight by the weapon his bullets carry', () => {
     const r = rig();
     const named = (name: string) => [...book.weapons.values()].find((w) => w.name === name)?.item ?? -1;

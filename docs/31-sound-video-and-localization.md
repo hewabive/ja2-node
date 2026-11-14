@@ -61,7 +61,8 @@ drawn, or drawn on the client's `ClientRandom`, seeded from the session id ("Cos
 
 **The client hears what the squad hears.** The view has no position for an unseen soldier (D16), so an unseen source
 plays from where the squad hears it ("Sounds out of sight"), and only animals in sight make idle sounds ("Idle sounds
-of unseen animals"). Code 491 is counted from the passes of the loop that holds it, since the server sends no frames of
+of unseen animals"). Animation codes play for the soldiers in the view; of those the original plays for an unseen
+soldier too, a bloodcat's attack comes as an event (`29` §7), and the rest are gaps "Animation sounds out of sight". Code 491 is counted from the passes of the loop that holds it, since the server sends no frames of
 a predictable loop; the simulation runs the same check with its own draw and does not tell the client what it rolled.
 For the same reason a tank's turret loop runs from the view of its first 32-step facing to the view that ends its
 `turning`, one frame before the original stops it ("Turret stop"). Frames more than 100 ticks behind the newest

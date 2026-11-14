@@ -276,6 +276,10 @@ export interface CreatureCallEvent extends SimEventBase {
   readonly heard?: HeardFrom;
 }
 
+export interface BloodcatAttackEvent extends SimEventBase {
+  readonly type: 'bloodcatAttack';
+}
+
 export interface CatchEndedEvent extends SimEventBase {
   readonly type: 'catchEnded';
   readonly soldier: number;
@@ -823,6 +827,7 @@ export type SimEvent =
   | MartialArtsChopEvent
   | ItemCaughtEvent
   | CreatureCallEvent
+  | BloodcatAttackEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

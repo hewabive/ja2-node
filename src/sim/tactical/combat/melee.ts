@@ -7,7 +7,8 @@
 // @src CalcChanceToSteal, DishoutQueenSwipeDamage;
 // @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 752 (decapitate), 755 (queen swipe)
 // @src and 761 (eat flesh); opcode 727's swoosh, played for a visible striker only, so an unseen one's strike is told by
-// @src the impact it lands alone, which the soldierHit tells (2026-11-13).
+// @src the impact it lands alone, which the soldierHit tells (2026-11-13); opcode 771's BLOODCAT_ATTACK, played unplaced
+// @src for every bloodcat, told for one out of sight (2026-11-13).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
@@ -611,6 +612,8 @@ function endPunch(t: TacticalState, s: Soldier): OpOutcome {
   return 'stop';
 }
 
+const BLOODCAT_ATTACK_SOUND = 771;
+
 export function meleeOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   switch (code) {
     case 468:
@@ -629,6 +632,9 @@ export function meleeOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       return 'continue';
     case 761:
       biteHelplessPrey(t, s);
+      return 'continue';
+    case BLOODCAT_ATTACK_SOUND:
+      if (!shownInSector(t, s)) t.events.push({ type: 'bloodcatAttack' });
       return 'continue';
     default:
       return null;
