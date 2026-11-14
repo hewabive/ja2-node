@@ -27,7 +27,7 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 
 | Module | Holds |
 |---|---|
-| `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window; the lines of a critical hit and a head hit (`statLost`, `headHit`, `29` §7) |
+| `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window; the lines of a critical hit, a head hit and a leg hit's fall (`statLost`, `headHit`, `knockedOver`, `29` §7) |
 | `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills; a vehicle's armour |
 | `vehicle-damage.ts` | A vehicle's share of the damage, its condition, its destruction and wreck explosion |
 | `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |

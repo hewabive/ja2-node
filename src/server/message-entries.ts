@@ -24,7 +24,8 @@
 // @src bleeding while dying, 2026-11-06); Soldier_Create.cc TacticalCopySoldierFromCreateStruct (a soldier without a
 // @src name of his own is named by his team's default, which s->name holds, 2026-11-13); Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (the medkit's refusals with the medic or the patient, 2026-11-14); Weapons.cc
-// @src BulletImpact (STR_LOSES_* and STR_HEAD_HIT, a soldier out of sight by his name or his team's default, 2026-11-14).
+// @src BulletImpact (STR_LOSES_* and STR_HEAD_HIT, a soldier out of sight by his name or his team's default, 2026-11-14);
+// @src Soldier_Control.cc SoldierGotHitGunFire (STR_LATE_20, 2026-11-14).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -119,6 +120,7 @@ const STR_CAMO_WASHED_OFF = 31;
 const STR_STOLE_SOMETHING = 33;
 const STR_SLIPPED_MARBLES = 50;
 const STR_FAILED_TO_STEAL_SOMETHING = 51;
+const STR_LATE_20 = 19;
 const STR_LATE_37 = 36;
 const STR_LATE_58 = 57;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
@@ -277,6 +279,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   mercBled: (e, facts) => (e.lifeMaxLost ? [line('Message', STR_LOSES_1_HP, [soldierArg(facts, e.soldier)])] : []),
   statLost,
   headHit: (e, facts) => [line('Message', STR_HEAD_HIT, [namedArg(facts, e)])],
+  knockedOver: (e, facts) => [line('gzLateLocalizedString', STR_LATE_20, [namedArg(facts, e)])],
   enemyPresence: () => [line('TacticalStr', 85)],
   sectorLoaded: (e) => (e.enemyPresence ? [line('TacticalStr', 85)] : []),
   interrupt: (e, facts) =>

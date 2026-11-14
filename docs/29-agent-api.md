@@ -420,8 +420,10 @@ reads them (deviation "Message list").
 points}` is the wisdom, dexterity, strength or agility a critical hit cost a soldier (`Tactical/Weapons.cc:2982-3104`),
 told only while the squad sees him, as the original prints `STR_LOSES_*` then alone. `headHit` is a hit in the head
 that cost no wisdom (`:2998`, `:3108`), for a soldier of any team, seen or not, but for no pellet after the first of a
-shot; the original prints the name of one out of sight too, so he carries `name` (his own) or `defaultName` (his
-team's, as in the view) instead of `soldier`, and an agent learns a line, never an id or a tile (D16).
+shot; `knockedOver` is a standing soldier a leg hit knocks over (`Tactical/Soldier_Control.cc:3185-3196`), of any team,
+seen or not. The original prints the name of one out of sight too, so these two carry `name` (his own) or
+`defaultName` (his team's, as in the view) instead of `soldier` for him, and an agent learns a line, never an id or a
+tile (D16).
 
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the

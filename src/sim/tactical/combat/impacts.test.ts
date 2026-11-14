@@ -164,6 +164,37 @@ describe('what a hit tells the player (Soldier_Control.cc EVENT_SoldierGotHit, I
   });
 });
 
+describe('the fall of a leg hit (Soldier_Control.cc SoldierGotHitGunFire)', () => {
+  it("tells every standing soldier a leg hit knocks over, one out of sight by his own name or his team's default (D16)", () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
+    const mate = spawnSoldier(sim, 1, Team.OUR, gridNo(70, 70), Direction.SOUTH);
+    const seen = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.NORTH);
+    const hidden = spawnSoldier(sim, 21, Team.ENEMY, gridNo(90, 90), Direction.NORTH);
+    const named = spawnSoldier(sim, 22, Team.ENEMY, gridNo(95, 90), Direction.NORTH);
+    seen.visible = Visible.SEEN;
+    hidden.name = '';
+    const gun = merc.inv[InvSlot.HAND]?.item ?? 0;
+    for (const victim of [mate, seen, hidden, named])
+      eventSoldierGotHit(sim.state, victim, gun, 5, 0, victim.direction, 0, merc, Special.LEG_FALLDOWN, AimShot.LEGS);
+    expect(sim.drainEvents().filter((e) => e.type === 'knockedOver')).toEqual([
+      { type: 'knockedOver', tick: 0, soldier: mate.id },
+      { type: 'knockedOver', tick: 0, soldier: seen.id },
+      { type: 'knockedOver', tick: 0, defaultName: 'enemy' },
+      { type: 'knockedOver', tick: 0, name: 'S22' },
+    ]);
+  });
+
+  it('tells nothing for a leg hit without the fall', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
+    const victim = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.NORTH);
+    const gun = merc.inv[InvSlot.HAND]?.item ?? 0;
+    eventSoldierGotHit(sim.state, victim, gun, 5, 0, victim.direction, 0, merc, Special.NONE, AimShot.LEGS);
+    expect(sim.drainEvents().filter((e) => e.type === 'knockedOver')).toEqual([]);
+  });
+});
+
 const PERCENT = 100;
 const SURE_HIT = 0;
 const NO_FLUKE = 25;

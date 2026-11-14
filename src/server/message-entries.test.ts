@@ -139,6 +139,22 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints STR_LATE_20 for a soldier a leg hit knocks over, seen or named by what an unseen one carries', () => {
+    const knockedOver = (named: Record<string, unknown>) => at({ type: 'knockedOver', ...named });
+    const entries = messageEntriesOf([knockedOver({ soldier: 1 }), knockedOver({ defaultName: 'militia' })], facts);
+    expect(entries).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 19, args: [{ text: 'Fox' }] },
+      {
+        tick: 40,
+        kind: 'interface',
+        colour: 145,
+        table: 'gzLateLocalizedString',
+        index: 19,
+        args: [{ string: { table: 'TacticalStr', index: 92 } }],
+      },
+    ]);
+  });
+
   it('follows the lock and trap lines of Handle_Doors and Keys', () => {
     const door = (action: string, result: string, trap?: string) => at({ type: 'doorResult', soldier: 0, gridNo: 5, action, result, trap });
     const entries = messageEntriesOf(

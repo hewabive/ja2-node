@@ -15,7 +15,8 @@
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
 // @src spit gas); HandleTakeDamageDeath's bInSector for the helicopter's passengers over the loaded sector (2026-11-08);
-// @src Weapons.cc BulletImpact's STR_LOSES_* of a visible target with a name and STR_HEAD_HIT of any (2026-11-14).
+// @src Weapons.cc BulletImpact's STR_LOSES_* of a visible target with a name and STR_HEAD_HIT of any (2026-11-14);
+// @src SoldierGotHitGunFire's STR_LATE_20 of any soldier a leg hit knocks over (2026-11-14).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -538,7 +539,8 @@ function soldierGotHitGunFire(t: TacticalState, s: Soldier, direction: number, a
         }
       }
     } else if (special === Special.LEG_FALLDOWN) {
-      if (isValidStance(t, s, AnimHeight.PRONE) && endHeight(t.content, s.state) === AnimHeight.STAND && !inWater(s)) fallenOver = true;
+      fallenOver = isValidStance(t, s, AnimHeight.PRONE) && endHeight(t.content, s.state) === AnimHeight.STAND && !inWater(s);
+      if (fallenOver) t.events.push({ type: 'knockedOver', ...namedSoldier(t, s) });
     }
   }
   if (s.dead) {

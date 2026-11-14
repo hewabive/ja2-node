@@ -448,6 +448,10 @@ export interface HeadHitEvent extends SimEventBase, NamedSoldier {
   readonly type: 'headHit';
 }
 
+export interface KnockedOverEvent extends SimEventBase, NamedSoldier {
+  readonly type: 'knockedOver';
+}
+
 export interface ItemsPickedUpEvent extends SimEventBase {
   readonly type: 'itemsPickedUp';
   readonly soldier: number;
@@ -858,6 +862,7 @@ export type SimEvent =
   | StatChangedEvent
   | StatLostEvent
   | HeadHitEvent
+  | KnockedOverEvent
   | ExplosionEvent
   | StructureDamagedEvent
   | ItemsPickedUpEvent
