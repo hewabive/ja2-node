@@ -5,11 +5,14 @@ export interface VfsLayerEntry {
   readonly size: number;
 }
 
+export type VfsChangeListener = (entry: VfsLayerEntry) => void;
+
 export interface VfsLayer {
   readonly name: string;
   entries(): Iterable<VfsLayerEntry>;
   read(path: string, start: number, end: number): Promise<Uint8Array<ArrayBuffer>>;
   stamp?(path: string): string | null;
+  onChange?(listener: VfsChangeListener): void;
 }
 
 export interface VfsFileInfo {
@@ -22,6 +25,7 @@ export class Vfs {
   readonly layers: readonly VfsLayer[];
   readonly #index = new Map<string, { info: VfsFileInfo; layer: VfsLayer }>();
   #layerCounts: Map<string, number> | null = null;
+  #revision = 0;
 
   constructor(layers: readonly VfsLayer[]) {
     this.layers = layers;
@@ -29,11 +33,22 @@ export class Vfs {
       for (const e of layer.entries()) {
         if (!this.#index.has(e.path)) this.#index.set(e.path, { info: { path: e.path, size: e.size, layer: layer.name }, layer });
       }
+      layer.onChange?.((entry) => this.#changed(layer, entry));
     }
   }
 
   get size(): number {
     return this.#index.size;
+  }
+
+  get revision(): number {
+    return this.#revision;
+  }
+
+  #changed(layer: VfsLayer, entry: VfsLayerEntry): void {
+    const hit = this.#index.get(entry.path);
+    if (hit?.layer === layer) this.#index.set(entry.path, { info: { ...hit.info, size: entry.size }, layer });
+    this.#revision++;
   }
 
   layerCount(path: string): number {
@@ -76,6 +91,15 @@ export class VfsNotFoundError extends Error {
   readonly path: string;
   constructor(path: string) {
     super(`file not found in VFS: ${path}`);
+    this.path = path;
+  }
+}
+
+export class VfsChangedError extends Error {
+  override readonly name = 'VfsChangedError';
+  readonly path: string;
+  constructor(path: string) {
+    super(`file changed on disk since it was listed: ${path}`);
     this.path = path;
   }
 }

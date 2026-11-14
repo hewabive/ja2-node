@@ -66,6 +66,28 @@ describe('standard VFS stack', () => {
   });
 });
 
+describe('refreshing the folders that change during development', () => {
+  it('refreshes the project data and the stub pack, never the game data folder', async () => {
+    const root = await fakeGame();
+    const project = await mkdtemp(join(tmpdir(), 'ja2-project-'));
+    const stubs = await mkdtemp(join(tmpdir(), 'ja2-stubs-'));
+    temp.push(project, stubs);
+    await writeFile(join(project, 'layout.json'), enc('[]'));
+    await writeFile(join(stubs, 'layout.json'), enc('[]'));
+    const d = await openDataVfs({ projectDataDir: project, dataDir: root, stubsDir: stubs });
+    try {
+      await writeFile(join(root, 'Data', 'BinaryData', 'Ja2bin.dat'), enc('loose file rewritten'));
+      await writeFile(join(project, 'layout.json'), enc('[1]'));
+      await writeFile(join(stubs, 'layout.json'), enc('[1]'));
+      await d.refreshProjectDirs();
+      const sizes = ['layout.json', 'stubs/layout.json', 'binarydata/ja2bin.dat'].map((path) => d.vfs.stat(path)?.size);
+      expect(sizes).toEqual([3, 3, 10]);
+    } finally {
+      await d.close();
+    }
+  });
+});
+
 describe('stub layer aliases', () => {
   async function stubDir(aliases: Record<string, string>): Promise<string> {
     const dir = await mkdtemp(join(tmpdir(), 'ja2-stub-aliases-'));

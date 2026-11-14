@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
+import { CHANGING_FILE, ChangingFile, sha256Hex } from '../../tests/support/changing-layer.ts';
 import { encodeEdtFile } from '../content/formats/edt.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { DirLayer } from '../node/dir-layer.ts';
@@ -239,6 +240,80 @@ describe('server', () => {
     expect(parseRange('bytes=10-', 10)).toBe('unsatisfiable');
     expect(parseRange('bytes=1-2,4-5', 10)).toBeNull();
     expect(parseRange('bytes=5-2', 10)).toBeNull();
+  });
+});
+
+describe('the VFS route over files that change on disk', () => {
+  const IMMUTABLE = 'private, max-age=31536000, immutable';
+  const info = { originalData: false, slfCount: 0, stubs: true };
+  const layoutTable = (rows: number) => JSON.stringify(Array.from({ length: rows }, (_, i) => ({ index: i, anchor: 'TOP_LEFT' })));
+  const hashOf = (text: string) => sha256Hex(text).slice(0, 16);
+
+  async function manifestEntry(app: ReturnType<typeof createApp>, path: string): Promise<unknown[] | undefined> {
+    const manifest = (await (await app.request('http://localhost/api/assets/manifest', { headers: auth })).json()) as {
+      files: unknown[][];
+    };
+    return manifest.files.find((entry) => entry[0] === path);
+  }
+
+  async function changingFolder(text: string, refreshed = false): Promise<{ app: ReturnType<typeof createApp>; file: string }> {
+    const root = mkdtempSync(join(tmpdir(), 'ja2-changing-'));
+    const file = join(root, 'uilayout.json');
+    writeFileSync(file, text);
+    const layer = await DirLayer.open('dir', root);
+    const refreshFiles = () => layer.refresh();
+    return { app: createApp({ vfs: new Vfs([layer]), token, info, ...(refreshed ? { refreshFiles } : {}) }), file };
+  }
+
+  it('serves a file that grew whole under its new hash, and refuses its old hash as stale', async () => {
+    const before = layoutTable(40);
+    const after = layoutTable(80);
+    const { app: changing, file } = await changingFolder(before);
+    expect(await manifestEntry(changing, 'uilayout.json')).toEqual(['uilayout.json', before.length, hashOf(before), 0]);
+    expect(await (await changing.request(`http://localhost/vfs/@${hashOf(before)}/uilayout.json`, { headers: auth })).text()).toBe(before);
+    writeFileSync(file, after);
+    const stale = await changing.request(`http://localhost/vfs/@${hashOf(before)}/uilayout.json`, { headers: auth });
+    expect([stale.status, stale.headers.get('cache-control')]).toEqual([404, null]);
+    expect(await manifestEntry(changing, 'uilayout.json')).toEqual(['uilayout.json', after.length, hashOf(after), 0]);
+    const pinned = await changing.request(`http://localhost/vfs/@${hashOf(after)}/uilayout.json`, { headers: auth });
+    expect([pinned.status, pinned.headers.get('cache-control'), await pinned.text()]).toEqual([200, IMMUTABLE, after]);
+    const zipped = await changing.request('http://localhost/vfs/uilayout.json', { headers: { ...auth, 'accept-encoding': 'gzip' } });
+    expect(zipped.headers.get('etag')).toBe(`"${hashOf(after)}-gzip"`);
+    expect(gunzipSync(Buffer.from(await zipped.arrayBuffer())).toString('utf8')).toBe(after);
+  });
+
+  it('serves a file that shrank under its new hash instead of failing at its old end', async () => {
+    const before = layoutTable(80);
+    const after = layoutTable(40);
+    const { app: changing, file } = await changingFolder(before);
+    expect(await manifestEntry(changing, 'uilayout.json')).toEqual(['uilayout.json', before.length, hashOf(before), 0]);
+    writeFileSync(file, after);
+    expect((await changing.request(`http://localhost/vfs/@${hashOf(before)}/uilayout.json`, { headers: auth })).status).toBe(404);
+    const plain = await changing.request('http://localhost/vfs/uilayout.json', { headers: auth });
+    expect([plain.status, plain.headers.get('etag'), await plain.text()]).toEqual([200, `"${hashOf(after)}"`, after]);
+    expect(await manifestEntry(changing, 'uilayout.json')).toEqual(['uilayout.json', after.length, hashOf(after), 0]);
+  });
+
+  it('names the new hash in the next manifest without a read when it refreshes the files first', async () => {
+    const before = layoutTable(40);
+    const after = layoutTable(41);
+    const { app: changing, file } = await changingFolder(before, true);
+    expect(await manifestEntry(changing, 'uilayout.json')).toEqual(['uilayout.json', before.length, hashOf(before), 0]);
+    writeFileSync(file, after);
+    expect(await manifestEntry(changing, 'uilayout.json')).toEqual(['uilayout.json', after.length, hashOf(after), 0]);
+  });
+
+  it('never serves bytes read after a change under the hash from before it', async () => {
+    const file = new ChangingFile(['{"a":1}', '{"a":2}']);
+    const changing = createApp({ vfs: new Vfs([file]), token, info });
+    expect(await manifestEntry(changing, CHANGING_FILE)).toEqual([CHANGING_FILE, 7, hashOf('{"a":1}'), 0]);
+    file.onRead = () => {
+      file.onRead = null;
+      file.change();
+    };
+    const pinned = await changing.request(`http://localhost/vfs/@${hashOf('{"a":1}')}/${CHANGING_FILE}`, { headers: auth });
+    expect([pinned.status, pinned.headers.get('cache-control')]).toEqual([404, null]);
+    expect(await manifestEntry(changing, CHANGING_FILE)).toEqual([CHANGING_FILE, 7, hashOf('{"a":2}'), 0]);
   });
 });
 

@@ -68,38 +68,42 @@ export class VfsHashes {
     return new VfsHashes(vfs, null, new Map());
   }
 
-  #known(path: string): string | null {
-    const stamp = this.vfs.stamp(path);
+  #known(path: string, stamp: string | null): string | null {
     return (stamp === null ? this.#byPath.get(path) : this.#byStamp.get(stamp)) ?? null;
   }
 
-  readonly remember = (path: string, digest: string): void => {
-    const info = this.vfs.stat(path);
-    if (!info) return;
-    const stamp = this.vfs.stamp(info.path);
+  #store(path: string, stamp: string | null, digest: string): void {
     if (stamp === null) {
-      this.#byPath.set(info.path, digest);
+      this.#byPath.set(path, digest);
       return;
     }
     if (this.#byStamp.get(stamp) === digest) return;
     this.#byStamp.set(stamp, digest);
     this.#schedulePersist();
+  }
+
+  readonly remember = (path: string, digest: string): void => {
+    const info = this.vfs.stat(path);
+    if (info) this.#store(info.path, this.vfs.stamp(info.path), digest);
   };
+
+  async #digest(path: string, stamp: string | null): Promise<string> {
+    const digest = sha256(await this.vfs.read(path));
+    if (this.vfs.stamp(path) === stamp) this.#store(path, stamp, digest);
+    return digest;
+  }
 
   async sha256(path: string): Promise<string> {
     const info = this.vfs.stat(path);
     if (!info) throw new Error(`not in the VFS: ${path}`);
-    const known = this.#known(info.path);
+    const stamp = this.vfs.stamp(info.path);
+    const known = this.#known(info.path, stamp);
     if (known) return known;
-    let pending = this.#pending.get(info.path);
+    const key = stamp ?? info.path;
+    let pending = this.#pending.get(key);
     if (!pending) {
-      pending = this.vfs.read(info.path).then((bytes) => {
-        const digest = sha256(bytes);
-        this.remember(info.path, digest);
-        this.#pending.delete(info.path);
-        return digest;
-      });
-      this.#pending.set(info.path, pending);
+      pending = this.#digest(info.path, stamp).finally(() => this.#pending.delete(key));
+      this.#pending.set(key, pending);
     }
     return pending;
   }

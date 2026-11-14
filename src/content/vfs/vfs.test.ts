@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { joinVfsPath, normalizeVfsPath, vfsExtension } from './path.ts';
-import { MemoryLayer, Vfs, VfsNotFoundError } from './vfs.ts';
+import { MemoryLayer, Vfs, type VfsChangeListener, type VfsLayer, VfsNotFoundError } from './vfs.ts';
 
 const b = (s: string) => new TextEncoder().encode(s);
 const s = (u: Uint8Array) => new TextDecoder().decode(u);
@@ -38,5 +38,38 @@ describe('Vfs', () => {
     expect(s(await vfs.read('binarydata/prof.dat', 3, 1000))).toBe('files');
     await expect(vfs.read('nope.sti')).rejects.toBeInstanceOf(VfsNotFoundError);
     await expect(vfs.read('binarydata/prof.dat', 5, 2)).rejects.toBeInstanceOf(RangeError);
+  });
+});
+
+describe('a Vfs over a layer whose files change', () => {
+  function changingLayer(name: string, size: number): VfsLayer & { change(size: number): void } {
+    const listeners: VfsChangeListener[] = [];
+    let current = size;
+    return {
+      name,
+      entries: () => [{ path: 'tables/layout.json', size: current }],
+      read: async (_path, start, end) => new Uint8Array(current).slice(start, end),
+      onChange: (listener) => listeners.push(listener),
+      change: (next) => {
+        current = next;
+        for (const listener of listeners) listener({ path: 'tables/layout.json', size: next });
+      },
+    };
+  }
+
+  it('takes the new size of the winning file and counts the change', async () => {
+    const data = changingLayer('data', 10);
+    const vfs = new Vfs([data]);
+    data.change(24);
+    expect(vfs.stat('tables/layout.json')?.size).toBe(24);
+    expect((await vfs.read('tables/layout.json')).length).toBe(24);
+    expect(vfs.revision).toBe(1);
+  });
+
+  it('keeps the size of the winning file when a shadowed copy changes', () => {
+    const shadowed = changingLayer('stubs', 10);
+    const vfs = new Vfs([new MemoryLayer('data', [['tables/layout.json', b('[]')]]), shadowed]);
+    shadowed.change(24);
+    expect(vfs.stat('tables/layout.json')).toEqual({ path: 'tables/layout.json', size: 2, layer: 'data' });
   });
 });

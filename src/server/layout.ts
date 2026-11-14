@@ -7,6 +7,7 @@ export interface ServerLayout {
   readonly sessionWorker: URL;
   readonly engine: EngineIdentity;
   readonly repositoryRoot: string | null;
+  readonly projectDirsChange: boolean;
 }
 
 export interface StateDirs {

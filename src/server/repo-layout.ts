@@ -20,6 +20,7 @@ export function repoLayout(env: NodeJS.ProcessEnv = process.env): ServerLayout {
     sessionWorker: SOURCE_SESSION_WORKER,
     engine: checkoutEngineIdentity(REPO_ROOT, env),
     repositoryRoot: REPO_ROOT,
+    projectDirsChange: true,
   };
 }
 

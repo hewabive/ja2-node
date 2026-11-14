@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { VFS_ALIASES_FILE } from '../content/vfs/aliases.ts';
 import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
 import { Vfs, type VfsLayer } from '../content/vfs/vfs.ts';
-import { DirLayer } from './dir-layer.ts';
+import { DirLayer, type DirLayerOptions } from './dir-layer.ts';
 import { SlfFileLayer } from './slf-layer.ts';
 
 export const STUBS_PREFIX = 'stubs';
@@ -20,6 +20,7 @@ export interface DataVfs {
   readonly dataDir: string | null;
   readonly slfCount: number;
   readonly stubsDir: string | null;
+  refreshProjectDirs(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -42,10 +43,16 @@ export async function resolveDataDir(dir: string): Promise<string> {
 export async function openDataVfs(options: DataVfsOptions): Promise<DataVfs> {
   const layers: VfsLayer[] = [];
   const slfs: SlfFileLayer[] = [];
+  const projectDirs: DirLayer[] = [];
+  const openProjectDir = async (name: string, root: string, dirOptions: DirLayerOptions = {}): Promise<DirLayer> => {
+    const dir = await DirLayer.open(name, root, dirOptions);
+    projectDirs.push(dir);
+    return dir;
+  };
   let dataDir: string | null = null;
   try {
     if (options.projectDataDir && existsSync(options.projectDataDir)) {
-      layers.push(await DirLayer.open(PROJECT_DATA_LAYER, resolve(options.projectDataDir)));
+      layers.push(await openProjectDir(PROJECT_DATA_LAYER, resolve(options.projectDataDir)));
     }
     if (options.dataDir) {
       dataDir = await resolveDataDir(options.dataDir);
@@ -59,13 +66,16 @@ export async function openDataVfs(options: DataVfsOptions): Promise<DataVfs> {
     let stubsDir: string | null = null;
     if (options.stubsDir && existsSync(options.stubsDir)) {
       stubsDir = resolve(options.stubsDir);
-      layers.push(await DirLayer.open(STUBS_LAYER, stubsDir, { prefix: STUBS_PREFIX, aliasFile: VFS_ALIASES_FILE }));
+      layers.push(await openProjectDir(STUBS_LAYER, stubsDir, { prefix: STUBS_PREFIX, aliasFile: VFS_ALIASES_FILE }));
     }
     return {
       vfs: new Vfs(layers),
       dataDir,
       slfCount: slfs.length,
       stubsDir,
+      refreshProjectDirs: async () => {
+        await Promise.all(projectDirs.map((dir) => dir.refresh()));
+      },
       close: async () => {
         await Promise.all(slfs.map((s) => s.close()));
       },

@@ -1,8 +1,9 @@
-import { open, readdir, readFile, stat } from 'node:fs/promises';
+import type { Stats } from 'node:fs';
+import { type FileHandle, open, readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseVfsAliases } from '../content/vfs/aliases.ts';
 import { joinVfsPath, vfsExtension } from '../content/vfs/path.ts';
-import { type VfsLayer, type VfsLayerEntry, VfsNotFoundError } from '../content/vfs/vfs.ts';
+import { VfsChangedError, type VfsChangeListener, type VfsLayer, type VfsLayerEntry, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { readExactly } from './file-range.ts';
 
 export interface DirLayerOptions {
@@ -11,13 +12,26 @@ export interface DirLayerOptions {
   readonly aliasFile?: string;
 }
 
-interface DirFile {
-  readonly abs: string;
+interface FileStamp {
   readonly size: number;
   readonly mtimeMs: number;
 }
 
+interface DirFile {
+  readonly abs: string;
+  stamp: FileStamp;
+  refreshes: number;
+}
+
 type DirFiles = Map<string, DirFile>;
+
+function stampOf(info: Stats): FileStamp {
+  return { size: info.size, mtimeMs: info.mtimeMs };
+}
+
+function sameStamp(a: FileStamp, b: FileStamp): boolean {
+  return a.size === b.size && a.mtimeMs === b.mtimeMs;
+}
 
 async function addAliases(files: DirFiles, prefix: string, aliasFile: string): Promise<void> {
   const manifest = files.get(joinVfsPath(prefix, aliasFile));
@@ -34,6 +48,7 @@ export class DirLayer implements VfsLayer {
   readonly name: string;
   readonly root: string;
   readonly #files: DirFiles;
+  readonly #listeners: VfsChangeListener[] = [];
 
   private constructor(name: string, root: string, files: DirFiles) {
     this.name = name;
@@ -55,8 +70,7 @@ export class DirLayer implements VfsLayer {
         } else if (it.isFile()) {
           const path = joinVfsPath(options.prefix ?? '', relPath);
           if (skip.has(vfsExtension(path)) || files.has(path)) continue;
-          const info = await stat(abs);
-          files.set(path, { abs, size: info.size, mtimeMs: info.mtimeMs });
+          files.set(path, { abs, stamp: stampOf(await stat(abs)), refreshes: 0 });
         }
       }
     };
@@ -66,12 +80,16 @@ export class DirLayer implements VfsLayer {
   }
 
   *entries(): Iterable<VfsLayerEntry> {
-    for (const [path, f] of this.#files) yield { path, size: f.size };
+    for (const [path, f] of this.#files) yield { path, size: f.stamp.size };
   }
 
   stamp(path: string): string | null {
     const f = this.#files.get(path);
-    return f ? [f.abs, f.size, f.mtimeMs].join('\t') : null;
+    return f ? [f.abs, f.stamp.size, f.stamp.mtimeMs].join('\t') : null;
+  }
+
+  onChange(listener: VfsChangeListener): void {
+    this.#listeners.push(listener);
   }
 
   async read(path: string, start: number, end: number): Promise<Uint8Array<ArrayBuffer>> {
@@ -79,9 +97,39 @@ export class DirLayer implements VfsLayer {
     if (!f) throw new VfsNotFoundError(path);
     const handle = await open(f.abs, 'r');
     try {
-      return await readExactly(handle, start, end - start);
+      const listed = await this.#expectStamp(path, f, handle, f.stamp);
+      try {
+        return await readExactly(handle, start, end - start);
+      } finally {
+        await this.#expectStamp(path, f, handle, listed);
+      }
     } finally {
       await handle.close();
     }
+  }
+
+  async refresh(): Promise<void> {
+    await Promise.all([...new Set(this.#files.values())].map((file) => this.#refresh(file)));
+  }
+
+  async #expectStamp(path: string, file: DirFile, handle: FileHandle, expected: FileStamp): Promise<FileStamp> {
+    const current = stampOf(await handle.stat());
+    if (sameStamp(current, expected)) return current;
+    await this.#refresh(file);
+    throw new VfsChangedError(path);
+  }
+
+  #restamp(file: DirFile, stamp: FileStamp): void {
+    if (sameStamp(file.stamp, stamp)) return;
+    file.stamp = stamp;
+    for (const [path, f] of this.#files) {
+      if (f === file) for (const listener of this.#listeners) listener({ path, size: stamp.size });
+    }
+  }
+
+  async #refresh(file: DirFile): Promise<void> {
+    const refresh = ++file.refreshes;
+    const info = await stat(file.abs).catch(() => null);
+    if (info && refresh === file.refreshes) this.#restamp(file, stampOf(info));
   }
 }

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ENGINE_FILE, PACKAGE_SERVER_DIR, packageLayout } from './package-layout.ts';
 
 describe('the layout of an installed package', () => {
-  it('finds every resource under the root it is given and reads the engine written at packaging', async () => {
+  it('finds every resource under the root it is given, reads the engine written at packaging and never refreshes its files', async () => {
     const root = await mkdtemp(join(tmpdir(), 'ja2-package-root-'));
     try {
       await mkdir(join(root, PACKAGE_SERVER_DIR), { recursive: true });
@@ -18,6 +18,7 @@ describe('the layout of an installed package', () => {
         sessionWorker: pathToFileURL(join(root, 'dist', 'server', 'session-worker.js')),
         engine: { version: '1.2.3', commit: 'abc123' },
         repositoryRoot: null,
+        projectDirsChange: false,
       });
     } finally {
       await rm(root, { recursive: true, force: true });

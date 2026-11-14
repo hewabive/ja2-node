@@ -21,7 +21,7 @@ import {
   type UiLanguage,
 } from '../content/text/data-version.ts';
 import { vfsExtension } from '../content/vfs/path.ts';
-import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
+import { type Vfs, VfsChangedError, type VfsFileInfo, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { clientPagePath } from '../node/client-pages.ts';
 import { ASSET_MANIFEST_ROUTE, isAssetHash, PINNED_PREFIX, VFS_ROUTE } from '../protocol/assets.ts';
 import { INSTALLATION_ROUTE } from '../protocol/installation.ts';
@@ -62,6 +62,7 @@ export interface AppOptions {
   readonly defaultLanguage?: UiLanguage;
   readonly saves?: SaveService;
   readonly installation?: InstallationStore;
+  readonly refreshFiles?: () => Promise<void>;
 }
 
 export const TOKEN_COOKIE = 'ja2_token';
@@ -92,11 +93,23 @@ const PROFILES_ETAG_DIGITS = 16;
 const GZIP_ETAG_SUFFIX = '-gzip';
 const HASHED_CLIENT_FILES = '/assets/';
 const HTTP_ERROR_FROM = 400;
+const VFS_CHANGE_ATTEMPTS = 3;
 const MAX_U32 = 0xffffffff;
 
 interface VfsRequest {
   readonly path: string;
   readonly pinned: string | null;
+}
+
+function expectStamp(vfs: Vfs, path: string, stamp: string | null): void {
+  if (vfs.stamp(path) !== stamp) throw new VfsChangedError(path);
+}
+
+async function readStamped(vfs: Vfs, path: string, stamp: string | null, start?: number, end?: number): Promise<Uint8Array<ArrayBuffer>> {
+  expectStamp(vfs, path, stamp);
+  const bytes = await vfs.read(path, start, end);
+  expectStamp(vfs, path, stamp);
+  return bytes;
 }
 
 function vfsRequestOf(raw: string): VfsRequest | 'malformed' {
@@ -182,13 +195,18 @@ export function createApp(options: AppOptions): Hono {
   const hashes = options.hashes ?? VfsHashes.memory(vfs);
   const stubFallback = texts.dataVersion === STUB_DATA_VERSION;
   const gzipCache = new VfsGzipCache();
-  let manifest: Promise<EncodedAssetManifest> | null = null;
+  let manifest: { readonly revision: number; readonly encoded: Promise<EncodedAssetManifest> } | null = null;
   const assetManifest = (): Promise<EncodedAssetManifest> => {
-    manifest ??= hashes.manifest(info.originalData ? 'original' : 'stubs', stubFallback).then(encodeAssetManifest);
-    manifest.catch(() => {
-      manifest = null;
+    if (manifest?.revision === vfs.revision) return manifest.encoded;
+    const current = {
+      revision: vfs.revision,
+      encoded: hashes.manifest(info.originalData ? 'original' : 'stubs', stubFallback).then(encodeAssetManifest),
+    };
+    current.encoded.catch(() => {
+      if (manifest === current) manifest = null;
     });
-    return manifest;
+    manifest = current;
+    return current.encoded;
   };
   const app = new Hono();
 
@@ -253,6 +271,7 @@ export function createApp(options: AppOptions): Hono {
   });
 
   app.get(ASSET_MANIFEST_ROUTE, async (c) => {
+    await options.refreshFiles?.();
     const encoded = await assetManifest();
     const headers = {
       'content-type': 'application/json',
@@ -447,25 +466,13 @@ export function createApp(options: AppOptions): Hono {
     );
   }
 
-  app.get('/vfs/*', async (c) => {
-    let request: VfsRequest | 'malformed';
-    try {
-      request = vfsRequestOf(decodeURIComponent(new URL(c.req.url).pathname.slice(VFS_ROUTE.length)));
-    } catch {
-      return c.json({ error: 'bad path encoding' }, 400);
-    }
-    if (request === 'malformed') return c.json({ error: 'expected /vfs/@<16 hex digits>/<path>' }, 400);
-    const { path, pinned } = request;
-    let info: ReturnType<Vfs['stat']>;
-    try {
-      info = vfs.stat(path) ?? (stubFallback ? vfs.stat(`${STUB_TEXT_PREFIX}${path}`) : undefined);
-    } catch (err) {
-      if (err instanceof RangeError) return c.json({ error: err.message }, 400);
-      throw err;
-    }
-    if (!info) return c.json({ error: `not found: ${path}` }, 404);
+  const serveVfsFile = async (c: Context, request: VfsRequest, filePath: string): Promise<Response> => {
+    const info = vfs.stat(filePath);
+    if (!info) return c.json({ error: `not found: ${request.path}` }, 404);
+    const stamp = vfs.stamp(info.path);
     const hash = await hashes.contentHash(info.path);
-    if (pinned !== null && pinned !== hash) return c.json({ error: `stale: ${path} has changed, fetch the manifest again` }, 404);
+    const { pinned } = request;
+    if (pinned !== null && pinned !== hash) return c.json({ error: `stale: ${request.path} has changed, fetch the manifest again` }, 404);
     const etag = `"${hash}"`;
     const gzipEtag = `"${hash}${GZIP_ETAG_SUFFIX}"`;
     const extension = vfsExtension(info.path);
@@ -480,7 +487,7 @@ export function createApp(options: AppOptions): Hono {
     const ifNoneMatch = c.req.header('if-none-match');
     if (ifNoneMatch === etag || ifNoneMatch === gzipEtag) return c.body(null, 304, { ...headers, etag: ifNoneMatch });
     if (!c.req.header('range') && acceptsGzip(c.req.header('accept-encoding')) && worthCompressing(extension, info.size)) {
-      const packed = await gzipCache.compressed(hash, () => vfs.read(info.path));
+      const packed = await gzipCache.compressed(hash, () => readStamped(vfs, info.path, stamp));
       if (packed) return c.body(new Uint8Array(packed), 200, { ...headers, etag: gzipEtag, 'content-encoding': 'gzip' });
     }
     const range = parseRange(c.req.header('range'), info.size);
@@ -489,14 +496,41 @@ export function createApp(options: AppOptions): Hono {
     }
     try {
       if (range) {
-        const data = await vfs.read(info.path, range.start, range.end);
+        const data = await readStamped(vfs, info.path, stamp, range.start, range.end);
         return c.body(data, 206, { ...headers, 'content-range': `bytes ${range.start}-${range.end - 1}/${info.size}` });
       }
-      return c.body(await vfs.read(info.path), 200, headers);
+      return c.body(await readStamped(vfs, info.path, stamp), 200, headers);
     } catch (err) {
       if (err instanceof VfsNotFoundError) return c.json({ error: err.message }, 404);
       throw err;
     }
+  };
+
+  app.get('/vfs/*', async (c) => {
+    let request: VfsRequest | 'malformed';
+    try {
+      request = vfsRequestOf(decodeURIComponent(new URL(c.req.url).pathname.slice(VFS_ROUTE.length)));
+    } catch {
+      return c.json({ error: 'bad path encoding' }, 400);
+    }
+    if (request === 'malformed') return c.json({ error: 'expected /vfs/@<16 hex digits>/<path>' }, 400);
+    const { path } = request;
+    let found: VfsFileInfo | undefined;
+    try {
+      found = vfs.stat(path) ?? (stubFallback ? vfs.stat(`${STUB_TEXT_PREFIX}${path}`) : undefined);
+    } catch (err) {
+      if (err instanceof RangeError) return c.json({ error: err.message }, 400);
+      throw err;
+    }
+    if (!found) return c.json({ error: `not found: ${path}` }, 404);
+    for (let attempt = 0; attempt < VFS_CHANGE_ATTEMPTS; attempt++) {
+      try {
+        return await serveVfsFile(c, request, found.path);
+      } catch (err) {
+        if (!(err instanceof VfsChangedError)) throw err;
+      }
+    }
+    return c.json({ error: `${path} keeps changing on disk, try again` }, 503);
   });
 
   if (options.clientDir)

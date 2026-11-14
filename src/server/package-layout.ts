@@ -26,5 +26,6 @@ export function packageLayout(root: string): ServerLayout {
     sessionWorker: pathToFileURL(join(serverDir, bundleFile(SESSION_WORKER_BUNDLE))),
     engine: parseEngineIdentity(readFileSync(join(serverDir, ENGINE_FILE), 'utf8')),
     repositoryRoot: null,
+    projectDirsChange: false,
   };
 }

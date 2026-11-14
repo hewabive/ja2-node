@@ -161,6 +161,7 @@ export async function startServer(start: ServerStart): Promise<RunningServer> {
       defaultLanguage: language,
       saves,
       installation,
+      ...(layout.projectDirsChange ? { refreshFiles: data.refreshProjectDirs } : {}),
       ...(clientBuilt ? { clientDir: layout.clientDir } : {}),
       ...(start.listen.allowedHosts ? { allowedHosts: start.listen.allowedHosts } : {}),
       info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },

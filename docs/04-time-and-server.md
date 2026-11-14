@@ -386,6 +386,17 @@ animation scripts); a client compares them with its own code and data (`src/app/
   whole-file read is gzipped when that pays (`src/server/vfs-gzip.ts`: not already compressed, at least 1 KB, at least
   10% smaller; kept in memory by hash). On the stubs `/vfs/<path>` falls back to `stubs/<path>`, so stub media and
   text answer under the original names (`32` §1.4).
+- **Files changed while the server runs.** A folder layer (`src/node/dir-layer.ts`) stamps its files with size and
+  mtime when it opens and compares the open file with the stamp before and after every read: a changed file is stamped
+  again from disk, the VFS takes its new size (`onChange`, `Vfs.revision`) and the read fails with `VfsChangedError`,
+  so no read returns a cut or mixed file. `/vfs` serves only bytes read under the stamp it hashed and starts over
+  otherwise, so a URL pinned to the old hash gets the `stale` 404 and the new content goes out under its new hash; the
+  manifest is rebuilt after any change the VFS has counted. The developer server also stats the project data and the
+  stub pack again before each manifest (`projectDirsChange` in `ServerLayout`; some 10 ms for their 1,600 files), so a
+  change shows at the next page load before anything reads the file. `ja2-node` does not, since its folders change only
+  with the package, and neither refreshes the game's data folder; its loose files keep the read check, its SLF archives
+  have none. A directory watch was rejected: a recursive watch goes deaf once a stub pack build renames a new pack over
+  the watched one (`32` §1.4). A new or deleted file still needs a restart.
 - **The built client** (`dist/client`, `pnpm build`), when present, is served gzipped, hashed files as immutable.
   Remotely it is the cheaper way to play: the Vite dev server sends some 700 modules and revalidates each on every
   opening, the built client a few dozen files once. The game page needs nearly all of it within a session (every
