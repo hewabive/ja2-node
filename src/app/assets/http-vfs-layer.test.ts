@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryLayer, Vfs, VfsNotFoundError } from '../../content/vfs/vfs.ts';
-import { ASSET_MANIFEST_VERSION } from '../../protocol/assets.ts';
+import { ASSET_MANIFEST_ROUTE, ASSET_MANIFEST_VERSION } from '../../protocol/assets.ts';
 import { createApp } from '../../server/app.ts';
 import { HttpAssetSource } from './asset-source.ts';
 import { type Fetcher, fetchAssetManifest, HttpVfsLayer, MAX_CONCURRENCY, MIN_CONCURRENCY, StaleAssetError } from './http-vfs-layer.ts';
@@ -86,6 +86,55 @@ describe('the HTTP asset source', () => {
     const after = serverOver(new Vfs([new MemoryLayer('mem', [['maps/a9.dat', text('new map')]])]));
     const layer = new HttpVfsLayer(manifest, after.options);
     await expect(layer.read('maps/a9.dat', 0, 7)).rejects.toBeInstanceOf(StaleAssetError);
+  });
+
+  it('fetches the manifest again for files changed after it and reads them under their new hash, once for reads stale together', async () => {
+    const before = serverOver(
+      new Vfs([
+        new MemoryLayer('mem', [
+          ['maps/a9.dat', text('old map')],
+          ['maps/b9.dat', text('old b9')],
+        ]),
+      ]),
+    );
+    const after = serverOver(
+      new Vfs([
+        new MemoryLayer('mem', [
+          ['maps/a9.dat', text('the new map')],
+          ['maps/b9.dat', text('new b9')],
+        ]),
+      ]),
+    );
+    let server = before;
+    const urls: string[] = [];
+    const fetcher: Fetcher = (url, init) => {
+      urls.push(url);
+      return server.fetcher(url, init);
+    };
+    const source = await HttpAssetSource.open({ ...before.options, fetch: fetcher });
+    const hashes = () => [source.hashOf('maps/a9.dat'), source.hashOf('maps/b9.dat')];
+    const old = hashes();
+    server = after;
+    const read = await Promise.all([source.read('maps/a9.dat'), source.readOptional('maps/b9.dat')]);
+    expect(read.map((bytes) => decoded(bytes ?? new Uint8Array()))).toEqual(['the new map', 'new b9']);
+    expect(urls.filter((u) => u.endsWith(ASSET_MANIFEST_ROUTE))).toHaveLength(2);
+    expect(hashes().every((hash, i) => hash !== null && hash !== old[i])).toBe(true);
+    expect(source.resolve('maps/a9.dat')?.size).toBe(11);
+    expect(decoded(await source.read('maps/a9.dat'))).toBe('the new map');
+    expect(urls.filter((u) => u.endsWith(ASSET_MANIFEST_ROUTE))).toHaveLength(2);
+  });
+
+  it('fails a read still stale under the manifest fetched again', async () => {
+    const server = serverOver(new Vfs([new MemoryLayer('mem', [['maps/a9.dat', text('map')]])]));
+    const asked: string[] = [];
+    const fetcher: Fetcher = (url, init) => {
+      const pinned = url.includes('/vfs/@');
+      asked.push(pinned ? 'file' : 'manifest');
+      return pinned ? Promise.resolve(new Response(null, { status: 404 })) : server.fetcher(url, init);
+    };
+    const source = await HttpAssetSource.open({ ...server.options, fetch: fetcher });
+    await expect(source.read('maps/a9.dat')).rejects.toBeInstanceOf(StaleAssetError);
+    expect(asked).toEqual(['manifest', 'file', 'manifest', 'file']);
   });
 
   it('fetches a file once while it is in flight, counts the reads not finished and limits the parallel requests', async () => {

@@ -5,6 +5,7 @@ const MAP = 'maps/a9.dat';
 const STALE = 'tilesets/0/door1.jsd';
 const MAP_HASH = '0123456789abcdef';
 const STALE_HASH = 'fedcba9876543210';
+const CHANGED_HASH = '00112233aabbccdd';
 const NOT_FOUND = 404;
 
 const manifest = {
@@ -19,17 +20,21 @@ const manifest = {
   ],
 };
 
+const changedManifest = { ...manifest, files: [manifest.files[0], [STALE, 3, CHANGED_HASH, 0]] };
+
 let requests: string[] = [];
+let manifests = 0;
 
 function respond(url: string): Response {
-  if (url === ASSET_MANIFEST_ROUTE) return Response.json(manifest);
+  if (url === ASSET_MANIFEST_ROUTE) return Response.json(manifests++ === 0 ? manifest : changedManifest);
   if (url === pinnedAssetUrl(MAP, MAP_HASH)) return new Response(new Uint8Array([1, 2, 3]));
-  if (url === `/vfs/${STALE}`) return new Response(new Uint8Array([9, 9]));
+  if (url === pinnedAssetUrl(STALE, CHANGED_HASH)) return new Response(new Uint8Array([9, 9, 9]));
   return new Response(null, { status: NOT_FOUND });
 }
 
 beforeEach(() => {
   requests = [];
+  manifests = 0;
   vi.resetModules();
   vi.stubGlobal('fetch', async (url: string) => {
     requests.push(url);
@@ -55,10 +60,15 @@ describe('page file reads', () => {
     expect(requests).toEqual([ASSET_MANIFEST_ROUTE]);
   });
 
-  it('fall back to the plain URL when the server holds a newer file than the manifest', async () => {
+  it('read a file the server holds newer than the manifest under its hash in the manifest fetched again', async () => {
     const { fetchVfsFile } = await import('./vfs.ts');
-    expect([...(await fetchVfsFile(STALE))]).toEqual([9, 9]);
-    expect(requests).toEqual([ASSET_MANIFEST_ROUTE, pinnedAssetUrl(STALE, STALE_HASH), `/vfs/${STALE}`]);
+    expect([...(await fetchVfsFile(STALE))]).toEqual([9, 9, 9]);
+    expect(requests).toEqual([
+      ASSET_MANIFEST_ROUTE,
+      pinnedAssetUrl(STALE, STALE_HASH),
+      ASSET_MANIFEST_ROUTE,
+      pinnedAssetUrl(STALE, CHANGED_HASH),
+    ]);
   });
 
   it('list the files from the manifest instead of /api/vfs', async () => {

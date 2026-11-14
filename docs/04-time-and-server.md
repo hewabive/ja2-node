@@ -381,8 +381,9 @@ animation scripts); a client compares them with its own code and data (`src/app/
   The hashes persist in `.ja2/cache/vfs-hashes.json` by file stamp, so a restart reads no file again. `GET /api/vfs`
   lists the files for tools.
 - **`GET /vfs/@<hash>/<path>`** is immutable when `<hash>` is the file's current hash and 404 when it is not (the client
-  falls back to the plain URL, `src/app/net/vfs.ts`), so the HTTP cache keeps media across sessions and restarts. Plain **`/vfs/<path>`** stays
-  for tools and agents, revalidated with the content hash as a strong ETag. Both take the token and serve ranges. A
+  fetches the manifest again and reads the file once more under its new hash, `src/app/assets/asset-source.ts`), so the
+  HTTP cache keeps media across sessions and restarts. Plain **`/vfs/<path>`** stays for tools and agents, revalidated
+  with the content hash as a strong ETag. Both take the token and serve ranges. A
   whole-file read is gzipped when that pays (`src/server/vfs-gzip.ts`: not already compressed, at least 1 KB, at least
   10% smaller; kept in memory by hash). On the stubs `/vfs/<path>` falls back to `stubs/<path>`, so stub media and
   text answer under the original names (`32` §1.4).

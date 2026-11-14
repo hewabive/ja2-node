@@ -1,6 +1,5 @@
 import { entryLayer } from '../../protocol/assets.ts';
 import type { HttpAssetSource } from '../assets/asset-source.ts';
-import { StaleAssetError } from '../assets/http-vfs-layer.ts';
 import { pageAssetSource } from '../assets/page-assets.ts';
 
 export interface Health {
@@ -35,13 +34,7 @@ export async function fetchHealth(): Promise<Health> {
 
 async function viaManifest<T>(pinned: (source: HttpAssetSource) => Promise<T>, plain: () => Promise<T>): Promise<T> {
   const source = await pageAssetSource().catch(() => null);
-  if (!source) return plain();
-  try {
-    return await pinned(source);
-  } catch (err) {
-    if (err instanceof StaleAssetError) return plain();
-    throw err;
-  }
+  return source ? pinned(source) : plain();
 }
 
 function manifestListing(source: HttpAssetSource): VfsFile[] {

@@ -51,6 +51,10 @@ export class AssetFetchError extends Error {
   }
 }
 
+function entriesOf(manifest: AssetManifest): ReadonlyMap<string, AssetManifestEntry> {
+  return new Map(manifest.files.map((e) => [normalizeVfsPath(e[0]), e]));
+}
+
 function abortError(): DOMException {
   return new DOMException('the asset read was aborted', 'AbortError');
 }
@@ -110,6 +114,7 @@ class Slots {
 }
 
 interface SharedRead {
+  readonly path: string;
   readonly controller: AbortController;
   readonly result: Promise<Uint8Array<ArrayBuffer>>;
   readonly startedAt: number;
@@ -118,8 +123,8 @@ interface SharedRead {
 
 export class HttpVfsLayer implements VfsLayer {
   readonly name = HTTP_LAYER_NAME;
-  readonly manifest: AssetManifest;
-  readonly #entries: ReadonlyMap<string, AssetManifestEntry>;
+  #manifest: AssetManifest;
+  #entries: ReadonlyMap<string, AssetManifestEntry>;
   readonly #fetch: Fetcher;
   readonly #baseUrl: string;
   readonly #headers: Readonly<Record<string, string>>;
@@ -129,13 +134,22 @@ export class HttpVfsLayer implements VfsLayer {
   #lifetime = new AbortController();
 
   constructor(manifest: AssetManifest, options: HttpAssetOptions = {}) {
-    this.manifest = manifest;
-    this.#entries = new Map(manifest.files.map((e) => [normalizeVfsPath(e[0]), e]));
+    this.#manifest = manifest;
+    this.#entries = entriesOf(manifest);
     this.#fetch = options.fetch ?? ((url, init) => fetch(url, init));
     this.#baseUrl = options.baseUrl ?? '';
     this.#headers = options.headers ?? {};
     this.#slots = new Slots(clampConcurrency(options.concurrency));
     this.#now = options.now ?? (() => performance.now());
+  }
+
+  get manifest(): AssetManifest {
+    return this.#manifest;
+  }
+
+  useManifest(manifest: AssetManifest): void {
+    this.#manifest = manifest;
+    this.#entries = entriesOf(manifest);
   }
 
   get activeRequests(): number {
@@ -148,7 +162,7 @@ export class HttpVfsLayer implements VfsLayer {
 
   oldestRead(): OpenRead | null {
     const first = this.#inFlight.entries().next().value;
-    return first ? { path: first[0], ageMs: this.#now() - first[1].startedAt } : null;
+    return first ? { path: first[1].path, ageMs: this.#now() - first[1].startedAt } : null;
   }
 
   *entries(): Iterable<VfsLayerEntry> {
@@ -177,10 +191,11 @@ export class HttpVfsLayer implements VfsLayer {
     const entry = this.#entries.get(path);
     if (!entry) return Promise.reject(new VfsNotFoundError(path));
     const whole = start === 0 && end === entry[1];
-    const key = whole ? path : `${path}#${start}-${end}`;
+    const pinned = `${entry[2]}/${path}`;
+    const key = whole ? pinned : `${pinned}#${start}-${end}`;
     let shared = this.#inFlight.get(key);
     if (!shared) {
-      shared = this.#start(entry, whole ? null : { start, end });
+      shared = this.#start(path, entry, whole ? null : { start, end });
       const started = shared;
       this.#inFlight.set(key, started);
       started.result.then(
@@ -191,7 +206,7 @@ export class HttpVfsLayer implements VfsLayer {
     return this.#wait(shared, signal);
   }
 
-  #start(entry: AssetManifestEntry, range: { start: number; end: number } | null): SharedRead {
+  #start(path: string, entry: AssetManifestEntry, range: { start: number; end: number } | null): SharedRead {
     const controller = new AbortController();
     const lifetime = this.#lifetime.signal;
     const abortOnLifetime = () => controller.abort();
@@ -199,7 +214,7 @@ export class HttpVfsLayer implements VfsLayer {
     const result = this.#slots
       .run(() => this.#download(entry, range, controller.signal), controller.signal)
       .finally(() => lifetime.removeEventListener('abort', abortOnLifetime));
-    return { controller, result, startedAt: this.#now(), waiters: 0 };
+    return { path, controller, result, startedAt: this.#now(), waiters: 0 };
   }
 
   async #download(
