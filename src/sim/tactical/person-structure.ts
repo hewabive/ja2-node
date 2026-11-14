@@ -4,14 +4,15 @@
 // @src SetSoldierAnimationSurface; Tactical/Soldier_Control.cc EVENT_SetSoldierDirection, InternalIsValidStance (an
 // @src escort may crouch anywhere and never lie down), MercInWater; Tactical/Handle_UI.cc UIHandleSoldierStanceChange
 // @src (the message for a stance that is not valid; the tired collapse is refused before as outOfBreath);
-// @src TacticalAI/AIUtils.cc ValidCreatureTurn; AddMercStructureInfoFromAnimSurface's level node a passenger lacks (2026-11-05)
+// @src TacticalAI/AIUtils.cc ValidCreatureTurn; AddMercStructureInfoFromAnimSurface's level node a passenger lacks (2026-11-05);
+// @src Tactical/Soldier_Control.cc MultiTiledTurnDirection (2026-11-14)
 
-import type { StructureDef } from '../../content/formats/jsd.ts';
+import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { AnimHeight, states } from './animation.ts';
 import { DIRECTION_COUNT, quickestTurnIncrement } from './directions.ts';
-import { animStructureFile } from './multi-tile.ts';
+import { animStructureFile, soldierStructureId } from './multi-tile.ts';
 import { isRobot } from './narrative/robot.ts';
 import type { Refusal } from './refusal.ts';
 import { Body, OKBREATH, onTheGrid, type Soldier } from './soldier.ts';
@@ -76,6 +77,28 @@ export function validCreatureTurn(t: TacticalState, s: Soldier, newDirection: nu
     change = -change;
   }
   return true;
+}
+
+function wrappedDirection(direction: number): number {
+  if (direction < 0) return DIRECTION_COUNT - 1;
+  return direction >= DIRECTION_COUNT ? 0 : direction;
+}
+
+function turnFits(t: TacticalState, s: Soldier, file: StructureFile, desired: number, increment: number): boolean {
+  const id = soldierStructureId(s);
+  for (let direction = s.direction; direction !== desired; ) {
+    direction = wrappedDirection(direction + increment);
+    const def = file.structures[(direction + 1) % DIRECTION_COUNT];
+    if (def && !t.world.structures.okayToAdd(s.gridNo, s.level, def, id)) return false;
+  }
+  return true;
+}
+
+export function multiTiledTurnIncrement(t: TacticalState, s: Soldier, desired: number): number {
+  const quickest = quickestTurnIncrement(s.direction, desired);
+  const file = animStructureFile(t.content, s, s.uiMovementMode);
+  if (!file || quickest === 0 || turnFits(t, s, file, desired, quickest)) return quickest;
+  return -quickest;
 }
 
 export function isValidStance(t: TacticalState, s: Soldier, stance: number): boolean {

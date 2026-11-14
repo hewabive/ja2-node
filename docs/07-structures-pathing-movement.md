@@ -203,6 +203,6 @@ Inferred from reading the source:
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
 Not ported: gaps "Doors", "Unseen soldiers in combat".
-Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and
+Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Creature and
 bloodcat stub bodies", "Frame timers", "Continue a move", "Fence landing on the final tile", "Prone hop facing the
 fence".

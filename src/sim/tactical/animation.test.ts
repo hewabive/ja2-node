@@ -1,13 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildStubAnimationScripts } from '../../../stubs/anim-scripts.ts';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { layProne, raiseTiles, withTwoTileCreatureBodies, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { addStubTank, addStubVehicle } from '../../../tests/support/vehicles.ts';
 import { ticksPerFrame } from '../../content/anim/schedule-track.ts';
 import { stateId } from '../../content/anim/tables.ts';
 import { splitAnimationScripts, timelineSlot } from '../../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
-import { Direction, gridNo } from '../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { TICK_MS } from '../clock.ts';
 import { AiAction } from './ai/actions.ts';
@@ -20,6 +21,7 @@ import {
   setSoldierAniSpeed,
   setSoldierDirection,
   soldierGotoStationaryStance,
+  states,
 } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { executeOverhead } from './overhead.ts';
@@ -369,5 +371,69 @@ describe("a tank's recoil (Soldier_Ani.cc codes 412 and 413)", () => {
     expect({ x: tank.x, y: tank.y, gridNo: tank.gridNo }).toEqual({ x: start.x, y: pushedBack, gridNo: start.gridNo });
     adjustToNextAnimationFrame(t, tank);
     expect({ x: tank.x, y: tank.y, gridNo: tank.gridNo }).toEqual(start);
+  });
+});
+
+describe('a multi-tile soldier turning (MultiTiledTurnDirection)', () => {
+  const AT = gridNo(80, 80);
+  const SETTLE_TICKS = 2_000;
+  const tailOf = (direction: number) => AT - (DIRECTION_INCREMENT[direction] ?? 0);
+
+  function bloodcatFacingNorth(raised: readonly number[]): { sim: TacticalSim; cat: Soldier } {
+    const sim = newCombatSim(withTwoTileCreatureBodies(content, [Body.BLOODCAT]));
+    raiseTiles(sim.state, raised);
+    const cat = spawnSoldier(sim, 40, Team.CREATURE, AT, Direction.NORTH, { body: Body.BLOODCAT });
+    expect(cat.multiTile).toBe(true);
+    return { sim, cat };
+  }
+
+  function facings(sim: TacticalSim, s: Soldier): number[] {
+    const seen: number[] = [];
+    let last = s.direction;
+    for (let tick = 0; tick < SETTLE_TICKS && s.direction !== s.desiredDirection; tick++) {
+      executeOverhead(sim.state);
+      if (s.direction !== last) seen.push(s.direction);
+      last = s.direction;
+    }
+    return seen;
+  }
+
+  it('turns the long way round when its body does not fit a facing on the quick way', () => {
+    const { sim, cat } = bloodcatFacingNorth([tailOf(Direction.NORTHEAST)]);
+    setDesiredDirection(sim.state, cat, Direction.EAST);
+    expect(cat.turnIncrement).toBe(-1);
+    expect(facings(sim, cat)).toEqual([
+      Direction.NORTHWEST,
+      Direction.WEST,
+      Direction.SOUTHWEST,
+      Direction.SOUTH,
+      Direction.SOUTHEAST,
+      Direction.EAST,
+    ]);
+  });
+
+  it('takes the quick way when it fits, and the long way when neither fits, stopping at its first blocked facing', () => {
+    const quick = bloodcatFacingNorth([tailOf(Direction.WEST)]);
+    setDesiredDirection(quick.sim.state, quick.cat, Direction.EAST);
+    expect(quick.cat.turnIncrement).toBe(1);
+    const neither = bloodcatFacingNorth([tailOf(Direction.NORTHEAST), tailOf(Direction.WEST)]);
+    setDesiredDirection(neither.sim.state, neither.cat, Direction.EAST);
+    expect(neither.cat.turnIncrement).toBe(-1);
+    facings(neither.sim, neither.cat);
+    expect([neither.cat.direction, neither.cat.desiredDirection]).toEqual([Direction.NORTHWEST, Direction.NORTHWEST]);
+  });
+
+  it('reads the body of his movement mode, not of his stance: a prone soldier crawling goes the long way, one set to run the quick way', () => {
+    const increment = (mode: (st: ReturnType<typeof states>) => number) => {
+      const sim = newCombatSim(withTwoTileProneBody(content));
+      raiseTiles(sim.state, [tailOf(Direction.NORTHEAST)]);
+      const merc = spawnSoldier(sim, 0, Team.OUR, AT, Direction.NORTH);
+      layProne(sim.state, merc);
+      expect(merc.multiTile).toBe(true);
+      merc.uiMovementMode = mode(states(content.animations));
+      setDesiredDirection(sim.state, merc, Direction.EAST);
+      return merc.turnIncrement;
+    };
+    expect([increment((st) => st.CRAWLING), increment((st) => st.RUNNING)]).toEqual([-1, 1]);
   });
 });

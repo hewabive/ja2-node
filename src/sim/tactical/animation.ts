@@ -26,7 +26,7 @@
 // @src reaches the target in any sector, 2026-11-09);
 // @src SetSoldierLocatorOffsets at the end of EVENT_InitNewSoldierAnim and EVENT_SetSoldierDirection, the frame
 // @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09); its count of a MERC_PICKUPITEM
-// @src (2026-11-09).
+// @src (2026-11-09); EVENT_InternalSetSoldierDesiredDirection's MultiTiledTurnDirection for SOLDIER_MULTITILE (2026-11-14).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -77,7 +77,7 @@ import { soldierAnimSurface } from './multi-tile.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { reevaluateEnemyStance } from './perception/enemy-stance.ts';
-import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
+import { addMercStructure, isValidStance, multiTiledTurnIncrement, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
 import { setSoldierHeight } from './roofs.ts';
 import { effectiveAgility } from './skills.ts';
@@ -348,7 +348,9 @@ export function setDesiredDirection(t: TacticalState, s: Soldier, direction: num
   if (s.desiredDirection !== s.direction && pausesMoveToTurn(s)) s.pauseAnimMove = true;
   s.turnIncrement = isVehicleBody(s)
     ? quickestHiResTurnIncrement(s.hiResDirection, hiResDirectionOf(s.desiredDirection))
-    : quickestTurnIncrement(s.direction, s.desiredDirection);
+    : s.multiTile
+      ? multiTiledTurnIncrement(t, s, s.desiredDirection)
+      : quickestTurnIncrement(s.direction, s.desiredDirection);
 }
 
 function pausesMoveToTurn(s: Soldier): boolean {

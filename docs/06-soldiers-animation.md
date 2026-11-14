@@ -83,7 +83,9 @@ facing (`Soldier.hiResDirection`, `ubHiResDirection`), which the view carries as
 two directions (`sheetFacing`, `app/world/soldier-assets.ts`).
 
 **Turning and stepping belong to the state.** A state with the turning flag turns one octant per frame while it plays,
-if the soldier's structure fits the new facing; prone has no turning flag, so a prone turn goes through a crouch.
+if the soldier's structure fits the new facing; prone has no turning flag, so a prone turn goes through a crouch. A
+multi-tile soldier (a creature, a prone soldier) sets out the long way round when the body of his movement mode does not
+fit some facing of the quick way (`multiTiledTurnIncrement`, `person-structure.ts`); a blocked step still ends the turn.
 A tank turns one of its 32 facings per frame instead, its direction changing at every fourth, and any other vehicle
 never turns. A vehicle or creature given a new facing holds its move until it faces it (`pauseAnimMove`), so a creature
 stops at each bend of its path to turn and a vehicle other than a tank never moves along a path it does not face.
@@ -182,6 +184,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | In water neither the hand item nor wounds choose the sheet: a state without a water sheet, like walking backwards, shows the rifle sheet even with empty hands | `src/content/anim/surface-choice.test.ts` |
 | The queen picks her spit sheet by the direction from two tiles east of her to the target, and has five sheets for eight directions | `hud-view.test.ts`, `src/content/anim/surface-choice.test.ts` |
 | A tank takes four frames to turn an octant, its direction changing only at the fourth; any other vehicle never turns, so one that does not face the first step of its path never moves | `animation.test.ts` "turns a tank a facing in four 32-step facings …", "never turns a vehicle other than a tank", `src/sim/campaign/vehicle-boarding.test.ts` "never moves a vehicle facing away …" |
+| A multi-tile soldier chooses his way round by the body of his movement mode, not of the stance he turns in: a prone soldier set to run turns the quick way into a blocked tail | `animation.test.ts` "reads the body of his movement mode …" |
 | A creature stands still at a bend of its path until it faces the next step; a merc turns as he walks | `movement.test.ts` "holds a creature on its tile …", `animation.test.ts` "is set when a tank or a creature is given a new facing …" |
 | A tank's recoil moves it in the simulation, back along its facing and forward again, not only on screen | `animation.test.ts` "moves the tank back a fifth of a world unit a code …" |
 | Only the regular male's prone sheet takes its z strips from frame 5; the big man's and the woman's take frame 0 | `src/content/anim/zstrip-frames.test.ts` |
@@ -189,7 +192,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 Not pinned yet:
 - `STOCKYMALE` has the regular male's sheets, speeds and palettes; `RGMTHROW` plays `s_lob.sti` and `RGMLOB`
   `s_throw.sti` (`data/tables/anim-surfaces.json`).
-- A half turn always goes clockwise (`quickestTurnIncrement`).
+- A half turn always goes clockwise (`quickestTurnIncrement`), unless a multi-tile soldier's body does not fit it.
 
 ## 4. Not checked against the native build
 
@@ -207,5 +210,5 @@ reading the source:
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
 Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts",
-"Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Cosmetic draws of
+"Creature and bloodcat stub bodies", "Idle sounds of unseen animals", "Cosmetic draws of
 creatures", "Soldier fade without merc lights", "Failed animation surface", "Soldier sheet and palette refresh".

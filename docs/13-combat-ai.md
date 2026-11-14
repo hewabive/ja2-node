@@ -159,4 +159,4 @@ and named NPCs, boxing, the creature AI, and a tank's RED decisions with its loo
   pull and the detonator.
 
 Kept differences: deviations "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated
-path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies", "Multi-tile turning".
+path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies".
