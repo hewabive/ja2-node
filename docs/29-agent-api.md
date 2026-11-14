@@ -715,7 +715,8 @@ the client has the merc say COOL1 after a picked lock or a disarmed door trap an
 (`Tactical/Handle_Doors.cc:573`, `:680`, `:710`). Every failed skill check but the silent ones (unjamming, noticing a
 dart, lying to the queen) brings `skillCheckFailed {soldier, certain?}` for a soldier the squad sees, the curse the
 original plays always for lockpicking, disarming and the crowbar (`certain`) and else on `Random(100) < 40`, which the
-client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`). One gone when he gets there keeps him walking on the spot, never idle, until
+client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`), and none off the loaded map
+(gaps "Skill-check curse on the map screen"). One gone when he gets there keeps him walking on the spot, never idle, until
 `stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
 effect, as the original looks for the structure the order named. A closed container hides what it holds: items put
 into it, a Bobby Ray delivery to the Drassen crate among them, go in hidden (`Handle_Items.cc:1511`), sight never shows
