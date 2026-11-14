@@ -7,7 +7,8 @@
 // @src HandleBulletSpecialFlags (a real knife's status from the firer's hand, at the shot and at a load, 2026-11-08),
 // @src AddMissileTrail (fGoingOver is never reset within one MoveBullet);
 // @src Weapons.cc StructureHit, ShotMiss, WindowHit;
-// @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE.
+// @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE; CreateAnimationTile and UpdateAniTiles (the miss
+// @src tile's own frame count, from the tileset data for SECONDMISS1, a step per frame once more than 80 ms passed, 2026-11-14).
 
 import { lockAt } from '../../../content/formats/locks.ts';
 import { AmmoType, ItemClass, WeaponClass } from '../../../content/items/items.ts';
@@ -23,7 +24,9 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { tileIndex } from '../../../content/world/tile-tables.ts';
 import { i16, i32, idiv, u8, u32 } from '../../../core/int.ts';
+import { TICK_MS } from '../../clock.ts';
 import type { MissileTrail } from '../../events.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
@@ -85,7 +88,9 @@ const PERCENT_BULLET_SLOWED_BY_RANGE = 25;
 const MATERIAL_LIGHT_VEGETATION = 4;
 const MATERIAL_INDESTRUCTABLE_STONE = 24;
 const MATERIAL_INDESTRUCTABLE_METAL = 25;
-const MISS_ANIM_MS = 425;
+const MISS_FRAME_DELAY_MS = 80;
+const MISS_FRAME_STEP_MS = MISS_FRAME_DELAY_MS + TICK_MS;
+const SYNTHETIC_WORLD_MISS_FRAMES = 5;
 const GROUND_LEVEL = 0;
 const NO_FLAGS = 0;
 const LEVEL_HEIGHT = 0;
@@ -568,12 +573,23 @@ function structureHit(
   } else {
     const effect = SPLASHING_TERRAIN.has(t.world.terrain[g] ?? Terrain.NONE) ? 'splash' : 'dust';
     t.events.push({ type: 'bulletImpact', ...shownFirer(t, attacker), gridNo: g, ...impactPoint(b), effect });
-    if (stopped) t.missAnimations.push({ bullet: b, releaseAt: t.clockMs + MISS_ANIM_MS });
+    if (stopped) t.missAnimations.push({ bullet: b, releaseAt: t.clockMs + missAnimationMs(t, effect) });
   }
   b.lastStructureHit = structureId;
 }
 
 const SPLASHING_TERRAIN: ReadonlySet<number> = new Set([Terrain.LOW_WATER, Terrain.DEEP_WATER]);
+const MISS_TILES: Readonly<Record<'dust' | 'splash', string>> = { dust: 'FIRSTMISS1', splash: 'SECONDMISS1' };
+
+function missTileFrames(t: TacticalState, effect: 'dust' | 'splash'): number {
+  const { tables, tiles } = t.world;
+  if (!tables || !tiles) return SYNTHETIC_WORLD_MISS_FRAMES;
+  return tiles[tileIndex(tables, MISS_TILES[effect])]?.animationFrames?.length ?? 0;
+}
+
+function missAnimationMs(t: TacticalState, effect: 'dust' | 'splash'): number {
+  return Math.max(missTileFrames(t, effect), 1) * MISS_FRAME_STEP_MS;
+}
 
 function impactPoint(b: Bullet): ImpactPoint {
   return { ...bulletWorldXY(b), z: bulletHeightPixels(b) };

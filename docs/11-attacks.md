@@ -26,7 +26,7 @@ order: handleItem — checks, APs checked only, the psycho's burst roll         
       PreRandom(100), ammo, marksmanship, fireBulletGivenTarget, noise, wear  attack.ts, combat/chance.ts
         first tile at once, then one tile per tick: structures, people,
         suppression points                                                    combat/bullets.ts
-          stopped by a structure or the ground → release 425 ms later
+          stopped by a structure or the ground → release after the miss tile's frames
           person → bulletHitMerc                                              combat/hit.ts (33)
     burst: 448 before each round (jam check on round 1), 449 at the end
   melee: handlePunchAttack / handleBladeAttack → begin event, busy +1         combat/melee.ts, melee-reach.ts
@@ -68,9 +68,10 @@ roll, so a roll on the head takes the head penalty the estimate did not show.
 **Fixed tick, the original's frame order.** Each 5 ms tick runs physics (every 20 ms), bullets, explosions, the
 miss-animation releases and the real-time turn, then the soldier pass with the animation opcodes, then the event pump
 (`overheadHooks` in `tactical-sim.ts`). Bullets move one tile per tick, the first inside `fireWeapon`, thrown knives
-every 30 ms (deviation "Bullet flight"). Timers run on game ms: a stopped bullet releases its attacker 425 ms later
-(five steps of more than 80 ms on 5 ms ticks; deviation "Miss animation in water"), a melee hit lands on the first tick
-more than 20 ms after it was queued, 25 ms.
+every 30 ms (deviation "Bullet flight"). Timers run on game ms: a stopped bullet releases its attacker after its miss
+tile's frames, a step of more than 80 ms each on 5 ms ticks: 425 ms for the ground's five, the splash tile's own count
+in low or deep water (SECONDMISS1's tileset data, five in the original's and the stub pack's); a melee hit lands on the
+first tick more than 20 ms after it was queued, 25 ms.
 
 **The bullet is the line of sight, continued.** It keeps the original's float32 deltas, double angles and 20-bit fixed
 point and steps through the LOS cells of `08`, but on the 2D distance and past the target until something stops it or
@@ -161,11 +162,11 @@ draw nothing. Inferred from reading the source:
   structure, accidental-hit and suppression rolls, then the impact (`33`); likewise a punch or a stab.
 - The bullet's flight: structure hit chances, materials, windows and wall corners, lock shots, the ground and roof
   stops, the drop beyond twice the range, missile trails.
-- The fire timeline and its opcodes, jams and unjamming, two pistols, the 425 ms miss release and the 25 ms melee delay.
+- The fire timeline and its opcodes, jams and unjamming, two pistols, the miss release and the 25 ms melee delay.
 - The chance to punch, the martial arts strikes, blade dulling, surprise attacks, the queen's swipe; the barrel extender and
   the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Miss animation in
-water", "Melee hold leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand
-order", "Watchdogs".
+Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Melee hold
+leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand order",
+"Watchdogs".

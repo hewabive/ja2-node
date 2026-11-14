@@ -8,6 +8,9 @@ import { Direction, gridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import type { TileElement } from '../../../content/world/tile-database.ts';
+import { tileIndex } from '../../../content/world/tile-tables.ts';
+import { TICK_MS } from '../../clock.ts';
 import type { SimEvent } from '../../events.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import type { TacticalContent } from '../content.ts';
@@ -55,6 +58,18 @@ function shotAtTheGround(prepare: (sim: TacticalSim) => void = () => {}) {
   return { sim, merc, events, last: last[0] };
 }
 
+function withMissTiles(sim: TacticalSim, splashFrames: number): void {
+  const tables = content.tileTables;
+  const tiles: TileElement[] = [];
+  const animated = (name: string, frames: number) => {
+    const index = tileIndex(tables, name);
+    tiles[index] = { index, animationFrames: Array.from({ length: frames }, (_, k) => index + k) } as unknown as TileElement;
+  };
+  animated('FIRSTMISS1', 5);
+  animated('SECONDMISS1', splashFrames);
+  Object.assign(sim.state.world, { tables, tiles });
+}
+
 function impactOf(events: readonly SimEvent[]) {
   const impact = events.find((e) => e.type === 'bulletImpact');
   if (impact?.type !== 'bulletImpact') throw new Error('no impact');
@@ -86,6 +101,27 @@ describe('bullet impacts (Weapons.cc StructureHit)', () => {
     expect(effectIn(Terrain.LOW_WATER)).toBe('splash');
     expect(effectIn(Terrain.DEEP_WATER)).toBe('splash');
     expect(effectIn(Terrain.MED_WATER)).toBe('dust');
+  });
+
+  it('frees the shooter after a step of more than 80 ms per frame of the miss tile, the splash tile with its own count', () => {
+    const { events } = shotAtTheGround();
+    const where = impactOf(events).gridNo;
+    const releasedAfterMs = (terrain: number, splashFrames: number) => {
+      const { sim } = shotAtTheGround((s) => {
+        s.state.world.terrain[where] = terrain;
+        withMissTiles(s, splashFrames);
+      });
+      let elapsed = 0;
+      while (sim.state.missAnimations.length > 0 && elapsed < 2000) {
+        sim.step();
+        elapsed += TICK_MS;
+      }
+      return elapsed;
+    };
+    expect(releasedAfterMs(Terrain.FLAT_GROUND, 3)).toBe(425);
+    expect(releasedAfterMs(Terrain.LOW_WATER, 5)).toBe(425);
+    expect(releasedAfterMs(Terrain.DEEP_WATER, 3)).toBe(255);
+    expect(releasedAfterMs(Terrain.LOW_WATER, 0)).toBe(85);
   });
 
   it('bursts a miniboom where an HE round stops and frees the shooter at once', () => {
