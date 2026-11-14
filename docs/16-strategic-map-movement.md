@@ -184,5 +184,5 @@ plotted to the next sector, the fuel it spends there down to empty and the move 
   ETAs with encumbrance unless every member is in the loaded sector.
 
 Deviations of this domain: "Underground traversal flag", "Rooms of the map loaded last", "Insertion data in the loaded
-sector", "Strategic hints and enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Strategic AI
-PD placement pass", "Cosmetic draws of the helicopter".
+sector", "Strategic hints and enemy counts", "Sandbox population", "Strategic AI PD placement pass", "Cosmetic draws of
+the helicopter".

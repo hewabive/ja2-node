@@ -7,7 +7,7 @@
 import { type Sector, sameSector, sectorId } from '../../content/strategic/sector-ids.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
 import { getNumberOfEnemiesInSector, getNumberOfStationaryEnemiesInSector } from '../strategic/ai/counts.ts';
-import { calcDifficultyModifier, difficultyModifierAt, locationModifier } from '../strategic/ai/difficulty.ts';
+import { calcDifficultyModifier, difficultyModifierAt, locationModifier, queenProgress } from '../strategic/ai/difficulty.ts';
 import { processQueenCmdImplicationsOfDeath } from '../strategic/ai/queen-command.ts';
 import { EnemyKilled, trackEnemiesKilled } from '../strategic/ai/status.ts';
 import { recalculateSectorWeight } from '../strategic/ai/weights.ts';
@@ -90,7 +90,6 @@ export interface CreationStreams {
 export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, streams?: CreationStreams): AutoresolveCreation {
   const state = ctx.economy.state;
   const equipment = createEquipmentState(ctx.content.items, state.options, sharedWeaponsDropped(state.status, ctx.content.items));
-  equipment.progress = state.status.highestProgress;
   equipment.inEnemyHeldTixa = inEnemyHeldTixa(ctx);
   equipment.autoResolveActive = true;
   const townId = townIdOfSector(ctx.economy, sector);
@@ -114,7 +113,11 @@ export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, str
       content: ctx.content,
       options: state.options,
       equipment,
-      campaign: { difficultyModifier: difficultyModifier(SoldierClass.ARMY), progress: state.status.highestProgress },
+      campaign: {
+        difficultyModifier,
+        playerProgress: () => (queen ? queenProgress(queen) : state.status.highestProgress),
+        highestProgress: () => state.status.highestProgress,
+      },
     },
     population: {
       difficultyModifier,

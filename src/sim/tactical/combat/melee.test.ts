@@ -21,7 +21,7 @@ import { Opp } from '../perception/opp.ts';
 import { AP } from '../points.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
 import { Body, NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team, Visible } from '../soldier.ts';
-import { setShowAllMercs, type TacticalState } from '../state.ts';
+import { NO_CAMPAIGN_PORT, setShowAllMercs, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
@@ -129,7 +129,7 @@ describe('melee chance and impact', () => {
     enemy.attackingWeapon = enemy.inv[InvSlot.HAND]?.item ?? 0;
     enemy.aimShotLocation = AimShot.TORSO;
     const chanceAtLevel = (soldierClass: number, difficultyModifier: number, level: number) => {
-      t.campaign.difficultyModifier = difficultyModifier;
+      t.campaign = { ...NO_CAMPAIGN_PORT, difficultyModifier: () => difficultyModifier };
       Object.assign(enemy, { soldierClass });
       expect(soldierDifficultyLevel(t, enemy)).toBe(level);
       return calcChanceToStab(t, enemy, merc, 0);

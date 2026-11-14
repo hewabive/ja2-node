@@ -60,7 +60,6 @@ const DropRate = {
 export interface EquipmentState {
   weaponsAlreadyDropped: Set<number>;
   mortarsRolledByTeam: number;
-  progress: number;
   readonly options: Pick<GameOptions, 'gunNut' | 'sciFi'>;
   underground: boolean;
   inEnemyHeldTixa: boolean;
@@ -87,7 +86,6 @@ export function createEquipmentState(
   return {
     weaponsAlreadyDropped,
     mortarsRolledByTeam: 0,
-    progress: 0,
     options,
     underground: false,
     inEnemyHeldTixa: false,
@@ -189,6 +187,7 @@ function chooseWeapon(
   ammoClips: number,
   attachClassIn: number,
   attachment: boolean,
+  highestProgress: number,
 ): void {
   const inv = target.inv;
   const preselectedGun = weaponClass < 0;
@@ -233,11 +232,11 @@ function chooseWeapon(
       case SoldierClass.ARMY:
       case SoldierClass.GREEN_MILITIA:
       case SoldierClass.REG_MILITIA:
-        status = Math.min(100, 60 + rng.int(16) + idiv(state.progress, 4));
+        status = Math.min(100, 60 + rng.int(16) + idiv(highestProgress, 4));
         break;
       case SoldierClass.ELITE:
       case SoldierClass.ELITE_MILITIA:
-        status = Math.min(100, 85 + rng.int(6) + idiv(state.progress, 10));
+        status = Math.min(100, 85 + rng.int(6) + idiv(highestProgress, 10));
         break;
       default:
         status = 50 + rng.int(51);
@@ -568,6 +567,7 @@ export function generateRandomEquipment(
   target: EquipmentTarget,
   equipmentRating: number,
   difficulty: number,
+  highestProgress: number,
 ): void {
   const inv = target.inv;
   if (target.bodyType === Body.HATKIDCIV || target.bodyType === Body.KIDCIV) return;
@@ -785,7 +785,7 @@ export function generateRandomEquipment(
     }
   }
   if (!isEnemyClass(target.soldierClass)) bombClass = 0;
-  chooseWeapon(items, rng, state, target, weaponClass, ammoClips, attachClass, attachment);
+  chooseWeapon(items, rng, state, target, weaponClass, ammoClips, attachClass, attachment, highestProgress);
   chooseGrenades(items, rng, inv, grenades, grenadeClass, launcher);
   chooseArmour(items, rng, inv, helmetClass, vestClass, leggingClass);
   chooseSpecialWeapons(items, rng, inv, knifeClass, launcher, law, mortar);

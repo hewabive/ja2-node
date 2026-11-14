@@ -168,4 +168,4 @@ draw nothing. Inferred from reading the source:
 
 Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Miss animation in
 water", "Melee hold leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand
-order", "Watchdogs", "Difficulty and progress in tactical".
+order", "Watchdogs".

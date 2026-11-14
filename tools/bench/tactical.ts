@@ -18,7 +18,7 @@ import {
 import { addSoldierToSector, Insertion } from '../../src/sim/tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../../src/sim/tactical/lighting/lighting.ts';
 import { PlacementVerdict } from '../../src/sim/tactical/narrative/placement.ts';
-import { firstFreeSoldierId, type Soldier, SoldierClass, Team } from '../../src/sim/tactical/soldier.ts';
+import { firstFreeSoldierId, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../../src/sim/tactical/world-items.ts';
 import type { Garrison } from './arena.ts';
@@ -90,7 +90,7 @@ function placeMerc(sim: TacticalSim, s: Soldier, gridNo: number): void {
 export function populateTactical(sim: TacticalSim, p: TacticalPopulation): void {
   const t = sim.state;
   const env = population(t.content, p.sector);
-  t.campaign = { difficultyModifier: env.difficultyModifier(SoldierClass.ARMY), progress: 0 };
+  t.campaign = { difficultyModifier: env.difficultyModifier, playerProgress: () => 0, highestProgress: () => 0 };
   t.edgepoints = loadMapEdgepoints(t, { ...p.sector, z: 0 });
   t.initList = buildSoldierInitList(sim.world.map);
   loadWorldItemsFromMap(t, sim.world.map.items);

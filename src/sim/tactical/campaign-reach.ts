@@ -46,10 +46,11 @@ export function firstCampaignReach(
   const record = (hook: string) => {
     if (!reach && restarting) reach = { ...restarting, hook };
   };
-  const { narrative, sectorHooks, experienceHooks } = t;
+  const { narrative, sectorHooks, experienceHooks, campaign } = t;
   t.narrative = recording('narrative', narrative, asked, record);
   t.sectorHooks = recording('sectorHooks', sectorHooks, asked, record);
   t.experienceHooks = recording('experienceHooks', experienceHooks, asked, record);
+  t.campaign = recording('campaign', campaign, asked, record);
   try {
     restartAll((s) => {
       restarting = { soldier: s.id, name: s.name, animation: animName(t.content, s.state), code: s.pc };
@@ -58,6 +59,7 @@ export function firstCampaignReach(
     t.narrative = narrative;
     t.sectorHooks = sectorHooks;
     t.experienceHooks = experienceHooks;
+    t.campaign = campaign;
   }
   return reach;
 }

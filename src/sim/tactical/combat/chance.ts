@@ -69,7 +69,7 @@ export function gunRange(items: ItemTable, gun: ItemObject): number {
 }
 
 export function soldierDifficultyLevel(t: Pick<TacticalState, 'campaign'>, s: Soldier): number {
-  const base = 1 + idiv(t.campaign.difficultyModifier, 34);
+  const base = 1 + idiv(t.campaign.difficultyModifier(s.soldierClass), 34);
   let d: number;
   switch (s.soldierClass) {
     case SoldierClass.ADMINISTRATOR:

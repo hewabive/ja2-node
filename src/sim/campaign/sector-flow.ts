@@ -709,9 +709,7 @@ export class SectorFlow {
       dayAmbient,
     });
     const t = sim.state;
-    t.equipment.progress = s.status.highestProgress;
     t.equipment.weaponsAlreadyDropped = sharedWeaponsDropped(s.status, this.setup.content.items);
-    t.campaign = this.#tacticalCampaign();
     t.sector = { x: sector.x, y: sector.y, z: sector.z };
     t.edgepoints = loadMapEdgepoints(t, sector);
     t.initList = buildSoldierInitList(world.map);
@@ -779,7 +777,6 @@ export class SectorFlow {
     const world = this.world;
     if (!sim || !world) return true;
     const t = sim.state;
-    t.campaign = this.#tacticalCampaign();
     t.edgepoints = loadMapEdgepoints(t, world);
     t.initList = buildSoldierInitList(sim.world.map);
     for (const link of links) {
@@ -1215,10 +1212,9 @@ export class SectorFlow {
     if (t && registeredInTactical(t, m)) removeSoldierFromTacticalSector(t, m.soldier);
   }
 
-  #tacticalCampaign(): { difficultyModifier: number; progress: number } {
+  currentPlayerProgress(): number {
     const q = this.queen;
-    const progress = q ? queenProgress(q) : this.campaign.state.status.highestProgress;
-    return { difficultyModifier: this.difficultyModifier(SoldierClass.ARMY), progress };
+    return q ? queenProgress(q) : this.campaign.state.status.highestProgress;
   }
 
   difficultyModifier(soldierClass: number): number {

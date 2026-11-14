@@ -21,7 +21,7 @@ import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { assembleCampaign, type CampaignParts, loadCampaignParts } from './campaign-factory.ts';
 import { type CampaignOrigin, CampaignSession } from './campaign-session.ts';
-import { TacticalSession } from './sandbox.ts';
+import { installSandboxCampaign, TacticalSession } from './sandbox.ts';
 import { assembleImportedCampaign, loadImportParts } from './save-session.ts';
 import type { SessionSim } from './session.ts';
 import { type FileExists, WorldCache } from './world-cache.ts';
@@ -102,6 +102,7 @@ function loadedWorld(inputs: SessionRestoreInputs): (mapPath: string) => Tactica
 function restoreSandbox(snapshot: SessionSnapshot, inputs: SessionRestoreInputs): TacticalSession {
   if (!inputs.content) throw new Error('a sandbox restore needs the tactical content');
   const sim = restoreTactical(snapshot.sim, { content: tacticalContentRoots(inputs.content), world: loadedWorld(inputs) });
+  installSandboxCampaign(sim);
   return new TacticalSession(sim, inputs.presentation);
 }
 

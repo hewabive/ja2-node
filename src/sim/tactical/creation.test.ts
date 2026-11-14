@@ -19,6 +19,7 @@ import { defaultSoldierName } from './default-names.ts';
 import { createEquipmentState } from './equipment.ts';
 import { InvSlot } from './inventory.ts';
 import { Attitude, Body, NO_PROFILE, Orders, SkillTrait, SoldierClass, Team } from './soldier.ts';
+import { NO_CAMPAIGN_PORT } from './state.ts';
 
 let kit: StubSectorKit;
 
@@ -34,7 +35,6 @@ function creation(values: readonly number[], progress = 0): { c: CreationContext
   const rolls = new ScriptedStream(values);
   const options = gameOptions();
   const equipment = createEquipmentState(kit.content.items, options);
-  equipment.progress = progress;
   return {
     rolls,
     c: {
@@ -42,7 +42,7 @@ function creation(values: readonly number[], progress = 0): { c: CreationContext
       content: kit.content,
       options,
       equipment,
-      campaign: { difficultyModifier: 30, progress },
+      campaign: { ...NO_CAMPAIGN_PORT, highestProgress: () => progress },
     },
   };
 }

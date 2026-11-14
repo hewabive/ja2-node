@@ -18,6 +18,7 @@ import { InvSlot, itemIn } from '../inventory.ts';
 import { landHeightUnits, ZPos } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { Body, SoldierClass, Team } from '../soldier.ts';
+import { NO_CAMPAIGN_PORT } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { checkForGunJam, FireResult, handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure, fireBulletGivenTarget, soldierToSoldierChanceToGetThrough } from './bullets.ts';
@@ -217,7 +218,7 @@ describe('chance to hit (Weapons.cc CalcChanceToHitGun)', () => {
     const { sim, shooter, chance } = aimedAt(Team.ENEMY);
     Object.assign(sim.state, { options: { ...sim.state.options, difficulty: HARD_DIFFICULTY } });
     const chanceAtLevel = (soldierClass: number, difficultyModifier: number, level: number) => {
-      sim.state.campaign.difficultyModifier = difficultyModifier;
+      sim.state.campaign = { ...NO_CAMPAIGN_PORT, difficultyModifier: () => difficultyModifier };
       Object.assign(shooter, { soldierClass });
       expect(soldierDifficultyLevel(sim.state, shooter)).toBe(level);
       return chance();

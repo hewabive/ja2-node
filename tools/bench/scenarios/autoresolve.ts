@@ -66,7 +66,7 @@ function creation(content: TacticalContent, rng: Rng): AutoresolveCreation {
       content,
       options,
       equipment: { ...createEquipmentState(content.items, options), autoResolveActive: true },
-      campaign: { difficultyModifier: difficultyModifier(SoldierClass.ARMY), progress: 0 },
+      campaign: { difficultyModifier, playerProgress: () => 0, highestProgress: () => 0 },
     },
     population: {
       difficultyModifier,

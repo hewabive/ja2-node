@@ -30,8 +30,8 @@ import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { PlacementVerdict } from '../sim/tactical/narrative/placement.ts';
 import { enterTacticalScreen, locateToSoldier } from '../sim/tactical/selection.ts';
-import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
-import { teamMembers } from '../sim/tactical/state.ts';
+import { firstFreeSoldierId, Side, type Soldier, Team } from '../sim/tactical/soldier.ts';
+import { type CampaignPort, teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
 import { autoBandageView } from './auto-bandage-view.ts';
@@ -167,6 +167,7 @@ function sectorOf(mapPath: string): { x: number; y: number } | null {
 const SANDBOX_SECTOR = { x: 9, y: 1 };
 const SANDBOX_GARRISON = { admins: 0, troops: 4, elites: 0 };
 const NO_TOWN = 0;
+const NO_PROGRESS = 0;
 
 function sandboxPopulation(sim: TacticalSim): PopulationEnv {
   const sector = sectorOf(sim.mapPath) ?? SANDBOX_SECTOR;
@@ -192,6 +193,14 @@ function sandboxPopulation(sim: TacticalSim): PopulationEnv {
   };
 }
 
+function sandboxCampaign(env: PopulationEnv): CampaignPort {
+  return { difficultyModifier: env.difficultyModifier, playerProgress: () => NO_PROGRESS, highestProgress: () => NO_PROGRESS };
+}
+
+export function installSandboxCampaign(sim: TacticalSim): void {
+  sim.state.campaign = sandboxCampaign(sandboxPopulation(sim));
+}
+
 function placeMerc(t: TacticalSim['state'], s: Soldier, entry: number): void {
   drawStandingFrame(t);
   s.insertionGridNo = entry;
@@ -211,7 +220,7 @@ export function populateSandbox(sim: TacticalSim): void {
   const idFor = (team: number) => firstFreeSoldierId((id) => t.soldiers[id] !== undefined, team);
   const profiles = t.content.profiles;
   const env = sandboxPopulation(sim);
-  t.campaign = { difficultyModifier: env.difficultyModifier(SoldierClass.ARMY), progress: 0 };
+  t.campaign = sandboxCampaign(env);
   t.edgepoints = loadMapEdgepoints(t, { ...(sectorOf(sim.mapPath) ?? SANDBOX_SECTOR), z: 0 });
   t.initList = buildSoldierInitList(sim.world.map);
   loadWorldItemsFromMap(t, sim.world.map.items);

@@ -12,10 +12,11 @@ import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { advance } from '../sim/advance.ts';
 import { DEFAULT_AIM_CONTRACT } from '../sim/campaign/laptop/aim.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
-import { Team } from '../sim/tactical/soldier.ts';
+import { SoldierClass, Team } from '../sim/tactical/soldier.ts';
+import { NO_CAMPAIGN_PORT } from '../sim/tactical/state.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { createSandboxSession } from './sandbox.ts';
+import { createSandboxSession, type TacticalSession } from './sandbox.ts';
 import { createSaveSession } from './save-session.ts';
 import type { SessionSim } from './session.ts';
 import { restoreSession, snapshotSession } from './session-snapshot.ts';
@@ -90,6 +91,14 @@ describe('session snapshots on the stub pack', () => {
 
   it('continues a landed squad through a sector change exactly after a reload at every input', async () => {
     await expectReloadsInvisible(landedSquad);
+  });
+
+  it('gives a restored sandbox the difficulty of its population again, as the campaign port is not saved', async () => {
+    const session = await createSandboxSession(kit.read, false, 11);
+    const asked = (s: SessionSim) => (s as TacticalSession).sim.state.campaign.difficultyModifier(SoldierClass.ARMY);
+    const restored = await restoreSession(JSON.parse(JSON.stringify(snapshotSession(session))), kit.read, exists);
+    expect(asked(session)).not.toBe(NO_CAMPAIGN_PORT.difficultyModifier(SoldierClass.ARMY));
+    expect(asked(restored)).toBe(asked(session));
   });
 
   it('restores a campaign through the asynchronous path with freshly loaded content and prepared maps', async () => {

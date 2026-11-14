@@ -88,10 +88,11 @@ running battle only beyond the 32 team slots or when a group's move ends in the 
 runs; nothing pulls reinforcements from adjacent garrisons (a 1.13 feature).
 
 **Difficulty takes its sector.** `difficultyModifierAt(q, class, battleSector)` takes the battle sector where the
-original reads its current-battle globals; the sector flow asks it at soldier creation and keeps the ARMY value of the
-sector load for the whole battle (deviation "Difficulty and progress in tactical"). The palace distance is rounded with
-integers (`roundedSquareRoot`). The highest progress drives the modifier, admin upgrades and the SAM squad; the current
-progress drives the Queen's priority phase.
+original reads its current-battle globals; the sector flow asks it at soldier creation, and tactical asks it and the
+current progress through `t.campaign` at every use (`installCampaignPorts`, `campaign/turn-world.ts`), so a kill or an
+hourly progress update counts in the same battle. The palace distance is rounded with integers (`roundedSquareRoot`).
+The highest progress drives the modifier, admin upgrades and the SAM squad; the current progress drives the Queen's
+priority phase and morale.
 
 **Saves.** A ja2-node save restores `QueenState` as it was. A native save is imported (sections 34 and 35 and the
 meanwhile flags) and then runs the original's load-time recomputation once (deviation "Strategic AI load hooks").

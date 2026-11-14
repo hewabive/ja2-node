@@ -105,10 +105,19 @@ export type TacticalEvent = DistributiveOmit<SimEvent, 'tick'>;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
-export interface CampaignState {
-  difficultyModifier: number;
-  progress: number;
+export interface CampaignPort {
+  difficultyModifier(soldierClass: number): number;
+  playerProgress(): number;
+  highestProgress(): number;
 }
+
+const NO_CAMPAIGN_DIFFICULTY_MODIFIER = 30;
+
+export const NO_CAMPAIGN_PORT: CampaignPort = {
+  difficultyModifier: () => NO_CAMPAIGN_DIFFICULTY_MODIFIER,
+  playerProgress: () => 0,
+  highestProgress: () => 0,
+};
 
 export interface TacticalHooks {
   atNewGridNo(t: TacticalState, s: Soldier): boolean;
@@ -312,7 +321,7 @@ export interface TacticalState {
   loadingSave: boolean;
   soldiersOfTheLoad: ReadonlyMap<number, Soldier> | null;
   readonly options: GameOptions;
-  campaign: CampaignState;
+  campaign: CampaignPort;
   readonly events: TacticalEvent[];
   readonly gameEvents: GameEvent[];
   readonly pathWorld: PathWorld;
@@ -556,7 +565,7 @@ export function createTacticalState(
     loadingSave: false,
     soldiersOfTheLoad: null,
     options,
-    campaign: { difficultyModifier: 30, progress: 0 },
+    campaign: NO_CAMPAIGN_PORT,
     events: [],
     gameEvents: [],
     pathWorld,

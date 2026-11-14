@@ -484,6 +484,7 @@ function generateEquipment(c: CreationContext, pp: SoldierCreate, soldierClass: 
     { inv: pp.inv, soldierClass, bodyType: pp.bodyType, experience: pp.expLevel, marksmanship: pp.marksmanship },
     equipmentLevel,
     env.difficultyModifier(soldierClass),
+    c.campaign.highestProgress(),
   );
 }
 
@@ -556,7 +557,7 @@ export function createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlace
 function assignNightOps(c: CreationContext, s: Soldier): void {
   const rule = NIGHTOPS[s.soldierClass];
   if (!rule) return;
-  const progress = c.equipment.progress;
+  const progress = c.campaign.highestProgress();
   const chance = rule.base + (progress < NIGHTOPS_RAMP_PROGRESS ? idiv(progress * 2, 3) : NIGHTOPS_RAMP_CAP);
   if (c.rng.int(100) >= chance) return;
   s.skillTrait1 = SkillTrait.NIGHTOPS;

@@ -4,7 +4,9 @@
 // @src and the deaths off the map still run against); Tactical/Overhead.h FOR_EACH_IN_TEAM (our team wherever it is);
 // @src Strategic/MapScreen.cc fInMapMode; Strategic/MapScreen.cc MapScreenHandle's HandleStrategicTurn (the map screen's
 // @src poll of the real-time turn, against whatever world is loaded) and Strategic/Game_Clock.cc IsTimeBeingCompressed,
-// @src giTimeCompressSpeeds (2026-11-05).
+// @src giTimeCompressSpeeds (2026-11-05); TacticalAI/AIUtils.cc SoldierDifficultyLevel and Tactical/Morale.cc
+// @src RefreshSoldierMorale (CalcDifficultyModifier and CurrentPlayerProgressPercentage asked at every use, 2026-11-14);
+// @src Tactical/Campaign.cc HighestPlayerProgressPercentage (asked by soldier creation, 2026-11-14).
 
 import { emptyTacticalWorld } from '../../content/world/empty-world.ts';
 import type { SimEvent } from '../events.ts';
@@ -13,7 +15,7 @@ import { COMPRESS_SPEEDS } from '../strategic/time/constants.ts';
 import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import type { Soldier } from '../tactical/soldier.ts';
-import { NO_SECTOR_HOOKS, type SectorHooks, type TacticalState } from '../tactical/state.ts';
+import { type CampaignPort, NO_CAMPAIGN_PORT, NO_SECTOR_HOOKS, type SectorHooks, type TacticalState } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { handleForcedRealtimeTurn, handleTacticalEndTurn, type StrategicTurnPoll, strategicTurnDue } from '../tactical/turns/turns.ts';
 import { PRIVATE_VEHICLE_LIST, type VehicleHooks } from '../tactical/vehicle-soldiers.ts';
@@ -50,7 +52,17 @@ function campaignVehicleHooks(campaign: CampaignSim): VehicleHooks {
   };
 }
 
+function campaignProgressPort(campaign: CampaignSim): CampaignPort {
+  return {
+    difficultyModifier: (soldierClass) =>
+      campaign.sectors?.difficultyModifier(soldierClass) ?? NO_CAMPAIGN_PORT.difficultyModifier(soldierClass),
+    playerProgress: () => campaign.sectors?.currentPlayerProgress() ?? NO_CAMPAIGN_PORT.playerProgress(),
+    highestProgress: () => campaign.state.status.highestProgress,
+  };
+}
+
 export function installCampaignPorts(campaign: CampaignSim, t: TacticalState): void {
+  t.campaign = campaignProgressPort(campaign);
   t.experienceHooks = campaign.experienceHooks;
   t.narrative = campaignNarrativePort(campaign);
   t.scheduleClock = campaignScheduleClock(campaign);

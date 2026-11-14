@@ -12,6 +12,7 @@ import { createLookMemo } from '../tactical/perception/look-memo.ts';
 import { createSightMemo } from '../tactical/perception/sight-memo.ts';
 import {
   createPathEnv,
+  NO_CAMPAIGN_PORT,
   NO_HOOKS,
   NO_PERCEPTION_HOOKS,
   NO_SECTOR_HOOKS,
@@ -50,6 +51,7 @@ export interface CampaignRestoreSources extends RestoreSources {
 }
 
 const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
+  'campaign',
   'hooks',
   'perceptionHooks',
   'turnHooks',
@@ -80,6 +82,7 @@ function reviveTactical(data: unknown): TacticalState {
   const fields = data as Omit<TacticalState, DerivedTacticalField> & { readonly pathEnv: PathEnvSettings };
   return {
     ...fields,
+    campaign: NO_CAMPAIGN_PORT,
     hooks: NO_HOOKS,
     perceptionHooks: NO_PERCEPTION_HOOKS,
     turnHooks: NO_TURN_HOOKS,

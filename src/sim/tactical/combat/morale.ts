@@ -62,7 +62,7 @@ const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bod
 export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
   if (t.narrative.mercAsleep(s)) return;
   const mods = s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod;
-  const m = DEFAULT_MORALE + mods + idiv(t.campaign.progress, 5) + drugMoraleBonus(s);
+  const m = DEFAULT_MORALE + mods + idiv(t.campaign.playerProgress(), 5) + drugMoraleBonus(s);
   s.morale = Math.min(100, Math.max(0, m));
 }
 

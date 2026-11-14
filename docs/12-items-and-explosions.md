@@ -84,8 +84,8 @@ ground (deviation "Picking up items"). An attachment change is charged per comma
 **The equipment generator replays the original.** `generateRandomEquipment` keeps every draw of `Inventory_Choosing.cc`
 on `main` in order, chances whose result is thrown away and `Random(1)` included. The first enemy generated in
 tactical with a gun type drops it; the set of types already dropped belongs to the strategic status
-(`sharedWeaponsDropped`) and is marked when the soldier is generated, not when he dies. The difficulty modifier comes
-from the sector load (deviation "Difficulty and progress in tactical").
+(`sharedWeaponsDropped`) and is marked when the soldier is generated, not when he dies. The difficulty modifier and the
+highest progress are the campaign's as the soldier is created (`t.campaign`).
 
 **World items are one list.** `TacticalState.worldItems` holds every item of the loaded sector; a tile's pool is its
 entries in list order (`itemsAt`). Visibility keeps the original's values (hidden, buried, inside a closed container,

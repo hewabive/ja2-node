@@ -6,15 +6,18 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { StrategicMove } from '../../content/strategic/map-tables.ts';
 import { strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { idiv } from '../../core/int.ts';
 import { Town } from '../strategic/economy/constants.ts';
 import { setTownLoyalty } from '../strategic/economy/loyalty.ts';
 import { sectorInfo, Traversability } from '../strategic/map/sectors.ts';
 import { NarrativeHistory } from '../strategic/narrative/history-codes.ts';
 import { worldDay } from '../strategic/time/world-clock.ts';
+import { soldierDifficultyLevel } from '../tactical/combat/chance.ts';
 import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import { soldierTakeDamage } from '../tactical/combat/hit.ts';
+import { refreshSoldierMorale } from '../tactical/combat/morale.ts';
 import { DamageReason } from '../tactical/combat/types.ts';
-import { Body, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
+import { Body, type Soldier, SoldierClass, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
@@ -36,6 +39,8 @@ const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const OMERTA_RATING = 50;
 const CARLOS = 58;
 const KILLED_CIVILIAN_REPUTATION_LOSS = 5;
+const DEFAULT_MORALE = 50;
+const DIFFICULTY_STEP = 34;
 
 function never(): never {
   throw new Error('missing');
@@ -145,5 +150,45 @@ describe('player activity from damage', () => {
     through[StrategicMove.THROUGH] = Traversability.PLAINS;
     hurt(t, enemy, merc);
     expect(map.activity).toMatchObject({ lastDayOfPlayerActivity: today, daysOfInactivity: 0 });
+  });
+});
+
+describe('difficulty and progress asked of the campaign at every use (Morale.cc:255, AIUtils.cc:2076)', () => {
+  const MORALE_PER_PROGRESS_STEP = 5;
+
+  function progressTerm(s: Soldier): number {
+    return s.morale - DEFAULT_MORALE - s.teamMoraleMod - s.tacticalMoraleMod - s.strategicMoraleMod;
+  }
+
+  it('lets the kill that crosses a progress step raise the next morale computation of the same battle', () => {
+    const { campaign, t, merc } = loadedA9(57);
+    const sectors = campaign.sectors ?? never();
+    const status = campaign.state.status;
+    const killsPerPoint = campaign.queen?.army.progress.killsPerPoint[campaign.state.options.difficulty - 1] ?? never();
+    status.playerKills = 0;
+    const start = sectors.currentPlayerProgress();
+    const points = MORALE_PER_PROGRESS_STEP - (start % MORALE_PER_PROGRESS_STEP);
+    status.playerKills = points * killsPerPoint - 1;
+    refreshSoldierMorale(t, merc);
+    const before = progressTerm(merc);
+    kill(t, newcomer(campaign, Team.ENEMY, merc), merc);
+    expect(t.campaign.playerProgress()).toBe(start + points);
+    refreshSoldierMorale(t, merc);
+    expect(progressTerm(merc)).toBe(before + 1);
+  });
+
+  it('takes the difficulty level from the highest progress as it stands, as the hourly update raises it in the battle', () => {
+    const { campaign, t, merc } = loadedA9(59);
+    const sectors = campaign.sectors ?? never();
+    const enemy = newcomer(campaign, Team.ENEMY, merc);
+    Object.assign(enemy, { soldierClass: SoldierClass.ARMY });
+    const level = () => 1 + idiv(sectors.difficultyModifier(SoldierClass.ARMY), DIFFICULTY_STEP);
+    campaign.state.status.highestProgress = 0;
+    const low = soldierDifficultyLevel(t, enemy);
+    expect(low).toBe(level());
+    campaign.state.status.highestProgress = 100;
+    expect(t.campaign.highestProgress()).toBe(100);
+    expect(soldierDifficultyLevel(t, enemy)).toBe(level());
+    expect(soldierDifficultyLevel(t, enemy)).toBeGreaterThan(low);
   });
 });

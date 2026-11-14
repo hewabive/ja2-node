@@ -82,7 +82,8 @@ personal ones. Only a soldier seen right now is taken where he stands.
 
 **Settings fixed at their default.** Stracciatella's AI policies (avoid lit tiles at night, stay on the rooftop, go
 prone more often, the better aiming choice, the corpse warning) run off and are not configurable. The difficulty
-comes from `t.campaign.difficultyModifier`, computed at sector load (deviation "Difficulty and progress in tactical").
+comes from `t.campaign.difficultyModifier(class)`, which the campaign answers at every call, as `SoldierDifficultyLevel`
+calls `CalcDifficultyModifier` (`installCampaignPorts`, `campaign/turn-world.ts`); the sandbox's is constant.
 
 **The rest of tactical through hooks.** Attacks go through `turnHooks.aiAttack` (`handleItem`, `combat/attack.ts`),
 pickups and drops through `turnHooks.aiPickup` and `aiDropHandItem`, the surrender offer through
