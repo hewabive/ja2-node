@@ -21,8 +21,11 @@ import {
   MILITIA_RANKS,
   type MilitiaMoveRefusal,
   type MilitiaMoveResult,
+  type MilitiaPlanEntry,
   moveMilitia,
+  redistributeMilitia,
 } from '../strategic/economy/militia-moves.ts';
+import type { EconomyContext } from '../strategic/economy/ports.ts';
 import {
   type AssignRefusal,
   type AssignResult,
@@ -345,6 +348,8 @@ const MILITIA_REFUSAL_TEXT: Readonly<Record<MilitiaMoveRefusal, string>> = {
   notEnoughMilitia: 'not that many militia of that rank in the sector',
   sectorFull: 'a sector holds at most 20 militia',
   noMilitia: 'the town has no militia to distribute',
+  militiaTotalsChanged: 'the plan must keep the number of each rank in the sectors it changes',
+  sectorListedTwice: 'each sector may appear once in the plan',
 };
 
 function militiaRank(value: unknown): number {
@@ -356,11 +361,34 @@ function militiaResult(result: MilitiaMoveResult): CommandResult {
   return result.ok ? { ok: true } : refuse(result.refusal, MILITIA_REFUSAL_TEXT[result.refusal]);
 }
 
+function militiaCount(value: unknown): number {
+  if (value === undefined) return 0;
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : -1;
+}
+
+function militiaPlanEntry(value: unknown): MilitiaPlanEntry | 'badSector' | 'badCount' {
+  const entry = typeof value === 'object' && value !== null ? (value as Readonly<Record<string, unknown>>) : {};
+  const sector = parseSector(entry.sector);
+  if (!sector) return 'badSector';
+  const militia = MILITIA_RANKS.map((rank) => militiaCount(entry[rank]));
+  return militia.some((n) => n < 0) ? 'badCount' : { sector, militia };
+}
+
+function redistributeCommand(economy: EconomyContext, cmd: StrategicCommand): CommandResult {
+  const entries = Array.isArray(cmd.sectors) ? cmd.sectors.map(militiaPlanEntry) : ['badSector' as const];
+  if (entries.includes('badSector'))
+    return refuse('badSector', 'sectors must list {sector, green, regular, elite} with sectors such as D13');
+  if (entries.includes('badCount')) return refuse('badCount', 'militia counts must be whole numbers from 0');
+  const plan = entries.filter((e): e is MilitiaPlanEntry => typeof e !== 'string');
+  return militiaResult(redistributeMilitia(economy, typeof cmd.town === 'number' ? cmd.town : -1, plan));
+}
+
 function militiaCommand(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
   const economy = campaign.economy;
   if (!economy) return refuse('noEconomy', 'militia need the economy');
   if (campaign.state.flow !== 'strategic') return refuse('mapScreenOnly', 'militia are moved on the strategic map only');
   if (cmd.type === 'distributeMilitia') return militiaResult(distributeMilitia(economy, typeof cmd.town === 'number' ? cmd.town : -1));
+  if (cmd.type === 'redistributeMilitia') return redistributeCommand(economy, cmd);
   const from = parseSector(cmd.from);
   const to = parseSector(cmd.to);
   if (!from || !to) return refuse('badSector', 'from and to must be sectors such as D13');
@@ -380,6 +408,7 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
       return shortenRoute(ctx, cmd);
     case 'moveMilitia':
     case 'distributeMilitia':
+    case 'redistributeMilitia':
       return militiaCommand(campaign, cmd);
     case 'routeGroup':
       return routeGroup(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });

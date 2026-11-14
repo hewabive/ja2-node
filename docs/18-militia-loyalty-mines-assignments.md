@@ -6,7 +6,7 @@ their income, SAM condition and air control, the finance ledger, and the mercs' 
 order of the hourly and daily handlers; `16` when sector control changes, groups and `findStratPath`; `17` the Queen,
 her mines and progress; `19` militia and loyalty in battles and autoresolve; `22` contracts, salaries and team morale;
 `25` and `35` the quests and NPC actions that change loyalty and run the head miners and the hospital; `33` stat
-changes and kill points; `29` the agent API (`assign`, `sleep`, `wake`, `moveMilitia`, `distributeMilitia`, the militia
+changes and kill points; `29` the agent API (`assign`, `sleep`, `wake`, `moveMilitia`, `redistributeMilitia`, `distributeMilitia`, the militia
 prompts, the economy events). Each module's `@src` header names the Stracciatella functions it ports; read those for
 the formulas.
 
@@ -28,7 +28,8 @@ HOURLY_UPDATE → handleHourlyUpdate                              economy/update
 07:00 ENRICO_MAIL → handleEnricoEmail, the mail                 inactivity.ts, campaign/laptop/laptop-flow.ts
 BANDAGE_BLEEDING_MERCS, a minute after a doctor, patient or     doctor.ts
 hospital stay is set and again while someone bleeds
-assign, sleep, wake, moveMilitia, distributeMilitia             campaign/commands.ts → set-assignment.ts, militia-moves.ts
+assign, sleep, wake, moveMilitia, redistributeMilitia,          campaign/commands.ts → set-assignment.ts, militia-moves.ts
+distributeMilitia
 sleep, wake, assignment done or set → our merc's animation in   hooks → campaign/assignment-animations.ts →
 the loaded sector                                               tactical/assignment-animations.ts
 control change → world port → loyalty, morale, notice, theft    strategic/map/control.ts → economy/context.ts → loyalty.ts
@@ -85,7 +86,7 @@ merc, runs the original's list assignment for the others in the order given and 
 item that passes through the cursor on a panel) raise `economy.reEvaluateNothingToDo`, and the campaign acts on it at the
 end of the command or tick; `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
 swap or a stack clean-up without a cursor item raises nothing. The militia panel's cursor lives in the client: the
-server only takes whole moves and AUTO (deviation "Militia redistribution").
+server takes the town's final state at Done, checked as a whole, and AUTO (deviation "Militia redistribution").
 
 **Work is paid for the hour that ended.** The hourly update notes who slept through the past hour before the rest step
 puts mercs to bed or wakes them, and every payout reads that note; nothing pays in the first 45 minutes of an

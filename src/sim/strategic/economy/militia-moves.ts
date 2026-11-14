@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc HandleMilitiaRedistributionClick (the refusals before the militia panel opens);
-// @src Map_Screen_Interface_Map.cc PickUpATownPersonFromSector, DropAPersonInASector, HandleEveningOutOfTroopsAmongstSectors
+// @src Map_Screen_Interface_Map.cc PickUpATownPersonFromSector, DropAPersonInASector (their rules checked on the final
+// @src state of a whole redistribution, 2026-11-14), HandleEveningOutOfTroopsAmongstSectors
 // @src (the AUTO button, with its quirk: militia counted in sectors with hostiles are not dealt back),
 // @src CanMilitiaAutoDistribute, CanRedistributeMilitiaInSector, GetBaseSectorForCurrentTown;
 // @src Strategic/StrategicMap_Secrets.cc IsTownFound; externalized/strategic/TownModel.cc getBaseSector.
@@ -31,6 +32,8 @@ export const MilitiaMoveRefusal = {
   NOT_ENOUGH: 'notEnoughMilitia',
   SECTOR_FULL: 'sectorFull',
   NO_MILITIA: 'noMilitia',
+  TOTALS_CHANGED: 'militiaTotalsChanged',
+  LISTED_TWICE: 'sectorListedTwice',
 } as const;
 export type MilitiaMoveRefusal = (typeof MilitiaMoveRefusal)[keyof typeof MilitiaMoveRefusal];
 
@@ -38,6 +41,7 @@ export const MILITIA_RANKS: readonly string[] = ['green', 'regular', 'elite'];
 
 const BOX_ROWS = 3;
 const BOX_CELLS = BOX_ROWS * BOX_ROWS;
+const RANK_INDICES: readonly number[] = Array.from({ length: MAX_MILITIA_LEVELS }, (_, rank) => rank);
 
 export type MilitiaMoveResult = { readonly ok: true } | { readonly ok: false; readonly refusal: MilitiaMoveRefusal };
 
@@ -113,11 +117,16 @@ export function canMilitiaAutoDistribute(ctx: EconomyContext, town: number): boo
   });
 }
 
-function distributeRefusal(ctx: EconomyContext, town: number): MilitiaMoveRefusal | null {
+function townPanelRefusal(ctx: EconomyContext, town: number): MilitiaMoveRefusal | null {
   if (!Number.isInteger(town) || !townContent(ctx, town) || town === Town.BLANK) return MilitiaMoveRefusal.BAD_TOWN;
   if (!isTownFound(ctx, town)) return MilitiaMoveRefusal.NOT_A_TOWN;
   if (!militiaTrainingAllowedInTown(ctx, town)) return MilitiaMoveRefusal.NO_MILITIA_ALLOWED;
-  if (!canRedistributeMilitiaInTown(ctx, town)) return MilitiaMoveRefusal.COMBAT;
+  return canRedistributeMilitiaInTown(ctx, town) ? null : MilitiaMoveRefusal.COMBAT;
+}
+
+function distributeRefusal(ctx: EconomyContext, town: number): MilitiaMoveRefusal | null {
+  const panel = townPanelRefusal(ctx, town);
+  if (panel) return panel;
   return canMilitiaAutoDistribute(ctx, town) ? null : MilitiaMoveRefusal.NO_MILITIA;
 }
 
@@ -159,5 +168,66 @@ export function distributeMilitia(ctx: EconomyContext, town: number): MilitiaMov
     changed.push(s);
   }
   markLoadedSectorChanged(ctx, changed);
+  return OK;
+}
+
+export interface MilitiaPlanEntry {
+  readonly sector: Sector;
+  readonly militia: readonly number[];
+}
+
+function currentMilitia(ctx: EconomyContext, entry: MilitiaPlanEntry): number[] {
+  return sectorInfo(ctx.state.map, entry.sector).militia;
+}
+
+function changesSector(ctx: EconomyContext, entry: MilitiaPlanEntry): boolean {
+  const current = currentMilitia(ctx, entry);
+  return RANK_INDICES.some((rank) => (entry.militia[rank] ?? 0) !== (current[rank] ?? 0));
+}
+
+function onlyLoses(current: readonly number[], planned: readonly number[]): boolean {
+  return RANK_INDICES.every((rank) => (planned[rank] ?? 0) <= (current[rank] ?? 0));
+}
+
+function overfills(ctx: EconomyContext, entry: MilitiaPlanEntry): boolean {
+  const planned = entry.militia.reduce((sum, n) => sum + n, 0);
+  return planned > MAX_ALLOWABLE_MILITIA_PER_SECTOR && !onlyLoses(currentMilitia(ctx, entry), entry.militia);
+}
+
+function keepsTotals(ctx: EconomyContext, plan: readonly MilitiaPlanEntry[]): boolean {
+  return RANK_INDICES.every((rank) => {
+    const before = plan.reduce((sum, e) => sum + (currentMilitia(ctx, e)[rank] ?? 0), 0);
+    const after = plan.reduce((sum, e) => sum + (e.militia[rank] ?? 0), 0);
+    return before === after;
+  });
+}
+
+function listsSectorTwice(plan: readonly MilitiaPlanEntry[]): boolean {
+  return plan.some((e, i) => plan.findIndex((other) => sameSector(other.sector, e.sector)) !== i);
+}
+
+function redistributeRefusal(ctx: EconomyContext, town: number, plan: readonly MilitiaPlanEntry[]): MilitiaMoveRefusal | null {
+  const panel = townPanelRefusal(ctx, town);
+  if (panel) return panel;
+  if (listsSectorTwice(plan)) return MilitiaMoveRefusal.LISTED_TWICE;
+  if (plan.some((e) => e.sector.z !== 0 || townOf(ctx, e.sector) !== town)) return MilitiaMoveRefusal.OTHER_TOWN;
+  const changed = plan.filter((e) => changesSector(ctx, e));
+  if (changed.some((e) => !sectorOursAndPeaceful(ctx, e.sector))) return MilitiaMoveRefusal.NOT_PEACEFUL;
+  if (!keepsTotals(ctx, changed)) return MilitiaMoveRefusal.TOTALS_CHANGED;
+  return changed.some((e) => overfills(ctx, e)) ? MilitiaMoveRefusal.SECTOR_FULL : null;
+}
+
+export function redistributeMilitia(ctx: EconomyContext, town: number, plan: readonly MilitiaPlanEntry[]): MilitiaMoveResult {
+  const refusal = redistributeRefusal(ctx, town, plan);
+  if (refusal) return refused(refusal);
+  const changed = plan.filter((e) => changesSector(ctx, e));
+  for (const entry of changed) {
+    const militia = currentMilitia(ctx, entry);
+    for (const rank of RANK_INDICES) militia[rank] = entry.militia[rank] ?? 0;
+  }
+  markLoadedSectorChanged(
+    ctx,
+    changed.map((e) => e.sector),
+  );
   return OK;
 }

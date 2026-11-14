@@ -19,7 +19,7 @@ import {
   trainTownInSector,
   unpaidTrainableSectors,
 } from './militia.ts';
-import { distributeMilitia } from './militia-moves.ts';
+import { distributeMilitia, type MilitiaPlanEntry, redistributeMilitia } from './militia-moves.ts';
 import { isAreaFullOfMilitia } from './militia-rules.ts';
 import type { DecisionAnswer } from './ports.ts';
 import { answerPendingMilitiaPrompt, assignSoldiers } from './set-assignment.ts';
@@ -339,6 +339,53 @@ describe('evening out a town (Map_Screen_Interface_Map.cc HandleEveningOutOfTroo
       [5, 0, 0],
       [5, 0, 0],
       [6, 0, 0],
+    ]);
+  });
+});
+
+describe('redistributing a town (the militia popup: PickUpATownPersonFromSector and DropAPersonInASector)', () => {
+  const militiaOf = (made: ReturnType<typeof context>) => [B13, C13, D13].map((s) => [...sectorInfo(made.ctx.state.map, s).militia]);
+  const plan = (...entries: [sector: typeof B13, green: number, regular: number, elite: number][]): MilitiaPlanEntry[] =>
+    entries.map(([sector, ...militia]) => ({ sector, militia }));
+
+  it('swaps militia between two full sectors in one plan, which no order of single moves could do', () => {
+    const made = context();
+    militia(made, B13, 20, 0, 0);
+    militia(made, C13, 0, 20, 0);
+    militia(made, D13, 3, 0, 1);
+    expect(redistributeMilitia(made.ctx, Town.DRASSEN, plan([B13, 10, 10, 0], [C13, 10, 10, 0], [D13, 3, 0, 1]))).toEqual({ ok: true });
+    expect(militiaOf(made)).toEqual([
+      [10, 10, 0],
+      [10, 10, 0],
+      [3, 0, 1],
+    ]);
+  });
+
+  it('refuses a whole plan whose final state breaks a rule and changes nothing', () => {
+    const made = context();
+    militia(made, B13, 4, 0, 0);
+    militia(made, C13, 18, 0, 0);
+    militia(made, D13, 6, 2, 0);
+    const before = militiaOf(made);
+    const refusals = [
+      [plan([B13, 0, 0, 0], [C13, 22, 0, 0]), 'sectorFull'],
+      [plan([B13, 3, 0, 0], [C13, 18, 0, 0]), 'militiaTotalsChanged'],
+      [plan([B13, 0, 0, 0], [D13, 8, 2, 2]), 'militiaTotalsChanged'],
+      [plan([B13, 0, 0, 0], [B13, 4, 0, 0]), 'sectorListedTwice'],
+      [plan([B13, 0, 0, 0], [parseSectorString('A9'), 4, 0, 0]), 'otherTown'],
+    ] as const;
+    for (const [entries, refusal] of refusals) expect(redistributeMilitia(made.ctx, Town.DRASSEN, entries)).toEqual({ ok: false, refusal });
+    sectorInfo(made.ctx.state.map, D13).numTroops = 3;
+    expect(redistributeMilitia(made.ctx, Town.DRASSEN, plan([B13, 0, 0, 0], [D13, 10, 2, 0]))).toEqual({
+      ok: false,
+      refusal: 'sectorNotPeaceful',
+    });
+    expect(militiaOf(made)).toEqual(before);
+    expect(redistributeMilitia(made.ctx, Town.DRASSEN, plan([B13, 2, 0, 0], [C13, 20, 0, 0], [D13, 6, 2, 0]))).toEqual({ ok: true });
+    expect(militiaOf(made)).toEqual([
+      [2, 0, 0],
+      [20, 0, 0],
+      [6, 2, 0],
     ]);
   });
 });

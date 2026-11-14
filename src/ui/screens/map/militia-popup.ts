@@ -154,11 +154,11 @@ export function militiaArt(model: LayoutModel, fonts: { get(name: string): Bitma
   };
 }
 
-export interface MilitiaMove {
-  readonly from: number;
-  readonly to: number;
-  readonly rank: number;
-  readonly count: number;
+export interface MilitiaSectorPlan {
+  readonly sector: string;
+  readonly green: number;
+  readonly regular: number;
+  readonly elite: number;
 }
 
 function total(counts: MilitiaCounts | undefined): number {
@@ -195,58 +195,16 @@ export function spreadCursor(
   return result;
 }
 
-function transfers(base: ReadonlyMap<number, MilitiaCounts>, target: ReadonlyMap<number, MilitiaCounts>): MilitiaMove[] {
-  const ids = [...new Set([...base.keys(), ...target.keys()])].sort((a, b) => a - b);
-  const pending: MilitiaMove[] = [];
-  for (let rank = 0; rank < RANKS; rank++) {
-    const givers = ids.flatMap((id) => {
-      const n = (base.get(id)?.[rank] ?? 0) - (target.get(id)?.[rank] ?? 0);
-      return n > 0 ? [{ id, n }] : [];
-    });
-    const takers = ids.flatMap((id) => {
-      const n = (target.get(id)?.[rank] ?? 0) - (base.get(id)?.[rank] ?? 0);
-      return n > 0 ? [{ id, n }] : [];
-    });
-    let g = 0;
-    for (const taker of takers) {
-      while (taker.n > 0 && g < givers.length) {
-        const giver = givers[g] as { id: number; n: number };
-        const count = Math.min(giver.n, taker.n);
-        pending.push({ from: giver.id, to: taker.id, rank, count });
-        giver.n -= count;
-        taker.n -= count;
-        if (giver.n === 0) g++;
-      }
-    }
-  }
-  return pending;
+function sameCounts(a: MilitiaCounts | undefined, b: MilitiaCounts | undefined): boolean {
+  return MILITIA_RANKS.every((_, rank) => (a?.[rank] ?? 0) === (b?.[rank] ?? 0));
 }
 
-export function militiaMoves(base: ReadonlyMap<number, MilitiaCounts>, target: ReadonlyMap<number, MilitiaCounts>): MilitiaMove[] {
-  const current = copyGrid(base);
-  let pending = transfers(base, target);
-  const moves: MilitiaMove[] = [];
-  let progressed = true;
-  while (pending.length > 0 && progressed) {
-    progressed = false;
-    const next: MilitiaMove[] = [];
-    for (const move of pending) {
-      const from = current.get(move.from) ?? new Array<number>(RANKS).fill(0);
-      const to = current.get(move.to) ?? new Array<number>(RANKS).fill(0);
-      const count = Math.min(move.count, MAX_MILITIA_PER_SECTOR - total(to), from[move.rank] ?? 0);
-      if (count > 0) {
-        from[move.rank] = (from[move.rank] ?? 0) - count;
-        to[move.rank] = (to[move.rank] ?? 0) + count;
-        current.set(move.from, from);
-        current.set(move.to, to);
-        moves.push({ ...move, count });
-        progressed = true;
-      }
-      if (count < move.count) next.push({ ...move, count: move.count - count });
-    }
-    pending = next;
-  }
-  return moves;
+export function redistribution(base: ReadonlyMap<number, MilitiaCounts>, target: ReadonlyMap<number, MilitiaCounts>): MilitiaSectorPlan[] {
+  const ids = [...target.keys()].filter((id) => !sameCounts(base.get(id), target.get(id))).sort((a, b) => a - b);
+  return ids.map((id) => {
+    const [green = 0, regular = 0, elite = 0] = target.get(id) ?? [];
+    return { sector: sectorLabel(sectorFromId(id)), green, regular, elite };
+  });
 }
 
 export interface MilitiaPopupHost {
@@ -270,6 +228,7 @@ export class MilitiaPopup {
   #grid = new Map<number, number[]>();
   #cursor: number[] = [0, 0, 0];
   #dirty = false;
+  #committing: ReadonlyMap<number, MilitiaCounts> | null = null;
   #selected = NO_CELL;
   #outline = NO_CELL;
   #cells: MouseRegion[] = [];
@@ -326,7 +285,11 @@ export class MilitiaPopup {
   }
 
   militiaIn(id: number): MilitiaCounts {
-    return this.#grid.get(id) ?? this.#view(id)?.militia ?? [0, 0, 0];
+    return this.#grid.get(id) ?? this.#shownMilitia(id);
+  }
+
+  #shownMilitia(id: number): MilitiaCounts {
+    return this.#committing?.get(id) ?? this.#view(id)?.militia ?? [0, 0, 0];
   }
 
   #townSectors(): readonly number[] {
@@ -334,7 +297,7 @@ export class MilitiaPopup {
   }
 
   #snapshot(): void {
-    this.#base = new Map(this.#townSectors().map((id) => [id, [...(this.#view(id)?.militia ?? [0, 0, 0])]]));
+    this.#base = new Map(this.#townSectors().map((id) => [id, [...this.#shownMilitia(id)]]));
     this.#grid = copyGrid(this.#base);
   }
 
@@ -567,15 +530,15 @@ export class MilitiaPopup {
     this.#host.box(printf(text.string(message.table, message.index) ?? '', [text.string(TOWN_NAMES, town) ?? '']));
   }
 
-  plannedMoves(): MilitiaMove[] {
-    const target = spreadCursor(this.#grid, this.#cursor, this.#townSectors(), (id) => this.peaceful(id));
-    return militiaMoves(this.#base, target);
+  #plannedGrid(): Map<number, number[]> {
+    return spreadCursor(this.#grid, this.#cursor, this.#townSectors(), (id) => this.peaceful(id));
   }
 
   close(): void {
     if (!this.open) return;
     const town = this.#town;
-    const moves = this.#dirty ? this.plannedMoves() : [];
+    const target = this.#dirty ? this.#plannedGrid() : null;
+    const plan = target ? redistribution(this.#base, target) : [];
     for (const region of this.#cells) region.remove();
     this.#cells = [];
     this.#removeRankButtons();
@@ -587,30 +550,25 @@ export class MilitiaPopup {
     this.#cursor = [0, 0, 0];
     this.#dirty = false;
     this.#grid = new Map();
-    void this.#commit(moves, town);
+    if (target && plan.length > 0) void this.#commit(target, plan, town);
   }
 
-  async #commit(moves: readonly MilitiaMove[], town: number): Promise<void> {
-    for (const move of moves) {
-      const reply = await this.#host.send({
-        type: 'moveMilitia',
-        from: sectorLabel(sectorFromId(move.from)),
-        to: sectorLabel(sectorFromId(move.to)),
-        rank: MILITIA_RANKS[move.rank] ?? MILITIA_RANKS[0],
-        count: move.count,
-      });
-      if (!reply.ok) {
-        this.#refused(reply, town);
-        return;
-      }
+  async #commit(target: ReadonlyMap<number, MilitiaCounts>, plan: readonly MilitiaSectorPlan[], town: number): Promise<void> {
+    this.#committing = target;
+    try {
+      const reply = await this.#host.send({ type: 'redistributeMilitia', town, sectors: plan });
+      if (!reply.ok) this.#refused(reply, town);
+    } finally {
+      if (this.#committing === target) this.#committing = null;
     }
   }
 
   overlay(strategic: StrategicView): StrategicView {
-    if (!this.open || !this.#dirty) return strategic;
+    const shown = this.open && this.#dirty ? this.#grid : this.#committing;
+    if (!shown) return strategic;
     const sectors = strategic.sectors.map((s) => {
       const at = parseSectorLabel(s.sector);
-      const counts = at && at.z === 0 ? this.#grid.get(sectorId(at)) : undefined;
+      const counts = at && at.z === 0 ? shown.get(sectorId(at)) : undefined;
       return counts ? { ...s, militia: counts } : s;
     });
     return { ...strategic, sectors };

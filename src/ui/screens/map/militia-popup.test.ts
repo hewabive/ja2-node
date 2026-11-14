@@ -9,12 +9,12 @@ import { MouseButton } from '../../input/events.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import { ORIGINAL_SKIN } from '../../layout/types.ts';
 import {
-  MAX_MILITIA_PER_SECTOR,
   type MilitiaCounts,
   MilitiaPopup,
+  type MilitiaPopupHost,
   militiaArt,
   militiaGeometry,
-  militiaMoves,
+  redistribution,
   spreadCursor,
 } from './militia-popup.ts';
 
@@ -48,43 +48,21 @@ describe('the militia redistribution plan', () => {
     expect(spread.get(D13)).toEqual([1, 0, 1]);
   });
 
-  it('turns the original grid into the new one with moves that never overfill a sector', () => {
-    const base = grid([
-      [B13, [20, 0, 0]],
-      [C13, [0, 5, 0]],
-      [D13, [0, 0, 0]],
-    ]);
-    const target = grid([
-      [B13, [15, 5, 0]],
-      [C13, [0, 0, 0]],
-      [D13, [5, 0, 0]],
-    ]);
-    const moves = militiaMoves(base, target);
-    expect(moves).toEqual([
-      { from: B13, to: D13, rank: 0, count: 5 },
-      { from: C13, to: B13, rank: 1, count: 5 },
-    ]);
-    const current = new Map([...base].map(([id, c]) => [id, [...c]]));
-    for (const m of moves) {
-      const from = current.get(m.from) ?? [0, 0, 0];
-      const to = current.get(m.to) ?? [0, 0, 0];
-      from[m.rank] = (from[m.rank] ?? 0) - m.count;
-      to[m.rank] = (to[m.rank] ?? 0) + m.count;
-      expect(to.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(MAX_MILITIA_PER_SECTOR);
-    }
-    expect([...current]).toEqual([...target].map(([id, c]) => [id, [...c]]));
-  });
-
-  it('leaves a swap between two full sectors undone rather than overfill one', () => {
+  it('lists the final counts of the sectors the plan changes, a swap between two full sectors included', () => {
     const base = grid([
       [B13, [20, 0, 0]],
       [C13, [0, 20, 0]],
+      [D13, [1, 0, 0]],
     ]);
     const target = grid([
       [B13, [0, 20, 0]],
       [C13, [20, 0, 0]],
+      [D13, [1, 0, 0]],
     ]);
-    expect(militiaMoves(base, target)).toEqual([]);
+    expect(redistribution(base, target)).toEqual([
+      { sector: 'B13', green: 0, regular: 20, elite: 0 },
+      { sector: 'C13', green: 20, regular: 0, elite: 0 },
+    ]);
   });
 });
 
@@ -125,9 +103,13 @@ describe('the militia popup', () => {
     sent = [];
     boxes = [];
     battle = null;
+    popup = new MilitiaPopup(popupHost());
+  });
+
+  function popupHost(): MilitiaPopupHost {
     const geometry = militiaGeometry(model);
     const art = militiaArt(model, t.fonts, 'militiaPopup');
-    popup = new MilitiaPopup({
+    return {
       regions: t.runtime.regions,
       buttons: t.runtime.buttons,
       text: KEY_TEXT,
@@ -142,8 +124,8 @@ describe('the militia popup', () => {
         return { ok: true };
       },
       box: (text) => boxes.push(text),
-    });
-  });
+    };
+  }
 
   it('reads its geometry and art from the map-screen layout', () => {
     expect(militiaGeometry(model)).toMatchObject({ boxX: 400, boxY: 125, cellWidth: 42, cellHeight: 36, autoY: 167, doneX: 67 });
@@ -190,9 +172,40 @@ describe('the militia popup', () => {
     expect(popup.open).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(sent).toEqual([
-      { type: 'moveMilitia', from: 'D13', to: 'B13', rank: 'green', count: 2 },
-      { type: 'moveMilitia', from: 'D13', to: 'B13', rank: 'elite', count: 1 },
+      {
+        type: 'redistributeMilitia',
+        town: DRASSEN,
+        sectors: [
+          { sector: 'B13', green: 2, regular: 0, elite: 1 },
+          { sector: 'D13', green: 3, regular: 3, elite: 0 },
+        ],
+      },
     ]);
+  });
+
+  it('keeps the plan on the map from Done until the reply to its one command, and boxes a refusal', async () => {
+    let reply: (value: { ok: boolean; data?: unknown }) => void = () => undefined;
+    popup = new MilitiaPopup({
+      ...popupHost(),
+      send: (cmd) => {
+        sent.push(cmd);
+        return new Promise((resolve) => {
+          reply = resolve;
+        });
+      },
+    });
+    popup.show(DRASSEN);
+    press(`militiaCell${D13_CELL}`);
+    press('militiaRank1', MouseButton.RIGHT);
+    press(`militiaCell${B13_CELL}`);
+    press('militiaRank1');
+    press('militiaDone');
+    const shown = () => popup.overlay(view).sectors.find((s) => s.sector === 'B13')?.militia;
+    expect(shown()).toEqual([0, 1, 0]);
+    reply({ ok: false, data: { refusal: 'militiaInCombat' } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(shown()).toEqual([0, 0, 0]);
+    expect(boxes).toEqual(['pMilitiaString[2]']);
   });
 
   it('closes on a right click outside while a sector is selected, and sends nothing when nothing moved', () => {

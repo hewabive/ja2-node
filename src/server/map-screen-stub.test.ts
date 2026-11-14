@@ -281,6 +281,53 @@ describe('map screen view fields and commands in a stub campaign', () => {
     expect(c.live.dispatch({ type: 'distributeMilitia', town: OMERTA_TOWN })).toMatchObject({ data: { refusal: 'noMilitiaAllowed' } });
   });
 
+  it('redistributes a town in one plan checked on its final state, all of it or nothing', async () => {
+    const c = await landedCampaign(83, 3, []);
+    liberateDrassen(c);
+    teleportSquad(c, parseSectorString('C13'));
+    setMilitia(c, 'B13', [20, 0, 0]);
+    setMilitia(c, 'C13', [0, 20, 0]);
+    setMilitia(c, 'D13', [1, 0, 0]);
+    const swap = [
+      { sector: 'B13', green: 10, regular: 10 },
+      { sector: 'C13', green: 10, regular: 10, elite: 0 },
+    ];
+    expect(c.live.dispatch({ type: 'redistributeMilitia', town: DRASSEN_TOWN, sectors: swap })).toEqual({ ok: true });
+    expect(DRASSEN.map((name) => militiaOf(c, name))).toEqual([
+      [10, 10, 0],
+      [10, 10, 0],
+      [1, 0, 0],
+    ]);
+    const lost = [
+      { sector: 'B13', green: 0, regular: 10 },
+      { sector: 'D13', green: 10 },
+    ];
+    expect(c.live.dispatch({ type: 'redistributeMilitia', town: DRASSEN_TOWN, sectors: lost })).toMatchObject({
+      data: { refusal: 'militiaTotalsChanged' },
+    });
+    const overfilled = [
+      { sector: 'B13', green: 0, regular: 0 },
+      { sector: 'C13', green: 20, regular: 20 },
+    ];
+    expect(c.live.dispatch({ type: 'redistributeMilitia', town: DRASSEN_TOWN, sectors: overfilled })).toMatchObject({
+      data: { refusal: 'sectorFull' },
+    });
+    expect(c.live.dispatch({ type: 'redistributeMilitia', town: DRASSEN_TOWN, sectors: [{ sector: 'B13', green: -1 }] })).toMatchObject({
+      data: { refusal: 'badCount' },
+    });
+    expect(c.live.dispatch({ type: 'redistributeMilitia', town: DRASSEN_TOWN, sectors: [{ sector: 'nowhere' }] })).toMatchObject({
+      data: { refusal: 'badSector' },
+    });
+    expect(c.live.dispatch({ type: 'redistributeMilitia', town: OMERTA_TOWN, sectors: [] })).toMatchObject({
+      data: { refusal: 'noMilitiaAllowed' },
+    });
+    expect(DRASSEN.map((name) => militiaOf(c, name))).toEqual([
+      [10, 10, 0],
+      [10, 10, 0],
+      [1, 0, 0],
+    ]);
+  });
+
   it('trashes an item on the map screen only', async () => {
     const c = await landedCampaign(84, 2, []);
     const id = mercs(c)[0]?.id ?? -1;

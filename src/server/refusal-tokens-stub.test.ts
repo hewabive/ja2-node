@@ -84,6 +84,7 @@ function tacticalRefusals(merc: number): Refusals {
     [{ type: 'exitSector', soldier: merc, direction: 'up' }, 'badDirection'],
     [{ type: 'compressTime' }, 'mapScreenOnly'],
     [{ type: 'moveMilitia', from: 'A9', to: 'A10' }, 'mapScreenOnly'],
+    [{ type: 'redistributeMilitia', town: 2, sectors: [] }, 'mapScreenOnly'],
     [{ type: 'heliRoute', to: 'A10' }, 'mapScreenOnly'],
     [{ type: 'openLaptop' }, 'mapScreenOnly'],
     [{ type: 'setLandingZone', sector: 'A9' }, 'mapScreenOnly'],

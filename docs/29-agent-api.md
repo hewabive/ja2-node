@@ -947,7 +947,12 @@ continue prompts"). A refusal puts the trainers back on a squad at once and come
 reason, sector, cost}`: `declined`, `cannotAfford` (the balance is short of `cost` before anyone asks), `fundsGone` (a
 yes the balance no longer covers, also the `answer`'s `outcome`), and for a finished session `loyaltyTooLow` and
 `militiaFull`, checked in that order before the cost; the page boxes each but `declined` (`30`). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
-with hostiles are dealt out while they also stay there (`18`). A merc who joins another squad (`assignSquad`, `assign`
+with hostiles are dealt out while they also stay there (`18`). `redistributeMilitia {town, sectors: [{sector, green,
+regular, elite}]}` is the panel's Done: the final counts of the sectors that change (a missing rank is 0), checked as a
+whole by the original's pick-up and drop rules (every sector of the town, each changed one ours and free of hostiles,
+each rank's total over the changed sectors kept, at most 20 in a sector that gains) and applied whole or refused whole,
+so a swap between two full sectors works (deviation "Militia redistribution"). `moveMilitia` moves one rank between two
+sectors of a town under the same rules. A merc who joins another squad (`assignSquad`, `assign`
 to a squad, a vehicle left, a hit while on another assignment) wakes unless he collapsed, as `AddCharacterToSquad` does.
 The events the original pairs with `StopTimeCompression` or a box stop a strategic advance. The hint
 `assignmentOptions` shades the menu (§9).
