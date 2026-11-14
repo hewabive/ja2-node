@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/SkillCheck.cc SkillCheck (with QUOTE_DEFINITE_CANT_DO and the buddies' comment on a success,
-// @src 2026-10-30), CalcTrapDetectLevel; SkillCheck.h SkillChecks.
+// @src 2026-10-30; the CURSE1 of a failed check, always for lockpicking, disarming and the crowbar, else on Random(100) < 40
+// @src drawn by the client, none for the silent checks, 2026-11-14), CalcTrapDetectLevel; SkillCheck.h SkillChecks.
 
 import { spacesAway } from '../../../content/world/grid.ts';
 import { idiv } from '../../../core/int.ts';
@@ -19,9 +20,9 @@ import {
   moraleModifier,
   skillCheckFatiguePenalty,
 } from '../skills.ts';
-import { numSkillTraits, SKILL_TRAIT_BONUS, SkillTrait, type Soldier, Team } from '../soldier.ts';
+import { numSkillTraits, SKILL_TRAIT_BONUS, SkillTrait, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
-import type { RandomStream } from './context.ts';
+import type { RandomStream, SkillCheckFailedEvent } from './context.ts';
 
 export const SkillCheckReason = {
   NONE: 0,
@@ -46,6 +47,7 @@ export type SkillCheckContext = Pick<TacticalState, 'content' | 'profiles'> &
   Partial<Pick<TacticalState, 'soldiers' | 'narrative'>> &
   LoadedSector & {
     readonly pre: RandomStream;
+    readonly events?: { push(event: SkillCheckFailedEvent): unknown };
   };
 
 const R = SkillCheckReason;
@@ -72,6 +74,16 @@ const ZEROED_BELOW_REASONABLE: ReadonlySet<number> = new Set([
   R.ATTACHING_SPECIAL_ITEM,
   R.ATTACHING_SPECIAL_ELECTRONIC_ITEM,
 ]);
+
+const CERTAIN_CURSE: ReadonlySet<number> = new Set([
+  R.LOCKPICKING,
+  R.ELECTRONIC_LOCKPICKING,
+  R.DISARM_TRAP,
+  R.DISARM_ELECTRONIC_TRAP,
+  R.OPEN_WITH_CROWBAR,
+]);
+
+const SILENT_CHECKS: ReadonlySet<number> = new Set([R.UNJAM_GUN, R.NOTICE_DART, R.LIE_TO_QUEEN]);
 
 const hasElectronics = (s: Soldier) => numSkillTraits(s, SkillTrait.ELECTRONICS) > 0;
 
@@ -183,14 +195,22 @@ function rollSkillCheck(t: SkillCheckContext, s: Soldier, reason: number, base: 
   }
   if (s.lastSkillCheck === reason && s.gridNo === s.skillCheckGridNo) {
     s.skillCheckAttempts++;
-    if (s.skillCheckAttempts > ATTEMPTS_BEFORE_GIVING_UP && chance === 0 && realizesItCannotBeDone(s))
+    if (s.skillCheckAttempts > ATTEMPTS_BEFORE_GIVING_UP && chance === 0 && realizesItCannotBeDone(s)) {
       t.narrative?.sayQuote(s, MercQuote.DEFINITE_CANT_DO);
+      return madeItBy;
+    }
   } else {
     s.lastSkillCheck = reason;
     s.skillCheckAttempts = 1;
     s.skillCheckGridNo = s.gridNo;
   }
+  curseTheFailure(t, s, reason);
   return madeItBy;
+}
+
+function curseTheFailure(t: SkillCheckContext, s: Soldier, reason: number): void {
+  if (SILENT_CHECKS.has(reason) || !shownToPlayer(s)) return;
+  t.events?.push({ type: 'skillCheckFailed', soldier: s.id, ...(CERTAIN_CURSE.has(reason) ? { certain: true as const } : {}) });
 }
 
 function realizesItCannotBeDone(s: Soldier): boolean {

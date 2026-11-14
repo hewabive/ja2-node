@@ -50,7 +50,10 @@
 // @src LAUGH1 at a visible death on Random(3) == 0) and HandleKilledQuote (the killer's LAUGH1 or COOL1 by CoinToss), both
 // @src drawn here (deviation "Cosmetic draws in attacks", 2026-11-14); Tactical/Overhead.cc CheckForEndOfBattle (the COOL1
 // @src of SayBattleSoundFromAnyBodyInSector after bloodcats, its Random(n) drawn here; deviation "Battle sound after
-// @src bloodcats", 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14).
+// @src bloodcats", 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14);
+// @src Tactical/Handle_Doors.cc HandleOpenableStruct (COOL1 after a picked lock or a disarmed trap, CURSE1 on Random(2)
+// @src after a wrong key, drawn here), Tactical/Keys.cc AttemptToBlowUpLock (SMALL_EXPLODE_1 at the door, HIGHVOLUME),
+// @src Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a failed check, its Random(100) < 40 drawn here, 2026-11-14).
 
 import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
@@ -60,7 +63,7 @@ import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../c
 import { ambientActive, ambientCue, ambientGapMs } from '../content/audio/ambient-schedule.ts';
 import { type BattleMemory, type BattleSoundName, battleSoundCue, NO_BATTLE_MEMORY } from '../content/audio/battle-sound.ts';
 import { CALL_CRY_CODES, callAnimationState, codesInScript } from '../content/audio/creature-call.ts';
-import { type Cue, cueOf, effectCue, type FileExists, VolumeLevel } from '../content/audio/cue.ts';
+import { type Cue, cueOf, effectCue, type FileExists, type Rand, VolumeLevel } from '../content/audio/cue.ts';
 import type { CueBook } from '../content/audio/cue-book.ts';
 import {
   alarmCue,
@@ -128,7 +131,17 @@ const CANTEEN = 'CANTEEN';
 const DYING_HEALTH_INDEX = 0;
 const CRITICAL_HEALTH_INDEX = 1;
 const DEATH_LAUGH_ODDS = 3;
+const WRONG_KEY_CURSE_ODDS = 2;
+const SKILL_CHECK_CURSE_RANGE = 100;
+const SKILL_CHECK_CURSE_BELOW = 40;
 const KILL_CHEERS: readonly BattleSoundName[] = ['COOL1', 'LAUGH1'];
+
+function doorResultBattleSound(e: Pick<EventOf<'doorResult'>, 'action' | 'result'>, rand: Rand): BattleSoundName | null {
+  if (e.action === 'open' && e.result === 'locked') return 'LOCKED';
+  if ((e.action === 'pickLock' && e.result === 'opened') || (e.action === 'untrap' && e.result === 'untrapped')) return 'COOL1';
+  if (e.action === 'unlock' && e.result === 'wrongKey' && rand(WRONG_KEY_CURSE_ODDS) !== 0) return 'CURSE1';
+  return null;
+}
 
 export interface SoundWorld {
   terrainAt(gridNo: number): number;
@@ -727,6 +740,12 @@ export class SoundDirector {
       case 'corpseVaporized':
         this.#play(effectCue(book, 'BODY_EXPLODE_1', 'location', VolumeLevel.HIGH, e.gridNo));
         return;
+      case 'skillCheckFailed':
+        if (e.certain || rand(SKILL_CHECK_CURSE_RANGE) < SKILL_CHECK_CURSE_BELOW) this.#battleSound(e.soldier, 'CURSE1', false);
+        return;
+      case 'shapedChargeBlast':
+        this.#play(smallExplosionCue(book, e.gridNo));
+        return;
       case 'pitOpened':
         this.#play(effectCue(book, 'CAVE_COLLAPSE', 'location', VolumeLevel.HIGH, e.gridNo));
         return;
@@ -939,7 +958,8 @@ export class SoundDirector {
   #doorResult(e: EventOf<'doorResult'>): void {
     const soldierGridNo = this.#soldiers.get(e.soldier)?.gridNo ?? e.gridNo;
     this.#play(lockOutcomeCue(this.#o.book, { action: e.action, result: e.result, doorGridNo: e.gridNo, soldierGridNo }));
-    if (e.action === 'open' && e.result === 'locked') this.#battleSound(e.soldier, 'LOCKED', false);
+    const sound = doorResultBattleSound(e, this.#rng.rand);
+    if (sound) this.#battleSound(e.soldier, sound, false);
   }
 
   #scheduleAmbient(): void {

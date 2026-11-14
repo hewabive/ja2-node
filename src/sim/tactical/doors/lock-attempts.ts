@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.cc AttemptToUnlockDoor, AttemptToLockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
-// @src AttemptToPickLock, AttemptToBlowUpLock, DOOR::damageLock; Items.cc FindObj, FindUsableObj, DamageObj.
+// @src AttemptToPickLock, AttemptToBlowUpLock (its miniboom and SMALL_EXPLODE_1 at the door, 2026-11-14), DOOR::damageLock;
+// @src Items.cc FindObj, FindUsableObj, DamageObj.
 
 import { LOCK_UNOPENABLE, LockType, lockAt, OPENING_NOT_POSSIBLE } from '../../../content/formats/locks.ts';
 import { i8, idiv } from '../../../core/int.ts';
@@ -12,7 +13,7 @@ import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { StatKind } from '../profiles.ts';
 import { effectiveStrength } from '../skills.ts';
-import type { Soldier } from '../soldier.ts';
+import { cellCentre, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { findDoorInfo, removeDoorInfo, updateDoor } from './door-table.ts';
 import { soldierHasKey } from './keys.ts';
@@ -34,6 +35,7 @@ const PLANTING_SUCCESS = -20;
 const SHAPED_CHARGE_LOCK_DAMAGE_FACTOR = 2;
 const PICK_MECHANICAL_DIVISOR = 5;
 const PICK_DEXTERITY_DIVISOR = 10;
+const CHARGE_BLAST_Z = 20;
 
 function itemIndex(t: TacticalState, name: string): number {
   return t.content.items.byName.get(name)?.index ?? -1;
@@ -173,6 +175,7 @@ export function attemptToBlowUpLock(t: TacticalState, s: Soldier, gridNo: number
   if (findObj(s, charge) === NO_SLOT) return 'noCharge';
   const result = skillCheck(t, s, SkillCheckReason.PLANTING_BOMB, 0);
   if (result >= PLANTING_SUCCESS) {
+    t.events.push({ type: 'shapedChargeBlast', gridNo, ...cellCentre(gridNo), z: CHARGE_BLAST_Z });
     useUpShapedCharge(t, s);
     const blast = t.content.items.byIndex.get(charge)?.explosive?.blast?.damage ?? 0;
     return damageLock(t, s, gridNo, blast * SHAPED_CHARGE_LOCK_DAMAGE_FACTOR) ? 'destroyed' : 'damaged';

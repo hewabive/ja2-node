@@ -7,7 +7,7 @@ import { idiv } from '../../../core/int.ts';
 import type { TacticalContent } from '../content.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
 import { effectiveMechanical } from '../skills.ts';
-import { type Soldier, Team } from '../soldier.ts';
+import { type Soldier, Team, Visible } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
@@ -129,5 +129,54 @@ describe('the definite can’t-do quote (SkillCheck.cc SkillCheck)', () => {
     s.checker.gridNo = gridNo(81, 80);
     pickLockWithoutKit(s);
     expect([s.checker.skillCheckAttempts, s.said]).toEqual([1, []]);
+  });
+});
+
+describe('the curse of a failed skill check (SkillCheck.cc:370-381)', () => {
+  function failedCheck(s: Scene, reason: number): unknown[] {
+    const pre = s.t.pre as unknown as { int(n: number): number };
+    pre.int = () => FAILING_ROLL;
+    s.sim.drainEvents();
+    expect(skillCheck(s.t, s.checker, reason, -100)).toBeLessThan(0);
+    return s.sim.drainEvents().filter((e) => e.type === 'skillCheckFailed');
+  }
+
+  it('is certain for lockpicking, disarming and the crowbar, left to the client for the other checks', () => {
+    const s = scene();
+    const certain = [
+      SkillCheckReason.LOCKPICKING,
+      SkillCheckReason.ELECTRONIC_LOCKPICKING,
+      SkillCheckReason.DISARM_TRAP,
+      SkillCheckReason.DISARM_ELECTRONIC_TRAP,
+      SkillCheckReason.OPEN_WITH_CROWBAR,
+    ];
+    for (const reason of certain)
+      expect(failedCheck(s, reason)).toEqual([expect.objectContaining({ soldier: s.checker.id, certain: true })]);
+    for (const reason of [SkillCheckReason.SMASH_DOOR, SkillCheckReason.PLANTING_BOMB, SkillCheckReason.ATTACHING_DETONATOR]) {
+      const [curse] = failedCheck(s, reason);
+      expect(curse).toMatchObject({ soldier: s.checker.id });
+      expect(curse).not.toHaveProperty('certain');
+    }
+  });
+
+  it('never comes from the silent checks, nor after the definite can’t-do quote', () => {
+    const s = scene();
+    for (const reason of [SkillCheckReason.UNJAM_GUN, SkillCheckReason.NOTICE_DART, SkillCheckReason.LIE_TO_QUEEN])
+      expect(failedCheck(s, reason)).toEqual([]);
+    const wise = scene();
+    wise.checker.stats.wisdom = 90;
+    const curses = [0, 1, 2].map(() => failedCheck(wise, SkillCheckReason.LOCKPICKING).length);
+    expect([curses, wise.said]).toEqual([[1, 1, 0], [[wise.checker.id, MercQuote.DEFINITE_CANT_DO]]]);
+  });
+
+  it('names no soldier the squad does not see', () => {
+    const s = scene();
+    const hidden = spawnSoldier(s.sim, 9, Team.ENEMY, gridNo(90, 90), Direction.SOUTH);
+    hidden.visible = Visible.HIDDEN;
+    const pre = s.t.pre as unknown as { int(n: number): number };
+    pre.int = () => FAILING_ROLL;
+    s.sim.drainEvents();
+    skillCheck(s.t, hidden, SkillCheckReason.SMASH_DOOR, -100);
+    expect(s.sim.drainEvents().filter((e) => e.type === 'skillCheckFailed')).toEqual([]);
   });
 });

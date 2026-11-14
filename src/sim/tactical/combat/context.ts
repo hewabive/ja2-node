@@ -17,6 +17,12 @@ export interface StatChangedEvent {
   readonly queued?: true;
 }
 
+export interface SkillCheckFailedEvent {
+  readonly type: 'skillCheckFailed';
+  readonly soldier: number;
+  readonly certain?: true;
+}
+
 export interface ExperienceHooks {
   levelGained(p: ProfileProgress, s: Soldier | null, levels: number): void;
 }
@@ -32,7 +38,7 @@ export interface CombatContext extends LoadedSector {
   readonly vehicles?: readonly VehicleRecord[];
   readonly inCombat: boolean;
   readonly turn: { readonly attackBusyCount: number };
-  readonly events: { push(event: StatChangedEvent): unknown };
+  readonly events: { push(event: StatChangedEvent | SkillCheckFailedEvent): unknown };
   readonly experienceHooks?: ExperienceHooks;
   readonly narrative?: NarrativePort;
 }

@@ -131,6 +131,13 @@ describe('effect animations', () => {
     ).toEqual([]);
   });
 
+  it('shows the shaped charge that blows a lock as the miniboom of explosive rounds, at the door every 100 ms', () => {
+    const effects = new EffectAnimations();
+    effects.observe([{ type: 'shapedChargeBlast', gridNo: WHERE, x: 805, y: 805, z: 20, tick: 0 }]);
+    const period = ticksPerFrame('miniboom');
+    expect(effects.at(period, FIVE_FRAMES)).toEqual([{ kind: 'miniboom', gridNo: WHERE, x: 805, y: 805, z: 20, tile: null, frame: 1 }]);
+  });
+
   it('forgets everything on reset', () => {
     const effects = new EffectAnimations();
     effects.observe([impact(0, 'miniboom')]);

@@ -832,6 +832,52 @@ describe('the sound director', () => {
     expect(new Set(cools.flat()).size).toBeGreaterThan(1);
   });
 
+  it('has a merc say COOL1 after a picked lock or a disarmed door trap, and curse a wrong key on a client Random(2) (HandleOpenableStruct)', () => {
+    const door = (action: string, result: string, seed = 1) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset([soldier(1, 'STANDING', 0)], []);
+      r.director.applyFrames([frame(10, [], [{ type: 'doorResult', tick: 10, soldier: 1, gridNo: G + 1, action, result }])]);
+      return files(r).filter((f) => f.startsWith('battlesnds/'));
+    };
+    expect(door('pickLock', 'opened')).toEqual(['battlesnds/007_cool.wav']);
+    expect(door('untrap', 'untrapped')).toEqual(['battlesnds/007_cool.wav']);
+    expect([door('pickLock', 'failed'), door('untrap', 'trapSprung'), door('lock', 'wrongKey'), door('force', 'opened')]).toEqual([
+      [],
+      [],
+      [],
+      [],
+    ]);
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const curses = seeds.map((seed) => door('unlock', 'wrongKey', seed));
+    expect(curses).toEqual(seeds.map((seed) => (new ClientRandom(seed).rand(2) !== 0 ? ['battlesnds/007_curse.wav'] : [])));
+    expect(new Set(curses.map((c) => c.length)).size).toBe(2);
+  });
+
+  it('plays SMALL_EXPLODE_1 loud at the door a shaped charge blows (AttemptToBlowUpLock)', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'shapedChargeBlast', tick: 10, gridNo: G + 1, x: 815, y: 805, z: 20 }])]);
+    expect(r.cues).toEqual([
+      expect.objectContaining({ file: book.paths.get('SMALL_EXPLODE_1'), gridNo: G + 1, baseVolume: VolumeLevel.HIGH }),
+    ]);
+  });
+
+  it('has a merc curse a failed skill check always when the event is certain, else on a client Random(100) < 40 (SkillCheck)', () => {
+    const certain = rig(world(1));
+    certain.director.reset([soldier(1, 'STANDING', 0)], []);
+    certain.director.applyFrames([frame(10, [], [{ type: 'skillCheckFailed', tick: 10, soldier: 1, certain: true }])]);
+    expect(files(certain)[0]).toMatch(/^battlesnds\/007_curse/);
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const curses = seeds.map((seed) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset([soldier(1, 'STANDING', 0)], []);
+      r.director.applyFrames([frame(10, [], [{ type: 'skillCheckFailed', tick: 10, soldier: 1 }])]);
+      return files(r).length;
+    });
+    expect(curses).toEqual(seeds.map((seed) => (new ClientRandom(seed).rand(100) < 40 ? 1 : 0)));
+    expect(new Set(curses).size).toBe(2);
+  });
+
   it('has a medic out of bandages curse with CURSE1, and stay silent when the event brings no battle sound', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0)], []);

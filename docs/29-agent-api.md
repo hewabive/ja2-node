@@ -706,7 +706,13 @@ before the door stops. A door that changes out of the squad's sight raises no `d
 `openDoors` until a merc sees it. Containers and switches take `open` and `close` with the
 original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. A door,
 container or switch he reaches in combat without the APs of his door handle code halts him there with the order kept
-(`doorResult {result: notEnoughAp}`). One gone when he gets there keeps him walking on the spot, never idle, until
+(`doorResult {result: notEnoughAp}`). A shaped charge that goes off on the lock shows its miniboom and plays
+`SMALL_EXPLODE_1` at the door (`shapedChargeBlast {gridNo, x, y, z}`, a presentation event, `Tactical/Keys.cc:607-635`);
+the client has the merc say COOL1 after a picked lock or a disarmed door trap and CURSE1 on one in two after a wrong key
+(`Tactical/Handle_Doors.cc:573`, `:680`, `:710`). Every failed skill check but the silent ones (unjamming, noticing a
+dart, lying to the queen) brings `skillCheckFailed {soldier, certain?}` for a soldier the squad sees, the curse the
+original plays always for lockpicking, disarming and the crowbar (`certain`) and else on `Random(100) < 40`, which the
+client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`). One gone when he gets there keeps him walking on the spot, never idle, until
 `stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
 effect, as the original looks for the structure the order named. A closed container hides what it holds: items put
 into it, a Bobby Ray delivery to the Drassen crate among them, go in hidden (`Handle_Items.cc:1511`), sight never shows

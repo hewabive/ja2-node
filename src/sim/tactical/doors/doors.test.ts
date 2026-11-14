@@ -28,7 +28,7 @@ import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, remov
 import { handleDoorTrap } from './door-traps.ts';
 import { keyRingView } from './door-view.ts';
 import { newKeyRing } from './key-ring.ts';
-import { attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
+import { attemptToBlowUpLock, attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
 
 const VILLAGE = 'stubs/world/maps/village.dat';
 const DOOR = 11429;
@@ -571,6 +571,23 @@ describe('bashing locks', () => {
     expect(attemptToCrowbarLock(sim.state, s, DOOR)).toBe(false);
     expect(pre.requested.slice(0, 2)).toEqual([3, 100]);
     expect(s.inv[InvSlot.BIGPOCK3]?.status[0]).toBe(88);
+  });
+
+  it('shows a planted charge that goes off on the lock as a miniboom at the door, and none for one that blows up in the hands', () => {
+    const blasts = (roll: number) => {
+      const sim = village();
+      const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+      const items = sim.state.content.items;
+      s.inv[InvSlot.BIGPOCK3] = createItem(items, items.byName.get('SHAPED_CHARGE')?.index ?? 0, 100);
+      scripted(sim, [roll], [], 0);
+      sim.drainEvents();
+      attemptToBlowUpLock(sim.state, s, DOOR);
+      return sim.drainEvents().filter((e) => e.type === 'shapedChargeBlast');
+    };
+    expect(blasts(0)).toEqual([
+      expect.objectContaining({ gridNo: DOOR, x: (DOOR % 160) * 10 + 5, y: Math.trunc(DOOR / 160) * 10 + 5, z: 20 }),
+    ]);
+    expect(blasts(99)).toEqual([]);
   });
 
   it('destroys a lock only when the capped damage exceeds the smash difficulty', () => {

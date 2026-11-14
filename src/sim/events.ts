@@ -364,8 +364,23 @@ export interface MissileTrailEvent extends SimEventBase {
   readonly delay?: number;
 }
 
+export interface SkillCheckFailedEvent extends SimEventBase {
+  readonly type: 'skillCheckFailed';
+  readonly soldier: number;
+  readonly certain?: true;
+}
+
+export interface ShapedChargeBlastEvent extends SimEventBase {
+  readonly type: 'shapedChargeBlast';
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
 export type EffectEvent =
   | BulletImpactEvent
+  | ShapedChargeBlastEvent
   | WindowShatteredEvent
   | MissileTrailEvent
   | WaterRippleEvent
@@ -374,6 +389,7 @@ export type EffectEvent =
 
 const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set([
   'bulletImpact',
+  'shapedChargeBlast',
   'windowShattered',
   'missileTrail',
   'waterRipple',
@@ -894,6 +910,8 @@ export type SimEvent =
   | SoldierDiedEvent
   | KillCheeredEvent
   | DudCursedEvent
+  | ShapedChargeBlastEvent
+  | SkillCheckFailedEvent
   | VehicleDestroyedEvent
   | AttackResolvedEvent
   | GunJammedEvent

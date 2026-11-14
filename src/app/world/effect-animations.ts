@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc StructureHit (FIRSTMISS1 every 80 ms where the bullet is; in low or deep water
 // @src THIRDMISS1 every 50 ms, then SECONDMISS1 every 80 ms), WindowHit (the shatter tile every 50 ms),
-// @src DoSpecialEffectAmmoMiss (miniboom.sti every 100 ms); src/game/Tactical/Bullets.cc AddMissileTrail (100 + Random(100)
+// @src DoSpecialEffectAmmoMiss (miniboom.sti every 100 ms), Keys.cc AttemptToBlowUpLock (the same at the door, 2026-11-14);
+// @src src/game/Tactical/Bullets.cc AddMissileTrail (100 + Random(100)
 // @src ms per frame, 100 for flames; the browser picks the random part itself), HandleBulletSpecialFlags (a
 // @src thrown knife starts at the fourth frame of its direction and steps every 100 ms); src/game/TileEngine/Tile_Animation.cc
 // @src UpdateAniTiles (a frame lasts until more than its delay has passed, a looping tile restarts at its direction's first
@@ -100,6 +101,7 @@ function started(e: EffectEvent): RunningEffect[] {
     return [{ kind: 'trail', period: framePeriodTicks(e.delay ?? cosmeticTrailDelay(e)), ...at, tile: e.trail }];
   if (e.type === 'waterRipple') return [{ ...startedAs('ripple'), ...at, tile: null }];
   if (e.type === 'corpseVaporized') return [{ ...startedAs('vaporize'), ...at, tile: null }];
+  if (e.type === 'shapedChargeBlast') return [{ ...startedAs('miniboom'), ...at, tile: null }];
   if (e.effect === 'splash')
     return [
       { ...startedAs('ripple'), ...at, tile: null },

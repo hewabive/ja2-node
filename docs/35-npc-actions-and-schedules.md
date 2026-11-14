@@ -130,7 +130,8 @@ look. The sector keeps the not-set flag, not the busy one. A status also carries
 
 **Randomness.** Gameplay draws keep the original's statement order on `main` and `pre`. Kingpin's men placed around
 Hans' door take two `main` draws, x first, where the original's two engine draws have no defined order (deviation
-"Kingpin's men placement"); door creaks and curses are not drawn (deviation "Cosmetic draws of doors").
+"Kingpin's men placement"); door creaks and curses, the skill-check curse among them, are not drawn there: the client
+rolls them (deviation "Cosmetic draws of doors").
 
 ## 3. Quirks of the original the code keeps
 
