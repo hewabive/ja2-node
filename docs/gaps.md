@@ -17,11 +17,8 @@ under `src/sim/tactical/`.
 
 ## 2. Strategic layer
 
-The map, travel, vehicles, time compression, the economy, sector state and autoresolve. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Tactical placement | "Go to sector" from our group's persistent PBI when the sector is loaded already leaves `gfEnterTacticalPlacementGUI` set (`Strategic/StrategicMap.cc:438-466`), so the placement GUI opens at whatever sector load comes next, a tactical traversal's (whose edge-index codes `TileEngine/Tactical_Placement_GUI.cc:178-182` turns into sides), a meanwhile scene's or an NPC action's included, listing the mercs of the battle group's sector, or crashing on a battle group gone since (`:145`) | The flag is not kept: the loaded sector takes the group as before and the next load prepares the sector at once (`campaign/sector-flow.ts` `setCurrentWorldSector`) | A decision whether a kept flag opens the placement prompt at a meanwhile, endgame or NPC-action load, and what it does with no battle group left |
+The map, travel, vehicles, time compression, the economy, sector state and autoresolve: none known. Paths are under
+`src/sim/`.
 
 ## 3. Campaign, laptop and narrative
 
