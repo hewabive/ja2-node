@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Turn_Based_Input.cc ToggleStealthMode, HandleStealthChangeFromUIKeys, the 'z' key with ALT (the
 // @src squad), the 'x' key (exchange places with AP), HandleMoveModeInteractiveClick (the free exchange; no vehicle
 // @src moves, 2026-11-05),
-// @src HandleTBClimbWindow; Interface_Panels.cc BtnStealthModeCallback, BtnMuteCallback, BtnBurstModeCallback,
+// @src HandleTBClimbWindow; Interface_Panels.cc BtnStealthModeCallback (no message line), BtnMuteCallback, BtnBurstModeCallback,
 // @src BtnClimbCallback (the fence jump); Weapons.cc ChangeWeaponMode; Handle_UI.cc UIHandleJumpOver, UIHandleCMoveMerc
 // @src (the all-move, which a vehicle selected never reaches), HandleMultiSelectionMove (never a vehicle); Soldier_Control.cc GetMoveStateBasedOnStance, BeginSoldierClimbWindow;
 // @src Soldier_Tile.cc CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
@@ -124,14 +124,16 @@ function stealth(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const list = soldierList(ctx, cmd.soldiers);
   if (isRefusal(list)) return refused(list);
   if (cmd.on !== undefined && typeof cmd.on !== 'boolean') return refuse('badValue', 'on must be true or false');
+  if (cmd.quiet !== undefined && typeof cmd.quiet !== 'boolean') return refuse('badValue', 'quiet must be true or false');
+  const logged = cmd.quiet !== true;
   const changed: number[] = [];
   for (const s of list) {
     if (isRobot(s)) continue;
     s.stealthMode = typeof cmd.on === 'boolean' ? cmd.on : !s.stealthMode;
     changed.push(s.id);
-    if (cmd.squad !== true) ctx.t.events.push({ type: 'stealthChanged', soldier: s.id, on: s.stealthMode });
+    if (logged && cmd.squad !== true) ctx.t.events.push({ type: 'stealthChanged', soldier: s.id, on: s.stealthMode });
   }
-  if (cmd.squad === true) ctx.t.events.push({ type: 'squadStealthChanged', soldiers: changed, on: cmd.on !== false });
+  if (logged && cmd.squad === true) ctx.t.events.push({ type: 'squadStealthChanged', soldiers: changed, on: cmd.on !== false });
   return { ok: true, data: { soldiers: changed } };
 }
 

@@ -535,6 +535,8 @@ turns, stances, attacks, doors, pickups, throws, first aid, talk, give, `select`
 mode the original keeps beside the stance (deviation "Stance") and refuses a height the merc cannot take where he stands
 (`IsValidStance`: vehicles, the robot, water, an escort lying down, no room for the body), with the message of
 `UIHandleSoldierStanceChange`; the `movementOptions` hint says which of run, sneak and crawl the movement menu offers.
+`stealth` logs each merc's line as the z key does (`stealthChanged`), the squad's line with `squad`, and none with
+`quiet`, which the single merc panel's button sends: it toggles silently (`Tactical/Interface_Panels.cc:2126-2135`).
 `select` is the player's selection (§4.3): it refuses where `InternalSelectSoldier` returns early (another screen with
 `notInTactical`, a merc aboard a vehicle with `inVehicle`, a vehicle of ours with nobody aboard with `noDriver`, a merc
 out of control with `cannotAct` or `onAssignment`, one without a move in our interrupt with `mercUnavailable` and its

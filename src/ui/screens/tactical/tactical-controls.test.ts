@@ -480,6 +480,21 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'weaponMode').at(-1)).toMatchObject({ soldier: 0 });
   });
 
+  it("toggles stealth quietly from the single merc panel's button, while the z key logs the merc's line (BtnStealthModeCallback, ToggleStealthMode)", async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await f.click('teamFaceRegion0', MouseButton.RIGHT);
+    await f.settle();
+    const button = f.t.runtime.describe().find((w) => w.id.startsWith('smStealth') && w.visible);
+    if (!button) throw new Error('no stealth button shown');
+    await f.click(button.id);
+    f.key('z');
+    await f.settle();
+    expect(commandsOf(f, 'stealth')).toEqual([
+      { type: 'stealth', soldiers: [0], quiet: true },
+      { type: 'stealth', soldiers: [0] },
+    ]);
+  });
+
   it('enables the climb button by a roof edge with the APs to climb it or by a fence to jump, as UpdateSMPanel does', async () => {
     const f = await tacticalUiTest(kit, ui);
     await f.click('teamFaceRegion0', MouseButton.RIGHT);

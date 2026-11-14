@@ -65,6 +65,15 @@ describe('stealth and mute (BtnStealthModeCallback, the z key, BtnMuteCallback)'
     expect(sim.drainEvents()).toMatchObject([{ type: 'squadStealthChanged', soldiers: [0, 1], on: true }]);
   });
 
+  it("logs no line for the single merc panel's button, which toggles silently (quiet, BtnStealthModeCallback)", () => {
+    const sim = newCombatSim(content);
+    const a = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    expect(sim.dispatch({ type: 'stealth', soldiers: [0], quiet: true })).toEqual({ ok: true, data: { soldiers: [0] } });
+    expect(a.stealthMode).toBe(true);
+    expect(sim.drainEvents().filter((e) => e.type === 'stealthChanged' || e.type === 'squadStealthChanged')).toEqual([]);
+    expect(sim.dispatch({ type: 'stealth', soldiers: [0], quiet: 1 })).toMatchObject({ ok: false, data: { refusal: 'badValue' } });
+  });
+
   it('skips the robot and refuses while the merc cannot act', () => {
     const sim = newCombatSim(content);
     const robot = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);

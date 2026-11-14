@@ -2016,7 +2016,7 @@ export class TacticalScreen implements Screen {
         if (s) this.controls.climbButton(s);
         return;
       case 'stealth':
-        if (s) void this.#command({ type: 'stealth', soldiers: [s.id] });
+        if (s) void this.#command({ type: 'stealth', soldiers: [s.id], quiet: true });
         return;
       case 'mute':
         if (s) void this.#command({ type: 'mute', soldier: s.id });
