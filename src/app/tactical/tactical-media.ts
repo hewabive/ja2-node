@@ -66,6 +66,10 @@ export class TacticalMediaStore implements TacticalMedia {
     await Promise.all(paths.map((path) => this.#assets.image(path).catch(() => false)));
   }
 
+  smallItemPictures(): string[] {
+    return [...new Set([...this.#items.values()].map((item) => item.inventoryGraphics.small.path))];
+  }
+
   profile(id: number): ProfilePresentation | null {
     return this.#profiles.get(id) ?? null;
   }

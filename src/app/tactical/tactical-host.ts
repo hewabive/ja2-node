@@ -2,7 +2,7 @@ import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import { cueOf } from '../../content/audio/cue.ts';
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { CommandEnvelope } from '../../protocol/messages.ts';
-import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
+import type { ViewFrame } from '../../protocol/view.ts';
 import { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
@@ -301,29 +301,13 @@ export class TacticalHost {
     await Promise.all([
       ...(radarImage ? [store.preload([radarImage])] : []),
       ...session.soldiers.flatMap((s) => assets.preload(s)),
-      store.preload(this.#inventoryGraphics(session.view, store)),
+      store.preload(store.smallItemPictures()),
     ]);
     return { store, radarImage };
   }
 
   async #loadUiCursors(): Promise<ReturnType<typeof parseUiCursorTable>> {
     return parseUiCursorTable(JSON.parse(new TextDecoder().decode(await fetchVfsFile(UI_CURSORS_TABLE_PATH))));
-  }
-
-  #inventoryGraphics(view: PlayerView | null, media: TacticalMediaStore): string[] {
-    const paths = new Set<string>();
-    for (const s of view?.soldiers ?? []) {
-      if (s.team !== OUR_TEAM) continue;
-      for (const entry of s.inventory ?? []) {
-        const item = media.item(entry.item);
-        if (item) paths.add(item.inventoryGraphics.small.path);
-        for (const attachment of entry.attachments ?? []) {
-          const a = media.item(attachment.item);
-          if (a) paths.add(a.inventoryGraphics.small.path);
-        }
-      }
-    }
-    return [...paths];
   }
 
   #mapFacts(): MapFacts | null {

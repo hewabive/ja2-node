@@ -206,8 +206,10 @@ hash URL means the data changed since the manifest (`StaleAssetError`); `HttpAss
 again, once for all the reads that went stale together, and reads the file once more under its new hash, so no caller
 has a fallback of its own; a second 404 fails the read. `AssetCache` keeps decoded values by content hash and decoder;
 decoding is cheap, so the persistent layer is the HTTP cache, not a client store. A screen preloads the assets its
-layouts reference (`src/ui/layout/references.ts`) before it enters; every content loader takes a `ReadFile`, so a local
-source needs no loader change.
+layouts reference (`src/ui/layout/references.ts`) before it enters, and the map and tactical hosts every small item
+picture of the catalogue, a handful of sheets the original loads at the start (`smallItemPictures`,
+`src/app/tactical/tactical-media.ts`; `Tactical/Interface_Items.cc:5205`); other catalogue graphics (big item pictures,
+faces) load on first use. Every content loader takes a `ReadFile`, so a local source needs no loader change.
 
 **Loading in parallel.** The loaders run independent branches at once (the tactical and map hosts, boot, the front end,
 layouts, strings, soldier tables and palettes), so a remote browser pays the HTTP/1.1 limit of six requests at a time

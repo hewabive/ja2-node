@@ -182,7 +182,7 @@ export class MapHost implements MapPort {
         () => false,
       ),
     ]);
-    return new MapMediaStore({
+    const store = new MapMediaStore({
       assets: ui.assets,
       source: ui.source,
       edt: ui.edt,
@@ -191,6 +191,8 @@ export class MapHost implements MapPort {
       gunNut,
       messages: () => session.messages,
     });
+    await store.preload(store.smallItemPictures());
+    return store;
   }
 
   async enter(abandonFight: boolean): Promise<MapEntry> {
