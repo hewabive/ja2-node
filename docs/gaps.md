@@ -12,8 +12,12 @@ start with `src/`, `data/` or `tools/`.
 
 ## 1. Tactical rules and AI
 
-The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map: none known. Paths are
-under `src/sim/tactical/`.
+The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map. Paths are under
+`src/sim/tactical/`.
+
+| Area | Original | ja2-node | Notes |
+|---|---|---|---|
+| Critical hit in the profile | A critical hit that costs a soldier with a profile wisdom, dexterity, strength or agility writes the lowered stat into his profile and takes the points off the stat's delta (`Tactical/Weapons.cc:2977-2978`, `:3017-3018`, `:3051-3052`, `:3085-3086`), so the next change of that stat, which copies the profile's value into the soldier (`Tactical/Campaign.cc:577`), keeps the loss | `bulletImpact` lowers the soldier's stat and `statDamage` alone (`combat/impact.ts`); `changeStat` copies the profile's stat into the soldier (`combat/experience.ts`), so a merc's next gain in that stat gives back what the hit took, and a soldier made again from his profile has it back | Lowering `ProfileProgress.stats` with the soldier's; the profile keeps no stat deltas yet (`bWisdomDelta` and the others, which `ProcessStatChange` also moves: `Tactical/Campaign.cc:384-446`) |
 
 ## 2. Strategic layer
 
