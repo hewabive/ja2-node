@@ -82,9 +82,15 @@ export function battleSaveName(variant: BattleVariant): string {
   return `u9-battle-${variant}`;
 }
 
+export interface PlacementSave {
+  readonly name: string;
+  readonly arrivalSeconds: number;
+}
+
 export interface BattleEntrySaves {
   readonly names: Readonly<Record<BattleVariant, string>>;
   readonly sector: string;
+  readonly placement: PlacementSave;
 }
 
 const DESCRIPTION = 'U9 battle entry: an enemy group one minute from Drassen';
@@ -96,6 +102,30 @@ async function saveVariant(saves: SaveKit, variant: BattleVariant): Promise<stri
   const saved = await saves.saves.save(session, { name: battleSaveName(variant), description: `${DESCRIPTION} (${variant})` });
   if (!saved.ok) throw new Error(`the ${variant} save failed: ${JSON.stringify(saved)}`);
   return saved.name;
+}
+
+const PLACEMENT_SAVE = 'u9-placement';
+const PLACEMENT_DESCRIPTION = 'U9 placement: the squad two hours from an enemy-held D14';
+const PLACEMENT_TROOPS = 2;
+const SECONDS_PER_MINUTE = 60;
+const ARRIVAL_MARGIN_SECONDS = 600;
+
+async function savePlacement(saves: SaveKit): Promise<PlacementSave> {
+  const session = await saves.open({ load: BATTLE_BASE_SAVE, reseed: false });
+  const campaign = campaignOf(session).campaign;
+  Object.assign(sectorInfo(campaign.state.map, parseSectorString(ENEMY_APPROACH)), {
+    numAdmins: 0,
+    numTroops: PLACEMENT_TROOPS,
+    numElites: 0,
+  });
+  const [merc] = campaign.battle?.roster.all() ?? [];
+  if (!merc) throw new Error('no merc to route');
+  const routed = session.dispatch({ type: 'route', soldier: merc.id, to: ENEMY_APPROACH });
+  const eta = (routed.data as { readonly etaMinutes?: number } | undefined)?.etaMinutes;
+  if (!routed.ok || eta === undefined) throw new Error(`the route to ${ENEMY_APPROACH} was refused: ${routed.reason ?? ''}`);
+  const saved = await saves.saves.save(session, { name: PLACEMENT_SAVE, description: PLACEMENT_DESCRIPTION });
+  if (!saved.ok) throw new Error(`the placement save failed: ${JSON.stringify(saved)}`);
+  return { name: saved.name, arrivalSeconds: eta * SECONDS_PER_MINUTE + ARRIVAL_MARGIN_SECONDS };
 }
 
 export async function writeBattleEntrySaves(dir: string): Promise<BattleEntrySaves> {
@@ -110,7 +140,7 @@ export async function writeBattleEntrySaves(dir: string): Promise<BattleEntrySav
       defeat: await saveVariant(saves, BattleVariant.DEFEAT),
       retreat: await saveVariant(saves, BattleVariant.RETREAT),
     };
-    return { names, sector: BATTLE_SECTOR };
+    return { names, sector: BATTLE_SECTOR, placement: await savePlacement(saves) };
   } finally {
     await saves.dispose();
     await kit.dispose();

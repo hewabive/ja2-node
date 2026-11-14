@@ -6,6 +6,8 @@ import { expectShadowClean, imagesLoaded, waitWhileLoading, watchLoading } from 
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames, pointAtWidget, pressPointer, widgetPoint } from './ui-capture.ts';
 
 const OPENING_MS = 1000;
+const WEST_STRIP_X = 15;
+const MAP_MIDDLE_ABOVE_PANEL = 160;
 const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
 
 let saves: BattleEntrySaves;
@@ -142,6 +144,40 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await page.waitForFunction(() => window.__ja2Ui.battle?.commands.includes('autoresolveRetreat:ok') === true);
     await finish(page, 'retreat');
     expect(await visible(page, 'arDoneLose')).toBe(true);
+  });
+
+  test('places a merc of the squad walking into an enemy sector with a click on his side of the overhead map, the rest with Spread, and Done starts the battle (Tactical_Placement_GUI.cc)', async ({
+    page,
+    request,
+  }) => {
+    session = await loadSession(request, saves.placement.name);
+    await openMap(page, session, '&pinClock=1');
+    await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), saves.placement.arrivalSeconds);
+    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown');
+    expect((await battle(page))?.preBattle).toMatchObject({ persistent: true, encounter: 'enemyEncounter' });
+    await clickWidget(page, 'preBattleGoToSector');
+    await waitWhileLoading(
+      page,
+      () => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.widgets.some((w) => w.id === 'tacticalPlacement'),
+    );
+    expect(await page.evaluate(() => window.__ja2Ui.tactical?.overheadOpen)).toBe(true);
+    expect(await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'placement.done')?.enabled)).toBe(false);
+    const panel = await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'tacticalPlacement')?.rect ?? null);
+    if (!panel) throw new Error('no placement panel');
+    const westStrip = await devicePoint(page, panel.x + WEST_STRIP_X, panel.y - MAP_MIDDLE_ABOVE_PANEL);
+    await page.mouse.move(westStrip.x, westStrip.y);
+    await nextFrames(page);
+    await pressPointer(page);
+    await page.waitForFunction(() => window.__ja2Ui.widgets.find((w) => w.id === 'placement.merc0')?.state === 'placed');
+    expect(await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'placement.merc1')?.state)).toBe('unplaced');
+    await clickWidget(page, 'placement.spread');
+    await page.waitForFunction(() => window.__ja2Ui.widgets.find((w) => w.id === 'placement.done')?.enabled === true);
+    await clickWidget(page, 'placement.done');
+    await page.waitForFunction(
+      () => !window.__ja2Ui.widgets.some((w) => w.id === 'tacticalPlacement') && window.__ja2Ui.tactical?.overheadOpen === false,
+    );
+    const ours = await page.evaluate(() => (window.__ja2Ui.tactical?.soldiers() ?? []).filter((s) => s.team === 0).length);
+    expect(ours).toBeGreaterThan(0);
   });
 
   test('opens BATTLE IN PROGRESS from the battle locator during the tactical battle and closes it with Esc', async ({ page, request }) => {

@@ -55,7 +55,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 
 | Screen | Hints and queries | Commands | Events and view parts that drive it |
 |---|---|---|---|
-| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen`, `autoBandage`, `endAutoBandage` | `combat`, `selected`, `currentSquad`, `doorMenu`, `autoBandage`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), `autoBandageRefused`, `autoBandageEnded`, the message log |
+| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen`, `autoBandage`, `endAutoBandage`, `answer` (the placement panel) | `combat`, `selected`, `currentSquad`, `doorMenu`, `autoBandage`, `prompt` (`tacticalPlacement`), `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), `placementDone.located`, `autoBandageRefused`, `autoBandageEnded`, the message log |
 | Talk and shop | `quoteTrade`, `compatibleItems` with `rule: shop` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, the tactical `surrender` prompt (asked once the offer's quote box closes), the item prompts of the loaded sector (the switch, trap and blue flag yes/no boxes and the bomb boxes' four small numbered buttons, `tactical/item-prompts.ts`; asked once the lines are said, on the map screen too), `observe.shop` |
 | Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
@@ -140,6 +140,16 @@ structures").
 Persons, item dots and the item lists come from the view, so hidden items and unseen soldiers stay out (deviation
 "Overhead item lists over hidden items"). The team panel disables its buttons by a flag the overhead map, the item
 cursor and the pickup menu set and clear, as the original's is (`tactical/tactical-screen.ts`).
+
+**The placement panel** (`tactical/placement-panel.ts`) is the original's placement GUI over the overhead map for the
+`tacticalPlacement` prompt (`29` §8.10): the tactical screen opens the overhead map in its placement mode while the
+prompt is up and closes it as `done` closes the prompt, then centres on the merc `placementDone` names. The buttons,
+keys and merc cells send the prompt's answers; the selection, the hilight, the cursor merc, the name colours, the
+hatch over the map outside the sides' strips, the cursors and the 40-pixel strip a click must fall in are the
+client's, as they are the GUI's, and so is choosing the next unplaced merc after a placement. A click sends `place`
+with the tile under the pointer; the two refusals open the original's boxes. The cells read the merc's bars and face
+from the strategic merc list, as no soldier stands on the map before his piece does. In placement mode the overhead map
+draws only the pieces, in the frames the panel picks, and gives its clicks and keys to the panel.
 
 **Speech has one presenter.** `SpeechPresenter` queues every quote event as playback reaches its frame and routes it to
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,
@@ -299,8 +309,7 @@ before it, and shows the loading or the tactical screen after the zoom. The zoom
 (`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
 them.
 
-**Not built.** The tactical placement GUI (gaps "Tactical placement"), the 3D cursor and the cover and sight display
-(`28`'s decisions).
+**Not built.** The 3D cursor and the cover and sight display (`28`'s decisions).
 
 ## 4. Quirks of the original the code keeps
 

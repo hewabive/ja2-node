@@ -470,7 +470,8 @@ structure, in its radius around the bomb; `tiles` are the tiles worked out and `
 were revealed then, both as runs (`05`). `ambientLightSet {level}` comes each time the original sets its base light again and draws every light over it
 (`LightSetBaseLevel`: every dawn and dusk step and every temperature update, the level unchanged too), from when on the
 roof marker takes the roof's shade (`05`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
-a load sends no `sectorLoaded` (deviation "View after a load"). `helicopterDropStarted {gridNo}` starts a run of the
+a load sends no `sectorLoaded` (deviation "View after a load"); an entry held at the placement prompt names him in
+`placementDone` instead (§8.10). `helicopterDropStarted {gridNo}` starts a run of the
 helicopter drop and centres the view on the north entry point, with no locate to the entry's merc
 (`GameScreen.cc:351`); `mercDropped {soldier}` comes as the helicopter lands a merc, at his drop or at the skip, with the
 original's "has arrived" line, which a `mercArrived` with `helicopter` (a merc the helicopter brings) leaves to it
@@ -947,7 +948,8 @@ game's, with nobody placed. The answers are its buttons and its click on the ove
   underground), and under the group button every merc of his group, or none of them; the strip of the map the cursor
   allows is the client's (`30`). Refused with `placementInvalid` for a merc whose `side` is null and with
   `placementInaccessible` when no edge point is near, the original's two boxes; the latter still writes NOWHERE into
-  the insertion data of the merc (of the group's mercs found before the miss, their edge points), as the original does.
+  the insertion data of the merc missed, and their edge points into that of the group's mercs found before him, as the
+  original does (`19` Q32).
 - `spread` (a random edge point each, `Random` in list order), `group` (toggles the group button; nobody moves),
   `clear` (everyone picked up).
 - `done`, refused with `placementIncomplete` until everyone is placed, as the original's Done button is disabled.

@@ -164,6 +164,7 @@ import {
 } from './overlays.ts';
 import { type PanelState, type StatFlash, smPanelModel, teamPanelModel } from './panel-models.ts';
 import { ItemPickupMenu } from './pickup-menu.ts';
+import { type PlacementAnswer, type PlacementMerc, PlacementPanel } from './placement-panel.ts';
 import { drawRadarPicture } from './radar-picture.ts';
 import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-panel.ts';
 import {
@@ -354,6 +355,7 @@ export class TacticalScreen implements Screen {
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
   readonly #eventBoxes: EventBox[] = [];
   readonly #autoBandage: AutoBandageBox;
+  readonly #placement: PlacementPanel;
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
@@ -478,6 +480,60 @@ export class TacticalScreen implements Screen {
     this.#smView = new LayoutView({ ...common, model: env.layout(TacticalLayout.SINGLE_MERC), controller: this.#sm, owner: 'tacticalSm' });
     this.controls = new TacticalControls(this.#controlsScreen(), this.#controlsArt());
     this.#autoBandage = this.#autoBandageBox();
+    this.#placement = this.#placementPanel();
+  }
+
+  #placementPanel(): PlacementPanel {
+    const env = this.#env;
+    const model = env.layout(TacticalLayout.INPUT);
+    return new PlacementPanel({
+      services: env.runtime,
+      text: env.text,
+      art: () => ({
+        panel: model.asset('placementPanel').path,
+        buttons: model.asset('placementButtons').path,
+        faces: model.asset('updateFace').path,
+      }),
+      merc: (soldier) => this.#placementMerc(soldier),
+      sectorName: (sector) => this.#sectorName(sector),
+      hour: () => this.#view()?.clock?.hour ?? 0,
+      mapGridNo: () => this.controls.overhead.mouseGridNo(),
+      mapRegion: () => this.controls.overhead.mapRegion,
+      answer: (prompt, choice, place) => this.#answerPlacement(prompt, choice, place),
+      box: (text, centering) => void env.boxes.ask(text, 'ok', { centering }),
+      exitGame: () => env.flow.exitGame(),
+    });
+  }
+
+  #placementMerc(soldier: number): PlacementMerc | null {
+    const m = this.#view()?.strategic?.mercs.find((merc) => merc.id === soldier);
+    if (!m) return null;
+    const faceIndex = m.profile === undefined ? undefined : this.#env.media.profile(m.profile)?.faceIndex;
+    const face = faceIndex === undefined ? null : portraitPath(faceIndex, 'medium');
+    return {
+      name: m.name,
+      face: face && this.#env.media.image(face) ? face : null,
+      life: m.life,
+      lifeMax: m.lifeMax,
+      bleeding: m.bleeding ?? 0,
+      breathMax: m.breathMax,
+      morale: m.morale ?? 0,
+    };
+  }
+
+  #answerPlacement(prompt: string, choice: PlacementAnswer, place?: { soldier: number; gridNo: number }): Promise<CommandReply> {
+    return this.#env.client.command({ type: 'answer', prompt, choice, ...(place ?? {}) });
+  }
+
+  #syncPlacement(view: PlayerView | null): void {
+    const prompt = view?.prompt?.kind === 'tacticalPlacement' ? view.prompt : null;
+    const overhead = this.controls.overhead;
+    if (prompt && !overhead.placing) {
+      overhead.close();
+      overhead.showForPlacement(this.#placement);
+    } else if (!prompt && overhead.placing) overhead.close();
+    this.#placement.sync(prompt);
+    this.#placement.update();
   }
 
   #autoBandageBox(): AutoBandageBox {
@@ -797,6 +853,7 @@ export class TacticalScreen implements Screen {
   exit(): void {
     this.#entered = false;
     this.#autoBandage.close();
+    this.#placement.close();
     this.#env.client.stop();
     this.dialogue.dispose();
     this.controls.exit();
@@ -1052,6 +1109,7 @@ export class TacticalScreen implements Screen {
     const view = this.#view();
     this.#env.client.sync();
     if (this.#autoBandage.update(view?.autoBandage ?? null)) return;
+    this.#syncPlacement(view);
     this.#env.world.ignoreScrolling(helicopterDropRunning(view));
     this.#moveCameraOnEntry();
     this.#followServer();
@@ -1340,6 +1398,7 @@ export class TacticalScreen implements Screen {
     this.pickup.render(list, ctx);
     this.controls.renderMenus(list);
     this.controls.renderOverhead(list);
+    this.#placement.render(list);
     if (!this.controls.overhead.open) this.dialogue.render(list);
     if (this.dialogue.shopOpen && this.description.open) this.description.render(list, ctx, this.#env.runtime.images);
   }
@@ -1384,6 +1443,7 @@ export class TacticalScreen implements Screen {
       ...extra,
       ...this.dialogue.describe(),
       ...this.#autoBandage.describe(),
+      ...this.#placement.describe(),
     ];
   }
 
@@ -1480,6 +1540,10 @@ export class TacticalScreen implements Screen {
         if (s) this.#locateSoldier(s, LocateFlag.SETLOCATORFAST);
         return;
       }
+      case 'placementDone':
+        if (event.located !== undefined)
+          this.cameraOnEntry([{ kind: 'soldier', soldier: event.located, flag: LocateFlag.CENTER_AND_SETLOCATOR }]);
+        return;
       case 'soldierLocated': {
         const s = soldierById(view, event.soldier);
         if (s && event.slide) this.#slideTo(s, SOLDIER_LOCATE_FLAGS[event.locator]);

@@ -5,7 +5,8 @@
     "src/game/Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu (the dialog merc popup box, popupcheck.sti, popupradiobuttons.sti, popupbuttons.sti)",
     "src/game/TileEngine/Overhead_Map.cc uiOVERMAP map_bord.sti, uiPERSONS persons.sti (one frame per team, 7 to 9 for the placement GUI)",
     "src/game/Tactical/Spread_Burst.cc guiBURSTACCUM burst1.sti",
-    "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Tactical/Auto_Bandage.cc AddFacesToAutoBandageBox (panels.sti), MakeButton (group_confirm_tactical.sti 7/8 in MAP_SCREEN_FONT)"
+    "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Tactical/Auto_Bandage.cc AddFacesToAutoBandageBox (panels.sti), MakeButton (group_confirm_tactical.sti 7/8 in MAP_SCREEN_FONT)",
+    "src/game/TileEngine/Tactical_Placement_GUI.cc InitTacticalPlacementGUI (overheadinterface.sti 640 x 160, overheaduibuttons.sti frames 0 and 1, panels.sti)"
   ],
   "screen": "tacticalInput",
   "frame": "screen",
@@ -214,6 +215,20 @@
       "sti": "interface/panels.sti",
       "stub": {
         "sizes": [[47, 31], [35, 31]]
+      }
+    },
+    "placementPanel": {
+      "sti": "interface/overheadinterface.sti",
+      "stub": {
+        "size": [640, 160]
+      }
+    },
+    "placementButtons": {
+      "sti": "interface/overheaduibuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [69, 27],
+        "states": ["normal", "pressed"]
       }
     }
   },

@@ -11,7 +11,10 @@
 // @src ClickOverheadRegionCallbackSecondary; HandleOverheadMap (gSelectedGuy: our merc nearest the pointer; the item
 // @src lists of GetClosestItemPool, radius 1: the ground pool at the z-level GetZLevelOfItemPoolGivenStructure reads at
 // @src the pointer's cell, where a raised item stands for the STRUCTURE_HASITEMONTOP or STRUCTURE_OPENABLE structure
-// @src under it; the roof pool's floor items 5 pixels higher; gsOveritemPoolGridNo the last one listed, 2026-11-04).
+// @src under it; the roof pool's floor items 5 pixels higher; gsOveritemPoolGridNo the last one listed, 2026-11-04);
+// @src under gfTacticalPlacementGUIActive (2026-11-14): TacticalPlacementHandle in place of HandleOverheadUI, the
+// @src clicks of both buttons to HandleTacticalPlacementClicksInOverheadMap, RenderOverheadOverlays' persons of the ids
+// @src below our team's bLastID only, in the frame the placement GUI picks, no item dots, no pool lists and no names.
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -53,10 +56,18 @@ const heightLift = (s: SoldierView) => idiv(drawnHeight(s), SCALE);
 const NORMAL_SHADE = { red: 256, green: 256, blue: 256, mono: false };
 const ROOF_SHADE = { red: 310, green: 310, blue: 310, mono: false };
 const SELECTED_SHADE = { red: 0, green: 0, blue: 0, mono: false };
+const OUR_TEAM_LAST_ID = 19;
 
 export interface OverheadArt {
   readonly border: string;
   readonly persons: string;
+}
+
+export interface OverheadPlacement {
+  mapButton(reason: number): void;
+  keyInput(event: UiKeyEvent | UiTextEvent): void;
+  personFrame(s: SoldierView): number;
+  renderOverMap(list: DrawList): void;
 }
 
 export interface OverheadPoolList {
@@ -110,6 +121,7 @@ export class OverheadMap {
   readonly #hooks: OverheadHooks;
   #regions: MouseRegion[] = [];
   #mapRegion: MouseRegion | null = null;
+  #placement: OverheadPlacement | null = null;
 
   constructor(hooks: OverheadHooks) {
     this.#hooks = hooks;
@@ -117,6 +129,19 @@ export class OverheadMap {
 
   get open(): boolean {
     return this.#mapRegion !== null;
+  }
+
+  get placing(): boolean {
+    return this.#placement !== null;
+  }
+
+  get mapRegion(): MouseRegion | null {
+    return this.#mapRegion;
+  }
+
+  showForPlacement(placement: OverheadPlacement): void {
+    this.#placement = placement;
+    this.show();
   }
 
   #origin(): ScreenPoint {
@@ -158,6 +183,7 @@ export class OverheadMap {
 
   close(): void {
     if (!this.open) return;
+    this.#placement = null;
     for (const region of this.#regions) region.remove();
     this.#regions = [];
     this.#mapRegion = null;
@@ -166,12 +192,20 @@ export class OverheadMap {
   }
 
   keyInput(event: UiKeyEvent | UiTextEvent): void {
+    if (this.#placement) {
+      this.#placement.keyInput(event);
+      return;
+    }
     if (event.kind !== 'keyDown') return;
     if (CLOSE_KEYS.has(event.key)) this.close();
     else if (event.key === EXIT_GAME_KEY && event.modifiers & KeyModifier.ALT) this.#hooks.exitGame();
   }
 
   #button(reason: number): void {
+    if (this.#placement) {
+      this.#placement.mapButton(reason);
+      return;
+    }
     if (reason & MouseReason.RBUTTON_UP) {
       this.close();
       return;
@@ -218,7 +252,7 @@ export class OverheadMap {
   }
 
   poolLists(): readonly OverheadPoolList[] {
-    const pointer = this.open ? this.mouseGridNo() : null;
+    const pointer = this.open && !this.#placement ? this.mouseGridNo() : null;
     if (pointer === null) return [];
     const lists: OverheadPoolList[] = [];
     const ground = this.#closestPool(pointer, GROUND);
@@ -249,6 +283,12 @@ export class OverheadMap {
     if (map) map.render(list, o.x, o.y);
     list.image(this.#hooks.art.border, 0, o.x, o.y);
     if (!map) return;
+    const placement = this.#placement;
+    if (placement) {
+      placement.renderOverMap(list);
+      this.#renderPieces(list, map, o, placement);
+      return;
+    }
     const regions = this.#hooks.services.regions;
     const lists = this.poolLists();
     for (const pool of lists) this.#hooks.drawPoolList(list, pool.items, regions.mouseX, regions.mouseY - pool.lift);
@@ -278,5 +318,14 @@ export class OverheadMap {
     if (sel) name(sel);
     const hovered = this.hoveredSoldier();
     if (hovered) name(hovered);
+  }
+
+  #renderPieces(list: DrawList, map: OverheadMapView, o: ScreenPoint, placement: OverheadPlacement): void {
+    for (const s of this.#hooks.soldiers()) {
+      if (s.id >= OUR_TEAM_LAST_ID) continue;
+      const p = map.pointOf(s.gridNo);
+      const shade = drawnRaised(s) ? ROOF_SHADE : NORMAL_SHADE;
+      list.image(this.#hooks.art.persons, placement.personFrame(s), o.x + p.x + PERSON_X, o.y + p.y + PERSON_Y - heightLift(s), { shade });
+    }
   }
 }
