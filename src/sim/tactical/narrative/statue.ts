@@ -79,10 +79,6 @@ export function useStatueRemote(t: TacticalState, s: Soldier): boolean {
   return opens;
 }
 
-export type StatueRemoteResult = 'statueOpened' | 'nothing';
-
-export function pressStatueRemote(t: TacticalState, s: Soldier): StatueRemoteResult {
-  const result = useStatueRemote(t, s) ? 'statueOpened' : 'nothing';
-  t.events.push({ type: 'remoteUsed', soldier: s.id, result });
-  return result;
+export function pressStatueRemote(t: TacticalState, s: Soldier): void {
+  t.events.push({ type: 'remoteUsed', soldier: s.id, result: useStatueRemote(t, s) ? 'statueOpened' : 'nothing' });
 }

@@ -5,8 +5,8 @@
 // @src first step's APs, the continue location and a halted move's forced restart, 2026-11-10), MakeSoldierTurn (the turn), UIHandlePADJAdjustStance (the climb),
 // @src UIOkForItemPickup (the pick-up), UIHandleEndTurn (CheckForEndOfCombatMode before the turn passes);
 // @src Interface.cc PopupMovementMenu (who cannot run); Handle_Items.cc HandleItem (the attack, the remote's APs);
-// @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE; the plantBomb command and the remote bomb trigger go through
-// @src HandleItem, 2026-11-04), SetSoldierAsUnderAiControl (the AI turn in the
+// @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE; the plantBomb command and the remote triggers go through
+// @src HandleItem, 2026-11-04; the O3 statue's too, 2026-11-14), SetSoldierAsUnderAiControl (the AI turn in the
 // @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet); Handle_UI.cc
 // @src UIHandleRubberBandOnTerrain (who may be multi-selected) and EndMultiSoldierSelection for the select command
 // @src (2026-10-31); Turn_Based_Input.cc ChangeCurrentSquad and Radar_Screen.cc TacticalSquadListBtnCallBack
@@ -186,7 +186,6 @@ import { StopTimeCallback } from './narrative/port.ts';
 import { queenSlapOpcode } from './narrative/queen-slap.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
-import { pressStatueRemote } from './narrative/statue.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { outOfSightSoundOpcode } from './out-of-sight-sounds.ts';
@@ -319,7 +318,6 @@ const BAD_GROUP: Refusal = {
   token: 'badGroup',
   reason: 'group must list controllable mercs of yours in the sector, neither vehicles nor the mercs aboard them',
 };
-const AP_USE_REMOTE = 2;
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
   random: AimShot.RANDOM,
@@ -1144,19 +1142,9 @@ export class TacticalSim {
     if (refusal) return refused(refusal);
     selectOrderedMerc(t, s);
     const hand = itemIn(s.inv, InvSlot.HAND);
-    if (hand === t.content.items.byName.get(REMOTE_TRIGGER)?.index) return this.#pressStatueRemote(s);
-    const remotes = [REMOTE_BOMB_TRIGGER, XRAY_DEVICE].map((name) => t.content.items.byName.get(name)?.index);
+    const remotes = [REMOTE_TRIGGER, REMOTE_BOMB_TRIGGER, XRAY_DEVICE].map((name) => t.content.items.byName.get(name)?.index);
     if (!remotes.includes(hand)) return refuse('noRemote', 'the soldier holds no remote trigger or x-ray detector');
     return this.#handItemResult(handleItem(t, s, s.gridNo, s.level, hand));
-  }
-
-  #pressStatueRemote(s: Soldier): CommandResult {
-    const t = this.state;
-    if (!enoughPoints(t.inCombat, s, AP_USE_REMOTE)) return refuse('notEnoughAP', `not enough APs: ${AP_USE_REMOTE} needed`);
-    deductPoints(t, s, AP_USE_REMOTE, 0);
-    if (height(t.content, s.state) === AnimHeight.STAND) deductPoints(t, s, AP_USE_REMOTE, 0);
-    const result = pressStatueRemote(t, s);
-    return { ok: true, data: { result } };
   }
 
   #plantBomb(cmd: TacticalCommand): CommandResult {

@@ -689,10 +689,10 @@ over a container opens it (`Turn_Based_Input.cc:3062`); the API leaves that choi
 containers and switches at cell 1 (`C` closed, `c` open) and `previewAction` kind `door` gives their walk beside, the
 3 AP of `doorAPs[HANDLE_DOOR_OPEN]` and the stand-up, as the cursor over an interactive tile does
 (`Handle_UI.cc:3161`; `src/server/bobby-ray-crate-original.test.ts`). `useRemote`
-presses the remote trigger in hand: the O3 statue's at once (`26`, deviation "Remote trigger"); the remote bomb trigger
-after its hand item roll (`itemBroken`) for 2 AP, standing through its animation for 2 more, then `remoteFrequency`
-asks, and the answer sets off every armed remote bomb of that frequency through the bomb queue (`remoteUsed {result:
-bombs, frequency}`). The x-ray detector takes `useRemote` too: after its hand item roll, 2 AP and no animation, it uses
+presses the remote trigger in hand after its hand item roll (`itemBroken`) for 2 AP, standing through its animation
+for 2 more, whose frame acts. The O3 statue's then opens the statue from its room (`26`) and reports it as an event
+(`remoteUsed {result: statueOpened|nothing}`); the remote bomb trigger's `remoteFrequency` asks, and the answer sets off
+every armed remote bomb of that frequency through the bomb queue (`remoteUsed {result: bombs, frequency}`). The x-ray detector takes `useRemote` too: after its hand item roll, 2 AP and no animation, it uses
 8 to 12 points of its batteries (`remoteUsed {result: xray}`; without batteries it does nothing more) and shows every
 soldier of another team within 40 tiles on the radar (`radarContacts`, §7) until the merc's next turn starts in combat
 or more than 5 world seconds have passed at a real-time turn.

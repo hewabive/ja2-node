@@ -11,7 +11,6 @@ import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { animName } from '../anim-states.ts';
 import { changeSoldierStance } from '../animation.ts';
 import { continuePastBoobyTrap } from '../booby-traps.ts';
-import { handleItem, ItemHandle } from '../combat/attack.ts';
 import { SkillCheckReason, skillCheck } from '../combat/skill-check.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
@@ -45,6 +44,9 @@ const FUMBLED_GAIN = 10;
 const NO_GAIN = 99;
 const FREQUENCY = 2;
 const OTHER_FREQUENCY = 3;
+const HAND_ITEM_ROLL_RANGE = 80;
+const FAILING_HAND_ITEM_ROLL = HAND_ITEM_ROLL_RANGE - 1;
+const FAILED_STATUS_ROLL = 0;
 
 const ZERO_GAINS: Record<StatKey, number> = {
   lifeMax: 0,
@@ -372,16 +374,33 @@ describe('the remote bomb trigger (HandleItem REMOTECURS, HandleSoldierUseRemote
     expect(merc.actionPoints).toBe(before);
   });
 
-  it('keeps the O3 statue remote acting at once, outside handleItem, while handleItem with it presses the statue too', () => {
+  it('presses the O3 statue remote the bomb trigger way: 2 AP, USE_REMOTE standing for 2 more, the press at code 484', () => {
     const { sim, t, merc } = scene((t) => objectOf(t, 'REMOTETRIGGER'), { combat: true });
     const before = merc.actionPoints;
-    expect(sim.dispatch({ type: 'useRemote', soldier: 0 })).toEqual({ ok: true, data: { result: 'nothing' } });
-    expect(before - merc.actionPoints).toBe(2 * AP.USE_REMOTE);
-    expect(animName(t.content, merc.state)).not.toBe('USE_REMOTE');
-    changeSoldierStance(t, merc, CROUCHED);
-    runUntilIdle(sim);
     sim.drainEvents();
-    expect(handleItem(t, merc, merc.gridNo, merc.level, itemId(t, 'REMOTETRIGGER'))).toBe(ItemHandle.OK);
+    expect(sim.dispatch({ type: 'useRemote', soldier: 0 })).toEqual({ ok: true });
+    expect(animName(t.content, merc.state)).toBe('USE_REMOTE');
+    expect(before - merc.actionPoints).toBe(2 * AP.USE_REMOTE);
+    expect(t.events.filter((e) => e.type === 'remoteUsed')).toEqual([]);
+    expect(runUntilIdle(sim)).toContainEqual(expect.objectContaining({ type: 'remoteUsed', soldier: merc.id, result: 'nothing' }));
+    expect(t.prompt).toBeNull();
+  });
+
+  it('presses the O3 statue remote at once crouched, for the 2 AP of HandleItem alone', () => {
+    const { sim, t, merc } = scene((t) => objectOf(t, 'REMOTETRIGGER'), { combat: true, crouched: true });
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'useRemote', soldier: 0 })).toEqual({ ok: true });
+    expect(before - merc.actionPoints).toBe(AP.USE_REMOTE);
     expect(t.events).toContainEqual({ type: 'remoteUsed', soldier: merc.id, result: 'nothing' });
+  });
+
+  it('refuses a damaged O3 statue remote that fails its hand item roll, before its APs (HandItemWorks)', () => {
+    const { sim, t, merc } = scene((t) => objectOf(t, 'REMOTETRIGGER', USABLE_STATUS), { combat: true });
+    const before = merc.actionPoints;
+    const asked = scriptedRandom(t, [FAILING_HAND_ITEM_ROLL, FAILED_STATUS_ROLL]);
+    expect(sim.dispatch({ type: 'useRemote', soldier: 0 })).toMatchObject({ ok: false, data: { refusal: 'itemBroken' } });
+    expect(asked).toEqual([HAND_ITEM_ROLL_RANGE, USABLE_STATUS - 1]);
+    expect(merc.actionPoints).toBe(before);
+    expect(t.events.filter((e) => e.type === 'remoteUsed')).toEqual([]);
   });
 });
