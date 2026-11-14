@@ -316,6 +316,18 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refused('noKit', 1)).toBeNull();
   });
 
+  it("prints STR_LATE_32 with the name of Dimitri, the merc of ours the talk is refused to, not the talker's", () => {
+    const talk = { type: 'talk', soldier: 0, target: 1 };
+    expect(refusalEntry(9, talk, refuse('refusesToTalk', 'refusesToTalk', { target: 1 }), facts)).toEqual({
+      tick: 9,
+      kind: 'uiFeedback',
+      colour: 144,
+      table: 'gzLateLocalizedString',
+      index: 31,
+      args: [{ text: 'Fox' }],
+    });
+  });
+
   it('leaves the refusals of a sector exit to the exit cursor, which prints its own lines', () => {
     const refused = refuse('uncontrolledRobot', 'the robot cannot leave without a merc using its controller');
     expect(refusalEntry(9, { type: 'exitSector', soldier: 0, direction: 'north' }, refused, facts)).toBeNull();

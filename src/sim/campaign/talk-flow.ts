@@ -15,7 +15,8 @@
 // @src HandleModalTactical (HandleDialogue alone while the stop-time quote plays, 2026-11-04); Handle_UI.cc HandleTalkInit's
 // @src MERC_TALK replacing a held MERC_GIVEITEM (2026-11-08); Assignments.cc CreateDestroyAssignmentPopUpBoxes
 // @src (RebuildCurrentSquad as the menu closes after its "remove escort" in tactical, 2026-11-08); Handle_UI.cc
-// @src HandleTalkInit's NO_LOS_TO_TALK_TARGET, STR_LATE_45 and STR_LATE_21 naming the merc and the target (2026-11-14).
+// @src HandleTalkInit's NO_LOS_TO_TALK_TARGET, STR_LATE_45 and STR_LATE_21 naming the merc and the target (2026-11-14);
+// @src HandleTalkInit's STR_LATE_32 naming Dimitri on our team (2026-11-14).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -258,7 +259,7 @@ class Refusal extends Error {
   readonly code: string;
 
   constructor(code: string, text?: string) {
-    super(`${code}: ${text ?? REFUSAL_TEXT[code] ?? 'refused'}`);
+    super(text === undefined ? refusalText(code) : `${code}: ${text}`);
     this.code = code;
   }
 }
@@ -266,6 +267,12 @@ class Refusal extends Error {
 const refuse = (code: string, text?: string): never => {
   throw new Refusal(code, text);
 };
+
+const REFUSES_TO_TALK = 'refusesToTalk';
+
+function refusalText(code: string): string {
+  return `${code}: ${REFUSAL_TEXT[code] ?? 'refused'}`;
+}
 
 function refusalResult(e: Refusal): CommandRefused {
   return refuseCommand(e.code, e.message);
@@ -877,7 +884,8 @@ export class TalkFlow {
   }
 
   #ownMercBark(target: Soldier): CommandResult {
-    if (target.profile === NarrativeProfile.DIMITRI) return refuse('refusesToTalk');
+    if (target.profile === NarrativeProfile.DIMITRI)
+      return refuseCommand(REFUSES_TO_TALK, refusalText(REFUSES_TO_TALK), { target: target.id });
     const p = this.#profile(target.profile);
     const roll = this.talk.fx.int((p?.attitude ?? ATTITUDE_NORMAL) !== ATTITUDE_NORMAL ? 3 : 2);
     const quote = this.#barkQuote(target.profile, roll);

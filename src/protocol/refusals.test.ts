@@ -38,6 +38,12 @@ describe('the exchange of places (CanExchangePlaces)', () => {
   });
 });
 
+describe('talk to Dimitri on our team (Handle_UI.cc HandleTalkInit)', () => {
+  it('logs STR_LATE_32', () => {
+    expect(refusalMessage('refusesToTalk')).toEqual({ table: 'gzLateLocalizedString', index: 31, shown: 'log' });
+  });
+});
+
 describe("the escort's lone move (CanCharacterMoveInStrategic, ME_CUSTOM)", () => {
   it('boxes pMapErrorString 6 for a male escort and 7 for a female one', () => {
     expect(refusalMessage('escortAlone')).toEqual({ table: 'pMapErrorString', index: 6, shown: 'box' });

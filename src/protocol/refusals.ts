@@ -13,7 +13,8 @@
 // @src HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT, 2026-11-03;
 // @src VEHICLE_CANT_MOVE_IN_TACTICAL, 2026-11-05); Tactical/Auto_Bandage.cc BeginAutoBandage (AUTOBANDAGE_NOT_NEEDED,
 // @src STR_LATE_09, CANT_AUTOBANDAGE_PROMPT, 2026-11-06); Handle_UI.cc UIMouseOnValidAttackLocation (the medkit's
-// @src CANNOT_DO_FIRST_AID_STR, MSG_MERC_HAS_NO_MEDSKILL, STR_LATE_19, CANNOT_NO_NEED_FIRST_AID_STR, 2026-11-14).
+// @src CANNOT_DO_FIRST_AID_STR, MSG_MERC_HAS_NO_MEDSKILL, STR_LATE_19, CANNOT_NO_NEED_FIRST_AID_STR, 2026-11-14); Handle_UI.cc
+// @src HandleTalkInit (STR_LATE_32 of Dimitri on our team, 2026-11-14).
 
 export interface UiTextKey {
   readonly table: string;
@@ -52,6 +53,7 @@ export const FEMALE_MOVE_REFUSAL_INDEX: Readonly<Record<string, number>> = {
 const log = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'log' });
 const box = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'box' });
 const NOT_ENOUGH_APS = log('TacticalStr', 87);
+const STR_LATE_32 = 31;
 
 export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   notEnoughAP: NOT_ENOUGH_APS,
@@ -71,6 +73,7 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   escortCannotDoThat: log('TacticalStr', 124),
   vehicleCantMove: log('TacticalStr', 128),
   npcRefusesToMove: log('gzLateLocalizedString', 2),
+  refusesToTalk: log('gzLateLocalizedString', STR_LATE_32),
   personRefusesToMove: log('TacticalStr', 119),
   mechanical: log('TacticalStr', 32),
   noMedicalSkill: log('pMessageStrings', 31),

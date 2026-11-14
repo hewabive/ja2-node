@@ -772,7 +772,8 @@ in its order, walks up beyond 4 tiles (the talk starts on arrival during `advanc
 reply; the lines follow in game time (§4.5) as quote events, collected in `conversation.lastQuotes`. A target the merc
 cannot see refuses `noLineOfSight` and an unconscious one `targetCollapsed`, each with an `npcMessage` of that kind
 naming the merc (`soldier`), the target (`target`) and his `profile` when he has one, for the original's line
-(`Tactical/Handle_UI.cc:4679-4692`). An idle open session is modal (§5). A scripted sequence (`ENGAGED_IN_CONV` without
+(`Tactical/Handle_UI.cc:4679-4692`). Talk to Dimitri on our team refuses `refusesToTalk` with his id in `data.target`,
+which the refusal's line in the message list names (`:4705-4708`). An idle open session is modal (§5). A scripted sequence (`ENGAGED_IN_CONV` without
 a panel, a pending conversation, the 500 ms trigger wait) refuses player commands until `advance` has run it. Saving is
 refused throughout (`27`). The talk face shows what the original's face without a soldier shows: Elliot's beaten
 variants (`faceVariant`) and, with `drunk`, the drink icon of Father Walker or Micky from a drink counter of 5

@@ -31,6 +31,7 @@ const VASKO = 94;
 const MICKY = 96;
 const FATHER = 100;
 const DEALER = 91;
+const DIMITRI = 60;
 const LOOKOUT_TILE = 11755;
 const HERMIT_QUEST = 14;
 const HERMIT_FACT = 132;
@@ -382,6 +383,23 @@ describe('the stub NPC in A10', () => {
     expect(talkTo(vasko, 'noLineOfSight', blind)).toEqual([
       expect.objectContaining({ ...feedback, table: 'TacticalStr', index: 136, args: [mercName, { text: soldier(vasko).name }] }),
     ]);
+  });
+
+  it('refuses talk to Dimitri on our team with STR_LATE_32 and his name, where the original says it and opens nothing', async () => {
+    const { session, live } = await inA10(19);
+    const [merc, mate] = session.view().strategic?.mercs.map((m) => m.id) ?? [];
+    const dimitri = mate === undefined ? undefined : session.campaign.tactical?.state.soldiers[mate];
+    if (merc === undefined || !dimitri) throw new Error('two mercs in A10');
+    dimitri.profile = DIMITRI;
+    const name = dimitri.name;
+    expect(live.dispatch({ type: 'talk', soldier: merc, target: mate })).toMatchObject({
+      ok: false,
+      data: { refusal: 'refusesToTalk', target: mate },
+    });
+    expect(live.advance({ ticks: 1 }).messages.filter((m) => m.kind === 'uiFeedback')).toEqual([
+      expect.objectContaining({ table: 'gzLateLocalizedString', index: 31, args: [{ text: name }] }),
+    ]);
+    expect(session.view().conversation ?? null).toBeNull();
   });
 
   it('opens the shop of the stub dealer through the talk menu', async () => {

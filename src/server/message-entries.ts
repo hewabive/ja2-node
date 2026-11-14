@@ -26,7 +26,8 @@
 // @src UIMouseOnValidAttackLocation (the medkit's refusals with the medic or the patient, 2026-11-14); Weapons.cc
 // @src BulletImpact (STR_LOSES_* and STR_HEAD_HIT, a soldier out of sight by his name or his team's default, 2026-11-14);
 // @src Soldier_Control.cc SoldierGotHitGunFire (STR_LATE_20, 2026-11-14); Handle_UI.cc HandleTalkInit (NO_LOS_TO_TALK_TARGET
-// @src with the merc and a profile, STR_LATE_45 with the merc, STR_LATE_21 with the target, 2026-11-14).
+// @src with the merc and a profile, STR_LATE_45 with the merc, STR_LATE_21 with the target, 2026-11-14; STR_LATE_32 with
+// @src Dimitri, 2026-11-14).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -391,6 +392,7 @@ const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set([
 const REFUSALS_NAMING_THE_CALIBRE: ReadonlySet<string> = new Set(['robotNeedsCalibre']);
 const REFUSALS_NAMING_THE_REFUSER: ReadonlySet<string> = new Set(['npcRefusesToMove']);
 const REFUSALS_NAMING_THE_PATIENT: ReadonlySet<string> = new Set(['mechanical', 'notBleeding', 'noNeed']);
+const REFUSALS_NAMING_THE_TARGET: ReadonlySet<string> = new Set(['refusesToTalk']);
 const COMMANDS_THE_CURSOR_EXPLAINS: ReadonlySet<string> = new Set(['exitSector']);
 const CALIBRE_NAMES = 'ammo-calibre';
 
@@ -399,6 +401,7 @@ function refusalArgs(token: string, cmd: CommandEnvelope, data: Readonly<Record<
   if (REFUSALS_NAMING_THE_CALIBRE.has(token)) return [typeof data.calibre === 'number' ? ref(CALIBRE_NAMES, data.calibre) : text(null)];
   if (REFUSALS_NAMING_THE_REFUSER.has(token)) return [text(typeof data.soldier === 'number' ? facts.soldierName(data.soldier) : null)];
   if (REFUSALS_NAMING_THE_PATIENT.has(token)) return [typeof data.patient === 'number' ? soldierArg(facts, data.patient) : text(null)];
+  if (REFUSALS_NAMING_THE_TARGET.has(token)) return [typeof data.target === 'number' ? soldierArg(facts, data.target) : text(null)];
   return REFUSALS_NAMING_THE_MERC.has(token) && soldier !== null ? [soldierArg(facts, soldier)] : [];
 }
 
