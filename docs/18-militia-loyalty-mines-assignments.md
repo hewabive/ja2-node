@@ -171,6 +171,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A rested squad merc swings around 95 breath; a dying squad merc cannot sleep, so he is worn out | `assignments.test.ts` |
 | The menu's leader made a patient or trainee takes the pose of his old assignment; the mercs listed with him take the new one, and a repairman of the menu takes none | `assignments.test.ts` |
 | The squad menu sets its list after the refusal box of its merc, while every other menu sets the list only once its merc passes (`Assignments.cc:4591-4656`, `:4702-4775`) | `assignments.test.ts`, `militia.test.ts` |
+| A listed merc the yes to the militia payment box cannot set gets `pMapErrorString` 18 as a message line, not the box the menu shows: the box screen is still the current screen inside its callback (`Assignments.cc:6381-6398`) | `militia.test.ts`, `src/server/message-entries.test.ts` |
 | A doctor, repairman or patient who stays done shows the end of his work again at every update that finds him done | `assignments.test.ts` |
 | A merc woken while he lies down goes on lying down awake: `GOTO_SLEEP` cannot be interrupted | `campaign/assignment-animations.test.ts` |
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |
