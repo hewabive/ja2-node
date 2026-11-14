@@ -144,7 +144,8 @@ ends, the turn does not (`data.combatEnded`).
 
 **Leaving combat** releases every frozen soldier, drops pending animations and actions, clears the moved flags and the
 interrupt queue, hides enemies none of ours sees, pauses the AI for 1500 ms and forces an opplist decay. Its real-time
-turn runs on the next tick (deviation "Real-time turn after combat"). APs, opplists and alert statuses stay, except
+turn runs on the next tick, the forced decay after it (deviation "Real-time turn after combat"); inside a conversation
+there is no such turn and the decay comes at once (`Overhead.cc:4095`). APs, opplists and alert statuses stay, except
 those of militia and civilians after a victory.
 
 **Time.** World time stops in combat, so the real-time turn and the assignments wait (`15`); tactical ticks go on. An
@@ -182,6 +183,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A soldier in his death animation (life 0) counts as a capable enemy, an unconscious one does not | `turns/end-of-battle.test.ts` |
 | An unalerted neutral civilian acting out a quote record costs the AI list its one-in-ten roll and is handled anyway | `turns/ai-list.test.ts` |
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
+| Combat ended inside a conversation (an NPC's `END_COMBAT`) runs no real-time turn on leaving it, only the forced opplist decay | `turns/realtime-turns.test.ts` "runs at once without the real-time turn …" |
 | The real-time turn skips the robot and our vehicles, on the map or off it, but our team's turn in combat starts theirs | `turns/realtime-turns.test.ts`, `turns/whole-team.test.ts` "skips the robot and our vehicles …" |
 | In combat a merc of ours in another sector bleeds a whole step at each of our turns while the world clock stands, where real time bleeds him half a step a turn | `turns/whole-team.test.ts` "bleeds a merc of ours off the map a whole step …" |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |

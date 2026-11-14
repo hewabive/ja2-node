@@ -1,9 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { fakeActionEnv } from '../../../../tests/support/npc-actions.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { CompressMode } from '../../strategic/time/constants.ts';
 import type { TacticalContent } from '../content.ts';
+import { handleNpcDoAction } from '../narrative/npc-actions/catalog.ts';
+import { NpcActionCode } from '../narrative/npc-actions/codes.ts';
 import { Opp } from '../perception/opp.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import { createRealtimeClock, type TacticalState } from '../state.ts';
@@ -109,6 +113,22 @@ describe('the real-time opplist decay', () => {
     exitCombatMode(recent.t);
     handleRealtimeTurns(recent.t, recentClock);
     expect([publicValue(recent.t, recent.enemyId), recentClock.lastOpplistDecaySeconds]).toEqual([Opp.SEEN_LAST_TURN, NOW]);
+  });
+
+  it('runs at once without the real-time turn when an END_COMBAT ends combat inside a conversation (ENGAGED_IN_CONV)', () => {
+    const { t, enemyId } = rememberedEnemy();
+    const merc = t.soldiers[0] as Soldier;
+    merc.actionPoints = 0;
+    t.inCombat = true;
+    t.engagedInConv = true;
+    t.realtimeClock.lastOpplistDecaySeconds = NOW - 1;
+    const env = fakeActionEnv();
+    Object.assign(env.host, { tactical: () => t });
+    expect(handleNpcDoAction(env, Npc.CARMEN, NpcActionCode.END_COMBAT, 0)).toBe(true);
+    expect([t.inCombat, t.turn.forceRealtimeTurn]).toEqual([false, false]);
+    expect([publicValue(t, enemyId), t.realtimeClock.lastOpplistDecaySeconds]).toEqual([Opp.SEEN_LAST_TURN, NOW]);
+    handleRealtimeTurns(t, t.realtimeClock);
+    expect([merc.actionPoints, publicValue(t, enemyId)]).toEqual([0, Opp.SEEN_LAST_TURN]);
   });
 });
 

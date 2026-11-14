@@ -186,7 +186,7 @@ enemy that paused the enemy's turn (`soldierLocated` with `slide`, `perception/s
 
 **Decay.** A team's turn start decays its public opplist and watched locations, each soldier's his own. In real time
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
-forces up to two decays at once (deviation "Real-time turn after combat").
+forces up to two decays at once, inside a conversation one (deviation "Real-time turn after combat").
 
 **Iteration order is state.** Looks walk `mercSlots`, in the order the soldiers entered the sector (`07`), team and
 radio loops walk soldiers by id. Both decide `visible` transitions, ties in the best-sighting list and which draws

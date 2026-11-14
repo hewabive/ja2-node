@@ -34,7 +34,7 @@
 // @src SoldierHasSeenEnemiesLastFewTurns, CheckForLosingEndOfBattle, CheckForEndOfBattle's battles fought and EndTurn's
 // @src moved mark; IsTeamActive's
 // @src bMenInSector, which for our team counts every soldier made for it, Overhead.h, Soldier_Create.cc AddManToTeam
-// @src (2026-11-08).
+// @src (2026-11-08); ExitCombatMode's ENGAGED_IN_CONV gate on the real-time turn, the decay forced either way (2026-11-14).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -552,7 +552,8 @@ export function exitCombatMode(t: TacticalState): void {
   pauseAiTemporarily(t);
   turnOffEveryonesMuzzleFlashes(t);
   t.turn.intList.length = 0;
-  t.turn.forceRealtimeTurn = true;
+  if (t.engagedInConv) forceOpplistDecay(t, t.realtimeClock);
+  else t.turn.forceRealtimeTurn = true;
   endTopMessage(t);
 }
 
