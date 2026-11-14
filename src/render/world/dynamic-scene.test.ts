@@ -6,6 +6,8 @@ import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { buildLevel } from '../../content/world/level.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import type { ZStripInfo } from '../../content/world/zstrip.ts';
+import { clamp, u16 } from '../../core/int.ts';
 import {
   animatedTile,
   type DynamicFrame,
@@ -14,6 +16,8 @@ import {
   flyingAniTileScreenPoint,
   type SceneAniTile,
   type SceneSoldier,
+  type SoldierSprite,
+  soldierScreenPoint,
 } from './dynamic-scene.ts';
 import {
   animationTileZ,
@@ -21,6 +25,7 @@ import {
   corpseZ,
   itemZ,
   mercZ,
+  NOBURN_Z_BONUS,
   ONROOF_Z_LEVEL,
   onRoofZ,
   roofCorpseZ,
@@ -123,6 +128,8 @@ function decode(scene: DynamicScene) {
   return Array.from({ length: scene.instances.count }, (_, i) => ({
     x: d[i * FLOATS_PER_INSTANCE] as number,
     y: d[i * FLOATS_PER_INSTANCE + 1] as number,
+    width: d[i * FLOATS_PER_INSTANCE + 2] as number,
+    height: d[i * FLOATS_PER_INSTANCE + 3] as number,
     srcX: d[i * FLOATS_PER_INSTANCE + 4] as number,
     tile: d[i * FLOATS_PER_INSTANCE + 5] as number,
     z: d[i * FLOATS_PER_INSTANCE + 8] as number,
@@ -185,6 +192,238 @@ function stripObscureBlit(z: number, pixel: SoldierPixel): PixelDraws {
 function oneTileObscuredBlit(z: number, pixel: SoldierPixel): PixelDraws {
   const drawn = pixel.shadow ? pixel.stored < z : pixel.stored <= z || pixel.evenParity;
   return { blends: drawn ? [blendOf(pixel)] : [], stored: pixel.stored };
+}
+
+const SHADOW_INDEX = 254;
+const STRIP_COLUMNS = 20;
+const Z_STRIP_DELTA_Y = Z_SUBLAYERS * 10;
+
+interface ClipRect {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+class ScreenBuffer {
+  readonly #z = new Map<number, number>();
+  readonly #draws = new Map<number, string[]>();
+  readonly #storedAt: (x: number, y: number) => number;
+  readonly #pitch: number;
+
+  constructor(pitch: number, storedAt: (x: number, y: number) => number) {
+    this.#pitch = pitch;
+    this.#storedAt = storedAt;
+  }
+
+  stored(x: number, y: number): number {
+    return this.#z.get(y * this.#pitch + x) ?? this.#storedAt(x, y);
+  }
+
+  drawn(x: number, y: number): number | undefined {
+    return this.#z.get(y * this.#pitch + x);
+  }
+
+  draw(x: number, y: number, z: number, blend: string): void {
+    const i = y * this.#pitch + x;
+    this.#z.set(i, z);
+    this.#draws.set(i, [...(this.#draws.get(i) ?? []), blend]);
+  }
+
+  pixels(rect: ClipRect): string[] {
+    const out: string[] = [];
+    for (let y = rect.top; y < rect.bottom; y++)
+      for (let x = rect.left; x < rect.right; x++)
+        out.push(`${x},${y} ${(this.#draws.get(y * this.#pitch + x) ?? []).join('+')} @${this.stored(x, y)}`);
+    return out;
+  }
+}
+
+function shaderDiscards(flags: number, index: number, x: number, y: number): boolean {
+  if (flags & InstanceFlags.ONLY_SHADOW_INDEX && index !== SHADOW_INDEX) return true;
+  if (flags & InstanceFlags.EXCEPT_SHADOW_INDEX && index === SHADOW_INDEX) return true;
+  const parity = flags & InstanceFlags.DITHER_ODD ? 1 : 0;
+  return (flags & InstanceFlags.DITHER) !== 0 && ((x + y + parity) & 1) !== 0;
+}
+
+function rasterize(scene: DynamicScene, f: DynamicFrame, sprite: SoldierSprite, screen: ScreenBuffer): ScreenBuffer {
+  const offset = cameraOffset(f.viewport, f.camera, f.renderHeight);
+  const parts = decode(scene);
+  for (const run of scene.runs) {
+    const spec = STATE_SPECS[run.state];
+    for (const part of parts.slice(run.first, run.first + run.count)) {
+      const top = part.tile - sprite.y;
+      if (top < 0 || top >= sprite.height) continue;
+      for (let j = 0; j < part.height; j++)
+        for (let i = 0; i < part.width; i++) {
+          const x = part.x + offset.x + i;
+          const y = part.y + offset.y + j;
+          if (x < 0 || y < 0 || x >= f.viewport.width || y >= f.viewport.height) continue;
+          const index = sprite.pixels[(top + j) * sprite.width + part.srcX - sprite.x + i] ?? 0;
+          if (index === 0 || shaderDiscards(part.flags, index, x, y)) continue;
+          const stored = screen.stored(x, y);
+          if (spec.func !== null && !DEPTH_PASSES[spec.func]?.(part.z, stored)) continue;
+          screen.draw(x, y, spec.write ? part.z : stored, spec.blend);
+        }
+    }
+  }
+  return screen;
+}
+
+type StripBlitter = 'obscure' | 'noBurn';
+
+interface PixelRun {
+  readonly from: number;
+  readonly to: number;
+  readonly transparent: boolean;
+}
+
+function runsOf(sprite: SoldierSprite, row: number): PixelRun[] {
+  const runs: PixelRun[] = [];
+  for (let x = 0; x < sprite.width; x++) {
+    const transparent = sprite.pixels[row * sprite.width + x] === 0;
+    const last = runs.at(-1);
+    if (last && last.transparent === transparent) runs[runs.length - 1] = { ...last, to: x + 1 };
+    else runs.push({ from: x, to: x + 1, transparent });
+  }
+  return runs;
+}
+
+function originalStripBlit(
+  blitter: StripBlitter,
+  sprite: SoldierSprite,
+  at: { x: number; y: number },
+  clip: ClipRect,
+  strip: ZStripInfo,
+  zValue: number,
+  screen: ScreenBuffer,
+): ScreenBuffer {
+  const { width, height } = sprite;
+  const leftSkip = Math.min(clip.left - Math.min(clip.left, at.x), width);
+  const topSkip = Math.min(clip.top - Math.min(clip.top, at.y), height);
+  const rightSkip = clamp(at.x + width - clip.right, 0, width);
+  const bottomSkip = clamp(at.y + height - clip.bottom, 0, height);
+  if (leftSkip >= width || rightSkip >= width || topSkip >= height || bottomSkip >= height) return screen;
+  const blitLength = width - leftSkip - rightSkip;
+  const first = strip.firstStripWidth;
+  let startZ = u16(zValue + strip.initialZChange * Z_STRIP_DELTA_Y);
+  let startCols = STRIP_COLUMNS;
+  if (leftSkip > first) startCols = STRIP_COLUMNS - ((leftSkip - first) % STRIP_COLUMNS);
+  else if (leftSkip < first) startCols = first - leftSkip;
+  let startIndex = 0;
+  if (leftSkip >= startCols) {
+    startIndex = 1 + Math.trunc((leftSkip - first) / STRIP_COLUMNS);
+    for (let i = 0; i < startIndex; i++) {
+      if (strip.zChanges[i] === -1) startZ = u16(startZ - Z_SUBLAYERS);
+      if (strip.zChanges[i] === 1) startZ = u16(startZ + Z_SUBLAYERS);
+    }
+  }
+  const opaqueStep = blitter === 'noBurn' ? Z_SUBLAYERS : Z_STRIP_DELTA_Y;
+  let lineFlag = at.y & 1;
+  for (let row = topSkip; row < height - bottomSkip; row++) {
+    let z = startZ;
+    let zIndex = startIndex;
+    let colsToGo = startCols;
+    const step = (by: number) => {
+      const delta = strip.zChanges[zIndex++] ?? 0;
+      if (delta < 0) z = u16(z - by);
+      else if (delta > 0) z = u16(z + by);
+    };
+    for (const run of runsOf(sprite, row)) {
+      const from = Math.max(run.from, leftSkip);
+      const to = Math.min(run.to, leftSkip + blitLength);
+      if (from >= to) continue;
+      if (run.transparent) {
+        let count = to - from;
+        while (count >= colsToGo) {
+          count -= colsToGo;
+          colsToGo = STRIP_COLUMNS;
+          step(Z_STRIP_DELTA_Y);
+        }
+        colsToGo -= count;
+        continue;
+      }
+      for (let x = from; x < to; x++) {
+        const sx = at.x + x;
+        const sy = at.y + row;
+        const stored = screen.stored(sx, sy);
+        const drawn = blitter === 'noBurn' ? stored <= z : stored < z || lineFlag === (sx & 1);
+        if (drawn) screen.draw(sx, sy, z, sprite.pixels[row * width + x] === SHADOW_INDEX ? 'shadow' : 'none');
+        if (--colsToGo === 0) {
+          colsToGo = STRIP_COLUMNS;
+          step(opaqueStep);
+        }
+      }
+    }
+    lineFlag ^= 1;
+  }
+  return screen;
+}
+
+const STRIP_SPRITE_WIDTH = 85;
+const STRIP_SPRITE_HEIGHT = 14;
+const GAP_ROW = 6;
+const STRIPS: ZStripInfo = { zChanges: [1, 1, 0, -1, -1], initialZChange: -2, firstStripWidth: 10 };
+const UNCLIPPED_AT = { x: 200, y: 100 };
+
+function stripPixel(x: number, y: number): number {
+  if ((x + 2 * y) % 5 === 0 || (x > 25 && y % 4 === 1) || (y === GAP_ROW && x >= 5 && x < 55)) return 0;
+  if ((3 * x + y) % 7 === 0) return SHADOW_INDEX;
+  return 1 + ((x + y) % 50);
+}
+
+const stripPixels = Uint8Array.from({ length: STRIP_SPRITE_WIDTH * STRIP_SPRITE_HEIGHT }, (_, i) =>
+  stripPixel(i % STRIP_SPRITE_WIDTH, Math.floor(i / STRIP_SPRITE_WIDTH)),
+);
+
+interface StripCase {
+  readonly blitter: StripBlitter;
+  readonly leftSkip?: number;
+  readonly topSkip?: number;
+  readonly viewportTop?: number;
+}
+
+function stripSoldierPixels(tiles: TileElement[], c: StripCase): { ours: string[]; original: string[] } {
+  const at = g(80, 80);
+  const { staticWorld, prepared } = world({}, tiles);
+  if (c.blitter === 'noBurn') prepared.noBurn[at] = 1;
+  const viewportTop = c.viewportTop ?? 0;
+  const base = soldier(4, at, 0);
+  const point = soldierScreenPoint(frame({}), 0, base);
+  const screenX = c.leftSkip === undefined ? UNCLIPPED_AT.x : -c.leftSkip;
+  const screenY = c.topSkip === undefined ? UNCLIPPED_AT.y : viewportTop - c.topSkip;
+  const sprite: SoldierSprite = {
+    ...base.sprite,
+    width: STRIP_SPRITE_WIDTH,
+    height: STRIP_SPRITE_HEIGHT,
+    offsetX: screenX - point.x,
+    offsetY: screenY - point.y,
+    pixels: stripPixels,
+  };
+  const prone = { ...base, sprite, multiTile: { zStrip: STRIPS, zTileOffsetX: 0, zTileOffsetY: 0, vehicle: false } };
+  const f = frame({ viewportTop, soldiers: [prone] });
+  const scene = new DynamicScene(staticWorld, prepared);
+  scene.build(f);
+  const merc = mercZ(worldY(80, 80, 860));
+  const z = c.blitter === 'noBurn' ? u16(merc + NOBURN_Z_BONUS) : merc;
+  const clip = { left: 0, top: viewportTop, right: f.viewport.width, bottom: f.viewport.height };
+  const blit = (storedAt: (x: number, y: number) => number) =>
+    originalStripBlit(c.blitter, sprite, { x: screenX, y: screenY }, clip, STRIPS, z, new ScreenBuffer(f.viewport.width, storedAt));
+  const reference = blit(() => 0);
+  const storedAt = (x: number, y: number) => {
+    const drawn = reference.drawn(x, y);
+    return drawn === undefined ? 0 : drawn + ((x + 2 * y) % 3) - 1;
+  };
+  const rect = {
+    left: Math.max(clip.left, screenX),
+    top: Math.max(clip.top, screenY),
+    right: screenX + STRIP_SPRITE_WIDTH,
+    bottom: screenY + STRIP_SPRITE_HEIGHT,
+  };
+  return {
+    ours: rasterize(scene, f, sprite, new ScreenBuffer(f.viewport.width, storedAt)).pixels(rect),
+    original: blit(storedAt).pixels(rect),
+  };
 }
 
 describe('dynamic scene', () => {
@@ -549,6 +788,27 @@ describe('dynamic scene', () => {
       );
       expect(pixels.map((pixel) => drawsOnPixel(scene, m.sprite.y, pixel))).toEqual(pixels.map((pixel) => blit(z, pixel)));
     }
+  });
+
+  it('draws a soldier in z strips on a no-burn tile where he is nearer or ties, his shadow too, writing his z on every pixel drawn, his z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:2999-3027)', () => {
+    const { ours, original } = stripSoldierPixels(tiles, { blitter: 'noBurn' });
+    expect(ours).toEqual(original);
+  });
+
+  it('starts the strips of a soldier clipped at the left edge of the view a sublayer per strip it counts as skipped, counting none while fewer columns are cut than the cut strip has left, in both strip blitters (RenderWorld.cc:2651-2694, :2865-2908)', () => {
+    for (const blitter of ['obscure', 'noBurn'] as const)
+      for (const leftSkip of [3, 7, 10, 12, 25, 30, 45]) {
+        const { ours, original } = stripSoldierPixels(tiles, { blitter, leftSkip });
+        expect(ours, `${blitter}, ${leftSkip} columns skipped`).toEqual(original);
+      }
+  });
+
+  it("dithers a soldier in z strips clipped at the top of the view on the parity of the sprite's first row, not of the screen row (BltTransZTransShadowIncObscure, RenderWorld.cc:2629)", () => {
+    for (const viewportTop of [0, 20])
+      for (const topSkip of [0, 1, 2, 3]) {
+        const { ours, original } = stripSoldierPixels(tiles, { blitter: 'obscure', topSkip, viewportTop });
+        expect(ours, `view from ${viewportTop}, ${topSkip} rows skipped`).toEqual(original);
+      }
   });
 
   it('raises items lying on a structure by their height, at the struct z plus the height', () => {

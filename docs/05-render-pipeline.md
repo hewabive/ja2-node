@@ -36,6 +36,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `no-burn.ts` | The no-burn tiles, where a soldier sorts 2 z units nearer and is never shown through: set as the map loads and as the view's structure changes add structures |
 | `static-scene.ts` | The static layers: node filters, segments, z strips, the obscured pass |
 | `dynamic-scene.ts` | Dynamic and animated map nodes, soldiers, items, corpses, smoke, effect nodes and UI nodes, every frame |
+| `soldier-strips.ts` | The z strips of a soldier as his two strip blitters cut them: clipped at the view's left and top edges, and in bands of rows on a no-burn tile |
 | `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes, the ceilings of slanted roofs; structure and object changes (debris), the structures they leave, and blood pools |
 | `world-program.ts`, `instances.ts`, `world-framebuffer.ts` | The shader, the draw states, the instance records, the framebuffers |
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
@@ -60,7 +61,8 @@ a wall. ja2-node keeps the z values, the tests and the order.
 **One quad per sprite on a depth buffer.** Depth is z / 65535 in a 24-bit buffer cleared to 0, so integer z values stay
 distinct and ordered; each blitter's test becomes a depth function and mask (`DrawState`), and GL's primitive order
 settles equal z as the sweep does. Strict and non-strict tests cannot share a function, so draw calls split where the
-state changes. A multi-Z sprite is one quad per strip. Sprites are pulled by `gl_VertexID` from a float texture with
+state changes. A multi-Z sprite is one quad per strip; a soldier's on a no-burn tile, whose z steps by the pixels at
+each strip edge, one per strip and band of rows that share a z. Sprites are pulled by `gl_VertexID` from a float texture with
 plain `drawArrays`: no instancing, which SwiftShader (headless CI) pays per instance.
 
 **The static scene is built once, by segment and row, without the camera.** Positions are world pixels; camera, render
@@ -152,6 +154,9 @@ unless a path is given:
 | An explosion works out again the wire frames in its whole radius around the bomb, and only when it changed a structure (`TileEngine/Explosion_Control.cc:1434`) | `src/sim/tactical/explosions/explosion.test.ts` "works the wire frames out within its radius …" |
 | Soldiers on roofs are drawn twice, in the struct-merc and the high-merc passes | `dynamic-scene.test.ts` |
 | A soldier in z strips (prone, a creature, a vehicle) is drawn in full only where he is nearer than the z buffer and dithered elsewhere, his shadow too, and every pixel he draws takes his z, where a one-tile soldier is drawn in full on a tie, his shadow only where he is nearer, and leaves the z buffer as it was (`TileEngine/RenderWorld.cc:2785-2792`, `src/sgp/VObject_Blitters.cc:706-718`) | `dynamic-scene.test.ts` "draws a soldier in z strips where he is nearer or on the dither …" |
+| On a no-burn tile a soldier in z strips is drawn where he is nearer or ties, his shadow too, and every pixel he draws takes his z; at a strip edge inside a run of opaque pixels his z steps a sublayer, across a transparent one a row, so the strips of one sprite sort differently from row to row (`TileEngine/RenderWorld.cc:2999-3027`) | `dynamic-scene.test.ts` "draws a soldier in z strips on a no-burn tile where he is nearer or ties …" |
+| A soldier in z strips cut by the left edge of the view starts his strips a sublayer per strip counted as cut away, not a row, and counts none while fewer columns are cut than the cut strip has left (`TileEngine/RenderWorld.cc:2651-2694`, `:2865-2908`) | `dynamic-scene.test.ts` "starts the strips of a soldier clipped at the left edge of the view …" |
+| A soldier in z strips cut by the top of the view, the top bar's lower edge while it shows, is dithered on the parity of his sprite's first row, so an odd number of cut rows dithers the other pixels (`TileEngine/RenderWorld.cc:2629`) | `dynamic-scene.test.ts` "dithers a soldier in z strips clipped at the top of the view …" |
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
 | A structure added at the head of a tile makes it a no-burn tile only where a wall stands, the reverse of one added at the tail; removals and partner swaps leave the flag as it was | `no-burn.test.ts` |
 | As the map loads, a tile's no-burn flag sees only the wall pieces of structures loaded before it: a multi-tile wall based on a later tile does not count | `no-burn.test.ts` |

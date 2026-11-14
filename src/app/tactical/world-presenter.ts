@@ -557,6 +557,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
     if (!view) return null;
     this.#stats = this.#world.render({
       viewport: this.#viewport,
+      viewportTop: this.#top,
       camera: this.#camera,
       clockMs: this.#sources.clockMs(),
       roofLevel: this.#roofLevel,

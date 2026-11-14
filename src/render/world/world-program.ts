@@ -104,7 +104,8 @@ void main() {
   bool outlinePixel = index == 254u;
   if ((v_flags & ${InstanceFlags.ONLY_SHADOW_INDEX}) != 0 && !outlinePixel) discard;
   if ((v_flags & ${InstanceFlags.EXCEPT_SHADOW_INDEX}) != 0 && outlinePixel) discard;
-  if ((v_flags & ${InstanceFlags.DITHER}) != 0 && ((px.x + px.y) & 1) != 0) discard;
+  int ditherParity = (v_flags & ${InstanceFlags.DITHER_ODD}) != 0 ? 1 : 0;
+  if ((v_flags & ${InstanceFlags.DITHER}) != 0 && ((px.x + px.y + ditherParity) & 1) != 0) discard;
   if (u_shadow > 0.0) {
     o_color = vec4(vec3(u_shadow), 1.0);
     return;
@@ -150,6 +151,7 @@ export function stateSpecs(gl: DepthFunctions): Record<DrawState, StateSpec> {
     [DrawState.ALWAYS_WRITE]: { func: gl.ALWAYS, write: true, blend: 'none' },
     [DrawState.TRANSLUCENT]: { func: gl.GEQUAL, write: false, blend: 'translucent' },
     [DrawState.ALWAYS_SHADOW_WRITE]: { func: gl.ALWAYS, write: true, blend: 'shadow' },
+    [DrawState.NEARER_OR_EQUAL_SHADOW_WRITE]: { func: gl.GEQUAL, write: true, blend: 'shadow' },
   };
 }
 

@@ -106,6 +106,7 @@ export const DEFAULT_TACTICAL_OPTIONS: TacticalDisplayOptions = {
 
 export interface TacticalFrame {
   readonly viewport: Viewport;
+  readonly viewportTop?: number;
   readonly camera: Camera;
   readonly clockMs: number;
   readonly roofLevel: boolean;
@@ -426,6 +427,7 @@ export class TacticalWorldView {
     this.#drawnEffects = animatedTiles.length;
     return this.#renderer.render({
       viewport: f.viewport,
+      viewportTop: f.viewportTop ?? 0,
       camera: f.camera,
       roofLevel: f.roofLevel,
       clockMs: f.clockMs,

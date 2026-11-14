@@ -109,6 +109,7 @@ export interface ShadeField {
 
 export interface WorldFrameInput {
   readonly viewport: Viewport;
+  readonly viewportTop?: number;
   readonly camera: Camera;
   readonly roofLevel: boolean;
   readonly clockMs: number;
@@ -416,6 +417,7 @@ export class WorldRenderer {
     const rows = visibleRows(f.viewport, f.camera, renderHeight, assembled.reach);
     s.dynamic.build({
       viewport: f.viewport,
+      viewportTop: f.viewportTop ?? 0,
       camera: f.camera,
       renderHeight,
       rows,

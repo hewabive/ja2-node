@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderDynamicWorld, RenderTiles (dynamic layers, animated tiles, mercs,
 // @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS, LEVELNODE_USEZ, LEVELNODE_CACHEDANITILE),
-// @src BltTransZTransShadowIncObscure (every pixel it draws writes the z, the shadow pixels dithered too, 2026-11-14);
+// @src BltTransZTransShadowIncObscure (every pixel it draws writes the z, the shadow pixels dithered too, 2026-11-14),
+// @src BltTransZTransShadowInc (a tie draws, the shadow pixels too, every pixel it draws writes the z, 2026-11-14);
 // @src src/game/TileEngine/Tile_Animation.cc CreateAnimationTile (every animation tile has LEVELNODE_USEZ);
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
 // @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc; its sZ lifts the
@@ -46,6 +47,7 @@ import {
 } from './geometry.ts';
 import { DrawState, InstanceBuffer, InstanceFlags, ShadeKey, type SpriteSource } from './instances.ts';
 import type { LevelRenderData } from './level-render-data.ts';
+import { noBurnStripCells, obscuredStripCells, type SpriteSkip, type StripCell, spriteSkip, stripDitherFlags } from './soldier-strips.ts';
 import type { StaticWorld, TileSprite } from './static-scene.ts';
 
 export const ANIMATED_TILE_FRAME_MS = 200;
@@ -54,7 +56,6 @@ const SHADOW_INDEX_FLAGS = InstanceFlags.ONLY_SHADOW_INDEX;
 const CENTRE_OFFSET = 5;
 const BODY_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX;
 const OBSCURED_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX | InstanceFlags.DITHER;
-const DITHERED_SHADOW_FLAGS = InstanceFlags.ONLY_SHADOW_INDEX | InstanceFlags.DITHER;
 
 export type UiNodeLayer = 'object' | 'roof' | 'onRoof' | 'topmost';
 
@@ -226,6 +227,7 @@ export interface DrawRun {
 
 export interface DynamicFrame {
   readonly viewport: Viewport;
+  readonly viewportTop?: number;
   readonly camera: Camera;
   readonly renderHeight: number;
   readonly rows: { readonly first: number; readonly last: number };
@@ -626,29 +628,43 @@ export class DynamicScene {
     return noBurn ? u16(z + NOBURN_Z_BONUS) : z;
   }
 
-  #emitSoldierParts(m: SceneSoldier, p: { x: number; y: number }, z: number, noBurn: boolean): void {
-    const out = this.instances;
-    const sprite = m.sprite;
+  #emitSoldierParts(m: SceneSoldier, p: { x: number; y: number }, z: number, noBurn: boolean, skip: SpriteSkip): void {
     const strip = m.multiTile?.zStrip ?? null;
-    const part = (flags: number) => () =>
-      strip
-        ? emitStrips(out, p, strip, sprite, z, ShadeKey.FIXED, m.paletteRow, flags)
-        : out.push(p.x, p.y, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, flags, 0);
-    if (strip && !noBurn) {
-      this.#emitObscuringStrips(part);
+    if (strip && noBurn) {
+      this.#emitNoBurnStrips(m, p, noBurnStripCells(strip, m.sprite, z, skip));
       return;
     }
+    if (strip) {
+      this.#emitObscuringStrips(m, p, obscuredStripCells(strip, m.sprite, z, skip), stripDitherFlags(skip));
+      return;
+    }
+    const out = this.instances;
+    const sprite = m.sprite;
+    const part = (flags: number) => () => out.push(p.x, p.y, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, flags, 0);
     this.#push(out, this.runs, DrawState.NEARER_SHADOW, part(SHADOW_INDEX_FLAGS));
-    this.#push(out, this.runs, strip ? DrawState.NEARER_WRITE : DrawState.NEARER_OR_EQUAL, part(BODY_FLAGS));
+    this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, part(BODY_FLAGS));
     if (!noBurn) this.#push(out, this.runs, DrawState.FARTHER, part(OBSCURED_FLAGS));
   }
 
-  #emitObscuringStrips(part: (flags: number) => () => void): void {
+  #stripPart(m: SceneSoldier, p: { x: number; y: number }, cells: readonly StripCell[], flags: number): () => void {
     const out = this.instances;
-    this.#push(out, this.runs, DrawState.ALWAYS_SHADOW_WRITE, part(DITHERED_SHADOW_FLAGS));
-    this.#push(out, this.runs, DrawState.ALWAYS_WRITE, part(OBSCURED_FLAGS));
-    this.#push(out, this.runs, DrawState.SHADOW_WRITE, part(SHADOW_INDEX_FLAGS));
-    this.#push(out, this.runs, DrawState.NEARER_WRITE, part(BODY_FLAGS));
+    return () => {
+      for (const c of cells) out.push(p.x, p.y + c.top, c.source, c.srcX, c.width, m.paletteRow, u16(c.z), ShadeKey.FIXED, flags, 0);
+    };
+  }
+
+  #emitObscuringStrips(m: SceneSoldier, p: { x: number; y: number }, cells: readonly StripCell[], dither: number): void {
+    const out = this.instances;
+    this.#push(out, this.runs, DrawState.ALWAYS_SHADOW_WRITE, this.#stripPart(m, p, cells, SHADOW_INDEX_FLAGS | dither));
+    this.#push(out, this.runs, DrawState.ALWAYS_WRITE, this.#stripPart(m, p, cells, BODY_FLAGS | dither));
+    this.#push(out, this.runs, DrawState.SHADOW_WRITE, this.#stripPart(m, p, cells, SHADOW_INDEX_FLAGS));
+    this.#push(out, this.runs, DrawState.NEARER_WRITE, this.#stripPart(m, p, cells, BODY_FLAGS));
+  }
+
+  #emitNoBurnStrips(m: SceneSoldier, p: { x: number; y: number }, cells: readonly StripCell[]): void {
+    const out = this.instances;
+    this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL_SHADOW_WRITE, this.#stripPart(m, p, cells, SHADOW_INDEX_FLAGS));
+    this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL_WRITE, this.#stripPart(m, p, cells, BODY_FLAGS));
   }
 
   #emitSoldiers(g: number, x: number, y: number, pass: MercPass): void {
@@ -665,7 +681,8 @@ export class DynamicScene {
       const sx = at.x + m.sprite.offsetX - offX;
       const sy = at.y + m.sprite.offsetY - offY;
       const noBurn = this.#noBurn[g] === 1;
-      this.#emitSoldierParts(m, { x: sx, y: sy }, this.#soldierZ(m, x, y, noBurn), noBurn);
+      const skip = spriteSkip(sx + offX, sy + offY, m.sprite, frame.viewportTop ?? 0);
+      this.#emitSoldierParts(m, { x: sx, y: sy }, this.#soldierZ(m, x, y, noBurn), noBurn, skip);
       this.placedSoldiers.push({
         id: m.id,
         x: sx + offX,

@@ -8,6 +8,7 @@ export const InstanceFlags = {
   ONLY_SHADOW_INDEX: 2,
   EXCEPT_SHADOW_INDEX: 4,
   OUTLINE_SHADOW_INDEX: 8,
+  DITHER_ODD: 16,
 } as const;
 
 export const ShadeKey = {
@@ -29,6 +30,7 @@ export const DrawState = {
   ALWAYS_WRITE: 9,
   TRANSLUCENT: 10,
   ALWAYS_SHADOW_WRITE: 11,
+  NEARER_OR_EQUAL_SHADOW_WRITE: 12,
 } as const;
 export type DrawState = (typeof DrawState)[keyof typeof DrawState];
 
