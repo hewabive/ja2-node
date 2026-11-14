@@ -50,7 +50,7 @@
 // @src LAUGH1 at a visible death on Random(3) == 0) and HandleKilledQuote (the killer's LAUGH1 or COOL1 by CoinToss), both
 // @src drawn here (deviation "Cosmetic draws in attacks", 2026-11-14); Tactical/Overhead.cc CheckForEndOfBattle (the COOL1
 // @src of SayBattleSoundFromAnyBodyInSector after bloodcats, its Random(n) drawn here; deviation "Battle sound after
-// @src bloodcats", 2026-11-14).
+// @src bloodcats", 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14).
 
 import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
@@ -757,6 +757,7 @@ export class SoundDirector {
         return;
       case 'fellDown':
       case 'slippedOnMarbles':
+      case 'dudCursed':
         this.#curse(e);
         return;
       case 'itemApplied':
@@ -774,7 +775,7 @@ export class SoundDirector {
     }
   }
 
-  #curse(e: EventOf<'fellDown'> | EventOf<'slippedOnMarbles'>): void {
+  #curse(e: VoicedSoldier): void {
     this.#voiceOf(e, 'CURSE1');
   }
 

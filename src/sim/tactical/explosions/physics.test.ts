@@ -18,7 +18,7 @@ import { minAPsToThrow } from '../combat/ap.ts';
 import { WeaponMode } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import { SkillTrait, type Soldier, Team } from '../soldier.ts';
+import { SkillTrait, type Soldier, Team, Visible } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { Visibility, type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { bulletViews } from '../world-view.ts';
@@ -60,8 +60,8 @@ const everyoneShown = () => true;
 const nobodyShown = () => false;
 const firstSeenAtZero = () => 0;
 
-function grenadier(sim: TacticalSim, strength = 70): Soldier {
-  const s = spawnSoldier(sim, 0, Team.OUR, THROWER, Direction.SOUTH);
+function grenadier(sim: TacticalSim, strength = 70, team: number = Team.OUR): Soldier {
+  const s = spawnSoldier(sim, 0, team, THROWER, Direction.SOUTH);
   s.stats.strength = strength;
   s.inv[InvSlot.HAND] = objectOf(sim.state, 'HAND_GRENADE');
   return s;
@@ -318,6 +318,47 @@ describe('duds (Physics.cc HandleArmedObjectImpact)', () => {
     if (!dud) throw new Error(`no armed dud in ${DUD_SEEDS} throws`);
     expect([detonatorOf(dud.object), bombItemOf(dud.object), dud.visible]).toEqual([Detonator.TIMED, NOTHING, Visibility.INVISIBLE]);
     expect([1, 2]).toContain(delayOf(dud.object));
+  });
+});
+
+describe('the curse at a dud (Physics.cc:2077-2080)', () => {
+  const WORN_GRENADE = 5;
+
+  function dudCurses(owner: (sim: TacticalSim) => Soldier): SimEvent[] {
+    const sim = newCombatSim(content);
+    const s = owner(sim);
+    const grenade = s.inv[InvSlot.HAND];
+    if (grenade) grenade.status[0] = WORN_GRENADE;
+    const landing = throwAndLand(sim, s, gridNo(80, 88));
+    expect(landing.events.some((e) => e.type === 'explosion')).toBe(false);
+    return landing.events.filter((e) => e.type === 'dudCursed');
+  }
+
+  it('has the owner of a grenade that does not go off curse', () => {
+    let thrower = -1;
+    const curses = dudCurses((sim) => {
+      const s = grenadier(sim);
+      thrower = s.id;
+      return s;
+    });
+    expect(curses).toEqual([expect.objectContaining({ soldier: thrower })]);
+  });
+
+  it('names an owner out of sight by his voice only, and none when he is mute', () => {
+    const unseenThrower = (sim: TacticalSim) => {
+      const s = grenadier(sim, 70, Team.ENEMY);
+      s.visible = Visible.HIDDEN;
+      return s;
+    };
+    const [heard] = dudCurses(unseenThrower);
+    expect(heard).not.toHaveProperty('soldier');
+    expect(heard).toMatchObject({ unseen: { voice: 'bad0' } });
+    const muted = dudCurses((sim) => {
+      const s = unseenThrower(sim);
+      s.muted = true;
+      return s;
+    });
+    expect(muted).toEqual([]);
   });
 });
 

@@ -275,6 +275,10 @@ export interface ThrownImpactEvent extends SimEventBase {
   readonly gridNo: number;
 }
 
+export interface DudCursedEvent extends SimEventBase, VoicedSoldier {
+  readonly type: 'dudCursed';
+}
+
 export interface MortarWhistleEvent extends SimEventBase {
   readonly type: 'mortarWhistle';
   readonly sounding: boolean;
@@ -889,6 +893,7 @@ export type SimEvent =
   | LifeLostEvent
   | SoldierDiedEvent
   | KillCheeredEvent
+  | DudCursedEvent
   | VehicleDestroyedEvent
   | AttackResolvedEvent
   | GunJammedEvent

@@ -766,6 +766,19 @@ describe('the sound director', () => {
     expect(files(muted)).toEqual([]);
   });
 
+  it('has the owner of a dud curse with CURSE1 (HandleArmedObjectImpact), one out of sight from where the squad hears him', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'dudCursed', tick: 10, soldier: 1 }])]);
+    expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
+    const unseen = rig(world(1));
+    unseen.director.reset([soldier(1, 'STANDING', 0)], []);
+    const heard = { by: 1, direction: Direction.EAST, volumeClass: 2 };
+    unseen.director.applyFrames([frame(10, [], [{ type: 'dudCursed', tick: 10, unseen: { voice: 'bad0', bodyType: 0 }, heard }])]);
+    expect(files(unseen)[0]).toMatch(/^battlesnds\/bad0_curse/);
+    expect(unseen.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.EAST, 2) });
+  });
+
   it('has the attacker the event names laugh at a death on a client Random(3) == 0 (HandleSoldierDeath), out of sight from where the squad hears him', () => {
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const laughs = seeds.map((seed) => {

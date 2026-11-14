@@ -3,8 +3,9 @@
 // @src src/game/TileEngine/Physics.cc CreatePhysicalObject, SimulateWorld, SimulateObject, PhysicsComputeForces,
 // @src PhysicsUpdateLife, PhysicsIntegrate, PhysicsHandleCollisions, PhysicsCheckForCollisions, PhysicsResolveCollision,
 // @src PhysicsMoveObject (the level node that decides when the catch is looked at), PhysicsDeleteObject,
-// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact (the dud's timer 2026-11-04),
-// @src CheckForCollision, vector_3ToGridNo.
+// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact (the dud's timer 2026-11-04; the
+// @src owner's CURSE1 at a dud, out of sight from where the squad hears him, 2026-11-14), CheckForCollision,
+// @src vector_3ToGridNo.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
@@ -20,6 +21,7 @@ import { Special } from '../combat/types.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
 import { inCavesOrBasement, onVisibleWorldTile, type TacticalState } from '../state.ts';
+import { voicedSoldier } from '../unseen-sources.ts';
 import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility, WorldItemFlags } from '../world-items.ts';
 import { checkForCatcher, checkForCatchObject, endCatchAnimation } from './catching.ts';
 import { igniteExplosionXY } from './explosion.ts';
@@ -310,6 +312,11 @@ function armDudAsTimedBomb(t: TacticalState, o: ItemObject): void {
   setDelay(o, 1 + t.pre.int(DUD_DELAY_RANGE));
 }
 
+function curseTheDud(t: TacticalState, owner: Soldier | null): void {
+  const curser = owner ? voicedSoldier(t, owner) : null;
+  if (curser) t.events.push({ type: 'dudCursed', ...curser });
+}
+
 function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
   const z = heightUnitsToPixels(o.position.z);
   const obj = o.object;
@@ -328,6 +335,7 @@ function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
       const level = o.oldCollisionCode === Collision.ROOF ? 1 : 0;
       addItemToPool(t, o.gridNo, obj, Visibility.INVISIBLE, level, rearmed ? WorldItemFlags.ARMED_BOMB : 0, 0);
       notifySoldiersToLookForItems(t);
+      curseTheDud(t, o.owner);
     }
   }
   const explosive = def?.explosive;

@@ -83,8 +83,8 @@ original's cursor turns into a reload (deviation "Watchdogs").
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), the mortar's smoke-trail delay
 included: a cosmetic draw on `pre` in the original, kept there. Battle and impact sounds and the curse after a dud are
-not drawn (deviations "Cosmetic draws in attacks", "Cosmetic draws in explosions"); the dud test's unsequenced operands
-are drawn left to right (deviation "Dud test operand order").
+not drawn there: the client picks them, the curse from `dudCursed` (deviations "Cosmetic draws in attacks", "Cosmetic
+draws in explosions"); the dud test's unsequenced operands are drawn left to right (deviation "Dud test operand order").
 
 ## 3. Quirks of the original the code keeps
 
