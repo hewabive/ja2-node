@@ -3090,7 +3090,7 @@ export class TacticalInput {
 
   #groupSounds(reply: CommandReply): void {
     const data = reply.data as { readonly moved?: readonly number[] } | undefined;
-    for (const id of data?.moved ?? []) this.#env().battleSound(id, 'ok');
+    for (const id of data?.moved ?? []) this.#env().battleSound(id, 'groupOk');
   }
 
   #setUiMouseCursor(): void {

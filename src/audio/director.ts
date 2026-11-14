@@ -306,8 +306,8 @@ export class SoundDirector {
     this.#context = context;
   }
 
-  confirm(soldier: number): void {
-    this.#battleSound(soldier, 'OK1', false);
+  confirm(soldier: number, lowerVolume = false): void {
+    this.#battleSound(soldier, 'OK1', lowerVolume);
   }
 
   attention(soldier: number): void {

@@ -393,7 +393,7 @@ export class TacticalHost {
   #battleSound(soldier: number, sound: BattleSound): void {
     const director = this.#sound.director;
     if (!director) return;
-    if (sound === 'ok') director.confirm(soldier);
+    if (sound === 'ok' || sound === 'groupOk') director.confirm(soldier, sound === 'groupOk');
     else if (sound === 'attention') director.attention(soldier);
     else if (sound === 'curse') director.curse(soldier);
     else director.locked(soldier);

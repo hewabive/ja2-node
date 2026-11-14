@@ -242,4 +242,4 @@ export interface TacticalEnvironment {
   readonly facts: () => MapFacts | null;
 }
 
-export type BattleSound = 'ok' | 'curse' | 'attention' | 'locked';
+export type BattleSound = 'ok' | 'groupOk' | 'curse' | 'attention' | 'locked';

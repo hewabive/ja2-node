@@ -112,7 +112,8 @@ waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBa
 A battle sound of a merc saying a line that does not cut speech (all but HIT1, DIE1, HUMM, NOTHING and GOTIT) goes into
 the speech queue behind that line and any line queued meanwhile, and plays when it reaches the head and his own battle
 sound is over, as `DoMercBattleSound` queues it (`Tactical/Soldier_Control.cc:6101-6115`); in the overhead map and for
-the lowered selection sounds it plays at once (`SpeechPresenter.holdBattleSound`). On `/play` the speech presenter owns
+the lowered selection and group-move sounds, which the original plays through `InternalDoMercBattleSound` at
+`MIDVOLUME` (`Tactical/Handle_UI.cc:1678`, `:4166`, `:4271`), it plays at once (`SpeechPresenter.holdBattleSound`). On `/play` the speech presenter owns
 voice, subtitle and skip (`30`).
 
 ### Music
