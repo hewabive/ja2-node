@@ -126,8 +126,8 @@ export function secretsFound(ctx: StrategicContext): string[] {
   return ctx.content.secrets.filter((s) => isSecretFoundAt(ctx, s.sector)).map((s) => sectorName(sectorFromId(s.sector)));
 }
 
-export function undergroundViews(ctx: StrategicContext): StrategicUndergroundView[] {
+export function undergroundViews(ctx: StrategicContext, itemsIn: (s: Sector) => number): StrategicUndergroundView[] {
   return ctx.state.map.underground
     .filter((u) => getSectorFlagStatus(ctx.state.map, u.sector, SectorFlag.ALREADY_VISITED))
-    .map((u) => ({ sector: sectorName(u.sector), items: u.visibleItems }));
+    .map((u) => ({ sector: sectorName(u.sector), items: itemsIn(u.sector) }));
 }

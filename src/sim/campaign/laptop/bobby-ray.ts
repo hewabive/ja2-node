@@ -448,7 +448,7 @@ function placeHidden(
   loaded: BobbyRayTactical | null,
 ): void {
   if (loaded) for (const o of objects) addItemToPool(loaded.state, gridNo, o, Visibility.INVISIBLE, 0, 0);
-  else addItemsToUnloadedSector(ctx.state, sector, gridNo, objects, 0, 0, Visibility.INVISIBLE);
+  else addItemsToUnloadedSector(ctx.state, ctx.tactical.items, sector, gridNo, objects, 0, 0, Visibility.INVISIBLE);
 }
 
 function dropOffItemsInDestination(ctx: LaptopContext, index: number, dest: ShippingDestination, tactical: BobbyRayTactical | null): void {

@@ -119,6 +119,7 @@ export function handleLeavingOfEquipmentInCurrentSector(ctx: ContractContext, m:
     else
       addItemsToUnloadedSector(
         ctx.state,
+        ctx.content.items,
         m.sector,
         gridNo,
         [cloneObject(o)],
@@ -188,7 +189,7 @@ export function handleEquipmentLeft(
     const loaded = tactical !== null && world !== null && world.x === sector.x && world.y === sector.y && world.z === sector.z;
     for (const o of items) {
       if (loaded && tactical) addItemToPool(tactical.state, gridNo, o, Visibility.VISIBLE, 0, WorldItemFlags.REACHABLE);
-      else addItemsToUnloadedSector(ctx.state, sector, gridNo, [o], 0, WorldItemFlags.REACHABLE, Visibility.VISIBLE);
+      else addItemsToUnloadedSector(ctx.state, ctx.content.items, sector, gridNo, [o], 0, WorldItemFlags.REACHABLE, Visibility.VISIBLE);
     }
   }
   leave.items = null;

@@ -36,7 +36,7 @@ import { addRottingCorpse, type CorpseAging, removeAllCorpses } from '../tactica
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { addItemToPool, Visibility } from '../tactical/world-items.ts';
+import { addItemToPool } from '../tactical/world-items.ts';
 
 export interface DiffWorldItem {
   readonly exists: boolean;
@@ -145,12 +145,6 @@ export function captureWorldItems(t: TacticalState): DiffWorldItem[] {
     zHeight: wi.zHeight,
     visible: wi.visible,
   }));
-}
-
-export function visibleItemCount(items: readonly DiffWorldItem[]): number {
-  let n = 0;
-  for (const wi of items) if (wi.exists && wi.visible === Visibility.VISIBLE) n += wi.object.count;
-  return n;
 }
 
 export function captureRevealed(t: TacticalState): RevealedState {

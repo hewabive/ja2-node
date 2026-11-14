@@ -16,7 +16,6 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
-import { setVisibleItemCount } from '../strategic/map/sectors.ts';
 import { worldDay } from '../strategic/time/world-clock.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -64,7 +63,8 @@ import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
 import { campaignCombatContext } from './off-map-combat.ts';
 import type { RosterMerc } from './roster.ts';
-import { type DiffWorldItem, emptySectorDiff, sectorKey, visibleItemCount } from './sector-diff.ts';
+import { type DiffWorldItem, emptySectorDiff, sectorKey } from './sector-diff.ts';
+import { isMapScreenWorldItemVisibleInMapInventory, synchronizeVisibleItemCount } from './sector-item-count.ts';
 
 export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'moveItem',
@@ -156,10 +156,8 @@ interface Stash {
   add(o: ItemObject, gridNo: number, level: number): void;
 }
 
-function visibleInMapInventory(campaign: CampaignSim, o: ItemObject, visible: number): boolean {
-  const items = contentOf(campaign).items;
-  const hidden = ['SWITCH', 'ACTION_ITEM'].map((n) => items.byName.get(n)?.index ?? -2);
-  return visible === Visibility.VISIBLE && !hidden.includes(o.item) && o.trap <= 0;
+function visibleInMapInventory(campaign: CampaignSim, wi: { readonly object: ItemObject; readonly visible: number }): boolean {
+  return isMapScreenWorldItemVisibleInMapInventory(contentOf(campaign).items, wi);
 }
 
 function slotLimit(campaign: CampaignSim, item: number): number {
@@ -198,7 +196,7 @@ function stashFlags(gridNo: number): number {
 function loadedStash(campaign: CampaignSim): Stash {
   const t = campaign.tactical?.state;
   if (!t) throw new Error('no loaded sector');
-  const visible = () => t.worldItems.filter((wi) => visibleInMapInventory(campaign, wi.object, wi.visible));
+  const visible = () => t.worldItems.filter((wi) => visibleInMapInventory(campaign, wi));
   return {
     slots: () => visible().map((wi) => ({ object: wi.object, gridNo: wi.gridNo, level: wi.level, flags: wi.flags })),
     take: (index, count) => {
@@ -234,10 +232,10 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
   const visibleIndices = () =>
     known()
       .map((wi, k) => [wi, k] as const)
-      .filter(([wi]) => wi.exists && visibleInMapInventory(campaign, wi.object, wi.visible))
+      .filter(([wi]) => wi.exists && visibleInMapInventory(campaign, wi))
       .map(([, k]) => k);
   const recount = () => {
-    setVisibleItemCount(state.map, sector, visibleItemCount(records()));
+    synchronizeVisibleItemCount(state.map, contentOf(campaign).items, sector, records());
   };
   return {
     slots: () => visibleIndices().map((k) => known()[k] as DiffWorldItem),

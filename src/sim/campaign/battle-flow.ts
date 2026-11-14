@@ -362,7 +362,7 @@ export class BattleFlow implements FateContext {
   }
 
   removeRandomItemsInSector(sector: Sector, chance: number): void {
-    removeRandomItemsInSector(this.state, this.campaign.tactical?.state ?? null, sector, chance, this.state.rng);
+    removeRandomItemsInSector(this.state, this.content.items, this.campaign.tactical?.state ?? null, sector, chance, this.state.rng);
   }
 
   #loyalty(event: number, sector: Sector): void {

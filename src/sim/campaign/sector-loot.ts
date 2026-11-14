@@ -5,12 +5,13 @@
 // @src through Tactical/Keys.cc DropKeysInKeyRing's unloaded path, 2026-11-05; the zeroed definition's profile 0,
 // @src 2026-11-06), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
 // @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo;
-// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector;
+// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector (its SaveWorldItemsToTempItemFile recounts the
+// @src sector's visible items, as AddItemsToUnLoadedSector's does, 2026-11-14);
 // @src Strategic/Strategic_Movement.cc AddCorpsesToBloodcatLair (the facing drawn on a cosmetic stream; the zeroed
 // @src definition leaves profile 0 and level 0).
 
 import { type CorpseTable, corpseTypeFor } from '../../content/anim/corpses.ts';
-import { ItemClass } from '../../content/items/items.ts';
+import { ItemClass, type ItemTable } from '../../content/items/items.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { gridNoOnVisibleWorldTile } from '../../content/world/render-bounds.ts';
@@ -30,6 +31,7 @@ import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { removeWorldItem, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { type DiffWorldItem, emptySectorDiff, type SectorDiff, sectorKey } from './sector-diff.ts';
+import { synchronizeVisibleItemCount } from './sector-item-count.ts';
 
 const DROPPED_ITEM_FLAGS = WorldItemFlags.FIND_SWEETSPOT_FROM_GRIDNO | WorldItemFlags.REACHABLE;
 const NOT_RENDERED_ABOVE_LEVEL = 0;
@@ -119,6 +121,7 @@ function placeIntoFreeSlot(items: DiffWorldItem[], record: DiffWorldItem): void 
 
 export function addItemsToUnloadedSector(
   state: StrategicState,
+  items: ItemTable,
   sector: Sector,
   gridNo: number,
   objects: readonly ItemObject[],
@@ -132,6 +135,7 @@ export function addItemsToUnloadedSector(
   for (const object of objects)
     placeIntoFreeSlot(diff.items, { exists: true, gridNo, level, object, flags: usedFlags, zHeight: NOT_RENDERED_ABOVE_LEVEL, visible });
   setSectorFlag(state.map, sector, SectorFlag.ITEM_TEMP_FILE_EXISTS, worldDay(state.clock));
+  synchronizeVisibleItemCount(state.map, items, sector, diff.items);
 }
 
 export function addRottingCorpseToUnloadedSector(state: StrategicState, sector: Sector, corpse: Corpse): void {
@@ -148,9 +152,10 @@ export function addDeadSoldierToUnloadedSector(
   record: CorpseRecord,
   keySector: Sector = sector,
 ): void {
-  addItemsToUnloadedSector(state, sector, record.gridNo, record.items, record.level, DROPPED_ITEM_FLAGS, Visibility.VISIBLE);
+  const items = content.items;
+  addItemsToUnloadedSector(state, items, sector, record.gridNo, record.items, record.level, DROPPED_ITEM_FLAGS, Visibility.VISIBLE);
   if (record.keys.length > 0)
-    addItemsToUnloadedSector(state, keySector, record.gridNo, record.keys, record.level, DROPPED_ITEM_FLAGS, Visibility.VISIBLE);
+    addItemsToUnloadedSector(state, items, keySector, record.gridNo, record.keys, record.level, DROPPED_ITEM_FLAGS, Visibility.VISIBLE);
   const s = record.soldier;
   addRottingCorpseToUnloadedSector(state, sector, {
     gridNo: record.gridNo,
@@ -187,16 +192,17 @@ export function addCorpsesToBloodcatLair(state: StrategicState, table: CorpseTab
   for (const gridNo of LAIR_CORPSE_GRID_NOS) addRottingCorpseToUnloadedSector(state, sector, { ...definition, gridNo });
 }
 
-export function stealFromUnloadedSector(state: StrategicState, sector: Sector, chance: number, rng: LootRandom): number {
-  const items = state.sectorDiffs.get(sectorKey(sector))?.items;
-  if (!items) return 0;
+export function stealFromUnloadedSector(state: StrategicState, items: ItemTable, sector: Sector, chance: number, rng: LootRandom): number {
+  const records = state.sectorDiffs.get(sectorKey(sector))?.items;
+  if (!records) return 0;
   let stolen = 0;
-  items.forEach((wi, k) => {
+  records.forEach((wi, k) => {
     if (!wi.exists || wi.visible !== Visibility.VISIBLE || !(wi.flags & WorldItemFlags.REACHABLE)) return;
     if (rng.int(PERCENT) >= chance) return;
-    items[k] = { ...wi, exists: false };
+    records[k] = { ...wi, exists: false };
     stolen++;
   });
+  if (stolen > 0) synchronizeVisibleItemCount(state.map, items, sector, records);
   return stolen;
 }
 
@@ -213,6 +219,7 @@ export function stealFromLoadedSector(t: TacticalState, chance: number, rng: Loo
 
 export function removeRandomItemsInSector(
   state: StrategicState,
+  items: ItemTable,
   tactical: TacticalState | null,
   sector: Sector,
   chance: number,
@@ -220,5 +227,5 @@ export function removeRandomItemsInSector(
 ): number {
   const world = state.worldSector;
   if (tactical && world && sameSector(world, sector)) return stealFromLoadedSector(tactical, chance, rng);
-  return stealFromUnloadedSector(state, sector, chance, rng);
+  return stealFromUnloadedSector(state, items, sector, chance, rng);
 }

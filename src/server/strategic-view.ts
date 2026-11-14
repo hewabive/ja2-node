@@ -11,6 +11,7 @@ import {
 import type { StrategicGroupView, StrategicMercView, StrategicSectorView, StrategicTownView, StrategicView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { campaignStatus } from '../sim/campaign/ending-state.ts';
+import { visibleItemsInSector } from '../sim/campaign/sector-item-count.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
 import { militiaTrainingAllowedInSector } from '../sim/strategic/economy/militia-rules.ts';
@@ -91,7 +92,15 @@ function showsTownBoxDetails(ctx: StrategicContext, s: Sector, town: number): bo
   return town !== 0 || (isThisSectorASamSector(ctx, s) && isSecretFoundAt(ctx, sectorId(s)));
 }
 
-function sectorView(ctx: StrategicContext, s: Sector, scan: SurfaceScan, previous: StrategicSectorView | undefined): StrategicSectorView {
+type ItemsInSector = (s: Sector) => number;
+
+function sectorView(
+  ctx: StrategicContext,
+  s: Sector,
+  scan: SurfaceScan,
+  itemsIn: ItemsInSector,
+  previous: StrategicSectorView | undefined,
+): StrategicSectorView {
   const map = ctx.state.map;
   const info = sectorInfo(map, s);
   const element = map.elements[strategicIndex(s)];
@@ -100,6 +109,7 @@ function sectorView(ctx: StrategicContext, s: Sector, scan: SurfaceScan, previou
   const details = showsTownBoxDetails(ctx, s, town);
   const playerControlled = (visited || details) && element ? !element.enemyControlled : null;
   const enemies = knownEnemies(ctx, s, scan);
+  const items = itemsIn(s);
   const view: StrategicSectorView = {
     sector: sectorName(s),
     visited,
@@ -107,7 +117,7 @@ function sectorView(ctx: StrategicContext, s: Sector, scan: SurfaceScan, previou
     playerControlled,
     enemies,
     militia: [...info.militia],
-    ...(info.visibleItems > 0 ? { items: info.visibleItems } : {}),
+    ...(items > 0 ? { items } : {}),
     ...(details ? { militiaTraining: info.militiaTrainingPercentDone } : {}),
     ...(scan.knowledge(s) !== EnemyKnowledge.NOTHING ? { enemiesKnown: true } : {}),
     ...(town !== 0 && info.facilities !== 0 ? { facilities: info.facilities } : {}),
@@ -140,7 +150,7 @@ function sameViews(a: readonly StrategicSectorView[], b: readonly StrategicSecto
   return true;
 }
 
-function sectorViews(ctx: StrategicContext, scan: SurfaceScan): readonly StrategicSectorView[] {
+function sectorViews(ctx: StrategicContext, scan: SurfaceScan, itemsIn: ItemsInSector): readonly StrategicSectorView[] {
   const known = sectorViewsOfMap.get(ctx.state.map) ?? { bySector: [], listed: [] };
   sectorViewsOfMap.set(ctx.state.map, known);
   const sectors: StrategicSectorView[] = [];
@@ -148,7 +158,7 @@ function sectorViews(ctx: StrategicContext, scan: SurfaceScan): readonly Strateg
     for (let x = 1; x <= MAP_SIDE; x++) {
       const s = { x, y, z: 0 };
       const id = sectorId(s);
-      const view = sectorView(ctx, s, scan, known.bySector[id]);
+      const view = sectorView(ctx, s, scan, itemsIn, known.bySector[id]);
       known.bySector[id] = view;
       if (interestingSector(view, s, scan)) sectors.push(view);
     }
@@ -275,7 +285,8 @@ function economyViews(campaign: CampaignSim): Pick<StrategicView, 'townControl' 
 export function strategicView(campaign: CampaignSim): StrategicView | undefined {
   const ctx = campaign.strategic;
   if (!ctx) return undefined;
-  const sectors = sectorViews(ctx, surfaceScan(ctx));
+  const itemsIn = (s: Sector) => visibleItemsInSector(campaign, s);
+  const sectors = sectorViews(ctx, surfaceScan(ctx), itemsIn);
   const world = campaign.state.worldSector;
   const vehicles = vehicleViews(campaign);
   const helicopter = helicopterView(campaign);
@@ -314,7 +325,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     towns: townLoyalties(campaign),
     ...economyViews(campaign),
     secretsFound: secretsFound(ctx),
-    underground: undergroundViews(ctx),
+    underground: undergroundViews(ctx, itemsIn),
     ...mercAccountStatusView(campaign),
     ...laptopSummary(campaign),
     quests: questLog(campaign),

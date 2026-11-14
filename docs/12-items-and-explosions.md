@@ -40,6 +40,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
+| `src/sim/campaign/sector-item-count.ts` | The map's and the town box's item count: the objects the sector inventory shows, stored per sector and recounted at every write of its item records as `SaveWorldItemsToTempItemFile` does, the loaded sector's counted from its world items |
 | `explosions/explosion.ts`, `blast-damage.ts`, `structure-damage.ts`, `item-damage.ts` | Ignition, the tile animation, the spread, damage to soldiers, structures and items, chain reactions |
 | `explosions/wreckage.ts`, `map-changes.ts` | What a wrecked structure leaves around it, recorded as map changes |
 | `explosions/smoke.ts`, `light.ts`, `state.ts` | Gas clouds and gas damage, flares, `ExplosivesState` |

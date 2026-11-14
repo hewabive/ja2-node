@@ -3,9 +3,9 @@ import { scripted } from '../../../tests/support/autoresolve.ts';
 import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { gridNo } from '../../content/world/grid.ts';
-import { createItem } from '../items/object.ts';
+import { createItem, createItems, type ItemObject } from '../items/object.ts';
 import { SectorFlag } from '../strategic/forces/constants.ts';
-import { getSectorFlagStatus } from '../strategic/map/sectors.ts';
+import { getSectorFlagStatus, storedVisibleItemCount } from '../strategic/map/sectors.ts';
 import { createStrategicState } from '../strategic/state.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -156,13 +156,32 @@ describe('drops and corpses in unloaded sectors', () => {
     const state = createStrategicState();
     const gun = content.items.byName.get('GLOCK_17')?.index ?? 0;
     const item = () => createItem(content.items, gun, 90);
-    addItemsToUnloadedSector(state, SECTOR, 100, [item(), item(), item()], 0, WorldItemFlags.REACHABLE, Visibility.VISIBLE);
-    addItemsToUnloadedSector(state, SECTOR, 200, [item()], 0, 0, Visibility.VISIBLE);
-    const stolen = stealFromUnloadedSector(state, SECTOR, 30, scripted([29, 30, 0]));
+    addItemsToUnloadedSector(state, content.items, SECTOR, 100, [item(), item(), item()], 0, WorldItemFlags.REACHABLE, Visibility.VISIBLE);
+    addItemsToUnloadedSector(state, content.items, SECTOR, 200, [item()], 0, 0, Visibility.VISIBLE);
+    const stolen = stealFromUnloadedSector(state, content.items, SECTOR, 30, scripted([29, 30, 0]));
     expect(stolen).toBe(2);
     const items = state.sectorDiffs.get(sectorKey(SECTOR))?.items ?? [];
     expect(items.map((wi) => wi.exists)).toEqual([false, true, false, true]);
-    addItemsToUnloadedSector(state, SECTOR, 300, [item()], 0, 0, Visibility.VISIBLE);
+    addItemsToUnloadedSector(state, content.items, SECTOR, 300, [item()], 0, 0, Visibility.VISIBLE);
     expect(items[0]?.gridNo).toBe(300);
+  });
+
+  it('recounts the objects the map inventory shows at every write: a stack as its objects, no hidden, switch, action item or trap', () => {
+    const state = createStrategicState();
+    const index = (name: string) => content.items.byName.get(name)?.index ?? 0;
+    const clips = createItems(content.items, index('CLIP9_15'), 100, 5);
+    const trapped = { ...createItem(content.items, index('GLOCK_17'), 90), trap: 1 };
+    const add = (o: ItemObject, visible: number) =>
+      addItemsToUnloadedSector(state, content.items, SECTOR, 100, [o], 0, WorldItemFlags.REACHABLE, visible);
+    add(clips, Visibility.VISIBLE);
+    expect(storedVisibleItemCount(state.map, SECTOR)).toBe(5);
+    add(createItem(content.items, index('GLOCK_17'), 90), Visibility.INVISIBLE);
+    add(trapped, Visibility.VISIBLE);
+    for (const hidden of ['SWITCH', 'ACTION_ITEM']) add(createItem(content.items, index(hidden), 100), Visibility.VISIBLE);
+    expect(storedVisibleItemCount(state.map, SECTOR)).toBe(5);
+    add(createItem(content.items, index('GLOCK_17'), 90), Visibility.VISIBLE);
+    expect(storedVisibleItemCount(state.map, SECTOR)).toBe(6);
+    expect(stealFromUnloadedSector(state, content.items, SECTOR, 100, scripted([0, 0, 0, 0, 0]))).toBe(5);
+    expect(storedVisibleItemCount(state.map, SECTOR)).toBe(0);
   });
 });

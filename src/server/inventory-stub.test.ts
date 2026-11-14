@@ -235,6 +235,18 @@ describe('inventory commands in a stub campaign', () => {
     expect(session.tick).toBe(tick);
   });
 
+  it('counts the items of the loaded sector for the map from its world items, live, a stack as its objects', async () => {
+    const squad = await inA10(6);
+    const merc = squad.mercs[0] as number;
+    const session = squad.session;
+    const shown = () => session.view().strategic?.sectors.find((s) => s.sector === 'A10')?.items ?? 0;
+    const before = shown();
+    const clips = slotOf(soldier(squad, merc), 'CLIP9_15');
+    expect(session.dispatch({ type: 'moveItem', soldier: merc, from: clips, to: 'ground' })).toMatchObject({ ok: true });
+    squad.live.advance({ idle: true });
+    expect(shown()).toBe(before + 2);
+  });
+
   it('moves the keys of mercs in no loaded sector and pools their stacks with CTRL on the map screen', async () => {
     const squad = await inA10(8);
     const [a, b] = squad.mercs as [number, number];

@@ -187,6 +187,11 @@ export function findUndergroundSector(map: StrategicMapState, s: Sector): Underg
   return map.underground.find((u) => sameSector(u.sector, s));
 }
 
+export function storedVisibleItemCount(map: StrategicMapState, s: Sector): number {
+  if (s.z === 0) return sectorInfo(map, s).visibleItems;
+  return findUndergroundSector(map, s)?.visibleItems ?? 0;
+}
+
 export function setVisibleItemCount(map: StrategicMapState, s: Sector, count: number): void {
   if (s.z === 0) {
     sectorInfo(map, s).visibleItems = count;

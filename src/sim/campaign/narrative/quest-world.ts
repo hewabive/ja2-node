@@ -1,9 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Event_Handler.cc HandleNPCSystemEvent, CheckForKingpinsMoneyMissing,
-// @src CheckForMissingHospitalSupplies, HandleDelayedItemsArrival (the loaded and unloaded delivery sector);
+// @src CheckForMissingHospitalSupplies, HandleDelayedItemsArrival (the loaded and unloaded delivery sector; the save of the
+// @src unloaded one recounts its visible items, 2026-11-14);
 // @src Tactical/Interface_Dialogue.cc CalcMedicalCost; Tactical/Handle_Items.cc MoveItemPools.
 
+import type { ItemTable } from '../../../content/items/items.ts';
 import { sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8, u32 } from '../../../core/int.ts';
@@ -39,6 +41,7 @@ import { addItemToPool, itemsAt, removeWorldItem, Visibility } from '../../tacti
 import type { CampaignSim } from '../campaign-sim.ts';
 import { mailSpec, sender } from '../laptop/mail.ts';
 import { sectorKey } from '../sector-diff.ts';
+import { synchronizeVisibleItemCount } from '../sector-item-count.ts';
 import { addItemsToUnloadedSector } from '../sector-loot.ts';
 
 export interface Delivery {
@@ -142,6 +145,10 @@ export function primaryDelivery(campaign: CampaignSim): Delivery | null {
   return { sector: sectorFromId(primary.deliverySector, primary.deliverySectorZ), gridNo: primary.gridNo };
 }
 
+function itemTableOf(campaign: CampaignSim): ItemTable | undefined {
+  return campaign.battle?.content.items ?? loadedTactical(campaign)?.content.items;
+}
+
 function deliveryWorld(campaign: CampaignSim): DeliveryWorld {
   const s = campaign.state;
   return {
@@ -151,13 +158,13 @@ function deliveryWorld(campaign: CampaignSim): DeliveryWorld {
     },
     addHiddenAtDelivery: (good: StolenGood, loaded: boolean) => {
       const d = primaryDelivery(campaign);
-      const items = campaign.battle?.content.items ?? loadedTactical(campaign)?.content.items;
+      const items = itemTableOf(campaign);
       const item = items?.byName.get(good.item)?.index;
       if (!d || !items || item === undefined) return;
       const o = good.count > 1 ? createItems(items, item, good.status, good.count) : createItem(items, item, good.status);
       const t = loadedTactical(campaign);
       if (loaded && t) addItemToPool(t, d.gridNo, o, Visibility.INVISIBLE, 0, 0, 0);
-      else addItemsToUnloadedSector(s, d.sector, d.gridNo, [o], 0, 0, Visibility.INVISIBLE);
+      else addItemsToUnloadedSector(s, items, d.sector, d.gridNo, [o], 0, 0, Visibility.INVISIBLE);
     },
     moveLoadedPool: (from) => {
       const d = primaryDelivery(campaign);
@@ -170,11 +177,13 @@ function deliveryWorld(campaign: CampaignSim): DeliveryWorld {
     },
     moveUnloadedItemsAtStolenGridNo: () => {
       const d = primaryDelivery(campaign);
-      const items = d ? s.sectorDiffs.get(sectorKey(d.sector))?.items : null;
-      if (!d || !items) return;
-      items.forEach((wi, k) => {
-        if (wi.gridNo === PABLOS_STOLEN_DEST_GRIDNO) items[k] = { ...wi, gridNo: d.gridNo };
+      const records = d ? s.sectorDiffs.get(sectorKey(d.sector))?.items : null;
+      const items = itemTableOf(campaign);
+      if (!d || !records || !items) return;
+      records.forEach((wi, k) => {
+        if (wi.gridNo === PABLOS_STOLEN_DEST_GRIDNO) records[k] = { ...wi, gridNo: d.gridNo };
       });
+      synchronizeVisibleItemCount(s.map, items, d.sector, records);
     },
   };
 }

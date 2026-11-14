@@ -120,7 +120,6 @@ import {
   resetSectorFlag,
   sectorInfo,
   setSectorFlag,
-  setVisibleItemCount,
   updateLastDayOfPlayerActivity,
 } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
@@ -239,7 +238,6 @@ import {
   restoreSmoke,
   type SectorDiff,
   sectorKey,
-  visibleItemCount,
 } from './sector-diff.ts';
 import {
   type AdjacentJump,
@@ -248,6 +246,7 @@ import {
   exitSectorCommand,
   mercFellIntoPit,
 } from './sector-exits.ts';
+import { synchronizeVisibleItemCount } from './sector-item-count.ts';
 import { addCorpsesToBloodcatLair } from './sector-loot.ts';
 import { lookForSomeoneElseInSectorLater } from './someone-else-in-sector.ts';
 import {
@@ -1456,7 +1455,7 @@ export class SectorFlow {
     handleAllReachableItemsInTheSector(t, teamMembers(t, Team.OUR));
     diff.items = captureWorldItems(t);
     mark(SectorFlag.ITEM_TEMP_FILE_EXISTS, true);
-    setVisibleItemCount(map, world, visibleItemCount(diff.items));
+    synchronizeVisibleItemCount(map, t.content.items, world, diff.items);
     diff.corpses = [...t.corpses];
     mark(SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, true);
     const mapChanges = sectorTempFileChanges(t.mapChanges);

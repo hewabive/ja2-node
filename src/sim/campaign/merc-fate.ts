@@ -157,7 +157,7 @@ function captureSoldier(ctx: FateContext, m: RosterMerc, sector: Sector, gridNo:
   for (let slot = 0; slot < s.inv.length; slot++) {
     const o = s.inv[slot];
     if (!o || o.item === 0) continue;
-    addItemsToUnloadedSector(ctx.economy.state, sector, itemGridNo, [o], 0, 0, HIDDEN_ITEM_VISIBILITY);
+    addItemsToUnloadedSector(ctx.economy.state, ctx.economy.items, sector, itemGridNo, [o], 0, 0, HIDDEN_ITEM_VISIBILITY);
     s.inv[slot] = emptyObject();
   }
 }
