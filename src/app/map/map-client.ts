@@ -126,7 +126,7 @@ export class SessionMapClient implements MapClient {
   }
 
   async command(cmd: CommandEnvelope): Promise<MapCommandReply> {
-    const reply = await this.#session.command(cmd);
+    const reply = await this.#session.commandShown(cmd);
     this.commands.push({ cmd, reply });
     if (!reply.ok) this.#refused?.(reply);
     return reply;

@@ -128,6 +128,14 @@ adds reaches the screens without client work. The stub scenario suites check it 
 after every dispatch and advance (`ReloadingSession` with `tests/support/view-mirror.ts`). The client also keeps the
 message log, the frames not yet played back (which the tactical input lock reads, `30`) and the `welcome` identity.
 
+**A screen's command settles when the shown view holds it.** The session sends a command's frames before its result,
+so `commandShown` waits, after the reply, until playback has applied every frame received before it (a welcome
+releases it too); the map and tactical clients send every command through it. A controller that drops UI state on the
+answer (the item cursor, the militia popup's plan, a confirmed route) therefore does it in the frame whose picture
+already shows the change, never a frame early with the old state under it. The answer waits for playback rather than
+playback jumping to the answer: at 1× the animations of the player's own orders play out, and a held cursor lasts only
+as long as playback lags (the whole idle advance under the instant driver, whose frames all come before the result).
+
 **Animation frames.** A soldier's `frameDelay` depends on breath, life, agility, terrain, combat and stealth, so the
 client cannot compute it: each soldier entry carries the animation state, the logic frame slot, the state's start tick,
 the delay and the tick of the next frame, and gameplay markers arrive as events with ticks (`shotFired`,

@@ -12,14 +12,15 @@ const SMALL_POCKET = 11;
 const DROPPER = 3;
 const STEPS_EAST = 4;
 const QUIET_SEED = 1;
+const MANUAL_DRIVE = '&drive=manual';
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
   const created = (await (await request.post('/api/sessions', { data: { seed: QUIET_SEED } })).json()) as { session: string };
   return created.session;
 }
 
-async function openTactical(page: Page, session: string, extra = ''): Promise<void> {
-  await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual${extra}`);
+async function openTactical(page: Page, session: string, extra = '', drive = MANUAL_DRIVE): Promise<void> {
+  await page.goto(`/play?session=${encodeURIComponent(session)}${drive}${extra}`);
   await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
@@ -48,6 +49,40 @@ async function rightClickWidget(page: Page, id: string): Promise<void> {
   const rect = await page.evaluate((wanted) => window.__ja2Ui.widgets.find((w) => w.id === wanted)?.rect ?? null, id);
   if (!rect) throw new Error(`no widget ${id}`);
   await clickAt(page, rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2), 'right');
+}
+
+async function placeMagazineInRealTime(page: Page, session: string): Promise<void> {
+  await openTactical(page, session, '', '');
+  await clickWidget(page, 'teamFaceRegion0');
+  await rightClickWidget(page, 'teamFaceRegion0');
+  await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.smMerc)).toBe(0);
+  expect((await inventory(page, 0)).find((i) => i.slot === BIG_POCKET)).toMatchObject({ item: 'CLIP9_15', count: 2 });
+  await page.evaluate(
+    ([source, target]) => {
+      const drawn: (readonly [string | null, number, number])[] = [];
+      (window as unknown as { __drawnPockets: typeof drawn }).__drawnPockets = drawn;
+      const sample = () => {
+        const tactical = window.__ja2Ui.tactical;
+        const count = (slot: number) => tactical?.inventory(0).find((i) => i.slot === slot)?.count ?? 0;
+        drawn.push([tactical?.cursorItem ?? null, count(source), count(target)]);
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    },
+    [BIG_POCKET, NEXT_BIG_POCKET] as const,
+  );
+  await clickWidget(page, `slot${BIG_POCKET}`);
+  await clickWidget(page, `slot${NEXT_BIG_POCKET}`);
+  await expect.poll(() => lastCommand(page)).toEqual({ type: 'moveItem', ok: true, reason: null });
+  await expect.poll(async () => (await inventory(page, 0)).find((i) => i.slot === NEXT_BIG_POCKET)?.count).toBe(1);
+  await nextFrames(page, 4);
+  const drawn = await page.evaluate(
+    () => (window as unknown as { __drawnPockets: readonly (readonly [string | null, number, number])[] }).__drawnPockets,
+  );
+  const picked = drawn.findIndex(([cursor]) => cursor === 'CLIP9_15');
+  expect(picked).toBeGreaterThanOrEqual(0);
+  expect(drawn.slice(picked).filter(([cursor, , target]) => cursor === null && target === 0)).toEqual([]);
+  expect(drawn.at(-1)).toEqual([null, 1, 1]);
 }
 
 test.describe('the tactical HUD on the stub sandbox', () => {
@@ -113,6 +148,15 @@ test.describe('the tactical HUD on the stub sandbox', () => {
     expect((await inventory(page, 0)).some((i) => i.slot === SMALL_POCKET)).toBe(false);
     await page.keyboard.press('Escape');
     await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.descriptionOpen)).toBe(false);
+  });
+
+  test('keeps a placed magazine on the cursor until the shown pocket holds it, in real time', async ({ page, request }) => {
+    const running = await newSandbox(request);
+    try {
+      await placeMagazineInRealTime(page, running);
+    } finally {
+      await request.delete(`/api/sessions/${encodeURIComponent(running)}`);
+    }
   });
 
   test('opens the pickup menu with the hand cursor on a tile with two items and picks both up with one order', async ({ page }) => {

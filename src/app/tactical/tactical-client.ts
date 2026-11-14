@@ -80,7 +80,7 @@ export class SessionTacticalClient implements TacticalClient {
   }
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
-    const reply = this.#paused ? { ok: false, reason: PAUSED_REFUSAL } : await this.#session.command(cmd);
+    const reply = this.#paused ? { ok: false, reason: PAUSED_REFUSAL } : await this.#session.commandShown(cmd);
     this.commands.push({ cmd, reply });
     if (!reply.ok) this.#refused?.(reply);
     return reply;

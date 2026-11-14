@@ -16,7 +16,7 @@ class FakeSession {
   readonly sent: CommandEnvelope[] = [];
   reply: CommandReply = { ok: true };
 
-  async command(cmd: CommandEnvelope): Promise<CommandReply> {
+  async commandShown(cmd: CommandEnvelope): Promise<CommandReply> {
     this.sent.push(cmd);
     return this.reply;
   }

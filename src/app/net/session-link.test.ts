@@ -318,6 +318,58 @@ describe('playback', () => {
     expect(rig.client.shownTick).toBe(70);
   });
 
+  it("settles a screen's command once playback has applied every frame sent before its reply, one at the shown tick too", async () => {
+    const rig = await connected();
+    const socket = rig.sockets[0] as FakeSocket;
+    socket.deliver(emptyFrames([10]));
+    rig.client.playFor(50);
+    expect(rig.client.shownTick).toBe(10);
+    const settled: string[] = [];
+    const send = (type: string, shown: boolean): number => {
+      const sent = shown ? rig.client.commandShown({ type }) : rig.client.command({ type });
+      void sent.then(() => settled.push(type));
+      const last = socket.sent.at(-1);
+      return last?.t === 'cmd' ? last.id : -1;
+    };
+    const stance = send('stance', false);
+    const moveItem = send('moveItem', true);
+    socket.deliver(emptyFrames([10]));
+    socket.deliver({ t: 'result', id: stance, ok: true });
+    socket.deliver({ t: 'result', id: moveItem, ok: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toEqual(['stance']);
+    rig.client.playFor(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toEqual(['stance', 'moveItem']);
+    const attach = send('attach', true);
+    socket.deliver(emptyFrames([20, 30]));
+    socket.deliver({ t: 'result', id: attach, ok: true });
+    rig.client.playFor(25);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(rig.client.shownTick).toBe(15);
+    expect(settled).toEqual(['stance', 'moveItem']);
+    rig.client.playFor(100);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toEqual(['stance', 'moveItem', 'attach']);
+  });
+
+  it("settles a screen's command at a welcome, whose view replaces the frames not yet played", async () => {
+    const rig = await connected();
+    const socket = rig.sockets[0] as FakeSocket;
+    let settled = false;
+    void rig.client.commandShown({ type: 'moveItem' }).then(() => {
+      settled = true;
+    });
+    const id = socket.sent.find((m) => m.t === 'cmd')?.id ?? -1;
+    socket.deliver(emptyFrames([40]));
+    socket.deliver({ t: 'result', id, ok: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+    socket.deliver(welcome('s1', 'first', 90));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(true);
+  });
+
   it('remembers the real-time speed after the server stops the driver', async () => {
     const rig = await connected();
     const socket = rig.sockets[0] as FakeSocket;

@@ -143,7 +143,7 @@ import { MilitiaPopup, militiaArt, militiaGeometry } from './militia-popup.ts';
 import { MoveBox } from './move-box.ts';
 import { type MoveFeedback, type MovePlan, MoveSelection, moveMembers } from './move-selection.ts';
 import { type PathGeometry, RouteAnimation, tracePathRoute } from './path-trace.ts';
-import { Plotting, pathSectors } from './plotting.ts';
+import { type ConfirmedRoute, Plotting, pathSectors, withConfirmedRoute } from './plotting.ts';
 import { TEAM_COLUMN_KEYS, TeamColumn, TeamListView, teamGeometry } from './team-list-view.ts';
 import { type TownBoxButtonArt, TownInfoBox } from './town-info-box.ts';
 import { MapUiMessage } from './ui-message.ts';
@@ -318,6 +318,7 @@ export class MapScreen implements Screen {
   #selectedYellow = true;
   #selectedFlashAt = 0;
   #plot: Plotting | null = null;
+  #confirmed: ConfirmedRoute | null = null;
   #changingArrival = false;
   #inventoryOpen = false;
   #sectorInventoryOpen = false;
@@ -1790,7 +1791,7 @@ export class MapScreen implements Screen {
       this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
       return;
     }
-    const reply = await this.#env.client.command(command);
+    const reply = await this.#untilSettled(plot.confirmedRoute(), () => this.#env.client.command(command));
     if (!reply.ok) {
       const text = this.#moveRefusalText(reply, plot.soldier);
       if (text) void this.#mapBox(text);
@@ -1800,6 +1801,15 @@ export class MapScreen implements Screen {
     await this.#routeOtherSelected(plot);
     this.#confirmByRandomMerc(plot.soldier);
     this.#uiMessage(this.#text(MAP_PLOT, Plot.CONFIRMED));
+  }
+
+  async #untilSettled<T>(route: ConfirmedRoute | null, send: () => Promise<T>): Promise<T> {
+    this.#confirmed = route;
+    try {
+      return await send();
+    } finally {
+      if (this.#confirmed === route) this.#confirmed = null;
+    }
   }
 
   async #routeOtherSelected(plot: Plotting): Promise<void> {
@@ -1839,7 +1849,7 @@ export class MapScreen implements Screen {
         this.#plot = null;
         this.#team.stopGlow();
         this.#message.end();
-        if (plot.mode === 'heli') await this.#env.client.command({ type: 'heliCancel' });
+        if (plot.mode === 'heli') await this.#untilSettled(plot.cancelledRoute(), () => this.#env.client.command({ type: 'heliCancel' }));
         else this.#cancelSelectedPaths();
         this.#uiMessage(this.#text(MAP_PLOT, Plot.CANCELED));
         return;
@@ -2305,7 +2315,7 @@ export class MapScreen implements Screen {
         iconFont: p.font('iconFont'),
       },
       {
-        strategic: this.#militia.overlay(strategic),
+        strategic: this.#militia.overlay(withConfirmedRoute(strategic, this.#confirmed)),
         level: this.#level,
         filters: this.filters,
         hover: allowedToHighlight(this.#env.facts, this.#hover) ? this.#hover : null,
@@ -2335,7 +2345,7 @@ export class MapScreen implements Screen {
       origin: this.#origin(),
       font: p.font('font'),
       text: this.#env.text,
-      strategic,
+      strategic: withConfirmedRoute(strategic, this.#confirmed),
       characters: this.list,
       selected: this.#selected,
       level: this.#level,

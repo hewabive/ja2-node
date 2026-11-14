@@ -75,6 +75,7 @@ class FakeClient implements MapClient {
   reply: (cmd: CommandEnvelope) => MapCommandReply = () => ({ ok: true });
   compatible: (item: number, candidate: number) => boolean = () => false;
   itemInfo: ItemInfo | null = null;
+  queriesAnswered: Promise<void> = Promise.resolve();
 
   constructor(view: PlayerView) {
     this.view = view;
@@ -114,6 +115,7 @@ class FakeClient implements MapClient {
 
   async query(request: CommandEnvelope): Promise<HintAnswer> {
     this.queries.push(request);
+    await this.queriesAnswered;
     const answer: InventoryQuery = { sector: String(request.sector), z: 0, usable: this.usable, stash: this.stash, mercs: [] };
     return { ok: true, data: answer };
   }
@@ -500,6 +502,48 @@ describe('the map screen inventory over a scripted session', () => {
       sector: 'D13',
     });
     expect(h.inventory.pool.cursor).toBeNull();
+  });
+
+  it('keeps an item on its cursor until the refreshed pool answers, so it never shows in both places or in neither', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const hollis = (inventory: InventoryItemView[]) => [merc(MERC, 'Hollis', 'D13', inventory)];
+    const h = await harness(hollis([view(HAND, gun.name)]));
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    let answer: () => void = () => undefined;
+    const holdQueries = () => {
+      h.client.queriesAnswered = new Promise((resolve) => {
+        answer = resolve;
+      });
+    };
+    h.client.reply = () => {
+      h.client.view = playerView(hollis([]));
+      h.client.stash = [stashEntry(0, gun.name)];
+      return { ok: true };
+    };
+    await h.click('mercSlot5');
+    holdQueries();
+    await h.click('poolSlot0');
+    expect(h.inventory.merc.panel.cursor).toMatchObject({ item: gun.name });
+    expect(h.inventory.pool.stash).toEqual([]);
+    answer();
+    await h.settle();
+    expect(h.inventory.merc.panel.cursor).toBeNull();
+    expect(h.inventory.pool.stash).toEqual([stashEntry(0, gun.name)]);
+    h.client.reply = () => {
+      h.client.view = playerView(hollis([view(HAND, gun.name)]));
+      h.client.stash = [];
+      return { ok: true };
+    };
+    await h.click('poolSlot0');
+    holdQueries();
+    await h.click('mercSlot5');
+    expect(h.inventory.pool.cursor).toMatchObject({ index: 0 });
+    answer();
+    await h.settle();
+    expect(h.inventory.pool.cursor).toBeNull();
+    expect(h.inventory.pool.stash).toEqual([]);
   });
 
   it('explains why a pool slot cannot be used, in the original order', async () => {

@@ -11,7 +11,9 @@
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
+import type { StrategicView } from '../../../protocol/view.ts';
 import type { HintAnswer } from '../../game-client.ts';
+import { mercById, withMercPath } from './character-list.ts';
 import { parseSectorLabel, sectorLabel } from './facts.ts';
 import type { MovePlan } from './move-selection.ts';
 
@@ -45,6 +47,22 @@ export type PlotShorten =
   | { readonly kind: 'shortenBase'; readonly at: string }
   | { readonly kind: 'shortenLegs' }
   | { readonly kind: 'abort' };
+
+export interface ConfirmedRoute {
+  readonly mode: PlotMode;
+  readonly soldier: number;
+  readonly path: readonly string[];
+}
+
+export function withConfirmedRoute(view: StrategicView, route: ConfirmedRoute | null): StrategicView {
+  if (!route) return view;
+  if (route.mode === 'heli') {
+    const heli = view.helicopter;
+    return heli && !('destroyed' in heli) ? { ...view, helicopter: { ...heli, path: route.path } } : view;
+  }
+  const m = mercById(view, route.soldier);
+  return m ? withMercPath(view, m, route.path) : view;
+}
 
 function sameLabel(a: string | undefined, b: string | undefined): boolean {
   if (a === undefined || b === undefined) return false;
@@ -229,6 +247,14 @@ export class Plotting {
     if (group)
       return { type: 'routeGroup', soldiers: group.soldiers, squads: group.squads, vehicles: group.vehicles, to, ...viaPart, ...shortest };
     return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true };
+  }
+
+  confirmedRoute(): ConfirmedRoute | null {
+    return this.group ? null : { mode: this.mode, soldier: this.soldier, path: this.plottedPath() };
+  }
+
+  cancelledRoute(): ConfirmedRoute | null {
+    return this.group ? null : { mode: this.mode, soldier: this.soldier, path: [] };
   }
 
   routeFor(soldier: number): CommandEnvelope | null {

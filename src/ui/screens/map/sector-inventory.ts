@@ -155,6 +155,16 @@ export class SectorInventory {
     this.#cursor = null;
   }
 
+  async takenOut(): Promise<void> {
+    this.#busy = true;
+    try {
+      await this.refresh();
+      this.#cursor = null;
+    } finally {
+      this.#busy = false;
+    }
+  }
+
   async refresh(): Promise<void> {
     if (!this.#open) return;
     const asked = ++this.#asked;
@@ -240,11 +250,11 @@ export class SectorInventory {
     this.#busy = true;
     try {
       const reply = await this.#host.env.client.command(command);
+      await this.refresh();
       if (reply.ok) placed();
     } finally {
       this.#busy = false;
     }
-    await this.refresh();
   }
 
   locationText(): string {

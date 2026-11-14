@@ -97,10 +97,7 @@ export class MapInventory {
       merc: () => this.#mercSoldier(),
       soldier: (id) => this.#soldier(id),
       stashCursor: () => this.pool.cursor,
-      stashPlaced: () => {
-        this.pool.clearCursor();
-        void this.pool.refresh();
-      },
+      stashPlaced: () => this.pool.takenOut(),
       box: (text, flags) => host.box(text, flags),
       shift: () => host.shift(),
       ctrl: () => host.ctrl(),

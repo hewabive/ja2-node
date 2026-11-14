@@ -47,7 +47,7 @@ export interface MercInventoryHost {
   readonly merc: () => SoldierView | null;
   readonly soldier: (id: number) => SoldierView | null;
   readonly stashCursor: () => StashCursor | null;
-  readonly stashPlaced: () => void;
+  readonly stashPlaced: () => Promise<void>;
   readonly box: (text: string, flags: MessageBoxFlag) => Promise<number>;
   readonly shift: () => boolean;
   readonly ctrl: () => boolean;
@@ -60,6 +60,7 @@ export class MercInventory {
   readonly description: ItemDescriptionBox;
   readonly #host: MercInventoryHost;
   #open = false;
+  #placing = false;
 
   constructor(host: MercInventoryHost) {
     this.#host = host;
@@ -155,12 +156,21 @@ export class MercInventory {
     const stash = this.#host.stashCursor();
     if (!merc || !this.#open) return;
     if (stash) {
-      void this.panel.send(fromStashCommand(stash, merc.id, slot)).then((reply) => {
-        if (reply.ok) this.#host.stashPlaced();
-      });
+      void this.#placeFromStash(stash, merc.id, slot);
       return;
     }
     this.panel.slotPrimary(slot, this.#host.shift(), this.#host.ctrl());
+  }
+
+  async #placeFromStash(stash: StashCursor, soldier: number, slot: number): Promise<void> {
+    if (this.#placing) return;
+    this.#placing = true;
+    try {
+      const reply = await this.panel.send(fromStashCommand(stash, soldier, slot));
+      if (reply.ok) await this.#host.stashPlaced();
+    } finally {
+      this.#placing = false;
+    }
   }
 
   #keyRingPrimary(owner: SoldierView, position: number): void {

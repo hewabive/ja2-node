@@ -47,6 +47,11 @@ interface Pending {
   readonly sentAt: number;
 }
 
+interface ShownWait {
+  readonly frames: number;
+  readonly resolve: () => void;
+}
+
 export interface CommandReply {
   readonly ok: boolean;
   readonly reason?: string;
@@ -97,6 +102,9 @@ export class SessionClient implements ViewerPromptPort {
   readonly #holds = new Set<string>();
   readonly #prompts = new Map<string, ViewerPromptView>();
   readonly #answers = new Map<string, string>();
+  #shownWaits: ShownWait[] = [];
+  #framesReceived = 0;
+  #framesShown = 0;
   #nextId = 1;
   #driver: DriverMode = { mode: 'manual' };
   #realtimeSpeed = 1;
@@ -278,6 +286,7 @@ export class SessionClient implements ViewerPromptPort {
         this.#welcomed = true;
         this.#frames.length = 0;
         this.#bullets.clear();
+        this.#framesShown = this.#framesReceived;
         this.session = m.session;
         this.campaign = m.campaign ?? null;
         this.identity = { engine: m.engine, rules: m.rules };
@@ -288,6 +297,7 @@ export class SessionClient implements ViewerPromptPort {
         this.#latest = m.view;
         this.#shownTick = m.view.tick;
         this.#messages = appendToLog([], m.messages);
+        this.#releaseShownWaits();
         for (const reason of this.#holds) this.#sendHold(reason, true);
         for (const prompt of this.#prompts.values()) this.#sendPrompt(prompt);
         this.onWelcome?.(stateReplaced);
@@ -302,6 +312,7 @@ export class SessionClient implements ViewerPromptPort {
         break;
       case 'frames':
         this.#frames.push(...m.frames);
+        this.#framesReceived += m.frames.length;
         this.#bullets.add(m.frames);
         for (const frame of m.frames) this.#latest = this.#latest && applyViewFrame(this.#latest, frame);
         this.onReceive?.(m.frames);
@@ -342,8 +353,22 @@ export class SessionClient implements ViewerPromptPort {
     const target = Math.min(tick, this.latestTick);
     if (target > this.#shownTick) this.#shownTick = target;
     this.#bullets.forgetBefore(Math.floor(this.#shownTick));
+    this.#framesShown += applied.length;
     if (applied.length > 0) this.onFrames?.(applied);
+    this.#releaseShownWaits();
     return applied.length > 0;
+  }
+
+  #releaseShownWaits(): void {
+    const due = this.#shownWaits.filter((w) => w.frames <= this.#framesShown);
+    if (due.length === 0) return;
+    this.#shownWaits = this.#shownWaits.filter((w) => w.frames > this.#framesShown);
+    for (const wait of due) wait.resolve();
+  }
+
+  #shownFrames(frames: number): Promise<void> {
+    if (frames <= this.#framesShown) return Promise.resolve();
+    return new Promise((resolve) => this.#shownWaits.push({ frames, resolve }));
   }
 
   playFor(elapsedMs: number): boolean {
@@ -362,6 +387,12 @@ export class SessionClient implements ViewerPromptPort {
     const reply = this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }, cmd.type));
     this.lastCommand = cmd;
     this.lastReply = reply;
+    return reply;
+  }
+
+  async commandShown(cmd: CommandEnvelope): Promise<CommandReply> {
+    const reply = await this.command(cmd);
+    await this.#shownFrames(this.#framesReceived);
     return reply;
   }
 
@@ -446,5 +477,7 @@ export class SessionClient implements ViewerPromptPort {
   close(): void {
     this.#link.close();
     this.#rejectPending(LEFT);
+    this.#framesShown = this.#framesReceived;
+    this.#releaseShownWaits();
   }
 }

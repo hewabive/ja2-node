@@ -21,6 +21,8 @@ import { CHANGE_STAT_RECENTLY_DURATION_MS } from './info-panel.ts';
 import { localMessage, MAX_MESSAGES_ON_MAP_BOTTOM } from './message-list.ts';
 
 const PLOT_REST_MS = 250;
+const HELICOPTER_ICONS = 'interface/helicop.sti';
+const HELI_SHADOW_FRAME = 1;
 const ASSIGN_MENU_TRAIN = 5;
 const TRAIN_MENU_TOWN = 1;
 const MESSAGE_BOX = 'messageBox';
@@ -325,6 +327,36 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(lastCommand(f)?.reply).toMatchObject({ ok: true, data: { path: ['D13', 'C13', 'B13'] } });
       f.key('a', 0, 'KeyA');
       expect(f.screen.hook().filters.airspace).toBe(false);
+    }));
+
+  it('draws the confirmed helicopter route from the click until its command settles, as the original sets the path at once', () =>
+    withMap(async (f) => {
+      const passenger = f.mercs[1] ?? -1;
+      expect((await f.client.command({ type: 'boardVehicle', soldier: passenger, vehicle: 'helicopter' })).ok).toBe(true);
+      await f.settle();
+      await f.click('filter4');
+      await f.clickSector('D13');
+      await f.hoverSector('B13', PLOT_REST_MS);
+      await f.clickSector('B13');
+      const send = f.client.command.bind(f.client);
+      let settle: () => void = () => undefined;
+      f.client.command = (cmd) =>
+        cmd.type === 'heliRoute'
+          ? new Promise((resolve) => {
+              settle = () => resolve(send(cmd));
+            })
+          : send(cmd);
+      const shadows = () =>
+        f.draw().items.filter((i) => i.kind === 'image' && i.asset === HELICOPTER_ICONS && i.frame === HELI_SHADOW_FRAME);
+      expect(shadows()).toEqual([]);
+      await f.clickSector('B13');
+      expect(f.screen.hook().plotting).toBeNull();
+      expect(f.client.view.strategic?.helicopter).toMatchObject({ path: [] });
+      expect(shadows()).toHaveLength(1);
+      settle();
+      await f.settle();
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'B13' });
+      expect(shadows()).toHaveLength(1);
     }));
 
   it('compresses time from the arrows: more starts at 5 minutes, less stops, and both wait while plotting', () =>

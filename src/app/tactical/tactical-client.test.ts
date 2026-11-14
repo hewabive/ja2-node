@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { DriverMode } from '../../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode } from '../../protocol/messages.ts';
 import type { HintProvider } from '../hints/hint-provider.ts';
-import type { SessionClient } from '../net/session-client.ts';
+import type { CommandReply, SessionClient } from '../net/session-client.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 
 class FakeSession {
@@ -9,6 +9,7 @@ class FakeSession {
   realtimeSpeed = 1;
   readonly drives: DriverMode[] = [];
   readonly held = new Set<string>();
+  commandShown: (cmd: CommandEnvelope) => Promise<CommandReply> = async () => ({ ok: true });
 
   async drive(driver: DriverMode): Promise<void> {
     this.driver = driver;
@@ -35,5 +36,28 @@ describe('the tactical client clock', () => {
     session.driver = { mode: 'realtime', speed: 8 };
     client.sync();
     expect(session.drives).toHaveLength(1);
+  });
+});
+
+describe('the tactical client commands', () => {
+  it('answers a command once the shown view holds its frames, so the panels keep their cursor until then', async () => {
+    const session = new FakeSession();
+    const client = tacticalClientOn(session);
+    let shown: (reply: CommandReply) => void = () => undefined;
+    session.commandShown = () =>
+      new Promise((resolve) => {
+        shown = resolve;
+      });
+    let answered = false;
+    void client.command({ type: 'moveItem' }).then(() => {
+      answered = true;
+    });
+    await Promise.resolve();
+    expect(answered).toBe(false);
+    shown({ ok: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(answered).toBe(true);
+    expect(client.commands).toEqual([{ cmd: { type: 'moveItem' }, reply: { ok: true } }]);
   });
 });

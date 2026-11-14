@@ -229,6 +229,7 @@ export class MilitiaPopup {
   #cursor: number[] = [0, 0, 0];
   #dirty = false;
   #committing: ReadonlyMap<number, MilitiaCounts> | null = null;
+  #autoPending = false;
   #selected = NO_CELL;
   #outline = NO_CELL;
   #cells: MouseRegion[] = [];
@@ -492,7 +493,7 @@ export class MilitiaPopup {
   }
 
   pickUp(rank: number, id: number): void {
-    if (this.#host.facts.townOf(id) !== this.#town || !this.peaceful(id)) return;
+    if (this.#autoPending || this.#host.facts.townOf(id) !== this.#town || !this.peaceful(id)) return;
     const counts = [...this.militiaIn(id)];
     if ((counts[rank] ?? 0) === 0) return;
     counts[rank] = (counts[rank] ?? 0) - 1;
@@ -503,7 +504,7 @@ export class MilitiaPopup {
   }
 
   drop(rank: number, id: number): void {
-    if (this.#host.facts.townOf(id) !== this.#town || !this.peaceful(id)) return;
+    if (this.#autoPending || this.#host.facts.townOf(id) !== this.#town || !this.peaceful(id)) return;
     const counts = [...this.militiaIn(id)];
     if (total(counts) >= MAX_MILITIA_PER_SECTOR || (this.#cursor[rank] ?? 0) === 0) return;
     this.#cursor[rank] = (this.#cursor[rank] ?? 0) - 1;
@@ -514,12 +515,19 @@ export class MilitiaPopup {
   }
 
   async auto(): Promise<void> {
+    if (this.#autoPending) return;
     const town = this.#town;
+    this.#autoPending = true;
+    try {
+      const reply = await this.#host.send({ type: 'distributeMilitia', town });
+      if (!reply.ok) this.#refused(reply, town);
+    } finally {
+      this.#autoPending = false;
+    }
+    if (this.#town !== town) return;
     this.#cursor = [0, 0, 0];
     this.#dirty = false;
     this.#snapshot();
-    const reply = await this.#host.send({ type: 'distributeMilitia', town });
-    if (!reply.ok) this.#refused(reply, town);
   }
 
   #refused(reply: { readonly data?: unknown }, town: number): void {
@@ -537,7 +545,7 @@ export class MilitiaPopup {
   close(): void {
     if (!this.open) return;
     const town = this.#town;
-    const target = this.#dirty ? this.#plannedGrid() : null;
+    const target = this.#dirty && !this.#autoPending ? this.#plannedGrid() : null;
     const plan = target ? redistribution(this.#base, target) : [];
     for (const region of this.#cells) region.remove();
     this.#cells = [];

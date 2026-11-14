@@ -216,14 +216,30 @@ describe('the militia popup', () => {
     expect(sent).toEqual([]);
   });
 
-  it('evens the town out through distributeMilitia and forgets its own moves', () => {
+  it('evens the town out through distributeMilitia and forgets its own moves once the reply comes, ignoring clicks meanwhile', async () => {
+    let reply: (value: { ok: boolean }) => void = () => undefined;
+    popup = new MilitiaPopup({
+      ...popupHost(),
+      send: (cmd) => {
+        sent.push(cmd);
+        return new Promise((resolve) => {
+          reply = resolve;
+        });
+      },
+    });
     popup.show(DRASSEN);
     press(`militiaCell${D13_CELL}`);
     press('militiaRank0', MouseButton.RIGHT);
     press('militiaAuto');
     expect(sent).toEqual([{ type: 'distributeMilitia', town: DRASSEN }]);
+    press('militiaRank0', MouseButton.RIGHT);
+    expect(popup.cursor).toEqual([1, 0, 0]);
+    expect(popup.militiaIn(D13)).toEqual([4, 3, 1]);
+    view = strategicView(sectors({ D13: { militia: [3, 1, 0] }, C13: { militia: [2, 1, 1] }, B13: { militia: [2, 1, 0] } }));
+    reply({ ok: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(popup.cursor).toEqual([0, 0, 0]);
-    expect(popup.militiaIn(D13)).toEqual([5, 3, 1]);
+    expect(popup.militiaIn(D13)).toEqual([3, 1, 0]);
   });
 
   it('draws the box, the town map, the icons by rank and shades the sectors that are not ours', () => {

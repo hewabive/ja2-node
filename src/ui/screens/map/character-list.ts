@@ -107,6 +107,13 @@ export function mercPath(view: StrategicView, m: StrategicMercView): readonly st
   return groupOfMerc(view, m.id)?.path ?? [];
 }
 
+export function withMercPath(view: StrategicView, m: StrategicMercView, path: readonly string[]): StrategicView {
+  const vehicle = m.assignment === Assignment.VEHICLE || isVehicle(m) ? vehicleOfMerc(view, m) : null;
+  if (vehicle) return { ...view, vehicles: (view.vehicles ?? []).map((v) => (v === vehicle ? { ...v, path } : v)) };
+  const group = groupOfMerc(view, m.id);
+  return group ? { ...view, groups: view.groups.map((g) => (g === group ? { ...g, path } : g)) } : view;
+}
+
 function lastPathSectorId(view: StrategicView, m: StrategicMercView): number {
   const path = mercPath(view, m);
   const last = path.length > 0 ? parseSectorLabel(path[path.length - 1] as string) : null;
