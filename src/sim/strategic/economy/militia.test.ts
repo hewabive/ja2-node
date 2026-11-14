@@ -110,13 +110,57 @@ describe('eligibility and payment', () => {
     sectorInfo(made.ctx.state.map, C13).militiaTrainingPaid = true;
     const leader = made.crew.add({ id: 0, sector: C13 });
     const listed = made.crew.add({ id: 1, sector: D15 });
-    expect(assignSoldiers(made.ctx, [0, 1], { kind: 'trainMilitia' })).toEqual([{ ok: true, militia: 'pending' }, { ok: true }]);
+    expect(assignSoldiers(made.ctx, [0, 1], { kind: 'trainMilitia' })).toEqual([
+      { ok: true, militia: 'pending' },
+      { ok: true, militia: 'pending' },
+    ]);
     expect(made.ctx.state.economy.prompts).toEqual([
       { kind: 'militiaPayment', trainer: 1, leader: 0, soldiers: [1], sectors: [sectorId(D15)], cost: 750, balance: 5000 },
     ]);
     expect(answerPendingMilitiaPrompt(made.ctx, false)).toBe('declined');
     expect([leader.assignment, listed.assignment]).toEqual([Assignment.TRAIN_TOWN, Assignment.SQUAD_1]);
     expect(made.ctx.state.finances.balance).toBe(5000);
+  });
+
+  it('answers each listed merc with the payment his training waits on, and leaderRefused when it fails before the list is set', () => {
+    const pending = context('defer');
+    for (const id of [0, 1]) pending.crew.add({ id, sector: C13 });
+    pending.crew.add({ id: 2, sector: D13, isVehicle: true });
+    expect(assignSoldiers(pending.ctx, [0, 1, 2, 9], { kind: 'trainMilitia' })).toEqual([
+      { ok: true, militia: 'pending' },
+      { ok: true, militia: 'pending' },
+      { ok: false, reason: 'notEligible' },
+      { ok: false, reason: 'unknownSoldier' },
+    ]);
+    expect(pending.crew.get(1)?.assignment).toBe(Assignment.ON_DUTY);
+    for (const [answer, outcome] of [
+      ['no', 'declined'],
+      ['yes', 'cannotAfford'],
+    ] as const) {
+      const refused = context(answer);
+      if (outcome === 'cannotAfford') refused.ctx.state.finances.balance = 700;
+      for (const id of [0, 1]) refused.crew.add({ id, sector: C13 });
+      expect(assignSoldiers(refused.ctx, [0, 1], { kind: 'trainMilitia' })).toEqual([
+        { ok: true, militia: outcome },
+        { ok: false, reason: 'leaderRefused' },
+      ]);
+      expect(refused.crew.get(1)?.assignment).toBe(Assignment.ON_DUTY);
+    }
+    const nested = context('yes');
+    nested.ctx.state.finances.balance = 700;
+    sectorInfo(nested.ctx.state.map, C13).militiaTrainingPaid = true;
+    for (const [id, sector] of [
+      [0, C13],
+      [1, C13],
+      [2, D15],
+    ] as const)
+      nested.crew.add({ id, sector });
+    expect(assignSoldiers(nested.ctx, [0, 1, 2], { kind: 'trainMilitia' })).toEqual([
+      { ok: true, militia: 'cannotAfford' },
+      { ok: true },
+      { ok: true, militia: 'cannotAfford' },
+    ]);
+    expect([1, 2].map((id) => nested.crew.get(id)?.assignment)).toEqual([Assignment.TRAIN_TOWN, Assignment.SQUAD_1]);
   });
 
   it('puts the trainers of unpaid sectors on a squad when the payment is declined or unaffordable', () => {

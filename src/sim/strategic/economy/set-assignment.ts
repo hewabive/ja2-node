@@ -240,21 +240,6 @@ function setForList(ctx: EconomyContext, others: readonly CrewMember[], leader: 
   return others.flatMap((o) => (setForListMember(ctx, o, leader, to) ? [] : [o.id]));
 }
 
-function setForListPromptingOnce(
-  ctx: EconomyContext,
-  leader: CrewMember,
-  others: readonly CrewMember[],
-  setAssignmentForList: () => readonly number[],
-): MilitiaPaymentOutcome | null {
-  const to: AssignTarget = { kind: 'trainMilitia' };
-  let firstUnpaid: CrewMember | null = null;
-  for (const o of others) {
-    if (!setForListMember(ctx, o, leader, to)) continue;
-    if (!firstUnpaid && !sectorInfo(ctx.state.map, o.sector).militiaTrainingPaid) firstUnpaid = o;
-  }
-  return firstUnpaid ? startMilitiaPaymentFlow(ctx, firstUnpaid, others, { leader: leader.id, setAssignmentForList }) : null;
-}
-
 type MenuTarget = Extract<AssignTarget, { readonly kind: 'doctor' | 'patient' | 'trainSelf' | 'trainTeammate' | 'trainByOther' }>;
 
 function setLeaderFromMenu(ctx: EconomyContext, s: CrewMember, to: MenuTarget): boolean {
@@ -274,20 +259,7 @@ function setLeaderFromMenu(ctx: EconomyContext, s: CrewMember, to: MenuTarget): 
   }
 }
 
-function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewMember[], to: AssignTarget): AssignResult {
-  if (to.kind === 'trainMilitia') {
-    const refusal = militiaRefusal(ctx, s);
-    if (refusal) return { ok: false, reason: refusal };
-    preChangeAssignment(ctx, s);
-    stampIfChanged(ctx, s, Assignment.TRAIN_TOWN);
-    postSetAssignment(ctx, s, Assignment.TRAIN_TOWN, REFLECTS_OLD_ASSIGNMENT);
-    const setAssignmentForList = () => setForList(ctx, others, s, to);
-    if (sectorInfo(ctx.state.map, s.sector).militiaTrainingPaid) {
-      const nested = setForListPromptingOnce(ctx, s, others, setAssignmentForList);
-      return { ok: true, militia: nested ?? 'alreadyPaid' };
-    }
-    return { ok: true, militia: startMilitiaPaymentFlow(ctx, s, others, { leader: s.id, setAssignmentForList }) };
-  }
+function assignLeader(ctx: EconomyContext, s: CrewMember, to: Exclude<AssignTarget, { readonly kind: 'trainMilitia' }>): AssignResult {
   if (to.kind === 'repair') {
     const ok = setSoldierAssignmentRepair(ctx, s, to.robot === true, to.vehicle ?? -1);
     return ok ? { ok: true } : { ok: false, reason: 'notEligible' };
@@ -317,13 +289,50 @@ function listMemberResult(ctx: EconomyContext, o: CrewMember | undefined, leader
   return setForListMember(ctx, o, leader, to) ? ASSIGNED : NOT_ELIGIBLE;
 }
 
-function trainerResult(o: CrewMember | undefined): AssignResult {
+function untouchedResult(o: CrewMember | undefined): AssignResult {
+  return o ? LEADER_REFUSED : UNKNOWN_SOLDIER;
+}
+
+function militiaTrainingPaid(ctx: EconomyContext, s: CrewMember): boolean {
+  return sectorInfo(ctx.state.map, s.sector).militiaTrainingPaid;
+}
+
+function setTrainerResult(
+  o: CrewMember | undefined,
+  set: readonly CrewMember[],
+  unpaid: readonly CrewMember[],
+  payment: MilitiaPaymentOutcome,
+): AssignResult {
   if (!o) return UNKNOWN_SOLDIER;
+  if (!set.includes(o)) return NOT_ELIGIBLE;
+  return unpaid.includes(o) && payment !== 'paid' ? { ok: true, militia: payment } : ASSIGNED;
+}
+
+function waitingTrainerResult(o: CrewMember | undefined, payment: MilitiaPaymentOutcome): AssignResult {
+  if (!o) return UNKNOWN_SOLDIER;
+  if (o.isVehicle) return NOT_ELIGIBLE;
+  if (payment === 'pending') return { ok: true, militia: payment };
+  if (payment !== 'paid') return LEADER_REFUSED;
   return o.assignment === Assignment.TRAIN_TOWN ? ASSIGNED : NOT_ELIGIBLE;
 }
 
-function untouchedResult(o: CrewMember | undefined): AssignResult {
-  return o ? LEADER_REFUSED : UNKNOWN_SOLDIER;
+function assignTrainers(ctx: EconomyContext, leader: CrewMember, rest: readonly (CrewMember | undefined)[]): AssignResult[] {
+  const refusal = militiaRefusal(ctx, leader);
+  if (refusal) return [{ ok: false, reason: refusal }, ...rest.map(untouchedResult)];
+  const to: AssignTarget = { kind: 'trainMilitia' };
+  const others = rest.filter((m): m is CrewMember => m !== undefined && !m.isVehicle);
+  preChangeAssignment(ctx, leader);
+  stampIfChanged(ctx, leader, Assignment.TRAIN_TOWN);
+  postSetAssignment(ctx, leader, Assignment.TRAIN_TOWN, REFLECTS_OLD_ASSIGNMENT);
+  const flow = { leader: leader.id, setAssignmentForList: () => setForList(ctx, others, leader, to) };
+  if (!militiaTrainingPaid(ctx, leader)) {
+    const payment = startMilitiaPaymentFlow(ctx, leader, others, flow);
+    return [{ ok: true, militia: payment }, ...rest.map((o) => waitingTrainerResult(o, payment))];
+  }
+  const set = others.filter((o) => setForListMember(ctx, o, leader, to));
+  const unpaid = set.filter((o) => !militiaTrainingPaid(ctx, o));
+  const payment = unpaid[0] ? startMilitiaPaymentFlow(ctx, unpaid[0], others, flow) : 'alreadyPaid';
+  return [{ ok: true, militia: payment }, ...rest.map((o) => setTrainerResult(o, set, unpaid, payment))];
 }
 
 function assignWithList(
@@ -332,10 +341,9 @@ function assignWithList(
   rest: readonly (CrewMember | undefined)[],
   to: AssignTarget,
 ): AssignResult[] {
-  const others = rest.filter((m): m is CrewMember => m !== undefined && !m.isVehicle);
-  const led = assignLeader(ctx, leader, others, to);
+  if (to.kind === 'trainMilitia') return assignTrainers(ctx, leader, rest);
+  const led = assignLeader(ctx, leader, to);
   if (!led.ok && !listFollowsRefusedLeader(to)) return [led, ...rest.map(untouchedResult)];
-  if (led.ok && to.kind === 'trainMilitia') return [led, ...rest.map(trainerResult)];
   return [led, ...rest.map((o) => listMemberResult(ctx, o, leader, to))];
 }
 

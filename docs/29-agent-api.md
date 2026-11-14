@@ -943,7 +943,12 @@ for the batch, so `data.refusal` names the first failure (§5). When the first s
 assignments (`leaderRefused`), as every menu but the squad menu sets the list only after its merc's check; a squad's
 list runs after the refusal. Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and
-continue prompts"). A refusal puts the trainers back on a squad at once and comes as `militiaTrainingRejected {soldiers,
+continue prompts"). The first soldier's `militia` names that payment: `alreadyPaid`, `paid`, `pending` (the prompt is
+open), `declined`, `cannotAfford`, `fundsGone`. In an unpaid sector his list waits for the yes, as
+`StartTrainingInAllUnpaidTrainableSectors` sets it (`Strategic/Town_Militia.cc:842-845`): the listed mercs answer
+`{ok: true, militia: 'pending'}` while the prompt is open, and `leaderRefused` when the payment fails at once. In a paid
+sector the list is set at once, and a listed merc in an unpaid sector, whose sector the payment is asked for, carries
+its outcome the same way: `pending`, or the refusal that put him back on a squad. A refusal puts the trainers back on a squad at once and comes as `militiaTrainingRejected {soldiers,
 reason, sector, cost}`: `declined`, `cannotAfford` (the balance is short of `cost` before anyone asks), `fundsGone` (a
 yes the balance no longer covers, also the `answer`'s `outcome`), and for a finished session `loyaltyTooLow` and
 `militiaFull`, checked in that order before the cost; the page boxes each but `declined` (`30`). The yes to

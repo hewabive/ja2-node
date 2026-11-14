@@ -57,6 +57,7 @@ const ANSWERED_BY_THE_SCREENS: readonly string[] = [
   'mergePrompt',
   'permanentAttachment',
   'noMilitiaHere',
+  'leaderRefused',
   'alreadyInSquad',
   'boxingInProgress',
 ];
