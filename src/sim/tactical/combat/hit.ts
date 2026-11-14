@@ -520,9 +520,9 @@ function soldierGotHitGunFire(t: TacticalState, s: Soldier, direction: number, a
   let blownAway = false;
   let headHit = false;
   let fallenOver = false;
-  if (!isMonster(s) && endHeight(t.content, s.state) === AnimHeight.STAND && att) {
+  if (!isMonster(s) && endHeight(t.content, s.state) === AnimHeight.STAND) {
     if (special === Special.HEAD_EXPLODE) {
-      if (t.options.bloodAndGore && spacesAway(s.gridNo, att.gridNo) <= MAX_DISTANCE_FOR_MESSY_DEATH) {
+      if (t.options.bloodAndGore && att && spacesAway(s.gridNo, att.gridNo) <= MAX_DISTANCE_FOR_MESSY_DEATH) {
         const g1 = newGridNo(s.gridNo, DIRECTION_INCREMENT[s.direction] ?? 0);
         if (okFallDirection(t, s, g1, s.level, s.direction, anim(t.content, 'JFK_HITDEATH'))) {
           const g2 = newGridNo(g1, DIRECTION_INCREMENT[s.direction] ?? 0);
@@ -530,7 +530,7 @@ function soldierGotHitGunFire(t: TacticalState, s: Soldier, direction: number, a
         }
       }
     } else if (special === Special.CHEST_EXPLODE) {
-      if (t.options.bloodAndGore && spacesAway(s.gridNo, att.gridNo) <= MAX_DISTANCE_FOR_MESSY_DEATH && s.direction === direction) {
+      if (t.options.bloodAndGore && att && spacesAway(s.gridNo, att.gridNo) <= MAX_DISTANCE_FOR_MESSY_DEATH && s.direction === direction) {
         const opp = opposite(direction);
         const g1 = newGridNo(s.gridNo, DIRECTION_INCREMENT[opp] ?? 0);
         if (okFallDirection(t, s, g1, s.level, opp, anim(t.content, 'FLYBACK_HIT'))) {

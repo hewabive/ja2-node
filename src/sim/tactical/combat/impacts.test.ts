@@ -187,6 +187,15 @@ describe('the fall of a leg hit (Soldier_Control.cc SoldierGotHitGunFire)', () =
     ]);
   });
 
+  it('knocks a soldier over on a leg hit with no attacker: only the head and chest branches read the attacker', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
+    const gun = merc.inv[InvSlot.HAND]?.item ?? 0;
+    eventSoldierGotHit(sim.state, merc, gun, 5, 0, merc.direction, 0, null, Special.LEG_FALLDOWN, AimShot.LEGS);
+    expect(sim.drainEvents().filter((e) => e.type === 'knockedOver')).toEqual([{ type: 'knockedOver', tick: 0, soldier: merc.id }]);
+    expect(merc.collapsed).toBe(true);
+  });
+
   it('tells nothing for a leg hit without the fall', () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
