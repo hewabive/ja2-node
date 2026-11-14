@@ -234,6 +234,22 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refusalEntry(9, swap, refuse('cannotExchange', 'moving'), facts)).toBeNull();
   });
 
+  it("prints the medkit cursor's refusals with the medic who has no medical skill and otherwise the patient, whatever his team", () => {
+    const refused = (refusal: string, patient: number) =>
+      refusalEntry(9, { type: 'bandage', soldier: 0, target: patient }, refuse(refusal, refusal, { patient }), facts);
+    const feedback = { tick: 9, kind: 'uiFeedback', colour: 144 };
+    expect(refused('mechanical', 116)).toEqual({ ...feedback, table: 'TacticalStr', index: 32, args: [{ text: 'Fatima' }] });
+    expect(refused('noMedicalSkill', 1)).toEqual({ ...feedback, table: 'pMessageStrings', index: 31, args: [{ text: 'Ivan' }] });
+    expect(refused('notBleeding', 60)).toEqual({
+      ...feedback,
+      table: 'gzLateLocalizedString',
+      index: 18,
+      args: [{ string: { table: 'TacticalStr', index: 92 } }],
+    });
+    expect(refused('noNeed', 20)).toEqual({ ...feedback, table: 'TacticalStr', index: 33, args: [{ text: 'Soldier' }] });
+    expect(refused('noKit', 1)).toBeNull();
+  });
+
   it('leaves the refusals of a sector exit to the exit cursor, which prints its own lines', () => {
     const refused = refuse('uncontrolledRobot', 'the robot cannot leave without a merc using its controller');
     expect(refusalEntry(9, { type: 'exitSector', soldier: 0, direction: 'north' }, refused, facts)).toBeNull();

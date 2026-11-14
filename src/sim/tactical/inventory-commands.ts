@@ -8,7 +8,8 @@
 // @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts); Squads.cc
 // @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01); Soldier_Find.cc FindSoldier (the
 // @src medkit's patient is never a passenger, 2026-11-05); UI_Cursors.cc HandleNonActivatedTargetCursor (the good or bad
-// @src reload cursor over a target and its APs, 2026-11-09).
+// @src reload cursor over a target and its APs, 2026-11-09); Soldier_Find.cc FindSoldier (no patient the squad does not
+// @src see; the patient named in a refusal for the medkit's lines, 2026-11-14).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
@@ -42,9 +43,9 @@ import { KeyRingRefusal, type KeySpot, moveKey, tacticalKeyRingWorld } from './k
 import { soldierAssignment } from './narrative/assignment.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
-import { refuse } from './refusal.ts';
+import { type RefusalDetail, refuse } from './refusal.ts';
 import { currentSquad } from './selection.ts';
-import { Body, inVehicle, OKLIFE, onTheGrid, type Soldier, Team } from './soldier.ts';
+import { Body, inVehicle, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type CombineCursor, combineStacks } from './stack-cleanup.ts';
 import { type TacticalState, teamMembers } from './state.ts';
@@ -171,8 +172,8 @@ export function parseCount(value: unknown, fallback: Count): Count | null {
   return value === 1 ? 1 : null;
 }
 
-export function refusal(code: InventoryRefusal): CommandResult {
-  return refuse(code, `${code}: ${INVENTORY_REFUSAL_TEXT[code]}`);
+export function refusal(code: InventoryRefusal, detail?: RefusalDetail): CommandResult {
+  return refuse(code, `${code}: ${INVENTORY_REFUSAL_TEXT[code]}`, detail);
 }
 
 export function outcomeResult(outcome: PanelOutcome): CommandResult {
@@ -430,9 +431,9 @@ function moveKeyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Co
 
 function bandageCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const patient = typeof cmd.target === 'number' ? (t.soldiers[cmd.target] ?? null) : s;
-  const target = patient && onTheGrid(patient) && patient.level === s.level ? patient : null;
+  const target = patient && onTheGrid(patient) && patient.level === s.level && shownToPlayer(patient) ? patient : null;
   const refused = firstAidTargetRefusal(t, s, target);
-  if (refused) return refusal(refused);
+  if (refused) return refusal(refused, target ? { patient: target.id } : {});
   removePendingAction(t, s);
   const started = beginFirstAid(t, s, (target as Soldier).gridNo);
   if (started) return refusal(started);

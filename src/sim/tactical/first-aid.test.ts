@@ -10,7 +10,7 @@ import type { TacticalContent } from './content.ts';
 import { soldierDressWound } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
 import { AP } from './points.ts';
-import { NOBODY, Team } from './soldier.ts';
+import { NOBODY, Team, Visible } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
 let content: TacticalContent;
@@ -41,9 +41,24 @@ describe('first aid in tactical', () => {
     expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({ ok: false, data: { refusal: 'noKit' } });
     expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand' })).toMatchObject({ ok: true });
     patient.bleeding = 0;
-    expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({ ok: false, data: { refusal: 'notBleeding' } });
+    expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notBleeding', patient: 1 },
+    });
     patient.life = patient.lifeMax;
-    expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({ ok: false, data: { refusal: 'noNeed' } });
+    expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({ ok: false, data: { refusal: 'noNeed', patient: 1 } });
+  });
+
+  it('takes no patient the squad does not see, as the medkit cursor never finds him', () => {
+    const sim = newCombatSim(content);
+    const { medic } = bleedingSquad(sim);
+    medic.inv[InvSlot.HAND] = createItem(content.items, item('FIRSTAIDKIT'), 100);
+    const stranger = spawnSoldier(sim, 116, Team.CIV, gridNo(80, 79), Direction.SOUTH);
+    stranger.visible = Visible.HIDDEN;
+    const bandageStranger = () => sim.dispatch({ type: 'bandage', soldier: medic.id, target: stranger.id });
+    expect(bandageStranger()).toEqual({ ok: false, reason: expect.any(String), data: { refusal: 'noTarget' } });
+    stranger.visible = Visible.SEEN;
+    expect(bandageStranger()).toMatchObject({ ok: false, data: { refusal: 'noNeed', patient: stranger.id } });
   });
 
   it('stops the bleeding of an adjacent merc in real time, spending kit points and ending with END_AID', () => {

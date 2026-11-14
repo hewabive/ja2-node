@@ -12,7 +12,8 @@
 // @src Interface_Items.cc HandleItemPointerClick (CANNOT_THROW_TO_DEST_STR, 2026-11-03), Turn_Based_Input.cc
 // @src HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT, 2026-11-03;
 // @src VEHICLE_CANT_MOVE_IN_TACTICAL, 2026-11-05); Tactical/Auto_Bandage.cc BeginAutoBandage (AUTOBANDAGE_NOT_NEEDED,
-// @src STR_LATE_09, CANT_AUTOBANDAGE_PROMPT, 2026-11-06).
+// @src STR_LATE_09, CANT_AUTOBANDAGE_PROMPT, 2026-11-06); Handle_UI.cc UIMouseOnValidAttackLocation (the medkit's
+// @src CANNOT_DO_FIRST_AID_STR, MSG_MERC_HAS_NO_MEDSKILL, STR_LATE_19, CANNOT_NO_NEED_FIRST_AID_STR, 2026-11-14).
 
 export interface UiTextKey {
   readonly table: string;
@@ -71,6 +72,10 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   vehicleCantMove: log('TacticalStr', 128),
   npcRefusesToMove: log('gzLateLocalizedString', 2),
   personRefusesToMove: log('TacticalStr', 119),
+  mechanical: log('TacticalStr', 32),
+  noMedicalSkill: log('pMessageStrings', 31),
+  notBleeding: log('gzLateLocalizedString', 18),
+  noNeed: log('TacticalStr', 33),
   ...Object.fromEntries(Object.entries(MOVE_REFUSAL_INDEX).map(([token, index]) => [token, box('pMapErrorString', index)])),
   notEligible: box('pMapErrorString', 18),
   squadFull: box('pMapErrorString', 19),

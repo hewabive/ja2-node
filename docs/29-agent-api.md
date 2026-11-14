@@ -285,14 +285,15 @@ description.
 **Refusals.** Every refusal of every command, queries and argument errors included, carries its machine token in
 `data.refusal` and readable text in `reason`, often headed by the token (`<token>: <text>`). The sim builds them with
 `refuse` (`src/sim/tactical/refusal.ts`); `CommandResult` (`src/sim/command.ts`) makes a refusal without a token a type
-error. Argument errors name the argument (`badSector`, `badSlot`, `badChoice`, `badOrder`, …); a wrong prompt answer
-is `noPrompt`, `wrongPrompt`, `badChoice` or the token of the disabled option. Details sit beside the token in `data`
-(a hire's `charge`, a trade's `shortfall`, an exit's `minutes`). `assign` answers per soldier in `data.results`
-(`{ok, refusal, reason}` for a failure) and names the first failure in `data.refusal` and `reason`, as the original
-shows one box for the batch. A movement refusal (`route`, `routeGroup`, the `previewRoute` hint) names in `data.soldier`
-the merc who cannot move, who may be another member of the group, as the original's box names him. Clients compare
-tokens, never `reason`. The text key `refusal.<token>` (`/api/strings`, `/api/text?key=`) names the original's message
-where it has one, `refusal.<token>.female` its form for a woman where the original picks the text by the profile's sex
+error. Argument errors name the argument (`badSector`, `badSlot`, `badChoice`, `badOrder`, …); a wrong prompt answer is
+`noPrompt`, `wrongPrompt`, `badChoice` or the token of the disabled option. Details sit beside the token in `data` (a
+hire's `charge`, a trade's `shortfall`, an exit's `minutes`). `assign` answers per soldier in `data.results` (`{ok,
+refusal, reason}` for a failure) and names the first failure in `data.refusal` and `reason`, as the original shows one
+box for the batch. A movement refusal (`route`, `routeGroup`, the `previewRoute` hint) names in `data.soldier` the merc
+who cannot move, who may be another member of the group, as the original's box names him; a `bandage` refusal names in
+`data.patient` the patient the medkit cursor's lines name (`Tactical/Handle_UI.cc:3534-3552`). Clients compare tokens,
+never `reason`. The text key `refusal.<token>` (`/api/strings`, `/api/text?key=`) names the original's message where it
+has one, `refusal.<token>.female` its form for a woman where the original picks the text by the profile's sex
 (`escortAlone`, by the strategic merc's `female`); `REFUSAL_MESSAGES` (`src/protocol/refusals.ts`, so the client prints
 it without the server) also says whether the original logs it or shows a box, and the session adds the logged ones to
 the message list (§7), except for `exitSector`, whose lines the exit cursor prints (`refusalEntry`,
@@ -555,7 +556,7 @@ A merc aboard a vehicle in the loaded sector is no controllable merc (`OK_CONTRO
 vehicle): every order to him, `stop`, `mute` and the inventory and money commands included, refuses `inVehicle` (`talk`,
 `give` and `openShop` refuse `canAct` with its reason), and so does an inventory command that names him as the other
 merc; no order takes him as its target, as the cursor never finds him (`FindSoldier`): `pass`, `steal`, `swapPlaces` and
-`talk` refuse `noSuchTarget`, `bandage` `noTarget`.
+`talk` refuse `noSuchTarget`, `bandage` `noTarget`, which it also answers for a patient the squad does not see.
 A vehicle of ours with nobody aboard is not ours to command (`IsOwnedMerc`): its orders and `select` refuse `noDriver`.
 The hints refuse the same way (`blocked`). A vehicle never moves on the tactical map (`HandleMoveModeInteractiveClick`):
 `move`, `swapPlaces` with `cursor`, a `moveGroup` naming one and `enterVehicle` by one refuse `vehicleCantMove`. It

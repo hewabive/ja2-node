@@ -22,7 +22,8 @@
 // @src who slips on marbles, 2026-11-04); Items.cc WaterDamage (STR_CAMO_WASHED_OFF, 2026-11-04); Handle_Items.cc
 // @src SwitchMessageBoxCallBack (STR_LATE_58, 2026-11-04); Soldier_Control.cc CheckBleeding (STR_LOSES_1_HP of our merc
 // @src bleeding while dying, 2026-11-06); Soldier_Create.cc TacticalCopySoldierFromCreateStruct (a soldier without a
-// @src name of his own is named by his team's default, which s->name holds, 2026-11-13).
+// @src name of his own is named by his team's default, which s->name holds, 2026-11-13); Handle_UI.cc
+// @src UIMouseOnValidAttackLocation (the medkit's refusals with the medic or the patient, 2026-11-14).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -340,9 +341,16 @@ export function gameSavedEntry(tick: number): MessageEntry {
   return { tick, ...line(GAME_SAVED_MESSAGE.table, GAME_SAVED_MESSAGE.index) };
 }
 
-const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set(['mercUnavailable', 'outOfBreath', 'noBurst', 'invalidStance']);
+const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set([
+  'mercUnavailable',
+  'outOfBreath',
+  'noBurst',
+  'invalidStance',
+  'noMedicalSkill',
+]);
 const REFUSALS_NAMING_THE_CALIBRE: ReadonlySet<string> = new Set(['robotNeedsCalibre']);
 const REFUSALS_NAMING_THE_REFUSER: ReadonlySet<string> = new Set(['npcRefusesToMove']);
+const REFUSALS_NAMING_THE_PATIENT: ReadonlySet<string> = new Set(['mechanical', 'notBleeding', 'noNeed']);
 const COMMANDS_THE_CURSOR_EXPLAINS: ReadonlySet<string> = new Set(['exitSector']);
 const CALIBRE_NAMES = 'ammo-calibre';
 
@@ -350,6 +358,7 @@ function refusalArgs(token: string, cmd: CommandEnvelope, data: Readonly<Record<
   const soldier = typeof cmd.soldier === 'number' ? cmd.soldier : null;
   if (REFUSALS_NAMING_THE_CALIBRE.has(token)) return [typeof data.calibre === 'number' ? ref(CALIBRE_NAMES, data.calibre) : text(null)];
   if (REFUSALS_NAMING_THE_REFUSER.has(token)) return [text(typeof data.soldier === 'number' ? facts.soldierName(data.soldier) : null)];
+  if (REFUSALS_NAMING_THE_PATIENT.has(token)) return [typeof data.patient === 'number' ? soldierArg(facts, data.patient) : text(null)];
   return REFUSALS_NAMING_THE_MERC.has(token) && soldier !== null ? [soldierArg(facts, soldier)] : [];
 }
 
