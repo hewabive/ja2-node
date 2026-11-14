@@ -11,8 +11,9 @@
 // @src cons, the weapon stats with HighlightIf, the money and other branches, the key's sector and day),
 // @src AttemptToAddSubstring, g_desc_item_box, g_itemdesc_* boxes, gWeaponStats, gMoneyStats, g_attachment_info; the money
 // @src box: the $1000, $100, $10 and Done buttons from info_bil.sti frames 1/2 and 3/4 in BLOCKFONT2 colour 5 at
-// @src gMoneyButtonLoc + gMoneyButtonOffsets, the "Separate" or "Withdraw" label, the amount to split or withdraw,
-// @src ItemDescDoneButtonCallback* (Done removes the money, a right click only closes), RemoveMoney;
+// @src gMoneyButtonLoc + gMoneyButtonOffsets, the "Separate" or "Withdraw" label, the amount to split or withdraw (on
+// @src the map screen the label in colour 5 and the amounts right-aligned to 35 pixels), ItemDescDoneButtonCallback*
+// @src (Done removes the money, a right click only closes), RemoveMoney;
 // @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -94,6 +95,43 @@ export type DescribedObject =
   | { readonly kind: 'balance'; readonly soldier: number; readonly amount: number }
   | { readonly kind: 'object'; readonly soldier: number; readonly view: InventoryItemView };
 
+export interface DescribedObjectSources {
+  readonly soldier: (id: number) => SoldierView | null;
+  readonly item: (name: string) => CatalogueItem | null;
+  readonly keyItem: (key: KeyView) => string | null;
+}
+
+function catalogueIndex(sources: DescribedObjectSources, name: string | null | undefined): number | null {
+  return name ? (sources.item(name)?.index ?? null) : null;
+}
+
+function itemTypeRequest(index: number | null, metric: boolean): CommandEnvelope | null {
+  return index === null ? null : { type: 'itemInfo', item: index, metric };
+}
+
+export function itemInfoRequest(object: DescribedObject, metric: boolean, sources: DescribedObjectSources): CommandEnvelope | null {
+  switch (object.kind) {
+    case 'slot':
+      return {
+        type: 'itemInfo',
+        soldier: object.soldier,
+        slot: object.slot,
+        ...(object.index !== 0 ? { index: object.index } : {}),
+        metric,
+      };
+    case 'attachment':
+      return { type: 'itemInfo', soldier: object.soldier, slot: object.slot, attachment: object.attachment, metric };
+    case 'object':
+      return itemTypeRequest(catalogueIndex(sources, object.view.item), metric);
+    case 'key': {
+      const key = sources.soldier(object.soldier)?.keys?.[object.key];
+      return itemTypeRequest(catalogueIndex(sources, key ? sources.keyItem(key) : null), metric);
+    }
+    case 'balance':
+      return null;
+  }
+}
+
 export interface DescriptionHooks {
   readonly services: UiServices;
   readonly text: UiTextService;
@@ -110,6 +148,7 @@ export interface DescriptionHooks {
   readonly closed: () => void;
   readonly moneyDone?: (object: DescribedObject, amount: number) => void;
   readonly alert?: (text: string) => Promise<void>;
+  readonly mapScreen?: boolean;
 }
 
 const OWNER = 'itemDescription';
@@ -158,6 +197,8 @@ const MONEY_BUTTON_COLOR = 5;
 const MONEY_DESC_AMOUNT = 0;
 const MONEY_DESC_PLAYERS = 4;
 const MONEY_TEXT_WITHDRAW_MORE_THEN_MAXIMUM = 0;
+const MAP_MONEY_VALUE_WIDTH = 35;
+const MAP_MONEY_LABEL_COLOR = 5;
 
 function ammoImage(type: number): number {
   if (type === AMMO_AP || type === AMMO_SUPER_AP) return AMMO_IMAGE_AP;
@@ -697,8 +738,7 @@ export class ItemDescriptionBox {
     const highlight = (on: boolean) => (on ? FontColor.MCOLOR_WHITE : STATS_TEXT);
     this.#value(list, font, ids[1], `${twoDigits(stats.status)}%`, STATS_TEXT);
     this.#value(list, font, ids[0], stats.weight.value.toFixed(1), highlight(stats.weight.exceptional));
-    if (gunOrLauncher && stats.range)
-      this.#value(list, font, ids[2], twoDigits(idiv(stats.range.value, 10)), highlight(stats.range.exceptional));
+    if (gunOrLauncher && stats.range) this.#value(list, font, ids[2], twoDigits(stats.range.value), highlight(stats.range.exceptional));
     if (damaging && stats.damage) this.#value(list, font, ids[3], twoDigits(stats.damage.value), highlight(stats.damage.exceptional));
     this.#value(list, font, ids[4], twoDigits(stats.ap.value), highlight(stats.ap.exceptional));
     if (stats.burstAp) this.#value(list, font, ids[5], twoDigits(stats.burstAp.value), highlight(stats.burstAp.exceptional));
@@ -708,6 +748,7 @@ export class ItemDescriptionBox {
     const box = this.#money;
     if (!box) return;
     const text = this.#hooks.text;
+    const map = this.#hooks.mapScreen === true;
     this.#rightAligned(list, font, g.name, sprintMoney(box.total), FontColor.WHITE);
     const origin = g.origin;
     const [labelX, labelY] = g.moneyButtons[MONEY_LABEL] ?? [0, 0];
@@ -716,10 +757,10 @@ export class ItemDescriptionBox {
       font,
       g.moneyBox[0] + labelX,
       g.moneyBox[1] + labelY,
-      text.string('gzMoneyAmounts', box.withdraw ? MONEY_WITHDRAW : MONEY_SEPARATE) ?? '',
-      fontColors(STATS_TITLE, DEFAULT_SHADOW),
+      text.string('gzMoneyAmounts', !map && box.withdraw ? MONEY_WITHDRAW : MONEY_SEPARATE) ?? '',
+      fontColors(map ? MAP_MONEY_LABEL_COLOR : STATS_TITLE, DEFAULT_SHADOW),
     );
-    const first = box.withdraw ? MONEY_DESC_PLAYERS : MONEY_DESC_AMOUNT;
+    const first = !map && box.withdraw ? MONEY_DESC_PLAYERS : MONEY_DESC_AMOUNT;
     g.moneyStats.forEach((at, i) => {
       mprint(
         list,
@@ -730,8 +771,19 @@ export class ItemDescriptionBox {
         fontColors(STATS_TITLE, DEFAULT_SHADOW),
       );
     });
-    this.#value(list, font, g.moneyStats[1], sprintMoney(box.remaining), STATS_TEXT, MONEY_VALUE_WIDTH);
-    this.#value(list, font, g.moneyStats[3], sprintMoney(box.removing), STATS_TEXT, MONEY_VALUE_WIDTH);
+    this.#moneyValue(list, font, g.moneyStats[1], sprintMoney(box.remaining));
+    this.#moneyValue(list, font, g.moneyStats[3], sprintMoney(box.removing));
+  }
+
+  #moneyValue(list: DrawList, font: BitmapFont, at: StatPosition | undefined, value: string): void {
+    if (!this.#hooks.mapScreen) {
+      this.#value(list, font, at, value, STATS_TEXT, MONEY_VALUE_WIDTH);
+      return;
+    }
+    if (!at) return;
+    const origin = this.#geometry?.origin ?? { x: 0, y: 0 };
+    const x = origin.x + at[0] + at[2] + MAP_MONEY_VALUE_WIDTH - stringPixLength(value, font);
+    mprint(list, font, x, origin.y + at[1], value, fontColors(STATS_TEXT, DEFAULT_SHADOW));
   }
 
   #otherStats(

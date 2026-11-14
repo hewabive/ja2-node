@@ -8,6 +8,7 @@ import { FakeMedia, type TacticalUiKit, tacticalUiKit } from '../../../../tests/
 import { projectLayoutLoader, type TestRuntime, testRuntime } from '../../../../tests/support/ui-runtime.ts';
 import { loadUiStrings } from '../../../content/text/strings.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
+import type { ItemInfo } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { InventoryQuery, StashEntryView } from '../../../protocol/map-inventory.ts';
 import type { MessageEntry } from '../../../protocol/message-log.ts';
@@ -20,6 +21,10 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { messageBoxStyles, textBoxArt } from '../../layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../layout/types.ts';
 import { CanvasMessageBoxes } from '../../message-boxes.ts';
+import { FontName } from '../../text/fonts.ts';
+import { stringPixLength } from '../../text/measure.ts';
+import { sprintMoney } from '../../text/money.ts';
+import { glyphRun } from '../../text/print.ts';
 import { StringsTextService } from '../../text/text-service.ts';
 import { MessageBoxFlag, MessageBoxReturn, messageBoxLabels } from '../../widgets/message-box.ts';
 import type { BattleEnvironment } from '../battle/environment.ts';
@@ -33,6 +38,12 @@ const SMALL_POCKET = 11;
 const MERC = 3;
 const OTHER = 4;
 const POOL_LEFT = 270;
+const RANGE_IN_TILES = 12;
+const STATS_TEXT = 5;
+const MAP_MONEY_VALUE_WIDTH = 35;
+const MAP_MONEY_REMAINING = [61, 107, 75] as const;
+const MAP_MONEY_REMOVING = [61, 135, 70] as const;
+const MONEY_SEPARATE = 4;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -56,11 +67,13 @@ class FakeClient implements MapClient {
   view: PlayerView;
   readonly commands: CommandEnvelope[] = [];
   readonly queries: CommandEnvelope[] = [];
+  readonly hints: CommandEnvelope[] = [];
   readonly paused = false;
   stash: StashEntryView[] = [];
   usable = true;
   reply: (cmd: CommandEnvelope) => MapCommandReply = () => ({ ok: true });
   compatible: (item: number, candidate: number) => boolean = () => false;
+  itemInfo: ItemInfo | null = null;
 
   constructor(view: PlayerView) {
     this.view = view;
@@ -86,6 +99,8 @@ class FakeClient implements MapClient {
   onRefused(): void {}
 
   hint(request: CommandEnvelope): HintReply {
+    this.hints.push(request);
+    if (request.type === 'itemInfo' && this.itemInfo) return { state: 'ready', answer: { ok: true, data: this.itemInfo }, source: 'local' };
     if (request.type !== 'compatibleItems') return { state: 'ready', answer: { ok: false, reason: 'noSector' }, source: 'local' };
     const item = request.item as number;
     const compatible = (request.items as number[]).map((candidate) => this.compatible(item, candidate));
@@ -158,6 +173,42 @@ function merc(id: number, name: string, sector: string, inventory: InventoryItem
     armour: 23,
     camo: 4,
   };
+}
+
+function gunInfo(gun: CatalogueItem, range: number): ItemInfo {
+  const stat = (value: number) => ({ value, exceptional: false });
+  return {
+    item: gun.index,
+    kind: 'weapon',
+    count: 1,
+    weight: 1.2,
+    status: 88,
+    weapon: { status: 88, weight: stat(1.2), range: stat(range), damage: stat(20), ap: stat(9), bullets: { single: 1, burst: 0 } },
+  };
+}
+
+function drawnRuns(h: Harness, text: string): { x: number; y: number; foreground: number }[] {
+  const font = h.t.runtime.fonts.get(FontName.BLOCKFONT2);
+  const wanted = glyphRun(font, text, 0, 0)
+    .glyphs.map((g) => g.index)
+    .join();
+  return h.t.list.items.flatMap((i) =>
+    i.kind === 'glyphs' && i.glyphs.map((g) => g.index).join() === wanted
+      ? [{ x: i.glyphs[0]?.x ?? 0, y: i.glyphs[0]?.y ?? 0, foreground: i.foreground }]
+      : [],
+  );
+}
+
+function descriptionButton(h: Harness, id: string): { x: number; y: number; width: number; height: number } {
+  const rect = h.t.runtime.buttons.buttons.find((b) => b.id === id)?.describe().rect;
+  if (!rect) throw new Error(`no button ${id}`);
+  return rect;
+}
+
+async function clickDescriptionButton(h: Harness, id: string, button: number = MouseButton.LEFT): Promise<void> {
+  const rect = descriptionButton(h, id);
+  h.t.click(rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2), button);
+  await h.settle();
 }
 
 function playerView(mercs: StrategicMercView[]): PlayerView {
@@ -604,5 +655,46 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.escape()).toBe(true);
     expect(h.inventory.pool.open).toBe(false);
     expect(h.inventory.escape()).toBe(false);
+  });
+
+  it("describes the object in the merc's slot and its attachment, with the range in tiles as the hint gives it (MAPInternalInitItemDescriptionBox, Interface_Items.cc:2327)", async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const silenced: InventoryItemView = { ...view(HAND, gun.name), attachments: [{ item: 'SILENCER', status: 77 }] };
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [silenced])]);
+    h.client.itemInfo = gunInfo(gun, RANGE_IN_TILES);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click(`mercSlot${HAND}`, MouseButton.RIGHT);
+    expect(h.client.hints).toContainEqual({ type: 'itemInfo', soldier: MERC, slot: HAND, metric: true });
+    expect(h.client.hints.some((q) => q.type === 'itemInfo' && q.item !== undefined)).toBe(false);
+    expect(drawnRuns(h, String(RANGE_IN_TILES))).toEqual([expect.objectContaining({ foreground: STATS_TEXT })]);
+    const attachment = h.t.runtime.regions.regions.find((r) => r.id === 'itemDescriptionAttachment0');
+    if (!attachment) throw new Error('no attachment region');
+    h.t.click(attachment.x1 + 2, attachment.y1 + 2, MouseButton.RIGHT);
+    await h.settle();
+    expect(h.inventory.merc.description.object).toEqual({ kind: 'attachment', soldier: MERC, slot: HAND, attachment: 0 });
+    expect(h.client.hints).toContainEqual({ type: 'itemInfo', soldier: MERC, slot: HAND, attachment: 0, metric: true });
+  });
+
+  it('prints the split amounts right-aligned to 35 pixels on their stat line and the Separate label in colour 5 on the map (Interface_Items.cc:2372, :2399-2421)', async () => {
+    const money: InventoryItemView = { ...view(SMALL_POCKET, 'MONEY'), money: 500 };
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [money])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click(`mercSlot${SMALL_POCKET}`, MouseButton.RIGHT);
+    await clickDescriptionButton(h, 'itemDescriptionMoney1');
+    const font = h.t.runtime.fonts.get(FontName.BLOCKFONT2);
+    const box = h.t.runtime.regions.regions.find((r) => r.id === 'itemDescriptionBox');
+    if (!box) throw new Error('no description box');
+    for (const [amount, [x, y, valueDx]] of [
+      [400, MAP_MONEY_REMAINING],
+      [100, MAP_MONEY_REMOVING],
+    ] as const) {
+      const text = sprintMoney(amount);
+      const at = { x: box.x1 + x + valueDx + MAP_MONEY_VALUE_WIDTH - stringPixLength(text, font), y: box.y1 + y };
+      expect(drawnRuns(h, text)).toContainEqual({ ...at, foreground: STATS_TEXT });
+    }
+    const separate = h.text.string('gzMoneyAmounts', MONEY_SEPARATE) ?? '';
+    expect(drawnRuns(h, separate).map((r) => r.foreground)).toEqual([STATS_TEXT]);
   });
 });

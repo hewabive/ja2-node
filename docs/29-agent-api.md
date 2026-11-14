@@ -730,7 +730,9 @@ permanent attachments become refusals to repeat with `merge` or `permanent`; the
 command (deviation "Attachment AP"). On the map screen the same commands cost no AP and pass items within one sector
 only; the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
 only ones the map screen makes the info character while it is held, with the enemy in the loaded sector read from the
-view (deviation "Strategic hints and enemy counts"). Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
+view (deviation "Strategic hints and enemy counts"). The `itemInfo` hint gives the description box's numbers for the
+object in a merc's slot, on the map screen too for a merc outside the loaded sector (`src/sim/hints/item-info.ts`), and
+with `attachment` for an attached item as the box describes it, a new object at the attachment's status. Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
 is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
 `{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"); one key taken off a

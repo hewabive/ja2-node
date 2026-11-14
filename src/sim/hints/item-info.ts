@@ -2,12 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Items.cc RenderItemDescriptionBox (the weapon branch, the money branch, the amount of an
 // @src ammo item or the status of any other, the weight), the gun title with the imprint, GenerateProsString,
-// @src GenerateConsString.
+// @src GenerateConsString, ItemDescAttachmentsCallbackSecondary (an attachment described as CreateItem of its item and
+// @src status); src/game/Strategic/MapScreen.cc MAPInternalInitItemDescriptionBox (the object in the merc's slot).
 
 import { ItemClass, type ItemTable, NOTHING, WEAPON_CLASSES } from '../../content/items/items.ts';
-import { createItem, type ItemObject } from '../items/object.ts';
+import { createItem, type ItemObject, MAX_ATTACHMENTS } from '../items/object.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
-import { objectGrams } from '../tactical/inventory.ts';
+import { type Inventory, objectGrams } from '../tactical/inventory.ts';
 import { parseSlot } from '../tactical/inventory-commands.ts';
 import { itemImprint } from '../tactical/inventory-view.ts';
 import {
@@ -22,8 +23,7 @@ import {
   type WeaponStats,
   weaponStats,
 } from '../tactical/item-description.ts';
-import { actingSoldier } from './soldier-check.ts';
-import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
+import { type HintRefusal, type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 
 const FULL_STATUS = 100;
 
@@ -48,6 +48,7 @@ export interface ItemInfoRequest extends HintRequestBase {
   readonly soldier?: unknown;
   readonly slot?: unknown;
   readonly index?: unknown;
+  readonly attachment?: unknown;
   readonly item?: unknown;
   readonly metric?: unknown;
 }
@@ -82,25 +83,48 @@ function describe(table: ItemTable, o: ItemObject, index: number, metric: boolea
   };
 }
 
+function carriedInventory(world: KnowledgeWorld, id: unknown): Inventory | { readonly refusal: HintRefusal } {
+  if (typeof id === 'number') {
+    const inSector = world.tactical?.ownSoldier(id);
+    if (inSector) return inSector.inv;
+    const crew = world.strategic?.merc(id);
+    if (crew) return crew.inv;
+  }
+  if (!world.tactical && !world.strategic) return { refusal: refuseHint('noSector', 'no sector is loaded') };
+  return { refusal: refuseHint('noSuchSoldier', 'no such soldier of yours') };
+}
+
+function attachedObject(table: ItemTable, o: ItemObject, position: unknown): ItemObject | null {
+  if (typeof position !== 'number' || !Number.isInteger(position) || position < 0 || position >= MAX_ATTACHMENTS) return null;
+  const attachment = o.attachments[position];
+  return attachment && attachment.item !== NOTHING ? createItem(table, attachment.item, attachment.status) : null;
+}
+
 export function itemInfo(world: KnowledgeWorld, req: ItemInfoRequest): HintResult<ItemInfo> {
   const metric = req.metric === true;
-  const content = world.rules.content;
-  if (!content) return refuseHint('noSector', 'no item content');
+  const items = world.rules.content?.items ?? world.rules.strategic?.items;
+  if (!items) return refuseHint('noSector', 'no item content');
   if (req.item !== undefined) {
     const item = req.item;
-    if (typeof item !== 'number' || !content.items.byIndex.has(item) || item === NOTHING)
+    if (typeof item !== 'number' || !items.byIndex.has(item) || item === NOTHING)
       return refuseHint('badItem', 'item must be an item index');
-    const info = describe(content.items, createItem(content.items, item, FULL_STATUS), 0, metric);
+    const info = describe(items, createItem(items, item, FULL_STATUS), 0, metric);
     return info ? hintData(info) : refuseHint('badItem', 'item must be an item index');
   }
-  const acting = actingSoldier(world, req.soldier);
-  if ('refusal' in acting) return acting.refusal;
+  const inventory = carriedInventory(world, req.soldier);
+  if ('refusal' in inventory) return inventory.refusal;
   const slot = parseSlot(req.slot);
   if (slot === null) return refuseHint('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
-  const o = acting.soldier.inv[slot] as ItemObject;
+  const o = inventory[slot] as ItemObject;
   const index = req.index ?? 0;
   if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, o.count))
     return refuseHint('badIndex', 'index must point to an object in the stack');
-  const info = describe(content.items, o, index, metric);
+  if (req.attachment !== undefined) {
+    const attached = attachedObject(items, o, req.attachment);
+    if (!attached) return refuseHint('noAttachment', 'attachment must name an attached item 0..3');
+    const info = describe(items, attached, 0, metric);
+    return info ? hintData(info) : refuseHint('noAttachment', 'attachment must name an attached item 0..3');
+  }
+  const info = describe(items, o, index, metric);
   return info ? hintData(info) : refuseHint('emptySlot', 'that slot is empty');
 }

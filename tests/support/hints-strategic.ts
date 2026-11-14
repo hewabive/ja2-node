@@ -66,6 +66,15 @@ export function samplePassHints(view: PlayerView): CommandEnvelope[] {
   ];
 }
 
+export function sampleItemInfoHints(view: PlayerView): CommandEnvelope[] {
+  return (view.strategic?.mercs ?? []).flatMap((m) =>
+    (m.inventory ?? []).flatMap((item) => [
+      { type: 'itemInfo', soldier: m.id, slot: item.slot, metric: item.slot % 2 === 0 },
+      ...(item.attachments ?? []).map((_, attachment) => ({ type: 'itemInfo', soldier: m.id, slot: item.slot, attachment })),
+    ]),
+  );
+}
+
 const DIRECTIONS = ['north', 'east', 'south', 'west'] as const;
 
 export function sampleExitHints(view: PlayerView): CommandEnvelope[] {
@@ -91,5 +100,6 @@ export function sampleStrategicHints(view: PlayerView, step = STRATEGIC_HINT_SAM
     ...sampleMoveBoxHints(view),
     ...samplePassHints(view),
     ...sampleExitHints(view),
+    ...sampleItemInfoHints(view),
   ];
 }

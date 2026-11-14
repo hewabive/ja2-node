@@ -138,7 +138,7 @@ import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
 import { cursorObjectHeld, dropCommand, giveCommand, type ItemCursor, passCommand, slotItem, tossCommand } from './item-cursor.ts';
-import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
+import { type DescriptionGeometry, ItemDescriptionBox, itemInfoRequest } from './item-description.ts';
 import { ItemLocators, MultiPurposeLocator, type ShownLocator } from './item-locators.ts';
 import { itemPool, onZLevel } from './item-pool.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
@@ -1940,37 +1940,14 @@ export class TacticalScreen implements Screen {
   }
 
   #itemInfo(object: Parameters<ItemDescriptionBox['show']>[0]): ItemInfo | null {
-    const client = this.#env.client;
-    const metric = this.#env.metric();
-    let request: Parameters<typeof client.hint>[0];
-    if (object.kind === 'slot')
-      request = {
-        type: 'itemInfo',
-        soldier: object.soldier,
-        slot: object.slot,
-        ...(object.index !== 0 ? { index: object.index } : {}),
-        metric,
-      };
-    else if (object.kind === 'attachment') {
-      const s = soldierById(this.#view(), object.soldier);
-      const attachment = slotItem(s, object.slot)?.attachments?.[object.attachment];
-      const index = attachment ? this.#env.media.item(attachment.item)?.index : undefined;
-      if (index === undefined) return null;
-      request = { type: 'itemInfo', item: index, metric };
-    } else if (object.kind === 'object') {
-      const index = this.#env.media.item(object.view.item)?.index;
-      if (index === undefined) return null;
-      request = { type: 'itemInfo', item: index, metric };
-    } else if (object.kind === 'balance') return null;
-    else {
-      const s = soldierById(this.#view(), object.soldier);
-      const key = s?.keys?.[object.key];
-      const name = key ? this.#env.media.keyItem(key) : null;
-      const index = name ? this.#env.media.item(name)?.index : undefined;
-      if (index === undefined) return null;
-      request = { type: 'itemInfo', item: index, metric };
-    }
-    const reply = client.hint(request);
+    const media = this.#env.media;
+    const request = itemInfoRequest(object, this.#env.metric(), {
+      soldier: (id) => soldierById(this.#view(), id),
+      item: (name) => media.item(name),
+      keyItem: (key) => media.keyItem(key),
+    });
+    if (!request) return null;
+    const reply = this.#env.client.hint(request);
     return reply.state === 'ready' && reply.answer.ok ? (reply.answer.data as ItemInfo) : null;
   }
 

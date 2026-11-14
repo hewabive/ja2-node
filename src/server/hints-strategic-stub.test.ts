@@ -13,20 +13,23 @@ import {
 import { samplePassHints, sampleStrategicHints } from '../../tests/support/hints-strategic.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { driveOurHummerInto, stubCampaignAtTheHummer, stubCampaignWithOurHummer } from '../../tests/support/vehicles.ts';
+import { NOTHING } from '../content/items/items.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction, gridNo } from '../content/world/grid.ts';
 import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
+import type { ItemInfo } from '../sim/hints/item-info.ts';
 import type { PreviewAction } from '../sim/hints/preview-action.ts';
-import { createItem } from '../sim/items/object.ts';
+import { createItem, type ItemObject } from '../sim/items/object.ts';
 import { LAIR_DESTROYED } from '../sim/strategic/creatures/creatures.ts';
 import { FACT_OK_USE_HUMMER, SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
 import { QuestStatus, setFact } from '../sim/strategic/narrative/facts.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
+import { weaponStats } from '../sim/tactical/item-description.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
 import { Body, Team } from '../sim/tactical/soldier.ts';
@@ -126,6 +129,21 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     const view = serialisedView(c.session);
     expect(view.strategic?.groups.some((g) => g.betweenSectors)).toBe(true);
     await expectHintsAgree(c.session, client, sampleStrategicHints(view));
+  });
+
+  it('describe the object in the slot of a merc off the loaded sector as the full state does (MAPInternalInitItemDescriptionBox)', async () => {
+    const c = await landedCampaign(36);
+    const merc = c.sim.view().strategic?.mercs[0]?.id ?? -1;
+    expect(c.sim.dispatch({ type: 'route', soldier: merc, to: 'A11' })).toMatchObject({ ok: true });
+    c.session.advance({ worldSeconds: ROUTE_STEP_SECONDS });
+    expect(serialisedView(c.session).soldiers.some((s) => s.id === merc)).toBe(false);
+    const soldier = c.sim.campaign.battle?.roster.get(merc)?.soldier;
+    if (!soldier) throw new Error('no soldier');
+    const items = kit.content.items;
+    const slot = soldier.inv.findIndex((o) => o.item !== NOTHING && weaponStats(items, o, true) !== null);
+    const answer = await c.session.query({ type: 'itemInfo', soldier: merc, slot, metric: true });
+    expect(answer.ok, answer.reason).toBe(true);
+    expect((answer.data as ItemInfo).weapon).toEqual(JSON.parse(JSON.stringify(weaponStats(items, soldier.inv[slot] as ItemObject, true))));
   });
 
   it('answer like the full state when the player sees everything that matters', async () => {

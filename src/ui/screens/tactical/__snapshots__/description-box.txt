@@ -34,7 +34,7 @@ glyphs blockfont2 448,391 n=1 fg=6 sh=2 bg=0
 glyphs blockfont2 416,356 n=7 fg=6 sh=2 bg=0
 glyphs blockfont2 502,354 n=4 fg=5 sh=2 bg=0
 glyphs blockfont2 513,364 n=3 fg=208 sh=2 bg=0
-glyphs blockfont2 518,379 n=2 fg=5 sh=2 bg=0
+glyphs blockfont2 515,379 n=2 fg=5 sh=2 bg=0
 glyphs blockfont2 464,379 n=2 fg=5 sh=2 bg=0
 glyphs blockfont2 465,389 n=2 fg=208 sh=2 bg=0
 glyphs blockfont2 22,392 n=6 fg=134 sh=2 bg=0

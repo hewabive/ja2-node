@@ -23,7 +23,7 @@ import { FontName } from '../../text/fonts.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect } from '../tactical/inventory.ts';
 import { cursorFromMoney, type ItemCursor, slotItem } from '../tactical/item-cursor.ts';
-import { type DescribedObject, type DescriptionGeometry, ItemDescriptionBox } from '../tactical/item-description.ts';
+import { type DescribedObject, type DescriptionGeometry, ItemDescriptionBox, itemInfoRequest } from '../tactical/item-description.ts';
 import { type KeyRingGrid, KeyRingPopup, StackPopup } from '../tactical/item-popups.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
 import type { MapEnvironment } from './environment.ts';
@@ -106,6 +106,7 @@ export class MercInventory {
       keyItem: (key) => env.media.keyItem(key),
       closed: () => undefined,
       moneyDone: (object, amount) => this.#splitIntoCursor(object, amount),
+      mapScreen: true,
     });
   }
 
@@ -257,26 +258,13 @@ export class MercInventory {
   }
 
   #itemInfo(object: DescribedObject): ItemInfo | null {
-    const index = this.#describedIndex(object);
-    return index === null ? null : this.#hint({ type: 'itemInfo', item: index, metric: this.#host.env.metric() });
-  }
-
-  #describedIndex(object: DescribedObject): number | null {
     const media = this.#host.env.media;
-    const s = this.#host.soldier(object.soldier);
-    if (object.kind === 'key') {
-      const key = s?.keys?.[object.key];
-      const name = key ? media.keyItem(key) : null;
-      return name ? (media.item(name)?.index ?? null) : null;
-    }
-    if (object.kind === 'balance') return null;
-    if (object.kind === 'object') return media.item(object.view.item)?.index ?? null;
-    const view = slotItem(s, object.slot);
-    const name = object.kind === 'attachment' ? view?.attachments?.[object.attachment]?.item : view?.item;
-    return name ? (media.item(name)?.index ?? null) : null;
-  }
-
-  #hint(request: CommandEnvelope): ItemInfo | null {
+    const request = itemInfoRequest(object, this.#host.env.metric(), {
+      soldier: (id) => this.#host.soldier(id),
+      item: (name) => media.item(name),
+      keyItem: (key) => media.keyItem(key),
+    });
+    if (!request) return null;
     const reply = this.#host.env.client.hint(request);
     return reply.state === 'ready' && reply.answer.ok ? (reply.answer.data as ItemInfo) : null;
   }
