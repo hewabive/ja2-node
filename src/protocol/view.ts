@@ -1321,85 +1321,92 @@ function sameClock(a: ClockView | undefined, b: ClockView): boolean {
   return !!a && CLOCK_FIELDS.every((key) => a[key] === b[key]);
 }
 
-const SCALAR_SOLDIER_FIELDS = [
-  'hiResDirection',
-  'turning',
-  'surface',
-  'camouflaged',
-  'frameSlot',
-  'stateTick',
-  'frameDelay',
-  'bleeding',
-  'breathMax',
-  'morale',
-  'armour',
-  'weight',
-  'camo',
-  'asleep',
-  'squad',
-  'stealth',
-  'weaponMode',
-  'muted',
-  'opponents',
-  'canAct',
-  'stance',
-  'continueTo',
-  'noApToFinishMove',
-  'enoughApToAttack',
-  'destination',
-  'gettingHit',
-  'drunk',
-  'adrenaline',
-  'firstAid',
-  'blinded',
-  'hostile',
-  'healthIndex',
-  'defaultName',
-  'muzzleFlash',
-  'fadingOut',
-] as const satisfies readonly (keyof SoldierView)[];
+const sameValue = (a: unknown, b: unknown): boolean => a === b;
 
-const STRUCTURED_SOLDIER_FIELDS = [
-  'stats',
-  'sees',
-  'vehicle',
-  'passengers',
-  'climb',
-  'hint',
-] as const satisfies readonly (keyof SoldierView)[];
-
-function samePresentationFields(a: SoldierView, b: SoldierView): boolean {
-  return SCALAR_SOLDIER_FIELDS.every((key) => a[key] === b[key]) && STRUCTURED_SOLDIER_FIELDS.every((key) => sameJson(a[key], b[key]));
+function sameKeyRing(a: readonly KeyView[] | undefined, b: readonly KeyView[] | undefined): boolean {
+  return sameJson(a ?? [], b ?? []);
 }
 
+type FieldSameness<T> = { readonly [K in keyof T]-?: (a: T[K], b: T[K]) => boolean };
+
+const SOLDIER_FIELD_SAMENESS: FieldSameness<SoldierView> = {
+  id: sameValue,
+  gridNo: sameValue,
+  x: sameValue,
+  y: sameValue,
+  level: sameValue,
+  heightAdjustment: sameValue,
+  direction: sameValue,
+  hiResDirection: sameValue,
+  turning: sameValue,
+  animation: sameValue,
+  frame: sameValue,
+  frameSlot: sameValue,
+  stateTick: sameValue,
+  frameDelay: sameValue,
+  nextFrameTick: sameValue,
+  boundingFrame: sameValue,
+  boundingDirection: sameValue,
+  boundingHiResDirection: sameValue,
+  surface: sameValue,
+  camouflaged: sameValue,
+  muzzleFlash: sameValue,
+  fadingOut: sameValue,
+  team: sameValue,
+  name: sameValue,
+  defaultName: sameValue,
+  bodyType: sameValue,
+  palettes: sameJson,
+  hand: sameValue,
+  ap: sameValue,
+  life: sameValue,
+  lifeMax: sameValue,
+  breath: sameValue,
+  breathMax: sameValue,
+  bleeding: sameValue,
+  morale: sameValue,
+  armour: sameValue,
+  weight: sameValue,
+  camo: sameValue,
+  asleep: sameValue,
+  squad: sameValue,
+  stealth: sameValue,
+  weaponMode: sameValue,
+  muted: sameValue,
+  opponents: sameValue,
+  canAct: sameValue,
+  stance: sameValue,
+  continueTo: sameValue,
+  noApToFinishMove: sameValue,
+  enoughApToAttack: sameValue,
+  destination: sameValue,
+  gettingHit: sameValue,
+  drunk: sameValue,
+  adrenaline: sameValue,
+  firstAid: sameValue,
+  blinded: sameValue,
+  hostile: sameValue,
+  healthIndex: sameValue,
+  merchant: sameValue,
+  profile: sameValue,
+  talkable: sameValue,
+  kind: sameValue,
+  controlled: sameValue,
+  voice: sameValue,
+  stats: sameJson,
+  sees: sameJson,
+  vehicle: sameJson,
+  passengers: sameJson,
+  climb: sameJson,
+  hint: sameJson,
+  keys: sameKeyRing,
+  inventory: sameInventory,
+};
+
+const SOLDIER_FIELD_CHECKS = Object.entries(SOLDIER_FIELD_SAMENESS) as [keyof SoldierView, (a: unknown, b: unknown) => boolean][];
+
 function sameSoldier(a: SoldierView, b: SoldierView): boolean {
-  return (
-    samePresentationFields(a, b) &&
-    a.gridNo === b.gridNo &&
-    a.x === b.x &&
-    a.y === b.y &&
-    a.level === b.level &&
-    a.heightAdjustment === b.heightAdjustment &&
-    a.direction === b.direction &&
-    a.animation === b.animation &&
-    a.frame === b.frame &&
-    a.nextFrameTick === b.nextFrameTick &&
-    a.team === b.team &&
-    a.bodyType === b.bodyType &&
-    a.hand === b.hand &&
-    a.ap === b.ap &&
-    a.life === b.life &&
-    a.lifeMax === b.lifeMax &&
-    a.breath === b.breath &&
-    a.merchant === b.merchant &&
-    a.profile === b.profile &&
-    a.talkable === b.talkable &&
-    a.kind === b.kind &&
-    a.controlled === b.controlled &&
-    a.voice === b.voice &&
-    sameJson(a.keys ?? [], b.keys ?? []) &&
-    sameInventory(a.inventory, b.inventory)
-  );
+  return SOLDIER_FIELD_CHECKS.every(([key, same]) => same(a[key], b[key]));
 }
 
 export function diffView(previous: readonly SoldierView[], next: readonly SoldierView[], tick: number): ViewFrame | null {

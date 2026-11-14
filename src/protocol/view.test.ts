@@ -174,6 +174,122 @@ function soldier(id: number, gridNo: number): SoldierView {
   };
 }
 
+const EVERY_SOLDIER_FIELD: Required<SoldierView> = {
+  id: 5,
+  team: 0,
+  name: 'Ira',
+  bodyType: 1,
+  gridNo: 100,
+  x: 1005,
+  y: 15,
+  level: 0,
+  heightAdjustment: 0,
+  direction: 2,
+  hiResDirection: 8,
+  turning: false,
+  animation: 1,
+  frame: 3,
+  palettes: ['a', 'b', 'c', 'd'],
+  camouflaged: false,
+  hand: 'NOTHING',
+  surface: 7,
+  frameSlot: 4,
+  boundingFrame: 3,
+  boundingDirection: 1,
+  boundingHiResDirection: 4,
+  stateTick: 90,
+  frameDelay: 80,
+  nextFrameTick: 110,
+  muzzleFlash: false,
+  fadingOut: false,
+  ap: 20,
+  life: 80,
+  lifeMax: 90,
+  breath: 100,
+  inventory: [{ slot: 0, item: 'GLOCK_17', index: 2, count: 1, status: [90] }],
+  keys: [{ position: 0, keyId: 3, count: 1 }],
+  merchant: 'buySell',
+  profile: 7,
+  talkable: 'npc',
+  kind: 'rpc',
+  controlled: false,
+  voice: '007',
+  bleeding: 0,
+  breathMax: 100,
+  morale: 50,
+  stats: {
+    agility: 80,
+    dexterity: 80,
+    strength: 80,
+    leadership: 50,
+    wisdom: 70,
+    level: 3,
+    marksmanship: 75,
+    explosives: 20,
+    mechanical: 30,
+    medical: 40,
+  },
+  armour: 10,
+  weight: 40,
+  camo: 0,
+  asleep: false,
+  squad: 0,
+  stealth: false,
+  weaponMode: 'single',
+  muted: false,
+  sees: [21],
+  opponents: 1,
+  canAct: true,
+  stance: 'stand',
+  continueTo: null,
+  noApToFinishMove: false,
+  vehicle: null,
+  passengers: [],
+  firstAid: null,
+  blinded: false,
+  climb: { roof: null, enoughAp: true, fence: false },
+  enoughApToAttack: true,
+  destination: 100,
+  gettingHit: false,
+  drunk: 'feelingGood',
+  adrenaline: 'active',
+  hostile: false,
+  healthIndex: 6,
+  defaultName: 'enemy',
+  hint: {
+    skills: [0, 0],
+    personality: 0,
+    shock: 0,
+    lastTarget: 0,
+    tilesMoved: 0,
+    weightAtTurnStart: 0,
+    collapsed: false,
+    gassed: false,
+    underAiControl: false,
+  },
+};
+
+function anotherValue(value: unknown): unknown {
+  if (typeof value === 'number') return value + 1;
+  if (typeof value === 'string') return `${value}*`;
+  if (typeof value === 'boolean') return !value;
+  if (value === null) return 0;
+  if (Array.isArray(value)) return value.length > 0 ? [] : [0];
+  return {};
+}
+
+describe('the frames of a soldier', () => {
+  it('carry him when any one field of his changes, his name alone too (a terrorist revealing himself)', () => {
+    const before: PlayerView = { ...base, soldiers: [EVERY_SOLDIER_FIELD] };
+    const fields = Object.keys(EVERY_SOLDIER_FIELD).filter((key): key is keyof SoldierView => key !== 'id');
+    const unsent = fields.filter((key) => {
+      const changed = { ...EVERY_SOLDIER_FIELD, [key]: anotherValue(EVERY_SOLDIER_FIELD[key]) };
+      return diffPlayerView(before, { ...before, tick: 20, soldiers: [changed] })?.changed[0] !== changed;
+    });
+    expect(unsent).toEqual([]);
+  });
+});
+
 describe('the frames of a vehicle of ours', () => {
   it('carry the vehicle when somebody gets aboard or off, though nothing else about it changed', () => {
     const empty = { ...soldier(18, 40), passengers: [] };
