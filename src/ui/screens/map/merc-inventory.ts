@@ -47,7 +47,7 @@ export interface MercInventoryHost {
   readonly merc: () => SoldierView | null;
   readonly soldier: (id: number) => SoldierView | null;
   readonly stashCursor: () => StashCursor | null;
-  readonly stashPlaced: () => Promise<void>;
+  readonly stashPlaced: (data: unknown) => Promise<void>;
   readonly box: (text: string, flags: MessageBoxFlag) => Promise<number>;
   readonly shift: () => boolean;
   readonly ctrl: () => boolean;
@@ -167,7 +167,7 @@ export class MercInventory {
     this.#placing = true;
     try {
       const reply = await this.panel.send(fromStashCommand(stash, soldier, slot));
-      if (reply.ok) await this.#host.stashPlaced();
+      if (reply.ok) await this.#host.stashPlaced(reply.data);
     } finally {
       this.#placing = false;
     }

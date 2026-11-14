@@ -11,7 +11,11 @@
 // @src DrawNumberOfInventoryPoolItems, DisplayCurrentSector (pMapVertIndex, pMapHortIndex, pMapDepthIndex),
 // @src DrawTextOnMapInventoryBackground (pMapInventoryStrings 0 and 1 wrapped right-justified at 268 and 369, 342 and
 // @src centred on their height, MAP_IVEN_FONT FONT_BEIGE), HandleButtonStatesWhileMapInventoryActive;
-// @src MapInvenPoolSlotsMove (the slot under the pointer, iCurrentlyHighLightedItem, 2026-11-03).
+// @src MapInvenPoolSlotsMove (the slot under the pointer, iCurrentlyHighLightedItem, 2026-11-03);
+// @src the pool built and sorted as it opens and kept while it is open: a take empties its slot, a placement lands in the
+// @src clicked slot, a pool item moves between slots (MapInvenPoolSlotsPrimary with an item in the cursor), the trash
+// @src can takes it (MapScreen.cc TrashCanBtnCallback), and closing writes the pool back in its order
+// @src (SaveSeenAndUnseenItems, 2026-11-14).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -23,6 +27,7 @@ import { hCenterVCenterAlign } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import { displayWrappedString, reduceStringLength, TextFlag } from '../../text/wrap.ts';
+import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import { drawItemStatusBar } from '../tactical/bars.ts';
 import { COMPATIBLE_OUTLINE, helpTextForItem } from '../tactical/inventory.ts';
 import type { ItemCursor } from '../tactical/item-cursor.ts';
@@ -30,19 +35,29 @@ import { drawInventoryItem, itemStatusValue, type TileDrawContext } from '../tac
 import type { MapEnvironment } from './environment.ts';
 import { parseSectorLabel } from './facts.ts';
 import {
+  arrangeCommand,
+  discardFromStashCommand,
   entryView,
+  layoutPages,
+  leftoverIndex,
+  openedLayout,
   POOL_SLOTS_PER_PAGE,
+  type PoolLayout,
   type PoolLocation,
+  type PoolPlacement,
   PoolRefusal,
   poolClickRefusal,
   poolEntry,
   poolObjects,
-  poolPages,
+  poolSlotIndex,
   poolSlotOrigin,
+  refreshedLayout,
   type StashCursor,
   shownEntry,
   stashCursor,
+  stashPlacements,
   toStashCommand,
+  withinStashCommand,
 } from './item-pool.ts';
 import { at, type LayoutParams } from './layout-params.ts';
 import type { MapInventoryModel, SlotTooltip } from './map-inventory-controller.ts';
@@ -60,6 +75,10 @@ const VERT_INDEX = 'pMapVertIndex';
 const HORT_INDEX = 'pMapHortIndex';
 const DEPTH_INDEX = 'pMapDepthIndex';
 const LABEL_LINE_GAP = 1;
+const TRASH_TEXT = 'pTrashItemText';
+const TRASH_ORDINARY = 0;
+const TRASH_MISSION = 1;
+const NO_SLOT = -1;
 
 export interface SectorInventoryHost {
   readonly env: MapEnvironment;
@@ -69,6 +88,7 @@ export interface SectorInventoryHost {
   readonly mercCursor: () => ItemCursor | null;
   readonly mercPlaced: () => void;
   readonly box: (text: string) => Promise<number>;
+  readonly confirm: (text: string) => Promise<number>;
   readonly shift: () => boolean;
 }
 
@@ -77,6 +97,9 @@ export class SectorInventory {
   #open = false;
   #location: PoolLocation = { sector: '', z: 0 };
   #query: InventoryQuery | null = null;
+  #entries: ReadonlyMap<number, StashEntryView> = new Map();
+  #layout: PoolLayout | null = null;
+  #placements: readonly PoolPlacement[] = [];
   #page = 0;
   #cursor: StashCursor | null = null;
   #asked = 0;
@@ -90,6 +113,10 @@ export class SectorInventory {
 
   get open(): boolean {
     return this.#open;
+  }
+
+  get shown(): boolean {
+    return this.#open && this.#layout !== null;
   }
 
   get cursor(): StashCursor | null {
@@ -108,8 +135,12 @@ export class SectorInventory {
     return this.#query?.stash ?? [];
   }
 
+  get layout(): PoolLayout {
+    return this.#layout ?? [];
+  }
+
   get pages(): number {
-    return poolPages(this.stash.length);
+    return layoutPages(Math.max(1, this.layout.length));
   }
 
   show(): void {
@@ -118,13 +149,20 @@ export class SectorInventory {
     this.#cursor = null;
     this.#location = this.#host.location();
     this.#query = null;
+    this.#entries = new Map();
+    this.#layout = null;
+    this.#placements = [];
     void this.refresh();
   }
 
   hide(): void {
+    if (this.#open && this.#layout) void this.#host.env.client.command(arrangeCommand(this.#layout, this.#location));
     this.#open = false;
     this.#cursor = null;
     this.#query = null;
+    this.#entries = new Map();
+    this.#layout = null;
+    this.#placements = [];
     this.#hovered = null;
     this.#outlined = new Set();
   }
@@ -134,17 +172,21 @@ export class SectorInventory {
     else if (this.#hovered?.slot === slot) this.#hovered = null;
   }
 
+  #entryAt(slot: number): StashEntryView | null {
+    return poolEntry(this.layout, this.#entries, this.#page, slot);
+  }
+
   hoveredEntry(): StashEntryView | null {
     const hovered = this.#hovered;
-    return this.#open && hovered ? poolEntry(this.stash, this.#page, hovered.slot) : null;
+    return this.shown && hovered ? this.#entryAt(hovered.slot) : null;
   }
 
   hoveredSince(): number | null {
-    return this.#open ? (this.#hovered?.since ?? null) : null;
+    return this.shown ? (this.#hovered?.since ?? null) : null;
   }
 
   pageEntries(): readonly (StashEntryView | null)[] {
-    return Array.from({ length: POOL_SLOTS_PER_PAGE }, (_, slot) => poolEntry(this.stash, this.#page, slot));
+    return Array.from({ length: POOL_SLOTS_PER_PAGE }, (_, slot) => this.#entryAt(slot));
   }
 
   outline(slots: ReadonlySet<number>): void {
@@ -155,11 +197,13 @@ export class SectorInventory {
     this.#cursor = null;
   }
 
-  async takenOut(): Promise<void> {
+  async takenOut(data: unknown): Promise<void> {
+    const leftover = leftoverIndex(data);
+    this.#placements = stashPlacements(data, NO_SLOT, this.#cursorSlot());
     this.#busy = true;
     try {
       await this.refresh();
-      this.#cursor = null;
+      this.#cursor = this.#cursorOn(leftover);
     } finally {
       this.#busy = false;
     }
@@ -175,10 +219,28 @@ export class SectorInventory {
       ...(location.z !== 0 ? { z: location.z } : {}),
     });
     if (asked !== this.#asked || !this.#open) return;
-    this.#query = answer.ok ? (answer.data as InventoryQuery) : null;
+    this.#answered(answer.ok ? (answer.data as InventoryQuery) : null);
+  }
+
+  #answered(query: InventoryQuery | null): void {
+    const stash = query?.stash ?? [];
+    this.#query = query;
+    this.#entries = new Map(stash.map((e) => [e.index, e]));
+    this.#layout = this.#layout ? refreshedLayout(this.#layout, stash, this.#placements) : openedLayout(stash);
+    this.#placements = [];
     this.#page = Math.min(this.#page, this.pages - 1);
     const held = this.#cursor;
-    if (held && !this.stash.some((e) => e.index === held.index && e.item === held.item)) this.#cursor = null;
+    if (held && this.#entries.get(held.index)?.item !== held.item) this.#cursor = null;
+  }
+
+  #cursorSlot(): number {
+    const held = this.#cursor;
+    return held ? this.layout.indexOf(held.index) : NO_SLOT;
+  }
+
+  #cursorOn(index: number | null): StashCursor | null {
+    const entry = index === null ? undefined : this.#entries.get(index);
+    return entry ? stashCursor(entry, true, this.#location) : null;
   }
 
   nextPage(): void {
@@ -213,8 +275,8 @@ export class SectorInventory {
   }
 
   async slotPrimary(slot: number): Promise<void> {
-    if (!this.#open || this.#busy) return;
-    const entry = poolEntry(this.stash, this.#page, slot);
+    if (!this.shown || this.#busy) return;
+    const entry = this.#entryAt(slot);
     const mercCursor = this.#host.mercCursor();
     const holding = mercCursor !== null || this.#cursor !== null;
     if (!holding && !entry) return;
@@ -232,12 +294,18 @@ export class SectorInventory {
       this.#cursor = stashCursor(entry, this.#host.shift(), this.#location);
       return;
     }
-    if (this.#cursor) {
-      this.#cursor = null;
+    const target = poolSlotIndex(this.#page, slot);
+    const held = this.#cursor;
+    const merc = this.#host.infoMerc();
+    if (held && merc) {
+      const source = this.#cursorSlot();
+      await this.#send(withinStashCommand(held, merc.id, entry), target, source, (data) => {
+        this.#cursor = this.#cursorOn(leftoverIndex(data));
+      });
       return;
     }
     const command = mercCursor ? toStashCommand(mercCursor, entry, this.#location) : null;
-    if (command) await this.#send(command, () => this.#host.mercPlaced());
+    if (command) await this.#send(command, target, NO_SLOT, () => this.#host.mercPlaced());
   }
 
   slotSecondary(): boolean {
@@ -246,12 +314,25 @@ export class SectorInventory {
     return true;
   }
 
-  async #send(command: CommandEnvelope, placed: () => void): Promise<void> {
+  async trash(): Promise<void> {
+    const held = this.#cursor;
+    const merc = this.#host.infoMerc();
+    if (!held || !merc || this.#busy) return;
+    const mission = (this.#entries.get(held.index)?.mission ?? 0) !== 0;
+    const text = this.#host.env.text.string(TRASH_TEXT, mission ? TRASH_MISSION : TRASH_ORDINARY) ?? '';
+    if ((await this.#host.confirm(text)) !== MessageBoxReturn.YES || this.#cursor !== held) return;
+    await this.#send(discardFromStashCommand(held, merc.id), NO_SLOT, NO_SLOT, () => {
+      this.#cursor = null;
+    });
+  }
+
+  async #send(command: CommandEnvelope, target: number, source: number, placed: (data: unknown) => void): Promise<void> {
     this.#busy = true;
     try {
       const reply = await this.#host.env.client.command(command);
+      if (reply.ok) this.#placements = stashPlacements(reply.data, target, source);
       await this.refresh();
-      if (reply.ok) placed();
+      if (reply.ok) placed(reply.data);
     } finally {
       this.#busy = false;
     }
@@ -265,8 +346,8 @@ export class SectorInventory {
   }
 
   syncModel(model: MapInventoryModel): void {
-    model.poolOpen = this.#open;
-    model.location = this.#open ? this.locationText() : '';
+    model.poolOpen = this.shown;
+    model.location = this.shown ? this.locationText() : '';
     model.itemCount = String(poolObjects(this.stash));
     model.page = `${this.#page + 1} / ${this.pages}`;
     model.poolPrevEnabled = this.#page !== 0;
@@ -284,13 +365,13 @@ export class SectorInventory {
       nickname: (profile: number) => media.profile(profile)?.nickname ?? null,
     };
     return Array.from({ length: POOL_SLOTS_PER_PAGE }, (_, slot) => {
-      const entry = poolEntry(this.stash, this.#page, slot);
+      const entry = this.#entryAt(slot);
       return { tooltip: entry ? helpTextForItem(entryView(entry), sources) : '' };
     });
   }
 
   render(list: DrawList, ctx: TileDrawContext, p: LayoutParams): void {
-    if (!this.#open) return;
+    if (!this.shown) return;
     this.#renderLabels(list, p);
     const o = this.#host.origin();
     const [slotX, slotY, slotW, slotH] = p.numbers('slot');
@@ -300,7 +381,7 @@ export class SectorInventory {
     const nameFont = p.font('nameFont');
     const mercHere = this.#mercInSector() === true;
     for (let slot = 0; slot < POOL_SLOTS_PER_PAGE; slot++) {
-      const stored = poolEntry(this.stash, this.#page, slot);
+      const stored = this.#entryAt(slot);
       const entry = stored ? shownEntry(stored, this.#cursor) : null;
       if (!entry) continue;
       const cell = poolSlotOrigin(slot);

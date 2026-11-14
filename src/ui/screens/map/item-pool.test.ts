@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { StashEntryView } from '../../../protocol/map-inventory.ts';
 import type { ItemCursor } from '../tactical/item-cursor.ts';
 import {
+  arrangeCommand,
   discardCommand,
+  discardFromStashCommand,
   entryView,
   fromStashCommand,
+  openedLayout,
   POOL_SLOTS_PER_PAGE,
   PoolRefusal,
   poolClickRefusal,
@@ -13,9 +16,12 @@ import {
   poolPages,
   poolSize,
   poolSlotOrigin,
+  refreshedLayout,
   shownEntry,
   stashCursor,
+  stashPlacements,
   toStashCommand,
+  withinStashCommand,
 } from './item-pool.ts';
 
 function entry(index: number, count = 1, reachable = true): StashEntryView {
@@ -43,8 +49,24 @@ describe('the sector inventory pool', () => {
     expect(poolSlotOrigin(8)).toEqual({ column: 0, row: 8 });
     expect(poolSlotOrigin(9)).toEqual({ column: 1, row: 0 });
     const stash = Array.from({ length: 50 }, (_, i) => entry(i));
-    expect(poolEntry(stash, 1, 0)?.index).toBe(POOL_SLOTS_PER_PAGE);
-    expect(poolEntry(stash, 1, 5)).toBeNull();
+    const entries = new Map(stash.map((e) => [e.index, e]));
+    const layout = openedLayout(stash);
+    expect(poolEntry(layout, entries, 1, 0)?.index).toBe(POOL_SLOTS_PER_PAGE);
+    expect(poolEntry(layout, entries, 1, 5)).toBeNull();
+  });
+
+  it('keeps the slots of the pool as it opened: a gone entry leaves a hole, a placement lands in its slot or the first hole, a new entry in the first hole, and a page more when fewer than two slots stay free (CheckAndUnDateSlotAllocation)', () => {
+    const opened = openedLayout([entry(7), entry(3), entry(5)]);
+    expect(opened.slice(0, 4)).toEqual([7, 3, 5, null]);
+    expect(opened).toHaveLength(POOL_SLOTS_PER_PAGE);
+    const taken = refreshedLayout(opened, [entry(7), entry(5)], []);
+    expect(taken.slice(0, 4)).toEqual([7, null, 5, null]);
+    const placed = refreshedLayout(taken, [entry(7), entry(5), entry(3), entry(9)], [{ index: 3, slot: 10 }]);
+    expect(placed.slice(0, 11)).toEqual([7, 9, 5, null, null, null, null, null, null, null, 3]);
+    const moved = refreshedLayout(placed, [entry(7), entry(5), entry(3), entry(9)], [{ index: 7, slot: 3 }]);
+    expect(moved.slice(0, 4)).toEqual([null, 9, 5, 7]);
+    const full = Array.from({ length: POOL_SLOTS_PER_PAGE - 1 }, (_, i) => entry(i));
+    expect(refreshedLayout(openedLayout(full.slice(0, 40)), full, [])).toHaveLength(2 * POOL_SLOTS_PER_PAGE);
   });
 
   it('counts the objects of every slot', () => {
@@ -90,6 +112,44 @@ describe('the sector inventory pool', () => {
     const attachment: ItemCursor = { source: { kind: 'attachment', soldier: 3, slot: 5, attachment: 0 }, item: 'SILENCER' };
     expect(toStashCommand(attachment, null, { sector: 'D13', z: 0 })).toBeNull();
     expect(discardCommand(attachment)).toBeNull();
+  });
+
+  it('builds the commands of the pool cursor: onto another pool slot, into the trash can, and the write-back as the pool closes', () => {
+    const cursor = stashCursor(entry(2, 2), false, { sector: 'D13', z: 1 });
+    expect(withinStashCommand(cursor, 3, entry(5))).toEqual({
+      type: 'moveItem',
+      soldier: 3,
+      from: 'ground',
+      item: 2,
+      to: 'ground',
+      stashIndex: 5,
+      sector: 'D13',
+      z: 1,
+      count: 1,
+    });
+    expect(withinStashCommand(stashCursor(entry(2), true, { sector: 'D13', z: 0 }), 3, null)).toEqual({
+      type: 'moveItem',
+      soldier: 3,
+      from: 'ground',
+      item: 2,
+      to: 'ground',
+      sector: 'D13',
+    });
+    expect(discardFromStashCommand(cursor, 3)).toEqual({
+      type: 'discardItem',
+      soldier: 3,
+      slot: 'ground',
+      item: 2,
+      sector: 'D13',
+      z: 1,
+      count: 1,
+    });
+    expect(arrangeCommand([4, null, 1, null], { sector: 'D13', z: 0 })).toEqual({ type: 'arrangeStash', sector: 'D13', order: [4, 1] });
+    expect(stashPlacements({ stashIndex: 6, leftover: 2 }, 9, 1)).toEqual([
+      { index: 6, slot: 9 },
+      { index: 2, slot: 1 },
+    ]);
+    expect(stashPlacements({ item: 'GLOCK_17' }, 9, 1)).toEqual([]);
   });
 
   it('puts keys taken off the key ring into the stash and into the trash can (BeginKeyRingItemPointer)', () => {

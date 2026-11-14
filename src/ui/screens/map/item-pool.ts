@@ -31,17 +31,69 @@ export interface PoolLocation {
   readonly z: number;
 }
 
+export type PoolLayout = readonly (number | null)[];
+
+export interface PoolPlacement {
+  readonly index: number;
+  readonly slot: number;
+}
+
 export function poolSize(entries: number): number {
   const size = entries + (POOL_SLOTS_PER_PAGE - (entries % POOL_SLOTS_PER_PAGE));
   return size - entries < MIN_FREE_SLOTS ? size + POOL_SLOTS_PER_PAGE : size;
 }
 
 export function poolPages(entries: number): number {
-  return idiv(poolSize(entries) - 1, POOL_SLOTS_PER_PAGE) + 1;
+  return layoutPages(poolSize(entries));
 }
 
-export function poolEntry(stash: readonly StashEntryView[], page: number, slot: number): StashEntryView | null {
-  return stash[page * POOL_SLOTS_PER_PAGE + slot] ?? null;
+export function layoutPages(size: number): number {
+  return idiv(size - 1, POOL_SLOTS_PER_PAGE) + 1;
+}
+
+export function openedLayout(stash: readonly StashEntryView[]): PoolLayout {
+  const layout: (number | null)[] = stash.map((e) => e.index);
+  while (layout.length < poolSize(stash.length)) layout.push(null);
+  return layout;
+}
+
+export function refreshedLayout(layout: PoolLayout, stash: readonly StashEntryView[], placements: readonly PoolPlacement[]): PoolLayout {
+  const listed = new Set(stash.map((e) => e.index));
+  const out = layout.map((index) => (index !== null && listed.has(index) ? index : null));
+  for (const p of placements) {
+    if (!listed.has(p.index)) continue;
+    const at = out.indexOf(p.index);
+    if (at >= 0) out[at] = null;
+    putIntoHole(out, p.index, p.slot);
+  }
+  for (const e of stash) if (!out.includes(e.index)) putIntoHole(out, e.index, out.indexOf(null));
+  return withFreeSlots(out);
+}
+
+function putIntoHole(out: (number | null)[], index: number, slot: number): void {
+  const hole = slot >= 0 && out[slot] === null ? slot : out.indexOf(null);
+  if (hole >= 0) out[hole] = index;
+  else out.push(index);
+}
+
+function withFreeSlots(out: (number | null)[]): (number | null)[] {
+  while (out.length - out.filter((index) => index !== null).length < MIN_FREE_SLOTS)
+    out.push(...Array.from({ length: POOL_SLOTS_PER_PAGE }, () => null));
+  return out;
+}
+
+export function poolSlotIndex(page: number, slot: number): number {
+  return page * POOL_SLOTS_PER_PAGE + slot;
+}
+
+export function poolEntry(
+  layout: PoolLayout,
+  entries: ReadonlyMap<number, StashEntryView>,
+  page: number,
+  slot: number,
+): StashEntryView | null {
+  const index = layout[poolSlotIndex(page, slot)];
+  return index === undefined || index === null ? null : (entries.get(index) ?? null);
 }
 
 export function poolObjects(stash: readonly StashEntryView[]): number {
@@ -77,8 +129,8 @@ export function entryView(entry: StashEntryView): InventoryItemView {
   };
 }
 
-function location(cursor: PoolLocation): { sector: string; z?: number } {
-  return { sector: cursor.sector, ...(cursor.z !== 0 ? { z: cursor.z } : {}) };
+export function stashLocation(at: PoolLocation): { sector: string; z?: number } {
+  return { sector: at.sector, ...(at.z !== 0 ? { z: at.z } : {}) };
 }
 
 export function fromStashCommand(cursor: StashCursor, soldier: number, slot: number): CommandEnvelope {
@@ -88,7 +140,7 @@ export function fromStashCommand(cursor: StashCursor, soldier: number, slot: num
     from: 'ground',
     item: cursor.index,
     to: slot,
-    ...location(cursor),
+    ...stashLocation(cursor),
     ...(cursor.count === 'all' ? {} : { count: cursor.count }),
   };
 }
@@ -102,9 +154,50 @@ export function toStashCommand(cursor: ItemCursor, target: StashEntryView | null
     from: s.kind === 'keyRing' ? { ring: s.position } : s.slot,
     to: 'ground',
     ...(target ? { stashIndex: target.index } : {}),
-    ...location(pool),
+    ...stashLocation(pool),
     ...countOf(s.count),
   };
+}
+
+export function withinStashCommand(cursor: StashCursor, soldier: number, target: StashEntryView | null): CommandEnvelope {
+  return {
+    type: 'moveItem',
+    soldier,
+    from: 'ground',
+    item: cursor.index,
+    to: 'ground',
+    ...(target ? { stashIndex: target.index } : {}),
+    ...stashLocation(cursor),
+    ...(cursor.count === 'all' ? {} : { count: cursor.count }),
+  };
+}
+
+export function discardFromStashCommand(cursor: StashCursor, soldier: number): CommandEnvelope {
+  return {
+    type: 'discardItem',
+    soldier,
+    slot: 'ground',
+    item: cursor.index,
+    ...stashLocation(cursor),
+    ...(cursor.count === 'all' ? {} : { count: cursor.count }),
+  };
+}
+
+export function arrangeCommand(layout: PoolLayout, at: PoolLocation): CommandEnvelope {
+  return { type: 'arrangeStash', ...stashLocation(at), order: layout.filter((index): index is number => index !== null) };
+}
+
+export function stashPlacements(data: unknown, target: number, source: number): PoolPlacement[] {
+  const reply = (data ?? {}) as { readonly stashIndex?: unknown; readonly leftover?: unknown };
+  return [
+    ...(typeof reply.stashIndex === 'number' && target >= 0 ? [{ index: reply.stashIndex, slot: target }] : []),
+    ...(typeof reply.leftover === 'number' ? [{ index: reply.leftover, slot: source }] : []),
+  ];
+}
+
+export function leftoverIndex(data: unknown): number | null {
+  const leftover = (data as { readonly leftover?: unknown } | undefined)?.leftover;
+  return typeof leftover === 'number' ? leftover : null;
 }
 
 export function discardCommand(cursor: ItemCursor): CommandEnvelope | null {

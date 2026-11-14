@@ -97,7 +97,7 @@ export class MapInventory {
       merc: () => this.#mercSoldier(),
       soldier: (id) => this.#soldier(id),
       stashCursor: () => this.pool.cursor,
-      stashPlaced: () => this.pool.takenOut(),
+      stashPlaced: (data) => this.pool.takenOut(data),
       box: (text, flags) => host.box(text, flags),
       shift: () => host.shift(),
       ctrl: () => host.ctrl(),
@@ -110,6 +110,7 @@ export class MapInventory {
       mercCursor: () => this.merc.panel.cursor,
       mercPlaced: () => this.merc.panel.setCursor(null),
       box: (text) => host.box(text, MessageBoxFlag.OK),
+      confirm: (text) => host.box(text, MessageBoxFlag.YESNO),
       shift: () => host.shift(),
     });
   }
@@ -226,7 +227,7 @@ export class MapInventory {
         this.merc.openKeyRing();
         return;
       case 'trash':
-        void this.merc.trash();
+        void (this.pool.cursor ? this.pool.trash() : this.merc.trash());
         return;
       case 'poolSlotPrimary':
         void this.pool.slotPrimary(first);

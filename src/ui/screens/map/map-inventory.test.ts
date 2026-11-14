@@ -547,6 +547,127 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.pool.stash).toEqual([]);
   });
 
+  it('keeps the pool as it opened while it is open: a take leaves its slot empty and a placement lands in the clicked slot (Map_Screen_Interface_Map_Inventory.cc:579-601, :774-815)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const hollis = (inventory: InventoryItemView[]) => [merc(MERC, 'Hollis', 'D13', inventory)];
+    const h = await harness(hollis([]));
+    h.client.stash = [stashEntry(7, gun.name), stashEntry(3, gun.name), stashEntry(5, gun.name)];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    expect(h.inventory.pool.layout.slice(0, 4)).toEqual([7, 3, 5, null]);
+    h.client.reply = () => {
+      h.client.view = playerView(hollis([view(HAND, gun.name)]));
+      h.info = hollis([view(HAND, gun.name)])[0] ?? null;
+      h.client.stash = [stashEntry(7, gun.name), stashEntry(5, gun.name)];
+      return { ok: true, data: { item: gun.name, count: 1 } };
+    };
+    await h.click('poolSlot1');
+    await h.click('mercSlot5');
+    expect(h.inventory.pool.layout.slice(0, 4)).toEqual([7, null, 5, null]);
+    expect(h.inventory.pool.pageEntries()[1]).toBeNull();
+    h.client.reply = () => {
+      h.client.view = playerView(hollis([]));
+      h.info = hollis([])[0] ?? null;
+      h.client.stash = [stashEntry(7, gun.name), stashEntry(3, gun.name), stashEntry(5, gun.name)];
+      return { ok: true, data: { item: gun.name, count: 1, stashIndex: 3 } };
+    };
+    await h.click('mercSlot5');
+    await h.click('poolSlot10');
+    expect(h.client.commands.at(-1)).toMatchObject({ type: 'moveItem', from: HAND, to: 'ground' });
+    expect(h.inventory.pool.layout.slice(0, 11)).toEqual([7, null, 5, null, null, null, null, null, null, null, 3]);
+  });
+
+  it('shows the pool only once its stash answers, as the original builds the stash as the pool opens (Map_Screen_Interface_Map_Inventory.cc:300)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.stash = [stashEntry(0, gun.name)];
+    let answer: () => void = () => undefined;
+    h.client.queriesAnswered = new Promise((resolve) => {
+      answer = resolve;
+    });
+    h.inventory.openPool();
+    await h.settle();
+    expect(h.inventory.pool.open).toBe(true);
+    expect(h.inventory.pool.shown).toBe(false);
+    expect(h.widget('poolDone')).toMatchObject({ visible: false });
+    answer();
+    await h.settle();
+    expect(h.inventory.pool.shown).toBe(true);
+    expect(h.widget('poolDone')).toMatchObject({ visible: true, enabled: true });
+  });
+
+  it('writes the pool back in the order it shows as it closes, empty slots left out (SaveSeenAndUnseenItems)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.stash = [stashEntry(7, gun.name), stashEntry(3, gun.name)];
+    h.inventory.openPool();
+    await h.settle();
+    h.client.stash = [stashEntry(3, gun.name)];
+    await h.inventory.pool.refresh();
+    await h.click('poolDone');
+    expect(h.inventory.pool.open).toBe(false);
+    expect(h.client.commands).toEqual([{ type: 'arrangeStash', sector: 'D13', order: [3] }]);
+  });
+
+  it("moves a pool item onto another pool slot and keeps the cursor on what the placement leaves, as the original's pool cursor does (MapInvenPoolSlotsPrimary)", async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const ammo = item((i) => i.class === 'AMMO');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.stash = [stashEntry(0, gun.name), stashEntry(1, ammo.name)];
+    h.inventory.openPool();
+    await h.settle();
+    h.client.reply = () => {
+      h.client.stash = [stashEntry(0, gun.name), stashEntry(2, ammo.name)];
+      return { ok: true, data: { item: ammo.name, count: 1, stashIndex: 2 } };
+    };
+    await h.click('poolSlot1');
+    await h.click('poolSlot4');
+    expect(h.client.commands.at(-1)).toEqual({
+      type: 'moveItem',
+      soldier: MERC,
+      from: 'ground',
+      item: 1,
+      to: 'ground',
+      sector: 'D13',
+      count: 1,
+    });
+    expect(h.inventory.pool.layout.slice(0, 5)).toEqual([0, null, null, null, 2]);
+    expect(h.inventory.pool.cursor).toBeNull();
+    h.client.reply = () => {
+      h.client.stash = [stashEntry(2, gun.name), stashEntry(1, ammo.name)];
+      return { ok: true, data: { item: ammo.name, count: 1, stashIndex: 2, leftover: 1 } };
+    };
+    await h.click('poolSlot4');
+    await h.click('poolSlot0');
+    expect(h.client.commands.at(-1)).toMatchObject({ item: 2, to: 'ground', stashIndex: 0 });
+    expect(h.inventory.pool.layout.slice(0, 5)).toEqual([2, null, null, null, 1]);
+    expect(h.inventory.pool.cursor).toMatchObject({ index: 1, item: ammo.name, count: 'all' });
+  });
+
+  it('throws a pool item into the trash can after the question, the second one for an object with ubMission (TrashCanBtnCallback)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.stash = [{ ...stashEntry(4, gun.name, 2), mission: 1 }];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    await h.click('poolSlot0');
+    h.answer = MessageBoxReturn.NO;
+    await h.click('trashCan');
+    expect(h.boxes).toEqual(['This item looks REALLY important. Are you REALLY REALLY sure you want to trash it?']);
+    expect(h.client.commands).toEqual([]);
+    h.answer = MessageBoxReturn.YES;
+    h.client.reply = () => {
+      h.client.stash = [stashEntry(4, gun.name)];
+      return { ok: true, data: { item: gun.name, count: 1 } };
+    };
+    await h.click('trashCan');
+    expect(h.client.commands).toEqual([{ type: 'discardItem', soldier: MERC, slot: 'ground', item: 4, sector: 'D13', count: 1 }]);
+    expect(h.inventory.pool.cursor).toBeNull();
+    expect(h.inventory.pool.pageEntries()[0]).toMatchObject({ index: 4, count: 1 });
+  });
+
   it('explains why a pool slot cannot be used, in the original order', async () => {
     const gun = item((i) => i.class === 'GUN');
     const h = await harness([merc(MERC, 'Hollis', 'C13', [])]);

@@ -1115,7 +1115,7 @@ export class MapScreen implements Screen {
     const info = this.list.infoMerc(strategic);
     const exitAllowed = this.#allowedToExit();
     m.inventoryOpen = this.#inventoryOpen;
-    m.sectorInventoryOpen = this.#sectorInventoryOpen;
+    m.sectorInventoryOpen = this.#sectorInventoryOpen && this.#inventory.pool.shown;
     m.levelMarkerY = this.#model.number('MAP_LEVEL_MARKER_Y') + this.#model.number('MAP_LEVEL_MARKER_DELTA') * this.#level;
     m.mechanical = info !== null && isMechanical(info);
     m.contractEnabled = info !== null && this.#canExtendContract(info);
