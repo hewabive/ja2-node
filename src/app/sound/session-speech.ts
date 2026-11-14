@@ -40,6 +40,7 @@ export class SessionSpeech {
         return speaking !== null && speaking.speaker === soldier && speaking.playing;
       },
       cut: (soldier) => this.presenter.cutSpeaker(soldier),
+      holdBattleSound: (profile, play) => this.presenter.holdBattleSound(profile, play),
     };
   }
 

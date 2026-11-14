@@ -50,7 +50,9 @@
 // @src LAUGH1 at a visible death on Random(3) == 0) and HandleKilledQuote (the killer's LAUGH1 or COOL1 by CoinToss), both
 // @src drawn here (deviation "Cosmetic draws in attacks", 2026-11-14); Tactical/Overhead.cc CheckForEndOfBattle (the COOL1
 // @src of SayBattleSoundFromAnyBodyInSector after bloodcats, its Random(n) drawn here; deviation "Battle sound after
-// @src bloodcats", 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14);
+// @src bloodcats", 2026-11-14); Tactical/Soldier_Control.cc DoMercBattleSound (a battle sound that does not cut speech
+// @src waits behind the line of the merc saying one, as MakeCharacterDialogueEventDoBattleSound queues it, but in the
+// @src overhead map, 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14);
 // @src Tactical/Handle_Doors.cc HandleOpenableStruct (COOL1 after a picked lock or a disarmed trap, CURSE1 on Random(2)
 // @src after a wrong key, drawn here), Tactical/Keys.cc AttemptToBlowUpLock (SMALL_EXPLODE_1 at the door, HIGHVOLUME),
 // @src Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a failed check, its Random(100) < 40 drawn here, 2026-11-14).
@@ -61,7 +63,13 @@ import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
 import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../content/anim/timeline-follower.ts';
 import { ambientActive, ambientCue, ambientGapMs } from '../content/audio/ambient-schedule.ts';
-import { type BattleMemory, type BattleSoundName, battleSoundCue, NO_BATTLE_MEMORY } from '../content/audio/battle-sound.ts';
+import {
+  type BattleMemory,
+  type BattleSoundName,
+  battleSoundCue,
+  NO_BATTLE_MEMORY,
+  waitsForTheLine,
+} from '../content/audio/battle-sound.ts';
 import { CALL_CRY_CODES, callAnimationState, codesInScript } from '../content/audio/creature-call.ts';
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, VolumeLevel } from '../content/audio/cue.ts';
 import type { CueBook } from '../content/audio/cue-book.ts';
@@ -156,6 +164,7 @@ export interface DirectorSettings {
 export interface SpeechOwner {
   isTalking(soldier: number): boolean;
   cut(soldier: number): void;
+  holdBattleSound(profile: number, play: () => void): boolean;
 }
 
 export interface DirectorContext {
@@ -197,7 +206,9 @@ interface IdleLoop {
   passes: number;
 }
 
-type Voiced = Pick<SoldierView, 'id' | 'gridNo' | 'team' | 'bodyType' | 'voice' | 'morale' | 'muted'> & { readonly far?: boolean };
+type Voiced = Pick<SoldierView, 'id' | 'gridNo' | 'team' | 'bodyType' | 'voice' | 'morale' | 'muted' | 'profile'> & {
+  readonly far?: boolean;
+};
 
 type EventOf<T extends string> = Extract<NonNullable<ViewFrame['events']>[number], { type: T }>;
 type UnseenVictim = NonNullable<EventOf<'soldierHit'>['unseen']>;
@@ -589,6 +600,21 @@ export class SoundDirector {
 
   #voiceSound(soldier: Voiced | undefined, sound: BattleSoundName, lowerVolume: boolean): void {
     if (!soldier) return;
+    const vehicle = isVehicleBody(soldier.bodyType);
+    if (!vehicle && soldier.muted) return;
+    if (!lowerVolume && this.#heldBehindHisLine(soldier, sound)) return;
+    this.#voiceSoundNow(soldier, sound, lowerVolume);
+  }
+
+  #heldBehindHisLine(soldier: Voiced, sound: BattleSoundName): boolean {
+    const profile = soldier.profile;
+    if (profile === undefined || !waitsForTheLine(this.#o.book, sound)) return false;
+    const id = soldier.id;
+    const play = () => this.#voiceSoundNow(this.#soldiers.get(id) ?? soldier, sound, false);
+    return this.#speechOwner?.holdBattleSound(profile, play) ?? false;
+  }
+
+  #voiceSoundNow(soldier: Voiced, sound: BattleSoundName, lowerVolume: boolean): void {
     const vehicle = isVehicleBody(soldier.bodyType);
     if (!vehicle && soldier.muted) return;
     if (sound === 'DIE1' && this.#deathSoundPlayed(soldier.id)) return;

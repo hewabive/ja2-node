@@ -15,7 +15,9 @@
 // @src Dialogue_Control.cc gpCurrentTalkingFace is one face for every screen: a line goes on across a screen switch
 // @src (2026-11-03); SaveLoadGame.cc LoadSavedGame (EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech before a load)
 // @src and Laptop/Laptop.cc, whose screen leaves out HandleDialogue (2026-11-04); Faces.cc DeleteFace (a face deleted while
-// @src it talks stops talking at once and leaves its sample playing, 2026-11-09).
+// @src it talks stops talking at once and leaves its sample playing, 2026-11-09); Soldier_Control.cc DoMercBattleSound and
+// @src Dialogue_Control.cc IsMercSayingDialogue, MakeCharacterDialogueEventDoBattleSound (a battle sound queued behind the
+// @src line of the merc who says one, played once it reaches the head and his own sound is over, 2026-11-14).
 
 import { speechPathForLine } from '../content/audio/speech.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -136,6 +138,18 @@ export interface SpeechPresenterOptions {
   readonly battleSounds?: SpeakerBattleSounds;
 }
 
+interface HeldBattleSound {
+  readonly kind: 'battleSound';
+  readonly profile: number;
+  readonly play: () => void;
+}
+
+type Queued = SpeechLine | HeldBattleSound;
+
+function isLine(entry: Queued): entry is SpeechLine {
+  return !('kind' in entry);
+}
+
 interface Running {
   readonly line: SpeechLine;
   readonly startedAt: number;
@@ -160,7 +174,7 @@ export function quoted(text: string): string {
 
 export class SpeechPresenter {
   readonly #o: SpeechPresenterOptions;
-  readonly #queue: SpeechLine[] = [];
+  readonly #queue: Queued[] = [];
   #running: Running | null = null;
   #civ: CivQuoteLine | null = null;
   #nextId = 1;
@@ -192,7 +206,7 @@ export class SpeechPresenter {
   }
 
   get queued(): readonly SpeechLine[] {
-    return this.#queue;
+    return this.#queue.filter(isLine);
   }
 
   get current(): ActiveLine | null {
@@ -235,6 +249,12 @@ export class SpeechPresenter {
     this.#queue.push(line);
     if (!this.#running) this.#startNext(this.#now);
     return line;
+  }
+
+  holdBattleSound(profile: number, play: () => void): boolean {
+    if (this.#holds.has(DialogueHold.OVERHEAD_MAP) || this.#talking?.line.profile !== profile) return false;
+    this.#queue.push({ kind: 'battleSound', profile, play });
+    return true;
   }
 
   showCivQuote(request: CivQuoteRequest, now: number): CivQuoteLine {
@@ -311,7 +331,7 @@ export class SpeechPresenter {
       else if (r.phase === 'talking' && !this.#validSpeech(r)) this.#finalDelay(r, this.#now);
       return;
     }
-    const queued = tail ? -1 : this.#queue.findIndex(said);
+    const queued = tail ? -1 : this.#queue.findIndex((e) => isLine(e) && said(e));
     if (queued >= 0) this.#queue.splice(queued, 1);
   }
 
@@ -327,7 +347,7 @@ export class SpeechPresenter {
       r.faceDeleted = true;
       return;
     }
-    const queued = this.#queue.findIndex(said);
+    const queued = this.#queue.findIndex((e) => isLine(e) && said(e));
     if (queued >= 0) this.#queue.splice(queued, 1);
   }
 
@@ -345,8 +365,11 @@ export class SpeechPresenter {
   }
 
   #startNext(now: number): boolean {
-    const line = this.#queue[0];
-    if (!line || this.#dialogueHeld || this.#speakerBattleSoundPlaying(line)) return false;
+    const next = this.#queue[0];
+    if (!next || this.#dialogueHeld) return false;
+    if (!isLine(next)) return this.#playHeldBattleSound(next);
+    const line = next;
+    if (this.#speakerBattleSoundPlaying(line)) return false;
     this.#queue.shift();
     const settings = this.#o.settings();
     const voice = settings.speech && line.voice ? (this.#o.voices?.play(line.voice) ?? null) : null;
@@ -357,8 +380,15 @@ export class SpeechPresenter {
     return true;
   }
 
-  #speakerBattleSoundPlaying(line: SpeechLine): boolean {
+  #speakerBattleSoundPlaying(line: Pick<SpeechLine, 'profile'>): boolean {
     return this.#o.battleSounds?.playing(line.profile) ?? false;
+  }
+
+  #playHeldBattleSound(held: HeldBattleSound): boolean {
+    if (this.#speakerBattleSoundPlaying(held)) return false;
+    this.#queue.shift();
+    held.play();
+    return true;
   }
 
   #advance(r: Running, now: number): boolean {

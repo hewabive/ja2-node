@@ -14,7 +14,8 @@
 // @src 2026-11-07); HandleSoldierTakeDamageFeedback and HandleTakeDamageDeath, TileEngine/Explosion_Control.cc
 // @src DishOutGasDamage (the DIE1 and HIT1 grunts at bleeding, gas and electric damage while the map screen is up, an
 // @src unseen soldier's in the middle, 2026-11-09); src/game/Tactical/Items.cc ReloadGun (the reload sound of a merc off
-// @src the loaded map, sReloadSound at HIGHVOLUME, MIDDLEPAN, 2026-11-14).
+// @src the loaded map, sReloadSound at HIGHVOLUME, MIDDLEPAN, 2026-11-14); DoMercBattleSound (the confirmation held behind
+// @src the merc's own line, 2026-11-14).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -25,6 +26,7 @@ import {
   battleSoundCue,
   NO_BATTLE_MEMORY,
   type VoiceSoldier,
+  waitsForTheLine,
 } from '../../content/audio/battle-sound.ts';
 import { cueOf, effectCue } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
@@ -114,7 +116,9 @@ export class MapSound implements MapSounds {
       voice: tactical?.voice ?? String(merc.profile).padStart(VOICE_DIGITS, '0'),
       morale: merc.morale ?? NORMAL_MORALE,
     };
-    this.#battleSound(book, soldier, voiced, 'OK1');
+    const play = () => this.#battleSound(book, soldier, voiced, 'OK1');
+    if (waitsForTheLine(book, 'OK1') && this.#speech.holdBattleSound(merc.profile, play)) return;
+    play();
   }
 
   mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void {

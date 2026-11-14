@@ -108,8 +108,12 @@ loud as his loudest scream like a death cry; on the map screen he and a merc off
 
 **Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
 waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`, on the map screen
-`MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it. On
-`/play` the speech presenter owns voice, subtitle and skip (`30`).
+`MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it.
+A battle sound of a merc saying a line that does not cut speech (all but HIT1, DIE1, HUMM, NOTHING and GOTIT) goes into
+the speech queue behind that line and any line queued meanwhile, and plays when it reaches the head and his own battle
+sound is over, as `DoMercBattleSound` queues it (`Tactical/Soldier_Control.cc:6101-6115`); in the overhead map and for
+the lowered selection sounds it plays at once (`SpeechPresenter.holdBattleSound`). On `/play` the speech presenter owns
+voice, subtitle and skip (`30`).
 
 ### Music
 
@@ -212,6 +216,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A seen soldier hurt by gas or electricity cries DIE1, alive or not, and the grunt after it cuts it at once; gas that leaves him conscious asks for a second grunt, which the repeat filter drops unless the timed one was not due | `content/audio/damage-feedback.test.ts`, `audio/director.test.ts` "cries DIE1 for a seen soldier …" |
 | The bleeding grunt's one-second limit is thinned to two by the repeat filter, and a grunt the filter drops still restarts the second | `audio/director.test.ts` "grunts HIT1 at bleeding at most once a second …" |
 | A merc's line waits for his battle sound with speech off too, only its subtitle shown | `ui/speech.test.ts` |
+| A battle sound held behind a merc's line waits for every line queued before it plays, and is lost with a flush of the queue | `ui/speech.test.ts` "queues a battle sound of the merc saying a line …" |
 | Only a merc on our team holds his line for his battle sound; an NPC's line plays over his | `audio/director.test.ts` |
 | A vehicle's battle sound is said by a merc aboard drawn anew each time; an empty vehicle says nothing | `audio/director.test.ts` "is spoken by a passenger drawn with Random(passengers) …", "says nothing with nobody aboard …" |
 | A vehicle's move sound plays once from the tile it starts from without following it and stops at any state that does not move it; a pause for want of APs silences the rest of that move | `audio/director.test.ts` "starts the move sound at the tile a vehicle starts from …", "stops the move sound when the vehicle runs out of APs …" |

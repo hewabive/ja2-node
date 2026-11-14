@@ -190,6 +190,40 @@ describe('SpeechPresenter', () => {
     expect(p.queued.map((l) => l.profile)).toEqual([5]);
   });
 
+  it('queues a battle sound of the merc saying a line behind it and any line queued meanwhile, and plays it once his own sound is over (DoMercBattleSound)', () => {
+    const { p, battleSounds } = presenter({ speech: false });
+    const played: string[] = [];
+    p.update(0);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 4, chars: 1, keyWait: false }));
+    expect(p.holdBattleSound(5, () => played.push('5 cool'))).toBe(false);
+    expect(p.holdBattleSound(4, () => played.push('4 cool'))).toBe(true);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 6, chars: 1, keyWait: false }));
+    expect(p.holdBattleSound(4, () => played.push('4 curse'))).toBe(true);
+    expect([p.queued.map((l) => l.profile), p.busy]).toEqual([[6], true]);
+    p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
+    expect([played, p.current?.line.profile]).toEqual([['4 cool'], 6]);
+    battleSounds.add(4);
+    p.update(2 * (textDelay(1) + FINAL_TALKING_DELAY_MS));
+    expect([played, p.busy]).toEqual([['4 cool'], true]);
+    battleSounds.delete(4);
+    p.update(2 * (textDelay(1) + FINAL_TALKING_DELAY_MS) + 1);
+    expect([played, p.busy]).toEqual([['4 cool', '4 curse'], false]);
+  });
+
+  it('plays a battle sound at once in the overhead map, and drops the held ones with a flush', () => {
+    const { p } = presenter({ speech: false });
+    const played: string[] = [];
+    p.update(0);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 4, chars: 1, keyWait: false }));
+    p.holdDialogue(true, DialogueHold.OVERHEAD_MAP);
+    expect(p.holdBattleSound(4, () => played.push('overhead'))).toBe(false);
+    p.holdDialogue(false, DialogueHold.OVERHEAD_MAP);
+    expect(p.holdBattleSound(4, () => played.push('held'))).toBe(true);
+    p.flush();
+    p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
+    expect([played, p.busy]).toEqual([[], false]);
+  });
+
   it('holds a subtitled line with speech off too and times its text and talk end from its start', () => {
     const { p, battleSounds } = presenter({ speech: false });
     const stopped: string[] = [];

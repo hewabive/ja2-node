@@ -38,7 +38,7 @@ function view(): PlayerView {
   return { soldiers: [], strategic: { mercs: [merc] } } as unknown as PlayerView;
 }
 
-async function rig(talking = false, viewOf: () => PlayerView = view) {
+async function rig(talking = false, viewOf: () => PlayerView = view, held: (() => void)[] | null = null) {
   const graph = new FakeGraph();
   const engine = new AudioEngine({ createGraph: () => graph.asGraph(), load: async () => pcmWav(200) });
   engine.unlock();
@@ -49,7 +49,11 @@ async function rig(talking = false, viewOf: () => PlayerView = view) {
     return play(cue);
   };
   const cut: number[] = [];
-  const sound = new MapSound(engine, source(), viewOf, 'map-sound-test', { isTalking: () => talking, cut: (s) => cut.push(s) });
+  const sound = new MapSound(engine, source(), viewOf, 'map-sound-test', {
+    isTalking: () => talking,
+    cut: (s) => cut.push(s),
+    holdBattleSound: (_profile, play) => held !== null && held.push(play) > 0,
+  });
   await sound.load();
   return { sound, engine, graph, cues, cut };
 }
@@ -65,6 +69,15 @@ describe('the map screen battle sounds', () => {
     await settle();
     for (const playing of r.graph.playing()) playing.finish();
     expect(r.sound.mercBattleSoundPlaying(PROFILE)).toBe(false);
+  });
+
+  it("holds a merc's route confirmation behind his line and plays it when the speech presenter reaches it (DoMercBattleSound)", async () => {
+    const held: (() => void)[] = [];
+    const r = await rig(false, view, held);
+    r.sound.confirmRoute(MERC);
+    expect([r.cues, held.length]).toEqual([[], 1]);
+    held[0]?.();
+    expect(r.cues.map((c) => c.file)).toEqual([expect.stringMatching(/^battlesnds\/007_ok\d?\.wav$/)]);
   });
 
   it('cries the death of a soldier on the map screen in the voice the event names, then DOORCR_1 and HEADCR_1, all at the middle', async () => {

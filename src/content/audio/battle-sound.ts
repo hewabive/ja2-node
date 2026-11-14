@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.cc InternalDoMercBattleSound, DoMercBattleSound, gBattleSndsData,
-// @src MIN_SUBSEQUENT_SNDS_DELAY; Tactical/Soldier_Create.cc (ubBattleSoundID).
+// @src src/game/Tactical/Soldier_Control.cc InternalDoMercBattleSound, DoMercBattleSound (the sounds it holds behind a
+// @src line, 2026-11-14), gBattleSndsData, MIN_SUBSEQUENT_SNDS_DELAY; Tactical/Soldier_Create.cc (ubBattleSoundID).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook } from './cue-book.ts';
@@ -151,6 +151,11 @@ function voiceFile(book: CueBook, soldier: VoiceSoldier, kind: BattleSoundKind, 
   }
   if (!profiled) return null;
   return battleSoundPath(book.battle, soldier.bodyType === SoundBody.REGFEMALE ? 'f' : 'm', kind.file);
+}
+
+export function waitsForTheLine(book: CueBook, sound: BattleSoundName): boolean {
+  const kind = kindByName(book, sound);
+  return kind !== null && kind.stopDialogue !== CUTS_SPEECH;
 }
 
 const SILENT = (memory: BattleMemory): BattleOutcome => ({ cues: [], memory, stopPrevious: false, cutSpeech: false });

@@ -878,6 +878,31 @@ describe('the sound director', () => {
     expect(new Set(curses).size).toBe(2);
   });
 
+  it('holds a battle sound that does not cut speech behind the line of the merc saying one, as DoMercBattleSound queues it', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })], []);
+    const held: (() => void)[] = [];
+    const cut: number[] = [];
+    r.director.setSpeechOwner({
+      isTalking: (s) => s === 1,
+      cut: (s) => cut.push(s),
+      holdBattleSound: (profile, play) => profile === 7 && held.push(play) > 0,
+    });
+    r.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, soldier: 1 }])]);
+    expect([files(r), held.length]).toEqual([[], 1]);
+    held[0]?.();
+    expect(files(r)).toEqual(['battlesnds/007_curse.wav']);
+    r.director.applyFrames([
+      frame(20, [], [{ type: 'soldierHit', tick: 20, soldier: 1, location: 'torso', special: 0, life: 40, conscious: true }]),
+    ]);
+    expect([files(r).at(-1), held.length, cut]).toEqual(['battlesnds/007_hit1.wav', 1, [1]]);
+    const selected = rig(world(1));
+    selected.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })], []);
+    selected.director.setSpeechOwner({ isTalking: () => true, cut: () => {}, holdBattleSound: () => true });
+    selected.director.attention(1);
+    expect(files(selected)).toEqual(['battlesnds/007_attn.wav']);
+  });
+
   it('has a medic out of bandages curse with CURSE1, and stay silent when the event brings no battle sound', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0)], []);
