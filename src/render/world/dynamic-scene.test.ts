@@ -36,6 +36,7 @@ import {
 import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import type { StaticWorld } from './static-scene.ts';
+import { stateSpecs } from './world-program.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
@@ -122,10 +123,68 @@ function decode(scene: DynamicScene) {
   return Array.from({ length: scene.instances.count }, (_, i) => ({
     x: d[i * FLOATS_PER_INSTANCE] as number,
     y: d[i * FLOATS_PER_INSTANCE + 1] as number,
+    srcX: d[i * FLOATS_PER_INSTANCE + 4] as number,
     tile: d[i * FLOATS_PER_INSTANCE + 5] as number,
     z: d[i * FLOATS_PER_INSTANCE + 8] as number,
     flags: d[i * FLOATS_PER_INSTANCE + 10] as number,
   }));
+}
+
+const GL_DEPTH_FUNCTIONS = { LESS: 0x0201, LEQUAL: 0x0203, GREATER: 0x0204, GEQUAL: 0x0206, ALWAYS: 0x0207 } as const;
+const DEPTH_PASSES: Record<number, (incoming: number, stored: number) => boolean> = {
+  [GL_DEPTH_FUNCTIONS.LESS]: (incoming, stored) => incoming < stored,
+  [GL_DEPTH_FUNCTIONS.LEQUAL]: (incoming, stored) => incoming <= stored,
+  [GL_DEPTH_FUNCTIONS.GREATER]: (incoming, stored) => incoming > stored,
+  [GL_DEPTH_FUNCTIONS.GEQUAL]: (incoming, stored) => incoming >= stored,
+  [GL_DEPTH_FUNCTIONS.ALWAYS]: () => true,
+};
+const STATE_SPECS = stateSpecs(GL_DEPTH_FUNCTIONS);
+
+interface SoldierPixel {
+  readonly shadow: boolean;
+  readonly evenParity: boolean;
+  readonly stored: number;
+}
+
+function discards(flags: number, pixel: SoldierPixel): boolean {
+  if (flags & InstanceFlags.ONLY_SHADOW_INDEX && !pixel.shadow) return true;
+  if (flags & InstanceFlags.EXCEPT_SHADOW_INDEX && pixel.shadow) return true;
+  return (flags & InstanceFlags.DITHER) !== 0 && !pixel.evenParity;
+}
+
+function drawsOnPixel(scene: DynamicScene, tile: number, pixel: SoldierPixel): PixelDraws {
+  const parts = decode(scene);
+  const blends: string[] = [];
+  let stored = pixel.stored;
+  for (const run of scene.runs) {
+    const spec = STATE_SPECS[run.state];
+    for (const part of parts.slice(run.first, run.first + run.count)) {
+      if (part.tile !== tile || part.srcX !== 0 || discards(part.flags, pixel)) continue;
+      if (spec.func !== null && !DEPTH_PASSES[spec.func]?.(part.z, stored)) continue;
+      if (spec.write) stored = part.z;
+      blends.push(spec.blend);
+    }
+  }
+  return { blends, stored };
+}
+
+interface PixelDraws {
+  readonly blends: string[];
+  readonly stored: number;
+}
+
+function blendOf(pixel: SoldierPixel): string {
+  return pixel.shadow ? 'shadow' : 'none';
+}
+
+function stripObscureBlit(z: number, pixel: SoldierPixel): PixelDraws {
+  const drawn = pixel.stored < z || pixel.evenParity;
+  return { blends: drawn ? [blendOf(pixel)] : [], stored: drawn ? z : pixel.stored };
+}
+
+function oneTileObscuredBlit(z: number, pixel: SoldierPixel): PixelDraws {
+  const drawn = pixel.shadow ? pixel.stored < z : pixel.stored <= z || pixel.evenParity;
+  return { blends: drawn ? [blendOf(pixel)] : [], stored: pixel.stored };
 }
 
 describe('dynamic scene', () => {
@@ -466,24 +525,30 @@ describe('dynamic scene', () => {
     scene.build(frame({ soldiers: [prone, tank] }));
     const parts = decode(scene);
     const proneParts = parts.filter((p) => p.tile === 9004);
-    expect(proneParts).toHaveLength(9);
+    expect(proneParts).toHaveLength(12);
     expect(Math.max(...proneParts.map((p) => p.z))).toBe(mercZ(worldY(81, 80, 860)));
     expect(parts.find((p) => p.tile === 9005)?.z).toBe((worldY(84, 81, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL) & 0xffff);
     expect(scene.runs.some((r) => r.state === DrawState.NEARER_WRITE)).toBe(true);
     expect(scene.placedSoldiers.map((p) => p.id)).toEqual([4, 5]);
   });
 
-  it('dithers a soldier in z strips where his strip ties with the z buffer, as BltTransZTransShadowIncObscure draws in full only nearer (RenderWorld.cc:2785)', () => {
+  it('draws a soldier in z strips where he is nearer or on the dither, his shadow too, writing his z on every pixel it draws (BltTransZTransShadowIncObscure, RenderWorld.cc:2785-2792), where a one-tile soldier is drawn in full on a tie, his shadow only nearer, and writes no z (BltTransShadowZNBObscured)', () => {
     const { staticWorld, prepared } = world({}, tiles);
-    const scene = new DynamicScene(staticWorld, prepared);
     const strip = { zChanges: [0], initialZChange: 0, firstStripWidth: 10 };
     const prone = { ...soldier(4, g(80, 80), 0), multiTile: { zStrip: strip, zTileOffsetX: 0, zTileOffsetY: 0, vehicle: false } };
-    scene.build(frame({ soldiers: [prone] }));
-    expect(scene.runs.slice(0, 3).map((r) => r.state)).toEqual([
-      DrawState.NEARER_SHADOW,
-      DrawState.NEARER_WRITE,
-      DrawState.FARTHER_OR_EQUAL,
-    ]);
+    const standing = soldier(5, g(84, 80), 0);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(frame({ soldiers: [prone, standing] }));
+    for (const [m, blit] of [
+      [prone, stripObscureBlit],
+      [standing, oneTileObscuredBlit],
+    ] as const) {
+      const z = mercZ(worldY(m.gridNo % WORLD_COLS, Math.floor(m.gridNo / WORLD_COLS), 860));
+      const pixels = [true, false].flatMap((shadow) =>
+        [true, false].flatMap((evenParity) => [z - 1, z, z + 1].map((stored) => ({ shadow, evenParity, stored }))),
+      );
+      expect(pixels.map((pixel) => drawsOnPixel(scene, m.sprite.y, pixel))).toEqual(pixels.map((pixel) => blit(z, pixel)));
+    }
   });
 
   it('raises items lying on a structure by their height, at the struct z plus the height', () => {

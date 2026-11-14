@@ -126,7 +126,9 @@ const SHADE_CHANNELS = 2;
 
 type BlendMode = 'none' | 'shadow' | 'translucent';
 
-interface StateSpec {
+export type DepthFunctions = Pick<WebGL2RenderingContext, 'ALWAYS' | 'GEQUAL' | 'GREATER' | 'LEQUAL' | 'LESS'>;
+
+export interface StateSpec {
   readonly func: number | null;
   readonly write: boolean;
   readonly blend: BlendMode;
@@ -134,7 +136,7 @@ interface StateSpec {
 
 const TRANSLUCENT_ALPHA = 0.5;
 
-function stateSpecs(gl: WebGL2RenderingContext): Record<DrawState, StateSpec> {
+export function stateSpecs(gl: DepthFunctions): Record<DrawState, StateSpec> {
   return {
     [DrawState.LAND]: { func: null, write: false, blend: 'none' },
     [DrawState.NEARER_OR_EQUAL_WRITE]: { func: gl.GEQUAL, write: true, blend: 'none' },
@@ -147,6 +149,7 @@ function stateSpecs(gl: WebGL2RenderingContext): Record<DrawState, StateSpec> {
     [DrawState.FARTHER_OR_EQUAL]: { func: gl.LEQUAL, write: false, blend: 'none' },
     [DrawState.ALWAYS_WRITE]: { func: gl.ALWAYS, write: true, blend: 'none' },
     [DrawState.TRANSLUCENT]: { func: gl.GEQUAL, write: false, blend: 'translucent' },
+    [DrawState.ALWAYS_SHADOW_WRITE]: { func: gl.ALWAYS, write: true, blend: 'shadow' },
   };
 }
 

@@ -28,6 +28,7 @@ export const DrawState = {
   FARTHER_OR_EQUAL: 8,
   ALWAYS_WRITE: 9,
   TRANSLUCENT: 10,
+  ALWAYS_SHADOW_WRITE: 11,
 } as const;
 export type DrawState = (typeof DrawState)[keyof typeof DrawState];
 

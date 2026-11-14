@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderDynamicWorld, RenderTiles (dynamic layers, animated tiles, mercs,
-// @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS, LEVELNODE_USEZ, LEVELNODE_CACHEDANITILE);
+// @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS, LEVELNODE_USEZ, LEVELNODE_CACHEDANITILE),
+// @src BltTransZTransShadowIncObscure (every pixel it draws writes the z, the shadow pixels dithered too, 2026-11-14);
 // @src src/game/TileEngine/Tile_Animation.cc CreateAnimationTile (every animation tile has LEVELNODE_USEZ);
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
 // @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc; its sZ lifts the
@@ -53,6 +54,7 @@ const SHADOW_INDEX_FLAGS = InstanceFlags.ONLY_SHADOW_INDEX;
 const CENTRE_OFFSET = 5;
 const BODY_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX;
 const OBSCURED_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX | InstanceFlags.DITHER;
+const DITHERED_SHADOW_FLAGS = InstanceFlags.ONLY_SHADOW_INDEX | InstanceFlags.DITHER;
 
 export type UiNodeLayer = 'object' | 'roof' | 'onRoof' | 'topmost';
 
@@ -632,9 +634,21 @@ export class DynamicScene {
       strip
         ? emitStrips(out, p, strip, sprite, z, ShadeKey.FIXED, m.paletteRow, flags)
         : out.push(p.x, p.y, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, flags, 0);
+    if (strip && !noBurn) {
+      this.#emitObscuringStrips(part);
+      return;
+    }
     this.#push(out, this.runs, DrawState.NEARER_SHADOW, part(SHADOW_INDEX_FLAGS));
     this.#push(out, this.runs, strip ? DrawState.NEARER_WRITE : DrawState.NEARER_OR_EQUAL, part(BODY_FLAGS));
-    if (!noBurn) this.#push(out, this.runs, strip ? DrawState.FARTHER_OR_EQUAL : DrawState.FARTHER, part(OBSCURED_FLAGS));
+    if (!noBurn) this.#push(out, this.runs, DrawState.FARTHER, part(OBSCURED_FLAGS));
+  }
+
+  #emitObscuringStrips(part: (flags: number) => () => void): void {
+    const out = this.instances;
+    this.#push(out, this.runs, DrawState.ALWAYS_SHADOW_WRITE, part(DITHERED_SHADOW_FLAGS));
+    this.#push(out, this.runs, DrawState.ALWAYS_WRITE, part(OBSCURED_FLAGS));
+    this.#push(out, this.runs, DrawState.SHADOW_WRITE, part(SHADOW_INDEX_FLAGS));
+    this.#push(out, this.runs, DrawState.NEARER_WRITE, part(BODY_FLAGS));
   }
 
   #emitSoldiers(g: number, x: number, y: number, pass: MercPass): void {
