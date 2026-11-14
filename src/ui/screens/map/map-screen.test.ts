@@ -812,6 +812,25 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.sounds.filter((s) => s.startsWith('damageFeedback'))).toEqual([`damageFeedback ${merc} bleeding`]);
     }));
 
+  it('plays the reload of a merc off the loaded map through its own sounds, and leaves one in the sector to the tactical director', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const merc = f.mercs[0] ?? -1;
+      const gun = 1;
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [
+            { type: 'reloaded', tick, soldier: merc, item: gun, mapScreen: true },
+            { type: 'reloaded', tick, soldier: merc, item: gun },
+          ],
+        },
+      ]);
+      expect(f.sounds.filter((s) => s.startsWith('reloaded'))).toEqual([`reloaded ${gun}`]);
+    }));
+
   it("boxes an escort's lone move with pMapErrorString 6 or 7 by the sex of his profile, naming the escort", () =>
     withMap(async (f) => {
       const campaign = (f.session.sim as CampaignSession).campaign;

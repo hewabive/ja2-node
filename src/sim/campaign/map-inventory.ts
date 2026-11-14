@@ -8,7 +8,7 @@
 // @src items applied on the map screen), TrashCanBtnCallback and TrashItemMessageBoxCallBack (the trash can destroys the
 // @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar (item-passing.ts); Tactical/Interface_Items.cc
 // @src RemoveMoney (on the map screen a money split goes into the map cursor, SetMapCursorItem, to be placed into a
-// @src pocket).
+// @src pocket); Tactical/Items.cc ReloadGun (the line and the sound for a merc off the loaded map, 2026-11-14).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -343,11 +343,10 @@ export class MapInventory {
     const t = this.#campaign.tactical?.state;
     if (t && s.placed && t.soldiers[s.id] === s) return soldierInventoryContext(t, s);
     return {
-      items: contentOf(this.#campaign).items,
-      inCombat: false,
-      actionPoints: () => s.actionPoints,
-      spendActionPoints: () => {},
-      dropAtFeet: () => {},
+      ...this.#dryContext(s),
+      reloaded: (gun) => {
+        this.#events.push({ type: 'reloaded', soldier: s.id, item: gun, mapScreen: true, tick: this.#campaign.tick });
+      },
     };
   }
 

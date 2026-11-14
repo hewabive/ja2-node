@@ -13,7 +13,8 @@
 // @src 2026-11-06; InternalDoMercBattleSound's cry at his tile against that world view, faded for another team's,
 // @src 2026-11-07); HandleSoldierTakeDamageFeedback and HandleTakeDamageDeath, TileEngine/Explosion_Control.cc
 // @src DishOutGasDamage (the DIE1 and HIT1 grunts at bleeding, gas and electric damage while the map screen is up, an
-// @src unseen soldier's in the middle, 2026-11-09).
+// @src unseen soldier's in the middle, 2026-11-09); src/game/Tactical/Items.cc ReloadGun (the reload sound of a merc off
+// @src the loaded map, sReloadSound at HIGHVOLUME, MIDDLEPAN, 2026-11-14).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -27,7 +28,7 @@ import {
 } from '../../content/audio/battle-sound.ts';
 import { cueOf, effectCue } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
-import { deathOffTheMapCues } from '../../content/audio/cues.ts';
+import { deathOffTheMapCues, reloadCue } from '../../content/audio/cues.ts';
 import { BleedGrunts, damageFeedbackSounds } from '../../content/audio/damage-feedback.ts';
 import { offScreenVolume } from '../../content/audio/sound-position.ts';
 import type { PlayerView } from '../../protocol/view.ts';
@@ -121,6 +122,11 @@ export class MapSound implements MapSounds {
     if (!book) return;
     if (cry) this.#battleSound(book, soldier, { gridNo: NOWHERE, ...cry, morale: NORMAL_MORALE }, 'DIE1');
     for (const cue of deathOffTheMapCues(book)) this.#engine.play(cue);
+  }
+
+  reloaded(gun: number): void {
+    const cue = this.#book ? reloadCue(this.#book, gun) : null;
+    if (cue) this.#engine.play(cue);
   }
 
   damageFeedback(feedback: DamageFeedback): void {

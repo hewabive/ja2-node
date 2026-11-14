@@ -900,6 +900,9 @@ export class MapScreen implements Screen {
       case 'mercDied':
         if (event.mapScreen) this.#env.sounds.mercDiedOffTheMap(event.soldier, event.cry ?? null);
         return;
+      case 'reloaded':
+        if (event.mapScreen) this.#env.sounds.reloaded(event.item);
+        return;
       case 'skyriderMonologue':
         this.#applyFilterEffects(turnOnAirspace(this.filters));
         return;

@@ -69,6 +69,7 @@ export interface MapSounds {
   vehicleEntered(gridNo: number | null): void;
   mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void;
   damageFeedback(feedback: DamageFeedback): void;
+  reloaded(gun: number): void;
 }
 
 export interface MapMedia extends TacticalMedia {

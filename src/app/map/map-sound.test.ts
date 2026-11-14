@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { FakeGraph, pcmWav, settle } from '../../../tests/support/fake-audio.ts';
 import { AudioEngine } from '../../audio/engine.ts';
 import { type Cue, mixCue } from '../../content/audio/cue.ts';
+import { loadCueBook } from '../../content/audio/cue-book.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { PlayerView, SoldierView, StrategicMercView } from '../../protocol/view.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
@@ -130,6 +131,19 @@ describe('the map screen battle sounds', () => {
     expect(r.cues.map((c) => [c.file, mixCue(c, r.engine.listener, full)])).toEqual([
       [INTO_VEHICLE, { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN }],
       [INTO_VEHICLE, { volume: FULL, pan: MIDDLE }],
+    ]);
+  });
+
+  it("plays the gun's reload sound of a merc off the loaded map at full volume in the middle, and none for a weapon without one (ReloadGun)", async () => {
+    const r = await rig();
+    const book = await loadCueBook((path) => readFile(join(PROJECT_DATA_DIR, path)));
+    const weapon = (name: string) => [...book.weapons.values()].find((w) => w.name === name)?.item ?? -1;
+    r.engine.setListener(LAST_TACTICAL_VIEW);
+    r.sound.reloaded(weapon('GLOCK_17'));
+    r.sound.reloaded(weapon('COMBAT_KNIFE'));
+    const full = { effects: FULL, speech: FULL, music: FULL, ambient: FULL };
+    expect(r.cues.map((c) => [c.file, mixCue(c, r.engine.listener, full)])).toEqual([
+      [book.paths.get('S_RELOAD_PISTOL'), { volume: FULL, pan: MIDDLE }],
     ]);
   });
 

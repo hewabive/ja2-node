@@ -544,6 +544,7 @@ export interface ReloadedEvent extends SimEventBase {
   readonly type: 'reloaded';
   readonly soldier: number;
   readonly item: number;
+  readonly mapScreen?: true;
 }
 
 export interface StructureDamagedEvent extends SimEventBase {

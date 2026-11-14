@@ -509,7 +509,9 @@ squad sees (`attackResolved` also for an attack without an attacker), or for eve
 soldier (`SHOW_ALL_MERCS` in a palace meanwhile scene, `Strategic/Meanwhile.cc:385`; `shownInSector`,
 `src/sim/tactical/state.ts`): an unseen patrol neither stops an `advance {events: ['arrived']}` nor shows its tiles, an
 unseen soldier's pickups, drops and reloads change the items and his gun as they do but tell nothing, and the end of his
-attack neither names him nor stops an `advance {events: ['attackResolved']}`. A `meleeStrike` comes only for a striker
+attack neither names him nor stops an `advance {events: ['attackResolved']}`. A map screen reload of a merc off the loaded
+map comes with `mapScreen`, which routes its sound to the map screen; `ReloadGun` prints its line for any merc of ours
+(`Tactical/Items.cc:1300`). A `meleeStrike` comes only for a striker
 the squad sees: the original prints nothing for it and plays its swoosh for a visible striker only
 (`Tactical/Soldier_Ani.cc:2167`, `Utils/Sound_Control.cc:413`), so the squad hears an unseen one's strike by the impact
 at the victim alone, a knife's for a blade and a bullet's otherwise (`Tactical/Soldier_Control.cc:2846`), which the
