@@ -13,11 +13,14 @@ import {
 import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/support/sectors.ts';
 import { addToPersonnelList } from '../../../../sim/campaign/laptop/records.ts';
 import { createItem, createItems } from '../../../../sim/items/object.ts';
+import { BUTTON_REPEAT_TIME_MS, BUTTON_REPEAT_TIMEOUT_MS } from '../../../input/mouse.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import { conditionText } from './personnel-page.ts';
 
 const CONTRACT_DAYS = 7;
 const SHOWN_INVENTORY_ROWS = 8;
+const BIG_POCKETS = [7, 8, 9];
+const HELD_STEPS = 2;
 const EXTRA_ITEMS = [
   'FIRSTAIDKIT',
   'MEDICKIT',
@@ -72,6 +75,39 @@ describe('the personnel page', () => {
     expect(conditionText(80, 0, 1, null)).toBe('80%');
     expect(conditionText(5, 0, 1, undefined)).toBe(' 5%');
     expect(conditionText(100, 27, 2, 15)).toBe('27/30');
+  });
+
+  it("steps the inventory on the arrow's repeat while the pointer is held (InventoryDownButtonCallback)", async () => {
+    const h = await openLaptopHarness(kit, ui);
+    const { soldiers } = hireTwo(h);
+    fillPockets(h, soldiers[0] as number);
+    const merc = h.session.campaign.laptop?.roster.get(soldiers[0] as number);
+    const toolkit = kit.content.items.byName.get('TOOLKIT')?.index ?? 0;
+    for (const slot of BIG_POCKETS) if (merc) merc.soldier.inv[slot] = createItem(kit.content.items, toolkit, 70);
+    await openProgram(h, 'personnelButton');
+    await clickWidget(h.t, 'personnelInventoryButton');
+    const names = () => Array.from({ length: SHOWN_INVENTORY_ROWS }, (_, row) => shownWidget(h.t, `personnelItemName${row}`).text);
+    const items = h.laptop().personnel.current[0]?.inventory.length ?? 0;
+    expect(items).toBeGreaterThan(SHOWN_INVENTORY_ROWS + HELD_STEPS);
+    const pages: (string | null)[][] = [names()];
+    for (let step = 1; step <= HELD_STEPS + 1; step++) {
+      await clickWidget(h.t, 'personnelInventoryDown');
+      pages.push(names());
+    }
+    expect(new Set(pages.map((page) => page.join('|'))).size).toBe(pages.length);
+    for (let step = 0; step <= HELD_STEPS; step++) await clickWidget(h.t, 'personnelInventoryUp');
+    expect(names()).toEqual(pages[0]);
+    const { rect } = shownWidget(h.t, 'personnelInventoryDown');
+    const x = rect.x + Math.floor(rect.width / 2);
+    const y = rect.y + Math.floor(rect.height / 2);
+    h.t.move(x, y);
+    h.t.down(x, y);
+    h.t.frame(BUTTON_REPEAT_TIMEOUT_MS);
+    h.t.frame(BUTTON_REPEAT_TIME_MS);
+    expect(names()).toEqual(pages[HELD_STEPS]);
+    h.t.up(x, y);
+    await settleLaptop(h.t);
+    expect(names()).toEqual(pages[HELD_STEPS + 1]);
   });
 
   it('shows the team, pages the faces, switches the panels, scrolls the inventory and lists the departed', async () => {

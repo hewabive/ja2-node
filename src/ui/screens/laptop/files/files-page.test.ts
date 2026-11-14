@@ -64,6 +64,32 @@ describe('the files page', () => {
     expect(findWidget(h.t, 'fileText')?.visible).toBe(false);
   });
 
+  it('turns one page for two wheel steps before the file is shown again (LoadNextPage, fWaitAFrame)', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    await openProgram(h, 'filesButton');
+    await clickWidget(h.t, 'fileRow0');
+    const viewer = shownWidget(h.t, 'fileText').rect;
+    const wheel = (steps: number) =>
+      h.t.runtime.input({ kind: 'wheel', x: viewer.x + 5, y: viewer.y + 5, button: 0, buttons: 0, wheel: steps, modifiers: 0 });
+    const onPageOne = async () => {
+      if (!shownWidget(h.t, 'prevFilePage').enabled) return false;
+      await clickWidget(h.t, 'prevFilePage');
+      return !shownWidget(h.t, 'prevFilePage').enabled;
+    };
+    wheel(1);
+    wheel(1);
+    await settleLaptop(h.t);
+    expect(await onPageOne()).toBe(true);
+    wheel(1);
+    await settleLaptop(h.t);
+    wheel(1);
+    await settleLaptop(h.t);
+    wheel(-1);
+    wheel(-1);
+    await settleLaptop(h.t);
+    expect(await onPageOne()).toBe(true);
+  });
+
   it('opens the last unread file from the taskbar icon and reads it', async () => {
     const h = await openLaptopHarness(kit, ui);
     const l = h.session.campaign.state.laptop;

@@ -4,8 +4,8 @@
 // @src (pFilesSenderList in FILES_TEXT_FONT, the highlighted row filled with 240, 240, 200), FilesBtnCallBack (a click
 // @src clears the selection and selects a row that holds a file, back on page 0), DisplayFileMessage and
 // @src DisplayFormattedText (the white viewer, fRead set while the file is shown, a stale selection dropped),
-// @src LoadStringsIntoFileList (FILE_STRING_SIZE records of ris.edt and files.edt), LoadPreviousPage, LoadNextPage,
-// @src ScrollRegionCallback, HandleFileViewerButtonStates; iHighLightFileLine and giFilesPage kept across laptop sessions.
+// @src LoadStringsIntoFileList (FILE_STRING_SIZE records of ris.edt and files.edt), LoadPreviousPage, LoadNextPage (no
+// @src second turn before the file is shown again, fWaitAFrame), ScrollRegionCallback, HandleFileViewerButtonStates; iHighLightFileLine and giFilesPage kept across laptop sessions.
 
 import type { LaptopView } from '../../../../protocol/view.ts';
 import type { Area, DrawList } from '../../../draw-list.ts';
@@ -83,6 +83,7 @@ export function filesPage(context: LaptopContext): LaptopPage {
   const model: Record<string, unknown> = {};
   const requested = new Set<number>();
   let onLastPage = false;
+  let turnShown = true;
   let shown: FilePage | null = null;
   let loadedFace: number | null = null;
   void context.media.loadTexts([RIS_TEXT_FILE, FILES_TEXT_FILE]);
@@ -116,6 +117,7 @@ export function filesPage(context: LaptopContext): LaptopPage {
     const open = list[memory.fileSelected];
     shown = open ? layoutFile(open.code) : null;
     if (open && shown) {
+      turnShown = true;
       onLastPage = shown.onLastPage;
       markRead(open.code, open.read);
     }
@@ -145,10 +147,14 @@ export function filesPage(context: LaptopContext): LaptopPage {
       memory.fileSelected = selected;
     },
     prevPage: () => {
-      if (memory.filePage !== FIRST_PAGE) memory.filePage--;
+      if (!turnShown || memory.filePage === FIRST_PAGE) return;
+      memory.filePage--;
+      turnShown = false;
     },
     nextPage: () => {
-      if (!onLastPage) memory.filePage++;
+      if (!turnShown || onLastPage) return;
+      memory.filePage++;
+      turnShown = false;
     },
   });
   const drawLines = (list: DrawList, view: LayoutView, lines: readonly FileLine[]) => {
