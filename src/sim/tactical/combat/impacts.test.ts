@@ -8,16 +8,18 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
+import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
-import { Team } from '../soldier.ts';
+import { type Soldier, Team, Visible } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { bulletViews } from '../world-view.ts';
 import { handleItem, ItemHandle } from './attack.ts';
 import type { Bullet } from './bullets.ts';
-import { eventSoldierGotHit } from './hit.ts';
-import { AimShot } from './types.ts';
+import { eventSoldierGotHit, tellCriticalHit } from './hit.ts';
+import { bulletImpact } from './impact.ts';
+import { AimShot, Special } from './types.ts';
 
 let content: TacticalContent;
 
@@ -159,6 +161,114 @@ describe('what a hit tells the player (Soldier_Control.cc EVENT_SoldierGotHit, I
     expect(hits[1]).toMatchObject({ soldier: hidden.id, gridNo: hidden.gridNo, conscious: true, unseen: { voice: 'bad2', bodyType: 0 } });
     expect(hits[1]).not.toHaveProperty('life');
     expect(hits[1]).not.toHaveProperty('damage');
+  });
+});
+
+const PERCENT = 100;
+const SURE_HIT = 0;
+const NO_FLUKE = 25;
+const PLAIN_ROLL = 0;
+const FIVE_POINTS = 4;
+const BEYOND_MESSY_DEATH = gridNo(80, 90);
+const CRITS_OF_66: Readonly<Record<number, number>> = { [AimShot.HEAD]: 44, [AimShot.TORSO]: 66 };
+const CRITS_OF_62_IN_THE_LEGS = 124;
+const CRITICAL_ROLL_OF_33 = 32;
+const CRITICAL_ROLL_OF_31 = 30;
+
+function impactAt(location: number, draws: readonly number[], prepare: (target: Soldier, firer: Soldier) => void = () => {}) {
+  const sim = newCombatSim(content);
+  const firer = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+  const target = spawnSoldier(sim, 20, Team.ENEMY, BEYOND_MESSY_DEATH, Direction.NORTH);
+  prepare(target, firer);
+  const pre = new ScriptedStream(draws);
+  Object.assign(sim.state, { pre });
+  const impactIn = CRITS_OF_66[location] ?? CRITS_OF_62_IN_THE_LEGS;
+  const impact = bulletImpact(sim.state, firer, target, location, impactIn, 0, Special.NONE);
+  return { impact, target, pre };
+}
+
+function shotAtTheHead(sim: TacticalSim, shooter: Soldier, target: Soldier): SimEvent[] {
+  const pre = sim.state.pre;
+  Object.assign(sim.state, { pre: { int: (n: number) => (n === PERCENT ? SURE_HIT : pre.int(n)) } });
+  shooter.aimShotLocation = AimShot.HEAD;
+  shooter.oppList[target.id] = Opp.SEEN_CURRENTLY;
+  expect(handleItem(sim.state, shooter, target.gridNo, 0, shooter.inv[InvSlot.HAND]?.item ?? 0)).toBe(ItemHandle.OK);
+  const events: SimEvent[] = [];
+  for (let tick = 0; tick < 2000 && !events.some((e) => e.type === 'soldierHit'); tick++) {
+    sim.step();
+    events.push(...sim.drainEvents());
+  }
+  expect(events).toContainEqual(expect.objectContaining({ type: 'soldierHit', location: 'head' }));
+  return events;
+}
+
+describe('the lines of a hit (Weapons.cc BulletImpact)', () => {
+  it('costs a critical head hit wisdom, a critical torso hit dexterity or strength and a leg hit agility', () => {
+    const head = impactAt(AimShot.HEAD, [NO_FLUKE, CRITICAL_ROLL_OF_33, FIVE_POINTS]);
+    expect(head.impact).toEqual({ damage: 66, special: Special.NONE, statLoss: { stat: 'wisdom', points: 5 } });
+    expect(head.target.stats.wisdom).toBe(65);
+    expect(head.target.statDamage.wisdom).toBe(5);
+    expect(head.pre.requested).toEqual([51, 33, 33]);
+    expect(impactAt(AimShot.TORSO, [NO_FLUKE, CRITICAL_ROLL_OF_33, 0, 49]).impact.statLoss).toEqual({ stat: 'dexterity', points: 1 });
+    expect(impactAt(AimShot.TORSO, [NO_FLUKE, CRITICAL_ROLL_OF_33, 0, 50]).impact.statLoss).toEqual({ stat: 'strength', points: 1 });
+    expect(impactAt(AimShot.LEGS, [NO_FLUKE, CRITICAL_ROLL_OF_31, 0]).impact.statLoss).toEqual({ stat: 'agility', points: 1 });
+    expect(impactAt(AimShot.LEGS, [NO_FLUKE, CRITICAL_ROLL_OF_31 - 1]).impact).not.toHaveProperty('statLoss');
+  });
+
+  it('tells a head hit that costs no wisdom, critical or not', () => {
+    expect(impactAt(AimShot.HEAD, [NO_FLUKE, PLAIN_ROLL]).impact).toEqual({ damage: 66, special: Special.NONE, headHit: true });
+    const witless = impactAt(AimShot.HEAD, [NO_FLUKE, CRITICAL_ROLL_OF_33, FIVE_POINTS], (target) =>
+      Object.assign(target.stats, { wisdom: 1 }),
+    );
+    expect(witless.impact).toEqual({ damage: 66, special: Special.NONE, headHit: true });
+    expect(witless.target.stats.wisdom).toBe(1);
+    expect(impactAt(AimShot.TORSO, [NO_FLUKE, PLAIN_ROLL]).impact).not.toHaveProperty('headHit');
+  });
+
+  it("tells the head hit of a shot's first pellet but of no later one: BulletHitMerc counts the pellet after BulletImpact reads the count", () => {
+    const buckshot = (pelletsBefore: number) => (target: Soldier, firer: Soldier) => {
+      Object.assign(target, { numPelletsHitBy: pelletsBefore });
+      Object.assign(firer.inv[InvSlot.HAND] ?? {}, { gunAmmoType: AmmoType.BUCKSHOT });
+    };
+    expect(impactAt(AimShot.HEAD, [NO_FLUKE, PLAIN_ROLL], buckshot(0)).impact).toMatchObject({ headHit: true });
+    expect(impactAt(AimShot.HEAD, [NO_FLUKE, PLAIN_ROLL], buckshot(1)).impact).not.toHaveProperty('headHit');
+  });
+
+  it('tells the stat a critical hit costs only of a visible soldier with a name, as the original prints it', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const target = spawnSoldier(sim, 20, Team.ENEMY, BEYOND_MESSY_DEATH, Direction.NORTH);
+    const lost = { damage: 10, special: Special.NONE, statLoss: { stat: 'agility', points: 2 } } as const;
+    target.visible = Visible.SEEN;
+    tellCriticalHit(t, target, lost);
+    target.visible = Visible.LIMBO;
+    tellCriticalHit(t, target, lost);
+    Object.assign(target, { visible: Visible.SEEN, team: Team.OUR, name: '' });
+    tellCriticalHit(t, target, lost);
+    expect(sim.drainEvents()).toEqual([expect.objectContaining({ type: 'statLost', soldier: 20, stat: 'agility', points: 2 })]);
+  });
+
+  it('names a soldier hit in the head when the squad sees him', () => {
+    const sim = newCombatSim(content);
+    const shooter = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), Direction.NORTH);
+    target.visible = Visible.SEEN;
+    const told = shotAtTheHead(sim, shooter, target).filter((e) => e.type === 'headHit');
+    expect(told).toEqual([expect.objectContaining({ soldier: target.id })]);
+  });
+
+  it("tells the head hit of a soldier out of sight by his own name or his team's default, never by his id (D16)", () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(10, 10), Direction.SOUTH);
+    const shooter = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+    const civilian = spawnSoldier(sim, 116, Team.CIV, gridNo(80, 84), Direction.NORTH);
+    civilian.name = '';
+    sim.state.inCombat = true;
+    const told = shotAtTheHead(sim, shooter, civilian).filter((e) => e.type === 'headHit');
+    expect(told).toEqual([{ type: 'headHit', tick: expect.any(Number), defaultName: 'civilian' }]);
+    const named = spawnSoldier(sim, 117, Team.CIV, gridNo(84, 84), Direction.NORTH);
+    const again = shotAtTheHead(sim, shooter, named).filter((e) => e.type === 'headHit');
+    expect(again).toEqual([{ type: 'headHit', tick: expect.any(Number), name: 'S117' }]);
   });
 });
 

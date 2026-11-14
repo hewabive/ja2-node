@@ -8,6 +8,8 @@ import type { ShopEvent } from './strategic/economy/merchants/events.ts';
 import type { PanelNotice } from './strategic/forces/flow-state.ts';
 import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { AutoBandageEvent } from './tactical/auto-bandage-events.ts';
+import type { CriticalStat } from './tactical/combat/impact.ts';
+import type { DefaultSoldierName } from './tactical/default-names.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
 import type { BoxingEvent } from './tactical/narrative/boxing-events.ts';
@@ -429,6 +431,23 @@ export interface StatChangedEvent extends SimEventBase {
   readonly change: number;
 }
 
+export interface NamedSoldier {
+  readonly soldier?: number;
+  readonly name?: string;
+  readonly defaultName?: DefaultSoldierName;
+}
+
+export interface StatLostEvent extends SimEventBase {
+  readonly type: 'statLost';
+  readonly soldier: number;
+  readonly stat: CriticalStat;
+  readonly points: number;
+}
+
+export interface HeadHitEvent extends SimEventBase, NamedSoldier {
+  readonly type: 'headHit';
+}
+
 export interface ItemsPickedUpEvent extends SimEventBase {
   readonly type: 'itemsPickedUp';
   readonly soldier: number;
@@ -837,6 +856,8 @@ export type SimEvent =
   | GunImprintEvent
   | ReloadedEvent
   | StatChangedEvent
+  | StatLostEvent
+  | HeadHitEvent
   | ExplosionEvent
   | StructureDamagedEvent
   | ItemsPickedUpEvent

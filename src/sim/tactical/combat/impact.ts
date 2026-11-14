@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Weapons.cc AdjustImpactByHitLocation, BulletImpact.
+// @src src/game/Tactical/Weapons.cc AdjustImpactByHitLocation, BulletImpact (the stat a critical hit costs and the head
+// @src hit it leaves unharmed, told for their lines, 2026-11-14).
 
 import { AmmoType, ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -48,9 +49,18 @@ export function firerAmmoType(t: CombatContext, firer: Soldier): number {
   return firer.inv[firer.attackingHand]?.gunAmmoType ?? AmmoType.REGULAR;
 }
 
+export type CriticalStat = 'wisdom' | 'dexterity' | 'strength' | 'agility';
+
+export interface StatLoss {
+  readonly stat: CriticalStat;
+  readonly points: number;
+}
+
 export interface ImpactResult {
   damage: number;
   special: number;
+  statLoss?: StatLoss;
+  headHit?: true;
 }
 
 function isClose(firer: Soldier, target: Soldier, mode: ImpactMode): boolean {
@@ -149,31 +159,39 @@ export function bulletImpact(
       crits = impact;
     }
   }
-  if (crits > 0 && crits < target.life) {
-    if (t.pre.int(idiv(crits, 2) + firer.aimTime * 5) + 1 > CRITICAL_HIT_THRESHOLD) {
-      let loss = i8(t.pre.int(idiv(crits, 2)) + 1);
-      const reduce = (stat: 'wisdom' | 'dexterity' | 'strength' | 'agility') => {
-        if (loss >= target.stats[stat]) loss = target.stats[stat] - 1;
-        if (loss > 0) {
-          target.stats[stat] -= loss;
-          target.statDamage[stat] += loss;
-        }
-      };
-      switch (location) {
-        case AimShot.HEAD:
-          reduce('wisdom');
-          break;
-        case AimShot.TORSO:
-          if (t.pre.int(100) < 50 && !target.monsterOrAnimal) reduce('dexterity');
-          else reduce('strength');
-          break;
-        case AimShot.LEGS:
-          reduce('agility');
-          break;
-      }
-    }
+  if (crits <= 0 || crits >= target.life) return { damage: impact, special };
+  if (t.pre.int(idiv(crits, 2) + firer.aimTime * 5) + 1 <= CRITICAL_HIT_THRESHOLD)
+    return { damage: impact, special, ...headHitUnlessPellet(target, location) };
+  const statLoss = criticalStatLoss(t, target, location, i8(t.pre.int(idiv(crits, 2)) + 1));
+  if (statLoss) return { damage: impact, special, statLoss };
+  return { damage: impact, special, ...headHitUnlessPellet(target, location) };
+}
+
+function criticalStat(t: CombatContext, target: Soldier, location: number): CriticalStat | null {
+  switch (location) {
+    case AimShot.HEAD:
+      return 'wisdom';
+    case AimShot.TORSO:
+      return t.pre.int(100) < 50 && !target.monsterOrAnimal ? 'dexterity' : 'strength';
+    case AimShot.LEGS:
+      return 'agility';
+    default:
+      return null;
   }
-  return { damage: impact, special };
+}
+
+function criticalStatLoss(t: CombatContext, target: Soldier, location: number, rolled: number): StatLoss | null {
+  const stat = criticalStat(t, target, location);
+  if (stat === null) return null;
+  const points = rolled >= target.stats[stat] ? target.stats[stat] - 1 : rolled;
+  if (points <= 0) return null;
+  target.stats[stat] -= points;
+  target.statDamage[stat] += points;
+  return { stat, points };
+}
+
+function headHitUnlessPellet(target: Soldier, location: number): { readonly headHit?: true } {
+  return location === AimShot.HEAD && target.numPelletsHitBy === 0 ? { headHit: true } : {};
 }
 
 export const HEAD_SLOTS = [InvSlot.HEAD1, InvSlot.HEAD2] as const;

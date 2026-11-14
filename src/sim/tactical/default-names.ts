@@ -39,3 +39,7 @@ export function namedByTeam(s: NamedBody): boolean {
 export function defaultSoldierName(s: NamedBody & Pick<Soldier, 'name'>): DefaultSoldierName | null {
   return s.profile === NO_PROFILE && s.name === NO_NAME ? teamName(s) : null;
 }
+
+export function hasName(s: NamedBody & Pick<Soldier, 'name'>): boolean {
+  return s.name !== NO_NAME || defaultSoldierName(s) !== null;
+}

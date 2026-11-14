@@ -27,7 +27,7 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 
 | Module | Holds |
 |---|---|
-| `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window |
+| `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window; the lines of a critical hit and a head hit (`statLost`, `headHit`, `29` §7) |
 | `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills; a vehicle's armour |
 | `vehicle-damage.ts` | A vehicle's share of the damage, its condition, its destruction and wreck explosion |
 | `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |
@@ -195,6 +195,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A merc of ours dying while the map screen is up leaves his body, every item and his keys in his sector (the one he left, if travelling) at a random tile of the loaded or last loaded map, buddies anywhere comment, and compression stops | `src/sim/campaign/death-in-the-map-screen.test.ts` "leaves his body, every item and his keys …", "of a merc between sectors …" |
 | A merc of the loaded sector lying collapsed who dies while the map screen is up starts his death animation and gets the map screen's body in the loaded sector's records, which the unload overwrites, so he leaves no body anywhere; standing, he dies at once in tactical terms and the map branch is skipped | `src/sim/campaign/death-in-the-map-screen.test.ts` "lying collapsed, starts his death animation …", "standing, dies at once …" |
 | A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:728`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …"; through the map screen's turn, `src/sim/campaign/map-screen-turns.test.ts` "bleeds a collapsed civilian to death there …" |
+| The head hit's line comes with the first pellet of a shot that hits him and with no later one: `BulletHitMerc` counts a pellet after `BulletImpact` has read the count (`Tactical/LOS.cc:2023-2037`, `Tactical/Weapons.cc:2998`) | `combat/impacts.test.ts` "tells the head hit of a shot's first pellet …" |
 | A body laid in an unloaded sector, by the map screen's strategic death or by autoresolve, carries profile 0, not the dead soldier's: the definition is zeroed and the profile never set (`Tactical/Tactical_Save.cc:885`), so a search for a corpse by profile misses it | `src/sim/campaign/sector-loot.test.ts` "lays the corpse of a soldier with a profile under profile 0 …" |
 
 Not pinned yet:

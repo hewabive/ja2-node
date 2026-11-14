@@ -416,6 +416,13 @@ right after the command, and the `Session` holds them for the next report.
 saved, sent whole in `welcome`, new ones in frames and in every `advance` report (`messages`). The simulation never
 reads them (deviation "Message list").
 
+**The lines of a hit** come as events of their own, each with the original's visibility. `statLost {soldier, stat,
+points}` is the wisdom, dexterity, strength or agility a critical hit cost a soldier (`Tactical/Weapons.cc:2982-3104`),
+told only while the squad sees him, as the original prints `STR_LOSES_*` then alone. `headHit` is a hit in the head
+that cost no wisdom (`:2998`, `:3108`), for a soldier of any team, seen or not, but for no pellet after the first of a
+shot; the original prints the name of one out of sight too, so he carries `name` (his own) or `defaultName` (his
+team's, as in the view) instead of `soldier`, and an agent learns a line, never an id or a tile (D16).
+
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
 strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. His death

@@ -23,13 +23,14 @@
 // @src SwitchMessageBoxCallBack (STR_LATE_58, 2026-11-04); Soldier_Control.cc CheckBleeding (STR_LOSES_1_HP of our merc
 // @src bleeding while dying, 2026-11-06); Soldier_Create.cc TacticalCopySoldierFromCreateStruct (a soldier without a
 // @src name of his own is named by his team's default, which s->name holds, 2026-11-13); Handle_UI.cc
-// @src UIMouseOnValidAttackLocation (the medkit's refusals with the medic or the patient, 2026-11-14).
+// @src UIMouseOnValidAttackLocation (the medkit's refusals with the medic or the patient, 2026-11-14); Weapons.cc
+// @src BulletImpact (STR_LOSES_* and STR_HEAD_HIT, a soldier out of sight by his name or his team's default, 2026-11-14).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { defaultNameKey } from '../protocol/soldier-names.ts';
 import type { CommandResult } from '../sim/command.ts';
-import type { SimEvent } from '../sim/events.ts';
+import type { NamedSoldier, SimEvent } from '../sim/events.ts';
 import type { DefaultSoldierName } from '../sim/tactical/default-names.ts';
 import { drugTypeOf } from '../sim/tactical/drugs.ts';
 import { refusalMessage } from './text-keys.ts';
@@ -106,6 +107,13 @@ const NS_SOLDIER_REMOVES_ITEM = 1;
 const GUN_GOT_FINGERPRINT = 111;
 const MERC_HAS_ARRIVED_STR = 80;
 const STR_LOSES_1_HP = 4;
+const STR_HEAD_HIT = 46;
+const STAT_LOSS_LINES: Readonly<Record<string, { readonly onePoint: number; readonly points: number }>> = {
+  wisdom: { onePoint: 0, points: 5 },
+  dexterity: { onePoint: 1, points: 6 },
+  strength: { onePoint: 2, points: 7 },
+  agility: { onePoint: 3, points: 8 },
+};
 const STR_CAMO_WORN_OFF = 30;
 const STR_CAMO_WASHED_OFF = 31;
 const STR_STOLE_SOMETHING = 33;
@@ -132,6 +140,11 @@ const ref = (table: string, index: number): MessageArg => ({ string: { table, in
 function soldierArg(facts: MessageFacts, id: number): MessageArg {
   const byTeam = facts.soldierDefaultName(id);
   return byTeam ? { string: defaultNameKey(byTeam) } : text(facts.soldierName(id));
+}
+
+function namedArg(facts: MessageFacts, e: NamedSoldier): MessageArg {
+  if (e.soldier !== undefined) return soldierArg(facts, e.soldier);
+  return e.defaultName ? { string: defaultNameKey(e.defaultName) } : text(e.name ?? null);
 }
 
 function line(table: string, index: number, args: readonly MessageArg[] = [], kind: MessageKind = 'interface'): Omit<MessageEntry, 'tick'> {
@@ -168,6 +181,13 @@ function statGain(e: EventOf<'statChanged'>, facts: MessageFacts): Omit<MessageE
     ref('sStatGainStrings', stat),
   ];
   return [{ kind: 'interface', colour: FONT_YELLOW, args }];
+}
+
+function statLost(e: EventOf<'statLost'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+  const lines = STAT_LOSS_LINES[e.stat];
+  if (!lines) return [];
+  const name = soldierArg(facts, e.soldier);
+  return e.points === 1 ? [line('Message', lines.onePoint, [name])] : [line('Message', lines.points, [name, { number: e.points }])];
 }
 
 function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
@@ -255,6 +275,8 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   soldierDied,
   mercDied,
   mercBled: (e, facts) => (e.lifeMaxLost ? [line('Message', STR_LOSES_1_HP, [soldierArg(facts, e.soldier)])] : []),
+  statLost,
+  headHit: (e, facts) => [line('Message', STR_HEAD_HIT, [namedArg(facts, e)])],
   enemyPresence: () => [line('TacticalStr', 85)],
   sectorLoaded: (e) => (e.enemyPresence ? [line('TacticalStr', 85)] : []),
   interrupt: (e, facts) =>

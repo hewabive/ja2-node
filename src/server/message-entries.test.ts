@@ -112,6 +112,33 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 4, args: [{ text: 'Ivan' }] }]);
   });
 
+  it('prints STR_LOSES_1_* or STR_LOSES_* with the points for the stat a critical hit costs', () => {
+    const stats = ['wisdom', 'dexterity', 'strength', 'agility'];
+    const lost = (points: number) => stats.map((stat) => at({ type: 'statLost', soldier: 1, stat, points }));
+    const entries = messageEntriesOf([...lost(1), ...lost(3)], facts);
+    expect(entries.every((e) => e.kind === 'interface' && e.colour === 145 && e.table === 'Message')).toBe(true);
+    expect(entries.map((e) => [e.index, e.args])).toEqual([
+      [0, [{ text: 'Fox' }]],
+      [1, [{ text: 'Fox' }]],
+      [2, [{ text: 'Fox' }]],
+      [3, [{ text: 'Fox' }]],
+      [5, [{ text: 'Fox' }, { number: 3 }]],
+      [6, [{ text: 'Fox' }, { number: 3 }]],
+      [7, [{ text: 'Fox' }, { number: 3 }]],
+      [8, [{ text: 'Fox' }, { number: 3 }]],
+    ]);
+  });
+
+  it("prints STR_HEAD_HIT with a seen soldier's name, and with the name or the team's default an unseen one's head hit carries", () => {
+    const headHit = (named: Record<string, unknown>) => at({ type: 'headHit', ...named });
+    const entries = messageEntriesOf([headHit({ soldier: 20 }), headHit({ defaultName: 'enemy' }), headHit({ name: 'Fatima' })], facts);
+    expect(entries.map((e) => [e.kind, e.table, e.index, e.args])).toEqual([
+      ['interface', 'Message', 46, [{ text: 'Soldier' }]],
+      ['interface', 'Message', 46, [{ string: { table: 'TacticalStr', index: 90 } }]],
+      ['interface', 'Message', 46, [{ text: 'Fatima' }]],
+    ]);
+  });
+
   it('follows the lock and trap lines of Handle_Doors and Keys', () => {
     const door = (action: string, result: string, trap?: string) => at({ type: 'doorResult', soldier: 0, gridNo: 5, action, result, trap });
     const entries = messageEntriesOf(

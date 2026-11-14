@@ -14,7 +14,8 @@
 // @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
 // @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
-// @src spit gas); HandleTakeDamageDeath's bInSector for the helicopter's passengers over the loaded sector (2026-11-08).
+// @src spit gas); HandleTakeDamageDeath's bInSector for the helicopter's passengers over the loaded sector (2026-11-08);
+// @src Weapons.cc BulletImpact's STR_LOSES_* of a visible target with a name and STR_HEAD_HIT of any (2026-11-14).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -33,6 +34,7 @@ import { replaceCollapsedChosenOne } from '../ai/panic-triggers.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
 import { checkForBreathCollapse } from '../breath-collapse.ts';
+import { hasName } from '../default-names.ts';
 import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { newSmokeEffect } from '../explosions/smoke.ts';
@@ -55,7 +57,7 @@ import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, inSector, NO_PROFILE, OKLIFE, Side, type Soldier, Team, Visible } from '../soldier.ts';
 import { shownInSector, type TacticalState } from '../state.ts';
-import { screamVolume, shownFirer, shownId, soundPlace, unseenVictim, unseenVoice } from '../unseen-sources.ts';
+import { namedSoldier, screamVolume, shownFirer, shownId, soundPlace, unseenVictim, unseenVoice } from '../unseen-sources.ts';
 import { vehicleShareOfDamage, vehicleTakeDamage } from '../vehicle-damage.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
@@ -63,7 +65,7 @@ import { freeUpAttackerGivenTarget, reduceAttackBusyCount, reduceAttackBusyGiven
 import { type Bullet, bulletWorldXY, removeBullet } from './bullets.ts';
 import { checkForAndHandleSoldierDyingNotFromHit } from './death.ts';
 import { StatCause, statChange } from './experience.ts';
-import { bulletImpact, isCreatureOrBloodcat } from './impact.ts';
+import { bulletImpact, type ImpactResult, isCreatureOrBloodcat } from './impact.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { giveBackWhatACutStrikeHeld, holdsTheStrikeWillRelease } from './strikes.ts';
 import {
@@ -163,6 +165,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
   if (intended) {
     const hitBy = firer.oppList[tgt.id] === 1 ? b.hitBy : idiv(b.hitBy, 2);
     const r = bulletImpact(t, firer, tgt, location, impact, hitBy, special);
+    tellCriticalHit(t, tgt, r);
     damage = r.damage;
     special = r.special;
     if (firer.team === Team.OUR && firer.target && firer.target.life > 0) {
@@ -173,6 +176,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     if (b.flags & 0x0040 && tgt === firer.target) tgt.numPelletsHitBy++;
   } else {
     const r = bulletImpact(t, firer, tgt, location, impact, 0, special);
+    tellCriticalHit(t, tgt, r);
     damage = r.damage;
     special = r.special;
     tgt.intendedTarget = false;
@@ -226,6 +230,12 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
   if (t.turn.currentTeam !== Team.OUR && tgt.team === Team.OUR) t.turn.someoneHit = true;
   weaponHit(t, tgt, firer.attackingWeapon, damage, breathLoss, hitDirection, range, firer, special, location, bulletWorldXY(b));
   return stopped;
+}
+
+export function tellCriticalHit(t: TacticalState, s: Soldier, r: ImpactResult): void {
+  if (r.statLoss && s.visible === Visible.SEEN && hasName(s))
+    t.events.push({ type: 'statLost', soldier: s.id, stat: r.statLoss.stat, points: r.statLoss.points });
+  if (r.headHit) t.events.push({ type: 'headHit', ...namedSoldier(t, s) });
 }
 
 function spewBloodBehind(t: TacticalState, b: Bullet, tgt: Soldier, hitDirection: number): void {

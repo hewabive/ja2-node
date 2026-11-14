@@ -2,11 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CalcScreamVolume (the cap of 10 - experience level), InternalDoMercBattleSound
 // @src (the bad and kid voices); OppList.cc ProcessNoise, CalcEffVolume (who of the squad hears a sound, how loud, from
-// @src which side).
+// @src which side); Soldier_Create.cc TacticalCopySoldierFromCreateStruct (the name a line gives a soldier out of sight,
+// @src 2026-11-14).
 
 import { battleVoiceBasename } from '../../content/audio/battle-sound.ts';
 import { u8 } from '../../core/int.ts';
-import type { HeardFrom, UnseenVictim } from '../events.ts';
+import type { HeardFrom, NamedSoldier, UnseenVictim } from '../events.ts';
+import { defaultSoldierName } from './default-names.ts';
 import { NoiseKind, squadHears } from './perception/noise.ts';
 import { effectiveExpLevel, type LoadedSector } from './skills.ts';
 import { NO_PROFILE, type Soldier } from './soldier.ts';
@@ -49,6 +51,12 @@ export function shownId(t: TacticalState, s: Soldier | null): number | null | un
 
 export function shownSoldier(t: TacticalState, s: Soldier): { readonly soldier?: number } {
   return shownInSector(t, s) ? { soldier: s.id } : {};
+}
+
+export function namedSoldier(t: TacticalState, s: Soldier): NamedSoldier {
+  if (shownInSector(t, s)) return { soldier: s.id };
+  const byTeam = defaultSoldierName(s);
+  return byTeam ? { defaultName: byTeam } : { name: s.name };
 }
 
 export function shownFirer(t: TacticalState, s: Soldier): { readonly soldier: number } | { readonly item: number } {
