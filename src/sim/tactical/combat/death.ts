@@ -10,7 +10,7 @@
 // @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06); TurnSoldierIntoCorpse taking our dead off the map
 // @src through RemoveSoldierFromGridNo (2026-11-07); HandleSoldierDeath's SOLDIER_DEAD left to the strategic death for
 // @src our mercs killed for a lost battle (2026-11-08); code 496 going back to itself (deviation "Twitch going back to
-// @src itself", 2026-11-08).
+// @src itself", 2026-11-08); the samples of codes 721 and 722, told for a soldier out of sight (2026-11-14).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -43,6 +43,7 @@ import { boxingFight } from '../narrative/boxing-state.ts';
 import { Profile, TERRORISTS } from '../narrative/constants.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
+import { tellSoundOutOfSight } from '../out-of-sight-sounds.ts';
 import { allSoldiersLookForItems } from '../perception/fov.ts';
 import { NoiseKind } from '../perception/noise.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
@@ -674,9 +675,11 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       dropFlybackBlood(t, s);
       return 'continue';
     case FALL_TO_GROUND_CODE:
+      tellSoundOutOfSight(t, s, code);
       fallOnFragileItems(t, s, 'FALLFORWARD_FROMHIT_STAND', STANDING_FALL_JAR_DAMAGE);
       return 'continue';
     case HEAVY_FALL_CODE:
+      tellSoundOutOfSight(t, s, code);
       fallOnFragileItems(t, s, 'FALLFORWARD_FROMHIT_CROUCH', CROUCHED_FALL_JAR_DAMAGE);
       return 'continue';
     case 480:

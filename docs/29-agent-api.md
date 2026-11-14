@@ -458,7 +458,11 @@ merc of ours off the loaded map `cry` as `mercDied` does, a muted soldier neithe
 than 5 steps (`pickupConfirmed {soldier}`, `Tactical/Handle_Items.cc:1130`), the glass of jars a fall broke
 (`jarsBroken {soldier}`, `Tactical/Items.cc:3243`), the attack of a bloodcat out of sight (`bloodcatAttack`, no
 fields: the original plays it in the middle of the screen for every bloodcat, `Tactical/Soldier_Ani.cc:2412`, and a
-seen one's comes with his animation), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
+seen one's comes with his animation), the animation sounds the original plays at the tile of a soldier out of sight
+(`unseenAnimationSound {sound, heard?}`, with no soldier and no tile: `knifeThrow` three frames before a throwing knife
+leaves his hand, `fallToKnees`, `fallToGround` and `heavyFall` of a hit soldier, `creatureDying`, `creatureDissolving`
+and `creatureFalling` of a dying creature; codes 702, 709, 721, 722, 781, 782 and 784, `Tactical/Soldier_Ani.cc:1969`,
+`:2016`, `:2124`, `:2133`, `:2485`, `:2490`, `:2495`), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
 {soldier, spinKick?}`, `Tactical/Soldier_Control.cc:504`), a point of life a merc of ours bleeds, which makes him the map screen's info
 character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMaxLost` when, dying, he lost a point of
 maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
@@ -512,8 +516,9 @@ at the victim alone, a knife's for a blade and a bullet's otherwise (`Tactical/S
 `soldierHit`'s `blade` picks; a victim of ours shows his hit in full. A `nothingFound` of a soldier out of sight carries
 `unseen` and `heard` instead of the grid, and comes only for one with a profile who is not muted: the original's NOTHING
 has no sound for a soldier without a profile, nor for a muted one (`Tactical/Soldier_Control.cc:150`, `:6017`, `:5880`).
-A death cry, the NOTHING, the curse of a fall and a creature's call make no noise in the original; they are heard as
-loud as the crier's loudest scream (`CalcScreamVolume`'s cap of 10 − experience level).
+A death cry, the NOTHING, the curse of a fall, a creature's call and the sounds of `unseenAnimationSound` make no
+noise in the original; they are heard as loud as the soldier's loudest scream (`CalcScreamVolume`'s cap of 10 −
+experience level), and an `unseenAnimationSound` nobody of ours hears comes without `heard` and plays nothing.
 
 ## 8. Commands by domain
 

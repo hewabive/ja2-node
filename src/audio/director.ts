@@ -44,8 +44,11 @@
 // @src CheckEquipmentForFragileItemDamage (GLASS_CRACK at the soldier, MIDVOLUME), Tactical/Soldier_Control.cc DoNinjaAttack
 // @src (Dr. Q's chop as his battle sound), HandleTakeDamageDeath and HandleSoldierTakeDamageFeedback, TileEngine/
 // @src Explosion_Control.cc DishOutGasDamage (DIE1 and the HIT1 grunts at bleeding, gas and electric damage, 2026-11-09);
-// @src Tactical/Overhead.cc HandleGotoNewGridNo (the CURSE1 of a fall or a slip on marbles, out of sight too, 2026-11-14).
+// @src Tactical/Overhead.cc HandleGotoNewGridNo (the CURSE1 of a fall or a slip on marbles, out of sight too, 2026-11-14);
+// @src Tactical/Soldier_Ani.cc codes 702, 709, 721, 722, 781, 782 and 784 of a soldier out of sight, from where the squad
+// @src hears them, nothing when nobody does (2026-11-14).
 
+import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -112,6 +115,7 @@ const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const CONTENTS_EXCLAMATION_DELAY_MS = 500;
 const UNSEEN_VICTIM_TEAM = 1;
 const NOBODY = -1;
+const BODY_NOT_KNOWN = -1;
 const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const hiResFacing = (s: SoldierView) => s.hiResDirection ?? facingOfDirection(s.direction).hiResDirection;
@@ -700,6 +704,9 @@ export class SoundDirector {
       case 'bloodcatAttack':
         this.#play(effectCue(book, 'BLOODCAT_ATTACK', 'fixed', VolumeLevel.HIGH));
         return;
+      case 'unseenAnimationSound':
+        if (e.heard) this.#unseenAnimationSound(OUT_OF_SIGHT_SOUND_CODES[e.sound], this.#placeOf(undefined, e.heard));
+        return;
       case 'explosion':
         this.#play(explosionCue(book, e.animation ?? '', e.gridNo, rand));
         return;
@@ -877,6 +884,12 @@ export class SoundDirector {
       return;
     }
     this.#voiceSound(s, 'HIT1', false);
+  }
+
+  #unseenAnimationSound(code: number, place: Place): void {
+    const ctx = { gridNo: place.gridNo, bodyType: BODY_NOT_KNOWN, stealth: false, onScreen: true, handItem: null, creatureCall: null };
+    const sound = opcodeSound(this.#o.book, code, ctx, this.#rng.rand);
+    if (sound?.kind === 'cue') this.#play(this.#placed(sound.cue, place));
   }
 
   #unseenCall(call: CreatureCall, bodyType: number, place: Place): void {

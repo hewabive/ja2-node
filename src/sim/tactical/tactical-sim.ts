@@ -189,6 +189,7 @@ import { createScheduleList, loadMapSchedules } from './narrative/schedule-state
 import { pressStatueRemote } from './narrative/statue.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
+import { outOfSightSoundOpcode } from './out-of-sight-sounds.ts';
 import { clearTacticalStuffDueToTimeCompression, executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
 import { removePendingAction } from './pending-action.ts';
@@ -511,6 +512,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       helicopterLandingOpcode(state, s, code) ??
       pitOpcode(state, s, code) ??
       queenSlapOpcode(state, s, code) ??
+      outOfSightSoundOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
     crowsFlyAway,

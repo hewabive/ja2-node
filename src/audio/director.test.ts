@@ -691,6 +691,29 @@ describe('the sound director', () => {
     expect(r.cues[0]).toMatchObject({ mix: 'fixed', baseVolume: VolumeLevel.HIGH });
   });
 
+  it('plays the animation sounds of a soldier out of sight from where the squad hears them, and none nobody hears', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    const heard = { by: 1, direction: Direction.WEST, volumeClass: 1 } as const;
+    const knife = [...book.weapons.values()].find((w) => w.name === 'THROWING_KNIFE')?.sound ?? '';
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'unseenAnimationSound', tick: 9, sound: 'heavyFall', heard },
+          { type: 'unseenAnimationSound', tick: 9, sound: 'knifeThrow', heard },
+          { type: 'unseenAnimationSound', tick: 9, sound: 'creatureDying' },
+        ],
+      ),
+    ]);
+    expect(files(r)).toEqual([book.paths.get('HEAVY_FALL_1'), knife]);
+    expect(r.cues.map((cue) => [cue.gridNo, cue.baseVolume])).toEqual([
+      [heardSoundTile(G, Direction.WEST, 1), VolumeLevel.HIGH],
+      [heardSoundTile(G, Direction.WEST, 1), VolumeLevel.HIGH],
+    ]);
+  });
+
   it('picks the miss sounds of a shooter out of sight by the weapon his bullets carry', () => {
     const r = rig();
     const named = (name: string) => [...book.weapons.values()].find((w) => w.name === name)?.item ?? -1;

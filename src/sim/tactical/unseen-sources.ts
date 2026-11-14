@@ -40,8 +40,12 @@ export function heardOnly(t: TacticalState, s: Soldier, volume: number, kind: nu
   return heard ? { heard } : {};
 }
 
+export function heardAsAScream(t: TacticalState, s: Soldier): { readonly heard?: HeardFrom } {
+  return heardOnly(t, s, loudestScream(t, s), NoiseKind.SCREAM);
+}
+
 export function unseenVoice(t: TacticalState, s: Soldier): { readonly unseen: UnseenVictim; readonly heard?: HeardFrom } {
-  return { unseen: unseenVictim(s), ...heardOnly(t, s, loudestScream(t, s), NoiseKind.SCREAM) };
+  return { unseen: unseenVictim(s), ...heardAsAScream(t, s) };
 }
 
 export function shownId(t: TacticalState, s: Soldier | null): number | null | undefined {

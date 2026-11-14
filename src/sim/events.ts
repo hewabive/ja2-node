@@ -1,3 +1,4 @@
+import type { OutOfSightSound } from '../content/anim/out-of-sight-sounds.ts';
 import type { ContractEvent } from './campaign/contracts/events.ts';
 import type { LaptopEvent } from './campaign/laptop/events.ts';
 import type { QuestEvent } from './campaign/narrative/events.ts';
@@ -284,6 +285,12 @@ export interface CreatureCallEvent extends SimEventBase {
 
 export interface BloodcatAttackEvent extends SimEventBase {
   readonly type: 'bloodcatAttack';
+}
+
+export interface UnseenAnimationSoundEvent extends SimEventBase {
+  readonly type: 'unseenAnimationSound';
+  readonly sound: OutOfSightSound;
+  readonly heard?: HeardFrom;
 }
 
 export interface CatchEndedEvent extends SimEventBase {
@@ -862,6 +869,7 @@ export type SimEvent =
   | ItemCaughtEvent
   | CreatureCallEvent
   | BloodcatAttackEvent
+  | UnseenAnimationSoundEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent
