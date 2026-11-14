@@ -99,6 +99,8 @@ import { addEmail, deleteEmail, findEmail, type MailSpec, mailSpec, mailType, re
 import {
   enterMercSite,
   getMercSiteBackOnline,
+  isListedIndex,
+  LISTING_AT_LAPTOP_ENTRY,
   larryRelapsed,
   type MercCommandRefusal,
   makeNewMercsAvailable,
@@ -543,7 +545,7 @@ export class LaptopFlow implements LaptopContext {
       case 'mercHire':
         return this.#mercHire(cmd);
       case 'mercPay':
-        return this.#mercPay();
+        return this.#mercPay(cmd);
       case 'impCreate':
         return this.#impCreate(cmd);
       case 'bobbyRayOrder':
@@ -731,10 +733,12 @@ export class LaptopFlow implements LaptopContext {
     };
   }
 
-  #mercPay(): CommandResult {
+  #mercPay(cmd: Command): CommandResult {
+    const listing = cmd.listing ?? LISTING_AT_LAPTOP_ENTRY;
+    if (!isInt(listing) || !isListedIndex(this, listing)) return laptopRefusal('notListed');
     const refusal = this.#mercSession();
     if (refusal) return laptopRefusal(refusal);
-    const result = settleMercAccounts(this);
+    const result = settleMercAccounts(this, listing);
     if (!result.ok) return laptopRefusal(result.reason);
     return { ok: true, data: { paid: result.paid, full: result.full, quotes: mercPaymentQuotes(result.full) } };
   }

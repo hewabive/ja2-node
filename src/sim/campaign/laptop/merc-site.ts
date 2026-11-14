@@ -8,7 +8,9 @@
 // @src NewMercsAvailableAtMercSiteCallBack, IsMercMercAvailable, ShouldSpeckStartTalkingDueToActionOnSubPage (the coin toss),
 // @src IsAnyMercMercsHired, IsAnyMercMercsDead, CountNumberOfMercMercsHired, CountNumberOfMercMercsWhoAreDead, CalcMercDaysServed;
 // @src Laptop/Mercs_No_Account.cc BtnOpenAccountBoxButtonCallback; Laptop/Mercs_Files.cc BtnMercHireButtonCallback,
-// @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts, CalculateHowMuchPlayerOwesSpeck; Laptop/Speck_Quotes.h.
+// @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts (the records name the listing at gubCurMercIndex,
+// @src which EnterInitMercSite clears on every laptop entry, 2026-11-14), CalculateHowMuchPlayerOwesSpeck;
+// @src Laptop/Speck_Quotes.h.
 
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { i32, u32 } from '../../../core/int.ts';
@@ -398,19 +400,30 @@ export type MercPayResult =
   | { readonly ok: true; readonly paid: number; readonly full: boolean }
   | { readonly ok: false; readonly reason: 'nothingOwed' | 'funds' | MercCommandRefusal };
 
-export function settleMercAccounts(ctx: LaptopContext): MercPayResult {
-  const site = mercCommandRefusal(ctx);
-  if (site) return { ok: false, reason: site };
-  return payMercAccounts(ctx);
+export const LISTING_AT_LAPTOP_ENTRY = 0;
+
+export function isListedIndex(ctx: LaptopContext, index: number): boolean {
+  const listing = ctx.content.mercListings[index];
+  return listing !== undefined && isMercListed(ctx, listing);
 }
 
-export function payMercAccounts(ctx: LaptopContext): MercPayResult {
+export function settleMercAccounts(ctx: LaptopContext, viewedListing: number): MercPayResult {
+  const site = mercCommandRefusal(ctx);
+  if (site) return { ok: false, reason: site };
+  return payMercAccounts(ctx, viewedListing);
+}
+
+function viewedProfile(ctx: LaptopContext, viewedListing: number): number {
+  const listing = ctx.content.mercListings[viewedListing];
+  return listing ? listingProfile(ctx, listing) : 0;
+}
+
+export function payMercAccounts(ctx: LaptopContext, viewedListing = LISTING_AT_LAPTOP_ENTRY): MercPayResult {
   const debts = mercDebts(ctx);
   const total = debts.reduce((sum, d) => sum + d.owed, 0);
   if (total === 0) return { ok: false, reason: 'nothingOwed' };
   const f = ctx.state.finances;
   let paid = 0;
-  let firstPaid: number | null = null;
   for (const { profile, p } of listed(ctx)) {
     if (!isMercOnTeam(ctx.team(), profile) && p.mercMercContractLength === 0) continue;
     const charge = i32(p.salary * p.mercMercContractLength);
@@ -418,10 +431,9 @@ export function payMercAccounts(ctx: LaptopContext): MercPayResult {
     p.mercMercContractLength = 0;
     paid += charge;
     f.profileCostToDate.set(profile, u32((f.profileCostToDate.get(profile) ?? 0) + charge));
-    firstPaid ??= profile;
   }
   if (paid === 0) return { ok: false, reason: 'funds' };
-  const who = firstPaid ?? 0;
+  const who = viewedProfile(ctx, viewedListing);
   ctx.emitMoney(addTransaction(f, FinanceCode.PAY_SPECK_FOR_MERC, who, ctx.now(), -paid));
   ctx.history(History.SETTLED_ACCOUNTS_AT_MERC, who, null);
   const merc = ctx.laptop.merc;

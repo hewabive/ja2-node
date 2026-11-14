@@ -344,7 +344,8 @@ describe('M.E.R.C. on the canvas laptop', () => {
     expect(t.runtime.host.modal).not.toBeNull();
     await key(t, 'y', 'up');
     await settle(t);
-    expect(h.commands.some((c) => c.type === 'mercPay')).toBe(true);
+    const viewed = h.session.view().laptop?.merc.listed[0]?.listing;
+    expect(h.commands.find((c) => c.type === 'mercPay')).toEqual({ type: 'mercPay', listing: viewed });
     expect(h.screen.shell.mode).toBe(LaptopMode.MERC);
 
     Object.assign(h.session.campaign.state.laptop.merc, { siteHasGoneDownYet: true, firstVisitSinceServerWentDown: 0 });

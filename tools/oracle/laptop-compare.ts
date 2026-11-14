@@ -650,7 +650,7 @@ export class LaptopComparer {
       }
       case 'mercpay': {
         const total = mercDebts(flow).reduce((sum, d) => sum + d.owed, 0);
-        const replay = this.#replay(flow, draws, () => payMercAccounts(flow));
+        const replay = this.#replay(flow, draws, () => payMercAccounts(flow, Number(a.index ?? 0)));
         return this.#compareState(label, flow, p, { ours: { total }, theirs: p.result as Json }, replay);
       }
       case 'bobbyrestock':

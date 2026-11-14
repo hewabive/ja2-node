@@ -283,6 +283,7 @@ export function mercAccountPage(context: LaptopContext): LaptopPage {
   const session = context.sites.merc;
   const model: Record<string, unknown> = {};
   let busy = false;
+  const viewedListing = () => mercSite(context)?.listed[session.index]?.listing;
   const accountText = (name: string) => context.string(MERC_ACCOUNT_TEXT, context.constant(MERC_ACCOUNT_LAYOUT, name));
   const refresh = () => {
     const site = mercSite(context);
@@ -300,7 +301,7 @@ export function mercAccountPage(context: LaptopContext): LaptopPage {
   };
   const pay = () => {
     busy = true;
-    void context.command({ type: 'mercPay' }).then((reply) => {
+    void context.command({ type: 'mercPay', listing: viewedListing() }).then((reply) => {
       busy = false;
       if (reply.ok) {
         session.pendingQuotes = (reply.data as { quotes?: number[] } | undefined)?.quotes ?? [];

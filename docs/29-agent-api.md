@@ -1007,7 +1007,9 @@ effects: Bobby Ray's construction mail, bookmarks, the M.E.R.C. visit counter an
 form's draw (deviations "Speck's opening", "Florist order form entry"). `aimHangUp {profile}` is the browser's report
 that a merc hung up on a player who kept him waiting in the video conference, whose impatience runs on the page's clock
 (deviation "A.I.M. annoyance"); it raises his annoyance and queues its reset as the original's hang-up does. An agent's
-call has no such wait, so an agent never needs it; it is an ordinary logged command, accepted from any client. The
+call has no such wait, so an agent never needs it; it is an ordinary logged command, accepted from any client.
+`mercPay` takes the M.E.R.C. files page the player last viewed as `listing` (`laptop.merc.listed[].listing`), which
+the original's payment records name; without it, the first listing, as after a laptop entry. The
 I.M.P. draft stays in the client until
 `impCreate`; under the rule pack's `imp.pick_skills_directly` (`imp.pickSkillsDirectly` in the view) it takes `skills`,
 at most two of the view's `imp.specialties`, in place of `answers`, and `imp.attributes.specialtyBonus` gives what they

@@ -116,8 +116,8 @@ fresh process has (deviation "I.M.P. empty skill list").
 are rendered in `src/server/` from the user's data; the simulation keeps offsets, codes and amounts. Stubs
 (`stubs/profiles.json`, `stubs/text/`) stand in for `prof.dat` and the laptop texts in CI.
 
-The laptop's other deviations: "Email order", "Speck payment record", "Bobby Ray's shipment prices", "Soldier creation
-draws", "Cosmetic face and frame draws", "Cheats".
+The laptop's other deviations: "Email order", "Bobby Ray's shipment prices", "Soldier creation draws", "Cosmetic face
+and frame draws", "Cheats".
 
 ## 3. Quirks of the original the code keeps
 
@@ -140,6 +140,7 @@ otherwise.
 | The I.M.P. reminder is posted again on every exit from the laptop until it is sent | `laptop.test.ts` "posts the I.M.P. reminder on every exit …" |
 | The reached-destination line stays taken for good once the queue is emptied before the callback that releases it runs, as a load or the end of a meanwhile empties it (`SaveLoadGame.cc:689`, `Strategic/Meanwhile.cc:533`): no arrival says it again in that game | `laptop.test.ts` "keeps the reached-destination line taken for good …", `src/sim/strategic/narrative/save-import.test.ts` "keeps the arrival line taken …" |
 | Re-hiring a M.E.R.C. merc sets his unpaid days to 1: the old debt is forgotten | `laptop.test.ts` "forgets the unpaid days …" |
+| The payment's ledger and history records name the merc of the files page last viewed, the first listing after a laptop entry, whoever was paid (`Laptop/Mercs_Account.cc:300`); `mercPay` takes it as `listing` | `laptop.test.ts` "names the merc of the files page last viewed …" |
 | The account status changes on `!=`, so a smaller debt moves a suspended account back to a first warning and mails the warning again | `laptop.test.ts` "moves a suspended M.E.R.C. account back …" |
 | The new-merc event is posted again every midnight while a listing waits to be revealed | `rules.test.ts` "posts the new-merc event again …" |
 | A used item that becomes eligible for the first time stocks the new slot (no used offset), and the used slot stays on order for good | `rules.test.ts` "stocks the new slot when a used item …" |

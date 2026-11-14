@@ -161,6 +161,7 @@ function mercView(flow: LaptopFlow): MercSiteView {
     if (!p || !record) return [];
     return [
       {
+        listing: listing.index,
         profile: id,
         name: record.name,
         nickname: record.nickname,

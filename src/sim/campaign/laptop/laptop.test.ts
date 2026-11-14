@@ -25,6 +25,8 @@ const LASKO = 6;
 const PUIG = 7;
 const MARLOW = 8;
 const VOSS = 10;
+const BIFF = 40;
+const GASKET = 42;
 const DROP_TICKS = 10_000;
 const PC_DROPPED_OMERTA = 55;
 const MERC_REACHED_DESTINATION = 78;
@@ -437,6 +439,27 @@ describe('after the landing', () => {
     expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: true, data: { paid: 150, full: true, quotes: [45] } });
     expect(session.campaign.state.finances.balance).toBe(balance - 150);
     expect(session.dispatch({ type: 'mercPay' })).toEqual(laptopRefusal('nothingOwed'));
+  });
+
+  it('names the merc of the files page last viewed in the payment records, whoever was paid: the first listing after a laptop entry', async () => {
+    const session = await landed(33);
+    advanceTo(session, 3, 8);
+    expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
+    session.dispatch({ type: 'readEmail', id: mailId(session, 'MERC_INTRO') });
+    expect(session.dispatch({ type: 'mercOpenAccount' })).toMatchObject({ ok: true });
+    const named = () => {
+      const { ledger } = session.campaign.state.finances;
+      return [ledger.at(-1)?.code, ledger.at(-1)?.secondCode, session.campaign.state.laptop.history.at(-1)?.secondCode];
+    };
+    const gasket = session.view().laptop?.merc.listed.find((m) => m.profile === GASKET)?.listing;
+    const pastTheListed = session.campaign.state.laptop.merc.lastMercIndex + 1;
+    expect(session.dispatch({ type: 'mercHire', profile: GASKET })).toMatchObject({ ok: true });
+    expect(session.dispatch({ type: 'mercPay' })).toMatchObject({ ok: true });
+    expect(named()).toEqual([FinanceCode.PAY_SPECK_FOR_MERC, BIFF, BIFF]);
+    Object.assign(session.campaign.state.profiles.get(GASKET) ?? {}, { mercMercContractLength: 1 });
+    expect(session.dispatch({ type: 'mercPay', listing: pastTheListed })).toEqual(laptopRefusal('notListed'));
+    expect(session.dispatch({ type: 'mercPay', listing: gasket })).toMatchObject({ ok: true });
+    expect(named()).toEqual([FinanceCode.PAY_SPECK_FOR_MERC, GASKET, GASKET]);
   });
 
   it('forgets the unpaid days of a re-hired M.E.R.C. merc', async () => {

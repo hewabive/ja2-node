@@ -732,6 +732,7 @@ export interface AimMercView {
 }
 
 export interface MercListingView {
+  readonly listing: number;
   readonly profile: number;
   readonly name: string;
   readonly nickname: string;
