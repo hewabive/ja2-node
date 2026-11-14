@@ -1,9 +1,18 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { loadUiStrings } from '../../../content/text/strings.ts';
 import { idiv } from '../../../core/int.ts';
+import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, SpeechSurface, textDelay } from '../../speech.ts';
+import { FontName } from '../../text/fonts.ts';
+import { glyphRun } from '../../text/print.ts';
+import { StringsTextService } from '../../text/text-service.ts';
+import { reduceStringLength } from '../../text/wrap.ts';
+import { mapFacts, sectorNameIn } from '../map/facts.ts';
 import { civQuotePosition } from './speech-surfaces.ts';
 import { type SpeechPlacement, SpeechScreen, TalkingUi } from './talking-ui.ts';
 
@@ -16,10 +25,27 @@ const SPEECH_ON = { speech: true, subtitles: true, keyAdvance: false };
 const BAR_HEIGHT = 42;
 const POPUP_LIFE_BAR_X = 10 + 69 + 1;
 const POPUP_BARS_BOTTOM = 20 + 47;
+const POPUP_SECTOR_WIDTH = 64;
 
 function lifeBarTop(f: TacticalUiTest): number | null {
   const bar = f.draw().items.find((item) => item.kind === 'line' && item.x1 === POPUP_LIFE_BAR_X && item.y1 === POPUP_BARS_BOTTOM);
   return bar?.kind === 'line' ? bar.y2 : null;
+}
+
+async function popupSectorName(f: TacticalUiTest, label: string): Promise<string> {
+  const strings = await loadUiStrings(async (path) => new Uint8Array(await readFile(join(PROJECT_DATA_DIR, path))), 'eng');
+  const strategic = ui.client.rules.strategic;
+  if (!strategic) throw new Error('no strategic rules');
+  const facts = mapFacts(strategic.content, strategic.economy);
+  const name = sectorNameIn(facts, new StringsTextService(strings), f.client.view.strategic, label, false);
+  return reduceStringLength(name, POPUP_SECTOR_WIDTH, f.t.runtime.fonts.get(FontName.BLOCKFONT2));
+}
+
+function printed(f: TacticalUiTest, text: string): number {
+  const wanted = glyphRun(f.t.runtime.fonts.get(FontName.BLOCKFONT2), text, 0, 0)
+    .glyphs.map((g) => g.index)
+    .join();
+  return f.draw().items.filter((i) => i.kind === 'glyphs' && i.glyphs.map((g) => g.index).join() === wanted).length;
 }
 
 function panels(f: TacticalUiTest): Set<string> {
@@ -202,6 +228,50 @@ describe('speech surfaces in a stub campaign', () => {
     expect(f.client.view.soldiers.some((s) => s.id === away)).toBe(false);
     expect(panels(f)).toEqual(new Set(['interface/communicationpopup.sti']));
     expect(lifeBarTop(f)).toBe(POPUP_BARS_BOTTOM - idiv(BAR_HEIGHT * merc.life, 100));
+  });
+
+  it("names a merc's sector in his popup with its town or land type, off the loaded map or between sectors (RenderFaceOverlay, GetSectorIDString)", async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    f.speechSettings = SPEECH_ON;
+    const [away = 0, travelling = 0] = a10.mercs;
+    const soldier = a10.campaign.campaign.tactical?.state.soldiers[away];
+    if (!soldier) throw new Error('no soldier');
+    soldier.placed = false;
+    f.deliver();
+    const say = (id: number, sector: string) => {
+      const merc = f.client.view.strategic?.mercs.find((m) => m.id === id);
+      if (!merc) throw new Error('no strategic merc');
+      f.screen.dialogue.presenter.skip(f.t.now, true);
+      f.t.frame(FINAL_TALKING_DELAY_MS + 1);
+      const tick = f.client.view.tick;
+      const textKey = { file: `mercedt/${String(merc.profile).padStart(3, '0')}.edt`, row: 17, width: 240 };
+      const line = {
+        type: 'mercQuote',
+        tick,
+        soldier: id,
+        profile: merc.profile,
+        quote: 'quote17',
+        id: 17,
+        textKey,
+        chars: 3,
+        text: 'Hm.',
+      };
+      f.frames([{ tick, changed: [], removed: [], events: [{ ...line, sector } as never] }]);
+    };
+    say(away, 'B9');
+    const b9 = await popupSectorName(f, 'B9');
+    expect(b9.startsWith('B9: ')).toBe(true);
+    expect([printed(f, b9), printed(f, 'B9')]).toEqual([1, 0]);
+    say(travelling, 'A10');
+    const a10Name = await popupSectorName(f, 'A10');
+    const elsewhere = printed(f, a10Name);
+    const merc = a10.campaign.campaign.battle?.roster.get(travelling);
+    if (!merc) throw new Error('no roster merc');
+    merc.betweenSectors = true;
+    f.deliver();
+    expect(f.client.view.strategic?.mercs.find((m) => m.id === travelling)).toMatchObject({ sector: 'A10', betweenSectors: true });
+    expect(printed(f, a10Name)).toBe(elsewhere + 1);
   });
 
   it("gives an NPC's line outside a conversation neither the popup nor the subtitle box with speech on (CreateTalkingUI, HandleTacticalNPCTextUI)", async () => {

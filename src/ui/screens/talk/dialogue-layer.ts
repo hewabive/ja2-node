@@ -62,6 +62,7 @@ export interface DialogueHost {
   viewport(): { readonly top: number; readonly bottom: number };
   openInventory(soldier: number): void;
   sector(): string | null;
+  sectorName(sector: string): string;
   smMerc(): number | null;
   nextMerc(): void;
   describeItem(view: InventoryItemView, at: { readonly x: number; readonly y: number }): void;
@@ -126,7 +127,8 @@ export class DialogueLayer {
       speechOn: () => env.speechSettings?.().speech ?? false,
       bounds: () => this.#bounds(),
       soldierScreenPos: (id) => env.world.soldierBox(id),
-      sectorShown: (sector) => sector === host.sector(),
+      sectorShown: (sector, soldier) => sector === host.sector() && !this.#betweenSectors(soldier),
+      sectorName: (sector) => host.sectorName(sector),
       drawSoldierFace: (list, s, x, y) => host.drawSoldierFace(list, s, x, y),
       drawBars: (list, values, x, y) => host.drawBars(list, values, x, y),
       barValues: (s) => host.barValues(s),
@@ -230,6 +232,10 @@ export class DialogueLayer {
 
   #view(): PlayerView | null {
     return this.#env.client.view;
+  }
+
+  #betweenSectors(soldier: number | null): boolean {
+    return soldier !== null && this.#view()?.strategic?.mercs.find((m) => m.id === soldier)?.betweenSectors === true;
   }
 
   #bounds() {

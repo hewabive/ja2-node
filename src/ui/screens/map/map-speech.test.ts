@@ -1,12 +1,21 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { loadUiStrings } from '../../../content/text/strings.ts';
+import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { heliState } from '../../../sim/strategic/forces/helicopter.ts';
 import { MouseButton } from '../../input/events.ts';
 import { FINAL_TALKING_DELAY_MS, MIN_TALK_BEFORE_SKIP_MS, SpeechSurface, textDelay } from '../../speech.ts';
+import { FontName } from '../../text/fonts.ts';
+import { glyphRun } from '../../text/print.ts';
+import { StringsTextService } from '../../text/text-service.ts';
+import { reduceStringLength } from '../../text/wrap.ts';
 import { type SpeechPlacement, SpeechScreen, TalkingUi } from '../talk/talking-ui.ts';
+import { mapFacts, sectorNameIn } from './facts.ts';
 
 const LINE = 'Contract is up soon.';
 const SHORT_LINE = 'Hm.';
@@ -287,6 +296,7 @@ const AWAY_PROFILE = 30;
 const MINER_SOLDIER = 40;
 const POPUP_BARS = { x: 69, y: 47 };
 const BAR_HEIGHT = 42;
+const POPUP_SECTOR_WIDTH = 64;
 
 type Panel = { readonly monologue: 'drassenSam' | 'cambriaHospital' | 'otherSams' | 'estoniRefuel' } | { readonly mine: number };
 
@@ -405,6 +415,27 @@ describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Cont
       expect(panels()).toEqual(['interface/communicationpopup.sti']);
       sayExternal(f, FRED, { sector: 'D13' });
       expect(panels()).toEqual(['interface/communicationpopup_2.sti']);
+    }));
+
+  it("names the sector of a head miner's soldier with its town as GetSectorIDString does, not the bare code (RenderFaceOverlay)", () =>
+    withMap(async (f) => {
+      const font = f.t.runtime.fonts.get(FontName.BLOCKFONT2);
+      const strings = await loadUiStrings(async (path) => new Uint8Array(await readFile(join(PROJECT_DATA_DIR, path))), 'eng');
+      const strategic = ui.client.rules.strategic;
+      if (!strategic) throw new Error('no strategic rules');
+      const facts = mapFacts(strategic.content, strategic.economy);
+      const name = sectorNameIn(facts, new StringsTextService(strings), f.client.view.strategic, 'D13', false);
+      const shown = reduceStringLength(name, POPUP_SECTOR_WIDTH, font);
+      const printed = (text: string) => {
+        const wanted = glyphRun(font, text, 0, 0)
+          .glyphs.map((g) => g.index)
+          .join();
+        return f.draw().items.filter((i) => i.kind === 'glyphs' && i.glyphs.map((g) => g.index).join() === wanted).length;
+      };
+      expect(f.client.view.strategic?.worldSector).not.toBe('D13');
+      expect(name.startsWith('D13: ')).toBe(true);
+      sayExternal(f, FRED, { soldier: MINER_SOLDIER, sector: 'D13' });
+      expect(printed(shown)).toBe(1);
     }));
 
   it("draws the bars the line carries for a head miner's soldier in his popup, none without a soldier (RenderFaceOverlay)", () =>

@@ -445,6 +445,7 @@ export class MapScreen implements Screen {
       profile: (id) => env.media.profile(id),
       soldierName: (soldier) => mercById(this.#strategic(), soldier)?.name ?? null,
       worldSector: () => this.#strategic()?.worldSector ?? null,
+      sectorName: (sector) => this.#sectorName(sector, false),
       ensureImage: (path) => env.media.image(path),
       gaps: (file) => env.media.gaps(file),
       random: env.random,

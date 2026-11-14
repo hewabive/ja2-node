@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-20. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Dialogue_Control.cc CreateTalkingUI (the subtitle box when SUBTITLES is on or the line has no
 // @src voice, the face popup when SPEECH is on), HandleTacticalSpeechUI (the popup in tactical for every merc line),
-// @src HandleExternNPCSpeechFace (Skyrider and the head miners), RenderFaceOverlay (the panel by speaker, name, sector,
+// @src HandleExternNPCSpeechFace (Skyrider and the head miners), RenderFaceOverlay (the panel by speaker, name, the
+// @src sector as GetSectorIDString names it, not detailed, unless it is the loaded one and he is not between sectors,
 // @src bars, face), ExecuteTacticalTextBox (one box at a time, a click region over it), TextOverlayClickCallback and
 // @src FaceOverlayClickCallback (a click shuts the face up after 500 ms), HandleDialogueEnd; src/game/Tactical/Civ_Quotes.cc
 // @src BeginCivQuote (the quoted line in a basic box centred on GetSoldierScreenPos, clamped to the screen width and the
@@ -79,7 +80,8 @@ export interface SpeechSurfaceHooks {
   readonly speechOn: () => boolean;
   readonly bounds: () => SpeechBounds;
   readonly soldierScreenPos: (soldier: number) => ScreenBoxLike | null;
-  readonly sectorShown: (sector: string) => boolean;
+  readonly sectorShown: (sector: string, soldier: number | null) => boolean;
+  readonly sectorName: (sector: string) => string;
   readonly drawSoldierFace: (list: DrawList, soldier: SoldierView, x: number, y: number) => void;
   readonly drawBars: (list: DrawList, values: BarValues, x: number, y: number) => void;
   readonly barValues: (soldier: SoldierView) => BarValues;
@@ -347,8 +349,8 @@ export class SpeechSurfaces {
     if (withSoldier) {
       print(this.#rect4(s.name), soldier?.name ?? nickname);
       const sector = current.line.sector;
-      if (sector && !this.#hooks.sectorShown(sector))
-        print(this.#rect4(s.sector), reduceStringLength(sector, this.#number(s.sectorWidth), font));
+      if (sector && !this.#hooks.sectorShown(sector, speakerSoldierId(current.line)))
+        print(this.#rect4(s.sector), reduceStringLength(this.#hooks.sectorName(sector), this.#number(s.sectorWidth), font));
     } else print(this.#rect4(s.nameWithoutSoldier), nickname);
     const bars = this.#speakerBars(current.line, soldier);
     if (bars) {

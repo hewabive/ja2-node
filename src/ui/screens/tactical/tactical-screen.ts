@@ -469,6 +469,7 @@ export class TacticalScreen implements Screen {
       viewport: () => this.#viewportBounds(),
       openInventory: (soldier) => this.#requestPanel('sm', soldier),
       sector: () => sectorOfMap(this.#view()?.mapPath ?? null),
+      sectorName: (sector) => this.#sectorName(sector, false),
       smMerc: () => this.#pendingPanel?.soldier ?? this.#smMerc,
       nextMerc: () => this.#stepMerc(1),
       describeItem: (view, at) => this.#describeAt(view, at),
@@ -497,7 +498,7 @@ export class TacticalScreen implements Screen {
         faces: model.asset('updateFace').path,
       }),
       merc: (soldier) => this.#placementMerc(soldier),
-      sectorName: (sector) => this.#sectorName(sector),
+      sectorName: (sector) => this.#sectorName(sector, true),
       hour: () => this.#view()?.clock?.hour ?? 0,
       mapGridNo: () => this.controls.overhead.mouseGridNo(),
       mapRegion: () => this.controls.overhead.mapRegion,
@@ -1464,7 +1465,7 @@ export class TacticalScreen implements Screen {
       this.#eventBoxes.push(
         ...eventBoxesOf(frames, {
           text: this.#env.text,
-          sectorName: (label) => this.#sectorName(label),
+          sectorName: (label) => this.#sectorName(label, true),
           townOf: (label) => this.#townOf(label),
           vehicleType: vehicleTypeIn(view),
         }),
@@ -1494,12 +1495,12 @@ export class TacticalScreen implements Screen {
 
   #townIdString(view: PlayerView | null): string {
     const label = view?.strategic?.worldSector ?? sectorOfMap(view?.mapPath ?? null);
-    return label ? this.#sectorName(label) : '';
+    return label ? this.#sectorName(label, true) : '';
   }
 
-  #sectorName(label: string): string {
+  #sectorName(label: string, detailed: boolean): string {
     const facts = this.#env.facts();
-    return facts ? sectorNameIn(facts, this.#env.text, this.#view()?.strategic, label, true) : label;
+    return facts ? sectorNameIn(facts, this.#env.text, this.#view()?.strategic, label, detailed) : label;
   }
 
   #townOf(label: string): number {

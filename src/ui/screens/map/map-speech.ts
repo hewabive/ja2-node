@@ -13,7 +13,7 @@
 // @src Strategic/Map_Screen_Interface.cc TurnOnSectorLocator (the locator as the line starts, none on Skyrider's
 // @src helicopter while the aircraft show), Map_Screen_Helicopter.cc HandleAnimationOfSectors (the yellow locator)
 // @src (2026-11-09); MapScreen.cc EndMapScreen (HandleShutDownOfMapScreenWhileExternfaceIsTalking); RenderFaceOverlay (an external speaker with a soldier: the soldier's panel, his name and his sector
-// @src when it is not the loaded one, and his bars, DrawSoldierUIBars), HandleDialogue (a line carried to the map keeps no
+// @src as GetSectorIDString names it, not detailed, when it is not the loaded one, and his bars, DrawSoldierUIBars), HandleDialogue (a line carried to the map keeps no
 // @src popup for a speaker with a soldier, 2026-11-09).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
@@ -88,6 +88,7 @@ export interface MapSpeechHooks {
   readonly profile: (id: number) => ProfilePresentation | null;
   readonly soldierName: (soldier: number) => string | null;
   readonly worldSector: () => string | null;
+  readonly sectorName: (sector: string) => string;
   readonly ensureImage: (path: string) => boolean;
   readonly gaps: (file: string) => readonly { readonly start: number; readonly end: number }[] | null;
   readonly random: (range: number) => number;
@@ -303,7 +304,8 @@ export class MapSpeech {
     else {
       this.#printOnPopup(list, at, style.nameWithSoldier, this.#hooks.soldierName(soldier) ?? nickname);
       const sector = current.line.sector;
-      if (sector && sector !== this.#hooks.worldSector()) this.#printOnPopup(list, at, style.sector, sector, style.sectorWidth);
+      if (sector && sector !== this.#hooks.worldSector())
+        this.#printOnPopup(list, at, style.sector, this.#hooks.sectorName(sector), style.sectorWidth);
       const bars = current.line.bars;
       if (bars) this.#hooks.drawBars(list, speakerBarValues(bars), at.x + style.bars.x, at.y + style.bars.y);
     }
