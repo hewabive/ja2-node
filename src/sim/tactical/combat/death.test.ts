@@ -18,7 +18,7 @@ import { loadTacticalContent } from '../load-content.ts';
 import { Profile } from '../narrative/constants.ts';
 import { calcActionPoints } from '../points.ts';
 import { SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from '../roofs.ts';
-import { Body, NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { Body, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, Visible } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { Visibility } from '../world-items.ts';
@@ -62,6 +62,56 @@ describe('kill records (Overhead.cc HandleNPCTeamMemberDeath, Soldier_Ani.cc Han
     }
     expect(queenDies(true)).toEqual([0]);
     expect(queenDies(false)).toEqual([]);
+  });
+});
+
+describe('the laugh at a visible death (Soldier_Ani.cc HandleSoldierDeath, LAUGH1 on Random(3) == 0)', () => {
+  const OURS_AT = gridNo(80, 80);
+  const VICTIM_AT = gridNo(80, 84);
+  const ATTACKER_AT = gridNo(80, 88);
+
+  function death(attackerTeam: number, setup: (victim: Soldier, attacker: Soldier, t: TacticalState) => void = () => {}) {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, OURS_AT, Direction.SOUTH);
+    const victim = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, VICTIM_AT, Direction.NORTH);
+    const attacker =
+      attackerTeam === Team.OUR
+        ? (sim.state.soldiers[0] as Soldier)
+        : spawnSoldier(sim, TEAM_FIRST_ID[attackerTeam] ?? 0, attackerTeam, ATTACKER_AT, Direction.NORTH);
+    victim.visible = Visible.SEEN;
+    attacker.visible = Visible.SEEN;
+    victim.attacker = attacker;
+    setup(victim, attacker, sim.state);
+    victim.life = 0;
+    sim.drainEvents();
+    handleSoldierDeath(sim.state, victim);
+    const died = sim.drainEvents().find((e) => e.type === 'soldierDied');
+    return { attacker, laugher: died?.type === 'soldierDied' ? died.laugher : undefined };
+  }
+
+  it("names the seen attacker who may laugh as a seen victim dies; the client draws the one in three, not the game's generator", () => {
+    const { attacker, laugher } = death(Team.ENEMY);
+    expect(laugher).toEqual({ soldier: attacker.id });
+  });
+
+  it('has nobody laugh at a victim the squad does not see, nor a creature or bloodcat attacker', () => {
+    expect(death(Team.ENEMY, (victim) => Object.assign(victim, { visible: Visible.HIDDEN })).laugher).toBeUndefined();
+    expect(death(Team.ENEMY, (_, attacker) => Object.assign(attacker, { bodyType: Body.BLOODCAT })).laugher).toBeUndefined();
+    expect(death(Team.CREATURE, (_, attacker) => Object.assign(attacker, { bodyType: Body.AM_MONSTER })).laugher).toBeUndefined();
+  });
+
+  it('leaves the kill of our merc during his attack to his kill comment, and lets him laugh at a death after it', () => {
+    expect(death(Team.OUR, (_, __, t) => Object.assign(t.turn, { attackBusyCount: 1 })).laugher).toBeUndefined();
+    const after = death(Team.OUR);
+    expect(after.laugher).toEqual({ soldier: after.attacker.id });
+  });
+
+  it('gives an attacker out of sight only his voice and where the squad hears it, and a muted one nothing', () => {
+    const unseen = death(Team.ENEMY, (_, attacker) => Object.assign(attacker, { visible: Visible.HIDDEN }));
+    expect(unseen.laugher).toMatchObject({ unseen: { bodyType: unseen.attacker.bodyType } });
+    expect(unseen.laugher).not.toHaveProperty('soldier');
+    const muted = death(Team.ENEMY, (_, attacker) => Object.assign(attacker, { visible: Visible.HIDDEN, muted: true }));
+    expect(muted.laugher).toBeUndefined();
   });
 });
 

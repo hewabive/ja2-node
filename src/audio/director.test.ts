@@ -766,6 +766,42 @@ describe('the sound director', () => {
     expect(files(muted)).toEqual([]);
   });
 
+  it('has the attacker the event names laugh at a death on a client Random(3) == 0 (HandleSoldierDeath), out of sight from where the squad hears him', () => {
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const laughs = seeds.map((seed) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset([soldier(30, 'STANDING', 0, { team: 1, voice: 'bad1' })], []);
+      r.director.applyFrames([
+        frame(10, [], [{ type: 'soldierDied', tick: 10, soldier: 70, killer: 30, gridNo: G, laugher: { soldier: 30 } }]),
+      ]);
+      return files(r);
+    });
+    const expected = seeds.map((seed) => (new ClientRandom(seed).rand(3) === 0 ? ['battlesnds/bad1_laugh.wav'] : []));
+    expect(laughs).toEqual(expected);
+    expect(new Set(expected.map((f) => f.length)).size).toBe(2);
+    const laughing = seeds.find((seed) => new ClientRandom(seed).rand(3) === 0) ?? 0;
+    const r = rig(world(1), scripts, { seed: laughing });
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    const heard = { by: 1, direction: Direction.NORTH, volumeClass: 3 };
+    const laugher = { unseen: { voice: 'bad2', bodyType: 0 }, heard };
+    r.director.applyFrames([frame(10, [], [{ type: 'soldierDied', tick: 10, soldier: 70, gridNo: G, laugher }])]);
+    expect(files(r)).toEqual(['battlesnds/bad2_laugh.wav']);
+    expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3) });
+  });
+
+  it('has the killer who cheers his kill say COOL1 or LAUGH1 by a client coin toss (HandleKilledQuote)', () => {
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const cheers = seeds.map((seed) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset([soldier(1, 'STANDING', 0)], []);
+      r.director.applyFrames([frame(10, [], [{ type: 'killCheered', tick: 10, soldier: 1 }])]);
+      return files(r);
+    });
+    const expected = seeds.map((seed) => [new ClientRandom(seed).rand(2) === 0 ? 'battlesnds/007_cool.wav' : 'battlesnds/007_laugh.wav']);
+    expect(cheers).toEqual(expected);
+    expect(new Set(expected.flat()).size).toBe(2);
+  });
+
   it('has a medic out of bandages curse with CURSE1, and stay silent when the event brings no battle sound', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0)], []);

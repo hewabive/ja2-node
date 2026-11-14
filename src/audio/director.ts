@@ -46,7 +46,9 @@
 // @src Explosion_Control.cc DishOutGasDamage (DIE1 and the HIT1 grunts at bleeding, gas and electric damage, 2026-11-09);
 // @src Tactical/Overhead.cc HandleGotoNewGridNo (the CURSE1 of a fall or a slip on marbles, out of sight too, 2026-11-14);
 // @src Tactical/Soldier_Ani.cc codes 702, 709, 721, 722, 781, 782 and 784 of a soldier out of sight, from where the squad
-// @src hears them, nothing when nobody does (2026-11-14).
+// @src hears them, nothing when nobody does (2026-11-14); Tactical/Soldier_Ani.cc HandleSoldierDeath (the attacker's
+// @src LAUGH1 at a visible death on Random(3) == 0) and HandleKilledQuote (the killer's LAUGH1 or COOL1 by CoinToss), both
+// @src drawn here (deviation "Cosmetic draws in attacks", 2026-11-14).
 
 import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
@@ -123,6 +125,8 @@ const ANIM_STAND = 6;
 const CANTEEN = 'CANTEEN';
 const DYING_HEALTH_INDEX = 0;
 const CRITICAL_HEALTH_INDEX = 1;
+const DEATH_LAUGH_ODDS = 3;
+const KILL_CHEERS: readonly BattleSoundName[] = ['COOL1', 'LAUGH1'];
 
 export interface SoundWorld {
   terrainAt(gridNo: number): number;
@@ -182,6 +186,7 @@ type Voiced = Pick<SoldierView, 'id' | 'gridNo' | 'team' | 'bodyType' | 'voice' 
 
 type EventOf<T extends string> = Extract<NonNullable<ViewFrame['events']>[number], { type: T }>;
 type UnseenVictim = NonNullable<EventOf<'soldierHit'>['unseen']>;
+type VoicedSoldier = NonNullable<EventOf<'soldierDied'>['laugher']>;
 type Firer = Pick<EventOf<'bulletImpact'>, 'soldier' | 'item'>;
 
 interface Place {
@@ -694,6 +699,10 @@ export class SoundDirector {
         return;
       case 'soldierDied':
         this.#voiceSound(this.#victim(e.soldier, this.#sourcePlace(e.soldier, e.gridNo, e.heard), e.unseen), 'DIE1', false);
+        if (e.laugher && rand(DEATH_LAUGH_ODDS) === 0) this.#voiceOf(e.laugher, 'LAUGH1');
+        return;
+      case 'killCheered':
+        this.#battleSound(e.soldier, KILL_CHEERS[rand(KILL_CHEERS.length)] ?? 'COOL1', false);
         return;
       case 'mercDied':
         if (!e.mapScreen) this.#mercDiedOffTheMap(e);
@@ -761,8 +770,12 @@ export class SoundDirector {
   }
 
   #curse(e: EventOf<'fellDown'> | EventOf<'slippedOnMarbles'>): void {
-    if (e.soldier !== undefined) this.#battleSound(e.soldier, 'CURSE1', false);
-    else if (e.unseen) this.#voiceSound(this.#victim(NOBODY, this.#placeOf(undefined, e.heard), e.unseen), 'CURSE1', false);
+    this.#voiceOf(e, 'CURSE1');
+  }
+
+  #voiceOf(source: VoicedSoldier, sound: BattleSoundName): void {
+    if (source.soldier !== undefined) this.#battleSound(source.soldier, sound, false);
+    else if (source.unseen) this.#voiceSound(this.#victim(NOBODY, this.#placeOf(undefined, source.heard), source.unseen), sound, false);
   }
 
   #mercDiedOffTheMap(e: EventOf<'mercDied'>): void {

@@ -45,6 +45,12 @@ export interface CursingSoldier extends NamedSoldier {
   readonly heard?: HeardFrom;
 }
 
+export interface VoicedSoldier {
+  readonly soldier?: number;
+  readonly unseen?: UnseenVictim;
+  readonly heard?: HeardFrom;
+}
+
 export type FallCause = 'blind' | 'drunk';
 
 export interface FellDownEvent extends SimEventBase, CursingSoldier {
@@ -409,6 +415,12 @@ export interface SoldierDiedEvent extends SimEventBase {
   readonly gridNo?: number;
   readonly unseen?: UnseenVictim;
   readonly heard?: HeardFrom;
+  readonly laugher?: VoicedSoldier;
+}
+
+export interface KillCheeredEvent extends SimEventBase {
+  readonly type: 'killCheered';
+  readonly soldier: number;
 }
 
 export interface VehicleDestroyedEvent extends SimEventBase {
@@ -875,6 +887,7 @@ export type SimEvent =
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent
+  | KillCheeredEvent
   | VehicleDestroyedEvent
   | AttackResolvedEvent
   | GunJammedEvent

@@ -10,7 +10,9 @@
 // @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06); TurnSoldierIntoCorpse taking our dead off the map
 // @src through RemoveSoldierFromGridNo (2026-11-07); HandleSoldierDeath's SOLDIER_DEAD left to the strategic death for
 // @src our mercs killed for a lost battle (2026-11-08); code 496 going back to itself (deviation "Twitch going back to
-// @src itself", 2026-11-08); the samples of codes 721 and 722, told for a soldier out of sight (2026-11-14).
+// @src itself", 2026-11-08); the samples of codes 721 and 722, told for a soldier out of sight (2026-11-14);
+// @src HandleSoldierDeath's LAUGH1 of the attacker of a visible victim, whose Random(3) the client draws (deviation
+// @src "Cosmetic draws in attacks", 2026-11-14).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -20,6 +22,7 @@ import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
 import { i16, u8 } from '../../../core/int.ts';
+import type { VoicedSoldier } from '../../events.ts';
 import { createItem, ObjectFlags } from '../../items/object.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -55,10 +58,10 @@ import { checkSoldierHitRoof } from '../roofs.ts';
 import { addRottingCorpse, handleCrowLeave, nowMinuteOf } from '../rotting-corpses.ts';
 import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from '../selection.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
-import { AlertStatus, Body, NO_PROFILE, NOBODY, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, isCreatureOrBloodcat, NO_PROFILE, NOBODY, OKBREATH, OKLIFE, type Soldier, Team, Visible } from '../soldier.ts';
 import { removeOccupant, shownInSector, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
-import { loudestScream, shownId, soundPlace, unseenVictim } from '../unseen-sources.ts';
+import { loudestScream, shownId, soundPlace, unseenVictim, voicedSoldier } from '../unseen-sources.ts';
 import { removeVehicleOfSoldier } from '../vehicle-soldiers.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { internalSoldierReadyWeapon } from './attack.ts';
@@ -436,6 +439,11 @@ export function corpseOfStructure(t: TacticalState, base: StructureInstance): Co
   return t.corpses.find((c) => c.gridNo === base.gridNo && c.level === level) ?? null;
 }
 
+function laughAtVisibleDeath(t: TacticalState, victim: Soldier, attacker: Soldier): VoicedSoldier | null {
+  if (victim.visible !== Visible.SEEN || isCreatureOrBloodcat(attacker)) return null;
+  return voicedSoldier(t, attacker);
+}
+
 export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDead: boolean; madeCorpse: boolean } {
   let madeCorpse = false;
   let buddyJustDead = false;
@@ -443,12 +451,14 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
     cancelAllServices(t, s);
     putOutMuzzleFlash(t, s);
     s.gettingHit = 0;
+    let laugher: VoicedSoldier | null = null;
     if (s.team === Team.OUR) {
       if (!t.turn.killingGuysForLosingBattle) s.dead = true;
     } else {
       const attacker = s.attacker;
       if (attacker?.team === Team.OUR && t.turn.attackBusyCount > 0)
         t.turn.killedEnemyOnAttack = { victim: s, killer: attacker, gridNo: s.gridNo, level: s.level };
+      else if (attacker) laugher = laughAtVisibleDeath(t, s, attacker);
       handleNPCTeamMemberDeath(t, s);
       if (attacker?.team === Team.OUR) {
         const p = profileProgress(t, attacker.profile);
@@ -471,6 +481,7 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
       ...(shownInSector(t, s)
         ? { gridNo: s.gridNo }
         : { unseen: unseenVictim(s), ...soundPlace(t, s, killerShown, loudestScream(t, s), NoiseKind.SCREAM) }),
+      ...(laugher ? { laugher } : {}),
     });
     madeCorpse = turnSoldierIntoCorpse(t, s);
     removeManAsTarget(t, s);

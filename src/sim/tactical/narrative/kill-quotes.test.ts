@@ -87,6 +87,10 @@ function kill(s: Scene, rolls: readonly number[], dead = victim(s)): void {
   handleKilledQuote(s.t, killed(s, dead));
 }
 
+function cheers(s: Scene): number[] {
+  return s.sim.drainEvents().flatMap((e) => (e.type === 'killCheered' ? [e.soldier] : []));
+}
+
 function headshot(s: Scene): Soldier {
   const dead = victim(s);
   dead.state = anim(content, 'JFK_HITDEATH');
@@ -112,19 +116,34 @@ describe("the killer's comment (Soldier_Ani.cc HandleKilledQuote)", () => {
     expect(s.said).toEqual([[s.killer.id, MercQuote.KILLED_AN_ENEMY]]);
   });
 
-  it('makes the same draw and says nothing from 33 up: the laugh or cool coin toss is not drawn', () => {
+  it('makes the same draw from 33 up and cheers instead: the client tosses the coin between laugh and cool', () => {
     const s = scene();
+    s.sim.drainEvents();
     kill(s, [33]);
     expect(s.draws).toEqual([100]);
     expect(s.said).toEqual([]);
+    expect(cheers(s)).toEqual([s.killer.id]);
   });
 
-  it('says the creature kill for a creature and draws the roll for a bloodcat without a quote', () => {
+  it('says the creature kill for a creature and draws the roll for a bloodcat, whose kill he cheers', () => {
     const s = scene();
+    s.sim.drainEvents();
     kill(s, [0], victim(s, VICTIM_AT, Team.ENEMY, Body.AM_MONSTER));
+    expect(cheers(s)).toEqual([]);
     kill(s, [0], victim(s, VICTIM_AT, Team.ENEMY, Body.BLOODCAT));
     expect(s.draws).toEqual([100, 100]);
     expect(s.said).toEqual([[s.killer.id, MercQuote.KILLED_A_CREATURE]]);
+    expect(cheers(s)).toEqual([s.killer.id]);
+  });
+
+  it('cheers neither after his gun line nor for a kill he does not see', () => {
+    const s = scene(LIKES_GUN_AFTER_KILL);
+    s.killer.attackingWeapon = content.items.byName.get(DEADLY_GUN)?.index ?? 0;
+    s.sim.drainEvents();
+    kill(s, [0]);
+    kill(s, [], victim(s, OUT_OF_SIGHT));
+    expect(s.said).toEqual([[s.killer.id, MercQuote.SATISFACTION_WITH_GUN_AFTER_KILL]]);
+    expect(cheers(s)).toEqual([]);
   });
 
   it('draws nothing for a plain civilian or a tile the killer cannot see; a civilian of a group counts as an enemy', () => {

@@ -1,8 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Ani.cc HandleKilledQuote (gLastMercTalkedAboutKilling), ShouldMercSayHappyWithGunQuote,
-// @src MIN_DEADLINESS_FOR_LIKE_GUN_QUOTE, SayBuddyWitnessedQuoteFromKill; the laugh-or-cool CoinToss is not drawn
-// @src (deviation "Cosmetic draws in attacks").
+// @src MIN_DEADLINESS_FOR_LIKE_GUN_QUOTE, SayBuddyWitnessedQuoteFromKill; the laugh-or-cool battle sound, whose CoinToss
+// @src the client draws (deviation "Cosmetic draws in attacks", 2026-11-14).
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { gunQuoteOf } from '../../../content/narrative/quote-speakers.ts';
@@ -70,6 +70,7 @@ function killerComments(t: TacticalState, victim: Soldier, killer: Soldier): voi
     markQuoteSaid(t, killer, QuoteSaidFlag.LIKESGUN);
   } else if (t.rng.int(PERCENT) < KILL_QUOTE_CHANCE && victim.bodyType !== Body.BLOODCAT)
     say(t, killer, isMonster(victim) ? MercQuote.KILLED_A_CREATURE : MercQuote.KILLED_AN_ENEMY);
+  else t.events.push({ type: 'killCheered', soldier: killer.id });
 }
 
 function headshotWitness(t: TacticalState, s: Soldier, k: EnemyKilledOnAttack): boolean {

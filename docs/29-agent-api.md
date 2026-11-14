@@ -469,7 +469,11 @@ seen one's comes with his animation), the animation sounds the original plays at
 leaves his hand, `fallToKnees`, `fallToGround` and `heavyFall` of a hit soldier, `creatureDying`, `creatureDissolving`
 and `creatureFalling` of a dying creature; codes 702, 709, 721, 722, 781, 782 and 784, `Tactical/Soldier_Ani.cc:1969`,
 `:2016`, `:2124`, `:2133`, `:2485`, `:2490`, `:2495`), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
-{soldier, spinKick?}`, `Tactical/Soldier_Control.cc:504`), a point of life a merc of ours bleeds, which makes him the map screen's info
+{soldier, spinKick?}`, `Tactical/Soldier_Control.cc:504`), the attacker who may laugh as a soldier the squad sees dies
+outside our merc's attack (`soldierDied`'s `laugher`: `{soldier}`, or `{unseen, heard?}` for one out of sight; none for a
+creature, a bloodcat or a muted one; the client laughs on one in three, `Tactical/Soldier_Ani.cc:2917-2921`), our merc
+who cheers a kill he saw instead of commenting it (`killCheered {soldier}`, LAUGH1 or COOL1 by the client's coin toss,
+`:2833-2841`), a point of life a merc of ours bleeds, which makes him the map screen's info
 character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMaxLost` when, dying, he lost a point of
 maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
