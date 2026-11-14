@@ -58,7 +58,7 @@ edge of the world) doubles as "no previous sector".
 
 **Paths and waypoints.** The player plans paths of strategic indices, stored on every member and on the vehicle; the
 group moves along waypoints rebuilt from the path at its pivots, and each arrival drops the path's head. A route is one
-command, not cursor clicks (deviations "Map route plotting", "Move box regrouping").
+command, not cursor clicks (deviation "Map route plotting"); the move box's Done regroups first (`regroupForMove`).
 
 **A vehicle's fuel is its soldier's.** A ground vehicle travels as its own group with its soldier and passengers;
 its fuel is the vehicle soldier's `breathRed`, which strategic code reads as `StrategicMerc.fuel` and spends through
