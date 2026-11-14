@@ -9,6 +9,7 @@ import { Rng } from '../../core/rng.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { TileChangeView } from '../../protocol/view.ts';
+import { ShadeChannel } from '../../render/world/instances.ts';
 import { prepareLevelRenderData, updateLevelRenderData } from '../../render/world/level-render-data.ts';
 import { applyTileChanges } from '../../render/world/tile-changes.ts';
 import { doorGridNos } from '../../sim/tactical/doors.ts';
@@ -151,6 +152,52 @@ describe('client lighting on the stub village', () => {
     const passing = at(lighting, mercSouthOfTheWall, destroyed);
     expect(passing).toBeLessThan(shadowed ?? 0);
     expect(at(new WorldLighting(world.tactical), mercSouthOfTheWall, destroyed)).toBe(passing);
+  });
+
+  it('keeps a wall facing away from a light dark while it lights the ground under it, and lights a wall facing the light', () => {
+    const wall = 72 * 160 + 123;
+    const template = new LightTemplates().resolve(MERC_LIGHT)?.template;
+    if (!template) throw new Error('no merc light');
+    const lighting = new WorldLighting(world.tactical);
+    const lit = (y: number) => lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [{ x: 1235, y, level: 0, template }] });
+    const north = lit(705);
+    expect(north.land[wall]).toBeLessThan(north.natural);
+    expect(north.channels[ShadeChannel.LEFT_WALL]?.[wall]).toBe(north.natural);
+    expect(north.channels[ShadeChannel.DECAL]?.[wall]).toBe(north.land[wall]);
+    const south = lit(745);
+    const facing = south.channels[ShadeChannel.LEFT_WALL]?.[wall] ?? 0;
+    expect(facing).toBeLessThan(south.natural);
+    expect(south.channels[ShadeChannel.RIGHT_WALL]?.[wall]).toBe(south.natural);
+    expect(south.channels[ShadeChannel.DECAL]?.[wall]).toBe(Math.min(south.land[wall] ?? 0, facing));
+  });
+
+  it('lights every wall of a window tile through the window', () => {
+    const window = 72 * 160 + 124;
+    const template = new LightTemplates().resolve(MERC_LIGHT)?.template;
+    if (!template) throw new Error('no merc light');
+    const south = new WorldLighting(world.tactical).field({
+      time: NIGHT,
+      openDoors: NO_DOORS,
+      mercLights: [{ x: 1245, y: 745, level: 0, template }],
+    });
+    for (const channel of [ShadeChannel.LEFT_WALL, ShadeChannel.RIGHT_WALL, ShadeChannel.CORNER_WALL, ShadeChannel.BARE_WALL])
+      expect(south.channels[channel]?.[window]).toBeLessThan(south.natural);
+  });
+
+  it("gives a wall the strongest light that reaches it, not the lights' sum", () => {
+    const wall = 72 * 160 + 123;
+    const template = new LightTemplates().resolve(MERC_LIGHT)?.template;
+    if (!template) throw new Error('no merc light');
+    const lighting = new WorldLighting(world.tactical);
+    const near = { x: 1235, y: 735, level: 0, template };
+    const far = { x: 1235, y: 755, level: 0, template };
+    const wallShade = (mercLights: readonly MercLight[]) =>
+      lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights }).channels[ShadeChannel.LEFT_WALL]?.[wall] ?? 0;
+    const natural = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).natural;
+    const [nearOnly, farOnly, both] = [wallShade([near]), wallShade([far]), wallShade([near, far])];
+    expect(farOnly).toBeLessThan(natural);
+    expect(nearOnly).toBeLessThan(farOnly);
+    expect(both).toBe(nearOnly);
   });
 
   it('updates the shadows of patched tiles as a full preparation would', () => {

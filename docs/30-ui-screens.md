@@ -150,8 +150,7 @@ with `cancel` (`tactical/pickup-menu.ts`); a prompt answered elsewhere closes it
 **The overhead map is the picture the player last saw.** The original composes it from the level nodes at every entry;
 ja2-node composes it in the client at every entry (`redrawOverheadMap`) from what the world renderer last drew: the
 level with the view's tile changes and blood, the room reveals, the open doors and the shade field
-(`src/app/tactical/overhead-map.ts`, `05`), each node at its tile's land or roof shade (deviation "Light on
-structures").
+(`src/app/tactical/overhead-map.ts`, `05`), each node at its own shade as in the main view.
 Persons, item dots and the item lists come from the view, so hidden items and unseen soldiers stay out (deviation
 "Overhead item lists over hidden items"). The team panel disables its buttons by a flag the overhead map, the item
 cursor and the pickup menu set and clear, as the original's is (`tactical/tactical-screen.ts`).

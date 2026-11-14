@@ -58,6 +58,23 @@ const FILTER_DIRECTION = 0x0f;
 const FILTER_BLOCKED = 0x10;
 const FILTER_NOTHING = 0x20;
 const FILTER_ORIENTED_ONLY = 0x40;
+const FILTER_LEFT_WALLS = 0x80;
+const FILTER_RIGHT_WALLS = 0x100;
+const FILTER_TO_DOOR = 0x200;
+const FILTER_DOOR_SHIFT = 16;
+const KEPT_FILTER_BITS = FILTER_DIRECTION | FILTER_BLOCKED | FILTER_NOTHING | FILTER_ORIENTED_ONLY;
+const NO_DOOR_DETOUR = 0;
+
+export const LitNodes = {
+  ROOF: 0,
+  GROUND: 1,
+  GROUND_AND_WALLS: 2,
+  LEFT_WALLS: 3,
+  RIGHT_WALLS: 4,
+} as const;
+export type LitNodes = (typeof LitNodes)[keyof typeof LitNodes];
+
+export type LitTileVisitor = (g: number, amount: number, nodes: LitNodes) => void;
 
 export interface LightSprite {
   x: number;
@@ -169,12 +186,37 @@ function facesNorthOrWest(dir: number): boolean {
   return dir === Direction.NORTH || dir === Direction.WEST;
 }
 
+function wallsFacing(dir: number): number {
+  if (dir === Direction.NORTH) return FILTER_LEFT_WALLS;
+  if (dir === Direction.WEST) return FILTER_RIGHT_WALLS;
+  return 0;
+}
+
+function openDoorsFacing(dir: number): number {
+  if (dir === Direction.NORTH) return FILTER_RIGHT_WALLS;
+  if (dir === Direction.WEST) return FILTER_LEFT_WALLS;
+  return 0;
+}
+
+function windowFilter(dir: number): number {
+  return isDiagonal(dir) ? dir | FILTER_BLOCKED | FILTER_NOTHING : dir | wallsFacing(dir);
+}
+
 function wallFilter(dir: number): number {
-  return dir | FILTER_BLOCKED | (facesNorthOrWest(dir) ? FILTER_ORIENTED_ONLY : FILTER_NOTHING);
+  return dir | FILTER_BLOCKED | (facesNorthOrWest(dir) ? FILTER_ORIENTED_ONLY | wallsFacing(dir) : FILTER_NOTHING);
 }
 
 function doorFilter(dir: number): number {
-  return dir | FILTER_BLOCKED | FILTER_ORIENTED_ONLY | (facesNorthOrWest(dir) ? 0 : FILTER_NOTHING);
+  return dir | FILTER_BLOCKED | FILTER_ORIENTED_ONLY | (facesNorthOrWest(dir) ? wallsFacing(dir) : FILTER_NOTHING);
+}
+
+function detourToDoor(door: number): number {
+  return door === NO_DOOR_DETOUR ? 0 : FILTER_TO_DOOR | (u16(door) << FILTER_DOOR_SHIFT);
+}
+
+function openDoorFilter(dir: number, door: number): number {
+  const lit = facesNorthOrWest(dir) ? openDoorsFacing(dir) | detourToDoor(door) : FILTER_NOTHING;
+  return dir | FILTER_BLOCKED | FILTER_ORIENTED_ONLY | lit;
 }
 
 function blocksLightAsObstacle(t: TacticalState, g: number): boolean {
@@ -202,12 +244,11 @@ function illuminationFilter(t: TacticalState, srcX: number, srcY: number, x: num
   if (onRoof) return dir;
   let cost = t.world.costs.get(dst, dir, 0);
   const windowTile = facesNorthOrWest(dir) ? dst : src;
-  if (cost === TravelCost.WALL && t.world.structures.find(windowTile, StructureFlags.WALLNWINDOW))
-    return isDiagonal(dir) ? dir | FILTER_BLOCKED | FILTER_NOTHING : dir;
+  if (cost === TravelCost.WALL && t.world.structures.find(windowTile, StructureFlags.WALLNWINDOW)) return windowFilter(dir);
   if (cost === TravelCost.WALL) return wallFilter(dir);
   if (isDoorTravelCost(cost)) {
     const door = perceivedDoorTravelCost(t, dst, cost);
-    if (isOpenDoorTravelCost(door.cost) && door.doorGridNo !== src) return doorFilter(dir);
+    if (isOpenDoorTravelCost(door.cost) && door.doorGridNo !== src) return openDoorFilter(dir, door.doorGridNo);
     if (door.cost === TravelCost.DOOR || isDoorTravelCost(door.cost)) return doorFilter(dir);
     cost = door.cost;
   }
@@ -236,12 +277,25 @@ const subtractLight: TileLighter = (sums, strongest, g, amount) => {
   strongest[g] = Math.min(strongest[g] ?? 0, left);
 };
 
-function lightTile(t: TacticalState, x: number, y: number, amount: number, roofOnly: boolean, filter: number, apply: TileLighter): void {
-  const g = u32(tileOf(x, y));
-  if (g >= WORLD_MAX) return;
+type StepLighter = (g: number, amount: number, filter: number, roofOnly: boolean) => void;
+
+function lightSums(t: TacticalState, apply: TileLighter): StepLighter {
   const l = t.lighting;
-  if (roofOnly) apply(l.roofLight, l.roofMaxLight, g, amount);
-  else if (!(filter & FILTER_ORIENTED_ONLY)) apply(l.landLight, l.landMaxLight, g, amount);
+  return (g, amount, filter, roofOnly) => {
+    if (g >= WORLD_MAX) return;
+    if (roofOnly) apply(l.roofLight, l.roofMaxLight, g, amount);
+    else if (!(filter & FILTER_ORIENTED_ONLY)) apply(l.landLight, l.landMaxLight, g, amount);
+  };
+}
+
+function litGridNo(x: number, y: number, filter: number): number {
+  return filter & FILTER_TO_DOOR ? filter >>> FILTER_DOOR_SHIFT : u32(tileOf(x, y));
+}
+
+function litNodes(filter: number, roofOnly: boolean): LitNodes {
+  if (roofOnly) return LitNodes.ROOF;
+  if (filter & FILTER_ORIENTED_ONLY) return filter & FILTER_LEFT_WALLS ? LitNodes.LEFT_WALLS : LitNodes.RIGHT_WALLS;
+  return filter & (FILTER_LEFT_WALLS | FILTER_RIGHT_WALLS) ? LitNodes.GROUND_AND_WALLS : LitNodes.GROUND;
 }
 
 function resetTileLights(t: TacticalState): void {
@@ -277,7 +331,7 @@ function nodeFlagsAfterLighting(n: LightNode, dir: number, filter: number): numb
   return litFromDir | (facesNorthOrWest(dir) ? NODE_DRAWN_FULLY : NODE_DRAWN_NONWALL);
 }
 
-function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, apply: TileLighter): void {
+function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, light: StepLighter): void {
   lightChanged(t);
   const { lights, rays } = l.template;
   const nodeFlags = new Uint16Array(lights.length);
@@ -298,7 +352,7 @@ function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, a
     const dstX = i16(centreX + node.dx);
     const dstY = i16(centreY + node.dy);
     const filter = computeFilters ? illuminationFilter(t, srcX, srcY, dstX, dstY, roofOnly) : (l.filters[i] ?? 0);
-    if (computeFilters) l.filters[i] = filter;
+    if (computeFilters) l.filters[i] = filter & KEPT_FILTER_BITS;
     srcX = centreX;
     srcY = centreY;
     if (filter & FILTER_BLOCKED) i = findNextRay(rays, i);
@@ -314,17 +368,23 @@ function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, a
       continue;
     }
     if (filter & FILTER_NOTHING || node.light === 0) continue;
-    lightTile(t, dstX, dstY, node.light, roofOnly, filter, apply);
+    light(litGridNo(dstX, dstY, filter), node.light, filter, roofOnly);
     nodeFlags[index] = drawn | nodeFlagsAfterLighting(node, dir, filter);
   }
 }
 
 function lightDraw(t: TacticalState, l: LightSprite): void {
-  traceLight(t, l, true, addLight);
+  traceLight(t, l, true, lightSums(t, addLight));
 }
 
 function lightErase(t: TacticalState, l: LightSprite): void {
-  traceLight(t, l, false, subtractLight);
+  traceLight(t, l, false, lightSums(t, subtractLight));
+}
+
+export function traceLitTiles(t: TacticalState, l: LightSprite, visit: LitTileVisitor): void {
+  traceLight(t, l, true, (g, amount, filter, roofOnly) => {
+    if (g < WORLD_MAX) visit(g, amount, litNodes(filter, roofOnly));
+  });
 }
 
 function placedOnMap(l: LightSprite): boolean {

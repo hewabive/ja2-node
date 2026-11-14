@@ -2,11 +2,13 @@ import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { SHADOW_FACTOR } from '../../content/world/shading.ts';
 import { createProgram, uniform } from '../gl.ts';
 import { boundingRect, MAX_DIRTY_RECTS, type ScreenRect } from './dirty-rects.ts';
-import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
+import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, SHADE_TEXTURE_CHANNELS, ShadeKey } from './instances.ts';
 
 const INSTANCE_TEXTURE_WIDTH = 1024;
 const TEXELS_PER_INSTANCE = FLOATS_PER_INSTANCE / 4;
 const RECT_COMPONENTS = 4;
+const RGBA = 4;
+const SHADE_TEXELS_PER_TILE = Math.ceil(SHADE_TEXTURE_CHANNELS / RGBA);
 
 const DIRTY_RECTS = `uniform ivec4 u_rects[${MAX_DIRTY_RECTS}];
 uniform int u_rectCount;`;
@@ -32,6 +34,15 @@ const vec2 CORNERS[6] = vec2[6](vec2(0, 0), vec2(1, 0), vec2(0, 1), vec2(0, 1), 
 vec4 instanceTexel(int t) {
   return texelFetch(u_instances, ivec2(t % ${INSTANCE_TEXTURE_WIDTH}, t / ${INSTANCE_TEXTURE_WIDTH}), 0);
 }
+uint component(uvec4 v, int i) {
+  return i == 0 ? v.r : i == 1 ? v.g : i == 2 ? v.b : v.a;
+}
+int tileShade(int key) {
+  int channel = key / ${WORLD_MAX};
+  int cell = key - channel * ${WORLD_MAX};
+  ivec2 at = ivec2((cell % ${WORLD_COLS}) * ${SHADE_TEXELS_PER_TILE} + channel / ${RGBA}, cell / ${WORLD_COLS});
+  return int(component(texelFetch(u_shade, at, 0), channel % ${RGBA}));
+}
 bool touchesDirty(vec2 lo, vec2 hi) {
   for (int i = 0; i < ${MAX_DIRTY_RECTS}; i++) {
     if (i >= u_rectCount) return false;
@@ -56,9 +67,7 @@ void main() {
   if (key >= ${ShadeKey.NATURAL}) {
     row += u_natural;
   } else if (key >= 0) {
-    int cell = key % ${WORLD_MAX};
-    uvec4 shade = texelFetch(u_shade, ivec2(cell % ${WORLD_COLS}, cell / ${WORLD_COLS}), 0);
-    row += int(key >= ${ShadeKey.ROOF_BASE} ? shade.g : shade.r);
+    row += tileShade(key);
   }
   v_row = row;
   v_flags = int(a_misc.z);
@@ -122,8 +131,6 @@ const ATLAS_UNIT = 0;
 const PALETTE_UNIT = 1;
 const SHADE_UNIT = 2;
 const INSTANCE_UNIT = 3;
-const RGBA = 4;
-const SHADE_CHANNELS = 2;
 
 type BlendMode = 'none' | 'shadow' | 'translucent';
 
@@ -338,29 +345,37 @@ export class WorldProgram {
   }
 }
 
+const SHADE_BYTES_PER_TILE = SHADE_TEXELS_PER_TILE * RGBA;
+
+function packShadeChannels(channels: readonly Uint8Array[], into: Uint8Array): void {
+  for (let channel = 0; channel < SHADE_TEXTURE_CHANNELS; channel++) {
+    const shades = channels[channel];
+    if (!shades) continue;
+    for (let g = 0; g < WORLD_MAX; g++) into[g * SHADE_BYTES_PER_TILE + channel] = shades[g] as number;
+  }
+}
+
 export class ShadeTexture {
   readonly texture: WebGLTexture;
   readonly #gl: WebGL2RenderingContext;
-  readonly #data = new Uint8Array(WORLD_MAX * SHADE_CHANNELS);
+  readonly #data = new Uint8Array(WORLD_MAX * SHADE_BYTES_PER_TILE);
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
     this.texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RG8UI, WORLD_COLS, WORLD_ROWS);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8UI, WORLD_COLS * SHADE_TEXELS_PER_TILE, WORLD_ROWS);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   }
 
-  upload(land: Uint8Array, roof: Uint8Array): void {
-    for (let g = 0; g < WORLD_MAX; g++) {
-      this.#data[g * SHADE_CHANNELS] = land[g] as number;
-      this.#data[g * SHADE_CHANNELS + 1] = roof[g] as number;
-    }
+  upload(channels: readonly Uint8Array[]): void {
+    packShadeChannels(channels, this.#data);
     const gl = this.#gl;
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, WORLD_COLS, WORLD_ROWS, gl.RG_INTEGER, gl.UNSIGNED_BYTE, this.#data);
+    const width = WORLD_COLS * SHADE_TEXELS_PER_TILE;
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, WORLD_ROWS, gl.RGBA_INTEGER, gl.UNSIGNED_BYTE, this.#data);
   }
 
   dispose(): void {

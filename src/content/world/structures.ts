@@ -108,6 +108,11 @@ export function instanceFlags(def: StructureDef, tile: StructureTile): number {
   return flags;
 }
 
+export function instanceWallOrientation(def: StructureDef, flags: number): number {
+  const kept = !has(flags, StructureFlags.WALL) || has(flags, StructureFlags.BASE_TILE);
+  return def.wallOrientation !== Orientation.NONE && kept ? def.wallOrientation : Orientation.NONE;
+}
+
 export interface WorldStructuresSnapshot {
   readonly heights: Uint8Array;
   readonly lists: StructureInstance[][];
@@ -294,8 +299,7 @@ export class WorldStructures {
         flags,
         hitPoints: isBase ? def.hitPoints : 0,
         cachedHeight: 0,
-        wallOrientation:
-          def.wallOrientation !== Orientation.NONE && (!has(flags, StructureFlags.WALL) || isBase) ? def.wallOrientation : Orientation.NONE,
+        wallOrientation: instanceWallOrientation(def, flags),
         def,
         tile,
         file,

@@ -11,10 +11,28 @@ export const InstanceFlags = {
   DITHER_ODD: 16,
 } as const;
 
+export const ShadeChannel = {
+  LAND: 0,
+  ROOF: 1,
+  DECAL: 2,
+  LEFT_WALL: 3,
+  RIGHT_WALL: 4,
+  CORNER_WALL: 5,
+  BARE_WALL: 6,
+  NATURAL: 7,
+} as const;
+export type ShadeChannel = (typeof ShadeChannel)[keyof typeof ShadeChannel];
+
+export const SHADE_TEXTURE_CHANNELS = ShadeChannel.NATURAL;
+
+export function shadeKey(channel: ShadeChannel, g: number): number {
+  return channel * WORLD_MAX + g;
+}
+
 export const ShadeKey = {
   FIXED: -1,
-  ROOF_BASE: WORLD_MAX,
-  NATURAL: WORLD_MAX * 2,
+  ROOF_BASE: shadeKey(ShadeChannel.ROOF, 0),
+  NATURAL: shadeKey(ShadeChannel.NATURAL, 0),
 } as const;
 
 export const DrawState = {

@@ -30,6 +30,7 @@ import {
 import { DrawState, FLOATS_PER_INSTANCE, InstanceBuffer, InstanceFlags, ShadeKey, type SpriteSource } from './instances.ts';
 import type { LevelRenderData } from './level-render-data.ts';
 import { NodeFlags, type RevealState } from './reveal.ts';
+import { structureShadeKey } from './structure-shades.ts';
 
 export const StaticSegment = {
   LAND: 0,
@@ -71,6 +72,7 @@ export interface TileSprite extends SpriteSource {
 export interface StaticWorld {
   readonly level: Level;
   readonly tiles: readonly TileElement[];
+  readonly structureShades: Uint8Array;
   readonly prepared: LevelRenderData;
   readonly topY: number;
   sprite(tile: number): TileSprite | null;
@@ -274,9 +276,10 @@ export class StaticScene {
 
   #emitStruct(at: TileAt, mapTile: number, index: number): void {
     const w = this.#world;
-    let tile = openableTileInState(w.tiles, this.#state.openStructures, at.g, mapTile);
-    if (!this.#state.treeTops && (w.tiles[tile]?.flags ?? 0) & TileFlags.FULL3D) tile += TREE_TOP_SKIP;
-    const d = this.#drawable(tile);
+    const node = openableTileInState(w.tiles, this.#state.openStructures, at.g, mapTile);
+    const shade = structureShadeKey(w.structureShades, node, at.g);
+    const treeTopHidden = !this.#state.treeTops && (w.tiles[node]?.flags ?? 0) & TileFlags.FULL3D;
+    const d = this.#drawable(treeTopHidden ? node + TREE_TOP_SKIP : node);
     if (!d) return;
     const flags = this.#nodeFlags('structs', at.g, index);
     if (this.#hidden(flags, d.te)) return;
@@ -284,14 +287,14 @@ export class StaticScene {
     const z = structZ(at.wy);
     const showThrough = (flags & NodeFlags.SHOW_THROUGH) !== 0;
     if (d.te.flags & TileFlags.MULTI_Z && d.te.zStrip) {
-      this.#emitStrips(p, d.te, d.sprite, z, at.g, showThrough);
+      this.#emitStrips(p, d.te, d.sprite, z, shade, showThrough);
       return;
     }
     if (showThrough) {
-      this.#emitObscured(p, d.sprite, u16(z), at.g);
+      this.#emitObscured(p, d.sprite, u16(z), shade);
       return;
     }
-    this.#out(StaticSegment.STRUCTS).push(p.x, p.y, d.sprite, 0, d.sprite.width, d.sprite.paletteBase, u16(z), at.g, 0, 0);
+    this.#out(StaticSegment.STRUCTS).push(p.x, p.y, d.sprite, 0, d.sprite.width, d.sprite.paletteBase, u16(z), shade, 0, 0);
   }
 
   #emitObscured(p: { x: number; y: number }, sprite: TileSprite, z: number, shadeKey: number): void {

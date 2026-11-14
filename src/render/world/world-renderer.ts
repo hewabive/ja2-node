@@ -55,6 +55,7 @@ import {
   type StaticState,
   type StaticWorld,
 } from './static-scene.ts';
+import { structureShadeChannels } from './structure-shades.ts';
 import {
   applyBloodPools,
   applyTileChanges,
@@ -105,6 +106,7 @@ export interface ShadeField {
   readonly natural: number;
   readonly land: Uint8Array;
   readonly roof: Uint8Array;
+  readonly channels: readonly Uint8Array[];
 }
 
 export interface WorldFrameInput {
@@ -132,6 +134,7 @@ export interface WorldFrameInput {
 
 export interface ShownWorld {
   readonly level: Level;
+  readonly structureShades: Uint8Array;
   readonly prepared: LevelRenderData;
   readonly reveal: RevealState;
   readonly revealed: Uint8Array;
@@ -263,7 +266,7 @@ export class WorldRenderer {
   setWorld(world: RenderWorld): WorldSprites {
     this.#scene?.sprites.dispose();
     const sprites = new WorldSprites(this.#gl, world.tiles, world.surfaces, world.lightColour);
-    const staticWorld = this.#staticWorld(world, sprites);
+    const staticWorld = this.#staticWorld(world, sprites, structureShadeChannels(world.tiles, world.tables));
     const reveal = computeReveal(this.#revealWorld(world), new Set());
     const started = performance.now();
     const scene = new StaticScene(staticWorld, { reveal, openStructures: new Set(), treeTops: true, wireframes: true, roofLevel: false });
@@ -289,10 +292,11 @@ export class WorldRenderer {
     return sprites;
   }
 
-  #staticWorld(world: RenderWorld, sprites: WorldSprites): StaticWorld {
+  #staticWorld(world: RenderWorld, sprites: WorldSprites, structureShades: Uint8Array): StaticWorld {
     return {
       level: world.level,
       tiles: world.tiles,
+      structureShades,
       prepared: world.prepared,
       topY: topYOf(world.restrictedScrollId),
       sprite: (tile) => sprites.tileSprite(tile),
@@ -317,7 +321,7 @@ export class WorldRenderer {
     s.tileChanges = key;
     s.changes = changes;
     s.pools = pools;
-    s.staticWorld = this.#staticWorld(world, s.sprites);
+    s.staticWorld = this.#staticWorld(world, s.sprites, s.staticWorld.structureShades);
     const reveal = revealInputsOf(f);
     s.reveal = this.#followReveal(s, reveal.inputs, reveal.ceilings, recalculationsOf(f), true);
     const rows = new Set([...touched].map(rowOf));
@@ -410,7 +414,7 @@ export class WorldRenderer {
       this.#staticUploads++;
     }
     if (s.shadeVersion !== f.shade.version) {
-      this.#shade.upload(f.shade.land, f.shade.roof);
+      this.#shade.upload(f.shade.channels);
       s.shadeVersion = f.shade.version;
     }
     const renderHeight = sceneRenderHeight(s.world.prepared.renderHeight, f.roofLevel);
@@ -553,6 +557,7 @@ export class WorldRenderer {
     return s
       ? {
           level: s.world.level,
+          structureShades: s.staticWorld.structureShades,
           prepared: s.world.prepared,
           reveal: s.reveal,
           revealed: s.reveal.revealed,

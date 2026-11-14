@@ -6,7 +6,7 @@ import { loadTestContent, readDataJson, testDoorCosts } from '../../../../tests/
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { LightTime, parseMap, writeMap } from '../../../content/formats/map.ts';
 import { parseStubMapSource, stubMapToMapDef } from '../../../content/formats/stub-map.ts';
-import { gridNo, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../../content/world/movement-costs.ts';
 import { StructureFlags, structureHeight, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
@@ -18,6 +18,7 @@ import {
   initLighting,
   type LightSprite,
   LightSpriteFlags,
+  LitNodes,
   lightSetBaseLevel,
   lightShadeLevel,
   lightSpriteCreate,
@@ -30,6 +31,7 @@ import {
   NORMAL_LIGHTLEVEL_DAY,
   NORMAL_LIGHTLEVEL_NIGHT,
   switchOnCaveLightAt,
+  traceLitTiles,
   turnOffNightLights,
   turnOnNightLights,
 } from './lighting.ts';
@@ -181,6 +183,69 @@ describe('light sprites', () => {
     expect(lightSpriteCreate(t, 'light3')?.template.name).toBe('Light3');
     expect(lightSpriteCreate(t, 'l-r03.lht')?.template.name).toBe('L-R03.LHT');
     expect(lightSpriteCreate(t, 'Light9')).toBeNull();
+  });
+});
+
+describe('the nodes a light step reaches (LightAddTile)', () => {
+  const WALL_AT = gridNo(X, Y - 2);
+  const OPEN_DOOR_ONE_TILE_WEST = 230;
+  const visitsAt = (t: TacticalState, l: LightSprite, g: number): LitNodes[] => {
+    const nodes: LitNodes[] = [];
+    traceLitTiles(t, l, (at, _amount, lit) => {
+      if (at === g) nodes.push(lit);
+    });
+    return nodes;
+  };
+  const withWallAt = (flags: number) => tactical((s) => s.add(WALL_AT, 0, syntheticStructure(flags, Orientation.OUTSIDE_LEFT)));
+
+  it('lights a wall only from the side it faces, and the ground under it from behind', () => {
+    const facing = withWallAt(StructureFlags.WALL);
+    expect(visitsAt(facing, lamp(facing, 'L-R05.LHT'), WALL_AT)).toContain(LitNodes.LEFT_WALLS);
+    const behind = withWallAt(StructureFlags.WALL);
+    const fromBehind = visitsAt(behind, lamp(behind, 'L-R05.LHT', X, Y - 5), WALL_AT);
+    expect(fromBehind).toContain(LitNodes.GROUND);
+    expect(fromBehind).not.toContain(LitNodes.LEFT_WALLS);
+    expect(fromBehind).not.toContain(LitNodes.RIGHT_WALLS);
+  });
+
+  it('lights the ground and every wall of a window tile, and the ground beyond the window', () => {
+    const t = withWallAt(StructureFlags.WALLNWINDOW);
+    const l = lamp(t, 'L-R05.LHT');
+    expect(visitsAt(t, l, WALL_AT)).toContain(LitNodes.GROUND_AND_WALLS);
+    expect(visitsAt(t, l, gridNo(X, Y - 3))).toContain(LitNodes.GROUND);
+  });
+
+  it("lights an open door's own tile from the tile its slab swings into, by the slab's turned orientation", () => {
+    const door = gridNo(X - 1, Y - 2);
+    const t = tactical((s) => {
+      s.add(door, 0, syntheticStructure(StructureFlags.DOOR | StructureFlags.OPEN, Orientation.INSIDE_RIGHT));
+    });
+    t.world.costs.force(WALL_AT, Direction.NORTH, 0, OPEN_DOOR_ONE_TILE_WEST);
+    const l = lamp(t, 'L-R05.LHT');
+    expect(visitsAt(t, l, door)).toContain(LitNodes.RIGHT_WALLS);
+    expect(visitsAt(t, l, WALL_AT)).not.toContain(LitNodes.RIGHT_WALLS);
+  });
+
+  it('lights the slab tile itself when the open door stands on gridno 0, which the original takes for no base tile', () => {
+    const slab = gridNo(1, 0);
+    const t = tactical((s) => {
+      s.add(0, 0, syntheticStructure(StructureFlags.DOOR | StructureFlags.OPEN, Orientation.INSIDE_RIGHT));
+    });
+    t.world.costs.force(slab, Direction.NORTH, 0, OPEN_DOOR_ONE_TILE_WEST);
+    const l = lamp(t, 'L-R05.LHT', 1, 3);
+    expect(visitsAt(t, l, slab)).toContain(LitNodes.RIGHT_WALLS);
+    expect(visitsAt(t, l, 0)).not.toContain(LitNodes.RIGHT_WALLS);
+  });
+
+  it('keeps only the direction and the blocked, nothing and oriented-only bits of a step for the erase', () => {
+    const t = tactical((s) => {
+      s.add(gridNo(X - 1, Y - 2), 0, syntheticStructure(StructureFlags.DOOR | StructureFlags.OPEN, Orientation.INSIDE_RIGHT));
+    });
+    t.world.costs.force(WALL_AT, Direction.NORTH, 0, OPEN_DOOR_ONE_TILE_WEST);
+    const l = lamp(t, 'L-R05.LHT');
+    expect(Math.max(...l.filters)).toBeLessThan(0x80);
+    lightSpriteDestroy(t, l);
+    expect(row(t, Y, X - 4, X + 4)).toEqual(Array(9).fill(NIGHT));
   });
 });
 

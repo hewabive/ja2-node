@@ -29,6 +29,7 @@ import {
   type WireframeRecalculations,
 } from './reveal.ts';
 import { StaticScene, StaticSegment, type StaticWorld } from './static-scene.ts';
+import { structureShadeChannels } from './structure-shades.ts';
 
 const ROOM = 1;
 
@@ -319,6 +320,7 @@ describe('revealed rooms on the stub village', () => {
     const staticWorld: StaticWorld = {
       level: world.level,
       tiles: world.tiles,
+      structureShades: structureShadeChannels(world.tiles, world.tables),
       prepared: world.prepared,
       topY: 860,
       sprite: (tile) => ({ layer: 0, x: 0, y: tile, width: 40, height: 20, offsetX: 0, offsetY: 0, paletteBase: 0 }),

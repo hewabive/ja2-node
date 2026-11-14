@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { emptyTileLayer, LAYER_NAMES, type MapDef, tileLayerFromLists } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { buildLevel } from '../../content/world/level.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import type { ZStripInfo } from '../../content/world/zstrip.ts';
@@ -38,9 +41,10 @@ import {
   worldY,
   Z_SUBLAYERS,
 } from './geometry.ts';
-import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags } from './instances.ts';
+import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeChannel, shadeKey } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import type { StaticWorld } from './static-scene.ts';
+import { structureShadeChannels } from './structure-shades.ts';
 import { stateSpecs } from './world-program.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
@@ -78,6 +82,7 @@ function world(
   const staticWorld: StaticWorld = {
     level,
     tiles,
+    structureShades: structureShadeChannels(tiles, tables),
     prepared,
     topY: 860,
     sprite: (tile) => ({ layer: 0, x: 0, y: tile, width: 40, height: 20, offsetX: 0, offsetY: 0, paletteBase: 0 }),
@@ -133,6 +138,7 @@ function decode(scene: DynamicScene) {
     srcX: d[i * FLOATS_PER_INSTANCE + 4] as number,
     tile: d[i * FLOATS_PER_INSTANCE + 5] as number,
     z: d[i * FLOATS_PER_INSTANCE + 8] as number,
+    shadeKey: d[i * FLOATS_PER_INSTANCE + 9] as number,
     flags: d[i * FLOATS_PER_INSTANCE + 10] as number,
   }));
 }
@@ -497,6 +503,19 @@ describe('dynamic scene', () => {
     const order = decode(scene).map((p) => tables.tileNames[p.tile]);
     expect(order).toEqual(['FIRSTPOINTERS1', 'FIRSTFULLSHADOW2', 'FIRSTFULLSTRUCT2', 'FIRSTPOINTERS1']);
     expect(decode(scene).at(-1)?.z).toBe(TOPMOST_Z_LEVEL);
+  });
+
+  it('shades a dynamic struct node by the light its own structure takes', () => {
+    const top = tileIndex(tables, 'FIRSTFULLSTRUCT1') + 1;
+    const walled = tiles.map((te) =>
+      te.index === top ? { ...te, structure: syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT) } : te,
+    );
+    const at = g(80, 80);
+    const { staticWorld, prepared } = world({ structs: [[at, [T('FIRSTFULLSTRUCT', 2)]]] }, walled);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(frame({}));
+    const node = decode(scene).find((p) => tables.tileNames[p.tile] === 'FIRSTFULLSTRUCT2');
+    expect(node?.shadeKey).toBe(shadeKey(ShadeChannel.RIGHT_WALL, at));
   });
 
   it('draws an absolute node after the struct nodes of its tile, on the box of its cell and raised by its height', () => {

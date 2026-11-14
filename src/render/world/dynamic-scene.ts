@@ -49,6 +49,7 @@ import { DrawState, InstanceBuffer, InstanceFlags, ShadeKey, type SpriteSource }
 import type { LevelRenderData } from './level-render-data.ts';
 import { noBurnStripCells, obscuredStripCells, type SpriteSkip, type StripCell, spriteSkip, stripDitherFlags } from './soldier-strips.ts';
 import type { StaticWorld, TileSprite } from './static-scene.ts';
+import { structureShadeKey } from './structure-shades.ts';
 
 export const ANIMATED_TILE_FRAME_MS = 200;
 export const MAX_RENDERED_ITEMS = 2;
@@ -560,7 +561,13 @@ export class DynamicScene {
     const d = this.#sprite(animatedTile(this.#world.tiles, mapTile, frame.animationStep));
     if (!d) return;
     const p = this.#position(g, x, y, d.te, d.sprite, layer);
-    this.#emitNode(p, d, x, y, layer, layer === 'roofs' || layer === 'onRoof' ? ShadeKey.ROOF_BASE + g : g, d.sprite.paletteBase);
+    this.#emitNode(p, d, x, y, layer, this.#mapNodeShadeKey(g, layer, mapTile), d.sprite.paletteBase);
+  }
+
+  #mapNodeShadeKey(g: number, layer: ListLayer, mapTile: number): number {
+    if (layer === 'roofs' || layer === 'onRoof') return ShadeKey.ROOF_BASE + g;
+    if (layer === 'structs') return structureShadeKey(this.#world.structureShades, mapTile, g);
+    return g;
   }
 
   #emitUiNode(n: WorldUiNode, x: number, y: number, layer: ListLayer | 'topmost'): void {

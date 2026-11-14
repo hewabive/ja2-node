@@ -7,6 +7,7 @@ import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { shadedPalette565 } from '../../content/world/shading.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
+import { SHADE_TEXTURE_CHANNELS, ShadeChannel } from '../../render/world/instances.ts';
 import { NodeFlags } from '../../render/world/reveal.ts';
 import type { LoadedWorld } from '../world/world-loader.ts';
 import { OVERHEAD_WIDTH, OverheadPicture, type OverheadScene, OverheadTiles, restrictedEdges } from './overhead-map.ts';
@@ -22,8 +23,11 @@ const SIX_TILES_EAST = { x: 48, y: 0 };
 const NORMAL_SHADE = 4;
 const LAND_SHADE = 7;
 const ROOF_SHADE = 2;
+const LEFT_WALL_SHADE = 12;
+const NATURAL_SHADE = 13;
+const CHANNEL_SHADES: readonly number[] = [LAND_SHADE, ROOF_SHADE, 9, LEFT_WALL_SHADE, 10, 11, 14];
 
-const Tile = { LAND: 0, CLOSED_DOOR: 1, OPEN_DOOR: 2, ROOF: 3, CEILING: 4, SHADOW: 5 } as const;
+const Tile = { LAND: 0, CLOSED_DOOR: 1, OPEN_DOOR: 2, ROOF: 3, CEILING: 4, SHADOW: 5, WALL: 6, CLIFF_HANG: 7 } as const;
 
 function flatWorld(renderHeight = 0): { readonly world: LoadedWorld; readonly heights: Uint8Array } {
   const heights = new Uint8Array(WORLD_MAX);
@@ -62,6 +66,8 @@ const TILES: readonly TileElement[] = [
   element(Tile.ROOF),
   element(Tile.CEILING),
   element(Tile.SHADOW),
+  element(Tile.WALL),
+  element(Tile.CLIFF_HANG),
 ];
 
 const SMALL_TILES: StiIndexed = {
@@ -95,6 +101,7 @@ interface SceneParts {
   readonly hiddenRoofs?: ReadonlySet<number>;
   readonly ceilings?: ReadonlySet<number>;
   readonly openStructures?: ReadonlySet<number>;
+  readonly structureShades?: Readonly<Record<number, ShadeChannel>>;
 }
 
 function scene(parts: SceneParts): OverheadScene {
@@ -121,7 +128,18 @@ function scene(parts: SceneParts): OverheadScene {
       ceilings: (g) => (parts.ceilings?.has(g) ? [Tile.CEILING] : []),
     },
     openStructures: parts.openStructures ?? new Set(),
-    shade: { land: new Uint8Array(WORLD_MAX).fill(LAND_SHADE), roof: new Uint8Array(WORLD_MAX).fill(ROOF_SHADE) },
+    structureShades: Uint8Array.from(TILES, (t) => parts.structureShades?.[t.index] ?? ShadeChannel.LAND),
+    shade: shadeField(),
+  };
+}
+
+function shadeField(): OverheadScene['shade'] {
+  const channels = Array.from({ length: SHADE_TEXTURE_CHANNELS }, (_, c) => new Uint8Array(WORLD_MAX).fill(CHANNEL_SHADES[c] ?? 0));
+  return {
+    natural: NATURAL_SHADE,
+    land: channels[ShadeChannel.LAND] as Uint8Array,
+    roof: channels[ShadeChannel.ROOF] as Uint8Array,
+    channels,
   };
 }
 
@@ -202,6 +220,13 @@ describe('the overhead map picture (RenderOverheadMap)', () => {
     const open = compose({ structs: { [MAP_CENTRE]: [Tile.CLOSED_DOOR] }, openStructures: new Set([MAP_CENTRE]) });
     expect(pixelAt(closed, CENTRE_PIXEL)).toBe(fullSizeColour(Tile.CLOSED_DOOR, LAND_SHADE));
     expect(pixelAt(open, CENTRE_PIXEL)).toBe(fullSizeColour(Tile.OPEN_DOOR, LAND_SHADE));
+  });
+
+  it('draws each structure node at its own light: a wall by its orientation, a cliff hang at the natural level', () => {
+    const at = (tile: number, channel: ShadeChannel) =>
+      pixelAt(compose({ structs: { [MAP_CENTRE]: [tile] }, structureShades: { [tile]: channel } }), CENTRE_PIXEL);
+    expect(at(Tile.WALL, ShadeChannel.LEFT_WALL)).toBe(fullSizeColour(Tile.WALL, LEFT_WALL_SHADE));
+    expect(at(Tile.CLIFF_HANG, ShadeChannel.NATURAL)).toBe(fullSizeColour(Tile.CLIFF_HANG, NATURAL_SHADE));
   });
 
   it("darkens with the shadow list the map load keeps (OptimizeMapForShadows), not the map file's", () => {

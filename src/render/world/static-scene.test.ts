@@ -1,15 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { emptyTileLayer, LAYER_NAMES, type MapDef, tileLayerFromLists } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { buildLevel, levelTilesAt } from '../../content/world/level.ts';
 import { placeWorldStructures } from '../../content/world/placement.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { type Camera, screenToGridNo, tileOrigin, type Viewport, worldOrigin } from './geometry.ts';
-import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
+import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeChannel, ShadeKey, shadeKey } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import { computeReveal, NO_REVEAL } from './reveal.ts';
 import {
@@ -20,6 +22,7 @@ import {
   type StaticState,
   type StaticWorld,
 } from './static-scene.ts';
+import { structureShadeChannels } from './structure-shades.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
@@ -58,6 +61,7 @@ function worldWith(cells: Cells, tiles: TileElement[] = baseTiles, width = 40): 
   return {
     level,
     tiles,
+    structureShades: structureShadeChannels(tiles, tables),
     prepared: prepareLevelRenderData(level, tiles, tables, info, false),
     topY: 860,
     sprite: (tile) => ({ layer: 0, x: 0, y: tile, width, height: 20, offsetX: 0, offsetY: 0, paletteBase: 16 * (tiles[tile]?.type ?? 0) }),
@@ -289,6 +293,25 @@ describe('static scene order and depth', () => {
     const scene = new StaticScene(world, { ...DEFAULT_STATE, reveal: world.reveal });
     expect(segment(scene, StaticSegment.ROOFS)).toEqual([]);
     expect(names(segment(scene, StaticSegment.ON_ROOF))).toEqual(['FIRSTONROOF1']);
+  });
+
+  it('keys each struct node to the light it takes: a wall by its orientation, a cliff hang at the natural level, any other at the land', () => {
+    const wall = tileIndex(tables, 'FIRSTWALL1');
+    const tiles = baseTiles.map((te) =>
+      te.index === wall ? { ...te, structure: syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT) } : te,
+    );
+    const world = worldWith(
+      {
+        structs: [
+          [g(80, 80), [T('FIRSTWALL', 1)]],
+          [g(82, 80), [T('FIRSTCLIFFHANG', 1)]],
+          [g(84, 80), [T('FIRSTOSTRUCT', 1)]],
+        ],
+      },
+      tiles,
+    );
+    const keys = segment(new StaticScene(world, DEFAULT_STATE), StaticSegment.STRUCTS).map((i) => i.shadeKey);
+    expect(keys).toEqual([shadeKey(ShadeChannel.LEFT_WALL, g(80, 80)), shadeKey(ShadeChannel.NATURAL, g(82, 80)), g(84, 80)]);
   });
 
   it('rebuilds only the rows of changed doors', () => {

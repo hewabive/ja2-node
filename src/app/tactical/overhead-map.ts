@@ -21,8 +21,10 @@ import { absoluteScreenXY, RestrictedScroll, renderBounds, worldXYFromAbsoluteSc
 import { SHADOW_FACTOR, shadedPalette565 } from '../../content/world/shading.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import { idiv } from '../../core/int.ts';
+import { ShadeChannel } from '../../render/world/instances.ts';
 import { NodeFlags, type RevealState } from '../../render/world/reveal.ts';
 import { openableTileInState } from '../../render/world/static-scene.ts';
+import { structureShadeChannel } from '../../render/world/structure-shades.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import type { DrawList } from '../../ui/draw-list.ts';
 import type { OverheadMapView, ScreenPoint } from '../../ui/screens/tactical/environment.ts';
@@ -56,10 +58,11 @@ export interface OverheadPictureSink {
 
 export interface OverheadScene {
   readonly level: Level;
+  readonly structureShades: Uint8Array;
   readonly prepared: { readonly landStart: Int8Array; readonly shadows: LevelLayer };
   readonly reveal: Pick<RevealState, 'nodeFlags' | 'ceilings'>;
   readonly openStructures: ReadonlySet<number>;
-  readonly shade: Pick<ShadeField, 'land' | 'roof'>;
+  readonly shade: Pick<ShadeField, 'natural' | 'land' | 'roof' | 'channels'>;
 }
 
 interface Rect {
@@ -276,8 +279,14 @@ class Painter {
     for (const tile of levelTilesAt(scene.prepared.shadows, g)) this.#shadow(tile, x, y - height + this.#renderLift);
     for (const mapTile of levelTilesAt(layers.structs, g)) {
       const tile = openableTileInState(this.#world.tiles, scene.openStructures, g, mapTile);
-      this.#blit(tile, x, y - this.#lift(tile, height, modified) + this.#renderLift, shade);
+      this.#blit(tile, x, y - this.#lift(tile, height, modified) + this.#renderLift, this.#structureShade(tile, g));
     }
+  }
+
+  #structureShade(tile: number, g: number): number {
+    const shade = this.#scene.shade;
+    const channel = structureShadeChannel(this.#scene.structureShades, tile);
+    return channel === ShadeChannel.NATURAL ? shade.natural : (shade.channels[channel]?.[g] ?? 0);
   }
 
   roofs(g: number, x: number, y: number): void {

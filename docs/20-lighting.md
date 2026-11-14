@@ -34,7 +34,8 @@ gameplay: lightTrueLevel(g, level)                              perception/, com
 | `src/content/formats/lht.ts`, `load-content.ts` | `.LHT` files and Stracciatella's `light-templates.json` (`TacticalContent.lightTemplates`) |
 | `save-import.ts` | Map lights for the saved hour, then the saved ambient level |
 | `src/sim/knowledge/tactical.ts` | The agent's projection, lit from the view's `light` (`lightView`) |
-| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights, across the map's structures with the view's `tileChanges` applied (`05`); the roof light of each merc's light, which the roof marker adds and erases as its own node's (`src/app/world/roof-marker-shades.ts`) |
+| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk (`traceLitTiles`, which reports the nodes each step lights) over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights, across the map's structures with the view's `tileChanges` applied; the strongest light per tile on the ground, the roofs, the walls seen through a window and the walls facing each way, and from them a shade per kind of node (`05`); the roof light of each merc's light, which the roof marker adds and erases as its own node's (`src/app/world/roof-marker-shades.ts`) |
+| `src/render/world/structure-shades.ts` | Which of those shades a struct node takes: by its base structure's orientation, as a wall decal, as the ground, or none |
 
 ## 2. Design
 
@@ -44,8 +45,14 @@ of the head land node (the head roof node at the roof level), clamped to 1…15,
 without that node. The one exception is the fade of a soldier who drops out of sight, which starts from the node's
 display shade, the natural level minus its strongest light (`06`). ja2-node keeps one land and one roof sum per tile,
 the strongest light of each with the original's rules for adding and erasing (`lightShadeLevel`), and, per filter
-step, only the direction and the blocked, nothing and oriented-only bits. Lighting structures by orientation, wall decals, cliff hangs and the detour to
-an open door's base tile change only the picture (deviation "Light on structures").
+step, only the direction and the blocked, nothing and oriented-only bits.
+
+**The client lights each node by what reaches it.** Which struct nodes a step reaches (walls and doors by the
+orientations the filter allows, wall decals, never a cliff hang) and the detour of an open door's step to the door's own
+tile change only the picture. The walk computes them on every draw and `traceLitTiles` reports them; the simulation
+keeps none. The client keeps the strongest light of each kind per tile and gives each node the shade of its kind, so a
+wall facing away from a lamp stays dark while the ground under it is lit. Every node is drawn afresh from the lights
+standing now, without the history of when each was drawn (deviation "Light on structures").
 
 **No fake lights.** A merc's own light at night is added to both the sum and the fake share and cancels out of the
 true level, so the simulation does not create it; the client draws it. The display shade it would brighten reaches
@@ -104,7 +111,7 @@ soldier's vision.
 
 ## 3. Quirks of the original the code keeps
 
-Each looks like a bug and is the original's behaviour. Pinned by tests in `lighting/`:
+Each looks like a bug and is the original's behaviour. Pinned by tests in `lighting/` unless the row names another file:
 
 | Quirk | Test |
 |---|---|
@@ -118,6 +125,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `light
 | At the roof level map lights never count, and a tile without a roof returns the raw ambient level, unclamped | `lighting.test.ts` |
 | A light going out cuts a tile's strongest light to the light left, even when no light left is that strong, until the next render | `lighting.test.ts` |
 | A muzzle flash lights the tile in front of the shooter, only when the player sees him | `effects.test.ts` |
+| An open door standing on gridno 0 lights the tile its slab swings into instead of its own: 0 means no base tile | `lighting.test.ts` |
+| A struct node without structure data whose type lies anywhere between the first and the eighth wall decal (floors, roofs and debris among them) lights as a wall decal | `src/render/world/structure-shades.test.ts` |
+| Through a window every wall and door of the window's tile lights, whatever its orientation | `src/app/world/world-lighting.test.ts` |
 
 Not pinned yet:
 - A tile's light sum is a byte that wraps on addition but stops at 0 on subtraction.
