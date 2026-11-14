@@ -100,6 +100,7 @@ function mapRefusals(merc: number): Refusals {
     [{ type: 'cancelRoute', soldier: NOBODY }, 'noSuchMerc'],
     [{ type: 'shortenRoute', soldier: merc, at: 'nowhere' }, 'badSector'],
     [{ type: 'routeGroup', soldiers: [] }, 'badSoldiers'],
+    [{ type: 'regroupForMove', soldiers: [] }, 'badSoldiers'],
     [{ type: 'assignSquad', soldier: merc, squad: 'any squad' }, 'badSquad'],
     [{ type: 'assign', soldiers: [] }, 'badAssignment'],
     [{ type: 'assign', soldiers: [NOBODY], to: { kind: 'doctor' } }, 'unknownSoldier'],

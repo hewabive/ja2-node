@@ -67,7 +67,7 @@ back through the client's `onRefused` and prints its `reason` as a line of the m
 |---|---|---|---|
 | Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen`, `autoBandage`, `endAutoBandage`, `answer` (the placement panel) | `combat`, `selected`, `currentSquad`, `doorMenu`, `autoBandage`, `prompt` (`tacticalPlacement`), `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), `placementDone.located`, `autoBandageRefused`, `autoBandageEnded`, the message log |
 | Talk and shop | `quoteTrade`, `compatibleItems` with `rule: shop` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, the tactical `surrender` prompt (asked once the offer's quote box closes), the item prompts of the loaded sector (the switch, trap and blue flag yes/no boxes and the bomb boxes' four small numbered buttons, `tactical/item-prompts.ts`; asked once the lines are said, on the map screen too), `observe.shop` |
-| Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `redistributeMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
+| Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `regroupForMove`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `redistributeMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
 | Laptop | `hireCheck`, `aimQuote`, `bobbyRayQuote`, `impCheckCode`, `emailText` | `visitSite`, `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, `orderFlowers`, `closeLaptop`, … | `observe.laptop` |
 | Story | | `answer` (the meanwhile box of a scene seen before, the lie), `endMeanwhile` (Esc in a palace scene) | the `meanwhile` prompt, `meanwhileStarted`, `meanwhileSkipped`, `meanwhileEnded`, `queenKilled`, `squadMovedUpstairs`, `endgameDeferred`, `campaignWon`, `sexScene` |
@@ -257,9 +257,10 @@ out-of-gas box by `pVehicleStrings`. A vehicle in sight that is not ours carries
 (`29`).
 
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
-the legs stay in the client until the confirming click sends one `route` per group, and the move box sends one
-`routeGroup` and lets the server regroup (deviations "Map route plotting", "Move box regrouping"). Decision prompts open
-as the original's boxes and close when an agent answers them first (deviation "Map screen boxes for prompts").
+the legs stay in the client until the confirming click sends one `route` per group (deviation "Map route plotting");
+the move box's Done regroups at once with `regroupForMove`, so Esc during the plot that follows leaves the new squads,
+and its confirm sends one `routeGroup` for the movers. Decision prompts open as the original's boxes and close when an
+agent answers them first (deviation "Map screen boxes for prompts").
 
 **Battle entry.** The pre-battle panel is part of the map screen, as `gfPreBattleInterfaceActive` is; autoresolve is a
 screen pushed over it. The non-persistent panel is a `preBattle` prompt opened by `showBattle` rather than a summary

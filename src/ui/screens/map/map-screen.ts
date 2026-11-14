@@ -13,7 +13,8 @@
 // @src RequestContractMenu, ChangeCharacterListSortMethod, HandleNewDestConfirmation (a random awake selected merc
 // @src confirms), JumpToLevel, InterruptTimeForMenus and UpdatePausedStatesDueToTimeCompression (time held while a menu,
 // @src a box or plotting is open); src/game/Strategic/Map_Screen_Interface.cc DeselectSelectedListMercsWhoCantMoveWithThisGuy,
-// @src SelectUnselectedMercsWhoMustMoveWithThisGuy, CanChangeSleepStatusForSoldier; src/game/Strategic/
+// @src SelectUnselectedMercsWhoMustMoveWithThisGuy, CanChangeSleepStatusForSoldier, HandleMoveoutOfSectorMovementTroops and
+// @src HandleSettingTheSelectedListOfMercs (Done regroups, then the movers plot, 2026-11-14); src/game/Strategic/
 // @src Map_Screen_Interface_Bottom.cc EnableDisableBottomButtonsAndRegions, EnableDisableTimeCompressButtons,
 // @src CommonTimeCompressionChecks, AllowedToTimeCompress (the client half: plotting, menus, boxes, the sector inventory),
 // @src RequestTriggerExitFromMapscreen; MapScreen.cc HandleModNone (Backspace: StopAnyCurrentlyTalkingSpeech, the line
@@ -400,7 +401,7 @@ export class MapScreen implements Screen {
       now: () => this.#now,
       vehicleType: (vehicle) => (this.#strategic()?.vehicles ?? []).find((v) => v.id === vehicle)?.type ?? 0,
       report: (feedback) => this.#moveFeedback(feedback),
-      done: (plan) => this.#startGroupPlotting(plan),
+      done: (plan) => void this.#regroupForMove(plan),
       closed: () => undefined,
     });
     this.#updateBox = new UpdateBox({
@@ -1667,18 +1668,32 @@ export class MapScreen implements Screen {
     if (text) void this.#mapBox(text);
   }
 
-  #startGroupPlotting(plan: MovePlan): void {
-    const first = plan.soldiers[0];
+  async #regroupForMove(plan: MovePlan): Promise<void> {
+    const reply = await this.#env.client.command({ type: 'regroupForMove', ...plan });
+    if (!reply.ok) {
+      const text = this.#moveRefusalText(reply, plan.soldiers[0] ?? NO_CHARACTER);
+      if (text) void this.#mapBox(text);
+      return;
+    }
+    const selected = (reply.data as { readonly selected: readonly number[] }).selected;
+    this.#startGroupPlotting([
+      ...plan.soldiers.filter((id) => selected.includes(id)),
+      ...selected.filter((id) => !plan.soldiers.includes(id)),
+    ]);
+  }
+
+  #startGroupPlotting(movers: readonly number[]): void {
+    const first = movers[0];
     const m = first === undefined ? null : mercById(this.#strategic(), first);
     if (!m) return;
     const row = this.list.rowOf(m.id);
     this.list.resetSelected();
     if (row >= 0) this.list.changeInfo(row, true);
-    for (const id of plan.soldiers) {
+    for (const id of movers) {
       const r = this.list.rowOf(id);
       if (r >= 0) this.list.setSelected(r, true);
     }
-    this.#plot = Plotting.forGroup(plan, row, m.sector.split('-')[0] ?? m.sector);
+    this.#plot = Plotting.forGroup(movers, row, m.sector.split('-')[0] ?? m.sector);
     this.#route.reset();
     if (row >= 0) this.#team.startGlow(row, TeamColumn.DESTINATION);
   }

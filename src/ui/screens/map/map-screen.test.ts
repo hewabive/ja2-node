@@ -29,6 +29,7 @@ const MAX_MILITIA_TRAINERS = 2;
 const MESSAGE_BOX = 'messageBox';
 const EXIT_BUTTONS = ['laptopButton', 'tacticalButton', 'optionsButton'];
 const SQUAD_SECTOR = 'D13';
+const PLOT_TRAVEL_ROUTE = 'Plot Travel Route';
 const MALE = 0;
 const FEMALE = 1;
 const FRED = 106;
@@ -295,6 +296,33 @@ describe('the map screen over the stub map-screen campaign', () => {
       const m = f.client.view.strategic?.mercs.find((x) => x.id === f.mercs[0]);
       const group = f.client.view.strategic?.groups.find((g) => g.members.includes(m?.id ?? -1));
       expect(group?.path.at(-1)).toBe('C13');
+    }));
+
+  it('regroups the movers at Done, before the plot, so a plot given up with Escape leaves the new squad (HandleMoveoutOfSectorMovementTroops)', () =>
+    withMap(async (f) => {
+      const [mover, stayer] = f.mercs;
+      const squadOf = (id: number | undefined) => f.client.view.strategic?.mercs.find((m) => m.id === id)?.assignment;
+      const name = f.client.view.strategic?.mercs.find((m) => m.id === mover)?.name ?? '';
+      expect(squadOf(mover)).toBe(squadOf(stayer));
+      await f.clickSector(SQUAD_SECTOR);
+      await f.clickSector(SQUAD_SECTOR);
+      await f.settle();
+      const line = (text: string) => `moveBox.line${(f.screen.hook().moveBox ?? []).findIndex((l) => l.trim() === text)}`;
+      await f.click(line(name));
+      await f.click(line(PLOT_TRAVEL_ROUTE));
+      await f.settle();
+      expect(f.client.commands.map((c) => c.cmd.type)).toContain('regroupForMove');
+      expect(lastCommand(f)).toMatchObject({
+        cmd: { type: 'regroupForMove', soldiers: [mover], squads: [], vehicles: [] },
+        reply: { ok: true },
+      });
+      expect(f.screen.hook().plotting).toMatchObject({ mode: 'merc', legs: [] });
+      expect(squadOf(mover)).not.toBe(squadOf(stayer));
+      f.key('Escape');
+      await f.settle();
+      expect(f.screen.hook().plotting).toBeNull();
+      expect(squadOf(mover)).not.toBe(squadOf(stayer));
+      expect(f.client.commands.filter((c) => c.cmd.type === 'routeGroup')).toHaveLength(0);
     }));
 
   it('opens the assignment popup over the row, holds time while it is open and closes it with Escape', () =>

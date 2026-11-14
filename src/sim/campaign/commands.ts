@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc (plotting: legs, the Shift shortest route, the confirm on the last sector, the right
 // @src click on a path node); Map_Screen_Interface_Map.cc PlotPathForCharacter, ClearPathAfterThisSectorForCharacter;
-// @src Map_Screen_Interface.cc HandleMoveoutOfSectorMovementTroops, HandleSettingTheSelectedListOfMercs,
+// @src Map_Screen_Interface.cc HandleMoveoutOfSectorMovementTroops (the regroup at Done, before the plot, 2026-11-14),
+// @src HandleSettingTheSelectedListOfMercs,
 // @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic; Assignments.cc
 // @src CreateDestroyAssignmentPopUpBoxes (RebuildCurrentSquad as the assignment menu closes, 2026-11-08).
 
@@ -36,7 +37,7 @@ import {
 } from '../strategic/economy/set-assignment.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { getGroup } from '../strategic/forces/groups.ts';
-import { moveOutOfSector, movingListForSector, regroupsMovingMerc, travellersWith } from '../strategic/forces/move-box.ts';
+import { type MoveOut, moveOutOfSector, movingListForSector, regroupsMovingMerc, travellersWith } from '../strategic/forces/move-box.ts';
 import {
   canCharacterMoveInStrategic,
   canEntireMovementGroupMove,
@@ -226,13 +227,17 @@ function groupResult(
   return groups;
 }
 
-function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
+function movingSoldiers(cmd: StrategicCommand): number[] | CommandRefused {
   const ids = idList(cmd.soldiers);
-  if (!ids || ids.length === 0) return refuse('badSoldiers', 'soldiers must list the mercs who move');
-  const to = parseSector(cmd.to);
-  if (!to) return refuse('badSector', 'to must be a sector such as B9');
-  const via = sectorList(cmd.via);
-  if (!via) return refuse('badSector', 'via must be a list of sectors such as ["A10"]');
+  return ids && ids.length > 0 ? ids : refuse('badSoldiers', 'soldiers must list the mercs who move');
+}
+
+function regroupMoveBox(
+  ctx: StrategicContext,
+  cmd: StrategicCommand,
+  ids: readonly number[],
+  loaded: LoadedSectorStatus,
+): MoveOut | CommandRefused {
   const mercs = ids.map((id) => ctx.mercs.get(id));
   if (mercs.some((m) => !m)) return refuse('noSuchMerc', 'no such merc');
   const first = mercs[0] as StrategicMerc;
@@ -248,7 +253,26 @@ function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: Loaded
   const vehicles = cmd.vehicles === undefined ? wholeUnits(list, listed, vehicleOf) : new Set(idList(cmd.vehicles) ?? []);
   const selection = { soldiers: listed, squads, vehicles };
   if (regroupsMovingMerc(list, selection)) return refuse('reassignOnTheMove', 'mercs on the move cannot change squads');
-  const out = moveOutOfSector(ctx, list, selection);
+  return moveOutOfSector(ctx, list, selection);
+}
+
+function regroupForMove(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
+  const ids = movingSoldiers(cmd);
+  if ('ok' in ids) return ids;
+  const out = regroupMoveBox(ctx, cmd, ids, loaded);
+  if ('ok' in out) return out;
+  return { ok: true, data: { selected: out.selected, regrouped: out.regrouped } };
+}
+
+function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
+  const ids = movingSoldiers(cmd);
+  if ('ok' in ids) return ids;
+  const to = parseSector(cmd.to);
+  if (!to) return refuse('badSector', 'to must be a sector such as B9');
+  const via = sectorList(cmd.via);
+  if (!via) return refuse('badSector', 'via must be a list of sectors such as ["A10"]');
+  const out = regroupMoveBox(ctx, cmd, ids, loaded);
+  if ('ok' in out) return out;
   const anchor = ctx.mercs.get(out.selected[0] ?? -1);
   if (!anchor) return refuse('nothingSelected', 'nobody is left to move');
   const travellers = travellersWith(ctx, anchor, out.selected);
@@ -410,6 +434,8 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
     case 'distributeMilitia':
     case 'redistributeMilitia':
       return militiaCommand(campaign, cmd);
+    case 'regroupForMove':
+      return regroupForMove(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'routeGroup':
       return routeGroup(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'assignSquad':

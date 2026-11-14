@@ -15,7 +15,6 @@ import type { StrategicView } from '../../../protocol/view.ts';
 import type { HintAnswer } from '../../game-client.ts';
 import { mercById, withMercPath } from './character-list.ts';
 import { parseSectorLabel, sectorLabel } from './facts.ts';
-import type { MovePlan } from './move-selection.ts';
 
 export const MIN_WAIT_TIME_FOR_TEMP_PATH = 200;
 
@@ -75,7 +74,7 @@ export class Plotting {
   readonly row: number;
   readonly origin: string;
   readonly hadPath: boolean;
-  readonly group: MovePlan | null;
+  readonly group: readonly number[] | null;
   #base: readonly string[];
   #legs: string[] = [];
   #shortest = false;
@@ -85,7 +84,14 @@ export class Plotting {
   #pending = new Set<string>();
   #pathAnswer: RouteAnswer | null = null;
 
-  constructor(mode: PlotMode, soldier: number, row: number, origin: string, base: readonly string[], group: MovePlan | null = null) {
+  constructor(
+    mode: PlotMode,
+    soldier: number,
+    row: number,
+    origin: string,
+    base: readonly string[],
+    group: readonly number[] | null = null,
+  ) {
     this.mode = mode;
     this.soldier = soldier;
     this.row = row;
@@ -95,8 +101,8 @@ export class Plotting {
     this.hadPath = this.#base.length > 0;
   }
 
-  static forGroup(plan: MovePlan, row: number, origin: string): Plotting {
-    return new Plotting('merc', plan.soldiers[0] ?? -1, row, origin, [], plan);
+  static forGroup(movers: readonly number[], row: number, origin: string): Plotting {
+    return new Plotting('merc', movers[0] ?? -1, row, origin, [], movers);
   }
 
   get legs(): readonly string[] {
@@ -244,8 +250,7 @@ export class Plotting {
     const shortest = this.#shortest ? { shortest: true } : {};
     if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, extend: true, plotted: true };
     const group = this.group;
-    if (group)
-      return { type: 'routeGroup', soldiers: group.soldiers, squads: group.squads, vehicles: group.vehicles, to, ...viaPart, ...shortest };
+    if (group) return { type: 'routeGroup', soldiers: [...group], to, ...viaPart, ...shortest };
     return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true };
   }
 

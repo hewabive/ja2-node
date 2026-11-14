@@ -249,6 +249,28 @@ describe('map screen view fields and commands in a stub campaign', () => {
     expect(c.live.dispatch({ type: 'routeGroup', soldiers: [], to: 'B9' })).toMatchObject({ data: { refusal: 'badSoldiers' } });
   });
 
+  it('regroups the move box at Done, before the plot, so a plot given up leaves the squads (HandleMoveoutOfSectorMovementTroops)', async () => {
+    const c = await landedCampaign(82, 4, ['A10', 'B9']);
+    const [m1, m2, m3, m4] = mercs(c).map((m) => m.id);
+    if (m1 === undefined || m2 === undefined || m3 === undefined || m4 === undefined) throw new Error('four mercs needed');
+    expect(c.live.dispatch({ type: 'regroupForMove', soldiers: [] })).toMatchObject({ data: { refusal: 'badSoldiers' } });
+    const done = c.live.dispatch({ type: 'regroupForMove', soldiers: [m1, m2], squads: [], vehicles: [] });
+    expect(done).toMatchObject({ ok: true, data: { selected: [m1, m2] } });
+    const regrouped = (done.data as { regrouped: { soldier: number; squad: number }[] }).regrouped;
+    expect(regrouped.map((r) => r.soldier).sort()).toEqual([m1, m2].sort());
+    const movers = merc(c, m1).squad;
+    expect([merc(c, m2).squad, merc(c, m3).squad, merc(c, m4).squad]).toEqual([movers, 0, 0]);
+    expect(strategic(c).groups.find((g) => g.members.includes(m1))?.path).toEqual([]);
+    c.live.advance({ worldSeconds: STEP_SECONDS });
+    expect([merc(c, m1).squad, merc(c, m2).squad, merc(c, m1).sector]).toEqual([movers, movers, 'A9']);
+    const plotted = c.live.dispatch({ type: 'routeGroup', soldiers: [m1, m2], to: 'A10' });
+    expect(plotted).toMatchObject({
+      ok: true,
+      data: { regrouped: [], groups: [expect.objectContaining({ squad: movers, path: ['A9', 'A10'] })] },
+    });
+    expect(strategic(c).groups.find((g) => g.members.includes(m3))?.path).toEqual([]);
+  });
+
   it('moves and distributes town militia with the original refusals', async () => {
     const c = await landedCampaign(83, 3, []);
     liberateDrassen(c);

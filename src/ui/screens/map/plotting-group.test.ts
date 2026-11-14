@@ -17,9 +17,8 @@ function client(answer: (req: CommandEnvelope) => HintAnswer) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('plotting for the move box', () => {
-  it('previews from the first mover alone without his old path and confirms with one routeGroup', async () => {
-    const plan = { soldiers: [3, 1], squads: [0], vehicles: [] };
-    const plot = Plotting.forGroup(plan, 2, 'D13');
+  it('previews from the first mover alone without his old path and confirms with one routeGroup of the movers Done regrouped', async () => {
+    const plot = Plotting.forGroup([3, 1], 2, 'D13');
     plot.baseChanged(['D13', 'C13']);
     const c = client((req) => ({ ok: true, data: { path: ['D13'], temp: ['D13', String(req.to)], edgeMinutes: [], etaMinutes: 90 } }));
     plot.hoverAt({ x: 13, y: 3, z: 0 }, 0);
@@ -28,7 +27,7 @@ describe('plotting for the move box', () => {
     expect(c.requests).toEqual([{ type: 'previewRoute', soldier: 3, to: 'C13', alone: true }]);
     expect(plot.click({ x: 13, y: 3, z: 0 })).toEqual({ kind: 'appended' });
     plot.shortest = true;
-    expect(plot.confirmCommand()).toEqual({ type: 'routeGroup', soldiers: [3, 1], squads: [0], vehicles: [], to: 'C13', shortest: true });
+    expect(plot.confirmCommand()).toEqual({ type: 'routeGroup', soldiers: [3, 1], to: 'C13', shortest: true });
     expect(plot.routeFor(1)).toBeNull();
     expect(plot.hadPath).toBe(false);
   });
