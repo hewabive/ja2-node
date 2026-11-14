@@ -2,7 +2,7 @@
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
     "src/game/Strategic/MapScreen.cc BltCharInvPanel (mapinv.sti, RenderInvBodyPanel at INV_BODY_X, INV_BODY_Y, the slots, pInvPanelTitleStrings 0..2 and the armour, weight and camouflage values in BLOCKFONT2 MAP_INV_STATS_TITLE_FONT_COLOR right-aligned in the MAP_ARMOR, MAP_WEIGHT and MAP_CAMO boxes), CreateDestroyTrashCanRegion (done_button2.sti 0/1 at INV_BTN_X, INV_BTN_Y, MSYS_PRIORITY_HIGHEST - 1, pMiscMapScreenMouseRegionHelpText[2]), MAPInternalInitItemDescriptionBox (MAP_ITEMDESC_START_X, MAP_ITEMDESC_START_Y), MAPInvClickCallbackSecondary (the stack popup in INV_REGION_X, INV_REGION_Y, 261, 248)",
-    "src/game/Tactical/Interface_Items.cc InitMapKeyRingInterface (MAP_KEYRING_X, MAP_KEYRING_Y, KEYRING_HELP_TEXT); src/game/UILayout.cc m_invSlotPositionMap (the map inventory slots), m_MoneyButtonLocMap; src/game/Tactical/Interface_Items.cc INVRenderINVPanelItem (map_inv_2nd_gun_cover.sti at 14, 218 over a covered second hand), HandleRenderInvSlots (the gold key at MAP_KEYRING_X, MAP_KEYRING_Y), InternalInitItemDescriptionBox and RenderItemDescriptionBox in map mode (iteminfoc.sti, g_desc_item_box_map, g_map_itemdesc_item_status_box, gMapDescNameBox, g_map_itemdesc_desc_box, g_map_itemdesc_pros_cons_box, gMapWeaponStats, gMapMoneyStats, g_map_attachment_info, MAP_BULLET_SING_X/Y, MAP_BULLET_BURST_X/Y; the ammo button from infobox.sti)",
+    "src/game/Tactical/Interface_Items.cc InitMapKeyRingInterface (MAP_KEYRING_X, MAP_KEYRING_Y, KEYRING_HELP_TEXT); src/game/UILayout.cc m_invSlotPositionMap (the map inventory slots), m_MoneyButtonLocMap; src/game/Tactical/Interface_Items.cc INVRenderINVPanelItem (map_inv_2nd_gun_cover.sti at 14, 218 over a covered second hand), HandleRenderInvSlots (the gold key at MAP_KEYRING_X, MAP_KEYRING_Y), InternalInitItemDescriptionBox and RenderItemDescriptionBox in map mode (iteminfoc.sti, itemdescdonebutton.sti 0/1 at +204, +107, g_desc_item_box_map, g_map_itemdesc_item_status_box, gMapDescNameBox, g_map_itemdesc_desc_box, g_map_itemdesc_pros_cons_box, gMapWeaponStats, gMapMoneyStats, g_map_attachment_info, MAP_BULLET_SING_X/Y, MAP_BULLET_BURST_X/Y; the ammo button from infobox.sti)",
     "src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc g_sector_inv_* boxes, BlitInventoryPoolGraphic, RenderItemInPoolSlot, CreateMapInventoryButtons (map_screen_bottom_arrows.sti 10/1/3 at 559, 336 and 9/0/2 at 487, 336, MSYS_PRIORITY_HIGHEST), CreateMapInventoryPoolDoneButton (done_button.sti 0/1 at 587, 333), DisplayPagesForMapInventoryPool, DrawNumberOfInventoryPoolItems and DisplayCurrentSector (COMPFONT 183 centred in their boxes), DrawTextOnMapInventoryBackground (pMapInventoryStrings in MAP_IVEN_FONT FONT_BEIGE), DrawTextOnSectorInventory (zMarksMapScreenText[11] in FONT14ARIAL FONT_WHITE)"
   ],
   "screen": "mapInventory",
@@ -132,6 +132,13 @@
       "sti": "interface/iteminfoc.sti",
       "stub": {
         "size": [260, 271]
+      }
+    },
+    "itemDescDone": {
+      "sti": "interface/itemdescdonebutton.sti",
+      "stub": {
+        "sizes": [[35, 27], [32, 27]],
+        "states": ["normal", "pressed"]
       }
     },
     "infoBox": {
@@ -1668,6 +1675,8 @@
         "ammo": "infoBox",
         "bullet": "bullet",
         "money": "infoBil",
+        "done": "itemDescDone",
+        "doneButton": [204, 107],
         "item": [23, 10, 124, 48],
         "status": [18, 54, 2, 42],
         "name": [7, 65, 247, 8],

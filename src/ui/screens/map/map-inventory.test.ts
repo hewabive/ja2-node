@@ -40,6 +40,7 @@ const OTHER = 4;
 const POOL_LEFT = 270;
 const RANGE_IN_TILES = 12;
 const STATS_TEXT = 5;
+const MAP_DESCRIPTION_PRIORITY = 125;
 const MAP_MONEY_VALUE_WIDTH = 35;
 const MAP_MONEY_REMAINING = [61, 107, 75] as const;
 const MAP_MONEY_REMOVING = [61, 135, 70] as const;
@@ -676,6 +677,32 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.client.hints).toContainEqual({ type: 'itemInfo', soldier: MERC, slot: HAND, attachment: 0, metric: true });
   });
 
+  it('closes the description with the done button only the map screen has, splitting money on a left click only (ItemDescDoneButtonCallbackPrimary, ItemDescDoneButtonCallbackSecondary)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const money: InventoryItemView = { ...view(SMALL_POCKET, 'MONEY'), money: 500 };
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name), money])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click(`mercSlot${HAND}`, MouseButton.RIGHT);
+    const done = descriptionButton(h, 'itemDescriptionDone');
+    expect(done).toMatchObject({ x: 204, y: 107 + 107 });
+    expect(h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/itemdescdonebutton.sti' && i.x === 204)).toBe(true);
+    const box = h.t.runtime.regions.regions.find((r) => r.id === 'itemDescriptionBox');
+    expect([box?.priority, box?.cursor]).toEqual([MAP_DESCRIPTION_PRIORITY, CursorId.NORMAL]);
+    await clickDescriptionButton(h, 'itemDescriptionDone');
+    expect(h.inventory.merc.description.open).toBe(false);
+    await h.click(`mercSlot${SMALL_POCKET}`, MouseButton.RIGHT);
+    await clickDescriptionButton(h, 'itemDescriptionMoney1');
+    await clickDescriptionButton(h, 'itemDescriptionDone', MouseButton.RIGHT);
+    expect([h.inventory.merc.description.open, h.inventory.merc.panel.cursor]).toEqual([false, null]);
+    await h.click(`mercSlot${SMALL_POCKET}`, MouseButton.RIGHT);
+    await clickDescriptionButton(h, 'itemDescriptionMoney1');
+    await clickDescriptionButton(h, 'itemDescriptionDone');
+    expect(h.inventory.merc.description.open).toBe(false);
+    expect(h.inventory.merc.panel.cursor?.source).toEqual({ kind: 'money', soldier: MERC, slot: SMALL_POCKET, amount: 100 });
+    expect(h.t.runtime.buttons.buttons.some((b) => b.id === 'itemDescriptionDone')).toBe(false);
+  });
+
   it('prints the split amounts right-aligned to 35 pixels on their stat line and the Separate label in colour 5 on the map (Interface_Items.cc:2372, :2399-2421)', async () => {
     const money: InventoryItemView = { ...view(SMALL_POCKET, 'MONEY'), money: 500 };
     const h = await harness([merc(MERC, 'Hollis', 'D13', [money])]);
@@ -696,5 +723,16 @@ describe('the map screen inventory over a scripted session', () => {
     }
     const separate = h.text.string('gzMoneyAmounts', MONEY_SEPARATE) ?? '';
     expect(drawnRuns(h, separate).map((r) => r.foreground)).toEqual([STATS_TEXT]);
+  });
+
+  it('lets a click on the inventory Done button hidden under the description box close the inventory: the box region lies below it (quirk, Interface_Items.cc:1669)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click(`mercSlot${HAND}`, MouseButton.RIGHT);
+    expect(h.inventory.merc.description.open).toBe(true);
+    await h.click('mercDone');
+    expect([h.inventory.merc.open, h.inventory.merc.description.open]).toEqual([false, false]);
   });
 });

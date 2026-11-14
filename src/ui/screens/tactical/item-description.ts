@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Interface_Items.cc InternalInitItemDescriptionBox (the box region at MSYS_PRIORITY_HIGHEST, the
+// @src src/game/Tactical/Interface_Items.cc InternalInitItemDescriptionBox (the box region at MSYS_PRIORITY_HIGHEST, on the
+// @src map screen at MSYS_PRIORITY_HIGHEST - 2 with CURSOR_NORMAL and the itemdescdonebutton.sti 0/1 done button, the
 // @src ammo button from infobox.sti 1/5/9 by ammo type aligned with the bottom of the picture box, its text centred in
 // @src ITEMDESC_AMMO_TEXT_*, the pros and cons regions with the full lists, the four attachment regions), ReloadItemDesc,
 // @src ItemDescAmmoCallback, ItemDescAttachmentsCallbackPrimary (attach with the cursor item, the "permanent?" box, else
@@ -24,6 +25,7 @@ import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalOf } from '../../../protocol/refusals.ts';
 import type { InventoryItemView, KeyView, SoldierView } from '../../../protocol/view.ts';
 import type { ImageCatalog } from '../../assets.ts';
+import { CursorId } from '../../cursors/cursor-ids.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
@@ -74,6 +76,7 @@ export interface DescriptionGeometry {
   readonly ammoText: readonly [number, number, number];
   readonly moneyBox: Point;
   readonly moneyButtons: readonly Point[];
+  readonly doneButton?: Point;
 }
 
 export interface DescriptionArt {
@@ -81,6 +84,7 @@ export interface DescriptionArt {
   readonly ammo?: string;
   readonly bullet: string;
   readonly money: string;
+  readonly done?: string;
 }
 
 export interface DescriptionFonts {
@@ -197,8 +201,10 @@ const MONEY_BUTTON_COLOR = 5;
 const MONEY_DESC_AMOUNT = 0;
 const MONEY_DESC_PLAYERS = 4;
 const MONEY_TEXT_WITHDRAW_MORE_THEN_MAXIMUM = 0;
+const MAP_BOX_PRIORITY = Priority.HIGHEST - 2;
 const MAP_MONEY_VALUE_WIDTH = 35;
 const MAP_MONEY_LABEL_COLOR = 5;
+const DONE_FRAMES = { offNormal: 0, onNormal: 1 } as const;
 
 function ammoImage(type: number): number {
   if (type === AMMO_AP || type === AMMO_SUPER_AP) return AMMO_IMAGE_AP;
@@ -233,6 +239,7 @@ export class ItemDescriptionBox {
   #ammo: Button | null = null;
   #money: MoneyBox | null = null;
   #moneyButtons: Button[] = [];
+  #done: Button | null = null;
 
   constructor(hooks: DescriptionHooks) {
     this.#hooks = hooks;
@@ -298,13 +305,14 @@ export class ItemDescriptionBox {
     this.#object = object;
     const services = this.#hooks.services;
     const { x: dx, y: dy } = geometry.origin;
+    const map = this.#hooks.mapScreen === true;
     const box = services.regions.define({
       x1: dx,
       y1: dy,
       x2: dx + geometry.width,
       y2: dy + geometry.height,
-      priority: Priority.HIGHEST,
-      cursor: NO_CURSOR,
+      priority: map ? MAP_BOX_PRIORITY : Priority.HIGHEST,
+      cursor: map ? CursorId.NORMAL : NO_CURSOR,
       owner: OWNER,
       id: 'itemDescriptionBox',
       onButton: (_r, reason) => {
@@ -313,6 +321,7 @@ export class ItemDescriptionBox {
       },
     });
     this.#regions.push(box);
+    this.#doneButton(object, geometry, art);
     if (object.kind === 'slot') this.#ammoButton(object, item, geometry, art, fonts);
     if (item.weapon && item.class === 'GUN') this.#prosConsRegions(object, geometry, fonts);
     if (item.name !== MONEY) this.#attachmentRegions(object, geometry);
@@ -356,12 +365,35 @@ export class ItemDescriptionBox {
     }
   }
 
+  #doneButton(object: DescribedObject, g: DescriptionGeometry, art: DescriptionArt): void {
+    if (!art.done || !g.doneButton) return;
+    const [ox, oy] = g.doneButton;
+    this.#done = this.#hooks.services.buttons.create({
+      x: g.origin.x + ox,
+      y: g.origin.y + oy,
+      kind: 'quick',
+      image: { asset: art.done, grayed: -1, offNormal: DONE_FRAMES.offNormal, offHilite: -1, onNormal: DONE_FRAMES.onNormal, onHilite: -1 },
+      priority: Priority.HIGHEST,
+      owner: OWNER,
+      id: 'itemDescriptionDone',
+      onClick: (_b, reason) => {
+        if (reason & MouseReason.LBUTTON_UP) this.#finish(object);
+        if (reason & MouseReason.RBUTTON_UP) this.close(true);
+      },
+    });
+  }
+
+  #finish(object: DescribedObject): void {
+    const removing = this.#money?.removing ?? 0;
+    if (removing !== 0) this.#hooks.moneyDone?.(object, removing);
+    this.close(true);
+  }
+
   async #moneyPrimary(object: DescribedObject, index: number): Promise<void> {
     const box = this.#money;
     if (!box) return;
     if (index === MONEY_DONE) {
-      if (box.removing !== 0) this.#hooks.moneyDone?.(object, box.removing);
-      this.close(true);
+      this.#finish(object);
       return;
     }
     if (box.add(index) === 'overMaximum')
@@ -561,6 +593,8 @@ export class ItemDescriptionBox {
     this.#regions = [];
     this.#ammo?.remove();
     this.#ammo = null;
+    this.#done?.remove();
+    this.#done = null;
     for (const button of this.#moneyButtons) button.remove();
     this.#moneyButtons = [];
     this.#money = null;
@@ -621,6 +655,7 @@ export class ItemDescriptionBox {
     const unit = weightUnit(text, this.#hooks.metric());
     if (this.#ammo?.visible) this.#hooks.services.buttons.draw(list, this.#ammo);
     for (const button of this.#moneyButtons) this.#hooks.services.buttons.draw(list, button);
+    if (this.#done) this.#hooks.services.buttons.draw(list, this.#done);
     if (item.weapon) this.#weaponStats(list, item, info, g, font, unit);
     else if (item.name === MONEY) this.#moneyStats(list, info, g, font);
     else if (item.class === 'MONEY') this.#rightAligned(list, font, g.name, sprintMoney(info?.money ?? view?.money ?? 0), FontColor.WHITE);

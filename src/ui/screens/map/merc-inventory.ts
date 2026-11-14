@@ -252,6 +252,7 @@ export class MercInventory {
         ammo: model.asset(String(params.ammo)).path,
         bullet: model.asset(String(params.bullet)).path,
         money: model.asset(String(params.money)).path,
+        done: model.asset(String(params.done)).path,
       },
       { item: fonts.get(FontName.BLOCKFONT2), tiny: fonts.get(FontName.TINYFONT1) },
     );
@@ -334,5 +335,6 @@ export function descriptionGeometry(
     ammoText: (params.ammoText as unknown[]).map(n) as unknown as readonly [number, number, number],
     moneyBox: [origin.x + money[0], origin.y + money[1]],
     moneyButtons: (params.moneyButtons as unknown[]).map(point),
+    ...(params.doneButton ? { doneButton: point(params.doneButton) } : {}),
   };
 }
