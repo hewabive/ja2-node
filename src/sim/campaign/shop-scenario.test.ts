@@ -245,6 +245,21 @@ describe('shop scenario on the stub village', () => {
     expect(c.dispatch({ type: 'stance', soldier: merc.id, stance: 'crouch' })).toMatchObject({ ok: false, data: { refusal: 'shopOpen' } });
   });
 
+  it('opens after a give with the given pocket for the offer table, which the view and shopOpened name (AddItemToPlayersOfferAreaAfterShopKeeperOpen)', () => {
+    const c = startCampaign(7);
+    const merc = firstMerc(c);
+    spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, merc);
+    stockFranz(c);
+    c.drainEvents();
+    const opened = c.shop?.openFromTalk(FRANZ_PROFILE, merc.id, InvSlot.HAND);
+    expect(opened?.ok).toBe(true);
+    expect(c.shop?.view()?.offered).toEqual({ soldier: merc.id, slot: InvSlot.HAND });
+    expect(c.drainEvents().find((e) => e.type === 'shopOpened')).toMatchObject({ soldier: merc.id, offered: InvSlot.HAND });
+    expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
+    expect(c.shop?.openFromTalk(FRANZ_PROFILE, merc.id)?.ok).toBe(true);
+    expect(c.shop?.view()).not.toHaveProperty('offered');
+  });
+
   it('drops a pending auto-bandage question as the shop opens (EnterShopKeeperInterfaceScreen leaves tactical)', () => {
     const c = startCampaign(7);
     const merc = firstMerc(c);

@@ -51,6 +51,7 @@ export interface ShopView {
   readonly canTrade: readonly number[];
   readonly boxes: readonly ShopBoxView[];
   readonly repaired: readonly ShopRepairedView[];
+  readonly offered?: { readonly soldier: number; readonly slot: number };
 }
 
 const KINDS: Readonly<Record<number, ShopKind>> = {

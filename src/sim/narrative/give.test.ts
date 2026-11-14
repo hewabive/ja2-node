@@ -3,13 +3,13 @@ import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { type FakeHost, fakeHost, NPC_TYPE, recordArray } from '../../../tests/support/narrative.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
-import { createItem, createMoney, type ItemObject } from '../items/object.ts';
+import { cloneObject, createItem, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import type { TacticalContent } from '../tactical/content.ts';
-import { InvSlot, NUM_INV_SLOTS } from '../tactical/inventory.ts';
+import { InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
-import { handleNpcItemGiven, placeObjectInSoldierProfile, returnItemToPlayer, takeGivenObject } from './give.ts';
+import { dealerTakesGive, handleNpcItemGiven, placeObjectInSoldierProfile, returnItemToPlayer, takeGivenObject } from './give.ts';
 
 let content: TacticalContent;
 
@@ -143,5 +143,27 @@ describe('an NPC giving its gift (HandleNPCItemGiven)', () => {
     expect(host.talk.inPanel).toBe(false);
     expect(npc.pendingGive).toMatchObject({ target: merc.id, slot: InvSlot.BIGPOCK1 });
     expect(npc.tempObject?.item).toBe(item('CANTEEN'));
+  });
+});
+
+describe('a give the dealer does not take (SoldierGiveItemFromAnimation)', () => {
+  function shopOpenedWith(pocket: ItemObject, given: ItemObject, slot: number): number[] {
+    const { host, npc, merc } = scene();
+    merc.inv[InvSlot.BIGPOCK1] = pocket;
+    const opened: number[] = [];
+    expect(dealerTakesGive(host, merc, npc, given, slot, (_dealer, _giver, offered) => opened.push(offered))).toBe(true);
+    return opened;
+  }
+
+  it('opens the shop with the pocket on the offer table when the whole pocket was given', () => {
+    const pistol = createItem(content.items, item('GLOCK_17'), 90);
+    expect(shopOpenedWith(pistol, cloneObject(pistol), InvSlot.BIGPOCK1)).toEqual([InvSlot.BIGPOCK1]);
+  });
+
+  it('leaves the table empty for one item of a stack, which the table cannot hold apart from its pocket, and for no pocket', () => {
+    const clips = createItems(content.items, item('CLIP9_15'), 100, 3);
+    const one = { ...cloneObject(clips), count: 1, status: [100] };
+    expect(shopOpenedWith(clips, one, InvSlot.BIGPOCK1)).toEqual([NO_SLOT]);
+    expect(shopOpenedWith(clips, createMoney(content.items, 100), NO_SLOT)).toEqual([NO_SLOT]);
   });
 });

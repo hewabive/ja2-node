@@ -18,7 +18,8 @@
 // @src (the small face regions at SKI_SMALL_FACE_OFFSET_X: the repairman's stock and offer area, the player's offer
 // @src area) and SetSkiFaceRegionHelpText (the owner's nickname, MSG_DASH_S and the item's help text), the outline by
 // @src the compatibleItems hint's shop rule (2026-11-04); OfferObjectToDealer (the bullets or payload a repairman
-// @src leaves of an offered gun, crossed out, 2026-11-04).
+// @src leaves of an offered gun, crossed out, 2026-11-04); EnterShopKeeperInterface and RenderShopKeeperInterface (the
+// @src object a give put on the player's offer table, evaluated as the shop opens, 2026-11-14).
 
 import { speechPathForLine } from '../../../content/audio/speech.ts';
 import type { AudioGap } from '../../../content/formats/gap.ts';
@@ -349,9 +350,17 @@ export class ShopPanel {
     this.#face = profile ? new FaceAnimator(bigFaceRecord(profile, null), now, this.#hooks.random) : null;
     if (this.#face) this.#hooks.ensureImage(this.#face.record.path);
     this.model.syncRepaired(shop.repaired ?? []);
+    const given = this.#placeGiven(shop);
     this.#controller.model = this.#modelValues();
     this.#view.build();
-    void this.model.requote(false);
+    void this.model.requote(given);
+  }
+
+  #placeGiven(shop: ShopView): boolean {
+    const offered = shop.offered;
+    if (!offered) return false;
+    const pocket = this.#pocket({ soldier: offered.soldier, slot: offered.slot });
+    return pocket !== null && this.model.placeGiven(offered.soldier, offered.slot, pocket.item);
   }
 
   sync(shop: ShopView): void {
@@ -805,7 +814,7 @@ export class ShopPanel {
     };
   }
 
-  #pocket(offer: PocketOffer): InventoryItemView | null {
+  #pocket(offer: Pick<PocketOffer, 'soldier' | 'slot'>): InventoryItemView | null {
     const s = this.#hooks.view()?.soldiers.find((v) => v.id === offer.soldier);
     return s?.inventory?.find((i) => i.slot === offer.slot) ?? null;
   }

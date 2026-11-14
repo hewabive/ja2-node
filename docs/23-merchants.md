@@ -74,7 +74,7 @@ check of `PerformTransaction` without side effects, so a refused trade changes n
 Purchases, change and the parts a repairman splits off are delivered at once by the original's leaving rules, finished
 repairs when the shop opens (deviations "Shop as commands", "Shop deduction prompt", "Unsellable shop items", "Refused
 gift"). `openShop` is the talk and Buy/Sell in one command (deviation "Talking to dealers"); a give the dealer does not
-take opens the shop (deviation "Giving to a dealer").
+take opens the shop, a whole pocket on the offer table (deviation "Giving to a dealer").
 
 **The pricing merc.** Prices use one merc's weapon sale modifier, the original's single-merc-panel merc: the one who
 opened the shop, then any regular merc of his squad the panel buttons reach (no E.P.C., no robot), even one out of

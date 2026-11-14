@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Items.cc PlaceObjectInSoldierProfile, RemoveObjectFromSoldierProfile, SetMoneyInSoldierProfile,
 // @src RemoveInvObject, RemoveAttachment, RenumberAttachments; TacticalAI/NPC.cc ReturnItemToPlayer, ConverseFull (taking
 // @src the object); Tactical/Interface_Dialogue.cc HandleNPCItemGiven; Tactical/Handle_Items.cc SoldierGiveItemFromAnimation
-// @src (the dealer branch, InitiateConversationFull with APPROACH_GIVINGITEM).
+// @src (the dealer branch, InitiateConversationFull with APPROACH_GIVINGITEM; the pocket the dealer's offer table opens
+// @src with, AddItemToPlayersOfferAreaAfterShopKeeperOpen, 2026-11-14).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { Approach, NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -186,20 +187,25 @@ export function handleNpcItemGiven(host: NarrativeHost, npc: number, slot: numbe
   if (o) soldierGiveItem(t, dest, src, o, slot);
 }
 
+function wholePocketGiven(giver: Soldier, object: ItemObject, slot: number): boolean {
+  const pocket = slot === NO_SLOT ? undefined : giver.inv[slot];
+  return pocket !== undefined && pocket.item === object.item && pocket.count === object.count;
+}
+
 export function dealerTakesGive(
   host: NarrativeHost,
   giver: Soldier,
   dealer: Soldier,
   object: ItemObject,
   slot: number,
-  openShop: (dealer: number, giver: Soldier) => void,
+  openShop: (dealer: number, giver: Soldier, offeredSlot: number) => void,
 ): boolean {
   if (npcHasUnusedRecordWithGivenApproach(host, dealer.profile, Approach.BUYSELL)) {
     triggerNpcWithGivenApproach(host, dealer.profile, Approach.BUYSELL);
     return true;
   }
   if (npcWillingToAcceptItem(host, dealer.profile, giver.profile, object)) return false;
-  openShop(dealer.profile, giver);
+  openShop(dealer.profile, giver, wholePocketGiven(giver, object, slot) ? slot : NO_SLOT);
   const t = host.tactical();
   if (t && slot === NO_SLOT) autoPlaceObject(soldierInventoryContext(t, giver), giver, cloneObject(object));
   return true;

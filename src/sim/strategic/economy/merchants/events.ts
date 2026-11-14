@@ -11,6 +11,7 @@ export interface ShopOpenedEvent extends SimEventBase {
   readonly type: 'shopOpened';
   readonly dealer: number;
   readonly soldier: number;
+  readonly offered?: number;
 }
 
 export interface ShopkeeperQuoteEvent extends SimEventBase {

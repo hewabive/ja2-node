@@ -639,7 +639,9 @@ export class TalkFlow {
     return {
       isDealer: (profile) => host.isDealer(profile),
       dealerTakesGive: (giver, dealer, object, slot) =>
-        dealerTakesGive(host, giver, dealer, object, slot, (profile, merc) => this.#campaign.shop?.openFromTalk(profile, merc.id)),
+        dealerTakesGive(host, giver, dealer, object, slot, (profile, merc, offered) =>
+          this.#campaign.shop?.openFromTalk(profile, merc.id, offered),
+        ),
       receivesAsTeamMember: (target) => this.#receivesAsTeamMember(target),
       giveToNpc: (giver, target, object) => giveToNpc(host, giver, target, object),
       triggerDoneGivingItem: (profile) => {

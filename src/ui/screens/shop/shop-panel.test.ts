@@ -363,6 +363,32 @@ describe('the shop screen at the stub dealer', () => {
     expect(shop.model.playerOffer[0]).toBeNull();
   });
 
+  it('opens after a give the dealer does not take with the given pocket on the offer table, and evaluates it', async () => {
+    const a10 = await campaignInA10(kit, 6);
+    const merc = a10.mercs[0] ?? 0;
+    const tactical = a10.campaign.campaign.tactical?.state;
+    const dealer = tactical?.soldiers.find((s) => s?.placed && s.profile === STUB_DEALER);
+    const carrier = tactical?.soldiers[merc];
+    const pistol = tactical?.content.items.byName.get('GLOCK_17');
+    if (!tactical || !dealer || !carrier || !pistol) throw new Error('no merc, pistol or stub shopkeeper');
+    const slot = SMALL_POCKETS[0];
+    carrier.inv[slot] = createItem(tactical.content.items, pistol.index, 100);
+    expect(a10.session.dispatch({ type: 'move', soldier: merc, to: dealer.gridNo + 2, mode: 'walk' }).ok).toBe(true);
+    a10.session.advance({ idle: true });
+    const f = await tacticalUiTest(kit, ui, 6, a10.session);
+    f.client.refresh();
+    const given = await f.client.command({ type: 'give', soldier: merc, target: dealer.id, slot });
+    expect(given.ok, given.reason).toBe(true);
+    for (let k = 0; k < SETTLE_FRAMES && !f.screen.dialogue.shop.open; k++) {
+      a10.session.advance({ idle: true });
+      await settleShop(f);
+    }
+    const shop = f.screen.dialogue.shop;
+    expect(shop.open).toBe(true);
+    expect(shop.model.playerOffer[0]).toMatchObject({ kind: 'offer', soldier: merc, slot, item: 'GLOCK_17' });
+    expect(f.client.commands.filter((c) => c.cmd.type === 'quoteTrade').at(-1)?.cmd).toMatchObject({ sell: [{ soldier: merc, slot }] });
+  });
+
   it('offers a pocket from the single merc panel, hatches it, and takes it back with a right click', async () => {
     const { f, merc } = await atTheDealer(6);
     const shop = f.screen.dialogue.shop;

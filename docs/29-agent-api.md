@@ -1103,7 +1103,11 @@ by pressing it (its `refusal` is the `data` a refused `trade` carries), and the 
 which the client plays as items are offered (`EvaluateItemAddedToPlayersOfferArea`). Its `poa` lists the player's offer
 area as the trade leaves it, the parts a repairman splits off included, each with the offered pocket it came from as
 `source`. The `compatibleItems` hint with `rule: shop` names the items the shop screen outlines for the one under the
-pointer (`IsGunOrAmmoOfSameTypeSelected`).
+pointer (`IsGunOrAmmoOfSameTypeSelected`). A `give` of a whole pocket to a dealer who does not take it opens the shop with
+that pocket for the offer table, `offered` in `shopOpened` (the slot) and in `shop` (`{soldier, slot}`), which the
+browser puts on the table and has evaluated as the original does (`Tactical/Handle_Items.cc:2384`,
+`Tactical/ShopKeeper_Interface.cc:676`); it stays in the pocket until a `trade` sells it (deviation "Giving to a
+dealer").
 
 ### 8.14 Quests, meanwhiles and the ending
 

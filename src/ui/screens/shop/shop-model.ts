@@ -369,6 +369,13 @@ export class ShopModel {
     return this.#offer(this.#newOffer(soldier, slot, item, null), null);
   }
 
+  placeGiven(soldier: number, slot: number, item: string): boolean {
+    const free = this.playerOffer.indexOf(null);
+    if (free < 0 || this.offered(soldier, slot)) return false;
+    this.playerOffer[free] = this.#newOffer(soldier, slot, item, null);
+    return true;
+  }
+
   offerCash(soldier: number, slot: number, item: string, amount: number | null): boolean {
     if (this.offered(soldier, slot)) return false;
     return this.#offer({ kind: 'offer', id: this.#nextId++, soldier, slot, item, cash: true, amount }, null);

@@ -9,7 +9,9 @@
 // @src change gpSMCurrentMerc inside the shop); Overhead.cc FindNextActiveAndAliveMerc (regular mercs only);
 // @src EnterShopKeeperInterfaceScreen's LeaveTacticalScreen, which clears a pending auto-bandage (2026-11-06) and the
 // @src customizable timer of a won battle's look for someone else (2026-11-07); Interface_Dialogue.cc InitTalkingMenu (the
-// @src talker's squad made current and his selection, by the open that stands for the talk, 2026-11-08).
+// @src talker's squad made current and his selection, by the open that stands for the talk, 2026-11-08); Handle_Items.cc
+// @src SoldierGiveItemFromAnimation's AddItemToPlayersOfferAreaAfterShopKeeperOpen (the pocket a give put on the
+// @src player's offer table, 2026-11-14).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -48,7 +50,7 @@ import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { hasAnimFlag, setDesiredDirection } from '../tactical/animation.ts';
 import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
 import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
-import { NUM_INV_SLOTS } from '../tactical/inventory.ts';
+import { NO_SLOT, NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { directionToward, stopMerc } from '../tactical/movement.ts';
 import { distanceVisible } from '../tactical/perception/sight.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
@@ -73,10 +75,16 @@ const NOT_VISIBLE = -1;
 const NO_SQUAD = -1;
 const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing']);
 
+export interface OfferedPocket {
+  readonly soldier: number;
+  readonly slot: number;
+}
+
 export interface ShopSession {
   readonly dealer: number;
   readonly dealerSoldier: number;
   readonly selected: number;
+  readonly offered?: OfferedPocket;
   pricing: number;
   boxes: DealerBox[];
   businessDone: boolean;
@@ -276,15 +284,15 @@ export class ShopFlow {
     }
   }
 
-  openFromTalk(dealerProfile: number, soldier: number): CommandResult {
+  openFromTalk(dealerProfile: number, soldier: number, offeredSlot = NO_SLOT): CommandResult {
     const def = this.#ctx.content.dealers.find((d) => d.profile === dealerProfile);
     const dealer = this.dealerSoldier(dealerProfile);
     const merc = this.#t?.soldiers[soldier] ?? null;
     if (this.#session || !def || !dealer || !merc) return shopRefusal('shopUnavailable');
-    return this.#begin(def, dealer, merc);
+    return this.#begin(def, dealer, merc, offeredSlot === NO_SLOT ? null : { soldier: merc.id, slot: offeredSlot });
   }
 
-  #begin(def: DealerDef, dealer: Soldier, merc: Soldier): CommandResult {
+  #begin(def: DealerDef, dealer: Soldier, merc: Soldier, offered: OfferedPocket | null = null): CommandResult {
     const ctx = this.#ctx;
     setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
     forgetSomeoneElseInSector(this.#campaign.state.battle);
@@ -296,8 +304,9 @@ export class ShopFlow {
       boxes: [],
       businessDone: false,
       collected: [],
+      ...(offered ? { offered } : {}),
     };
-    this.#emit({ type: 'shopOpened', dealer: def.profile, soldier: merc.id });
+    this.#emit({ type: 'shopOpened', dealer: def.profile, soldier: merc.id, ...(offered ? { offered: offered.slot } : {}) });
     const delayed = doesDealerDoRepairs(ctx, def.id) && handlePossibleRepairDelays(ctx, def.id);
     if (delayed) {
       this.#emit({ type: 'repairDelayed', dealer: def.profile });
@@ -659,6 +668,7 @@ export class ShopFlow {
       canTrade,
       boxes: session.boxes.map((b) => shopBoxView(ctx, session.dealer, b, modifier)),
       repaired: [...(session.collected ?? [])],
+      ...(session.offered ? { offered: session.offered } : {}),
     };
   }
 
