@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { A10_STAIRS, campaignInA10, hideRoomOf, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
 import { addSyntheticCrate } from '../../../../tests/support/combat.ts';
+import { doorTiles } from '../../../../tests/support/hints-actions.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
@@ -20,7 +21,7 @@ import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
 import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
 import type { DoorMenuOption, PreviewAction, PreviewMove } from '../../../protocol/hints.ts';
 import type { ClimbView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
-import { createSandboxSession } from '../../../server/sandbox.ts';
+import { createSandboxSession, STUB_SANDBOX_MAP } from '../../../server/sandbox.ts';
 import { Session } from '../../../server/session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
@@ -1266,6 +1267,40 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'door')).toEqual([]);
     await f.clickAt(at.x, at.y);
     expect(commandsOf(f, 'door')).toEqual([{ type: 'door', soldier: 0, gridNo: crate, action: 'open' }]);
+  });
+
+  it("previews the pickup of the items on a door's base tile with the hand cursor and the door from its other tiles, as the click picks them up (UIHandleInteractiveTilesAndItemsOnTerrain, DrawUIMovementPath MOVEUI_TARGET_ITEMS)", async () => {
+    const f = await inCombat();
+    const [door] = doorTiles(kit.world(STUB_SANDBOX_MAP));
+    if (door === undefined) throw new Error('no door on the sandbox map');
+    placeItem(f, door, 'CANTEEN');
+    expect(f.client.view.items?.some((i) => i.gridNo === door)).toBe(true);
+    centreOn(f, door);
+    const base = f.world.pickPoint(door);
+    const behind = f.world.pickPoint(door - WORLD_COLS);
+    const node = { gridNo: door, index: 0, tile: CRATE_TILE, bottom: base.y + 20, door: true, open: false };
+    f.world.interactiveNodes = () => [node];
+    f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: door, door: true, switch: false, open: false, itemOnTop: false });
+    const mode = f.screen.controls.input.moveModeOf(merc(f, 0));
+    const preview = async (kind: string) =>
+      (await f.client.hintNow({ type: 'previewAction', soldier: 0, gridNo: door, kind, mode })).data as PreviewAction;
+    const pickUp = await preview('pickUp');
+    const opening = await preview('door');
+    expect(pickUp.apCost).not.toBe(opening.apCost);
+    const shown = () => [
+      f.screen.controls.input.mouseText()?.actionPoints?.value,
+      f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'))?.gridNo,
+    ];
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', behind.x, behind.y, MouseButton.LEFT);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(shown()).toEqual([opening.apCost, opening.actionGridNo]);
+    pointer(f, 'pointerMove', base.x, base.y, MouseButton.LEFT);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(shown()).toEqual([pickUp.apCost, pickUp.actionGridNo]);
+    await f.clickAt(base.x, base.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'pickUp', soldier: 0, gridNo: door } });
+    expect(commandsOf(f, 'door')).toEqual([]);
   });
 
   it('puts the AP number of the free-flowing move cursors where DrawUICursor sets it, over the offsets of the move mode', async () => {
