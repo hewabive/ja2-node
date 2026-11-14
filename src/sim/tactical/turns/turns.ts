@@ -682,10 +682,11 @@ export function checkForEndOfBattle(t: TacticalState, anEnemyRetreated = false):
       t.sectorHooks.battleWon(t);
       return true;
     }
+    let coolCandidates: readonly number[] = [];
     if (battleFought(t)) {
       ourMercsFinishFoughtBattle(t);
       shouldBeginAutoBandage(t);
-      sayBattleEndQuote(t, anEnemyRetreated);
+      coolCandidates = sayBattleEndQuote(t, anEnemyRetreated);
     } else shouldBeginAutoBandage(t);
     for (const s of teamMembers(t, Team.MILITIA)) {
       s.ai.alertStatus = AlertStatus.GREEN;
@@ -710,6 +711,7 @@ export function checkForEndOfBattle(t: TacticalState, anEnemyRetreated = false):
       reason: 'won',
       ...(battleFought(t) ? { fought: true as const } : {}),
       ...(lastMercKillWasMonster(t) ? { monsterKill: true as const } : {}),
+      ...(coolCandidates.length > 0 ? { coolCandidates } : {}),
     });
     t.sectorHooks.battleEnded(t, 'won');
     t.sectorHooks.battleWon(t);

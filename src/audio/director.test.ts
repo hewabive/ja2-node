@@ -802,6 +802,23 @@ describe('the sound director', () => {
     expect(new Set(expected.flat()).size).toBe(2);
   });
 
+  it('has one of the mercs a battle won after bloodcats names say COOL1, picked with a client Random(n) (SayBattleSoundFromAnyBodyInSector)', () => {
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const voices = ['007', '011', '033'];
+    const cools = seeds.map((seed) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset(
+        voices.map((voice, id) => soldier(id, 'STANDING', 0, { voice })),
+        [],
+      );
+      r.director.applyFrames([frame(10, [], [{ type: 'combatEnded', tick: 10, reason: 'won', fought: true, coolCandidates: [0, 1, 2] }])]);
+      r.director.applyFrames([frame(20, [], [{ type: 'combatEnded', tick: 20, reason: 'won', fought: true }])]);
+      return files(r);
+    });
+    expect(cools).toEqual(seeds.map((seed) => [`battlesnds/${voices[new ClientRandom(seed).rand(voices.length)]}_cool.wav`]));
+    expect(new Set(cools.flat()).size).toBeGreaterThan(1);
+  });
+
   it('has a medic out of bandages curse with CURSE1, and stay silent when the event brings no battle sound', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0)], []);

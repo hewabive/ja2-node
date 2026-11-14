@@ -158,6 +158,7 @@ export interface CombatEndedEvent extends SimEventBase {
   readonly reason: 'lull' | 'won' | 'lost' | 'boxing';
   readonly fought?: true;
   readonly monsterKill?: true;
+  readonly coolCandidates?: readonly number[];
 }
 
 export type DoorSoundKind = 'wood' | 'cloth' | 'garage' | 'metal';

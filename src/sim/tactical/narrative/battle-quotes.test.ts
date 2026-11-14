@@ -126,12 +126,25 @@ describe('the battle-end quote (Overhead.cc CheckForEndOfBattle)', () => {
     expect([s.draws, s.said]).toEqual([[], []]);
   });
 
-  it('draws nothing when the last kill talked about was a bloodcat: its COOL1 battle sound is not drawn', () => {
-    const s = scene(2);
+  it('names the mercs who may say COOL1 when the last kill talked about was a bloodcat, without a draw: the client picks one', () => {
+    const s = scene(3);
     s.t.turn.lastMercKill = enemy(s, Body.BLOODCAT, ENEMY_ID + 1);
     s.t.turn.lastMercKill.placed = false;
+    const asleep = s.squad[1] as Soldier;
+    s.t.narrative = { ...s.t.narrative, mercAsleep: (m) => m === asleep };
+    s.sim.drainEvents();
     fightAndWin(s, []);
     expect([s.draws, s.said]).toEqual([[], []]);
+    const ended = s.sim.drainEvents().find((e) => e.type === 'combatEnded');
+    expect(ended).toMatchObject({ reason: 'won', coolCandidates: [0, 2] });
+  });
+
+  it('names nobody for COOL1 after a sector-safe quote', () => {
+    const s = scene(2);
+    s.sim.drainEvents();
+    fightAndWin(s, [0]);
+    const ended = s.sim.drainEvents().find((e) => e.type === 'combatEnded');
+    expect(ended).not.toHaveProperty('coolCandidates');
   });
 
   it('says the enemy retreated when the last one leaves the sector', () => {

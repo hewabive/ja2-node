@@ -48,7 +48,9 @@
 // @src Tactical/Soldier_Ani.cc codes 702, 709, 721, 722, 781, 782 and 784 of a soldier out of sight, from where the squad
 // @src hears them, nothing when nobody does (2026-11-14); Tactical/Soldier_Ani.cc HandleSoldierDeath (the attacker's
 // @src LAUGH1 at a visible death on Random(3) == 0) and HandleKilledQuote (the killer's LAUGH1 or COOL1 by CoinToss), both
-// @src drawn here (deviation "Cosmetic draws in attacks", 2026-11-14).
+// @src drawn here (deviation "Cosmetic draws in attacks", 2026-11-14); Tactical/Overhead.cc CheckForEndOfBattle (the COOL1
+// @src of SayBattleSoundFromAnyBodyInSector after bloodcats, its Random(n) drawn here; deviation "Battle sound after
+// @src bloodcats", 2026-11-14).
 
 import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
@@ -703,6 +705,9 @@ export class SoundDirector {
         return;
       case 'killCheered':
         this.#battleSound(e.soldier, KILL_CHEERS[rand(KILL_CHEERS.length)] ?? 'COOL1', false);
+        return;
+      case 'combatEnded':
+        if (e.coolCandidates?.length) this.#battleSound(e.coolCandidates[rand(e.coolCandidates.length)] ?? NOBODY, 'COOL1', false);
         return;
       case 'mercDied':
         if (!e.mapScreen) this.#mercDiedOffTheMap(e);
