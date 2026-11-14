@@ -9,13 +9,16 @@
 // @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01); Soldier_Find.cc FindSoldier (the
 // @src medkit's patient is never a passenger, 2026-11-05); UI_Cursors.cc HandleNonActivatedTargetCursor (the good or bad
 // @src reload cursor over a target and its APs, 2026-11-09); Soldier_Find.cc FindSoldier (no patient the squad does not
-// @src see; the patient named in a refusal for the medkit's lines, 2026-11-14).
+// @src see; the patient named in a refusal for the medkit's lines, 2026-11-14); Turn_Based_Input.cc HandleUIReloading (a
+// @src click of the bad reload cursor says QUOTE_OUT_OF_AMMO on Random(3) == 0, drawn on the talk session's cosmetic
+// @src stream; deviation "Out-of-ammo quote", 2026-11-14).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { CommandResult } from '../command.ts';
 import { createItem, type ItemObject } from '../items/object.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { enoughAmmo } from './combat/ap.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { autoReload, findAmmoToReload } from './combat/reload.ts';
 import type { TacticalContent } from './content.ts';
@@ -41,6 +44,7 @@ import {
 } from './inventory-panel.ts';
 import { KeyRingRefusal, type KeySpot, moveKey, tacticalKeyRingWorld } from './key-ring-panel.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
+import { MercQuote } from './narrative/merc-quotes.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { type RefusalDetail, refuse } from './refusal.ts';
@@ -160,6 +164,7 @@ const PASSING_ITEM_DISTANCE_OKLIFE = 3;
 const PASSING_ITEM_DISTANCE_NOTOKLIFE = 2;
 const LOS_CUBE_LEVEL = 3;
 const IRRELEVANT = -1;
+const OUT_OF_AMMO_QUOTE_ODDS = 3;
 
 export function parseSlot(value: unknown): number | null {
   if (typeof value === 'string') return SLOT_NAMES[value] ?? null;
@@ -322,13 +327,25 @@ function unloadCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   return outcomeResult(unloadGun(tacticalPanelEnv(t), s, slot, to));
 }
 
+function showsBadReloadCursor(t: TacticalState, s: Soldier, outcome: PanelOutcome): boolean {
+  return !outcome.ok && outcome.refusal === InventoryRefusal.NO_AMMO && !enoughAmmo(t, s, InvSlot.HAND);
+}
+
+function sayOutOfAmmo(t: TacticalState, s: Soldier): CommandResult {
+  if (t.narrative.cosmeticPick(OUT_OF_AMMO_QUOTE_ODDS) === 0) t.narrative.sayQuote(s, MercQuote.OUT_OF_AMMO);
+  return { ok: true, data: { reloaded: false } };
+}
+
 function reloadCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
   if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
   const ammo = optionalSlot(cmd.ammo);
   if (typeof ammo === 'string') return refusal(ammo);
   const env = tacticalPanelEnv(t);
-  return outcomeResult(reloadWeapon(env, s, slot, ammo, (soldier) => autoReload(soldierInventoryContext(t, soldier), soldier)));
+  const outcome = reloadWeapon(env, s, slot, ammo, (soldier) => autoReload(soldierInventoryContext(t, soldier), soldier));
+  const byCursor = cmd.cursor === true && slot === InvSlot.HAND && ammo === null;
+  if (byCursor && showsBadReloadCursor(t, s, outcome)) return sayOutOfAmmo(t, s);
+  return outcomeResult(outcome);
 }
 
 function applyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {

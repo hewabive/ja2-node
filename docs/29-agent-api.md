@@ -632,9 +632,12 @@ no-line-of-fire line and costs nothing (`noLineOfFire`); the same `attack` again
 later ones at that tile until a shot with a fair chance or another case. An empty gun or a
 launcher without a round refuses `attack` with `noAmmo`, where the original shows the reload cursor
 (`UI_Cursors.cc:413-420`): `data.canReload` and `data.reloadAp` are that cursor, as `estimateAttack`'s `ammo` gives it,
-so the next step is a `reload` for those APs, or none when no matching ammunition is carried. Out of combat, a neutral NPC with a
-usable weapon who sees the merc may draw first on an `attack` made with a weapon in hand (`NPCFirstDraw`, `35`): nothing
-is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
+so the next step is a `reload` for those APs, or none when no matching ammunition is carried. A `reload` with
+`cursor: true` is the click of that cursor (the client sends it): with no matching ammunition, the bad reload cursor, it
+is accepted without a reload (`data.reloaded: false`) and the merc says his out-of-ammo line on one in three, drawn on
+the talk session's cosmetic stream (`Tactical/Turn_Based_Input.cc:3208-3217`); a plain `reload` stays refused with
+`noAmmo`. Out of combat, a neutral NPC with a usable weapon who sees the merc may draw first on an `attack` made with a
+weapon in hand (`NPCFirstDraw`, `35`): nothing is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
 of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
 
 **Booby traps, switches and mines** (`12` §6). A pickup stops at a trapped item: a merc who does not notice the trap sets it

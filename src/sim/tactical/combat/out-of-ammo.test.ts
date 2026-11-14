@@ -95,3 +95,55 @@ describe('the attack refusal of an empty gun (noAmmo), where the original cursor
     expect(refused).toMatchObject({ ok: false, data: { refusal: 'noAmmo', canReload: false, reloadAp: 0 } });
   });
 });
+
+describe('the click of the bad reload cursor (Turn_Based_Input.cc HandleUIReloading)', () => {
+  function withPicks(s: Scene, rolls: number[]): number[] {
+    const picks: number[] = [];
+    s.sim.state.narrative = {
+      ...s.sim.state.narrative,
+      cosmeticPick: (n) => {
+        picks.push(n);
+        return rolls.shift() ?? n - 1;
+      },
+    };
+    return picks;
+  }
+
+  function loaded(s: Scene, bulletsLeft: number): Scene {
+    const gun = s.merc.inv[InvSlot.HAND];
+    if (!gun) throw new Error('the merc has no gun');
+    gun.gunShotsLeft = bulletsLeft;
+    return s;
+  }
+
+  it('is taken without a reload, the merc saying he is out of ammo on Random(3) == 0 drawn on the talk session', () => {
+    const said = loaded(scene(), 0);
+    const picks = withPicks(said, [0]);
+    const before = said.merc.actionPoints;
+    expect(said.sim.dispatch({ type: 'reload', soldier: said.merc.id, cursor: true })).toEqual({ ok: true, data: { reloaded: false } });
+    expect([picks, said.said, said.merc.actionPoints]).toEqual([[3], [[said.merc.id, MercQuote.OUT_OF_AMMO]], before]);
+    const silent = loaded(scene(), 0);
+    withPicks(silent, [1]);
+    expect(silent.sim.dispatch({ type: 'reload', soldier: silent.merc.id, cursor: true }).ok).toBe(true);
+    expect(silent.said).toEqual([]);
+  });
+
+  it('leaves a plain reload refused with noAmmo and undrawn, and a gun with rounds left to the plain reload', () => {
+    const plain = loaded(scene(), 0);
+    const picks = withPicks(plain, [0]);
+    expect(plain.sim.dispatch({ type: 'reload', soldier: plain.merc.id })).toMatchObject({ ok: false, data: { refusal: 'noAmmo' } });
+    const notEmpty = loaded(scene(), 5);
+    const notEmptyPicks = withPicks(notEmpty, [0]);
+    const cursor = { type: 'reload', soldier: notEmpty.merc.id, cursor: true };
+    expect(notEmpty.sim.dispatch(cursor)).toMatchObject({ ok: false, data: { refusal: 'noAmmo' } });
+    expect([picks, plain.said, notEmptyPicks, notEmpty.said]).toEqual([[], [], [], []]);
+  });
+
+  it('reloads as the plain reload does when ammunition is carried (the good reload cursor)', () => {
+    const s = loaded(scene(), 0);
+    const picks = withPicks(s, [0]);
+    s.merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, content.items.byName.get('CLIP9_15')?.index ?? -1, 100);
+    expect(s.sim.dispatch({ type: 'reload', soldier: s.merc.id, cursor: true })).toMatchObject({ ok: true, data: { shots: 15 } });
+    expect([picks, s.said]).toEqual([[], []]);
+  });
+});

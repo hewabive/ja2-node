@@ -1176,6 +1176,34 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
   });
 
+  it('takes the click of the bad reload cursor as a reload by the cursor, which the server answers without a reload, and aims at nothing (HandleUIReloading)', async () => {
+    const f = await inCombat();
+    const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    const shooter = tacticalOf(f.session).state.soldiers.find((v) => v?.id === 0);
+    if (!enemy || !shooter) throw new Error('no enemy in sight or no merc 0');
+    for (let slot = InvSlot.HAND + 1; slot < shooter.inv.length; slot++) shooter.inv[slot] = emptyObject();
+    const gun = shooter.inv[InvSlot.HAND];
+    if (gun) gun.gunShotsLeft = 0;
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    await f.settle(1);
+    f.t.frame();
+    expect([f.screen.controls.input.mode, f.screen.controls.input.uiCursor]).toEqual([UiMode.ACTION_MODE, 'BAD_RELOAD_UICURSOR']);
+    pointer(f, 'pointerDown', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerUp', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    await f.settle(1);
+    expect(f.client.commands.filter((c) => c.cmd.type === 'reload')).toEqual([
+      { cmd: expect.objectContaining({ type: 'reload', soldier: 0, cursor: true }), reply: { ok: true, data: { reloaded: false } } },
+    ]);
+    expect(commandsOf(f, 'attack')).toHaveLength(0);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+  });
+
   it('draws the walk up to a punch target out of reach, footsteps and the move grid at the tile he strikes from', async () => {
     const f = await inCombat();
     const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);

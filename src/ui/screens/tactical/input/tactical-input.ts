@@ -57,7 +57,8 @@
 // @src once the boarding passes its checks) from HandleHandCursorClick
 // @src and HandleMoveModeInteractiveClick (VEHICLE_CANT_MOVE_IN_TACTICAL with a vehicle selected); UI_Cursors.cc
 // @src HandleRepairCursor, HandleRefuelCursor (at the target's tile: the walk, the move grid and the AP in combat, the good
-// @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05).
+// @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05);
+// @src Turn_Based_Input.cc HandleUIReloading (the bad reload cursor's click taken too, as reload with cursor, 2026-11-14).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { exitGridCursorShownOver } from '../../../../content/world/exit-grid-cursor.ts';
@@ -1260,8 +1261,7 @@ export class TacticalInput {
 
   #uiReloading(sel: SoldierView, estimate: EstimateAttack): boolean {
     if (!estimate.ammo.empty || (estimate.cursor !== 'target' && estimate.cursor !== 'trajectory')) return false;
-    if (!estimate.ammo.canReload) return false;
-    void this.#host.send({ type: 'reload', soldier: sel.id });
+    void this.#host.send({ type: 'reload', soldier: sel.id, cursor: true });
     return true;
   }
 
