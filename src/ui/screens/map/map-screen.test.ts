@@ -10,7 +10,7 @@ import { MercKind } from '../../../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
 import { createItem } from '../../../sim/items/object.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
-import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
+import { sectorInfo, setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import { WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
@@ -25,6 +25,7 @@ const HELICOPTER_ICONS = 'interface/helicop.sti';
 const HELI_SHADOW_FRAME = 1;
 const ASSIGN_MENU_TRAIN = 5;
 const TRAIN_MENU_TOWN = 1;
+const MAX_MILITIA_TRAINERS = 2;
 const MESSAGE_BOX = 'messageBox';
 const EXIT_BUTTONS = ['laptopButton', 'tacticalButton', 'optionsButton'];
 const SQUAD_SECTOR = 'D13';
@@ -438,6 +439,27 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.key('Enter');
       await f.settle();
       expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
+  it('boxes pMapErrorString 18 and prints 48 in the list when a paid sector cannot take a listed merc (NotifyPlayerOfAssignmentAttemptFailure)', () =>
+    withMap(async (f) => {
+      const sim = f.session.sim as CampaignSession;
+      const at = f.client.view.strategic?.mercs.find((m) => m.id === f.trainer)?.sector ?? '';
+      sectorInfo(sim.campaign.state.map, parseSectorString(at)).militiaTrainingPaid = true;
+      f.client.refresh();
+      f.key('1', 0, 'Digit1');
+      await f.settle();
+      expect(f.screen.hook().selected.length).toBeGreaterThan(MAX_MILITIA_TRAINERS);
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      await f.click(`assignmentMenu.line${ASSIGN_MENU_TRAIN}`);
+      await f.click(`trainingMenu.line${TRAIN_MENU_TOWN}`);
+      const data = lastCommand(f)?.reply.data as { readonly results?: readonly { readonly ok: boolean }[] } | undefined;
+      const results = data?.results ?? [];
+      expect(results[0]).toEqual({ ok: true, militia: 'alreadyPaid' });
+      expect(results.some((r) => !r.ok)).toBe(true);
+      await f.settle();
+      expect(f.widget(MESSAGE_BOX).text).toBe('At least one of your mercs could not be put on this assignment.');
+      expect(f.screen.hook().messages.at(-1)).toBe('Note that only two mercs may train militia in each sector.');
     }));
 
   it('asks for the payment of a selected group without boxing pMapErrorString 48 for the mercs only a yes assigns', () =>

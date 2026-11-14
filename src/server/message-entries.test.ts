@@ -233,6 +233,13 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints pMapErrorString 18 and 48 as lines for the mercs a yes to the militia payment box cannot set, the box screen being up', () => {
+    expect(messageEntriesOf([at({ type: 'trainersNotAssigned', soldiers: [1, 0] })], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'pMapErrorString', index: 18 },
+      { tick: 40, kind: 'interface', colour: 145, table: 'pMapErrorString', index: 48 },
+    ]);
+  });
+
   it('prints MERC_HAS_ARRIVED_STR as a merc arrives, but for one the helicopter brings, whose line comes as it drops him', () => {
     const arrived = { tick: 40, kind: 'interface', colour: 145, table: 'TacticalStr', index: 80 };
     const entries = messageEntriesOf(

@@ -8,7 +8,9 @@
 // @src helicopter drops, at his drop or at the Esc skip, 2026-11-08), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, the death off the tactical map
 // @src printed off the game screen, 2026-11-05; unpaid RPCs, worn-off camouflage),
 // @src Map_Screen_Interface.cc (equipment left, invasions), Map_Screen_Helicopter.cc (Skyrider's bill), Assignments.cc
-// @src (repairs, aborted assignments), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
+// @src (repairs, aborted assignments; NotifyPlayerOfAssignmentAttemptFailure's two lines for a list member the yes to the
+// @src militia payment box cannot set, printed because the box screen is up, Town_Militia.cc
+// @src StartTrainingInAllUnpaidTrainableSectors, 2026-11-14), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
 // @src Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Weapons.cc UseHandToHand (stealing, 2026-10-31), Soldier_Control.cc (refused first aid),
 // @src Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
@@ -129,6 +131,9 @@ const STR_LATE_45 = 44;
 const NO_LOS_TO_TALK_TARGET = 136;
 const STR_LATE_37 = 36;
 const STR_LATE_58 = 57;
+const MAP_ERRORS = 'pMapErrorString';
+const NOT_PUT_ON_ASSIGNMENT = 18;
+const TWO_TRAINERS_PER_SECTOR = 48;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
   teamFull: { kind: 'uiFeedback', table: 'TacticalStr', index: 35 },
   recruited: { kind: 'interface', table: 'TacticalStr', index: 36 },
@@ -349,6 +354,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   },
   groupArrived,
   invasion: (e) => (e.kind === 'other' ? [line('pMapErrorString', 24, [{ text: e.sector }])] : []),
+  trainersNotAssigned: () => [line(MAP_ERRORS, NOT_PUT_ON_ASSIGNMENT), line(MAP_ERRORS, TWO_TRAINERS_PER_SECTOR)],
   npcQuote: (e) => dialogue(e.profile, e.textKey),
   mercQuote: (e) => dialogue(e.profile, e.textKey),
   headMinerQuote: (e) => dialogue(e.profile, e.textKey),

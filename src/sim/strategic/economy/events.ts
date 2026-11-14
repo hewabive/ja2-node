@@ -38,6 +38,7 @@ export type EconomyEvent =
     }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
   | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }
+  | { readonly type: 'trainersNotAssigned'; readonly soldiers: readonly number[] }
   | {
       readonly type: 'militiaTrainingRejected';
       readonly soldiers: readonly number[];

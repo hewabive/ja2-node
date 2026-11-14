@@ -359,6 +359,7 @@ export class MapScreen implements Screen {
       box: (text) => void this.#mapBox(text),
       refused: (reply) => this.#boxRefusal(reply),
       feedback: (text) => this.#uiMessage(text),
+      note: (text) => this.#messages.addLocal(localMessage(this.#playerView()?.tick ?? 0, text)),
       townOf: (sector) => this.#townOf(sector),
       fontHeight: () => this.#team.geometry.ySize,
       closed: () => this.#syncMask(false),

@@ -201,7 +201,7 @@ export type MilitiaPaymentOutcome = 'paid' | 'alreadyPaid' | 'declined' | 'canno
 
 export interface MilitiaPaymentFlow {
   readonly leader: number;
-  readonly setAssignmentForList: () => void;
+  readonly setAssignmentForList: () => readonly number[];
 }
 
 export function startMilitiaPaymentFlow(
@@ -253,7 +253,8 @@ export function answerMilitiaPayment(
     rejectTraining(ctx, trainersOfUnpaidSectors(ctx), { reason: 'fundsGone', sector, cost: prompt.cost });
     return 'fundsGone';
   }
-  flow.setAssignmentForList();
+  const unassigned = flow.setAssignmentForList();
+  if (unassigned.length > 0) ctx.events.push({ type: 'trainersNotAssigned', soldiers: unassigned });
   const selected = prompt.soldiers.flatMap((id) => ctx.crew.get(id) ?? []);
   const sectors = trainer ? unpaidTrainableSectors(ctx, [trainer, ...selected.filter((m) => m.id !== trainer.id)]) : prompt.sectors;
   for (const sector of sectors) payForTrainingInSector(ctx, sector);

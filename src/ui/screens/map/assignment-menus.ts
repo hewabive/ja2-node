@@ -9,7 +9,8 @@
 // @src SquadMenuBtnCallback (the squad error strings), VehicleMenuBtnCallback (STR_LATE_18 for a full vehicle),
 // @src RepairMenuBtnCallback (shaded lines ignored), TrainingMenuBtnCallbackPrimary (the militia checks and their
 // @src messages), TrainingMenuBtnCallbackSecondary, AttributesMenuBtnCallback, RemoveMercMenuBtnCallback,
-// @src SetAssignmentForList, NotifyPlayerOfAssignmentAttemptFailure (pMapErrorString[18], [48] for militia),
+// @src SetAssignmentForList, NotifyPlayerOfAssignmentAttemptFailure (the pMapErrorString[18] box, and [48] as a line for
+// @src militia, 2026-11-14),
 // @src HandleShadingOfLinesForAssignmentMenus and its siblings (the shading comes from the assignmentOptions hint).
 
 import type { AssignmentLine, AssignmentOptions } from '../../../protocol/hints.ts';
@@ -70,7 +71,7 @@ const STR_LATE_47 = 46;
 const STR_LATE_18 = 17;
 const MAX_MILITIA_TRAINERS_PER_SECTOR = 2;
 const SOME_FAILED = 18;
-const SOME_FAILED_MILITIA = 48;
+const TWO_TRAINERS_PER_SECTOR = 48;
 const ALREADY_IN_SQUAD = 'alreadyInSquad';
 const SQUAD_ERROR: Readonly<Record<string, number>> = {
   squadMoving: 36,
@@ -119,6 +120,7 @@ export interface AssignmentMenuHost {
   readonly box: (text: string) => void;
   readonly refused: (reply: AssignmentCommandReply) => void;
   readonly feedback: (text: string) => void;
+  readonly note: (text: string) => void;
   readonly townOf: (sector: string) => number;
   readonly fontHeight: () => number;
   readonly closed: () => void;
@@ -519,9 +521,13 @@ export class AssignmentMenus {
 
   #reportList(reply: AssignmentCommandReply, militia: boolean): void {
     const results = assignResults(reply);
-    if (results.length === 0) this.#host.refused(reply);
-    else if (results.some((r) => !r.ok))
-      this.#host.box(this.#host.text.string(STRINGS.errors, militia ? SOME_FAILED_MILITIA : SOME_FAILED) ?? '');
+    if (results.length === 0) {
+      this.#host.refused(reply);
+      return;
+    }
+    if (!results.some((r) => !r.ok)) return;
+    this.#host.box(this.#host.text.string(STRINGS.errors, SOME_FAILED) ?? '');
+    if (militia) this.#host.note(this.#host.text.string(STRINGS.errors, TWO_TRAINERS_PER_SECTOR) ?? '');
   }
 
   escape(): boolean {

@@ -66,8 +66,9 @@ the day drop in `tactical/drugs.ts` (`12` §5).
 
 **Prompts and boxes.** The militia payment and continue boxes are decision prompts answered yes, no or later; a
 deferred one waits in `economy.prompts` with compression stopped (deviation "Militia payment and continue prompts").
-Refusals are `militiaTrainingRejected` events; "assignment done", sleep, wake and tiredness are events the client turns
-into boxes (deviations "Assignment presentation", "Update box timing"). Their lines, the done line and the tired
+Refusals are `militiaTrainingRejected` events, the listed mercs a yes cannot set a `trainersNotAssigned` event (two
+log lines); "assignment done", sleep, wake and tiredness are events the client turns into boxes (deviations "Assignment
+presentation", "Update box timing"). Their lines, the done line and the tired
 complaint (NEED_SLEEP, ME_TOO after the first), go through the dialogue queue like the original's
 `TacticalCharacterDialogue` (`EconomyHooks.tacticalCharacterDialogue`, `campaign/economy-lines.ts`, `24`); so does a head
 miner's strategic line (`headMinerDialogue`), which the queue says as a `headMinerQuote`.

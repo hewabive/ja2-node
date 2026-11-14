@@ -946,7 +946,10 @@ list runs after the refusal. Militia training asks before it charges:
 continue prompts"). A refusal puts the trainers back on a squad at once and comes as `militiaTrainingRejected {soldiers,
 reason, sector, cost}`: `declined`, `cannotAfford` (the balance is short of `cost` before anyone asks), `fundsGone` (a
 yes the balance no longer covers, also the `answer`'s `outcome`), and for a finished session `loyaltyTooLow` and
-`militiaFull`, checked in that order before the cost; the page boxes each but `declined` (`30`). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
+`militiaFull`, checked in that order before the cost; the page boxes each but `declined` (`30`). The yes to
+`militiaPayment` sets the other mercs of the `assign` then, each checked as `SetAssignmentForList` checks him; those it
+cannot set come as `trainersNotAssigned {soldiers}`, which logs `pMapErrorString` 18 and 48 as two lines, as the
+original prints them while its box screen is up (`Strategic/Assignments.cc:6381-6398`). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
 with hostiles are dealt out while they also stay there (`18`). `redistributeMilitia {town, sectors: [{sector, green,
 regular, elite}]}` is the panel's Done: the final counts of the sectors that change (a missing rank is 0), checked as a
 whole by the original's pick-up and drop rules (every sector of the town, each changed one ours and free of hostiles,

@@ -236,11 +236,15 @@ function joinSquad(ctx: EconomyContext, s: CrewMember, squad: number | undefined
   return null;
 }
 
+function setForList(ctx: EconomyContext, others: readonly CrewMember[], leader: CrewMember, to: AssignTarget): number[] {
+  return others.flatMap((o) => (setForListMember(ctx, o, leader, to) ? [] : [o.id]));
+}
+
 function setForListPromptingOnce(
   ctx: EconomyContext,
   leader: CrewMember,
   others: readonly CrewMember[],
-  setForList: () => void,
+  setAssignmentForList: () => readonly number[],
 ): MilitiaPaymentOutcome | null {
   const to: AssignTarget = { kind: 'trainMilitia' };
   let firstUnpaid: CrewMember | null = null;
@@ -248,7 +252,7 @@ function setForListPromptingOnce(
     if (!setForListMember(ctx, o, leader, to)) continue;
     if (!firstUnpaid && !sectorInfo(ctx.state.map, o.sector).militiaTrainingPaid) firstUnpaid = o;
   }
-  return firstUnpaid ? startMilitiaPaymentFlow(ctx, firstUnpaid, others, { leader: leader.id, setAssignmentForList: setForList }) : null;
+  return firstUnpaid ? startMilitiaPaymentFlow(ctx, firstUnpaid, others, { leader: leader.id, setAssignmentForList }) : null;
 }
 
 type MenuTarget = Extract<AssignTarget, { readonly kind: 'doctor' | 'patient' | 'trainSelf' | 'trainTeammate' | 'trainByOther' }>;
@@ -277,14 +281,12 @@ function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewM
     preChangeAssignment(ctx, s);
     stampIfChanged(ctx, s, Assignment.TRAIN_TOWN);
     postSetAssignment(ctx, s, Assignment.TRAIN_TOWN, REFLECTS_OLD_ASSIGNMENT);
-    const setForList = () => {
-      for (const o of others) setForListMember(ctx, o, s, to);
-    };
+    const setAssignmentForList = () => setForList(ctx, others, s, to);
     if (sectorInfo(ctx.state.map, s.sector).militiaTrainingPaid) {
-      const nested = setForListPromptingOnce(ctx, s, others, setForList);
+      const nested = setForListPromptingOnce(ctx, s, others, setAssignmentForList);
       return { ok: true, militia: nested ?? 'alreadyPaid' };
     }
-    return { ok: true, militia: startMilitiaPaymentFlow(ctx, s, others, { leader: s.id, setAssignmentForList: setForList }) };
+    return { ok: true, militia: startMilitiaPaymentFlow(ctx, s, others, { leader: s.id, setAssignmentForList }) };
   }
   if (to.kind === 'repair') {
     const ok = setSoldierAssignmentRepair(ctx, s, to.robot === true, to.vehicle ?? -1);
@@ -366,9 +368,7 @@ export function resumeMilitiaPayment(ctx: EconomyContext, prompt: MilitiaPayment
   const leader = ctx.crew.get(prompt.leader);
   const others = prompt.soldiers.flatMap((id) => ctx.crew.get(id) ?? []);
   const to: AssignTarget = { kind: 'trainMilitia' };
-  const setAssignmentForList = () => {
-    if (leader) for (const o of others) setForListMember(ctx, o, leader, to);
-  };
+  const setAssignmentForList = () => (leader ? setForList(ctx, others, leader, to) : []);
   return answerMilitiaPayment(ctx, prompt, yes, { leader: prompt.leader, setAssignmentForList });
 }
 

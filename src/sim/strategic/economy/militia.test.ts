@@ -158,6 +158,23 @@ describe('eligibility and payment', () => {
     ]);
   });
 
+  it('names the listed mercs a yes cannot set once, as StartTrainingInAllUnpaidTrainableSectors fails them in SetAssignmentForList', () => {
+    const made = context('defer');
+    for (const id of [0, 1, 2]) made.crew.add({ id, sector: C13 });
+    const elsewhere = made.crew.add({ id: 3, sector: B13 });
+    made.crew.add({ id: 4, sector: B13, assignment: Assignment.TRAIN_TOWN });
+    made.crew.add({ id: 5, sector: B13, assignment: Assignment.TRAIN_TOWN });
+    assignSoldiers(made.ctx, [0, 1, 2, 3], { kind: 'trainMilitia' });
+    expect(answerPendingMilitiaPrompt(made.ctx, true)).toBe('paid');
+    expect([0, 1, 2].map((id) => made.crew.get(id)?.assignment)).toEqual([
+      Assignment.TRAIN_TOWN,
+      Assignment.TRAIN_TOWN,
+      Assignment.ON_DUTY,
+    ]);
+    expect(elsewhere.assignment).toBe(Assignment.ON_DUTY);
+    expect(made.ctx.events.filter((e) => e.type === 'trainersNotAssigned')).toEqual([{ type: 'trainersNotAssigned', soldiers: [2, 3] }]);
+  });
+
   it('pays and sets the assignments of the list when a deferred prompt is answered later', () => {
     const made = context('defer');
     made.crew.add({ id: 0, sector: C13 });
