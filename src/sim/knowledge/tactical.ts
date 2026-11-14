@@ -290,7 +290,7 @@ export class TacticalProjection {
     const t = this.state;
     t.worldItems.length = 0;
     (view.items ?? []).forEach((v, k) => {
-      t.worldItems.push(worldItemFromView(t.content.items, v, `item ${k}`, guard));
+      t.worldItems.push(worldItemFromView(t.content.items, v, k, guard));
     });
   }
 

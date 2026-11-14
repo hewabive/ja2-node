@@ -14,7 +14,7 @@ import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
+import { cloneObject, type ItemObject } from '../items/object.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { worldDay } from '../strategic/time/world-clock.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
@@ -50,21 +50,18 @@ import {
   unloadGun,
 } from '../tactical/inventory-panel.ts';
 import { type InventoryItemView, inventoryView, slotView } from '../tactical/inventory-view.ts';
-import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { type RingSource, returnKeysToRing, sourceObject, takeSourceObject } from '../tactical/item-source.ts';
 import { type KeyRingWorld, moveKey } from '../tactical/key-ring-panel.ts';
 import { refuse } from '../tactical/refusal.ts';
-import { isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import { isCreatureOrBloodcat, OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import { combineStacks } from '../tactical/stack-cleanup.ts';
-import { teamMembers } from '../tactical/state.ts';
-import { addItemToPool, removeWorldItem, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
+import { WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
 import { campaignCombatContext } from './off-map-combat.ts';
 import type { RosterMerc } from './roster.ts';
-import { type DiffWorldItem, emptySectorDiff, sectorKey } from './sector-diff.ts';
-import { isMapScreenWorldItemVisibleInMapInventory, synchronizeVisibleItemCount } from './sector-item-count.ts';
+import { emptySlotShare, poolOrder, type Stash, type StashEntry, stashOf, takesWithoutSwap } from './stash.ts';
 
 export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'moveItem',
@@ -89,6 +86,7 @@ export const MapInventoryRefusal = {
   BATTLE: 'battleInSector',
   NOT_IN_SECTOR: 'notInSector',
   BAD_STASH_INDEX: 'badStashIndex',
+  BAD_STASH_ORDER: 'badStashOrder',
   UNREACHABLE: 'unreachable',
   TACTICAL_ONLY: 'tacticalOnly',
   BAD_SECTOR: 'badSector',
@@ -105,14 +103,16 @@ const MAP_REFUSAL_TEXT: Readonly<Record<MapInventoryRefusal, string>> = {
   battleInSector: 'there is a battle in that sector: handle its items in tactical',
   notInSector: 'the merc must stand in the sector of that inventory, not on the road',
   badStashIndex: 'stash index must be one of the indices listed by the inventory query',
+  badStashOrder: 'order must list stash indices, each once',
   unreachable: 'that item lies out of reach',
   tacticalOnly: 'this is done in tactical only',
   badSector: 'sector must be a sector such as A9',
 };
 
-const MONEY_STATUS = 100;
 const NO_SLOT = -1;
 const DISCARD_ITEM = 'discardItem';
+const ARRANGE_STASH = 'arrangeStash';
+const GROUND = 'ground';
 
 function ringPosition(value: unknown): number | null {
   const spot = typeof value === 'object' && value !== null ? parseKeySpot(value) : null;
@@ -137,158 +137,28 @@ export interface StashEntryView {
   readonly attachments?: InventoryItemView['attachments'];
   readonly jammed?: true;
   readonly imprint?: number;
+  readonly mission?: number;
   readonly reachable: boolean;
   readonly gridNo: number;
   readonly level: number;
 }
 
-interface StashSlot {
-  readonly object: ItemObject;
-  readonly gridNo: number;
-  readonly level: number;
-  readonly flags: number;
+function stashIndexOf(at: number | undefined): { stashIndex?: number } {
+  return at === undefined ? {} : { stashIndex: at };
 }
 
-interface Stash {
-  slots(): StashSlot[];
-  take(index: number, count: Count): ItemObject | null;
-  placeInto(index: number, cursor: ItemObject): void;
-  add(o: ItemObject, gridNo: number, level: number): void;
+function leftoverOf(at: number | undefined): { leftover?: number } {
+  return at === undefined ? {} : { leftover: at };
 }
 
-function visibleInMapInventory(campaign: CampaignSim, wi: { readonly object: ItemObject; readonly visible: number }): boolean {
-  return isMapScreenWorldItemVisibleInMapInventory(contentOf(campaign).items, wi);
-}
-
-function slotLimit(campaign: CampaignSim, item: number): number {
-  return contentOf(campaign).items.byIndex.get(item)?.perPocket ?? 0;
-}
-
-function placeIntoStashSlot(campaign: CampaignSim, slot: ItemObject, cursor: ItemObject): void {
-  const limit = slotLimit(campaign, cursor.item);
-  if (cursor.item !== slot.item) swapObjects(cursor, slot);
-  else if (contentOf(campaign).items.byIndex.get(cursor.item)?.itemClass === ItemClass.MONEY) {
-    slot.status[0] = MONEY_STATUS;
-    slot.money += cursor.money;
-    deleteObject(cursor);
-  } else if (limit < 2) swapObjects(cursor, slot);
-  else stackObjects(cursor, slot, Math.min(cursor.count, Math.max(0, limit - slot.count)));
-}
-
-function newStashObjects(campaign: CampaignSim, cursor: ItemObject): ItemObject[] {
-  const limit = slotLimit(campaign, cursor.item);
-  const out: ItemObject[] = [];
-  while (cursor.count > 0) {
-    const n = limit !== 0 && cursor.count > limit ? limit : cursor.count;
-    const part = cloneObject(cursor);
-    part.count = n;
-    part.status = cursor.status.slice(0, n);
-    out.push(part);
-    removeObjects(cursor, n);
-  }
-  return out;
-}
-
-function stashFlags(gridNo: number): number {
-  return WorldItemFlags.REACHABLE | (gridNo === NOWHERE ? WorldItemFlags.GRIDNO_NOT_SET_USE_ENTRY_POINT : 0);
-}
-
-function loadedStash(campaign: CampaignSim): Stash {
-  const t = campaign.tactical?.state;
-  if (!t) throw new Error('no loaded sector');
-  const visible = () => t.worldItems.filter((wi) => visibleInMapInventory(campaign, wi));
-  return {
-    slots: () => visible().map((wi) => ({ object: wi.object, gridNo: wi.gridNo, level: wi.level, flags: wi.flags })),
-    take: (index, count) => {
-      const wi = visible()[index] as WorldItem;
-      if (count === 1 && wi.object.count > 1) return getObjFrom(contentOf(campaign).items, wi.object, 0);
-      removeWorldItem(t, wi);
-      return cloneObject(wi.object);
-    },
-    placeInto: (index, cursor) => {
-      const wi = visible()[index] as WorldItem;
-      placeIntoStashSlot(campaign, wi.object, cursor);
-      wi.flags |= WorldItemFlags.REACHABLE;
-    },
-    add: (o, gridNo, level) => {
-      for (const part of newStashObjects(campaign, o)) addItemToPool(t, gridNo, part, Visibility.VISIBLE, level, stashFlags(gridNo), 0);
-    },
-  };
-}
-
-function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
-  const state = campaign.state;
-  const key = sectorKey(sector);
-  const records = (): DiffWorldItem[] => {
-    let diff = state.sectorDiffs.get(key);
-    if (!diff) {
-      diff = emptySectorDiff();
-      state.sectorDiffs.set(key, diff);
-    }
-    diff.items ??= [];
-    return diff.items;
-  };
-  const known = (): readonly DiffWorldItem[] => state.sectorDiffs.get(key)?.items ?? [];
-  const visibleIndices = () =>
-    known()
-      .map((wi, k) => [wi, k] as const)
-      .filter(([wi]) => wi.exists && visibleInMapInventory(campaign, wi))
-      .map(([, k]) => k);
-  const recount = () => {
-    synchronizeVisibleItemCount(state.map, contentOf(campaign).items, sector, records());
-  };
-  return {
-    slots: () => visibleIndices().map((k) => known()[k] as DiffWorldItem),
-    take: (index, count) => {
-      const k = visibleIndices()[index] as number;
-      const items = records();
-      const record = items[k] as DiffWorldItem;
-      const rest = cloneObject(record.object);
-      const taken = count === 1 && rest.count > 1 ? getObjFrom(contentOf(campaign).items, rest, 0) : cloneObject(rest);
-      items[k] = count === 1 && record.object.count > 1 ? { ...record, object: rest } : { ...record, exists: false };
-      recount();
-      return taken;
-    },
-    placeInto: (index, cursor) => {
-      const k = visibleIndices()[index] as number;
-      const items = records();
-      const record = items[k] as DiffWorldItem;
-      const object = cloneObject(record.object);
-      placeIntoStashSlot(campaign, object, cursor);
-      items[k] = { ...record, object, flags: record.flags | WorldItemFlags.REACHABLE };
-      recount();
-    },
-    add: (o, gridNo, level) => {
-      const items = records();
-      for (const object of newStashObjects(campaign, o)) {
-        const record: DiffWorldItem = {
-          exists: true,
-          gridNo,
-          level,
-          object,
-          flags: stashFlags(gridNo),
-          zHeight: 0,
-          visible: Visibility.VISIBLE,
-        };
-        const free = items.findIndex((wi) => !wi.exists);
-        if (free === -1) items.push(record);
-        else items[free] = record;
-      }
-      recount();
-    },
-  };
+function stashOrder(value: unknown): number[] | null {
+  if (!Array.isArray(value) || !value.every((v) => typeof v === 'number' && Number.isInteger(v))) return null;
+  return new Set(value).size === value.length ? (value as number[]) : null;
 }
 
 function isLoaded(campaign: CampaignSim, sector: Sector): boolean {
   const world = campaign.state.worldSector;
   return campaign.tactical !== null && world !== null && sameSector(world, sector);
-}
-
-function stashOf(campaign: CampaignSim, sector: Sector): Stash {
-  if (!isLoaded(campaign, sector)) return unloadedStash(campaign, sector);
-  const t = campaign.tactical?.state;
-  if (t) handleAllReachableItemsInTheSector(t, teamMembers(t, Team.OUR));
-  return loadedStash(campaign);
 }
 
 function enemyInLoadedSector(campaign: CampaignSim): boolean {
@@ -384,6 +254,10 @@ export class MapInventory {
     if (cmd.type === 'inventory') return this.#query(cmd);
     if (cmd.type === DISCARD_ITEM && this.#campaign.state.flow !== 'strategic')
       return refuse('mapScreenOnly', 'the trash can is on the map screen only');
+    if (cmd.type === ARRANGE_STASH)
+      return this.#campaign.state.flow === 'strategic'
+        ? this.#arrange(cmd)
+        : refuse('mapScreenOnly', 'the sector inventory is on the map screen only');
     if (this.#campaign.state.flow !== 'strategic' || !MAP_INVENTORY_COMMANDS.has(cmd.type)) return null;
     const merc = this.#merc(cmd.soldier);
     if (!merc) return mapRefusal(MapInventoryRefusal.NO_SUCH_MERC);
@@ -515,12 +389,12 @@ export class MapInventory {
   #move(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
     const count = parseCount(cmd.count, 'all');
     if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
-    if (cmd.from === 'ground') return this.#fromStash(merc, cmd, count);
+    if (cmd.from === GROUND) return cmd.to === GROUND ? this.#withinStash(merc, cmd, count) : this.#fromStash(merc, cmd, count);
     const ring = ringPosition(cmd.from);
-    if (ring !== null && cmd.to === 'ground') return this.#keysToStash(merc, { ring, count }, cmd);
+    if (ring !== null && cmd.to === GROUND) return this.#keysToStash(merc, { ring, count }, cmd);
     const from = parseSlot(cmd.from);
     if (from === null) return refusal(InventoryRefusal.BAD_SLOT);
-    if (cmd.to === 'ground') return this.#toStash(merc, from, cmd, count);
+    if (cmd.to === GROUND) return this.#toStash(merc, from, cmd, count);
     const to = parseSlot(cmd.to);
     if (to === null) return refusal(InventoryRefusal.BAD_SLOT);
     const target = this.#target(merc, cmd.toSoldier);
@@ -548,13 +422,12 @@ export class MapInventory {
     const s = merc.soldier;
     if (!sourceObject(contentOf(this.#campaign), s, source)) return refusal(InventoryRefusal.EMPTY_SLOT);
     const stash = stashOf(this.#campaign, sector);
-    const into = cmd.stashIndex === undefined ? null : this.#stashIndex(stash, cmd.stashIndex);
-    if (cmd.stashIndex !== undefined && into === null) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    const onto = this.#placementTarget(stash, cmd.stashIndex);
+    if (typeof onto === 'string') return mapRefusal(onto);
     const keys = takeSourceObject(contentOf(this.#campaign), s, source) as ItemObject;
     const item = keys.item;
     const moved = keys.count;
-    if (into === null) stash.add(keys, s.gridNo, s.level);
-    else stash.placeInto(into, keys);
+    const at = onto ? this.#placeOnto(stash, onto, keys) : stash.add(keys, s.gridNo, s.level)[0];
     if (keys.item === item) returnKeysToRing(s, source, keys);
     this.#returnToMerc(merc, NO_SLOT, keys);
     const name = this.#name(item);
@@ -564,13 +437,14 @@ export class MapInventory {
       item: name,
       count: moved,
       from: { ring: source.ring },
-      to: 'ground',
+      to: GROUND,
       tick: this.#campaign.tick,
     });
-    return { ok: true, data: { item: name, count: moved, sector: sectorShortString(sector) } };
+    return { ok: true, data: { item: name, count: moved, sector: sectorShortString(sector), ...stashIndexOf(at) } };
   }
 
   #discard(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    if (cmd.slot === GROUND) return this.#discardFromStash(merc, cmd);
     const ring = ringPosition(cmd.slot);
     if (ring !== null) {
       const count = parseCount(cmd.count, 'all');
@@ -589,14 +463,40 @@ export class MapInventory {
     const item = source.item;
     const discarded = takeObjects(contentOf(this.#campaign).items, source, count, index) as ItemObject;
     if (source.item === NOTHING) this.#env(merc).equipmentChanged(s, slot, item, NOTHING);
-    const name = this.#name(item);
-    this.#events.push({ type: 'itemDiscarded', soldier: merc.id, item: name, count: discarded.count, tick: this.#campaign.tick });
-    return { ok: true, data: { item: name, count: discarded.count } };
+    return this.#discarded(merc, item, discarded.count);
   }
 
-  #stashIndex(stash: Stash, value: unknown): number | null {
-    const slots = stash.slots();
-    return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < slots.length ? value : null;
+  #discardFromStash(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const count = parseCount(cmd.count, 'all');
+    if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
+    const sector = this.#stashSector(merc, cmd);
+    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const refused = stashRefusal(this.#campaign, merc, sector);
+    if (refused) return mapRefusal(refused);
+    const stash = stashOf(this.#campaign, sector);
+    const entry = stash.entry(cmd.item);
+    if (!entry) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    if (!(entry.flags & WorldItemFlags.REACHABLE)) return mapRefusal(MapInventoryRefusal.UNREACHABLE);
+    const item = entry.object.item;
+    return this.#discarded(merc, item, stash.take(entry.index, count).count);
+  }
+
+  #discarded(merc: RosterMerc, item: number, count: number): CommandResult {
+    const name = this.#name(item);
+    this.#events.push({ type: 'itemDiscarded', soldier: merc.id, item: name, count, tick: this.#campaign.tick });
+    return { ok: true, data: { item: name, count } };
+  }
+
+  #placementTarget(stash: Stash, value: unknown): StashEntry | null | MapInventoryRefusal {
+    if (value === undefined) return null;
+    const entry = stash.entry(value);
+    if (!entry) return MapInventoryRefusal.BAD_STASH_INDEX;
+    return entry.flags & WorldItemFlags.REACHABLE ? entry : MapInventoryRefusal.UNREACHABLE;
+  }
+
+  #placeOnto(stash: Stash, onto: StashEntry, cursor: ItemObject): number {
+    stash.placeInto(onto.index, cursor);
+    return onto.index;
   }
 
   #stashSector(merc: RosterMerc, cmd: InventoryCommand): Sector | null {
@@ -619,17 +519,16 @@ export class MapInventory {
     if (source.item === NOTHING) return refusal(InventoryRefusal.EMPTY_SLOT);
     if (nailsRefuses(contentOf(this.#campaign).items, s, from, NOTHING)) return refusal(InventoryRefusal.NAILS_VEST);
     const stash = stashOf(this.#campaign, sector);
-    const into = cmd.stashIndex === undefined ? null : this.#stashIndex(stash, cmd.stashIndex);
-    if (cmd.stashIndex !== undefined && into === null) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    const onto = this.#placementTarget(stash, cmd.stashIndex);
+    if (typeof onto === 'string') return mapRefusal(onto);
     const item = source.item;
     const cursor = takeObjects(contentOf(this.#campaign).items, source, count, 0) as ItemObject;
     const moved = cursor.count;
     this.#env(merc).equipmentChanged(s, from, item, NOTHING);
-    if (into === null) stash.add(cursor, s.gridNo, s.level);
-    else stash.placeInto(into, cursor);
+    const at = onto ? this.#placeOnto(stash, onto, cursor) : stash.add(cursor, s.gridNo, s.level)[0];
     this.#returnToMerc(merc, from, cursor);
-    this.#emitMove(merc, item, moved, from, 'ground');
-    return { ok: true, data: { item: this.#name(item), count: moved, sector: sectorShortString(sector) } };
+    this.#emitMove(merc, item, moved, from, GROUND);
+    return { ok: true, data: { item: this.#name(item), count: moved, sector: sectorShortString(sector), ...stashIndexOf(at) } };
   }
 
   #fromStash(merc: RosterMerc, cmd: InventoryCommand, count: Count): CommandResult {
@@ -640,25 +539,52 @@ export class MapInventory {
     const to = parseSlot(cmd.to);
     if (to === null) return refusal(InventoryRefusal.BAD_SLOT);
     const stash = stashOf(this.#campaign, sector);
-    const index = this.#stashIndex(stash, cmd.item);
-    if (index === null) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
-    const slot = stash.slots()[index] as StashSlot;
-    if (!(slot.flags & WorldItemFlags.REACHABLE)) return mapRefusal(MapInventoryRefusal.UNREACHABLE);
+    const entry = stash.entry(cmd.item);
+    if (!entry) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    if (!(entry.flags & WorldItemFlags.REACHABLE)) return mapRefusal(MapInventoryRefusal.UNREACHABLE);
     const s = merc.soldier;
-    if (nailsRefuses(contentOf(this.#campaign).items, s, to, slot.object.item)) return refusal(InventoryRefusal.NAILS_VEST);
-    const preview = takeObjects(contentOf(this.#campaign).items, cloneObject(slot.object), count, 0) as ItemObject;
+    if (nailsRefuses(contentOf(this.#campaign).items, s, to, entry.object.item)) return refusal(InventoryRefusal.NAILS_VEST);
+    const preview = takeObjects(contentOf(this.#campaign).items, cloneObject(entry.object), count, 0) as ItemObject;
     if (!placeObject(this.#dryContext(s), { inv: s.inv.map(cloneObject) }, to, preview)) return refusal(InventoryRefusal.DOES_NOT_FIT);
-    const sourceGridNo = slot.gridNo;
-    const sourceLevel = slot.level;
-    const cursor = stash.take(index, count) as ItemObject;
+    const cursor = stash.take(entry.index, count);
     const item = cursor.item;
     const moved = cursor.count;
     const old = itemIn(s.inv, to);
     placeObject(this.#context(s), s, to, cursor);
     this.#env(merc).equipmentChanged(s, to, old, item);
-    if (cursor.count > 0) stash.add(cursor, sourceGridNo, sourceLevel);
-    this.#emitMove(merc, item, moved, 'ground', to);
-    return { ok: true, data: { item: this.#name(item), count: moved } };
+    const leftover = cursor.count > 0 ? this.#backIntoStash(stash, entry, cursor) : undefined;
+    this.#emitMove(merc, item, moved, GROUND, to);
+    return { ok: true, data: { item: this.#name(item), count: moved, ...leftoverOf(leftover) } };
+  }
+
+  #withinStash(merc: RosterMerc, cmd: InventoryCommand, count: Count): CommandResult {
+    const sector = this.#stashSector(merc, cmd);
+    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const refused = stashRefusal(this.#campaign, merc, sector);
+    if (refused) return mapRefusal(refused);
+    const stash = stashOf(this.#campaign, sector);
+    const from = stash.entry(cmd.item);
+    if (!from) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    const onto = this.#placementTarget(stash, cmd.stashIndex);
+    if (typeof onto === 'string') return mapRefusal(onto);
+    if (!(from.flags & WorldItemFlags.REACHABLE)) return mapRefusal(MapInventoryRefusal.UNREACHABLE);
+    const cursor = stash.take(from.index, count);
+    const item = cursor.item;
+    const moved = cursor.count;
+    const target = onto ? stash.entry(onto.index) : null;
+    const at = target
+      ? this.#placeOnto(stash, target, cursor)
+      : stash.add(emptySlotShare(this.#campaign, cursor), from.gridNo, merc.soldier.level)[0];
+    const leftover = cursor.count > 0 ? this.#backIntoStash(stash, from, cursor) : undefined;
+    this.#emitMove(merc, item, moved, GROUND, GROUND);
+    return { ok: true, data: { item: this.#name(item), count: moved, ...stashIndexOf(at), ...leftoverOf(leftover) } };
+  }
+
+  #backIntoStash(stash: Stash, source: StashEntry, cursor: ItemObject): number | undefined {
+    const slot = stash.entry(source.index);
+    if (slot && takesWithoutSwap(this.#campaign, slot.object, cursor)) stash.placeInto(slot.index, cursor);
+    if (cursor.count === 0) return source.index;
+    return stash.add(cursor, source.gridNo, source.level)[0];
   }
 
   #returnToMerc(merc: RosterMerc, from: number, cursor: ItemObject): void {
@@ -690,6 +616,16 @@ export class MapInventory {
     return this.#campaign.state.worldSector ?? this.#campaign.battle?.roster.all()[0]?.sector ?? null;
   }
 
+  #arrange(cmd: InventoryCommand): CommandResult {
+    const sector = this.#querySector(cmd);
+    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const order = stashOrder(cmd.order);
+    if (!order) return mapRefusal(MapInventoryRefusal.BAD_STASH_ORDER);
+    const stash = stashOf(this.#campaign, sector);
+    stash.arrange(order);
+    return { ok: true, data: { sector: sectorShortString(sector), entries: stash.entries().length } };
+  }
+
   #query(cmd: InventoryCommand): CommandResult {
     const sector = this.#querySector(cmd);
     if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
@@ -697,21 +633,22 @@ export class MapInventory {
     const onMap = campaign.state.flow === 'strategic';
     const stash = stashOf(campaign, sector);
     const items = contentOf(campaign).items;
-    const entries: StashEntryView[] = stash.slots().map((slot, index) => {
-      const view = slotView(items, NO_SLOT, slot.object);
+    const entries: StashEntryView[] = poolOrder(campaign, stash.entries()).map((entry) => {
+      const view = slotView(items, NO_SLOT, entry.object);
       return {
-        index,
-        item: items.byIndex.get(slot.object.item)?.name ?? String(slot.object.item),
-        count: slot.object.count,
-        status: slot.object.status.slice(0, Math.max(1, slot.object.count)),
-        ...(items.byIndex.get(slot.object.item)?.itemClass === ItemClass.MONEY ? { money: slot.object.money } : {}),
+        index: entry.index,
+        item: items.byIndex.get(entry.object.item)?.name ?? String(entry.object.item),
+        count: entry.object.count,
+        status: entry.object.status.slice(0, Math.max(1, entry.object.count)),
+        ...(items.byIndex.get(entry.object.item)?.itemClass === ItemClass.MONEY ? { money: entry.object.money } : {}),
         ...(view.ammo ? { ammo: view.ammo } : {}),
         ...(view.attachments ? { attachments: view.attachments } : {}),
         ...(view.jammed ? { jammed: view.jammed } : {}),
         ...(view.imprint !== undefined ? { imprint: view.imprint } : {}),
-        reachable: (slot.flags & WorldItemFlags.REACHABLE) !== 0,
-        gridNo: slot.gridNo,
-        level: slot.level,
+        ...(view.mission !== undefined ? { mission: view.mission } : {}),
+        reachable: (entry.flags & WorldItemFlags.REACHABLE) !== 0,
+        gridNo: entry.gridNo,
+        level: entry.level,
       };
     });
     const mercs = (campaign.battle?.roster.all() ?? [])

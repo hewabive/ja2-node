@@ -142,6 +142,7 @@ describe('a booby-trapped item on the ground (Handle_Items.cc ContinuePastBoobyT
     const { t, merc } = scene();
     merc.level = 1;
     const wi: WorldItem = {
+      id: t.worldItems.length,
       gridNo: MERC_AT,
       level: 1,
       object: trapped(t, 'CANTEEN', UNSEEN_TRAP),

@@ -178,7 +178,7 @@ describe('the remembered look: a look whose inputs all stand again changes nothi
   it('looks again after a soldier turned, an item showed or a door was seen', () => {
     const { t, merc, look, looks } = scene();
     const item = createItem(content.items, content.items.byName.get('GLOCK_17')?.index ?? 0, 100);
-    t.worldItems.push({ gridNo: ELSEWHERE, level: 0, object: item, flags: 0, zHeight: 0, visible: 0 });
+    t.worldItems.push({ id: t.worldItems.length, gridNo: ELSEWHERE, level: 0, object: item, flags: 0, zHeight: 0, visible: 0 });
     t.doorStatus.set(ELSEWHERE, {
       open: false,
       perceivedOpen: false,

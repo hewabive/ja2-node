@@ -4303,3 +4303,41 @@ describe('snapshot version 86 (no poor shot held for no line of fire) migrates w
     await expectNoCaseHeld(await quietLandedCampaign(kit));
   });
 });
+
+function versionEightySeven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'items' || !Array.isArray(value)) return [name, value];
+    return [name, value.map((item: Json) => Object.fromEntries(Object.entries(object(item)).filter(([key]) => key !== 'id')))];
+  });
+  return { ...snapshot, version: 87, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 87 (no world item ids) migrates with each item's position as its id, the index a fresh item list gives it (World_Items.cc GetFreeWorldItemIndex)", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    const canteen = () => createItem(t.content.items, t.content.items.byName.get('CANTEEN')?.index ?? 0, 100);
+    for (const gridNo of [12000, 12002, 12004]) addItemToPool(t, gridNo, canteen(), Visibility.VISIBLE, 0);
+    const current = snapshotSession(campaign);
+    const legacy = versionEightySeven(current.sim);
+    const ids = (sim: SimSnapshot) =>
+      ((sim.graph.sections.find(([name]) => name === 'items')?.[1] ?? []) as JsonObject[]).map((item) => item.id);
+    expect(ids(current.sim).slice(0, 3)).toEqual([0, 1, 2]);
+    expect(ids(legacy).slice(0, 3)).toEqual([undefined, undefined, undefined]);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

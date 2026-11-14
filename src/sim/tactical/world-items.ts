@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/World_Items.cc AddItemToWorld, LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
+// @src src/game/Tactical/World_Items.cc AddItemToWorld (GetFreeWorldItemIndex: the first index no item holds, 2026-11-14),
+// @src LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
 // @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems, NotifySoldiersToLookforItems; Overhead.cc
 // @src FlatRoofAboveGridNo.
 // @src 2026-11-04: World_Items.cc RemoveItemFromWorld, TrashWorldItems and LoadWorldItemsFromMap's pits and map mines;
@@ -46,6 +47,7 @@ const NO_DETONATOR = 0;
 const WORLD_ITEM_OBJECT_OFFSET = 8;
 
 export interface WorldItem {
+  readonly id: number;
   gridNo: number;
   level: number;
   readonly object: ItemObject;
@@ -152,6 +154,12 @@ function densestLevelHeight(s: StructureInstance): number {
   return height;
 }
 
+function freeWorldItemId(t: TacticalState): number {
+  const taken = new Uint8Array(t.worldItems.length + 1);
+  for (const wi of t.worldItems) if (wi.id < taken.length) taken[wi.id] = 1;
+  return taken.indexOf(0);
+}
+
 export function addItemToPool(
   t: TacticalState,
   g: number,
@@ -170,7 +178,8 @@ export function addItemToPool(
   const object = cloneObject(o);
   setSwitchDetonator(t, object, g, at);
   if (object.item === itemIndex(t, 'ACTION_ITEM') && isPit(object)) setMineFlag(t, at.gridNo, MineFlag.ENEMY);
-  const item: WorldItem = { gridNo: at.gridNo, level, object, flags: at.flags, zHeight: at.zHeight, visible: at.visible };
+  const id = freeWorldItemId(t);
+  const item: WorldItem = { id, gridNo: at.gridNo, level, object, flags: at.flags, zHeight: at.zHeight, visible: at.visible };
   t.worldItems.push(item);
   if (item.flags & WorldItemFlags.ARMED_BOMB) addBombToWorld(t, item);
   return item;

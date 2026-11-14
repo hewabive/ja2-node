@@ -39,7 +39,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `tile-tools.ts`, `xray.ts` | Wire cutters, the jar and the tin can on a tile, the toolkit and the gas can on a vehicle (`25`); the x-ray detector and the radar contacts it gives (§7) |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
-| `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
+| `src/sim/campaign/map-inventory.ts`, `stash.ts`, `sector-loot.ts` | The map screen's sector inventory: its commands, the stash of the loaded sector's world items or an unloaded sector's records, sorted as the pool opens and written back as it closes; items and corpses added to unloaded sectors |
 | `src/sim/campaign/sector-item-count.ts` | The map's and the town box's item count: the objects the sector inventory shows, stored per sector and recounted at every write of its item records as `SaveWorldItemsToTempItemFile` does, the loaded sector's counted from its world items |
 | `explosions/explosion.ts`, `blast-damage.ts`, `structure-damage.ts`, `item-damage.ts` | Ignition, the tile animation, the spread, damage to soldiers, structures and items, chain reactions |
 | `explosions/wreckage.ts`, `map-changes.ts` | What a wrecked structure leaves around it, recorded as map changes |
@@ -88,7 +88,9 @@ tactical with a gun type drops it; the set of types already dropped belongs to t
 highest progress are the campaign's as the soldier is created (`t.campaign`).
 
 **World items are one list.** `TacticalState.worldItems` holds every item of the loaded sector; a tile's pool is its
-entries in list order (`itemsAt`). Visibility keeps the original's values (hidden, buried, inside a closed container,
+entries in list order (`itemsAt`). Each item keeps the index the original would give it, the first one no other item
+holds (`GetFreeWorldItemIndex`), as its `id`, by which the sector inventory names it; the list's order stays the order
+the items came in. Visibility keeps the original's values (hidden, buried, inside a closed container,
 not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. An item put on a generic
 structure marks it (`STRUCTURE_HASITEMONTOP`) until the tile's last item leaves: a merc standing on the tile turns to
 it to reach the items, a blast that wrecks it puts them on the floor, and the client makes it an interactive tile from
@@ -167,6 +169,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A pass to a merc without room for all of it still costs both mercs their 3 AP, and what fits stays with him: the APs go before `AutoPlaceObject` | `item-pointer.test.ts` |
 | An item dropped on the second tile of a long table rolls to its base, but the mark stays on the tile it was dropped on: its pickup clears the base tile alone | `world-items.test.ts` "keeps the mark on the tile an item was dropped on …" |
 | A pickup on his own tile crouched, prone or in water takes the items at once and leaves `MERC_PICKUPITEM` pending, which holds the auto-bandage question back until his next order; a walk-up one counted its walk, so the stance change that ends it drops the action (`Tactical/Soldier_Control.cc:8156-8164`, `:8220-8228`, `:1674`) | `item-actions.test.ts` "keeps it after a pickup on the spot …", "holds the auto-bandage question back …", "is dropped by the change out of the swat …" |
+| Opening and closing the sector inventory sorts the sector's items: the pool sorts as it opens and its close writes the items back in its order, the loaded sector's trashed and added again; a pool item with gridno 0 takes the gridno of the one before it | `src/sim/campaign/map-inventory.test.ts` "writes the pool back into the loaded sector …", "writes the pool of a sector off the map back …" |
+| A pool item put into an empty pool slot, its own included, takes the selected merc's level and loses every flag but the reachable one | `src/sim/campaign/map-inventory.test.ts` "moves a pool item between pool slots …" |
 | A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1560`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
 
 Not pinned yet:

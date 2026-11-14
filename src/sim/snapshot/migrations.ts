@@ -2547,6 +2547,21 @@ function addCantGetThrough(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const WORLD_ITEM_ID_KEY = 'id';
+
+function withWorldItemIds(items: Json): Json {
+  if (!Array.isArray(items)) return items;
+  return items.map(
+    (item: Json, k: number): Json => (isObject(item) && item[WORLD_ITEM_ID_KEY] === undefined ? { [WORLD_ITEM_ID_KEY]: k, ...item } : item),
+  );
+}
+
+function addWorldItemIds(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, name === ITEMS_SECTION ? withWorldItemIds(value) : value]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2635,5 +2650,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     84: addProfileStatDeltas,
     85: addPlacementButton,
     86: addCantGetThrough,
+    87: addWorldItemIds,
   };
 }
