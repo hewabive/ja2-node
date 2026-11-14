@@ -18,13 +18,22 @@ import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { AP } from '../points.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
-import { NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team, Visible } from '../soldier.ts';
+import type { TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
 import { soldierDifficultyLevel } from './chance.ts';
 import { addCorpseStructure } from './death.ts';
-import { calcChanceToStab, eventSoldierBeginBladeAttack, eventSoldierBeginPunchAttack, hthImpact, meleeOpcode, useBlade } from './melee.ts';
+import {
+  calcChanceToStab,
+  eventSoldierBeginBladeAttack,
+  eventSoldierBeginPunchAttack,
+  hthImpact,
+  meleeOpcode,
+  useBlade,
+  useHandToHand,
+} from './melee.ts';
 import { AiMorale, AimShot, WeaponMode } from './types.ts';
 
 let content: TacticalContent;
@@ -212,6 +221,65 @@ describe('knife attacks', () => {
     expect(t.content.animations.controls[merc.state]?.endHeight).toBe(AnimHeight.CROUCH);
     runUntilIdle(sim);
     expect(t.turn.attackBusyCount).toBe(0);
+  });
+});
+
+describe('the strike of a soldier the squad does not see (D16; the swoosh plays for a visible striker only, Soldier_Ani.cc:2167)', () => {
+  function unseenStriker(hand: string | null): { t: TacticalState; merc: Soldier; enemy: Soldier } {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 81), Direction.NORTH, { gun: hand ?? KNIFE });
+    if (hand === null) enemy.inv[InvSlot.HAND] = emptyObject();
+    sim.lookAround();
+    enemy.visible = Visible.HIDDEN;
+    const attackingWeapon = enemy.inv[InvSlot.HAND]?.item ?? 0;
+    Object.assign(enemy, { attackingWeapon, aimShotLocation: AimShot.TORSO, targetLevel: 0, actionPoints: 100 });
+    return { t: sim.state, merc, enemy };
+  }
+
+  function strike(t: TacticalState, attack: () => void): { landed: boolean; told: unknown[] } {
+    t.turn.attackBusyCount = 1;
+    t.gameEvents.length = 0;
+    t.events.length = 0;
+    attack();
+    return { landed: t.gameEvents.some((e) => e.kind === 'weaponHit'), told: t.events.filter((e) => e.type === 'meleeStrike') };
+  }
+
+  it.each([
+    ['stab', KNIFE, 'blade'],
+    ['punch', null, 'punch'],
+  ] as const)('tells a %s that lands by its striker and weapon alone, for the impact the squad hears', (_, hand, weapon) => {
+    const { t, merc, enemy } = unseenStriker(hand);
+    master(enemy);
+    novice(merc);
+    const use = hand === null ? useHandToHand : useBlade;
+    expect(strike(t, () => use(t, enemy, merc.gridNo))).toEqual({
+      landed: true,
+      told: [{ type: 'meleeStrike', soldier: enemy.id, weapon }],
+    });
+  });
+
+  it.each([
+    ['stab', KNIFE],
+    ['punch', null],
+  ] as const)('tells nothing of a %s that misses', (_, hand) => {
+    const { t, merc, enemy } = unseenStriker(hand);
+    novice(enemy);
+    master(merc);
+    const use = hand === null ? useHandToHand : useBlade;
+    const misses = Array.from({ length: 20 }, () => strike(t, () => use(t, enemy, merc.gridNo))).filter((s) => !s.landed);
+    expect(misses.length).toBeGreaterThan(0);
+    expect(misses.flatMap((s) => s.told)).toEqual([]);
+  });
+
+  it('tells the whole strike once the squad sees the striker', () => {
+    const { t, merc, enemy } = unseenStriker(KNIFE);
+    enemy.visible = Visible.SEEN;
+    master(enemy);
+    novice(merc);
+    expect(strike(t, () => useBlade(t, enemy, merc.gridNo)).told).toEqual([
+      { type: 'meleeStrike', soldier: enemy.id, target: merc.gridNo, weapon: 'blade', chance: expect.any(Number), hit: true },
+    ]);
   });
 });
 

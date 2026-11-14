@@ -54,7 +54,7 @@ import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, inSector, NO_PROFILE, OKLIFE, Side, type Soldier, Team, Visible } from '../soldier.ts';
 import { shownInSector, type TacticalState } from '../state.ts';
-import { heardOnly, loudestScream, screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
+import { screamVolume, soundPlace, unseenVictim, unseenVoice } from '../unseen-sources.ts';
 import { vehicleShareOfDamage, vehicleTakeDamage } from '../vehicle-damage.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
@@ -805,7 +805,7 @@ function feedbackVoice(t: TacticalState, s: Soldier): Pick<DamageFeedbackEvent, 
   if (s.muted) return {};
   if (!inSector(s)) return { cry: { ...unseenVictim(s, (profile) => t.sectorHooks.profileVoice(t, profile)), team: s.team } };
   if (shownInSector(t, s)) return {};
-  return { unseen: unseenVictim(s), ...heardOnly(t, s, loudestScream(t, s), NoiseKind.SCREAM) };
+  return unseenVoice(t, s);
 }
 
 function handleSoldierTakeDamageFeedback(t: TacticalState, s: Soldier, cause: DamageCause): void {

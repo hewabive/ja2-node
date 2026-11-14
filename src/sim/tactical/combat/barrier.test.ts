@@ -5,7 +5,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { AiAction } from '../ai/actions.ts';
 import type { TacticalContent } from '../content.ts';
-import { Team } from '../soldier.ts';
+import { Team, Visible } from '../soldier.ts';
 import { sendBeginFireWeaponEvent } from './attack.ts';
 import { reduceAttackBusyCount } from './barrier.ts';
 
@@ -59,5 +59,26 @@ describe('the end of an attack', () => {
     sendBeginFireWeaponEvent(t, enemy, merc.gridNo);
     reduceAttackBusyCount(t, merc, false);
     expect([enemy.ai.action, enemy.ai.actionInProgress]).toEqual([AiAction.FIRE_GUN, true]);
+  });
+});
+
+describe('the attackResolved event', () => {
+  const resolvedBy = (visible: number) => {
+    const { t, enemy } = enemyAttackingWhileOurAttackHoldsTheCount(AiAction.FIRE_GUN);
+    enemy.visible = visible;
+    t.events.length = 0;
+    reduceAttackBusyCount(t, enemy, false);
+    const told = t.events.filter((e) => e.type === 'attackResolved').map((e) => e.soldier);
+    return { attacker: enemy.id, told, count: t.turn.attackBusyCount };
+  };
+
+  it('names an attacker the squad sees as his attack ends', () => {
+    const { attacker, told, count } = resolvedBy(Visible.SEEN);
+    expect([told, count]).toEqual([[attacker], 0]);
+  });
+
+  it('tells nothing of the end of an attack by a soldier the squad does not see (D16), which ends all the same', () => {
+    const { told, count } = resolvedBy(Visible.HIDDEN);
+    expect([told, count]).toEqual([[], 0]);
   });
 });

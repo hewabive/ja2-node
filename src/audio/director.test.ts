@@ -658,6 +658,25 @@ describe('the sound director', () => {
     expect(files(r)).toEqual(['battlesnds/007_noth.wav']);
   });
 
+  it('has a soldier out of sight say his NOTHING from where the squad hears it, in the voice the event names', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    const heard = { by: 1, direction: Direction.NORTH, volumeClass: 3 };
+    const unseen = { voice: '033', bodyType: 0 };
+    r.director.applyFrames([frame(10, [], [{ type: 'nothingFound', tick: 10, soldier: 70, unseen, heard }])]);
+    expect(files(r)).toEqual(['battlesnds/033_noth.wav']);
+    expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3) });
+  });
+
+  it('strikes the knife impact for the stab of a striker out of sight, told by its striker and blade alone', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    const stab = { type: 'meleeStrike', tick: 9, soldier: 99, weapon: 'blade' } as const;
+    const hit = { type: 'soldierHit', tick: 10, soldier: 1, attacker: 99, gridNo: G, location: 'torso', special: 0 } as const;
+    r.director.applyFrames([frame(10, [], [stab, { ...hit, conscious: false, damage: 10, breathLoss: 0, life: 70 }])]);
+    expect(files(r)).toEqual([book.paths.get('KNIFE_IMPACT')]);
+  });
+
   it('has a soldier who trips and falls on the way curse with CURSE1', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0)], []);

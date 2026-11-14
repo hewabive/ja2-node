@@ -732,7 +732,7 @@ export class SoundDirector {
         if (e.battleSound) this.#battleSound(e.soldier, e.battleSound, false);
         return;
       case 'nothingFound':
-        this.#battleSound(e.soldier, 'NOTHING', false);
+        this.#voiceSound(this.#victim(e.soldier, this.#sourcePlace(e.soldier, e.gridNo, e.heard), e.unseen), 'NOTHING', false);
         return;
       case 'fellDown':
       case 'slippedOnMarbles':

@@ -21,7 +21,8 @@
 // @src removePendingAction dropping a held MERC_GIVEITEM (2026-11-08), and its BATTLE_SOUND_OK1 for our merc whose path
 // @src there is longer than 5, played by the client (2026-11-09); PickPickupAnimation leaving MERC_PICKUPITEM pending after a
 // @src pickup with no animation, handlePendingAction leaving it after a walk ending off its tile, code 493 reading the
-// @src data the action leaves (2026-11-09).
+// @src data the action leaves (2026-11-09); Soldier_Control.cc InternalDoMercBattleSound's BATTLE_SOUND_NOTHING, which a
+// @src soldier without a profile or a muted one never makes (2026-11-13).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -63,9 +64,10 @@ import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
 import { openTacticalPrompt, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
-import { type PendingPickup, type Pickup, pickupInTheSlot, type Soldier, Team } from './soldier.ts';
+import { NO_PROFILE, type PendingPickup, type Pickup, pickupInTheSlot, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { shownInSector, type TacticalState, whoIsThere } from './state.ts';
+import { unseenVoice } from './unseen-sources.ts';
 import {
   addItemToPool,
   FORCE_ON_GROUND,
@@ -255,7 +257,12 @@ function knownMineAt(t: TacticalState, g: number, level: number): WorldItem | nu
 }
 
 function sayNothingFound(t: TacticalState, s: Soldier, gridNo: number): void {
-  t.events.push({ type: 'nothingFound', soldier: s.id, gridNo });
+  if (shownInSector(t, s)) t.events.push({ type: 'nothingFound', soldier: s.id, gridNo });
+  else if (hasNothingSound(s)) t.events.push({ type: 'nothingFound', soldier: s.id, ...unseenVoice(t, s) });
+}
+
+function hasNothingSound(s: Soldier): boolean {
+  return s.profile !== NO_PROFILE && !s.muted;
 }
 
 function foundHiddenItems(t: TacticalState, s: Soldier): void {

@@ -45,7 +45,7 @@ import { AP } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { selectedSoldier } from '../selection.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import { mercs, type TacticalState } from '../state.ts';
+import { mercs, shownInSector, type TacticalState } from '../state.ts';
 import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
 import { vehicleOfOurs } from '../vehicle-presence.ts';
 import { handleAnyStatChangesAfterAttack, StatCause, statChange } from './experience.ts';
@@ -261,7 +261,7 @@ export function internalReduceAttackBusyCount(
   if (!t.inCombat && soldier) endMuzzleFlash(t, soldier);
   if (soldier && soldier.weaponMode === WeaponMode.ATTACHED) soldier.weaponMode = WeaponMode.NORMAL;
   if (soldier) soldier.lastTarget = soldier.targetGridNo;
-  t.events.push({ type: 'attackResolved', soldier: soldier?.id ?? null });
+  if (!soldier || shownInSector(t, soldier)) t.events.push({ type: 'attackResolved', soldier: soldier?.id ?? null });
   return target;
 }
 

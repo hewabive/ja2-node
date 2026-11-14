@@ -212,10 +212,10 @@ export interface ShotFiredEvent extends SimEventBase {
 export interface MeleeStrikeEvent extends SimEventBase {
   readonly type: 'meleeStrike';
   readonly soldier: number;
-  readonly target: number;
+  readonly target?: number;
   readonly weapon: 'blade' | 'punch';
-  readonly chance: number;
-  readonly hit: boolean;
+  readonly chance?: number;
+  readonly hit?: boolean;
 }
 
 export interface StealAttemptEvent extends SimEventBase {
@@ -432,7 +432,9 @@ export interface ItemsPickedUpEvent extends SimEventBase {
 export interface NothingFoundEvent extends SimEventBase {
   readonly type: 'nothingFound';
   readonly soldier: number;
-  readonly gridNo: number;
+  readonly gridNo?: number;
+  readonly unseen?: UnseenVictim;
+  readonly heard?: HeardFrom;
 }
 
 export interface PickupConfirmedEvent extends SimEventBase {

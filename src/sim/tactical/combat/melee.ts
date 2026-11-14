@@ -6,7 +6,8 @@
 // @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH (the steal mode 2026-10-31), CalcChanceToStab, CalcChanceToPunch,
 // @src CalcChanceToSteal, DishoutQueenSwipeDamage;
 // @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 752 (decapitate), 755 (queen swipe)
-// @src and 761 (eat flesh).
+// @src and 761 (eat flesh); opcode 727's swoosh, played for a visible striker only, so an unseen one's strike is told by
+// @src the impact it lands alone (2026-11-13).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
@@ -57,7 +58,7 @@ import {
   type Soldier,
   Team,
 } from '../soldier.ts';
-import { mercs, type TacticalState, whoIsThere } from '../state.ts';
+import { mercs, shownInSector, type TacticalState, whoIsThere } from '../state.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
 import { ENEMY_TO_HIT_MOD, rangeInUnits, soldierDifficultyLevel } from './chance.ts';
@@ -509,6 +510,18 @@ export function noticeStrike(s: Soldier, tgt: Soldier): void {
   s.opponent = tgt;
 }
 
+interface Strike {
+  readonly target: number;
+  readonly weapon: 'blade' | 'punch';
+  readonly chance: number;
+  readonly hit: boolean;
+}
+
+function tellStrike(t: TacticalState, s: Soldier, strike: Strike, lands: boolean): void {
+  if (shownInSector(t, s)) t.events.push({ type: 'meleeStrike', soldier: s.id, ...strike });
+  else if (lands) t.events.push({ type: 'meleeStrike', soldier: s.id, weapon: strike.weapon });
+}
+
 export function useBlade(t: TacticalState, s: Soldier, g: number): void {
   deductPoints(t, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
   const tgt = whoIsThere(t, g, s.targetLevel);
@@ -518,7 +531,7 @@ export function useBlade(t: TacticalState, s: Soldier, g: number): void {
     const chance = meleeChanceToHit(t, s, tgt, s.aimTime, true);
     const roll = t.pre.int(100);
     const hit = roll <= chance;
-    t.events.push({ type: 'meleeStrike', soldier: s.id, target: g, weapon: 'blade', chance, hit });
+    tellStrike(t, s, { target: g, weapon: 'blade', chance, hit }, hit);
     if (hit) {
       const blade = s.inv[s.attackingHand] as ItemObject;
       let impact = hthImpact(t, s, tgt, chance - roll, true);
@@ -549,14 +562,15 @@ export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
     let roll = t.pre.int(100);
     if (animName(t.content, s.state) === 'NINJA_SPINKICK') roll = t.pre.int(chance);
     const hit = roll <= chance;
-    t.events.push({ type: 'meleeStrike', soldier: s.id, target: g, weapon: 'punch', chance, hit });
+    const lands = hit || inMeanwhile(t);
+    tellStrike(t, s, { target: g, weapon: 'punch', chance, hit }, lands);
     if (s.team === Team.OUR && tgt.team !== Team.OUR) {
       const xp = u8(modifyExpGainByTarget(hit ? HTH_HIT_XP : HTH_MISS_XP, tgt));
       const cause = hit ? StatCause.SUCCESS : StatCause.FAILURE;
       statChange(t, s, StatKind.STRENGTH, xp, cause);
       statChange(t, s, StatKind.DEXTERITY, xp, cause);
     } else if (!hit) agilityForEnemyMissingPlayer(t, s, tgt, HTH_DODGE_AGILITY);
-    if (hit || inMeanwhile(t)) {
+    if (lands) {
       let impact = hthImpact(t, s, tgt, chance - roll, false);
       impact = adjustImpactByHitLocation(impact, s.aimShotLocation).impact;
       queueWeaponHit(t, s, tgt, Math.max(impact, 1));

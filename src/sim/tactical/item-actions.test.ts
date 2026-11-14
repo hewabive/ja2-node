@@ -17,7 +17,7 @@ import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from './narrative/port.ts';
 import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
-import { type Soldier, Team, Visible } from './soldier.ts';
+import { NO_PROFILE, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from './world-items.ts';
 
@@ -523,7 +523,32 @@ describe('searching a tile that shows no item (Turn_Based_Input.cc HandleHandCur
 
   it('has a soldier whose pile is gone when he gets there say the NOTHING battle sound (:1313)', () => {
     const s = pickupScene(IVAN, Team.ENEMY);
+    s.merc.visible = Visible.SEEN;
     soldierPickupItem(s.sim.state, s.merc, s.merc.gridNo, 0, null);
     expect(nothingFound(pickupTicks(s))).toEqual([expect.objectContaining({ soldier: s.merc.id, gridNo: s.merc.gridNo })]);
+  });
+
+  it('lets the squad hear the NOTHING of a soldier with a profile out of sight from where it comes, never where he stands (D16)', () => {
+    const s = pickupScene(IVAN, Team.ENEMY);
+    const listener = spawnSoldier(s.sim, 0, Team.OUR, gridNo(80, 84), Direction.SOUTH);
+    soldierPickupItem(s.sim.state, s.merc, s.merc.gridNo, 0, null);
+    expect([nothingFound(pickupTicks(s)), s.merc.visible]).toEqual([
+      [
+        {
+          type: 'nothingFound',
+          tick: expect.any(Number),
+          soldier: s.merc.id,
+          unseen: { voice: '007', bodyType: s.merc.bodyType },
+          heard: expect.objectContaining({ by: listener.id, direction: Direction.NORTH }),
+        },
+      ],
+      Visible.HIDDEN,
+    ]);
+  });
+
+  it('keeps a soldier without a profile out of sight silent: the bad guys have no NOTHING (Soldier_Control.cc:150)', () => {
+    const s = pickupScene(NO_PROFILE, Team.ENEMY);
+    soldierPickupItem(s.sim.state, s.merc, s.merc.gridNo, 0, null);
+    expect(nothingFound(pickupTicks(s))).toEqual([]);
   });
 });

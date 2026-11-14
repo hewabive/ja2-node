@@ -7,7 +7,7 @@
 import { battleVoiceBasename } from '../../content/audio/battle-sound.ts';
 import { u8 } from '../../core/int.ts';
 import type { HeardFrom, UnseenVictim } from '../events.ts';
-import { squadHears } from './perception/noise.ts';
+import { NoiseKind, squadHears } from './perception/noise.ts';
 import { effectiveExpLevel, type LoadedSector } from './skills.ts';
 import { NO_PROFILE, type Soldier } from './soldier.ts';
 import { shownInSector, type TacticalState } from './state.ts';
@@ -36,6 +36,10 @@ export function unseenVictim(s: Soldier, voiceOf: (profile: number) => number = 
 export function heardOnly(t: TacticalState, s: Soldier, volume: number, kind: number): { readonly heard?: HeardFrom } {
   const heard = squadHears(t, s.gridNo, s.level, volume, kind);
   return heard ? { heard } : {};
+}
+
+export function unseenVoice(t: TacticalState, s: Soldier): { readonly unseen: UnseenVictim; readonly heard?: HeardFrom } {
+  return { unseen: unseenVictim(s), ...heardOnly(t, s, loudestScream(t, s), NoiseKind.SCREAM) };
 }
 
 export function soundPlace(
