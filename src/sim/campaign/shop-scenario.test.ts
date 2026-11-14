@@ -48,6 +48,8 @@ const SAM = 7;
 const PERKO_PROFILE = 74;
 const ARNIE = 14;
 const ARNIE_PROFILE = 128;
+const FREDO = 15;
+const CAN_RESET_IMPRINTING = 31;
 const SK_QUOTE_FIRST_ENTERS = 11;
 const DEALER_SLOT = 12;
 const OPEN = 8 * 60;
@@ -258,6 +260,32 @@ describe('shop scenario on the stub village', () => {
     expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
     expect(c.shop?.openFromTalk(FRANZ_PROFILE, merc.id)?.ok).toBe(true);
     expect(c.shop?.view()).not.toHaveProperty('offered');
+  });
+
+  it("silences Fredo's rocket rifle quote once the browser reports it played, not at a repair trade of the rifle (EvaluateInvSlot)", () => {
+    const c = startCampaign(7);
+    const merc = firstMerc(c);
+    const fredo = merchants.content.dealers[FREDO]?.profile ?? -1;
+    spawnDealer(c, fredo, DEALER_SLOT, merc);
+    const rifle = () => {
+      merc.inv[InvSlot.HAND] = createItem(merchants.items, item('ROCKET_RIFLE'), 100);
+    };
+    const repair = [{ soldier: merc.id, slot: 'hand' }];
+    const quotes = () => (c.dispatch({ type: 'quoteTrade', repair }).data as { readonly quotes: readonly number[] }).quotes;
+    rifle();
+    expect(c.dispatch({ type: 'openShop', dealer: fredo, soldier: merc.id }).ok).toBe(true);
+    expect(quotes()).toContain(CAN_RESET_IMPRINTING);
+    expect(c.dispatch({ type: 'trade', repair, useBalance: true }).ok).toBe(true);
+    rifle();
+    expect(quotes()).toContain(CAN_RESET_IMPRINTING);
+    expect(c.dispatch({ type: 'shopQuoteSaid', quote: SK_QUOTE_FIRST_ENTERS })).toEqual(shopRefusal('noStateQuote'));
+    expect(c.dispatch({ type: 'shopQuoteSaid', quote: CAN_RESET_IMPRINTING })).toEqual({ ok: true });
+    expect(quotes()).not.toContain(CAN_RESET_IMPRINTING);
+    expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'shopQuoteSaid', quote: CAN_RESET_IMPRINTING })).toEqual(shopRefusal('shopNotOpen'));
+    spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT + 1, merc);
+    expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: merc.id }).ok).toBe(true);
+    expect(c.dispatch({ type: 'shopQuoteSaid', quote: CAN_RESET_IMPRINTING })).toEqual(shopRefusal('noStateQuote'));
   });
 
   it('drops a pending auto-bandage question as the shop opens (EnterShopKeeperInterfaceScreen leaves tactical)', () => {

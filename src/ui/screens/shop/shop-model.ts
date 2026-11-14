@@ -8,7 +8,8 @@
 // @src drop), SelectPlayersOfferSlotsRegionCallBackSecondary (back to the owner), BeginSkiItemPointer (a pocket offered
 // @src at once unless CTRL), OfferObjectToDealer, CrossOutUnwantedItems, EnableDisableEvaluateAndTransactionButtons (the
 // @src enable rules in their order, the gift override), PerformTransaction (the deduction box, "not enough funds",
-// @src "no room", the dealer's cash quote), ExitSKIRequested (the reminder, then the farewell), ResetAllQuoteSaidFlags.
+// @src "no room", the dealer's cash quote), ExitSKIRequested (the reminder, then the farewell), ResetAllQuoteSaidFlags;
+// @src EvaluateInvSlot (Fredo's quote 31 reported as it plays, which sets his flag, 2026-11-14).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { ShopBoxView, ShopView } from '../../../protocol/view.ts';
@@ -542,7 +543,9 @@ export class ShopModel {
     );
     if (result !== undefined) {
       if (this.#evalQuotesSaid.has(result)) return;
-      if (this.#say(result)) this.#evalQuotesSaid.add(result);
+      if (!this.#say(result)) return;
+      this.#evalQuotesSaid.add(result);
+      if (result === ShopQuoteId.CAN_RESET_IMPRINTING) void this.#hooks.command({ type: 'shopQuoteSaid', quote: result });
       return;
     }
     if (!quote.sell.some((s) => s.evaluation === 'value') || this.#evalQuotesSaid.has(ShopQuoteId.NORMAL_EVALUATION)) return;

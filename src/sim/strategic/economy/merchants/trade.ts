@@ -6,7 +6,8 @@
 // @src RemoveItemFromDealersInventory, MovePlayersItemsToBeRepairedToArmsDealersInventory, GivePlayerSomeChange,
 // @src DealerGetsBribed, OfferObjectToDealer, SplitComplexObjectIntoSubObjects, CountSubObjectsInObject,
 // @src EvaluateItemAddedToPlayersOfferArea, EvaluateInvSlot, WillShopKeeperRejectObjectsFromPlayer,
-// @src ConfirmToDeductMoneyFromPlayersAccountMessageBoxCallBack.
+// @src ConfirmToDeductMoneyFromPlayersAccountMessageBoxCallBack; EvaluateInvSlot (FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE set
+// @src as the evaluation's quote 31 plays, which the browser reports, 2026-11-14).
 
 import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { DealerFlag, DealerType, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';
@@ -513,6 +514,13 @@ function executeGift(ctx: MerchantContext, plan: TradePlan): TradeOutcome {
   return { giftAccepted: accepted, delivered: [], taken, purchased: [], repairs: [], fromBalance: 0, change: 0 };
 }
 
+export function rocketRifleQuoteSaid(ctx: MerchantContext, dealer: number): boolean {
+  if (!hasDealerFlag(dealerDef(ctx, dealer), DealerFlag.REPAIRS_ELECTRONICS)) return false;
+  const status = dealerState(ctx.state, dealer).status;
+  status.flags |= FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE;
+  return true;
+}
+
 export function executeTrade(ctx: MerchantContext, plan: TradePlan): TradeOutcome {
   if (plan.refusal) throw new Error(`cannot execute a refused trade: ${plan.refusal.refusal}`);
   if (plan.gift) return executeGift(ctx, plan);
@@ -537,8 +545,6 @@ export function executeTrade(ctx: MerchantContext, plan: TradePlan): TradeOutcom
     }
     for (const e of plan.doa) {
       const element = giveObjectToArmsDealerForRepair(ctx, d.id, e.object, e.owner);
-      if (itemIsARocketRifle(ctx.content, e.object.item) && hasDealerFlag(d, DealerFlag.REPAIRS_ELECTRONICS))
-        status.flags |= FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE;
       const doneAt = ctxDoneTime(ctx, d.id, e.object.item, element);
       repairs.push({ entry: e, element, doneAt });
     }

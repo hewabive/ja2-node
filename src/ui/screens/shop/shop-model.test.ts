@@ -187,6 +187,38 @@ describe('ShopModel', () => {
     expect(f.said.slice(0, 2)).toEqual([ShopQuoteId.REQUESTED_EVALUATION, ShopQuoteId.STUFF_REJECTED]);
   });
 
+  it("reports Fredo's rocket rifle quote as it plays, and only then (EvaluateInvSlot sets his flag with the quote)", async () => {
+    const f = fixture(shopView([], { kind: 'repair' }));
+    let speaking = false;
+    const reported = () => f.sent.filter((c) => c.type === 'shopQuoteSaid');
+    f.answers = (cmd) =>
+      cmd.type === 'quoteTrade'
+        ? { ok: true, data: quote({ repair: [{ item: 'ROCKET_RIFLE' }] as never, quotes: [ShopQuoteId.CAN_RESET_IMPRINTING] }) }
+        : { ok: true };
+    const silent = new ShopModel({
+      command: async (cmd) => {
+        f.sent.push(cmd);
+        return f.answers(cmd);
+      },
+      shop: () => f.shop,
+      isMoney: () => false,
+      text,
+      confirm: async () => true,
+      alert: async () => undefined,
+      speak: () => speaking,
+      shutUp: () => undefined,
+    });
+    silent.pocketClick(0, 5, 'ROCKET_RIFLE', false);
+    await settle();
+    expect(reported()).toEqual([]);
+    silent.playerOfferSecondary(0);
+    await settle();
+    speaking = true;
+    silent.pocketClick(0, 5, 'ROCKET_RIFLE', false);
+    await settle();
+    expect(reported()).toEqual([{ type: 'shopQuoteSaid', quote: ShopQuoteId.CAN_RESET_IMPRINTING }]);
+  });
+
   it('follows the enable rules: cost over value and balance, money alone, the gift override and the held item', async () => {
     const f = fixture(shopView([box('GLOCK_17', 7)], { balance: 100 }));
     f.answers = () => ({

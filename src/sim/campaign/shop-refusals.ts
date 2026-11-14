@@ -31,6 +31,7 @@ export type ShopRefusal =
   | 'itemNotFound'
   | 'notMoney'
   | 'notEnoughMoney'
+  | 'noStateQuote'
   | TradeRefusalToken;
 
 const SHOP_REFUSAL_TEXT: RefusalTexts<ShopRefusal> = {
@@ -62,6 +63,7 @@ const SHOP_REFUSAL_TEXT: RefusalTexts<ShopRefusal> = {
   itemNotFound: 'no such item in that slot',
   notMoney: 'cash must name a money pocket',
   notEnoughMoney: 'not that much money in the pocket',
+  noStateQuote: 'only the rocket rifle quote (31) of a dealer who resets imprints is reported',
   noSuchBox: 'no such box on the dealer shelves',
   notEnoughInBox: 'not that many in the box',
   dealerOfferAreaFull: "the dealer's offer area is full",

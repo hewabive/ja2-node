@@ -40,6 +40,7 @@ import {
   type PlayerObject,
   type PoaEntry,
   planTrade,
+  rocketRifleQuoteSaid,
   ShopQuote,
   type TradeInput,
   type TradePlan,
@@ -73,7 +74,7 @@ const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const NOT_VISIBLE = -1;
 const NO_SQUAD = -1;
-const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing']);
+const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing', 'shopQuoteSaid']);
 
 export interface OfferedPocket {
   readonly soldier: number;
@@ -165,6 +166,8 @@ export class ShopFlow {
           return this.#trade(cmd, false);
         case 'setShopPricing':
           return this.#setPricing(cmd);
+        case 'shopQuoteSaid':
+          return this.#quoteSaid(cmd);
         default:
           return this.#close();
       }
@@ -395,6 +398,12 @@ export class ShopFlow {
     });
     this.#emit({ type: 'shopClosed', dealer: profile });
     this.#session = null;
+    return { ok: true };
+  }
+
+  #quoteSaid(cmd: CampaignCommand): CommandResult {
+    const session = this.#requireSession();
+    if (cmd.quote !== ShopQuote.CAN_RESET_IMPRINTING || !rocketRifleQuoteSaid(this.#ctx, session.dealer)) refuse('noStateQuote');
     return { ok: true };
   }
 

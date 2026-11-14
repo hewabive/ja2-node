@@ -303,7 +303,7 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 | State | Accepted | Refused with | `advance` |
 |---|---|---|---|
 | Prompt open (§4.2) | `answer`, `skipLine` | `promptOpen` | stops at once with `decision` |
-| Shop open (§8.13) | `quoteTrade`, `trade`, `setShopPricing`, `closeShop`, `skipLine` | `shopOpen` | `refused` (`shopOpen: …`) |
+| Shop open (§8.13) | `quoteTrade`, `trade`, `setShopPricing`, `shopQuoteSaid`, `closeShop`, `skipLine` | `shopOpen` | `refused` (`shopOpen: …`) |
 | Laptop open (§8.11) | laptop commands and queries, `skipLine` | `laptopOpen` | `refused` (`laptopOpen: …`) |
 | Conversation waiting for a choice (§8.4) | `approach`, `give`, `closeTalk`, `skipLine` | `conversationOpen` | `refused` (`conversationOpen`) |
 | Scripted sequence | `skipLine` | `scriptedSequence` | runs it until it ends or a panel or prompt opens |
@@ -1110,7 +1110,11 @@ pointer (`IsGunOrAmmoOfSameTypeSelected`). A `give` of a whole pocket to a deale
 that pocket for the offer table, `offered` in `shopOpened` (the slot) and in `shop` (`{soldier, slot}`), which the
 browser puts on the table and has evaluated as the original does (`Tactical/Handle_Items.cc:2384`,
 `Tactical/ShopKeeper_Interface.cc:676`); it stays in the pocket until a `trade` sells it (deviation "Giving to a
-dealer").
+dealer"). `shopQuoteSaid {quote: 31}` is the browser's report that the shopkeeper said the rocket rifle quote of a
+dealer who resets imprints, as `quoteTrade`'s `quotes` asked it to: from then on he never says it again
+(`ARMS_DEALER_FLAG__FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE`, `Tactical/ShopKeeper_Interface.cc:4845-4848`). A trade sets
+nothing; an agent's quotes have no playback, so an agent need not send it. It is an ordinary logged command, accepted
+from any client while such a shop is open (else `noStateQuote`).
 
 ### 8.14 Quests, meanwhiles and the ending
 
