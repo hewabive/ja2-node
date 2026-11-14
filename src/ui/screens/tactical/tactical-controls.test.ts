@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { A10_STAIRS, campaignInA10, hideRoomOf, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
+import { addSyntheticCrate } from '../../../../tests/support/combat.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
@@ -17,18 +18,25 @@ import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
 import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
-import type { DoorMenuOption } from '../../../protocol/hints.ts';
+import type { DoorMenuOption, PreviewAction, PreviewMove } from '../../../protocol/hints.ts';
 import type { ClimbView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import { createSandboxSession } from '../../../server/sandbox.ts';
+import { Session } from '../../../server/session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
+import { knowledgeRules } from '../../../sim/knowledge/knowledge-world.ts';
 import { Npc } from '../../../sim/strategic/narrative/npc-ids.ts';
+import { AnimHeight } from '../../../sim/tactical/animation.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
+import { doorApCost } from '../../../sim/tactical/doors/door-actions.ts';
+import { HandleDoor } from '../../../sim/tactical/doors/door-table.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { NpcActionCode } from '../../../sim/tactical/narrative/npc-actions/codes.ts';
 import { markGroundRevealed } from '../../../sim/tactical/perception/fov.ts';
+import { apsToChangeStance } from '../../../sim/tactical/points.ts';
 import { Orders } from '../../../sim/tactical/soldier.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
@@ -1214,6 +1222,50 @@ describe('the tactical input on the tactical screen', () => {
       ['NORMALHANDCURSOR_UICURSOR', false, 21, 15],
       ['NORMALHANDCURSOR_UICURSOR', false, 22, 15],
     ]);
+  });
+
+  it('previews a container under the pointer as the door order, the walk beside it, doorAPs[HANDLE_DOOR_OPEN] and the stand-up, and opens it on the click (DrawUIMovementPath MOVEUI_TARGET_INTTILES)', async () => {
+    const session = new Session('crate', await createSandboxSession(kit.read, false, BATTLE_SANDBOX_SEED));
+    approachUntilCombat(session, false);
+    untilOurTurn(session);
+    session.dispatch({ type: 'stance', soldier: 0, stance: 'crouch' });
+    session.advance({ idle: true });
+    const t = tacticalOf(session).state;
+    const crouched = t.soldiers.find((s) => s?.id === 0);
+    if (!crouched) throw new Error('no merc 0');
+    const crate = crouched.gridNo + 3;
+    addSyntheticCrate(t.world.structures, crate);
+    const withCrate = (path: string) => {
+      const world = kit.worlds.world(path);
+      if (world) addSyntheticCrate(world.structures, crate);
+      return world;
+    };
+    const client = { ...ui.client, rules: knowledgeRules(ui.client.content, { world: withCrate }, ui.client.rules.strategic) };
+    const f = await tacticalUiTest(kit, { ...ui, client }, BATTLE_SANDBOX_SEED, session);
+    f.screen.select(0, false);
+    await f.settle();
+    const at = f.world.pickPoint(crate);
+    const node = { gridNo: crate, index: 0, tile: CRATE_TILE, bottom: at.y + 20, door: false, open: false };
+    f.world.interactiveNodes = () => [node];
+    f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: crate, door: false, switch: false, open: false, itemOnTop: false });
+    const preview = async (kind: string) =>
+      (await f.client.hintNow({ type: 'previewAction', soldier: 0, gridNo: crate, kind, mode: 'swat' })).data as PreviewAction;
+    const door = await preview('door');
+    const walk = (await f.client.hintNow({ type: 'previewMove', soldier: 0, to: door.actionGridNo, mode: 'swat' })).data as PreviewMove;
+    const standUp = apsToChangeStance(t.content, crouched, AnimHeight.STAND);
+    expect(standUp).toBeGreaterThan(0);
+    expect(door.actionGridNo).not.toBe(crate);
+    expect(door.apCost).toBe(walk.apCost + doorApCost(HandleDoor.OPEN) + standUp);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(f.screen.controls.input.uiCursor).toBe('NORMALHANDCURSOR_UICURSOR');
+    expect(f.screen.controls.input.mouseText()?.actionPoints?.value).toBe(door.apCost);
+    expect(f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'))?.gridNo).toBe(door.actionGridNo);
+    await f.clickAt(at.x, at.y);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    expect(commandsOf(f, 'door')).toEqual([]);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'door')).toEqual([{ type: 'door', soldier: 0, gridNo: crate, action: 'open' }]);
   });
 
   it('puts the AP number of the free-flowing move cursors where DrawUICursor sets it, over the offsets of the move mode', async () => {

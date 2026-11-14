@@ -10,6 +10,7 @@ import type { Soldier } from '../../src/sim/tactical/soldier.ts';
 
 const SIDES = [Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST] as const;
 const LOOK_OFFSETS = [-3, 3, -3 * WORLD_COLS, 3 * WORLD_COLS, 2 * WORLD_COLS + 2] as const;
+const NEAREST_DOORS = 6;
 
 export function doorTiles(world: TacticalWorld): number[] {
   const doors: number[] = [];
@@ -30,7 +31,12 @@ function own(view: PlayerView): readonly SoldierView[] {
 
 export interface ActionSampleOptions {
   readonly doors?: readonly number[];
+  readonly containers?: readonly number[];
   readonly nearestDoors?: number;
+}
+
+function nearest(tiles: readonly number[] | undefined, from: number, count = NEAREST_DOORS): number[] {
+  return [...(tiles ?? [])].sort((a, b) => distance(a, from) - distance(b, from)).slice(0, count);
 }
 
 export function sampleActionHints(view: PlayerView, options: ActionSampleOptions = {}): CommandEnvelope[] {
@@ -65,13 +71,14 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
       requests.push({ ...base, kind: 'pickUp', gridNo: item.gridNo, level: item.level });
       requests.push({ ...base, kind: 'pickUp', gridNo: item.gridNo, mode: 'run' });
     }
-    const doors = [...(options.doors ?? [])]
-      .sort((a, b) => distance(a, s.gridNo) - distance(b, s.gridNo))
-      .slice(0, options.nearestDoors ?? 6);
-    for (const g of doors) {
+    for (const g of nearest(options.doors, s.gridNo, options.nearestDoors)) {
       requests.push({ ...base, kind: 'door', gridNo: g });
       requests.push({ ...base, kind: 'door', gridNo: g, mode: 'swat' });
       requests.push({ ...base, kind: 'can', gridNo: g });
+    }
+    for (const g of nearest(options.containers, s.gridNo, options.nearestDoors)) {
+      requests.push({ ...base, kind: 'door', gridNo: g });
+      requests.push({ ...base, kind: 'door', gridNo: g, mode: 'swat' });
     }
   }
   return requests;

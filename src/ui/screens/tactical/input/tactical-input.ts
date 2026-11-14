@@ -16,7 +16,8 @@
 // @src UIHandleRubberBandOnTerrain, EndRubberBanding, EndMultiSoldierSelection, ResetMultiSelection, UIHandleOnMerc,
 // @src HandleUIMovementCursor (the 80 ms PATHFINDCOUNTER rest, the AP offsets, gfUIOverItemPoolGridNo of a standing merc's
 // @src item target, reset every frame, 2026-11-02; MOVEUI_TARGET_INTTILES falling through to the move mode's offsets,
-// @src 2026-11-07), DrawUIMovementPath (the PLOT rule),
+// @src 2026-11-07), DrawUIMovementPath (the PLOT rule; MOVEUI_TARGET_INTTILES over a container or switch as over a door,
+// @src 2026-11-13),
 // @src SetMovementModeCursor, SetConfirmMovementModeCursor, UIHandleInteractiveTilesAndItemsOnTerrain, GetCursorMovementFlags,
 // @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition
 // @src (gfOKForExchangeCursor: on as the pointer comes onto or leaves a valid soldier, flipped every second, 2026-11-02),
@@ -2358,7 +2359,7 @@ export class TacticalInput {
     if (target === MoveUiTarget.BOMB) return this.#drawBombPath(sel, mapPos);
     const tile = this.#interactiveTile();
     if ((target === MoveUiTarget.INTTILES && tile) || target === MoveUiTarget.ITEMS) {
-      const kind = tile?.door ? 'door' : 'pickUp';
+      const kind = target === MoveUiTarget.INTTILES || tile?.door ? 'door' : 'pickUp';
       const gridNo = tile?.gridNo ?? mapPos;
       const answer = this.#hint<PreviewAction>({
         type: 'previewAction',

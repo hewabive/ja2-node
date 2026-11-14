@@ -8,6 +8,7 @@ import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { buildTacticalWorldFromInputs, loadTacticalWorldInputs } from '../content/world/tactical-world.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
+import { containerGridNos } from '../sim/tactical/doors.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { createSandboxSession, ORIGINAL_SANDBOX_MAP } from './sandbox.ts';
@@ -21,6 +22,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
   let sources: HintSources;
   let client: ClientSide;
   let doors: number[] = [];
+  let containers: readonly number[] = [];
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
@@ -31,7 +33,9 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
       exists: (path) => data.vfs.stat(path) !== undefined,
       world: (path) => (path === ORIGINAL_SANDBOX_MAP ? buildTacticalWorldFromInputs(a9) : null),
     };
-    doors = doorTiles(buildTacticalWorldFromInputs(a9));
+    const world = buildTacticalWorldFromInputs(a9);
+    doors = doorTiles(world);
+    containers = containerGridNos(world);
     client = await clientSide(sources);
   });
 
@@ -52,13 +56,14 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
     return client.content.items.ordered.filter((_, k) => k % ITEM_SPREAD_STEP === 0).map((d) => d.index);
   }
 
-  it('agree on A9 in real time, doors and a spread of the item table included', async () => {
+  it('agree on A9 in real time, doors, containers and a spread of the item table included', async () => {
     const session = await sandbox(1);
     kitSquad(session);
     const view = serialisedView(session);
     expect(doors.length).toBeGreaterThan(0);
+    expect(containers.length).toBeGreaterThan(0);
     const report = await expectHintsAgree(session, client, [
-      ...sampleActionHints(view, { doors, nearestDoors: NEAREST_DOORS }),
+      ...sampleActionHints(view, { doors, containers, nearestDoors: NEAREST_DOORS }),
       ...sampleInventoryHints(view, itemSpread()),
     ]);
     expect(report.answered).toBeGreaterThan(100);
@@ -70,7 +75,10 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
     untilOurTurn(session);
     kitSquad(session);
     const view = serialisedView(session);
-    const report = await expectHintsAgree(session, client, [...sampleActionHints(view, { doors }), ...sampleInventoryHints(view)]);
+    const report = await expectHintsAgree(session, client, [
+      ...sampleActionHints(view, { doors, containers }),
+      ...sampleInventoryHints(view),
+    ]);
     expect(report.kinds.get('previewAction')).toBeGreaterThan(0);
   });
 });
