@@ -23,7 +23,9 @@
 // @src pickup with no animation, handlePendingAction leaving it after a walk ending off its tile, code 493 reading the
 // @src data the action leaves (2026-11-09); Soldier_Control.cc InternalDoMercBattleSound's BATTLE_SOUND_NOTHING, which a
 // @src soldier without a profile or a muted one never makes (2026-11-13); SoldierPickupItem's removePendingAction dropping
-// @src whatever a merc on the move was walking up to do (2026-11-14).
+// @src whatever a merc on the move was walking up to do (2026-11-14); HandleSoldierPickupItem's menu on more than one shown
+// @src item at arrival, the merc frozen (fPauseAllAnimation) until Interface_Items.cc RemoveItemPickupMenu, ItemPickupOK's
+// @src SoldierGetItemFromWorld with ITEM_PICKUP_SELECTION (2026-11-14).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -65,7 +67,7 @@ import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding
 import { removePendingAction } from './pending-action.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
-import { openTacticalPrompt, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
+import { openTacticalPrompt, PickupMenuChoice, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
 import { NO_PROFILE, type PendingPickup, type Pickup, pickupInTheSlot, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { shownInSector, type TacticalState, whoIsThere } from './state.ts';
@@ -249,9 +251,30 @@ export function handleSoldierPickupItem(t: TacticalState, s: Soldier, pending: P
     return;
   }
   const allHidden = pool.every((wi) => wi.visible === Visibility.HIDDEN_ITEM);
-  if (pickupCandidates(t, s, pending.gridNo, pending.zLevel).length > 0) soldierGetItemFromWorld(t, s, pending);
+  const shown = pickupCandidates(t, s, pending.gridNo, pending.zLevel);
+  if (pending.selection === null && shown.length > 1) openPickupMenu(t, s, pending, shown);
+  else if (shown.length > 0) soldierGetItemFromWorld(t, s, pending);
   else if (allHidden && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
   else sayNothingFound(t, s, pending.gridNo);
+}
+
+function openPickupMenu(t: TacticalState, s: Soldier, pending: Pickup, items: readonly WorldItem[]): void {
+  openTacticalPrompt(t, { kind: TacticalPromptKind.PICKUP_MENU, soldier: s, gridNo: pending.gridNo, zLevel: pending.zLevel, items });
+  if (t.prompt?.kind === TacticalPromptKind.PICKUP_MENU && t.prompt.soldier === s) s.pauseAllAnimation = true;
+}
+
+export function answerPickupMenu(
+  t: TacticalState,
+  prompt: Extract<TacticalPrompt, { readonly kind: 'pickupMenu' }>,
+  choice: string,
+  picked: ReadonlySet<number>,
+): void {
+  const s = prompt.soldier;
+  if (choice === PickupMenuChoice.OK) {
+    const selection = prompt.items.filter((_, i) => picked.has(i));
+    soldierGetItemFromWorld(t, s, { gridNo: prompt.gridNo, actionGridNo: s.gridNo, zLevel: prompt.zLevel, selection });
+  }
+  s.pauseAllAnimation = false;
 }
 
 function knownMineAt(t: TacticalState, g: number, level: number): WorldItem | null {

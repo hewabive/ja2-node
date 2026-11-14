@@ -10,12 +10,14 @@
 // @src ITEMPICK_TEXT_WIDTH, white for the row under the pointer, black with ITEMDESC_FONTSHADOW2 otherwise),
 // @src ItemPickupAll, ItemPickupOK, ItemPickupCancel, ItemPickMenuMouseMoveCallback (the compatible stuff of a row
 // @src checked once as the pointer enters it, kept while the wheel turns the page under it, 2026-11-03),
-// @src ItemPickMenuMouseClickCallback (a click toggles a row, the wheel turns the pages), RemoveItemPickupMenu.
+// @src ItemPickMenuMouseClickCallback (a click toggles a row, the wheel turns the pages), RemoveItemPickupMenu; the menu is
+// @src the server's pickupMenu prompt, which OK answers with the chosen rows and Cancel, Esc or a cleared interface with
+// @src cancel (2026-11-14).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
-import type { ItemView } from '../../../protocol/view.ts';
+import type { ItemView, PickupMenuChoice } from '../../../protocol/view.ts';
 import type { ImageCatalog } from '../../assets.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
@@ -77,7 +79,7 @@ export interface PickupHooks {
   readonly art: string;
   readonly item: (name: string) => CatalogueItem | null;
   readonly tileImage: (item: CatalogueItem) => WorldTileImage | null;
-  readonly pickUp: (soldier: number, gridNo: number, zLevel: number, items: readonly number[]) => void;
+  readonly answer: (prompt: string, choice: PickupMenuChoice, items: readonly number[]) => void;
   readonly closed: () => void;
   readonly hover: (index: number | null) => void;
 }
@@ -101,6 +103,7 @@ export class ItemPickupMenu {
   #height = 0;
   #bottom = 0;
   #slots = 0;
+  #prompt = '';
   #soldier = -1;
   #gridNo = -1;
   #zLevel = 0;
@@ -117,6 +120,10 @@ export class ItemPickupMenu {
 
   get open(): boolean {
     return this.#items.length > 0;
+  }
+
+  get prompt(): string {
+    return this.#prompt;
   }
 
   get soldier(): number {
@@ -141,6 +148,7 @@ export class ItemPickupMenu {
   }
 
   show(
+    prompt: string,
     soldier: number,
     gridNo: number,
     zLevel: number,
@@ -155,6 +163,7 @@ export class ItemPickupMenu {
     this.#fonts = fonts;
     this.#items = items;
     this.#selected = items.map(() => false);
+    this.#prompt = prompt;
     this.#soldier = soldier;
     this.#gridNo = gridNo;
     this.#zLevel = zLevel;
@@ -312,13 +321,29 @@ export class ItemPickupMenu {
 
   #confirm(): void {
     const chosen = this.#selected.flatMap((on, i) => (on ? [i] : []));
-    const { soldier, gridNo, zLevel } = { soldier: this.#soldier, gridNo: this.#gridNo, zLevel: this.#zLevel };
-    this.close(true);
-    if (chosen.length > 0) this.#hooks.pickUp(soldier, gridNo, zLevel, chosen);
+    if (chosen.length === 0) return;
+    const prompt = this.#prompt;
+    this.#dismiss();
+    this.#hooks.answer(prompt, 'ok', chosen);
+    this.#hooks.closed();
   }
 
   close(notify: boolean): void {
     if (!this.open) return;
+    const prompt = this.#prompt;
+    this.#dismiss();
+    if (!notify) return;
+    this.#hooks.answer(prompt, 'cancel', []);
+    this.#hooks.closed();
+  }
+
+  withdraw(): void {
+    if (!this.open) return;
+    this.#dismiss();
+    this.#hooks.closed();
+  }
+
+  #dismiss(): void {
     for (const region of this.#regions) region.remove();
     for (const button of this.#buttons) button.remove();
     this.#regions = [];
@@ -331,7 +356,6 @@ export class ItemPickupMenu {
     this.#rowChecked = false;
     this.#hooks.hover(null);
     this.#hooks.services.pauseGame?.(false);
-    if (notify) this.#hooks.closed();
   }
 
   render(list: DrawList, ctx: TileDrawContext): void {

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { newCombatSim, runUntilDecision, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
@@ -17,6 +17,7 @@ import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from './narrative/port.ts';
 import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
+import type { TacticalPrompt } from './prompts.ts';
 import { NO_PROFILE, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from './world-items.ts';
@@ -28,11 +29,17 @@ beforeAll(async () => {
 });
 
 const item = (name: string) => content.items.byName.get(name)?.index ?? -1;
+
+function pickupMenu(sim: TacticalSim): Extract<TacticalPrompt, { readonly kind: 'pickupMenu' }> {
+  const prompt = sim.state.prompt;
+  if (prompt?.kind !== 'pickupMenu') throw new Error(`no pickup menu: ${prompt?.kind ?? 'no prompt'}`);
+  return prompt;
+}
 const WALK_TICKS = 2_000;
 const WALK_UP_TICKS = 40;
 
 describe('picking up and dropping items', () => {
-  it('picks up every visible item on the tile with the pickup animation and charges AP_PICKUP_ITEM once', () => {
+  it('opens the pickup menu at the pickup frame on more than one shown item with the merc frozen, and OK picks the chosen for AP_PICKUP_ITEM once', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
@@ -45,12 +52,84 @@ describe('picking up and dropping items', () => {
     const before = merc.actionPoints;
     expect(sim.dispatch({ type: 'pickUp', soldier: 0 })).toEqual({ ok: true });
     expect(t.content.animations.controls[merc.state]?.id).toBe('PICKUP_ITEM');
-    const events = runUntilIdle(sim);
+    runUntilDecision(sim);
+    const menu = pickupMenu(sim);
+    expect([menu.soldier, menu.gridNo, menu.items.map((wi) => wi.object.item)]).toEqual([
+      merc,
+      merc.gridNo,
+      [item('CANTEEN'), item('CROWBAR')],
+    ]);
+    expect([merc.pauseAllAnimation, merc.actionPoints, merc.pendingPickup]).toEqual([true, before, null]);
+    const tick = sim.tick;
+    sim.step();
+    expect(sim.tick).toBe(tick);
+    expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: [0, 1] })).toEqual({ ok: true });
+    expect(merc.pauseAllAnimation).toBe(false);
+    const events = [...sim.drainEvents(), ...runUntilIdle(sim)];
     expect(events.find((e) => e.type === 'itemsPickedUp')).toMatchObject({ soldier: 0, gridNo: merc.gridNo });
     expect(before - merc.actionPoints).toBe(AP.PICKUP_ITEM);
     expect(merc.inv.some((o) => o.item === item('CANTEEN'))).toBe(true);
     expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
     expect(t.worldItems.map((wi) => wi.object.item)).toEqual([item('WIRECUTTERS')]);
+  });
+
+  it('walks to the pile before the menu, lists what lies there at arrival, and a cancel keeps the walk paid and picks up nothing', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    sim.lookAround();
+    const pile = gridNo(83, 80);
+    addItemToPool(t, pile, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0);
+    addItemToPool(t, pile, createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    const walk = apsToReachItems(t, merc, pile) - AP.PICKUP_ITEM;
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: pile })).toEqual({ ok: true });
+    expect(t.prompt).toBeNull();
+    for (let k = 0; k < WALK_UP_TICKS; k++) sim.step();
+    expect(merc.gridNo).not.toBe(pile);
+    addItemToPool(t, pile, createItem(t.content.items, item('WIRECUTTERS'), 90), Visibility.VISIBLE, 0);
+    runUntilDecision(sim);
+    const menu = pickupMenu(sim);
+    expect([merc.gridNo, menu.items.map((wi) => wi.object.item)]).toEqual([pile, [item('CANTEEN'), item('CROWBAR'), item('WIRECUTTERS')]]);
+    expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'cancel' })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect([merc.pauseAllAnimation, before - merc.actionPoints]).toEqual([false, walk]);
+    expect(t.worldItems.filter((wi) => wi.gridNo === pile)).toHaveLength(3);
+  });
+
+  it('takes the items a pickUp names at arrival without the menu, the already chosen path', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    addItemToPool(t, merc.gridNo, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0);
+    addItemToPool(t, merc.gridNo, createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, items: [1] })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(t.prompt).toBeNull();
+    expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
+    expect(t.worldItems.map((wi) => wi.object.item)).toEqual([item('CANTEEN')]);
+  });
+
+  it('refuses an OK naming no row or one the menu does not list, and keeps the menu open', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    addItemToPool(t, merc.gridNo, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0);
+    addItemToPool(t, merc.gridNo, createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0 })).toEqual({ ok: true });
+    runUntilDecision(sim);
+    const menu = pickupMenu(sim);
+    for (const items of [undefined, [], [2], [0.5]])
+      expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items })).toMatchObject({
+        ok: false,
+        data: { refusal: 'badItems' },
+      });
+    expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'yes' })).toMatchObject({ ok: false, data: { refusal: 'badChoice' } });
+    expect(t.prompt).toBe(menu);
+    expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: [1, 1] })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(t.worldItems.map((wi) => wi.object.item)).toEqual([item('CANTEEN')]);
   });
 
   it('picks up a chosen item at once when crouched', () => {

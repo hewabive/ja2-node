@@ -78,8 +78,9 @@ map items, detailed placements and native saves.
 
 **Commands instead of the cursor.** Each inventory command is one pick-up and one placement on the original panel code,
 tried on copies first, so a refused one changes nothing; what the original leaves in the cursor goes back at once
-(deviation "Item cursor"). A pickup names its items instead of the menu, and an item that does not fit stays on the
-ground (deviation "Picking up items"). An attachment change is charged per command (deviation "Attachment AP").
+(deviation "Item cursor"). A pickup arriving on more than one shown item freezes the merc and opens the `pickupMenu`
+prompt, whose answer names the items (`prompts.ts`); a `pickUp` that names them already takes them without it, and an
+item that does not fit stays on the ground (deviation "Picking up items"). An attachment change is charged per command (deviation "Attachment AP").
 
 **The equipment generator replays the original.** `generateRandomEquipment` keeps every draw of `Inventory_Choosing.cc`
 on `main` in order, chances whose result is thrown away and `Random(1)` included. The first enemy generated in

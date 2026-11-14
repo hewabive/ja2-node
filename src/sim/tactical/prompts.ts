@@ -6,7 +6,9 @@
 // @src gbTrapDifficulty, gfJustFoundBoobyTrap; PLACE_BLUE_FLAG_PROMPT and REMOVE_BLUE_FLAG_PROMPT; the
 // @src MSG_BOX_FLAG_FOUR_NUMBERED_BUTTONS box of StartBombMessageBox, answered 1-4 (MSG_BOX_RETURN_1..4), and the
 // @src gpTempSoldier and gsTempGridno its callback reads (2026-11-04); Tactical/Auto_Bandage.cc BeginAutoBandage's
-// @src BEGIN_AUTOBANDAGE_PROMPT_STR box (2026-11-06).
+// @src BEGIN_AUTOBANDAGE_PROMPT_STR box (2026-11-06); Tactical/Interface_Items.cc InitializeItemPickupMenu (the picker,
+// @src the tile, the z-level and the pool's items shown, gItemPickupMenu), ItemPickupOK (the pfSelectedArray it hands
+// @src SoldierGetItemFromWorld, OK enabled only with something chosen) and ItemPickupCancel (2026-11-14).
 
 import type { CommandRefused } from '../command.ts';
 import { refuse } from './refusal.ts';
@@ -22,6 +24,7 @@ export const TacticalPromptKind = {
   BOMB_SETTING: 'bombSetting',
   REMOTE_FREQUENCY: 'remoteFrequency',
   BEGIN_AUTO_BANDAGE: 'beginAutoBandage',
+  PICKUP_MENU: 'pickupMenu',
 } as const;
 export type TacticalPromptKind = (typeof TacticalPromptKind)[keyof typeof TacticalPromptKind];
 
@@ -51,6 +54,14 @@ export type TacticalPrompt =
       readonly kind: typeof TacticalPromptKind.REMOTE_FREQUENCY;
       readonly soldier: Soldier;
       readonly gridNo: number;
+    }
+  | {
+      readonly id: string;
+      readonly kind: typeof TacticalPromptKind.PICKUP_MENU;
+      readonly soldier: Soldier;
+      readonly gridNo: number;
+      readonly zLevel: number;
+      readonly items: readonly WorldItem[];
     };
 
 export type BombSettingDetonator = 'timed' | 'remote';
@@ -74,10 +85,13 @@ export type TacticalPromptRequest = WithoutId<TacticalPrompt>;
 
 export const YES_NO_CHOICES = ['yes', 'no'] as const;
 export const NUMBERED_CHOICES = ['1', '2', '3', '4'] as const;
+export const PickupMenuChoice = { OK: 'ok', CANCEL: 'cancel' } as const;
+export const PICKUP_MENU_CHOICES = [PickupMenuChoice.OK, PickupMenuChoice.CANCEL] as const;
 
 const NUMBERED_KINDS: ReadonlySet<TacticalPromptKind> = new Set([TacticalPromptKind.BOMB_SETTING, TacticalPromptKind.REMOTE_FREQUENCY]);
 
 function promptChoices(prompt: Pick<TacticalPrompt, 'kind'>): readonly string[] {
+  if (prompt.kind === TacticalPromptKind.PICKUP_MENU) return PICKUP_MENU_CHOICES;
   return NUMBERED_KINDS.has(prompt.kind) ? NUMBERED_CHOICES : YES_NO_CHOICES;
 }
 
@@ -95,10 +109,26 @@ export function promptOpenRefusal(t: TacticalState): CommandRefused | null {
   return t.prompt ? refuse('promptOpen', `answer the ${t.prompt.kind} prompt first`) : null;
 }
 
-export type PromptAnswer = { readonly prompt: TacticalPrompt; readonly choice: string } | CommandRefused;
+export type PromptAnswer =
+  | { readonly prompt: TacticalPrompt; readonly choice: string; readonly picked: ReadonlySet<number> }
+  | CommandRefused;
+
+const NOTHING_PICKED: ReadonlySet<number> = new Set();
 
 function choiceOf(cmd: Readonly<Record<string, unknown>>): unknown {
   return typeof cmd.choice === 'number' ? String(cmd.choice) : cmd.choice;
+}
+
+function pickedIndices(items: unknown, count: number): ReadonlySet<number> | null {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const valid = items.every((k) => typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < count);
+  return valid ? new Set(items as number[]) : null;
+}
+
+function pickedOf(prompt: TacticalPrompt, choice: string, cmd: Readonly<Record<string, unknown>>): ReadonlySet<number> | CommandRefused {
+  if (prompt.kind !== TacticalPromptKind.PICKUP_MENU || choice !== PickupMenuChoice.OK) return NOTHING_PICKED;
+  const last = prompt.items.length - 1;
+  return pickedIndices(cmd.items, prompt.items.length) ?? refuse('badItems', `items must be a non-empty list of indices 0..${last}`);
 }
 
 export function takeAnswer(t: TacticalState, cmd: Readonly<Record<string, unknown>>): PromptAnswer {
@@ -109,6 +139,8 @@ export function takeAnswer(t: TacticalState, cmd: Readonly<Record<string, unknow
   const choice = choiceOf(cmd);
   if (typeof choice !== 'string' || !choices.includes(choice))
     return refuse('badChoice', `choose ${choices.map((c) => `'${c}'`).join(', ')}`);
+  const picked = pickedOf(prompt, choice, cmd);
+  if ('ok' in picked) return picked;
   t.prompt = null;
-  return { prompt, choice };
+  return { prompt, choice, picked };
 }

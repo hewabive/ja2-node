@@ -133,7 +133,7 @@ export function spawnSoldier(
   return s;
 }
 
-export function runUntilIdle(sim: TacticalSim, ticks = 50_000): SimEvent[] {
+function runUntilStop(sim: TacticalSim, ticks: number, reason: 'idle' | 'decision'): SimEvent[] {
   const report = advance(
     {
       get tick() {
@@ -147,6 +147,14 @@ export function runUntilIdle(sim: TacticalSim, ticks = 50_000): SimEvent[] {
     { idle: true },
     ticks,
   );
-  expect(report.reason).toBe('idle');
+  expect(report.reason).toBe(reason);
   return [...report.events];
+}
+
+export function runUntilIdle(sim: TacticalSim, ticks = 50_000): SimEvent[] {
+  return runUntilStop(sim, ticks, 'idle');
+}
+
+export function runUntilDecision(sim: TacticalSim, ticks = 50_000): SimEvent[] {
+  return runUntilStop(sim, ticks, 'decision');
 }

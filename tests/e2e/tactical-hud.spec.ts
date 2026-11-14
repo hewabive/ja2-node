@@ -159,7 +159,7 @@ test.describe('the tactical HUD on the stub sandbox', () => {
     }
   });
 
-  test('opens the pickup menu with the hand cursor on a tile with two items and picks both up with one order', async ({ page }) => {
+  test('walks to a tile with two items on a hand cursor click and opens the pickup menu there, OK picking both up', async ({ page }) => {
     await openTactical(page, session);
     const start = await soldierGridNo(page, DROPPER);
     if (start === null) throw new Error('the dropper is not in view');
@@ -181,10 +181,14 @@ test.describe('the tactical HUD on the stub sandbox', () => {
     const at = await page.evaluate((g) => window.__ja2Ui.tactical?.gridNoScreen(g) ?? null, dropTile);
     if (!at) throw new Error('no screen position for the drop tile');
     await clickAt(page, at.x, at.y);
+    await expect.poll(() => lastCommand(page)).toEqual({ type: 'pickUp', ok: true, reason: null });
+    expect(await page.evaluate(() => window.__ja2Ui.tactical?.pickupOpen)).toBe(false);
+    await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
+    await showLatest(page);
     await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.pickupOpen)).toBe(true);
     await clickWidget(page, 'pickupAll');
     await clickWidget(page, 'pickupOk');
-    await expect.poll(() => lastCommand(page)).toEqual({ type: 'pickUp', ok: true, reason: null });
+    await expect.poll(() => lastCommand(page)).toEqual({ type: 'answer', ok: true, reason: null });
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.pickupOpen)).toBe(false);
     await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
     await showLatest(page);

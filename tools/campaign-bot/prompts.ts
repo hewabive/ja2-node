@@ -57,6 +57,8 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
       return ['1'];
     case 'tacticalPlacement':
       return ['done', 'spread'];
+    case 'pickupMenu':
+      return ['cancel'];
   }
 }
 

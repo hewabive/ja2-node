@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { KEY_TEXT } from '../../../../tests/support/map-screen.ts';
-import type { PromptView, TacticalPromptView } from '../../../protocol/view.ts';
+import type { PromptView } from '../../../protocol/view.ts';
 import { MessageBoxFlag, MessageBoxReturn, MessageBoxStyleId } from '../../widgets/message-box.ts';
 import { type PromptContext, promptBox } from '../map/map-prompts.ts';
-import { itemPromptBox, tacticalItemPrompt } from './item-prompts.ts';
+import { type BoxedTacticalPromptView, itemPromptBox, tacticalItemPrompt } from './item-prompts.ts';
 
 const YES_NO = ['yes', 'no'] as const;
 const NUMBERS = ['1', '2', '3', '4'] as const;
 
-const PROMPTS: readonly (readonly [TacticalPromptView, string])[] = [
+const PROMPTS: readonly (readonly [BoxedTacticalPromptView, string])[] = [
   [{ id: 'p', kind: 'activateSwitch', soldier: 0, choices: YES_NO }, 'TacticalStr[14]'],
   [{ id: 'p', kind: 'disarmTrap', soldier: 0, gridNo: 1, buried: true, choices: YES_NO }, 'TacticalStr[15]'],
   [{ id: 'p', kind: 'disarmTrap', soldier: 0, gridNo: 1, buried: false, item: 'CANTEEN', choices: YES_NO }, 'TacticalStr[24]'],

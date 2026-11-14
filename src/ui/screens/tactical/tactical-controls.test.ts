@@ -62,6 +62,8 @@ const ITEM_LOCATOR_STEP_MS = 40;
 const ITEM_LOCATOR_STEPS = 58;
 const TILE_LOCATOR_HALF_SIZE = 20;
 const RADIO_FRAME_MS = 80;
+const PICKUP_WALK_STEPS = 100;
+const PICKUP_WALK_TICKS = 10;
 const MULTI_PURPOSE_LOCATOR_FRAMES = 40;
 const CABINET_HEIGHT = 40;
 const COMA_LIFE = 5;
@@ -1576,7 +1578,9 @@ describe('the tactical input on the tactical screen', () => {
     f.t.frame();
     const at = f.world.pickPoint(pile);
     await f.clickAt(at.x, at.y);
+    for (let k = 0; k < PICKUP_WALK_STEPS && !f.screen.pickup.open; k++) f.advance(PICKUP_WALK_TICKS);
     expect(f.screen.pickup.open).toBe(true);
+    expect(itemLocatorsAt(f, flashing)).toBe(1);
     const menu = f.widget('pickupArea').rect;
     f.t.move(menu.x + menu.width + 20, menu.y);
     f.t.frame();

@@ -142,6 +142,7 @@ import { dispatchInventoryCommand, INVENTORY_COMMANDS, reloadCursor } from './in
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import {
   answerActivateSwitch,
+  answerPickupMenu,
   apsToPickupItem,
   dropsBeside,
   handlePendingPickupOnArrival,
@@ -263,7 +264,7 @@ import {
 } from './vehicle-boarding.ts';
 import { apsToDisplay, crewRefusal, passengersAboard } from './vehicle-presence.ts';
 import type { VehicleBoarding } from './vehicle-soldiers.ts';
-import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
+import { type ItemSnapshot, Visibility, worldItemSnapshot } from './world-items.ts';
 import { dynamicLightSprites } from './world-view.ts';
 
 export interface SoldierSnapshot {
@@ -838,7 +839,7 @@ export class TacticalSim {
     const t = this.state;
     const answer = takeAnswer(t, cmd);
     if ('ok' in answer) return answer;
-    const { prompt, choice } = answer;
+    const { prompt, choice, picked } = answer;
     const yes = choice === 'yes';
     switch (prompt.kind) {
       case TacticalPromptKind.DISARM_TRAP:
@@ -859,6 +860,9 @@ export class TacticalSim {
         break;
       case TacticalPromptKind.BEGIN_AUTO_BANDAGE:
         if (yes) startAutoBandage(t);
+        break;
+      case TacticalPromptKind.PICKUP_MENU:
+        answerPickupMenu(t, prompt, choice, picked);
         break;
     }
     return { ok: true };
@@ -970,25 +974,10 @@ export class TacticalSim {
   }
 
   visibleItems(): ItemSnapshot[] {
-    const items = this.state.content.items;
-    const nameOf = (item: number) => items.byIndex.get(item)?.name ?? String(item);
-    return this.state.worldItems
+    const t = this.state;
+    return t.worldItems
       .filter((wi) => wi.visible === Visibility.VISIBLE)
-      .map((wi) => {
-        const o = wi.object;
-        const attachments = o.attachments.filter((a) => a.item !== NOTHING).map((a) => ({ item: nameOf(a.item), status: a.status }));
-        return {
-          gridNo: wi.gridNo,
-          level: wi.level,
-          item: nameOf(o.item),
-          count: o.count,
-          status: o.status[0] ?? 0,
-          ...(items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY ? { money: o.money } : {}),
-          ...(attachments.length > 0 ? { attachments } : {}),
-          ...(wi.zHeight > 0 ? { height: wi.zHeight } : {}),
-          ...(wi.flags & WorldItemFlags.DONTRENDER ? { notRendered: true } : {}),
-        };
-      })
+      .map((wi) => worldItemSnapshot(t, wi))
       .sort((a, b) => a.gridNo - b.gridNo || a.level - b.level);
   }
 

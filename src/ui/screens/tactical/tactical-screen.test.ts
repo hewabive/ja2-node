@@ -68,6 +68,8 @@ const PATHFIND_REST_MS = 100;
 const PAST_DOUBLE_CLICK_MS = 400;
 const MSG_THROW = 37;
 const PICKUP_PAGE_ROWS = 6;
+const PICKUP_WALK_STEPS = 100;
+const PICKUP_WALK_TICKS = 10;
 const RADIO = 'interface/radio.sti';
 const DOCTOR = 21;
 const FULL_STATUS = 100;
@@ -123,6 +125,11 @@ function drawnAboveGuy(f: TacticalUiTest, text: string): number[] {
     .items.flatMap((i) =>
       i.kind === 'glyphs' && i.font === TINY_FONT && i.glyphs.map((g) => g.index).join() === wanted ? [i.foreground] : [],
     );
+}
+
+function untilPickupMenu(f: TacticalUiTest): void {
+  for (let k = 0; k < PICKUP_WALK_STEPS && !f.screen.pickup.open; k++) f.advance(PICKUP_WALK_TICKS);
+  expect(f.screen.pickup.open).toBe(true);
 }
 
 function images(f: TacticalUiTest, asset: string): DrawItem[] {
@@ -795,7 +802,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.description.open).toBe(false);
   });
 
-  it('opens the pickup menu on a tile with two items and sends one pickUp with both', async () => {
+  it('walks to a tile with two items on one pickUp and opens the pickup menu there from the prompt, OK answering with both', async () => {
     const f = await tacticalUiTest(kit, ui);
     const dropper = f.client.view.soldiers.find((s) => s.id === 3);
     if (!dropper) throw new Error('no merc 3');
@@ -815,14 +822,45 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.screen.controls.toggleHandCursor();
     f.t.frame();
     await f.clickAt(at.x, at.y);
-    expect(f.screen.pickup.open).toBe(true);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'pickUp', soldier: 0, gridNo: tile }, reply: { ok: true } });
+    expect(f.client.commands.at(-1)?.cmd).not.toHaveProperty('items');
+    expect(f.screen.pickup.open).toBe(false);
+    untilPickupMenu(f);
+    expect(f.client.view.soldiers.find((s) => s.id === 0)?.gridNo).toBe(tile);
     await f.click('pickupAll');
     await f.click('pickupOk');
-    expect(f.client.commands.at(-1)?.cmd).toMatchObject({ type: 'pickUp', soldier: 0, gridNo: tile });
-    expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
+    const prompt = f.screen.pickup.prompt;
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'answer', prompt, choice: 'ok', items: [0, 1] }, reply: { ok: true } });
     expect(f.screen.pickup.open).toBe(false);
     f.advance(2000);
     expect(inventory(f, 0).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
+  });
+
+  it('moves the view to the picker as the pickup menu opens and closes the menu when the prompt is answered elsewhere', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const picker = f.client.view.soldiers.find((s) => s.id === 0);
+    if (!picker) throw new Error('no merc 0');
+    const tile = picker.gridNo + 2;
+    const itemOf = (name: string) => createItem(t.content.items, t.content.items.byName.get(name)?.index ?? -1, 100);
+    addItemToPool(t, tile, itemOf('KEVLAR_VEST'), Visibility.VISIBLE, 0);
+    addItemToPool(t, tile, itemOf('CLIP9_15'), Visibility.VISIBLE, 0);
+    f.advance(10);
+    const at = f.world.pickPoint(tile);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    await f.clickAt(at.x, at.y);
+    const located = f.world.located.length;
+    untilPickupMenu(f);
+    expect(f.world.located.slice(located)).toContain(tile);
+    const prompt = f.client.view.prompt;
+    expect(prompt).toMatchObject({ kind: 'pickupMenu', soldier: 0, gridNo: tile, items: [{ item: 'KEVLAR_VEST' }, { item: 'CLIP9_15' }] });
+    expect(f.session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'cancel' })).toEqual({ ok: true });
+    f.deliver();
+    await f.settle();
+    expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([false, UiMode.MOVE_MODE]);
+    expect(f.client.commands.filter((c) => c.cmd.type === 'answer')).toHaveLength(0);
   });
 
   it('slides to the selected merc as our turn starts and an interrupt ends, and to the soldier an interrupt stops (TeamTurns)', async () => {
@@ -896,7 +934,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.screen.controls.toggleHandCursor();
     f.t.frame();
     await f.clickAt(at.x, at.y);
-    expect(f.screen.pickup.open).toBe(true);
+    untilPickupMenu(f);
     const picker = f.client.view.soldiers.find((s) => s.id === 0);
     if (!picker) throw new Error('no merc 0');
     const lit = () => ({
@@ -934,7 +972,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.screen.controls.toggleHandCursor();
     f.t.frame();
     await f.clickAt(at.x, at.y);
-    expect(f.screen.pickup.open).toBe(true);
+    untilPickupMenu(f);
     const outlined = () => [HAND, BIG_POCKET, SMALL_POCKET].filter((slot) => f.screen.inventory.outlineOf(picker, slot) !== null);
     const row = f.widget('pickupRow0').rect;
     f.t.move(row.x + 2, row.y + 2);
@@ -968,15 +1006,18 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.screen.controls.toggleHandCursor();
     f.t.frame();
     await f.clickAt(at.x, at.y);
+    untilPickupMenu(f);
     f.t.frame();
     expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([true, UiMode.GETTINGITEM_MODE]);
     const sent = f.client.commands.length;
     f.key('c');
     await f.settle();
     expect(f.client.commands.length).toBe(sent);
+    const prompt = f.screen.pickup.prompt;
     await f.click('pickupCancel');
     f.t.frame();
     expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([false, UiMode.MOVE_MODE]);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'answer', prompt, choice: 'cancel' }, reply: { ok: true } });
   });
 
   it('keeps the player paused through keypad 5 without NumLock, which the input layer drops, and unpauses at the typed 5', async () => {

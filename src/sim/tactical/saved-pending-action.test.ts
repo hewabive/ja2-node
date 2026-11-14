@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { newCombatSim, runUntilDecision, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
@@ -250,15 +250,25 @@ describe("a native save's door, container or pickup at the end of a walk no orde
     ]);
   });
 
-  it('takes every item of the height bPendingActionData3 names, where the original opens the pickup menu on more than one (deviation "Pickup menu")', () => {
+  it('opens the pickup menu on the items of the height bPendingActionData3 names when there is more than one, as no menu went before', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     for (const height of [RAISED_ITEM_HEIGHT, RAISED_ITEM_HEIGHT, 0])
       addItemToPool(t, WALKED_TO, canteen(sim), Visibility.VISIBLE, 0, 0, height);
     const merc = savedPickup(sim, WALKED_TO, ON_A_STRUCTURE);
     walkWithoutAnOrder(sim, merc);
+    runUntilDecision(sim);
+    const menu = t.prompt;
+    if (menu?.kind !== 'pickupMenu') throw new Error('no pickup menu');
+    expect([menu.soldier, menu.zLevel, menu.items.map((wi) => wi.zHeight), merc.savedPendingAction]).toEqual([
+      merc,
+      ON_A_STRUCTURE,
+      [RAISED_ITEM_HEIGHT, RAISED_ITEM_HEIGHT],
+      null,
+    ]);
+    expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: [0, 1] })).toEqual({ ok: true });
     runUntilIdle(sim);
-    expect([canteensOf(sim, merc), t.worldItems.map((wi) => wi.zHeight), merc.savedPendingAction]).toEqual([2, [0], null]);
+    expect([canteensOf(sim, merc), t.worldItems.map((wi) => wi.zHeight)]).toEqual([2, [0]]);
   });
 });
 

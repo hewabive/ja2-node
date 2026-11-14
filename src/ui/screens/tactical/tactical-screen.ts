@@ -54,7 +54,8 @@
 // @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
 // @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02);
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
-// @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02); Interface_Control.cc
+// @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02), InitializeItemPickupMenu (opened from the server's
+// @src pickupMenu prompt at the pointer, LocateSoldier moving the view to the picker, 2026-11-14); Interface_Control.cc
 // @src RenderTopmostTacticalInterface and Handle_Items.cc DrawItemPoolList (the faces lit by every item of the pool list
 // @src under the pointer, HandleAnyMercInSquadHasCompatibleStuff, 2026-11-03); Interface_Control.cc RenderTacticalInterface
 // @src (HandleFlashingItems and HandleMultiPurposeLocator, also under the overhead map), RenderTopmostTacticalInterface (the
@@ -338,6 +339,7 @@ export class TacticalScreen implements Screen {
   readonly #lastEnemyCycled = new Map<number, number>();
   #externCursor = false;
   #cursorEndingState = { combat: false, conversation: false };
+  #pickupPrompt: string | null = null;
   #radarShown = true;
   #radarPressed = false;
   #radarPointer: { readonly x: number; readonly y: number } | null = null;
@@ -443,7 +445,8 @@ export class TacticalScreen implements Screen {
       art: this.#asset(TacticalLayout.SINGLE_MERC, 'itemBox'),
       item: (name) => env.media.item(name),
       tileImage: (item) => env.world.itemTile(item),
-      pickUp: (soldier, gridNo, zLevel, items) => void this.#command({ type: 'pickUp', soldier, gridNo, zLevel, items }),
+      answer: (prompt, choice, items) =>
+        void this.#env.client.command({ type: 'answer', prompt, choice, ...(choice === 'ok' ? { items } : {}) }),
       closed: () => this.controls.input.changeToMove(),
       hover: (ground) => this.#pickupRowHover(ground),
     });
@@ -744,12 +747,23 @@ export class TacticalScreen implements Screen {
   #pickUpAt(picker: SoldierView, gridNo: number, zLevel: number): void {
     const items = onZLevel(itemPool(this.#view()?.items, gridNo, picker.level), zLevel);
     if (items.length === 0) return;
-    if (items.length === 1) {
-      void this.#command({ type: 'pickUp', soldier: picker.id, gridNo, zLevel });
+    void this.#command({ type: 'pickUp', soldier: picker.id, gridNo, zLevel });
+  }
+
+  #syncPickupMenu(view: PlayerView | null): void {
+    const prompt = view?.prompt?.kind === 'pickupMenu' ? view.prompt : null;
+    if (!prompt) {
+      this.#pickupPrompt = null;
+      this.pickup.withdraw();
       return;
     }
+    if (prompt.id === this.#pickupPrompt) return;
+    this.#pickupPrompt = prompt.id;
+    const picker = soldierById(view, prompt.soldier);
+    if (!picker) return;
+    this.locate(picker.id, LocateFlag.DONTSETLOCATOR);
     const regions = this.#env.runtime.regions;
-    this.#openPickupMenu(picker, gridNo, zLevel, items, { x: regions.mouseX, y: regions.mouseY });
+    this.#openPickupMenu(prompt.id, picker, prompt.gridNo, prompt.zLevel, prompt.items, { x: regions.mouseX, y: regions.mouseY });
   }
 
   #burstCapable(s: SoldierView | null): boolean {
@@ -1135,6 +1149,7 @@ export class TacticalScreen implements Screen {
     this.#hoveredSoldier = this.controls.overhead.open ? this.#overheadHoveredMerc() : this.#pointerSoldier();
     this.#env.world.setHovered(this.#hoveredSoldier);
     this.#endItemPointerWhereTheOriginalDoes(view);
+    this.#syncPickupMenu(view);
     this.inventory.update(this.#now);
     this.#syncTeamButtons();
     this.#updateModels(view);
@@ -1861,6 +1876,7 @@ export class TacticalScreen implements Screen {
   }
 
   #openPickupMenu(
+    prompt: string,
     picker: SoldierView,
     gridNo: number,
     zLevel: number,
@@ -1872,7 +1888,7 @@ export class TacticalScreen implements Screen {
     const top = this.#view()?.combat?.topMessage ? TOP_BAR_HEIGHT : 0;
     const bottom = height - TEAMPANEL_HEIGHT;
     const fonts = this.#env.runtime.fonts;
-    this.pickup.show(picker.id, gridNo, zLevel, items, pointer, { top, bottom }, width, {
+    this.pickup.show(prompt, picker.id, gridNo, zLevel, items, pointer, { top, bottom }, width, {
       item: fonts.get(FontName.BLOCKFONT2),
       tiny: fonts.get(FontName.TINYFONT1),
     });

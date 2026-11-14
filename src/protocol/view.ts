@@ -466,6 +466,7 @@ export interface UninvolvedMercView {
 
 export type YesNoChoice = 'yes' | 'no';
 export type NumberedChoice = '1' | '2' | '3' | '4';
+export type PickupMenuChoice = 'ok' | 'cancel';
 
 export type TacticalPromptView =
   | {
@@ -495,7 +496,16 @@ export type TacticalPromptView =
       readonly choices: readonly NumberedChoice[];
     }
   | { readonly id: string; readonly kind: 'remoteFrequency'; readonly soldier: number; readonly choices: readonly NumberedChoice[] }
-  | { readonly id: string; readonly kind: 'beginAutoBandage'; readonly choices: readonly YesNoChoice[] };
+  | { readonly id: string; readonly kind: 'beginAutoBandage'; readonly choices: readonly YesNoChoice[] }
+  | {
+      readonly id: string;
+      readonly kind: 'pickupMenu';
+      readonly soldier: number;
+      readonly gridNo: number;
+      readonly zLevel: number;
+      readonly items: readonly ItemView[];
+      readonly choices: readonly PickupMenuChoice[];
+    };
 
 export type PromptView =
   | TacticalPromptView

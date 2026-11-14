@@ -608,7 +608,9 @@ leaves as its own group with everybody aboard at the vehicle's speed, burning it
 sector exit"): a load seats them at the vehicle, which enters at the entry point of its side.
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the first click's check of
-someone else's rocket rifle ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
+someone else's rocket rifle ("Attack refusals"); `pickUp` without `items` walks to the pile, and on more than one shown
+item there opens the `pickupMenu` prompt (§8.1), while with `items` it takes those entries at arrival without the menu
+("Picking up items"); its `zLevel` is the height the original's
 click passes: 1 for the items lying on a structure (`height` in the view: a table, inside an open cabinet, which the
 world does not draw), 0 for the floor, by default 1 when any item of the tile lies on a structure
 (`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). On a tile that shows no item, `pickUp` without `items` is the
@@ -691,7 +693,10 @@ These prompts belong to the loaded sector and come in `observe.prompt` of the sa
 {id, soldier?, choices}` (`soldier` when he is ours), `placeBlueFlag {id, soldier, gridNo, choices}` and
 `removeBlueFlag {id, soldier, gridNo, choices}`, all with `yes` and `no`; `bombSetting {id, soldier, gridNo, item,
 detonator: timed|remote, choices}` and `remoteFrequency {id, soldier, choices}` with `1` to `4` and no way out, as the
-original's four numbered buttons. As with the original's message boxes,
+original's four numbered buttons; `pickupMenu {id, soldier, gridNo, zLevel, items, choices}`, the menu of a pickup that
+arrived on more than one shown item of that height (`items` as the view lists them there), answered `ok` with `items`,
+the indices of the rows to take (refusal `badItems`), or `cancel`, which keeps the walk paid and takes nothing. As with
+the original's message boxes,
 one is open at a time and a second one asked for meanwhile is never shown. While the merc warns, the game stands as the
 original's does: one more tactical frame, then only the line and the clocks run until it ends, and commands are refused
 with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt opens at once.

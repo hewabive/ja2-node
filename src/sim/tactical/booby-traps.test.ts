@@ -112,6 +112,14 @@ function pickUp(sim: TacticalSim, extra: Readonly<Record<string, unknown>> = {})
   return sim.drainEvents();
 }
 
+function pickUpEveryRow(sim: TacticalSim): SimEvent[] {
+  const events = pickUp(sim);
+  const menu = sim.state.prompt;
+  if (menu?.kind !== 'pickupMenu') throw new Error('no pickup menu is open');
+  expect(sim.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: menu.items.map((_, i) => i) })).toEqual({ ok: true });
+  return [...events, ...sim.drainEvents()];
+}
+
 function answer(sim: TacticalSim, choice: string): SimEvent[] {
   const prompt = sim.state.prompt;
   if (!prompt) throw new Error('no prompt is open');
@@ -128,7 +136,7 @@ describe('a booby-trapped item on the ground (Handle_Items.cc ContinuePastBoobyT
     const { sim, t, merc } = scene();
     const trap = lay(t, trapped(t, 'CANTEEN', UNSEEN_TRAP));
     const after = lay(t, objectOf(t, 'CROWBAR'));
-    const events = pickUp(sim);
+    const events = pickUpEveryRow(sim);
     expect(events.find((e) => e.type === 'trapSetOff')).toEqual(expect.objectContaining({ soldier: merc.id, gridNo: MERC_AT }));
     expect(events.find((e) => e.type === 'explosion')).toMatchObject({ item: itemId(t, 'MINI_GRENADE'), gridNo: MERC_AT, owner: null });
     expect(t.worldItems).not.toContain(trap);
@@ -350,7 +358,7 @@ describe('a switch on the ground (Handle_Items.cc SoldierGetItemFromWorld, Switc
     const { sim, t } = scene();
     switchInOpenedContainer(t, FREQUENCY);
     const known = lay(t, trapped(t, 'CANTEEN', EASY_TRAP, true));
-    pickUp(sim);
+    pickUpEveryRow(sim);
     expect(t.prompt).toMatchObject({ kind: 'activateSwitch' });
     expect(t.boobyTrap.item).toBe(known);
     answer(sim, 'no');

@@ -151,6 +151,8 @@ test.describe('goldens of the tactical screen on stubs', () => {
       const at = await page.evaluate((g) => window.__ja2Ui.tactical?.gridNoScreen(g) ?? null, dropTile);
       if (!at) throw new Error('no screen position for the drop tile');
       await clickAt(page, at.x, at.y);
+      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
+      await showLatest(page);
       await page.waitForFunction(() => window.__ja2Ui.tactical?.pickupOpen === true);
       await restPointer(page);
       await imagesLoaded(page);

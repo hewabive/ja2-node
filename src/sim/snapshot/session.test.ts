@@ -236,6 +236,32 @@ describe('a campaign snapshot', () => {
     expect(after.pickedOwnershipCheck?.picker).toBe(after.soldiers[picker.id]);
   });
 
+  it('keeps an open pickup menu with the picker and the listed items as references: OK after the reload picks them up', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const { campaign: c } = createTestCampaign(kit, options);
+    landFirstSquad(c);
+    advance(c, { idle: true }, IDLE_BUDGET);
+    const t = tacticalOf(c);
+    const [picker] = ourSoldiers(c);
+    if (!picker) throw new Error('no merc');
+    const items = t.content.items;
+    for (const name of ['CANTEEN', 'CROWBAR'])
+      addItemToPool(t, picker.gridNo, createItem(items, items.byName.get(name)?.index ?? 0, 100), Visibility.VISIBLE, picker.level);
+    expect(c.dispatch({ type: 'pickUp', soldier: picker.id })).toMatchObject({ ok: true });
+    stepUntil(c, () => t.prompt !== null);
+    const json = snapshotJson(snapshotCampaign(c, testCampaignContent(kit, options)));
+    const restored = testCampaignAdapter(kit, options).restore(JSON.parse(json), c);
+    const after = tacticalOf(restored);
+    const menu = after.prompt;
+    if (menu?.kind !== 'pickupMenu') throw new Error('the pickup menu was not restored');
+    const merc = after.soldiers[picker.id];
+    expect(menu.soldier).toBe(merc);
+    expect(menu.items.every((wi) => after.worldItems.includes(wi))).toBe(true);
+    expect(restored.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: [0, 1] })).toMatchObject({ ok: true });
+    const held = new Set(merc?.inv.map((o) => o.item));
+    expect(['CANTEEN', 'CROWBAR'].every((name) => held.has(items.byName.get(name)?.index ?? -1))).toBe(true);
+  });
+
   it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON });
     landFirstSquad(c);

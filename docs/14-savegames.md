@@ -103,7 +103,7 @@ sector) keeps it until he enters a map or stops, holding the auto-bandage questi
 drop's seats too, and, for a give, every door or container opened on arrival. Boarding drops it as `EVENT_StopMerc`
 does unless he waits for a tile, also where the vehicle has no soldier on the loaded map
 (`stopAsBoardedAwayFromTheVehicle`); one kept past getting out of a vehicle becomes ja2-node's typed record at the end
-of his next walk and runs there (`saved-pending-action.ts`; deviations "Saved robot reload", "Pickup menu"; §3), all
+of his next walk and runs there (`saved-pending-action.ts`; deviation "Saved robot reload"; §3), all
 but `MERC_WAITFOROTHERSTOTRIGGER`, which no order sets. A save with no world only stands a climber up (deviation
 "Animations on load without a world"). The restart runs on the import's own `TacticalSim`, before the campaign exists,
 so the import records the first campaign hook it calls and `createSaveSession` refuses such a save, naming the soldier,

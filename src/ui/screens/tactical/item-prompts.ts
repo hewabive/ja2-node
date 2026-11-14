@@ -44,8 +44,10 @@ export interface ItemPromptBox {
   readonly answer: (result: number) => string | null;
 }
 
-export function tacticalItemPrompt(prompt: PromptView | null | undefined): TacticalPromptView | null {
-  return prompt && TACTICAL_KINDS.has(prompt.kind) ? (prompt as TacticalPromptView) : null;
+export type BoxedTacticalPromptView = Exclude<TacticalPromptView, { readonly kind: 'pickupMenu' }>;
+
+export function tacticalItemPrompt(prompt: PromptView | null | undefined): BoxedTacticalPromptView | null {
+  return prompt && TACTICAL_KINDS.has(prompt.kind) ? (prompt as BoxedTacticalPromptView) : null;
 }
 
 function yesNoAnswer(result: number): string | null {
@@ -70,7 +72,7 @@ function numberedBox(text: UiTextService, index: number): ItemPromptBox {
   };
 }
 
-export function itemPromptBox(text: UiTextService, prompt: TacticalPromptView): ItemPromptBox {
+export function itemPromptBox(text: UiTextService, prompt: BoxedTacticalPromptView): ItemPromptBox {
   switch (prompt.kind) {
     case 'disarmTrap':
       return yesNoBox(text, prompt.buried ? TacticalStr.DISARM_TRAP_PROMPT : TacticalStr.DISARM_BOOBYTRAP_PROMPT);

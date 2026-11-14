@@ -138,11 +138,14 @@ prompts. The face cell is the map update box's (`src/ui/widgets/update-panel-fac
 layout's. In a talk the key sends nothing, as the conversation is modal (`29` §5; deviation "Auto-bandage key in a
 talk").
 
-**The item cursor and the pickup menu live in the client.** The cursor is a local selection drawn as the mouse cursor
-until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it,
-and so does a `combineStack` or an `applyItem` that leaves objects in it, at the index its answer names, and a
-`moveItem` that leaves one, on the pocket its `leftover` names (deviation "Item cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp` (deviation
-"Pickup menu").
+**The item cursor lives in the client, the pickup menu is a prompt.** The cursor is a local selection drawn as the mouse
+cursor until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps
+it, and so does a `combineStack` or an `applyItem` that leaves objects in it, at the index its answer names, and a
+`moveItem` that leaves one, on the pocket its `leftover` names (deviation "Item cursor on the canvas"). The hand
+cursor's click sends one `pickUp` without items; arriving on more than one shown item the merc freezes and the server
+opens the `pickupMenu` prompt with the pile as it is then. The client shows the menu at the pointer from the prompt,
+moving the view to him as `LocateSoldier` does, and OK answers with the chosen rows, Cancel, Esc or a cleared interface
+with `cancel` (`tactical/pickup-menu.ts`); a prompt answered elsewhere closes it.
 
 **The overhead map is the picture the player last saw.** The original composes it from the level nodes at every entry;
 ja2-node composes it in the client at every entry (`redrawOverheadMap`) from what the world renderer last drew: the

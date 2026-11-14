@@ -10,7 +10,7 @@
 
 import type { MapItem } from '../../content/formats/map.ts';
 import { decodeObject } from '../../content/formats/object.ts';
-import { ItemFlags, NOTHING } from '../../content/items/items.ts';
+import { ItemClass, ItemFlags, NOTHING } from '../../content/items/items.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import {
   has,
@@ -69,6 +69,24 @@ export interface ItemSnapshot {
 }
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
+
+export function worldItemSnapshot(t: Pick<TacticalState, 'content'>, wi: WorldItem): ItemSnapshot {
+  const items = t.content.items;
+  const nameOf = (item: number) => items.byIndex.get(item)?.name ?? String(item);
+  const o = wi.object;
+  const attachments = o.attachments.filter((a) => a.item !== NOTHING).map((a) => ({ item: nameOf(a.item), status: a.status }));
+  return {
+    gridNo: wi.gridNo,
+    level: wi.level,
+    item: nameOf(o.item),
+    count: o.count,
+    status: o.status[0] ?? 0,
+    ...(items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY ? { money: o.money } : {}),
+    ...(attachments.length > 0 ? { attachments } : {}),
+    ...(wi.zHeight > 0 ? { height: wi.zHeight } : {}),
+    ...(wi.flags & WorldItemFlags.DONTRENDER ? { notRendered: true } : {}),
+  };
+}
 
 const FIRST_ROOF_TYPE = 64;
 const LAST_ROOF_TYPE = 67;
