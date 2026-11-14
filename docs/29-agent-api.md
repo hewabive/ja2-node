@@ -939,7 +939,10 @@ for the batch, so `data.refusal` names the first failure (§5). When the first s
 assignments (`leaderRefused`), as every menu but the squad menu sets the list only after its merc's check; a squad's
 list runs after the refusal. Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and
-continue prompts"). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
+continue prompts"). A refusal puts the trainers back on a squad at once and comes as `militiaTrainingRejected {soldiers,
+reason, sector, cost}`: `declined`, `cannotAfford` (the balance is short of `cost` before anyone asks), `fundsGone` (a
+yes the balance no longer covers, also the `answer`'s `outcome`), and for a finished session `loyaltyTooLow` and
+`militiaFull`, checked in that order before the cost. `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
 with hostiles are dealt out while they also stay there (`18`). A merc who joins another squad (`assignSquad`, `assign`
 to a squad, a vehicle left, a hit while on another assignment) wakes unless he collapsed, as `AddCharacterToSquad` does.
 The events the original pairs with `StopTimeCompression` or a box stop a strategic advance. The hint

@@ -38,7 +38,13 @@ export type EconomyEvent =
     }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
   | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }
-  | { readonly type: 'militiaTrainingRejected'; readonly soldiers: readonly number[]; readonly reason: RejectReason };
+  | {
+      readonly type: 'militiaTrainingRejected';
+      readonly soldiers: readonly number[];
+      readonly reason: RejectReason;
+      readonly sector: string;
+      readonly cost: number;
+    };
 
 export type AbortReason = 'noMedkits' | 'insufficientDoctorSkill' | 'noToolkits' | 'insufficientRepairSkill';
-export type RejectReason = 'declined' | 'cannotAfford' | 'loyaltyTooLow' | 'militiaFull';
+export type RejectReason = 'declined' | 'cannotAfford' | 'fundsGone' | 'loyaltyTooLow' | 'militiaFull';

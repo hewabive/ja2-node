@@ -11,7 +11,7 @@
 // @src Tactical/Militia_Control.cc HandleMilitiaPromotions; Map_Screen_Interface.cc
 // @src ResetAssignmentsForMercsTrainingUnpaidSectorsInSelectedList, ResetAssignmentOfMercsThatWereTrainingMilitiaInThisSector.
 
-import { type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector, sectorFromId, sectorId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { idiv, u8 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import { addCharacterToAnySquad } from '../forces/squads.ts';
@@ -169,12 +169,24 @@ export function payForTrainingInSector(ctx: EconomyContext, sector: number): voi
   ctx.events.push({ type: 'moneyChanged', code: record.code, amount: record.amount, balance: record.balanceAfter });
 }
 
-function rejectTraining(ctx: EconomyContext, soldiers: CrewMember[], reason: RejectReason): void {
+interface Rejection {
+  readonly reason: RejectReason;
+  readonly sector: Sector;
+  readonly cost: number;
+}
+
+function rejectTraining(ctx: EconomyContext, soldiers: CrewMember[], rejection: Rejection): void {
   for (const m of soldiers) {
     addCharacterToAnySquad(ctx, m.id);
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
   }
-  ctx.events.push({ type: 'militiaTrainingRejected', soldiers: soldiers.map((m) => m.id), reason });
+  ctx.events.push({
+    type: 'militiaTrainingRejected',
+    soldiers: soldiers.map((m) => m.id),
+    reason: rejection.reason,
+    sector: sectorShortString(rejection.sector),
+    cost: rejection.cost,
+  });
 }
 
 function trainersOfUnpaidSectors(ctx: EconomyContext): CrewMember[] {
@@ -185,7 +197,7 @@ function trainersInSector(ctx: EconomyContext, sector: Sector): CrewMember[] {
   return ctx.crew.all().filter((m) => m.assignment === Assignment.TRAIN_TOWN && sameSector(m.sector, sector));
 }
 
-export type MilitiaPaymentOutcome = 'paid' | 'alreadyPaid' | 'declined' | 'cannotAfford' | 'pending';
+export type MilitiaPaymentOutcome = 'paid' | 'alreadyPaid' | 'declined' | 'cannotAfford' | 'fundsGone' | 'pending';
 
 export interface MilitiaPaymentFlow {
   readonly leader: number;
@@ -201,7 +213,7 @@ export function startMilitiaPaymentFlow(
   const sectors = unpaidTrainableSectors(ctx, [trainer, ...selected.filter((m) => m.id !== trainer.id)]);
   const cost = MILITIA_TRAINING_COST * sectors.length;
   if (ctx.state.finances.balance < cost) {
-    rejectTraining(ctx, trainersOfUnpaidSectors(ctx), 'cannotAfford');
+    rejectTraining(ctx, trainersOfUnpaidSectors(ctx), { reason: 'cannotAfford', sector: trainer.sector, cost });
     return 'cannotAfford';
   }
   const prompt: MilitiaPaymentPrompt = {
@@ -229,18 +241,19 @@ export function answerMilitiaPayment(
   yes: boolean,
   flow: MilitiaPaymentFlow,
 ): MilitiaPaymentOutcome {
+  const trainer = ctx.crew.get(prompt.trainer);
+  const sector = trainer?.sector ?? sectorFromId(prompt.sectors[0] ?? 0);
   if (!yes) {
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
-    rejectTraining(ctx, trainersOfUnpaidSectors(ctx), 'declined');
+    rejectTraining(ctx, trainersOfUnpaidSectors(ctx), { reason: 'declined', sector, cost: prompt.cost });
     return 'declined';
   }
   if (ctx.state.finances.balance < prompt.cost) {
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
-    rejectTraining(ctx, trainersOfUnpaidSectors(ctx), 'cannotAfford');
-    return 'cannotAfford';
+    rejectTraining(ctx, trainersOfUnpaidSectors(ctx), { reason: 'fundsGone', sector, cost: prompt.cost });
+    return 'fundsGone';
   }
   flow.setAssignmentForList();
-  const trainer = ctx.crew.get(prompt.trainer);
   const selected = prompt.soldiers.flatMap((id) => ctx.crew.get(id) ?? []);
   const sectors = trainer ? unpaidTrainableSectors(ctx, [trainer, ...selected.filter((m) => m.id !== trainer.id)]) : prompt.sectors;
   for (const sector of sectors) payForTrainingInSector(ctx, sector);
@@ -252,7 +265,7 @@ export type ContinueOutcome = 'continued' | 'declined' | RejectReason | 'pending
 export function handleInterfaceMessageForContinuingTrainingMilitia(ctx: EconomyContext, trainer: CrewMember): ContinueOutcome {
   const sector = trainer.sector;
   const reject = (reason: RejectReason): ContinueOutcome => {
-    rejectTraining(ctx, trainersInSector(ctx, sector), reason);
+    rejectTraining(ctx, trainersInSector(ctx, sector), { reason, sector, cost: MILITIA_TRAINING_COST });
     return reason;
   };
   if (!sectorHasSufficientLoyaltyToTrainMilitia(ctx, sector)) return reject('loyaltyTooLow');
@@ -278,15 +291,16 @@ export function answerMilitiaContinue(ctx: EconomyContext, prompt: MilitiaContin
   const sector = sectorFromId(prompt.sector);
   const trainer = ctx.crew.get(prompt.trainer);
   const trainerSector = trainer ? trainer.sector : sector;
+  const rejection = (reason: RejectReason): Rejection => ({ reason, sector: trainerSector, cost: prompt.cost });
   if (!yes) {
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
-    rejectTraining(ctx, trainersInSector(ctx, trainerSector), 'declined');
+    rejectTraining(ctx, trainersInSector(ctx, trainerSector), rejection('declined'));
     return 'declined';
   }
   if (ctx.state.finances.balance < prompt.cost) {
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
-    rejectTraining(ctx, trainersInSector(ctx, trainerSector), 'cannotAfford');
-    return 'cannotAfford';
+    rejectTraining(ctx, trainersInSector(ctx, trainerSector), rejection('fundsGone'));
+    return 'fundsGone';
   }
   payForTrainingInSector(ctx, sectorId(trainerSector));
   return 'continued';

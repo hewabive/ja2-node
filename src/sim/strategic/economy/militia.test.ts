@@ -12,6 +12,7 @@ import { Assignment, MilitiaRank, SoldierClass, Town } from './constants.ts';
 import { setTownLoyalty } from './loyalty.ts';
 import {
   checkOneMilitiaForPromotion,
+  handleContinueOfTownTraining,
   handleMilitiaDefections,
   handleMilitiaPromotions,
   townMilitiaTrainingCompleted,
@@ -130,6 +131,24 @@ describe('eligibility and payment', () => {
     expect(poor.crew.get(0)?.assignment).toBe(Assignment.SQUAD_1);
   });
 
+  it('names the sector and the cost in the refusal, and tells a yes the balance no longer covers from a cost it never covered', () => {
+    const rejections = (made: ReturnType<typeof context>) => made.ctx.events.filter((e) => e.type === 'militiaTrainingRejected');
+    const poor = context('yes');
+    poor.ctx.state.finances.balance = 700;
+    poor.crew.add({ id: 0, sector: C13 });
+    assignSoldiers(poor.ctx, [0], { kind: 'trainMilitia' });
+    expect(rejections(poor)).toEqual([
+      { type: 'militiaTrainingRejected', soldiers: [0], reason: 'cannotAfford', sector: 'C13', cost: 750 },
+    ]);
+    const spent = context('defer');
+    spent.crew.add({ id: 0, sector: C13 });
+    assignSoldiers(spent.ctx, [0], { kind: 'trainMilitia' });
+    spent.ctx.state.finances.balance = 100;
+    expect(answerPendingMilitiaPrompt(spent.ctx, true)).toBe('fundsGone');
+    expect(rejections(spent)).toEqual([{ type: 'militiaTrainingRejected', soldiers: [0], reason: 'fundsGone', sector: 'C13', cost: 750 }]);
+    expect(spent.crew.get(0)?.assignment).toBe(Assignment.SQUAD_1);
+  });
+
   it('keeps a deferred prompt pending', () => {
     const made = context('defer');
     made.crew.add({ id: 0, sector: C13 });
@@ -219,6 +238,23 @@ describe('training progress and completion', () => {
     expect(townMilitiaTrainingCompleted(made.ctx, t, C13)).toBe(0);
     expect(made.ctx.state.economy.towns[Town.DRASSEN]?.rating).toBe(before);
     expect(made.ctx.state.economy.militiaTrainingCompletedBy).toEqual([0]);
+  });
+
+  it('refuses to continue a finished session for loyalty, a full area and the cost, in that order, naming the sector and one session’s cost', () => {
+    const finished = (balance: number, loyalty: number, full: boolean) => {
+      const made = context('yes');
+      setTownLoyalty(made.ctx, Town.DRASSEN, loyalty);
+      if (full) for (const s of [B13, C13, D13]) militia(made, s, 0, 20, 0);
+      made.ctx.state.finances.balance = balance;
+      made.crew.add({ id: 0, sector: C13, assignment: Assignment.TRAIN_TOWN });
+      made.ctx.state.economy.militiaTrainingCompletedBy = [0];
+      handleContinueOfTownTraining(made.ctx);
+      return made.ctx.events.filter((e) => e.type === 'militiaTrainingRejected');
+    };
+    const rejected = { type: 'militiaTrainingRejected', soldiers: [0], sector: 'C13', cost: 750 };
+    expect(finished(100, 0, true)).toEqual([{ ...rejected, reason: 'loyaltyTooLow' }]);
+    expect(finished(100, 40, true)).toEqual([{ ...rejected, reason: 'militiaFull' }]);
+    expect(finished(100, 40, false)).toEqual([{ ...rejected, reason: 'cannotAfford' }]);
   });
 
   it('trains to completion in the hourly update and asks to continue', () => {
