@@ -63,17 +63,21 @@ function status(text: string, error = false): void {
   if (error) hook.error = text;
 }
 
+function busy(on: boolean): void {
+  hook.busy = on;
+  campaign.busy(on);
+  sessionList.busy(on);
+}
+
 async function exclusive(task: () => Promise<unknown>): Promise<void> {
   if (hook.busy) return;
-  hook.busy = true;
-  campaign.busy(true);
+  busy(true);
   try {
     await task();
   } catch (err) {
     status((err as Error).message, true);
   } finally {
-    hook.busy = false;
-    campaign.busy(false);
+    busy(false);
   }
 }
 

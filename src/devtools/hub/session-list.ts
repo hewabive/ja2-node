@@ -32,6 +32,7 @@ function button(text: string, className: string, click: () => void): HTMLButtonE
 export class SessionList {
   readonly #table: HTMLTableElement;
   readonly #ctx: SessionListContext;
+  #busy = false;
 
   constructor(ctx: SessionListContext) {
     this.#table = document.getElementById('sessionList') as HTMLTableElement;
@@ -46,6 +47,12 @@ export class SessionList {
       head.append(th);
     }
     this.#table.replaceChildren(head, ...sessions.map((s) => this.#row(s)));
+    this.busy(this.#busy);
+  }
+
+  busy(on: boolean): void {
+    this.#busy = on;
+    for (const control of this.#table.querySelectorAll<HTMLButtonElement | HTMLSelectElement>('button, select')) control.disabled = on;
   }
 
   #row(s: SessionSummary): HTMLTableRowElement {

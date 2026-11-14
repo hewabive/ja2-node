@@ -204,3 +204,42 @@ test('the developer page starts a campaign with options on /play, which quick sa
   await closeFromDevPage(page, session);
   await deleteSaves(page);
 });
+
+test('the developer page keeps the session rows busy until run until idle has refreshed the list, so the next time choice reaches the session', async ({
+  page,
+}) => {
+  await page.goto('/dev');
+  await devReady(page);
+  const session = await page.evaluate(async () => {
+    const created = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ seed: 1 }),
+    });
+    return ((await created.json()) as { readonly session: string }).session;
+  });
+  await page.reload();
+  await devReady(page);
+  const sessionRow = page.locator(`#sessionList tr[data-session="${session}"]`);
+  await sessionRow.locator('select.driver').selectOption('instant');
+  await expect(page.locator('#status')).toHaveText(`${session}: instant.`);
+  await expect(sessionRow.locator('select.driver')).toBeEnabled();
+  let releaseList = () => {};
+  const listHeld = new Promise<void>((resolve) => {
+    releaseList = resolve;
+  });
+  await page.route('**/api/sessions', async (route) => {
+    if (route.request().method() === 'GET') await listHeld;
+    await route.continue();
+  });
+  await sessionRow.locator('button.run-idle').click();
+  await expect(page.locator('#status')).toContainText(`${session} ran to tick `);
+  await expect(sessionRow.locator('select.driver')).toBeDisabled();
+  const choosing = sessionRow.locator('select.driver').selectOption('manual');
+  releaseList();
+  await choosing;
+  await expect(page.locator('#status')).toHaveText(`${session}: paused.`);
+  expect((await sessionOf(page, session))?.driver).toEqual({ mode: 'manual' });
+  await page.unroute('**/api/sessions');
+  await closeFromDevPage(page, session);
+});
