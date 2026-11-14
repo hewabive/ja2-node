@@ -164,8 +164,8 @@ level of the look (`corpseLocated`; `src/ui/screens/tactical/item-locators.ts`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6); the order of a whole shot is
 `11`. The kill quotes draw on `main` in `HandleKilledQuote`'s order, also when nobody speaks. Curses, laughs (the laugh
-or cool after a kill among them), blood-pool graphics and stat-change messages are not drawn (deviation "Cosmetic draws
-in attacks").
+or cool after a kill among them) and blood-pool graphics are not drawn, and whether a stat change comes with the
+experience line is drawn on the talk session's cosmetic stream (deviation "Cosmetic draws in attacks").
 
 ## 3. Quirks of the original the code keeps
 
@@ -175,6 +175,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 |---|---|
 | A burst earns marksmanship on its second round only, a one-round burst never | `burst.test.ts` |
 | A stat change rolls `PreRandom` once per chance, even at chance 0 | `experience.test.ts` |
+| A merc who loses a level says his experience-gain line all the same (`Tactical/Campaign.cc:583`) | `experience.test.ts` "has a merc who loses a level say his experience-gain line too" |
 | Bad news hurts one point more on a roof: the original reads the map level where it meant the experience level | `morale.test.ts` |
 | A militia kill counts three | `death.test.ts` |
 | The floating damage number shows the damage taken since it last faded, out of sight too, not the life lost: a dying enemy whom the bleeding kills outright shows 1, an overkill the whole hit (`lifeLost.shown`) | `src/sim/tactical/hud-view.test.ts` "shows the deductions added up …", "adds the damage a soldier took out of sight …" |

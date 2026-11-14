@@ -32,6 +32,7 @@ import { i8 } from '../../core/int.ts';
 import { TICK_MS } from '../clock.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
+import type { StatKey } from '../tactical/profiles.ts';
 import { Body, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { NarrativeEventWithoutTick } from './events.ts';
 import type { NarrativeHost } from './host.ts';
@@ -212,6 +213,11 @@ export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote
   return true;
 }
 
+export function queueStatChangeLine(host: NarrativeHost, s: Soldier, stat: StatKey, change: number): void {
+  addDialogueEvent(host, { kind: 'statChange', speaker: s.profile, soldier: s.id, stat, change });
+  tacticalCharacterDialogue(host, s, MercQuote.EXPERIENCE_GAIN);
+}
+
 export function makeCharacterDialogueEventSleep(host: Pick<NarrativeHost, 'talk'>, s: Soldier, asleep: boolean): void {
   addDialogueEvent(host, asleep ? { kind: 'backToSleep', speaker: s.profile } : { kind: 'wakeUp', speaker: s.profile });
 }
@@ -387,6 +393,11 @@ function executeItemLocatorStart(host: NarrativeHost, e: Extract<DialogueEvent, 
   return false;
 }
 
+function executeStatChange(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'statChange' }>): boolean {
+  host.emit({ type: 'statChangeAnnounced', soldier: e.soldier, stat: e.stat, change: e.change });
+  return false;
+}
+
 function executeSleep(host: NarrativeHost, speaker: number, asleep: boolean): boolean {
   const s = playerTeamSoldier(host, speaker);
   if (s) host.setMercAsleepFlag?.(s, asleep);
@@ -419,6 +430,8 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return false;
     case 'itemLocator':
       return executeItemLocatorStart(host, e);
+    case 'statChange':
+      return executeStatChange(host, e);
     case 'backToSleep':
       return executeSleep(host, e.speaker, true);
     case 'wakeUp':

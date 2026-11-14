@@ -23,10 +23,13 @@
 // @src ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc AnyDoctorWhoCanHealThisPatient from
 // @src Tactical/Soldier_Control.cc CheckBleeding, Tactical/Squads.cc IsSquadOnCurrentTacticalMap and FIRST_SQUAD
 // @src (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04);
-// @src Dialogue_Control.cc SetStopTimeQuoteCallback with TacticalCharacterDialogue (sayStopTimeQuote, 2026-11-04).
+// @src Dialogue_Control.cc SetStopTimeQuoteCallback with TacticalCharacterDialogue (sayStopTimeQuote, 2026-11-04);
+// @src Tactical/Campaign.cc ChangeStat (CharacterDialogueEventDisplayStatChange and QUOTE_EXPERIENCE_GAIN, sayStatChange,
+// @src 2026-11-14).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
+import type { StatKey } from '../profiles.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 
@@ -133,6 +136,7 @@ export interface NarrativePort {
   signalItemLocatorStart(s: Soldier, gridNo: number): void;
   swapLarrysProfiles(s: Soldier): void;
   sayStopTimeQuote(s: Soldier, quote: number, callback: StopTimeCallback): boolean;
+  sayStatChange(s: Soldier, stat: StatKey, change: number): boolean;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -220,4 +224,5 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   signalItemLocatorStart: () => {},
   swapLarrysProfiles: () => {},
   sayStopTimeQuote: () => false,
+  sayStatChange: () => false,
 };

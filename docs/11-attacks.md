@@ -105,8 +105,8 @@ refusals").
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6): each call is made where the
 original makes it, so call order is draw order, and a draw whose result is thrown away is still made. Curses, laughs,
-the civilian quote, stat-change messages and missile-trail delays are not drawn (deviation "Cosmetic draws in
-attacks"); unsequenced pairs are drawn left to right (deviation "Dud test operand order"). What is checked natively:
+the civilian quote and missile-trail delays are not drawn, and the stat line on the talk session's cosmetic stream
+(deviation "Cosmetic draws in attacks"); unsequenced pairs are drawn left to right (deviation "Dud test operand order"). What is checked natively:
 §4.
 
 ## 3. Quirks of the original the code keeps

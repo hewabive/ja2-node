@@ -4,7 +4,8 @@
 // @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
 // @src AgilityForEnemyMissingPlayer; ProcessUpdateStats's bInSector and HandleAnyStatChangesAfterAttack's FOR_EACH_IN_TEAM, a
 // @src helicopter passenger over the loaded sector's included (2026-11-08); ChangeStat's delta of a merc on our team
-// @src (2026-11-14).
+// @src (2026-11-14); ChangeStat's stat line and QUOTE_EXPERIENCE_GAIN, the Random(100) < 25 drawn on the talk session's
+// @src cosmetic stream (deviation "Cosmetic draws in attacks", 2026-11-14).
 
 import { i8, idiv, u16 } from '../../../core/int.ts';
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
@@ -23,6 +24,7 @@ const TRAINING_RATING_CAP = 85;
 const MAX_STAT_VALUE = 100;
 const MAX_EXP_LEVEL = 10;
 const STAT_QUOTE_RANGE = 100;
+const STAT_QUOTE_CHANCE = 25;
 
 function subpointsPerPoint(stat: number, expLevel: number): number {
   switch (stat) {
@@ -105,6 +107,16 @@ function processStatChange(t: CombatContext, p: ProfileProgress, stat: number, c
   }
 }
 
+function statQuoteRoll(t: CombatContext): number {
+  if (t.fx) return t.fx.int(STAT_QUOTE_RANGE);
+  return t.narrative?.cosmeticPick(STAT_QUOTE_RANGE) ?? STAT_QUOTE_RANGE;
+}
+
+function saysStatLine(t: CombatContext, stat: number): boolean {
+  if (stat === StatKind.HEALTH) return false;
+  return stat === StatKind.EXPERIENCE || statQuoteRoll(t) < STAT_QUOTE_CHANCE;
+}
+
 function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: number, points: number): void {
   const key = STAT_KEYS[stat];
   if (!key || points === 0) return;
@@ -114,12 +126,12 @@ function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: numb
   p.gains[key] %= spp;
   if (key === 'lifeMax') s.lifeMax = p.stats.lifeMax;
   else s.stats[key] = p.stats[key];
-  if (stat !== StatKind.HEALTH && stat !== StatKind.EXPERIENCE) t.fx?.int(STAT_QUOTE_RANGE);
+  const queued = saysStatLine(t, stat) && (t.narrative?.sayStatChange(s, key, points) ?? false);
   if (stat === StatKind.HEALTH) {
     p.life = Math.max(OKLIFE, p.life + points);
     s.life = Math.max(OKLIFE, s.life + points);
   }
-  t.events.push({ type: 'statChanged', soldier: s.id, stat: key, change: points });
+  t.events.push({ type: 'statChanged', soldier: s.id, stat: key, change: points, ...(queued ? { queued } : {}) });
   if (stat === StatKind.EXPERIENCE && points > 0) t.experienceHooks?.levelGained(p, s, points);
 }
 

@@ -426,6 +426,12 @@ tile (D16). `fellDown`, `slippedOnMarbles` and `camoWashedOff` (§8.1) name a so
 (`Tactical/Overhead.cc:1484`, `:1505`, `:1519`, `Tactical/Items.cc:3357`); the first two add `unseen` and `heard` for
 his curse, as a hit does, none for a muted soldier, and `fellDown` drops his `cause`.
 
+**A stat change** of a merc of ours comes as `statChanged {soldier, stat, change}` as it happens, and his panels flash
+it. When he says his experience line with it (`QUOTE_EXPERIENCE_GAIN` at every level, gained or lost, and for a quarter
+of the other stats but health, drawn on the talk session's cosmetic stream; `Tactical/Campaign.cc:583-614`), the
+message waits in the dialogue queue behind the lines queued before: that `statChanged` carries `queued`, and
+`statChangeAnnounced {soldier, stat, change}` brings the message as the queue reaches it, right before the line.
+
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
 strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. His death

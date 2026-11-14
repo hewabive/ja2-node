@@ -50,3 +50,71 @@ describe('the stat deltas (Campaign.cc ChangeStat)', () => {
     expect([p.stats.wisdom, p.deltas.wisdom]).toEqual([62, 1]);
   });
 });
+
+describe("the stat line (Campaign.cc ChangeStat's DisplayStatChange event and QUOTE_EXPERIENCE_GAIN)", () => {
+  const ONE_POINT_OF_MARKSMANSHIP = 25;
+  const ONE_LEVEL_AT_THREE = 1050;
+  const ONE_POINT_OF_HEALTH = 50;
+
+  function merc(rolls: number[]) {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    const p = progressFor(MERC_PROFILE);
+    sim.state.profiles.set(MERC_PROFILE, p);
+    const picks: number[] = [];
+    const lines: [number, string, number][] = [];
+    sim.state.narrative = {
+      ...sim.state.narrative,
+      cosmeticPick: (n) => {
+        picks.push(n);
+        return rolls.shift() ?? n - 1;
+      },
+      sayStatChange: (m, stat, change) => lines.push([m.id, stat, change]) > 0,
+    };
+    sim.drainEvents();
+    const changes = () => sim.drainEvents().filter((e) => e.type === 'statChanged');
+    return { sim, s, p, picks, lines, changes };
+  }
+
+  it('queues the line and the quote for a skill on a cosmetic Random(100) < 25, the message waiting in the queue', () => {
+    const m = merc([24]);
+    m.p.gains.marksmanship = ONE_POINT_OF_MARKSMANSHIP;
+    processUpdateStats(m.sim.state, m.s);
+    expect([m.picks, m.lines]).toEqual([[100], [[m.s.id, 'marksmanship', 1]]]);
+    expect(m.changes()).toEqual([expect.objectContaining({ soldier: m.s.id, stat: 'marksmanship', change: 1, queued: true })]);
+  });
+
+  it('prints the message at once from 25 up, with no line', () => {
+    const m = merc([25]);
+    m.p.gains.marksmanship = ONE_POINT_OF_MARKSMANSHIP;
+    processUpdateStats(m.sim.state, m.s);
+    expect([m.picks, m.lines]).toEqual([[100], []]);
+    expect(m.changes()).toEqual([expect.not.objectContaining({ queued: true })]);
+  });
+
+  it('always queues it for a level, without a draw, and never for health', () => {
+    const m = merc([]);
+    Object.assign(m.p.gains, { experience: ONE_LEVEL_AT_THREE, lifeMax: ONE_POINT_OF_HEALTH });
+    processUpdateStats(m.sim.state, m.s);
+    expect([m.picks, m.lines]).toEqual([[], [[m.s.id, 'experience', 1]]]);
+    expect(m.changes().map((e) => [e.stat, 'queued' in e])).toEqual([
+      ['lifeMax', false],
+      ['experience', true],
+    ]);
+  });
+
+  it('has a merc who loses a level say his experience-gain line too', () => {
+    const m = merc([]);
+    m.p.gains.experience = -ONE_LEVEL_AT_THREE;
+    processUpdateStats(m.sim.state, m.s);
+    expect(m.lines).toEqual([[m.s.id, 'experience', -1]]);
+  });
+
+  it('prints the message at once when no dialogue queue takes the line', () => {
+    const m = merc([0]);
+    m.sim.state.narrative = { ...m.sim.state.narrative, sayStatChange: () => false };
+    m.p.gains.marksmanship = ONE_POINT_OF_MARKSMANSHIP;
+    processUpdateStats(m.sim.state, m.s);
+    expect(m.changes()).toEqual([expect.not.objectContaining({ queued: true })]);
+  });
+});

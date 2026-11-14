@@ -80,6 +80,15 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints a stat change whose line waits in the dialogue queue when the queue reaches it, not as it happens', () => {
+    const change = { soldier: 1, stat: 'experience', change: 1 };
+    const queued = messageEntriesOf([at({ type: 'statChanged', ...change, queued: true })], facts);
+    const told = messageEntriesOf([at({ type: 'statChangeAnnounced', ...change })], facts);
+    expect(queued).toEqual([]);
+    expect(told).toEqual(messageEntriesOf([at({ type: 'statChanged', ...change })], facts));
+    expect(told).toHaveLength(1);
+  });
+
   it('names deaths of visible named civilians, shows our dead on the skull feedback and keeps the rest quiet', () => {
     const entries = messageEntriesOf(
       [

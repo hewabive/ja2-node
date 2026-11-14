@@ -440,6 +440,7 @@ export interface StatChangedEvent extends SimEventBase {
   readonly soldier: number;
   readonly stat: string;
   readonly change: number;
+  readonly queued?: true;
 }
 
 export interface NamedSoldier {

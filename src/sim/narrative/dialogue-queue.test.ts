@@ -18,6 +18,7 @@ import {
   externalNpcDialogue,
   FINAL_TALKING_DELAY_TICKS,
   handleImportantMercQuote,
+  queueStatChangeLine,
   quietDialogueForLoad,
   setStopTimeQuoteCallback,
   signalItemLocatorStart,
@@ -57,6 +58,32 @@ function sleepingMerc(): { host: FakeHost; merc: Soldier } {
   const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
   return { host: fakeHost({ soldiers: [merc], asleep: [merc.id] }), merc };
 }
+
+describe("the stat line (Campaign.cc ChangeStat's CharacterDialogueEventDisplayStatChange)", () => {
+  it('tells the stat change as the queue reaches it, after the lines queued before, then says the experience-gain quote', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    queueStatChangeLine(host, merc, 'marksmanship', 1);
+    expect(host.emitted).toEqual([]);
+    runQueueToTheEnd(host);
+    const told = host.emitted.flatMap((e): unknown[] => (e.type === 'mercQuote' ? [e.id] : e.type === 'statChangeAnnounced' ? [e] : []));
+    expect(told).toEqual([
+      MercQuote.HEADSHOT,
+      { type: 'statChangeAnnounced', soldier: merc.id, stat: 'marksmanship', change: 1 },
+      MercQuote.EXPERIENCE_GAIN,
+    ]);
+  });
+
+  it('tells it also when the merc cannot say the quote', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    merc.gassed = true;
+    queueStatChangeLine(host, merc, 'experience', 1);
+    runQueueToTheEnd(host);
+    expect(host.emitted).toEqual([{ type: 'statChangeAnnounced', soldier: merc.id, stat: 'experience', change: 1 }]);
+  });
+});
 
 describe('the items-seen quote (Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart)', () => {
   it('unlocks the item locators and picks quote 11 or 12 with Random(2) only when the queue runs it', () => {

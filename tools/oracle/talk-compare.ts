@@ -171,6 +171,8 @@ export function queueEntry(e: DialogueEvent): Json {
       return { kind: 'removeepc', args: [e.npc, 0, 0, 0] };
     case 'itemLocator':
       return { kind: 'locator', args: [e.speaker, 0, 0, 0] };
+    case 'statChange':
+      return { kind: 'stat', args: [e.speaker, e.change, 0, 0] };
     case 'backToSleep':
       return { kind: 'sleep', args: [e.speaker, 1, 0, 0] };
     case 'wakeUp':

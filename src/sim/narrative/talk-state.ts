@@ -10,13 +10,15 @@
 // @src Faces.h FACE_MODAL (2026-11-04); Dialogue_Control.cc DialogueActive (2026-11-07); Tactical/Overhead.h
 // @src bMercArrivingQuoteBeingUsed (2026-11-08); Dialogue_Control.cc gsExternPanelXPosition and gsExternPanelYPosition,
 // @src SetExternMapscreenSpeechPanelXY, HandleDialogueEnd (back to the default as a line ends) (2026-11-09); a line said
-// @src through the speaker's soldier face (SOLDIERTYPE::face, which Faces.cc DeleteSoldierFace deletes, 2026-11-09).
+// @src through the speaker's soldier face (SOLDIERTYPE::face, which Faces.cc DeleteSoldierFace deletes, 2026-11-09);
+// @src Tactical/Campaign.cc ChangeStat's CharacterDialogueEventDisplayStatChange (2026-11-14).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
 import { Rng } from '../../core/rng.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { SkyriderTopic } from '../strategic/forces/helicopter-events.ts';
+import type { StatKey } from '../tactical/profiles.ts';
 
 export type ExternPanel = { readonly monologue: SkyriderTopic } | { readonly mine: number };
 
@@ -53,6 +55,7 @@ export type DialogueEvent =
   | { readonly kind: 'pcTriggerNpc'; readonly speaker: number; readonly quote: number; readonly npc: number; readonly record: number }
   | { readonly kind: 'removeEpc'; readonly npc: number }
   | { readonly kind: 'itemLocator'; readonly speaker: number; readonly gridNo: number }
+  | { readonly kind: 'statChange'; readonly speaker: number; readonly soldier: number; readonly stat: StatKey; readonly change: number }
   | { readonly kind: 'backToSleep'; readonly speaker: number }
   | { readonly kind: 'wakeUp'; readonly speaker: number }
   | { readonly kind: 'callback'; readonly name: string; readonly args?: readonly number[] };

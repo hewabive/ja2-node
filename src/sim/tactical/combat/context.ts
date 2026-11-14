@@ -14,6 +14,7 @@ export interface StatChangedEvent {
   readonly soldier: number;
   readonly stat: StatKey;
   readonly change: number;
+  readonly queued?: true;
 }
 
 export interface ExperienceHooks {

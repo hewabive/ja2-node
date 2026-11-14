@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Message.cc ScreenMsg, TacticalScreenMsg, MapScreenMessage (the priorities, INTERFACE_COLOR,
 // @src DIALOGUE_COLOR, the 256-line ring); the ScreenMsg sites of Tactical/OppList.cc (noises), Overhead.cc (enemy in
-// @src sector, first aid), TeamTurns.cc (interrupt), Campaign.cc (stat gains), Items.cc (reload), Handle_Doors.cc and
+// @src sector, first aid), TeamTurns.cc (interrupt), Campaign.cc (stat gains, a queued one as the dialogue queue reaches it), Items.cc (reload), Handle_Doors.cc and
 // @src Keys.cc (locks and traps), Interface_Dialogue.cc and TacticalAI/NPC.cc (recruits, escorts, balances),
 // @src Merc_Hiring.cc (arrivals, none for a merc with the chopper code), Merc_Entering.cc HandleHeliDrop (each merc the
 // @src helicopter drops, at his drop or at the Esc skip, 2026-11-08), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, the death off the tactical map
@@ -182,7 +182,7 @@ function noiseDirection(direction: EventOf<'noiseHeard'>['direction']): MessageA
   return ref('pDirectionStr', direction);
 }
 
-function statGain(e: EventOf<'statChanged'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+function statGain(e: Pick<EventOf<'statChanged'>, 'soldier' | 'stat' | 'change'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
   const stat = STAT_GAIN_ORDER.indexOf(e.stat);
   if (stat < 0 || e.change === 0 || facts.soldierTeam(e.soldier) !== OUR_TEAM) return [];
   const amount = Math.abs(e.change);
@@ -308,7 +308,8 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
     e.team === OUR_TEAM && e.soldiers && e.soldiers.length > 0
       ? [line('Message', 53, [text(e.soldiers.map((id) => facts.soldierName(id) ?? '').join(', '))])]
       : [],
-  statChanged: statGain,
+  statChanged: (e, facts) => (e.queued ? [] : statGain(e, facts)),
+  statChangeAnnounced: statGain,
   reloaded: (e, facts) => (facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', 11, [soldierArg(facts, e.soldier)])] : []),
   firstAidDone: (e, facts) => [line('TacticalStr', 83, [soldierArg(facts, e.patient)])],
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [soldierArg(facts, e.soldier)])],
