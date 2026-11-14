@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { Rng } from '../../../core/rng.ts';
 import { createCampaignSession } from '../../../server/campaign-factory.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Session } from '../../../server/session.ts';
@@ -185,6 +186,37 @@ describe('hiring from A.I.M.', () => {
     expect(session.dispatch({ type: 'aimLeaveMessage', profile: 1 })).toEqual(laptopRefusal('alreadyLeft'));
     expect(session.dispatch({ type: 'aimLeaveMessage', profile: 0 })).toMatchObject({ ok: false });
     expect(p.miscFlags3 & 0x01).toBe(1);
+  });
+
+  it('annoys a merc who hangs up, twice past contact, each time with a reset event 6 h plus Random(600) min away on main', async () => {
+    const session = await inLaptop(24);
+    const [profile] = available(session, [0, 1, 2, 3, 4, 5]);
+    if (profile === undefined) throw new Error('nobody is available');
+    const resets = () => session.campaign.state.queue.events.filter((e) => e.kind === EventKind.AIM_RESET_MERC_ANNOYANCE);
+    const hangUp = () => {
+      const draws = Rng.fromState(session.campaign.state.rng.state());
+      const due = (worldTotalMinutes(session.campaign.state.clock) + 6 * 60 + draws.int(600)) * 60;
+      const result = session.dispatch({ type: 'aimHangUp', profile });
+      expect(resets().at(-1)).toMatchObject({ stamp: due, param: profile });
+      return result;
+    };
+    expect(hangUp()).toEqual({ ok: true, data: { contact: 'firstContact' } });
+    expect(session.campaign.state.profiles.get(profile)?.mercStatus).toBe(MercStatus.ANNOYED_BUT_CAN_STILL_CONTACT);
+    expect(hangUp()).toEqual({ ok: true, data: { contact: 'unavailable' } });
+    expect(session.campaign.state.profiles.get(profile)?.mercStatus).toBe(MercStatus.ANNOYED_WONT_CONTACT);
+    expect(resets()).toHaveLength(2);
+    expect(session.dispatch({ type: 'aimHangUp', profile })).toEqual(laptopRefusal('unavailable'));
+    expect(session.dispatch({ type: 'aimHangUp', profile: 42 })).toEqual(laptopRefusal('notAimMerc'));
+  });
+
+  it('refuses a hang-up by a merc away from home, who only has his answering machine', async () => {
+    const session = await inLaptop(25);
+    const p = session.campaign.state.profiles.get(1);
+    if (!p) throw new Error('no profile');
+    p.mercStatus = MercStatus.WORKING_ELSEWHERE;
+    p.dayBecomesAvailable = 1;
+    expect(session.dispatch({ type: 'aimHangUp', profile: 1 })).toEqual(laptopRefusal('away'));
+    expect(p.mercStatus).toBe(MercStatus.WORKING_ELSEWHERE);
   });
 });
 

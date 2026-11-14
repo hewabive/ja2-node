@@ -127,6 +127,7 @@ const LAPTOP_REFUSALS: Refusals = [
   [{ type: 'aimHire', profile: 1, contract: 'week' }, 'badContract'],
   [{ type: 'aimHire', profile: 1, contract: 7, gear: 'yes' }, 'badGear'],
   [{ type: 'aimLeaveMessage', profile: NOBODY }, 'notAimMerc'],
+  [{ type: 'aimHangUp', profile: NOBODY }, 'notAimMerc'],
   [{ type: 'mercHire', profile: 'Biff' }, 'notListed'],
   [{ type: 'bobbyRayOrder' }, 'badOrder'],
   [{ type: 'bobbyRayQuote' }, 'badOrder'],

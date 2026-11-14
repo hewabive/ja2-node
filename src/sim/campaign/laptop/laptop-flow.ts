@@ -47,9 +47,11 @@ import {
   AIM_CONTRACT_LENGTHS,
   aimCharge,
   aimContact,
+  aimHangUpRefusal,
   aimHire,
   aimHireCheck,
   aimLeaveMessageRefusal,
+  aimMercHungUp,
   decideActiveTerrorists,
   defaultGear,
   isAimMerc,
@@ -121,6 +123,7 @@ const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'deleteEmail',
   'aimHire',
   'aimLeaveMessage',
+  'aimHangUp',
   'mercOpenAccount',
   'mercHire',
   'mercPay',
@@ -533,6 +536,8 @@ export class LaptopFlow implements LaptopContext {
         return this.#aimHire(cmd);
       case 'aimLeaveMessage':
         return this.#aimLeaveMessage(cmd);
+      case 'aimHangUp':
+        return this.#aimHangUp(cmd);
       case 'mercOpenAccount':
         return this.#mercOpenAccount();
       case 'mercHire':
@@ -678,6 +683,15 @@ export class LaptopFlow implements LaptopContext {
     if (refusal) return laptopRefusal(refusal);
     p.miscFlags3 |= ProfileMiscFlag3.PLAYER_LEFT_MSG_FOR_MERC_AT_AIM;
     return { ok: true };
+  }
+
+  #aimHangUp(cmd: Command): CommandResult {
+    if (!isInt(cmd.profile) || !isAimMerc(this, cmd.profile)) return laptopRefusal('notAimMerc');
+    const p = this.profile(cmd.profile) as ProfileProgress;
+    const refusal = aimHangUpRefusal(p);
+    if (refusal) return laptopRefusal(refusal);
+    aimMercHungUp(this, cmd.profile, p);
+    return { ok: true, data: { contact: aimContact(p) } };
   }
 
   #mercSession(): MercCommandRefusal | null {

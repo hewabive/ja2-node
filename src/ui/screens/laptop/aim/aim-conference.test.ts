@@ -45,6 +45,7 @@ interface FakePorts extends ConferencePorts {
   readonly hires: { contract: number; gear: boolean }[];
   popdowns: number;
   messages: number;
+  hungUp: number;
   roll: number;
   readonly noises: string[];
   faces: number;
@@ -76,6 +77,7 @@ function ports(): FakePorts {
     hires: [],
     popdowns: 0,
     messages: 0,
+    hungUp: 0,
     roll: CLEAN_ROLL,
     noises: [],
     faces: 0,
@@ -93,6 +95,9 @@ function ports(): FakePorts {
     },
     leaveMessage: () => {
       p.messages++;
+    },
+    mercHungUp: () => {
+      p.hungUp++;
     },
     initFace: () => {
       p.faces++;
@@ -489,7 +494,7 @@ describe('the A.I.M. video conference', () => {
 });
 
 describe('an A.I.M. merc kept waiting', () => {
-  it('makes small talk after two spells of three silent seconds, grows impatient every ten, comments and hangs up', () => {
+  it('makes small talk after two spells of three silent seconds, grows impatient every ten, comments and hangs up annoyed', () => {
     const p = ports();
     const conference = new Conference(p, STEP_MS);
     const quiet = greeted(conference, p);
@@ -511,6 +516,7 @@ describe('an A.I.M. merc kept waiting', () => {
       ConferenceQuote.COMMENT_BEFORE_HANG_UP,
     ]);
     expect(p.spoken).toEqual(p.said);
+    expect(p.hungUp).toBe(1);
     let now = advance(conference, comment, QUOTE_MS - 2 * STEP_MS);
     expect(conference.mode).toBe(VideoMode.FIRST_CONTACT);
     now = advance(conference, now, 4 * STEP_MS);
@@ -531,6 +537,7 @@ describe('an A.I.M. merc kept waiting', () => {
     expect(refusal - up).toBeLessThanOrEqual(ATTITUDE_TIME + 2 * STEP_MS);
     advance(conference, refusal, QUOTE_MS + 3 * STEP_MS + TITLE_ITERATIONS * STEP_MS);
     expect(conference.mode).toBe(VideoMode.NOT_DISPLAYED);
+    expect(p.hungUp).toBe(0);
   });
 
   it('never grows impatient on the answering machine', () => {

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/AIMMembers.cc WillMercAcceptCall, CanMercBeHired (via relations/hiring-check.ts),
 // @src DisplayMercChargeAmount, DisplayMercsFace, BtnAnsweringMachineButtonCallback, AimMemberHireMerc, AIM_VIDEO_INIT_MODE
-// @src (default contract and kit), BtnHireButtonCallback (the check at HIRE, before the funds); Tactical/Dialogue_Control.h
+// @src (default contract and kit), BtnHireButtonCallback (the check at HIRE, before the funds), HandleMercAttitude (the
+// @src annoyance of a merc who hangs up and its reset event, 2026-11-14); Tactical/Dialogue_Control.h
 // @src (the quote ids); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
@@ -13,6 +14,8 @@ import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { setProfileSector } from '../../strategic/narrative/presence.ts';
+import { EventKind } from '../../strategic/time/constants.ts';
+import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 import { Quote, type QuoteName } from '../contracts/quotes.ts';
@@ -39,6 +42,8 @@ const TERRORIST_CHANCE = { easy: 70, medium: 50, hard: 30 } as const;
 const MIN_ADDITIONAL_TERRORISTS = 2;
 const MAX_ADDITIONAL_TERRORISTS = 4;
 const TERRORIST_PLACEMENT_CHANCE = 40;
+const MERC_ANNOYED_WONT_CONTACT_TIME_MINUTES = 6 * 60;
+const ANNOYANCE_RESET_SPREAD_MINUTES = 600;
 
 export type AimContact = 'unavailable' | 'answeringMachine' | 'firstContact';
 
@@ -219,6 +224,23 @@ export function aimMessageLeft(p: ProfileProgress): boolean {
 export function aimLeaveMessageRefusal(p: ProfileProgress): 'notAway' | 'alreadyLeft' | null {
   if (aimContact(p) !== 'answeringMachine') return 'notAway';
   return aimMessageLeft(p) ? 'alreadyLeft' : null;
+}
+
+export function aimHangUpRefusal(p: ProfileProgress): 'unavailable' | 'away' | null {
+  const contact = aimContact(p);
+  if (contact === 'unavailable') return 'unavailable';
+  return contact === 'answeringMachine' ? 'away' : null;
+}
+
+function raiseAnnoyance(p: ProfileProgress): void {
+  if (p.mercStatus === MercStatus.OK) p.mercStatus = MercStatus.ANNOYED_BUT_CAN_STILL_CONTACT;
+  else if (p.mercStatus === MercStatus.ANNOYED_BUT_CAN_STILL_CONTACT) p.mercStatus = MercStatus.ANNOYED_WONT_CONTACT;
+}
+
+export function aimMercHungUp(ctx: LaptopContext, profile: number, p: ProfileProgress): void {
+  raiseAnnoyance(p);
+  const resetAt = ctx.rng.main.int(ANNOYANCE_RESET_SPREAD_MINUTES) + ctx.now() + MERC_ANNOYED_WONT_CONTACT_TIME_MINUTES;
+  addStrategicEvent(ctx.state.queue, EventKind.AIM_RESET_MERC_ANNOYANCE, resetAt, profile);
 }
 
 function aimOrMercProfiles(ctx: LaptopContext): number[] {

@@ -27,7 +27,7 @@
 // @src DisplayTextForMercFaceVideoPopUp (the text in quotes, max(1500, 80 x characters) ms), SelectShutUpMercRegionCallBack,
 // @src StopMercTalking, HandleMercAttitude (the two very impatient quotes queued at once; its
 // @src EnableDisableCurrentVideoConferenceButtons(FALSE) before the hang-up comment does nothing, as the hire buttons are
-// @src never disabled then; the annoyance it raises is not simulated),
+// @src never disabled then; the annoyance it raises goes to the server as aimHangUp),
 // @src DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion while the face is up and no answering machine
 // @src shows: the connection snow with static4.wav while gfFirstTimeInContactScreen holds, the distortion
 // @src (aim-distortion.ts) after it. The file statics the page keeps across its exits (gubContractLength, gfBuyEquipment,
@@ -102,6 +102,7 @@ export interface ConferencePorts {
   hireCheck(): Promise<{ readonly accepted: boolean; readonly quote: number | null }>;
   hire(contract: number, gear: boolean): Promise<'hired' | 'funds' | 'teamFull' | 'refused'>;
   leaveMessage(): void;
+  mercHungUp(): void;
   initFace(now: number): void;
   say(quote: number, now: number, started: () => void): void;
   faceTalking(now: number, frozen: boolean): boolean;
@@ -518,6 +519,7 @@ export class Conference {
         break;
       case Attitude.HANG_UP_TALK:
         this.#say(ConferenceQuote.COMMENT_BEFORE_HANG_UP);
+        this.#ports.mercHungUp();
         this.#memory.hangUp = true;
         break;
       case Attitude.MERC_BUSY:

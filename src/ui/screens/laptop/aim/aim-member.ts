@@ -234,6 +234,10 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
         const merc = current();
         if (merc) void context.command({ type: 'aimLeaveMessage', profile: merc.profile });
       },
+      mercHungUp: () => {
+        const merc = current();
+        if (merc) void context.command({ type: 'aimHangUp', profile: merc.profile });
+      },
       initFace: (now) => {
         const merc = current();
         videoFace = merc ? new VideoFace(videoFaceRecord(context.data.profile(merc.profile), merc.profile), now, facePorts) : null;

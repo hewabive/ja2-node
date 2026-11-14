@@ -264,8 +264,8 @@ picture only with `atLeastOneMercHired` and without `newGameLaptop` in the view,
 clears the latter (`Laptop/Laptop.cc:1351`), and over black when it did not open from the map. The A.I.M. and M.E.R.C. video faces (`laptop/video-face.ts`) are the tactical
 `FaceAnimator` with a queue of their speaker's quotes: no server event carries these quotes, so the pages say them
 outside `SpeechPresenter` and play the voice through the handle `UiSoundSink.play` returns. The A.I.M. conference runs
-the merc's impatience on the UI clock (`laptop/aim/aim-conference.ts`); the annoyance his hang-up raises is not
-simulated (deviation "A.I.M. annoyance"). Its file statics live in `LaptopMemory` and its mode in the shell's `subPage`
+the merc's impatience on the UI clock (`laptop/aim/aim-conference.ts`) and sends `aimHangUp` as he starts his hang-up
+comment (deviation "A.I.M. annoyance"). Its file statics live in `LaptopMemory` and its mode in the shell's `subPage`
 (`giCurrentSubPage`), so a conference left for a program outside the web comes back, and a web page switch or a new
 laptop session drops it, as in the original.
 
