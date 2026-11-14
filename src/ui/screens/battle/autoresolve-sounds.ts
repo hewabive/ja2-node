@@ -7,7 +7,8 @@
 // @src the impact, HIT1 while conscious, FALL_1, the merc's death sounds, BODY_SPLAT_1 or HEADSPLAT_1 below -60 life, else
 // @src DIE1), ProcessBattleFrame (ACR_SMELL_THREAT or ACR_SMELL_PREY), IsBattleOver (LAUGH1 of the first live enemy, or
 // @src ACR_EATFLESH in a creature attack, even after Finish). The variants come from the simulation's cosmetic stream
-// @src ; the generic voice of militia and enemies and the splat choice are the client's.
+// @src ; the splat choice is the client's; each cell speaks with the voice the view carries, a militia's or enemy's
+// @src ubBattleSoundID of Soldier_Create.cc TacticalCreateSoldier among them (2026-11-14).
 
 import type { AutoresolveCellView } from '../../../protocol/view.ts';
 import { isCreatureCell } from './autoresolve-cells.ts';
@@ -15,7 +16,6 @@ import { type ArEvent, cellKey, type DisplayState } from './autoresolve-playback
 import type { BattleSoundRequest, BattleVoice, BattleVoiceSound } from './environment.ts';
 
 const CONSCIOUSNESS = 10;
-const GENERIC_VOICES = 3;
 const SPLAT_CHOICES = 3;
 const CLAW_SWIPE_BELOW = 50;
 const REGMALE = 0;
@@ -41,17 +41,15 @@ export interface SoundOut {
 export interface SoundContext {
   readonly encounter: string;
   readonly random: (range: number) => number;
-  readonly voiceOf: (soldier: number) => number | null;
 }
 
 export interface SoundMemory {
   previous: ArEvent | null;
   meleeHit: string | null;
-  readonly voices: Map<string, number>;
 }
 
 export function soundMemory(): SoundMemory {
-  return { previous: null, meleeHit: null, voices: new Map() };
+  return { previous: null, meleeHit: null };
 }
 
 const effect = (name: string, loud = false, ungated = false): SoundOut => ({ request: { kind: 'effect', name, loud }, ungated });
@@ -60,17 +58,12 @@ function cellOf(state: DisplayState, ref: { readonly side: AutoresolveCellView['
   return state.cells.find((c) => c.side === ref.side && c.index === ref.index) ?? null;
 }
 
-function voice(cell: AutoresolveCellView, ctx: SoundContext, memory: SoundMemory): BattleVoice {
-  if (cell.side === 'merc')
-    return { profile: cell.soldier === undefined ? null : ctx.voiceOf(cell.soldier), generic: 0, bodyType: REGMALE };
-  const key = cellKey(cell);
-  const generic = memory.voices.get(key) ?? ctx.random(GENERIC_VOICES);
-  memory.voices.set(key, generic);
-  return { profile: null, generic, bodyType: CREATURE_BODIES[cell.kind] ?? (cell.female ? REGFEMALE : REGMALE) };
+function voice(cell: AutoresolveCellView): BattleVoice {
+  return { voice: cell.voice ?? null, bodyType: CREATURE_BODIES[cell.kind] ?? (cell.female ? REGFEMALE : REGMALE) };
 }
 
-function voiceSound(cell: AutoresolveCellView, sound: BattleVoiceSound, ctx: SoundContext, memory: SoundMemory, ungated = false): SoundOut {
-  return { request: { kind: 'voice', sound, voice: voice(cell, ctx, memory) }, ungated };
+function voiceSound(cell: AutoresolveCellView, sound: BattleVoiceSound, ungated = false): SoundOut {
+  return { request: { kind: 'voice', sound, voice: voice(cell) }, ungated };
 }
 
 function consciousBefore(cell: AutoresolveCellView): boolean {
@@ -85,11 +78,11 @@ function rangeSound(sound: string, variant: number): SoundOut[] {
   return name ? [effect(name)] : [];
 }
 
-function hitSounds(e: Extract<ArEvent, { type: 'arHit' }>, state: DisplayState, ctx: SoundContext, memory: SoundMemory): SoundOut[] {
+function hitSounds(e: Extract<ArEvent, { type: 'arHit' }>, state: DisplayState, memory: SoundMemory): SoundOut[] {
   const target = cellOf(state, e.target);
   memory.meleeHit = e.melee && target ? cellKey(target) : null;
   if (!target) return [];
-  return consciousBefore(target) || (e.melee && isCreatureCell(target)) ? [voiceSound(target, 'HIT1', ctx, memory)] : [];
+  return consciousBefore(target) || (e.melee && isCreatureCell(target)) ? [voiceSound(target, 'HIT1')] : [];
 }
 
 function deathSounds(e: Extract<ArEvent, { type: 'arDied' }>, state: DisplayState, ctx: SoundContext, memory: SoundMemory): SoundOut[] {
@@ -98,15 +91,15 @@ function deathSounds(e: Extract<ArEvent, { type: 'arDied' }>, state: DisplayStat
   const out: SoundOut[] = target.side === 'merc' ? [effect('DOORCR_1', true), effect('HEADCR_1', true)] : [];
   if (memory.meleeHit === cellKey(target)) return out;
   if (e.splat) out.push(effect(ctx.random(SPLAT_CHOICES) ? 'BODY_SPLAT_1' : 'HEADSPLAT_1'));
-  else out.push(voiceSound(target, 'DIE1', ctx, memory));
+  else out.push(voiceSound(target, 'DIE1'));
   return out;
 }
 
-function defeatSounds(state: DisplayState, ctx: SoundContext, memory: SoundMemory): SoundOut[] {
+function defeatSounds(state: DisplayState, ctx: SoundContext): SoundOut[] {
   const enemy = state.cells.find((c) => c.side === 'enemy' && c.state !== 'dead');
   if (!enemy) return [];
   if (ctx.encounter === 'creatureAttack') return [effect('ACR_EATFLESH', false, true)];
-  return [voiceSound(enemy, 'LAUGH1', ctx, memory, true)];
+  return [voiceSound(enemy, 'LAUGH1', true)];
 }
 
 function knifeMissed(previous: ArEvent | null): boolean {
@@ -124,13 +117,13 @@ function eventSounds(e: ArEvent, state: DisplayState, ctx: SoundContext, memory:
     case 'arMiss':
       return knifeMissed(memory.previous) ? [effect('MISS_KNIFE')] : [];
     case 'arHit':
-      return hitSounds(e, state, ctx, memory);
+      return hitSounds(e, state, memory);
     case 'arFell':
       return [effect('FALL_1')];
     case 'arDied':
       return deathSounds(e, state, ctx, memory);
     case 'arBattleOver':
-      return e.status === 'defeat' ? defeatSounds(state, ctx, memory) : [];
+      return e.status === 'defeat' ? defeatSounds(state, ctx) : [];
     default:
       return [];
   }

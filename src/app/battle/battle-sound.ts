@@ -3,11 +3,12 @@
 // @src src/game/Strategic/Auto_Resolve.cc PlayAutoResolveSample (PlayJA2Sample at volume 50, MIDDLEPAN; HIGHVOLUME for the
 // @src merc death crunches and AUTORESOLVE_FINISHFX), DoTransitionFromPreBattleInterfaceToAutoResolve and
 // @src src/game/Strategic/PreBattle_Interface.cc DoTransitionFromMapscreenToPreBattleInterface (laptop power up at
-// @src HIGHVOLUME); src/game/Tactical/Soldier_Control.cc DoMercBattleSound (the battle voices).
+// @src HIGHVOLUME); src/game/Tactical/Soldier_Control.cc DoMercBattleSound (the battle voices, each soldier's own set,
+// @src 2026-11-14).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { AudioEngine } from '../../audio/engine.ts';
-import { type BattleMemory, battleSoundCue, NO_BATTLE_MEMORY } from '../../content/audio/battle-sound.ts';
+import { type BattleMemory, battleSoundCue, isProfileVoice, NO_BATTLE_MEMORY } from '../../content/audio/battle-sound.ts';
 import { type Cue, cueOf, effectCue, VolumeLevel } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import { LAPTOP_POWER_UP } from '../../content/audio/cues.ts';
@@ -16,11 +17,10 @@ import type { AssetSource } from '../assets/asset-source.ts';
 import { loadSettings } from '../settings.ts';
 
 const AUTORESOLVE_VOLUME = 50;
-const VOICE_DIGITS = 3;
+const OUR_TEAM = 0;
 const ENEMY_TEAM = 1;
 const NORMAL_MORALE = 50;
 const NOWHERE = -1;
-const GENERIC_VOICE_PREFIX = 'bad';
 
 export class BattleSound implements BattleSounds {
   readonly played: string[] = [];
@@ -72,11 +72,12 @@ export class BattleSound implements BattleSounds {
   }
 
   #voice(book: CueBook, sound: 'HIT1' | 'DIE1' | 'LAUGH1', voice: BattleVoice): void {
-    const name = voice.profile !== null ? String(voice.profile).padStart(VOICE_DIGITS, '0') : `${GENERIC_VOICE_PREFIX}${voice.generic}`;
+    const name = voice.voice;
+    const team = name !== null && isProfileVoice(name) ? OUR_TEAM : ENEMY_TEAM;
     const outcome = battleSoundCue(
       book,
-      { gridNo: NOWHERE, team: voice.profile !== null ? 0 : ENEMY_TEAM, bodyType: voice.bodyType, voice: name, morale: NORMAL_MORALE },
-      this.#memory.get(name) ?? NO_BATTLE_MEMORY,
+      { gridNo: NOWHERE, team, bodyType: voice.bodyType, voice: name, morale: NORMAL_MORALE },
+      this.#memory.get(name ?? '') ?? NO_BATTLE_MEMORY,
       {
         sound,
         nowMs: performance.now(),
@@ -88,7 +89,7 @@ export class BattleSound implements BattleSounds {
       (path) => this.#source.resolve(path) !== undefined,
       this.#random.rand,
     );
-    this.#memory.set(name, outcome.memory);
+    this.#memory.set(name ?? '', outcome.memory);
     for (const cue of outcome.cues) this.#play(cue);
   }
 }

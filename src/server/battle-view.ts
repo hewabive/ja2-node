@@ -3,6 +3,7 @@ import { idiv } from '../core/int.ts';
 import type { AutoresolveCellView, AutoresolveView, NpcRequestPromptView, PromptView } from '../protocol/view.ts';
 import { battleStatusName } from '../sim/campaign/battle-flow.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { profileVoice } from '../sim/campaign/laptop/laptop-state.ts';
 import { MEANWHILE_CHOICES } from '../sim/campaign/meanwhile-flow.ts';
 import { preBattlePanel } from '../sim/campaign/pre-battle-panel.ts';
 import { SOMEONE_ELSE_IN_SECTOR_CHOICES } from '../sim/campaign/someone-else-in-sector.ts';
@@ -13,6 +14,7 @@ import { getGroup } from '../sim/strategic/forces/groups.ts';
 import { healthCategory } from '../sim/tactical/health.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, SoldierClass } from '../sim/tactical/soldier.ts';
 import { tacticalPlacementView } from './placement-view.ts';
+import { soldierVoice, type VoiceOf } from './soldier-voice.ts';
 import { tacticalPromptView } from './tactical-prompt-view.ts';
 
 const MS_PER_SECOND = 1000;
@@ -157,7 +159,11 @@ function cellState(c: ArCell): AutoresolveCellView['state'] {
   return c.soldier.life < OKLIFE ? 'unconscious' : 'alive';
 }
 
-function otherCell(c: ArCell, kind: string): AutoresolveCellView {
+function voiceFields(s: Soldier, voiceOf: VoiceOf): Pick<AutoresolveCellView, 'female' | 'voice'> {
+  return { ...(s.bodyType === Body.REGFEMALE ? { female: true } : {}), voice: soldierVoice(s, voiceOf) };
+}
+
+function otherCell(c: ArCell, kind: string, voiceOf: VoiceOf): AutoresolveCellView {
   const s: Soldier = c.soldier;
   return {
     side: c.side,
@@ -165,11 +171,11 @@ function otherCell(c: ArCell, kind: string): AutoresolveCellView {
     kind,
     state: cellState(c),
     ...(s.life !== 0 ? { health: healthCategory(s.life, s.lifeMax), hurt: s.life !== s.lifeMax } : {}),
-    ...(s.bodyType === Body.REGFEMALE ? { female: true } : {}),
+    ...voiceFields(s, voiceOf),
   };
 }
 
-function mercCell(c: ArCell): AutoresolveCellView {
+function mercCell(c: ArCell, voiceOf: VoiceOf): AutoresolveCellView {
   const s = c.soldier;
   return {
     side: 'merc',
@@ -184,6 +190,7 @@ function mercCell(c: ArCell): AutoresolveCellView {
     bleeding: s.bleeding,
     breathMax: s.breathMax,
     morale: s.morale,
+    ...voiceFields(s, voiceOf),
   };
 }
 
@@ -195,6 +202,7 @@ export function autoresolveView(campaign: CampaignSim): AutoresolveView | null {
   const session = campaign.state.battle.autoresolve;
   if (!session) return null;
   const ar = session.ar;
+  const voiceOf: VoiceOf = (profile) => profileVoice(campaign.state.laptop.imp, profile);
   return {
     sector: sectorName(session.sector),
     encounter: encounterName(ar.encounter),
@@ -202,9 +210,9 @@ export function autoresolveView(campaign: CampaignSim): AutoresolveView | null {
     battleSeconds: idiv(ar.elapsedMs, MS_PER_SECOND),
     alive: { mercs: ar.aliveMercs, militia: ar.aliveCivs, enemies: ar.aliveEnemies },
     cells: [
-      ...ar.mercs.map(mercCell),
-      ...ar.militia.map((c) => otherCell(c, MILITIA_KINDS[c.soldier.soldierClass] ?? 'green')),
-      ...ar.enemies.map((c) => otherCell(c, enemyKind(c))),
+      ...ar.mercs.map((c) => mercCell(c, voiceOf)),
+      ...ar.militia.map((c) => otherCell(c, MILITIA_KINDS[c.soldier.soldierClass] ?? 'green', voiceOf)),
+      ...ar.enemies.map((c) => otherCell(c, enemyKind(c), voiceOf)),
     ],
   };
 }

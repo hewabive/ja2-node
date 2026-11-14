@@ -29,8 +29,7 @@ export interface BattleClient {
 export type BattleVoiceSound = 'HIT1' | 'DIE1' | 'LAUGH1';
 
 export interface BattleVoice {
-  readonly profile: number | null;
-  readonly generic: number;
+  readonly voice: string | null;
   readonly bodyType: number;
 }
 

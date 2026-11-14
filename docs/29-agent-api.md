@@ -1056,6 +1056,8 @@ slices (so a real-time driver paces it), `{events}` up to the slice in which one
 `data.bandaged` (`complete` or `incomplete`) with the reopened prompt's new id in `data.prompt` and its answers in
 `data.choices`; only `done` closes it and returns to the strategic flow. A battle that no fighter can
 change any more ends with the status `stalemate`, which the original never reaches (deviation "Autoresolve stalemate").
+Each of `autoresolve.cells` carries its fighter's battle voice, `voice`, the sound set his cries come from (a merc's
+voice id, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:275`, `:338`), and `female`.
 
 ### 8.11 Laptop and hiring
 

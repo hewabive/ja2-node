@@ -632,6 +632,7 @@ export interface AutoresolveCellView {
   readonly hurt?: boolean;
   readonly profile?: number;
   readonly female?: boolean;
+  readonly voice?: string;
 }
 
 export interface AutoresolveView {

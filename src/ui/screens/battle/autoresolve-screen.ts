@@ -448,13 +448,9 @@ export class AutoresolveScreen implements Screen {
   }
 
   #release(e: ArEvent): void {
-    const ctx = { encounter: this.#encounter(), random: this.#env.random, voiceOf: (soldier: number) => this.#voice(soldier) };
+    const ctx = { encounter: this.#encounter(), random: this.#env.random };
     for (const out of autoresolveSounds(e, this.#playback.state, ctx, this.#soundMemory))
       if (this.#sound || out.ungated) this.#env.sounds.play(out.request);
-  }
-
-  #voice(soldier: number): number | null {
-    return this.#options.strategic()?.mercs.find((m) => m.id === soldier)?.profile ?? null;
   }
 
   #syncInterface(): void {

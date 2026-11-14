@@ -3,6 +3,7 @@ import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../test
 import { loadEconomyTestContent } from '../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../tests/support/sectors.ts';
+import { battleVoiceBasename } from '../content/audio/battle-sound.ts';
 import { sectorId } from '../content/strategic/sector-ids.ts';
 import { diffPlayerView } from '../protocol/view.ts';
 import { advance } from '../sim/advance.ts';
@@ -25,6 +26,8 @@ afterAll(async () => {
 });
 
 const HIDDEN_KEYS = ['attack', 'defence', 'nextAttack', 'nextHit', 'hitDamage', 'flags'];
+const IMP_PROFILE = 51;
+const IMP_VOICE = 2;
 
 function sessionWithInvasion(): CampaignSession {
   const { campaign: c, roster } = createTestCampaign(kit, { seed: 5, mercs: 3, garrison: { admins: 0, troops: 0, elites: 0 } });
@@ -78,5 +81,23 @@ describe('the battle view', () => {
     advance(session, { idle: true });
     const done = session.view().prompt;
     expect(done).toMatchObject({ kind: 'autoresolveDone' });
+  });
+
+  it("gives every cell its soldier's battle voice: a merc's voice id, an I.M.P. merc's chosen one, a militia's or enemy's set drawn at creation", () => {
+    const session = sessionWithInvasion();
+    const c = session.campaign;
+    expect(session.dispatch({ type: 'answer', prompt: c.state.battle.prompt?.id, choice: 'autoresolve' })).toMatchObject({ ok: true });
+    const ar = c.state.battle.autoresolve?.ar;
+    const [first] = ar?.mercs ?? [];
+    if (!ar || !first) throw new Error('no autoresolve');
+    first.soldier.profile = IMP_PROFILE;
+    c.state.laptop.imp.voices.set(IMP_PROFILE, IMP_VOICE);
+    const cells = session.view().autoresolve?.cells ?? [];
+    const others = [...ar.militia, ...ar.enemies];
+    expect(others.length).toBeGreaterThan(0);
+    expect(cells.filter((cell) => cell.side !== 'merc').map((cell) => cell.voice)).toEqual(
+      others.map((cell) => battleVoiceBasename(null, 0, cell.soldier.bodyType, cell.soldier.battleSoundId)),
+    );
+    expect(cells.find((cell) => cell.side === 'merc' && cell.index === first.index)?.voice).toBe('002');
   });
 });

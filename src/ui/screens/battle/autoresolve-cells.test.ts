@@ -113,7 +113,7 @@ const VIEW: AutoresolveView = {
   status: 'inProgress',
   battleSeconds: 0,
   alive: { mercs: 1, militia: 0, enemies: 1 },
-  cells: [merc(), other('enemy', 'troop')],
+  cells: [merc({ voice: '012' }), other('enemy', 'troop', { voice: 'bad2' })],
 };
 
 describe('the autoresolve playback', () => {
@@ -166,7 +166,7 @@ describe('the autoresolve playback', () => {
 });
 
 describe('the autoresolve sounds', () => {
-  const ctx = { encounter: 'enemyInvasion', random: () => 0, voiceOf: () => 12 };
+  const ctx = { encounter: 'enemyInvasion', random: () => 0 };
 
   it('plays the weapon with its reload, the impact variants, the knife miss and the merc death crunches', () => {
     const state = displayState(VIEW, null);
@@ -206,7 +206,7 @@ describe('the autoresolve sounds', () => {
     ]);
     expect(play({ type: 'arMiss', tick: 0, battleMs: 0, target: { side: 'enemy', index: 0 } })).toEqual([]);
     expect(play({ type: 'arHit', tick: 0, battleMs: 0, target: { side: 'merc', index: 0 }, damage: 10, life: 70 })).toEqual([
-      { kind: 'voice', sound: 'HIT1', voice: { profile: 12, generic: 0, bodyType: 0 } },
+      { kind: 'voice', sound: 'HIT1', voice: { voice: '012', bodyType: 0 } },
     ]);
     expect(play({ type: 'arDied', tick: 0, battleMs: 0, cell: { side: 'merc', index: 0 }, killer: null, splat: true })).toEqual([
       { kind: 'effect', name: 'DOORCR_1', loud: true },
@@ -215,12 +215,36 @@ describe('the autoresolve sounds', () => {
     ]);
   });
 
+  it("speaks with each cell's own voice, a female militia's or enemy's set and a creature's body included", () => {
+    const state = displayState(
+      {
+        ...VIEW,
+        cells: [
+          merc({ voice: '051', female: true }),
+          other('militia', 'green', { voice: 'bad8', female: true }),
+          { ...other('enemy', 'adultMaleCreature', { voice: 'bad1' }), index: 1 },
+        ],
+      },
+      null,
+    );
+    const hit = (side: 'merc' | 'militia' | 'enemy', index: number) =>
+      autoresolveSounds(
+        { type: 'arHit', tick: 0, battleMs: 0, target: { side, index }, damage: 1, life: 70 },
+        state,
+        ctx,
+        soundMemory(),
+      ).map((o) => o.request);
+    expect([hit('merc', 0), hit('militia', 0), hit('enemy', 1)]).toEqual([
+      [{ kind: 'voice', sound: 'HIT1', voice: { voice: '051', bodyType: 3 } }],
+      [{ kind: 'voice', sound: 'HIT1', voice: { voice: 'bad8', bodyType: 3 } }],
+      [{ kind: 'voice', sound: 'HIT1', voice: { voice: 'bad1', bodyType: 5 } }],
+    ]);
+  });
+
   it('laughs with the first live enemy at a defeat even after Finish', () => {
     const state = displayState(VIEW, null);
     const out = autoresolveSounds({ type: 'arBattleOver', tick: 0, battleMs: 0, status: 'defeat' }, state, ctx, soundMemory());
-    expect(out).toEqual([
-      { request: { kind: 'voice', sound: 'LAUGH1', voice: { profile: null, generic: 0, bodyType: 0 } }, ungated: true },
-    ]);
+    expect(out).toEqual([{ request: { kind: 'voice', sound: 'LAUGH1', voice: { voice: 'bad2', bodyType: 0 } }, ungated: true }]);
     const eat = autoresolveSounds(
       { type: 'arBattleOver', tick: 0, battleMs: 0, status: 'defeat' },
       state,
