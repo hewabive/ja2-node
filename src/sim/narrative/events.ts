@@ -62,6 +62,8 @@ export interface NpcMessageEvent extends SimEventBase {
   readonly profile?: number;
   readonly amount?: number;
   readonly item?: string;
+  readonly soldier?: number;
+  readonly target?: number;
 }
 
 export interface ScriptedSequenceEvent extends SimEventBase {

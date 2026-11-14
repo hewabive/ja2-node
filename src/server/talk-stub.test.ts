@@ -12,7 +12,7 @@ import type { SimEvent } from '../sim/events.ts';
 import { FINAL_TALKING_DELAY_TICKS, lineTicks, TICKS_PER_CHARACTER } from '../sim/narrative/dialogue-queue.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { questStatus } from '../sim/strategic/narrative/facts.ts';
-import { Body, NO_PROFILE, Team } from '../sim/tactical/soldier.ts';
+import { Body, NO_PROFILE, Team, Visible } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { FRAME_TICKS, type Session } from './session.ts';
@@ -339,6 +339,49 @@ describe('the stub NPC in A10', () => {
       return session.view().conversation?.drunk;
     };
     expect([drunk(FATHER, 4), drunk(FATHER, 5), drunk(MICKY, 5), drunk(VASKO, 5)]).toEqual([undefined, true, true, undefined]);
+  });
+
+  it("prints HandleTalkInit's lines for an unconscious target and for one the merc cannot see, by profile or not", async () => {
+    const { session, live } = await inA10(17);
+    const soldiers = () => session.campaign.tactical?.state.soldiers ?? [];
+    const merc = session.view().strategic?.mercs[0]?.id ?? -1;
+    const vasko = soldiers().find((s) => s?.placed && s.profile === VASKO)?.id ?? -1;
+    const villager =
+      soldiers().find((s) => s?.placed && s.team === Team.CIV && s.profile === NO_PROFILE && s.bodyType <= Body.KIDCIV)?.id ?? -1;
+    const soldier = (id: number) => {
+      const s = soldiers()[id];
+      if (!s) throw new Error(`no soldier ${id}`);
+      return s;
+    };
+    expect(live.dispatch({ type: 'move', soldier: merc, to: soldier(villager).gridNo + 2, mode: 'walk' }).ok).toBe(true);
+    live.advance({ idle: true });
+    const talkTo = (target: number, refusal: string, prepare: () => void) => {
+      prepare();
+      expect(live.dispatch({ type: 'talk', soldier: merc, target })).toMatchObject({ ok: false, data: { refusal } });
+      return live.advance({ ticks: 1 }).messages.filter((m) => m.kind === 'uiFeedback');
+    };
+    const unconscious = () => Object.assign(soldier(villager), { visible: Visible.SEEN, collapsed: true });
+    const blind = () => {
+      unconscious();
+      Object.assign(soldier(vasko), { visible: Visible.SEEN });
+      Object.assign(soldier(merc), { blindedCounter: 1 });
+    };
+    const feedback = { kind: 'uiFeedback', colour: 144 };
+    const mercName = { text: soldier(merc).name };
+    expect(talkTo(villager, 'targetCollapsed', unconscious)).toEqual([
+      expect.objectContaining({
+        ...feedback,
+        table: 'gzLateLocalizedString',
+        index: 20,
+        args: [{ string: { table: 'TacticalStr', index: 93 } }],
+      }),
+    ]);
+    expect(talkTo(villager, 'noLineOfSight', blind)).toEqual([
+      expect.objectContaining({ ...feedback, table: 'gzLateLocalizedString', index: 44, args: [mercName] }),
+    ]);
+    expect(talkTo(vasko, 'noLineOfSight', blind)).toEqual([
+      expect.objectContaining({ ...feedback, table: 'TacticalStr', index: 136, args: [mercName, { text: soldier(vasko).name }] }),
+    ]);
   });
 
   it('opens the shop of the stub dealer through the talk menu', async () => {

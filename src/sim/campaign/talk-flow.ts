@@ -14,7 +14,8 @@
 // @src Handle_Items.cc ContinuePastBoobyTrap (SetStopTimeQuoteCallback, then TacticalCharacterDialogue), GameScreen.cc
 // @src HandleModalTactical (HandleDialogue alone while the stop-time quote plays, 2026-11-04); Handle_UI.cc HandleTalkInit's
 // @src MERC_TALK replacing a held MERC_GIVEITEM (2026-11-08); Assignments.cc CreateDestroyAssignmentPopUpBoxes
-// @src (RebuildCurrentSquad as the menu closes after its "remove escort" in tactical, 2026-11-08).
+// @src (RebuildCurrentSquad as the menu closes after its "remove escort" in tactical, 2026-11-08); Handle_UI.cc
+// @src HandleTalkInit's NO_LOS_TO_TALK_TARGET, STR_LATE_45 and STR_LATE_21 naming the merc and the target (2026-11-14).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -281,6 +282,8 @@ function civQuoteView(said: CivQuoteSaid): Json {
 }
 
 const rangeBetween = talkRange;
+
+const profileOf = (s: Soldier): { readonly profile?: number } => (s.profile === NO_PROFILE ? {} : { profile: s.profile });
 
 function pauseUnderLock(clock: WorldClock, on: boolean, lock: number): void {
   if (on) {
@@ -836,11 +839,11 @@ export class TalkFlow {
     const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: false, mercs: true, collapsed: false });
     if (talkable) refuse(talkable);
     if (target !== merc && !this.#hasLineOfSight(t, merc, target)) {
-      this.#emit({ type: 'npcMessage', kind: 'noLineOfSight', profile: target.profile });
+      this.#emit({ type: 'npcMessage', kind: 'noLineOfSight', soldier: merc.id, target: target.id, ...profileOf(target) });
       refuse('noLineOfSight');
     }
     if (target.collapsed) {
-      this.#emit({ type: 'npcMessage', kind: 'targetCollapsed', profile: target.profile });
+      this.#emit({ type: 'npcMessage', kind: 'targetCollapsed', target: target.id, ...profileOf(target) });
       refuse('targetCollapsed');
     }
     if (target.team === Team.OUR && !this.#isEpc(target)) return this.#ownMercBark(target);

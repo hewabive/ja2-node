@@ -25,7 +25,8 @@
 // @src name of his own is named by his team's default, which s->name holds, 2026-11-13); Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (the medkit's refusals with the medic or the patient, 2026-11-14); Weapons.cc
 // @src BulletImpact (STR_LOSES_* and STR_HEAD_HIT, a soldier out of sight by his name or his team's default, 2026-11-14);
-// @src Soldier_Control.cc SoldierGotHitGunFire (STR_LATE_20, 2026-11-14).
+// @src Soldier_Control.cc SoldierGotHitGunFire (STR_LATE_20, 2026-11-14); Handle_UI.cc HandleTalkInit (NO_LOS_TO_TALK_TARGET
+// @src with the merc and a profile, STR_LATE_45 with the merc, STR_LATE_21 with the target, 2026-11-14).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -121,6 +122,9 @@ const STR_STOLE_SOMETHING = 33;
 const STR_SLIPPED_MARBLES = 50;
 const STR_FAILED_TO_STEAL_SOMETHING = 51;
 const STR_LATE_20 = 19;
+const STR_LATE_21 = 20;
+const STR_LATE_45 = 44;
+const NO_LOS_TO_TALK_TARGET = 136;
 const STR_LATE_37 = 36;
 const STR_LATE_58 = 57;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
@@ -131,6 +135,7 @@ const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readon
   needsMoney: { kind: 'interface', table: 'Message', index: 45 },
   itemPlacedOnGround: { kind: 'interface', table: 'TacticalStr', index: 17 },
   vehicleRefuelled: { kind: 'uiFeedback', table: 'gzLateLocalizedString', index: 49 },
+  targetCollapsed: { kind: 'uiFeedback', table: 'gzLateLocalizedString', index: STR_LATE_21 },
 };
 
 type Build = (e: never, facts: MessageFacts) => readonly Omit<MessageEntry, 'tick'>[];
@@ -228,6 +233,7 @@ function mercDied(e: EventOf<'mercDied'>, facts: MessageFacts): Omit<MessageEntr
 }
 
 function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+  if (e.kind === 'noLineOfSight') return noLineOfSightToTalk(e, facts);
   const known = NPC_MESSAGES[e.kind];
   if (!known) return [];
   const name = e.profile !== undefined ? text(facts.profileName(e.profile)) : null;
@@ -242,9 +248,18 @@ function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<Message
       return [line(known.table, known.index, [...(name ? [name] : []), { text: `$${e.amount ?? 0}` }], known.kind)];
     case 'itemPlacedOnGround':
       return item === null ? [] : [line(known.table, known.index, [{ item, name: 'short' }], known.kind)];
+    case 'targetCollapsed':
+      return e.target === undefined ? [] : [line(known.table, known.index, [soldierArg(facts, e.target)], known.kind)];
     default:
       return [line(known.table, known.index, [], known.kind)];
   }
+}
+
+function noLineOfSightToTalk(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+  if (e.soldier === undefined || e.target === undefined) return [];
+  const merc = soldierArg(facts, e.soldier);
+  if (e.profile === undefined) return [line('gzLateLocalizedString', STR_LATE_45, [merc], 'uiFeedback')];
+  return [line('TacticalStr', NO_LOS_TO_TALK_TARGET, [merc, soldierArg(facts, e.target)], 'uiFeedback')];
 }
 
 function drugTaken(e: EventOf<'itemApplied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {

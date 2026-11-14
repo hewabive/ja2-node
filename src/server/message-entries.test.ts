@@ -155,6 +155,29 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it("prints talk's lines as UI feedback: the merc who cannot see a profile and him, or anyone else, and an unconscious target", () => {
+    const entries = messageEntriesOf(
+      [
+        at({ type: 'npcMessage', kind: 'noLineOfSight', soldier: 0, target: 116, profile: 101 }),
+        at({ type: 'npcMessage', kind: 'noLineOfSight', soldier: 1, target: 121 }),
+        at({ type: 'npcMessage', kind: 'targetCollapsed', target: 60 }),
+      ],
+      facts,
+    );
+    expect(entries).toEqual([
+      { tick: 40, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 136, args: [{ text: 'Ivan' }, { text: 'Fatima' }] },
+      { tick: 40, kind: 'uiFeedback', colour: 144, table: 'gzLateLocalizedString', index: 44, args: [{ text: 'Fox' }] },
+      {
+        tick: 40,
+        kind: 'uiFeedback',
+        colour: 144,
+        table: 'gzLateLocalizedString',
+        index: 20,
+        args: [{ string: { table: 'TacticalStr', index: 92 } }],
+      },
+    ]);
+  });
+
   it('follows the lock and trap lines of Handle_Doors and Keys', () => {
     const door = (action: string, result: string, trap?: string) => at({ type: 'doorResult', soldier: 0, gridNo: 5, action, result, trap });
     const entries = messageEntriesOf(
