@@ -19,6 +19,7 @@ import type { LayoutModel } from '../../src/ui/layout/model.ts';
 import { messageBoxStyles, textBoxArt } from '../../src/ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../src/ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../src/ui/message-boxes.ts';
+import type { RefusalListener } from '../../src/ui/refusal-fallback.ts';
 import {
   MAP_LAYOUTS,
   type MapClient,
@@ -73,6 +74,7 @@ export class MapSessionClient implements MapClient {
   readonly #session: Session;
   readonly #client: ClientSide;
   #view: PlayerView;
+  #refused: RefusalListener | null = null;
 
   constructor(session: Session, client: ClientSide) {
     this.#session = session;
@@ -94,6 +96,10 @@ export class MapSessionClient implements MapClient {
 
   get latestView(): PlayerView {
     return this.#view;
+  }
+
+  onRefused(listener: RefusalListener | null): void {
+    this.#refused = listener;
   }
 
   start(): void {
@@ -118,6 +124,7 @@ export class MapSessionClient implements MapClient {
     const answer = reply(this.#session.dispatch(cmd));
     this.commands.push({ cmd, reply: answer });
     this.refresh();
+    if (!answer.ok) this.#refused?.(answer);
     return answer;
   }
 

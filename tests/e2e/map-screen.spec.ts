@@ -169,6 +169,22 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     expect(assigned).toMatchObject({ ok: true });
   });
 
+  test('masks the screen while the player pauses: a click unpauses and opens no menu', async ({ page }) => {
+    await openMap(page, session);
+    const running = (await mapHook(page))?.clock ?? '';
+    const sent = await page.evaluate(() => window.__ja2Ui.map?.commands.length ?? 0);
+    await page.keyboard.press('Pause');
+    await page.waitForFunction((clock) => window.__ja2Ui.map?.screen?.clock !== clock, running);
+    const paused = (await mapHook(page))?.clock;
+    await clickRow(page, await rowOf(page, save.trainer), ASSIGNMENT);
+    await nextFrames(page, 4);
+    expect((await mapHook(page))?.menu).toBeNull();
+    expect((await mapHook(page))?.clock).not.toBe(paused);
+    await clickRow(page, await rowOf(page, save.trainer), ASSIGNMENT);
+    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.menu === 'assignment');
+    expect(await page.evaluate(() => window.__ja2Ui.map?.commands.length ?? 0)).toBe(sent);
+  });
+
   test('extends a contract by a day and dismisses a merc through the contract menu', async ({ page }) => {
     await openMap(page, session);
     await clickRow(page, 0, CONTRACT);

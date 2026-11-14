@@ -312,7 +312,6 @@ export class TacticalControls {
       pickUp: (s, gridNo, level) => screen.pickUp(s, gridNo, level),
       openMovementMenu: (x, y, done) => this.#openMovementMenu(x, y, done),
       openExitDialog: (direction, exitGrid) => void this.openExitDialog(direction, exitGrid),
-      doorReply: () => undefined,
       confirm: (text) => screen.env.boxes.confirm(text),
       dismissFeedback: () => screen.dismissFeedback(),
       closeCivQuote: () => screen.closeCivQuote(),

@@ -201,7 +201,6 @@ export interface TacticalInputHost {
   pickUp(soldier: SoldierView, gridNo: number, level: number): void;
   openMovementMenu(x: number, y: number, done: (choice: MovementChoice | null) => void): void;
   openExitDialog(direction: ExitDirection, exitGrid: number | null): void;
-  doorReply(soldier: number, gridNo: number, reply: CommandReply): void;
   confirm(text: string): Promise<boolean>;
   dismissFeedback(): boolean;
   closeCivQuote(): boolean;
@@ -3052,9 +3051,7 @@ export class TacticalInput {
     const tile = this.#interactiveTile();
     if (tile) {
       const action = tile.open ? 'close' : 'open';
-      void this.#host
-        .sendBusyOrder({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action })
-        .then((r) => this.#host.doorReply(sel.id, tile.gridNo, r));
+      void this.#host.sendBusyOrder({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action });
       return;
     }
     if (!this.#combat()) {

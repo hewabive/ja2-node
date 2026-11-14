@@ -390,6 +390,96 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
     }));
 
+  it('boxes pMilitiaConfirmStrings 7 with the cost the balance cannot pay and leaves the trainer on a squad (HandleInterfaceMessageForCostOfTrainingMilitia)', () =>
+    withMap(async (f) => {
+      (f.session.sim as CampaignSession).campaign.state.finances.balance = 700;
+      f.client.refresh();
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      await f.click(`assignmentMenu.line${ASSIGN_MENU_TRAIN}`);
+      await f.click(`trainingMenu.line${TRAIN_MENU_TOWN}`);
+      expect(lastCommand(f)?.reply).toMatchObject({ ok: true, data: { results: [{ ok: true, militia: 'cannotAfford' }] } });
+      f.deliver();
+      await f.settle();
+      expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
+      expect(f.widget(MESSAGE_BOX).text).toBe('You cannot afford the $750 to train town militia here.');
+      expect(f.client.view.strategic?.mercs.find((m) => m.id === f.trainer)?.assignment).toBeLessThan(Assignment.ON_DUTY);
+      f.key('Enter');
+      await f.settle();
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
+  it('asks for the payment of a selected group without boxing pMapErrorString 48 for the mercs only a yes assigns', () =>
+    withMap(async (f) => {
+      f.key('1', 0, 'Digit1');
+      await f.settle();
+      expect(f.screen.hook().selected.length).toBeGreaterThan(1);
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      await f.click(`assignmentMenu.line${ASSIGN_MENU_TRAIN}`);
+      await f.click(`trainingMenu.line${TRAIN_MENU_TOWN}`);
+      const data = lastCommand(f)?.reply.data as { readonly results?: readonly unknown[] } | undefined;
+      expect(data?.results?.[0]).toEqual({ ok: true, militia: 'pending' });
+      await f.settle();
+      expect(f.client.view.prompt).toMatchObject({ kind: 'militiaPayment' });
+      expect(f.widget(MESSAGE_BOX).text).toBe('Training a squad of town militia will cost $750. Approve expenditure?');
+    }));
+
+  it('boxes the militia refusals of a finished session and of a yes without the money: 8 loyalty, 9 a full town or SAM site, 7 the cost, 2', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const rejected = { type: 'militiaTrainingRejected', tick, soldiers: [f.trainer], cost: 750 } as const;
+      const events = [
+        { ...rejected, reason: 'loyaltyTooLow', sector: 'C13' },
+        { ...rejected, reason: 'militiaFull', sector: 'C13' },
+        { ...rejected, reason: 'militiaFull', sector: 'D15' },
+        { ...rejected, reason: 'cannotAfford', sector: 'C13' },
+        { ...rejected, reason: 'fundsGone', sector: 'C13', cost: 1500 },
+        { ...rejected, reason: 'declined', sector: 'C13' },
+      ] as const;
+      f.frames([{ tick, changed: [], removed: [], events }]);
+      const texts: string[] = [];
+      for (let i = 0; i < events.length - 1; i++) {
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+      }
+      await f.settle();
+      expect(texts).toEqual([
+        'Drassen needs a loyalty of 20 percent for you to be able to continue training militia.',
+        'You cannot train the militia in Drassen any further.',
+        'You cannot train the militia in D15: Woods any further.',
+        'You cannot afford the $750 to train town militia here.',
+        "You can't afford it.",
+      ]);
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
+  it('prints the reason of a menu order refused for the whole command in the message list, the menu left open', () =>
+    withMap(async (f) => {
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      await f.click(`assignmentMenu.line${ASSIGN_MENU_TRAIN}`);
+      campaign.state.battle.prompt = { id: 'militia-1', kind: 'militiaContinue', trainer: f.trainer, sector: 0, cost: 750 } as never;
+      await f.click(`trainingMenu.line${TRAIN_MENU_TOWN}`);
+      expect(lastCommand(f)?.reply).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
+      expect(f.screen.hook().messages.at(-1)).toBe('answer the militiaContinue prompt first');
+      expect(f.find(`trainingMenu.line${TRAIN_MENU_TOWN}`)).toBeDefined();
+    }));
+
+  it('masks the screen while the player pauses: a click anywhere unpauses and opens nothing (CreateDestroyScreenMaskForPauseGame)', () =>
+    withMap(async (f) => {
+      f.key('Pause');
+      expect(f.client.paused).toBe(true);
+      expect(f.widget('pauseMask').enabled).toBe(true);
+      const sent = f.client.commands.length;
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      expect(f.client.paused).toBe(false);
+      expect(f.find('assignmentMenu.line0')).toBeUndefined();
+      expect(f.widget('pauseMask').enabled).toBe(false);
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      expect(f.find('assignmentMenu.line0')).toBeDefined();
+      expect(f.client.commands.length).toBe(sent);
+    }));
+
   it('closes the prompt box when an agent answers the prompt first, without answering again', () =>
     withMap(async (f) => {
       expect((await f.client.command({ type: 'assign', soldiers: [f.trainer], to: { kind: 'trainMilitia' } })).ok).toBe(true);

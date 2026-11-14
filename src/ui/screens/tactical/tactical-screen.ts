@@ -101,6 +101,7 @@ import { frameRect, INV_INTERFACE_HEIGHT, TEAMPANEL_HEIGHT, TEAMPANEL_SLOT_WIDTH
 import { textBoxArt } from '../../layout/styles.ts';
 import type { CustomRenderer } from '../../layout/view.ts';
 import { LayoutView } from '../../layout/view.ts';
+import { fallbackRefusalLine, type RefusableReply } from '../../refusal-fallback.ts';
 import type { Screen } from '../../screen.ts';
 import { DialogueHold } from '../../speech.ts';
 import { fontHeight } from '../../text/bitmap-font.ts';
@@ -115,7 +116,7 @@ import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { Assignment } from '../map/character-list.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from '../map/event-boxes.ts';
-import { sectorNameIn } from '../map/facts.ts';
+import { sectorNameIn, townOfLabel } from '../map/facts.ts';
 import { DialogueLayer } from '../talk/dialogue-layer.ts';
 import { AutoBandageBox, autoBandageNotices } from './auto-bandage-box.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
@@ -198,6 +199,7 @@ import { type ControlsArt, type ControlsScreen, type PanelButton, TacticalContro
 import { TeamPanelController } from './team-panel.ts';
 
 export const TACTICAL_SCREEN = 'tactical';
+const NO_TOWN = 0;
 const PANEL_FACE_FRAME_MS = 160;
 const CANNOT_THROW_TO_DEST_STR = 45;
 const GIVE_STR = 78;
@@ -847,7 +849,13 @@ export class TacticalScreen implements Screen {
     if (this.#selected !== null) this.#selectedChanged();
     this.#log.clear();
     this.#itemLocatorsLocked = this.#view()?.itemLocatorsLocked === true;
+    this.#env.client.onRefused((reply) => this.#fallbackLine(reply));
     this.#env.client.start();
+  }
+
+  #fallbackLine(reply: RefusableReply): void {
+    const line = fallbackRefusalLine(reply);
+    if (line !== null) this.#log.push(line, FontColor.MCOLOR_LTYELLOW, this.#env.runtime.fonts.get(FontName.TINYFONT1));
   }
 
   exit(): void {
@@ -855,6 +863,7 @@ export class TacticalScreen implements Screen {
     this.#autoBandage.close();
     this.#placement.close();
     this.#env.client.stop();
+    this.#env.client.onRefused(null);
     this.dialogue.dispose();
     this.controls.exit();
     this.description.close(false);
@@ -1453,7 +1462,12 @@ export class TacticalScreen implements Screen {
     const view = this.#view();
     if (inTacticalFlow(view))
       this.#eventBoxes.push(
-        ...eventBoxesOf(frames, { text: this.#env.text, sectorName: (label) => this.#sectorName(label), vehicleType: vehicleTypeIn(view) }),
+        ...eventBoxesOf(frames, {
+          text: this.#env.text,
+          sectorName: (label) => this.#sectorName(label),
+          townOf: (label) => this.#townOf(label),
+          vehicleType: vehicleTypeIn(view),
+        }),
       );
     this.#eventBoxes.push(...autoBandageNotices(frames, this.#env.text));
     for (const frame of frames) {
@@ -1486,6 +1500,11 @@ export class TacticalScreen implements Screen {
   #sectorName(label: string): string {
     const facts = this.#env.facts();
     return facts ? sectorNameIn(facts, this.#env.text, this.#view()?.strategic, label, true) : label;
+  }
+
+  #townOf(label: string): number {
+    const facts = this.#env.facts();
+    return facts ? townOfLabel(facts, label) : NO_TOWN;
   }
 
   #showEventBox(): void {

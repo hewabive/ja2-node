@@ -3,15 +3,15 @@ import { sameJson } from '../../protocol/same-json.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import type { SimEventType } from '../../sim/events.ts';
 import type { HintAnswer, HintReply } from '../../ui/game-client.ts';
+import type { RefusalListener } from '../../ui/refusal-fallback.ts';
 import type { MapClient, MapCommandReply } from '../../ui/screens/map/environment.ts';
 import type { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 
 const UPDATE_BOX_EVENTS: readonly SimEventType[] = ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon'];
-const SCREEN_INDEPENDENT_BOX_EVENTS: readonly SimEventType[] = ['sectorLost', 'invasion', 'vehicleOutOfGas'];
+const SCREEN_INDEPENDENT_BOX_EVENTS: readonly SimEventType[] = ['sectorLost', 'invasion', 'vehicleOutOfGas', 'militiaTrainingRejected'];
 const BOX_EVENTS: readonly SimEventType[] = [...UPDATE_BOX_EVENTS, ...SCREEN_INDEPENDENT_BOX_EVENTS];
 const MANUAL: DriverMode = { mode: 'manual' };
-const PAUSED_REFUSAL = 'paused';
 const AUTORESOLVE_FLOW = 'autoresolve';
 const PAUSED_HOLD = 'mapPaused';
 const CATCHING_UP_HOLD = 'catchingUp';
@@ -32,6 +32,7 @@ export class SessionMapClient implements MapClient {
   #enabled = false;
   #driving = false;
   #serverStopped = false;
+  #refused: RefusalListener | null = null;
 
   constructor(session: SessionClient, hints: HintProvider, timeHeld = false) {
     this.#session = session;
@@ -120,9 +121,14 @@ export class SessionMapClient implements MapClient {
     this.#sendHolds(runs ? this.#timeHolds() : new Set());
   }
 
+  onRefused(listener: RefusalListener | null): void {
+    this.#refused = listener;
+  }
+
   async command(cmd: CommandEnvelope): Promise<MapCommandReply> {
-    const reply = this.#paused ? { ok: false, reason: PAUSED_REFUSAL } : await this.#session.command(cmd);
+    const reply = await this.#session.command(cmd);
     this.commands.push({ cmd, reply });
+    if (!reply.ok) this.#refused?.(reply);
     return reply;
   }
 

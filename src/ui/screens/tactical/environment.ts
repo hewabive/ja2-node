@@ -8,6 +8,7 @@ import type { DrawList } from '../../draw-list.ts';
 import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
+import type { RefusalListener } from '../../refusal-fallback.ts';
 import type { UiRuntime } from '../../runtime.ts';
 import type { ClientSettings, DisplaySettings, SettingsChange } from '../../settings.ts';
 import type { SpeechPresenter, SpeechSettings } from '../../speech.ts';
@@ -41,6 +42,7 @@ export interface TacticalClient extends GameClient {
   readonly queuedFrames: readonly ViewFrame[];
   readonly paused: boolean;
   command(cmd: CommandEnvelope): Promise<CommandReply>;
+  onRefused(listener: RefusalListener | null): void;
   start(): void;
   sync(): void;
   stop(): void;

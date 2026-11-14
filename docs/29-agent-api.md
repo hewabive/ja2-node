@@ -268,7 +268,7 @@ viewer leaves, the session falls back to the manual driver and a waiting `advanc
 **Viewer prompts.** A box a page shows for the game, not for its player's own action, is also a prompt any client may
 answer: the meanwhile box of a scene not seen yet or the interrogation (`ok`; a scene seen before asks with the
 `meanwhile` decision prompt instead, §8.14), the map screen's update box (`continue`, `stop`), the lost sector, invasion and
-pre-battle notices and the auto-bandage notices (`ok`). The page publishes it with an id taken from the game event, so every page shows the same id
+pre-battle notices, the militia training refusals and the auto-bandage notices (`ok`). The page publishes it with an id taken from the game event, so every page shows the same id
 (`showPrompt`, `src/ui/viewer-prompts.ts`); `observe.viewerPrompts` and `status` list the open ones, and `answer` with
 that id closes the box on every page as the click would (`Session.answerViewerPrompt`). A viewer's own click answers it
 the same way. These answers are presentation: they run outside the input queue and never enter the input log; the
@@ -942,7 +942,7 @@ list runs after the refusal. Militia training asks before it charges:
 continue prompts"). A refusal puts the trainers back on a squad at once and comes as `militiaTrainingRejected {soldiers,
 reason, sector, cost}`: `declined`, `cannotAfford` (the balance is short of `cost` before anyone asks), `fundsGone` (a
 yes the balance no longer covers, also the `answer`'s `outcome`), and for a finished session `loyaltyTooLow` and
-`militiaFull`, checked in that order before the cost. `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
+`militiaFull`, checked in that order before the cost; the page boxes each but `declined` (`30`). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
 with hostiles are dealt out while they also stay there (`18`). A merc who joins another squad (`assignSquad`, `assign`
 to a squad, a vehicle left, a hit while on another assignment) wakes unless he collapsed, as `AddCharacterToSquad` does.
 The events the original pairs with `StopTimeCompression` or a box stop a strategic advance. The hint

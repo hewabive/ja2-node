@@ -1205,6 +1205,23 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.client.commands.at(-1)?.reply).toEqual({ ok: true, data: { woke: [] } });
   });
 
+  it('prints the reason of an order refused without a line of the original in the log, and nothing for an order the locked input ignores', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const gridNo = f.client.view.soldiers.find((s) => s.id === 0)?.gridNo;
+    await f.client.command({ type: 'door', soldier: 0, gridNo, action: 'open' });
+    await f.settle(20);
+    expect(f.screen.messageLines).toEqual(['noDoor: there is no door on that tile']);
+    const t = tacticalOf(f.session).state;
+    t.inCombat = true;
+    t.turn.currentTeam = 1;
+    f.client.refresh();
+    expect(await f.client.command({ type: 'door', soldier: 0, gridNo, action: 'open' })).toMatchObject({
+      data: { refusal: 'notYourTurn' },
+    });
+    await f.settle(20);
+    expect(f.screen.messageLines).toEqual(['noDoor: there is no door on that tile']);
+  });
+
   it('shows its own unavailable line for a merc without a move in our interrupt and sends no select, so the line shows once', async () => {
     const f = await tacticalUiTest(kit, ui);
     const t = tacticalOf(f.session).state;

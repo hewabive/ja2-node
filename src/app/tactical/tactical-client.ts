@@ -1,6 +1,7 @@
 import type { CommandEnvelope, DriverMode } from '../../protocol/messages.ts';
 import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
 import type { HintAnswer, HintReply } from '../../ui/game-client.ts';
+import type { RefusalListener } from '../../ui/refusal-fallback.ts';
 import type { CommandReply, TacticalClient } from '../../ui/screens/tactical/environment.ts';
 import type { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
@@ -20,6 +21,7 @@ export class SessionTacticalClient implements TacticalClient {
   readonly #keepDriver: boolean;
   #paused = false;
   #active = false;
+  #refused: RefusalListener | null = null;
 
   constructor(session: SessionClient, hints: HintProvider, keepDriver: boolean) {
     this.#session = session;
@@ -73,9 +75,14 @@ export class SessionTacticalClient implements TacticalClient {
     if (this.#active) this.#session.hold(PAUSE_HOLD, paused);
   }
 
+  onRefused(listener: RefusalListener | null): void {
+    this.#refused = listener;
+  }
+
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
     const reply = this.#paused ? { ok: false, reason: PAUSED_REFUSAL } : await this.#session.command(cmd);
     this.commands.push({ cmd, reply });
+    if (!reply.ok) this.#refused?.(reply);
     return reply;
   }
 

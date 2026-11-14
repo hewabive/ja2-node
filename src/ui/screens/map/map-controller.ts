@@ -74,6 +74,7 @@ export const MAP_SCREEN_CONTRACT: ControllerContract = {
     messageUpEnabled: 'boolean',
     messageDownEnabled: 'boolean',
     pauseHelp: 'string',
+    paused: 'boolean',
     balance: 'number',
     income: 'number',
     sectorName: 'string',
@@ -104,6 +105,7 @@ export interface MapScreenModel {
   messageUpEnabled: boolean;
   messageDownEnabled: boolean;
   pauseHelp: string;
+  paused: boolean;
   balance: number;
   income: number;
   sectorName: string;
@@ -134,6 +136,7 @@ export function emptyMapScreenModel(): MapScreenModel {
     messageUpEnabled: false,
     messageDownEnabled: false,
     pauseHelp: '',
+    paused: false,
     balance: 0,
     income: 0,
     sectorName: '',

@@ -267,6 +267,13 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, { ok: true }, facts)).toBeNull();
   });
 
+  it('prints NO_PATH for a door or a pick-up with no way next to it, as UIHandleCMoveMerc and the hand cursor do', () => {
+    const noPath = refuse('noPath', 'no path');
+    const line = { tick: 9, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 114 };
+    expect(refusalEntry(9, { type: 'door', soldier: 0, gridNo: 1, action: 'open' }, noPath, facts)).toEqual(line);
+    expect(refusalEntry(9, { type: 'pickUp', soldier: 0, gridNo: 1 }, noPath, facts)).toEqual(line);
+  });
+
   it('names the calibre the robot needs when it refuses the ammo given to it', () => {
     const refused = refuse('robotNeedsCalibre', 'robotNeedsCalibre', { calibre: 2 });
     expect(refusalEntry(9, { type: 'give', soldier: 0, target: 1 }, refused, facts)).toEqual({

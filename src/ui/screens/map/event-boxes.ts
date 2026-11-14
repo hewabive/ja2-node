@@ -4,13 +4,15 @@
 // @src for a SAM site, 16 with the new daily income in SPrintMoney for a mine, 25 for a town, each naming the sector by
 // @src the detailed GetSectorIDString); src/game/Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (STR_LATE_05
 // @src with pVehicleStrings of the vehicle's type and the sector's short string, 2026-11-05);
-// @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (an OK box on the screen that is up when it happens).
+// @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (an OK box on the screen that is up when it happens;
+// @src the militia training refusals, 2026-11-14).
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
 import { braceFormat, printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { eventPrompt, type PromptedText } from '../../viewer-prompts.ts';
+import { militiaRejectionText } from './militia-boxes.ts';
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 export type SectorLostEvent = Extract<FrameEvent, { readonly type: 'sectorLost' }>;
@@ -28,6 +30,7 @@ const TACTICAL_FLOW = 'tactical';
 export interface EventBoxSources {
   readonly text: UiTextService;
   readonly sectorName: (label: string) => string;
+  readonly townOf: (label: string) => number;
   readonly vehicleType: (vehicle: number) => number | null;
 }
 
@@ -44,6 +47,10 @@ export function outOfGasText(text: UiTextService, vehicleType: number, sector: s
 function eventBox(event: FrameEvent, sources: EventBoxSources): PromptedText | null {
   if (event.type === 'sectorLost')
     return { text: lostSectorText(sources.text, event, sources.sectorName), prompt: eventPrompt(event, event.sector) };
+  if (event.type === 'militiaTrainingRejected') {
+    const text = militiaRejectionText(sources, event);
+    return text === null ? null : { text, prompt: eventPrompt(event, `${event.reason}-${event.sector}`) };
+  }
   if (event.type !== 'vehicleOutOfGas') return null;
   const type = sources.vehicleType(event.vehicle);
   return type === null ? null : { text: outOfGasText(sources.text, type, event.sector), prompt: eventPrompt(event, event.sector) };

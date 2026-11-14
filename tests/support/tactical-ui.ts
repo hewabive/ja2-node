@@ -20,6 +20,7 @@ import type { LayoutModel } from '../../src/ui/layout/model.ts';
 import { messageBoxStyles, textBoxArt } from '../../src/ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../src/ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../src/ui/message-boxes.ts';
+import type { RefusalListener } from '../../src/ui/refusal-fallback.ts';
 import { mapFacts } from '../../src/ui/screens/map/facts.ts';
 import {
   type BattleSound,
@@ -89,6 +90,7 @@ export class SessionClient implements TacticalClient {
   readonly #client: ClientSide;
   readonly #frames: ViewFrame[] = [];
   #view: PlayerView;
+  #refused: RefusalListener | null = null;
 
   constructor(session: Session, client: ClientSide) {
     this.#session = session;
@@ -139,6 +141,10 @@ export class SessionClient implements TacticalClient {
     this.paused = paused;
   }
 
+  onRefused(listener: RefusalListener | null): void {
+    this.#refused = listener;
+  }
+
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
     if (this.hold) await this.hold;
     const result = this.#session.dispatch(cmd);
@@ -149,6 +155,7 @@ export class SessionClient implements TacticalClient {
     };
     this.commands.push({ cmd, reply });
     this.refresh();
+    if (!reply.ok) this.#refused?.(reply);
     return reply;
   }
 

@@ -54,7 +54,7 @@
 // @src highlights first, the speaker's locator only without them, then the battle locator of RenderMapCursorsIndexesAnims),
 // @src Strategic_Mines.cc IssueHeadMinerQuote (the panel clear of the miner's mine, 2026-11-09).
 
-import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
 import type { AssignmentOptions, MoveBoxOptions, PassTargets } from '../../../protocol/hints.ts';
 import type { MessageEntry } from '../../../protocol/message-log.ts';
@@ -69,6 +69,7 @@ import type { MouseRegion } from '../../input/regions.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import { popupBoxStyle } from '../../layout/styles.ts';
 import { type CustomRenderer, LayoutView } from '../../layout/view.ts';
+import { fallbackRefusalLine, type RefusableReply } from '../../refusal-fallback.ts';
 import type { Screen } from '../../screen.ts';
 import { type ExternPanelRef, recruitedSpeaker, SpeechPresenter, type SpeechRouting } from '../../speech.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
@@ -112,7 +113,7 @@ import { CompressionBlink, type CompressRequest, compressionCommand, compression
 import { ContractMenu } from './contract-menu.ts';
 import { type MapEnvironment, MapLayout } from './environment.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from './event-boxes.ts';
-import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn } from './facts.ts';
+import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn, townOfLabel } from './facts.ts';
 import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnAirspace, turnOnTeams } from './filters.ts';
 import { cornerIcons, infoGeometry, renderCharacterInfo } from './info-panel.ts';
 import { type InvasionEvent, invasionBoxesOf, invasionText } from './invasion.ts';
@@ -355,6 +356,7 @@ export class MapScreen implements Screen {
       send: (cmd) => env.client.command(cmd),
       options: (soldier) => this.#assignmentOptions(soldier),
       box: (text) => void this.#mapBox(text),
+      refused: (reply) => this.#boxRefusal(reply),
       feedback: (text) => this.#uiMessage(text),
       townOf: (sector) => this.#townOf(sector),
       fontHeight: () => this.#team.geometry.ySize,
@@ -686,8 +688,7 @@ export class MapScreen implements Screen {
   }
 
   #townOf(sector: string): number {
-    const s = parseSectorLabel(sector);
-    return s ? this.#env.facts.townOf(sectorId(s)) : 0;
+    return townOfLabel(this.#env.facts, sector);
   }
 
   #sectorName(label: string, detailed: boolean): string {
@@ -717,6 +718,7 @@ export class MapScreen implements Screen {
     this.#speech.enter(this.#env.runtime.clock.ja2Now);
     this.#defineRegions();
     this.#inventory.enter();
+    this.#env.client.onRefused((reply) => this.#fallbackLine(reply));
     this.#env.client.start();
   }
 
@@ -734,6 +736,7 @@ export class MapScreen implements Screen {
     this.#inventoryOpen = false;
     this.#sectorInventoryOpen = false;
     this.#env.client.stop();
+    this.#env.client.onRefused(null);
     this.#env.runtime.regions.removeOwner(OWNER);
     this.#screenMask = null;
     this.#handRegion = null;
@@ -866,6 +869,7 @@ export class MapScreen implements Screen {
         ...eventBoxesOf(frames, {
           text: this.#env.text,
           sectorName: (label) => this.#sectorName(label, true),
+          townOf: (label) => this.#townOf(label),
           vehicleType: vehicleTypeIn(view),
         }),
       );
@@ -1127,6 +1131,7 @@ export class MapScreen implements Screen {
     m.messageUpEnabled = this.#messages.canScrollUp;
     m.messageDownEnabled = this.#messages.canScrollDown;
     m.pauseHelp = this.#text('pPausedGameText', this.#playerPaused ? 1 : 2);
+    m.paused = this.#playerPaused;
     m.balance = strategic?.balance ?? 0;
     m.income = strategic?.projectedDailyIncome ?? 0;
     m.sectorName = this.#sectorName(sectorLabel(this.#selected), true);
@@ -1230,6 +1235,16 @@ export class MapScreen implements Screen {
 
   #refusalOf(reply: { readonly data?: unknown; readonly reason?: string }): string | null {
     return (reply.data as { refusal?: string } | undefined)?.refusal ?? null;
+  }
+
+  #boxRefusal(reply: RefusableReply): void {
+    const text = reply.ok ? null : this.#refusalText(this.#refusalOf(reply));
+    if (text) void this.#mapBox(text);
+  }
+
+  #fallbackLine(reply: RefusableReply): void {
+    const line = fallbackRefusalLine(reply);
+    if (line !== null) this.#messages.addLocal(localMessage(this.#playerView()?.tick ?? 0, line));
   }
 
   #promptContext(): PromptContext {

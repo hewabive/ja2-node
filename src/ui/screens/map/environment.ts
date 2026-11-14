@@ -5,6 +5,7 @@ import type { GameOptions } from '../../client/api-types.ts';
 import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
+import type { RefusalListener } from '../../refusal-fallback.ts';
 import type { UiRuntime } from '../../runtime.ts';
 import type { SpeechPresenter, SpeechSettings } from '../../speech.ts';
 import type { UiTextService } from '../../text/text-service.ts';
@@ -34,6 +35,7 @@ export interface MapClient extends GameClient {
   readonly latestView: PlayerView | null;
   readonly paused: boolean;
   command(cmd: CommandEnvelope): Promise<MapCommandReply>;
+  onRefused(listener: RefusalListener | null): void;
   start(): void;
   stop(): void;
   setPaused(paused: boolean): void;

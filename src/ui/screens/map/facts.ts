@@ -105,6 +105,11 @@ export function parseSectorLabel(label: string): Sector | null {
   return { x, y, z: m[3] === undefined ? 0 : Number(m[3]) };
 }
 
+export function townOfLabel(facts: MapFacts, label: string): number {
+  const s = parseSectorLabel(label);
+  return s ? facts.townOf(sectorId(s)) : BLANK_SECTOR;
+}
+
 export function foundSecrets(labels: readonly string[] | undefined): Set<number> {
   const found = new Set<number>();
   for (const label of labels ?? []) {

@@ -71,6 +71,7 @@ const STR_LATE_18 = 17;
 const MAX_MILITIA_TRAINERS_PER_SECTOR = 2;
 const SOME_FAILED = 18;
 const SOME_FAILED_MILITIA = 48;
+const ALREADY_IN_SQUAD = 'alreadyInSquad';
 const SQUAD_ERROR: Readonly<Record<string, number>> = {
   squadMoving: 36,
   squadHasVehicle: 37,
@@ -90,6 +91,13 @@ export interface AssignmentCommandReply {
 interface SoldierAssignResult {
   readonly ok: boolean;
   readonly refusal?: string;
+  readonly militia?: string;
+}
+
+const PAYMENT_SETTLED: ReadonlySet<string> = new Set(['paid', 'alreadyPaid']);
+
+function listAssigned(leader: SoldierAssignResult): boolean {
+  return leader.militia === undefined || PAYMENT_SETTLED.has(leader.militia);
 }
 
 function assignResults(reply: AssignmentCommandReply): readonly SoldierAssignResult[] {
@@ -109,6 +117,7 @@ export interface AssignmentMenuHost {
   readonly send: (cmd: { type: string; [key: string]: unknown }) => Promise<AssignmentCommandReply>;
   readonly options: (soldier: number) => Promise<AssignmentOptions | null>;
   readonly box: (text: string) => void;
+  readonly refused: (reply: AssignmentCommandReply) => void;
   readonly feedback: (text: string) => void;
   readonly townOf: (sector: string) => number;
   readonly fontHeight: () => number;
@@ -214,7 +223,7 @@ export class AssignmentMenus {
     if (!options || this.#submenuOpen()) return;
     const entry = options.lines[line];
     if (options.box === 'removeMerc') {
-      if (line === 0) void this.#host.send({ type: 'removeMerc', soldier: this.#soldier });
+      if (line === 0) void this.#sendReported({ type: 'removeMerc', soldier: this.#soldier });
       this.close(true);
       return;
     }
@@ -223,7 +232,7 @@ export class AssignmentMenus {
       else if (line === EPC_MENU_PATIENT && entry?.enabled) void this.#assign({ kind: 'patient' });
       else if (line === EPC_MENU_VEHICLE && entry?.enabled) this.#openVehicles();
       else if (line === EPC_MENU_REMOVE) {
-        void this.#host.send({ type: 'unescort', soldier: this.#soldier });
+        void this.#sendReported({ type: 'unescort', soldier: this.#soldier });
         this.close(true);
       } else if (line === options.lines.length - 1) this.#cancel();
       return;
@@ -259,6 +268,10 @@ export class AssignmentMenus {
   #cancel(): void {
     this.close(true);
     this.#host.resetSelected();
+  }
+
+  async #sendReported(cmd: { type: string; [key: string]: unknown }): Promise<void> {
+    this.#host.refused(await this.#host.send(cmd));
   }
 
   #openSquads(): void {
@@ -298,11 +311,12 @@ export class AssignmentMenus {
     const name = this.#name();
     const reply = await this.#host.send({ type: 'assignSquad', soldier: this.#soldier, squad });
     const refusal = refusalOf(reply.data);
-    if (!reply.ok && refusal !== 'alreadyInSquad') {
-      const index = SQUAD_ERROR[refusal ?? ''] ?? SQUAD_ERROR.cannotJoinSquad ?? 38;
+    const squadError = refusal === null ? undefined : SQUAD_ERROR[refusal];
+    if (reply.ok || refusal === ALREADY_IN_SQUAD) this.close(true);
+    else if (squadError !== undefined) {
       const where = this.#host.text.string(STRINGS.longAssignment, squad) ?? '';
-      this.#host.box(printf(this.#host.text.string(STRINGS.errors, index) ?? '', [name, where]));
-    } else this.close(true);
+      this.#host.box(printf(this.#host.text.string(STRINGS.errors, squadError) ?? '', [name, where]));
+    } else this.#host.refused(reply);
     const others = this.#host.others(this.#soldier);
     if (others.length > 0) {
       const results = await this.#host.send({ type: 'assign', soldiers: others, to: { kind: 'squad', squad } });
@@ -343,7 +357,7 @@ export class AssignmentMenus {
       this.#host.feedback(
         printf(this.#host.text.string(STRINGS.late, STR_LATE_18) ?? '', [this.#host.text.string(STRINGS.vehicle, v?.type ?? 0) ?? '']),
       );
-    } else await this.#host.send({ type: 'boardVehicle', soldier: this.#soldier, vehicle: entry.target });
+    } else await this.#sendReported({ type: 'boardVehicle', soldier: this.#soldier, vehicle: entry.target });
     this.close(true);
     for (const id of this.#host.others(this.#soldier)) await this.#host.send({ type: 'boardVehicle', soldier: id, vehicle: entry.target });
   }
@@ -443,12 +457,13 @@ export class AssignmentMenus {
       soldiers: [this.#soldier, ...this.#host.others(this.#soldier)],
       to: { kind: 'trainMilitia' },
     });
-    if (reply.ok) {
+    const first = assignResults(reply)[0];
+    if (first?.ok) {
       this.close(true);
+      if (listAssigned(first)) this.#reportList(reply, true);
       return;
     }
-    const first = assignResults(reply)[0];
-    const refusal = first && !first.ok ? first.refusal : refusalOf(reply.data);
+    const refusal = first ? first.refusal : refusalOf(reply.data);
     const text = this.#host.text;
     const merc = mercById(this.#host.strategic(), this.#soldier);
     const town = merc ? this.#host.townOf(merc.sector) : 0;
@@ -459,7 +474,6 @@ export class AssignmentMenus {
     else if (refusal === 'tooManyTrainers')
       this.#host.box(printf(text.string(STRINGS.late, STR_LATE_47) ?? '', [MAX_MILITIA_TRAINERS_PER_SECTOR]));
     else this.#reportList(reply, true);
-    if (first?.ok) this.close(true);
   }
 
   #openAttributes(mode: TrainingMode, trainingLine: number): void {
@@ -504,8 +518,10 @@ export class AssignmentMenus {
   }
 
   #reportList(reply: AssignmentCommandReply, militia: boolean): void {
-    const failed = assignResults(reply).some((r) => !r.ok);
-    if (failed) this.#host.box(this.#host.text.string(STRINGS.errors, militia ? SOME_FAILED_MILITIA : SOME_FAILED) ?? '');
+    const results = assignResults(reply);
+    if (results.length === 0) this.#host.refused(reply);
+    else if (results.some((r) => !r.ok))
+      this.#host.box(this.#host.text.string(STRINGS.errors, militia ? SOME_FAILED_MILITIA : SOME_FAILED) ?? '');
   }
 
   escape(): boolean {

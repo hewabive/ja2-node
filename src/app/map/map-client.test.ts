@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { DriverMode } from '../../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode } from '../../protocol/messages.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import type { HintProvider } from '../hints/hint-provider.ts';
-import type { SessionClient } from '../net/session-client.ts';
+import type { CommandReply, SessionClient } from '../net/session-client.ts';
 import { SessionMapClient } from './map-client.ts';
 
 class FakeSession {
@@ -13,6 +13,13 @@ class FakeSession {
   readonly held = new Set<string>();
   shownTick = 0;
   latestTick = 0;
+  readonly sent: CommandEnvelope[] = [];
+  reply: CommandReply = { ok: true };
+
+  async command(cmd: CommandEnvelope): Promise<CommandReply> {
+    this.sent.push(cmd);
+    return this.reply;
+  }
 
   async drive(driver: DriverMode): Promise<void> {
     this.driver = driver;
@@ -61,14 +68,23 @@ describe('the map client clock', () => {
     expect(session.drives).toEqual([]);
   });
 
-  it('stops real time on the events that open a box: the update box, the lost sector box, the invasion box and the out-of-gas box', () => {
+  it('stops real time on the events that open a box: the update box, the lost sector, invasion, out-of-gas and militia boxes', () => {
     const session = new FakeSession();
     session.latestView = viewIn('strategic');
     mapClientOn(session).start();
     expect(session.driver).toEqual({
       mode: 'realtime',
       speed: 1,
-      pauseOn: ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon', 'sectorLost', 'invasion', 'vehicleOutOfGas'],
+      pauseOn: [
+        'assignmentDone',
+        'fellAsleep',
+        'wokeUp',
+        'contractsExpiringSoon',
+        'sectorLost',
+        'invasion',
+        'vehicleOutOfGas',
+        'militiaTrainingRejected',
+      ],
     });
   });
 
@@ -127,5 +143,31 @@ describe('the map client clock', () => {
     session.shownTick = 40;
     client.sync();
     expect([...session.held]).toEqual([]);
+  });
+});
+
+describe('the map client commands', () => {
+  it('sends a command while the player pauses: the pause holds time and the screen masks itself, as the original refuses nothing', async () => {
+    const session = new FakeSession();
+    session.latestView = viewIn('strategic');
+    const client = mapClientOn(session);
+    client.start();
+    client.setPaused(true);
+    expect(await client.command({ type: 'answer', choice: 'yes' })).toEqual({ ok: true });
+    expect(session.sent).toEqual([{ type: 'answer', choice: 'yes' }]);
+    expect([...session.held]).toEqual(['mapPaused']);
+  });
+
+  it('hands every refused reply to the listener the screen set, and none after it is cleared', async () => {
+    const session = new FakeSession();
+    const client = mapClientOn(session);
+    const heard: unknown[] = [];
+    client.onRefused((reply) => heard.push(reply));
+    await client.command({ type: 'stopTime' });
+    session.reply = { ok: false, reason: 'promptOpen: a prompt is open, answer it first', data: { refusal: 'promptOpen' } };
+    await client.command({ type: 'stopTime' });
+    client.onRefused(null);
+    await client.command({ type: 'stopTime' });
+    expect(heard).toEqual([session.reply]);
   });
 });

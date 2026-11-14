@@ -83,6 +83,8 @@ class FakeClient implements MapClient {
 
   holdTime(): void {}
 
+  onRefused(): void {}
+
   hint(request: CommandEnvelope): HintReply {
     if (request.type !== 'compatibleItems') return { state: 'ready', answer: { ok: false, reason: 'noSector' }, source: 'local' };
     const item = request.item as number;
