@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc SetSoldierGridNo (the walk in water, the way out of water, the swim into and
 // @src out of deep water and its fPrevInWater, which follows the terrain left), EVENT_InternalGetNewSoldierPath (the swim
-// @src in deep water); Tactical/Items.cc WaterDamage
+// @src in deep water); Tactical/Items.cc WaterDamage (STR_CAMO_WASHED_OFF of a soldier out of sight too, 2026-11-14)
 
 import { ItemFlags, NOTHING } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';
@@ -10,7 +10,8 @@ import { i8 } from '../../core/int.ts';
 import { anim } from './anim-states.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
 import { numSkillTraits, SkillTrait, type Soldier, Team } from './soldier.ts';
-import { shownInSector, type TacticalState } from './state.ts';
+import type { TacticalState } from './state.ts';
+import { namedSoldier } from './unseen-sources.ts';
 
 const WATER_DAMAGE_DIE = 100;
 const WATER_DAMAGE_CHANCE = 10;
@@ -44,7 +45,7 @@ function soakInventory(t: TacticalState, s: Soldier): void {
 function washOffCamouflage(t: TacticalState, s: Soldier): void {
   if (s.camo <= 0 || numSkillTraits(s, SkillTrait.CAMOUFLAGED) > 0) return;
   s.camo = Math.max(0, s.camo - (inDeepWater(s) ? CAMO_WASHED_IN_DEEP_WATER : CAMO_WASHED_IN_MEDIUM_WATER));
-  if (s.camo === 0 && shownInSector(t, s)) t.events.push({ type: 'camoWashedOff', soldier: s.id });
+  if (s.camo === 0) t.events.push({ type: 'camoWashedOff', ...namedSoldier(t, s) });
 }
 
 function rinseCreatureSmell(t: TacticalState, s: Soldier): void {

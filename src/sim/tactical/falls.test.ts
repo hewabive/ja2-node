@@ -171,13 +171,22 @@ describe('falls on the way (Overhead.cc HandleGotoNewGridNo, after the gas check
     expect(fallRollsDrawn(kept.w)).toBe(1);
   });
 
-  it('trips an unseen enemy without telling the player', () => {
-    const w = drunk(walker({ team: Team.ENEMY }));
-    w.fallRolls.push(0);
-    getNewSoldierPath(w.sim.state, w.s, ORIGIN + 3 * EAST, states(content.animations).WALKING);
-    const events = stepUntilFall(w);
-    expect([w.s.collapsed, w.s.visible]).toEqual([true, Visible.HIDDEN]);
-    expect(fellDown(events)).toEqual([]);
+  it("tells the trip of an unseen enemy by his team's default or his name, with his curse's voice and no id, tile or cause (D16)", () => {
+    const trip = (prepare: (s: Soldier) => void) => {
+      const w = drunk(walker({ team: Team.ENEMY }));
+      prepare(w.s);
+      w.fallRolls.push(0);
+      getNewSoldierPath(w.sim.state, w.s, ORIGIN + 3 * EAST, states(content.animations).WALKING);
+      const events = stepUntilFall(w);
+      expect([w.s.collapsed, w.s.visible]).toEqual([true, Visible.HIDDEN]);
+      return fellDown(events);
+    };
+    const curse = { voice: expect.any(String), bodyType: 0 };
+    expect(trip((s) => Object.assign(s, { name: '' }))).toEqual([
+      { type: 'fellDown', tick: expect.any(Number), defaultName: 'enemy', unseen: curse },
+    ]);
+    expect(trip(() => {})).toEqual([{ type: 'fellDown', tick: expect.any(Number), name: 'S20', unseen: curse }]);
+    expect(trip((s) => Object.assign(s, { muted: true }))).toEqual([{ type: 'fellDown', tick: expect.any(Number), name: 'S20' }]);
   });
 });
 
@@ -232,13 +241,15 @@ describe('marbles on the way (Overhead.cc HandleGotoNewGridNo, before the falls)
     expect(slipped(go(onRoad, ORIGIN + 3 * EAST))).toHaveLength(1);
   });
 
-  it('slips an unseen enemy without telling the player', () => {
+  it('tells the slip of an unseen enemy by his name, with his curse and no id or tile (D16)', () => {
     const w = walker({ team: Team.ENEMY });
     floorAt(w, ORIGIN + EAST);
     marblesAt(w, ORIGIN + EAST);
     getNewSoldierPath(w.sim.state, w.s, ORIGIN + 3 * EAST, states(content.animations).WALKING);
     const events = stepUntilFall(w);
     expect([w.s.collapsed, w.s.visible, marblesLeft(w, ORIGIN + EAST)]).toEqual([true, Visible.HIDDEN, 0]);
-    expect(slipped(events)).toEqual([]);
+    expect(slipped(events)).toEqual([
+      { type: 'slippedOnMarbles', tick: expect.any(Number), name: 'S20', unseen: { voice: expect.any(String), bodyType: 0 } },
+    ]);
   });
 });

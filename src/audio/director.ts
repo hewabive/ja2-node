@@ -43,7 +43,8 @@
 // @src at HIGHVOLUME, MIDDLEPAN, then OK1 by the opened statue or CURSE1), SoldierPickupItem (OK1), Tactical/Items.cc
 // @src CheckEquipmentForFragileItemDamage (GLASS_CRACK at the soldier, MIDVOLUME), Tactical/Soldier_Control.cc DoNinjaAttack
 // @src (Dr. Q's chop as his battle sound), HandleTakeDamageDeath and HandleSoldierTakeDamageFeedback, TileEngine/
-// @src Explosion_Control.cc DishOutGasDamage (DIE1 and the HIT1 grunts at bleeding, gas and electric damage, 2026-11-09).
+// @src Explosion_Control.cc DishOutGasDamage (DIE1 and the HIT1 grunts at bleeding, gas and electric damage, 2026-11-09);
+// @src Tactical/Overhead.cc HandleGotoNewGridNo (the CURSE1 of a fall or a slip on marbles, out of sight too, 2026-11-14).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { facingOfDirection } from '../content/anim/soldier-sprite.ts';
@@ -735,7 +736,7 @@ export class SoundDirector {
         return;
       case 'fellDown':
       case 'slippedOnMarbles':
-        this.#battleSound(e.soldier, 'CURSE1', false);
+        this.#curse(e);
         return;
       case 'itemApplied':
         this.#itemApplied(e);
@@ -750,6 +751,11 @@ export class SoundDirector {
       default:
         return;
     }
+  }
+
+  #curse(e: EventOf<'fellDown'> | EventOf<'slippedOnMarbles'>): void {
+    if (e.soldier !== undefined) this.#battleSound(e.soldier, 'CURSE1', false);
+    else if (e.unseen) this.#voiceSound(this.#victim(NOBODY, this.#placeOf(undefined, e.heard), e.unseen), 'CURSE1', false);
   }
 
   #mercDiedOffTheMap(e: EventOf<'mercDied'>): void {

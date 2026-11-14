@@ -432,6 +432,27 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it("prints the trip and the washed-off camouflage of a soldier out of sight by his own name or his team's default, and no slip line for him", () => {
+    const unseen = { voice: 'bad2', bodyType: 0 };
+    const entries = messageEntriesOf(
+      [
+        at({ type: 'fellDown', name: 'Hamous', unseen }),
+        at({ type: 'fellDown', defaultName: 'enemy' }),
+        at({ type: 'slippedOnMarbles', defaultName: 'enemy', unseen }),
+        at({ type: 'camoWashedOff', defaultName: 'militia' }),
+        at({ type: 'camoWashedOff', name: 'Hamous' }),
+      ],
+      facts,
+    );
+    const interface_ = { tick: 40, kind: 'interface', colour: 145 };
+    expect(entries).toEqual([
+      { ...interface_, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Hamous' }] },
+      { ...interface_, table: 'gzLateLocalizedString', index: 36, args: [{ string: { table: 'TacticalStr', index: 90 } }] },
+      { ...interface_, table: 'Message', index: 31, args: [{ string: { table: 'TacticalStr', index: 92 } }] },
+      { ...interface_, table: 'Message', index: 31, args: [{ text: 'Hamous' }] },
+    ]);
+  });
+
   it('prints STR_SLIPPED_MARBLES as UI feedback with the name of our merc who slips on marbles, and nothing for anyone else', () => {
     const slipped = (soldier: number) => at({ type: 'slippedOnMarbles', soldier });
     expect(messageEntriesOf([slipped(1), slipped(20)], facts)).toEqual([

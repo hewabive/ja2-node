@@ -27,7 +27,8 @@
 // @src BulletImpact (STR_LOSES_* and STR_HEAD_HIT, a soldier out of sight by his name or his team's default, 2026-11-14);
 // @src Soldier_Control.cc SoldierGotHitGunFire (STR_LATE_20, 2026-11-14); Handle_UI.cc HandleTalkInit (NO_LOS_TO_TALK_TARGET
 // @src with the merc and a profile, STR_LATE_45 with the merc, STR_LATE_21 with the target, 2026-11-14; STR_LATE_32 with
-// @src Dimitri, 2026-11-14).
+// @src Dimitri, 2026-11-14); Overhead.cc HandleGotoNewGridNo's STR_LATE_37 and Items.cc WaterDamage's STR_CAMO_WASHED_OFF
+// @src of a soldier out of sight, by his name or his team's default (2026-11-14).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -307,9 +308,11 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   firstAidDone: (e, facts) => [line('TacticalStr', 83, [soldierArg(facts, e.patient)])],
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [soldierArg(facts, e.soldier)])],
   firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],
-  fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [soldierArg(facts, e.soldier)])],
+  fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [namedArg(facts, e)])],
   slippedOnMarbles: (e, facts) =>
-    facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', STR_SLIPPED_MARBLES, [soldierArg(facts, e.soldier)], 'uiFeedback')] : [],
+    e.soldier !== undefined && facts.soldierTeam(e.soldier) === OUR_TEAM
+      ? [line('Message', STR_SLIPPED_MARBLES, [soldierArg(facts, e.soldier)], 'uiFeedback')]
+      : [],
   switchActivated: () => [line('gzLateLocalizedString', STR_LATE_58)],
   stopped: (e, facts) =>
     e.reason === 'outOfAPs' && facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('TacticalStr', 81, [soldierArg(facts, e.soldier)])] : [],
@@ -322,7 +325,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   mercDropped: (e, facts) => [line('TacticalStr', MERC_HAS_ARRIVED_STR, [soldierArg(facts, e.soldier)])],
   historyAdded: () => [line('pMessageStrings', 67)],
   camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [soldierArg(facts, e.soldier)])],
-  camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [soldierArg(facts, e.soldier)])],
+  camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [namedArg(facts, e)])],
   stealAttempt: (e, facts) => [
     line('Message', e.result === 'failed' ? STR_FAILED_TO_STEAL_SOMETHING : STR_STOLE_SOMETHING, [
       soldierArg(facts, e.soldier),

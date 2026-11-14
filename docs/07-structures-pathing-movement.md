@@ -106,8 +106,8 @@ mine stops (`bombs/mine-detection.ts`, `12` §6).
 that holds marbles (any of the pool's items, hidden ones too) slips: the marbles are gone, he collapses and loses some
 APs (`Tactical/Overhead.cc:1477`). Otherwise a blinded runner and then a soldier who is DRUNK (`12` §5) may trip over
 (`tripsAndFalls`, `falls.ts`; `:1499`): he collapses where he stands, loses some APs and the move ends there. The player
-hears the curse through `slippedOnMarbles` and `fellDown`, only for our soldiers and those the squad sees (deviation
-"Falls out of sight"); the marbles' line is for our mercs alone. With no fall, our FORGETFUL merc counts the step, and
+hears the curse through `slippedOnMarbles` and `fellDown`, for a soldier out of sight too, from where the squad hears
+him (deviation "Sounds out of sight"); the fall's line names everyone, the marbles' line our mercs alone. With no fall, our FORGETFUL merc counts the step, and
 from the third step of a move, once he has walked more than 200 tiles since he last forgot, may stop with his
 personality line and some APs lost (`forgetful.ts`, `:1526`).
 

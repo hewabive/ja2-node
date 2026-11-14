@@ -7,7 +7,7 @@ import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, type AnimationTables, parseAnima
 import { type Cue, VolumeLevel } from '../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../content/audio/cue-book.ts';
 import { heardSoundTile } from '../content/audio/heard-place.ts';
-import { balanceGains, Pan, scaleVolume } from '../content/audio/sound-position.ts';
+import { balanceGains, NOWHERE, Pan, scaleVolume } from '../content/audio/sound-position.ts';
 import { type AmbientEntry, AmbientTime } from '../content/formats/ambient.ts';
 import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../content/formats/ja2bin.ts';
 import { Direction } from '../content/world/grid.ts';
@@ -722,6 +722,25 @@ describe('the sound director', () => {
     r.director.reset([soldier(1, 'STANDING', 0)], []);
     r.director.applyFrames([frame(10, [], [{ type: 'slippedOnMarbles', tick: 10, soldier: 1 }])]);
     expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
+  });
+
+  it('has a soldier out of sight who falls or slips curse from where the squad hears him, in the voice the event names', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    const heard = { by: 1, direction: Direction.NORTH, volumeClass: 3 };
+    const unseen = { voice: '033', bodyType: 0 };
+    r.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, defaultName: 'enemy', unseen, heard }])]);
+    expect(files(r)[0]).toMatch(/^battlesnds\/033_curse/);
+    expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3) });
+    const far = rig(world(1));
+    far.director.reset([soldier(1, 'STANDING', 0)], []);
+    far.director.applyFrames([frame(10, [], [{ type: 'slippedOnMarbles', tick: 10, name: 'Hamous', unseen }])]);
+    expect(files(far)[0]).toMatch(/^battlesnds\/033_curse/);
+    expect(far.cues[0]).toMatchObject({ gridNo: NOWHERE });
+    const muted = rig(world(1));
+    muted.director.reset([soldier(1, 'STANDING', 0)], []);
+    muted.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, defaultName: 'enemy' }])]);
+    expect(files(muted)).toEqual([]);
   });
 
   it('has a medic out of bandages curse with CURSE1, and stay silent when the event brings no battle sound', () => {

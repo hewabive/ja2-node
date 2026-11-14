@@ -67,7 +67,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows and the name the original's line gives one hit in the head or knocked over, §7); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) and the inside of a room under its roof (`sectorLayout`) |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows and the name the original's line gives one hit in the head, knocked over, tripped, slipped or washed of his camouflage, §7); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) and the inside of a room under its roof (`sectorLayout`) |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -423,7 +423,9 @@ that cost no wisdom (`:2998`, `:3108`), for a soldier of any team, seen or not, 
 shot; `knockedOver` is a standing soldier a leg hit knocks over (`Tactical/Soldier_Control.cc:3185-3196`), of any team,
 seen or not. The original prints the name of one out of sight too, so these two carry `name` (his own) or
 `defaultName` (his team's, as in the view) instead of `soldier` for him, and an agent learns a line, never an id or a
-tile (D16).
+tile (D16). `fellDown`, `slippedOnMarbles` and `camoWashedOff` (§8.1) name a soldier out of sight the same way
+(`Tactical/Overhead.cc:1484`, `:1505`, `:1519`, `Tactical/Items.cc:3357`); the first two add `unseen` and `heard` for
+his curse, as a hit does, none for a muted soldier, and `fellDown` drops his `cause`.
 
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
@@ -508,8 +510,8 @@ at the victim alone, a knife's for a blade and a bullet's otherwise (`Tactical/S
 `soldierHit`'s `blade` picks; a victim of ours shows his hit in full. A `nothingFound` of a soldier out of sight carries
 `unseen` and `heard` instead of the grid, and comes only for one with a profile who is not muted: the original's NOTHING
 has no sound for a soldier without a profile, nor for a muted one (`Tactical/Soldier_Control.cc:150`, `:6017`, `:5880`).
-A death cry, the NOTHING and a creature's call make no noise in the original; they are heard as loud as the crier's
-loudest scream (`CalcScreamVolume`'s cap of 10 − experience level).
+A death cry, the NOTHING, the curse of a fall and a creature's call make no noise in the original; they are heard as
+loud as the crier's loudest scream (`CalcScreamVolume`'s cap of 10 − experience level).
 
 ## 8. Commands by domain
 
@@ -555,11 +557,10 @@ the Alt move (`bReverse`): he walks or swats backwards facing away from his path
 for one more AP a tile; a body without those states, as a civilian escort's, pays the first step and stays where he is
 (`06`). A blinded merc who runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls
 where he stands with some APs lost, the move ends there, and `fellDown {soldier, cause: blind|drunk}` brings his CURSE1
-and the original's line, for our soldiers and those the squad sees (deviation "Falls out of sight"). Marbles on a floor
-or road tile, hidden ones too, make anyone slip there the same way and are gone: `slippedOnMarbles {soldier}`, with the
-line for our mercs only. A FORGETFUL merc may stop on the way with his personality line once he has walked 200 tiles
+and the original's line, for a soldier out of sight too, named as §7 says. Marbles on a floor or road tile, hidden ones
+too, make anyone slip there the same way and are gone: `slippedOnMarbles {soldier}`, with the line for our mercs only. A FORGETFUL merc may stop on the way with his personality line once he has walked 200 tiles
 since he last forgot. In deep water a soldier swims and treads; a non-swimmer loses breath five times as fast there, and
-medium or deep water damages items and washes camouflage off (`camoWashedOff {soldier}`). A merc waiting on a squad mate
+medium or deep water damages items and washes camouflage off (`camoWashedOff {soldier}`, of any soldier, seen or not). A merc waiting on a squad mate
 walks at the mate's speed until he stops at his destination (`07`).
 A merc aboard a vehicle in the loaded sector is no controllable merc (`OK_CONTROLLABLE_MERC`, his assignment is the
 vehicle): every order to him, `stop`, `mute` and the inventory and money commands included, refuses `inVehicle` (`talk`,

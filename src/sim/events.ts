@@ -39,20 +39,24 @@ export interface StoppedEvent extends SimEventBase {
   readonly reason: string;
 }
 
-export interface FellDownEvent extends SimEventBase {
+export interface CursingSoldier extends NamedSoldier {
+  readonly unseen?: UnseenVictim;
+  readonly heard?: HeardFrom;
+}
+
+export type FallCause = 'blind' | 'drunk';
+
+export interface FellDownEvent extends SimEventBase, CursingSoldier {
   readonly type: 'fellDown';
-  readonly soldier: number;
-  readonly cause: 'blind' | 'drunk';
+  readonly cause?: FallCause;
 }
 
-export interface SlippedOnMarblesEvent extends SimEventBase {
+export interface SlippedOnMarblesEvent extends SimEventBase, CursingSoldier {
   readonly type: 'slippedOnMarbles';
-  readonly soldier: number;
 }
 
-export interface CamoWashedOffEvent extends SimEventBase {
+export interface CamoWashedOffEvent extends SimEventBase, NamedSoldier {
   readonly type: 'camoWashedOff';
-  readonly soldier: number;
 }
 
 export interface NoPathEvent extends SimEventBase {

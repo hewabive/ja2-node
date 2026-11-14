@@ -10,7 +10,7 @@ import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
-import { SkillTrait, type Soldier, Team } from './soldier.ts';
+import { SkillTrait, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
 let content: TacticalContent;
@@ -129,6 +129,20 @@ describe('water damage (Items.cc WaterDamage)', () => {
     skilled.s.camo = 3;
     setSoldierPosition(skilled.sim.state, skilled.s, ORIGIN + EAST);
     expect(skilled.s.camo).toBe(3);
+  });
+
+  it("tells the camouflage washed off an enemy out of sight too, by his name or his team's default and never his id (D16)", () => {
+    const washed = (name: string) => {
+      const { sim } = bather();
+      const enemy = spawnSoldier(sim, 20, Team.ENEMY, ORIGIN + 10 * SOUTH, Direction.EAST);
+      Object.assign(enemy, { name, camo: 1, visible: Visible.HIDDEN });
+      sim.drainEvents();
+      lake(sim, [ORIGIN + 10 * SOUTH + EAST]);
+      setSoldierPosition(sim.state, enemy, ORIGIN + 10 * SOUTH + EAST);
+      return sim.drainEvents().filter((e: SimEvent) => e.type === 'camoWashedOff');
+    };
+    expect(washed('')).toEqual([{ type: 'camoWashedOff', tick: 0, defaultName: 'enemy' }]);
+    expect(washed('S20')).toEqual([{ type: 'camoWashedOff', tick: 0, name: 'S20' }]);
   });
 
   it("rinses our merc's creature smell off on Random(10) == 0 in deep water and Random(20) == 0 in medium", () => {
