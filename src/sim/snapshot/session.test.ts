@@ -248,7 +248,7 @@ describe('a campaign snapshot', () => {
     for (const name of ['CANTEEN', 'CROWBAR'])
       addItemToPool(t, picker.gridNo, createItem(items, items.byName.get(name)?.index ?? 0, 100), Visibility.VISIBLE, picker.level);
     expect(c.dispatch({ type: 'pickUp', soldier: picker.id })).toMatchObject({ ok: true });
-    stepUntil(c, () => t.prompt !== null);
+    stepUntil(c, () => tacticalOf(c).prompt !== null);
     const json = snapshotJson(snapshotCampaign(c, testCampaignContent(kit, options)));
     const restored = testCampaignAdapter(kit, options).restore(JSON.parse(json), c);
     const after = tacticalOf(restored);

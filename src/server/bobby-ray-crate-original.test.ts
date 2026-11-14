@@ -147,7 +147,13 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('a Bobby Ray shipment to Drassen on the orig
     session.advance({ idle: true });
     expect(itemsAt(session, crate)).toEqual(ordered);
     expect(session.dispatch({ type: 'pickUp', soldier, gridNo: crate })).toMatchObject({ ok: true });
-    expect(session.advance({ idle: true }).events).toContainEqual(expect.objectContaining({ type: 'itemsPickedUp', gridNo: crate }));
+    expect(session.advance({ idle: true }).reason).toBe('decision');
+    const menu = session.sim.view().prompt;
+    if (menu?.kind !== 'pickupMenu') throw new Error('no pickup menu at the crate');
+    expect(menu.items.map((i) => i.item).sort()).toEqual(ordered);
+    const rows = menu.items.map((_, i) => i);
+    expect(session.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: rows })).toMatchObject({ ok: true });
+    session.advance({ idle: true });
     expect(itemsAt(session, crate)).toEqual([]);
   }
 
