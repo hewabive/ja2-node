@@ -26,7 +26,7 @@
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
 // @src (burst locations, arrows on our turn, the item pool list at gfUIOverItemPoolGridNo, 2026-11-02);
 // @src src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
-// @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
+// @src (burst1.sti frame 1 at the pointer's world point of each location, 2026-11-14); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
 // @src "More...", right of the pointer when there is room, centred on it within the viewport, the other level's pile
 // @src when the merc's level has none; the items of one z-level, drawn in the world or not, 2026-11-02); Overhead_Map.cc
 // @src RenderOverheadOverlays (a dot for every visible item, drawn in the world or not, 2026-11-02), GoIntoOverheadMap
@@ -948,8 +948,8 @@ export class TacticalControls {
     const bursts = this.input.burstLocations;
     if (bursts.length > 0 || arrows.length > 0 || apAt) {
       list.pushClip(0, top, width, bottom);
-      for (const gridNo of bursts) {
-        const p = world.tileCentre(gridNo);
+      for (const burst of bursts) {
+        const p = world.worldPointScreen(burst.point, burst.gridNo);
         list.image(this.#art.burst, BURST_FRAME, p.x, p.y);
       }
       for (const arrow of arrows) {

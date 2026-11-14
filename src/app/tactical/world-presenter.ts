@@ -11,7 +11,9 @@
 // @src scrolled-to-edge flags, the scroll steps); src/game/TileEngine/Interactive_Tiles.cc
 // @src InternalGetCurInteractiveTile (the found node's structure as it is now, 2026-11-04; STRUCTURE_HASITEMONTOP read as
 // @src a shown item on the structure's tile, 2026-11-04);
-// @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords (the tile under the pointer from the current render centre);
+// @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords (the tile and the world point under the pointer from the
+// @src current render centre); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations (a world point on the
+// @src screen over its tile's land height, 2026-11-14);
 // @src src/game/Tactical/Soldier_Find.cc GetSoldierScreenRect, GetSoldierScreenPos (the soldier's rectangle from the
 // @src current render centre, his position now and his bounding box); FindSoldier with
 // @src src/game/TileEngine/Interactive_Tiles.cc CheckVideoObjectScreenCoordinateInData (a vehicle's current frame tested
@@ -37,6 +39,7 @@ import {
   mapCenter,
   sceneRenderHeight,
   screenToGridNo,
+  screenToWorldPoint,
   type Viewport,
   WALL_HEIGHT,
   worldOrigin,
@@ -60,6 +63,7 @@ import type {
   SoldierMarker,
   UiImageRef,
   WorldMarker,
+  WorldPoint,
   WorldPresenter,
 } from '../../ui/screens/tactical/environment.ts';
 import { findSoldier, PICK_ANYONE } from '../../ui/screens/tactical/input/targets.ts';
@@ -301,8 +305,17 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   gridNoAt(x: number, y: number): number | null {
-    if (y < this.#top || y >= this.#viewport.height) return null;
+    if (!this.#inViewport(y)) return null;
     return screenToGridNo(x, y, this.#viewport, this.#camera);
+  }
+
+  worldPointAt(x: number, y: number): WorldPoint | null {
+    if (!this.#inViewport(y)) return null;
+    return screenToWorldPoint(x, y, this.#viewport, this.#camera);
+  }
+
+  #inViewport(y: number): boolean {
+    return y >= this.#top && y < this.#viewport.height;
   }
 
   radarViewport(): RadarBox | null {
@@ -545,9 +558,16 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   tileCentre(gridNo: number): ScreenPoint {
+    return this.worldPointScreen(
+      { x: (gridNo % WORLD_COLS) * CELL_SIZE + HALF_CELL, y: idiv(gridNo, WORLD_COLS) * CELL_SIZE + HALF_CELL },
+      gridNo,
+    );
+  }
+
+  worldPointScreen(point: WorldPoint, gridNo: number): ScreenPoint {
     const c = mapCenter(this.#viewport);
-    const dx = (gridNo % WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerX;
-    const dy = idiv(gridNo, WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerY;
+    const dx = point.x - this.#camera.centerX;
+    const dy = point.y - this.#camera.centerY;
     const land = this.#world.world.level.heights[gridNo] ?? 0;
     return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy - land + this.#renderHeight() };
   }

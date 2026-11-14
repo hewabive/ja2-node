@@ -44,6 +44,7 @@ import {
   type TacticalMedia,
   type UiImageRef,
   type WorldMarker,
+  type WorldPoint,
   type WorldPresenter,
 } from '../../src/ui/screens/tactical/environment.ts';
 import { GENERIC_FACE_BODY_TYPES, genericFacePath } from '../../src/ui/screens/tactical/generic-face.ts';
@@ -224,9 +225,12 @@ export class FakeWorld implements WorldPresenter {
   }
 
   pickPoint(gridNo: number): ScreenPoint {
-    const cell = this.#cellOf(gridNo);
-    const dx = cell.x - this.camera.centerX;
-    const dy = cell.y - this.camera.centerY;
+    return this.worldPointScreen(this.#cellOf(gridNo));
+  }
+
+  worldPointScreen(point: WorldPoint): ScreenPoint {
+    const dx = point.x - this.camera.centerX;
+    const dy = point.y - this.camera.centerY;
     return { x: 320 + 2 * dx - 2 * dy, y: 180 + dx + dy - CELL };
   }
 
@@ -261,11 +265,17 @@ export class FakeWorld implements WorldPresenter {
   }
 
   gridNoAt(x: number, y: number): number | null {
+    const p = this.worldPointAt(x, y);
+    return Math.floor(p.y / CELL) * COLS + Math.floor(p.x / CELL);
+  }
+
+  worldPointAt(x: number, y: number): WorldPoint {
     const offX = x - 320;
     const offY = y - 180 + CELL;
-    const cellX = this.camera.centerX + Math.floor((offX / 2 + offY) / 2);
-    const cellY = this.camera.centerY + Math.floor((offY - offX / 2) / 2);
-    return Math.floor(cellY / CELL) * COLS + Math.floor(cellX / CELL);
+    return {
+      x: this.camera.centerX + Math.floor((offX / 2 + offY) / 2),
+      y: this.camera.centerY + Math.floor((offY - offX / 2) / 2),
+    };
   }
 
   radarViewport(): RadarBox | null {

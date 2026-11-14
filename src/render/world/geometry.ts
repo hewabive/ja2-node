@@ -73,14 +73,19 @@ export function tileOrigin(x: number, y: number, v: Viewport, camera: Camera): {
   return { x: o.x + off.x, y: o.y + off.y };
 }
 
-export function screenToGridNo(sx: number, sy: number, v: Viewport, camera: Camera): number | null {
+export function screenToWorldPoint(sx: number, sy: number, v: Viewport, camera: Camera): { readonly x: number; readonly y: number } | null {
   const c = mapCenter(v);
   const offX = sx - c.x;
   const offY = sy - c.y + 10;
-  const cellX = camera.centerX + Math.floor((offX / 2 + offY) / 2);
-  const cellY = camera.centerY + Math.floor((offY - offX / 2) / 2);
-  if (cellX < 0 || cellY < 0 || cellX >= WORLD_COLS * 10 || cellY >= WORLD_ROWS * 10) return null;
-  return idiv(cellY, 10) * WORLD_COLS + idiv(cellX, 10);
+  const x = camera.centerX + Math.floor((offX / 2 + offY) / 2);
+  const y = camera.centerY + Math.floor((offY - offX / 2) / 2);
+  if (x < 0 || y < 0 || x >= WORLD_COLS * 10 || y >= WORLD_ROWS * 10) return null;
+  return { x, y };
+}
+
+export function screenToGridNo(sx: number, sy: number, v: Viewport, camera: Camera): number | null {
+  const p = screenToWorldPoint(sx, sy, v, camera);
+  return p === null ? null : idiv(p.y, 10) * WORLD_COLS + idiv(p.x, 10);
 }
 
 export function worldY(x: number, y: number, topY: number): number {

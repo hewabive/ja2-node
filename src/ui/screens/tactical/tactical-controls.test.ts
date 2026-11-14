@@ -1921,6 +1921,38 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.input.uiCursor).toMatch(/PUNCH/);
   });
 
+  it('marks each tile of a burst spread at the world point the pointer passed it at, not at its centre (AccumulateBurstLocation)', async () => {
+    const f = await inCombat();
+    const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    const t = tacticalOf(f.session).state;
+    const shooter = t.soldiers.find((v) => v.id === 0);
+    const gun = t.content.items.byName.get('MP5K');
+    if (!shooter || !gun) throw new Error('no merc 0 or MP5K');
+    shooter.inv[InvSlot.HAND] = createItem(t.content.items, gun.index, 100);
+    shooter.weaponMode = WeaponMode.BURST;
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    await f.settle(8);
+    expect(f.screen.controls.input.mode).toBe(UiMode.CONFIRM_ACTION_MODE);
+    pointer(f, 'pointerDown', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    const beside = enemy.gridNo + 1;
+    const centre = f.world.pickPoint(beside);
+    const passed = { x: centre.x + 7, y: centre.y + 2 };
+    expect(f.world.gridNoAt(passed.x, passed.y)).toBe(beside);
+    pointer(f, 'pointerMove', passed.x, passed.y, MouseButton.LEFT);
+    f.t.frame();
+    f.t.frame();
+    const point = f.world.worldPointAt(passed.x, passed.y);
+    expect(f.screen.controls.input.burstLocations).toContainEqual({ gridNo: beside, point });
+    const marks = f.draw().items.flatMap((i) => (i.kind === 'image' && /burst/.test(i.asset) ? [{ x: i.x, y: i.y }] : []));
+    expect(marks).toContainEqual(f.world.worldPointScreen(point));
+    expect(marks).not.toContainEqual(f.world.tileCentre(beside));
+  });
+
   it('is back on the move cursor when the screen is entered again', async () => {
     const f = await tacticalUiTest(kit, ui);
     const at = f.world.pickPoint(merc(f, 0).gridNo + 3);

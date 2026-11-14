@@ -54,6 +54,11 @@ export interface ScreenPoint {
   readonly y: number;
 }
 
+export interface WorldPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface ScreenBox extends ScreenPoint {
   readonly width: number;
   readonly height: number;
@@ -177,6 +182,8 @@ export interface WorldPresenter {
   redrawOverheadMap(): void;
   tileImage(name: string): UiImageRef | null;
   tileCentre(gridNo: number): ScreenPoint;
+  worldPointAt(x: number, y: number): WorldPoint | null;
+  worldPointScreen(point: WorldPoint, gridNo: number): ScreenPoint;
 }
 
 export interface SpeechPlayback {

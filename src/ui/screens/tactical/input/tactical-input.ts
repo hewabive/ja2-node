@@ -58,7 +58,9 @@
 // @src and HandleMoveModeInteractiveClick (VEHICLE_CANT_MOVE_IN_TACTICAL with a vehicle selected); UI_Cursors.cc
 // @src HandleRepairCursor, HandleRefuelCursor (at the target's tile: the walk, the move grid and the AP in combat, the good
 // @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05);
-// @src Turn_Based_Input.cc HandleUIReloading (the bad reload cursor's click taken too, as reload with cursor, 2026-11-14).
+// @src Turn_Based_Input.cc HandleUIReloading (the bad reload cursor's click taken too, as reload with cursor, 2026-11-14);
+// @src Spread_Burst.cc AccumulateBurstLocation (each new tile with the pointer's world point, GetMouseWorldCoords or 0,0
+// @src off the map, 2026-11-14).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { exitGridCursorShownOver } from '../../../../content/world/exit-grid-cursor.ts';
@@ -73,7 +75,15 @@ import { KeyModifier, type UiKeyEvent } from '../../../input/events.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../../../input/mouse.ts';
 import type { MouseRegion } from '../../../input/regions.ts';
 import { printf } from '../../../text/printf.ts';
-import type { CommandReply, InteractiveNode, InteractiveTile, ScrollEdges, TacticalEnvironment, WorldMarker } from '../environment.ts';
+import type {
+  CommandReply,
+  InteractiveNode,
+  InteractiveTile,
+  ScrollEdges,
+  TacticalEnvironment,
+  WorldMarker,
+  WorldPoint,
+} from '../environment.ts';
 import { OKLIFE } from '../faces.ts';
 import { HAND_SLOT } from '../inventory.ts';
 import { type ItemCursor, slotItem } from '../item-cursor.ts';
@@ -209,6 +219,11 @@ export interface TacticalInputHost {
 }
 
 export type ExitDirection = 'north' | 'east' | 'south' | 'west' | 'exitGrid';
+
+export interface BurstLocation {
+  readonly gridNo: number;
+  readonly point: WorldPoint;
+}
 export type MovementChoice = 'look' | 'run' | 'walk' | 'action' | 'swat' | 'talk' | 'hand' | 'prone';
 
 interface EventState {
@@ -299,7 +314,7 @@ export class TacticalInput {
   #fast = false;
   #spreadTracking = false;
   #doSpread = false;
-  #burstLocations: number[] = [];
+  #burstLocations: BurstLocation[] = [];
   #startGridNo = -1;
   #jumpOverGridNo = -1;
   #rubberLooking = false;
@@ -388,7 +403,7 @@ export class TacticalInput {
     return this.#rubberActive ? { x1: this.#rubberStart.x, y1: this.#rubberStart.y, x2: this.#rubberEnd.x, y2: this.#rubberEnd.y } : null;
   }
 
-  get burstLocations(): readonly number[] {
+  get burstLocations(): readonly BurstLocation[] {
     return this.#spreadTracking ? this.#burstLocations : [];
   }
 
@@ -972,8 +987,10 @@ export class TacticalInput {
   }
 
   #accumulateBurst(gridNo: number): void {
-    if (this.#burstLocations.length >= MAX_BURST_LOCATIONS || this.#burstLocations.includes(gridNo)) return;
-    this.#burstLocations.push(gridNo);
+    if (this.#burstLocations.length >= MAX_BURST_LOCATIONS || this.#burstLocations.some((b) => b.gridNo === gridNo)) return;
+    const regions = this.#env().runtime.regions;
+    const point = this.#env().world.worldPointAt(regions.mouseX, regions.mouseY) ?? NO_WORLD_POINT;
+    this.#burstLocations.push({ gridNo, point });
   }
 
   #selBurst(s: SoldierView): boolean {
@@ -2818,7 +2835,7 @@ export class TacticalInput {
       return;
     }
     if (estimate && !ordersAnAttack(estimate)) return;
-    const spread = this.#doSpread && this.#burstLocations.length > 0 ? { spread: [...this.#burstLocations] } : {};
+    const spread = this.#doSpread && this.#burstLocations.length > 0 ? { spread: this.#burstLocations.map((b) => b.gridNo) } : {};
     this.#doSpread = false;
     this.#burstLocations = [];
     const part = this.#bodyPart && target ? { bodyPart: this.#bodyPart } : {};
@@ -3299,6 +3316,7 @@ const EXIT_GUI_ISOLATE_EPC_MALE_PLURAL = 8;
 const EXIT_GUI_ISOLATE_EPC_FEMALE_PLURAL = 9;
 const EXIT_GUI_ESCORTED_CHARACTERS_CANT_LEAVE_SECTOR_ALONE_STR = 13;
 const MAX_BURST_LOCATIONS = 50;
+const NO_WORLD_POINT: WorldPoint = { x: 0, y: 0 };
 const NOT_ENOUGH_APS_STR = 87;
 const EPC_CANNOT_DO_THAT = 124;
 const ITEM_TILE_TEXT: Readonly<Record<ItemTileText, number>> = { drop: 36, throw: 37 };

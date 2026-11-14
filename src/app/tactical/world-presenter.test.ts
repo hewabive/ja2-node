@@ -15,6 +15,7 @@ import { type PresenterSources, TacticalWorldPresenter } from './world-presenter
 const MAP_CENTRE = gridNo(80, 80);
 const ONE_TILE_RIGHT_PX = 40;
 const POINTER = { x: 320, y: 170 };
+const POINTER_ROW_OFFSET = 10;
 const MAP_CENTRE_POSITION = 805;
 const SOLDIER = 9;
 const HALL_SCENE_TILE = gridNo(88, 76);
@@ -68,6 +69,30 @@ describe('the tile under the pointer (GetMouseWorldCoords)', () => {
     expect(presenter.gridNoAt(POINTER.x, POINTER.y)).toBe(before + 1 - WORLD_COLS);
     presenter.centerOn(MAP_CENTRE);
     expect(presenter.gridNoAt(POINTER.x, POINTER.y)).toBe(before);
+  });
+});
+
+describe('a world point on the screen (GetMouseWorldCoords, RenderAccumulatedBurstLocations)', () => {
+  it('draws the world point under the pointer back at the pointer, 10 px lower as the pick is, where the tile centre is elsewhere', () => {
+    const world = {
+      world: { map: { info: { restrictedScrollId: 0, centerGridNo: MAP_CENTRE } }, level: { heights: [] }, prepared: { renderHeight: 0 } },
+    } as unknown as TacticalWorldView;
+    const presenter = new TacticalWorldPresenter(
+      world,
+      {} as WorldRenderer,
+      {} as UiAssets,
+      {} as AnimationTables,
+      {} as PresenterSources,
+      null,
+    );
+    const pointer = { x: POINTER.x + 6, y: POINTER.y + 2 };
+    const point = presenter.worldPointAt(pointer.x, pointer.y);
+    const tile = presenter.gridNoAt(pointer.x, pointer.y);
+    if (!point || tile === null) throw new Error('no world point under the pointer');
+    const shown = presenter.worldPointScreen(point, tile);
+    expect(Math.abs(shown.x - pointer.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(shown.y - POINTER_ROW_OFFSET - pointer.y)).toBeLessThanOrEqual(1);
+    expect(presenter.tileCentre(tile)).not.toEqual(shown);
   });
 });
 
