@@ -5,6 +5,7 @@ import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
+import type { SimEvent } from '../events.ts';
 import { cloneObject, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { pauseAiUntilManuallyUnpaused } from './ai/pause.ts';
@@ -12,7 +13,7 @@ import { soldierGotoStationaryStance } from './animation.ts';
 import { mercStealFromMerc } from './combat/steal.ts';
 import type { TacticalContent } from './content.ts';
 import { startInteractiveObject } from './doors/door-actions.ts';
-import { apsToGiveItem, giveItemAtOnce, holdsGiveItem, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
+import { apsToGiveItem, holdsGiveItem, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
 import { soldierPickupItem } from './item-actions.ts';
 import { getNewSoldierPath } from './movement.ts';
@@ -194,33 +195,56 @@ describe('the give action', () => {
   });
 });
 
-describe('a give in an NPC action', () => {
-  it('hands the object to another NPC at once: his giving-item conversation, then the giver’s done-giving record (Handle_Items.cc:2490, Soldier_Ani.cc code 486)', () => {
+describe('an NPC giving an item in an NPC action (Handle_Items.cc SoldierGiveItem, :2490, Soldier_Ani.cc code 486)', () => {
+  function handedOver(sim: TacticalSim, giver: Soldier): SimEvent[] {
+    stepUntil(sim, () => giver.pendingGive === null && giver.tempObject === null);
+    return sim.drainEvents();
+  }
+
+  it('walks up to another NPC and hands the object over at the end of the give animation: his giving-item conversation, then the giver’s done-giving record', () => {
     const sim = newCombatSim(content);
     const log = port(sim, { receivesAsTeamMember: () => false, isNpcProfile: () => true });
     const giver = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.EAST, { profile: 101 });
     const receiver = spawnSoldier(sim, 61, Team.CIV, gridNo(86, 80), Direction.WEST, { profile: 57 });
-    withClips(giver, 1);
-    giveItemAtOnce(sim.state, giver, receiver, InvSlot.BIGPOCK1);
+    expect(soldierGiveItem(sim.state, giver, receiver, withClips(giver, 1), InvSlot.BIGPOCK1)).toBe(true);
+    expect([log.npcGives, log.doneGiving, clipsIn(giver), giver.pendingGive?.begun]).toEqual([[], [], 1, false]);
+    handedOver(sim, giver);
+    expect(Math.abs((giver.gridNo % 160) - 86)).toBe(1);
     expect(log.npcGives.map(([g, n, o]) => [g, n, o.item, o.count])).toEqual([[60, 61, item('CLIP9_15'), 1]]);
     expect(log.doneGiving).toEqual([101]);
     expect(clipsIn(giver)).toBe(0);
-    expect([giver.gridNo, giver.pendingGive, giver.tempObject]).toEqual([gridNo(80, 80), null, null]);
+    expect([giver.pendingGive, giver.tempObject]).toEqual([null, null]);
     expect([giver.engagedInAction, receiver.engagedInAction]).toEqual([false, false]);
   });
 
-  it('hands the object to a merc at once with the hand-over event naming the NPC’s soldier and profile', () => {
+  it('walks up to a merc and puts the object into his pockets, the hand-over event naming the NPC’s soldier and profile', () => {
     const sim = newCombatSim(content);
     const log = port(sim, { isNpcProfile: () => true });
     const giver = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.EAST, { profile: 87 });
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(86, 80), Direction.WEST);
-    withClips(giver, 2);
     sim.drainEvents();
-    giveItemAtOnce(sim.state, giver, merc, InvSlot.BIGPOCK1);
+    soldierGiveItem(sim.state, giver, merc, withClips(giver, 2), InvSlot.BIGPOCK1);
+    expect([clipsIn(giver), clipsIn(merc)]).toEqual([2, 0]);
+    const events = handedOver(sim, giver);
     expect([clipsIn(giver), clipsIn(merc)]).toEqual([0, 2]);
-    expect(sim.drainEvents()).toContainEqual(
+    expect(events).toContainEqual(
       expect.objectContaining({ type: 'npcGaveItem', npc: 60, profile: 87, to: 0, item: 'CLIP9_15', count: 2, dropped: false }),
     );
+    expect(log.doneGiving).toEqual([87]);
+  });
+
+  it('drops the object at the giver’s feet when the merc’s pockets are full, and the giver’s done-giving record still follows', () => {
+    const sim = newCombatSim(content);
+    const log = port(sim, { isNpcProfile: () => true });
+    const giver = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.EAST, { profile: 87 });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(86, 80), Direction.WEST);
+    for (const o of merc.inv) Object.assign(o, createItems(content.items, item('ROCK'), 100, 1));
+    sim.drainEvents();
+    soldierGiveItem(sim.state, giver, merc, withClips(giver, 1), InvSlot.BIGPOCK1);
+    const events = handedOver(sim, giver);
+    expect([clipsIn(giver), clipsIn(merc)]).toEqual([0, 0]);
+    expect(sim.state.worldItems.filter((w) => w.object.item === item('CLIP9_15')).map((w) => w.gridNo)).toEqual([giver.gridNo]);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'npcGaveItem', npc: 60, to: 0, dropped: true }));
     expect(log.doneGiving).toEqual([87]);
   });
 });

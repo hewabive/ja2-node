@@ -9,8 +9,10 @@ import type { ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem, createMoney } from '../sim/items/object.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { Npc } from '../sim/strategic/narrative/npc-ids.ts';
 import { holdsGiveItem } from '../sim/tactical/give.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
+import { NpcActionCode } from '../sim/tactical/narrative/npc-actions/codes.ts';
 import { NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
@@ -31,6 +33,7 @@ const COLS = 160;
 const NEAR_VASKO = 74 * COLS + 75;
 const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
+const NPC_GIVE_TICKS = 5000;
 const Quote = { FIRST_MEETING: 10, FIRST_MEETING_2: 11, NO_USE: 4, ROUNDS: 25, MONEY: 26, NO_GUNS: 27 } as const;
 
 async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
@@ -294,7 +297,7 @@ describe('giving items and money to the stub NPC in A10', () => {
 });
 
 describe('a give in an NPC action', () => {
-  it('hands the object over at once and opens the receiving NPC’s giving-item conversation (Handle_Items.cc:2490)', async () => {
+  it('walks the giver up, hands the object over at the end of the give animation and opens the receiving NPC’s giving-item conversation (Interface_Dialogue.cc:1671, Handle_Items.cc:2490)', async () => {
     const { session, live } = await inA10(27);
     const t = session.campaign.tactical?.state;
     const placed = t?.soldiers.filter((s): s is Soldier => s?.placed === true) ?? [];
@@ -306,7 +309,9 @@ describe('a give in an NPC action', () => {
     const slot = giver.inv.findIndex((o, k) => k >= InvSlot.BIGPOCK1 && o.item === NOTHING);
     Object.assign(giver.inv[slot] as object, createItem(t.content.items, clip, 100));
     env.giveItem(giver, vasko, slot);
-    const report = live.advance({ idle: true });
+    expect([giver.inv[slot]?.item, giver.pendingGive?.target]).toEqual([clip, vasko.id]);
+    const report = live.advance({ ticks: NPC_GIVE_TICKS });
+    expect(report.reason).toBe('decision');
     expect(report.events).toContainEqual(
       expect.objectContaining({ type: 'npcTookItem', profile: VASKO, from: giver.id, item: 'CLIP9_15' }),
     );
@@ -314,5 +319,33 @@ describe('a give in an NPC action', () => {
     expect(session.view().conversation).toMatchObject({ profile: VASKO, initiatedBy: 'npc', talker: giver.id });
     expect(giver.inv.some((o) => o.item === clip)).toBe(false);
     expect(session.campaign.state.profiles.get(VASKO)?.inventory).toContain(clip);
+  });
+});
+
+describe('Darren paying out a won bet', () => {
+  const BET = 400;
+  const STASH = 5000;
+
+  it('keeps the payout in his pockets, first of his money, until his give animation ends, where the money gift of his next record finds it (Interface_Dialogue.cc:2924-2934, NPC.cc:1809)', async () => {
+    const { session, live } = await inA10(27);
+    const t = session.campaign.tactical?.state;
+    const flow = session.campaign.talk?.npcActions;
+    const npc = t?.soldiers.find((s): s is Soldier => s?.placed === true && s.team === Team.CIV && s.profile !== NO_PROFILE);
+    const profile = session.campaign.talk?.host.profile(Npc.DARREN);
+    if (!t || !flow || !npc || !profile) throw new Error('no NPC to stand in for Darren in A10');
+    const darren = npc.id;
+    Object.assign(npc, { profile: Npc.DARREN });
+    profile.balance = BET;
+    for (const o of npc.inv) Object.assign(o, createItem(t.content.items, NOTHING, 0));
+    Object.assign(npc.inv[InvSlot.BIGPOCK1] as object, createMoney(t.content.items, STASH));
+    const money = (s: Soldier) => s.inv.filter((o) => o.item === item(session, 'MONEY')).map((o) => o.money);
+    const ours = () =>
+      (session.campaign.tactical?.state.soldiers ?? []).filter((s): s is Soldier => s?.placed === true && s.team === Team.OUR);
+    flow.handle(Npc.DARREN, NpcActionCode.DARREN_PAYS_PLAYER, 0);
+    expect(money(npc)).toEqual([2 * BET, STASH - 2 * BET]);
+    expect(ours().flatMap(money)).toEqual([]);
+    live.advance({ ticks: NPC_GIVE_TICKS });
+    expect(money(soldier(session, darren))).toEqual([STASH - 2 * BET]);
+    expect(ours().flatMap(money)).toEqual([2 * BET]);
   });
 });

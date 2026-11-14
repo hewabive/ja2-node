@@ -157,7 +157,7 @@ a dialogue queue (the sandbox, unit tests) the callback runs at once (deviation 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
 boxes", "Surrender in tactical combat"). `openShop` is talk plus Buy/Sell in one command (deviation "Talking to
-dealers"). Giving: deviations "Give command", "Giving to a dealer", "Returned items", "NPC gives an item".
+dealers"). Giving: deviations "Give command", "Giving to a dealer", "Returned items".
 
 **Quest values 100 and 200.** A record's quest test reads past the quest array for these two values; ja2-node reads 0,
 as the oracle build does (deviation "Quest 100 and 200 in records").

@@ -4,7 +4,7 @@
 // @src grid), StartDialogueMessageBox, DialogueMessageBoxCallBack, DoneFadeOutActionBasement, DoneFadeOutActionLeaveBasement,
 // @src CarmenLeavesSectorCallback (on game time); Tactical/Boxing.cc CheckOnBoxers, ExitBoxing, BoxerAvailable (the boxing
 // @src actions); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
-// @src SoldierGiveItem (at once, without the walk and the give animation); Strategic/StrategicMap_Secrets.cc SetTownAsFound;
+// @src SoldierGiveItem (with the walk and the give animation, 2026-11-14); Strategic/StrategicMap_Secrets.cc SetTownAsFound;
 // @src Tactical/Squads.cc SetCurrentSquad for an escort (2026-11-01).
 
 import { tileIndex } from '../../../content/world/tile-tables.ts';
@@ -26,7 +26,7 @@ import { Warp } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { warpGameTime, worldDay, worldMinutesInDay, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { initNewSoldierAnim } from '../../tactical/animation.ts';
-import { giveItemAtOnce } from '../../tactical/give.ts';
+import { soldierGiveItem } from '../../tactical/give.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { addExitGridToWorld, recordExitGridAdded } from '../../tactical/map-changes.ts';
 import { soldierAssignment } from '../../tactical/narrative/assignment.ts';
@@ -182,7 +182,8 @@ export class NpcActionFlow {
       return;
     }
     const t = this.#host.tactical();
-    if (t) giveItemAtOnce(t, giver, receiver, slot);
+    const object = giver.inv[slot];
+    if (t && object) soldierGiveItem(t, giver, receiver, object, slot);
   }
 
   #mines(): MineActions {

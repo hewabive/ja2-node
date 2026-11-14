@@ -140,6 +140,7 @@ otherwise:
 | Quirk | Test |
 |---|---|
 | Darren pays twice the bet out of his stash without checking it; a stash too small wraps as `UINT32` | `narrative/npc-actions/catalog.test.ts` |
+| Darren's payout changes hands only at the end of his give animation; until then it lies first among his money, so the money gift of the record his payout triggers (32) gives it again rather than his stash (`Interface_Dialogue.cc:2924-2934`, `TacticalAI/NPC.cc:1809`) | `src/server/give-stub.test.ts` "keeps the payout in his pockets …" |
 | "Put Pacos in the basement" puts him on A10's ground level | `narrative/npc-actions/catalog.test.ts` |
 | Carmen leaving for good falls through to leaving for C13 with its own, absent parameters: the timer is always 10 s | `narrative/npc-actions/catalog.test.ts` |
 | Madame's wrong-cash line goes on after "no girls"; advertising Cindy also advertises Bambi | `narrative/npc-actions/catalog.test.ts` |
@@ -194,10 +195,10 @@ the door actions and menu, and schedules through entries, warps, loads and AI de
 "Facts and NPC presence", "NPC actions", "Civilians", "Doors", "Schedules"); the new-game probes of "Laptop" compare
 every profile's sector. Inferred from reading the source:
 - The walking door and cabinet actions (3, 27, 40): unit tests on the stub village door only.
-- An NPC action's give to an NPC (Fatima's letter to Miguel, action 101) and the done-giving record after an action's
-  give (Darren's record 33 after the boxing payout): the give probes cover gives from mercs only; an original-data test
-  plays the rebel basement from Carlos 1 (`src/server/rebel-hideout-original.test.ts`), the steps in A9 and A10 before
-  it are untested.
+- An NPC action's give (Fatima's letter to Miguel, action 101; Darren's boxing payout, action 206, with his records 32
+  and 33 after it): the give probes cover gives from mercs only; an original-data test plays the rebel basement from
+  Carlos 1 (`src/server/rebel-hideout-original.test.ts`), the steps in A9 and A10 before it are untested, and Darren's
+  payout runs on a stub stand-in only (`src/server/give-stub.test.ts`).
 - The busy door, the perceived door state and the structure a load gives a door perceived otherwise than it is: unit
   tests on the stub village, town and airfield; the oracle's door probes leave the door statuses out, and the native
   saves hold no door perceived otherwise than it is.
@@ -211,5 +212,4 @@ every profile's sector. Inferred from reading the source:
   no-op; ja2-node only sets the fact.
 
 Deviations of this domain:
-"Terrorist names", "NPC gives an item", "Interface lock per source", "Team change during a hit", "Ownership check
-timer".
+"Terrorist names", "Interface lock per source", "Team change during a hit", "Ownership check timer".

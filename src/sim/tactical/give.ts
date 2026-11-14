@@ -241,13 +241,3 @@ export function giveItemOpcode(t: TacticalState, s: Soldier): void {
   soldierGiveItemFromAnimation(t, s);
   if (s.profile !== NO_PROFILE && t.narrative.isNpcProfile(s.profile)) t.narrative.triggerDoneGivingItem(s.profile);
 }
-
-export function giveItemAtOnce(t: TacticalState, giver: Soldier, target: Soldier, slot: number): void {
-  const object = giver.inv[slot];
-  if (!object) return;
-  giver.pendingGive = { slot, targetGridNo: target.gridNo, direction: giver.direction, target: target.id, begun: true };
-  giver.tempObject = cloneObject(object);
-  giver.engagedInAction = true;
-  target.engagedInAction = true;
-  giveItemOpcode(t, giver);
-}
