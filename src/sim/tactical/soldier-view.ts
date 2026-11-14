@@ -12,7 +12,8 @@
 // @src the light blue AP number and the drug icons: MercUnderTheInfluence, GetDrugEffect, GetDrunkLevel; 2026-11-04);
 // @src Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle's passengers in its squad's panel, 2026-11-05);
 // @src Interface.cc DrawSelectedUIAboveGuy and DrawBarsInUIBox (the life and fuel bars over any vehicle, 2026-11-05);
-// @src Soldier_Control.cc SetSoldierLocatorOffsets (the frame and facing behind sBoundingBox*, 2026-11-09).
+// @src Soldier_Control.cc SetSoldierLocatorOffsets (the frame and facing behind sBoundingBox*, 2026-11-09);
+// @src Soldier_Create.cc TacticalCopySoldierFromCreateStruct (the default name of a soldier without one, 2026-11-13).
 
 import { type PresentationTimeline, spriteFrameAt } from '../../content/anim/timelines.ts';
 import type { OwnHintInputs } from '../knowledge/view.ts';
@@ -22,6 +23,7 @@ import { findFenceJumpDirection } from './animation.ts';
 import { minAPsToAttack } from './combat/ap.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
+import { type DefaultSoldierName, defaultSoldierName } from './default-names.ts';
 import { hiResDirectionOf } from './directions.ts';
 import { type AdrenalineView, type DrunkView, drugView } from './drugs.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
@@ -100,6 +102,7 @@ export interface VehicleConditionFields {
 export interface OtherSoldierFields extends Partial<VehicleConditionFields> {
   readonly hostile: boolean;
   readonly healthIndex: number;
+  readonly defaultName?: DefaultSoldierName;
 }
 
 const WEAPON_MODES: Readonly<Record<number, WeaponModeView>> = {
@@ -241,9 +244,11 @@ function vehicleCondition(s: Soldier): VehicleConditionFields {
 }
 
 export function otherSoldierFields(s: Soldier): OtherSoldierFields {
+  const defaultName = defaultSoldierName(s);
   return {
     hostile: !s.neutral && s.side !== Side.FRIENDLY,
     healthIndex: seenHealthIndex(s),
+    ...(defaultName ? { defaultName } : {}),
     ...(isVehicleBody(s.bodyType) ? vehicleCondition(s) : {}),
   };
 }

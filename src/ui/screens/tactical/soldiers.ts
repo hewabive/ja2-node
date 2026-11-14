@@ -13,10 +13,12 @@
 // @src Interface.cc DrawSelectedUIAboveGuy (FONT_GRAY4 for a vehicle nobody is aboard) and Handle_UI.cc UIHandleOnMerc
 // @src (no gSelectedGuy for an enterable vehicle not ours or an empty one of ours) (2026-11-05); Vehicles.cc
 // @src SetVehicleValuesIntoSoldierType (a vehicle soldier's name is zVehicleName of its type and its profile the type's,
-// @src which the view leaves out for a vehicle not ours, 2026-11-05).
+// @src which the view leaves out for a vehicle not ours, 2026-11-05); Soldier_Create.cc TacticalCopySoldierFromCreateStruct
+// @src (the name of a soldier without one is his team's default, 2026-11-13).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { isVehicleBody as isVehicleBodyType, vehicleTypeOfBody } from '../../../content/strategic/vehicle-types.ts';
+import { defaultNameKey } from '../../../protocol/soldier-names.ts';
 import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
@@ -71,9 +73,11 @@ export function hasProfile(s: Pick<SoldierView, 'profile' | 'bodyType'>): boolea
   return s.profile !== undefined || isVehicleBody(s);
 }
 
-export function soldierName(text: UiTextService, s: Pick<SoldierView, 'name' | 'bodyType'>): string {
-  if (!isVehicleBody(s)) return s.name;
-  return text.string(VEHICLE_NAMES, vehicleTypeOfBody(s.bodyType)) ?? s.name;
+export function soldierName(text: UiTextService, s: Pick<SoldierView, 'name' | 'bodyType' | 'defaultName'>): string {
+  if (isVehicleBody(s)) return text.string(VEHICLE_NAMES, vehicleTypeOfBody(s.bodyType)) ?? s.name;
+  if (s.defaultName === undefined) return s.name;
+  const key = defaultNameKey(s.defaultName);
+  return text.string(key.table, key.index) ?? '';
 }
 
 export function isTank(s: SoldierView): boolean {

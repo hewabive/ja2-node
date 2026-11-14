@@ -137,6 +137,14 @@ idle sound only holds the script for a frame, the sound itself is the client's (
 animals"). The stub pack's `STANDING` and `CROW_EAT` carry 491 where the original's do, so stub tests draw it too, and
 its `DRUNK_IDLE` is a plain one-shot.
 
+**A soldier's name is his own; the team default is text.** The original writes the default of his team into the name
+of every soldier without a profile on the enemy, militia, civilian or creature team (`TacticalCopySoldierFromCreateStruct`,
+`Tactical/Soldier_Create.cc:880-905`), a string of `TacticalStr` in the game's language. ja2-node keeps the name empty
+(`src/sim/tactical/default-names.ts`): the view carries `defaultName` and the messages a string reference, which each
+client prints in its own language (`src/protocol/soldier-names.ts`; the overhead map, the attack prompt, `29` §7). A
+merc married off to a civilian keeps his nickname, as in the original. A native save holds the default in its language,
+so the import drops it (`createSavedSoldier`).
+
 **Profiles.** ja2-node decodes `prof.dat` itself; Stracciatella's `mercs-profile-info.json` gives each profile its
 internal name and type, the face index is the profile id, and an empty vest or pants become `WHITEVEST` and
 `BLACKPANTS` (Stracciatella's rule for the player's own characters). The campaign's changing profile fields live in
@@ -163,6 +171,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
 | A civilian never wears the civilian clothes of `GeneratePaletteForSoldier`'s 40 % roll: `TacticalCreateSoldier` rolls the palette before it sets the team (vanilla set it first) | `creation.test.ts` "never dresses a civilian in the civilian clothes …" |
+| A placement's name never reaches its soldier, who is named by his team's default or not at all: the 0xCDCD fill that civilian and enemy placements of a dozen original maps (D13 among them) hold as their name is never shown | `creation.test.ts` "never names a soldier after his placement …", `placement-names-original.test.ts` |
 | An unseen enemy at the glow peak takes the step before it, 200 instead of 225 | `glow.test.ts` |
 | A one-handed gun in hand ends the idle check after its draw, injured or not: "Don't EVER do a trivial anim" | `random-anims.test.ts` |
 | An animal's idle sound holds its loop at code 491 for a frame, so the next pass counts it again | `random-anims.test.ts` |

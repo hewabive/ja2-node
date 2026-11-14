@@ -1,3 +1,4 @@
+import { defaultSoldierName } from '../sim/tactical/default-names.ts';
 import { NO_PROFILE, type Soldier } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import type { MessageFacts } from './message-entries.ts';
@@ -8,6 +9,10 @@ export function tacticalMessageFacts(sim: TacticalSim | null, soldierOf: (id: nu
   const content = sim?.state.content ?? null;
   return {
     soldierName: (id) => soldierOf(id)?.name ?? null,
+    soldierDefaultName: (id) => {
+      const s = soldierOf(id);
+      return s ? defaultSoldierName(s) : null;
+    },
     soldierTeam: (id) => soldierOf(id)?.team ?? null,
     soldierProfile: (id) => {
       const profile = soldierOf(id)?.profile;

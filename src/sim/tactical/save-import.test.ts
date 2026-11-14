@@ -381,6 +381,27 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(civilian.pendingDirection).toBe(NO_PENDING_DIRECTION);
   });
 
+  it("leaves out the default name of his team a save holds for a soldier without a profile, which the viewer prints in his language, and keeps a married merc's nickname (TacticalCopySoldierFromCreateStruct, NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE)", () => {
+    const UNPROFILED = 200;
+    const ENEMY = 20;
+    const MARRIED = CIVILIAN_ID + 1;
+    const [merc] = stubProfiles(content.items).filter((p) => p.nickname !== '');
+    if (!merc) throw new Error('the stub pack needs a named profile');
+    const saved = (id: number, team: number, at: number, name: string) => {
+      const entry = savedSoldier(id, team, at, { ubProfile: UNPROFILED });
+      return { ...entry, soldier: { ...entry.soldier, name } };
+    };
+    const soldiers = [
+      saved(CIVILIAN_ID, Team.CIV, gridNo(80, 82), 'CIVILIAN'),
+      saved(MARRIED, Team.CIV, gridNo(80, 84), merc.nickname),
+      saved(ENEMY, Team.ENEMY, gridNo(80, 86), 'SOLDIER'),
+    ];
+    const profiles: SavedMercProfile[] = [];
+    profiles[merc.id] = savedProfile(merc, merc.nickname);
+    const sim = importedSim({ ...syntheticSave({ soldiers }), profiles });
+    expect([CIVILIAN_ID, MARRIED, ENEMY].map((id) => soldierOf(sim, id).name)).toEqual(['', merc.nickname, '']);
+  });
+
   it('reads both drug courses, adrenaline first, and the regeneration counters (LoadSaveSoldierType.cc)', () => {
     const drugs = {
       bFutureDrugEffect: [3, 6],

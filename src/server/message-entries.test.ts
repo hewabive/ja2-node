@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
 import type { SimEvent } from '../sim/events.ts';
+import type { DefaultSoldierName } from '../sim/tactical/default-names.ts';
 import { refuse } from '../sim/tactical/refusal.ts';
 import { type MessageFacts, messageEntriesOf, refusalEntry } from './message-entries.ts';
 
 const NAMES: Readonly<Record<number, string>> = { 0: 'Ivan', 1: 'Fox', 20: 'Soldier', 116: 'Fatima' };
-const TEAMS: Readonly<Record<number, number>> = { 0: 0, 1: 0, 20: 1, 116: 4 };
+const TEAMS: Readonly<Record<number, number>> = { 0: 0, 1: 0, 20: 1, 60: 3, 116: 4, 121: 4 };
+const DEFAULT_NAMES: Readonly<Record<number, DefaultSoldierName>> = { 60: 'militia', 121: 'civilian' };
 const ITEM_INDICES: Readonly<Record<string, number>> = { GLOCK_17: 2, WINE: 255 };
 
 const facts: MessageFacts = {
   soldierName: (id) => NAMES[id] ?? null,
+  soldierDefaultName: (id) => DEFAULT_NAMES[id] ?? null,
   soldierTeam: (id) => TEAMS[id] ?? null,
   soldierProfile: (id) => (id === 116 ? 101 : null),
   soldierVisible: (id) => id !== 20,
@@ -307,6 +310,31 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(messageEntriesOf([fell(1, 'drunk'), fell(20, 'blind')], facts)).toEqual([
       { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Fox' }] },
       { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Soldier' }] },
+    ]);
+  });
+
+  it("names a soldier without a name of his own by his team's default, a string reference every client prints in its language: a civilian who falls, a militiaman bandaged", () => {
+    const entries = messageEntriesOf(
+      [at({ type: 'fellDown', soldier: 121, cause: 'blind' }), at({ type: 'firstAidDone', soldier: 0, patient: 60 })],
+      facts,
+    );
+    expect(entries).toEqual([
+      {
+        tick: 40,
+        kind: 'interface',
+        colour: 145,
+        table: 'gzLateLocalizedString',
+        index: 36,
+        args: [{ string: { table: 'TacticalStr', index: 93 } }],
+      },
+      {
+        tick: 40,
+        kind: 'interface',
+        colour: 145,
+        table: 'TacticalStr',
+        index: 83,
+        args: [{ string: { table: 'TacticalStr', index: 92 } }],
+      },
     ]);
   });
 

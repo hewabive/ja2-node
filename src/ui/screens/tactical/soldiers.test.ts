@@ -69,6 +69,12 @@ describe('the name of a soldier (Vehicles.cc SetVehicleValuesIntoSoldierType)', 
     const bodies = [Body.HUMVEE, Body.ELDORADO, Body.ICECREAMTRUCK, Body.JEEP, Body.TANK_NW, Body.TANK_NE, Body.REGMALE];
     expect(bodies.map(named)).toEqual(['Hummer', 'Eldorado', 'Truck', 'Jeep', 'Tank', 'Tank', 'Iggy']);
   });
+
+  it("names a soldier with no name of his own by his team's default in the client's language (Soldier_Create.cc TacticalCopySoldierFromCreateStruct)", () => {
+    const defaults = ['enemy', 'militia', 'civilian', 'miner', 'crow', 'creature', 'bloodcat'] as const;
+    const named = defaults.map((defaultName) => soldierName(text, { name: '', bodyType: Body.REGMALE, defaultName }));
+    expect(named).toEqual(['SOLDIER', 'MILITIA', 'CIVILIAN', 'Miner', 'CROW', 'CREPITUS', 'BLOODCAT']);
+  });
 });
 
 describe('the profile behind the label above a soldier (Interface.cc GetSoldierAboveGuyPositions)', () => {

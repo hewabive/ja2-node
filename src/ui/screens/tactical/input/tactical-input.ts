@@ -88,6 +88,7 @@ import {
   ourTurn,
   ownSoldiers,
   soldierById,
+  soldierName,
 } from '../soldiers.ts';
 import { Arrows } from './arrows.ts';
 import {
@@ -2771,7 +2772,9 @@ export class TacticalInput {
     if (target && (target.team === OUR_TEAM || target.team === MILITIA_TEAM) && target.id !== sel.id) {
       const estimate = this.#lastAttack.cursor;
       if (estimate?.cursor !== 'aid') {
-        const ok = await this.#host.confirm(printf(this.#text('TacticalStr', ATTACK_OWN_GUY_PROMPT), [target.name]));
+        const ok = await this.#host.confirm(
+          printf(this.#text('TacticalStr', ATTACK_OWN_GUY_PROMPT), [soldierName(this.#env().text, target)]),
+        );
         if (!ok) return;
       }
     }

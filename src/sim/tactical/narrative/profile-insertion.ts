@@ -75,7 +75,6 @@ export function profileSoldierCreate(profile: number, team: number, direction: n
     visible: false,
     palettes: {},
     inv: emptyInventory(),
-    name: '',
     scheduleId: 0,
   };
 }

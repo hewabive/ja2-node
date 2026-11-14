@@ -364,7 +364,12 @@ soldier in the view carries `surface`, the animation sheet he shows (an index of
 the simulation from his state, body, hand items, wounds, water and stance), `boundingFrame`, the script frame his
 screen rectangle is measured on (the frame his last animation start or turn left, `SetSoldierLocatorOffsets`), with
 `boundingDirection` and `boundingHiResDirection` while the facing that frame was converted in is not his own (`05`), and `camouflaged` while he wears camouflage
-paint, ours and theirs alike, as the screen shows both (`06`). A soldier the squad has just lost stays while he fades
+paint, ours and theirs alike, as the screen shows both (`06`). His `name` is his own (a profile's nickname, or what a
+married merc keeps); a soldier without a profile on the enemy, militia, civilian or creature team has none and carries
+`defaultName` (`enemy`, `militia`, `civilian`, `miner`, `crow`, `creature`, `bloodcat`), the default of his team the
+original names him by (`Tactical/Soldier_Create.cc:880-905`), which the client prints from the string tables in its
+own language (`src/protocol/soldier-names.ts`) and a message naming him carries as a string reference (`06`). A
+soldier the squad has just lost stays while he fades
 out, with `fadingOut` (`06`): he can still be targeted and his hits are told, as in the original, until the fade ends or
 he reaches the next tile. The tactical world (corpses, smoke, light, structure changes, blood;
 `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes (`tileChanges`) are the map

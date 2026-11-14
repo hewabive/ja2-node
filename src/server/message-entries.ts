@@ -21,17 +21,21 @@
 // @src Overhead.cc HandleGotoNewGridNo (STR_LATE_37 of the blind and the drunk fall, STR_SLIPPED_MARBLES of our merc
 // @src who slips on marbles, 2026-11-04); Items.cc WaterDamage (STR_CAMO_WASHED_OFF, 2026-11-04); Handle_Items.cc
 // @src SwitchMessageBoxCallBack (STR_LATE_58, 2026-11-04); Soldier_Control.cc CheckBleeding (STR_LOSES_1_HP of our merc
-// @src bleeding while dying, 2026-11-06).
+// @src bleeding while dying, 2026-11-06); Soldier_Create.cc TacticalCopySoldierFromCreateStruct (a soldier without a
+// @src name of his own is named by his team's default, which s->name holds, 2026-11-13).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
+import { defaultNameKey } from '../protocol/soldier-names.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import type { DefaultSoldierName } from '../sim/tactical/default-names.ts';
 import { drugTypeOf } from '../sim/tactical/drugs.ts';
 import { refusalMessage } from './text-keys.ts';
 
 export interface MessageFacts {
   soldierName(id: number): string | null;
+  soldierDefaultName(id: number): DefaultSoldierName | null;
   soldierTeam(id: number): number | null;
   soldierProfile(id: number): number | null;
   soldierVisible(id: number): boolean;
@@ -41,6 +45,7 @@ export interface MessageFacts {
 
 export const NO_MESSAGE_FACTS: MessageFacts = {
   soldierName: () => null,
+  soldierDefaultName: () => null,
   soldierTeam: () => null,
   soldierProfile: () => null,
   soldierVisible: () => false,
@@ -123,6 +128,11 @@ type EventOf<T extends SimEvent['type']> = Extract<SimEvent, { type: T }>;
 const text = (value: string | null): MessageArg => ({ text: value ?? '' });
 const ref = (table: string, index: number): MessageArg => ({ string: { table, index } });
 
+function soldierArg(facts: MessageFacts, id: number): MessageArg {
+  const byTeam = facts.soldierDefaultName(id);
+  return byTeam ? { string: defaultNameKey(byTeam) } : text(facts.soldierName(id));
+}
+
 function line(table: string, index: number, args: readonly MessageArg[] = [], kind: MessageKind = 'interface'): Omit<MessageEntry, 'tick'> {
   return { kind, colour: colourOf(kind, FONT_MCOLOR_LTYELLOW), table, index, ...(args.length > 0 ? { args } : {}) };
 }
@@ -150,7 +160,7 @@ function statGain(e: EventOf<'statChanged'>, facts: MessageFacts): Omit<MessageE
   const amount = Math.abs(e.change);
   const unit = (amount === 1 ? PRE_STAT_POINT : PRE_STAT_POINTS) + (e.stat === 'experience' ? PRE_STAT_LEVEL_OFFSET : 0);
   const args = [
-    text(facts.soldierName(e.soldier)),
+    soldierArg(facts, e.soldier),
     ref('sPreStatBuildString', e.change > 0 ? PRE_STAT_GAINED : PRE_STAT_LOST),
     { number: amount },
     ref('sPreStatBuildString', unit),
@@ -174,7 +184,7 @@ function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<Message
     case 'locked':
       return e.action === 'lock' ? [line('TacticalStr', 8)] : [];
     case 'wrongKey':
-      return e.action === 'lock' ? [line('TacticalStr', 6, [text(facts.soldierName(e.soldier))])] : [];
+      return e.action === 'lock' ? [line('TacticalStr', 6, [soldierArg(facts, e.soldier)])] : [];
     default:
       return [];
   }
@@ -182,7 +192,7 @@ function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<Message
 
 function soldierDied(e: EventOf<'soldierDied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
   const team = facts.soldierTeam(e.soldier);
-  const name = text(facts.soldierName(e.soldier));
+  const name = soldierArg(facts, e.soldier);
   if (team === OUR_TEAM) return [{ kind: 'skullFeedback', colour: FONT_RED, table: 'pMercDeadString', index: 0, args: [name] }];
   if (team === CIV_TEAM && facts.soldierProfile(e.soldier) !== null && facts.soldierVisible(e.soldier))
     return [line('pMercDeadString', 0, [name])];
@@ -191,7 +201,7 @@ function soldierDied(e: EventOf<'soldierDied'>, facts: MessageFacts): Omit<Messa
 
 function mercDied(e: EventOf<'mercDied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
   if (!e.mapScreen) return [];
-  return [{ kind: 'interface', colour: FONT_RED, table: 'pMercDeadString', index: 0, args: [text(facts.soldierName(e.soldier))] }];
+  return [{ kind: 'interface', colour: FONT_RED, table: 'pMercDeadString', index: 0, args: [soldierArg(facts, e.soldier)] }];
 }
 
 function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
@@ -217,7 +227,7 @@ function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<Message
 function drugTaken(e: EventOf<'itemApplied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
   const type = drugTypeOf(e.item);
   if (type === null) return [];
-  const name = text(facts.soldierName(e.target));
+  const name = soldierArg(facts, e.target);
   if (type !== 'alcohol') return [line('pMessageStrings', MERC_TOOK_DRUG, [name])];
   const item = facts.itemIndex(e.item);
   return item === null ? [] : [line('pMessageStrings', DRANK_SOME, [name, { item, name: 'short' }])];
@@ -227,7 +237,7 @@ function groupArrived(e: EventOf<'groupArrived'>, facts: MessageFacts): Omit<Mes
   if (!e.final || e.sector.includes('-')) return [];
   const who =
     e.who.kind === 'merc'
-      ? text(facts.soldierName(e.who.soldier))
+      ? soldierArg(facts, e.who.soldier)
       : e.who.kind === 'squad'
         ? ref('pAssignmentStrings', e.who.squad)
         : ref('pVehicleStrings', e.who.vehicleType);
@@ -239,17 +249,11 @@ function groupArrived(e: EventOf<'groupArrived'>, facts: MessageFacts): Omit<Mes
 const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: MessageFacts) => readonly Omit<MessageEntry, 'tick'>[] } = {
   noiseHeard: (e, facts) =>
     e.kind < NOISE_LINES
-      ? [
-          line('pNewNoiseStr', e.kind, [
-            text(facts.soldierName(e.listener)),
-            ref('pNoiseVolStr', e.volumeClass),
-            noiseDirection(e.direction),
-          ]),
-        ]
+      ? [line('pNewNoiseStr', e.kind, [soldierArg(facts, e.listener), ref('pNoiseVolStr', e.volumeClass), noiseDirection(e.direction)])]
       : [],
   soldierDied,
   mercDied,
-  mercBled: (e, facts) => (e.lifeMaxLost ? [line('Message', STR_LOSES_1_HP, [text(facts.soldierName(e.soldier))])] : []),
+  mercBled: (e, facts) => (e.lifeMaxLost ? [line('Message', STR_LOSES_1_HP, [soldierArg(facts, e.soldier)])] : []),
   enemyPresence: () => [line('TacticalStr', 85)],
   sectorLoaded: (e) => (e.enemyPresence ? [line('TacticalStr', 85)] : []),
   interrupt: (e, facts) =>
@@ -257,62 +261,46 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
       ? [line('Message', 53, [text(e.soldiers.map((id) => facts.soldierName(id) ?? '').join(', '))])]
       : [],
   statChanged: statGain,
-  reloaded: (e, facts) => (facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', 11, [text(facts.soldierName(e.soldier))])] : []),
-  firstAidDone: (e, facts) => [line('TacticalStr', 83, [text(facts.soldierName(e.patient))])],
-  outOfBandages: (e, facts) => [line('TacticalStr', 84, [text(facts.soldierName(e.soldier))])],
+  reloaded: (e, facts) => (facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', 11, [soldierArg(facts, e.soldier)])] : []),
+  firstAidDone: (e, facts) => [line('TacticalStr', 83, [soldierArg(facts, e.patient)])],
+  outOfBandages: (e, facts) => [line('TacticalStr', 84, [soldierArg(facts, e.soldier)])],
   firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],
-  fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [text(facts.soldierName(e.soldier))])],
+  fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [soldierArg(facts, e.soldier)])],
   slippedOnMarbles: (e, facts) =>
-    facts.soldierTeam(e.soldier) === OUR_TEAM
-      ? [line('Message', STR_SLIPPED_MARBLES, [text(facts.soldierName(e.soldier))], 'uiFeedback')]
-      : [],
+    facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', STR_SLIPPED_MARBLES, [soldierArg(facts, e.soldier)], 'uiFeedback')] : [],
   switchActivated: () => [line('gzLateLocalizedString', STR_LATE_58)],
   stopped: (e, facts) =>
-    e.reason === 'outOfAPs' && facts.soldierTeam(e.soldier) === OUR_TEAM
-      ? [line('TacticalStr', 81, [text(facts.soldierName(e.soldier))])]
-      : [],
+    e.reason === 'outOfAPs' && facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('TacticalStr', 81, [soldierArg(facts, e.soldier)])] : [],
   doorResult,
   doorTrap: (e) => (e.trap === SILENT_TRAP ? [] : [line('TacticalStr', 79, [ref('pDoorTrapStrings', TRAP_STRINGS[e.trap] ?? 0)])]),
   lockDestroyed: () => [line('TacticalStr', 133)],
   npcMessage,
   mercArrived: (e, facts) =>
     e.helicopter ? [] : [line('TacticalStr', MERC_HAS_ARRIVED_STR, [text(facts.soldierName(e.soldier) ?? facts.profileName(e.profile))])],
-  mercDropped: (e, facts) => [line('TacticalStr', MERC_HAS_ARRIVED_STR, [text(facts.soldierName(e.soldier))])],
+  mercDropped: (e, facts) => [line('TacticalStr', MERC_HAS_ARRIVED_STR, [soldierArg(facts, e.soldier)])],
   historyAdded: () => [line('pMessageStrings', 67)],
-  camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [text(facts.soldierName(e.soldier))])],
-  camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [text(facts.soldierName(e.soldier))])],
+  camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [soldierArg(facts, e.soldier)])],
+  camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [soldierArg(facts, e.soldier)])],
   stealAttempt: (e, facts) => [
     line('Message', e.result === 'failed' ? STR_FAILED_TO_STEAL_SOMETHING : STR_STOLE_SOMETHING, [
-      text(facts.soldierName(e.soldier)),
+      soldierArg(facts, e.soldier),
       { item: e.item, name: 'short' },
     ]),
   ],
-  rpcUnpaid: (e, facts) => [line('pMessageStrings', 60, [text(facts.soldierName(e.soldier)), { money: e.amount }])],
+  rpcUnpaid: (e, facts) => [line('pMessageStrings', 60, [soldierArg(facts, e.soldier), { money: e.amount }])],
   heliPaid: (e) => [line('pSkyriderText', 0, [{ number: e.amount }])],
   heliOwed: (e) => [line('pSkyriderText', 1, [{ number: e.amount }])],
   itemRepaired: (e, facts) =>
     e.repairer === e.owner
-      ? [line('Message', 52, [text(facts.soldierName(e.repairer)), { item: e.item, name: 'long' }])]
-      : [
-          line('gzLateLocalizedString', 34, [
-            text(facts.soldierName(e.repairer)),
-            text(facts.soldierName(e.owner)),
-            { item: e.item, name: 'long' },
-          ]),
-        ],
+      ? [line('Message', 52, [soldierArg(facts, e.repairer), { item: e.item, name: 'long' }])]
+      : [line('gzLateLocalizedString', 34, [soldierArg(facts, e.repairer), soldierArg(facts, e.owner), { item: e.item, name: 'long' }])],
   gunUnjammed: (e, facts) =>
     e.repairer === e.owner
-      ? [line('gzLateLocalizedString', 52, [text(facts.soldierName(e.repairer)), { item: e.item, name: 'long' }])]
-      : [
-          line('gzLateLocalizedString', 53, [
-            text(facts.soldierName(e.repairer)),
-            text(facts.soldierName(e.owner)),
-            { item: e.item, name: 'long' },
-          ]),
-        ],
+      ? [line('gzLateLocalizedString', 52, [soldierArg(facts, e.repairer), { item: e.item, name: 'long' }])]
+      : [line('gzLateLocalizedString', 53, [soldierArg(facts, e.repairer), soldierArg(facts, e.owner), { item: e.item, name: 'long' }])],
   assignmentAborted: (e, facts) => {
     const index = ABORT_LINES[e.reason];
-    return index === undefined ? [] : [line('gzLateLocalizedString', index, [text(facts.soldierName(e.soldier))])];
+    return index === undefined ? [] : [line('gzLateLocalizedString', index, [soldierArg(facts, e.soldier)])];
   },
   groupArrived,
   invasion: (e) => (e.kind === 'other' ? [line('pMapErrorString', 24, [{ text: e.sector }])] : []),
@@ -321,24 +309,18 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   headMinerQuote: (e) => dialogue(e.profile, e.textKey),
   skyriderQuote: (e) => dialogue(e.profile ?? null, e.textKey),
   civQuote: (e) => (e.hint ? dialogue(null, e.textKey) : []),
-  stealthChanged: (e, facts) => [line('pMessageStrings', e.on ? MERC_ON_STEALTH : MERC_OFF_STEALTH, [text(facts.soldierName(e.soldier))])],
+  stealthChanged: (e, facts) => [line('pMessageStrings', e.on ? MERC_ON_STEALTH : MERC_OFF_STEALTH, [soldierArg(facts, e.soldier)])],
   squadStealthChanged: (e) => [line('pMessageStrings', e.on ? SQUAD_ON_STEALTH : SQUAD_OFF_STEALTH)],
-  muteChanged: (e, facts) => [line('TacticalStr', e.on ? MUTE_ON : MUTE_OFF, [text(facts.soldierName(e.soldier))])],
-  noPathForMerc: (e, facts) => [line('TacticalStr', NO_PATH_FOR_MERC, [text(facts.soldierName(e.soldier))])],
+  muteChanged: (e, facts) => [line('TacticalStr', e.on ? MUTE_ON : MUTE_OFF, [soldierArg(facts, e.soldier)])],
+  noPathForMerc: (e, facts) => [line('TacticalStr', NO_PATH_FOR_MERC, [soldierArg(facts, e.soldier)])],
   gunImprint: (e) => (e.result === 'imprinted' ? [{ ...line('TacticalStr', GUN_GOT_FINGERPRINT), quoted: true }] : []),
-  itemCaught: (e, facts) => [
-    line('pMessageStrings', MERC_CAUGHT_ITEM, [text(facts.soldierName(e.soldier)), { item: e.item, name: 'short' }]),
-  ],
+  itemCaught: (e, facts) => [line('pMessageStrings', MERC_CAUGHT_ITEM, [soldierArg(facts, e.soldier), { item: e.item, name: 'short' }])],
   itemApplied: drugTaken,
-  itemPassed: (e, facts) => [
-    line('pMessageStrings', ITEM_PASSED_TO_MERC, [{ item: e.item, name: 'short' }, text(facts.soldierName(e.target))]),
-  ],
-  passFailed: (e, facts) => [
-    line('pMessageStrings', NO_ROOM_TO_PASS_ITEM, [{ item: e.item, name: 'short' }, text(facts.soldierName(e.target))]),
-  ],
+  itemPassed: (e, facts) => [line('pMessageStrings', ITEM_PASSED_TO_MERC, [{ item: e.item, name: 'short' }, soldierArg(facts, e.target)])],
+  passFailed: (e, facts) => [line('pMessageStrings', NO_ROOM_TO_PASS_ITEM, [{ item: e.item, name: 'short' }, soldierArg(facts, e.target)])],
   headGearChanged: (e, facts) => [
     line(NEW_STRINGS, e.on ? NS_SOLDIER_EQUIPS_ITEM : NS_SOLDIER_REMOVES_ITEM, [
-      text(facts.soldierName(e.soldier)),
+      soldierArg(facts, e.soldier),
       { item: e.item, name: 'long' },
     ]),
   ],
@@ -368,7 +350,7 @@ function refusalArgs(token: string, cmd: CommandEnvelope, data: Readonly<Record<
   const soldier = typeof cmd.soldier === 'number' ? cmd.soldier : null;
   if (REFUSALS_NAMING_THE_CALIBRE.has(token)) return [typeof data.calibre === 'number' ? ref(CALIBRE_NAMES, data.calibre) : text(null)];
   if (REFUSALS_NAMING_THE_REFUSER.has(token)) return [text(typeof data.soldier === 'number' ? facts.soldierName(data.soldier) : null)];
-  return REFUSALS_NAMING_THE_MERC.has(token) && soldier !== null ? [text(facts.soldierName(soldier))] : [];
+  return REFUSALS_NAMING_THE_MERC.has(token) && soldier !== null ? [soldierArg(facts, soldier)] : [];
 }
 
 export function refusalEntry(tick: number, cmd: CommandEnvelope, result: CommandResult, facts: MessageFacts): MessageEntry | null {

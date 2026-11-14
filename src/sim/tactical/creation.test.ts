@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import type { BasicPlacement } from '../../content/formats/map.ts';
+import { parseDetailedPlacement, writeProfileDetailedPlacement } from '../../content/formats/placement.ts';
 import { NOTHING } from '../../content/items/items.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { gameOptions } from '../options.ts';
@@ -10,9 +11,11 @@ import {
   type CreationContext,
   type CreationEnv,
   createDetailedPlacementGivenBasicPlacementInfo,
+  createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo,
   type SoldierCreate,
   tacticalCreateSoldier,
 } from './creation.ts';
+import { defaultSoldierName } from './default-names.ts';
 import { createEquipmentState } from './equipment.ts';
 import { InvSlot } from './inventory.ts';
 import { Attitude, Body, NO_PROFILE, Orders, SkillTrait, SoldierClass, Team } from './soldier.ts';
@@ -118,7 +121,6 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
       imprintId: 0,
       keyId: 0,
     })),
-    name: '',
     scheduleId: 0,
     ...o,
   };
@@ -158,6 +160,47 @@ describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
     );
     expect([pp.expLevel, pp.soldierClass]).toEqual([6, SoldierClass.CREATURE]);
     expect(rolls.requested[0]).toBe(2);
+  });
+});
+
+const PLACEMENT_NAME_OFFSET = 888;
+const UNINITIALISED_FILL = String.fromCharCode(0xcdcd).repeat(10);
+
+function namedStaticPlacement(team: number, name: string) {
+  const raw = writeProfileDetailedPlacement({
+    profile: NO_PROFILE,
+    direction: 0,
+    insertionGridNo: 1000,
+    team,
+    attitude: 0,
+    orders: Orders.STATIONARY,
+    soldierClass: SoldierClass.NONE,
+  });
+  const v = new DataView(raw.buffer);
+  for (const [k, ch] of [...name].entries()) v.setUint16(PLACEMENT_NAME_OFFSET + k * 2, ch.charCodeAt(0), true);
+  return parseDetailedPlacement(raw);
+}
+
+describe('CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo', () => {
+  it("never names a soldier after his placement, whose name the original never copies: D13's civilians hold the 0xCDCD fill there (quirk)", () => {
+    const created = (team: number, soldierClass: number, bodyType: number, name: string) => {
+      const { c } = creation([]);
+      const scripted = { ...c, rng: new ScriptedStream([], 0) };
+      const spp = namedStaticPlacement(team, name);
+      expect(spp.name).toBe(name);
+      const pp = createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo(
+        scripted,
+        spp,
+        basic({ team, soldierClass, bodyType }),
+        ENV(40),
+      );
+      const s = tacticalCreateSoldier(scripted, pp, 120, ENV(40));
+      return s && [s.name, defaultSoldierName(s)];
+    };
+    expect(created(Team.CIV, SoldierClass.NONE, Body.FATCIV, UNINITIALISED_FILL)).toEqual(['', 'civilian']);
+    expect(created(Team.ENEMY, SoldierClass.ARMY, Body.REGMALE, UNINITIALISED_FILL)).toEqual(['', 'enemy']);
+    expect(created(Team.MILITIA, SoldierClass.REG_MILITIA, Body.REGMALE, 'Placed')).toEqual(['', 'militia']);
+    expect(created(Team.OUR, SoldierClass.NONE, Body.REGMALE, 'Placed')).toEqual(['', null]);
   });
 });
 

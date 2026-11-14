@@ -2,6 +2,7 @@ import type { EffectEvent, SimEvent } from '../sim/events.ts';
 import type { OwnHintInputs } from '../sim/knowledge/view.ts';
 import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
+import type { DefaultSoldierName } from '../sim/tactical/default-names.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
 import type { HelicopterDropView } from '../sim/tactical/helicopter-drop-state.ts';
@@ -27,6 +28,7 @@ import { sameJson } from './same-json.ts';
 export type { KnowledgeLight as LightView, KnowledgeLightSprite as LightSpriteView, OwnHintInputs } from '../sim/knowledge/view.ts';
 export type { FaceVariant } from '../sim/narrative/face-variant.ts';
 export type { ShopBoxView, ShopEta, ShopKind, ShopRepairedView, ShopView } from '../sim/strategic/economy/merchants/view.ts';
+export type { DefaultSoldierName } from '../sim/tactical/default-names.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
 export { LIFELESS_HEALTH_INDEX } from '../sim/tactical/health.ts';
@@ -120,6 +122,7 @@ export interface SoldierView {
   readonly adrenaline?: AdrenalineView;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
+  readonly defaultName?: DefaultSoldierName;
   readonly hint?: OwnHintInputs;
 }
 
@@ -1351,6 +1354,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'blinded',
   'hostile',
   'healthIndex',
+  'defaultName',
   'muzzleFlash',
   'fadingOut',
 ] as const satisfies readonly (keyof SoldierView)[];

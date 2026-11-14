@@ -28,7 +28,9 @@
 // @src uiPendingActionData4, dropped by AddSoldierToSectorGridNo but kept by the soldiers it does not reach
 // @src (Soldier_Add.cc:707-708, :871, 2026-11-08), with its bPendingActionData3, and every soldier of the load in reach of
 // @src the restart's GetMan (Soldier_Control.cc:1680, 2026-11-09); Strategic/Meanwhile.cc AreInMeanwhile as the restart
-// @src finds it, the events and the clock loaded and gfInMeanwhile not yet (2026-11-09).
+// @src finds it, the events and the clock loaded and gfInMeanwhile not yet (2026-11-09); Tactical/Soldier_Create.cc
+// @src TacticalCopySoldierFromCreateStruct (the default name of his team a save holds for a soldier without a profile) and
+// @src Interface_Dialogue.cc NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE (the nickname a married merc keeps, 2026-11-13).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -60,6 +62,7 @@ import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import { type CampaignReach, firstCampaignReach, queriesTheRestartMayAsk } from './campaign-reach.ts';
 import type { TacticalContent } from './content.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
+import { NO_NAME, namedByTeam } from './default-names.ts';
 import { loadDoorStatusArray } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
 import { explosionAnimationById, generateExplosion } from './explosions/explosion.ts';
@@ -567,6 +570,11 @@ function keepSavedMotion(s: Soldier, r: SavedSoldier): void {
   s.overTerrain = r.overTerrainType;
 }
 
+function ownName(save: SaveGame, r: SavedSoldier): string {
+  const marriedMercsNickname = save.profiles.some((p) => p.nickname === r.name);
+  return namedByTeam(r) && !marriedMercsNickname ? NO_NAME : r.name;
+}
+
 export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): Soldier {
   const r = entry.soldier;
   const profile = save.profiles[r.profile];
@@ -574,7 +582,7 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
     id: r.id,
     team: r.team,
     side: r.side,
-    name: r.name,
+    name: ownName(save, r),
     profile: r.profile,
     soldierClass: r.soldierClass,
     bodyType: r.bodyType,

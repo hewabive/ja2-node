@@ -4133,3 +4133,55 @@ describe('snapshot version 82 (a scene log without skipped scenes) migrates with
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const UNPROFILED = 200;
+const PLACEMENT_FILL = String.fromCharCode(0xcdcd).repeat(10);
+
+function withPlacementNames(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPlacementNames(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withPlacementNames(v);
+  const namedByPlacement = SOLDIER_RECORD_KEYS.every((key) => key in out) && out.profile === UNPROFILED && out.team !== Team.OUR;
+  if (!namedByPlacement) return out;
+  expect(out.name).toBe('');
+  return { ...out, name: PLACEMENT_FILL };
+}
+
+function versionEightyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withPlacementNames(value)]);
+  return { ...snapshot, version: 83, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 83 (soldiers named after their placements) migrates with no name for a soldier without a profile on the enemy, creature, militia or civilian team, whom the original names by his team's default", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with a civilian and enemies', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const [merc] = teamMembers(t, Team.OUR);
+    if (!merc) throw new Error('no mercs');
+    const at = merc.gridNo + 2;
+    const civilian = tacticalCreateSoldier(t, newSoldierCreate(Team.CIV, Body.MANCIV, 0, at), TEAM_FIRST_ID[Team.CIV], NEUTRAL_POPULATION);
+    if (!civilian) throw new Error('no civilian');
+    registerSoldier(t, civilian);
+    setSoldierPosition(t, civilian, at);
+    civilian.placed = true;
+    expect(teamMembers(t, Team.ENEMY).length).toBeGreaterThan(0);
+    const current = snapshotSession(sandbox);
+    const legacy = versionEightyThree(current.sim);
+    expect(JSON.stringify(legacy)).toContain(PLACEMENT_FILL);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

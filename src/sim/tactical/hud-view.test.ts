@@ -224,6 +224,18 @@ describe('other soldiers in the view (G5)', () => {
     expect(shown(sim, 116).hostile).toBe(false);
   });
 
+  it("carry the default name of the team of one with no name of his own, which the original's s->name holds (TacticalCopySoldierFromCreateStruct)", () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH).name = '';
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST).name = '';
+    spawnSoldier(sim, 116, Team.CIV, gridNo(78, 88), Direction.WEST);
+    sim.lookAround();
+    expect(shown(sim, 20)).toMatchObject({ name: '', defaultName: 'enemy' });
+    expect(shown(sim, 116)).toMatchObject({ name: 'S116' });
+    expect(shown(sim, 116)).not.toHaveProperty('defaultName');
+    expect(shown(sim, 0)).not.toHaveProperty('defaultName');
+  });
+
   it('show a vehicle in sight with its life and fuel for the bars over it, and nothing of one out of sight (Interface.cc DrawSelectedUIAboveGuy)', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

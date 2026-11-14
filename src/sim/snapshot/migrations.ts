@@ -6,7 +6,7 @@ import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
 import { hiResDirectionOf } from '../tactical/directions.ts';
-import { NOBODY } from '../tactical/soldier.ts';
+import { NO_PROFILE, NOBODY, Team } from '../tactical/soldier.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError, unescapeSegment } from './codec.ts';
@@ -2457,6 +2457,28 @@ function markPlayedMeanwhileScenes(snapshot: Readonly<Record<string, unknown>>):
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const NAME_KEY = 'name';
+const NO_NAME = '';
+const TEAMS_NAMED_BY_DEFAULT: ReadonlySet<Json> = new Set([Team.ENEMY, Team.CREATURE, Team.MILITIA, Team.CIV]);
+
+function namedByTeam(o: JsonObject): boolean {
+  return isSoldierRecord(o) && o.profile === NO_PROFILE && TEAMS_NAMED_BY_DEFAULT.has(o.team ?? null);
+}
+
+function withoutPlacementNames(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPlacementNames(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withoutPlacementNames(v);
+  return namedByTeam(mapped) ? { ...mapped, [NAME_KEY]: NO_NAME } : mapped;
+}
+
+function dropPlacementNames(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withoutPlacementNames(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2541,5 +2563,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     80: addMeanwhileReturnTrip,
     81: dropMeanwhileSceneContexts,
     82: markPlayedMeanwhileScenes,
+    83: dropPlacementNames,
   };
 }

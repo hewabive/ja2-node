@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Create.cc RandomizeNewSoldierStats (2026-11-01), CreateDetailedPlacementGivenBasicPlacementInfo,
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
-// @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
+// @src TacticalCopySoldierFromCreateStruct (no name from the create struct, 2026-11-13), TacticalCopySoldierFromProfile,
+// @src ChooseHairColor, GeneratePaletteForSoldier;
 // @src Soldier_Control.cc CreateSoldierCommon (the opplist reset), SetSoldierHeight (a placement on a flat roof);
 // @src Inventory_Choosing.cc AssignCreatureInventory; GeneratePaletteForSoldier running before TacticalCreateSoldier
 // @src sets bTeam, so no civilian takes its civilian clothes (2026-11-05); CreateSoldierCommon's EVENT_InitNewSoldierAnim(STANDING)
@@ -22,6 +23,7 @@ import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { AnimHeight, states } from './animation.ts';
 import { soldierDifficultyLevel } from './combat/chance.ts';
 import type { RandomStream } from './combat/context.ts';
+import { NO_NAME } from './default-names.ts';
 import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
 import type { PopulationEnv } from './init-list.ts';
 import { emptyInventory, hiredMercInventory, type Inventory, type InventoryContext, InvSlot, npcProfileInventory } from './inventory.ts';
@@ -272,7 +274,6 @@ export interface SoldierCreate {
   visible: boolean;
   palettes: Partial<SoldierPalettes>;
   readonly inv: Inventory;
-  name: string;
   scheduleId: number;
   givenVehicleId?: number;
 }
@@ -416,7 +417,6 @@ function blankCreate(bp: BasicPlacement): SoldierCreate {
     visible: false,
     palettes: {},
     inv: emptyInventory(),
-    name: '',
     scheduleId: 0,
   };
 }
@@ -452,7 +452,6 @@ export function newSoldierCreate(team: number, bodyType: number, direction: numb
     visible: false,
     palettes: {},
     inv: emptyInventory(),
-    name: '',
     scheduleId: 0,
   };
 }
@@ -546,7 +545,6 @@ export function createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlace
   pp.morale = staticValue(st.morale, pp.morale);
   pp.visible = spp.visible;
   if (spp.visible) pp.palettes = { ...spp.palettes };
-  pp.name = spp.name;
   spp.inventory.forEach((rec, k) => {
     if (rec.flags & ObjectFlags.NO_OVERWRITE) pp.inv[k] = objectFromRecord(rec);
   });
@@ -726,7 +724,7 @@ function generatedSoldier(c: CreationContext, pp: SoldierCreate, id: number): So
   const s = createSoldier({
     id,
     team: pp.team,
-    name: pp.name,
+    name: NO_NAME,
     soldierClass: pp.soldierClass,
     bodyType: pp.bodyType,
     palettes: { hair: '', skin: '', vest: '', pants: '' },
