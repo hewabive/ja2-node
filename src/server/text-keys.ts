@@ -6,7 +6,8 @@
 // @src Refusal messages: Points.cc EnoughPoints (NOT_ENOUGH_APS_STR), Turn_Based_Input.cc / Handle_UI.cc (NO_PATH,
 // @src MERC_IS_UNAVAILABLE_STR, NOBODY_USING_REMOTE_STR, STR_LATE_04), Weapons.cc (STR_NOT_BURST_CAPABLE), Handle_UI.cc
 // @src (MSG_CANT_FIRE_HERE), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
-// @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime.
+// @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime; Tactical/Soldier_Create.cc
+// @src TacticalCopySoldierFromCreateStruct (the default names of soldiers, 2026-11-13).
 
 import { type UiStrings, uiString } from '../content/text/strings.ts';
 import {
@@ -16,7 +17,8 @@ import {
   type RefusalMessage,
   type UiTextKey,
 } from '../protocol/refusals.ts';
-import type { PlayerView, StrategicMercView } from '../protocol/view.ts';
+import { DEFAULT_SOLDIER_NAMES, defaultNameKey } from '../protocol/soldier-names.ts';
+import type { PlayerView, SoldierView, StrategicMercView } from '../protocol/view.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
 import type { ShopKind } from '../sim/strategic/economy/merchants/view.ts';
 import type { MoveRefusal } from '../sim/strategic/forces/move-permission.ts';
@@ -51,6 +53,10 @@ function refusals(suffix: string, messages: Readonly<Record<string, RefusalMessa
   return Object.entries(messages).map(([token, m]) => [`refusal.${token}${suffix}`, { table: m.table, index: m.index }]);
 }
 
+function defaultNames(): [string, UiTextKey][] {
+  return DEFAULT_SOLDIER_NAMES.map((name) => [`defaultName.${name}`, defaultNameKey(name)]);
+}
+
 function assignments(): [string, UiTextKey][] {
   return Array.from({ length: ASSIGNMENT_COUNT }, (_, index) => [`assignment.${index}`, { table: 'pAssignmentStrings', index }]);
 }
@@ -62,6 +68,7 @@ export const TEXT_KEYS: Readonly<Record<string, UiTextKey>> = Object.fromEntries
   ...group('shopKind', 'zDealerStrings', SHOP_KIND),
   ...group('moveRefusal', 'pMapErrorString', MOVE_REFUSAL),
   ...assignments(),
+  ...defaultNames(),
   ...refusals('', REFUSAL_MESSAGES),
   ...refusals(FEMALE_SUFFIX, FEMALE_REFUSAL_MESSAGES),
 ]);
@@ -89,9 +96,13 @@ function mercLabels(m: StrategicMercView, strings: UiStrings): Record<string, un
   };
 }
 
+function soldierLabels(s: SoldierView, strings: UiStrings): SoldierView | Record<string, unknown> {
+  return s.defaultName ? { ...s, defaultNameLabel: uiLabel(strings, textKeyFor(`defaultName.${s.defaultName}`)) } : s;
+}
+
 export function labelledView(view: PlayerView, strings: UiStrings): Record<string, unknown> {
-  const { strategic, conversation, shop } = view;
-  const labels: Record<string, unknown> = {};
+  const { soldiers, strategic, conversation, shop } = view;
+  const labels: Record<string, unknown> = { soldiers: soldiers.map((s) => soldierLabels(s, strings)) };
   if (strategic) labels.strategic = { ...strategic, mercs: strategic.mercs.map((m) => mercLabels(m, strings)) };
   if (conversation)
     labels.conversation = { ...conversation, menuLabels: conversation.menu.map((e) => uiLabel(strings, talkMenuTextKey(e))) };

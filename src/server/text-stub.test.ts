@@ -11,7 +11,7 @@ import { PROJECT_DATA_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { DirLayer } from '../node/dir-layer.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
-import type { StrategicMercView } from '../protocol/view.ts';
+import type { SoldierView, StrategicMercView } from '../protocol/view.ts';
 import { createApp } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
 import { InProcessHost, type SessionHost } from './session-host.ts';
@@ -42,6 +42,9 @@ const stubFiles = new MemoryLayer('stubs', [
 const stubVfs = new Vfs([projectData, stubFiles]);
 
 const merc = { id: 3, name: 'Ivan', assignment: 0, moraleText: 'good', morale: 70 } as unknown as StrategicMercView;
+const civilian = { id: 120, team: 4, name: '', defaultName: 'civilian' } as unknown as SoldierView;
+const ownMerc = { id: 3, team: 0, name: 'Ivan' } as unknown as SoldierView;
+const CIV_TEAM_MERC_NAME = 93;
 const campaignLike: SessionSim = {
   tick: 0,
   isIdle: () => true,
@@ -53,7 +56,7 @@ const campaignLike: SessionSim = {
     ({
       tick: 0,
       mapPath: null,
-      soldiers: [],
+      soldiers: [civilian, ownMerc],
       strategic: { mercs: [merc] },
       conversation: { menu: ['repeat', 'buySell:buy', 'whoAreYou'] },
     }) as unknown as ReturnType<SessionSim['view']>,
@@ -216,11 +219,15 @@ describe('per-session display language', () => {
     expect(russian.conversation.menu).toEqual(['repeat', 'buySell:buy', 'whoAreYou']);
     expect(russian.conversation.menuLabels[0]).toMatch(CYRILLIC);
     expect(russian.conversation.menuLabels[2]).toBeNull();
+    expect(russian.soldiers[0]).toMatchObject({ name: '', defaultName: 'civilian' });
+    expect(russian.soldiers[0].defaultNameLabel).toMatch(CYRILLIC);
+    expect(russian.soldiers[1]).not.toHaveProperty('defaultNameLabel');
     const eng = await englishTranslation();
     const english = await call('observe');
     expect(english.language).toBe('eng');
     expect(english.strategic.mercs[0].moraleLabel).toBe(eng.pMoralStrings?.[1]);
     expect(english.conversation.menuLabels[1]).toBe((eng as Record<string, string[]>).zDealerStrings?.[1]);
+    expect(english.soldiers[0].defaultNameLabel).toBe(eng.TacticalStr?.[CIV_TEAM_MERC_NAME]);
     await client.close();
   });
 });

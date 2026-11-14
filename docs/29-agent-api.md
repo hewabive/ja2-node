@@ -368,7 +368,8 @@ paint, ours and theirs alike, as the screen shows both (`06`). His `name` is his
 married merc keeps); a soldier without a profile on the enemy, militia, civilian or creature team has none and carries
 `defaultName` (`enemy`, `militia`, `civilian`, `miner`, `crow`, `creature`, `bloodcat`), the default of his team the
 original names him by (`Tactical/Soldier_Create.cc:880-905`), which the client prints from the string tables in its
-own language (`src/protocol/soldier-names.ts`) and a message naming him carries as a string reference (`06`). A
+own language (`src/protocol/soldier-names.ts`), `observe` gives in the session's as `defaultNameLabel`, and a message
+naming him carries as a string reference (`06`). A
 soldier the squad has just lost stays while he fades
 out, with `fadingOut` (`06`): he can still be targeted and his hits are told, as in the original, until the fade ends or
 he reaches the next tile. The tactical world (corpses, smoke, light, structure changes, blood;

@@ -27,6 +27,8 @@ const DEFAULT_NAME_KEYS: Readonly<Record<DefaultSoldierName, UiTextKey>> = {
   bloodcat: { table: LATE_STRINGS, index: STR_LATE_36 },
 };
 
+export const DEFAULT_SOLDIER_NAMES = Object.keys(DEFAULT_NAME_KEYS) as readonly DefaultSoldierName[];
+
 export function defaultNameKey(name: DefaultSoldierName): UiTextKey {
   return DEFAULT_NAME_KEYS[name];
 }
