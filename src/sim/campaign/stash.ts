@@ -9,8 +9,7 @@
 // @src free record), SaveWorldItemsToTempItemFile (the unseen records first, the flag of the temp file, the recount).
 
 import { ItemClass } from '../../content/items/items.ts';
-import type { Sector } from '../../content/strategic/sector-ids.ts';
-import { sameSector } from '../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import { u8 } from '../../core/int.ts';
 import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
 import { compareItemsForSorting } from '../strategic/economy/merchants/supply.ts';
