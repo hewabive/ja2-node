@@ -4227,3 +4227,37 @@ describe("snapshot version 84 (profiles without stat deltas) migrates with every
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionEightyFive(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { placementButton: _dropped, ...battle } = object(strategic.battle);
+    return [name, { ...strategic, battle }];
+  });
+  return { ...snapshot, version: 85, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 85 (no saved placement button) migrates with Clear, the button a new game starts the placement GUI with (Tactical_Placement_GUI.cc:72)', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    const current = snapshotSession(campaign);
+    const legacy = versionEightyFive(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"placementButton":3');
+    expect(JSON.stringify(legacy)).not.toContain('"placementButton"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

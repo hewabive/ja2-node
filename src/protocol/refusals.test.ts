@@ -56,3 +56,11 @@ describe("the escort's lone move (CanCharacterMoveInStrategic, ME_CUSTOM)", () =
     expect(refusalSoldierOf({ refusal: 'noPath' })).toBeNull();
   });
 });
+
+describe('the placement click (Tactical_Placement_GUI.cc HandleTacticalPlacementClicksInOverheadMap)', () => {
+  it('boxes STR_TP_INACCESSIBLE_MESSAGE when no edge point is near and STR_TP_INVALID_MESSAGE when the merc has no map edge', () => {
+    expect(refusalMessage('placementInaccessible')).toEqual({ table: 'gpStrategicString', index: 57, shown: 'box' });
+    expect(refusalMessage('placementInvalid')).toEqual({ table: 'gpStrategicString', index: 58, shown: 'box' });
+    expect(refusalMessage('placementIncomplete')).toBeNull();
+  });
+});

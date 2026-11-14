@@ -14,7 +14,8 @@
 // @src VEHICLE_CANT_MOVE_IN_TACTICAL, 2026-11-05); Tactical/Auto_Bandage.cc BeginAutoBandage (AUTOBANDAGE_NOT_NEEDED,
 // @src STR_LATE_09, CANT_AUTOBANDAGE_PROMPT, 2026-11-06); Handle_UI.cc UIMouseOnValidAttackLocation (the medkit's
 // @src CANNOT_DO_FIRST_AID_STR, MSG_MERC_HAS_NO_MEDSKILL, STR_LATE_19, CANNOT_NO_NEED_FIRST_AID_STR, 2026-11-14); Handle_UI.cc
-// @src HandleTalkInit (STR_LATE_32 of Dimitri on our team, 2026-11-14).
+// @src HandleTalkInit (STR_LATE_32 of Dimitri on our team, 2026-11-14); TileEngine/Tactical_Placement_GUI.cc
+// @src HandleTacticalPlacementClicksInOverheadMap (STR_TP_INACCESSIBLE_MESSAGE, STR_TP_INVALID_MESSAGE, 2026-11-14).
 
 export interface UiTextKey {
   readonly table: string;
@@ -54,6 +55,8 @@ const log = (table: string, index: number): RefusalMessage => ({ table, index, s
 const box = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'box' });
 const NOT_ENOUGH_APS = log('TacticalStr', 87);
 const STR_LATE_32 = 31;
+const STR_TP_INACCESSIBLE_MESSAGE = 57;
+const STR_TP_INVALID_MESSAGE = 58;
 
 export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   notEnoughAP: NOT_ENOUGH_APS,
@@ -107,6 +110,8 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   militiaInCombat: box('pMilitiaString', 2),
   emptyHelicopterHint: box('pSkyriderText', 2),
   onlyHostileCivilians: box('gzLateLocalizedString', 26),
+  placementInaccessible: box('gpStrategicString', STR_TP_INACCESSIBLE_MESSAGE),
+  placementInvalid: box('gpStrategicString', STR_TP_INVALID_MESSAGE),
 };
 
 export const FEMALE_REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = Object.fromEntries(

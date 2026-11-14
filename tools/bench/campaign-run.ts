@@ -104,6 +104,8 @@ function choiceFor(prompt: BattlePrompt): string[] {
     case 'militiaPayment':
     case 'militiaContinue':
       return ['no', 'yes'];
+    case 'tacticalPlacement':
+      return ['done', 'spread'];
   }
 }
 

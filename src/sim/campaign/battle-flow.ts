@@ -917,7 +917,7 @@ export class BattleFlow implements FateContext {
       clearMovementForAllInvolvedPlayerGroups(this.economy, sector);
     } else enc.battleGroup = null;
     battle.prompt = null;
-    if (!flow.setCurrentWorldSector(target, { autoPlacement: placement, battleLocatorShown: battle.locator }))
+    if (!flow.setCurrentWorldSector(target, { tacticalPlacement: placement, battleLocatorShown: battle.locator }))
       return refuse('mapNotLoaded', 'sector map is not loaded');
     return { ok: true, data: { sector: sectorShortString(target) } };
   }
@@ -978,6 +978,8 @@ export class BattleFlow implements FateContext {
       case PromptKind.MILITIA_PAYMENT:
       case PromptKind.MILITIA_CONTINUE:
         return this.#answerMilitia(choice);
+      case PromptKind.TACTICAL_PLACEMENT:
+        return this.campaign.sectors?.answerTacticalPlacement(prompt.pieces, cmd) ?? refuse('mapNotLoaded', 'no sector flow');
     }
   }
 

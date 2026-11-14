@@ -559,6 +559,12 @@ export interface SectorLoadedEvent extends SimEventBase {
   readonly located?: number;
 }
 
+export interface PlacementDoneEvent extends SimEventBase {
+  readonly type: 'placementDone';
+  readonly sector: string;
+  readonly located?: number;
+}
+
 export interface EnemyPresenceEvent extends SimEventBase {
   readonly type: 'enemyPresence';
   readonly sector: string;
@@ -802,6 +808,7 @@ export interface OptionChangedEvent extends SimEventBase {
 export type SimEvent =
   | TickBudgetEvent
   | SectorLoadedEvent
+  | PlacementDoneEvent
   | EnemyPresenceEvent
   | CreatureAttackEvent
   | HelicopterDropStartedEvent

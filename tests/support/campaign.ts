@@ -213,6 +213,34 @@ export function runUntilIdle(c: CampaignSim, budget = 40_000): number {
   return i;
 }
 
+const B9 = { x: 9, y: 2, z: 0 };
+
+export function ourGroupAtPreBattleInB9(kit: CampaignKit, mode?: RunMode): TestCampaign {
+  const created = createTestCampaign(kit, { seed: 31, garrison: { admins: 0, troops: 0, elites: 0 }, ...(mode ? { mode } : {}) });
+  const c = created.campaign;
+  const b9 = sectorInfo(c.state.map, B9);
+  b9.numAdmins = 0;
+  b9.numTroops = 2;
+  b9.numElites = 0;
+  landFirstSquad(c);
+  for (let i = 0; i < 10_000 && !c.isIdle(); i++) c.step();
+  if (!c.dispatch({ type: 'route', soldier: 0, to: 'B9' }).ok) throw new Error('route refused');
+  for (let i = 0; i < 10_000 && c.tactical !== null; i++) c.step();
+  if (!c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 }).ok) throw new Error('cannot compress');
+  for (let i = 0; i < 200_000 && !c.hasPendingDecision(); i++) c.step();
+  if (c.state.battle.prompt?.kind !== 'preBattle') throw new Error('no pre-battle panel');
+  return created;
+}
+
+export function spreadAndPlace(c: CampaignSim): void {
+  for (const choice of ['spread', 'done']) {
+    const prompt = c.state.battle.prompt;
+    if (prompt?.kind !== 'tacticalPlacement') throw new Error(`no placement prompt for ${choice}`);
+    const r = c.dispatch({ type: 'answer', prompt: prompt.id, choice });
+    if (!r.ok) throw new Error(`${choice} refused: ${r.reason}`);
+  }
+}
+
 export function ourSoldiers(c: CampaignSim): Soldier[] {
   const t = c.tactical?.state;
   return t ? teamMembers(t, Team.OUR).sort((a, b) => a.id - b.id) : [];

@@ -6,6 +6,7 @@ import { loadStrategicTestContent, testContext } from '../../../../tests/support
 import { parseSaveGame, type SaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable } from '../../../content/formats/savegame-header.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { PlacementButton } from '../forces/battle-state.ts';
 import { SectorFlag } from '../forces/constants.ts';
 import { EventKind } from '../time/constants.ts';
 import { importStrategicTime } from '../time/save-import.ts';
@@ -116,6 +117,7 @@ function syntheticSave(): SaveGame {
         refuelSiteAvailable: [false, false],
       },
       disableMapInterfaceDueToBattle: false,
+      placementButton: 1,
     },
     strategicInfo: {
       elements: Array.from({ length: 324 }, () => ({ nameId: 0, enemyControlled: true, enemyAirControlled: false, samCondition: 0 })),
@@ -148,6 +150,13 @@ describe('importStrategicMap on a synthetic save', () => {
     expect(s.map.secretsFound).toEqual([true, false, false, true, false, false]);
     expect(s.worldSector).toEqual(D13);
     expect(s.map.sectors[D13_ID]?.flags).toBe((SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS | SectorFlag.ALREADY_VISITED) >>> 0);
+  });
+
+  it("keeps the placement GUI's saved default button, which the next placement opens with (SaveLoadGame.cc:1994 gubDefaultButton)", () => {
+    const ctx = testContext({ content });
+    expect(ctx.state.battle.placementButton).toBe(PlacementButton.CLEAR);
+    importStrategicMap(ctx, syntheticSave());
+    expect(ctx.state.battle.placementButton).toBe(PlacementButton.SPREAD);
   });
 
   it('links each vehicle to the first active soldier who is it, on any team, and refills the list in place for the tactical layer that shares it (Vehicles.cc FindSoldierType)', () => {

@@ -395,6 +395,7 @@ export interface GeneralInfo {
   readonly atLeastOneMercWasHired: boolean;
   readonly newMailFlag: boolean;
   readonly environmentWeather: number;
+  readonly placementButton: number;
   readonly contractRehireSoldier: number;
   readonly gameOptions: SavedGameOptions;
   readonly baseJA2Clock: number;
@@ -593,6 +594,7 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
     atLeastOneMercWasHired: r.bool('gfAtLeastOneMercWasHired'),
     newMailFlag: r.bool('fNewMailFlag'),
     environmentWeather: n('guiEnvWeather'),
+    placementButton: n('gubDefaultButton'),
     contractRehireSoldier: n('contract_rehire_soldier'),
     gameOptions: {
       gunNut: r.bool('fGunNut'),

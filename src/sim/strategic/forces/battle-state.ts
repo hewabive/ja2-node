@@ -4,7 +4,8 @@
 // @src gsCiviliansEatenByMonsters; Strategic/Quests.h FACT_FIRST_BATTLE_*; Tactical/Overhead_Types.h ubLastBattleSector,
 // @src fLastBattleWon; the Utils/Timer_Control.cc customizable timer that Tactical/Overhead.cc CheckForEndOfBattle sets
 // @src for HandleThePlayerBeNotifiedOfSomeoneElseInSector, and its OK box (2026-11-07); Strategic/Meanwhile.cc
-// @src BringupMeanwhileBox (the OK and Skip box of a scene seen before, 2026-11-09).
+// @src BringupMeanwhileBox (the OK and Skip box of a scene seen before, 2026-11-09); TileEngine/Tactical_Placement_GUI.cc
+// @src MERCPLACEMENT and gubDefaultButton (SaveLoadGame.cc:1856 saves it), 2026-11-14.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { ArRng, AutoresolveState } from './autoresolve/state.ts';
@@ -46,8 +47,17 @@ export const PromptKind = {
   MILITIA_PAYMENT: 'militiaPayment',
   MILITIA_CONTINUE: 'militiaContinue',
   MEANWHILE: 'meanwhile',
+  TACTICAL_PLACEMENT: 'tacticalPlacement',
 } as const;
 export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
+
+export const PlacementButton = { DONE: 0, SPREAD: 1, GROUP: 2, CLEAR: 3 } as const;
+
+export interface PlacementPiece {
+  readonly soldier: number;
+  readonly side: number;
+  placed: boolean;
+}
 
 export type BattlePrompt =
   | {
@@ -62,6 +72,7 @@ export type BattlePrompt =
   | { readonly id: string; readonly kind: typeof PromptKind.NPC_OF_NOTE }
   | { readonly id: string; readonly kind: typeof PromptKind.SOMEONE_ELSE_IN_SECTOR }
   | { readonly id: string; readonly kind: typeof PromptKind.MEANWHILE }
+  | { readonly id: string; readonly kind: typeof PromptKind.TACTICAL_PLACEMENT; readonly pieces: readonly PlacementPiece[] }
   | { readonly id: string; readonly kind: typeof PromptKind.CONTRACT_RENEWAL; readonly soldier: number; readonly fromSequence: boolean }
   | {
       readonly id: string;
@@ -129,6 +140,7 @@ export interface BattleState {
   autoresolve: AutoresolveSession | null;
   lastBattleSector: { readonly x: number; readonly y: number } | null;
   lastBattleWon: boolean;
+  placementButton: number;
 }
 
 export function createBattleState(): BattleState {
@@ -149,6 +161,7 @@ export function createBattleState(): BattleState {
     autoresolve: null,
     lastBattleSector: null,
     lastBattleWon: false,
+    placementButton: PlacementButton.CLEAR,
   };
 }
 

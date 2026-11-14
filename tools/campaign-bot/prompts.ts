@@ -55,6 +55,8 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
     case 'bombSetting':
     case 'remoteFrequency':
       return ['1'];
+    case 'tacticalPlacement':
+      return ['done', 'spread'];
   }
 }
 

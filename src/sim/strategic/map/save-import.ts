@@ -4,7 +4,7 @@
 // @src Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile, LoadPlayerGroupList; Tactical/Squads.cc
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset, decided from the records written back, 2026-11-08);
-// @src LoadGeneralInfo (the helicopter globals).
+// @src LoadGeneralInfo (the helicopter globals; gubDefaultButton, the placement GUI's saved button, 2026-11-14).
 
 import { loadedWorldSector, type SaveGame, type StrategicGroup } from '../../../content/formats/savegame.ts';
 import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
@@ -152,6 +152,7 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   f.helicopterAirborne = info.helicopterAirborne;
   f.helicopter = importHelicopter(info.helicopter);
   state.movement.disableMapInterfaceDueToBattle = info.disableMapInterfaceDueToBattle;
+  state.battle.placementButton = info.placementButton;
   const world = loadedWorldSector(save);
   state.worldSector = world ? { ...world } : null;
 }

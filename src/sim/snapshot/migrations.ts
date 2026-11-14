@@ -2513,6 +2513,24 @@ function addProfileStatDeltas(snapshot: Readonly<Record<string, unknown>>): Reco
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LAST_BATTLE_WON_KEY = 'lastBattleWon';
+const PLACEMENT_BUTTON_KEY = 'placementButton';
+const CLEAR_BUTTON = 3;
+
+function withPlacementButton(strategic: JsonObject): JsonObject {
+  const battle = strategic[BATTLE_KEY];
+  if (!isObject(battle) || battle[REF] !== undefined) return strategic;
+  return { ...strategic, [BATTLE_KEY]: insertAfter(battle, LAST_BATTLE_WON_KEY, PLACEMENT_BUTTON_KEY, CLEAR_BUTTON) };
+}
+
+function addPlacementButton(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withPlacementButton(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2599,5 +2617,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     82: markPlayedMeanwhileScenes,
     83: dropPlacementNames,
     84: addProfileStatDeltas,
+    85: addPlacementButton,
   };
 }

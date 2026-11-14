@@ -12,6 +12,7 @@ import { encounterName, PromptKind } from '../sim/strategic/forces/battle-state.
 import { getGroup } from '../sim/strategic/forces/groups.ts';
 import { healthCategory } from '../sim/tactical/health.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, SoldierClass } from '../sim/tactical/soldier.ts';
+import { tacticalPlacementView } from './placement-view.ts';
 import { tacticalPromptView } from './tactical-prompt-view.ts';
 
 const MS_PER_SECOND = 1000;
@@ -135,6 +136,8 @@ function battlePromptView(campaign: CampaignSim): PromptView | null {
         balance: campaign.state.finances.balance,
         choices: ['yes', 'no'],
       };
+    case PromptKind.TACTICAL_PLACEMENT:
+      return tacticalPlacementView(campaign, prompt.id, prompt.pieces);
     case PromptKind.CONTRACT_RENEWAL:
     case PromptKind.MERC_DEPARTURE:
     case PromptKind.INSURANCE_EXTENSION:

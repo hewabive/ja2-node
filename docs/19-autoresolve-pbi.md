@@ -96,8 +96,8 @@ waits for the next map frame; the hand-over is refused while an automatic AR is 
 
 **The PBI is a prompt.** It opens at the end of the step that made the hand-off, without the speaking merc's quote time,
 and carries the encounter, the options with their disabled reasons and the panel. The persistent PBI comes before a
-battle; the non-persistent one summarises a running tactical battle (`showBattle`, `autoresolveBattle`). There is no
-placement screen yet: entering keeps the automatic edgepoints (gaps "Tactical placement").
+battle; the non-persistent one summarises a running tactical battle (`showBattle`, `autoresolveBattle`). Go to sector
+from our group's persistent panel holds the load at the placement prompt (`campaign/tactical-placement.ts`, `29` §8.10).
 
 **Tactical battles report through hooks.** Merc deaths, pending enemies, the militia hand-off, a lost battle (2–3 downed
 mercs captured, otherwise killed) and the end of a battle reach `BattleFlow` through `SectorHooks`. After a defeat the
@@ -135,6 +135,8 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q29 | Losing a sector flips control before the "our mercs are still here" early return | `strategic/map/control.test.ts` |
 | Q30 | The dead of a battle lie on random tiles of the visible area of the map loaded last, a basement loaded elsewhere or already unloaded included (`TileEngine/Isometric_Utils.cc:667`) | `src/sim/campaign/battle-scenario.test.ts`, `autoresolve/close.test.ts` |
 | Q31 | Bandaging clears the bleeding warning only while healing a patient out of dying, before the rest of his bleeding is stopped | `autoresolve/close.test.ts` |
+| Q32 | A placement click with no edge point of the merc's side near writes NOWHERE into his insertion data even while his piece stands placed, so Done enters him from it (`TileEngine/Tactical_Placement_GUI.cc:798-808`) | `src/sim/campaign/tactical-placement.test.ts` "writes NOWHERE into the insertion data …" |
+| Q33 | A merc whose side is no map edge can be placed neither by a click nor by Spread, which writes NOWHERE into his insertion data, so Done never comes (`TileEngine/Tactical_Placement_GUI.cc:431-449`, `:552-565`) | `src/sim/campaign/tactical-placement.test.ts` "can place no merc whose side is no map edge …" |
 
 Not pinned yet:
 - Q10: `bulletImpact` reads the ammo type from the attacking hand, not the slot that fired, and the throwing-knife test

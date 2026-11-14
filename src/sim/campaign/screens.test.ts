@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
+import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers, spreadAndPlace } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { advance } from '../advance.ts';
+import { InsertionCode } from '../strategic/forces/constants.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { CompressionStop, lockPauseState, pauseGame } from '../strategic/time/world-clock.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -216,18 +217,23 @@ describe('the speed a sector load from the map leaves (deviation "Speed on a sec
     },
   );
 
-  it('sets X1 and lifts the pause lock when the pre-battle panel loads the sector for the placement GUI (StrategicMap.cc EnterSector, V:Strategic/StrategicMap.c:1410-1412)', () => {
+  it('sets X1 and lifts the pause lock when the pre-battle panel loads the sector for the placement GUI, and the clock stands until Done (StrategicMap.cc EnterSector, V:Strategic/StrategicMap.c:1410-1412)', () => {
     const c = onTheMapWithA9Unloaded();
     expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toEqual({ ok: true });
     expect(c.dispatch({ type: 'stopTime' })).toEqual({ ok: true });
     lockPauseState(c.state.clock, LOCK_PAUSE_MERC_TALKING);
-    expect(c.sectors?.setCurrentWorldSector(A9, { autoPlacement: true })).toBe(true);
+    c.state.encounter.battleGroup = c.state.forces.squadGroupIds[0] ?? null;
+    for (const m of c.battle?.roster.all() ?? []) m.insertionCode = InsertionCode.NORTH;
+    expect(c.sectors?.setCurrentWorldSector(A9, { tacticalPlacement: true })).toBe(true);
     expect([c.state.flow, c.state.clock.mode, c.state.clock.paused, c.state.clock.pauseLocked]).toEqual([
       'tactical',
       CompressMode.X1,
       false,
       false,
     ]);
+    expect(c.state.battle.prompt?.kind).toBe('tacticalPlacement');
+    expect(worldSecondsOver(c, ONE_REAL_SECOND_OF_TICKS)).toBe(0);
+    spreadAndPlace(c);
     expect(worldSecondsOver(c, ONE_REAL_SECOND_OF_TICKS)).toBe(1);
   });
 });

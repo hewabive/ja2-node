@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
+import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers, spreadAndPlace } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
@@ -141,6 +141,7 @@ function scenario(drive: Driver, mode: RunMode): ScenarioResult {
     ['retreat', true],
   ]);
   expect(c.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'enterSector' })).toMatchObject({ ok: true });
+  spreadAndPlace(c);
   expect(teamMembers(c.tactical?.state ?? never(), Team.ENEMY)).toHaveLength(2);
   fight(c, drive);
   const t = c.tactical?.state ?? never();

@@ -368,6 +368,29 @@ export interface MeanwhilePromptView {
   readonly choices: readonly string[];
 }
 
+export type PlacementSide = 'north' | 'east' | 'south' | 'west';
+
+export type PlacementButtonName = 'done' | 'spread' | 'group' | 'clear';
+
+export interface PlacementMercView {
+  readonly soldier: number;
+  readonly side: PlacementSide | null;
+  readonly group: number;
+  readonly placed: boolean;
+  readonly gridNo?: number;
+}
+
+export interface TacticalPlacementPromptView {
+  readonly id: string;
+  readonly kind: 'tacticalPlacement';
+  readonly sector: string;
+  readonly button: PlacementButtonName;
+  readonly mercs: readonly PlacementMercView[];
+  readonly edgepoints: Readonly<Partial<Record<PlacementSide, readonly number[]>>>;
+  readonly everyonePlaced: boolean;
+  readonly choices: readonly string[];
+}
+
 export interface MeanwhileSceneView {
   readonly seq: number;
   readonly scene: string;
@@ -525,6 +548,7 @@ export type PromptView =
       readonly choices: readonly string[];
     }
   | MeanwhilePromptView
+  | TacticalPlacementPromptView
   | {
       readonly id: string;
       readonly kind: 'militiaPayment';

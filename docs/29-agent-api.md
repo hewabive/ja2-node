@@ -55,8 +55,6 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows it disabled): the placement GUI (gaps "Tactical placement").
-
 ## 3. Fairness: what the agent never sees
 
 The agent sees what the player's screen would show (D16, `04` §5.3): a view block or field exists only while an
@@ -98,7 +96,8 @@ acting; an open prompt (`observe.prompt`, which in the sandbox too holds the loa
 `observe.contractPrompt`, `observe.npcRequest`); a conversation waiting for a
 choice, also one an NPC opened (`initiatedBy: npc`, deviation "Conversation prompt"); an open shop; the question a won
 battle asks about auto-bandage once its lines are over (`beginAutoBandage`, §8.3) and its look for someone else in the
-sector (`someoneElseInSector`, §8.10); the box of a meanwhile scene seen before (`meanwhile`, §8.14); `advance {idle}`
+sector (`someoneElseInSector`, §8.10); the box of a meanwhile scene seen before (`meanwhile`, §8.14); the placement of
+a pre-battle Go to sector (`tacticalPlacement`, §8.10), which takes answers until `done` closes it; `advance {idle}`
 runs on until they open. A running `advance`
 stops with `decision` when one arises, and the real-time driver holds without running ticks; a new `advance` answers
 `decision` at once while a prompt is open and is refused while a conversation waits or a shop is open. Prompts are
@@ -932,6 +931,29 @@ before the panel of an arrival comes as the event's `notice`: `bloodcatAmbush`, 
 `showBattle` opens the non-persistent panel where the original calls `InitPreBattleInterface(0, false)` (a click on the
 battle sector while the locator is on, a compression attempt during a tactical battle), with its side effects;
 `autoresolveBattle` skips the panel (deviation "Non-persistent pre-battle interface").
+
+**Tactical placement.** `enterSector` from the persistent panel of our group, unless the enemy ambushed it or creatures
+or bloodcats attack, loads the sector with the `tacticalPlacement` prompt open where the original opens its placement
+GUI (`Strategic/PreBattle_Interface.cc:1007-1013`, `Strategic/StrategicMap.cc:892-896`;
+`src/sim/campaign/tactical-placement.ts`, the view `src/server/placement-view.ts`). The flow is tactical and the rest
+of the load has run, but the sector waits with the clock: enemies, militia, civilians and the mercs themselves are
+added only by `done`, which then selects and names the merc the entry locates (`placementDone {sector, located}`). The
+prompt lists the mercs the original's GUI lists (`mercs`: `soldier`, `side`, `group`, `placed` and the `gridNo` of his
+piece), the primary edge points of their sides by gridNo (`edgepoints`), `everyonePlaced`, and `button`: the GUI's
+default button, which a save keeps (`battle.placementButton`; a native import reads `gubDefaultButton`) and the next
+placement opens with: `spread` spreads everyone at once, `group` opens with the group button down, `clear`, a new
+game's, with nobody placed. The answers are its buttons and its click on the overhead map:
+- `place {soldier, gridNo}` puts the merc on the edge point of his side closest to the tile (within 10 tiles, 30
+  underground), and under the group button every merc of his group, or none of them; the strip of the map the cursor
+  allows is the client's (`30`). Refused with `placementInvalid` for a merc whose `side` is null and with
+  `placementInaccessible` when no edge point is near, the original's two boxes; the latter still writes NOWHERE into
+  the insertion data of the merc (of the group's mercs found before the miss, their edge points), as the original does.
+- `spread` (a random edge point each, `Random` in list order), `group` (toggles the group button; nobody moves),
+  `clear` (everyone picked up).
+- `done`, refused with `placementIncomplete` until everyone is placed, as the original's Done button is disabled.
+
+The flag the original keeps for the next load when the sector is loaded already is not ported (gaps "Tactical
+placement").
 
 **Someone else in the sector.** Three seconds after a tactical battle is won, boxing included, in a wilderness sector
 whose profiled NPCs nobody has spoken with, the `someoneElseInSector` prompt (`ok`, the original's OK box) opens; while

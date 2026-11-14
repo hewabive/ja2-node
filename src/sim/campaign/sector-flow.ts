@@ -49,7 +49,10 @@
 // @src own records, 2026-11-09); StrategicMap.cc GetMapFileName (the
 // @src palace's meanwhile map while AreInMeanwhile, 2026-11-09); PrepareLoadedSector (no enemies in a meanwhile load but the
 // @src interrogation's), Tactical_Save.cc gfWasInMeanwhile (the scene map never saved), UpdateMercInSector (the insertion
-// @src code left on the soldier for SetSoldierGridNo to rewrite, 2026-11-09).
+// @src code left on the soldier for SetSoldierGridNo to rewrite, 2026-11-09); EnterSector (InitTacticalPlacementGUI in
+// @src place of PrepareLoadedSector while gfEnterTacticalPlacementGUI is set; the rest of SetCurrentWorldSector runs on),
+// @src TileEngine/Tactical_Placement_GUI.cc KillTacticalPlacementGUI (Done: the pieces picked up, PrepareLoadedSector, then
+// @src the game screen's TacticalScreenLocateToSoldier and EnterTacticalScreen once the overhead map is gone), 2026-11-14.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-files.ts';
@@ -65,7 +68,7 @@ import {
   sectorShortString,
 } from '../../content/strategic/sector-ids.ts';
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
-import { DIRECTION_COUNT } from '../../content/world/grid.ts';
+import { DIRECTION_COUNT, WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -99,9 +102,9 @@ import {
 import { mineIdForSector } from '../strategic/economy/mine-status.ts';
 import { areThereMinersInsideThisMine } from '../strategic/economy/mines.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
-import { PromptKind } from '../strategic/forces/battle-state.ts';
+import { nextPromptId, PlacementButton, type PlacementPiece, PromptKind } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
-import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/forces/groups.ts';
+import { countAllMilitiaInSector, getGroup, numHostilesInSector } from '../strategic/forces/groups.ts';
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
@@ -135,7 +138,7 @@ import { handleRottingCorpses } from '../tactical/crows.ts';
 import { loadDoorStatusArray, storedDoorStatuses, updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
 import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
-import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
+import { beginMapEdgepointSearch, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import { sharedWeaponsDropped } from '../tactical/equipment.ts';
 import { addMercToHeli } from '../tactical/helicopter-drop.ts';
 import {
@@ -247,6 +250,17 @@ import {
 } from './sector-exits.ts';
 import { addCorpsesToBloodcatLair } from './sector-loot.ts';
 import { lookForSomeoneElseInSectorLater } from './someone-else-in-sector.ts';
+import {
+  everyonePlaced,
+  PLACEMENT_CHOICES,
+  PlacementChoice,
+  type PlacementTable,
+  pickUpEveryPiece,
+  placedByThePlayer,
+  placeMercAt,
+  placeMercs,
+  placementPieces,
+} from './tactical-placement.ts';
 import { campaignTurnHooks, installCampaignPorts } from './turn-world.ts';
 import { loadedSectorVehicles } from './vehicle-boarding.ts';
 
@@ -263,6 +277,7 @@ export interface SectorSetup {
 
 type SectorEvent =
   | { readonly type: 'sectorUnloaded' | 'enemyPresence'; readonly sector: string }
+  | { readonly type: 'placementDone'; readonly sector: string; readonly located?: number }
   | {
       readonly type: 'sectorLoaded';
       readonly sector: string;
@@ -275,7 +290,7 @@ type SectorEvent =
 export const UnloadCode = { ABOUT_TO_LOAD_NEW_MAP: 0, ABOUT_TO_TRASH_WORLD: 1 } as const;
 
 export interface LoadOptions {
-  readonly autoPlacement?: boolean;
+  readonly tacticalPlacement?: boolean;
   readonly battleLocatorShown?: boolean;
 }
 
@@ -585,7 +600,7 @@ export class SectorFlow {
     this.#flow.crows.possible = CROWS_POSSIBLE_BASE + s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
     if (fromMap) setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
-    const located = this.#selectOnArrival();
+    const located = this.#placementOpen() ? null : this.#selectOnArrival();
     this.#event({
       type: 'sectorLoaded',
       sector: sectorShortString(sector),
@@ -807,9 +822,8 @@ export class SectorFlow {
     this.campaign.tactical = sim;
     handleHelicopterOnGround(this.ctx, true);
     this.#loadCurrentSectorsInformation(sector, diff);
-    if (options.autoPlacement) this.#chooseRandomEdgepoints(sector);
     if (s.flow === 'strategic') endMapScreenForSectorLoad(this.campaign);
-    this.prepareLoadedSector(options);
+    if (!options.tacticalPlacement || !this.#initTacticalPlacement()) this.prepareLoadedSector(options);
     initPanicSystem(sim.state);
     updateDoorGraphicsFromStatus(sim.state);
   }
@@ -947,16 +961,83 @@ export class SectorFlow {
     return getNumberOfEnemiesInSector(this.ctx, sector);
   }
 
-  #chooseRandomEdgepoints(sector: Sector): void {
+  #placementOpen(): boolean {
+    return this.campaign.state.battle.prompt?.kind === PromptKind.TACTICAL_PLACEMENT;
+  }
+
+  #placementTable(t: TacticalState, pieces: readonly PlacementPiece[]): PlacementTable {
+    const roster = this.setup.roster;
+    return { t, pieces, rolls: t.rng, underground: (this.world?.z ?? 0) > 0, merc: (id) => roster.get(id) ?? null };
+  }
+
+  #initTacticalPlacement(): boolean {
+    const s = this.campaign.state;
     const t = this.campaign.tactical?.state;
-    if (!t) return;
-    for (const m of this.setup.roster.all()) {
-      if (m.isVehicle || m.betweenSectors || !sameSector(m.sector, sector)) continue;
-      const g = chooseMapEdgepoint(t, m.insertionCode, t.rng);
-      if (g === -1) continue;
-      m.insertionCode = InsertionCode.GRIDNO;
-      m.soldier.insertionData = g;
+    const group = getGroup(this.ctx, s.encounter.battleGroup ?? -1);
+    if (!t || !group) return false;
+    const mercs = this.setup.roster.all().filter((m) => placedByThePlayer(m, group.sector));
+    const prompt = {
+      id: nextPromptId(s.battle, PromptKind.TACTICAL_PLACEMENT),
+      kind: PromptKind.TACTICAL_PLACEMENT,
+      pieces: placementPieces(mercs),
+    };
+    s.battle.prompt = prompt;
+    placeMercs(this.#placementTable(t, prompt.pieces), s.battle.placementButton);
+    return true;
+  }
+
+  answerTacticalPlacement(pieces: readonly PlacementPiece[], cmd: { readonly [key: string]: unknown }): CommandResult {
+    const t = this.campaign.tactical?.state;
+    if (!t) return refuse('mapNotLoaded', 'no sector is loaded');
+    const battle = this.campaign.state.battle;
+    const table = this.#placementTable(t, pieces);
+    switch (cmd.choice) {
+      case PlacementChoice.PLACE:
+        return this.#placeByThePlayer(table, cmd);
+      case PlacementChoice.SPREAD:
+        battle.placementButton = PlacementButton.SPREAD;
+        placeMercs(table, PlacementButton.SPREAD);
+        return { ok: true };
+      case PlacementChoice.GROUP:
+        battle.placementButton = battle.placementButton === PlacementButton.GROUP ? PlacementButton.CLEAR : PlacementButton.GROUP;
+        return { ok: true };
+      case PlacementChoice.CLEAR:
+        battle.placementButton = PlacementButton.CLEAR;
+        placeMercs(table, PlacementButton.CLEAR);
+        return { ok: true };
+      case PlacementChoice.DONE:
+        if (!everyonePlaced(pieces)) return refuse('placementIncomplete', 'every merc must be placed first');
+        this.#killTacticalPlacement(table);
+        return { ok: true };
+      default:
+        return refuse('badChoice', `choose one of ${PLACEMENT_CHOICES.join(', ')}`);
     }
+  }
+
+  #placeByThePlayer(table: PlacementTable, cmd: { readonly [key: string]: unknown }): CommandResult {
+    const piece = table.pieces.find((p) => p.soldier === cmd.soldier);
+    if (!piece) return refuse('notPlacing', 'soldier must be one of the mercs being placed');
+    const gridNo = cmd.gridNo;
+    if (typeof gridNo !== 'number' || !Number.isInteger(gridNo) || gridNo < 0 || gridNo >= WORLD_MAX)
+      return refuse('badGridNo', `gridNo must be an integer from 0 to ${WORLD_MAX - 1}`);
+    const outcome = placeMercAt(table, this.campaign.state.battle.placementButton, piece, gridNo);
+    if (outcome === 'invalidLocation') return refuse('placementInvalid', 'he enters from no map edge');
+    if (outcome === 'inaccessible') return refuse('placementInaccessible', 'no edge point of his side is near that spot');
+    return { ok: true };
+  }
+
+  #killTacticalPlacement(table: PlacementTable): void {
+    const battle = this.campaign.state.battle;
+    pickUpEveryPiece(table);
+    battle.prompt = null;
+    this.prepareLoadedSector({ battleLocatorShown: battle.locator });
+    const located = this.#selectOnArrival();
+    const world = this.world;
+    this.#event({
+      type: 'placementDone',
+      sector: world ? sectorShortString(world) : '',
+      ...(located !== null ? { located } : {}),
+    });
   }
 
   prepareLoadedSector(options: LoadOptions = {}): void {
