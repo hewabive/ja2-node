@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
@@ -16,6 +17,8 @@ import { soldierTakeDamage } from './hit.ts';
 import { DamageReason } from './types.ts';
 
 let content: TacticalContent;
+
+const MERC_PROFILE = 5;
 
 beforeAll(async () => {
   content = await loadTestContent();
@@ -74,6 +77,20 @@ describe('bleeding at turn start', () => {
     expect(s.lifeMax).toBe(79);
     expect(s.life).toBe(9);
     expect(s.bleeding).toBe(70);
+  });
+
+  it("takes that point off his profile's maximum life, life and life delta", () => {
+    const sim = newCombatSim(content);
+    sim.state.inCombat = true;
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 10, profile: MERC_PROFILE });
+    s.lifeMax = 80;
+    s.bleeding = 70;
+    s.nextBleed = 1;
+    const p = progressFor(MERC_PROFILE, { life: 10 });
+    p.stats.lifeMax = 80;
+    sim.state.profiles.set(MERC_PROFILE, p);
+    beginMercTurn(sim.state, s);
+    expect([p.stats.lifeMax, p.life, p.deltas.lifeMax]).toEqual([79, 9, -1]);
   });
 });
 

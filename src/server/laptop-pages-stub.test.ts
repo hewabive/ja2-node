@@ -113,6 +113,17 @@ describe('the laptop view for Personnel, History, Files, insurance and the flori
     expect(departed[0]).toMatchObject({ nickname: p.nickname ?? expect.any(String), life: p.life, record: { battlesFought: 0 } });
   });
 
+  it("shows the profile's stat deltas beside the stats, not the sub-points gained towards the next point", async () => {
+    const game = await newGame(206);
+    const { profile, soldier } = hire(game, 7);
+    const p = game.session.campaign.state.profiles.get(profile);
+    if (!p) throw new Error('the hired merc has no profile');
+    Object.assign(p.deltas, { lifeMax: -2, agility: -3, wisdom: 4 });
+    Object.assign(p.gains, { agility: 20, dexterity: 30 });
+    const merc = laptopOf(game.session).personnel.current.find((m) => m.soldier === soldier);
+    expect(merc?.deltas).toMatchObject({ health: -2, agility: -3, wisdom: 4, dexterity: 0 });
+  });
+
   it('gives each insurance card the dead flag, the contract length and the nickname', async () => {
     const game = await newGame(204);
     const { profile, soldier } = hire(game, 7);

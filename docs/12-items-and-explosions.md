@@ -248,6 +248,7 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 | In real time the crash and the hangover only shrink the breath regained, turn-based they cost breath; a gassed soldier who rested skips the drug term | `points.test.ts` "costs breath for the crash and the hangover only turn-based …", "skips the drug term …" |
 | Stacked adrenaline with many unused APs overflows the INT16 breath gain into a cost, which the breath factor overflows back into a gain: the breath fills | `points.test.ts` "fills the breath when stacked adrenaline overflows …" |
 | A drunk soldier trips in any move: swatting he falls from his crouch, crawling he collapses where he lies; a blinded drunk runner whose blind roll missed rolls again for the drink | `falls.test.ts` "trips a drunk merc in any stance …", "takes the blind fall first …" |
+| Larry's swap gives the soldier the other profile's stats plus its deltas, which `ChangeStat` has already added into those stats: a gain he made as that Larry counts twice once he is that Larry again (`Tactical/Soldier_Profile.cc:1015-1024`) | `src/sim/strategic/narrative/larry.test.ts` "adds the other profile's deltas onto its stats …" |
 
 The oracle's drug probes (`tools/oracle/README.md` "Drugs") check every drug and drink taken, with the booster's
 `PreRandom` draw and the lifetime count, and the courses over turn starts in real time and turn-based: the order inside

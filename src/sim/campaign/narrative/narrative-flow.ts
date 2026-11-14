@@ -55,7 +55,7 @@ import {
   hourlyQuestUpdate,
   type SlayContext,
 } from '../../strategic/narrative/hourly.ts';
-import { hourlyLarryUpdate, type LarryContext, swapLarrysProfileRecords } from '../../strategic/narrative/larry.ts';
+import { hourlyLarryUpdate, type LarryContext, statsAfterLarrysSwap, swapLarrysProfileRecords } from '../../strategic/narrative/larry.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import {
   decideOnAssassin,
@@ -543,7 +543,7 @@ export class NarrativeFlow {
     swapLarrysProfileRecords(this.state.narrative, from, to);
     const host = this.campaign.talk?.host;
     if (host) deleteSoldierFace(host, fromId);
-    m.swapProfile(toId, record, to.stats);
+    m.swapProfile(toId, record, statsAfterLarrysSwap(to));
   }
 
   slayDailyEvent(): void {

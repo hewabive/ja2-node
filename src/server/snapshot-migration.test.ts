@@ -4185,3 +4185,45 @@ describe("snapshot version 83 (soldiers named after their placements) migrates w
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const PROFILE_PROGRESS_KEYS = ['shotsHit', 'timesWounded', 'mercMercContractLength'];
+
+function withoutStatDeltas(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutStatDeltas(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutStatDeltas(v);
+  if (!PROFILE_PROGRESS_KEYS.every((key) => typeof out[key] === 'number')) return out;
+  const { deltas: _dropped, ...rest } = out;
+  return rest;
+}
+
+function versionEightyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutStatDeltas(value)]);
+  return { ...snapshot, version: 84, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 84 (profiles without stat deltas) migrates with every profile's deltas at zero, as a new game starts them", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await quietLandedCampaign(kit);
+    expect(campaign.campaign.state.profiles.size).toBeGreaterThan(0);
+    const current = snapshotSession(campaign);
+    const legacy = versionEightyFour(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"deltas"');
+    expect(JSON.stringify(legacy)).not.toContain('"deltas"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

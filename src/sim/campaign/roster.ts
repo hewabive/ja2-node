@@ -10,7 +10,7 @@ import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { carriedWeightPercentOf } from '../tactical/points.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
-import { type StatKey, StatKind } from '../tactical/profiles.ts';
+import { exportStatChangeToProfile, type StatKey, StatKind } from '../tactical/profiles.ts';
 import {
   effectiveAgility,
   effectiveDexterity,
@@ -654,7 +654,9 @@ export class Roster implements CrewPort {
 
   healStat(id: number, stat: keyof StatDamage, points: number): void {
     const merc = this.get(id);
-    if (merc) merc.soldier.stats[stat] += points;
+    if (!merc) return;
+    merc.soldier.stats[stat] += points;
+    exportStatChangeToProfile(this.#combat(), merc.soldier, stat, points);
   }
 
   opinion(profile: number, aboutProfile: number): number {

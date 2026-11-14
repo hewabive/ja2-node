@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../tests/support/autoresolve.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { createItem } from '../items/object.ts';
 import { createStrategicState } from '../strategic/state.ts';
@@ -120,5 +121,26 @@ describe("a doctor's bandage of a bleeding patient (Assignments.cc BandageBleedi
     const kit = createItem(content.items, content.items.byName.get('MEDICKIT')?.index ?? -1, KIT_STATUS);
     const used = r.dressWound(doctor.id, patient.id, kit, KIT_STATUS, KIT_STATUS);
     expect([used, patient.soldier.bleeding]).toEqual([KIT_POINTS_USED, BLEEDING_LEFT]);
+  });
+});
+
+describe("a doctor's healing of a damaged stat (Assignments.cc HealCharacters)", () => {
+  const MERC_PROFILE = 5;
+  const DAMAGED_AGILITY = 72;
+  const HEALED = 3;
+
+  it('writes the healed stat into the profile and adds the points to its delta', () => {
+    const strategic = createStrategicState();
+    const r = new Roster({ state: createRosterState(), content, combat: () => offMapCombatContext(strategic, content) });
+    const patient = merc(2);
+    r.add(patient);
+    patient.soldier.profile = MERC_PROFILE;
+    patient.soldier.stats.agility = DAMAGED_AGILITY;
+    const p = progressFor(MERC_PROFILE);
+    Object.assign(p.stats, { agility: DAMAGED_AGILITY });
+    Object.assign(p.deltas, { agility: -8 });
+    strategic.profiles.set(MERC_PROFILE, p);
+    r.healStat(patient.id, 'agility', HEALED);
+    expect([patient.soldier.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([75, 75, -5]);
   });
 });

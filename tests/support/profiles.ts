@@ -1,4 +1,4 @@
-import { noCampaignFields, noRelations, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
+import { noCampaignFields, noRelations, noStatDeltas, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
 
 const BASE_STAT = 50;
 
@@ -26,6 +26,7 @@ export function testProfile(id: number, overrides: Partial<ProfileProgress> = {}
     life: BASE_STAT,
     stats,
     gains: { ...stats },
+    deltas: noStatDeltas(),
     statChangeChances: [],
     statChangeSuccesses: [],
     kills: 0,

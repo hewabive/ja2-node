@@ -7,7 +7,15 @@ import { REPO_ROOT } from '../../../node/repo.ts';
 import type { SectorPosition } from '../state.ts';
 import { Fact } from './fact-ids.ts';
 import { createNarrativeState, fact } from './facts.ts';
-import { hourlyLarryUpdate, LARRY_BARS, LARRY_ITEMS, type LarryContext, type LarryOnTeam, swapLarrysProfileRecords } from './larry.ts';
+import {
+  hourlyLarryUpdate,
+  LARRY_BARS,
+  LARRY_ITEMS,
+  type LarryContext,
+  type LarryOnTeam,
+  statsAfterLarrysSwap,
+  swapLarrysProfileRecords,
+} from './larry.ts';
 import { Npc } from './npc-ids.ts';
 
 const table = JSON.parse(readFileSync(join(REPO_ROOT, 'data/tables/narrative.json'), 'utf8')) as {
@@ -135,5 +143,15 @@ describe('HourlyLarryUpdate', () => {
     expect(fact(n, Fact.LARRY_CHANGED)).toBe(true);
     swapLarrysProfileRecords(n, drunk, sober);
     expect(fact(n, Fact.LARRY_CHANGED)).toBe(false);
+  });
+});
+
+describe("the soldier's stats after Larry's swap (Soldier_Profile.cc SwapLarrysProfiles)", () => {
+  it("adds the other profile's deltas onto its stats, which ChangeStat already raised: a gain made as that Larry counts twice", () => {
+    const drunk = testProfile(Npc.LARRY_DRUNK);
+    Object.assign(drunk.stats, { dexterity: 56, marksmanship: 70 });
+    Object.assign(drunk.deltas, { dexterity: 1, marksmanship: -2 });
+    const stats = statsAfterLarrysSwap(drunk);
+    expect([stats.dexterity, stats.marksmanship, stats.wisdom]).toEqual([57, 68, drunk.stats.wisdom]);
   });
 });

@@ -907,7 +907,7 @@ export interface PersonnelMercView {
   readonly life: number;
   readonly lifeMax: number;
   readonly stats: LaptopStatsView;
-  readonly gains: LaptopStatsView;
+  readonly deltas: LaptopStatsView;
   readonly teamStats: readonly number[];
   readonly record: PersonnelRecordView;
   readonly skills: readonly [number, number];

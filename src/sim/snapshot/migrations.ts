@@ -2479,6 +2479,40 @@ function dropPlacementNames(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const GAINS_KEY = 'gains';
+const DELTAS_KEY = 'deltas';
+const STAT_KEYS_OF_A_PROFILE = [
+  'lifeMax',
+  'agility',
+  'dexterity',
+  'wisdom',
+  'medical',
+  'explosives',
+  'mechanical',
+  'marksmanship',
+  'experience',
+  'strength',
+  'leadership',
+];
+
+function noStatDeltas(): Json {
+  return Object.fromEntries(STAT_KEYS_OF_A_PROFILE.map((key) => [key, 0]));
+}
+
+function withStatDeltas(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withStatDeltas(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withStatDeltas(v);
+  return isProfileProgress(mapped) ? insertAfter(mapped, GAINS_KEY, DELTAS_KEY, noStatDeltas()) : mapped;
+}
+
+function addProfileStatDeltas(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withStatDeltas(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2564,5 +2598,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     81: dropMeanwhileSceneContexts,
     82: markPlayedMeanwhileScenes,
     83: dropPlacementNames,
+    84: addProfileStatDeltas,
   };
 }

@@ -3,9 +3,10 @@
 // @src src/game/Tactical/Campaign.cc StatChange, ProcessStatChange, ChangeStat, ProcessUpdateStats, SubpointsPerPoint,
 // @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
 // @src AgilityForEnemyMissingPlayer; ProcessUpdateStats's bInSector and HandleAnyStatChangesAfterAttack's FOR_EACH_IN_TEAM, a
-// @src helicopter passenger over the loaded sector's included (2026-11-08).
+// @src helicopter passenger over the loaded sector's included (2026-11-08); ChangeStat's delta of a merc on our team
+// @src (2026-11-14).
 
-import { idiv, u16 } from '../../../core/int.ts';
+import { i8, idiv, u16 } from '../../../core/int.ts';
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
 import { Body, inSector, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamInSector } from '../state.ts';
@@ -109,6 +110,7 @@ function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: numb
   if (!key || points === 0) return;
   const spp = subpointsPerPoint(stat, p.stats.experience);
   p.stats[key] += points;
+  p.deltas[key] = i8(p.deltas[key] + points);
   p.gains[key] %= spp;
   if (key === 'lifeMax') s.lifeMax = p.stats.lifeMax;
   else s.stats[key] = p.stats[key];

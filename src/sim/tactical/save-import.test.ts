@@ -4,7 +4,7 @@ import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosive
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
 import type { ObjectRecord } from '../../content/formats/object.ts';
-import type { MercProfile } from '../../content/formats/prof.ts';
+import type { MercProfile, ProfileStatGains } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SavedVehicle, SaveGame, StrategicEvent } from '../../content/formats/savegame.ts';
 import {
   NO_SAVED_EXPLOSIONS,
@@ -824,8 +824,33 @@ function importedCampaignWideState(save: SaveGame) {
   return strategic;
 }
 
+const NO_DELTAS: ProfileStatGains = {
+  expLevel: 0,
+  life: 0,
+  agility: 0,
+  dexterity: 0,
+  wisdom: 0,
+  marksmanship: 0,
+  medical: 0,
+  mechanical: 0,
+  explosives: 0,
+  leadership: 0,
+  strength: 0,
+};
+
 function savedProfile(p: MercProfile, nickname: string): SavedMercProfile {
-  return { ...p, nickname, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, checksum: 0 };
+  return {
+    ...p,
+    nickname,
+    kills: 0,
+    assists: 0,
+    shotsFired: 0,
+    shotsHit: 0,
+    battlesFought: 0,
+    timesWounded: 0,
+    deltas: NO_DELTAS,
+    checksum: 0,
+  };
 }
 
 describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Control.cc:615; EVENT_InitNewSoldierAnim, :897)', () => {

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc AdjustImpactByHitLocation, BulletImpact (the stat a critical hit costs and the head
-// @src hit it leaves unharmed, told for their lines, 2026-11-14).
+// @src hit it leaves unharmed, told for their lines, 2026-11-14; the stat and its delta written into the profile,
+// @src 2026-11-14).
 
 import { AmmoType, ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -10,6 +11,7 @@ import { i8, idiv, u32 } from '../../../core/int.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
+import { exportStatChangeToProfile } from '../profiles.ts';
 import { Body, numSkillTraits, SkillTrait, type Soldier } from '../soldier.ts';
 import { totalArmourProtection } from './armour.ts';
 import { type CombatContext, type ImpactMode, TACTICAL_IMPACT } from './context.ts';
@@ -187,6 +189,7 @@ function criticalStatLoss(t: CombatContext, target: Soldier, location: number, r
   if (points <= 0) return null;
   target.stats[stat] -= points;
   target.statDamage[stat] += points;
+  exportStatChangeToProfile(t, target, stat, -points);
   return { stat, points };
 }
 

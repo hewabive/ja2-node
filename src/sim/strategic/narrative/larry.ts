@@ -1,10 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Hourly_Update.cc HourlyLarryUpdate, LarryItems, BAR_TEMPTATION, LARRY_FALLS_OFF_WAGON (items and bars
-// @src checked against data/tables/narrative.json); Tactical/Soldier_Profile.cc SwapLarrysProfiles.
+// @src checked against data/tables/narrative.json); Tactical/Soldier_Profile.cc SwapLarrysProfiles (the soldier's stats
+// @src from the other profile's stats and deltas, 2026-11-14).
 
 import { i8 } from '../../../core/int.ts';
-import type { ProfileProgress } from '../../tactical/profiles.ts';
+import { type ProfileProgress, STAT_KEYS, type StatKey } from '../../tactical/profiles.ts';
 import type { SectorPosition } from '../state.ts';
 import { Fact } from './fact-ids.ts';
 import { type NarrativeState, setFactFalse, setFactTrue } from './facts.ts';
@@ -174,4 +175,9 @@ export function swapLarrysProfileRecords(n: NarrativeState, from: ProfileProgres
   copyInto(to.inventoryCount, from.inventoryCount);
   if (to.id === Npc.LARRY_DRUNK) setFactTrue(n, Fact.LARRY_CHANGED);
   else setFactFalse(n, Fact.LARRY_CHANGED);
+}
+
+export function statsAfterLarrysSwap(to: ProfileProgress): Record<StatKey, number> {
+  const entries = Object.values(STAT_KEYS).map((key) => [key, i8(to.stats[key] + to.deltas[key])]);
+  return Object.fromEntries(entries) as Record<StatKey, number>;
 }

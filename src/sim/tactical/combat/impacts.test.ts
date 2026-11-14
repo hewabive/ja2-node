@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
@@ -17,6 +18,7 @@ import type { TacticalSim } from '../tactical-sim.ts';
 import { bulletViews } from '../world-view.ts';
 import { handleItem, ItemHandle } from './attack.ts';
 import type { Bullet } from './bullets.ts';
+import { processUpdateStats } from './experience.ts';
 import { eventSoldierGotHit, tellCriticalHit } from './hit.ts';
 import { bulletImpact } from './impact.ts';
 import { AimShot, Special } from './types.ts';
@@ -345,6 +347,42 @@ function passedBothWindowRows(events: readonly SimEvent[], target: number): bool
 }
 
 const locatedAt = (events: readonly SimEvent[]) => events.flatMap((e) => (e.type === 'bulletLocated' ? [e] : []));
+
+describe('the stat a critical hit costs, in the profile (Weapons.cc BulletImpact; Campaign.cc ChangeStat)', () => {
+  const MERC_PROFILE = 5;
+  const ONE_POINT_OF_AGILITY = 50;
+
+  function mercWithProfile() {
+    const sim = newCombatSim(content);
+    const firer = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+    const merc = spawnSoldier(sim, 0, Team.OUR, BEYOND_MESSY_DEATH, Direction.NORTH, { profile: MERC_PROFILE });
+    const p = progressFor(MERC_PROFILE);
+    p.stats.agility = merc.stats.agility;
+    sim.state.profiles.set(MERC_PROFILE, p);
+    Object.assign(sim.state, { pre: new ScriptedStream([NO_FLUKE, CRITICAL_ROLL_OF_31, FIVE_POINTS]) });
+    return { sim, firer, merc, p };
+  }
+
+  it("keeps a merc's critical loss through his next gain in that stat: the profile's stat goes down with his, its delta too", () => {
+    const { sim, firer, merc, p } = mercWithProfile();
+    const impact = bulletImpact(sim.state, firer, merc, AimShot.LEGS, CRITS_OF_62_IN_THE_LEGS, 0, Special.NONE);
+    expect(impact.statLoss).toEqual({ stat: 'agility', points: 5 });
+    expect([merc.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([65, 65, -5]);
+    p.gains.agility = ONE_POINT_OF_AGILITY;
+    processUpdateStats(sim.state, merc);
+    expect([merc.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([66, 66, -4]);
+  });
+
+  it('writes no profile for a soldier without one', () => {
+    const { sim, firer, p } = mercWithProfile();
+    const nobody = spawnSoldier(sim, 1, Team.OUR, BEYOND_MESSY_DEATH + 2, Direction.NORTH);
+    expect(bulletImpact(sim.state, firer, nobody, AimShot.LEGS, CRITS_OF_62_IN_THE_LEGS, 0, Special.NONE).statLoss).toEqual({
+      stat: 'agility',
+      points: 5,
+    });
+    expect([nobody.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([65, 70, 0]);
+  });
+});
 
 describe('show misses at a window (Bullets.cc LocateBullet, LOS.cc MoveBullet)', () => {
   it("names the window our bullet passes first in combat, and only that one: fLocated is the bullet's", () => {

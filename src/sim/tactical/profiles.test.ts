@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { MercProfile } from '../../content/formats/prof.ts';
+import type { MercProfile, ProfileStatGains } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { parseStubProfiles, STUB_PROFILES_PATH } from '../../content/formats/stub-profiles.ts';
 import { progressFromProfile, progressFromSavedProfile } from './profiles.ts';
@@ -13,9 +13,22 @@ const KICKED_OUT_BODY = Body.REGMALE;
 const REVEALED_NAME = 'True Name';
 const SAVED_NOWHERE = 25601;
 const PRE_COMBAT_TILE = 9035;
+const NO_DELTAS: ProfileStatGains = {
+  expLevel: 0,
+  life: 0,
+  agility: 0,
+  dexterity: 0,
+  wisdom: 0,
+  marksmanship: 0,
+  medical: 0,
+  mechanical: 0,
+  explosives: 0,
+  leadership: 0,
+  strength: 0,
+};
 
 function savedProfile(p: MercProfile): SavedMercProfile {
-  return { ...p, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, checksum: 0 };
+  return { ...p, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, deltas: NO_DELTAS, checksum: 0 };
 }
 
 function profileWithLeftovers(): MercProfile {
@@ -49,6 +62,14 @@ describe('profile progress', () => {
     const revealed = { ...savedProfile(content), nickname: REVEALED_NAME };
     expect(progressFromSavedProfile(revealed, content).nickname).toBe(REVEALED_NAME);
     expect(progressFromSavedProfile(savedProfile(content), content).nickname).toBeUndefined();
+  });
+
+  it("takes a savegame profile's stat deltas, which a new game's profile starts at zero", () => {
+    const content = profileWithLeftovers();
+    const deltas = { ...NO_DELTAS, life: -2, agility: -3, expLevel: 1 };
+    const progress = progressFromSavedProfile({ ...savedProfile(content), deltas }, content);
+    expect([progress.deltas.lifeMax, progress.deltas.agility, progress.deltas.experience, progress.deltas.wisdom]).toEqual([-2, -3, 1, 0]);
+    expect(Object.values(progressFromProfile(content).deltas).every((delta) => delta === 0)).toBe(true);
   });
 
   it("reads a saved pre-combat tile of NOWHERE (GRIDSIZE + 1) as ours, so a neutral civilian's next combat records his tile", () => {

@@ -153,7 +153,7 @@ function mercView(flow: LaptopFlow, m: RosterMerc, p: ProfileProgress): Personne
     life: s.life,
     lifeMax: s.lifeMax,
     stats: statsView(p.stats),
-    gains: statsView(p.gains),
+    deltas: statsView(p.deltas),
     teamStats: teamStatsRow({ ...s.stats, lifeMax: s.lifeMax }),
     record: recordView(p),
     skills: [p.skillTrait, p.skillTrait2],

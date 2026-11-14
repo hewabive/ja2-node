@@ -4,12 +4,15 @@
 // @src presence fields), bMercStatus
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters; fUseProfileInsertionInfo and sGridNo,
 // @src which prof.dat holds as leftovers, cleared); Soldier_Profile.cc WhichBuddy; Soldier_Profile_Type.h BuddySlot;
-// @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1) in a saved sPreCombatGridNo (2026-11-06)
+// @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1) in a saved sPreCombatGridNo (2026-11-06); MERCPROFILESTRUCT's
+// @src stat deltas, a saved profile's included, and the export of a soldier's stat change to his profile that
+// @src Weapons.cc BulletImpact and Strategic/Assignments.cc HealCharacters make (2026-11-14)
 
-import type { MercProfile } from '../../content/formats/prof.ts';
+import type { MercProfile, ProfileStatGains } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { NOWHERE } from './soldier.ts';
+import { i8 } from '../../core/int.ts';
+import { NO_PROFILE, NOWHERE, type Soldier, type SoldierStats } from './soldier.ts';
 
 const STAT_CHANGE_COUNTERS = 12;
 const SAVED_NOWHERE = WORLD_MAX + 1;
@@ -119,6 +122,7 @@ export interface ProfileProgress extends NpcProfileFields {
   life: number;
   readonly stats: Record<StatKey, number>;
   readonly gains: Record<StatKey, number>;
+  readonly deltas: Record<StatKey, number>;
   readonly statChangeChances: number[];
   readonly statChangeSuccesses: number[];
   kills: number;
@@ -222,6 +226,38 @@ export function npcFieldsFromProfile(p: MercProfile | SavedMercProfile): NpcProf
   };
 }
 
+function statRecord(g: ProfileStatGains): Record<StatKey, number> {
+  return {
+    lifeMax: g.life,
+    agility: g.agility,
+    dexterity: g.dexterity,
+    wisdom: g.wisdom,
+    medical: g.medical,
+    explosives: g.explosives,
+    mechanical: g.mechanical,
+    marksmanship: g.marksmanship,
+    experience: g.expLevel,
+    strength: g.strength,
+    leadership: g.leadership,
+  };
+}
+
+export function noStatDeltas(): Record<StatKey, number> {
+  return {
+    lifeMax: 0,
+    agility: 0,
+    dexterity: 0,
+    wisdom: 0,
+    medical: 0,
+    explosives: 0,
+    mechanical: 0,
+    marksmanship: 0,
+    experience: 0,
+    strength: 0,
+    leadership: 0,
+  };
+}
+
 export function progressFromProfile(p: MercProfile, counters: SavedProfileCounters = NO_COUNTERS, saved = false): ProfileProgress {
   return {
     ...npcFieldsFromProfile(p),
@@ -261,19 +297,8 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
       strength: p.strength,
       leadership: p.leadership,
     },
-    gains: {
-      lifeMax: p.gains.life,
-      agility: p.gains.agility,
-      dexterity: p.gains.dexterity,
-      wisdom: p.gains.wisdom,
-      medical: p.gains.medical,
-      explosives: p.gains.explosives,
-      mechanical: p.gains.mechanical,
-      marksmanship: p.gains.marksmanship,
-      experience: p.gains.expLevel,
-      strength: p.gains.strength,
-      leadership: p.gains.leadership,
-    },
+    gains: statRecord(p.gains),
+    deltas: noStatDeltas(),
     statChangeChances: saved ? [...p.statChangeChances] : new Array<number>(STAT_CHANGE_COUNTERS).fill(0),
     statChangeSuccesses: saved ? [...p.statChangeSuccesses] : new Array<number>(STAT_CHANGE_COUNTERS).fill(0),
     kills: counters.kills,
@@ -326,6 +351,7 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
 
 export function progressFromSavedProfile(saved: SavedMercProfile, content: MercProfile | undefined): ProfileProgress {
   const progress = progressFromProfile(saved, saved, true);
+  Object.assign(progress.deltas, statRecord(saved.deltas));
   if (saved.nickname !== content?.nickname) progress.nickname = saved.nickname;
   if (saved.preCombatGridNo === SAVED_NOWHERE) progress.preCombatGridNo = NOWHERE;
   return progress;
@@ -506,4 +532,12 @@ export function profileProgress(t: ProfileSource, id: number): ProfileProgress |
   const created = progressFromProfile(p);
   t.profiles.set(id, created);
   return created;
+}
+
+export function exportStatChangeToProfile(t: ProfileSource, s: Soldier, stat: keyof SoldierStats, change: number): void {
+  if (s.profile === NO_PROFILE) return;
+  const p = profileProgress(t, s.profile);
+  if (!p) return;
+  p.stats[stat] = s.stats[stat];
+  p.deltas[stat] = i8(p.deltas[stat] + change);
 }

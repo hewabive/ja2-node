@@ -112,6 +112,16 @@ combat turns them into lost APs, morale and a stance change; the 5 s real-time t
 when the busy count reaches 0. AI morale is recomputed only when the AI decides, so suppression tolerance and the
 chance to hit read the value of the soldier's last decision.
 
+**What changes a soldier's stat also changes his profile.** `changeStat` copies the profile's stat into the soldier at
+every change (`combat/experience.ts`, `Tactical/Campaign.cc:577`), so the stat a critical hit costs and the doctor's
+healing of it go into the profile as well (`exportStatChangeToProfile`, `src/sim/tactical/profiles.ts`;
+`Tactical/Weapons.cc:2977-2978`, `Strategic/Assignments.cc:1567-1568`), and so does the point of maximum life a dying
+soldier bleeds away (`combat/bleeding.ts`, `Tactical/Soldier_Control.cc:7877`). Each moves the stat's delta
+(`ProfileProgress.deltas`, the original's `b*Delta`), as `changeStat` does for a merc on our team (`:566`); prof.dat holds
+zeros and a native save its own. The personnel page prints the deltas beside the stats (`Laptop/Personnel.cc:702-740`),
+and Larry's swap adds the other profile's onto its stats (`statsAfterLarrysSwap`, `src/sim/strategic/narrative/larry.ts`,
+`Tactical/Soldier_Profile.cc:1015-1024`).
+
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
 
 **A vehicle is hurt through its record in the vehicle list** (`25`). A soldier of a vehicle body never bleeds, falls or

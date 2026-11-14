@@ -99,6 +99,9 @@ function profileRecord(id: number, linux: boolean): Uint8Array {
   v.setInt8(405, 60);
   v.setInt8(352, 3);
   v.setUint16(310, id === PROFILE ? 12 : 0, true);
+  v.setInt8(298, id === PROFILE ? 1 : 0);
+  v.setInt8(300, id === PROFILE ? -3 : 0);
+  v.setInt8(308, id === PROFILE ? 2 : 0);
   v.setUint16(416, id === PROFILE ? 5 : 0, true);
   v.setUint8(377, id === PROFILE ? 1 : 0);
   v.setUint32(696, profileChecksum(decodeSavedProfile(id, plain, false)), true);
@@ -319,6 +322,7 @@ describe('parseSaveGame on a synthetic save', () => {
       expect(save.laptop.currentBalance).toBe(1234);
       expect(save.profiles).toHaveLength(170);
       expect(save.profiles[PROFILE]).toMatchObject({ nickname: 'Tester', kills: 12, life: 77, lifeMax: 80 });
+      expect(save.profiles[PROFILE]?.deltas).toMatchObject({ expLevel: 1, agility: -3, leadership: 2, strength: 0 });
       expect(save.soldiers).toHaveLength(1);
       const entry = save.soldiers[0];
       expect(entry?.mercPath).toEqual([SECTOR_INDEX]);

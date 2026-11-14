@@ -21,7 +21,7 @@ import {
 import { anim } from '../../src/sim/tactical/anim-states.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { NUM_INV_SLOTS } from '../../src/sim/tactical/inventory.ts';
-import { noCampaignFields, noRelations, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
+import { noCampaignFields, noRelations, noStatDeltas, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
 import { createSoldier, NOWHERE, type Soldier } from '../../src/sim/tactical/soldier.ts';
 
 type Json = Record<string, unknown>;
@@ -189,6 +189,7 @@ function progressFrom(p: Json): ProfileProgress {
     life: num(p.life),
     stats: record(stats),
     gains: record(gains),
+    deltas: noStatDeltas(),
     statChangeChances: ((p.statChangeChances as number[] | undefined) ?? []).map(Number),
     statChangeSuccesses: ((p.statChangeSuccesses as number[] | undefined) ?? []).map(Number),
     kills: num(p.kills),

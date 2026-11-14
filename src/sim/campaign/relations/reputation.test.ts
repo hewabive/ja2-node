@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noCampaignFields, noRelations, type ProfileProgress } from '../../tactical/profiles.ts';
+import { noCampaignFields, noRelations, noStatDeltas, type ProfileProgress } from '../../tactical/profiles.ts';
 import {
   calcDeathRate,
   mercThinksBadReputationTooHigh,
@@ -32,6 +32,7 @@ function profile(deathRate: number, reputationTolerance: number): ProfileProgres
     life: 80,
     stats,
     gains: { ...stats },
+    deltas: noStatDeltas(),
     statChangeChances: [],
     statChangeSuccesses: [],
     kills: 0,
