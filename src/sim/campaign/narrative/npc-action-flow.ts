@@ -59,6 +59,7 @@ import { WaitForMercs } from '../../tactical/state.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { numberOfMercsOnPlayerTeam } from '../laptop/hire.ts';
 import { MoraleEvent } from '../morale.ts';
+import { shownNickname } from '../profile-names.ts';
 import { addStructToUnloadedSector, removeStructFromUnloadedSector } from '../unloaded-map.ts';
 import { addNpcEventToday, addNpcEventTomorrow, medicalCostAt } from './quest-world.ts';
 import { RecruitFlow } from './recruit-flow.ts';
@@ -136,7 +137,7 @@ export class NpcActionFlow {
   requestView(): NpcRequestView | null {
     const prompt = this.#state.battle.prompt;
     if (prompt?.kind !== PromptKind.NPC_REQUEST) return null;
-    const name = this.#campaign.battle?.content.profiles[prompt.npc]?.nickname ?? String(prompt.npc);
+    const name = shownNickname(this.#campaign, prompt.npc) ?? String(prompt.npc);
     return {
       id: prompt.id,
       kind: PromptKind.NPC_REQUEST,

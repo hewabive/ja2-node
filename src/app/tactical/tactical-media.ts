@@ -29,6 +29,8 @@ export class TacticalMediaStore implements TacticalMedia {
   readonly #items = new Map<string, CatalogueItem>();
   readonly #itemsByIndex = new Map<number, CatalogueItem>();
   readonly #profiles = new Map<number, ProfilePresentation>();
+  readonly #renamed = new Map<number, ProfilePresentation>();
+  #nicknames: Readonly<Record<number, string>> = {};
   readonly #loading = new Set<string>();
   readonly #gaps = new Map<string, readonly AudioGap[] | null>();
 
@@ -49,6 +51,21 @@ export class TacticalMediaStore implements TacticalMedia {
   useProfiles(profiles: readonly ProfilePresentation[]): void {
     this.#profiles.clear();
     for (const p of profiles) this.#profiles.set(p.id, p);
+    this.#rename();
+  }
+
+  useNicknames(nicknames: Readonly<Record<number, string>> = {}): void {
+    if (nicknames === this.#nicknames) return;
+    this.#nicknames = nicknames;
+    this.#rename();
+  }
+
+  #rename(): void {
+    this.#renamed.clear();
+    for (const [id, nickname] of Object.entries(this.#nicknames)) {
+      const p = this.#profiles.get(Number(id));
+      if (p) this.#renamed.set(p.id, { ...p, nickname });
+    }
   }
 
   image(path: string): boolean {
@@ -71,7 +88,7 @@ export class TacticalMediaStore implements TacticalMedia {
   }
 
   profile(id: number): ProfilePresentation | null {
-    return this.#profiles.get(id) ?? null;
+    return this.#renamed.get(id) ?? this.#profiles.get(id) ?? null;
   }
 
   item(name: string): CatalogueItem | null {

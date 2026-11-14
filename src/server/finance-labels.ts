@@ -7,6 +7,7 @@ import { sectorFromId } from '../content/strategic/sector-ids.ts';
 import { type UiStrings, uiString } from '../content/text/strings.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
+import { shownNickname } from '../sim/campaign/profile-names.ts';
 import { sectorIdString } from './sector-id-label.ts';
 
 const TRANSACTION_TABLE = 'pTransactionText';
@@ -50,7 +51,7 @@ function filled(template: string, value: string): string {
 }
 
 function nickname(campaign: CampaignSim, profile: number): string {
-  return campaign.laptop?.profileRecord(profile)?.nickname ?? campaign.battle?.content.profiles[profile]?.nickname ?? '';
+  return shownNickname(campaign, profile) ?? '';
 }
 
 export function sectorIdLabel(campaign: CampaignSim, labels: UiStrings, sectorByte: number): string {

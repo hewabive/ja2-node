@@ -1063,6 +1063,7 @@ export interface PlayerView {
   readonly ended?: CampaignEndedView | null;
   readonly boxing?: BoxingView | null;
   readonly autoBandage?: AutoBandageView | null;
+  readonly nicknames?: Readonly<Record<number, string>>;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly openContainers?: readonly number[];
@@ -1116,6 +1117,7 @@ export interface ViewFrame {
   readonly ended?: CampaignEndedView | null;
   readonly boxing?: BoxingView | null;
   readonly autoBandage?: AutoBandageView | null;
+  readonly nicknames?: Readonly<Record<number, string>>;
   readonly openDoors?: readonly number[];
   readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -1324,6 +1326,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), boxing: next.boxing ?? null };
   if (!sameJson(previous.autoBandage ?? null, next.autoBandage ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoBandage: next.autoBandage ?? null };
+  if (!sameJson(previous.nicknames ?? {}, next.nicknames ?? {}))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), nicknames: next.nicknames ?? {} };
   if (next.music && !sameMusic(previous.music, next.music))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), music: next.music };
   return frame;

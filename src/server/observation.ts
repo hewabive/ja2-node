@@ -25,6 +25,7 @@ const EVERY_FIELD: Record<ObservationField, true> = {
   ended: true,
   boxing: true,
   autoBandage: true,
+  nicknames: true,
   soldiers: true,
   openDoors: true,
   openContainers: true,

@@ -11,6 +11,7 @@ import { type UiStrings, uiString } from '../content/text/strings.ts';
 import type { LaptopHistoryView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { HistoryRecord } from '../sim/campaign/laptop/laptop-state.ts';
+import { shownNickname } from '../sim/campaign/profile-names.ts';
 import { QuestStatus, questStatus } from '../sim/strategic/narrative/facts.ts';
 import type { TextSource } from './campaign-session.ts';
 import { sectorIdString } from './sector-id-label.ts';
@@ -213,7 +214,7 @@ function profileName(campaign: CampaignSim, profile: number): string {
 }
 
 function profileNickname(campaign: CampaignSim, profile: number): string {
-  return campaign.laptop?.profileRecord(profile)?.nickname ?? campaign.battle?.content.profiles[profile]?.nickname ?? '';
+  return shownNickname(campaign, profile) ?? '';
 }
 
 export function historyRowText(campaign: CampaignSim, text: HistoryText, h: HistoryRecord): string {

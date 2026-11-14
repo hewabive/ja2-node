@@ -20,6 +20,7 @@ import type { InstallationSettings } from '../sim/campaign/installation.ts';
 import { isImpSlotType } from '../sim/campaign/laptop/imp.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
+import { nicknameOverrides, shownNickname } from '../sim/campaign/profile-names.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -281,10 +282,9 @@ export class CampaignSession implements SessionSim {
   messageFacts(): MessageFacts {
     const c = this.campaign;
     const soldierOf = (id: number) => c.tactical?.state.soldiers[id] ?? c.battle?.roster.get(id)?.soldier ?? null;
-    const profiles = c.battle?.content.profiles ?? [];
     return {
       ...tacticalMessageFacts(c.tactical, soldierOf),
-      profileName: (profile) => profiles[profile]?.nickname ?? null,
+      profileName: (profile) => shownNickname(c, profile),
     };
   }
 
@@ -311,6 +311,11 @@ export class CampaignSession implements SessionSim {
     return { boxing: { state: boxingStateName(b.state) as BoxingView['state'], boxers, uiLocked: b.uiLocked } };
   }
 
+  #nicknames(): { nicknames?: Readonly<Record<number, string>> } {
+    const nicknames = nicknameOverrides(this.campaign);
+    return Object.keys(nicknames).length > 0 ? { nicknames } : {};
+  }
+
   view(): PlayerView {
     const clock = clockView(this.campaign);
     const strategic = strategicView(this.campaign);
@@ -323,7 +328,7 @@ export class CampaignSession implements SessionSim {
       : {};
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
     const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign, { texts: this.texts, labels: this.#labels }) } : {};
-    const talk = { ...this.#conversation(), ...this.#boxing() };
+    const talk = { ...this.#conversation(), ...this.#boxing(), ...this.#nicknames() };
     const story = this.#story();
     const extra = strategic
       ? { clock, strategic, ...battle, ...shop, ...laptop, ...talk, ...story }

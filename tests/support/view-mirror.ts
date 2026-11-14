@@ -33,6 +33,7 @@ export function canonicalView(
     meanwhile: view.meanwhile ?? null,
     ended: view.ended ?? null,
     boxing: view.boxing ?? null,
+    nicknames: view.nicknames ?? {},
     openDoors: view.openDoors ?? [],
     openContainers: view.openContainers ?? [],
     doors: view.doors ?? [],

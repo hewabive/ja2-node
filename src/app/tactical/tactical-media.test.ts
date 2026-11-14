@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ProfilePresentation } from '../../content/narrative/profile-presentation.ts';
 import type { CatalogueItem, ItemCatalogue } from '../../protocol/items.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import { TacticalMediaStore } from './tactical-media.ts';
@@ -30,5 +31,23 @@ describe('the item media of the map and tactical hosts', () => {
     const store = new TacticalMediaStore(assets, catalogue, [], false);
     await store.preload(store.smallItemPictures());
     expect(loaded).toEqual(['interface/mdguns.sti', 'interface/mdp1items.sti']);
+  });
+});
+
+describe('the profile names of the map and tactical hosts', () => {
+  it('shows the nickname the view renames a profile to, as every screen reads the overwritten zNickname (NPC_ACTION_TERRORIST_REVEALS_SELF)', () => {
+    const profile = (id: number, nickname: string) => ({ id, name: `${nickname} Full`, nickname }) as unknown as ProfilePresentation;
+    const store = new TacticalMediaStore(
+      {} as UiAssets,
+      { items: [] } as unknown as ItemCatalogue,
+      [profile(1, 'Annie'), profile(2, 'Bob')],
+      false,
+    );
+    store.useNicknames({ 1: 'Annie Full' });
+    expect([store.profile(1)?.nickname, store.profile(2)?.nickname]).toEqual(['Annie Full', 'Bob']);
+    store.useProfiles([profile(1, 'Annie'), profile(2, 'Bob')]);
+    expect(store.profile(1)?.nickname).toBe('Annie Full');
+    store.useNicknames({});
+    expect(store.profile(1)?.nickname).toBe('Annie');
   });
 });

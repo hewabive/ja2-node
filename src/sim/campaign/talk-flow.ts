@@ -147,6 +147,7 @@ import { campaignMeanwhileActions } from './narrative/meanwhile-actions.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { NpcActionFlow, type NpcActionPorts } from './narrative/npc-action-flow.ts';
 import { medicalCostAt, primaryDelivery } from './narrative/quest-world.ts';
+import { shownNickname } from './profile-names.ts';
 import { MercKind, type RosterMerc } from './roster.ts';
 
 export const AP_TALK = 6;
@@ -1185,7 +1186,7 @@ export class TalkFlow {
       profile,
       faceVariant: this.#faceVariant(profile),
       ...(drunkTalkFace(profile, this.host.profile(profile)?.npcData ?? 0) ? { drunk: true } : {}),
-      name: dest?.name ?? this.#setup.profiles[profile]?.nickname ?? String(profile),
+      name: dest?.name ?? shownNickname(this.#campaign, profile) ?? String(profile),
       talker: talkerSoldier(this.host)?.id ?? null,
       initiatedBy: this.talk.initiatedBy,
       menu: this.#menu(),

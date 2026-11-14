@@ -191,6 +191,7 @@ export class MapHost implements MapPort {
       gunNut,
       messages: () => session.messages,
     });
+    store.useNicknames(session.view?.nicknames);
     await store.preload(store.smallItemPictures());
     return store;
   }
@@ -280,6 +281,7 @@ export class MapHost implements MapPort {
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    this.#loaded?.media.useNicknames(this.#o.session.view?.nicknames);
     if (this.#unknownProfile()) void this.#refreshProfiles();
     if (!this.#screen) {
       this.#pendingAutoStart = autoStartOf(frames) ?? this.#pendingAutoStart;

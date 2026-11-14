@@ -63,6 +63,11 @@ on the target tile whom the player sees as the click's target; an NPC who wins r
 owners are the profiles' room ranges: `prof.dat`'s, or `ownedRooms` in `stubs/profiles.json`, where Lena Castell (the
 dealer at Arnie's id) owns A10's room 1.
 
+**A renamed profile.** Action 26 writes the terrorist's full name into `ProfileProgress.nickname`, which a soldier
+created later takes; the content profile keeps its nickname. `shownNickname` (`campaign/profile-names.ts`) gives every
+server text and agent view the name the original's overwritten `zNickname` shows, and the view's `nicknames` map
+renames the browser's faces (`29`).
+
 **Requestors are prompts.** Where the original opens a yes/no box, ja2-node opens an `npcRequest` prompt in the
 campaign's prompt slot, inside or outside a talk session, answered with `answer`; the amount shown is computed when it
 opens and the open request is saved with the campaign (deviation "NPC requestors"). Requestor quirks: `24`.
@@ -213,4 +218,4 @@ every profile's sector. Inferred from reading the source:
   no-op; ja2-node only sets the fact.
 
 Deviations of this domain:
-"Terrorist names", "Interface lock per source", "Team change during a hit", "Ownership check timer".
+"Interface lock per source", "Team change during a hit", "Ownership check timer".

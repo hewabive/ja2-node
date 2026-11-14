@@ -286,7 +286,9 @@ export class TacticalHost {
       fetchProfiles(this.#o.session.session ?? ''),
       this.#o.gunNut().catch(() => false),
     ]);
-    return new TacticalMediaStore(this.#o.ui.assets, catalogue, profiles, gunNut);
+    const store = new TacticalMediaStore(this.#o.ui.assets, catalogue, profiles, gunNut);
+    store.useNicknames(this.#o.session.view?.nicknames);
+    return store;
   }
 
   async #preloadMedia(
@@ -480,6 +482,7 @@ export class TacticalHost {
   }
 
   received(frames: readonly ViewFrame[]): void {
+    this.#loaded?.media.useNicknames(this.#o.session.view?.nicknames);
     for (const frame of frames) this.#frames?.observe(frame.events ?? []);
     this.#loaded?.presenter.observeEffects(frames.flatMap((f) => f.effects ?? []));
   }
