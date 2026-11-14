@@ -166,7 +166,9 @@ as the oracle build does (deviation "Quest 100 and 200 in records").
 it again), the civilian hint drop, the hostile-quote speaker, the guide's countdown, a team change's creation draws
 (deviations "Soldier creation draws", "Cosmetic face and frame draws", "Pathfinder RNG"). Choices that are only
 presentation (a civilian's line, the merc who answers Miguel, an own merc's bark, the guide who speaks) use the
-session's cosmetic stream `TalkState.fx` (deviation "Cosmetic draws in dialogue").
+session's cosmetic stream `TalkState.fx` (deviation "Cosmetic draws in dialogue"), and so do the one in fifty for the
+quote a nameless soldier in sight says as the AI attacks and the quarter roll for a merc's experience line (deviation
+"Cosmetic draws in attacks").
 
 **Saving.** ja2-node refuses a save while a conversation is open or, outside tactical, the queue is busy (`27`), and
 keeps the whole talk state in its saves. A player load then empties the queue and ends the talking face, as
@@ -201,6 +203,7 @@ otherwise:
 | The robot's old magazine that does not fit the merc's pockets is lost: code 756 ignores the failed placement | `tactical/robot-reload.test.ts` |
 | A civilian hint starts its quest on every ask while unsaid, also when a kid is asked | `civ-quotes.test.ts` |
 | L12's civilians read the miners' hint records: the sector table's L12 entry is the miners' index | `civ-quotes.test.ts` |
+| An enemy about to throw a knife says the line of his rank, not the threat: `DetermineCivQuoteEntry` tests `AI_ACTION_FIRE_GUN` twice and the knife throw never (`Tactical/Civ_Quotes.cc:405-406`) | `civ-quotes.test.ts` "gives an enemy about to throw a knife …"; `src/server/civ-stub.test.ts` |
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |
 | NPC requests run only for the panel's NPC (the lie and marriage boxes aside), the lie goes to the wisest merc, Willis's free care zeroes Vince's balance | `tactical/narrative/npc-actions/requestors.test.ts` |
 | A merc woken for his line sleeps again only after every event queued before his line ended: the sleep event goes to the back of the queue | `dialogue-queue.test.ts` |

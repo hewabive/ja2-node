@@ -17,7 +17,7 @@
 // @src (RebuildCurrentSquad as the menu closes after its "remove escort" in tactical, 2026-11-08); Handle_UI.cc
 // @src HandleTalkInit's NO_LOS_TO_TALK_TARGET, STR_LATE_45 and STR_LATE_21 naming the merc and the target (2026-11-14);
 // @src HandleTalkInit's STR_LATE_32 naming Dimitri on our team (2026-11-14); Campaign.cc ChangeStat's stat line and
-// @src QUOTE_EXPERIENCE_GAIN through the dialogue queue (2026-11-14).
+// @src QUOTE_EXPERIENCE_GAIN through the dialogue queue (2026-11-14); AIMain.cc ExecuteAction's StartCivQuote (2026-11-14).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -671,6 +671,9 @@ export class TalkFlow {
       mercSeesProfile: (merc, profile) => this.#mercSeesProfile(merc, profile),
       beginCivQuote: (s, quote, entry) => {
         beginCivQuote(host, s, quote, entry);
+      },
+      startCivQuote: (s) => {
+        startCivQuote(host, s);
       },
       offerSurrender: (s) => this.#offerSurrender(s),
       pcsNearNpc: (profile) => pcsNearNpc(host, profile),

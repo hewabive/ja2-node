@@ -9,7 +9,8 @@
 // @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle (with PCs under AI control); creature/crow
 // @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI;
 // @src auto-bandage (2026-11-06): HandleSoldierAI letting our mercs through, RTPlayerDecideAction, ExecuteAction
-// @src AI_ACTION_GIVE_AID, ExecuteOverhead's AI for every slot.
+// @src AI_ACTION_GIVE_AID, ExecuteOverhead's AI for every slot; ExecuteAction's StartCivQuote before an attack, its
+// @src Random(50) on the talk session's cosmetic stream (deviation "Cosmetic draws in attacks", 2026-11-14).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach, isTraversalQuoteAction, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
@@ -45,7 +46,19 @@ import { AP, deductPoints, enoughPoints, estimateActionPointCost } from '../poin
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
-import { AlertStatus, Attitude, Body, CivilianGroup, isMechanical, isTank, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import {
+  AlertStatus,
+  Attitude,
+  Body,
+  CivilianGroup,
+  isMechanical,
+  isTank,
+  NO_PROFILE,
+  OKLIFE,
+  type Soldier,
+  Team,
+  Visible,
+} from '../soldier.ts';
 import { RESET_AWAY_AI_CURSOR, type TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt, displayHiddenTurnbased } from '../turns/turns.ts';
 import {
@@ -89,6 +102,7 @@ const CLOSE_ENOUGH_TILES = 4;
 const NPC_ARRIVAL_WAIT_MS = 500;
 const DONE_TRAVERSAL_WAIT_MS = 100;
 const GIVE_AID_LEVEL = 0;
+const CIV_QUOTE_BEFORE_ATTACK_ODDS = 50;
 const QUOTE_TRIGGER_SPEAKERS: readonly number[] = [Npc.SERGEANT, Npc.MIKE, Npc.JOE];
 
 export interface AiControl {
@@ -382,6 +396,14 @@ function executeDoorAction(t: TacticalState, s: Soldier): void {
   interactWithDoorAt(t, s, doorGridNo, direction);
 }
 
+function maySayCivQuoteBeforeAttack(s: Soldier): boolean {
+  return s.visible !== Visible.HIDDEN && s.team !== Team.MILITIA && isMercBody(s) && s.profile === NO_PROFILE;
+}
+
+function sayCivQuoteBeforeAttack(t: TacticalState, s: Soldier): void {
+  if (maySayCivQuoteBeforeAttack(s) && t.narrative.cosmeticPick(CIV_QUOTE_BEFORE_ATTACK_ODDS) === 0) t.narrative.startCivQuote(s);
+}
+
 export function executeAction(t: TacticalState, s: Soldier): boolean {
   const ai = s.ai;
   t.turn.skipCoverCheck = false;
@@ -430,6 +452,7 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
     case AiAction.THROW_KNIFE: {
       if (ai.action === AiAction.TOSS_PROJECTILE) loadWeaponIfNeeded(t, s);
       if (ai.action === AiAction.KNIFE_MOVE) s.uiMovementMode = determineMovementMode(t, s, ai.action);
+      sayCivQuoteBeforeAttack(t, s);
       const result = t.turnHooks.aiHandleItem(t, s, ai.actionData, s.targetLevel);
       if (result !== ItemHandle.OK) {
         cancelAIAction(t, s);

@@ -25,7 +25,7 @@
 // @src (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04);
 // @src Dialogue_Control.cc SetStopTimeQuoteCallback with TacticalCharacterDialogue (sayStopTimeQuote, 2026-11-04);
 // @src Tactical/Campaign.cc ChangeStat (CharacterDialogueEventDisplayStatChange and QUOTE_EXPERIENCE_GAIN, sayStatChange,
-// @src 2026-11-14).
+// @src 2026-11-14); TacticalAI/AIMain.cc ExecuteAction's StartCivQuote before an attack (startCivQuote, 2026-11-14).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -96,6 +96,7 @@ export interface NarrativePort {
   firstSightingRecord(profile: number, record: number): boolean;
   mercSeesProfile(merc: Soldier, profile: number): void;
   beginCivQuote(s: Soldier, quote: number, entry: number): void;
+  startCivQuote(s: Soldier): void;
   offerSurrender(s: Soldier): boolean;
   pcsNearNpc(profile: number): void;
   pcDoesFirstAidOnNpc(profile: number): boolean;
@@ -182,6 +183,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   firstSightingRecord: () => false,
   mercSeesProfile: () => {},
   beginCivQuote: () => {},
+  startCivQuote: () => {},
   offerSurrender: () => false,
   pcsNearNpc: () => {},
   pcDoesFirstAidOnNpc: () => false,

@@ -2,13 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
+import { CivQuote } from '../content/narrative/npc-constants.ts';
 import { skipHelicopterDropOf } from '../sim/campaign/helicopter-drop-flow.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../sim/strategic/narrative/facts.ts';
 import { AiAction } from '../sim/tactical/ai/actions.ts';
 import { executeAction } from '../sim/tactical/ai/control.ts';
-import { type Soldier, Team } from '../sim/tactical/soldier.ts';
+import { ItemHandle } from '../sim/tactical/combat/types.ts';
+import { type Soldier, SoldierClass, Team, Visible } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
@@ -26,6 +28,8 @@ afterAll(async () => {
 
 const SURRENDER_LINES = 37;
 const POW = 32;
+const CIV_QUOTE_ODDS = 50;
+const ARMY_LINE_LIFE = 60;
 
 async function landedUnderFire(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session; enemy: Soldier }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -95,5 +99,24 @@ describe('the enemy surrender offer in a campaign', () => {
 
   it('captures every merc in the sector when the surrender is accepted and loses the battle, the same across reloads', async () => {
     await expectReloadsInvisible(acceptedSurrender);
+  });
+});
+
+describe('the civilian quote before an AI attack in a campaign (AIMain.cc ExecuteAction)', () => {
+  it('has a seen enemy who throws a knife say the line of his rank, on the one in fifty of the talk session', async () => {
+    const { session, enemy } = await landedUnderFire(3);
+    const t = session.campaign.tactical?.state;
+    const target = t ? teamMembers(t, Team.OUR)[0] : undefined;
+    if (!t || !target) throw new Error('no merc in the sector');
+    const picks: number[] = [];
+    t.narrative = { ...t.narrative, cosmeticPick: (n) => picks.push(n) && 0 };
+    t.turnHooks = { ...t.turnHooks, aiHandleItem: () => ItemHandle.OK };
+    Object.assign(enemy, { visible: Visible.SEEN, soldierClass: SoldierClass.ARMY, life: ARMY_LINE_LIFE });
+    enemy.ai.action = AiAction.THROW_KNIFE;
+    enemy.ai.actionData = target.gridNo;
+    executeAction(t, enemy);
+    const bark = session.drainEvents().find((e) => e.type === 'civQuote');
+    expect(picks[0]).toBe(CIV_QUOTE_ODDS);
+    expect(bark).toMatchObject({ soldier: enemy.id, quote: CivQuote.ENEMY_ADMIN });
   });
 });

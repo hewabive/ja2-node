@@ -46,6 +46,15 @@ describe('determineCivQuoteEntry', () => {
     expect(quoteOf(h, enemy)).toBe(CivQuote.ENEMY_ADMIN);
   });
 
+  it('gives an enemy about to throw a knife the line of his rank, not the threat: the original tests FIRE_GUN twice', () => {
+    const enemy = civilian({ bodyType: Body.REGMALE }, Team.ENEMY);
+    const h = host(enemy);
+    enemy.ai.action = AiAction.KNIFE_MOVE;
+    expect(quoteOf(h, enemy)).toBe(CivQuote.ENEMY_THREAT);
+    enemy.ai.action = AiAction.THROW_KNIFE;
+    expect(quoteOf(h, enemy)).toBe(CivQuote.ENEMY_ADMIN);
+  });
+
   it('gives the married woman of F10, the hicks and the goons their own lines before cowering', () => {
     const wife = civilian({ bodyType: Body.REGFEMALE });
     expect(quoteOf(host(wife, { sector: F10 }), wife)).toBe(CivQuote.PC_MARRIED);

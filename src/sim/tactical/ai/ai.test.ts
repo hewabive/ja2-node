@@ -19,7 +19,7 @@ import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { NOWHERE } from '../pathfinding.ts';
 import { AP } from '../points.ts';
-import { AlertStatus, Body, CivilianGroup, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, CivilianGroup, createSoldier, Orders, type Soldier, Team, Visible } from '../soldier.ts';
 import { createTacticalState, registerSoldier, setAutoBandageMode, type TacticalState, unregisterSoldier } from '../state.ts';
 import { AI_DELAY, AiAction, Situation } from './actions.ts';
 import {
@@ -613,5 +613,51 @@ describe('the soldiers a new situation spares (AIMain.cc HandleSoldierAI, SetNew
 
   it('cancels the action of anyone else', () => {
     expect(busyWithNewSituation(NO_QUOTE_RECORD, false).s.ai.action).not.toBe(AiAction.PENDING_ACTION);
+  });
+});
+
+describe("the civilian quote before an AI attack (AIMain.cc ExecuteAction's StartCivQuote)", () => {
+  const ATTACKS = [AiAction.FIRE_GUN, AiAction.THROW_KNIFE, AiAction.KNIFE_MOVE, AiAction.TOSS_PROJECTILE];
+
+  function attack(team: number, action: number, rolls: number[], setup: (s: Soldier) => void = () => {}) {
+    const { t } = world(3);
+    const s = spawn(t, team, gridNo(80, 80), Orders.STATIONARY);
+    s.visible = Visible.SEEN;
+    setup(s);
+    const picks: number[] = [];
+    const started: number[] = [];
+    t.narrative = {
+      ...t.narrative,
+      cosmeticPick: (n) => {
+        picks.push(n);
+        return rolls.shift() ?? n - 1;
+      },
+      startCivQuote: (civ) => {
+        started.push(civ.id);
+      },
+    };
+    s.ai.action = action;
+    s.ai.actionData = gridNo(80, 85);
+    executeAction(t, s);
+    return { s, picks, started };
+  }
+
+  it('has a seen nameless soldier start his quote on Random(50) == 0, drawn on the talk session, before he shoots, throws or stabs', () => {
+    for (const action of ATTACKS) {
+      const said = attack(Team.ENEMY, action, [0]);
+      expect([said.picks, said.started]).toEqual([[50], [said.s.id]]);
+      const silent = attack(Team.CIV, action, [1]);
+      expect([silent.picks, silent.started]).toEqual([[50], []]);
+    }
+  });
+
+  it('draws nothing for a soldier the squad does not see, the militia, a soldier with a profile or a body that is no person', () => {
+    const skipped = [
+      attack(Team.ENEMY, AiAction.FIRE_GUN, [0], (s) => Object.assign(s, { visible: Visible.HIDDEN })),
+      attack(Team.MILITIA, AiAction.FIRE_GUN, [0]),
+      attack(Team.CIV, AiAction.FIRE_GUN, [0], (s) => Object.assign(s, { profile: Npc.JOE })),
+      attack(Team.CREATURE, AiAction.FIRE_GUN, [0], (s) => Object.assign(s, { bodyType: Body.BLOODCAT })),
+    ];
+    expect(skipped.map((a) => [a.picks, a.started])).toEqual(skipped.map(() => [[], []]));
   });
 });

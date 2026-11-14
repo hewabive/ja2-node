@@ -64,9 +64,9 @@ change sets it; any `executeAction`, any `cancelAIAction` and a YELLOW turn star
 **Random numbers.** The deciders draw on `pre`. A chance test draws even when the chance is 0 or below, unless an
 earlier condition skips it. On `main`: the GoAsFar shuffle, the spread burst's coin, real-time delays and the
 new-situation delay. Attack evaluation, cover and damage estimates draw nothing, except the LAW owner's coin in
-`checkIfTossPossible` and the `PreRandom(3)` per heard target in `calcBestThrow`. Not drawn: the civilian quote before
-an attack (deviation "Cosmetic draws in attacks"), the bloodcat growl ("Cosmetic draws of creatures"), the pathfinder's
-skip list ("Pathfinder RNG").
+`checkIfTossPossible` and the `PreRandom(3)` per heard target in `calcBestThrow`. The one in fifty for the civilian quote
+before an attack draws on the talk session's cosmetic stream (deviation "Cosmetic draws in attacks"). Not drawn: the
+bloodcat growl ("Cosmetic draws of creatures"), the pathfinder's skip list ("Pathfinder RNG").
 
 **Search limits are arguments.** The original's `gubNPCAPBudget`, `gubNPCDistLimit` and `gubAIPathCosts` globals are
 arguments and a fresh result of `reachabilityFlood`, so nothing leaks between searches (deviation "AI path-cost cache").
