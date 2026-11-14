@@ -105,7 +105,7 @@ describe('an AI attack decided in real time (AIMain.cc NPCDoesAct, TeamTurns.cc 
     readonly type: string;
     readonly team?: number;
     readonly round?: number;
-    readonly soldier?: number;
+    readonly soldier?: number | undefined;
   }
 
   function turnEvents(events: readonly SimEvent[]): TurnEvent[] {

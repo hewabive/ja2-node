@@ -525,8 +525,8 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
     reduceAttackBusyCount(t, s, false);
   }
   const volume = gunfireVolume(t, s, d?.weapon?.attackVolume ?? 0, knife || law);
-  const shot = shownInSector(t, s) ? { target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
-  t.events.push({ type: 'shotFired', soldier: s.id, ...shot, ...shotSound(t, s, item) });
+  const shot = shownInSector(t, s) ? { soldier: s.id, target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
+  t.events.push({ type: 'shotFired', ...shot, ...shotSound(t, s, item) });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, i16(chance - roll), buckshot, false);
   if (knife) takeThrownKnife(t, s);
   const gun = s.inv[s.attackingHand] as ItemObject;

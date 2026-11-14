@@ -121,7 +121,8 @@ describe('an enemy shooting from the dark on his turn', () => {
     for (let tick = 0; tick < 50_000 && !(shot && sim.isIdle()); tick++) {
       sim.step();
       bulletsShown += bulletsShownToPlayer(t, () => 0).length;
-      if (sim.drainEvents().some((e) => e.type === 'shotFired' && e.soldier === shooter.id)) shot = true;
+      if (sim.drainEvents().some((e) => e.type === 'shotFired' && e.soldier === undefined && e.item === shooter.attackingWeapon))
+        shot = true;
       if (shot && shooter.visible === SEEN) shownAfterShot = true;
     }
     expect(shot).toBe(true);

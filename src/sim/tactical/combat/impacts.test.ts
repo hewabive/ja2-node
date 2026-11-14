@@ -122,6 +122,25 @@ describe('the sounds of a miss (Weapons.cc StructureHit, ShotMiss; Structure.cc 
     expect(events[struck]).toMatchObject({ soldier: 0, material: 12 });
     expect(events.findIndex((e) => e.type === 'bulletImpact')).toBeGreaterThan(struck);
   });
+
+  it('tells the shot and the miss of a shooter out of sight without naming him, the miss with his weapon for its sound (D16)', () => {
+    const wall = Array.from({ length: 9 }, (_, k) => gridNo(77 + k, 80));
+    const sim = newCombatSim(content, wall);
+    const shooter = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 70), Direction.SOUTH);
+    shooter.visible = -1;
+    sim.state.inCombat = true;
+    const gun = shooter.inv[InvSlot.HAND]?.item ?? 0;
+    expect(handleItem(sim.state, shooter, EMPTY_GROUND, 0, gun)).toBe(ItemHandle.OK);
+    const events: SimEvent[] = [];
+    for (let tick = 0; tick < 2000 && !events.some((e) => e.type === 'bulletImpact'); tick++) {
+      sim.step();
+      events.push(...sim.drainEvents());
+    }
+    const told = events.filter((e) => ['shotFired', 'structureStruck', 'bulletImpact', 'bulletStopped'].includes(e.type));
+    expect(told.map((e) => e.type)).toEqual(['shotFired', 'bulletStopped', 'structureStruck', 'bulletImpact']);
+    for (const e of told) expect(e).not.toHaveProperty('soldier');
+    expect(told).toMatchObject([{ item: gun }, { item: gun, material: 12 }, { material: 12 }, { item: gun }]);
+  });
 });
 
 describe('what a hit tells the player (Soldier_Control.cc EVENT_SoldierGotHit, InternalDoMercBattleSound)', () => {
@@ -195,10 +214,11 @@ describe('show misses at a window (Bullets.cc LocateBullet, LOS.cc MoveBullet)',
     expect(rowOf(locatedAt(events)[0]?.gridNo ?? 0)).toBe(WINDOW_ROWS[0]);
   });
 
-  it('follows the bullets of the friendly side, so militia ones too, never the enemy ones', () => {
+  it('follows the bullets of the friendly side, so militia ones too, never the enemy ones; an unseen shooter goes unnamed', () => {
     const militia = windowsAcrossTheLine(Team.MILITIA, true);
     militia.fly((b) => b.toDelete);
-    expect(locatedAt(militia.events)).toMatchObject([{ soldier: militia.shooter.id }]);
+    expect(locatedAt(militia.events)).toMatchObject([{ gridNo: expect.any(Number) }]);
+    expect(locatedAt(militia.events)[0]).not.toHaveProperty('soldier');
     const enemy = windowsAcrossTheLine(Team.ENEMY, true);
     enemy.fly((b) => b.toDelete);
     expect(passedBothWindowRows(enemy.events, enemy.target.id)).toBe(true);

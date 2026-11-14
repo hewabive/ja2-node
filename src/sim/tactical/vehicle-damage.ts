@@ -11,6 +11,7 @@ import { DamageReason } from './combat/types.ts';
 import { igniteExplosion } from './explosions/explosion.ts';
 import { isTank, OKLIFE, type Soldier, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
+import { shownId } from './unseen-sources.ts';
 
 const GUNFIRE_DIVISOR = 3;
 const BIG_EXPLOSION_DAMAGE = 50;
@@ -73,7 +74,8 @@ function handleCriticalHitForVehicleInLocation(
   lowerCondition(t, vs, damage);
   if (vs.life !== 0) return;
   v.destroyed = true;
-  t.events.push({ type: 'vehicleDestroyed', soldier: vs.id, vehicle: vid, killer: attacker?.id ?? null });
+  const killer = shownId(t, attacker);
+  t.events.push({ type: 'vehicleDestroyed', soldier: vs.id, vehicle: vid, ...(killer === undefined ? {} : { killer }) });
   igniteExplosion(t, attacker, WRECK_EXPLOSION_Z, gridNo, wreckExplosion(t), GROUND_LEVEL);
   checkForAndHandleSoldierDeath(t, vs);
   t.vehicleHooks.killAllInVehicle(v);

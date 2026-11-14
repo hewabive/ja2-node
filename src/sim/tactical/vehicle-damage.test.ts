@@ -134,6 +134,21 @@ describe('a destroyed vehicle (Vehicles.cc HandleCriticalHitForVehicleInLocation
     expect(t.corpses.map((c) => c.gridNo)).toEqual([VEHICLE_AT]);
   });
 
+  it('names neither the killer nor the owner of its wreck explosion when the squad does not see the attacker (D16)', () => {
+    const { sim, t } = fight();
+    const unseen = spawnSoldier(sim, 21, Team.CIV, ATTACKER_AT + 2, Direction.SOUTH);
+    unseen.visible = Visible.HIDDEN;
+    const tank = vehicle(t, Team.ENEMY, Body.TANK_NW);
+    eventSoldierGotHit(t, tank, itemId(t, 'GLOCK_17'), LIFE, 0, Direction.NORTH, 0, unseen, Special.NONE, AimShot.TORSO);
+    const told = t.events.filter((e) => ['vehicleDestroyed', 'explosion', 'soldierDied'].includes(e.type));
+    expect(told.map((e) => e.type)).toEqual(['vehicleDestroyed', 'explosion', 'soldierDied']);
+    expect(told).toMatchObject([{ soldier: tank.id }, { item: itemId(t, 'GREAT_BIG_EXPLOSION') }, { soldier: tank.id }]);
+    for (const e of told) {
+      expect(e).not.toHaveProperty('killer');
+      expect(e).not.toHaveProperty('owner');
+    }
+  });
+
   it('stays destroyed: our vehicle keeps its place in the list, and a second blow sets nothing off', () => {
     const { t, attacker } = fight();
     const hummer = vehicle(t, Team.OUR, Body.HUMVEE, 0);

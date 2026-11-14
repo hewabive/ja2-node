@@ -27,8 +27,8 @@ import { distanceVisible } from '../perception/sight.ts';
 import { validCreatureTurn } from '../person-structure.ts';
 import { apsToLook, minPtsToMove } from '../points.ts';
 import { SmellKind, smellStrength, smellType } from '../smell.ts';
-import { AlertStatus, Attitude, Body, isMonster, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier, shownToPlayer } from '../soldier.ts';
-import { type TacticalState, teamMembers } from '../state.ts';
+import { AlertStatus, Attitude, Body, isMonster, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier } from '../soldier.ts';
+import { shownInSector, type TacticalState, teamMembers } from '../state.ts';
 import { findGridNoFromSweetSpot } from '../sweet-spots.ts';
 import { heardOnly, loudestScream } from '../unseen-sources.ts';
 import { AiAction } from './actions.ts';
@@ -162,10 +162,10 @@ export function creatureCall(t: TacticalState, caller: Soldier): void {
   const full = fullCallPriority(caller);
   const call = CALL_NAMES[caller.ai.actionData];
   if (call) {
-    const where = shownToPlayer(caller)
-      ? {}
+    const where = shownInSector(t, caller)
+      ? { soldier: caller.id }
       : { unseen: { bodyType: caller.bodyType }, ...heardOnly(t, caller, loudestScream(t, caller), NoiseKind.SCREAM) };
-    t.events.push({ type: 'creatureCall', soldier: caller.id, call, ...where });
+    t.events.push({ type: 'creatureCall', call, ...where });
   }
   playCallAnimation(t, caller);
   for (const r of teamMembers(t, caller.team)) {

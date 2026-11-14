@@ -25,6 +25,7 @@ import { enterCombatMode } from '../turns/turns.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
 import { soldierDifficultyLevel } from './chance.ts';
 import { addCorpseStructure } from './death.ts';
+import { weaponHit } from './hit.ts';
 import {
   calcChanceToStab,
   eventSoldierBeginBladeAttack,
@@ -245,18 +246,29 @@ describe('the strike of a soldier the squad does not see (D16; the swoosh plays 
     return { landed: t.gameEvents.some((e) => e.kind === 'weaponHit'), told: t.events.filter((e) => e.type === 'meleeStrike') };
   }
 
+  function hitLanded(t: TacticalState, victim: Soldier, striker: Soldier): unknown[] {
+    const landed = t.gameEvents.find((e) => e.kind === 'weaponHit');
+    if (landed?.kind !== 'weaponHit') throw new Error('the strike landed no hit');
+    t.events.length = 0;
+    const { weapon, damage, breathLoss, direction, range, special } = landed;
+    weaponHit(t, victim, weapon, damage, breathLoss, direction, range, striker, special, victim.aimShotLocation);
+    return t.events.filter((e) => e.type === 'soldierHit');
+  }
+
   it.each([
-    ['stab', KNIFE, 'blade'],
-    ['punch', null, 'punch'],
-  ] as const)('tells a %s that lands by its striker and weapon alone, for the impact the squad hears', (_, hand, weapon) => {
+    ['stab', KNIFE, { blade: true }],
+    ['punch', null, {}],
+  ] as const)('tells nothing of a %s that lands but the hit, with no striker, a blade marked for the knife impact', (_, hand, blade) => {
     const { t, merc, enemy } = unseenStriker(hand);
     master(enemy);
     novice(merc);
     const use = hand === null ? useHandToHand : useBlade;
-    expect(strike(t, () => use(t, enemy, merc.gridNo))).toEqual({
-      landed: true,
-      told: [{ type: 'meleeStrike', soldier: enemy.id, weapon }],
-    });
+    expect(strike(t, () => use(t, enemy, merc.gridNo))).toEqual({ landed: true, told: [] });
+    const [hit, ...more] = hitLanded(t, merc, enemy);
+    expect(more).toEqual([]);
+    expect(hit).toMatchObject({ soldier: merc.id, ...blade });
+    expect(hit).not.toHaveProperty('attacker');
+    if (hand === null) expect(hit).not.toHaveProperty('blade');
   });
 
   it.each([
@@ -272,7 +284,7 @@ describe('the strike of a soldier the squad does not see (D16; the swoosh plays 
     expect(misses.flatMap((s) => s.told)).toEqual([]);
   });
 
-  it('tells the whole strike once the squad sees the striker', () => {
+  it('tells the whole strike once the squad sees the striker, and names him in the hit', () => {
     const { t, merc, enemy } = unseenStriker(KNIFE);
     enemy.visible = Visible.SEEN;
     master(enemy);
@@ -280,6 +292,7 @@ describe('the strike of a soldier the squad does not see (D16; the swoosh plays 
     expect(strike(t, () => useBlade(t, enemy, merc.gridNo)).told).toEqual([
       { type: 'meleeStrike', soldier: enemy.id, target: merc.gridNo, weapon: 'blade', chance: expect.any(Number), hit: true },
     ]);
+    expect(hitLanded(t, merc, enemy)).toEqual([expect.objectContaining({ soldier: merc.id, attacker: enemy.id, blade: true })]);
   });
 });
 

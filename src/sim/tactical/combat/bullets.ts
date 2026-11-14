@@ -38,6 +38,7 @@ import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, Side, type Soldier, Team } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
+import { shownFirer, shownSoldier } from '../unseen-sources.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
@@ -273,7 +274,7 @@ function stopBullet(b: Bullet): void {
 function locateBullet(t: TacticalState, b: Bullet): void {
   if (b.firer.side !== Side.FRIENDLY || b.located) return;
   b.located = true;
-  if (t.inCombat) t.events.push({ type: 'bulletLocated', soldier: b.firer.id, gridNo: b.gridNo });
+  if (t.inCombat) t.events.push({ type: 'bulletLocated', ...shownSoldier(t, b.firer), gridNo: b.gridNo });
 }
 
 function calculateFiringIncrements(t: TacticalState, hIn: number, vIn: number, d2: number, b: Bullet): [number, number] {
@@ -506,7 +507,7 @@ function structureHit(
   if (stopped) {
     const opp = attacker.opponent;
     if (opp) agilityForEnemyMissingPlayer(t, attacker, opp, 5);
-    t.events.push({ type: 'bulletStopped', soldier: attacker.id, gridNo: b.gridNo, reason, ...hitMaterial(structure) });
+    t.events.push({ type: 'bulletStopped', ...shownFirer(t, attacker), gridNo: b.gridNo, reason, ...hitMaterial(structure) });
   }
   const sameAsBefore = structureId === b.lastStructureHit;
   const zPixels = idiv(fixInt(b.z) * 50, 256);
@@ -566,7 +567,7 @@ function structureHit(
     freeUpAttacker(t, attacker);
   } else {
     const effect = SPLASHING_TERRAIN.has(t.world.terrain[g] ?? Terrain.NONE) ? 'splash' : 'dust';
-    t.events.push({ type: 'bulletImpact', soldier: attacker.id, gridNo: g, ...impactPoint(b), effect });
+    t.events.push({ type: 'bulletImpact', ...shownFirer(t, attacker), gridNo: g, ...impactPoint(b), effect });
     if (stopped) t.missAnimations.push({ bullet: b, releaseAt: t.clockMs + MISS_ANIM_MS });
   }
   b.lastStructureHit = structureId;
@@ -588,7 +589,13 @@ function damageStructureByGunfire(t: TacticalState, s: StructureInstance, owner:
     return;
   }
   const caveWall = has(s.flags, StructureFlags.CAVEWALL);
-  t.events.push({ type: 'structureStruck', soldier: owner.id, gridNo: g, material: s.def.armour, ...(caveWall ? { caveWall } : {}) });
+  t.events.push({
+    type: 'structureStruck',
+    ...shownSoldier(t, owner),
+    gridNo: g,
+    material: s.def.armour,
+    ...(caveWall ? { caveWall } : {}),
+  });
 }
 
 function oppositeSideGridNo(s: StructureInstance, g: number): number {
@@ -670,7 +677,7 @@ function shotMiss(t: TacticalState, b: Bullet): void {
   const explosiveAmmo = gun && isExplosiveAmmo(ammoTypeOf(b));
   t.events.push({
     type: 'bulletStopped',
-    soldier: attacker.id,
+    ...shownFirer(t, attacker),
     gridNo: b.gridNo,
     reason: 'offMap',
     ...(explosiveAmmo ? { explosiveAmmo } : {}),
@@ -870,7 +877,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
               if (has(s.flags, StructureFlags.CORPSE) && !(b.flags & SPECIAL_BULLETS)) {
                 removeBullet(t, b);
                 freeUpAttacker(t, b.firer);
-                t.events.push({ type: 'bulletStopped', soldier: b.firer.id, gridNo: b.gridNo, reason: 'structure' });
+                t.events.push({ type: 'bulletStopped', ...shownFirer(t, b.firer), gridNo: b.gridNo, reason: 'structure' });
                 return;
               }
               if (r.remaining <= 0) {

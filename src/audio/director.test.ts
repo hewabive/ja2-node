@@ -518,7 +518,7 @@ describe('the sound director', () => {
     const r = rig();
     const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;
     r.director.reset([soldier(1, 'STANDING', 0)]);
-    const shot = { type: 'shotFired', tick: 9, soldier: 80, item: glock, silenced: false, burst: false, rounds: 1 } as const;
+    const shot = { type: 'shotFired', tick: 9, item: glock, silenced: false, burst: false, rounds: 1 } as const;
     r.director.applyFrames([frame(10, [], [{ ...shot, heard: { by: 1, direction: Direction.NORTH, volumeClass: 3 } }, shot])]);
     expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3), baseVolume: 127 });
     expect(r.cues[1]).toMatchObject({ gridNo: -1, baseVolume: 102 });
@@ -668,13 +668,38 @@ describe('the sound director', () => {
     expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3) });
   });
 
-  it('strikes the knife impact for the stab of a striker out of sight, told by its striker and blade alone', () => {
+  it("strikes the knife impact for a hit the event marks as a blade's, named attacker or not, and a bullet impact for any other", () => {
     const r = rig();
+    const blade = { blade: true } as const;
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(20, 'STANDING', 0, { team: 1, gridNo: G + 1 })]);
+    const stab = { type: 'meleeStrike', tick: 9, soldier: 20, target: G, weapon: 'blade', chance: 50, hit: true } as const;
+    const hit = { type: 'soldierHit', tick: 10, soldier: 1, gridNo: G, location: 'torso', special: 0, conscious: false } as const;
+    const wound = { damage: 10, breathLoss: 0, life: 70 };
+    r.director.applyFrames([frame(10, [], [{ ...hit, ...wound, ...blade }, stab, { ...hit, ...wound, attacker: 20, ...blade }])]);
+    r.director.applyFrames([frame(20, [], [stab, { ...hit, ...wound, attacker: 20 }])]);
+    const knife = book.paths.get('KNIFE_IMPACT');
+    expect(files(r).slice(0, 2)).toEqual([knife, knife]);
+    expect(files(r)[2]).toMatch(/impact/i);
+    expect(files(r)[2]).not.toBe(knife);
+  });
+
+  it('picks the miss sounds of a shooter out of sight by the weapon his bullets carry', () => {
+    const r = rig();
+    const named = (name: string) => [...book.weapons.values()].find((w) => w.name === name)?.item ?? -1;
     r.director.reset([soldier(1, 'STANDING', 0)]);
-    const stab = { type: 'meleeStrike', tick: 9, soldier: 99, weapon: 'blade' } as const;
-    const hit = { type: 'soldierHit', tick: 10, soldier: 1, attacker: 99, gridNo: G, location: 'torso', special: 0 } as const;
-    r.director.applyFrames([frame(10, [], [stab, { ...hit, conscious: false, damage: 10, breathLoss: 0, life: 70 }])]);
-    expect(files(r)).toEqual([book.paths.get('KNIFE_IMPACT')]);
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'bulletImpact', tick: 9, item: named('M870'), gridNo: G + 5, x: 800, y: 805, z: 0, effect: 'dust' },
+          { type: 'bulletStopped', tick: 9, item: named('THROWING_KNIFE'), gridNo: G + 5, reason: 'structure' },
+          { type: 'bulletStopped', tick: 9, item: named('CREATURE_QUEEN_SPIT'), gridNo: G + 5, reason: 'offMap' },
+        ],
+      ),
+    ]);
+    expect(files(r)).toEqual([book.paths.get('MISS_G2'), book.paths.get('MISS_KNIFE'), book.paths.get('SPIT_RICOCHET')]);
+    expect(r.cues[0]).toMatchObject({ baseVolume: VolumeLevel.LOW });
   });
 
   it('has a soldier who trips and falls on the way curse with CURSE1', () => {

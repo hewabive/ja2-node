@@ -162,8 +162,6 @@ export interface DirectorStats {
   cues: number;
 }
 
-type AttackKind = 'gun' | 'blade' | 'punch';
-
 interface AmbientSlot {
   nextAt: number | null;
   voice: VoiceHandle | null;
@@ -179,6 +177,7 @@ type Voiced = Pick<SoldierView, 'id' | 'gridNo' | 'team' | 'bodyType' | 'voice' 
 
 type EventOf<T extends string> = Extract<NonNullable<ViewFrame['events']>[number], { type: T }>;
 type UnseenVictim = NonNullable<EventOf<'soldierHit'>['unseen']>;
+type Firer = Pick<EventOf<'bulletImpact'>, 'soldier' | 'item'>;
 
 interface Place {
   readonly gridNo: number;
@@ -222,7 +221,6 @@ export class SoundDirector {
   readonly #idleLoopFrames = new Map<number, number | null>();
   #openContainers = new Set<number>();
   #whistle: VoiceHandle | null = null;
-  readonly #attacks = new Map<number, AttackKind>();
   #speechOwner: SpeechOwner | null = null;
   #world: SoundWorld | null = null;
   #ambient: AmbientSlot[] = [];
@@ -541,8 +539,8 @@ export class SoundDirector {
     return { gridNo: NOWHERE, far: true };
   }
 
-  #sourcePlace(soldier: number, gridNo?: number, heard?: Heard): Place {
-    const known = this.#soldiers.get(soldier);
+  #sourcePlace(soldier: number | undefined, gridNo?: number, heard?: Heard): Place {
+    const known = soldier === undefined ? undefined : this.#soldiers.get(soldier);
     return known ? { gridNo: known.gridNo, far: false } : this.#placeOf(gridNo, heard);
   }
 
@@ -601,12 +599,10 @@ export class SoundDirector {
   }
 
   #remember(e: NonNullable<ViewFrame['events']>[number]): void {
-    if (e.type === 'shotFired') {
+    if (e.type === 'shotFired' && e.soldier !== undefined) {
       if (e.item !== undefined) this.#weapons.set(e.soldier, e.item);
       this.#bursts.set(e.soldier, e.burst ?? false);
-      this.#attacks.set(e.soldier, 'gun');
-    } else if (e.type === 'meleeStrike') this.#attacks.set(e.soldier, e.weapon === 'blade' ? 'blade' : 'punch');
-    else if (e.type === 'creatureCall') this.#calls.set(e.soldier, e.call);
+    } else if (e.type === 'creatureCall' && e.soldier !== undefined) this.#calls.set(e.soldier, e.call);
     else if (e.type === 'soldierHit' && this.#knownVehicle(e.soldier)) this.#struckVehicles.add(e.soldier);
   }
 
@@ -795,34 +791,36 @@ export class SoundDirector {
     if (e.item !== CANTEEN) this.#battleSound(e.target, 'COOL1', false);
   }
 
-  #weaponOf(soldier: number) {
-    return this.#o.book.weapons.get(this.#weapons.get(soldier) ?? -1) ?? null;
+  #weaponOf(firer: Firer) {
+    const item = firer.item ?? (firer.soldier === undefined ? undefined : this.#weapons.get(firer.soldier));
+    return this.#o.book.weapons.get(item ?? -1) ?? null;
   }
 
   #bulletStopped(e: EventOf<'bulletStopped'>): void {
     const book = this.#o.book;
-    const weapon = this.#weaponOf(e.soldier);
+    const weapon = this.#weaponOf(e);
     if (e.reason === 'offMap') {
       this.#play(offMapMissCue(book, weapon, e.explosiveAmmo ?? false, this.#rng.rand));
-      this.#maybeCurse(e.soldier, false);
+      this.#maybeCurse(e, false);
     } else if (e.reason !== 'soldier' && (weapon?.kind === 'blade' || weapon?.kind === 'throwingBlade'))
       this.#play(missCue(book, e.gridNo, weapon, 'ground', this.#rng.rand));
   }
 
-  #maybeCurse(soldier: number, singleShotsOnly: boolean): void {
-    if (this.#soldiers.get(soldier)?.team !== OUR_TEAM || !isGunKind(this.#weaponOf(soldier)?.kind)) return;
+  #maybeCurse(firer: Firer, singleShotsOnly: boolean): void {
+    const soldier = firer.soldier;
+    if (soldier === undefined || this.#soldiers.get(soldier)?.team !== OUR_TEAM || !isGunKind(this.#weaponOf(firer)?.kind)) return;
     if (singleShotsOnly && this.#bursts.get(soldier)) return;
     if (this.#rng.rand(MISS_CURSE_CHANCE) === 0) this.#battleSound(soldier, 'CURSE1', false);
   }
 
   #bulletImpact(e: EventOf<'bulletImpact'>): void {
     const book = this.#o.book;
-    this.#maybeCurse(e.soldier, true);
+    this.#maybeCurse(e, true);
     if (e.effect === 'miniboom') {
       this.#play(smallExplosionCue(book, e.gridNo));
       return;
     }
-    this.#play(missCue(book, e.gridNo, this.#weaponOf(e.soldier), e.z === 0 ? 'ground' : 'air', this.#rng.rand));
+    this.#play(missCue(book, e.gridNo, this.#weaponOf(e), e.z === 0 ? 'ground' : 'air', this.#rng.rand));
   }
 
   #mortarWhistle(sounding: boolean): void {
@@ -859,8 +857,7 @@ export class SoundDirector {
       return;
     }
     if (!s) return;
-    const blade = e.attacker !== null && this.#attacks.get(e.attacker) === 'blade';
-    this.#play(this.#placed(impactCue(book, place.gridNo, blade, this.#rng.rand), place));
+    this.#play(this.#placed(impactCue(book, place.gridNo, e.blade === true, this.#rng.rand), place));
     if (e.life === 0) {
       this.#voiceSound(s, 'DIE1', false);
       return;

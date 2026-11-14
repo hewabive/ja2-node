@@ -57,7 +57,7 @@ import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, rem
 import { AlertStatus, Body, NO_PROFILE, NOBODY, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { removeOccupant, shownInSector, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
-import { loudestScream, soundPlace, unseenVictim } from '../unseen-sources.ts';
+import { loudestScream, shownId, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { removeVehicleOfSoldier } from '../vehicle-soldiers.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { internalSoldierReadyWeapon } from './attack.ts';
@@ -461,11 +461,12 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
       } else if (assister?.placed && assister !== attacker && assister.team === Team.MILITIA)
         assister.militiaKills += MILITIA_ASSIST_POINTS;
     }
-    const killerShown = s.attacker !== null && shownInSector(t, s.attacker);
+    const killer = shownId(t, s.attacker);
+    const killerShown = typeof killer === 'number';
     t.events.push({
       type: 'soldierDied',
       soldier: s.id,
-      killer: s.attacker?.id ?? null,
+      ...(killer === undefined ? {} : { killer }),
       ...(shownInSector(t, s)
         ? { gridNo: s.gridNo }
         : { unseen: unseenVictim(s), ...soundPlace(t, s, killerShown, loudestScream(t, s), NoiseKind.SCREAM) }),

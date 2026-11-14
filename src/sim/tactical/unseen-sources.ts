@@ -42,6 +42,19 @@ export function unseenVoice(t: TacticalState, s: Soldier): { readonly unseen: Un
   return { unseen: unseenVictim(s), ...heardOnly(t, s, loudestScream(t, s), NoiseKind.SCREAM) };
 }
 
+export function shownId(t: TacticalState, s: Soldier | null): number | null | undefined {
+  if (s === null) return null;
+  return shownInSector(t, s) ? s.id : undefined;
+}
+
+export function shownSoldier(t: TacticalState, s: Soldier): { readonly soldier?: number } {
+  return shownInSector(t, s) ? { soldier: s.id } : {};
+}
+
+export function shownFirer(t: TacticalState, s: Soldier): { readonly soldier: number } | { readonly item: number } {
+  return shownInSector(t, s) ? { soldier: s.id } : { item: s.attackingWeapon };
+}
+
 export function soundPlace(
   t: TacticalState,
   s: Soldier,

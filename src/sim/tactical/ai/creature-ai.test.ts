@@ -14,6 +14,7 @@ import { getNewSoldierPath } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { AlertStatus, Body, NOBODY, NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { setShowAllMercs } from '../state.ts';
 import { AiAction } from './actions.ts';
 import { decideNpcAction } from './control.ts';
 import { CreatureCallKind, creatureCall, Mobility, trackScent } from './creature-decide.ts';
@@ -79,12 +80,26 @@ describe('CreatureCall', () => {
     near.visible = UNSEEN;
     creatureCall(t, near);
     const unseen = t.events.filter((e) => e.type === 'creatureCall');
-    expect(unseen).toMatchObject([{ soldier: near.id, call: 'onePrey', unseen: { bodyType: Body.ADULTFEMALEMONSTER } }]);
+    expect(unseen).toMatchObject([{ call: 'onePrey', unseen: { bodyType: Body.ADULTFEMALEMONSTER } }]);
+    expect(unseen[0]).not.toHaveProperty('soldier');
     expect(unseen[0]).not.toHaveProperty('heard');
     expect(near).toMatchObject({ ai: { callPriority: 12, alertStatus: AlertStatus.RED, caller: queen.id, frenzied: true } });
     expect(near.ai.callerGridNo).toBe(queen.gridNo);
     expect(far.ai).toMatchObject({ callPriority: 10, alertStatus: AlertStatus.RED, frenzied: false });
     expect(infant.ai).toMatchObject({ callPriority: 0, caller: NOBODY });
+  });
+
+  it('tells the call of a creature out of sight in full while every soldier is shown (SHOW_ALL_MERCS)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const caller = spawnCreature(sim, 53, Body.ADULTFEMALEMONSTER, gridNo(80, 90), Direction.NORTH);
+    caller.ai.actionData = CreatureCallKind.MULTIPLE_PREY;
+    caller.visible = UNSEEN;
+    setShowAllMercs(t, true);
+    creatureCall(t, caller);
+    const [call, ...more] = t.events.filter((e) => e.type === 'creatureCall');
+    expect(more).toEqual([]);
+    expect(call).toEqual({ type: 'creatureCall', soldier: caller.id, call: 'multiplePrey' });
   });
 });
 
@@ -189,7 +204,7 @@ describe('creature turn', () => {
     prey.life = 10;
     female.life = 40;
     const events = playCreatureTurn(sim);
-    expect(events.some((e) => e.type === 'soldierHit' && e.attacker === female.id && e.location === 'head')).toBe(true);
+    expect(events.some((e) => e.type === 'soldierHit' && e.soldier === prey.id && e.location === 'head')).toBe(true);
     expect(events.some((e) => e.type === 'soldierDied' && e.soldier === prey.id)).toBe(true);
     expect(female.life).toBe(40 + REGENERATED_LIFE);
   });

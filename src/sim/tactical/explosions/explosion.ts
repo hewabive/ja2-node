@@ -46,6 +46,7 @@ import { doorTravelCost, type PointsContext } from '../points.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import type { Soldier } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
+import { shownId } from '../unseen-sources.ts';
 import { itemsAt, removeWorldItem } from '../world-items.ts';
 import { damageSoldierFromBlast, reduceDamageAmount } from './blast-damage.ts';
 import { damageItemOnGround } from './item-damage.ts';
@@ -149,7 +150,20 @@ export function generateExplosion(t: TacticalState, e: ExplosionRecord): void {
     lastUpdate: t.clockMs,
   });
   const resumed = frame === 0 ? {} : { frame };
-  t.events.push({ type: 'explosion', item, gridNo: g, level, owner: owner?.id ?? null, animation: shown.name, x, y, z, delay, ...resumed });
+  const ownerId = shownId(t, owner);
+  t.events.push({
+    type: 'explosion',
+    item,
+    gridNo: g,
+    level,
+    ...(ownerId === undefined ? {} : { owner: ownerId }),
+    animation: shown.name,
+    x,
+    y,
+    z,
+    delay,
+    ...resumed,
+  });
 }
 
 export function explosionAnimationById(t: TacticalState, id: number): ExplosionAnimation | null {

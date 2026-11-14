@@ -471,27 +471,33 @@ animation from them, the frames and the animation codes it replays (`31`); agent
 
 **What the squad does not see, it hears** (`08`; deviations "Sounds out of sight", "Bullets of unseen shooters"). A
 source out of sight carries `heard {by, direction, volumeClass}` instead of its grid: the merc of ours who hears it
-loudest by `CalcEffVolume`, the side as `TellPlayerAboutNoise` names it, the loudness class of `pNoiseVolStr`. A
-`shotFired` of an unseen shooter drops `target`, `chance` and `hit`; a `soldierHit` or `soldierDied` of an unseen
-victim carries `unseen` and a grid only when the attacker is seen or ours; bullets are recorded only for our soldiers
-and those the squad sees. `arrived` (ja2-node's event for the end of a walk), `itemsPickedUp`, `itemDropped`,
+loudest by `CalcEffVolume`, the side as `TellPlayerAboutNoise` names it, the loudness class of `pNoiseVolStr`. No event
+names a soldier out of sight who acts, so an agent cannot count or follow unseen soldiers by their ids: a `shotFired` of
+an unseen shooter drops `soldier`, `target`, `chance` and `hit` and keeps the weapon, silencer and burst its sound
+needs; his bullets' `bulletStopped` and `bulletImpact` carry his weapon as `item` instead of `soldier`, for the miss
+sounds the original picks by it (`Tactical/Weapons.cc:1659`, `:3177`), and his `structureStruck` and `bulletLocated`
+drop `soldier`; a `soldierHit` drops an unseen `attacker`, a `soldierDied` or `vehicleDestroyed` an unseen `killer`, an
+`explosion` an unseen `owner` (null still means nobody), and a `creatureCall` of an unseen creature carries `unseen`
+(its body type) and `heard` instead of `soldier`. Every `soldierHit` carries `blade` for the hit of a blade, whose knife
+impact the original plays instead of a bullet's (`Tactical/Soldier_Control.cc:2846`). A `soldierHit` or `soldierDied` of
+an unseen victim carries `unseen` and a grid only when the attacker is seen or ours; bullets are recorded only for our
+soldiers and those the squad sees. `arrived` (ja2-node's event for the end of a walk), `itemsPickedUp`, `itemDropped`,
 `reloaded` and `attackResolved` (ja2-node's event for the end of an attack), which nothing on the original's screen or
-speakers marks for a soldier out of sight (the pickup's sound is our merc's alone, the drop's and the reload's a
-visible soldier's: `Tactical/Handle_Items.cc:1269`, `:975`, `Tactical/Items.cc:1288`), come only for our soldiers and
-those the squad sees (`attackResolved` also for an attack without an attacker), or for everyone while the original
-shows every soldier (`SHOW_ALL_MERCS` in a palace meanwhile scene, `Strategic/Meanwhile.cc:385`; `shownInSector`,
-`src/sim/tactical/state.ts`): an unseen patrol neither stops an `advance {events: ['arrived']}` nor shows its tiles,
-an unseen soldier's pickups, drops and reloads change the items and his gun as they do but tell nothing, and the end
-of his attack neither names him nor stops an `advance {events: ['attackResolved']}`. A `meleeStrike` of an unseen
-striker carries only `soldier` and `weapon`, and comes only when the strike lands: the original prints nothing for it
-and plays its swoosh for a visible striker only (`Tactical/Soldier_Ani.cc:2167`, `Utils/Sound_Control.cc:413`), so
-the squad hears it by the impact at the victim alone, the knife's or the punch's (`Tactical/Soldier_Control.cc:2848`),
-which `weapon` picks; a victim of ours shows his hit in full. A `nothingFound` of a soldier out of sight carries
-`unseen` and `heard` instead of the grid, and comes only for one with a profile who is not muted: the original's
-NOTHING has no sound for a soldier without a profile, nor for a muted one (`Tactical/Soldier_Control.cc:150`, `:6017`,
-`:5880`). A death cry, the
-NOTHING and a creature's call make no noise in the original; they are heard as loud as the crier's loudest scream
-(`CalcScreamVolume`'s cap of 10 − experience level).
+speakers marks for a soldier out of sight (the pickup's sound is our merc's alone, the drop's and the reload's a visible
+soldier's: `Tactical/Handle_Items.cc:1269`, `:975`, `Tactical/Items.cc:1288`), come only for our soldiers and those the
+squad sees (`attackResolved` also for an attack without an attacker), or for everyone while the original shows every
+soldier (`SHOW_ALL_MERCS` in a palace meanwhile scene, `Strategic/Meanwhile.cc:385`; `shownInSector`,
+`src/sim/tactical/state.ts`): an unseen patrol neither stops an `advance {events: ['arrived']}` nor shows its tiles, an
+unseen soldier's pickups, drops and reloads change the items and his gun as they do but tell nothing, and the end of his
+attack neither names him nor stops an `advance {events: ['attackResolved']}`. A `meleeStrike` comes only for a striker
+the squad sees: the original prints nothing for it and plays its swoosh for a visible striker only
+(`Tactical/Soldier_Ani.cc:2167`, `Utils/Sound_Control.cc:413`), so the squad hears an unseen one's strike by the impact
+at the victim alone, a knife's for a blade and a bullet's otherwise (`Tactical/Soldier_Control.cc:2846`), which the
+`soldierHit`'s `blade` picks; a victim of ours shows his hit in full. A `nothingFound` of a soldier out of sight carries
+`unseen` and `heard` instead of the grid, and comes only for one with a profile who is not muted: the original's NOTHING
+has no sound for a soldier without a profile, nor for a muted one (`Tactical/Soldier_Control.cc:150`, `:6017`, `:5880`).
+A death cry, the NOTHING and a creature's call make no noise in the original; they are heard as loud as the crier's
+loudest scream (`CalcScreamVolume`'s cap of 10 − experience level).
 
 ## 8. Commands by domain
 

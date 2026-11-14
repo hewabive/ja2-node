@@ -198,7 +198,7 @@ export interface HeardFrom {
 
 export interface ShotFiredEvent extends SimEventBase {
   readonly type: 'shotFired';
-  readonly soldier: number;
+  readonly soldier?: number;
   readonly target?: number;
   readonly chance?: number;
   readonly hit?: boolean;
@@ -212,10 +212,10 @@ export interface ShotFiredEvent extends SimEventBase {
 export interface MeleeStrikeEvent extends SimEventBase {
   readonly type: 'meleeStrike';
   readonly soldier: number;
-  readonly target?: number;
+  readonly target: number;
   readonly weapon: 'blade' | 'punch';
-  readonly chance?: number;
-  readonly hit?: boolean;
+  readonly chance: number;
+  readonly hit: boolean;
 }
 
 export interface StealAttemptEvent extends SimEventBase {
@@ -228,7 +228,8 @@ export interface StealAttemptEvent extends SimEventBase {
 
 export interface BulletStoppedEvent extends SimEventBase {
   readonly type: 'bulletStopped';
-  readonly soldier: number;
+  readonly soldier?: number;
+  readonly item?: number;
   readonly gridNo: number;
   readonly reason: 'structure' | 'ground' | 'roof' | 'offMap' | 'soldier';
   readonly material?: number;
@@ -238,13 +239,13 @@ export interface BulletStoppedEvent extends SimEventBase {
 
 export interface BulletLocatedEvent extends SimEventBase {
   readonly type: 'bulletLocated';
-  readonly soldier: number;
+  readonly soldier?: number;
   readonly gridNo: number;
 }
 
 export interface StructureStruckEvent extends SimEventBase {
   readonly type: 'structureStruck';
-  readonly soldier: number;
+  readonly soldier?: number;
   readonly gridNo: number;
   readonly material: number;
   readonly caveWall?: boolean;
@@ -269,7 +270,7 @@ export type CreatureCallName = 'onePrey' | 'multiplePrey' | 'attacked' | 'crippl
 
 export interface CreatureCallEvent extends SimEventBase {
   readonly type: 'creatureCall';
-  readonly soldier: number;
+  readonly soldier?: number;
   readonly call: CreatureCallName;
   readonly unseen?: { readonly bodyType: number };
   readonly heard?: HeardFrom;
@@ -306,7 +307,8 @@ export type BulletImpactEffect = 'dust' | 'splash' | 'miniboom';
 
 export interface BulletImpactEvent extends SimEventBase {
   readonly type: 'bulletImpact';
-  readonly soldier: number;
+  readonly soldier?: number;
+  readonly item?: number;
   readonly gridNo: number;
   readonly x: number;
   readonly y: number;
@@ -363,7 +365,8 @@ export interface UnseenVictim {
 export interface SoldierHitEvent extends SimEventBase {
   readonly type: 'soldierHit';
   readonly soldier: number;
-  readonly attacker: number | null;
+  readonly attacker?: number | null;
+  readonly blade?: true;
   readonly gridNo?: number;
   readonly location: 'random' | 'head' | 'torso' | 'legs' | 'gland';
   readonly special: number;
@@ -385,7 +388,7 @@ export interface LifeLostEvent extends SimEventBase {
 export interface SoldierDiedEvent extends SimEventBase {
   readonly type: 'soldierDied';
   readonly soldier: number;
-  readonly killer: number | null;
+  readonly killer?: number | null;
   readonly gridNo?: number;
   readonly unseen?: UnseenVictim;
   readonly heard?: HeardFrom;
@@ -395,7 +398,7 @@ export interface VehicleDestroyedEvent extends SimEventBase {
   readonly type: 'vehicleDestroyed';
   readonly soldier: number;
   readonly vehicle: number;
-  readonly killer: number | null;
+  readonly killer?: number | null;
 }
 
 export interface AttackResolvedEvent extends SimEventBase {
@@ -474,7 +477,7 @@ export interface ExplosionEvent extends SimEventBase {
   readonly item: number;
   readonly gridNo: number;
   readonly level: number;
-  readonly owner: number | null;
+  readonly owner?: number | null;
   readonly animation?: string;
   readonly x?: number;
   readonly y?: number;

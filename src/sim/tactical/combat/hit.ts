@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc BulletHitMerc (with the blood spewed behind a pass-through); Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit
-// @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
+// @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02;
+// @src the blade behind its KNIFE_IMPACT told with the hit, 2026-11-13),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest, Maria aboard the helicopter
 // @src over the sector counted, 2026-11-08, and
@@ -54,7 +55,7 @@ import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, inSector, NO_PROFILE, OKLIFE, Side, type Soldier, Team, Visible } from '../soldier.ts';
 import { shownInSector, type TacticalState } from '../state.ts';
-import { screamVolume, soundPlace, unseenVictim, unseenVoice } from '../unseen-sources.ts';
+import { screamVolume, shownFirer, shownId, soundPlace, unseenVictim, unseenVoice } from '../unseen-sources.ts';
 import { vehicleShareOfDamage, vehicleTakeDamage } from '../vehicle-damage.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
@@ -254,7 +255,7 @@ export function doSpecialEffectAmmoMiss(t: TacticalState, attacker: Soldier, g: 
   const hand = attacker.inv[attacker.attackingHand];
   const ammo = hand?.gunAmmoType;
   if (ammo !== undefined && EXPLOSIVE_AMMO.has(ammo)) {
-    t.events.push({ type: 'bulletImpact', soldier: attacker.id, gridNo: g, ...at, effect: 'miniboom' });
+    t.events.push({ type: 'bulletImpact', ...shownFirer(t, attacker), gridNo: g, ...at, effect: 'miniboom' });
     return true;
   }
   if (ammo !== AmmoType.MONSTER || !hand) return false;
@@ -365,14 +366,16 @@ export function eventSoldierGotHit(
   const combined = soldierTakeDamage(t, s, damage, breath, reason, att);
   if (s.team === Team.OUR && !isVehicle(s)) t.narrative.putOnSquadWhenHit(s);
   const volume = screamVolume(t, s, combined);
-  const attackerShown = att !== null && shownInSector(t, att);
+  const attacker = shownId(t, att);
+  const attackerShown = typeof attacker === 'number';
   t.events.push({
     type: 'soldierHit',
     soldier: s.id,
-    attacker: att?.id ?? null,
+    ...(attacker === undefined ? {} : { attacker }),
     location: LOCATION_NAMES[location] ?? 'random',
     special,
     conscious: s.life >= CONSCIOUSNESS,
+    ...(cls === ItemClass.BLADE ? { blade: true } : {}),
     ...(shownInSector(t, s)
       ? { gridNo: s.gridNo, damage, breathLoss: breath, life: s.life }
       : { unseen: unseenVictim(s), ...soundPlace(t, s, attackerShown, volume, NoiseKind.SCREAM) }),

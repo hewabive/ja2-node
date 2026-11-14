@@ -33,7 +33,8 @@ export class MissCamera {
   }
 
   observe(event: FrameEvent): void {
-    if (event.type === 'shotFired' && event.item !== undefined) this.#attackingWeapons.set(event.soldier, event.item);
+    if (event.type === 'shotFired' && event.soldier !== undefined && event.item !== undefined)
+      this.#attackingWeapons.set(event.soldier, event.item);
     const gridNo = this.#locatedGridNo(event);
     if (gridNo !== null && this.#host.showMisses()) this.#host.locate(gridNo);
   }
@@ -41,17 +42,17 @@ export class MissCamera {
   #locatedGridNo(event: FrameEvent): number | null {
     if (event.type === 'bulletLocated') return event.gridNo;
     const miss = this.#missTile(event);
-    return miss !== null && this.#host.ourTeam(miss.soldier) ? miss.gridNo : null;
+    return miss?.soldier !== undefined && this.#host.ourTeam(miss.soldier) ? miss.gridNo : null;
   }
 
-  #missTile(event: FrameEvent): { readonly soldier: number; readonly gridNo: number } | null {
+  #missTile(event: FrameEvent): { readonly soldier?: number; readonly gridNo: number } | null {
     if (event.type === 'bulletImpact') return event.effect === 'miniboom' ? null : event;
     if (event.type === 'bulletStopped' && event.reason === 'offMap' && this.#firesGun(event.soldier)) return event;
     return null;
   }
 
-  #firesGun(soldier: number): boolean {
-    const item = this.#attackingWeapons.get(soldier);
+  #firesGun(soldier: number | undefined): boolean {
+    const item = soldier === undefined ? undefined : this.#attackingWeapons.get(soldier);
     const weaponClass = item === undefined ? null : this.#host.weaponClass(item);
     return weaponClass !== null && GUN_CLASSES.has(weaponClass);
   }

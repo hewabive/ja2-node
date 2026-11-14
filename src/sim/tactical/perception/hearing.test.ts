@@ -7,8 +7,10 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import type { SimEvent } from '../../events.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
+import { handleSoldierDeath } from '../combat/death.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
@@ -344,24 +346,45 @@ describe('telling the player about a noise (OppList.cc ProcessNoise, TellPlayerA
   });
 });
 
+const NAMING_FIELDS = ['soldier', 'attacker', 'killer', 'owner'] as const;
+const BLINDED_ALL_TURN = 5;
+
+function naming(events: readonly SimEvent[], id: number): SimEvent[] {
+  return events.filter((e) => NAMING_FIELDS.some((field) => (e as unknown as Readonly<Record<string, unknown>>)[field] === id));
+}
+
 describe('the sounds of a soldier out of sight', () => {
-  it('give his shot the side and loudness the squad hears it from instead of his target and chances', () => {
+  function unseenShooterTurn(): { merc: Soldier; shooter: Soldier; events: SimEvent[] } {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
     const shooter = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
     sim.lookAround();
     expect(sim.state.inCombat).toBe(true);
     shooter.visible = UNSEEN;
+    merc.blindedCounter = BLINDED_ALL_TURN;
     sim.drainEvents();
     expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
-    const [shot] = ofType(runUntilIdle(sim), 'shotFired').filter((e) => e.soldier === shooter.id);
-    expect(shot).toMatchObject({ heard: { by: merc.id, direction: Direction.SOUTH } });
+    return { merc, shooter, events: runUntilIdle(sim) };
+  }
+
+  it('give his shot the side and loudness the squad hears it from instead of his name, target and chances', () => {
+    const { merc, shooter, events } = unseenShooterTurn();
+    const [shot] = ofType(events, 'shotFired');
+    expect(shot).toMatchObject({ heard: { by: merc.id, direction: Direction.SOUTH }, item: shooter.attackingWeapon });
+    expect(shot).not.toHaveProperty('soldier');
     expect(shot).not.toHaveProperty('target');
     expect(shot).not.toHaveProperty('chance');
     expect(shot).not.toHaveProperty('hit');
   });
 
-  it('give his hit and cry the side the squad hears them from, not his tile, when his attacker is out of sight too', () => {
+  it('name him in none of the events of his turn: not his shots, the bullets they fire nor the hits they land (D16)', () => {
+    const { shooter, events } = unseenShooterTurn();
+    expect(ofType(events, 'shotFired').length).toBeGreaterThan(0);
+    expect(events.some((e) => e.type === 'soldierHit' || e.type === 'bulletImpact' || e.type === 'bulletStopped')).toBe(true);
+    expect(naming(events, shooter.id)).toEqual([]);
+  });
+
+  it('give his hit and cry the side the squad hears them from, not his tile nor his attacker, when that one is out of sight too', () => {
     const { sim, merc, stranger } = squadAndStranger(gridNo(80, 78));
     const attacker = spawnSoldier(sim, 21, Team.CIV, gridNo(81, 78), Direction.WEST);
     attacker.visible = UNSEEN;
@@ -371,6 +394,24 @@ describe('the sounds of a soldier out of sight', () => {
     expect(hit).toMatchObject({ soldier: stranger.id, heard: { by: merc.id, direction: Direction.NORTH } });
     expect(hit).not.toHaveProperty('gridNo');
     expect(hit).not.toHaveProperty('life');
+    expect(hit).not.toHaveProperty('attacker');
+  });
+
+  it('give his death no killer the squad does not see, the one it sees and nobody as null', () => {
+    const killedBy = (killer: Soldier | null) => {
+      const { sim, stranger } = squadAndStranger(gridNo(80, 78));
+      Object.assign(stranger, { life: 0, attacker: killer });
+      handleSoldierDeath(sim.state, stranger);
+      return ofType(sim.state.events, 'soldierDied');
+    };
+    const { sim, merc } = squadAndStranger();
+    const unseen = spawnSoldier(sim, 21, Team.CIV, gridNo(81, 78), Direction.WEST);
+    unseen.visible = UNSEEN;
+    const [byUnseen] = killedBy(unseen);
+    expect(byUnseen).toMatchObject({ unseen: {} });
+    expect(byUnseen).not.toHaveProperty('killer');
+    expect(killedBy(merc)).toMatchObject([{ killer: merc.id, gridNo: gridNo(80, 78) }]);
+    expect(killedBy(null)).toMatchObject([{ killer: null, unseen: {} }]);
   });
 });
 
