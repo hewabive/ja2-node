@@ -7,6 +7,7 @@ const ANSWER_FIRST: ReadonlySet<string> = new Set(['promptOpen', 'battlePending'
 const ADVANCE_FIRST: ReadonlySet<string> = new Set(['dialogueQueued', 'meanwhileStarting', 'pauseLocked']);
 const REST_FIRST: ReadonlySet<string> = new Set(['tooInjured', 'tooTired']);
 const RETRIES = 4;
+const NO_LINE_OF_FIRE = 'noLineOfFire';
 
 export function refusalOfResult(result: ActResult): string | null {
   return refusalOf(result.data);
@@ -41,4 +42,9 @@ export async function actAnswering(p: Player, command: Command): Promise<ActResu
     result = await p.act(command);
   }
   return result;
+}
+
+export async function attackConfirmingPoorShot(p: Player, attack: Command): Promise<ActResult> {
+  const result = await p.act(attack);
+  return refusalOfResult(result) === NO_LINE_OF_FIRE ? p.act(attack) : result;
 }

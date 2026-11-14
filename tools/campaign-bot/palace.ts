@@ -5,7 +5,7 @@ import { centroid, ring, tiles } from './grid.ts';
 import type { Observation } from './mcp-game.ts';
 import { walkTo } from './npc.ts';
 import { ourMercs, type Player, QUEEN, usable } from './player.ts';
-import { refusalOfResult } from './refusals.ts';
+import { attackConfirmingPoorShot, refusalOfResult } from './refusals.ts';
 import { Palace } from './stub-world.ts';
 
 const NEAR_STAIRS = 6;
@@ -85,7 +85,13 @@ async function shootAt(p: Player, target: SoldierView): Promise<boolean> {
   let fired = false;
   for (const merc of ourMercs(view).filter((m) => usable(m) && m.kind !== 'epc')) {
     if ((await readyHand(p, merc, view.combat !== null && view.combat !== undefined)) === 'acted') continue;
-    const attack = await p.act({ type: 'attack', soldier: merc.id, target: target.gridNo, level: target.level, aimTime: AIM });
+    const attack = await attackConfirmingPoorShot(p, {
+      type: 'attack',
+      soldier: merc.id,
+      target: target.gridNo,
+      level: target.level,
+      aimTime: AIM,
+    });
     if (!attack.ok) continue;
     fired = true;
     await p.advance({ idle: true, ticks: DESCEND_TICKS });

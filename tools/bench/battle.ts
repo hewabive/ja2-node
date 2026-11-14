@@ -1,5 +1,6 @@
 import { WORLD_COLS } from '../../src/content/world/grid.ts';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
+import { refusalOf } from '../../src/protocol/refusals.ts';
 import type { PlayerView } from '../../src/protocol/view.ts';
 import type { Session, SessionSim } from '../../src/server/session.ts';
 import type { WorldTimeControl } from '../../src/sim/advance.ts';
@@ -199,6 +200,11 @@ export interface FirePolicy {
 }
 
 export const RETURN_FIRE: FirePolicy = { shots: 1, aimTime: 0 };
+const NO_LINE_OF_FIRE = 'noLineOfFire';
+
+function fire(field: Battlefield, attack: CommandEnvelope): void {
+  if (refusalOf(act(field, attack).data) === NO_LINE_OF_FIRE) act(field, attack);
+}
 
 function fireBack(field: Battlefield, policy: FirePolicy): void {
   const { shots, aimTime } = policy;
@@ -207,7 +213,7 @@ function fireBack(field: Battlefield, policy: FirePolicy): void {
     const visible = view.soldiers.filter((s) => HOSTILE_TEAMS.includes(s.team)).map((s) => s.gridNo);
     for (const merc of view.soldiers.filter((s) => s.team === Team.OUR && (s.life ?? 0) >= OKLIFE)) {
       const target = nearest(merc.gridNo, visible);
-      if (target !== null) act(field, { type: 'attack', soldier: merc.id, target, aimTime });
+      if (target !== null) fire(field, { type: 'attack', soldier: merc.id, target, aimTime });
     }
   }
 }

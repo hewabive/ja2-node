@@ -33,6 +33,7 @@ const COLS = 160;
 const REAL_TIME_STEPS = [-2, 3, -2 * COLS, 2 * COLS + 1];
 const COMBAT_STEPS = [2, -3 * COLS, 3 * COLS - 1];
 const AIM_ABOVE_FEET = 15;
+const NO_LINE_OF_FIRE = /no line of fire/;
 const DESTINATION_COLUMN = 4;
 const FIRST_ROW = 0;
 const MAX_BEGINNING_VIDEOS = 8;
@@ -367,8 +368,21 @@ export class MainFlow {
     await page.waitForFunction(() => window.__ja2Ui.tactical?.feedback === null);
     await clickAt(page, at.x, at.y - AIM_ABOVE_FEET);
     await page.waitForFunction(() => window.__ja2Ui.tactical?.commands.at(-1)?.type === 'attack');
+    const held = await page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1)?.reason ?? null);
+    if (held !== null && NO_LINE_OF_FIRE.test(held)) await this.confirmHeldShot(at.x, at.y - AIM_ABOVE_FEET, held);
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1))).toEqual({ type: 'attack', ok: true, reason: null });
     return true;
+  }
+
+  async confirmHeldShot(x: number, y: number, held: string): Promise<void> {
+    const page = this.page;
+    await pointAt(page, x, y);
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.uiMode === 'CONFIRM_ACTION_MODE');
+    await clickAt(page, x, y);
+    await page.waitForFunction((reason) => {
+      const last = window.__ja2Ui.tactical?.commands.at(-1);
+      return last?.type === 'attack' && last.reason !== reason;
+    }, held);
   }
 
   async win(): Promise<BattleResult> {

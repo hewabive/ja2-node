@@ -5,6 +5,7 @@ import { centroid, gridNo, nearest, ring, tiles, towards, WORLD_SIDE } from './g
 import type { AdvanceReport, Observation } from './mcp-game.ts';
 import { type BattleMemory, isHostile, newMemory, OK_LIFE, ourMercs, type Player, Team, usable } from './player.ts';
 import { answerPrompts } from './prompts.ts';
+import { attackConfirmingPoorShot } from './refusals.ts';
 import { type Edge, planRetreat, type Retreat, retreatStep, shouldRetreat } from './retreat.ts';
 
 export type BattleResult = 'won' | 'lost' | 'stuck' | 'reached' | 'retreated';
@@ -206,7 +207,7 @@ async function mercAction(p: Player, view: Observation, merc: SoldierView, turn:
     const shot = await bestShot(p, merc, targets);
     const threshold = turn.contact ? HOLDING_SHOT : FAIR_SHOT;
     if (shot && shot.score >= threshold) {
-      const fired = await p.act({
+      const fired = await attackConfirmingPoorShot(p, {
         type: 'attack',
         soldier: merc.id,
         target: shot.target.gridNo,
