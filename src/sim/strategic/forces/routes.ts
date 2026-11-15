@@ -19,7 +19,7 @@ import { cancelPathForVehicle, moveCharactersPathToVehicle, setUpMvtGroupForVehi
 export const PathEdit = { ABORT_PLOTTING: 'abort', PATH_CLEARED: 'cleared', PATH_SHORTENED: 'shortened' } as const;
 export type PathEdit = (typeof PathEdit)[keyof typeof PathEdit];
 
-export function isTheCursorAllowedToHighLightThisSector(ctx: StrategicContext, s: Sector): boolean {
+export function isTheCursorAllowedToHighLightThisSector(ctx: Pick<StrategicContext, 'state'>, s: Sector): boolean {
   return isValidSector(s) && sectorInfo(ctx.state.map, s).traversability[StrategicMove.THROUGH] !== Traversability.EDGEOFWORLD;
 }
 

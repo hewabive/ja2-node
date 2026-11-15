@@ -341,6 +341,20 @@ describe('the map screen inventory', () => {
     );
   });
 
+  it('opens the inventory of every sector the map can select, one never visited and the levels below included, and of none on the edge of the world (ChangeSelectedMapSector, IsTheCursorAllowedToHighLightThisSector)', () => {
+    const c = onTheMap();
+    const merc = mercIds(c)[0] as number;
+    const query = (sector: string, z = 0) => c.dispatch({ type: 'inventory', sector, ...(z ? { z } : {}) });
+    expect(query('P1')).toMatchObject({ ok: true, data: { sector: 'P1', stash: [], mercs: [] } });
+    expect(query('A9', 3)).toMatchObject({ ok: true, data: { sector: 'A9', z: 3, stash: [] } });
+    const edge = { ok: false, data: { refusal: 'edgeOfWorld' } };
+    expect(query('P16')).toMatchObject(edge);
+    expect(query('A4', 1)).toMatchObject(edge);
+    expect(c.dispatch({ type: 'arrangeStash', sector: 'A5', order: [] })).toMatchObject(edge);
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'hand', to: 'ground', sector: 'N13' })).toMatchObject(edge);
+    expect(c.dispatch({ type: 'discardItem', soldier: merc, slot: 'ground', item: 0, sector: 'O14' })).toMatchObject(edge);
+  });
+
   it('throws a pool item away from the trash can, one object or the stack (TrashCanBtnCallback)', () => {
     const c = onTheMap();
     stashAtTheMerc(c, [some('CLIP9_15', 2), one('GLOCK_17')]);

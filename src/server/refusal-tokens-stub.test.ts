@@ -113,6 +113,9 @@ function mapRefusals(merc: number): Refusals {
     [{ type: 'heliRoute', to: 'nowhere' }, 'badSector'],
     [{ type: 'showBattle' }, 'noBattle'],
     [{ type: 'setLandingZone', sector: 'nowhere' }, 'badSector'],
+    [{ type: 'arrangeStash', sector: 'nowhere', order: [] }, 'badSector'],
+    [{ type: 'arrangeStash', sector: 'P16', order: [] }, 'edgeOfWorld'],
+    [{ type: 'inventory', sector: 'P16' }, 'edgeOfWorld'],
     [{ type: 'readEmail', id: 1 }, 'laptopClosed'],
   ];
 }

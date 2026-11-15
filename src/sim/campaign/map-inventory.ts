@@ -10,7 +10,9 @@
 // @src RemoveMoney (on the map screen a money split goes into the map cursor, SetMapCursorItem, to be placed into a
 // @src pocket); Tactical/Items.cc ReloadGun (the line and the sound for a merc off the loaded map, 2026-11-14);
 // @src MapInvenPoolSlotsPrimary's SetMapCursorItem (what a merc's item swaps out of a pool slot or leaves over stays in
-// @src the cursor: parked with him as moveItem parks its leftover, 2026-11-14).
+// @src the cursor: parked with him as moveItem parks its leftover, 2026-11-14); MapScreen.cc ChangeSelectedMapSector
+// @src and Map_Screen_Interface_Map.cc IsTheCursorAllowedToHighLightThisSector (the inventory opens on the selected
+// @src sector, never on the edge of the world, 2026-11-14).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -18,6 +20,7 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { cloneObject, type ItemObject } from '../items/object.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
+import { isTheCursorAllowedToHighLightThisSector } from '../strategic/forces/routes.ts';
 import { worldDay } from '../strategic/time/world-clock.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -94,6 +97,7 @@ export const MapInventoryRefusal = {
   UNREACHABLE: 'unreachable',
   TACTICAL_ONLY: 'tacticalOnly',
   BAD_SECTOR: 'badSector',
+  EDGE_OF_WORLD: 'edgeOfWorld',
 } as const;
 
 type MapInventoryRefusal = (typeof MapInventoryRefusal)[keyof typeof MapInventoryRefusal];
@@ -111,6 +115,7 @@ const MAP_REFUSAL_TEXT: Readonly<Record<MapInventoryRefusal, string>> = {
   unreachable: 'that item lies out of reach',
   tacticalOnly: 'this is done in tactical only',
   badSector: 'sector must be a sector such as A9',
+  edgeOfWorld: 'the map cannot select that sector, the edge of the world, so its inventory never opens',
 };
 
 const NO_SLOT = -1;
@@ -423,8 +428,8 @@ export class MapInventory {
   }
 
   #keysToStash(merc: RosterMerc, source: RingSource, cmd: InventoryCommand): CommandResult {
-    const sector = this.#stashSector(merc, cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#stashSector(merc, cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const refused = stashRefusal(this.#campaign, merc, sector);
     if (refused) return mapRefusal(refused);
     const s = merc.soldier;
@@ -477,8 +482,8 @@ export class MapInventory {
   #discardFromStash(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
     const count = parseCount(cmd.count, 'all');
     if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
-    const sector = this.#stashSector(merc, cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#stashSector(merc, cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const refused = stashRefusal(this.#campaign, merc, sector);
     if (refused) return mapRefusal(refused);
     const stash = stashOf(this.#campaign, sector);
@@ -507,6 +512,11 @@ export class MapInventory {
     return onto.index;
   }
 
+  #openable(sector: Sector | null): Sector | MapInventoryRefusal {
+    if (!sector) return MapInventoryRefusal.BAD_SECTOR;
+    return isTheCursorAllowedToHighLightThisSector(this.#campaign, sector) ? sector : MapInventoryRefusal.EDGE_OF_WORLD;
+  }
+
   #stashSector(merc: RosterMerc, cmd: InventoryCommand): Sector | null {
     if (cmd.sector === undefined) return merc.sector;
     if (typeof cmd.sector !== 'string') return null;
@@ -518,8 +528,8 @@ export class MapInventory {
   }
 
   #toStash(merc: RosterMerc, from: number, cmd: InventoryCommand, count: Count): CommandResult {
-    const sector = this.#stashSector(merc, cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#stashSector(merc, cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const refused = stashRefusal(this.#campaign, merc, sector);
     if (refused) return mapRefusal(refused);
     const s = merc.soldier;
@@ -541,8 +551,8 @@ export class MapInventory {
   }
 
   #fromStash(merc: RosterMerc, cmd: InventoryCommand, count: Count): CommandResult {
-    const sector = this.#stashSector(merc, cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#stashSector(merc, cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const refused = stashRefusal(this.#campaign, merc, sector);
     if (refused) return mapRefusal(refused);
     const to = parseSlot(cmd.to);
@@ -567,8 +577,8 @@ export class MapInventory {
   }
 
   #withinStash(merc: RosterMerc, cmd: InventoryCommand, count: Count): CommandResult {
-    const sector = this.#stashSector(merc, cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#stashSector(merc, cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const refused = stashRefusal(this.#campaign, merc, sector);
     if (refused) return mapRefusal(refused);
     const stash = stashOf(this.#campaign, sector);
@@ -618,8 +628,8 @@ export class MapInventory {
   }
 
   #arrange(cmd: InventoryCommand): CommandResult {
-    const sector = this.#querySector(cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#querySector(cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const order = stashOrder(cmd.order);
     if (!order) return mapRefusal(MapInventoryRefusal.BAD_STASH_ORDER);
     const stash = stashOf(this.#campaign, sector);
@@ -628,8 +638,8 @@ export class MapInventory {
   }
 
   #query(cmd: InventoryCommand): CommandResult {
-    const sector = this.#querySector(cmd);
-    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const sector = this.#openable(this.#querySector(cmd));
+    if (typeof sector === 'string') return mapRefusal(sector);
     const campaign = this.#campaign;
     const onMap = campaign.state.flow === 'strategic';
     const stash = stashOf(campaign, sector);
