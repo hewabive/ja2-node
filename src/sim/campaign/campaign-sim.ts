@@ -23,7 +23,9 @@
 // @src opened a box on the tactical screen and at every frame of the box screen (2026-11-14); the screens and pauses a
 // @src decision waits behind, whose every frame restarts UpdateClock's second: Tactical/ShopKeeper_Interface.cc
 // @src ShopKeeperScreenHandle, Laptop/Laptop.cc EnterLaptop, Tactical/Dialogue_Control.cc HandleDialogue's conversation
-// @src pause, Strategic/PreBattle_Interface.cc InitPreBattleInterface, a box on the map screen (2026-11-15).
+// @src pause, Strategic/PreBattle_Interface.cc InitPreBattleInterface, a box on the map screen (2026-11-15); JAScreens.cc
+// @src SexScreenHandle, the screen NPC_ACTION_SEX sets pending, which GameLoop.cc switches to after the frame's
+// @src UpdateClock and whose every frame restarts its second (2026-11-15).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -62,7 +64,7 @@ import { rebelsNotNeutral } from '../strategic/narrative/civ-groups.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { NOT_BOXING, QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
-import { CompressMode, EventKind } from '../strategic/time/constants.ts';
+import { CompressMode, EventKind, Warp } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
 import { changeLightValue, timeOfDayAmbientLightLevel, updateTemperature } from '../strategic/time/environment.ts';
 import {
@@ -79,6 +81,7 @@ import {
   stopTimeCompression,
   unPauseGame,
   updateClock,
+  warpGameTime,
   worldDay,
   worldTotalMinutes,
 } from '../strategic/time/world-clock.ts';
@@ -221,6 +224,7 @@ export class CampaignSim {
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
   #leavingTacticalForMap = false;
+  #sanMonaScreenPlayed = false;
   #unloadedWorld: TacticalSim | null = null;
 
   constructor(
@@ -600,6 +604,17 @@ export class CampaignSim {
     if (leaving) leaveTacticalScreen(this);
   }
 
+  playSanMonaScreen(warpSeconds: number): void {
+    warpGameTime(this.#clock, warpSeconds, Warp.NO_PROCESSING);
+    this.#sanMonaScreenPlayed = true;
+  }
+
+  #restartClockSecondBehindTheSanMonaScreen(): void {
+    const played = this.#sanMonaScreenPlayed;
+    this.#sanMonaScreenPlayed = false;
+    if (played) restartClockSecond(this.state.clock, this.state.realMs);
+  }
+
   #updatePausedStatesDueToTimeCompression(): void {
     const c = this.state.clock;
     const allowed = this.#clock.compressionRefusal() === null;
@@ -730,6 +745,7 @@ export class CampaignSim {
     this.#collectEvents();
     this.#syncClockEvents();
     this.#restartClockSecondBehindADecision();
+    this.#restartClockSecondBehindTheSanMonaScreen();
   }
 
   #handleTacticalDoHeliRun(): void {
@@ -921,6 +937,7 @@ export class CampaignSim {
     this.#syncClockEvents();
     this.#drainLoadedSectorEvents();
     if (!stoodForADecision) this.#restartClockSecondBehindADecision();
+    this.#restartClockSecondBehindTheSanMonaScreen();
     return result;
   }
 

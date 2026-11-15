@@ -195,5 +195,5 @@ export interface NpcActionEnv {
   leatherJacketPrice(): number;
   removeObjectFromProfile(npc: number, item: number): void;
   presentation(kind: string, profile?: number): void;
-  warpTimeWithoutEvents(seconds: number): void;
+  playSanMonaScreen(warpSeconds: number): void;
 }

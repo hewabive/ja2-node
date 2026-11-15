@@ -286,7 +286,7 @@ export function handleSanMonaAction(env: NpcActionEnv, npc: number, code: number
       return true;
     case A.SEX:
       env.presentation('sexScene', npc);
-      env.warpTimeWithoutEvents(sexSceneWarpSeconds(env.random));
+      env.playSanMonaScreen(sexSceneWarpSeconds(env.random));
       return true;
     case A.TRIGGER_ANGEL_17_OR_18:
       trigger(env, Npc.ANGEL, env.checkFact(Fact.ANGEL_SOLD_VEST, Npc.ANGEL) ? 18 : 17);

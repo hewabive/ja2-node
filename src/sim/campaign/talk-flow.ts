@@ -110,16 +110,7 @@ import { fatigueCharacter } from '../strategic/economy/rest.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { MikeGreeting } from '../strategic/narrative/facts.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
-import { Warp } from '../strategic/time/constants.ts';
-import {
-  lockPauseState,
-  pauseGame,
-  unLockPauseState,
-  unPauseGame,
-  type WorldClock,
-  warpGameTime,
-  worldDay,
-} from '../strategic/time/world-clock.ts';
+import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, type WorldClock, worldDay } from '../strategic/time/world-clock.ts';
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
@@ -441,11 +432,7 @@ export class TalkFlow {
     const crew = economy?.crew.get(s.id);
     if (economy && crew) for (let k = 0; k < SEX_FATIGUE_STEPS; k++) fatigueCharacter(economy, crew);
     const rng = this.#campaign.state.rng;
-    warpGameTime(
-      this.#campaign.clockContext,
-      sexSceneWarpSeconds((n) => rng.int(n)),
-      Warp.NO_PROCESSING,
-    );
+    this.#campaign.playSanMonaScreen(sexSceneWarpSeconds((n) => rng.int(n)));
   }
 
   #createHost(): NarrativeHost {

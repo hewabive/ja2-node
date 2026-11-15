@@ -137,7 +137,7 @@ export function fakeActionEnv(options: FakeActionEnvOptions = {}): FakeActionEnv
     },
     message: (kind, profile, amount) => env.messages.push([kind, profile, amount]),
     presentation: (kind, profile) => env.presented.push([kind, profile]),
-    warpTimeWithoutEvents: (seconds) => env.warps.push(seconds),
+    playSanMonaScreen: (seconds) => env.warps.push(seconds),
     profileName: (npc) => `Name${npc}`,
     kickOutOfWheelchair: (s) => env.calls.push(`kickout ${s.id}`),
     leatherJacketPrice: () => 950,

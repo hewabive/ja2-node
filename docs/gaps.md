@@ -17,11 +17,8 @@ under `src/sim/tactical/`.
 
 ## 2. Strategic layer
 
-The map, travel, vehicles, time compression, the economy, sector state and autoresolve. Paths are under `src/sim/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| San Mona screen's world-clock second | The San Mona screen the brothel's floor trigger starts outside a conversation is a screen of its own (`JAScreens.cc:418`), so `UpdateClock` restarts the world clock's second at every frame it plays (`Strategic/Game_Clock.cc:602-607`) | The jump runs at the action (`sexScene`), which leaves the second as it stood (`tactical/narrative/quest-items.ts`) | A restart after the step's `updateClock` (`restartClockSecond`, `strategic/time/world-clock.ts`), as for the decisions the simulation stands for (`15` §2) |
+The map, travel, vehicles, time compression, the economy, sector state and autoresolve: none known. Paths are under
+`src/sim/`.
 
 ## 3. Campaign, laptop and narrative
 

@@ -25,7 +25,8 @@ CampaignSim.step: one 5 ms tick                           campaign/campaign-sim.
        └ EventDispatch.execute → the kind's handler       time/dispatch.ts
   hand-offs: meanwhile, endgame, helicopter, PBI,
   contracts; then the compression and day events;
-  a decision left up restarts the clock's second
+  a decision left up or the San Mona screen played
+  restarts the clock's second
 compressTime, stopTime                                    campaign-sim.ts → time/world-clock.ts
 mapScreen, tacticalScreen, back to the loaded sector      campaign/screens.ts
 new game                                                  campaign/new-game.ts
@@ -81,9 +82,13 @@ second: a box anywhere, the shop and the laptop screens (`Tactical/ShopKeeper_In
 (`Strategic/Strategic_Movement.cc:682`, `Strategic/PreBattle_Interface.cc:421`), placement under `EnterSector`'s pause
 (`Strategic/StrategicMap.cc:839`), autoresolve's screen. As the decision takes no ticks, a step or an order that leaves
 one up restarts the second at the `realMs` that stands until it is resolved, so the next second, or the next compressed
-slice, comes as late after it as in the original. A refusal that stands for an OK box changes nothing (deviation "Prompt
-time"); a page's own screens and menus hold time without restarting the second (deviations "Client screens'
-world-clock second").
+slice, comes as late after it as in the original. The San Mona screen is such a screen too, though it waits on no
+decision (`JAScreens.cc:418`): `NPC_ACTION_SEX` only sets it pending (`Tactical/Interface_Dialogue.cc:2189`), so the
+frame of the action, the brothel's floor trigger or an NPC's record, runs its `UpdateClock` on the game screen first
+(`GameLoop.cc:168-220`), and the screen's frames restart the second after it. `playSanMonaScreen` warps the clock at the
+action and restarts the second at the end of the step or order that played it; the trigger's interface lock restarted
+it a tick before (`12` §6). A refusal that stands for an OK box changes nothing (deviation "Prompt time"); a page's own
+screens and menus hold time without restarting the second (deviations "Client screens' world-clock second").
 
 **What stops the clock.** Turn-based combat (world time stands, ticks run), a pause, X0 or stopped compression, and the
 `autoresolve` and `laptop` flows. Auto-bandage pauses the game for the whole mode through its sector hooks and at its
@@ -211,7 +216,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | An event that stops compression still lets its 60-second slice run to the end | `time/world-clock.test.ts` |
 | The clock stands in turn-based combat and adds a second at once after it | `time/world-clock.test.ts` |
 | A box or the pickup menu on the tactical screen restarts the world clock's second: the part played before it is lost, and a second due in the tick it opens in never comes | `campaign/tactical-box-clock.test.ts`, `time/world-clock.test.ts` "treats a box up at the tick as a pause …" |
-| The shop, a talk panel with nothing to say, the laptop and a box or the pre-battle panel on the map restart the second, or a compressed real second, too: the next one comes a full second, or the next slice its share of one, after them | `campaign/screen-clock.test.ts` |
+| The shop, a talk panel with nothing to say, the laptop, the San Mona screen and a box or the pre-battle panel on the map restart the second, or a compressed real second, too: the next one comes a full second, or the next slice its share of one, after them | `campaign/screen-clock.test.ts` |
 | One pause lock for every reason: any unlock lifts it | `time/world-clock.test.ts` |
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
 | Auto-bandage's warp is 5 s a frame up to 125 s however long the mode ran, and the events inside it wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |
