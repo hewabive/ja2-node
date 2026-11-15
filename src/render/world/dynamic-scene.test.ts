@@ -389,47 +389,101 @@ interface StripCase {
   readonly viewportTop?: number;
 }
 
-function stripSoldierPixels(tiles: TileElement[], c: StripCase): { ours: string[]; original: string[] } {
-  const at = g(80, 80);
-  const { staticWorld, prepared } = world({}, tiles);
-  if (c.blitter === 'noBurn') prepared.noBurn[at] = 1;
-  const viewportTop = c.viewportTop ?? 0;
-  const base = soldier(4, at, 0);
-  const point = soldierScreenPoint(frame({}), 0, base);
-  const screenX = c.leftSkip === undefined ? UNCLIPPED_AT.x : -c.leftSkip;
-  const screenY = c.topSkip === undefined ? UNCLIPPED_AT.y : viewportTop - c.topSkip;
-  const sprite: SoldierSprite = {
-    ...base.sprite,
+interface StripDraw {
+  readonly blitter: StripBlitter;
+  readonly scene: DynamicScene;
+  readonly frame: DynamicFrame;
+  readonly sprite: SoldierSprite;
+  readonly at: { readonly x: number; readonly y: number };
+  readonly z: number;
+}
+
+function stripScreenPoint(c: StripCase): { x: number; y: number } {
+  return {
+    x: c.leftSkip === undefined ? UNCLIPPED_AT.x : -c.leftSkip,
+    y: c.topSkip === undefined ? UNCLIPPED_AT.y : (c.viewportTop ?? 0) - c.topSkip,
+  };
+}
+
+function patternedSprite(base: SoldierSprite, anchor: { x: number; y: number }, at: { x: number; y: number }): SoldierSprite {
+  return {
+    ...base,
     width: STRIP_SPRITE_WIDTH,
     height: STRIP_SPRITE_HEIGHT,
-    offsetX: screenX - point.x,
-    offsetY: screenY - point.y,
+    offsetX: at.x - anchor.x,
+    offsetY: at.y - anchor.y,
     pixels: stripPixels,
   };
-  const prone = { ...base, sprite, multiTile: { zStrip: STRIPS, zTileOffsetX: 0, zTileOffsetY: 0, vehicle: false } };
-  const f = frame({ viewportTop, soldiers: [prone] });
-  const scene = new DynamicScene(staticWorld, prepared);
-  scene.build(f);
-  const merc = mercZ(worldY(80, 80, 860));
-  const z = c.blitter === 'noBurn' ? u16(merc + NOBURN_Z_BONUS) : merc;
-  const clip = { left: 0, top: viewportTop, right: f.viewport.width, bottom: f.viewport.height };
+}
+
+function comparedStripPixels(d: StripDraw): { ours: string[]; original: string[] } {
+  d.scene.build(d.frame);
+  const { viewport } = d.frame;
+  const clip = { left: 0, top: d.frame.viewportTop ?? 0, right: viewport.width, bottom: viewport.height };
   const blit = (storedAt: (x: number, y: number) => number) =>
-    originalStripBlit(c.blitter, sprite, { x: screenX, y: screenY }, clip, STRIPS, z, new ScreenBuffer(f.viewport.width, storedAt));
+    originalStripBlit(d.blitter, d.sprite, d.at, clip, STRIPS, d.z, new ScreenBuffer(viewport.width, storedAt));
   const reference = blit(() => 0);
   const storedAt = (x: number, y: number) => {
     const drawn = reference.drawn(x, y);
     return drawn === undefined ? 0 : drawn + ((x + 2 * y) % 3) - 1;
   };
   const rect = {
-    left: Math.max(clip.left, screenX),
-    top: Math.max(clip.top, screenY),
-    right: screenX + STRIP_SPRITE_WIDTH,
-    bottom: screenY + STRIP_SPRITE_HEIGHT,
+    left: Math.max(clip.left, d.at.x),
+    top: Math.max(clip.top, d.at.y),
+    right: d.at.x + STRIP_SPRITE_WIDTH,
+    bottom: d.at.y + STRIP_SPRITE_HEIGHT,
   };
   return {
-    ours: rasterize(scene, f, sprite, new ScreenBuffer(f.viewport.width, storedAt)).pixels(rect),
+    ours: rasterize(d.scene, d.frame, d.sprite, new ScreenBuffer(viewport.width, storedAt)).pixels(rect),
     original: blit(storedAt).pixels(rect),
   };
+}
+
+function stripSoldierPixels(tiles: TileElement[], c: StripCase): { ours: string[]; original: string[] } {
+  const at = g(80, 80);
+  const { staticWorld, prepared } = world({}, tiles);
+  if (c.blitter === 'noBurn') prepared.noBurn[at] = 1;
+  const base = soldier(4, at, 0);
+  const screen = stripScreenPoint(c);
+  const sprite = patternedSprite(base.sprite, soldierScreenPoint(frame({}), 0, base), screen);
+  const prone = { ...base, sprite, multiTile: { zStrip: STRIPS, zTileOffsetX: 0, zTileOffsetY: 0, vehicle: false } };
+  const merc = mercZ(worldY(80, 80, 860));
+  return comparedStripPixels({
+    blitter: c.blitter,
+    scene: new DynamicScene(staticWorld, prepared),
+    frame: frame({ viewportTop: c.viewportTop ?? 0, soldiers: [prone] }),
+    sprite,
+    at: screen,
+    z: c.blitter === 'noBurn' ? u16(merc + NOBURN_Z_BONUS) : merc,
+  });
+}
+
+const CELL_CENTRE = { x: 805, y: 805, heightAdjustment: 0 };
+
+function stripCorpsePixels(tiles: TileElement[], clip: Pick<StripCase, 'leftSkip'> = {}): { ours: string[]; original: string[] } {
+  const { staticWorld, prepared } = world({}, tiles);
+  const screen = stripScreenPoint({ blitter: 'noBurn', ...clip });
+  const base = { layer: 0, x: 0, y: 7001, width: 0, height: 0, offsetX: 0, offsetY: 0, pixels };
+  const sprite = patternedSprite(base, soldierScreenPoint(frame({}), 0, CELL_CENTRE), screen);
+  const corpse: SceneAniTile = {
+    kind: 'corpse',
+    gridNo: g(80, 80),
+    level: 0,
+    sprite,
+    paletteRow: 51,
+    shaded: true,
+    zStrip: STRIPS,
+    zTileOffsetX: 0,
+    zTileOffsetY: 0,
+  };
+  return comparedStripPixels({
+    blitter: 'noBurn',
+    scene: new DynamicScene(staticWorld, prepared),
+    frame: frame({ aniTiles: [corpse] }),
+    sprite,
+    at: screen,
+    z: corpseZ(worldY(79, 79, 860)),
+  });
 }
 
 describe('dynamic scene', () => {
@@ -681,7 +735,7 @@ describe('dynamic scene', () => {
       kind,
       gridNo,
       level,
-      sprite: { layer: 0, x: 0, y: 7000 + id, width: 40, height: 20, offsetX: -20, offsetY: -10 },
+      sprite: { layer: 0, x: 0, y: 7000 + id, width: 40, height: 20, offsetX: -20, offsetY: -10, pixels },
       paletteRow: 50 + id,
       shaded: kind !== 'smoke',
       zStrip: null,
@@ -820,6 +874,18 @@ describe('dynamic scene', () => {
         const { ours, original } = stripSoldierPixels(tiles, { blitter, leftSkip });
         expect(ours, `${blitter}, ${leftSkip} columns skipped`).toEqual(original);
       }
+  });
+
+  it('draws a corpse in z strips with the strip blitter of a soldier on a no-burn tile whatever its tile: where it is nearer or ties, its shadow too, writing its z on every pixel drawn, its z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:1119-1127, :1256, :2999-3027)', () => {
+    const { ours, original } = stripCorpsePixels(tiles);
+    expect(ours).toEqual(original);
+  });
+
+  it('starts the strips of a corpse clipped at the left edge of the view a sublayer per strip it counts as skipped, counting none while fewer columns are cut than the cut strip has left (RenderWorld.cc:2865-2908)', () => {
+    for (const leftSkip of [3, 7, 10, 12, 25, 30, 45]) {
+      const { ours, original } = stripCorpsePixels(tiles, { leftSkip });
+      expect(ours, `${leftSkip} columns skipped`).toEqual(original);
+    }
   });
 
   it("dithers a soldier in z strips clipped at the top of the view on the parity of the sprite's first row, not of the screen row (BltTransZTransShadowIncObscure, RenderWorld.cc:2629)", () => {
