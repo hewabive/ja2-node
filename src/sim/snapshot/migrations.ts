@@ -2576,6 +2576,23 @@ function dropEquipmentLocationFlags(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MILITIA_PROMOTIONS_KEY = 'militiaPromotions';
+const NO_MILITIA_PROMOTIONS: JsonObject = { total: 0, greenToElite: 0, greenToRegular: 0, regularToElite: 0 };
+
+function withMilitiaPromotionsShown(strategic: JsonObject): JsonObject {
+  const economy = strategic[ECONOMY_KEY];
+  if (!isObject(economy) || economy[REF] !== undefined) return strategic;
+  return { ...strategic, [ECONOMY_KEY]: { ...economy, [MILITIA_PROMOTIONS_KEY]: NO_MILITIA_PROMOTIONS } };
+}
+
+function markMilitiaPromotionsShown(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withMilitiaPromotionsShown(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2666,5 +2683,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     86: addCantGetThrough,
     87: addWorldItemIds,
     88: dropEquipmentLocationFlags,
+    89: markMilitiaPromotionsShown,
   };
 }

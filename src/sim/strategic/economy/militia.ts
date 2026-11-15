@@ -9,7 +9,9 @@
 // @src StartTrainingInAllUnpaidTrainableSectors, ContinueTrainingInThisSector, PayForTrainingInSector,
 // @src ResetDoneFlagForAllMilitiaTrainersInSector, SoldierClassToMilitiaRank; Strategic/Assignments.cc TrainTownInSector;
 // @src Tactical/Militia_Control.cc HandleMilitiaPromotions; Map_Screen_Interface.cc
-// @src ResetAssignmentsForMercsTrainingUnpaidSectorsInSelectedList, ResetAssignmentOfMercsThatWereTrainingMilitiaInThisSector.
+// @src ResetAssignmentsForMercsTrainingUnpaidSectorsInSelectedList, ResetAssignmentOfMercsThatWereTrainingMilitiaInThisSector;
+// @src Strategic/Auto_Resolve.cc RemoveAutoResolveInterface (the promotion counters set anew), Town_Militia.cc
+// @src BuildMilitiaPromotionsString (the counters the map screen's box shows, cleared as it opens, 2026-11-15).
 
 import { type Sector, sameSector, sectorFromId, sectorId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { idiv, u8 } from '../../../core/int.ts';
@@ -39,7 +41,7 @@ import {
   sectorHasSufficientLoyaltyToTrainMilitia,
 } from './militia-rules.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
-import type { MilitiaContinuePrompt, MilitiaPaymentPrompt } from './state.ts';
+import { createMilitiaPromotions, type MilitiaContinuePrompt, type MilitiaPaymentPrompt, type MilitiaPromotions } from './state.ts';
 import { sectorOursAndPeaceful, townOf } from './towns.ts';
 
 const LEADERSHIP_CHANCE_DIVISOR = 200;
@@ -358,10 +360,7 @@ export interface MilitiaInBattle {
 
 export function handleMilitiaPromotions(ctx: EconomyContext, sector: Sector, militia: readonly MilitiaInBattle[]): void {
   const counters = ctx.state.economy.militiaPromotions;
-  counters.total = 0;
-  counters.greenToElite = 0;
-  counters.greenToRegular = 0;
-  counters.regularToElite = 0;
+  Object.assign(counters, createMilitiaPromotions());
   for (const m of militia) {
     if (!m.inSector || m.life <= 0 || m.militiaKills === 0) continue;
     const rank = soldierClassToMilitiaRank(m.soldierClass);
@@ -375,13 +374,22 @@ export function handleMilitiaPromotions(ctx: EconomyContext, sector: Sector, mil
     else counters.regularToElite++;
     m.militiaKills = 0;
   }
-  if (counters.total > 0)
-    ctx.events.push({
-      type: 'militiaPromoted',
-      greenToRegular: counters.greenToRegular,
-      regularToElite: counters.regularToElite,
-      greenToElite: counters.greenToElite,
-    });
+}
+
+export function setAutoresolvePromotions(ctx: EconomyContext, promotions: MilitiaPromotions): void {
+  Object.assign(ctx.state.economy.militiaPromotions, promotions);
+}
+
+export function announceMilitiaPromotions(ctx: EconomyContext): void {
+  const counters = ctx.state.economy.militiaPromotions;
+  if (counters.total === 0) return;
+  ctx.events.push({
+    type: 'militiaPromoted',
+    greenToElite: counters.greenToElite,
+    greenToRegular: counters.greenToRegular,
+    regularToElite: counters.regularToElite,
+  });
+  Object.assign(counters, createMilitiaPromotions());
 }
 
 export function handleMilitiaDefections(ctx: EconomyContext, sector: Sector): void {

@@ -14,7 +14,7 @@ export type EconomyEvent =
   | { readonly type: 'itemRepaired'; readonly repairer: number; readonly owner: number; readonly item: number }
   | { readonly type: 'gunUnjammed'; readonly repairer: number; readonly owner: number; readonly item: number }
   | { readonly type: 'militiaTrained'; readonly sector: number; readonly trained: number }
-  | { readonly type: 'militiaPromoted'; readonly greenToRegular: number; readonly regularToElite: number; readonly greenToElite: number }
+  | { readonly type: 'militiaPromoted'; readonly greenToElite: number; readonly greenToRegular: number; readonly regularToElite: number }
   | { readonly type: 'militiaDefected'; readonly sector: number; readonly removed: number }
   | { readonly type: 'loyaltyChanged'; readonly town: number; readonly rating: number }
   | { readonly type: 'mineIncome'; readonly amount: number }

@@ -9,7 +9,13 @@ import type { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 
 const UPDATE_BOX_EVENTS: readonly SimEventType[] = ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon'];
-const SCREEN_INDEPENDENT_BOX_EVENTS: readonly SimEventType[] = ['sectorLost', 'invasion', 'vehicleOutOfGas', 'militiaTrainingRejected'];
+const SCREEN_INDEPENDENT_BOX_EVENTS: readonly SimEventType[] = [
+  'sectorLost',
+  'invasion',
+  'vehicleOutOfGas',
+  'militiaTrainingRejected',
+  'militiaPromoted',
+];
 const BOX_EVENTS: readonly SimEventType[] = [...UPDATE_BOX_EVENTS, ...SCREEN_INDEPENDENT_BOX_EVENTS];
 const MANUAL: DriverMode = { mode: 'manual' };
 const AUTORESOLVE_FLOW = 'autoresolve';

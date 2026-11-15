@@ -4381,3 +4381,35 @@ describe("snapshot version 88 (the equipment's location flags) migrates without 
     await expectFlagsDropped(await quietLandedCampaign(kit));
   });
 });
+
+function versionEightyNine(snapshot: SimSnapshot, militiaPromotions: JsonObject): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    return [name, { ...strategic, economy: { ...object(strategic.economy), militiaPromotions } }];
+  });
+  return { ...snapshot, version: 89, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 89 (promotions reported as they were counted) migrates with no promotions box pending', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionEightyNine(current.sim, { total: 2, greenToElite: 0, greenToRegular: 1, regularToElite: 1 });
+    expect(JSON.stringify(legacy)).toContain('"greenToRegular":1');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

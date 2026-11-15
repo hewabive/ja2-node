@@ -8,10 +8,12 @@ import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { gridNoOnVisibleWorldTile, RestrictedScroll } from '../../content/world/render-bounds.ts';
+import { idiv } from '../../core/int.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem } from '../items/object.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { meanwhileScheduledIn } from '../strategic/ai/meanwhile.ts';
+import { handleMilitiaPromotions } from '../strategic/economy/militia.ts';
 import { BattleStatus } from '../strategic/forces/autoresolve/state.ts';
 import { PromptKind } from '../strategic/forces/battle-state.ts';
 import { EncounterCode } from '../strategic/forces/constants.ts';
@@ -25,7 +27,7 @@ import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { keyItemForKeyId } from '../tactical/doors/keys.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { OKLIFE, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { OKLIFE, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { checkForEndOfBattle } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -56,6 +58,8 @@ const WEAK_LIFE = 15;
 const KEY_POSITION = 3;
 const KEYS_ON_RING = 2;
 const BLEEDING = 10;
+const SURE_PROMOTION_KILL_POINTS = 20;
+const MILITIA_SURVIVAL_LIFE = idiv(OKLIFE, 2);
 
 function sendEnemyGroup(c: CampaignSim): number {
   const ctx = c.strategic;
@@ -517,5 +521,47 @@ describe('autoresolve from the strategic state', () => {
     const dead = c.state.sectorDiffs.get(sectorKey(DRASSEN))?.corpses ?? [];
     expect(dead.length).toBeGreaterThan(1);
     expect(dead.filter((k) => !gridNoOnVisibleWorldTile(RestrictedScroll.BASEMENT, k.gridNo))).toEqual([]);
+  });
+});
+
+describe('the militia promotions box', () => {
+  const promoted = (events: readonly SimEvent[]) => events.filter((e) => e.type === 'militiaPromoted');
+
+  it('reports the promotions of an autoresolve battle once, as the map screen comes back (HandlePostAutoresolveMessages)', () => {
+    const { c } = landedTown(5);
+    advance(c, { ticks: TICKS_TO_ARRIVAL });
+    const pbi = c.state.battle.prompt;
+    expect(c.dispatch({ type: 'answer', prompt: pbi?.id, choice: 'autoresolve' })).toMatchObject({ ok: true });
+    advance(c, { idle: true });
+    const cells = c.state.battle.autoresolve?.ar.militia ?? [];
+    for (const cell of cells) cell.militiaKills = SURE_PROMOTION_KILL_POINTS;
+    const survivors = (soldierClass: number) =>
+      cells.filter((cell) => cell.soldier.soldierClass === soldierClass && cell.soldier.life >= MILITIA_SURVIVAL_LIFE).length;
+    const expected = {
+      greenToElite: survivors(SoldierClass.GREEN_MILITIA),
+      greenToRegular: 0,
+      regularToElite: survivors(SoldierClass.REG_MILITIA),
+    };
+    expect(expected.greenToElite + expected.regularToElite).toBeGreaterThan(0);
+    c.drainEvents();
+    const done = c.state.battle.prompt;
+    expect(c.dispatch({ type: 'answer', prompt: done?.id, choice: 'done' })).toMatchObject({ ok: true });
+    expect(c.state.flow).toBe('strategic');
+    expect(promoted(c.drainEvents())).toEqual([{ type: 'militiaPromoted', ...expected, tick: c.tick }]);
+    expect(promoted(advance(c, { ticks: 5 }).events)).toEqual([]);
+  });
+
+  it('holds the promotions counted on the tactical screen until the map screen is up', () => {
+    const { c } = landedTown(5);
+    expect(c.state.flow).toBe('tactical');
+    const economy = c.economy;
+    if (!economy) throw new Error('no economy');
+    const militia = [{ soldierClass: SoldierClass.GREEN_MILITIA, inSector: true, life: 20, militiaKills: SURE_PROMOTION_KILL_POINTS }];
+    handleMilitiaPromotions(economy, A9, militia);
+    expect(promoted(advance(c, { ticks: 5 }).events)).toEqual([]);
+    expect(c.dispatch({ type: 'mapScreen' })).toMatchObject({ ok: true });
+    expect(promoted(c.drainEvents())).toEqual([
+      { type: 'militiaPromoted', greenToElite: 1, greenToRegular: 0, regularToElite: 0, tick: c.tick },
+    ]);
   });
 });

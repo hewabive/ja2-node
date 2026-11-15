@@ -551,6 +551,31 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.find(`trainingMenu.line${TRAIN_MENU_TOWN}`)).toBeDefined();
     }));
 
+  it('boxes the militia promotions, veterans from green first, one in the singular, the lines joined by spaces, a rank nobody reached left out', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const promotions = [
+        { type: 'militiaPromoted', tick, greenToElite: 2, greenToRegular: 1, regularToElite: 3 },
+        { type: 'militiaPromoted', tick: tick + 1, greenToElite: 0, greenToRegular: 4, regularToElite: 1 },
+      ] as const;
+      f.frames([
+        { tick, changed: [], removed: [], events: [promotions[0]] },
+        { tick: tick + 1, changed: [], removed: [], events: [promotions[1]] },
+      ]);
+      const texts: string[] = [];
+      for (let i = 0; i < promotions.length; i++) {
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+      }
+      await f.settle();
+      expect(texts).toEqual([
+        '2 green militia have been promoted to veteran militia. 1 green militia has been promoted to a regular militia. 3 regular militia have been promoted to veteran militia.',
+        '4 green militia have been promoted to regular militia. 1 regular militia has been promoted to a veteran militia.',
+      ]);
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
   it('masks the screen while the player pauses: a click anywhere unpauses and opens nothing (CreateDestroyScreenMaskForPauseGame)', () =>
     withMap(async (f) => {
       f.key('Pause');

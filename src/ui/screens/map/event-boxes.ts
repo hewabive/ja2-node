@@ -5,14 +5,14 @@
 // @src the detailed GetSectorIDString); src/game/Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (STR_LATE_05
 // @src with pVehicleStrings of the vehicle's type and the sector's short string, 2026-11-05);
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (an OK box on the screen that is up when it happens;
-// @src the militia training refusals, 2026-11-14).
+// @src the militia training refusals, 2026-11-14; the militia promotions, which come only on the map screen, 2026-11-15).
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
 import { braceFormat, printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { eventPrompt, type PromptedText } from '../../viewer-prompts.ts';
-import { militiaRejectionText } from './militia-boxes.ts';
+import { militiaPromotionsText, militiaRejectionText } from './militia-boxes.ts';
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 export type SectorLostEvent = Extract<FrameEvent, { readonly type: 'sectorLost' }>;
@@ -51,6 +51,8 @@ function eventBox(event: FrameEvent, sources: EventBoxSources): PromptedText | n
     const text = militiaRejectionText(sources, event);
     return text === null ? null : { text, prompt: eventPrompt(event, `${event.reason}-${event.sector}`) };
   }
+  if (event.type === 'militiaPromoted')
+    return { text: militiaPromotionsText(sources.text, event), prompt: eventPrompt(event, 'promotions') };
   if (event.type !== 'vehicleOutOfGas') return null;
   const type = sources.vehicleType(event.vehicle);
   return type === null ? null : { text: outOfGasText(sources.text, type, event.sector), prompt: eventPrompt(event, event.sector) };

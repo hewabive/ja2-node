@@ -11,6 +11,7 @@ import { canCharacterTrainMilitia } from './conditions.ts';
 import { Assignment, MilitiaRank, SoldierClass, Town } from './constants.ts';
 import { setTownLoyalty } from './loyalty.ts';
 import {
+  announceMilitiaPromotions,
   checkOneMilitiaForPromotion,
   handleContinueOfTownTraining,
   handleMilitiaDefections,
@@ -378,6 +379,33 @@ describe('promotions and defections', () => {
     expect(made.ctx.state.economy.militiaPromotions).toEqual({ total: 1, greenToElite: 0, greenToRegular: 1, regularToElite: 0 });
     expect(soldiers[0]?.militiaKills).toBe(0);
     expect(sectorInfo(made.ctx.state.map, D13).militia).toEqual([2, 1, 0]);
+  });
+
+  it('reports the promotions once, when the map screen boxes them, and clears them as BuildMilitiaPromotionsString does', () => {
+    const made = context('yes', new ScriptedRolls([0, 0, 0]));
+    militia(made, D13, 2, 1, 0);
+    const soldiers = [
+      { soldierClass: SoldierClass.GREEN_MILITIA, inSector: true, life: 20, militiaKills: 7 },
+      { soldierClass: SoldierClass.REG_MILITIA, inSector: true, life: 20, militiaKills: 5 },
+    ];
+    handleMilitiaPromotions(made.ctx, D13, soldiers);
+    expect(made.ctx.events.filter((e) => e.type === 'militiaPromoted')).toEqual([]);
+    announceMilitiaPromotions(made.ctx);
+    announceMilitiaPromotions(made.ctx);
+    expect(made.ctx.events.filter((e) => e.type === 'militiaPromoted')).toEqual([
+      { type: 'militiaPromoted', greenToElite: 1, greenToRegular: 0, regularToElite: 1 },
+    ]);
+    expect(made.ctx.state.economy.militiaPromotions).toEqual({ total: 0, greenToElite: 0, greenToRegular: 0, regularToElite: 0 });
+  });
+
+  it('loses promotions not boxed yet at the next unload, even of a sector where nobody is promoted (HandleMilitiaPromotions resets first)', () => {
+    const made = context('yes', new ScriptedRolls([0]));
+    militia(made, D13, 1, 0, 0);
+    handleMilitiaPromotions(made.ctx, D13, [{ soldierClass: SoldierClass.GREEN_MILITIA, inSector: true, life: 20, militiaKills: 2 }]);
+    expect(made.ctx.state.economy.militiaPromotions.total).toBe(1);
+    handleMilitiaPromotions(made.ctx, C13, []);
+    announceMilitiaPromotions(made.ctx);
+    expect(made.ctx.events.filter((e) => e.type === 'militiaPromoted')).toEqual([]);
   });
 
   it('removes defectors rank by rank', () => {

@@ -218,8 +218,8 @@ with `openShop`; the panel holds it the original's 800 ms (`ShopPanel`), and out
 pointer by the `compatibleItems` hint's shop rule.
 
 **The map screen drives its own time.** `SessionMapClient` runs the session in real time at speed 1 and stops the driver
-on the events that open a box (`pauseOn`: the update box's, `sectorLost`, `invasion`, `vehicleOutOfGas` and
-`militiaTrainingRejected`); menus, plotting, boxes and the inventories hold time like `InterruptTimeForMenus`; after
+on the events that open a box (`pauseOn`: the update box's, `sectorLost`, `invasion`, `vehicleOutOfGas`,
+`militiaTrainingRejected` and `militiaPromoted`); menus, plotting, boxes and the inventories hold time like `InterruptTimeForMenus`; after
 the server stops on an event the driver restarts once playback has caught up. The player's pause holds time
 (`mapPaused`) and refuses nothing: as `CreateDestroyScreenMaskForPauseGame` does, it puts a mask over the whole screen,
 the clock's region on top of it, and a click on either unpauses (`pauseMask` in the layout), so no menu opens while
@@ -231,7 +231,8 @@ screen asks for real time anew on entry.
 `DoScreenIndependantMessageBox` on whatever screen is up (the militia ones from `militiaTrainingRejected` by its reason,
 `map/militia-boxes.ts`, deviation "Militia refusal boxes"); ja2-node's map and tactical screens both hear every frame, so
 the tactical screen opens them in the tactical flow and the map screen otherwise, once it is on top again after
-autoresolve (`map/event-boxes.ts`). The enter sound of a ground vehicle follows the same split: the sound director plays
+autoresolve (`map/event-boxes.ts`). The militia promotions box is the map screen's alone, as the simulation reports
+`militiaPromoted` only in the strategic flow (`18`). The enter sound of a ground vehicle follows the same split: the sound director plays
 it at the vehicle's tile in the tactical flow, the map screen otherwise, at the same tile against the tactical camera
 last shown, as the original's `SoundVolume` and `SoundDir` read the world view the last scroll left
 (`Utils/Sound_Control.cc:555`; `src/app/map/map-sound.ts`). The invasion box of a SAM site or town held by militia

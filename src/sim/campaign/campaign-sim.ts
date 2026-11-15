@@ -25,7 +25,8 @@
 // @src ShopKeeperScreenHandle, Laptop/Laptop.cc EnterLaptop, Tactical/Dialogue_Control.cc HandleDialogue's conversation
 // @src pause, Strategic/PreBattle_Interface.cc InitPreBattleInterface, a box on the map screen (2026-11-15); JAScreens.cc
 // @src SexScreenHandle, the screen NPC_ACTION_SEX sets pending, which GameLoop.cc switches to after the frame's
-// @src UpdateClock and whose every frame restarts its second (2026-11-15).
+// @src UpdateClock and whose every frame restarts its second (2026-11-15); MapScreen.cc HandlePostAutoresolveMessages' last
+// @src branch, the militia promotions box, which every map screen frame without a box up reaches (2026-11-15).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -44,6 +45,7 @@ import { Assignment } from '../strategic/economy/constants.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import { createMerchantContext, type MerchantContext, type MerchantSetup, type ShopHours } from '../strategic/economy/merchants/context.ts';
 import { dailyUpdateOfArmsDealersInventory } from '../strategic/economy/merchants/daily.ts';
+import { announceMilitiaPromotions } from '../strategic/economy/militia.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { collapseFromTravelFatigue } from '../strategic/economy/rest.ts';
 import { applySquadAssignment } from '../strategic/economy/set-assignment.ts';
@@ -749,10 +751,15 @@ export class CampaignSim {
     this.contracts?.settle();
     this.#reEvaluateNothingToDo();
     this.#handleTacticalDoHeliRun();
+    this.#announceMilitiaPromotions();
     this.#collectEvents();
     this.#syncClockEvents();
     this.#restartClockSecondBehindADecision();
     this.#restartClockSecondBehindTheSanMonaScreen();
+  }
+
+  #announceMilitiaPromotions(): void {
+    if (this.economy && this.state.flow === 'strategic' && !this.#standsForADecision()) announceMilitiaPromotions(this.economy);
   }
 
   #handleTacticalDoHeliRun(): void {
@@ -940,6 +947,7 @@ export class CampaignSim {
     this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
     this.#handleTacticalDoHeliRun();
+    this.#announceMilitiaPromotions();
     this.#collectEvents();
     this.#syncClockEvents();
     this.#drainLoadedSectorEvents();

@@ -27,6 +27,7 @@ import { clearSurfaceCreatures, determineCreatureTownComposition } from '../stra
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
+import { setAutoresolvePromotions } from '../strategic/economy/militia.ts';
 import { countAllMilitiaInSector } from '../strategic/economy/militia-rules.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { answerPendingMilitiaPrompt } from '../strategic/economy/set-assignment.ts';
@@ -813,6 +814,7 @@ export class BattleFlow implements FateContext {
     const wounded = ar.mercs.filter((c) => c.soldier.life !== 0 && c.soldier.life < c.soldier.lifeMax).map((c) => c.soldier.id);
     const controlBefore = this.#controller(sector);
     const result = closeAutoresolve(env, ar, port);
+    setAutoresolvePromotions(this.economy, result.promotions);
     const robot = robotCell(ar);
     if (robot) this.roster.updateRobotControllerGivenRobot(robot.soldier.id);
     if (result.bandageEvent) addStrategicEvent(s.queue, EventKind.BANDAGE_BLEEDING_MERCS, worldTotalMinutes(s.clock) + 1, 0);

@@ -107,6 +107,9 @@ compression for healing").
 **Militia counts are strategic.** Tactical militia are created from the sector's counts on the map's enemy placements
 when it loads, and re-created when training or redistribution changed the loaded sector; a death removes one at once.
 Promotions are rolled when the world unloads, not when the battle goes straight to autoresolve (`19` rolls its own).
+Both keep their counts in `economy.militiaPromotions` until the map screen is up with no prompt open, where they come as
+one `militiaPromoted` event, the original's box (`Strategic/MapScreen.cc:7626`), and are cleared; the next roll replaces
+counts not reported yet.
 
 **Loyalty distances** come from `findStratPath` with a throw-away foot group, never with SHIFT held (deviation
 "Loyalty distance path"). The amounts of every named event are in `data/tables/town-loyalty.json`. Where loyalty
@@ -151,6 +154,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A session never creates elites, and gives no loyalty unless it placed at least one militia | `militia.test.ts` |
 | The trainer who completes a session ends the hour's training: no carry-over, no leadership chance for the rest | `militia.test.ts`, `training.test.ts` |
 | A promotion falls back to a higher rank when the soldier's own is gone; a green can reach elite at once | `militia.test.ts` |
+| The next unload, even of a sector where nobody is promoted, drops the promotions the map screen has not boxed yet: the roll clears the counts first (`Tactical/Militia_Control.cc:64-67`) | `militia.test.ts` |
 | AUTO deals out the militia of a town sector with enemies in it while they also stay there | `militia.test.ts` |
 | Militia the player attacks stay on our side and never defect: Stracciatella's `MakeCivHostile` sets no side outside Conrad and the General (`Overhead.cc:2591`), and the unload asks the militia team (`Town_Militia.cc:610`) | `campaign/sector-flow.test.ts` |
 | A negative loyalty remainder keeps its sign; reaching the cap zeroes the remainder | `loyalty.test.ts` |
