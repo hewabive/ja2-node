@@ -8,11 +8,12 @@ import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, emptyObject } from '../items/object.ts';
-import { AiAction } from './ai/actions.ts';
+import { AiAction, RT_DELAY_BETWEEN_AI_HANDLING } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
 import { isMoving, states } from './animation.ts';
 import { shouldBeginAutoBandage, startAutoBandage } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
+import { DOOR_FRAME_DELAY_MS, startDoorAnimation } from './doors/door-animation.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
 import { stopMerc } from './movement.ts';
 import { createSoldier, NOBODY, NOWHERE, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
@@ -48,6 +49,8 @@ const FRAMES_TO_A_TURN = (STRATEGIC_OVERHEAD_MS + TICK_MS) / TICK_MS;
 const MEDIC = gridNo(70, 70);
 const BESIDE_MEDIC = gridNo(70, 71);
 const FAR_FROM_MEDIC = gridNo(70, 80);
+const DOOR_AT = gridNo(90, 70);
+const CIVILIAN_AT = gridNo(90, 90);
 
 const item = (name: string) => content.items.byName.get(name)?.index ?? -1;
 const st = () => states(content.animations);
@@ -254,6 +257,23 @@ function pendingAndPrompt(t: TacticalState): [boolean, unknown] {
   return [t.autoBandage.pending, t.prompt?.kind ?? null];
 }
 
+interface DueThisFrame {
+  readonly doorFrame: () => number;
+  readonly decidedAfter: (ms: number) => boolean;
+}
+
+function doorAndCivilianDueThisFrame(sim: TacticalSim): DueThisFrame {
+  const t = sim.state;
+  const civ = civilian(sim, CIVILIAN, CIVILIAN_AT);
+  civ.ai.counter = t.clockMs;
+  t.aiPass.lastTickMs = t.clockMs - RT_DELAY_BETWEEN_AI_HANDLING - TICK_MS;
+  startDoorAnimation(t, DOOR_AT, true);
+  const door = t.explosives.aniTiles[0];
+  if (!door) throw new Error('no door animation');
+  door.lastUpdate = t.clockMs - DOOR_FRAME_DELAY_MS - TICK_MS;
+  return { doorFrame: () => door.frame, decidedAfter: (ms) => civ.ai.counter > ms };
+}
+
 describe('the question at the end of a battle (Overhead.cc CheckForEndOfBattle, Auto_Bandage.cc ShouldBeginAutoBandage)', () => {
   it('is set pending out of combat, outside the Deidranna endgame and with a medic for a patient', () => {
     const sim = scene();
@@ -375,6 +395,39 @@ describe('the pending question (Auto_Bandage.cc HandleAutoBandagePending)', () =
     seat.savedPendingAction = null;
     frame(sim);
     expect([t.soldiers[SEAT_ID], waited, pendingAndPrompt(t)]).toEqual([undefined, [true, null], [false, 'beginAutoBandage']]);
+  });
+
+  it('holds the whole pass of the frame it asks in: tile animations and AI decisions wait for the answer (PauseTime against COUNTERDONE(TOVERHEAD))', () => {
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    patient(sim, SHADOW, FAR_FROM_MEDIC);
+    const due = doorAndCivilianDueThisFrame(sim);
+    t.autoBandage.pending = true;
+    const askedAt = t.clockMs;
+    frame(sim);
+    const asked = [t.prompt?.kind, due.doorFrame(), due.decidedAfter(askedAt)];
+    expect(sim.dispatch({ type: 'answer', choice: 'no' })).toEqual({ ok: true });
+    frame(sim);
+    expect([asked, [due.doorFrame(), due.decidedAfter(askedAt)]]).toEqual([
+      ['beginAutoBandage', 0, false],
+      [1, true],
+    ]);
+  });
+
+  it('holds the pass of the frame its refusal comes in too, as the OK box answered at once', () => {
+    const sim = scene();
+    const t = sim.state;
+    medic(sim, IRA, MEDIC);
+    const shadow = patient(sim, SHADOW, FAR_FROM_MEDIC);
+    const due = doorAndCivilianDueThisFrame(sim);
+    t.autoBandage.pending = true;
+    shadow.bleeding = 0;
+    const toldAt = t.clockMs;
+    const told = ofType(frame(sim), 'autoBandageRefused').length;
+    const held = [due.doorFrame(), due.decidedAfter(toldAt)];
+    frame(sim);
+    expect([told, held, [due.doorFrame(), due.decidedAfter(toldAt)]]).toEqual([1, [0, false], [1, true]]);
   });
 
   it('checks everything again when it asks, so a changed sector gives the refusal instead and clears the flag (quirk)', () => {

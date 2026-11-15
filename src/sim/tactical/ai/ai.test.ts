@@ -61,7 +61,7 @@ function world(seed: number, control = createAiControl()): { t: TacticalState; h
   return {
     t,
     hooks: {
-      beforePass: beginAiPass,
+      passStart: beginAiPass,
       ai: (s, soldier, slot) => aiForSlot(s, soldier, slot, control),
       afterPass: dequeueAllGameEvents,
     },

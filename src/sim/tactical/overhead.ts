@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls,
 // @src the fade before the animation update, the SOLDIER_LOOKFOR_ITEMS look at the frame, the HandleBloodForNewGridNo
 // @src of a tile's middle, 2026-11-04), CencelAllActionsForTimeCompression (the helicopter's passengers over the loaded
-// @src sector included, 2026-11-08);
+// @src sector included, 2026-11-08); the COUNTERDONE(TOVERHEAD) of ExecuteOverhead, never done while PauseTime holds, so
+// @src a message box up at its start holds the whole pass, CheckMercsWaiting's end of it included (2026-11-14);
 // @src Strategic/Game_Clock.cc ClearTacticalStuffDueToTimeCompression (the tactical message queue is the browser's).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
@@ -25,6 +26,7 @@ import {
 } from './movement.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
+import { promptPausesTimers } from './prompts.ts';
 import { inSector, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -87,8 +89,9 @@ function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
 }
 
 export interface OverheadHooks {
-  readonly beforePass?: (t: TacticalState) => void;
+  readonly passStart?: (t: TacticalState) => void;
   readonly ai?: (t: TacticalState, s: Soldier, slot: number) => void;
+  readonly passEnd?: (t: TacticalState) => void;
   readonly afterPass?: (t: TacticalState) => void;
 }
 
@@ -100,9 +103,14 @@ function handleSlot(t: TacticalState, s: Soldier, slot: number, hooks: OverheadH
   hooks.ai?.(t, s, slot);
 }
 
-export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): void {
-  hooks.beforePass?.(t);
+function overheadPass(t: TacticalState, hooks: OverheadHooks): void {
+  hooks.passStart?.(t);
   for (let slot = 0; slot < t.mercSlots.length; slot++) handleSlot(t, t.mercSlots[slot] as Soldier, slot, hooks);
+  hooks.passEnd?.(t);
+}
+
+export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}, boxUp = false): void {
+  if (!boxUp && !promptPausesTimers(t)) overheadPass(t, hooks);
   hooks.afterPass?.(t);
   t.clockMs += TICK_MS;
 }

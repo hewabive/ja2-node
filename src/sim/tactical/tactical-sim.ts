@@ -27,7 +27,10 @@
 // @src MainGameScreenHandle's HandleAutoBandagePending after HandleStrategicTurn (2026-11-06); MainGameScreenHandle's
 // @src HandleHeliDrop before UpdateBullets and ExecuteOverhead, the LOCKUI mode the drop forces back on every frame and
 // @src Soldier_Ani.cc code 467 (2026-11-08); the door, pickup, item cursor and climb orders of a merc on the move, which
-// @src the original's clicks and keys never stop first, the item cursor's SelectedGuyInBusyAnimation (2026-11-14).
+// @src the original's clicks and keys never stop first, the item cursor's SelectedGuyInBusyAnimation (2026-11-14);
+// @src MainGameScreenHandle's order around the pass: CheckCustomizableTimer, SimulateWorld and HandleStrategicTurn, then
+// @src HandleAutoBandagePending, whose box (the question or an OK box) holds the frame's ExecuteOverhead under PauseTime,
+// @src then UpdateBullets; a box the campaign opened earlier in the frame holds those three counters too (2026-11-14).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -596,40 +599,49 @@ function overheadTimers(state: TacticalState): void {
   updateSkullReleases(state);
 }
 
+function countersBeforeOverhead(state: TacticalState): void {
+  handlePickedOwnershipCheck(state);
+  stepThrownObjects(state);
+  handleRealtimeTurns(state, state.realtimeClock);
+}
+
+function beforeOverhead(state: TacticalState, boxUp: boolean): boolean {
+  handleHeliDrop(state);
+  if (!boxUp) countersBeforeOverhead(state);
+  const shown = boxUp || handleAutoBandagePending(state);
+  handleEnemySightingPause(state);
+  updateBullets(state);
+  return shown;
+}
+
 function overheadHooks(ai: AiControl): OverheadHooks {
   return {
-    beforePass: (state) => {
-      handlePickedOwnershipCheck(state);
-      stepThrownObjects(state);
-      updateBullets(state);
+    passStart: (state) => {
       overheadTimers(state);
-      handleRealtimeTurns(state, state.realtimeClock);
-      handleAutoBandagePending(state);
-      handleEnemySightingPause(state);
       beginAiPass(state);
     },
     ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
-    afterPass: (state) => {
+    passEnd: (state) => {
       awayAiForPass(state, ai);
-      dequeueAllGameEvents(state);
       checkMercsWaiting(state);
     },
+    afterPass: dequeueAllGameEvents,
   };
 }
 
 function autoBandageOverheadHooks(ai: AiControl): OverheadHooks {
   return {
-    beforePass: (state) => {
+    passStart: (state) => {
       overheadTimers(state);
       beginAiPass(state);
     },
     ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
-    afterPass: (state) => {
+    passEnd: (state) => {
       awayAiForPass(state, ai);
       checkAutoBandageComplete(state);
-      dequeueAllGameEvents(state);
       checkMercsWaiting(state);
     },
+    afterPass: dequeueAllGameEvents,
   };
 }
 
@@ -814,14 +826,11 @@ export class TacticalSim {
     clearTacticalStuffDueToTimeCompression(this.state);
   }
 
-  step(): void {
+  step(boxUp = false): void {
     const t = this.state;
     if (t.prompt) return;
     if (t.pathEnv.autoBandage) autoBandageFrame(t, this.autoBandageHooks);
-    else {
-      handleHeliDrop(t);
-      executeOverhead(t, this.hooks);
-    }
+    else executeOverhead(t, this.hooks, beforeOverhead(t, boxUp));
     t.tick++;
   }
 

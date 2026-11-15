@@ -12,8 +12,8 @@ chances, delays, ranges and step order.
 Paths are under `src/sim/tactical/`.
 
 ```
-overhead pass, every 5 ms                                     overhead.ts, tactical-sim.ts
-  beforePass: end of a timed AI pause; an AI tick             ai/pause.ts, ai/control.ts
+overhead pass, every 5 ms, none while a box is up            overhead.ts, tactical-sim.ts
+  passStart: end of a timed AI pause; an AI tick              ai/pause.ts, ai/control.ts
      when more than 50 ms passed since the last
   each merc slot: the soldier's frame, then aiForSlot         ai/control.ts
      handleSoldierAI: gates, the soldier's own 100 ms timer
@@ -28,7 +28,8 @@ overhead pass, every 5 ms                                     overhead.ts, tacti
            nothing → WAIT; executeAction                      ai/control.ts
         a move under way: path used up → actionDone,
            else on along the path
-  afterPass: the away slots, then the game events             game-events.ts
+  passEnd: the away slots, the end of a wait for mercs         sector-exit.ts
+  afterPass: the game events, held pass or not                game-events.ts
      (the turn a CHANGE_FACING asked for)
 ```
 

@@ -187,6 +187,21 @@ describe('someone else in the sector after a won battle (Overhead.cc HandleThePl
     expect(c.live.advance(ONE_TICK).reason).toBe('ticks');
   });
 
+  it('holds the frame it opens in, so no soldier animates before the answer (PauseTime before ExecuteOverhead)', async () => {
+    const c = await vantInTheWilderness(64);
+    const { wonAt } = winTheBattle(c, false);
+    c.live.advance(ticksUntil(c, wonAt + FIRST_LOOK_MS));
+    merc(c, VANT).soldier.nextFrameAt = tactical(c).clockMs;
+    const frameOf = () => [merc(c, VANT).soldier.nextFrameAt, merc(c, VANT).soldier.pc];
+    const due = frameOf();
+    expect(c.live.advance(ONE_TICK).reason).toBe('decision');
+    const held = frameOf();
+    const prompt = battle(c).prompt ?? never('box');
+    await order(c, { type: 'answer', prompt: prompt.id, choice: 'ok' });
+    c.live.advance(ONE_TICK);
+    expect([held, frameOf().join() === due.join()]).toEqual([due, false]);
+  });
+
   it('looks again two seconds later while a line plays, and tells once it is over', async () => {
     const c = await vantInTheWilderness(63);
     const { wonAt } = winTheBattle(c, false);

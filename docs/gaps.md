@@ -12,12 +12,8 @@ start with `src/`, `data/` or `tools/`.
 
 ## 1. Tactical rules and AI
 
-The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map. Paths are under
-`src/sim/tactical/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Auto-bandage question's pass | The question opens before the frame's overhead pass (`GameScreen.cc:411`, `:427`), and its box's `PauseTime` keeps the pass's own counter from firing (`Tactical/Overhead.cc:481`, `Utils/Timer_Control.cc:152`): that frame runs no pass, the tile animations, the bomb queue and every AI decision included, which all wait for the answer | `handleAutoBandagePending` opens it after the pass's timers (`overheadTimers`) and before its slots (`tactical-sim.ts`); the slots' counters stop (`promptPausesTimers`, `prompts.ts`) but each slot's AI and the away slots' AI still run (`overhead.ts`, `ai/control.ts`) | Asking before the pass's timers and leaving the slots and the away slots out once a prompt is open at their start |
+The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map: none known. Paths are
+under `src/sim/tactical/`.
 
 ## 2. Strategic layer
 

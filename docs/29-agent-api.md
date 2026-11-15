@@ -826,8 +826,9 @@ question as commands. `autoBandage` refuses with the original's OK boxes in its 
 `nobodyToBandage`, `noMedKit`, `cannotAutoBandage`, after `uiLocked`) or opens the `beginAutoBandage` prompt; a won
 battle opens the same prompt by itself once its lines are over and nobody of ours has an action pending (walking up to
 act, or after a give or a pickup on the spot that left one until his next order, `12` §3), or gives
-`autoBandageRefused {refusal}` when the sector changed meanwhile. `yes` starts the mode (`autoBandageStarted {medics,
-patients}`): the world clock stands, every tick is one frame of the original's `HandleAutoBandage`, and
+`autoBandageRefused {refusal}` when the sector changed meanwhile; either way nobody in the sector moves or decides in
+that tick, as under the original's box. `yes` starts the mode (`autoBandageStarted {medics, patients}`): the world
+clock stands, every tick is one frame of the original's `HandleAutoBandage`, and
 `observe.autoBandage {complete, medics, patients}` is the box of medics and patients, whose bars the soldiers' own
 fields carry. Every other command is refused with `autoBandaging`, saves too. `advance {idle}` stops at completion
 (`autoBandageComplete`): everybody bandaged, the kits used up or a patient no medic can reach; the mode and its AI run on,
@@ -1063,11 +1064,12 @@ The flag the original keeps for the next load when the sector is loaded already 
 placement").
 
 **Someone else in the sector.** Three seconds after a tactical battle is won, boxing included, in a wilderness sector
-whose profiled NPCs nobody has spoken with, the `someoneElseInSector` prompt (`ok`, the original's OK box) opens; while
-auto-bandage runs or its question waits, a line plays, another prompt is up or a conversation is open it looks again
-2 s later, and the map screen, a shop or a meanwhile drop it (`src/sim/campaign/someone-else-in-sector.ts`, deviation
-"Someone else in sector timer"). While a look that will open the box waits, the session is not idle, so `advance
-{idle}` runs on to the box and stops with `decision`; a look in a sector with nobody to tell of does not hold it.
+whose profiled NPCs nobody has spoken with, the `someoneElseInSector` prompt (`ok`, the original's OK box) opens
+before the tick's step, which then moves nobody in the sector; while auto-bandage runs or its question waits, a line
+plays, another prompt is up or a conversation is open it looks again 2 s later, and the map screen, a shop or a
+meanwhile drop it (`src/sim/campaign/someone-else-in-sector.ts`, deviation "Someone else in sector timer"). While a look
+that will open the box waits, the session is not idle, so `advance {idle}` runs on to the box and stops with
+`decision`; a look in a sector with nobody to tell of does not hold it.
 
 **Autoresolve is a flow** (deviation "Autoresolve session"): world time is frozen and `advance` runs slices of 1000
 battle ms, one per 200 ticks (`TICKS_PER_AUTORESOLVE_SLICE`): `{idle}` to the end or a prompt, `{ticks: n}` ⌊n / 200⌋

@@ -315,19 +315,22 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   with its item before the sector's state is kept, and while one is on the map time compression is refused
   (`activeTimedBomb`).
 - The original's yes/no and numbered boxes of `Tactical/Handle_Items.cc` are prompts of the loaded sector
-  (`TacticalState.prompt`, decision prompts of `01` §3.8), so the sandbox has them too; the view shows them in
-  `prompt` beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown, and
-  as its `PauseTime` (`MessageBoxScreen.cc:274`, the pickup menu's `Tactical/Interface_Items.cc:4291`) an open prompt
-  stops every soldier's frame, damage and fade counters at once (`promptPausesTimers`): the soldiers after its opener in
-  the overhead pass wait, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only
-  one soldier's own pickup ever asks twice. The callbacks read the original's globals (`TacticalState.boobyTrap`: the
-  soldier, item, tile, level and difficulty of the last trap, whether it was just found), set by the pickup and read at
-  the answer; a spotted trap's box waits for the merc's stop-time quote (`24` §2). A spotted mine sets only the soldier
-  and the tile, so its blue flag goes on the level the last booby trap left; its box opens as the quote ends, without
-  the original's locator lock (deviation "Mine locator"). The bomb boxes keep their soldier and tile in the prompt
-  itself (`gpTempSoldier`, `gsTempGridno`), and their answer reads his hand item as the original's callback does; the
-  switch box keeps its soldier and frequency there (`gpTempSoldier`, `bTempFrequency`), which a later switch of the
-  same pickup writes though its box is not shown.
+  (`TacticalState.prompt`, decision prompts of `01` §3.8), so the sandbox has them too; the view shows them in `prompt`
+  beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown, and as its
+  `PauseTime` (`MessageBoxScreen.cc:274`, the pickup menu's `Tactical/Interface_Items.cc:4291`) an open prompt stops
+  every soldier's frame, damage and fade counters at once (`promptPausesTimers`): the soldiers after its opener in the
+  overhead pass wait, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only one
+  soldier's own pickup ever asks twice. A box up at the start of the pass holds the whole pass (`executeOverhead`,
+  `Tactical/Overhead.cc:481`): the frame of the auto-bandage question (§8), and the frame of a campaign box opened
+  before the sector's step (the `someoneElseInSector` box, `campaign-sim.ts`), whose throws, real-time turn and
+  ownership check wait too (`GameScreen.cc:340-346`). The callbacks read the original's globals
+  (`TacticalState.boobyTrap`: the soldier, item, tile, level and difficulty of the last trap, whether it was just
+  found), set by the pickup and read at the answer; a spotted trap's box waits for the merc's stop-time quote (`24` §2).
+  A spotted mine sets only the soldier and the tile, so its blue flag goes on the level the last booby trap left; its
+  box opens as the quote ends, without the original's locator lock (deviation "Mine locator"). The bomb boxes keep their
+  soldier and tile in the prompt itself (`gpTempSoldier`, `gsTempGridno`), and their answer reads his hand item as the
+  original's callback does; the switch box keeps its soldier and frequency there (`gpTempSoldier`, `bTempFrequency`),
+  which a later switch of the same pickup writes though its box is not shown.
 - The walk onto a tile to plant is a pending action of its own (`Soldier.pendingDropBomb`, `MERC_DROPBOMB`), with the
   tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
 - A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures are `liveOnly`, as `AddObjectToTail`
@@ -468,14 +471,16 @@ The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
 - While the mode runs every order is refused as `autoBandaging` but `endAutoBandage` and `setOption`; `actRefusal` refuses
   the campaign's orders the same way, and `CampaignSim` refuses every other campaign command but `skipLine` and the
   queries.
-- A won battle sets the question pending in both arms of `checkForEndOfBattle` (`shouldBeginAutoBandage`): out of combat,
-  outside the Deidranna endgame (the sector hook `inDeidrannaEndgame`) and with a medic for a patient. The normal pass
-  runs `handleAutoBandagePending` right after the real-time turn, as `MainGameScreenHandle` runs it after
-  `HandleStrategicTurn`. It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
-  seats of a helicopter drop under way included; a pickup on the spot crouched, prone or in water leaves one, §3) or
-  the interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
-  original's OK box), otherwise the same prompt opens, and the rest of the pass runs its AI with every soldier's
-  counters stopped (§6; gaps "Auto-bandage question's pass"). While the question is due the sim is
+- A won battle sets the question pending in both arms of `checkForEndOfBattle` (`shouldBeginAutoBandage`): out of
+  combat, outside the Deidranna endgame (the sector hook `inDeidrannaEndgame`) and with a medic for a patient. The
+  normal tick runs `handleAutoBandagePending` after the real-time turn and before the bullets and the overhead pass, as
+  `MainGameScreenHandle` runs it after `HandleStrategicTurn` and before `UpdateBullets` and `ExecuteOverhead`
+  (`GameScreen.cc:346-427`). It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
+  seats of a helicopter drop under way included; a pickup on the spot crouched, prone or in water leaves one, §3) or the
+  interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused`
+  event (the original's OK box), otherwise the same prompt opens. Either box holds that tick's overhead pass, as its
+  `PauseTime` holds the pass's counter (§6): the tile animations, the soldiers and every AI decision wait for the
+  answer, which for the OK box comes at once; the bullets and the game events run. While the question is due the sim is
   not idle. Leaving tactical (the map screen, a contract's switch to it), opening a shop and a meanwhile's start drop it
   (deviation "Pending auto-bandage and client screens"); a sector change does not. A soldier arriving to open a door
   drops the action while the question is pending, as in the mode (`doors/door-command.ts`). A native import takes
@@ -487,18 +492,19 @@ count, the overhead pass with `autoBandageOverheadHooks`, then the end if asked.
 the rest of its frame (`GameScreen.cc:283-288`), so those hooks are the normal pass's without what lies outside
 `ExecuteOverhead`:
 
-| Normal pass | In the mode | Original |
+| Normal tick | In the mode | Original |
 |---|---|---|
 | `handlePickedOwnershipCheck` | Left out | `CheckCustomizableTimer`, `GameScreen.cc:340` |
 | `stepThrownObjects` | Left out | `SimulateWorld`, `GameScreen.cc:343` |
+| `handleRealtimeTurns` | First in the frame | `GameScreen.cc:346`, `Auto_Bandage.cc:225` |
+| `handleAutoBandagePending` | Left out | `GameScreen.cc:411` |
+| `handleEnemySightingPause` | Left out | `GameScreen.cc:311-327` |
 | `updateBullets` | Left out | `UpdateBullets`, `GameScreen.cc:424` |
 | `stepExplosions`, `updateMissAnimations` | Kept | `UpdateAniTiles`, `Overhead.cc:487` |
 | `handleExplosionQueue`, `handleCreatureTenseQuote`, `checkHostileOrSayQuoteList`, `endTimedAiPause` | Kept | `Overhead.cc:490-500` |
 | `updateSkullReleases` | Kept | `HandlePanelFaceAnimations`, in the slot loop |
-| `handleRealtimeTurns` | First in the frame | `Auto_Bandage.cc:225` |
-| `handleEnemySightingPause` | Left out | `GameScreen.cc:311-327` |
 | `beginAiPass`, the slots' AI, `awayAiForPass` | Kept, then the completion check | `Overhead.cc:503-1077` |
-| `dequeueAllGameEvents`, `checkMercsWaiting` | Kept | `Auto_Bandage.cc:238`, `Overhead.cc:1080` |
+| `checkMercsWaiting`, then `dequeueAllGameEvents` | Kept | `Overhead.cc:1080`, `Auto_Bandage.cc:238` |
 
 **In a campaign** the step of the mode is the tactical frame, the sector flow's after-step (the end of a wait for mercs)
 and `updateClock`, which the pause stops. It leaves out what `MainGameScreenHandle` runs after its early return: the
@@ -578,6 +584,7 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/ai/m
 | The end comes at the end of the frame after the request, which runs in full | `auto-bandage.test.ts` "ends at the end of the next frame …" |
 | The end stands up every merc of ours, off the map too, where he stays mid-transition, and stops a walking medic on his tile; it cancels no service, so a medic stood up mid-dressing keeps his patient | `auto-bandage.test.ts` "stands up every merc of ours …", "stops a medic walking …"; `campaign/auto-bandage-flow.test.ts` "stands up a merc of ours in another sector …" |
 | A won battle sets the question in both arms, fought or not; it waits for the dialogue (the victory line), a pending action of ours and the locked interface, then checks everything again, so a sector that changed meanwhile gives the refusal and drops the question | `auto-bandage.test.ts` "is set pending by a won battle in both arms …", "waits for the dialogue …", "checks everything again …"; `campaign/auto-bandage-flow.test.ts` "waits for the victory line …" |
+| The tick the question or its refusal comes in runs no overhead pass: tile animations, soldiers and AI decisions wait for the answer (an active bomb queue locks the interface, so the question never comes up beside one) | `auto-bandage.test.ts` "holds the whole pass of the frame it asks in …", "holds the pass of the frame its refusal comes in too …" |
 | A battle won on the map with blood off leaves the question for the way back to tactical; with blood on the death waits for its animation and sets nothing on the map | `campaign/auto-bandage-flow.test.ts` "with blood off …", "sets nothing with blood on …" |
 | The dialogue queue stands for the whole mode: a line queued in it plays after the end | `campaign/auto-bandage-flow.test.ts` "keeps the dialogue standing …" |
 | The world clock stands for the mode and jumps by its count at the end; the events inside the jump wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |

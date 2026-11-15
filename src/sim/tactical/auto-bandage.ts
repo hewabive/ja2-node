@@ -89,12 +89,13 @@ export function autoBandageQuestionDue(t: TacticalState): boolean {
   return t.autoBandage.pending && !pendingQuestionWaits(t);
 }
 
-export function handleAutoBandagePending(t: TacticalState): void {
-  if (!autoBandageQuestionDue(t)) return;
+export function handleAutoBandagePending(t: TacticalState): boolean {
+  if (!autoBandageQuestionDue(t)) return false;
   setAutoBandagePending(t.autoBandage, false);
   const refusal = autoBandageRefusal(t);
   if (refusal) t.events.push({ type: 'autoBandageRefused', refusal });
   else openTacticalPrompt(t, { kind: TacticalPromptKind.BEGIN_AUTO_BANDAGE });
+  return true;
 }
 
 function refill(list: number[], ids: readonly number[]): void {
