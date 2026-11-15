@@ -762,7 +762,7 @@ export class TacticalSim {
     return null;
   }
 
-  #otherMercActing(s: Soldier): Refusal | null {
+  #otherMercActing(s: Soldier | null): Refusal | null {
     const other = teamMembers(this.state, Team.OUR).find((x) => x !== s && this.isBusy(x));
     return other ? { token: 'mercActing', reason: `soldier ${other.id} is still acting` } : null;
   }
@@ -770,6 +770,12 @@ export class TacticalSim {
   #selectionLock(s: Soldier): Refusal | null {
     if (!this.state.inCombat) return null;
     return this.#combatLock() ?? this.#otherMercActing(s);
+  }
+
+  interfaceLockRefusal(): Refusal | null {
+    if (playerInterfaceLocked(this.state)) return { token: 'uiLocked', reason: 'the interface is locked' };
+    if (!this.state.inCombat) return null;
+    return this.#combatLock() ?? this.#otherMercActing(null);
   }
 
   #multiSelection(ids: unknown, chosen: Soldier): Soldier[] | Refusal | null {

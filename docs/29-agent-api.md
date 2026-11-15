@@ -165,8 +165,11 @@ compression itself, at 5 world minutes per second unless `mode` says otherwise, 
 on the loaded map refuses compression (`activeTimedBomb`) until it goes off or the sector unloads. `status.flow` names
 the flow (`tactical`, `strategic`, `autoresolve`, `laptop`, `meanwhile`, `endgame`, `ended`); `mapScreen` and
 `tacticalScreen` switch between the first two like the original's screen toggle, and the loaded sector stays frozen on
-the map but for the real-time turn below (deviation "Map and tactical screens"). `tacticalScreen` lifts the clock's
-`paused` unless the player paused (`15`). A head miner's line other than "creatures gone" takes tactical to the map
+the map but for the real-time turn below (deviation "Map and tactical screens"). `mapScreen` is refused while the
+tactical interface is locked, as the original's map button and `m` key are (`TacticalSim.interfaceLockRefusal`): `uiLocked`
+under `interfaceLocked` (`helicopterDrop` and `boxingUiLock` under those two locks), and on our turn in combat while our
+order runs (`mercActing`, `attackResolving`, `orderQueued`); the campaign's own switches to the map ignore the lock as the
+original's do. `tacticalScreen` lifts the clock's `paused` unless the player paused (`15`). A head miner's line other than "creatures gone" takes tactical to the map
 screen before it is said (deviation "Head miner map switch"). The sleep and wake notification is a client setting: an
 agent that wants the original's stop passes `events: ['fellAsleep', 'wokeUp']` beside its time target.
 

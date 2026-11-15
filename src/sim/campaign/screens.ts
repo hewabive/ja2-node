@@ -13,7 +13,9 @@
 // @src SyncStrategicTurnTimes of MAP_EXIT_TO_TACTICAL's SetCurrentWorldSector), Strategic_Turns.cc guiLastTacticalRealTime
 // @src on the JA2 clock that never goes back (2026-11-05); Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (the
 // @src checks of MAP_EXIT_TO_TACTICAL, 2026-11-06); Meanwhile.cc DoneFadeOutMeanwhileOnceDone (InternalLeaveTacticalScreen to the map
-// @src with no world loaded, 2026-11-09).
+// @src with no world loaded, 2026-11-09); Handle_UI.cc UIHandleLUIBeginLock and UIHandleLABeginLockOurTurn (gDisableRegion
+// @src and gUserTurnRegion cover the map button) and Turn_Based_Input.cc GetKeyboardInput (no key while either stands, so
+// @src no 'm'; the campaign's own map switches bypass it, 2026-11-15).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -49,6 +51,8 @@ export function openMapScreen(campaign: CampaignSim, abandonFight = false): Comm
   const s = campaign.state;
   if (s.flow === 'strategic') return { ok: true };
   if (s.flow !== 'tactical') return refuse('notInTactical', `the map cannot be opened during ${s.flow}`);
+  const locked = campaign.tactical?.interfaceLockRefusal();
+  if (locked) return refused(locked);
   const t = campaign.tactical?.state;
   if (t && boxingActive(t)) {
     if (!abandonFight) return refuse('boxingInProgress', ABANDON_FIGHT_TEXT);

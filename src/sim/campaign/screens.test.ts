@@ -1,5 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers, spreadAndPlace } from '../../../tests/support/campaign.ts';
+import {
+  type CampaignKit,
+  createTestCampaign,
+  landFirstSquad,
+  ourSoldiers,
+  runTicks,
+  spreadAndPlace,
+} from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
@@ -7,6 +14,9 @@ import { advance } from '../advance.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { CompressionStop, lockPauseState, pauseGame } from '../strategic/time/world-clock.ts';
+import { Team } from '../tactical/soldier.ts';
+import type { TacticalState } from '../tactical/state.ts';
+import { enterCombatMode } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 let kit: CampaignKit;
@@ -140,6 +150,50 @@ describe('map and tactical screens', () => {
     const start = c.state.clock.seconds;
     for (let k = 0; k < ONE_REAL_SECOND_OF_TICKS; k++) c.step();
     expect(c.state.clock.seconds - start).toBe(1);
+  });
+});
+
+describe('the map button under the tactical interface lock (Handle_UI.cc:4020, :4471, Turn_Based_Input.cc:2330)', () => {
+  function inCombat(c: CampaignSim, team: number): TacticalState {
+    const t = c.tactical?.state;
+    if (!t) throw new Error('no sector');
+    enterCombatMode(t, team);
+    return t;
+  }
+
+  it("refuses mapScreen on the enemy's turn, which locks the interface under LOCKUI_MODE", () => {
+    const c = landed(3);
+    inCombat(c, Team.ENEMY);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({
+      ok: false,
+      reason: 'the interface is locked',
+      data: { refusal: 'uiLocked' },
+    });
+    expect(c.state.flow).toBe('tactical');
+  });
+
+  it('refuses mapScreen on our turn while our merc acts, under the our-turn lock, and opens the map once he stands', () => {
+    const c = landed(3);
+    inCombat(c, Team.OUR);
+    const [merc] = ourSoldiers(c);
+    if (!merc) throw new Error('no squad');
+    expect(c.dispatch({ type: 'turn', soldier: merc.id, direction: (merc.direction + 4) % 8 })).toMatchObject({ ok: true });
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({
+      ok: false,
+      reason: `soldier ${merc.id} is still acting`,
+      data: { refusal: 'mercActing' },
+    });
+    runTicks(c, ONE_REAL_SECOND_OF_TICKS, () => c.isIdle());
+    expect(c.tactical?.state.inCombat).toBe(true);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  });
+
+  it("leaves the campaign's own map switch open on the enemy's turn, as the original's code-driven EnterMapScreen calls ignore the lock", () => {
+    const c = landed(3);
+    inCombat(c, Team.ENEMY);
+    c.leaveTacticalScreenForMap();
+    c.step();
+    expect(c.state.flow).toBe('strategic');
   });
 });
 

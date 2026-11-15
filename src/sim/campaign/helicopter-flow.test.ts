@@ -251,7 +251,7 @@ describe('the helicopter passengers over the loaded sector', () => {
 
   it('cannot be dismissed while the sector below is in combat (the contract menu, MapScreen.cc:5208)', () => {
     const { c, t } = aboveTheBattle();
-    enterCombatMode(t, Team.ENEMY);
+    enterCombatMode(t, Team.OUR);
     expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
     expect(c.dispatch({ type: 'dismiss', soldier: PASSENGER })).toEqual(contractRefusal('inCombat'));
   });
