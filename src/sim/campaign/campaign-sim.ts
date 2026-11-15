@@ -89,6 +89,7 @@ import { AUTO_BANDAGING } from '../tactical/auto-bandage.ts';
 import { activeTimedBombExists } from '../tactical/bombs/world-bombs.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { helicopterDropRunning } from '../tactical/helicopter-drop-state.ts';
+import { handleShopKeepHasBeenShutDown } from '../tactical/narrative/keith-business.ts';
 import { STOP_TIME_CALLBACKS } from '../tactical/narrative/port.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
@@ -113,7 +114,7 @@ import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
 import { MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
-import { registerNarrativeEvents } from './narrative-port.ts';
+import { campaignNarrativePort, registerNarrativeEvents } from './narrative-port.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
 import { type CombatEvents, voicedOnTheMapScreen } from './off-map-combat.ts';
 import { PowFlow } from './pow.ts';
@@ -339,7 +340,11 @@ export class CampaignSim {
     return createMerchantContext(
       {
         ...setup,
-        hooks: { shopHours: (profile) => this.#scheduleShopHours(profile), ...setup.hooks },
+        hooks: {
+          shopHours: (profile) => this.#scheduleShopHours(profile),
+          shopClosedByScript: (profile) => handleShopKeepHasBeenShutDown(campaignNarrativePort(this), profile),
+          ...setup.hooks,
+        },
       },
       s.merchants,
       { random: s.rng, preRandom: s.pre },

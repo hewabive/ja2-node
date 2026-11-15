@@ -28,6 +28,7 @@ tactical quest rules, through the port            tactical/narrative/port.ts, ca
   a step: escorts, assassins, boxing              tactical/narrative/escort-arrival.ts, assassin-approach.ts, boxing.ts
   a quest action item the bomb queue runs         tactical/bombs/item-action.ts → tactical/narrative/quest-items.ts
   a hit and a death                               tactical/combat/hit.ts, death.ts → tactical/narrative/death-rules.ts
+  a won battle in F10, Keith's shop shut          campaign/battle-flow.ts, campaign-sim.ts → tactical/narrative/keith-business.ts
 strategic checks: goods, money, hospital          strategic/narrative/npc-events.ts, kingpin.ts, hospital.ts
   over the campaign, sector loaded or not         campaign/narrative/quest-world.ts
 helicopter: flights, SAMs, hovering, the bill     strategic/forces/helicopter.ts, campaign/helicopter-flow.ts
@@ -50,6 +51,7 @@ the quest log of the player view                  src/server/quest-view.ts
 | `strategic/narrative/presence.ts`, `profiled-enemies.ts` | The terrorists' and assassins' toughening and the assassin pick; Mike and Iggy as the army's elites |
 | `campaign/narrative/narrative-flow.ts`, `quest-world.ts` | `NarrativeFlow`: the campaign's facts and quests, its `FactContext`, the profile deaths with campaign effects (Dynamo, Kingpin, Doreen); the world side of the strategic checks |
 | `tactical/narrative/sight-rules.ts`, `escort-arrival.ts`, `assassin-approach.ts`, `death-rules.ts`, `quest-items.ts` | The quest rules of a sighting and its loss, a step, a death and the quest action items |
+| `tactical/narrative/keith-business.ts` | The hillbillies of F10 recorded dead at a won tactical battle there, which puts Keith back in business (`HandleVictoryInNPCSector`, from `BattleFlow.tacticalBattleEnded` after the sector turns ours, as `Tactical/Overhead.cc:4682` does; autoresolve never calls it); Keith's shop shut by his script (`HandleShopKeepHasBeenShutDown`, the merchants' `shopClosedByScript`, `23`) |
 | `tactical/narrative/boxing.ts`, `boxing-state.ts`, `boxing-events.ts`; `tactical/ai/decide-boxing.ts` | The match, the state tests the original spreads over tactical code, the boxers' AI |
 | `strategic/forces/helicopter.ts`, `helicopter-state.ts`, `helicopter-events.ts`, `vehicles.ts`; `campaign/helicopter-flow.ts` | Skyrider's helicopter; `HelicopterFlow`: the hover events, the hourly debt, the monologues, the KILL_CHOPPER meanwhile, the commands |
 | `tactical/helicopter-drop.ts`, `helicopter-drop-state.ts`, `helicopter-landing.ts` | The mercs' drop from the helicopter (`TacticalState.helicopterDrop`): the seats, the script and its rounds, the fades, the shadow, the Esc skip (`skipHelicopterDrop`) and code 467 at the end of `HELIDROP` |
@@ -301,6 +303,7 @@ says otherwise:
 | Starting a done quest restarts it and ending one never started finishes it, both without history; Alma's prison quest can pass without any | `quests.test.ts` |
 | Ending the Maria quest clears Madame's counters, also when it never ran | `quests.test.ts` |
 | Merely wounding Pacos sets "Pacos killed" | `src/sim/tactical/combat/combat.test.ts` |
+| Any hick alive on the civilian team, a dying one or one a schedule took off the map, keeps the hillbillies of F10 alive after a won battle there, even one they never joined | `src/sim/tactical/narrative/keith-business.test.ts` "leaves both facts while a hick …" |
 | Kingpin's second money check counts the money of whatever sector is loaded | `kingpin.test.ts` |
 | A damaged package in an unloaded Drassen moves only the items at gridno 1, so the lost goods at gridno 2 stay there | `npc-events.test.ts` |
 | The hospital counts a tile's supplies once per doctors' ownership marker on it; the first theft fact stays when the supplies come back without the second | `hospital.test.ts` |

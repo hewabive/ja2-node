@@ -95,6 +95,7 @@ import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { updateRegenCounters } from '../tactical/drugs.ts';
 import { healthCategory } from '../tactical/health.ts';
+import { handleVictoryInNpcSector } from '../tactical/narrative/keith-business.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import { leaveTacticalSector } from '../tactical/sector-presence.ts';
@@ -1243,6 +1244,7 @@ export class BattleFlow implements FateContext {
     this.#logBattleResults(true, world);
     this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'victory', via: 'tactical' });
     setThisSectorAsPlayerControlled(this.economy, world, true);
+    handleVictoryInNpcSector(t, world);
     if (fact(this.state.narrative, Fact.FIRST_BATTLE_BEING_FOUGHT)) {
       t.narrative.triggerNpcRecord(Npc.PACOS, PACOS_FIRST_BATTLE_RECORD);
       this.#firstBattleEnded(world, true, false);

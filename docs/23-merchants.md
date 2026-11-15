@@ -83,8 +83,13 @@ reach. Only Flo's differs from 100 (deviation "Pricing merc").
 
 **Hooks.** `MerchantHooks` reach what lives elsewhere: `buySellRecordPending` and `shopClosedByScript` from the talk
 and NPC-action flows (`24`, `35`), and `shopHours`, which `campaign-sim.ts` answers from the loaded sector's schedules
-(`35`). The defaults (false, false, null) let a sandbox session trade without NPC records; without shop hours a
-repair has no overnight delay.
+(`35`). The campaign answers `shopClosedByScript` with Keith's script (`HandleShopKeepHasBeenShutDown`,
+`TacticalAI/NPC.cc:2640`; `tactical/narrative/keith-business.ts`), which may trigger one of his records. Only
+`NPC_ACTION_INITIATE_SHOPKEEPER_INTERFACE` asks it (`Tactical/Interface_Dialogue.cc:3580`): the talk menu's Buy/Sell
+opens the shop without it, its call being commented out in the original (`:822`), and Keith's shipped records never
+fire that action, as his Buy/Sell records turn him away themselves, so his branch does not run with the original data.
+The defaults (false, false, null) let a sandbox session trade without NPC records; without shop hours a repair has no
+overnight delay.
 
 **Cash is bookkeeping.** A dealer's cash resets to his initial cash at each 09:00 and is never shown; it only limits
 what he buys (`dealerCannotAfford`). Money taken from the balance is booked as `PURCHASED_ITEM_FROM_DEALER` with the
