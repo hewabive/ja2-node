@@ -110,7 +110,8 @@ schedules are drawn anew.
 hostile follows Stracciatella (`MakeCivHostile`, `Tactical/Overhead.cc:2591`): only Conrad and the General change side;
 everyone else just stops being neutral and keeps his side, where vanilla also set it.
 
-**Doors.** The `door` command returns the menu as data and, like the original's menu, cannot lock a door; our merc gets
+**Doors.** The `door` command returns the menu as data and, like the original's menu, cannot lock a door; the
+`HANDLE_DOOR_LOCK` branch of `handleOpenableStruct` stays, reached by the door oracle's probes alone. Our merc gets
 vanilla's menu before closing an open door (deviations "Door menu", "Closing an open door"). A trap check before a menu
 action charges the open-door APs where the original reads past its table (original-bugs "Trap check cost of menu
 actions"). An order to open or close a door, container or switch records the structure's ID when it starts

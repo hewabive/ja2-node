@@ -36,6 +36,7 @@ import { soldierHasKey } from './keys.ts';
 import {
   attemptToBlowUpLock,
   attemptToCrowbarLock,
+  attemptToLockDoor,
   attemptToPickLock,
   attemptToSmashDoor,
   attemptToUnlockDoor,
@@ -75,11 +76,12 @@ export const ACTION_HANDLE_CODE: Readonly<Record<DoorActionName, number>> = {
   examine: HandleDoor.EXAMINE,
 };
 
-const HANDLE_CODE_ACTION: Readonly<Record<number, DoorActionName>> = {
+const HANDLE_CODE_ACTION: Readonly<Record<number, DoorActionName | 'lock'>> = {
   [HandleDoor.OPEN]: 'open',
   [HandleDoor.OPEN_DIAG_SHORT]: 'open',
   [HandleDoor.OPEN_DIAG_LONG]: 'open',
   [HandleDoor.UNLOCK]: 'unlock',
+  [HandleDoor.LOCK]: 'lock',
   [HandleDoor.LOCKPICK]: 'pickLock',
   [HandleDoor.FORCE]: 'force',
   [HandleDoor.CROWBAR]: 'crowbar',
@@ -424,6 +426,23 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         updateDoorPerceivedValue(t, gridNo, HandleDoor.UNTRAP);
         r.result = 'trapSprung';
       }
+      return;
+    case HandleDoor.LOCK:
+      r.ap = AP.LOCK_DOOR;
+      r.bp = BP.LOCK_DOOR;
+      if (!door) {
+        playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
+        r.result = 'noLock';
+        return;
+      }
+      if (attemptToLockDoor(t, s, gridNo)) {
+        playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
+        r.result = 'locked';
+      } else {
+        playInteraction(t, s, isDoor, 'END_OPEN_LOCKED_DOOR');
+        r.result = 'wrongKey';
+      }
+      updateDoorPerceivedValue(t, gridNo, HandleDoor.LOCK);
       return;
   }
 }

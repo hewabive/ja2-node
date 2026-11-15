@@ -303,7 +303,8 @@ export interface LockOutcome {
 
 export function lockOutcomeCue(book: CueBook, o: LockOutcome): Cue | null {
   if (o.action === 'unlock' && o.result === 'opened') return effectCue(book, 'UNLOCK_DOOR_1', 'location', VolumeLevel.MID, o.doorGridNo);
-  if (o.action === 'unlock' && o.result === 'wrongKey') return effectCue(book, 'KEY_FAILURE', 'fixed', VolumeLevel.MID);
+  if ((o.action === 'unlock' || o.action === 'lock') && o.result === 'wrongKey')
+    return effectCue(book, 'KEY_FAILURE', 'fixed', VolumeLevel.MID);
   if ((o.action === 'crowbar' || o.action === 'force') && o.result === 'opened')
     return effectCue(book, 'BREAK_LOCK', 'location', VolumeLevel.MID, o.soldierGridNo);
   return null;
