@@ -16,13 +16,11 @@ export interface ShopHours {
 }
 
 export interface MerchantHooks {
-  buySellRecordPending(profile: number): boolean;
   shopClosedByScript(profile: number): boolean;
   shopHours(profile: number): ShopHours | null;
 }
 
 export const defaultMerchantHooks: MerchantHooks = {
-  buySellRecordPending: () => false,
   shopClosedByScript: () => false,
   shopHours: () => null,
 };

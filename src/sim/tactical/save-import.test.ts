@@ -1425,7 +1425,7 @@ describe('a merc in transit whose arrival sector is the loaded one (UpdateMercIn
   });
 });
 
-describe('a merc still in the helicopter in a save made in mid-drop (deviation "Helicopter drop in a native save")', () => {
+describe('a merc still in the helicopter in a save made in mid-drop (original-bugs "Helicopter drop in a native save")', () => {
   const INSERTION_CODE_CHOPPER = 6;
   const DROPPED_ID = 0;
   const SEATED_IDS = [1, 2];

@@ -9,8 +9,8 @@
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
 // @src 2026-10-31; the auto-bandaging medic cancelled, 2026-11-06); TurnSoldierIntoCorpse taking our dead off the map
 // @src through RemoveSoldierFromGridNo (2026-11-07); HandleSoldierDeath's SOLDIER_DEAD left to the strategic death for
-// @src our mercs killed for a lost battle (2026-11-08); code 496 going back to itself (deviation "Twitch going back to
-// @src itself", 2026-11-08); the samples of codes 721 and 722, told for a soldier out of sight (2026-11-14);
+// @src our mercs killed for a lost battle (2026-11-08); code 496 going back to itself (original-bugs "Twitch going back
+// @src to itself", 2026-11-08); the samples of codes 721 and 722, told for a soldier out of sight (2026-11-14);
 // @src HandleSoldierDeath's LAUGH1 of the attacker of a visible victim, whose Random(3) the client draws (deviation
 // @src "Cosmetic draws in attacks", 2026-11-14).
 

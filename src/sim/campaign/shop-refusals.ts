@@ -22,7 +22,6 @@ export type ShopRefusal =
   | 'noLineOfSight'
   | 'tooFar'
   | 'notEnoughAP'
-  | 'npcWantsToTalk'
   | 'shopClosedByScript'
   | 'noSuchPricingMerc'
   | 'receiverCantTrade'
@@ -54,7 +53,6 @@ const SHOP_REFUSAL_TEXT: RefusalTexts<ShopRefusal> = {
   noLineOfSight: 'the merc does not see the dealer',
   tooFar: 'the merc is too far from the dealer',
   notEnoughAP: 'not enough APs to talk',
-  npcWantsToTalk: 'the dealer has something to say first: talk to him',
   shopClosedByScript: 'the dealer does not trade now',
   noSuchPricingMerc: 'soldier must be a regular merc of the current squad who can trade',
   receiverCantTrade: 'the receiver cannot trade',

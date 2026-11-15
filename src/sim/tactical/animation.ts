@@ -15,8 +15,8 @@
 // @src Soldier_Ani.cc codes 412 and 413 (2026-11-05); BeginSoldierClimbFence's free turn and prone reset, code 444's free
 // @src stance change on the final tile (2026-11-06); SetSoldierAniSpeed's auto-bandage branch and Overhead.cc
 // @src ResetAllMercSpeeds (2026-11-06); SoldierGotoStationaryStance's ready queen, SelectMoveAnimationFromStance after a
-// @src stance change that continues a move; the crouch before a prone hop facing the fence (deviation "Prone hop facing
-// @src the fence", 2026-11-07); EVENT_InitNewSoldierAnim's SOLDIER_LOCKPENDINGACTIONCOUNTER and its clear on the walk
+// @src stance change that continues a move; the crouch before a prone hop facing the fence (original-bugs "Prone hop
+// @src facing the fence", 2026-11-07); EVENT_InitNewSoldierAnim's SOLDIER_LOCKPENDINGACTIONCOUNTER and its clear on the walk
 // @src past a fence landing (2026-11-07); EVENT_InitNewSoldierAnim's ReevaluateEnemyStance and
 // @src SoldierGotoStationaryStance's cower states (2026-11-07); EVENT_InitNewSoldierAnim's pending action count for a
 // @src held MERC_GIVEITEM, freeing its target when it drops the action, and its SOLDIER_ENGAGEDINACTION test

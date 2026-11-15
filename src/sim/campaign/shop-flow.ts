@@ -272,7 +272,6 @@ export class ShopFlow {
     const interaction = this.#interactionRefusal(merc, dealer, this.#squadAfterTalk(merc));
     if (interaction) refuse(interaction);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
-    if (withScriptHooks && ctx.hooks.buySellRecordPending(def.profile)) refuse('npcWantsToTalk');
     if (withScriptHooks && ctx.hooks.shopClosedByScript(def.profile)) refuse('shopClosedByScript');
     return { merc, def, dealer };
   }

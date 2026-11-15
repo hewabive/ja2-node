@@ -211,5 +211,5 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
   they stand at its moment; only two blasts changing structures within one frame could show it.
 
 Deviations of this domain: "Revealed tiles on load", "Structures on load", "Sweep window",
-"Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall translucency template",
-"Bullets of unseen shooters", "Soldier frame on turning".
+"Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Bullets of unseen shooters",
+"Soldier frame on turning".

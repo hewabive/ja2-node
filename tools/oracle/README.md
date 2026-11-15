@@ -198,7 +198,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
 | 5101 / 5100, 5201 / 5200 | 0032 (in `Oracle.cc`) | a fade-out and a fade-in callback run by a scene frame (`mwframes`): the loads of a palace scene's trip there and back |
-| 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle, absent and auto-bandage comparers (deviations "Cosmetic draws …", "Footstep variants") |
+| 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle, absent and auto-bandage comparers (deviations "Cosmetic draws in attacks", "Cosmetic draws of doors", "Cosmetic draws in explosions", "Footstep variants") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
   action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the

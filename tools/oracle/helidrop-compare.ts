@@ -60,7 +60,7 @@ const SAVED =
 const RANDOM_IDLES_TAKEN =
   'idle checks (code 491) of ours fed the dice of their frame that started their random idle animation natively: the replay’s A9 garrison stands and moves elsewhere (no placement outcome), so its idle checks draw in other frames and ours could take a garrison soldier’s dice';
 const IMPORT_LANDS_THE_SEATS =
-  'deviation "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
+  'original-bugs "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
 const PHASES_TAKEN =
   'the animation codes and frame delays of the restart compared, the frame timers of the native load and the pause its save holds taken for the frames: the timers run on the process’s clock, which no save holds, and an import starts unlocked (deviation "Pause state after an import")';
 const IMPORTED_GLOBALS: readonly string[] = ['seats', 'selected', 'lastUpdate'];

@@ -943,8 +943,8 @@ sector short of its destination stops there: its paths are cleared, compression 
 his need for sleep (the next ones "me too") and drops asleep, `collapsed` until rested (`fellAsleep {collapsed: true}`),
 so `wake` refuses him. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
 of the sector doing the same or a new one at once, before any route, and `data.selected` lists who moves; `routeGroup`
-regroups the same way and plots in one command. `enterSector` loads with automatic placement (deviation "Tactical
-placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
+regroups the same way and plots in one command. `enterSector` loads with automatic placement, or with the
+`tacticalPlacement` prompt where the original opens its placement GUI (§8.10); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
 `sectorExits` answers for every edge and exit grid at once where a squad can leave and from which tiles, and
 `sectorLayout` draws the sector around them (§9).
 On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector the exit dialog

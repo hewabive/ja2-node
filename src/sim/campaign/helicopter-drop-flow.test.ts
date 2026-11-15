@@ -209,7 +209,7 @@ describe('the helicopter drop in a campaign', () => {
     expect(merc.state).toBe(anim(t.content, 'KNEEL_UP'));
   });
 
-  it('cuts a run flagged on the map screen short when the world unloads: the seat gets the north entry and lands there at the next load (deviation "Helicopter drop cut short")', () => {
+  it('cuts a run flagged on the map screen short when the world unloads: the seat gets the north entry and lands there at the next load (original-bugs "Helicopter drop cut short")', () => {
     const { campaign: c, roster } = createTestCampaign(kit, { seed: 64, mercs: 2, garrison: NO_GARRISON });
     holdBackArrivals(c, [1]);
     landFirstSquad(c);
@@ -230,7 +230,7 @@ describe('the helicopter drop in a campaign', () => {
     expect(c.tactical?.state.helicopterDrop.running).toBe(false);
   });
 
-  it('lands the seats a native save made in mid-drop holds, with no run, as the Esc skip lands them: at the north entry with their lines, the first selected (deviation "Helicopter drop in a native save")', () => {
+  it('lands the seats a native save made in mid-drop holds, with no run, as the Esc skip lands them: at the north entry with their lines, the first selected (original-bugs "Helicopter drop in a native save")', () => {
     const { campaign: c, roster } = createTestCampaign(kit, { seed: 65, mercs: 2, garrison: NO_GARRISON });
     landFirstSquad(c);
     const t = tactical(c);
