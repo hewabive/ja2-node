@@ -12,8 +12,12 @@ start with `src/`, `data/` or `tools/`.
 
 ## 1. Tactical rules and AI
 
-The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map: none known. Paths are
-under `src/sim/tactical/`.
+The loaded sector: doors, sight, walking, combat, items, explosions, the AI and NPCs on the map. Paths are under
+`src/sim/tactical/`.
+
+| Area | Original | ja2-node | Notes |
+|---|---|---|---|
+| Pickup menu beside a message box | The item pickup menu is a panel of the game screen, not a message box (`Tactical/Handle_Items.cc:1344-1350`, `Tactical/Interface_Items.cc:4279`): a merc who reaches a pile of several items in the overhead pass in which another merc's arrival opened a message box (a disarm, switch, booby-trap or bomb question) still opens it, answered once the box is gone, and a box opened in the pass after the menu goes over it. Two boxes in one pass keep the first (`MessageBoxScreen.cc:97`); nobody arrives while either is up, as the box screen runs no overhead and the menu stops the clock (`Tactical/Interface_Items.cc:4288-4291`) | One tactical prompt at a time (`openTacticalPrompt`, `prompts.ts`), the later one of a tick dropped: in the tick a question opened, a merc who reaches a pile of several items gets no menu and picks nothing up, and in the tick a menu opened, another merc's arrival asks nothing (`handleSoldierPickupItem`, `item-actions.ts`) | Prompts queued in order, the menu answered after the box, which the view's one `prompt` does not carry; two menus in one pass overwrite each other's `gItemPickupMenu` in the original, which a port would keep ending as now |
 
 ## 2. Strategic layer
 
