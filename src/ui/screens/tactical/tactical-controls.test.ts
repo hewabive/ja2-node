@@ -1348,6 +1348,23 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'door')).toEqual([]);
   });
 
+  it('draws the 3D pointer of the move cursor once Home turns the 3D cursor on, and the flat one again once it turns it off', async () => {
+    const f = await inCombat();
+    const tile = merc(f, 0).gridNo - 2;
+    const pointers = async () => {
+      hover(f, tile);
+      await f.settle(PAST_THE_PATH_REST_FRAMES);
+      return f.world.markers.filter((m) => m.gridNo === tile && m.tile.startsWith('FIRSTPOINTERS')).map((m) => m.tile);
+    };
+    const shown = [await pointers()];
+    f.key('Home');
+    shown.push(await pointers());
+    f.key('Home');
+    shown.push(await pointers());
+    expect(f.screen.controls.input.uiCursor).toMatch(/^MOVE_/);
+    expect(shown).toEqual([['FIRSTPOINTERS2'], ['FIRSTPOINTERS13'], ['FIRSTPOINTERS2']]);
+  });
+
   it('puts the AP number of the free-flowing move cursors where DrawUICursor sets it, over the offsets of the move mode', async () => {
     const f = await inCombat();
     const placed: unknown[] = [];

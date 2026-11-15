@@ -442,7 +442,7 @@ fewer frames a second but as many refreshes.
   conference (its snow and video run on the UI clock). The main flow hires three of its four mercs through MCP and lets
   the campaign bot fight, so the canvas path covers one hire, the cursors and one shot.
 - **Not built**: the cover and line-of-sight display (#34; it needs per-tile cover and sight maps from the simulation,
-  a heavy computation), the 3D cursor (#35), touch input, a key remapping UI, the client-side data scenarios (§5) and audio
-  transcoding for remote play.
+  a heavy computation), touch input, a key remapping UI, the client-side data scenarios (§5) and audio transcoding for
+  remote play.
 - **The message log is server presentation entries** saved with the session rather than a client-only table: agents
   see them, saves keep them, and one audit pass covers every message (`29`, deviation "Message list").

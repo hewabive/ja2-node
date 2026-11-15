@@ -6,7 +6,8 @@
 // @src DrawUICursor (the SHOWTILE and AP-dependent diamonds, FIRSTPOINTERS3 and 14 on roof level, the second-level drop
 // @src marker), DrawSnappingCursor (FIRSTPOINTERS1, the confirm figures GOODRUN1/GOODWALK1/GOODSWAT1/GOODPRONE1 and
 // @src VEHICLEMOVE1 with the prone -6 and roof -WALL_HEIGHT - 8 offsets, BADMARKER1, the AP number on MOCKFLOOR1 at
-// @src SNAPCURSOR_AP_X/Y_STARTVAL), GetSnapCursorIndex (the 3D cursor); Interface_Control.cc SetUpInterface (GOODRING1 and
+// @src SNAPCURSOR_AP_X/Y_STARTVAL, FIRSTPOINTERS13 under the bad marker with the 3D cursor), GetSnapCursorIndex (the
+// @src 3D pointers in place of the flat ones, 2026-11-15); Interface_Control.cc SetUpInterface (GOODRING1 and
 // @src FIRSTPOINTERS2 under the hovered merc, the show-move-grid marker); Interface.cc SetupPhysicsTrajectoryUI
 // @src (FIRSTPOINTERS8 or 12 at the impact tile).
 
@@ -27,6 +28,21 @@ export const SNAPCURSOR_AP_Y = 9;
 const ROOF_AP_LIFT = WALL_HEIGHT + 10;
 const DEFAULT_TILE_FOR_ROOF = 'FIRSTPOINTERS3';
 const ROOF_DROP_MARKER = 'FIRSTPOINTERS14';
+const CANNOT_MOVE_3D_POINTER = 'FIRSTPOINTERS13';
+const POINTERS_3D: Readonly<Record<string, string>> = {
+  FIRSTPOINTERS2: 'FIRSTPOINTERS13',
+  FIRSTPOINTERS3: 'FIRSTPOINTERS14',
+  FIRSTPOINTERS4: 'FIRSTPOINTERS15',
+  FIRSTPOINTERS5: 'FIRSTPOINTERS16',
+  FIRSTPOINTERS6: 'FIRSTPOINTERS17',
+  FIRSTPOINTERS7: 'FIRSTPOINTERS18',
+  FIRSTPOINTERS9: 'FIRSTPOINTERS19',
+  FIRSTPOINTERS10: 'FIRSTPOINTERS20',
+};
+
+export function snapCursorTile(tile: string, cursor3d: boolean): string {
+  return cursor3d ? (POINTERS_3D[tile] ?? tile) : tile;
+}
 
 function footstepTile(subIndex: number, band: number): string {
   return `${FOOTPRINTS}${subIndex + (BAND_BASE[band] ?? BAND_BASE[BAND_BASE.length - 1] ?? 0)}`;
@@ -53,6 +69,7 @@ export interface CursorMarkerState {
   readonly apInvalidOrZero: boolean;
   readonly stealth: boolean;
   readonly displayAp: boolean;
+  readonly cursor3d: boolean;
 }
 
 const CONFIRM_FIGURES: Readonly<Record<string, string>> = {
@@ -76,30 +93,35 @@ function snappingMarkers(s: CursorMarkerState): WorldMarker[] {
     const prone = figure === 'GOODPRONE1' ? PRONE_FIGURE_OFFSET : 0;
     return [{ gridNo: s.gridNo, layer: 'topmost', tile: figure, offsetY: (roof ? ROOF_FIGURE_OFFSET : 0) + prone }];
   }
-  if (s.uiCursor === 'CANNOT_MOVE_UICURSOR') {
-    if (!roof) return [{ gridNo: s.gridNo, layer: 'topmost', tile: 'BADMARKER1', head: true }];
-    return [
-      { gridNo: s.gridNo, layer: 'topmost', tile: 'BADMARKER1', offsetY: ROOF_FIGURE_OFFSET },
-      { gridNo: s.gridNo, layer: 'onRoof', tile: ROOF_DROP_MARKER, head: true },
-    ];
-  }
+  if (s.uiCursor === 'CANNOT_MOVE_UICURSOR') return cannotMoveMarkers(s, roof);
   return [];
+}
+
+function cannotMoveMarkers(s: CursorMarkerState, roof: boolean): WorldMarker[] {
+  const pointer3d: WorldMarker[] = s.cursor3d ? [{ gridNo: s.gridNo, layer: 'topmost', tile: CANNOT_MOVE_3D_POINTER, head: true }] : [];
+  if (!roof) return [...pointer3d, { gridNo: s.gridNo, layer: 'topmost', tile: 'BADMARKER1', head: true }];
+  return [
+    { gridNo: s.gridNo, layer: 'topmost', tile: 'BADMARKER1', offsetY: ROOF_FIGURE_OFFSET },
+    ...pointer3d,
+    { gridNo: s.gridNo, layer: 'onRoof', tile: ROOF_DROP_MARKER, head: true },
+  ];
 }
 
 export function cursorMarkers(table: UiCursorTable, s: CursorMarkerState): WorldMarker[] {
   const entry = table.entry(s.uiCursor);
   const roof = s.interfaceLevel > 0;
+  const snap = (tile: string) => snapCursorTile(tile, s.cursor3d);
   const out: WorldMarker[] = [];
   if (entry.flags & UiCursorFlag.SHOWTILE && entry.data) {
-    out.push({ gridNo: s.gridNo, layer: 'topmost', tile: roof ? DEFAULT_TILE_FOR_ROOF : entry.data });
-    if (roof) out.push({ gridNo: s.gridNo, layer: 'onRoof', tile: entry.data, head: true });
+    out.push({ gridNo: s.gridNo, layer: 'topmost', tile: snap(roof ? DEFAULT_TILE_FOR_ROOF : entry.data) });
+    if (roof) out.push({ gridNo: s.gridNo, layer: 'onRoof', tile: snap(entry.data), head: true });
   }
   if (entry.flags & UiCursorFlag.FREEFLOWING && !(entry.flags & UiCursorFlag.DONTSHOW2NDLEVEL) && roof)
     out.push({ gridNo: s.targetGridNo ?? s.gridNo, layer: 'topmost', tile: ROOF_DROP_MARKER });
   if (entry.flags & UiCursorFlag.SHOWTILEAPDEPENDENT && entry.data) {
     const tile = s.apInvalidOrZero ? (s.stealth ? 'FIRSTPOINTERS10' : 'FIRSTPOINTERS6') : s.stealth ? 'FIRSTPOINTERS9' : entry.data;
-    out.push({ gridNo: s.gridNo, layer: 'topmost', tile: roof ? ROOF_DROP_MARKER : tile });
-    if (roof) out.push({ gridNo: s.gridNo, layer: 'onRoof', tile, head: true });
+    out.push({ gridNo: s.gridNo, layer: 'topmost', tile: snap(roof ? ROOF_DROP_MARKER : tile) });
+    if (roof) out.push({ gridNo: s.gridNo, layer: 'onRoof', tile: snap(tile), head: true });
   }
   if (entry.flags & UiCursorFlag.SNAPPING) out.push(...snappingMarkers(s));
   return out;
@@ -119,8 +141,8 @@ export function selectionMarker(gridNo: number, level: number, tile: string): Wo
   return { gridNo, layer: level === 0 ? 'object' : 'roof', tile, head: true };
 }
 
-export function showMoveGridMarker(gridNo: number, interfaceLevel: number, tile: string): WorldMarker {
-  return { gridNo, layer: interfaceLevel === 0 ? 'topmost' : 'onRoof', tile, head: true };
+export function showMoveGridMarker(gridNo: number, interfaceLevel: number, tile: string, cursor3d: boolean): WorldMarker {
+  return { gridNo, layer: interfaceLevel === 0 ? 'topmost' : 'onRoof', tile: snapCursorTile(tile, cursor3d), head: true };
 }
 
 export function impactMarker(gridNo: number, level: number, good: boolean): WorldMarker {

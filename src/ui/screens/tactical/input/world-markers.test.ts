@@ -4,10 +4,18 @@ import { describe, expect, it } from 'vitest';
 import { PROJECT_DATA_DIR } from '../../../../node/repo.ts';
 import { Arrows, arrowSprites } from './arrows.ts';
 import { parseUiCursorTable } from './ui-cursors.ts';
-import { cursorMarkers, footstepMarkers } from './world-markers.ts';
+import { cursorMarkers, footstepMarkers, showMoveGridMarker } from './world-markers.ts';
 
 const table = parseUiCursorTable(JSON.parse(readFileSync(join(PROJECT_DATA_DIR, 'tables/ui-cursors.json'), 'utf8')));
-const state = { gridNo: 100, interfaceLevel: 0, targetGridNo: null, apInvalidOrZero: false, stealth: false, displayAp: true };
+const state = {
+  gridNo: 100,
+  interfaceLevel: 0,
+  targetGridNo: null,
+  apInvalidOrZero: false,
+  stealth: false,
+  displayAp: true,
+  cursor3d: false,
+};
 
 describe('the world markers of the tactical input', () => {
   it('draws two footsteps per tile in the band colour, entering at direction + 2 and leaving at + 10 (orange for band 3)', () => {
@@ -38,6 +46,39 @@ describe('the world markers of the tactical input', () => {
       tile: 'BADMARKER1',
       head: true,
     });
+  });
+
+  it('draws the 3D pointers in place of the flat ones with the 3D cursor, on the ground, on the roof and at the move grid (GetSnapCursorIndex)', () => {
+    const in3d = { ...state, cursor3d: true };
+    const tiles = (markers: readonly { readonly tile: string }[]) => markers.map((m) => m.tile);
+    expect(tiles(cursorMarkers(table, { ...in3d, uiCursor: 'MOVE_RUN_UICURSOR' }))).toEqual(['FIRSTPOINTERS13']);
+    expect(tiles(cursorMarkers(table, { ...in3d, uiCursor: 'MOVE_RUN_UICURSOR', stealth: true }))).toEqual(['FIRSTPOINTERS19']);
+    expect(tiles(cursorMarkers(table, { ...in3d, uiCursor: 'MOVE_RUN_UICURSOR', apInvalidOrZero: true }))).toEqual(['FIRSTPOINTERS17']);
+    expect(tiles(cursorMarkers(table, { ...in3d, uiCursor: 'MOVE_RUN_UICURSOR', apInvalidOrZero: true, stealth: true }))).toEqual([
+      'FIRSTPOINTERS20',
+    ]);
+    expect(tiles(cursorMarkers(table, { ...in3d, uiCursor: 'MOVE_RUN_UICURSOR', interfaceLevel: 1 }))).toEqual([
+      'FIRSTPOINTERS14',
+      'FIRSTPOINTERS13',
+    ]);
+    expect(showMoveGridMarker(100, 0, 'FIRSTPOINTERS4', true).tile).toBe('FIRSTPOINTERS15');
+    expect(showMoveGridMarker(100, 1, 'FIRSTPOINTERS2', false).tile).toBe('FIRSTPOINTERS2');
+  });
+
+  it('puts the 3D pointer under the bad marker of a refused move with the 3D cursor, also at roof level, where the drop marker stays flat', () => {
+    expect(cursorMarkers(table, { ...state, uiCursor: 'CANNOT_MOVE_UICURSOR', cursor3d: true })).toEqual([
+      { gridNo: 100, layer: 'topmost', tile: 'FIRSTPOINTERS13', head: true },
+      { gridNo: 100, layer: 'topmost', tile: 'BADMARKER1', head: true },
+    ]);
+    expect(cursorMarkers(table, { ...state, uiCursor: 'CANNOT_MOVE_UICURSOR', interfaceLevel: 1, cursor3d: true })).toEqual([
+      { gridNo: 100, layer: 'topmost', tile: 'BADMARKER1', offsetY: -58 },
+      { gridNo: 100, layer: 'topmost', tile: 'FIRSTPOINTERS13', head: true },
+      { gridNo: 100, layer: 'onRoof', tile: 'FIRSTPOINTERS14', head: true },
+    ]);
+    expect(cursorMarkers(table, { ...state, uiCursor: 'CANNOT_MOVE_UICURSOR', interfaceLevel: 1 }).map((m) => m.tile)).toEqual([
+      'BADMARKER1',
+      'FIRSTPOINTERS14',
+    ]);
   });
 
   it('places the stance arrows beside, above and below the merc', () => {

@@ -3171,8 +3171,9 @@ export class TacticalInput {
     const sel = this.#sel();
     const level = this.#host.interfaceLevel();
     const mapPos = this.#mapPos();
+    const cursor3d = this.#env().display().cursor3d;
     if (this.#scrolling) return out;
-    if (this.#host.itemInCursor()) return this.#itemTileMarkers();
+    if (this.#host.itemInCursor()) return this.#itemTileMarkers(cursor3d);
     if (mapPos !== null && this.#cursor !== 'NO_UICURSOR') {
       out.push(
         ...cursorMarkers(this.#env().uiCursors, {
@@ -3183,6 +3184,7 @@ export class TacticalInput {
           apInvalidOrZero: this.#apInvalid || this.#currentAp === 0,
           stealth: sel?.stealth === true,
           displayAp: this.#displayAp,
+          cursor3d,
         }),
       );
     }
@@ -3195,20 +3197,20 @@ export class TacticalInput {
     const grid = this.#showMoveGrid || (this.#steps.length > 0 && this.#showMoveGridAt >= 0 ? 1 : 0);
     if (grid && sel && this.#showMoveGridAt >= 0 && this.#showMoveGridAt !== sel.gridNo) {
       const tile = grid === 2 ? 'FIRSTPOINTERS4' : sel.stealth ? 'FIRSTPOINTERS9' : 'FIRSTPOINTERS2';
-      out.push(showMoveGridMarker(this.#showMoveGridAt, level, tile));
+      out.push(showMoveGridMarker(this.#showMoveGridAt, level, tile, cursor3d));
     }
     if (this.#impact) out.push(impactMarker(this.#impact.gridNo, this.#impact.level, this.#impact.good));
     return out;
   }
 
-  #itemTileMarkers(): WorldMarker[] {
+  #itemTileMarkers(cursor3d: boolean): WorldMarker[] {
     const out: WorldMarker[] = [];
     const landing = this.itemTile.landing;
     if (landing) out.push(impactMarker(landing.gridNo, landing.level, landing.good));
     const sel = this.#sel();
     const walkUpTo = this.itemTile.walkUpTo;
     if (sel && walkUpTo !== null && walkUpTo !== sel.gridNo && ourTurn(this.#view()))
-      out.push(showMoveGridMarker(walkUpTo, this.#host.interfaceLevel(), sel.stealth ? 'FIRSTPOINTERS9' : 'FIRSTPOINTERS2'));
+      out.push(showMoveGridMarker(walkUpTo, this.#host.interfaceLevel(), sel.stealth ? 'FIRSTPOINTERS9' : 'FIRSTPOINTERS2', cursor3d));
     return out;
   }
 
