@@ -237,4 +237,4 @@ strategic death. Inferred from reading the source:
   `Tactical/Soldier_Ani.cc:2861`): no corpse on the live map, and for another team no kill, loyalty, militia count or
   quest consequence.
 
-Not ported: gaps "Unseen soldiers in combat".
+Not ported: none known.
