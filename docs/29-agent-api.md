@@ -429,11 +429,13 @@ tile (D16). `fellDown`, `slippedOnMarbles` and `camoWashedOff` (§8.1) name a so
 (`Tactical/Overhead.cc:1484`, `:1505`, `:1519`, `Tactical/Items.cc:3357`); the first two add `unseen` and `heard` for
 his curse, as a hit does, none for a muted soldier, and `fellDown` drops his `cause`.
 
-**A stat change** of a merc of ours comes as `statChanged {soldier, stat, change}` as it happens, and his panels flash
-it. When he says his experience line with it (`QUOTE_EXPERIENCE_GAIN` at every level, gained or lost, and for a quarter
-of the other stats but health, drawn on the talk session's cosmetic stream; `Tactical/Campaign.cc:583-614`), the
-message waits in the dialogue queue behind the lines queued before: that `statChanged` carries `queued`, and
-`statChangeAnnounced {soldier, stat, change}` brings the message as the queue reaches it, right before the line.
+**A stat change** of a merc of ours comes as `statChanged {soldier, stat, change}` as it happens, on the loaded map or
+off it (doctoring, repairing, training and militia training while no sector is loaded, `Strategic/Assignments.cc:1348`,
+`:1987`, `:2616`, `:2628`), and his panels flash it. When he says his experience line with it (`QUOTE_EXPERIENCE_GAIN`
+at every level, gained or lost, and for a quarter of the other stats but health, drawn on the talk session's cosmetic
+stream; `Tactical/Campaign.cc:583-614`), the message waits in the dialogue queue behind the lines queued before: that
+`statChanged` carries `queued`, and `statChangeAnnounced {soldier, stat, change}` brings the message as the queue
+reaches it, right before the line.
 
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
@@ -720,7 +722,7 @@ the client has the merc say COOL1 after a picked lock or a disarmed door trap an
 (`Tactical/Handle_Doors.cc:573`, `:680`, `:710`). Every failed skill check but the silent ones (unjamming, noticing a
 dart, lying to the queen) brings `skillCheckFailed {soldier, certain?}` for a soldier the squad sees, the curse the
 original plays always for lockpicking, disarming and the crowbar (`certain`) and else on `Random(100) < 40`, which the
-client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`), and none off the loaded map
+client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`), and none on the map screen
 (gaps "Skill-check curse on the map screen"). One gone when he gets there keeps him walking on the spot, never idle, until
 `stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
 effect, as the original looks for the structure the order named. A closed container hides what it holds: items put

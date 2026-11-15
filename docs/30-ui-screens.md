@@ -249,7 +249,10 @@ only: a damage number of a bleed on the map, the summed loss since, drifts once 
 (`31`). The map screen shows what the original's shows: a merc of ours who bleeds becomes the info character and his face
 flashes (`mercBled`, `SoldierBleed`'s `SetInfoChar`), `damageFeedback` flashes the info face as the map's
 `HandleAutoFaces` animates it, a point of maximum life lost while dying prints the maximum life red, as a health gain
-prints it green (`map/map-screen.ts`), and a soldier dying there cries through `MapSound` (`31`).
+prints it green (`map/map-screen.ts`), and a soldier dying there cries through `MapSound` (`31`). The events of our
+mercs' assignments and map inventory while no sector is loaded reach it as well, from a combat context of their own
+(`src/sim/campaign/off-map-combat.ts`): a stat changed there prints its message and colours the stat on the info panel
+as on the loaded map (`Tactical/Campaign.cc:583-632`).
 
 **A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
 the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead

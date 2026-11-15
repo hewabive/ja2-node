@@ -9,6 +9,7 @@ import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
 import { createItem } from '../../../sim/items/object.ts';
+import { StatAmt, StatCause } from '../../../sim/strategic/economy/constants.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { sectorInfo, setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import { WorldItemFlags } from '../../../sim/tactical/world-items.ts';
@@ -52,6 +53,9 @@ const STASH_GRIDNO = 12_345;
 const PORTRAIT_ICONS = 'interface/portraiticons.sti';
 const ADRENALINE_ICON = 7;
 const DRUNK_ICON = 8;
+const HEALTH_SUBPOINTS = 50;
+const TRAINABLE_HEALTH = 60;
+const TRAINING_POINTS = 40;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -797,6 +801,28 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(recoloured({ type: 'mercBled', tick, soldier: info, lifeMaxLost: true })).toEqual([FontColor.RED]);
       f.t.frame(CHANGE_STAT_RECENTLY_DURATION_MS);
       expect(recoloured({ type: 'statChanged', tick, soldier: info, stat: 'lifeMax', change: 1 })).toEqual([FontColor.LTGREEN]);
+    }));
+
+  it('prints the maximum life a merc off the loaded map gains on an assignment green, as ChangeStat marks the change there too', () =>
+    withMap(async (f) => {
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      expect(campaign.tactical).toBeNull();
+      const info = f.screen.hook().info ?? -1;
+      const merc = campaign.battle?.roster.get(info);
+      const progress = merc ? campaign.state.profiles.get(merc.soldier.profile) : undefined;
+      const crew = campaign.economy?.crew;
+      if (!merc || !progress || !crew) throw new Error('no info merc');
+      Object.assign(progress.stats, { lifeMax: TRAINABLE_HEALTH });
+      Object.assign(progress.gains, { lifeMax: HEALTH_SUBPOINTS - 1 });
+      merc.soldier.lifeMax = TRAINABLE_HEALTH;
+      f.client.refresh();
+      f.t.frame();
+      const greens = () => glyphColours(f).filter((colour) => colour === FontColor.LTGREEN).length;
+      const before = greens();
+      crew.statChange(info, StatAmt.HEALTH, TRAINING_POINTS, StatCause.TRAINING);
+      expect((await f.client.command({ type: 'inventory', sector: SQUAD_SECTOR })).ok).toBe(true);
+      f.deliver();
+      expect(greens() - before).toBe(1);
     }));
 
   it('cries a death on the map screen through its own sounds, and leaves one on the tactical screen to the tactical director', () =>

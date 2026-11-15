@@ -104,6 +104,7 @@ import { MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
+import type { CombatEvents } from './off-map-combat.ts';
 import { PowFlow } from './pow.ts';
 import { repairSamTerminal } from './sam-repair.ts';
 import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen } from './screens.ts';
@@ -207,6 +208,7 @@ export class CampaignSim {
   readonly mapInventory: MapInventory;
   readonly money: MoneyFlow;
   readonly worldClock: WorldTimeControl;
+  readonly offMapEvents: CombatEvents = { push: (e) => this.#events.push({ ...e, tick: this.tick }) };
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
