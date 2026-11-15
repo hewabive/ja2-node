@@ -7,7 +7,7 @@ import { parseSaveGame, type SaveGame } from '../../../content/formats/savegame.
 import { parseSaveEncryptionTable } from '../../../content/formats/savegame-header.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { PlacementButton } from '../forces/battle-state.ts';
-import { SectorFlag } from '../forces/constants.ts';
+import { EncounterCode, SectorFlag } from '../forces/constants.ts';
 import { EventKind } from '../time/constants.ts';
 import { importStrategicTime } from '../time/save-import.ts';
 import { importStrategicMap } from './save-import.ts';
@@ -118,6 +118,14 @@ function syntheticSave(): SaveGame {
       },
       disableMapInterfaceDueToBattle: false,
       placementButton: 1,
+      preBattle: {
+        persistent: false,
+        encounterCode: EncounterCode.ENEMY_AMBUSH,
+        explicitEncounterCode: EncounterCode.ENTERING_ENEMY_SECTOR,
+        battleSectorLocator: true,
+        sector: D13,
+        cantRetreat: true,
+      },
     },
     strategicInfo: {
       elements: Array.from({ length: 324 }, () => ({ nameId: 0, enemyControlled: true, enemyAirControlled: false, samCondition: 0 })),
@@ -157,6 +165,29 @@ describe('importStrategicMap on a synthetic save', () => {
     expect(ctx.state.battle.placementButton).toBe(PlacementButton.CLEAR);
     importStrategicMap(ctx, syntheticSave());
     expect(ctx.state.battle.placementButton).toBe(PlacementButton.SPREAD);
+  });
+
+  it('keeps the pre-battle state of the general info: the persistent flag, both encounter codes, the battle locator and its sector and the retreat block (SaveLoadGame.cc:2084-2091)', () => {
+    const ctx = testContext({ content });
+    importStrategicMap(ctx, syntheticSave());
+    const { battle, encounter } = ctx.state;
+    expect([battle.persistent, battle.locator, battle.sector]).toEqual([false, true, D13]);
+    expect([encounter.code, encounter.explicitCode, encounter.cantRetreatInPBI]).toEqual([
+      EncounterCode.ENEMY_AMBUSH,
+      EncounterCode.ENTERING_ENEMY_SECTOR,
+      true,
+    ]);
+  });
+
+  it('keeps no battle sector from the zero sector of a game saved before its first battle', () => {
+    const base = syntheticSave();
+    const save = {
+      ...base,
+      generalInfo: { ...base.generalInfo, preBattle: { ...base.generalInfo.preBattle, sector: { x: 0, y: 0, z: 0 } } },
+    } as SaveGame;
+    const ctx = testContext({ content });
+    importStrategicMap(ctx, save);
+    expect(ctx.state.battle.sector).toBeNull();
   });
 
   it('links each vehicle to the first active soldier who is it, on any team, and refills the list in place for the tactical layer that shares it (Vehicles.cc FindSoldierType)', () => {

@@ -248,7 +248,7 @@ const GENERAL_INFO_HEAD: Layout = [
   skip(1),
   field('gfPersistantPBI', 'bool'),
   field('gubEnemyEncounterCode', 'u8'),
-  field('gubExplicitEnemyEncounterCode', 'bool'),
+  field('gubExplicitEnemyEncounterCode', 'u8'),
   field('gfBlitBattleSectorLocator', 'bool'),
   field('gubPBSectorX', 'u8'),
   field('gubPBSectorY', 'u8'),
@@ -416,6 +416,16 @@ export interface GeneralInfo {
   readonly selectedSector: { readonly x: number; readonly y: number; readonly z: number };
   readonly narrative: SavedNarrativeGeneralInfo;
   readonly meanwhile: SavedMeanwhileGeneralInfo;
+  readonly preBattle: SavedPreBattleInfo;
+}
+
+export interface SavedPreBattleInfo {
+  readonly persistent: boolean;
+  readonly encounterCode: number;
+  readonly explicitEncounterCode: number;
+  readonly battleSectorLocator: boolean;
+  readonly sector: { readonly x: number; readonly y: number; readonly z: number };
+  readonly cantRetreat: boolean;
 }
 
 export interface SavedMeanwhileDefinition {
@@ -669,6 +679,14 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       },
       trying: r.bool('gfMeanwhileTryingToStart'),
       inScene: r.bool('gfInMeanwhile'),
+    },
+    preBattle: {
+      persistent: r.bool('gfPersistantPBI'),
+      encounterCode: n('gubEnemyEncounterCode'),
+      explicitEncounterCode: n('gubExplicitEnemyEncounterCode'),
+      battleSectorLocator: r.bool('gfBlitBattleSectorLocator'),
+      sector: { x: n('gubPBSectorX'), y: n('gubPBSectorY'), z: n('gubPBSectorZ') },
+      cantRetreat: r.bool('gfCantRetreatInPBI'),
     },
   };
 }

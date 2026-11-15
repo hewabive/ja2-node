@@ -47,6 +47,8 @@ const SOLDIER_SLOT = 3;
 const PROFILE = 7;
 const OVERFLOWING_BALANCE = 500_000_000;
 const WORLD_SECONDS = 2 * 86400 + 3 * 3600 + 4 * 60 + 5;
+const BLOODCAT_AMBUSH_CODE = 6;
+const HOSTILE_BLOODCATS_CODE = 10;
 
 type FieldValue = number | string;
 
@@ -261,7 +263,22 @@ function buildSave({
   w.u32(42);
   for (let i = 0; i < 256; i++) w.u32(i * 7);
   w.zeros(19 * 20 + 19 * 351 * 16);
-  w.bytes(fill(GENERAL_INFO_LAYOUT, false, { sel: SOLDIER_SLOT, gsRenderCenterX: 455, fSciFi: 1, ubDifficultyLevel: 2 }));
+  w.bytes(
+    fill(GENERAL_INFO_LAYOUT, false, {
+      sel: SOLDIER_SLOT,
+      gsRenderCenterX: 455,
+      fSciFi: 1,
+      ubDifficultyLevel: 2,
+      gfPersistantPBI: 1,
+      gubEnemyEncounterCode: BLOODCAT_AMBUSH_CODE,
+      gubExplicitEnemyEncounterCode: HOSTILE_BLOODCATS_CODE,
+      gfBlitBattleSectorLocator: 1,
+      gubPBSectorX: SECTOR.x,
+      gubPBSectorY: SECTOR.y,
+      gubPBSectorZ: SECTOR.z,
+      gfCantRetreatInPBI: 1,
+    }),
+  );
   w.zeros(6 * 44 + 13 * 26);
   w.u8(0).u32(0).u32(0).zeros(132);
   w.zeros(1).u8(SOLDIER_SLOT).zeros(146).u8(1).zeros(3).u8(156).zeros(2).u8(1).u8(SOLDIER_SLOT).zeros(17);
@@ -367,6 +384,18 @@ describe('parseSaveGame on a synthetic save', () => {
       expect(save.gameStates).toBeNull();
     });
   }
+
+  it('reads the pre-battle state of the general info, the explicit encounter code whole from the BOOLEAN byte that holds it (SaveLoadGame.cc:2084-2091)', () => {
+    const save = parseSaveGame(buildSave(), encryption);
+    expect(save.generalInfo.preBattle).toEqual({
+      persistent: true,
+      encounterCode: BLOODCAT_AMBUSH_CODE,
+      explicitEncounterCode: HOSTILE_BLOODCATS_CODE,
+      battleSectorLocator: true,
+      sector: SECTOR,
+      cantRetreat: true,
+    });
+  });
 
   it('falls back to the German encryption set when the profile checksum demands it', () => {
     const plain = parseSaveGame(buildSave({ balance: OVERFLOWING_BALANCE }), encryption);

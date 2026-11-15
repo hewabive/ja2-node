@@ -6,7 +6,7 @@ import { type LogicTimeline, SlotKind, slotArgument, slotKind, timelineSlot } fr
 import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH, SAVE_HEADER_BYTES } from '../content/formats/savegame-header.ts';
 import { layoutOffsets } from '../content/formats/savegame-layout.ts';
-import { TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
+import { GENERAL_INFO_LAYOUT, TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
 import { MapModificationType } from '../content/formats/savegame-temp-files.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
@@ -38,6 +38,10 @@ const MINUTES_PER_HOUR = 60;
 const WINDOWS_WORLD_LOADED_OFFSET = 301;
 const CLOCK_GAME_PAUSED_OFFSET = 5;
 const CLOCK_PAUSE_DUE_TO_PLAYER_OFFSET = 31;
+const ENEMY_ENCOUNTER_CODE = 2;
+const ENEMY_AMBUSH_CODE = 3;
+const NO_CENTER_GRIDNO = -1;
+const MAX_MISC_NOISE_DURATION = 12;
 const NATIVE_MAP_SCREEN = 9;
 const MAP_SCREEN_TICKS = 200 * 60;
 const dataDir = ORIGINAL_DATA_DIR;
@@ -48,6 +52,8 @@ const savedWithWorld = (file: string) => parseSaveHeader(new Uint8Array(readFile
 const worldSaves = saveFiles.filter(savedWithWorld);
 const noWorldSaves = saveFiles.filter((file) => !savedWithWorld(file));
 const encryption = parseSaveEncryptionTable(JSON.parse(readFileSync(join(PROJECT_DATA_DIR, SAVE_ENCRYPTION_PATH), 'utf8')));
+const savedInCombat = (file: string) => parseSaveGame(new Uint8Array(readFileSync(join(savesDir, file))), encryption).tactical.inCombat;
+const battleSave = [...worldSaves].sort().find(savedInCombat);
 const TRAVEL_STEPS = 20_000;
 const IDLE_DICE = 100;
 const IDLE_ROLLERS_OF_THE_NATIVE_LOAD: Readonly<Record<string, readonly number[]>> = { 'SaveGame01.sav': [121], 'SaveGame07.sav': [0] };
@@ -91,6 +97,14 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
 
   function sectorName(sector: { readonly x: number; readonly y: number }): string {
     return `${String.fromCharCode(64 + sector.y)}${sector.x}`;
+  }
+
+  function withEncounterCode(file: string, code: number): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+    const info = parseSaveGame(bytes, encryption).sections.find((s) => s.name === 'general info');
+    if (!info) throw new Error(`${file} has no general info section`);
+    bytes[info.offset + (layoutOffsets(GENERAL_INFO_LAYOUT, false).get('gubEnemyEncounterCode') ?? 0)] = code;
+    return bytes;
   }
 
   function pausedByThePlayer(file: string): Uint8Array {
@@ -161,6 +175,32 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       const clock = session.campaign.state.clock;
       expect([clock.paused, clock.pauseLocked, clock.playerPause]).toEqual([false, false, false]);
       expect(session.view().clock).toMatchObject({ paused: false, playerPaused: false });
+    },
+  );
+
+  it.skipIf(!battleSave)(
+    'calls the enemies of a battle saved as an ambush to the map centre at the end of the import (SaveLoadGame.cc:1195)',
+    async () => {
+      const bytes = withEncounterCode(battleSave ?? '', ENEMY_AMBUSH_CODE);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const t = session.campaign.tactical?.state;
+      if (!t) throw new Error(`${battleSave} has no loaded sector`);
+      const center = t.world.map?.info.centerGridNo;
+      expect(center).not.toBe(NO_CENTER_GRIDNO);
+      expect([t.perception.publicNoiseGridNo[Team.ENEMY], t.perception.publicNoiseVolume[Team.ENEMY]]).toEqual([
+        center,
+        MAX_MISC_NOISE_DURATION,
+      ]);
+    },
+  );
+
+  it.skipIf(!battleSave)(
+    "lets a battle saved as the enemy's encounter be autoresolved, which the sector's counts alone would take for the player's attack",
+    async () => {
+      const bytes = withEncounterCode(battleSave ?? '', ENEMY_ENCOUNTER_CODE);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      expect(session.campaign.state.flow).toBe('tactical');
+      expect(session.dispatch({ type: 'autoresolveBattle' })).toEqual({ ok: true });
     },
   );
 
@@ -242,6 +282,23 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(session.initialMusic).toEqual({ mode: musicModeOfNativeByte(save.generalInfo.musicMode), previous: MusicMode.MAIN_MENU });
       expect(session.initialMusic.mode).not.toBe(MusicMode.RESTORE);
       expect(musicMode(session.initialMusic, session.drainEvents(), session.musicFacts()).mode).toBe(session.initialMusic.mode);
+    });
+
+    it(`keeps the pre-battle state of ${file}, its battle locator on the map while it blinks (SaveLoadGame.cc:2084-2091)`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const saved = parseSaveGame(bytes, encryption).generalInfo.preBattle;
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const { battle, encounter } = session.campaign.state;
+      expect({
+        persistent: battle.persistent,
+        encounterCode: encounter.code,
+        explicitEncounterCode: encounter.explicitCode,
+        battleSectorLocator: battle.locator,
+        sector: battle.sector ?? { x: 0, y: 0, z: 0 },
+        cantRetreat: encounter.cantRetreatInPBI,
+      }).toEqual(saved);
+      const locator = session.view().strategic?.battleLocator;
+      expect(locator).toBe(saved.battleSectorLocator ? sectorName(saved.sector) : undefined);
     });
 
     it(`shows the contracts of ${file} at hour precision`, async () => {

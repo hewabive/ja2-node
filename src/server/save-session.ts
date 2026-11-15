@@ -20,6 +20,7 @@ import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
 import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { importLaptop } from '../sim/campaign/laptop/save-import.ts';
+import { runNativeLoadHooks } from '../sim/campaign/native-load-hooks.ts';
 import { campaignOffMapCombatContext } from '../sim/campaign/off-map-combat.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
@@ -178,6 +179,7 @@ export async function createSaveSession(
     });
   }
   if (!loadTheLoadedSector(campaign, sim, save)) dropLoadedSectorMapModificationsFile(strategic);
+  runNativeLoadHooks(campaign);
   const session = new CampaignSession(campaign, parts.presentation, roster, worlds, parts.narrative.texts, {
     kind: 'imported',
     parts,

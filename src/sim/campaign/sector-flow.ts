@@ -136,7 +136,6 @@ import { removeAllActiveTimedBombs } from '../tactical/bombs/bomb-queue.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
 import { loadDoorStatusArray, storedDoorStatuses, updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
-import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import { sharedWeaponsDropped } from '../tactical/equipment.ts';
@@ -216,6 +215,7 @@ import {
   handleRpcDescription,
   startGuideCountdown,
 } from './narrative/guide-description.ts';
+import { callAvailableTeamEnemiesToAmbush } from './native-load-hooks.ts';
 import { onTacticalMap, type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { endMapScreenForSectorLoad, returnToLoadedSector } from './screens.ts';
 import {
@@ -1054,7 +1054,7 @@ export class SectorFlow {
     if (this.#enemiesJoinTheLoad()) this.prepareEnemyForSectorBattle();
     addProfilesUsingProfileInsertionData(t, world, env, this.#profileInsertionHooks());
     this.postSchedulesOfLoadedSector(t, false);
-    this.#callAvailableTeamEnemiesToAmbush(t);
+    callAvailableTeamEnemiesToAmbush(t, this.campaign.state.encounter.code);
     unPauseGame(this.campaign.state.clock);
     this.campaign.state.encounter.battleGroup = null;
     if (this.campaign.state.movement.tacticalTraversal.active && this.economy) calculateNonPersistentPbiInfo(this.economy);
@@ -1108,14 +1108,6 @@ export class SectorFlow {
         return true;
       }
     }
-  }
-
-  #callAvailableTeamEnemiesToAmbush(t: TacticalState): void {
-    const code = this.campaign.state.encounter.code;
-    if (code !== EncounterCode.ENEMY_AMBUSH && code !== EncounterCode.BLOODCAT_AMBUSH) return;
-    const center = t.world.map?.info.centerGridNo ?? -1;
-    if (center === -1) return;
-    callAvailableEnemiesTo(t, center);
   }
 
   #insertionContext(m: RosterMerc | null): InsertionContext {

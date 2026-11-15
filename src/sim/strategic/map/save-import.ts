@@ -4,11 +4,12 @@
 // @src Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile, LoadPlayerGroupList; Tactical/Squads.cc
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset, decided from the records written back, 2026-11-08);
-// @src LoadGeneralInfo (the helicopter globals; gubDefaultButton, the placement GUI's saved button, 2026-11-14).
+// @src LoadGeneralInfo (the helicopter globals; gubDefaultButton, the placement GUI's saved button, 2026-11-14; the
+// @src pre-battle globals of Strategic/PreBattle_Interface.cc, 2026-11-15).
 
 import { loadedWorldSector, type SaveGame, type StrategicGroup } from '../../../content/formats/savegame.ts';
-import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
-import type { Sector } from '../../../content/strategic/sector-ids.ts';
+import type { SavedHelicopter, SavedPreBattleInfo } from '../../../content/formats/savegame-tactical.ts';
+import { isValidSector, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';
 import {
   emptyPassengerSlots,
@@ -17,7 +18,9 @@ import {
   type VehicleRecord,
   type VehicleSoldier,
 } from '../../vehicles/vehicle-list.ts';
+import type { BattleState } from '../forces/battle-state.ts';
 import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
+import type { EncounterState } from '../forces/flow-state.ts';
 import type { Group } from '../forces/groups.ts';
 import { type HelicopterState, REFUEL_SITES } from '../forces/helicopter-state.ts';
 import type { StrategicContext } from '../forces/ports.ts';
@@ -126,6 +129,20 @@ function importVehicles(save: SaveGame, byProfile: Map<number, { id: number }>):
   });
 }
 
+export interface PreBattleStateHolder {
+  readonly battle: BattleState;
+  readonly encounter: EncounterState;
+}
+
+export function importPreBattleState(state: PreBattleStateHolder, saved: SavedPreBattleInfo): void {
+  state.battle.persistent = saved.persistent;
+  state.encounter.code = saved.encounterCode;
+  state.encounter.explicitCode = saved.explicitEncounterCode;
+  state.battle.locator = saved.battleSectorLocator;
+  state.battle.sector = isValidSector(saved.sector) ? { ...saved.sector } : null;
+  state.encounter.cantRetreatInPBI = saved.cantRetreat;
+}
+
 export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void {
   const { state } = ctx;
   const info = save.generalInfo;
@@ -153,6 +170,7 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   f.helicopter = importHelicopter(info.helicopter);
   state.movement.disableMapInterfaceDueToBattle = info.disableMapInterfaceDueToBattle;
   state.battle.placementButton = info.placementButton;
+  importPreBattleState(state, info.preBattle);
   const world = loadedWorldSector(save);
   state.worldSector = world ? { ...world } : null;
 }
