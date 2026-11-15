@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { leastSaidQuote, SPECK_IDLE_CHAT_DELAY, SpeckIdleChat } from './speck-idle.ts';
 import { MERC_EXIT_TIME, MERC_INTRO_TIME, SpeckMode, SpeckVideo } from './speck-video.ts';
 
-function speck(talkMs = 2000) {
+function speck(talkMs = 2000, openingDue = false) {
   const said: number[] = [];
   const faces: number[] = [];
   const ends: number[] = [];
+  const openings: number[] = [];
+  let due = openingDue;
   let stops = 0;
   let talkingFrom: number | null = null;
   const video = new SpeckVideo({
@@ -24,8 +26,14 @@ function speck(talkMs = 2000) {
     talkEnded: (now) => {
       ends.push(now);
     },
+    conditionalOpening: (now) => {
+      openings.push(now);
+      const asked = due;
+      due = false;
+      return asked;
+    },
   });
-  return { video, said, faces, ends, stops: () => stops };
+  return { video, said, faces, ends, openings, stops: () => stops };
 }
 
 describe("Speck's video window", () => {
@@ -77,6 +85,44 @@ describe("Speck's video window", () => {
     video.update(MERC_INTRO_TIME + 3 + MERC_EXIT_TIME + 1);
     expect(video.mode).toBe(SpeckMode.INIT);
     expect(faces).toEqual([0, MERC_INTRO_TIME + 3 + MERC_EXIT_TIME + 1]);
+  });
+
+  it('asks for the conditional opening as a talk ends with nothing left, and holds the video with the face up until its quotes come', () => {
+    const { video, said, ends, openings } = speck(100, true);
+    video.enqueue([49], 0);
+    video.update(MERC_INTRO_TIME + 1);
+    video.update(MERC_INTRO_TIME + 102);
+    expect([ends, openings, video.mode, video.awaitingOpening]).toEqual([
+      [MERC_INTRO_TIME + 102],
+      [MERC_INTRO_TIME + 102],
+      SpeckMode.VIDEO,
+      true,
+    ]);
+    video.update(MERC_INTRO_TIME + 900);
+    expect([ends.length, openings.length, video.mode]).toEqual([1, 1, SpeckMode.VIDEO]);
+    video.openingArrived([10, 22], MERC_INTRO_TIME + 901);
+    video.update(MERC_INTRO_TIME + 902);
+    expect([said, video.mode]).toEqual([[49, 10], SpeckMode.VIDEO]);
+    video.update(MERC_INTRO_TIME + 1003);
+    video.update(MERC_INTRO_TIME + 1104);
+    expect([said, ends.length, openings.length, video.mode]).toEqual([[49, 10, 22], 2, 2, SpeckMode.EXIT]);
+  });
+
+  it('closes the video when the opening brings nothing, and drops one that comes after the X', () => {
+    const empty = speck(100, true);
+    empty.video.enqueue([49], 0);
+    empty.video.update(MERC_INTRO_TIME + 1);
+    empty.video.update(MERC_INTRO_TIME + 102);
+    empty.video.openingArrived([], MERC_INTRO_TIME + 103);
+    expect([empty.video.mode, empty.ends.length]).toEqual([SpeckMode.EXIT, 1]);
+    const closed = speck(100, true);
+    closed.video.enqueue([49], 0);
+    closed.video.update(MERC_INTRO_TIME + 1);
+    closed.video.update(MERC_INTRO_TIME + 102);
+    closed.video.close(MERC_INTRO_TIME + 103);
+    closed.video.openingArrived([10], MERC_INTRO_TIME + 104);
+    closed.video.update(MERC_INTRO_TIME + 103 + MERC_EXIT_TIME + 1);
+    expect([closed.video.displayed, closed.video.queue, closed.said]).toEqual([false, [], [49]]);
   });
 
   it('ignores an empty queue', () => {

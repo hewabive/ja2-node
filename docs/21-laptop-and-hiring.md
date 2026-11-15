@@ -22,7 +22,8 @@ openLaptop … closeLaptop (the I.M.P. reminder)            laptop/laptop-flow.t
   readEmail: the I.M.P. and M.E.R.C. bookmarks             laptop/mail.ts
   aimHire → canMercBeHired → hireMercCore → hireContract   laptop/aim.ts, relations/hiring-check.ts, laptop/hire.ts,
                                                            contracts/hire-contract.ts
-  visitSite merc (Speck's opening), mercHire, mercPay      laptop/merc-site.ts
+  visitSite merc, mercOpening (Speck's opening),           laptop/merc-site.ts
+    mercHire, mercPay
   impCreate                                                laptop/imp.ts
   bobbyRayOrder                                            laptop/bobby-ray.ts
   insure, orderFlowers, readFile                           laptop/insurance.ts, florist.ts, records.ts
@@ -69,10 +70,12 @@ and on the checks every exit from the map shares (`AllowedToExitFromMapscreenTo`
 §4.4), so it never opens under a pause lock and its exit has no lock to lift (`Strategic/MapScreen.cc:3249`).
 
 **What the original runs on UI timers runs at a command.** Speck's opening and its draws run at a laptop session's first
-`visitSite merc`, or at its first M.E.R.C. command without a visit (deviation "Speck's opening"); the florist's
-order-number draw runs at `visitSite floristOrderForm` (deviation "Florist order form entry"). A.I.M. impatience runs on
-the wall clock: the client plays the quotes and the hang-up and reports it with `aimHangUp`, which raises the annoyance
-and queues its reset (deviation "A.I.M. annoyance"). So does Speck's idle chatter, which changes nothing in the game:
+`visitSite merc`, or at its first M.E.R.C. command without a visit; a later visit's opening, which the original says
+once his first idle quote ends (`Laptop/Mercs.cc:811-816`), runs at `mercOpening`, which the page sends then and
+which the visit allows once, before any other M.E.R.C. command (`mercVisitOpeningDue`; deviation "Speck's opening");
+the florist's order-number draw runs at `visitSite floristOrderForm` (deviation "Florist order form entry"). A.I.M.
+impatience runs on the wall clock: the client plays the quotes and the hang-up and reports it with `aimHangUp`, which
+raises the annoyance and queues its reset (deviation "A.I.M. annoyance"). So does Speck's idle chatter, which changes nothing in the game:
 the view lists the quotes he may pick (`speckIdleQuotes`), the client counts what he said (`30`).
 Cosmetic draws the original takes from the gameplay stream are not drawn (deviation "Cosmetic laptop draws").
 

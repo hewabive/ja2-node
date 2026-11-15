@@ -154,6 +154,7 @@ export function applySavedLaptop(state: StrategicState, save: SaveGame, saved: S
   l.lastHiredMerc.profile = info.lastHiredMerc.profile;
   l.lastHiredMerc.arrival = info.lastHiredMerc.arrival;
   l.mercSiteOpenedThisSession = false;
+  l.mercVisitOpeningDue = false;
   importNarrative(state.narrative, save.facts, save.quests);
 }
 

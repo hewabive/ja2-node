@@ -291,6 +291,8 @@ comment (deviation "A.I.M. annoyance"). Its file statics live in `LaptopMemory` 
 laptop session drops it, as in the original. Speck's idle chatter on the M.E.R.C. home page runs on the same clock
 (`laptop/merc/speck-idle.ts`): it picks from the view's `merc.idleQuotes`, and how often he said each quote lives in
 `LaptopMemory`, unsaved like the original's process-wide counts and fresh with a new session, as in a fresh process.
+On a later visit of the laptop session, entered from outside the site, the page sends `mercOpening` as his first talk
+ends unless the X closed the video before, and holds the video, face up, until the quotes it answers play.
 
 **Story events hold the flow.** `StoryLayer` sees every frame batch before the front-end flow and holds the frames after
 a story event until its step allows, so a screen switch the event brings waits for the box or the fade. The meanwhile
@@ -399,6 +401,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The World Wide Wait leaves the page that asked for it drawn and its buttons live: a click during the wait changes the page to come and keeps the wait running, and a flower picked then is one of those shown (`Laptop/Laptop.cc:925`, `:1840`) | `laptop/aim/aim-policies.test.ts` "shows the page it leaves through the wait …", `laptop/florist/florist-pages.test.ts` "keeps the gallery page it leaves through the wait …" |
 | The A.I.M. connection snow falls over the merc's face, with the first contact buttons already up, and never before the answering machine: INIT ends with its black, as its own snow branch is never reached (`Laptop/AIMMembers.cc:2630`) | `laptop/aim/aim-conference.test.ts` "raises the title bar, shows black, then the merc at once under two passes of snow", "greets no one pressing Hire during the snow …" |
 | An A.I.M. distortion line shows its first frame only on its first run: the counter starts at 255 and later runs step past frame 0 | `laptop/aim/aim-distortion.test.ts` "shows the first line frame only on the first run …" |
+| On a later M.E.R.C. visit of the laptop session Speck says his opening only once his first idle quote ends, at least 10 s in: a visit left sooner, entered from a sub page or whose video the X closed first has none (`Laptop/Mercs.cc:811-816`, `:736`, `:969`) | `laptop/laptop-sites.test.ts` "has Speck say his opening on a later visit …" |
 | Closing Speck's video on the X leaves his idle timer running from the start of his last line, so his next idle quote can come less than 10 s after the close; only a line that ends by itself or by a click on its text restarts it (`Laptop/Mercs.cc:686-694`, `:733`) | `laptop/merc/merc.test.ts` "reports the end of a talk with nothing left, a subtitle click included, but not a close on the X" |
 | An A.I.M. merc hangs up as soon as his face stops talking, while his quote's text may stay up for its text time | `laptop/aim/aim-conference.test.ts` "hangs up once the face stops talking …" |
 | With subtitles off, a voiced A.I.M. quote keeps the text time of the last quote whose text showed: `CreateTalkingUI` sets it only for text it shows | `laptop/aim/aim-conference.test.ts` "keeps the text time of the last quote whose text showed …" |

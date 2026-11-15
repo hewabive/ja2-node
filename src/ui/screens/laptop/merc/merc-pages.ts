@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Mercs.cc EnterMercs (the visit only when entering from outside the site, the files button disabled
 // @src without an account, the idle chatter's timer reset), HandleMercs (the idle quote opens the video at the next
-// @src frame, 2026-11-15), RenderMercs, BtnAccountBoxButtonCallback, BtnFileBoxButtonCallback, ExitMercs (Speck stops),
+// @src frame, 2026-11-15), HandleTalkingSpeck and GetSpeckConditionalOpening (a later visit's opening once the first
+// @src talk ends, on a visit from outside the site, unless the X set gfDoneIntroSpeech first, 2026-11-15), RenderMercs,
+// @src BtnAccountBoxButtonCallback, BtnFileBoxButtonCallback, ExitMercs (Speck stops),
 // @src DisplayTextForSpeckVideoPopUp (the subtitle in quotes, at most 300 wide, centred on the laptop screen at
 // @src MERC_TEXT_BOX_POS_Y), StartSpeckTalking (Speck's animated face says the quote), HandleSpeckTalking (the 48 x 43 face
 // @src stretched to the video face rectangle);
@@ -36,6 +38,7 @@ import { MercTextBox } from '../../../widgets/merc-text-box.ts';
 import { MessageBoxFlag, MessageBoxReturn, MessageBoxStyleId } from '../../../widgets/message-box.ts';
 import { portraitPath } from '../../../widgets/portrait.ts';
 import { showArrivalBox } from '../arrival-box.ts';
+import type { LaptopCommandReply } from '../laptop-client.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import type { LaptopContext, LaptopPage } from '../laptop-page.ts';
 import { VideoFace, videoFacePorts, videoFaceRecord } from '../video-face.ts';
@@ -75,6 +78,10 @@ function dollars(amount: number): string {
 
 function mercSite(context: LaptopContext): MercSiteView | null {
   return context.view()?.merc ?? null;
+}
+
+function speckQuotes(reply: LaptopCommandReply): number[] | undefined {
+  return reply.ok ? (reply.data as { speck?: number[] } | undefined)?.speck : undefined;
 }
 
 export const MERC_HOME_CONTRACT: ControllerContract = {
@@ -133,6 +140,7 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
   let disposed = false;
   let face: VideoFace | null = null;
   let idleQuote: number | null = null;
+  let openingDue = false;
   const now = () => context.services.clock.ja2Now;
   const idle = new SpeckIdleChat(context.memory.speckQuotesSaid, now());
   const facePorts = videoFacePorts(context);
@@ -164,6 +172,14 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
       subtitle = null;
     },
     talkEnded: (time) => idle.reset(time),
+    conditionalOpening: () => {
+      if (!openingDue) return false;
+      openingDue = false;
+      void context.command({ type: 'mercOpening' }).then((reply) => {
+        if (!disposed) video.openingArrived(speckQuotes(reply) ?? [], now());
+      });
+      return true;
+    },
   });
   const fromSubPage = MERC_SUB_PAGES.has(context.shell.previousMode);
 
@@ -188,7 +204,10 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
       context.shell.setPage(site?.accountStatus === 'noAccount' ? LaptopMode.MERC_NO_ACCOUNT : LaptopMode.MERC_ACCOUNT);
     },
     files: () => context.shell.setPage(LaptopMode.MERC_FILES),
-    closeVideo: () => video.close(now()),
+    closeVideo: () => {
+      openingDue = false;
+      video.close(now());
+    },
   });
 
   const drawFaceSource = (list: DrawList, rect: Area): void => {
@@ -245,8 +264,9 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
     session.takeQuotes();
     void context.command({ type: 'visitSite', site: 'merc' }).then((reply) => {
       if (disposed || !reply.ok) return;
-      const speck = (reply.data as { speck?: number[] } | undefined)?.speck ?? [];
-      video.enqueue(speck, now());
+      const speck = speckQuotes(reply);
+      openingDue = speck === undefined;
+      video.enqueue(speck ?? [], now());
     });
   };
 

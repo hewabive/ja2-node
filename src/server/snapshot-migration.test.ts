@@ -4413,3 +4413,36 @@ describe('snapshot version 89 (promotions reported as they were counted) migrate
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionNinety(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { mercVisitOpeningDue: _, ...laptop } = object(strategic.laptop);
+    return [name, { ...strategic, laptop }];
+  });
+  return { ...snapshot, version: 90, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 90 (no delayed opening of Speck's) migrates with none due", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionNinety(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('mercVisitOpeningDue');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

@@ -277,6 +277,48 @@ describe('visiting a site', () => {
     });
     expect(session.campaign.state.laptop.merc.playerBeenToSiteStatus).toBe(MercSiteVisit.SECOND_VISIT);
   });
+
+  it("keeps a later visit's opening for mercOpening, which the page sends as Speck's first idle quote ends: once a visit, before any other M.E.R.C. command", async () => {
+    const { session, live } = await newGame(116);
+    session.campaign.state.laptop.bookmarks.push(Bookmark.MERC);
+    live.dispatch({ type: 'visitSite', site: 'merc' });
+    expect(live.dispatch({ type: 'mercOpening' })).toEqual(laptopRefusal('noOpening'));
+    live.dispatch({ type: 'visitSite', site: 'merc' });
+    expect(live.dispatch({ type: 'mercOpening' })).toEqual({ ok: true, data: { speck: [SpeckQuote.TOUGH_START] } });
+    expect(live.dispatch({ type: 'mercOpening' })).toEqual(laptopRefusal('noOpening'));
+    live.dispatch({ type: 'visitSite', site: 'merc' });
+    expect(live.dispatch({ type: 'mercOpenAccount' })).toMatchObject({ ok: true });
+    expect(live.dispatch({ type: 'mercOpening' })).toEqual(laptopRefusal('noOpening'));
+    live.dispatch({ type: 'visitSite', site: 'merc' });
+    live.dispatch({ type: 'closeLaptop' });
+    live.dispatch({ type: 'openLaptop' });
+    expect(live.dispatch({ type: 'mercOpening' })).toEqual(laptopRefusal('noOpening'));
+  });
+
+  it("draws a later visit's opening on main and spends the flags it speaks of at mercOpening, not at the visit", async () => {
+    const { session, live } = await newGame(117);
+    const flow = () => {
+      const laptop = session.campaign.laptop;
+      if (!laptop) throw new Error('no laptop');
+      return laptop;
+    };
+    const main = () => JSON.stringify(session.campaign.state.rng.state());
+    flow().laptop.bookmarks.push(Bookmark.MERC);
+    live.dispatch({ type: 'visitSite', site: 'merc' });
+    live.dispatch({ type: 'visitSite', site: 'merc' });
+    const served = flow()
+      .content.mercListings.map((listing) => flow().profile(listing.profile))
+      .find((p) => p !== null);
+    if (!served) throw new Error('no M.E.R.C. profile');
+    served.totalDaysServed = 3;
+    flow().laptop.merc.newMercsAvailable = true;
+    const before = main();
+    expect(live.dispatch({ type: 'visitSite', site: 'merc' })).toEqual({ ok: true, data: { site: 'merc', bookmarks: ['aim', 'merc'] } });
+    expect([main(), flow().laptop.merc.newMercsAvailable]).toEqual([before, true]);
+    const speck = (live.dispatch({ type: 'mercOpening' }).data as { speck: number[] }).speck;
+    expect(main()).not.toBe(before);
+    expect([flow().laptop.merc.newMercsAvailable, speck.includes(SpeckQuote.NEW_MERCS_AVAILABLE)]).toEqual([false, true]);
+  });
 });
 
 describe('the mail text the server assembles', () => {

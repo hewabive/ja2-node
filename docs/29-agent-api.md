@@ -1098,6 +1098,11 @@ form's draw (deviations "Speck's opening", "Florist order form entry"). `aimHang
 that a merc hung up on a player who kept him waiting in the video conference, whose impatience runs on the page's clock
 (deviation "A.I.M. annoyance"); it raises his annoyance and queues its reset as the original's hang-up does. An agent's
 call has no such wait, so an agent never needs it; it is an ordinary logged command, accepted from any client.
+`mercOpening` is the browser's report that Speck's first idle quote on a later M.E.R.C. visit of the laptop session
+ended, when the original says his opening (`Laptop/Mercs.cc:811-816`): it answers `data.speck` as `visitSite merc`
+does at a session's first visit, with the same draws on `main` and the flags the quotes speak of spent. Each
+`visitSite merc` that brings no opening allows one, until any other M.E.R.C. command (refusal `noOpening`); an agent
+sends it only to hear that opening.
 `mercPay` takes the M.E.R.C. files page the player last viewed as `listing` (`laptop.merc.listed[].listing`), which
 the original's payment records name; without it, the first listing, as after a laptop entry. `laptop.merc.idleQuotes`
 lists the quotes Speck's idle chatter picks from, which the browser plays on its clock: the adverts of the mercs he can

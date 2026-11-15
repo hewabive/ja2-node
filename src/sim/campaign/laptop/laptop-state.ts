@@ -153,6 +153,7 @@ export interface LaptopState {
   mercArriveSector: number;
   readonly lastHiredMerc: LastHiredMerc;
   mercSiteOpenedThisSession: boolean;
+  mercVisitOpeningDue: boolean;
 }
 
 function personnelList(): number[] {
@@ -203,6 +204,7 @@ export function createLaptopState(startSector = 0): LaptopState {
     mercArriveSector: startSector,
     lastHiredMerc: { profile: -1, arrival: 0 },
     mercSiteOpenedThisSession: false,
+    mercVisitOpeningDue: false,
   };
 }
 

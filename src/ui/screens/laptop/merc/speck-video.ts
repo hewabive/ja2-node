@@ -6,7 +6,8 @@
 // @src StartSpeckTalking, HandleSpeckTalking (the face runs only in the video mode; a quote lasts as long as the face
 // @src talks, then the next queued quote), BtnXToCloseMercVideoButtonCallback, MercSiteSubTitleRegionCallBack and
 // @src StopSpeckFromTalking (a click on the subtitles ends the current quote); HandleSpeckTalking's end of a talk with
-// @src nothing more queued, which resets the idle chatter's timer (2026-11-15).
+// @src nothing more queued, which resets the idle chatter's timer, then GetSpeckConditionalOpening, whose quotes keep
+// @src the video up (2026-11-15).
 
 export const SpeckMode = { NONE: 0, INIT: 1, VIDEO: 2, EXIT: 3 } as const;
 
@@ -19,6 +20,7 @@ export interface SpeckPorts {
   faceTalking(now: number): boolean;
   stop(): void;
   talkEnded(now: number): void;
+  conditionalOpening(now: number): boolean;
 }
 
 export interface SpeckTalk {
@@ -31,6 +33,7 @@ export class SpeckVideo {
   readonly queue: number[] = [];
   readonly #ports: SpeckPorts;
   #modeStart = 0;
+  #awaitingOpening = false;
 
   constructor(ports: SpeckPorts) {
     this.#ports = ports;
@@ -46,6 +49,10 @@ export class SpeckVideo {
 
   get talking(): boolean {
     return this.talk !== null;
+  }
+
+  get awaitingOpening(): boolean {
+    return this.#awaitingOpening;
   }
 
   #enter(mode: number, now: number): void {
@@ -70,13 +77,22 @@ export class SpeckVideo {
     this.#stop();
   }
 
+  openingArrived(quotes: readonly number[], now: number): void {
+    if (!this.#awaitingOpening) return;
+    this.#awaitingOpening = false;
+    this.queue.push(...quotes);
+    if (this.queue.length === 0) this.#enter(SpeckMode.EXIT, now);
+  }
+
   close(now: number): void {
+    this.#awaitingOpening = false;
     this.#stop();
     this.queue.length = 0;
     if (this.displayed && this.mode !== SpeckMode.EXIT) this.#enter(SpeckMode.EXIT, now);
   }
 
   dispose(): void {
+    this.#awaitingOpening = false;
     this.#stop();
     this.queue.length = 0;
     this.mode = SpeckMode.NONE;
@@ -101,9 +117,10 @@ export class SpeckVideo {
         return;
       case SpeckMode.VIDEO:
         if (!this.#ports.faceTalking(now)) this.talk = null;
-        if (this.talk || this.#sayNext(now)) return;
+        if (this.talk || this.#awaitingOpening || this.#sayNext(now)) return;
         this.#ports.talkEnded(now);
-        this.#enter(SpeckMode.EXIT, now);
+        this.#awaitingOpening = this.#ports.conditionalOpening(now);
+        if (!this.#awaitingOpening) this.#enter(SpeckMode.EXIT, now);
         return;
       case SpeckMode.EXIT:
         if (elapsed > MERC_EXIT_TIME) {

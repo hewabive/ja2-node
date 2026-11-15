@@ -2593,6 +2593,22 @@ function markMilitiaPromotionsShown(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MERC_VISIT_OPENING_DUE_KEY = 'mercVisitOpeningDue';
+
+function withMercVisitOpeningFlag(strategic: JsonObject): JsonObject {
+  const laptop = strategic[LAPTOP_KEY];
+  if (!isObject(laptop) || laptop[REF] !== undefined) return strategic;
+  return { ...strategic, [LAPTOP_KEY]: { ...laptop, [MERC_VISIT_OPENING_DUE_KEY]: false } };
+}
+
+function addMercVisitOpeningFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withMercVisitOpeningFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2684,5 +2700,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     87: addWorldItemIds,
     88: dropEquipmentLocationFlags,
     89: markMilitiaPromotionsShown,
+    90: addMercVisitOpeningFlag,
   };
 }

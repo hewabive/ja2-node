@@ -18,6 +18,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support
 import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Bookmark } from '../../../sim/campaign/laptop/laptop-state.ts';
+import { SpeckQuote } from '../../../sim/campaign/laptop/merc-site.ts';
 import { MouseButton } from '../../input/events.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import { faceFileOf } from '../tactical/faces.ts';
@@ -319,6 +320,39 @@ describe('M.E.R.C. on the canvas laptop', () => {
     expect([...memory.speckQuotesSaid]).toEqual([[first, 1]]);
     await wait(h, 1100);
     expect(find(t, 'speckFace')?.visible).toBe(true);
+  });
+
+  it('has Speck say his opening on a later visit of the laptop session once his first idle quote ends, and none on a visit whose video the X closed first', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 23, prepare: bookmark(Bookmark.MERC) });
+    const { t } = h;
+    const openings = () => h.commands.filter((c) => c.type === 'mercOpening').length;
+    const lastSpeck = () => (h.replies.at(-1)?.data as { speck?: number[] } | undefined)?.speck;
+    const idleVideo = async () => {
+      await wait(h, SPECK_IDLE_CHAT_DELAY + 100);
+      expect(shown(t, 'speckVideoTitle').visible).toBe(true);
+      await wait(h, 1100);
+      expect(find(t, 'speckFace')?.visible).toBe(true);
+    };
+    await toBookmark(h, 1);
+    await click(t, 'speckClose');
+    await toBookmark(h, 0);
+    await toBookmark(h, 1);
+    expect(h.commands.filter((c) => c.type === 'visitSite' && c.site === 'merc')).toHaveLength(2);
+    expect(lastSpeck()).toBeUndefined();
+    await idleVideo();
+    expect(openings()).toBe(0);
+    await until(h, () => openings() === 1);
+    expect(lastSpeck()).toEqual([SpeckQuote.TOUGH_START]);
+    expect(find(t, 'speckFace')?.visible).toBe(true);
+
+    await click(t, 'speckClose');
+    await toBookmark(h, 0);
+    await toBookmark(h, 1);
+    await idleVideo();
+    await click(t, 'speckClose');
+    await idleVideo();
+    await until(h, () => find(t, 'speckVideoTitle')?.visible !== true);
+    expect(openings()).toBe(1);
   });
 
   it("plays Speck's opening, opens an account, hires from the files, pays the bill and shows the broken link while the site is down", async () => {

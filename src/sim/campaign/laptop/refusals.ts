@@ -26,6 +26,7 @@ export type LaptopRefusal =
   | MercHireRefusal
   | 'hasAccount'
   | 'nothingOwed'
+  | 'noOpening'
   | ImpRefusal
   | 'badOrder'
   | OrderRefusal
@@ -69,6 +70,7 @@ const LAPTOP_REFUSAL_TEXT: RefusalTexts<LaptopRefusal> = {
   accountInvalid: 'the account is closed',
   notListed: 'profile must be a merc the site lists',
   nothingOwed: 'nothing is owed',
+  noOpening: 'Speck owes no opening: he has one for each later visitSite merc of a laptop session, before any other M.E.R.C. command',
   badCode: 'wrong access code',
   noSlot: 'no more I.M.P. characters can be made',
   badName: 'name, nickname and gender (male or female) are required',

@@ -13,7 +13,8 @@
 // @src Laptop/Florist.cc EnterFlorist, Laptop/Insurance.cc EnterInsurance (the effects of entering a site: visitSite);
 // @src Laptop/Laptop.cc LeaveLapTopScreen (fNewMailFlag cleared); Laptop/Files.cc DisplayFormattedText (fRead set when a
 // @src file is shown: readFile); Laptop/Florist_Order_Form.cc EnterFloristOrderForm (the order number draw on entering the
-// @src form: visitSite floristOrderForm).
+// @src form: visitSite floristOrderForm); Laptop/Mercs.cc GetSpeckConditionalOpening and gfDoneIntroSpeech (a later visit's
+// @src opening, once a visit: mercOpening, 2026-11-15).
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import type { LaptopContent } from '../../../content/strategic/laptop-content.ts';
@@ -129,6 +130,7 @@ const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'mercOpenAccount',
   'mercHire',
   'mercPay',
+  'mercOpening',
   'impCreate',
   'bobbyRayOrder',
   'insure',
@@ -472,6 +474,7 @@ export class LaptopFlow implements LaptopContext {
     this.state.flow = 'laptop';
     setBookmark(this.laptop, Bookmark.AIM);
     this.laptop.mercSiteOpenedThisSession = false;
+    this.laptop.mercVisitOpeningDue = false;
     this.emit({ type: 'laptopOpened' });
   }
 
@@ -546,6 +549,8 @@ export class LaptopFlow implements LaptopContext {
         return this.#mercHire(cmd);
       case 'mercPay':
         return this.#mercPay(cmd);
+      case 'mercOpening':
+        return this.#mercVisitOpening();
       case 'impCreate':
         return this.#impCreate(cmd);
       case 'bobbyRayOrder':
@@ -566,6 +571,7 @@ export class LaptopFlow implements LaptopContext {
     this.state.flow = 'laptop';
     setBookmark(this.laptop, Bookmark.AIM);
     this.laptop.mercSiteOpenedThisSession = false;
+    this.laptop.mercVisitOpeningDue = false;
     this.emit({ type: 'laptopOpened' });
     return { ok: true };
   }
@@ -617,6 +623,7 @@ export class LaptopFlow implements LaptopContext {
     if (refusal) return laptopRefusal(refusal);
     enterMercSite(this);
     const speck = this.#mercOpening();
+    this.laptop.mercVisitOpeningDue = speck === null;
     return { ok: true, data: { site: 'merc', bookmarks: bookmarkNames(this.laptop), ...(speck ? { speck } : {}) } };
   }
 
@@ -624,6 +631,14 @@ export class LaptopFlow implements LaptopContext {
     if (this.laptop.mercSiteOpenedThisSession) return null;
     this.laptop.mercSiteOpenedThisSession = true;
     return speckOpening(this);
+  }
+
+  #mercVisitOpening(): CommandResult {
+    const refusal = mercCommandRefusal(this);
+    if (refusal) return laptopRefusal(refusal);
+    if (!this.laptop.mercVisitOpeningDue) return laptopRefusal('noOpening');
+    this.laptop.mercVisitOpeningDue = false;
+    return { ok: true, data: { speck: speckOpening(this) } };
   }
 
   #readEmail(cmd: Command): CommandResult {
@@ -701,6 +716,7 @@ export class LaptopFlow implements LaptopContext {
     if (refusal) return refusal;
     if (!this.laptop.mercSiteOpenedThisSession) enterMercSite(this);
     this.#mercOpening();
+    this.laptop.mercVisitOpeningDue = false;
     return null;
   }
 
