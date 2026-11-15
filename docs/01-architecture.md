@@ -336,6 +336,7 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 | Jam | Reserved bullets lost | Refunded (`Soldier_Ani.cc:1061-1073`) |
 | Blast during a hit animation | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`Soldier_Control.cc:3254-3262`) |
 | AI burst choice | Affordability without re-raise AP | Re-raise AP included (`DecideAction.cc:3245-3300`) |
+| PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:711-742`; confirmed by the oracle `defence` probes on A9, `17`) |
 | Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1131, 2152`) |
 | Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (`Auto_Resolve.cc:2918`); the index is saved but never restored |
 | Militia promotion | No fallback | Falls back to the next rank (`Town_Militia.cc:253, 289`) |

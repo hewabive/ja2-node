@@ -243,6 +243,8 @@ P3_b1, the Queen, the ending) reach the victory with mercs placed in O3, not yet
   lairs have no way in: a sci-fi stub campaign whose creatures invade a mine cannot reach their queen (play stub
   campaigns with sci-fi off).
 - `FIRSTWALL` structures fill their whole tile, so a merc on such a wall tile cannot see along the room.
+- Creature and bloodcat bodies have single-tile structures and invented animation scripts (`stubs/anim-scripts.ts`),
+  where the original data has multi-tile structures and scripts of their own.
 - Only the splash video exists; sequences skip the missing names (`31`).
 - The stub fonts are not used as a Cyrillic fallback with original data (`31`).
 
@@ -448,8 +450,7 @@ may not import `server`. Debug hooks `window.__ja2Launcher` and `window.__ja2Dev
   the loaded session on `/play`. Download and upload of save files stay off the canvas.
 - **Settings**: `27` §2.4. Settings apply at once.
 - **Splash**: the game page plays it (deviation "Splash start"); the video developer page (`src/devtools/video/`)
-  replays the splash, the beginning, the endings and the credits, the credits in a DOM scroller (deviation "Credits
-  screen").
+  replays the splash, the beginning, the endings and the credits, the credits in a DOM scroller (`src/app/credits/`).
 - **The developer hub** speaks English like every developer page, with English string tables for the save rows and
   message boxes; the sessions it creates and loads take the display language of the client settings. The sessions
   table links each session to `/play` with the debug parameters ticked above it (kept in the browser), sets its time

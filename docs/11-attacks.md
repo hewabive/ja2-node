@@ -167,6 +167,6 @@ draw nothing. Inferred from reading the source:
   the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Attack refusals",
-"Cosmetic draws in attacks", "Dud test operand order", "Watchdogs". Bugs of the original it does not reproduce:
-original-bugs "Melee hold leaks", "Melee from a prone turn".
+Other deviations of this domain: "Game events", "Bullet flight", "Attack refusals", "Cosmetic draws in attacks", "Dud
+test operand order", "Watchdogs". Bugs of the original it does not reproduce: original-bugs "Melee hold leaks", "Melee
+from a prone turn", "Level bullet into rising ground".

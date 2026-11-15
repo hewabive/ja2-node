@@ -202,6 +202,6 @@ Inferred from reading the source:
 - `Math.atan2` gives the original's direction between tiles: integer deltas never fall on a sector boundary.
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
-Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Creature and bloodcat stub bodies",
-"Frame timers", "Continue a move". Bugs of the original it does not reproduce: original-bugs "Fence landing on the final
-tile", "Prone hop facing the fence".
+Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Frame timers", "Continue a move".
+Bugs of the original it does not reproduce: original-bugs "Fence landing on the final tile", "Prone hop facing the
+fence".

@@ -530,7 +530,7 @@ Commands: `npcrecords`, `npcprofile`, `desire` (`CalcDesireToTalk`, `CalcThreate
 
 `talk-compare.ts` imports the save with NPC records, replays the native `CheckFact` results and the `Random` draws, runs
 `converseFull` on the same headless panel and compares the queue, facts, quests, flags, the engaged state and the
-profile. `questdecode` gives an offset of −512 and 0 for every quest-100/200 read (deviations "Quest 100 and 200 in
+profile. `questdecode` gives an offset of −512 and 0 for every quest-100/200 read (original-bugs "Quest 100 and 200 in
 records").
 
 ### Give
@@ -957,7 +957,7 @@ sample playing, `25`).
 A `save` of `OracleHeliDrop` (`helidrop/load-draws.jsonl`) imports the save from the output's folder, the load's draws
 traced and fed to the import's restart of every saved animation in order, and compares our mercs' tiles and animations
 with the native load's. The native load keeps the merc still in the helicopter in the seats, with no run, and the pause
-locked; the import lands him as the Esc skip does and selects him (deviation "Helicopter drop in a native save") and
+locked; the import lands him as the Esc skip does and selects him (original-bugs "Helicopter drop in a native save") and
 starts the drop's statics fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last
 step's time and the mercs it lands are labelled. The first `hdstate` after the import compares the animation code and
 frame delay the restart left every soldier in the sector with (the merc saved in `HELIDROP` one frame on, short of

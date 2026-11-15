@@ -98,7 +98,7 @@ priority phase and morale.
 meanwhile flags) and then runs the original's load-time recomputation once (deviation "Strategic AI load hooks").
 
 **Dead code stays dead.** No caller passes the send-soldiers actions, so they are not ported and the Queen sends no
-squad to the first battle (deviation "Unreachable Queen actions"); `ADD_MORE_ELITES` and `GIVE_KNOWLEDGE_OF_ALL_MERCS`
+squad to the first battle; `ADD_MORE_ELITES` and `GIVE_KNOWLEDGE_OF_ALL_MERCS`
 are ported but unreachable, so the extra-elites path and the aware battles never run.
 
 **The player sees none of it.** Garrison ids, compositions, routes, the pool and the alertness stay out of the views
@@ -171,6 +171,6 @@ reading the source:
   placement decisions are covered by `defence`.
 - The order of the two `Random` calls of `TacticalCreateEnemySoldier`'s noise target, which the compiler decides.
 
-Deviations of this domain: "Strategic AI PD placement pass", "Strategic AI debug toggles", "Meanwhile scene without its
-files", "Sandbox population". Bugs of the original it does not reproduce: original-bugs "Strategic AI undefined
-behaviour", "Fourth captive".
+Deviations of this domain: "Strategic AI debug toggles", "Meanwhile scene without its files", "Sandbox population";
+the PD placement pass follows Stracciatella (`01` §3.10). Bugs of the original it does not reproduce: original-bugs
+"Strategic AI undefined behaviour", "Fourth captive".

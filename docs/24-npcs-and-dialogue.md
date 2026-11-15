@@ -160,7 +160,7 @@ boxes", "Surrender in tactical combat"). `openShop` is talk plus Buy/Sell in one
 dealers"). Giving: deviations "Giving to a dealer", "Returned items"; original-bugs "Give command".
 
 **Quest values 100 and 200.** A record's quest test reads past the quest array for these two values; ja2-node reads 0,
-as the oracle build does (deviation "Quest 100 and 200 in records").
+as the oracle build does (original-bugs "Quest 100 and 200 in records").
 
 **Randomness.** Draws whose result is stored keep the original order on `main`: the friendly default line (Repeat says
 it again), the civilian hint drop, the hostile-quote speaker, the guide's countdown, a team change's creation draws
@@ -253,5 +253,5 @@ Inferred from reading the source:
 - The likable-person line of a merc whose profile lies past the 75 entries of `QuoteExp_GenderCode` reads past the
   array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
-Deviations of this domain: "Lines and debug text in the talk panel",
-"Opinions of high profile ids", "Releasing an escort", "Key-advance speech".
+Deviations of this domain: "Lines and debug text in the talk panel", "Releasing an escort", "Key-advance speech". Bugs
+of the original it does not reproduce: original-bugs "Opinions of high profile ids", "Quest 100 and 200 in records".

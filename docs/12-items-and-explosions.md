@@ -117,7 +117,7 @@ the merc's gridno (`clearGassedAtTurnStart`), and a merc off the loaded map stan
 sector, or the load of another, set `NOWHERE` (`removeSoldierFromTacticalSector`, `Strategic/StrategicMap.cc:563`), so
 he loses the flag at his next turn start: the native build reads past the end of the world array there, with a sector
 loaded or none, and finds no smoke (`tools/oracle/README.md` "Absent mercs"). The per-round gas flags and the
-one-hit-per-blast flag live per soldier id in `ExplosivesState` (deviation "Gas and blast hit flags"). Clouds and flares
+one-hit-per-blast flag live per soldier id in `ExplosivesState`. Clouds and flares
 age by world seconds, which stand still in turn-based combat; the sandbox counts its own (deviation "World clock for
 smoke and light"). Sight reads the gas and smoke layer of the tiles (`08`). A soldier of the computer teams puts on a
 gas mask he carries when his team is called to an alarm or an ambush, when he hears an alarm (civilians too) and, in
@@ -139,7 +139,7 @@ replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the vi
 (`29`). A change the original never writes to the temp file (the decals, made outside
 `ApplyMapChangesToMapTempFile`, and a pit's textures, §6) is `liveOnly`: it stays for the stay and in ja2-node saves but
 is left out of the sector diff (`sectorTempFileChanges`), so it is undone at the next entry as in the original; a native
-save never holds it (deviations "Pit tiles after a load"; original-bugs "Wall decals after a load"). The end piece's
+save never holds it (original-bugs "Pit tiles after a load", "Wall decals after a load"). The end piece's
 insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
 roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
@@ -344,7 +344,7 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   writes no temp file record (`TileEngine/WorldMan.cc:103`), its exit grids recorded ones, and an exit grid added on a
   tile replaces the map's (`exitGridAt`, `TileEngine/Exit_Grids.cc:53`). The fall's code 754 takes the soldier off the
   map; `SectorHooks.soldierFellIntoPit` gives the campaign the strategic half for a merc of the roster
-  (`mercFellIntoPit`, `src/sim/campaign/sector-exits.ts`), and the computer's soldiers only leave the map (deviation
+  (`mercFellIntoPit`, `src/sim/campaign/sector-exits.ts`), and the computer's soldiers only leave the map (original-bugs
   "Pit falls of the computer's soldiers"). A map's pit loads unarmed (`loadWorldItemsFromMap`,
   `Tactical/World_Items.cc:309`), so only a pit already armed in the bomb list opens, and no original map holds one.
   The editor's pits (`AddAllPits`) are not ported.
@@ -612,9 +612,9 @@ checked against the native build:
   mode (`MessageBoxScreen.cc:457-460`).
 
 Deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
-"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
-and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Pit tiles after a load", "Pit
-falls of the computer's soldiers", "Drugs in the projection", "Mine locator", "Auto-bandage statics", "Auto-bandage",
+"Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "World clock for smoke and light",
+"Cosmetic draws in explosions", "Drugs in the projection", "Mine locator", "Auto-bandage statics", "Auto-bandage",
 "Pending auto-bandage and client screens", "Auto-bandage key in a talk". Bugs of the original it does not reproduce:
-original-bugs "Wall decals after a load", "Blue flag without a bomb", "AI first aid without a path", "Door on the way in
-auto-bandage".
+original-bugs "Wall decals after a load", "Pit tiles after a load", "Pit falls of the computer's soldiers", "Smoke
+owner of an empty slot", "Blue flag without a bomb", "Key ring position past the inventory", "AI first aid without a
+path", "Door on the way in auto-bandage".

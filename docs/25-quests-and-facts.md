@@ -96,7 +96,7 @@ stat changes; cases with campaign effects go to `NarrativeFlow.profileDied`.
 match (`boxingMovementCheck` on each step in states 1–3). The state tests the original spreads over the overhead, turn,
 point, sight and AI code are named predicates in `boxing-state.ts` (`boxingHalvesPoints`, `boxingIdlesNonBoxers`, …);
 their callers are the boxing hooks. The stub pack's club (`stubs/maps/d5.map.txt`) has the ring and the boxers on the
-original's tiles. Deviations "Boxing UI lock", "Abandoning a fight".
+original's tiles. Deviations "Boxing UI lock", "Abandoning a fight"; original-bugs "Boxer dead in the ring".
 
 **Escorts and the robot.** Becoming and releasing an escort is `24`'s. The robot joins through `RecruitEPC`, so it is an
 escort wherever a rule does not test for the robot first. The escort rules live with what they gate: strategic moves
@@ -106,19 +106,20 @@ escort wherever a rule does not test for the robot first. The escort rules live 
 original's globals; the vehicle sits in the vehicle list and flies its group's path (`16`). The agent's `heliRoute` and
 `heliCancel` replace plotting and confirming on the map (deviation "Helicopter interface"); destruction happens at once
 rather than at the end of the crash sound, and the monologues are checked once per strategic step rather than at each
-map redraw (deviations "Helicopter destruction", "Skyrider monologues"); passengers cannot leave in flight (deviation
-"Leaving the helicopter in flight"). Skyrider talks through the dialogue queue as an external face (`24`): his lines
-pause the map screen, and a monologue's SAM reveals, its highlight flags and the time of the last monologue are queued
-special events (`HelicopterPort.skyriderMonologueEvent`, `handleSkyriderMonologueEvent`), so the Drassen SAM site is
-found when the queue reaches the event after his first line; each step is a `skyriderMonologue` event, which turns the
-map screen's airspace filter on, and the flags flash their sectors there (`30`). As in the original there is no fuel. On the ground at the loaded refuel site (at
-Drassen until Skyrider is met) it stands on the map: `handleHelicopterOnGround` asks the campaign (`helicopterOnMap`)
-to append its six pieces to the structure layer, with their structures, and to bump the soldiers around them, at a
-sector load, a landing and a takeoff. The pieces are no map changes: the sector's temp state never holds them, the next
-load adds them again, and the view sends them as `append` tile changes after the map changes (`29` §7). A native import
-adds them before it applies the sector's saved map changes, as the original's load reads the temp files last, so a piece
-destroyed before the save stays off the map (the map changes replay over the structure layer the pieces are appended
-to), and before the saved soldiers enter the map, so its bump moves nobody (`14`).
+map redraw (deviations "Helicopter destruction", "Skyrider monologues"); passengers cannot leave in flight
+(original-bugs "Leaving the helicopter in flight"). Skyrider talks through the dialogue queue as an external face
+(`24`): his lines pause the map screen, and a monologue's SAM reveals, its highlight flags and the time of the last
+monologue are queued special events (`HelicopterPort.skyriderMonologueEvent`, `handleSkyriderMonologueEvent`), so the
+Drassen SAM site is found when the queue reaches the event after his first line; each step is a `skyriderMonologue`
+event, which turns the map screen's airspace filter on, and the flags flash their sectors there (`30`). As in the
+original there is no fuel. On the ground at the loaded refuel site (at Drassen until Skyrider is met) it stands on the
+map: `handleHelicopterOnGround` asks the campaign (`helicopterOnMap`) to append its six pieces to the structure layer,
+with their structures, and to bump the soldiers around them, at a sector load, a landing and a takeoff. The pieces are
+no map changes: the sector's temp state never holds them, the next load adds them again, and the view sends them as
+`append` tile changes after the map changes (`29` §7). A native import adds them before it applies the sector's saved
+map changes, as the original's load reads the temp files last, so a piece destroyed before the save stays off the map
+(the map changes replay over the structure layer the pieces are appended to), and before the saved soldiers enter the
+map, so its bump moves nobody (`14`).
 
 **The drop from the helicopter.** `HelicopterDrop` holds the file statics of `Tactical/Merc_Entering.cc`, and like them
 it outlives a run and a sector load: the sector flow shares one record with every loaded sector (deviation "Helicopter
@@ -157,13 +158,13 @@ chopper code (`MercArrivesCallback`, `Tactical/Merc_Hiring.cc:257`, which opens 
 and the run starts once the step or command that flagged it is done, on the tactical screen only: the seats the arrivals
 added (`AddMercToHeli` from `UpdateMercInSector`'s chopper branch), the north entry as the sweet spot, `InterruptTime`,
 compression at 1x and the lock's pause at once (deviation "Helicopter run start"). A world unload ends a run flagged or
-under way, the seats still in the helicopter taking the north code (deviation "Helicopter drop cut short"); only a run
-flagged on the map screen meets one, when the way to tactical is refused and a route takes the seat away, since the lock
-of a run under way refuses every way out and a battle lost or a surrender leaves the seats in the sector. A native save
-made in mid-drop holds its seats with no run: the import lands them as the Esc skip does (deviation "Helicopter drop in
-a native save", `14`), and a merc it saved in `HELIDROP` steps away at code 467 as his animation runs on. The session
-factory runs the first drop to its end, or skips it with `land: "skip"` (`29`); the test helpers take the Esc path
-unless a test watches the drop (`tests/support/campaign.ts`).
+under way, the seats still in the helicopter taking the north code (original-bugs "Helicopter drop cut short"); only a
+run flagged on the map screen meets one, when the way to tactical is refused and a route takes the seat away, since the
+lock of a run under way refuses every way out and a battle lost or a surrender leaves the seats in the sector. A native
+save made in mid-drop holds its seats with no run: the import lands them as the Esc skip does (original-bugs "Helicopter
+drop in a native save", `14`), and a merc it saved in `HELIDROP` steps away at code 467 as his animation runs on. The
+session factory runs the first drop to its end, or skips it with `land: "skip"` (`29`); the test helpers take the Esc
+path unless a test watches the drop (`tests/support/campaign.ts`).
 
 **One vehicle list, shared.** `VehicleRecord` and the slot functions live in `vehicles/vehicle-list.ts`, which both
 layers import: `strategic/forces/vehicles.ts` imports tactical code, so tactical code reaches the list only there. In a
@@ -214,7 +215,7 @@ build (`tools/oracle/README.md`, "Helicopter drop").
 |---|---|---|---|
 | Boarding: the tile goes, the slot and his opplist stay (`Tactical/Vehicles.cc:261`) | yes | `seatWithNoVehicleOnTheMap` | yes |
 | A sector load: the slot, with no AP count and no stop (`Tactical/Soldier_Add.cc:701-709`) | yes | `seatInTheHelicopterOnSectorEntry`, from `SectorFlow.#placeMerc`, in id order | yes |
-| Leaving over the loaded sector: `UpdateMercInSector` pushes a second slot, `AddMercSlot` checking nothing (`Tactical/Vehicles.cc:345`, `Tactical/Overhead.cc:244`) | twice | `addSoldierToSector` keeps the one slot (deviation "Helicopter exit over the loaded sector") | no |
+| Leaving over the loaded sector: `UpdateMercInSector` pushes a second slot, `AddMercSlot` checking nothing (`Tactical/Vehicles.cc:345`, `Tactical/Overhead.cc:244`) | twice | `addSoldierToSector` keeps the one slot (original-bugs "Helicopter exit over the loaded sector") | no |
 | `ExecuteOverhead`'s slot loop: damage counter, fade, frames, the look for items (`Tactical/Overhead.cc:518`) | yes | `executeOverhead` (`inSector`) | yes |
 | `NotifySoldiersToLookforItems` (`Tactical/Handle_Items.cc:1927`), whose look returns at `NOWHERE` (`Tactical/FOV.cc:222`) | flagged | `notifySoldiersToLookForItems`, `revealRoofsAndItems` | yes |
 | `ResetAllMercSpeeds` (`Tactical/Overhead.cc:5829`), `ChangeSoldierTeam`'s target relink (`Tactical/Soldier_Profile.cc:654`) | yes | `resetAllMercSpeeds` (`inSector`), `narrative/team-change.ts` | yes |
@@ -231,7 +232,7 @@ build (`tools/oracle/README.md`, "Helicopter drop").
 | `SoldierTakeDamage`'s branch for a soldier in the sector (`Tactical/Soldier_Control.cc:5366`, `:5401`): bleeding to death is a tactical death with no body at `NOWHERE` (`Tactical/Rotting_Corpses.cc:611`), and a gunshot with no hit animation leaves him at life 0 for good | yes | `handleTakeDamageDeath` | yes |
 | `CommonEnterCombatModeCode`, `ExitCombatMode`, `CencelAllActionsForTimeCompression` (`Tactical/Overhead.cc:3913`, `:4057`, `:5871`) | yes | `commonEnterCombatModeCode`, `exitCombatMode`, `cancelAllActionsForTimeCompression` | yes |
 | `CheckForEndOfBattle`'s count of the battles fought (`Tactical/Overhead.cc:4557`) | yes | `ourMercsFinishFoughtBattle` | yes |
-| `CivilianGroupMemberChangesSides` (`Tactical/Overhead.cc:2723`) | yes | `civilianGroupMemberChangesSides` (`placed`; deviation "Rebel aboard the helicopter") | no |
+| `CivilianGroupMemberChangesSides` (`Tactical/Overhead.cc:2723`) | yes | `civilianGroupMemberChangesSides` (`placed`; original-bugs "Rebel aboard the helicopter") | no |
 | `EndTurn`'s moved mark (`Tactical/TeamTurns.cc:213`) | yes | `endTurn` | yes |
 | `ClosestPC` (`TacticalAI/AIUtils.cc:1150`): measured from `NOWHERE`, he may be the closest, and every caller takes his tile for nobody near | yes | `closestPc` (`tactical/narrative/closest-pc.ts`) | yes |
 | `FindSoldierByProfileID` for Mary at John's arrival (`Tactical/Overhead.cc:1680`) and for Maria when one of Kingpin's men is hurt or turns hostile (`Tactical/Soldier_Control.cc:5466`, `Tactical/Overhead.cc:2652`) | yes | `handleJohnArrival`, `soldierTakeDamage`, `makeCivHostile` | yes |
@@ -374,7 +375,7 @@ Inferred from reading the source:
   by frame (`tools/oracle/README.md`, "Helicopter drop"), up to the frame where the A9 garrison's AI begins combat,
   which the dump cannot replay, so nothing compares a drop in combat: the lock it keeps there is a deviation ("Helicopter
   drop lock in combat"), and the step away at code 467 in turn-based, which the combat block records, is not compared.
-  The import of a native save in mid-drop and the frames after it are compared but for the seats it lands (deviation
+  The import of a native save in mid-drop and the frames after it are compared but for the seats it lands (original-bugs
   "Helicopter drop in a native save").
 - The helicopter's passengers over the loaded sector: `tools/oracle/heli-passengers-compare.ts` imports `SaveGame01`
   and compares boarding in tactical, the turn starts in and out of combat, the nervous ones, quotes from anybody, damage
@@ -387,6 +388,6 @@ Inferred from reading the source:
   (`src/server/save-session.test.ts`).
 
 Deviations of this domain: "Rooms of the map loaded last", "Helicopter on load", "Helicopter drop statics", "Helicopter
-run start", "Helicopter drop cut short", "Helicopter drop lock in combat", "Helicopter drop in a native save",
-"Helicopter exit over the loaded sector", "Rebel aboard the helicopter". Bugs of the original it does not reproduce:
-original-bugs "Toolkit repair in tactical", "Helicopter passenger's room".
+run start", "Helicopter drop lock in combat". Bugs of the original it does not reproduce: original-bugs "Toolkit repair
+in tactical", "Helicopter passenger's room", "Helicopter drop cut short", "Helicopter drop in a native save",
+"Helicopter exit over the loaded sector", "Rebel aboard the helicopter", "Leaving the helicopter in flight".

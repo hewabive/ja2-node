@@ -65,7 +65,7 @@ check, the hourly counters, team morale and the training bonus. Counts start fro
 profile load, so spent tolerance and learned buddies and enemies last the campaign, across rehires. The counters tick
 only between squad members, on both sides; team morale counts every awake teammate in the sector whatever his
 assignment; a merc in a moving group sees only his group. No morale event fires when a merc leaves. Opinions of
-profile ids ≥ 75 read 0 (deviation "Opinions of high profile ids").
+profile ids ≥ 75 read 0 (original-bugs "Opinions of high profile ids").
 
 **Endings and the menu wait behind the lines, decisions are prompts.** The original's dialogue events become `callback`
 events of the dialogue queue (`ContractFlow.queueEnding`, `dialogueCallback`): the departure box, the departure without
@@ -75,8 +75,8 @@ autoresolve runs; their boxes are battle-flow prompts (`contractRenewal`, `mercD
 `ContractFlow.settle` runs the renewal sequence whenever no prompt is open outside autoresolve, and the endings of
 `pendingEndings` (a campaign without a talk flow, older saves). The sequence advances synchronously after each answer,
 opens the menu for unwilling mercs too, reopens it for a renewal still open once the queue is idle and skips a listed
-merc who can no longer leave (deviations "Contract renewal sequence", "Contract prompts", "Renewal of a merc who cannot
-leave"; original-bugs "Renewal list").
+merc who can no longer leave (deviations "Contract renewal sequence", "Contract prompts"; original-bugs "Renewal of a
+merc who cannot leave", "Renewal list").
 
 **Quotes go through the dialogue queue.** Contract, relationship and morale lines are said as the original says them:
 `say` is `TacticalCharacterDialogue` (the speaker checks, the meanwhile test, the last-quote test, the E.P.C. test),
@@ -151,7 +151,7 @@ morale, the warning, the sequence step by step, extensions, dismissals, departur
 update, level-ups and salary rounding on the user's saves, replay the traced draws and diff the contract fields, the
 expiry and refusal predicates, the first buddy, the tolerance checks and the profiles. Inferred from reading the source:
 - What the original does with a listed merc who died or was captured after the warning, and that the stale-index pass
-  after the last list entry reaches nobody (deviations "Renewal of a merc who cannot leave"; original-bugs "Renewal
+  after the last list entry reaches nobody (original-bugs "Renewal of a merc who cannot leave", "Renewal
   list").
 - That no native save holds a running sequence (its pause lock blocks saving).
 - That a moving merc's sector is the one he left (`16`) for the equipment drop and the same-sector tests.

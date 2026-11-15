@@ -120,9 +120,12 @@ movement costs, sends crows to a rotting corpse by day as loading the corpses fi
 posts the schedules, powers the map lights for the saved hour, sets the ambient light, runs `LoadStrategicAI`'s
 recomputation (deviation "Strategic AI load hooks") and zeroes the busy count, in combat and out of it
 (`SaveLoadGame.cc:1100`, `:1179`); resumed in tactical, it selects the selected merc again, forced, and enters the
-tactical screen (deviation "Selection on load"). The import does the same; ja2-node's own loads never do (`27`). The
-load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start
-sector for an invalid landing zone.
+tactical screen (deviation "Selection on load"). The import does the same, and resets the once-per-conversation records
+of the loaded sector (`SaveLoadGame.cc:1174`), but does not yet (#54) read the general info's pre-battle fields
+(`SaveLoadGame.cc:2084-2091`), call the enemies to an ambush (`:1195`) or fix the squads' movement groups (`:1183`);
+ja2-node's own loads run none of these hooks (`27`; deviation "Hooks on load"). The load's fix-ups come along:
+`SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start sector for an invalid landing
+zone.
 
 **Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own
 and catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
@@ -159,8 +162,8 @@ seat (`SOLDIER_DRIVER`, `SOLDIER_PASSENGER`) moves onto the soldier (`Soldier.ve
 of a ground vehicle in the loaded sector come into it at their saved tile, which is the vehicle's, with no occupant or
 structure, and a helicopter's take their merc slots with no tile (`25`). A save made in mid-drop holds the mercs still
 in the helicopter with the chopper insertion code and no tile: the import seats them in the drop, as the load's
-`UpdateMercsInSector` does, and lands them as the Esc skip does (deviation "Helicopter drop in a native save"). A merc
-in transit whose arrival sector is the loaded one gets no merc slot, as `UpdateMercInSector` returns for him
+`UpdateMercsInSector` does, and lands them as the Esc skip does (original-bugs "Helicopter drop in a native save"). A
+merc in transit whose arrival sector is the loaded one gets no merc slot, as `UpdateMercInSector` returns for him
 (`Strategic/StrategicMap.cc:1023`).
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that has
@@ -272,5 +275,5 @@ Inferred from reading the source:
   bullet saved stopped and the cursor item: no probe makes them.
 
 Other deviations of the import: "Ambient sound events", "Blood on the ground", "Preserved soldier checksums",
-"Animations on load reaching the campaign". Bugs of the original it does not reproduce: original-bugs "Corpse structure
-past its file".
+"Animations on load reaching the campaign", "Hooks on load". Bugs of the original it does not reproduce: original-bugs
+"Corpse structure past its file", "Helicopter drop in a native save", "Key ring position past the inventory".

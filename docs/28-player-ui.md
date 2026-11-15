@@ -262,8 +262,9 @@ tested with scripted event sequences next to the code, on the stub fonts in CI a
 - **The cursor is drawn in software**, last in the draw list, with `cursor: none` on the stage: a CSS cursor can
   neither scale with the canvas nor carry the live text the original prints in it (hit chance, AP cost).
 - **Fades** step every 16 ms on the UI clock and multiply the frozen frame once (deviation "Fades"); zooms capture the
-  frame into a texture and stretch it in the shader. No pointer warp and no mouse confinement (deviations "Pointer
-  warp", "Mouse confinement"); text fields have no editor input types (deviation "Text input").
+  frame into a texture and stretch it in the shader. No pointer warp (deviation "Pointer warp"), and no mouse
+  confinement, which Stracciatella compiles out (`src/sgp/Input.cc:544-557`); text fields have the full text and
+  numeric types, without the map editor's file name, coordinate and clock types.
 
 **Fonts and text.** `FontSet` (`src/ui/text/fonts.ts`) maps the original's 16 font macros to their STIs; one glyph
 table per data version maps a code point to a glyph index for all fonts (`src/content/text/glyph-table.ts`, `31`).

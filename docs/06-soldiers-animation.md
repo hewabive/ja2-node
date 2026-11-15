@@ -219,5 +219,5 @@ reading the source:
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
 Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts",
-"Creature and bloodcat stub bodies", "Idle sounds of unseen animals", "Cosmetic draws of
-creatures", "Soldier fade without merc lights", "Failed animation surface", "Soldier sheet and palette refresh".
+"Idle sounds of unseen animals", "Cosmetic draws of creatures", "Soldier fade without merc lights", "Failed animation
+surface", "Soldier sheet and palette refresh".

@@ -159,5 +159,5 @@ and named NPCs, boxing, the creature AI, and a tank's RED decisions with its loo
   (`tools/oracle/README.md` "Bombs") check the triggers the maps give, the chosen one with his keys, `PanicAI`, the
   pull and the detonator.
 
-Kept differences: deviations "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub
-bodies"; original-bugs "Armed civilian without ammo", "AI climb that cannot start".
+Kept differences: deviations "Watchdogs", "Recalculated path cost", "GoAsFar fallback"; original-bugs "Armed civilian
+without ammo", "AI climb that cannot start".

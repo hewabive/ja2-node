@@ -111,7 +111,7 @@ Both keep their counts in `economy.militiaPromotions` until the map screen is up
 one `militiaPromoted` event, the original's box (`Strategic/MapScreen.cc:7626`), and are cleared; the next roll replaces
 counts not reported yet.
 
-**Loyalty distances** come from `findStratPath` with a throw-away foot group, never with SHIFT held (deviation
+**Loyalty distances** come from `findStratPath` with a throw-away foot group, never with SHIFT held (original-bugs
 "Loyalty distance path"). The amounts of every named event are in `data/tables/town-loyalty.json`. Where loyalty
 changes come from:
 

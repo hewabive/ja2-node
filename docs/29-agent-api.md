@@ -921,7 +921,7 @@ militiaman or a visible enemy with a merc body opens no panel and answers a civi
 (`src/sim/narrative/civ-quotes.ts`, deviation "Civilian quote boxes"). The enemy's surrender offer is a `surrender`
 prompt with `context: tactical`; the sandbox declines it at once (deviation "Surrender in tactical combat"). Boxing
 (`25`) is played with `talk`, `answer`, `give`, `move` and `attack`; after a round the boxing UI lock of §5 runs our
-boxer out of the ring (deviations "Boxing UI lock", "Abandoning a fight").
+boxer out of the ring (deviations "Boxing UI lock", "Abandoning a fight"; original-bugs "Boxer dead in the ring").
 
 ### 8.7 Strategic map, travel and squads
 
@@ -953,7 +953,7 @@ The helicopter exists once the escorted Skyrider reaches his chopper or a native
 map screen only (deviation "Helicopter interface"). `heliPlot` is the click on the helicopter before plotting:
 Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as a refusal; `heliRoute` without
 `plotted` asks him the same way first. `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
-helicopter. Passengers can neither leave nor change squads while it flies (deviation "Leaving the helicopter in
+helicopter. Passengers can neither leave nor change squads while it flies (original-bugs "Leaving the helicopter in
 flight"). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
 at its tile. The tactical `soldiers` list him with `vehicle {id, driver}` (the vehicle's id, whether he drives) at the
 vehicle's tile, which he does not occupy: the client draws no sprite and no light for him and its cursor never finds
