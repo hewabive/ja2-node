@@ -6,7 +6,7 @@ import { type KnowledgeRules, type KnowledgeWorld, knowledgeWorld } from '../../
 import { type GameClient, type HintAnswer, type HintAnswerSource, type HintReply, PENDING_HINT } from '../../ui/game-client.ts';
 
 export const PATHFIND_REST_MS = 80;
-const KINDS_ANSWERED_AT_ONCE: ReadonlySet<string> = new Set(['placements']);
+const KINDS_ANSWERED_AT_ONCE: ReadonlySet<string> = new Set(['placements', 'coverMap', 'sightMap']);
 const MAX_KEPT_MISMATCHES = 32;
 const MAX_KEPT_LATENCIES = 4096;
 

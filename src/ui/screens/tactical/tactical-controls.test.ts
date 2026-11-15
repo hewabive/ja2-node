@@ -630,6 +630,22 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.input.multiSelected.size).toBe(0);
   });
 
+  it('lays the cover tiles of the coverMap hint around the tile under the pointer while Delete is held, and says so', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    const hold = (kind: 'keyDown' | 'keyUp') => f.t.runtime.input({ kind, key: 'Delete', code: '', modifiers: 0 });
+    hover(f, s.gridNo + 2);
+    hold('keyDown');
+    f.t.frame();
+    const covers = () => f.world.markers.filter((m) => m.tile.startsWith('SPECIALTILE_COVER'));
+    expect(covers().length).toBeGreaterThan(0);
+    expect(covers().every((m) => m.translucent === true && m.layer === 'object')).toBe(true);
+    expect(f.screen.messageLines).toContain(f.text.string('zNewTacticalMessages', 2));
+    hold('keyUp');
+    f.t.frame();
+    expect(covers()).toEqual([]);
+  });
+
   it('flips the red item glow with * and ,', async () => {
     const f = await tacticalUiTest(kit, ui);
     f.key('*');

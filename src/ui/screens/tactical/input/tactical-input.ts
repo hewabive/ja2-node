@@ -88,6 +88,7 @@ import { OKLIFE } from '../faces.ts';
 import { HAND_SLOT } from '../inventory.ts';
 import { type ItemCursor, slotItem } from '../item-cursor.ts';
 import { FLOOR_Z_LEVEL, itemPool, largestZLevel, onZLevel } from '../item-pool.ts';
+import { nightTime } from '../radar-picture.ts';
 import {
   hasFemaleProfile,
   inCombat,
@@ -121,6 +122,7 @@ import {
   tileToolTargetRefusal,
   wheelAdjust,
 } from './attack-cursors.ts';
+import { CoverDisplay, type CoverDisplayHost, nodeShade } from './cover-display.ts';
 import { ESCAPE_KEY, HelicopterDropSkip, helicopterDropRunning } from './helicopter-drop-skip.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
 import { InteractiveTileCheck } from './interactive-tiles.ts';
@@ -243,6 +245,7 @@ const NO_HOVER: Hover = { gridNo: null, target: null, flags: 0 };
 
 export class TacticalInput {
   readonly #host: TacticalInputHost;
+  readonly coverDisplay: CoverDisplay;
   readonly itemTile = new ItemTileCursor();
   #itemRestSince = 0;
   readonly #pointer = new PointerQueue();
@@ -348,6 +351,26 @@ export class TacticalInput {
 
   constructor(host: TacticalInputHost) {
     this.#host = host;
+    this.coverDisplay = new CoverDisplay(this.#coverDisplayHost());
+  }
+
+  #coverDisplayHost(): CoverDisplayHost {
+    return {
+      selected: () => this.#sel(),
+      cursor: () => this.#mapPos(),
+      interfaceLevel: () => this.#host.interfaceLevel(),
+      keyHeld: (key) => this.#env().runtime.isKeyDown(key),
+      coverSize: () => this.#env().settings().coverSize,
+      sightSize: () => this.#env().settings().losSize,
+      hint: (request) => this.#hint(request),
+      onScreen: (gridNo) => this.#env().world.gridNoOnScreen(gridNo),
+      nodeShade: () => {
+        const clock = this.#view()?.clock;
+        return nodeShade(clock ? nightTime(clock.hour) : false, this.#env().world.ambientLight);
+      },
+      message: (index) => this.#host.log(this.#text('zNewTacticalMessages', index)),
+      mapPath: () => this.#view()?.mapPath ?? null,
+    };
   }
 
   get mode(): UiMode {
@@ -1033,6 +1056,7 @@ export class TacticalInput {
         this.#altDown = false;
       }
     }
+    this.coverDisplay.poll();
     return next;
   }
 
@@ -3167,13 +3191,13 @@ export class TacticalInput {
   }
 
   markers(): readonly WorldMarker[] {
-    const out: WorldMarker[] = [];
+    const out: WorldMarker[] = this.coverDisplay.markers();
     const sel = this.#sel();
     const level = this.#host.interfaceLevel();
     const mapPos = this.#mapPos();
     const cursor3d = this.#env().display().cursor3d;
     if (this.#scrolling) return out;
-    if (this.#host.itemInCursor()) return this.#itemTileMarkers(cursor3d);
+    if (this.#host.itemInCursor()) return [...out, ...this.#itemTileMarkers(cursor3d)];
     if (mapPos !== null && this.#cursor !== 'NO_UICURSOR') {
       out.push(
         ...cursorMarkers(this.#env().uiCursors, {

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc LineOfSightTest, ResolveHitOnWall, CalculateSoldierZPos, SoldierToSoldierLineOfSightTest,
-// @src SoldierTo3DLocationLineOfSightTest; Tactical/Structure_Wrap.cc wall and door edge queries.
+// @src SoldierTo3DLocationLineOfSightTest, SoldierToVirtualSoldierLineOfSightTest (the eye of a virtual soldier, 2026-11-15);
+// @src Tactical/Structure_Wrap.cc wall and door edge queries.
 
 import { Orientation } from '../../../content/formats/jsd.ts';
 import {
@@ -427,6 +428,18 @@ function soldierEyeZ(world: LosWorld, s: LosSubject): number {
 
 function standingEyeZ(world: LosWorld, g: number, level: number): number {
   return STANDING_LOS_POS + (level > 0 ? WALL_HEIGHT_UNITS : 0) + landHeightUnits(world, g);
+}
+
+const LOS_POS_BY_HEIGHT: Readonly<Record<number, number>> = {
+  [HeightClass.STAND]: STANDING_LOS_POS,
+  [HeightClass.CROUCH]: CROUCHED_LOS_POS,
+  [HeightClass.PRONE]: PRONE_LOS_POS,
+};
+
+export function virtualSoldierEyeZ(world: LosWorld, g: number, level: number, height: number): number | null {
+  const eye = LOS_POS_BY_HEIGHT[height];
+  if (eye === undefined) return null;
+  return eye + landHeightUnits(world, g) + (level > 0 ? WALL_HEIGHT_UNITS : 0);
 }
 
 function inTankBlindSpot(tank: LosSubject, target: LosSubject, targetZ: number): boolean {

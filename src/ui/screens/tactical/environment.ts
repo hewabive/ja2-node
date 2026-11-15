@@ -94,6 +94,8 @@ export interface WorldMarker {
   readonly head?: boolean;
   readonly offsetX?: number;
   readonly offsetY?: number;
+  readonly translucent?: boolean;
+  readonly shade?: number;
 }
 
 export interface InteractiveTile {
@@ -149,6 +151,7 @@ export interface WorldPresenter {
   readonly ready: boolean;
   readonly radarImage: string | null;
   readonly night: boolean;
+  readonly ambientLight: number;
   readonly camera: RenderCentre;
   soldierTrueScreenPosition(id: number): ScreenPoint | null;
   soldierBox(id: number): ScreenBox | null;
@@ -178,6 +181,7 @@ export interface WorldPresenter {
   scrollEdges(): ScrollEdges;
   scrollBy(dx: number, dy: number): boolean;
   slideView(gridNo: number): SlideView;
+  gridNoOnScreen(gridNo: number): boolean;
   overheadMap(): OverheadMapView | null;
   redrawOverheadMap(): void;
   tileImage(name: string): UiImageRef | null;

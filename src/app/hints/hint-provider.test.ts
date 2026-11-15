@@ -81,6 +81,14 @@ describe('local hint provider', () => {
     expect(provider.hint({ type: 'placements', soldier: merc.id, slot, count: 1 }).state).toBe('ready');
   });
 
+  it('answers the cover and sight displays at once, as the original works them out in the frame it polls Delete and End', () => {
+    const provider = new HintProvider({ channel: channel(), knowledge: () => knowledge(), now: () => 1000 });
+    const merc = view.soldiers.find((s) => s.team === 0);
+    if (!merc) throw new Error('no merc');
+    for (const type of ['coverMap', 'sightMap'])
+      expect(provider.hint({ type, soldier: merc.id, center: merc.gridNo })).toMatchObject({ state: 'ready', answer: { ok: true } });
+  });
+
   it('keeps its answers and its projection over a view where only the tick moved, and drops them on any other change', () => {
     let now = 1000;
     const ch = channel();

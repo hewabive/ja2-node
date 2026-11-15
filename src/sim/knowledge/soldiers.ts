@@ -10,6 +10,7 @@ import { LIFELESS_HEALTH_INDEX } from '../tactical/health.ts';
 import { emptyInventory, InvSlot } from '../tactical/inventory.ts';
 import { movementForStanceChange, type Stance, stanceHeight } from '../tactical/movement-mode.ts';
 import { Opp } from '../tactical/perception/opp.ts';
+import { bodySmell } from '../tactical/smell.ts';
 import {
   Body,
   createSoldier,
@@ -53,7 +54,9 @@ const SHOWN_FIELDS = [
 const DERIVED_FROM_HOSTILE = ['side', 'neutral'] as const;
 
 const APPEARANCE_STAND_INS = ['inv'] as const;
-const HAND_SLOTS: ReadonlySet<PropertyKey> = new Set([String(InvSlot.HAND), String(InvSlot.SECOND_HAND)]);
+const SHOWN_AND_EMPTY_SLOTS: ReadonlySet<PropertyKey> = new Set(
+  [InvSlot.HAND, InvSlot.SECOND_HAND, InvSlot.HEAD1, InvSlot.HEAD2].map(String),
+);
 
 const OWN_TRANSIENT_WITH_NEUTRAL_VALUE = [
   'turningUntilDone',
@@ -64,7 +67,23 @@ const OWN_TRANSIENT_WITH_NEUTRAL_VALUE = [
   'quoteActionId',
 ] as const;
 
-const HIDDEN_WITH_NEUTRAL_VALUE = ['tilesMoved', 'oppList', 'life', 'collapsed', 'gassed', 'dead'] as const;
+const HIDDEN_WITH_NEUTRAL_VALUE = [
+  'tilesMoved',
+  'oppList',
+  'life',
+  'collapsed',
+  'gassed',
+  'dead',
+  'profile',
+  'blindedCounter',
+  'skillTrait1',
+  'skillTrait2',
+  'attackingWeapon',
+  'attackingHand',
+  'doBurst',
+] as const;
+
+const SMELL_OF_THE_BODY = ['normalSmell', 'monsterSmell'] as const;
 
 const OWN_FIELDS = [
   ...SHOWN_FIELDS,
@@ -284,8 +303,11 @@ export function soldierFromView(
     level: v.level,
     direction: v.direction,
     state: v.animation,
-    ...(own ? {} : { inv: guardFields(emptyInventory(), HAND_SLOTS, `soldier ${v.id}.inv`, guard) }),
+    ...(own ? {} : { inv: guardFields(emptyInventory(), SHOWN_AND_EMPTY_SLOTS, `soldier ${v.id}.inv`, guard) }),
   });
+  const smell = bodySmell(v.bodyType);
+  s.normalSmell = smell.normal;
+  s.monsterSmell = smell.monster;
   s.x = v.x;
   s.y = v.y;
   s.heightAdjustment = v.heightAdjustment ?? 0;
@@ -298,9 +320,8 @@ export function soldierFromView(
   else applyAppearanceStandIns(content, s, v, ownIds);
   const fields = new Set<PropertyKey>(
     own
-      ? [...OWN_FIELDS, ...OWN_TRANSIENT_WITH_NEUTRAL_VALUE]
-      : [...SHOWN_FIELDS, ...DERIVED_FROM_HOSTILE, ...HIDDEN_WITH_NEUTRAL_VALUE, ...APPEARANCE_STAND_INS],
+      ? [...OWN_FIELDS, ...OWN_TRANSIENT_WITH_NEUTRAL_VALUE, ...SMELL_OF_THE_BODY]
+      : [...SHOWN_FIELDS, ...DERIVED_FROM_HOSTILE, ...HIDDEN_WITH_NEUTRAL_VALUE, ...SMELL_OF_THE_BODY, ...APPEARANCE_STAND_INS],
   );
-  if (!own && v.profile !== undefined) fields.add('profile');
   return { soldier: guardFields(s, fields, `soldier ${v.id}`, guard), raw: s, own };
 }

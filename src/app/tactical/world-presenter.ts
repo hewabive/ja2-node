@@ -21,7 +21,8 @@
 // @src src/game/TileEngine/Overhead_Map.cc GoIntoOverheadMap (gfOverheadMapDirty: the overhead map composed again from the
 // @src world as last drawn at every entry, 2026-11-04); src/game/TileEngine/RenderWorld.cc SetRenderCenter and ScrollWorld
 // @src (nothing moves the view while gfIgnoreScrolling holds, 2026-11-08); src/game/TileEngine/Exit_Grids.cc
-// @src ExitGridAtGridNo over AddExitGridToWorld (an exit grid added while the sector runs is one at once, 2026-11-09).
+// @src ExitGridAtGridNo over AddExitGridToWorld (an exit grid added while the sector runs is one at once, 2026-11-09);
+// @src src/game/Tactical/Soldier_Find.cc GridNoOnScreen, src/game/TileEngine/Lighting.h LightGetAmbient (2026-11-15).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
@@ -73,7 +74,7 @@ import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from 
 import type { SoldierOrigin } from '../world/roof-markers.ts';
 import { slideView } from '../world/slide.ts';
 import { nightTime } from '../world/soldier-scene.ts';
-import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
+import { SANDBOX_TIME, type TacticalDisplayOptions, type TacticalWorldView } from '../world/tactical-world-view.ts';
 import { mapLightColour } from '../world/world-loader.ts';
 import { OverheadPicture, type OverheadTiles } from './overhead-map.ts';
 
@@ -213,6 +214,12 @@ export class TacticalWorldPresenter implements WorldPresenter {
   get night(): boolean {
     const clock = this.#sources.view()?.clock;
     return clock !== undefined && clock !== null && nightTime(clock.hour) && !this.#world.world.underground;
+  }
+
+  get ambientLight(): number {
+    const view = this.#sources.view();
+    const time = view?.clock ? { hour: view.clock.hour, minute: view.clock.minute } : SANDBOX_TIME;
+    return this.#world.lighting.ambientAt(time, view?.light?.ambient ?? null);
   }
 
   #soldier(id: number): SoldierView | null {
@@ -411,6 +418,8 @@ export class TacticalWorldPresenter implements WorldPresenter {
           ...(m.head ? { head: true } : {}),
           ...(m.offsetX ? { offsetX: m.offsetX } : {}),
           ...(m.offsetY ? { offsetY: m.offsetY } : {}),
+          ...(m.translucent ? { translucent: true } : {}),
+          ...(m.shade !== undefined ? { shade: m.shade } : {}),
         },
       ];
     });
@@ -498,6 +507,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   slideView(gridNo: number): SlideView {
     return slideView(this.#restrictedScrollId, gridNo, { ...this.#viewport, camera: this.#camera }, this.#top > 0);
+  }
+
+  gridNoOnScreen(gridNo: number): boolean {
+    return gridNoOnScreen(this.#restrictedScrollId, gridNo, { ...this.#viewport, camera: this.#camera }, this.#top > 0);
   }
 
   scrollBy(dx: number, dy: number): boolean {

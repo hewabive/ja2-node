@@ -337,7 +337,15 @@ before it, and shows the loading or the tactical screen after the zoom. The zoom
 (`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
 them.
 
-**Not built.** The cover and sight display (#34).
+**The cover and sight displays are hints laid out as level nodes** (`tactical/input/cover-display.ts`). Delete and End
+are polled every frame, as `GetPolledKeyboardInput` polls them: held, the client asks `coverMap` or `sightMap` (`29` §9)
+for the selected merc around the tile under the pointer, at the size the options keep (`coverSize`, `losSize`, which `-`
+and `=` change while the key is held), and lays the original's `SPECIALTILE_COVER_1`–`5` on the tiles the screen shows,
+on the object layer or the on-roof layer, translucent as `LEVELNODE_REVEAL` draws them and shaded as a new level node
+(the ambient light, the default shade at night). The client keeps the original's node lists of these graphics, so what
+one display takes off can be a node the other laid, and a level change leaves tiles lying until the map changes. The
+stub world has no SPECIAL tiles, so the displays draw only on the original data (`28` §9). Deviation "Cover display on
+the projection".
 
 ## 4. Quirks of the original the code keeps
 
@@ -357,6 +365,14 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | Space in autoresolve toggles pause and play but keeps Fast or Finish | `battle/autoresolve-screen.test.ts` "… keeps Fast through Space and Pause …" |
 | On the map screen a click on the inventory's Done button, hidden under the description box, closes the inventory: the box region lies two priorities below the highest, the button one (`Tactical/Interface_Items.cc:1669`, `Strategic/MapScreen.cc:5938`) | `map/map-inventory.test.ts` "lets a click on the inventory Done button hidden under the description box …" |
 | The description box over a dealer box drifts down by column (the slot is multiplied before the division by the row length); over the offer area near the face it moves down instead of right | `shop/shop-panel.test.ts` "places the description box with the original quirks" |
+| The cover display is worked out again on every frame but while the pointer rests on the merc himself, where it stays as it was, moving enemies and all: its test compares the cursor tile with the merc's instead of the merc's with the last one (`Tactical/DisplayCover.cc:89`) | `tactical/input/cover-display.test.ts` "works the cover out again on every frame, but never while the cursor rests on the merc himself" |
+| The sight display is worked out again only when the pointer or the merc moves: a stance change, the light or a moving enemy leaves it as it was (`Tactical/DisplayCover.cc:456`) | `tactical/input/cover-display.test.ts` "works the sight out only when the cursor or the merc moves …" |
+| The cover and sight displays share the last merc tile: End pressed while Delete is held says nothing, and with both held the sight display does not follow the merc (`Tactical/DisplayCover.cc:63`, `:459`) | `tactical/input/cover-display.test.ts` "says nothing when End is pressed while Delete is held …", "does not follow the merc while Delete is held too …" |
+| A size change takes the display off and shows it again, so its message comes again (`Tactical/DisplayCover.cc:787`, `:807`) | `tactical/input/cover-display.test.ts` "says it again after a size change …" |
+| A level change while the cover display is up takes its tiles off the other level, so they lie on until the map changes (`Tactical/DisplayCover.cc:161`) | `tactical/input/cover-display.test.ts` "leaves the old tiles lying when the interface level changes …" |
+| The sight display draws every slot of its array, so a row that ends with tiles the screen leaves out gets a red tile on its last one (`Tactical/DisplayCover.cc:536`, `:598`) | `tactical/input/cover-display.test.ts` "lays a red tile on the last tile of a row the screen leaves out …" |
+| The cover display passes the stance as the cube level of the fake bullet, so the standing one aims at cube 6, above the roofs, and one that climbs through a roof leaves the tile fully covered (`Tactical/DisplayCover.cc:307`) | `src/sim/tactical/display-cover.test.ts` "aims the fake bullet of the standing stance at cube 6 …" |
+| The cover display leaves out a tile with a soldier of another team in sight, a militiaman's too (`Tactical/DisplayCover.cc:255`) | `src/sim/tactical/display-cover.test.ts` "leaves out tiles out of reach of the cursor tile and tiles where another team stands in sight, militia too" |
 | No tactical message line comes in or ages out while the view scrolls or the overhead map is up; the lines that aged meanwhile drop together as it stops or closes (`Utils/Message.cc:131`, `GameScreen.cc:366`) | `tactical/tactical-screen.test.ts` "lets no message line in or out while the view scrolls …", "… while the overhead map is up …" |
 | The overhead map finds the cell under the pointer eight rows above it, for the click and the item lists, and at the pointer for the soldier it names (`TileEngine/Overhead_Map.cc:874`) | `src/app/tactical/overhead-map.test.ts` "finds the cell under the pointer …", "finds a soldier's cell …" |
 | The overhead map lists the items a pool holds on a structure only with the pointer on their cell; a pool next to the pointer lists its floor items, as `GetZLevelOfItemPoolGivenStructure` reads the pointer's cell (`TileEngine/Overhead_Map.cc:323`) | `tactical/overhead-map.test.ts` "lists the pool nearest the pointer …" |

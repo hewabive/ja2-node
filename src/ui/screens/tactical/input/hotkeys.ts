@@ -83,8 +83,8 @@ export interface HotkeyHost {
 export type SmButton = 'updown' | 'nextMerc' | 'burst' | 'look' | 'done' | 'map' | 'options' | 'stealth';
 
 const SQUAD_KEYS = '1234567890';
-const COVER_KEY = 'Delete';
-const SIGHT_KEY = 'End';
+export const COVER_KEY = 'Delete';
+export const SIGHT_KEY = 'End';
 const F_KEY = /^F([1-9]|10)$/;
 const MENU_MODES: ReadonlySet<UiMode> = new Set([
   UiMode.EXITSECTORMENU_MODE,

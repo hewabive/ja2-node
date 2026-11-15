@@ -750,11 +750,13 @@ export class TacticalControls {
   #resizeCover(step: number): void {
     const env = this.#env();
     env.changeSettings({ coverSize: clampDisplaySize(env.settings().coverSize + step) });
+    this.input.coverDisplay.resizedCover();
   }
 
   #resizeSight(step: number): void {
     const env = this.#env();
     env.changeSettings({ losSize: clampDisplaySize(env.settings().losSize + step) });
+    this.input.coverDisplay.resizedSight();
   }
 
   #musicDown(): void {

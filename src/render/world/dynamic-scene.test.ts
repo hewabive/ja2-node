@@ -47,6 +47,8 @@ import type { StaticWorld } from './static-scene.ts';
 import { structureShadeChannels } from './structure-shades.ts';
 import { stateSpecs } from './world-program.ts';
 
+const DEFAULT_SHADE_LEVEL = 4;
+
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
   type: t.index,
@@ -137,6 +139,7 @@ function decode(scene: DynamicScene) {
     height: d[i * FLOATS_PER_INSTANCE + 3] as number,
     srcX: d[i * FLOATS_PER_INSTANCE + 4] as number,
     tile: d[i * FLOATS_PER_INSTANCE + 5] as number,
+    paletteRow: d[i * FLOATS_PER_INSTANCE + 7] as number,
     z: d[i * FLOATS_PER_INSTANCE + 8] as number,
     shadeKey: d[i * FLOATS_PER_INSTANCE + 9] as number,
     flags: d[i * FLOATS_PER_INSTANCE + 10] as number,
@@ -568,6 +571,20 @@ describe('dynamic scene', () => {
     const order = decode(scene).map((p) => tables.tileNames[p.tile]);
     expect(order).toEqual(['FIRSTPOINTERS1', 'FIRSTFULLSHADOW2', 'FIRSTFULLSTRUCT2', 'FIRSTPOINTERS1']);
     expect(decode(scene).at(-1)?.z).toBe(TOPMOST_Z_LEVEL);
+  });
+
+  it('draws a translucent UI node with the translucent state at its layer, in the shade it carries (LEVELNODE_REVEAL)', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const marker = { gridNo: g(80, 80), layer: 'object', tile: tileIndex(tables, 'FIRSTPOINTERS1'), head: true } as const;
+    const darker = 9;
+    scene.build(frame({ uiNodes: [marker] }));
+    const plain = decode(scene)[0];
+    scene.build(frame({ uiNodes: [{ ...marker, translucent: true, shade: darker }] }));
+    expect(scene.runs.map((r) => r.state)).toEqual([DrawState.TRANSLUCENT]);
+    const [node] = decode(scene);
+    expect(node?.z).toBe(plain?.z);
+    expect((node?.paletteRow ?? 0) - (plain?.paletteRow ?? 0)).toBe(darker - DEFAULT_SHADE_LEVEL);
   });
 
   it('shades a dynamic struct node by the light its own structure takes', () => {

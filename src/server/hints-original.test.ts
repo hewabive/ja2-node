@@ -5,6 +5,7 @@ import {
   expectHintsAgree,
   type HintSources,
   sampleAttackHints,
+  sampleDisplayHints,
   sampleMoveHints,
   serialisedView,
   withQueries,
@@ -57,5 +58,14 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('cursor hints on the original data, client a
     const view = serialisedView(session);
     const report = await expectHintsAgree(session, client, [...sampleMoveHints(view, { radius: 16, step: 4 }), ...sampleAttackHints(view)]);
     expect(report.kinds.get('estimateAttack')).toBeGreaterThan(0);
+  });
+
+  it('agree on the cover and sight displays in a battle on A9', async () => {
+    const session = await sandbox(BATTLE_SANDBOX_SEED);
+    approachUntilCombat(session, true);
+    untilOurTurn(session);
+    const view = serialisedView(session);
+    const report = await expectHintsAgree(session, client, sampleDisplayHints(view));
+    expect(report.answered).toBe(report.compared);
   });
 });

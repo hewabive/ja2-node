@@ -2,14 +2,16 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Smell.cc DecaySmells, DecayBlood, DecayBloodAndSmells, DropSmell, InternalDropBlood, DropBlood,
 // @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics; DecayBloodAndSmells's
-// @src check time by compression mode (2026-11-05).
+// @src check time by compression mode (2026-11-05); Soldier_Create.cc TacticalCreateSoldier (the smell each body type
+// @src starts with, 2026-11-15).
 
+import { isVehicleBody } from '../../content/strategic/vehicle-types.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { idiv, u8, u32 } from '../../core/int.ts';
 import { COMPRESS_SPEEDS, CompressMode } from '../strategic/time/constants.ts';
 import { bloodChanged, type Counted } from './change-counts.ts';
 import { isWater } from './pathfinding.ts';
-import { Body, NOWHERE, type Soldier } from './soldier.ts';
+import { Body, isMonster, NOWHERE, type Soldier } from './soldier.ts';
 
 export const BloodKind = { HUMAN: 0, CREATURE_ON_FLOOR: 1, CREATURE_ON_ROOF: 2 } as const;
 export const SmellKind = { HUMAN: 0, CREATURE: 1 } as const;
@@ -36,6 +38,22 @@ const COMPRESSED_DECAY_REAL_SECONDS = 5;
 const SHOWN_POOL_CREATURE = 0x08;
 const SHOWN_POOL_STRENGTH = 0x07;
 const UNSEEN = -1;
+
+const NORMAL_HUMAN_SMELL_STRENGTH = 10;
+const NORMAL_CREATURE_SMELL_STRENGTH = 20;
+const COW_SMELL_STRENGTH = 15;
+const ODOURLESS_BODIES: ReadonlySet<number> = new Set([Body.HATKIDCIV, Body.KIDCIV, Body.CROW, Body.ROBOTNOWEAPON]);
+
+export interface BodySmell {
+  readonly normal: number;
+  readonly monster: number;
+}
+
+export function bodySmell(bodyType: number): BodySmell {
+  if (ODOURLESS_BODIES.has(bodyType) || isVehicleBody(bodyType)) return { normal: 0, monster: 0 };
+  if (isMonster({ bodyType })) return { normal: 0, monster: NORMAL_CREATURE_SMELL_STRENGTH };
+  return { normal: bodyType === Body.COW ? COW_SMELL_STRENGTH : NORMAL_HUMAN_SMELL_STRENGTH, monster: 0 };
+}
 
 export interface SmellMap {
   readonly smell: Uint8Array;
@@ -290,8 +308,6 @@ function dropBloodOnRoof(w: SmellWorld, g: number, kind: number, strength: numbe
   m.blood[g] = withRoofStrength(m.blood[g] ?? 0, strength);
   setBloodType(m, g, 1, kind);
 }
-
-const isMonster = (s: Pick<Soldier, 'bodyType'>) => s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;
 
 export function dropBlood(w: SmellWorld, s: Pick<Soldier, 'bodyType' | 'level' | 'gridNo' | 'visible'>, amount: number): void {
   const kind = !isMonster(s) ? BloodKind.HUMAN : s.level === 0 ? BloodKind.CREATURE_ON_FLOOR : BloodKind.CREATURE_ON_ROOF;

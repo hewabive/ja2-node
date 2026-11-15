@@ -34,6 +34,7 @@ import { initSoldierOppList, type OppListTables } from './perception/opplist-res
 import { type ActionPointWorld, calcActionPointsBeforeVehicleFlag } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { SECOND_LEVEL_Z_OFFSET, setUnplacedSoldierHeight } from './roofs.ts';
+import { bodySmell } from './smell.ts';
 import {
   Body,
   CivilianGroup,
@@ -69,9 +70,6 @@ const INITIAL_BREATH = 99;
 const INITIAL_BREATH_MAX = 100;
 const BATTLE_SOUND_CHOICES = 3;
 const FEMALE_BATTLE_SOUND_BASE = 7;
-const NORMAL_HUMAN_SMELL_STRENGTH = 10;
-const NORMAL_CREATURE_SMELL_STRENGTH = 20;
-const COW_SMELL_STRENGTH = 15;
 const CAMOUFLAGE_ROLL = 5;
 const FULL_CAMOUFLAGE = 100;
 const CREATURE_PART_STATUS_BASE = 80;
@@ -630,26 +628,20 @@ function rollCivilianStats(c: CreationContext, s: Soldier): void {
 function bodyTypeSetup(c: BodyContext, s: Soldier): void {
   const b = s.bodyType;
   if (b === Body.HATKIDCIV || b === Body.KIDCIV) s.battleSoundId = c.rng.int(2);
-  else if (b === Body.REGFEMALE || b === Body.MINICIV || b === Body.DRESSCIV) {
-    s.battleSoundId = FEMALE_BATTLE_SOUND_BASE + c.rng.int(2);
-    s.normalSmell = NORMAL_HUMAN_SMELL_STRENGTH;
-  } else if (b === Body.BLOODCAT) {
+  else if (b === Body.REGFEMALE || b === Body.MINICIV || b === Body.DRESSCIV) s.battleSoundId = FEMALE_BATTLE_SOUND_BASE + c.rng.int(2);
+  else if (b === Body.BLOODCAT) {
     assignCreatureInventory(c, s);
-    s.normalSmell = NORMAL_HUMAN_SMELL_STRENGTH;
     s.monsterOrAnimal = true;
   } else if (MONSTER_BODIES.has(b)) {
     assignCreatureInventory(c, s);
     s.ai.orders = Orders.FARPATROL;
     s.ai.attitude = SoldierAttitude.AGGRESSIVE;
     s.monsterOrAnimal = true;
-    s.monsterSmell = NORMAL_CREATURE_SMELL_STRENGTH;
-  } else if (b === Body.COW) {
-    s.monsterOrAnimal = true;
-    s.normalSmell = COW_SMELL_STRENGTH;
-  } else if (b === Body.CROW) s.monsterOrAnimal = true;
-  else if (isVehicleBody(b)) {
-    if (NEUTRAL_VEHICLE_BODIES.has(b)) s.neutral = true;
-  } else if (b !== Body.ROBOTNOWEAPON) s.normalSmell = NORMAL_HUMAN_SMELL_STRENGTH;
+  } else if (b === Body.COW || b === Body.CROW) s.monsterOrAnimal = true;
+  else if (isVehicleBody(b) && NEUTRAL_VEHICLE_BODIES.has(b)) s.neutral = true;
+  const smell = bodySmell(b);
+  s.normalSmell = smell.normal;
+  s.monsterSmell = smell.monster;
 }
 
 function profileStats(p: MercProfile): SoldierStats {

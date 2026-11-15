@@ -51,7 +51,7 @@ import type { WorldEffects } from './world-effects.ts';
 import { type DynamicLight, type LightingTime, type MapLight, WorldLighting } from './world-lighting.ts';
 import { type LoadedWorld, loadWorld, renderWorldOf } from './world-loader.ts';
 
-const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
+export const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
 const CROW_FLY = 'CROW_FLY';
 const CLIMB_UP_ROOF = 'CLIMBUPROOF';
 const NO_CORPSES: readonly CorpseView[] = [];

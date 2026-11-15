@@ -48,6 +48,8 @@ describe('fairness of the hints: unseen soldiers do not exist in the projection'
       { type: 'previewMove', soldier: merc.id, to: at + WORLD_COLS },
       { type: 'estimateAttack', soldier: merc.id, target: at },
       { type: 'estimateAttack', soldier: merc.id, target: at, aimTime: 4, bodyPart: 'head' },
+      { type: 'coverMap', soldier: merc.id, center: at, radius: 4 },
+      { type: 'sightMap', soldier: merc.id, center: at, radius: 4 },
     ];
     const before = await answers(session, requests);
     expect(whoIsThere(t, at, unseen.level)).toBe(unseen);

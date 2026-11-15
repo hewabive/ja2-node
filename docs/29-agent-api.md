@@ -51,7 +51,7 @@ about 2 ms, so the filter runs on the finished observation instead of skipping p
 
 **Strengths and limits.** Turn-based combat, strategy and management suit an agent; the queries spare it the
 arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak part; `sectorExits` and `sectorLayout`
-(§9) give the sector's exits and a text picture of it. Real time is played through the
+(§9) give the sector's exits and a text picture of it, `coverMap` and `sightMap` the cover and sight around a tile. Real time is played through the
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
@@ -65,7 +65,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows and the name the original's line gives one hit in the head, knocked over, tripped, slipped or washed of his camouflage, §7); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) and the inside of a room under its roof (`sectorLayout`) |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life, but a vehicle's in sight and the bars of a speaker whose face popup draws them (`bars` on his line, §4.4); unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows and the name the original's line gives one hit in the head, knocked over, tripped, slipped or washed of his camouflage, §7); lock tables, trap levels, lock damage; exit grids in a room until their tile is revealed (`sectorExits`) and the inside of a room under its roof (`sectorLayout`, `coverMap`, `sightMap`) |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -1248,6 +1248,19 @@ costs. Items, mines and soldiers other than ours never enter it. A cave is drawn
 so the layout shows it whole. Measured on the original data (A9, B13, C13, D13) the whole sector is 1.8 KB at the
 default cell 4 (the legend is 0.3 KB of it), 2.7 KB at cell 3, 5.2 KB at cell 2, the roof level 1.5 KB and a window of
 radius 12 at cell 1 1.3 KB; the answer takes about 5 ms.
+
+**Cover and sight.** `coverMap` and `sightMap` (`src/sim/hints/cover-map.ts` over `src/sim/tactical/display-cover.ts`)
+are the Delete and End displays (`Tactical/DisplayCover.cc`, `30`): for a merc of ours, the square of `radius` tiles
+(0–15, 4 as the options' default) around `center`, at the interface `level` (the merc's by default). `coverMap` gives
+each tile's `cover`, the original's percentage that it is covered (100 safe, 0 none) against the enemies the squad
+sees, for the stance of the merc's movement mode (`stance`); it lists the tiles the centre reaches within the radius,
+at the roof level only those under a flat roof, and leaves out a tile where a soldier of another team stands in sight.
+`sightMap` gives each tile's `stances`, how many of prone, crouched and standing the merc sees there (0–3), and `roof`
+where he looks at the roof of a room the screen draws covered. Neither lists the ground under a roof the screen still
+draws. Enemies count with what the view shows of them: one out of sight does not count, and a seen one counts without
+head gear or traits and with the stand-in gun of his hand class (deviation "Cover display on the projection").
+Measured on the original data (A9 in combat) size 4 takes about 1 ms for the cover and 3 ms for the sight, size 11 about
+3–7 ms and 10 ms, and each enemy in sight range of the square adds 2.5–4 ms at size 11.
 
 **Server-only queries** (`SERVER_QUERY_KINDS`: the laptop's quotes and checks, `quoteTrade`, `contractOptions`,
 `inventory`) depend on state the player does not see or price a decision; the query service passes them to the

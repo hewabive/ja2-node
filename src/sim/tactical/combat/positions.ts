@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc CalculateSoldierZPos, GetTargetZPosFromStructureHeight, SoldierToSoldierLineOfSightTest,
-// @src SoldierTo3DLocationLineOfSightTest, SoldierToBodyPartLineOfSightTest; TileEngine/Structure.cc GetTallestStructureHeight.
+// @src SoldierTo3DLocationLineOfSightTest, SoldierToBodyPartLineOfSightTest, SoldierToVirtualSoldierLineOfSightTest
+// @src (2026-11-15); TileEngine/Structure.cc GetTallestStructureHeight.
 
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureHeight } from '../../../content/world/structures.ts';
 import { endHeight } from '../animation.ts';
@@ -16,6 +17,7 @@ import {
   soldierToSoldierLineOfSight,
   soldierZPos,
   TREE_SIGHT_REDUCTION,
+  virtualSoldierEyeZ,
   ZPos,
 } from '../perception/los.ts';
 import { isMonster, type Soldier } from '../soldier.ts';
@@ -111,6 +113,27 @@ export function soldierTo3DLocationLos(
     if (target) return soldierToSoldierLos(t, s, target, tileLimit, aware);
     endZ = 175 + level * HEIGHT_UNITS + landHeightUnits(losWorldOf(t), g);
   }
+  return lineOfSightTest(losWorldOf(t), s.gridNo, startZ, g, endZ, {
+    tileLimit,
+    treeReduction: TREE_SIGHT_REDUCTION[STAND] ?? 6,
+    aware,
+    camo: 0,
+    disallowSight: t.perception.disallowSight,
+  });
+}
+
+export function soldierToVirtualSoldierLos(
+  t: TacticalState,
+  s: Soldier,
+  g: number,
+  level: number,
+  height: number,
+  tileLimit: number,
+  aware: boolean,
+): number {
+  const startZ = calculateSoldierZPos(t, s, ZPos.LOS);
+  const endZ = virtualSoldierEyeZ(losWorldOf(t), g, level, height);
+  if (endZ === null) return 0;
   return lineOfSightTest(losWorldOf(t), s.gridNo, startZ, g, endZ, {
     tileLimit,
     treeReduction: TREE_SIGHT_REDUCTION[STAND] ?? 6,

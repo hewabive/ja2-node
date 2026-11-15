@@ -137,3 +137,13 @@ export function sampleAttackHints(view: PlayerView, options: SampleOptions = {})
   }
   return requests;
 }
+
+export function sampleDisplayHints(view: PlayerView, radii: readonly number[] = [4, 11]): CommandEnvelope[] {
+  const requests: CommandEnvelope[] = [];
+  const centres = view.soldiers.map((s) => s.gridNo);
+  for (const s of ownSoldiers(view))
+    for (const center of centres)
+      for (const radius of radii)
+        for (const type of ['coverMap', 'sightMap']) requests.push({ type, soldier: s.id, center, radius, level: 0 });
+  return requests;
+}

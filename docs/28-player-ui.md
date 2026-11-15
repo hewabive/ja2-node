@@ -170,7 +170,9 @@ screen asks which hint: `30`.
 - `HintProvider` implements `GameClient`, polled every frame: a request is answered once the same request of its kind
   has been asked for 80 ms (the original's `PATHFINDCOUNTER`, `Utils/Timer_Control.cc:18`), on the latest received
   view, with one projection per view and answers cached per view; `placements` is answered at once, as the original's
-  item cursor and inventory panel light their slots and faces without that delay. It asks the server while the
+  item cursor and inventory panel light their slots and faces without that delay, and so are `coverMap` and `sightMap`,
+  which the original works out in the frame it polls Delete and End (`30`); at their largest size, with enemies in range,
+  they take well above the target of §11 (`29` §9), only while the key is held. It asks the server while the
   knowledge is unusable, and for a hint that reads the loaded sector while its map is still loading
   (`hintReadsSectorWorld`); the map screen's hints need only the strategic knowledge, so its Tactical button does not
   wait for the server after every new view.
@@ -386,8 +388,9 @@ stub maps' own tiles), load screens, and the help and laptop texts (`stubs/text/
 in `stubs/build.test.ts`.
 
 **Deliberate stub gaps.** The stub dealer, repairman and Speck have no dialogue rows, and the stub world has no pointer
-tiles: new NPC rows or tile types would change the stub content the recorded stub saves bind to (`32`). So their lines
-are silent, Speck talks without subtitles and cursor markers draw only on the original data. The stub tilesets have no
+or cover tiles: new NPC rows or tile types would change the stub content the recorded stub saves bind to (`32`). So their
+lines are silent, Speck talks without subtitles, and cursor markers and the cover and sight displays draw only on the
+original data. The stub tilesets have no
 small tiles, so on stubs the overhead map is black under the persons.
 
 ## 10. Verification
@@ -441,8 +444,7 @@ fewer frames a second but as many refreshes.
 - **Goldens missing**: the San Mona screen (no stub brothel scenario; `san-mona.test.ts` covers it) and the A.I.M.
   conference (its snow and video run on the UI clock). The main flow hires three of its four mercs through MCP and lets
   the campaign bot fight, so the canvas path covers one hire, the cursors and one shot.
-- **Not built**: the cover and line-of-sight display (#34; it needs per-tile cover and sight maps from the simulation,
-  a heavy computation), touch input, a key remapping UI, the client-side data scenarios (§5) and audio transcoding for
-  remote play.
+- **Not built**: touch input, a key remapping UI, the client-side data scenarios (§5) and audio transcoding for remote
+  play.
 - **The message log is server presentation entries** saved with the session rather than a client-only table: agents
   see them, saves keep them, and one audit pass covers every message (`29`, deviation "Message list").

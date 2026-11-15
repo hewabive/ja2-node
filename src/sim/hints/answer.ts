@@ -4,6 +4,7 @@ import { assignmentOptions } from './assignment-options.ts';
 import { canEnterSector } from './can-enter-sector.ts';
 import { compatibleItems } from './compatible-items.ts';
 import { compatibleMercs } from './compatible-mercs.ts';
+import { coverMap, sightMap } from './cover-map.ts';
 import { estimateAttack } from './estimate-attack.ts';
 import { exitSectorDryRun, exitSectorOptions } from './exit-sector.ts';
 import { itemInfo } from './item-info.ts';
@@ -40,6 +41,8 @@ const ANSWERERS: Readonly<Partial<Record<HintKind, HintAnswerer>>> = {
   passTargets,
   sectorExits,
   sectorLayout,
+  coverMap,
+  sightMap,
 };
 
 export function answerHint(world: KnowledgeWorld, req: HintRequestBase): CommandResult {

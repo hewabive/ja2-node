@@ -3,6 +3,7 @@ export type { AssignmentLine, AssignmentOptions, PopUpShade } from '../sim/hints
 export type { CanEnterSector } from '../sim/hints/can-enter-sector.ts';
 export type { CompatibleItems } from '../sim/hints/compatible-items.ts';
 export type { CompatibleMercs } from '../sim/hints/compatible-mercs.ts';
+export type { CoverMap, SightMap } from '../sim/hints/cover-map.ts';
 export type { AmmoState, AttackCursor, EstimateAttack } from '../sim/hints/estimate-attack.ts';
 export type { ExitSectorDryRun, ExitSectorOptions } from '../sim/hints/exit-sector.ts';
 export type { ItemInfo, ItemInfoKind } from '../sim/hints/item-info.ts';
@@ -14,5 +15,6 @@ export type { ActionKind, PreviewAction } from '../sim/hints/preview-action.ts';
 export type { PreviewHeliRoute } from '../sim/hints/preview-heli-route.ts';
 export type { MoveDestination, PreviewMove } from '../sim/hints/preview-move.ts';
 export type { PreviewRoute } from '../sim/hints/preview-route.ts';
+export type { TileCover, TileSight } from '../sim/tactical/display-cover.ts';
 export type { DoorMenuAction, DoorMenuEvent, DoorMenuOption } from '../sim/tactical/doors/events.ts';
 export type { Footstep } from '../sim/tactical/plot-path.ts';

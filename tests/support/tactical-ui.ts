@@ -195,6 +195,7 @@ export class FakeWorld implements WorldPresenter {
   readonly ready = true;
   readonly radarImage = null;
   readonly night = false;
+  ambientLight = 3;
   readonly located: number[] = [];
   readonly centred: number[] = [];
   readonly radarCentred: ScreenPoint[] = [];
@@ -364,6 +365,12 @@ export class FakeWorld implements WorldPresenter {
 
   slideView(gridNo: number): SlideView {
     return this.slideViewOf(gridNo);
+  }
+
+  onScreenOf: (gridNo: number) => boolean = () => true;
+
+  gridNoOnScreen(gridNo: number): boolean {
+    return this.onScreenOf(gridNo);
   }
 
   overheadMap(): OverheadMapView | null {

@@ -9,7 +9,8 @@
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
 // @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc; its sZ lifts the
 // @src picture, not the depth; a vehicle's wreck loops unpaused, and Tile_Animation.cc UpdateAniTiles's first step makes
-// @src its node LEVELNODE_DYNAMIC for good, drawn in the dynamic structure layer of its row, 2026-11-15).
+// @src its node LEVELNODE_DYNAMIC for good, drawn in the dynamic structure layer of its row, 2026-11-15); RenderTiles's
+// @src LEVELNODE_REVEAL on a UI node, drawn translucent in the dynamic pass (the cover display, 2026-11-15).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -70,6 +71,7 @@ export interface WorldUiNode {
   readonly offsetX?: number;
   readonly offsetY?: number;
   readonly shade?: number;
+  readonly translucent?: boolean;
 }
 
 export interface OffsetSprite extends SpriteSource {
@@ -588,7 +590,8 @@ export class DynamicScene {
     const p = this.#position(n.gridNo, x, y, d.te, d.sprite, layer);
     const at = { x: p.x + (n.offsetX ?? 0), y: p.y + (n.offsetY ?? 0) };
     const shade = n.shade ?? DEFAULT_SHADE_LEVEL;
-    this.#emitNode(at, d, x, y, layer, ShadeKey.FIXED, d.sprite.paletteBase + shade);
+    const state = n.translucent ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL;
+    this.#emitNode(at, d, x, y, layer, ShadeKey.FIXED, d.sprite.paletteBase + shade, state);
   }
 
   #emitNode(
@@ -599,6 +602,7 @@ export class DynamicScene {
     layer: ListLayer | 'topmost',
     shadeKey: number,
     row: number,
+    drawState: DrawState = DrawState.NEARER_OR_EQUAL,
   ): void {
     const wy = worldY(x, y, this.#world.topY);
     const out = this.instances;
@@ -606,7 +610,7 @@ export class DynamicScene {
     switch (layer) {
       case 'objects': {
         const z = d.te.flags & TileFlags.CLIFFHANG ? 0 : d.te.flags & TileFlags.OBJECTLAYER_USEZHEIGHT ? objectZ(wy) : OBJECT_Z_LEVEL;
-        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, z, shadeKey, 0, 0));
+        this.#push(out, this.runs, drawState, () => out.push(p.x, p.y, s, 0, s.width, row, z, shadeKey, 0, 0));
         return;
       }
       case 'shadows':
@@ -619,19 +623,17 @@ export class DynamicScene {
           this.#push(out, this.runs, DrawState.NEARER_WRITE, () => emitStrips(out, p, strip, s, z, shadeKey, row, 0));
           return;
         }
-        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, u16(z), shadeKey, 0, 0));
+        this.#push(out, this.runs, drawState, () => out.push(p.x, p.y, s, 0, s.width, row, u16(z), shadeKey, 0, 0));
         return;
       }
       case 'roofs':
-        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, roofZ(wy), shadeKey, 0, 0));
+        this.#push(out, this.runs, drawState, () => out.push(p.x, p.y, s, 0, s.width, row, roofZ(wy), shadeKey, 0, 0));
         return;
       case 'onRoof':
-        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, onRoofZ(wy), shadeKey, 0, 0));
+        this.#push(out, this.runs, drawState, () => out.push(p.x, p.y, s, 0, s.width, row, onRoofZ(wy), shadeKey, 0, 0));
         return;
       case 'topmost':
-        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () =>
-          out.push(p.x, p.y, s, 0, s.width, row, TOPMOST_Z_LEVEL, shadeKey, 0, 0),
-        );
+        this.#push(out, this.runs, drawState, () => out.push(p.x, p.y, s, 0, s.width, row, TOPMOST_Z_LEVEL, shadeKey, 0, 0));
         return;
     }
   }

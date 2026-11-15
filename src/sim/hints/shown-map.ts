@@ -48,14 +48,15 @@ function underSlantedRoof(t: TacticalState, g: number): boolean {
   return t.world.structures.at(g).some((s) => has(s.flags, StructureFlags.SLANTED_ROOF));
 }
 
-export function groundUnderDrawnRoofs(t: TacticalState, view: KnowledgeView): Uint8Array {
+export function groundUnderDrawnRoof(t: TacticalState, view: KnowledgeView): (g: number) => boolean {
   const off = roofsTakenOff(t, view);
   const revealed = tilesOfRuns(view.revealedTiles);
+  return (g) => (flatRoofAboveGridNo(t, g) && off[g] !== 1) || (revealed[g] !== 1 && underSlantedRoof(t, g));
+}
+
+export function groundUnderDrawnRoofs(t: TacticalState, view: KnowledgeView): Uint8Array {
+  const underRoof = groundUnderDrawnRoof(t, view);
   const covered = new Uint8Array(WORLD_MAX);
-  for (let g = 0; g < WORLD_MAX; g++) {
-    const flat = flatRoofAboveGridNo(t, g) && off[g] !== 1;
-    const slanted = revealed[g] !== 1 && underSlantedRoof(t, g);
-    if (flat || slanted) covered[g] = 1;
-  }
+  for (let g = 0; g < WORLD_MAX; g++) if (underRoof(g)) covered[g] = 1;
   return covered;
 }

@@ -7,6 +7,7 @@ import {
   expectHintsAgree,
   type HintSources,
   sampleAttackHints,
+  sampleDisplayHints,
   sampleMoveHints,
   serialisedView,
   withQueries,
@@ -82,6 +83,16 @@ describe('cursor hints on the stub sandbox, client against server', () => {
     expect(view.soldiers.some((s) => s.team !== 0)).toBe(true);
     const report = await expectHintsAgree(session, client, [...sampleMoveHints(view), ...sampleAttackHints(view)]);
     expect(report.kinds.get('estimateAttack')).toBeGreaterThan(0);
+  });
+
+  it('agree on the cover and sight displays in a turn-based battle', async () => {
+    const session = await sandbox(BATTLE_SANDBOX_SEED);
+    approachUntilCombat(session, true);
+    untilOurTurn(session);
+    const view = serialisedView(session);
+    expect(view.soldiers.some((s) => s.team !== 0 && s.hostile === true)).toBe(true);
+    const report = await expectHintsAgree(session, client, sampleDisplayHints(view));
+    expect(report.answered).toBe(report.compared);
   });
 });
 

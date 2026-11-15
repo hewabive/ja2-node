@@ -394,8 +394,8 @@ then (`src/app/settings.ts`). The launcher exports and imports the settings as a
 (`src/app/launcher/settings-file.ts`), with the server's scenes seen where older files kept them, and hands an imported
 file's scenes to the server.
 
-Stored but read by nothing: the cover and LOS display sizes (the display is not built, #34); "don't move mouse" is inert
-by design (deviation "Pointer warp"). Show misses moves the view where the original's does
+The cover and LOS display sizes are the radius of the Delete and End displays (`30`); "don't move mouse" is inert by
+design (deviation "Pointer warp"). Show misses moves the view where the original's does
 (`src/ui/screens/tactical/miss-camera.ts`): to our misses from their events, and to a friendly bullet's first window
 from `bulletLocated`, which the simulation sends whatever the setting (deviation "Show misses").
 

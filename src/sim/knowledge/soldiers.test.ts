@@ -4,7 +4,7 @@ import { gridNo } from '../../content/world/grid.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { adrenalineEffect, DrunkLevel, drunkLevel, mercUnderTheInfluence } from '../tactical/drugs.ts';
 import { LIFELESS_HEALTH_INDEX } from '../tactical/health.ts';
-import { Team } from '../tactical/soldier.ts';
+import { Body, Team } from '../tactical/soldier.ts';
 import { UnsuppliedFieldError } from './guard.ts';
 import { soldierFromView } from './soldiers.ts';
 import type { KnowledgeSoldier } from './view.ts';
@@ -66,6 +66,21 @@ describe('own soldiers projected from the view', () => {
     expect(mercUnderTheInfluence(projected({ drunk: 'drunk' }))).toBe(true);
     expect(() => adrenalineEffect(projected({ adrenaline: 'active' }))).toThrow(UnsuppliedFieldError);
     expect(() => mercUnderTheInfluence(projected({ adrenaline: 'crash' }))).toThrow(UnsuppliedFieldError);
+  });
+});
+
+describe('the smell of projected soldiers', () => {
+  it('is the smell their body type starts with: the view does not show it, nor the creature elixir on ours', () => {
+    const smellOf = (fields: Partial<KnowledgeSoldier>) => {
+      const s = soldierFromView(content, { ...seenEnemy(DYING_HEALTH_INDEX), ...fields }, [0], { strict: true }).soldier;
+      return [s.normalSmell, s.monsterSmell];
+    };
+    expect(smellOf({})).toEqual([10, 0]);
+    expect(smellOf({ team: Team.CREATURE, bodyType: Body.AM_MONSTER })).toEqual([0, 20]);
+    expect(smellOf({ team: Team.CIV, bodyType: Body.KIDCIV })).toEqual([0, 0]);
+    expect(smellOf({ team: Team.CIV, bodyType: Body.COW })).toEqual([15, 0]);
+    const own = soldierFromView(content, ownMerc(), [0], { strict: true }).soldier;
+    expect([own.normalSmell, own.monsterSmell]).toEqual([10, 0]);
   });
 });
 
