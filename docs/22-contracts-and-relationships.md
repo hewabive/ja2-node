@@ -76,7 +76,7 @@ autoresolve runs; their boxes are battle-flow prompts (`contractRenewal`, `mercD
 `pendingEndings` (a campaign without a talk flow, older saves). The sequence advances synchronously after each answer,
 opens the menu for unwilling mercs too, reopens it for a renewal still open once the queue is idle and skips a listed
 merc who can no longer leave (deviations "Contract renewal sequence", "Contract prompts", "Renewal of a merc who cannot
-leave", "Renewal list").
+leave"; original-bugs "Renewal list").
 
 **Quotes go through the dialogue queue.** Contract, relationship and morale lines are said as the original says them:
 `say` is `TacticalCharacterDialogue` (the speaker checks, the meanwhile test, the last-quote test, the E.P.C. test),
@@ -151,7 +151,8 @@ morale, the warning, the sequence step by step, extensions, dismissals, departur
 update, level-ups and salary rounding on the user's saves, replay the traced draws and diff the contract fields, the
 expiry and refusal predicates, the first buddy, the tolerance checks and the profiles. Inferred from reading the source:
 - What the original does with a listed merc who died or was captured after the warning, and that the stale-index pass
-  after the last list entry reaches nobody (deviations "Renewal of a merc who cannot leave", "Renewal list").
+  after the last list entry reaches nobody (deviations "Renewal of a merc who cannot leave"; original-bugs "Renewal
+  list").
 - That no native save holds a running sequence (its pause lock blocks saving).
 - That a moving merc's sector is the one he left (`16`) for the equipment drop and the same-sector tests.
 - That the death rate's float quotient never rounds across an integer for realistic counts.

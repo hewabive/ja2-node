@@ -55,8 +55,8 @@ original stops a tick after 10 ms of CPU, which no modern machine reaches, so ja
 AI runs right after the soldier's own frame in the same pass, so its draws follow merc-slot order. The away slots get a
 visit when the cursor has passed the last slot (`35`). Both lists are in the order the soldiers joined them; one who
 leaves closes the gap while the cursors keep their index, so the soldier who slides under a cursor waits for the next
-tick, and an away soldier slid under the away cursor is visited in his place (`01` §3.10; deviation "Away cursor past
-the end"). A soldier flagged `handleEveryFrame` is visited on every pass and skips the timer: an NPC a script sends
+tick, and an away soldier slid under the away cursor is visited in his place (`01` §3.10; original-bugs "Away cursor
+past the end"). A soldier flagged `handleEveryFrame` is visited on every pass and skips the timer: an NPC a script sends
 somewhere or whose walk ended short of the script's destination, anybody who arrives with `QUOTE_ACTION_ID_CHECKFORDEST`
 left in his quote action (a recruited NPC's leftover too, so his next walk ends with his action at once:
 `Tactical/Overhead.cc:902`, `movement.test.ts`), an NPC facing the player until a PC comes near (`24`, `35`). Leaving combat pauses all AI for 1500 ms (`10`). While auto-bandage runs, every soldier is visited on every pass,

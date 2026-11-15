@@ -606,8 +606,8 @@ The hints refuse the same way (`blocked`). A vehicle never moves on the tactical
 `move`, `swapPlaces` with `cursor`, a `moveGroup` naming one and `enterVehicle` by one refuse `vehicleCantMove`. It
 leaves a sector by strategic travel, or through `exitSector` with `who: merc`, never as a squad (its passengers are on
 no squad), when it drives toward the edge as the original's walk-off does, as far as it goes without turning, and then
-leaves as its own group with everybody aboard at the vehicle's speed, burning its fuel on arrival (deviation "Vehicle
-sector exit"): a load seats them at the vehicle, which enters at the entry point of its side.
+leaves as its own group with everybody aboard at the vehicle's speed, burning its fuel on arrival (original-bugs
+"Vehicle sector exit"): a load seats them at the vehicle, which enters at the entry point of its side.
 `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the first click's check of
 someone else's rocket rifle ("Attack refusals"); `pickUp` without `items` walks to the pile, and on more than one shown
@@ -777,7 +777,7 @@ with `attachment` for an attached item as the box describes it, a new object at 
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
 is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
 `{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"); one key taken off a
-stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (deviation "Single key off a stack"). The
+stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (original-bugs "Single key off a stack"). The
 commands of the item cursor take keys off the ring with `slot: {ring}` and `count` (`src/sim/tactical/item-source.ts`):
 `drop`, `toss`, `pass`, `give` and `previewAction` kind `toss`, and on the map screen `moveItem` with `from: {ring}` to
 the ground and `discardItem`; the keys leave the ring when the command acts, a give's with the order as money split off
@@ -874,21 +874,21 @@ in `observe`, command results and events (§10).
 
 Rules: `24` (giving, recruiting, escorts), `25` (the robot). `give` is the drag of an item onto a soldier
 (`src/sim/tactical/give.ts`, `src/sim/campaign/give-flow.ts`): it returns at once, and the walk, the hand-over and, to
-an NPC, the `GIVINGITEM` conversation run during `advance` as a scripted sequence (deviations "Give command", "Returned
-items", "Giving to a dealer"). To a squad mate or a recruited R.P.C. the whole source pocket is emptied even when one
-item of a stack was given, as in the original. Recruiting has no command: `approach recruit` runs the NPC's records,
-the pay or escort requestor opens an `npcRequest`, `answer yes` triggers the recruiting record, and the recruit gets a
-new soldier id on our team (`ChangeSoldierTeam`). `unescort` is the assignment menu's "remove escort" (deviation
-"Releasing an escort"). The robot takes orders only while a conscious non-escort of its squad in its sector wears the
-remote control in a head slot (`src/sim/campaign/robot-control.ts`).
+an NPC, the `GIVINGITEM` conversation run during `advance` as a scripted sequence (deviations "Returned
+items", "Giving to a dealer"; original-bugs "Give command"). To a squad mate or a recruited R.P.C. the whole source
+pocket is emptied even when one item of a stack was given, as in the original. Recruiting has no command: `approach
+recruit` runs the NPC's records, the pay or escort requestor opens an `npcRequest`, `answer yes` triggers the recruiting
+record, and the recruit gets a new soldier id on our team (`ChangeSoldierTeam`). `unescort` is the assignment menu's
+"remove escort" (deviation "Releasing an escort"). The robot takes orders only while a conscious non-escort of its squad
+in its sector wears the remote control in a head slot (`src/sim/campaign/robot-control.ts`).
 
 `give` to the robot reloads its gun instead (`src/sim/tactical/robot-reload.ts`): it needs the walk plus 4 AP and ammo
 of the gun's calibre (else `robotNeedsCalibre` with the gun's `calibre` index), takes one object off the pocket at once
 and returns `{reload, walking, to}` or `{reload}`; the merc walks next to the robot and kneels, and at the end of his
 animation the robot reloads from the given object, paying the reload's APs in combat, with the `reloaded` event. What
 is left of the object, or the robot's old magazine, goes into the merc's pockets, and is lost when they are full, as
-in the original. A move, stop, collapse or a robot gone from its tile puts the magazine back (deviation "Robot reload
-without the reload"). `previewAction give` on the robot answers `reload: true` with the walk plus 4 AP.
+in the original. A move, stop, collapse or a robot gone from its tile puts the magazine back (original-bugs "Robot
+reload without the reload"). `previewAction give` on the robot answers `reload: true` with the walk plus 4 AP.
 
 ### 8.6 NPC actions, civilians, surrender and boxing
 
@@ -959,23 +959,23 @@ the ice cream truck before their facts), `vehicleOccupied` (the move cursor over
 the vehicle within 5 tiles, else within 20, knows the vehicle, looks around, joins a squad of his own, made current,
 and is selected; the vehicle left empty drops its squad for its group and is not ours to command. Refusals:
 `notInCampaign`, `noSuchSoldier`, `notInVehicle`; `data.gridNo` is his tile. The map screen's `boardVehicle` takes a
-civilian vehicle of the loaded sector over the same way, a third vehicle of ours refused as `noVehicleSlot` (deviation
-"Third vehicle of ours"), and its `leaveVehicle` in the loaded sector puts the merc where `exitVehicle` does.
-`vehicleBoarded` and `vehicleLeft {soldier, vehicle, gridNo}` carry the vehicle's tile, where the enter sound plays,
-while the vehicle stands on the loaded map.
+civilian vehicle of the loaded sector over the same way, a third vehicle of ours refused as `noVehicleSlot`
+(original-bugs "Third vehicle of ours"), and its `leaveVehicle` in the loaded sector puts the merc where `exitVehicle`
+does. `vehicleBoarded` and `vehicleLeft {soldier, vehicle, gridNo}` carry the vehicle's tile, where the enter sound
+plays, while the vehicle stands on the loaded map.
 
 A toolkit or a gas can in hand repairs or refuels a vehicle of any team at ground level, an enemy tank included, as the
 original's item cursors do (`src/sim/tactical/tile-tools.ts`, rules `25`): `repair {soldier, gridNo}` and
 `refuel {soldier, gridNo}`, `gridNo` any tile of the vehicle. The merc walks towards the free tile closest to the
 vehicle within 5 (the walk ends beside that tile when one beside is nearer) and, arriving, crouches: the toolkit puts
 him on the `REPAIR` assignment, off his squad, under the vehicle soldier's id, which names no vehicle, so he repairs
-nothing and finishes at the next hour (deviation "Toolkit repair in tactical"; nothing changes when nothing around needs
-a repair); the gas can pours 50 fuel per point of its status, up to a full tank, losing a point per whole 50 poured and
-vanishing at 0 (`vehicleRefuelled {soldier, vehicle, gridNo}`, the vehicle's id and tile; a full tank takes nothing).
-Neither costs more than the walk and the crouch; a merc who already stands where he would walk to does nothing (a
-quirk, `25`). Refusals: `notInCampaign` (the sandbox), the order's own (`inVehicle`, …), `noToolKit` or `noGasCan` (the
-hand gives no such cursor), `noVehicle` (no vehicle on the tile at ground level, or the merc is on a roof), the hand item
-roll (`itemBroken`), `noPath`, `notEnoughAP` (the walk plus the crouch and 5 for a repair or 10 for a
+nothing and finishes at the next hour (original-bugs "Toolkit repair in tactical"; nothing changes when nothing around
+needs a repair); the gas can pours 50 fuel per point of its status, up to a full tank, losing a point per whole 50
+poured and vanishing at 0 (`vehicleRefuelled {soldier, vehicle, gridNo}`, the vehicle's id and tile; a full tank takes
+nothing). Neither costs more than the walk and the crouch; a merc who already stands where he would walk to does nothing
+(a quirk, `25`). Refusals: `notInCampaign` (the sandbox), the order's own (`inVehicle`, …), `noToolKit` or `noGasCan`
+(the hand gives no such cursor), `noVehicle` (no vehicle on the tile at ground level, or the merc is on a roof), the
+hand item roll (`itemBroken`), `noPath`, `notEnoughAP` (the walk plus the crouch and 5 for a repair or 10 for a
 refuel). `previewAction` kinds `repair` and `refuel` give the cursor's walk and APs and, as `ok`, whether it turns good
 (`noVehicle` where it does not); the walk is the cursor's, beside a door maybe another tile than the order's (`25`).
 
@@ -1078,9 +1078,10 @@ slices (so a real-time driver paces it), `{events}` up to the slice in which one
 `autoresolveDone`: `bandage` leaves it open, as the original's two buttons leave the box up: it answers
 `data.bandaged` (`complete` or `incomplete`) with the reopened prompt's new id in `data.prompt` and its answers in
 `data.choices`; only `done` closes it and returns to the strategic flow. A battle that no fighter can
-change any more ends with the status `stalemate`, which the original never reaches (deviation "Autoresolve stalemate").
-Each of `autoresolve.cells` carries its fighter's battle voice, `voice`, the sound set his cries come from (a merc's
-voice id, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:275`, `:338`), and `female`.
+change any more ends with the status `stalemate`, which the original never reaches (original-bugs "Autoresolve
+stalemate"). Each of `autoresolve.cells` carries its fighter's battle voice, `voice`, the sound set his cries come from
+(a merc's voice id, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:275`, `:338`), and
+`female`.
 
 ### 8.11 Laptop and hiring
 

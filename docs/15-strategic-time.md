@@ -82,8 +82,8 @@ second: a box anywhere, the shop and the laptop screens (`Tactical/ShopKeeper_In
 (`Strategic/StrategicMap.cc:839`), autoresolve's screen. As the decision takes no ticks, a step or an order that leaves
 one up restarts the second at the `realMs` that stands until it is resolved, so the next second, or the next compressed
 slice, comes as late after it as in the original. A refusal that stands for an OK box changes nothing (deviation "Prompt
-time"); a page's own screens and menus hold time without restarting the second (gaps "Client screens' world-clock
-second").
+time"); a page's own screens and menus hold time without restarting the second (deviations "Client screens'
+world-clock second").
 
 **What stops the clock.** Turn-based combat (world time stands, ticks run), a pause, X0 or stopped compression, and the
 `autoresolve` and `laptop` flows. Auto-bandage pauses the game for the whole mode through its sector hooks and at its

@@ -106,8 +106,8 @@ everyone else just stops being neutral and keeps his side, where vanilla also se
 
 **Doors.** The `door` command returns the menu as data and offers `lock`, which the original's menu lacks; our merc gets
 vanilla's menu before closing an open door (deviations "Door menu", "Closing an open door"). A trap check before a menu
-action charges the open-door APs where the original reads past its table (deviation "Trap check cost of menu actions").
-An order to open or close a door, container or switch records the structure's ID when it starts
+action charges the open-door APs where the original reads past its table (original-bugs "Trap check cost of menu
+actions"). An order to open or close a door, container or switch records the structure's ID when it starts
 (`TileEngine/Interactive_Tiles.cc:78`), and the opening codes 494 and 495 handle only the structure of that ID on its
 tile (`:98`, `doors/door-actions.ts`), a native save's action included (`14`). Arriving, the soldier looks for an
 openable on the tile (`Tactical/Overhead.cc:829`; `doors/door-command.ts`): short of the APs of his door handle code

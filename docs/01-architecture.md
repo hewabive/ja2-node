@@ -60,7 +60,7 @@ gitignored.
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | **The behaviour reference is JA2 Stracciatella with default settings**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Every deliberate difference is an entry in `deviations.md` | The same JA2 without bugs such as "bandaging raises the to-hit penalty" |
+| D1 | **The behaviour reference is JA2 Stracciatella with default settings**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original | The same JA2 without bugs such as "bandaging raises the to-hit penalty" |
 | D2 | **The simulation core is separate from presentation**: deterministic, no DOM and no Node API, no mutable module state (several sessions share a process), serializable: the snapshot codec (`src/sim/snapshot`) writes the whole session and restores it exactly. The client derives sound, music and video from events and view frames; the server computes the music mode outside `sim` (`src/protocol/music.ts`) | Tests, headless runs, comparison with the original, saves, replays |
 | D3 | **One game time: integer milliseconds on a fixed 5 ms tick** (`TICK_MS`, `src/sim/clock.ts`), the original's overhead pass; every timer of the original runs on ticks with its value (§3.3) | Outcomes independent of FPS and machine speed |
 | D4 | **Animations enter the simulation as data**: `ja2bin.dat` and `gAnimControl` become timelines; the simulation steps the logic timeline and runs the gameplay opcodes at their frames, the views take sprite frames and sound codes from the presentation timeline (§3.4). No sprite enters the simulation | The original resolves shots, deaths and doors on animation frames; durations are numbers the simulation computes instead of waiting |
@@ -485,8 +485,8 @@ scripts run the same inputs through ja2-node, and `compare-all.sh` is the full r
 (hit chance, path cost, visibility, AI decisions) with the native build's dumps. `pnpm gates` picks the gates a change
 can affect (`32` §2.6).
 
-Every deliberate difference from the original is a row of `deviations.md`, everything not ported yet a row of
-`gaps.md`.
+Every deliberate difference from the original is a row of `deviations.md`, or of `original-bugs.md` when the
+original's outcome is a bug ja2-node does not reproduce; everything not ported yet is a row of `gaps.md`.
 
 ---
 
@@ -556,6 +556,7 @@ Files are `docs/NN-<name>.md`. Two kinds:
 | `34` throwing-and-physics | Throws, launchers, item physics, duds |
 | `35` npc-actions-and-schedules | NPC actions, NPC presence between sector loads, schedules, civilian groups, keys, locks and doors |
 | `deviations.md` | Every deliberate difference from the original |
+| `original-bugs.md` | Bugs of the original ja2-node does not reproduce: crashes, hangs, undefined behaviour, gameplay bugs fixed by decision |
 | `gaps.md` | Behaviour not ported yet, code that does not follow `CLAUDE.md` yet |
 | `test-stability.md` | Tests that fail without a code change: rules and open cases |
 | `releases.md` | Release notes |

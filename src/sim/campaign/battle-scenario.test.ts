@@ -421,7 +421,7 @@ describe('autoresolve from the strategic state', () => {
     expect(c.state.flow).toBe('autoresolve');
   });
 
-  it('ends a battle of unconscious fighters on both sides in a stalemate the close settles: no side wins, the enemies below OKLIFE die, the mercs lie on (deviation "Autoresolve stalemate")', () => {
+  it('ends a battle of unconscious fighters on both sides in a stalemate the close settles: no side wins, the enemies below OKLIFE die, the mercs lie on (original-bugs "Autoresolve stalemate")', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
     landFirstSquad(c);
     advance(c, { idle: true }, 20_000);

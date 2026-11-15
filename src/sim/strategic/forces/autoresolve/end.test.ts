@@ -158,7 +158,7 @@ describe('isBattleOver', () => {
   });
 });
 
-describe('a battle no fighter can change any more (deviation "Autoresolve stalemate")', () => {
+describe('a battle no fighter can change any more (original-bugs "Autoresolve stalemate")', () => {
   const UNCONSCIOUS = 10;
   const IN_FLIGHT_MS = 500;
   const STALL_BUDGET = { maxSlices: 100 };

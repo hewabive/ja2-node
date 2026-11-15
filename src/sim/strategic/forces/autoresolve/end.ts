@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Auto_Resolve.cc RetreatButtonCallback, MercCellMouseClickCallback, IsBattleOver (and the end of a
-// @src battle no fighter can change any more, which ProcessBattleFrame runs for ever: deviation "Autoresolve stalemate",
+// @src battle no fighter can change any more, which ProcessBattleFrame runs for ever: original-bugs "Autoresolve stalemate",
 // @src 2026-11-08), AttemptPlayerCapture, AcceptSurrenderCallback, RejectSurrenderCallback.
 
 import { u8, u16 } from '../../../../core/int.ts';

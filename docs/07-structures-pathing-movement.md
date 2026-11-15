@@ -203,6 +203,6 @@ Inferred from reading the source:
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
 Not ported: none known.
-Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Creature and
-bloodcat stub bodies", "Frame timers", "Continue a move", "Fence landing on the final tile", "Prone hop facing the
-fence".
+Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Creature and bloodcat stub bodies",
+"Frame timers", "Continue a move". Bugs of the original it does not reproduce: original-bugs "Fence landing on the final
+tile", "Prone hop facing the fence".

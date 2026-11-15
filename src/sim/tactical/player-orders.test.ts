@@ -385,7 +385,7 @@ describe('jumping', () => {
     expect(open.dispatch({ type: 'jump', soldier: 0 }).data).toEqual({ refusal: 'noFence' });
   });
 
-  it('jumps a fence a prone merc already faces, getting up as a turn to it would (deviation "Prone hop facing the fence")', () => {
+  it('jumps a fence a prone merc already faces, getting up as a turn to it would (original-bugs "Prone hop facing the fence")', () => {
     const fence = ORIGIN + EAST;
     const sim = simWith((structures) =>
       structures.add(fence, 0, syntheticStructure(StructureFlags.FENCE, Orientation.NONE, { height: 1 })),

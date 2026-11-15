@@ -115,7 +115,7 @@ const VEHICLE_STATUS_FLAGS =
   SoldierStatusFlags.VEHICLE | SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER | SoldierStatusFlags.PAUSEANIMOVE;
 const SQUAD_PROBES: ReadonlySet<string> = new Set(['vehicleboard', 'vehicleexit']);
 const STATE_AFTER_EXIT_NOT_COMPARED: ReadonlySet<string> = new Set(['vehicleleavesector']);
-const VEHICLE_SECTOR_EXIT_DEVIATION = 'only OKForSectorExit compared: deviations "Vehicle sector exit"';
+const VEHICLE_SECTOR_EXIT_DEVIATION = 'only OKForSectorExit compared: original-bugs "Vehicle sector exit"';
 
 const PENDING_TOOL_CODES: Readonly<Record<string, number>> = { enterVehicle: 12, repair: 13, refuel: 17 };
 const NO_PENDING_ACTION = 255;

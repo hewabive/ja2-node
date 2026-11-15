@@ -75,6 +75,8 @@ into `docs/`.
   the npm package and its `ja2-node` command.
 - `docs/33`–`35`: hits and damage; throwing and item physics; NPC actions, presence and schedules.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
+- `docs/original-bugs.md`: the original's bugs ja2-node does not reproduce (crashes, hangs, undefined behaviour, and
+  gameplay bugs fixed only by the maintainer's decision); every other bug of the original is kept (D1).
 - `docs/gaps.md`: behaviour not ported yet and code that does not follow this file yet; add to it when leaving
   something out, drop the entry when it is done.
 - Bugs and planned work beyond porting the original (agent API, client, server, tooling) are GitHub issues

@@ -48,7 +48,7 @@ team turn: AI list built                                turns/turns.ts, turns/ai
 time in AI list order, so the draws of a team turn follow that order. An action is never re-decided: it ends at its
 completion hook (path exhausted, the turn or stance animation done, the climb or radio opcode, the attack busy count at
 0) or is cancelled by a new situation. A new situation waits while the attack busy count is up, except for a shooter
-once no bullet flies and his attack animation has released its own count (deviation "New situation during a gun
+once no bullet flies and his attack animation has released its own count (original-bugs "New situation during a gun
 attack"), and for a tosser once nothing is in the air, whose busy count it clears. An action the soldier
 cannot afford is kept and halts him: a GREEN or YELLOW soldier's move resumes next turn, a RED or BLACK soldier rethinks
 at his turn start.
@@ -147,7 +147,7 @@ knife (the probes cover `CalcBestShot`, the throwing knife's choice in BLACK wit
 and named NPCs, boxing, the creature AI, and a tank's RED decisions with its look-around, `tools/oracle/README.md`):
 - The turn and stance changes ending early and the APs a repeated turn drains.
 - The AI's knife throw once decided, and the queued second throw that finds an empty hand and runs up to punch.
-- The BLACK loop of a civilian whose `CanNPCAttack` fails other than for want of a weapon (deviation "Armed civilian
+- The BLACK loop of a civilian whose `CanNPCAttack` fails other than for want of a weapon (original-bugs "Armed civilian
   without ammo").
 - A cowering civilian in combat standing up to run at each turn start and cowering again after it.
 - A tired GREEN or YELLOW soldier deciding again on every pass.
@@ -159,5 +159,5 @@ and named NPCs, boxing, the creature AI, and a tank's RED decisions with its loo
   (`tools/oracle/README.md` "Bombs") check the triggers the maps give, the chosen one with his keys, `PanicAI`, the
   pull and the detonator.
 
-Kept differences: deviations "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated
-path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies".
+Kept differences: deviations "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub
+bodies"; original-bugs "Armed civilian without ammo", "AI climb that cannot start".

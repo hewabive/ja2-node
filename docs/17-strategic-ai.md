@@ -171,5 +171,6 @@ reading the source:
   placement decisions are covered by `defence`.
 - The order of the two `Random` calls of `TacticalCreateEnemySoldier`'s noise target, which the compiler decides.
 
-Deviations of this domain: "Strategic AI undefined behaviour", "Strategic AI PD placement pass", "Strategic AI debug
-toggles", "Meanwhile scene without its files", "Sandbox population", "Fourth captive".
+Deviations of this domain: "Strategic AI PD placement pass", "Strategic AI debug toggles", "Meanwhile scene without its
+files", "Sandbox population". Bugs of the original it does not reproduce: original-bugs "Strategic AI undefined
+behaviour", "Fourth captive".

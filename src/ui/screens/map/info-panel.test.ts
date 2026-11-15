@@ -20,7 +20,7 @@ describe('the repair target on the map screen (MapScreen.cc DrawCharacterInfo)',
     expect(vehicleUnderRepairName(text, [hummer], HUMMER_ID)).toBe('pShortVehicleStrings[1]');
   });
 
-  it('prints no name for the soldier id the toolkit stores, which names no vehicle (deviation "Toolkit repair in tactical")', () => {
+  it('prints no name for the soldier id the toolkit stores, which names no vehicle (original-bugs "Toolkit repair in tactical")', () => {
     expect(vehicleUnderRepairName(text, [hummer], HUMMER_SOLDIER_ID)).toBe('');
   });
 });

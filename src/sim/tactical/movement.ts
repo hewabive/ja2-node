@@ -15,7 +15,7 @@
 // @src SetSoldierGridNo's skips for a driver or passenger, RemoveSoldierFromGridNo, EVENT_InternalSetSoldierPosition's
 // @src mirror and Vehicles.cc UpdateAllVehiclePassengersGridNo (2026-11-05); HandleGotoNewGridNo's walk on after a door for
 // @src our merc in auto-bandage, and the plain opening a merc of ours who never chose how to open a door gets there
-// @src (deviation "Door on the way in auto-bandage", 2026-11-06); ExecuteOverhead's arrival handling an AI soldier with
+// @src (original-bugs "Door on the way in auto-bandage", 2026-11-06); ExecuteOverhead's arrival handling an AI soldier with
 // @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06); HandleNextTile standing a crawler or swatter up into
 // @src water (2026-11-07); SetSoldierGridNo's LOADING_SAVED_GAME branch, no step on to the destination (2026-11-08);
 // @src SetSoldierGridNo's strategic insertion at the new tile on every step (2026-11-09).

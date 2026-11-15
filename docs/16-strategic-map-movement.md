@@ -92,9 +92,9 @@ persistent PBI holds the load at the placement prompt until `done` (`19`, `29` �
 and the exit menu's rules and refuses a choice the menu would not offer (deviation "Exit dialog"); the client's exit
 hint runs the same check over the player's knowledge (`src/sim/hints/exit-sector.ts`, D16). The merc wait counts 2500
 game ms (deviation "Waiting for mercs to exit"). A vehicle of ours that leaves drives off as its own group with
-everybody aboard, where the original sends its soldier alone in a squad's foot group (deviation "Vehicle sector exit").
-The lair's "Travel to surface?" question is `exitSector` with `warp`, offered through the view because which lair was
-destroyed is hidden state (`surfaceWarp`, `strategic/creatures/creatures.ts`).
+everybody aboard, where the original sends its soldier alone in a squad's foot group (original-bugs "Vehicle sector
+exit"). The lair's "Travel to surface?" question is `exitSector` with `warp`, offered through the view because which
+lair was destroyed is hidden state (`surfaceWarp`, `strategic/creatures/creatures.ts`).
 
 **Edgepoints are generated where the map has none.** Original maps load their saved edgepoints; stub maps carry none,
 so they always run the generator, which is ported literally and matched against the oracle.
@@ -143,7 +143,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The way to an exit grid is searched as a lone walker's through people (`FindGridNoFromSweetSpotCloseToExitGrid`'s zeroed dummy soldier), also for a vehicle, whose structure is fitted on the exit tile only: a vehicle finds an exit tile past a gap one tile wide | `tactical/sector-exit.test.ts` "finds a vehicle the exit tile past a gap …" |
 | The dummy soldier of that search has no keys, whatever the merc carries: a locked door on the way to the exit grid stops it for a merc with keys too | `tactical/sector-exit.test.ts` "floods past a closed door as the zeroed dummy soldier …" |
 | An exit grid on a tile inside a room cannot be taken until a merc has seen that tile (`Tactical/Handle_UI.cc:839`): the cursor stays the move cursor there, and a click is a move, which the exit grid's tile blocks; `exitSector` refuses any such tile as `notRevealed`, whether or not it holds an exit grid | `campaign/sector-flow.test.ts` "refuses an exit grid on a tile inside a room no merc has seen yet …", `src/ui/screens/tactical/tactical-controls.test.ts` "keeps the move cursor over the A10 stairs …" |
-| A vehicle's riders always take the travel insertion code, where walkers keep an edge-index code (`Strategic_Movement.cc:1245`, `:1285`): a vehicle that leaves by the edge for a quick traversal (deviation "Vehicle sector exit") enters at the entry point of its side, not across from where it left | `campaign/vehicle-sector-exit.test.ts` "loads the next sector through a town …" |
+| A vehicle's riders always take the travel insertion code, where walkers keep an edge-index code (`Strategic_Movement.cc:1245`, `:1285`): a vehicle that leaves by the edge for a quick traversal (original-bugs "Vehicle sector exit") enters at the entry point of its side, not across from where it left | `campaign/vehicle-sector-exit.test.ts` "loads the next sector through a town …" |
 
 Not pinned yet:
 - The exit check of a merc away from the edge applies the underground rule from the second level only (`z > 1`): on a

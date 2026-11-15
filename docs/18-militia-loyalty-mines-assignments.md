@@ -67,10 +67,10 @@ the day drop in `tactical/drugs.ts` (`12` §5).
 **Prompts and boxes.** The militia payment and continue boxes are decision prompts answered yes, no or later; a
 deferred one waits in `economy.prompts` with compression stopped (deviation "Militia payment and continue prompts").
 Refusals are `militiaTrainingRejected` events, the listed mercs a yes cannot set a `trainersNotAssigned` event (two
-log lines); a failure listed before the merc whose sector is unpaid does not keep the payment prompt from opening (gaps
-"Militia list failure before the payment box"); "assignment done", sleep, wake and tiredness are events the client
-turns into boxes (deviations "Assignment presentation", "Update box timing"). Their lines, the done line and the tired
-complaint (NEED_SLEEP, ME_TOO after the first), go through the dialogue queue like the original's
+log lines); a failure listed before the merc whose sector is unpaid does not keep the payment prompt from opening
+(original-bugs "Militia list failure before the payment box"); "assignment done", sleep, wake and tiredness are events
+the client turns into boxes (deviations "Assignment presentation", "Update box timing"). Their lines, the done line and
+the tired complaint (NEED_SLEEP, ME_TOO after the first), go through the dialogue queue like the original's
 `TacticalCharacterDialogue` (`EconomyHooks.tacticalCharacterDialogue`, `campaign/economy-lines.ts`, `24`); so does a head
 miner's strategic line (`headMinerDialogue`), which the queue says as a `headMinerQuote`.
 
@@ -98,7 +98,7 @@ assignment. In turn-based combat the clock stands still, so assignments make no 
 through the crew port wherever it is, any other through the `loadedSectorSoldier` hook, since such a vehicle is in the
 list only while its sector is loaded (`vehicle-repair.ts`). The helicopter has no soldier and is never repaired. A
 toolkit used on a vehicle in tactical sets the repair under the vehicle soldier's id, which names no vehicle, so that
-mechanic repairs nothing and finishes at the next hour (deviation "Toolkit repair in tactical", `25`).
+mechanic repairs nothing and finishes at the next hour (original-bugs "Toolkit repair in tactical", `25`).
 
 **Strategic flow stands for compression.** Squad mercs heal at the resting rate while time is compressed; the map
 screen always compresses and tactical never does, so ja2-node asks whether the flow is strategic (deviation "Time
@@ -130,10 +130,10 @@ balance. Every transaction is a `moneyChanged` event (deviation "Finance ledger"
 `sector-flow.ts` → `damageSamIfFound`) and get it back only from the Queen's reinforcements (`ai/orders.ts`). The
 explosion swaps the terminal for its damaged graphic like any structure (`12`); the repair's `samRepaired` hook swaps it
 back, in the loaded map or in the unloaded sector's stored map changes that its next load replays
-(`campaign/sam-repair.ts`; deviation "SAM repair over a working terminal"). The terminal's tile and graphic come from the site's two tiles
-(`src/content/strategic/map-tables.ts`, as `src/externalized/strategic/SamSiteModel.cc:16`); the tile tables are part
-of the tactical content, so the repair needs no map loaded. Air control is recomputed on every control change, SAM hit
-and repair; the helicopter's use of it is `16`.
+(`campaign/sam-repair.ts`; original-bugs "SAM repair over a working terminal"). The terminal's tile and graphic come
+from the site's two tiles (`src/content/strategic/map-tables.ts`, as `src/externalized/strategic/SamSiteModel.cc:16`);
+the tile tables are part of the tactical content, so the repair needs no map loaded. Air control is recomputed on every
+control change, SAM hit and repair; the helicopter's use of it is `16`.
 
 **Randomness.** Draws keep the original's order on `main` and `pre` (`01` §3.6). Stat changes from doctoring, repair,
 training and militia training draw `pre` (`33`); on `main` come the mine setup and head miner placement loops, the

@@ -75,9 +75,9 @@ attacker and target at distance 0, and ja2-node's `NOWHERE` is −1 (deviation "
 cells hold the roster's soldiers, which AR changes in place (life, bleeding, ammo, armour, profile counters). Militia,
 enemy and creature soldiers are created for the battle (id 255, on no team) and live in their cells. An AR of a battle
 already loaded in tactical (the militia hand-off, the summary panel's Autoresolve) copies the live tactical enemies per
-class and unloads the sector; copies that run out are created fresh where the original crashes (deviation
+class and unloads the sector; copies that run out are created fresh where the original crashes (original-bugs
 "Autoresolve copies of tactical enemies"). At most 20 mercs, 20 militia and 32 enemies; a victory eliminates the enemies
-beyond 32 (deviation "Autoresolve cell counts").
+beyond 32 (original-bugs "Autoresolve cell counts").
 
 **Injected environment.** Every AR function takes an `AutoresolveEnv`: content, profiles, `ArRng {pre, main, fx}`, the
 world day and capture flag, and hooks for surrender, capture, kills, the robot and the retreat. Tests and the oracle
@@ -169,4 +169,4 @@ battle flow on imported saves, and compares the encounter code. Inferred from re
 - That unloading the loaded battle sector before AR draws nothing beyond the preserved soldiers' `PreRandom(2)`.
 - Q30: the oracle's battles run with a surface map loaded last; no probe places the dead after a basement.
 
-Kept differences: deviations "Autoresolve stalemate", "Visible area of the map loaded last".
+Kept differences: deviations "Visible area of the map loaded last"; original-bugs "Autoresolve stalemate".

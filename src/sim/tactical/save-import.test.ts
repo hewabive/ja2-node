@@ -955,7 +955,7 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
     expect([walker.state, walker.oldState, walker.pendingAnimation]).toEqual([st.WALKING, kneelDown, NO_PENDING_ANIMATION]);
   });
 
-  it('lays a soldier saved at the end of a death twitch down in his stance: the go-back of code 496 would start the twitch the restart made his previous animation again and again (deviation "Twitch going back to itself")', () => {
+  it('lays a soldier saved at the end of a death twitch down in his stance: the go-back of code 496 would start the twitch the restart made his previous animation again and again (original-bugs "Twitch going back to itself")', () => {
     const twitch = anim(content, 'GENERIC_HIT_DEATHTWITCHB');
     const save = syntheticSave({
       soldiers: [

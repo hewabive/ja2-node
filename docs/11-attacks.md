@@ -89,8 +89,8 @@ per update.
 **Melee.** The strike frame hits whoever stands on the tile then; the hit follows as a game event. A soldier out of
 reach walks up first (`walkUpForMelee`, `combat/melee.ts`), the AI's and ours alike; the agent's `attack` takes the
 click's checks before it (`combat/melee-order.ts`). A punch at a tile its target has left releases the hold at once,
-where the original leaks it until its 25 s watchdog (deviation "Melee hold leaks"); a prone attacker who turns is not
-laid down mid-attack (deviation "Melee from a prone turn").
+where the original leaks it until its 25 s watchdog (original-bugs "Melee hold leaks"); a prone attacker who turns is
+not laid down mid-attack (original-bugs "Melee from a prone turn").
 
 **Refusals.** Every order of ours that goes through `HandleItem` (`attack`, `plantBomb`, the tile tools, `useRemote`)
 is its click, `fFromUI` (`combat/player-refusals.ts`): after the hand item roll a merc refuses with his refusing line
@@ -167,6 +167,6 @@ draw nothing. Inferred from reading the source:
   the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Melee hold
-leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand order",
-"Watchdogs".
+Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Attack refusals",
+"Cosmetic draws in attacks", "Dud test operand order", "Watchdogs". Bugs of the original it does not reproduce:
+original-bugs "Melee hold leaks", "Melee from a prone turn".

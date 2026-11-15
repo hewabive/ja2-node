@@ -285,7 +285,7 @@ describe('walking', () => {
     expect(walk(false)).toBe(START);
   });
 
-  it('opens a door on the way in auto-bandage for a merc of ours who never chose how to open one (deviation "Door on the way in auto-bandage")', () => {
+  it('opens a door on the way in auto-bandage for a merc of ours who never chose how to open one (original-bugs "Door on the way in auto-bandage")', () => {
     const t = behindClosedDoor();
     const s = spawn(t, gridNo(80, 82));
     expect(s.doorHandleCode).toBe(HandleDoor.DENIED);
@@ -403,7 +403,7 @@ describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.
     expect([enemy.gridNo, t.turn.currentTeam]).toEqual([LANDING, Team.OUR]);
   });
 
-  it('lets an enemy who crawls into a fence he already faces hop it and crawl on, so the enemy turn ends (deviation "Prone hop facing the fence")', () => {
+  it('lets an enemy who crawls into a fence he already faces hop it and crawl on, so the enemy turn ends (original-bugs "Prone hop facing the fence")', () => {
     const base = syntheticWorld(doorCosts, placeFence);
     const sim = new TacticalSim({ ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 3);
     const t = sim.state;
@@ -421,7 +421,7 @@ describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.
     expect([enemy.gridNo, t.turn.currentTeam]).toEqual([BEYOND_LANDING, Team.OUR]);
   });
 
-  it('gets a crawler who faces the fence up to a crouch, as turning to it would, so he hops it and crawls on (deviation "Prone hop facing the fence")', () => {
+  it('gets a crawler who faces the fence up to a crouch, as turning to it would, so he hops it and crawls on (original-bugs "Prone hop facing the fence")', () => {
     const t = tactical(placeFence);
     const s = spawn(t, START);
     s.direction = s.desiredDirection = Direction.NORTH;

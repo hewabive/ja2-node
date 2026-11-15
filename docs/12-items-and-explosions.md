@@ -136,7 +136,7 @@ replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the vi
 (`29`). A change the original never writes to the temp file (the decals, made outside
 `ApplyMapChangesToMapTempFile`, and a pit's textures, §6) is `liveOnly`: it stays for the stay and in ja2-node saves but
 is left out of the sector diff (`sectorTempFileChanges`), so it is undone at the next entry as in the original; a native
-save never holds it (deviations "Wall decals after a load", "Pit tiles after a load"). The end piece's
+save never holds it (deviations "Pit tiles after a load"; original-bugs "Wall decals after a load"). The end piece's
 insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
 roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
@@ -606,10 +606,10 @@ checked against the native build:
   (`Tactical/Turn_Based_Input.cc:2142`): by reading, the box drains every key event before its callback starts the
   mode (`MessageBoxScreen.cc:457-460`).
 
-Deviations of this domain: "Object union", "Item cursor", "Key ring
-cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
-pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
-draws in explosions", "Wall decals after a load", "Pit tiles after a load", "Pit falls of the computer's soldiers",
-"Drugs in the projection", "Mine locator", "Blue flag without a bomb",
-"Auto-bandage statics", "AI first aid without a path", "Door on the way in auto-bandage", "Auto-bandage", "Pending
-auto-bandage and client screens", "Auto-bandage key in a talk".
+Deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
+"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
+and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Pit tiles after a load", "Pit
+falls of the computer's soldiers", "Drugs in the projection", "Mine locator", "Auto-bandage statics", "Auto-bandage",
+"Pending auto-bandage and client screens", "Auto-bandage key in a talk". Bugs of the original it does not reproduce:
+original-bugs "Wall decals after a load", "Blue flag without a bomb", "AI first aid without a path", "Door on the way in
+auto-bandage".

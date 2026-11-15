@@ -43,7 +43,7 @@ the session: commands, tick hooks, view               campaign/talk-flow.ts (Tal
 | `narrative/converse.ts` | A conversation step, default answers, triggers, scripted walks, the panel, NPC-initiated talk |
 | `narrative/dialogue-queue.ts`, `talk-state.ts` | The queue, its events and line lengths; the session state |
 | `narrative/give.ts`, `campaign/give-flow.ts`, `tactical/give.ts` | The NPC's profile inventory and the dealer branch; the object the UI hands over; the give action and opcode 486 |
-| `tactical/robot-reload.ts` | Ammo given to the robot: the calibre check, the walk, `RELOAD_ROBOT` and opcode 756 (deviation "Robot reload without the reload") |
+| `tactical/robot-reload.ts` | Ammo given to the robot: the calibre check, the walk, `RELOAD_ROBOT` and opcode 756 (original-bugs "Robot reload without the reload") |
 | `narrative/civ-quotes.ts`, `narrative/talkable.ts` | Civilian quotes and hints; who can be talked to |
 | `narrative/host.ts`, `campaign/talk-flow.ts` | The port the mechanics run on; `TalkFlow`, which builds it, runs the commands and tick hooks and serves the view |
 | `campaign/narrative/recruit-flow.ts`, `tactical/narrative/team-change.ts` | Recruiting, escorting and releasing; `ChangeSoldierTeam` |
@@ -110,8 +110,8 @@ queue to the end inside the command, since nothing ticks there without compressi
 
 **The talk context outlives the panel.** The last conversation's soldiers (`talk.soldiers {src, dest, srcProfile}`,
 the original's `gpSrcSoldier`, `gpDestSoldier`, `gubSrcSoldierProfile`) feed computed facts (`25`) and NPC request
-answers after the panel closed; ja2-node saves them (deviations "Talk context in saves", "Talk context after a load").
-A team change replaces the soldier by one with another id, so every reference follows the profile.
+answers after the panel closed; ja2-node saves them (deviations "Talk context in saves"; original-bugs "Talk context
+after a load"). A team change replaces the soldier by one with another id, so every reference follows the profile.
 
 **Mechanics over a port.** `src/sim/narrative/` works on `NarrativeHost` (facts, quests, actions, gives, merc lines,
 the tactical state, tick, day, the main stream), so it is tested without a campaign; `TalkFlow` builds the real host.
@@ -157,7 +157,7 @@ a dialogue queue (the sandbox, unit tests) the callback runs at once (deviation 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
 boxes", "Surrender in tactical combat"). `openShop` is talk plus Buy/Sell in one command (deviation "Talking to
-dealers"). Giving: deviations "Give command", "Giving to a dealer", "Returned items".
+dealers"). Giving: deviations "Giving to a dealer", "Returned items"; original-bugs "Give command".
 
 **Quest values 100 and 200.** A record's quest test reads past the quest array for these two values; ja2-node reads 0,
 as the oracle build does (deviation "Quest 100 and 200 in records").

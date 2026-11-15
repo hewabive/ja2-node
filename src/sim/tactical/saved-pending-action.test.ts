@@ -103,7 +103,7 @@ describe("a native save's pending action at the end of a walk no order started (
     ]);
   });
 
-  it('stands the merc at the end of a saved robot reload, which has no ammo to load, and the action is gone (deviation "Saved robot reload")', () => {
+  it('stands the merc at the end of a saved robot reload, which has no ammo to load, and the action is gone (original-bugs "Saved robot reload")', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 1, Team.OUR, TARGET_TILE, Direction.WEST, { body: Body.ROBOTNOWEAPON });
     const merc = outOfTheVehicle(sim, saved(MERC_RELOADROBOT));

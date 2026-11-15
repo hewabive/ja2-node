@@ -110,7 +110,7 @@ theft counter").
 
 **Fresh-process values.** Where the original reads what an earlier game of the same process left behind (the M.E.R.C.
 listing index, the progress Bobby Ray's first stock reads, the skill an empty I.M.P. list returns), ja2-node uses what a
-fresh process has (deviation "I.M.P. empty skill list").
+fresh process has (original-bugs "I.M.P. empty skill list").
 
 **Text is the server's.** Mail subjects and bodies, the I.M.P. report, history and ledger labels and the personnel blocks
 are rendered in `src/server/` from the user's data; the simulation keeps offsets, codes and amounts. Stubs

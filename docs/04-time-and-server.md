@@ -148,8 +148,8 @@ fields while auto-bandage runs, as its pause lasts until the player ends the mod
 - **Holds.** A viewer holds time while its page shows something that pauses the game (`28` §3): `hold {reason, held}`
   per connection (`Session.holdTime`). While any viewer holds, real-time batches run no ticks, log nothing and drop the
   elapsed time, as on a decision, so one page's box is not undone by another page; a connection's holds go with it.
-  Unlike a decision, a hold leaves the world clock's second as it stood (gaps "Client screens' world-clock second").
-  Every change of the driver or of the held state reaches every viewer as `time {driver, held}`.
+  Unlike a decision, a hold leaves the world clock's second as it stood (deviations "Client screens' world-clock
+  second"). Every change of the driver or of the held state reaches every viewer as `time {driver, held}`.
 - **No viewer, no real time.** When the last subscriber leaves, the host switches a real-time driver to manual
   through its input queue, unless a viewer is back by then (`InProcessHost.subscribe`, `src/server/session-host.ts`);
   the switch is a logged `drive` input like any other.

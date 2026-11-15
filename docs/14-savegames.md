@@ -103,7 +103,7 @@ sector) keeps it until he enters a map or stops, holding the auto-bandage questi
 drop's seats too, and, for a give, every door or container opened on arrival. Boarding drops it as `EVENT_StopMerc`
 does unless he waits for a tile, also where the vehicle has no soldier on the loaded map
 (`stopAsBoardedAwayFromTheVehicle`); one kept past getting out of a vehicle becomes ja2-node's typed record at the end
-of his next walk and runs there (`saved-pending-action.ts`; deviation "Saved robot reload"; §3), all
+of his next walk and runs there (`saved-pending-action.ts`; original-bugs "Saved robot reload"; §3), all
 but `MERC_WAITFOROTHERSTOTRIGGER`, which no order sets. A save with no world only stands a climber up (deviation
 "Animations on load without a world"). The restart runs on the import's own `TacticalSim`, before the campaign exists,
 so the import records the first campaign hook it calls and `createSaveSession` refuses such a save, naming the soldier,
@@ -168,9 +168,9 @@ just started and loaded the file would hold it: the half of the last-known locat
 underground traversal flag, the current squad (the first, before the load's selections), the talk context, the strategic
 morale decay counter, Pablo's theft counter, the team change flag of a hit, the visible area and the rooms of the map
 loaded last, the meanwhile scheduled last, the bomb queue's setter and its sight check (deviations "Underground
-traversal flag", "Selection on load", "Talk context after a load", "Strategic morale decay counter", "Bobby Ray theft
+traversal flag", "Selection on load", "Strategic morale decay counter", "Bobby Ray theft
 counter", "Team change during a hit", "Visible area of the map loaded last", "Rooms of the map loaded last", "Last
-scheduled meanwhile"; `gPersonToSetOffExplosions`,
+scheduled meanwhile"; original-bugs "Talk context after a load"; `gPersonToSetOffExplosions`,
 `gfExplosionQueueMayHaveChangedSight`, `TileEngine/Explosion_Control.cc:68`). The clock starts unpaused (deviation
 "Pause state after an import"); the enemy-sighting pause of an enemy turn is not restored.
 
@@ -271,5 +271,6 @@ Inferred from reading the source:
   pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's status from the hand, a
   bullet saved stopped and the cursor item: no probe makes them.
 
-Other deviations of the import: "Ambient sound events", "Blood on the ground", "Corpse structure past its file",
-"Preserved soldier checksums", "Animations on load reaching the campaign".
+Other deviations of the import: "Ambient sound events", "Blood on the ground", "Preserved soldier checksums",
+"Animations on load reaching the campaign". Bugs of the original it does not reproduce: original-bugs "Corpse structure
+past its file".

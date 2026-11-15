@@ -125,7 +125,7 @@ scene ends with the captives free on one squad in N7 among the garrison; the pre
 
 **Captures.** The tactical loss, the tactical surrender and autoresolve share the capture sequence (`19`): the first
 capture sends the captives to Alma I13 (`HELD_IN_ALMA`), the next to N7 with the interrogation posted at the absolute
-world minute 10, which the next event pass finds long overdue. A fourth captive gets the first one's tile (deviation
+world minute 10, which the next event pass finds long overdue. A fourth captive gets the first one's tile (original-bugs
 "Fourth captive"). A sector load puts captives held outside I13 on one new squad; in I13 they stay prisoners
 (`powsFound`) until a door opens or an explosion gives them a path out (`powFreed`). Either way the load ends the Alma
 quest with the rescue experience for the current squad.
@@ -138,7 +138,7 @@ structure swap and the exit grid go into the sector's map changes, so the sector
 **The endgame is a phase machine on ticks.** `EndingState.phase` follows the original's timers and fades from a
 queen's death to the victory. The 2 s and 3 s wall-clock timers become 400 and 600 ticks, which also pass in
 turn-based combat; fades take no time; dialogue-queue callbacks mark the end of the quotes. After the squad moves up
-to P3, a missing Derek runs `ENDGAME_STATE_1` at once instead of locking the UI for good (deviation "Endgame without
+to P3, a missing Derek runs `ENDGAME_STATE_1` at once instead of locking the UI for good (original-bugs "Endgame without
 Derek"). The flow reported to agents is derived (`storyFlow`): `endgame` while an endgame flag is set, `ended` once
 the victory is recorded; commands are refused with `endgameInProgress`, then `campaignOver`. There is no restart: the
 session ends with `campaignWon` and `observe.ended`, whose `ending {miguelAlive, skyriderAlive}` picks the ending

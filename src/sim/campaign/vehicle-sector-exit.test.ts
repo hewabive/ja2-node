@@ -116,7 +116,7 @@ const SEATED = [
   [true, true, null, VehicleSeat.PASSENGER],
 ];
 
-describe('a vehicle of ours leaving the loaded sector with everybody aboard (deviation "Vehicle sector exit"; StrategicMap.cc JumpIntoAdjacentSector)', () => {
+describe('a vehicle of ours leaving the loaded sector with everybody aboard (original-bugs "Vehicle sector exit"; StrategicMap.cc JumpIntoAdjacentSector)', () => {
   async function offTheRoadsEastEdge(): Promise<{ readonly session: CampaignSession; readonly riders: readonly number[] }> {
     const session = await hummerIn(ON_THE_ROAD);
     const riders = aboard(session).map((m) => m.id);
