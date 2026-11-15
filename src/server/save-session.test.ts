@@ -36,6 +36,8 @@ const AIM_MERC_KIND = 1;
 const MINUTES_PER_DAY = 1440;
 const MINUTES_PER_HOUR = 60;
 const WINDOWS_WORLD_LOADED_OFFSET = 301;
+const CLOCK_GAME_PAUSED_OFFSET = 5;
+const CLOCK_PAUSE_DUE_TO_PLAYER_OFFSET = 31;
 const NATIVE_MAP_SCREEN = 9;
 const MAP_SCREEN_TICKS = 200 * 60;
 const dataDir = ORIGINAL_DATA_DIR;
@@ -45,6 +47,7 @@ const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter
 const savedWithWorld = (file: string) => parseSaveHeader(new Uint8Array(readFileSync(join(savesDir, file)))).header.worldLoaded;
 const worldSaves = saveFiles.filter(savedWithWorld);
 const noWorldSaves = saveFiles.filter((file) => !savedWithWorld(file));
+const encryption = parseSaveEncryptionTable(JSON.parse(readFileSync(join(PROJECT_DATA_DIR, SAVE_ENCRYPTION_PATH), 'utf8')));
 const TRAVEL_STEPS = 20_000;
 const IDLE_DICE = 100;
 const IDLE_ROLLERS_OF_THE_NATIVE_LOAD: Readonly<Record<string, readonly number[]>> = { 'SaveGame01.sav': [121], 'SaveGame07.sav': [0] };
@@ -88,6 +91,15 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
 
   function sectorName(sector: { readonly x: number; readonly y: number }): string {
     return `${String.fromCharCode(64 + sector.y)}${sector.x}`;
+  }
+
+  function pausedByThePlayer(file: string): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+    const clock = parseSaveGame(bytes, encryption).sections.find((s) => s.name === 'game clock');
+    if (!clock) throw new Error(`${file} has no game clock section`);
+    bytes[clock.offset + CLOCK_GAME_PAUSED_OFFSET] = 1;
+    bytes[clock.offset + CLOCK_PAUSE_DUE_TO_PLAYER_OFFSET] = 1;
+    return bytes;
   }
 
   it.skipIf(worldSaves.length === 0)(
@@ -137,6 +149,18 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(c.state.flow).toBe('tactical');
       expect(walker.soldier.placed).toBe(true);
       expect(advance(session, { ticks: 200 * 10 }, 200 * 10).reason).not.toBe('budget');
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    'continues a save made under the player\'s pause with the clock running and no player pause left, which nothing would clear (deviation "Pause state after an import")',
+    async () => {
+      const bytes = pausedByThePlayer([...saveFiles].sort()[0] ?? '');
+      expect(parseSaveGame(bytes, encryption).clock).toMatchObject({ gamePaused: true, pauseDueToPlayerGamePause: true });
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const clock = session.campaign.state.clock;
+      expect([clock.paused, clock.pauseLocked, clock.playerPause]).toEqual([false, false, false]);
+      expect(session.view().clock).toMatchObject({ paused: false, playerPaused: false });
     },
   );
 

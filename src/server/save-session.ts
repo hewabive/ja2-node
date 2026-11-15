@@ -34,6 +34,7 @@ import { dropLoadedSectorMapModificationsFile, importStrategicMap } from '../sim
 import { importNarrativeSave } from '../sim/strategic/narrative/save-import.ts';
 import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
+import type { WorldClock } from '../sim/strategic/time/world-clock.ts';
 import { type CampaignReach, campaignReachRefusal } from '../sim/tactical/campaign-reach.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
@@ -139,8 +140,7 @@ export async function createSaveSession(
   const report: SaveImportReport = { ...start.report, droppedOptions: imported.dropped };
   importStrategicTime(strategic, save);
   strategic.worldSector = worldSector ? { ...worldSector } : null;
-  strategic.clock.paused = false;
-  strategic.clock.pauseLocked = false;
+  startClockRunning(strategic.clock);
   const worlds = exists ? new WorldCache(read, exists) : null;
   const { campaign, roster } = assembleImportedCampaign(
     parts,
@@ -185,6 +185,12 @@ export async function createSaveSession(
   });
   session.initialMusic = initialMusic(musicModeOfNativeByte(save.generalInfo.musicMode), MusicMode.MAIN_MENU);
   return { session, report };
+}
+
+function startClockRunning(clock: WorldClock): void {
+  clock.paused = false;
+  clock.pauseLocked = false;
+  clock.playerPause = false;
 }
 
 function refuseImport(refusal: string | null): void {
