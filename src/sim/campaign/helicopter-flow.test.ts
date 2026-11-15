@@ -10,6 +10,7 @@ import { strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { strategicView } from '../../server/strategic-view.ts';
 import type { SimEvent } from '../events.ts';
+import { createItem, emptyObject } from '../items/object.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
@@ -20,6 +21,9 @@ import { addStrategicEventUsingSeconds } from '../strategic/time/event-queue.ts'
 import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
 import { anim } from '../tactical/anim-states.ts';
 import { states } from '../tactical/animation.ts';
+import { WeaponMode } from '../tactical/combat/types.ts';
+import type { TacticalContent } from '../tactical/content.ts';
+import { InvSlot } from '../tactical/inventory.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { type ProfileProgress, progressFromProfile } from '../tactical/profiles.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
@@ -307,6 +311,48 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(flying().state).toBe(anim(content, 'SLEEPING'));
     expect(c.dispatch({ type: 'wake', soldier: PASSENGER }).ok).toBe(true);
     expect(flying().state).toBe(states(content.animations).STANDING);
+  });
+
+  function boardedOnTheMapScreen(): { readonly c: CampaignSim; readonly merc: (id: number) => Soldier; readonly content: TacticalContent } {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: PASSENGER, vehicle: 'helicopter' }).ok).toBe(true);
+    const content = c.tactical?.state.content;
+    if (!content) throw new Error('no loaded sector');
+    const merc = (id: number) => {
+      const s = c.battle?.roster.get(id)?.soldier;
+      if (!s) throw new Error(`no merc ${id}`);
+      return s;
+    };
+    return { c, merc, content };
+  }
+
+  const item = (name: string) => createItem(kit.sectors.content.items, kit.sectors.content.items.byName.get(name)?.index ?? -1, 100);
+
+  it('drop the burst mode on the map screen as a gun without burst goes into the second hand, as a merc on the map does (HandleTacticalEffectsOfEquipmentChange, Interface_Panels.cc:3785; ReLoadSoldierAnimationDueToHandItemChange, Soldier_Control.cc:7432)', () => {
+    const { c, merc } = boardedOnTheMapScreen();
+    for (const id of [PASSENGER, ...WALKERS]) {
+      Object.assign(merc(id), { weaponMode: WeaponMode.BURST, doBurst: 1 });
+      merc(id).inv[InvSlot.HAND] = item('GLOCK_18');
+      merc(id).inv[InvSlot.SECOND_HAND] = emptyObject();
+      merc(id).inv[InvSlot.BIGPOCK1] = item('GLOCK_17');
+      expect(c.dispatch({ type: 'moveItem', soldier: id, from: 'bigPocket1', to: 'secondHand' })).toMatchObject({ ok: true });
+      expect([merc(id).weaponMode, merc(id).doBurst]).toEqual([WeaponMode.NORMAL, 0]);
+    }
+  });
+
+  it('raise the rifle that goes into the hand of a standing passenger on the map screen, still on no tile, and stand once the tactical screen plays it out (Soldier_Control.cc:7463, Overhead.cc:518)', () => {
+    const { c, merc, content } = boardedOnTheMapScreen();
+    const standing = states(content.animations).STANDING;
+    const aboard = () => [merc(PASSENGER).state, merc(PASSENGER).gridNo, merc(PASSENGER).placed];
+    merc(PASSENGER).inv[InvSlot.HAND] = emptyObject();
+    merc(PASSENGER).inv[InvSlot.BIGPOCK1] = item('C7');
+    expect(aboard()).toEqual([standing, NOWHERE, false]);
+    expect(c.dispatch({ type: 'moveItem', soldier: PASSENGER, from: 'bigPocket1', to: 'hand' })).toMatchObject({ ok: true });
+    expect(aboard()).toEqual([anim(content, 'RAISE_RIFLE'), NOWHERE, false]);
+    expect(c.dispatch({ type: 'tacticalScreen' }).ok).toBe(true);
+    for (let i = 0; i < 200 && merc(PASSENGER).state !== standing; i++) c.step();
+    expect(aboard()).toEqual([standing, NOWHERE, false]);
   });
 });
 

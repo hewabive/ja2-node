@@ -17,7 +17,7 @@
 // @src their order, stash-repack.ts, 2026-11-15); MAPInvClickCallbackPrimary's PlaceObject and
 // @src HandleTacticalEffectsOfEquipmentChange for a merc off the loaded map too (Tactical/Items.cc CollectKey,
 // @src UpdateRobotControllerGivenController, EnsureConsistentWeaponMode; Interface_Panels.cc the launcher reset,
-// @src 2026-11-15).
+// @src 2026-11-15), and its hand part by bInSector, for a helicopter passenger over the loaded sector too (2026-11-15).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -66,7 +66,7 @@ import { type InventoryItemView, inventoryView, slotView } from '../tactical/inv
 import { type RingSource, returnKeysToRing, sourceObject, takeSourceObject } from '../tactical/item-source.ts';
 import { type KeyRingWorld, moveKey } from '../tactical/key-ring-panel.ts';
 import { refuse } from '../tactical/refusal.ts';
-import { isCreatureOrBloodcat, OKLIFE, type Soldier } from '../tactical/soldier.ts';
+import { inSector, isCreatureOrBloodcat, OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import { afterPlacement, type PlacementEffects, soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import { combineStacks } from '../tactical/stack-cleanup.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -241,8 +241,13 @@ export class MapInventory {
   }
 
   #placedIn(s: Soldier): TacticalState | null {
+    const t = this.#inSectorOf(s);
+    return t && s.placed ? t : null;
+  }
+
+  #inSectorOf(s: Soldier): TacticalState | null {
     const t = this.#campaign.tactical?.state;
-    return t && s.placed && t.soldiers[s.id] === s ? t : null;
+    return t && inSector(s) && t.soldiers[s.id] === s ? t : null;
   }
 
   #context(s: Soldier): InventoryContext {
@@ -277,7 +282,7 @@ export class MapInventory {
       mapScreen: true,
       context: (s) => this.#context(s),
       equipmentChanged: (s, slot, oldItem, newItem) => {
-        const t = this.#placedIn(s);
+        const t = this.#inSectorOf(s);
         if (t) handleTacticalEffectsOfEquipmentChange(t, s, slot, oldItem, newItem);
         else resetAttachedModeWithoutLauncher(contentOf(campaign).items, s);
       },

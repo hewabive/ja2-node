@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc ReLoadSoldierAnimationDueToHandItemChange, IsRifle;
-// @src Interface_Panels.cc HandleTacticalEffectsOfEquipmentChange; Weapons.cc EnsureConsistentWeaponMode,
+// @src Interface_Panels.cc HandleTacticalEffectsOfEquipmentChange (its hand part for every soldier with bInSector, the
+// @src helicopter's passengers over the loaded sector included, 2026-11-15); Weapons.cc EnsureConsistentWeaponMode,
 // @src IsGunBurstCapable, HasLauncher, ChangeWeaponMode; Items.cc SwapHandItems, FindLaunchableAttachment.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
@@ -13,7 +14,7 @@ import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, soldierGotoStat
 import { WeaponMode } from './combat/types.ts';
 import { givingSoldierCancelServices } from './first-aid.ts';
 import { autoPlaceObjectExcluding, type InventoryContext, InvSlot, itemIn } from './inventory.ts';
-import type { Soldier } from './soldier.ts';
+import { inSector, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 function isRifle(items: ItemTable, item: number): boolean {
@@ -88,7 +89,7 @@ export function resetAttachedModeWithoutLauncher(items: ItemTable, s: Soldier): 
 
 export function handleTacticalEffectsOfEquipmentChange(t: TacticalState, s: Soldier, slot: number, oldItem: number, newItem: number): void {
   resetAttachedModeWithoutLauncher(t.content.items, s);
-  if (!s.placed) return;
+  if (!inSector(s)) return;
   if (slot === InvSlot.HAND || slot === InvSlot.SECOND_HAND) reloadSoldierAnimationDueToHandItemChange(t, s, oldItem, newItem);
 }
 
