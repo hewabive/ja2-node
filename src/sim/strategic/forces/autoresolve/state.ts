@@ -1,11 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Auto_Resolve.cc SOLDIERCELL, AUTORESOLVE_STRUCT, CELL_*, BATTLE_*, EnterAutoResolveMode,
-// @src CalculateAutoResolveInfo, CalculateSoldierCells (logic part).
+// @src CalculateAutoResolveInfo, CalculateSoldierCells (logic part); Tactical/Campaign.cc ChangeStat (the stat line and
+// @src QUOTE_EXPERIENCE_GAIN of an autoresolve StatChange, queued for the map screen, 2026-11-15).
 
 import type { CombatContext, ExperienceHooks, RandomStream, StatChangedEvent } from '../../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { wearsHeadGear } from '../../../tactical/inventory.ts';
+import type { NarrativePort } from '../../../tactical/narrative/port.ts';
 import type { ProfileProgress } from '../../../tactical/profiles.ts';
 import { Body, OKLIFE, type Soldier, SoldierClass } from '../../../tactical/soldier.ts';
 import { EncounterCode } from '../constants.ts';
@@ -171,6 +173,7 @@ export interface AutoresolveEnv {
   readonly world: AutoresolveWorld;
   readonly hooks: AutoresolveHooks;
   readonly experienceHooks?: ExperienceHooks;
+  readonly narrative?: NarrativePort;
 }
 
 export interface MercCellInput {
@@ -331,6 +334,7 @@ export function combatContext(env: AutoresolveEnv, ar: AutoresolveState): Combat
     turn: { attackBusyCount: 0 },
     events: { push: (e: StatChangedEvent) => ar.statEvents.push({ ...e, battleMs: ar.elapsedMs }) },
     ...(env.experienceHooks ? { experienceHooks: env.experienceHooks } : {}),
+    ...(env.narrative ? { narrative: env.narrative } : {}),
   };
 }
 

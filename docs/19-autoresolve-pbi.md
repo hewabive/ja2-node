@@ -81,7 +81,9 @@ beyond 32 (original-bugs "Autoresolve cell counts").
 
 **Injected environment.** Every AR function takes an `AutoresolveEnv`: content, profiles, `ArRng {pre, main, fx}`, the
 world day and capture flag, and hooks for surrender, capture, kills, the robot and the retreat. Tests and the oracle
-feed scripted or replayed streams through it.
+feed scripted or replayed streams through it. A campaign also passes its narrative port, so a stat change queues its
+message and experience line on the dialogue queue as in tactical; nothing plays the queue while AR runs, so they come
+on the map screen after the close (`Strategic/MapScreen.cc:1901`).
 
 **When the strategic layer learns.** Morale, loyalty and control run when the battle ends (`BattleFlow` `#endBattle`;
 `endOfBattle` only applies the time factors). Deaths, captures, militia losses and promotions, enemy deaths, corpses and

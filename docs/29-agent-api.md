@@ -433,11 +433,14 @@ his curse, as a hit does, none for a muted soldier, and `fellDown` drops his `ca
 
 **A stat change** of a merc of ours comes as `statChanged {soldier, stat, change}` as it happens, on the loaded map or
 off it (doctoring, repairing, training and militia training while no sector is loaded, `Strategic/Assignments.cc:1348`,
-`:1987`, `:2616`, `:2628`), and his panels flash it. When he says his experience line with it (`QUOTE_EXPERIENCE_GAIN`
-at every level, gained or lost, and for a quarter of the other stats but health, drawn on the talk session's cosmetic
-stream; `Tactical/Campaign.cc:583-614`), the message waits in the dialogue queue behind the lines queued before: that
-`statChanged` carries `queued`, and `statChangeAnnounced {soldier, stat, change}` brings the message as the queue
-reaches it, right before the line.
+`:1987`, `:2616`, `:2628`; shots, hits, dodges, wounds, kills and bandaging in an autoresolve battle,
+`Strategic/Auto_Resolve.cc:1050`, `:2801`, `:3003`, `:3172`), and his panels flash it. When he says his experience line
+with it (`QUOTE_EXPERIENCE_GAIN` at every level, gained or lost, and for a quarter of the other stats but health, drawn on
+the talk session's cosmetic stream, in an autoresolve battle on its own; `Tactical/Campaign.cc:583-614`), the message
+waits in the dialogue queue behind the lines queued before: that `statChanged` carries `queued`, and
+`statChangeAnnounced {soldier, stat, change}` brings the message as the queue reaches it, right before the line. Nothing
+plays the queue during an autoresolve battle, so its messages and lines come on the map screen once it is closed; a merc
+below `OKLIFE` by then gets the message without the line (`Tactical/Dialogue_Control.cc:748`).
 
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the

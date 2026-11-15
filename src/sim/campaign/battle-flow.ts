@@ -13,7 +13,9 @@
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
 // @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack; the bInSector of
-// @src the captures and the kill loop, the helicopter's passengers included, and IsTeamActive(ENEMY_TEAM) (2026-11-08).
+// @src the captures and the kill loop, the helicopter's passengers included, and IsTeamActive(ENEMY_TEAM) (2026-11-08);
+// @src Tactical/Campaign.cc ChangeStat (an autoresolve StatChange queues its stat line and QUOTE_EXPERIENCE_GAIN, which
+// @src the map screen's HandleDialogue plays after the battle, MapScreen.cc:1901, 2026-11-15).
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
@@ -128,6 +130,7 @@ import {
   strategicHandlePlayerTeamMercDeath,
 } from './merc-fate.ts';
 import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
+import { campaignNarrativePort } from './narrative-port.ts';
 import { preBattlePanel } from './pre-battle-panel.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
@@ -564,6 +567,7 @@ export class BattleFlow implements FateContext {
         battleRetreat: () => this.retreatFromAutoresolve(session.sector),
       },
       experienceHooks: this.campaign.experienceHooks,
+      narrative: campaignNarrativePort(this.campaign),
     };
   }
 
@@ -663,7 +667,10 @@ export class BattleFlow implements FateContext {
   #drainArEvents(session: AutoresolveSession): void {
     const ar = session.ar;
     for (const e of ar.events.splice(0)) this.emit(this.#projectArEvent(ar, e));
-    for (const e of ar.statEvents.splice(0)) this.emit({ type: 'statChanged', soldier: e.soldier, stat: e.stat, change: e.change });
+    for (const e of ar.statEvents.splice(0)) {
+      const queued = e.queued ? { queued: e.queued } : {};
+      this.emit({ type: 'statChanged', soldier: e.soldier, stat: e.stat, change: e.change, ...queued });
+    }
   }
 
   #projectArEvent(ar: AutoresolveState, e: ArEvent): EventWithoutTick {

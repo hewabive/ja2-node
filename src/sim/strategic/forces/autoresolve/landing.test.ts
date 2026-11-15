@@ -10,6 +10,7 @@ import {
 } from '../../../../../tests/support/autoresolve.ts';
 import { loadTestContent } from '../../../../../tests/support/tactical.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
+import { type NarrativePort, NO_NARRATIVE_PORT } from '../../../tactical/narrative/port.ts';
 import { Body } from '../../../tactical/soldier.ts';
 import { reduceCreatureDamage, targetHit } from './landing.ts';
 import { type ArCell, CellFlag } from './state.ts';
@@ -21,6 +22,9 @@ beforeAll(async () => {
 });
 
 const MERC_PROFILE = 7;
+const ATTRIBUTE_SUBPOINTS = 50;
+const STAT_LINE_ROLL = 0;
+const STAT_LINE_RANGE = 100;
 const OTHER_PROFILE = 8;
 
 function cell(cells: readonly ArCell[], i: number): ArCell {
@@ -66,6 +70,29 @@ describe('targetHit', () => {
     targetHit(arEnv(content, { pre, fx, profiles }), ar, merc, 0);
     expect(pre.requested).toEqual([100, 100, 100, 100, 100]);
     expect(fx.requested).toEqual([8]);
+  });
+
+  it('queues the line of a stat point through the campaign\'s narrative port, its quarter roll drawn on the cosmetic stream (ChangeStat, deviation "Autoresolve cosmetic draws")', () => {
+    const { ar, profiles } = battle();
+    const merc = cell(ar.mercs, 0);
+    merc.attackers[0] = { side: 'enemy', index: 0 };
+    merc.hitDamage[0] = 0;
+    const progress = profiles.get(MERC_PROFILE);
+    if (!progress) throw new Error('no profile');
+    progress.gains.agility = ATTRIBUTE_SUBPOINTS - 1;
+    const said: [number, string, number][] = [];
+    const narrative: NarrativePort = {
+      ...NO_NARRATIVE_PORT,
+      sayStatChange: (s, stat, change) => said.push([s.id, stat, change]) > 0,
+      cosmeticPick: () => {
+        throw new Error('the roll belongs to the cosmetic stream');
+      },
+    };
+    const fx = scripted([], STAT_LINE_ROLL);
+    targetHit({ ...arEnv(content, { pre: scripted([], 0), fx, profiles }), narrative }, ar, merc, 0);
+    expect(fx.requested).toEqual([STAT_LINE_RANGE, 8]);
+    expect(said).toEqual([[merc.soldier.id, 'agility', 1]]);
+    expect(ar.statEvents).toEqual([expect.objectContaining({ soldier: merc.soldier.id, stat: 'agility', change: 1, queued: true })]);
   });
 
   it('credits the kill to the slot owner and one assist from the other slots', () => {
