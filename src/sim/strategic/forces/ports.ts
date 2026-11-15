@@ -115,6 +115,7 @@ export interface TacticalWorldPort {
   addedToSquad?(id: number, squad: number): void;
   rebuildCurrentSquad?(): void;
   tacticalCharacterDialogue?(mercId: number, quote: number): void;
+  handleImportantPbiQuote?(mercId: number): void;
   readonly loadedVehicles?: LoadedSectorVehicles;
 }
 

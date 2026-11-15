@@ -1058,12 +1058,16 @@ The events the original pairs with `StopTimeCompression` or a box stop a strateg
 
 Rules: `19`; `src/sim/campaign/battle-flow.ts`, `pre-battle-panel.ts`; views `src/server/battle-view.ts`. The
 `preBattle` prompt freezes time until `answer` (deviation "Pre-battle interface"); saving is refused while it is open,
-as the original disables the options button. Automatic starts open no prompt: a `preBattle {autoStart: true, panel}`
-event carries what the panel showed with Autoresolve pressed, and autoresolve begins. The OK box the original opens
-before the panel of an arrival comes as the event's `notice`: `bloodcatAmbush`, `bloodcatLair` or
-`unconsciousMercsAttacked` (no merc able to fight and no militia); an invasion's box is the `invasion` event.
-`showBattle` opens the non-persistent panel where the original calls `InitPreBattleInterface(0, false)` (a click on the
-battle sector while the locator is on, a compression attempt during a tactical battle), with its side effects;
+as the original disables the options button. An arrival that brings a battle first has a merc of the group say the
+enemy-presence line (`mercQuote` id 59, `HandleImportantPBIQuote`) with the game paused and locked, and the prompt and
+its `preBattle` event come once the line has ended: `advance` runs through it (a strategic advance holds the stop of
+compression until then) and stops with `decision`, and `skipLine` cuts it short. A tactical traversal into enemies opens
+no panel; the merc drawn for it says the line as the new sector loads. Automatic starts open no prompt: a
+`preBattle {autoStart: true, panel}` event carries what the panel showed with Autoresolve pressed, and autoresolve
+begins. The OK box the original opens before the panel of an arrival comes as the event's `notice`: `bloodcatAmbush`,
+`bloodcatLair` or `unconsciousMercsAttacked` (no merc able to fight and no militia); an invasion's box is the `invasion`
+event. `showBattle` opens the non-persistent panel where the original calls `InitPreBattleInterface(0, false)` (a click
+on the battle sector while the locator is on, a compression attempt during a tactical battle), with its side effects;
 `autoresolveBattle` skips the panel (deviation "Non-persistent pre-battle interface").
 
 **Tactical placement.** `enterSector` from the persistent panel of our group, unless the enemy ambushed it or creatures

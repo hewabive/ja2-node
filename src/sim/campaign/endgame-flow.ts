@@ -20,6 +20,7 @@ import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
+import { clearTacticalTraversal } from '../strategic/forces/flow-state.ts';
 import { getGroup, setGroupSectorValue } from '../strategic/forces/groups.ts';
 import { setThisSectorAsPlayerControlled } from '../strategic/map/control.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
@@ -287,10 +288,7 @@ export class EndgameFlow {
     }
     c.sectors?.setCurrentWorldSector(UPSTAIRS);
     clearCreatureMusicAtVictory(s);
-    const traversal = s.movement.tacticalTraversal;
-    traversal.active = false;
-    traversal.groupId = 0;
-    traversal.chosenSoldier = -1;
+    clearTacticalTraversal(s.movement.tacticalTraversal);
     this.#emit({ type: 'squadMovedUpstairs', soldiers: moved, sector: sectorShortString(UPSTAIRS) });
     this.#doneFadeInKilledQueen();
   }

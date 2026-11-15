@@ -8,15 +8,19 @@
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu,
 // @src InitSectorExitMenu, WarpToSurfaceCallback, DoneFadeOutWarpCallback (the warp out of a creature lair);
 // @src TileEngine/Pits.cc HandleFallIntoPitFromAnimation (the merc's sector and squad, 2026-11-09); Tactical/Handle_UI.cc
-// @src SetUIMouseCursor (no exit grid cursor on a tile in a room until the tile is revealed, 2026-11-10).
+// @src SetUIMouseCursor (no exit grid cursor on a tile in a room until the tile is revealed, 2026-11-10); StrategicMap.cc
+// @src DoneFadeOutAdjacentSector and DoneFadeOutExitGridSector (gpTacticalTraversalChosenSoldier's enemy-presence line,
+// @src 2026-11-15).
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { exitGridCursorShownOver, NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
 import { Direction } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
+import { tacticalCharacterDialogue } from '../narrative/dialogue-queue.ts';
 import type { MineWarp } from '../strategic/creatures/creatures.ts';
 import { Assignment, InsertionCode } from '../strategic/forces/constants.ts';
+import { clearTacticalTraversal, NO_CHOSEN_SOLDIER, NO_TRAVERSAL_GROUP } from '../strategic/forces/flow-state.ts';
 import {
   countAllMilitiaInSector,
   type Group,
@@ -46,6 +50,7 @@ import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { states } from '../tactical/animation.ts';
 import { calcMapEdgepointClassInsertionCode } from '../tactical/edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition } from '../tactical/movement.ts';
+import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { groundRevealed } from '../tactical/perception/fov.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import {
@@ -493,10 +498,16 @@ function setInsertionDataFromAdjacentMoveDirection(flow: SectorFlow, m: RosterMe
 }
 
 function clearTraversal(flow: SectorFlow): void {
+  clearTacticalTraversal(flow.campaign.state.movement.tacticalTraversal);
+}
+
+function chosenSoldierSaysEnemyPresence(flow: SectorFlow): void {
   const tt = flow.campaign.state.movement.tacticalTraversal;
-  tt.active = false;
-  tt.groupId = 0;
-  tt.chosenSoldier = -1;
+  if (!tt.active || tt.groupId === NO_TRAVERSAL_GROUP || tt.chosenSoldier === NO_CHOSEN_SOLDIER) return;
+  if (flow.campaign.tactical?.state.turn.enemyInSector !== true) return;
+  const host = flow.campaign.talk?.host;
+  const chosen = flow.setup.roster.get(tt.chosenSoldier);
+  if (host && chosen) tacticalCharacterDialogue(host, chosen.soldier, MercQuote.ENEMY_PRESENCE);
 }
 
 function setupTacticalTraversalInformation(flow: SectorFlow, jump: AdjacentJump, group: Group): void {
@@ -561,6 +572,7 @@ export function allMercsHaveWalkedOffSector(flow: SectorFlow): void {
 function doneFadeOutAdjacentSector(flow: SectorFlow, jump: AdjacentJump): void {
   flow.setCurrentWorldSector(jump.target);
   const entryCode = ENTRY_CODE_OF[jump.direction] ?? InsertionCode.EAST;
+  chosenSoldierSaysEnemyPresence(flow);
   clearTraversal(flow);
   const t = flow.campaign.tactical?.state;
   const group = getGroup(flow.ctx, jump.groupId);
@@ -607,6 +619,7 @@ export function allMercsWalkedToExitGrid(flow: SectorFlow): void {
     flow.overrideInsertionWithExitGrid = null;
     setLeavingGroupSector(flow, group, jump.target);
     flow.setCurrentWorldSector(jump.target);
+    chosenSoldierSaysEnemyPresence(flow);
     clearTraversal(flow);
   }
   if (!playerMercsInSector(flow.ctx, jump.target)) flow.handleLoyaltyImplicationsOfMercRetreat(true, jump.target);

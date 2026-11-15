@@ -11,7 +11,8 @@
 // @src bMercArrivingQuoteBeingUsed (2026-11-08); Dialogue_Control.cc gsExternPanelXPosition and gsExternPanelYPosition,
 // @src SetExternMapscreenSpeechPanelXY, HandleDialogueEnd (back to the default as a line ends) (2026-11-09); a line said
 // @src through the speaker's soldier face (SOLDIERTYPE::face, which Faces.cc DeleteSoldierFace deletes, 2026-11-09);
-// @src Tactical/Campaign.cc ChangeStat's CharacterDialogueEventDisplayStatChange (2026-11-14).
+// @src Tactical/Campaign.cc ChangeStat's CharacterDialogueEventDisplayStatChange (2026-11-14); Strategic/Strategic_Movement.cc
+// @src CharacterDialogueEventBeginPrebattleInterface and Faces.h FACE_TRIGGER_PREBATTLE_INT (2026-11-15).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -53,6 +54,7 @@ export type DialogueEvent =
   | { readonly kind: 'goto'; readonly npc: number; readonly gridNo: number; readonly record: number }
   | { readonly kind: 'doAction'; readonly npc: number; readonly code: number; readonly record: number }
   | { readonly kind: 'pcTriggerNpc'; readonly speaker: number; readonly quote: number; readonly npc: number; readonly record: number }
+  | { readonly kind: 'beginPreBattle'; readonly speaker: number }
   | { readonly kind: 'removeEpc'; readonly npc: number }
   | { readonly kind: 'itemLocator'; readonly speaker: number; readonly gridNo: number }
   | { readonly kind: 'statChange'; readonly speaker: number; readonly soldier: number; readonly stat: StatKey; readonly change: number }
@@ -67,6 +69,7 @@ export interface TalkingFace {
   pcTrigger: { readonly npc: number; readonly record: number } | null;
   modal: boolean;
   readonly soldierFace: boolean;
+  triggersPreBattle: boolean;
 }
 
 export const TacticalModal = { OFF: 0, ENTERED: 1, FROZEN: 2 } as const;
@@ -159,6 +162,10 @@ export function dialogueActive(talk: TalkState): boolean {
 
 export function dialogueQueueIsEmptyAndNobodyIsTalking(talk: TalkState): boolean {
   return talk.face === null && talk.queue.length === 0;
+}
+
+export function preBattleLinePending(talk: TalkState): boolean {
+  return talk.face?.triggersPreBattle === true || talk.queue.some((e) => e.kind === 'beginPreBattle');
 }
 
 export function dialogueIdle(talk: TalkState): boolean {

@@ -31,10 +31,18 @@ async function battle(page: Page): Promise<BattleHook['state']> {
   return page.evaluate(() => window.__ja2Ui.battle?.state ?? null);
 }
 
-async function arrive(page: Page): Promise<void> {
-  await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), ARRIVAL_WAIT_SECONDS);
-  await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown');
+async function arriveAfter(page: Page, seconds: number): Promise<void> {
+  await page.evaluate((wanted) => window.__ja2Ui.map?.advance({ worldSeconds: wanted, events: ['mercQuote'] }), seconds);
+  await page.waitForFunction(() => window.__ja2Ui.map?.screen?.subtitle != null);
+  await page.keyboard.press('Backspace');
+  await page.waitForFunction(
+    () => window.__ja2Ui.map?.screen?.subtitle == null && window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown',
+  );
   await nextFrames(page, 2);
+}
+
+function arrive(page: Page): Promise<void> {
+  return arriveAfter(page, ARRIVAL_WAIT_SECONDS);
 }
 
 async function autoresolve(page: Page, pointedDuringOpening?: string): Promise<void> {
@@ -152,8 +160,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
   }) => {
     session = await loadSession(request, saves.placement.name);
     await openMap(page, session, '&pinClock=1');
-    await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), saves.placement.arrivalSeconds);
-    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown');
+    await arriveAfter(page, saves.placement.arrivalSeconds);
     expect((await battle(page))?.preBattle).toMatchObject({ persistent: true, encounter: 'enemyEncounter' });
     await clickWidget(page, 'preBattleGoToSector');
     await waitWhileLoading(

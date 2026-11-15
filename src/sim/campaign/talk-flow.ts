@@ -536,6 +536,7 @@ export class TalkFlow {
       },
       headMinerMine: (profile) => (campaign.economy ? headMinersMineIndex(campaign.economy, profile) : -1),
       dialogueCallback: (name, args) => campaign.dialogueCallback(name, args),
+      beginPreBattleInterface: () => campaign.battle?.beginPreBattleInterface(),
       skipsSpeech: () => this.#skipsSpeech,
     };
     return host;

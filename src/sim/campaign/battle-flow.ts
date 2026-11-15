@@ -15,13 +15,17 @@
 // @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack; the bInSector of
 // @src the captures and the kill loop, the helicopter's passengers included, and IsTeamActive(ENEMY_TEAM) (2026-11-08);
 // @src Tactical/Campaign.cc ChangeStat (an autoresolve StatChange queues its stat line and QUOTE_EXPERIENCE_GAIN, which
-// @src the map screen's HandleDialogue plays after the battle, MapScreen.cc:1901, 2026-11-15).
+// @src the map screen's HandleDialogue plays after the battle, MapScreen.cc:1901, 2026-11-15); Tactical/Dialogue_Control.cc
+// @src HandleDialogue (FACE_TRIGGER_PREBATTLE_INT: the PBI opens once the speaker's face is done talking) and
+// @src Strategic/Strategic_Movement.cc HandleImportantPBIQuote (2026-11-15).
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
 import { idiv, u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { DeathCry, SimEvent } from '../events.ts';
+import { handleImportantPbiQuote } from '../narrative/dialogue-queue.ts';
+import { preBattleLinePending } from '../narrative/talk-state.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
 import { handleFirstBattleEndingWhileInTown, scheduleInterrogation } from '../strategic/ai/meanwhile.ts';
 import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts';
@@ -421,6 +425,7 @@ export class BattleFlow implements FateContext {
         return;
       }
       if (s.battle.enterPreBattlePending) this.#openNonPersistent();
+      else if (this.waitsForPreBattleLine()) return;
       else if (s.encounter.preBattle) this.#openFromHandoff();
       else {
         const militia = s.economy.prompts[0];
@@ -433,6 +438,21 @@ export class BattleFlow implements FateContext {
   afterStep(): void {
     this.#unloadAfterLostBattle();
     this.settle();
+  }
+
+  handleImportantPbiQuote(mercId: number): void {
+    const host = this.campaign.talk?.host;
+    const merc = this.roster.get(mercId);
+    if (host && merc) handleImportantPbiQuote(host, merc.soldier);
+  }
+
+  beginPreBattleInterface(): void {
+    if (!this.isModal()) this.#openFromHandoff();
+  }
+
+  waitsForPreBattleLine(): boolean {
+    const talk = this.campaign.talk;
+    return talk !== null && preBattleLinePending(talk.talk);
   }
 
   #unloadAfterLostBattle(): void {

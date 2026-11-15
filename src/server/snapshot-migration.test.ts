@@ -2152,7 +2152,7 @@ describe('snapshot version 46 (no tactical prompt, booby-trap globals or stop-ti
     const campaign = await createCampaignSession(kit.read, exists, 9);
     const talk = campaign.campaign.talk?.talk;
     if (!talk) throw new Error('the campaign has no talk flow');
-    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: false };
+    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: false, triggersPreBattle: false };
     const current = snapshotSession(campaign);
     const legacy = versionFortySix(current.sim);
     expect(JSON.stringify(legacy)).not.toContain('"tacticalModal"');
@@ -3733,7 +3733,7 @@ describe("snapshot version 74 (a talking face without the soldier face flag) mig
     const campaign = await quietLandedCampaign(kit);
     const talk = campaign.campaign.talk?.talk;
     if (!talk) throw new Error('the campaign has no talk flow');
-    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: false };
+    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: false, triggersPreBattle: false };
     const current = snapshotSession(campaign);
     const legacy = versionSeventyFour(current.sim);
     expect(JSON.stringify(current.sim)).toContain(`"${SOLDIER_FACE_KEY}":false`);
@@ -4442,6 +4442,76 @@ describe("snapshot version 90 (no delayed opening of Speck's) migrates with none
     const current = snapshotSession(campaign);
     const legacy = versionNinety(current.sim);
     expect(JSON.stringify(legacy)).not.toContain('mercVisitOpeningDue');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const SPEAKER_CANDIDATES = [0, 1];
+
+function withSpeakerCandidates(handoff: JsonObject): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const [key, value] of Object.entries(handoff)) {
+    out[key] = value;
+    if (key === 'notice') out.speakerCandidates = SPEAKER_CANDIDATES;
+  }
+  return out;
+}
+
+function withoutPreBattleTrigger(value: Json): Json {
+  if (Array.isArray(value)) return value.map(withoutPreBattleTrigger);
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (key !== 'triggersPreBattle') out[key] = withoutPreBattleTrigger(v);
+  return out;
+}
+
+function versionNinetyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    const faces = withoutPreBattleTrigger(value);
+    if (name !== 'strategic') return [name, faces];
+    const strategic = object(faces);
+    const encounter = object(strategic.encounter);
+    return [name, { ...strategic, encounter: { ...encounter, preBattle: withSpeakerCandidates(object(encounter.preBattle)) } }];
+  });
+  return { ...snapshot, version: 91, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 91 (a hand-off listing its speakers, a face without the pre-battle trigger) migrates', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign waiting for its pre-battle panel while a merc talks', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const talk = campaign.campaign.talk?.talk;
+    if (!talk) throw new Error('the campaign has no talk flow');
+    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false, soldierFace: true, triggersPreBattle: false };
+    campaign.campaign.state.encounter.preBattle = {
+      battleGroupId: 1,
+      dialogGroupId: 1,
+      sector: { x: 9, y: 2, z: 0 },
+      encounterCode: 0,
+      notice: null,
+      tacticalTraversal: false,
+      combatAbleMerc: true,
+      aliveMerc: true,
+      militiaPresent: false,
+      bloodcatAmbush: false,
+    };
+    const current = snapshotSession(campaign);
+    const legacy = versionNinetyOne(current.sim);
+    expect(JSON.stringify(legacy)).toContain('"notice":null,"speakerCandidates":[0,1]');
+    expect(JSON.stringify(current.sim)).toContain('"soldierFace":true,"triggersPreBattle":false');
+    expect(JSON.stringify(legacy)).not.toContain('triggersPreBattle');
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

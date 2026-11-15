@@ -4,7 +4,8 @@
 // @src PossibleToCoordinateSimultaneousGroupArrivals, PlanSimultaneousGroupArrivalCallback, PrepareGroupsForSimultaneousArrival,
 // @src PrepareForPreBattleInterface, TriggerPrebattleInterface, NotifyPlayerOfBloodcatBattle, TestForBloodcatAmbush,
 // @src HandleArrivalOfReinforcements (the first merc's arrival line and STR_PLAYER_REINFORCEMENTS as the
-// @src playerReinforcements event, 2026-11-15); Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces.
+// @src playerReinforcements event, 2026-11-15); Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces;
+// @src HandleImportantPBIQuote and gpTacticalTraversalChosenSoldier from PrepareForPreBattleInterface (2026-11-15).
 
 import { type Sector, sameSector, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i8, idiv, u32, udiv } from '../../../core/int.ts';
@@ -158,7 +159,6 @@ function recordPreBattle(
   sector: Sector,
   notice: PreBattleNotice | null,
   inputs: EncounterInputs,
-  speakers: readonly number[],
 ): void {
   const previous = ctx.state.encounter.preBattle;
   const tt = ctx.state.movement.tacticalTraversal;
@@ -168,7 +168,6 @@ function recordPreBattle(
     sector,
     encounterCode: ctx.state.encounter.code,
     notice: notice ?? previous?.notice ?? null,
-    speakerCandidates: speakers.length > 0 ? speakers : (previous?.speakerCandidates ?? []),
     tacticalTraversal: tt.active && tt.groupId === battleGroup.id,
     ...inputs,
   };
@@ -187,7 +186,7 @@ export function panelNoticeOf(handoff: PreBattleHandoff): PanelNotice | null {
 
 function triggerPrebattleInterface(ctx: StrategicContext, g: Group, s: Sector, notice: PreBattleNotice, inputs: EncounterInputs): void {
   stopTimeCompression(ctx.clock, CompressionStop.BATTLE);
-  recordPreBattle(ctx, g, null, s, notice, inputs, []);
+  recordPreBattle(ctx, g, null, s, notice, inputs);
   ctx.state.movement.initPrebattleGroup = null;
 }
 
@@ -223,21 +222,29 @@ export function prepareForPreBattleInterface(
   const summary = inputs ?? { combatAbleMerc: speakers.length > 0, aliveMerc: true, militiaPresent: false, bloodcatAmbush: false };
   if (traversal || enemyHere) {
     if (speakers.length === 0) return;
-    recordPreBattle(ctx, battleGroup, dialogGroup, battleGroup.sector, null, summary, speakers);
+    recordPreBattle(ctx, battleGroup, dialogGroup, battleGroup.sector, null, summary);
     if (dialogGroup.flags & GroupFlag.JUST_RETREATED_FROM_BATTLE) ctx.state.encounter.cantRetreatInPBI = true;
+    const chosen = drawPreBattleSpeaker(ctx, speakers);
+    tt.chosenSoldier = chosen;
+    if (!tt.active) ctx.world.handleImportantPbiQuote?.(chosen);
     interruptTime(clock);
     pauseGame(clock);
     lockPauseState(clock, PauseLock.PREBATTLE_CURRENT_SQUAD);
     if (!tt.active) flow.disableMapInterfaceDueToBattle = true;
     return;
   }
-  recordPreBattle(ctx, battleGroup, dialogGroup, battleGroup.sector, null, summary, speakers);
+  recordPreBattle(ctx, battleGroup, dialogGroup, battleGroup.sector, null, summary);
   if (speakers.length === 0) return;
   if (dialogGroup.flags & GroupFlag.JUST_RETREATED_FROM_BATTLE) ctx.state.encounter.cantRetreatInPBI = true;
+  ctx.world.handleImportantPbiQuote?.(drawPreBattleSpeaker(ctx, speakers));
   interruptTime(clock);
   pauseGame(clock);
   lockPauseState(clock, PauseLock.PREBATTLE);
   flow.disableMapInterfaceDueToBattle = true;
+}
+
+function drawPreBattleSpeaker(ctx: StrategicContext, speakers: readonly number[]): number {
+  return speakers[ctx.state.cosmetic.movement.int(speakers.length)] as number;
 }
 
 export function handleOtherGroupsArrivingSimultaneously(ctx: StrategicContext, s: Sector): void {

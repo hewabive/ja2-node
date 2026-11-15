@@ -24,7 +24,9 @@
 // @src RenderFaceOverlay (an external speaker's soldier, FindSoldierByProfileID, picks the popup's panel, 2026-11-09;
 // @src his bars, and an NPC's whose line said on the map screen HandleDialogue carries into the tactical popup);
 // @src Faces.cc DeleteFace from DeleteSoldierFace (a soldier face still talking stops talking, so the next
-// @src HandleDialogue ends its line and goes on, Dialogue_Control.cc:342, 2026-11-09).
+// @src HandleDialogue ends its line and goes on, Dialogue_Control.cc:342, 2026-11-09); Strategic/Strategic_Movement.cc
+// @src CharacterDialogueEventBeginPrebattleInterface and HandleImportantPBIQuote, HandleDialogue (FACE_TRIGGER_PREBATTLE_INT
+// @src as the face is done talking, before the next queued event, 2026-11-15).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -76,6 +78,7 @@ export interface DialogueHandlers {
   autoBandage(): boolean;
   removeEpc(npc: number): void;
   callback(name: string, args: readonly number[]): boolean;
+  beginPreBattleInterface(): void;
 }
 
 interface LineUi {
@@ -229,6 +232,13 @@ export function handleImportantMercQuote(host: NarrativeHost, s: Soldier, quote:
   if (asleep) makeCharacterDialogueEventSleep(host, s, true);
 }
 
+export function handleImportantPbiQuote(host: NarrativeHost, s: Soldier): void {
+  const asleep = host.mercAsleep?.(s) ?? false;
+  if (asleep) makeCharacterDialogueEventSleep(host, s, false);
+  addDialogueEvent(host, { kind: 'beginPreBattle', speaker: s.profile });
+  if (asleep) makeCharacterDialogueEventSleep(host, s, true);
+}
+
 function speakerSilenced(host: NarrativeHost, s: Soldier, quote: number): boolean {
   if (s.life < CONSCIOUSNESS || s.gassed || isRobot(s)) return true;
   if (s.life < OKLIFE && quote !== MercQuote.SERIOUSLY_WOUNDED) return true;
@@ -275,7 +285,7 @@ function saidThroughSoldierFace(ui: LineUi): boolean {
 export function executeCharacterDialogue(host: NarrativeHost, speaker: number, quote: number, ui: LineUi): boolean {
   const tick = host.tick();
   const soldierFace = saidThroughSoldierFace(ui);
-  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null, modal: false, soldierFace };
+  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null, modal: false, soldierFace, triggersPreBattle: false };
   const s = playerTeamSoldier(host, speaker);
   if (!s && ui.fromSoldier) return false;
   if (s && speakerSilenced(host, s, quote)) return false;
@@ -284,7 +294,7 @@ export function executeCharacterDialogue(host: NarrativeHost, speaker: number, q
   if (chars === 0) return false;
   const skipped = host.skipsSpeech?.() ?? false;
   const busyUntil = skipped ? tick : tick + talkingTicks(host, speaker, key, chars);
-  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null, modal: false, soldierFace };
+  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null, modal: false, soldierFace, triggersPreBattle: false };
   const soldier = s ?? soldierByProfile(host, speaker);
   const withRecord = ui.record !== null ? { record: ui.record } : {};
   const said = { ...withRecord, textKey: key, chars, ...(skipped ? { skipped } : {}) };
@@ -384,6 +394,13 @@ function executePcTrigger(host: NarrativeHost, e: Extract<DialogueEvent, { kind:
   return false;
 }
 
+function executeBeginPreBattle(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'beginPreBattle' }>): boolean {
+  executeCharacterDialogue(host, e.speaker, MercQuote.ENEMY_PRESENCE, MERC_LINE);
+  const face = host.talk.face;
+  if (face) face.triggersPreBattle = true;
+  return false;
+}
+
 function executeItemLocatorStart(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'itemLocator' }>): boolean {
   const t = host.tactical();
   if (t) t.turn.lockItemLocators = false;
@@ -425,6 +442,8 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return false;
     case 'pcTriggerNpc':
       return executePcTrigger(host, e);
+    case 'beginPreBattle':
+      return executeBeginPreBattle(host, e);
     case 'removeEpc':
       h.removeEpc(e.npc);
       return false;
@@ -463,6 +482,7 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
     h.triggerNpcRecord(face.pcTrigger.npc, face.pcTrigger.record);
   }
   if (face.modal) endModalTactical(host, h);
+  if (face.triggersPreBattle) h.beginPreBattleInterface();
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
   talk.externPanel = null;

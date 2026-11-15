@@ -18,6 +18,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import type { BattleEntryHook } from './battle-entry.ts';
 
 const OPENING_MS = 1000;
+const ENEMY_PRESENCE_LINE_MS = 3000;
 const FRAME_MS = 16;
 const CREATURES = 3;
 const MILITIA = 2;
@@ -95,10 +96,17 @@ async function frames(f: MapUiTest, ms: number): Promise<void> {
   await f.settle(1);
 }
 
+async function sayTheEnemyPresenceLineThenOpenThePanel(f: MapUiTest): Promise<void> {
+  f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS, events: ['mercQuote'] });
+  f.deliver();
+  await frames(f, ENEMY_PRESENCE_LINE_MS);
+  f.session.advance({ idle: true });
+  f.deliver();
+}
+
 async function arrive(f: MapUiTest, variant: BattleVariant): Promise<void> {
   arrangeBattle(f.session, variant);
-  f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
-  f.deliver();
+  await sayTheEnemyPresenceLineThenOpenThePanel(f);
   await frames(f, OPENING_MS + FRAME_MS);
 }
 
@@ -144,8 +152,7 @@ describe('the pre-battle interface on the stub map-screen campaign', () => {
     const f = await mapUiTest(kit, ui);
     try {
       arrangeBattle(f.session, BattleVariant.RETREAT);
-      f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
-      f.deliver();
+      await sayTheEnemyPresenceLineThenOpenThePanel(f);
       f.t.frame(FRAME_MS);
       expect(battle(f).preBattle).toMatchObject({ persistent: true, encounter: 'enemyInvasion', phase: 'opening' });
       expect(f.battleSounds.powerUps).toBe(1);

@@ -92,5 +92,6 @@ export interface NarrativeHost extends RecordsEnv {
   offSectorPlayerSoldier?(profile: number): Soldier | null;
   headMinerMine?(profile: number): number;
   dialogueCallback?(name: string, args: readonly number[]): boolean;
+  beginPreBattleInterface?(): void;
   skipsSpeech?(): boolean;
 }

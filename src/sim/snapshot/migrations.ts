@@ -2609,6 +2609,39 @@ function addMercVisitOpeningFlag(snapshot: Readonly<Record<string, unknown>>): R
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ENCOUNTER_KEY = 'encounter';
+const PRE_BATTLE_KEY = 'preBattle';
+const SPEAKER_CANDIDATES_KEY = 'speakerCandidates';
+
+function withoutPreBattleSpeakerCandidates(strategic: JsonObject): JsonObject {
+  const encounter = strategic[ENCOUNTER_KEY];
+  if (!isObject(encounter) || encounter[REF] !== undefined) return strategic;
+  const handoff = encounter[PRE_BATTLE_KEY];
+  if (!isObject(handoff) || handoff[REF] !== undefined) return strategic;
+  return { ...strategic, [ENCOUNTER_KEY]: { ...encounter, [PRE_BATTLE_KEY]: withoutKeys(handoff, [SPEAKER_CANDIDATES_KEY]) } };
+}
+
+const FACE_TRIGGERS_PRE_BATTLE_KEY = 'triggersPreBattle';
+
+function withPreBattleFaceTrigger(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPreBattleFaceTrigger(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withPreBattleFaceTrigger(v);
+  const face = mapped[FACE_KEY];
+  if (!isTalkStateRecord(mapped) || !isObject(face)) return mapped;
+  return { ...mapped, [FACE_KEY]: insertAfter(face, FACE_SOLDIER_FACE_KEY, FACE_TRIGGERS_PRE_BATTLE_KEY, false) };
+}
+
+function sayThePreBattleLineOnTheFace(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const faces = withPreBattleFaceTrigger(value);
+    return [name, name === 'strategic' && isObject(faces) ? withoutPreBattleSpeakerCandidates(faces) : faces];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2701,5 +2734,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     88: dropEquipmentLocationFlags,
     89: markMilitiaPromotionsShown,
     90: addMercVisitOpeningFlag,
+    91: sayThePreBattleLineOnTheFace,
   };
 }

@@ -6,6 +6,15 @@ export interface TacticalTraversal {
   chosenSoldier: number;
 }
 
+export const NO_TRAVERSAL_GROUP = 0;
+export const NO_CHOSEN_SOLDIER = -1;
+
+export function clearTacticalTraversal(tt: TacticalTraversal): void {
+  tt.active = false;
+  tt.groupId = NO_TRAVERSAL_GROUP;
+  tt.chosenSoldier = NO_CHOSEN_SOLDIER;
+}
+
 export interface MovementFlowState {
   waitingForInput: boolean;
   pendingSimultaneousGroup: number | null;
@@ -32,7 +41,6 @@ export interface PreBattleHandoff {
   readonly sector: Sector;
   readonly encounterCode: number;
   readonly notice: PreBattleNotice | null;
-  readonly speakerCandidates: readonly number[];
   readonly combatAbleMerc: boolean;
   readonly aliveMerc: boolean;
   readonly militiaPresent: boolean;
@@ -75,7 +83,7 @@ export function createMovementFlowState(): MovementFlowState {
     groupPrompting: null,
     initPrebattleGroup: null,
     numGroupsArrivedSimultaneously: 0,
-    tacticalTraversal: { active: false, groupId: 0, chosenSoldier: -1 },
+    tacticalTraversal: { active: false, groupId: NO_TRAVERSAL_GROUP, chosenSoldier: NO_CHOSEN_SOLDIER },
     undergroundTacticalTraversal: false,
     randomizingPatrolGroup: false,
     disableMapInterfaceDueToBattle: false,

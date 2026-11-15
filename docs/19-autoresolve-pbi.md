@@ -96,10 +96,14 @@ or `setThisSectorAsEnemyControlled`; their town, mine, SAM, meanwhile and theft 
 hooks, the Queen's through `ctx.ai`. A lost or abandoned AR hands the sector to the enemy at `done`, where the original
 waits for the next map frame; the hand-over is refused while an automatic AR is pending (`battle.autoStart`).
 
-**The PBI is a prompt.** It opens at the end of the step that made the hand-off, without the speaking merc's quote time,
-and carries the encounter, the options with their disabled reasons and the panel. The persistent PBI comes before a
-battle; the non-persistent one summarises a running tactical battle (`showBattle`, `autoresolveBattle`). Go to sector
-from our group's persistent panel holds the load at the placement prompt (`campaign/tactical-placement.ts`, `29` §8.10).
+**The PBI is a prompt.** It opens once the speaking merc's enemy-presence line has ended: the line sets the original's
+`FACE_TRIGGER_PREBATTLE_INT` on the talking face (`TalkingFace.triggersPreBattle`), the dialogue queue opens the
+hand-off as the face is done, and the battle flow opens none while such a line waits or plays
+(`campaign/battle-flow.ts`, Q34); with nobody able to speak, or after a notice box, it opens at the end of the step that
+made the hand-off. It carries the encounter, the options with their disabled reasons and the panel. The persistent PBI
+comes before a battle; the non-persistent one summarises a running tactical battle (`showBattle`, `autoresolveBattle`).
+Go to sector from our group's persistent panel holds the load at the placement prompt (`campaign/tactical-placement.ts`,
+`29` §8.10).
 
 **Tactical battles report through hooks.** Merc deaths, pending enemies, the militia hand-off, a lost battle (2–3 downed
 mercs captured, otherwise killed) and the end of a battle reach `BattleFlow` through `SectorHooks`. After a defeat the
@@ -139,6 +143,7 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q31 | Bandaging clears the bleeding warning only while healing a patient out of dying, before the rest of his bleeding is stopped | `autoresolve/close.test.ts` |
 | Q32 | A placement click with no edge point of the merc's side near writes NOWHERE into his insertion data even while his piece stands placed, so Done enters him from it (`TileEngine/Tactical_Placement_GUI.cc:798-808`) | `src/sim/campaign/tactical-placement.test.ts` "writes NOWHERE into the insertion data …" |
 | Q33 | A merc whose side is no map edge can be placed neither by a click nor by Spread, which writes NOWHERE into his insertion data, so Done never comes (`TileEngine/Tactical_Placement_GUI.cc:431-449`, `:552-565`) | `src/sim/campaign/tactical-placement.test.ts` "can place no merc whose side is no map edge …" |
+| Q34 | A sleeping merc drawn for the enemy-presence line is woken for it and put back to sleep as the panel opens, right after the panel woke everyone involved: his back-to-sleep event follows the line in the queue (`Strategic_Movement.cc:595-602`, `PreBattle_Interface.cc:303`, `Dialogue_Control.cc:413-418`) | `src/sim/campaign/enemy-presence-line.test.ts` "puts a sleeping speaker back to sleep …" |
 
 Not pinned yet:
 - Q10: `bulletImpact` reads the ammo type from the attacking hand, not the slot that fired, and the throwing-knife test

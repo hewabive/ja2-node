@@ -369,7 +369,15 @@ describe('the round trip of a palace scene to P3_m and back (Meanwhile.cc StartM
     expect([out.entered, out.left]).toEqual([[], []]);
     const talk = c.talk?.talk ?? never();
     const busyUntil = c.tick + LINE_TICKS_LEFT;
-    talk.face = { speaker: Npc.QUEEN, saidAt: c.tick, busyUntil, pcTrigger: null, modal: false, soldierFace: false };
+    talk.face = {
+      speaker: Npc.QUEEN,
+      saidAt: c.tick,
+      busyUntil,
+      pcTrigger: null,
+      modal: false,
+      soldierFace: false,
+      triggersPreBattle: false,
+    };
     c.drainEvents();
     const back = recordedLeg(session, () => endTheScene(session));
     expect([back.entered, back.left, c.state.worldSector, c.tactical?.world.mapPath]).toEqual([[], [], PALACE, P3_MAP]);

@@ -470,6 +470,7 @@ export class CampaignSim {
         boxing: () => this.state.narrative.boxing.state !== NOT_BOXING,
         npcOfNoteInSector: (sector) => this.#npcOfNoteInSector(sector),
         tacticalCharacterDialogue: lines.tacticalCharacterDialogue,
+        handleImportantPbiQuote: (id) => this.battle?.handleImportantPbiQuote(id),
       },
     };
   }
@@ -843,7 +844,8 @@ export class CampaignSim {
   }
 
   #dialogueHoldsTime(): boolean {
-    return this.#linePauseHeld() || (this.state.flow === 'strategic' && this.#dialogueQueued());
+    if (this.#linePauseHeld()) return true;
+    return this.state.flow === 'strategic' && (this.#dialogueQueued() || this.battle?.waitsForPreBattleLine() === true);
   }
 
   #compressing(): boolean {

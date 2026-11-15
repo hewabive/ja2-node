@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { FakeMercs, loadStrategicTestContent, ScriptedRolls, testContext } from '../../../../tests/support/strategic.ts';
 import { parseSectorId, parseSectorString, type Sector } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { Rng } from '../../../core/rng.ts';
 import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
@@ -13,7 +14,7 @@ import { EventKind, NUM_SEC_IN_DAY, NUM_SEC_IN_HOUR } from '../time/constants.ts
 import { addStrategicEvent } from '../time/event-queue.ts';
 import { EncounterCode, GroupFlag, InsertionCode, PauseLock } from './constants.ts';
 import { answerSimultaneousArrival, checkConditionsForBattle, panelNoticeOf, testForBloodcatAmbush } from './encounters.ts';
-import { PanelNotice, PreBattleNotice } from './flow-state.ts';
+import { NO_CHOSEN_SOLDIER, PanelNotice, PreBattleNotice } from './flow-state.ts';
 import { addPlayerToGroup, createNewEnemyGroupDepartingFromSector, createNewPlayerGroupDepartingFromSector, type Group } from './groups.ts';
 import type { HelicopterEventWithoutTick } from './helicopter-events.ts';
 import { groupArrivedAtSector, nowMinutes } from './movement.ts';
@@ -27,6 +28,7 @@ beforeAll(async () => {
 
 const S = (name: string): Sector => parseSectorString(name);
 const NOON = NUM_SEC_IN_DAY + 12 * NUM_SEC_IN_HOUR;
+const NO_BLOODCATS_ROLL = 99;
 
 interface Setup {
   readonly ctx: StrategicContext;
@@ -92,7 +94,6 @@ describe('CheckConditionsForBattle', () => {
       dialogGroupId: g.id,
       sector: S('C9'),
       notice: null,
-      speakerCandidates: [0, 1],
       combatAbleMerc: true,
     });
     expect(s.ctx.state.clock).toMatchObject({ paused: true, pauseLocked: true, pauseLockReason: PauseLock.PREBATTLE, timeInterrupt: true });
@@ -170,6 +171,54 @@ describe('CheckConditionsForBattle', () => {
     expect(s.mercs.placedInSector).toEqual([3, 4]);
     expect(lines).toEqual([[3, MercQuote.MERC_REACHED_DESTINATION]]);
     expect(events).toEqual([{ type: 'playerReinforcements', group: late.id, sector: 'C9' }]);
+  });
+});
+
+describe('PrepareForPreBattleInterface', () => {
+  function speakerSetup(): { s: Setup; said: number[] } {
+    const said: number[] = [];
+    const s = setup({ pre: [NO_BLOODCATS_ROLL], world: { handleImportantPbiQuote: (id) => said.push(id) } });
+    sectorInfo(s.ctx.state.map, S('C9')).numTroops = 3;
+    return { s, said };
+  }
+
+  function nextSpeaker(s: Setup, candidates: readonly number[]): number {
+    const movement = Rng.fromState(s.ctx.state.cosmetic.movement.state());
+    return candidates[movement.int(candidates.length)] as number;
+  }
+
+  it('draws the speaker of the enemy-presence line on the movement cosmetic stream, among the conscious mercs only (Strategic_Movement.cc:679)', () => {
+    const { s, said } = speakerSetup();
+    const g = squad(s, S('C9'), [0, 1, 2, 3]);
+    Object.assign(s.mercs.get(1) ?? {}, { life: OKLIFE - 1 });
+    const expected = nextSpeaker(s, [0, 2, 3]);
+    expect(checkConditionsForBattle(s.ctx, g)).toBe(true);
+    expect(said).toEqual([expected]);
+    expect(s.rolls.ranges).toEqual([]);
+    expect(s.ctx.state.movement.tacticalTraversal.chosenSoldier).toBe(NO_CHOSEN_SOLDIER);
+  });
+
+  it('says no line before the panel of a tactical traversal, but keeps its speaker for the sector load (Strategic_Movement.cc:652-657)', () => {
+    const { s, said } = speakerSetup();
+    const g = squad(s, S('C9'), [0, 1, 2]);
+    Object.assign(s.ctx.state.movement.tacticalTraversal, { active: true, groupId: g.id });
+    const expected = nextSpeaker(s, [0, 1, 2]);
+    expect(checkConditionsForBattle(s.ctx, g)).toBe(true);
+    expect(said).toEqual([]);
+    expect(s.ctx.state.movement.tacticalTraversal.chosenSoldier).toBe(expected);
+    expect(s.ctx.state.clock).toMatchObject({ pauseLocked: true, pauseLockReason: PauseLock.PREBATTLE_CURRENT_SQUAD });
+    expect(s.ctx.state.movement.disableMapInterfaceDueToBattle).toBe(false);
+  });
+
+  it('keeps the speaker of enemies arriving in the loaded sector as the traversal speaker, which no traversal is using (Strategic_Movement.cc:653)', () => {
+    const { s, said } = speakerSetup();
+    squad(s, S('C9'), [0, 1, 2]);
+    s.ctx.state.worldSector = S('C9');
+    const enemy = createNewEnemyGroupDepartingFromSector(s.ctx, parseSectorId('C9'), 0, 4, 0);
+    const expected = nextSpeaker(s, [0, 1, 2]);
+    expect(checkConditionsForBattle(s.ctx, enemy)).toBe(true);
+    expect(said).toEqual([expected]);
+    expect(s.ctx.state.movement.tacticalTraversal).toMatchObject({ active: false, chosenSoldier: expected });
   });
 });
 

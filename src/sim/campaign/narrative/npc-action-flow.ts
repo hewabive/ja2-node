@@ -15,6 +15,7 @@ import { mineStatus, restartMineProduction, shutOffMineProduction } from '../../
 import { headMinersMineIndex, playerSpokeToHeadMiner, resetQueenRetookMine } from '../../strategic/economy/mines.ts';
 import { setSoldierAssignmentHospital } from '../../strategic/economy/set-assignment.ts';
 import { type BattlePrompt, nextPromptId, PromptKind } from '../../strategic/forces/battle-state.ts';
+import { clearTacticalTraversal } from '../../strategic/forces/flow-state.ts';
 import { getGroup, setGroupSectorValue } from '../../strategic/forces/groups.ts';
 import { updateRefuelSiteAvailability } from '../../strategic/forces/helicopter.ts';
 import { calculateNonPersistentPbiInfo } from '../../strategic/forces/pre-battle.ts';
@@ -239,10 +240,7 @@ export class NpcActionFlow {
     const flow = this.#campaign.sectors;
     if (!flow) return;
     flow.setCurrentWorldSector(sector);
-    const traversal = this.#state.movement.tacticalTraversal;
-    traversal.active = false;
-    traversal.groupId = 0;
-    traversal.chosenSoldier = -1;
+    clearTacticalTraversal(this.#state.movement.tacticalTraversal);
   }
 
   #setTownAsFound(town: number): void {
