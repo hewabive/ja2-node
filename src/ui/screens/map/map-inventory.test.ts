@@ -636,6 +636,78 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.client.commands).toEqual([{ type: 'arrangeStash', sector: 'D13', order: [3] }]);
   });
 
+  it("stacks and sorts the pool over its slots' order and shows the answer as a pool just built, the page kept unless past the last one of the pool padded to whole pages (StackAndSortMapInventoryPool, ReplaceMapInventoryPool)", async () => {
+    const ammo = item((i) => i.class === 'AMMO');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.stash = Array.from({ length: 50 }, (_, i) => stashEntry(i, ammo.name));
+    h.inventory.openPool();
+    await h.settle();
+    h.client.stash = h.client.stash.filter((e) => e.index !== 1);
+    await h.inventory.pool.refresh();
+    await h.click('poolNext');
+    h.client.reply = () => {
+      h.client.stash = Array.from({ length: 44 }, (_, i) => stashEntry(60 + i, ammo.name));
+      return { ok: true, data: { sector: 'D13', entries: 44 } };
+    };
+    await h.inventory.pool.stackAndSort();
+    expect(h.client.commands).toEqual([
+      { type: 'stackAndSortStash', sector: 'D13', order: [0, ...Array.from({ length: 48 }, (_, i) => i + 2)] },
+    ]);
+    expect(h.inventory.pool.layout.slice(0, 45)).toEqual([...Array.from({ length: 44 }, (_, i) => 60 + i), null]);
+    await h.settle();
+    expect(h.widget('poolPage').text).toBe('1 / 2');
+  });
+
+  it('refills from the pool item under the pointer over the slots order, and the stacks it empties leave holes (RefillMercItemsFromMapInventoryPool)', async () => {
+    const ammo = item((i) => i.class === 'AMMO');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.stash = [stashEntry(4, ammo.name), stashEntry(2, ammo.name), stashEntry(9, ammo.name)];
+    h.inventory.openPool();
+    await h.settle();
+    await h.inventory.pool.refill();
+    h.hover('poolSlot5');
+    await h.inventory.pool.refill();
+    expect(h.client.commands).toEqual([]);
+    h.client.reply = () => {
+      h.client.stash = [stashEntry(4, ammo.name)];
+      return { ok: true, data: { sector: 'D13', item: ammo.name, points: 20 } };
+    };
+    h.hover('poolSlot1');
+    await h.inventory.pool.refill();
+    expect(h.client.commands).toEqual([{ type: 'refillFromStash', sector: 'D13', item: 2, order: [4, 2, 9] }]);
+    expect(h.inventory.pool.layout.slice(0, 4)).toEqual([4, null, null, null]);
+  });
+
+  it('ignores SHIFT+S and SHIFT+R with an item in the cursor, during a battle in the sector and over an item out of reach (StackAndSortMapInventoryPool, RefillMercItemsFromMapInventoryPool)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const ammo = item((i) => i.class === 'AMMO');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.client.stash = [stashEntry(0, ammo.name), stashEntry(1, ammo.name, 1, false)];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    h.hover('poolSlot1');
+    await h.inventory.pool.refill();
+    await h.click('poolSlot0');
+    h.hover('poolSlot0');
+    await h.inventory.pool.refill();
+    await h.inventory.pool.stackAndSort();
+    h.inventory.pool.clearCursor();
+    await h.click('mercSlot5');
+    await h.inventory.pool.stackAndSort();
+    h.inventory.merc.panel.setCursor(null);
+    h.client.usable = false;
+    await h.inventory.pool.refresh();
+    h.hover('poolSlot0');
+    await h.inventory.pool.refill();
+    await h.inventory.pool.stackAndSort();
+    expect(h.client.commands).toEqual([]);
+    h.client.usable = true;
+    await h.inventory.pool.refresh();
+    await h.inventory.pool.stackAndSort();
+    expect(h.client.commands).toEqual([{ type: 'stackAndSortStash', sector: 'D13', order: [0, 1] }]);
+  });
+
   it("moves a pool item onto another pool slot and keeps the cursor on what the placement leaves, as the original's pool cursor does (MapInvenPoolSlotsPrimary)", async () => {
     const gun = item((i) => i.class === 'GUN');
     const ammo = item((i) => i.class === 'AMMO');

@@ -1848,6 +1848,20 @@
       "when": "!sectorInventoryOpen"
     },
     {
+      "key": "r",
+      "on": "down",
+      "mods": 1,
+      "action": "refillFromStash",
+      "when": "sectorInventoryOpen"
+    },
+    {
+      "key": "s",
+      "on": "down",
+      "mods": 1,
+      "action": "stackAndSortStash",
+      "when": "sectorInventoryOpen"
+    },
+    {
       "key": "i",
       "on": "down",
       "mods": 2,

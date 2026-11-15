@@ -2133,6 +2133,8 @@ export class MapScreen implements Screen {
       escape: () => this.#escape(),
       toggleInventory: () => this.#toggleInventory(),
       toggleSectorInventory: () => this.#toggleSectorInventory(),
+      stackAndSortStash: () => void this.#inventory.pool.stackAndSort(),
+      refillFromStash: () => void this.#inventory.pool.refill(),
       keyA: () => this.#airspaceKey(),
       saveGame: whenExitAllowed(() => this.#env.flow.saveGame()),
       loadGame: whenExitAllowed(() => this.#env.flow.loadGame()),

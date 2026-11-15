@@ -53,8 +53,9 @@ the shop's offer, the laptop's drafts and pages. They keep it until the shown vi
 sector pool holds the item on a cursor until its refreshed query answers. The pool keeps its slots while it is open, as
 the original's list of its own: it shows once its stash answers, a take leaves a hole, a placement lands in the clicked
 slot by the entry the answer names, and closing it sends the slots' order as `arrangeStash` (deviation "Sector
-inventory layout"). Every number the simulation computes comes from the view, a cursor
-hint (the simulation's own function over the player-knowledge projection, run in the browser, `28`) or a server query;
+inventory layout"); SHIFT+S and SHIFT+R send it with `stackAndSortStash` and `refillFromStash`, and the stacked
+stash opens as a new pool on the page it showed, unless that lies past its last. Every number the simulation computes
+comes from the view, a cursor hint (the simulation's own function over the player-knowledge projection, run in the browser, `28`) or a server query;
 every decision is one command; a refusal comes back as a token in `data.refusal` (`refusalOf`) that
 `src/protocol/refusals.ts` maps to the original's string; screens compare tokens, never the readable `reason`. Enable states the hints cannot decide are left to the command (deviation "Gates outside the hints").
 The session logs a refusal whose string the original prints in its message line (`refusalEntry`,

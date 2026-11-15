@@ -822,6 +822,18 @@ in pool order, the items the map does not show after them, as `SaveSeenAndUnseen
 The page sends it with the pool's slots as the pool closes (deviation "Sector inventory layout"); refusals
 `badStashOrder` (not distinct integers), `mapScreenOnly`. A placement onto an item out of reach is refused
 `unreachable`, as the pool's click checks that item first.
+`{"type":"stackAndSortStash","sector":"A9","order":[<index>...]}` is SHIFT+S (`StackAndSortMapInventoryPool`,
+`Map_Screen_Interface_Map_Inventory.cc:1164`; `src/sim/campaign/stash-repack.ts`) and
+`{"type":"refillFromStash","sector":"A9","item":<index>,"order":[<index>...]}` SHIFT+R over the pool item `item`
+(`RefillMercItemsFromMapInventoryPool`, `:1291`). Both read the stash in `order` as `arrangeStash` does (without it, in
+pool order); the page sends its slots. `stackAndSortStash` takes the reachable items apart (guns unloaded into a
+magazine of their own, attachments off), pours each item's rounds, kit charges or money on one level into full objects
+and stacks them, and writes the stash back sorted, every index changed (`data.entries`); it needs a merc of ours standing
+in the sector (`noMercInSector`). `refillFromStash` tops up the mercs' objects of a magazine, kit or medical kit item
+(`notRefillable` otherwise) from that entry and then the item's other reachable entries in `order`; entries it empties
+leave the stash, the others keep their index, and `data.points` counts what moved. Both refuse `battleInSector`, the
+refill also `badStashIndex` and `unreachable`; the page sends neither with an item in the cursor and prints nothing for
+`noMercInSector` or `notRefillable`, as the keys do nothing there.
 
 Auto-bandage (`src/sim/tactical/auto-bandage.ts`, `12` §8; deviation "Auto-bandage") is the `a` key and the end-of-battle
 question as commands. `autoBandage` refuses with the original's OK boxes in its order (`sectorNotCleared`,

@@ -44,6 +44,8 @@ export const MAP_SCREEN_CONTRACT: ControllerContract = {
     help: {},
     version: {},
     toggleSectorInventory: {},
+    stackAndSortStash: {},
+    refillFromStash: {},
     saveGame: {},
     loadGame: {},
     quickSave: {},

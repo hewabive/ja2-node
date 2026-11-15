@@ -37,10 +37,10 @@ afterAll(async () => {
 const A9 = { x: 9, y: 1, z: 0 };
 const FAR_TILE = 12000;
 
-function onTheMap(): CampaignSim {
+function onTheMap(mercs = 2): CampaignSim {
   const { campaign: c } = createTestCampaign(kit, {
     seed: 8,
-    mercs: 2,
+    mercs,
     garrison: { admins: 0, troops: 0, elites: 0 },
     merchants: merchants.content,
   });
@@ -49,8 +49,8 @@ function onTheMap(): CampaignSim {
   return c;
 }
 
-function onTheMapWithA9Unloaded(): CampaignSim {
-  const c = onTheMap();
+function onTheMapWithA9Unloaded(mercs = 2): CampaignSim {
+  const c = onTheMap(mercs);
   for (const m of c.battle?.roster.all() ?? []) m.betweenSectors = true;
   expect(c.sectors?.checkAndHandleUnloadingOfCurrentWorld()).toBe(true);
   for (const m of c.battle?.roster.all() ?? []) m.betweenSectors = false;
@@ -112,6 +112,46 @@ function stash(c: CampaignSim, sector = 'A9'): StashEntryView[] {
 }
 
 const listed = (entries: readonly StashEntryView[]) => entries.map((e) => [e.index, e.item, e.count]);
+
+function a9Records(c: CampaignSim, objects: readonly (readonly [ItemObject, Partial<DiffWorldItem>?])[]): void {
+  const diff = c.state.sectorDiffs.get(sectorKey(A9));
+  if (!diff) throw new Error('no A9 diff');
+  diff.items = objects.map(([object, more]) => ({
+    exists: true,
+    gridNo: FAR_TILE,
+    level: 0,
+    object,
+    flags: WorldItemFlags.REACHABLE,
+    zHeight: 0,
+    visible: Visibility.VISIBLE,
+    ...more,
+  }));
+}
+
+function emptyHandedMercs(c: CampaignSim): number[] {
+  const ids = mercIds(c);
+  for (const id of ids) {
+    const inv = c.battle?.roster.get(id)?.soldier.inv ?? [];
+    inv.forEach((_, slot) => {
+      inv[slot] = emptyObject();
+    });
+  }
+  return ids;
+}
+
+function carry(c: CampaignSim, merc: number, slot: number, o: ItemObject): void {
+  const inv = c.battle?.roster.get(merc)?.soldier.inv;
+  if (!inv) throw new Error('no merc');
+  inv[slot] = o;
+}
+
+function clips(statuses: readonly number[], name = 'CLIP9_15'): ItemObject {
+  const o = some(name, statuses.length);
+  o.status = [...statuses];
+  return o;
+}
+
+const UNREACHABLE = { flags: 0 };
 
 describe('the map screen inventory', () => {
   it('tells the reload of a merc off the loaded map, as ReloadGun prints its line for any merc (Items.cc:1300)', () => {
@@ -367,6 +407,126 @@ describe('the map screen inventory', () => {
     expect(c.dispatch({ type: 'discardItem', soldier: merc, slot: 'ground', item: 1 })).toMatchObject({ ok: true, data: { count: 1 } });
     expect(listed(stash(c))).toEqual([[0, 'CLIP9_15', 1]]);
     expect(c.drainEvents().filter((e) => e.type === 'itemDiscarded')).toHaveLength(2);
+  });
+
+  it('stacks and sorts the pool as SHIFT+S does: guns unloaded and attachments taken off, rounds, kit charges and money poured into full objects, stacks filled to the per pocket count, then the pool order (StackAndSortMapInventoryPool)', () => {
+    const c = onTheMap();
+    const gun = one('GLOCK_17', 80);
+    gun.gunShotsLeft = 10;
+    gun.attachments[0] = { item: itemIndex('SILENCER'), status: 90 };
+    const money = (amount: number) => createMoney(kit.sectors.content.items, amount);
+    const kits = clips([70, 50], 'FIRSTAIDKIT');
+    stashAtTheMerc(c, [gun, clips([7, 15]), clips([4]), money(15000), one('FIRSTAIDKIT', 60), money(9000), kits]);
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9' })).toEqual({ ok: true, data: { sector: 'A9', entries: 6 } });
+    const pool = stash(c).map((e) => [e.item, e.count, e.status, e.money ?? e.ammo?.shots ?? null]);
+    expect(pool).toEqual([
+      ['GLOCK_17', 1, [80], 0],
+      ['CLIP9_15', 3, [15, 15, 6], null],
+      ['FIRSTAIDKIT', 2, [100, 80], null],
+      ['SILENCER', 1, [90], null],
+      ['MONEY', 1, [100], 20000],
+      ['MONEY', 1, [100], 4000],
+    ]);
+    expect(stash(c).find((e) => e.item === 'GLOCK_17')).toMatchObject({ ammo: { item: 'CLIP9_15', shots: 0 } });
+  });
+
+  it('leaves alone in a stack-and-sort what cannot merge without a loss, items out of reach, keys and another level, while the empties of a pour vanish and a group of empties only stacks (StackAndSortMapInventoryPool)', () => {
+    const c = onTheMapWithA9Unloaded();
+    const key = (id: number) => Object.assign(one('KEY_1'), { keyId: id });
+    a9Records(c, [
+      [clips([5])],
+      [clips([5]), UNREACHABLE],
+      [clips([0])],
+      [clips([5]), { level: 1 }],
+      [key(1)],
+      [clips([4])],
+      [one('GLOCK_17'), UNREACHABLE],
+      [clips([0], 'CLIP9_30')],
+      [clips([0], 'CLIP9_30')],
+      [key(2)],
+    ]);
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9' })).toMatchObject({ ok: true, data: { entries: 7 } });
+    const pool = stash(c).map((e) => [e.item, e.count, e.status, e.reachable, e.level, e.ammo?.shots ?? null]);
+    expect(pool).toEqual([
+      ['GLOCK_17', 1, [100], false, 0, 15],
+      ['CLIP9_30', 2, [0, 0], true, 0, null],
+      ['CLIP9_15', 1, [9], true, 0, null],
+      ['CLIP9_15', 1, [5], true, 1, null],
+      ['CLIP9_15', 1, [5], false, 0, null],
+      ['KEY_1', 1, [100], true, 0, null],
+      ['KEY_1', 1, [100], true, 0, null],
+    ]);
+  });
+
+  it('stacks and sorts only where a merc of ours stands, not during a battle there, on the map screen (StackAndSortMapInventoryPool, CanPlayerUseSectorInventory, IsOurTeamInSectorShownInInventory)', () => {
+    const c = onTheMap();
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'P1' })).toMatchObject({ ok: false, data: { refusal: 'noMercInSector' } });
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9', order: [1, 1] })).toMatchObject({
+      ok: false,
+      data: { refusal: 'badStashOrder' },
+    });
+    const t = loaded(c);
+    t.turn.enemyInSector = true;
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9' })).toMatchObject({ ok: false, data: { refusal: 'battleInSector' } });
+    t.turn.enemyInSector = false;
+    for (const m of c.battle?.roster.all() ?? []) m.betweenSectors = true;
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9' })).toMatchObject({ ok: false, data: { refusal: 'noMercInSector' } });
+    for (const m of c.battle?.roster.all() ?? []) m.betweenSectors = false;
+    expect(c.dispatch({ type: 'tacticalScreen' })).toMatchObject({ ok: true });
+    const onTactical = { ok: false, data: { refusal: 'mapScreenOnly' } };
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9' })).toMatchObject(onTactical);
+    expect(c.dispatch({ type: 'refillFromStash', sector: 'A9', item: 0 })).toMatchObject(onTactical);
+  });
+
+  it("tops up the mercs' copies of the pointed-at magazine as SHIFT+R does: the pointed stack first, then the others in the pool's order, each from its last object, mercs by id and pockets in order, one on the road left out (RefillMercItemsFromMapInventoryPool)", () => {
+    const c = onTheMapWithA9Unloaded(3);
+    const [first, second, third] = emptyHandedMercs(c) as [number, number, number];
+    carry(c, first, InvSlot.BIGPOCK1, clips([5, 15]));
+    carry(c, second, InvSlot.SMALLPOCK1, clips([2]));
+    carry(c, third, InvSlot.BIGPOCK1, clips([0]));
+    const away = c.battle?.roster.get(third);
+    if (!away) throw new Error('no merc');
+    away.betweenSectors = true;
+    a9Records(c, [[clips([15, 3])], [clips([8])], [clips([9]), UNREACHABLE], [one('CANTEEN', 50)], [clips([7])]]);
+    expect(c.dispatch({ type: 'refillFromStash', sector: 'A9', item: 1, order: [4, 0] })).toEqual({
+      ok: true,
+      data: { sector: 'A9', item: 'CLIP9_15', points: 23 },
+    });
+    const pocket = (id: number, slot: number) => c.battle?.roster.get(id)?.soldier.inv[slot];
+    expect(pocket(first, InvSlot.BIGPOCK1)).toMatchObject({ count: 2, status: [15, 15] });
+    expect(pocket(second, InvSlot.SMALLPOCK1)).toMatchObject({ count: 1, status: [15] });
+    expect(pocket(third, InvSlot.BIGPOCK1)).toMatchObject({ count: 1, status: [0] });
+    expect(stash(c).map((e) => [e.index, e.item, e.status])).toEqual([
+      [0, 'CLIP9_15', [10]],
+      [2, 'CLIP9_15', [9]],
+      [3, 'CANTEEN', [50]],
+    ]);
+  });
+
+  it('takes from the pointed-at stack even when it carries an attachment, which keeps every other stack out of a refill (quirk, RefillMercItemsFromMapInventoryPool)', () => {
+    const c = onTheMapWithA9Unloaded();
+    const [first, second] = emptyHandedMercs(c) as [number, number];
+    carry(c, first, InvSlot.BIGPOCK1, clips([0]));
+    carry(c, second, InvSlot.BIGPOCK1, clips([0]));
+    const fitted = () => {
+      const o = clips([15]);
+      o.attachments[0] = { item: itemIndex('SILENCER'), status: 90 };
+      return o;
+    };
+    a9Records(c, [[fitted()], [fitted()]]);
+    expect(c.dispatch({ type: 'refillFromStash', sector: 'A9', item: 0 })).toMatchObject({ ok: true, data: { points: 15 } });
+    const pocket = (id: number) => c.battle?.roster.get(id)?.soldier.inv[InvSlot.BIGPOCK1];
+    expect([pocket(first)?.status, pocket(second)?.status]).toEqual([[15], [0]]);
+  });
+
+  it('refills only from a reachable magazine, kit or medical kit, on the map screen and not during a battle there (RefillMercItemsFromMapInventoryPool)', () => {
+    const c = onTheMapWithA9Unloaded();
+    a9Records(c, [[clips([5]), UNREACHABLE], [one('GLOCK_17')], [one('CANTEEN', 50)]]);
+    const refill = (item: unknown) => c.dispatch({ type: 'refillFromStash', sector: 'A9', item });
+    expect(refill(0)).toMatchObject({ ok: false, data: { refusal: 'unreachable' } });
+    expect(refill(1)).toMatchObject({ ok: false, data: { refusal: 'notRefillable' } });
+    expect(refill(7)).toMatchObject({ ok: false, data: { refusal: 'badStashIndex' } });
+    expect(refill(2)).toMatchObject({ ok: true, data: { item: 'CANTEEN', points: 0 } });
   });
 
   it('refuses to put anything onto a pool item out of reach, as the pool slot click checks the item it lands on first (MapInvenPoolSlotsPrimary)', () => {

@@ -12,7 +12,9 @@
 // @src MapInvenPoolSlotsPrimary's SetMapCursorItem (what a merc's item swaps out of a pool slot or leaves over stays in
 // @src the cursor: parked with him as moveItem parks its leftover, 2026-11-14); MapScreen.cc ChangeSelectedMapSector
 // @src and Map_Screen_Interface_Map.cc IsTheCursorAllowedToHighLightThisSector (the inventory opens on the selected
-// @src sector, never on the edge of the world, 2026-11-14).
+// @src sector, never on the edge of the world, 2026-11-14); MapScreen.cc HandleModShift (SHIFT+S
+// @src StackAndSortMapInventoryPool and SHIFT+R RefillMercItemsFromMapInventoryPool over the pool's order, their checks in
+// @src their order, stash-repack.ts, 2026-11-15).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -68,7 +70,8 @@ import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
 import { campaignCombatContext } from './off-map-combat.ts';
 import type { RosterMerc } from './roster.ts';
-import { emptySlotShare, poolOrder, type Stash, type StashEntry, stashOf, takesWithoutSwap } from './stash.ts';
+import { emptySlotShare, poolList, poolOrder, type Stash, type StashEntry, stashOf, takesWithoutSwap } from './stash.ts';
+import { refillablePoints, refillMercItems, refillSources, stackedAndSorted, standsInStashSector } from './stash-repack.ts';
 
 export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'moveItem',
@@ -98,6 +101,8 @@ export const MapInventoryRefusal = {
   TACTICAL_ONLY: 'tacticalOnly',
   BAD_SECTOR: 'badSector',
   EDGE_OF_WORLD: 'edgeOfWorld',
+  NO_MERC_IN_SECTOR: 'noMercInSector',
+  NOT_REFILLABLE: 'notRefillable',
 } as const;
 
 type MapInventoryRefusal = (typeof MapInventoryRefusal)[keyof typeof MapInventoryRefusal];
@@ -116,11 +121,15 @@ const MAP_REFUSAL_TEXT: Readonly<Record<MapInventoryRefusal, string>> = {
   tacticalOnly: 'this is done in tactical only',
   badSector: 'sector must be a sector such as A9',
   edgeOfWorld: 'the map cannot select that sector, the edge of the world, so its inventory never opens',
+  noMercInSector: 'none of our mercs stands in that sector (alive, no vehicle, not captured, in transit or on the road)',
+  notRefillable: 'only magazines, kits and medical kits are refilled from the stash',
 };
 
 const NO_SLOT = -1;
 const DISCARD_ITEM = 'discardItem';
 const ARRANGE_STASH = 'arrangeStash';
+const STACK_AND_SORT = 'stackAndSortStash';
+const POOL_COMMANDS: ReadonlySet<string> = new Set([ARRANGE_STASH, STACK_AND_SORT, 'refillFromStash']);
 const GROUND = 'ground';
 
 function ringPosition(value: unknown): number | null {
@@ -162,6 +171,10 @@ function leftoverOf(at: number | undefined): { leftover?: number } {
 
 function spotOf(spot: LeftoverSpot | null): { leftover?: LeftoverSpot } {
   return spot ? { leftover: spot } : {};
+}
+
+function poolOrderOf(value: unknown): number[] | null {
+  return value === undefined ? [] : stashOrder(value);
 }
 
 function stashOrder(value: unknown): number[] | null {
@@ -267,9 +280,9 @@ export class MapInventory {
     if (cmd.type === 'inventory') return this.#query(cmd);
     if (cmd.type === DISCARD_ITEM && this.#campaign.state.flow !== 'strategic')
       return refuse('mapScreenOnly', 'the trash can is on the map screen only');
-    if (cmd.type === ARRANGE_STASH)
+    if (POOL_COMMANDS.has(cmd.type))
       return this.#campaign.state.flow === 'strategic'
-        ? this.#arrange(cmd)
+        ? this.#poolCommand(cmd)
         : refuse('mapScreenOnly', 'the sector inventory is on the map screen only');
     if (this.#campaign.state.flow !== 'strategic' || !MAP_INVENTORY_COMMANDS.has(cmd.type)) return null;
     const merc = this.#merc(cmd.soldier);
@@ -627,14 +640,47 @@ export class MapInventory {
     return this.#campaign.state.worldSector ?? this.#campaign.battle?.roster.all()[0]?.sector ?? null;
   }
 
-  #arrange(cmd: InventoryCommand): CommandResult {
+  #poolCommand(cmd: InventoryCommand): CommandResult {
     const sector = this.#openable(this.#querySector(cmd));
     if (typeof sector === 'string') return mapRefusal(sector);
-    const order = stashOrder(cmd.order);
+    const order = cmd.type === ARRANGE_STASH ? stashOrder(cmd.order) : poolOrderOf(cmd.order);
     if (!order) return mapRefusal(MapInventoryRefusal.BAD_STASH_ORDER);
+    if (cmd.type === ARRANGE_STASH) return this.#arranged(sector, order);
+    if (battleIn(this.#campaign, sector)) return mapRefusal(MapInventoryRefusal.BATTLE);
+    return cmd.type === STACK_AND_SORT ? this.#stackAndSort(sector, order) : this.#refill(sector, order, cmd.item);
+  }
+
+  #arranged(sector: Sector, order: readonly number[]): CommandResult {
     const stash = stashOf(this.#campaign, sector);
-    stash.arrange(order);
+    stash.writeBack(poolList(this.#campaign, stash.entries(), order));
     return { ok: true, data: { sector: sectorShortString(sector), entries: stash.entries().length } };
+  }
+
+  #roster(): readonly RosterMerc[] {
+    return this.#campaign.battle?.roster.all() ?? [];
+  }
+
+  #stackAndSort(sector: Sector, order: readonly number[]): CommandResult {
+    if (!this.#roster().some((m) => standsInStashSector(m, sector))) return mapRefusal(MapInventoryRefusal.NO_MERC_IN_SECTOR);
+    const stash = stashOf(this.#campaign, sector);
+    const pool = poolList(this.#campaign, stash.entries(), order);
+    stash.writeBack(stackedAndSorted(this.#campaign, contentOf(this.#campaign).items, pool));
+    return { ok: true, data: { sector: sectorShortString(sector), entries: stash.entries().length } };
+  }
+
+  #refill(sector: Sector, order: readonly number[], item: unknown): CommandResult {
+    const stash = stashOf(this.#campaign, sector);
+    const pointed = stash.entry(item);
+    if (!pointed) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    if (!(pointed.flags & WorldItemFlags.REACHABLE)) return mapRefusal(MapInventoryRefusal.UNREACHABLE);
+    const kind = pointed.object.item;
+    const max = refillablePoints(contentOf(this.#campaign).items, kind);
+    if (max === 0) return mapRefusal(MapInventoryRefusal.NOT_REFILLABLE);
+    const sources = refillSources(poolList(this.#campaign, stash.entries(), order), pointed);
+    const objects = sources.map((entry) => cloneObject(entry.object));
+    const outcome = refillMercItems(this.#roster(), sector, kind, max, objects);
+    for (const k of outcome.drawn) stash.update((sources[k] as StashEntry).index, objects[k] as ItemObject);
+    return { ok: true, data: { sector: sectorShortString(sector), item: this.#name(kind), points: outcome.points } };
   }
 
   #query(cmd: InventoryCommand): CommandResult {

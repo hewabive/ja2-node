@@ -8,10 +8,11 @@ import type { ViewFrame } from '../../../protocol/view.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
-import { createItem } from '../../../sim/items/object.ts';
+import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { StatAmt, StatCause } from '../../../sim/strategic/economy/constants.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { sectorInfo, setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
+import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
@@ -1181,6 +1182,59 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.key('Escape');
       await f.click('teamRow1.name');
       expect(f.screen.hook().info).toBe(away);
+    }));
+
+  it("stacks and sorts the open sector inventory with SHIFT+S and refills the mercs' magazines from the pool item under the pointer with SHIFT+R, as extra_hotkeys has them on (HandleModShift)", () =>
+    withMap(async (f) => {
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      const items = campaign.battle?.content.items;
+      if (!items) throw new Error('no item table');
+      const clipItem = items.byName.get('CLIP9_15')?.index ?? 0;
+      const clip = (shots: number) => Object.assign(createItem(items, clipItem, 100), { status: [shots] });
+      const flags = WorldItemFlags.REACHABLE;
+      const record = (shots: number) => ({
+        exists: true,
+        gridNo: STASH_GRIDNO,
+        level: 0,
+        object: clip(shots),
+        flags,
+        zHeight: 0,
+        visible: 1,
+      });
+      await f.click('teamRow0.name');
+      campaign.state.sectorDiffs.set(sectorKey(f.screen.selectedSector), { ...emptySectorDiff(), items: [record(5), record(6)] });
+      for (const m of campaign.battle?.roster.all() ?? []) {
+        const inv = m.soldier.inv;
+        inv.forEach((o, slot) => {
+          if (o.item === clipItem) inv[slot] = emptyObject();
+        });
+      }
+      const [holder] = listedMercs(f);
+      const pocket = () => campaign.battle?.roster.get(holder)?.soldier.inv[InvSlot.SMALLPOCK1];
+      Object.assign(pocket() ?? {}, clip(3));
+      f.client.refresh();
+      const stash = () => {
+        const answer = campaign.dispatch({ type: 'inventory', sector: SQUAD_SECTOR });
+        return answer.ok ? (answer.data as { stash: { index: number; status: number[] }[] }).stash.map((e) => [e.index, e.status]) : [];
+      };
+      f.key('s', KeyModifier.SHIFT);
+      await f.settle();
+      expect(f.client.commands).toEqual([]);
+      f.screen.openSectorInventory();
+      await f.settle();
+      f.key('s', KeyModifier.SHIFT);
+      await f.settle();
+      expect(lastCommand(f)).toEqual({
+        cmd: { type: 'stackAndSortStash', sector: SQUAD_SECTOR, order: [1, 0] },
+        reply: { ok: true, data: { sector: SQUAD_SECTOR, entries: 1 } },
+      });
+      expect(stash()).toEqual([[0, [11]]]);
+      hoverWidget(f, 'poolSlot0');
+      f.key('r', KeyModifier.SHIFT);
+      await f.settle();
+      expect(lastCommand(f)?.cmd).toEqual({ type: 'refillFromStash', sector: SQUAD_SECTOR, item: 0, order: [0] });
+      expect(pocket()?.status).toEqual([14]);
+      expect(stash()).toEqual([]);
     }));
 
   it('steps the info character with the arrows past a merc who could not take the held item, as ValidSelectableCharForNextOrPrev', () =>

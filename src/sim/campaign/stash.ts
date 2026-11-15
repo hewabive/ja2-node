@@ -12,7 +12,16 @@
 import { ItemClass } from '../../content/items/items.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import { u8 } from '../../core/int.ts';
-import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
+import {
+  cloneObject,
+  copyObjectInto,
+  deleteObject,
+  getObjFrom,
+  type ItemObject,
+  removeObjects,
+  stackObjects,
+  swapObjects,
+} from '../items/object.ts';
 import { compareItemsForSorting } from '../strategic/economy/merchants/supply.ts';
 import { SectorFlag } from '../strategic/forces/constants.ts';
 import { setSectorFlag } from '../strategic/map/sectors.ts';
@@ -39,12 +48,17 @@ import { sectorDiffOf } from './sector-loot.ts';
 const MONEY_STATUS = 100;
 const UNSET_GRIDNO = 0;
 
-export interface StashEntry {
-  readonly index: number;
-  readonly object: ItemObject;
+export interface PoolItem {
   readonly gridNo: number;
   readonly level: number;
+  readonly object: ItemObject;
   readonly flags: number;
+  readonly zHeight: number;
+  readonly visible: number;
+}
+
+export interface StashEntry extends PoolItem {
+  readonly index: number;
 }
 
 export interface Stash {
@@ -53,16 +67,8 @@ export interface Stash {
   take(index: number, count: Count): ItemObject;
   placeInto(index: number, cursor: ItemObject): void;
   add(o: ItemObject, gridNo: number, level: number): number[];
-  arrange(order: readonly number[]): void;
-}
-
-interface StoredItem {
-  readonly gridNo: number;
-  readonly level: number;
-  readonly object: ItemObject;
-  readonly flags: number;
-  readonly zHeight: number;
-  readonly visible: number;
+  update(index: number, o: ItemObject): void;
+  writeBack(pool: readonly PoolItem[]): void;
 }
 
 function contentOf(campaign: CampaignSim): TacticalContent {
@@ -125,8 +131,8 @@ function takeFrom(campaign: CampaignSim, o: ItemObject, count: Count): { readonl
   return { taken: cloneObject(o), emptied: true };
 }
 
-function seenWrittenBack(seen: readonly StoredItem[]): StoredItem[] {
-  const out: StoredItem[] = [];
+function seenWrittenBack(seen: readonly PoolItem[]): PoolItem[] {
+  const out: PoolItem[] = [];
   for (const wi of seen) {
     const before = out.at(-1);
     const gridNo = wi.gridNo === UNSET_GRIDNO && before ? before.gridNo : wi.gridNo;
@@ -135,7 +141,7 @@ function seenWrittenBack(seen: readonly StoredItem[]): StoredItem[] {
   return out;
 }
 
-function unseenWrittenBack(unseen: readonly StoredItem[]): StoredItem[] {
+function unseenWrittenBack(unseen: readonly PoolItem[]): PoolItem[] {
   return unseen.map((wi) => ({ ...wi, flags: wi.flags | entryPointFlag(wi.gridNo) }));
 }
 
@@ -149,7 +155,7 @@ export function poolOrder<T extends { readonly object: ItemObject }>(campaign: C
   );
 }
 
-function arrangedSeen<T extends { readonly index: number; readonly object: ItemObject }>(
+export function poolList<T extends { readonly index: number; readonly object: ItemObject }>(
   campaign: CampaignSim,
   seen: readonly T[],
   order: readonly number[],
@@ -168,8 +174,8 @@ function loadedStash(campaign: CampaignSim): Stash {
   if (!t) throw new Error('no loaded sector');
   const visible = () => worldItemsByIndex(t).filter((wi) => visibleInMapInventory(campaign, wi));
   const find = (index: number) => visible().find((wi) => wi.id === index) ?? null;
-  const entryOf = (wi: WorldItem): StashEntry => ({ index: wi.id, object: wi.object, gridNo: wi.gridNo, level: wi.level, flags: wi.flags });
-  const readd = (wi: StoredItem) => addItemToPool(t, wi.gridNo, wi.object, wi.visible, wi.level, wi.flags, wi.zHeight);
+  const entryOf = (wi: WorldItem): StashEntry => ({ ...wi, index: wi.id });
+  const readd = (wi: PoolItem) => addItemToPool(t, wi.gridNo, wi.object, wi.visible, wi.level, wi.flags, wi.zHeight);
   return {
     entries: () => visible().map(entryOf),
     entry: (index) => {
@@ -192,16 +198,15 @@ function loadedStash(campaign: CampaignSim): Stash {
         const added = addItemToPool(t, gridNo, part, Visibility.VISIBLE, level, stashFlags(gridNo), 0);
         return added ? [added.id] : [];
       }),
-    arrange: (order) => {
-      const all = worldItemsByIndex(t);
-      const seen = arrangedSeen(
-        campaign,
-        all.filter((wi) => visibleInMapInventory(campaign, wi)).map((wi) => ({ ...wi, index: wi.id })),
-        order,
-      );
-      const unseen = all.filter((wi) => !visibleInMapInventory(campaign, wi));
+    update: (index, o) => {
+      const wi = find(index) as WorldItem;
+      if (o.count === 0) removeWorldItem(t, wi);
+      else copyObjectInto(wi.object, o);
+    },
+    writeBack: (pool) => {
+      const unseen = worldItemsByIndex(t).filter((wi) => !visibleInMapInventory(campaign, wi));
       trashWorldItems(t);
-      for (const wi of [...seenWrittenBack(seen), ...unseenWrittenBack(unseen)]) readd(wi);
+      for (const wi of [...seenWrittenBack(pool), ...unseenWrittenBack(unseen)]) readd(wi);
     },
   };
 }
@@ -215,13 +220,7 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
   };
   const known = (): readonly DiffWorldItem[] => state.sectorDiffs.get(sectorKey(sector))?.items ?? [];
   const shown = (wi: DiffWorldItem) => wi.exists && visibleInMapInventory(campaign, wi);
-  const entryOf = (wi: DiffWorldItem, k: number): StashEntry => ({
-    index: k,
-    object: wi.object,
-    gridNo: wi.gridNo,
-    level: wi.level,
-    flags: wi.flags,
-  });
+  const entryOf = ({ exists: _, ...wi }: DiffWorldItem, k: number): StashEntry => ({ ...wi, index: k });
   const written = () => {
     setSectorFlag(state.map, sector, SectorFlag.ITEM_TEMP_FILE_EXISTS, worldDay(state.clock));
     synchronizeVisibleItemCount(state.map, contentOf(campaign).items, sector, records());
@@ -277,16 +276,16 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
       written();
       return added;
     },
-    arrange: (order) => {
-      const all = records().filter((wi) => wi.exists);
-      const seen = arrangedSeen(
-        campaign,
-        known().flatMap((wi, k) => (shown(wi) ? [{ ...wi, index: k }] : [])),
-        order,
-      );
-      const unseen = all.filter((wi) => !visibleInMapInventory(campaign, wi));
+    update: (index, o) => {
+      const items = records();
+      const wi = items[index] as DiffWorldItem;
+      items[index] = o.count === 0 ? { ...wi, exists: false } : { ...wi, object: o };
+      written();
+    },
+    writeBack: (pool) => {
+      const unseen = records().filter((wi) => wi.exists && !visibleInMapInventory(campaign, wi));
       const diff = sectorDiffOf(state, sector);
-      diff.items = [...unseenWrittenBack(unseen), ...seenWrittenBack(seen)].map((wi) => ({
+      diff.items = [...unseenWrittenBack(unseen), ...seenWrittenBack(pool)].map((wi) => ({
         exists: true,
         gridNo: wi.gridNo,
         level: wi.level,

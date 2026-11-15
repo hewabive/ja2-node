@@ -16,7 +16,10 @@
 // @src clicked slot, a pool item moves between slots (MapInvenPoolSlotsPrimary with an item in the cursor), the trash
 // @src can takes it (MapScreen.cc TrashCanBtnCallback), and closing writes the pool back in its order
 // @src (SaveSeenAndUnseenItems, 2026-11-14); what a merc's item swaps out of a pool slot stays in the cursor
-// @src (MapInvenPoolSlotsPrimary's SetMapCursorItem, 2026-11-14).
+// @src (MapInvenPoolSlotsPrimary's SetMapCursorItem, 2026-11-14); StackAndSortMapInventoryPool and
+// @src RefillMercItemsFromMapInventoryPool (nothing with an item in the cursor or during a battle there, the refill on the
+// @src item under the pointer and not on one out of reach; the stacked pool replaces the slots, ReplaceMapInventoryPool,
+// @src 2026-11-15).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -52,9 +55,12 @@ import {
   poolObjects,
   poolSlotIndex,
   poolSlotOrigin,
+  refillCommand,
   refreshedLayout,
+  replacedPoolPage,
   type StashCursor,
   shownEntry,
+  stackAndSortCommand,
   stashCursor,
   stashPlacements,
   toStashCommand,
@@ -101,6 +107,7 @@ export class SectorInventory {
   #entries: ReadonlyMap<number, StashEntryView> = new Map();
   #layout: PoolLayout | null = null;
   #placements: readonly PoolPlacement[] = [];
+  #replaced = false;
   #page = 0;
   #cursor: StashCursor | null = null;
   #asked = 0;
@@ -153,6 +160,7 @@ export class SectorInventory {
     this.#entries = new Map();
     this.#layout = null;
     this.#placements = [];
+    this.#replaced = false;
     void this.refresh();
   }
 
@@ -164,6 +172,7 @@ export class SectorInventory {
     this.#entries = new Map();
     this.#layout = null;
     this.#placements = [];
+    this.#replaced = false;
     this.#hovered = null;
     this.#outlined = new Set();
   }
@@ -227,9 +236,10 @@ export class SectorInventory {
     const stash = query?.stash ?? [];
     this.#query = query;
     this.#entries = new Map(stash.map((e) => [e.index, e]));
-    this.#layout = this.#layout ? refreshedLayout(this.#layout, stash, this.#placements) : openedLayout(stash);
+    this.#layout = this.#layout && !this.#replaced ? refreshedLayout(this.#layout, stash, this.#placements) : openedLayout(stash);
     this.#placements = [];
-    this.#page = Math.min(this.#page, this.pages - 1);
+    this.#page = this.#replaced ? replacedPoolPage(this.#page, stash.length) : Math.min(this.#page, this.pages - 1);
+    this.#replaced = false;
     const held = this.#cursor;
     if (held && this.#entries.get(held.index)?.item !== held.item) this.#cursor = null;
   }
@@ -309,6 +319,23 @@ export class SectorInventory {
     if (command) await this.#send(command, target, NO_SLOT, (data) => this.#host.mercPlaced(data));
   }
 
+  #poolKeysUsable(): boolean {
+    if (!this.shown || this.#busy) return false;
+    if (this.#host.mercCursor() !== null || this.#cursor !== null) return false;
+    return this.#query?.usable === true;
+  }
+
+  async stackAndSort(): Promise<void> {
+    if (!this.#poolKeysUsable()) return;
+    await this.#send(stackAndSortCommand(this.layout, this.#location), NO_SLOT, NO_SLOT, () => undefined, true);
+  }
+
+  async refill(): Promise<void> {
+    const pointed = this.hoveredEntry();
+    if (!this.#poolKeysUsable() || !pointed?.reachable) return;
+    await this.#send(refillCommand(this.layout, this.#location, pointed), NO_SLOT, NO_SLOT, () => undefined);
+  }
+
   slotSecondary(): boolean {
     if (this.#host.mercCursor() !== null || this.#cursor !== null) return false;
     this.hide();
@@ -327,11 +354,18 @@ export class SectorInventory {
     });
   }
 
-  async #send(command: CommandEnvelope, target: number, source: number, placed: (data: unknown) => void): Promise<void> {
+  async #send(
+    command: CommandEnvelope,
+    target: number,
+    source: number,
+    placed: (data: unknown) => void,
+    replacesPool = false,
+  ): Promise<void> {
     this.#busy = true;
     try {
       const reply = await this.#host.env.client.command(command);
       if (reply.ok) this.#placements = stashPlacements(reply.data, target, source);
+      this.#replaced = reply.ok && replacesPool;
       await this.refresh();
       if (reply.ok) placed(reply.data);
     } finally {

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Item_Types.h OBJECTTYPE; Items.cc DefaultMagazine, FindReplacementMagazine, CreateGun,
 // @src CreateMagazine, CreateItem, CreateItems, CreateMoney, GetObjFrom, AttachObject, RenumberAttachments,
-// @src RemoveAttachment, EmptyWeaponMagazine; Item_Types.h OBJECTTYPE ubOwnerProfile, ubOwnerCivGroup (2026-11-15)
+// @src RemoveAttachment, EmptyWeaponMagazine, ItemHasAttachments; Item_Types.h OBJECTTYPE ubOwnerProfile, ubOwnerCivGroup
+// @src (2026-11-15)
 
 import type { ObjectRecord } from '../../content/formats/object.ts';
 import { AmmoType, ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../content/items/items.ts';
@@ -120,6 +121,10 @@ export function stackObjects(source: ItemObject, target: ItemObject, n: number):
 
 export function damageObject(o: ItemObject, amount: number): void {
   o.status[0] = amount >= (o.status[0] ?? 0) ? 1 : (o.status[0] ?? 0) - amount;
+}
+
+export function itemHasAttachments(o: ItemObject): boolean {
+  return o.attachments.some((a) => a.item !== NOTHING);
 }
 
 export function findAttachment(o: ItemObject, item: number): number {

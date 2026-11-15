@@ -116,6 +116,8 @@ function mapRefusals(merc: number): Refusals {
     [{ type: 'arrangeStash', sector: 'nowhere', order: [] }, 'badSector'],
     [{ type: 'arrangeStash', sector: 'P16', order: [] }, 'edgeOfWorld'],
     [{ type: 'inventory', sector: 'P16' }, 'edgeOfWorld'],
+    [{ type: 'stackAndSortStash', sector: 'P1' }, 'noMercInSector'],
+    [{ type: 'refillFromStash', sector: 'A9', item: NOBODY }, 'badStashIndex'],
     [{ type: 'readEmail', id: 1 }, 'laptopClosed'],
   ];
 }

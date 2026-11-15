@@ -27,6 +27,8 @@ const IGNORED_BY_THE_LOCKED_INPUT: readonly string[] = [
 
 const ANSWERED_WITHOUT_A_LINE: readonly string[] = ['refusesOrder', 'noAmmo', 'weaponBroken', 'cannotReach', 'alreadyFacing'];
 
+const IGNORED_BY_THE_POOL_KEYS: readonly string[] = ['noMercInSector', 'notRefillable'];
+
 const ITEM_PANEL_REFUSALS: readonly string[] = [
   'emptySlot',
   'sameSlot',
@@ -65,6 +67,7 @@ const ANSWERED_BY_THE_SCREENS: readonly string[] = [
 const NO_FALLBACK: ReadonlySet<string> = new Set([
   ...IGNORED_BY_THE_LOCKED_INPUT,
   ...ANSWERED_WITHOUT_A_LINE,
+  ...IGNORED_BY_THE_POOL_KEYS,
   ...ITEM_PANEL_REFUSALS,
   ...ANSWERED_BY_THE_SCREENS,
 ]);

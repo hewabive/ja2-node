@@ -5,7 +5,8 @@
 // @src are free), GetTotalNumberOfItemsInSectorStash, MapInvenPoolSlotsPrimary (the checks in their order: an unreachable
 // @src item, no merc selected, the merc not in the sector or on the road, a battle there), BeginInventoryPoolPtr (one object,
 // @src SHIFT the whole slot); src/game/Strategic/MapScreen.cc TrashCanBtnCallback; Tactical/Interface_Items.cc
-// @src BeginKeyRingItemPointer (keys off the ring put into the pool or the trash can, 2026-11-03).
+// @src BeginKeyRingItemPointer (keys off the ring put into the pool or the trash can, 2026-11-03); ReplaceMapInventoryPool
+// @src (the page kept unless past the last one of the pool padded to whole pages, 2026-11-15).
 
 import { idiv } from '../../../core/int.ts';
 import type { StashEntryView } from '../../../protocol/map-inventory.ts';
@@ -183,8 +184,24 @@ export function discardFromStashCommand(cursor: StashCursor, soldier: number): C
   };
 }
 
+function layoutOrder(layout: PoolLayout): number[] {
+  return layout.filter((index): index is number => index !== null);
+}
+
 export function arrangeCommand(layout: PoolLayout, at: PoolLocation): CommandEnvelope {
-  return { type: 'arrangeStash', ...stashLocation(at), order: layout.filter((index): index is number => index !== null) };
+  return { type: 'arrangeStash', ...stashLocation(at), order: layoutOrder(layout) };
+}
+
+export function stackAndSortCommand(layout: PoolLayout, at: PoolLocation): CommandEnvelope {
+  return { type: 'stackAndSortStash', ...stashLocation(at), order: layoutOrder(layout) };
+}
+
+export function refillCommand(layout: PoolLayout, at: PoolLocation, pointed: StashEntryView): CommandEnvelope {
+  return { type: 'refillFromStash', ...stashLocation(at), item: pointed.index, order: layoutOrder(layout) };
+}
+
+export function replacedPoolPage(page: number, entries: number): number {
+  return Math.min(page, idiv(entries, POOL_SLOTS_PER_PAGE));
 }
 
 export function stashPlacements(data: unknown, target: number, source: number): PoolPlacement[] {

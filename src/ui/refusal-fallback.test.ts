@@ -39,6 +39,10 @@ describe('the fallback line for a refusal no screen shows', () => {
       expect(fallbackRefusalLine(refused(token))).toBeNull();
   });
 
+  it('prints nothing for SHIFT+S without a merc in the sector or SHIFT+R over an item that holds no points, as the pool keys do nothing then', () => {
+    for (const token of ['noMercInSector', 'notRefillable']) expect(fallbackRefusalLine(refused(token))).toBeNull();
+  });
+
   it('prints nothing for a refusal a screen answers itself, with its own box or another order', () => {
     for (const token of ['noRoofEdge', 'mergePrompt', 'noMilitiaHere', 'leaderRefused', 'alreadyInSquad'])
       expect(fallbackRefusalLine(refused(token))).toBeNull();
