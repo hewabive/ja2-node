@@ -62,8 +62,9 @@ function explosionDeath(bloodAndGore: boolean): Death {
   const animations = new Set<string>();
   const step = sim.step.bind(sim);
   sim.step = () => {
-    step();
+    const boxShown = step();
     animations.add(animName(t.content, s.state));
+    return boxShown;
   };
   igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
   const events = runExplosivesUntilIdle(sim).map((e) => e.type);

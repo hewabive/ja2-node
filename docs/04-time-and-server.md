@@ -78,7 +78,7 @@ profiling demands it, which it has not (§4.5).
 | Quote duration: the sample's length with speech on, 60 ms per character without, then 300 ms with the mouth closed | `Tactical/Faces.cc:629-636, 1233, 1304`; `Tactical/Dialogue_Control.cc:67, 1521` | The longer of the two for every viewer, from the rule pack's voice lengths (deviations "Speech") |
 | A merc's quote waits in the queue while his battle sound plays | `Tactical/Dialogue_Control.cc:485, 633` | Never in the simulation; the client holds the line (deviations "Speech", "Speech playback") |
 | Logic that waits for an empty quote queue: NPC hostility, the AI of Sergeant, Mike and Joe, notifications | `Tactical/OppList.cc:559`; `TacticalAI/AIMain.cc:281`; `Tactical/Overhead.cc:840, 6205` | The same queue, on ticks (`24`) |
-| Message boxes and dialogues with choices; a box or the pickup menu pauses the timers as it opens, so the soldiers after its opener in the overhead pass do not move, and a box opened before the pass skips it | UI screens; `MessageBoxScreen.cc:274`, `Tactical/Interface_Items.cc:4291`, `Utils/Timer_Control.cc:149-180`, `Tactical/Overhead.cc:481` | Decision prompts (D15); time stands still until an answer (deviations "Prompt time"); the rest of a tactical prompt's pass holds every soldier's counters, and a box opened before the pass holds that tick's pass (`src/sim/tactical/prompts.ts`, `src/sim/tactical/overhead.ts`, `12` §6) |
+| Message boxes and dialogues with choices; a box or the pickup menu pauses the timers as it opens, so the soldiers after its opener in the overhead pass do not move, and a box opened before the pass skips it; it pauses the game too, which restarts the world clock's second | UI screens; `MessageBoxScreen.cc:271-274`, `Tactical/Interface_Items.cc:4289-4291`, `Utils/Timer_Control.cc:149-180`, `Tactical/Overhead.cc:481`, `Strategic/Game_Clock.cc:609-613` | Decision prompts (D15); time stands still until an answer (deviations "Prompt time"); the rest of a tactical prompt's pass holds every soldier's counters, a box opened before the pass holds that tick's pass (`src/sim/tactical/prompts.ts`, `src/sim/tactical/overhead.ts`, `12` §6), and the box's tick restarts the world clock's second (`15` §2) |
 | Stop-time quotes: tactical stands while the line plays, the clocks run on | `GameScreen.cc:296-307`, `GameLoop.cc:220` | The sector's pass waits while its clock and the world clock run (`24`) |
 | Watchdogs at 15 and 25 s that break hangs | `TacticalAI/AIMain.cc:366-380`; `Tactical/Handle_UI.cc:405-419` | Not ported: a hang is a bug and fails the tests (deviations "Watchdogs") |
 | Idle animations draw on the shared generator and change soldier state | opcode 491 | Simulated with the same draws on `main`; the animals' idle sounds are the client's (deviation "Idle sounds of unseen animals") |
@@ -125,10 +125,10 @@ the pause or lines wait in the dialogue queue it steps until they ended and star
    real time (`AdvanceRun`, the `inTactical` of the world clock);
 6. the budget (at least 2,000,000 ticks, at most 7 world days).
 
-In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks) and stand while the interface
-lock pauses the game (`15`); an advance with `mode` or `compressionStopped` but no time target is refused there, and so
-is any of these fields while auto-bandage runs, as its pause lasts until the player ends the mode (`autoBandaging`,
-`12` §8).
+In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks, restarted by every box: `15` §2)
+and stand while the interface lock pauses the game (`15`); an advance with `mode` or `compressionStopped` but no time
+target is refused there, and so is any of these fields while auto-bandage runs, as its pause lasts until the player ends
+the mode (`autoBandaging`, `12` §8).
 
 ### 4.3. Drivers
 

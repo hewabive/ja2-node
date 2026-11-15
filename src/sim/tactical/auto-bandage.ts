@@ -144,12 +144,15 @@ function countAutoBandageSeconds(t: TacticalState): void {
   if (state.seconds <= LAST_COUNTED_SECONDS) state.seconds += SECONDS_PER_FRAME;
 }
 
-export function autoBandageFrame(t: TacticalState, hooks: OverheadHooks): void {
+export function autoBandageFrame(t: TacticalState, hooks: OverheadHooks): boolean {
   handleRealtimeTurns(t, t.realtimeClock);
   handleTeamServices(t, Team.OUR);
   countAutoBandageSeconds(t);
   executeOverhead(t, hooks);
-  if (t.autoBandage.endRequested) endAutoBandage(t);
+  if (!t.autoBandage.endRequested) return false;
+  const failureBoxShown = t.autoBandage.failed;
+  endAutoBandage(t);
+  return failureBoxShown;
 }
 
 export function requestEndAutoBandage(t: TacticalState): void {

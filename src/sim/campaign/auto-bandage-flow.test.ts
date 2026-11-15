@@ -60,7 +60,8 @@ const ONE_TICK = { ticks: 1 };
 const A_FEW_FRAMES = { ticks: 10 };
 const UNTIL_THE_FIRST_TURN = { ticks: (STRATEGIC_OVERHEAD_MS + TICK_MS) / TICK_MS };
 const PAST_TWO_TURNS = { ticks: (2 * (RT_TURN_MS + STRATEGIC_OVERHEAD_MS + TICK_MS)) / TICK_MS };
-const ONE_WORLD_SECOND = { ticks: 1000 / TICK_MS };
+const WORLD_SECOND_MS = 1000;
+const ONE_WORLD_SECOND = { ticks: WORLD_SECOND_MS / TICK_MS };
 const ANNOYED_PROFILE = 99;
 
 interface Campaign {
@@ -118,6 +119,12 @@ function talk(c: Campaign): TalkState {
 
 function clock(c: Campaign): WorldClock {
   return c.session.campaign.state.clock;
+}
+
+function msToTheNextWorldSecond(c: Campaign): number {
+  const from = tactical(c).clockMs;
+  expect(c.live.advance({ worldSeconds: 1 }).reason).toBe('worldTime');
+  return tactical(c).clockMs - from;
 }
 
 function pending(c: Campaign): boolean {
@@ -333,6 +340,18 @@ describe('the mode in a campaign (Auto_Bandage.cc AutoBandage, HandleAutoBandage
     expect(await refusal(c, { type: 'skipLine' })).toBeNull();
     expect(c.session.campaign.state.flow).toBe('tactical');
     await endTheMode(c);
+  });
+
+  it("restarts the world clock's second at the end's failure box, which opens after the unpause; without it the second runs from the mode's last frame", async () => {
+    const ended = async (seed: number, failed: boolean): Promise<number> => {
+      const c = await landedInA9(seed);
+      wound(c, VANT);
+      await startTheMode(c);
+      tactical(c).autoBandage.failed = failed;
+      expect(ofType(await endTheMode(c), 'autoBandageEnded')).toMatchObject([{ failed }]);
+      return msToTheNextWorldSecond(c);
+    };
+    expect([await ended(61, false), await ended(62, true)]).toEqual([WORLD_SECOND_MS - TICK_MS, WORLD_SECOND_MS]);
   });
 
   it('stands up a merc of ours in another sector at the end, a big merc with a rifle stuck in his transition off the map', async () => {

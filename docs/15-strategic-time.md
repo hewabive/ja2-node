@@ -20,7 +20,7 @@ CampaignSim.step: one 5 ms tick                           campaign/campaign-sim.
   tactical flow while a stop-time quote plays: the        campaign/talk-flow.ts (`24`)
     sector's clockMs and the dialogue alone
   strategic flow: realMs += 5, dialogue, automatic pause
-  updateClock(realMs)                                     time/world-clock.ts
+  updateClock(realMs, a box up)                           time/world-clock.ts
     └ advanceClock → processPendingGameEvents             time/event-queue.ts
        └ EventDispatch.execute → the kind's handler       time/dispatch.ts
   hand-offs: meanwhile, endgame, helicopter, PBI,
@@ -67,7 +67,14 @@ combat entry and at the first landing, so the first real-time turn comes 5 s aft
 the tick, not the frame rate (deviation "Strategic map pacing"): a world second per 200 ticks in tactical; while
 compressing, 60-second slices, 5, 30 or 60 per real second (every 40, 6–7 or 3–4 ticks). A world day costs 57,600 ticks
 at 5 minutes per second and 4,800 at 60. A pause or another screen re-phases the second; turn-based combat does not, so
-the first pass after combat adds a second at once.
+the first pass after combat adds a second at once. A message box or the pickup menu on the tactical screen pauses the
+game too (`MessageBoxScreen.cc:271`, `Tactical/Interface_Items.cc:4289`) while `PauseTime` holds the JA2 clock
+(`Utils/Timer_Control.cc:63-66`), so the second restarts at the tick the box opens in, or at the order that opened it,
+and the part played before it is lost. `CampaignSim` hands `updateClock` the box up at the end of its step: a tactical
+prompt, a campaign box (the pre-battle, autoresolve and placement panels are no boxes), or an OK box the sim answers at
+once (a pending auto-bandage question's refusal, the mode's failure box, which opens after its unpause); after an order
+that opened one it restarts the second itself. A refusal that stands for an OK box changes nothing (deviation "Prompt
+time").
 
 **What stops the clock.** Turn-based combat (world time stands, ticks run), a pause, X0 or stopped compression, and the
 `autoresolve` and `laptop` flows. Auto-bandage pauses the game for the whole mode through its sector hooks and at its
@@ -194,6 +201,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The target-first warp runs only the last event at the target second, ahead of everything already due | `time/event-queue.test.ts` |
 | An event that stops compression still lets its 60-second slice run to the end | `time/world-clock.test.ts` |
 | The clock stands in turn-based combat and adds a second at once after it | `time/world-clock.test.ts` |
+| A box or the pickup menu on the tactical screen restarts the world clock's second: the part played before it is lost, and a second due in the tick it opens in never comes | `campaign/tactical-box-clock.test.ts`, `time/world-clock.test.ts` "treats a box up at the tick as a pause …" |
 | One pause lock for every reason: any unlock lifts it | `time/world-clock.test.ts` |
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
 | Auto-bandage's warp is 5 s a frame up to 125 s however long the mode ran, and the events inside it wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |

@@ -321,7 +321,8 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   every soldier's frame, damage and fade counters and the real-time AI's own counter at once (`promptPausesTimers`;
   `TacticalAI/AIMain.cc:163`): the soldiers after its opener in the overhead pass wait, a soldier the AI handles every
   frame excepted, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only one
-  soldier's own pickup ever asks twice. A box up at the start of the pass holds the whole pass (`executeOverhead`,
+  soldier's own pickup ever asks twice. In a campaign its `PauseGame` also restarts the world clock's second in that
+  tick (`15` §2). A box up at the start of the pass holds the whole pass (`executeOverhead`,
   `Tactical/Overhead.cc:481`): the frame of the auto-bandage question (§8), and the frame of a campaign box opened
   before the sector's step (the `someoneElseInSector` box, `campaign-sim.ts`), whose throws, real-time turn and
   ownership check wait too (`GameScreen.cc:340-346`). The callbacks read the original's globals

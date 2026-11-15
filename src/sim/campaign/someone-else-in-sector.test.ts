@@ -46,6 +46,7 @@ const PAST_THE_FIRST_LOOK = { ticks: 2 * (FIRST_LOOK_MS / TICK_MS) };
 const ONE_TICK = { ticks: 1 };
 const SPOKEN_TO = 1;
 const LINE_LEAD_MS = 500;
+const WORLD_SECOND_MS = 1000;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -158,6 +159,12 @@ function ticksUntil(c: Campaign, ms: number): { readonly ticks: number } {
   return { ticks: (ms - tactical(c).clockMs) / TICK_MS };
 }
 
+function msToTheNextWorldSecond(c: Campaign): number {
+  const from = tactical(c).clockMs;
+  expect(c.live.advance({ worldSeconds: 1 }).reason).toBe('worldTime');
+  return tactical(c).clockMs - from;
+}
+
 describe('someone else in the sector after a won battle (Overhead.cc HandleThePlayerBeNotifiedOfSomeoneElseInSector)', () => {
   it('opens an OK box three seconds after a battle won in a wilderness sector whose NPC nobody has met', async () => {
     const c = await vantInTheWilderness(61);
@@ -200,6 +207,16 @@ describe('someone else in the sector after a won battle (Overhead.cc HandleThePl
     await order(c, { type: 'answer', prompt: prompt.id, choice: 'ok' });
     c.live.advance(ONE_TICK);
     expect([held, frameOf().join() === due.join()]).toEqual([due, false]);
+  });
+
+  it("restarts the world clock's second in the tick it opens, so the next comes a full second after it (DoMessageBox's PauseGame)", async () => {
+    const c = await vantInTheWilderness(70);
+    const { wonAt } = winTheBattle(c, false);
+    c.live.advance(ticksUntil(c, wonAt + FIRST_LOOK_MS));
+    expect(c.live.advance(ONE_TICK).reason).toBe('decision');
+    const prompt = battle(c).prompt ?? never('box');
+    await order(c, { type: 'answer', prompt: prompt.id, choice: 'ok' });
+    expect(msToTheNextWorldSecond(c)).toBe(WORLD_SECOND_MS);
   });
 
   it('looks again two seconds later while a line plays, and tells once it is over', async () => {

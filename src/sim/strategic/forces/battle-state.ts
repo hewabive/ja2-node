@@ -51,6 +51,8 @@ export const PromptKind = {
 } as const;
 export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
 
+const PANEL_PROMPTS: ReadonlySet<PromptKind> = new Set([PromptKind.PRE_BATTLE, PromptKind.AUTORESOLVE_DONE, PromptKind.TACTICAL_PLACEMENT]);
+
 export const PlacementButton = { DONE: 0, SPREAD: 1, GROUP: 2, CLEAR: 3 } as const;
 
 export interface PlacementPiece {
@@ -181,6 +183,10 @@ export const ENCOUNTER_NAMES: Readonly<Record<number, string>> = {
 
 export function encounterName(code: number): string {
   return ENCOUNTER_NAMES[code] ?? 'none';
+}
+
+export function promptIsMessageBox(prompt: BattlePrompt | null): boolean {
+  return prompt !== null && !PANEL_PROMPTS.has(prompt.kind);
 }
 
 export function nextPromptId(battle: BattleState, kind: PromptKind): string {

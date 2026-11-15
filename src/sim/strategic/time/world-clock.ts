@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Clock.cc UpdateClock, AdvanceClock, WarpGameTime, SetClockResolutionToCompressMode,
 // @src StartTimeCompression, StopTimeCompression, PauseGame, LockPauseState, InterruptTime, UpdateGameClockGlobals;
-// @src MapScreen.cc MapScreenHandle (ResetTimeCompressHasOccured every frame, so every start clears the tactical queues).
+// @src MapScreen.cc MapScreenHandle (ResetTimeCompressHasOccured every frame, so every start clears the tactical queues);
+// @src the PauseGame of MessageBoxScreen.cc DoMessageBox and Tactical/Interface_Items.cc InitializeItemPickupMenu, which
+// @src UpdateClock meets as a pause (2026-11-14).
 
 import { idiv, u32 } from '../../../core/int.ts';
 import {
@@ -262,13 +264,21 @@ export function advanceClock(ctx: ClockContext, code: WarpCode): void {
   ctx.afterAdvance();
 }
 
-export function updateClock(ctx: ClockContext, realMs: number): void {
+export function restartClockSecond(c: WorldClock, realMs: number): void {
+  c.driver.lastSecondMs = realMs;
+  c.timeInterruptPause = false;
+}
+
+function clockStands(ctx: ClockContext, boxUp: boolean): boolean {
+  const c = ctx.clock;
+  return boxUp || ctx.screen() === 'other' || c.paused || c.timeInterruptPause || c.resolution === 0 || c.secondsPerRealSecond === 0;
+}
+
+export function updateClock(ctx: ClockContext, realMs: number, boxUp = false): void {
   const c = ctx.clock;
   const d = c.driver;
-  const screen = ctx.screen();
-  if (screen === 'other' || c.paused || c.timeInterruptPause || c.resolution === 0 || c.secondsPerRealSecond === 0) {
-    d.lastSecondMs = realMs;
-    c.timeInterruptPause = false;
+  if (clockStands(ctx, boxUp)) {
+    restartClockSecond(c, realMs);
     return;
   }
   if (ctx.inCombat()) return;

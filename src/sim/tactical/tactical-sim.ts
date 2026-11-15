@@ -30,7 +30,9 @@
 // @src the original's clicks and keys never stop first, the item cursor's SelectedGuyInBusyAnimation (2026-11-14);
 // @src MainGameScreenHandle's order around the pass: CheckCustomizableTimer, SimulateWorld and HandleStrategicTurn, then
 // @src HandleAutoBandagePending, whose box (the question or an OK box) holds the frame's ExecuteOverhead under PauseTime,
-// @src then UpdateBullets; a box the campaign opened earlier in the frame holds those three counters too (2026-11-14).
+// @src then UpdateBullets; a box the campaign opened earlier in the frame holds those three counters too (2026-11-14);
+// @src a box up in the frame, auto-bandage's failure box at its end included, is the pause the frame's UpdateClock meets
+// @src (2026-11-14).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -826,12 +828,18 @@ export class TacticalSim {
     clearTacticalStuffDueToTimeCompression(this.state);
   }
 
-  step(boxUp = false): void {
+  step(boxUp = false): boolean {
     const t = this.state;
-    if (t.prompt) return;
-    if (t.pathEnv.autoBandage) autoBandageFrame(t, this.autoBandageHooks);
-    else executeOverhead(t, this.hooks, beforeOverhead(t, boxUp));
+    if (t.prompt) return true;
+    const boxShown = t.pathEnv.autoBandage ? autoBandageFrame(t, this.autoBandageHooks) : this.#overheadFrame(boxUp);
     t.tick++;
+    return boxShown || t.prompt !== null;
+  }
+
+  #overheadFrame(boxUp: boolean): boolean {
+    const boxShown = beforeOverhead(this.state, boxUp);
+    executeOverhead(this.state, this.hooks, boxShown);
+    return boxShown;
   }
 
   runClockAlone(): void {

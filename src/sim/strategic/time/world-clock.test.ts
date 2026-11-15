@@ -150,6 +150,20 @@ describe('UpdateClock on 5 ms ticks', () => {
     expect(h.clock.seconds).toBe(at + 1);
   });
 
+  it("treats a box up at the tick as a pause: the second due then never comes and the next comes 200 ticks later (DoMessageBox's PauseGame)", () => {
+    const h = harness();
+    setGameTimeCompressionLevel(h, CompressMode.X1);
+    h.ticks(199);
+    const at = h.clock.seconds;
+    h.realMs += TICK_MS;
+    updateClock(h, h.realMs, true);
+    expect(h.clock.seconds).toBe(at);
+    h.ticks(199);
+    expect(h.clock.seconds).toBe(at);
+    h.tick();
+    expect(h.clock.seconds).toBe(at + 1);
+  });
+
   it('runs events at their stamps inside a slice and keeps the slice end', () => {
     const h = harness();
     h.screenNow = 'strategic';

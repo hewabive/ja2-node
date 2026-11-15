@@ -19,7 +19,8 @@
 // @src gDisableRegion, which leave the drop no key and no button but Esc (2026-11-08); Tactical/Faces.cc SetFaceTalking
 // @src (an NPC's line turns the sector locator on too, never in a meanwhile, 2026-11-09); MessageBoxScreen.cc
 // @src DoMessageBox's PauseTime for a box the frame opens before its overhead, which holds the frame's counters
-// @src (2026-11-14).
+// @src (2026-11-14); DoMessageBox's PauseGame, which GameLoop.cc UpdateClock meets after the frame or the input that
+// @src opened a box on the tactical screen and at every frame of the box screen (2026-11-14).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -42,6 +43,7 @@ import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { collapseFromTravelFatigue } from '../strategic/economy/rest.ts';
 import { applySquadAssignment } from '../strategic/economy/set-assignment.ts';
 import { registerEconomyEvents } from '../strategic/economy/update.ts';
+import { promptIsMessageBox } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, SectorFlag } from '../strategic/forces/constants.ts';
 import {
   createStrategicContext,
@@ -68,6 +70,7 @@ import {
   compressionStopReason,
   isTimeBeingCompressed,
   pauseGame,
+  restartClockSecond,
   setGameTimeCompressionLevel,
   startTimeCompression,
   stopTimeCompression,
@@ -692,13 +695,14 @@ export class CampaignSim {
     const autoBandaging = this.#autoBandaging();
     syncInterfaceLockPause(this);
     const modal = !autoBandaging && s.flow === 'tactical' && this.tactical !== null && this.talk?.tacticalFrameIsModal() === true;
-    if (autoBandaging) this.#stepAutoBandage();
+    let boxShown = false;
+    if (autoBandaging) boxShown = this.#stepAutoBandage();
     else if (modal) this.#stepModalTactical();
     else if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
       this.talk?.beforeTacticalStep();
       handleSomeoneElseInSectorTimer(this);
-      this.tactical.step(this.#promptOpen());
+      boxShown = this.tactical.step(this.#promptOpen());
       s.realMs = this.tactical.state.clockMs;
       this.#events.push(...this.tactical.drainEvents());
       this.talk?.afterTacticalStep();
@@ -710,7 +714,7 @@ export class CampaignSim {
       this.talk?.afterStrategicStep();
       this.#updatePausedStatesDueToTimeCompression();
     }
-    updateClock(this.#clock, s.realMs);
+    updateClock(this.#clock, s.realMs, boxShown || this.#messageBoxUp());
     if (!modal && !autoBandaging) {
       this.meanwhile.afterStep();
       this.endgame.afterStep();
@@ -749,13 +753,14 @@ export class CampaignSim {
     return this.state.flow === 'tactical' && this.tactical?.state.pathEnv.autoBandage === true;
   }
 
-  #stepAutoBandage(): void {
+  #stepAutoBandage(): boolean {
     const tactical = this.tactical;
-    if (!tactical) return;
-    tactical.step();
+    if (!tactical) return false;
+    const boxShown = tactical.step();
     this.state.realMs = tactical.state.clockMs;
     this.#events.push(...tactical.drainEvents());
     this.sectors?.afterTacticalStep();
+    return boxShown;
   }
 
   #stepModalTactical(): void {
@@ -899,6 +904,7 @@ export class CampaignSim {
   }
 
   dispatch(cmd: CampaignCommand): CommandResult {
+    const boxWasUp = this.#messageBoxUp();
     const result = this.#dispatch(cmd);
     this.meanwhile.settle();
     flagNothingToDoAfterItemMove(this.state, cmd, result);
@@ -912,6 +918,7 @@ export class CampaignSim {
     this.#collectEvents();
     this.#syncClockEvents();
     this.#drainLoadedSectorEvents();
+    this.#restartClockSecondBehindANewBox(boxWasUp);
     return result;
   }
 
@@ -951,6 +958,14 @@ export class CampaignSim {
 
   #promptOpen(): boolean {
     return this.battle?.hasPendingDecision() === true || this.talk?.requestOpen() === true || this.#tacticalPromptOpen();
+  }
+
+  #messageBoxUp(): boolean {
+    return this.state.flow === 'tactical' && (this.#tacticalPromptOpen() || promptIsMessageBox(this.state.battle.prompt));
+  }
+
+  #restartClockSecondBehindANewBox(boxWasUp: boolean): void {
+    if (!boxWasUp && this.#messageBoxUp()) restartClockSecond(this.state.clock, this.state.realMs);
   }
 
   #stopTimeQuoteRefusal(cmd: CampaignCommand): CommandResult | null {
