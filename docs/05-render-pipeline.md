@@ -192,7 +192,8 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 No oracle renders a frame, so the drawing order is checked against the code only. The e2e goldens
-(`tests/e2e/goldens-tactical.spec.ts`) pin ja2-node's own picture on the stub pack, `tests/e2e/world-redraw.spec.ts`
+(`tests/e2e/goldens-tactical.spec.ts`) pin ja2-node's own picture on the stub pack, one of them at night, where walls
+and doors take the shade of the lights they face instead of the ground's; `tests/e2e/world-redraw.spec.ts`
 partial redraws against whole ones, and the shade palettes are compared with vanilla's `Data/ShadeTables` (shade 0 may
 differ by luminance rounding: vanilla truncates each term). Inferred from reading the source:
 - Wrapped z and missing shadows show only with the view scrolled fully up.

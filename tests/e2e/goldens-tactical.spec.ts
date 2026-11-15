@@ -1,5 +1,6 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import { AUTO_BANDAGE_SAVE, writeAutoBandageSave } from '../support/e2e-auto-bandage-save.ts';
+import { BETWEEN_THE_HOUSES, NIGHT_AMBIENT, NIGHT_LIGHTS_SAVE, writeNightLightsSave } from '../support/e2e-night-save.ts';
 import { SAVE_DIR } from './env.ts';
 import {
   clickAt,
@@ -63,6 +64,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
   test.beforeAll(async () => {
     await writeAutoBandageSave(SAVE_DIR);
+    await writeNightLightsSave(SAVE_DIR);
   });
 
   test('the auto-bandage box over the shadowed screen, from the a key through the question to Done', async ({ page, request }) => {
@@ -257,6 +259,21 @@ test.describe('goldens of the tactical screen on stubs', () => {
       await expectGolden('tactical-exit-dialog', await capture(page));
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => window.__ja2Ui.tactical?.exitDialogOpen === false);
+    } finally {
+      await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+    }
+  });
+
+  test('the houses of the stub mine at night, each wall node lit only by the lights it faces', async ({ page, request }) => {
+    const session = await newSession(request, { load: NIGHT_LIGHTS_SAVE });
+    try {
+      await openTacticalSession(page, session, PINNED);
+      expect(await page.evaluate(() => window.__ja2Ui.tactical?.ambient)).toBe(NIGHT_AMBIENT);
+      await page.evaluate((g) => window.__ja2Ui.tactical?.centerOn(g), BETWEEN_THE_HOUSES);
+      await restPointer(page);
+      await imagesLoaded(page);
+      expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
+      await expectGolden('tactical-night-lights', await capture(page));
     } finally {
       await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
     }
