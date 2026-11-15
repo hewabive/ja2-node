@@ -55,7 +55,8 @@
 // @src overhead map, 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14);
 // @src Tactical/Handle_Doors.cc HandleOpenableStruct (COOL1 after a picked lock or a disarmed trap, CURSE1 on Random(2)
 // @src after a wrong key, drawn here), Tactical/Keys.cc AttemptToBlowUpLock (SMALL_EXPLODE_1 at the door, HIGHVOLUME),
-// @src Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a failed check, its Random(100) < 40 drawn here, 2026-11-14).
+// @src Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a failed check, its Random(100) < 40 drawn here, 2026-11-14; a
+// @src check failed while the map screen is up curses through MapSound, 2026-11-14).
 
 import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
@@ -107,6 +108,7 @@ import {
 import { BleedGrunts, damageFeedbackSounds } from '../content/audio/damage-feedback.ts';
 import { type Heard, heardSoundTile } from '../content/audio/heard-place.ts';
 import { hasIdleSounds, idleCheck, idleCheckLoopFrames } from '../content/audio/idle-sounds.ts';
+import { cursesTheFailedCheck } from '../content/audio/skill-check-curse.ts';
 import { NOWHERE, offScreenVolume, onScreen } from '../content/audio/sound-position.ts';
 import type { AmbientEntry } from '../content/formats/ambient.ts';
 import type { AnimationScripts } from '../content/formats/ja2bin.ts';
@@ -140,8 +142,6 @@ const DYING_HEALTH_INDEX = 0;
 const CRITICAL_HEALTH_INDEX = 1;
 const DEATH_LAUGH_ODDS = 3;
 const WRONG_KEY_CURSE_ODDS = 2;
-const SKILL_CHECK_CURSE_RANGE = 100;
-const SKILL_CHECK_CURSE_BELOW = 40;
 const KILL_CHEERS: readonly BattleSoundName[] = ['COOL1', 'LAUGH1'];
 
 function doorResultBattleSound(e: Pick<EventOf<'doorResult'>, 'action' | 'result'>, rand: Rand): BattleSoundName | null {
@@ -767,7 +767,7 @@ export class SoundDirector {
         this.#play(effectCue(book, 'BODY_EXPLODE_1', 'location', VolumeLevel.HIGH, e.gridNo));
         return;
       case 'skillCheckFailed':
-        if (e.certain || rand(SKILL_CHECK_CURSE_RANGE) < SKILL_CHECK_CURSE_BELOW) this.#battleSound(e.soldier, 'CURSE1', false);
+        if (!e.mapScreen && cursesTheFailedCheck(e.certain === true, rand)) this.#battleSound(e.soldier, 'CURSE1', false);
         return;
       case 'shapedChargeBlast':
         this.#play(smallExplosionCue(book, e.gridNo));

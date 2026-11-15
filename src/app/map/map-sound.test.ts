@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { FakeGraph, pcmWav, settle } from '../../../tests/support/fake-audio.ts';
+import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import { AudioEngine } from '../../audio/engine.ts';
 import { type Cue, mixCue } from '../../content/audio/cue.ts';
 import { loadCueBook } from '../../content/audio/cue-book.ts';
@@ -38,7 +39,7 @@ function view(): PlayerView {
   return { soldiers: [], strategic: { mercs: [merc] } } as unknown as PlayerView;
 }
 
-async function rig(talking = false, viewOf: () => PlayerView = view, held: (() => void)[] | null = null) {
+async function rig(talking = false, viewOf: () => PlayerView = view, held: (() => void)[] | null = null, session = 'map-sound-test') {
   const graph = new FakeGraph();
   const engine = new AudioEngine({ createGraph: () => graph.asGraph(), load: async () => pcmWav(200) });
   engine.unlock();
@@ -49,7 +50,7 @@ async function rig(talking = false, viewOf: () => PlayerView = view, held: (() =
     return play(cue);
   };
   const cut: number[] = [];
-  const sound = new MapSound(engine, source(), viewOf, 'map-sound-test', {
+  const sound = new MapSound(engine, source(), viewOf, session, {
     isTalking: () => talking,
     cut: (s) => cut.push(s),
     holdBattleSound: (_profile, play) => held !== null && held.push(play) > 0,
@@ -132,6 +133,41 @@ describe('the map screen battle sounds', () => {
       { volume: FAR_VOLUME, pan: MIDDLE },
       { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN },
       { volume: FAR_VOLUME, pan: FAR_RIGHT_OFF_SCREEN },
+    ]);
+  });
+
+  it('curses a check failed on the map screen always when it is certain, else on a client Random(100) < 40 (SkillCheck)', async () => {
+    const cry = { voice: '052', bodyType: 0, team: OUR_TEAM };
+    const failure = { type: 'skillCheckFailed', tick: 1, soldier: MERC, mapScreen: true, cry } as const;
+    const certain = await rig();
+    certain.sound.skillCheckFailed({ ...failure, certain: true });
+    expect(certain.cues.map((c) => c.file)).toEqual(['battlesnds/052_curse.wav']);
+    const sessions = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+    const curses = await Promise.all(
+      sessions.map(async (session) => {
+        const r = await rig(false, view, null, session);
+        r.sound.skillCheckFailed(failure);
+        return r.cues.length;
+      }),
+    );
+    expect(curses).toEqual(sessions.map((session) => (new ClientRandom(seedFromText(`${session}/map`)).rand(100) < 40 ? 1 : 0)));
+    expect(new Set(curses).size).toBe(2);
+  });
+
+  it("curses in the voice the failure names in the middle, a merc of the loaded sector at his tile, held behind the merc's line (DoMercBattleSound)", async () => {
+    const seen = { id: MERC, team: OUR_TEAM, bodyType: 0, gridNo: VEHICLE_TILE, voice: '007', morale: 50 } as unknown as SoldierView;
+    const held: (() => void)[] = [];
+    const r = await rig(false, () => ({ ...view(), soldiers: [seen] }), held);
+    r.engine.setListener(LAST_TACTICAL_VIEW);
+    const failure = { type: 'skillCheckFailed', tick: 1, mapScreen: true, certain: true } as const;
+    r.sound.skillCheckFailed({ ...failure, soldier: MERC + 1, cry: { voice: '052', bodyType: 0, team: OUR_TEAM } });
+    r.sound.skillCheckFailed({ ...failure, soldier: MERC });
+    expect([r.cues.map((c) => c.file), held.length]).toEqual([['battlesnds/052_curse.wav'], 1]);
+    held[0]?.();
+    const full = { effects: FULL, speech: FULL, music: FULL, ambient: FULL };
+    expect(r.cues.map((c) => [c.file, mixCue(c, r.engine.listener, full)])).toEqual([
+      ['battlesnds/052_curse.wav', { volume: FULL, pan: MIDDLE }],
+      ['battlesnds/007_curse.wav', { volume: FULL, pan: FAR_RIGHT_OFF_SCREEN }],
     ]);
   });
 

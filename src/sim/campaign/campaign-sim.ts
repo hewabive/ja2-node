@@ -104,7 +104,7 @@ import { MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
-import type { CombatEvents } from './off-map-combat.ts';
+import { type CombatEvents, voicedOnTheMapScreen } from './off-map-combat.ts';
 import { PowFlow } from './pow.ts';
 import { repairSamTerminal } from './sam-repair.ts';
 import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen } from './screens.ts';
@@ -208,7 +208,7 @@ export class CampaignSim {
   readonly mapInventory: MapInventory;
   readonly money: MoneyFlow;
   readonly worldClock: WorldTimeControl;
-  readonly offMapEvents: CombatEvents = { push: (e) => this.#events.push({ ...e, tick: this.tick }) };
+  readonly offMapEvents: CombatEvents = { push: (e) => this.#events.push(voicedOnTheMapScreen(this, { ...e, tick: this.tick })) };
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
@@ -660,7 +660,7 @@ export class CampaignSim {
   }
 
   #collectEvents(): void {
-    if (this.#unloadedWorld) this.#events.push(...drainTurnWorldEvents(this.#unloadedWorld, this.tick));
+    if (this.#unloadedWorld) this.#events.push(...this.#drainedOffTheTacticalScreen(this.#unloadedWorld));
     if (this.economy) for (const e of this.economy.events.splice(0)) this.#events.push({ ...e, tick: this.tick } as SimEvent);
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());
@@ -917,7 +917,11 @@ export class CampaignSim {
     const tactical = this.tactical;
     if (!tactical) return;
     const onTacticalScreen = this.state.flow === 'tactical';
-    this.#events.push(...(onTacticalScreen ? tactical.drainEvents() : drainTurnWorldEvents(tactical, this.tick)));
+    this.#events.push(...(onTacticalScreen ? tactical.drainEvents() : this.#drainedOffTheTacticalScreen(tactical)));
+  }
+
+  #drainedOffTheTacticalScreen(world: TacticalSim): SimEvent[] {
+    return drainTurnWorldEvents(world, this.tick).map((e) => voicedOnTheMapScreen(this, e));
   }
 
   #boxingUiLockRefusal(cmd: CampaignCommand): CommandResult | null {

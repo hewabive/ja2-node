@@ -720,10 +720,13 @@ container or switch he reaches in combat without the APs of his door handle code
 `SMALL_EXPLODE_1` at the door (`shapedChargeBlast {gridNo, x, y, z}`, a presentation event, `Tactical/Keys.cc:607-635`);
 the client has the merc say COOL1 after a picked lock or a disarmed door trap and CURSE1 on one in two after a wrong key
 (`Tactical/Handle_Doors.cc:573`, `:680`, `:710`). Every failed skill check but the silent ones (unjamming, noticing a
-dart, lying to the queen) brings `skillCheckFailed {soldier, certain?}` for a soldier the squad sees, the curse the
-original plays always for lockpicking, disarming and the crowbar (`certain`) and else on `Random(100) < 40`, which the
-client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`), and none on the map screen
-(gaps "Skill-check curse on the map screen"). One gone when he gets there keeps him walking on the spot, never idle, until
+dart, lying to the queen) brings `skillCheckFailed {soldier, certain?, mapScreen?, cry?}` for a soldier the squad sees,
+the curse the original plays always for lockpicking, disarming and the crowbar (`certain`) and else on
+`Random(100) < 40`, which the client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`).
+One failed while the map screen is up (an attach or merge in the map inventory, `Tactical/Items.cc:1555`, `:1681`,
+`:1697`) carries `mapScreen`, which gives the curse to that screen (`Tactical/Soldier_Control.cc:6101`), and for a merc
+off the loaded map `cry {voice, bodyType, team}`, his voice, as `damageFeedback` does.
+One gone when he gets there keeps him walking on the spot, never idle, until
 `stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
 effect, as the original looks for the structure the order named. A closed container hides what it holds: items put
 into it, a Bobby Ray delivery to the Drassen crate among them, go in hidden (`Handle_Items.cc:1511`), sight never shows

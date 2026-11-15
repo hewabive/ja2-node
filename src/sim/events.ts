@@ -368,6 +368,8 @@ export interface SkillCheckFailedEvent extends SimEventBase {
   readonly type: 'skillCheckFailed';
   readonly soldier: number;
   readonly certain?: true;
+  readonly mapScreen?: true;
+  readonly cry?: DeathCry;
 }
 
 export interface ShapedChargeBlastEvent extends SimEventBase {

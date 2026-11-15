@@ -878,6 +878,13 @@ describe('the sound director', () => {
     expect(new Set(curses).size).toBe(2);
   });
 
+  it('leaves the curse of a check failed while the map screen is up to the map screen, a merc of the loaded sector too', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'skillCheckFailed', tick: 10, soldier: 1, certain: true, mapScreen: true }])]);
+    expect(files(r)).toEqual([]);
+  });
+
   it('holds a battle sound that does not cut speech behind the line of the merc saying one, as DoMercBattleSound queues it, but not the lowered selection and group-move sounds', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })], []);

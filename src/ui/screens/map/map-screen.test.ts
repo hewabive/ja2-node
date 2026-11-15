@@ -866,6 +866,24 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.sounds.filter((s) => s.startsWith('damageFeedback'))).toEqual([`damageFeedback ${merc} bleeding`]);
     }));
 
+  it('curses a check failed on the map screen through its own sounds once, and leaves one on the tactical screen to the tactical director', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const merc = f.mercs[0] ?? -1;
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [
+            { type: 'skillCheckFailed', tick, soldier: merc, mapScreen: true },
+            { type: 'skillCheckFailed', tick, soldier: merc, certain: true },
+          ],
+        },
+      ]);
+      expect(f.sounds.filter((s) => s.startsWith('skillCheckFailed'))).toEqual([`skillCheckFailed ${merc}`]);
+    }));
+
   it('plays the reload of a merc off the loaded map through its own sounds, and leaves one in the sector to the tactical director', () =>
     withMap(async (f) => {
       const tick = f.client.view.tick;

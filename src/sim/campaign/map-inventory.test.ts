@@ -9,7 +9,9 @@ import { createItem, createItems, createMoney, type ItemObject } from '../items/
 import { SectorFlag } from '../strategic/forces/constants.ts';
 import { getSectorFlagStatus, resetSectorFlag } from '../strategic/map/sectors.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
+import { unseenVictim } from '../tactical/unseen-sources.ts';
 import { addItemToPool, trashWorldItems, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { type DiffWorldItem, sectorKey } from './sector-diff.ts';
@@ -85,6 +87,24 @@ function stashAtTheMerc(c: CampaignSim, objects: readonly ItemObject[], flags: n
   return gridNo;
 }
 
+function clumsyWireman(c: CampaignSim): number {
+  const merc = c.battle?.roster.get(mercIds(c)[0] as number);
+  if (!merc) throw new Error('no merc');
+  merc.soldier.stats.mechanical = 0;
+  merc.soldier.inv[InvSlot.BIGPOCK1] = one('LAME_BOY');
+  merc.soldier.inv[InvSlot.BIGPOCK2] = one('COPPER_WIRE');
+  c.drainEvents();
+  return merc.id;
+}
+
+function failedAttach(c: CampaignSim, merc: number) {
+  expect(c.dispatch({ type: 'attach', soldier: merc, item: 'bigPocket2', to: 'bigPocket1' })).toMatchObject({
+    ok: true,
+    data: { result: 'failedCheck' },
+  });
+  return c.drainEvents().filter((e) => e.type === 'skillCheckFailed');
+}
+
 function stash(c: CampaignSim, sector = 'A9'): StashEntryView[] {
   const answer = c.dispatch({ type: 'inventory', sector });
   if (!answer.ok) throw new Error(answer.reason);
@@ -105,6 +125,24 @@ describe('the map screen inventory', () => {
     expect(c.drainEvents().filter((e) => e.type === 'reloaded')).toEqual([
       { type: 'reloaded', soldier: merc, item: itemIndex('GLOCK_17'), mapScreen: true, tick },
     ]);
+  });
+
+  it("curses a failed attach of a merc off the loaded map on the map screen, in his voice there (SkillCheck's DoMercBattleSound, Items.cc:1555)", () => {
+    const c = onTheMapWithA9Unloaded();
+    const merc = clumsyWireman(c);
+    const soldier = c.battle?.roster.get(merc)?.soldier;
+    if (!soldier) throw new Error('no merc');
+    const tick = c.tick;
+    expect(failedAttach(c, merc)).toEqual([
+      { type: 'skillCheckFailed', soldier: merc, mapScreen: true, cry: { ...unseenVictim(soldier), team: Team.OUR }, tick },
+    ]);
+  });
+
+  it('curses a failed attach of a merc of the loaded sector on the map screen, where the view shows him (SkillCheck)', () => {
+    const c = onTheMap();
+    const merc = clumsyWireman(c);
+    const tick = c.tick;
+    expect(failedAttach(c, merc)).toEqual([{ type: 'skillCheckFailed', soldier: merc, mapScreen: true, tick }]);
   });
 
   it("lists the stash in the pool's order, the item's category, kind and price and the better first object first, storage order for ties (SortSectorInventory, Map_Screen_Interface_Map_Inventory.cc:686)", () => {

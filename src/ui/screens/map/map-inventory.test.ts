@@ -286,6 +286,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
       vehicleEntered: () => undefined,
       mercDiedOffTheMap: () => undefined,
       damageFeedback: () => undefined,
+      skillCheckFailed: () => undefined,
       reloaded: () => undefined,
     },
     random: () => 0,

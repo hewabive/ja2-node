@@ -15,7 +15,9 @@
 // @src DishOutGasDamage (the DIE1 and HIT1 grunts at bleeding, gas and electric damage while the map screen is up, an
 // @src unseen soldier's in the middle, 2026-11-09); src/game/Tactical/Items.cc ReloadGun (the reload sound of a merc off
 // @src the loaded map, sReloadSound at HIGHVOLUME, MIDDLEPAN, 2026-11-14); DoMercBattleSound (the confirmation held behind
-// @src the merc's own line, 2026-11-14).
+// @src the merc's own line, 2026-11-14); src/game/Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a check failed while
+// @src the map screen is up, on Random(100) < 40 drawn here but for lockpicking, disarming and the crowbar, held behind the
+// @src merc's own line by DoMercBattleSound, 2026-11-14).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -32,9 +34,10 @@ import { cueOf, effectCue } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import { deathOffTheMapCues, reloadCue } from '../../content/audio/cues.ts';
 import { BleedGrunts, damageFeedbackSounds } from '../../content/audio/damage-feedback.ts';
+import { cursesTheFailedCheck } from '../../content/audio/skill-check-curse.ts';
 import { offScreenVolume } from '../../content/audio/sound-position.ts';
 import type { PlayerView } from '../../protocol/view.ts';
-import type { DamageFeedback, DeathCry, MapSounds } from '../../ui/screens/map/environment.ts';
+import type { DamageFeedback, DeathCry, MapSounds, SkillCheckFailure } from '../../ui/screens/map/environment.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 import { loadSettings } from '../settings.ts';
 
@@ -50,6 +53,7 @@ const NOWHERE = -1;
 const VOICE_DIGITS = 3;
 const NORMAL_MORALE = 50;
 const SPEECH_BUS = 'speech';
+const CURSE: BattleSoundName = 'CURSE1';
 
 type Voice = ReturnType<AudioEngine['play']>;
 
@@ -136,14 +140,25 @@ export class MapSound implements MapSounds {
   damageFeedback(feedback: DamageFeedback): void {
     const book = this.#book;
     const gruntDue = this.#bleedGrunts.due(feedback.soldier, performance.now());
-    const voiced = this.#feedbackVoice(feedback);
+    const voiced = this.#voiceOf(feedback);
     if (!book || !voiced) return;
     const facts = { cause: feedback.cause, seen: !feedback.cry && !feedback.unseen, conscious: feedback.conscious === true };
     const offScreen = feedback.unseen !== undefined;
     for (const sound of damageFeedbackSounds(facts, gruntDue)) this.#battleSound(book, feedback.soldier, voiced, sound, offScreen);
   }
 
-  #feedbackVoice(feedback: DamageFeedback): VoiceSoldier | null {
+  skillCheckFailed(failure: SkillCheckFailure): void {
+    if (!cursesTheFailedCheck(failure.certain === true, this.#random.rand)) return;
+    const book = this.#book;
+    const voiced = this.#voiceOf(failure);
+    if (!book || !voiced) return;
+    const play = () => this.#battleSound(book, failure.soldier, voiced, CURSE);
+    const profile = this.#view()?.strategic?.mercs.find((m) => m.id === failure.soldier)?.profile;
+    if (profile !== undefined && waitsForTheLine(book, CURSE) && this.#speech.holdBattleSound(profile, play)) return;
+    play();
+  }
+
+  #voiceOf(feedback: Pick<DamageFeedback, 'soldier' | 'cry' | 'unseen'>): VoiceSoldier | null {
     if (feedback.cry) return { gridNo: NOWHERE, ...feedback.cry, morale: NORMAL_MORALE };
     const unseen = feedback.unseen;
     if (unseen) return { gridNo: NOWHERE, team: UNSEEN_TEAM, bodyType: unseen.bodyType, voice: unseen.voice, morale: NORMAL_MORALE };

@@ -106,6 +106,13 @@ client beside the 2 s repeat filter, both on `GetJA2Clock` in the original, whic
 compression (`content/audio/damage-feedback.ts`). An unseen soldier grunts from where the squad hears him, heard as
 loud as his loudest scream like a death cry; on the map screen he and a merc off the loaded map grunt in the middle.
 
+**The curse of a failed skill check** follows `skillCheckFailed`, routed by `mapScreen` the same way: the director
+plays it on the tactical screen, `MapSound` for a check failed while the map screen is up (an attach or merge in the
+map inventory), from the merc's tile on the loaded map and in the middle, in `cry`'s voice, off it. Both roll the
+`Random(100) < 40` of a check that does not always curse (`content/audio/skill-check-curse.ts`, deviation "Cosmetic
+draws of doors") and hold the curse behind the merc's own line, as `DoMercBattleSound` queues it
+(`Tactical/Soldier_Control.cc:6101-6115`).
+
 **Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
 waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`, on the map screen
 `MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it.
