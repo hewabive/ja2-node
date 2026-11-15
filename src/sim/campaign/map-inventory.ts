@@ -58,7 +58,6 @@ import {
   parkLeftover,
   reloadWeapon,
   splitMoney,
-  swapHands,
   takeObjects,
   unloadGun,
 } from '../tactical/inventory-panel.ts';
@@ -332,8 +331,6 @@ export class MapInventory {
         if (slot === null || typeof ammo === 'string') return refusal(InventoryRefusal.BAD_SLOT);
         return outcomeResult(reloadWeapon(env, s, slot, ammo, (soldier) => autoReload(this.#context(soldier), soldier)));
       }
-      case 'swapHands':
-        return outcomeResult(swapHands(env, this.#campaign.tactical?.state ?? null, s));
       case 'discardItem':
         return this.#discard(merc, cmd);
       case 'splitMoney':

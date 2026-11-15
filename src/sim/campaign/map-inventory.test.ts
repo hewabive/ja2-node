@@ -549,6 +549,18 @@ describe('the map screen inventory', () => {
       data: { refusal: 'badStashOrder' },
     });
   });
+
+  it('refuses a hand swap as tactical only: the original swaps hands by the tactical key and panel alone (SwapHandItems, Turn_Based_Input.cc:3390, Interface_Panels.cc:3098)', () => {
+    for (const c of [onTheMap(), onTheMapWithA9Unloaded()]) {
+      const merc = mercIds(c)[0] as number;
+      const inv = c.battle?.roster.get(merc)?.soldier.inv ?? [];
+      carry(c, merc, InvSlot.SECOND_HAND, one('M870'));
+      const hands = () => [inv[InvSlot.HAND]?.item, inv[InvSlot.SECOND_HAND]?.item];
+      const before = hands();
+      expect(c.dispatch({ type: 'swapHands', soldier: merc })).toMatchObject({ ok: false, data: { refusal: 'tacticalOnly' } });
+      expect(hands()).toEqual(before);
+    }
+  });
 });
 
 describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickCallbackPrimary)", () => {

@@ -51,9 +51,10 @@ describe('nothing-to-do triggers', () => {
     expect(c.state.economy.reEvaluateNothingToDo).toBe(false);
   });
 
-  it('leaves the flags stale after a hand swap, which moves no item through the cursor', () => {
+  it('leaves the flags stale after a hand swap in tactical, which moves no item through the cursor', () => {
     const { c, roster, doctor, patient } = doctorWithPatient(8);
     merc(roster, patient).life += WOUND;
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     expect(c.dispatch({ type: 'swapHands', soldier: doctor })).toMatchObject({ ok: true });
     expect(merc(roster, doctor).nothingToDo).toBe(false);
   });

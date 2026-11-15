@@ -556,7 +556,10 @@ what the description does not say.
 Rules: `10` (turns, §4.3), `11` (attacks), `34` (throws), `07` (movement). In a campaign every tactical order (moves,
 turns, stances, attacks, doors, pickups, throws, first aid, talk, give, `select`, `endTurn`, …) is refused with
 `notInTactical` off the tactical screen, which alone runs the loaded sector (`TACTICAL_SCREEN_ORDERS` in
-`src/sim/campaign/campaign-sim.ts`); inventory commands work on both screens. One `stance` command carries the movement
+`src/sim/campaign/campaign-sim.ts`); inventory commands work on both screens, except `applyItem` and `swapHands`, which the
+map screen refuses with `tacticalOnly`: the original swaps hands only by the tactical key and panel (`SwapHandItems`,
+`Tactical/Turn_Based_Input.cc:3390`, `Tactical/Interface_Panels.cc:3098`), so an agent there moves the items as the
+player's cursor does, with `moveItem`. One `stance` command carries the movement
 mode the original keeps beside the stance (deviation "Stance") and refuses a height the merc cannot take where he stands
 (`IsValidStance`: vehicles, the robot, water, an escort lying down, no room for the body), with the message of
 `UIHandleSoldierStanceChange`; the `movementOptions` hint says which of run, sneak and crawl the movement menu offers.
