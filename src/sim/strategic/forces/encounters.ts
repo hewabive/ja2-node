@@ -3,10 +3,12 @@
 // @src src/game/Strategic/Strategic_Movement.cc CheckConditionsForBattle, HandleOtherGroupsArrivingSimultaneously,
 // @src PossibleToCoordinateSimultaneousGroupArrivals, PlanSimultaneousGroupArrivalCallback, PrepareGroupsForSimultaneousArrival,
 // @src PrepareForPreBattleInterface, TriggerPrebattleInterface, NotifyPlayerOfBloodcatBattle, TestForBloodcatAmbush,
-// @src HandleArrivalOfReinforcements; Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces.
+// @src HandleArrivalOfReinforcements (the first merc's arrival line and STR_PLAYER_REINFORCEMENTS as the
+// @src playerReinforcements event, 2026-11-15); Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces.
 
 import { type Sector, sameSector, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i8, idiv, u32, udiv } from '../../../core/int.ts';
+import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { sectorInfo } from '../map/sectors.ts';
@@ -394,8 +396,11 @@ export function handleArrivalOfReinforcements(ctx: StrategicContext, g: Group): 
   }
   const code = insertionCodeFromTravel(g);
   const insertion: Sector = { x: g.sector.x, y: g.sector.y, z: 0 };
-  for (const m of groupMembers(ctx, g)) {
+  const members = groupMembers(ctx, g);
+  for (const m of members) {
     m.insertionCode = code;
     ctx.mercs.updateMercInSector(m.id, insertion);
+    if (m === members[0]) ctx.world.tacticalCharacterDialogue?.(m.id, MercQuote.MERC_REACHED_DESTINATION);
   }
+  ctx.helicopter.emit({ type: 'playerReinforcements', group: g.id, sector: sectorShortString(insertion) });
 }

@@ -457,6 +457,7 @@ export class CampaignSim {
 
   #narrativeWorldPorts<P extends Pick<StrategicSetup, 'world'>>(ports: P): P {
     const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
+    const lines = economyLineHooks(this);
     return {
       ...ports,
       world: {
@@ -464,6 +465,7 @@ export class CampaignSim {
         inMeanwhile: () => (this.queen ? areInMeanwhile(this.queen) : base.inMeanwhile()),
         boxing: () => this.state.narrative.boxing.state !== NOT_BOXING,
         npcOfNoteInSector: (sector) => this.#npcOfNoteInSector(sector),
+        tacticalCharacterDialogue: lines.tacticalCharacterDialogue,
       },
     };
   }

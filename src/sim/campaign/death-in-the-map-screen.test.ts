@@ -130,6 +130,7 @@ async function kestrelInB9OnTheMap(seed: number): Promise<Campaign> {
   await order(c, { type: 'mapScreen' });
   await order(c, { type: 'assignSquad', soldier: merc(c, KESTREL).id, squad: 'new' });
   await routeKestrel(c, ELSEWHERE, arrivedIn(ELSEWHERE));
+  c.live.advance({ idle: true });
   return c;
 }
 

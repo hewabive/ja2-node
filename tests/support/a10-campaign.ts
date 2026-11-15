@@ -41,6 +41,7 @@ export async function campaignInA10(kit: StubSectorKit, seed: number, mercs = 2)
   const session = new Session('a10', campaign);
   const arrived = () => campaign.view().strategic?.mercs.every((m) => m.sector === TARGET && !m.betweenSectors) ?? false;
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) session.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+  session.advance({ idle: true });
   const enter = { type: 'enterSector', sector: TARGET };
   await campaign.prepare(enter);
   if (!campaign.dispatch(enter).ok) throw new Error('cannot enter A10');

@@ -70,6 +70,12 @@ The original's out-of-gas box is the `vehicleOutOfGas` event, which the client b
 in the same second resolve in the queue's order. `GROUP_ABOUT_TO_ARRIVE` is posted and does nothing: the original only
 redraws the map and autosaves there, and the event keeps the queue equal to a native save's.
 
+**Arrival lines.** A squad that ends its route says the reached-destination line, and the first merc of a group that
+joins the battle of the loaded sector says it as the reinforcements message prints (`playerReinforcements`). Strategic
+code picks the speaker and hands the line to `TacticalWorldPort.tacticalCharacterDialogue`, which the campaign puts in
+the dialogue queue (`24`), so the line comes after those queued before it and holds the map screen's exits until it is
+said (`29`).
+
 **Prompts are records.** "Coordinate a simultaneous arrival?", the NPC-of-note box and the pre-battle hand-off are
 state records (`encounter.simultaneousArrival`, `movement.groupPrompting`, `encounter.preBattle`) answered by
 commands; informational boxes before the PBI close at once (deviations "Strategic prompts", "Pre-battle interface").
@@ -112,8 +118,9 @@ stub map keys of this domain are `entry`, `exit`, `scroll` and `optional` on `so
 (`src/content/formats/stub-map.ts`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), including draws whose result
-ja2-node does not use: the creature tense-quote delay at every sector load. Speaker picks are not drawn, and the
-bloodcat lair corpses face a draw of the `movement` cosmetic stream (deviation "Cosmetic draws in strategic movement").
+ja2-node does not use: the creature tense-quote delay at every sector load. The pre-battle speaker is not drawn; the
+speaker of a group's arrival line and the bloodcat lair corpses' facing are draws of the `movement` cosmetic stream
+(deviation "Cosmetic draws in strategic movement").
 
 ## 3. Quirks of the original the code keeps
 
@@ -134,6 +141,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The underground traversal flag is never lowered: after the first underground edge, every tactical traversal arrives after 1 minute while the clock still warps 5 | `campaign/sector-flow.test.ts` |
 | The defence placement's first pass looks at every other node (Stracciatella); the init-list sort reverses each class | `strategic/ai/queen-command.test.ts` |
 | One NPC in a wilderness sector who was ever spoken to, recruited or escorted silences the NPC-of-note box for every unmet NPC there | `strategic/forces/npcs-of-note.test.ts` |
+| An underground arrival never says the arrival line, though the check would let a compressed one speak: compression stops just before it (`Strategic_Movement.cc:1411-1416`, `Map_Screen_Interface.cc:1403`) | `strategic/forces/movement.test.ts` "keeps an underground arrival silent …" |
+| Only the first member of reinforcements is asked for the arrival line, even one who cannot speak: then nobody says it (`Strategic_Movement.cc:2279`) | `strategic/forces/encounters.test.ts` "has the first merc of the reinforcements say …" |
 | A bloodcat lair's corpses carry profile 0 from their zeroed definition, and in the first two days of a campaign their unsigned time of death wraps, still two days back for the rot | `campaign/sector-loot.test.ts` |
 | Fuel spent on the map leaves the percentage rounded up, so a vehicle shows 1 % of fuel until its tank is empty | `vehicles/vehicle-fuel.test.ts`, `campaign/vehicle-travel.test.ts` |
 | A gas can leaves the percentage rounded down: 50 fuel from a can of status 1 in an empty tank shows 0 %, which the route hint takes for empty while the vehicle moves (deviation "Strategic hints and enemy counts") | `vehicles/vehicle-fuel.test.ts` "shows 0 for the 50 fuel …", `src/server/hints-strategic-stub.test.ts` "refuse the route of a vehicle a gas can left below 1 % …" |

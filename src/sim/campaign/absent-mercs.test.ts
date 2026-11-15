@@ -106,6 +106,7 @@ async function vantToB9(c: Campaign): Promise<void> {
   };
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) c.live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`Vant did not reach ${ELSEWHERE}`);
+  c.live.advance({ idle: true });
 }
 
 async function vantInB9(seed: number): Promise<Campaign> {

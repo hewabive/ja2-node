@@ -206,7 +206,9 @@ to end first, and `advance {idle}` on the map waits for the queue to empty. A li
 takes no lock and leaves the pause; while lines wait in the queue `compressTime` is refused with `dialogueQueued`, and
 the exits from the map with `dialogueQueued` or, while a line is said under its lock, `pauseLocked` (above). The
 strategic lines go through this queue as in the original: assignment done, the tired complaint, contract,
-relationship and morale lines, Skyrider and the head miners. Their `mercQuote`, `skyriderQuote` and `headMinerQuote`
+relationship and morale lines, the arrival line of a squad that ends its route (a merc of the squad, `16`) and of the
+first merc of a group of ours that joins the battle of the loaded sector, which also brings `playerReinforcements
+{group, sector}` and the original's reinforcements message, Skyrider and the head miners. Their `mercQuote`, `skyriderQuote` and `headMinerQuote`
 events come when the queue says them, after the lines queued before, not at the step that caused them; a line whose
 speaker can no longer talk when its turn comes is not said, and a save is refused while lines play (`27`). A Skyrider
 or head miner line carries `panel` when a monologue (`{monologue}`) or the miner's mine (`{mine}`) placed the map

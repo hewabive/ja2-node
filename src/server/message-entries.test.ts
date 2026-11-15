@@ -242,6 +242,11 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints STR_PLAYER_REINFORCEMENTS in the interface colour as a group of ours joins the battle of the loaded sector', () => {
+    const entries = messageEntriesOf([at({ type: 'playerReinforcements', group: 5, sector: 'C9' })], facts);
+    expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 10 }]);
+  });
+
   it('prints pMapErrorString 18 and 48 as lines for the mercs a yes to the militia payment box cannot set, the box screen being up', () => {
     expect(messageEntriesOf([at({ type: 'trainersNotAssigned', soldiers: [1, 0] })], facts)).toEqual([
       { tick: 40, kind: 'interface', colour: 145, table: 'pMapErrorString', index: 18 },

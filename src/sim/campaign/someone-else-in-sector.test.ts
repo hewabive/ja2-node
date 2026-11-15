@@ -118,6 +118,7 @@ async function vantInTheWilderness(seed: number, lastDateSpokenTo = 0): Promise<
   };
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) c.live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`Vant did not reach ${WILDERNESS}`);
+  c.live.advance({ idle: true });
   npcStandsIn(c, WILDERNESS, lastDateSpokenTo);
   await order(c, { type: 'enterSector', sector: WILDERNESS });
   c.live.advance({ idle: true });

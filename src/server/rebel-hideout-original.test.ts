@@ -46,6 +46,7 @@ async function inA10(read: Parameters<typeof createCampaignSession>[0], data: Da
   const session = new Session('hideout', cs);
   const arrived = () => cs.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors) ?? false;
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) session.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+  session.advance({ idle: true });
   const enter = { type: 'enterSector', sector: 'A10' };
   await cs.prepare(enter);
   expect(cs.dispatch(enter)).toMatchObject({ ok: true });

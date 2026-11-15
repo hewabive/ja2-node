@@ -86,6 +86,7 @@ async function walkSquadTo(session: Session, name: string): Promise<void> {
   const there = () => session.sim.view().strategic?.mercs.every((m) => m.sector === name && !m.betweenSectors) === true;
   for (let k = 0; k < ROUTE_STEPS && !there(); k++) session.advance({ worldSeconds: ROUTE_STEP_SECONDS });
   if (!there()) throw new Error(`the squad did not reach ${name}`);
+  session.advance({ idle: true });
 }
 
 function bestTrainer(sim: CampaignSession, ids: readonly number[]): number {

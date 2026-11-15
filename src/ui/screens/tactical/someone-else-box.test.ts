@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { type TacticalUiKit, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { parseSectorString, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
@@ -25,6 +25,8 @@ const ROUTE_BUDGET = 24;
 const OUT_OF_SIGHT = gridNo(20, 80);
 const KILLING_BLOW = 100;
 const LOOK_BUDGET = { ticks: 2000 };
+const LINE_STEP_MS = 250;
+const MAX_LINE_FRAMES = 400;
 const NS_SOMEONE_ELSE_IN_SECTOR = 2;
 
 let kit: StubSectorKit;
@@ -80,9 +82,15 @@ async function vantInTheWilderness(campaign: CampaignSession, session: Session):
   const arrived = () => sameSector(vantOf(campaign).sector, parseSectorString(WILDERNESS)) && !vantOf(campaign).betweenSectors;
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) session.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`Vant did not reach ${WILDERNESS}`);
+  session.advance({ idle: true });
   npcStandsInTheWilderness(campaign);
   await order(campaign, session, { type: 'enterSector', sector: WILDERNESS });
   session.advance({ idle: true });
+}
+
+function playOutTheLines(f: TacticalUiTest): void {
+  f.deliver();
+  for (let frames = 0; f.screen.dialogue.presenter.busy && frames < MAX_LINE_FRAMES; frames++) f.t.frame(LINE_STEP_MS);
 }
 
 function winTheBattle(campaign: CampaignSession, session: Session): void {
@@ -104,6 +112,7 @@ describe('the someone-else box on the tactical screen (Overhead.cc HandleThePlay
     const session = new Session('someone-else', campaign);
     const f = await tacticalUiTest(kit, ui, SEED, session);
     await vantInTheWilderness(campaign, session);
+    playOutTheLines(f);
     winTheBattle(campaign, session);
     expect(session.advance(LOOK_BUDGET).reason).toBe('decision');
     f.deliver();

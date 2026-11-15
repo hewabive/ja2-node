@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { FakeMercs, loadStrategicTestContent, ScriptedRolls, testContext } from '../../../../tests/support/strategic.ts';
 import { parseSectorId, parseSectorString, type Sector } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
+import { OKLIFE } from '../../tactical/soldier.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { sectorInfo } from '../map/sectors.ts';
 import { Fact } from '../narrative/fact-ids.ts';
@@ -13,8 +15,9 @@ import { EncounterCode, GroupFlag, InsertionCode, PauseLock } from './constants.
 import { answerSimultaneousArrival, checkConditionsForBattle, panelNoticeOf, testForBloodcatAmbush } from './encounters.ts';
 import { PanelNotice, PreBattleNotice } from './flow-state.ts';
 import { addPlayerToGroup, createNewEnemyGroupDepartingFromSector, createNewPlayerGroupDepartingFromSector, type Group } from './groups.ts';
+import type { HelicopterEventWithoutTick } from './helicopter-events.ts';
 import { groupArrivedAtSector, nowMinutes } from './movement.ts';
-import type { StrategicContext } from './ports.ts';
+import type { HelicopterPort, StrategicContext, TacticalWorldPort } from './ports.ts';
 
 let content: StrategicContent;
 
@@ -32,7 +35,16 @@ interface Setup {
   readonly rolls: ScriptedRolls;
 }
 
-function setup(o: { pre?: number[]; rolls?: number[]; facts?: Record<number, number>; enemyInSector?: boolean } = {}): Setup {
+interface SetupOptions {
+  readonly pre?: number[];
+  readonly rolls?: number[];
+  readonly facts?: Record<number, number>;
+  readonly enemyInSector?: boolean;
+  readonly world?: Partial<TacticalWorldPort>;
+  readonly helicopter?: Partial<HelicopterPort>;
+}
+
+function setup(o: SetupOptions = {}): Setup {
   const mercs = new FakeMercs();
   const pre = new ScriptedRolls(o.pre ?? []);
   const rolls = new ScriptedRolls(o.rolls ?? []);
@@ -42,7 +54,8 @@ function setup(o: { pre?: number[]; rolls?: number[]; facts?: Record<number, num
     state: createStrategicState({ worldSeconds: NOON }),
     random: rolls,
     preRandom: pre,
-    world: { enemyInSector: () => o.enemyInSector === true },
+    world: { enemyInSector: () => o.enemyInSector === true, ...o.world },
+    ...(o.helicopter ? { helicopter: o.helicopter } : {}),
   });
   for (const [id, value] of Object.entries(o.facts ?? {})) setFact(ctx.state.narrative, Number(id), value);
   initializeMapStructure(ctx);
@@ -138,6 +151,25 @@ describe('CheckConditionsForBattle', () => {
     expect(checkConditionsForBattle(s.ctx, late)).toBe(true);
     expect(s.mercs.get(3)?.insertionCode).toBe(InsertionCode.EAST);
     expect(s.mercs.placedInSector).toEqual([3]);
+  });
+
+  it('has the first merc of the reinforcements say the reached-destination line, even one who cannot speak, and prints the reinforcements message (Strategic_Movement.cc:2279-2282)', () => {
+    const lines: [number, number][] = [];
+    const events: HelicopterEventWithoutTick[] = [];
+    const s = setup({
+      enemyInSector: true,
+      world: { tacticalCharacterDialogue: (id, quote) => lines.push([id, quote]) },
+      helicopter: { emit: (e) => events.push(e) },
+    });
+    squad(s, S('C9'), [0]);
+    s.ctx.state.worldSector = S('C9');
+    const late = squad(s, S('C9'), [3, 4]);
+    Object.assign(s.mercs.get(3) ?? {}, { life: OKLIFE - 1 });
+    late.prev = S('C10');
+    expect(checkConditionsForBattle(s.ctx, late)).toBe(true);
+    expect(s.mercs.placedInSector).toEqual([3, 4]);
+    expect(lines).toEqual([[3, MercQuote.MERC_REACHED_DESTINATION]]);
+    expect(events).toEqual([{ type: 'playerReinforcements', group: late.id, sector: 'C9' }]);
   });
 });
 

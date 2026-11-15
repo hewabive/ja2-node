@@ -4,6 +4,7 @@ import { Direction, gridNo } from '../../src/content/world/grid.ts';
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
 import { CampaignSession } from '../../src/server/campaign-session.ts';
 import type { Session } from '../../src/server/session.ts';
+import type { StopCondition } from '../../src/sim/advance.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { createMercRecord } from '../../src/sim/campaign/merc-record.ts';
 import { MercKind, RosterMerc } from '../../src/sim/campaign/roster.ts';
@@ -99,7 +100,7 @@ async function dispatchPrepared(session: CampaignSession, cmd: { readonly type: 
 interface CampaignDriver {
   readonly sim: CampaignSession;
   order(cmd: { readonly type: string; readonly [key: string]: unknown }): Promise<void>;
-  advance(worldSeconds: number): void;
+  advance(until: StopCondition): void;
 }
 
 async function arriveAtTheHummer(d: CampaignDriver): Promise<void> {
@@ -113,8 +114,9 @@ async function arriveAtTheHummer(d: CampaignDriver): Promise<void> {
   if (!first) throw new Error('no merc');
   await d.order({ type: 'route', soldier: first.id, to: HUMMER_SECTOR });
   const arrived = () => d.sim.view().strategic?.mercs.every((m) => m.sector === HUMMER_SECTOR && !m.betweenSectors) === true;
-  for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) d.advance(ROUTE_SLICE_SECONDS);
+  for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) d.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`the squad did not reach ${HUMMER_SECTOR}`);
+  d.advance({ idle: true });
   await d.order({ type: 'enterSector', sector: HUMMER_SECTOR });
 }
 
@@ -125,9 +127,9 @@ export async function stubCampaignAtTheHummer(kit: StubSectorKit, seed: number, 
   await arriveAtTheHummer({
     sim: session,
     order: (cmd) => dispatchPrepared(session, cmd),
-    advance: (worldSeconds) => {
+    advance: (until) => {
       live ??= new ReloadingSession('hummer', session);
-      live.advance({ worldSeconds });
+      live.advance(until);
     },
   });
   return session;
@@ -142,7 +144,7 @@ export async function bringSessionToTheHummer(session: Session): Promise<void> {
       const result = await session.prepareAndDispatch(cmd);
       if (!result.ok) throw new Error(`${cmd.type} refused: ${result.reason}`);
     },
-    advance: (worldSeconds) => void session.advance({ worldSeconds }),
+    advance: (until) => void session.advance(until),
   });
 }
 
@@ -263,6 +265,7 @@ export async function driveOurHummerInto(session: CampaignSession, sector: strin
   const arrived = () => session.view().strategic?.mercs.every((m) => m.sector === sector && !m.betweenSectors) === true;
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`our Hummer did not reach ${sector}`);
+  live.advance({ idle: true });
   await dispatchPrepared(session, { type: 'enterSector', sector });
 }
 

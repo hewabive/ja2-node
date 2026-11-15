@@ -130,6 +130,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(session.dispatch({ type: 'compressTime', mode: 3 })).toEqual({ ok: true });
       for (let i = 0; i < 20_000 && (walker.betweenSectors || sectorName(walker.sector) !== target); i++) session.step();
       expect(sectorName(walker.sector)).toBe(target);
+      advance(session, { idle: true });
       const enter = { type: 'enterSector', sector: target };
       await session.prepare(enter);
       expect(session.dispatch(enter)).toMatchObject({ ok: true, data: { sector: target } });

@@ -65,6 +65,7 @@ async function inA10(): Promise<Session> {
   expect(session.dispatch({ type: 'route', soldier: first.id, to: 'A10' })).toMatchObject({ ok: true });
   const arrived = () => created.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors) === true;
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) session.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+  session.advance({ idle: true });
   const enter = { type: 'enterSector', sector: 'A10' };
   await created.prepare(enter);
   expect(session.dispatch(enter)).toMatchObject({ ok: true });

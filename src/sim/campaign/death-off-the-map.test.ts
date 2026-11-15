@@ -99,6 +99,7 @@ async function kestrelInB9(seed: number): Promise<Campaign> {
   };
   for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) c.live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   if (!arrived()) throw new Error(`Kestrel did not reach ${ELSEWHERE}`);
+  c.live.advance({ idle: true });
   await order(c, { type: 'tacticalScreen' });
   return c;
 }

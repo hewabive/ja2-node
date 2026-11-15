@@ -56,6 +56,7 @@ export const MercQuote = {
   ME_TOO: 73,
   BOOBYTRAP_ITEM: 75,
   SUSPICIOUS_GROUND: 76,
+  MERC_REACHED_DESTINATION: 78,
 } as const;
 
 export const QuoteSaidFlag = {

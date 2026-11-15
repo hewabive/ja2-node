@@ -81,6 +81,7 @@ function routeSquadTo(c: Campaign, name: string): SimEvent[] {
   const there = () => c.session.view().strategic?.mercs.every((m) => m.sector === name && !m.betweenSectors) === true;
   for (let k = 0; k < ROUTE_BUDGET && !there(); k++) events.push(...c.live.advance({ worldSeconds: ROUTE_SLICE_SECONDS }).events);
   expect(there()).toBe(true);
+  events.push(...c.live.advance({ idle: true }).events);
   return events;
 }
 

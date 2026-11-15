@@ -7,7 +7,8 @@
 // @src RetreatGroupToPreviousSector, CalculateGroupRetreatSector, ResetMovementForEnemyGroup, RandomizePatrolGroupLocation,
 // @src PlaceGroupInSector, MoveAllGroupsInCurrentSectorToSector, GroupWillMoveThroughSector;
 // @src Strategic_Pathing.cc RebuildWayPointsForGroupPath, ClearMercPathsAndWaypointsForAllInGroup, MoveGroupFromSectorToSector*,
-// @src AddSectorToFrontOfMercPathForAllSoldiersInGroup, GetGroupMercPathPtr.
+// @src AddSectorToFrontOfMercPathForAllSoldiersInGroup, GetGroupMercPathPtr; Map_Screen_Interface.cc
+// @src RandomMercInGroupSaysQuote (its speaker drawn on the movement cosmetic stream, 2026-11-15).
 // @src The MSG_ARRIVE line of GroupArrivedAtSector becomes the groupArrived event, ReportVehicleOutOfGas's box the
 // @src vehicleOutOfGas event.
 
@@ -23,13 +24,22 @@ import {
 } from '../../../content/strategic/sector-ids.ts';
 import { Direction } from '../../../content/world/grid.ts';
 import { i16, idiv, u8, u16, u32 } from '../../../core/int.ts';
+import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
+import { OKLIFE } from '../../tactical/soldier.ts';
 import { markSecretFoundAt, secretIndexAt, setThisSectorAsPlayerControlled } from '../map/control.ts';
 import { buildStrategicPath, removeHeadFromStrategicPath, removeTailFromStrategicPath, type StratPathRules } from '../map/pathing.ts';
 import { getSectorFlagStatus, sectorInfo, setSectorFlag, Traversability, traversabilityBetween } from '../map/sectors.ts';
 import { getSectorMvtTimeForGroup } from '../map/travel.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent, deleteStrategicEvent } from '../time/event-queue.ts';
-import { CompressionStop, stopTimeCompression, worldDay, worldHour, worldTotalMinutes } from '../time/world-clock.ts';
+import {
+  CompressionStop,
+  isTimeBeingCompressed,
+  stopTimeCompression,
+  worldDay,
+  worldHour,
+  worldTotalMinutes,
+} from '../time/world-clock.ts';
 import { ABOUT_TO_ARRIVE_DELAY, Assignment, GroupFlag, InsertionCode, MoveType, SectorFlag } from './constants.ts';
 import { checkConditionsForBattle } from './encounters.ts';
 import {
@@ -53,7 +63,7 @@ import {
 } from './groups.ts';
 import { handleHeliEnteringSector } from './helicopter.ts';
 import type { ArrivedWho } from './helicopter-events.ts';
-import { type StrategicContext, TravelStat } from './ports.ts';
+import { type StrategicContext, type StrategicMerc, TravelStat } from './ports.ts';
 import { resetDeadSquadMemberList } from './squads.ts';
 import { setVehicleSectorValues } from './vehicles.ts';
 
@@ -463,7 +473,7 @@ export function groupArrivedAtSector(ctx: StrategicContext, g: Group, checkForBa
     return;
   }
   if (checkForBattle && !checkConditionsForBattle(ctx, g) && !flow.waitingForInput) {
-    handleNonCombatGroupArrival(ctx, g, true);
+    handleNonCombatGroupArrival(ctx, g, true, neverLeft);
     releaseSimultaneousArrivals(ctx);
   } else {
     g.flags = 0;
@@ -479,19 +489,35 @@ function releaseSimultaneousArrivals(ctx: StrategicContext): void {
     if (!ctx.state.forces.groups.includes(other)) continue;
     if (!(other.flags & GroupFlag.GROUP_ARRIVED_SIMULTANEOUSLY)) continue;
     flow.numGroupsArrivedSimultaneously--;
-    handleNonCombatGroupArrival(ctx, other, false);
+    handleNonCombatGroupArrival(ctx, other, false, false);
     if (flow.numGroupsArrivedSimultaneously === 0) break;
   }
 }
 
-function handleNonCombatGroupArrival(ctx: StrategicContext, g: Group, mainGroup: boolean): void {
+function canSayGroupQuote(m: StrategicMerc): boolean {
+  return m.life >= OKLIFE && !m.isVehicle && !m.isRobot && !m.isEpc && !m.asleep;
+}
+
+function randomMercInGroupSaysQuote(ctx: StrategicContext, g: Group, quote: number): void {
+  if ((ctx.state.movement.tacticalTraversal.active || g.sector.z > 0) && !isTimeBeingCompressed(ctx.clock.clock)) return;
+  const speakers = groupMembers(ctx, g).filter(canSayGroupQuote);
+  if (speakers.length === 0) return;
+  const chosen = speakers[ctx.state.cosmetic.movement.int(speakers.length)];
+  if (chosen) ctx.world.tacticalCharacterDialogue?.(chosen.id, quote);
+}
+
+function handleNonCombatGroupArrival(ctx: StrategicContext, g: Group, mainGroup: boolean, neverLeft: boolean): void {
   if (ctx.ai.lookForAdjacentGroups(g)) return;
   if (g.player) {
     const heli = g.vehicle && isHelicopterGroup(ctx, g);
     if (!heli) setThisSectorAsPlayerControlled(ctx, g.sector, false);
     if (groupAtFinalDestination(g)) {
       if (playerMercsInSector(ctx, ctx.state.map.selectedSector) === 0) ctx.state.map.selectedSector = g.sector;
-      if (!heli) stopTimeCompression(ctx.clock, CompressionStop.ARRIVED);
+      if (!heli) {
+        stopTimeCompression(ctx.clock, CompressionStop.ARRIVED);
+        if (!ctx.state.movement.tacticalTraversal.active && !neverLeft)
+          randomMercInGroupSaysQuote(ctx, g, MercQuote.MERC_REACHED_DESTINATION);
+      }
     }
     playerGroupArrivedSafelyInSector(ctx, g, mainGroup);
   } else if (!g.debug) {

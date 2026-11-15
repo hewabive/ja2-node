@@ -81,6 +81,7 @@ async function inA10(k: SaveKit, seed: number): Promise<Session> {
   expect(session.dispatch({ type: 'route', soldier: first.id, to: 'A10' })).toMatchObject({ ok: true });
   for (let n = 0; n < ROUTE_BUDGET && !session.sim.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors); n++)
     session.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+  session.advance({ idle: true });
   expect(await session.prepareAndDispatch({ type: 'enterSector', sector: 'A10' })).toMatchObject({ ok: true });
   session.advance({ idle: true });
   return session;
@@ -301,6 +302,7 @@ describe('save rules', () => {
         expect(n > 0 || groupsAboutToArrive(session.sim).length > 0).toBe(true);
         session.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
       }
+      session.advance({ idle: true });
       await k.saves.flush();
       expect(writes.slice(before).map((w) => w.name)).toEqual(['Road']);
     });

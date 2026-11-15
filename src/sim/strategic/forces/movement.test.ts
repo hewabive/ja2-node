@@ -3,7 +3,10 @@ import { FakeMercs, loadStrategicTestContent, ScriptedRolls, testContext } from 
 import { parseSectorId, parseSectorString, type Sector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { Direction } from '../../../content/world/grid.ts';
+import { Rng } from '../../../core/rng.ts';
 import { CampaignSim } from '../../campaign/campaign-sim.ts';
+import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
+import { OKLIFE } from '../../tactical/soldier.ts';
 import { initStrategicMovementCosts } from '../map/init.ts';
 import { getSectorFlagStatus, sectorInfo } from '../map/sectors.ts';
 import { getSectorMvtTimeForGroup } from '../map/travel.ts';
@@ -240,6 +243,79 @@ describe('arrival', () => {
       [EventKind.GROUP_ABOUT_TO_ARRIVE, arrival, g.id],
       [EventKind.GROUP_ARRIVAL, arrival + 5, g.id],
     ]);
+  });
+});
+
+describe('the arrival line (Strategic_Movement.cc HandleNonCombatGroupArrival, Map_Screen_Interface.cc RandomMercInGroupSaysQuote)', () => {
+  function lineContext() {
+    const lines: [number, number][] = [];
+    const { ctx, mercs } = squadContext({ world: { tacticalCharacterDialogue: (id, quote) => lines.push([id, quote]) } });
+    return { ctx, mercs, lines };
+  }
+
+  function compressing(ctx: StrategicContext): void {
+    ctx.state.clock.mode = CompressMode.MIN5;
+    ctx.state.clock.compressionOn = true;
+  }
+
+  it('has a merc drawn on the movement cosmetic stream say the reached-destination line at the end of the route, none who is down, mechanical, an E.P.C. or asleep', () => {
+    const { ctx, mercs, lines } = lineContext();
+    const g = squadAt(ctx, mercs, S('A9'), [0, 1, 2, 3, 4, 5]);
+    Object.assign(mercs.get(1) ?? {}, { life: OKLIFE - 1 });
+    Object.assign(mercs.get(2) ?? {}, { isRobot: true });
+    Object.assign(mercs.get(3) ?? {}, { isEpc: true });
+    Object.assign(mercs.get(4) ?? {}, { asleep: true });
+    giveRoute(ctx, mercs, g, route('A9', 'A10'));
+    const stream = Rng.fromState(ctx.state.cosmetic.movement.state());
+    const speaker = [0, 5][stream.int(2)];
+    groupArrivedAtSector(ctx, g, true, false);
+    expect(lines).toEqual([[speaker, MercQuote.MERC_REACHED_DESTINATION]]);
+    expect(ctx.state.cosmetic.movement.state()).toEqual(stream.state());
+  });
+
+  it('says nothing short of the destination, on a tactical traversal or when nobody can speak, and draws nobody then', () => {
+    const short = lineContext();
+    giveRoute(short.ctx, short.mercs, squadAt(short.ctx, short.mercs, S('A9'), [0]), route('A9', 'A10', 'A11'));
+    groupArrivedAtSector(short.ctx, short.ctx.state.forces.groups[0] as Group, true, false);
+    const traversal = lineContext();
+    const walkers = squadAt(traversal.ctx, traversal.mercs, S('A9'), [0]);
+    giveRoute(traversal.ctx, traversal.mercs, walkers, route('A9', 'A10'));
+    traversal.ctx.state.movement.tacticalTraversal.active = true;
+    groupArrivedAtSector(traversal.ctx, walkers, true, false);
+    const asleep = lineContext();
+    const sleepers = squadAt(asleep.ctx, asleep.mercs, S('A9'), [0]);
+    Object.assign(asleep.mercs.get(0) ?? {}, { asleep: true });
+    giveRoute(asleep.ctx, asleep.mercs, sleepers, route('A9', 'A10'));
+    const before = asleep.ctx.state.cosmetic.movement.state();
+    groupArrivedAtSector(asleep.ctx, sleepers, true, false);
+    expect([short.lines, traversal.lines, asleep.lines]).toEqual([[], [], []]);
+    expect(asleep.ctx.state.cosmetic.movement.state()).toEqual(before);
+  });
+
+  it('says nothing when a move is cancelled before the group left', () => {
+    const { ctx, mercs, lines } = lineContext();
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    giveRoute(ctx, mercs, g, route('A9', 'B9'));
+    rebuildWayPointsForGroupPath(ctx, null, g);
+    expect(g).toMatchObject({ sector: S('A9'), betweenSectors: false });
+    expect(lines).toEqual([]);
+  });
+
+  it('keeps an underground arrival silent even under compression: compression stops just before the check that would let a compressed arrival speak', () => {
+    const surface = lineContext();
+    const walkers = squadAt(surface.ctx, surface.mercs, S('A9'), [0]);
+    giveRoute(surface.ctx, surface.mercs, walkers, route('A9', 'A10'));
+    compressing(surface.ctx);
+    groupArrivedAtSector(surface.ctx, walkers, true, false);
+    const below = lineContext();
+    const miners = squadAt(below.ctx, below.mercs, parseSectorString('D13', 1), [0]);
+    miners.next = parseSectorString('E13', 1);
+    miners.betweenSectors = true;
+    compressing(below.ctx);
+    groupArrivedAtSector(below.ctx, miners, true, false);
+    expect(miners).toMatchObject({ sector: parseSectorString('E13', 1), betweenSectors: false });
+    expect(isTimeBeingCompressed(below.ctx.state.clock)).toBe(false);
+    expect([surface.lines.length, below.lines.length]).toEqual([1, 0]);
   });
 });
 

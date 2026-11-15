@@ -34,6 +34,7 @@ export async function stubCampaignInA10(kit: StubSectorKit, seed: number, mode?:
   const live = new ReloadingSession('t', session);
   for (let k = 0; k < ROUTE_BUDGET && !session.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors); k++)
     live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+  live.advance({ idle: true });
   const enter = { type: 'enterSector', sector: 'A10' };
   await session.prepare(enter);
   expect(session.dispatch(enter)).toMatchObject({ ok: true });

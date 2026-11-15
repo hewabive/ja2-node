@@ -363,6 +363,7 @@ describe('the mode in a campaign (Auto_Bandage.cc AutoBandage, HandleAutoBandage
     const arrived = () => sameSector(merc(c, VANT).sector, parseSectorString(ELSEWHERE)) && !merc(c, VANT).betweenSectors;
     for (let k = 0; k < ROUTE_BUDGET && !arrived(); k++) c.live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
     expect(arrived()).toBe(true);
+    c.live.advance({ idle: true });
     await order(c, { type: 'tacticalScreen' });
     const t = tactical(c);
     merc(c, VANT).soldier.state = anim(t.content, 'CROUCHING');
