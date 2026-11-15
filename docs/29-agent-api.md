@@ -799,21 +799,22 @@ profile (`sound`, `Tactical/Items.cc:3458`); the client says COOL1 after the oth
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
 
-The sector inventory (`src/sim/campaign/map-inventory.ts`, `stash.ts`) is the `inventory` query and stash commands.
-The query lists the items the map shows in the order the pool opens with (`CompareItemsForSorting` on the item and its
-first status, ties in storage order); each entry's `index` names it until it leaves the stash, the loaded sector's
-world item id or an unloaded sector's record, and a later entry may get a freed index. `moveItem` with `from: 'ground'`
-and `item` takes from an entry; `to: 'ground'` puts into the stash, onto the entry `stashIndex` names or without it
-into an empty slot; both together move within the stash as the pool cursor does (an empty slot takes the item with its
-gridno and the merc's level, the same item stacks or pours its money, another one swaps). `data.stashIndex` names the
-entry the objects went to and `data.leftover` the one a placement's leftover went to: back into its entry when that
-moves nothing else, else an entry of its own (deviation "Map inventory cursor"). `discardItem` with `slot: 'ground'`
-and `item` is the trash can for a pool item. `{"type":"arrangeStash","sector":"A9","order":[<index>...]}` is the pool's
-close: the items in `order` first, the rest in pool order, the items the map does not show after them, as
-`SaveSeenAndUnseenItems` writes them back (`Map_Screen_Interface_Map_Inventory.cc:365`); in the loaded sector the items
-are added again, so every index changes. The page sends it with the pool's slots as the pool closes (deviation "Sector
-inventory layout"); refusals `badStashOrder` (not distinct integers), `mapScreenOnly`. A placement onto an item out of
-reach is refused `unreachable`, as the pool's click checks that item first.
+The sector inventory (`src/sim/campaign/map-inventory.ts`, `stash.ts`) is the `inventory` query and stash commands. The
+query lists the items the map shows in the order the pool opens with (`CompareItemsForSorting` on the item and its first
+status, ties in storage order); each entry's `index` names it until it leaves the stash, the loaded sector's world item
+id or an unloaded sector's record, which keeps that id as the sector unloads, and a later entry may get a freed index; a
+load of the sector adds its items again under new ids. `moveItem` with `from: 'ground'` and `item` takes from an entry;
+`to: 'ground'` puts into the stash, onto the entry `stashIndex` names or without it into an empty slot; both together
+move within the stash as the pool cursor does (an empty slot takes the item with its gridno and the merc's level, the
+same item stacks or pours its money, another one swaps). `data.stashIndex` names the entry the objects went to and
+`data.leftover` the one a placement's leftover went to: back into its entry when that moves nothing else, else an entry
+of its own (deviation "Map inventory cursor"). `discardItem` with `slot: 'ground'` and `item` is the trash can for a
+pool item. `{"type":"arrangeStash","sector":"A9","order":[<index>...]}` is the pool's close: the items in `order` first,
+the rest in pool order, the items the map does not show after them, as `SaveSeenAndUnseenItems` writes them back
+(`Map_Screen_Interface_Map_Inventory.cc:365`); in the loaded sector the items are added again, so every index changes.
+The page sends it with the pool's slots as the pool closes (deviation "Sector inventory layout"); refusals
+`badStashOrder` (not distinct integers), `mapScreenOnly`. A placement onto an item out of reach is refused
+`unreachable`, as the pool's click checks that item first.
 
 Auto-bandage (`src/sim/tactical/auto-bandage.ts`, `12` §8; deviation "Auto-bandage") is the `a` key and the end-of-battle
 question as commands. `autoBandage` refuses with the original's OK boxes in its order (`sectorNotCleared`,

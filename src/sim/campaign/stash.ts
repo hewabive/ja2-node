@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-14. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc BuildStashForSelectedSector (the visible items, sorted by
-// @src SortSectorInventory and MapScreenSectorInventoryCompare: CompareItemsForSorting on the item and bStatus[0] read as
-// @src UINT8), CheckGridNoOfItemsInMapScreenMapInventory, GetObjFromInventoryStashSlot, RemoveObjectFromStashSlot,
-// @src PlaceObjectInInventoryStash, SaveSeenAndUnseenItems (the pool written back in its order: a gridno of 0 borrows the
-// @src one before it, every item visible), ReBuildWorldItemStashForLoadedSector (the loaded sector's items trashed and
-// @src added again, the pool's first, then the unseen); Tactical/Tactical_Save.cc AddItemsToUnLoadedSector (the first
-// @src free record), SaveWorldItemsToTempItemFile (the unseen records first, the flag of the temp file, the recount).
+// @src src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc BuildStashForSelectedSector (the visible items in
+// @src world item index order, sorted by SortSectorInventory and MapScreenSectorInventoryCompare: CompareItemsForSorting
+// @src on the item and bStatus[0] read as UINT8), CheckGridNoOfItemsInMapScreenMapInventory,
+// @src GetObjFromInventoryStashSlot, RemoveObjectFromStashSlot, PlaceObjectInInventoryStash, SaveSeenAndUnseenItems
+// @src (the pool written back in its order: a gridno of 0 borrows the one before it, every item visible),
+// @src ReBuildWorldItemStashForLoadedSector (the loaded sector's items trashed and added again, the pool's first, then
+// @src the unseen); Tactical/Tactical_Save.cc AddItemsToUnLoadedSector (the first free record),
+// @src SaveWorldItemsToTempItemFile (the unseen records first, the flag of the temp file, the recount).
 
 import { ItemClass } from '../../content/items/items.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
@@ -21,7 +22,15 @@ import type { Count } from '../tactical/inventory-panel.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { NOWHERE, Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
-import { addItemToPool, removeWorldItem, trashWorldItems, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
+import {
+  addItemToPool,
+  removeWorldItem,
+  trashWorldItems,
+  Visibility,
+  type WorldItem,
+  WorldItemFlags,
+  worldItemsByIndex,
+} from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { type DiffWorldItem, sectorKey } from './sector-diff.ts';
 import { isMapScreenWorldItemVisibleInMapInventory, synchronizeVisibleItemCount } from './sector-item-count.ts';
@@ -157,7 +166,7 @@ function arrangedSeen<T extends { readonly index: number; readonly object: ItemO
 function loadedStash(campaign: CampaignSim): Stash {
   const t = campaign.tactical?.state;
   if (!t) throw new Error('no loaded sector');
-  const visible = () => t.worldItems.filter((wi) => visibleInMapInventory(campaign, wi));
+  const visible = () => worldItemsByIndex(t).filter((wi) => visibleInMapInventory(campaign, wi));
   const find = (index: number) => visible().find((wi) => wi.id === index) ?? null;
   const entryOf = (wi: WorldItem): StashEntry => ({ index: wi.id, object: wi.object, gridNo: wi.gridNo, level: wi.level, flags: wi.flags });
   const readd = (wi: StoredItem) => addItemToPool(t, wi.gridNo, wi.object, wi.visible, wi.level, wi.flags, wi.zHeight);
@@ -184,7 +193,7 @@ function loadedStash(campaign: CampaignSim): Stash {
         return added ? [added.id] : [];
       }),
     arrange: (order) => {
-      const all = [...t.worldItems];
+      const all = worldItemsByIndex(t);
       const seen = arrangedSeen(
         campaign,
         all.filter((wi) => visibleInMapInventory(campaign, wi)).map((wi) => ({ ...wi, index: wi.id })),

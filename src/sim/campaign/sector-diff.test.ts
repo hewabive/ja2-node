@@ -8,6 +8,8 @@ import { gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { createItem } from '../items/object.ts';
+import { createStrategicState } from '../strategic/state.ts';
 import type { Corpse } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { Direction } from '../tactical/directions.ts';
@@ -17,14 +19,18 @@ import { createFogOfWar, RevealedFlags, revealedAtLoadRuns } from '../tactical/p
 import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { Team } from '../tactical/soldier.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
+import { addItemToPool, itemsAt, removeWorldItem, trashWorldItems, Visibility, type WorldItem } from '../tactical/world-items.ts';
 import {
+  addDiffWorldItems,
   captureSmoke,
+  captureWorldItems,
   changeOpenableInUnloadedSector,
   emptySectorDiff,
   restoreCorpses,
   restoreRevealed,
   restoreSmoke,
 } from './sector-diff.ts';
+import { addItemsToUnloadedSector, sectorDiffOf } from './sector-loot.ts';
 
 let content: TacticalContent;
 
@@ -44,6 +50,42 @@ function sectorBlockedAt(blocked: number): TacticalSim {
   } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 1);
 }
+
+describe('the item records of a sector diff', () => {
+  it("writes the loaded sector's items by world item index with a freed index as a record that does not exist, which the next item added off the map fills; a load adds them again in record order, so a tile's pool comes back in index order (SaveCurrentSectorsInformationToTempItemFile writes gWorldItems whole, AddItemsToUnLoadedSector, LoadAndAddWorldItemsFromTempFile)", () => {
+    const t = newCombatSim(content).state;
+    const sector = { x: 13, y: 4, z: 0 };
+    const tile = gridNo(80, 80);
+    const object = (name: string) => createItem(content.items, itemId(t, name), 90);
+    const add = (name: string) => addItemToPool(t, tile, object(name), Visibility.VISIBLE, 0, 0, 0) as WorldItem;
+    const nameOf = (item: number) => content.items.byIndex.get(item)?.name;
+    const glock = add('GLOCK_17');
+    add('M870');
+    const clip = add('CLIP9_15');
+    add('CANTEEN');
+    removeWorldItem(t, glock);
+    removeWorldItem(t, clip);
+    add('CROWBAR');
+    expect(itemsAt(t, tile, 0).map((wi) => [wi.id, nameOf(wi.object.item)])).toEqual([
+      [1, 'M870'],
+      [3, 'CANTEEN'],
+      [0, 'CROWBAR'],
+    ]);
+    const state = createStrategicState();
+    const diff = sectorDiffOf(state, sector);
+    diff.items = captureWorldItems(t);
+    expect(diff.items.map((wi) => (wi.exists ? nameOf(wi.object.item) : null))).toEqual(['CROWBAR', 'M870', null, 'CANTEEN']);
+    addItemsToUnloadedSector(state, content.items, sector, tile, [object('COMBAT_KNIFE')], 0, 0, Visibility.VISIBLE);
+    trashWorldItems(t);
+    addDiffWorldItems(t, diff.items, tile);
+    expect(itemsAt(t, tile, 0).map((wi) => [wi.id, nameOf(wi.object.item)])).toEqual([
+      [0, 'CROWBAR'],
+      [1, 'M870'],
+      [2, 'COMBAT_KNIFE'],
+      [3, 'CANTEEN'],
+    ]);
+  });
+});
 
 describe('restoring the corpses of a sector diff', () => {
   it('searches again for a free tile for a corpse dropped while the sector was unloaded, at every load (Tactical_Save.cc LoadRottingCorpsesFromTempCorpseFile)', () => {

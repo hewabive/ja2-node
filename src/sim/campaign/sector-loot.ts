@@ -6,7 +6,8 @@
 // @src 2026-11-06), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
 // @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo;
 // @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector (its SaveWorldItemsToTempItemFile recounts the
-// @src sector's visible items, as AddItemsToUnLoadedSector's does, 2026-11-14);
+// @src sector's visible items, as AddItemsToUnLoadedSector's does, 2026-11-14; the loaded sector's draws by world item
+// @src index, FOR_EACH_WORLD_ITEM);
 // @src Strategic/Strategic_Movement.cc AddCorpsesToBloodcatLair (the facing drawn on a cosmetic stream; the zeroed
 // @src definition leaves profile 0 and level 0).
 
@@ -29,7 +30,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { type KeyContent, takeKeyRingObjects } from '../tactical/doors/keys.ts';
 import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { removeWorldItem, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
+import { removeWorldItem, Visibility, WorldItemFlags, worldItemsByIndex } from '../tactical/world-items.ts';
 import { type DiffWorldItem, emptySectorDiff, type SectorDiff, sectorKey } from './sector-diff.ts';
 import { synchronizeVisibleItemCount } from './sector-item-count.ts';
 
@@ -208,7 +209,7 @@ export function stealFromUnloadedSector(state: StrategicState, items: ItemTable,
 
 export function stealFromLoadedSector(t: TacticalState, chance: number, rng: LootRandom): number {
   let stolen = 0;
-  for (const wi of [...t.worldItems]) {
+  for (const wi of worldItemsByIndex(t)) {
     if (wi.visible !== Visibility.VISIBLE) continue;
     if (rng.int(PERCENT) >= chance) continue;
     removeWorldItem(t, wi);

@@ -91,13 +91,15 @@ highest progress are the campaign's as the soldier is created (`t.campaign`).
 
 **World items are one list.** `TacticalState.worldItems` holds every item of the loaded sector; a tile's pool is its
 entries in list order (`itemsAt`). Each item keeps the index the original would give it, the first one no other item
-holds (`GetFreeWorldItemIndex`), as its `id`, by which the sector inventory names it; the list's order stays the order
-the items came in. Visibility keeps the original's values (hidden, buried, inside a closed container,
-not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. An item put on a generic
-structure marks it (`STRUCTURE_HASITEMONTOP`) until the tile's last item leaves: a merc standing on the tile turns to
-it to reach the items, a blast that wrecks it puts them on the floor, and the client makes it an interactive tile from
-the shown items lying on it (`30`). Other sectors' items, clouds and flares live in the campaign's sector diffs
-(`campaign/sector-diff.ts`).
+holds (`GetFreeWorldItemIndex`), as its `id`, by which the sector inventory names it. The list keeps the order the items
+came in, which is the order of the original's pool lists; where the original runs over its whole item array, the code
+goes by `id` (`worldItemsByIndex`): a theft, the sector inventory's stash and the sector's item records, which keep a
+freed index as a record that does not exist. Visibility keeps the original's values (hidden, buried, inside a closed
+container, not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. An item put on
+a generic structure marks it (`STRUCTURE_HASITEMONTOP`) until the tile's last item leaves: a merc standing on the tile
+turns to it to reach the items, a blast that wrecks it puts them on the floor, and the client makes it an interactive
+tile from the shown items lying on it (`30`). Other sectors' items, clouds and flares live in the campaign's sector
+diffs (`campaign/sector-diff.ts`).
 
 **Explosions run on the tick.** Frame `k` of an explosion shows `k·(delay + 5)` ms after ignition and the damage lands
 at the damage key frame (deviation "Explosion timing"). Frame counts come from the graphics through the rule pack's
@@ -173,6 +175,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A pickup on his own tile crouched, prone or in water takes the items at once and leaves `MERC_PICKUPITEM` pending, which holds the auto-bandage question back until his next order; a walk-up one counted its walk, so the stance change that ends it drops the action (`Tactical/Soldier_Control.cc:8156-8164`, `:8220-8228`, `:1674`) | `item-actions.test.ts` "keeps it after a pickup on the spot …", "holds the auto-bandage question back …", "is dropped by the change out of the swat …" |
 | Opening and closing the sector inventory sorts the sector's items: the pool sorts as it opens and its close writes the items back in its order, the loaded sector's trashed and added again; a pool item with gridno 0 takes the gridno of the one before it | `src/sim/campaign/map-inventory.test.ts` "writes the pool back into the loaded sector …", "writes the pool of a sector off the map back …" |
 | A pool item put into an empty pool slot, its own included, takes the selected merc's level and loses every flag but the reachable one | `src/sim/campaign/map-inventory.test.ts` "moves a pool item between pool slots …" |
+| A tile's pool lists its items in the order they came, while the original's runs over all items go by index, a new item taking the first freed one: a theft in the loaded sector draws first for an item that took a freed index, the pool opens with it before older ties, and the sector's item records put it there, a freed index kept as a record the next item added off the map fills; a load adds the records again in order, so the tile's pool then follows the index | `src/sim/campaign/sector-loot.test.ts` "draws for the loaded sector's items by world item index …", `src/sim/campaign/map-inventory.test.ts` "runs over the loaded sector's items by world item index …", `src/sim/campaign/sector-diff.test.ts` "writes the loaded sector's items by world item index …" |
 | A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1560`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
 
 Not pinned yet:

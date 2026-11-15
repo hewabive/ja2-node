@@ -12,7 +12,7 @@ import { InvSlot } from '../tactical/inventory.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
-import { addItemToPool, trashWorldItems, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
+import { addItemToPool, removeWorldItem, trashWorldItems, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { type DiffWorldItem, sectorKey } from './sector-diff.ts';
 
@@ -157,6 +157,33 @@ describe('the map screen inventory', () => {
     ]);
   });
 
+  it("runs over the loaded sector's items by world item index as the pool opens and closes: ties listed and the unseen written back in index order, an item that took a freed index before older ones (BuildStashForSelectedSector over gWorldItems)", () => {
+    const c = onTheMap();
+    stashOn(c, [one('GLOCK_17'), one('M870'), one('GLOCK_17')]);
+    const t = loaded(c);
+    const hide = (name: string, k: number) => addItemToPool(t, FAR_TILE + 20 + 2 * k, one(name), Visibility.HIDDEN_ITEM, 0) as WorldItem;
+    removeWorldItem(t, t.worldItems[1] as WorldItem);
+    addItemToPool(t, FAR_TILE + 10, one('GLOCK_17'), Visibility.VISIBLE, 0, WorldItemFlags.REACHABLE, 0);
+    const crowbar = hide('CROWBAR', 0);
+    hide('CANTEEN', 1);
+    removeWorldItem(t, crowbar);
+    hide('M870', 2);
+    expect(listed(stash(c))).toEqual([
+      [0, 'GLOCK_17', 1],
+      [1, 'GLOCK_17', 1],
+      [2, 'GLOCK_17', 1],
+    ]);
+    expect(c.dispatch({ type: 'arrangeStash', sector: 'A9', order: [] })).toMatchObject({ ok: true });
+    const names = (wi: WorldItem) => [wi.id, kit.sectors.content.items.byIndex.get(wi.object.item)?.name, wi.gridNo];
+    expect(loaded(c).worldItems.map(names)).toEqual([
+      [0, 'GLOCK_17', FAR_TILE],
+      [1, 'GLOCK_17', FAR_TILE + 10],
+      [2, 'GLOCK_17', FAR_TILE + 4],
+      [3, 'M870', FAR_TILE + 24],
+      [4, 'CANTEEN', FAR_TILE + 22],
+    ]);
+  });
+
   it('keeps the index of every stash entry while another leaves it, and gives a freed index to the next new entry, as the world item list does (GetFreeWorldItemIndex)', () => {
     const c = onTheMap();
     stashAtTheMerc(c, [one('M870'), one('GLOCK_17'), some('CLIP9_15', 2)]);
@@ -254,8 +281,8 @@ describe('the map screen inventory', () => {
     expect(within(1, { stashIndex: 0 })).toMatchObject({ ok: true, data: { item: 'CLIP9_15', stashIndex: 0, leftover: 1 } });
     expect(listed(stash(c))).toEqual([
       [1, 'GLOCK_17', 1],
-      [2, 'CLIP9_15', 2],
       [0, 'CLIP9_15', 1],
+      [2, 'CLIP9_15', 2],
       [3, 'MONEY', 1],
     ]);
     expect(

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/World_Items.cc AddItemToWorld (GetFreeWorldItemIndex: the first index no item holds, 2026-11-14),
-// @src LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
+// @src src/game/Tactical/World_Items.cc AddItemToWorld (GetFreeWorldItemIndex: the first index no item holds,
+// @src 2026-11-14; FOR_EACH_WORLD_ITEM runs over gWorldItems by index, while a tile's ITEM_POOL list keeps the order its
+// @src items came in), LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
 // @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems, NotifySoldiersToLookforItems; Overhead.cc
 // @src FlatRoofAboveGridNo.
 // @src 2026-11-04: World_Items.cc RemoveItemFromWorld, TrashWorldItems and LoadWorldItemsFromMap's pits and map mines;
@@ -176,6 +177,10 @@ function freeWorldItemId(t: TacticalState): number {
   const taken = new Uint8Array(t.worldItems.length + 1);
   for (const wi of t.worldItems) if (wi.id < taken.length) taken[wi.id] = 1;
   return taken.indexOf(0);
+}
+
+export function worldItemsByIndex(t: Pick<TacticalState, 'worldItems'>): WorldItem[] {
+  return [...t.worldItems].sort((a, b) => a.id - b.id);
 }
 
 export function addItemToPool(

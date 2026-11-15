@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Tactical_Save.cc SaveCurrentSectorsInformationToTempItemFile, LoadCurrentSectorsInformationFromTempItemsFile,
+// @src src/game/Tactical/Tactical_Save.cc SaveCurrentSectorsInformationToTempItemFile (gWorldItems written whole: by
+// @src index, a freed index as a record that does not exist, 2026-11-14), LoadCurrentSectorsInformationFromTempItemsFile,
 // @src LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile;
 // @src Enemy_Soldier_Save.cc NewWayOfSavingEnemyAndCivliansToTempFile, NewWayOfLoadingCiviliansFromTempFile;
 // @src TileEngine/SaveLoadMap.cc revealed status (SetMapRevealedStatus with the cave lights and the slanted roof ceilings),
@@ -15,7 +16,7 @@ import { MapModificationType, type SavedMapModification } from '../../content/fo
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { idiv, u8, u32 } from '../../core/int.ts';
-import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
+import { cloneObject, emptyObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import type { Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
@@ -36,7 +37,7 @@ import { addRottingCorpse, type CorpseAging, removeAllCorpses } from '../tactica
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { addItemToPool } from '../tactical/world-items.ts';
+import { addItemToPool, worldItemsByIndex } from '../tactical/world-items.ts';
 
 export interface DiffWorldItem {
   readonly exists: boolean;
@@ -135,16 +136,25 @@ export function dropSavedTempFileRecords(diff: SectorDiff): void {
 const INDOOR_CORPSE_MAX_AGE_MINUTES = 30;
 const CIVILIAN_HEAL_MINUTES_PER_POINT = 15;
 
+function freedRecord(): DiffWorldItem {
+  return { exists: false, gridNo: 0, level: 0, object: emptyObject(), flags: 0, zHeight: 0, visible: 0 };
+}
+
 export function captureWorldItems(t: TacticalState): DiffWorldItem[] {
-  return t.worldItems.map((wi) => ({
-    exists: true,
-    gridNo: wi.gridNo,
-    level: wi.level,
-    object: cloneObject(wi.object),
-    flags: wi.flags,
-    zHeight: wi.zHeight,
-    visible: wi.visible,
-  }));
+  const records: DiffWorldItem[] = [];
+  for (const wi of worldItemsByIndex(t)) {
+    while (records.length < wi.id) records.push(freedRecord());
+    records.push({
+      exists: true,
+      gridNo: wi.gridNo,
+      level: wi.level,
+      object: cloneObject(wi.object),
+      flags: wi.flags,
+      zHeight: wi.zHeight,
+      visible: wi.visible,
+    });
+  }
+  return records;
 }
 
 export function captureRevealed(t: TacticalState): RevealedState {

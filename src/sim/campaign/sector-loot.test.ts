@@ -12,13 +12,14 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { SECOND_LEVEL_Z_OFFSET, setUnplacedSoldierHeight } from '../tactical/roofs.ts';
 import { agedCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { createSoldier, Team } from '../tactical/soldier.ts';
-import { Visibility, WorldItemFlags } from '../tactical/world-items.ts';
+import { addItemToPool, removeWorldItem, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { corpseViews } from '../tactical/world-view.ts';
 import { restoreCorpses, sectorKey } from './sector-diff.ts';
 import {
   addCorpsesToBloodcatLair,
   addDeadSoldierToUnloadedSector,
   addItemsToUnloadedSector,
+  stealFromLoadedSector,
   stealFromUnloadedSector,
 } from './sector-loot.ts';
 
@@ -164,6 +165,19 @@ describe('drops and corpses in unloaded sectors', () => {
     expect(items.map((wi) => wi.exists)).toEqual([false, true, false, true]);
     addItemsToUnloadedSector(state, content.items, SECTOR, 300, [item()], 0, 0, Visibility.VISIBLE);
     expect(items[0]?.gridNo).toBe(300);
+  });
+
+  it("draws for the loaded sector's items by world item index, so an item that took a freed index is drawn for before older ones (quirk, RemoveRandomItemsInSector runs FOR_EACH_WORLD_ITEM)", () => {
+    const t = newCombatSim(content).state;
+    const index = (name: string) => content.items.byName.get(name)?.index ?? 0;
+    const add = (name: string, g: number) => addItemToPool(t, g, createItem(content.items, index(name), 90), Visibility.VISIBLE, 0, 0, 0);
+    const first = add('GLOCK_17', DROPPED_AT);
+    add('M870', DROPPED_AT + 2);
+    if (!first) throw new Error('no item');
+    removeWorldItem(t, first);
+    add('CROWBAR', DROPPED_AT + 4);
+    expect(stealFromLoadedSector(t, 50, scripted([0, 99]))).toBe(1);
+    expect(t.worldItems.map((wi) => content.items.byIndex.get(wi.object.item)?.name)).toEqual(['M870']);
   });
 
   it('recounts the objects the map inventory shows at every write: a stack as its objects, no hidden, switch, action item or trap', () => {
