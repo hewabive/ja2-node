@@ -25,7 +25,8 @@
 // @src soldier without a profile or a muted one never makes (2026-11-13); SoldierPickupItem's removePendingAction dropping
 // @src whatever a merc on the move was walking up to do (2026-11-14); HandleSoldierPickupItem's menu on more than one shown
 // @src item at arrival, the merc frozen (fPauseAllAnimation) until Interface_Items.cc RemoveItemPickupMenu, ItemPickupOK's
-// @src SoldierGetItemFromWorld with ITEM_PICKUP_SELECTION (2026-11-14).
+// @src SoldierGetItemFromWorld with ITEM_PICKUP_SELECTION (2026-11-14); the bTempFrequency and gpTempSoldier a switch's box
+// @src writes before DoMessageBox drops it, read by the switch box already up (2026-11-14).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -296,7 +297,9 @@ function foundHiddenItems(t: TacticalState, s: Soldier): void {
 }
 
 function askToActivateSwitch(t: TacticalState, s: Soldier, wi: WorldItem): void {
-  openTacticalPrompt(t, { kind: TacticalPromptKind.ACTIVATE_SWITCH, soldier: s, frequency: frequencyOf(wi.object) });
+  const frequency = frequencyOf(wi.object);
+  if (t.prompt?.kind === TacticalPromptKind.ACTIVATE_SWITCH) t.prompt = { ...t.prompt, soldier: s, frequency };
+  else openTacticalPrompt(t, { kind: TacticalPromptKind.ACTIVATE_SWITCH, soldier: s, frequency });
 }
 
 export function answerActivateSwitch(

@@ -654,8 +654,8 @@ off (`trapSetOff`, a mini grenade with nobody as its owner), one who notices it 
 his booby-trap line and the `disarmTrap` prompt opens once the line is said; a trap known before asks at once. `yes`
 takes his disarm check: the item comes untrapped into his pockets, or stays on the ground when they are full
 (`trapDisarmed`), or the trap goes off (`trapSetOff` with CURSE1); `no` leaves it. A switch is not picked up:
-`activateSwitch` asks, and `yes` fires its frequency (`switchActivated`, the original's line). The pickup's APs are paid
-all the same.
+`activateSwitch` asks, and `yes` fires its frequency (`switchActivated`, the original's line); a pickup of several
+switches asks once and fires the frequency of the last. The pickup's APs are paid all the same.
 
 Every soldier checks for mines as he walks: the tile ahead before each step, the tiles around after each arrival. A
 pressure-triggered bomb within his trap detect level stops him. Our merc stops with the whole squad out of combat,

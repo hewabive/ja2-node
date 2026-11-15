@@ -325,7 +325,9 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   the answer; a spotted trap's box waits for the merc's stop-time quote (`24` §2). A spotted mine sets only the soldier
   and the tile, so its blue flag goes on the level the last booby trap left; its box opens as the quote ends, without
   the original's locator lock (deviation "Mine locator"). The bomb boxes keep their soldier and tile in the prompt
-  itself (`gpTempSoldier`, `gsTempGridno`), and their answer reads his hand item as the original's callback does.
+  itself (`gpTempSoldier`, `gsTempGridno`), and their answer reads his hand item as the original's callback does; the
+  switch box keeps its soldier and frequency there (`gpTempSoldier`, `bTempFrequency`), which a later switch of the
+  same pickup writes though its box is not shown.
 - The walk onto a tile to plant is a pending action of its own (`Soldier.pendingDropBomb`, `MERC_DROPBOMB`), with the
   tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
 - A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures are `liveOnly`, as `AddObjectToTail`
@@ -358,6 +360,7 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | The gain for finding a trap comes at the disarm box's answer, a no too, and a known trap asks with none | `tactical/booby-traps.test.ts` "gives the finding gain on a no too …", "asks at once …" |
 | Disarming a bomb one of our mercs planted gives no gain and no COOL1 | `tactical/booby-traps.test.ts` "gives no explosives gain and no COOL1 …" |
 | A known trap picked up in one go after a switch loses its box: the switch's box is up | `tactical/booby-traps.test.ts` "drops the disarm box of a known trap …" |
+| Two switches picked up in one go ask once, and a yes sets off the frequency of the second: its box is not shown, but it writes the frequency the first box's answer reads | `tactical/booby-traps.test.ts` "asks once for two switches picked up in one go …" |
 | Every step of a bleeding or shocked soldier draws `PreRandom(3)` twice, for the tile ahead and the tiles around, mines or not, unless he carries a metal detector | `tactical/bombs/mine-detection.test.ts` "draws PreRandom(3) at both checks …" |
 | A metal detector finds no mine above trap level 10, and an enemy who carries one marks the mines he finds for the player with blue flags and walks on | `tactical/bombs/mine-detection.test.ts` "flags a mine of trap 10 or less with a metal detector …" |
 | The blue flag of a spotted mine goes on the level the last booby trap left, and its locator looks there | `tactical/bombs/mine-detection.test.ts` "asks at once in the sandbox; yes puts a blue flag …", "sends the mine locator …" |
