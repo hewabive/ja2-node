@@ -635,7 +635,9 @@ spotted-something line; otherwise, and whenever a pile is gone by the time he ge
 carries his NOTHING battle sound, as on the tile of a closed container, whose items stay hidden until it is opened
 (§8.2). `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
 pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A `stop` during the
-pickup animation still picks up, as the animation reads the order's data (`12` §3). A melee attack at a
+pickup animation still picks up, as the animation reads the order's data (`12` §3). `estimateAttack` gives the APs,
+range and line of fire the cursor shows, and `chanceToHit: null` for every attack: the original's cursors show a chance
+only under the game policy `show_hit_chance`, off as shipped (deviation "Chance in the estimate"). A melee attack at a
 soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
@@ -1287,7 +1289,7 @@ frame applied by the client's own `applyViewFrame`) and welcomes a later viewer 
 ordered socket, so an answer arrives on exactly the view it was computed on, and its `tick` is that view's. Without
 viewers (MCP only) queries use the current view.
 
-**Fairness** (D16; deviations "Attack estimate target", "Melee chance in the estimate", "Hints of actions with hidden
+**Fairness** (D16; deviations "Attack estimate target", "Chance in the estimate", "Hints of actions with hidden
 checks", "Strategic hints and enemy counts", "Gates outside the hints"): an unseen enemy on the target tile or the path
 changes no answer (`src/server/hints-fairness.test.ts`), and strategic hints read only the enemy counts the view
 shows. Client and server agree by construction: the same code (checked by the engine commit) over the same inputs

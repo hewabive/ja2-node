@@ -5,7 +5,8 @@
 // @src under-barrel launcher in attached mode, CalculateLaunchItemChanceToGetThrough with the landing level); Weapons.cc
 // @src InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
 // @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid);
-// @src UI_Cursors.cc HandleBombCursor (GetTotalAPsToDropBomb, 2026-11-04).
+// @src UI_Cursors.cc HandleBombCursor (GetTotalAPsToDropBomb, 2026-11-04); the gamepolicy(show_hit_chance) gates of
+// @src HandleNonActivatedTargetCursor and HandleNonActivatedTossCursor, off in externalized/game.json (2026-11-15).
 
 import { ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { CELL_X_SIZE, DIRECTION_COUNT, DIRECTION_INCREMENT, isVisibleTile, newGridNo } from '../../content/world/grid.ts';
@@ -41,6 +42,12 @@ export const OK_CHANCE_TO_GET_THROUGH = 10;
 const MELEE_CHANCE_TO_GET_THROUGH = 100;
 const AIM_LEVELS = 5;
 const MAX_AIM = AIM_LEVELS - 1;
+
+export interface HitChancePolicy {
+  readonly showHitChance: boolean;
+}
+
+export const SHIPPED_HIT_CHANCE_POLICY: HitChancePolicy = { showHitChance: false };
 
 export type AttackCursor =
   | 'target'
@@ -172,6 +179,7 @@ function estimateThrow(
   aim: number,
   trajectory: boolean,
   base: EstimateBase,
+  policy: HitChancePolicy,
 ): EstimateAttack {
   const ammo = trajectory ? ammoState(t, s, ItemCursor.TRAJECTORY) : NO_AMMO_STATE;
   const apCostByAim = trajectory ? aimCosts(t, s, g) : Array.from({ length: AIM_LEVELS }, () => minAPsToThrow(t, s, g));
@@ -185,7 +193,7 @@ function estimateThrow(
     ...base,
     apCost: apCostByAim[aim] ?? 0,
     apCostByAim,
-    chanceToHit: landing.ok ? calcThrownChanceToHit(t, s, landing.gridNo, aim) : 0,
+    chanceToHit: !policy.showHitChance ? null : landing.ok ? calcThrownChanceToHit(t, s, landing.gridNo, aim) : 0,
     chanceToGetThrough: landing.ok ? MELEE_CHANCE_TO_GET_THROUGH : 0,
     inRange: true,
     ammo,
@@ -210,6 +218,7 @@ function estimateStrike(
   aim: number,
   cursor: number,
   base: EstimateBase,
+  policy: HitChancePolicy,
 ): EstimateAttack {
   const victim = whoIsThere(t, target, level);
   const hand = s.inv[InvSlot.HAND] as ItemObject;
@@ -220,11 +229,12 @@ function estimateStrike(
   const aimedAt = victim ? victim.gridNo : target;
   const apCostByAim = aimCosts(t, s, aimedAt);
   const thrownKnife = def?.itemClass === ItemClass.THROWING_KNIFE;
-  const chanceToHit = melee
-    ? null
-    : thrownKnife
-      ? calcThrownChanceToHit(t, s, target, aim)
-      : calcChanceToHitGun(t, s, target, aim, s.aimShotLocation, false);
+  const chanceToHit =
+    melee || !policy.showHitChance
+      ? null
+      : thrownKnife
+        ? calcThrownChanceToHit(t, s, target, aim)
+        : calcChanceToHitGun(t, s, target, aim, s.aimShotLocation, false);
   const chanceToGetThrough = melee
     ? MELEE_CHANCE_TO_GET_THROUGH
     : victim
@@ -303,7 +313,11 @@ function weaponModeOf(t: TacticalState, s: Soldier, req: EstimateAttackRequest):
   return consistentWeaponMode(t.content.items, s);
 }
 
-export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest): HintResult<EstimateAttack> {
+export function estimateAttack(
+  world: KnowledgeWorld,
+  req: EstimateAttackRequest,
+  policy: HitChancePolicy = SHIPPED_HIT_CHANCE_POLICY,
+): HintResult<EstimateAttack> {
   const acting = actingSoldier(world, req.soldier);
   if ('refusal' in acting) return acting.refusal;
   const { state: t, soldier: s } = acting;
@@ -352,8 +366,8 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
       };
       if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(t, s, target, cursor, base));
       if (cursor === ItemCursor.TOSS || cursor === ItemCursor.TRAJECTORY)
-        return hintData(estimateThrow(t, s, target, level, aim, cursor === ItemCursor.TRAJECTORY, base));
-      return hintData(estimateStrike(t, s, target, level, aim, cursor, base));
+        return hintData(estimateThrow(t, s, target, level, aim, cursor === ItemCursor.TRAJECTORY, base, policy));
+      return hintData(estimateStrike(t, s, target, level, aim, cursor, base, policy));
     },
   );
 }

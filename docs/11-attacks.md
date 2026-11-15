@@ -47,7 +47,7 @@ order: handleItem — checks, APs checked only, the psycho's burst roll         
 | `combat/spread-burst.ts`, `combat/skill-check.ts` | Spread-burst locations; `SkillCheck` (unjamming) |
 | `game-events.ts` | The event pump: fire, direction and the delayed melee hit |
 | `explosions/throwing.ts` | `UseThrown`, `UseLauncher`, the thrown chance to hit, `WillExplosiveWeaponFail` (`34`) |
-| `src/sim/hints/estimate-attack.ts` | The attack hint: AP cost, chance to hit and chance to get through on the player's view |
+| `src/sim/hints/estimate-attack.ts` | The attack hint: AP cost and chance to get through on the player's view, the chance to hit only under `show_hit_chance` |
 
 ## 2. Design
 

@@ -1,5 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import {
+  estimateAttack,
+  estimateAttackShowingHitChance,
+  newCombatSim,
+  runUntilIdle,
+  spawnSoldier,
+} from '../../../../tests/support/combat.ts';
 import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -287,7 +293,7 @@ describe('gun attacks', () => {
     sim.lookAround();
     expect(t.inCombat).toBe(true);
     sim.drainEvents();
-    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo, aimTime: 2 });
+    const estimate = estimateAttackShowingHitChance(sim, { soldier: 0, target: enemy.gridNo, aimTime: 2 });
     expect(estimate.ok).toBe(true);
     const { apCost, chanceToHit, chanceToGetThrough } = estimate.data as {
       apCost: number;

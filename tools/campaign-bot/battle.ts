@@ -28,6 +28,13 @@ const AIM_LEVELS = 4;
 const FAIR_SHOT = 0.15;
 const HOLDING_SHOT = 0.08;
 const FOCUS_BONUS = 0.25;
+const DEFAULT_MARKSMANSHIP = 50;
+const PERCENT = 100;
+const HIT_BASE = 14;
+const HIT_PER_MARKSMANSHIP = 0.5;
+const HIT_LOSS_PER_TILE = 2.4;
+const HIT_PER_AIM = 5;
+const UNSEEN_TARGET = 0.25;
 const SEEK_STEP_TILES = 8;
 const SEEK_TICKS = 3000;
 const ADVANCE_STEPS = [5, 4, 3, 2, 1] as const;
@@ -60,7 +67,6 @@ interface Shot {
 
 interface Estimate {
   readonly apCost: number;
-  readonly chanceToHit: number;
   readonly chanceToGetThrough: number;
 }
 
@@ -96,6 +102,29 @@ function focus(p: Player, target: SoldierView): number {
   return 1 + FOCUS_BONUS * Math.min(4, p.memory.hits.get(target.id) ?? 0);
 }
 
+export interface ShotOdds {
+  readonly marksmanship: number;
+  readonly tilesAway: number;
+  readonly aim: number;
+  readonly seesTarget: boolean;
+}
+
+export function hitOdds(shot: ShotOdds): number {
+  const aimBonus = shot.seesTarget ? HIT_PER_AIM * shot.aim : 0;
+  const percent = HIT_BASE + HIT_PER_MARKSMANSHIP * shot.marksmanship - HIT_LOSS_PER_TILE * shot.tilesAway + aimBonus;
+  const odds = Math.min(1, Math.max(0, percent / PERCENT));
+  return shot.seesTarget ? odds : odds * UNSEEN_TARGET;
+}
+
+function shotOdds(merc: SoldierView, target: SoldierView, aim: number): ShotOdds {
+  return {
+    marksmanship: merc.stats?.marksmanship ?? DEFAULT_MARKSMANSHIP,
+    tilesAway: tiles(merc.gridNo, target.gridNo),
+    aim,
+    seesTarget: merc.sees?.includes(target.id) ?? false,
+  };
+}
+
 async function bestShot(p: Player, merc: SoldierView, targets: readonly SoldierView[]): Promise<Shot | null> {
   const ap = merc.ap ?? 0;
   let best: Shot | null = null;
@@ -106,7 +135,7 @@ async function bestShot(p: Player, merc: SoldierView, targets: readonly SoldierV
     const aim = Math.max(0, Math.min(AIM_LEVELS, spare >= quick.apCost ? spare - quick.apCost : spare));
     const aimed = aim > 0 ? await estimate(p, merc, target, aim) : quick;
     if (!aimed || aimed.apCost > ap) continue;
-    const score = (aimed.chanceToHit / 100) * (aimed.chanceToGetThrough / 100) * focus(p, target);
+    const score = hitOdds(shotOdds(merc, target, aim)) * (aimed.chanceToGetThrough / PERCENT) * focus(p, target);
     if (!best || score > best.score) best = { target, aim, score };
   }
   return best;

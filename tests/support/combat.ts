@@ -8,6 +8,7 @@ import { advance } from '../../src/sim/advance.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
 import type { SimEvent } from '../../src/sim/events.ts';
 import { answerHint } from '../../src/sim/hints/answer.ts';
+import { estimateAttack as estimateAttackHint, type HitChancePolicy } from '../../src/sim/hints/estimate-attack.ts';
 import { createItem } from '../../src/sim/items/object.ts';
 import { type KnowledgeWorld, knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
 import { knowledgeViewOf } from '../../src/sim/knowledge/sim-view.ts';
@@ -91,6 +92,12 @@ export function hintAnswer(sim: TacticalSim, type: string, cmd: Readonly<Record<
 
 export function estimateAttack(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
   return hintAnswer(sim, 'estimateAttack', cmd);
+}
+
+const HIT_CHANCE_SHOWN: HitChancePolicy = { showHitChance: true };
+
+export function estimateAttackShowingHitChance(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
+  return estimateAttackHint(knowledgeOf(sim), { type: 'estimateAttack', ...cmd }, HIT_CHANCE_SHOWN);
 }
 
 export interface SpawnOptions {

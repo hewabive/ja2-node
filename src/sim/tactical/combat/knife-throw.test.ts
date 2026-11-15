@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttackShowingHitChance, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation, type StructureDef } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
@@ -62,7 +62,7 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
   it('throws at the thrown chance to hit and then takes the next knife from a pocket into the hand', () => {
     const { sim, thrower, target, knife } = knifeDuel();
     const chance = calcThrownChanceToHit(sim.state, thrower, target.gridNo, 0);
-    expect(estimateAttack(sim, { soldier: 0, target: target.gridNo }).data).toMatchObject({ chanceToHit: chance });
+    expect(estimateAttackShowingHitChance(sim, { soldier: 0, target: target.gridNo }).data).toMatchObject({ chanceToHit: chance });
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
     const events = runUntilIdle(sim);
     expect(events).toContainEqual(expect.objectContaining({ type: 'shotFired', soldier: 0, chance }));

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { estimateAttack, estimateAttackShowingHitChance, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
@@ -68,14 +68,37 @@ describe('a merc in deep water', () => {
   });
 });
 
+describe('the chance to hit under the shipped show_hit_chance', () => {
+  it('gives no number for a gun or a throw, as the aim and throw cursors show none with the policy off (UI_Cursors.cc:244, :876)', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
+    spawnSoldier(sim, 1, Team.OUR, gridNo(82, 80), Direction.SOUTH, { gun: 'HAND_GRENADE' });
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    sim.lookAround();
+    const gun = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
+    const toss = estimateAttack(sim, { soldier: 1, target: enemy.gridNo });
+    expect([gun.data, toss.data]).toMatchObject([
+      { cursor: 'target', chanceToHit: null },
+      { cursor: 'toss', chanceToHit: null },
+    ]);
+    expect(estimateAttackShowingHitChance(sim, { soldier: 0, target: enemy.gridNo }).data).toMatchObject({
+      chanceToHit: expect.any(Number),
+    });
+    expect(estimateAttackShowingHitChance(sim, { soldier: 1, target: enemy.gridNo }).data).toMatchObject({
+      chanceToHit: expect.any(Number),
+    });
+  });
+});
+
 describe('the chance to hit through smoke and gas', () => {
-  it('reads the gas clouds the squad sees, so the estimate is the chance the shot is fired at', () => {
+  it('reads the gas clouds the squad sees under show_hit_chance, so the estimate is the chance the shot is fired at', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
     const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
     sim.lookAround();
     sim.drainEvents();
-    const chanceToHit = () => (estimateAttack(sim, { soldier: 0, target: enemy.gridNo }).data as { chanceToHit: number }).chanceToHit;
+    const chanceToHit = () =>
+      (estimateAttackShowingHitChance(sim, { soldier: 0, target: enemy.gridNo }).data as { chanceToHit: number }).chanceToHit;
     const clear = chanceToHit();
     newSmokeEffect(sim.state, gridNo(80, 85), content.items.byName.get('TEARGAS_GRENADE')?.index ?? -1, 0, null);
     const throughGas = chanceToHit();
@@ -86,13 +109,14 @@ describe('the chance to hit through smoke and gas', () => {
 });
 
 describe('a shooter on drink or adrenaline', () => {
-  it("reads the drunk level the view shows: a drunk merc's estimate is the cost and chance of the shot he fires", () => {
+  it("reads the drunk level the view shows: a drunk merc's estimate under show_hit_chance is the cost and chance of the shot he fires", () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
     const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
     sim.lookAround();
     sim.drainEvents();
-    const estimate = () => estimateAttack(sim, { soldier: 0, target: enemy.gridNo }).data as { apCost: number; chanceToHit: number };
+    const estimate = () =>
+      estimateAttackShowingHitChance(sim, { soldier: 0, target: enemy.gridNo }).data as { apCost: number; chanceToHit: number };
     const sober = estimate();
     merc.drugs.alcohol.effect = 40;
     const drunk = estimate();
