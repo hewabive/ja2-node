@@ -267,7 +267,6 @@ describe('the stub village door', () => {
     const refusal = (action: string) => sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action }).data;
     expect(refusal('close')).toEqual({ refusal: 'alreadyClosed' });
     expect(refusal('crowbar')).toEqual({ refusal: 'noCrowbar' });
-    expect(refusal('lock')).toEqual({ refusal: 'alreadyLocked' });
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: OUTSIDE, action: 'open' }).data).toEqual({ refusal: 'noDoor' });
     sim.state.narrative = { ...NO_NARRATIVE_PORT, isEpc: () => true };
     expect(refusal('force')).toEqual({ refusal: 'escortCannot' });
@@ -275,6 +274,21 @@ describe('the stub village door', () => {
     updateDoor(sim.state, DOOR, { locked: false });
     sim.state.narrative = NO_NARRATIVE_PORT;
     expect(refusal('force')).toEqual({ refusal: 'notLocked' });
+  });
+
+  it('has no lock action, as no button of the original door menu locks a door (Interface.cc:1523-1580)', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    const key = createItem(sim.state.content.items, sim.state.content.items.byName.get('KEY_1')?.index ?? 0, 100);
+    key.keyId = 1;
+    s.inv[InvSlot.BIGPOCK2] = key;
+    updateDoor(sim.state, DOOR, { locked: false });
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'lock' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'badAction' },
+    });
+    expect(doorMenu(sim.state, s, DOOR).map((o) => o.action)).not.toContain('lock');
+    expect(findDoorInfo(sim.state, DOOR)?.locked).toBe(false);
   });
 
   it('springs an unnoticed electric trap with breath 3 + 1000 x PreRandom(3), drawn before the life roll', () => {

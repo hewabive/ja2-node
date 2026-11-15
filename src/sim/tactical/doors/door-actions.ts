@@ -36,7 +36,6 @@ import { soldierHasKey } from './keys.ts';
 import {
   attemptToBlowUpLock,
   attemptToCrowbarLock,
-  attemptToLockDoor,
   attemptToPickLock,
   attemptToSmashDoor,
   attemptToUnlockDoor,
@@ -53,7 +52,6 @@ export const DOOR_ACTIONS = [
   'openManually',
   'closeManually',
   'unlock',
-  'lock',
   'pickLock',
   'force',
   'crowbar',
@@ -69,7 +67,6 @@ export const ACTION_HANDLE_CODE: Readonly<Record<DoorActionName, number>> = {
   openManually: HandleDoor.OPEN,
   closeManually: HandleDoor.OPEN,
   unlock: HandleDoor.UNLOCK,
-  lock: HandleDoor.LOCK,
   pickLock: HandleDoor.LOCKPICK,
   force: HandleDoor.FORCE,
   crowbar: HandleDoor.CROWBAR,
@@ -83,7 +80,6 @@ const HANDLE_CODE_ACTION: Readonly<Record<number, DoorActionName>> = {
   [HandleDoor.OPEN_DIAG_SHORT]: 'open',
   [HandleDoor.OPEN_DIAG_LONG]: 'open',
   [HandleDoor.UNLOCK]: 'unlock',
-  [HandleDoor.LOCK]: 'lock',
   [HandleDoor.LOCKPICK]: 'pickLock',
   [HandleDoor.FORCE]: 'force',
   [HandleDoor.CROWBAR]: 'crowbar',
@@ -98,7 +94,6 @@ type MenuCostAction = Exclude<DoorActionName, 'open' | 'close' | 'openManually' 
 
 const menuCosts = (): Readonly<Record<MenuCostAction, { readonly ap: number; readonly bp: number }>> => ({
   unlock: { ap: AP.UNLOCK_DOOR, bp: BP.UNLOCK_DOOR },
-  lock: { ap: AP.LOCK_DOOR, bp: BP.LOCK_DOOR },
   pickLock: { ap: AP.PICKLOCK, bp: BP.PICKLOCK },
   force: { ap: AP.BOOT_DOOR, bp: BP.BOOT_DOOR },
   crowbar: { ap: AP.USE_CROWBAR, bp: BP.USE_CROWBAR },
@@ -429,23 +424,6 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         updateDoorPerceivedValue(t, gridNo, HandleDoor.UNTRAP);
         r.result = 'trapSprung';
       }
-      return;
-    case HandleDoor.LOCK:
-      r.ap = AP.LOCK_DOOR;
-      r.bp = BP.LOCK_DOOR;
-      if (!door) {
-        playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
-        r.result = 'noLock';
-        return;
-      }
-      if (attemptToLockDoor(t, s, gridNo)) {
-        playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
-        r.result = 'locked';
-      } else {
-        playInteraction(t, s, isDoor, 'END_OPEN_LOCKED_DOOR');
-        r.result = 'wrongKey';
-      }
-      updateDoorPerceivedValue(t, gridNo, HandleDoor.LOCK);
       return;
   }
 }

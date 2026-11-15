@@ -46,7 +46,7 @@ export type DoorCommandOutcome =
   | { readonly ok: false; readonly refusal: string }
   | { readonly ok: true; readonly data: Readonly<Record<string, unknown>> };
 
-const ESCORT_FORBIDDEN: ReadonlySet<DoorActionName> = new Set(['unlock', 'lock', 'pickLock', 'explode', 'examine', 'force']);
+const ESCORT_FORBIDDEN: ReadonlySet<DoorActionName> = new Set(['unlock', 'pickLock', 'explode', 'examine', 'force']);
 
 function refuse(refusal: string): DoorCommandOutcome {
   return { ok: false, refusal };
@@ -56,15 +56,12 @@ function doorStateRefusal(t: TacticalState, gridNo: number, open: boolean, actio
   if (action === 'open') return open ? 'alreadyOpen' : null;
   if (action === 'close' || action === 'closeManually') return open ? null : 'alreadyClosed';
   if (open) return 'doorOpen';
-  const door = findDoorInfo(t, gridNo);
-  if (action === 'lock') return !door ? 'noLock' : door.locked ? 'alreadyLocked' : null;
-  return door?.locked ? null : 'notLocked';
+  return findDoorInfo(t, gridNo)?.locked ? null : 'notLocked';
 }
 
 function itemRefusal(t: TacticalState, s: Soldier, action: DoorActionName): string | null {
   switch (action) {
     case 'unlock':
-    case 'lock':
       return soldierHasKey(t, s, ANYKEY) ? null : 'noKey';
     case 'crowbar':
       return findCrowbar(t, s) === NO_SLOT ? 'noCrowbar' : null;
@@ -120,7 +117,7 @@ function menuAction(t: TacticalState, s: Soldier, gridNo: number, direction: num
   if (stoppedAtBusyDoor(t, s, gridNo)) return { started: 'busy' };
   if (!s.collapsed) setDesiredDirection(t, s, direction);
   if (!s.collapsed) soldierGotoStationaryStance(t, s);
-  if (action !== 'lock' && doTrapCheckOnStartingMenu(t, s, gridNo)) {
+  if (doTrapCheckOnStartingMenu(t, s, gridNo)) {
     s.pendingDoorGridNo = -1;
     return { started: false, trapNoticed: true };
   }

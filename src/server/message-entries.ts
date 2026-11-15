@@ -88,7 +88,7 @@ const PRE_STAT_POINTS = 3;
 const PRE_STAT_LEVEL_OFFSET = 2;
 const TRAP_STRINGS: Readonly<Record<string, number>> = { none: 0, explosion: 1, electric: 2, siren: 3, silentAlarm: 4 };
 const SILENT_TRAP = 'silentAlarm';
-const NO_LOCK_ACTIONS: ReadonlySet<string> = new Set(['force', 'crowbar', 'explode', 'pickLock', 'examine', 'untrap', 'lock']);
+const NO_LOCK_ACTIONS: ReadonlySet<string> = new Set(['force', 'crowbar', 'explode', 'pickLock', 'examine', 'untrap']);
 const ABORT_LINES: Readonly<Record<string, number>> = {
   noMedkits: 39,
   insufficientDoctorSkill: 40,
@@ -205,7 +205,7 @@ function statLost(e: EventOf<'statLost'>, facts: MessageFacts): Omit<MessageEntr
   return e.points === 1 ? [line('Message', lines.onePoint, [name])] : [line('Message', lines.points, [name, { number: e.points }])];
 }
 
-function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+function doorResult(e: EventOf<'doorResult'>): Omit<MessageEntry, 'tick'>[] {
   const trap = (name: string | undefined) => ref('pDoorTrapStrings', TRAP_STRINGS[name ?? 'none'] ?? 0);
   switch (e.result) {
     case 'noLock':
@@ -217,10 +217,6 @@ function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<Message
       return [line('TacticalStr', 5)];
     case 'notTrapped':
       return [line('TacticalStr', 7)];
-    case 'locked':
-      return e.action === 'lock' ? [line('TacticalStr', 8)] : [];
-    case 'wrongKey':
-      return e.action === 'lock' ? [line('TacticalStr', 6, [soldierArg(facts, e.soldier)])] : [];
     default:
       return [];
   }

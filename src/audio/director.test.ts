@@ -841,12 +841,7 @@ describe('the sound director', () => {
     };
     expect(door('pickLock', 'opened')).toEqual(['battlesnds/007_cool.wav']);
     expect(door('untrap', 'untrapped')).toEqual(['battlesnds/007_cool.wav']);
-    expect([door('pickLock', 'failed'), door('untrap', 'trapSprung'), door('lock', 'wrongKey'), door('force', 'opened')]).toEqual([
-      [],
-      [],
-      [],
-      [],
-    ]);
+    expect([door('pickLock', 'failed'), door('untrap', 'trapSprung'), door('force', 'opened')]).toEqual([[], [], []]);
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
     const curses = seeds.map((seed) => door('unlock', 'wrongKey', seed));
     expect(curses).toEqual(seeds.map((seed) => (new ClientRandom(seed).rand(2) !== 0 ? ['battlesnds/007_curse.wav'] : [])));

@@ -194,7 +194,6 @@ describe('message entries from the ScreenMsg sites of the original', () => {
         door('force', 'noLock'),
         door('unlock', 'noLock'),
         door('examine', 'trapFound', 'electric'),
-        door('lock', 'wrongKey'),
         door('unlock', 'wrongKey'),
         at({ type: 'doorTrap', soldier: 0, gridNo: 5, trap: 'siren' }),
         at({ type: 'doorTrap', soldier: 0, gridNo: 5, trap: 'silentAlarm' }),
@@ -205,7 +204,6 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entries.map((e) => [e.table, e.index, e.args ?? []])).toEqual([
       ['TacticalStr', 4, []],
       ['TacticalStr', 3, [{ string: { table: 'pDoorTrapStrings', index: 2 } }]],
-      ['TacticalStr', 6, [{ text: 'Ivan' }]],
       ['TacticalStr', 79, [{ string: { table: 'pDoorTrapStrings', index: 3 } }]],
       ['TacticalStr', 133, []],
     ]);

@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Keys.cc AttemptToUnlockDoor, AttemptToLockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
+// @src src/game/Tactical/Keys.cc AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
 // @src AttemptToPickLock, AttemptToBlowUpLock (its miniboom and SMALL_EXPLODE_1 at the door, 2026-11-14), DOOR::damageLock;
 // @src Items.cc FindObj, FindUsableObj, DamageObj.
 
@@ -65,13 +65,6 @@ export function attemptToUnlockDoor(t: TacticalState, s: Soldier, gridNo: number
   const door = findDoorInfo(t, gridNo);
   if (!door || !soldierHasKey(t, s, door.lockId)) return false;
   if (door.locked) updateDoor(t, gridNo, { locked: false });
-  return true;
-}
-
-export function attemptToLockDoor(t: TacticalState, s: Soldier, gridNo: number): boolean {
-  const door = findDoorInfo(t, gridNo);
-  if (!door || !soldierHasKey(t, s, door.lockId)) return false;
-  if (!door.locked) updateDoor(t, gridNo, { locked: true });
   return true;
 }
 

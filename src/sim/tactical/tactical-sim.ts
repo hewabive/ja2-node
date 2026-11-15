@@ -391,8 +391,6 @@ const DOOR_REFUSALS: Readonly<Record<string, string>> = {
   alreadyClosed: 'the door is already closed',
   doorOpen: 'close the door first',
   notLocked: 'the door is not locked (open it instead)',
-  noLock: 'the door has no lock',
-  alreadyLocked: 'the door is already locked',
   noKey: 'the soldier carries no key',
   noCrowbar: 'the soldier has no usable crowbar',
   noLockpickKit: 'the soldier has no lockpick kit',
