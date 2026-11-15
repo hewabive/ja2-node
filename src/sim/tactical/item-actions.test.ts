@@ -7,7 +7,7 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { ItemsPickedUpEvent, SimEvent } from '../events.ts';
-import { createItem, emptyObject } from '../items/object.ts';
+import { createItem, emptyObject, ObjectFlags } from '../items/object.ts';
 import { AnimHeight, changeSoldierStance } from './animation.ts';
 import { autoBandageQuestionDue } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
@@ -19,6 +19,7 @@ import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
 import type { TacticalPrompt } from './prompts.ts';
 import { NO_PROFILE, type Soldier, Team, Visible } from './soldier.ts';
+import type { TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from './world-items.ts';
 
@@ -373,6 +374,67 @@ function pickupTicks(s: PickupScene): SimEvent[] {
   }
   return events;
 }
+
+describe('a prompt opened in the pickup frame of an overhead pass (DoMessageBox and InitializeItemPickupMenu PauseTime)', () => {
+  const FIRST_AT = gridNo(80, 80);
+  const SECOND_AT = gridNo(84, 80);
+  const KNOWN_TRAP = 2;
+
+  function knownTrapAt(t: TacticalState, g: number): void {
+    const o = createItem(t.content.items, item('CANTEEN'), 100);
+    o.trap = KNOWN_TRAP;
+    o.flags |= ObjectFlags.KNOWN_TO_BE_TRAPPED;
+    addItemToPool(t, g, o, Visibility.VISIBLE, 0);
+  }
+
+  function pileAt(t: TacticalState, g: number): void {
+    for (const name of ['CROWBAR', 'WIRECUTTERS']) addItemToPool(t, g, createItem(t.content.items, item(name), 90), Visibility.VISIBLE, 0);
+  }
+
+  function bothPickUp(lay: (t: TacticalState) => void): { sim: TacticalSim; first: Soldier; second: Soldier } {
+    const sim = newCombatSim(content);
+    const first = spawnSoldier(sim, 0, Team.OUR, FIRST_AT, Direction.SOUTH);
+    const second = spawnSoldier(sim, 1, Team.OUR, SECOND_AT, Direction.SOUTH);
+    lay(sim.state);
+    for (const s of [first, second]) expect(sim.dispatch({ type: 'pickUp', soldier: s.id })).toEqual({ ok: true });
+    runUntilDecision(sim);
+    return { sim, first, second };
+  }
+
+  function answer(sim: TacticalSim, choice: string): void {
+    const prompt = sim.state.prompt;
+    if (!prompt) throw new Error('no prompt is open');
+    expect(sim.dispatch({ type: 'answer', prompt: prompt.id, choice })).toEqual({ ok: true });
+  }
+
+  it('holds a merc due at a pile of several items in the pass a booby-trap question opened, who gets the menu once it is answered', () => {
+    const { sim, first, second } = bothPickUp((t) => {
+      knownTrapAt(t, FIRST_AT);
+      pileAt(t, SECOND_AT);
+    });
+    expect(sim.state.prompt).toMatchObject({ kind: 'disarmTrap' });
+    expect(sim.state.boobyTrap.soldier).toBe(first);
+    expect([second.pendingPickup?.gridNo, second.pauseAllAnimation]).toEqual([SECOND_AT, false]);
+    answer(sim, 'no');
+    runUntilDecision(sim);
+    const menu = pickupMenu(sim);
+    expect([menu.soldier, menu.items.map((wi) => wi.object.item)]).toEqual([second, [item('CROWBAR'), item('WIRECUTTERS')]]);
+    expect(second.pauseAllAnimation).toBe(true);
+  });
+
+  it('holds a merc due at a known booby trap in the pass a pickup menu opened, who is asked once the menu is answered', () => {
+    const { sim, first, second } = bothPickUp((t) => {
+      pileAt(t, FIRST_AT);
+      knownTrapAt(t, SECOND_AT);
+    });
+    expect(pickupMenu(sim).soldier).toBe(first);
+    expect(second.pendingPickup?.gridNo).toBe(SECOND_AT);
+    answer(sim, 'cancel');
+    runUntilDecision(sim);
+    expect(sim.state.prompt).toMatchObject({ kind: 'disarmTrap' });
+    expect(sim.state.boobyTrap.soldier).toBe(second);
+  });
+});
 
 describe('the MERC_PICKUPITEM a pickup leaves pending (Soldier_Control.cc PickPickupAnimation, EVENT_InitNewSoldierAnim)', () => {
   const PILE = gridNo(80, 80);

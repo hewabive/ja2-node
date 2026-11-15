@@ -1,10 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (fading, NEW_FADE_DELAY, the new-visibility check), HandleAtNewGridNo
-// @src (the fade-out cancel); Tactical/OppList.cc ManSeesMan (the fade cancel).
+// @src (the fade-out cancel); Tactical/OppList.cc ManSeesMan (the fade cancel); the fade counter's TIMECOUNTERDONE, which
+// @src PauseTime holds (2026-11-14).
 
 import { setSoldierAniSpeed } from './animation.ts';
 import { lightShadeLevel } from './lighting/lighting.ts';
+import { promptPausesTimers } from './prompts.ts';
 import { NOWHERE, type Soldier, SoldierFade, Team, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -45,7 +47,7 @@ function stepFadeIn(t: TacticalState, s: Soldier): void {
 }
 
 function stepFade(t: TacticalState, s: Soldier): void {
-  if (s.fade === SoldierFade.NONE || t.clockMs < s.nextFadeAt) return;
+  if (s.fade === SoldierFade.NONE || t.clockMs < s.nextFadeAt || promptPausesTimers(t)) return;
   s.nextFadeAt = t.clockMs + NEW_FADE_DELAY;
   if (s.fade === SoldierFade.OUT) stepFadeOut(t, s);
   else if (s.fade === SoldierFade.IN) stepFadeIn(t, s);

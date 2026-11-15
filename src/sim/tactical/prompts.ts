@@ -8,7 +8,9 @@
 // @src gpTempSoldier and gsTempGridno its callback reads (2026-11-04); Tactical/Auto_Bandage.cc BeginAutoBandage's
 // @src BEGIN_AUTOBANDAGE_PROMPT_STR box (2026-11-06); Tactical/Interface_Items.cc InitializeItemPickupMenu (the picker,
 // @src the tile, the z-level and the pool's items shown, gItemPickupMenu), ItemPickupOK (the pfSelectedArray it hands
-// @src SoldierGetItemFromWorld, OK enabled only with something chosen) and ItemPickupCancel (2026-11-14).
+// @src SoldierGetItemFromWorld, OK enabled only with something chosen) and ItemPickupCancel (2026-11-14); the PauseTime of
+// @src DoMessageBox and InitializeItemPickupMenu, under which Utils/Timer_Control.cc TIMECOUNTERDONE never fires, so the
+// @src soldiers after the opener in Tactical/Overhead.cc ExecuteOverhead's pass wait (2026-11-14).
 
 import type { CommandRefused } from '../command.ts';
 import { refuse } from './refusal.ts';
@@ -101,7 +103,7 @@ export function openTacticalPrompt(t: TacticalState, request: TacticalPromptRequ
   t.prompt = { ...request, id: `${request.kind}-${t.clockMs}-${t.promptSeq}` } as TacticalPrompt;
 }
 
-export function tacticalPromptOpen(t: TacticalState): boolean {
+export function promptPausesTimers(t: TacticalState): boolean {
   return t.prompt !== null;
 }
 

@@ -16,7 +16,8 @@
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
 // @src spit gas); HandleTakeDamageDeath's bInSector for the helicopter's passengers over the loaded sector (2026-11-08);
 // @src Weapons.cc BulletImpact's STR_LOSES_* of a visible target with a name and STR_HEAD_HIT of any (2026-11-14);
-// @src SoldierGotHitGunFire's STR_LATE_20 of any soldier a leg hit knocks over (2026-11-14).
+// @src SoldierGotHitGunFire's STR_LATE_20 of any soldier a leg hit knocks over (2026-11-14); Overhead.cc ExecuteOverhead's
+// @src damage counter, whose TIMECOUNTERDONE PauseTime holds (2026-11-14).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -53,6 +54,7 @@ import { decayIndividualOpplist, handleSight } from '../perception/sight.ts';
 import { animStructureDef, isValidStance } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
+import { promptPausesTimers } from '../prompts.ts';
 import { cancelPendingRobotReload } from '../robot-reload.ts';
 import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
@@ -892,7 +894,7 @@ export function checkForFreeupFromHit(
 
 export function updateDamageDisplay(t: TacticalState, s: Soldier): void {
   if (!s.displayDamage) return;
-  if (t.clockMs >= s.nextDamageStepAt) {
+  if (t.clockMs >= s.nextDamageStepAt && !promptPausesTimers(t)) {
     s.nextDamageStepAt = t.clockMs + DAMAGE_DISPLAY_DELAY;
     s.damageWindowSteps++;
   }

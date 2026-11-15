@@ -26,7 +26,8 @@
 // @src reaches the target in any sector, 2026-11-09);
 // @src SetSoldierLocatorOffsets at the end of EVENT_InitNewSoldierAnim and EVENT_SetSoldierDirection, the frame
 // @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09); its count of a MERC_PICKUPITEM
-// @src (2026-11-09); EVENT_InternalSetSoldierDesiredDirection's MultiTiledTurnDirection for SOLDIER_MULTITILE (2026-11-14).
+// @src (2026-11-09); EVENT_InternalSetSoldierDesiredDirection's MultiTiledTurnDirection for SOLDIER_MULTITILE (2026-11-14);
+// @src Utils/Timer_Control.cc TIMECOUNTERDONE of the frame counter, never done while PauseTime holds (2026-11-14).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -79,6 +80,7 @@ import { newOKDestination } from './pathfinding.ts';
 import { reevaluateEnemyStance } from './perception/enemy-stance.ts';
 import { addMercStructure, isValidStance, multiTiledTurnIncrement, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
+import { promptPausesTimers } from './prompts.ts';
 import { setSoldierHeight } from './roofs.ts';
 import { effectiveAgility } from './skills.ts';
 import {
@@ -280,7 +282,7 @@ export function nextFrameTick(t: TacticalState, s: Soldier): number {
 }
 
 export function frameTimerDone(t: TacticalState, s: Soldier): boolean {
-  if (s.aniDelay === PAUSE_ALL_UPDATES_DELAY) return false;
+  if (s.aniDelay === PAUSE_ALL_UPDATES_DELAY || promptPausesTimers(t)) return false;
   if (t.clockMs < s.nextFrameAt) return false;
   if (s.aniDelay !== 0) s.nextFrameAt = t.clockMs + s.aniDelay;
   return true;

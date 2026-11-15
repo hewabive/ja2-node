@@ -81,8 +81,9 @@ whoever locked. Subsystems lock with the original's reason ids, which a native s
 lock pauses the game under lock 16 from the start of its first source to the end of its last, and that end lifts every
 pause and lock unless a conversation is engaged; leaving tactical lifts it too (`campaign/interface-lock-pause.ts`,
 deviation "Interface lock per source"). A pause also holds back the real-time turn, whose timer runs on, so the first
-20 ms counter after a long pause brings it. The original's `PauseTime` under message boxes has no counterpart: an open
-decision prompt stops the whole simulation (D15, deviation "Prompt time").
+20 ms counter after a long pause brings it. The original's `PauseTime` under message boxes shows only in the overhead
+pass in which a tactical prompt opens, whose soldiers it stops from then on (`12` §6); after that an open decision
+prompt stops the whole simulation (D15, deviation "Prompt time").
 
 **Compression is state that commands change.** `compressTime {mode?}` and `stopTime` are the map's buttons; `mapScreen`
 and `tacticalScreen` apply the original's rules (entering the map keeps a 5–60 minute mode but stops it, anything else

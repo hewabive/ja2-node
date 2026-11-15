@@ -15,9 +15,10 @@ import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
 import { MercQuote } from './narrative/merc-quotes.ts';
 import { NO_NARRATIVE_PORT, StopTimeCallback } from './narrative/port.ts';
+import { executeOverhead } from './overhead.ts';
 import { AP } from './points.ts';
 import type { ProfileProgress, StatKey } from './profiles.ts';
-import { type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
+import { type Soldier, SoldierFade, TEAM_FIRST_ID, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, Visibility, type WorldItem, WorldItemFlags } from './world-items.ts';
@@ -382,6 +383,17 @@ describe('an open tactical prompt', () => {
     expect(sim.dispatch({ type: 'move', soldier: 0, to: MERC_AT + 2 })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
     expect(sim.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
     expect(t.prompt).not.toBeNull();
+  });
+
+  it('holds the frame, damage and fade counters of every soldier through the rest of the pass it opened in (TIMECOUNTERDONE under PauseTime)', () => {
+    const { sim, t } = promptOpen();
+    const other = spawnSoldier(sim, 1, Team.OUR, MERC_AT + TILES_AWAY, Direction.SOUTH);
+    const due = t.clockMs;
+    Object.assign(other, { nextFrameAt: due, displayDamage: true, nextDamageStepAt: due, fade: SoldierFade.OUT, nextFadeAt: due });
+    const counters = (s: Soldier) => [s.nextFrameAt, s.pc, s.damageWindowSteps, s.fadeShade];
+    const before = counters(other);
+    executeOverhead(t);
+    expect(counters(other)).toEqual(before);
   });
 
   it('refuses an answer to another prompt or with another choice', () => {

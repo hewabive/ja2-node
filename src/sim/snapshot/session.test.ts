@@ -24,7 +24,7 @@ import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts
 import { PreRandom, Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
 import { registeredInTactical } from '../campaign/roster.ts';
-import { createItem } from '../items/object.ts';
+import { createItem, ObjectFlags } from '../items/object.ts';
 import { newLightEffect } from '../tactical/explosions/light.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { schedulePickedOwnershipCheck } from '../tactical/narrative/minor-offenses.ts';
@@ -53,6 +53,7 @@ const IDLE_BUDGET = 20_000;
 const FLARE_RADIUS = 4;
 const FLARE_TURNS = 6;
 const TILES_AHEAD = 2;
+const KNOWN_TRAP = 2;
 
 function stepUntil(c: CampaignSim, done: () => boolean): void {
   for (let i = 0; i < STEP_BUDGET && !done(); i++) c.step();
@@ -260,6 +261,36 @@ describe('a campaign snapshot', () => {
     expect(restored.dispatch({ type: 'answer', prompt: menu.id, choice: 'ok', items: [0, 1] })).toMatchObject({ ok: true });
     const held = new Set(merc?.inv.map((o) => o.item));
     expect(['CANTEEN', 'CROWBAR'].every((name) => held.has(items.byName.get(name)?.index ?? -1))).toBe(true);
+  });
+
+  it('keeps a pickup that a booby-trap question of its pass held back: the menu of the pile follows the answer, reloads or not', async () => {
+    const held = (mode: RunMode): CampaignSim => {
+      const { campaign: c } = createTestCampaign(kit, { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON, mode });
+      landFirstSquad(c);
+      advance(c, { idle: true }, IDLE_BUDGET);
+      const t = tacticalOf(c);
+      const [asker, picker] = t.mercSlots.filter((s) => s.team === Team.OUR);
+      if (!asker || !picker) throw new Error('two mercs are needed');
+      const items = t.content.items;
+      const trapped = createItem(items, items.byName.get('CANTEEN')?.index ?? 0, 100);
+      trapped.trap = KNOWN_TRAP;
+      trapped.flags |= ObjectFlags.KNOWN_TO_BE_TRAPPED;
+      addItemToPool(t, asker.gridNo, trapped, Visibility.VISIBLE, asker.level);
+      for (const name of ['CROWBAR', 'WIRECUTTERS'])
+        addItemToPool(t, picker.gridNo, createItem(items, items.byName.get(name)?.index ?? 0, 90), Visibility.VISIBLE, picker.level);
+      for (const s of [asker, picker]) expect(c.dispatch({ type: 'pickUp', soldier: s.id })).toMatchObject({ ok: true });
+      expect(advance(c, { idle: true }, IDLE_BUDGET).reason).toBe('decision');
+      expect(tacticalOf(c).prompt?.kind).toBe('disarmTrap');
+      expect(tacticalOf(c).soldiers[picker.id]?.pendingPickup?.gridNo).toBe(picker.gridNo);
+      expect(c.dispatch({ type: 'answer', choice: 'no' })).toMatchObject({ ok: true });
+      expect(advance(c, { idle: true }, IDLE_BUDGET).reason).toBe('decision');
+      const menu = tacticalOf(c).prompt;
+      expect(menu?.kind === 'pickupMenu' ? menu.soldier.id : null).toBe(picker.id);
+      expect(c.dispatch({ type: 'answer', choice: 'cancel' })).toMatchObject({ ok: true });
+      advance(c, { idle: true }, IDLE_BUDGET);
+      return c;
+    };
+    await expectReloadsInvisible(held);
   });
 
   it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {

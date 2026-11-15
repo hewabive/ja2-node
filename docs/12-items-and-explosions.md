@@ -79,9 +79,9 @@ map items, detailed placements and native saves.
 **Commands instead of the cursor.** Each inventory command is one pick-up and one placement on the original panel code,
 tried on copies first, so a refused one changes nothing; what the original leaves in the cursor goes back at once
 (deviation "Item cursor"). A pickup arriving on more than one shown item freezes the merc and opens the `pickupMenu`
-prompt, whose answer names the items (`prompts.ts`), unless another prompt opened in that tick
-(gaps "Pickup menu beside a message box"); a `pickUp` that names them already takes them without it, and an item that
-does not fit stays on the ground (deviation "Picking up items"). An attachment change is charged per command (deviation "Attachment AP").
+prompt, whose answer names the items (`prompts.ts`); like a box it holds the soldiers due later in its pass (§6). A
+`pickUp` that names them already takes them without it, and an item that does not fit stays on the ground (deviation
+"Picking up items"). An attachment change is charged per command (deviation "Attachment AP").
 
 **The equipment generator replays the original.** `generateRandomEquipment` keeps every draw of `Inventory_Choosing.cc`
 on `main` in order, chances whose result is thrown away and `Random(1)` included. The first enemy generated in
@@ -316,13 +316,16 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   (`activeTimedBomb`).
 - The original's yes/no and numbered boxes of `Tactical/Handle_Items.cc` are prompts of the loaded sector
   (`TacticalState.prompt`, decision prompts of `01` §3.8), so the sandbox has them too; the view shows them in
-  `prompt` beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown. The
-  callbacks read the original's globals (`TacticalState.boobyTrap`: the soldier, item, tile, level and difficulty of the
-  last trap, whether it was just found), set by the pickup and read at the answer; a spotted trap's box waits for the
-  merc's stop-time quote (`24` §2). A spotted mine sets only the soldier and the tile, so its blue flag goes on the
-  level the last booby trap left; its box opens as the quote ends, without the original's locator lock (deviation
-  "Mine locator"). The bomb boxes keep their soldier and tile in the prompt itself (`gpTempSoldier`, `gsTempGridno`),
-  and their answer reads his hand item as the original's callback does.
+  `prompt` beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown, and
+  as its `PauseTime` (`MessageBoxScreen.cc:274`, the pickup menu's `Tactical/Interface_Items.cc:4291`) an open prompt
+  stops every soldier's frame, damage and fade counters at once (`promptPausesTimers`): the soldiers after its opener in
+  the overhead pass wait, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only
+  one soldier's own pickup ever asks twice. The callbacks read the original's globals (`TacticalState.boobyTrap`: the
+  soldier, item, tile, level and difficulty of the last trap, whether it was just found), set by the pickup and read at
+  the answer; a spotted trap's box waits for the merc's stop-time quote (`24` §2). A spotted mine sets only the soldier
+  and the tile, so its blue flag goes on the level the last booby trap left; its box opens as the quote ends, without
+  the original's locator lock (deviation "Mine locator"). The bomb boxes keep their soldier and tile in the prompt
+  itself (`gpTempSoldier`, `gsTempGridno`), and their answer reads his hand item as the original's callback does.
 - The walk onto a tile to plant is a pending action of its own (`Soldier.pendingDropBomb`, `MERC_DROPBOMB`), with the
   tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
 - A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures are `liveOnly`, as `AddObjectToTail`
@@ -468,7 +471,8 @@ The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
   `HandleStrategicTurn`. It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
   seats of a helicopter drop under way included; a pickup on the spot crouched, prone or in water leaves one, §3) or
   the interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused` event (the
-  original's OK box), otherwise the same prompt opens, and the rest of the pass runs. While the question is due the sim is
+  original's OK box), otherwise the same prompt opens, and the rest of the pass runs its AI with every soldier's
+  counters stopped (§6; gaps "Auto-bandage question's pass"). While the question is due the sim is
   not idle. Leaving tactical (the map screen, a contract's switch to it), opening a shop and a meanwhile's start drop it
   (deviation "Pending auto-bandage and client screens"); a sector change does not. A soldier arriving to open a door
   drops the action while the question is pending, as in the mode (`doors/door-command.ts`). A native import takes

@@ -698,10 +698,11 @@ detonator: timed|remote, choices}` and `remoteFrequency {id, soldier, choices}` 
 original's four numbered buttons; `pickupMenu {id, soldier, gridNo, zLevel, items, choices}`, the menu of a pickup that
 arrived on more than one shown item of that height (`items` as the view lists them there), answered `ok` with `items`,
 the indices of the rows to take (refusal `badItems`), or `cancel`, which keeps the walk paid and takes nothing. As with
-the original's message boxes,
-one is open at a time and a second one asked for meanwhile is never shown. While the merc warns, the game stands as the
-original's does: one more tactical frame, then only the line and the clocks run until it ends, and commands are refused
-with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt opens at once.
+the original's message boxes, one is open at a time and a second one asked for meanwhile is never shown; a prompt stops
+every soldier from the moment it opens, the rest of its tick included, so a merc due at a pile or a trap in that tick
+gets his prompt after the answer, and only one pickup's own items can ask twice. While the merc warns, the game stands
+as the original's does: one more tactical frame, then only the line and the clocks run until it ends, and commands are
+refused with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt opens at once.
 
 ### 8.2 Doors, containers and remote triggers
 
