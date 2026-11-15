@@ -2,8 +2,8 @@
 
 Every place where the original's own outcome is a bug and ja2-node knowingly does something else. An entry gives the
 original's behaviour in one clause with a `file:line` in `reference/stracciatella`, what ja2-node does, and why. Other
-docs cite entries by their *Area* name (`original-bugs "Area"`); names are unique across this file, `deviations.md` and
-`gaps.md`.
+docs cite entries by their *Area* name (`original-bugs "Area"`); names are unique across this file and
+`deviations.md`.
 
 What goes where:
 
@@ -36,6 +36,7 @@ Original links are under `reference/stracciatella/src/game/`, or under `referenc
 | Toolkit repair in tactical | `EVENT_SoldierBeginRepair` passes the vehicle soldier's id where `SetSoldierAssignmentRepair` takes a vehicle id (`Tactical/Soldier_Control.cc:8293`, vanilla `Tactical/SoldierControl.c:8573` too), so the next `GetVehicle` of that id, at the hourly repair or the map screen's assignment line, throws `Invalid vehicle ID` (`Strategic/Assignments.cc:442`, `:1910`, `Strategic/MapScreen.cc:798`, `Tactical/Vehicles.cc:432`) | The id is kept (`vehicleUnderRepair`, an INT8) and names no vehicle: the merc repairs nothing and finishes at the next hourly check, and the map screen prints no vehicle name (`soldierBeginRepair`, `src/sim/tactical/tile-tools.ts`) | The original crashes; keeping the id is the smallest step from the crash (`25`) |
 | Helicopter passenger's room | A helicopter passenger over the loaded sector stands at `NOWHERE`, so the test for a player in an NPC's room reads `gubWorldRoomInfo[NOWHERE]`, past the end of the array (`Strategic/Quests.cc:277`, `TileEngine/Render_Fun.cc:21`) | He stands in no room: an NPC outside every room has a player in his room through him, one in a room does not (`campaignFactWorld`, `src/sim/campaign/narrative/fact-world.ts`) | The original's read is undefined behaviour (`25`) |
 | Blue flag without a bomb | A pickup on a tile our side marks as holding a mine looks for a bomb of the tile on the merc's level, and throws when there is none, as for a merc on the roof above a blue flag (`World_Items.cc:59-69`, `Handle_Items.cc:1326`) | The pickup goes on as on any other tile (`src/sim/tactical/item-actions.ts`) | The original crashes |
+| Blood from a vanished corpse | `GetBloodFromCorpse` reads the type of the corpse the jar's animation started on when the animation ends (`Tactical/Soldier_Ani.cc:2304`, `Tactical/Rotting_Corpses.cc:1239-1246`); a corpse removed meanwhile, by an explosion, leaves the type its freed slot still holds | The jar fills with human blood (`src/sim/tactical/tile-tools.ts`) | The freed slot's content depends on what the process held there before |
 
 ### 1.2. Busy states only a watchdog ends
 

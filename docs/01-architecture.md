@@ -486,7 +486,7 @@ scripts run the same inputs through ja2-node, and `compare-all.sh` is the full r
 can affect (`32` §2.6).
 
 Every deliberate difference from the original is a row of `deviations.md`, or of `original-bugs.md` when the
-original's outcome is a bug ja2-node does not reproduce; everything not ported yet is a row of `gaps.md`.
+original's outcome is a bug ja2-node does not reproduce; everything not ported yet is a GitHub issue labelled `gap`.
 
 ---
 
@@ -557,7 +557,6 @@ Files are `docs/NN-<name>.md`. Two kinds:
 | `35` npc-actions-and-schedules | NPC actions, NPC presence between sector loads, schedules, civilian groups, keys, locks and doors |
 | `deviations.md` | Every deliberate difference from the original |
 | `original-bugs.md` | Bugs of the original ja2-node does not reproduce: crashes, hangs, undefined behaviour, gameplay bugs fixed by decision |
-| `gaps.md` | Behaviour not ported yet, code that does not follow `CLAUDE.md` yet |
 | `test-stability.md` | Tests that fail without a code change: rules and open cases |
 | `releases.md` | Release notes |
 | `tools/oracle/README.md` | The native oracle: build, probes, comparers |

@@ -1060,8 +1060,8 @@ game's, with nobody placed. The answers are its buttons and its click on the ove
   `clear` (everyone picked up).
 - `done`, refused with `placementIncomplete` until everyone is placed, as the original's Done button is disabled.
 
-The flag the original keeps for the next load when the sector is loaded already is not ported (gaps "Tactical
-placement").
+The flag the original keeps for the next load when the sector is loaded already is dropped (original-bugs "Placement
+flag of a loaded sector").
 
 **Someone else in the sector.** Three seconds after a tactical battle is won, boxing included, in a wilderness sector
 whose profiled NPCs nobody has spoken with, the `someoneElseInSector` prompt (`ok`, the original's OK box) opens

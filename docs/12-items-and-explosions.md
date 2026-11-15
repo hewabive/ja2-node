@@ -441,8 +441,8 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 The oracle's bomb probes (`tools/oracle/README.md` "Bombs") check the x-ray detector's batteries and targets. Not
 checked against the native build: the wire cutters, the jar and the tin can. With the original data
 `tile-tools-original.test.ts` cuts B13's wire fence and fills a jar through the real `CUTTING_FENCE` and
-`TAKE_BLOOD_FROM_CORPSE` scripts. Not ported: a corpse that vanishes during the jar's animation (an explosion) gives
-human blood here, where the original reads the type its freed slot still holds.
+`TAKE_BLOOD_FROM_CORPSE` scripts. A corpse that vanishes during the jar's animation (an explosion) gives human blood
+(original-bugs "Blood from a vanished corpse").
 
 ## 8. Auto-bandage
 

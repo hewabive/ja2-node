@@ -331,7 +331,7 @@ before it, and shows the loading or the tactical screen after the zoom. The zoom
 (`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
 them.
 
-**Not built.** The 3D cursor and the cover and sight display (`28`'s decisions).
+**Not built.** The 3D cursor (#35) and the cover and sight display (#34).
 
 ## 4. Quirks of the original the code keeps
 

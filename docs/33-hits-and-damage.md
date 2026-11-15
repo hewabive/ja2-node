@@ -236,5 +236,3 @@ strategic death. Inferred from reading the source:
   tactical death when the tactical screen comes back (`HandleSoldierDeath` skips a `SOLDIER_DEAD` soldier,
   `Tactical/Soldier_Ani.cc:2861`): no corpse on the live map, and for another team no kill, loyalty, militia count or
   quest consequence.
-
-Not ported: none known.

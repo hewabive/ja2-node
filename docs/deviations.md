@@ -2,10 +2,10 @@
 
 Every place where ja2-node knowingly and permanently differs from JA2 Stracciatella with default settings (the
 behaviour reference, `01` D1). An entry gives the original's behaviour in one clause with a `file:line` in
-`reference/stracciatella`, what ja2-node does, and why. Behaviour that is not ported yet is not a deviation: it is an
-entry of `gaps.md`; where the original's own outcome is a bug ja2-node does not reproduce, the entry is in
-`original-bugs.md`. Other docs cite entries by their *Area* name (`deviations "Area"`); names are unique across the
-three files.
+`reference/stracciatella`, what ja2-node does, and why. Behaviour that is not ported yet is not a deviation: it is a
+GitHub issue labelled `gap`; where the original's own outcome is a bug ja2-node does not reproduce, the entry is in
+`original-bugs.md`. Other docs cite entries by their *Area* name (`deviations "Area"`); names are unique across both
+files.
 
 Most entries replace wall clocks, frames, sound lengths, message boxes, cursors and screens with game time, commands
 and decision prompts, move cosmetic draws off the gameplay generator, or keep saves free of side effects.

@@ -57,7 +57,7 @@ exist, rebuilding a screen is transcription. A part is **simplified** (a cheaper
 the original mechanism cannot work in a browser (pointer warping, mouse confinement, OS key repeat), depends on the
 frame rate (fades, zoom speeds), only spares a software renderer work (dirty rectangles, background save buffers) or
 needs a server rule the client must not reimplement. A part is **left out** when it needs simulation that does not
-exist or is costly flavour; each such part is a row of `deviations.md` or `gaps.md`.
+exist or is costly flavour; each such part is a row of `deviations.md` or a `gap` issue.
 
 **Rules from D15 and D16 that bind every screen:**
 1. **No hand-written rule in the client.** Every number the simulation computes (costs, chances, ETAs, prices, what
@@ -441,8 +441,8 @@ fewer frames a second but as many refreshes.
 - **Goldens missing**: the San Mona screen (no stub brothel scenario; `san-mona.test.ts` covers it) and the A.I.M.
   conference (its snow and video run on the UI clock). The main flow hires three of its four mercs through MCP and lets
   the campaign bot fight, so the canvas path covers one hire, the cursors and one shot.
-- **Not built**: the cover and line-of-sight display (it needs per-tile cover and sight maps from the simulation, a
-  heavy computation), the 3D cursor, touch input, a key remapping UI, the client-side data scenarios (§5) and audio
+- **Not built**: the cover and line-of-sight display (#34; it needs per-tile cover and sight maps from the simulation,
+  a heavy computation), the 3D cursor (#35), touch input, a key remapping UI, the client-side data scenarios (§5) and audio
   transcoding for remote play.
 - **The message log is server presentation entries** saved with the session rather than a client-only table: agents
   see them, saves keep them, and one audit pass covers every message (`29`, deviation "Message list").

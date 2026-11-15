@@ -210,6 +210,6 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - A wire frame recalculation reads the structures the frame that carries it ends with, where the original reads them as
   they stand at its moment; only two blasts changing structures within one frame could show it.
 
-Not ported: none known. Deviations of this domain: "Revealed tiles on load", "Structures on load", "Sweep window",
+Deviations of this domain: "Revealed tiles on load", "Structures on load", "Sweep window",
 "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall translucency template",
 "Bullets of unseen shooters", "Soldier frame on turning".

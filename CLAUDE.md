@@ -77,11 +77,10 @@ into `docs/`.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/original-bugs.md`: the original's bugs ja2-node does not reproduce (crashes, hangs, undefined behaviour, and
   gameplay bugs fixed only by the maintainer's decision); every other bug of the original is kept (D1).
-- `docs/gaps.md`: behaviour not ported yet and code that does not follow this file yet; add to it when leaving
-  something out, drop the entry when it is done.
-- Bugs and planned work beyond porting the original (agent API, client, server, tooling) are GitHub issues
-  (`gh issue`), not docs: in English, labelled, and free of original game data like the repository (no screenshots or
-  extracted text).
+- Behaviour of the original not ported yet, code that does not follow this file yet, bugs and planned work are GitHub
+  issues (`gh issue`), not docs: in English, labelled, and free of original game data like the repository (no
+  screenshots or extracted text). A change that leaves part of the original out opens a `gap` issue: the original's
+  behaviour with `file:line`, what ja2-node does, what closing it depends on. Docs cite issues by number.
 - `docs/test-stability.md`: tests that fail without a code change; record every such failure there.
 - `docs/releases.md`: release notes.
 - `tools/oracle/README.md`: the native oracle (probe build, probes, comparers).
