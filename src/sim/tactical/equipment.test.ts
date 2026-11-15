@@ -4,9 +4,12 @@ import { ItemClass, itemIndex, loadItemTable, NOTHING } from '../../content/item
 import { Rng } from '../../core/rng.ts';
 import { createItem, ObjectFlags } from '../items/object.ts';
 import { gameOptions } from '../options.ts';
-import { createEquipmentState, generateRandomEquipment, randomMagazine, replaceExtendedGuns } from './equipment.ts';
+import { ScriptedStream } from '../strategic/forces/autoresolve/replay-rng.ts';
+import { createEquipmentState, type EquipmentFacts, generateRandomEquipment, randomMagazine, replaceExtendedGuns } from './equipment.ts';
 import { emptyInventory, InvSlot } from './inventory.ts';
 import { Body, SoldierClass } from './soldier.ts';
+
+const elsewhere = (difficulty: number): EquipmentFacts => ({ difficulty, highestProgress: 0, enemyHeldTixa: false, underground: false });
 
 describe('enemy equipment', async () => {
   const items = await loadItemTable(async (path) => readDataJson(path));
@@ -22,7 +25,7 @@ describe('enemy equipment', async () => {
   it('arms a poorly rated trooper from the bottom gun tier with spare clips in a small pocket', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const t = target(SoldierClass.ARMY);
-      generateRandomEquipment(items, Rng.fromSeed(seed), createEquipmentState(items, gameOptions()), t, 0, 10, 0);
+      generateRandomEquipment(items, Rng.fromSeed(seed), createEquipmentState(items, gameOptions()), t, 0, elsewhere(10));
       const gun = t.inv[InvSlot.HAND];
       expect([id('SW38'), id('DESERTEAGLE'), id('GLOCK_17'), id('BERETTA_93R')]).toContain(gun?.item);
       expect(gun?.status[0]).toBeGreaterThanOrEqual(70);
@@ -34,7 +37,7 @@ describe('enemy equipment', async () => {
 
   it('gives elites armour, face gear and at least one grenade', () => {
     const t = target(SoldierClass.ELITE);
-    generateRandomEquipment(items, Rng.fromSeed(4), createEquipmentState(items, gameOptions()), t, 2, 50, 0);
+    generateRandomEquipment(items, Rng.fromSeed(4), createEquipmentState(items, gameOptions()), t, 2, elsewhere(50));
     expect(t.inv[InvSlot.HAND]?.item).not.toBe(NOTHING);
     expect(t.inv[InvSlot.VEST]?.item).not.toBe(NOTHING);
     expect([id('GASMASK'), id('EXTENDEDEAR')]).toContain(t.inv[InvSlot.HEAD1]?.item);
@@ -47,7 +50,7 @@ describe('enemy equipment', async () => {
     const locked = createItem(items, id('FNFAL'), 90);
     locked.flags |= ObjectFlags.NO_OVERWRITE;
     t.inv[InvSlot.HAND] = locked;
-    generateRandomEquipment(items, Rng.fromSeed(9), createEquipmentState(items, gameOptions()), t, 1, 30, 0);
+    generateRandomEquipment(items, Rng.fromSeed(9), createEquipmentState(items, gameOptions()), t, 1, elsewhere(30));
     expect(t.inv[InvSlot.HAND]?.item).toBe(id('FNFAL'));
     const clips = t.inv.filter((o) => items.byIndex.get(o.item)?.magazine);
     expect(clips.every((o) => items.byIndex.get(o.item)?.magazine?.calibre === items.byIndex.get(id('FNFAL'))?.weapon?.calibre)).toBe(true);
@@ -65,7 +68,7 @@ describe('enemy equipment', async () => {
     const t = target(SoldierClass.ARMY);
     lock(InvSlot.HAND, 'FNFAL', t);
     lock(InvSlot.BIGPOCK1, 'FNFAL', t);
-    generateRandomEquipment(items, alwaysZero, createEquipmentState(items, gameOptions()), t, 0, 0, 0);
+    generateRandomEquipment(items, alwaysZero, createEquipmentState(items, gameOptions()), t, 0, elsewhere(0));
     expect(t.inv[InvSlot.HAND]?.item).toBe(id('FNFAL'));
     expect(t.inv[InvSlot.SMALLPOCK1]).toMatchObject({ item: id('CLIP38_6'), count: 2 });
   });
@@ -73,7 +76,7 @@ describe('enemy equipment', async () => {
   it('stops looking for an item to drop at a locked one of the class: a locked helmet keeps the vest undroppable', () => {
     const t = target(SoldierClass.ARMY);
     lock(InvSlot.HELMET, 'STEEL_HELMET', t);
-    generateRandomEquipment(items, alwaysZero, createEquipmentState(items, gameOptions()), t, 4, 0, 0);
+    generateRandomEquipment(items, alwaysZero, createEquipmentState(items, gameOptions()), t, 4, elsewhere(0));
     expect(t.inv[InvSlot.VEST]?.item).toBe(id('FLAK_JACKET'));
     expect(t.inv[InvSlot.VEST]?.flags).toBe(ObjectFlags.UNDROPPABLE);
     expect(t.inv[InvSlot.SMALLPOCK1]?.flags).toBe(0);
@@ -82,19 +85,46 @@ describe('enemy equipment', async () => {
   it('marks the first gun of each type as droppable once per campaign', () => {
     const state = createEquipmentState(items, gameOptions());
     const first = target(SoldierClass.ARMY);
-    generateRandomEquipment(items, Rng.fromSeed(2), state, first, 4, 30, 0);
+    generateRandomEquipment(items, Rng.fromSeed(2), state, first, 4, elsewhere(30));
     const gun = first.inv[InvSlot.HAND];
     if (gun && !state.weaponsAlreadyDropped.has(NOTHING)) expect(state.weaponsAlreadyDropped.has(gun.item)).toBe(true);
     expect(state.weaponsAlreadyDropped.has(id('SW38'))).toBe(true);
     expect(state.weaponsAlreadyDropped.has(id('M1911'))).toBe(true);
   });
 
+  it('gives a soldier made in enemy-held Tixa no face gear and a gas mask of 95 to 100 in a pocket (ChooseFaceGear, ChooseLocationSpecificGear)', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const t = target(SoldierClass.ELITE);
+      generateRandomEquipment(items, Rng.fromSeed(seed), createEquipmentState(items, gameOptions()), t, 2, {
+        ...elsewhere(50),
+        enemyHeldTixa: true,
+      });
+      expect([t.inv[InvSlot.HEAD1]?.item, t.inv[InvSlot.HEAD2]?.item]).toEqual([NOTHING, NOTHING]);
+      const masks = t.inv.filter((o) => o.item === id('GASMASK'));
+      expect(masks).toHaveLength(1);
+      expect(masks[0]?.status[0]).toBeGreaterThanOrEqual(95);
+    }
+  });
+
+  it('rolls the special weapon of a well-rated soldier out of six underground, which leaves out the mortar, and out of seven elsewhere', () => {
+    const asked = (facts: EquipmentFacts) => {
+      const zeroes = new ScriptedStream([], 0);
+      generateRandomEquipment(items, zeroes, createEquipmentState(items, gameOptions()), target(SoldierClass.ELITE), 6, facts);
+      return zeroes.requested;
+    };
+    const surface = asked(elsewhere(30));
+    const underground = asked({ ...elsewhere(30), underground: true });
+    const special = surface.findIndex((n, k) => n !== underground[k]);
+    expect([surface[special], underground[special]]).toEqual([7, 6]);
+    expect(underground).toEqual(surface.map((n, k) => (k === special ? 6 : n)));
+  });
+
   it('equips tanks and leaves kids empty-handed', () => {
     const tank = target(SoldierClass.ARMY, Body.TANK_NE);
-    generateRandomEquipment(items, Rng.fromSeed(1), createEquipmentState(items, gameOptions()), tank, 2, 30, 0);
+    generateRandomEquipment(items, Rng.fromSeed(1), createEquipmentState(items, gameOptions()), tank, 2, elsewhere(30));
     expect(tank.inv[InvSlot.HAND]?.item).toBe(id('TANK_CANNON'));
     const kid = target(SoldierClass.NONE, Body.KIDCIV);
-    generateRandomEquipment(items, Rng.fromSeed(1), createEquipmentState(items, gameOptions()), kid, 2, 30, 0);
+    generateRandomEquipment(items, Rng.fromSeed(1), createEquipmentState(items, gameOptions()), kid, 2, elsewhere(30));
     expect(kid.inv.every((o) => o.item === NOTHING)).toBe(true);
   });
 

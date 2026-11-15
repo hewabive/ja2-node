@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, FakeCrew, loadEconomyTestContent, setTownNames } from '../../../tests/support/economy.ts';
 import { testContext } from '../../../tests/support/strategic.ts';
+import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { type Sector, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { EnemyKilled } from '../strategic/ai/status.ts';
 import { Town } from '../strategic/economy/constants.ts';
@@ -9,7 +10,7 @@ import { setTownLoyalty } from '../strategic/economy/loyalty.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/groups.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
-import { eliminateAllEnemies } from './autoresolve-strategic.ts';
+import { autoresolveCreation, eliminateAllEnemies } from './autoresolve-strategic.ts';
 
 let content: EconomyTestContent;
 
@@ -47,5 +48,25 @@ describe('eliminateAllEnemies (Auto_Resolve.cc EliminateAllEnemies)', () => {
     expect(ctx.state.economy.towns[Town.OMERTA]?.rating).toBeGreaterThan(START_LOYALTY);
     expect([garrison.numAdmins, garrison.numTroops]).toEqual([0, 0]);
     expect(ctx.state.forces.groups.filter((g) => !g.player)).toEqual([]);
+  });
+});
+
+describe("the location gear of autoresolve's soldiers (Inventory_Choosing.cc:1196, :1432)", () => {
+  const TIXA: Sector = { x: 9, y: 10, z: 0 };
+
+  it('reads enemy-held Tixa off the loaded world, whatever sector the battle is in', async () => {
+    const ctx = economy();
+    const ar = { economy: ctx, queen: null, content: await loadTestContent() };
+    const heldInTixa = () => autoresolveCreation(ar, OMERTA).population.inEnemyHeldTixa;
+    const tixa = ctx.state.map.elements[strategicIndex(TIXA)];
+    if (!tixa) throw new Error('no Tixa');
+    tixa.enemyControlled = true;
+    ctx.state.worldSector = { ...TIXA };
+    expect(heldInTixa()).toBe(true);
+    ctx.state.worldSector = { ...OMERTA };
+    expect(heldInTixa()).toBe(false);
+    ctx.state.worldSector = { ...TIXA };
+    tixa.enemyControlled = false;
+    expect(heldInTixa()).toBe(false);
   });
 });

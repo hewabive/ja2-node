@@ -4341,3 +4341,43 @@ describe("snapshot version 87 (no world item ids) migrates with each item's posi
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionEightyEight(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    return [name, { ...tactical, equipment: { ...object(tactical.equipment), underground: false, inEnemyHeldTixa: false } }];
+  });
+  return { ...snapshot, version: 88, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 88 (the equipment's location flags) migrates without them: the location gear is asked as each soldier is created", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectFlagsDropped(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionEightyEight(current.sim);
+    expect(JSON.stringify(current.sim)).not.toContain('"inEnemyHeldTixa"');
+    expect(JSON.stringify(legacy)).toContain('"inEnemyHeldTixa":false');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectFlagsDropped(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectFlagsDropped(await quietLandedCampaign(kit));
+  });
+});

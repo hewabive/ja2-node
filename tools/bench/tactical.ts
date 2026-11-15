@@ -53,6 +53,7 @@ function population(content: TacticalContent, sector: Sector2): PopulationEnv {
     difficultyModifier: (soldierClass) => calcDifficultyModifier(inputs, soldierClass),
     difficulty: Difficulty.MEDIUM,
     bloodcatLair: false,
+    inEnemyHeldTixa: false,
     locationModifier: 0,
     autoResolveActive: false,
     profileHere: (p) => content.profiles[p]?.sectorX === sector.x && content.profiles[p]?.sectorY === sector.y,

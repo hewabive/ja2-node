@@ -51,6 +51,7 @@ const ENV = (difficultyModifier: number, difficulty = 2): CreationEnv => ({
   difficultyModifier: () => difficultyModifier,
   difficulty,
   bloodcatLair: false,
+  inEnemyHeldTixa: false,
 });
 
 function basic(o: Partial<BasicPlacement>): BasicPlacement {
@@ -160,6 +161,39 @@ describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
     );
     expect([pp.expLevel, pp.soldierClass]).toEqual([6, SoldierClass.CREATURE]);
     expect(rolls.requested[0]).toBe(2);
+  });
+
+  const SURFACE = { x: 9, y: 10, z: 0 };
+  const BASEMENT = { x: 9, y: 10, z: 1 };
+  const generated = (sector: typeof SURFACE, env: CreationEnv) => {
+    const { c, rolls } = creation([]);
+    const zeroes = new ScriptedStream([], 0);
+    const pp = createDetailedPlacementGivenBasicPlacementInfo(
+      { ...c, rng: zeroes, sector },
+      basic({ detailed: false, soldierClass: SoldierClass.ELITE }),
+      env,
+    );
+    expect(rolls.requested).toEqual([]);
+    return { pp, requested: zeroes.requested };
+  };
+
+  it('gives the enemy made where the environment is enemy-held Tixa no face gear and a gas mask in a pocket (Inventory_Choosing.cc:1196, :1432)', () => {
+    const item = (name: string) => kit.content.items.byName.get(name)?.index;
+    const elsewhere = generated(SURFACE, ENV(80)).pp;
+    expect(elsewhere.inv[InvSlot.HEAD1]?.item).not.toBe(NOTHING);
+    expect(elsewhere.inv.filter((o) => o.item === item('GASMASK')).length).toBeLessThanOrEqual(1);
+    const tixa = generated(SURFACE, { ...ENV(80), inEnemyHeldTixa: true }).pp;
+    expect([tixa.inv[InvSlot.HEAD1]?.item, tixa.inv[InvSlot.HEAD2]?.item]).toEqual([NOTHING, NOTHING]);
+    expect(tixa.inv.filter((o) => o.item === item('GASMASK'))).toHaveLength(1);
+  });
+
+  it('rolls the special weapon of an enemy made below ground out of six, without the mortar, but out of seven in autoresolve', () => {
+    const surface = generated(SURFACE, ENV(80)).requested;
+    const below = generated(BASEMENT, ENV(80)).requested;
+    const special = surface.findIndex((n, k) => n !== below[k]);
+    expect([surface[special], below[special]]).toEqual([7, 6]);
+    expect(below).toEqual(surface.map((n, k) => (k === special ? 6 : n)));
+    expect(generated(BASEMENT, { ...ENV(80), autoresolve: true }).requested).toEqual(surface);
   });
 });
 

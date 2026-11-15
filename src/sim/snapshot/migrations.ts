@@ -2562,6 +2562,20 @@ function addWorldItemIds(snapshot: Readonly<Record<string, unknown>>): Record<st
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const EQUIPMENT_LOCATION_FLAGS = ['underground', 'inEnemyHeldTixa'];
+
+function withoutEquipmentLocationFlags(tactical: JsonObject): JsonObject {
+  return isObject(tactical.equipment) ? { ...tactical, equipment: withoutKeys(tactical.equipment, EQUIPMENT_LOCATION_FLAGS) } : tactical;
+}
+
+function dropEquipmentLocationFlags(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withoutEquipmentLocationFlags(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2651,5 +2665,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     85: addPlacementButton,
     86: addCantGetThrough,
     87: addWorldItemIds,
+    88: dropEquipmentLocationFlags,
   };
 }

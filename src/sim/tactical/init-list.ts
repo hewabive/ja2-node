@@ -62,6 +62,7 @@ export interface PopulationEnv {
   difficultyModifier(soldierClass: number): number;
   readonly difficulty: number;
   readonly bloodcatLair: boolean;
+  readonly inEnemyHeldTixa: boolean;
   readonly locationModifier: number;
   readonly autoResolveActive: boolean;
   profileHere(profile: number): boolean;
@@ -89,6 +90,7 @@ export const NEUTRAL_POPULATION: PopulationEnv = {
   difficultyModifier: () => 0,
   difficulty: MEDIUM_DIFFICULTY,
   bloodcatLair: false,
+  inEnemyHeldTixa: false,
   locationModifier: 0,
   autoResolveActive: false,
   profileHere: () => false,

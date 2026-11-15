@@ -36,7 +36,7 @@ import {
 } from '../strategic/forces/movement.ts';
 import { playerGroupInvolvedInThisCombat, playerMercInvolvedInThisCombat } from '../strategic/forces/pre-battle.ts';
 import { setThisSectorAsPlayerControlled, townIdOfSector } from '../strategic/map/control.ts';
-import { sectorInfo } from '../strategic/map/sectors.ts';
+import { inEnemyHeldTixa, sectorInfo } from '../strategic/map/sectors.ts';
 import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import type { RandomStream } from '../tactical/combat/context.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -54,8 +54,6 @@ import type { Soldier } from '../tactical/soldier.ts';
 import { Body, SoldierClass } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { Roster } from './roster.ts';
-
-const TIXA: Sector = { x: 9, y: 10, z: 0 };
 
 export interface ArStrategicContext {
   readonly economy: EconomyContext;
@@ -77,20 +75,18 @@ export function involvedMercCells(ctx: ArStrategicContext, sector: Sector): Merc
   return cells;
 }
 
-function inEnemyHeldTixa(ctx: ArStrategicContext): boolean {
-  const world = ctx.economy.state.worldSector;
-  return world !== null && sameSector(world, TIXA) && ctx.economy.state.map.elements[TIXA.x + TIXA.y * 18]?.enemyControlled === true;
-}
-
 export interface CreationStreams {
   readonly rng: RandomStream;
   readonly pre: RandomStream;
 }
 
-export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, streams?: CreationStreams): AutoresolveCreation {
+export function autoresolveCreation(
+  ctx: Pick<ArStrategicContext, 'economy' | 'queen' | 'content'>,
+  sector: Sector,
+  streams?: CreationStreams,
+): AutoresolveCreation {
   const state = ctx.economy.state;
   const equipment = createEquipmentState(ctx.content.items, state.options, sharedWeaponsDropped(state.status, ctx.content.items));
-  equipment.inEnemyHeldTixa = inEnemyHeldTixa(ctx);
   equipment.autoResolveActive = true;
   const townId = townIdOfSector(ctx.economy, sector);
   const queen = ctx.queen;
@@ -123,6 +119,7 @@ export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, str
       difficultyModifier,
       difficulty: state.options.difficulty,
       bloodcatLair: false,
+      inEnemyHeldTixa: inEnemyHeldTixa(state.map, state.worldSector),
       locationModifier: locationModifier(townId, sector),
       autoResolveActive: true,
       profileHere: () => false,

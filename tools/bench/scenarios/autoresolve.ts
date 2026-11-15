@@ -72,6 +72,7 @@ function creation(content: TacticalContent, rng: Rng): AutoresolveCreation {
       difficultyModifier,
       difficulty: Difficulty.MEDIUM,
       bloodcatLair: false,
+      inEnemyHeldTixa: false,
       locationModifier: 0,
       autoResolveActive: true,
       profileHere: () => false,

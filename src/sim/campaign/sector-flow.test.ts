@@ -18,6 +18,7 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
+import { NOTHING } from '../../content/items/items.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
@@ -44,6 +45,7 @@ import { addBlueFlag, knownMineTiles, MineFlag, setMineFlag } from '../tactical/
 import { perceiveDoor } from '../tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../tactical/doors.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
+import { tacticalCreateEnemySoldier } from '../tactical/init-list.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
 import {
@@ -1126,6 +1128,35 @@ describe('preserved soldiers', () => {
       .filter((s) => s.profile === NO_PROFILE)
       .map((s) => s.lifeMax - s.life);
     expect(lives.sort((a, b) => b - a)[0]).toBe(10);
+  });
+});
+
+describe('the gear of the enemies made in Tixa (Inventory_Choosing.cc:1196, :1432)', () => {
+  const TIXA = { x: 9, y: 10, z: 0 };
+
+  it('masks the enemies of an enemy-held Tixa at its load instead of their face gear, and none made there once the player holds it', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 22, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    Object.assign(sectorInfo(campaign.state.map, TIXA), { ...NO_GARRISON_COUNTS, numElites: 3 });
+    const flow = flowOf(campaign);
+    for (const m of flow.setup.roster.all()) m.sector = { ...TIXA };
+    expect(flow.setCurrentWorldSector(TIXA)).toBe(true);
+    const t = campaign.tactical?.state ?? never();
+    const gasMask = itemId(t, 'GASMASK');
+    const head = (x: { inv: readonly { item: number }[] }) => [x.inv[InvSlot.HEAD1]?.item, x.inv[InvSlot.HEAD2]?.item];
+    const pocketMasks = (x: { inv: readonly { item: number }[] }) => x.inv.filter((o, k) => k > InvSlot.HEAD2 && o.item === gasMask);
+    const masked = teamMembers(t, Team.ENEMY);
+    expect(masked).toHaveLength(3);
+    for (const s of masked) {
+      expect(head(s)).toEqual([NOTHING, NOTHING]);
+      expect(pocketMasks(s)).toHaveLength(1);
+    }
+    expect(flow.populationEnv().inEnemyHeldTixa).toBe(true);
+    (campaign.state.map.elements[strategicIndex(TIXA)] ?? never()).enemyControlled = false;
+    expect(flow.populationEnv().inEnemyHeldTixa).toBe(false);
+    const later = tacticalCreateEnemySoldier(t, SoldierClass.ELITE, flow.populationEnv()) ?? never();
+    expect(head(later).every((item) => item !== NOTHING)).toBe(true);
+    expect(pocketMasks(later)).toHaveLength(0);
   });
 });
 

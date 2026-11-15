@@ -5,7 +5,8 @@
 // @src SetNumberOfVisibleWorldItemsInSectorStructureForSector; Queen_Command.cc FindUnderGroundSector;
 // @src StrategicMap.cc GetMapFileName; Strategic_Movement_Costs.cc GetTraversability, SectorIsPassable;
 // @src Strategic_Status.cc UpdateLastDayOfPlayerActivity; Soldier_Control.cc SoldierTakeDamage (the sectors where hurting an
-// @src enemy is player activity).
+// @src enemy is player activity); Tactical/Inventory_Choosing.cc ChooseFaceGearForSoldierCreateStruct,
+// @src ChooseLocationSpecificGearForSoldierCreateStruct (the enemy-held Tixa test, 2026-11-15).
 
 import { StrategicMove, TRAVERSABILITY_DIRECTIONS } from '../../../content/strategic/map-tables.ts';
 import {
@@ -282,6 +283,10 @@ export function sectorIsPassable(map: StrategicMapState, id: number): boolean {
 
 export function isSectorDesert(map: StrategicMapState, s: { readonly x: number; readonly y: number }): boolean {
   return sectorInfo(map, s).traversability[StrategicMove.THROUGH] === Traversability.SAND;
+}
+
+export function inEnemyHeldTixa(map: StrategicMapState, world: Sector | null): boolean {
+  return world !== null && sameSector(world, TIXA) && map.elements[strategicIndex(TIXA)]?.enemyControlled === true;
 }
 
 export function totalMilitia(info: SectorInfo): number {

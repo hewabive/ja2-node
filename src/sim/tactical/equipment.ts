@@ -6,6 +6,8 @@
 // @src ChooseKitsForSoldierCreateStruct, ChooseMiscGearForSoldierCreateStruct, ChooseBombsForSoldierCreateStruct,
 // @src PlaceObjectInSoldierCreateStruct, MakeOneItemOfClassDroppable, RandomlyChooseWhichItemsAreDroppable,
 // @src ReplaceExtendedGuns, SelectStandardArmyGun; Items.cc RandomMagazine.
+// @src 2026-11-15: ChooseLocationSpecificGearForSoldierCreateStruct; the gWorldSector tests of the face and location
+// @src gear and of GenerateRandomEquipment's special weapon rolls, asked as the soldier is created.
 
 import { AmmoType, ArmourClass, ItemClass, type ItemDef, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment } from '../../content/items/rules.ts';
@@ -61,10 +63,15 @@ export interface EquipmentState {
   weaponsAlreadyDropped: Set<number>;
   mortarsRolledByTeam: number;
   readonly options: Pick<GameOptions, 'gunNut' | 'sciFi'>;
-  underground: boolean;
-  inEnemyHeldTixa: boolean;
   enemyWeaponMinimalStatus: number;
   autoResolveActive: boolean;
+}
+
+export interface EquipmentFacts {
+  readonly difficulty: number;
+  readonly highestProgress: number;
+  readonly enemyHeldTixa: boolean;
+  readonly underground: boolean;
 }
 
 export function initArmyGunTypes(items: ItemTable): Set<number> {
@@ -87,8 +94,6 @@ export function createEquipmentState(
     weaponsAlreadyDropped,
     mortarsRolledByTeam: 0,
     options,
-    underground: false,
-    inEnemyHeldTixa: false,
     enemyWeaponMinimalStatus: 0,
     autoResolveActive: false,
   };
@@ -416,9 +421,10 @@ function chooseSpecialWeapons(
   if (mortar) placeObjectInCreateStruct(items, inv, undroppable(createItem(items, id(items, 'MORTAR'), 50 + rng.int(51))));
 }
 
-function chooseFaceGear(items: ItemTable, rng: RandomStream, state: EquipmentState, target: EquipmentTarget, difficulty: number): void {
+function chooseFaceGear(items: ItemTable, rng: RandomStream, facts: EquipmentFacts, target: EquipmentTarget): void {
   const inv = target.inv;
-  if (state.inEnemyHeldTixa) return;
+  const difficulty = facts.difficulty;
+  if (facts.enemyHeldTixa) return;
   for (let slot = InvSlot.BIGPOCK1; slot < InvSlot.BIGPOCK4; slot++)
     if (classOf(items, (inv[slot] as ItemObject).item) === ItemClass.FACE) return;
   const put = (slot: number, name: string) =>
@@ -566,8 +572,7 @@ export function generateRandomEquipment(
   state: EquipmentState,
   target: EquipmentTarget,
   equipmentRating: number,
-  difficulty: number,
-  highestProgress: number,
+  facts: EquipmentFacts,
 ): void {
   const inv = target.inv;
   if (target.bodyType === Body.HATKIDCIV || target.bodyType === Body.KIDCIV) return;
@@ -575,7 +580,7 @@ export function generateRandomEquipment(
     equipTank(items, rng, inv);
     return;
   }
-  const modifier = equipmentRating + (idiv(difficulty, 10) - 5);
+  const modifier = equipmentRating + (idiv(facts.difficulty, 10) - 5);
   let ammoClips = 0;
   let grenades = 0;
   let attachment = false;
@@ -593,7 +598,7 @@ export function generateRandomEquipment(
   let launcher = false;
   let law = false;
   const clampRating = (r: number) => Math.min(MAX_EQUIPMENT_CLASS, Math.max(MIN_EQUIPMENT_CLASS, r));
-  const specialRoll = () => rng.int(state.underground ? 6 : 7);
+  const specialRoll = () => rng.int(facts.underground ? 6 : 7);
   switch (target.soldierClass) {
     case SoldierClass.NONE:
       ammoClips = 1 + rng.int(2);
@@ -785,15 +790,15 @@ export function generateRandomEquipment(
     }
   }
   if (!isEnemyClass(target.soldierClass)) bombClass = 0;
-  chooseWeapon(items, rng, state, target, weaponClass, ammoClips, attachClass, attachment, highestProgress);
+  chooseWeapon(items, rng, state, target, weaponClass, ammoClips, attachClass, attachment, facts.highestProgress);
   chooseGrenades(items, rng, inv, grenades, grenadeClass, launcher);
   chooseArmour(items, rng, inv, helmetClass, vestClass, leggingClass);
   chooseSpecialWeapons(items, rng, inv, knifeClass, launcher, law, mortar);
-  chooseFaceGear(items, rng, state, target, difficulty);
+  chooseFaceGear(items, rng, facts, target);
   chooseKits(items, rng, inv, kitClass);
   chooseMisc(items, rng, state, inv, miscClass);
   chooseBombs(items, rng, inv, bombClass);
-  if (state.inEnemyHeldTixa) placeObjectInCreateStruct(items, inv, createItem(items, id(items, 'GASMASK'), 95 + rng.int(6)));
+  if (facts.enemyHeldTixa) placeObjectInCreateStruct(items, inv, createItem(items, id(items, 'GASMASK'), 95 + rng.int(6)));
   chooseDroppable(items, rng, state, inv, target.soldierClass);
 }
 

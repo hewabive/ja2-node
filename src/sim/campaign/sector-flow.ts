@@ -116,6 +116,7 @@ import {
   findUndergroundSector,
   getSectorFlagStatus,
   hurtingEnemiesCountsAsActivity,
+  inEnemyHeldTixa,
   isSectorDesert,
   resetSectorFlag,
   sectorInfo,
@@ -1249,6 +1250,7 @@ export class SectorFlow {
       difficultyModifier: (cls) => this.difficultyModifier(cls),
       difficulty: this.campaign.state.options.difficulty,
       bloodcatLair: this.ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(world))?.isLair === true,
+      inEnemyHeldTixa: inEnemyHeldTixa(this.campaign.state.map, this.world),
       locationModifier: locationModifier(townIdOfSector(this.ctx, world), world),
       autoResolveActive: false,
       profileHere: (p) => {

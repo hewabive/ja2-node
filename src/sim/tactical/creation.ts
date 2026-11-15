@@ -7,7 +7,8 @@
 // @src Soldier_Control.cc CreateSoldierCommon (the opplist reset), SetSoldierHeight (a placement on a flat roof);
 // @src Inventory_Choosing.cc AssignCreatureInventory; GeneratePaletteForSoldier running before TacticalCreateSoldier
 // @src sets bTeam, so no civilian takes its civilian clothes (2026-11-05); CreateSoldierCommon's EVENT_InitNewSoldierAnim(STANDING)
-// @src for a hired merc, which wants him standing (ubDesiredHeight, 2026-11-08).
+// @src for a hired merc, which wants him standing (ubDesiredHeight, 2026-11-08); Inventory_Choosing.cc
+// @src GenerateRandomEquipment's !IsAutoResolveActive() && gWorldSector.z and enemy-held Tixa tests (2026-11-15).
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
@@ -240,7 +241,7 @@ function civilianStartsNeutral(c: CreationContext, profile: number, group: numbe
   return civGroupHostility(c.civGroups ?? createCivGroupState(), group) !== CivGroupHostility.HOSTILE;
 }
 
-export interface CreationEnv extends Pick<PopulationEnv, 'difficultyModifier' | 'difficulty' | 'bloodcatLair'> {
+export interface CreationEnv extends Pick<PopulationEnv, 'difficultyModifier' | 'difficulty' | 'bloodcatLair' | 'inEnemyHeldTixa'> {
   readonly autoresolve?: boolean;
 }
 
@@ -483,8 +484,12 @@ function generateEquipment(c: CreationContext, pp: SoldierCreate, soldierClass: 
     c.equipment,
     { inv: pp.inv, soldierClass, bodyType: pp.bodyType, experience: pp.expLevel, marksmanship: pp.marksmanship },
     equipmentLevel,
-    env.difficultyModifier(soldierClass),
-    c.campaign.highestProgress(),
+    {
+      difficulty: env.difficultyModifier(soldierClass),
+      highestProgress: c.campaign.highestProgress(),
+      enemyHeldTixa: env.inEnemyHeldTixa,
+      underground: !env.autoresolve && (c.sector?.z ?? 0) !== 0,
+    },
   );
 }
 

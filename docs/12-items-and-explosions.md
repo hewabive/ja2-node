@@ -87,7 +87,10 @@ prompt, whose answer names the items (`prompts.ts`); like a box it holds the sol
 on `main` in order, chances whose result is thrown away and `Random(1)` included. The first enemy generated in
 tactical with a gun type drops it; the set of types already dropped belongs to the strategic status
 (`sharedWeaponsDropped`) and is marked when the soldier is generated, not when he dies. The difficulty modifier and the
-highest progress are the campaign's as the soldier is created (`t.campaign`).
+highest progress are the campaign's as the soldier is created (`t.campaign`), and so is the place (`EquipmentFacts`):
+the population environment says whether the loaded world is enemy-held Tixa, which leaves out the face gear and adds a
+gas mask in a pocket, in tactical as in autoresolve, and a soldier made in tactical below ground rolls his special
+weapon out of six, without the mortar (`generateEquipment`, `creation.ts`).
 
 **World items are one list.** `TacticalState.worldItems` holds every item of the loaded sector; a tile's pool is its
 entries in list order (`itemsAt`). Each item keeps the index the original would give it, the first one no other item
