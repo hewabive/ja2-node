@@ -72,7 +72,8 @@ and on the checks every exit from the map shares (`AllowedToExitFromMapscreenTo`
 `visitSite merc`, or at its first M.E.R.C. command without a visit (deviation "Speck's opening"); the florist's
 order-number draw runs at `visitSite floristOrderForm` (deviation "Florist order form entry"). A.I.M. impatience runs on
 the wall clock: the client plays the quotes and the hang-up and reports it with `aimHangUp`, which raises the annoyance
-and queues its reset (deviation "A.I.M. annoyance").
+and queues its reset (deviation "A.I.M. annoyance"). So does Speck's idle chatter, which changes nothing in the game:
+the view lists the quotes he may pick (`speckIdleQuotes`), the client counts what he said (`30`).
 Cosmetic draws the original takes from the gameplay stream are not drawn (deviation "Cosmetic laptop draws").
 
 **Sites open through mail.** Opening `IMP_EMAIL_INTRO` or `IMP_EMAIL_AGAIN` bookmarks I.M.P., opening `MERC_INTRO` or

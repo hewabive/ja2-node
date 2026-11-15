@@ -139,6 +139,26 @@ describe("Bobby Ray's for the canvas order form (X11)", () => {
 });
 
 describe("Speck's lines and the M.E.R.C. pages (X6)", () => {
+  it("offers Speck's idle chatter the adverts of the mercs he can hire, in listing order, then his four A.I.M. slanders (GetAvailableRandomQuotes)", async () => {
+    const { session, live } = await newGame(204);
+    session.campaign.state.laptop.bookmarks.push(Bookmark.MERC);
+    const adverts = (profiles: readonly number[]) =>
+      (session.campaign.laptop?.content.mercListings ?? [])
+        .filter((listing) => profiles.includes(listing.profile))
+        .flatMap((listing) => listing.quotes.flatMap((q) => (q.type === 'ADVERTISE' ? [q.quote] : [])));
+    const slanders = [SpeckQuote.AIM_SLANDER_1, SpeckQuote.AIM_SLANDER_2, SpeckQuote.AIM_SLANDER_3, SpeckQuote.AIM_SLANDER_4];
+    const available = () =>
+      laptopOf(session)
+        .merc.listed.filter((m) => m.state === 'available')
+        .map((m) => m.profile);
+    expect(available()).toContain(GASKET);
+    expect(laptopOf(session).merc.idleQuotes).toEqual([...adverts(available()), ...slanders]);
+    expect(live.dispatch({ type: 'mercOpenAccount' })).toMatchObject({ ok: true });
+    expect(live.dispatch({ type: 'mercHire', profile: GASKET })).toMatchObject({ ok: true });
+    expect(available()).not.toContain(GASKET);
+    expect(laptopOf(session).merc.idleQuotes).toEqual([...adverts(available()), ...slanders]);
+  });
+
   it('answers the account, the hire and the payment with the quotes Speck says next', async () => {
     const { session, live } = await newGame(204);
     session.campaign.state.laptop.bookmarks.push(Bookmark.MERC);
@@ -148,7 +168,7 @@ describe("Speck's lines and the M.E.R.C. pages (X6)", () => {
       data: { quotes: [SpeckQuote.THANK_PLAYER_FOR_OPENING_ACCOUNT] },
     });
     const listing = laptopOf(session).merc.listed.find((m) => m.profile === GASKET);
-    expect(listing).toMatchObject({ married: false, advertiseQuote: expect.any(Number) });
+    expect(listing).toMatchObject({ married: false });
     const hired = live.dispatch({ type: 'mercHire', profile: GASKET });
     const quotes = (hired.data as { quotes: number[] }).quotes;
     expect([SpeckQuote.GENERIC_THANKS_FOR_HIRING_MERCS_1, SpeckQuote.GENERIC_THANKS_FOR_HIRING_MERCS_2]).toContain(quotes.at(-1));

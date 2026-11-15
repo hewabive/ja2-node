@@ -5,7 +5,8 @@
 // @src MERC_INTRO_TIME, the quotes one after the other, the black exit of MERC_EXIT_TIME), DisplayMercVideoIntro,
 // @src StartSpeckTalking, HandleSpeckTalking (the face runs only in the video mode; a quote lasts as long as the face
 // @src talks, then the next queued quote), BtnXToCloseMercVideoButtonCallback, MercSiteSubTitleRegionCallBack and
-// @src StopSpeckFromTalking (a click on the subtitles ends the current quote).
+// @src StopSpeckFromTalking (a click on the subtitles ends the current quote); HandleSpeckTalking's end of a talk with
+// @src nothing more queued, which resets the idle chatter's timer (2026-11-15).
 
 export const SpeckMode = { NONE: 0, INIT: 1, VIDEO: 2, EXIT: 3 } as const;
 
@@ -17,6 +18,7 @@ export interface SpeckPorts {
   say(quote: number, now: number): void;
   faceTalking(now: number): boolean;
   stop(): void;
+  talkEnded(now: number): void;
 }
 
 export interface SpeckTalk {
@@ -99,7 +101,9 @@ export class SpeckVideo {
         return;
       case SpeckMode.VIDEO:
         if (!this.#ports.faceTalking(now)) this.talk = null;
-        if (!this.talk && !this.#sayNext(now)) this.#enter(SpeckMode.EXIT, now);
+        if (this.talk || this.#sayNext(now)) return;
+        this.#ports.talkEnded(now);
+        this.#enter(SpeckMode.EXIT, now);
         return;
       case SpeckMode.EXIT:
         if (elapsed > MERC_EXIT_TIME) {

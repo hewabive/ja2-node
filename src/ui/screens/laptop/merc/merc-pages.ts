@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Mercs.cc EnterMercs (the visit only when entering from outside the site, the files button disabled
-// @src without an account), RenderMercs, BtnAccountBoxButtonCallback, BtnFileBoxButtonCallback, ExitMercs (Speck stops),
+// @src without an account, the idle chatter's timer reset), HandleMercs (the idle quote opens the video at the next
+// @src frame, 2026-11-15), RenderMercs, BtnAccountBoxButtonCallback, BtnFileBoxButtonCallback, ExitMercs (Speck stops),
 // @src DisplayTextForSpeckVideoPopUp (the subtitle in quotes, at most 300 wide, centred on the laptop screen at
 // @src MERC_TEXT_BOX_POS_Y), StartSpeckTalking (Speck's animated face says the quote), HandleSpeckTalking (the 48 x 43 face
 // @src stretched to the video face rectangle);
@@ -39,6 +40,7 @@ import { LaptopMode } from '../laptop-modes.ts';
 import type { LaptopContext, LaptopPage } from '../laptop-page.ts';
 import { VideoFace, videoFacePorts, videoFaceRecord } from '../video-face.ts';
 import { MERC_SUB_PAGES } from './merc-session.ts';
+import { SpeckIdleChat } from './speck-idle.ts';
 import { SpeckMode, SpeckVideo } from './speck-video.ts';
 
 export const MERC_HOME_LAYOUT = 'merc-home';
@@ -130,12 +132,16 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
   let subtitleRegion: MouseRegion | null = null;
   let disposed = false;
   let face: VideoFace | null = null;
+  let idleQuote: number | null = null;
+  const now = () => context.services.clock.ja2Now;
+  const idle = new SpeckIdleChat(context.memory.speckQuotesSaid, now());
   const facePorts = videoFacePorts(context);
   const video = new SpeckVideo({
     initFace: (time) => {
       face = new VideoFace(videoFaceRecord(context.data.profile(SPECK), SPECK), time, facePorts);
     },
     say: (quote, time) => {
+      idle.reset(time);
       const text = context.text.edt(`npcdata/${threeDigits(SPECK)}.edt`, quote) ?? '';
       const voice = `${NPC_SPEECH_DIR}/${threeDigits(SPECK)}_${threeDigits(quote)}.wav`;
       face?.say(
@@ -157,13 +163,15 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
       face?.shutUp();
       subtitle = null;
     },
+    talkEnded: (time) => idle.reset(time),
   });
-  const now = () => context.services.clock.ja2Now;
   const fromSubPage = MERC_SUB_PAGES.has(context.shell.previousMode);
 
   const refresh = (time: number) => {
+    if (idleQuote !== null) video.enqueue([idleQuote], time);
     video.update(time);
     const site = mercSite(context);
+    idleQuote = idle.update(time, video.displayed, site?.idleQuotes ?? []);
     const hasAccount = site !== null && site.accountStatus !== 'noAccount';
     model.hasAccount = hasAccount;
     model.noAccount = !hasAccount;

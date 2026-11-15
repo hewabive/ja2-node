@@ -21,6 +21,7 @@ import type {
   LaptopCommandReply,
   LaptopData,
   LaptopItem,
+  LaptopMemory,
   LaptopProfile,
 } from '../../src/ui/screens/laptop/laptop-client.ts';
 import { LAPTOP_LAYOUTS, LaptopScreen } from '../../src/ui/screens/laptop/laptop-screen.ts';
@@ -64,6 +65,7 @@ export interface LaptopHarnessOptions {
   readonly read?: ReadFile;
   readonly prepare?: (session: CampaignSession) => void;
   readonly loadingTimeScale?: number;
+  readonly memory?: LaptopMemory;
 }
 
 async function loadImage(t: TestRuntime, kit: StubSectorKit, path: string): Promise<void> {
@@ -173,6 +175,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     settings: { loadingTimeScale: options.loadingTimeScale ?? 0, slideStepMs: 0, subtitles: true, speech: false, metric: true },
     zoomOnOpen: false,
     zoomOnClose: false,
+    ...(options.memory ? { memory: options.memory } : {}),
     onClosed: () => {
       harness.closed = true;
     },

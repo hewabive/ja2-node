@@ -7,6 +7,7 @@ import type { ItemGraphic } from '../../widgets/item-picture.ts';
 import { type AimMemory, aimMemory } from './aim/aim-session.ts';
 import { type BobbyRayMemory, bobbyRayMemory } from './bobby-ray/bobby-ray-session.ts';
 import { ImpDraft } from './imp/imp-draft.ts';
+import type { SpeckQuotesSaid } from './merc/speck-idle.ts';
 import { type PagesMemory, pagesMemory } from './pages-memory.ts';
 
 export interface LaptopCommandReply {
@@ -81,8 +82,17 @@ export interface LaptopMemory {
   readonly pages: PagesMemory;
   readonly bobbyRay: BobbyRayMemory;
   readonly imp: ImpDraft;
+  readonly speckQuotesSaid: SpeckQuotesSaid;
 }
 
 export function laptopMemory(): LaptopMemory {
-  return { emailPage: 0, financesPage: 0, aim: aimMemory(), pages: pagesMemory(), bobbyRay: bobbyRayMemory(), imp: new ImpDraft() };
+  return {
+    emailPage: 0,
+    financesPage: 0,
+    aim: aimMemory(),
+    pages: pagesMemory(),
+    bobbyRay: bobbyRayMemory(),
+    imp: new ImpDraft(),
+    speckQuotesSaid: new Map(),
+  };
 }

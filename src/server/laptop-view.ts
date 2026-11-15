@@ -40,7 +40,6 @@ import type { LaptopFlow } from '../sim/campaign/laptop/laptop-flow.ts';
 import { Bookmark, bookmarkNames, type Shipment, type StoreSlot } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailType } from '../sim/campaign/laptop/mail.ts';
 import {
-  advertiseQuote,
   floMarried,
   isMercListed,
   isMercSiteDown,
@@ -48,6 +47,7 @@ import {
   mercAccountRows,
   mercSiteSlowLoad,
   owedToSpeck,
+  speckIdleQuotes,
 } from '../sim/campaign/laptop/merc-site.ts';
 import { isMercDead } from '../sim/campaign/laptop/profile-state.ts';
 import { MercKind } from '../sim/campaign/roster.ts';
@@ -170,7 +170,6 @@ function mercView(flow: LaptopFlow): MercSiteView {
         state: aimFace(flow, id, p),
         unpaidDays: p.mercMercContractLength,
         owed: p.salary * p.mercMercContractLength,
-        advertiseQuote: advertiseQuote(listing),
         married: floMarried(flow, id),
       },
     ];
@@ -185,6 +184,7 @@ function mercView(flow: LaptopFlow): MercSiteView {
     totalOwed: owedToSpeck(flow),
     account,
     slowLoad: mercSiteSlowLoad(flow),
+    idleQuotes: bookmarked ? speckIdleQuotes(flow) : [],
   };
 }
 

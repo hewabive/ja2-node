@@ -21,7 +21,9 @@ import { Bookmark } from '../../../sim/campaign/laptop/laptop-state.ts';
 import { MouseButton } from '../../input/events.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import { faceFileOf } from '../tactical/faces.ts';
+import { laptopMemory } from './laptop-client.ts';
 import { LaptopMode } from './laptop-modes.ts';
+import { SPECK_IDLE_CHAT_DELAY } from './merc/speck-idle.ts';
 
 const DRASSEN_ROW = 2;
 const UNDER_CONSTRUCTION = 'laptop/underconstruction.sti';
@@ -298,6 +300,27 @@ describe('A.I.M. on the canvas laptop', () => {
 });
 
 describe('M.E.R.C. on the canvas laptop', () => {
+  it('has Speck chat on an idle home page: more than 10 s after his last line began he says the available quote said least', async () => {
+    const memory = laptopMemory();
+    const h = await openLaptopHarness(kit, ui, { seed: 23, prepare: bookmark(Bookmark.MERC), memory });
+    const { t } = h;
+    await toBookmark(h, 1);
+    await wait(h, 1100);
+    expect(find(t, 'speckFace')?.visible).toBe(true);
+    const lineStarted = t.now;
+    await click(t, 'speckClose');
+    await wait(h, 600);
+    expect(find(t, 'speckVideoTitle')?.visible).toBe(false);
+    await wait(h, lineStarted + SPECK_IDLE_CHAT_DELAY - t.now - 200);
+    expect([find(t, 'speckVideoTitle')?.visible, memory.speckQuotesSaid.size]).toEqual([false, 0]);
+    await wait(h, 300);
+    expect(shown(t, 'speckVideoTitle').visible).toBe(true);
+    const first = h.session.view().laptop?.merc.idleQuotes[0];
+    expect([...memory.speckQuotesSaid]).toEqual([[first, 1]]);
+    await wait(h, 1100);
+    expect(find(t, 'speckFace')?.visible).toBe(true);
+  });
+
   it("plays Speck's opening, opens an account, hires from the files, pays the bill and shows the broken link while the site is down", async () => {
     const h = await openLaptopHarness(kit, ui, { seed: 23, prepare: bookmark(Bookmark.MERC) });
     const { t } = h;

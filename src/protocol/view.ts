@@ -752,7 +752,6 @@ export interface MercListingView {
   readonly state: AimFaceView;
   readonly unpaidDays: number;
   readonly owed: number;
-  readonly advertiseQuote: number | null;
   readonly married: boolean;
 }
 
@@ -774,6 +773,7 @@ export interface MercSiteView {
   readonly totalOwed: number;
   readonly account: readonly MercAccountRowView[];
   readonly slowLoad: boolean;
+  readonly idleQuotes: readonly number[];
 }
 
 export type ImpAttributeName =

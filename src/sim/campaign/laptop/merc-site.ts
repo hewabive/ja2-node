@@ -10,7 +10,7 @@
 // @src Laptop/Mercs_No_Account.cc BtnOpenAccountBoxButtonCallback; Laptop/Mercs_Files.cc BtnMercHireButtonCallback,
 // @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts (the records name the listing at gubCurMercIndex,
 // @src which EnterInitMercSite clears on every laptop entry, 2026-11-14), CalculateHowMuchPlayerOwesSpeck;
-// @src Laptop/Speck_Quotes.h.
+// @src Laptop/Speck_Quotes.h; Laptop/Mercs.cc GetAvailableRandomQuotes (the idle chatter's quotes, 2026-11-15).
 
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { i32, u32 } from '../../../core/int.ts';
@@ -74,6 +74,10 @@ export const SpeckQuote = {
   FIRST_IDLE_TAG: 41,
   PLAYER_MAKES_FULL_PAYMENT: 45,
   PLAYER_MAKES_PARTIAL_PAYMENT: 46,
+  AIM_SLANDER_1: 58,
+  AIM_SLANDER_2: 59,
+  AIM_SLANDER_3: 60,
+  AIM_SLANDER_4: 61,
   GENERIC_THANKS_FOR_HIRING_MERCS_1: 69,
   GENERIC_THANKS_FOR_HIRING_MERCS_2: 70,
   PLAYER_TRIES_TO_HIRE_ALREADY_HIRED_MERC: 71,
@@ -467,8 +471,17 @@ export function mercPaymentQuotes(full: boolean): number[] {
   return [full ? SpeckQuote.PLAYER_MAKES_FULL_PAYMENT : SpeckQuote.PLAYER_MAKES_PARTIAL_PAYMENT];
 }
 
-export function advertiseQuote(listing: MercListing): number | null {
-  return listing.quotes.find((q) => q.type === 'ADVERTISE')?.quote ?? null;
+const AIM_SLANDERS = [SpeckQuote.AIM_SLANDER_1, SpeckQuote.AIM_SLANDER_2, SpeckQuote.AIM_SLANDER_3, SpeckQuote.AIM_SLANDER_4];
+
+function advertiseQuotes(listing: MercListing): number[] {
+  return listing.quotes.flatMap((q) => (q.type === 'ADVERTISE' ? [q.quote] : []));
+}
+
+export function speckIdleQuotes(ctx: LaptopContext): number[] {
+  const adverts = ctx.content.mercListings.flatMap((listing) =>
+    isMercMercAvailable(ctx, listingProfile(ctx, listing)) ? advertiseQuotes(listing) : [],
+  );
+  return [...adverts, ...AIM_SLANDERS];
 }
 
 export function floMarried(ctx: LaptopContext, profile: number): boolean {

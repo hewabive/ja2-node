@@ -1099,7 +1099,9 @@ that a merc hung up on a player who kept him waiting in the video conference, wh
 (deviation "A.I.M. annoyance"); it raises his annoyance and queues its reset as the original's hang-up does. An agent's
 call has no such wait, so an agent never needs it; it is an ordinary logged command, accepted from any client.
 `mercPay` takes the M.E.R.C. files page the player last viewed as `listing` (`laptop.merc.listed[].listing`), which
-the original's payment records name; without it, the first listing, as after a laptop entry. The
+the original's payment records name; without it, the first listing, as after a laptop entry. `laptop.merc.idleQuotes`
+lists the quotes Speck's idle chatter picks from, which the browser plays on its clock: the adverts of the mercs he can
+hire, then his A.I.M. slanders. The
 I.M.P. draft stays in the client until
 `impCreate`; under the rule pack's `imp.pick_skills_directly` (`imp.pickSkillsDirectly` in the view) it takes `skills`,
 at most two of the view's `imp.specialties`, in place of `answers`, and `imp.attributes.specialtyBonus` gives what they
