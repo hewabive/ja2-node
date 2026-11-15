@@ -34,11 +34,7 @@ What a native savegame import leaves out: none known. Paths are under `src/`.
 
 ## 6. Presentation: screens, graphics, text, sound and video
 
-What the client does not show or play yet, where nothing changes an outcome. Paths are under `src/`.
-
-| Area | Original | ja2-node | Notes |
-|---|---|---|---|
-| Wreck draw pass | From `AddRottingCorpse` (the vehicle's destruction, a sector entry, a load) to its first animation step, the first overhead pass more than 150 ms on, a wreck's node is not `LEVELNODE_DYNAMIC` yet, as no paused corpse's ever is, so the static world draws it before every merc (`Tactical/Rotting_Corpses.cc:467-469`, `TileEngine/Tile_Animation.cc:121`, `:267-275`, `TileEngine/RenderWorld.cc:487-499`) | A wreck is drawn in the structure layer of its row from the first frame that shows it (`PAUSED_ANI_KINDS`, `render/world/dynamic-scene.ts`) | The view does not say when a corpse was added: the client would need the time it first showed one (frame history) or a stamp in `CorpseView` (a view change). From the step on, the original's saved background also keeps the copy the static world drew until the next whole redraw (`TileEngine/RenderWorld.cc:1612-1633`), frame history that whole frames do not keep (deviation "Scroll frames") |
+What the client does not show or play yet, where nothing changes an outcome: none known. Paths are under `src/`.
 
 ## 7. Code conventions
 
