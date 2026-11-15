@@ -460,13 +460,24 @@ function stripSoldierPixels(tiles: TileElement[], c: StripCase): { ours: string[
 
 const CELL_CENTRE = { x: 805, y: 805, heightAdjustment: 0 };
 
-function stripCorpsePixels(tiles: TileElement[], clip: Pick<StripCase, 'leftSkip'> = {}): { ours: string[]; original: string[] } {
+type CorpseKind = Extract<SceneAniTile['kind'], 'corpse' | 'vehicleCorpse'>;
+
+const CORPSE_STRIP_Z: Readonly<Record<CorpseKind, number>> = {
+  corpse: corpseZ(worldY(79, 79, 860)),
+  vehicleCorpse: u16(worldY(80, 80, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL),
+};
+
+function stripCorpsePixels(
+  tiles: TileElement[],
+  clip: Pick<StripCase, 'leftSkip'> = {},
+  kind: CorpseKind = 'corpse',
+): { ours: string[]; original: string[] } {
   const { staticWorld, prepared } = world({}, tiles);
   const screen = stripScreenPoint({ blitter: 'noBurn', ...clip });
   const base = { layer: 0, x: 0, y: 7001, width: 0, height: 0, offsetX: 0, offsetY: 0, pixels };
   const sprite = patternedSprite(base, soldierScreenPoint(frame({}), 0, CELL_CENTRE), screen);
   const corpse: SceneAniTile = {
-    kind: 'corpse',
+    kind,
     gridNo: g(80, 80),
     level: 0,
     sprite,
@@ -482,7 +493,7 @@ function stripCorpsePixels(tiles: TileElement[], clip: Pick<StripCase, 'leftSkip
     frame: frame({ aniTiles: [corpse] }),
     sprite,
     at: screen,
-    z: corpseZ(worldY(79, 79, 860)),
+    z: CORPSE_STRIP_Z[kind],
   });
 }
 
@@ -803,6 +814,24 @@ describe('dynamic scene', () => {
     expect(order.indexOf(7004)).toBeGreaterThan(order.lastIndexOf(9001));
   });
 
+  it("draws a vehicle's wreck in the structure layer of its row, after the mercs of that row and before those of later rows, as its first animation step leaves its node dynamic for good (Tactical/Rotting_Corpses.cc:506-510, TileEngine/Tile_Animation.cc:267-275, TileEngine/RenderWorld.cc:487-499)", () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const wreck = aniTile('vehicleCorpse', g(82, 80), 0, 2);
+    scene.build(
+      frame({
+        soldiers: [soldier(1, g(80, 80), 0), soldier(2, g(81, 81), 0), soldier(3, g(83, 80), 0)],
+        aniTiles: [aniTile('corpse', g(84, 80), 0, 1), wreck],
+      }),
+    );
+    const order = decode(scene).map((p) => p.tile);
+    const wreckDrawn = order.indexOf(7002);
+    expect(order.lastIndexOf(7001)).toBeLessThan(order.indexOf(9001));
+    expect(wreckDrawn).toBeGreaterThan(order.lastIndexOf(9001));
+    expect(wreckDrawn).toBeGreaterThan(order.lastIndexOf(9002));
+    expect(order.lastIndexOf(7002)).toBeLessThan(order.indexOf(9003));
+  });
+
   it('leaves out corpses on roofs when the roofs are hidden', () => {
     const { staticWorld, prepared } = world({}, tiles);
     const scene = new DynamicScene(staticWorld, prepared);
@@ -878,6 +907,11 @@ describe('dynamic scene', () => {
 
   it('draws a corpse in z strips with the strip blitter of a soldier on a no-burn tile whatever its tile: where it is nearer or ties, its shadow too, writing its z on every pixel drawn, its z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:1119-1127, :1256, :2999-3027)', () => {
     const { ours, original } = stripCorpsePixels(tiles);
+    expect(ours).toEqual(original);
+  });
+
+  it("draws a vehicle's wreck in the dynamic pass with the same strip blitter, its LEVELNODE_ROTTINGCORPSE picking it in either pass, at the struct z of its structure's tile, which both struct layers share (RenderWorld.cc:729, :781-794, :1119-1127, :1256)", () => {
+    const { ours, original } = stripCorpsePixels(tiles, {}, 'vehicleCorpse');
     expect(ours).toEqual(original);
   });
 

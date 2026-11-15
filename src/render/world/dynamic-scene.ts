@@ -8,7 +8,8 @@
 // @src src/game/TileEngine/Tile_Animation.cc CreateAnimationTile (every animation tile has LEVELNODE_USEZ);
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
 // @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc; its sZ lifts the
-// @src picture, not the depth).
+// @src picture, not the depth; a vehicle's wreck loops unpaused, and Tile_Animation.cc UpdateAniTiles's first step makes
+// @src its node LEVELNODE_DYNAMIC for good, drawn in the dynamic structure layer of its row, 2026-11-15).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -169,7 +170,7 @@ export type AniTileKind =
   | 'trail'
   | 'vaporize';
 
-const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
+const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse']);
 const SHADOW_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['knifeShadow', 'crowShadow', 'helicopterShadow']);
 
 type AniLayer = 'paused' | 'shadows' | 'structs' | 'onRoof' | 'topmost';
