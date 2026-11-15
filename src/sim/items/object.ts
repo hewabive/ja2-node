@@ -2,12 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Item_Types.h OBJECTTYPE; Items.cc DefaultMagazine, FindReplacementMagazine, CreateGun,
 // @src CreateMagazine, CreateItem, CreateItems, CreateMoney, GetObjFrom, AttachObject, RenumberAttachments,
-// @src RemoveAttachment, EmptyWeaponMagazine
+// @src RemoveAttachment, EmptyWeaponMagazine; Item_Types.h OBJECTTYPE ubOwnerProfile, ubOwnerCivGroup (2026-11-15)
 
 import type { ObjectRecord } from '../../content/formats/object.ts';
 import { AmmoType, ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
-import { idiv } from '../../core/int.ts';
+import { idiv, u8 } from '../../core/int.ts';
 
 export const MAX_OBJECTS_PER_SLOT = 8;
 export const MAX_ATTACHMENTS = 4;
@@ -46,6 +46,9 @@ export interface ItemObject {
   imprintId: number;
   keyId: number;
 }
+
+export const ownerProfileOf = (o: ItemObject): number => u8(o.status[0] ?? 0);
+export const ownerCivGroupOf = (o: ItemObject): number => o.gunAmmoType;
 
 export function emptyObject(): ItemObject {
   return {

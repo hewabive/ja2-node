@@ -8,10 +8,14 @@
 // @src 2026-11-04: World_Items.cc RemoveItemFromWorld, TrashWorldItems and LoadWorldItemsFromMap's pits and map mines;
 // @src InternalAddItemToPool's STRUCTURE_HASITEMONTOP, switch detonators and pits; RemoveItemFromPool's
 // @src STRUCTURE_HASITEMONTOP; FlatRoofAboveGridNo's roof types (TileEngine/TileDat.h FIRSTROOF, LASTROOF).
+// @src 2026-11-15: World_Items.cc DeleteWorldItemsBelongingToTerroristsWhoAreNotThere,
+// @src DeleteWorldItemsBelongingToQueenIfThere; Items.cc FindObjectInSoldierProfile; Soldier_Profile.cc
+// @src IsProfileATerrorist.
 
 import type { MapItem } from '../../content/formats/map.ts';
 import { decodeObject } from '../../content/formats/object.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../content/items/items.ts';
+import { sameSector } from '../../content/strategic/sector-ids.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import {
   has,
@@ -22,12 +26,15 @@ import {
   structureHeight,
 } from '../../content/world/structures.ts';
 import { idiv, u32 } from '../../core/int.ts';
-import { cloneObject, type ItemObject, objectFromRecord } from '../items/object.ts';
+import { cloneObject, type ItemObject, objectFromRecord, ownerProfileOf } from '../items/object.ts';
 import { armBomb, Detonator, isPit, setDetonator } from './bombs/bomb-object.ts';
 import { MineFlag, setMineFlag } from './bombs/mine-flags.ts';
 import { addBombToWorld, removeBombFromWorld } from './bombs/world-bombs.ts';
+import { InvSlot, NO_SLOT, NUM_INV_SLOTS } from './inventory.ts';
+import { Profile, TERRORISTS } from './narrative/constants.ts';
 import { isWater } from './pathfinding.ts';
-import type { TacticalState } from './state.ts';
+import { type ProfileProgress, profileProgress } from './profiles.ts';
+import type { SectorRef, TacticalState } from './state.ts';
 
 export const Visibility = { HIDDEN_ITEM: -4, BURIED: -3, HIDDEN_IN_OBJECT: -2, INVISIBLE: -1, VISIBLE: 1 } as const;
 export const ANY_VISIBILITY_VALUE = -10;
@@ -324,5 +331,68 @@ export function loadWorldItemsFromMap(t: TacticalState, mapItems: readonly MapIt
     if (flags & WorldItemFlags.ARMED_BOMB) visible = Visibility.BURIED;
     if (o.item === NOTHING) continue;
     addItemToPool(t, record.gridNo, o, visible, record.level, flags, record.renderZHeightAboveLevel);
+  }
+  const here = t.sector;
+  if (!here) return;
+  deleteWorldItemsBelongingToTerroristsWhoAreNotThere(t, here);
+  if (sameSector(here, MEDUNA_BASEMENT)) deleteWorldItemsBelongingToQueenIfThere(t, here);
+}
+
+const MEDUNA_BASEMENT: SectorRef = { x: 3, y: 16, z: 1 };
+
+const QUEEN_ARMOUR_SLOTS: Readonly<Record<string, number>> = {
+  SPECTRA_HELMET_18: InvSlot.HELMET,
+  SPECTRA_VEST_18: InvSlot.VEST,
+  SPECTRA_LEGGINGS_18: InvSlot.LEGS,
+};
+
+function profileInSector(p: ProfileProgress | null, s: SectorRef): boolean {
+  return p !== null && p.sectorX === s.x && p.sectorY === s.y && p.sectorZ === s.z;
+}
+
+function ownershipMarkers(t: TacticalState, ownedBy: (profile: number) => boolean): WorldItem[] {
+  const ownership = itemIndex(t, 'OWNERSHIP');
+  return worldItemsByIndex(t).filter((wi) => wi.object.item === ownership && ownedBy(ownerProfileOf(wi.object)));
+}
+
+function itemsOnTileOf(t: TacticalState, marker: WorldItem): WorldItem[] {
+  return worldItemsByIndex(t).filter((wi) => wi.gridNo === marker.gridNo && wi.level === marker.level);
+}
+
+function deleteWorldItemsBelongingToTerroristsWhoAreNotThere(t: TacticalState, here: SectorRef): void {
+  for (const marker of ownershipMarkers(t, (owner) => TERRORISTS.has(owner))) {
+    if (!t.worldItems.includes(marker)) continue;
+    if (profileInSector(profileProgress(t, ownerProfileOf(marker.object)), here)) continue;
+    for (const wi of itemsOnTileOf(t, marker)) removeWorldItem(t, wi);
+  }
+}
+
+function findObjectInProfile(p: ProfileProgress, item: number): number {
+  for (let slot = 0; slot < NUM_INV_SLOTS; slot++) {
+    if ((p.inventoryCount[slot] ?? 0) !== 0 && p.inventory[slot] === item) return slot;
+  }
+  return NO_SLOT;
+}
+
+function upgradeQueensGear(t: TacticalState, queen: ProfileProgress, item: number): void {
+  const name = t.content.items.byIndex.get(item)?.name ?? '';
+  if (name === 'AUTO_ROCKET_RIFLE') {
+    const slot = findObjectInProfile(queen, itemIndex(t, 'ROCKET_RIFLE'));
+    if (slot !== NO_SLOT) queen.inventory[slot] = item;
+    return;
+  }
+  const slot = QUEEN_ARMOUR_SLOTS[name];
+  if (slot !== undefined) queen.inventory[slot] = item;
+}
+
+function deleteWorldItemsBelongingToQueenIfThere(t: TacticalState, here: SectorRef): void {
+  const queen = profileProgress(t, Profile.QUEEN);
+  if (!queen || !profileInSector(queen, here)) return;
+  for (const marker of ownershipMarkers(t, (owner) => owner === Profile.QUEEN)) {
+    if (!t.worldItems.includes(marker)) continue;
+    for (const wi of itemsOnTileOf(t, marker)) {
+      upgradeQueensGear(t, queen, wi.object.item);
+      removeWorldItem(t, wi);
+    }
   }
 }

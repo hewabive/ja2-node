@@ -68,6 +68,12 @@ created later takes; the content profile keeps its nickname. `shownNickname` (`c
 server text and agent view the name the original's overwritten `zNickname` shows, and the view's `nicknames` map
 renames the browser's faces (`29`).
 
+**An absent terrorist's gear.** B2, C6, F9, G1, G8, I14 and L11 lay terrorists' gear on the tiles of their ownership
+markers. A map's item load in a sector takes every item of such a tile away, the marker too, when the terrorist's
+profile is not in the sector, so the gear of the terrorists a new game did not pick never shows
+(`loadWorldItemsFromMap`, `tactical/world-items.ts`; the maps in `tactical/world-items-original.test.ts`). A map loaded
+outside a sector (the sandbox, the tools) keeps it.
+
 **Requestors are prompts.** Where the original opens a yes/no box, ja2-node opens an `npcRequest` prompt in the
 campaign's prompt slot, inside or outside a talk session, answered with `answer`; the amount shown is computed when it
 opens and the open request is saved with the campaign (deviation "NPC requestors"). Requestor quirks: `24`.

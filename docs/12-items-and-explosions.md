@@ -33,7 +33,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `ai/medical.ts` | Auto-bandage's medics and patients, its full check and the AI's medical decision (§8) |
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `swimming.ts` | Water damage on a medium or deep tile: soaked items, washed-off camouflage, rinsed creature smell (`07` §2) |
-| `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
+| `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load with the passes over the terrorists' and the Queen's ownership markers (`35`, `26`), pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
 | `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts`, `bombs/mine-detection.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items; the suspicious ground (§6) |
 | `booby-traps.ts`, `prompts.ts` | A pickup's booby trap and its disarm box; the tactical prompt and the globals its answers read (§6) |
 | `tile-tools.ts`, `xray.ts` | Wire cutters, the jar and the tin can on a tile, the toolkit and the gas can on a vehicle (`25`); the x-ray detector and the radar contacts it gives (§7) |

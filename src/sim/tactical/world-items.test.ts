@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim } from '../../../tests/support/combat.ts';
 import { countDraws, itemId, objectOf } from '../../../tests/support/explosives.ts';
+import { type MapItemFields, mapItemRecord } from '../../../tests/support/map-items.ts';
+import { testProfile } from '../../../tests/support/profiles.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
@@ -14,7 +16,10 @@ import { bombItemOf, Detonator, detonatorOf, ItemAction } from './bombs/bomb-obj
 import { hasMineFlag, MineFlag } from './bombs/mine-flags.ts';
 import { worldBombItems } from './bombs/world-bombs.ts';
 import type { TacticalContent } from './content.ts';
-import type { TacticalState } from './state.ts';
+import { InvSlot } from './inventory.ts';
+import { Profile } from './narrative/constants.ts';
+import type { ProfileProgress } from './profiles.ts';
+import type { SectorRef, TacticalState } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import {
   addItemToPool,
@@ -32,47 +37,8 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
-const WORLD_ITEM_BYTES = 52;
-const OBJECT_OFFSET = 8;
-const DETONATOR_BYTE = 5;
-const BOMB_ITEM_BYTE = 6;
-const ACTION_BYTE = 10;
-const OBJECT_FLAGS_BYTE = 28;
-const TRAP_BYTE = 30;
-
-interface RecordFields {
-  readonly flags?: number;
-  readonly visible?: number;
-  readonly trap?: number;
-  readonly detonator?: number;
-  readonly bombItem?: number;
-  readonly action?: number;
-  readonly objectFlags?: number;
-  readonly nonExistChance?: number;
-}
-
-function mapRecord(t: TacticalState, name: string, g: number, fields: RecordFields = {}): MapItem {
-  const raw = new Uint8Array(WORLD_ITEM_BYTES);
-  const v = new DataView(raw.buffer);
-  v.setUint16(OBJECT_OFFSET, itemId(t, name), true);
-  v.setUint8(OBJECT_OFFSET + 2, 1);
-  v.setInt8(OBJECT_OFFSET + 4, 100);
-  v.setUint8(OBJECT_OFFSET + DETONATOR_BYTE, fields.detonator ?? 0);
-  v.setUint16(OBJECT_OFFSET + BOMB_ITEM_BYTE, fields.bombItem ?? 0, true);
-  v.setUint8(OBJECT_OFFSET + ACTION_BYTE, fields.action ?? 0);
-  v.setUint8(OBJECT_OFFSET + OBJECT_FLAGS_BYTE, fields.objectFlags ?? 0);
-  v.setInt8(OBJECT_OFFSET + TRAP_BYTE, fields.trap ?? 0);
-  return {
-    gridNo: g,
-    level: 0,
-    item: itemId(t, name),
-    flags: fields.flags ?? 0,
-    renderZHeightAboveLevel: 0,
-    visible: fields.visible ?? Visibility.INVISIBLE,
-    nonExistChance: fields.nonExistChance ?? 0,
-    raw,
-  };
-}
+const mapRecord = (t: TacticalState, name: string, g: number, fields: MapItemFields = {}): MapItem =>
+  mapItemRecord(t.content.items, name, g, fields);
 
 function mapItem(t: TacticalState, name: string, x: number, nonExistChance: number): MapItem {
   return mapRecord(t, name, gridNo(x, 80), { nonExistChance });
@@ -150,6 +116,122 @@ describe('map items (LoadWorldItemsFromMap)', () => {
       [Visibility.BURIED, Detonator.PRESSURE],
       [Visibility.BURIED, Detonator.SWITCH],
     ]);
+  });
+});
+
+describe('the ownership markers of absent terrorists and the Queen (DeleteWorldItemsBelongingToTerroristsWhoAreNotThere, DeleteWorldItemsBelongingToQueenIfThere)', () => {
+  const B2: SectorRef = { x: 2, y: 2, z: 0 };
+  const PALACE: SectorRef = { x: 3, y: 16, z: 0 };
+  const PALACE_BASEMENT: SectorRef = { x: 3, y: 16, z: 1 };
+  const NOWHERE_YET: SectorRef = { x: 0, y: 0, z: 0 };
+  const CIVILIAN_OWNER = 200;
+  const ROCKET_RIFLE_SLOT = 7;
+  const ROCKET_CLIP_SLOT = 11;
+  const marker = gridNo(80, 80);
+  const elsewhere = gridNo(90, 80);
+
+  function placedIn(id: number, at: SectorRef, overrides: Partial<ProfileProgress> = {}): ProfileProgress {
+    return testProfile(id, { sectorX: at.x, sectorY: at.y, sectorZ: at.z, ...overrides });
+  }
+
+  function loadedIn(here: SectorRef | null, profiles: readonly ProfileProgress[], records: (t: TacticalState) => MapItem[]): TacticalState {
+    const t = newCombatSim(content).state;
+    t.sector = here;
+    for (const p of profiles) t.profiles.set(p.id, p);
+    loadWorldItemsFromMap(t, records(t));
+    return t;
+  }
+
+  const names = (t: TacticalState, g: number) => t.worldItems.filter((wi) => wi.gridNo === g).map((wi) => wi.object.item);
+
+  function queenWithRocketRifle(at: SectorRef, rifleCount = 1): ProfileProgress {
+    const q = placedIn(Profile.QUEEN, at);
+    q.inventory[ROCKET_RIFLE_SLOT] = itemId(newCombatSim(content).state, 'ROCKET_RIFLE');
+    q.inventoryCount[ROCKET_RIFLE_SLOT] = rifleCount;
+    q.inventoryStatus[ROCKET_RIFLE_SLOT] = 100;
+    q.inventory[ROCKET_CLIP_SLOT] = itemId(newCombatSim(content).state, 'CLIPROCKET_AP');
+    q.inventoryCount[ROCKET_CLIP_SLOT] = 2;
+    return q;
+  }
+
+  function queensCrate(t: TacticalState): MapItem[] {
+    return [
+      ...['SPECTRA_VEST_18', 'SPECTRA_LEGGINGS_18', 'SPECTRA_HELMET_18'].map((name) => mapRecord(t, name, marker)),
+      mapRecord(t, 'OWNERSHIP', marker, { owner: Profile.QUEEN, visible: Visibility.HIDDEN_ITEM }),
+      mapRecord(t, 'AUTO_ROCKET_RIFLE', marker),
+      mapRecord(t, 'CLIPROCKET_HEAT', marker),
+      mapRecord(t, 'CANTEEN', elsewhere),
+    ];
+  }
+
+  it("takes every item off the tile of a terrorist's marker, the marker too, when his profile is not in the loaded sector, and keeps the gear of one placed there", () => {
+    const beside = gridNo(85, 80);
+    const t = loadedIn(B2, [placedIn(Profile.SLAY, B2), placedIn(Profile.ANNIE, NOWHERE_YET)], (t) => [
+      mapRecord(t, 'OWNERSHIP', marker, { owner: Profile.SLAY }),
+      mapRecord(t, 'CROWBAR', marker),
+      mapRecord(t, 'OWNERSHIP', beside, { owner: Profile.ANNIE }),
+      mapRecord(t, 'WIRECUTTERS', beside),
+      mapRecord(t, 'CANTEEN', beside),
+      mapRecord(t, 'CANTEEN', elsewhere),
+    ]);
+    expect(names(t, marker)).toEqual([itemId(t, 'OWNERSHIP'), itemId(t, 'CROWBAR')]);
+    expect(names(t, beside)).toEqual([]);
+    expect(names(t, elsewhere)).toEqual([itemId(t, 'CANTEEN')]);
+  });
+
+  it('leaves the gear of a marker owned by a profile that is no terrorist, or by a civilian group, where its owner is not', () => {
+    const t = loadedIn(B2, [placedIn(Profile.KINGPIN, NOWHERE_YET)], (t) => [
+      mapRecord(t, 'OWNERSHIP', marker, { owner: Profile.KINGPIN }),
+      mapRecord(t, 'CROWBAR', marker),
+      mapRecord(t, 'OWNERSHIP', elsewhere, { owner: CIVILIAN_OWNER }),
+      mapRecord(t, 'CANTEEN', elsewhere),
+    ]);
+    expect([names(t, marker), names(t, elsewhere)]).toEqual([
+      [itemId(t, 'OWNERSHIP'), itemId(t, 'CROWBAR')],
+      [itemId(t, 'OWNERSHIP'), itemId(t, 'CANTEEN')],
+    ]);
+  });
+
+  it("keeps an absent terrorist's gear on a map loaded outside a sector, as the sandbox loads one", () => {
+    const t = loadedIn(null, [], (t) => [mapRecord(t, 'OWNERSHIP', marker, { owner: Profile.SLAY }), mapRecord(t, 'CROWBAR', marker)]);
+    expect(names(t, marker)).toEqual([itemId(t, 'OWNERSHIP'), itemId(t, 'CROWBAR')]);
+  });
+
+  it("hands the Queen who fled to P3_B1 the automatic rocket rifle for her rocket rifle and the armour on her marker's tile, and takes every item of the tile away", () => {
+    const queen = queenWithRocketRifle(PALACE_BASEMENT);
+    const t = loadedIn(PALACE_BASEMENT, [queen], queensCrate);
+    const id = (name: string) => itemId(t, name);
+    expect(names(t, marker)).toEqual([]);
+    expect(names(t, elsewhere)).toEqual([id('CANTEEN')]);
+    expect([InvSlot.HELMET, InvSlot.VEST, InvSlot.LEGS, ROCKET_RIFLE_SLOT, ROCKET_CLIP_SLOT].map((k) => queen.inventory[k])).toEqual([
+      id('SPECTRA_HELMET_18'),
+      id('SPECTRA_VEST_18'),
+      id('SPECTRA_LEGGINGS_18'),
+      id('AUTO_ROCKET_RIFLE'),
+      id('CLIPROCKET_AP'),
+    ]);
+    expect([
+      queen.inventoryCount[ROCKET_RIFLE_SLOT],
+      queen.inventoryStatus[ROCKET_RIFLE_SLOT],
+      queen.inventoryCount[InvSlot.HELMET],
+    ]).toEqual([1, 100, 0]);
+  });
+
+  it('swaps no rocket rifle a slot names without holding one: the slot of no objects is passed over, and the automatic rifle still goes', () => {
+    const queen = queenWithRocketRifle(PALACE_BASEMENT, 0);
+    const t = loadedIn(PALACE_BASEMENT, [queen], queensCrate);
+    expect(queen.inventory[ROCKET_RIFLE_SLOT]).toBe(itemId(t, 'ROCKET_RIFLE'));
+    expect(names(t, marker)).toEqual([]);
+  });
+
+  it('leaves her crate full and her gear as it was while she has not fled to the basement, and upgrades nothing in the palace above', () => {
+    const atHome = queenWithRocketRifle(PALACE);
+    const basement = loadedIn(PALACE_BASEMENT, [atHome], queensCrate);
+    expect(names(basement, marker)).toHaveLength(6);
+    const palace = loadedIn(PALACE, [atHome], queensCrate);
+    expect(names(palace, marker)).toHaveLength(6);
+    expect(atHome.inventory[ROCKET_RIFLE_SLOT]).toBe(itemId(palace, 'ROCKET_RIFLE'));
+    expect(atHome.inventory[InvSlot.HELMET]).toBe(0);
   });
 });
 

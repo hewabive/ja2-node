@@ -5,8 +5,7 @@
 // @src HandleBuldingDestruction; Tactical/Soldier_Profile.cc DoesNPCOwnBuilding; Item_Types.h OBJECTTYPE (ubOwnerProfile,
 // @src ubOwnerCivGroup).
 
-import { u8 } from '../../../core/int.ts';
-import type { ItemObject } from '../../items/object.ts';
+import { ownerCivGroupOf, ownerProfileOf } from '../../items/object.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
@@ -56,9 +55,6 @@ export function makeNpcGrumpyForMinorOffense(t: TacticalState, s: Soldier, offen
   s.ai.nextAction = AiAction.CHANGE_FACING;
   s.ai.nextActionData = atan8Of(s, offender);
 }
-
-const ownerProfileOf = (o: ItemObject) => u8(o.status[0] ?? 0);
-const ownerCivGroupOf = (o: ItemObject) => o.gunAmmoType;
 
 function soldierWithProfile(t: TacticalState, profile: number): Soldier | null {
   return t.soldiers.find((s) => s?.placed && s.profile === profile) ?? null;
