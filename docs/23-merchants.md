@@ -68,13 +68,14 @@ draws depend on it.
 operation with `Math.fround`, as Stracciatella's SSE build does, then truncates (`pricing.test.ts`, `repair.test.ts`).
 
 **The shop is a modal campaign state; a transaction is one command.** `ShopFlow` keeps the session in
-`state.shop.session`; while it is open the clock stands, saving is refused and other commands are refused. The
-original's two offer areas are not state: `trade` carries what to buy, sell, pay and repair, `planTrade` runs every
-check of `PerformTransaction` without side effects, so a refused trade changes nothing, and `executeTrade` applies it.
-Purchases, change and the parts a repairman splits off are delivered at once by the original's leaving rules, finished
-repairs when the shop opens (deviations "Shop as commands", "Shop deduction prompt", "Unsellable shop items", "Refused
-gift"). `openShop` is the talk and Buy/Sell in one command (deviation "Talking to dealers"); a give the dealer does not
-take opens the shop, a whole pocket on the offer table (deviation "Giving to a dealer").
+`state.shop.session`; while it is open the clock stands, its second restarted as the shop opens, as the original's
+screen restarts it (`15` §2), saving is refused and other commands are refused. The original's two offer areas are not
+state: `trade` carries what to buy, sell, pay and repair, `planTrade` runs every check of `PerformTransaction` without
+side effects, so a refused trade changes nothing, and `executeTrade` applies it. Purchases, change and the parts a
+repairman splits off are delivered at once by the original's leaving rules, finished repairs when the shop opens
+(deviations "Shop as commands", "Shop deduction prompt", "Unsellable shop items", "Refused gift"). `openShop` is the
+talk and Buy/Sell in one command (deviation "Talking to dealers"); a give the dealer does not take opens the shop, a
+whole pocket on the offer table (deviation "Giving to a dealer").
 
 **The pricing merc.** Prices use one merc's weapon sale modifier, the original's single-merc-panel merc: the one who
 opened the shop, then any regular merc of his squad the panel buttons reach (no E.P.C., no robot), even one out of

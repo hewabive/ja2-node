@@ -24,7 +24,8 @@ CampaignSim.step: one 5 ms tick                           campaign/campaign-sim.
     └ advanceClock → processPendingGameEvents             time/event-queue.ts
        └ EventDispatch.execute → the kind's handler       time/dispatch.ts
   hand-offs: meanwhile, endgame, helicopter, PBI,
-  contracts; then the compression and day events
+  contracts; then the compression and day events;
+  a decision left up restarts the clock's second
 compressTime, stopTime                                    campaign-sim.ts → time/world-clock.ts
 mapScreen, tacticalScreen, back to the loaded sector      campaign/screens.ts
 new game                                                  campaign/new-game.ts
@@ -69,11 +70,18 @@ compressing, 60-second slices, 5, 30 or 60 per real second (every 40, 6–7 or 3
 at 5 minutes per second and 4,800 at 60. A pause or another screen re-phases the second; turn-based combat does not, so
 the first pass after combat adds a second at once. A message box or the pickup menu on the tactical screen pauses the
 game too (`MessageBoxScreen.cc:271`, `Tactical/Interface_Items.cc:4289`) while `PauseTime` holds the JA2 clock
-(`Utils/Timer_Control.cc:63-66`), so the second restarts at the tick the box opens in, or at the order that opened it,
-and the part played before it is lost. `CampaignSim` hands `updateClock` the box up at the end of its step: a tactical
-prompt, a campaign box (the pre-battle, autoresolve and placement panels are no boxes), or an OK box the sim answers at
-once (a pending auto-bandage question's refusal, the mode's failure box, which opens after its unpause); after an order
-that opened one it restarts the second itself. A refusal that stands for an OK box changes nothing (deviation "Prompt
+(`Utils/Timer_Control.cc:63-66`), so the second restarts at the tick the box opens in and the part played before it is
+lost: `CampaignSim` hands `updateClock` the box up at the end of its tactical step, a tactical prompt, a campaign box
+(the pre-battle, autoresolve and placement panels are no boxes), or an OK box the sim answers at once (a pending
+auto-bandage question's refusal, the mode's failure box, which opens after its unpause). More generally, every decision
+the simulation stands for is one the original waits on paused or on a screen of its own, whose every frame restarts the
+second: a box anywhere, the shop and the laptop screens (`Tactical/ShopKeeper_Interface.cc:423`,
+`Laptop/Laptop.cc:462`), a talk panel with nothing to say, under the conversation's pause
+(`Tactical/Dialogue_Control.cc:289`), the pre-battle panel, which stops compression behind the arrival's pause
+(`Strategic/Strategic_Movement.cc:682`, `Strategic/PreBattle_Interface.cc:421`), placement under `EnterSector`'s pause
+(`Strategic/StrategicMap.cc:839`), autoresolve's screen. As the decision takes no ticks, a step or an order that leaves
+one up restarts the second at the `realMs` that stands until it is resolved, so the next second, or the next compressed
+slice, comes as late after it as in the original. A refusal that stands for an OK box changes nothing (deviation "Prompt
 time").
 
 **What stops the clock.** Turn-based combat (world time stands, ticks run), a pause, X0 or stopped compression, and the
@@ -202,6 +210,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | An event that stops compression still lets its 60-second slice run to the end | `time/world-clock.test.ts` |
 | The clock stands in turn-based combat and adds a second at once after it | `time/world-clock.test.ts` |
 | A box or the pickup menu on the tactical screen restarts the world clock's second: the part played before it is lost, and a second due in the tick it opens in never comes | `campaign/tactical-box-clock.test.ts`, `time/world-clock.test.ts` "treats a box up at the tick as a pause …" |
+| The shop, a talk panel with nothing to say, the laptop and a box or the pre-battle panel on the map restart the second, or a compressed real second, too: the next one comes a full second, or the next slice its share of one, after them | `campaign/screen-clock.test.ts` |
 | One pause lock for every reason: any unlock lifts it | `time/world-clock.test.ts` |
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
 | Auto-bandage's warp is 5 s a frame up to 125 s however long the mode ran, and the events inside it wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |

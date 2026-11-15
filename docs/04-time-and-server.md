@@ -125,10 +125,10 @@ the pause or lines wait in the dialogue queue it steps until they ended and star
    real time (`AdvanceRun`, the `inTactical` of the world clock);
 6. the budget (at least 2,000,000 ticks, at most 7 world days).
 
-In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks, restarted by every box: `15` §2)
-and stand while the interface lock pauses the game (`15`); an advance with `mode` or `compressionStopped` but no time
-target is refused there, and so is any of these fields while auto-bandage runs, as its pause lasts until the player ends
-the mode (`autoBandaging`, `12` §8).
+In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks, restarted by every decision the
+simulation stands for, a box, the shop or a talk panel: `15` §2) and stand while the interface lock pauses the game
+(`15`); an advance with `mode` or `compressionStopped` but no time target is refused there, and so is any of these
+fields while auto-bandage runs, as its pause lasts until the player ends the mode (`autoBandaging`, `12` §8).
 
 ### 4.3. Drivers
 
@@ -143,7 +143,8 @@ the mode (`autoBandaging`, `12` §8).
   {until: {ticks, events}}`, so a replay stops at the same tick.
 - **Decisions.** On a decision (an interrupt in our favour with nobody acting, a prompt, an open conversation or shop)
   the real-time driver stays in real time, but its batches run no ticks, log nothing and drop the elapsed time; time
-  runs on by itself once the decision is resolved.
+  runs on by itself once the decision is resolved. In a campaign every decision but the interrupt restarts the world
+  clock's second as it opens, as the original's pause or screen behind it does (`15` §2).
 - **Holds.** A viewer holds time while its page shows something that pauses the game (`28` §3): `hold {reason, held}`
   per connection (`Session.holdTime`). While any viewer holds, real-time batches run no ticks, log nothing and drop the
   elapsed time, as on a decision, so one page's box is not undone by another page; a connection's holds go with it.

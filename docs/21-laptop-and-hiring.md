@@ -59,14 +59,14 @@ The profile fields the laptop changes live in `StrategicState.profiles` (`Profil
 
 ## 2. Design
 
-**The laptop is a modal flow.** `flow = 'laptop'` stands for the laptop screen: the clock is stopped, the loaded sector
-frozen, `advance` and every non-laptop command refused; nothing in the laptop takes game time. Each decision is one
-command that carries what the pages collect (the whole Bobby Ray cart, every I.M.P. choice), so pages, confirmation
-boxes and drafts stay in the client (deviation "Laptop as commands"). Queries (`aimQuote`, `hireCheck`,
-`bobbyRayQuote`, `impPreview`, …) work in any flow and never act. `openLaptop` works only from the strategic flow, stops
-compression, and is refused while a battle prompt is open and on the checks every exit from the map shares
-(`AllowedToExitFromMapscreenTo`, `campaign/map-screen-exits.ts`; `29` §4.4), so it never opens under a pause lock and its
-exit has no lock to lift (`Strategic/MapScreen.cc:3249`).
+**The laptop is a modal flow.** `flow = 'laptop'` stands for the laptop screen: the clock is stopped, its second
+restarted at the opening as the screen restarts it (`15` §2), the loaded sector frozen, `advance` and every non-laptop
+command refused; nothing in the laptop takes game time. Each decision is one command that carries what the pages collect
+(the whole Bobby Ray cart, every I.M.P. choice), so pages, confirmation boxes and drafts stay in the client (deviation
+"Laptop as commands"). Queries (`aimQuote`, `hireCheck`, `bobbyRayQuote`, `impPreview`, …) work in any flow and never
+act. `openLaptop` works only from the strategic flow, stops compression, and is refused while a battle prompt is open
+and on the checks every exit from the map shares (`AllowedToExitFromMapscreenTo`, `campaign/map-screen-exits.ts`; `29`
+§4.4), so it never opens under a pause lock and its exit has no lock to lift (`Strategic/MapScreen.cc:3249`).
 
 **What the original runs on UI timers runs at a command.** Speck's opening and its draws run at a laptop session's first
 `visitSite merc`, or at its first M.E.R.C. command without a visit (deviation "Speck's opening"); the florist's

@@ -20,7 +20,10 @@
 // @src (an NPC's line turns the sector locator on too, never in a meanwhile, 2026-11-09); MessageBoxScreen.cc
 // @src DoMessageBox's PauseTime for a box the frame opens before its overhead, which holds the frame's counters
 // @src (2026-11-14); DoMessageBox's PauseGame, which GameLoop.cc UpdateClock meets after the frame or the input that
-// @src opened a box on the tactical screen and at every frame of the box screen (2026-11-14).
+// @src opened a box on the tactical screen and at every frame of the box screen (2026-11-14); the screens and pauses a
+// @src decision waits behind, whose every frame restarts UpdateClock's second: Tactical/ShopKeeper_Interface.cc
+// @src ShopKeeperScreenHandle, Laptop/Laptop.cc EnterLaptop, Tactical/Dialogue_Control.cc HandleDialogue's conversation
+// @src pause, Strategic/PreBattle_Interface.cc InitPreBattleInterface, a box on the map screen (2026-11-15).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -687,9 +690,7 @@ export class CampaignSim {
   }
 
   step(): void {
-    if (this.ended()) return;
-    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.hasPendingDecision()) return;
-    if (this.#tacticalPromptOpen()) return;
+    if (this.ended() || this.#standsForADecision()) return;
     const s = this.state;
     s.session.tick++;
     const autoBandaging = this.#autoBandaging();
@@ -728,6 +729,7 @@ export class CampaignSim {
     this.#handleTacticalDoHeliRun();
     this.#collectEvents();
     this.#syncClockEvents();
+    this.#restartClockSecondBehindADecision();
   }
 
   #handleTacticalDoHeliRun(): void {
@@ -904,7 +906,7 @@ export class CampaignSim {
   }
 
   dispatch(cmd: CampaignCommand): CommandResult {
-    const boxWasUp = this.#messageBoxUp();
+    const stoodForADecision = this.#standsForADecision();
     const result = this.#dispatch(cmd);
     this.meanwhile.settle();
     flagNothingToDoAfterItemMove(this.state, cmd, result);
@@ -918,7 +920,7 @@ export class CampaignSim {
     this.#collectEvents();
     this.#syncClockEvents();
     this.#drainLoadedSectorEvents();
-    this.#restartClockSecondBehindANewBox(boxWasUp);
+    if (!stoodForADecision) this.#restartClockSecondBehindADecision();
     return result;
   }
 
@@ -964,8 +966,18 @@ export class CampaignSim {
     return this.state.flow === 'tactical' && (this.#tacticalPromptOpen() || promptIsMessageBox(this.state.battle.prompt));
   }
 
-  #restartClockSecondBehindANewBox(boxWasUp: boolean): void {
-    if (!boxWasUp && this.#messageBoxUp()) restartClockSecond(this.state.clock, this.state.realMs);
+  #standsForADecision(): boolean {
+    return (
+      this.battle?.hasPendingDecision() === true ||
+      this.shop?.isOpen() === true ||
+      this.laptop?.isOpen() === true ||
+      this.talk?.hasPendingDecision() === true ||
+      this.#tacticalPromptOpen()
+    );
+  }
+
+  #restartClockSecondBehindADecision(): void {
+    if (this.#standsForADecision()) restartClockSecond(this.state.clock, this.state.realMs);
   }
 
   #stopTimeQuoteRefusal(cmd: CampaignCommand): CommandResult | null {
