@@ -808,12 +808,13 @@ load of the sector adds its items again under new ids. `moveItem` with `from: 'g
 move within the stash as the pool cursor does (an empty slot takes the item with its gridno and the merc's level, the
 same item stacks or pours its money, another one swaps). `data.stashIndex` names the entry the objects went to and
 `data.leftover` the one a placement's leftover went to: back into its entry when that moves nothing else, else an entry
-of its own (deviation "Map inventory cursor"). `discardItem` with `slot: 'ground'` and `item` is the trash can for a
-pool item. `{"type":"arrangeStash","sector":"A9","order":[<index>...]}` is the pool's close: the items in `order` first,
-the rest in pool order, the items the map does not show after them, as `SaveSeenAndUnseenItems` writes them back
-(`Map_Screen_Interface_Map_Inventory.cc:365`); in the loaded sector the items are added again, so every index changes.
-The page sends it with the pool's slots as the pool closes (deviation "Sector inventory layout"); refusals
-`badStashOrder` (not distinct integers), `mapScreenOnly`. A placement onto an item out of reach is refused
+of its own; for an item from a merc's pocket or key ring the leftover goes to him and `data.leftover` names its pocket,
+as for `moveItem` between pockets (deviation "Map inventory cursor"). `discardItem` with `slot: 'ground'` and `item` is
+the trash can for a pool item. `{"type":"arrangeStash","sector":"A9","order":[<index>...]}` is the pool's close: the
+items in `order` first, the rest in pool order, the items the map does not show after them, as `SaveSeenAndUnseenItems`
+writes them back (`Map_Screen_Interface_Map_Inventory.cc:365`); in the loaded sector the items are added again, so every
+index changes. The page sends it with the pool's slots as the pool closes (deviation "Sector inventory layout");
+refusals `badStashOrder` (not distinct integers), `mapScreenOnly`. A placement onto an item out of reach is refused
 `unreachable`, as the pool's click checks that item first.
 
 Auto-bandage (`src/sim/tactical/auto-bandage.ts`, `12` §8; deviation "Auto-bandage") is the `a` key and the end-of-battle

@@ -506,6 +506,31 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.pool.cursor).toBeNull();
   });
 
+  it("keeps the cursor on what a merc's item swaps out of a pool slot, where the reply parked it, as the original's cursor holds it (MapInvenPoolSlotsPrimary's SetMapCursorItem)", async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const ammo = item((i) => i.class === 'AMMO');
+    const hollis = (inventory: InventoryItemView[]) => [merc(MERC, 'Hollis', 'D13', inventory)];
+    const h = await harness(hollis([view(HAND, gun.name)]));
+    h.client.stash = [stashEntry(0, ammo.name)];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    h.client.reply = () => {
+      h.client.view = playerView(hollis([view(HAND, ammo.name)]));
+      h.client.stash = [stashEntry(0, gun.name)];
+      const leftover = { item: ammo.name, soldier: MERC, slot: HAND, count: 'all' };
+      return { ok: true, data: { item: gun.name, count: 1, sector: 'D13', stashIndex: 0, leftover } };
+    };
+    await h.click('mercSlot5');
+    await h.click('poolSlot0');
+    expect(h.client.commands.at(-1)).toMatchObject({ type: 'moveItem', from: HAND, to: 'ground', stashIndex: 0 });
+    expect(h.inventory.merc.panel.cursor).toEqual({
+      source: { kind: 'slot', soldier: MERC, slot: HAND, count: 'all', index: 0 },
+      item: ammo.name,
+    });
+    expect(h.inventory.pool.layout.slice(0, 2)).toEqual([0, null]);
+  });
+
   it('keeps an item on its cursor until the refreshed pool answers, so it never shows in both places or in neither', async () => {
     const gun = item((i) => i.class === 'GUN');
     const hollis = (inventory: InventoryItemView[]) => [merc(MERC, 'Hollis', 'D13', inventory)];

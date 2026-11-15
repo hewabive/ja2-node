@@ -249,7 +249,7 @@ function spotOf(env: PanelEnv, owner: Soldier, before: readonly SlotFill[], item
   return now.count - was.count === 1 ? { ...spot, count: 1, index: was.count } : null;
 }
 
-function parkLeftover(env: PanelEnv, owner: Soldier, sourceSlot: number, cursor: ItemObject): LeftoverSpot | null {
+export function parkLeftover(env: PanelEnv, owner: Soldier, sourceSlot: number, cursor: ItemObject): LeftoverSpot | null {
   if (cursor.count === 0) return null;
   const item = cursor.item;
   const before = slotFills(owner);

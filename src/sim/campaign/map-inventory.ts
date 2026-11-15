@@ -8,7 +8,9 @@
 // @src items applied on the map screen), TrashCanBtnCallback and TrashItemMessageBoxCallBack (the trash can destroys the
 // @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar (item-passing.ts); Tactical/Interface_Items.cc
 // @src RemoveMoney (on the map screen a money split goes into the map cursor, SetMapCursorItem, to be placed into a
-// @src pocket); Tactical/Items.cc ReloadGun (the line and the sound for a merc off the loaded map, 2026-11-14).
+// @src pocket); Tactical/Items.cc ReloadGun (the line and the sound for a merc off the loaded map, 2026-11-14);
+// @src MapInvenPoolSlotsPrimary's SetMapCursorItem (what a merc's item swaps out of a pool slot or leaves over stays in
+// @src the cursor: parked with him as moveItem parks its leftover, 2026-11-14).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -21,7 +23,7 @@ import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { collectKey, collectKeyFound, type KeyFinding, sectorByte } from '../tactical/doors/keys.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
-import { autoPlaceObject, type InventoryContext, InvSlot, itemIn, placeObject } from '../tactical/inventory.ts';
+import { type InventoryContext, InvSlot, itemIn, placeObject } from '../tactical/inventory.ts';
 import {
   attachmentPosition,
   type InventoryCommand,
@@ -39,10 +41,12 @@ import {
   attachItem,
   type Count,
   detachItem,
+  type LeftoverSpot,
   moveItem,
   nailsRefuses,
   type PanelEnv,
   type PanelEvent,
+  parkLeftover,
   reloadWeapon,
   splitMoney,
   swapHands,
@@ -149,6 +153,10 @@ function stashIndexOf(at: number | undefined): { stashIndex?: number } {
 
 function leftoverOf(at: number | undefined): { leftover?: number } {
   return at === undefined ? {} : { leftover: at };
+}
+
+function spotOf(spot: LeftoverSpot | null): { leftover?: LeftoverSpot } {
+  return spot ? { leftover: spot } : {};
 }
 
 function stashOrder(value: unknown): number[] | null {
@@ -429,7 +437,7 @@ export class MapInventory {
     const moved = keys.count;
     const at = onto ? this.#placeOnto(stash, onto, keys) : stash.add(keys, s.gridNo, s.level)[0];
     if (keys.item === item) returnKeysToRing(s, source, keys);
-    this.#returnToMerc(merc, NO_SLOT, keys);
+    const leftover = parkLeftover(this.#env(merc), s, NO_SLOT, keys);
     const name = this.#name(item);
     this.#events.push({
       type: 'keyMoved',
@@ -440,7 +448,7 @@ export class MapInventory {
       to: GROUND,
       tick: this.#campaign.tick,
     });
-    return { ok: true, data: { item: name, count: moved, sector: sectorShortString(sector), ...stashIndexOf(at) } };
+    return { ok: true, data: { item: name, count: moved, sector: sectorShortString(sector), ...stashIndexOf(at), ...spotOf(leftover) } };
   }
 
   #discard(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
@@ -526,9 +534,10 @@ export class MapInventory {
     const moved = cursor.count;
     this.#env(merc).equipmentChanged(s, from, item, NOTHING);
     const at = onto ? this.#placeOnto(stash, onto, cursor) : stash.add(cursor, s.gridNo, s.level)[0];
-    this.#returnToMerc(merc, from, cursor);
+    const leftover = parkLeftover(this.#env(merc), s, from, cursor);
     this.#emitMove(merc, item, moved, from, GROUND);
-    return { ok: true, data: { item: this.#name(item), count: moved, sector: sectorShortString(sector), ...stashIndexOf(at) } };
+    const placed = { item: this.#name(item), count: moved, sector: sectorShortString(sector), ...stashIndexOf(at) };
+    return { ok: true, data: { ...placed, ...spotOf(leftover) } };
   }
 
   #fromStash(merc: RosterMerc, cmd: InventoryCommand, count: Count): CommandResult {
@@ -585,14 +594,6 @@ export class MapInventory {
     if (slot && takesWithoutSwap(this.#campaign, slot.object, cursor)) stash.placeInto(slot.index, cursor);
     if (cursor.count === 0) return source.index;
     return stash.add(cursor, source.gridNo, source.level)[0];
-  }
-
-  #returnToMerc(merc: RosterMerc, from: number, cursor: ItemObject): void {
-    if (cursor.count === 0) return;
-    const ctx = this.#context(merc.soldier);
-    if (from !== NO_SLOT) placeObject(ctx, merc.soldier, from, cursor);
-    if (cursor.count > 0) autoPlaceObject(ctx, merc.soldier, cursor);
-    if (cursor.count > 0) stashOf(this.#campaign, merc.sector).add(cursor, merc.soldier.gridNo, merc.soldier.level);
   }
 
   #emitMove(merc: RosterMerc, item: number, count: number, from: number | 'ground', to: number | 'ground'): void {

@@ -20,7 +20,7 @@ import { FontName } from '../../text/fonts.ts';
 import { MessageBoxFlag } from '../../widgets/message-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { COMPATIBLE_DELAY_MS, helpTextForItem, NUM_INV_SLOTS } from '../tactical/inventory.ts';
-import { slotItem } from '../tactical/item-cursor.ts';
+import { cursorOnLeftover, slotItem } from '../tactical/item-cursor.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
 import { Assignment } from './character-list.ts';
 import { type MapEnvironment, MapLayout } from './environment.ts';
@@ -108,7 +108,7 @@ export class MapInventory {
       location: () => host.location(),
       infoMerc: () => host.infoMerc(),
       mercCursor: () => this.merc.panel.cursor,
-      mercPlaced: () => this.merc.panel.setCursor(null),
+      mercPlaced: (data) => this.merc.panel.setCursor(cursorOnLeftover(data)),
       box: (text) => host.box(text, MessageBoxFlag.OK),
       confirm: (text) => host.box(text, MessageBoxFlag.YESNO),
       shift: () => host.shift(),

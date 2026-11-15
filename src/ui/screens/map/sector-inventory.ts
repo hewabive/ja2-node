@@ -15,7 +15,8 @@
 // @src the pool built and sorted as it opens and kept while it is open: a take empties its slot, a placement lands in the
 // @src clicked slot, a pool item moves between slots (MapInvenPoolSlotsPrimary with an item in the cursor), the trash
 // @src can takes it (MapScreen.cc TrashCanBtnCallback), and closing writes the pool back in its order
-// @src (SaveSeenAndUnseenItems, 2026-11-14).
+// @src (SaveSeenAndUnseenItems, 2026-11-14); what a merc's item swaps out of a pool slot stays in the cursor
+// @src (MapInvenPoolSlotsPrimary's SetMapCursorItem, 2026-11-14).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -86,7 +87,7 @@ export interface SectorInventoryHost {
   readonly location: () => PoolLocation;
   readonly infoMerc: () => StrategicMercView | null;
   readonly mercCursor: () => ItemCursor | null;
-  readonly mercPlaced: () => void;
+  readonly mercPlaced: (data: unknown) => void;
   readonly box: (text: string) => Promise<number>;
   readonly confirm: (text: string) => Promise<number>;
   readonly shift: () => boolean;
@@ -305,7 +306,7 @@ export class SectorInventory {
       return;
     }
     const command = mercCursor ? toStashCommand(mercCursor, entry, this.#location) : null;
-    if (command) await this.#send(command, target, NO_SLOT, () => this.#host.mercPlaced());
+    if (command) await this.#send(command, target, NO_SLOT, (data) => this.#host.mercPlaced(data));
   }
 
   slotSecondary(): boolean {

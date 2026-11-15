@@ -5,7 +5,7 @@ import { loadMerchantTestContent, type MerchantTestContent } from '../../../test
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import type { StashEntryView } from '../../protocol/map-inventory.ts';
-import { createItem, createItems, createMoney, type ItemObject } from '../items/object.ts';
+import { createItem, createItems, createMoney, emptyObject, type ItemObject } from '../items/object.ts';
 import { SectorFlag } from '../strategic/forces/constants.ts';
 import { getSectorFlagStatus, resetSectorFlag } from '../strategic/map/sectors.ts';
 import { InvSlot } from '../tactical/inventory.ts';
@@ -296,6 +296,49 @@ describe('the map screen inventory', () => {
       ['ground', 'ground'],
       ['ground', 'ground'],
     ]);
+  });
+
+  it("parks what a merc's item swaps out of a pool slot with him and names it as the leftover, which the original keeps in the cursor: back in the pocket the item left when that moves nothing else, else in a free one (MapInvenPoolSlotsPrimary, PlaceObjectInInventoryStash)", () => {
+    const c = onTheMap();
+    stashAtTheMerc(c, [one('M870'), one('GLOCK_17')]);
+    const merc = mercIds(c)[0] as number;
+    const soldier = () => c.battle?.roster.get(merc)?.soldier;
+    const held = soldier();
+    if (!held) throw new Error('no merc');
+    held.inv.forEach((_, slot) => {
+      held.inv[slot] = emptyObject();
+    });
+    held.inv[InvSlot.HAND] = one('CROWBAR');
+    held.inv[InvSlot.BIGPOCK1] = some('CLIP9_15', 3);
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'hand', to: 'ground', stashIndex: 0 })).toEqual({
+      ok: true,
+      data: {
+        item: 'CROWBAR',
+        count: 1,
+        sector: 'A9',
+        stashIndex: 0,
+        leftover: { item: 'M870', soldier: merc, slot: InvSlot.HAND, count: 'all' },
+      },
+    });
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'bigPocket1', to: 'ground', stashIndex: 1, count: 1 })).toMatchObject({
+      ok: true,
+      data: { item: 'CLIP9_15', stashIndex: 1, leftover: { item: 'GLOCK_17', soldier: merc, count: 'all' } },
+    });
+    const after = soldier();
+    expect(after?.inv[InvSlot.BIGPOCK1]).toMatchObject({ item: itemIndex('CLIP9_15'), count: 2 });
+    const ring = after?.keyRing;
+    if (!ring) throw new Error('no key ring');
+    ring[0] = { keyId: 1, count: 1 };
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: { ring: 0 }, to: 'ground', stashIndex: 0 })).toMatchObject({
+      ok: true,
+      data: { item: 'KEY_1', stashIndex: 0, leftover: { item: 'CROWBAR', soldier: merc, count: 'all' } },
+    });
+    expect(listed(stash(c)).map(([index, item]) => [index, item])).toEqual(
+      expect.arrayContaining([
+        [0, 'KEY_1'],
+        [1, 'CLIP9_15'],
+      ]),
+    );
   });
 
   it('throws a pool item away from the trash can, one object or the stack (TrashCanBtnCallback)', () => {
