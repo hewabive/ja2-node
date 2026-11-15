@@ -5,8 +5,10 @@ import { testProfile } from '../../../tests/support/profiles.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { tacticalPromptView } from '../../server/tactical-prompt-view.ts';
+import { TICK_MS } from '../clock.ts';
 import type { SimEvent } from '../events.ts';
 import { type ItemObject, ObjectFlags } from '../items/object.ts';
+import { handleSoldierAI } from './ai/control.ts';
 import { changeSoldierStance } from './animation.ts';
 import { Detonator, ItemAction, setActionValue, setBombItem, setBombOwner, setDetonator, setFrequency } from './bombs/bomb-object.ts';
 import { hasMineFlag, MineFlag, setMineFlag } from './bombs/mine-flags.ts';
@@ -417,6 +419,17 @@ describe('an open tactical prompt', () => {
     const before = counters(other);
     passOpeningAPromptAt(t, merc);
     expect(counters(other)).toEqual(before);
+  });
+
+  it('holds the real-time AI of every soldier after the opener in that pass, but not one handled every frame (TIMECOUNTERDONE of AICounter)', () => {
+    const { sim, t, merc } = scene();
+    const civilianAt = (k: number) => spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV] + k, Team.CIV, MERC_AT + TILES_AWAY + k, Direction.SOUTH);
+    const due = civilianAt(0);
+    const everyFrame = civilianAt(1);
+    due.ai.counter = t.clockMs;
+    everyFrame.ai.handleEveryFrame = true;
+    passOpeningAPromptAt(t, merc, (state, s) => handleSoldierAI(state, s, sim.ai));
+    expect([t.prompt?.kind, due.ai.counter, everyFrame.ai.handleEveryFrame]).toEqual(['disarmTrap', t.clockMs - TICK_MS, false]);
   });
 
   it('refuses an answer to another prompt or with another choice', () => {

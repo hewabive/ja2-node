@@ -318,8 +318,9 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   (`TacticalState.prompt`, decision prompts of `01` §3.8), so the sandbox has them too; the view shows them in `prompt`
   beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown, and as its
   `PauseTime` (`MessageBoxScreen.cc:274`, the pickup menu's `Tactical/Interface_Items.cc:4291`) an open prompt stops
-  every soldier's frame, damage and fade counters at once (`promptPausesTimers`): the soldiers after its opener in the
-  overhead pass wait, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only one
+  every soldier's frame, damage and fade counters and the real-time AI's own counter at once (`promptPausesTimers`;
+  `TacticalAI/AIMain.cc:163`): the soldiers after its opener in the overhead pass wait, a soldier the AI handles every
+  frame excepted, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only one
   soldier's own pickup ever asks twice. A box up at the start of the pass holds the whole pass (`executeOverhead`,
   `Tactical/Overhead.cc:481`): the frame of the auto-bandage question (§8), and the frame of a campaign box opened
   before the sector's step (the `someoneElseInSector` box, `campaign-sim.ts`), whose throws, real-time turn and

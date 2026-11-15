@@ -16,7 +16,8 @@ overhead pass, every 5 ms, none while a box is up            overhead.ts, tactic
   passStart: end of a timed AI pause; an AI tick              ai/pause.ts, ai/control.ts
      when more than 50 ms passed since the last
   each merc slot: the soldier's frame, then aiForSlot         ai/control.ts
-     handleSoldierAI: gates, the soldier's own 100 ms timer
+     handleSoldierAI: gates, the soldier's own 100 ms timer,
+        which a prompt opened earlier in the pass stops
         new situation → cancelAIAction, decideAlertStatus     ai/decide.ts, perception/knowledge.ts
         action NONE → rtHandleAI: the queued next action,
            an NPC script's destination, or a decision

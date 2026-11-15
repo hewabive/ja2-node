@@ -10,7 +10,8 @@
 // @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI;
 // @src auto-bandage (2026-11-06): HandleSoldierAI letting our mercs through, RTPlayerDecideAction, ExecuteAction
 // @src AI_ACTION_GIVE_AID, ExecuteOverhead's AI for every slot; ExecuteAction's StartCivQuote before an attack, its
-// @src Random(50) on the talk session's cosmetic stream (deviation "Cosmetic draws in attacks", 2026-11-14).
+// @src Random(50) on the talk session's cosmetic stream (deviation "Cosmetic draws in attacks", 2026-11-14); the
+// @src TIMECOUNTERDONE of a real-time AICounter, never done while PauseTime holds (2026-11-14).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach, isTraversalQuoteAction, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
@@ -43,6 +44,7 @@ import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { endMuzzleFlash, radioSightings, removeManAsTarget } from '../perception/sight.ts';
 import { AP, deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
+import { promptPausesTimers } from '../prompts.ts';
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
@@ -690,7 +692,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
       return;
     }
   } else if (!ai.handleEveryFrame) {
-    if (t.clockMs < ai.counter) return;
+    if (t.clockMs < ai.counter || promptPausesTimers(t)) return;
     ai.counter = t.clockMs + AI_DELAY;
   }
   if (s.quoteActionId !== QuoteActionId.TURNTOWARDSPLAYER) ai.handleEveryFrame = false;
