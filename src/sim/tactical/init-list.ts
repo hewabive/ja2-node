@@ -5,11 +5,14 @@
 // @src StripEnemyDetailedPlacementsIfSectorWasPlayerLiberated, FindSoldierInitNodeBySoldier;
 // @src Soldier_Create.cc RandomizeRelativeLevel, TacticalCreateEnemySoldier, CreateSoldierCommon (standing frame draw), the calls
 // @src of OkayToUpgradeEliteToSpecialProfiledEnemy and the gfProfiledEnemyAdded reset;
-// @src Strategic/Queen_Command.cc AddEnemiesToBattle.
+// @src Strategic/Queen_Command.cc AddEnemiesToBattle; Tactical/Map_Information.cc AutoCalculateItemNoOverwriteStatus (2026-11-15).
 
 import type { BasicPlacement, MapDef } from '../../content/formats/map.ts';
+import type { ObjectRecord } from '../../content/formats/object.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
+import { NOTHING } from '../../content/items/items.ts';
 import { clamp, i8, idiv, u8 } from '../../core/int.ts';
+import { ObjectFlags } from '../items/object.ts';
 import { addSoldierInitListEnemyDefenceSoldiers as fillDefencePlacements, sortSoldierInitList } from '../strategic/ai/defence-placement.ts';
 import type { RandomStream } from './combat/context.ts';
 import { createFromPlacementParts, type PlacementAdjust, type SoldierCreate } from './creation.ts';
@@ -117,6 +120,15 @@ function initBasic(b: BasicPlacement): InitBasic {
   };
 }
 
+function itemNoOverwriteStatus(o: ObjectRecord): ObjectRecord {
+  const locked = o.item !== NOTHING || !(o.flags & ObjectFlags.UNDROPPABLE);
+  return locked ? { ...o, flags: o.flags | ObjectFlags.NO_OVERWRITE } : o;
+}
+
+function autoCalculateItemNoOverwriteStatus(detail: DetailedPlacement): DetailedPlacement {
+  return { ...detail, inventory: detail.inventory.map(itemNoOverwriteStatus) };
+}
+
 export function buildSoldierInitList(map: Pick<MapDef, 'placements'>): SoldierInitNode[] {
   return map.placements.map((p, index) => ({
     index,
@@ -127,7 +139,7 @@ export function buildSoldierInitList(map: Pick<MapDef, 'placements'>): SoldierIn
     hasSoldier: false,
     soldierId: NO_SOLDIER,
     basic: initBasic(p.basic),
-    detail: p.detailedRaw ? parseDetailedPlacement(p.detailedRaw) : null,
+    detail: p.detailedRaw ? autoCalculateItemNoOverwriteStatus(parseDetailedPlacement(p.detailedRaw)) : null,
   }));
 }
 

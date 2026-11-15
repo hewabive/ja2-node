@@ -7,6 +7,8 @@ import { MapFlags, parseMap, writeMap } from './map.ts';
 import { parseDetailedPlacement } from './placement.ts';
 import { parseStubMapSource, stubMapToMapDef } from './stub-map.ts';
 
+const UNDROPPABLE = 0x01;
+
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 
 const SOURCE = `ja2-node.map/1
@@ -85,5 +87,13 @@ describe('stub map entries, exits and placements', () => {
     ]);
     expect(() => parseStubMapSource(scheduled.replace('schedule=v', 'schedule=h'), tables)).toThrow(/one soldier/);
     expect(() => parseStubMapSource(scheduled.replace('schedule=v', 'schedule=x'), tables)).toThrow(/unknown schedule/);
+  });
+
+  it('leaves every slot of a detailed placement empty and undroppable as the editor does, which keeps it open to random equipment', () => {
+    const grouped = SOURCE.replace('profile=91', 'group=3');
+    const raw = parseMap(writeMap(stubMapToMapDef(parseStubMapSource(grouped, tables)))).placements[2]?.detailedRaw;
+    if (!raw) throw new Error('no detailed placement');
+    const inventory = parseDetailedPlacement(raw).inventory;
+    expect(inventory.map((o) => [o.item, o.flags])).toEqual(inventory.map(() => [0, UNDROPPABLE]));
   });
 });

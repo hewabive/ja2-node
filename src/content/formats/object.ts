@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Item_Types.h OBJECTTYPE (36 bytes, shared by map items and detailed placements)
 
 export const OBJECT_RECORD_BYTES = 36;
+export const OBJECT_FLAGS_OFFSET = 28;
 const KEY_ID_OFFSET = 10;
 
 export interface ObjectRecord {
@@ -36,7 +37,7 @@ export function decodeObject(bytes: Uint8Array, offset: number): ObjectRecord {
     gunAmmoStatus: v.getInt8(10),
     money: v.getUint32(8, true),
     attachments: Array.from({ length: 4 }, (_, k) => ({ item: v.getUint16(16 + k * 2, true), status: v.getInt8(24 + k) })),
-    flags: v.getUint8(28),
+    flags: v.getUint8(OBJECT_FLAGS_OFFSET),
     mission: v.getUint8(29),
     trap: v.getInt8(30),
     imprintId: v.getUint8(31),

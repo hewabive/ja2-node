@@ -131,6 +131,14 @@ the gameplay stream in the order of `CreateDetailedPlacementGivenBasicPlacementI
 seeded replay creates the same sector (deviation "Soldier creation draws"); the first standing frame's draw is
 cosmetic and not made (deviation "Cosmetic face and frame draws").
 
+**A map's version update runs at load.** As `ValidateAndUpdateMapVersionIfNecessary` (`Tactical/Map_Information.cc:237`)
+does after every map load, `buildSoldierInitList` recalculates the no-overwrite flag of each detailed placement's items
+(`AutoCalculateItemNoOverwriteStatus`, `:206`): many shipped placements store items and droppable empty slots without
+it, and only flagged slots reach the soldier. The map loaders apply the one step of `UpdateOldVersionMap` (`:112`) a
+shipped map needs (`src/content/world/map-version.ts`, `20`); its steps below minor version 24 are not ported, as every
+shipped map is version 24 or 25 (`map-version-original.test.ts`). The stub pack's detailed placements start with every
+slot empty and undroppable, as the editor's (`writeProfileDetailedPlacement`).
+
 **Idle animations break the breathing loop.** The standing and the crow eating scripts end each pass with code 491
 (`random-anims.ts`): every third pass, or every pass below 30 life, a soldier with OKLIFE out of water draws
 `Random(100)` on `main` and may switch to an idle animation of his body, a casual one only for our mercs out of combat;
@@ -173,6 +181,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
 | A civilian never wears the civilian clothes of `GeneratePaletteForSoldier`'s 40 % roll: `TacticalCreateSoldier` rolls the palette before it sets the team (vanilla set it first) | `creation.test.ts` "never dresses a civilian in the civilian clothes …" |
+| A detailed placement's empty slot that is not undroppable is locked empty: the load gives it the no-overwrite flag and random equipment leaves it alone, so I13's elite gets nothing for his head or small pockets, and an army soldier with a droppable empty hand no gun | `init-list.test.ts` "recalculates the no-overwrite flag …", "places an enemy with the item …", `map-version-original.test.ts` |
 | A placement's name never reaches its soldier, who is named by his team's default or not at all: the 0xCDCD fill that civilian and enemy placements of a dozen original maps (D13 among them) hold as their name is never shown | `creation.test.ts` "never names a soldier after his placement …", `placement-names-original.test.ts` |
 | An unseen enemy at the glow peak takes the step before it, 200 instead of 225 | `glow.test.ts` |
 | A one-handed gun in hand ends the idle check after its draw, injured or not: "Don't EVER do a trivial anim" | `random-anims.test.ts` |

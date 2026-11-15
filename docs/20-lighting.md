@@ -128,6 +128,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `light
 | An open door standing on gridno 0 lights the tile its slab swings into instead of its own: 0 means no base tile | `lighting.test.ts` |
 | A struct node without structure data whose type lies anywhere between the first and the eighth wall decal (floors, roofs and debris among them) lights as a wall decal | `src/render/world/structure-shades.test.ts` |
 | Through a window every wall and door of the window's tile lights, whatever its orientation | `src/app/world/world-lighting.test.ts` |
+| A cave map older than minor version 25 is lit at 13, not at the level it stores (`UpdateOldVersionMap`, `Tactical/Map_Information.cc:195`); of the shipped maps only P1_B2, which the campaign never loads | `src/content/world/map-version.test.ts`, `src/sim/tactical/map-version-original.test.ts` |
 
 Not pinned yet:
 - A tile's light sum is a byte that wraps on addition but stops at 0 on subtraction.

@@ -1,15 +1,18 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LoadSaveSoldierCreate.cc ExtractSoldierCreateFromFile, InjectSoldierCreateIntoFile (Windows layout;
-// @src the Linux layout's UTF-32 name and CalcSoldierCreateCheckSum, 2026-11-08).
+// @src the Linux layout's UTF-32 name and CalcSoldierCreateCheckSum, 2026-11-08);
+// @src Soldier_Create.cc CreateStaticDetailedPlacementGivenBasicPlacementInfo (its undroppable empty slots, 2026-11-15).
 
 import { u16 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
-import { decodeObject, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
+import { decodeObject, OBJECT_FLAGS_OFFSET, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
 
 export const DETAILED_PLACEMENT_BYTES = 1040;
 const DETAILED_PLACEMENT_BYTES_STRAC_LINUX = 1060;
 const INVENTORY_SLOTS = 19;
+const INVENTORY_OFFSET = 32;
+const UNDROPPABLE_OBJECT_FLAG = 0x01;
 const PALETTE_BYTES = 30;
 const PATROL_POINTS = 10;
 const NAME_CHARS = 10;
@@ -100,6 +103,10 @@ function placementName(v: DataView, stracLinux: boolean): string {
     : String.fromCharCode(...codes);
 }
 
+function inventoryRecordOffset(slot: number): number {
+  return INVENTORY_OFFSET + slot * OBJECT_RECORD_BYTES;
+}
+
 export function parseDetailedPlacement(raw: Uint8Array, stracLinux = false): DetailedPlacement {
   const size = detailedPlacementBytes(stracLinux);
   if (raw.length < size) throw new FormatError(`detailed placement must be ${size} bytes`);
@@ -131,7 +138,7 @@ export function parseDetailedPlacement(raw: Uint8Array, stracLinux = false): Det
       morale: i8(30),
       aiMorale: i8(31),
     },
-    inventory: Array.from({ length: INVENTORY_SLOTS }, (_, k) => decodeObject(raw, 32 + k * OBJECT_RECORD_BYTES)),
+    inventory: Array.from({ length: INVENTORY_SLOTS }, (_, k) => decodeObject(raw, inventoryRecordOffset(k))),
     palettes: { hair: ascii(raw, 716), pants: ascii(raw, 746), vest: ascii(raw, 776), skin: ascii(raw, 806) },
     patrolGrid: Array.from({ length: PATROL_POINTS }, (_, k) => v.getInt16(866 + k * 2, true)),
     patrolCount: i8(886),
@@ -207,6 +214,7 @@ export function writeProfileDetailedPlacement(spec: ProfilePlacementSpec): Uint8
   v.setInt8(17, spec.orders);
   for (let k = 0; k < STAT_BYTES; k++) v.setInt8(FIRST_STAT_OFFSET + k, UNSET_STAT);
   for (let k = 0; k < PATROL_POINTS; k++) v.setInt16(866 + k * 2, spec.insertionGridNo, true);
+  for (let k = 0; k < INVENTORY_SLOTS; k++) raw[inventoryRecordOffset(k) + OBJECT_FLAGS_OFFSET] = UNDROPPABLE_OBJECT_FLAG;
   raw[908] = spec.soldierClass;
   raw[917] = spec.civilianGroup ?? 0;
   raw[919] = spec.scheduleId ?? 0;

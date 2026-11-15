@@ -1,6 +1,7 @@
 import { parseTilesetDatabase, TILESET_DATABASE_PATH } from '../../content/formats/ja2set.ts';
 import { type MapDef, parseMap } from '../../content/formats/map.ts';
 import type { Level } from '../../content/world/level.ts';
+import { updateOldVersionMap } from '../../content/world/map-version.ts';
 import { DOOR_COSTS_PATH } from '../../content/world/movement-costs.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import { buildTacticalWorld, type TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -47,7 +48,7 @@ export async function loadWorld(mapPath: string, available: ReadonlySet<string>,
     read(DOOR_COSTS_PATH),
   ]);
   const tables = parseTileTables(JSON.parse(new TextDecoder().decode(tablesJson)));
-  const map = parseMap(mapBytes);
+  const map = updateOldVersionMap(parseMap(mapBytes));
   const tilesets = parseTilesetDatabase(tilesetBytes);
   const surfaces = await loadTileSurfaces(readOptional, tables, tilesets, map.tilesetId, root);
   const ambientId = tilesets.tilesets[map.tilesetId]?.ambientId ?? 0;
