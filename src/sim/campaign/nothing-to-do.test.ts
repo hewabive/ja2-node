@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
+import { type CampaignKit, createTestCampaign, landFirstSquad, runTicks } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent, kit as medicalKit } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import type { StrategicState } from '../strategic/state.ts';
+import { worldHour } from '../strategic/time/world-clock.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
@@ -21,6 +22,8 @@ afterAll(async () => {
 });
 
 const WOUND = 20;
+const ONE_REAL_SECOND_OF_TICKS = 200;
+const ONE_HOUR_OF_TICKS = 3600 * ONE_REAL_SECOND_OF_TICKS;
 
 function merc(roster: Roster, id: number): RosterMerc {
   const m = roster.get(id);
@@ -63,6 +66,34 @@ describe('nothing-to-do triggers', () => {
     const state = { economy: { reEvaluateNothingToDo: false } } as StrategicState;
     flagNothingToDoAfterItemMove(state, { type: 'moveKey', soldier: 0, from: { ring: 0 }, to: InvSlot.BIGPOCK1 }, { ok: true });
     expect(state.economy.reEvaluateNothingToDo).toBe(true);
+  });
+
+  it('leaves a flag raised on the tactical screen stale until the map screen opens, whose frame acts on it (MapScreen.cc:6575)', () => {
+    const { c, roster, doctor, patient } = doctorWithPatient(8);
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    const moved = c.dispatch({ type: 'moveItem', soldier: doctor, from: InvSlot.HAND, toSoldier: patient, to: InvSlot.BIGPOCK1 });
+    expect(moved).toMatchObject({ ok: true });
+    runTicks(c, ONE_REAL_SECOND_OF_TICKS);
+    expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([false, true]);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([true, false]);
+  });
+
+  it('leaves a flag raised on the tactical screen stale until the hourly update ends with its re-evaluation (Assignments.cc:1023)', () => {
+    const { c, roster, doctor, patient } = doctorWithPatient(8);
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    const moved = c.dispatch({ type: 'moveItem', soldier: doctor, from: InvSlot.HAND, toSoldier: patient, to: InvSlot.BIGPOCK1 });
+    expect(moved).toMatchObject({ ok: true });
+    const hour = worldHour(c.state.clock);
+    runTicks(c, ONE_HOUR_OF_TICKS, () => worldHour(c.state.clock) !== hour || merc(roster, doctor).nothingToDo);
+    expect([worldHour(c.state.clock) !== hour, merc(roster, doctor).nothingToDo, c.state.flow]).toEqual([true, true, 'tactical']);
+  });
+
+  it('re-evaluates at once at an assign on the tactical screen too, where the original leaves the flag to the map screen or the hour (deviation "Nothing-to-do re-evaluation")', () => {
+    const { c, roster, doctor, patient } = doctorWithPatient(8);
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'assign', soldiers: [patient], to: { kind: 'squad', squad: 0 } })).toMatchObject({ ok: true });
+    expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([true, false]);
   });
 
   it('acts on a raised flag at the end of the next tick', () => {

@@ -86,7 +86,8 @@ assignment take their poses at different moments (`set-assignment.ts`).
 merc, runs the original's list assignment for the others in the order given and re-evaluates the nothing-to-do flags at once, where the original waits for a map screen frame (deviation
 "Nothing-to-do re-evaluation"). The original's other triggers (an assignment time stamp, a plotted route of ours, an
 item that passes through the cursor on a panel) raise `economy.reEvaluateNothingToDo`, and the campaign acts on it at the
-end of the command or tick; `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
+end of a command or tick on the map screen, the original's only frame that does, so a flag raised on the tactical screen
+or in the laptop waits for the map screen or the hourly update (`nothing-to-do.test.ts`); `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
 swap or a stack clean-up without a cursor item raises nothing. The militia panel's cursor lives in the client: the
 server takes the town's final state at Done, checked as a whole, and AUTO (deviation "Militia redistribution").
 
@@ -184,6 +185,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A dead-tired squad merc who drops asleep always says NEED_SLEEP, even after another merc complained, yet turns the next complaint into ME_TOO | `assignments.test.ts` |
 | Asking whether a sleeper at breathMax 10 can travel or be woken marks him collapsed: the check sets the flag it reads | `assignments.test.ts` |
 | A dead merc's camouflage wears off too, with its screen message: the hourly loop walks the whole team | `campaign/camouflage.test.ts` |
+| A nothing-to-do flag raised off the map screen stays stale until the map screen opens or the hourly update ends: only the map screen's frame acts on the re-evaluation request (`Strategic/MapScreen.cc:6575`) | `campaign/nothing-to-do.test.ts` |
 
 Not pinned yet:
 - The class-matched pass of militia placement rolls no attitude and keeps detailed placements (`tactical/init-list.ts`

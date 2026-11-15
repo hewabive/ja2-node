@@ -355,7 +355,7 @@ describe('after the landing', () => {
     expect(session.campaign.state.talk.dialogue.mercArrivingQuoteBeingUsed).toBe(true);
   });
 
-  it("re-evaluates everyone's nothing-to-do flag after a hire, as the hire stamps the new merc's assignment", async () => {
+  it("re-evaluates everyone's nothing-to-do flag once the map screen is back after a hire, as the hire stamps the new merc's assignment", async () => {
     const session = await landed(31);
     const idle = session.campaign.laptop?.roster.all()[0];
     if (!idle) throw new Error('no merc');
@@ -365,6 +365,8 @@ describe('after the landing', () => {
     const [profile] = available(session, [0, 1, 2, 3, 4, 5]);
     if (profile === undefined) throw new Error('nobody is available');
     expect(session.dispatch({ type: 'aimHire', profile, contract: 1, gear: false })).toMatchObject({ ok: true });
+    expect([idle.nothingToDo, session.campaign.state.economy.reEvaluateNothingToDo]).toEqual([false, true]);
+    expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
     expect(idle.nothingToDo).toBe(true);
   });
 

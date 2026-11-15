@@ -26,7 +26,9 @@
 // @src pause, Strategic/PreBattle_Interface.cc InitPreBattleInterface, a box on the map screen (2026-11-15); JAScreens.cc
 // @src SexScreenHandle, the screen NPC_ACTION_SEX sets pending, which GameLoop.cc switches to after the frame's
 // @src UpdateClock and whose every frame restarts its second (2026-11-15); MapScreen.cc HandlePostAutoresolveMessages' last
-// @src branch, the militia promotions box, which every map screen frame without a box up reaches (2026-11-15).
+// @src branch, the militia promotions box, which every map screen frame without a box up reaches (2026-11-15);
+// @src MapScreen.cc HandleAssignmentsDoneAndAwaitingFurtherOrders, the only frame that acts on
+// @src gfReEvaluateEveryonesNothingToDo, so a flag raised off the map waits for it or the hourly update (2026-11-15).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -749,7 +751,7 @@ export class CampaignSim {
     this.battle?.afterStep();
     this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
-    this.#reEvaluateNothingToDo();
+    this.#reEvaluateNothingToDoOnTheMapScreen();
     this.#handleTacticalDoHeliRun();
     this.#announceMilitiaPromotions();
     this.#collectEvents();
@@ -814,8 +816,8 @@ export class CampaignSim {
     this.#events.push({ type: 'tacticalClearedForCompression', tick: this.tick });
   }
 
-  #reEvaluateNothingToDo(): void {
-    if (this.economy) reEvaluateNothingToDoIfFlagged(this.economy);
+  #reEvaluateNothingToDoOnTheMapScreen(): void {
+    if (this.economy && this.state.flow === 'strategic') reEvaluateNothingToDoIfFlagged(this.economy);
   }
 
   isIdle(): boolean {
@@ -940,7 +942,7 @@ export class CampaignSim {
     const result = this.#dispatch(cmd);
     this.meanwhile.settle();
     flagNothingToDoAfterItemMove(this.state, cmd, result);
-    this.#reEvaluateNothingToDo();
+    this.#reEvaluateNothingToDoOnTheMapScreen();
     if (this.state.flow === 'strategic') this.talk?.afterStrategicStep();
     this.#collectEvents();
     this.battle?.settle();

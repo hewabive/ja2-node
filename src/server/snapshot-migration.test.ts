@@ -650,8 +650,9 @@ describe('snapshot version 18 (no nothing-to-do flag) migrates with no re-evalua
     await kit.dispose();
   });
 
-  it('a landed campaign', async () => {
+  it('a landed campaign on the map screen, whose frame leaves no re-evaluation pending', async () => {
     const campaign = await createCampaignSession(kit.read, exists, 9);
+    expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     const current = snapshotSession(campaign);
     const legacy = versionEighteen(current.sim);
     expect(JSON.stringify(legacy)).not.toContain('"reEvaluateNothingToDo"');
