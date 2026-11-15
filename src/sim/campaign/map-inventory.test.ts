@@ -5,15 +5,20 @@ import { loadMerchantTestContent, type MerchantTestContent } from '../../../test
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import type { StashEntryView } from '../../protocol/map-inventory.ts';
-import { createItem, createItems, createMoney, emptyObject, type ItemObject } from '../items/object.ts';
+import { attachObject, createItem, createItems, createMoney, emptyObject, type ItemObject } from '../items/object.ts';
 import { SectorFlag } from '../strategic/forces/constants.ts';
 import { getSectorFlagStatus, resetSectorFlag } from '../strategic/map/sectors.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
+import { worldDay } from '../strategic/time/world-clock.ts';
+import { WeaponMode } from '../tactical/combat/types.ts';
+import { createKeyObject, sectorByte } from '../tactical/doors/keys.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { Team } from '../tactical/soldier.ts';
+import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
 import { addItemToPool, removeWorldItem, trashWorldItems, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { MercKind } from './roster.ts';
 import { type DiffWorldItem, sectorKey } from './sector-diff.ts';
 
 let kit: CampaignKit;
@@ -36,6 +41,7 @@ afterAll(async () => {
 
 const A9 = { x: 9, y: 1, z: 0 };
 const FAR_TILE = 12000;
+const KEY_ID = 1;
 
 function onTheMap(mercs = 2): CampaignSim {
   const { campaign: c } = createTestCampaign(kit, {
@@ -542,5 +548,77 @@ describe('the map screen inventory', () => {
       ok: false,
       data: { refusal: 'badStashOrder' },
     });
+  });
+});
+
+describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickCallbackPrimary)", () => {
+  function offTheMap(mercs = 2): { c: CampaignSim; merc: number; s: Soldier } {
+    const c = onTheMapWithA9Unloaded(mercs);
+    expect(c.tactical).toBeNull();
+    const merc = mercIds(c)[0] as number;
+    const s = c.battle?.roster.get(merc)?.soldier;
+    if (!s) throw new Error('no merc');
+    return { c, merc, s };
+  }
+
+  function launcherGun(): ItemObject {
+    const items = kit.sectors.content.items;
+    const gun = one('C7');
+    expect(attachObject(items, gun, one('UNDER_GLAUNCHER'))).toBe(true);
+    expect(attachObject(items, gun, one('GL_HE_GRENADE'))).toBe(true);
+    return gun;
+  }
+
+  it('records a key he takes from the stash as found that day in his sector, as CollectKey does for any merc of ours (Items.cc:1849)', () => {
+    const { c, merc } = offTheMap();
+    const key = createKeyObject(kit.sectors.content, 1, KEY_ID);
+    if (!key) throw new Error('no key item');
+    carry(c, merc, InvSlot.SMALLPOCK1, emptyObject());
+    a9Records(c, [[key]]);
+    expect(c.state.keyTable[KEY_ID]?.dateFound).toBe(0);
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'ground', item: 0, to: 'smallPocket1' })).toMatchObject({ ok: true });
+    expect(c.state.keyTable[KEY_ID]).toEqual({ dateFound: worldDay(c.state.clock), sectorFound: sectorByte(A9) });
+  });
+
+  it("makes him the robot's controller as he puts its remote control on, the robot beside him, as PlaceObject does for any merc of ours (UpdateRobotControllerGivenController, Items.cc:2072)", () => {
+    const { c, merc } = offTheMap(3);
+    const robot = c.battle?.roster.get(mercIds(c)[2] as number);
+    if (!robot) throw new Error('no third merc');
+    Object.assign(robot.record, { kind: MercKind.EPC });
+    Object.assign(robot.soldier, { profile: Npc.ROBOT, bodyType: Body.ROBOTNOWEAPON });
+    carry(c, merc, InvSlot.HEAD1, emptyObject());
+    carry(c, merc, InvSlot.BIGPOCK1, one('ROBOT_REMOTE_CONTROL'));
+    expect(robot.remoteHolder).toBeNull();
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'bigPocket1', to: 'head1' })).toMatchObject({ ok: true });
+    expect(robot.remoteHolder).toBe(merc);
+  });
+
+  it('keeps his weapon mode true to his hand after a placement, as EnsureConsistentWeaponMode ends every PlaceObject (Items.cc:2081)', () => {
+    const { c, merc, s } = offTheMap();
+    carry(c, merc, InvSlot.HAND, one('C7'));
+    carry(c, merc, InvSlot.BIGPOCK2, emptyObject());
+    Object.assign(s, { weaponMode: WeaponMode.BURST, doBurst: 1 });
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'hand', to: 'bigPocket2' })).toMatchObject({ ok: true });
+    expect([s.weaponMode, s.doBurst]).toEqual([WeaponMode.NORMAL, 0]);
+  });
+
+  it('drops his launcher mode as the gun with the launcher leaves his hand, as HandleTacticalEffectsOfEquipmentChange does for any merc (Interface_Panels.cc:3777)', () => {
+    const { c, merc, s } = offTheMap();
+    carry(c, merc, InvSlot.HAND, launcherGun());
+    Object.assign(s, { weaponMode: WeaponMode.ATTACHED, doBurst: 0 });
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'hand', to: 'ground' })).toMatchObject({ ok: true });
+    expect(s.weaponMode).toBe(WeaponMode.NORMAL);
+  });
+
+  it('leaves the burst mode on as a burst gun goes from the hand into the stash, which places nothing on the merc and so runs no EnsureConsistentWeaponMode (quirk, MapScreen.cc:3711)', () => {
+    for (const c of [onTheMap(), onTheMapWithA9Unloaded()]) {
+      const merc = mercIds(c)[0] as number;
+      const s = c.battle?.roster.get(merc)?.soldier;
+      if (!s) throw new Error('no merc');
+      carry(c, merc, InvSlot.HAND, one('C7'));
+      Object.assign(s, { weaponMode: WeaponMode.BURST, doBurst: 1 });
+      expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'hand', to: 'ground' })).toMatchObject({ ok: true });
+      expect([s.weaponMode, s.doBurst]).toEqual([WeaponMode.BURST, 1]);
+    }
   });
 });

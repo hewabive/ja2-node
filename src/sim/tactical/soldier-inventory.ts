@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc PlaceObject (the robot controller, the face-item sight update and
-// @src EnsureConsistentWeaponMode at the end of a placement); ReloadGun (the reload sound only for a visible soldier).
+// @src EnsureConsistentWeaponMode at the end of a placement, for a merc on or off the loaded map, 2026-11-15); ReloadGun
+// @src (the reload sound only for a visible soldier).
 
-import { ItemClass } from '../../content/items/items.ts';
+import { ItemClass, type ItemTable } from '../../content/items/items.ts';
 import type { ItemObject } from '../items/object.ts';
 import { collectKey } from './doors/keys.ts';
 import { ensureConsistentWeaponMode } from './hand-item.ts';
@@ -17,11 +18,24 @@ import { addItemToPool, Visibility } from './world-items.ts';
 
 const ROBOT_REMOTE_CONTROL = 'ROBOT_REMOTE_CONTROL';
 
-function afterPlacement(t: TacticalState, s: Soldier, item: number): void {
-  const items = t.content.items;
-  if (s.team === Team.OUR && item === items.byName.get(ROBOT_REMOTE_CONTROL)?.index) t.narrative.robotRemotePlaced(s);
-  if (s.placed && items.byIndex.get(item)?.itemClass === ItemClass.FACE) handleSight(t, s, SightFlags.LOOK);
+export interface PlacementEffects {
+  readonly robotRemotePlaced: (s: Soldier) => void;
+  readonly look?: (s: Soldier) => void;
+}
+
+export function afterPlacement(items: ItemTable, s: Soldier, item: number, effects: PlacementEffects): void {
+  if (s.team === Team.OUR && item === items.byName.get(ROBOT_REMOTE_CONTROL)?.index) effects.robotRemotePlaced(s);
+  if (items.byIndex.get(item)?.itemClass === ItemClass.FACE) effects.look?.(s);
   ensureConsistentWeaponMode(items, s);
+}
+
+function tacticalPlacementEffects(t: TacticalState): PlacementEffects {
+  return {
+    robotRemotePlaced: (s) => t.narrative.robotRemotePlaced(s),
+    look: (s) => {
+      if (s.placed) handleSight(t, s, SightFlags.LOOK);
+    },
+  };
 }
 
 export function soldierInventoryContext(t: TacticalState, s: Soldier): InventoryContext {
@@ -34,7 +48,7 @@ export function soldierInventoryContext(t: TacticalState, s: Soldier): Inventory
       addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level);
     },
     collectKey: (o: ItemObject) => collectKey(t, s, o),
-    placed: (item: number) => afterPlacement(t, s, item),
+    placed: (item: number) => afterPlacement(t.content.items, s, item, tacticalPlacementEffects(t)),
     reloaded: (gun: number) => {
       if (shownInSector(t, s)) t.events.push({ type: 'reloaded', soldier: s.id, item: gun });
     },

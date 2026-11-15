@@ -78,13 +78,16 @@ export function reloadSoldierAnimationDueToHandItemChange(t: TacticalState, s: S
   else if (!oldRifle && newRifle) initNewSoldierAnim(t, s, anim(t.content, 'RAISE_RIFLE'), 0, false);
 }
 
-export function handleTacticalEffectsOfEquipmentChange(t: TacticalState, s: Soldier, slot: number, oldItem: number, newItem: number): void {
-  const items = t.content.items;
+export function resetAttachedModeWithoutLauncher(items: ItemTable, s: Soldier): void {
   const hand = s.inv[InvSlot.HAND] as ItemObject;
   if (s.weaponMode === WeaponMode.ATTACHED && findAttachment(hand, items.byName.get('UNDER_GLAUNCHER')?.index ?? -2) === -1) {
     s.weaponMode = WeaponMode.NORMAL;
     s.doBurst = 0;
   }
+}
+
+export function handleTacticalEffectsOfEquipmentChange(t: TacticalState, s: Soldier, slot: number, oldItem: number, newItem: number): void {
+  resetAttachedModeWithoutLauncher(t.content.items, s);
   if (!s.placed) return;
   if (slot === InvSlot.HAND || slot === InvSlot.SECOND_HAND) reloadSoldierAnimationDueToHandItemChange(t, s, oldItem, newItem);
 }

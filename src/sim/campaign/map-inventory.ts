@@ -14,7 +14,10 @@
 // @src and Map_Screen_Interface_Map.cc IsTheCursorAllowedToHighLightThisSector (the inventory opens on the selected
 // @src sector, never on the edge of the world, 2026-11-14); MapScreen.cc HandleModShift (SHIFT+S
 // @src StackAndSortMapInventoryPool and SHIFT+R RefillMercItemsFromMapInventoryPool over the pool's order, their checks in
-// @src their order, stash-repack.ts, 2026-11-15).
+// @src their order, stash-repack.ts, 2026-11-15); MAPInvClickCallbackPrimary's PlaceObject and
+// @src HandleTacticalEffectsOfEquipmentChange for a merc off the loaded map too (Tactical/Items.cc CollectKey,
+// @src UpdateRobotControllerGivenController, EnsureConsistentWeaponMode; Interface_Panels.cc the launcher reset,
+// @src 2026-11-15).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -27,7 +30,7 @@ import { worldDay } from '../strategic/time/world-clock.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { collectKey, collectKeyFound, type KeyFinding, sectorByte } from '../tactical/doors/keys.ts';
-import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
+import { handleTacticalEffectsOfEquipmentChange, resetAttachedModeWithoutLauncher } from '../tactical/hand-item.ts';
 import { type InventoryContext, InvSlot, itemIn, placeObject } from '../tactical/inventory.ts';
 import {
   attachmentPosition,
@@ -46,6 +49,7 @@ import {
   attachItem,
   type Count,
   detachItem,
+  dryInventoryContext,
   type LeftoverSpot,
   moveItem,
   nailsRefuses,
@@ -63,8 +67,9 @@ import { type RingSource, returnKeysToRing, sourceObject, takeSourceObject } fro
 import { type KeyRingWorld, moveKey } from '../tactical/key-ring-panel.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { isCreatureOrBloodcat, OKLIFE, type Soldier } from '../tactical/soldier.ts';
-import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
+import { afterPlacement, type PlacementEffects, soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import { combineStacks } from '../tactical/stack-cleanup.ts';
+import type { TacticalState } from '../tactical/state.ts';
 import { WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
@@ -235,25 +240,31 @@ export class MapInventory {
     return typeof value === 'number' ? (roster?.get(value) ?? null) : null;
   }
 
-  #context(s: Soldier): InventoryContext {
+  #placedIn(s: Soldier): TacticalState | null {
     const t = this.#campaign.tactical?.state;
-    if (t && s.placed && t.soldiers[s.id] === s) return soldierInventoryContext(t, s);
+    return t && s.placed && t.soldiers[s.id] === s ? t : null;
+  }
+
+  #context(s: Soldier): InventoryContext {
+    const t = this.#placedIn(s);
+    if (t) return soldierInventoryContext(t, s);
     return {
       ...this.#dryContext(s),
+      collectKey: (o) => this.#collectKey(s, o),
+      placed: (item) => afterPlacement(contentOf(this.#campaign).items, s, item, this.#offMapPlacementEffects()),
       reloaded: (gun) => {
         this.#events.push({ type: 'reloaded', soldier: s.id, item: gun, mapScreen: true, tick: this.#campaign.tick });
       },
     };
   }
 
+  #offMapPlacementEffects(): PlacementEffects {
+    const roster = this.#campaign.battle?.roster;
+    return { robotRemotePlaced: (s) => roster?.updateRobotControllerGivenController(s.id) };
+  }
+
   #dryContext(s: Soldier): InventoryContext {
-    return {
-      items: contentOf(this.#campaign).items,
-      inCombat: false,
-      actionPoints: () => s.actionPoints,
-      spendActionPoints: () => {},
-      dropAtFeet: () => {},
-    };
+    return dryInventoryContext(contentOf(this.#campaign).items, false, s);
   }
 
   #env(owner: RosterMerc): PanelEnv {
@@ -266,8 +277,9 @@ export class MapInventory {
       mapScreen: true,
       context: (s) => this.#context(s),
       equipmentChanged: (s, slot, oldItem, newItem) => {
-        const t = campaign.tactical?.state;
-        if (t && s.placed && t.soldiers[s.id] === s) handleTacticalEffectsOfEquipmentChange(t, s, slot, oldItem, newItem);
+        const t = this.#placedIn(s);
+        if (t) handleTacticalEffectsOfEquipmentChange(t, s, slot, oldItem, newItem);
+        else resetAttachedModeWithoutLauncher(contentOf(campaign).items, s);
       },
       leftover: (s, o) => stashOf(campaign, owner.sector).add(o, s.gridNo, s.level),
       emit: (event: PanelEvent) => {
@@ -376,15 +388,16 @@ export class MapInventory {
   }
 
   #keyRingWorld(): KeyRingWorld {
-    const campaign = this.#campaign;
     return {
-      content: contentOf(campaign),
-      collectKey: (s, keys) => {
-        const t = campaign.tactical?.state;
-        if (t && s.placed && t.soldiers[s.id] === s) collectKey(t, s, keys);
-        else collectKeyFound(campaign.state.keyTable, s, keys, this.#keyFinding(s));
-      },
+      content: contentOf(this.#campaign),
+      collectKey: (s, keys) => this.#collectKey(s, keys),
     };
+  }
+
+  #collectKey(s: Soldier, keys: ItemObject): void {
+    const t = this.#placedIn(s);
+    if (t) collectKey(t, s, keys);
+    else collectKeyFound(this.#campaign.state.keyTable, s, keys, this.#keyFinding(s));
   }
 
   #keyFinding(s: Soldier): KeyFinding {
