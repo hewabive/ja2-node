@@ -147,6 +147,26 @@ describe('ammo given to the robot reloads its gun (HandleItemPointerClick, the r
     expect(pocketStatus()).toEqual([PART_45, LOW_45, FULL_45]);
   });
 
+  it('keeps keys off the key ring the robot refuses on the ring, which the original puts into the slot numbered like their ring position, losing them at 0–4 and the swapped-out item at 5–18 (original-bugs "Key ring keys given to the robot")', async () => {
+    const { session, live, merc, robot } = await withRobot(36);
+    const ring = soldier(session, merc).keyRing ?? [];
+    ring[InvSlot.VEST] = { keyId: 1, count: 2 };
+    ring[POCKET] = { keyId: 2, count: 1 };
+    const inventoryBefore = JSON.stringify(soldier(session, merc).inv);
+    for (const position of [InvSlot.VEST, POCKET])
+      expect(live.dispatch({ type: 'give', soldier: merc, target: robot, slot: { ring: position }, count: 1 })).toMatchObject({
+        ok: false,
+        data: { refusal: 'robotNeedsCalibre' },
+      });
+    const after = soldier(session, merc);
+    expect([after.keyRing?.[InvSlot.VEST], after.keyRing?.[POCKET]]).toEqual([
+      { keyId: 1, count: 2 },
+      { keyId: 2, count: 1 },
+    ]);
+    expect(JSON.stringify(after.inv)).toBe(inventoryBefore);
+    expect(magazines(after)).toBe(MAGAZINES);
+  });
+
   it('refuses money for the robot, withdrawn from the account or split off a pocket, which the original loses with its cursor of no source slot (original-bugs "Money given to the robot")', async () => {
     const { session, live, merc, robot } = await withRobot(33);
     Object.assign(soldier(session, merc).inv[POCKET] as object, createMoney(kit.content.items, POCKET_MONEY));

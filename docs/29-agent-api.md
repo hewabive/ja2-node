@@ -945,12 +945,13 @@ in its sector wears the remote control in a head slot (`src/sim/campaign/robot-c
 `give` to the robot reloads its gun instead (`src/sim/tactical/robot-reload.ts`): it needs the walk plus 4 AP and ammo
 of the gun's calibre (else `robotNeedsCalibre` with the gun's `calibre` index, which comes after `noPath` and
 `notEnoughAP` as the original checks the cursor's AP number first, and which moves one object refused off a stack to
-the stack's end, as the original's put-back before the check does), takes one object off the pocket at once
-and returns `{reload, walking, to}` or `{reload}`; the merc walks next to the robot and kneels, and at the end of his
-animation the robot reloads from the given object, paying the reload's APs in combat, with the `reloaded` event. What
-is left of the object, or the robot's old magazine, goes into the merc's pockets, and is lost when they are full, as
-in the original. A move, stop, collapse or a robot gone from its tile puts the magazine back (original-bugs "Robot
-reload without the reload"). `previewAction give` on the robot answers `reload: true` with the walk plus 4 AP.
+the stack's end, as the original's put-back before the check does, while keys off the ring and money stay where they
+were: original-bugs "Key ring keys given to the robot", "Money given to the robot"), takes one object off the pocket
+at once and returns `{reload, walking, to}` or `{reload}`; the merc walks next to the robot and kneels, and at the end
+of his animation the robot reloads from the given object, paying the reload's APs in combat, with the `reloaded`
+event. What is left of the object, or the robot's old magazine, goes into the merc's pockets, and is lost when they are
+full, as in the original. A move, stop, collapse or a robot gone from its tile puts the magazine back (original-bugs
+"Robot reload without the reload"). `previewAction give` on the robot answers `reload: true` with the walk plus 4 AP.
 
 ### 8.6 NPC actions, civilians, surrender and boxing
 
