@@ -252,6 +252,28 @@ function besideTheHolder(f: TacticalUiTest, holder: SoldierView, tiles: number):
   return view;
 }
 
+async function optionsKeyOpens(f: TacticalUiTest): Promise<boolean> {
+  const before = f.flow.length;
+  f.key('o');
+  await f.settle();
+  return f.flow.length > before;
+}
+
+async function dropTwoItemsBesideMerc3(f: TacticalUiTest): Promise<number> {
+  const dropper = f.client.view.soldiers.find((s) => s.id === 3);
+  if (!dropper) throw new Error('no merc 3');
+  const tile = dropper.gridNo + 4;
+  expect((await f.client.command({ type: 'move', soldier: 3, to: tile })).ok).toBe(true);
+  f.advance(400);
+  expect((await f.client.command({ type: 'drop', soldier: 3, slot: HAND })).ok).toBe(true);
+  f.advance(200);
+  expect((await f.client.command({ type: 'drop', soldier: 3, slot: BIG_POCKET })).ok).toBe(true);
+  f.advance(200);
+  expect((await f.client.command({ type: 'move', soldier: 3, to: tile + 4 })).ok).toBe(true);
+  f.advance(400);
+  return tile;
+}
+
 async function smPanelOf(f: TacticalUiTest, slot: number): Promise<void> {
   await f.click(`teamFaceRegion${slot}`, MouseButton.RIGHT);
   await f.settle();
@@ -1016,17 +1038,7 @@ describe('the tactical screen over a stub sandbox session', () => {
 
   it('puts the input into GETTINGITEM_MODE while the pickup menu is up and back into move mode as it closes', async () => {
     const f = await tacticalUiTest(kit, ui);
-    const dropper = f.client.view.soldiers.find((s) => s.id === 3);
-    if (!dropper) throw new Error('no merc 3');
-    const tile = dropper.gridNo + 4;
-    expect((await f.client.command({ type: 'move', soldier: 3, to: tile })).ok).toBe(true);
-    f.advance(400);
-    expect((await f.client.command({ type: 'drop', soldier: 3, slot: HAND })).ok).toBe(true);
-    f.advance(200);
-    expect((await f.client.command({ type: 'drop', soldier: 3, slot: BIG_POCKET })).ok).toBe(true);
-    f.advance(200);
-    expect((await f.client.command({ type: 'move', soldier: 3, to: tile + 4 })).ok).toBe(true);
-    f.advance(400);
+    const tile = await dropTwoItemsBesideMerc3(f);
     const at = f.world.pickPoint(tile);
     f.screen.select(0, false);
     f.screen.controls.toggleHandCursor();
@@ -1387,6 +1399,65 @@ describe('the tactical screen in a stub campaign', () => {
     a10.campaign.campaign.state.movement.disableMapInterfaceDueToBattle = false;
     f.deliver();
     pressSaveAndOptionsKeys();
+    await f.settle();
+    expect(f.flow).toEqual(['options', 'saveGame', 'quickSave']);
+  });
+
+  it('skips the options key while the pickup menu has the panel buttons off, the single merc panel has its Options button off or an item is in the cursor (Turn_Based_Input.cc:1543-1547)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    expect(await optionsKeyOpens(f)).toBe(true);
+    const tile = await dropTwoItemsBesideMerc3(f);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    const at = f.world.pickPoint(tile);
+    await f.clickAt(at.x, at.y);
+    untilPickupMenu(f);
+    expect([f.screen.panel, f.screen.inventory.cursor]).toEqual(['team', null]);
+    expect(await optionsKeyOpens(f)).toBe(false);
+    await f.click('pickupCancel');
+    f.t.frame();
+    expect(await optionsKeyOpens(f)).toBe(true);
+    expect([f.screen.panel, f.screen.smMerc]).toEqual(['sm', 0]);
+    await f.click(`slot${BIG_POCKET}`, MouseButton.RIGHT);
+    await f.settle();
+    expect(f.screen.description.open || f.screen.stack.open).toBe(true);
+    expect(await optionsKeyOpens(f)).toBe(false);
+    f.key('Escape');
+    await f.settle();
+    await f.click(`slot${BIG_POCKET}`);
+    expect(f.screen.inventory.cursor).not.toBeNull();
+    f.world.overhead = OVERHEAD_MAP;
+    f.key('Insert');
+    await f.settle();
+    f.key('Escape');
+    await f.settle();
+    expect([f.screen.panel, f.screen.inventory.cursor !== null, f.widget('teamSquad').enabled]).toEqual(['team', true, true]);
+    expect(await optionsKeyOpens(f)).toBe(false);
+  });
+
+  it('skips the options key in a meanwhile, and the save screen key and the quick save while engaged in a conversation, with no box (Turn_Based_Input.cc:1546, :1822, :1947)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const campaign = a10.campaign.campaign;
+    campaign.state.meanwhile.inScene = true;
+    f.deliver();
+    f.key('o');
+    await f.settle();
+    expect(f.flow).toEqual([]);
+    campaign.state.meanwhile.inScene = false;
+    tacticalOf(f.session).state.engagedInConv = true;
+    f.deliver();
+    expect(f.client.view.scriptedSequence).toBe(true);
+    f.key('s', KeyModifier.CTRL);
+    f.key('s', KeyModifier.ALT);
+    await f.settle();
+    expect([f.flow, f.t.runtime.host.modal]).toEqual([[], null]);
+    tacticalOf(f.session).state.engagedInConv = false;
+    f.deliver();
+    f.key('o');
+    f.key('s', KeyModifier.CTRL);
+    f.key('s', KeyModifier.ALT);
     await f.settle();
     expect(f.flow).toEqual(['options', 'saveGame', 'quickSave']);
   });

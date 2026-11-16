@@ -133,7 +133,7 @@ import {
   faceRecordOf,
   OKLIFE,
 } from './faces.ts';
-import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
+import { HudController, hudClockText, type KeyGates, optionsKeyEnabled, pauseHelpText, saveKeyEnabled, sectorOfMap } from './hud.ts';
 import { helicopterDropRunning } from './input/helicopter-drop-skip.ts';
 import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPointerAction } from './input/item-tile-cursor.ts';
 import { findSoldier } from './input/targets.ts';
@@ -182,8 +182,10 @@ import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-pa
 import {
   assignmentOf,
   barValues,
+  engagedInConversation,
   hasProfile,
   inCombat,
+  inMeanwhile,
   isDead,
   isEpc,
   isInVehicle,
@@ -1309,6 +1311,7 @@ export class TacticalScreen implements Screen {
       );
     }
     const paused = this.#env.client.paused;
+    const keys = this.#keyGates(view);
     this.#hud.model = {
       radarEnabled: !this.inventory.cursor && !this.stack.open && !this.keyRing.open && !this.pickup.open && !this.dialogue.shopOpen,
       radarShown: this.#radarShown,
@@ -1317,7 +1320,19 @@ export class TacticalScreen implements Screen {
       inCombat: inCombat(view),
       pauseHelp: pauseHelpText(text, paused),
       paused,
+      optionsKeyEnabled: optionsKeyEnabled(keys),
+      saveKeyEnabled: saveKeyEnabled(keys),
+    };
+  }
+
+  #keyGates(view: PlayerView | null): KeyGates {
+    return {
+      itemInCursor: this.inventory.cursor !== null,
+      panelButtonsDisabled: this.#teamButtonsDisabled,
       mapInterfaceDisabled: view?.strategic?.mapInterfaceDisabled === true,
+      inMeanwhile: inMeanwhile(view),
+      optionsButtonEnabled: this.#panelButtonEnabled('options'),
+      inConversation: engagedInConversation(view),
     };
   }
 

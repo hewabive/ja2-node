@@ -151,7 +151,10 @@ write goes through a temporary file and a rename. The Dead is Dead file is the n
   from the encounter until the pre-battle prompt opens after the speaker's line, `19`; the autosaves do not go through
   the keys and ignore it), `conversation`, `stopTimeQuote`, `meanwhileStarting`, `promptOpen`, `shopOpen`, then Iron Man
   (combat first, then enemies in the loaded sector). The page's tactical options key, its save screen key and its quick
-  save skip the same window without a box (`Tactical/Turn_Based_Input.cc:1545`).
+  save skip the same window without a box (`Tactical/Turn_Based_Input.cc:1545`). The save screen key and the quick save
+  also skip a conversation or scripted sequence (`ENGAGED_IN_CONV`, `:1822`, `:1947`), and the options key an item in
+  the cursor, disabled tactical panel buttons, a meanwhile and the single merc panel's disabled Options button
+  (`:1543-1547`); the HUD layout binds them as `optionsKeyEnabled` and `saveKeyEnabled` (`ui/screens/tactical/hud.ts`).
 - **Automatic saves only read the simulation.** `SaveService` hooks every session (`Session.hooks`: before and after a
   dispatch and an advance, after a whole input, on a throw); a failing hook only logs. Before an `endTurn` in
   turn-based combat the service captures the save and writes it once the command is accepted without ending combat, so

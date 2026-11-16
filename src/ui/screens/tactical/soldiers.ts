@@ -155,6 +155,14 @@ export function inCombat(view: PlayerView | null): boolean {
   return (view?.combat ?? null) !== null;
 }
 
+export function engagedInConversation(view: PlayerView | null): boolean {
+  return (view?.conversation ?? null) !== null || view?.scriptedSequence === true;
+}
+
+export function inMeanwhile(view: PlayerView | null): boolean {
+  return (view?.meanwhile ?? null) !== null;
+}
+
 const INTERROGATION_SCENE = 'interrogation';
 
 export function inPalaceScene(view: PlayerView | null): boolean {

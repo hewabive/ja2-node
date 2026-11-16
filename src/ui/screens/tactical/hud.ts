@@ -4,8 +4,10 @@
 // @src (pPausedGameText[0] while the player paused), CreateMouseRegionForPauseOfClock (pPausedGameText 1 when paused,
 // @src else 2), HandlePlayerPauseUnPauseOfGame (refused while engaged in a conversation); src/game/TileEngine/Radar_Screen.cc
 // @src RadarRegionMoveCallback (a drag moves the camera), RadarRegionButtonCallbackPrimary (on the release),
-// @src RadarRegionButtonCallbackSecondary, ToggleRadarScreenRender; Tactical/Turn_Based_Input.cc HandleModNone 'o' and
-// @src HandleModCtrl 's' (skipped under fDisableMapInterfaceDueToBattle, 2026-11-16).
+// @src RadarRegionButtonCallbackSecondary, ToggleRadarScreenRender; Tactical/Turn_Based_Input.cc HandleModNone 'o' (no
+// @src item in the cursor, gfDisableTacticalPanelButtons off, fDisableMapInterfaceDueToBattle off, no meanwhile, and the
+// @src single merc panel's Options button enabled when that panel is up) and HandleModCtrl 's' (skipped under
+// @src fDisableMapInterfaceDueToBattle or ENGAGED_IN_CONV), 2026-11-16.
 
 import type { ClockView } from '../../../protocol/view.ts';
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
@@ -35,7 +37,8 @@ export const HUD_CONTRACT: ControllerContract = {
     inCombat: 'boolean',
     pauseHelp: 'string',
     paused: 'boolean',
-    mapInterfaceDisabled: 'boolean',
+    optionsKeyEnabled: 'boolean',
+    saveKeyEnabled: 'boolean',
   },
 };
 
@@ -47,7 +50,25 @@ export interface HudModel {
   inCombat: boolean;
   pauseHelp: string;
   paused: boolean;
-  mapInterfaceDisabled: boolean;
+  optionsKeyEnabled: boolean;
+  saveKeyEnabled: boolean;
+}
+
+export interface KeyGates {
+  readonly itemInCursor: boolean;
+  readonly panelButtonsDisabled: boolean;
+  readonly mapInterfaceDisabled: boolean;
+  readonly inMeanwhile: boolean;
+  readonly optionsButtonEnabled: boolean;
+  readonly inConversation: boolean;
+}
+
+export function optionsKeyEnabled(g: KeyGates): boolean {
+  return !g.itemInCursor && !g.panelButtonsDisabled && !g.mapInterfaceDisabled && !g.inMeanwhile && g.optionsButtonEnabled;
+}
+
+export function saveKeyEnabled(g: KeyGates): boolean {
+  return !g.mapInterfaceDisabled && !g.inConversation;
 }
 
 const GAME_CLOCK_STRING = 'gpGameClockString';
@@ -98,7 +119,8 @@ export class HudController implements LayoutController {
     inCombat: false,
     pauseHelp: '',
     paused: false,
-    mapInterfaceDisabled: false,
+    optionsKeyEnabled: true,
+    saveKeyEnabled: true,
   };
   readonly #actions: HudActions;
 
