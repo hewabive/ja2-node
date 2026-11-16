@@ -25,7 +25,7 @@ import { idiv, u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { DeathCry, SimEvent } from '../events.ts';
 import { handleImportantPbiQuote } from '../narrative/dialogue-queue.ts';
-import { preBattleLinePending } from '../narrative/talk-state.ts';
+import { preBattleLinePending, type SaidLineRef } from '../narrative/talk-state.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
 import { handleFirstBattleEndingWhileInTown, scheduleInterrogation } from '../strategic/ai/meanwhile.ts';
 import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts';
@@ -446,8 +446,8 @@ export class BattleFlow implements FateContext {
     if (host && merc) handleImportantPbiQuote(host, merc.soldier);
   }
 
-  beginPreBattleInterface(): void {
-    if (!this.isModal()) this.#openFromHandoff();
+  beginPreBattleInterface(line: SaidLineRef): void {
+    if (!this.isModal()) this.#openFromHandoff(line);
   }
 
   waitsForPreBattleLine(): boolean {
@@ -463,7 +463,13 @@ export class BattleFlow implements FateContext {
     this.campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   }
 
-  #emitPreBattle(opening: PreBattleOpening, autoStart: boolean, prompt: string | null, notice: PanelNotice | null = null): void {
+  #emitPreBattle(
+    opening: PreBattleOpening,
+    autoStart: boolean,
+    prompt: string | null,
+    notice: PanelNotice | null = null,
+    line: SaidLineRef | null = null,
+  ): void {
     const battle = this.state.battle;
     const code = battle.persistent ? this.state.encounter.code : this.state.encounter.explicitCode;
     const panel = autoStart ? preBattlePanel(this.campaign, opening.sector, this.#enemiesKnown(opening.sector)) : null;
@@ -476,10 +482,11 @@ export class BattleFlow implements FateContext {
       prompt,
       ...(panel ? { panel } : {}),
       ...(notice ? { notice } : {}),
+      ...(line ? { line } : {}),
     });
   }
 
-  #openFromHandoff(): void {
+  #openFromHandoff(line: SaidLineRef | null = null): void {
     const s = this.state;
     const handoff = s.encounter.preBattle;
     if (!handoff) return;
@@ -498,7 +505,7 @@ export class BattleFlow implements FateContext {
       return;
     }
     const prompt = this.#openPrompt(PromptKind.PRE_BATTLE, { options: opening.options, enemiesKnown: this.#enemiesKnown(opening.sector) });
-    this.#emitPreBattle(opening, false, prompt.id, notice);
+    this.#emitPreBattle(opening, false, prompt.id, notice, line);
   }
 
   openCreatureAttack(autoStart: boolean): void {

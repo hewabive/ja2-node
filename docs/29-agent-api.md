@@ -1102,7 +1102,8 @@ Rules: `19`; `src/sim/campaign/battle-flow.ts`, `pre-battle-panel.ts`; views `sr
 as the original disables the options button. An arrival that brings a battle first has a merc of the group say the
 enemy-presence line (`mercQuote` id 59, `HandleImportantPBIQuote`) with the game paused and locked, and the prompt and
 its `preBattle` event come once the line has ended: `advance` runs through it (a strategic advance holds the stop of
-compression until then) and stops with `decision`, and `skipLine` cuts it short. A tactical traversal into enemies opens
+compression until then) and stops with `decision`, and `skipLine` cuts it short. The event names the line in
+`line {profile, saidAt}` (`saidAt` is the `tick` of its `mercQuote`), so a viewer still saying it can wait for its end. A tactical traversal into enemies opens
 no panel; the merc drawn for it says the line as the new sector loads. Automatic starts open no prompt: a
 `preBattle {autoStart: true, panel}` event carries what the panel showed with Autoresolve pressed, and autoresolve
 begins. The OK box the original opens before the panel of an arrival comes as the event's `notice`: `bloodcatAmbush`,

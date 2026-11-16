@@ -5,7 +5,9 @@
 // @src Autoresolve button pressed, then autoresolve), AutoResolveBattleCallback, GoToSectorCallback, RetreatMercsCallback
 // @src (the choice is the server's answer), KillPreBattleInterface; src/game/Strategic/Auto_Resolve.cc EnterAutoResolveMode
 // @src and AutoResolveScreenHandle (a separate screen over the shaded map screen, back to the map when it closes);
-// @src src/game/Strategic/MapScreen.cc (the non-persistent panel from the battle locator or a refused compression).
+// @src src/game/Strategic/MapScreen.cc (the non-persistent panel from the battle locator or a refused compression);
+// @src src/game/Tactical/Dialogue_Control.cc HandleDialogue (FACE_TRIGGER_PREBATTLE_INT: the panel of the enemy-presence
+// @src line opens once the face that says it is done talking, 2026-11-16).
 
 import type { PlayerView, PromptView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import type { DrawItem, DrawList } from '../../draw-list.ts';
@@ -19,6 +21,7 @@ import { PbiChoice } from './pre-battle-text.ts';
 type PreBattlePrompt = Extract<PromptView, { readonly kind: 'preBattle' }>;
 type BattleEvent = NonNullable<ViewFrame['events']>[number];
 type PreBattleEvent = Extract<BattleEvent, { readonly type: 'preBattle' }>;
+type PromptLine = NonNullable<PreBattleEvent['line']>;
 
 const AUTO_START_REASON = 'autoStart';
 
@@ -30,6 +33,7 @@ export interface BattleEntryHost {
   mapItems(): readonly DrawItem[];
   sectorName(label: string): string;
   preparePanel(sector: string): void;
+  saying(line: PromptLine): boolean;
 }
 
 export interface BattleEntryHook {
@@ -88,6 +92,7 @@ export class BattleEntry {
   readonly #commands: { type: string; choice: string | null; ok: boolean }[] = [];
   #panel: PreBattlePanel | null = null;
   #autoStart: PreBattleData | null = null;
+  #promptLine: { readonly prompt: string; readonly line: PromptLine } | null = null;
   #ar: AutoresolveScreen | null = null;
   #autoStartShown = false;
   #answering = false;
@@ -117,13 +122,13 @@ export class BattleEntry {
   }
 
   frames(frames: readonly ViewFrame[]): void {
-    for (const frame of frames)
-      for (const e of frame.events ?? []) if (e.type === 'preBattle' && e.autoStart) this.#autoStart = autoStartData(e) ?? this.#autoStart;
+    for (const frame of frames) for (const e of frame.events ?? []) if (e.type === 'preBattle') this.pendPreBattle(e);
     this.#ar?.frames(frames);
   }
 
-  pendAutoStart(e: PreBattleEvent): void {
-    this.#autoStart = autoStartData(e) ?? this.#autoStart;
+  pendPreBattle(e: PreBattleEvent): void {
+    if (e.autoStart) this.#autoStart = autoStartData(e) ?? this.#autoStart;
+    else if (e.prompt && e.line) this.#promptLine = { prompt: e.prompt, line: e.line };
   }
 
   #strategic(): StrategicView | undefined {
@@ -151,7 +156,15 @@ export class BattleEntry {
   #showPrompt(prompt: PreBattlePrompt): void {
     if (this.#panel?.data.prompt === prompt.id) return;
     this.#closePanel();
-    this.#open(promptData(prompt));
+    if (!this.#waitsForItsLine(prompt.id)) this.#open(promptData(prompt));
+  }
+
+  #waitsForItsLine(prompt: string): boolean {
+    const held = this.#promptLine;
+    if (held?.prompt !== prompt) return false;
+    if (this.#host.saying(held.line)) return true;
+    this.#promptLine = null;
+    return false;
   }
 
   #open(data: PreBattleData): void {

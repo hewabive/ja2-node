@@ -62,6 +62,11 @@ export type DialogueEvent =
   | { readonly kind: 'wakeUp'; readonly speaker: number }
   | { readonly kind: 'callback'; readonly name: string; readonly args?: readonly number[] };
 
+export interface SaidLineRef {
+  readonly profile: number;
+  readonly saidAt: number;
+}
+
 export interface TalkingFace {
   readonly speaker: number;
   readonly saidAt: number;

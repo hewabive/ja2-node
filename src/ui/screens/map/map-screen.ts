@@ -429,6 +429,7 @@ export class MapScreen implements Screen {
       mapItems: () => this.#lastItems,
       sectorName: (label) => this.#sectorName(label, true),
       preparePanel: (sector) => this.#preparePreBattle(sector),
+      saying: (line) => this.#speech.isSaying(line.profile, line.saidAt),
     });
     this.#speech = new MapSpeech({
       services: env.runtime,

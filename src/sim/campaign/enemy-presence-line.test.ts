@@ -151,6 +151,19 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
     expect(c.session.campaign.state.battle.prompt?.kind).toBe('preBattle');
   });
 
+  it('names the line whose end opened the prompt on its preBattle event, for a viewer still saying it', async () => {
+    const c = await landedInA9(31, 'pre-battle-line-named');
+    enemiesIn(c.session, ENEMY_SECTOR, TWO_TROOPS);
+    await squadToB9(c);
+    const line = untilTheEnemyPresenceLine(c);
+    const opened = c.live.advance({ idle: true }).events.find((e) => e.type === 'preBattle') ?? never('preBattle event');
+    expect(opened).toMatchObject({
+      autoStart: false,
+      prompt: c.session.campaign.state.battle.prompt?.id,
+      line: { profile: line.profile, saidAt: line.tick },
+    });
+  });
+
   it('puts a sleeping speaker back to sleep as the panel opens, after the panel woke everyone involved (Strategic_Movement.cc:595-602, PreBattle_Interface.cc:303)', async () => {
     const c = await landedInA9(35, 'pre-battle-line-asleep');
     expect(await order(c, { type: 'mapScreen' })).toEqual({ ok: true });

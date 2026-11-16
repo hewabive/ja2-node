@@ -150,6 +150,10 @@ function isLine(entry: Queued): entry is SpeechLine {
   return !('kind' in entry);
 }
 
+function saidAs(profile: number, saidAt: number): (line: SpeechLine) => boolean {
+  return (line) => line.profile === profile && line.saidAt === saidAt;
+}
+
 interface Running {
   readonly line: SpeechLine;
   readonly startedAt: number;
@@ -323,8 +327,14 @@ export class SpeechPresenter {
     if (r) this.#finish(r);
   }
 
+  isSaying(profile: number, saidAt: number): boolean {
+    const said = saidAs(profile, saidAt);
+    const r = this.#talking;
+    return (r !== null && said(r.line)) || this.#queue.some((e) => isLine(e) && said(e));
+  }
+
   cut(profile: number, saidAt: number, tail: boolean): void {
-    const said = (line: SpeechLine) => line.profile === profile && line.saidAt === saidAt;
+    const said = saidAs(profile, saidAt);
     const r = this.#running;
     if (r && said(r.line)) {
       if (!tail) this.#finish(r);
@@ -341,7 +351,7 @@ export class SpeechPresenter {
   }
 
   endDeletedFace(profile: number, saidAt: number): void {
-    const said = (line: SpeechLine) => line.profile === profile && line.saidAt === saidAt;
+    const said = saidAs(profile, saidAt);
     const r = this.#running;
     if (r && said(r.line)) {
       r.faceDeleted = true;

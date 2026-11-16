@@ -906,7 +906,7 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
     autoBandage: () => host.tactical()?.pathEnv.autoBandage ?? false,
     removeEpc: (npc) => host.releaseEscort?.(npc),
     callback: (name, args) => host.dialogueCallback?.(name, args) ?? false,
-    beginPreBattleInterface: () => host.beginPreBattleInterface?.(),
+    beginPreBattleInterface: (line) => host.beginPreBattleInterface?.(line),
   };
 }
 

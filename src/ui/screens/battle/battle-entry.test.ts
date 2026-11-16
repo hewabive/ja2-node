@@ -104,6 +104,16 @@ async function sayTheEnemyPresenceLineThenOpenThePanel(f: MapUiTest): Promise<vo
   f.deliver();
 }
 
+async function openThePromptWhileTheLineIsOnThePage(f: MapUiTest): Promise<void> {
+  arrangeBattle(f.session, BattleVariant.RETREAT);
+  f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS, events: ['mercQuote'] });
+  f.deliver();
+  await frames(f, FRAME_MS);
+  f.session.advance({ idle: true });
+  f.deliver();
+  await frames(f, FRAME_MS);
+}
+
 async function arrive(f: MapUiTest, variant: BattleVariant): Promise<void> {
   arrangeBattle(f.session, variant);
   await sayTheEnemyPresenceLineThenOpenThePanel(f);
@@ -164,6 +174,35 @@ describe('the pre-battle interface on the stub map-screen campaign', () => {
       expect(f.widget('preBattleRetreat')).toMatchObject({ enabled: true, rect: { x: 169, y: 54 } });
       expect(f.widget('preBattle.panel').text).toBe(f.screen.battle.panel ? 'ENEMY INVASION' : null);
       expect(snapshotFrom(f, (i) => i.kind === 'image' && i.asset === 'interface/prebattlepanel.sti' && i.frame === 0)).toMatchSnapshot();
+    } finally {
+      await f.dispose();
+    }
+  });
+
+  it('holds the panel of a prompt that came while its enemy-presence line is still up until that line ends (FACE_TRIGGER_PREBATTLE_INT)', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      await openThePromptWhileTheLineIsOnThePage(f);
+      expect(f.client.view.prompt?.kind).toBe('preBattle');
+      expect(f.screen.hook().subtitle).not.toBeNull();
+      expect(battle(f).preBattle).toBeNull();
+      await frames(f, ENEMY_PRESENCE_LINE_MS);
+      expect(f.screen.hook().subtitle).toBeNull();
+      expect(battle(f).preBattle).toMatchObject({ persistent: true, encounter: 'enemyInvasion', phase: 'opening' });
+    } finally {
+      await f.dispose();
+    }
+  });
+
+  it('opens the held panel as soon as Backspace skips its enemy-presence line', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      await openThePromptWhileTheLineIsOnThePage(f);
+      expect(battle(f).preBattle).toBeNull();
+      f.key('Backspace', 0, 'Backspace');
+      await frames(f, FRAME_MS);
+      expect(f.screen.hook().subtitle).toBeNull();
+      expect(battle(f).preBattle).toMatchObject({ persistent: true, phase: 'opening' });
     } finally {
       await f.dispose();
     }

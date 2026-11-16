@@ -41,7 +41,7 @@ import type { NarrativeHost } from './host.ts';
 import { NarrativeProfile, ProfileFlag } from './narrative-ids.ts';
 import { isNpcOrRpc } from './records.ts';
 import { type SpeakerBars, speakerBars } from './speaker-bars.ts';
-import { type DialogueEvent, TacticalModal, type TalkingFace, type TalkState } from './talk-state.ts';
+import { type DialogueEvent, type SaidLineRef, TacticalModal, type TalkingFace, type TalkState } from './talk-state.ts';
 
 export const TEXT_DELAY_MODIFIER_MS = 60;
 export const TICKS_PER_CHARACTER = TEXT_DELAY_MODIFIER_MS / TICK_MS;
@@ -78,7 +78,7 @@ export interface DialogueHandlers {
   autoBandage(): boolean;
   removeEpc(npc: number): void;
   callback(name: string, args: readonly number[]): boolean;
-  beginPreBattleInterface(): void;
+  beginPreBattleInterface(line: SaidLineRef): void;
 }
 
 interface LineUi {
@@ -482,7 +482,7 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
     h.triggerNpcRecord(face.pcTrigger.npc, face.pcTrigger.record);
   }
   if (face.modal) endModalTactical(host, h);
-  if (face.triggersPreBattle) h.beginPreBattleInterface();
+  if (face.triggersPreBattle) h.beginPreBattleInterface({ profile: face.speaker, saidAt: face.saidAt });
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
   talk.externPanel = null;

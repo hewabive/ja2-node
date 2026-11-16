@@ -65,10 +65,8 @@ interface Loaded {
 
 type PreBattleEvent = Extract<NonNullable<ViewFrame['events']>[number], { readonly type: 'preBattle' }>;
 
-function autoStartOf(frames: readonly ViewFrame[]): PreBattleEvent | null {
-  let found: PreBattleEvent | null = null;
-  for (const frame of frames) for (const e of frame.events ?? []) if (e.type === 'preBattle' && e.autoStart) found = e;
-  return found;
+function preBattleEventsOf(frames: readonly ViewFrame[]): PreBattleEvent[] {
+  return frames.flatMap((frame) => (frame.events ?? []).filter((e): e is PreBattleEvent => e.type === 'preBattle'));
 }
 
 export class MapHost implements MapPort {
@@ -76,7 +74,7 @@ export class MapHost implements MapPort {
   readonly battleHook: BattleHook;
   readonly #o: MapHostOptions;
   readonly #battleClient: SessionBattleClient;
-  #pendingAutoStart: PreBattleEvent | null = null;
+  readonly #pendingPreBattle: PreBattleEvent[] = [];
   readonly #pendingInvasions: InvasionEvent[] = [];
   readonly #pendingNotices: BattleNoticeEvent[] = [];
   readonly #hints: HintProvider;
@@ -239,8 +237,7 @@ export class MapHost implements MapPort {
       radarItemDot: (gridNo) => this.#radarItemDot(loaded, gridNo),
     };
     this.#screen = new MapScreen(env);
-    if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);
-    this.#pendingAutoStart = null;
+    for (const e of this.#pendingPreBattle.splice(0)) this.#screen.battle.pendPreBattle(e);
     this.#screen.noticeInvasions(this.#pendingInvasions.splice(0));
     this.#screen.noticeBattleNotices(this.#pendingNotices.splice(0));
     return this.#screen;
@@ -284,7 +281,7 @@ export class MapHost implements MapPort {
     this.#loaded?.media.useNicknames(this.#o.session.view?.nicknames);
     if (this.#unknownProfile()) void this.#refreshProfiles();
     if (!this.#screen) {
-      this.#pendingAutoStart = autoStartOf(frames) ?? this.#pendingAutoStart;
+      this.#pendingPreBattle.push(...preBattleEventsOf(frames));
       this.#pendingInvasions.push(...invasionBoxesOf(frames));
       this.#pendingNotices.push(...battleNoticesOf(frames));
     }

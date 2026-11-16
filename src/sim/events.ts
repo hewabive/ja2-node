@@ -4,6 +4,7 @@ import type { LaptopEvent } from './campaign/laptop/events.ts';
 import type { QuestEvent } from './campaign/narrative/events.ts';
 import type { StoryEvent } from './campaign/narrative/story-events.ts';
 import type { NarrativeEvent } from './narrative/events.ts';
+import type { SaidLineRef } from './narrative/talk-state.ts';
 import type { EconomyEvent } from './strategic/economy/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
 import type { PanelNotice } from './strategic/forces/flow-state.ts';
@@ -691,6 +692,7 @@ export interface PreBattleEvent extends SimEventBase {
   readonly prompt: string | null;
   readonly panel?: PreBattlePanel;
   readonly notice?: PanelNotice;
+  readonly line?: SaidLineRef;
 }
 
 export interface RetreatedEvent extends SimEventBase {

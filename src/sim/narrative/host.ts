@@ -6,7 +6,7 @@ import type { TacticalState } from '../tactical/state.ts';
 import type { NarrativeEventWithoutTick } from './events.ts';
 import type { RecordsEnv, SectorRef } from './records.ts';
 import type { HospitalBalance, ItemFacts, NpcMoneyMessage } from './select.ts';
-import type { GiftObject, TalkContext, TalkState } from './talk-state.ts';
+import type { GiftObject, SaidLineRef, TalkContext, TalkState } from './talk-state.ts';
 
 export interface FactSource {
   checkFact(fact: number, npcProfile: number): boolean;
@@ -92,6 +92,6 @@ export interface NarrativeHost extends RecordsEnv {
   offSectorPlayerSoldier?(profile: number): Soldier | null;
   headMinerMine?(profile: number): number;
   dialogueCallback?(name: string, args: readonly number[]): boolean;
-  beginPreBattleInterface?(): void;
+  beginPreBattleInterface?(line: SaidLineRef): void;
   skipsSpeech?(): boolean;
 }

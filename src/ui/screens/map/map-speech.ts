@@ -131,6 +131,10 @@ export class MapSpeech {
     return this.#hooks.presenter.soldierSpeaking;
   }
 
+  isSaying(profile: number, saidAt: number): boolean {
+    return this.#hooks.presenter.isSaying(profile, saidAt);
+  }
+
   get locator(): string | null {
     return this.#locator;
   }
