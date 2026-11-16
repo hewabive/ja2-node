@@ -400,6 +400,7 @@ export class CampaignSim {
       loadedSectorSoldier: (id: number) => this.tactical?.state.soldiers[id] ?? null,
       history: (code: number, secondCode: number, sector: { x: number; y: number; z: number }) =>
         this.laptop?.economyHistory(code, secondCode, sector),
+      inMapMode: () => this.state.flow === 'strategic',
       ...assignmentAnimationHooks(this),
       ...economyLineHooks(this),
     };

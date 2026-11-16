@@ -1049,7 +1049,10 @@ and its `soldierDied`; the mercs aboard die with it.
 
 Rules: `18`. `assign` gives the first soldier the assignment as the menu gives it to its merc, then runs
 `SetAssignmentForList` for the others in the given order, each checked on its own; the original shows one failure box
-for the batch, so `data.refusal` names the first failure (§5). When the first soldier is refused, the others keep their
+for the batch, so `data.refusal` names the first failure (§5). The list exists on the map screen only: on the tactical
+screen, whose menu changes its own merc (`Strategic/Assignments.cc:6609`), an `assign` of more than one soldier is
+refused as `listOnMapScreenOnly`, so the agent sends one per merc. The mercs' `idle` flags follow at the end of the
+command on the map screen; after an `assign` on the tactical screen they wait for the map screen or the hour (`18`). When the first soldier is refused, the others keep their
 assignments (`leaderRefused`), as every menu but the squad menu sets the list only after its merc's check; a squad's
 list runs after the refusal. Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and

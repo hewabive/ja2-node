@@ -8,12 +8,13 @@
 // @src AssignmentMenuBtnCallback, EPCMenuBtnCallback, SquadMenuBtnCallback, AttributesMenuBtnCallback,
 // @src TrainingMenuBtnCallback and SetAssignmentForList (2026-10-31); SetSoldierAssignmentHospital's RebuildCurrentSquad
 // @src through the world port (2026-11-01); the menus' SetAssignmentForList only once the menu's merc passes his check,
-// @src SquadMenuBtnCallback's after its refusal box too (2026-11-14).
+// @src SquadMenuBtnCallback's after its refusal box too (2026-11-14); SetAssignmentForList's return outside the map screen and
+// @src its gfReEvaluateEveryonesNothingToDo, which leaves the re-evaluation to the map screen's frame (2026-11-16).
 
 import { addCharacterToAnySquad, addCharacterToSquad, assignMercToAMovementGroup, removeCharacterFromSquads } from '../forces/squads.ts';
 import { takeSoldierOutOfVehicle } from '../forces/vehicles.ts';
 import { sectorInfo } from '../map/sectors.ts';
-import { changeSoldiersAssignment, reEvaluateEveryonesNothingToDo, setTimeOfAssignmentChange } from './assignment-done.ts';
+import { changeSoldiersAssignment, setTimeOfAssignmentChange } from './assignment-done.ts';
 import {
   basicCanCharacterTrainMilitia,
   canCharacterDoctor,
@@ -61,7 +62,8 @@ export type AssignRefusal =
   | 'squadElsewhere'
   | 'squadMoving'
   | 'squadHasVehicle'
-  | 'leaderRefused';
+  | 'leaderRefused'
+  | 'listOnMapScreenOnly';
 
 export type AssignResult =
   | { readonly ok: true; readonly militia?: MilitiaPaymentOutcome }
@@ -236,8 +238,15 @@ function joinSquad(ctx: EconomyContext, s: CrewMember, squad: number | undefined
   return null;
 }
 
+function setAssignmentForList<T>(ctx: EconomyContext, assignList: () => T): T | null {
+  if (!ctx.hooks.inMapMode()) return null;
+  const assigned = assignList();
+  ctx.state.economy.reEvaluateNothingToDo = true;
+  return assigned;
+}
+
 function setForList(ctx: EconomyContext, others: readonly CrewMember[], leader: CrewMember, to: AssignTarget): number[] {
-  return others.flatMap((o) => (setForListMember(ctx, o, leader, to) ? [] : [o.id]));
+  return setAssignmentForList(ctx, () => others.flatMap((o) => (setForListMember(ctx, o, leader, to) ? [] : [o.id]))) ?? [];
 }
 
 type MenuTarget = Extract<AssignTarget, { readonly kind: 'doctor' | 'patient' | 'trainSelf' | 'trainTeammate' | 'trainByOther' }>;
@@ -278,6 +287,7 @@ const UNKNOWN_SOLDIER: AssignResult = { ok: false, reason: 'unknownSoldier' };
 const NOT_ELIGIBLE: AssignResult = { ok: false, reason: 'notEligible' };
 const LEADER_REFUSED: AssignResult = { ok: false, reason: 'leaderRefused' };
 const ASSIGNED: AssignResult = { ok: true };
+const LIST_ON_MAP_SCREEN_ONLY: AssignResult = { ok: false, reason: 'listOnMapScreenOnly' };
 
 function listFollowsRefusedLeader(to: AssignTarget): boolean {
   return to.kind === 'squad';
@@ -291,6 +301,10 @@ function listMemberResult(ctx: EconomyContext, o: CrewMember | undefined, leader
 
 function untouchedResult(o: CrewMember | undefined): AssignResult {
   return o ? LEADER_REFUSED : UNKNOWN_SOLDIER;
+}
+
+function offTheMapScreenResult(o: CrewMember | undefined): AssignResult {
+  return o ? LIST_ON_MAP_SCREEN_ONLY : UNKNOWN_SOLDIER;
 }
 
 function militiaTrainingPaid(ctx: EconomyContext, s: CrewMember): boolean {
@@ -329,7 +343,8 @@ function assignTrainers(ctx: EconomyContext, leader: CrewMember, rest: readonly 
     const payment = startMilitiaPaymentFlow(ctx, leader, others, flow);
     return [{ ok: true, militia: payment }, ...rest.map((o) => waitingTrainerResult(o, payment))];
   }
-  const set = others.filter((o) => setForListMember(ctx, o, leader, to));
+  const set = setAssignmentForList(ctx, () => others.filter((o) => setForListMember(ctx, o, leader, to)));
+  if (!set) return [{ ok: true, militia: 'alreadyPaid' }, ...rest.map(offTheMapScreenResult)];
   const unpaid = set.filter((o) => !militiaTrainingPaid(ctx, o));
   const payment = unpaid[0] ? startMilitiaPaymentFlow(ctx, unpaid[0], others, flow) : 'alreadyPaid';
   return [{ ok: true, militia: payment }, ...rest.map((o) => setTrainerResult(o, set, unpaid, payment))];
@@ -344,14 +359,13 @@ function assignWithList(
   if (to.kind === 'trainMilitia') return assignTrainers(ctx, leader, rest);
   const led = assignLeader(ctx, leader, to);
   if (!led.ok && !listFollowsRefusedLeader(to)) return [led, ...rest.map(untouchedResult)];
-  return [led, ...rest.map((o) => listMemberResult(ctx, o, leader, to))];
+  const listed = setAssignmentForList(ctx, () => rest.map((o) => listMemberResult(ctx, o, leader, to)));
+  return [led, ...(listed ?? rest.map(offTheMapScreenResult))];
 }
 
 export function assignSoldiers(ctx: EconomyContext, ids: readonly number[], to: AssignTarget): AssignResult[] {
   const [leader, ...rest] = ids.map((id) => ctx.crew.get(id));
-  const results = leader ? assignWithList(ctx, leader, rest, to) : [UNKNOWN_SOLDIER, ...rest.map(untouchedResult)];
-  reEvaluateEveryonesNothingToDo(ctx);
-  return results;
+  return leader ? assignWithList(ctx, leader, rest, to) : [UNKNOWN_SOLDIER, ...rest.map(untouchedResult)];
 }
 
 export type SleepResult = { readonly ok: true } | { readonly ok: false; readonly reason: SleepRefusal | 'unknownSoldier' | 'collapsed' };
@@ -376,8 +390,8 @@ export function resumeMilitiaPayment(ctx: EconomyContext, prompt: MilitiaPayment
   const leader = ctx.crew.get(prompt.leader);
   const others = prompt.soldiers.flatMap((id) => ctx.crew.get(id) ?? []);
   const to: AssignTarget = { kind: 'trainMilitia' };
-  const setAssignmentForList = () => (leader ? setForList(ctx, others, leader, to) : []);
-  return answerMilitiaPayment(ctx, prompt, yes, { leader: prompt.leader, setAssignmentForList });
+  const assignList = () => (leader ? setForList(ctx, others, leader, to) : []);
+  return answerMilitiaPayment(ctx, prompt, yes, { leader: prompt.leader, setAssignmentForList: assignList });
 }
 
 export function answerPendingMilitiaPrompt(ctx: EconomyContext, yes: boolean): MilitiaPaymentOutcome | ContinueOutcome | null {

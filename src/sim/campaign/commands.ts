@@ -5,7 +5,8 @@
 // @src Map_Screen_Interface.cc HandleMoveoutOfSectorMovementTroops (the regroup at Done, before the plot, 2026-11-14),
 // @src HandleSettingTheSelectedListOfMercs,
 // @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic; Assignments.cc
-// @src CreateDestroyAssignmentPopUpBoxes (RebuildCurrentSquad as the assignment menu closes, 2026-11-08).
+// @src CreateDestroyAssignmentPopUpBoxes (RebuildCurrentSquad as the assignment menu closes, 2026-11-08), SetAssignmentForList
+// @src (no list outside the map screen, 2026-11-16).
 
 import {
   parseSectorString,
@@ -84,6 +85,7 @@ const ASSIGNMENT_REFUSAL_TEXT: RefusalTexts<AssignmentRefusal> = {
   squadMoving: 'that squad is on the move',
   squadHasVehicle: 'that squad is a vehicle squad',
   leaderRefused: 'the first merc or the militia payment he asked for was refused, so the others keep their assignments',
+  listOnMapScreenOnly: "the tactical screen's assignment menu changes its own merc only: send one assign per merc",
   conditions: 'the merc cannot rest now',
   walking: 'the merc is on the road',
   driving: 'the merc drives the vehicle',
@@ -331,6 +333,7 @@ function assign(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
   const ids = Array.isArray(cmd.soldiers) ? cmd.soldiers.filter((x): x is number => typeof x === 'number') : [];
   const to = cmd.to as AssignTarget | undefined;
   if (ids.length === 0 || !to || !ASSIGN_KINDS.has(String(to.kind))) return refuse('badAssignment', 'need soldiers and an assignment');
+  if (ids.length > 1 && !economy.hooks.inMapMode()) return refuseWithText(ASSIGNMENT_REFUSAL_TEXT, 'listOnMapScreenOnly');
   const results = assignSoldiers(economy, ids, to).map(soldierAssignResult);
   if (results.some((r) => r.ok)) closeAssignmentMenu(campaign);
   const failed = results.find((r) => !r.ok);

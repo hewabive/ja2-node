@@ -83,11 +83,14 @@ ja2-node only changes his state. The assignment menu's leader and the mercs `Set
 assignment take their poses at different moments (`set-assignment.ts`).
 
 **Commands instead of screens.** `assignSoldiers` gives the first soldier the assignment as the menu gives it to its
-merc, runs the original's list assignment for the others in the order given and re-evaluates the nothing-to-do flags at once, where the original waits for a map screen frame (deviation
-"Nothing-to-do re-evaluation"). The original's other triggers (an assignment time stamp, a plotted route of ours, an
-item that passes through the cursor on a panel) raise `economy.reEvaluateNothingToDo`, and the campaign acts on it at the
+merc and runs the original's list assignment for the others in the order given. The list runs on the map screen only
+(`EconomyHooks.inMapMode`, the original's `fInMapMode`) and raises `economy.reEvaluateNothingToDo` at its end, so an
+`assign` on the tactical screen changes its merc alone and raises the flag only through his time stamp; the campaign
+refuses a longer list there. The original's other triggers (an assignment time stamp, a plotted route of ours, an
+item that passes through the cursor on a panel) raise the flag too, and the campaign acts on it at the
 end of a command or tick on the map screen, the original's only frame that does, so a flag raised on the tactical screen
-or in the laptop waits for the map screen or the hourly update (`nothing-to-do.test.ts`); `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
+or in the laptop waits for the map screen or the hourly update (`nothing-to-do.test.ts`). The end of autoresolve
+re-evaluates at once, where the original raises the flag for the map screen it returns to. `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
 swap or a stack clean-up without a cursor item raises nothing. The militia panel's cursor lives in the client: the
 server takes the town's final state at Done, checked as a whole, and AUTO (deviation "Militia redistribution").
 

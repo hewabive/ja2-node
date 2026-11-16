@@ -3,6 +3,7 @@ import { type CampaignKit, createTestCampaign, landFirstSquad, runTicks } from '
 import { loadEconomyTestContent, kit as medicalKit } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { worldHour } from '../strategic/time/world-clock.ts';
 import { InvSlot } from '../tactical/inventory.ts';
@@ -89,11 +90,33 @@ describe('nothing-to-do triggers', () => {
     expect([worldHour(c.state.clock) !== hour, merc(roster, doctor).nothingToDo, c.state.flow]).toEqual([true, true, 'tactical']);
   });
 
-  it('re-evaluates at once at an assign on the tactical screen too, where the original leaves the flag to the map screen or the hour (deviation "Nothing-to-do re-evaluation")', () => {
+  it('leaves the flags stale after an assign on the tactical screen, whose list returns at once (Assignments.cc:6609), until the map screen opens', () => {
     const { c, roster, doctor, patient } = doctorWithPatient(8);
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     expect(c.dispatch({ type: 'assign', soldiers: [patient], to: { kind: 'squad', squad: 0 } })).toMatchObject({ ok: true });
+    expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([false, true]);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([true, false]);
+  });
+
+  it('raises nothing at a tactical assign that changes no assignment, where the map screen re-evaluates after its list (Assignments.cc:6779)', () => {
+    const { c, roster, doctor, patient } = doctorWithPatient(8);
+    merc(roster, patient).life += WOUND;
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'assign', soldiers: [doctor], to: { kind: 'doctor' } })).toMatchObject({ ok: true });
+    expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([false, false]);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(merc(roster, doctor).nothingToDo).toBe(false);
+    expect(c.dispatch({ type: 'assign', soldiers: [doctor], to: { kind: 'doctor' } })).toMatchObject({ ok: true });
+    expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([true, false]);
+  });
+
+  it('refuses an assign of more than one merc on the tactical screen, whose menu changes its own merc only', () => {
+    const { c, roster, doctor, patient } = doctorWithPatient(8);
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    const listed = c.dispatch({ type: 'assign', soldiers: [patient, doctor], to: { kind: 'squad', squad: 0 } });
+    expect(listed).toMatchObject({ ok: false, data: { refusal: 'listOnMapScreenOnly' } });
+    expect([merc(roster, patient).assignment, merc(roster, doctor).assignment]).toEqual([Assignment.PATIENT, Assignment.DOCTOR]);
   });
 
   it('acts on a raised flag at the end of the next tick', () => {

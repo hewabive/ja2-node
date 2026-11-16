@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   type CrewOptions,
   type EconomyTestContent,
+  type EconomyTestOptions,
   economyTestContext,
   item,
   kit,
@@ -55,8 +56,8 @@ beforeAll(async () => {
   content = await loadEconomyTestContent();
 });
 
-function context(rolls?: { int(n: number): number; chance(p: number): boolean }) {
-  const made = economyTestContext({ content, ...(rolls ? { random: rolls } : {}) });
+function context(rolls?: { int(n: number): number; chance(p: number): boolean }, setup?: EconomyTestOptions['setup']) {
+  const made = economyTestContext({ content, ...(rolls ? { random: rolls } : {}), ...(setup ? { setup } : {}) });
   initializeMapStructure(made.ctx);
   initStrategicMovementCosts(made.ctx);
   return made;
@@ -328,8 +329,27 @@ describe('assigning and the hourly order', () => {
     expect(result).toEqual({ ok: true });
     expect(d).toMatchObject({ assignment: Assignment.DOCTOR, lastAssignmentChangeMin: worldTotalMinutes(made.ctx.state.clock) });
     expect(d.inv[Slot.HAND]?.item).toBe(kitItems(content.items).medicKit);
-    expect(d.nothingToDo).toBe(true);
+    expect([d.nothingToDo, made.ctx.state.economy.reEvaluateNothingToDo]).toEqual([false, true]);
     expect(made.ctx.state.queue.events.some((e) => e.kind === 68)).toBe(true);
+  });
+
+  it('raises the re-evaluation at the end of the list on the map screen, also with nobody listed and nothing changed (Assignments.cc:6779)', () => {
+    const made = context();
+    const d = merc(made, { id: 0, assignment: Assignment.DOCTOR });
+    d.inv[Slot.HAND] = kit(content.items, 'MEDICKIT', [100]);
+    const [result] = assignSoldiers(made.ctx, [0], { kind: 'doctor' });
+    expect([result, made.ctx.state.economy.reEvaluateNothingToDo]).toEqual([{ ok: true }, true]);
+  });
+
+  it('runs no list off the map screen, which neither assigns the others nor raises the re-evaluation (Assignments.cc:6609)', () => {
+    const made = context(undefined, { hooks: { inMapMode: () => false } });
+    const d = merc(made, { id: 0, assignment: Assignment.DOCTOR });
+    d.inv[Slot.HAND] = kit(content.items, 'MEDICKIT', [100]);
+    const listed = merc(made, { id: 1, assignment: Assignment.ON_DUTY });
+    listed.inv[Slot.BIGPOCK2] = kit(content.items, 'MEDICKIT', [100]);
+    const results = assignSoldiers(made.ctx, [0, 1], { kind: 'doctor' });
+    expect(results).toEqual([{ ok: true }, { ok: false, reason: 'listOnMapScreenOnly' }]);
+    expect([listed.assignment, made.ctx.state.economy.reEvaluateNothingToDo]).toEqual([Assignment.ON_DUTY, false]);
   });
 
   it('asks for the nothing-to-do re-evaluation at every time stamp and re-evaluates only when asked', () => {

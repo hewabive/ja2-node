@@ -98,6 +98,7 @@ export interface EconomyHooks {
   makeCharacterDialogueEventSleep(id: number, asleep: boolean): void;
   handleImportantMercQuote(id: number, quote: number): void;
   headMinerDialogue(mine: number, profile: number, quote: number, forceMapScreen: boolean): void;
+  inMapMode(): boolean;
 }
 
 export type DecisionAnswer = 'yes' | 'no' | 'defer';
@@ -158,6 +159,7 @@ export const defaultEconomyHooks: EconomyHooks = {
   makeCharacterDialogueEventSleep: () => {},
   handleImportantMercQuote: () => {},
   headMinerDialogue: () => {},
+  inMapMode: () => true,
 };
 
 export const deferringDecisions: EconomyDecisions = {
