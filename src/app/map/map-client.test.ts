@@ -68,7 +68,7 @@ describe('the map client clock', () => {
     expect(session.drives).toEqual([]);
   });
 
-  it('stops real time on the events that open a box: the update box, the lost sector, invasion, out-of-gas, militia refusal and promotion boxes', () => {
+  it('stops real time on the events that open a box: the update box, the lost sector, invasion, out-of-gas, militia refusal and promotion boxes, the moved landing zone and a rerouted arrival', () => {
     const session = new FakeSession();
     session.latestView = viewIn('strategic');
     mapClientOn(session).start();
@@ -85,6 +85,8 @@ describe('the map client clock', () => {
         'vehicleOutOfGas',
         'militiaTrainingRejected',
         'militiaPromoted',
+        'landingZoneReset',
+        'arrivalRerouted',
       ],
     });
   });

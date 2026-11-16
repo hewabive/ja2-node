@@ -875,6 +875,7 @@ export class MapScreen implements Screen {
         ...eventBoxesOf(frames, {
           text: this.#env.text,
           sectorName: (label) => this.#sectorName(label, true),
+          briefSectorName: (label) => this.#sectorName(label, false),
           townOf: (label) => this.#townOf(label),
           vehicleType: vehicleTypeIn(view),
         }),

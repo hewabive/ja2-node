@@ -785,6 +785,34 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.t.runtime.host.modal).toBeNull();
     }));
 
+  it('boxes a landing zone moved off enemy airspace and a rerouted arrival with the original’s strings (HandleAirspaceControlUpdated, CheckForValidArrivalSector)', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [
+            { type: 'landingZoneReset', tick, from: 'B13', to: 'A9' },
+            { type: 'arrivalRerouted', tick, from: 'B13', to: 'A13' },
+          ],
+        },
+      ]);
+      const texts: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+      }
+      await f.settle();
+      expect(texts).toEqual([
+        'Airspace over B13: Drassen is no longer secure!  Arrival sector was moved to A9: Omerta.',
+        'Arrival of new recruits is being rerouted to sector A13, as scheduled drop-off point of sector B13 is enemy occupied.',
+      ]);
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
   it('leaves the box of a sector lost in the tactical flow to the tactical screen', () =>
     withMap(async (f) => {
       (f.session.sim as CampaignSession).campaign.state.flow = 'tactical';

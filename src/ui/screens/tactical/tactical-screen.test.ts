@@ -1522,6 +1522,33 @@ describe('the tactical screen in a stub campaign', () => {
     expect(f.t.runtime.host.modal).toBeNull();
   });
 
+  it('boxes a landing zone moved off enemy airspace and a rerouted arrival in the tactical flow, centred above the inventory panel', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const tick = f.client.view.tick;
+    f.frames([
+      frame(tick, [
+        { type: 'landingZoneReset', tick, from: 'B13', to: 'A9' },
+        { type: 'arrivalRerouted', tick, from: 'B13', to: 'A13' },
+      ]),
+    ]);
+    const { height } = f.t.runtime.geometry();
+    const texts: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      await f.settle();
+      const box = f.widget('messageBox');
+      texts.push(box.text ?? '');
+      expect(box.rect.y * 2 + box.rect.height).toBeLessThanOrEqual(height - INV_INTERFACE_HEIGHT);
+      f.key('Enter');
+    }
+    await f.settle();
+    expect(texts).toEqual([
+      'Airspace over B13: Drassen is no longer secure!  Arrival sector was moved to A9: Omerta.',
+      'Arrival of new recruits is being rerouted to sector A13, as scheduled drop-off point of sector B13 is enemy occupied.',
+    ]);
+    expect(f.t.runtime.host.modal).toBeNull();
+  });
+
   it('ends the cursor the robot refuses as ammo of another calibre, as HandleItemPointerClick does after its put-back: one beer of a stack back at its end, keys still on the ring, a withdrawal not booked', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);

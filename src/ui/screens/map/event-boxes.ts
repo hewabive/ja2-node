@@ -5,7 +5,10 @@
 // @src the detailed GetSectorIDString); src/game/Strategic/Strategic_Movement.cc ReportVehicleOutOfGas (STR_LATE_05
 // @src with pVehicleStrings of the vehicle's type and the sector's short string, 2026-11-05);
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (an OK box on the screen that is up when it happens;
-// @src the militia training refusals, 2026-11-14; the militia promotions, which come only on the map screen, 2026-11-15).
+// @src the militia training refusals, 2026-11-14; the militia promotions, which come only on the map screen, 2026-11-15);
+// @src src/game/Strategic/StrategicMap.cc HandleAirspaceControlUpdated (pBullseyeStrings[4] with both sectors by
+// @src GetSectorIDString, not detailed) and src/game/Tactical/Merc_Hiring.cc CheckForValidArrivalSector
+// @src (str_arrival_rerouted with the new and the old sector's short string), 2026-11-16.
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
@@ -16,6 +19,8 @@ import { militiaPromotionsText, militiaRejectionText } from './militia-boxes.ts'
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 export type SectorLostEvent = Extract<FrameEvent, { readonly type: 'sectorLost' }>;
+type LandingZoneResetEvent = Extract<FrameEvent, { readonly type: 'landingZoneReset' }>;
+type ArrivalReroutedEvent = Extract<FrameEvent, { readonly type: 'arrivalRerouted' }>;
 
 const MAP_ERROR = 'pMapErrorString';
 const SAM_SITE_TAKEN = 15;
@@ -25,11 +30,15 @@ const TAKEN_TEXT: Readonly<Record<SectorLostEvent['kind'], number>> = { sam: SAM
 const LATE_STRINGS = 'gzLateLocalizedString';
 const STR_LATE_05 = 4;
 const VEHICLE_STRINGS = 'pVehicleStrings';
+const BULLSEYE = 'pBullseyeStrings';
+const AIRSPACE_NO_LONGER_SECURE = 4;
+const ARRIVAL_REROUTED = 'str_arrival_rerouted';
 const TACTICAL_FLOW = 'tactical';
 
 export interface EventBoxSources {
   readonly text: UiTextService;
   readonly sectorName: (label: string) => string;
+  readonly briefSectorName: (label: string) => string;
   readonly townOf: (label: string) => number;
   readonly vehicleType: (vehicle: number) => number | null;
 }
@@ -44,7 +53,22 @@ export function outOfGasText(text: UiTextService, vehicleType: number, sector: s
   return braceFormat(text.string(LATE_STRINGS, STR_LATE_05) ?? '', [text.string(VEHICLE_STRINGS, vehicleType) ?? '', sector]);
 }
 
+export function landingZoneResetText(
+  text: UiTextService,
+  event: LandingZoneResetEvent,
+  briefSectorName: (label: string) => string,
+): string {
+  return printf(text.string(BULLSEYE, AIRSPACE_NO_LONGER_SECURE) ?? '', [briefSectorName(event.from), briefSectorName(event.to)]);
+}
+
+export function arrivalReroutedText(text: UiTextService, event: ArrivalReroutedEvent): string {
+  return printf(text.string(ARRIVAL_REROUTED, 0) ?? '', [event.to, event.from]);
+}
+
 function eventBox(event: FrameEvent, sources: EventBoxSources): PromptedText | null {
+  if (event.type === 'landingZoneReset')
+    return { text: landingZoneResetText(sources.text, event, sources.briefSectorName), prompt: eventPrompt(event, event.to) };
+  if (event.type === 'arrivalRerouted') return { text: arrivalReroutedText(sources.text, event), prompt: eventPrompt(event, event.to) };
   if (event.type === 'sectorLost')
     return { text: lostSectorText(sources.text, event, sources.sectorName), prompt: eventPrompt(event, event.sector) };
   if (event.type === 'militiaTrainingRejected') {

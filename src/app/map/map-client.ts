@@ -15,6 +15,8 @@ const SCREEN_INDEPENDENT_BOX_EVENTS: readonly SimEventType[] = [
   'vehicleOutOfGas',
   'militiaTrainingRejected',
   'militiaPromoted',
+  'landingZoneReset',
+  'arrivalRerouted',
 ];
 const BOX_EVENTS: readonly SimEventType[] = [...UPDATE_BOX_EVENTS, ...SCREEN_INDEPENDENT_BOX_EVENTS];
 const MANUAL: DriverMode = { mode: 'manual' };

@@ -90,11 +90,12 @@ helicopter; later hires land at the landing zone on the next arrival slot, and o
 gets a drop of his own (`campaign/helicopter-drop-flow.ts`, `25`). A hire wants to stand from his creation on, as the
 original's first `STANDING` animation sets it (`Tactical/Soldier_Control.cc:595`), so a merc hit in mid-drop gets up at
 the end of the hit. The zone is rerouted when the enemy holds it and reset to the start sector when the enemy takes its
-airspace; the original's message boxes become the events `arrivalRerouted` and `landingZoneReset`. A merc arriving by any
-way but the helicopter says his reached-destination line through the dialogue queue, one arrival at a time and none
-before the first helicopter run is over: the flag the line takes is `TalkState.mercArrivingQuoteBeingUsed`, which a
-callback queued behind the line releases (`sayReachedDestination`, `contracts/hire-contract.ts`;
-`Tactical/Merc_Hiring.cc:289-311`), saved with the queue and read from a native save.
+airspace; the original's message boxes become the events `arrivalRerouted` and `landingZoneReset`, which the page boxes
+with the original's strings (`30`). A merc arriving by any way but the helicopter says his reached-destination line
+through the dialogue queue, one arrival at a time and none before the first helicopter run is over: the flag the line
+takes is `TalkState.mercArrivingQuoteBeingUsed`, which a callback queued behind the line releases
+(`sayReachedDestination`, `contracts/hire-contract.ts`; `Tactical/Merc_Hiring.cc:289-311`), saved with the queue and
+read from a native save.
 
 **The specialties page.** With the rule pack's `imp.pick_skills_directly` the I.M.P. site shows the specialties page
 in place of the quiz (`src/ui/screens/laptop/imp/imp-skill-traits.ts`): the picks go to `impCreate` as `skills`, give

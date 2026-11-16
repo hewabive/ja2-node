@@ -221,19 +221,25 @@ pointer by the `compatibleItems` hint's shop rule.
 
 **The map screen drives its own time.** `SessionMapClient` runs the session in real time at speed 1 and stops the driver
 on the events that open a box (`pauseOn`: the update box's, `sectorLost`, `invasion`, `vehicleOutOfGas`,
-`militiaTrainingRejected` and `militiaPromoted`); menus, plotting, boxes and the inventories hold time like `InterruptTimeForMenus`; after
-the server stops on an event the driver restarts once playback has caught up. The player's pause holds time
+`militiaTrainingRejected`, `militiaPromoted`, `landingZoneReset` and `arrivalRerouted`); menus, plotting, boxes and the
+inventories hold time like `InterruptTimeForMenus`; after the server stops on an event the driver restarts once
+playback has caught up. The player's pause holds time
 (`mapPaused`) and refuses nothing: as `CreateDestroyScreenMaskForPauseGame` does, it puts a mask over the whole screen,
 the clock's region on top of it, and a click on either unpauses (`pauseMask` in the layout), so no menu opens while
 paused. It never starts in the autoresolve flow, where the autoresolve screen owns
 the clock, as strategic time stands still during the original's autoresolve; leaving the map stops it, so the tactical
 screen asks for real time anew on entry.
 
-**The lost sector, out-of-gas and militia refusal boxes go to the screen of the flow.** The original opens them with
-`DoScreenIndependantMessageBox` on whatever screen is up (the militia ones from `militiaTrainingRejected` by its reason,
-`map/militia-boxes.ts`, deviation "Militia refusal boxes"); ja2-node's map and tactical screens both hear every frame, so
-the tactical screen opens them in the tactical flow and the map screen otherwise, once it is on top again after
-autoresolve (`map/event-boxes.ts`). The militia promotions box is the map screen's alone, as the simulation reports
+**The lost sector, out-of-gas, militia refusal, landing zone and rerouted arrival boxes go to the screen of the
+flow.** The original opens them with `DoScreenIndependantMessageBox` on whatever screen is up (the militia ones from
+`militiaTrainingRejected` by its reason, `map/militia-boxes.ts`, deviation "Militia refusal boxes"; the landing zone's
+from `landingZoneReset`, `Strategic/StrategicMap.cc:2295-2315`; the rerouted arrival's from `arrivalRerouted`,
+`Tactical/Merc_Hiring.cc:542-551`); ja2-node's map and tactical screens both hear every frame, so the tactical screen
+opens them in the tactical flow and the map screen otherwise, once it is on top again after autoresolve
+(`map/event-boxes.ts`). The laptop, which would show them too, holds the clock (`15`), so none comes while it is open. A
+native import's landing zone reset waits in the session for its first step, which the screen the import opens on
+starts as it is entered, so that screen boxes it (`src/server/save-session.test.ts` "frames the import's landing zone
+reset …"). The militia promotions box is the map screen's alone, as the simulation reports
 `militiaPromoted` only in the strategic flow (`18`). The enter sound of a ground vehicle follows the same split: the sound director plays
 it at the vehicle's tile in the tactical flow, the map screen otherwise, at the same tile against the tactical camera
 last shown, as the original's `SoundVolume` and `SoundDir` read the world view the last scroll left

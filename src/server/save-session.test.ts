@@ -28,6 +28,7 @@ import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { musicMode } from '../protocol/music.ts';
 import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { advance } from '../sim/advance.ts';
+import type { SimEvent } from '../sim/events.ts';
 import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
 import { queenProgress } from '../sim/strategic/ai/difficulty.ts';
 import { SectorFlag } from '../sim/strategic/forces/constants.ts';
@@ -42,6 +43,7 @@ import { type AroundAnimationRestart, inLoadedSector } from '../sim/tactical/sav
 import { Team } from '../sim/tactical/soldier.ts';
 import { whoIsThere } from '../sim/tactical/state.ts';
 import { createSaveSession } from './save-session.ts';
+import { Session } from './session.ts';
 
 const DOOR_OPEN = 0x01;
 const DOOR_PERCEIVED_OPEN = 0x02;
@@ -329,6 +331,22 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(underTheEnemy.drainEvents()).toContainEqual(expect.objectContaining({ type: 'landingZoneReset', from: 'B13', to: 'A9' }));
       const free = await imported(FREE_AIRSPACE_NEXT_TO_THE_START);
       expect(free.campaign.state.laptop.mercArriveSector).toBe(sectorId(FREE_AIRSPACE_NEXT_TO_THE_START));
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    "frames the import's landing zone reset for the page at the session's first step, so the page boxes it on the screen it opens (HandleAirspaceControlUpdated)",
+    async () => {
+      const file = [...saveFiles].sort()[0] ?? '';
+      const bytes = withLandingZone(file, DRASSEN_AIRPORT);
+      const { session: sim } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const session = new Session('import', sim, undefined, { kind: 'import', seed: 0, save: file, digest: '' });
+      const framed: SimEvent[] = [];
+      session.subscribe((m) => {
+        if (m.t === 'frames') for (const f of m.frames) framed.push(...(f.events ?? []));
+      });
+      session.advance({ ticks: 1 });
+      expect(framed).toContainEqual(expect.objectContaining({ type: 'landingZoneReset', from: 'B13', to: 'A9' }));
     },
   );
 
