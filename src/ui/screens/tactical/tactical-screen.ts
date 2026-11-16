@@ -81,7 +81,8 @@
 // @src profile, by zVehicleName and gets the life and fuel bars, 2026-11-05); Strategic_Movement.cc
 // @src ReportVehicleOutOfGas (the STR_LATE_05 box on the screen that is up, 2026-11-05); GameScreen.cc
 // @src MainGameScreenHandle (nothing after HandleAutoBandage while the mode runs: no interface update, no rendering, no
-// @src input but the auto-bandage keys and the mask's buttons, 2026-11-06).
+// @src input but the auto-bandage keys and the mask's buttons, 2026-11-06); Interface_Panels.cc SetSMPanelCurrentMerc
+// @src (the single merc panel's switch to another merc closes the item description box, 2026-11-15).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -431,6 +432,7 @@ export class TacticalScreen implements Screen {
       setCursor: (cursor) => this.inventory.setCursor(cursor),
       placements: () => this.inventory.placements(),
       send: (cmd) => this.inventory.send(cmd),
+      command: (cmd) => env.client.command(cmd),
       confirm: (text) => env.boxes.confirm(text),
       metric: () => env.metric(),
       keyItem: (key) => env.media.keyItem(key),
@@ -1027,6 +1029,7 @@ export class TacticalScreen implements Screen {
     let kind = pending.kind;
     const s = soldierById(this.#view(), pending.soldier);
     if (kind === 'sm' && (!s || !isMercBodyType(s) || isEpc(s))) kind = 'team';
+    if (kind === 'sm' && s && s.id !== this.#smMerc && this.description.open) this.description.close(false);
     if (kind === 'sm' && s) this.#smMerc = s.id;
     if (kind === this.#panel) return;
     if (kind === 'sm' && this.inventory.cursor !== null) this.#teamButtonsDisabled = true;

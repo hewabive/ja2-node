@@ -26,7 +26,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `src/content/formats/object.ts`, `src/sim/items/object.ts` | The 36-byte `OBJECTTYPE` record; `ItemObject` without a soldier: creation, stacks, magazines, attachments, unloading |
 | `inventory.ts`, `soldier-inventory.ts`, `hand-item.ts` | Slots, placing and auto-placing, reloading, carried weight, the items of hired mercs and NPC profiles; what a hand change does |
 | `item-merge.ts`, `stack-cleanup.ts` | Attaching with the soldier's skill check, merges; pooling the points of a stack, CTRL+click with the item cursor's objects |
-| `inventory-panel.ts`, `inventory-commands.ts`, `key-ring-panel.ts`, `item-source.ts`, `item-compatibility.ts`, `item-description.ts` | The inventory commands on the original panel code, keys in and out of the key ring, the pocket or ring position the item cursor's commands take from, slot hatches and compatible outlines, the description box values |
+| `inventory-panel.ts`, `inventory-commands.ts`, `key-ring-panel.ts`, `item-source.ts`, `item-compatibility.ts`, `item-description.ts`, `item-description-box.ts` | The inventory commands on the original panel code, keys in and out of the key ring, the pocket or ring position the item cursor's commands take from, slot hatches and compatible outlines, the description box values, the description box session and its AP |
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
@@ -81,7 +81,9 @@ tried on copies first, so a refused one changes nothing; what the original leave
 (deviation "Item cursor"). A pickup arriving on more than one shown item freezes the merc and opens the `pickupMenu`
 prompt, whose answer names the items (`prompts.ts`); like a box it holds the soldiers due later in its pass (§6). A
 `pickUp` that names them already takes them without it, and an item that does not fit stays on the ground (deviation
-"Picking up items"). An attachment change is charged per command (deviation "Attachment AP").
+"Picking up items"). The item description box is a session the server holds (`item-description-box.ts`, `29` §8.3):
+its attaches and detaches charge nothing and its close charges `AP_RELOAD_GUN` once, as the original's; a plain
+`attach` or `detach` is a box of its own (deviation "Attachment AP").
 
 **The equipment generator replays the original.** `generateRandomEquipment` keeps every draw of `Inventory_Choosing.cc`
 on `main` in order, chances whose result is thrown away and `Random(1)` included. The first enemy generated in
@@ -181,6 +183,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A burst gun taken from the hand into the sector inventory leaves the burst mode on: picking it up places nothing on the merc, so no `EnsureConsistentWeaponMode` runs, only the launcher reset of `HandleTacticalEffectsOfEquipmentChange` (`Strategic/MapScreen.cc:3711-3716`) | `src/sim/campaign/map-inventory.test.ts` "leaves the burst mode on as a burst gun goes from the hand into the stash …" |
 | SHIFT+R spends the pointed-at stack even when it carries an attachment, which keeps every other stack out of the refill (`Map_Screen_Interface_Map_Inventory.cc:1319-1327`) | `src/sim/campaign/map-inventory.test.ts` "takes from the pointed-at stack even when it carries an attachment …" |
 | A tile's pool lists its items in the order they came, while the original's runs over all items go by index, a new item taking the first freed one: a theft in the loaded sector draws first for an item that took a freed index, the pool opens with it before older ties, and the sector's item records put it there, a freed index kept as a record the next item added off the map fills; a load adds the records again in order, so the tile's pool then follows the index | `src/sim/campaign/sector-loot.test.ts` "draws for the loaded sector's items by world item index …", `src/sim/campaign/map-inventory.test.ts` "runs over the loaded sector's items by world item index …", `src/sim/campaign/sector-diff.test.ts` "writes the loaded sector's items by world item index …" |
+| The description box charges by what it shows at its close against the opening, item and status in any position: an attachment taken off and put back costs nothing (`Interface_Items.cc:2530-2588`) | `item-description-box.test.ts` "charges nothing for an attach taken off again …" |
+| The description box stays up over the end of the turn, so its close charges the APs of the merc's next turn (`UIHandleEndTurn`, `Tactical/Handle_UI.cc:1066`) | `item-description-box.test.ts` "stays open over the end of the turn …" |
+| A failed attachment skill check closes the description box, charging what was changed in it before (`Items.cc:1563`) | `item-description-box.test.ts` "closes, charging the changes before it, when an attachment skill check fails …" |
 | A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1560`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
 
 Not pinned yet:

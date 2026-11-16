@@ -32,7 +32,9 @@
 // @src HandleAutoBandagePending, whose box (the question or an OK box) holds the frame's ExecuteOverhead under PauseTime,
 // @src then UpdateBullets; a box the campaign opened earlier in the frame holds those three counters too (2026-11-14);
 // @src a box up in the frame, auto-bandage's failure box at its end included, is the pause the frame's UpdateClock meets
-// @src (2026-11-14).
+// @src (2026-11-14); Turn_Based_Input.cc ESC and Interface_Items.cc ItemDescCallbackPrimary (the item description box
+// @src closed, not under the interface lock), ItemDescAttachmentsCallbackPrimary (a click in the box selects nobody,
+// @src 2026-11-15).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -143,7 +145,13 @@ import { type HelicopterDrop, helicopterDropRunning } from './helicopter-drop-st
 import { helicopterLandingOpcode } from './helicopter-landing.ts';
 import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot, itemIn } from './inventory.ts';
-import { dispatchInventoryCommand, INVENTORY_COMMANDS, reloadCursor } from './inventory-commands.ts';
+import {
+  clickInsideItemDescription,
+  dispatchInventoryCommand,
+  INVENTORY_COMMANDS,
+  openItemDescription,
+  reloadCursor,
+} from './inventory-commands.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import {
   answerActivateSwitch,
@@ -161,6 +169,7 @@ import {
   soldierDropObjectBeside,
   soldierPickupItem,
 } from './item-actions.ts';
+import { closeItemDescriptionBox } from './item-description-box.ts';
 import {
   BUSY_ANIMATION_REASON,
   BUSY_ANIMATION_REFUSAL,
@@ -979,6 +988,10 @@ export class TacticalSim {
         return this.#selectSquad(cmd);
       case 'autoBandage':
         return this.#autoBandage();
+      case 'openItemDescription':
+        return this.#openItemDescription(cmd);
+      case 'closeItemDescription':
+        return this.#closeItemDescription();
       case 'endAutoBandage':
         return refuse('notAutoBandaging', 'auto-bandage is not running');
       case 'stop': {
@@ -1077,8 +1090,27 @@ export class TacticalSim {
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
     if (cmd.type === 'moveItem' && cmd.to === 'ground') return this.#drop({ ...cmd, type: 'drop', slot: cmd.from });
-    selectOrderedMerc(this.state, s);
+    if (!clickInsideItemDescription(this.state, s, cmd)) selectOrderedMerc(this.state, s);
     return dispatchInventoryCommand(this.state, s, cmd);
+  }
+
+  #itemDescriptionLock(): Refusal | null {
+    return this.state.inCombat ? this.#combatLock() : null;
+  }
+
+  #openItemDescription(cmd: TacticalCommand): CommandResult {
+    const s = this.soldier(cmd.soldier);
+    if (!s?.placed || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const locked = this.#itemDescriptionLock();
+    if (locked) return refused(locked);
+    return openItemDescription(this.state, s, cmd);
+  }
+
+  #closeItemDescription(): CommandResult {
+    if (!this.state.itemDescription) return refuse('noItemDescription', 'no item description box is open');
+    const locked = this.#itemDescriptionLock();
+    if (locked) return refused(locked);
+    return { ok: true, data: { charged: closeItemDescriptionBox(this.state) } };
   }
 
   #itemSource(s: Soldier, cmd: TacticalCommand): ItemSource | CommandResult {

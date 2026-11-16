@@ -43,8 +43,6 @@ interface Replay {
   readonly hostStatus: number;
   readonly ap: number;
   readonly cursorAp: number;
-  readonly changes: number;
-  readonly charges: Map<Soldier, number>;
 }
 
 function report(label: string, same: boolean, detail: string): number {
@@ -149,47 +147,42 @@ export class AttachComparer {
     if (cursorOwner !== owner && a.cursorAp !== undefined) cursorOwner.actionPoints = Number(a.cursorAp);
     t.inCombat = Number(a.incombat ?? 0) === 1;
     let cursor: Cursor | null = a.cursor ? { owner: cursorOwner, slot: this.#pocket(cursorOwner, this.#object(sim, a.cursor)) } : null;
-    let changes = 0;
-    const charges = new Map<Soldier, number>();
-    const charge = (payer: Soldier, before: readonly Pair[]) => {
-      if (!boxSessionChanged(before, snapshot(host))) return;
-      changes++;
-      if (t.inCombat) charges.set(payer, (charges.get(payer) ?? 0) + AP_RELOAD_GUN);
-    };
+    const payer = cursor ? cursorOwner : owner;
+    const opened = sim.dispatch({
+      type: 'openItemDescription',
+      soldier: payer.id,
+      slot,
+      ...(payer !== owner ? { toSoldier: owner.id } : {}),
+    });
+    if (!opened.ok) throw new Error(`the box did not open: ${opened.reason}`);
     for (const step of list(a.steps)) {
       if (step.includes(':')) {
         cursor = { owner: cursorOwner, slot: this.#pocket(cursorOwner, this.#object(sim, step)) };
         continue;
       }
       const position = Number(step.slice('click'.length));
-      const before = snapshot(host);
       if (cursor) {
-        const attach = sim.dispatch({
+        sim.dispatch({
           type: 'attach',
           soldier: cursor.owner.id,
           item: cursor.slot,
           to: slot,
           ...(cursor.owner !== owner ? { toSoldier: owner.id } : {}),
         });
-        if (attach.ok) charge(cursor.owner, before);
         if (cursor.owner.inv[cursor.slot]?.item === NOTHING) cursor = null;
         continue;
       }
-      const pocketsBefore = owner.inv.map((o) => o.item);
       const detach = sim.dispatch({ type: 'detach', soldier: owner.id, slot, attachment: position });
-      if (!detach.ok) continue;
-      charge(owner, before);
-      const landed = owner.inv.findIndex((o, k) => o.item !== NOTHING && pocketsBefore[k] === NOTHING);
-      cursor = landed >= 0 ? { owner, slot: landed } : null;
+      const landed = detach.ok ? (detach.data as { leftover?: { slot: number } } | undefined)?.leftover : undefined;
+      cursor = landed ? { owner, slot: landed.slot } : null;
     }
+    if (t.itemDescription) sim.dispatch({ type: 'closeItemDescription' });
     return {
       attachments: snapshot(host),
       hostItem: host.item,
       hostStatus: host.status[0] ?? 0,
       ap: owner.actionPoints,
       cursorAp: cursorOwner.actionPoints,
-      changes,
-      charges,
     };
   }
 
@@ -205,21 +198,14 @@ export class AttachComparer {
     const sessionCharge =
       p.inCombat === true && boxSessionChanged(pairs(p.attachmentsBefore), pairs(p.attachmentsAfter)) ? AP_RELOAD_GUN : 0;
     const nativeRule = payer === who ? nativeOwn === sessionCharge : nativeCursor === sessionCharge && nativeOwn === 0;
-    const chargedTo = (id: number) => [...replay.charges.entries()].filter(([s]) => s.id === id).reduce((sum, [, v]) => sum + v, 0);
-    const ownCharged = Number(p.apBefore) - replay.ap;
-    const cursorCharged = Number(p.cursorApBefore) - replay.cursorAp;
-    const perCommand = ownCharged === chargedTo(who) && cursorCharged === chargedTo(payer);
-    const singleChange = replay.changes <= 1;
-    const sameAp = !singleChange || (replay.ap === Number(p.apAfter) && replay.cursorAp === Number(p.cursorApAfter));
-    const detail = singleChange
-      ? `ap ${replay.ap}/${String(p.apAfter)}, cursor ap ${replay.cursorAp}/${String(p.cursorApAfter)}`
-      : `deliberate deviation (docs/deviations.md "Attachment AP"): ${replay.changes} changing commands charge ${cursorCharged + (payer === who ? 0 : ownCharged)} AP, the box session ${sessionCharge}`;
+    const sameAp = replay.ap === Number(p.apAfter) && replay.cursorAp === Number(p.cursorApAfter);
     const problems = [
       sameAttachments ? '' : `attachments ${sortedPairs(replay.attachments)} vs ${sortedPairs(pairs(p.attachmentsAfter))}`,
       sameHost ? '' : `host ${replay.hostItem}:${replay.hostStatus} vs ${String(nativeHost.item)}:${String(nativeHost.status)}`,
       nativeRule ? '' : 'the native charge breaks the box rule',
-      perCommand ? '' : 'ja2-node breaks the per-command rule',
+      sameAp ? '' : 'the AP differ',
     ].filter((x) => x.length > 0);
-    return report(label, problems.length === 0 && sameAp, [detail, ...problems].join('; '));
+    const detail = `ap ${replay.ap}/${String(p.apAfter)}, cursor ap ${replay.cursorAp}/${String(p.cursorApAfter)}`;
+    return report(label, problems.length === 0, [detail, ...problems].join('; '));
   }
 }

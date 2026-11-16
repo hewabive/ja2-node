@@ -504,11 +504,11 @@ N through the region's own callback (attach with an item in the cursor, detach i
 cursor item; `DeleteItemDescriptionBox` closes the box. It prints the AP of both soldiers and the attachments before,
 after each step and after closing.
 
-`attach-compare.ts` replays each line on a fresh campaign session of the save with the commands a player sends (`attach`
-from a pocket holding the cursor item, `detach` into a pocket) and checks the attachments, the host, the native box rule
-(one `AP_RELOAD_GUN` for `gpAttachSoldier` when the box closes in combat with changed attachments) and ja2-node's rule
-(one `AP_RELOAD_GUN` per accepted command that changes them, "Attachment AP" in `deviations.md`); a line with a single
-changing command must give the same AP on both sides.
+`attach-compare.ts` replays each line on a fresh campaign session of the save in a box session, with the commands a
+player's box sends: `openItemDescription` with the cursor item's holder as `soldier`, `attach` from a pocket holding the
+cursor item, `detach` into a free pocket (the next cursor), `closeItemDescription` if the box is still open. It checks
+the attachments, the host, the native box rule (one `AP_RELOAD_GUN` for `gpAttachSoldier` when the box closes in combat
+with changed attachments) and that both soldiers end with the native AP on every line.
 
 ### Facts and NPC presence
 

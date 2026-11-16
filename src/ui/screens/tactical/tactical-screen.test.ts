@@ -802,6 +802,32 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.description.open).toBe(false);
   });
 
+  it('holds the box as a session on the server and takes an attachment off into a free pocket at the click', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${SMALL_POCKET}`);
+    await f.click(`slot${HAND}`, MouseButton.RIGHT);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'openItemDescription', soldier: 0, slot: HAND }, reply: { ok: true } });
+    await f.click('itemDescriptionAttachment0');
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'attach' }, reply: { ok: true, data: { inBox: true } } });
+    await f.click('itemDescriptionAttachment0');
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'detach', soldier: 0, slot: HAND, attachment: 0 },
+      reply: { ok: true, data: { item: 'SILENCER', inBox: true } },
+    });
+    expect(f.client.commands.at(-1)?.cmd).not.toHaveProperty('to');
+    const pocket = f.screen.inventory.cursor?.source;
+    expect(pocket).toMatchObject({ kind: 'slot', soldier: 0, count: 'all' });
+    expect(inventory(f, 0).find((i) => i.slot === (pocket as { slot: number }).slot)?.item).toBe('SILENCER');
+    await f.click('itemDescriptionAttachment1');
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'attach', to: HAND }, reply: { ok: true, data: { inBox: true } } });
+    expect(f.screen.inventory.cursor).toBeNull();
+    f.key('Escape');
+    expect(f.screen.description.open).toBe(false);
+    await f.settle();
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'closeItemDescription' }, reply: { ok: true, data: { charged: 0 } } });
+  });
+
   it('walks to a tile with two items on one pickUp and opens the pickup menu there from the prompt, OK answering with both', async () => {
     const f = await tacticalUiTest(kit, ui);
     const dropper = f.client.view.soldiers.find((s) => s.id === 3);

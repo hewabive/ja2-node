@@ -185,6 +185,8 @@ const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   'give',
   'autoBandage',
   'endAutoBandage',
+  'openItemDescription',
+  'closeItemDescription',
 ]);
 
 export interface CampaignHooks {

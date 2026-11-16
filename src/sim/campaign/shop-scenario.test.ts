@@ -298,6 +298,17 @@ describe('shop scenario on the stub village', () => {
     expect(c.state.sectorFlow.autoBandage.pending).toBe(false);
   });
 
+  it('closes an open item description box as the shop opens (the shop screen shuts the tactical panel down)', () => {
+    const c = startCampaign(7);
+    const merc = firstMerc(c);
+    spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, merc);
+    stockFranz(c);
+    expect(c.dispatch({ type: 'openItemDescription', soldier: merc.id, slot: 'hand' }).ok).toBe(true);
+    expect(c.tactical?.state.itemDescription).toMatchObject({ soldier: merc.id, slot: InvSlot.HAND });
+    expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: merc.id }).ok).toBe(true);
+    expect(c.tactical?.state.itemDescription).toBeNull();
+  });
+
   it('greets with the usual quote at Arnie while his repairs are unfinished: the original overwrites quote 33', () => {
     const c = startCampaign(6);
     const merc = firstMerc(c);

@@ -4517,3 +4517,36 @@ describe('snapshot version 91 (a hand-off listing its speakers, a face without t
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionNinetyTwo(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const { itemDescription: _, ...tactical } = object(value);
+    return [name, tactical];
+  });
+  return { ...snapshot, version: 92, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 92 (no item description box) migrates with the box closed', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionNinetyTwo(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"itemDescription":null');
+    expect(JSON.stringify(legacy)).not.toContain('itemDescription');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

@@ -8,7 +8,7 @@ import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
 import { createKeyObject } from './doors/keys.ts';
 import { AP_RELOAD_GUN, InvSlot, itemIn } from './inventory.ts';
-import { attachmentsChanged } from './inventory-panel.ts';
+import { attachmentsChanged } from './item-description-box.ts';
 import { AP } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
@@ -161,7 +161,7 @@ describe('moving items inside one inventory', () => {
   });
 });
 
-describe('the AP of an attachment change (DeleteItemDescriptionBox, charged per command)', () => {
+describe('the AP of a plain attach or detach, a description box of its own (DeleteItemDescriptionBox)', () => {
   function gunner(sim: TacticalSim): Soldier {
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
     merc.inv[InvSlot.HAND] = createItem(content.items, item('GLOCK_17'), 100);

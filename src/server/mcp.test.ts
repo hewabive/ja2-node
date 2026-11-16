@@ -186,6 +186,23 @@ describe('MCP endpoint', () => {
     await client.close();
   });
 
+  it('describes the item description box: its two commands, what runs inside it and what closes it', async () => {
+    const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
+    const app = createApp({
+      vfs: new Vfs([]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: false },
+      sessions,
+      defaultSession: 'sandbox',
+    });
+    const { client } = await mcpClient(app);
+    const act = (await client.listTools()).tools.find((t) => t.name === 'act')?.description ?? '';
+    const words = ['{"type":"openItemDescription"', '{"type":"closeItemDescription"}', 'data.inBox', 'data.charged', 'data.boxClosed'];
+    expect(words.filter((w) => !act.includes(w))).toEqual([]);
+    expect(['noItemDescription', 'over the end of the turn', 'a box of its own'].filter((w) => !act.includes(w))).toEqual([]);
+    await client.close();
+  });
+
   it('describes the helicopter drop: the skip, the view block and the events of a run', async () => {
     const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
     const app = createApp({

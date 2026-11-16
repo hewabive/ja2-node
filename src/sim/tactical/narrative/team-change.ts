@@ -17,7 +17,7 @@ import { SightFlags } from '../perception/opp.ts';
 import { handleSight } from '../perception/sight.ts';
 import { SECOND_LEVEL_Z_OFFSET, setUnplacedSoldierHeight } from '../roofs.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
-import { NO_SELECTION } from '../selection.ts';
+import { clearSelection } from '../selection.ts';
 import { NO_PROFILE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { profileSoldierCreate } from './profile-insertion.ts';
@@ -76,7 +76,7 @@ function markRecruited(t: TacticalState, s: Soldier, team: number): void {
 export function changeSoldierTeam(t: TacticalState, old: Soldier, team: number, slots: TeamChangeSlots): Soldier | null {
   const oldGridNo = old.gridNo;
   const wasInSector = old.placed;
-  if (t.turn.selected === old.id) t.turn.selected = NO_SELECTION;
+  if (t.turn.selected === old.id) clearSelection(t);
   slots.soldierRemoved?.(old);
   if (wasInSector) removeSoldierFromTacticalSector(t, old);
   const create = teamChangeCreate(old, team);

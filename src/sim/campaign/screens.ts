@@ -15,7 +15,8 @@
 // @src checks of MAP_EXIT_TO_TACTICAL, 2026-11-06); Meanwhile.cc DoneFadeOutMeanwhileOnceDone (InternalLeaveTacticalScreen to the map
 // @src with no world loaded, 2026-11-09); Handle_UI.cc UIHandleLUIBeginLock and UIHandleLABeginLockOurTurn (gDisableRegion
 // @src and gUserTurnRegion cover the map button) and Turn_Based_Input.cc GetKeyboardInput (no key while either stands, so
-// @src no 'm'; the campaign's own map switches bypass it, 2026-11-15).
+// @src no 'm'; the campaign's own map switches bypass it, 2026-11-15); InternalLeaveTacticalScreen's ShutdownCurrentPanel
+// @src after the unload (the item description box closes, 2026-11-15).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -30,6 +31,7 @@ import {
   unPauseGame,
 } from '../strategic/time/world-clock.ts';
 import { setAutoBandagePending } from '../tactical/auto-bandage.ts';
+import { closeItemDescriptionBox } from '../tactical/item-description-box.ts';
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
 import { refuse, refused } from '../tactical/refusal.ts';
@@ -73,8 +75,14 @@ export function leaveTacticalScreenForTheMap(campaign: CampaignSim): void {
   battle.lostBattleUnloadAtMs = null;
   forgetSomeoneElseInSector(battle);
   if (!battle.autoStart) campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
+  shutDownTacticalPanel(campaign);
   enterMapScreen(campaign);
   syncInterfaceLockPause(campaign);
+}
+
+export function shutDownTacticalPanel(campaign: CampaignSim): void {
+  const t = campaign.tactical?.state;
+  if (t) closeItemDescriptionBox(t);
 }
 
 export function enterMapScreen(campaign: CampaignSim): void {

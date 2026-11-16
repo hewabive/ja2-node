@@ -11,9 +11,12 @@
 // @src merc), SetDefaultSquadOnSectorEntry, RebuildCurrentSquad (its squad check; the team panel stays the client's),
 // @src the end of AddCharacterToSquad; SaveLoadGame.cc LoadSavedGame (the forced reselect in tactical) (2026-11-01);
 // @src HandlePlayerTeamMemberDeath's next selection among everyone in the sector, the helicopter's passengers included
-// @src (2026-11-08); Tactical/Interface_Dialogue.cc InitTalkingMenu (the talker's squad and selection, 2026-11-08).
+// @src (2026-11-08); Tactical/Interface_Dialogue.cc InitTalkingMenu (the talker's squad and selection, 2026-11-08);
+// @src SelectSoldier's SetCurrentTacticalPanelCurrentMerc and Interface_Panels.cc SetSMPanelCurrentMerc (a selection
+// @src that goes through closes the item description box, forced reselects too, 2026-11-15).
 
 import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { closeItemDescriptionBox } from './item-description-box.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
 import { MercQuote, markQuoteSaid, okControllableMerc, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
 import { isVehicleBody } from './person-structure.ts';
@@ -32,6 +35,15 @@ const NOT_CONTROLLABLE: Refusal = { token: 'cannotAct', reason: 'soldier cannot 
 const ON_ASSIGNMENT: Refusal = { token: 'onAssignment', reason: 'the soldier is on an assignment, not on a squad' };
 const UNAVAILABLE: Refusal = { token: 'mercUnavailable', reason: 'soldier has no move in this interrupt' };
 
+function setSelected(t: TacticalState, id: number): void {
+  t.turn.selected = id;
+  closeItemDescriptionBox(t);
+}
+
+export function clearSelection(t: TacticalState): void {
+  setSelected(t, NO_SELECTION);
+}
+
 export function selectedSoldier(t: TacticalState): Soldier | null {
   return t.soldiers[t.turn.selected] ?? null;
 }
@@ -45,7 +57,7 @@ export function selectionRefusal(t: TacticalState, s: Soldier): Refusal | null {
 export function selectSoldier(t: TacticalState, s: Soldier, flags: number = SelectFlags.NONE): boolean {
   if (selectionRefusal(t, s)) return false;
   if (s.id === t.turn.selected && !(flags & SelectFlags.FORCE_RESELECT)) return false;
-  t.turn.selected = s.id;
+  setSelected(t, s.id);
   setCurrentSquad(t, soldierAssignment(t, s), false);
   t.events.push({ type: 'interfaceLevel', soldier: s.id, level: s.level });
   wakeIfAsleep(t, s);
@@ -73,7 +85,7 @@ function maySayPersonalityQuote(t: TacticalState, s: Soldier): void {
 export function selectNextAvailSoldier(t: TacticalState, last: Soldier): void {
   const next = teamMembers(t, last.team).find((s) => okControllableMerc(t, s));
   if (next) selectSoldier(t, next);
-  else t.turn.selected = NO_SELECTION;
+  else clearSelection(t);
 }
 
 export function endMultiSoldierSelection(t: TacticalState, chosen: Soldier, members: readonly Soldier[]): void {
@@ -168,29 +180,29 @@ export function deathSuccessor(t: TacticalState, dead: Soldier): Soldier | null 
 export function selectAfterPlayerTeamMemberDeath(t: TacticalState, dead: Soldier, successor: Soldier | null): void {
   if (t.turn.selected !== dead.id) return;
   if (successor) selectSoldier(t, successor);
-  else t.turn.selected = NO_SELECTION;
+  else clearSelection(t);
 }
 
 export function selectAfterRemovalFromSector(t: TacticalState, removed: Soldier): void {
   if (!t.narrative.inTacticalScreen()) {
-    t.turn.selected = NO_SELECTION;
+    clearSelection(t);
     return;
   }
   if (t.turn.selected !== removed.id) return;
   const next = findNextActiveAndAliveMerc(t, removed) ?? findNextActiveSquadMember(t, removed);
   if (next) selectSoldier(t, next);
-  else t.turn.selected = NO_SELECTION;
+  else clearSelection(t);
 }
 
 export function updateCurrentlySelectedMerc(t: TacticalState, leaving: Soldier): void {
   if (t.turn.selected !== leaving.id) return;
   const next = findNextActiveAndAliveMerc(t, leaving);
   if (next) selectSoldier(t, next);
-  else t.turn.selected = NO_SELECTION;
+  else clearSelection(t);
 }
 
 export function unselectRemovedSoldier(t: TacticalState, removed: Soldier): void {
-  if (t.turn.selected === removed.id) t.turn.selected = NO_SELECTION;
+  if (t.turn.selected === removed.id) clearSelection(t);
 }
 
 function findNextActiveAndAliveMerc(t: TacticalState, current: Soldier): Soldier | null {

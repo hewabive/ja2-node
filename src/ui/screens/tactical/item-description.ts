@@ -15,7 +15,10 @@
 // @src gMoneyButtonLoc + gMoneyButtonOffsets, the "Separate" or "Withdraw" label, the amount to split or withdraw (on
 // @src the map screen the label in colour 5 and the amounts right-aligned to 35 pixels), ItemDescDoneButtonCallback*
 // @src (Done removes the money, a right click only closes), RemoveMoney;
-// @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance).
+// @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance);
+// @src InternalInitItemDescriptionBox and DeleteItemDescriptionBox on the tactical screen as the server's box session
+// @src (the cursor's holder pays), ItemDescAttachmentsCallbackPrimary's RemoveAttachment at the click into a free pocket
+// @src (2026-11-15).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -45,7 +48,9 @@ import {
   attachCommand,
   cursorFromAttachment,
   cursorFromMagazine,
+  cursorOnLeftover,
   type ItemCursor,
+  REFUSAL_NO_ROOM,
   REFUSAL_PERMANENT_ATTACHMENT,
   slotItem,
 } from './item-cursor.ts';
@@ -146,6 +151,7 @@ export interface DescriptionHooks {
   readonly setCursor: (cursor: ItemCursor | null) => void;
   readonly placements: () => Placements | null;
   readonly send: (cmd: CommandEnvelope) => Promise<{ ok: boolean; data?: unknown }>;
+  readonly command?: (cmd: CommandEnvelope) => Promise<{ ok: boolean }>;
   readonly confirm: (text: string) => Promise<boolean>;
   readonly metric: () => boolean;
   readonly keyItem: (key: KeyView) => string | null;
@@ -225,6 +231,10 @@ export function prosConsString(labels: readonly string[], font: BitmapFont, limi
   return out.length > 0 ? out : none;
 }
 
+function boxClosedBy(data: unknown): boolean {
+  return (data as { readonly boxClosed?: boolean } | undefined)?.boxClosed === true;
+}
+
 function twoDigits(value: number): string {
   return String(Math.trunc(value)).padStart(2, ' ');
 }
@@ -240,6 +250,7 @@ export class ItemDescriptionBox {
   #money: MoneyBox | null = null;
   #moneyButtons: Button[] = [];
   #done: Button | null = null;
+  #session = false;
 
   constructor(hooks: DescriptionHooks) {
     this.#hooks = hooks;
@@ -303,6 +314,7 @@ export class ItemDescriptionBox {
     const item = itemName ? this.#hooks.item(itemName) : null;
     if (!item) return;
     this.#object = object;
+    if (object.kind === 'slot') this.#openSession(object);
     const services = this.#hooks.services;
     const { x: dx, y: dy } = geometry.origin;
     const map = this.#hooks.mapScreen === true;
@@ -326,6 +338,23 @@ export class ItemDescriptionBox {
     if (item.weapon && item.class === 'GUN') this.#prosConsRegions(object, geometry, fonts);
     if (item.name !== MONEY) this.#attachmentRegions(object, geometry);
     else this.#moneyBox(object, geometry, art, fonts);
+  }
+
+  #openSession(object: DescribedObject & { kind: 'slot' }): void {
+    const command = this.#hooks.command;
+    if (!command || this.#hooks.mapScreen) return;
+    const holder = this.#hooks.cursor()?.source.soldier ?? object.soldier;
+    const owner = holder !== object.soldier ? { toSoldier: object.soldier } : {};
+    this.#session = true;
+    void command({ type: 'openItemDescription', soldier: holder, slot: object.slot, ...owner }).then((reply) => {
+      if (!reply.ok && this.#object === object) this.#session = false;
+    });
+  }
+
+  #closeSession(): void {
+    if (!this.#session) return;
+    this.#session = false;
+    void this.#hooks.command?.({ type: 'closeItemDescription' });
   }
 
   #moneyBox(object: DescribedObject, g: DescriptionGeometry, art: DescriptionArt, fonts: DescriptionFonts): void {
@@ -558,9 +587,27 @@ export class ItemDescriptionBox {
       await this.#attach(object, cursor, false);
       return;
     }
+    if (this.#session) {
+      await this.#detachIntoPocket(object, position);
+      return;
+    }
+    this.#attachmentIntoCursor(object, position);
+  }
+
+  #attachmentIntoCursor(object: DescribedObject & { kind: 'slot' }, position: number): void {
     const soldier = this.#hooks.soldier(object.soldier);
     const next = soldier ? cursorFromAttachment(soldier, object.slot, position) : null;
     if (next) this.#hooks.setCursor(next);
+  }
+
+  async #detachIntoPocket(object: DescribedObject & { kind: 'slot' }, position: number): Promise<void> {
+    const reply = await this.#hooks.send({ type: 'detach', soldier: object.soldier, slot: object.slot, attachment: position });
+    if (!reply.ok) {
+      if (refusalOf(reply.data) === REFUSAL_NO_ROOM) this.#attachmentIntoCursor(object, position);
+      return;
+    }
+    this.#hooks.setCursor(cursorOnLeftover(reply.data));
+    this.#attachmentTooltips(object);
   }
 
   async #attach(object: DescribedObject & { kind: 'slot' }, cursor: ItemCursor, permanent: boolean): Promise<void> {
@@ -569,7 +616,9 @@ export class ItemDescriptionBox {
     const reply = await this.#hooks.send(cmd);
     if (reply.ok) {
       this.#hooks.setCursor(null);
-      if (!this.#view(object)) this.close(true);
+      const closed = boxClosedBy(reply.data);
+      if (closed) this.#session = false;
+      if (closed || !this.#view(object)) this.close(true);
       else this.#attachmentTooltips(object);
       return;
     }
@@ -589,6 +638,7 @@ export class ItemDescriptionBox {
   close(notify: boolean): void {
     if (!this.#object) return;
     this.#object = null;
+    this.#closeSession();
     for (const region of this.#regions) region.remove();
     this.#regions = [];
     this.#ammo?.remove();

@@ -11,7 +11,8 @@
 // @src customizable timer of a won battle's look for someone else (2026-11-07); Interface_Dialogue.cc InitTalkingMenu (the
 // @src talker's squad made current and his selection, by the open that stands for the talk, 2026-11-08); Handle_Items.cc
 // @src SoldierGiveItemFromAnimation's AddItemToPlayersOfferAreaAfterShopKeeperOpen (the pocket a give put on the
-// @src player's offer table, 2026-11-14).
+// @src player's offer table, 2026-11-14); the same LeaveTacticalScreen's ShutdownCurrentPanel (the item description box
+// @src closes, 2026-11-15).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -63,6 +64,7 @@ import { addItemToPool, Visibility } from '../tactical/world-items.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { addTransaction, FinanceCode } from './finances.ts';
 import { addToMercInventory } from './merc-placement.ts';
+import { shutDownTacticalPanel } from './screens.ts';
 import { type ShopRefusal, shopRefusal } from './shop-refusals.ts';
 import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
@@ -298,6 +300,7 @@ export class ShopFlow {
     const ctx = this.#ctx;
     setAutoBandagePending(this.#campaign.state.sectorFlow.autoBandage, false);
     forgetSomeoneElseInSector(this.#campaign.state.battle);
+    shutDownTacticalPanel(this.#campaign);
     this.#session = {
       dealer: def.id,
       dealerSoldier: dealer.id,

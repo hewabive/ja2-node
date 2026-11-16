@@ -11,9 +11,11 @@ import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { advance } from '../advance.ts';
+import { createItem } from '../items/object.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { CompressionStop, lockPauseState, pauseGame } from '../strategic/time/world-clock.ts';
+import { AP_RELOAD_GUN, InvSlot } from '../tactical/inventory.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { enterCombatMode } from '../tactical/turns/turns.ts';
@@ -194,6 +196,30 @@ describe('the map button under the tactical interface lock (Handle_UI.cc:4020, :
     c.leaveTacticalScreenForMap();
     c.step();
     expect(c.state.flow).toBe('strategic');
+  });
+});
+
+describe('the item description box on the way to the map (GameScreen.cc InternalLeaveTacticalScreen)', () => {
+  it('keeps the box over the commands in it and closes it with its one AP_RELOAD_GUN as the map opens in combat', () => {
+    const c = landed(3);
+    const t = c.tactical?.state;
+    if (!t) throw new Error('no sector');
+    enterCombatMode(t, Team.OUR);
+    const [merc] = ourSoldiers(c);
+    if (!merc) throw new Error('no squad');
+    const items = kit.sectors.content.items;
+    merc.inv[InvSlot.BIGPOCK2] = createItem(items, items.byName.get('SILENCER')?.index ?? -1, 100);
+    merc.inv[InvSlot.BIGPOCK3] = createItem(items, items.byName.get('LASERSCOPE')?.index ?? -1, 100);
+    const id = merc.id;
+    expect(c.dispatch({ type: 'openItemDescription', soldier: id, slot: 'hand' })).toMatchObject({ ok: true });
+    const ap = ourSoldiers(c)[0]?.actionPoints ?? 0;
+    expect(c.dispatch({ type: 'attach', soldier: id, item: 'bigPocket2', to: 'hand' })).toMatchObject({ ok: true, data: { inBox: true } });
+    expect(c.dispatch({ type: 'attach', soldier: id, item: 'bigPocket3', to: 'hand' })).toMatchObject({ ok: true, data: { inBox: true } });
+    expect(ourSoldiers(c)[0]?.actionPoints).toBe(ap);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(c.tactical?.state.itemDescription).toBeNull();
+    expect(ap - (ourSoldiers(c)[0]?.actionPoints ?? 0)).toBe(AP_RELOAD_GUN);
+    expect(c.dispatch({ type: 'closeItemDescription' })).toMatchObject({ ok: false, data: { refusal: 'notInTactical' } });
   });
 });
 

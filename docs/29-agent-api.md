@@ -780,9 +780,8 @@ their `to` pocket, as a cursor that took nothing out of a slot has none to go ba
 inventory; deviation "Item cursor"). `moveItem` puts its leftover back into that slot only when it moves nothing else there, and `data.leftover`
 names the pocket it went to, on which the UI keeps its cursor; one object of a stack moved into its own slot goes to the
 stack's end, as the original's put-back stacks it. A placement runs on copies first, so a refused move changes nothing. The message boxes for merges and
-permanent attachments become refusals to repeat with `merge` or `permanent`; the description box charges its AP per
-command (deviation "Attachment AP"). On the map screen the same commands cost no AP and pass items within one sector
-only; the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
+permanent attachments become refusals to repeat with `merge` or `permanent`. On the map screen the same commands cost no
+AP and pass items within one sector only; the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
 only ones the map screen makes the info character while it is held, with the enemy in the loaded sector read from the
 view (deviation "Strategic hints and enemy counts"). The `itemInfo` hint gives the description box's numbers for the
 object in a merc's slot, on the map screen too for a merc outside the loaded sector (`src/sim/hints/item-info.ts`), and
@@ -804,6 +803,24 @@ combat and charges none; on the tactical screen an attachment or a merge onto a 
 (`useAttach`, `mergePrompt`), on the map screen the cleanup comes first and the client still picks the stack up, as
 `MAPInvClickCallbackPrimary` does. `data.left` counts the objects still in the cursor; one object taken from the clicked
 stack itself goes back on top of it, at `data.index`.
+
+The item description box is a session the server holds on the tactical screen
+(`src/sim/tactical/item-description-box.ts`). `openItemDescription` takes `attach`'s fields: `soldier` holds the cursor
+item and pays (or is the box's merc with an empty cursor), `toSoldier` owns the object in `slot`, within passing range;
+it selects that owner, as the panel shows the selected merc, and closes any open box first. Inside it an `attach` onto
+that object by the payer or the owner and the owner's `detach` from it check their APs (5, and 8 for a detach) and spend
+none (`data.inBox`), selecting nobody. Its close charges the payer `AP_RELOAD_GUN` once when combat runs and the
+attachments, item and status in any position, differ from the opening (`Interface_Items.cc:2530-2588`): an attach taken
+off again costs nothing. `closeItemDescription` closes it (`data.charged`); so do another box, any selection change
+(another merc's order or `select`, an interrupt, his death or leaving), leaving the tactical screen (the map, a shop),
+and inside it a failed attachment check or the object gone (`data.boxClosed`). It stays open over the end of the turn
+and charges the next turn's APs, as the original's `UIHandleEndTurn` leaves it up; saves keep it (deviation "Attachment
+AP"). Refusals: `noItemDescription`, `emptySlot`, the target refusals, in combat the interface lock; elsewhere than the
+tactical screen `notInTactical`. An `attach` or `detach` outside it is a box of its own, so a single change costs what
+the box charges, at once; one onto another object closes the open box first. `detach` without `to` names in
+`data.leftover` the pocket the attachment went to, where the page keeps its cursor: the page's box sends the detach at
+the click and an attach of that pocket puts it back.
+
 `applyItem` is the cursor dropped on the single merc panel's portrait (`SMInvClickCamoCallback`): one object of the
 stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT stack (`BeginItemPointer`). Drugs and
 drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`). As with `combineStack`,

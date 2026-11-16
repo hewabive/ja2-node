@@ -316,3 +316,4 @@ export function shownStatus(cursor: ItemCursor | null, view: InventoryItemView, 
 export const REFUSAL_USE_ATTACH = 'useAttach';
 export const REFUSAL_MERGE_PROMPT = 'mergePrompt';
 export const REFUSAL_PERMANENT_ATTACHMENT = 'permanentAttachment';
+export const REFUSAL_NO_ROOM = 'noRoom';

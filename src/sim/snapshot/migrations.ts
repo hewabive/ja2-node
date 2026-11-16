@@ -2642,6 +2642,19 @@ function sayThePreBattleLineOnTheFace(snapshot: Readonly<Record<string, unknown>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ITEM_DESCRIPTION_KEY = 'itemDescription';
+
+function addItemDescriptionBox(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [
+      name,
+      name === 'tactical' && isObject(value) ? insertAfter(value, PANIC_KEY, ITEM_DESCRIPTION_KEY, null) : value,
+    ],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2735,5 +2748,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     89: markMilitiaPromotionsShown,
     90: addMercVisitOpeningFlag,
     91: sayThePreBattleLineOnTheFace,
+    92: addItemDescriptionBox,
   };
 }

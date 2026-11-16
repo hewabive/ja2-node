@@ -11,12 +11,16 @@
 // @src reload cursor over a target and its APs, 2026-11-09); Soldier_Find.cc FindSoldier (no patient the squad does not
 // @src see; the patient named in a refusal for the medkit's lines, 2026-11-14); Turn_Based_Input.cc HandleUIReloading (a
 // @src click of the bad reload cursor says QUOTE_OUT_OF_AMMO on Random(3) == 0, drawn on the talk session's cosmetic
-// @src stream; deviation "Out-of-ammo quote", 2026-11-14).
+// @src stream; deviation "Out-of-ammo quote", 2026-11-14); Interface_Items.cc InternalInitItemDescriptionBox (opened on
+// @src the panel's merc, paid by the cursor's holder), ItemDescAttachmentsCallbackPrimary (attach and detach in the box
+// @src charge nothing), DoAttachment (the box closes when the described object is gone), Items.cc AttachObject (a failed
+// @src attachment check closes it, a failed merge check does not); an attach or detach elsewhere as a box of its own
+// @src (2026-11-15).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { CommandResult } from '../command.ts';
-import { createItem, type ItemObject } from '../items/object.ts';
+import { canAttachAsAttachment, createItem, type ItemObject } from '../items/object.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { enoughAmmo } from './combat/ap.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
@@ -26,7 +30,7 @@ import { NUM_KEYS } from './doors/key-ring.ts';
 import { createKeyObject } from './doors/keys.ts';
 import { beginFirstAid, FirstAidRefusal, firstAidTargetRefusal } from './first-aid.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
-import { InvSlot, NO_SLOT, NUM_INV_SLOTS } from './inventory.ts';
+import { InvSlot, itemIn, NO_SLOT, NUM_INV_SLOTS } from './inventory.ts';
 import {
   applyItem,
   apsToAutoReload,
@@ -42,13 +46,14 @@ import {
   swapHands,
   unloadGun,
 } from './inventory-panel.ts';
+import { closeItemDescriptionBox, itemDescriptionBoxHolds, openItemDescriptionBox } from './item-description-box.ts';
 import { KeyRingRefusal, type KeySpot, moveKey, tacticalKeyRingWorld } from './key-ring-panel.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
 import { MercQuote } from './narrative/merc-quotes.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { type RefusalDetail, refuse } from './refusal.ts';
-import { currentSquad } from './selection.ts';
+import { currentSquad, selectOrderedMerc } from './selection.ts';
 import { Body, inVehicle, OKLIFE, onTheGrid, type Soldier, shownToPlayer, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type CombineCursor, combineStacks } from './stack-cleanup.ts';
@@ -285,6 +290,31 @@ function moveCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Comma
   return outcomeResult(moveItem(tacticalPanelEnv(t), { mover: s, from, target, to, count, index, merge }));
 }
 
+type AcceptedOutcome = Extract<PanelOutcome, { readonly ok: true }>;
+
+function changeInTheBox(t: TacticalState, change: () => PanelOutcome, closes: (outcome: AcceptedOutcome) => boolean): CommandResult {
+  const outcome = change();
+  if (!outcome.ok) return outcomeResult(outcome);
+  const closed = closes(outcome);
+  if (closed) closeItemDescriptionBox(t);
+  return { ok: true, data: { ...outcome.data, inBox: true, ...(closed ? { boxClosed: true } : {}) } };
+}
+
+function changeThroughTheBox(
+  t: TacticalState,
+  holder: Soldier,
+  owner: Soldier,
+  slot: number,
+  change: () => PanelOutcome,
+  closes: (outcome: AcceptedOutcome) => boolean = () => false,
+): CommandResult {
+  if (itemDescriptionBoxHolds(t, holder, owner, slot)) return changeInTheBox(t, change, closes);
+  openItemDescriptionBox(t, owner, slot, holder);
+  const outcome = change();
+  closeItemDescriptionBox(t);
+  return outcomeResult(outcome);
+}
+
 function attachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const from = parseSlot(cmd.item);
   const slot = parseSlot(cmd.to);
@@ -296,7 +326,11 @@ function attachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   const index = stackIndex(cmd.index, owner.inv[slot]);
   if (typeof index === 'string') return refusal(index);
   const env = tacticalPanelEnv(t);
-  return outcomeResult(attachItem(env, { attacher: s, from, owner, slot, index, count, permanent: cmd.permanent === true }));
+  const asAttachment = canAttachAsAttachment(t.content.items, owner.inv[slot] as ItemObject, itemIn(s.inv, from));
+  const failedAttachment = (outcome: AcceptedOutcome) => asAttachment && outcome.data?.result === 'failedCheck';
+  const closes = (outcome: AcceptedOutcome) => failedAttachment(outcome) || itemIn(owner.inv, slot) === NOTHING;
+  const change = () => attachItem(env, { attacher: s, from, owner, slot, index, count, permanent: cmd.permanent === true });
+  return changeThroughTheBox(t, s, owner, slot, change, closes);
 }
 
 export function attachmentPosition(items: ItemTable, o: ItemObject | undefined, value: unknown): number | InventoryRefusal {
@@ -316,7 +350,31 @@ function detachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   if (typeof to === 'string') return refusal(to);
   const position = attachmentPosition(t.content.items, s.inv[slot], cmd.attachment);
   if (typeof position === 'string') return refusal(position);
-  return outcomeResult(detachItem(tacticalPanelEnv(t), s, slot, position, to));
+  return changeThroughTheBox(t, s, s, slot, () => detachItem(tacticalPanelEnv(t), s, slot, position, to));
+}
+
+export function clickInsideItemDescription(t: TacticalState, s: Soldier, cmd: InventoryCommand): boolean {
+  if (cmd.type === 'detach') {
+    const slot = parseSlot(cmd.slot);
+    return slot !== null && itemDescriptionBoxHolds(t, s, s, slot);
+  }
+  if (cmd.type !== 'attach') return false;
+  const slot = parseSlot(cmd.to);
+  const owner = otherMerc(t, cmd.toSoldier, s);
+  return slot !== null && typeof owner !== 'string' && itemDescriptionBoxHolds(t, s, owner, slot);
+}
+
+export function openItemDescription(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
+  const holder = otherMerc(t, s.id, s);
+  if (typeof holder === 'string') return refusal(holder);
+  const slot = parseSlot(cmd.slot);
+  if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
+  const owner = panelTarget(t, s, cmd.toSoldier);
+  if (typeof owner === 'string') return refusal(owner);
+  if (itemIn(owner.inv, slot) === NOTHING) return refusal(InventoryRefusal.EMPTY_SLOT);
+  selectOrderedMerc(t, owner);
+  openItemDescriptionBox(t, owner, slot, s);
+  return { ok: true, data: { soldier: owner.id, slot, payer: s.id } };
 }
 
 function unloadCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {

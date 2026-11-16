@@ -38,6 +38,7 @@ import type { GameEvent } from './game-events.ts';
 import { createHelicopterDrop, type HelicopterDrop } from './helicopter-drop-state.ts';
 import type { LandedHelicopter } from './helicopter-pieces.ts';
 import type { SoldierInitNode } from './init-list.ts';
+import type { ItemDescriptionSession } from './item-description-box.ts';
 import { createLightingState, type LightingState, NO_TIME_OF_DAY_LIGHT, type TimeOfDayLight } from './lighting/lighting.ts';
 import type { AddedExitGrid, MapChange } from './map-changes.ts';
 import { multiTileShape } from './multi-tile.ts';
@@ -379,6 +380,7 @@ export interface TacticalState {
   promptSeq: number;
   readonly boobyTrap: BoobyTrap;
   readonly panic: PanicState;
+  itemDescription: ItemDescriptionSession | null;
   pickedOwnershipCheck: PickedOwnershipCheck | null;
 }
 
@@ -623,6 +625,7 @@ export function createTacticalState(
     promptSeq: 0,
     boobyTrap: createBoobyTrap(),
     panic: createPanicState(),
+    itemDescription: null,
     pickedOwnershipCheck: null,
   };
 }
