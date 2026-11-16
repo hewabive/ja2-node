@@ -100,7 +100,9 @@ waits for the next map frame; the hand-over is refused while an automatic AR is 
 `FACE_TRIGGER_PREBATTLE_INT` on the talking face (`TalkingFace.triggersPreBattle`), the dialogue queue opens the
 hand-off as the face is done, and the battle flow opens none while such a line waits or plays
 (`campaign/battle-flow.ts`, Q34); with nobody able to speak, or after a notice box, it opens at the end of the step that
-made the hand-off. It carries the encounter, the options with their disabled reasons and the panel. The persistent PBI
+made the hand-off. Until it opens, `movement.disableMapInterfaceDueToBattle` refuses the commands that stand for clicks on
+the map area, as the map screen ignores them (`campaign/map-area.ts`, `29` §8.7). It carries the encounter, the options
+with their disabled reasons and the panel. The persistent PBI
 comes before a battle; the non-persistent one summarises a running tactical battle (`showBattle`, `autoresolveBattle`).
 Go to sector from our group's persistent panel holds the load at the placement prompt (`campaign/tactical-placement.ts`,
 `29` §8.10).

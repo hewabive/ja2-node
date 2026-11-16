@@ -11,6 +11,7 @@ import {
 import type { StrategicGroupView, StrategicMercView, StrategicSectorView, StrategicTownView, StrategicView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { campaignStatus } from '../sim/campaign/ending-state.ts';
+import { mapInterfaceDisabledDueToBattle } from '../sim/campaign/map-area.ts';
 import { visibleItemsInSector } from '../sim/campaign/sector-item-count.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
@@ -299,6 +300,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     campaign: campaignStatus(campaign.state.ending),
     ...(campaign.noUsableMercs() ? { noUsableMercs: true } : {}),
     ...(campaign.state.didGameJustStart ? { gameJustStarted: true } : {}),
+    ...(mapInterfaceDisabledDueToBattle(campaign.state) ? { mapInterfaceDisabled: true } : {}),
     meanwhiles: campaign.state.meanwhile.log.map((e) => ({
       seq: e.seq,
       scene: meanwhileSceneName(e.id),

@@ -114,6 +114,7 @@ import { HelicopterFlow, SKYRIDER_CALLBACKS } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
+import { mapAreaRefusal } from './map-area.ts';
 import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
 import { MoneyFlow } from './money-flow.ts';
@@ -1064,7 +1065,8 @@ export class CampaignSim {
       this.#boxingUiLockRefusal(cmd) ??
       this.#offTacticalScreenRefusal(cmd) ??
       this.#stopTimeQuoteRefusal(cmd) ??
-      this.#tacticalPromptRefusal(cmd);
+      this.#tacticalPromptRefusal(cmd) ??
+      mapAreaRefusal(this.state, cmd.type);
     if (locked) return locked;
     if (this.tactical && this.#answersTacticalPrompt(cmd)) return this.tactical.dispatch(cmd);
     const talk = this.talk?.dispatch(cmd);

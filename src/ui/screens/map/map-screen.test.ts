@@ -184,6 +184,12 @@ function setGameJustStarted(f: MapUiTest, started: boolean): void {
   f.t.frame();
 }
 
+function setMapInterfaceDisabled(f: MapUiTest, disabled: boolean): void {
+  (f.session.sim as CampaignSession).campaign.state.movement.disableMapInterfaceDueToBattle = disabled;
+  f.client.refresh();
+  f.t.frame();
+}
+
 function listedMercs(f: MapUiTest): [number, number, number] {
   const mercOn = (row: number) => {
     const id = f.screen.list.slots[row]?.merc;
@@ -1105,6 +1111,22 @@ describe('the map screen over the stub map-screen campaign', () => {
       setGameJustStarted(f, false);
       await f.clickSector('C13');
       expect(f.screen.hook().selectedSector).toBe('C13');
+    }));
+
+  it('ignores clicks on the map while a battle is about to begin, plotting included, as fDisableMapInterfaceDueToBattle does', () =>
+    withMap(async (f) => {
+      const start = f.screen.hook().selectedSector;
+      setMapInterfaceDisabled(f, true);
+      await f.clickSector('C13');
+      await f.clickSector('C13', MouseButton.RIGHT);
+      expect(f.screen.hook()).toMatchObject({ selectedSector: start, townBox: null });
+      await f.click('teamRow0.destination');
+      await f.hoverSector('C13', PLOT_REST_MS);
+      await f.clickSector('C13');
+      expect(f.screen.hook().plotting).toMatchObject({ mode: 'merc', legs: [] });
+      setMapInterfaceDisabled(f, false);
+      await f.clickSector('C13');
+      expect(f.screen.hook().plotting?.legs).toEqual(['C13']);
     }));
 
   it('draws the other selected rows light blue while the destination column of a selected row is under the pointer', () =>

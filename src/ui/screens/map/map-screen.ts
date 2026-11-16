@@ -29,7 +29,7 @@
 // @src pointer, 2026-11-03); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
 // @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02);
 // @src MapScreen.cc MapViewRegionPrimaryCallback and MapViewRegionSecondaryCallback (no map clicks until the first
-// @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt, MakeMapModesSuitableForDestPlotting (JumpToLevel to the
+// @src arrival, DidGameJustStart; none while fDisableMapInterfaceDueToBattle is set, 2026-11-16), CanMoveBullseyeAndClickedOnIt, MakeMapModesSuitableForDestPlotting (JumpToLevel to the
 // @src plotting merc's level) (2026-11-02); Map_Screen_Interface_Bottom.cc CreateMapScreenBottomMessageScrollBarRegion and
 // @src EnableDisableMessageScrollButtonsAndRegions (the scroll area live only while the list scrolls, the message box
 // @src under the wheel), MapScreen.cc CreateBullsEyeOrChopperSelectionPopup and BullsEyeOrChopperSelectionPopupCallback
@@ -1529,6 +1529,11 @@ export class MapScreen implements Screen {
     return this.#strategic()?.gameJustStarted === true;
   }
 
+  #mapAreaIgnoresClicks(): boolean {
+    const prompt = this.#playerView()?.prompt ?? null;
+    return this.#gameJustStarted() || this.#strategic()?.mapInterfaceDisabled === true || prompt !== null;
+  }
+
   #inConfirmMoveMode(): boolean {
     return this.#plot?.mode === 'merc' && this.#plot.legs.length > 0;
   }
@@ -1539,7 +1544,7 @@ export class MapScreen implements Screen {
       this.#message.end();
       if (!this.#changingArrival) return;
     }
-    if (this.#gameJustStarted() || this.#playerView()?.prompt) return;
+    if (this.#mapAreaIgnoresClicks()) return;
     const hover = this.#hover;
     if (this.#plot) {
       if (hover) this.#plotClick(hover);
@@ -1783,7 +1788,7 @@ export class MapScreen implements Screen {
       this.#message.end();
       return;
     }
-    if (this.#gameJustStarted() || this.#playerView()?.prompt) return;
+    if (this.#mapAreaIgnoresClicks()) return;
     const hover = this.#hover;
     if (this.#plot) {
       if (hover) void this.#plotShorten(hover);

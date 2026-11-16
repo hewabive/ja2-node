@@ -970,6 +970,13 @@ regroups the same way and plots in one command. `enterSector` loads with automat
 `tacticalPlacement` prompt where the original opens its placement GUI (§8.10); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
 `sectorExits` answers for every edge and exit grid at once where a squad can leave and from which tiles, and
 `sectorLayout` draws the sector around them (§9).
+While a battle is about to begin, from the encounter until the pre-battle prompt opens after the speaker's line (`19`),
+`strategic.mapInterfaceDisabled` is set and the commands that stand for clicks on the map area are refused as
+`battlePending`, as the map screen ignores those clicks (`Strategic/MapScreen.cc:3335-3341`, `:3390-3396`): `route`,
+`shortenRoute`, `regroupForMove` and `routeGroup` (the move box opens from the map), `heliRoute`, `shortenHeliRoute`,
+`setLandingZone`, `showBattle` and the militia panel's `moveMilitia`, `distributeMilitia` and `redistributeMilitia`.
+The team list's commands stay: `cancelRoute`, `heliCancel` and `heliPlot` (its destination column), `assign`,
+`assignSquad`, `sleep` and `wake`.
 On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector the exit dialog
 first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every conscious merc of
 the sector there and loads it (`campaign/sector-exits.ts`).

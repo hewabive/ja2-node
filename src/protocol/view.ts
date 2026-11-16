@@ -416,6 +416,7 @@ export interface StrategicView {
   readonly campaign: 'playing' | 'endgame' | 'won';
   readonly noUsableMercs?: boolean;
   readonly gameJustStarted?: boolean;
+  readonly mapInterfaceDisabled?: boolean;
   readonly meanwhiles: readonly MeanwhileLogView[];
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];

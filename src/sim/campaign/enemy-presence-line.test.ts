@@ -6,6 +6,7 @@ import { parseSectorString, sectorId } from '../../content/strategic/sector-ids.
 import type { CommandEnvelope } from '../../protocol/messages.ts';
 import { createCampaignSession } from '../../server/campaign-factory.ts';
 import type { CampaignSession } from '../../server/campaign-session.ts';
+import { strategicView } from '../../server/strategic-view.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import type { SectorExits } from '../hints/sector-exits.ts';
@@ -160,6 +161,32 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
     const roster = c.session.campaign.battle?.roster ?? never('roster');
     expect(c.session.campaign.state.battle.prompt?.kind).toBe('preBattle');
     expect(roster.all().map((m) => [m.id, m.asleep])).toEqual(squadIds(c).map((id) => [id, id === line.soldier]));
+  });
+
+  it('ignores the map-area orders while the line plays, as the map screen ignores its clicks (MapScreen.cc:3335-3341, :3390-3396)', async () => {
+    const c = await landedInA9(31, 'pre-battle-line-map-area');
+    enemiesIn(c.session, ENEMY_SECTOR, TWO_TROOPS);
+    expect(await order(c, { type: 'mapScreen' })).toEqual({ ok: true });
+    const [scout, stayer] = squadIds(c);
+    if (scout === undefined || stayer === undefined) return never('two mercs');
+    expect(await order(c, { type: 'assignSquad', soldier: stayer, squad: 'new' })).toMatchObject({ ok: true });
+    expect(await order(c, { type: 'route', soldier: scout, to: ENEMY_SECTOR })).toMatchObject({ ok: true });
+    untilTheEnemyPresenceLine(c);
+    expect(strategicView(c.session.campaign)?.mapInterfaceDisabled).toBe(true);
+    for (const cmd of [
+      { type: 'route', soldier: stayer, to: NEXT_EAST },
+      { type: 'regroupForMove', soldiers: [stayer] },
+      { type: 'setLandingZone', sector: NEXT_EAST },
+      { type: 'showBattle' },
+    ])
+      expect(await order(c, cmd), cmd.type).toMatchObject({ ok: false, data: { refusal: 'battlePending' } });
+    expect(await order(c, { type: 'cancelRoute', soldier: stayer })).toEqual({ ok: true });
+    expect(c.live.advance({ idle: true }).reason).toBe('decision');
+    const prompt = c.session.campaign.state.battle.prompt ?? never('preBattle prompt');
+    expect(await order(c, { type: 'answer', prompt: prompt.id, choice: 'retreat' })).toMatchObject({ ok: true });
+    expect(strategicView(c.session.campaign)?.mapInterfaceDisabled).toBeUndefined();
+    const routed = await order(c, { type: 'route', soldier: stayer, to: NEXT_EAST });
+    expect(routed, routed.reason).toMatchObject({ ok: true });
   });
 
   it('opens the prompt with the skipLine that cuts the line short', async () => {
