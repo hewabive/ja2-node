@@ -5,7 +5,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import { MercKind } from '../sim/campaign/roster.ts';
-import { createItem, type ItemObject } from '../sim/items/object.ts';
+import { createItem, createMoney, type ItemObject } from '../sim/items/object.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import { Body, type Soldier } from '../sim/tactical/soldier.ts';
@@ -26,6 +26,8 @@ const POCKET = InvSlot.SMALLPOCK1;
 const MAGAZINES = 2;
 const FULL_CLIP = 15;
 const PART_CLIP = 10;
+const POCKET_MONEY = 500;
+const GIVEN_MONEY = 100;
 
 interface Scene {
   readonly session: CampaignSession;
@@ -115,5 +117,23 @@ describe('ammo given to the robot reloads its gun (HandleItemPointerClick, the r
     });
     expect(magazines(soldier(session, merc), 'CLIP45_7')).toBe(1);
     expect(soldier(session, merc).tempObject).toBeNull();
+  });
+
+  it('refuses money for the robot, withdrawn from the account or split off a pocket, which the original loses with its cursor of no source slot (original-bugs "Money given to the robot")', async () => {
+    const { session, live, merc, robot } = await withRobot(33);
+    Object.assign(soldier(session, merc).inv[POCKET] as object, createMoney(kit.content.items, POCKET_MONEY));
+    const calibre = kit.content.items.byIndex.get(soldier(session, robot).inv[InvSlot.HAND]?.item ?? 0)?.weapon?.calibre;
+    const refused = {
+      ok: false,
+      reason: "robotNeedsCalibre: the robot's gun takes ammo of another calibre",
+      data: { refusal: 'robotNeedsCalibre', calibre },
+    };
+    const balance = session.campaign.state.finances.balance;
+    session.drainEvents();
+    expect(live.dispatch({ type: 'withdrawCash', soldier: merc, amount: GIVEN_MONEY, to: 'give', target: robot })).toEqual(refused);
+    expect(live.dispatch({ type: 'give', soldier: merc, target: robot, money: GIVEN_MONEY, slot: POCKET })).toEqual(refused);
+    expect(session.campaign.state.finances.balance).toBe(balance);
+    expect(soldier(session, merc).inv[POCKET]?.money).toBe(POCKET_MONEY);
+    expect(session.drainEvents().some((e) => e.type === 'cashWithdrawn' || e.type === 'moneyChanged')).toBe(false);
   });
 });
