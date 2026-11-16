@@ -26,6 +26,8 @@ const POCKET = InvSlot.SMALLPOCK1;
 const MAGAZINES = 2;
 const FULL_CLIP = 15;
 const PART_CLIP = 10;
+const LOW_CLIP = 5;
+const PICKED = 1;
 const FULL_45 = 7;
 const PART_45 = 5;
 const LOW_45 = 2;
@@ -85,6 +87,33 @@ async function reloadScenario(mode: RunMode): Promise<CampaignSession> {
   return scene.session;
 }
 
+function stackInPocket({ session, merc }: Scene, name: string, status: readonly number[]): void {
+  Object.assign(soldier(session, merc).inv[POCKET] as object, {
+    ...createItem(kit.content.items, item(name), 100),
+    count: status.length,
+    status: [...status],
+  });
+}
+
+function pocketStatus({ session, merc }: Scene): number[] {
+  const o = soldier(session, merc).inv[POCKET] as ItemObject;
+  return o.status.slice(0, o.count);
+}
+
+function givePickedMagazineToRobot(scene: Scene): void {
+  stackInPocket(scene, 'CLIP9_15', [FULL_CLIP, PART_CLIP, LOW_CLIP]);
+  const { live, merc, robot } = scene;
+  const reply = live.dispatch({ type: 'give', soldier: merc, target: robot, slot: POCKET, count: 1, index: PICKED });
+  expect(reply).toMatchObject({ ok: true, data: { reload: true } });
+  expect(live.advance({ idle: true }).events).toContainEqual(expect.objectContaining({ type: 'reloaded', soldier: robot }));
+}
+
+async function pickedReloadScenario(mode: RunMode): Promise<CampaignSession> {
+  const scene = await withRobot(37, mode);
+  givePickedMagazineToRobot(scene);
+  return scene.session;
+}
+
 describe('ammo given to the robot reloads its gun (HandleItemPointerClick, the robot branch)', () => {
   it('takes one magazine off the pocket at once and loads the robot’s gun during advance', async () => {
     const scene = await withRobot(31);
@@ -109,6 +138,28 @@ describe('ammo given to the robot reloads its gun (HandleItemPointerClick, the r
     expect(left.status.slice(0, left.count)).toEqual([FULL_CLIP]);
   });
 
+  it('loads the magazine of a stack the stack popup picked, which the put-back moves to the stack’s end before RemoveObjs takes the stack’s first off', async () => {
+    const scene = await withRobot(37);
+    givePickedMagazineToRobot(scene);
+    expect(soldier(scene.session, scene.robot).inv[InvSlot.HAND]?.gunShotsLeft).toBe(PART_CLIP);
+    expect(pocketStatus(scene)).toEqual([LOW_CLIP, PART_CLIP]);
+  });
+
+  it('reloads the robot from the magazine the stack popup picked the same way when the session is saved and restored after every input', async () => {
+    await expectReloadsInvisible(pickedReloadScenario);
+  });
+
+  it('puts the magazine of a stack the stack popup picked and the robot refuses back at the end of the stack', async () => {
+    const scene = await withRobot(38);
+    stackInPocket(scene, 'CLIP45_7', [FULL_45, PART_45, LOW_45]);
+    const { live, merc, robot } = scene;
+    expect(live.dispatch({ type: 'give', soldier: merc, target: robot, slot: POCKET, count: 1, index: PICKED })).toMatchObject({
+      ok: false,
+      data: { refusal: 'robotNeedsCalibre' },
+    });
+    expect(pocketStatus(scene)).toEqual([FULL_45, LOW_45, PART_45]);
+  });
+
   it('refuses ammo of another calibre with the calibre the robot needs and leaves the pocket alone', async () => {
     const { session, live, merc, robot } = await withRobot(32);
     Object.assign(soldier(session, merc).inv[POCKET] as object, createItem(kit.content.items, item('CLIP45_7'), 100));
@@ -123,28 +174,19 @@ describe('ammo given to the robot reloads its gun (HandleItemPointerClick, the r
   });
 
   it('puts one magazine of a stack the robot refuses back at the end of the stack, as the put-back before the calibre check does, and a whole stack back as it was', async () => {
-    const { session, live, merc, robot } = await withRobot(35);
-    const stack = (status: readonly number[]) =>
-      Object.assign(soldier(session, merc).inv[POCKET] as object, {
-        ...createItem(kit.content.items, item('CLIP45_7'), 100),
-        count: status.length,
-        status: [...status],
-      });
-    const pocketStatus = () => {
-      const o = soldier(session, merc).inv[POCKET] as ItemObject;
-      return o.status.slice(0, o.count);
-    };
-    stack([FULL_45, PART_45, LOW_45]);
+    const scene = await withRobot(35);
+    const { live, merc, robot } = scene;
+    stackInPocket(scene, 'CLIP45_7', [FULL_45, PART_45, LOW_45]);
     expect(live.dispatch({ type: 'give', soldier: merc, target: robot, slot: POCKET, count: 1 })).toMatchObject({
       ok: false,
       data: { refusal: 'robotNeedsCalibre' },
     });
-    expect(pocketStatus()).toEqual([PART_45, LOW_45, FULL_45]);
+    expect(pocketStatus(scene)).toEqual([PART_45, LOW_45, FULL_45]);
     expect(live.dispatch({ type: 'give', soldier: merc, target: robot, slot: POCKET })).toMatchObject({
       ok: false,
       data: { refusal: 'robotNeedsCalibre' },
     });
-    expect(pocketStatus()).toEqual([PART_45, LOW_45, FULL_45]);
+    expect(pocketStatus(scene)).toEqual([PART_45, LOW_45, FULL_45]);
   });
 
   it('keeps keys off the key ring the robot refuses on the ring, which the original puts into the slot numbered like their ring position, losing them at 0–4 and the swapped-out item at 5–18 (original-bugs "Key ring keys given to the robot")', async () => {

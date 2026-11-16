@@ -117,6 +117,7 @@ import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { dropHeldActions, setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { ITEM_SOURCE_REFUSALS } from '../tactical/item-source.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../tactical/movement.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
@@ -199,6 +200,7 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   noSlot: 'slot must be 0..18 or "hand"',
   emptySlot: 'that slot is empty',
   badCount: 'count must be 1 or the whole stack in the slot',
+  badIndex: ITEM_SOURCE_REFUSALS.badIndex,
   badMoney: 'money is split off a pocket in steps of 10; give a whole pocket with slot',
   notEnoughMoney: 'no money pocket of this soldier holds that much',
   giverCannotGive: 'this soldier cannot hand anything over (escort, dying or in deep water)',

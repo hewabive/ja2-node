@@ -4,7 +4,9 @@
 // @src InternalBeginItemPointer, RemoveMoney (the money box in steps of 10), BeginItemPointer; Interface_Panels.cc
 // @src SMInvClickCallbackPrimary; Items.cc GetObjFrom, PlaceObject (the object put back into its slot); Handle_UI.cc
 // @src SelectedGuyInBusyAnimation; BeginKeyRingItemPointer (keys given off the ring leave it with the order, as money
-// @src split off a pocket does, 2026-11-03); the put-back that also stands when the robot refuses the object (2026-11-16).
+// @src split off a pocket does, 2026-11-03); the put-back that also stands when the robot refuses the object (2026-11-16);
+// @src ItemPopupRegionCallbackPrimary's GetObjFrom (the object of a stack the popup picks, given with its own status and
+// @src put back at the stack's end, 2026-11-16).
 
 import { ItemClass } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';
@@ -33,6 +35,7 @@ export type GiveRefusal =
   | 'noSlot'
   | 'emptySlot'
   | 'badCount'
+  | 'badIndex'
   | 'badMoney'
   | 'notEnoughMoney'
   | 'giverCannotGive'
@@ -57,23 +60,30 @@ function isMoneyItem(t: TacticalState, o: ItemObject): boolean {
 
 function nothingToPutBack(): void {}
 
-function putFirstBackAtTheEnd(o: ItemObject): void {
-  const first = o.status[0] ?? 0;
-  o.status = [...o.status.slice(1, o.count), first];
+function stackIndex(value: unknown, o: ItemObject): number | null {
+  if (value === undefined) return 0;
+  return isInt(value) && value >= 0 && value < Math.max(1, o.count) ? value : null;
 }
 
-function slotRequest(merc: Soldier, slot: number, countArg: unknown): GiveRequest | GiveRefusal {
+function putBackAtTheEnd(o: ItemObject, index: number): void {
+  const picked = o.status[index] ?? 0;
+  o.status = [...o.status.slice(0, index), ...o.status.slice(index + 1, o.count), picked];
+}
+
+function slotRequest(merc: Soldier, slot: number, countArg: unknown, indexArg: unknown): GiveRequest | GiveRefusal {
   const o = merc.inv[slot];
   if (!o || o.count === 0) return 'emptySlot';
   const count = countArg === undefined ? o.count : countArg;
   if (!isInt(count) || (count !== 1 && count !== o.count)) return 'badCount';
+  const index = stackIndex(indexArg, o);
+  if (index === null) return 'badIndex';
   const preview = cloneObject(o);
   if (count < o.count) {
     preview.count = 1;
-    preview.status = [o.status[0] ?? 0];
+    preview.status = [o.status[index] ?? 0];
   }
   const putBack = () => {
-    if (count < o.count) putFirstBackAtTheEnd(o);
+    if (count < o.count) putBackAtTheEnd(o, index);
   };
   return {
     slot,
@@ -130,11 +140,12 @@ export function withdrawnMoneyRequest(money: ItemObject, withdrawn: () => void):
   };
 }
 
-function ringRequest(t: TacticalState, merc: Soldier, position: number, countArg: unknown): GiveRequest | GiveRefusal {
+function ringRequest(t: TacticalState, merc: Soldier, position: number, countArg: unknown, indexArg: unknown): GiveRequest | GiveRefusal {
   const ring = merc.keyRing?.[position];
   if (!ring || ring.count === 0) return 'emptySlot';
   const count = countArg === undefined ? ring.count : countArg;
   if (!isInt(count) || (count !== 1 && count !== ring.count)) return 'badCount';
+  if (indexArg !== undefined && indexArg !== 0) return 'badIndex';
   const preview = createKeyObject(t.content, count, ring.keyId);
   if (!preview) return 'emptySlot';
   return {
@@ -157,10 +168,10 @@ export function giveRequest(t: TacticalState, merc: Soldier, cmd: Readonly<Recor
   if (cmd.money !== undefined) return moneyRequest(t, merc, cmd.slot, cmd.money);
   if (cmd.slot === undefined) return 'needItemOrMoney';
   const ring = ringOf(cmd.slot);
-  if (ring !== null) return ringRequest(t, merc, ring, cmd.count);
+  if (ring !== null) return ringRequest(t, merc, ring, cmd.count, cmd.index);
   const slot = slotOf(cmd.slot);
   if (slot === null) return 'noSlot';
-  return slotRequest(merc, slot, cmd.count);
+  return slotRequest(merc, slot, cmd.count, cmd.index);
 }
 
 export type GiveApRefusal = 'noPath' | 'notEnoughAP';

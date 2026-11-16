@@ -935,8 +935,12 @@ in `observe`, command results and events (§10).
 Rules: `24` (giving, recruiting, escorts), `25` (the robot). `give` is the drag of an item onto a soldier
 (`src/sim/tactical/give.ts`, `src/sim/campaign/give-flow.ts`): it returns at once, and the walk, the hand-over and, to
 an NPC, the `GIVINGITEM` conversation run during `advance` as a scripted sequence (deviations "Returned
-items", "Giving to a dealer"; original-bugs "Give command"). To a squad mate or a recruited R.P.C. the whole source
-pocket is emptied even when one item of a stack was given, as in the original. Recruiting has no command: `approach
+items", "Giving to a dealer"; original-bugs "Give command"). One object of a stack (`count: 1`) is the first, or the
+one the stack popup picks with `index` as for `toss` (`badIndex` past the stack, and for keys off the ring any index
+but 0): it goes with its own status, and the put-back of the cursor object moves it to the stack's end at once
+(`Tactical/Interface_Items.cc:3227-3231`); the page sends its cursor's index. To a squad mate or a recruited R.P.C.
+the whole source pocket is emptied even when one item of a stack was given, and an NPC's hand-over and the robot's
+reload take the stack's first object off, both as in the original (`24`). Recruiting has no command: `approach
 recruit` runs the NPC's records, the pay or escort requestor opens an `npcRequest`, `answer yes` triggers the recruiting
 record, and the recruit gets a new soldier id on our team (`ChangeSoldierTeam`). `unescort` is the assignment menu's
 "remove escort" (deviation "Releasing an escort"). The robot takes orders only while a conscious non-escort of its squad

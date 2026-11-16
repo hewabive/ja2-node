@@ -35,6 +35,8 @@ const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
 const NPC_GIVE_TICKS = 5000;
 const Quote = { FIRST_MEETING: 10, FIRST_MEETING_2: 11, NO_USE: 4, ROUNDS: 25, MONEY: 26, NO_GUNS: 27 } as const;
+const Rounds = { FULL: 15, PART: 10, LOW: 5 } as const;
+const PICKED = 1;
 
 async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -73,6 +75,28 @@ function item(session: CampaignSession, name: string): number {
   const index = session.campaign.tactical?.state.content.items.byName.get(name)?.index;
   if (index === undefined) throw new Error(`no item ${name}`);
   return index;
+}
+
+function clipPocket(session: CampaignSession, merc: number): number {
+  return soldier(session, merc).inv.findIndex((o) => o.item === item(session, 'CLIP9_15'));
+}
+
+function stackClips(session: CampaignSession, merc: number, rounds: readonly number[]): number {
+  const pocket = clipPocket(session, merc);
+  Object.assign(soldier(session, merc).inv[pocket] as object, { count: rounds.length, status: [...rounds] });
+  return pocket;
+}
+
+function pocketRounds(session: CampaignSession, merc: number, pocket: number): number[] {
+  const o = soldier(session, merc).inv[pocket];
+  return o ? o.status.slice(0, o.count) : [];
+}
+
+function clipRounds(session: CampaignSession, id: number): number[] {
+  return soldier(session, id)
+    .inv.filter((o) => o.item === item(session, 'CLIP9_15'))
+    .flatMap((o) => o.status.slice(0, o.count))
+    .sort((a, b) => a - b);
 }
 
 function giveThrough(session: CampaignSession, live: Session, cmd: Record<string, unknown>) {
@@ -190,6 +214,15 @@ describe('giving items and money to the stub NPC in A10', () => {
     expect(give({ slot: 40 })).toMatchObject({ ok: false, data: { refusal: 'noSlot' } });
     const pocket = soldier(session, merc).inv.findIndex((o) => o.item === item(session, 'CLIP9_15'));
     expect(give({ slot: pocket, count: 3 })).toMatchObject({ ok: false, data: { refusal: 'badCount' } });
+    for (const index of [2, -1, 0.5, '1'])
+      expect(give({ slot: pocket, count: 1, index })).toMatchObject({
+        ok: false,
+        reason: 'badIndex: index must point to an object in the stack',
+        data: { refusal: 'badIndex' },
+      });
+    const ring = soldier(session, merc).keyRing ?? [];
+    ring[4] = { keyId: 1, count: 2 };
+    expect(give({ slot: { ring: 4 }, count: 1, index: 1 })).toMatchObject({ ok: false, data: { refusal: 'badIndex' } });
     expect(give({ money: 100 })).toMatchObject({ ok: false, data: { refusal: 'notEnoughMoney' } });
     expect(session.dispatch({ type: 'give', soldier: merc, target: merc, slot: 'hand' })).toMatchObject({
       ok: false,
@@ -215,6 +248,56 @@ describe('giving items and money to the stub NPC in A10', () => {
       .reduce((n, o) => n + o.count, 0);
     expect(after).toBe(before + 1);
     expect(soldier(session, merc).inv[pocket]?.count ?? 0).toBe(0);
+  });
+
+  it('gives the object of a stack the stack popup picked: the NPC gets its rounds, the put-back moves it to the stack’s end at once and the hand-over takes the stack’s first off, as RemoveObjs does', async () => {
+    const { session, live } = await inA10(29);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    const pocket = stackClips(session, merc, [Rounds.FULL, Rounds.PART, Rounds.LOW]);
+    const given = live.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1, index: PICKED });
+    expect(given).toMatchObject({ ok: true, data: { walking: true } });
+    expect(pocketRounds(session, merc, pocket)).toEqual([Rounds.FULL, Rounds.LOW, Rounds.PART]);
+    expect(live.advance({ idle: true }).events).toContainEqual(
+      expect.objectContaining({ type: 'npcTookItem', profile: VASKO, from: merc, item: 'CLIP9_15', status: Rounds.PART }),
+    );
+    expect(pocketRounds(session, merc, pocket)).toEqual([Rounds.LOW, Rounds.PART]);
+  });
+
+  it('hands the object of a stack the stack popup picked to a squad mate, who gets its rounds while the whole source pocket is emptied', async () => {
+    const { session, live, merc } = await nearVasko(30);
+    const mate = session.view().strategic?.mercs[1]?.id;
+    if (mate === undefined) throw new Error('no second merc');
+    const before = clipRounds(session, mate);
+    const pocket = stackClips(session, merc, [Rounds.FULL, Rounds.PART, Rounds.LOW]);
+    const handed = live.dispatch({ type: 'give', soldier: merc, target: mate, slot: pocket, count: 1, index: PICKED });
+    expect(handed.ok, handed.reason).toBe(true);
+    expect(live.advance({ idle: true }).events).toContainEqual(
+      expect.objectContaining({ type: 'itemGiven', soldier: merc, target: mate, item: 'CLIP9_15', status: Rounds.PART }),
+    );
+    expect(clipRounds(session, mate)).toEqual([...before, Rounds.PART].sort((a, b) => a - b));
+    expect(pocketRounds(session, merc, pocket)).toEqual([]);
+  });
+
+  it('gives the object of a stack the stack popup picked the same way when the session is saved and restored after every input', async () => {
+    await expectReloadsInvisible(async (mode) => {
+      const { session, live } = await inA10(31, mode);
+      const [merc = 0, mate = 1] = session.view().strategic?.mercs.map((m) => m.id) ?? [];
+      const step = (cmd: Record<string, unknown>) => {
+        const r = live.dispatch({ type: String(cmd.type), ...cmd });
+        live.advance({ idle: true });
+        return r;
+      };
+      const pocket = stackClips(session, merc, [Rounds.FULL, Rounds.PART, Rounds.LOW]);
+      expect(step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1, index: PICKED })).toMatchObject({
+        ok: true,
+        data: { walking: true },
+      });
+      step({ type: 'closeTalk' });
+      stackClips(session, merc, [Rounds.FULL, Rounds.PART, Rounds.LOW]);
+      expect(step({ type: 'give', soldier: merc, target: mate, slot: pocket, count: 1, index: PICKED }).ok).toBe(true);
+      expect(clipRounds(session, mate)).toContain(Rounds.PART);
+      return session;
+    });
   });
 
   it('gives keys off the key ring to a squad mate: they leave the ring with the order and arrive in his pockets', async () => {

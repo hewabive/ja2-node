@@ -273,9 +273,8 @@ export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope
   const withdrawn = withdrawnAs(s, GIVEN);
   if (withdrawn) return { ...withdrawn, target };
   if (s.kind === 'money') return { type: 'give', soldier: s.soldier, target, money: s.amount, slot: s.slot };
-  if (s.kind === 'keyRing') return { type: 'give', soldier: s.soldier, target, slot: { ring: s.position }, ...countField(s.count) };
-  if (s.kind !== 'slot') return null;
-  return { type: 'give', soldier: s.soldier, target, slot: s.slot, ...countField(s.count) };
+  const fields = tossFields(cursor);
+  return fields ? { type: 'give', soldier: s.soldier, target, ...fields } : null;
 }
 
 export function depositCommand(cursor: ItemCursor, depositor: number): CommandEnvelope | null {

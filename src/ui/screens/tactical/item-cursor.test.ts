@@ -64,6 +64,12 @@ describe('the commands of the item cursor dropped on the map (HandleItemPointerC
     expect(giveCommand(cursor, robot.id)).toEqual({ type: 'give', soldier: 0, target: 1, slot: SMALL_POCKET, count: 1 });
   });
 
+  it('gives the object of a stack the stack popup picked by its index, as GetObjFrom put it into the cursor', () => {
+    const picked = cursorFromSlot(merc, SMALL_POCKET, false, 1);
+    if (!picked) throw new Error('no cursor');
+    expect(giveCommand(picked, 2)).toEqual({ type: 'give', soldier: 0, target: 2, slot: SMALL_POCKET, count: 1, index: 1 });
+  });
+
   it('drops at the feet or on the tile beside him, tosses to a tile and passes to a merc, with the pocket object', () => {
     const cursor = cursorFromSlot(merc, SMALL_POCKET, true);
     if (!cursor) throw new Error('no cursor');
