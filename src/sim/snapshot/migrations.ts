@@ -2655,6 +2655,21 @@ function addItemDescriptionBox(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SHOP_KEY = 'shop';
+const MAP_SCREEN_KEY = 'mapScreen';
+
+function addMapScreenItemDescriptionBox(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const closedBox = { [ITEM_DESCRIPTION_KEY]: null };
+  const sections = graph.sections.map(
+    ([name, value]): Section => [
+      name,
+      name === 'strategic' && isObject(value) ? insertAfter(value, SHOP_KEY, MAP_SCREEN_KEY, closedBox) : value,
+    ],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2749,5 +2764,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     90: addMercVisitOpeningFlag,
     91: sayThePreBattleLineOnTheFace,
     92: addItemDescriptionBox,
+    93: addMapScreenItemDescriptionBox,
   };
 }

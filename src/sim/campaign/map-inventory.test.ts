@@ -12,9 +12,11 @@ import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { worldDay } from '../strategic/time/world-clock.ts';
 import { WeaponMode } from '../tactical/combat/types.ts';
 import { createKeyObject, sectorByte } from '../tactical/doors/keys.ts';
-import { InvSlot } from '../tactical/inventory.ts';
+import { AP_RELOAD_GUN, apsToReloadGunWithAmmo, InvSlot } from '../tactical/inventory.ts';
+import { leaveTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
+import { enterCombatMode } from '../tactical/turns/turns.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
 import { addItemToPool, removeWorldItem, trashWorldItems, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -632,5 +634,166 @@ describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickC
       expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'hand', to: 'ground' })).toMatchObject({ ok: true });
       expect([s.weaponMode, s.doBurst]).toEqual([WeaponMode.BURST, 1]);
     }
+  });
+});
+
+describe('the map screen inventory in combat (Points.cc EnoughPoints and DeductPoints test INCOMBAT, not the screen)', () => {
+  const A10 = { x: 10, y: 1, z: 0 };
+  const SPARE_AP = 3;
+  const AP_PICKUP_ITEM = 3;
+  const FULL_POCKETS = [
+    InvSlot.SECOND_HAND,
+    InvSlot.BIGPOCK1,
+    InvSlot.BIGPOCK2,
+    InvSlot.BIGPOCK3,
+    InvSlot.BIGPOCK4,
+    InvSlot.SMALLPOCK1,
+    InvSlot.SMALLPOCK2,
+    InvSlot.SMALLPOCK3,
+    InvSlot.SMALLPOCK4,
+    InvSlot.SMALLPOCK5,
+    InvSlot.SMALLPOCK6,
+    InvSlot.SMALLPOCK7,
+    InvSlot.SMALLPOCK8,
+  ];
+
+  function onTheMapInCombat(): CampaignSim {
+    const { campaign: c } = createTestCampaign(kit, {
+      seed: 8,
+      mercs: 2,
+      garrison: { admins: 0, troops: 3, elites: 0 },
+      merchants: merchants.content,
+    });
+    landFirstSquad(c);
+    enterCombatMode(loaded(c), Team.OUR);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(loaded(c).inCombat).toBe(true);
+    return c;
+  }
+
+  function soldierOf(c: CampaignSim, merc: number): Soldier {
+    const s = c.battle?.roster.get(merc)?.soldier;
+    if (!s) throw new Error('no merc');
+    return s;
+  }
+
+  function takenOffTheLoadedMap(c: CampaignSim, merc: number): void {
+    const m = c.battle?.roster.get(merc);
+    if (!m) throw new Error('no merc');
+    leaveTacticalSector(loaded(c), m.soldier);
+    m.sector = { ...A10 };
+  }
+
+  function withScopes(c: CampaignSim, merc: number): void {
+    carry(c, merc, InvSlot.BIGPOCK2, one('SILENCER'));
+    carry(c, merc, InvSlot.BIGPOCK3, one('LASERSCOPE'));
+  }
+
+  function reloadCost(c: CampaignSim, merc: number): number {
+    const inv = soldierOf(c, merc).inv;
+    return apsToReloadGunWithAmmo(kit.sectors.content.items, inv[InvSlot.HAND] as ItemObject, inv[InvSlot.BIGPOCK2] as ItemObject);
+  }
+
+  it('charges a reload its APs and refuses it short of them, as ReloadGun does in combat on any screen (Items.cc:1095-1100)', () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[0] as number;
+    expect(c.dispatch({ type: 'unload', soldier: merc, to: 'bigPocket2' })).toMatchObject({ ok: true });
+    const cost = reloadCost(c, merc);
+    soldierOf(c, merc).actionPoints = cost - 1;
+    expect(c.dispatch({ type: 'reload', soldier: merc, ammo: 'bigPocket2' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notEnoughAP' },
+    });
+    soldierOf(c, merc).actionPoints = cost + SPARE_AP;
+    expect(c.dispatch({ type: 'reload', soldier: merc, ammo: 'bigPocket2' })).toMatchObject({ ok: true });
+    expect(soldierOf(c, merc).actionPoints).toBe(SPARE_AP);
+  });
+
+  it('charges a merc off the loaded map too, whose points every turn refreshes (TeamTurns.cc BeginTeamTurn)', () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[1] as number;
+    takenOffTheLoadedMap(c, merc);
+    expect(c.dispatch({ type: 'unload', soldier: merc, to: 'bigPocket2' })).toMatchObject({ ok: true });
+    const cost = reloadCost(c, merc);
+    soldierOf(c, merc).actionPoints = cost + SPARE_AP;
+    expect(c.dispatch({ type: 'reload', soldier: merc, ammo: 'bigPocket2' })).toMatchObject({ ok: true });
+    expect(soldierOf(c, merc).actionPoints).toBe(SPARE_AP);
+  });
+
+  it("drops the old magazine of a merc off the loaded map, his pockets full and his points short of the pickup, at the loaded map's centre (quirk, Items.cc:1235-1241, Handle_Items.cc:1441-1446)", () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[1] as number;
+    takenOffTheLoadedMap(c, merc);
+    const centre = loaded(c).world.map?.info.centerGridNo ?? -1;
+    carry(c, merc, InvSlot.BIGPOCK1, clips([5]));
+    const dropped = c.dispatch({ type: 'moveItem', soldier: merc, from: 'bigPocket1', to: 'ground' });
+    expect(dropped).toMatchObject({ ok: true, data: { sector: 'A10' } });
+    const stashIndex = (dropped.data as { stashIndex: number }).stashIndex;
+    for (const slot of FULL_POCKETS) carry(c, merc, slot, one('SILENCER'));
+    const gun = soldierOf(c, merc).inv[InvSlot.HAND] as ItemObject;
+    gun.gunShotsLeft = 1;
+    const cost = apsToReloadGunWithAmmo(kit.sectors.content.items, gun, clips([5]));
+    soldierOf(c, merc).actionPoints = cost + AP_PICKUP_ITEM - 1;
+    const before = loaded(c).worldItems.length;
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'ground', item: stashIndex, to: 'hand' })).toMatchObject({ ok: true });
+    expect(
+      loaded(c)
+        .worldItems.slice(before)
+        .map((wi) => [wi.gridNo, kit.sectors.content.items.byIndex.get(wi.object.item)?.name, wi.object.status[0]]),
+    ).toEqual([[centre, 'CLIP9_15', 1]]);
+    expect(soldierOf(c, merc).actionPoints).toBe(AP_PICKUP_ITEM - 1);
+  });
+
+  it('charges an attach outside a box as a box of its own, AP_RELOAD_GUN once, and refuses it short of that (Interface_Items.cc:1987, :2585)', () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[0] as number;
+    withScopes(c, merc);
+    soldierOf(c, merc).actionPoints = AP_RELOAD_GUN - 1;
+    expect(c.dispatch({ type: 'attach', soldier: merc, item: 'bigPocket2', to: 'hand' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notEnoughAP' },
+    });
+    soldierOf(c, merc).actionPoints = AP_RELOAD_GUN + SPARE_AP;
+    expect(c.dispatch({ type: 'attach', soldier: merc, item: 'bigPocket2', to: 'hand' })).toMatchObject({ ok: true });
+    expect(soldierOf(c, merc).actionPoints).toBe(SPARE_AP);
+    expect(c.state.mapScreen.itemDescription).toBeNull();
+  });
+
+  it('keeps the box over the attachments made in it and charges its one AP_RELOAD_GUN as it closes (DeleteItemDescriptionBox)', () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[0] as number;
+    withScopes(c, merc);
+    soldierOf(c, merc).actionPoints = AP_RELOAD_GUN + SPARE_AP;
+    expect(c.dispatch({ type: 'openItemDescription', soldier: merc, slot: 'hand' })).toMatchObject({ ok: true });
+    expect(c.dispatch({ type: 'attach', soldier: merc, item: 'bigPocket2', to: 'hand' })).toMatchObject({
+      ok: true,
+      data: { inBox: true },
+    });
+    expect(c.dispatch({ type: 'attach', soldier: merc, item: 'bigPocket3', to: 'hand' })).toMatchObject({
+      ok: true,
+      data: { inBox: true },
+    });
+    expect(c.dispatch({ type: 'detach', soldier: merc, slot: 'hand', attachment: 'LASERSCOPE' })).toMatchObject({
+      ok: true,
+      data: { inBox: true },
+    });
+    expect(soldierOf(c, merc).actionPoints).toBe(AP_RELOAD_GUN + SPARE_AP);
+    expect(c.dispatch({ type: 'closeItemDescription' })).toEqual({ ok: true, data: { charged: AP_RELOAD_GUN } });
+    expect(soldierOf(c, merc).actionPoints).toBe(SPARE_AP);
+  });
+
+  it('closes the box with its charge as the map hands back to the loaded sector (EndMapScreen)', () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[0] as number;
+    withScopes(c, merc);
+    soldierOf(c, merc).actionPoints = AP_RELOAD_GUN + SPARE_AP;
+    expect(c.dispatch({ type: 'openItemDescription', soldier: merc, slot: 'hand' })).toMatchObject({ ok: true });
+    expect(c.dispatch({ type: 'attach', soldier: merc, item: 'bigPocket2', to: 'hand' })).toMatchObject({
+      ok: true,
+      data: { inBox: true },
+    });
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    expect(c.state.mapScreen.itemDescription).toBeNull();
+    expect(soldierOf(c, merc).actionPoints).toBe(SPARE_AP);
   });
 });

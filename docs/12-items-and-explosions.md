@@ -81,9 +81,11 @@ tried on copies first, so a refused one changes nothing; what the original leave
 (deviation "Item cursor"). A pickup arriving on more than one shown item freezes the merc and opens the `pickupMenu`
 prompt, whose answer names the items (`prompts.ts`); like a box it holds the soldiers due later in its pass (§6). A
 `pickUp` that names them already takes them without it, and an item that does not fit stays on the ground (deviation
-"Picking up items"). The item description box is a session the server holds (`item-description-box.ts`, `29` §8.3):
-its attaches and detaches charge nothing and its close charges `AP_RELOAD_GUN` once, as the original's; a plain
-`attach` or `detach` is a box of its own (deviation "Attachment AP").
+"Picking up items"). The item description box is a session the server holds on the tactical and the map screen
+(`item-description-box.ts`, `29` §8.3): its attaches and detaches charge nothing and its close charges `AP_RELOAD_GUN`
+once, as the original's; a plain `attach` or `detach` is a box of its own (deviation "Attachment AP"). The map screen's
+inventory charges in combat as the original's does, `INCOMBAT` alone gating the points of any merc, one off the loaded
+map included (`campaign/map-inventory.ts`).
 
 **The equipment generator replays the original.** `generateRandomEquipment` keeps every draw of `Inventory_Choosing.cc`
 on `main` in order, chances whose result is thrown away and `Random(1)` included. The first enemy generated in
@@ -186,6 +188,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | The description box charges by what it shows at its close against the opening, item and status in any position: an attachment taken off and put back costs nothing (`Interface_Items.cc:2530-2588`) | `item-description-box.test.ts` "charges nothing for an attach taken off again …" |
 | The description box stays up over the end of the turn, so its close charges the APs of the merc's next turn (`UIHandleEndTurn`, `Tactical/Handle_UI.cc:1066`) | `item-description-box.test.ts` "stays open over the end of the turn …" |
 | A failed attachment skill check closes the description box, charging what was changed in it before (`Items.cc:1563`) | `item-description-box.test.ts` "closes, charging the changes before it, when an attachment skill check fails …" |
+| A merc off the loaded map who reloads in combat, his pockets full and his points short of the pickup, drops his old magazine into the loaded sector: `ReloadGun` puts it at his `sGridNo`, which `InternalAddItemToPool` turns from `NOWHERE` into the loaded map's centre (`Tactical/Items.cc:1235-1241`, `Handle_Items.cc:1441-1446`) | `src/sim/campaign/map-inventory.test.ts` "drops the old magazine of a merc off the loaded map …" |
 | A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1560`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
 
 Not pinned yet:

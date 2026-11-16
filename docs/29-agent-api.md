@@ -782,8 +782,11 @@ their `to` pocket, as a cursor that took nothing out of a slot has none to go ba
 inventory; deviation "Item cursor"). `moveItem` puts its leftover back into that slot only when it moves nothing else there, and `data.leftover`
 names the pocket it went to, on which the UI keeps its cursor; one object of a stack moved into its own slot goes to the
 stack's end, as the original's put-back stacks it. A placement runs on copies first, so a refused move changes nothing. The message boxes for merges and
-permanent attachments become refusals to repeat with `merge` or `permanent`. On the map screen the same commands cost no
-AP and pass items within one sector only; the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
+permanent attachments become refusals to repeat with `merge` or `permanent`. On the map screen the same commands pass
+items within one sector only, never during a battle in the loaded sector, and cost what the map screen's inventory costs:
+nothing out of combat; in combat, which gates the original's charges for any merc on any screen, a reload its
+`GetAPsToReloadGunWithAmmo` (an ammunition `moveItem` onto a gun too, `Tactical/Items.cc:1095-1100`), an attachment
+change or merge what the description box charges (below), any other placement nothing (`MAPInvClickCallbackPrimary`); the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
 only ones the map screen makes the info character while it is held, with the enemy in the loaded sector read from the
 view (deviation "Strategic hints and enemy counts"). The `itemInfo` hint gives the description box's numbers for the
 object in a merc's slot, on the map screen too for a merc outside the loaded sector (`src/sim/hints/item-info.ts`), and
@@ -810,7 +813,7 @@ combat and charges none; on the tactical screen an attachment or a merge onto a 
 `MAPInvClickCallbackPrimary` does. `data.left` counts the objects still in the cursor; one object taken from the clicked
 stack itself goes back on top of it, at `data.index`.
 
-The item description box is a session the server holds on the tactical screen
+The item description box is a session the server holds on the tactical screen and on the map screen
 (`src/sim/tactical/item-description-box.ts`). `openItemDescription` takes `attach`'s fields: `soldier` holds the cursor
 item and pays (or is the box's merc with an empty cursor), `toSoldier` owns the object in `slot`, within passing range;
 it selects that owner, as the panel shows the selected merc, and closes any open box first. Inside it an `attach` onto
@@ -821,8 +824,10 @@ off again costs nothing. `closeItemDescription` closes it (`data.charged`); so d
 (another merc's order or `select`, an interrupt, his death or leaving), leaving the tactical screen (the map, a shop),
 and inside it a failed attachment check or the object gone (`data.boxClosed`). It stays open over the end of the turn
 and charges the next turn's APs, as the original's `UIHandleEndTurn` leaves it up; saves keep it (deviation "Attachment
-AP"). Refusals: `noItemDescription`, `emptySlot`, the target refusals, in combat the interface lock; elsewhere than the
-tactical screen `notInTactical`. An `attach` or `detach` outside it is a box of its own, so a single change costs what
+AP"). Refusals: `noItemDescription`, `emptySlot`, the target refusals, in combat the interface lock. On the map screen
+(`MAPInternalInitItemDescriptionBox`, `src/sim/campaign/map-inventory.ts`) the box opens for any merc with an inventory
+there and his owner within the map's passing rules, selects nobody, and closes as the map screen ends (`EndMapScreen`), so
+a return to the loaded sector in combat charges it. An `attach` or `detach` outside it is a box of its own, so a single change costs what
 the box charges, at once; one onto another object closes the open box first. `detach` without `to` names in
 `data.leftover` the pocket the attachment went to, where the page keeps its cursor: the page's box sends the detach at
 the click and an attach of that pocket puts it back.

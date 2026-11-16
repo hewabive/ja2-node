@@ -17,7 +17,12 @@
 // @src their order, stash-repack.ts, 2026-11-15); MAPInvClickCallbackPrimary's PlaceObject and
 // @src HandleTacticalEffectsOfEquipmentChange for a merc off the loaded map too (Tactical/Items.cc CollectKey,
 // @src UpdateRobotControllerGivenController, EnsureConsistentWeaponMode; Interface_Panels.cc the launcher reset,
-// @src 2026-11-15), and its hand part by bInSector, for a helicopter passenger over the loaded sector too (2026-11-15).
+// @src 2026-11-15), and its hand part by bInSector, for a helicopter passenger over the loaded sector too (2026-11-15);
+// @src Tactical/Points.cc EnoughPoints and DeductPoints (INCOMBAT for any merc on any screen), Tactical/Items.cc ReloadGun
+// @src (the old magazine of a merc off the loaded map dropped at his sGridNo, NOWHERE taken as the loaded map's centre by
+// @src Handle_Items.cc InternalAddItemToPool), MapScreen.cc MAPInternalInitItemDescriptionBox and Interface_Items.cc
+// @src DeleteItemDescriptionBox (the box session, its AP_RELOAD_GUN charged as it closes or as the map screen ends,
+// @src EndMapScreen) (2026-11-16).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -34,6 +39,8 @@ import { handleTacticalEffectsOfEquipmentChange, resetAttachedModeWithoutLaunche
 import { type InventoryContext, InvSlot, itemIn, placeObject } from '../tactical/inventory.ts';
 import {
   attachmentPosition,
+  attachThroughTheBox,
+  detachThroughTheBox,
   type InventoryCommand,
   InventoryRefusal,
   moneyAmount,
@@ -46,9 +53,7 @@ import {
   refusal,
 } from '../tactical/inventory-commands.ts';
 import {
-  attachItem,
   type Count,
-  detachItem,
   dryInventoryContext,
   type LeftoverSpot,
   moveItem,
@@ -62,14 +67,16 @@ import {
   unloadGun,
 } from '../tactical/inventory-panel.ts';
 import { type InventoryItemView, inventoryView, slotView } from '../tactical/inventory-view.ts';
+import { type ItemDescriptionBox, itemDescriptionBox } from '../tactical/item-description-box.ts';
 import { type RingSource, returnKeysToRing, sourceObject, takeSourceObject } from '../tactical/item-source.ts';
 import { type KeyRingWorld, moveKey } from '../tactical/key-ring-panel.ts';
+import { type BreathRules, deductPoints } from '../tactical/points.ts';
 import { refuse } from '../tactical/refusal.ts';
-import { inSector, isCreatureOrBloodcat, OKLIFE, type Soldier } from '../tactical/soldier.ts';
+import { inSector, isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import { afterPlacement, type PlacementEffects, soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import { combineStacks } from '../tactical/stack-cleanup.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { WorldItemFlags } from '../tactical/world-items.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
 import { campaignCombatContext } from './off-map-combat.ts';
@@ -90,6 +97,8 @@ export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'splitMoney',
   'combineStack',
   'moveKey',
+  'openItemDescription',
+  'closeItemDescription',
 ]);
 
 export const MapInventoryRefusal = {
@@ -254,6 +263,8 @@ export class MapInventory {
     if (t) return soldierInventoryContext(t, s);
     return {
       ...this.#dryContext(s),
+      spendActionPoints: (ap) => deductPoints(this.#breathRules(), s, ap, 0),
+      dropAtFeet: (o) => this.#dropIntoTheLoadedSector(s, o),
       collectKey: (o) => this.#collectKey(s, o),
       placed: (item) => afterPlacement(contentOf(this.#campaign).items, s, item, this.#offMapPlacementEffects()),
       reloaded: (gun) => {
@@ -262,13 +273,38 @@ export class MapInventory {
     };
   }
 
+  #dropIntoTheLoadedSector(s: Soldier, o: ItemObject): void {
+    const t = this.#campaign.tactical?.state;
+    if (!t) return;
+    const gridNo = s.gridNo === NOWHERE ? (t.world.map?.info.centerGridNo ?? NOWHERE) : s.gridNo;
+    addItemToPool(t, gridNo, o, Visibility.VISIBLE, s.level);
+  }
+
   #offMapPlacementEffects(): PlacementEffects {
     const roster = this.#campaign.battle?.roster;
     return { robotRemotePlaced: (s) => roster?.updateRobotControllerGivenController(s.id) };
   }
 
   #dryContext(s: Soldier): InventoryContext {
-    return dryInventoryContext(contentOf(this.#campaign).items, false, s);
+    return dryInventoryContext(contentOf(this.#campaign).items, this.#inCombat(), s);
+  }
+
+  #inCombat(): boolean {
+    return this.#campaign.tactical?.state.inCombat === true;
+  }
+
+  #breathRules(): BreathRules {
+    return { inCombat: this.#inCombat(), content: contentOf(this.#campaign) };
+  }
+
+  #itemDescriptionBox(): ItemDescriptionBox {
+    const roster = this.#campaign.battle?.roster;
+    return itemDescriptionBox(this.#campaign.state.mapScreen, { ...this.#breathRules(), soldier: (id) => roster?.get(id)?.soldier });
+  }
+
+  closeItemDescriptionOffTheMapScreen(): void {
+    const s = this.#campaign.state;
+    if (s.flow !== 'strategic' && s.mapScreen.itemDescription) this.#itemDescriptionBox().close();
   }
 
   #env(owner: RosterMerc): PanelEnv {
@@ -277,7 +313,7 @@ export class MapInventory {
     return {
       items: contentOf(campaign).items,
       combat,
-      inCombat: false,
+      inCombat: this.#inCombat(),
       mapScreen: true,
       context: (s) => this.#context(s),
       equipmentChanged: (s, slot, oldItem, newItem) => {
@@ -301,6 +337,7 @@ export class MapInventory {
         ? this.#poolCommand(cmd)
         : refuse('mapScreenOnly', 'the sector inventory is on the map screen only');
     if (this.#campaign.state.flow !== 'strategic' || !MAP_INVENTORY_COMMANDS.has(cmd.type)) return null;
+    if (cmd.type === 'closeItemDescription') return this.#closeItemDescription();
     const merc = this.#merc(cmd.soldier);
     if (!merc) return mapRefusal(MapInventoryRefusal.NO_SUCH_MERC);
     if (!accessible(merc)) return mapRefusal(MapInventoryRefusal.INACCESSIBLE);
@@ -317,7 +354,7 @@ export class MapInventory {
         if (slot === null || typeof to === 'string') return refusal(InventoryRefusal.BAD_SLOT);
         const position = attachmentPosition(contentOf(this.#campaign).items, s.inv[slot], cmd.attachment);
         if (typeof position === 'string') return refusal(position);
-        return outcomeResult(detachItem(env, s, slot, position, to));
+        return detachThroughTheBox(this.#itemDescriptionBox(), env, s, slot, position, to);
       }
       case 'unload': {
         const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
@@ -339,6 +376,8 @@ export class MapInventory {
         return this.#combine(merc, cmd);
       case 'moveKey':
         return this.#moveKey(merc, cmd);
+      case 'openItemDescription':
+        return this.#openItemDescription(merc, cmd);
       default:
         return mapRefusal(MapInventoryRefusal.TACTICAL_ONLY);
     }
@@ -362,10 +401,23 @@ export class MapInventory {
     const owner = this.#target(merc, cmd.toSoldier);
     if (!('soldier' in owner)) return owner;
     const index = typeof cmd.index === 'number' ? cmd.index : 0;
-    const env = this.#env(merc);
-    return outcomeResult(
-      attachItem(env, { attacher: merc.soldier, from, owner: owner.soldier, slot, index, count, permanent: cmd.permanent === true }),
-    );
+    const req = { attacher: merc.soldier, from, owner: owner.soldier, slot, index, count, permanent: cmd.permanent === true };
+    return attachThroughTheBox(this.#itemDescriptionBox(), this.#env(merc), req);
+  }
+
+  #openItemDescription(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const slot = parseSlot(cmd.slot);
+    if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
+    const owner = this.#target(merc, cmd.toSoldier);
+    if (!('soldier' in owner)) return owner;
+    if (itemIn(owner.soldier.inv, slot) === NOTHING) return refusal(InventoryRefusal.EMPTY_SLOT);
+    this.#itemDescriptionBox().open(owner.soldier, slot, merc.soldier);
+    return { ok: true, data: { soldier: owner.id, slot, payer: merc.id } };
+  }
+
+  #closeItemDescription(): CommandResult {
+    if (!this.#campaign.state.mapScreen.itemDescription) return refuse('noItemDescription', 'no item description box is open');
+    return { ok: true, data: { charged: this.#itemDescriptionBox().close() } };
   }
 
   #splitMoney(merc: RosterMerc, cmd: InventoryCommand): CommandResult {

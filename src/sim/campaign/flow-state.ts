@@ -5,6 +5,7 @@ import { createTalkState, type TalkState } from '../narrative/talk-state.ts';
 import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { SRC_PROFILE_AT_START } from '../strategic/narrative/check-fact.ts';
 import { createHelicopterDrop, type HelicopterDrop } from '../tactical/helicopter-drop-state.ts';
+import type { ItemDescriptionSession } from '../tactical/item-description-box.ts';
 import { NO_SELECTION } from '../tactical/selection.ts';
 import {
   type AutoBandageState,
@@ -49,6 +50,10 @@ export interface SectorFlowState {
 
 export interface ShopFlowState {
   session: ShopSession | null;
+}
+
+export interface MapScreenFlowState {
+  itemDescription: ItemDescriptionSession | null;
 }
 
 export interface TalkSoldiers {

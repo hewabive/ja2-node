@@ -4519,7 +4519,7 @@ describe('snapshot version 91 (a hand-off listing its speakers, a face without t
 });
 
 function versionNinetyTwo(snapshot: SimSnapshot): SimSnapshot {
-  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+  const sections = versionNinetyThree(snapshot).graph.sections.map(([name, value]): readonly [string, Json] => {
     if (name !== 'tactical') return [name, value];
     const { itemDescription: _, ...tactical } = object(value);
     return [name, tactical];
@@ -4545,6 +4545,39 @@ describe('snapshot version 92 (no item description box) migrates with the box cl
     const legacy = versionNinetyTwo(current.sim);
     expect(JSON.stringify(current.sim)).toContain('"itemDescription":null');
     expect(JSON.stringify(legacy)).not.toContain('itemDescription');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+function versionNinetyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const { mapScreen: _, ...strategic } = object(value);
+    return [name, strategic];
+  });
+  return { ...snapshot, version: 93, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 93 (no map screen item description box) migrates with the box closed', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionNinetyThree(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"mapScreen":{"itemDescription":null}');
+    expect(JSON.stringify(legacy)).not.toContain('mapScreen');
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

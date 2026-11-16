@@ -186,8 +186,6 @@ const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   'give',
   'autoBandage',
   'endAutoBandage',
-  'openItemDescription',
-  'closeItemDescription',
 ]);
 
 export interface CampaignHooks {
@@ -755,6 +753,7 @@ export class CampaignSim {
     this.#collectEvents();
     this.battle?.afterStep();
     this.#leaveTacticalScreenIfAsked();
+    this.mapInventory.closeItemDescriptionOffTheMapScreen();
     this.contracts?.settle();
     this.#reEvaluateNothingToDoOnTheMapScreen();
     this.#handleTacticalDoHeliRun();
@@ -953,6 +952,7 @@ export class CampaignSim {
     this.#collectEvents();
     this.battle?.settle();
     this.#leaveTacticalScreenIfAsked();
+    this.mapInventory.closeItemDescriptionOffTheMapScreen();
     this.contracts?.settle();
     this.#handleTacticalDoHeliRun();
     this.#announceMilitiaPromotions();

@@ -219,7 +219,7 @@ describe('the item description box on the way to the map (GameScreen.cc Internal
     expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect(c.tactical?.state.itemDescription).toBeNull();
     expect(ap - (ourSoldiers(c)[0]?.actionPoints ?? 0)).toBe(AP_RELOAD_GUN);
-    expect(c.dispatch({ type: 'closeItemDescription' })).toMatchObject({ ok: false, data: { refusal: 'notInTactical' } });
+    expect(c.dispatch({ type: 'closeItemDescription' })).toMatchObject({ ok: false, data: { refusal: 'noItemDescription' } });
   });
 });
 

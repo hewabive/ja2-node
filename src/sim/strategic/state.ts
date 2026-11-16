@@ -8,6 +8,7 @@ import {
   createSectorFlowState,
   createSessionState,
   createTalkFlowState,
+  type MapScreenFlowState,
   type SectorFlowState,
   type SessionState,
   type ShopFlowState,
@@ -92,6 +93,7 @@ export interface StrategicState {
   readonly roster: RosterState;
   readonly sectorFlow: SectorFlowState;
   readonly shop: ShopFlowState;
+  readonly mapScreen: MapScreenFlowState;
   readonly talk: TalkFlowState;
   readonly cosmetic: CosmeticStreams;
 }
@@ -165,6 +167,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     roster: createRosterState(),
     sectorFlow: createSectorFlowState(options.realtimeClock, options.crows, options.autoBandage, options.helicopterDrop),
     shop: { session: null },
+    mapScreen: { itemDescription: null },
     talk: createTalkFlowState(seed),
     cosmetic: createCosmeticStreams(seed),
   };

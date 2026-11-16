@@ -32,6 +32,7 @@ import { beginFirstAid, FirstAidRefusal, firstAidTargetRefusal } from './first-a
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { InvSlot, itemIn, NO_SLOT, NUM_INV_SLOTS } from './inventory.ts';
 import {
+  type AttachRequest,
   applyItem,
   apsToAutoReload,
   attachItem,
@@ -47,7 +48,12 @@ import {
   swapHands,
   unloadGun,
 } from './inventory-panel.ts';
-import { closeItemDescriptionBox, itemDescriptionBoxHolds, openItemDescriptionBox } from './item-description-box.ts';
+import {
+  type ItemDescriptionBox,
+  itemDescriptionBoxHolds,
+  openItemDescriptionBox,
+  tacticalItemDescriptionBox,
+} from './item-description-box.ts';
 import { KeyRingRefusal, type KeySpot, moveKey, tacticalKeyRingWorld } from './key-ring-panel.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
 import { MercQuote } from './narrative/merc-quotes.ts';
@@ -293,27 +299,46 @@ function moveCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Comma
 
 type AcceptedOutcome = Extract<PanelOutcome, { readonly ok: true }>;
 
-function changeInTheBox(t: TacticalState, change: () => PanelOutcome, closes: (outcome: AcceptedOutcome) => boolean): CommandResult {
+function changeInTheBox(box: ItemDescriptionBox, change: () => PanelOutcome, closes: (outcome: AcceptedOutcome) => boolean): CommandResult {
   const outcome = change();
   if (!outcome.ok) return outcomeResult(outcome);
   const closed = closes(outcome);
-  if (closed) closeItemDescriptionBox(t);
+  if (closed) box.close();
   return { ok: true, data: { ...outcome.data, inBox: true, ...(closed ? { boxClosed: true } : {}) } };
 }
 
 function changeThroughTheBox(
-  t: TacticalState,
+  box: ItemDescriptionBox,
   holder: Soldier,
   owner: Soldier,
   slot: number,
   change: () => PanelOutcome,
   closes: (outcome: AcceptedOutcome) => boolean = () => false,
 ): CommandResult {
-  if (itemDescriptionBoxHolds(t, holder, owner, slot)) return changeInTheBox(t, change, closes);
-  openItemDescriptionBox(t, owner, slot, holder);
+  if (box.holds(holder, owner, slot)) return changeInTheBox(box, change, closes);
+  box.open(owner, slot, holder);
   const outcome = change();
-  closeItemDescriptionBox(t);
+  box.close();
   return outcomeResult(outcome);
+}
+
+export function attachThroughTheBox(box: ItemDescriptionBox, env: PanelEnv, req: AttachRequest): CommandResult {
+  const { attacher, from, owner, slot } = req;
+  const asAttachment = canAttachAsAttachment(env.items, owner.inv[slot] as ItemObject, itemIn(attacher.inv, from));
+  const failedAttachment = (outcome: AcceptedOutcome) => asAttachment && outcome.data?.result === 'failedCheck';
+  const closes = (outcome: AcceptedOutcome) => failedAttachment(outcome) || itemIn(owner.inv, slot) === NOTHING;
+  return changeThroughTheBox(box, attacher, owner, slot, () => attachItem(env, req), closes);
+}
+
+export function detachThroughTheBox(
+  box: ItemDescriptionBox,
+  env: PanelEnv,
+  s: Soldier,
+  slot: number,
+  position: number,
+  to: number | null,
+): CommandResult {
+  return changeThroughTheBox(box, s, s, slot, () => detachItem(env, s, slot, position, to));
 }
 
 function attachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
@@ -326,12 +351,8 @@ function attachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   if (typeof owner === 'string') return refusal(owner);
   const index = stackIndex(cmd.index, owner.inv[slot]);
   if (typeof index === 'string') return refusal(index);
-  const env = tacticalPanelEnv(t);
-  const asAttachment = canAttachAsAttachment(t.content.items, owner.inv[slot] as ItemObject, itemIn(s.inv, from));
-  const failedAttachment = (outcome: AcceptedOutcome) => asAttachment && outcome.data?.result === 'failedCheck';
-  const closes = (outcome: AcceptedOutcome) => failedAttachment(outcome) || itemIn(owner.inv, slot) === NOTHING;
-  const change = () => attachItem(env, { attacher: s, from, owner, slot, index, count, permanent: cmd.permanent === true });
-  return changeThroughTheBox(t, s, owner, slot, change, closes);
+  const req = { attacher: s, from, owner, slot, index, count, permanent: cmd.permanent === true };
+  return attachThroughTheBox(tacticalItemDescriptionBox(t), tacticalPanelEnv(t), req);
 }
 
 export function attachmentPosition(items: ItemTable, o: ItemObject | undefined, value: unknown): number | InventoryRefusal {
@@ -351,7 +372,7 @@ function detachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   if (typeof to === 'string') return refusal(to);
   const position = attachmentPosition(t.content.items, s.inv[slot], cmd.attachment);
   if (typeof position === 'string') return refusal(position);
-  return changeThroughTheBox(t, s, s, slot, () => detachItem(tacticalPanelEnv(t), s, slot, position, to));
+  return detachThroughTheBox(tacticalItemDescriptionBox(t), tacticalPanelEnv(t), s, slot, position, to);
 }
 
 export function clickInsideItemDescription(t: TacticalState, s: Soldier, cmd: InventoryCommand): boolean {

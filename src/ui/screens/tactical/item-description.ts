@@ -18,7 +18,7 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance);
 // @src InternalInitItemDescriptionBox and DeleteItemDescriptionBox on the tactical screen as the server's box session
 // @src (the cursor's holder pays), ItemDescAttachmentsCallbackPrimary's RemoveAttachment at the click into a free pocket
-// @src (2026-11-15).
+// @src (2026-11-15); the same session on the map screen (MapScreen.cc MAPInternalInitItemDescriptionBox, 2026-11-16).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -342,7 +342,7 @@ export class ItemDescriptionBox {
 
   #openSession(object: DescribedObject & { kind: 'slot' }): void {
     const command = this.#hooks.command;
-    if (!command || this.#hooks.mapScreen) return;
+    if (!command) return;
     const holder = this.#hooks.cursor()?.source.soldier ?? object.soldier;
     const owner = holder !== object.soldier ? { toSoldier: object.soldier } : {};
     this.#session = true;

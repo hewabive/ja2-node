@@ -102,6 +102,7 @@ export class MercInventory {
       setCursor: (cursor) => this.panel.setCursor(cursor),
       placements: () => this.panel.placements(),
       send: (cmd) => this.panel.send(cmd),
+      command: (cmd) => env.client.command(cmd),
       confirm: (text) => env.boxes.confirm(text),
       metric: () => env.metric(),
       keyItem: (key) => env.media.keyItem(key),
