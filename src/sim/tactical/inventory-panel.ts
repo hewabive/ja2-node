@@ -13,7 +13,8 @@
 // @src (the drinking sound by the profile's sex) and SMInvClickCamoCallback (the item pointer ends only with no object
 // @src left in it, 2026-11-04); UIHandleItemPlacement (what PlaceObject leaves in the item pointer stays there: kept
 // @src where it moves nothing else and named for the cursor; GetObjFrom and StackObjs put one object of a stack clicked
-// @src back onto it at the stack's end, 2026-11-07).
+// @src back onto it at the stack's end, 2026-11-07); Interface_Items.cc RemoveMoney (money withdrawn from the account into
+// @src the cursor, then dropped into a pocket of the panel's merc, 2026-11-15).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -413,6 +414,29 @@ export function splitMoney(env: PanelEnv, req: SplitMoneyRequest): PanelOutcome 
   chargeTransfer(env, mover, target);
   env.emit({ type: 'moneySplit', soldier: mover.id, slot: from, to, ...(target !== mover ? { toSoldier: target.id } : {}), amount });
   return { ok: true, data: { amount } };
+}
+
+export interface WithdrawnMoneyRequest {
+  readonly mover: Soldier;
+  readonly money: ItemObject;
+  readonly target: Soldier;
+  readonly to: number;
+  readonly accepted: () => void;
+}
+
+export function placeWithdrawnMoney(env: PanelEnv, req: WithdrawnMoneyRequest): PanelOutcome {
+  const { mover, money, target, to } = req;
+  const transfer = transferCheckRefusal(env, mover, target);
+  if (transfer) return refuse(transfer);
+  const trial = cloneObject(money);
+  if (!placeObject(dryContext(env, target), clonedCarrier(target), to, trial) || trial.count > 0) return refuse(PanelRefusal.DOES_NOT_FIT);
+  req.accepted();
+  const item = money.item;
+  const oldTarget = itemIn(target.inv, to);
+  placeObject(env.context(target), target, to, money);
+  if (oldTarget === NOTHING) env.equipmentChanged(target, to, NOTHING, item);
+  chargeTransfer(env, mover, target);
+  return { ok: true };
 }
 
 function mergeIntoSlot(env: PanelEnv, req: MoveRequest, cursor: ItemObject, cursorItem: number): PanelOutcome {

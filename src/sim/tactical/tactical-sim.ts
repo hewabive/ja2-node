@@ -1127,7 +1127,17 @@ export class TacticalSim {
     selectOrderedMerc(t, s);
     const source = this.#itemSource(s, cmd);
     if ('ok' in source) return source;
-    const g = cmd.gridNo ?? s.gridNo;
+    return this.dropFromCursor(s, cmd.gridNo, () => {
+      const item = isRingSource(source) ? NOTHING : itemIn(s.inv, source.slot);
+      const dropped = takeSourceObject(t.content, s, source) as ItemObject;
+      if (!isRingSource(source)) handleTacticalEffectsOfEquipmentChange(t, s, source.slot, item, NOTHING);
+      return dropped;
+    });
+  }
+
+  dropFromCursor(s: Soldier, gridNo: unknown, take: () => ItemObject): CommandResult {
+    const t = this.state;
+    const g = gridNo ?? s.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (pythSpacesAway(s.gridNo, g) > DROPPING_DISTANCE) return refuse('tooFar', 'drop takes his tile or one next to it: toss farther');
     if (inBusyAnimation(t, s)) return refuse(BUSY_ANIMATION_REFUSAL, BUSY_ANIMATION_REASON);
@@ -1135,9 +1145,7 @@ export class TacticalSim {
       return refuse('cannotDrop', 'escorts, the unconscious and swimmers in deep water cannot drop items');
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
     const beside = dropsBeside(t, s, g);
-    const item = isRingSource(source) ? NOTHING : itemIn(s.inv, source.slot);
-    const dropped = takeSourceObject(t.content, s, source) as ItemObject;
-    if (!isRingSource(source)) handleTacticalEffectsOfEquipmentChange(t, s, source.slot, item, NOTHING);
+    const dropped = take();
     deductPoints(t, s, AP.PICKUP_ITEM, 0);
     if (beside) soldierDropObjectBeside(t, s, dropped, g);
     else soldierDropObject(t, s, dropped);

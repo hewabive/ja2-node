@@ -14,7 +14,8 @@
 // @src stack's next object on top, 2026-11-07; CTRL pools the cursor's
 // @src objects into the stack clicked, any merc's and from any slot, a gun's magazine, an attachment, money or the key
 // @src ring, and leaves the rest in the cursor;
-// @src keys off the ring dropped, given, passed or thrown, 2026-11-03).
+// @src keys off the ring dropped, given, passed or thrown, 2026-11-03); RemoveMoney (money withdrawn from the account into
+// @src the cursor, dropped into a pocket or onto the floor, 2026-11-15).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
@@ -26,7 +27,13 @@ export type CursorSource =
   | { readonly kind: 'attachment'; readonly soldier: number; readonly slot: number; readonly attachment: number }
   | { readonly kind: 'magazine'; readonly soldier: number; readonly slot: number }
   | { readonly kind: 'money'; readonly soldier: number; readonly slot: number; readonly amount: number }
-  | { readonly kind: 'keyRing'; readonly soldier: number; readonly position: number; readonly count: CursorCount };
+  | { readonly kind: 'keyRing'; readonly soldier: number; readonly position: number; readonly count: CursorCount }
+  | { readonly kind: 'account'; readonly soldier: number; readonly amount: number };
+
+type HeldSource = Exclude<CursorSource, { readonly kind: 'account' }>;
+
+const MONEY_ITEM = 'MONEY';
+const GROUND = 'ground';
 
 export interface ItemCursor {
   readonly source: CursorSource;
@@ -63,6 +70,10 @@ export function cursorFromMoney(soldier: SoldierView, slot: number, amount: numb
   const item = slotItem(soldier, slot);
   if (!item || amount <= 0) return null;
   return { source: { kind: 'money', soldier: soldier.id, slot, amount }, item: item.item };
+}
+
+export function cursorFromAccount(soldier: number, amount: number): ItemCursor | null {
+  return amount > 0 ? { source: { kind: 'account', soldier, amount }, item: MONEY_ITEM } : null;
 }
 
 export function cursorFromKeyRing(soldier: SoldierView, position: number, wholeStack: boolean, item: string): ItemCursor | null {
@@ -108,6 +119,7 @@ export function placeCommand(cursor: ItemCursor, target: number, slot: number, m
       ...countField(s.count),
       ...otherSoldier(s, target),
     };
+  if (s.kind === 'account') return { type: 'withdrawCash', soldier: s.soldier, amount: s.amount, to: slot, ...otherSoldier(s, target) };
   if (s.kind === 'money')
     return {
       type: 'splitMoney',
@@ -154,7 +166,7 @@ export function attachCommand(
 
 type CombineFrom = number | { ring: number } | { magazine: number } | { attachment: number; slot: number };
 
-function combineSource(s: CursorSource): { from: CombineFrom; index?: number } {
+function combineSource(s: HeldSource): { from: CombineFrom; index?: number } {
   switch (s.kind) {
     case 'keyRing':
       return { from: { ring: s.position } };
@@ -171,7 +183,7 @@ function combineSource(s: CursorSource): { from: CombineFrom; index?: number } {
 
 export function combineCommand(cursor: ItemCursor | null, target: number, slot: number): CommandEnvelope | null {
   const s = cursor?.source;
-  if (!s) return null;
+  if (!s || s.kind === 'account') return null;
   return { type: 'combineStack', soldier: s.soldier, slot, ...combineSource(s), ...otherSoldier(s, target) };
 }
 
@@ -210,9 +222,16 @@ export function tossFields(cursor: ItemCursor): PocketFields | null {
 }
 
 export function dropCommand(cursor: ItemCursor, gridNo?: number): CommandEnvelope | null {
+  const at = gridNo !== undefined ? { gridNo } : {};
+  const s = cursor.source;
+  if (s.kind === 'account') return { type: 'withdrawCash', soldier: s.soldier, amount: s.amount, to: GROUND, ...at };
   const fields = tossFields(cursor);
   if (!fields) return cancelCommand(cursor);
-  return { type: 'drop', soldier: cursor.source.soldier, ...fields, ...(gridNo !== undefined ? { gridNo } : {}) };
+  return { type: 'drop', soldier: s.soldier, ...fields, ...at };
+}
+
+export function dropInsteadCommand(cursor: ItemCursor): CommandEnvelope | null {
+  return cursor.source.kind === 'account' ? null : dropCommand(cursor);
 }
 
 export function tossCommand(cursor: ItemCursor, gridNo: number, level: number): CommandEnvelope | null {
@@ -270,6 +289,7 @@ export function cursorOnLeftover(data: unknown): ItemCursor | null {
 
 export function cursorObjectHeld(cursor: ItemCursor, holder: SoldierView | null): boolean {
   const s = cursor.source;
+  if (s.kind === 'account') return holder !== null;
   if (s.kind === 'keyRing') return (holder?.keys?.find((k) => k.position === s.position)?.count ?? 0) > 0;
   const item = slotItem(holder, s.slot);
   if (!item) return false;

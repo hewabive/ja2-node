@@ -4,15 +4,17 @@
 // @src balance, or the deposit question with money in the cursor), ConfirmationToDepositMoneyToPlayersAccount
 // @src (MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT); src/game/Tactical/Interface_Items.cc RemoveMoney (TRANSFER_FUNDS_TO_MERC),
 // @src BtnMoneyButtonCallbackPrimary (a withdrawal stops at MAX_MONEY_PER_SLOT); src/game/Tactical/Interface.cc
-// @src SetCurrentTacticalPanelCurrentMerc (no single merc panel for escorts and non-merc bodies).
+// @src SetCurrentTacticalPanelCurrentMerc (no single merc panel for escorts and non-merc bodies); Interface_Items.cc
+// @src RemoveMoney and HandleItemPointerClick (the withdrawal in the cursor dropped into a pocket, onto another merc's
+// @src panel or onto the floor, 2026-11-15).
 
 import { ItemClass } from '../../content/items/items.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { createMoney, deleteObject, MAX_MONEY_PER_SLOT } from '../items/object.ts';
+import { createMoney, deleteObject, type ItemObject, MAX_MONEY_PER_SLOT } from '../items/object.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
-import { moneyAmount, parseSlot } from '../tactical/inventory-commands.ts';
+import { moneyAmount, parseSlot, withdrawnMoneyCommand } from '../tactical/inventory-commands.ts';
 import { refused, refuseWithText } from '../tactical/refusal.ts';
 import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
@@ -41,7 +43,7 @@ export const MONEY_REFUSAL_TEXT: Readonly<Record<MoneyRefusal, string>> = {
   notInTactical: 'money is moved on the tactical screen only (a split also on the map screen)',
   noSuchSoldier: 'no such soldier of yours in the sector',
   noInventory: 'that soldier has no single merc panel (escort, vehicle or robot)',
-  badSlot: 'slot must be 0..18 or a slot name such as hand, bigPocket1, smallPocket1',
+  badSlot: 'slot must be 0..18 or a slot name such as hand, bigPocket1, smallPocket1; a withdrawal for toSoldier names his slot in to',
   emptySlot: 'that slot is empty',
   notMoney: 'that slot holds no money',
   badAmount: `amount must be a positive whole number of dollars, at most ${MAX_MONEY_PER_SLOT} for a withdrawal`,
@@ -51,6 +53,15 @@ export const MONEY_REFUSAL_TEXT: Readonly<Record<MoneyRefusal, string>> = {
 
 function refusal(code: MoneyRefusal): CommandResult {
   return refuseWithText(MONEY_REFUSAL_TEXT, code);
+}
+
+const GROUND = 'ground';
+
+function withdrawalTarget(cmd: CampaignCommand): { readonly to?: number | typeof GROUND; readonly toSoldier?: number } {
+  if (cmd.to === GROUND) return { to: GROUND };
+  const to = parseSlot(cmd.to);
+  if (to === null) return {};
+  return { to, ...(typeof cmd.toSoldier === 'number' && cmd.toSoldier !== cmd.soldier ? { toSoldier: cmd.toSoldier } : {}) };
 }
 
 export class MoneyFlow {
@@ -100,16 +111,34 @@ export class MoneyFlow {
     if (amount === null || amount > MAX_MONEY_PER_SLOT) return refusal(MoneyRefusal.BAD_AMOUNT);
     const finances = this.#campaign.state.finances;
     if (amount > finances.balance) return refusal(MoneyRefusal.NOT_ENOUGH_MONEY);
+    const items = tactical.state.content.items;
+    if (!items.byName.has('MONEY')) return refusal(MoneyRefusal.NO_ROOM);
+    const money = createMoney(items, amount);
+    const book = () => this.#moneyChanged(addTransaction(finances, FinanceCode.TRANSFER_FUNDS_TO_MERC, s.profile, this.#now(), -amount));
+    const placed = this.#placeWithdrawal(tactical, s, cmd, money, book);
+    if (!placed.ok) return placed;
+    this.#emit({ type: 'cashWithdrawn', soldier: s.id, amount, ...withdrawalTarget(cmd) });
+    return { ok: true, data: { amount, balance: finances.balance } };
+  }
+
+  #placeWithdrawal(tactical: TacticalSim, s: Soldier, cmd: CampaignCommand, money: ItemObject, book: () => void): CommandResult {
+    if (cmd.to === GROUND)
+      return tactical.dropFromCursor(s, cmd.gridNo, () => {
+        book();
+        return money;
+      });
+    if (cmd.to !== undefined) return withdrawnMoneyCommand(tactical.state, s, cmd, money, book);
+    if (cmd.toSoldier !== undefined) return refusal(MoneyRefusal.BAD_SLOT);
+    return this.#intoAFreePocket(tactical, s, money, book);
+  }
+
+  #intoAFreePocket(tactical: TacticalSim, s: Soldier, money: ItemObject, book: () => void): CommandResult {
     const t = tactical.state;
     const items = t.content.items;
-    const moneyItem = items.byName.get('MONEY')?.index;
-    if (moneyItem === undefined) return refusal(MoneyRefusal.NO_ROOM);
-    const money = createMoney(items, amount);
-    if (!fitsInMercInventory(items, t.inCombat, s, money, moneyItem)) return refusal(MoneyRefusal.NO_ROOM);
-    this.#moneyChanged(addTransaction(finances, FinanceCode.TRANSFER_FUNDS_TO_MERC, s.profile, this.#now(), -amount));
-    addToMercInventory(soldierInventoryContext(t, s), s, money, moneyItem);
-    this.#emit({ type: 'cashWithdrawn', soldier: s.id, amount });
-    return { ok: true, data: { amount, balance: finances.balance } };
+    if (!fitsInMercInventory(items, t.inCombat, s, money, money.item)) return refusal(MoneyRefusal.NO_ROOM);
+    book();
+    addToMercInventory(soldierInventoryContext(t, s), s, money, money.item);
+    return { ok: true };
   }
 
   #deposit(tactical: TacticalSim, s: Soldier, cmd: CampaignCommand): CommandResult {

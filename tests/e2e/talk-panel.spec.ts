@@ -14,6 +14,7 @@ const NEAR_NPC = 74 * COLS + 75;
 const STUB_RPC = 65;
 const NEAR_STUB_RPC = 72 * COLS + 81;
 const MONEY = 'MONEY';
+const SMALL_POCKETS = [11, 12, 13, 14, 15, 16, 17, 18];
 
 interface SoldierView {
   readonly id: number;
@@ -183,6 +184,10 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.descriptionItem)).toBe(MONEY);
     await clickWidget(page, 'itemDescriptionMoney0');
     await clickWidget(page, 'itemDescriptionMoneyDone');
+    const used = new Set((await page.evaluate((id) => window.__ja2Ui.tactical?.inventory(id) ?? [], merc)).map((i) => i.slot));
+    const free = SMALL_POCKETS.find((slot) => !used.has(slot));
+    if (free === undefined) throw new Error('no free small pocket');
+    await clickWidget(page, `slot${free}`);
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'withdrawCash', ok: true, reason: null });
     await expect
       .poll(

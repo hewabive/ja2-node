@@ -789,7 +789,11 @@ view (deviation "Strategic hints and enemy counts"). The `itemInfo` hint gives t
 object in a merc's slot, on the map screen too for a merc outside the loaded sector (`src/sim/hints/item-info.ts`), and
 with `attachment` for an attached item as the box describes it, a new object at the attachment's status. Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
-is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
+is `give`, for a dealer `trade`. `withdrawCash` names its drop as `moveItem` does: `to` a pocket, merged with money there,
+of this merc or of `toSoldier` with `moveItem`'s range and AP rules, the whole amount fitting (`doesNotFit`), or
+`to: 'ground'` with `drop`'s checks and AP, on his tile or the `gridNo` beside him; without `to` it goes into a free
+pocket, refused `noRoom` when none has room (deviation "Withdrawn money"). The page's money box hands the withdrawal to
+its cursor and sends the command where it is dropped. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
 `{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"); one key taken off a
 stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (original-bugs "Single key off a stack"). The
 commands of the item cursor take keys off the ring with `slot: {ring}` and `count` (`src/sim/tactical/item-source.ts`):

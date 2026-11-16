@@ -15,7 +15,7 @@
 // @src the panel's merc, paid by the cursor's holder), ItemDescAttachmentsCallbackPrimary (attach and detach in the box
 // @src charge nothing), DoAttachment (the box closes when the described object is gone), Items.cc AttachObject (a failed
 // @src attachment check closes it, a failed merge check does not); an attach or detach elsewhere as a box of its own
-// @src (2026-11-15).
+// @src (2026-11-15); Interface_Items.cc RemoveMoney (withdrawn money dropped into a pocket of the panel's merc, 2026-11-15).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
@@ -41,6 +41,7 @@ import {
   type PanelEnv,
   type PanelOutcome,
   PanelRefusal,
+  placeWithdrawnMoney,
   reloadWeapon,
   splitMoney,
   swapHands,
@@ -431,6 +432,20 @@ function splitMoneyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand):
   const target = panelTarget(t, s, cmd.toSoldier);
   if (typeof target === 'string') return refusal(target);
   return outcomeResult(splitMoney(tacticalPanelEnv(t), { mover: s, from, amount, target, to }));
+}
+
+export function withdrawnMoneyCommand(
+  t: TacticalState,
+  s: Soldier,
+  cmd: InventoryCommand,
+  money: ItemObject,
+  accepted: () => void,
+): CommandResult {
+  const to = parseSlot(cmd.to);
+  if (to === null) return refusal(InventoryRefusal.BAD_SLOT);
+  const target = panelTarget(t, s, cmd.toSoldier);
+  if (typeof target === 'string') return refusal(target);
+  return outcomeResult(placeWithdrawnMoney(tacticalPanelEnv(t), { mover: s, money, target, to, accepted }));
 }
 
 function combineFromObject(content: TacticalContent, holder: Soldier, from: object): CombineCursor | InventoryRefusal {

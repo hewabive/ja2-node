@@ -4,14 +4,14 @@
 // @src CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT question, 2026-11-02; no item: the money box over LaptopSaveInfo.iCurrentBalance;
 // @src nothing while gfSMDisableForItems), ConfirmationToDepositMoneyToPlayersAccount; src/game/Tactical/Interface_Items.cc
 // @src RemoveMoney (a withdrawal books TRANSFER_FUNDS_TO_MERC, a split goes into the cursor, in the shop into the shop's
-// @src cursor to be offered).
+// @src cursor to be offered; a withdrawal goes into the cursor too and is booked as it is dropped, 2026-11-15).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
 import { printf } from '../../text/printf.ts';
 import type { TacticalEnvironment } from './environment.ts';
 import type { InventoryPanel } from './inventory.ts';
-import { cursorFromMoney, depositCommand, slotItem } from './item-cursor.ts';
+import { cursorFromAccount, cursorFromMoney, depositCommand, type ItemCursor, slotItem } from './item-cursor.ts';
 import type { DescribedObject } from './item-description.ts';
 import { soldierById } from './soldiers.ts';
 
@@ -48,23 +48,35 @@ export class MoneyActions {
       if (balance !== undefined) this.#hooks.showBalance(s.id, balance);
       return;
     }
-    const deposit = depositCommand(cursor);
-    if (!deposit || env.media.item(cursor.item)?.class !== MONEY_CLASS) return;
-    const source = cursor.source;
-    if (source.kind === 'keyRing') return;
+    const amount = this.#heldMoney(cursor);
+    if (amount === null) return;
     this.#hooks.changeToMove();
-    const amount =
-      source.kind === 'money' ? source.amount : (slotItem(soldierById(this.#hooks.view(), source.soldier), source.slot)?.money ?? 0);
     const question = printf(env.text.string(MONEY_MESSAGES, CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT) ?? '', [sprintMoney(amount)]);
     if (!(await env.boxes.confirm(question))) return;
-    const reply = await inventory.send(deposit);
+    const deposit = depositCommand(cursor);
+    const reply = deposit ? await inventory.send(deposit) : { ok: true };
     if (reply.ok) inventory.setCursor(null);
+  }
+
+  #heldMoney(cursor: ItemCursor): number | null {
+    if (this.#hooks.env.media.item(cursor.item)?.class !== MONEY_CLASS) return null;
+    const source = cursor.source;
+    switch (source.kind) {
+      case 'account':
+      case 'money':
+        return source.amount;
+      case 'slot':
+        return slotItem(soldierById(this.#hooks.view(), source.soldier), source.slot)?.money ?? 0;
+      default:
+        return null;
+    }
   }
 
   done(object: DescribedObject, amount: number): void {
     const inventory = this.#hooks.inventory;
     if (object.kind === 'balance') {
-      void inventory.send({ type: 'withdrawCash', soldier: object.soldier, amount });
+      const withdrawn = cursorFromAccount(object.soldier, amount);
+      if (withdrawn) inventory.setCursor(withdrawn);
       return;
     }
     if (object.kind !== 'slot') return;

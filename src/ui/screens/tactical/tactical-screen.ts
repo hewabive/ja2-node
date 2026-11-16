@@ -139,7 +139,16 @@ import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPoin
 import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import { cursorObjectHeld, dropCommand, giveCommand, type ItemCursor, passCommand, slotItem, tossCommand } from './item-cursor.ts';
+import {
+  cursorObjectHeld,
+  dropCommand,
+  dropInsteadCommand,
+  giveCommand,
+  type ItemCursor,
+  passCommand,
+  slotItem,
+  tossCommand,
+} from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox, itemInfoRequest } from './item-description.ts';
 import { ItemLocators, MultiPurposeLocator, type ShownLocator } from './item-locators.ts';
 import { itemPool, onZLevel } from './item-pool.ts';
@@ -722,9 +731,9 @@ export class TacticalScreen implements Screen {
       case 'give':
         return target ? giveCommand(cursor, target.id) : null;
       case 'pass':
-        return (target ? (passCommand(cursor, target.id) ?? giveCommand(cursor, target.id)) : null) ?? dropCommand(cursor);
+        return (target ? (passCommand(cursor, target.id) ?? giveCommand(cursor, target.id)) : null) ?? dropInsteadCommand(cursor);
       case 'toss':
-        return tossCommand(cursor, at, this.#interfaceLevel) ?? dropCommand(cursor);
+        return tossCommand(cursor, at, this.#interfaceLevel) ?? dropInsteadCommand(cursor);
     }
   }
 

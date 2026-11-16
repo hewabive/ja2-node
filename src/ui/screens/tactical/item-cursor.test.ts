@@ -3,12 +3,16 @@ import type { SoldierView } from '../../../protocol/view.ts';
 import {
   applyCommand,
   combineCommand,
+  cursorFromAccount,
   cursorFromSlot,
+  cursorObjectHeld,
   cursorOnLeftover,
   dropCommand,
+  dropInsteadCommand,
   giveCommand,
   type ItemCursor,
   passCommand,
+  placeCommand,
   putsBackUnchanged,
   remainingCursor,
   shownStatus,
@@ -177,5 +181,39 @@ describe('the stack an object was taken off into the cursor (GetObjFrom)', () =>
     expect(shownStatus(at('all', 0), stack, 0)).toBe(stack.status);
     expect(shownStatus(at(1, 0, 1), stack, 0)).toBe(stack.status);
     expect(shownStatus(null, stack, 0)).toBe(stack.status);
+  });
+});
+
+describe('money withdrawn from the account into the cursor (RemoveMoney)', () => {
+  const merc = view(0, OUR_TEAM);
+
+  it('is withdrawn as it is dropped into a pocket, the pocket of the merc whose panel shows, or onto the floor', () => {
+    const cursor = cursorFromAccount(0, 1500);
+    if (!cursor) throw new Error('no cursor');
+    expect(cursor).toEqual({ source: { kind: 'account', soldier: 0, amount: 1500 }, item: 'MONEY' });
+    expect(placeCommand(cursor, 0, SMALL_POCKET)).toEqual({ type: 'withdrawCash', soldier: 0, amount: 1500, to: SMALL_POCKET });
+    expect(placeCommand(cursor, 2, SMALL_POCKET)).toEqual({
+      type: 'withdrawCash',
+      soldier: 0,
+      amount: 1500,
+      to: SMALL_POCKET,
+      toSoldier: 2,
+    });
+    expect(dropCommand(cursor)).toEqual({ type: 'withdrawCash', soldier: 0, amount: 1500, to: 'ground' });
+    expect(dropCommand(cursor, BESIDE)).toEqual({ type: 'withdrawCash', soldier: 0, amount: 1500, to: 'ground', gridNo: BESIDE });
+  });
+
+  it('is neither thrown, passed, given, applied nor combined, and a throw or a pass withdraws nothing', () => {
+    const cursor = cursorFromAccount(0, 1500);
+    if (!cursor) throw new Error('no cursor');
+    expect([
+      tossCommand(cursor, FAR_TILE, 0),
+      passCommand(cursor, 3),
+      giveCommand(cursor, 3),
+      applyCommand(cursor, 0),
+      combineCommand(cursor, 0, SMALL_POCKET),
+      dropInsteadCommand(cursor),
+    ]).toEqual([null, null, null, null, null, null]);
+    expect([cursorObjectHeld(cursor, merc), cursorObjectHeld(cursor, null), cursorFromAccount(0, 0)]).toEqual([true, false, null]);
   });
 });

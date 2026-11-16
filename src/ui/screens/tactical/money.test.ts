@@ -81,6 +81,13 @@ describe('money actions in the shop', () => {
   });
 });
 
+async function withdrawIntoAFreePocket(f: TacticalUiTest, merc: number, steps: number): Promise<void> {
+  await f.click('smMoney');
+  for (let k = 0; k < steps; k++) await f.click('itemDescriptionMoney0');
+  await f.click('itemDescriptionMoneyDone');
+  await f.click(`slot${emptySlot(f, merc)}`);
+}
+
 describe('money through the single merc panel in a stub campaign', () => {
   it('withdraws through the money region, splits a pocket through the money box and deposits the split', async () => {
     const a10 = await campaignInA10(kit, 5);
@@ -98,13 +105,19 @@ describe('money through the single merc panel in a stub campaign', () => {
     await f.click('itemDescriptionMoney0');
     await f.click('itemDescriptionMoney1', MouseButton.RIGHT);
     await f.click('itemDescriptionMoney1');
+    const sent = f.client.commands.length;
     await f.click('itemDescriptionMoneyDone');
-    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'withdrawCash', soldier: merc, amount: 2000 });
-    expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
     expect(f.screen.description.open).toBe(false);
+    expect(f.screen.inventory.cursor?.source).toEqual({ kind: 'account', soldier: merc, amount: 2000 });
+    expect([f.client.commands.length, balance(f)]).toEqual([sent, before]);
+    const into = emptySlot(f, merc);
+    await f.click(`slot${into}`);
+    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'withdrawCash', soldier: merc, amount: 2000, to: into });
+    expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
+    expect(f.screen.inventory.cursor).toBeNull();
     expect(balance(f)).toBe(before - 2000);
     const pocket = moneyPockets(f, merc)[0];
-    expect(pocket?.money).toBe(2000);
+    expect(pocket).toMatchObject({ slot: into, money: 2000 });
 
     await f.click(`slot${pocket?.slot}`, MouseButton.RIGHT);
     expect(f.screen.description.money).toMatchObject({ withdraw: false, total: 2000 });
@@ -142,9 +155,7 @@ describe('money through the single merc panel in a stub campaign', () => {
     const merc = a10.mercs[0] ?? 0;
     await f.click('teamFaceRegion0', MouseButton.RIGHT);
     await f.settle();
-    await f.click('smMoney');
-    await f.click('itemDescriptionMoney0');
-    await f.click('itemDescriptionMoneyDone');
+    await withdrawIntoAFreePocket(f, merc, 1);
     const pocket = moneyPockets(f, merc)[0];
     await f.click(`slot${pocket?.slot}`);
     expect(f.screen.inventory.cursor?.source).toMatchObject({ kind: 'slot', slot: pocket?.slot });
@@ -166,5 +177,25 @@ describe('money through the single merc panel in a stub campaign', () => {
     await f.settle();
     expect(f.t.runtime.host.modal?.id).toBe('messageBox');
     expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+  });
+
+  it('puts a withdrawal held in the cursor back at the money region without a ledger entry, the box asking as for money in a pocket', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const merc = a10.mercs[0] ?? 0;
+    await f.click('teamFaceRegion0', MouseButton.RIGHT);
+    await f.settle();
+    const before = balance(f);
+    const sent = f.client.commands.length;
+    await f.click('smMoney');
+    await f.click('itemDescriptionMoney0');
+    await f.click('itemDescriptionMoneyDone');
+    expect(f.screen.inventory.cursor?.source).toEqual({ kind: 'account', soldier: merc, amount: 1000 });
+    await f.click('smMoney');
+    await f.settle();
+    expect(f.widget('messageBox').text).toContain('$1,000');
+    await f.click('messageBox.yes');
+    await f.settle();
+    expect([f.screen.inventory.cursor, f.client.commands.length, balance(f)]).toEqual([null, sent, before]);
   });
 });

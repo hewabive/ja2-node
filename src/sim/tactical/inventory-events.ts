@@ -75,6 +75,8 @@ export interface CashWithdrawnEvent extends SimEventBase {
   readonly type: 'cashWithdrawn';
   readonly soldier: number;
   readonly amount: number;
+  readonly to?: number | 'ground';
+  readonly toSoldier?: number;
 }
 
 export interface CashDepositedEvent extends SimEventBase {
