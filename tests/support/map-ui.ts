@@ -42,7 +42,7 @@ import { buildMapScreenCampaign } from './e2e-campaign-saves.ts';
 import { type ClientSide, clientAnswer, clientSide, withQueries } from './hints.ts';
 import { createSaveKit, type SaveKit } from './saves.ts';
 import type { StubSectorKit } from './sectors.ts';
-import { projectLayoutLoader, type TestRuntime, testRuntime } from './ui-runtime.ts';
+import { projectLayoutLoader, type TestRuntime, type TestRuntimeOptions, testRuntime } from './ui-runtime.ts';
 
 const MESSAGE_BOX_LAYOUT = 'message-box';
 const BASIC_TEXT_BOX = 'basic';
@@ -311,8 +311,8 @@ export interface MapUiTest {
   dispose(): Promise<void>;
 }
 
-export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUiTest> {
-  const t = await testRuntime();
+export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit, options: TestRuntimeOptions = {}): Promise<MapUiTest> {
+  const t = await testRuntime(undefined, options);
   await stubImages(t);
   const saves: SaveKit = await createSaveKit(kit);
   const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };

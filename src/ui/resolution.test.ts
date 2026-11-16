@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignedOffset, autoUiScale, clampToView, DEFAULT_SCALE_SETTING, resolveResolution, toLogical } from './resolution.ts';
+import { alignedOffset, autoUiScale, clampToView, DEFAULT_SCALE_SETTING, resolveResolution, toDevice, toLogical } from './resolution.ts';
 
 describe('the UI scale and the logical resolution', () => {
   it('picks the largest integer scale that keeps 640×480', () => {
@@ -73,6 +73,20 @@ describe('the UI scale and the logical resolution', () => {
     expect(toLogical(r, 322, 62)).toEqual({ x: 1, y: 1 });
     expect(toLogical(r, 1599, 1019)).toEqual({ x: 639, y: 479 });
     expect(toLogical(r, 300, 50)).toEqual({ x: -10, y: -5 });
+  });
+
+  it('maps a logical pixel to the device point at its centre, which maps back to it at any scale', () => {
+    const letterbox = resolveResolution(1920, 1080, { scale: 0, fixed640: true });
+    expect(toDevice(letterbox, 0, 0)).toEqual({ x: 321, y: 61 });
+    const fitted = resolveResolution(1000, 700, { scale: 2, fixed640: false });
+    for (const [x, y] of [
+      [0, 0],
+      [7, 13],
+      [fitted.logicalWidth - 1, fitted.logicalHeight - 1],
+    ] as const) {
+      const device = toDevice(fitted, x, y);
+      expect(toLogical(fitted, device.x, device.y)).toEqual({ x, y });
+    }
   });
 
   it('keeps a device point on the view, so a grabbed pointer stops at the logical screen edges', () => {

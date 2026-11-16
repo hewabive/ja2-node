@@ -7,7 +7,7 @@ import { LayoutLoader } from '../../ui/layout/loader.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { collectReferences } from '../../ui/layout/references.ts';
 import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
-import { UiRuntime } from '../../ui/runtime.ts';
+import { type PointerWarp, UiRuntime } from '../../ui/runtime.ts';
 import { fontIdOfPath } from '../../ui/text/bitmap-font.ts';
 import { EdtTextCache } from '../../ui/text/edt-text.ts';
 import { FONTS_TABLE_PATH, type FontFiles, type FontSet, parseFontFiles } from '../../ui/text/fonts.ts';
@@ -38,6 +38,7 @@ export interface UiBoot {
 export interface BootOptions {
   readonly images?: readonly AssetKey[];
   readonly pauseGame?: (paused: boolean) => void;
+  readonly pointerWarp?: PointerWarp;
 }
 
 async function textService(source: HttpAssetSource, version: DataVersion, edt: EdtTextCache): Promise<UiTextService> {
@@ -77,6 +78,7 @@ export async function bootUi(page: GamePage, options: BootOptions = {}): Promise
     geometry: () => page.geometry(),
     sounds: audio,
     ...(options.pauseGame ? { pauseGame: options.pauseGame } : {}),
+    ...(options.pointerWarp ? { pointerWarp: options.pointerWarp } : {}),
   });
   page.attach(runtime);
   page.hook.sounds = audio.requests;

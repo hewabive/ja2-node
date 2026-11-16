@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type TestRuntime, testRuntime, uniformImage } from '../../../tests/support/ui-runtime.ts';
+import { GrabbedPointer, type TestRuntime, testRuntime, uniformImage } from '../../../tests/support/ui-runtime.ts';
 import { FontColor } from '../../content/text/font-colors.ts';
 import { DrawList, type GlyphRunItem, type ImageItem, LOW_PERCENT_SHADOW_FACTOR } from '../draw-list.ts';
 import { MouseButton } from '../input/events.ts';
@@ -190,6 +190,31 @@ describe('the shared widgets', () => {
       expect(under.updates).toBe(1);
       t.frame();
       expect(under.updates).toBe(2);
+    });
+
+    it("moves the pointer onto its buttons as it opens, 27 right and 6 up for OK alone, unless don't move mouse is set", async () => {
+      const grab = new GrabbedPointer();
+      const g = await testRuntime(undefined, { pointerWarp: grab });
+      g.images.set(BACKGROUND, uniformImage(1, 320, 240));
+      g.images.set(TEXT_BORDER, uniformImage(8, 10, 10));
+      g.images.set(BUTTONS, uniformImage(4, 61, 20));
+      const open = (flags: MessageBoxFlag) => {
+        const box = new MessageBox(g.runtime, { style: style(), text: 'Quit?', flags, labels: LABELS });
+        g.runtime.host.openModal(box);
+        g.frame();
+        g.runtime.host.closeModal(box);
+        return box.box;
+      };
+      const yesNo = open(MessageBoxFlag.YESNO);
+      const ok = open(MessageBoxFlag.OK);
+      expect(grab.warps).toEqual([
+        { x: yesNo.x + Math.trunc(yesNo.width / 2), y: yesNo.y + yesNo.height - 4 },
+        { x: ok.x + Math.trunc(ok.width / 2) + 27, y: ok.y + ok.height - 10 },
+      ]);
+      expect(g.runtime.cursorReport()).toMatchObject(grab.warps[1] ?? {});
+      grab.keepsPointer = true;
+      open(MessageBoxFlag.YESNO);
+      expect(grab.warps).toHaveLength(2);
     });
 
     it('answers its keys on key up only, and the four numbered set with 1-4', () => {

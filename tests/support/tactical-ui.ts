@@ -66,7 +66,7 @@ import { bigPictureShapes, SHAPE_LOOKS, smallSheetPlans, stubItemTable } from '.
 import { planStubSkin, readOriginalLayouts } from '../../stubs/ui/skin.ts';
 import { type ClientSide, clientAnswer, clientSide, withQueries } from './hints.ts';
 import type { StubSectorKit } from './sectors.ts';
-import { projectLayoutLoader, type TestRuntime, testRuntime } from './ui-runtime.ts';
+import { projectLayoutLoader, type TestRuntime, type TestRuntimeOptions, testRuntime } from './ui-runtime.ts';
 
 const CELL = 10;
 const COLS = 160;
@@ -516,8 +516,14 @@ async function stubImages(t: TestRuntime): Promise<void> {
   }
 }
 
-export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed = 5, given?: Session): Promise<TacticalUiTest> {
-  const t = await testRuntime();
+export async function tacticalUiTest(
+  kit: StubSectorKit,
+  ui: TacticalUiKit,
+  seed = 5,
+  given?: Session,
+  options: TestRuntimeOptions = {},
+): Promise<TacticalUiTest> {
+  const t = await testRuntime(undefined, options);
   await stubImages(t);
   const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };
   const session = given ?? withQueries(new Session('tactical-ui', await createSandboxSession(kit.read, false, seed)), sources);

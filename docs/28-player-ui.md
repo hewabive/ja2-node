@@ -263,9 +263,10 @@ tested with scripted event sequences next to the code, on the stub fonts in CI a
   neither scale with the canvas nor carry the live text the original prints in it (hit chance, AP cost).
 - **Fades** step every 16 ms on the UI clock and multiply the frozen frame once (deviation "Fades"), except the splash
   fade, which multiplies the picture once per step it has taken, as the original shades its frame buffer again on every
-  pass; zooms and the splash still capture the frame into a texture and stretch it in the shader. No pointer warp (deviation "Pointer warp"), and no mouse
-  confinement, which Stracciatella compiles out (`src/sgp/Input.cc:544-557`); text fields have the full text and
-  numeric types, without the map editor's file name, coordinate and clock types.
+  pass; zooms and the splash still capture the frame into a texture and stretch it in the shader. The pointer warps
+  only under the mouse grab (deviation "Pointer warp"), and there is no mouse confinement, which Stracciatella
+  compiles out (`src/sgp/Input.cc:544-557`); text fields have the full text and numeric types, without the map
+  editor's file name, coordinate and clock types.
 
 **Fonts and text.** `FontSet` (`src/ui/text/fonts.ts`) maps the original's 16 font macros to their STIs; one glyph
 table per data version maps a code point to a glyph index for all fonts (`src/content/text/glyph-table.ts`, `31`).
@@ -304,8 +305,10 @@ grab on release (`src/sgp/Video.cc:82`, `src/sgp/Input.cc:460`); here both take 
 (`src/app/game/mouse-grab.ts`). The game cursor then moves by the mouse's movement and stops at the edges of the logical
 screen, letterboxed or not, and Chrome shows no exit button at the top edge while the pointer is locked (Chromium
 `chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.cc`, `IsPointerLocked`), which edge scrolling up
-would otherwise call up every time. Both fullscreen keys ask for the lock before `requestFullscreen`, which consumes the
-key's user activation that a lock request needs (Blink `core/fullscreen/fullscreen.cc`); a lock lost in fullscreen, to a
+would otherwise call up every time. Where the original moves the pointer (`SimulateMouseMovement`), the grab moves the
+game cursor, which the UI sees on its next frame, as SDL queues the motion of a warp (deviation "Pointer warp"). Both
+fullscreen keys ask for the lock before `requestFullscreen`, which consumes the key's user activation that a lock
+request needs (Blink `core/fullscreen/fullscreen.cc`); a lock lost in fullscreen, to a
 window switch, comes back on the next click. While the Keyboard Lock holds Esc, Chrome shows its hold-Esc bubble at
 every lock change, that loss included (Chromium `chrome/browser/ui/exclusive_access/pointer_lock_controller.cc`,
 `ShouldSuppressBubbleReshowForStateChange`). Outside the stage's fullscreen, the browser's own included, Chrome ends the

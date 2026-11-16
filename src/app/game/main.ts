@@ -1,5 +1,6 @@
 import { failureText } from '../../ui/client/failure-text.ts';
 import { AUTO_UI_SCALE, type ScaleSetting } from '../../ui/resolution.ts';
+import type { PointerWarp } from '../../ui/runtime.ts';
 import { TEST_PATTERN_IMAGES, TestPatternScreen } from '../../ui/screens/test-pattern.ts';
 import type { ClientSettings } from '../../ui/settings.ts';
 import { Labels } from '../../ui/text/labels.ts';
@@ -67,6 +68,10 @@ const domInput = installDomInput(
   { pointerLeft: () => page.pointerLeft() },
 );
 startFrameLoop({ now: clock, requestFrame: (run) => requestAnimationFrame(run), frame: (now) => page.frame(now), failed: fail });
+const pointerWarp: PointerWarp = {
+  warp: (x, y) => domInput.warpPointer(x, y),
+  dontMoveMouse: () => loadSettings().display.dontMoveMouse,
+};
 
 function markReady(): void {
   requestAnimationFrame(() =>
@@ -77,7 +82,7 @@ function markReady(): void {
 }
 
 async function bootTestPattern(): Promise<void> {
-  const ui = await bootUi(page, { images: TEST_PATTERN_IMAGES });
+  const ui = await bootUi(page, { images: TEST_PATTERN_IMAGES, pointerWarp });
   testScreen = new TestPatternScreen(() => page.resolution, ui.assets.fonts, ui.assets.images);
   page.host.push(testScreen);
   markReady();
@@ -85,7 +90,7 @@ async function bootTestPattern(): Promise<void> {
 
 async function bootFrontEnd(): Promise<void> {
   void handOverSeenMeanwhileScenes(handOverMeanwhileScenesSeen);
-  const ui = await bootUi(page, { pauseGame: (paused) => pause.set(paused) });
+  const ui = await bootUi(page, { pauseGame: (paused) => pause.set(paused), pointerWarp });
   const audible = ui.audio.unlockIfAllowed();
   domInput.followTextInput(ui.runtime.textInput);
   frontEnd = await startFrontEnd(page, ui);

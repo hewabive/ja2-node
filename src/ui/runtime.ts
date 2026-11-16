@@ -9,6 +9,7 @@ import { TextInputState } from './input/composition.ts';
 import { isPointerEvent, queuesNoEvent, type UiInputEvent } from './input/events.ts';
 import { RegionDispatcher } from './input/regions.ts';
 import { FastHelp } from './input/tooltips.ts';
+import type { LogicalPoint } from './resolution.ts';
 import { ScreenHost } from './screen.ts';
 import type { ScreenGeometry, UiServices } from './services.ts';
 import { FontName, type FontSet } from './text/fonts.ts';
@@ -24,7 +25,15 @@ export interface UiRuntimeOptions {
   readonly geometry: () => ScreenGeometry;
   readonly sounds?: UiSoundSink;
   readonly pauseGame?: (paused: boolean) => void;
+  readonly pointerWarp?: PointerWarp;
 }
+
+export interface PointerWarp {
+  warp(x: number, y: number): LogicalPoint | null;
+  dontMoveMouse(): boolean;
+}
+
+const NO_BUTTON_CHANGE = -1;
 
 export interface CursorReport {
   readonly id: number;
@@ -53,6 +62,8 @@ export class UiRuntime implements UiServices {
   readonly #fastHelp = new FastHelp();
   readonly #geometry: () => ScreenGeometry;
   readonly #pauseGame: ((paused: boolean) => void) | undefined;
+  readonly #pointerWarp: PointerWarp | undefined;
+  #warpedTo: LogicalPoint | null = null;
   #pointerInside = false;
   #lastCursor: ComposedCursor | null = null;
   readonly #keysDown = new Set<string>();
@@ -64,6 +75,7 @@ export class UiRuntime implements UiServices {
     this.sounds = options.sounds ?? SILENT;
     this.#geometry = options.geometry;
     this.#pauseGame = options.pauseGame;
+    this.#pointerWarp = options.pointerWarp;
     this.buttons = new ButtonSystem({ regions: this.regions, images: this.images, sounds: this.sounds, screen: () => this.soundScreen });
     this.sliders = new SliderSystem(this.regions);
     this.cursor = new CursorState(options.cursors, this.images, { sounds: this.sounds });
@@ -80,6 +92,14 @@ export class UiRuntime implements UiServices {
 
   pauseGame(paused: boolean): void {
     this.#pauseGame?.(paused);
+  }
+
+  simulateMouseMovement(x: number, y: number): void {
+    this.#warpedTo = this.#pointerWarp?.warp(x, y) ?? this.#warpedTo;
+  }
+
+  dontMoveMouse(): boolean {
+    return this.#pointerWarp?.dontMoveMouse() ?? false;
   }
 
   pointerLeft(): void {
@@ -114,6 +134,7 @@ export class UiRuntime implements UiServices {
 
   frame(now: number, list: DrawList): void {
     this.clock.advance(now);
+    this.#moveToWarpedPointer();
     this.regions.frame(now);
     this.sliders.frame();
     this.host.update(now);
@@ -123,6 +144,20 @@ export class UiRuntime implements UiServices {
     this.#renderTooltips(list, now);
     this.diagnostics.render(list, this.fonts, this.host.top?.pointedCell?.() ?? null);
     this.#renderCursor(list);
+  }
+
+  #moveToWarpedPointer(): void {
+    const at = this.#warpedTo;
+    if (!at) return;
+    this.#warpedTo = null;
+    this.input({
+      kind: 'pointerMove',
+      ...at,
+      button: NO_BUTTON_CHANGE,
+      buttons: this.regions.buttons,
+      wheel: 0,
+      modifiers: this.#modifiers,
+    });
   }
 
   #renderTooltips(list: DrawList, now: number): void {

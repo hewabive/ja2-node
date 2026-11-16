@@ -11,16 +11,21 @@
 // @src messages), TrainingMenuBtnCallbackSecondary, AttributesMenuBtnCallback, RemoveMercMenuBtnCallback,
 // @src SetAssignmentForList, NotifyPlayerOfAssignmentAttemptFailure (the pMapErrorString[18] box, and [48] as a line for
 // @src militia, 2026-11-14),
-// @src HandleShadingOfLinesForAssignmentMenus and its siblings (the shading comes from the assignmentOptions hint).
+// @src HandleShadingOfLinesForAssignmentMenus and its siblings (the shading comes from the assignmentOptions hint),
+// @src CreateDestroyMouseRegionsForAssignmentMenu and PositionCursorForTacticalAssignmentBox (unless "don't move mouse" is
+// @src set, the pointer onto the assignment box's first line, measured on the assignment box for an EPC too; not for the
+// @src remove box of HandleRemoveMenu, 2026-11-15).
 
+import { idiv } from '../../../core/int.ts';
 import type { AssignmentLine, AssignmentOptions } from '../../../protocol/hints.ts';
 import { refusalOf } from '../../../protocol/refusals.ts';
 import type { StrategicView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { RegionDispatcher } from '../../input/regions.ts';
+import type { UiServices } from '../../services.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
-import type { LineShade, PopupBoxStyle, PopupLine } from '../../widgets/popup-box.ts';
+import { type LineShade, PopupBox, type PopupBoxStyle, type PopupLine } from '../../widgets/popup-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { Assignment, mercById } from './character-list.ts';
 import { MapMenu } from './map-menu.ts';
@@ -42,8 +47,11 @@ const TRAIN_MENU_TRAIN_BY_OTHER = 3;
 const ATTRIB_MENU_CANCEL = 9;
 const SQUAD_SIZE = 6;
 const ASSIGNMENT_X = 120;
+const POINTER_LEFT_OF_EDGE = 6;
+const POINTER_BELOW_LINE_MIDDLE = 2;
 const VEHICLE_X = 160;
 const SQUAD_CANCEL = 20;
+const ASSIGN_MENU_STRINGS = 7;
 const STRINGS = {
   assign: 'pAssignMenuStrings',
   epc: 'pEpcMenuStrings',
@@ -124,6 +132,7 @@ export interface AssignmentMenuHost {
   readonly townOf: (sector: string) => number;
   readonly fontHeight: () => number;
   readonly closed: () => void;
+  readonly pointer?: Pick<UiServices, 'simulateMouseMovement' | 'dontMoveMouse'>;
 }
 
 function shadeOf(line: AssignmentLine | undefined): LineShade {
@@ -175,18 +184,39 @@ export class AssignmentMenus {
     this.#soldier = soldier;
     this.#options = options;
     this.#boxY = boxY;
-    const text = this.#host.text;
-    const merc = mercById(this.#host.strategic(), soldier);
     const strings = options.box === 'epc' ? STRINGS.epc : options.box === 'removeMerc' ? STRINGS.remove : STRINGS.assign;
-    const lines: PopupLine[] = options.lines.map((l, i) => {
-      let label = text.string(strings, i) ?? l.line;
-      if (options.box === 'assignment' && i === ASSIGN_MENU_ON_DUTY && merc && merc.assignment < Assignment.ON_DUTY)
-        label = `${label}(${merc.assignment + 1})`;
-      return { text: label, shade: shadeOf(l) };
-    });
+    const lines: PopupLine[] = options.lines.map((l, i) => ({
+      text: this.#mainLabel(this.#host.text.string(strings, i) ?? l.line, i, options.box === 'assignment'),
+      shade: shadeOf(l),
+    }));
     const o = this.#host.origin();
     this.#main = this.#menu('assignmentMenu', 'assignment', o.x + ASSIGNMENT_X, o.y + boxY, lines, (line) => this.#mainSelect(line));
     this.#main.show();
+    if (options.box !== 'removeMerc') this.#positionPointer(this.#main.box);
+  }
+
+  #mainLabel(label: string, line: number, assignmentBox: boolean): string {
+    const merc = mercById(this.#host.strategic(), this.#soldier);
+    if (!assignmentBox || line !== ASSIGN_MENU_ON_DUTY || !merc || merc.assignment >= Assignment.ON_DUTY) return label;
+    return `${label}(${merc.assignment + 1})`;
+  }
+
+  #assignmentBoxArea(shown: PopupBox): PopupBox {
+    if (this.#options?.box === 'assignment') return shown;
+    const lines = Array.from({ length: ASSIGN_MENU_STRINGS }, (_, i) => ({
+      text: this.#mainLabel(this.#host.text.string(STRINGS.assign, i) ?? '', i, true),
+      shade: 'none' as const,
+    }));
+    const box = new PopupBox(this.#host.style('assignment'), shown.x, shown.y);
+    box.setLines(lines);
+    return box;
+  }
+
+  #positionPointer(shown: PopupBox): void {
+    const pointer = this.#host.pointer;
+    if (!pointer || pointer.dontMoveMouse?.()) return;
+    const box = this.#assignmentBoxArea(shown);
+    pointer.simulateMouseMovement?.(box.x + box.width - POINTER_LEFT_OF_EDGE, box.y + idiv(box.lineStep, 2) + POINTER_BELOW_LINE_MIDDLE);
   }
 
   #menu(

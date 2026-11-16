@@ -7,7 +7,8 @@ import { CURSORS_TABLE_PATH, type CursorTable, parseCursorTable } from '../../sr
 import { DrawList } from '../../src/ui/draw-list.ts';
 import { MouseButton, type UiPointerEvent } from '../../src/ui/input/events.ts';
 import { LayoutLoader } from '../../src/ui/layout/loader.ts';
-import { UiRuntime } from '../../src/ui/runtime.ts';
+import type { LogicalPoint } from '../../src/ui/resolution.ts';
+import { type PointerWarp, UiRuntime } from '../../src/ui/runtime.ts';
 import type { ScreenGeometry } from '../../src/ui/services.ts';
 import type { FontSet } from '../../src/ui/text/fonts.ts';
 import type { ButtonSoundRequest, UiSoundHandle, UiSoundSink } from '../../src/ui/widgets/button-sounds.ts';
@@ -82,6 +83,23 @@ export interface TestRuntime {
 
 export interface TestRuntimeOptions {
   readonly pauseGame?: (paused: boolean) => void;
+  readonly pointerWarp?: PointerWarp;
+}
+
+export class GrabbedPointer implements PointerWarp {
+  grabbed = true;
+  keepsPointer = false;
+  readonly warps: LogicalPoint[] = [];
+
+  warp(x: number, y: number): LogicalPoint | null {
+    if (!this.grabbed) return null;
+    this.warps.push({ x, y });
+    return { x, y };
+  }
+
+  dontMoveMouse(): boolean {
+    return this.keepsPointer;
+  }
 }
 
 export async function testRuntime(geometry: ScreenGeometry = GEOMETRY_640, options: TestRuntimeOptions = {}): Promise<TestRuntime> {
@@ -95,6 +113,7 @@ export async function testRuntime(geometry: ScreenGeometry = GEOMETRY_640, optio
     geometry: () => geometry,
     sounds,
     ...(options.pauseGame ? { pauseGame: options.pauseGame } : {}),
+    ...(options.pointerWarp ? { pointerWarp: options.pointerWarp } : {}),
   });
   const pointer = (kind: UiPointerEvent['kind'], x: number, y: number, button: number): UiPointerEvent => ({
     kind,

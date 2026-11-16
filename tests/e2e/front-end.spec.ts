@@ -311,3 +311,57 @@ test.describe('the splash still of a version without a splash video, on stubs cl
     await page.waitForFunction(() => window.__ja2Ui.music?.mode === 'mainMenu' && window.__ja2Ui.music.track !== null);
   });
 });
+
+async function sendGrabbed(
+  page: Page,
+  type: 'pointermove' | 'pointerdown' | 'pointerup',
+  movementX: number,
+  movementY: number,
+): Promise<void> {
+  await page.evaluate(
+    ([type, movementX, movementY]) => {
+      const init = { bubbles: true, movementX, movementY, pointerId: 1, pointerType: 'mouse', isPrimary: true };
+      document.getElementById('stage')?.dispatchEvent(new PointerEvent(type, init));
+    },
+    [type, movementX, movementY] as const,
+  );
+}
+
+async function clickGrabbed(page: Page, id: string): Promise<void> {
+  const { rect } = await widget(page, id);
+  await sendGrabbed(page, 'pointermove', -5000, -5000);
+  await sendGrabbed(page, 'pointermove', rect.x + Math.trunc(rect.width / 2), rect.y + Math.trunc(rect.height / 2));
+  await nextFrames(page);
+  await sendGrabbed(page, 'pointerdown', 0, 0);
+  await nextFrames(page);
+  await sendGrabbed(page, 'pointerup', 0, 0);
+}
+
+async function gameCursor(page: Page): Promise<{ x: number; y: number } | null> {
+  return page.evaluate(() => {
+    const cursor = window.__ja2Ui.cursor;
+    return cursor && { x: cursor.x, y: cursor.y };
+  });
+}
+
+test.describe('the mouse grab on the front end', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('warps the grabbed cursor onto the buttons of a message box as it opens, and the mouse moves on from there', async ({ page }) => {
+    await openUiPage(page, `${PLAY}?fixed640=1&pinClock=1`);
+    await screenIs(page, 'mainMenu');
+    await page.keyboard.press('ScrollLock');
+    await expect.poll(() => page.evaluate(() => document.pointerLockElement?.id)).toBe('stage');
+    await clickGrabbed(page, 'newGame');
+    await screenIs(page, 'gameInit');
+    await clickGrabbed(page, 'start');
+    await modalIs(page, 'messageBox');
+    const box = (await widget(page, 'messageBox')).rect;
+    const onButtons = { x: box.x + Math.trunc(box.width / 2), y: box.y + box.height - 4 };
+    await expect.poll(() => gameCursor(page)).toEqual(onButtons);
+    await sendGrabbed(page, 'pointermove', 5, -3);
+    await expect.poll(() => gameCursor(page)).toEqual({ x: onButtons.x + 5, y: onButtons.y - 3 });
+    await page.keyboard.press('ScrollLock');
+    await expect.poll(() => page.evaluate(() => document.pointerLockElement)).toBeNull();
+  });
+});

@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/MessageBoxScreen.cc DoMessageBox (the box 300 wide with margins 40/10/30, centred on the screen or a
-// @src rectangle, the full-screen MSYS_PRIORITY_HIGHEST back region with the style's cursor, the button sets and their
-// @src positions, the game paused and the UI timers stopped), ExitMsgBox, MessageBoxScreenHandle (the keys on KEY_UP),
+// @src rectangle, the full-screen MSYS_PRIORITY_HIGHEST back region with the style's cursor, the pointer moved onto the
+// @src buttons unless "don't move mouse" is set, 2026-11-15, the button sets and their positions, the game paused and
+// @src the UI timers stopped), ExitMsgBox, MessageBoxScreenHandle (the keys on KEY_UP),
 // @src g_msg_box_style, MSGBOX_* defines; src/game/MessageBoxScreen.h MessageBoxFlags, MessageBoxReturnValue,
 // @src MessageBoxStyleID; src/game/Utils/Text.h MSG_OK, MSG_YES, MSG_NO, MSG_REHIRE, MSG_LIE, MSG_SKIP.
 
@@ -32,6 +33,9 @@ const MARGIN_TOP = 10;
 const MARGIN_BOTTOM = 30;
 const BUTTON_BOTTOM_GAP = 10;
 const NUMBERED_BUTTONS = 4;
+const POINTER_ABOVE_BOTTOM = 4;
+const OK_POINTER_RIGHT = 27;
+const OK_POINTER_UP = 6;
 
 export const MessageBoxFlag = {
   OK: 0,
@@ -189,9 +193,17 @@ export class MessageBox implements Modal {
       owner: this.#owner,
       id: `${this.id}.back`,
     });
+    if (!services.dontMoveMouse?.()) this.#movePointerOntoButtons(box);
     this.#createButtons(box);
     services.clock.pause();
     services.pauseGame?.(true);
+  }
+
+  #movePointerOntoButtons(box: MercTextBox): void {
+    const ok = this.#options.flags === MessageBoxFlag.OK;
+    const x = this.#x + idiv(box.width, 2) + (ok ? OK_POINTER_RIGHT : 0);
+    const y = this.#y + box.height - POINTER_ABOVE_BOTTOM - (ok ? OK_POINTER_UP : 0);
+    this.#services.simulateMouseMovement?.(x, y);
   }
 
   #plans(): { plans: ButtonPlan[]; dx: number; x: number } {

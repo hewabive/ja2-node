@@ -14,6 +14,7 @@ import {
   tacticalUiKit,
   tacticalUiTest,
 } from '../../../../tests/support/tactical-ui.ts';
+import { GrabbedPointer } from '../../../../tests/support/ui-runtime.ts';
 import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -697,6 +698,32 @@ describe('the tactical input on the tactical screen', () => {
     await f.settle();
     expect(f.screen.controls.movementMenu.open).toBe(false);
     expect(commandsOf(f, 'stance').at(-1)).toMatchObject({ soldier: 0, stance: 'crouch' });
+  });
+
+  it("snaps the pointer back to where the movement menu opened once it closes, whatever don't move mouse, and again as the single event after it hands the menu event back", async () => {
+    const grab = new GrabbedPointer();
+    grab.keepsPointer = true;
+    const f = await tacticalUiTest(kit, ui, undefined, undefined, { pointerWarp: grab });
+    const s = merc(f, 0);
+    const at = f.world.pickPoint(s.gridNo + 2);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    pointer(f, 'pointerDown', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    f.t.frame(HOLD_MS);
+    f.t.frame();
+    expect(f.screen.controls.movementMenu.open).toBe(true);
+    pointer(f, 'pointerUp', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    expect(grab.warps).toEqual([]);
+    await f.click('menuSneak');
+    await f.settle();
+    expect(f.screen.controls.movementMenu.open).toBe(false);
+    expect(grab.warps).toEqual([
+      { x: at.x, y: at.y },
+      { x: at.x, y: at.y },
+    ]);
+    expect(f.t.runtime.cursorReport()).toMatchObject({ x: at.x, y: at.y });
   });
 
   it('takes the run, sneak and crawl buttons of the movement menu from the movementOptions hint', async () => {

@@ -364,6 +364,7 @@ export class MapScreen implements Screen {
       townOf: (sector) => this.#townOf(sector),
       fontHeight: () => this.#team.geometry.ySize,
       closed: () => this.#syncMask(false),
+      pointer: env.runtime,
     });
     this.#contract = new ContractMenu({
       regions: env.runtime.regions,

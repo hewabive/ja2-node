@@ -1,6 +1,6 @@
 import { TextComposition, type TextInputState } from '../../ui/input/composition.ts';
 import { keyDownEvents, keyUpEvents, MouseButton, modifierMask, type RawKey, type UiInputEvent } from '../../ui/input/events.ts';
-import { type DevicePoint, type Resolution, toLogical } from '../../ui/resolution.ts';
+import { type DevicePoint, type LogicalPoint, type Resolution, toDevice, toLogical } from '../../ui/resolution.ts';
 import { MouseGrab } from './mouse-grab.ts';
 
 export type InputSink = (event: UiInputEvent) => void;
@@ -11,6 +11,7 @@ export interface DomInputOptions {
 
 export interface DomInput {
   followTextInput(state: TextInputState): void;
+  warpPointer(x: number, y: number): LogicalPoint | null;
   dispose(): void;
 }
 
@@ -81,6 +82,10 @@ export function installDomInput(
   const pointer = (kind: 'pointerDown' | 'pointerUp' | 'pointerMove', event: PointerEvent) => {
     const { x, y } = logical(kind === 'pointerMove' ? grab.movedTo(event) : grab.at(event));
     sink({ kind, x, y, button: event.button, buttons: event.buttons, wheel: 0, modifiers: modifierMask(eventModifiers(event)) });
+  };
+  const warpPointer = (x: number, y: number): LogicalPoint | null => {
+    const warped = grab.warpTo(toDevice(resolution(), x, y));
+    return warped ? logical(warped) : null;
   };
   stage.addEventListener(
     'pointerdown',
@@ -164,6 +169,7 @@ export function installDomInput(
   );
   return {
     followTextInput: (state) => followEditing(ime, state, controller.signal),
+    warpPointer,
     dispose: () => {
       controller.abort();
       ime.remove();

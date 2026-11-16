@@ -25,4 +25,6 @@ export interface UiServices {
   readonly textInput?: TextInputState;
   geometry(): ScreenGeometry;
   pauseGame?(paused: boolean): void;
+  simulateMouseMovement?(x: number, y: number): void;
+  dontMoveMouse?(): boolean;
 }

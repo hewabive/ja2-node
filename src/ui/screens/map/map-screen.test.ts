@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { GrabbedPointer, type TestRuntimeOptions } from '../../../../tests/support/ui-runtime.ts';
 import { addVehicleOfOurs } from '../../../../tests/support/vehicles.ts';
 import { parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -210,8 +211,8 @@ function stashClipInSelectedSector(f: MapUiTest): void {
   campaign.state.sectorDiffs.set(sectorKey(f.screen.selectedSector), diff);
 }
 
-async function withMap(run: (f: MapUiTest) => Promise<void>): Promise<void> {
-  const f = await mapUiTest(kit, ui);
+async function withMap(run: (f: MapUiTest) => Promise<void>, options: TestRuntimeOptions = {}): Promise<void> {
+  const f = await mapUiTest(kit, ui, options);
   try {
     await run(f);
   } finally {
@@ -329,6 +330,53 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(squadOf(mover)).not.toBe(squadOf(stayer));
       expect(f.client.commands.filter((c) => c.cmd.type === 'routeGroup')).toHaveLength(0);
     }));
+
+  it("moves the pointer onto the first line of the assignment box as it opens, unless don't move mouse is set", () => {
+    const grab = new GrabbedPointer();
+    return withMap(
+      async (f) => {
+        await f.click('teamRow1.assignment');
+        await f.settle();
+        const box = f.widget('assignmentMenu').rect;
+        const step = f.widget('assignmentMenu.line0').rect.height;
+        expect(grab.warps).toEqual([{ x: box.x + box.width - 6, y: box.y + Math.trunc(step / 2) + 2 }]);
+        expect(f.t.runtime.cursorReport()).toMatchObject(grab.warps[0] ?? {});
+        f.key('Escape');
+        await f.settle();
+        grab.keepsPointer = true;
+        await f.click('teamRow1.assignment');
+        await f.settle();
+        expect(f.find('assignmentMenu')).toBeDefined();
+        expect(grab.warps).toHaveLength(1);
+      },
+      { pointerWarp: grab },
+    );
+  });
+
+  it("measures the pointer's spot on an escort's popup on the assignment box, which is not shown", () => {
+    const grab = new GrabbedPointer();
+    return withMap(
+      async (f) => {
+        await f.click('teamRow1.assignment');
+        await f.settle();
+        const assignmentBox = f.widget('assignmentMenu').rect;
+        f.key('Escape');
+        await f.settle();
+        const campaign = (f.session.sim as CampaignSession).campaign;
+        const record = campaign.battle?.roster.get(f.mercs[1] ?? -1);
+        if (!record) throw new Error('no escort');
+        Object.assign(record.record, { kind: MercKind.EPC });
+        f.client.refresh();
+        await f.click(`teamRow${f.screen.list.rowOf(record.id)}.assignment`);
+        await f.settle();
+        const epcBox = f.widget('assignmentMenu').rect;
+        const step = f.widget('assignmentMenu.line0').rect.height;
+        expect(epcBox.width).not.toBe(assignmentBox.width);
+        expect(grab.warps.at(-1)).toEqual({ x: epcBox.x + assignmentBox.width - 6, y: epcBox.y + Math.trunc(step / 2) + 2 });
+      },
+      { pointerWarp: grab },
+    );
+  });
 
   it('opens the assignment popup over the row, holds time while it is open and closes it with Escape', () =>
     withMap(async (f) => {

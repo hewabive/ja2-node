@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type TestRuntime, testRuntime, uniformImage } from '../../tests/support/ui-runtime.ts';
+import { GrabbedPointer, type TestRuntime, testRuntime, uniformImage } from '../../tests/support/ui-runtime.ts';
 import { encodeEdtRecords } from '../content/formats/edt.ts';
 import { EdtLayouts } from '../content/text/edt-layouts.ts';
 import type { DrawList } from './draw-list.ts';
@@ -47,6 +47,32 @@ describe('the ui runtime', () => {
     expect(kinds.indexOf('shadow')).toBeGreaterThan(0);
     expect(t.list.items.at(-2)).toMatchObject({ kind: 'image', asset: 'cursors/cursor.sti', x: 150, y: 120 });
     expect(t.runtime.cursorReport()).toMatchObject({ name: 'CURSOR_NORMAL', x: 150, y: 120, visible: true });
+  });
+
+  it('moves the cursor to where the grab warped the pointer on the next frame, keeping the held buttons and modifiers', async () => {
+    const grab = new GrabbedPointer();
+    const g = await testRuntime(undefined, { pointerWarp: grab });
+    const moves: UiInputEvent[] = [];
+    g.runtime.host.push({ ...contentScreen(false), input: (event) => moves.push(event) > 0 });
+    g.runtime.input({ kind: 'pointerDown', x: 10, y: 20, button: 0, buttons: 1, wheel: 0, modifiers: KeyModifier.SHIFT });
+    g.runtime.simulateMouseMovement(300, 200);
+    expect(g.runtime.cursorReport()).toMatchObject({ x: 10, y: 20 });
+    g.frame();
+    expect(g.runtime.cursorReport()).toMatchObject({ x: 300, y: 200 });
+    expect(moves.at(-1)).toMatchObject({ kind: 'pointerMove', x: 300, y: 200, modifiers: KeyModifier.SHIFT });
+    expect(g.runtime.regions.isButtonDown(1)).toBe(true);
+    grab.grabbed = false;
+    g.runtime.simulateMouseMovement(5, 5);
+    g.frame();
+    expect(g.runtime.cursorReport()).toMatchObject({ x: 300, y: 200 });
+  });
+
+  it('leaves the pointer where it is without a grab to warp', () => {
+    t.move(10, 20);
+    t.runtime.simulateMouseMovement(300, 200);
+    t.frame();
+    expect(t.runtime.cursorReport()).toMatchObject({ x: 10, y: 20 });
+    expect(t.runtime.dontMoveMouse()).toBe(false);
   });
 
   it('skips the fast help of screens that do not draw it and hides the cursor outside the canvas or under a fade', () => {

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc HandleTacticalUI (the frame flags, the input order mouse position, polled keys,
 // @src mouse buttons, queued keys, the pending override event, the single events, the menu modes, the multi-selection
-// @src reset), SetUIMouseCursor (the exit arrows at the scrolled map edges and exit grids; none on a tile in a room until
+// @src reset; the UIEVENT_SNAPMOUSE position saved at the event's start and the pointer moved back to it as the event
+// @src ends, whatever "don't move mouse", 2026-11-15), SetUIMouseCursor (the exit arrows at the scrolled map edges and exit grids; none on a tile in a room until
 // @src it is revealed, 2026-11-10), the event handlers
 // @src UIHandleIDoNothing, UIHandleSelectMerc, UIHandleMOnTerrain (the 1.5 s over items, the exit grid flag, the height
 // @src check, the next merc for a dying one, CANNOT_MOVE_UICURSOR, the exchange cursor), UIHandleAOnTerrain (the out-of-range line once per target),
@@ -139,7 +140,7 @@ import {
   soldierFindFlags,
 } from './targets.ts';
 import { UiCursorFlag } from './ui-cursors.ts';
-import { MouseMove, MoveUiTarget, Selection, SINGLE_EVENT, UI_EVENTS, UiEvent, UiMode } from './ui-events.ts';
+import { MouseMove, MoveUiTarget, Selection, SINGLE_EVENT, SNAP_MOUSE, UI_EVENTS, UiEvent, UiMode } from './ui-events.ts';
 import { BoardingCursor, enterVehicleCursor } from './vehicle-cursors.ts';
 import { apNumberMarker, cursorMarkers, footstepMarkers, impactMarker, selectionMarker, showMoveGridMarker } from './world-markers.ts';
 
@@ -261,6 +262,7 @@ export class TacticalInput {
   #now = 0;
   #mode: UiMode = UiMode.IDLE_MODE;
   #event: UiEvent = UiEvent.I_DO_NOTHING;
+  #savedMouse = { x: 0, y: 0 };
   #pending: UiEvent = UiEvent.I_DO_NOTHING;
   #newCursor = 'NORMAL_SNAPUICURSOR';
   #cursor = 'NO_UICURSOR';
@@ -546,7 +548,11 @@ export class TacticalInput {
       this.#pending = UiEvent.I_DO_NOTHING;
     }
     this.#event = next;
-    if (next !== old) this.#clearEvent(next);
+    if (next !== old) {
+      if (UI_EVENTS[old].flags & SNAP_MOUSE) this.#snapMouseBack();
+      this.#clearEvent(next);
+    }
+    if (UI_EVENTS[next].flags & SNAP_MOUSE && this.#state(next).firstTime) this.#saveMouse();
     this.#handle(next);
     this.#itemTileFrame(viewportInArea);
     const state = this.#state(next);
@@ -567,6 +573,15 @@ export class TacticalInput {
     this.#setUiMouseCursor();
     this.#placeFreeMoveCursorActionPoints();
     if (this.multiSelected.size > 0 && !MULTI_SELECT_MODES.has(this.#mode)) this.multiSelected.clear();
+  }
+
+  #saveMouse(): void {
+    const regions = this.#env().runtime.regions;
+    this.#savedMouse = { x: regions.mouseX, y: regions.mouseY };
+  }
+
+  #snapMouseBack(): void {
+    this.#env().runtime.simulateMouseMovement?.(this.#savedMouse.x, this.#savedMouse.y);
   }
 
   #itemTileFrame(inArea: boolean): void {

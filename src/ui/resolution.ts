@@ -10,6 +10,7 @@ export const STD_SCREEN_HEIGHT = 480;
 export const AUTO_UI_SCALE = 0;
 export const MAX_UI_SCALE = 8;
 const ALIGNMENT_TOLERANCE = 1e-6;
+const PIXEL_CENTRE = 0.5;
 const ALIGNMENT_SEARCH = 16;
 
 export interface ScaleSetting {
@@ -98,6 +99,13 @@ export function toLogical(resolution: Resolution, deviceX: number, deviceY: numb
   const x = Math.floor(((deviceX - resolution.viewX) * resolution.logicalWidth) / resolution.viewWidth);
   const y = Math.floor(((deviceY - resolution.viewY) * resolution.logicalHeight) / resolution.viewHeight);
   return { x, y };
+}
+
+export function toDevice(resolution: Resolution, logicalX: number, logicalY: number): DevicePoint {
+  return {
+    x: resolution.viewX + ((logicalX + PIXEL_CENTRE) * resolution.viewWidth) / resolution.logicalWidth,
+    y: resolution.viewY + ((logicalY + PIXEL_CENTRE) * resolution.viewHeight) / resolution.logicalHeight,
+  };
 }
 
 function clampToSpan(value: number, start: number, length: number): number {
