@@ -18,7 +18,7 @@ const FIRST_VERSION_WITH_NO_PROFILE_PASSENGERS = 86;
 const NO_PROFILE = 200;
 const MERC_PATH_NODE_BYTES = 20;
 
-const MAP_ELEMENT_LAYOUT: Layout = [
+export const MAP_ELEMENT_LAYOUT: Layout = [
   skip(16),
   field('bNameId', 'i8'),
   field('fEnemyControlled', 'bool'),
@@ -28,7 +28,7 @@ const MAP_ELEMENT_LAYOUT: Layout = [
   skip(20),
 ];
 
-const SECTOR_INFO_LAYOUT: Layout = [
+export const SECTOR_INFO_LAYOUT: Layout = [
   field('uiFlags', 'u32'),
   skip(1),
   field('ubGarrisonID', 'u8'),

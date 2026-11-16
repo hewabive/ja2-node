@@ -12,11 +12,13 @@ import {
   SAVE_ENCRYPTION_PATH,
   SAVE_HEADER_BYTES,
 } from '../content/formats/savegame-header.ts';
-import { layoutOffsets } from '../content/formats/savegame-layout.ts';
+import { layoutBytes, layoutOffsets } from '../content/formats/savegame-layout.ts';
 import { profileRecordBytes } from '../content/formats/savegame-profile.ts';
+import { MAP_ELEMENT_LAYOUT, SECTOR_INFO_LAYOUT } from '../content/formats/savegame-strategic.ts';
 import { GENERAL_INFO_LAYOUT, TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
 import { MapModificationType } from '../content/formats/savegame-temp-files.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
+import { MAP_WORLD_CELLS, SECTOR_COUNT, sectorId, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { Direction } from '../content/world/grid.ts';
 import { TravelCost } from '../content/world/movement-costs.ts';
@@ -27,8 +29,12 @@ import { musicMode } from '../protocol/music.ts';
 import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { advance } from '../sim/advance.ts';
 import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
+import { queenProgress } from '../sim/strategic/ai/difficulty.ts';
 import { SectorFlag } from '../sim/strategic/forces/constants.ts';
+import { REFUEL_SITES, RefuelSiteId } from '../sim/strategic/forces/helicopter-state.ts';
 import { getSectorFlagStatus } from '../sim/strategic/map/sectors.ts';
+import { Fact } from '../sim/strategic/narrative/fact-ids.ts';
+import { MAX_QUESTS } from '../sim/strategic/narrative/facts.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { anim } from '../sim/tactical/anim-states.ts';
 import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
@@ -71,6 +77,16 @@ const LAST_VERSION_WITHOUT_SPECK_PAYMENTS = 90;
 const PROFILE_TOTAL_COST_TO_DATE_OFFSET = 708;
 const PAST_MERC_COST = 1234;
 const HELIDROP_LANDED = 467;
+const WRECKED_SAM_CONDITION = 0;
+const START_SECTOR = { x: 9, y: 1 };
+const FREE_AIRSPACE_NEXT_TO_THE_START = { x: 10, y: 1 };
+const NUM_MINES = 6;
+const MINE_STATUS_BYTES = 44;
+const MINE_SPOKE_TO_HEAD_MINER_OFFSET = 22;
+const NUM_TOWNS = 13;
+const TOWN_LOYALTY_BYTES = 26;
+const FULL_LOYALTY = 100;
+const PRIORITY_PHASE_PERCENT = 10;
 
 function codeOfOpcode(timeline: LogicTimeline, state: number, opcode: number): number {
   for (let pc = 0; ; pc++) {
@@ -131,6 +147,51 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
     new DataView(plain.buffer).setUint32(PROFILE_TOTAL_COST_TO_DATE_OFFSET, cost, true);
     bytes.set(encryptSaveRecord(plain, key), at);
     new DataView(bytes.buffer).setUint32(SAVE_VERSION_OFFSET, version, true);
+    return bytes;
+  }
+
+  function sectionOf(bytes: Uint8Array, name: string) {
+    const section = parseSaveGame(bytes, encryption).sections.find((s) => s.name === name);
+    if (!section) throw new Error(`the save has no ${name} section`);
+    return section;
+  }
+
+  function withEstoniOpenToTheHelicopter(file: string, refuellingFact: boolean): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+    const map = sectionOf(bytes, 'strategic info').offset;
+    const element = layoutBytes(MAP_ELEMENT_LAYOUT, false);
+    const fields = layoutOffsets(MAP_ELEMENT_LAYOUT, false);
+    for (let i = 0; i < MAP_WORLD_CELLS; i++) bytes[map + i * element + (fields.get('bSAMCondition') ?? 0)] = WRECKED_SAM_CONDITION;
+    const estoni = REFUEL_SITES[RefuelSiteId.ESTONI]?.sector ?? START_SECTOR;
+    bytes[map + strategicIndex(estoni) * element + (fields.get('fEnemyControlled') ?? 0)] = 0;
+    bytes[sectionOf(bytes, 'quests').offset + MAX_QUESTS + Fact.ESTONI_REFUELLING_POSSIBLE] = refuellingFact ? 1 : 0;
+    return bytes;
+  }
+
+  function withEveryMineProducingForThePlayer(file: string): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+    const map = sectionOf(bytes, 'strategic info').offset;
+    const element = layoutBytes(MAP_ELEMENT_LAYOUT, false);
+    const enemyControlled = layoutOffsets(MAP_ELEMENT_LAYOUT, false).get('fEnemyControlled') ?? 0;
+    for (let i = 0; i < MAP_WORLD_CELLS; i++) bytes[map + i * element + enemyControlled] = 0;
+    const sectors = map + MAP_WORLD_CELLS * element;
+    const sector = layoutBytes(SECTOR_INFO_LAYOUT, false);
+    const garrison = ['ubNumTroops', 'ubNumElites', 'ubNumAdmins'].map((name) => layoutOffsets(SECTOR_INFO_LAYOUT, false).get(name) ?? 0);
+    for (let i = 0; i < SECTOR_COUNT; i++) for (const at of garrison) bytes[sectors + i * sector + at] = 0;
+    const mines = sectionOf(bytes, 'mine status').offset;
+    for (let mine = 0; mine < NUM_MINES; mine++) bytes[mines + mine * MINE_STATUS_BYTES + MINE_SPOKE_TO_HEAD_MINER_OFFSET] = 1;
+    const towns = sectionOf(bytes, 'town loyalty').offset;
+    for (let town = 0; town < NUM_TOWNS; town++) bytes[towns + town * TOWN_LOYALTY_BYTES] = FULL_LOYALTY;
+    return bytes;
+  }
+
+  function withLandingZone(file: string, zone: { readonly x: number; readonly y: number }): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+    const info = sectionOf(bytes, 'general info').offset;
+    const fields = layoutOffsets(GENERAL_INFO_LAYOUT, false);
+    const view = new DataView(bytes.buffer);
+    view.setInt16(info + (fields.get('g_merc_arrive_sector_x') ?? 0), zone.x, true);
+    view.setInt16(info + (fields.get('g_merc_arrive_sector_y') ?? 0), zone.y, true);
     return bytes;
   }
 
@@ -239,6 +300,48 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
         paidAsSaved,
         paidAsSaved + PAST_MERC_COST,
       ]);
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    "recomputes the refuel sites on import with the save's facts: Estoni, its sector and airspace free, opens to the helicopter only when the save has its refuelling fact (Strategic_AI.cc:2463, SaveLoadGame.cc:810)",
+    async () => {
+      const file = [...saveFiles].sort()[0] ?? '';
+      const refuelSites = async (refuellingFact: boolean) => {
+        const bytes = withEstoniOpenToTheHelicopter(file, refuellingFact);
+        const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+        return session.campaign.state.forces.helicopter.refuelSiteAvailable;
+      };
+      expect(await refuelSites(true)).toEqual([true, true]);
+      expect(await refuelSites(false)).toEqual([true, false]);
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    "checks the saved landing zone against the airspace on import: one under the enemy's moves to the start sector, as the load's airspace update does after the general info (SaveLoadGame.cc:838, StrategicMap.cc:2295)",
+    async () => {
+      const file = [...saveFiles].sort()[0] ?? '';
+      const imported = async (zone: { readonly x: number; readonly y: number }) =>
+        (await createSaveSession(read, withLandingZone(file, zone), undefined, (p) => data.vfs.stat(p) !== undefined)).session;
+      const underTheEnemy = await imported(DRASSEN_AIRPORT);
+      expect(underTheEnemy.campaign.state.map.elements[strategicIndex(DRASSEN_AIRPORT)]?.enemyAirControlled).toBe(true);
+      expect(underTheEnemy.campaign.state.laptop.mercArriveSector).toBe(sectorId(START_SECTOR));
+      expect(underTheEnemy.drainEvents()).toContainEqual(expect.objectContaining({ type: 'landingZoneReset', from: 'B13', to: 'A9' }));
+      const free = await imported(FREE_AIRSPACE_NEXT_TO_THE_START);
+      expect(free.campaign.state.laptop.mercArriveSector).toBe(sectorId(FREE_AIRSPACE_NEXT_TO_THE_START));
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    "evolves the Queen's priority phase on import from the save's mines and town loyalty, which the load reads before the strategic AI (SaveLoadGame.cc:841-846, Strategic_AI.cc:2465)",
+    async () => {
+      const file = [...saveFiles].sort()[0] ?? '';
+      const bytes = withEveryMineProducingForThePlayer(file);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const q = session.campaign.queen;
+      if (!q) throw new Error('the imported campaign has no strategic AI');
+      expect(q.mines.predictIncomeFromPlayerMines()).toBeGreaterThan(0);
+      expect(q.state.queen.priorityPhase).toBe(Math.trunc(queenProgress(q) / PRIORITY_PHASE_PERCENT));
     },
   );
 

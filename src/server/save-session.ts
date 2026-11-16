@@ -131,7 +131,6 @@ export async function createSaveSession(
     worldSector ? loadTacticalWorld(read, saveMapPath(save)) : null,
     loadImportParts(read, exists, layers, decoding),
   ]);
-  const { strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
   const imported = importNativeGameOptions(save.generalInfo.gameOptions);
   const start = world
     ? startInSavedWorld(world, save, parts, seed, imported.options, aroundRestart)
@@ -154,18 +153,11 @@ export async function createSaveSession(
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
   importSectorTempFiles(strategic.sectorDiffs, save);
+  importWhatTheStrategicAiLoadHooksRead(strategic, save, saveBytes, parts);
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
   importStory(strategic, story);
   campaign.creatures?.importDirectives(save.creatureDirectives, saiSections.creatureMeanwhileScenePlayed);
-  importEconomy(strategic, readSavedEconomy(saveBytes, save.sections), save.laptop.currentBalance);
   importContracts(strategic, save, saveBytes);
-  importLaptop(strategic, save, saveBytes, {
-    mercListings: laptopContent.mercListings,
-    namedProfiles: laptopContent.namedProfiles,
-    startSector: strategicContent.policy.startSector,
-    declaredProfiles: economyContent.mercTypes,
-  });
-  importNarrativeSave(strategic, save);
   for (const saved of readSoldierAssignments(saveBytes, save, encryption)) {
     const merc = roster.get(saved.id);
     if (merc) applySavedAssignment(merc, saved);
@@ -187,6 +179,22 @@ export async function createSaveSession(
   });
   session.initialMusic = initialMusic(musicModeOfNativeByte(save.generalInfo.musicMode), MusicMode.MAIN_MENU);
   return { session, report };
+}
+
+function importWhatTheStrategicAiLoadHooksRead(
+  strategic: StrategicState,
+  save: SaveGame,
+  saveBytes: Uint8Array,
+  parts: CampaignParts,
+): void {
+  importEconomy(strategic, readSavedEconomy(saveBytes, save.sections), save.laptop.currentBalance);
+  importLaptop(strategic, save, saveBytes, {
+    mercListings: parts.laptop.mercListings,
+    namedProfiles: parts.laptop.namedProfiles,
+    startSector: parts.strategic.policy.startSector,
+    declaredProfiles: parts.economy.mercTypes,
+  });
+  importNarrativeSave(strategic, save);
 }
 
 function startClockRunning(clock: WorldClock): void {
