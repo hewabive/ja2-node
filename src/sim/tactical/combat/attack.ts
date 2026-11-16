@@ -492,11 +492,10 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   } else deductPoints(t, s, ap, 0);
   const pos = getTargetWorldPositions(t, s, target);
   const knife = d?.itemClass === ItemClass.THROWING_KNIFE;
-  const chance = inMeanwhile(t)
-    ? MEANWHILE_HIT_CHANCE
-    : knife
-      ? calcThrownChanceToHit(t, s, target, s.aimTime)
-      : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
+  const calculated = knife
+    ? calcThrownChanceToHit(t, s, target, s.aimTime)
+    : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
+  const chance = inMeanwhile(t) ? MEANWHILE_HIT_CHANCE : calculated;
   const roll = t.pre.int(100);
   const hit = roll <= chance;
   t.hooks.attackRolled(t, s, { chance, hit });

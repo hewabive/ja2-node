@@ -126,6 +126,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | The jam check rolls `PreRandom(100)` twice even for a gun above 80 %, which can never jam | `combat.test.ts` |
 | A bullet strikes a bystander in its path only if the player sees him (`bVisible`), whoever fires | `combat.test.ts` |
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |
+| A meanwhile shot, which always hits, still wears its barrel extender and draws for it: the chance is calculated before the meanwhile sets it to 100 (`Weapons.cc:655-667`) | `combat.test.ts` "wears on a meanwhile shot too …" |
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A martial arts strike turns an unaware target without stopping him or cancelling his AI action, where a plain punch does both | `melee.test.ts` |
 | Dr. Q chops at a martial arts strike whose target has left the tile too: the chop is outside the target test (`Tactical/Soldier_Control.cc:504`) | `melee.test.ts` "chops as Dr. Q at every strike …" |

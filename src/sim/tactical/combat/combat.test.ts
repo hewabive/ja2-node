@@ -30,6 +30,7 @@ import type { TacticalSim } from '../tactical-sim.ts';
 import { checkForGunJam, FireResult, handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure, fireBulletGivenTarget, soldierToSoldierChanceToGetThrough } from './bullets.ts';
 import { calcChanceToHitGun, ENEMY_TO_HIT_MOD, gunRange, soldierDifficultyLevel } from './chance.ts';
+import type { RandomStream } from './context.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { calculateSoldierZPos, losWorldOf } from './positions.ts';
@@ -50,6 +51,8 @@ const AVERAGE_DIFFICULTY_MODIFIER = 50;
 const TOP_DIFFICULTY_MODIFIER = 100;
 const ATTACK_TICKS = 2000;
 const MEANWHILE_HIT_CHANCE = 100;
+const EXTENDER_WEAR_RANGE = 2;
+const EXTENDER_HOLD_RANGE = 35;
 
 describe('damage and structure rules', () => {
   it('scales head and leg hits like the original float maths', () => {
@@ -271,6 +274,36 @@ describe('the barrel extender (Weapons.cc CalcChanceToHitGun)', () => {
     const { dropped, merc } = shootWithExtender([12, 10]);
     expect(dropped).toHaveLength(1);
     expect(dropped[0]).toMatchObject({ gridNo: merc.gridNo, level: merc.level, object: { status: [EXTENDER_STATUS] } });
+  });
+
+  it('wears on a meanwhile shot too: the chance is calculated with its extender draws before the roll and only then set to 100 (Weapons.cc UseGun)', () => {
+    const WEAR = 1;
+    const HOLD_ROLL = 34;
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    const extender = content.items.byName.get('GUN_BARREL_EXTENDER')?.index ?? -1;
+    const gun = merc.inv[InvSlot.HAND] as ItemObject;
+    gun.attachments[0] = { item: extender, status: EXTENDER_STATUS };
+    sim.lookAround();
+    sim.drainEvents();
+    t.narrative = { ...t.narrative, inMeanwhile: () => true };
+    const draws: string[] = [];
+    const traced = (name: string, stream: RandomStream, scripted: (n: number) => number | null): RandomStream => ({
+      int: (n) => {
+        draws.push(`${name}(${n})`);
+        return scripted(n) ?? stream.int(n);
+      },
+    });
+    const extenderRoll = (n: number) => (n === EXTENDER_WEAR_RANGE ? WEAR : n === EXTENDER_HOLD_RANGE ? HOLD_ROLL : null);
+    Object.assign(t, { rng: traced('Random', t.rng, extenderRoll), pre: traced('PreRandom', t.pre, () => null) });
+    t.hooks = { ...t.hooks, attackRolled: (_t, _s, roll) => draws.push(`roll at ${roll.chance}`) };
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    run(sim);
+    const roll = draws.indexOf(`roll at ${MEANWHILE_HIT_CHANCE}`);
+    expect(draws.slice(roll - 4, roll)).toEqual(['Random(2)', 'Random(35)', 'Random(35)', 'PreRandom(100)']);
+    expect(gun.attachments[0]).toEqual({ item: extender, status: EXTENDER_STATUS - WEAR });
   });
 });
 
