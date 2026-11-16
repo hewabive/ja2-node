@@ -10,7 +10,8 @@
 // @src Laptop/Mercs_No_Account.cc BtnOpenAccountBoxButtonCallback; Laptop/Mercs_Files.cc BtnMercHireButtonCallback,
 // @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts (the records name the listing at gubCurMercIndex,
 // @src which EnterInitMercSite clears on every laptop entry, 2026-11-14), CalculateHowMuchPlayerOwesSpeck;
-// @src Laptop/Speck_Quotes.h; Laptop/Mercs.cc GetAvailableRandomQuotes (the idle chatter's quotes, 2026-11-15).
+// @src Laptop/Speck_Quotes.h; Laptop/Mercs.cc GetAvailableRandomQuotes (the idle chatter's quotes, 2026-11-15);
+// @src Laptop/Mercs.cc CalcAproximateAmountPaidToSpeck (2026-11-16).
 
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { i32, u32 } from '../../../core/int.ts';
@@ -448,6 +449,13 @@ export function payMercAccounts(ctx: LaptopContext, viewedListing = LISTING_AT_L
     merc.speckQuoteFlags &= ~SpeckQuoteFlag.SENT_EMAIL_ABOUT_LACK_OF_PAYMENT;
   }
   return { ok: true, paid, full };
+}
+
+export function calcApproximateAmountPaidToSpeck(ctx: LaptopContext): void {
+  const merc = ctx.laptop.merc;
+  const costs = ctx.state.finances.profileCostToDate;
+  for (const listing of ctx.content.mercListings)
+    merc.totalMoneyPaidToSpeck = u32(merc.totalMoneyPaidToSpeck + (costs.get(listingProfile(ctx, listing)) ?? 0));
 }
 
 export function mercHireQuotes(ctx: LaptopContext, profile: number): number[] {

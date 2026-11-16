@@ -130,7 +130,9 @@ import restores with the battle locator, its sector, the persistent PBI and the 
 on a map in the original either, and the next map load clears the public noise it may set
 (`TileEngine/WorldDef.cc:2449`). ja2-node's own loads run none of these hooks (`27`; deviation "Hooks on load"). The
 load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start
-sector for an invalid landing zone.
+sector for an invalid landing zone, and, gated by the save's version ahead of the hooks above (`SaveLoadGame.cc:1152-1162`),
+`UpdateRefuelSiteAvailability` for version 89 or lower and `CalcAproximateAmountPaidToSpeck` below 91, which adds every
+M.E.R.C. listing merc's cost to date to Speck's total (`Laptop/Mercs.cc:1692`; `runNativeLoadHooks`).
 
 **Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own
 and catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
@@ -211,6 +213,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A loaded creature pool is redrawn as human blood: its type lives in the smell byte, which the load sets after the redraw | `sim/tactical/blood-pools.test.ts` |
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
 | `gubExplicitEnemyEncounterCode` is a `BOOLEAN` holding an encounter code (`Strategic/PreBattle_Interface.cc:134`) | `content/formats/savegame.test.ts` "reads the pre-battle state of the general info …" |
+| A save below version 91 adds the costs of Larry's listing as the merc it names now: the drunk Larry's once he has relapsed, never the sober one's (`Laptop/Mercs.cc:600`, `:1692`) | `sim/campaign/native-load-hooks.test.ts` "adds every M.E.R.C. listing merc's cost to date …" |
 | The load's ambush call reads the encounter code alone, which outlives its battle until a squad next arrives (`Strategic/Strategic_Movement.cc:731`): a game saved after an ambush calls the loaded sector's enemies to its centre on every load (`TacticalAI/Knowledge.cc:49`) | `sim/campaign/native-load-hooks.test.ts` "calls the enemies on the saved ambush code alone …" |
 | No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5856`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |
 | A temp file is read by its count, the bytes past it unread: B11's item file in `SaveGame07`, `09` and `10` counts no record ahead of a live slot (`Tactical/Tactical_Save.cc:217`) | `content/formats/savegame.test.ts` "reads only the counted item records …", "reads nothing from B11's item file in SaveGame07 …", `sim/campaign/save-sectors.test.ts` "enters B11 of SaveGame09 with no item …" |

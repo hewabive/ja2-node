@@ -4,8 +4,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { type LogicTimeline, SlotKind, slotArgument, slotKind, timelineSlot } from '../content/anim/timelines.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
-import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH, SAVE_HEADER_BYTES } from '../content/formats/savegame-header.ts';
+import {
+  decryptSaveRecord,
+  encryptSaveRecord,
+  parseSaveEncryptionTable,
+  parseSaveHeader,
+  SAVE_ENCRYPTION_PATH,
+  SAVE_HEADER_BYTES,
+} from '../content/formats/savegame-header.ts';
 import { layoutOffsets } from '../content/formats/savegame-layout.ts';
+import { profileRecordBytes } from '../content/formats/savegame-profile.ts';
 import { GENERAL_INFO_LAYOUT, TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
 import { MapModificationType } from '../content/formats/savegame-temp-files.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
@@ -58,6 +66,10 @@ const TRAVEL_STEPS = 20_000;
 const IDLE_DICE = 100;
 const IDLE_ROLLERS_OF_THE_NATIVE_LOAD: Readonly<Record<string, readonly number[]>> = { 'SaveGame01.sav': [121], 'SaveGame07.sav': [0] };
 const DRASSEN_AIRPORT = { x: 13, y: 2, z: 0 };
+const SAVE_VERSION_OFFSET = 0;
+const LAST_VERSION_WITHOUT_SPECK_PAYMENTS = 90;
+const PROFILE_TOTAL_COST_TO_DATE_OFFSET = 708;
+const PAST_MERC_COST = 1234;
 const HELIDROP_LANDED = 467;
 
 function codeOfOpcode(timeline: LogicTimeline, state: number, opcode: number): number {
@@ -104,6 +116,21 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
     const info = parseSaveGame(bytes, encryption).sections.find((s) => s.name === 'general info');
     if (!info) throw new Error(`${file} has no general info section`);
     bytes[info.offset + (layoutOffsets(GENERAL_INFO_LAYOUT, false).get('gubEnemyEncounterCode') ?? 0)] = code;
+    return bytes;
+  }
+
+  function withMercCostToDate(file: string, profile: number, cost: number, version: number): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+    const save = parseSaveGame(bytes, encryption);
+    const key = encryption.sets[save.encryptionSet];
+    const profiles = save.sections.find((s) => s.name === 'merc profiles');
+    if (!key || !profiles) throw new Error(`${file} has no merc profiles to patch`);
+    const size = profileRecordBytes(false);
+    const at = profiles.offset + profile * size;
+    const plain = decryptSaveRecord(bytes.subarray(at, at + size), key);
+    new DataView(plain.buffer).setUint32(PROFILE_TOTAL_COST_TO_DATE_OFFSET, cost, true);
+    bytes.set(encryptSaveRecord(plain, key), at);
+    new DataView(bytes.buffer).setUint32(SAVE_VERSION_OFFSET, version, true);
     return bytes;
   }
 
@@ -190,6 +217,27 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect([t.perception.publicNoiseGridNo[Team.ENEMY], t.perception.publicNoiseVolume[Team.ENEMY]]).toEqual([
         center,
         MAX_MISC_NOISE_DURATION,
+      ]);
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    "adds the M.E.R.C. mercs' costs to date to Speck's total for a save patched below version 91, and keeps the total of the save as made (SaveLoadGame.cc:1159)",
+    async () => {
+      const file = [...saveFiles].sort()[0] ?? '';
+      const savedVersion = parseSaveHeader(new Uint8Array(readFileSync(join(savesDir, file)))).header.version;
+      const imported = async (bytes: Uint8Array) =>
+        (await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined)).session.campaign;
+      const asMade = await imported(new Uint8Array(readFileSync(join(savesDir, file))));
+      const listed = asMade.laptop?.content.mercListings[0]?.profile;
+      if (listed === undefined) throw new Error('no M.E.R.C. listing');
+      const paidAsSaved = asMade.state.laptop.merc.totalMoneyPaidToSpeck;
+      const kept = await imported(withMercCostToDate(file, listed, PAST_MERC_COST, savedVersion));
+      const fixed = await imported(withMercCostToDate(file, listed, PAST_MERC_COST, LAST_VERSION_WITHOUT_SPECK_PAYMENTS));
+      expect(kept.state.finances.profileCostToDate.get(listed)).toBe(PAST_MERC_COST);
+      expect([kept.state.laptop.merc.totalMoneyPaidToSpeck, fixed.state.laptop.merc.totalMoneyPaidToSpeck]).toEqual([
+        paidAsSaved,
+        paidAsSaved + PAST_MERC_COST,
       ]);
     },
   );

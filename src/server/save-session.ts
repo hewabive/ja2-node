@@ -179,7 +179,7 @@ export async function createSaveSession(
     });
   }
   if (!loadTheLoadedSector(campaign, sim, save)) dropLoadedSectorMapModificationsFile(strategic);
-  runNativeLoadHooks(campaign);
+  runNativeLoadHooks(campaign, save.header.version);
   const session = new CampaignSession(campaign, parts.presentation, roster, worlds, parts.narrative.texts, {
     kind: 'imported',
     parts,
