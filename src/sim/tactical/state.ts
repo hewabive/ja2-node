@@ -120,6 +120,11 @@ export const NO_CAMPAIGN_PORT: CampaignPort = {
   highestProgress: () => 0,
 };
 
+export interface AttackRoll {
+  readonly chance: number;
+  readonly hit: boolean;
+}
+
 export interface TacticalHooks {
   atNewGridNo(t: TacticalState, s: Soldier): boolean;
   newAiSituation(t: TacticalState, s: Soldier): void;
@@ -139,6 +144,7 @@ export interface TacticalHooks {
   rottingCorpses(t: TacticalState): void;
   crowsFlyAway(t: TacticalState, team: number): void;
   crowsSeeingAttackerFlyAway(t: TacticalState, team: number, attacker: Soldier): void;
+  attackRolled(t: TacticalState, s: Soldier, roll: AttackRoll): void;
 }
 
 export const NO_HOOKS: TacticalHooks = {
@@ -160,6 +166,7 @@ export const NO_HOOKS: TacticalHooks = {
   rottingCorpses: () => {},
   crowsFlyAway: () => {},
   crowsSeeingAttackerFlyAway: () => {},
+  attackRolled: () => {},
 };
 
 export interface PerceptionHooks {

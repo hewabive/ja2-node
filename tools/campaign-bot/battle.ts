@@ -67,7 +67,7 @@ interface Shot {
 
 interface Estimate {
   readonly apCost: number;
-  readonly chanceToGetThrough: number;
+  readonly cannotGetThrough: boolean;
 }
 
 interface TurnState {
@@ -130,12 +130,12 @@ async function bestShot(p: Player, merc: SoldierView, targets: readonly SoldierV
   let best: Shot | null = null;
   for (const target of targets) {
     const quick = await estimate(p, merc, target, 0);
-    if (!quick || quick.apCost > ap || quick.chanceToGetThrough <= 0) continue;
+    if (!quick || quick.apCost > ap || quick.cannotGetThrough) continue;
     const spare = ap - quick.apCost;
     const aim = Math.max(0, Math.min(AIM_LEVELS, spare >= quick.apCost ? spare - quick.apCost : spare));
     const aimed = aim > 0 ? await estimate(p, merc, target, aim) : quick;
     if (!aimed || aimed.apCost > ap) continue;
-    const score = hitOdds(shotOdds(merc, target, aim)) * (aimed.chanceToGetThrough / PERCENT) * focus(p, target);
+    const score = hitOdds(shotOdds(merc, target, aim)) * focus(p, target);
     if (!best || score > best.score) best = { target, aim, score };
   }
   return best;

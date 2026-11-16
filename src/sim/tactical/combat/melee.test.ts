@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttack, newCombatSim, recordAttackRolls, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { spawnCreature } from '../../../../tests/support/creatures.ts';
 import { countDraws } from '../../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
@@ -151,11 +151,14 @@ describe('knife attacks', () => {
     expect(inReach).toBe(true);
     expect(chanceToHit).toBeNull();
     const before = merc.actionPoints;
+    const rolls = recordAttackRolls(sim);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     const events = runUntilIdle(sim);
     const strike = first(events, 'meleeStrike');
     const hit = first(events, 'soldierHit');
-    expect(strike).toMatchObject({ soldier: 0, target: enemy.gridNo, weapon: 'blade', chance: 99, hit: true });
+    expect(rolls).toEqual([{ soldier: 0, chance: 99, hit: true }]);
+    expect(strike).toMatchObject({ soldier: 0, target: enemy.gridNo, weapon: 'blade', hit: true });
+    expect(strike).not.toHaveProperty('chance');
     expect(hit).toMatchObject({ soldier: enemy.id, attacker: 0, breathLoss: 200 });
     expect((hit?.tick ?? 0) - (strike?.tick ?? 0)).toBe(5);
     expect(enemy.life).toBe(80 - (hit?.damage ?? 0));
@@ -286,13 +289,13 @@ describe('the strike of a soldier the squad does not see (D16; the swoosh plays 
     expect(misses.flatMap((s) => s.told)).toEqual([]);
   });
 
-  it('tells the whole strike once the squad sees the striker, and names him in the hit', () => {
+  it('tells the strike once the squad sees the striker, whether it hit but not its chance, and names him in the hit', () => {
     const { t, merc, enemy } = unseenStriker(KNIFE);
     enemy.visible = Visible.SEEN;
     master(enemy);
     novice(merc);
     expect(strike(t, () => useBlade(t, enemy, merc.gridNo)).told).toEqual([
-      { type: 'meleeStrike', soldier: enemy.id, target: merc.gridNo, weapon: 'blade', chance: expect.any(Number), hit: true },
+      { type: 'meleeStrike', soldier: enemy.id, target: merc.gridNo, weapon: 'blade', hit: true },
     ]);
     expect(hitLanded(t, merc, enemy)).toEqual([expect.objectContaining({ soldier: merc.id, attacker: enemy.id, blade: true })]);
   });

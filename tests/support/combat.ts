@@ -19,7 +19,7 @@ import { InvSlot } from '../../src/sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
 import { calcActionPoints } from '../../src/sim/tactical/points.ts';
 import { createSoldier, type Soldier, type SoldierStats } from '../../src/sim/tactical/soldier.ts';
-import { registerSoldier } from '../../src/sim/tactical/state.ts';
+import { type AttackRoll, registerSoldier } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { testDoorCosts } from './tactical.ts';
 
@@ -98,6 +98,17 @@ const HIT_CHANCE_SHOWN: HitChancePolicy = { showHitChance: true };
 
 export function estimateAttackShowingHitChance(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
   return estimateAttackHint(knowledgeOf(sim), { type: 'estimateAttack', ...cmd }, HIT_CHANCE_SHOWN);
+}
+
+export interface RolledAttack extends AttackRoll {
+  readonly soldier: number;
+}
+
+export function recordAttackRolls(sim: TacticalSim): RolledAttack[] {
+  const rolls: RolledAttack[] = [];
+  const t = sim.state;
+  t.hooks = { ...t.hooks, attackRolled: (_t, s, roll) => rolls.push({ soldier: s.id, ...roll }) };
+  return rolls;
 }
 
 export interface SpawnOptions {

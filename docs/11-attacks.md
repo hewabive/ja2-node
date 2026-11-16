@@ -47,7 +47,7 @@ order: handleItem — checks, APs checked only, the psycho's burst roll         
 | `combat/spread-burst.ts`, `combat/skill-check.ts` | Spread-burst locations; `SkillCheck` (unjamming) |
 | `game-events.ts` | The event pump: fire, direction and the delayed melee hit |
 | `explosions/throwing.ts` | `UseThrown`, `UseLauncher`, the thrown chance to hit, `WillExplosiveWeaponFail` (`34`) |
-| `src/sim/hints/estimate-attack.ts` | The attack hint: AP cost and chance to get through on the player's view, the chance to hit only under `show_hit_chance` |
+| `src/sim/hints/estimate-attack.ts` | The attack hint: AP cost and whether the shot gets through on the player's view, the chances only under `show_hit_chance` |
 
 ## 2. Design
 
@@ -60,6 +60,11 @@ pistols on the main hand only), the raise when the ready animation starts and th
 damage; 0 or less deflects it by an angle that grows with the miss. What the bullet meets decides: cover stops a hit, a
 miss still strikes the target or a bystander in its way. Each round of a burst rolls at its own 430 and aims at the
 target's height at that moment.
+
+**The rolled chance stays inside.** `shotFired` and `meleeStrike` tell whether the attack hit and never its chance: the
+player sees no number after the attack, and the melee one reads the defender's hidden ratings (D16). The roll goes to
+`TacticalHooks.attackRolled` instead, a no-op in play, which tests set (`recordAttackRolls`, `tests/support/combat.ts`)
+to match the estimate under `show_hit_chance` against the chance the attack rolls.
 
 **A random aim location is rolled once.** With `AimShot.RANDOM` whichever of `selectFireAnimation` (a standing single
 shot) and `useGun` comes first rolls the body part, and the attack keeps it. The chance to hit is computed after the

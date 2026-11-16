@@ -214,7 +214,6 @@ export interface ShotFiredEvent extends SimEventBase {
   readonly type: 'shotFired';
   readonly soldier?: number;
   readonly target?: number;
-  readonly chance?: number;
   readonly hit?: boolean;
   readonly heard?: HeardFrom;
   readonly item?: number;
@@ -228,7 +227,6 @@ export interface MeleeStrikeEvent extends SimEventBase {
   readonly soldier: number;
   readonly target: number;
   readonly weapon: 'blade' | 'punch';
-  readonly chance: number;
   readonly hit: boolean;
 }
 

@@ -51,7 +51,7 @@ describe('soldier frames from the animation schedule', () => {
     expect(frames.frameOf(1, schedule, 100)).toBe(0);
     expect(frames.frameOf(1, schedule, 160)).toBe(3);
     expect(frames.frameOf(1, schedule, 400)).toBe(3);
-    frames.observe([{ type: 'shotFired', tick: 420, soldier: 1, target: 0, chance: 50, hit: false } as SimEvent]);
+    frames.observe([{ type: 'shotFired', tick: 420, soldier: 1, target: 0, hit: false } as SimEvent]);
     expect(frames.frameOf(1, schedule, 419)).toBe(3);
     expect(frames.frameOf(1, schedule, 420)).toBe(4);
     expect(frames.frameOf(1, schedule, 430)).toBe(5);
@@ -60,7 +60,7 @@ describe('soldier frames from the animation schedule', () => {
 
   it('squeezes them when the shot comes before the nominal fire frame', () => {
     const frames = new SoldierFrames(client, false, TICK_MS);
-    frames.observe([{ type: 'meleeStrike', tick: 104, soldier: 1, target: 0, weapon: 'punch', chance: 50, hit: true } as SimEvent]);
+    frames.observe([{ type: 'meleeStrike', tick: 104, soldier: 1, target: 0, weapon: 'punch', hit: true } as SimEvent]);
     const schedule = { animation: STATE, frameSlot: 0, stateTick: 100, frameDelay: 50 };
     expect(frames.frameOf(1, schedule, 102)).toBe(2);
     expect(frames.frameOf(1, schedule, 104)).toBe(4);

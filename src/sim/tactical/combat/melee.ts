@@ -518,8 +518,9 @@ interface Strike {
   readonly hit: boolean;
 }
 
-function tellStrike(t: TacticalState, s: Soldier, strike: Strike): void {
-  if (shownInSector(t, s)) t.events.push({ type: 'meleeStrike', soldier: s.id, ...strike });
+function tellStrike(t: TacticalState, s: Soldier, { target, weapon, chance, hit }: Strike): void {
+  t.hooks.attackRolled(t, s, { chance, hit });
+  if (shownInSector(t, s)) t.events.push({ type: 'meleeStrike', soldier: s.id, target, weapon, hit });
 }
 
 export function useBlade(t: TacticalState, s: Soldier, g: number): void {

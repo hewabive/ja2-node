@@ -1,5 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { estimateAttack, estimateAttackShowingHitChance, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import {
+  estimateAttack,
+  estimateAttackShowingHitChance,
+  newCombatSim,
+  recordAttackRolls,
+  runUntilIdle,
+  spawnSoldier,
+} from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
@@ -88,6 +95,27 @@ describe('the chance to hit under the shipped show_hit_chance', () => {
       chanceToHit: expect.any(Number),
     });
   });
+
+  it('tells only whether a shot cannot get through, as the aim cursor marks it below OK_CHANCE_TO_GET_THROUGH (UI_Cursors.cc:236-241)', () => {
+    const wallRow = 85;
+    const walls = Array.from({ length: 9 }, (_, k) => gridNo(76 + k, wallRow));
+    const sim = newCombatSim(content, walls);
+    const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
+    const clear = spawnSoldier(sim, 20, Team.ENEMY, gridNo(90, 82), Direction.NORTH);
+    const behindWall = spawnSoldier(sim, 21, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    sim.state.inCombat = true;
+    for (const enemy of [clear, behindWall]) merc.oppList[enemy.id] = 1;
+    const shipped = (target: number) => estimateAttack(sim, { soldier: 0, target }).data;
+    const shown = (target: number) => estimateAttackShowingHitChance(sim, { soldier: 0, target }).data;
+    expect([shipped(clear.gridNo), shipped(behindWall.gridNo)]).toMatchObject([
+      { cannotGetThrough: false, chanceToGetThrough: null },
+      { cannotGetThrough: true, chanceToGetThrough: null },
+    ]);
+    expect([shown(clear.gridNo), shown(behindWall.gridNo)]).toMatchObject([
+      { cannotGetThrough: false, chanceToGetThrough: 100 },
+      { cannotGetThrough: true, chanceToGetThrough: 0 },
+    ]);
+  });
 });
 
 describe('the chance to hit through smoke and gas', () => {
@@ -103,8 +131,10 @@ describe('the chance to hit through smoke and gas', () => {
     newSmokeEffect(sim.state, gridNo(80, 85), content.items.byName.get('TEARGAS_GRENADE')?.index ?? -1, 0, null);
     const throughGas = chanceToHit();
     expect(throughGas).toBeLessThan(clear);
+    const rolls = recordAttackRolls(sim);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
-    expect(runUntilIdle(sim).find((e) => e.type === 'shotFired')).toMatchObject({ chance: throughGas });
+    runUntilIdle(sim);
+    expect(rolls).toEqual([expect.objectContaining({ chance: throughGas })]);
   });
 });
 
@@ -122,9 +152,10 @@ describe('a shooter on drink or adrenaline', () => {
     const drunk = estimate();
     expect(drunk.chanceToHit).toBeLessThan(sober.chanceToHit);
     const before = merc.actionPoints;
+    const rolls = recordAttackRolls(sim);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
-    const events = runUntilIdle(sim);
-    expect(events.find((e) => e.type === 'shotFired')).toMatchObject({ chance: drunk.chanceToHit });
+    runUntilIdle(sim);
+    expect(rolls).toEqual([expect.objectContaining({ chance: drunk.chanceToHit })]);
     expect(before - merc.actionPoints).toBe(drunk.apCost);
   });
 

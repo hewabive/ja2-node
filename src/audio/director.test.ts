@@ -247,7 +247,6 @@ describe('the sound director', () => {
             tick: 9,
             soldier: 1,
             target: G + 2,
-            chance: 50,
             hit: false,
             item: glock,
             silenced: false,
@@ -262,7 +261,6 @@ describe('the sound director', () => {
             tick: 9,
             soldier: 1,
             target: G + 2,
-            chance: 50,
             hit: true,
             item: glock,
             silenced: false,
@@ -308,7 +306,6 @@ describe('the sound director', () => {
         tick: 9,
         soldier,
         target: G + 2,
-        chance: 50,
         hit: false,
         item,
         silenced: false,
@@ -414,7 +411,6 @@ describe('the sound director', () => {
                 tick: k,
                 soldier,
                 target: G + 2,
-                chance: 50,
                 hit: false,
                 item: glock,
                 silenced: false,
@@ -463,7 +459,6 @@ describe('the sound director', () => {
             tick: 9,
             soldier: 99,
             target: G,
-            chance: 50,
             hit: true,
             item: glock,
             silenced: false,
@@ -672,7 +667,7 @@ describe('the sound director', () => {
     const r = rig();
     const blade = { blade: true } as const;
     r.director.reset([soldier(1, 'STANDING', 0), soldier(20, 'STANDING', 0, { team: 1, gridNo: G + 1 })]);
-    const stab = { type: 'meleeStrike', tick: 9, soldier: 20, target: G, weapon: 'blade', chance: 50, hit: true } as const;
+    const stab = { type: 'meleeStrike', tick: 9, soldier: 20, target: G, weapon: 'blade', hit: true } as const;
     const hit = { type: 'soldierHit', tick: 10, soldier: 1, gridNo: G, location: 'torso', special: 0, conscious: false } as const;
     const wound = { damage: 10, breathLoss: 0, life: 70 };
     r.director.applyFrames([frame(10, [], [{ ...hit, ...wound, ...blade }, stab, { ...hit, ...wound, attacker: 20, ...blade }])]);

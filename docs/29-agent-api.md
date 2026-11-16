@@ -521,9 +521,9 @@ animation from them, the frames and the animation codes it replays (`31`); agent
 source out of sight carries `heard {by, direction, volumeClass}` instead of its grid: the merc of ours who hears it
 loudest by `CalcEffVolume`, the side as `TellPlayerAboutNoise` names it, the loudness class of `pNoiseVolStr`. No event
 names a soldier out of sight who acts, so an agent cannot count or follow unseen soldiers by their ids: a `shotFired` of
-an unseen shooter drops `soldier`, `target`, `chance` and `hit` and keeps the weapon, silencer and burst its sound
-needs; his bullets' `bulletStopped` and `bulletImpact` carry his weapon as `item` instead of `soldier`, for the miss
-sounds the original picks by it (`Tactical/Weapons.cc:1659`, `:3177`), and his `structureStruck` and `bulletLocated`
+an unseen shooter drops `soldier`, `target` and `hit` and keeps the weapon, silencer and burst its sound needs; his
+bullets' `bulletStopped` and `bulletImpact` carry his weapon as `item` instead of `soldier`, for the miss sounds the
+original picks by it (`Tactical/Weapons.cc:1659`, `:3177`), and his `structureStruck` and `bulletLocated`
 drop `soldier`; a `soldierHit` drops an unseen `attacker`, a `soldierDied` or `vehicleDestroyed` an unseen `killer`, an
 `explosion` an unseen `owner` (null still means nobody), and a `creatureCall` of an unseen creature carries `unseen`
 (its body type) and `heard` instead of `soldier`. Every `soldierHit` carries `blade` for the hit of a blade, whose knife
@@ -638,8 +638,10 @@ carries his NOTHING battle sound, as on the tile of a closed container, whose it
 (§8.2). `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
 pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A `stop` during the
 pickup animation still picks up, as the animation reads the order's data (`12` §3). `estimateAttack` gives the APs,
-range and line of fire the cursor shows, and `chanceToHit: null` for every attack: the original's cursors show a chance
-only under the game policy `show_hit_chance`, off as shipped (deviation "Chance in the estimate"). A melee attack at a
+range and line of fire the cursor shows (`cannotGetThrough`, its black crosshair), and `chanceToHit` and
+`chanceToGetThrough` as `null` for every attack: the original's cursors show a chance only under the game policy
+`show_hit_chance`, off as shipped (deviation "Chance in the estimate"). Nor do `shotFired` and `meleeStrike` carry the
+chance an attack was rolled at: they tell whether it hit, as the screen does. A melee attack at a
 soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
@@ -651,7 +653,7 @@ the next one fires; one imprinted on someone else is refused by `HandleItem` wit
 with his refusing line (`refusesOrder`) to turn anything but a medkit on a soldier of ours or a neutral one: a good guy
 spares good guys and nameless neutral civilians, everybody his buddies, a recruited rebel rebels and nameless neutral
 civilians; so a good guy or a rebel will not plant a bomb at his own feet, the original's click naming him as its
-target. In combat a shot or knife throw with `estimateAttack`'s `chanceToGetThrough` below 10 is held with his
+target. In combat a shot or knife throw for which `estimateAttack` gives `cannotGetThrough` is held with his
 no-line-of-fire line and costs nothing (`noLineOfFire`); the same `attack` again from the same tile fires, and so do
 later ones at that tile until a shot with a fair chance or another case. An empty gun or a
 launcher without a round refuses `attack` with `noAmmo`, where the original shows the reload cursor

@@ -3,6 +3,7 @@ import {
   estimateAttack,
   estimateAttackShowingHitChance,
   newCombatSim,
+  recordAttackRolls,
   runUntilIdle,
   spawnSoldier,
 } from '../../../../tests/support/combat.ts';
@@ -48,6 +49,7 @@ const HARD_DIFFICULTY = 3;
 const AVERAGE_DIFFICULTY_MODIFIER = 50;
 const TOP_DIFFICULTY_MODIFIER = 100;
 const ATTACK_TICKS = 2000;
+const MEANWHILE_HIT_CHANCE = 100;
 
 describe('damage and structure rules', () => {
   it('scales head and leg hits like the original float maths', () => {
@@ -285,7 +287,33 @@ describe('gun attacks', () => {
     expect(pre.requested).toEqual([100, 100]);
   });
 
-  it('charges the estimated APs, fires one bullet and releases the attack barrier', () => {
+  it('tells whether a seen shot hit but not the chance it was rolled at, which the player never sees', () => {
+    const sim = newSim();
+    spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    sim.lookAround();
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    const shot = run(sim).find((e) => e.type === 'shotFired');
+    expect(shot).toMatchObject({ soldier: 0, target: enemy.gridNo, hit: expect.any(Boolean) });
+    expect(shot).not.toHaveProperty('chance');
+  });
+
+  it('rolls a shot in a meanwhile scene against a chance of 100, whatever the shooter and the range (Weapons.cc UseGun)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, 1);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 100), Direction.NORTH);
+    sim.lookAround();
+    sim.drainEvents();
+    t.narrative = { ...t.narrative, inMeanwhile: () => true };
+    const rolls = recordAttackRolls(sim);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    run(sim);
+    expect(rolls).toEqual([{ soldier: 0, chance: MEANWHILE_HIT_CHANCE, hit: true }]);
+  });
+
+  it('charges the estimated APs, rolls the chance the estimate gives under show_hit_chance, fires one bullet and releases the attack barrier', () => {
     const sim = newSim();
     const t = sim.state;
     const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
@@ -303,10 +331,12 @@ describe('gun attacks', () => {
     expect(chanceToGetThrough).toBe(100);
     expect(chanceToHit).toBeGreaterThan(0);
     const before = merc.actionPoints;
+    const rolls = recordAttackRolls(sim);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo, aimTime: 2 })).toEqual({ ok: true });
     const events = run(sim);
     const shot = events.find((e) => e.type === 'shotFired');
-    expect(shot).toMatchObject({ soldier: 0, target: enemy.gridNo, chance: chanceToHit });
+    expect(rolls).toEqual([expect.objectContaining({ soldier: 0, chance: chanceToHit })]);
+    expect(shot).toMatchObject({ soldier: 0, target: enemy.gridNo, hit: rolls[0]?.hit });
     expect(events.at(-1)?.type).toBe('attackResolved');
     expect(before - merc.actionPoints).toBe(apCost);
     expect(t.turn.attackBusyCount).toBe(0);
@@ -425,7 +455,7 @@ describe('gun attacks', () => {
     t.inCombat = true;
     merc.oppList[enemy.id] = 1;
     const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
-    expect((estimate.data as { chanceToGetThrough: number }).chanceToGetThrough).toBe(0);
+    expect(estimate.data).toMatchObject({ cannotGetThrough: true, chanceToGetThrough: null });
     const before = merc.actionPoints;
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toMatchObject({
       ok: false,

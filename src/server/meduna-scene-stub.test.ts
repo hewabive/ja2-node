@@ -41,7 +41,6 @@ const SCENE_NPCS = [Npc.QUEEN, Npc.ELLIOT, Npc.JOE];
 const ELLIOT_SHOT = 17;
 const ELLIOT_BEFORE = 5;
 const ELLIOT_POSTED = ELLIOT_BEFORE + 1;
-const MEANWHILE_HIT_CHANCE = 100;
 const ALL_MISSILE_SITES = 4;
 const STALL_BUDGET = 3000;
 const SCENE_STOPS = 20;
@@ -168,7 +167,7 @@ async function outskirtsInTactical(mode?: RunMode): Promise<CampaignSession> {
   expect(session.campaign.narrative.profile(Npc.JOE)).toMatchObject({ sectorX: 3, sectorY: 16 });
   events.push(...live.advance({ events: ['soldierHit'] }, SCENE_STOP_BUDGET).events);
   const aide = placedProfile(session, Npc.ELLIOT) ?? never();
-  expect(events).toContainEqual(expect.objectContaining({ type: 'shotFired', chance: MEANWHILE_HIT_CHANCE, hit: true }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'shotFired', hit: true }));
   expect(events).toContainEqual(expect.objectContaining({ type: 'soldierHit', soldier: aide.id, life: 1 }));
   expect([aide.life, session.campaign.narrative.profile(Npc.ELLIOT)?.npcData]).toEqual([1, ELLIOT_SHOT]);
   expectInTheHall(session, 'outskirtsMeduna');

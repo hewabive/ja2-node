@@ -499,6 +499,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
       : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
   const roll = t.pre.int(100);
   const hit = roll <= chance;
+  t.hooks.attackRolled(t, s, { chance, hit });
   let buckshot = false;
   if (!knife) {
     deductAmmo(t, s, s.attackingHand);
@@ -536,7 +537,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
     reduceAttackBusyCount(t, s, false);
   }
   const volume = gunfireVolume(t, s, d?.weapon?.attackVolume ?? 0, knife || law);
-  const shot = shownInSector(t, s) ? { soldier: s.id, target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
+  const shot = shownInSector(t, s) ? { soldier: s.id, target, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
   t.events.push({ type: 'shotFired', ...shot, ...shotSound(t, s, item) });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, i16(chance - roll), buckshot, false);
   if (knife) takeThrownKnife(t, s);

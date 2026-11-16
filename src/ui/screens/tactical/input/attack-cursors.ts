@@ -20,7 +20,6 @@ export const REFINE_KNIFE_1 = 0;
 export const REFINE_KNIFE_2 = 6;
 const AIM_STEP = 2;
 const AIM_LEVELS = 5;
-export const OK_CHANCE_TO_GET_THROUGH = 10;
 
 export interface AimState {
   shownAimTime: number;
@@ -158,9 +157,8 @@ function nonActivatedTarget(e: EstimateAttack, aim: AimState, c: AttackContext):
   if (reload) return reload;
   const cost = costAt(e, aim.shownAimTime);
   const ap = c.inCombat ? { apCost: cost, apInvalid: !affordable(e, cost) } : { apCost: null, apInvalid: false };
-  const cannotGetThrough = e.chanceToGetThrough < OK_CHANCE_TO_GET_THROUGH;
   const pick = (burst: string, knife: string, single: string) => (c.burst ? burst : c.throwingKnife ? knife : single);
-  if (cannotGetThrough)
+  if (e.cannotGetThrough)
     return {
       cursor: pick('ACTION_NOCHANCE_BURST_UICURSOR', 'BAD_THROW_UICURSOR', 'ACTION_NOCHANCE_SHOOT_UICURSOR'),
       ...ap,
@@ -202,8 +200,7 @@ function activatedTarget(e: EstimateAttack, aim: AimState, c: AttackContext): At
     const cursor = c.burst ? 'ACTION_TARGETREDBURST_UICURSOR' : c.throwingKnife ? 'RED_THROW_UICURSOR' : 'ACTION_TARGETRED_UICURSOR';
     return { cursor, ...ap, freeCursor: 'untouched' };
   }
-  const freeCursor: FreeCursorMark =
-    e.chanceToGetThrough < OK_CHANCE_TO_GET_THROUGH ? 'cannotGetThrough' : e.inRange ? 'clear' : 'outOfRange';
+  const freeCursor: FreeCursorMark = e.cannotGetThrough ? 'cannotGetThrough' : e.inRange ? 'clear' : 'outOfRange';
   if (c.burst) return { cursor: 'ACTION_TARGETCONFIRMBURST_UICURSOR', ...ap, freeCursor };
   return { cursor: ringCursor(aim, enough, c.throwingKnife), ...ap, freeCursor };
 }

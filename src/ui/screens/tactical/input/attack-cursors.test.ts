@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EstimateAttack } from '../../../../protocol/hints.ts';
-import { attackCursor, OK_CHANCE_TO_GET_THROUGH, ordersAnAttack, REFINE_AIM_1, tileToolCursor } from './attack-cursors.ts';
+import { attackCursor, ordersAnAttack, REFINE_AIM_1, tileToolCursor } from './attack-cursors.ts';
 
 const GUN: EstimateAttack = {
   cursor: 'target',
@@ -9,6 +9,7 @@ const GUN: EstimateAttack = {
   apCostByAim: [5, 6, 7, 8, 9],
   actionPoints: 20,
   chanceToHit: 40,
+  cannotGetThrough: false,
   chanceToGetThrough: 100,
   inRange: true,
   ammo: { empty: false, canReload: false, reloadAp: 0 },
@@ -21,7 +22,7 @@ describe('the aim cursor', () => {
   it('marks its mouse cursor to flash and beep out of range, black where the shot cannot get through, clear otherwise', () => {
     expect(attackCursor(GUN, AIM, CONFIRMED).freeCursor).toBe('clear');
     expect(attackCursor({ ...GUN, inRange: false }, AIM, CONFIRMED).freeCursor).toBe('outOfRange');
-    const blocked = { ...GUN, inRange: false, chanceToGetThrough: OK_CHANCE_TO_GET_THROUGH - 1 };
+    const blocked = { ...GUN, inRange: false, cannotGetThrough: true };
     expect(attackCursor(blocked, AIM, CONFIRMED).freeCursor).toBe('cannotGetThrough');
   });
 

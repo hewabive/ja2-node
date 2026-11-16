@@ -6,7 +6,8 @@
 // @src InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
 // @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid);
 // @src UI_Cursors.cc HandleBombCursor (GetTotalAPsToDropBomb, 2026-11-04); the gamepolicy(show_hit_chance) gates of
-// @src HandleNonActivatedTargetCursor and HandleNonActivatedTossCursor, off in externalized/game.json (2026-11-15).
+// @src HandleNonActivatedTargetCursor and HandleNonActivatedTossCursor, off in externalized/game.json (2026-11-15);
+// @src gfCannotGetThrough, the cursor's only mark of the chance to get through (2026-11-16).
 
 import { ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { CELL_X_SIZE, DIRECTION_COUNT, DIRECTION_INCREMENT, isVisibleTile, newGridNo } from '../../content/world/grid.ts';
@@ -77,7 +78,8 @@ export interface EstimateAttack {
   readonly apCostByAim: readonly number[];
   readonly actionPoints: number;
   readonly chanceToHit: number | null;
-  readonly chanceToGetThrough: number;
+  readonly cannotGetThrough: boolean;
+  readonly chanceToGetThrough: number | null;
   readonly inRange: boolean;
   readonly ammo: AmmoState;
   readonly inReach?: boolean;
@@ -167,6 +169,10 @@ function launchedObject(t: TacticalState, s: Soldier): ItemObject {
   return launched;
 }
 
+function shownGetThrough(chance: number, policy: HitChancePolicy): Pick<EstimateAttack, 'cannotGetThrough' | 'chanceToGetThrough'> {
+  return { cannotGetThrough: chance < OK_CHANCE_TO_GET_THROUGH, chanceToGetThrough: policy.showHitChance ? chance : null };
+}
+
 function aimCosts(t: TacticalState, s: Soldier, g: number): number[] {
   return Array.from({ length: AIM_LEVELS }, (_, aim) => calcTotalAPsToAttack(t, s, g, true, aim));
 }
@@ -194,7 +200,7 @@ function estimateThrow(
     apCost: apCostByAim[aim] ?? 0,
     apCostByAim,
     chanceToHit: !policy.showHitChance ? null : landing.ok ? calcThrownChanceToHit(t, s, landing.gridNo, aim) : 0,
-    chanceToGetThrough: landing.ok ? MELEE_CHANCE_TO_GET_THROUGH : 0,
+    ...shownGetThrough(landing.ok ? MELEE_CHANCE_TO_GET_THROUGH : 0, policy),
     inRange: true,
     ammo,
     pathClear: landing.ok,
@@ -225,7 +231,7 @@ function estimateStrike(
   const def = t.content.items.byIndex.get(hand.item);
   const melee = hand.item === NOTHING || (def !== undefined && isMeleeItemClass(def.itemClass));
   const blade = def?.itemClass === ItemClass.BLADE;
-  if (melee && (level !== s.level || (!victim && !blade))) return nobodyToStrike(t, s, cursor, base);
+  if (melee && (level !== s.level || (!victim && !blade))) return nobodyToStrike(t, s, cursor, base, policy);
   const aimedAt = victim ? victim.gridNo : target;
   const apCostByAim = aimCosts(t, s, aimedAt);
   const thrownKnife = def?.itemClass === ItemClass.THROWING_KNIFE;
@@ -245,7 +251,7 @@ function estimateStrike(
     apCost: apCostByAim[aim] ?? 0,
     apCostByAim,
     chanceToHit,
-    chanceToGetThrough,
+    ...shownGetThrough(chanceToGetThrough, policy),
     inRange: melee ? true : inRange(t, s, target),
     ammo: ammoState(t, s, cursor),
     ...(melee ? { inReach: meleeSpot(t, s, target, level) !== null, ...(victim ? meleeWalk(t, s, victim, level) : {}) } : {}),
@@ -268,13 +274,13 @@ function meleeWalk(t: TacticalState, s: Soldier, victim: Soldier, level: number)
   return { walkTo: approach.actionGridNo, steps: plotWalk(t, s, approach.actionGridNo, s.uiMovementMode, level).steps };
 }
 
-function nobodyToStrike(t: TacticalState, s: Soldier, cursor: number, base: EstimateBase): EstimateAttack {
+function nobodyToStrike(t: TacticalState, s: Soldier, cursor: number, base: EstimateBase, policy: HitChancePolicy): EstimateAttack {
   return {
     ...base,
     apCost: 0,
     apCostByAim: [],
     chanceToHit: null,
-    chanceToGetThrough: MELEE_CHANCE_TO_GET_THROUGH,
+    ...shownGetThrough(MELEE_CHANCE_TO_GET_THROUGH, policy),
     inRange: true,
     ammo: ammoState(t, s, cursor),
     inReach: false,
@@ -294,13 +300,20 @@ function itemUseApCost(t: TacticalState, s: Soldier, target: number, cursor: num
   return cursor === ItemCursor.BOMB ? apsToDropBomb(t, s, target) : 0;
 }
 
-function itemUse(t: TacticalState, s: Soldier, target: number, cursor: number, base: EstimateBase): EstimateAttack {
+function itemUse(
+  t: TacticalState,
+  s: Soldier,
+  target: number,
+  cursor: number,
+  base: EstimateBase,
+  policy: HitChancePolicy,
+): EstimateAttack {
   return {
     ...base,
     apCost: itemUseApCost(t, s, target, cursor),
     apCostByAim: [],
     chanceToHit: null,
-    chanceToGetThrough: 0,
+    ...shownGetThrough(0, policy),
     inRange: true,
     ammo: NO_AMMO_STATE,
   };
@@ -364,7 +377,7 @@ export function estimateAttack(
         weaponMode: WEAPON_MODE_NAMES[mode] ?? 'single',
         actionPoints: s.actionPoints,
       };
-      if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(t, s, target, cursor, base));
+      if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(t, s, target, cursor, base, policy));
       if (cursor === ItemCursor.TOSS || cursor === ItemCursor.TRAJECTORY)
         return hintData(estimateThrow(t, s, target, level, aim, cursor === ItemCursor.TRAJECTORY, base, policy));
       return hintData(estimateStrike(t, s, target, level, aim, cursor, base, policy));
