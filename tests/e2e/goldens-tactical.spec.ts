@@ -27,6 +27,7 @@ const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
 const EDGE_INSET = 4;
 const PINNED = '&pinClock=1';
+const TIME_HELD = '&holdTime=1';
 const SHOT_ROWS_SOUTH = 10;
 const SHOT_COLUMNS_EAST = 4;
 const TICKS_INTO_FLIGHT = 1;
@@ -34,6 +35,12 @@ const MISS_ROWS_SOUTH = 6;
 const MISS_COLUMNS_EAST = 2;
 const TICKS_INTO_DUST = 40;
 const TICKS_DOWN_THE_ROPE = 60;
+const FIRST_MERC_DROPPED_TICK = 1912;
+
+interface DropStop {
+  readonly reason: string;
+  readonly tick: number;
+}
 
 interface CommandReply {
   readonly ok: boolean;
@@ -213,13 +220,14 @@ test.describe('goldens of the tactical screen on stubs', () => {
     const session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4, land: false } });
     try {
       watchLoading(page);
-      await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual${PINNED}`);
+      await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual${TIME_HELD}${PINNED}`);
       await waitWhileLoading(page, () => (window.__ja2Ui?.screen === 'map' && window.__ja2Ui.map?.ready === true) || window.__ja2Ui?.error);
       expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
       const landed = (await page.evaluate(() => window.__ja2Ui.map?.command({ type: 'compressTime', mode: 2 }))) as CommandReply;
       expect(landed.ok, landed.reason).toBe(true);
       await waitWhileLoading(page, () => window.__ja2Ui.screen === 'tactical' && window.__ja2Ui.tactical?.ready === true);
-      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ events: ['mercDropped'] }));
+      const dropped = (await page.evaluate(() => window.__ja2Ui.tactical?.advance({ events: ['mercDropped'] }))) as DropStop;
+      expect([dropped.reason, dropped.tick]).toEqual(['event', FIRST_MERC_DROPPED_TICK]);
       await page.evaluate((ticks) => window.__ja2Ui.tactical?.advance({ ticks }), TICKS_DOWN_THE_ROPE);
       await showLatest(page);
       expect(await page.evaluate(() => window.__ja2Ui.tactical?.uiLock)).toBe('helicopterDrop');
