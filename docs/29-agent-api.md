@@ -477,7 +477,9 @@ merc of ours off the loaded map `cry` as `mercDied` does, a muted soldier neithe
 than 5 steps (`pickupConfirmed {soldier}`, `Tactical/Handle_Items.cc:1130`), the glass of jars a fall broke
 (`jarsBroken {soldier}`, `Tactical/Items.cc:3243`), the attack of a bloodcat out of sight (`bloodcatAttack`, no
 fields: the original plays it in the middle of the screen for every bloodcat, `Tactical/Soldier_Ani.cc:2412`, and a
-seen one's comes with his animation), the animation sounds the original plays at the tile of a soldier out of sight
+seen one's comes with his animation), a bloodcat the squad sees starting a move in combat, which the client growls
+for on one in two (`bloodcatGrowl {soldier}`, `TacticalAI/AIMain.cc:1436`; deviation "Cosmetic draws of creatures"),
+the animation sounds the original plays at the tile of a soldier out of sight
 (`unseenAnimationSound {sound, heard?}`, with no soldier and no tile: `knifeThrow` three frames before a throwing knife
 leaves his hand, `fallToKnees`, `fallToGround` and `heavyFall` of a hit soldier, `creatureDying`, `creatureDissolving`
 and `creatureFalling` of a dying creature; codes 702, 709, 721, 722, 781, 782 and 784, `Tactical/Soldier_Ani.cc:1969`,

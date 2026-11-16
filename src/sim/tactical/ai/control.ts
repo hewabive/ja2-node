@@ -61,7 +61,7 @@ import {
   Team,
   Visible,
 } from '../soldier.ts';
-import { RESET_AWAY_AI_CURSOR, type TacticalState } from '../state.ts';
+import { RESET_AWAY_AI_CURSOR, shownInSector, type TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt, displayHiddenTurnbased } from '../turns/turns.ts';
 import {
   AI_DELAY,
@@ -386,6 +386,16 @@ function detectMovementLoop(t: TacticalState, s: Soldier): void {
   }
 }
 
+function growlOnTheMove(t: TacticalState, s: Soldier): void {
+  if (s.bodyType === Body.BLOODCAT && t.inCombat && shownInSector(t, s)) t.events.push({ type: 'bloodcatGrowl', soldier: s.id });
+}
+
+function startMove(t: TacticalState, s: Soldier): boolean {
+  if (t.inCombat && s.ai.alertStatus < AlertStatus.BLACK) detectMovementLoop(t, s);
+  growlOnTheMove(t, s);
+  return executeMovement(t, s);
+}
+
 function executeDoorAction(t: TacticalState, s: Soldier): void {
   const direction = directionToward(s.gridNo, s.ai.actionData);
   const doorGridNo =
@@ -500,8 +510,7 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
         ai.action = AiAction.CLIMB_ROOF;
         return isActionAffordable(t, s) ? executeAction(t, s) : false;
       }
-      if (t.inCombat && ai.alertStatus < AlertStatus.BLACK) detectMovementLoop(t, s);
-      return executeMovement(t, s);
+      return startMove(t, s);
     case AiAction.CLIMB_ROOF:
       if (!(s.level === 0 ? beginSoldierClimbUpRoof(t, s) : beginSoldierClimbDownRoof(t, s))) {
         cancelAIAction(t, s);
@@ -526,11 +535,7 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       actionDone(t, s);
       return false;
     default:
-      if (isMovementAction(ai.action)) {
-        if (t.inCombat && ai.alertStatus < AlertStatus.BLACK) detectMovementLoop(t, s);
-        return executeMovement(t, s);
-      }
-      return false;
+      return isMovementAction(ai.action) ? startMove(t, s) : false;
   }
 }
 

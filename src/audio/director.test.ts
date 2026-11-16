@@ -691,6 +691,24 @@ describe('the sound director', () => {
     expect(r.cues[0]).toMatchObject({ mix: 'fixed', baseVolume: VolumeLevel.HIGH });
   });
 
+  it('growls a bloodcat on the move on a client Random(2) == 0 with one of BLOODCAT_GROWL_1..4 at its tile (ExecuteAction)', () => {
+    const growls = ['BLOODCAT_GROWL_1', 'BLOODCAT_GROWL_2', 'BLOODCAT_GROWL_3', 'BLOODCAT_GROWL_4'].map((name) => book.paths.get(name));
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const played = seeds.map((seed) => {
+      const r = rig(world(1), scripts, { seed });
+      r.director.reset([soldier(40, 'STANDING', 0, { team: 2, bodyType: 20 })], []);
+      r.director.applyFrames([frame(10, [], [{ type: 'bloodcatGrowl', tick: 10, soldier: 40 }])]);
+      return r.cues;
+    });
+    const expected = seeds.map((seed) => {
+      const rng = new ClientRandom(seed);
+      return rng.rand(2) === 0 ? [growls[rng.rand(4)]] : [];
+    });
+    expect(played.map((cues) => cues.map((c) => c.file))).toEqual(expected);
+    expect(expected.some((files) => files.length === 0)).toBe(true);
+    expect(played.flat()[0]).toMatchObject({ mix: 'soldier', gridNo: G, baseVolume: VolumeLevel.HIGH });
+  });
+
   it('plays the animation sounds of a soldier out of sight from where the squad hears them, and none nobody hears', () => {
     const r = rig();
     r.director.reset([soldier(1, 'STANDING', 0)]);

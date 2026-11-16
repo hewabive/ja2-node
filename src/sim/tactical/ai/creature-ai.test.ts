@@ -13,10 +13,10 @@ import { InvSlot } from '../inventory.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
-import { AlertStatus, Body, NOBODY, NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, NOBODY, NOWHERE, type Soldier, Team, Visible } from '../soldier.ts';
 import { setShowAllMercs } from '../state.ts';
 import { AiAction } from './actions.ts';
-import { decideNpcAction } from './control.ts';
+import { decideNpcAction, executeAction } from './control.ts';
 import { CreatureCallKind, creatureCall, Mobility, trackScent } from './creature-decide.ts';
 import { decideAlertStatus } from './decide.ts';
 
@@ -267,5 +267,49 @@ describe('TrackScent', () => {
     trackScent(t, female);
     clone.int(2);
     expect(t.rng.state()).toEqual(clone.state());
+  });
+});
+
+describe('the bloodcat growl', () => {
+  function startMove(body: number, setup: (t: ReturnType<typeof newCombatSim>['state'], mover: Soldier) => void = () => {}) {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const mover = spawnCreature(sim, 52, body, gridNo(80, 80), Direction.NORTH, { alert: AlertStatus.RED });
+    t.inCombat = true;
+    mover.visible = Visible.SEEN;
+    mover.ai.action = AiAction.SEEK_OPPONENT;
+    mover.ai.actionData = gridNo(80, 84);
+    setup(t, mover);
+    t.events.length = 0;
+    const rng = t.rng.state();
+    const pre = t.pre.state();
+    executeAction(t, mover);
+    const growls = t.events.filter((e) => e.type === 'bloodcatGrowl');
+    return { mover, growls, rngUntouched: rng, preUntouched: pre, t };
+  }
+
+  it('tells the client that a bloodcat in sight starts a move in combat, drawing nothing on the gameplay streams (AIMain.cc:1436)', () => {
+    const { mover, growls, rngUntouched, preUntouched, t } = startMove(Body.BLOODCAT);
+    expect(growls).toEqual([{ type: 'bloodcatGrowl', soldier: mover.id }]);
+    expect(t.rng.state()).toEqual(rngUntouched);
+    expect(t.pre.state()).toEqual(preUntouched);
+    expect(mover.finalDestination).toBe(gridNo(80, 84));
+  });
+
+  it('stays silent out of combat, for a bloodcat out of sight and for another creature', () => {
+    const quiet = [
+      startMove(Body.BLOODCAT, (t) => Object.assign(t, { inCombat: false })),
+      startMove(Body.BLOODCAT, (_t, cat) => Object.assign(cat, { visible: Visible.HIDDEN })),
+      startMove(Body.YAM_MONSTER),
+    ];
+    expect(quiet.map((q) => q.growls)).toEqual([[], [], []]);
+  });
+
+  it('tells the growl of a bloodcat out of sight while every soldier is shown (SHOW_ALL_MERCS)', () => {
+    const { growls } = startMove(Body.BLOODCAT, (t, cat) => {
+      cat.visible = Visible.HIDDEN;
+      setShowAllMercs(t, true);
+    });
+    expect(growls).toHaveLength(1);
   });
 });

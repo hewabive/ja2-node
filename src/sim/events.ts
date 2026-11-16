@@ -298,6 +298,11 @@ export interface BloodcatAttackEvent extends SimEventBase {
   readonly type: 'bloodcatAttack';
 }
 
+export interface BloodcatGrowlEvent extends SimEventBase {
+  readonly type: 'bloodcatGrowl';
+  readonly soldier: number;
+}
+
 export interface UnseenAnimationSoundEvent extends SimEventBase {
   readonly type: 'unseenAnimationSound';
   readonly sound: OutOfSightSound;
@@ -906,6 +911,7 @@ export type SimEvent =
   | ItemCaughtEvent
   | CreatureCallEvent
   | BloodcatAttackEvent
+  | BloodcatGrowlEvent
   | UnseenAnimationSoundEvent
   | SoldierHitEvent
   | LifeLostEvent

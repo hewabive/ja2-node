@@ -56,7 +56,8 @@
 // @src Tactical/Handle_Doors.cc HandleOpenableStruct (COOL1 after a picked lock or a disarmed trap, CURSE1 on Random(2)
 // @src after a wrong key, drawn here), Tactical/Keys.cc AttemptToBlowUpLock (SMALL_EXPLODE_1 at the door, HIGHVOLUME),
 // @src Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a failed check, its Random(100) < 40 drawn here, 2026-11-14; a
-// @src check failed while the map screen is up curses through MapSound, 2026-11-14).
+// @src check failed while the map screen is up curses through MapSound, 2026-11-14); TacticalAI/AIMain.cc ExecuteAction (the
+// @src growl of a bloodcat in sight that starts a move in combat, its Random(2) and SoundRange drawn here, 2026-11-15).
 
 import { OUT_OF_SIGHT_SOUND_CODES } from '../content/anim/out-of-sight-sounds.ts';
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
@@ -76,6 +77,7 @@ import { type Cue, cueOf, effectCue, type FileExists, type Rand, VolumeLevel } f
 import type { CueBook } from '../content/audio/cue-book.ts';
 import {
   alarmCue,
+  bloodcatGrowlCue,
   type CreatureCall,
   type DoorKind,
   deathOffTheMapCues,
@@ -757,6 +759,9 @@ export class SoundDirector {
       case 'bloodcatAttack':
         this.#play(effectCue(book, 'BLOODCAT_ATTACK', 'fixed', VolumeLevel.HIGH));
         return;
+      case 'bloodcatGrowl':
+        this.#bloodcatGrowl(e.soldier);
+        return;
       case 'unseenAnimationSound':
         if (e.heard) this.#unseenAnimationSound(OUT_OF_SIGHT_SOUND_CODES[e.sound], this.#placeOf(undefined, e.heard));
         return;
@@ -857,6 +862,11 @@ export class SoundDirector {
     const chop = martialArtsChopCue(this.#o.book, place.gridNo, team, e.spinKick === true, this.#rng.rand);
     const voice = this.#play(this.#placed(chop, place));
     if (voice) this.#battleVoices.set(e.soldier, voice);
+  }
+
+  #bloodcatGrowl(soldier: number): void {
+    const cat = this.#soldiers.get(soldier);
+    if (cat) this.#play(bloodcatGrowlCue(this.#o.book, cat.gridNo, this.#rng.rand));
   }
 
   #enterSound(gridNo: number): void {

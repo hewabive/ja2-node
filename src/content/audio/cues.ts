@@ -11,7 +11,8 @@
 // @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up); Tactical/Soldier_Control.cc
 // @src TurnSoldier (TURRET_MOVE and TURRET_STOP, 2026-11-05), HandleTakeDamageDeath (DOORCR_1 and HEADCR_1 of a death off the
 // @src tactical map, HIGHVOLUME, MIDDLEPAN, 2026-11-06), DoNinjaAttack (Dr. Q's chop, its Random(2) drawn by the client,
-// @src 2026-11-09).
+// @src 2026-11-09); TacticalAI/AIMain.cc ExecuteAction (the bloodcat growl, its Random(2) drawn by the client,
+// @src 2026-11-15).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook, WeaponSounds } from './cue-book.ts';
@@ -335,6 +336,13 @@ export function martialArtsChopCue(book: CueBook, gridNo: number, team: number, 
   const chop = spinKick ? SPIN_KICK_CHOP : CHOPS[rand(CHOPS.length)];
   const mix = team === OUR_TEAM ? 'voiceOwn' : 'voiceOther';
   return cueOf(battleSoundPath(book.battle, DR_Q_VOICE, chop ?? SPIN_KICK_CHOP), mix, VolumeLevel.HIGH, gridNo);
+}
+
+const BLOODCAT_GROWL_ODDS = 2;
+
+export function bloodcatGrowlCue(book: CueBook, gridNo: number, rand: Rand): Cue | null {
+  if (rand(BLOODCAT_GROWL_ODDS) !== 0) return null;
+  return effectCue(book, soundRange(book, 'BLOODCAT_GROWL_1', 'BLOODCAT_GROWL_4', rand), 'soldier', VolumeLevel.HIGH, gridNo);
 }
 
 const DEATH_OFF_THE_MAP_SAMPLES = ['DOORCR_1', 'HEADCR_1'] as const;
