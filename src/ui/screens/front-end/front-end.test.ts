@@ -2,12 +2,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/support/front-end.ts';
 import { loadMapTestFacts } from '../../../../tests/support/strategic.ts';
 import type { PlayerView, PromptView, ViewFrame } from '../../../protocol/view.ts';
+import { LOW_PERCENT_SHADOW_FACTOR } from '../../draw-list.ts';
 import { KeyModifier } from '../../input/events.ts';
 import type { Screen } from '../../screen.ts';
+import { FADE_STEP_MS } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type LaptopFlow, type MapPort, RECONNECTING_BOX, SESSION_ENDED_BOX, type TacticalPort } from './flow.ts';
 import { OPTION_TOGGLES } from './options.ts';
 import { SECTOR_ZOOM, SECTOR_ZOOM_TIME } from './sector-zoom.ts';
+import { INTRO_SPLASH_DURATION } from './splash.ts';
 
 let f: FrontEndTest;
 
@@ -24,6 +27,60 @@ async function answer(id: string, button: 'yes' | 'no' | 'ok'): Promise<void> {
 
 beforeEach(async () => {
   f = await frontEndTest();
+});
+
+describe('the splash at start', () => {
+  const stillPath = 'interface/splash.sti';
+  const logoPath = 'interface/sirtechsplash.sti';
+  const images = () => f.draw().items.flatMap((item) => (item.kind === 'image' ? [item.asset] : []));
+  const shades = () => f.draw().items.filter((item) => item.kind === 'shadow' && item.factor === LOW_PERCENT_SHADOW_FACTOR).length;
+  const cursorShown = () => f.t.runtime.cursorReport().visible;
+
+  it('stretches the still over the screen, holds it with no cursor or music, darkens it frame by frame, then starts the menu music and cursor on black before the menu', async () => {
+    f.t.move(100, 100);
+    let done = false;
+    void f.flow.splash('still').then(() => {
+      done = true;
+    });
+    f.t.frame();
+    expect(f.screen()).toBe('splash');
+    expect(images()).toEqual([stillPath]);
+    expect(f.draw().items.find((item) => item.kind === 'snapshot')).toMatchObject({
+      sourceArea: { x: 0, y: 0, width: 640, height: 480 },
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 480,
+    });
+    f.t.frame(INTRO_SPLASH_DURATION - 16);
+    expect([shades(), cursorShown(), f.host.modes]).toEqual([0, false, []]);
+    const darkening: number[] = [];
+    for (let frame = 0; frame < 8; frame++) {
+      f.t.frame(FADE_STEP_MS);
+      darkening.push(shades());
+    }
+    expect(darkening).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect([cursorShown(), f.host.modes]).toEqual([false, []]);
+    f.t.frame(FADE_STEP_MS);
+    expect([shades(), cursorShown(), f.host.modes, f.draw().items.at(-1)]).toEqual([
+      0,
+      false,
+      [],
+      { kind: 'fill', x: 0, y: 0, width: 640, height: 480, color: 0 },
+    ]);
+    f.t.frame(FADE_STEP_MS);
+    expect([cursorShown(), f.host.modes, done]).toEqual([true, ['mainMenu'], false]);
+    f.t.frame(FADE_STEP_MS);
+    await f.settle(1);
+    expect(done).toBe(true);
+  });
+
+  it('shows the logo after the splash video in the std640 frame instead of the still', async () => {
+    void f.flow.splash('logo');
+    f.t.frame();
+    expect(images()).toEqual([logoPath]);
+    expect(f.draw().items.some((item) => item.kind === 'snapshot')).toBe(false);
+  });
 });
 
 describe('the main menu', () => {

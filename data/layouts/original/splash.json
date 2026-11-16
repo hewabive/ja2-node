@@ -1,0 +1,37 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/JA2_Splash.cc InitJA2SplashScreen (English and Chinese data clear the screen, every other version stretches its MLG_SPLASH over the whole screen), src/sgp/VSurface.cc BltVideoSurfaceOnceWithStretch, src/game/Intro.cc DisplaySirtechSplashScreen (interface/sirtechsplash.sti at STD_SCREEN_X, STD_SCREEN_Y over black as the splash video ends), src/game/MainMenuScreen.cc MainMenuScreenHandle (the fade over the whole screen)"
+  ],
+  "screen": "splash",
+  "frame": "std640",
+  "assets": {
+    "still": { "mlg": "MLG_SPLASH", "stub": { "size": [640, 480] } },
+    "logo": { "sti": "interface/sirtechsplash.sti", "stub": { "size": [640, 480] } }
+  },
+  "widgets": [
+    { "type": "fill", "within": "screen", "x": 0, "y": 0, "width": "$screenWidth", "height": "$screenHeight", "color": [0, 0, 0] },
+    {
+      "type": "custom",
+      "id": "still",
+      "renderer": "splashStill",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "visible": { "eq": ["picture", "still"] }
+    },
+    { "type": "image", "id": "logo", "x": 0, "y": 0, "asset": "logo", "frame": 0, "visible": { "eq": ["picture", "logo"] } },
+    {
+      "type": "custom",
+      "id": "fade",
+      "renderer": "splashFade",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight"
+    }
+  ]
+}

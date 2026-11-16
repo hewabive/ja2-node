@@ -261,8 +261,9 @@ tested with scripted event sequences next to the code, on the stub fonts in CI a
   up events on the injected clock, never from the browser's `dblclick` or the OS key repeat.
 - **The cursor is drawn in software**, last in the draw list, with `cursor: none` on the stage: a CSS cursor can
   neither scale with the canvas nor carry the live text the original prints in it (hit chance, AP cost).
-- **Fades** step every 16 ms on the UI clock and multiply the frozen frame once (deviation "Fades"); zooms capture the
-  frame into a texture and stretch it in the shader. No pointer warp (deviation "Pointer warp"), and no mouse
+- **Fades** step every 16 ms on the UI clock and multiply the frozen frame once (deviation "Fades"), except the splash
+  fade, which multiplies the picture once per step it has taken, as the original shades its frame buffer again on every
+  pass; zooms and the splash still capture the frame into a texture and stretch it in the shader. No pointer warp (deviation "Pointer warp"), and no mouse
   confinement, which Stracciatella compiles out (`src/sgp/Input.cc:544-557`); text fields have the full text and
   numeric types, without the map editor's file name, coordinate and clock types.
 

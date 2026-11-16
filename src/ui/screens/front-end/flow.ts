@@ -44,6 +44,7 @@ import { listedSaves, SaveLoadController, type SaveLoadMode, saveLoadScreen } fr
 import { saveLocationName } from './save-location.ts';
 import { type GameScreenActions, type GameScreenKind, unavailableScreen } from './screen-unavailable.ts';
 import { SectorZoom } from './sector-zoom.ts';
+import { type SplashPicture, splashScreen } from './splash.ts';
 
 export type FrontEndMusic = 'mainMenu' | 'none' | 'session';
 export type SaveLoadOrigin = 'mainMenu' | 'options' | 'game' | 'gameInit';
@@ -226,6 +227,12 @@ export class FrontEndFlow {
     }
     this.#menu.savesExist = this.#listings.length > 0;
     return this.#listings;
+  }
+
+  splash(picture: SplashPicture): Promise<void> {
+    return new Promise((resolve) =>
+      this.#show(splashScreen(this.#env, picture, { menuMusic: () => this.#host.music('mainMenu'), done: resolve })),
+    );
   }
 
   mainMenu(): void {

@@ -158,7 +158,8 @@ sequence's files download one after another, so the next video arrives while one
 
 **Where videos play.** The splash on `/play` before the main menu, behind "Click to start" when the browser holds the
 audio until a gesture ("Splash start"), and only with English or Chinese data or the stubs, as the original plays it
-only for those versions (`src/sgp/SGP.cc:441`, `JAScreens.cc:124`); the beginning after a new game, the ending after the
+only for those versions (`src/sgp/SGP.cc:441`, `JAScreens.cc:124`); the other versions show their MLG splash still
+instead (`30`); the beginning after a new game, the ending after the
 victory; the client settings can turn off the splash and the beginning, never the ending ("Intro and splash switches").
 Steam's data keeps the videos in `Intro-old.slf`; ja2-node mounts every SLF by its library path as Stracciatella does,
 so they resolve as `intro/<name>.smk` either way.

@@ -2,9 +2,7 @@ import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import { liveRuleReader } from '../../content/rules/rule-reader.ts';
 import { loadEconomyContent } from '../../content/strategic/economy-content.ts';
 import { loadStrategicContent } from '../../content/strategic/strategic-content.ts';
-import { type DataVersion, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
-import type { Health } from '../../ui/client/api-types.ts';
 import type { AssetKey } from '../../ui/draw-list.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { collectReferences } from '../../ui/layout/references.ts';
@@ -106,9 +104,8 @@ async function loadMapFacts(source: AssetSource): Promise<MapFacts> {
   return mapFacts(content, await loadEconomyContent(reader.read, content.towns));
 }
 
-function splashDue(settings: ClientSettings, health: Health | null): boolean {
-  const dataVersion = (health?.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
-  return sequenceEnabled('splash', settings) && dataPlaysSplash(dataVersion) && !splashShownThisTab();
+function splashDue(settings: ClientSettings): boolean {
+  return sequenceEnabled('splash', settings) && !splashShownThisTab();
 }
 
 function versionLabel(engine: { readonly version: string; readonly commit: string } | undefined): string {
@@ -334,12 +331,14 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   };
   const playSplash = (audible: Promise<boolean>) =>
     playSplashAtStart({
-      due: splashDue(settings.current(), health),
+      due: splashDue(settings.current()),
+      video: dataPlaysSplash(ui.dataVersion),
       audible,
       stage: page.stage,
       host: ui.runtime.host,
       clickToStart: new ClickToStartScreen(env),
       play: () => playSequence(splashPlan(), { parent: page.stage, sound: engineSound(ui.audio.engine), monitor: video }),
+      fadeIntoMenu: (picture) => flow.splash(picture),
       state: (state) => {
         page.hook.splash = state;
       },

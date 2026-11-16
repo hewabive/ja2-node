@@ -10,6 +10,7 @@ import { OPTIONS_CONTRACT } from './front-end/options.ts';
 import { SAN_MONA_CONTRACT } from './front-end/san-mona.ts';
 import { SAVE_LOAD_CONTRACT } from './front-end/save-load.ts';
 import { SCREEN_UNAVAILABLE_CONTRACT } from './front-end/screen-unavailable.ts';
+import { SPLASH_CONTRACT } from './front-end/splash.ts';
 import { GALLERY_CONTRACT } from './gallery.ts';
 import { HELP_SCREEN_CONTRACT } from './help/help-overlay.ts';
 import { AIM_ARCHIVES_CONTRACT } from './laptop/aim/aim-archives.ts';
@@ -96,6 +97,7 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     EXIT_BOX_CONTRACT,
     SAN_MONA_CONTRACT,
     SCREEN_UNAVAILABLE_CONTRACT,
+    SPLASH_CONTRACT,
     LAPTOP_SHELL_CONTRACT,
     EMAIL_CONTRACT,
     FINANCES_CONTRACT,

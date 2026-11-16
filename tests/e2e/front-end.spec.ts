@@ -272,3 +272,42 @@ test.describe('the canvas front end on stubs', () => {
     await screenIs(page, 'mainMenu');
   });
 });
+
+async function claimDataVersion(page: Page, dataVersion: string): Promise<void> {
+  await page.route('**/api/health', async (route) => {
+    const response = await route.fetch();
+    route.fulfill({ response, json: { ...(await response.json()), dataVersion } });
+  });
+}
+
+test.describe('the splash still of a version without a splash video, on stubs claimed as French data', () => {
+  test.use({ viewport: { width: 1400, height: 960 } });
+
+  test('stretches the still over the whole screen and holds it with no cursor, menu music or video while the clock stands', async ({
+    page,
+  }) => {
+    await claimDataVersion(page, 'french');
+    await page.goto(`${PLAY}?pinClock=1`);
+    await page.waitForFunction(() => window.__ja2Ui?.splash === 'still');
+    await screenIs(page, 'splash');
+    await page.mouse.move(400, 300);
+    await nextFrames(page);
+    expect(
+      await page.evaluate(() => {
+        const ui = window.__ja2Ui;
+        return [ui.logical, ui.draw?.missingImages, ui.video?.sequences.length ?? 0, ui.music?.mode === 'mainMenu', ui.cursor?.visible];
+      }),
+    ).toEqual([{ width: 700, height: 480 }, [], 0, false, false]);
+    await expectGolden('front-end-splash-still', await capture(page));
+  });
+
+  test('fades the still into the main menu and its music', async ({ page }) => {
+    await claimDataVersion(page, 'french');
+    await page.goto(PLAY);
+    await page.waitForFunction(() => window.__ja2Ui?.splash === 'still');
+    await page.waitForFunction(() => window.__ja2Ui.splash === 'done');
+    await screenIs(page, 'mainMenu');
+    expect(await page.evaluate(() => window.__ja2Ui.video?.sequences.length ?? 0)).toBe(0);
+    await page.waitForFunction(() => window.__ja2Ui.music?.mode === 'mainMenu' && window.__ja2Ui.music.track !== null);
+  });
+});

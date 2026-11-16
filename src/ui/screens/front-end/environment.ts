@@ -22,6 +22,7 @@ export const FrontEndLayout = {
   SAN_MONA: 'san-mona',
   SCREEN_UNAVAILABLE: 'screen-unavailable',
   MESSAGE_BOX: 'message-box',
+  SPLASH: 'splash',
 } as const;
 export type FrontEndLayout = (typeof FrontEndLayout)[keyof typeof FrontEndLayout];
 export const FRONT_END_LAYOUTS: readonly FrontEndLayout[] = Object.values(FrontEndLayout);
@@ -52,11 +53,10 @@ export interface FrontEndScreenOptions {
   readonly onExit?: () => void;
   readonly onUpdate?: (now: number) => void;
   readonly onRender?: (list: DrawList) => void;
-  readonly hidesCursor?: boolean;
+  readonly hidesCursor?: boolean | (() => boolean);
 }
 
 export class FrontEndScreen extends LayoutScreen {
-  readonly hidesCursor: boolean;
   readonly #hooks: FrontEndScreenOptions;
 
   constructor(env: FrontEndEnvironment, options: FrontEndScreenOptions) {
@@ -74,8 +74,12 @@ export class FrontEndScreen extends LayoutScreen {
       ...(options.onUpdate ? { onUpdate: options.onUpdate } : {}),
       ...(options.onRender ? { onRender: (list: DrawList) => options.onRender?.(list) } : {}),
     });
-    this.hidesCursor = options.hidesCursor === true;
     this.#hooks = options;
+  }
+
+  get hidesCursor(): boolean {
+    const hides = this.#hooks.hidesCursor;
+    return typeof hides === 'function' ? hides() : hides === true;
   }
 
   override enter(): void {
