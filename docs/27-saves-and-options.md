@@ -142,13 +142,16 @@ write goes through a temporary file and a rename. The Dead is Dead file is the n
 
 | Mode | `save`, quick save | Automatic saves | Load |
 |---|---|---|---|
-| Save anywhere | refused in a conversation (also a scripted sequence; outside tactical also a busy dialogue queue, which the map screen's save key checks and the tactical one does not: `Strategic/Map_Screen_Interface_Bottom.cc:1004`, `Tactical/Turn_Based_Input.cc:1947`), while a stop-time quote plays (no input reaches the save keys: `GameScreen.cc:296`), while auto-bandage runs (its mask takes every key: `Tactical/Auto_Bandage.cc:310`), while a meanwhile starts or plays, while a decision prompt is open (also autoresolve) and in a shop; allowed in the laptop (deviation "Saving in the laptop") | after an accepted `endTurn` in turn-based combat that does not end combat (`Tactical/Handle_UI.cc:1066-1084`): the older or missing of `Auto01`/`Auto02`, silently | allowed |
+| Save anywhere | refused in a conversation (also a scripted sequence; outside tactical also a busy dialogue queue, which the map screen's save key checks and the tactical one does not: `Strategic/Map_Screen_Interface_Bottom.cc:1004`, `Tactical/Turn_Based_Input.cc:1947`), while a stop-time quote plays (no input reaches the save keys: `GameScreen.cc:296`), while auto-bandage runs (its mask takes every key: `Tactical/Auto_Bandage.cc:310`), while a battle is about to begin, on either screen (the tactical save keys skip it, `Tactical/Turn_Based_Input.cc:1822`, `:1947`, as the map screen's exits do: `Strategic/Map_Screen_Interface_Bottom.cc:1037`), while a meanwhile starts or plays, while a decision prompt is open (also autoresolve) and in a shop; allowed in the laptop (deviation "Saving in the laptop") | after an accepted `endTurn` in turn-based combat that does not end combat (`Tactical/Handle_UI.cc:1066-1084`): the older or missing of `Auto01`/`Auto02`, silently | allowed |
 | Iron Man | also refused in turn-based combat and while the loaded sector holds enemies, even outside combat (`CanGameBeSaved`, `GameSettings.cc:233-259`) | the same rule, so none in combat | allowed |
 | Dead is Dead | an explicit save is refused; a quick save writes the Dead is Dead file | the one file, at the original's save points: our turn starts, `endTurn`, a meanwhile starts, a group is about to arrive, before another save is loaded into the session, at session close and server stop; written only on our turn (or outside combat) with nothing in progress and no auto-bandage, helicopter drop (stalled too: its `LOCKUI_MODE`), conversation, meanwhile, prompt or shop (`DoDeadIsDeadSave`, `SaveLoadScreen.cc:1363-1405`), after rotating two backups | never blocked |
 
 - **Check order** of `saveRefusal`: `deadIsDead` (an explicit save in that mode), `autoBandaging`, `helicopterDrop`
-  (the helicopter drop, whose locked UI takes the save keys, `25`), `conversation`, `stopTimeQuote`, `meanwhileStarting`,
-  `promptOpen`, `shopOpen`, then Iron Man (combat first, then enemies in the loaded sector).
+  (the helicopter drop, whose locked UI takes the save keys, `25`), `battlePending` (`fDisableMapInterfaceDueToBattle`,
+  from the encounter until the pre-battle prompt opens after the speaker's line, `19`; the autosaves do not go through
+  the keys and ignore it), `conversation`, `stopTimeQuote`, `meanwhileStarting`, `promptOpen`, `shopOpen`, then Iron Man
+  (combat first, then enemies in the loaded sector). The page's tactical options key, its save screen key and its quick
+  save skip the same window without a box (`Tactical/Turn_Based_Input.cc:1545`).
 - **Automatic saves only read the simulation.** `SaveService` hooks every session (`Session.hooks`: before and after a
   dispatch and an advance, after a whole input, on a throw); a failing hook only logs. Before an `endTurn` in
   turn-based combat the service captures the save and writes it once the command is accepted without ending combat, so

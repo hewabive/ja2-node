@@ -6,6 +6,7 @@ import { parseSectorString, sectorId } from '../../content/strategic/sector-ids.
 import type { CommandEnvelope } from '../../protocol/messages.ts';
 import { createCampaignSession } from '../../server/campaign-factory.ts';
 import type { CampaignSession } from '../../server/campaign-session.ts';
+import { saveRefusal } from '../../server/save-rules.ts';
 import { strategicView } from '../../server/strategic-view.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
@@ -187,6 +188,18 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
     expect(strategicView(c.session.campaign)?.mapInterfaceDisabled).toBeUndefined();
     const routed = await order(c, { type: 'route', soldier: stayer, to: NEXT_EAST });
     expect(routed, routed.reason).toMatchObject({ ok: true });
+  });
+
+  it('refuses a save, quick or not, while the line plays on the tactical screen, as the save keys skip it (Turn_Based_Input.cc:1822, :1947)', async () => {
+    const c = await landedInA9(35, 'pre-battle-line-save');
+    expect(saveRefusal(c.session)).toBeNull();
+    enemiesArriveInA9(c);
+    untilTheEnemyPresenceLine(c);
+    expect(c.session.campaign.state.flow).toBe('tactical');
+    expect([saveRefusal(c.session), saveRefusal(c.session, 'quick')]).toEqual(['battlePending', 'battlePending']);
+    expect(c.live.advance({ idle: true }).reason).toBe('decision');
+    expect(c.session.campaign.state.movement.disableMapInterfaceDueToBattle).toBe(false);
+    expect(saveRefusal(c.session)).toBe('promptOpen');
   });
 
   it('opens the prompt with the skipLine that cuts the line short', async () => {

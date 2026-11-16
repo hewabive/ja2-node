@@ -12,7 +12,8 @@
 // @src ChangeSizeOfDisplayCover, ChangeSizeOfLOS (- and = with Delete or End held); SwitchHeadGear (CTRL+N, alternating
 // @src from the night gear); DoQuickSave, DoQuickLoad (ALT+S, ALT+L outside a conversation); MusicSetVolume (ALT+-);
 // @src BeginAutoBandage (a, outside a conversation, which is modal, 2026-11-06); Esc released in a meanwhile but the
-// @src interrogation: DeleteTalkingMenu and EndMeanwhile, before the menu modes (2026-11-09).
+// @src interrogation: DeleteTalkingMenu and EndMeanwhile, before the menu modes (2026-11-09); the quick save skipped under
+// @src fDisableMapInterfaceDueToBattle (2026-11-16).
 
 import type { UiKeyEvent } from '../../../input/events.ts';
 import { UiEvent, UiMode } from './ui-events.ts';
@@ -28,6 +29,7 @@ export interface HotkeyHost {
   readonly itemInCursor: boolean;
   readonly smPanel: boolean;
   readonly inPalaceScene: boolean;
+  readonly mapInterfaceDisabled: boolean;
   keyHeld(key: string): boolean;
   smButtonEnabled(button: SmButton): boolean;
   hasSelected(): boolean;
@@ -294,7 +296,7 @@ function withAlt(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
   if (key === 'f') h.toggleTracking();
   if (key === 'l' && !h.inConversation) h.quickLoad();
   if (key === 'r') h.reload(false);
-  if (key === 's' && !h.inConversation) h.quickSave();
+  if (key === 's' && !h.inConversation && !h.mapInterfaceDisabled) h.quickSave();
   if (key === 'z') h.stealth(true);
   return event;
 }

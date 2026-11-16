@@ -253,13 +253,15 @@
       "key": "o",
       "on": "down",
       "mods": 0,
-      "action": "options"
+      "action": "options",
+      "when": "!mapInterfaceDisabled"
     },
     {
       "key": "s",
       "on": "down",
       "mods": 2,
-      "action": "saveGame"
+      "action": "saveGame",
+      "when": "!mapInterfaceDisabled"
     },
     {
       "key": "l",

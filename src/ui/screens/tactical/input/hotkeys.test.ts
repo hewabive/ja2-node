@@ -9,7 +9,10 @@ interface Recorder {
 }
 
 type HostState = Partial<
-  Pick<HotkeyHost, 'mode' | 'locked' | 'inCombat' | 'ourTurn' | 'inConversation' | 'itemInCursor' | 'smPanel' | 'inPalaceScene'>
+  Pick<
+    HotkeyHost,
+    'mode' | 'locked' | 'inCombat' | 'ourTurn' | 'inConversation' | 'itemInCursor' | 'smPanel' | 'inPalaceScene' | 'mapInterfaceDisabled'
+  >
 > & {
   readonly held?: readonly string[];
 };
@@ -30,6 +33,7 @@ function recorder(state: HostState = {}): Recorder {
     itemInCursor: false,
     smPanel: false,
     inPalaceScene: false,
+    mapInterfaceDisabled: false,
     ...state,
     smButtonEnabled: () => true,
     keyHeld: (key: string) => state.held?.includes(key) === true,
@@ -104,6 +108,12 @@ describe('the gameplay keys of Turn_Based_Input.cc', () => {
     const talking = recorder({ inConversation: true });
     for (const key of ['s', 'l']) handleTacticalKey(talking.host, down(key, KEY_MASK.ALT), UiEvent.M_ON_TERRAIN);
     expect(talking.calls).toEqual([]);
+  });
+
+  it('skips the quick save while a battle is about to begin, and still quick loads (Turn_Based_Input.cc:1947, :1914)', () => {
+    const r = recorder({ mapInterfaceDisabled: true });
+    for (const key of ['s', 'l']) handleTacticalKey(r.host, down(key, KEY_MASK.ALT), UiEvent.M_ON_TERRAIN);
+    expect(r.calls).toEqual(['quickLoad']);
   });
 
   it('lets only ESC through the UI lock and ends the turn only on our turn in combat', () => {

@@ -8,9 +8,11 @@
 // @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04);
 // @src Tactical/Auto_Bandage.cc AutoBandage (its mask takes every key while the mode runs, 2026-11-06); Tactical/Turn_Based_Input.cc
 // @src GetKeyboardInput's gate for a locked UI, which the helicopter drop's LU_BEGINUILOCK holds (2026-11-08); DoDeadIsDeadSave's
-// @src LOCKUI_MODE, which the drop holds stalled too (2026-11-08).
+// @src LOCKUI_MODE, which the drop holds stalled too (2026-11-08); Turn_Based_Input.cc HandleModCtrl, HandleModAlt (the
+// @src save keys skipped under fDisableMapInterfaceDueToBattle, 2026-11-16).
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { mapInterfaceDisabledDueToBattle } from '../sim/campaign/map-area.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { GameOptions, SaveMode } from '../sim/options.ts';
 import { PromptKind } from '../sim/strategic/forces/battle-state.ts';
@@ -28,6 +30,7 @@ import type { SessionSim } from './session.ts';
 export const SAVE_REFUSALS = [
   'autoBandaging',
   'helicopterDrop',
+  'battlePending',
   'conversation',
   'stopTimeQuote',
   'meanwhileStarting',
@@ -44,6 +47,7 @@ export type SaveRequestKind = 'player' | 'quick';
 export const SAVE_REFUSAL_MESSAGES: Readonly<Record<SaveRefusal, string>> = {
   autoBandaging: 'auto-bandage is running: endAutoBandage ends it',
   helicopterDrop: 'the helicopter is dropping the mercs and the interface is locked: advance until it leaves, or skipHelicopterDrop',
+  battlePending: 'a battle is about to begin: the save keys and screens wait until the pre-battle prompt opens',
   conversation: 'a conversation is open, or someone has something to say outside tactical',
   stopTimeQuote: 'the game stands while a merc warns of a trap',
   meanwhileStarting: 'a meanwhile scene is starting or playing',
@@ -133,6 +137,7 @@ export function saveRefusal(sim: SessionSim, request: SaveRequestKind = 'player'
   if (autoBandaging(sim)) return 'autoBandaging';
   if (helicopterDropping(sim)) return 'helicopterDrop';
   const campaign = campaignOf(sim);
+  if (campaign && mapInterfaceDisabledDueToBattle(campaign.state)) return 'battlePending';
   const modal = campaign ? modalRefusal(campaign) : null;
   if (modal) return modal;
   return canGameBeSaved(sim) ? null : 'ironMan';

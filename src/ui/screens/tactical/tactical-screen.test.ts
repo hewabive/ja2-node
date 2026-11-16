@@ -1371,6 +1371,26 @@ describe('the tactical screen in a stub campaign', () => {
     expect(f.screen.messageLines).toEqual([]);
   });
 
+  it('skips the options key, the save screen key and the quick save while a battle is about to begin (Turn_Based_Input.cc:1545, :1822, :1947)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const pressSaveAndOptionsKeys = () => {
+      f.key('o');
+      f.key('s', KeyModifier.CTRL);
+      f.key('s', KeyModifier.ALT);
+    };
+    a10.campaign.campaign.state.movement.disableMapInterfaceDueToBattle = true;
+    f.deliver();
+    pressSaveAndOptionsKeys();
+    await f.settle();
+    expect(f.flow).toEqual([]);
+    a10.campaign.campaign.state.movement.disableMapInterfaceDueToBattle = false;
+    f.deliver();
+    pressSaveAndOptionsKeys();
+    await f.settle();
+    expect(f.flow).toEqual(['options', 'saveGame', 'quickSave']);
+  });
+
   it('names the loaded sector with its town or land type beside the radar, as RenderTownIDString does', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);

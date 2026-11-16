@@ -4,7 +4,8 @@
 // @src (pPausedGameText[0] while the player paused), CreateMouseRegionForPauseOfClock (pPausedGameText 1 when paused,
 // @src else 2), HandlePlayerPauseUnPauseOfGame (refused while engaged in a conversation); src/game/TileEngine/Radar_Screen.cc
 // @src RadarRegionMoveCallback (a drag moves the camera), RadarRegionButtonCallbackPrimary (on the release),
-// @src RadarRegionButtonCallbackSecondary, ToggleRadarScreenRender.
+// @src RadarRegionButtonCallbackSecondary, ToggleRadarScreenRender; Tactical/Turn_Based_Input.cc HandleModNone 'o' and
+// @src HandleModCtrl 's' (skipped under fDisableMapInterfaceDueToBattle, 2026-11-16).
 
 import type { ClockView } from '../../../protocol/view.ts';
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
@@ -34,6 +35,7 @@ export const HUD_CONTRACT: ControllerContract = {
     inCombat: 'boolean',
     pauseHelp: 'string',
     paused: 'boolean',
+    mapInterfaceDisabled: 'boolean',
   },
 };
 
@@ -45,6 +47,7 @@ export interface HudModel {
   inCombat: boolean;
   pauseHelp: string;
   paused: boolean;
+  mapInterfaceDisabled: boolean;
 }
 
 const GAME_CLOCK_STRING = 'gpGameClockString';
@@ -87,7 +90,16 @@ export interface HudActions {
 
 export class HudController implements LayoutController {
   readonly contract = HUD_CONTRACT;
-  model: HudModel = { radarEnabled: false, radarShown: true, sector: '', clock: '', inCombat: false, pauseHelp: '', paused: false };
+  model: HudModel = {
+    radarEnabled: false,
+    radarShown: true,
+    sector: '',
+    clock: '',
+    inCombat: false,
+    pauseHelp: '',
+    paused: false,
+    mapInterfaceDisabled: false,
+  };
   readonly #actions: HudActions;
 
   constructor(actions: HudActions) {

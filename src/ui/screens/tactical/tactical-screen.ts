@@ -1317,6 +1317,7 @@ export class TacticalScreen implements Screen {
       inCombat: inCombat(view),
       pauseHelp: pauseHelpText(text, paused),
       paused,
+      mapInterfaceDisabled: view?.strategic?.mapInterfaceDisabled === true,
     };
   }
 

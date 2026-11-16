@@ -983,7 +983,8 @@ While a battle is about to begin, from the encounter until the pre-battle prompt
 `shortenRoute`, `regroupForMove` and `routeGroup` (the move box opens from the map), `heliRoute`, `shortenHeliRoute`,
 `setLandingZone`, `showBattle` and the militia panel's `moveMilitia`, `distributeMilitia` and `redistributeMilitia`.
 The team list's commands stay: `cancelRoute`, `heliCancel` and `heliPlot` (its destination column), `assign`,
-`assignSquad`, `sleep` and `wake`.
+`assignSquad`, `sleep` and `wake`. A `save` is refused as `battlePending` in that window on either screen, where the line
+can play on the tactical screen too, enemies arriving in the loaded sector (`27`).
 On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector the exit dialog
 first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every conscious merc of
 the sector there and loads it (`campaign/sector-exits.ts`).

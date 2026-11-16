@@ -855,6 +855,9 @@ export class TacticalControls {
       get inPalaceScene() {
         return inPalaceScene(self.#view());
       },
+      get mapInterfaceDisabled() {
+        return self.#view()?.strategic?.mapInterfaceDisabled === true;
+      },
       keyHeld: (key) => env.runtime.isKeyDown(key),
       smButtonEnabled: (button) => screen.panelButtonEnabled(button),
       hasSelected: () => screen.selected() !== null,
