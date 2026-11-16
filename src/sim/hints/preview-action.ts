@@ -23,6 +23,7 @@ import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { giveApRefusal, giverRefusal } from '../campaign/give-flow.ts';
+import { createMoney } from '../items/object.ts';
 import { preservingFields, withTemporaryFields } from '../knowledge/guard.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import type { StrategicKnowledge } from '../knowledge/strategic.ts';
@@ -39,8 +40,9 @@ import { findDoorInfo, HandleDoor, PerceivedLock } from '../tactical/doors/door-
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
 import { apsToBeginFirstAid, firstAidMedicRefusal, firstAidNeedRefusal } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
+import { moneyAmount } from '../tactical/inventory-commands.ts';
 import { adjustGridNoForItemPlacement, pickupCandidates, requestedZLevel, showsItems } from '../tactical/item-actions.ts';
-import { parseItemSource } from '../tactical/item-source.ts';
+import { type OutsideSource, parseItemSource } from '../tactical/item-source.ts';
 import { apsToJumpOver, jumpOverAt } from '../tactical/jump-over.ts';
 import { directionToward } from '../tactical/movement.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
@@ -129,6 +131,7 @@ export interface PreviewActionRequest extends HintRequestBase {
   readonly count?: unknown;
   readonly index?: unknown;
   readonly cursor?: unknown;
+  readonly account?: unknown;
 }
 
 interface ActionContext {
@@ -144,6 +147,7 @@ interface ActionContext {
 type ActionPart = Omit<PreviewAction, 'kind' | 'affordable'> & { readonly affordable?: boolean };
 
 const NO_STEPS: readonly Footstep[] = [];
+const BAD_AMOUNT = 'badAmount';
 const SUPPORTED: ReadonlySet<string> = new Set(SUPPORTED_ACTIONS);
 
 function refused(c: ActionContext, refusal: string, actionGridNo = c.g): ActionPart {
@@ -324,9 +328,14 @@ function stealAction(c: ActionContext): ActionPart {
   };
 }
 
+function withdrawnMoney(t: TacticalState, amount: unknown): OutsideSource | typeof BAD_AMOUNT {
+  const money = moneyAmount(amount);
+  return money === null ? BAD_AMOUNT : { outside: createMoney(t.content.items, money), taken: () => undefined };
+}
+
 function tossAction(c: ActionContext, req: PreviewActionRequest): ActionPart {
   const { t, s } = c;
-  const source = parseItemSource(s, req);
+  const source = req.account === undefined ? parseItemSource(s, req) : withdrawnMoney(t, req.account);
   if (typeof source === 'string') return refused(c, source, s.gridNo);
   const { refusal, landing } = previewToss(t, s, { source, gridNo: c.g, level: c.level });
   return {

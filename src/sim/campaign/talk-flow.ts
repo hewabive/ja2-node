@@ -996,7 +996,16 @@ export class TalkFlow {
     if (this.host.isDealer(this.talk.charNum)) refuse('isADealer');
   }
 
-  #give(cmd: CampaignCommand): CommandResult {
+  giveFromCursor(cmd: CampaignCommand, request: GiveRequest): CommandResult {
+    try {
+      return this.#give(cmd, request);
+    } catch (e) {
+      if (e instanceof Refusal) return refusalResult(e);
+      throw e;
+    }
+  }
+
+  #give(cmd: CampaignCommand, given: GiveRequest | null = null): CommandResult {
     this.#giveRefusals();
     const tactical = this.#campaign.tactical;
     const t = this.#t as TacticalState;
@@ -1009,7 +1018,7 @@ export class TalkFlow {
     if (!target || target === merc) return refuse('noSuchTarget');
     const giver = giverRefusal(t, merc, this.#isEpc(merc));
     if (giver) refuse(giver);
-    const request = giveRequest(t, merc, cmd);
+    const request = given ?? giveRequest(t, merc, cmd);
     if (typeof request === 'string') return refuse(request);
     const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: true, mercs: true, collapsed: true });
     if (talkable) refuse(talkable);

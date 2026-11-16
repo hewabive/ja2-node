@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-03. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Items.cc BeginItemPointer (one object of a pocket, SHIFT the whole stack),
 // @src BeginKeyRingItemPointer (one key off the ring, SHIFT every key of the position), the objects the item cursor's drop,
-// @src give, pass and toss take; Items.cc RemoveKeysFromSlot, CreateKeyObject.
+// @src give, pass and toss take; Items.cc RemoveKeysFromSlot, CreateKeyObject; RemoveMoney (money from the account in the
+// @src cursor, in no slot, 2026-11-16).
 
 import { cloneObject, deleteObject, type ItemObject } from '../items/object.ts';
 import type { TacticalContent } from './content.ts';
@@ -29,6 +30,13 @@ export interface RingSource {
 
 export type ItemSource = PocketSource | RingSource;
 
+export interface OutsideSource {
+  readonly outside: ItemObject;
+  taken(): void;
+}
+
+export type PointerSource = ItemSource | OutsideSource;
+
 export type ItemSourceRefusal = 'badSlot' | 'emptySlot' | 'badCount' | 'badIndex';
 
 export const ITEM_SOURCE_REFUSALS: Readonly<Record<ItemSourceRefusal, string>> = {
@@ -46,6 +54,10 @@ export interface ItemSourceRequest {
 
 export function isRingSource(source: ItemSource): source is RingSource {
   return 'ring' in source;
+}
+
+export function isOutsideSource(source: PointerSource): source is OutsideSource {
+  return 'outside' in source;
 }
 
 function ringAt(s: Soldier, position: number): KeyOnRing | null {

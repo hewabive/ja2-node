@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../protocol/view.ts';
 import {
   applyCommand,
+  cancelCommand,
   combineCommand,
   cursorFromAccount,
   cursorFromSlot,
   cursorObjectHeld,
   cursorOnLeftover,
+  depositCommand,
   dropCommand,
   dropInsteadCommand,
   giveCommand,
@@ -17,6 +19,7 @@ import {
   remainingCursor,
   shownStatus,
   tossCommand,
+  tossPreviewFields,
 } from './item-cursor.ts';
 
 const OUR_TEAM = 0;
@@ -203,17 +206,30 @@ describe('money withdrawn from the account into the cursor (RemoveMoney)', () =>
     expect(dropCommand(cursor, BESIDE)).toEqual({ type: 'withdrawCash', soldier: 0, amount: 1500, to: 'ground', gridNo: BESIDE });
   });
 
-  it('is neither thrown, passed, given, applied nor combined, and a throw or a pass withdraws nothing', () => {
+  it('is withdrawn as it is thrown, passed or given like any cursor item, and the throw previews money of its amount (HandleItemPointerClick)', () => {
     const cursor = cursorFromAccount(0, 1500);
     if (!cursor) throw new Error('no cursor');
-    expect([
-      tossCommand(cursor, FAR_TILE, 0),
-      passCommand(cursor, 3),
-      giveCommand(cursor, 3),
-      applyCommand(cursor, 0),
-      combineCommand(cursor, 0, SMALL_POCKET),
-      dropInsteadCommand(cursor),
-    ]).toEqual([null, null, null, null, null, null]);
+    const withdrawn = { type: 'withdrawCash', soldier: 0, amount: 1500 };
+    expect(tossCommand(cursor, FAR_TILE, 0)).toEqual({ ...withdrawn, to: 'toss', gridNo: FAR_TILE });
+    expect(tossCommand(cursor, FAR_TILE, 1)).toEqual({ ...withdrawn, to: 'toss', gridNo: FAR_TILE, level: 1 });
+    expect(passCommand(cursor, 3)).toEqual({ ...withdrawn, to: 'pass', target: 3 });
+    expect(giveCommand(cursor, 3)).toEqual({ ...withdrawn, to: 'give', target: 3 });
+    expect(tossPreviewFields(cursor)).toEqual({ account: 1500 });
+  });
+
+  it('lands at his feet when cancelled and books both entries when deposited again, the deposit for the merc of the panel (CancelItemPointer, ConfirmationToDepositMoneyToPlayersAccount)', () => {
+    const cursor = cursorFromAccount(0, 1500);
+    if (!cursor) throw new Error('no cursor');
+    const withdrawn = { type: 'withdrawCash', soldier: 0, amount: 1500 };
+    expect(cancelCommand(cursor)).toEqual({ ...withdrawn, to: 'feet' });
+    expect(depositCommand(cursor, 0)).toEqual({ ...withdrawn, to: 'account' });
+    expect(depositCommand(cursor, 2)).toEqual({ ...withdrawn, to: 'account', toSoldier: 2 });
+  });
+
+  it('is neither applied nor combined', () => {
+    const cursor = cursorFromAccount(0, 1500);
+    if (!cursor) throw new Error('no cursor');
+    expect([applyCommand(cursor, 0), combineCommand(cursor, 0, SMALL_POCKET), dropInsteadCommand(cursor)]).toEqual([null, null, null]);
     expect([cursorObjectHeld(cursor, merc), cursorObjectHeld(cursor, null), cursorFromAccount(0, 0)]).toEqual([true, false, null]);
   });
 });

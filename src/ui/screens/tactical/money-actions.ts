@@ -4,7 +4,9 @@
 // @src CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT question, 2026-11-02; no item: the money box over LaptopSaveInfo.iCurrentBalance;
 // @src nothing while gfSMDisableForItems), ConfirmationToDepositMoneyToPlayersAccount; src/game/Tactical/Interface_Items.cc
 // @src RemoveMoney (a withdrawal books TRANSFER_FUNDS_TO_MERC, a split goes into the cursor, in the shop into the shop's
-// @src cursor to be offered; a withdrawal goes into the cursor too and is booked as it is dropped, 2026-11-15).
+// @src cursor to be offered; a withdrawal goes into the cursor too and is booked as it is dropped, 2026-11-15; a withdrawal
+// @src in the cursor deposited again books the withdrawal and the deposit, the deposit for the merc of the panel,
+// @src 2026-11-16).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
@@ -53,7 +55,7 @@ export class MoneyActions {
     this.#hooks.changeToMove();
     const question = printf(env.text.string(MONEY_MESSAGES, CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT) ?? '', [sprintMoney(amount)]);
     if (!(await env.boxes.confirm(question))) return;
-    const deposit = depositCommand(cursor);
+    const deposit = depositCommand(cursor, s.id);
     const reply = deposit ? await inventory.send(deposit) : { ok: true };
     if (reply.ok) inventory.setCursor(null);
   }

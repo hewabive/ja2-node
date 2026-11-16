@@ -71,12 +71,19 @@ export interface MoneySplitEvent extends SimEventBase {
   readonly amount: number;
 }
 
-export interface CashWithdrawnEvent extends SimEventBase {
+export type WithdrawnTo = number | 'ground' | 'feet' | 'account' | 'toss' | 'pass' | 'give';
+
+export interface WithdrawalTarget {
+  readonly to?: WithdrawnTo;
+  readonly toSoldier?: number;
+  readonly target?: number | { readonly npc: number | string };
+  readonly gridNo?: number;
+}
+
+export interface CashWithdrawnEvent extends SimEventBase, WithdrawalTarget {
   readonly type: 'cashWithdrawn';
   readonly soldier: number;
   readonly amount: number;
-  readonly to?: number | 'ground';
-  readonly toSoldier?: number;
 }
 
 export interface CashDepositedEvent extends SimEventBase {

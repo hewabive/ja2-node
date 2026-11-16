@@ -15,7 +15,9 @@
 // @src objects into the stack clicked, any merc's and from any slot, a gun's magazine, an attachment, money or the key
 // @src ring, and leaves the rest in the cursor;
 // @src keys off the ring dropped, given, passed or thrown, 2026-11-03); RemoveMoney (money withdrawn from the account into
-// @src the cursor, dropped into a pocket or onto the floor, 2026-11-15).
+// @src the cursor, dropped into a pocket or onto the floor, 2026-11-15); CancelItemPointer (a withdrawal cancelled lands at
+// @src the holder's feet) and Interface_Panels.cc ConfirmationToDepositMoneyToPlayersAccount (a withdrawal deposited again
+// @src books both entries), HandleItemPointerClick (a withdrawal thrown, passed or given like any cursor item), 2026-11-16.
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
@@ -34,6 +36,11 @@ type HeldSource = Exclude<CursorSource, { readonly kind: 'account' }>;
 
 const MONEY_ITEM = 'MONEY';
 const GROUND = 'ground';
+const AT_HIS_FEET = 'feet';
+const BACK_INTO_THE_ACCOUNT = 'account';
+const THROWN = 'toss';
+const PASSED = 'pass';
+const GIVEN = 'give';
 
 export interface ItemCursor {
   readonly source: CursorSource;
@@ -234,27 +241,45 @@ export function dropInsteadCommand(cursor: ItemCursor): CommandEnvelope | null {
   return cursor.source.kind === 'account' ? null : dropCommand(cursor);
 }
 
+function withdrawnAs(s: CursorSource, to: string): CommandEnvelope | null {
+  return s.kind === 'account' ? { type: 'withdrawCash', soldier: s.soldier, amount: s.amount, to } : null;
+}
+
+export function tossPreviewFields(cursor: ItemCursor): PocketFields | { readonly account: number } | null {
+  const s = cursor.source;
+  return s.kind === 'account' ? { account: s.amount } : tossFields(cursor);
+}
+
 export function tossCommand(cursor: ItemCursor, gridNo: number, level: number): CommandEnvelope | null {
+  const at = { gridNo, ...(level !== 0 ? { level } : {}) };
+  const withdrawn = withdrawnAs(cursor.source, THROWN);
+  if (withdrawn) return { ...withdrawn, ...at };
   const fields = tossFields(cursor);
   if (!fields) return null;
-  return { type: 'toss', soldier: cursor.source.soldier, ...fields, gridNo, ...(level !== 0 ? { level } : {}) };
+  return { type: 'toss', soldier: cursor.source.soldier, ...fields, ...at };
 }
 
 export function passCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
+  const withdrawn = withdrawnAs(cursor.source, PASSED);
+  if (withdrawn) return { ...withdrawn, target };
   const fields = tossFields(cursor);
   return fields ? { type: 'pass', soldier: cursor.source.soldier, ...fields, target } : null;
 }
 
 export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
   const s = cursor.source;
+  const withdrawn = withdrawnAs(s, GIVEN);
+  if (withdrawn) return { ...withdrawn, target };
   if (s.kind === 'money') return { type: 'give', soldier: s.soldier, target, money: s.amount, slot: s.slot };
   if (s.kind === 'keyRing') return { type: 'give', soldier: s.soldier, target, slot: { ring: s.position }, ...countField(s.count) };
   if (s.kind !== 'slot') return null;
   return { type: 'give', soldier: s.soldier, target, slot: s.slot, ...countField(s.count) };
 }
 
-export function depositCommand(cursor: ItemCursor): CommandEnvelope | null {
+export function depositCommand(cursor: ItemCursor, depositor: number): CommandEnvelope | null {
   const s = cursor.source;
+  if (s.kind === 'account')
+    return { type: 'withdrawCash', soldier: s.soldier, amount: s.amount, to: BACK_INTO_THE_ACCOUNT, ...otherSoldier(s, depositor) };
   if (s.kind === 'money') return { type: 'depositCash', soldier: s.soldier, slot: s.slot, amount: s.amount };
   if (s.kind === 'slot') return { type: 'depositCash', soldier: s.soldier, slot: s.slot };
   return null;
@@ -262,6 +287,7 @@ export function depositCommand(cursor: ItemCursor): CommandEnvelope | null {
 
 export function cancelCommand(cursor: ItemCursor): CommandEnvelope | null {
   const s = cursor.source;
+  if (s.kind === 'account') return { type: 'withdrawCash', soldier: s.soldier, amount: s.amount, to: AT_HIS_FEET };
   if (s.kind === 'attachment') return { type: 'detach', soldier: s.soldier, slot: s.slot, attachment: s.attachment };
   if (s.kind === 'magazine') return { type: 'unload', soldier: s.soldier, slot: s.slot };
   return null;

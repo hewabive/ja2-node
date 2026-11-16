@@ -7,7 +7,7 @@
 // @src HandleSoldierThrowItem), SoldierCanSeeCatchComing (always TRUE), HandleItemCursor (the throw end height);
 // @src DrawItemTileCursor (CalculateLaunchItemChanceToGetThrough for the landing tile, 2026-11-03); a merc of ours within
 // @src passing range takes a pass whatever his life (2026-11-03); BeginKeyRingItemPointer (keys off the ring tossed,
-// @src 2026-11-03).
+// @src 2026-11-03); RemoveMoney's money from the account in the cursor, thrown as any cursor item (2026-11-16).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { NOTHING } from '../../content/items/items.ts';
@@ -25,7 +25,7 @@ import {
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { itemIn } from './inventory.ts';
 import { DROPPING_DISTANCE, itemPointerHolderBlocked, PASSING_ITEM_DISTANCE_OKLIFE, takesPass } from './item-pointer.ts';
-import { type ItemSource, isRingSource, sourceObject, takeSourceObject } from './item-source.ts';
+import { type ItemSource, isOutsideSource, isRingSource, type PointerSource, sourceObject, takeSourceObject } from './item-source.ts';
 import { directionToward } from './movement.ts';
 import { enoughPoints } from './points.ts';
 import { OKLIFE, type Soldier } from './soldier.ts';
@@ -46,7 +46,7 @@ export const TOSS_REFUSALS: Readonly<Record<TossRefusal, string>> = {
 };
 
 export interface Toss {
-  readonly source: ItemSource;
+  readonly source: PointerSource;
   readonly gridNo: number;
   readonly level: number;
 }
@@ -89,7 +89,9 @@ function tosserRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | 
 }
 
 function tossedPreview(t: TacticalState, s: Soldier, toss: Toss): ItemObject {
-  return sourceObject(t.content, s, toss.source) ?? emptyObject();
+  const source = toss.source;
+  if (isOutsideSource(source)) return source.outside;
+  return sourceObject(t.content, s, source) ?? emptyObject();
 }
 
 function tossEndZ(t: TacticalState, s: Soldier, toss: Toss): { catcher: Soldier | null; endZ: number } {
@@ -117,7 +119,15 @@ function faceThrower(t: TacticalState, catcher: Soldier, thrower: Soldier): void
   setDesiredDirection(t, catcher, directionToward(catcher.gridNo, thrower.gridNo));
 }
 
-function takeTossed(t: TacticalState, s: Soldier, source: ItemSource): ItemObject {
+function takeTossed(t: TacticalState, s: Soldier, source: PointerSource): ItemObject {
+  if (isOutsideSource(source)) {
+    source.taken();
+    return source.outside;
+  }
+  return takeFromHim(t, s, source);
+}
+
+function takeFromHim(t: TacticalState, s: Soldier, source: ItemSource): ItemObject {
   if (isRingSource(source)) return takeSourceObject(t.content, s, source) as ItemObject;
   const item = itemIn(s.inv, source.slot);
   const tossed = takeSourceObject(t.content, s, source) as ItemObject;

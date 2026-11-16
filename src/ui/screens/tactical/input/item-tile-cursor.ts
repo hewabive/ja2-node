@@ -17,7 +17,7 @@ import type { PreviewAction } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';
 import type { SoldierView } from '../../../../protocol/view.ts';
 import type { ItemCursor } from '../item-cursor.ts';
-import { tossFields } from '../item-cursor.ts';
+import { tossPreviewFields } from '../item-cursor.ts';
 import { isCollapsed, isDead, isEpc, isVehicleBody, OUR_TEAM } from '../soldiers.ts';
 import { dataOf, type HintState } from './hints.ts';
 
@@ -215,7 +215,7 @@ export class ItemTileCursor {
   }
 
   #recalculate(f: ItemTileFrame): void {
-    const fields = tossFields(f.cursor);
+    const fields = tossPreviewFields(f.cursor);
     if (!fields) return;
     const request = { type: 'previewAction', soldier: f.holder.id, kind: 'toss', gridNo: f.mapPos, level: f.level, ...fields };
     const preview = dataOf(f.hint<PreviewAction>(request));

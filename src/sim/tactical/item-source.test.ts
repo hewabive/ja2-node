@@ -2,9 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { hintAnswer, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
-import { createItems } from '../items/object.ts';
+import { createItems, createMoney } from '../items/object.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
+import type { OutsideSource } from './item-source.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
@@ -92,5 +93,73 @@ describe('keys taken off the key ring by the item cursor (BeginKeyRingItemPointe
       data: { refusal: 'badIndex' },
     });
     expect(sim.dispatch({ type: 'drop', soldier: 0, slot: { ring: 64 } })).toMatchObject({ ok: false, data: { refusal: 'badSlot' } });
+  });
+});
+
+describe('an object from outside the pockets in the item cursor (RemoveMoney with the account)', () => {
+  const WITHDRAWN = 500;
+  const moneyItem = () => content.items.byName.get('MONEY')?.index ?? -1;
+  const moneyOnGround = (sim: TacticalSim) =>
+    sim.state.worldItems.filter((wi) => wi.object.item === moneyItem()).map((wi) => ({ gridNo: wi.gridNo, money: wi.object.money }));
+
+  function withdrawal(): { readonly source: OutsideSource; readonly booked: () => number } {
+    let booked = 0;
+    return {
+      source: {
+        outside: createMoney(content.items, WITHDRAWN),
+        taken: () => {
+          booked++;
+        },
+      },
+      booked: () => booked,
+    };
+  }
+
+  function mercOf(sim: TacticalSim): Soldier {
+    const merc = sim.soldier(0);
+    if (!merc) throw new Error('no merc');
+    return merc;
+  }
+
+  it('is thrown onto a far tile, which the toss preview of an account amount lands, and is taken once as it leaves his hand', () => {
+    const { sim } = holder(0);
+    const preview = hintAnswer(sim, 'previewAction', { soldier: 0, kind: 'toss', gridNo: FAR_TILE, account: WITHDRAWN });
+    expect(preview).toMatchObject({ ok: true, data: { ok: true } });
+    const landsAt = (preview.data as { landsAt: number }).landsAt;
+    expect(hintAnswer(sim, 'previewAction', { soldier: 0, kind: 'toss', gridNo: FAR_TILE, account: 0 })).toMatchObject({
+      data: { ok: false, refusal: 'badAmount' },
+    });
+    const close = withdrawal();
+    expect(sim.tossFromCursor(mercOf(sim), { type: 'toss', soldier: 0, gridNo: ORIGIN + EAST }, close.source)).toMatchObject({
+      ok: false,
+      data: { refusal: 'tooClose' },
+    });
+    expect(close.booked()).toBe(0);
+    const far = withdrawal();
+    expect(sim.tossFromCursor(mercOf(sim), { type: 'toss', soldier: 0, gridNo: FAR_TILE }, far.source)).toEqual({ ok: true });
+    expect(far.booked()).toBe(1);
+    runUntilIdle(sim);
+    expect(moneyOnGround(sim)).toEqual([{ gridNo: landsAt, money: WITHDRAWN }]);
+  });
+
+  it('is passed to a merc within reach and taken only once he has found room for it', () => {
+    const { sim } = holder(0);
+    const laden = spawnSoldier(sim, 2, Team.OUR, ORIGIN - 2 * EAST, Direction.EAST);
+    const gun = content.items.byName.get('GLOCK_17')?.index ?? 0;
+    for (let slot = InvSlot.HAND; slot < laden.inv.length; slot++) laden.inv[slot] = createItems(content.items, gun, 100, 1);
+    const refused = withdrawal();
+    expect(sim.passFromCursor(mercOf(sim), { type: 'pass', soldier: 0, target: 2 }, refused.source)).toEqual({
+      ok: true,
+      data: { passed: false },
+    });
+    expect(refused.booked()).toBe(0);
+    const mate = spawnSoldier(sim, 1, Team.OUR, ORIGIN + 2 * EAST, Direction.WEST);
+    const passed = withdrawal();
+    expect(sim.passFromCursor(mercOf(sim), { type: 'pass', soldier: 0, target: 1 }, passed.source)).toEqual({
+      ok: true,
+      data: { passed: true },
+    });
+    expect(passed.booked()).toBe(1);
+    expect(mate.inv.some((o) => o.item === moneyItem() && o.money === WITHDRAWN)).toBe(true);
   });
 });

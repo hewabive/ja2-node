@@ -117,7 +117,7 @@ import { LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
 import { mapAreaRefusal } from './map-area.ts';
 import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
-import { MoneyFlow } from './money-flow.ts';
+import { cancelsTheWithdrawal, MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { campaignNarrativePort, registerNarrativeEvents } from './narrative-port.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
@@ -1069,6 +1069,8 @@ export class CampaignSim {
       mapAreaRefusal(this.state, cmd.type);
     if (locked) return locked;
     if (this.tactical && this.#answersTacticalPrompt(cmd)) return this.tactical.dispatch(cmd);
+    const cancelled = cancelsTheWithdrawal(cmd) ? this.money.dispatch(cmd) : null;
+    if (cancelled) return cancelled;
     const talk = this.talk?.dispatch(cmd);
     if (talk) return talk;
     const shop = this.shop?.dispatch(cmd);

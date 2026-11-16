@@ -110,6 +110,17 @@ function moneyRequest(t: TacticalState, merc: Soldier, slotArg: unknown, amount:
   };
 }
 
+export function withdrawnMoneyRequest(money: ItemObject, withdrawn: () => void): GiveRequest {
+  return {
+    slot: NO_SLOT,
+    preview: money,
+    take: () => {
+      withdrawn();
+      return cloneObject(money);
+    },
+  };
+}
+
 function ringRequest(t: TacticalState, merc: Soldier, position: number, countArg: unknown): GiveRequest | GiveRefusal {
   const ring = merc.keyRing?.[position];
   if (!ring || ring.count === 0) return 'emptySlot';

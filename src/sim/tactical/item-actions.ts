@@ -26,7 +26,9 @@
 // @src whatever a merc on the move was walking up to do (2026-11-14); HandleSoldierPickupItem's menu on more than one shown
 // @src item at arrival, the merc frozen (fPauseAllAnimation) until Interface_Items.cc RemoveItemPickupMenu, ItemPickupOK's
 // @src SoldierGetItemFromWorld with ITEM_PICKUP_SELECTION (2026-11-14); the bTempFrequency and gpTempSoldier a switch's box
-// @src writes before DoMessageBox drops it, read by the switch box already up (2026-11-14).
+// @src writes before DoMessageBox drops it, read by the switch box already up (2026-11-14); Interface_Items.cc
+// @src CancelItemPointer with no source slot (gbItemPointerSrcSlot NO_SLOT: AddItemToPool at the holder's feet, no APs,
+// @src no animation, 2026-11-16).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -360,6 +362,11 @@ export function soldierDropObject(t: TacticalState, s: Soldier, o: ItemObject): 
     soldierHandleDropItem(t, s);
     soldierGotoStationaryStance(t, s);
   }
+}
+
+export function cancelItemPointerAtHisFeet(t: TacticalState, s: Soldier, o: ItemObject): void {
+  addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
+  notifySoldiersToLookForItems(t);
 }
 
 function soldierHandleDropItem(t: TacticalState, s: Soldier): void {

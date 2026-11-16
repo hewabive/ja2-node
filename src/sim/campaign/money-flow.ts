@@ -6,7 +6,12 @@
 // @src BtnMoneyButtonCallbackPrimary (a withdrawal stops at MAX_MONEY_PER_SLOT); src/game/Tactical/Interface.cc
 // @src SetCurrentTacticalPanelCurrentMerc (no single merc panel for escorts and non-merc bodies); Interface_Items.cc
 // @src RemoveMoney and HandleItemPointerClick (the withdrawal in the cursor dropped into a pocket, onto another merc's
-// @src panel or onto the floor, 2026-11-15).
+// @src panel or onto the floor, 2026-11-15); CancelItemPointer (the withdrawal in the cursor cancelled, also as combat
+// @src starts or a talk panel opens, lands at the holder's feet at no AP cost) and Interface_Panels.cc
+// @src SMInvMoneyButtonCallback with ConfirmationToDepositMoneyToPlayersAccount (the withdrawal in the cursor deposited
+// @src again: the withdrawal's and the deposit's ledger entries, each for the merc of the panel at the time),
+// @src HandleItemPointerClick (the withdrawal in the cursor thrown, passed or given as any cursor item, SoldierGiveItem
+// @src with NO_SLOT), 2026-11-16.
 
 import { ItemClass } from '../../content/items/items.ts';
 import type { CommandResult } from '../command.ts';
@@ -15,12 +20,15 @@ import { createMoney, deleteObject, type ItemObject, MAX_MONEY_PER_SLOT } from '
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
 import { moneyAmount, parseSlot, withdrawnMoneyCommand } from '../tactical/inventory-commands.ts';
+import type { WithdrawalTarget, WithdrawnTo } from '../tactical/inventory-events.ts';
+import { cancelItemPointerAtHisFeet } from '../tactical/item-actions.ts';
 import { refused, refuseWithText } from '../tactical/refusal.ts';
 import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { addTransaction, FinanceCode, type FinanceRecord } from './finances.ts';
+import { withdrawnMoneyRequest } from './give-flow.ts';
 import { addToMercInventory, fitsInMercInventory } from './merc-placement.ts';
 
 export const MONEY_COMMANDS: ReadonlySet<string> = new Set(['withdrawCash', 'depositCash', 'splitMoney']);
@@ -56,12 +64,30 @@ function refusal(code: MoneyRefusal): CommandResult {
 }
 
 const GROUND = 'ground';
+const FEET = 'feet';
+const ACCOUNT = 'account';
+const TOSS = 'toss';
+const PASS = 'pass';
+const GIVE = 'give';
 
-function withdrawalTarget(cmd: CampaignCommand): { readonly to?: number | typeof GROUND; readonly toSoldier?: number } {
-  if (cmd.to === GROUND) return { to: GROUND };
+const OFF_THE_POCKETS: ReadonlySet<unknown> = new Set([GROUND, FEET]);
+
+export function cancelsTheWithdrawal(cmd: { readonly type: string; readonly to?: unknown }): boolean {
+  return cmd.type === 'withdrawCash' && cmd.to === FEET;
+}
+
+function otherSoldier(cmd: CampaignCommand): { readonly toSoldier?: number } {
+  return typeof cmd.toSoldier === 'number' && cmd.toSoldier !== cmd.soldier ? { toSoldier: cmd.toSoldier } : {};
+}
+
+function withdrawalTarget(cmd: CampaignCommand): WithdrawalTarget {
+  if (cmd.to === ACCOUNT) return { to: ACCOUNT, ...otherSoldier(cmd) };
+  if (cmd.to === PASS || cmd.to === GIVE) return { to: cmd.to, target: cmd.target as NonNullable<WithdrawalTarget['target']> };
+  if (cmd.to === TOSS) return { to: TOSS, gridNo: cmd.gridNo as number };
+  if (OFF_THE_POCKETS.has(cmd.to)) return { to: cmd.to as WithdrawnTo };
   const to = parseSlot(cmd.to);
   if (to === null) return {};
-  return { to, ...(typeof cmd.toSoldier === 'number' && cmd.toSoldier !== cmd.soldier ? { toSoldier: cmd.toSoldier } : {}) };
+  return { to, ...otherSoldier(cmd) };
 }
 
 export class MoneyFlow {
@@ -88,7 +114,7 @@ export class MoneyFlow {
     if (cmd.type === 'splitMoney') return null;
     const s = tactical.soldier(cmd.soldier);
     if (!s?.placed || s.team !== Team.OUR) return refusal(MoneyRefusal.NO_SUCH_SOLDIER);
-    const turn = tactical.actRefusal(s);
+    const turn = cancelsTheWithdrawal(cmd) ? null : tactical.actRefusal(s);
     if (turn) return refused(turn);
     if (!this.#hasPanel(tactical, s)) return refusal(MoneyRefusal.NO_INVENTORY);
     return cmd.type === 'withdrawCash' ? this.#withdraw(tactical, s, cmd) : this.#deposit(tactical, s, cmd);
@@ -114,14 +140,26 @@ export class MoneyFlow {
     const items = tactical.state.content.items;
     if (!items.byName.has('MONEY')) return refusal(MoneyRefusal.NO_ROOM);
     const money = createMoney(items, amount);
-    const book = () => this.#moneyChanged(addTransaction(finances, FinanceCode.TRANSFER_FUNDS_TO_MERC, s.profile, this.#now(), -amount));
+    const book = () => {
+      this.#moneyChanged(addTransaction(finances, FinanceCode.TRANSFER_FUNDS_TO_MERC, s.profile, this.#now(), -amount));
+      this.#emit({ type: 'cashWithdrawn', soldier: s.id, amount, ...withdrawalTarget(cmd) });
+    };
     const placed = this.#placeWithdrawal(tactical, s, cmd, money, book);
     if (!placed.ok) return placed;
-    this.#emit({ type: 'cashWithdrawn', soldier: s.id, amount, ...withdrawalTarget(cmd) });
-    return { ok: true, data: { amount, balance: finances.balance } };
+    return { ok: true, data: { ...(placed.data as object | undefined), amount, balance: finances.balance } };
   }
 
   #placeWithdrawal(tactical: TacticalSim, s: Soldier, cmd: CampaignCommand, money: ItemObject, book: () => void): CommandResult {
+    if (cmd.to === FEET) {
+      book();
+      cancelItemPointerAtHisFeet(tactical.state, s, money);
+      return { ok: true };
+    }
+    if (cmd.to === ACCOUNT) return this.#depositAgain(tactical, s, cmd, money.money, book);
+    if (cmd.to === TOSS) return tactical.tossFromCursor(s, cmd, { outside: money, taken: book });
+    if (cmd.to === PASS) return tactical.passFromCursor(s, cmd, { outside: money, taken: book });
+    if (cmd.to === GIVE)
+      return this.#campaign.talk?.giveFromCursor(cmd, withdrawnMoneyRequest(money, book)) ?? refusal(MoneyRefusal.NOT_IN_TACTICAL);
     if (cmd.to === GROUND)
       return tactical.dropFromCursor(s, cmd.gridNo, () => {
         book();
@@ -130,6 +168,21 @@ export class MoneyFlow {
     if (cmd.to !== undefined) return withdrawnMoneyCommand(tactical.state, s, cmd, money, book);
     if (cmd.toSoldier !== undefined) return refusal(MoneyRefusal.BAD_SLOT);
     return this.#intoAFreePocket(tactical, s, money, book);
+  }
+
+  #depositAgain(tactical: TacticalSim, s: Soldier, cmd: CampaignCommand, amount: number, book: () => void): CommandResult {
+    const depositor = cmd.toSoldier === undefined ? s : tactical.soldier(cmd.toSoldier);
+    if (!depositor?.placed || depositor.team !== Team.OUR) return refusal(MoneyRefusal.NO_SUCH_SOLDIER);
+    if (!this.#hasPanel(tactical, depositor)) return refusal(MoneyRefusal.NO_INVENTORY);
+    book();
+    this.#bookDeposit(depositor, amount);
+    return { ok: true };
+  }
+
+  #bookDeposit(s: Soldier, amount: number): void {
+    const finances = this.#campaign.state.finances;
+    this.#moneyChanged(addTransaction(finances, FinanceCode.MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT, s.profile, this.#now(), amount));
+    this.#emit({ type: 'cashDeposited', soldier: s.id, amount });
   }
 
   #intoAFreePocket(tactical: TacticalSim, s: Soldier, money: ItemObject, book: () => void): CommandResult {
@@ -151,15 +204,13 @@ export class MoneyFlow {
     const amount = cmd.amount === undefined ? o.money : moneyAmount(cmd.amount);
     if (amount === null || amount <= 0) return refusal(MoneyRefusal.BAD_AMOUNT);
     if (amount > o.money) return refusal(MoneyRefusal.NOT_ENOUGH_MONEY);
-    const finances = this.#campaign.state.finances;
     const item = o.item;
     o.money -= amount;
     if (o.money === 0) {
       deleteObject(o);
       handleTacticalEffectsOfEquipmentChange(t, s, slot, item, o.item);
     }
-    this.#moneyChanged(addTransaction(finances, FinanceCode.MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT, s.profile, this.#now(), amount));
-    this.#emit({ type: 'cashDeposited', soldier: s.id, amount });
-    return { ok: true, data: { amount, balance: finances.balance } };
+    this.#bookDeposit(s, amount);
+    return { ok: true, data: { amount, balance: this.#campaign.state.finances.balance } };
   }
 }

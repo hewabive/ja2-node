@@ -6,7 +6,8 @@
 // @src cube level 3, the 3 AP charged before AutoPlaceObject, MSG_ITEM_PASSED_TO_MERC or MSG_NO_ROOM_TO_PASS_ITEM, the
 // @src catcher stopped and both turned to each other into PASS_OBJECT when standing out of water; keys off the ring passed
 // @src as BeginKeyRingItemPointer takes them, 2026-11-03); Handle_UI.cc SelectedGuyInBusyAnimation (the click ignored while
-// @src the merc picks up, drops, throws or works a door, and no check that he stands still, 2026-11-14).
+// @src the merc picks up, drops, throws or works a door, and no check that he stands still, 2026-11-14); RemoveMoney's money
+// @src from the account in the cursor, passed as any cursor item (2026-11-16).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { NOTHING } from '../../content/items/items.ts';
@@ -22,7 +23,16 @@ import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { autoPlaceObject, itemIn } from './inventory.ts';
 import { tacticalPanelEnv } from './inventory-commands.ts';
 import { cancelCursor } from './inventory-panel.ts';
-import { type ItemSource, isRingSource, type PocketSource, type RingSource, returnKeysToRing, takeSourceObject } from './item-source.ts';
+import {
+  isOutsideSource,
+  isRingSource,
+  type OutsideSource,
+  type PocketSource,
+  type PointerSource,
+  type RingSource,
+  returnKeysToRing,
+  takeSourceObject,
+} from './item-source.ts';
 import { directionToward, stopMerc } from './movement.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { mercInWater } from './person-structure.ts';
@@ -143,11 +153,21 @@ function passFromPocket(t: TacticalState, giver: Soldier, catcher: Soldier, sour
   return passed;
 }
 
-export function passItem(t: TacticalState, giver: Soldier, catcher: Soldier, source: ItemSource): PassRefusal | PassOutcome {
+function passFromOutside(t: TacticalState, giver: Soldier, catcher: Soldier, source: OutsideSource): boolean {
+  const passed = handOver(t, giver, catcher, source.outside);
+  if (passed) source.taken();
+  return passed;
+}
+
+function passFrom(t: TacticalState, giver: Soldier, catcher: Soldier, source: PointerSource): boolean {
+  if (isOutsideSource(source)) return passFromOutside(t, giver, catcher, source);
+  return isRingSource(source) ? passFromRing(t, giver, catcher, source) : passFromPocket(t, giver, catcher, source);
+}
+
+export function passItem(t: TacticalState, giver: Soldier, catcher: Soldier, source: PointerSource): PassRefusal | PassOutcome {
   const refusal = passRefusal(t, giver, catcher);
   if (refusal) return refusal;
   deductPoints(t, catcher, AP_PASS_ITEM, 0);
   deductPoints(t, giver, AP_PASS_ITEM, 0);
-  const passed = isRingSource(source) ? passFromRing(t, giver, catcher, source) : passFromPocket(t, giver, catcher, source);
-  return { passed };
+  return { passed: passFrom(t, giver, catcher, source) };
 }

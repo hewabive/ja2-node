@@ -7,6 +7,7 @@ import { pythSpacesAway } from '../content/world/grid.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
 import { createItem, emptyObject } from '../sim/items/object.ts';
 import { InvSlot, NUM_INV_SLOTS } from '../sim/tactical/inventory.ts';
+import { Team } from '../sim/tactical/soldier.ts';
 import type { CampaignSession } from './campaign-session.ts';
 
 let kit: StubSectorKit;
@@ -209,7 +210,131 @@ async function withdrawElsewhere(mode?: RunMode): Promise<CampaignSession> {
   return session;
 }
 
+function ledgerSince(session: CampaignSession, entries: number) {
+  return session.campaign.state.finances.ledger.slice(entries).map(({ code, secondCode, amount }) => ({ code, secondCode, amount }));
+}
+
+function outOfTurnInCombat(session: CampaignSession, merc: number): () => void {
+  const t = session.campaign.tactical?.state;
+  if (!t) throw new Error('no sector');
+  t.inCombat = true;
+  t.turn.currentTeam = Team.ENEMY;
+  soldierOf(session, merc).actionPoints = 0;
+  return () => {
+    const back = session.campaign.tactical?.state;
+    if (!back) throw new Error('no sector');
+    back.inCombat = false;
+    back.turn.currentTeam = Team.OUR;
+  };
+}
+
+async function cancelOrDepositAgain(mode?: RunMode): Promise<CampaignSession> {
+  const session = await stubCampaignInA10(kit, 6, mode);
+  const live = new ReloadingSession('t', session);
+  const [merc, other] = (session.view().strategic?.mercs ?? []).map((m) => m.id);
+  if (merc === undefined || other === undefined) throw new Error('two mercs expected');
+  const profile = (id: number) => soldierOf(session, id).profile;
+  const finances = () => session.campaign.state.finances;
+  const balance = finances().balance;
+  const pockets = moneySlots(session, merc);
+  const at = soldierOf(session, merc).gridNo;
+  session.drainEvents();
+
+  let entries = finances().ledger.length;
+  expect(session.dispatch({ type: 'withdrawCash', soldier: merc, amount: WITHDRAWN, to: 'account', toSoldier: other })).toEqual({
+    ok: true,
+    data: { amount: WITHDRAWN, balance },
+  });
+  expect(ledgerSince(session, entries)).toEqual([
+    { code: FinanceCode.TRANSFER_FUNDS_TO_MERC, secondCode: profile(merc), amount: -WITHDRAWN },
+    { code: FinanceCode.MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT, secondCode: profile(other), amount: WITHDRAWN },
+  ]);
+  expect(session.drainEvents().filter((e) => e.type === 'cashWithdrawn' || e.type === 'cashDeposited')).toMatchObject([
+    { type: 'cashWithdrawn', soldier: merc, amount: WITHDRAWN, to: 'account', toSoldier: other },
+    { type: 'cashDeposited', soldier: other, amount: WITHDRAWN },
+  ]);
+  expect(moneySlots(session, merc)).toEqual(pockets);
+
+  const outOfCombat = outOfTurnInCombat(session, merc);
+  expect(refusalOf(session, { type: 'withdrawCash', soldier: merc, amount: SPLIT, to: 'ground' })).toBe('notYourTurn');
+  entries = finances().ledger.length;
+  expect(session.dispatch({ type: 'withdrawCash', soldier: merc, amount: SPLIT, to: 'feet' })).toEqual({
+    ok: true,
+    data: { amount: SPLIT, balance: balance - SPLIT },
+  });
+  expect(moneyOnTheFloor(session, at)).toEqual([SPLIT]);
+  expect(soldierOf(session, merc).actionPoints).toBe(0);
+  expect(ledgerSince(session, entries)).toEqual([{ code: FinanceCode.TRANSFER_FUNDS_TO_MERC, secondCode: profile(merc), amount: -SPLIT }]);
+  expect(session.drainEvents().find((e) => e.type === 'cashWithdrawn')).toMatchObject({ soldier: merc, amount: SPLIT, to: 'feet' });
+  outOfCombat();
+
+  walkNextToProfile(session, merc, STUB_DEALER);
+  expect(session.dispatch({ type: 'talk', soldier: merc, target: { npc: STUB_DEALER } })).toMatchObject({ ok: true });
+  live.advance({ idle: true });
+  expect(session.view().conversation).toBeTruthy();
+  const there = soldierOf(session, merc).gridNo;
+  expect(refusalOf(session, { type: 'withdrawCash', soldier: merc, amount: SPLIT, to: 'ground' })).toBe('conversationOpen');
+  expect(session.dispatch({ type: 'withdrawCash', soldier: merc, amount: SPLIT, to: 'feet' })).toMatchObject({ ok: true });
+  expect(moneyOnTheFloor(session, there)).toContain(SPLIT);
+  expect(finances().balance).toBe(balance - 2 * SPLIT);
+  return session;
+}
+
+const STUB_NPC = 94;
+const THROW_ROWS = 6;
+const COLS = 160;
+
+function moneyLying(session: CampaignSession): number[] {
+  const money = kit.content.items.byName.get('MONEY')?.index;
+  return (session.campaign.tactical?.state.worldItems ?? []).filter((wi) => wi.object.item === money).map((wi) => wi.object.money);
+}
+
+async function throwPassOrGive(mode?: RunMode): Promise<CampaignSession> {
+  const session = await stubCampaignInA10(kit, 6, mode);
+  const live = new ReloadingSession('t', session);
+  const [merc, other] = (session.view().strategic?.mercs ?? []).map((m) => m.id);
+  if (merc === undefined || other === undefined) throw new Error('two mercs expected');
+  const finances = () => session.campaign.state.finances;
+  const balance = finances().balance;
+  const withdraw = (extra: Record<string, unknown>) => session.dispatch({ type: 'withdrawCash', soldier: merc, amount: SPLIT, ...extra });
+  session.drainEvents();
+
+  const empty = fillPockets(session, other);
+  expect(withdraw({ to: 'pass', target: other })).toEqual({ ok: true, data: { passed: false, amount: SPLIT, balance } });
+  expect(session.drainEvents().some((e) => e.type === 'cashWithdrawn')).toBe(false);
+  empty();
+  live.advance({ idle: true });
+  expect(withdraw({ to: 'pass', target: other })).toEqual({ ok: true, data: { passed: true, amount: SPLIT, balance: balance - SPLIT } });
+  expect(moneySlots(session, other).map(([, amount]) => amount)).toContain(SPLIT);
+  expect(session.drainEvents().find((e) => e.type === 'cashWithdrawn')).toMatchObject({ soldier: merc, to: 'pass', target: other });
+  live.advance({ idle: true });
+
+  const at = soldierOf(session, merc).gridNo;
+  expect(refusalOf(session, { type: 'withdrawCash', soldier: merc, amount: SPLIT, to: 'toss', gridNo: at + 1 })).toBe('tooClose');
+  expect(finances().balance).toBe(balance - SPLIT);
+  expect(withdraw({ to: 'toss', gridNo: at - THROW_ROWS * COLS })).toMatchObject({ ok: true, data: { balance: balance - 2 * SPLIT } });
+  live.advance({ idle: true });
+  expect(moneyLying(session)).toContain(SPLIT);
+
+  const given = withdraw({ to: 'give', target: { npc: STUB_NPC } });
+  expect(given, given.reason).toMatchObject({ ok: true, data: { balance: balance - 3 * SPLIT } });
+  const report = live.advance({ idle: true });
+  expect(report.events).toContainEqual(
+    expect.objectContaining({ type: 'npcTookItem', profile: STUB_NPC, from: merc, item: 'MONEY', money: SPLIT }),
+  );
+  expect(finances().balance).toBe(balance - 3 * SPLIT);
+  return session;
+}
+
 describe('the money region and the money box on the stub campaign', () => {
+  it('withdraws money as it is passed, thrown or given like any cursor item, a pass with no room withdrawing nothing (HandleItemPointerClick)', async () => {
+    await expectReloadsInvisible(throwPassOrGive);
+  });
+
+  it('drops a cancelled withdrawal at the feet for no APs, out of turn and in a conversation too, and books both entries for one deposited again (CancelItemPointer, ConfirmationToDepositMoneyToPlayersAccount)', async () => {
+    await expectReloadsInvisible(cancelOrDepositAgain);
+  });
+
   it('withdraws, splits and deposits money with the ledger entries of the original, the same across reloads', async () => {
     await expectReloadsInvisible(moveMoney);
   });

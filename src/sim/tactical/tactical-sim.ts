@@ -179,7 +179,15 @@ import {
   PASS_REFUSALS,
   passItem,
 } from './item-pointer.ts';
-import { ITEM_SOURCE_REFUSALS, type ItemSource, isRingSource, parseItemSource, takeSourceObject } from './item-source.ts';
+import {
+  ITEM_SOURCE_REFUSALS,
+  type ItemSource,
+  isRingSource,
+  type OutsideSource,
+  type PointerSource,
+  parseItemSource,
+  takeSourceObject,
+} from './item-source.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -1153,14 +1161,23 @@ export class TacticalSim {
   }
 
   #pass(cmd: TacticalCommand): CommandResult {
-    const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
-    selectOrderedMerc(t, s);
+    selectOrderedMerc(this.state, s);
     const source = this.#itemSource(s, cmd);
     if ('ok' in source) return source;
+    return this.#passFrom(s, cmd, source);
+  }
+
+  passFromCursor(s: Soldier, cmd: TacticalCommand, source: OutsideSource): CommandResult {
+    selectOrderedMerc(this.state, s);
+    return this.#passFrom(s, cmd, source);
+  }
+
+  #passFrom(s: Soldier, cmd: TacticalCommand, source: PointerSource): CommandResult {
+    const t = this.state;
     const target = this.soldier(cmd.target);
     if (!target || !onTheGrid(target) || target === s || !shownToPlayer(target))
       return refuse('noSuchTarget', 'target must be another soldier the squad sees');
@@ -1171,14 +1188,23 @@ export class TacticalSim {
   }
 
   #toss(cmd: TacticalCommand): CommandResult {
-    const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
-    selectOrderedMerc(t, s);
+    selectOrderedMerc(this.state, s);
     const source = this.#itemSource(s, cmd);
     if ('ok' in source) return source;
+    return this.#tossFrom(s, cmd, source);
+  }
+
+  tossFromCursor(s: Soldier, cmd: TacticalCommand, source: OutsideSource): CommandResult {
+    selectOrderedMerc(this.state, s);
+    return this.#tossFrom(s, cmd, source);
+  }
+
+  #tossFrom(s: Soldier, cmd: TacticalCommand, source: PointerSource): CommandResult {
+    const t = this.state;
     const g = cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const level = cmd.level ?? 0;
