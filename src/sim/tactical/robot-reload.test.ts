@@ -236,4 +236,13 @@ describe('reloading the robot from the item cursor (Interface_Items.cc, Soldier_
     expect(apsToReloadRobot(walled.sim.state, walled.merc, walled.robot)).toBe(0);
     expect(robotReloadRefusal(walled.sim.state, walled.merc, walled.robot, clip9)).toBe('noPath');
   });
+
+  it('finds no path before the calibre for a robot nobody can reach: the cursor’s AP number of 0 is checked first, so ammo of another calibre gets NO_PATH, not the calibre line', () => {
+    const walled = scene(
+      ROBOT_AT,
+      DIRECTION_INCREMENT.map((step) => ROBOT_AT + step),
+    );
+    const clip45 = createItem(content.items, item('CLIP45_7'), 100);
+    expect(robotReloadRefusal(walled.sim.state, walled.merc, walled.robot, clip45)).toBe('noPath');
+  });
 });

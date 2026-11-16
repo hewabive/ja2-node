@@ -17,7 +17,8 @@
 // @src (RebuildCurrentSquad as the menu closes after its "remove escort" in tactical, 2026-11-08); Handle_UI.cc
 // @src HandleTalkInit's NO_LOS_TO_TALK_TARGET, STR_LATE_45 and STR_LATE_21 naming the merc and the target (2026-11-14);
 // @src HandleTalkInit's STR_LATE_32 naming Dimitri on our team (2026-11-14); Campaign.cc ChangeStat's stat line and
-// @src QUOTE_EXPERIENCE_GAIN through the dialogue queue (2026-11-14); AIMain.cc ExecuteAction's StartCivQuote (2026-11-14).
+// @src QUOTE_EXPERIENCE_GAIN through the dialogue queue (2026-11-14); AIMain.cc ExecuteAction's StartCivQuote (2026-11-14);
+// @src HandleItemPointerClick's put-back into the source slot before the robot's calibre check (2026-11-16).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -1043,8 +1044,10 @@ export class TalkFlow {
     const refusal = robotReloadRefusal(t, merc, robot, request.preview);
     if (refusal === 'noPath') this.#emit({ type: 'npcMessage', kind: 'noPath' });
     if (refusal === 'notEnoughAP') refuse(refusal, ROBOT_RELOAD_AP_TEXT);
-    if (refusal === 'robotNeedsCalibre')
+    if (refusal === 'robotNeedsCalibre') {
+      request.putBack();
       return refuseCommand(refusal, new Refusal(refusal).message, { calibre: robotGunCalibre(t, robot) });
+    }
     if (refusal) refuse(refusal);
     if (this.talk.inPanel) talkMenuGive(this.host);
     const to = soldierReloadRobot(t, merc, robot, request.take(), request.slot);

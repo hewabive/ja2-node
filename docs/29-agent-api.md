@@ -943,7 +943,9 @@ record, and the recruit gets a new soldier id on our team (`ChangeSoldierTeam`).
 in its sector wears the remote control in a head slot (`src/sim/campaign/robot-control.ts`).
 
 `give` to the robot reloads its gun instead (`src/sim/tactical/robot-reload.ts`): it needs the walk plus 4 AP and ammo
-of the gun's calibre (else `robotNeedsCalibre` with the gun's `calibre` index), takes one object off the pocket at once
+of the gun's calibre (else `robotNeedsCalibre` with the gun's `calibre` index, which comes after `noPath` and
+`notEnoughAP` as the original checks the cursor's AP number first, and which moves one object refused off a stack to
+the stack's end, as the original's put-back before the check does), takes one object off the pocket at once
 and returns `{reload, walking, to}` or `{reload}`; the merc walks next to the robot and kneels, and at the end of his
 animation the robot reloads from the given object, paying the reload's APs in combat, with the `reloaded` event. What
 is left of the object, or the robot's old magazine, goes into the merc's pockets, and is lost when they are full, as

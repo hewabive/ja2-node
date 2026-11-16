@@ -201,6 +201,8 @@ otherwise:
 | A reload of the robot checks the walk plus 4 AP and charges the merc only the walk and his kneel; the robot pays the reload | `tactical/robot-reload.test.ts` |
 | A whole stack given to the robot reloads it from a copy: the pocket loses only its first magazine and gets the rest of the copy back too; one magazine of a stack loads the first while the pocket loses the second | `tactical/robot-reload.test.ts`, `src/server/robot-reload-stub.test.ts` |
 | The robot's old magazine that does not fit the merc's pockets is lost: code 756 ignores the failed placement | `tactical/robot-reload.test.ts` |
+| Ammo of another calibre for a robot nobody can reach gets `NO_PATH`, not the calibre line: the cursor's AP number of 0 is checked before the robot branch (`Tactical/Interface_Items.cc:3151-3155`, `:2966-2990`) | `tactical/robot-reload.test.ts` "finds no path before the calibre …" |
+| One magazine of a stack the robot refuses goes back to the stack's end, which rotates the statuses: the put-back into the source slot comes before the calibre check (`Tactical/Interface_Items.cc:3225-3233`, `Tactical/Items.cc:2010`) | `src/server/robot-reload-stub.test.ts` "puts one magazine of a stack the robot refuses …" |
 | A civilian hint starts its quest on every ask while unsaid, also when a kid is asked | `civ-quotes.test.ts` |
 | L12's civilians read the miners' hint records: the sector table's L12 entry is the miners' index | `civ-quotes.test.ts` |
 | An enemy about to throw a knife says the line of his rank, not the threat: `DetermineCivQuoteEntry` tests `AI_ACTION_FIRE_GUN` twice and the knife throw never (`Tactical/Civ_Quotes.cc:405-406`) | `civ-quotes.test.ts` "gives an enemy about to throw a knife …"; `src/server/civ-stub.test.ts` |

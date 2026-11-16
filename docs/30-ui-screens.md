@@ -141,8 +141,9 @@ talk").
 
 **The item cursor lives in the client, the pickup menu is a prompt.** The cursor is a local selection drawn as the mouse
 cursor until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps
-it, and so does a `combineStack` or an `applyItem` that leaves objects in it, at the index its answer names, and a
-`moveItem` that leaves one, on the pocket its `leftover` names (deviation "Item cursor on the canvas"). The hand
+it, but for the robot's `robotNeedsCalibre`, after which the original's click ends its cursor too, and so does a
+`combineStack` or an `applyItem` that leaves objects in it, at the index its answer names, and a `moveItem` that leaves
+one, on the pocket its `leftover` names (deviation "Item cursor on the canvas"). The hand
 cursor's click sends one `pickUp` without items; arriving on more than one shown item the merc freezes and the server
 opens the `pickupMenu` prompt with the pile as it is then. The client shows the menu at the pointer from the prompt,
 moving the view to him as `LocateSoldier` does, and OK answers with the chosen rows, Cancel, Esc or a cleared interface

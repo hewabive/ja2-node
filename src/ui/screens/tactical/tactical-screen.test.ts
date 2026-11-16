@@ -12,6 +12,7 @@ import {
 import { Body } from '../../../content/anim/body-types.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import { MercKind } from '../../../sim/campaign/roster.ts';
 import { createItem } from '../../../sim/items/object.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
@@ -1519,5 +1520,57 @@ describe('the tactical screen in a stub campaign', () => {
     f.key('Enter');
     await f.settle();
     expect(f.t.runtime.host.modal).toBeNull();
+  });
+
+  it('ends the cursor the robot refuses as ammo of another calibre, as HandleItemPointerClick does after its put-back: one beer of a stack back at its end, keys still on the ring, a withdrawal not booked', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const [merc = 0, robot = 1] = a10.mercs;
+    const robotMerc = a10.campaign.campaign.battle?.roster.get(robot);
+    if (!robotMerc) throw new Error('no second merc');
+    Object.assign(robotMerc.record, { kind: MercKind.EPC });
+    robotMerc.soldier.bodyType = Body.ROBOTNOWEAPON;
+    const t = tacticalOf(f.session).state;
+    const holder = t.soldiers[merc];
+    if (!holder) throw new Error('no merc');
+    const items = t.content.items;
+    holder.inv[BIG_POCKET] = { ...createItem(items, items.byName.get('BEER')?.index ?? 0, 0), count: 2, status: [100, 60] };
+    const ring = holder.keyRing ?? [];
+    ring[2] = { keyId: 1, count: 2 };
+    f.client.refresh();
+    f.deliver();
+    await smPanelOf(f, 0);
+    expect(f.screen.smMerc).toBe(merc);
+    const balance = f.client.view.strategic?.balance;
+    const giveToTheRobot = async () => {
+      const at = f.world.pickPoint(f.client.view.soldiers.find((s) => s.id === robot)?.gridNo ?? 0);
+      pointerTo(f, at.x, at.y);
+      expect(f.screen.controls.input.itemTile.catcher).toEqual({ soldier: robot, kind: 'reload' });
+      await f.clickAt(at.x, at.y);
+      expect(f.client.commands.at(-1)?.reply).toMatchObject({ ok: false, data: { refusal: 'robotNeedsCalibre' } });
+      expect([f.screen.inventory.cursor, f.screen.controls.input.mode]).toEqual([null, UiMode.MOVE_MODE]);
+    };
+    centreOn(f, f.client.view.soldiers.find((s) => s.id === robot)?.gridNo ?? 0);
+
+    await f.click(`slot${BIG_POCKET}`);
+    await giveToTheRobot();
+    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'give', soldier: merc, target: robot, slot: BIG_POCKET, count: 1 });
+    expect(inventory(f, merc).find((i) => i.slot === BIG_POCKET)?.status).toEqual([60, 100]);
+
+    await f.click('smKeyRing');
+    await f.click('keyRingCell2');
+    const area = f.widget('keyRingArea').rect;
+    await f.clickAt(area.x + 2, area.y + 2);
+    await giveToTheRobot();
+    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'give', soldier: merc, target: robot, slot: { ring: 2 }, count: 1 });
+    expect(ring[2]).toEqual({ keyId: 1, count: 2 });
+
+    await f.click('smMoney');
+    await f.click('itemDescriptionMoney0');
+    await f.click('itemDescriptionMoneyDone');
+    expect(f.screen.inventory.cursor?.source).toMatchObject({ kind: 'account', soldier: merc });
+    await giveToTheRobot();
+    expect(f.client.commands.at(-1)?.cmd).toMatchObject({ type: 'withdrawCash', soldier: merc, to: 'give', target: robot });
+    expect(f.client.view.strategic?.balance).toBe(balance);
   });
 });

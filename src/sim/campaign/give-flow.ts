@@ -4,7 +4,7 @@
 // @src InternalBeginItemPointer, RemoveMoney (the money box in steps of 10), BeginItemPointer; Interface_Panels.cc
 // @src SMInvClickCallbackPrimary; Items.cc GetObjFrom, PlaceObject (the object put back into its slot); Handle_UI.cc
 // @src SelectedGuyInBusyAnimation; BeginKeyRingItemPointer (keys given off the ring leave it with the order, as money
-// @src split off a pocket does, 2026-11-03).
+// @src split off a pocket does, 2026-11-03); the put-back that also stands when the robot refuses the object (2026-11-16).
 
 import { ItemClass } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';
@@ -25,6 +25,7 @@ export interface GiveRequest {
   readonly slot: number;
   readonly preview: ItemObject;
   take(): ItemObject;
+  putBack(): void;
 }
 
 export type GiveRefusal =
@@ -54,6 +55,8 @@ function isMoneyItem(t: TacticalState, o: ItemObject): boolean {
   return t.content.items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY;
 }
 
+function nothingToPutBack(): void {}
+
 function putFirstBackAtTheEnd(o: ItemObject): void {
   const first = o.status[0] ?? 0;
   o.status = [...o.status.slice(1, o.count), first];
@@ -69,11 +72,15 @@ function slotRequest(merc: Soldier, slot: number, countArg: unknown): GiveReques
     preview.count = 1;
     preview.status = [o.status[0] ?? 0];
   }
+  const putBack = () => {
+    if (count < o.count) putFirstBackAtTheEnd(o);
+  };
   return {
     slot,
     preview,
+    putBack,
     take: () => {
-      if (count < o.count) putFirstBackAtTheEnd(o);
+      putBack();
       return cloneObject(preview);
     },
   };
@@ -99,6 +106,7 @@ function moneyRequest(t: TacticalState, merc: Soldier, slotArg: unknown, amount:
   return {
     slot: NO_SLOT,
     preview,
+    putBack: nothingToPutBack,
     take: () => {
       const o = merc.inv[pocket];
       if (o) {
@@ -114,6 +122,7 @@ export function withdrawnMoneyRequest(money: ItemObject, withdrawn: () => void):
   return {
     slot: NO_SLOT,
     preview: money,
+    putBack: nothingToPutBack,
     take: () => {
       withdrawn();
       return cloneObject(money);
@@ -131,6 +140,7 @@ function ringRequest(t: TacticalState, merc: Soldier, position: number, countArg
   return {
     slot: NO_SLOT,
     preview,
+    putBack: nothingToPutBack,
     take: () => {
       removeKeysFromPosition(ring, count);
       return cloneObject(preview);

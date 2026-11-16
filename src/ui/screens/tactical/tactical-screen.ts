@@ -143,6 +143,7 @@ import {
   cursorObjectHeld,
   dropCommand,
   dropInsteadCommand,
+  endsItemPointer,
   giveCommand,
   type ItemCursor,
   passCommand,
@@ -716,7 +717,7 @@ export class TacticalScreen implements Screen {
       return;
     }
     const command = this.#itemPointerCommand(cursor, action, at, holder, target);
-    if (command) void this.inventory.send(command).then((r) => r.ok && this.#endsItemPointer(r.data) && this.#endItemPointer());
+    if (command) void this.inventory.send(command).then((r) => endsItemPointer(r) && this.#endItemPointer());
     else this.#endItemPointer();
   }
 
@@ -737,10 +738,6 @@ export class TacticalScreen implements Screen {
       case 'toss':
         return tossCommand(cursor, at, this.#interfaceLevel) ?? dropInsteadCommand(cursor);
     }
-  }
-
-  #endsItemPointer(data: unknown): boolean {
-    return (data as { passed?: boolean } | undefined)?.passed !== false;
   }
 
   #endItemPointerWhereTheOriginalDoes(view: PlayerView | null): void {

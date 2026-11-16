@@ -26,6 +26,9 @@ const POCKET = InvSlot.SMALLPOCK1;
 const MAGAZINES = 2;
 const FULL_CLIP = 15;
 const PART_CLIP = 10;
+const FULL_45 = 7;
+const PART_45 = 5;
+const LOW_45 = 2;
 const POCKET_MONEY = 500;
 const GIVEN_MONEY = 100;
 
@@ -117,6 +120,31 @@ describe('ammo given to the robot reloads its gun (HandleItemPointerClick, the r
     });
     expect(magazines(soldier(session, merc), 'CLIP45_7')).toBe(1);
     expect(soldier(session, merc).tempObject).toBeNull();
+  });
+
+  it('puts one magazine of a stack the robot refuses back at the end of the stack, as the put-back before the calibre check does, and a whole stack back as it was', async () => {
+    const { session, live, merc, robot } = await withRobot(35);
+    const stack = (status: readonly number[]) =>
+      Object.assign(soldier(session, merc).inv[POCKET] as object, {
+        ...createItem(kit.content.items, item('CLIP45_7'), 100),
+        count: status.length,
+        status: [...status],
+      });
+    const pocketStatus = () => {
+      const o = soldier(session, merc).inv[POCKET] as ItemObject;
+      return o.status.slice(0, o.count);
+    };
+    stack([FULL_45, PART_45, LOW_45]);
+    expect(live.dispatch({ type: 'give', soldier: merc, target: robot, slot: POCKET, count: 1 })).toMatchObject({
+      ok: false,
+      data: { refusal: 'robotNeedsCalibre' },
+    });
+    expect(pocketStatus()).toEqual([PART_45, LOW_45, FULL_45]);
+    expect(live.dispatch({ type: 'give', soldier: merc, target: robot, slot: POCKET })).toMatchObject({
+      ok: false,
+      data: { refusal: 'robotNeedsCalibre' },
+    });
+    expect(pocketStatus()).toEqual([PART_45, LOW_45, FULL_45]);
   });
 
   it('refuses money for the robot, withdrawn from the account or split off a pocket, which the original loses with its cursor of no source slot (original-bugs "Money given to the robot")', async () => {

@@ -17,9 +17,11 @@
 // @src keys off the ring dropped, given, passed or thrown, 2026-11-03); RemoveMoney (money withdrawn from the account into
 // @src the cursor, dropped into a pocket or onto the floor, 2026-11-15); CancelItemPointer (a withdrawal cancelled lands at
 // @src the holder's feet) and Interface_Panels.cc ConfirmationToDepositMoneyToPlayersAccount (a withdrawal deposited again
-// @src books both entries), HandleItemPointerClick (a withdrawal thrown, passed or given like any cursor item), 2026-11-16.
+// @src books both entries), HandleItemPointerClick (a withdrawal thrown, passed or given like any cursor item), 2026-11-16;
+// @src HandleItemPointerClick (the cursor ended after the robot's calibre refusal, which follows the put-back, 2026-11-16).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
+import { refusalOf } from '../../../protocol/refusals.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
 
 export type CursorCount = 'all' | 1;
@@ -357,6 +359,18 @@ export function shownStatus(cursor: ItemCursor | null, view: InventoryItemView, 
   const s = cursor?.source;
   if (s?.kind !== 'slot' || takenFrom(cursor, soldier, view.slot) !== 1) return view.status;
   return view.status.filter((_, k) => k !== s.index);
+}
+
+export const REFUSAL_ROBOT_NEEDS_CALIBRE = 'robotNeedsCalibre';
+
+export interface ItemPointerReply {
+  readonly ok: boolean;
+  readonly data?: unknown;
+}
+
+export function endsItemPointer(reply: ItemPointerReply): boolean {
+  if (!reply.ok) return refusalOf(reply.data) === REFUSAL_ROBOT_NEEDS_CALIBRE;
+  return (reply.data as { readonly passed?: boolean } | undefined)?.passed !== false;
 }
 
 export const REFUSAL_USE_ATTACH = 'useAttach';
