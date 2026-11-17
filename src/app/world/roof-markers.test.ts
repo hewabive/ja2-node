@@ -133,18 +133,15 @@ describe('the roof marker under a soldier on a roof (HandlePlacingRoofMarker)', 
   it('starts over after a reset for a sector entry, as every soldier is created moving', () => {
     const roof = markers();
     roof.update([soldier({ animation: WALKING })]);
-    roof.reset('created');
+    roof.reset();
     expect(roof.update([soldier()])).toEqual([ROOF]);
   });
 
-  it('marks nobody standing on a roof after a load until he walks and stops, as the save restores fSoldierWasMoving', () => {
+  it('marks every soldier standing on a roof at his first view after a load, as at a sector entry', () => {
     const roof = markers();
     roof.update([soldier()]);
-    roof.reset('restored');
-    expect(roof.update([soldier(), enemy({ gridNo: NEXT_ROOF })])).toEqual([]);
-    expect(roof.update([soldier(), enemy({ gridNo: NEXT_ROOF })])).toEqual([]);
-    roof.update([soldier({ animation: WALKING }), enemy({ gridNo: NEXT_ROOF })]);
-    expect(roof.update([soldier(), enemy({ gridNo: NEXT_ROOF })])).toEqual([ROOF]);
+    roof.reset();
+    expect(roof.update([soldier(), enemy({ gridNo: NEXT_ROOF })])).toEqual([ROOF, NEXT_ROOF]);
   });
 
   it('reports the markers placed and taken off in order, and every stop of a seen soldier, on a roof or not', () => {
@@ -164,7 +161,7 @@ describe('the roof marker under a soldier on a roof (HandlePlacingRoofMarker)', 
 
   it('marks the tile where a soldier walking at the load stops', () => {
     const roof = markers();
-    roof.reset('restored');
+    roof.reset();
     expect(roof.update([soldier({ animation: WALKING })])).toEqual([]);
     expect(roof.update([soldier({ gridNo: NEXT_ROOF })])).toEqual([NEXT_ROOF]);
   });

@@ -71,7 +71,6 @@ import { findSoldier, PICK_ANYONE } from '../../ui/screens/tactical/input/target
 import type { UiAssets } from '../game/ui-assets.ts';
 import { type InteractiveWorld, interactiveNodesAt, interactiveTileOf, pictureHasDataAt } from '../world/interactive-nodes.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
-import type { SoldierOrigin } from '../world/roof-markers.ts';
 import { slideView } from '../world/slide.ts';
 import { nightTime } from '../world/soldier-scene.ts';
 import { SANDBOX_TIME, type TacticalDisplayOptions, type TacticalWorldView } from '../world/tactical-world-view.ts';
@@ -203,8 +202,8 @@ export class TacticalWorldPresenter implements WorldPresenter {
     this.#world.observeEffects(effects);
   }
 
-  resetEffects(soldiers: SoldierOrigin): void {
-    this.#world.resetEffects(soldiers);
+  resetEffects(): void {
+    this.#world.resetEffects();
   }
 
   followEvents(events: readonly SimEvent[]): void {

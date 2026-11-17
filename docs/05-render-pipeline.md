@@ -130,9 +130,9 @@ its own, as the original's is a roof node added later than the others: placed at
 the roof lights (our mercs' on a roof) drawn or erased since, our merc's own included as his stop draws it again after
 placing the marker, until the base light is set again (`ambientLightSet`), from when on it takes the roof's shade
 (`roof-marker-shades.ts`). The host starts the soldiers of
-a picture as created when a `sectorLoaded` event came before it, and as restored from a save otherwise: a load, or a
-reconnect, which the original does not have (`app/tactical/tactical-host.ts`). On the stub pack an explosion shows only
-its light: the stubs have no explosion graphics.
+a picture over at a sector entry, a load and a reconnect, which the original does not have, so a soldier standing on a
+roof gets his marker at his first view (`app/tactical/tactical-host.ts`; original-bugs "Roof markers after a load"). On
+the stub pack an explosion shows only its light: the stubs have no explosion graphics.
 
 **Not drawn**: animated and dynamic land (nor does the original draw it), the cover and line-of-sight tiles (`28`),
 and the original's redundant-tile optimisation, which changes nothing visible.
@@ -173,7 +173,6 @@ unless a path is given:
 | A miss frame lasts until more than its delay has passed | `effect-animations.test.ts` |
 | An enemy who climbs onto a roof in sight gets no roof marker until he walks and stops: only our merc's climb places one | `roof-markers.test.ts` |
 | A soldier seen again before his fade-out ends gets no roof marker until he walks and stops; one who walks back into sight on a roof is marked on his tile until he steps off it | `roof-markers.test.ts` |
-| After a load a soldier standing on a roof shows no marker until he walks and stops; a sector entry marks him at once | `roof-markers.test.ts` |
 | The roof marker keeps the default shade under a roof light drawn before it was placed, until the base light is set again, which every dawn and dusk step and every temperature update does, the level unchanged too | `roof-marker-shades.test.ts`, `src/sim/tactical/lighting/lighting.test.ts` |
 | A light going out cuts the roof marker's strongest light to the light left, even a light the marker never got | `roof-marker-shades.test.ts` |
 

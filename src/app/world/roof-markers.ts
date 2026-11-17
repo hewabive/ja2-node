@@ -5,10 +5,7 @@
 // @src forced), InternalRemoveSoldierFromGridNo (taken off the tile he leaves), CreateSoldierCommon (fSoldierWasMoving
 // @src starts TRUE); src/game/Tactical/Overhead.cc ExecuteOverhead (taken off at a fade-out, put back at an other team's
 // @src fade-in, put back when a seen soldier who was moving stands, taken off when he starts moving);
-// @src src/game/Tactical/Soldier_Ani.cc code 408 (forced at the end of our merc's climb up);
-// @src src/game/Tactical/LoadSaveSoldierType.cc ExtractSoldierType (a loaded soldier keeps the fSoldierWasMoving he was
-// @src saved with: a soldier standing in sight is saved after he stopped, one walking before; the loaded map has no
-// @src markers, 2026-11-02).
+// @src src/game/Tactical/Soldier_Ani.cc code 408 (forced at the end of our merc's climb up).
 
 import type { SoldierView } from '../../protocol/view.ts';
 
@@ -17,8 +14,6 @@ const OUR_TEAM = 0;
 const SECOND_LEVEL = 1;
 
 type Shown = 'seen' | 'fading' | 'gone';
-
-export type SoldierOrigin = 'created' | 'restored';
 
 interface Standing {
   readonly gridNo: number;
@@ -52,7 +47,6 @@ export class RoofMarkers {
   readonly #soldiers = new Map<number, TrackedSoldier>();
   #changes: RoofMarkerChange[] = [];
   #started = false;
-  #origin: SoldierOrigin = 'created';
 
   constructor(rules: RoofMarkerRules) {
     this.#rules = rules;
@@ -74,18 +68,16 @@ export class RoofMarkers {
     return [...this.#markers];
   }
 
-  reset(origin: SoldierOrigin): void {
+  reset(): void {
     this.#changes = [];
     this.#markers.clear();
     this.#soldiers.clear();
     this.#started = false;
-    this.#origin = origin;
   }
 
   #arrival(s: SoldierView): TrackedSoldier {
-    const restored = !this.#started && this.#origin === 'restored';
     const shown = this.#started ? 'gone' : shownOf(s);
-    return { gridNo: s.gridNo, level: s.level, animation: s.animation, shown, wasMoving: restored ? !this.#stationary(s) : true };
+    return { gridNo: s.gridNo, level: s.level, animation: s.animation, shown, wasMoving: true };
   }
 
   #stationary(s: SoldierView): boolean {

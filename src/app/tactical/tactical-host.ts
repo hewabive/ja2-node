@@ -332,7 +332,7 @@ export class TacticalHost {
   #startSoldiers(loaded: Loaded, screen: TacticalScreen, reused: boolean): void {
     const entry = this.#entry;
     this.#entry = null;
-    if (entry || !reused) loaded.presenter.resetEffects(entry ? 'created' : 'restored');
+    if (entry || !reused) loaded.presenter.resetEffects();
     const camera = entryCamera(this.#o.session.view, entry);
     if (camera.length > 0) screen.cameraOnEntry(camera);
     if (entry && entry.dropZone !== null) loaded.presenter.centerOn(entry.dropZone);
@@ -494,7 +494,7 @@ export class TacticalHost {
     this.#frames?.reset();
     this.#entry = null;
     this.#scene = null;
-    this.#loaded?.presenter.resetEffects('restored');
+    this.#loaded?.presenter.resetEffects();
   }
 
   #unknownProfile(frames: readonly ViewFrame[]): boolean {

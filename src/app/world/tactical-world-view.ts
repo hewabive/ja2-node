@@ -42,7 +42,7 @@ import { type HelicopterShadowFrame, HelicopterShadows } from './helicopter-shad
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
 import { RoofMarkerShades } from './roof-marker-shades.ts';
-import { ROOF_MARKER_TILE, RoofMarkers, type SoldierOrigin } from './roof-markers.ts';
+import { ROOF_MARKER_TILE, RoofMarkers } from './roof-markers.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
 import type { BoundingBox } from './soldier-bounding-boxes.ts';
 import type { SoldierFrames } from './soldier-frames.ts';
@@ -281,10 +281,10 @@ export class TacticalWorldView {
     this.#effectAnimations.observe(effects);
   }
 
-  resetEffects(soldiers: SoldierOrigin): void {
+  resetEffects(): void {
     this.#effectAnimations.reset();
     this.#helicopterShadows.reset();
-    this.#roofMarkers.reset(soldiers);
+    this.#roofMarkers.reset();
     this.#roofMarkerShades.reset();
   }
 
