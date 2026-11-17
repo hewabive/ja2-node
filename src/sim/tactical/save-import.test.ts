@@ -1371,7 +1371,7 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
     expect(away && hasPendingAction(away)).toBe(true);
   });
 
-  it('lets the restart drop it from a soldier saved in a moving animation it does not reset, with a count above 0, freeing the target of his give only if the load made that target before him: a later one is made from his save, engaged again', () => {
+  it('lets the restart drop it from a soldier saved in a moving animation it does not reset, with a count above 0, freeing the target of his give whatever their order in the load', () => {
     const engaged = { uiStatusFlags: SOLDIER_ENGAGEDINACTION };
     const save = syntheticSave({
       soldiers: [
@@ -1386,11 +1386,11 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
     const targets = [EARLIER_TARGET_ID, LATER_TARGET_ID].map((id) => soldierOf(sim, id).engagedInAction);
     expect([givers, targets]).toEqual([
       [null, null],
-      [false, true],
+      [false, false],
     ]);
   });
 
-  it('frees the target of a dropped give in another sector too, as GetMan reaches every slot the load made: one made after the giver is engaged again', () => {
+  it('frees the target of a dropped give in another sector too, as GetMan reaches every slot the load made', () => {
     const engaged = { uiStatusFlags: SOLDIER_ENGAGEDINACTION };
     const save = syntheticSave({
       soldiers: [
@@ -1402,7 +1402,7 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
     });
     const { sim, soldiers } = importedSave(save);
     const targets = [EARLIER_TARGET_ID, LATER_TARGET_ID].map((id) => soldiers.get(id)?.engagedInAction);
-    expect([targets, sim.state.soldiers[EARLIER_TARGET_ID], sim.state.soldiersOfTheLoad]).toEqual([[false, true], undefined, null]);
+    expect([targets, sim.state.soldiers[EARLIER_TARGET_ID], sim.state.soldiersOfTheLoad]).toEqual([[false, false], undefined, null]);
   });
 });
 

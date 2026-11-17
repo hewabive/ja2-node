@@ -1198,12 +1198,8 @@ function soldierOfTheLoad(t: TacticalState, id: number): Soldier | undefined {
 
 function dropSavedPendingAction(t: TacticalState, s: Soldier, saved: SavedPendingAction): void {
   const target = saved.action === MERC_GIVE_ITEM ? soldierOfTheLoad(t, saved.giveTarget) : undefined;
-  if (target && createdBeforeInTheLoad(t, target, s)) target.engagedInAction = false;
+  if (target) target.engagedInAction = false;
   s.savedPendingAction = null;
-}
-
-function createdBeforeInTheLoad(t: TacticalState, other: Soldier, s: Soldier): boolean {
-  return !t.loadingSave || other.id < s.id;
 }
 
 function countPendingActionAnimation(t: TacticalState, s: Soldier, oldState: number, next: number): void {
