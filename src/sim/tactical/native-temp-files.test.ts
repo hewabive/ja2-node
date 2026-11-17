@@ -6,7 +6,7 @@ import { gridNo } from '../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
-import { applyMapChanges, MapChangeKind, sectorTempFileChanges } from './map-changes.ts';
+import { applyMapChanges, MapChangeKind } from './map-changes.ts';
 import { loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from './save-import.ts';
 import type { TacticalState } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
@@ -76,7 +76,7 @@ describe('the damage records of a native save (SaveLoadMap.cc DamageStructsFromM
     loadMapChanges(sim, [damaged(WALL_CORNER, WALL_TYPE, Orientation.OUTSIDE_RIGHT)]);
     expect([left?.hitPoints, right?.hitPoints]).toEqual([left?.def.hitPoints, SAVED_HIT_POINTS]);
     const entered = town();
-    applyMapChanges(entered.state, sectorTempFileChanges(t.mapChanges));
+    applyMapChanges(entered.state, t.mapChanges);
     expect(hitPoints(entered.state, WALL_CORNER)).toEqual(hitPoints(t, WALL_CORNER));
   });
 
@@ -139,7 +139,7 @@ describe('the window hits of a native save (SaveLoadMap.cc ModifyWindowStatus)',
       [MapChangeKind.ADD, TOWN_WINDOW, true],
     ]);
     const entered = town();
-    applyMapChanges(entered.state, sectorTempFileChanges(t.mapChanges));
+    applyMapChanges(entered.state, t.mapChanges);
     expect(windowAt(entered.state).def).toBe(windowAt(t).def);
   });
 

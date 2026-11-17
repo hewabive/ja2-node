@@ -2670,6 +2670,24 @@ function addMapScreenItemDescriptionBox(snapshot: Readonly<Record<string, unknow
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MAP_CHANGES_KEY = 'mapChanges';
+const LIVE_ONLY_KEY = 'liveOnly';
+
+function withMapChangesKeptForTheNextEntry(tactical: JsonObject): JsonObject {
+  const changes = tactical[MAP_CHANGES_KEY];
+  if (!Array.isArray(changes)) return tactical;
+  const kept = changes.map((c: Json): Json => (isObject(c) ? withoutKeys(c, [LIVE_ONLY_KEY]) : c));
+  return { ...tactical, [MAP_CHANGES_KEY]: kept };
+}
+
+function keepEveryMapChangeForTheNextEntry(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withMapChangesKeptForTheNextEntry(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2765,5 +2783,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     91: sayThePreBattleLineOnTheFace,
     92: addItemDescriptionBox,
     93: addMapScreenItemDescriptionBox,
+    94: keepEveryMapChangeForTheNextEntry,
   };
 }

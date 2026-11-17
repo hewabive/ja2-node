@@ -57,6 +57,7 @@ import {
 } from '../tactical/lighting/lighting.ts';
 import {
   addObjectToHead,
+  addObjectToTail,
   MapChangeKind,
   objectLayerAt,
   recordStructureDamaged,
@@ -787,7 +788,7 @@ describe('a native save loaded into its sector', () => {
     expect([doorsAt(t), structLayerAt(t, HANGAR_DOOR), doorTileChanges(t)]).toEqual([[], [], removedDoorTile]);
   });
 
-  it('keeps the debris for the next entry but not a change made outside ApplyMapChangesToMapTempFile, as the wall decals an explosion takes off (Explosion_Control.cc:498)', () => {
+  it("keeps the debris, a tile taken off the structures, as the wall decals an explosion takes off, and a pit's hole for the next entry", () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -800,16 +801,18 @@ describe('a native save loaded into its sector', () => {
     const g = Array.from({ length: 25600 }, (_, k) => k).find((k) => structLayerAt(left, k).length > 0) ?? -1;
     const tile = structLayerAt(left, g)[0] ?? -1;
     const debris = tileIndex(sim.world.tables, 'FIRSTEXPLDEBRIS1');
-    expect(removeStructTile(left, g, tile, true)).toBe(true);
+    const hole = tileIndex(sim.world.tables, 'REGWATERTEXTURE5');
+    expect(removeStructTile(left, g, tile)).toBe(true);
     addObjectToHead(left, g, debris);
+    addObjectToTail(left, g, hole);
     for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
     expect(flow.setCurrentWorldSector(A9)).toBe(true);
     for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
     expect(flow.setCurrentWorldSector(B13)).toBe(true);
     const back = campaign.tactical?.state;
     if (!back) throw new Error('no sector');
-    expect(structLayerAt(back, g)).toContain(tile);
-    expect(objectLayerAt(back, g)[0]).toBe(debris);
+    expect(structLayerAt(back, g)).not.toContain(tile);
+    expect([objectLayerAt(back, g)[0], objectLayerAt(back, g).at(-1)]).toEqual([debris, hole]);
   });
 });
 

@@ -47,7 +47,6 @@ const WALL_DECALS = [
   ['FIRSTWALLDECAL', 'FOURTHWALLDECAL'],
   ['FIFTHWALLDECAL', 'EIGTHWALLDECAL'],
 ] as const;
-const DECALS_LEFT_OUT_OF_TEMP_FILE = true;
 const FOUNTAIN_SURFACE = 'fount1.sti';
 const FOUNTAIN_WATER_SUBINDICES = [1, 2, 3] as const;
 const FOUNTAIN_WATER_REMOVALS = 2;
@@ -136,7 +135,7 @@ function damageFencePartners(t: TacticalState, w: Wreck, changes: StructureChang
 
 function removeAllStructsOfTypeRange(t: TacticalState, tables: TileTables, g: number, first: string, last: string): void {
   for (const tile of structLayerAt(t, g)) {
-    if (typeInRange(tables, tile, first, last)) removeStructTile(t, g, tile, DECALS_LEFT_OUT_OF_TEMP_FILE);
+    if (typeInRange(tables, tile, first, last)) removeStructTile(t, g, tile);
   }
 }
 

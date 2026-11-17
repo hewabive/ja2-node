@@ -14,7 +14,6 @@ import {
   objectLayerAt,
   recordStructureDamaged,
   recordStructureRemoved,
-  sectorTempFileChanges,
   structLayerAt,
   structTileChange,
 } from './map-changes.ts';
@@ -141,7 +140,7 @@ describe('replaying the map changes of a sector', () => {
 });
 
 describe('objects added to the object layer of a tile', () => {
-  it('reads an object added at the tail after the map objects and the ones added at the head, and leaves it out of the temp file (WorldMan.cc AddObjectToTail)', () => {
+  it('reads an object added at the tail after the map objects and the ones added at the head, and keeps it for the next entry (WorldMan.cc AddObjectToTail)', () => {
     const t = freshA10();
     const tables = kit.world(A10).tables;
     const [debris, pit, later] = [
@@ -154,7 +153,9 @@ describe('objects added to the object layer of a tile', () => {
     addObjectToHead(t, OPEN_GROUND, later);
     expect(objectLayerAt(t, OPEN_GROUND)).toEqual([later, debris, pit]);
     expect(tileChangeViews(t).map((c) => c.kind)).toEqual(['appendObject', 'object', 'object']);
-    expect(sectorTempFileChanges(t.mapChanges).map((c) => c.tile)).toEqual([debris, later]);
+    const entered = freshA10();
+    applyMapChanges(entered, t.mapChanges);
+    expect(objectLayerAt(entered, OPEN_GROUND)).toEqual([later, debris, pit]);
   });
 });
 

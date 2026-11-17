@@ -15,7 +15,7 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import { buildTileDatabase, type TileSurface } from '../../../content/world/tile-database.ts';
 import { parseTileTables, tileIndexFromTypeSubIndex, typeIndex } from '../../../content/world/tile-tables.ts';
 import type { TacticalContent } from '../content.ts';
-import { applyMapChanges, MapChangeKind, objectLayerAt, sectorTempFileChanges, structLayerAt } from '../map-changes.ts';
+import { applyMapChanges, MapChangeKind, objectLayerAt, structLayerAt, structTileChange } from '../map-changes.ts';
 import type { TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { tileChangeViews } from '../world-view.ts';
@@ -213,7 +213,7 @@ describe('explosion debris (ExplosiveDamageStructureAtGridNo, Explosion_Control.
     const left = simOver(structs);
     blast(left, CRATE);
     const entered = simOver(structs);
-    applyMapChanges(entered, sectorTempFileChanges(left.mapChanges));
+    applyMapChanges(entered, left.mapChanges);
     expect(objectLayerAt(entered, CRATE)).toEqual(objectLayerAt(left, CRATE));
     expect(objectLayerAt(entered, CRATE + 1)).toEqual(objectLayerAt(left, CRATE + 1));
     expect(tileChangeViews(entered)).toEqual(tileChangeViews(left));
@@ -237,11 +237,14 @@ describe('fence partners (HandleFencePartnerCheck, Explosion_Control.cc:257)', (
 });
 
 describe('wall decals (RemoveAllStructsOfTypeRange, Explosion_Control.cc:498)', () => {
-  it('takes the decals off a destroyed wall without writing their removal to the temp file, so they hang there again at the next entry', () => {
+  it('takes the decals off a destroyed wall for good, recorded as any tile removal: the next entry takes them off again', () => {
     const decals = [tile('FIRSTWALLDECAL', 2), tile('FIFTHWALLDECAL', 1)];
     const structs = new Map([[WALL, [tile('FIRSTWALL', 1), ...decals]]]);
     const t = simOver(structs);
     blast(t, WALL);
+    expect(t.mapChanges.filter((c) => decals.includes(c.tile ?? -1))).toEqual(
+      decals.map((decal) => structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, WALL, decal)),
+    );
     expect(structLayerAt(t, WALL)).toEqual([]);
     expect(
       tileChangeViews(t)
@@ -249,8 +252,8 @@ describe('wall decals (RemoveAllStructsOfTypeRange, Explosion_Control.cc:498)', 
         .map((c) => c.tile),
     ).toEqual([...decals, tile('FIRSTWALL', 1)]);
     const entered = simOver(structs);
-    applyMapChanges(entered, sectorTempFileChanges(t.mapChanges));
-    expect(structLayerAt(entered, WALL)).toEqual(decals);
+    applyMapChanges(entered, t.mapChanges);
+    expect(structLayerAt(entered, WALL)).toEqual([]);
   });
 });
 
@@ -289,7 +292,7 @@ describe('wall end pieces (ReplaceWall, Explosion_Control.cc:293)', () => {
     blast(t, WALL);
     expect(structLayerAt(t, west)).toEqual([tile('FIRSTWALL', 48)]);
     const entered = simOver(structs);
-    applyMapChanges(entered, sectorTempFileChanges(t.mapChanges));
+    applyMapChanges(entered, t.mapChanges);
     expect(structLayerAt(entered, west)).toEqual([tile('FIRSTWALL', 48)]);
   });
 });

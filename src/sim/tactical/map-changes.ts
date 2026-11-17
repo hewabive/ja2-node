@@ -8,7 +8,7 @@
 // @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer; Structure.cc InternalSwapStructureForPartner
 // @src (a partner swap keeps its node's place, 2026-11-04); the door removal of
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem with WorldMan.cc RemoveAllStructsOfTypeRange (2026-11-04);
-// @src WorldMan.cc AddObjectToTail, which writes nothing to the temp file (2026-11-09);
+// @src WorldMan.cc AddObjectToTail (2026-11-09);
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem's count of the records it writes back, all but damage (2026-11-09).
 
 import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
@@ -50,7 +50,6 @@ export interface MapChange {
   readonly hitPoints: number;
   readonly exitGrid?: AddedExitGrid;
   readonly tile?: number;
-  readonly liveOnly?: boolean;
   readonly partnerSwap?: boolean;
 }
 
@@ -193,16 +192,12 @@ export function recordExitGridAdded(t: TacticalState, exit: AddedExitGrid): void
   t.mapChanges.push(exitGridChange(exit));
 }
 
-export function structTileChange(kind: StructTileChangeKind, gridNo: number, tile: number, liveOnly = false): MapChange {
-  return { kind, gridNo, level: GROUND_LEVEL, fileKey: NO_FILE, number: 0, hitPoints: 0, tile, ...(liveOnly ? { liveOnly } : {}) };
+export function structTileChange(kind: StructTileChangeKind, gridNo: number, tile: number): MapChange {
+  return { kind, gridNo, level: GROUND_LEVEL, fileKey: NO_FILE, number: 0, hitPoints: 0, tile };
 }
 
 export function objectChange(gridNo: number, tile: number): MapChange {
   return { kind: MapChangeKind.ADD_OBJECT, gridNo, level: GROUND_LEVEL, fileKey: NO_FILE, number: 0, hitPoints: 0, tile };
-}
-
-export function sectorTempFileChanges(changes: readonly MapChange[]): MapChange[] {
-  return changes.filter((c) => c.liveOnly !== true);
 }
 
 export function mapChangesWrittenBack(changes: readonly MapChange[] | null): boolean {
@@ -336,7 +331,7 @@ export function addObjectToHead(t: TacticalState, gridNo: number, tile: number):
 }
 
 export function addObjectToTail(t: TacticalState, gridNo: number, tile: number): void {
-  t.mapChanges.push({ ...objectChange(gridNo, tile), kind: MapChangeKind.APPEND_OBJECT, liveOnly: true });
+  t.mapChanges.push({ ...objectChange(gridNo, tile), kind: MapChangeKind.APPEND_OBJECT });
 }
 
 export function levelNodeTile(t: TacticalState, base: StructureInstance): number | null {
@@ -375,8 +370,8 @@ function changeStructLayer(t: TacticalState, c: MapChange): boolean {
   return true;
 }
 
-export function removeStructTile(t: TacticalState, gridNo: number, tile: number, liveOnly = false): boolean {
-  return changeStructLayer(t, structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, gridNo, tile, liveOnly));
+export function removeStructTile(t: TacticalState, gridNo: number, tile: number): boolean {
+  return changeStructLayer(t, structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, gridNo, tile));
 }
 
 export function addStructTileToTail(t: TacticalState, gridNo: number, tile: number): void {

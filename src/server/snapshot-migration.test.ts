@@ -23,6 +23,7 @@ import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.
 import { newSmokeEffect } from '../sim/tactical/explosions/smoke.ts';
 import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
 import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
+import { addObjectToTail } from '../sim/tactical/map-changes.ts';
 import { setSoldierPosition } from '../sim/tactical/movement.ts';
 import type { ProfileProgress } from '../sim/tactical/profiles.ts';
 import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
@@ -39,6 +40,8 @@ import { restoreSession, type SessionSnapshot, snapshotSession } from './session
 type JsonObject = { readonly [key: string]: Json };
 
 const NOBODY_PREFERRED = -1;
+const PIT_HOLE_AT = 80 * WORLD_COLS + 80;
+const PIT_HOLE_TILE = 1;
 
 function object(value: Json | undefined): JsonObject {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('not an object');
@@ -4552,7 +4555,7 @@ describe('snapshot version 92 (no item description box) migrates with the box cl
 });
 
 function versionNinetyThree(snapshot: SimSnapshot): SimSnapshot {
-  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+  const sections = versionNinetyFour(snapshot).graph.sections.map(([name, value]): readonly [string, Json] => {
     if (name !== 'strategic') return [name, value];
     const { mapScreen: _, ...strategic } = object(value);
     return [name, strategic];
@@ -4578,6 +4581,50 @@ describe('snapshot version 93 (no map screen item description box) migrates with
     const legacy = versionNinetyThree(current.sim);
     expect(JSON.stringify(current.sim)).toContain('"mapScreen":{"itemDescription":null}');
     expect(JSON.stringify(legacy)).not.toContain('mapScreen');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const KEPT_FOR_THE_NEXT_ENTRY_SINCE_95 = ['appendObject'];
+
+function versionNinetyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const changes = tactical.mapChanges;
+    if (!Array.isArray(changes)) return [name, tactical];
+    const mapChanges = changes.map((c: Json): Json => {
+      const change = object(c);
+      return KEPT_FOR_THE_NEXT_ENTRY_SINCE_95.includes(String(change.kind)) ? { ...change, liveOnly: true } : change;
+    });
+    return [name, { ...tactical, mapChanges }];
+  });
+  return { ...snapshot, version: 94, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 94 (map changes left out of the sector's temp file) migrates with every change kept", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it("a landed campaign with a pit's hole", async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    addObjectToTail(t, PIT_HOLE_AT, PIT_HOLE_TILE);
+    const current = snapshotSession(campaign);
+    const legacy = versionNinetyFour(current.sim);
+    expect(JSON.stringify(legacy)).toContain('"liveOnly":true');
+    expect(JSON.stringify(current.sim)).not.toContain('liveOnly');
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

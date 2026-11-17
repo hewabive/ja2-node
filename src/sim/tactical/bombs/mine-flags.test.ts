@@ -6,7 +6,7 @@ import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { tileIndex, typeIndex } from '../../../content/world/tile-tables.ts';
 import { tacticalViewParts } from '../../knowledge/sim-view.ts';
-import { applyMapChanges, MapChangeKind, sectorTempFileChanges, structLayerAt } from '../map-changes.ts';
+import { applyMapChanges, MapChangeKind, structLayerAt } from '../map-changes.ts';
 import { initLoadedWorld, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from '../save-import.ts';
 import type { TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
@@ -102,7 +102,7 @@ describe('the mine flags of a loaded sector (SetBlueFlagFlags)', () => {
     setMineFlag(left, OPEN_GROUND + 2, MineFlag.PLAYER);
     setMineFlag(left, OPEN_GROUND + 4, MineFlag.ENEMY);
     const entered = freshA10().state;
-    applyMapChanges(entered, sectorTempFileChanges(left.mapChanges));
+    applyMapChanges(entered, left.mapChanges);
     initLoadedWorld(entered);
     expect(knownMineTiles(entered)).toEqual([OPEN_GROUND]);
     expect(entered.mineFlags.some((flags) => flags & MineFlag.ENEMY)).toBe(false);

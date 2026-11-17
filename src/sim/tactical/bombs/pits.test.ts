@@ -8,7 +8,7 @@ import { tileIndexFromTypeSubIndex, typeIndex } from '../../../content/world/til
 import type { SimEvent } from '../../events.ts';
 import { tacticalViewParts } from '../../knowledge/sim-view.ts';
 import { anim } from '../anim-states.ts';
-import { applyMapChanges, objectLayerAt, sectorTempFileChanges } from '../map-changes.ts';
+import { applyMapChanges, MapChangeKind, objectChange, objectLayerAt } from '../map-changes.ts';
 import { exitGridAt } from '../sector-exit.ts';
 import { Body, TEAM_FIRST_ID, Team, Visible } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
@@ -119,7 +119,7 @@ describe('the pit action items (Explosion_Control.cc PerformItemAction, Pits.cc 
     const shown = tilesOf(PIT, SMALL_PIT_OFFSETS).map((g) => ({ gridNo: g, sector: 'A9-1' }));
     expect(tacticalViewParts(sim).addedExitGrids).toEqual(shown);
     const entered = a9();
-    applyMapChanges(entered.state, sectorTempFileChanges(sim.state.mapChanges));
+    applyMapChanges(entered.state, sim.state.mapChanges);
     expect(tacticalViewParts(entered).addedExitGrids).toEqual(shown);
   });
 
@@ -211,15 +211,18 @@ describe('the pit action items (Explosion_Control.cc PerformItemAction, Pits.cc 
     ]);
   });
 
-  it('loses its textures at the next entry but keeps its exit grids: AddObjectToTail writes nothing to the temp file', () => {
+  it('keeps its textures and its exit grids at the next entry, the textures recorded as any object added', () => {
     const sim = a9();
     const left = sim.state;
     spawnSoldier(sim, MERC, Team.OUR, PIT - 2 * WORLD_COLS, Direction.SOUTH);
     placePit(left, PIT, ItemAction.SMALL_PIT);
     stepOnPit(sim, PIT);
+    expect(left.mapChanges.filter((c) => c.tile === pitTexture(left, 5))).toEqual([
+      { ...objectChange(PIT, pitTexture(left, 5)), kind: MapChangeKind.APPEND_OBJECT },
+    ]);
     const entered = a9().state;
-    applyMapChanges(entered, sectorTempFileChanges(left.mapChanges));
-    expect(objectLayerAt(entered, PIT)).not.toContain(pitTexture(entered, 5));
+    applyMapChanges(entered, left.mapChanges);
+    expect(lastObjectAt(entered, PIT)).toBe(pitTexture(entered, 5));
     expect(exitGridAt(entered, PIT - 1)).toEqual({ gridNo: PIT, sector: A9_BASEMENT });
     expect(entered.world.costs.get(PIT, Direction.NORTH, 0)).toBe(TravelCost.EXITGRID);
   });

@@ -140,10 +140,9 @@ A door's removal names the structure it had, open or closed, and its replay take
 original's removal of a door type does (`TileEngine/SaveLoadMap.cc:156`), so a door blown up open stays gone.
 The simulation keeps no tile layers: it reads a tile's structure and object layer as the map's tiles with the records
 replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the view's `tileChanges` carry to the client
-(`29`). A change the original never writes to the temp file (the decals, made outside
-`ApplyMapChangesToMapTempFile`, and a pit's textures, §6) is `liveOnly`: it stays for the stay and in ja2-node saves but
-is left out of the sector diff (`sectorTempFileChanges`), so it is undone at the next entry as in the original; a native
-save never holds it (original-bugs "Pit tiles after a load", "Wall decals after a load"). The end piece's
+(`29`). The decals' removal, which the original makes outside `ApplyMapChangesToMapTempFile`, and a pit's textures
+(§6) are records like any other, so the next entry keeps them; a native save never holds them (original-bugs "Pit tiles
+after a load", "Wall decals after a load"). The end piece's
 insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
 roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
@@ -163,7 +162,6 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Grenades hit structures with their full blast: the parser asks for `structuralDamageDisivor`, so the divisor 3 in their data is never read | `explosions/explosion.test.ts` |
 | A damage key frame ends the tile-animation pass, so of two explosions going off together the one ignited first hurts a tick later | `explosions/explosion.test.ts` |
 | A blast's side branches run to the full blast range, even where a low structure shortened their ray | `explosions/explosion.test.ts` |
-| A destroyed wall's decals come back at the next entry: their removal is never written to the temp file | `explosions/wreckage.test.ts` |
 | The end piece beside a destroyed wall replaces a decal on the same side of its wall | `explosions/wreckage.test.ts` |
 | A drained fountain loses each of its first three water pieces twice, so a doubled piece goes too | `explosions/wreckage.test.ts` |
 | Creature gas has no explosion animation: igniting it would raise the busy count for good (spit lays its gas directly) | `explosions/explosion.test.ts` |
@@ -346,13 +344,13 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   original-bugs "Two switches in one pickup").
 - The walk onto a tile to plant is a pending action of its own (`Soldier.pendingDropBomb`, `MERC_DROPBOMB`), with the
   tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
-- A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures are `liveOnly`, as `AddObjectToTail`
-  writes no temp file record (`TileEngine/WorldMan.cc:103`), its exit grids recorded ones, and an exit grid added on a
-  tile replaces the map's (`exitGridAt`, `TileEngine/Exit_Grids.cc:53`). The fall's code 754 takes the soldier off the
-  map; `SectorHooks.soldierFellIntoPit` gives the campaign the strategic half for a merc of the roster
-  (`mercFellIntoPit`, `src/sim/campaign/sector-exits.ts`), and the computer's soldiers only leave the map (original-bugs
-  "Pit falls of the computer's soldiers"). A map's pit loads unarmed (`loadWorldItemsFromMap`,
-  `Tactical/World_Items.cc:309`), so only a pit already armed in the bomb list opens, and no original map holds one.
+- A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures and its exit grids (original-bugs "Pit
+  tiles after a load"), and an exit grid added on a tile replaces the map's (`exitGridAt`,
+  `TileEngine/Exit_Grids.cc:53`). The fall's code 754 takes the soldier off the map; `SectorHooks.soldierFellIntoPit`
+  gives the campaign the strategic half for a merc of the roster (`mercFellIntoPit`,
+  `src/sim/campaign/sector-exits.ts`), and the computer's soldiers only leave the map (original-bugs "Pit falls of the
+  computer's soldiers"). A map's pit loads unarmed (`loadWorldItemsFromMap`, `Tactical/World_Items.cc:309`), so only a
+  pit already armed in the bomb list opens, and no original map holds one.
   The editor's pits (`AddAllPits`) are not ported.
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/`:
@@ -388,7 +386,6 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | A merc whose attacking hand is still his second hand gets the setting box at once, and the bomb lands on the clicked tile without a walk (the detonator box at the end of `HandleItem`) | `tactical/bombs/planting.test.ts` "asks for the setting at once and puts the bomb on the clicked tile …" |
 | The hand item roll comes before the remote's APs: a broken remote bomb trigger costs nothing | `tactical/bombs/planting.test.ts` "refuses a broken trigger before its APs …" |
 | A pit stays armed: every step on its centre opens it again and lays a second set of textures | `tactical/bombs/pits.test.ts` "opens again at every step on its centre …" |
-| A pit's hole is gone at the next entry while its exit grids stay: its textures never reach the temp file | `tactical/bombs/pits.test.ts` "loses its textures at the next entry …" |
 | A soldier whose body has no fall animation, a civilian's, stands on the opened pit with its tile in his pending action data | `tactical/bombs/pits.test.ts` "lets a civilian whose body has no fall animation stand …" |
 
 The oracle's bomb probes (`tools/oracle/README.md` "Bombs") check the map loads (bomb lists, mine flags, panic

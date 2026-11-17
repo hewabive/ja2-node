@@ -13,7 +13,7 @@ import { createStrategicState } from '../strategic/state.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { loadTacticalContent } from '../tactical/load-content.ts';
-import { applyMapChanges, type MapChange, sectorTempFileChanges } from '../tactical/map-changes.ts';
+import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { tileChangeViews } from '../tactical/world-view.ts';
@@ -74,13 +74,13 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the SAM terminal of the original D2', () =>
       { kind: 'remove', gridNo: terminal.gridNo, level: 0, tile: terminal.damaged },
       { kind: 'add', gridNo: terminal.gridNo, level: 0, tile: terminal.working },
     ]);
-    expect(await terminalsAfterLoadWith(sectorTempFileChanges(t.mapChanges))).toEqual([1, 0]);
+    expect(await terminalsAfterLoadWith(t.mapChanges)).toEqual([1, 0]);
   });
 
   it("brings the working terminal back at the next load of D2 when the repair went into the sector's stored changes", async () => {
     const { sim, terminal } = await loadD2();
     blowUpTerminal(sim, terminal);
-    const left = sectorTempFileChanges(sim.state.mapChanges);
+    const left = sim.state.mapChanges;
     expect(await terminalsAfterLoadWith(left)).toEqual([0, 1]);
     const state = createStrategicState({ seed: 1 });
     sectorDiffOf(state, D2).mapChanges = [...left];
