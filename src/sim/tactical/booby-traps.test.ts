@@ -358,17 +358,17 @@ describe('a switch on the ground (Handle_Items.cc SoldierGetItemFromWorld, Switc
     expect(t.explosionQueue.entries).toEqual([]);
   });
 
-  it('asks once for two switches picked up in one go, and a yes sets off the frequency of the second, whose dropped box wrote it (bTempFrequency, quirk)', () => {
+  it('asks once for two switches picked up in one go, and a yes sets off the frequency of the switch it asked about', () => {
     const { sim, t, merc } = scene();
     switchInOpenedContainer(t, FREQUENCY);
     switchInOpenedContainer(t, OTHER_FREQUENCY);
     remoteBomb(t, FREQUENCY);
     remoteBomb(t, OTHER_FREQUENCY);
     pickUpEveryRow(sim);
-    expect(t.prompt).toMatchObject({ kind: 'activateSwitch', soldier: merc, frequency: OTHER_FREQUENCY });
+    expect(t.prompt).toMatchObject({ kind: 'activateSwitch', soldier: merc, frequency: FREQUENCY });
     answer(sim, 'yes');
     expect(t.prompt).toBeNull();
-    expect(t.explosionQueue.entries.map((e) => e.bomb)).toEqual([1]);
+    expect(t.explosionQueue.entries.map((e) => e.bomb)).toEqual([0]);
   });
 
   it('drops the disarm box of a known trap picked up after it in one go: one box at a time (DoMessageBox)', () => {

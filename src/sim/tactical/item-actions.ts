@@ -299,9 +299,7 @@ function foundHiddenItems(t: TacticalState, s: Soldier): void {
 }
 
 function askToActivateSwitch(t: TacticalState, s: Soldier, wi: WorldItem): void {
-  const frequency = frequencyOf(wi.object);
-  if (t.prompt?.kind === TacticalPromptKind.ACTIVATE_SWITCH) t.prompt = { ...t.prompt, soldier: s, frequency };
-  else openTacticalPrompt(t, { kind: TacticalPromptKind.ACTIVATE_SWITCH, soldier: s, frequency });
+  openTacticalPrompt(t, { kind: TacticalPromptKind.ACTIVATE_SWITCH, soldier: s, frequency: frequencyOf(wi.object) });
 }
 
 export function answerActivateSwitch(
