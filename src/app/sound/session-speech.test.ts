@@ -22,8 +22,6 @@ function sessionSpeech(): SessionSpeech {
   return new SessionSpeech({ command: async () => ({ ok: true }), view: null } as unknown as SessionClient, engine);
 }
 
-const map: SpeechPlacement = { screen: SpeechScreen.MAP, textBox: () => null, facePopup: () => null, carriedPopup: () => null };
-
 function say(speech: SessionSpeech, surface: SpeechSurface, soldier: number | null): void {
   speech.presenter.enqueue({ surface, profile: MERC_PROFILE, soldier, text: 'Hi.', chars: 3, voice: null, sector: null, keyWait: false });
 }
@@ -45,8 +43,7 @@ function leaveFacePopupUp(speech: SessionSpeech, profile = MERC_PROFILE): Talkin
     sector: null,
     keyWait: false,
   });
-  ui.follow(speech.presenter.current, map, false);
-  ui.follow(speech.presenter.current, tactical, false);
+  ui.follow(speech.presenter.current, tactical, true);
   return ui;
 }
 

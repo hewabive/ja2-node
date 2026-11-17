@@ -7,12 +7,14 @@
 // @src HandleTacticalSpeechUI and HandleExternNPCSpeechFace (RegisterVideoOverlay into the face's one overlay; the region
 // @src only while fExternFaceBoxRegionCreated is clear),
 // @src HandleDialogueEnd (with SPEECH on only: the face's overlay and the region go, for a tactical line only while
-// @src gfFacePanelActive is set), HandleShutDownOfMapScreenWhileExternfaceIsTalking (the talking face's overlay goes as
-// @src the map screen closes while the region exists), RenderFaceOverlay (every registered overlay shows the talking face
-// @src while gfFacePanelActive is set), ExecuteTacticalTextBox (the box stays where it was created); Faces.cc DeleteFace
-// @src (SetAutoFaceInActive takes the face's overlay down, and a face still talking ends its talking UI as
-// @src HandleDialogueEnd does) from DeleteSoldierFace, for every soldier at a load (SaveLoadGame.cc LoadSavedGame,
-// @src TrashAllSoldiers) and wherever the simulation deletes a soldier's face, his line ending with it (2026-11-09).
+// @src gfFacePanelActive is set; the popup a line carried to the game screen got goes with its region at its end
+// @src whatever the option, original-bugs "Carried popup after its line", 2026-11-17),
+// @src HandleShutDownOfMapScreenWhileExternfaceIsTalking (the talking face's overlay goes as the map screen closes while
+// @src the region exists), RenderFaceOverlay (every registered overlay shows the talking face while gfFacePanelActive
+// @src is set), ExecuteTacticalTextBox (the box stays where it was created); Faces.cc DeleteFace (SetAutoFaceInActive
+// @src takes the face's overlay down, and a face still talking ends its talking UI as HandleDialogueEnd does) from
+// @src DeleteSoldierFace, for every soldier at a load (SaveLoadGame.cc LoadSavedGame, TrashAllSoldiers) and wherever
+// @src the simulation deletes a soldier's face, his line ending with it (2026-11-09).
 
 import { type ActiveLine, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import type { SubtitlePlace } from './subtitle-box.ts';
@@ -64,6 +66,7 @@ export class TalkingUi {
   #overlays: FaceOverlay[] = [];
   #panelActive = false;
   #region: UiPoint | null = null;
+  #carriedPopupUp = false;
   readonly #facesToDelete = new Set<string>();
 
   static of(presenter: SpeechPresenter): TalkingUi {
@@ -134,33 +137,38 @@ export class TalkingUi {
 
   #carry(line: SpeechLine, placement: SpeechPlacement): void {
     if (placement.screen === SpeechScreen.MAP) this.#carryToMap(line);
-    else this.#registerIfAny(line, placement.carriedPopup(line));
+    else this.#carryToTactical(line, placement.carriedPopup(line));
     this.#screen = placement.screen;
+  }
+
+  #carryToTactical(line: SpeechLine, popup: UiPoint | null): void {
+    if (!popup) return;
+    this.#register(line, popup);
+    this.#carriedPopupUp = true;
   }
 
   #carryToMap(line: SpeechLine): void {
     if (!this.#panelActive) return;
-    this.#removeOverlayOf(faceOf(line));
-    this.#region = null;
-    this.#panelActive = false;
+    this.#takeFaceDown(line);
   }
 
   #end(line: SpeechLine, speechOn: boolean): void {
+    const takesFaceDown = this.#carriedPopupUp || (speechOn && this.#speechEndTakesFaceDown(line));
     this.#line = null;
     this.#textBox = null;
-    if (!speechOn || !this.#endTakesFaceDown(line)) return;
-    this.#removeOverlayOf(faceOf(line));
-    this.#panelActive = false;
-    this.#region = null;
+    if (takesFaceDown) this.#takeFaceDown(line);
   }
 
-  #endTakesFaceDown(line: SpeechLine): boolean {
+  #speechEndTakesFaceDown(line: SpeechLine): boolean {
     if (line.surface === SpeechSurface.EXTERNAL) return true;
     return line.surface === SpeechSurface.TACTICAL && this.#panelActive;
   }
 
-  #registerIfAny(line: SpeechLine, popup: UiPoint | null): void {
-    if (popup) this.#register(line, popup);
+  #takeFaceDown(line: SpeechLine): void {
+    this.#removeOverlayOf(faceOf(line));
+    this.#panelActive = false;
+    this.#region = null;
+    this.#carriedPopupUp = false;
   }
 
   #register(line: SpeechLine, popup: UiPoint): void {

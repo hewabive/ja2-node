@@ -165,6 +165,23 @@ describe('speech surfaces in a stub campaign', () => {
     expect(f.widget('speechTextBox').rect).toMatchObject({ x: mapBox.x, y: mapBox.y });
   });
 
+  it('takes the popup of a line carried over from the map screen and its click region down as it ends with speech off', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const presenter = f.screen.dialogue.presenter;
+    const map: SpeechPlacement = { screen: SpeechScreen.MAP, textBox: () => null, facePopup: () => null, carriedPopup: () => null };
+    const skyrider = { surface: SpeechSurface.EXTERNAL, profile: 97, soldier: null, text: 'Hop in, mate', chars: 12, voice: null };
+    presenter.enqueue({ ...skyrider, sector: null, keyWait: false });
+    TalkingUi.of(presenter).follow(presenter.current, map, false);
+    f.t.frame();
+    expect(panels(f)).toEqual(new Set(['interface/communicationpopup_2.sti']));
+    presenter.skip(f.t.now, true);
+    f.t.frame(FINAL_TALKING_DELAY_MS + 1);
+    presenter.enqueue({ ...skyrider, text: 'Hold on', chars: 7, sector: null, keyWait: false });
+    f.t.frame();
+    expect(f.find('speechFacePopup')).toBeUndefined();
+    expect(panels(f)).toEqual(new Set());
+  });
+
   it("gives Skyrider or a head miner with a soldier the soldier's panel, the panel without a soldier otherwise (RenderFaceOverlay)", async () => {
     const f = await tacticalUiTest(kit, ui);
     const presenter = f.screen.dialogue.presenter;
