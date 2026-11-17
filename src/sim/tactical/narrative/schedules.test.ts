@@ -326,7 +326,9 @@ describe('processing schedules', () => {
     expect(clock.events).toEqual([[DAY_TWO + 450, 1]]);
   });
 
-  it('tests the recruited flag instead of DONT_ADD_TO_SECTOR when the AI enters, and the real flag when auto-processing', () => {
+  it('skips the AI enter step for a profile kept out of the sector, and enters a recruited one', () => {
+    const DONT_ADD_TO_SECTOR = 0x01;
+    const RECRUITED = 0x01;
     const { sim } = scheduleSim(DAY_TWO + 480);
     const t = sim.state;
     t.narrative = NO_NARRATIVE_PORT;
@@ -340,12 +342,12 @@ describe('processing schedules', () => {
     node.soldier = npc.id;
     node.flags = ScheduleFlags.ACTIVE1;
     npc.ai.checkSchedule = true;
-    p.miscFlags2 = 0x01;
+    p.miscFlags = RECRUITED;
     expect(decideActionSchedule(t, npc)).toBe(AiAction.SCHEDULE_MOVE);
     npc.ai.scheduleProgress = 0;
     npc.ai.checkSchedule = true;
-    p.miscFlags2 = 0;
-    p.miscFlags = 0x01;
+    p.miscFlags = 0;
+    p.miscFlags2 = DONT_ADD_TO_SECTOR;
     expect(decideActionSchedule(t, npc)).toBe(AiAction.NONE);
     expect(npc.ai.checkSchedule).toBe(false);
   });

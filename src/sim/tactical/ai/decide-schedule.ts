@@ -15,7 +15,7 @@ import {
   findNearestEdgePoint,
   gridNoOnEdgeOfMap,
   postNextSchedule,
-  profileRecruitedFlagTestedAsDontAdd,
+  profileDontAddToSector,
   returnFromAwaySlot,
   setSoldierPositionCentred,
 } from '../narrative/schedules.ts';
@@ -174,7 +174,7 @@ function decideLeaveSector(t: TacticalState, s: Soldier): number {
 }
 
 function decideEnterSector(t: TacticalState, s: Soldier, data1: number): number {
-  if (profileRecruitedFlagTestedAsDontAdd(t, s)) {
+  if (profileDontAddToSector(t, s)) {
     doneScheduleAction(t, s);
     return AiAction.NONE;
   }

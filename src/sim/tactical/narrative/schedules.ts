@@ -224,18 +224,10 @@ export function performActionOnDoorAdjacentToGridNo(t: TacticalState, action: nu
   }
 }
 
-function dontAddToSector(t: TacticalState, profile: number, flagsOf: 'miscFlags' | 'miscFlags2'): boolean {
-  if (profile === NO_PROFILE) return false;
-  const p = profileProgress(t, profile);
-  return p !== null && (p[flagsOf] & DONT_ADD_TO_SECTOR) !== 0;
-}
-
 export function profileDontAddToSector(t: TacticalState, s: Soldier): boolean {
-  return dontAddToSector(t, s.profile, 'miscFlags2');
-}
-
-export function profileRecruitedFlagTestedAsDontAdd(t: TacticalState, s: Soldier): boolean {
-  return dontAddToSector(t, s.profile, 'miscFlags');
+  if (s.profile === NO_PROFILE) return false;
+  const p = profileProgress(t, s.profile);
+  return p !== null && (p.miscFlags2 & DONT_ADD_TO_SECTOR) !== 0;
 }
 
 function goOffMap(t: TacticalState, s: Soldier, g: number): void {

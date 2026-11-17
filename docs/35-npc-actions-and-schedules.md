@@ -161,7 +161,6 @@ otherwise:
 | A Pablo bribe never wears off: action 109 is not implemented, so nothing posts the unbribe event | `narrative/npc-actions/catalog.test.ts` |
 | Free treatment tests the several-wounded-mercs fact first, which holds for one merc too, so record 25 never plays | `narrative/npc-actions/requestors.test.ts` |
 | The ice-cream truck placement asks whether profile 26, the truck's body type, is on our team | `narrative/placement.test.ts` |
-| The AI's "enter sector" step tests the recruited flag where it means `DONT_ADD_TO_SECTOR` | `narrative/schedules.test.ts` |
 | The next schedule entry is posted at today's start plus its time, so one past midnight lands in the past and the schedule stops until the next load | `narrative/schedules.test.ts` |
 | A civilian leaving the map by schedule stops two tiles past the edge and stays there, in the sector, until the next load | `src/sim/campaign/narrative/schedules-scenario.test.ts` |
 | Hostile rebels stay allied with the army: only Conrad and the General change side | `narrative/civ-hostility.test.ts` |
