@@ -454,7 +454,7 @@ describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Cont
       expect(lifeBarTop()).toBeNull();
     }));
 
-  it('keeps a click region at 10, 20 for a line carried over from the tactical screen only for a speaker without a soldier', () =>
+  it('keeps no popup or click region for a line carried over from the tactical screen', () =>
     withMap(async (f) => {
       const tacticalPopup = { x: 10, y: 20 };
       const tactical: SpeechPlacement = {
@@ -474,7 +474,7 @@ describe("Skyrider's and the head miners' lines on the map screen (Dialogue_Cont
         return f.find('speechFacePopup');
       };
       expect(carried(MINER_SOLDIER)).toBeUndefined();
-      expect(carried()).toMatchObject({ rect: { x: 10, y: 20 }, visible: false });
+      expect(carried()).toBeUndefined();
     }));
 
   it("marks Skyrider's helicopter with the locator unless the aircraft show as his line starts", () =>

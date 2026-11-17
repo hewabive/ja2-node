@@ -202,16 +202,17 @@ Skyrider monologue turns the airspace filter on as it starts and at each of its 
 held by the session presenter, keeps which screen a line started on, where its box went, every popup registered, the
 click region and whether the face panel is active, as `Dialogue_Control.cc` keeps them in globals, so a line carried
 across a screen switch keeps its box where it was and takes the original's popup changes, and a popup the original
-leaves registered stays and shows later lines (quirks below). A face deleted with its soldier takes its popup down
-(`DeleteFace`): every soldier face at a load in place (`discardLines`), the one still talking ending its talking UI as
-at the end of its line, and the face the simulation deletes as `soldierFaceDeleted` comes (a merc leaving, an escort
-released, a merc married off or turned hostile with his civilian group, the profile Larry leaves;
-`src/app/sound/session-speech.ts`), once a line of his still playing is over, as such a line ended in the simulation
-before the face went. When the event names the line it ended (`saidAt`), the screen hearing the frame ends that line's
-talking UI at once (`SpeechPresenter.endDeletedFace`): no line is current, its box and popup go as `HandleDialogueEnd`
-takes them, and its voice plays on, cut by nothing, before the next line starts (deviation "Speech playback"); a line
-the client has not started yet is dropped. A face the original never deletes, Skyrider's or a head miner's, keeps a
-popup it left up.
+leaves registered after its line stays and shows later lines (quirks below); a face holds one popup, and a line carried
+to the map takes its popup and click region down (original-bugs "Face popups across screens"). A face deleted with its
+soldier takes its popup down (`DeleteFace`): every soldier face at a load in place (`discardLines`), the one still
+talking ending its talking UI as at the end of its line, and the face the simulation deletes as `soldierFaceDeleted`
+comes (a merc leaving, an escort released, a merc married off or turned hostile with his civilian group, the profile
+Larry leaves; `src/app/sound/session-speech.ts`), once a line of his still playing is over, as such a line ended in the
+simulation before the face went. When the event names the line it ended (`saidAt`), the screen hearing the frame ends
+that line's talking UI at once (`SpeechPresenter.endDeletedFace`): no line is current, its box and popup go as
+`HandleDialogueEnd` takes them, and its voice plays on, cut by nothing, before the next line starts (deviation "Speech
+playback"); a line the client has not started yet is dropped. A face the original never deletes, Skyrider's or a head
+miner's, keeps a popup it left up.
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes, the parts a repairman leaves drawn in
@@ -368,8 +369,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The plotting ETA counts the remaining leg twice and drops the first temporary edge while the squad travels | `src/server/hints-strategic-stub.test.ts` "count the remaining leg twice …" |
 | The move box's Other header counts vehicle passengers and skips doctors | `map/move-selection.test.ts` "keeps the original test of the others header …" |
 | While a subtitle box is up the map screen's contract button and the contract column of the team list open no contract menu (the column still selects its merc), while the c key does (`Strategic/MapScreen.cc:4239`, `:5134`) | `map/map-speech.test.ts` "opens no contract menu from the contract button or column while the subtitle box is up …" |
-| A line carried from tactical to the map loses its face popup, and one without a soldier (Skyrider, a head miner, a merc without a soldier) leaves an unseen popup at 10, 20 whose click region still cuts the line: `HandleDialogue` clears `gfFacePanelActive` after `HandleTacticalSpeechUI` registered it (`Tactical/Dialogue_Control.cc:352`) | `talk/talking-ui.test.ts` "takes the popup off a line carried to the map …" |
-| A line carried from the map into tactical gets the face popup at 10, 20 whatever the speech option, beside a popup the map screen put up for Skyrider or a miner, and keeps the map's click region (`Tactical/Dialogue_Control.cc:386`) | `talk/talking-ui.test.ts` "gives a line carried from the map the popup …", "shows a popup the map put up beside …"; `talk/speech-surfaces.test.ts` "gives a line carried over from the map screen the popup …" |
+| A line carried from the map into tactical gets the face popup at 10, 20 whatever the speech option and keeps the map's click region (`Tactical/Dialogue_Control.cc:386`) | `talk/talking-ui.test.ts` "gives a line carried from the map the popup …"; `talk/speech-surfaces.test.ts` "gives a line carried over from the map screen the popup …" |
 | A head miner's line leaves the map on the level it shows: Stracciatella's switch to the surface passes the selected sector, whose level `iCurrentMapSectorZ` is (`Strategic/Map_Screen_Interface.cc:1623`, `Strategic/Map_Screen_Interface.h:229`) | `map/map-screen.test.ts` "keeps the level it shows while a head miner speaks …" |
 | Space in autoresolve toggles pause and play but keeps Fast or Finish | `battle/autoresolve-screen.test.ts` "… keeps Fast through Space and Pause …" |
 | On the map screen a click on the inventory's Done button, hidden under the description box, closes the inventory: the box region lies two priorities below the highest, the button one (`Tactical/Interface_Items.cc:1669`, `Strategic/MapScreen.cc:5938`) | `map/map-inventory.test.ts` "lets a click on the inventory Done button hidden under the description box …" |
@@ -448,8 +448,6 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The zoom into a sector adds 0.05 past half way where the first half adds 0.5, so it reaches 100 % at 99 % of its time (`Strategic/StrategicMap.cc:223`) | `front-end/sector-zoom.test.ts` "adds 0.05 where the first half adds 0.5 …" |
 | The zoom into a sector aims at the same pixels at any screen size: its target is not moved by `STD_SCREEN_X` and `STD_SCREEN_Y` (`Strategic/StrategicMap.cc:232`) | `front-end/sector-zoom.test.ts` "aims at the same pixels on a wider screen …" |
 | With speech off a line carried from the map into tactical keeps its popup at 10, 20 and its click region after it ends, as only `HandleDialogueEnd` with speech on takes them down; every later line shows in that popup while the face panel is active (`Tactical/Dialogue_Control.cc:386`, `:1128`) | `talk/talking-ui.test.ts` "leaves the popup of a line carried from the map up with speech off …" |
-| A line without a soldier carried from tactical to the map leaves an unseen popup at 10, 20 and its click region after it ends, as `HandleDialogueEnd` takes a tactical face down only while the face panel is active; the next popup shows there too (`Tactical/Dialogue_Control.cc:352`, `:1145`) | `talk/talking-ui.test.ts` "leaves the unseen popup of a line without a soldier carried to the map registered …" |
-| A face that registers a popup while it has one leaves the old one registered for good, as `RegisterVideoOverlay` overwrites the face's one overlay (`Tactical/Dialogue_Control.cc:1035`, `:1096`) | `talk/talking-ui.test.ts` "keeps for good the popup a face had registered …" |
 | A popup the map showed goes as the map screen closes, while its click region stays for the popup at 10, 20 a carried line gets (`Strategic/MapScreen.cc:3121`, `Tactical/Dialogue_Control.cc:1605`) | `talk/talking-ui.test.ts` "drops the map's popup as the map screen closes …" |
 
 Not pinned yet:

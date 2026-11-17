@@ -14,7 +14,7 @@
 // @src helicopter while the aircraft show), Map_Screen_Helicopter.cc HandleAnimationOfSectors (the yellow locator)
 // @src (2026-11-09); MapScreen.cc EndMapScreen (HandleShutDownOfMapScreenWhileExternfaceIsTalking); RenderFaceOverlay (an external speaker with a soldier: the soldier's panel, his name and his sector
 // @src as GetSectorIDString names it, not detailed, when it is not the loaded one, and his bars, DrawSoldierUIBars), HandleDialogue (a line carried to the map keeps no
-// @src popup for a speaker with a soldier, 2026-11-09).
+// @src popup, 2026-11-09).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -31,7 +31,6 @@ import {
   type SpeechPresenter,
   type SpeechRouting,
   SpeechSurface,
-  speakerHasSoldier,
   speechLineOf,
 } from '../../speech.ts';
 import { FontName } from '../../text/fonts.ts';
@@ -151,7 +150,7 @@ export class MapSpeech {
     screen: SpeechScreen.MAP,
     textBox: (line) => this.#textBoxPlace(line),
     facePopup: (line) => this.#facePopupPlace(line),
-    carriedPopup: (line) => (speakerHasSoldier(line) ? null : this.#hooks.screenPopup()),
+    carriedPopup: () => null,
   };
 
   frames(frames: readonly ViewFrame[]): void {
