@@ -11,8 +11,8 @@ What goes where:
   with its test, in the subsystem's doc.
 - §1: the original crashes, hangs, softlocks, waits for a watchdog or reads past its data, so it has no behaviour to
   keep. ja2-node always defines one, the smallest step from the original it can find.
-- §2: a defined outcome that is plainly unintended, fixed only by the maintainer's decision or because a design rule
-  rules it out (`01` D7, D15, D16); the Why column names which.
+- §2: a defined outcome that is plainly unintended, fixed by the maintainer's decision, because a design rule rules it
+  out (`01` D7, D15, D16), or by the rare-bug rule (§2); the Why column names which.
 - `deviations.md`: ja2-node reaches the original's outcome another way (game time, commands and prompts, saves without
   side effects, generator streams, presentation in the client) or leaves out something that is not gameplay.
 
@@ -105,8 +105,20 @@ idle and the turn from ending, so each case ends where the original meant it to.
 
 ## 2. Gameplay bugs fixed on purpose
 
-Each needs the maintainer's decision or a design rule that rules the bug out. Every other bug of the original stays
-(`01` D1).
+Each needs the maintainer's decision, a design rule that rules the bug out, or the rare-bug rule. Every other bug of the
+original stays (`01` D1).
+
+The rare-bug rule fixes a bug that meets all of these:
+
+- it is plainly unintended;
+- it needs conditions real play rarely meets, and players do not use it on purpose;
+- reproducing it takes state, branches or plumbing that exist only for the bug, so the fix is the smaller code (a bug
+  that falls out of the ported code for free stays);
+- the fix leaves every random draw outside the bug's own case, and their order, as they were, and changes no oracle
+  probe's comparison;
+- the results of the bug that a native save already holds still load as they are.
+
+A case that meets the rule only arguably goes to the maintainer.
 
 | Area | Original | ja2-node | Why |
 |---|---|---|---|

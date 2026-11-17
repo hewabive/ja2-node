@@ -76,7 +76,8 @@ into `docs/`.
 - `docs/33`–`35`: hits and damage; throwing and item physics; NPC actions, presence and schedules.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/original-bugs.md`: the original's bugs ja2-node does not reproduce (crashes, hangs, undefined behaviour, and
-  gameplay bugs fixed only by the maintainer's decision); every other bug of the original is kept (D1).
+  gameplay bugs fixed by the maintainer's decision, a design rule or its rare-bug rule); every other bug of the
+  original is kept (D1).
 - Behaviour of the original not ported yet, code that does not follow this file yet, bugs and planned work are GitHub
   issues (`gh issue`), not docs: in English, labelled, and free of original game data like the repository (no
   screenshots or extracted text). A change that leaves part of the original out opens a `gap` issue: the original's
