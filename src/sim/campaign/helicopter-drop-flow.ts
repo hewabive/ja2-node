@@ -16,7 +16,7 @@ import { interruptTime, setGameTimeCompressionLevel } from '../strategic/time/wo
 import { unPauseAi } from '../tactical/ai/pause.ts';
 import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { helicopterDropStalled, landSeatsWithNoRun, skipHelicopterDrop, startHelicopterRun } from '../tactical/helicopter-drop.ts';
-import { forgetHelicopterShadows, type HelicopterDrop } from '../tactical/helicopter-drop-state.ts';
+import { forgetHelicopterShadow, type HelicopterDrop } from '../tactical/helicopter-drop-state.ts';
 import { MercQuote, sayQuoteFromAnyBodyInSector } from '../tactical/narrative/merc-quotes.ts';
 import { StopTimeCallback } from '../tactical/narrative/port.ts';
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
@@ -102,7 +102,7 @@ export function handleFirstHeliDropOfGame(campaign: CampaignSim, t: TacticalStat
 
 export function cutHelicopterDropShort(campaign: CampaignSim, giveNorthCode: (id: number) => void): void {
   const drop = dropOf(campaign);
-  forgetHelicopterShadows(drop);
+  forgetHelicopterShadow(drop);
   if (!drop.running && !drop.doHeliRun) return;
   for (const id of drop.seats.slice(drop.running ? drop.curDrop : 0)) giveNorthCode(id);
   drop.seats.length = 0;

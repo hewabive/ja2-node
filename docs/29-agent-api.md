@@ -407,9 +407,9 @@ paths of our team avoid unless the tile is the destination and the militia's alw
 levels, bomb timers and owners are never shown (`12` §6). `radarContacts` is there only while an x-ray detector shows
 soldiers the squad does not see: their tile and the colour the radar draws them in (`enemy`, `creature`, `militia`,
 `civilian`, `hostileCivilian`, `namedCivilian`, `unconscious`), no id, as the radar shows no more. `helicopterDrop` is
-there while a run of the helicopter drop goes on (`running`, the interface locked) and while a shadow it never took away
-stays on the map (`25`): `engineVolume`, the 0–127 volume its engine sound is at (`31`), and `shadows`, the
-helicopter's shadow at world pixels `x`, `y`, `z` pixels above the tile `gridNo` (`30`). Animation schedules, palettes
+there while a run of the helicopter drop goes on (`running`, the interface locked; `25`): `engineVolume`, the 0–127
+volume its engine sound is at (`31`), and `shadows`, the helicopter's shadow at world pixels `x`, `y`, `z` pixels above
+the tile `gridNo` (`30`). Animation schedules, palettes
 and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in

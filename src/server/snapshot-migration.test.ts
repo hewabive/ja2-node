@@ -2927,7 +2927,6 @@ const NO_HELICOPTER_DROP = {
   engagedInDrop: false,
   moveAwayRepeated: 0,
   shadow: null,
-  strandedShadows: [],
   doHeliRun: false,
   firstHeliRun: false,
 };
@@ -2998,7 +2997,10 @@ function withoutRunFlags(value: Json, inDrop = false): Json {
 }
 
 function versionSixty(snapshot: SimSnapshot): SimSnapshot {
-  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutRunFlags(value)]);
+  const sections = versionNinetyFive(snapshot).graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    withoutRunFlags(value),
+  ]);
   return { ...snapshot, version: 60, graph: { ...snapshot.graph, sections } };
 }
 
@@ -3017,7 +3019,7 @@ describe('snapshot version 60 (no pending run, no first-run flag) migrates with 
   async function expectRunFlagsDown(session: SessionSim): Promise<void> {
     const current = snapshotSession(session);
     const legacy = versionSixty(current.sim);
-    expect(JSON.stringify(current.sim)).toContain('"strandedShadows":[],"doHeliRun":false,"firstHeliRun":false');
+    expect(JSON.stringify(current.sim)).toContain('"shadow":null,"doHeliRun":false,"firstHeliRun":false');
     expect(JSON.stringify(legacy)).not.toContain('"firstHeliRun"');
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
@@ -4590,7 +4592,7 @@ describe('snapshot version 93 (no map screen item description box) migrates with
 const KEPT_FOR_THE_NEXT_ENTRY_SINCE_95 = ['appendObject'];
 
 function versionNinetyFour(snapshot: SimSnapshot): SimSnapshot {
-  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+  const sections = versionNinetyFive(snapshot).graph.sections.map(([name, value]): readonly [string, Json] => {
     if (name !== 'tactical') return [name, value];
     const tactical = object(value);
     const changes = tactical.mapChanges;
@@ -4625,6 +4627,59 @@ describe("snapshot version 94 (map changes left out of the sector's temp file) m
     const legacy = versionNinetyFour(current.sim);
     expect(JSON.stringify(legacy)).toContain('"liveOnly":true');
     expect(JSON.stringify(current.sim)).not.toContain('liveOnly');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const STRANDED_SHADOWS_KEY = 'strandedShadows';
+const LEFT_SHADOW = { gridNo: 1234, x: 400, y: 300, z: 0 };
+
+function withDropFields(value: Json, fields: (drop: JsonObject) => JsonObject): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDropFields(v, fields));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    out[key] = key === HELICOPTER_DROP_KEY && !isReference(v) ? fields(object(v)) : withDropFields(v, fields);
+  }
+  return out;
+}
+
+function withStrandedShadows(drop: JsonObject, stranded: readonly Json[]): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(drop)) {
+    out[key] = v;
+    if (key === 'shadow') out[STRANDED_SHADOWS_KEY] = [...stranded];
+  }
+  return out;
+}
+
+function versionNinetyFive(snapshot: SimSnapshot, left: readonly Json[] = []): SimSnapshot {
+  const leftBehind = (drop: JsonObject): JsonObject => withStrandedShadows(left.length > 0 ? { ...drop, shadow: LEFT_SHADOW } : drop, left);
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withDropFields(value, leftBehind)]);
+  return { ...snapshot, version: 95, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 95 (shadows a run left on the map) migrates with the shadows gone', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a campaign after its first drop, a shadow left behind a forgotten seat and one stranded beside it', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    expect(campaign.campaign.state.sectorFlow.helicopterDrop.running).toBe(false);
+    const current = snapshotSession(campaign);
+    const legacy = versionNinetyFive(current.sim, [LEFT_SHADOW]);
+    expect(JSON.stringify(legacy)).toContain(`"${STRANDED_SHADOWS_KEY}":[{`);
+    expect(JSON.stringify(current.sim)).not.toContain(STRANDED_SHADOWS_KEY);
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

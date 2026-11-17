@@ -952,7 +952,8 @@ frame the frame's dice in the animation's range, and ja2-node's own check picks 
 count). Labelled, not compared: the facing, destination and position of a merc with no tile, the other soldiers, the
 "has arrived" messages (the event `mercDropped`), a block's rest once the A9 garrison's AI begins combat (the dump
 carries no placement outcome and no AI pass state to replay it), the block with `live=0` (the fades ramp as with a
-sample playing, `25`).
+sample playing, `25`), and a block's rest from an arrival after an Esc skip in the fade-out (the next run plays in full,
+original-bugs "Helicopter drop skipped in its fade-out").
 
 A `save` of `OracleHeliDrop` (`helidrop/load-draws.jsonl`) imports the save from the output's folder, the load's draws
 traced and fed to the import's restart of every saved animation in order, and compares our mercs' tiles and animations

@@ -2688,6 +2688,36 @@ function keepEveryMapChangeForTheNextEntry(snapshot: Readonly<Record<string, unk
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SHADOW_KEY = 'shadow';
+const RUNNING_KEY = 'running';
+
+function dropWithoutLeftShadows(drop: JsonObject): JsonObject {
+  const kept = withoutKeys(drop, [STRANDED_SHADOWS_KEY]);
+  return drop[RUNNING_KEY] === true ? kept : { ...kept, [SHADOW_KEY]: null };
+}
+
+function withoutLeftHelicopterShadows(holder: JsonObject): JsonObject {
+  const drop = holder[HELICOPTER_DROP_KEY];
+  if (!isObject(drop) || drop[REF] !== undefined) return holder;
+  return { ...holder, [HELICOPTER_DROP_KEY]: dropWithoutLeftShadows(drop) };
+}
+
+function withSectorFlowWithoutLeftHelicopterShadows(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: withoutLeftHelicopterShadows(flow) };
+}
+
+function dropLeftHelicopterShadows(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    if (name === 'strategic' && isObject(value)) return [name, withSectorFlowWithoutLeftHelicopterShadows(value)];
+    if (name === 'tactical' && isObject(value)) return [name, withoutLeftHelicopterShadows(value)];
+    return [name, value];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2784,5 +2814,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     92: addItemDescriptionBox,
     93: addMapScreenItemDescriptionBox,
     94: keepEveryMapChangeForTheNextEntry,
+    95: dropLeftHelicopterShadows,
   };
 }

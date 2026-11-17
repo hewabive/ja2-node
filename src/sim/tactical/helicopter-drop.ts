@@ -102,6 +102,7 @@ export function startHelicopterRun(t: TacticalState, sweetSpot: number): boolean
   d.lastStepMs = t.clockMs;
   d.volume = 0;
   d.fadingIn = true;
+  d.fadingOut = false;
   d.running = true;
   d.firstGuyDown = true;
   t.events.push({ type: 'helicopterDropStarted', gridNo: sweetSpot });
@@ -190,7 +191,6 @@ function moveShadowY(d: HelicopterDrop, by: number): void {
 }
 
 function showShadow(d: HelicopterDrop): void {
-  if (d.shadow) d.strandedShadows.push(d.shadow);
   const centre = cellCentre(d.sweetSpot);
   const shadow: HeliShadow = {
     gridNo: d.sweetSpot,

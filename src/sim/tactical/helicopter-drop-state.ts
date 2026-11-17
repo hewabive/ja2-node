@@ -32,7 +32,6 @@ export interface HelicopterDrop {
   engagedInDrop: boolean;
   moveAwayRepeated: number;
   shadow: HeliShadow | null;
-  readonly strandedShadows: HeliShadow[];
   doHeliRun: boolean;
   firstHeliRun: boolean;
 }
@@ -56,7 +55,6 @@ export function createHelicopterDrop(): HelicopterDrop {
     engagedInDrop: false,
     moveAwayRepeated: 0,
     shadow: null,
-    strandedShadows: [],
     doHeliRun: false,
     firstHeliRun: false,
   };
@@ -85,12 +83,10 @@ function shadowView(s: HeliShadow): HelicopterShadowView {
 
 export function helicopterDropView(t: { readonly helicopterDrop: HelicopterDrop }): HelicopterDropView | null {
   const d = t.helicopterDrop;
-  const shown = d.shadow ? [...d.strandedShadows, d.shadow] : d.strandedShadows;
-  if (!d.running && shown.length === 0) return null;
-  return { running: d.running, engineVolume: d.running ? d.volume : 0, shadows: shown.map(shadowView) };
+  if (!d.running) return null;
+  return { running: d.running, engineVolume: d.volume, shadows: d.shadow ? [shadowView(d.shadow)] : [] };
 }
 
-export function forgetHelicopterShadows(drop: HelicopterDrop): void {
+export function forgetHelicopterShadow(drop: HelicopterDrop): void {
   drop.shadow = null;
-  drop.strandedShadows.length = 0;
 }

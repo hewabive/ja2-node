@@ -364,7 +364,7 @@ describe('the Esc skip of the helicopter drop (Merc_Entering.cc HandleHeliDrop, 
     expect(scene.log.filter((line) => line.startsWith('quotes')).map((line) => line.split(' ')[1])).toEqual(['1', '2', '0']);
   });
 
-  it('leaves the fade flags set, so after a skip in the fade-out the next run fades in and straight out, ending in MOVETO before its seat drops, the seat forgotten and the shadow left behind', () => {
+  it('plays the next run in full after a skip in the fade-out, whose fade flags stay as the original left them: its seat lands and no shadow is left', () => {
     const scene = dropScene(1);
     const t = scene.sim.state;
     stepUntil(scene, () => drop(scene).fadingOut);
@@ -373,11 +373,10 @@ describe('the Esc skip of the helicopter drop (Merc_Entering.cc HandleHeliDrop, 
     expect([drop(scene).running, drop(scene).fadingOut]).toEqual([false, true]);
     const later = seatSoldier(t, 1);
     startHelicopterRun(t, northEntry(t));
-    expect(stepUntil(scene, () => !drop(scene).running)).toBe(FIRST_STEP_TICK + (2 * FADE_STEPS - 1) * STEP_TICKS);
-    expect(drop(scene)).toMatchObject({ state: HeliState.MOVETO, curDrop: 0, seats: [], fadingIn: false, fadingOut: false });
-    expect(drop(scene).shadow).not.toBeNull();
-    expect(later.placed).toBe(false);
-    expect(helicopterDropView(t)).toEqual({ running: false, engineVolume: 0, shadows: [drop(scene).shadow] });
+    stepUntil(scene, () => !drop(scene).running);
+    expect(drop(scene)).toMatchObject({ state: HeliState.EXIT, curDrop: 1, seats: [], fadingIn: false, fadingOut: false, shadow: null });
+    expect(later.placed).toBe(true);
+    expect(helicopterDropView(t)).toBeNull();
   });
 
   it('stops the merc it selects as its Esc key reaches the tactical interface: kneeling up into his walk away he walks off and back (GameScreen.cc:407, :436, Turn_Based_Input.cc:2313)', () => {

@@ -61,6 +61,8 @@ const RANDOM_IDLES_TAKEN =
   'idle checks (code 491) of ours fed the dice of their frame that started their random idle animation natively: the replay’s A9 garrison stands and moves elsewhere (no placement outcome), so its idle checks draw in other frames and ours could take a garrison soldier’s dice';
 const IMPORT_LANDS_THE_SEATS =
   'original-bugs "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
+const RUN_AFTER_A_FADE_OUT_SKIP =
+  'original-bugs "Helicopter drop skipped in its fade-out": a run after a skip in the fade-out plays in full, where the original fades in and straight out and forgets its seat';
 const PHASES_TAKEN =
   'the animation codes and frame delays of the restart compared, the frame timers of the native load and the pause its save holds taken for the frames: the timers run on the process’s clock, which no save holds, and an import starts unlocked (deviation "Pause state after an import")';
 const IMPORTED_GLOBALS: readonly string[] = ['seats', 'selected', 'lastUpdate'];
@@ -420,6 +422,7 @@ export class HeliDropComparer {
 
   #arrive(label: string, p: Json): number {
     const c = this.#campaign();
+    const afterAFadeOutSkip = this.#fadeOutLeftBySkip();
     const a = args(p);
     const who = num(a.who);
     const minutes = num(a.minutes ?? 1);
@@ -437,7 +440,13 @@ export class HeliDropComparer {
     const problems: string[] = [];
     differences(lines, p.lines ?? [], 'lines', problems);
     differences(this.#teamState(), this.#nativeTeamState(p), 'state', problems);
+    if (afterAFadeOutSkip) this.#skipping = RUN_AFTER_A_FADE_OUT_SKIP;
     return report(label, problems.length === 0, problems.join('; ') || `merc ${who} arrived`);
+  }
+
+  #fadeOutLeftBySkip(): boolean {
+    const d = this.#tactical().helicopterDrop;
+    return !d.running && d.fadingOut;
   }
 
   #remove(label: string, p: Json): number {
