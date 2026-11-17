@@ -461,12 +461,7 @@ function dropOffItemsInDestination(ctx: LaptopContext, index: number, dest: Ship
     return;
   }
   const loaded = closeCrate(ctx, sector, dest.gridNo, tactical);
-  const objects: ItemObject[] = [];
-  const linesOfFirstShipment = shipments[0]?.lines.length ?? 0;
-  for (let i = 0; i < linesOfFirstShipment; i++) {
-    const line = shipment.lines[i];
-    if (line) objects.push(...stackedObjects(ctx, line, line.count));
-  }
+  const objects = shipment.lines.flatMap((line) => stackedObjects(ctx, line, line.count));
   placeHidden(ctx, sector, dest.gridNo, objects, loaded);
   shipment.active = false;
   if (dest.emailOffset)

@@ -343,7 +343,7 @@ describe("Bobby Ray's deliveries", () => {
     expect(flow.drainEvents()).toContainEqual(expect.objectContaining({ type: 'shipmentDelivered', stolen: 1 }));
   });
 
-  it('delivers outside Drassen only as many lines as the first shipment has', async () => {
+  it('delivers every line of a shipment outside Drassen, whatever the first shipment holds', async () => {
     const flow = await laptopFlow(3);
     const meduna = flow.content.destinations.findIndex((d) => d.canDeliver && !d.isPrimary);
     const sector = openDeliverySector(flow, meduna);
@@ -356,7 +356,7 @@ describe("Bobby Ray's deliveries", () => {
       ]),
     );
     bobbyRayPurchaseEvent(flow, 1, null);
-    expect(deliveredItems(flow, sector).map((o) => o.item)).toEqual([itemIndex(flow, 'BERETTA_92F')]);
+    expect(deliveredItems(flow, sector).map((o) => o.item)).toEqual([itemIndex(flow, 'BERETTA_92F'), itemIndex(flow, 'GLOCK_17')]);
     expect(shipments[1]?.active).toBe(false);
   });
 });
