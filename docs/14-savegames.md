@@ -208,7 +208,6 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | The restart frees the target of a saved give it drops only if the load made that target before the giver: a later one is made from his own save, engaged again (`Tactical/Soldier_Control.cc:1672-1681`, `SaveLoadGame.cc:1404`) | `sim/tactical/save-import.test.ts` "lets the restart drop it from a soldier saved in a moving animation …" |
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
 | So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
-| A corpse with no free tile within five tiles is lost: the wider retry searches around the `NOWHERE` the first search left (`Tactical/Tactical_Save.cc:650-652`) | `sim/tactical/corpse-placement.test.ts` |
 | A load stands a landed helicopter before the saved soldiers enter the map, so its bump moves nobody, and before the saved map changes, so a piece destroyed before the save stays off the map | `sim/campaign/sector-flow.test.ts` "bumps nobody when a native import …", "keeps a helicopter piece destroyed before the save …" |
 | A loaded creature pool is redrawn as human blood: its type lives in the smell byte, which the load sets after the redraw | `sim/tactical/blood-pools.test.ts` |
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |

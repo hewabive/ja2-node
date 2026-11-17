@@ -54,7 +54,7 @@ export function findNearestAvailableGridNoForCorpse(t: TacticalState, corpse: Co
 function sweetSpotOf(t: TacticalState, corpse: Corpse): CorpseSpot {
   const near = findNearestAvailableGridNoForCorpse(t, corpse, SWEET_SPOT_RADIUS);
   if (near.gridNo !== NOWHERE) return near;
-  return findNearestAvailableGridNoForCorpse(t, { ...corpse, gridNo: NOWHERE }, WIDE_SWEET_SPOT_RADIUS);
+  return findNearestAvailableGridNoForCorpse(t, corpse, WIDE_SWEET_SPOT_RADIUS);
 }
 
 export function placeLoadedCorpse(t: TacticalState, corpse: Corpse): Corpse {

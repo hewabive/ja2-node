@@ -104,11 +104,12 @@ describe('where a loaded corpse goes (Tactical_Save.cc LoadRottingCorpsesFromTem
     });
   });
 
-  it('loses a corpse with no free tile within five: the wider retry searches around the NOWHERE the first search left (Tactical_Save.cc:650-652)', () => {
+  it('puts a corpse with no free tile within five on the nearest free tile within fifteen of its own', () => {
     const t = sectorWith({ water: square(CENTRE, LAKE_APOTHEM) });
     const corpse = droppedCorpse(CENTRE);
-    expect(findNearestAvailableGridNoForCorpse(t, corpse, WIDE_SWEET_SPOT_RADIUS).gridNo).not.toBe(NOWHERE);
-    expect(placeLoadedCorpse(t, corpse).gridNo).toBe(NOWHERE);
+    const wide = findNearestAvailableGridNoForCorpse(t, corpse, WIDE_SWEET_SPOT_RADIUS);
+    expect(wide.gridNo).not.toBe(NOWHERE);
+    expect(placeLoadedCorpse(t, corpse)).toMatchObject(wide);
   });
 
   it('puts a corpse flagged for an entry point on the map entry tile, at every load', () => {
