@@ -137,9 +137,8 @@ M.E.R.C. listing merc's cost to date to Speck's total (`Laptop/Mercs.cc:1692`; `
 **Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own
 and catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
 `loadPhysicsTable`, `src/sim/tactical/native-in-flight.ts`; `Tactical/Bullets.cc:390`, `TileEngine/Physics.cc:2150`). A
-bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:405`), and a thrown knife takes its
-status from what its thrower holds then (`HandleBulletSpecialFlags`, `:102`); its tiles per update stay as saved
-(deviation "Hide bullets"). A bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped
+bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:405`), and a thrown knife keeps its
+saved status (original-bugs "Loaded thrown knife"); its tiles per update stay as saved (deviation "Hide bullets"). A bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped
 stays in its slot until the sector is left, which the AI's wait for the bullets sees, as in the original, and the
 server's idle test passes over (`bulletsResolving`, `src/sim/tactical/combat/bullets.ts`). An object comes back with no
 level node (`TileEngine/LoadSaveRealObject.cc:40`), which its next move takes for an object not drawn yet
@@ -221,7 +220,6 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A queued bomb is named by its world bomb slot, and the load lists the bombs again in item order without gaps: an entry can set off another bomb than the one it was queued for (`TileEngine/Explosion_Control.cc:1955`, `Tactical/Tactical_Save.cc:571`) | `sim/tactical/save-import.test.ts` "sets off the bomb the rebuilt list holds at a saved index …" |
 | A queue saved running runs on at once, but ends at its last bomb without waiting for the blasts in flight: who set it off is not saved (`TileEngine/Explosion_Control.cc:2017`) | `sim/tactical/save-import.test.ts` "runs a queue saved running …" |
 | The load zeroes the busy count, explosions in flight or not (`SaveLoadGame.cc:1100`, `:1179`) | `sim/tactical/save-import.test.ts` "zeroes the saved busy count …" |
-| A loaded thrown knife takes its status from what its thrower holds at the load, not its own: `HandleBulletSpecialFlags` reads the hand again (`Tactical/Bullets.cc:102`) | `sim/tactical/save-import.test.ts` "gives a loaded thrown knife the status of what its thrower holds now …" |
 | A bullet saved stopped stays in its slot for good: the miss animation that would end it is not saved (`Tactical/Bullets.cc:405`) | `sim/tactical/save-import.test.ts` "keeps a bullet saved stopped in its slot for good …" |
 | A loaded object has no level node, so its first move looks at the catch again on the tile it was saved on, measured from there, where a drawn object waits for its next tile (`TileEngine/LoadSaveRealObject.cc:40`, `TileEngine/Physics.cc:1097`) | `sim/tactical/save-import.test.ts` "looks at the catch again on the tile an object was saved on …" |
 | A saved door or container action runs from wherever his walk ends and handles the structure at its tile only if the saved structure ID is its own: the load numbers the structures anew from the process's counter, so a save from a process that had loaded other worlds plays the opening at a door that stays shut (`Tactical/Overhead.cc:821`, `TileEngine/Interactive_Tiles.cc:98`, `TileEngine/Structure.cc:777`) | `sim/tactical/saved-pending-action.test.ts` "opens the door or container its saved structure ID names …", "plays the opening of a saved door whose structure ID names no structure …" |
@@ -280,8 +278,8 @@ Inferred from reading the source:
   its end.
 - A thrown object after the load: the oracle writes a save with a grenade in flight, which the import reads, but no
   probe command runs `SimulateWorld` or prints the physics table, so its flight, its missing level node and its end are
-  pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's status from the hand, a
-  bullet saved stopped and the cursor item: no probe makes them.
+  pinned by unit tests only (`src/sim/tactical/save-import.test.ts`). So are a thrown knife's saved status, a bullet
+  saved stopped and the cursor item: no probe makes them.
 
 Other deviations of the import: "Ambient sound events", "Blood on the ground", "Preserved soldier checksums",
 "Animations on load reaching the campaign", "Hooks on load". Bugs of the original it does not reproduce: original-bugs

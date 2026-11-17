@@ -1662,13 +1662,16 @@ describe('the bullets, thrown objects and item cursor of a save (Bullets.cc Load
     expect(soldierOf(sim, TARGET_ID).life).toBeLessThan(50);
   });
 
-  it('gives a loaded thrown knife the status of what its thrower holds now, not its own: HandleBulletSpecialFlags reads the hand again', () => {
+  it('keeps a loaded thrown knife its own saved status, whatever its thrower holds now', () => {
     const knife = bulletEastAlongTheRow({ flags: KNIFE, itemStatus: SAVED_KNIFE_STATUS });
     const inHand = objectRecord(itemIndexOf('THROWING_KNIFE'), KNIFE_STATUS_IN_HAND);
     const thrower = holding(savedSoldier(MERC_ID, Team.OUR, FIRER_AT), InvSlot.HAND, inHand);
     const armed = importedSim(syntheticSave({ soldiers: [thrower, savedSoldier(TARGET_ID, Team.ENEMY, CENTRE)], bullets: [knife] }));
     const emptyHanded = importedSim(duelSave({ bullets: [knife] }));
-    expect([armed.state.bullets[0]?.itemStatus, emptyHanded.state.bullets[0]?.itemStatus]).toEqual([KNIFE_STATUS_IN_HAND, 0]);
+    expect([armed.state.bullets[0]?.itemStatus, emptyHanded.state.bullets[0]?.itemStatus]).toEqual([
+      SAVED_KNIFE_STATUS,
+      SAVED_KNIFE_STATUS,
+    ]);
   });
 
   it('keeps a bullet saved stopped in its slot for good, as no miss animation comes back to remove it, and lets the sim stand idle', () => {

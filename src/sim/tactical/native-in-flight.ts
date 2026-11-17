@@ -1,13 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-08. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Bullets.cc LoadBulletStructureFromSavedGameFile (the saved bullets in slot order, the firer and
-// @src target by id, uiLastUpdate 0, HandleBulletSpecialFlags); TileEngine/Physics.cc LoadPhysicsTableFromSavedGameFile
+// @src target by id, uiLastUpdate 0); TileEngine/Physics.cc LoadPhysicsTableFromSavedGameFile
 // @src (the saved objects in slot order) with TileEngine/LoadSaveRealObject.cc ExtractRealObjectFromFile (the owner and
 // @src target by id, no level node, which PhysicsMoveObject takes for an object not yet drawn).
 
 import type { SavedBullet, SavedRealObject, SavedVector } from '../../content/formats/savegame-effects.ts';
 import { objectFromRecord } from '../items/object.ts';
-import { type Bullet, handleBulletSpecialFlags } from './combat/bullets.ts';
+import type { Bullet } from './combat/bullets.ts';
 import { NO_TARGET_TAKEN_DAMAGE } from './explosions/physics.ts';
 import type { RealObject } from './explosions/state.ts';
 import { type Vec3, vec3 } from './explosions/vec3.ts';
@@ -23,9 +23,7 @@ export function loadBulletTable(t: TacticalState, saved: readonly SavedBullet[])
   for (const b of saved) {
     const firer = soldierOfSavedId(t, b.firerId);
     if (!firer) continue;
-    const bullet = savedBullet(t, b, firer);
-    handleBulletSpecialFlags(bullet);
-    t.bullets.push(bullet);
+    t.bullets.push(savedBullet(t, b, firer));
   }
 }
 
