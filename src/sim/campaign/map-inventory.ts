@@ -19,8 +19,8 @@
 // @src UpdateRobotControllerGivenController, EnsureConsistentWeaponMode; Interface_Panels.cc the launcher reset,
 // @src 2026-11-15), and its hand part by bInSector, for a helicopter passenger over the loaded sector too (2026-11-15);
 // @src Tactical/Points.cc EnoughPoints and DeductPoints (INCOMBAT for any merc on any screen), Tactical/Items.cc ReloadGun
-// @src (the old magazine of a merc off the loaded map dropped at his sGridNo, NOWHERE taken as the loaded map's centre by
-// @src Handle_Items.cc InternalAddItemToPool), MapScreen.cc MAPInternalInitItemDescriptionBox and Interface_Items.cc
+// @src (the old magazine of a merc off the loaded map dropped into his own sector), MapScreen.cc
+// @src MAPInternalInitItemDescriptionBox and Interface_Items.cc
 // @src DeleteItemDescriptionBox (the box session, its AP_RELOAD_GUN charged as it closes or as the map screen ends,
 // @src EndMapScreen) (2026-11-16).
 
@@ -72,11 +72,11 @@ import { type RingSource, returnKeysToRing, sourceObject, takeSourceObject } fro
 import { type KeyRingWorld, moveKey } from '../tactical/key-ring-panel.ts';
 import { type BreathRules, deductPoints } from '../tactical/points.ts';
 import { refuse } from '../tactical/refusal.ts';
-import { inSector, isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier } from '../tactical/soldier.ts';
+import { inSector, isCreatureOrBloodcat, OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import { afterPlacement, type PlacementEffects, soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import { combineStacks } from '../tactical/stack-cleanup.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
+import { WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
 import { campaignCombatContext } from './off-map-combat.ts';
@@ -264,7 +264,7 @@ export class MapInventory {
     return {
       ...this.#dryContext(s),
       spendActionPoints: (ap) => deductPoints(this.#breathRules(), s, ap, 0),
-      dropAtFeet: (o) => this.#dropIntoTheLoadedSector(s, o),
+      dropAtFeet: (o) => this.#dropIntoHisSectorStash(s, o),
       collectKey: (o) => this.#collectKey(s, o),
       placed: (item) => afterPlacement(contentOf(this.#campaign).items, s, item, this.#offMapPlacementEffects()),
       reloaded: (gun) => {
@@ -273,11 +273,9 @@ export class MapInventory {
     };
   }
 
-  #dropIntoTheLoadedSector(s: Soldier, o: ItemObject): void {
-    const t = this.#campaign.tactical?.state;
-    if (!t) return;
-    const gridNo = s.gridNo === NOWHERE ? (t.world.map?.info.centerGridNo ?? NOWHERE) : s.gridNo;
-    addItemToPool(t, gridNo, o, Visibility.VISIBLE, s.level);
+  #dropIntoHisSectorStash(s: Soldier, o: ItemObject): void {
+    const sector = this.#campaign.battle?.roster.get(s.id)?.sector;
+    if (sector) stashOf(this.#campaign, sector).add(o, s.gridNo, s.level);
   }
 
   #offMapPlacementEffects(): PlacementEffects {

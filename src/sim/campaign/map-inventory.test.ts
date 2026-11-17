@@ -14,7 +14,7 @@ import { WeaponMode } from '../tactical/combat/types.ts';
 import { createKeyObject, sectorByte } from '../tactical/doors/keys.ts';
 import { AP_RELOAD_GUN, apsToReloadGunWithAmmo, InvSlot } from '../tactical/inventory.ts';
 import { leaveTacticalSector } from '../tactical/sector-presence.ts';
-import { Body, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { enterCombatMode } from '../tactical/turns/turns.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
@@ -389,6 +389,29 @@ describe('the map screen inventory', () => {
     );
   });
 
+  it("puts the leftover of a merc of the loaded sector off its tiles at the loaded map's centre, as AddItemToPool takes NOWHERE (Handle_Items.cc:1441-1446)", () => {
+    const c = onTheMap();
+    stashAtTheMerc(c, [one('M870')]);
+    const merc = mercIds(c)[1] as number;
+    const held = c.battle?.roster.get(merc)?.soldier;
+    if (!held) throw new Error('no merc');
+    leaveTacticalSector(loaded(c), held);
+    held.inv.forEach((_, slot) => {
+      held.inv[slot] = one('SILENCER');
+    });
+    const before = loaded(c).worldItems.length;
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'smallPocket1', to: 'ground', stashIndex: 0 })).toMatchObject({
+      ok: true,
+      data: { item: 'SILENCER', stashIndex: 0 },
+    });
+    const centre = loaded(c).world.map?.info.centerGridNo ?? NOWHERE;
+    expect(
+      loaded(c)
+        .worldItems.slice(before)
+        .map((wi) => [wi.gridNo, kit.sectors.content.items.byIndex.get(wi.object.item)?.name]),
+    ).toEqual([[centre, 'M870']]);
+  });
+
   it('opens the inventory of every sector the map can select, one never visited and the levels below included, and of none on the edge of the world (ChangeSelectedMapSector, IsTheCursorAllowedToHighLightThisSector)', () => {
     const c = onTheMap();
     const merc = mercIds(c)[0] as number;
@@ -720,28 +743,30 @@ describe('the map screen inventory in combat (Points.cc EnoughPoints and DeductP
     expect(soldierOf(c, merc).actionPoints).toBe(SPARE_AP);
   });
 
-  it("drops the old magazine of a merc off the loaded map, his pockets full and his points short of the pickup, at the loaded map's centre (quirk, Items.cc:1235-1241, Handle_Items.cc:1441-1446)", () => {
-    const c = onTheMapInCombat();
-    const merc = mercIds(c)[1] as number;
-    takenOffTheLoadedMap(c, merc);
-    const centre = loaded(c).world.map?.info.centerGridNo ?? -1;
+  function reloadWithPocketsFullAndPointsShort(c: CampaignSim, merc: number, sector: string): void {
     carry(c, merc, InvSlot.BIGPOCK1, clips([5]));
     const dropped = c.dispatch({ type: 'moveItem', soldier: merc, from: 'bigPocket1', to: 'ground' });
-    expect(dropped).toMatchObject({ ok: true, data: { sector: 'A10' } });
+    expect(dropped).toMatchObject({ ok: true, data: { sector } });
     const stashIndex = (dropped.data as { stashIndex: number }).stashIndex;
     for (const slot of FULL_POCKETS) carry(c, merc, slot, one('SILENCER'));
     const gun = soldierOf(c, merc).inv[InvSlot.HAND] as ItemObject;
     gun.gunShotsLeft = 1;
     const cost = apsToReloadGunWithAmmo(kit.sectors.content.items, gun, clips([5]));
     soldierOf(c, merc).actionPoints = cost + AP_PICKUP_ITEM - 1;
-    const before = loaded(c).worldItems.length;
     expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'ground', item: stashIndex, to: 'hand' })).toMatchObject({ ok: true });
-    expect(
-      loaded(c)
-        .worldItems.slice(before)
-        .map((wi) => [wi.gridNo, kit.sectors.content.items.byIndex.get(wi.object.item)?.name, wi.object.status[0]]),
-    ).toEqual([[centre, 'CLIP9_15', 1]]);
     expect(soldierOf(c, merc).actionPoints).toBe(AP_PICKUP_ITEM - 1);
+  }
+
+  const magazines = (entries: readonly StashEntryView[]) => entries.map((e) => [e.item, e.status, e.gridNo]);
+
+  it('drops the old magazine of a merc off the loaded map, his pockets full and his points short of the pickup, into his own sector (Items.cc:1235-1241)', () => {
+    const c = onTheMapInCombat();
+    const merc = mercIds(c)[1] as number;
+    takenOffTheLoadedMap(c, merc);
+    const before = loaded(c).worldItems.length;
+    reloadWithPocketsFullAndPointsShort(c, merc, 'A10');
+    expect(loaded(c).worldItems.length).toBe(before);
+    expect(magazines(stash(c, 'A10'))).toEqual([['CLIP9_15', [1], NOWHERE]]);
   });
 
   it('charges an attach outside a box as a box of its own, AP_RELOAD_GUN once, and refuses it short of that (Interface_Items.cc:1987, :2585)', () => {

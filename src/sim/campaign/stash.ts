@@ -6,7 +6,8 @@
 // @src GetObjFromInventoryStashSlot, RemoveObjectFromStashSlot, PlaceObjectInInventoryStash, SaveSeenAndUnseenItems
 // @src (the pool written back in its order: a gridno of 0 borrows the one before it, every item visible),
 // @src ReBuildWorldItemStashForLoadedSector (the loaded sector's items trashed and added again, the pool's first, then
-// @src the unseen); Tactical/Tactical_Save.cc AddItemsToUnLoadedSector (the first free record),
+// @src the unseen); Tactical/Handle_Items.cc InternalAddItemToPool (NOWHERE taken as the loaded map's centre);
+// @src Tactical/Tactical_Save.cc AddItemsToUnLoadedSector (the first free record),
 // @src SaveWorldItemsToTempItemFile (the unseen records first, the flag of the temp file, the recount).
 
 import { ItemClass } from '../../content/items/items.ts';
@@ -193,11 +194,13 @@ function loadedStash(campaign: CampaignSim): Stash {
       placeIntoStashSlot(campaign, wi.object, cursor);
       wi.flags |= WorldItemFlags.REACHABLE;
     },
-    add: (o, gridNo, level) =>
-      newStashObjects(campaign, o).flatMap((part) => {
-        const added = addItemToPool(t, gridNo, part, Visibility.VISIBLE, level, stashFlags(gridNo), 0);
+    add: (o, gridNo, level) => {
+      const at = gridNo === NOWHERE ? (t.world.map?.info.centerGridNo ?? NOWHERE) : gridNo;
+      return newStashObjects(campaign, o).flatMap((part) => {
+        const added = addItemToPool(t, at, part, Visibility.VISIBLE, level, stashFlags(at), 0);
         return added ? [added.id] : [];
-      }),
+      });
+    },
     update: (index, o) => {
       const wi = find(index) as WorldItem;
       if (o.count === 0) removeWorldItem(t, wi);
