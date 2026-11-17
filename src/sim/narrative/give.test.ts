@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { type FakeHost, fakeHost, NPC_TYPE, recordArray } from '../../../tests/support/narrative.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { Approach } from '../../content/narrative/npc-constants.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { cloneObject, createItem, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
@@ -30,12 +31,12 @@ interface Scene {
   readonly merc: Soldier;
 }
 
-function scene(npcProfile = NPC, mercAt = gridNo(81, 80)): Scene {
+function scene(npcProfile = NPC, mercAt = gridNo(81, 80), records: Parameters<typeof recordArray>[0] = {}): Scene {
   const sim = newCombatSim(content);
   const npc = spawnSoldier(sim, NPC_ID, Team.CIV, gridNo(80, 80), Direction.EAST, { profile: npcProfile });
   const merc = spawnSoldier(sim, MERC_ID, Team.OUR, mercAt, Direction.WEST, { profile: MERC });
   const base = fakeHost({
-    scripts: { [npcProfile]: recordArray({}) },
+    scripts: { [npcProfile]: recordArray(records) },
     types: { [npcProfile]: NPC_TYPE },
     profiles: { [npcProfile]: {}, [MERC]: {} },
   });
@@ -165,5 +166,29 @@ describe('a give the dealer does not take (SoldierGiveItemFromAnimation)', () =>
     const one = { ...cloneObject(clips), count: 1, status: [100] };
     expect(shopOpenedWith(clips, one, InvSlot.BIGPOCK1)).toEqual([NO_SLOT]);
     expect(shopOpenedWith(clips, createMoney(content.items, 100), NO_SLOT)).toEqual([NO_SLOT]);
+  });
+});
+
+describe('a give the dealer answers with a Buy/Sell record (SoldierGiveItemFromAnimation)', () => {
+  const BUY_SELL_RECORD = { 0: { approachRequired: Approach.BUYSELL } };
+  const MONEY = 100;
+
+  it('puts money the merc gave from no pocket back into his pockets, as the shop does', () => {
+    const { host, npc, merc } = scene(NPC, gridNo(81, 80), BUY_SELL_RECORD);
+    const opened: number[] = [];
+    const money = createMoney(content.items, MONEY);
+    expect(dealerTakesGive(host, merc, npc, money, NO_SLOT, (_dealer, _giver, offered) => opened.push(offered))).toBe(true);
+    expect(opened).toEqual([]);
+    expect(merc.inv.filter((o) => o.item === money.item).map((o) => o.money)).toEqual([MONEY]);
+  });
+
+  it('leaves a pocket item where it is, in its pocket', () => {
+    const { host, npc, merc } = scene(NPC, gridNo(81, 80), BUY_SELL_RECORD);
+    const pistol = createItem(content.items, item('GLOCK_17'), 90);
+    merc.inv[InvSlot.BIGPOCK1] = pistol;
+    const carried = () => merc.inv.map((o) => [o.item, o.count]);
+    const before = carried();
+    expect(dealerTakesGive(host, merc, npc, cloneObject(pistol), InvSlot.BIGPOCK1, () => {})).toBe(true);
+    expect(carried()).toEqual(before);
   });
 });

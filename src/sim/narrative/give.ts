@@ -202,13 +202,18 @@ export function dealerTakesGive(
 ): boolean {
   if (npcHasUnusedRecordWithGivenApproach(host, dealer.profile, Approach.BUYSELL)) {
     triggerNpcWithGivenApproach(host, dealer.profile, Approach.BUYSELL);
+    putSlotlessObjectBack(host, giver, object, slot);
     return true;
   }
   if (npcWillingToAcceptItem(host, dealer.profile, giver.profile, object)) return false;
   openShop(dealer.profile, giver, wholePocketGiven(giver, object, slot) ? slot : NO_SLOT);
+  putSlotlessObjectBack(host, giver, object, slot);
+  return true;
+}
+
+function putSlotlessObjectBack(host: NarrativeHost, giver: Soldier, object: ItemObject, slot: number): void {
   const t = host.tactical();
   if (t && slot === NO_SLOT) autoPlaceObject(soldierInventoryContext(t, giver), giver, cloneObject(object));
-  return true;
 }
 
 export function giveToNpc(host: NarrativeHost, giver: Soldier, target: Soldier, object: ItemObject): void {

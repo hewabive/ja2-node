@@ -232,9 +232,6 @@ Not pinned yet:
   nothing (`startCivQuote`).
 - An NPC handing over a gift keeps it in his profile inventory, so a later required-item test still sees it
   (`handleNpcItemGiven`).
-- One item of a stack goes back to the end of the pocket before the give, so the NPC gets the first item's status and
-  the merc keeps a copy of it (`putFirstBackAtTheEnd`, `give-flow.ts`); money split off a pocket is lost when a dealer
-  plays a Buy/Sell record instead (`dealerTakesGive`).
 - A departed R.P.C. keeps `RECRUITED`: profile placement skips him and his own records never come back.
 - `CivilianGroupMemberChangesSides` draws `Random(2)` for a first profile nothing reads (`civ-hostility.ts`).
 
