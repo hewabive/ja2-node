@@ -1,10 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/MainMenuScreen.cc InitMainMenu (Load disabled without saves), MenuButtonCallback (Alt+click on Load loads
-// @src the last saved slot at once), HandleMainMenuInput (c, Alt+C, o, s, Ctrl+Q; Esc quits in the original),
-// @src HandleMainMenuScreen.
+// @src src/game/MainMenuScreen.cc InitMainMenu (Load disabled without saves), MenuButtonCallback, HandleMainMenuInput (c,
+// @src o, s, Ctrl+Q; Esc quits in the original), HandleMainMenuScreen.
 
-import { KeyModifier } from '../../input/events.ts';
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { type FrontEndEnvironment, FrontEndLayout, FrontEndScreen } from './environment.ts';
@@ -13,14 +11,13 @@ export const MAIN_MENU_SCREEN = 'mainMenu';
 
 export const MAIN_MENU_CONTRACT: ControllerContract = {
   id: MAIN_MENU_SCREEN,
-  actions: { newGame: {}, loadGame: {}, loadLastSaved: {}, preferences: {}, credits: {}, quit: {} },
+  actions: { newGame: {}, loadGame: {}, preferences: {}, credits: {}, quit: {} },
   bindings: { savesExist: 'boolean', version: 'string' },
 };
 
 export interface MainMenuActions {
   newGame(): void;
   loadGame(): void;
-  loadLastSaved(): void;
   preferences(): void;
   credits(): void;
   quit(): void;
@@ -31,11 +28,10 @@ export interface MainMenuModel {
   version: string;
 }
 
-export function mainMenuController(actions: MainMenuActions, model: MainMenuModel, modifiers: () => number): ViewModelController {
+export function mainMenuController(actions: MainMenuActions, model: MainMenuModel): ViewModelController {
   return new ViewModelController(MAIN_MENU_CONTRACT, model as unknown as Record<string, unknown>, {
     newGame: () => actions.newGame(),
-    loadGame: () => ((modifiers() & KeyModifier.ALT) !== 0 ? actions.loadLastSaved() : actions.loadGame()),
-    loadLastSaved: () => actions.loadLastSaved(),
+    loadGame: () => actions.loadGame(),
     preferences: () => actions.preferences(),
     credits: () => actions.credits(),
     quit: () => actions.quit(),
@@ -46,7 +42,7 @@ export function mainMenuScreen(env: FrontEndEnvironment, actions: MainMenuAction
   return new FrontEndScreen(env, {
     id: MAIN_MENU_SCREEN,
     layout: FrontEndLayout.MAIN_MENU,
-    controller: mainMenuController(actions, model, () => env.runtime.modifiers),
+    controller: mainMenuController(actions, model),
     soundScreen: UiScreenKind.MAINMENU,
   });
 }

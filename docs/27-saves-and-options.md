@@ -294,8 +294,8 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
   warning box, Delete, Download, Upload, and the native saves to import. The developer hub's (`src/devtools/hub/`,
   `32` §3) adds the session to save, Save as new or over a player or quick save, and loading into a running session.
   Their row location and tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
-- On `/play` the map and tactical screens bind quick save and quick load (Alt+S, Alt+L) and the main menu Alt+Load and
-  Alt+C (`30`).
+- On `/play` the map and tactical screens bind quick save and quick load (Alt+S, Alt+L); the main menu's Alt+Load and
+  Alt+C open the load screen as Load and C do (original-bugs "Alt+Load after a Dead is Dead save").
 
 ### 1.12 Quirks of the original the code keeps
 
@@ -389,9 +389,9 @@ simulation, not worth it for an option nobody can choose (deviation "Timed turns
 
 One versioned JSON object in the browser's `localStorage` (`src/ui/settings.ts`: the model, its defaults and
 normalization; `src/app/settings.ts`: the storage). Every storage access may fail, and the pages work without storage;
-agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes, help flags and the main
-menu's last saved game slot (`30`) with their defaults, and add ja2-node's own: ambient and master volume, mute,
-catch-up speed, language, UI scale and 640×480 only, the splash and intro switches, the website loading time scale.
+agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes and help flags with their
+defaults, and add ja2-node's own: ambient and master volume, mute, catch-up speed, language, UI scale and 640×480 only,
+the splash and intro switches, the website loading time scale.
 `bloodAndGore` there is only what the new game form preselects; in a game the options screen sends `setOption`. The help
 screens seen are kept per campaign identity instead of in the save (deviation "Help screens seen"). The meanwhile scenes
 seen moved to the server: a page that finds them in the stored settings of an older page hands them over

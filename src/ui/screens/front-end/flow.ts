@@ -4,10 +4,7 @@
 // @src DoneFadeOutForExitGameInitOptionScreen (fade out, music off, the beginning intro or the save screen in Dead is Dead);
 // @src src/game/Options_Screen.cc SetOptionsExitScreen; src/game/SaveLoadScreen.cc LeaveSaveLoadScreen (back to the
 // @src screen that opened it; from the options back to the options), DoSaveGame (after a save back to the game),
-// @src EnterSaveLoadScreen (gfLoadGameUponEntry loads the list entry bLastSavedGameSlot without the warning box; at -1 or
-// @src past the list the load screen stays), DoSaveGame (naming the Dead is Dead save sets bLastSavedGameSlot to 0 for
-// @src good), DoQuickSave and
-// @src DoQuickLoad (the quick save loads without the warning box; nothing happens without one),
+// @src DoQuickSave and DoQuickLoad (the quick save loads without the warning box; nothing happens without one),
 // @src StartFadeOutForSaveLoadScreen and DoneFadeOutForSaveLoadScreen (fade out, load, fade in on the saved screen);
 // @src src/game/GameLoop.cc EndGameMessageBoxCallBack; src/game/Credits.cc (back to the main menu); src/game/JAScreens.cc
 // @src SexScreenHandle (a fade into the game); src/game/Strategic/StrategicMap.cc BeginLoadScreen (the zoom into a sector
@@ -24,7 +21,6 @@ import type { DrawList } from '../../draw-list.ts';
 import { SaveController } from '../../saves/save-controller.ts';
 import { isQuickSaveName } from '../../saves/save-rows.ts';
 import type { Screen } from '../../screen.ts';
-import { NO_SAVED_GAME_SLOT } from '../../settings.ts';
 import type { LabelId } from '../../text/labels.ts';
 import { Fade, type FadeDirection } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
@@ -40,7 +36,7 @@ import { LoadingController, loadingScreen } from './loading.ts';
 import { type MainMenuModel, mainMenuScreen } from './main-menu.ts';
 import { OptionsController, type OptionsOrigin, optionsScreen } from './options.ts';
 import { SanMonaController, sanMonaScreen } from './san-mona.ts';
-import { listedSaves, SaveLoadController, type SaveLoadMode, saveLoadScreen } from './save-load.ts';
+import { SaveLoadController, type SaveLoadMode, saveLoadScreen } from './save-load.ts';
 import { saveLocationName } from './save-location.ts';
 import { type GameScreenActions, type GameScreenKind, unavailableScreen } from './screen-unavailable.ts';
 import { SectorZoom } from './sector-zoom.ts';
@@ -95,7 +91,6 @@ export interface FrontEndHost {
 }
 
 const SEX_SCENE = 'sexScene';
-const DEAD_IS_DEAD_SAVED_GAME_SLOT = 0;
 const BOXING_IN_PROGRESS = 'boxingInProgress';
 const TACTICAL_SCREEN_ID = 'tactical';
 const MAP_SCREEN_ID = 'map';
@@ -244,7 +239,6 @@ export class FrontEndFlow {
         {
           newGame: () => this.gameInit(),
           loadGame: () => void this.saveLoad('load', 'mainMenu'),
-          loadLastSaved: () => void this.loadLastSaved(),
           preferences: () => void this.options('mainMenu'),
           credits: () => this.credits(),
           quit: () => this.#host.quit(),
@@ -348,7 +342,6 @@ export class FrontEndFlow {
           const options = this.#pendingOptions;
           this.#pendingOptions = null;
           if (!options) return;
-          this.#rememberSavedGameSlot(DEAD_IS_DEAD_SAVED_GAME_SLOT);
           void this.startNewGame(options, { name, description });
         },
       },
@@ -373,19 +366,6 @@ export class FrontEndFlow {
         this.enterGame();
         return;
     }
-  }
-
-  #rememberSavedGameSlot(slot: number): void {
-    this.#settings.change({ lastSavedGameSlot: slot });
-    this.#settings.persist();
-  }
-
-  async loadLastSaved(): Promise<void> {
-    const slot = this.#settings.current().lastSavedGameSlot;
-    const listings = await this.#refreshListings();
-    const last = slot === NO_SAVED_GAME_SLOT ? undefined : listedSaves(listings, 'load')[slot];
-    if (last) await this.loadSave(last, 'mainMenu');
-    else await this.saveLoad('load', 'mainMenu');
   }
 
   async quickSave(): Promise<string | null> {
