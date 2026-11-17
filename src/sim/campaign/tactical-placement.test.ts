@@ -11,18 +11,26 @@ import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { Rng } from '../../core/rng.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { type BattlePrompt, PlacementButton } from '../strategic/forces/battle-state.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
+import { SKYRIDER, setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
+import { sectorInfo } from '../strategic/map/sectors.ts';
+import { CompressMode } from '../strategic/time/constants.ts';
+import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
 import {
   beginMapEdgepointSearch,
   edgepointList,
   endMapEdgepointSearch,
   searchForClosestPrimaryMapEdgepoint,
 } from '../tactical/edgepoints.ts';
+import { sectorEntryGridNo } from '../tactical/insertion.ts';
+import { type ProfileProgress, progressFromProfile } from '../tactical/profiles.ts';
 import { NOWHERE, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
+import { findGridNoFromSweetSpot } from '../tactical/sweet-spots.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { Roster } from './roster.ts';
 import { placedByThePlayer } from './tactical-placement.ts';
@@ -88,6 +96,49 @@ function pieceTiles(c: CampaignSim, roster: Roster): (number | null)[] {
 
 function enemies(c: CampaignSim): number {
   return teamMembers(tactical(c), Team.ENEMY).length;
+}
+
+const HELICOPTER_PASSENGER = 3;
+const PIECE_SWEET_SPOT_RADIUS = 4;
+
+function compressUntilStopped(c: CampaignSim): void {
+  if (!c.dispatch({ type: 'compressTime', mode: CompressMode.MIN5 }).ok) throw new Error('cannot compress');
+  for (let i = 0; i < 20_000 && isTimeBeingCompressed(c.state.clock); i++) c.step();
+}
+
+function droppedByHelicopterIntoB9ThenOurSquadArrives(): Placing {
+  const { campaign: c, roster } = createTestCampaign(kit, { seed: 31, garrison: { admins: 0, troops: 0, elites: 0 } });
+  sectorInfo(c.state.map, B9).numTroops = 2;
+  landFirstSquad(c);
+  for (let i = 0; i < 10_000 && !c.isIdle(); i++) c.step();
+  const ctx = c.strategic;
+  const skyrider = kit.sectors.content.profiles[SKYRIDER];
+  const a9 = c.state.map.elements[strategicIndex(A9)];
+  if (!ctx || !a9) throw new Error('no strategic layer');
+  c.state.profiles.set(SKYRIDER, skyrider ? progressFromProfile(skyrider) : ({ balance: 0, life: 50 } as unknown as ProfileProgress));
+  a9.enemyControlled = false;
+  setUpHelicopterForPlayer(ctx, A9);
+  for (const cmd of [
+    { type: 'mapScreen' },
+    { type: 'boardVehicle', soldier: HELICOPTER_PASSENGER, vehicle: 'helicopter' },
+    { type: 'heliRoute', to: 'B9' },
+  ]) {
+    const r = c.dispatch(cmd);
+    if (!r.ok) throw new Error(`${cmd.type} refused: ${r.reason}`);
+  }
+  compressUntilStopped(c);
+  const left = c.dispatch({ type: 'leaveVehicle', soldier: HELICOPTER_PASSENGER });
+  if (!left.ok) throw new Error(`leaveVehicle refused: ${left.reason}`);
+  if (!c.dispatch({ type: 'route', soldier: 0, to: 'B9' }).ok) throw new Error('route refused');
+  for (let i = 0; i < 200_000 && !c.hasPendingDecision(); i++) {
+    if (!isTimeBeingCompressed(c.state.clock)) c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 });
+    c.step();
+  }
+  const prompt = c.state.battle.prompt;
+  if (prompt?.kind !== 'preBattle') throw new Error('no pre-battle panel');
+  const entered = c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'enterSector' });
+  if (!entered.ok) throw new Error(`enterSector refused: ${entered.reason}`);
+  return { c, roster };
 }
 
 describe('the tactical placement of a pre-battle Go to sector (Tactical_Placement_GUI.cc)', () => {
@@ -164,18 +215,46 @@ describe('the tactical placement of a pre-battle Go to sector (Tactical_Placemen
     expect(roster.get(0)?.soldier.insertionData).toBe(NOWHERE);
   });
 
-  it('can place no merc whose side is no map edge: place is refused and Spread writes NOWHERE into his insertion data, so Done never comes (TacticalPlacementHandle gfValidCursor, ChooseRandomEdgepoints)', () => {
+  it('refuses a click for a merc whose side is no map edge, and Spread keeps his gridNo and puts his piece there, so Done comes (TacticalPlacementHandle gfValidCursor; original-bugs "Placement merc off the map edges")', () => {
     const { c, roster } = placing((_c, r) => {
       const merc = r.get(3);
       if (!merc) throw new Error('no merc 3');
       merc.insertionCode = InsertionCode.GRIDNO;
     });
+    const merc = roster.get(3);
+    if (!merc) throw new Error('no merc 3');
+    const t = tactical(c);
+    const entry = sectorEntryGridNo(t, InsertionCode.CENTER);
+    merc.soldier.insertionData = entry;
+    const piece = findGridNoFromSweetSpot(t, merc.soldier, entry, PIECE_SWEET_SPOT_RADIUS);
     const [first] = northEdgepoints(c);
     expect(answer(c, 'place', { soldier: 3, gridNo: first })).toMatchObject({ ok: false, data: { refusal: 'placementInvalid' } });
     expect(answer(c, 'spread')).toEqual({ ok: true });
-    expect(pieceTiles(c, roster)[3]).toBeNull();
-    expect(roster.get(3)?.soldier.insertionData).toBe(NOWHERE);
-    expect(answer(c, 'done')).toMatchObject({ ok: false, data: { refusal: 'placementIncomplete' } });
+    const spread = roster.get(3);
+    expect([spread?.insertionCode, spread?.soldier.insertionData]).toEqual([InsertionCode.GRIDNO, entry]);
+    expect(pieceTiles(c, roster)[3]).toBe(piece);
+    expect(answer(c, 'done')).toEqual({ ok: true });
+  });
+
+  it('lists a merc who left the helicopter over the hostile sector, his insertion code the centre, and Spread puts his piece at the map\'s centre entry point so Done comes (Vehicles.cc:287-302, Squads.cc:172; original-bugs "Placement merc off the map edges")', () => {
+    const { c, roster } = droppedByHelicopterIntoB9ThenOurSquadArrives();
+    expect(placement(c).pieces.map((p) => [p.soldier, p.side])).toEqual([
+      [0, InsertionCode.NORTH],
+      [1, InsertionCode.NORTH],
+      [2, InsertionCode.NORTH],
+      [HELICOPTER_PASSENGER, InsertionCode.CENTER],
+    ]);
+    const merc = roster.get(HELICOPTER_PASSENGER);
+    if (!merc) throw new Error('no passenger');
+    expect(answer(c, 'place', { soldier: HELICOPTER_PASSENGER, gridNo: northEdgepoints(c)[0] })).toMatchObject({
+      ok: false,
+      data: { refusal: 'placementInvalid' },
+    });
+    const t = tactical(c);
+    const centre = findGridNoFromSweetSpot(t, merc.soldier, sectorEntryGridNo(t, InsertionCode.CENTER), PIECE_SWEET_SPOT_RADIUS);
+    expect(answer(c, 'spread')).toEqual({ ok: true });
+    expect(pieceTiles(c, roster)[3]).toBe(centre);
+    expect(answer(c, 'done')).toEqual({ ok: true });
   });
 
   it('places the whole group of the merc named under Group, and Group again goes back to Clear with everyone left placed (GroupPlacementsCallback)', () => {

@@ -95,6 +95,11 @@ function substituteEntryPoint(t: TacticalState): number {
   return [info.northGridNo, info.eastGridNo, info.southGridNo, info.westGridNo, info.centerGridNo].find((g) => g !== -1) ?? NOWHERE;
 }
 
+export function sectorEntryGridNo(t: TacticalState, code: number): number {
+  const g = entryPoint(t, code);
+  return g === -1 ? substituteEntryPoint(t) : g;
+}
+
 const isEdgeIndex = (code: number) => code === Insertion.PRIMARY_EDGEINDEX || code === Insertion.SECONDARY_EDGEINDEX;
 const isEntryCode = (code: number) => code <= Insertion.WEST || code === Insertion.CENTER;
 
@@ -102,10 +107,7 @@ function insertionGridNo(t: TacticalState, s: Soldier, order: InsertionOrder, ct
   const underground = ctx.worldSector.z > 0;
   for (;;) {
     const code = order.code;
-    if (isEntryCode(code)) {
-      const g = entryPoint(t, code);
-      return g === -1 ? substituteEntryPoint(t) : g;
-    }
+    if (isEntryCode(code)) return sectorEntryGridNo(t, code);
     if (code === Insertion.GRIDNO) return order.data;
     if (isEdgeIndex(code)) {
       const search = code === Insertion.PRIMARY_EDGEINDEX ? searchForClosestPrimaryMapEdgepoint : searchForClosestSecondaryMapEdgepoint;

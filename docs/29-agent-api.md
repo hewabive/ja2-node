@@ -1141,8 +1141,9 @@ game's, with nobody placed. The answers are its buttons and its click on the ove
   `placementInaccessible` when no edge point is near, the original's two boxes; the latter still writes NOWHERE into
   the insertion data of the merc missed, and their edge points into that of the group's mercs found before him, as the
   original does (`19` Q32).
-- `spread` (a random edge point each, `Random` in list order), `group` (toggles the group button; nobody moves),
-  `clear` (everyone picked up).
+- `spread` (a random edge point each, `Random` in list order; a merc whose `side` is null goes to the entry point a
+  sector entry gives him, his gridNo or the map's centre, original-bugs "Placement merc off the map edges"), `group`
+  (toggles the group button; nobody moves), `clear` (everyone picked up).
 - `done`, refused with `placementIncomplete` until everyone is placed, as the original's Done button is disabled.
 
 The flag the original keeps for the next load when the sector is loaded already is dropped (original-bugs "Placement

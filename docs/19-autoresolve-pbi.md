@@ -145,7 +145,6 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q30 | The dead of a battle lie on random tiles of the visible area of the map loaded last, a basement loaded elsewhere or already unloaded included (`TileEngine/Isometric_Utils.cc:667`) | `src/sim/campaign/battle-scenario.test.ts`, `autoresolve/close.test.ts` |
 | Q31 | Bandaging clears the bleeding warning only while healing a patient out of dying, before the rest of his bleeding is stopped | `autoresolve/close.test.ts` |
 | Q32 | A placement click with no edge point of the merc's side near writes NOWHERE into his insertion data even while his piece stands placed, so Done enters him from it (`TileEngine/Tactical_Placement_GUI.cc:798-808`) | `src/sim/campaign/tactical-placement.test.ts` "writes NOWHERE into the insertion data …" |
-| Q33 | A merc whose side is no map edge can be placed neither by a click nor by Spread, which writes NOWHERE into his insertion data, so Done never comes (`TileEngine/Tactical_Placement_GUI.cc:431-449`, `:552-565`) | `src/sim/campaign/tactical-placement.test.ts` "can place no merc whose side is no map edge …" |
 | Q34 | A sleeping merc drawn for the enemy-presence line is woken for it and put back to sleep as the panel opens, right after the panel woke everyone involved: his back-to-sleep event follows the line in the queue (`Strategic_Movement.cc:595-602`, `PreBattle_Interface.cc:303`, `Dialogue_Control.cc:413-418`) | `src/sim/campaign/enemy-presence-line.test.ts` "puts a sleeping speaker back to sleep …" |
 
 Not pinned yet:

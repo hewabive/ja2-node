@@ -6,7 +6,9 @@
 // @src TacticalPlacementHandle: a merc whose side is no map edge has no valid spot), EnsureDoneButtonStatus,
 // @src KillTacticalPlacementGUI, PutDownMercPiece (vanilla's release build keeps sInsertionGridNo for a code with no
 // @src entry point, V:TileEngine/TacticalPlacementGUI.c:952-970), PickUpMercPiece;
-// @src Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter (the cell corner).
+// @src Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter (the cell corner). A merc whose side is no map
+// @src edge keeps his insertion data under Spread and his piece goes to the entry point a sector entry gives his code,
+// @src Strategic/StrategicMap.cc UpdateMercInSector (original-bugs "Placement merc off the map edges", 2026-11-17).
 
 import { CELL_X_SIZE, CELL_Y_SIZE, isVisibleTile, WORLD_COLS } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
@@ -21,7 +23,7 @@ import {
   endMapEdgepointSearch,
   searchForClosestPrimaryMapEdgepoint,
 } from '../tactical/edgepoints.ts';
-import { CENTER_GRIDNO, directionFromTo } from '../tactical/insertion.ts';
+import { CENTER_GRIDNO, directionFromTo, sectorEntryGridNo } from '../tactical/insertion.ts';
 import { removeSoldierFromGridNo, setSoldierPositionXY } from '../tactical/movement.ts';
 import { NOWHERE } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
@@ -90,6 +92,8 @@ function pieceInsertionGridNo(t: TacticalState, m: RosterMerc): number {
       return info.westGridNo;
     case InsertionCode.GRIDNO:
       return m.soldier.insertionData;
+    case InsertionCode.CENTER:
+      return sectorEntryGridNo(t, InsertionCode.CENTER);
     default:
       return m.soldier.insertionGridNo;
   }
@@ -134,7 +138,7 @@ function chooseRandomEdgepoints(table: PlacementTable): void {
     const m = table.merc(piece.soldier);
     if (m && !m.isVehicle) {
       const g = chooseMapEdgepoint(table.t, piece.side, table.rolls);
-      m.soldier.insertionData = g;
+      if (onAMapEdge(piece)) m.soldier.insertionData = g;
       m.insertionCode = g !== NOWHERE ? InsertionCode.GRIDNO : piece.side;
     }
     putDownMercPiece(table, piece);
