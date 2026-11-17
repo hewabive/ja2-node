@@ -132,7 +132,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | Quirk | Test |
 |---|---|
 | A group that left a sector still counts there for the enemy count, and the garrison count ignores z: an underground arrival sees the surface garrison | `strategic/forces/groups.test.ts` |
-| An enemy group's size is troops + elites; admins never count | `strategic/forces/groups.test.ts` |
+| An enemy group's size is troops + elites; admins never count, a sector's mobile enemy count neither | `strategic/forces/groups.test.ts`, `strategic/ai/counts.test.ts` "counts groups between sectors …" |
 | A cancelled move returns in the time already travelled; a 90° replan while moving is a reversal | `strategic/forces/movement.test.ts` |
 | A new waypoint resets every member's insertion code to 0 (north), forgetting the edge-index entry of a tactical traversal | `strategic/forces/movement.test.ts` |
 | Travel asks for a strength gain even when the leg earns zero points; health needs at least one | `strategic/forces/movement.test.ts` |

@@ -221,7 +221,6 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
 | Auto-bandage's warp is 5 s a frame up to 125 s however long the mode ran, and the events inside it wait for the next advance | `campaign/auto-bandage-flow.test.ts` "pauses the world clock and jumps it at the end …" |
 | Leaving the map lifts the pause lock, whoever set it, and the way back to the loaded sector every pause but the player's; only a way out past the exit checks, such as the pre-battle panel's, can find a lock | `campaign/screens.test.ts` |
-| The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |
 | The first real-time turn after a sector load, or after the way back to the loaded sector from the map, comes at the first 20 ms count past 5 s, however recent the map's last turn | `campaign/absent-mercs.test.ts` "comes at the first 20 ms count …", "comes as long after a return …", "comes as long after a compressed stay …" |

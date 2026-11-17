@@ -132,8 +132,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/` 
 | A patrol's grace period is stored mod 100 and expires at once across a multiple of 100 days | `weights.test.ts` |
 | The palace's extra reinforcements wrap: `20 − requested` is negative for its 32 elites | `weights.test.ts` |
 | The palace guard fills to 20, not 32, and credits the pool with `20 − elites` instead of the real overflow | `orders.test.ts` |
-| H1's garrison counts as stationary and as mobile: the original compares the garrison index, 25, with `ROADBLOCK` | `counts.test.ts` |
-| An enemy group's size leaves its admins out | `counts.test.ts` |
+| H1's garrison counts as stationary and as mobile: the original compares the garrison index, 25, with `ROADBLOCK` | `counts.test.ts`, oracle |
 | F10 closes once the hillbillies are dead, against the code's own comment | `detection.test.ts` |
 | H2 closes when H2 itself and G1 or G2 are defended | `detection.test.ts` |
 | A garrison splits towards an undefended town sector even while its own sector is loaded | `detection.test.ts` |

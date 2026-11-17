@@ -131,7 +131,6 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q8 | A fourth bullet in flight adds its damage to slot 2 and is credited to slot 2's attacker; assist slots are stale | `autoresolve/attack.test.ts` |
 | Q9 | Only the gun in the hand is reloaded; a pocket gun fires until empty | `autoresolve/attack.test.ts` |
 | Q11 | The dead and the unconscious can be ordered to retreat: it never completes, but attacks on them take the 70 % factor | `autoresolve/end.test.ts` |
-| Q12 | The H1 garrison (index 25) counts as stationary and mobile because the original compares the garrison id with the `ROADBLOCK` composition | `strategic/ai/counts.test.ts`, oracle |
 | Q15 | A merc who retreated alone stays in the sector after a victory; only a `RETREAT` ending moves the groups | `autoresolve/close.test.ts` |
 | Q16 | The group pass of the enemy association hands out slots in cell order whatever the cell's class | `autoresolve/setup.test.ts`, oracle |
 | Q17 | Bandaging: the medic bonus looks for a medical kit in the helmet slot; the best-medic search stops at the first kit owner who is not bleeding | `autoresolve/close.test.ts` |

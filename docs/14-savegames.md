@@ -134,16 +134,17 @@ sector for an invalid landing zone, and, gated by the save's version ahead of th
 `UpdateRefuelSiteAvailability` for version 89 or lower and `CalcAproximateAmountPaidToSpeck` below 91, which adds every
 M.E.R.C. listing merc's cost to date to Speck's total (`Laptop/Mercs.cc:1692`; `runNativeLoadHooks`).
 
-**Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own
-and catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
+**Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own and
+catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
 `loadPhysicsTable`, `src/sim/tactical/native-in-flight.ts`; `Tactical/Bullets.cc:390`, `TileEngine/Physics.cc:2150`). A
 bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:405`), and a thrown knife keeps its
-saved status (original-bugs "Loaded thrown knife"); its tiles per update stay as saved (deviation "Hide bullets"). A bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped
-stays in its slot until the sector is left, which the AI's wait for the bullets sees, as in the original, and the
-server's idle test passes over (`bulletsResolving`, `src/sim/tactical/combat/bullets.ts`). An object comes back with no
-level node (`TileEngine/LoadSaveRealObject.cc:40`), which its next move takes for an object not drawn yet
-(`TileEngine/Physics.cc:1097`): every use of the node checks it, so nothing breaks, and the object gets one again at
-its next tile; its float fields are read as the float32 they are. Neither holds the busy count, which the load zeroes,
+saved status (original-bugs "Loaded thrown knife"); its tiles per update stay as saved (deviation "Hide bullets"). A
+bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped stays in its slot until the
+sector is left, which the AI's wait for the bullets sees, as in the original, and the server's idle test passes over
+(`bulletsResolving`, `src/sim/tactical/combat/bullets.ts`). An object comes back with no level node
+(`TileEngine/LoadSaveRealObject.cc:40`), which its next move takes for an object not drawn yet
+(`TileEngine/Physics.cc:1097`): every use of the node checks it, so nothing breaks, and the object gets one again at its
+next tile; its float fields are read as the float32 they are. Neither holds the busy count, which the load zeroes,
 so their end releases nothing that was held. The bomb queue comes back with its entries, its active flag, which the
 general info keeps (`SaveLoadGame.cc:2092`), and the sight bits of the tactical status; an entry names a world bomb by
 its slot, and the load lists the bombs again from the item file (`loadExplosionTable`,
