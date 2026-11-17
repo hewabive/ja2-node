@@ -231,6 +231,19 @@ describe('an NPC walking off the map (AIMain.cc HandleAITacticalTraversal)', () 
   });
 });
 
+describe('an NPC whose walk ends short of his script destination (AIMain.cc ExecuteAction)', () => {
+  it('leaves his attack unnoticed: the every-frame flag of the original is no status flag', () => {
+    const { sim } = setup();
+    const s = npc(sim);
+    s.ai.action = AiAction.WALK;
+    s.ai.newSituation = Situation.NOT_NEW;
+    s.pathIndex = s.pathSize;
+    s.absoluteFinalDestination = FAR;
+    handleSoldierAI(sim.state, s, sim.ai);
+    expect([s.attackNoticed, s.absoluteFinalDestination, s.ai.action]).toEqual([false, FAR, AiAction.NONE]);
+  });
+});
+
 describe('the named-NPC branch of DecideActionGreen', () => {
   it('does nothing for a minute after the NPC spoke, without the PreRandom(5) draw, then clears the time', () => {
     const { sim } = setup();

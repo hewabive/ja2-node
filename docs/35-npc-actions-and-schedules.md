@@ -192,8 +192,6 @@ Not pinned yet:
   exactly "will become hostile" (`schedules.ts`, `placement.ts`).
 - The AI's "enter sector" step puts a civilian who never left at gridno 0 (`decideEnterSector`).
 - Auto-processing teleports to a cell's corner, not its centre (`setSoldierPositionNoCenter`).
-- An AI walk whose path ends short of its absolute destination sets the original's every-frame flag in the status
-  flags, where its bit means "attack noticed" (`markAttackNoticedByMisplacedEveryFrameFlag`, `ai/control.ts`).
 - A lock's smash difficulty above 127 turns into a bonus: both `INT8` casts wrap (`bashModifier`).
 - A threatened Kingpin moves Spike to C5 keeping his old level (`npc-events.ts`).
 - `MercLooksForDoors` tries the tiles around a door with the door tile's sight range, where `AllMercsLookForDoor` takes

@@ -146,8 +146,6 @@ Not pinned yet:
   `finalDestination` anyway.
 - Stracciatella limits `goAsFarAsPossibleTowards` to the room only for NPCs with a script destination, vanilla only for
   the others; ordinary wandering is limited by the random destination's room test alone.
-- An NPC short of his script destination gets `attackNoticed`: the original sets its every-frame flag in the wrong
-  field (`markAttackNoticedByMisplacedEveryFrameFlag`).
 - The YELLOW-to-GREEN test reads `actionInProgress`, which a WAIT leaves set until the next decision.
 - The personal noise memory is not filtered by hostility (Design).
 

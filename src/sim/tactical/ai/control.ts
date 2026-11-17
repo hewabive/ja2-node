@@ -650,10 +650,6 @@ function reachedRecordDestination(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
-function markAttackNoticedByMisplacedEveryFrameFlag(s: Soldier): void {
-  s.attackNoticed = true;
-}
-
 function moveProfileWithTraversal(t: TacticalState, s: Soldier): void {
   const profile = s.profile === NO_PROFILE ? undefined : t.profiles.get(s.profile);
   if (profile) handleNpcChangesForTacticalTraversal(s, profile);
@@ -759,7 +755,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
             handleAITacticalTraversal(t, s, control);
             return;
           }
-        } else markAttackNoticedByMisplacedEveryFrameFlag(s);
+        }
       } else if (isTraversalQuoteAction(s.quoteActionId)) {
         handleAITacticalTraversal(t, s, control);
         return;
