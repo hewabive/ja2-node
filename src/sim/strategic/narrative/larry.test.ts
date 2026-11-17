@@ -147,11 +147,11 @@ describe('HourlyLarryUpdate', () => {
 });
 
 describe("the soldier's stats after Larry's swap (Soldier_Profile.cc SwapLarrysProfiles)", () => {
-  it("adds the other profile's deltas onto its stats, which ChangeStat already raised: a gain made as that Larry counts twice", () => {
+  it("takes the other profile's stats, which ChangeStat already raised by its deltas: a gain made as that Larry counts once", () => {
     const drunk = testProfile(Npc.LARRY_DRUNK);
     Object.assign(drunk.stats, { dexterity: 56, marksmanship: 70 });
     Object.assign(drunk.deltas, { dexterity: 1, marksmanship: -2 });
     const stats = statsAfterLarrysSwap(drunk);
-    expect([stats.dexterity, stats.marksmanship, stats.wisdom]).toEqual([57, 68, drunk.stats.wisdom]);
+    expect([stats.dexterity, stats.marksmanship, stats.wisdom]).toEqual([56, 70, drunk.stats.wisdom]);
   });
 });

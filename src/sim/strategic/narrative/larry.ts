@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Hourly_Update.cc HourlyLarryUpdate, LarryItems, BAR_TEMPTATION, LARRY_FALLS_OFF_WAGON (items and bars
 // @src checked against data/tables/narrative.json); Tactical/Soldier_Profile.cc SwapLarrysProfiles (the soldier's stats
-// @src from the other profile's stats and deltas, 2026-11-14).
+// @src from the other profile's stats, 2026-11-14).
 
 import { i8 } from '../../../core/int.ts';
 import { type ProfileProgress, STAT_KEYS, type StatKey } from '../../tactical/profiles.ts';
@@ -178,6 +178,6 @@ export function swapLarrysProfileRecords(n: NarrativeState, from: ProfileProgres
 }
 
 export function statsAfterLarrysSwap(to: ProfileProgress): Record<StatKey, number> {
-  const entries = Object.values(STAT_KEYS).map((key) => [key, i8(to.stats[key] + to.deltas[key])]);
+  const entries = Object.values(STAT_KEYS).map((key) => [key, to.stats[key]]);
   return Object.fromEntries(entries) as Record<StatKey, number>;
 }
