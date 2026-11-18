@@ -51,6 +51,7 @@ import {
   pcDoesFirstAidOnNpc,
   pcsNearNpc,
   selectEnv,
+  shutUpSoldierFace,
   shutUpTalkingFace,
   stepDialogue,
   talkerSoldier,
@@ -678,6 +679,9 @@ export class TalkFlow {
       sayQuote: (s, quote, delayed) => {
         if (delayed) delayedTacticalCharacterDialogue(host, s, quote);
         else tacticalCharacterDialogue(host, s, quote);
+      },
+      shutUpSoldierFace: (s) => {
+        shutUpSoldierFace(host, s.profile);
       },
       cosmeticPick: (choices) => this.talk.fx.int(choices),
       logBleedMeToos: (on) => beginLoggingForBleedMeToos(this.talk, on),

@@ -48,6 +48,7 @@ import {
   soldierByProfile,
   tacticalCharacterDialogue,
   talkingMenuDialogue,
+  talksThroughSoldierFaceOf,
 } from './dialogue-queue.ts';
 import type { NarrativeHost } from './host.ts';
 import {
@@ -920,6 +921,10 @@ export function shutUpTalkingFace(host: NarrativeHost): boolean {
   host.emit({ type: 'lineCut', profile: face.speaker, saidAt: face.saidAt, tail: false });
   faceFinished(host, dialogueHandlers(host));
   return true;
+}
+
+export function shutUpSoldierFace(host: NarrativeHost, profile: number): boolean {
+  return talksThroughSoldierFaceOf(host.talk.face, profile) && shutUpTalkingFace(host);
 }
 
 export function finishTalkingFace(host: NarrativeHost): boolean {

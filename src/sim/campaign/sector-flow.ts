@@ -75,6 +75,7 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { idiv, u16 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { LoadScreenView, SimEvent } from '../events.ts';
+import { shutUpTalkingFace } from '../narrative/converse.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
 import { getNumberOfEnemiesInSector } from '../strategic/ai/counts.ts';
@@ -567,6 +568,11 @@ export class SectorFlow {
     return world !== null && this.campaign.tactical !== null && sameSector(world, sector);
   }
 
+  #stopAnyCurrentlyTalkingSpeech(): void {
+    const host = this.campaign.talk?.host;
+    if (host) shutUpTalkingFace(host);
+  }
+
   setCurrentWorldSector(sector: Sector, options: LoadOptions = {}): boolean {
     const s = this.campaign.state;
     syncStrategicTurnTimes(this.realtimeClock, s.realMs);
@@ -587,6 +593,7 @@ export class SectorFlow {
     s.worldSector = { x: sector.x, y: sector.y, z: sector.z };
     this.#flow.trashedMapRooms = null;
     s.map.selectedSector = { ...sector };
+    this.#stopAnyCurrentlyTalkingSpeech();
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
     handleHelicopterOnGround(this.ctx, false);
     const enemyPresence = this.#whileLoading(() => this.#enterSector(sector, baseWorld, options, previous));

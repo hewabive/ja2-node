@@ -25,7 +25,7 @@ import { sectorFromStrategicIndex } from '../../content/strategic/sector-ids.ts'
 import { i8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { deleteTalkingMenu, shutUpTalkingFace, triggerNpcRecordImmediately } from '../narrative/converse.ts';
+import { deleteTalkingMenu, triggerNpcRecordImmediately } from '../narrative/converse.ts';
 import { emptyDialogueQueue } from '../narrative/dialogue-queue.ts';
 import { reloadQuoteFile } from '../narrative/records.ts';
 import { dialogueQueueIsEmptyAndNobodyIsTalking } from '../narrative/talk-state.ts';
@@ -327,16 +327,9 @@ export class MeanwhileFlow {
 
   #restoreTheOldWorld(trip: MeanwhileReturnTrip): void {
     const c = this.#campaign;
-    if (trip.sector) {
-      if (!c.sectors?.isLoaded(trip.sector)) this.#stopAnyCurrentlyTalkingSpeech();
-      c.sectors?.setCurrentWorldSector(trip.sector);
-    } else c.sectors?.trashWorld();
+    if (trip.sector) c.sectors?.setCurrentWorldSector(trip.sector);
+    else c.sectors?.trashWorld();
     c.state.map.selectedSector = { ...trip.selectedSector };
-  }
-
-  #stopAnyCurrentlyTalkingSpeech(): void {
-    const host = this.#campaign.talk?.host;
-    if (host) shutUpTalkingFace(host);
   }
 
   #logScene(id: number, skipped: boolean): MeanwhileLogEntry {

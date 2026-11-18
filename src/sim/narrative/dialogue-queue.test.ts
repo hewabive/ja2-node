@@ -6,7 +6,7 @@ import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import type { PathEnv } from '../tactical/pathfinding.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { finishTalkingFace, shutUpTalkingFace, stepDialogue } from './converse.ts';
+import { finishTalkingFace, shutUpSoldierFace, shutUpTalkingFace, stepDialogue } from './converse.ts';
 import {
   addDialogueEvent,
   beginLoggingForBleedMeToos,
@@ -725,6 +725,24 @@ describe('a soldier face deleted while it talks (Faces.cc DeleteFace from Delete
   function facesDeleted(host: FakeHost): unknown[] {
     return host.emitted.filter((e) => e.type === 'soldierFaceDeleted');
   }
+
+  it('stops a line said through his own face at once, and leaves the line of another merc or one on the map panel alone (ShutupaYoFace)', () => {
+    const { host, merc, other } = twoMercs();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    host.advance();
+    expect(shutUpSoldierFace(host, OTHER_PROFILE)).toBe(false);
+    expect(host.talk.face?.speaker).toBe(MERC_PROFILE);
+    expect(shutUpSoldierFace(host, MERC_PROFILE)).toBe(true);
+    expect(host.talk.face).toBeNull();
+    expect(host.emitted).toContainEqual(expect.objectContaining({ type: 'lineCut', profile: MERC_PROFILE, tail: false }));
+    tacticalCharacterDialogue(host, other, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    if (host.talk.face) host.talk.face = { ...host.talk.face, soldierFace: false };
+    host.advance();
+    expect(shutUpSoldierFace(host, OTHER_PROFILE)).toBe(false);
+    expect(host.talk.face?.speaker).toBe(OTHER_PROFILE);
+  });
 
   it('ends his line there, with the ticks it had left, and the next pass says the next line', () => {
     const { host, merc, other } = twoMercs();

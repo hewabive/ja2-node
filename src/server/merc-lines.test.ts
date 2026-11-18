@@ -3,7 +3,7 @@ import { spawnSoldier } from '../../tests/support/combat.ts';
 import { testProfile } from '../../tests/support/profiles.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
-import { parseSectorString } from '../content/strategic/sector-ids.ts';
+import { parseSectorString, type Sector } from '../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem } from '../sim/items/object.ts';
 import { deleteTalkingMenu } from '../sim/narrative/converse.ts';
@@ -35,6 +35,7 @@ afterAll(async () => {
   await kit.dispose();
 });
 
+const A10 = parseSectorString('A10');
 const KESTREL = 0;
 const VANT = 1;
 const FOUND_SOMETHING_SPEAKER = 7;
@@ -372,6 +373,22 @@ describe("a merc's face deleted while he talks, in a campaign (Faces.cc DeleteFa
     expect(events).toContainEqual(expect.objectContaining({ type: 'soldierFaceDeleted', profile, saidAt }));
     expect(quotesSaid(events, [NEXT_LINE])).toEqual([[VANT, NEXT_LINE]]);
   }
+
+  it('cuts the line being said when another sector loads, and not when the loaded sector is entered again (SetCurrentWorldSector)', async () => {
+    const talking = await kestrelTalking(113);
+    const { c, saidAt } = talking;
+    const campaign = c.session.campaign;
+    const sectors = campaign.sectors;
+    if (!sectors) throw new Error('no sector flow');
+    expect(sectors.setCurrentWorldSector(campaign.state.worldSector as Sector)).toBe(true);
+    expect(c.session.drainEvents().filter((e) => e.type === 'lineCut')).toEqual([]);
+    expect(talkOf(c).talk.face?.saidAt).toBe(saidAt);
+    Object.assign(sectorInfo(campaign.state.map, A10), { numAdmins: 0, numTroops: 0, numElites: 0 });
+    expect(sectors.setCurrentWorldSector(A10)).toBe(true);
+    expect(c.session.drainEvents().filter((e) => e.type === 'lineCut')).toEqual([
+      expect.objectContaining({ profile: KESTREL, saidAt, tail: false }),
+    ]);
+  });
 
   it('ends the line of a merc married off and goes on to the next (NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE, ChangeSoldierTeam)', async () => {
     const talking = await kestrelTalking(119);

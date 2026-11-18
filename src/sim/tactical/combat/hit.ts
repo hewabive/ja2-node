@@ -787,6 +787,7 @@ export function soldierTakeDamage(
   }
   markNpcWoundedByPlayer(t, s, attacker);
   handleTakeDamageDeath(t, s, reason);
+  if (s.life < CONSCIOUSNESS) t.narrative.shutUpSoldierFace(s);
   if (s.life < OKLIFE) decayIndividualOpplist(t, s);
   return combined;
 }

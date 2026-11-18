@@ -314,7 +314,7 @@ export function finishTalking(talk: TalkState, tick: number): boolean {
   return cutTalkingFace(talk, tick + FINAL_TALKING_DELAY_TICKS);
 }
 
-function talksThroughSoldierFaceOf(face: TalkingFace | null, profile: number): face is TalkingFace {
+export function talksThroughSoldierFaceOf(face: TalkingFace | null, profile: number): face is TalkingFace {
   return face?.soldierFace === true && face.speaker === profile;
 }
 

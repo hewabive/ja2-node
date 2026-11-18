@@ -25,7 +25,8 @@
 // @src (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04);
 // @src Dialogue_Control.cc SetStopTimeQuoteCallback with TacticalCharacterDialogue (sayStopTimeQuote, 2026-11-04);
 // @src Tactical/Campaign.cc ChangeStat (CharacterDialogueEventDisplayStatChange and QUOTE_EXPERIENCE_GAIN, sayStatChange,
-// @src 2026-11-14); TacticalAI/AIMain.cc ExecuteAction's StartCivQuote before an attack (startCivQuote, 2026-11-14).
+// @src 2026-11-14); TacticalAI/AIMain.cc ExecuteAction's StartCivQuote before an attack (startCivQuote, 2026-11-14);
+// @src Tactical/Soldier_Control.cc SoldierTakeDamage's ShutupaYoFace (shutUpSoldierFace, 2026-11-18).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -132,6 +133,7 @@ export interface NarrativePort {
   setSoldierNeutral(s: Soldier): void;
   stuffMissingFromShipment(gridNo: number): boolean;
   sayQuote(s: Soldier, quote: number, delayed?: boolean): void;
+  shutUpSoldierFace(s: Soldier): void;
   cosmeticPick(choices: number): number;
   logBleedMeToos(on: boolean): void;
   signalItemLocatorStart(s: Soldier, gridNo: number): void;
@@ -221,6 +223,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   },
   stuffMissingFromShipment: () => false,
   sayQuote: () => {},
+  shutUpSoldierFace: () => {},
   cosmeticPick: () => 0,
   logBleedMeToos: () => {},
   signalItemLocatorStart: () => {},
