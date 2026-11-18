@@ -78,6 +78,12 @@ opens the menu for unwilling mercs too, reopens it for a renewal still open once
 merc who can no longer leave (deviations "Contract renewal sequence", "Contract prompts"; original-bugs "Renewal of a
 merc who cannot leave", "Renewal list").
 
+**A raised price is said before the menu.** The contract column, the contract button and `c` all go through
+`openContractMenu`. With the flag of a level gained set, the merc says `MERC_GONE_UP_IN_PRICE`, the flag clears and the
+menu comes behind the line, as a `contractRenewal` prompt with `fromSequence: false` (a dismissal from it asks first, as
+outside the renewal sequence); otherwise the options come back at once. `extendContract`, an agent's way past the menu,
+says the same line when the flag is still set (deviation "Extending without the menu").
+
 **Quotes go through the dialogue queue.** Contract, relationship and morale lines are said as the original says them:
 `say` is `TacticalCharacterDialogue` (the speaker checks, the meanwhile test, the last-quote test, the E.P.C. test),
 `sayImportant` is `HandleImportantMercQuote` (renewal, extension, the raise, departure comments: a sleeping merc is woken

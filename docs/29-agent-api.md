@@ -1208,6 +1208,10 @@ sequence, the departure box and the insurance box are prompts in `observe.contra
 sequence", "Contract prompts"). The renewal menu and the departure box wait behind the merc's lines in the dialogue
 queue, as in the original: a `dismiss` or a renewal opens its prompt once his lines are said, so `advance` stops with
 `decision` then. `contractOptions` gives the renewal menu's options and shading without opening the sequence.
+`openContractMenu` is the player's click on the contract column or button: it answers with the same options, or, when
+the merc's price went up, with `afterLine: true`: he says so and the `contractRenewal` prompt (`fromSequence: false`)
+opens once the line is over. `extendContract` needs no menu: with a raised price it says that line too and extends at
+once (deviation "Extending without the menu").
 
 ### 8.13 Merchants
 

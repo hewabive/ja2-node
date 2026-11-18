@@ -252,6 +252,22 @@ describe('cutting a line on the map screen', () => {
       expect(skipLines(f)).toHaveLength(1);
     }));
 
+  it('lets the merc whose price went up say so before his contract menu opens, the running line left alone (CheckIfSalaryIncreasedAndSayQuote)', () =>
+    withMap(async (f) => {
+      f.speech.voiced = true;
+      f.speech.settings.subtitles = false;
+      say(f, otherMerc(f));
+      const contract = (f.session.sim as CampaignSession).campaign.contracts?.roster.get(f.screen.hook().info ?? -1)?.contract;
+      if (!contract) throw new Error('no contract');
+      contract.contractPriceIncreased = true;
+      await f.click('contractButton');
+      await f.settle();
+      expect(f.client.commands.at(-1)?.reply).toEqual({ ok: true, data: { afterLine: true } });
+      expect(f.screen.hook().menu).toBeNull();
+      expect(skipLines(f)).toEqual([]);
+      expect(contract.contractPriceIncreased).toBe(false);
+    }));
+
   it('opens no contract menu from the contract button or column while the subtitle box is up, but does from the c key', () =>
     withMap(async (f) => {
       const speaker = otherMerc(f);

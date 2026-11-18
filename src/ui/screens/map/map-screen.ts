@@ -372,7 +372,7 @@ export class MapScreen implements Screen {
       owner: OWNER,
       style: () => this.#popupStyle('contractPopup'),
       origin: () => this.#origin(),
-      query: (soldier) => this.#contractOptions(soldier),
+      open: (soldier) => this.#openContractMenu(soldier),
       send: (cmd) => env.client.command(cmd),
       confirm: (text) => env.boxes.confirm(text),
       closed: () => this.#syncMask(false),
@@ -1176,9 +1176,13 @@ export class MapScreen implements Screen {
     return answer.ok ? (answer.data as AssignmentOptions) : null;
   }
 
-  async #contractOptions(soldier: number): Promise<readonly ContractOptionView[] | null> {
-    const answer = await this.#env.client.query({ type: 'contractOptions', soldier });
-    return answer.ok ? ((answer.data as { options?: ContractOptionView[] }).options ?? null) : null;
+  async #openContractMenu(soldier: number): Promise<readonly ContractOptionView[] | null> {
+    const reply = await this.#env.client.command({ type: 'openContractMenu', soldier });
+    if (!reply.ok) return null;
+    const { afterLine, options } = reply.data as { afterLine?: boolean; options?: ContractOptionView[] };
+    if (afterLine) return null;
+    this.#stopSpeech();
+    return options ?? null;
   }
 
   #mapBox(text: string, viewer?: ViewerPromptRef): Promise<number> {
@@ -1288,6 +1292,7 @@ export class MapScreen implements Screen {
       void this.#withMask(() =>
         this.#contract.showRenewal(contract.soldier, row >= 0 ? this.#team.rowY(row) : null, {
           id: contract.id,
+          fromSequence: contract.fromSequence,
           options: contract.options,
         }),
       );
@@ -1506,7 +1511,6 @@ export class MapScreen implements Screen {
     if (m.life === 0 || isPow(m)) this.#showAssignmentMenu(m.id, this.list.info);
     else if (this.#canExtendContract(m)) {
       void this.#withMask(() => this.#contract.show(m.id, boxY));
-      this.#stopSpeech();
     }
   }
 

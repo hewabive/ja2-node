@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { advance } from '../sim/advance.ts';
+import type { SimEvent } from '../sim/events.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -87,6 +88,60 @@ describe('a new campaign session', () => {
     expect(session.dispatch(extend)).toMatchObject({ ok: true, data: { extended: true, days: 1, endsAt: { day: 9, hour: 7 } } });
     expect(session.view().strategic?.mercs[0]?.contract).toMatchObject({ totalDays: 8, endsAt: { day: 9, hour: 7 } });
     expect(session.view().contractPrompt ?? null).toBeNull();
+  });
+
+  describe('a merc whose price went up when his contract menu is opened (Map_Screen_Interface.cc CheckIfSalaryIncreasedAndSayQuote)', () => {
+    const PRICE_LINE = 116;
+
+    async function onTheMapWithARaise(seed: number) {
+      const session = await create(seed, { mercs: 2 });
+      const merc = session.view().strategic?.mercs[0];
+      if (!merc) throw new Error('no merc');
+      expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+      const contract = () => session.campaign.contracts?.roster.get(merc.id)?.contract;
+      Object.assign(contract() ?? {}, { contractPriceIncreased: true });
+      session.drainEvents();
+      return { session, merc, contract };
+    }
+
+    const priceLines = (events: readonly SimEvent[]) => events.filter((e) => e.type === 'mercQuote' && e.id === PRICE_LINE);
+
+    it('says the line first, clears the flag and opens the menu as a prompt once the line is said', async () => {
+      const { session, merc, contract } = await onTheMapWithARaise(7);
+      expect(session.dispatch({ type: 'openContractMenu', soldier: merc.id })).toEqual({ ok: true, data: { afterLine: true } });
+      expect(contract()?.contractPriceIncreased).toBe(false);
+      expect(session.view().contractPrompt ?? null).toBeNull();
+      const report = advance(session, { idle: true });
+      expect(report.reason).toBe('decision');
+      expect(priceLines(report.events)).toHaveLength(1);
+      expect(session.view().contractPrompt).toMatchObject({ kind: 'contractRenewal', soldier: merc.id, fromSequence: false });
+    });
+
+    it('hands the options over at once when his price has not gone up, and says nothing', async () => {
+      const { session, merc, contract } = await onTheMapWithARaise(8);
+      Object.assign(contract() ?? {}, { contractPriceIncreased: false });
+      expect(session.dispatch({ type: 'openContractMenu', soldier: merc.id })).toMatchObject({
+        ok: true,
+        data: { balance: expect.any(Number), options: expect.any(Array) },
+      });
+      expect(priceLines(session.drainEvents())).toEqual([]);
+      expect(session.view().contractPrompt ?? null).toBeNull();
+    });
+
+    it('has an agent who extends without the menu hear the same line, once, and extends at once', async () => {
+      const { session, merc, contract } = await onTheMapWithARaise(9);
+      const extend = { type: 'extendContract', soldier: merc.id, length: 'day' };
+      expect(session.dispatch(extend)).toMatchObject({ ok: true, data: { extended: true } });
+      expect(contract()?.contractPriceIncreased).toBe(false);
+      expect(session.dispatch(extend)).toMatchObject({ ok: true, data: { extended: true } });
+      expect(priceLines(advance(session, { idle: true }).events)).toHaveLength(1);
+    });
+
+    it('leaves the query that lists the options without an effect on the flag', async () => {
+      const { session, merc, contract } = await onTheMapWithARaise(10);
+      expect(session.dispatch({ type: 'contractOptions', soldier: merc.id })).toMatchObject({ ok: true });
+      expect(contract()?.contractPriceIncreased).toBe(true);
+    });
   });
 
   it('asks where a dismissed merc leaves his equipment through the contract prompt', async () => {

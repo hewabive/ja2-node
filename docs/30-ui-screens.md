@@ -185,8 +185,8 @@ Both screens hear every frame, so the screen that hears a frame first takes its 
 takes none while another screen is up, so its routing never decides a tactical line. On the map a merc's line moves
 the lips of the info face, makes him the info character with speech on (on entry whatever the option, as
 `ContinueDialogue`; with an item held only if he could take it, `passTargets`) and is subtitled in a box beside the
-face; the box, the face, Backspace and Esc cut it, opening the contract menu or the laptop stops it
-(`map/map-speech.ts`). Skyrider and the head miners talk there in the external face popup with their box 97 to its
+face; the box, the face, Backspace and Esc cut it, opening the contract menu or the laptop stops it, unless the merc must
+first say his price went up: the line in progress then stays and the menu follows his (`map/map-speech.ts`, `22`). Skyrider and the head miners talk there in the external face popup with their box 97 to its
 right, at the panel the line event names (a Skyrider monologue's or the miner's mine's, `panel`; the default
 otherwise), and a merc line without a soldier in the popup at the screen's 10, 20. An external speaker with a soldier
 (the line event's `soldier`) gets the soldier's panel, name and bars, the life, breath and morale the line event carries

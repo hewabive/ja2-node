@@ -1011,6 +1011,26 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.sounds.filter((s) => s.startsWith('reloaded'))).toEqual([`reloaded ${gun}`]);
     }));
 
+  it('opens the contract menu behind the price line and asks before a dismissal from it, outside the renewal sequence (ContractMenuBtnCallbackPrimary)', () =>
+    withMap(async (f) => {
+      const merc = f.mercs[0] ?? -1;
+      const contract = (f.session.sim as CampaignSession).campaign.contracts?.roster.get(merc)?.contract;
+      if (!contract) throw new Error('no contract');
+      contract.contractPriceIncreased = true;
+      expect((await f.client.command({ type: 'openContractMenu', soldier: merc })).data).toEqual({ afterLine: true });
+      f.session.advance({ idle: true });
+      f.client.refresh();
+      f.frames([]);
+      await f.settle();
+      expect(f.client.view.contractPrompt).toMatchObject({ kind: 'contractRenewal', soldier: merc, fromSequence: false });
+      expect(f.screen.hook().menu).toBe('contract');
+      const sent = f.client.commands.length;
+      await f.click('contractMenu.line5');
+      await f.settle();
+      expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
+      expect(f.client.commands.length).toBe(sent);
+    }));
+
   it("boxes an escort's lone move with pMapErrorString 6 or 7 by the sex of his profile, naming the escort", () =>
     withMap(async (f) => {
       const campaign = (f.session.sim as CampaignSession).campaign;

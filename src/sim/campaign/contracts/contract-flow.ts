@@ -631,6 +631,8 @@ export class ContractFlow implements ContractContext {
         return this.#removeMercCommand(cmd);
       case 'contractOptions':
         return this.#optionsQuery(cmd);
+      case 'openContractMenu':
+        return this.#openMenuCommand(cmd);
       default:
         return null;
     }
@@ -651,9 +653,19 @@ export class ContractFlow implements ContractContext {
     if (!canExtendContractForSoldier(m)) return contractRefusal('cannotExtend');
     const option = contractOptions(this, m, this.#inCombat()).find((o) => o.choice === choice);
     if (option && !option.enabled) return disabledOption(option);
+    checkIfSalaryIncreasedAndSayQuote(this, m);
     const result = mercContractHandling(this, m, choice);
     this.#afterExtension(m, result);
     return { ok: true, data: result };
+  }
+
+  #openMenuCommand(cmd: Command): CommandResult {
+    const m = this.#mercFor(cmd, true);
+    if ('ok' in m) return m;
+    if (!canExtendContractForSoldier(m)) return contractRefusal('cannotExtend');
+    if (!checkIfSalaryIncreasedAndSayQuote(this, m)) return this.#optionsOf(m);
+    this.#queueCallback(ContractCallback.MENU, [m.id]);
+    return { ok: true, data: { afterLine: true } };
   }
 
   #dismissCommand(cmd: Command): CommandResult {
@@ -681,6 +693,10 @@ export class ContractFlow implements ContractContext {
     const m = this.#mercFor(cmd, false);
     if ('ok' in m) return m;
     if (!canExtendContractForSoldier(m)) return contractRefusal('cannotExtend');
+    return this.#optionsOf(m);
+  }
+
+  #optionsOf(m: RosterMerc): CommandResult {
     return { ok: true, data: { balance: this.state.finances.balance, options: contractOptions(this, m, this.#inCombat()) } };
   }
 

@@ -4,7 +4,9 @@
 // @src with their price in "( $x )", Dismiss, Cancel; at ContractPosition or the row's giBoxY),
 // @src ContractMenuBtnCallbackPrimary (the extensions, Dismiss asking STR_LATE_48 outside the renewal sequence, Cancel
 // @src letting the merc go during the renewal sequence), CloseContractMenu; src/game/Strategic/MapScreen.cc
-// @src HandleShadingOfLinesForContractMenu (the shading comes from contractOptions or the renewal prompt).
+// @src HandleShadingOfLinesForContractMenu (the shading comes from openContractMenu or the renewal prompt), and
+// @src Map_Screen_Interface.cc CheckIfSalaryIncreasedAndSayQuote (no menu until the merc has said his price went up,
+// @src 2026-11-18).
 
 import type { ContractOptionView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
@@ -35,7 +37,7 @@ export interface ContractMenuHost {
   readonly owner: unknown;
   readonly style: () => PopupBoxStyle;
   readonly origin: () => { x: number; y: number };
-  readonly query: (soldier: number) => Promise<readonly ContractOptionView[] | null>;
+  readonly open: (soldier: number) => Promise<readonly ContractOptionView[] | null>;
   readonly send: (cmd: { type: string; [key: string]: unknown }) => Promise<{ ok: boolean }>;
   readonly confirm: (text: string) => Promise<boolean>;
   readonly closed: () => void;
@@ -43,6 +45,7 @@ export interface ContractMenuHost {
 
 export interface RenewalPrompt {
   readonly id: string;
+  readonly fromSequence: boolean;
   readonly options: readonly ContractOptionView[];
 }
 
@@ -74,7 +77,7 @@ export class ContractMenu {
     if (this.#pending) return;
     this.close(false);
     this.#pending = true;
-    const options = await this.#host.query(soldier);
+    const options = await this.#host.open(soldier);
     this.#pending = false;
     if (!options) return;
     this.#present(soldier, boxY, options, null);
@@ -123,7 +126,7 @@ export class ContractMenu {
       return;
     }
     if (line === DISMISS) {
-      if (!renewal && !(await this.#host.confirm(this.#host.text.string(LATE, STR_LATE_48) ?? ''))) return;
+      if (!renewal?.fromSequence && !(await this.#host.confirm(this.#host.text.string(LATE, STR_LATE_48) ?? ''))) return;
       this.close(true);
       if (renewal) await this.#host.send({ type: 'answer', prompt: renewal.id, choice: 'dismiss' });
       else await this.#host.send({ type: 'dismiss', soldier });
