@@ -8,6 +8,7 @@ import { MAX_FRAMES_PER_ANIM } from '../formats/ja2bin.ts';
 import {
   type AnimationTimelines,
   type LogicTimeline,
+  NO_FRAME_SLOT,
   OUTSIDE_SCRIPT_SLOT,
   SlotKind,
   slotArgument,
@@ -104,13 +105,15 @@ export function warpedIndex(
   return next === undefined ? index : Math.min(index, next - 1);
 }
 
+function shownTrackIndex(length: number, loopStart: number | null, index: number): number {
+  if (index < length) return Math.max(0, index);
+  if (loopStart === null) return length - 1;
+  return loopStart + ((index - loopStart) % (length - loopStart));
+}
+
 export function trackFrame(track: StateTrack, index: number): number {
   const n = track.frames.length;
-  if (n === 0) return 0;
-  if (index < n) return track.frames[Math.max(0, index)] as number;
-  if (track.loopStart === null) return track.frames[n - 1] as number;
-  const period = n - track.loopStart;
-  return track.frames[track.loopStart + ((index - track.loopStart) % period)] as number;
+  return n === 0 ? 0 : (track.frames[shownTrackIndex(n, track.loopStart, index)] as number);
 }
 
 export const NEVER_NEXT_FRAME = -1;
@@ -171,6 +174,11 @@ function slotTrack(timelines: AnimationTimelines, state: number): SlotTrack {
     byState.set(state, track);
   }
   return track;
+}
+
+export function trackFrameSlot(timelines: AnimationTimelines, state: number, index: number): number {
+  const { slots, loopStart } = slotTrack(timelines, state);
+  return slots.length === 0 ? NO_FRAME_SLOT : (slots[shownTrackIndex(slots.length, loopStart, index)] as number);
 }
 
 export function silentAnimation(timelines: AnimationTimelines, state: number): boolean {

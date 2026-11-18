@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (code ranges: frames, opcodes, jumps, sounds);
 // @src src/game/Tactical/Animation_Control.cc LoadAnimationStateInstructions
+// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 438, 439, the frames of a white flash, 2026-11-18)
 
 import { FormatError } from '../binary/errors.ts';
 import {
@@ -28,6 +29,7 @@ export interface LogicTimeline {
 export interface PresentationTimeline {
   readonly frames: Int16Array;
   readonly sounds: Uint16Array;
+  readonly whiteFlash: Uint8Array;
 }
 
 export interface AnimationTimelines {
@@ -42,6 +44,8 @@ const FRAME_BEFORE_FIRST_SLOT = 0;
 const FRAME_OF_EMPTY_CODE = -1;
 const EMPTY_CODE = 0;
 const END_OF_ANIMATION = 499;
+const START_HOLD_FLASH = 438;
+const END_HOLD_FLASH = 439;
 const FIRST_SOUND_RANGE_CODE = 700;
 const LAST_SOUND_RANGE_CODE = 799;
 const SIMULATION_OPCODES_IN_SOUND_RANGE: ReadonlySet<number> = new Set([
@@ -75,13 +79,19 @@ export function splitAnimationScripts(scripts: AnimationScripts): AnimationTimel
   const args = new Int32Array(SLOTS);
   const frames = new Int16Array(SLOTS).fill(NO_SPRITE_FRAME);
   const sounds = new Uint16Array(SLOTS);
+  const whiteFlash = new Uint8Array(SLOTS);
+  let flashing = false;
   for (let slot = 0; slot < SLOTS; slot++) {
+    if (slot % MAX_FRAMES_PER_ANIM === 0) flashing = false;
     const raw = scripts.codes[slot] ?? EMPTY_CODE;
     const code = classifyCode(raw);
+    if (raw === START_HOLD_FLASH) flashing = true;
+    else if (raw === END_HOLD_FLASH) flashing = false;
     switch (code.kind) {
       case 'frame':
         kinds[slot] = raw === EMPTY_CODE ? SlotKind.EMPTY : SlotKind.FRAME;
         frames[slot] = code.frame;
+        if (flashing && raw !== EMPTY_CODE) whiteFlash[slot] = 1;
         break;
       case 'jump':
         kinds[slot] = SlotKind.JUMP;
@@ -98,13 +108,17 @@ export function splitAnimationScripts(scripts: AnimationScripts): AnimationTimel
         break;
     }
   }
-  return { logic: { kinds, args }, presentation: { frames, sounds } };
+  return { logic: { kinds, args }, presentation: { frames, sounds, whiteFlash } };
 }
 
 export function spriteFrameAt(presentation: PresentationTimeline, frameSlot: number): number {
   if (frameSlot === NO_FRAME_SLOT) return FRAME_BEFORE_FIRST_SLOT;
   if (frameSlot === OUTSIDE_SCRIPT_SLOT) return FRAME_OF_EMPTY_CODE;
   return presentation.frames[frameSlot] ?? FRAME_OF_EMPTY_CODE;
+}
+
+export function whiteFlashAt(presentation: PresentationTimeline, frameSlot: number): boolean {
+  return frameSlot >= 0 && presentation.whiteFlash[frameSlot] === 1;
 }
 
 function matchingSlot(presentation: PresentationTimeline, state: number, pcs: Iterable<number>, frame: number): number | null {

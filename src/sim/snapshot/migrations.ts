@@ -2737,6 +2737,23 @@ function renumberAttackSlayOnly(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MUZZLE_FLASH_COUNT_KEY = 'muzzleFlashCount';
+const DRAWN_ON_TOP_KEY = 'drawnOnTop';
+
+function withDrawnOnTop(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDrawnOnTop(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withDrawnOnTop(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, MUZZLE_FLASH_COUNT_KEY, DRAWN_ON_TOP_KEY, false) : mapped;
+}
+
+function addDrawnOnTop(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withDrawnOnTop(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2835,5 +2852,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     94: keepEveryMapChangeForTheNextEntry,
     95: dropLeftHelicopterShadows,
     96: renumberAttackSlayOnly,
+    97: addDrawnOnTop,
   };
 }

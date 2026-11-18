@@ -316,6 +316,7 @@ export interface SoldierSnapshot {
   readonly frameDelay: number;
   readonly nextFrameTick: number;
   readonly muzzleFlash?: boolean;
+  readonly drawnOnTop?: boolean;
   readonly fadingOut?: boolean;
   readonly ap?: number;
   readonly life?: number;
@@ -1568,6 +1569,7 @@ export class TacticalSim {
       frameDelay: s.aniDelay,
       nextFrameTick: nextFrameTick(this.state, s),
       ...(s.muzzleFlash ? { muzzleFlash: true } : {}),
+      ...(s.drawnOnTop ? { drawnOnTop: true } : {}),
       ...(s.visible === Visible.FADING_OUT ? { fadingOut: true } : {}),
       ...(s.team === Team.OUR
         ? {

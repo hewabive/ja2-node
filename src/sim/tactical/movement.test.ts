@@ -12,7 +12,9 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import { createItem } from '../items/object.ts';
 import { AiAction, Situation } from './ai/actions.ts';
+import { anim } from './anim-states.ts';
 import {
+  adjustToNextAnimationFrame,
   beginSoldierClimbFence,
   initNewSoldierAnim,
   setDesiredDirection,
@@ -355,6 +357,38 @@ describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.
   }
 
   const apsSpent = (s: Soldier) => AMPLE_APS - s.actionPoints;
+
+  function drawnOnTopDuringHop(facing: number): boolean[] {
+    const t = tactical(placeFence);
+    const s = hopper(t, facing, 'WALKING');
+    const hop = anim(content, 'HOPFENCE');
+    initNewSoldierAnim(t, s, hop, 0, false);
+    const seen = [s.drawnOnTop];
+    for (let frame = 0; frame < HOP_TICKS && s.state === hop; frame++) {
+      adjustToNextAnimationFrame(t, s);
+      if (seen.at(-1) !== s.drawnOnTop) seen.push(s.drawnOnTop);
+    }
+    return seen;
+  }
+
+  it('draws a man hopping north or west on top until he is over the fence (Soldier_Ani.cc 451, 452, 444)', () => {
+    expect(drawnOnTopDuringHop(Direction.NORTH)).toEqual([true, false]);
+    expect(drawnOnTopDuringHop(Direction.WEST)).toEqual([true, false]);
+  });
+
+  it('draws a man hopping south or east on top from over the fence to the landing (Soldier_Ani.cc 452, 444)', () => {
+    expect(drawnOnTopDuringHop(Direction.SOUTH)).toEqual([false, true, false]);
+    expect(drawnOnTopDuringHop(Direction.EAST)).toEqual([false, true, false]);
+  });
+
+  it('draws a man on a fence tile on top and stops at the next tile (Soldier_Control.cc EVENT_InternalSetSoldierPosition)', () => {
+    const t = tactical(placeFence);
+    const s = spawn(t, START);
+    setSoldierPosition(t, s, gridNo(80, 79));
+    expect(s.drawnOnTop).toBe(true);
+    setSoldierPosition(t, s, LANDING);
+    expect(s.drawnOnTop).toBe(false);
+  });
 
   it('turns to a fence on his way for free', () => {
     expect(apsSpent(hopToLanding(Direction.EAST, 'WALKING'))).toBe(apsSpent(hopToLanding(Direction.NORTH, 'WALKING')));

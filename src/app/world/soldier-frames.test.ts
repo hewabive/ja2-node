@@ -66,6 +66,22 @@ describe('soldier frames from the animation schedule', () => {
     expect(frames.frameOf(1, schedule, 104)).toBe(4);
   });
 
+  it('tells the frames of a white flash under both policies (Soldier_Ani.cc 438, 439)', () => {
+    const flashing = scripted({ [STATE]: [frameCode(0), 431, 438, frameCode(1), 439, frameCode(2), END_OF_ANIMATION] });
+    const exact = new SoldierFrames(flashing, true, TICK_MS);
+    const at = (slot: number) => ({ animation: STATE, frameSlot: timelineSlot(STATE, slot), stateTick: 0, frameDelay: 50 });
+    expect([exact.whiteFlashOf(1, at(0), 0), exact.whiteFlashOf(1, at(3), 0), exact.whiteFlashOf(1, at(5), 0)]).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    const warped = new SoldierFrames(flashing, false, TICK_MS);
+    const schedule = { animation: STATE, frameSlot: 0, stateTick: 100, frameDelay: 50 };
+    const ticksPerFrame = 50 / TICK_MS;
+    const shown = [0, 1, 2].map((index) => warped.whiteFlashOf(1, schedule, 100 + index * ticksPerFrame));
+    expect(shown).toEqual([false, true, false]);
+  });
+
   it('plays a looping state at its frame delay', () => {
     const frames = new SoldierFrames(client, false, TICK_MS);
     const schedule = { animation: STATE + 1, frameSlot: 0, stateTick: 0, frameDelay: 50 };

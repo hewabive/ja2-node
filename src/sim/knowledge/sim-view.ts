@@ -20,7 +20,7 @@ import {
 } from '../tactical/world-view.ts';
 import { radarContacts } from '../tactical/xray.ts';
 
-const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
+const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0), whiteFlash: new Uint8Array(0) };
 
 export function bulletsShownToPlayer(t: TacticalState, since: (b: Bullet) => number): BulletView[] {
   return bulletViews(t, (firer) => shownInSector(t, firer), since);

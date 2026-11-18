@@ -93,6 +93,7 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'FALL_INTO_PIT',
   'QUEEN_SLAP',
   'QUEEN_FRUSTRATED_SLAP',
+  'FLYBACK_HIT_BLOOD_STAND',
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
 const PALACE_SCENE_RECORDS_ADDED_AFTER_070 = [
@@ -122,10 +123,16 @@ const SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070 = [
   'FALLFORWARD_FROMHIT_STAND',
   'ENDFALLFORWARD_FROMHIT_CROUCH',
   'FALLBACK_HIT_STAND',
-  'FLYBACK_HIT',
   'JFK_HITDEATH',
 ];
 const FALL_SOUNDS_ADDED_AFTER_070: ReadonlySet<number> = new Set([721, 722]);
+const WHITE_FLASH_CODES_ADDED_AFTER_070: ReadonlySet<number> = new Set([431, 438, 439]);
+const PENDING_ANIMATION_CODE_ADDED_AFTER_070: ReadonlySet<number> = new Set([498]);
+const READY_SCRIPTS_WITH_THE_PENDING_CODE = ['STAND', 'CROUCH', 'PRONE'].flatMap((stance) => [
+  `READY_RIFLE_${stance}`,
+  `READY_DUAL_${stance}`,
+]);
+const FLYBACK_FRAMES_AFTER_THE_FIRST_AT_070 = 10;
 const RECORDED_ONE_SHOT_FRAMES = 8;
 const RECORDED_LOOP_FRAMES = 12;
 const NONINTERRUPTIBLE_DONE = 442;
@@ -278,14 +285,25 @@ async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<U
     const state = stateId(tables, name);
     replaceScript(codes, state, recordedOneShotScript(tables.controls[state]?.flags ?? 0));
   }
-  for (const name of SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070) {
-    const state = stateId(tables, name);
-    replaceScript(
-      codes,
-      state,
-      scriptOf(codes, state).filter((code) => !FALL_SOUNDS_ADDED_AFTER_070.has(code)),
-    );
-  }
+  const withoutCodes = (names: readonly string[], added: ReadonlySet<number>) => {
+    for (const name of names) {
+      const state = stateId(tables, name);
+      replaceScript(
+        codes,
+        state,
+        scriptOf(codes, state).filter((code) => !added.has(code)),
+      );
+    }
+  };
+  withoutCodes(SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070, FALL_SOUNDS_ADDED_AFTER_070);
+  withoutCodes(['GENERIC_HIT_STAND'], WHITE_FLASH_CODES_ADDED_AFTER_070);
+  withoutCodes(READY_SCRIPTS_WITH_THE_PENDING_CODE, PENDING_ANIMATION_CODE_ADDED_AFTER_070);
+  replaceScript(codes, stateId(tables, 'FLYBACK_HIT'), [
+    1,
+    NONINTERRUPTIBLE_DONE,
+    ...frames(FLYBACK_FRAMES_AFTER_THE_FIRST_AT_070, 2),
+    DEATH_OR_RELEASE,
+  ]);
   for (const name of LOOPS_REPLACED_AFTER_070)
     replaceScript(codes, stateId(tables, name), [...frames(RECORDED_LOOP_FRAMES), JUMP_TO_START]);
   for (const name of CREATURE_FALLS_AT_070)

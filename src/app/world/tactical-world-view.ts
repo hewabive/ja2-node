@@ -277,6 +277,11 @@ export class TacticalWorldView {
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
   }
 
+  #whiteFlashOf(tick: number): (s: SoldierView) => boolean {
+    const frames = this.#frames;
+    return frames ? (s) => frames.whiteFlashOf(s.id, s, tick) : () => false;
+  }
+
   observeEffects(effects: readonly EffectEvent[]): void {
     this.#effectAnimations.observe(effects);
   }
@@ -402,6 +407,7 @@ export class TacticalWorldView {
       hostile,
       lights: f.options,
       frameOf: this.#frameOf(view.tick),
+      whiteFlashOf: this.#whiteFlashOf(view.tick),
     });
     this.#effects?.prepareCorpses(view.soldiers, f.options.bloodAndGore);
     const aniTiles =

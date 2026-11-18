@@ -472,6 +472,7 @@ export interface Soldier {
   muzzleFlash: boolean;
   muzzleFlashLight: LightSprite | null;
   muzzleFlashCount: number;
+  drawnOnTop: boolean;
   weaponMode: number;
   lastAttackHit: boolean;
   attacker: Soldier | null;
@@ -914,6 +915,7 @@ function awarenessAndCombat(init: SoldierInit) {
     muzzleFlash: false,
     muzzleFlashLight: null,
     muzzleFlashCount: 0,
+    drawnOnTop: false,
     weaponMode: 0,
     lastAttackHit: false,
     attacker: null,

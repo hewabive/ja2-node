@@ -28,6 +28,9 @@
 // @src ConvertAniCodeToAniFrame last converted in the facing it converted it in (2026-11-09); its count of a MERC_PICKUPITEM
 // @src (2026-11-09); EVENT_InternalSetSoldierDesiredDirection's MultiTiledTurnDirection for SOLDIER_MULTITILE (2026-11-14);
 // @src Utils/Timer_Control.cc TIMECOUNTERDONE of the frame counter, never done while PauseTime holds (2026-11-14).
+// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 451, 452 and 444's end of the fence hop's z override,
+// @src 498, the cripple's door states at 499, 2026-11-18); Soldier_Control.cc EVENT_InitNewSoldierAnim (the breath collapse before a
+// @src climb or a hop, 2026-11-18).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -42,8 +45,9 @@ import { TICK_MS } from '../clock.ts';
 import { anim } from './anim-states.ts';
 import { isAnimationValidForBodyType, substituteBodyTypeAnimation } from './anim-substitution.ts';
 import { setOffBombsInGridNo } from './bombs/bomb-queue.ts';
+import { checkForBreathCollapse } from './breath-collapse.ts';
 import { turnToShoot } from './combat/attack.ts';
-import { reduceAttackBusyCount } from './combat/barrier.ts';
+import { reduceAttackBusyCount, unSetUIBusy } from './combat/barrier.ts';
 import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
@@ -126,11 +130,14 @@ const OP_END_HOP_FENCE = 444;
 const OP_HOP_FENCE_FULL_STEP = 445;
 const OP_PAUSE_ANIMOVE_ON = 446;
 const OP_BEGIN_HOP_FENCE = 450;
+const OP_HOP_FENCE_DRAWN_ON_TOP_START = 451;
+const OP_HOP_FENCE_DRAWN_ON_TOP_END = 452;
 const OP_STANCE_TO_STANDING = 457;
 const OP_PAUSE_ANIMOVE_OFF = 471;
 const OP_GETUP_FROM_SLEEP = 474;
 const OP_OPEN_STRUCT = 494;
 const OP_OPEN_DOOR = 495;
+const OP_PENDING_ANIMATION_OR_CONTINUE = 498;
 const OP_END_OF_ANIMATION = 499;
 const HOP_FENCE_FORWARD_SE: readonly number[] = [2.2, 0.7, 3.2, 0.7];
 const HOP_FENCE_FORWARD_NW: readonly number[] = [2.7, 1.0, 2.7, 1.0];
@@ -536,6 +543,7 @@ function decidedAnimation(t: TacticalState, s: Soldier, requested: number, start
   if (!isAnimationValidForBodyType(content, s, next)) return null;
   next = bigMercStanceTransition(t, s, next);
   next = reverseMoveState(t, s, next);
+  if (collapsesInsteadOfClimbing(t, s, next)) return null;
   if (next === st.RUNNING && WADING_TERRAINS.includes(s.overTerrain)) next = st.WALKING;
 
   s.pauseAnimMove = false;
@@ -563,6 +571,17 @@ function decidedAnimation(t: TacticalState, s: Soldier, requested: number, start
   }
   if (nextMoving && s.dontUpdateNewGridNoOnMoveAnimChange !== LOCKED_NO_NEWGRIDNO) s.dontUpdateNewGridNoOnMoveAnimChange = 0;
   return tryingToRestart ? null : next;
+}
+
+const STATES_NEEDING_BREATH = ['CLIMBUPROOF', 'CLIMBDOWNROOF', 'HOPFENCE'];
+
+function collapsesInsteadOfClimbing(t: TacticalState, s: Soldier, next: number): boolean {
+  if (!STATES_NEEDING_BREATH.includes(t.content.animations.controls[next]?.id ?? '')) return false;
+  if (!checkForBreathCollapse(t, s) && !s.collapsed) return false;
+  unSetUIBusy(t, s);
+  t.hooks.collapse(t, s);
+  s.breathCollapsed = false;
+  return true;
 }
 
 function releaseEnemySightingPause(t: TacticalState, s: Soldier): void {
@@ -739,7 +758,7 @@ function hopFenceStep(t: TacticalState, s: Soldier, southEast: readonly number[]
   else if (s.direction === Direction.NORTH || s.direction === Direction.WEST) moveMercFacingDirection(t, s, northWest[s.bodyType] ?? 0);
 }
 
-const END_OPEN_DOOR_STATES = ['END_OPEN_DOOR', 'END_OPEN_DOOR_CROUCHED'];
+const END_OPEN_DOOR_STATES = ['END_OPEN_DOOR', 'END_OPEN_DOOR_CROUCHED', 'CRIPPLE_CLOSE_DOOR', 'CRIPPLE_END_OPEN_DOOR'];
 
 function continueAfterDoor(t: TacticalState, s: Soldier): boolean {
   const name = t.content.animations.controls[s.state]?.id ?? '';
@@ -753,6 +772,7 @@ function continueAfterDoor(t: TacticalState, s: Soldier): boolean {
 function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
   setSoldierPosition(t, s, s.forecastGridNo, { keepDestination: true, keepFinalDestination: true });
   setSoldierDirection(t, s, (s.direction + 2) % DIRECTION_COUNT);
+  s.drawnOnTop = false;
   setDesiredDirection(t, s, s.direction);
   boxingMovementCheckWhileTracked(t, s);
   if (setOffBombsInGridNo(t, s, s.gridNo, false, s.level)) {
@@ -769,6 +789,15 @@ function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
     endMoveOnFenceLanding(s);
   }
   return 'stop';
+}
+
+function startDrawingOnTopOfTheFence(s: Soldier): void {
+  if (s.direction === Direction.NORTH || s.direction === Direction.WEST) s.drawnOnTop = true;
+}
+
+function passTheTopOfTheFence(s: Soldier): void {
+  if (s.direction === Direction.SOUTH || s.direction === Direction.EAST) s.drawnOnTop = true;
+  else if (s.direction === Direction.NORTH || s.direction === Direction.WEST) s.drawnOnTop = false;
 }
 
 function stepPastFenceLanding(s: Soldier): void {
@@ -832,6 +861,15 @@ export function animationReachesOpcode(t: TacticalState, s: Soldier, code: numbe
   return false;
 }
 
+export function pcOfOpcode(t: TacticalState, state: number, code: number): number | null {
+  const timeline = t.content.timeline;
+  for (let pc = 0; pc < MAX_FRAMES_PER_ANIM; pc++) {
+    const slot = timelineSlot(state, pc);
+    if (slotKind(timeline, slot) === SlotKind.OP && slotArgument(timeline, slot) === code) return pc;
+  }
+  return null;
+}
+
 export function scriptRanOpcode(t: TacticalState, state: number, pc: number, code: number): boolean {
   const timeline = t.content.timeline;
   for (let at = 0; at < pc; at++) {
@@ -858,6 +896,13 @@ export function scriptReachesOpcode(t: TacticalState, state: number, pc: number,
     at = 0;
   }
   return false;
+}
+
+function playPendingAnimation(t: TacticalState, s: Soldier): boolean {
+  if (s.pendingAnimation === NO_PENDING_ANIMATION) return false;
+  changeSoldierState(t, s, s.pendingAnimation);
+  s.pendingAnimation = NO_PENDING_ANIMATION;
+  return true;
 }
 
 function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
@@ -904,6 +949,12 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
     case OP_BEGIN_HOP_FENCE:
       s.forecastGridNo = newGridNo(newGridNo(s.gridNo, DIRECTION_INCREMENT[s.direction] ?? 0), DIRECTION_INCREMENT[s.direction] ?? 0);
       return 'continue';
+    case OP_HOP_FENCE_DRAWN_ON_TOP_START:
+      startDrawingOnTopOfTheFence(s);
+      return 'continue';
+    case OP_HOP_FENCE_DRAWN_ON_TOP_END:
+      passTheTopOfTheFence(s);
+      return 'continue';
     case OP_PAUSE_ANIMOVE_OFF:
       s.pauseAnimMove = false;
       return 'continue';
@@ -916,6 +967,8 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
     case OP_GETUP_FROM_SLEEP:
       changeSoldierStance(t, s, AnimHeight.STAND);
       return 'stop';
+    case OP_PENDING_ANIMATION_OR_CONTINUE:
+      return playPendingAnimation(t, s) ? 'stop' : 'continue';
     case OP_END_OF_ANIMATION:
       handleEndOfAnimation(t, s);
       return 'stop';

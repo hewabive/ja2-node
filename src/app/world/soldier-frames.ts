@@ -4,6 +4,7 @@ import {
   type StateTrack,
   stateTrack,
   trackFrame,
+  trackFrameSlot,
   warpedIndex,
 } from '../../content/anim/schedule-track.ts';
 import {
@@ -12,6 +13,7 @@ import {
   STUB_ANIMATION_SCRIPTS_PATH,
   splitAnimationScripts,
   spriteFrameAt,
+  whiteFlashAt,
 } from '../../content/anim/timelines.ts';
 import { parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import type { Sha256 } from '../../content/rules/pack.ts';
@@ -78,7 +80,21 @@ export class SoldierFrames {
       return spriteFrameAt(this.#timelines.presentation, frameSlot);
     }
     const track = this.#track(schedule.animation);
-    return trackFrame(track, warpedIndex(track, schedule, this.markersOf(soldier, schedule.stateTick), tick, this.#msPerTick));
+    return trackFrame(track, this.#warpedIndex(soldier, track, schedule, tick));
+  }
+
+  whiteFlashOf(soldier: number, schedule: SoldierSchedule, tick: number): boolean {
+    return whiteFlashAt(this.#timelines.presentation, this.#shownFrameSlot(soldier, schedule, tick));
+  }
+
+  #shownFrameSlot(soldier: number, schedule: SoldierSchedule, tick: number): number {
+    if (this.policy === 'exact') return predictedFrameSlot(this.#timelines, schedule, tick, this.#msPerTick) ?? schedule.frameSlot;
+    const track = this.#track(schedule.animation);
+    return trackFrameSlot(this.#timelines, schedule.animation, this.#warpedIndex(soldier, track, schedule, tick));
+  }
+
+  #warpedIndex(soldier: number, track: StateTrack, schedule: SoldierSchedule, tick: number): number {
+    return warpedIndex(track, schedule, this.markersOf(soldier, schedule.stateTick), tick, this.#msPerTick);
   }
 }
 

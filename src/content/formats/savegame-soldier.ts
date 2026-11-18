@@ -733,6 +733,7 @@ export interface SavedSoldier {
   readonly mercAsleep: boolean;
   readonly blindedCounter: number;
   readonly muzzleFlash: boolean;
+  readonly zLevelOverride: number;
   readonly sleepDrugCounter: number;
   readonly drugs: SavedDrugCourses;
   readonly inventory: readonly ObjectRecord[];
@@ -889,6 +890,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     mercAsleep: r.bool('fMercAsleep'),
     blindedCounter: n('bBlindedCounter'),
     muzzleFlash: r.bool('fMuzzleFlash'),
+    zLevelOverride: n('sZLevelOverride'),
     sleepDrugCounter: n('bSleepDrugCounter'),
     drugs: { adrenaline: drugCourse(DRUG_ADRENALINE), alcohol: drugCourse(DRUG_ALCOHOL) },
     inventory: r.objects('inv'),

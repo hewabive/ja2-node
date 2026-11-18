@@ -201,6 +201,7 @@ const EVERY_SOLDIER_FIELD: Required<SoldierView> = {
   frameDelay: 80,
   nextFrameTick: 110,
   muzzleFlash: false,
+  drawnOnTop: false,
   fadingOut: false,
   ap: 20,
   life: 80,

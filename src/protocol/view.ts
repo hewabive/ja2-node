@@ -79,6 +79,7 @@ export interface SoldierView {
   readonly frameDelay: number;
   readonly nextFrameTick?: number;
   readonly muzzleFlash?: boolean;
+  readonly drawnOnTop?: boolean;
   readonly fadingOut?: boolean;
   readonly ap?: number;
   readonly life?: number;
@@ -1392,6 +1393,7 @@ const SOLDIER_FIELD_SAMENESS: FieldSameness<SoldierView> = {
   surface: sameValue,
   camouflaged: sameValue,
   muzzleFlash: sameValue,
+  drawnOnTop: sameValue,
   fadingOut: sameValue,
   team: sameValue,
   name: sameValue,

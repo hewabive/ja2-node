@@ -19,6 +19,7 @@
 // @src QUOTE_ACTION_ID_CHECKFORDEST the very next frame (2026-11-06); HandleNextTile standing a crawler or swatter up into
 // @src water (2026-11-07); SetSoldierGridNo's LOADING_SAVED_GAME branch, no step on to the destination (2026-11-08);
 // @src SetSoldierGridNo's strategic insertion at the new tile on every step (2026-11-09).
+// @src src/game/Tactical/Soldier_Control.cc EVENT_InternalSetSoldierPosition (sZLevelOverride on a fence tile, 2026-11-18).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
@@ -205,6 +206,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   if (!seated) unmarkMovementReserved(t, s);
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
   if (s.initialGridNo === 0) s.initialGridNo = g;
+  s.drawnOnTop = isJumpableFenceAt(t, g);
   if (seated) s.placed = true;
   else standOnTile(t, s);
   const terrainLeft = s.overTerrain;

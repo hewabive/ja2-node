@@ -25,7 +25,7 @@ import {
 } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { executeOverhead } from './overhead.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
+import { Body, NO_PENDING_ANIMATION, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
@@ -248,6 +248,74 @@ describe('the end of a door opening', () => {
     expect(enemy.ai.action).toBe(AiAction.NONE);
     expect(enemy.ai.actionInProgress).toBe(false);
     expect(enemy.endDoorOpenCode).toBe(0);
+  });
+});
+
+describe('a cripple finishing a door', () => {
+  it('walks on from CRIPPLE_END_OPEN_DOOR and from CRIPPLE_CLOSE_DOOR like a man from END_OPEN_DOOR (Soldier_Ani.cc 499)', () => {
+    for (const name of ['CRIPPLE_END_OPEN_DOOR', 'CRIPPLE_CLOSE_DOOR']) {
+      const sim = newCombatSim(content);
+      const t = sim.state;
+      const cripple = spawnSoldier(sim, 40, Team.CIV, gridNo(80, 88), Direction.NORTH, { body: Body.CRIPPLECIV });
+      cripple.endDoorOpenCode = 1;
+      cripple.finalDestination = gridNo(80, 84);
+      const door = anim(content, name);
+      initNewSoldierAnim(t, cripple, door, 0, false);
+      expect(cripple.state, name).toBe(door);
+      for (let frame = 0; frame < 100 && cripple.state === door; frame++) adjustToNextAnimationFrame(t, cripple);
+      expect(cripple.endDoorOpenCode, name).toBe(2);
+    }
+  });
+});
+
+describe('the pending animation code of a ready script (Soldier_Ani.cc 498)', () => {
+  it('plays the pending animation as the weapon comes up and clears it', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    const standing = states(content.animations).STANDING;
+    initNewSoldierAnim(t, merc, anim(content, 'READY_RIFLE_STAND'), 0, false);
+    merc.pendingAnimation = standing;
+    for (let frame = 0; frame < 20 && merc.state !== standing; frame++) adjustToNextAnimationFrame(t, merc);
+    expect(merc.state).toBe(standing);
+    expect(merc.pendingAnimation).toBe(NO_PENDING_ANIMATION);
+  });
+
+  it('goes on to the aiming loop with nothing pending', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    const aiming = anim(content, 'AIM_RIFLE_STAND');
+    initNewSoldierAnim(t, merc, anim(content, 'READY_RIFLE_STAND'), 0, false);
+    for (let frame = 0; frame < 20 && merc.state !== aiming; frame++) adjustToNextAnimationFrame(t, merc);
+    expect(merc.state).toBe(aiming);
+  });
+});
+
+describe('climbing out of breath (EVENT_InitNewSoldierAnim, breath collapse for roofs and fences)', () => {
+  it.each([
+    ['CLIMBUPROOF', 'STANDING'],
+    ['CLIMBDOWNROOF', 'CROUCHING'],
+    ['HOPFENCE', 'STANDING'],
+  ])('collapses a merc with no breath instead of starting %s', (name, stance) => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    merc.state = anim(content, stance);
+    merc.breath = 0;
+    initNewSoldierAnim(t, merc, anim(content, name), 0, false);
+    expect(merc.state).not.toBe(anim(content, name));
+    expect(merc.collapsed).toBe(true);
+    expect(merc.breathCollapsed).toBe(false);
+  });
+
+  it('lets a merc with breath start the climb', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    initNewSoldierAnim(t, merc, anim(content, 'HOPFENCE'), 0, false);
+    expect(merc.state).toBe(anim(content, 'HOPFENCE'));
+    expect(merc.collapsed).toBe(false);
   });
 });
 

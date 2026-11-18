@@ -16,7 +16,11 @@ const RT_NONINTERRUPTIBLE_DONE = 772;
 const NONINTERRUPT_FLAG = 0x00000080;
 const RT_NONINTERRUPT_FLAG = 0x04000000;
 const BEGIN_HOP_FENCE = 450;
+const HOP_FENCE_DRAWN_ON_TOP_START = 451;
+const HOP_FENCE_DRAWN_ON_TOP_END = 452;
+const HOP_FENCE_FRAMES_BEFORE_THE_LANDING_SIDE = 12;
 const END_HOP_FENCE = 444;
+const PENDING_ANIMATION_OR_CONTINUE = 498;
 const LOOPING_STATES = ['STANDING', 'CROUCHING', 'PRONE', 'COWERING', 'DEEP_WATER_TRED', 'QUEEN_READY'];
 const RANDOM_ANIM_CHECK = 491;
 
@@ -338,6 +342,13 @@ const Op = {
   KNIFE_THROW_SOUND: 709,
   RESUME_FIRE: 476,
   LOCATE_TARGET: 477,
+  FLYBACK_BLOOD_JUMP: 434,
+  FLYBACK_BLOOD_RETURN_MARK: 435,
+  FLYBACK_BLOOD_RETURN: 436,
+  FLYBACK_BLOOD_POOLS: 765,
+  FLASH_WHITE: 431,
+  START_HOLD_FLASH: 438,
+  END_HOLD_FLASH: 439,
 } as const;
 
 const TANK_RECOIL_FRAMES = 6;
@@ -393,8 +404,8 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   const to = (name: string) => stateJump(stateId(t, name));
   const m = new Map<string, number[]>();
   for (const stance of STANCES) {
-    m.set(`READY_RIFLE_${stance}`, [...frames(4), to(`AIM_RIFLE_${stance}`)]);
-    m.set(`READY_DUAL_${stance}`, [...frames(4), to(`AIM_DUAL_${stance}`)]);
+    m.set(`READY_RIFLE_${stance}`, [...frames(4), PENDING_ANIMATION_OR_CONTINUE, to(`AIM_RIFLE_${stance}`)]);
+    m.set(`READY_DUAL_${stance}`, [...frames(4), PENDING_ANIMATION_OR_CONTINUE, to(`AIM_DUAL_${stance}`)]);
     m.set(`END_RIFLE_${stance}`, [...frames(4), END_OF_ANIMATION]);
     m.set(`END_DUAL_${stance}`, [...frames(4), END_OF_ANIMATION]);
     m.set(`SHOOT_RIFLE_${stance}`, [
@@ -459,7 +470,19 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   m.set('CROUCHED_BURST', burst('AIM_RIFLE_CROUCH', 0));
   m.set('PRONE_BURST', burst('AIM_RIFLE_PRONE', 0));
   m.set('FIRE_BURST_LOW_STAND', burst('AIM_RIFLE_STAND', 4));
-  m.set('GENERIC_HIT_STAND', [Op.TURN_FROM_HIT, 1, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 2, 3, Op.BACK_TO_AIM, END_OF_ANIMATION]);
+  m.set('GENERIC_HIT_STAND', [
+    Op.TURN_FROM_HIT,
+    Op.FLASH_WHITE,
+    Op.START_HOLD_FLASH,
+    1,
+    Op.END_HOLD_FLASH,
+    NONINTERRUPTIBLE_DONE,
+    Op.INCAPACITATED,
+    2,
+    3,
+    Op.BACK_TO_AIM,
+    END_OF_ANIMATION,
+  ]);
   m.set('RIFLE_STAND_HIT', [Op.TURN_FROM_HIT, 1, 2, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 3, 4, 5, Op.BACK_TO_AIM, END_OF_ANIMATION]);
   m.set('STANDING_BURST_HIT', [1, 2, Op.INCAPACITATED, 3, Op.BACK_TO_AIM, END_OF_ANIMATION]);
   m.set('GENERIC_HIT_CROUCH', [
@@ -494,7 +517,18 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   m.set('ENDFALLFORWARD_FROMHIT_CROUCH', [...frames(5), Sound.FALL_TO_GROUND, ...frames(3, 6), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
   m.set('FALLBACK_HIT_STAND', [...frames(5), Sound.HEAVY_FALL, ...frames(4, 6), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
   m.set('PRONE_LAY_FROMHIT', [...frames(7), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
-  m.set('FLYBACK_HIT', [1, NONINTERRUPTIBLE_DONE, ...frames(7, 2), Sound.HEAVY_FALL, ...frames(3, 9), Op.DEATH_OR_RELEASE]);
+  m.set('FLYBACK_HIT', [
+    1,
+    NONINTERRUPTIBLE_DONE,
+    Op.FLYBACK_BLOOD_JUMP,
+    ...frames(7, 2),
+    Op.FLYBACK_BLOOD_RETURN_MARK,
+    Sound.HEAVY_FALL,
+    ...frames(3, 9),
+    NONINTERRUPTIBLE_DONE,
+    Op.DEATH_OR_RELEASE,
+  ]);
+  m.set('FLYBACK_HIT_BLOOD_STAND', [...frames(4), Op.FLYBACK_BLOOD_POOLS, ...frames(3, 5), NONINTERRUPTIBLE_DONE, Op.FLYBACK_BLOOD_RETURN]);
   m.set('JFK_HITDEATH', [...frames(6), Sound.FALL_TO_GROUND, ...frames(3, 7), Sound.HEAVY_FALL, ...frames(3, 10), Op.DEAD]);
   for (const name of ['GENERIC_HIT_DEATH', 'FALLBACK_HIT_DEATH', 'PRONE_HIT_DEATH', 'FLYBACK_HIT_DEATH', 'CIV_DIE2'])
     m.set(name, [...frames(6), Op.DEAD]);
@@ -686,7 +720,16 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
     else if (door) script = door(tables);
     else if (control.index === startSwat) script = [...frames(START_SWAT_FRAMES), stateJump(stateId(tables, 'SWATTING'))];
     else if (control.index === hopFence)
-      script = [BEGIN_HOP_FENCE, ...frames(HOP_FENCE_FRAMES), ...releases, END_HOP_FENCE, END_OF_ANIMATION];
+      script = [
+        BEGIN_HOP_FENCE,
+        HOP_FENCE_DRAWN_ON_TOP_START,
+        ...frames(HOP_FENCE_FRAMES_BEFORE_THE_LANDING_SIDE),
+        HOP_FENCE_DRAWN_ON_TOP_END,
+        ...frames(HOP_FENCE_FRAMES - HOP_FENCE_FRAMES_BEFORE_THE_LANDING_SIDE, HOP_FENCE_FRAMES_BEFORE_THE_LANDING_SIDE + 1),
+        ...releases,
+        END_HOP_FENCE,
+        END_OF_ANIMATION,
+      ];
     else if (STEPPING_STATES.includes(control.id)) script = steppingLoop();
     else if (control.index === standing) script = [...frames(LOOP_FRAMES), RANDOM_ANIM_CHECK, JUMP_TO_START];
     else if (looping.has(control.index) || control.flags & AnimFlags.MOVING) script = [...frames(LOOP_FRAMES), JUMP_TO_START];

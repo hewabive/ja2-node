@@ -128,6 +128,24 @@ describe('the bounding box of a shown soldier (GetActualSoldierAnimDims)', () =>
     expect(turning).toEqual([5, 6, 7, 3].map((i) => dims(sheetFrame(i))));
   });
 
+  it('draws a soldier in a white flash with the all-white palette (RenderWorld.cc RenderTiles, fForceShade)', () => {
+    const WHITE_ROW = 77;
+    const palettes: Uint8Array[] = [];
+    const scene = new SoldierScene(assets);
+    scene.setSprites({
+      ...sprites,
+      plainPaletteRow: (_key: string, palette: () => Uint8Array) => {
+        palettes.push(palette());
+        return WHITE_ROW;
+      },
+    } as unknown as WorldSprites);
+    const [flashing] = scene.build({ ...input([soldier({})]), whiteFlashOf: () => true });
+    expect(flashing?.paletteRow).toBe(WHITE_ROW);
+    expect(palettes[0]?.every((channel) => channel === 255)).toBe(true);
+    const [plain] = scene.build({ ...input([soldier({})]), whiteFlashOf: () => false });
+    expect(plain?.paletteRow).not.toBe(WHITE_ROW);
+  });
+
   it('has none for a soldier not shown', () => {
     const scene = new SoldierScene(assets);
     scene.setSprites(sprites);

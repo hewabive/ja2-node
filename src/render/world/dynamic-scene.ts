@@ -11,6 +11,7 @@
 // @src picture, not the depth; a vehicle's wreck loops unpaused, and Tile_Animation.cc UpdateAniTiles's first step makes
 // @src its node LEVELNODE_DYNAMIC for good, drawn in the dynamic structure layer of its row, 2026-11-15); RenderTiles's
 // @src LEVELNODE_REVEAL on a UI node, drawn translucent in the dynamic pass (the cover display, 2026-11-15).
+// @src src/game/TileEngine/RenderWorld.cc RenderTiles (sZLevelOverride, 2026-11-18).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -100,6 +101,7 @@ export interface SceneSoldier {
   readonly sprite: SoldierSprite;
   readonly paletteRow: number;
   readonly topmost: boolean;
+  readonly drawnOnTop?: boolean;
   readonly multiTile?: MultiTileLook | null;
 }
 
@@ -643,7 +645,7 @@ export class DynamicScene {
     const wy = worldY(x + (mt?.zTileOffsetX ?? 0), y + (mt?.zTileOffsetY ?? 0), this.#world.topY);
     let z: number;
     if (mt?.vehicle) z = u16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL);
-    else if (m.topmost) z = TOPMOST_Z_LEVEL;
+    else if (m.topmost || m.drawnOnTop) z = TOPMOST_Z_LEVEL;
     else z = m.heightAdjustment > 0 ? roofMercZ(wy) : mercZ(wy);
     return noBurn ? u16(z + NOBURN_Z_BONUS) : z;
   }

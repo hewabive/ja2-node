@@ -6,6 +6,8 @@ import { corpseFileBase } from '../../content/anim/corpses.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { SimEvent } from '../events.ts';
+import { anim } from './anim-states.ts';
+import { adjustToNextAnimationFrame, initNewSoldierAnim } from './animation.ts';
 import { addCorpseStructure, deathOpcode } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { igniteExplosion } from './explosions/explosion.ts';
@@ -35,6 +37,8 @@ const BESIDE = gridNo(81, 79);
 const DECAY_PERIOD_SECONDS = 101;
 const MAX_DECAY_ROUNDS = 30;
 const FLYBACK_BLOOD = 765;
+const MAX_FLYBACK_FRAMES = 40;
+const FIRST_PC_AFTER_THE_BLOOD_RETURN_MARK = 9;
 const FULL_POOL = 7;
 const DAMAGE_FLUKE_RANGE = 51;
 const ROOF_SOLDIER_HEIGHT = 58;
@@ -191,6 +195,26 @@ describe('where blood falls', () => {
     const victim = spawnSoldier(sim, 20, Team.ENEMY, AHEAD, Direction.SOUTH);
     victim.visible = UNSEEN;
     deathOpcode(t, victim, FLYBACK_BLOOD);
+    expect(bloodViews(t)).toEqual([
+      { gridNo: AHEAD - 160, strength: FULL_POOL },
+      { gridNo: AHEAD, strength: FULL_POOL },
+    ]);
+  });
+
+  it('jumps a man flying back to the bloody animation, whose pools fall on the way, and back to his fall (Soldier_Ani.cc 434-436, 765)', () => {
+    const { sim } = squad();
+    const t = sim.state;
+    const victim = spawnSoldier(sim, 20, Team.ENEMY, AHEAD, Direction.SOUTH);
+    const flyback = anim(content, 'FLYBACK_HIT');
+    const blood = anim(content, 'FLYBACK_HIT_BLOOD_STAND');
+    initNewSoldierAnim(t, victim, flyback, 0, false);
+    expect(victim.state).toBe(flyback);
+    adjustToNextAnimationFrame(t, victim);
+    expect(victim.state).toBe(blood);
+    expect(bloodViews(t)).toEqual([]);
+    for (let frame = 0; frame < MAX_FLYBACK_FRAMES && victim.state === blood; frame++) adjustToNextAnimationFrame(t, victim);
+    expect(victim.state).toBe(flyback);
+    expect(victim.pc).toBeGreaterThan(FIRST_PC_AFTER_THE_BLOOD_RETURN_MARK);
     expect(bloodViews(t)).toEqual([
       { gridNo: AHEAD - 160, strength: FULL_POOL },
       { gridNo: AHEAD, strength: FULL_POOL },

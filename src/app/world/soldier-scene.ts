@@ -6,6 +6,8 @@
 // @src bNeutral, not bSide FRIENDLY; grey when the selected merc does not see him, except while on fire or exploding);
 // @src src/game/Tactical/Soldier_Control.cc GetActualSoldierAnimDims (the bounding box from the sheet frame of the
 // @src recorded script frame and facing, 2026-11-03).
+// @src src/game/TileEngine/RenderWorld.cc RenderTiles (fForceShade, the white flash of a hit, 2026-11-18); src/sgp/Shading.cc
+// @src White16BPPPalette; src/game/Tactical/Soldier_Control.cc sZLevelOverride (drawn at the topmost z, 2026-11-18).
 
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { stateId } from '../../content/anim/tables.ts';
@@ -27,6 +29,9 @@ const CREATURE_TEAM = 2;
 const OKLIFE = 15;
 const FIRST_VEHICLE_BODY = 22;
 const UNGREYED_STATES = ['CHARIOTS_OF_FIRE', 'BODYEXPLODING'];
+const WHITE_FLASH_PALETTE_KEY = 'soldier|whiteFlash';
+const PALETTE_BYTES = 768;
+const FULL_CHANNEL = 255;
 
 export interface SoldierLightOptions {
   readonly mercCastsLight: boolean;
@@ -43,6 +48,7 @@ export interface SoldierSceneInput {
   readonly hostile?: (s: SoldierView) => boolean;
   readonly lights: SoldierLightOptions;
   readonly frameOf: (s: SoldierView) => number;
+  readonly whiteFlashOf?: (s: SoldierView) => boolean;
 }
 
 interface DrawnSprite {
@@ -168,6 +174,12 @@ export class SoldierScene {
     return (roof ? input.shade.roof : input.shade.land)[s.gridNo] ?? input.shade.natural;
   }
 
+  #whiteFlashRow(): number {
+    const sprites = this.#sprites;
+    if (!sprites) throw new Error('soldier sprites are not set');
+    return sprites.plainPaletteRow(WHITE_FLASH_PALETTE_KEY, () => new Uint8Array(PALETTE_BYTES).fill(FULL_CHANNEL));
+  }
+
   build(input: SoldierSceneInput): SceneSoldier[] {
     const night = nightTime(input.hour);
     const landShade = (g: number) => input.shade.land[g] ?? input.shade.natural;
@@ -203,8 +215,9 @@ export class SoldierScene {
         level: s.level,
         heightAdjustment: s.heightAdjustment ?? 0,
         sprite: sprite.sprite,
-        paletteRow: sprite.paletteBase + look.row,
+        paletteRow: input.whiteFlashOf?.(s) ? this.#whiteFlashRow() : sprite.paletteBase + look.row,
         topmost: look.topmost,
+        ...(s.drawnOnTop ? { drawnOnTop: true } : {}),
         multiTile: sprite.multiTile,
       });
     }

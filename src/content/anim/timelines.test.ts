@@ -21,6 +21,7 @@ import {
   spriteFrameAt,
   timelineLoops,
   timelineSlot,
+  whiteFlashAt,
 } from './timelines.ts';
 
 const WALK = 0;
@@ -74,6 +75,37 @@ function expectFaithfulSplit(source: AnimationScripts): void {
     expect(framesThroughTimelines(timelines, state)).toEqual(framesUntilStateChange(source, state));
   }
 }
+
+describe('the white flash of a hit (Soldier_Ani.cc 438, 439; RenderWorld.cc RenderTiles)', () => {
+  const STATE = 7;
+  const FRAME = 3;
+  const codes = (script: readonly number[]) => {
+    const all = new Uint16Array(MAX_ANIMATIONS * MAX_FRAMES_PER_ANIM);
+    all.set(script, timelineSlot(STATE, 0));
+    return splitAnimationScripts({ codes: all }).presentation;
+  };
+
+  it('covers exactly the frames between the start and the end of the hold', () => {
+    const shown = codes([FRAME, 431, 438, FRAME, FRAME, 439, FRAME, 499]);
+    const flashes = [0, 3, 4, 6].map((pc) => whiteFlashAt(shown, timelineSlot(STATE, pc)));
+    expect(flashes).toEqual([false, true, true, false]);
+  });
+
+  it('never covers a frame without the hold, nor the slots outside any script', () => {
+    const shown = codes([431, FRAME, 499]);
+    expect(whiteFlashAt(shown, timelineSlot(STATE, 1))).toBe(false);
+    expect(whiteFlashAt(shown, NO_FRAME_SLOT)).toBe(false);
+    expect(whiteFlashAt(shown, OUTSIDE_SCRIPT_SLOT)).toBe(false);
+  });
+
+  it('ends with the animation, which clears fForceShade', () => {
+    const all = new Uint16Array(MAX_ANIMATIONS * MAX_FRAMES_PER_ANIM);
+    all.set([438, FRAME], timelineSlot(STATE, 0));
+    all.set([FRAME], timelineSlot(STATE + 1, 0));
+    const { presentation } = splitAnimationScripts({ codes: all });
+    expect(whiteFlashAt(presentation, timelineSlot(STATE + 1, 0))).toBe(false);
+  });
+});
 
 describe('animation timelines', () => {
   const sample = scripts({

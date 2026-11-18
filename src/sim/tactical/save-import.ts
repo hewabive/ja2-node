@@ -125,6 +125,7 @@ const SAVED_NO_PENDING_STANCE = 254;
 const SAVED_NO_PENDING_ANIMATION = 32001;
 const SAVED_NO_PENDING_ACTION = 255;
 const SAVED_NO_PENDING_DIRECTION = 253;
+const NO_Z_LEVEL_OVERRIDE = -1;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
 const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
@@ -677,6 +678,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.delayedStrategicMoraleMod = r.moraleMods.delayedStrategic;
   s.blindedCounter = r.blindedCounter;
   s.muzzleFlash = r.muzzleFlash;
+  s.drawnOnTop = r.zLevelOverride !== NO_Z_LEVEL_OVERRIDE;
   s.sleepDrugCounter = r.sleepDrugCounter;
   s.drugs = copyDrugCourses(r.drugs);
   s.heightAdjustment = r.heightAdjustment;

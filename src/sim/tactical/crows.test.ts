@@ -20,7 +20,7 @@ import { type TacticalState, teamMembers } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { handleTacticalEndTurn } from './turns/turns.ts';
 
-const NO_PRESENTATION = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
+const NO_PRESENTATION = { frames: new Int16Array(0), sounds: new Uint16Array(0), whiteFlash: new Uint8Array(0) };
 
 let content: TacticalContent;
 

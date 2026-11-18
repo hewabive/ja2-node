@@ -28,6 +28,8 @@ const END_BURST = 449;
 const LOCATE_TARGET = 477;
 const BEGIN_HOP_FENCE = 450;
 const END_HOP_FENCE = 444;
+const HOP_FENCE_DRAWN_ON_TOP_START = 451;
+const HOP_FENCE_DRAWN_ON_TOP_END = 452;
 const MOVE_DOWN = 409;
 const FALL_INTO_PIT_CODE = 754;
 const UNJAM_STATES = [
@@ -137,7 +139,14 @@ describe('stub animation scripts', () => {
     const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
     const scripts = parseAnimationScripts(await buildStubAnimationScripts());
     expect(playedOpcodes(scripts, stateId(tables, 'HOPFENCE'))).toEqual({
-      ops: [BEGIN_HOP_FENCE, NONINTERRUPTIBLE_DONE, END_HOP_FENCE, END_OF_ANIMATION],
+      ops: [
+        BEGIN_HOP_FENCE,
+        HOP_FENCE_DRAWN_ON_TOP_START,
+        HOP_FENCE_DRAWN_ON_TOP_END,
+        NONINTERRUPTIBLE_DONE,
+        END_HOP_FENCE,
+        END_OF_ANIMATION,
+      ],
       next: null,
     });
   });

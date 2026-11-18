@@ -13,6 +13,7 @@
 // @src to itself", 2026-11-08); the samples of codes 721 and 722, told for a soldier out of sight (2026-11-14);
 // @src HandleSoldierDeath's LAUGH1 of the attacker of a visible victim, whose Random(3) the client draws (deviation
 // @src "Cosmetic draws in attacks", 2026-11-14).
+// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 434, 435 and 436, the flyback hit's blood jump, 2026-11-18).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -32,6 +33,7 @@ import {
   changeSoldierState,
   hasAnimFlag,
   initNewSoldierAnim,
+  pcOfOpcode,
   setDesiredDirection,
   setSoldierDirection,
   soldierGotoStationaryStance,
@@ -119,6 +121,9 @@ const opposite = (d: number) => (d + 4) % 8;
 const VEHICLE_CORPSE_DIRECTION = 7;
 const FIXED_CORPSE_DIRECTION = 7;
 const COLLAPSED_TURNS_BEFORE_KNOCKOUT = 1;
+const FLYBACK_BLOOD_JUMP = 434;
+const FLYBACK_BLOOD_RETURN_MARK = 435;
+const FLYBACK_BLOOD_RETURN = 436;
 const FALL_TO_GROUND_CODE = 721;
 const HEAVY_FALL_CODE = 722;
 const STANDING_FALL_JAR_DAMAGE = 20;
@@ -650,6 +655,17 @@ function dropFlybackBlood(t: TacticalState, s: Soldier): void {
   internalDropBlood(t, behind, s.level, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, DROPPED_IN_SIGHT);
 }
 
+function jumpToFlybackBlood(t: TacticalState, s: Soldier): void {
+  changeSoldierState(t, s, anim(t.content, 'FLYBACK_HIT_BLOOD_STAND'));
+}
+
+function returnFromFlybackBlood(t: TacticalState, s: Soldier): void {
+  const flyback = anim(t.content, 'FLYBACK_HIT');
+  const mark = pcOfOpcode(t, flyback, FLYBACK_BLOOD_RETURN_MARK);
+  if (mark === null) changeSoldierState(t, s, s.state);
+  else changeSoldierState(t, s, flyback, mark);
+}
+
 function goesBackToItself(s: Soldier): boolean {
   return s.oldState === s.state && s.oldPc === s.pc;
 }
@@ -664,6 +680,12 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
     case 433:
       checkForAndHandleSoldierIncapacitated(t, s);
       return animName(t.content, s.state) === '' ? 'stop' : null;
+    case FLYBACK_BLOOD_JUMP:
+      jumpToFlybackBlood(t, s);
+      return 'stop';
+    case FLYBACK_BLOOD_RETURN:
+      returnFromFlybackBlood(t, s);
+      return 'stop';
     case 437:
       setSoldierDirection(t, s, (s.direction + 4) % 8);
       setDesiredDirection(t, s, s.direction);

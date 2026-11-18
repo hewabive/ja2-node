@@ -12,7 +12,7 @@ import { NO_PROFILE, Team } from './soldier.ts';
 import { TacticalSim } from './tactical-sim.ts';
 
 const UNINITIALISED_FILL = String.fromCharCode(0xcdcd).repeat(10);
-const NO_PRESENTATION = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
+const NO_PRESENTATION = { frames: new Int16Array(0), sounds: new Uint16Array(0), whiteFlash: new Uint8Array(0) };
 const D13_FILLED_PLACEMENTS = 11;
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('the civilians of the original D13', () => {

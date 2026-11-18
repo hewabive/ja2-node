@@ -554,6 +554,13 @@ describe('dynamic scene', () => {
     expect(decode(scene).every((p) => p.z === TOPMOST_Z_LEVEL)).toBe(true);
   });
 
+  it('puts a soldier over a fence at the topmost z without making him the glowing one', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(frame({ soldiers: [{ ...soldier(3, g(80, 80), 0), drawnOnTop: true }] }));
+    expect(decode(scene).every((p) => p.z === TOPMOST_Z_LEVEL)).toBe(true);
+  });
+
   it('orders UI nodes around the dynamic map nodes of their layer and tile', () => {
     const top = tileIndex(tables, 'FIRSTFULLSTRUCT1') + 1;
     const { staticWorld, prepared } = world({ structs: [[g(80, 80), [T('FIRSTFULLSTRUCT', 2)]]] }, tiles);
