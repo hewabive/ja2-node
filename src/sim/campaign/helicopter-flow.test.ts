@@ -128,10 +128,8 @@ describe('the helicopter commands', () => {
   it('wakes a selected merc on foot at a confirmed flight, and leaves the others asleep (MapScreen.cc HandleNewDestConfirmation)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
-    const economy = c.economy;
-    if (!economy) throw new Error('no economy');
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
-    const crew = (id: number) => economy.crew.get(id) as CrewMember;
+    const crew = (id: number) => c.economy?.crew.get(id) as CrewMember;
     crew(1).asleep = true;
     crew(2).asleep = true;
     expect(c.dispatch({ type: 'heliRoute', to: 'A10', selected: [1] }).ok).toBe(true);

@@ -381,6 +381,19 @@ describe('the fence hop (Soldier_Control.cc BeginSoldierClimbFence, Soldier_Ani.
     expect(drawnOnTopDuringHop(Direction.EAST)).toEqual([false, true, false]);
   });
 
+  it('stops drawing a man on top as he lands, even on another fence tile (Soldier_Ani.cc 444)', () => {
+    const t = tactical((w) => {
+      placeFence(w);
+      w.add(LANDING, 0, syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT));
+    });
+    const s = hopper(t, Direction.NORTH, 'WALKING');
+    const hop = anim(content, 'HOPFENCE');
+    initNewSoldierAnim(t, s, hop, 0, false);
+    for (let frame = 0; frame < HOP_TICKS && s.state === hop; frame++) adjustToNextAnimationFrame(t, s);
+    expect(s.gridNo).toBe(LANDING);
+    expect(s.drawnOnTop).toBe(false);
+  });
+
   it('draws a man on a fence tile on top and stops at the next tile (Soldier_Control.cc EVENT_InternalSetSoldierPosition)', () => {
     const t = tactical(placeFence);
     const s = spawn(t, START);
