@@ -165,11 +165,13 @@ export class MenuMask {
   readonly #regions: RegionDispatcher;
   readonly #owner: unknown;
   readonly #close: () => void;
+  readonly #cursor: number;
 
-  constructor(regions: RegionDispatcher, owner: unknown, close: () => void) {
+  constructor(regions: RegionDispatcher, owner: unknown, close: () => void, cursor: number = NO_CURSOR) {
     this.#regions = regions;
     this.#owner = owner;
     this.#close = close;
+    this.#cursor = cursor;
   }
 
   get active(): boolean {
@@ -185,7 +187,7 @@ export class MenuMask {
         x2: 0xffff,
         y2: 0xffff,
         priority: MENU_PRIORITY,
-        cursor: NO_CURSOR,
+        cursor: this.#cursor,
         owner: this.#owner,
         id: 'mapMenuMask',
         onButton: (_r, reason) => {

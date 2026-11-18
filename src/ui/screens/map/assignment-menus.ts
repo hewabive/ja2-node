@@ -14,7 +14,9 @@
 // @src HandleShadingOfLinesForAssignmentMenus and its siblings (the shading comes from the assignmentOptions hint),
 // @src CreateDestroyMouseRegionsForAssignmentMenu and PositionCursorForTacticalAssignmentBox (unless "don't move mouse" is
 // @src set, the pointer onto the assignment box's first line, measured on the assignment box for an EPC too; not for the
-// @src remove box of HandleRemoveMenu, 2026-11-15).
+// @src remove box of HandleRemoveMenu, 2026-11-15), DetermineBoxPositions, CheckAndUpdateTacticalAssignmentPopUpPositions
+// @src and AdjustBoxPos (the boxes kept on the tactical screen and above the panel, 2026-11-18); UILayout.cc
+// @src (VehiclePosition's y).
 
 import { idiv } from '../../../core/int.ts';
 import type { AssignmentLine, AssignmentOptions } from '../../../protocol/hints.ts';
@@ -50,6 +52,7 @@ const ASSIGNMENT_X = 120;
 const POINTER_LEFT_OF_EDGE = 6;
 const POINTER_BELOW_LINE_MIDDLE = 2;
 const VEHICLE_X = 160;
+const TACTICAL_VEHICLE_Y = 150;
 const SQUAD_CANCEL = 20;
 const ASSIGN_MENU_STRINGS = 7;
 const STRINGS = {
@@ -114,6 +117,12 @@ function assignResults(reply: AssignmentCommandReply): readonly SoldierAssignRes
   return Array.isArray(results) ? (results as SoldierAssignResult[]) : [];
 }
 
+export interface AssignmentMenuPlacement {
+  readonly start: () => { readonly x: number; readonly y: number };
+  readonly screenWidth: () => number;
+  readonly viewportBottom: () => number;
+}
+
 export interface AssignmentMenuHost {
   readonly regions: RegionDispatcher;
   readonly text: UiTextService;
@@ -133,6 +142,7 @@ export interface AssignmentMenuHost {
   readonly fontHeight: () => number;
   readonly closed: () => void;
   readonly pointer?: Pick<UiServices, 'simulateMouseMovement' | 'dontMoveMouse'>;
+  readonly placement?: AssignmentMenuPlacement;
 }
 
 function shadeOf(line: AssignmentLine | undefined): LineShade {
@@ -153,6 +163,7 @@ export class AssignmentMenus {
   #mode: TrainingMode = 'trainSelf';
   #boxY = 0;
   #pending = false;
+  #boxes = { x: 0, y: 0 };
 
   constructor(host: AssignmentMenuHost) {
     this.#host = host;
@@ -190,7 +201,9 @@ export class AssignmentMenus {
       shade: shadeOf(l),
     }));
     const o = this.#host.origin();
-    this.#main = this.#menu('assignmentMenu', 'assignment', o.x + ASSIGNMENT_X, o.y + boxY, lines, (line) => this.#mainSelect(line));
+    this.#boxes = this.#host.placement?.start() ?? { x: o.x + ASSIGNMENT_X, y: o.y + boxY };
+    this.#main = this.#menu('assignmentMenu', 'assignment', this.#boxes.x, this.#boxes.y, lines, (line) => this.#mainSelect(line));
+    this.#arrange();
     this.#main.show();
     if (options.box !== 'removeMerc') this.#positionPointer(this.#main.box);
   }
@@ -244,6 +257,31 @@ export class AssignmentMenus {
 
   #lineY(lines: number): number {
     return (this.#main?.box.y ?? 0) + (this.#host.fontHeight() + 2) * lines;
+  }
+
+  #arrange(): void {
+    const area = this.#host.placement;
+    const main = this.#main;
+    if (!area || !main) return;
+    const width = area.screenWidth();
+    const bottom = area.viewportBottom();
+    const m = main.box;
+    const step = this.#host.fontHeight() + 2;
+    const attribute = this.#attribute;
+    const training = this.#training;
+    const beside = this.#repair ?? this.#squad ?? training;
+    const line = this.#repair ? ASSIGN_MENU_REPAIR : this.#squad ? ASSIGN_MENU_ON_DUTY : ASSIGN_MENU_TRAIN;
+    const dy = beside ? step * line : 0;
+    const besideWidth = beside?.box.width ?? 0;
+    const shownByAttributes = attribute !== null && beside === training;
+    const maxX = width - m.width - besideWidth - (shownByAttributes ? attribute.box.width : 0);
+    const lowest = shownByAttributes ? attribute.box.height + dy : Math.max(m.height, beside ? beside.box.height + dy : 0);
+    const x = Math.min(this.#boxes.x, maxX);
+    const y = Math.min(this.#boxes.y, bottom - lowest);
+    this.#boxes = { x, y };
+    main.moveTo(x, y);
+    beside?.moveTo(x + m.width, y + dy);
+    if (shownByAttributes) attribute.moveTo(x + m.width + besideWidth, y + dy);
   }
 
   #submenuOpen(): boolean {
@@ -322,10 +360,11 @@ export class AssignmentMenus {
     let y = box?.y ?? 0;
     this.#squad = this.#menu('squadMenu', 'squad', this.#rightOfMain(), y, lines, (line) => this.#squadSelect(line));
     const maxY = o.y + 480 - this.#squad.box.height;
-    if (y > maxY) {
+    if (!this.#host.placement && y > maxY) {
       y = maxY;
       this.#squad.moveTo(this.#rightOfMain(), y);
     }
+    this.#arrange();
     this.#main?.pin(ASSIGN_MENU_ON_DUTY);
     this.#squad.show();
   }
@@ -367,9 +406,10 @@ export class AssignmentMenus {
     });
     lines.push({ text: text.string(STRINGS.squad, SQUAD_CANCEL) ?? '' });
     const o = this.#host.origin();
-    this.#vehicle = this.#menu('vehicleMenu', 'assignment', o.x + VEHICLE_X, this.#lineY(ASSIGN_MENU_VEHICLE), lines, (line) =>
-      this.#vehicleSelect(line),
-    );
+    const tactical = this.#host.placement !== undefined;
+    const x = tactical ? this.#rightOfMain() : o.x + VEHICLE_X;
+    const y = tactical ? TACTICAL_VEHICLE_Y : this.#lineY(ASSIGN_MENU_VEHICLE);
+    this.#vehicle = this.#menu('vehicleMenu', 'assignment', x, y, lines, (line) => this.#vehicleSelect(line));
     this.#main?.pin(this.#options?.box === 'epc' ? EPC_MENU_VEHICLE : ASSIGN_MENU_VEHICLE);
     this.#vehicle.show();
   }
@@ -410,6 +450,7 @@ export class AssignmentMenus {
     this.#repair = this.#menu('repairMenu', 'assignment', this.#rightOfMain(), this.#lineY(ASSIGN_MENU_REPAIR), lines, (line) =>
       this.#repairSelect(line),
     );
+    this.#arrange();
     this.#main?.pin(ASSIGN_MENU_REPAIR);
     this.#repair.show();
   }
@@ -445,6 +486,7 @@ export class AssignmentMenus {
       (line) => this.#trainingSelect(line),
       () => this.#closeAttributes(),
     );
+    this.#arrange();
     this.#main?.pin(ASSIGN_MENU_TRAIN);
     this.#training.show();
   }
@@ -522,6 +564,7 @@ export class AssignmentMenus {
     this.#attribute = this.#menu('attributeMenu', 'assignment', training.x + training.width, training.y, lines, (line) =>
       this.#attributeSelect(line),
     );
+    this.#arrange();
     this.#training?.pin(trainingLine);
     this.#attribute.show();
   }

@@ -1,5 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Turn_Based_Input.cc QueryTBLeftButton and QueryTBRightButton, Real_Time_Input.cc
+// @src QueryRTLeftButton and QueryRTRightButton (the assignment menu of PopupAssignmentMenuInTactical on a right hold over
+// @src our merc and a left click on one off his squad, 2026-11-18);
 // @src src/game/Tactical/Turn_Based_Input.cc TacticalViewPortTouchCallbackTB and Real_Time_Input.cc
 // @src TacticalViewPortTouchCallbackRT (Shift + middle button pans, the wheel adjusts the aim in combat only, 2026-11-18),
 // @src QueryTBMiddleButton (the look cursor while the button is held); Handle_UI.cc TogglePanMode, UIHandlePPanMode;
@@ -102,6 +105,7 @@ import {
   nextActiveAndAliveMerc,
   OUR_TEAM,
   okEnterableVehicle,
+  onAnotherAssignment,
   ourTurn,
   ownSoldiers,
   soldierById,
@@ -217,6 +221,7 @@ export interface TacticalInputHost {
   itemPointerClick(gridNo: number, target: SoldierView | null, tile: ItemTileCursor): void;
   pickUp(soldier: SoldierView, gridNo: number, level: number): void;
   openMovementMenu(x: number, y: number, done: (choice: MovementChoice | null) => void): void;
+  openAssignmentMenu(s: SoldierView): boolean;
   openExitDialog(direction: ExitDirection, exitGrid: number | null): void;
   confirm(text: string): Promise<boolean>;
   dismissFeedback(): boolean;
@@ -1233,7 +1238,7 @@ export class TacticalInput {
         if (!this.#host.itemInCursor()) {
           const target = this.#hover.target;
           if (target && this.#targetIs(FindFlag.OWNED)) {
-            if (!this.#targetIs(FindFlag.UNCONSCIOUS)) {
+            if (!this.#targetIs(FindFlag.UNCONSCIOUS) && !onAnotherAssignment(this.#view(), target)) {
               this.#tbClickHold = true;
               next = UiEvent.I_SELECT_MERC;
             }
@@ -1319,6 +1324,9 @@ export class TacticalInput {
       case UiMode.IDLE_MODE:
         if (this.#hover.target && this.#targetIs(FindFlag.OWNED) && !this.#targetIs(FindFlag.UNCONSCIOUS)) next = UiEvent.I_SELECT_MERC;
         break;
+      case UiMode.MOVE_MODE:
+        this.#assignmentMenuOfMercOnDuty();
+        break;
       case UiMode.CONFIRM_MOVE_MODE:
         next = UiEvent.C_MOVE_MERC;
         break;
@@ -1346,6 +1354,17 @@ export class TacticalInput {
         break;
     }
     return next;
+  }
+
+  #openAssignmentMenu(): boolean {
+    const target = this.#hover.target;
+    return target !== null && !isVehicleBody(target) && this.#host.openAssignmentMenu(target);
+  }
+
+  #assignmentMenuOfMercOnDuty(): boolean {
+    const target = this.#hover.target;
+    if (!target || !this.#targetIs(FindFlag.OWNED) || this.#targetIs(FindFlag.UNCONSCIOUS)) return false;
+    return !this.#host.itemInCursor() && onAnotherAssignment(this.#view(), target) && this.#openAssignmentMenu();
   }
 
   #feedbackOpenClosed(): boolean {
@@ -1449,9 +1468,13 @@ export class TacticalInput {
         this.#rightDownAt = this.#now;
       }
       if (!this.#leftDown && !this.#host.itemInCursor() && this.#clickHeld(this.#rightDownAt) && !this.#tbRightHold) {
-        if (RIGHT_HOLD_MODES.has(this.#mode) && this.#sel()) {
-          next = UiEvent.U_MOVEMENT_MENU;
-          this.#tbRightHold = true;
+        if (RIGHT_HOLD_MODES.has(this.#mode)) {
+          const onOwnMerc = this.#targetIs(FindFlag.OWNED) && !this.#targetIs(FindFlag.UNCONSCIOUS);
+          if (onOwnMerc && this.#openAssignmentMenu()) this.#tbRightHold = true;
+          else if (this.#sel()) {
+            next = UiEvent.U_MOVEMENT_MENU;
+            this.#tbRightHold = true;
+          }
         }
       }
       return next;
@@ -1720,6 +1743,7 @@ export class TacticalInput {
     const target = this.#hover.target;
     if (target && this.#targetIs(FindFlag.OWNED)) {
       if (!this.#targetIs(FindFlag.UNCONSCIOUS)) {
+        if (this.#assignmentMenuOfMercOnDuty()) return event;
         const alt = (this.#env().runtime.modifiers & KeyModifier.ALT) !== 0;
         if (!alt) {
           this.multiSelected.clear();
@@ -1794,7 +1818,9 @@ export class TacticalInput {
         return next;
       }
       if (this.#clickHeld(this.#rightDownAt) && !this.#rtRightHold && !this.#host.itemInCursor() && RIGHT_HOLD_MODES.has(this.#mode)) {
-        if (sel) {
+        const onOwnMerc = this.#targetIs(FindFlag.OWNED) && this.#targetIs(FindFlag.VISIBLE) && !this.#targetIs(FindFlag.DEAD);
+        if (onOwnMerc && this.#openAssignmentMenu()) this.#rtRightHold = true;
+        else if (sel) {
           next = UiEvent.U_MOVEMENT_MENU;
           this.#rtRightHold = true;
         }

@@ -6,12 +6,18 @@
     "src/game/TileEngine/Overhead_Map.cc uiOVERMAP map_bord.sti, uiPERSONS persons.sti (one frame per team, 7 to 9 for the placement GUI)",
     "src/game/Tactical/Spread_Burst.cc guiBURSTACCUM burst1.sti",
     "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Tactical/Auto_Bandage.cc AddFacesToAutoBandageBox (panels.sti), MakeButton (group_confirm_tactical.sti 7/8 in MAP_SCREEN_FONT)",
+    "src/game/Strategic/Assignments.cc MakeBox, SetBoxTextAttrs (the assignment and squad popups as on the map screen)",
     "src/game/TileEngine/Tactical_Placement_GUI.cc InitTacticalPlacementGUI (overheadinterface.sti 640 x 160, overheaduibuttons.sti frames 0 and 1, panels.sti)"
   ],
   "screen": "tacticalInput",
   "frame": "screen",
-  "constants": ["MessageBoxScreen", "MercTextBox", "Map_Screen_Interface"],
+  "constants": ["MessageBoxScreen", "MercTextBox", "Map_Screen_Interface", "PopUpBox"],
   "assets": {
+    "popupBorder": {
+      "sti": "interface/popup.sti",
+      "stub": { "sizes": [[2, 2], [2, 2], [2, 2], [2, 2], ["BORDER_WIDTH", 2], [2, "BORDER_HEIGHT"]] }
+    },
+    "popupBackground": { "pcx": "interface/popupbackground.pcx", "stub": { "size": [320, 240] } },
     "buttonFrame": {
       "sti": "interface/button_frame.sti",
       "stub": { "style": "hollow", "size": [77, 76] }
@@ -233,6 +239,38 @@
     }
   },
   "styles": {
+    "assignmentPopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "center": true,
+      "resize": true,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
+    "squadPopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "center": false,
+      "resize": true,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
     "dialogTextBox": { "background": "dialogBackground", "border": "tactPopupMain", "backgroundIndex": "DIALOG_MERC_POPUP_BACKGROUND" }
   }
 }

@@ -29,6 +29,7 @@ export const OUR_TEAM = 0;
 const REGFEMALE = 3;
 const TANK_BODIES: ReadonlySet<number> = new Set([Body.TANK_NW, Body.TANK_NE]);
 const DYING_HEALTH_INDEX = 0;
+const ON_DUTY = 20;
 const MERC_VITAL_STATS_POPUPTEXT = 61;
 const STR_LATE_16 = 15;
 const VEHICLE_VITAL_STATS_POPUPTEXT = 135;
@@ -231,6 +232,11 @@ export function vitalStatsHelp(text: UiTextService, s: SoldierView): string {
     s.breathMax ?? 0,
     moraleString(text, s),
   ]);
+}
+
+export function onAnotherAssignment(view: PlayerView | null, s: SoldierView): boolean {
+  const assignment = assignmentOf(view, s);
+  return assignment === null ? s.squad === null : assignment >= ON_DUTY;
 }
 
 export function okControllable(s: SoldierView): boolean {

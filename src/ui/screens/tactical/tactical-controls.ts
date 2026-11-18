@@ -162,6 +162,7 @@ export interface ControlsScreen {
   readonly env: TacticalEnvironment;
   selected(): SoldierView | null;
   continueMove(s: SoldierView): boolean;
+  openAssignmentMenu(s: SoldierView): boolean;
   select(s: SoldierView, acknowledge: boolean, fromUi: boolean): void;
   selectMultiSelection(chosen: SoldierView, others: readonly number[]): void;
   interfaceLevel(): number;
@@ -315,6 +316,7 @@ export class TacticalControls {
       itemPointerClick: (gridNo, target, tile) => screen.itemPointerClick(gridNo, target, tile),
       pickUp: (s, gridNo, level) => screen.pickUp(s, gridNo, level),
       openMovementMenu: (x, y, done) => this.#openMovementMenu(x, y, done),
+      openAssignmentMenu: (s) => screen.openAssignmentMenu(s),
       openExitDialog: (direction, exitGrid) => void this.openExitDialog(direction, exitGrid),
       confirm: (text) => screen.env.boxes.confirm(text),
       dismissFeedback: () => screen.dismissFeedback(),

@@ -126,6 +126,7 @@ import { Assignment } from '../map/character-list.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from '../map/event-boxes.ts';
 import { sectorNameIn, townOfLabel } from '../map/facts.ts';
 import { DialogueLayer } from '../talk/dialogue-layer.ts';
+import { AssignmentPopup } from './assignment-popup.ts';
 import { AutoBandageBox, autoBandageNotices } from './auto-bandage-box.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
 import { type CommandReply, type TacticalEnvironment, TacticalLayout } from './environment.ts';
@@ -380,6 +381,7 @@ export class TacticalScreen implements Screen {
   readonly #eventBoxes: EventBox[] = [];
   readonly #autoBandage: AutoBandageBox;
   readonly #placement: PlacementPanel;
+  readonly assignmentMenu: AssignmentPopup;
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
@@ -509,6 +511,14 @@ export class TacticalScreen implements Screen {
     this.controls = new TacticalControls(this.#controlsScreen(), this.#controlsArt());
     this.#autoBandage = this.#autoBandageBox();
     this.#placement = this.#placementPanel();
+    this.assignmentMenu = new AssignmentPopup({
+      env,
+      strategic: () => this.#view()?.strategic,
+      viewportBottom: () => this.#viewportBottom(),
+      feedback: (text) => this.#localFeedback(text, FontColor.MCOLOR_LTYELLOW),
+      log: (text) => this.#log.push(text, FontColor.MCOLOR_LTYELLOW, env.runtime.fonts.get(FontName.TINYFONT1)),
+      townOf: (sector) => this.#townOf(sector),
+    });
   }
 
   #placementPanel(): PlacementPanel {
@@ -609,6 +619,7 @@ export class TacticalScreen implements Screen {
       env,
       selected: () => soldierById(this.#view(), this.#selected),
       continueMove: (s) => this.continueMove(s),
+      openAssignmentMenu: (s) => this.assignmentMenu.openFor(s),
       select: (s, acknowledge, fromUi) => this.#selectSoldier(s, acknowledge, fromUi),
       selectMultiSelection: (chosen, others) => this.#selectMultiSelection(chosen, others),
       interfaceLevel: () => this.#interfaceLevel,
@@ -627,7 +638,7 @@ export class TacticalScreen implements Screen {
       panel: () => this.#panel,
       requestTeamPanel: () => this.#requestPanel('team', null),
       panelButtonEnabled: (button) => this.#panelButtonEnabled(button),
-      popupsOpen: () => this.pickup.open || this.description.open || this.stack.open || this.keyRing.open,
+      popupsOpen: () => this.pickup.open || this.description.open || this.stack.open || this.keyRing.open || this.assignmentMenu.open,
       closePopups: () => this.#closePopups(),
       locate: (s, flag) => this.#locateSoldier(s, flag),
       slideTo: (s, flag) => this.#slideTo(s, flag),
@@ -910,6 +921,7 @@ export class TacticalScreen implements Screen {
     this.#env.client.onRefused(null);
     this.dialogue.dispose();
     this.controls.exit();
+    this.assignmentMenu.close();
     this.description.close(false);
     this.stack.close();
     this.keyRing.close();
@@ -1470,6 +1482,7 @@ export class TacticalScreen implements Screen {
     this.#hudView.render(list);
     this.pickup.render(list, ctx);
     this.controls.renderMenus(list);
+    this.assignmentMenu.render(list);
     this.controls.renderOverhead(list);
     this.#placement.render(list);
     if (!this.controls.overhead.open) this.dialogue.render(list);
@@ -1514,6 +1527,7 @@ export class TacticalScreen implements Screen {
       ...this.#hudView.describe(),
       ...this.#panelView().describe(),
       ...extra,
+      ...this.assignmentMenu.describe(),
       ...this.dialogue.describe(),
       ...this.#autoBandage.describe(),
       ...this.#placement.describe(),
