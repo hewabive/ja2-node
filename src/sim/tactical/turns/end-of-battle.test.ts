@@ -6,6 +6,10 @@ import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/supp
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { parseStubProfiles, STUB_PROFILES_PATH } from '../../../content/formats/stub-profiles.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
+import { anim } from '../anim-states.ts';
+import { AnimHeight, endHeight } from '../animation.ts';
+import { INVALID_ANIMATION, pickSoldierReadyAnimation } from '../combat/attack.ts';
 import { handleSoldierDeath } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
@@ -13,6 +17,7 @@ import type { TacticalContent } from '../content.ts';
 import { Profile } from '../narrative/constants.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { ownSoldierFields } from '../soldier-view.ts';
 import { ourTeamInSectorWithTheDead, type TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { checkForEndOfBattle, checkForLosingEndOfBattle, numCapableEnemyInSector, numEnemyInSector } from './turns.ts';
@@ -195,6 +200,67 @@ describe('the battles a merc fought (CheckForEndOfBattle, Overhead.cc:4557)', ()
     removeSoldierFromTacticalSector(t, left);
     expect(checkForEndOfBattle(t)).toBe(true);
     expect([killed, standing, left].map((s) => t.profiles.get(s.profile)?.battlesFought)).toEqual([1, 1, 0]);
+  });
+});
+
+describe('standing down after a fought victory (CheckForEndOfBattle, Overhead.cc:4562-4591)', () => {
+  function victoryWith(prepare: (t: TacticalState, merc: Soldier) => void, fought = 1): { t: TacticalState; merc: Soldier } {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.NORTH);
+    merc.stealthMode = true;
+    t.turn.enemyInSector = true;
+    t.turn.numFoughtInBattle[Team.ENEMY] = fought;
+    prepare(t, merc);
+    expect(checkForEndOfBattle(t)).toBe(true);
+    return { t, merc };
+  }
+
+  it('takes a merc out of stealth and gets him up from a crouch', () => {
+    const { t, merc } = victoryWith((state, s) => {
+      s.state = anim(state.content, 'CROUCHING');
+    });
+    expect(merc.stealthMode).toBe(false);
+    expect(endHeight(t.content, merc.state)).toBe(AnimHeight.STAND);
+    expect(merc.desiredHeight).toBe(AnimHeight.STAND);
+  });
+
+  it('shows the view of the merc out of stealth', () => {
+    const { t, merc } = victoryWith(() => {});
+    expect(ownSoldierFields(t, merc, new Set()).stealth).toBe(false);
+  });
+
+  it('lowers the gun of a standing merc who aims', () => {
+    let lowered = 0;
+    const { merc } = victoryWith((t, s) => {
+      s.state = anim(t.content, 'AIM_RIFLE_STAND');
+      lowered = pickSoldierReadyAnimation(t, s, true);
+    });
+    expect(lowered).not.toBe(INVALID_ANIMATION);
+    expect(merc.state).toBe(lowered);
+  });
+
+  it('leaves alone a merc who is down, collapsed or on another assignment', () => {
+    const stillStealthy = (prepare: (t: TacticalState, s: Soldier) => void) => victoryWith(prepare).merc.stealthMode;
+    expect(
+      stillStealthy((_t, s) => {
+        s.life = DOWNED_LIFE;
+      }),
+    ).toBe(true);
+    expect(
+      stillStealthy((_t, s) => {
+        s.collapsed = true;
+      }),
+    ).toBe(true);
+    expect(
+      stillStealthy((t) => {
+        t.narrative = { ...t.narrative, assignment: () => Assignment.PATIENT };
+      }),
+    ).toBe(true);
+  });
+
+  it('does nothing after a battle nobody fought', () => {
+    expect(victoryWith(() => {}, 0).merc.stealthMode).toBe(true);
   });
 });
 

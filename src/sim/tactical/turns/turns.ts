@@ -36,7 +36,7 @@
 // @src bMenInSector, which for our team counts every soldier made for it, Overhead.h, Soldier_Create.cc AddManToTeam
 // @src (2026-11-08); ExitCombatMode's ENGAGED_IN_CONV gate on the real-time turn, the decay forced either way (2026-11-14);
 // @src CheckForLosingEndOfBattle's whole count: the dead keep bInSector (Rotting_Corpses.cc TurnSoldierIntoCorpse), an empty
-// @src sector counts as lost, fOnlyEPCsLeft (2026-11-18).
+// @src sector counts as lost, fOnlyEPCsLeft; CheckForEndOfBattle's stand-down of our mercs after a fought victory (2026-11-18).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -44,11 +44,20 @@ import { idiv, u8, u32 } from '../../../core/int.ts';
 import { CompressMode } from '../../strategic/time/constants.ts';
 import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
-import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
+import {
+  AnimHeight,
+  adjustNoAPToFinishMove,
+  changeSoldierStance,
+  height,
+  initNewSoldierAnim,
+  soldierGotoStationaryStance,
+  TurningFromProne,
+} from '../animation.ts';
 import { startWakingUp } from '../assignment-animations.ts';
 import { shouldBeginAutoBandage } from '../auto-bandage.ts';
 import { decayBombTimers } from '../bombs/bomb-queue.ts';
 import { checkForBreathCollapse, resetLowBreathWarning } from '../breath-collapse.ts';
+import { INVALID_ANIMATION, pickSoldierReadyAnimation } from '../combat/attack.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
@@ -666,11 +675,23 @@ export function endBattleAfterSurrender(t: TacticalState): void {
   endBattleAsLost(t);
 }
 
+function standDownAfterVictory(t: TacticalState, s: Soldier): void {
+  s.stealthMode = false;
+  if (height(t.content, s.state) !== AnimHeight.STAND) {
+    changeSoldierStance(t, s, AnimHeight.STAND);
+    return;
+  }
+  const weaponLowered = pickSoldierReadyAnimation(t, s, true);
+  if (weaponLowered !== INVALID_ANIMATION) initNewSoldierAnim(t, s, weaponLowered, 0, false);
+}
+
 function ourMercsFinishFoughtBattle(t: TacticalState): void {
   for (const s of ourTeamInSectorWithTheDead(t)) {
     const p = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
     if (p) p.battlesFought++;
-    if (s.life >= OKLIFE && !s.collapsed && onSquad(t, s)) clearBuddyWitnessedQuotes(t, s);
+    if (s.life < OKLIFE || s.collapsed || !onSquad(t, s)) continue;
+    clearBuddyWitnessedQuotes(t, s);
+    standDownAfterVictory(t, s);
   }
 }
 
