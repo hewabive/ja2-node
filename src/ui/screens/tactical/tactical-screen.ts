@@ -183,9 +183,11 @@ import { type PlacementAnswer, type PlacementMerc, PlacementPanel } from './plac
 import { drawRadarPicture } from './radar-picture.ts';
 import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-panel.ts';
 import {
+  type ActiveMercFilter,
   assignmentOf,
   barValues,
   engagedInConversation,
+  findActiveAndAliveMerc,
   hasProfile,
   inCombat,
   inMeanwhile,
@@ -196,11 +198,9 @@ import {
   isUnconscious,
   isVehicleBody,
   namedUnderPointer,
-  nextMerc,
   nobodyAboard,
   OUR_TEAM,
   okInterrupt,
-  onTheMap,
   opponentCount,
   ourTurn,
   ownSoldiers,
@@ -490,7 +490,7 @@ export class TacticalScreen implements Screen {
       sector: () => sectorOfMap(this.#view()?.mapPath ?? null),
       sectorName: (sector) => this.#sectorName(sector, false),
       smMerc: () => this.#pendingPanel?.soldier ?? this.#smMerc,
-      nextMerc: () => this.#stepMerc(1),
+      nextMerc: () => this.#stepMerc(1, { goodForLessOkLife: false, onlyRegularMercs: true }),
       describeItem: (view, at) => this.#describeAt(view, at),
       descriptionOpen: () => this.description.open,
       shopLeft: () => this.#log.clear(),
@@ -2053,7 +2053,7 @@ export class TacticalScreen implements Screen {
         return;
       case 'prevMerc':
       case 'nextMerc':
-        this.#stepMerc(action === 'nextMerc' ? 1 : -1);
+        this.#stepMerc(action === 'nextMerc' ? 1 : -1, { goodForLessOkLife: true, onlyRegularMercs: true });
         return;
       case 'stanceUp':
       case 'stanceDown':
@@ -2088,9 +2088,10 @@ export class TacticalScreen implements Screen {
     }
   }
 
-  #stepMerc(step: 1 | -1): void {
-    const next = nextMerc(ownSoldiers(this.#view()).filter(onTheMap), this.#smMerc, step);
-    if (!next) return;
+  #stepMerc(step: 1 | -1, filter: ActiveMercFilter): void {
+    const current = this.#smSoldier();
+    if (!current) return;
+    const next = findActiveAndAliveMerc(this.#view(), current, step, filter);
     this.#requestPanel('sm', next.id);
     if (!this.pickup.open) this.locate(next.id, this.dialogue.shopOpen ? LocateFlag.DONTSETLOCATOR : LocateFlag.SETLOCATOR);
   }

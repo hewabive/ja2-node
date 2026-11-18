@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface_Panels.cc CheckForAndAddMercToTeamPanel (the mercs of the current squad), PrintAP
 // @src (the AP colour, dark red without the APs to attack the last target, 2026-11-03; light blue under the influence,
 // @src Drugs_And_Alcohol.cc MercUnderTheInfluence, 2026-11-04), SetStatsHelp (MERC_VITAL_STATS_POPUPTEXT, the robot's
-// @src STR_LATE_16), FindNextActiveAndAliveMerc;
+// @src STR_LATE_16), FindNextActiveAndAliveMerc, FindNextMercInTeamPanel; Overhead.cc FindActiveAndAliveMerc (2026-11-18);
 // @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; Soldier_Create.cc (SOLDIER_VEHICLE for the
 // @src HUMVEE to TANK_NE bodies); src/game/Strategic/Morale.cc GetMoraleString;
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
@@ -233,16 +233,47 @@ export function vitalStatsHelp(text: UiTextService, s: SoldierView): string {
   ]);
 }
 
-export function activeAndAlive(s: SoldierView): boolean {
-  return !isDead(s);
+export function okControllable(s: SoldierView): boolean {
+  return s.team === OUR_TEAM && (s.life ?? 0) >= OKLIFE && s.squad !== null;
 }
 
-export function nextMerc(mercs: readonly SoldierView[], current: number | null, step: 1 | -1): SoldierView | null {
-  const alive = mercs.filter(activeAndAlive);
-  if (alive.length === 0) return null;
-  const at = alive.findIndex((s) => s.id === current);
-  if (at < 0) return alive[0] ?? null;
-  return alive[(at + step + alive.length) % alive.length] ?? null;
+function sameAssignment(view: PlayerView | null, a: SoldierView, b: SoldierView): boolean {
+  return (assignmentOf(view, a) ?? squadOf(a)) === (assignmentOf(view, b) ?? squadOf(b));
+}
+
+export function nextMercInTeamPanel(view: PlayerView | null, panel: readonly (SoldierView | null)[], previous: SoldierView): SoldierView {
+  let seenPrevious = false;
+  let before: SoldierView | null = null;
+  for (const s of panel) {
+    if (!s) continue;
+    if (s.id === previous.id) {
+      seenPrevious = true;
+      continue;
+    }
+    if (!okControllable(s) || !okInterrupt(s) || !sameAssignment(view, s, previous)) continue;
+    if (seenPrevious) return s;
+    before ??= s;
+  }
+  return seenPrevious && before ? before : previous;
+}
+
+export interface ActiveMercFilter {
+  readonly goodForLessOkLife: boolean;
+  readonly onlyRegularMercs: boolean;
+}
+
+export function findActiveAndAliveMerc(view: PlayerView | null, current: SoldierView, step: 1 | -1, filter: ActiveMercFilter): SoldierView {
+  const team = ownSoldiers(view);
+  const at = team.findIndex((s) => s.id === current.id);
+  const minLife = filter.goodForLessOkLife ? 1 : OKLIFE;
+  for (let i = 1; i < team.length; i++) {
+    const s = team[(at + step * i + team.length * i) % team.length];
+    if (!s) continue;
+    if (filter.onlyRegularMercs && (isEpc(s) || !isMercBodyType(s))) continue;
+    if (!sameAssignment(view, s, current) || !okInterrupt(s) || !onTheMap(s) || (s.life ?? 0) < minLife) continue;
+    return s;
+  }
+  return current;
 }
 
 export function nextActiveAndAliveMerc(mercs: readonly SoldierView[], current: SoldierView): SoldierView | null {

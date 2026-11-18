@@ -85,7 +85,10 @@ import {
   isInVehicle,
   isRobot,
   isVehicleBody,
+  nextMercInTeamPanel,
   OUR_TEAM,
+  okControllable,
+  okInterrupt,
   opponentCount,
   ourTurn,
   soldierById,
@@ -658,10 +661,7 @@ export class TacticalControls {
   #nextMerc(): void {
     const sel = this.#screen.selected();
     if (!sel) return;
-    const slots = this.#screen.slotSoldiers().filter((s): s is SoldierView => s !== null && !isDead(s) && !isInVehicle(s));
-    const at = slots.findIndex((s) => s.id === sel.id);
-    const next = slots[(at + 1) % Math.max(1, slots.length)] ?? sel;
-    this.#screen.locateSelect(next, true);
+    this.#screen.locateSelect(nextMercInTeamPanel(this.#view(), this.#screen.slotSoldiers(), sel), true);
     const now = this.#screen.selected();
     if (now) this.#screen.locate(now, LocateFlag.SETLOCATOR);
   }
@@ -670,7 +670,7 @@ export class TacticalControls {
     const sel = this.#screen.selected();
     if (!sel || !this.#screen.panelButtonEnabled('squad')) return;
     const current = this.#screen.currentSquad();
-    const own = (this.#view()?.soldiers ?? []).filter((s) => s.team === OUR_TEAM && !isDead(s) && s.canAct !== false && !isVehicleBody(s));
+    const own = (this.#view()?.soldiers ?? []).filter((s) => okControllable(s) && okInterrupt(s) && !isVehicleBody(s));
     const from = sel.squad ?? 0;
     const order = [
       ...Array.from({ length: NUMBER_OF_SQUADS - from - 1 }, (_, i) => from + 1 + i),

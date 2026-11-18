@@ -6,7 +6,15 @@ import { loadUiStrings } from '../../../content/text/strings.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import { StringsTextService } from '../../text/text-service.ts';
-import { apColour, hasProfile, soldierName, teamPanelMembers, vehicleCarrying } from './soldiers.ts';
+import {
+  apColour,
+  findActiveAndAliveMerc,
+  hasProfile,
+  nextMercInTeamPanel,
+  soldierName,
+  teamPanelMembers,
+  vehicleCarrying,
+} from './soldiers.ts';
 
 let text: StringsTextService;
 
@@ -37,6 +45,76 @@ describe('the AP number of a merc in combat (PrintAP)', () => {
       expect(apColour({ ...merc, ...influence, enoughApToAttack: false })).toBe('dkred');
       expect(apColour({ ...merc, ...influence, ap: -1 })).toBe('dkred');
     }
+  });
+});
+
+describe('the next merc of the keys and the panel buttons', () => {
+  const DYING = 10;
+  const HEALTHY = 60;
+  const ROBOT_BODY = 25;
+  const SQUAD = 1;
+  const OTHER_SQUAD = 2;
+  const merc = (id: number, over: Partial<SoldierView> = {}) =>
+    ({ id, team: 0, bodyType: 0, squad: SQUAD, life: HEALTHY, canAct: true, ...over }) as SoldierView;
+  const viewOf = (...soldiers: SoldierView[]) => ({ soldiers }) as unknown as PlayerView;
+
+  it('takes the next merc of the panel who can be controlled, skipping the dying, the interrupt-locked and other assignments (FindNextMercInTeamPanel)', () => {
+    const current = merc(1);
+    const panel = [merc(0), current, merc(2, { life: DYING }), merc(3, { canAct: false }), merc(4, { squad: OTHER_SQUAD }), null, merc(5)];
+    expect(nextMercInTeamPanel(viewOf(...panel.flatMap((s) => s ?? [])), panel, current).id).toBe(5);
+  });
+
+  it('wraps to the first fit merc before him, and keeps him when nobody fits or he is not on the panel', () => {
+    const current = merc(1);
+    const before = merc(0);
+    expect(nextMercInTeamPanel(null, [before, current, merc(2, { life: DYING })], current)).toBe(before);
+    expect(nextMercInTeamPanel(null, [merc(0, { squad: null }), current], current)).toBe(current);
+    expect(nextMercInTeamPanel(null, [before, merc(2)], current)).toBe(current);
+  });
+
+  it('compares the assignment of mercs off squads on the strategic view', () => {
+    const current = merc(1, { squad: null });
+    const doctor = merc(2, { squad: null });
+    const patient = merc(3, { squad: null });
+    const view = {
+      soldiers: [current, doctor, patient],
+      strategic: {
+        mercs: [
+          { id: 1, assignment: 21 },
+          { id: 2, assignment: 21 },
+          { id: 3, assignment: 22 },
+        ],
+      },
+    } as unknown as PlayerView;
+    const panelButtons = { goodForLessOkLife: true, onlyRegularMercs: true };
+    expect(findActiveAndAliveMerc(view, current, 1, panelButtons).id).toBe(2);
+    expect(findActiveAndAliveMerc(view, doctor, 1, panelButtons).id).toBe(1);
+  });
+
+  it('steps by id through the regular mercs of his assignment on the map, both ways round (FindActiveAndAliveMerc)', () => {
+    const current = merc(2);
+    const view = viewOf(
+      merc(0),
+      merc(1, { kind: 'epc' }),
+      current,
+      merc(3, { bodyType: ROBOT_BODY }),
+      merc(4, { squad: OTHER_SQUAD }),
+      merc(5, { canAct: false }),
+      merc(6, { vehicle: { id: 0, driver: false } }),
+      merc(7),
+    );
+    const filter = { goodForLessOkLife: true, onlyRegularMercs: true };
+    expect(findActiveAndAliveMerc(view, current, 1, filter).id).toBe(7);
+    expect(findActiveAndAliveMerc(view, current, -1, filter).id).toBe(0);
+    expect(findActiveAndAliveMerc(view, merc(0), -1, filter).id).toBe(7);
+  });
+
+  it('takes a dying merc for the panel buttons but not for the shop, and keeps the merc when nobody fits', () => {
+    const current = merc(1);
+    const dying = merc(2, { life: DYING });
+    const view = viewOf(current, dying, merc(3, { life: 0 }));
+    expect(findActiveAndAliveMerc(view, current, 1, { goodForLessOkLife: true, onlyRegularMercs: true })).toBe(dying);
+    expect(findActiveAndAliveMerc(view, current, 1, { goodForLessOkLife: false, onlyRegularMercs: true })).toBe(current);
   });
 });
 

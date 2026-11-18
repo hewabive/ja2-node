@@ -48,7 +48,7 @@ import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { printf } from '../../text/printf.ts';
 import { gameSettingsLines } from '../game-settings.ts';
 import { ScrollFlag } from './environment.ts';
-import { COMPATIBLE_HILIGHT } from './faces.ts';
+import { COMPATIBLE_HILIGHT, OKLIFE } from './faces.ts';
 import { Arrows } from './input/arrows.ts';
 import { GO_MOVE_ONE, GO_MOVE_TWO } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
@@ -1954,6 +1954,33 @@ describe('the tactical input on the tactical screen', () => {
     expect(next.id).not.toBe(first);
     expect([f.world.centred, f.world.located.at(-1)]).toEqual([[], next.gridNo]);
     expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS);
+  });
+
+  it('skips a dying merc and one locked out by an interrupt with space (FindNextMercInTeamPanel)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const slots = f.screen.teamSlots.filter((id): id is number => id !== null);
+    const [first, second, third, fourth] = slots;
+    if (first === undefined || second === undefined || third === undefined || fourth === undefined)
+      throw new Error('a squad of four expected');
+    f.screen.select(first, false);
+    f.t.frame();
+    Object.assign(merc(f, second), { life: OKLIFE - 1 });
+    Object.assign(merc(f, third), { canAct: false });
+    f.key(' ');
+    expect(f.screen.selected).toBe(fourth);
+  });
+
+  it('passes over a squad whose only merc is dying with shift+space (FindNextActiveSquad)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const [first, second] = f.screen.teamSlots.filter((id): id is number => id !== null);
+    if (first === undefined || second === undefined) throw new Error('two mercs expected');
+    f.screen.select(first, false);
+    f.t.frame();
+    Object.assign(merc(f, second), { squad: (merc(f, first).squad ?? 0) + 1, life: OKLIFE - 1 });
+    f.t.frame();
+    const lines = f.screen.messageLines.length;
+    f.key(' ', KeyModifier.SHIFT);
+    expect([f.screen.selected, f.screen.messageLines.length]).toEqual([first, lines]);
   });
 
   it('cycles the seen enemies by e and by the enemy indicator from one last enemy, stopping the other locators, as CycleVisibleEnemies does', async () => {

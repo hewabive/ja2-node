@@ -8,6 +8,7 @@ import { createItem } from '../../../sim/items/object.ts';
 import type { Soldier } from '../../../sim/tactical/soldier.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { MouseButton } from '../../input/events.ts';
+import { OKLIFE } from '../tactical/faces.ts';
 import { OFFER_SLOTS } from './shop-model.ts';
 import {
   dealerBoxDescriptionAt,
@@ -120,6 +121,12 @@ interface ShopVisit {
   readonly profile?: number;
   readonly option?: string;
   readonly prepare?: (merc: Soldier, items: ItemTable) => void;
+}
+
+function soldierOf(f: TacticalUiTest, id: number) {
+  const s = f.client.view.soldiers.find((v) => v.id === id);
+  if (!s) throw new Error(`no soldier ${id}`);
+  return s;
 }
 
 async function atTheDealer(seed: number, pockets: readonly string[] = []): Promise<{ f: TacticalUiTest; merc: number }> {
@@ -264,6 +271,17 @@ describe('the shop screen at the stub dealer', () => {
     const gridNo = f.client.view.soldiers.find((s) => s.id === next)?.gridNo;
     expect(f.world.located.slice(located)).toEqual([gridNo]);
     expect(f.draw().items.filter((i) => i.kind === 'image' && i.asset === RADIO)).toEqual([]);
+  });
+
+  it('stays off a dying merc with space but steps to him with the panel button (FindNextActiveAndAliveMerc)', async () => {
+    const { f, merc } = await atTheDealer(4);
+    const other = f.client.view.soldiers.find((s) => s.team === 0 && s.id !== merc && s.squad === soldierOf(f, merc).squad);
+    if (!other) throw new Error('a squad mate expected');
+    Object.assign(other, { life: OKLIFE - 1 });
+    f.key(' ');
+    expect(f.screen.smMerc).toBe(merc);
+    await f.click('smNextMerc');
+    expect(f.screen.smMerc).toBe(other.id);
   });
 
   it('starts the entry quote 800 ms after entering, and waits on while the description box is up', async () => {
