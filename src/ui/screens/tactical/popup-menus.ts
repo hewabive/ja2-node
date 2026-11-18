@@ -6,15 +6,18 @@
 // @src action, cancel, sneak, talk, hand and crawl buttons with their help and disabled rules, run, sneak and crawl by
 // @src the movementOptions hint, the action picture by the hand item), MovementMenuBackregionCallback, BtnMovementCallback, InitDoorOpenMenu (centred on the merc's bounding
 // @src box, clamped), PopupDoorOpenMenu, MakeButtonDoor (the "( AP )" help in combat, disabled without the tool or the
-// @src points), BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu.
+// @src points; the examine button's proved trap line and the diagonal warning on all but open and cancel, 2026-11-18),
+// @src BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu.
 
 import { idiv } from '../../../core/int.ts';
-import type { DoorMenuAction, DoorMenuOption, MovementOptions } from '../../../protocol/hints.ts';
+import { DOOR_TRAP_STRINGS } from '../../../protocol/door-trap-strings.ts';
+import type { DoorMenuAction, DoorMenuNotes, DoorMenuOption, MovementOptions, ProvedDoorTrap } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
+import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { type Button, buttonImage } from '../../widgets/button.ts';
 import type { MovementChoice } from './input/tactical-input.ts';
@@ -31,6 +34,11 @@ const MENU_PRIORITY = Priority.HIGHEST - 1;
 const OWNER = 'tacticalMenus';
 const POPUP_TABLE = 'pTacticalPopupButtonStrings';
 const TACTICAL_TABLE = 'TacticalStr';
+const NEW_STRINGS = 'new-strings';
+const NS_DIAGONALITY_WARNING = 4;
+const TRAP_NAME_TABLE = 'pDoorTrapStrings';
+const DOOR_LOCK_DESCRIPTION_STR = 3;
+const DOOR_LOCK_UNTRAPPED_STR = 5;
 const LOOK_CURSOR_POPUPTEXT = 60;
 const DRIVE_POPUPTEXT = 69;
 const NOT_APPLICABLE_POPUPTEXT = 70;
@@ -341,11 +349,13 @@ const CLOSE_BUTTON: DoorButton = {
   help: Icon.CLOSE,
 };
 
+const DIAGONAL_EXEMPT: ReadonlySet<DoorButton['action']> = new Set(['openManually', 'closeManually', 'cancel']);
+
 function doorButtons(closing: boolean): readonly DoorButton[] {
   return closing ? DOOR_BUTTONS.map((b) => (b.action === 'openManually' ? CLOSE_BUTTON : b)) : DOOR_BUTTONS;
 }
 
-export interface DoorMenuRequest {
+export interface DoorMenuRequest extends DoorMenuNotes {
   readonly soldier: number;
   readonly gridNo: number;
   readonly options: readonly DoorMenuOption[];
@@ -380,12 +390,24 @@ export class DoorMenu extends PopupMenu {
       const option = request.options.find((o) => o.action === spec.action);
       const ap = option?.ap ?? 0;
       const help = this.popupText(spec.help);
-      const shown = ap === 0 || !request.inCombat ? help : `${help} ( ${ap} )`;
+      const shown = (ap === 0 || !request.inCombat ? help : `${help} ( ${ap} )`) + this.#warnings(spec, request);
       const image = iconImage(spec.icon === 'door' ? this.art.doorIcons : this.art.icons, spec.first);
       const disabled = spec.action !== 'cancel' && option?.enabled !== true;
       const action = spec.action;
       this.add(spec.id, spec.column, spec.row, image, shown, disabled, () => this.close(action === 'cancel' ? null : action));
     }
+  }
+
+  #warnings(spec: DoorButton, request: DoorMenuRequest): string {
+    const trap = spec.action === 'examine' ? request.provedTrap : undefined;
+    const lines = trap ? [this.#provedTrapLine(trap)] : [];
+    if (request.diagonal && !DIAGONAL_EXEMPT.has(spec.action)) lines.push(this.text.string(NEW_STRINGS, NS_DIAGONALITY_WARNING) ?? '');
+    return lines.map((line) => `\n${line}`).join('');
+  }
+
+  #provedTrapLine(trap: ProvedDoorTrap): string {
+    const name = this.text.string(TRAP_NAME_TABLE, DOOR_TRAP_STRINGS[trap.trap] ?? 0) ?? '';
+    return printf(this.tacticalText(trap.trapped ? DOOR_LOCK_DESCRIPTION_STR : DOOR_LOCK_UNTRAPPED_STR), [name]);
   }
 
   close(action: DoorMenuAction | null): void {

@@ -31,7 +31,7 @@ import {
   springDoorTrap,
   updateDoorPerceivedValue,
 } from './door-traps.ts';
-import type { DoorMenuAction, DoorMenuOption } from './events.ts';
+import type { DoorMenuAction, DoorMenuNotes, DoorMenuOption } from './events.ts';
 import { soldierHasKey } from './keys.ts';
 import {
   attemptToBlowUpLock,
@@ -91,6 +91,7 @@ const HANDLE_CODE_ACTION: Readonly<Record<number, DoorActionName | 'lock'>> = {
 };
 
 const BY_HAND: ReadonlySet<DoorActionName> = new Set(['open', 'close', 'openManually', 'closeManually']);
+const WORKS_FROM_A_DIAGONAL: ReadonlySet<DoorActionName> = new Set(['openManually', 'closeManually']);
 
 type MenuCostAction = Exclude<DoorActionName, 'open' | 'close' | 'openManually' | 'closeManually'>;
 
@@ -164,11 +165,30 @@ export function interactWithClosedDoor(t: TacticalState, s: Soldier, code: numbe
   else if (code !== HandleDoor.DENIED) playInteraction(t, s, true, 'OPEN_DOOR');
 }
 
+export function facesDiagonally(s: Soldier): boolean {
+  return (s.desiredDirection & 1) !== 0;
+}
+
+export function diagonalBars(s: Soldier, action: DoorActionName): boolean {
+  return facesDiagonally(s) && !WORKS_FROM_A_DIAGONAL.has(action);
+}
+
 function menuOption(t: TacticalState, s: Soldier, action: DoorMenuAction, ap: number, refusal: string | null): DoorMenuOption {
   let reason = refusal;
-  if (!reason && s.desiredDirection & 1) reason = 'diagonal';
+  if (!reason && diagonalBars(s, action)) reason = 'diagonal';
   if (!reason && ap !== 0 && !enoughPoints(t.inCombat, s, ap)) reason = 'notEnoughAp';
   return reason ? { action, ap: t.inCombat ? ap : 0, enabled: false, reason } : { action, ap: t.inCombat ? ap : 0, enabled: true };
+}
+
+export function doorMenuNotes(t: TacticalState, s: Soldier, gridNo: number): DoorMenuNotes {
+  const door = findDoorInfo(t, gridNo);
+  const proved = door?.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED || door?.perceivedTrapped === PerceivedTrap.PROVED_UNTRAPPED;
+  return {
+    ...(facesDiagonally(s) ? { diagonal: true as const } : {}),
+    ...(door && proved
+      ? { provedTrap: { trapped: door.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED, trap: DOOR_TRAP_NAMES[door.trapId] ?? 'unknown' } }
+      : {}),
+  };
 }
 
 export function doorMenu(t: TacticalState, s: Soldier, gridNo: number): DoorMenuOption[] {
@@ -219,7 +239,7 @@ export type InteractionOutcome = 'busy' | 'closing' | 'opening' | 'menu' | 'clos
 function offerToClose(t: TacticalState, s: Soldier, gridNo: number): InteractionOutcome {
   if (!s.collapsed) soldierGotoStationaryStance(t, s);
   if (doTrapCheckOnStartingMenu(t, s, gridNo)) return 'trapNoticed';
-  t.events.push({ type: 'doorMenu', soldier: s.id, gridNo, options: closingDoorMenu(t, s), closing: true });
+  t.events.push({ type: 'doorMenu', soldier: s.id, gridNo, options: closingDoorMenu(t, s), closing: true, ...doorMenuNotes(t, s, gridNo) });
   return 'closeMenu';
 }
 
@@ -251,7 +271,13 @@ export function interactWithOpenableStruct(
     if (door?.locked) {
       if (!s.collapsed) soldierGotoStationaryStance(t, s);
       if (doTrapCheckOnStartingMenu(t, s, base.gridNo)) return 'trapNoticed';
-      t.events.push({ type: 'doorMenu', soldier: s.id, gridNo: base.gridNo, options: doorMenu(t, s, base.gridNo) });
+      t.events.push({
+        type: 'doorMenu',
+        soldier: s.id,
+        gridNo: base.gridNo,
+        options: doorMenu(t, s, base.gridNo),
+        ...doorMenuNotes(t, s, base.gridNo),
+      });
       return 'menu';
     }
     if (!isDoor && !isSwitch) s.doorHandleCode = HandleDoor.OPEN;

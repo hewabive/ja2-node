@@ -37,6 +37,7 @@
 // @src (STR_RELOAD_ONLY_ONE_GUN), ValidItemAttachment and PlaceObject (STR_CANT_ATTACH, STR_ATTACHMENT_ALREADY,
 // @src STR_CANT_USE_TWO_ITEMS by MSG_UI_FEEDBACK) (2026-11-18).
 
+import { DOOR_TRAP_STRINGS } from '../protocol/door-trap-strings.ts';
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { defaultNameKey } from '../protocol/soldier-names.ts';
@@ -91,7 +92,6 @@ const PRE_STAT_GAINED = 1;
 const PRE_STAT_POINT = 2;
 const PRE_STAT_POINTS = 3;
 const PRE_STAT_LEVEL_OFFSET = 2;
-const TRAP_STRINGS: Readonly<Record<string, number>> = { none: 0, explosion: 1, electric: 2, siren: 3, silentAlarm: 4 };
 const SILENT_TRAP = 'silentAlarm';
 const NO_LOCK_ACTIONS: ReadonlySet<string> = new Set(['force', 'crowbar', 'explode', 'pickLock', 'examine', 'untrap', 'lock']);
 const ABORT_LINES: Readonly<Record<string, number>> = {
@@ -223,7 +223,7 @@ function statLost(e: EventOf<'statLost'>, facts: MessageFacts): Omit<MessageEntr
 }
 
 function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
-  const trap = (name: string | undefined) => ref('pDoorTrapStrings', TRAP_STRINGS[name ?? 'none'] ?? 0);
+  const trap = (name: string | undefined) => ref('pDoorTrapStrings', DOOR_TRAP_STRINGS[name ?? 'none'] ?? 0);
   switch (e.result) {
     case 'noLock':
       return NO_LOCK_ACTIONS.has(e.action) ? [line('TacticalStr', 4)] : [];
@@ -371,7 +371,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   stopped: (e, facts) =>
     e.reason === 'outOfAPs' && facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('TacticalStr', 81, [soldierArg(facts, e.soldier)])] : [],
   doorResult,
-  doorTrap: (e) => (e.trap === SILENT_TRAP ? [] : [line('TacticalStr', 79, [ref('pDoorTrapStrings', TRAP_STRINGS[e.trap] ?? 0)])]),
+  doorTrap: (e) => (e.trap === SILENT_TRAP ? [] : [line('TacticalStr', 79, [ref('pDoorTrapStrings', DOOR_TRAP_STRINGS[e.trap] ?? 0)])]),
   lockDestroyed: () => [line('TacticalStr', 133)],
   npcMessage,
   mercArrived: (e, facts) =>

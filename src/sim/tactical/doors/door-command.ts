@@ -27,6 +27,7 @@ import {
   closeDoorByHand,
   closingDoorMenu,
   type DoorActionName,
+  diagonalBars,
   doorApCost,
   doorMenu,
   interactWithClosedDoor,
@@ -121,7 +122,7 @@ function menuAction(t: TacticalState, s: Soldier, gridNo: number, direction: num
     s.pendingDoorGridNo = -1;
     return { started: false, trapNoticed: true };
   }
-  const refusal = doorActionRefusal(t, s, gridNo, false, action) ?? (s.desiredDirection & 1 ? 'diagonal' : null);
+  const refusal = doorActionRefusal(t, s, gridNo, false, action) ?? (diagonalBars(s, action) ? 'diagonal' : null);
   if (refusal) {
     s.pendingDoorGridNo = -1;
     t.events.push({ type: 'doorResult', soldier: s.id, gridNo, action, result: refusal });

@@ -18,7 +18,17 @@ export interface DoorMenuOption {
   readonly reason?: string;
 }
 
-export interface DoorMenuEvent extends SimEventBase {
+export interface ProvedDoorTrap {
+  readonly trapped: boolean;
+  readonly trap: string;
+}
+
+export interface DoorMenuNotes {
+  readonly diagonal?: true;
+  readonly provedTrap?: ProvedDoorTrap;
+}
+
+export interface DoorMenuEvent extends SimEventBase, DoorMenuNotes {
   readonly type: 'doorMenu';
   readonly soldier: number;
   readonly gridNo: number;

@@ -45,6 +45,7 @@ import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
+import { printf } from '../../text/printf.ts';
 import { gameSettingsLines } from '../game-settings.ts';
 import { ScrollFlag } from './environment.ts';
 import { COMPATIBLE_HILIGHT } from './faces.ts';
@@ -86,6 +87,10 @@ const LONGEST_LOCATOR_MS = 10_000;
 const EXCHANGE_CURSOR_SAMPLE_MS = 100;
 const SCROLL_STEP_MS = 20;
 const EXCHANGE_CURSOR_SAMPLES = 30;
+const NS_DIAGONALITY_WARNING = 4;
+const DOOR_LOCK_DESCRIPTION_STR = 3;
+const SIREN_STRING = 3;
+const EXAMINE_DOOR_ICON = 9;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -766,6 +771,40 @@ describe('the tactical input on the tactical screen', () => {
     await f.click('doorOpen');
     expect(f.screen.controls.doorMenu.open).toBe(false);
     expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: s.gridNo + 1, action: 'openManually' });
+  });
+
+  it('adds the proved trap to the examine help and the diagonal warning to all but open and cancel (MakeButtonDoor)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    f.frames([
+      {
+        tick: f.client.view.tick,
+        changed: [],
+        removed: [],
+        events: [
+          {
+            type: 'doorMenu',
+            tick: f.client.view.tick,
+            soldier: 0,
+            gridNo: s.gridNo + 1,
+            options: OPEN_DOOR_OPTIONS,
+            diagonal: true,
+            provedTrap: { trapped: true, trap: 'siren' },
+          },
+        ],
+      },
+    ]);
+    const help = (id: string) => f.t.runtime.buttons.buttons.find((b) => b.id === id)?.region.tooltip ?? '';
+    const text = f.text;
+    const warning = text.string('new-strings', NS_DIAGONALITY_WARNING) ?? '';
+    const trapLine = printf(text.string('TacticalStr', DOOR_LOCK_DESCRIPTION_STR) ?? '', [
+      text.string('pDoorTrapStrings', SIREN_STRING) ?? '',
+    ]);
+    expect(warning).not.toBe('');
+    expect(help('doorExamine')).toBe(`${text.string('pTacticalPopupButtonStrings', EXAMINE_DOOR_ICON)}\n${trapLine}\n${warning}`);
+    expect(help('doorForce').endsWith(`\n${warning}`)).toBe(true);
+    expect(help('doorOpen').includes(warning)).toBe(false);
+    expect(help('doorCancel').includes(warning)).toBe(false);
   });
 
   it('puts the held item back as the door menu opens, as InitDoorOpenMenu erases the interface menus', async () => {

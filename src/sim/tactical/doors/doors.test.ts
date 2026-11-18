@@ -23,7 +23,7 @@ import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
 import { MERC_GIVE_ITEM, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { WaitForMercs } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
-import { doorApCost, doorMenu, handleOpenableStruct } from './door-actions.ts';
+import { doorApCost, doorMenu, doorMenuNotes, handleOpenableStruct } from './door-actions.ts';
 import { isDoorBusy } from './door-status.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
 import { handleDoorTrap } from './door-traps.ts';
@@ -631,7 +631,7 @@ describe('bashing locks', () => {
 });
 
 describe('the door menu', () => {
-  it('disables every action when facing diagonally, and actions without AP in combat', () => {
+  it('disables every action but opening by hand when facing diagonally, and actions without AP in combat (Interface.cc MakeButtonDoor)', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
     s.desiredDirection = 1;
@@ -639,7 +639,7 @@ describe('the door menu', () => {
       doorMenu(sim.state, s, DOOR)
         .filter((o) => o.enabled)
         .map((o) => o.action),
-    ).toEqual([]);
+    ).toEqual(['openManually']);
     s.desiredDirection = NORTH;
     sim.state.inCombat = true;
     s.actionPoints = 6;
@@ -648,6 +648,18 @@ describe('the door menu', () => {
         .filter((o) => o.reason === 'notEnoughAp')
         .map((o) => o.action),
     ).toEqual(['force', 'untrap']);
+  });
+
+  it('tells the menu of a diagonal stance and of a trap proved by examining the door', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    expect(doorMenuNotes(sim.state, s, DOOR)).toEqual({});
+    s.desiredDirection = 1;
+    updateDoor(sim.state, DOOR, { trapId: DoorTrap.BROTHEL_SIREN, perceivedTrapped: PerceivedTrap.PROVED_TRAPPED });
+    expect(doorMenuNotes(sim.state, s, DOOR)).toEqual({ diagonal: true, provedTrap: { trapped: true, trap: 'siren' } });
+    s.desiredDirection = NORTH;
+    updateDoor(sim.state, DOOR, { perceivedTrapped: PerceivedTrap.PROVED_UNTRAPPED });
+    expect(doorMenuNotes(sim.state, s, DOOR)).toEqual({ provedTrap: { trapped: false, trap: 'siren' } });
   });
 
   it('lets an escort use a crowbar and untrap, as the original menu does', () => {
