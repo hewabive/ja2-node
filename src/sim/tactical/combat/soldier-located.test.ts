@@ -7,7 +7,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { type Soldier, Team, Visible } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { eventFireSoldierWeapon } from './attack.ts';
+import { attackOpcode, eventFireSoldierWeapon } from './attack.ts';
 import { eventSoldierGotHit } from './hit.ts';
 import { Special } from './types.ts';
 
@@ -20,6 +20,7 @@ beforeAll(async () => {
 const MERC_AT = gridNo(80, 80);
 const ENEMY_AT = gridNo(80, 88);
 const GRAZE = 5;
+const LOCATE_ATTACK_TARGET = 477;
 
 interface Duel {
   readonly sim: TacticalSim;
@@ -50,6 +51,40 @@ function hit(sim: TacticalSim, victim: Soldier, attacker: Soldier): void {
   const gun = attacker.inv[InvSlot.HAND]?.item ?? 0;
   eventSoldierGotHit(sim.state, victim, gun, GRAZE, 0, Direction.NORTH, 1, attacker, Special.NONE, 0);
 }
+
+describe('the view on the target of an attack (Soldier_Ani.cc code 477)', () => {
+  const TARGET_TILE = gridNo(70, 70);
+
+  function aimedAt(target: Soldier, sim: TacticalSim, shooter: Soldier): SimEvent[] {
+    sim.drainEvents();
+    shooter.target = target;
+    shooter.targetGridNo = TARGET_TILE;
+    attackOpcode(sim.state, shooter, LOCATE_ATTACK_TARGET);
+    return sim.drainEvents().filter((e) => e.type === 'attackTargetLocated');
+  }
+
+  it('moves it to the target tile of a seen enemy firing in combat', () => {
+    const { sim, merc, enemy } = duel();
+    expect(enemy.visible).not.toBe(Visible.HIDDEN);
+    expect(aimedAt(merc, sim, enemy)).toMatchObject([{ gridNo: TARGET_TILE }]);
+  });
+
+  it('moves it for an enemy out of sight only when he aims at our merc', () => {
+    const { sim, merc, enemy } = duel();
+    enemy.visible = Visible.HIDDEN;
+    expect(aimedAt(merc, sim, enemy)).toMatchObject([{ gridNo: TARGET_TILE }]);
+    const militia = spawnSoldier(sim, 40, Team.MILITIA, gridNo(80, 76), Direction.SOUTH);
+    expect(aimedAt(militia, sim, enemy)).toEqual([]);
+  });
+
+  it('leaves it for our own shots and out of combat', () => {
+    const ours = duel();
+    expect(aimedAt(ours.enemy, ours.sim, ours.merc)).toEqual([]);
+    const quiet = duel();
+    quiet.sim.state.inCombat = false;
+    expect(aimedAt(quiet.merc, quiet.sim, quiet.enemy)).toEqual([]);
+  });
+});
 
 describe('the soldiers the view moves to in a fight (LocateSoldier)', () => {
   it('moves the view to a seen enemy who turns to shoot, without a locator (EVENT_FireSoldierWeapon)', () => {

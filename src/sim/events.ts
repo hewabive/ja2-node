@@ -107,6 +107,11 @@ export interface SoldierLocatedEvent extends SimEventBase {
   readonly slide?: true;
 }
 
+export interface AttackTargetLocatedEvent extends SimEventBase {
+  readonly type: 'attackTargetLocated';
+  readonly gridNo: number;
+}
+
 export interface ItemsLocatedEvent extends SimEventBase {
   readonly type: 'itemsLocated';
   readonly gridNo: number;
@@ -898,6 +903,7 @@ export type SimEvent =
   | InterruptEvent
   | AiTurnEvent
   | SoldierLocatedEvent
+  | AttackTargetLocatedEvent
   | ItemsLocatedEvent
   | CorpseLocatedEvent
   | DamageFeedbackEvent

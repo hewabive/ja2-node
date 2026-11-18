@@ -464,7 +464,8 @@ soldiers the original moves the view to (`soldierLocated {soldier, locator: none
 ours turning to shoot, our merc hit in combat, the seen NPC a trigger waits for, a seen Hicks turning hostile at night,
 our merc who sights an enemy on the enemy's turn; with `slide` the view slides: to that enemy while the squad sees him,
 and to an opponent turning visible in combat or before the sector's first sighting, `Tactical/OppList.cc:1916`, `:2440`;
-deviation "Locates of unseen soldiers"), the items' tile the view slides to as the items-seen quote starts or an escort
+deviation "Locates of unseen soldiers"), the tile an attack by a soldier not of ours is aimed at in combat, when the
+squad sees him or he aims at our merc (`attackTargetLocated {gridNo}`, `Tactical/Soldier_Ani.cc:1186`), the items' tile the view slides to as the items-seen quote starts or an escort
 sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a mine a merc of ours spotted, after
 his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3154`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
 (`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), a soldier hurt by bleeding, gas or electricity

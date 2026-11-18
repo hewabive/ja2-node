@@ -954,6 +954,15 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(images(f, RADIO)).toHaveLength(2);
   });
 
+  it('moves the view to the tile an attack is aimed at (Soldier_Ani.cc code 477)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const view = f.client.view;
+    const tick = view.tick;
+    const target = (view.soldiers[0]?.gridNo ?? 0) + 7;
+    f.frames([frame(tick, [{ tick, type: 'attackTargetLocated', gridNo: target }])]);
+    expect(f.world.located.at(-1)).toBe(target);
+  });
+
   it('flashes the portrait of a merc at the damage feedback of bleeding, gas or electricity (FlashSoldierPortrait)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const view = f.client.view;

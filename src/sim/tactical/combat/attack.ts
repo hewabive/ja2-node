@@ -12,6 +12,7 @@
 // @src dispatch to the medkit branch (2026-11-06); the fFromUI refusals and poor shot of HandleItem (2026-11-14);
 // @src QUOTE_JAMMED_GUN and STR_2ND_CLIP_DEPLETED of CheckForGunJam and OKFireWeapon, QUOTE_USELESS_ITEM of HandItemWorks,
 // @src the LAUGH1 and STR_LATE_26 of the psycho's switch to burst in HandleItem (2026-11-18).
+// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (code 477, the view on an AI attack's target, 2026-11-18).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -723,6 +724,11 @@ export function attackAnimationHoldsBusyCount(t: TacticalState, s: Soldier): boo
   return animationReachesOpcode(t, s, RELEASE_ATTACK_BUSY_COUNT);
 }
 
+function locateAttackTarget(t: TacticalState, s: Soldier): void {
+  if (!t.inCombat || s.team === Team.OUR) return;
+  if (s.visible !== Visible.HIDDEN || s.target?.team === Team.OUR) t.events.push({ type: 'attackTargetLocated', gridNo: s.targetGridNo });
+}
+
 export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   switch (code) {
     case 430:
@@ -761,6 +767,7 @@ export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutc
       changeSoldierState(t, s, s.pendingActionData2, u8(s.pendingActionData1 + 1));
       return 'stop';
     case 477:
+      locateAttackTarget(t, s);
       return 'continue';
     case RELEASE_ATTACK_BUSY_COUNT:
       reduceAttackBusyCount(t, s, false);

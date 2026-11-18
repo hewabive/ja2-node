@@ -83,6 +83,8 @@
 // @src MainGameScreenHandle (nothing after HandleAutoBandage while the mode runs: no interface update, no rendering, no
 // @src input but the auto-bandage keys and the mask's buttons, 2026-11-06); Interface_Panels.cc SetSMPanelCurrentMerc
 // @src (the single merc panel's switch to another merc closes the item description box, 2026-11-15).
+// @src src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (no radar picture in a meanwhile, 2026-11-18); src/game/Tactical/Soldier_Ani.cc
+// @src code 477 (LocateGridNo at the target of an AI attack, 2026-11-18).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -1611,6 +1613,9 @@ export class TacticalScreen implements Screen {
         else if (s) this.#locateSoldier(s, SOLDIER_LOCATE_FLAGS[event.locator]);
         return;
       }
+      case 'attackTargetLocated':
+        this.#env.world.locate(event.gridNo);
+        return;
       case 'itemsRevealed':
         this.#itemLocators.add(event, this.#now);
         return;
