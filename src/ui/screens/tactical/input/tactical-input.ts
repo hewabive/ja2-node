@@ -66,7 +66,7 @@
 import { Body } from '../../../../content/anim/body-types.ts';
 import { exitGridCursorShownOver } from '../../../../content/world/exit-grid-cursor.ts';
 import { idiv } from '../../../../core/int.ts';
-import type { EstimateAttack, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
+import type { EstimateAttack, Footstep, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';
 import { inTileRuns, type PlayerView, type SoldierView, type Stance } from '../../../../protocol/view.ts';
 import { VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from '../../../cursors/cursor-ids.ts';
@@ -279,6 +279,7 @@ export class TacticalInput {
   #apOffY = 0;
   #currentAp = 1;
   #steps: readonly WorldMarker[] = [];
+  #continuePath: readonly WorldMarker[] = [];
   #showMoveGrid = 0;
   #showMoveGridAt = -1;
   #selection: Selection = Selection.NONE;
@@ -802,6 +803,14 @@ export class TacticalInput {
     this.#scrolling = on;
     if (on) this.#erasePath();
     else this.#plotNew = true;
+  }
+
+  showContinuePath(steps: readonly Footstep[], level: number): void {
+    this.#continuePath = footstepMarkers(steps, level);
+  }
+
+  eraseContinuePath(): void {
+    this.#continuePath = [];
   }
 
   #erasePath(): void {
@@ -3228,7 +3237,7 @@ export class TacticalInput {
       );
     }
     if (this.#lock !== 'none') return out;
-    out.push(...this.#steps);
+    out.push(...this.#steps, ...this.#continuePath);
     if (this.#selection !== Selection.NONE && ourTurn(this.#view())) {
       const tile = this.#selection === Selection.NONSELECTED_GUY ? 'GOODRING1' : 'FIRSTPOINTERS2';
       out.push(selectionMarker(this.#selectionAt.gridNo, this.#selectionAt.level, tile));

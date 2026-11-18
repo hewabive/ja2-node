@@ -33,6 +33,7 @@ export const TACTICAL_HINT_KINDS = [
   'compatibleItems',
   'exitSector',
   'movementOptions',
+  'panelReach',
   'sectorExits',
   'sectorLayout',
   'coverMap',

@@ -74,6 +74,7 @@ const PICTURE_TOP_PX = 5;
 const CRATE_TILE = 7;
 const PAST_THE_PATH_REST_FRAMES = 6;
 const NOBODY = -1;
+const POCKET = 7;
 const SCENE_TILE = 12248;
 const MALE = 0;
 const FEMALE = 1;
@@ -175,6 +176,17 @@ function compatibleFaces(f: TacticalUiTest): number[] {
     const framed = lit.some((r) => r.kind === 'rectangle' && r.x1 === face.x - 2 && r.y1 === face.y - 1);
     return framed && id !== null ? [id] : [];
   });
+}
+
+function walkableBeside(f: TacticalUiTest, s: SoldierView): number {
+  for (const step of [1, -1, WORLD_COLS, -WORLD_COLS, 2, -2]) {
+    const to = s.gridNo + step;
+    const reply = f.client.hint({ type: 'previewMove', soldier: s.id, to, mode: 'walk', level: s.level });
+    if (reply.state !== 'ready' || !reply.answer.ok) continue;
+    const move = reply.answer.data as PreviewMove;
+    if (move.destination === 'ok' && move.steps.length > 0) return to;
+  }
+  throw new Error('no walkable tile beside the merc');
 }
 
 function commandsOf(f: TacticalUiTest, type: string) {
@@ -1981,6 +1993,63 @@ describe('the tactical input on the tactical screen', () => {
     const lines = f.screen.messageLines.length;
     f.key(' ', KeyModifier.SHIFT);
     expect([f.screen.selected, f.screen.messageLines.length]).toEqual([first, lines]);
+  });
+
+  it('continues a halted move of the selected merc from the single merc panel face, and only his (CheckForMercContMove)', async () => {
+    const f = await inCombat();
+    const s = merc(f, 0);
+    const to = walkableBeside(f, s);
+    const ap = s.ap;
+    await f.click(`teamFaceRegion${f.screen.teamSlots.indexOf(0)}`, MouseButton.RIGHT);
+    await f.settle();
+    Object.assign(merc(f, 0), { continueTo: to });
+    f.world.onScreenOf = () => false;
+    await f.click('smFaceRegion');
+    expect(commandsOf(f, 'move')).toEqual([]);
+    f.world.onScreenOf = () => true;
+    Object.assign(merc(f, 0), { continueTo: to, ap: 0 });
+    await f.click('smFaceRegion');
+    expect(commandsOf(f, 'move')).toEqual([]);
+    Object.assign(merc(f, 0), { continueTo: to, ap });
+    await f.click('smFaceRegion');
+    expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to });
+  });
+
+  it('draws the path of a halted move while the pointer is on the face, and takes it away after (HandleMouseOverSoldierFaceForContMove)', async () => {
+    const f = await inCombat();
+    const to = walkableBeside(f, merc(f, 0));
+    Object.assign(merc(f, 0), { continueTo: to });
+    const slot = f.screen.teamSlots.indexOf(0);
+    const markersOver = (id: string) => {
+      const { rect } = f.widget(id);
+      pointer(f, 'pointerMove', rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2), MouseButton.LEFT);
+      f.t.frame();
+      return f.world.markers.length;
+    };
+    const elsewhere = markersOver(`teamSecondHand${slot}`);
+    expect(markersOver(`teamFaceRegion${slot}`)).toBeGreaterThan(elsewhere);
+    expect(markersOver(`teamSecondHand${slot}`)).toBe(elsewhere);
+  });
+
+  it('hatches the panel of a dying merc out of reach of the selected merc, and asks nothing for a healthy one (CheckForDisabledForGiveItem)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const hint = f.client.hint.bind(f.client);
+    const asked: unknown[] = [];
+    f.client.hint = (request) => {
+      if (request.type !== 'panelReach') return hint(request);
+      asked.push(request);
+      return { state: 'ready', answer: { ok: true, data: { outOfReach: true } }, source: 'local' };
+    };
+    const [first, second] = f.screen.teamSlots.filter((id): id is number => id !== null);
+    if (first === undefined || second === undefined) throw new Error('two mercs expected');
+    await f.click(`teamFaceRegion${f.screen.teamSlots.indexOf(second)}`, MouseButton.RIGHT);
+    await f.settle();
+    expect(f.widget(`slot${POCKET}`).enabled).toBe(true);
+    expect(asked).toEqual([]);
+    Object.assign(merc(f, second), { life: OKLIFE - 1 });
+    f.t.frame();
+    expect(asked.at(-1)).toEqual({ type: 'panelReach', soldier: second, itemHeld: false, source: f.screen.selected });
+    expect(f.widget(`slot${POCKET}`).enabled).toBe(false);
   });
 
   it('cycles the seen enemies by e and by the enemy indicator from one last enemy, stopping the other locators, as CycleVisibleEnemies does', async () => {

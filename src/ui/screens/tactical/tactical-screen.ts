@@ -1,5 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Interface_Panels.cc SelectedMercButtonCallbackPrimary and its secondary (nothing in a shop, the
+// @src vehicle of a merc aboard, a move to continue), CheckForDisabledForGiveItem through the panelReach hint,
+// @src HandleMouseOverSoldierFaceForContMove (the path plotted while the pointer is on the face), Points.cc
+// @src CheckForMercContMove (2026-11-18);
 // @src src/game/Tactical/Interface_Control.cc SetNewPanel, HandleTacticalPanelSwitch, RenderTacticalInterface,
 // @src RenderTopmostTacticalInterface (the popups, the viewport overlays, the clock, the buttons, the paused box);
 // @src src/game/Tactical/Interface.cc SetCurrentTacticalPanelCurrentMerc (non-merc bodies and escorts force the team
@@ -90,7 +94,7 @@ import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
 import { idiv } from '../../../core/int.ts';
-import type { CompatibleMercs, ItemInfo } from '../../../protocol/hints.ts';
+import type { CompatibleMercs, Footstep, ItemInfo, PanelReach, PreviewMove } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, ItemView, PlayerView, RadarContactKind, SoldierView, ViewFrame } from '../../../protocol/view.ts';
@@ -137,6 +141,7 @@ import {
 } from './faces.ts';
 import { HudController, hudClockText, type KeyGates, optionsKeyEnabled, pauseHelpText, saveKeyEnabled, sectorOfMap } from './hud.ts';
 import { helicopterDropRunning } from './input/helicopter-drop-skip.ts';
+import { dataOf, hintState } from './input/hints.ts';
 import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPointerAction } from './input/item-tile-cursor.ts';
 import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
@@ -602,6 +607,7 @@ export class TacticalScreen implements Screen {
     return {
       env,
       selected: () => soldierById(this.#view(), this.#selected),
+      continueMove: (s) => this.continueMove(s),
       select: (s, acknowledge, fromUi) => this.#selectSoldier(s, acknowledge, fromUi),
       selectMultiSelection: (chosen, others) => this.#selectMultiSelection(chosen, others),
       interfaceLevel: () => this.#interfaceLevel,
@@ -855,7 +861,17 @@ export class TacticalScreen implements Screen {
   }
 
   #disabledForItems(): boolean {
-    return this.pickup.open || this.dialogue?.shopDisablesInventory(this.#smMerc) === true;
+    return this.pickup.open || this.dialogue?.shopDisablesInventory(this.#smMerc) === true || this.#panelOutOfReach();
+  }
+
+  #panelOutOfReach(): boolean {
+    const merc = this.#smSoldier();
+    const cursor = this.inventory?.cursor ?? null;
+    if (!merc || this.#panel !== 'sm' || this.dialogue?.shopOpen) return false;
+    if (!cursor && (merc.life ?? 0) >= OKLIFE) return false;
+    const source = cursor?.source.soldier ?? this.#selected;
+    const request = { type: 'panelReach', soldier: merc.id, itemHeld: cursor !== null, ...(source === null ? {} : { source }) };
+    return dataOf(hintState<PanelReach>(this.#env.client, request))?.outOfReach === true;
   }
 
   #panelView(): LayoutView {
@@ -1166,6 +1182,7 @@ export class TacticalScreen implements Screen {
     this.inventory.update(this.#now);
     this.#syncTeamButtons();
     this.#updateModels(view);
+    this.#syncFacePath();
     this.controls.update(this.#now);
     if (!this.controls.overhead.open) this.#stepLocators();
     this.#stepItemLocators(view);
@@ -1753,6 +1770,10 @@ export class TacticalScreen implements Screen {
   #selectFace(slot: number): void {
     const s = this.#slotSoldier(this.#slots[slot] ?? null);
     if (!s || this.pickup.open || this.inventory.cursor) return;
+    this.#faceClicked(s);
+  }
+
+  #faceClicked(s: SoldierView): void {
     const vehicle = vehicleCarrying(this.#view(), s);
     if (vehicle) {
       this.#handleLocateSelect(vehicle, false);
@@ -1762,11 +1783,32 @@ export class TacticalScreen implements Screen {
       this.#selectSoldier(s, true, false);
       return;
     }
-    if (s.continueTo !== undefined && s.continueTo !== null) {
-      void this.#command({ type: 'move', soldier: s.id, to: s.continueTo });
-      return;
-    }
-    this.#handleLocateSelect(s, false);
+    if (!this.continueMove(s)) this.#handleLocateSelect(s, false);
+  }
+
+  continueMove(s: SoldierView): boolean {
+    const plan = this.#continuePlan(s);
+    if (!plan) return false;
+    void this.#command({ type: 'move', soldier: s.id, to: plan.to });
+    this.controls.input.eraseContinuePath();
+    return true;
+  }
+
+  #continuePlan(s: SoldierView): { readonly to: number; readonly steps: readonly Footstep[] } | null {
+    const to = s.continueTo;
+    if (to === undefined || to === null || this.inventory.cursor || s.id !== this.#selected) return null;
+    if (!this.#env.world.gridNoOnScreen(s.gridNo)) return null;
+    const request = { type: 'previewMove', soldier: s.id, to, mode: this.controls.input.moveModeOf(s), level: s.level };
+    const move = dataOf(hintState<PreviewMove>(this.#env.client, request));
+    if (move?.destination !== 'ok' || move.steps.length === 0) return null;
+    return (s.ap ?? 0) >= move.firstStepCost ? { to, steps: move.steps } : null;
+  }
+
+  #syncFacePath(): void {
+    const s = soldierById(this.#view(), this.#hoveredFace);
+    const plan = s ? this.#continuePlan(s) : null;
+    if (s && plan) this.controls.input.showContinuePath(plan.steps, s.level);
+    else this.controls.input.eraseContinuePath();
   }
 
   #openSmPanelFromSlot(slot: number): void {
@@ -2004,9 +2046,10 @@ export class TacticalScreen implements Screen {
     const [first = 0, second = 0] = args;
     switch (action) {
       case 'selectMerc':
-        if (s && !this.#disabledForItems()) this.#handleLocateSelect(s, false);
+        if (s && !this.dialogue.shopOpen && !this.#disabledForItems()) this.#faceClicked(s);
         return;
       case 'closePanel':
+        if (this.dialogue.shopOpen) return;
         this.description.close(false);
         this.#requestPanel('team', null);
         return;
@@ -2157,7 +2200,7 @@ export class TacticalScreen implements Screen {
   }
 
   #continueText(s: SoldierView): string | null {
-    if (this.#hoveredFace !== s.id || s.continueTo === undefined || s.continueTo === null) return null;
+    if (this.#hoveredFace !== s.id || !this.#continuePlan(s)) return null;
     return this.#env.text.string('TacticalStr', CONTINUE_OVER_FACE_STR) ?? '';
   }
 

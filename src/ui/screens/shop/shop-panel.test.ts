@@ -273,6 +273,18 @@ describe('the shop screen at the stub dealer', () => {
     expect(f.draw().items.filter((i) => i.kind === 'image' && i.asset === RADIO)).toEqual([]);
   });
 
+  it('does nothing on the panel face or bars, neither selecting nor closing the panel (SelectedMercButtonCallback)', async () => {
+    const { f, merc } = await atTheDealer(4);
+    const selected = f.screen.selected;
+    const located = f.world.located.length;
+    for (const region of ['smFaceRegion', 'smBarsRegion']) {
+      await f.click(region);
+      await f.click(region, MouseButton.RIGHT);
+    }
+    expect([f.screen.panel, f.screen.smMerc, f.screen.selected]).toEqual(['sm', merc, selected]);
+    expect(f.world.located.length).toBe(located);
+  });
+
   it('stays off a dying merc with space but steps to him with the panel button (FindNextActiveAndAliveMerc)', async () => {
     const { f, merc } = await atTheDealer(4);
     const other = f.client.view.soldiers.find((s) => s.team === 0 && s.id !== merc && s.squad === soldierOf(f, merc).squad);

@@ -10,6 +10,7 @@ import { exitSectorDryRun, exitSectorOptions } from './exit-sector.ts';
 import { itemInfo } from './item-info.ts';
 import { moveBoxOptions } from './move-box-options.ts';
 import { movementOptions } from './movement-options.ts';
+import { panelReach } from './panel-reach.ts';
 import { passTargets } from './pass-targets.ts';
 import { placements } from './placements.ts';
 import { previewAction } from './preview-action.ts';
@@ -30,6 +31,7 @@ const ANSWERERS: Readonly<Partial<Record<HintKind, HintAnswerer>>> = {
   itemInfo,
   compatibleMercs,
   compatibleItems,
+  panelReach,
   previewRoute,
   previewHeliRoute,
   canEnterSector,

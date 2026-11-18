@@ -6,7 +6,8 @@
 // @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor;
 // @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket); Interface_Panels.cc
 // @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts); Squads.cc
-// @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01); Soldier_Find.cc FindSoldier (the
+// @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01); the reach rule read for the panel
+// @src hatch (2026-11-18); Soldier_Find.cc FindSoldier (the
 // @src medkit's patient is never a passenger, 2026-11-05); UI_Cursors.cc HandleNonActivatedTargetCursor (the good or bad
 // @src reload cursor over a target and its APs, 2026-11-09); Soldier_Find.cc FindSoldier (no patient the squad does not
 // @src see; the patient named in a refusal for the medkit's lines, 2026-11-14); Turn_Based_Input.cc HandleUIReloading (a
@@ -25,6 +26,7 @@ import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { enoughAmmo } from './combat/ap.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { autoReload, findAmmoToReload } from './combat/reload.ts';
+import { CONSCIOUSNESS } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { NUM_KEYS } from './doors/key-ring.ts';
 import { createKeyObject } from './doors/keys.ts';
@@ -239,21 +241,30 @@ function isMercOnCurrentSquad(t: TacticalState, s: Soldier): boolean {
   return squad < NUMBER_OF_SQUADS && soldierAssignment(t, s) === squad;
 }
 
+function helperBeside(t: TacticalState, target: Soldier): boolean {
+  return teamMembers(t, Team.OUR).some(
+    (m) =>
+      m.life >= OKLIFE &&
+      !isMechanical(m) &&
+      isMercOnCurrentSquad(t, m) &&
+      pythSpacesAway(target.gridNo, m.gridNo) <= PASSING_ITEM_DISTANCE_NOTOKLIFE &&
+      seesTile(t, m, target),
+  );
+}
+
 function panelRangeRefusal(t: TacticalState, holder: Soldier, target: Soldier): InventoryRefusal | null {
   if (holder === target) return null;
-  if (target.life < OKLIFE) {
-    const helper = teamMembers(t, Team.OUR).some(
-      (m) =>
-        m.life >= OKLIFE &&
-        !isMechanical(m) &&
-        isMercOnCurrentSquad(t, m) &&
-        pythSpacesAway(target.gridNo, m.gridNo) <= PASSING_ITEM_DISTANCE_NOTOKLIFE &&
-        seesTile(t, m, target),
-    );
-    return helper ? null : InventoryRefusal.TOO_FAR;
-  }
+  if (target.life < OKLIFE) return helperBeside(t, target) ? null : InventoryRefusal.TOO_FAR;
   if (!seesTile(t, holder, target)) return InventoryRefusal.NO_LINE_OF_SIGHT;
   return pythSpacesAway(holder.gridNo, target.gridNo) <= PASSING_ITEM_DISTANCE_OKLIFE ? null : InventoryRefusal.TOO_FAR;
+}
+
+export function panelOutOfReach(t: TacticalState, merc: Soldier, source: Soldier | null, itemHeld: boolean): boolean {
+  if (merc.life < OKLIFE && itemHeld) return !helperBeside(t, merc);
+  if (!source || source === merc) return false;
+  if (!seesTile(t, source, merc)) return true;
+  const reach = merc.life < CONSCIOUSNESS ? PASSING_ITEM_DISTANCE_NOTOKLIFE : PASSING_ITEM_DISTANCE_OKLIFE;
+  return pythSpacesAway(source.gridNo, merc.gridNo) > reach;
 }
 
 function otherMerc(t: TacticalState, value: unknown, fallback: Soldier): Soldier | InventoryRefusal {

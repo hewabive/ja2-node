@@ -6,6 +6,7 @@ import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { idiv } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
+import { Assignment, NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { setKnownMines } from '../tactical/bombs/mine-flags.ts';
 import { smokeChanged } from '../tactical/change-counts.ts';
 import { corpseStructureDef } from '../tactical/combat/death.ts';
@@ -130,12 +131,16 @@ function projectedExitGrid(v: AddedExitGridView): AddedExitGrid {
 export interface ViewNarrative {
   readonly epcs: ReadonlySet<number>;
   readonly controlledRobots: ReadonlySet<number>;
+  readonly squads: ReadonlyMap<number, number>;
+  readonly currentSquad: number;
 }
 
 function projectionNarrative(facts: ViewNarrative, guard: GuardOptions): NarrativePort {
   const supplied: Partial<NarrativePort> = {
     isEpc: (s) => facts.epcs.has(s.id),
     robotCanBeControlled: (robot) => facts.controlledRobots.has(robot.id),
+    assignment: (s) => facts.squads.get(s.id) ?? Assignment.ON_DUTY,
+    currentSquad: () => facts.currentSquad,
   };
   if (!guard.strict) return { ...NO_NARRATIVE_PORT, ...supplied };
   const port: Record<string, unknown> = {};
@@ -196,7 +201,7 @@ export class TacticalProjection {
     this.#syncLight(view);
     this.#syncSmoke(view);
     this.#syncCorpses(view.corpses ?? []);
-    t.narrative = projectionNarrative(viewNarrative(view.soldiers), guard);
+    t.narrative = projectionNarrative(viewNarrative(view.soldiers, view.currentSquad), guard);
     t.boxing.state = BOXING_STATE_NAMES.indexOf((view.boxing?.state ?? 'notBoxing') as BoxingStateName);
     return this.#guardedState(guard);
   }
@@ -348,10 +353,12 @@ export class TacticalProjection {
   }
 }
 
-function viewNarrative(soldiers: readonly KnowledgeSoldier[]): ViewNarrative {
+function viewNarrative(soldiers: readonly KnowledgeSoldier[], currentSquad: number | null | undefined): ViewNarrative {
   const own = soldiers.filter((s) => s.team === Team.OUR);
   return {
     epcs: new Set(own.filter((s) => s.kind === 'epc').map((s) => s.id)),
     controlledRobots: new Set(own.filter((s) => s.controlled === true).map((s) => s.id)),
+    squads: new Map(own.flatMap((s) => (s.squad === null ? [] : [[s.id, s.squad ?? Assignment.SQUAD_1] as const]))),
+    currentSquad: currentSquad ?? NO_CURRENT_SQUAD,
   };
 }

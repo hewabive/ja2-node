@@ -1341,6 +1341,11 @@ head gear or traits and with the stand-in gun of his hand class (deviation "Cove
 Measured on the original data (A9 in combat) size 4 takes about 1 ms for the cover and 3 ms for the sight, size 11 about
 3–7 ms and 10 ms, and each enemy in sight range of the square adds 2.5–4 ms at size 11.
 
+**Panel reach.** `panelReach` (`src/sim/hints/panel-reach.ts`) answers `outOfReach` for the merc of the single merc
+panel: out of `source`'s sight or farther than `CheckForDisabledForGiveItem` allows (`Tactical/Interface_Panels.cc:359`),
+or, with `itemHeld` and that merc below `OKLIFE`, without a mate of the current squad beside him. The client hatches
+the panel and takes no items while it says so.
+
 **Server-only queries** (`SERVER_QUERY_KINDS`: the laptop's quotes and checks, `quoteTrade`, `contractOptions`,
 `inventory`) depend on state the player does not see or price a decision; the query service passes them to the
 simulation's own handlers without logging. `src/server/query-purity.test.ts` runs every one and compares the session

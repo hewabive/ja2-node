@@ -229,6 +229,19 @@ describe('a merc aboard a vehicle on the tactical screen', () => {
     expect(commandsOf(f, 'move')).toEqual([]);
   });
 
+  it('selects the vehicle from the single merc panel face of a merc aboard (SelectedMercButtonCallbackPrimary)', async () => {
+    const f = await atTheHummer(true);
+    const merc = selected(f).id;
+    await f.click(`teamFaceRegion${f.screen.teamSlots.indexOf(merc)}`, MouseButton.RIGHT);
+    await f.settle();
+    const seat = { id: hummer(f).id, driver: true };
+    Object.assign(hummer(f), { team: 0, life: 100, passengers: [merc] });
+    Object.assign(selected(f), { vehicle: seat });
+    f.t.frame();
+    await f.click('smFaceRegion');
+    expect(f.screen.selected).toBe(hummer(f).id);
+  });
+
   it("names the vehicle's life and fuel in the driver's first hand and takes him out through his second hand (TMClickSecondHandInvCallbackPrimary)", async () => {
     const f = await atTheHummer(true);
     const merc = await boardTheHummer(f);

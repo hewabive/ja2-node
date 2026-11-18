@@ -41,6 +41,7 @@ export interface KnowledgeSoldier {
   readonly keys?: readonly KeyView[];
   readonly kind?: string;
   readonly controlled?: boolean;
+  readonly squad?: number | null;
   readonly talkable?: string;
   readonly merchant?: string;
   readonly bleeding?: number;
@@ -124,6 +125,7 @@ export interface KnowledgeCorpse {
 }
 
 export interface KnowledgeView {
+  readonly currentSquad?: number | null;
   readonly tick: number;
   readonly mapPath: string | null;
   readonly soldiers: readonly KnowledgeSoldier[];

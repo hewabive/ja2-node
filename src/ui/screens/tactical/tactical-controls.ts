@@ -161,6 +161,7 @@ export const TACTICAL_INPUT_CONTRACT: ControllerContract = { id: 'tacticalInput'
 export interface ControlsScreen {
   readonly env: TacticalEnvironment;
   selected(): SoldierView | null;
+  continueMove(s: SoldierView): boolean;
   select(s: SoldierView, acknowledge: boolean, fromUi: boolean): void;
   selectMultiSelection(chosen: SoldierView, others: readonly number[]): void;
   interfaceLevel(): number;
@@ -794,8 +795,7 @@ export class TacticalControls {
 
   #continueMove(): void {
     const sel = this.#screen.selected();
-    if (sel && sel.continueTo !== undefined && sel.continueTo !== null)
-      void this.#screen.send({ type: 'move', soldier: sel.id, to: sel.continueTo });
+    if (sel) this.#screen.continueMove(sel);
   }
 
   #swapPlaces(): void {
