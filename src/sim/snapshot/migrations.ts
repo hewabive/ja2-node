@@ -2718,6 +2718,25 @@ function dropLeftHelicopterShadows(snapshot: Readonly<Record<string, unknown>>):
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const OLD_ATTACK_SLAY_ONLY = 6;
+const ATTACK_SLAY_ONLY = 7;
+
+function withAttackSlayOnlyRenumbered(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withAttackSlayOnlyRenumbered(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withAttackSlayOnlyRenumbered(v);
+  const ai = mapped.ai;
+  if (isObject(ai) && ai.attitude === OLD_ATTACK_SLAY_ONLY) mapped.ai = { ...ai, attitude: ATTACK_SLAY_ONLY };
+  return mapped;
+}
+
+function renumberAttackSlayOnly(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withAttackSlayOnlyRenumbered(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2815,5 +2834,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     93: addMapScreenItemDescriptionBox,
     94: keepEveryMapChangeForTheNextEntry,
     95: dropLeftHelicopterShadows,
+    96: renumberAttackSlayOnly,
   };
 }

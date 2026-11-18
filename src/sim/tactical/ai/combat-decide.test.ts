@@ -11,6 +11,7 @@ import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { SmokeTile } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
+import { Profile } from '../narrative/constants.ts';
 import { AlertStatus, Attitude, Body, NOBODY, type Soldier, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
@@ -25,6 +26,7 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
+const DEVIN = 61;
 const NO_GREEN_DECISION: CombatDeciderHooks = { decideActionGreen: () => AiAction.NONE, npcDoesAct: () => {} };
 
 const item = (name: string) => content.items.byName.get(name)?.index ?? 0;
@@ -49,6 +51,22 @@ describe('the yellow decision (DecideAction.cc DecideActionYellow)', () => {
     Object.assign(t, { pre });
     expect(decideActionYellow(t, guard, NO_GREEN_DECISION)).toBe(AiAction.NONE);
     expect(pre.requested).toEqual([100]);
+  });
+
+  it('rolls to go after a noise for Eldin, and for no other civilian with a profile (DecideAction.cc:1230)', () => {
+    const rollsOf = (profile: number) => {
+      const sim = newCombatSim(content);
+      const t = sim.state;
+      const civilian = spawnSoldier(sim, 120, Team.CIV, gridNo(80, 80), Direction.SOUTH, { profile });
+      civilian.ai.alertStatus = AlertStatus.YELLOW;
+      civilian.ai.noiseGridNo = gridNo(80, 90);
+      civilian.ai.noiseVolume = 10;
+      const pre = new ScriptedStream([], 0);
+      Object.assign(t, { pre });
+      decideActionYellow(t, civilian, NO_GREEN_DECISION);
+      return pre.requested.length;
+    };
+    expect(rollsOf(Profile.ELDIN)).toBe(rollsOf(DEVIN) + 1);
   });
 
   it('runs to a noise while the soldier has never weighed his morale: AI morale starts at HOPELESS', () => {

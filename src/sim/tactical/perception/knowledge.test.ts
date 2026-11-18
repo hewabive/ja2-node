@@ -8,7 +8,7 @@ import { setSoldierHeight } from '../roofs.ts';
 import { Attitude, NOWHERE, Orders, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { closestKnownOpponent, noiseHeard } from './knowledge.ts';
+import { closestKnownOpponent, ignoredByBountyHunter, noiseHeard } from './knowledge.ts';
 import { makeNoise, NoiseKind } from './noise.ts';
 import { Opp } from './opp.ts';
 
@@ -70,6 +70,20 @@ describe('the last-known levels (OppList.cc UpdatePersonal, UpdatePublic)', () =
     expect(merc.oppList[enemy.id]).toBe(Opp.HEARD_THIS_TURN);
     expect(merc.lastKnownOppLevel[enemy.id]).toBe(ROOF);
     expect(t.perception.publicLastKnownLevel[Team.OUR]?.[enemy.id]).toBe(ROOF);
+  });
+});
+
+describe("the bounty hunter's attitude (Overhead_Types.h:121)", () => {
+  const SAVED_ATTACK_SLAY_ONLY = 7;
+
+  it('reads the value of a native save, past MAXATTITUDES', () => {
+    const sim = simWithBuilding();
+    const carmen = spawnSoldier(sim, 20, Team.CIV, gridNo(87, 80), Direction.WEST);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(88, 82), Direction.NORTH);
+    carmen.ai.attitude = SAVED_ATTACK_SLAY_ONLY;
+    expect(ignoredByBountyHunter(carmen, merc)).toBe(true);
+    merc.profile = Profile.SLAY;
+    expect(ignoredByBountyHunter(carmen, merc)).toBe(false);
   });
 });
 

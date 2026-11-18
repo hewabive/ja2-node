@@ -44,7 +44,7 @@ import { isValidStance } from '../person-structure.ts';
 import { AP } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { selectedSoldier } from '../selection.ts';
-import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { mercs, shownInSector, type TacticalState } from '../state.ts';
 import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
 import { vehicleOfOurs } from '../vehicle-presence.ts';
@@ -60,7 +60,6 @@ const MAX_APS_SUPPRESSED = 8;
 const MAX_DISTANCE_VISIBLE = 26;
 const IRRELEVANT = -1;
 const ProfileAttitude = { AGGRESSIVE: 5, COWARD: 9 } as const;
-const AiAttitude = { DEFENSIVE: 0, BRAVESOLO: 1, BRAVEAID: 2, AGGRESSIVE: 4 } as const;
 const NPC_ATTACK_ACTIONS: readonly number[] = [AiAction.FIRE_GUN, AiAction.THROW_KNIFE, AiAction.TOSS_PROJECTILE, AiAction.KNIFE_STAB];
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
@@ -79,9 +78,9 @@ function calcSuppressionTolerance(t: TacticalState, s: Soldier): number {
     if (attitude === ProfileAttitude.AGGRESSIVE) tol += 2;
     else if (attitude === ProfileAttitude.COWARD) tol -= 2;
   } else {
-    if (s.ai.attitude === AiAttitude.BRAVESOLO || s.ai.attitude === AiAttitude.BRAVEAID) tol += 2;
-    else if (s.ai.attitude === AiAttitude.AGGRESSIVE) tol += 1;
-    else if (s.ai.attitude === AiAttitude.DEFENSIVE) tol -= 1;
+    if (s.ai.attitude === Attitude.BRAVESOLO || s.ai.attitude === Attitude.BRAVEAID) tol += 2;
+    else if (s.ai.attitude === Attitude.AGGRESSIVE) tol += 1;
+    else if (s.ai.attitude === Attitude.DEFENSIVE) tol -= 1;
   }
   return Math.max(0, tol);
 }

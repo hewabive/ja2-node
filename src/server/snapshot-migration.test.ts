@@ -28,7 +28,7 @@ import { setSoldierPosition } from '../sim/tactical/movement.ts';
 import type { ProfileProgress } from '../sim/tactical/profiles.ts';
 import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
-import { Body, NOBODY, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
+import { Attitude, Body, NOBODY, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, registerSoldier, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -4680,6 +4680,51 @@ describe('snapshot version 95 (shadows a run left on the map) migrates with the 
     const legacy = versionNinetyFive(current.sim, [LEFT_SHADOW]);
     expect(JSON.stringify(legacy)).toContain(`"${STRANDED_SHADOWS_KEY}":[{`);
     expect(JSON.stringify(current.sim)).not.toContain(STRANDED_SHADOWS_KEY);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const VERSION_96_ATTACK_SLAY_ONLY = 6;
+
+function withVersion96SlayOnly(value: Json): Json {
+  if (Array.isArray(value)) return value.map(withVersion96SlayOnly);
+  if (typeof value !== 'object' || value === null) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withVersion96SlayOnly(v);
+  const ai = mapped.ai;
+  if (typeof ai === 'object' && ai !== null && !Array.isArray(ai) && object(ai).attitude === Attitude.ATTACKSLAYONLY)
+    mapped.ai = { ...object(ai), attitude: VERSION_96_ATTACK_SLAY_ONLY };
+  return mapped;
+}
+
+function versionNinetySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withVersion96SlayOnly(value)]);
+  return { ...snapshot, version: 96, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 96 (Carmen's slay-only attitude was 6) migrates to the original's value", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a campaign with a bounty hunter after Slay', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    const hunter = t ? teamMembers(t, Team.ENEMY)[0] : undefined;
+    if (!hunter) throw new Error('no soldier in the loaded sector');
+    hunter.ai.attitude = Attitude.ATTACKSLAYONLY;
+    const current = snapshotSession(campaign);
+    const legacy = versionNinetySix(current.sim);
+    expect(JSON.stringify(legacy)).not.toBe(JSON.stringify(current.sim));
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

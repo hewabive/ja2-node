@@ -203,7 +203,7 @@ export const Attitude = {
   CUNNINGSOLO: 3,
   CUNNINGAID: 4,
   AGGRESSIVE: 5,
-  ATTACKSLAYONLY: 6,
+  ATTACKSLAYONLY: 7,
 } as const;
 
 export const SoldierClass = {

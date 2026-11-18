@@ -23,7 +23,7 @@ import { calcMaxTossRange } from '../explosions/throwing.ts';
 import { autoPlaceObject, InvSlot, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { BoxingState } from '../narrative/boxing-state.ts';
-import { CivGroupHostility, TIXA_SECTOR } from '../narrative/constants.ts';
+import { CivGroupHostility, Profile, TIXA_SECTOR } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { closestKnownOpponent, mostImportantNoiseHeard, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
 import { distanceVisible } from '../perception/sight.ts';
@@ -80,7 +80,6 @@ export interface CombatDeciderHooks {
 
 const FATCIV = 11;
 const CRIPPLECIV = 17;
-const ELDIN = 61;
 const VISIBLE = 1;
 const SURRENDER_MAX_PCS = 4;
 const SURRENDER_ODDS = 3;
@@ -279,7 +278,7 @@ export function decideActionYellow(t: TacticalState, s: Soldier, hooks: CombatDe
     ai.actionData = NOWHERE;
     return AiAction.NONE;
   }
-  if (!(s.team === Team.CIV && s.profile !== NO_PROFILE && s.profile !== ELDIN)) {
+  if (!(s.team === Team.CIV && s.profile !== NO_PROFILE && s.profile !== Profile.ELDIN)) {
     if (
       reachable &&
       !noise.climb &&

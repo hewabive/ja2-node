@@ -3,6 +3,7 @@ import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
+import { idiv } from '../../core/int.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { Profile } from './narrative/constants.ts';
@@ -118,6 +119,15 @@ describe('the rotting corpse slots (Rotting_Corpses.cc GetFreeRottingCorpse, Rem
     addRottingCorpse(t, lying(3), { nowMinute: 0, loadingSave: false });
     expect(slotsOf(t)).toEqual([at(0), at(3), at(2)]);
     expect(t.corpses.map((c) => c.gridNo)).toEqual([at(0), at(3), at(2)]);
+  });
+
+  it('holds 200 corpses and refuses the next (Rotting_Corpses.h:147)', () => {
+    const t = newCombatSim(content).state;
+    const LIMIT = 200;
+    const lyingAtRow = (k: number) => ({ ...lying(0), gridNo: gridNo(20 + (k % 100) * 2, 20 + idiv(k, 100) * 2) });
+    for (let k = 0; k < LIMIT; k++) expect(addRottingCorpse(t, lyingAtRow(k), { nowMinute: 0, loadingSave: false })).not.toBeNull();
+    expect(rottingCorpseSlots(t)).toBe(LIMIT);
+    expect(addRottingCorpse(t, lyingAtRow(LIMIT), { nowMinute: 0, loadingSave: false })).toBeNull();
   });
 
   it('takes a slot for a corpse too old to lie and leaves it empty', () => {
