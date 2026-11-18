@@ -242,8 +242,13 @@ export class Plotting {
     return { kind: 'shortenLegs' };
   }
 
+  #reconfirmedPath(): CommandEnvelope | null {
+    const last = this.lastSector();
+    return this.mode === 'merc' && !this.group && last !== null ? { type: 'route', soldier: this.soldier, to: last } : null;
+  }
+
   confirmCommand(): CommandEnvelope | null {
-    if (this.#legs.length === 0) return null;
+    if (this.#legs.length === 0) return this.#reconfirmedPath();
     const to = this.#legs[this.#legs.length - 1] as string;
     const via = this.#legs.slice(0, -1);
     const viaPart = via.length > 0 ? { via } : {};
@@ -264,7 +269,7 @@ export class Plotting {
 
   routeFor(soldier: number): CommandEnvelope | null {
     const command = this.confirmCommand();
-    if (!command || this.mode === 'heli' || this.group) return null;
+    if (!command || this.#legs.length === 0 || this.mode === 'heli' || this.group) return null;
     return { ...command, soldier };
   }
 }

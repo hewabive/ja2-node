@@ -6,7 +6,7 @@
 // @src HandleSettingTheSelectedListOfMercs,
 // @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic; Assignments.cc
 // @src CreateDestroyAssignmentPopUpBoxes (RebuildCurrentSquad as the assignment menu closes, 2026-11-08), SetAssignmentForList
-// @src (no list outside the map screen, 2026-11-16).
+// @src (no list outside the map screen, 2026-11-16); MapScreen.cc HandleNewDestConfirmation's wake-up (2026-11-18).
 
 import {
   parseSectorString,
@@ -28,6 +28,7 @@ import {
   redistributeMilitia,
 } from '../strategic/economy/militia-moves.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { wakeUpSleepingMercsOnFootOrDriving } from '../strategic/economy/rest.ts';
 import {
   type AssignRefusal,
   type AssignResult,
@@ -38,7 +39,14 @@ import {
 } from '../strategic/economy/set-assignment.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { getGroup } from '../strategic/forces/groups.ts';
-import { type MoveOut, moveOutOfSector, movingListForSector, regroupsMovingMerc, travellersWith } from '../strategic/forces/move-box.ts';
+import {
+  type MoveOut,
+  mercsWhoMustMoveWith,
+  moveOutOfSector,
+  movingListForSector,
+  regroupsMovingMerc,
+  travellersWith,
+} from '../strategic/forces/move-box.ts';
 import {
   canCharacterMoveInStrategic,
   canEntireMovementGroupMove,
@@ -154,17 +162,24 @@ export function refuseMove(block: MoveBlock, reason = `the squad cannot move: ${
   return refuse(block.refusal, reason, { soldier: block.soldier });
 }
 
-function route(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
+function wakeTravellersOfConfirmedRoute(campaign: CampaignSim, ids: readonly number[]): void {
+  if (campaign.economy) wakeUpSleepingMercsOnFootOrDriving(campaign.economy, ids);
+}
+
+function route(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
   const id = soldierId(cmd);
   const to = parseSector(cmd.to);
-  if (id === null || !ctx.mercs.get(id)) return refuse('noSuchMerc', 'no such merc');
+  const merc = id === null ? undefined : ctx.mercs.get(id);
+  if (id === null || !merc) return refuse('noSuchMerc', 'no such merc');
   if (!to) return refuse('badSector', 'to must be a sector such as B9');
   const via = sectorList(cmd.via);
   if (!via) return refuse('badSector', 'via must be a list of sectors such as ["A10"]');
   const block = canEntireMovementGroupMove(ctx, id, loaded);
   if (block) return refuseMove(block);
   const plotted = plotRouteForCharacter(ctx, id, via, to, { shortest: cmd.shortest === true, extend: cmd.extend === true });
-  return plotted ?? routeResult(ctx, id);
+  if (plotted) return plotted;
+  wakeTravellersOfConfirmedRoute(campaign, mercsWhoMustMoveWith(ctx, merc));
+  return routeResult(ctx, id);
 }
 
 export function routeResult(ctx: StrategicContext, id: number): CommandAccepted & { readonly data: object } {
@@ -266,7 +281,7 @@ function regroupForMove(ctx: StrategicContext, cmd: StrategicCommand, loaded: Lo
   return { ok: true, data: { selected: out.selected, regrouped: out.regrouped } };
 }
 
-function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
+function routeGroup(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
   const ids = movingSoldiers(cmd);
   if ('ok' in ids) return ids;
   const to = parseSector(cmd.to);
@@ -294,6 +309,7 @@ function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: Loaded
     setPathForCharacter(ctx, id, path);
     confirmPathForCharacter(ctx, id);
   }
+  wakeTravellersOfConfirmedRoute(campaign, travellers);
   return { ok: true, data: { groups: groupResult(ctx, travellers), regrouped: out.regrouped } };
 }
 
@@ -428,7 +444,7 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
   if (!ctx) return null;
   switch (cmd.type) {
     case 'route':
-      return route(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
+      return route(campaign, ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'cancelRoute':
       return cancelRoute(ctx, cmd);
     case 'shortenRoute':
@@ -440,7 +456,7 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
     case 'regroupForMove':
       return regroupForMove(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'routeGroup':
-      return routeGroup(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
+      return routeGroup(campaign, ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'assignSquad':
       return assignSquadAndClose(campaign, ctx, cmd);
     case 'assign':

@@ -168,6 +168,7 @@ describe('the helicopter passengers over the loaded sector', () => {
   });
 
   const PASSENGER = 0;
+  const OTHER_PASSENGER = 1;
   const WALKERS = [1, 2];
   const DOWN = OKLIFE - 1;
   const ENEMY_ID = 20;
@@ -293,6 +294,18 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(c.narrative.checkFact(Fact.PLAYER_IN_SAME_ROOM, Npc.ANGEL)).toBe(true);
     setSoldierPosition(t, npc, INDOORS);
     expect(c.narrative.checkFact(Fact.PLAYER_IN_SAME_ROOM, Npc.ANGEL)).toBe(false);
+  });
+
+  it('sleep through a confirmed route: nobody aboard drives the helicopter (CanSoldierDriveVehicle, Vehicles.cc:925)', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    for (const soldier of [PASSENGER, OTHER_PASSENGER])
+      expect(c.dispatch({ type: 'boardVehicle', soldier, vehicle: 'helicopter' }).ok).toBe(true);
+    const sleeper = c.battle?.roster.get(OTHER_PASSENGER);
+    if (!sleeper) throw new Error('no passenger');
+    sleeper.asleep = true;
+    expect(c.dispatch({ type: 'route', soldier: PASSENGER, to: 'A10' })).toMatchObject({ ok: true });
+    expect(sleeper.asleep).toBe(true);
   });
 
   it('fall asleep and wake up with the animations of a merc in the sector (PutMercInAsleepState, PutMercInAwakeState, Assignments.cc:6230, :6264)', () => {

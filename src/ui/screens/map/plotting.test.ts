@@ -62,6 +62,18 @@ describe('route plotting on the map screen', () => {
     expect(plot.routeFor(SOLDIER + 1)).toMatchObject({ soldier: SOLDIER + 1, to: 'C13' });
   });
 
+  it("confirms a merc's unchanged path with a route to its end, for him alone (HandleNewDestConfirmation, MapScreen.cc:5586)", () => {
+    const plot = new Plotting('merc', SOLDIER, ROW, 'D13', ['C13', 'B13']);
+    expect(plot.click(sector('B13'))).toEqual({ kind: 'confirm' });
+    expect(plot.confirmCommand()).toEqual({ type: 'route', soldier: SOLDIER, to: 'B13' });
+    expect(plot.routeFor(SOLDIER + 1)).toBeNull();
+  });
+
+  it('has nothing to confirm without a path, and leaves an unchanged helicopter path alone', () => {
+    expect(new Plotting('merc', SOLDIER, ROW, 'D13', []).confirmCommand()).toBeNull();
+    expect(new Plotting('heli', SOLDIER, ROW, 'D13', ['C13']).confirmCommand()).toBeNull();
+  });
+
   it('refuses a click off the road and sends the earlier legs as via with Shift as shortest', async () => {
     const client = new FakePlotClient(routes);
     const plot = new Plotting('merc', SOLDIER, ROW, 'D13', []);

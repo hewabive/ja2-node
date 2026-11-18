@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc SetUpMovingListsForSector (who the move box lists),
 // @src HandleMoveoutOfSectorMovementTroops (mercs parting from their squad or vehicle join a compatible squad or a new
 // @src one), FindSquadThatSoldierCanJoin, HandleSettingTheSelectedListOfMercs (the first moving merc plots),
-// @src DeselectSelectedListMercsWhoCantMoveWithThisGuy, CanSoldierMoveWithVehicleId.
+// @src DeselectSelectedListMercsWhoCantMoveWithThisGuy, CanSoldierMoveWithVehicleId,
+// @src SelectUnselectedMercsWhoMustMoveWithThisGuy, AnyMercInSameSquadOrVehicleIsSelected (2026-11-18).
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
@@ -115,6 +116,23 @@ function movesWith(ctx: StrategicContext, anchor: StrategicMerc, other: Strategi
   if (!onSquad(other)) return false;
   if (!sameSector(anchor.sector, other.sector)) return false;
   return !((anchor.betweenSectors || other.betweenSectors) && anchor.groupId !== other.groupId);
+}
+
+function vehicleAboardOrSelf(m: StrategicMerc): number | null {
+  return m.assignment === Assignment.VEHICLE || m.isVehicle ? m.vehicleId : null;
+}
+
+function mustMoveTogether(a: StrategicMerc, b: StrategicMerc): boolean {
+  if (a.assignment < Assignment.ON_DUTY) return a.assignment === b.assignment;
+  const vehicle = vehicleAboardOrSelf(a);
+  return vehicle !== null && vehicle === vehicleAboardOrSelf(b);
+}
+
+export function mercsWhoMustMoveWith(ctx: StrategicContext, anchor: StrategicMerc): number[] {
+  return ctx.mercs
+    .all()
+    .filter((m) => m.id === anchor.id || mustMoveTogether(anchor, m))
+    .map((m) => m.id);
 }
 
 export function travellersWith(ctx: StrategicContext, anchor: StrategicMerc, selected: readonly number[]): number[] {

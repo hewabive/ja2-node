@@ -182,6 +182,27 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(data.etaMinutes).toBe(plotted.etaMinutes);
   });
 
+  it('wake nobody on a preview, and the sleeping squad when the route is confirmed (HandleNewDestConfirmation, MapScreen.cc:7398)', async () => {
+    const c = await landedCampaign(35);
+    const squad = c.sim.campaign.battle?.roster.all() ?? [];
+    const [first, second] = squad as [RosterMerc, RosterMerc];
+    first.asleep = true;
+    second.asleep = true;
+    await c.session.query({ type: 'previewRoute', soldier: second.id, to: 'A12' });
+    expect([first.asleep, second.asleep]).toEqual([true, true]);
+    expect(c.sim.dispatch({ type: 'route', soldier: second.id, to: 'A12' })).toMatchObject({ ok: true });
+    expect([first.asleep, second.asleep]).toEqual([false, false]);
+  });
+
+  it('wake the sleeping movers of a confirmed group route', async () => {
+    const c = await landedCampaign(36);
+    const squad = c.sim.campaign.battle?.roster.all() ?? [];
+    const sleeper = squad[1] as RosterMerc;
+    sleeper.asleep = true;
+    expect(c.sim.dispatch({ type: 'routeGroup', soldiers: squad.map((m) => m.id), to: 'A12' })).toMatchObject({ ok: true });
+    expect(sleeper.asleep).toBe(false);
+  });
+
   it('count the remaining leg twice and drop the first temporary edge while the squad travels, as the original', async () => {
     const c = await landedCampaign(34);
     const merc = c.sim.view().strategic?.mercs[0]?.id;

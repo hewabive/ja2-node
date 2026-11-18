@@ -983,7 +983,7 @@ the view has neither the encounter nor the rooms. A merc awake with `breathMax` 
 refuses a move as `tooTired` (in a vehicle only the one who must drive); a group that has such a merc when it reaches a
 sector short of its destination stops there: its paths are cleared, compression stops (`halted`), each such merc says
 his need for sleep (the next ones "me too") and drops asleep, `collapsed` until rested (`fellAsleep {collapsed: true}`),
-so `wake` refuses him. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
+so `wake` refuses him. A confirmed `route` or `routeGroup` wakes those it moves who sleep on a squad or must drive their vehicle: for `route` the merc and his squad or vehicle, for `routeGroup` the mercs who move (`Strategic/MapScreen.cc:7575`); the `previewRoute` hint wakes nobody, and a passenger who need not drive sleeps on. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
 of the sector doing the same or a new one at once, before any route, and `data.selected` lists who moves; `routeGroup`
 regroups the same way and plots in one command. `enterSector` loads with automatic placement, or with the
 `tacticalPlacement` prompt where the original opens its placement GUI (§8.10); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;

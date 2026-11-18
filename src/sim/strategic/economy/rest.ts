@@ -4,7 +4,7 @@
 // @src HandleRestFatigueAndSleepStatus (with the tired complaints through the dialogue queue, 2026-11-01), SetMercAsleep,
 // @src PutMercInAsleepState, SetMercAwake, PutMercInAwakeState,
 // @src HandleNaturalHealing, HandleHealingByNaturalCauses, UpDateSoldierLife, AnyMercInGroupCantContinueMoving (one merc's
-// @src stop, 2026-11-03).
+// @src stop, 2026-11-03); MapScreen.cc WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18).
 
 import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
@@ -29,6 +29,7 @@ import {
 } from './constants.ts';
 import { countTraits } from './points.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
+import { soldierMustDriveVehicle } from './vehicle-assignment.ts';
 
 const MIN_NEED_FOR_SLEEP = 4;
 const MAX_NEED_FOR_SLEEP = 12;
@@ -110,6 +111,17 @@ export function setMercAwake(ctx: EconomyContext, s: CrewMember, force: boolean)
   if (!force && !canCharacterBeAwakened(s)) return false;
   putMercInAwakeState(ctx, s);
   return true;
+}
+
+function onFootOrDriving(ctx: EconomyContext, s: CrewMember): boolean {
+  return s.assignment < Assignment.ON_DUTY || (s.assignment === Assignment.VEHICLE && soldierMustDriveVehicle(ctx, s, false));
+}
+
+export function wakeUpSleepingMercsOnFootOrDriving(ctx: EconomyContext, ids: readonly number[]): void {
+  for (const id of ids) {
+    const s = ctx.crew.get(id);
+    if (s?.asleep && onFootOrDriving(ctx, s)) setMercAwake(ctx, s, false);
+  }
 }
 
 function skipsRest(s: CrewMember): boolean {

@@ -4,6 +4,8 @@ import { ReloadingSession } from '../../../tests/support/session-reload.ts';
 import { OUR_HUMMER_ROUTE, stubCampaignWithOurHummer } from '../../../tests/support/vehicles.ts';
 import type { CampaignSession } from '../../server/campaign-session.ts';
 import type { SimEvent } from '../events.ts';
+import { BREATHMAX_ABSOLUTE_MINIMUM } from '../strategic/economy/constants.ts';
+import { Assignment } from '../strategic/forces/constants.ts';
 import type { RosterMerc } from './roster.ts';
 
 let kit: StubSectorKit;
@@ -51,6 +53,36 @@ function driveAndWatchTheFuel(session: CampaignSession): (readonly [string, numb
   }
   return arrivals;
 }
+
+function aboardTheHummer(session: CampaignSession): RosterMerc[] {
+  const hummer = hummerOf(session);
+  return (
+    session.campaign.battle?.roster
+      .all()
+      .filter((m) => !m.isVehicle && m.vehicleId === hummer.vehicleId && m.assignment === Assignment.VEHICLE) ?? []
+  );
+}
+
+describe('confirming a route for a vehicle (HandleNewDestConfirmation, MapScreen.cc:7398, :7575)', () => {
+  it('wakes the one who must drive and leaves a passenger who need not drive asleep', async () => {
+    const session = await stubCampaignWithOurHummer(kit, SEED, undefined, 2);
+    const [driver, passenger] = aboardTheHummer(session) as [RosterMerc, RosterMerc];
+    passenger.soldier.breathMax = BREATHMAX_ABSOLUTE_MINIMUM;
+    driver.asleep = true;
+    passenger.asleep = true;
+    expect(session.dispatch({ type: 'route', soldier: passenger.id, to: DESTINATION })).toMatchObject({ ok: true });
+    expect([driver.asleep, passenger.asleep]).toEqual([false, true]);
+  });
+
+  it('leaves everybody aboard asleep when another awake merc can drive', async () => {
+    const session = await stubCampaignWithOurHummer(kit, SEED, undefined, 2);
+    const [awake, sleeper] = aboardTheHummer(session) as [RosterMerc, RosterMerc];
+    sleeper.asleep = true;
+    expect(awake.asleep).toBe(false);
+    expect(session.dispatch({ type: 'route', soldier: awake.id, to: DESTINATION })).toMatchObject({ ok: true });
+    expect(sleeper.asleep).toBe(true);
+  });
+});
 
 describe('a ground vehicle of ours on the strategic map (Strategic_Movement.cc GroupArrivedAtSector, SpendVehicleFuel)', () => {
   it('burns six fuel a minute of each leg and shows the fuel left rounded up to a whole percent (quirk), driving on', async () => {
