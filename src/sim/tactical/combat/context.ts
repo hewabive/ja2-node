@@ -23,6 +23,11 @@ export interface SkillCheckFailedEvent {
   readonly certain?: true;
 }
 
+export interface CeramicPlatesSmashedEvent {
+  readonly type: 'ceramicPlatesSmashed';
+  readonly soldier: number;
+}
+
 export interface ExperienceHooks {
   levelGained(p: ProfileProgress, s: Soldier | null, levels: number): void;
 }
@@ -38,7 +43,7 @@ export interface CombatContext extends LoadedSector {
   readonly vehicles?: readonly VehicleRecord[];
   readonly inCombat: boolean;
   readonly turn: { readonly attackBusyCount: number };
-  readonly events: { push(event: StatChangedEvent | SkillCheckFailedEvent): unknown };
+  readonly events: { push(event: StatChangedEvent | SkillCheckFailedEvent | CeramicPlatesSmashedEvent): unknown };
   readonly experienceHooks?: ExperienceHooks;
   readonly narrative?: NarrativePort;
 }

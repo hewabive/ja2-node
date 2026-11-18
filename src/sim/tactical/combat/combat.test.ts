@@ -244,10 +244,10 @@ describe('the barrel extender (Weapons.cc CalcChanceToHitGun)', () => {
   const EXTENDER_STATUS = 30;
   const NO_WEAR = 0;
 
-  function shootWithExtender(fallRolls: readonly [number, number]) {
+  function shootWithExtender(fallRolls: readonly [number, number], team: number = Team.OUR) {
     const sim = newSim();
     const t = sim.state;
-    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const merc = spawn(sim, 0, team, gridNo(80, 80), Direction.SOUTH);
     const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
     const extender = content.items.byName.get('GUN_BARREL_EXTENDER')?.index ?? -1;
     const gun = merc.inv[InvSlot.HAND] as ItemObject;
@@ -257,8 +257,17 @@ describe('the barrel extender (Weapons.cc CalcChanceToHitGun)', () => {
     Object.assign(t, { rng });
     const chance = calcChanceToHitGun(t, merc, enemy.gridNo, 0, AimShot.TORSO, true);
     const dropped = t.worldItems.filter((i) => i.object.item === extender);
-    return { gun, extender, chance, dropped, merc, rng };
+    return { sim, gun, extender, chance, dropped, merc, rng };
   }
+
+  const fellOff = (sim: TacticalSim) => sim.drainEvents().filter((e) => e.type === 'barrelExtenderFellOff');
+
+  it('makes our merc curse and tells it when it falls off, and tells nothing for a soldier of another team or an extender that holds', () => {
+    const ours = shootWithExtender([12, 10]);
+    expect(fellOff(ours.sim)).toEqual([expect.objectContaining({ soldier: ours.merc.id })]);
+    expect(fellOff(shootWithExtender([12, 10], Team.ENEMY).sim)).toEqual([]);
+    expect(fellOff(shootWithExtender([34, 34]).sim)).toEqual([]);
+  });
 
   it('falls off only when its status less two Random(35) is 0 to 9: the original subtracts unsigned, so larger rolls wrap and it holds', () => {
     const holds = shootWithExtender([34, 34]);

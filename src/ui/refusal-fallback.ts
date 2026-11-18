@@ -25,7 +25,7 @@ const IGNORED_BY_THE_LOCKED_INPUT: readonly string[] = [
   'cannotAct',
 ];
 
-const ANSWERED_WITHOUT_A_LINE: readonly string[] = ['refusesOrder', 'noAmmo', 'weaponBroken', 'cannotReach', 'alreadyFacing'];
+const ANSWERED_WITHOUT_A_LINE: readonly string[] = ['refusesOrder', 'noAmmo', 'weaponBroken', 'itemBroken', 'cannotReach', 'alreadyFacing'];
 
 const IGNORED_BY_THE_POOL_KEYS: readonly string[] = ['noMercInSector', 'notRefillable'];
 

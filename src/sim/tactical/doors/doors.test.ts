@@ -10,6 +10,7 @@ import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { animName } from '../anim-states.ts';
 import { states } from '../animation.ts';
+import { type Bullet, shootLock } from '../combat/bullets.ts';
 import { handleDoorChangeFromGridNo, swapStructureForPartner } from '../doors.ts';
 import { apsToMovePlusAction, soldierGiveItem } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
@@ -39,6 +40,7 @@ const NORTH = 0;
 const MERC_PROFILE = 5;
 const WALK_UNDER_WAY_TICKS = 40;
 const DOOR_WALK_TICKS = 3_000;
+const BULLET_THROUGH_THE_LOCK = 40;
 
 let kit: StubSectorKit;
 
@@ -602,6 +604,19 @@ describe('bashing locks', () => {
       expect.objectContaining({ gridNo: DOOR, x: (DOOR % 160) * 10 + 5, y: Math.trunc(DOOR / 160) * 10 + 5, z: 20 }),
     ]);
     expect(blasts(99)).toEqual([]);
+  });
+
+  it('tells a bullet that hits the lock before its damage counts, and tells nothing when the bullet misses it (LOS.cc LOCK_HAS_BEEN_HIT)', () => {
+    const shot = (preRolls: readonly number[]) => {
+      const sim = village();
+      const firer = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+      scripted(sim, preRolls);
+      sim.drainEvents();
+      shootLock(sim.state, { gridNo: DOOR, firer, impact: BULLET_THROUGH_THE_LOCK, impactReduction: 0 } as Bullet);
+      return sim.drainEvents().map((e) => e.type);
+    };
+    expect(shot([0, 0]).filter((type) => type === 'lockHit' || type === 'lockDestroyed')).toEqual(['lockHit', 'lockDestroyed']);
+    expect(shot([1])).toEqual([]);
   });
 
   it('destroys a lock only when the capped damage exceeds the smash difficulty', () => {

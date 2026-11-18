@@ -17,7 +17,8 @@
 // @src spit gas); HandleTakeDamageDeath's bInSector for the helicopter's passengers over the loaded sector (2026-11-08);
 // @src Weapons.cc BulletImpact's STR_LOSES_* of a visible target with a name and STR_HEAD_HIT of any (2026-11-14);
 // @src SoldierGotHitGunFire's STR_LATE_20 of any soldier a leg hit knocks over (2026-11-14); Overhead.cc ExecuteOverhead's
-// @src damage counter, whose TIMECOUNTERDONE PauseTime holds (2026-11-14).
+// @src damage counter, whose TIMECOUNTERDONE PauseTime holds (2026-11-14); SoldierGotHitGunFire's QUOTE_BLINDED and
+// @src SoldierTakeDamage's ShutupaYoFace below consciousness (2026-11-18).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -47,6 +48,7 @@ import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { inInterrogation, inMeanwhile } from '../narrative/meanwhile-rules.ts';
+import { MercQuote } from '../narrative/merc-quotes.ts';
 import { newOKDestination } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { SightFlags } from '../perception/opp.ts';
@@ -353,7 +355,10 @@ export function eventSoldierGotHit(
       s.sleepDrugCounter = 10;
       if (t.pre.int(100) < sleepDartSuccumbChance(s)) breath = i16(s.breathMax * 100);
     } else if (special === Special.BLINDED_BY_SPIT) {
-      if (s.blindedCounter === 0) decayIndividualOpplist(t, s);
+      if (s.blindedCounter === 0) {
+        if (s.team === Team.OUR) t.narrative.sayQuote(s, MercQuote.BLINDED);
+        decayIndividualOpplist(t, s);
+      }
       s.blindedCounter += idiv(damage, 8) + 1;
     }
     breath = i16(breath + BP_GET_HIT);

@@ -28,6 +28,8 @@ describe('the fallback line for a refusal no screen shows', () => {
       'autoBandaging',
       'refusesOrder',
       'noAmmo',
+      'weaponBroken',
+      'itemBroken',
       'alreadyFacing',
     ])
       expect(fallbackRefusalLine(refused(token))).toBeNull();

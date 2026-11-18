@@ -945,6 +945,17 @@ describe('the sound director', () => {
     expect(files(r)[1]).toMatch(/^battlesnds\/011_curse/);
   });
 
+  it('laughs with the psycho who goes to burst and curses the extender that falls off (HandleItem, CalcChanceToHitGun)', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'psychoBurst', tick: 10, soldier: 1 }])]);
+    expect(files(r)[0]).toMatch(/^battlesnds\/007_laugh/);
+    const cursing = rig(world(1));
+    cursing.director.reset([soldier(1, 'STANDING', 0)], []);
+    cursing.director.applyFrames([frame(10, [], [{ type: 'barrelExtenderFellOff', tick: 10, soldier: 1 }])]);
+    expect(files(cursing)[0]).toMatch(/^battlesnds\/007_curse/);
+  });
+
   it('has the merc an item was applied to say COOL1, except after a canteen, which plays its drinking sound instead', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);

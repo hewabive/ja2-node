@@ -468,6 +468,24 @@ export interface GunJammedEvent extends SimEventBase {
   readonly unjammed: boolean;
 }
 
+export interface PsychoBurstEvent extends SimEventBase, CursingSoldier {
+  readonly type: 'psychoBurst';
+}
+
+export interface SecondClipDepletedEvent extends SimEventBase {
+  readonly type: 'secondClipDepleted';
+}
+
+export interface BarrelExtenderFellOffEvent extends SimEventBase {
+  readonly type: 'barrelExtenderFellOff';
+  readonly soldier: number;
+}
+
+export interface CeramicPlatesSmashedEvent extends SimEventBase {
+  readonly type: 'ceramicPlatesSmashed';
+  readonly soldier: number;
+}
+
 export interface GunImprintEvent extends SimEventBase {
   readonly type: 'gunImprint';
   readonly soldier: number;
@@ -923,6 +941,10 @@ export type SimEvent =
   | VehicleDestroyedEvent
   | AttackResolvedEvent
   | GunJammedEvent
+  | PsychoBurstEvent
+  | SecondClipDepletedEvent
+  | BarrelExtenderFellOffEvent
+  | CeramicPlatesSmashedEvent
   | GunImprintEvent
   | ReloadedEvent
   | StatChangedEvent

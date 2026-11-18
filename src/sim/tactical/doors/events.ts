@@ -42,6 +42,11 @@ export interface DoorTrapEvent extends SimEventBase {
   readonly trap: string;
 }
 
+export interface LockHitEvent extends SimEventBase {
+  readonly type: 'lockHit';
+  readonly gridNo: number;
+}
+
 export interface LockDestroyedEvent extends SimEventBase {
   readonly type: 'lockDestroyed';
   readonly soldier: number;
@@ -56,4 +61,4 @@ export interface ContentsExclaimedEvent extends SimEventBase {
   readonly sound: ContentsExclamation;
 }
 
-export type DoorEvent = DoorMenuEvent | DoorResultEvent | DoorTrapEvent | LockDestroyedEvent | ContentsExclaimedEvent;
+export type DoorEvent = DoorMenuEvent | DoorResultEvent | DoorTrapEvent | LockHitEvent | LockDestroyedEvent | ContentsExclaimedEvent;

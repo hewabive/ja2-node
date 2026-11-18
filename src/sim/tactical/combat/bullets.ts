@@ -8,7 +8,8 @@
 // @src AddMissileTrail (fGoingOver is never reset within one MoveBullet);
 // @src Weapons.cc StructureHit, ShotMiss, WindowHit;
 // @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE; CreateAnimationTile and UpdateAniTiles (the miss
-// @src tile's own frame count, from the tileset data for SECONDMISS1, a step per frame once more than 80 ms passed, 2026-11-14).
+// @src tile's own frame count, from the tileset data for SECONDMISS1, a step per frame once more than 80 ms passed, 2026-11-14);
+// @src LOS.cc LOCK_HAS_BEEN_HIT (2026-11-18).
 
 import { lockAt } from '../../../content/formats/locks.ts';
 import { AmmoType, ItemClass, WeaponClass } from '../../../content/items/items.ts';
@@ -464,7 +465,7 @@ function ammoAdjustedReduction(reduction: number, ammo: number, heatCountsAsAP: 
   return reduction;
 }
 
-function shootLock(t: TacticalState, b: Bullet): void {
+export function shootLock(t: TacticalState, b: Bullet): void {
   const door = findDoorInfo(t, b.gridNo);
   if (!door) return;
   const lock = lockAt(t.content.locks, door.lockId);
@@ -472,6 +473,7 @@ function shootLock(t: TacticalState, b: Bullet): void {
   if (t.pre.int(2) !== 0) return;
   let damage = i16(b.impact - b.impactReduction);
   damage = i16(damage + t.pre.int(u32(damage)));
+  t.events.push({ type: 'lockHit', gridNo: b.gridNo });
   if (damageLock(t, b.firer, b.gridNo, damage))
     statChange(t, b.firer, StatKind.MARKSMANSHIP, LOCK_SHOT_MARKSMANSHIP_GAIN, StatCause.SUCCESS);
 }

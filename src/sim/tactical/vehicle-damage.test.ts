@@ -190,7 +190,7 @@ describe('vehicle armour (Weapons.cc TotalArmourProtection, Vehicles.cc GetVehic
     const truck = vehicle(t, Team.CIV, Body.ICECREAMTRUCK, 3);
     const helmet = tank.inv[InvSlot.HELMET]?.status[0];
     const pre = new ScriptedStream([99, 99, 99]);
-    const c = { content: t.content, pre, vehicles: t.vehicles };
+    const c = { content: t.content, pre, vehicles: t.vehicles, events: t.events };
     expect(totalArmourProtection(c, tank, AimShot.HEAD, LIFE, AmmoType.REGULAR)).toBe(SPECTRA_VEST_PROTECTION);
     expect(totalArmourProtection(c, tank, AimShot.HEAD, LIFE, AmmoType.REGULAR)).toBe(SPECTRA_VEST_PROTECTION);
     expect(totalArmourProtection(c, truck, AimShot.LEGS, LIFE, AmmoType.REGULAR)).toBe(KEVLAR_VEST_PROTECTION);

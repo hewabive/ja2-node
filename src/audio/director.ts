@@ -55,6 +55,9 @@
 // @src overhead map, 2026-11-14); TileEngine/Physics.cc HandleArmedObjectImpact (the owner's CURSE1 at a dud, 2026-11-14);
 // @src Tactical/Handle_Doors.cc HandleOpenableStruct (COOL1 after a picked lock or a disarmed trap, CURSE1 on Random(2)
 // @src after a wrong key, drawn here), Tactical/Keys.cc AttemptToBlowUpLock (SMALL_EXPLODE_1 at the door, HIGHVOLUME),
+// @src Tactical/Handle_Items.cc HandleItem (the LAUGH1 of the psycho's burst), Tactical/Weapons.cc CalcChanceToHitGun (the
+// @src CURSE1 of a barrel extender falling off), Tactical/Items.cc AttachObject (the ATTACH_* sounds at MIDVOLUME, the CURSE1
+// @src and COOL1, 2026-11-18);
 // @src Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a failed check, its Random(100) < 40 drawn here, 2026-11-14; a
 // @src check failed while the map screen is up curses through MapSound, 2026-11-14); TacticalAI/AIMain.cc ExecuteAction (the
 // @src growl of a bloodcat in sight that starts a move in combat, its Random(2) and SoundRange drawn here, 2026-11-15).
@@ -685,6 +688,12 @@ export class SoundDirector {
       case 'gunJammed':
         if (!e.unjammed && this.#soldiers.get(e.soldier)?.team === OUR_TEAM)
           this.#play(this.#placed(dryFireCue(book, NOWHERE), this.#sourcePlace(e.soldier)));
+        return;
+      case 'psychoBurst':
+        this.#voiceOf(e, 'LAUGH1');
+        return;
+      case 'barrelExtenderFellOff':
+        this.#battleSound(e.soldier, 'CURSE1', false);
         return;
       case 'gunImprint':
         this.#play(imprintCue(book, e.result === 'imprinted'));

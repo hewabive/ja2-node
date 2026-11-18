@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc GunRange, CalcChanceToHitGun, AICalcChanceToHitGun; Soldier_Control.cc IsValidSecondHandShot;
 // @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff; TacticalAI/AIUtils.cc SoldierDifficultyLevel;
-// @src Soldier_Control.cc GetRobotController.
+// @src Soldier_Control.cc GetRobotController; the curse and STR_LATE_46 of a barrel extender falling off (2026-11-18).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WEAPON_CLASSES, WeaponClass } from '../../../content/items/items.ts';
 import { CELL_X_SIZE, WORLD_COLS } from '../../../content/world/grid.ts';
@@ -136,6 +136,7 @@ function barrelExtenderFallsOff(t: TacticalState, s: Soldier, gun: ItemObject): 
   addItemToPool(t, s.gridNo, createItem(t.content.items, extender, attached.status), Visibility.VISIBLE, s.level);
   attached.item = NOTHING;
   attached.status = 0;
+  if (s.team === Team.OUR) t.events.push({ type: 'barrelExtenderFellOff', soldier: s.id });
   return true;
 }
 

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc CalcBodyImpactReduction, ArmourProtection, TotalArmourProtection, EffectiveArmour,
 // @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass; the vehicle armour of
-// @src TotalArmourProtection with Vehicles.cc GetVehicleArmour (2026-11-04).
+// @src TotalArmourProtection with Vehicles.cc GetVehicleArmour (2026-11-04); str_ceramic_plates_smashed of our merc's
+// @src plates (2026-11-18).
 
 import { AmmoType, ArmourClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { i8, idiv } from '../../../core/int.ts';
@@ -10,8 +11,8 @@ import { deleteObject, type ItemObject, USABLE_STATUS } from '../../items/object
 import { isVehicleBody, type VehicleRecord, validVehicle } from '../../vehicles/vehicle-list.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import type { Soldier } from '../soldier.ts';
-import type { RandomStream } from './context.ts';
+import { type Soldier, Team } from '../soldier.ts';
+import type { CeramicPlatesSmashedEvent, RandomStream } from './context.ts';
 import { AimShot } from './types.ts';
 
 const BODY_IMPACT_REDUCTION = [0, 15, 30, 23];
@@ -21,6 +22,7 @@ export interface ArmourContext {
   readonly content: Pick<TacticalContent, 'items' | 'vehicles'>;
   readonly pre: RandomStream;
   readonly vehicles?: readonly VehicleRecord[];
+  readonly events: { push(event: CeramicPlatesSmashedEvent): unknown };
 }
 
 function ammoArmourAdjust(value: number, ammo: number): number {
@@ -86,17 +88,12 @@ function vehicleArmourProtection(c: ArmourContext, vehicle: Soldier, impact: num
 
 export function totalArmourProtection(c: ArmourContext, target: Soldier, location: number, impact: number, ammo: number): number {
   if (isVehicleBody(target.bodyType)) return vehicleArmourProtection(c, target, impact, ammo);
-  return wornArmourProtection(c.content.items, c.pre, target, location, impact, ammo);
+  return wornArmourProtection(c, target, location, impact, ammo);
 }
 
-function wornArmourProtection(
-  items: ItemTable,
-  pre: RandomStream,
-  target: Soldier,
-  location: number,
-  impact: number,
-  ammo: number,
-): number {
+function wornArmourProtection(c: ArmourContext, target: Soldier, location: number, impact: number, ammo: number): number {
+  const items = c.content.items;
+  const pre = c.pre;
   if (location === AimShot.GLAND) return 0;
   const slot = location === AimShot.HEAD ? InvSlot.HELMET : location === AimShot.LEGS ? InvSlot.LEGS : InvSlot.VEST;
   const armour = target.inv[slot] as ItemObject;
@@ -117,6 +114,7 @@ function wornArmourProtection(
       if (attachment.status < USABLE_STATUS) {
         attachment.item = NOTHING;
         attachment.status = 0;
+        if (target.team === Team.OUR) c.events.push({ type: 'ceramicPlatesSmashed', soldier: target.id });
       }
     }
   }

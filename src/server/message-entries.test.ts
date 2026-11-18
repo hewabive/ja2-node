@@ -22,6 +22,25 @@ const facts: MessageFacts = {
 
 const at = (e: Record<string, unknown>): SimEvent => ({ tick: 40, ...e }) as unknown as SimEvent;
 
+describe('the lines of guns, armour, locks, attachments and gifts', () => {
+  const YELLOW = { kind: 'interface', colour: 145 };
+  const entryOf = (e: Record<string, unknown>) => messageEntriesOf([at(e)], facts).map(({ tick: _tick, ...entry }) => entry);
+  const ivan = { text: 'Ivan' };
+  const fox = { text: 'Fox' };
+
+  it('reports the psycho going to burst, the second clip, the extender, the plates, the lock and the reload of one gun', () => {
+    expect(entryOf({ type: 'psychoBurst', soldier: 0 })).toEqual([{ ...YELLOW, table: 'gzLateLocalizedString', index: 25, args: [ivan] }]);
+    expect(entryOf({ type: 'secondClipDepleted' })).toEqual([{ ...YELLOW, table: 'Message', index: 32 }]);
+    expect(entryOf({ type: 'barrelExtenderFellOff', soldier: 1 })).toEqual([
+      { ...YELLOW, table: 'gzLateLocalizedString', index: 45, args: [fox] },
+    ]);
+    expect(entryOf({ type: 'ceramicPlatesSmashed', soldier: 1 })).toEqual([
+      { ...YELLOW, table: 'str_ceramic_plates_smashed', index: 0, args: [fox] },
+    ]);
+    expect(entryOf({ type: 'lockHit', gridNo: 5 })).toEqual([{ ...YELLOW, table: 'TacticalStr', index: 132 }]);
+  });
+});
+
 describe('message entries from the ScreenMsg sites of the original', () => {
   it('reports noises, stat gains and interrupts in the interface colour', () => {
     const entries = messageEntriesOf(

@@ -30,7 +30,12 @@
 // @src Soldier_Control.cc SoldierGotHitGunFire (STR_LATE_20, 2026-11-14); Handle_UI.cc HandleTalkInit (NO_LOS_TO_TALK_TARGET
 // @src with the merc and a profile, STR_LATE_45 with the merc, STR_LATE_21 with the target, 2026-11-14; STR_LATE_32 with
 // @src Dimitri, 2026-11-14); Overhead.cc HandleGotoNewGridNo's STR_LATE_37 and Items.cc WaterDamage's STR_CAMO_WASHED_OFF
-// @src of a soldier out of sight, by his name or his team's default (2026-11-14).
+// @src of a soldier out of sight, by his name or his team's default (2026-11-14); Handle_Items.cc HandleItem (STR_LATE_26 of
+// @src the psycho's burst) and SoldierGiveItemFromAnimation (ITEM_HAS_BEEN_GIVEN_TO_STR, GUY_HAS_BEEN_PAID_IN_FULL_STR,
+// @src GUY_STILL_OWED_STR), Weapons.cc OKFireWeapon (STR_2ND_CLIP_DEPLETED), CalcChanceToHitGun (STR_LATE_46) and
+// @src TotalArmourProtection (str_ceramic_plates_smashed), LOS.cc (LOCK_HAS_BEEN_HIT), Items.cc AutoReload
+// @src (STR_RELOAD_ONLY_ONE_GUN), ValidItemAttachment and PlaceObject (STR_CANT_ATTACH, STR_ATTACHMENT_ALREADY,
+// @src STR_CANT_USE_TWO_ITEMS by MSG_UI_FEEDBACK) (2026-11-18).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -114,6 +119,7 @@ const GUN_GOT_FINGERPRINT = 111;
 const MERC_HAS_ARRIVED_STR = 80;
 const STR_LOSES_1_HP = 4;
 const STR_PLAYER_REINFORCEMENTS = 10;
+const STR_2ND_CLIP_DEPLETED = 32;
 const STR_HEAD_HIT = 46;
 const STAT_LOSS_LINES: Readonly<Record<string, { readonly onePoint: number; readonly points: number }>> = {
   wisdom: { onePoint: 0, points: 5 },
@@ -128,8 +134,12 @@ const STR_SLIPPED_MARBLES = 50;
 const STR_FAILED_TO_STEAL_SOMETHING = 51;
 const STR_LATE_20 = 19;
 const STR_LATE_21 = 20;
+const STR_LATE_26 = 25;
+const STR_LATE_46 = 45;
 const STR_LATE_45 = 44;
 const NO_LOS_TO_TALK_TARGET = 136;
+const LOCK_HAS_BEEN_HIT = 132;
+const CERAMIC_PLATES_SMASHED = 'str_ceramic_plates_smashed';
 const STR_LATE_37 = 36;
 const STR_LATE_58 = 57;
 const MAP_ERRORS = 'pMapErrorString';
@@ -312,6 +322,11 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   statChanged: (e, facts) => (e.queued ? [] : statGain(e, facts)),
   statChangeAnnounced: statGain,
   reloaded: (e, facts) => (facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', 11, [soldierArg(facts, e.soldier)])] : []),
+  psychoBurst: (e, facts) => [line('gzLateLocalizedString', STR_LATE_26, [namedArg(facts, e)])],
+  secondClipDepleted: () => [line('Message', STR_2ND_CLIP_DEPLETED)],
+  barrelExtenderFellOff: (e, facts) => [line('gzLateLocalizedString', STR_LATE_46, [soldierArg(facts, e.soldier)])],
+  ceramicPlatesSmashed: (e, facts) => [line(CERAMIC_PLATES_SMASHED, 0, [soldierArg(facts, e.soldier)])],
+  lockHit: () => [line('TacticalStr', LOCK_HAS_BEEN_HIT)],
   firstAidDone: (e, facts) => [line('TacticalStr', 83, [soldierArg(facts, e.patient)])],
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [soldierArg(facts, e.soldier)])],
   firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],

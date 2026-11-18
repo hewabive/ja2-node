@@ -9,7 +9,9 @@
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
 // @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths; Soldier_Control.cc
 // @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun); Handle_Items.cc HandleItem
-// @src dispatch to the medkit branch (2026-11-06); the fFromUI refusals and poor shot of HandleItem (2026-11-14).
+// @src dispatch to the medkit branch (2026-11-06); the fFromUI refusals and poor shot of HandleItem (2026-11-14);
+// @src QUOTE_JAMMED_GUN and STR_2ND_CLIP_DEPLETED of CheckForGunJam and OKFireWeapon, QUOTE_USELESS_ITEM of HandItemWorks,
+// @src the LAUGH1 and STR_LATE_26 of the psycho's switch to burst in HandleItem (2026-11-18).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -40,6 +42,7 @@ import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
+import { MercQuote } from '../narrative/merc-quotes.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { ZPos } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -49,7 +52,7 @@ import { StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, Team, Visible } from '../soldier.ts';
 import { shownInSector, type TacticalState, whoIsThere } from '../state.ts';
 import { handleTileTool } from '../tile-tools.ts';
-import { heardOnly } from '../unseen-sources.ts';
+import { cursingSoldier, heardOnly } from '../unseen-sources.ts';
 import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
 import { fireBulletGivenTarget, soldierToSoldierBodyPartChanceToGetThrough } from './bullets.ts';
@@ -99,6 +102,7 @@ export function handItemWorks(t: TacticalState, s: Soldier, slot: number): boole
       }
     } else works = false;
   }
+  if (!works && s.team === Team.OUR) t.narrative.sayQuote(s, MercQuote.USELESS_ITEM);
   if (works && slot === InvSlot.HAND && d?.itemClass === ItemClass.GUN) {
     const second = s.inv[InvSlot.SECOND_HAND] as ItemObject;
     if (def(t, second.item)?.itemClass === ItemClass.GUN && (second.status[0] ?? 0) >= USABLE_STATUS && second.gunShotsLeft > 0)
@@ -232,6 +236,7 @@ function handleGunAttack(
     if (enoughPoints(t.inCombat, s, burstCost) && t.rng.int(3 + s.aimTime) === 0) {
       s.doBurst = 1;
       s.weaponMode = WeaponMode.BURST;
+      t.events.push({ type: 'psychoBurst', ...cursingSoldier(t, s) });
     }
   }
   if (d.itemClass === ItemClass.THROWING_KNIFE) {
@@ -391,6 +396,7 @@ export function checkForGunJam(t: TacticalState, s: Soldier): number {
       o.gunAmmoStatus = -o.gunAmmoStatus;
       deductAmmo(t, s, s.attackingHand);
       t.events.push({ type: 'gunJammed', soldier: s.id, unjammed: false });
+      t.narrative.sayQuote(s, MercQuote.JAMMED_GUN);
       return FireResult.JAMMED;
     }
   } else if (o.gunAmmoStatus < 0) {
@@ -407,7 +413,10 @@ export function checkForGunJam(t: TacticalState, s: Soldier): number {
 }
 
 function okFireWeapon(t: TacticalState, s: Soldier): number {
-  if (s.attackingHand === InvSlot.SECOND_HAND && !enoughAmmo(t, s, s.attackingHand) && s.team === Team.OUR) return FireResult.FAILED;
+  if (s.attackingHand === InvSlot.SECOND_HAND && !enoughAmmo(t, s, s.attackingHand) && s.team === Team.OUR) {
+    t.events.push({ type: 'secondClipDepleted' });
+    return FireResult.FAILED;
+  }
   return checkForGunJam(t, s);
 }
 
