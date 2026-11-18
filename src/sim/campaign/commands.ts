@@ -201,7 +201,7 @@ function shortenRoute(ctx: StrategicContext, cmd: StrategicCommand): CommandResu
   return { ...result, data: { ...result.data, edit } };
 }
 
-function idList(value: unknown): number[] | null {
+export function idList(value: unknown): number[] | null {
   if (!Array.isArray(value)) return null;
   return value.every((x) => typeof x === 'number' && Number.isInteger(x)) ? (value as number[]) : null;
 }

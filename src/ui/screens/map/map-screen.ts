@@ -1823,11 +1823,12 @@ export class MapScreen implements Screen {
     this.#plot = null;
     this.#team.stopGlow();
     this.#message.end();
-    const command = plot.confirmCommand();
-    if (!command) {
+    const confirmed = plot.confirmCommand();
+    if (!confirmed) {
       this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
       return;
     }
+    const command = plot.mode === 'heli' ? { ...confirmed, selected: [...this.list.selectedIds()] } : confirmed;
     const reply = await this.#untilSettled(plot.confirmedRoute(), () => this.#env.client.command(command));
     if (!reply.ok) {
       const text = this.#moveRefusalText(reply, plot.soldier);

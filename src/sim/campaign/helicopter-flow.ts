@@ -13,6 +13,7 @@
 // @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path);
 // @src Map_Screen_Helicopter.cc SkyriderDialogue, SkyriderDialogueWithSpecialEvent (Skyrider's face through the dialogue
 // @src queue, 2026-11-01).
+// @src src/game/Strategic/MapScreen.cc HandleNewDestConfirmation, WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18).
 
 import {
   parseSectorString,
@@ -29,6 +30,7 @@ import { handleKillChopperMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { AC, areAssignmentConditionsMet, canCharacterSquad, JoinSquad } from '../strategic/economy/conditions.ts';
 import { Assignment, OKLIFE } from '../strategic/economy/constants.ts';
 import type { CrewMember, EconomyContext } from '../strategic/economy/ports.ts';
+import { wakeUpSleepingMercsOnFootOrDriving } from '../strategic/economy/rest.ts';
 import { addSoldierToVehicle, Boarding, canCharacterVehicle } from '../strategic/economy/vehicle-assignment.ts';
 import {
   cancelHelicopterRoute,
@@ -82,7 +84,7 @@ import { Team } from '../tactical/soldier.ts';
 import { killPersonInVehicle } from '../tactical/vehicle-passengers.ts';
 import { NO_VEHICLE_SOLDIER } from '../vehicles/vehicle-list.ts';
 import type { CampaignSim } from './campaign-sim.ts';
-import { refuseMove, sectorList } from './commands.ts';
+import { idList, refuseMove, sectorList } from './commands.ts';
 import { vehicleTileOnTheMap } from './vehicle-boarding.ts';
 
 type Command = { readonly type: string; readonly [key: string]: unknown };
@@ -355,6 +357,8 @@ export class HelicopterFlow {
     if (!to) return refuse('badSector', 'to must be a sector such as B13');
     const via = sectorList(cmd.via);
     if (!via) return refuse('badSector', 'via must be a list of sectors such as ["B12"]');
+    const selected = idList(cmd.selected ?? []);
+    if (!selected) return refuse('badSoldiers', 'selected must be a list of soldier ids');
     if (!helicopterVehicle(ctx)) return refusal('noHelicopter');
     const request = cmd.plotted === true ? this.#plottedRequest() : requestGiveSkyriderNewDestination(ctx);
     if (!request.ok) return refusal(request.refusal);
@@ -369,6 +373,7 @@ export class HelicopterFlow {
     if (!path) return refusal('noRoute');
     v.path = path;
     confirmHelicopterRoute(ctx, to);
+    if (this.economy) wakeUpSleepingMercsOnFootOrDriving(this.economy, selected);
     return { ok: true, data: this.#routeData() };
   }
 

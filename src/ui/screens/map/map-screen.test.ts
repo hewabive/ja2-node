@@ -411,7 +411,13 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.hoverSector('B13', PLOT_REST_MS);
       await f.clickSector('B13');
       await f.clickSector('B13');
-      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'B13', extend: true, plotted: true });
+      expect(lastCommand(f)?.cmd).toMatchObject({
+        type: 'heliRoute',
+        to: 'B13',
+        extend: true,
+        plotted: true,
+        selected: f.screen.list.selectedIds(),
+      });
       expect(lastCommand(f)?.reply).toMatchObject({ ok: true, data: { path: ['D13', 'C13', 'B13'] } });
       f.key('a', 0, 'KeyA');
       expect(f.screen.hook().filters.airspace).toBe(false);

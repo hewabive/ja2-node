@@ -1008,7 +1008,8 @@ Rules: `25` (Skyrider, billing, SAM hits, hovering), `16` (vehicle movement); `s
 The helicopter exists once the escorted Skyrider reaches his chopper or a native save owns it; its commands work on the
 map screen only (deviation "Helicopter interface"). `heliPlot` is the click on the helicopter before plotting:
 Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as a refusal; `heliRoute` without
-`plotted` asks him the same way first. `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
+`plotted` asks him the same way first, and its `selected` list wakes those of the listed mercs asleep on foot or at a
+wheel (`Strategic/MapScreen.cc:7575`). `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (original-bugs "Leaving the helicopter in
 flight"), and while it is airborne they do not count for `enterSector`, `tacticalScreen` or the `canEnterSector` hint
 (`noMercThere`, `Strategic/StrategicMap.cc:2286`). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
