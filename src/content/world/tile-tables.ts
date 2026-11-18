@@ -49,6 +49,8 @@ export function parseTileTables(json: unknown): TileTables {
   };
 }
 
+export const BLUE_FLAG_GRAPHIC = 'FIRSTSWITCHES21';
+
 export function tileIndex(tables: TileTables, name: string): number {
   const i = tables.tileIndexByName.get(name);
   if (i === undefined) throw new RangeError(`unknown tile ${name}`);

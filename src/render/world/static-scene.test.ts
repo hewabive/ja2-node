@@ -9,7 +9,7 @@ import { placeWorldStructures } from '../../content/world/placement.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
-import { parseTileTables, tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import { BLUE_FLAG_GRAPHIC, parseTileTables, tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { type Camera, screenToGridNo, tileOrigin, type Viewport, worldOrigin } from './geometry.ts';
 import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeChannel, ShadeKey, shadeKey } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
@@ -229,6 +229,15 @@ describe('static scene order and depth', () => {
     expect(segment(new StaticScene({ ...world, level }, { ...DEFAULT_STATE, reveal, roofLevel: true }), StaticSegment.ROOFS)).toHaveLength(
       1,
     );
+  });
+
+  it('draws a blue flag in the obscured pass (Handle_Items.cc AddBlueFlag, LEVELNODE_SHOW_THROUGH)', () => {
+    const flag = tileIndex(tables, BLUE_FLAG_GRAPHIC);
+    const world = worldWith({ structs: [[g(80, 80), [T('FIRSTSWITCHES', 21)]]] });
+    const marked = new StaticScene({ ...world, blueFlagTile: flag }, DEFAULT_STATE);
+    expect(segment(marked, StaticSegment.STRUCTS)).toEqual([]);
+    expect(segment(marked, StaticSegment.OBSCURED_DITHER)).toHaveLength(1);
+    expect(segment(new StaticScene(world, DEFAULT_STATE), StaticSegment.STRUCTS)).toHaveLength(1);
   });
 
   it('drops every shadow of a tree hemmed in by structures, counting the map edge as one', () => {

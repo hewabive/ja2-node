@@ -223,7 +223,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     screen: (flow) => host.screen({ ...flow, help: () => help.forceMap() }),
   });
   page.frameListener = (ms) => {
-    tactical?.frameTime(ms);
+    tactical?.frameTime(ms, flow.shownScreen);
     map?.frameTime();
     stories?.help.frame();
     stories?.story.frame();

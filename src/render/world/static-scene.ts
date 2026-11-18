@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderStaticWorld, RenderTiles (static layers, node filters, z levels,
 // @src blitter choice), MultiZBlitter; src/game/TileEngine/WorldMan.cc SetTreeTopStateForMap.
+// @src src/game/Tactical/Handle_Items.cc AddBlueFlag (LEVELNODE_SHOW_THROUGH, 2026-11-18).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -75,6 +76,7 @@ export interface StaticWorld {
   readonly structureShades: Uint8Array;
   readonly prepared: LevelRenderData;
   readonly topY: number;
+  readonly blueFlagTile?: number;
   sprite(tile: number): TileSprite | null;
 }
 
@@ -285,7 +287,7 @@ export class StaticScene {
     if (this.#hidden(flags, d.te)) return;
     const p = this.#position(at, d.te, d.sprite, 0);
     const z = structZ(at.wy);
-    const showThrough = (flags & NodeFlags.SHOW_THROUGH) !== 0;
+    const showThrough = (flags & NodeFlags.SHOW_THROUGH) !== 0 || node === w.blueFlagTile;
     if (d.te.flags & TileFlags.MULTI_Z && d.te.zStrip) {
       this.#emitStrips(p, d.te, d.sprite, z, shade, showThrough);
       return;

@@ -438,8 +438,9 @@ export class TacticalHost {
     });
   }
 
-  frameTime(ms: number): void {
+  frameTime(ms: number, shownScreen?: string): void {
     this.#frameTimes.add(ms);
+    this.#sound.followAmbientsOffTheTacticalScreen(shownScreen, this.loaded, this.#o.session.clock);
     this.#syncHook();
   }
 

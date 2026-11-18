@@ -377,6 +377,19 @@ export class SoundDirector {
     this.#scheduleAmbient();
   }
 
+  updateAmbient(minuteOfDay: number | null): void {
+    this.#context = { ...this.#context, minuteOfDay };
+    this.#scheduleAmbient();
+  }
+
+  stopAmbients(): void {
+    for (const slot of this.#ambient) {
+      slot.voice?.stop();
+      slot.voice = null;
+      slot.nextAt = null;
+    }
+  }
+
   stop(): void {
     this.#loops.stopAll();
     this.#helicopter.stop();

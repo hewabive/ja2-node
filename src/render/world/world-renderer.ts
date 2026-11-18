@@ -1,7 +1,7 @@
 import type { Level } from '../../content/world/level.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
-import type { TileTables } from '../../content/world/tile-tables.ts';
+import { BLUE_FLAG_GRAPHIC, type TileTables, tileIndex } from '../../content/world/tile-tables.ts';
 import { sameTileRuns, type TileRun } from '../../protocol/view.ts';
 import { type ScreenRect, type ScreenShift, wholeViewport } from './dirty-rects.ts';
 import {
@@ -299,6 +299,7 @@ export class WorldRenderer {
       structureShades,
       prepared: world.prepared,
       topY: topYOf(world.restrictedScrollId),
+      blueFlagTile: tileIndex(world.tables, BLUE_FLAG_GRAPHIC),
       sprite: (tile) => sprites.tileSprite(tile),
     };
   }

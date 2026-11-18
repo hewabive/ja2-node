@@ -1446,6 +1446,19 @@ describe('the tactical screen in a stub campaign', () => {
     expect(await optionsKeyOpens(f)).toBe(false);
   });
 
+  it('draws no radar picture in a meanwhile (Radar_Screen.cc RenderRadarScreen)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const picture = 'radarmaps/a10.sti';
+    f.world.radarImage = picture;
+    const pictures = () => f.draw().items.filter((i) => i.kind === 'image' && i.asset === picture);
+    f.deliver();
+    expect(pictures()).toHaveLength(1);
+    a10.campaign.campaign.state.meanwhile.inScene = true;
+    f.deliver();
+    expect(pictures()).toEqual([]);
+  });
+
   it('skips the options key in a meanwhile, and the save screen key and the quick save while engaged in a conversation, with no box (Turn_Based_Input.cc:1546, :1822, :1947)', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);

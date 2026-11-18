@@ -3,6 +3,8 @@
 // @src src/game/TileEngine/Environment.cc DAWN_START, DAY_START, DUSK_START, NIGHT_START, BuildDayAmbientSounds;
 // @src TileEngine/Ambient_Control.cc HandleNewSectorAmbience, SetupNewAmbientSound; src/sgp/SoundMan.cc SoundPlayRandom,
 // @src SoundStartRandom (the gap between plays).
+// @src src/game/GameLoop.cc GameLoop, Utils/Music_Control.cc MusicPoll (random sounds serviced on every screen); Laptop/Laptop.cc,
+// @src Options_Screen.cc StopAmbients; Strategic/StrategicMap.cc CheckAndHandleUnloadingOfCurrentWorld DeleteAllAmbients (2026-11-18).
 
 import { type AmbientEntry, AmbientTime, ambientSoundPath } from '../formats/ambient.ts';
 import { type Cue, cueOf, type Rand } from './cue.ts';
@@ -42,6 +44,14 @@ export function ambientGapMs(entry: AmbientEntry, rand: Rand): number {
 
 export function ambientCue(entry: AmbientEntry): Cue {
   return cueOf(ambientSoundPath(entry), 'ambient', entry.volume);
+}
+
+const MAP_SCREEN = 'map';
+const SCREENS_THAT_STOP_AMBIENTS: ReadonlySet<string> = new Set(['laptop', 'options']);
+
+export function ambientsOffTheTacticalScreen(shown: string | undefined, worldLoaded: boolean): 'service' | 'stop' | 'leave' {
+  if (shown === MAP_SCREEN) return worldLoaded ? 'service' : 'stop';
+  return shown !== undefined && SCREENS_THAT_STOP_AMBIENTS.has(shown) ? 'stop' : 'leave';
 }
 
 export function ambientSilenced(map: { readonly basement: boolean; readonly caves: boolean } | null): boolean {

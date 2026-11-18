@@ -2579,7 +2579,7 @@ export class TacticalScreen implements Screen {
       this.#squadList(list, rect, params, view);
       return;
     }
-    const image = this.#env.world.radarImage;
+    const image = inMeanwhile(this.#view()) ? null : this.#env.world.radarImage;
     if (image && this.#env.media.image(image)) drawRadarPicture(list, image, rect.x, rect.y, this.#env.world.night);
     list.pushClip(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height);
     const box = this.#env.world.radarViewport();

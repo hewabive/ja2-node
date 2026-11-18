@@ -193,7 +193,7 @@ export function interactiveNodeKey(node: InteractiveNodeRef): string {
 
 export class FakeWorld implements WorldPresenter {
   readonly ready = true;
-  readonly radarImage = null;
+  radarImage: string | null = null;
   readonly night = false;
   ambientLight = 3;
   readonly located: number[] = [];

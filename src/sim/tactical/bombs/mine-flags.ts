@@ -6,13 +6,12 @@
 
 import { WORLD_MAX } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
-import { tileIndex } from '../../../content/world/tile-tables.ts';
+import { BLUE_FLAG_GRAPHIC, tileIndex } from '../../../content/world/tile-tables.ts';
 import { addStructTileToTail, removeStructTile, structLayerAt } from '../map-changes.ts';
 import type { TacticalState } from '../state.ts';
 
 export const MineFlag = { ENEMY: 0x04, PLAYER: 0x08 } as const;
 
-const BLUE_FLAG_GRAPHIC = 'FIRSTSWITCHES21';
 const GROUND_LEVEL = 0;
 const MAP_MINE_FLAGS = MineFlag.ENEMY | MineFlag.PLAYER;
 

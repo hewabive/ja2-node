@@ -1227,6 +1227,31 @@ describe('the sound director', () => {
   });
 });
 
+describe('ambient sounds off the tactical screen (MusicPoll, SoundStopAllRandom)', () => {
+  const owl = { minTimeMs: 1000, maxTimeMs: 1000, timeCategory: AmbientTime.NIGHT, file: 'owl.wav', volume: 30 };
+  const NIGHT = 23 * 60;
+
+  it('go on when only the ambients are serviced, as on the map screen with the world loaded', () => {
+    const r = rig(world(1, [owl]));
+    r.director.updateAmbient(NIGHT);
+    r.clock += 1000;
+    r.director.updateAmbient(NIGHT);
+    expect(r.cues).toEqual([expect.objectContaining({ file: 'ambient/owl.wav' })]);
+  });
+
+  it('stop and start their gap over once stopped', () => {
+    const r = rig(world(1, [owl]));
+    r.director.updateAmbient(NIGHT);
+    r.director.stopAmbients();
+    r.clock += 1000;
+    r.director.updateAmbient(NIGHT);
+    expect(r.cues).toEqual([]);
+    r.clock += 1000;
+    r.director.updateAmbient(NIGHT);
+    expect(r.cues).toHaveLength(1);
+  });
+});
+
 describe('the sounds of a vehicle', () => {
   const HUMVEE = 22;
   const TANK_NW = 23;

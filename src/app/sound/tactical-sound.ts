@@ -3,7 +3,7 @@ import { SoundDirector, type SoundWorld } from '../../audio/director.ts';
 import { type AudioCounters, AudioEngine } from '../../audio/engine.ts';
 import { listenerView } from '../../audio/positional.ts';
 import type { AnimationTables } from '../../content/anim/tables.ts';
-import { ambientSilenced } from '../../content/audio/ambient-schedule.ts';
+import { ambientSilenced, ambientsOffTheTacticalScreen } from '../../content/audio/ambient-schedule.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import { type AmbientEntry, ambientTablePath, parseAmbientTable } from '../../content/formats/ambient.ts';
 import { ANIMATION_SCRIPTS_PATH, type AnimationScripts, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
@@ -52,6 +52,10 @@ export interface TacticalSoundOptions {
   readonly music?: boolean;
   readonly dataVersion?: DataVersion;
   readonly onTacticalScreen?: () => boolean;
+}
+
+function minuteOfDay(clock: SoundContext['clock']): number | null {
+  return clock ? clock.hour * MINUTES_PER_HOUR + clock.minute : null;
 }
 
 export class TacticalSound {
@@ -203,6 +207,12 @@ export class TacticalSound {
     if (this.#withMusic) this.music.frames(frames);
   }
 
+  followAmbientsOffTheTacticalScreen(shown: string | undefined, worldLoaded: boolean, clock: SoundContext['clock']): void {
+    const action = ambientsOffTheTacticalScreen(shown, worldLoaded);
+    if (action === 'stop') this.#director?.stopAmbients();
+    else if (action === 'service') this.#director?.updateAmbient(minuteOfDay(clock));
+  }
+
   update(ctx: SoundContext): void {
     const director = this.#director;
     this.engine.setListener(listenerView(ctx.camera, ctx.width, ctx.height));
@@ -211,7 +221,7 @@ export class TacticalSound {
     director.setContext({
       selected: ctx.selected,
       inCombat: ctx.inCombat,
-      minuteOfDay: ctx.clock ? ctx.clock.hour * MINUTES_PER_HOUR + ctx.clock.minute : null,
+      minuteOfDay: minuteOfDay(ctx.clock),
     });
     director.update();
   }

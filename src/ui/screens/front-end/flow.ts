@@ -560,6 +560,10 @@ export class FrontEndFlow {
     this.mainMenu();
   }
 
+  get shownScreen(): string | undefined {
+    return this.#screens.screen?.id;
+  }
+
   frames(frames: readonly ViewFrame[]): void {
     this.#afterLaptop();
     const battlePanelWasOpen = this.#battlePanelOpen;
