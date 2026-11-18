@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Personality, SkillTrait } from '../../tactical/soldier.ts';
-import { type ImpReportCharacter, impHasBigBody, impReportRows } from './imp-report.ts';
+import { type ImpReportCharacter, impHasBigBody, impInitialStats, impReportRows } from './imp-report.ts';
 
 const PORTRAITS = [
   { face: 200, bigBody: true },
@@ -25,6 +25,19 @@ const AVERAGE = {
   mechanical: 70,
   explosives: 70,
   medical: 70,
+};
+
+const ZERO_DELTAS = {
+  life: 0,
+  agility: 0,
+  dexterity: 0,
+  strength: 0,
+  leadership: 0,
+  wisdom: 0,
+  marksmanship: 0,
+  mechanical: 0,
+  explosives: 0,
+  medical: 0,
 };
 
 function character(overrides: Partial<ImpReportCharacter> = {}): ImpReportCharacter {
@@ -118,5 +131,16 @@ describe('the I.M.P. results mail (HandleIMPCharProfileResultsMessage)', () => {
     expect(looks(character({ faceIndex: 207, initial: { ...AVERAGE, strength: 80 } }))).toEqual([201, 202]);
     expect(looks(character({ faceIndex: 208, sex: 1 }))).toEqual([205, 206]);
     expect(looks(character({ faceIndex: 999, sex: 1 }))).toEqual([205, 206]);
+  });
+});
+
+describe('the stats the report reads (EMail.cc HandleIMPCharProfileResultsMessage bInitial*)', () => {
+  it('are the profile less the gains a save carries, in the signed byte of the original', () => {
+    const trained = { ...AVERAGE, marksmanship: 95, wisdom: 90, deltas: { ...ZERO_DELTAS, marksmanship: 25, wisdom: -40 } };
+    expect(impInitialStats(trained)).toEqual({ ...AVERAGE, marksmanship: 70, wisdom: 130 - 256 });
+  });
+
+  it('are the profile itself when it carries no gains, as a character created in this game does', () => {
+    expect(impInitialStats(AVERAGE)).toEqual(AVERAGE);
   });
 });

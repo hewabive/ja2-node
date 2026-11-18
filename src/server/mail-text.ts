@@ -9,7 +9,7 @@ import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { mailOffset } from '../content/strategic/laptop-content.ts';
 import { sprintMoney } from '../content/text/money.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { impReportRows } from '../sim/campaign/laptop/imp-report.ts';
+import { impInitialStats, impReportRows } from '../sim/campaign/laptop/imp-report.ts';
 import type { Email } from '../sim/campaign/laptop/laptop-state.ts';
 import { PLAYER_GENERATED_CHARACTER_ID } from '../sim/campaign/laptop/save-import.ts';
 import type { TextSource } from './campaign-session.ts';
@@ -99,7 +99,7 @@ function impReport(campaign: CampaignSim, mail: Email, texts: TextSource): strin
       attitude: character.attitude,
       skillTrait: character.skillTrait,
       skillTrait2: character.skillTrait2,
-      initial: character,
+      initial: impInitialStats(character),
     },
     portraits,
     mail.id % 2 === 0,

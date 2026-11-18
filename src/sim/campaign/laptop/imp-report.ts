@@ -3,8 +3,10 @@
 // @src src/game/Laptop/EMail.cc HandleIMPCharProfileResultsMessage, the IMP_RESULTS_*, IMP_PERSONALITY_*, IMP_ATTITUDE_*,
 // @src IMP_SKILLS_*, IMP_PHYSICAL_* and IMP_PORTRAIT_* defines; Laptop/IMP_Compile_Character.cc IMPCharacterHasBigBody,
 // @src FindIMPPortraitByFace; Tactical/Soldier_Profile_Type.h SUPER_STAT_VALUE and the other thresholds. The Random(32767)
-// @src parity that picks one of the two looks paragraphs is the caller's fixed choice.
+// @src parity that picks one of the two looks paragraphs is the caller's fixed choice; the bInitial* stats (current
+// @src minus the deltas a save carries, 2026-11-18).
 
+import { i8 } from '../../../core/int.ts';
 import { Personality, SkillTrait } from '../../tactical/soldier.ts';
 
 const SUPER_STAT_VALUE = 80;
@@ -144,6 +146,26 @@ export interface ImpReportStats {
   readonly mechanical: number;
   readonly explosives: number;
   readonly medical: number;
+}
+
+export interface ImpReportProfile extends ImpReportStats {
+  readonly deltas?: Readonly<Record<keyof ImpReportStats, number>>;
+}
+
+export function impInitialStats(p: ImpReportProfile): ImpReportStats {
+  const initial = (stat: keyof ImpReportStats) => i8(p[stat] - (p.deltas?.[stat] ?? 0));
+  return {
+    life: initial('life'),
+    agility: initial('agility'),
+    dexterity: initial('dexterity'),
+    strength: initial('strength'),
+    leadership: initial('leadership'),
+    wisdom: initial('wisdom'),
+    marksmanship: initial('marksmanship'),
+    mechanical: initial('mechanical'),
+    explosives: initial('explosives'),
+    medical: initial('medical'),
+  };
 }
 
 export interface ImpReportCharacter {

@@ -24,6 +24,8 @@ import { aimListingOrder } from './laptop-view.ts';
 import { emailText, IMP_REPORT_FILE, MAIL_TEXT_FILE, mailSubject } from './mail-text.ts';
 import type { Session } from './session.ts';
 
+const SUPER_SKILL = 90;
+
 let kit: StubSectorKit;
 
 const ELEVEN_HOURS = 11 * 3600;
@@ -382,6 +384,39 @@ describe('the mail text the server assembles', () => {
     });
     expect(emailText(session.campaign, legacy, texts)?.paragraphs).toEqual(expected(legacy.id));
     expect(expected(named.id)).not.toEqual(expected(legacy.id));
+  });
+
+  it('reports a character of an imported save by the stats he started with, not the ones he trained up to', async () => {
+    const { session, live } = await newGame(123);
+    live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
+    const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
+    const profile = (created.data as { profile: number }).profile;
+    const flow = session.campaign.laptop;
+    const record = flow?.profileRecord(profile);
+    if (!flow || !record) throw new Error('no character');
+    const c = flow.content;
+    const mail = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'), { firstData: profile });
+    const gain = SUPER_SKILL - record.marksmanship;
+    const deltas = {
+      expLevel: 0,
+      life: 0,
+      agility: 0,
+      dexterity: 0,
+      wisdom: 0,
+      marksmanship: gain,
+      medical: 0,
+      mechanical: 0,
+      explosives: 0,
+      leadership: 0,
+      strength: 0,
+    };
+    session.campaign.state.laptop.imp.profiles.set(profile, { ...record, marksmanship: SUPER_SKILL, deltas } as typeof record);
+    const rows = (marksmanship: number) =>
+      impReportRows({ ...record, initial: { ...record, marksmanship } }, c.imp.portraits, mail.id % 2 === 0).map((r) =>
+        r.appendName ? `imp:${r.row} Stub Tester` : `imp:${r.row}`,
+      );
+    expect(rows(record.marksmanship)).not.toEqual(rows(SUPER_SKILL));
+    expect(emailText(session.campaign, mail, fakeTexts(new Map()))?.paragraphs).toEqual(rows(record.marksmanship));
   });
 });
 
