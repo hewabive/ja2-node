@@ -1009,7 +1009,8 @@ map screen only (deviation "Helicopter interface"). `heliPlot` is the click on t
 Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as a refusal; `heliRoute` without
 `plotted` asks him the same way first. `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (original-bugs "Leaving the helicopter in
-flight"). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
+flight"), and while it is airborne they do not count for `enterSector`, `tacticalScreen` or the `canEnterSector` hint
+(`noMercThere`, `Strategic/StrategicMap.cc:2286`). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
 at its tile. The tactical `soldiers` list him with `vehicle {id, driver}` (the vehicle's id, whether he drives) at the
 vehicle's tile, which he does not occupy: the client draws no sprite and no light for him and its cursor never finds
 him, while the radar and the overhead map mark his tile as the original's do. A vehicle of ours lists the mercs aboard

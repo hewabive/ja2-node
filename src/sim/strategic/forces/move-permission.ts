@@ -3,9 +3,10 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc CanCharacterMoveInStrategic, CanEntireMovementGroupMercIsInMove;
 // @src Assignments.cc PlayerSoldierTooTiredToTravel (through MercPort.tooTiredToTravel); Tactical/Squads.cc
 // @src IsRobotControllerInSquad and Tactical/Vehicles.cc IsRobotControllerInVehicle (through MercPort); the bloodcat
-// @src ambush and the museum chalice checks of CanCharacterMoveInStrategic (2026-11-01).
+// @src ambush and the museum chalice checks of CanCharacterMoveInStrategic (2026-11-01); StrategicMap.cc
+// @src CanGoToTacticalInSector (2026-11-18).
 
-import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { MuseumRooms } from '../../tactical/narrative/constants.ts';
 import { isProfileDead } from '../../tactical/profiles.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
@@ -142,4 +143,15 @@ export function canEntireMovementGroupMove(ctx: StrategicContext, id: number, lo
     if (block) return block;
   }
   return null;
+}
+
+export function canGoToTacticalInSector(ctx: StrategicContext, mercs: readonly StrategicMerc[], sector: Sector): boolean {
+  for (const m of mercs) {
+    if (m.life === 0 || m.isVehicle) continue;
+    if (m.assignment === Assignment.IN_TRANSIT || m.assignment === Assignment.ASSIGNMENT_POW) continue;
+    if (m.assignment === Assignment.ASSIGNMENT_DEAD) continue;
+    if (soldierAboardAirborneHeli(ctx, m) || m.betweenSectors) continue;
+    if (sameSector(m.sector, sector)) return true;
+  }
+  return false;
 }

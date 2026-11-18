@@ -7,10 +7,10 @@
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { sameSector } from '../../content/strategic/sector-ids.ts';
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
-import { canGoToTacticalInSector } from '../campaign/sector-flow.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import type { StrategicKnowledge } from '../knowledge/strategic.ts';
 import { sectorFromName } from '../knowledge/strategic-state.ts';
+import { canGoToTacticalInSector } from '../strategic/forces/move-permission.ts';
 import { sectorParam, strategicOf } from './strategic-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 
@@ -32,7 +32,7 @@ function refusalOf(world: KnowledgeWorld, sk: StrategicKnowledge, sector: Sector
   if (exit) return exit;
   const loaded = sk.strategic.worldSector;
   if (sk.enemyInLoadedSector && loaded && world.view.mapPath && !sameSector(sectorFromName(loaded), sector)) return 'battleElsewhere';
-  if (!canGoToTacticalInSector(sk.ctx.crew.all(), sector)) return 'noMercThere';
+  if (!canGoToTacticalInSector(sk.ctx, sk.ctx.crew.all(), sector)) return 'noMercThere';
   const exists = (path: string) => sk.rules.mapExists(path);
   if (!exists(sectorMapPath(exists, sector, false))) return 'mapNotLoaded';
   return null;

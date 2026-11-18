@@ -18,10 +18,9 @@
 // @src no 'm'; the campaign's own map switches bypass it, 2026-11-15); InternalLeaveTacticalScreen's ShutdownCurrentPanel
 // @src after the unload (the item description box closes, 2026-11-15).
 
-import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
+import { sectorFromId } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
-import { Assignment } from '../strategic/forces/constants.ts';
-import type { StrategicMerc } from '../strategic/forces/ports.ts';
+import { canGoToTacticalInSector } from '../strategic/forces/move-permission.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import {
   CompressionStop,
@@ -42,12 +41,7 @@ import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { mapScreenExitRefusalOf } from './map-screen-exits.ts';
 import { forgetSomeoneElseInSector } from './someone-else-in-sector.ts';
 
-const ABSENT = new Set<number>([Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW, Assignment.ASSIGNMENT_DEAD]);
 const ABANDON_FIGHT_TEXT = 'a boxing match is under way; send "abandonFight": true to abandon it and open the map';
-
-function canGoToTactical(m: StrategicMerc, world: Sector): boolean {
-  return m.life > 0 && !m.isVehicle && !m.betweenSectors && !ABSENT.has(m.assignment) && sameSector(m.sector, world);
-}
 
 export function openMapScreen(campaign: CampaignSim, abandonFight = false): CommandResult {
   const s = campaign.state;
@@ -109,7 +103,8 @@ export function openTacticalScreen(campaign: CampaignSim): CommandResult {
   if (s.flow !== 'strategic' || !world || !campaign.tactical) return refuse('noSector', 'no sector is loaded');
   const exit = mapScreenExitRefusalOf(campaign);
   if (exit) return refused(exit);
-  if (!campaign.strategic?.mercs.all().some((m) => canGoToTactical(m, world)))
+  const strategic = campaign.strategic;
+  if (!strategic || !canGoToTacticalInSector(strategic, strategic.mercs.all(), world))
     return refuse('noMercThere', 'no merc of yours is in the loaded sector');
   syncStrategicTurnTimes(campaign.tactical.state.realtimeClock, s.realMs);
   returnToLoadedSector(campaign);

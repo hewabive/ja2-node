@@ -124,6 +124,20 @@ function boardFlyAndLeave(mode?: RunMode): CampaignSim {
 }
 
 describe('the helicopter commands', () => {
+  it('keeps passengers in the air out of tactical, in the air alone: on the ground and for those who got off they count (CanGoToTacticalInSector, StrategicMap.cc:2286)', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    for (const soldier of [0, 1, 2]) expect(c.dispatch({ type: 'boardVehicle', soldier, vehicle: 'helicopter' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'enterSector', sector: 'A9' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'heliRoute', to: 'A10' }).ok).toBe(true);
+    compressUntilStop(c);
+    expect(strategicView(c)?.helicopter).toMatchObject({ sector: 'A10', airborne: true });
+    expect(refusalOf(c.dispatch({ type: 'enterSector', sector: 'A10' }))).toBe('noMercThere');
+    expect(c.dispatch({ type: 'leaveVehicle', soldier: 0 }).ok).toBe(true);
+    expect(refusalOf(c.dispatch({ type: 'enterSector', sector: 'A10' }))).not.toBe('noMercThere');
+  });
+
   it('boards, flies, bills, lets passengers off while hovering and refuses what the original refuses, the same across reloads', async () => {
     await expectReloadsInvisible(boardFlyAndLeave);
   });

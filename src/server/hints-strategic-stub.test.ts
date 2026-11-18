@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawnSoldier } from '../../tests/support/combat.ts';
 import {
   type ClientSide,
+  clientAnswer,
   clientSide,
   expectHintsAgree,
   type HintSources,
@@ -119,6 +120,25 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     enterCombatMode(sim.state, Team.ENEMY);
     const hint = await c.session.query({ type: 'assignmentOptions', soldier: PASSENGER });
     expect(hint.data).toEqual(JSON.parse(JSON.stringify(assignmentOptionsFor(economy, passenger))));
+  });
+
+  it('agree that passengers of the hovering helicopter cannot go tactical (CanGoToTacticalInSector, StrategicMap.cc:2286)', async () => {
+    const c = await landedCampaign(37);
+    withHelicopter(c);
+    const answers = async (sector: string) => {
+      const q = { type: 'canEnterSector', sector };
+      return [(await c.session.query(q)).data, clientAnswer(client, serialisedView(c.session), q).data];
+    };
+    for (const m of c.sim.view().strategic?.mercs ?? [])
+      expect(c.sim.dispatch({ type: 'boardVehicle', soldier: m.id, vehicle: 'helicopter' })).toMatchObject({ ok: true });
+    const allowed = { allowed: true };
+    expect(await answers('A9')).toEqual([allowed, allowed]);
+    expect(c.sim.dispatch({ type: 'heliRoute', to: 'A10' })).toMatchObject({ ok: true });
+    c.session.advance({ worldSeconds: ROUTE_STEP_SECONDS });
+    c.session.advance({ idle: true });
+    expect(c.sim.view().strategic?.helicopter).toMatchObject({ sector: 'A10', airborne: true });
+    const refused = { allowed: false, reason: 'noMercThere' };
+    expect(await answers('A10')).toEqual([refused, refused]);
   });
 
   it('agree while the squad travels between sectors', async () => {
