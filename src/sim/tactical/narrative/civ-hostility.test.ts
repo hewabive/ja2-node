@@ -406,7 +406,7 @@ describe('sight rules', () => {
     Object.assign(slay, { profile: Profile.SLAY });
     newSightingRules(sim.state, jim, slay);
     newSightingRules(sim.state, carmen, slay);
-    expect([jim.ai.orders, carmen.ai.attitude]).toEqual([Orders.SEEKENEMY, 6]);
+    expect([jim.ai.orders, carmen.ai.attitude]).toEqual([Orders.SEEKENEMY, Attitude.ATTACKSLAYONLY]);
     expect(port.calls).toEqual([`record ${Profile.CARMEN} 28`]);
   });
 });
