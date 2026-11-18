@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldMan.cc WhoIsThere2; Tactical/Overhead.cc AddMercSlot, RemoveMercSlot (the vector of
 // @src Stracciatella, 2026-11-02); Soldier_Control.cc SetSoldierGridNo (no level node for a driver or passenger, 2026-11-05);
-// @src FOR_EACH_MERC and FOR_EACH_IN_TEAM with bInSector (mercsInSector, teamInSector, 2026-11-08).
+// @src FOR_EACH_MERC and FOR_EACH_IN_TEAM with bInSector (mercsInSector, teamInSector, 2026-11-08); Rotting_Corpses.cc
+// @src TurnSoldierIntoCorpse, which leaves a dead merc of ours bInSector and in his merc slot (2026-11-18).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
@@ -734,4 +735,10 @@ export function teamMembers(t: Pick<TacticalState, 'soldiers'>, team: number): S
 
 export function teamInSector(t: Pick<TacticalState, 'soldiers'>, team: number): Soldier[] {
   return t.soldiers.filter((s): s is Soldier => s !== undefined && s !== null && s.team === team && inSector(s));
+}
+
+export function ourTeamInSectorWithTheDead(t: Pick<TacticalState, 'soldiers' | 'mercSlots'>): Soldier[] {
+  return t.soldiers.filter(
+    (s): s is Soldier => s !== undefined && s !== null && s.team === Team.OUR && (inSector(s) || t.mercSlots.includes(s)),
+  );
 }

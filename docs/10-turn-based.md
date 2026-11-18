@@ -181,6 +181,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | An AI interrupt nobody uses stays hidden, and our merc walks on to his destination | `turns/turns.test.ts` |
 | An AI attack out of combat is cancelled by the combat it starts and decided again; the rest of the attacker's team sits that turn out | `ai/combat-ai.test.ts` |
 | A soldier in his death animation (life 0) counts as a capable enemy, an unconscious one does not | `turns/end-of-battle.test.ts` |
+| A dead merc of ours keeps `bInSector` and his merc slot with no tile: he counts among the fallen of a lost battle and among those who fought a won one until he leaves the sector | `turns/end-of-battle.test.ts`, `src/sim/campaign/battle-scenario.test.ts` "a tactical battle lost to deaths" |
+| A sector with nobody of ours in it counts as a lost battle: none down out of none in battle | `turns/end-of-battle.test.ts` "counts a sector with nobody of ours …" |
+| `fOnlyEPCsLeft` asks for a soldier who is both robot and EPC: the recruited robot alone cannot hold a battle, a standing human EPC can | `turns/end-of-battle.test.ts` |
 | An unalerted neutral civilian acting out a quote record costs the AI list its one-in-ten roll and is handled anyway | `turns/ai-list.test.ts` |
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
 | Combat ended inside a conversation (an NPC's `END_COMBAT`) runs no real-time turn on leaving it, only the forced opplist decay | `turns/realtime-turns.test.ts` "runs at once without the real-time turn …" |

@@ -200,6 +200,7 @@ describe('creature turn', () => {
   it('bites the head of a dying merc and regenerates on its next turn', () => {
     const sim = newCombatSim(content);
     const prey = merc(sim, 0, gridNo(80, 80));
+    merc(sim, 1, gridNo(20, 20));
     const female = spawnCreature(sim, 52, Body.ADULTFEMALEMONSTER, gridNo(80, 81), Direction.NORTH);
     prey.life = 10;
     female.life = 40;

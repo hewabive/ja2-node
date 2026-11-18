@@ -25,10 +25,13 @@ import { fact, QuestStatus } from '../strategic/narrative/facts.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
+import { handleSoldierDeath } from '../tactical/combat/death.ts';
+import { soldierTakeDamage } from '../tactical/combat/hit.ts';
+import { DamageReason } from '../tactical/combat/types.ts';
 import { keyItemForKeyId } from '../tactical/doors/keys.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { OKLIFE, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
-import { teamMembers } from '../tactical/state.ts';
+import { OKLIFE, type Soldier, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import { checkForEndOfBattle } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { sectorKey } from './sector-diff.ts';
@@ -521,6 +524,70 @@ describe('autoresolve from the strategic state', () => {
     const dead = c.state.sectorDiffs.get(sectorKey(DRASSEN))?.corpses ?? [];
     expect(dead.length).toBeGreaterThan(1);
     expect(dead.filter((k) => !gridNoOnVisibleWorldTile(RestrictedScroll.BASEMENT, k.gridNo))).toEqual([]);
+  });
+});
+
+describe('a tactical battle lost to deaths', () => {
+  const SKULL_ANIMATION_TICKS = 400;
+  const DOWNED_LIFE = OKLIFE - 1;
+
+  function battleAtA9(seed: number, mercs: number, setUp: (c: CampaignSim) => void = () => {}) {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed, mercs, garrison: { admins: 0, troops: 3, elites: 0 } });
+    setUp(c);
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const t = c.tactical?.state;
+    if (!t) throw new Error('A9 is not loaded');
+    t.turn.enemyInSector = true;
+    c.drainEvents();
+    return { c, roster, t, soldiers: roster.all().map((m) => m.soldier) };
+  }
+
+  function killOutright(t: TacticalState, s: Soldier): void {
+    soldierTakeDamage(t, s, s.life, 0, DamageReason.GUNFIRE, null);
+    handleSoldierDeath(t, s);
+  }
+
+  it('is lost when the last merc is killed outright (Rotting_Corpses.cc:737, Overhead.cc:4959)', () => {
+    const { c, soldiers, t } = battleAtA9(41, 1, (campaign) => {
+      const a9 = campaign.state.map.elements[A9.x + A9.y * 18];
+      if (a9) a9.enemyControlled = false;
+    });
+    killOutright(t, soldiers[0] as Soldier);
+    const { events } = advance(c, { ticks: SKULL_ANIMATION_TICKS });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'combatEnded', reason: 'lost' }));
+    expect(events.find((e) => e.type === 'battleResult')).toMatchObject({ sector: 'A9', result: 'defeat', via: 'tactical' });
+    expect(events.filter((e) => e.type === 'sectorLost')).toMatchObject([{ sector: 'A9', kind: 'town' }]);
+  });
+
+  it('is lost when one merc is killed outright and the other is down, who dies with the battle', () => {
+    const { c, roster, soldiers, t } = battleAtA9(42, 2);
+    const [killed, downed] = soldiers as [Soldier, Soldier];
+    downed.life = DOWNED_LIFE;
+    killOutright(t, killed);
+    const { events } = advance(c, { ticks: SKULL_ANIMATION_TICKS });
+    expect(events.find((e) => e.type === 'battleResult')).toMatchObject({ result: 'defeat' });
+    expect(roster.all().map((m) => m.soldier.life)).toEqual([0, 0]);
+  });
+
+  it('goes on while another merc stands', () => {
+    const { c, soldiers, t } = battleAtA9(43, 2);
+    killOutright(t, soldiers[0] as Soldier);
+    const { events } = advance(c, { ticks: SKULL_ANIMATION_TICKS });
+    expect(events.some((e) => e.type === 'battleResult')).toBe(false);
+    expect(c.tactical).not.toBeNull();
+  });
+
+  it('passes to autoresolve when a merc killed outright leaves militia fighting', () => {
+    const { c, soldiers, t } = battleAtA9(21, 2, (campaign) => {
+      sectorInfo(campaign.state.map, A9).militia.splice(0, MILITIA.length, 4, 0, 0);
+    });
+    expect(teamMembers(t, Team.ENEMY).length).toBeGreaterThan(0);
+    expect(teamMembers(t, Team.MILITIA).length).toBeGreaterThan(0);
+    for (const s of soldiers) killOutright(t, s);
+    const { events } = advance(c, { ticks: SKULL_ANIMATION_TICKS });
+    expect(events.some((e) => e.type === 'battleResult' && e.via === 'tactical')).toBe(false);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'preBattle', sector: 'A9', autoStart: true }));
   });
 });
 

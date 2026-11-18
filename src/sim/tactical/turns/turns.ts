@@ -34,7 +34,9 @@
 // @src SoldierHasSeenEnemiesLastFewTurns, CheckForLosingEndOfBattle, CheckForEndOfBattle's battles fought and EndTurn's
 // @src moved mark; IsTeamActive's
 // @src bMenInSector, which for our team counts every soldier made for it, Overhead.h, Soldier_Create.cc AddManToTeam
-// @src (2026-11-08); ExitCombatMode's ENGAGED_IN_CONV gate on the real-time turn, the decay forced either way (2026-11-14).
+// @src (2026-11-08); ExitCombatMode's ENGAGED_IN_CONV gate on the real-time turn, the decay forced either way (2026-11-14);
+// @src CheckForLosingEndOfBattle's whole count: the dead keep bInSector (Rotting_Corpses.cc TurnSoldierIntoCorpse), an empty
+// @src sector counts as lost, fOnlyEPCsLeft (2026-11-18).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -64,6 +66,7 @@ import { sayBattleEndQuote, sayLullQuote, weSawSomeoneThisTurn } from '../narrat
 import { boxingActive, boxingFight, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { clearBuddyWitnessedQuotes, okControllableMerc } from '../narrative/merc-quotes.ts';
+import { amARobot } from '../narrative/robot.ts';
 import { clearBattleSightingQuotes } from '../narrative/sighting-quotes.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
@@ -107,7 +110,16 @@ import {
   shownToPlayer,
   Team,
 } from '../soldier.ts';
-import { mercs, mercsInSector, type RealtimeClock, soldiersById, type TacticalState, teamInSector, teamMembers } from '../state.ts';
+import {
+  mercs,
+  mercsInSector,
+  ourTeamInSectorWithTheDead,
+  type RealtimeClock,
+  soldiersById,
+  type TacticalState,
+  teamInSector,
+  teamMembers,
+} from '../state.ts';
 import { turnOffExpiredXRay, turnOffXRayAtCombatTurnStart } from '../xray.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { handlePersonalityAtTurnStart } from './personality.ts';
@@ -614,10 +626,13 @@ function militiaStillFighting(t: TacticalState): boolean {
   return teamMembers(t, Team.MILITIA).some((s) => s.side === Side.FRIENDLY && s.life >= OKLIFE);
 }
 
+function holdsTheBattleForUs(t: TacticalState, s: Soldier): boolean {
+  return s.life >= OKLIFE && !(amARobot(t, s) && t.narrative.isEpc(s));
+}
+
 export function checkForLosingEndOfBattle(t: TacticalState): boolean {
-  const ours = teamInSector(t, Team.OUR).filter((s) => s.bodyType < Body.HUMVEE);
-  if (ours.length === 0) return false;
-  if (!ours.every((s) => s.life < OKLIFE)) return false;
+  const ours = ourTeamInSectorWithTheDead(t).filter((s) => s.bodyType < Body.HUMVEE);
+  if (ours.some((s) => holdsTheBattleForUs(t, s))) return false;
   if (militiaStillFighting(t) && t.sectorHooks.militiaFinishBattle(t)) return false;
   if (ours.some((s) => s.life !== 0)) {
     t.turn.killingGuysForLosingBattle = true;
@@ -652,7 +667,7 @@ export function endBattleAfterSurrender(t: TacticalState): void {
 }
 
 function ourMercsFinishFoughtBattle(t: TacticalState): void {
-  for (const s of teamInSector(t, Team.OUR)) {
+  for (const s of ourTeamInSectorWithTheDead(t)) {
     const p = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
     if (p) p.battlesFought++;
     if (s.life >= OKLIFE && !s.collapsed && onSquad(t, s)) clearBuddyWitnessedQuotes(t, s);
