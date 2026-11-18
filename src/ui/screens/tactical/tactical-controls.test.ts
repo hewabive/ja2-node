@@ -2052,6 +2052,100 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.widget(`slot${POCKET}`).enabled).toBe(false);
   });
 
+  it('shows the look cursor in combat while the middle button is held, and not with Shift (QueryTBMiddleButton)', async () => {
+    const f = await inCombat();
+    const at = f.world.pickPoint(merc(f, 0).gridNo + 3);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerDown', at.x, at.y, MouseButton.MIDDLE);
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.LOOKCURSOR_MODE);
+    pointer(f, 'pointerUp', at.x, at.y, MouseButton.MIDDLE);
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.LOOKCURSOR_MODE);
+    f.screen.controls.input.changeToMove();
+    f.t.frame();
+    f.t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
+    f.t.runtime.input({
+      kind: 'pointerDown',
+      x: at.x,
+      y: at.y,
+      button: MouseButton.MIDDLE,
+      buttons: 0,
+      wheel: 0,
+      modifiers: KeyModifier.SHIFT,
+    });
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).not.toBe(UiMode.LOOKCURSOR_MODE);
+  });
+
+  it('adjusts the aim with the wheel in combat only (TacticalViewPortTouchCallbackTB)', async () => {
+    const wheelAim = async (f: TacticalUiTest) => {
+      const hint = f.client.hint.bind(f.client);
+      f.client.hint = (request) =>
+        request.type === 'estimateAttack'
+          ? {
+              state: 'ready',
+              answer: { ok: true, data: { cursor: 'target', apCost: 0, apCostByAim: [], actionPoints: 100 } },
+              source: 'local',
+            }
+          : hint(request);
+      const at = f.world.pickPoint(merc(f, 0).gridNo + 3);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+      f.t.frame();
+      f.t.frame();
+      f.screen.controls.input.override(UiEvent.CA_ON_TERRAIN);
+      f.t.frame();
+      expect(f.screen.controls.input.mode).toBe(UiMode.CONFIRM_ACTION_MODE);
+      const before = f.screen.controls.input.aimOf(0).shownAimTime;
+      f.t.runtime.input({ kind: 'wheel', x: at.x, y: at.y, button: 0, buttons: 0, wheel: 1, modifiers: 0 });
+      return f.screen.controls.input.aimOf(0).shownAimTime - before;
+    };
+    expect(await wheelAim(await tacticalUiTest(kit, ui))).toBe(0);
+    expect(await wheelAim(await inCombat())).toBeGreaterThan(0);
+  });
+
+  it('pans the view with Shift and the middle button, a drag of 20 pixels a step, until the button or the viewport is left (TogglePanMode)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const shiftDown = (x: number, y: number) =>
+      f.t.runtime.input({ kind: 'pointerDown', x, y, button: MouseButton.MIDDLE, buttons: 0, wheel: 0, modifiers: KeyModifier.SHIFT });
+    f.t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
+    pointer(f, 'pointerMove', 300, 150, MouseButton.LEFT);
+    f.t.frame();
+    shiftDown(300, 150);
+    f.t.frame();
+    f.t.frame();
+    expect([f.screen.controls.input.mode, f.screen.controls.input.uiCursor]).toEqual([UiMode.PAN_MODE, 'FLOATING_X_UICURSOR']);
+    f.t.runtime.input({ kind: 'keyUp', key: 'Shift', code: 'ShiftLeft', modifiers: 0 });
+    pointer(f, 'pointerMove', 345, 150, MouseButton.LEFT);
+    f.t.frame();
+    f.t.frame();
+    f.t.frame();
+    expect(f.world.scrolled).toEqual([{ dx: -40, dy: 0 }]);
+    pointer(f, 'pointerUp', 345, 150, MouseButton.MIDDLE);
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+    f.t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
+    shiftDown(345, 150);
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.PAN_MODE);
+    const { rect } = f.widget('teamFaceRegion0');
+    pointer(f, 'pointerMove', rect.x + 5, rect.y + 5, MouseButton.LEFT);
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+  });
+
+  it('changes to the action cursor on a left click of the first hand on the team panel (TMClickFirstHandInvCallbackPrimary)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await f.click('teamFirstHand0');
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+  });
+
   it('cycles the seen enemies by e and by the enemy indicator from one last enemy, stopping the other locators, as CycleVisibleEnemies does', async () => {
     const f = await inCombat();
     const selected = merc(f, f.screen.selected ?? 0);

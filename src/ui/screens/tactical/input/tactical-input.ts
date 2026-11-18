@@ -1,5 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Turn_Based_Input.cc TacticalViewPortTouchCallbackTB and Real_Time_Input.cc
+// @src TacticalViewPortTouchCallbackRT (Shift + middle button pans, the wheel adjusts the aim in combat only, 2026-11-18),
+// @src QueryTBMiddleButton (the look cursor while the button is held); Handle_UI.cc TogglePanMode, UIHandlePPanMode;
 // @src src/game/Tactical/Handle_UI.cc HandleTacticalUI (the frame flags, the input order mouse position, polled keys,
 // @src mouse buttons, queued keys, the pending override event, the single events, the menu modes, the multi-selection
 // @src reset; the UIEVENT_SNAPMOUSE position saved at the event's start and the pointer moved back to it as the event
@@ -280,6 +283,8 @@ export class TacticalInput {
   #currentAp = 1;
   #steps: readonly WorldMarker[] = [];
   #continuePath: readonly WorldMarker[] = [];
+  #panOffset = { x: 0, y: 0 };
+  #panPointer: { readonly x: number; readonly y: number } | null = null;
   #showMoveGrid = 0;
   #showMoveGridAt = -1;
   #selection: Selection = Selection.NONE;
@@ -516,7 +521,51 @@ export class TacticalInput {
 
   pointerButton(reason: number): void {
     this.#pointer.push(reason, true, this.#now);
+    if (reason & MouseReason.MBUTTON_DWN) this.#middlePressed();
+    else if (reason & MouseReason.MBUTTON_UP) this.#endPan();
     if (reason & (MouseReason.WHEEL_UP | MouseReason.WHEEL_DOWN)) this.#wheel(reason & MouseReason.WHEEL_UP ? -1 : 1);
+  }
+
+  pointerLeftViewport(): void {
+    this.#endPan();
+  }
+
+  #middlePressed(): void {
+    const shift = (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0;
+    if (shift && !this.#host.itemInCursor() && PAN_START_MODES.has(this.#mode)) this.#togglePan();
+  }
+
+  #endPan(): void {
+    if (this.#mode === UiMode.PAN_MODE) this.#togglePan();
+  }
+
+  #togglePan(): void {
+    this.#panOffset = { x: 0, y: 0 };
+    this.#pending = this.#mode === UiMode.PAN_MODE ? UiEvent.A_CHANGE_TO_MOVE : UiEvent.P_PANMODE;
+  }
+
+  #panMode(): void {
+    const regions = this.#env().runtime.regions;
+    const here = { x: regions.mouseX, y: regions.mouseY };
+    if (this.#state(UiEvent.P_PANMODE).firstTime) this.#panPointer = null;
+    this.#newCursor = 'FLOATING_X_UICURSOR';
+    const last = this.#panPointer;
+    if (last) this.#panOffset = { x: this.#panOffset.x + here.x - last.x, y: this.#panOffset.y + here.y - last.y };
+    this.#panPointer = here;
+  }
+
+  get scrollingByOffset(): boolean {
+    return this.#panOffset.x !== 0 || this.#panOffset.y !== 0;
+  }
+
+  panScrollStep(): { readonly dx: number; readonly dy: number } {
+    const { x, y } = this.#panOffset;
+    if (Math.abs(x) < MIN_SCROLL_OFFSET && Math.abs(y) < MIN_SCROLL_OFFSET) return { dx: 0, dy: 0 };
+    return { dx: -idiv(x, MIN_SCROLL_OFFSET) * MIN_SCROLL_OFFSET, dy: -idiv(y, MIN_SCROLL_OFFSET) * MIN_SCROLL_OFFSET };
+  }
+
+  keepPanRemainder(): void {
+    this.#panOffset = { x: this.#panOffset.x % MIN_SCROLL_OFFSET, y: this.#panOffset.y % MIN_SCROLL_OFFSET };
   }
 
   override(event: UiEvent): void {
@@ -1114,14 +1163,10 @@ export class TacticalInput {
 
   #tbMiddle(event: UiEvent): UiEvent {
     if (this.#mapPos() === null || !this.#pointer.inViewport) return event;
-    let next = event;
-    if (this.#pointer.isDown(MouseButtonMask.MIDDLE) && !this.#middleDown) this.#middleDown = true;
-    if (this.#middleDown && !this.#pointer.isDown(MouseButtonMask.MIDDLE)) {
-      const shift = (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0;
-      if (!shift && !this.#host.itemInCursor()) next = UiEvent.LC_ON_TERRAIN;
-      this.#middleDown = false;
-    }
-    return next;
+    this.#middleDown = false;
+    const shift = (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0;
+    const looks = this.#pointer.isDown(MouseButtonMask.MIDDLE) && !shift && !this.#host.itemInCursor();
+    return looks ? UiEvent.LC_ON_TERRAIN : event;
   }
 
   #rtMiddle(event: UiEvent): UiEvent {
@@ -1487,7 +1532,7 @@ export class TacticalInput {
   #wheel(direction: 1 | -1): void {
     const sel = this.#sel();
     const mapPos = this.#mapPos();
-    if (!sel || mapPos === null || this.#mode !== UiMode.CONFIRM_ACTION_MODE || this.#host.itemInCursor()) return;
+    if (!sel || mapPos === null || !this.#combat() || this.#mode !== UiMode.CONFIRM_ACTION_MODE || this.#host.itemInCursor()) return;
     const target = this.#hover.target;
     const estimate = dataOf(this.#estimateNow(target?.gridNo ?? mapPos, target?.level ?? this.#host.interfaceLevel()));
     if (estimate) wheelAdjust(estimate, this.aimOf(sel.id), direction, this.#selBurst(sel));
@@ -2131,6 +2176,9 @@ export class TacticalInput {
         return;
       case UiEvent.JP_JUMP:
         this.#jump();
+        return;
+      case UiEvent.P_PANMODE:
+        this.#panMode();
         return;
       default:
         return;
@@ -3421,6 +3469,8 @@ const EXIT_DIRECTIONS: Readonly<Record<string, ExitDirection>> = {
   EXIT_GRID_UICURSOR: 'exitGrid',
   CONFIRM_EXIT_GRID_UICURSOR: 'exitGrid',
 };
+const MIN_SCROLL_OFFSET = 20;
+const PAN_START_MODES: ReadonlySet<UiMode> = new Set([UiMode.MOVE_MODE, UiMode.CONFIRM_MOVE_MODE]);
 const MULTI_SELECT_MODES: ReadonlySet<UiMode> = new Set([
   UiMode.MOVE_MODE,
   UiMode.CONFIRM_MOVE_MODE,

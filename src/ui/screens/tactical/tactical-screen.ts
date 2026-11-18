@@ -392,6 +392,7 @@ export class TacticalScreen implements Screen {
         this.#hoveredFace = on ? (this.#slots[slot] ?? null) : null;
       },
       enemyIndicator: (slot) => this.#enemyIndicator(this.#slots[slot] ?? null),
+      firstHandPrimary: (slot) => this.#firstHandPrimary(slot),
       swapHands: (slot) => this.#swapHands(this.#slots[slot] ?? null),
       exitVehicle: (slot) => this.#exitVehicle(this.#slots[slot] ?? null),
       endTurn: () => void this.#command({ type: 'endTurn' }),
@@ -967,6 +968,9 @@ export class TacticalScreen implements Screen {
       cursor: 0,
       owner: 'tacticalViewport',
       id: 'tacticalViewport',
+      onMove: (_r, reason) => {
+        if (reason & MouseReason.LOST_MOUSE) this.controls.pointerLeftViewport();
+      },
       onButton: (_r, reason) => this.#viewportButton(reason),
     });
     this.#viewportRegion.showsMouseText = true;
@@ -1838,6 +1842,10 @@ export class TacticalScreen implements Screen {
     this.#lastEnemyCycled.set(s.id, next.id);
     this.#slideTo(next, LocateFlag.SETANDREMOVEPREVIOUSLOCATOR);
     this.#setInterfaceLevel(next.level);
+  }
+
+  #firstHandPrimary(slot: number): void {
+    if (this.#slotSoldier(this.#slots[slot] ?? null)) this.controls.input.override(UiEvent.A_ON_TERRAIN);
   }
 
   #swapHands(id: number | null): void {

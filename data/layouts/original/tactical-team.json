@@ -176,6 +176,7 @@
           "priority": "NORMAL",
           "enabled": "panelRegionsEnabled",
           "tooltip": { "bind": "slots[$i].firstHandHelp" },
+          "primary": "firstHandPrimary($i)",
           "secondary": "swapHands($i)"
         },
         {

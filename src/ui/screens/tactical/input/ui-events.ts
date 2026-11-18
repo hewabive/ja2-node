@@ -24,6 +24,7 @@ export const UiMode = {
   EXITSECTORMENU_MODE: 'EXITSECTORMENU_MODE',
   RUBBERBAND_MODE: 'RUBBERBAND_MODE',
   JUMPOVER_MODE: 'JUMPOVER_MODE',
+  PAN_MODE: 'PAN_MODE',
 } as const;
 export type UiMode = (typeof UiMode)[keyof typeof UiMode];
 
@@ -71,6 +72,7 @@ export const UiEvent = {
   RB_ON_TERRAIN: 'RB_ON_TERRAIN',
   JP_ON_TERRAIN: 'JP_ON_TERRAIN',
   JP_JUMP: 'JP_JUMP',
+  P_PANMODE: 'P_PANMODE',
 } as const;
 export type UiEvent = (typeof UiEvent)[keyof typeof UiEvent];
 
@@ -128,6 +130,7 @@ export const UI_EVENTS: Readonly<Record<UiEvent, UiEventSpec>> = {
   RB_ON_TERRAIN: M(0, UiMode.RUBBERBAND_MODE),
   JP_ON_TERRAIN: M(0, UiMode.JUMPOVER_MODE),
   JP_JUMP: M(0, UiMode.MOVE_MODE),
+  P_PANMODE: M(0, UiMode.PAN_MODE),
 };
 
 export const MoveUiTarget = {

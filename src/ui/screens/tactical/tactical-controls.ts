@@ -20,7 +20,7 @@
 // @src step and RestoreInterface as the scroll stops, Interface.cc, the viewport's cursor cleared with an item held too;
 // @src the slide to sSlideTarget in the direction of gScrollDirectionFlags, ignoring the input, until
 // @src SoldierLocationRelativeToScreen has had the target on screen for gScrollSlideInertiaDirection frames, its centre
-// @src flags making the last step, 2026-11-03), Overhead.cc SlideTo, SlideToLocation (no slide to a tile on screen),
+// @src flags making the last step, 2026-11-03; the pan offset of PAN_MODE in steps of MIN_SCROLL_OFFSET, 2026-11-18), Overhead.cc SlideTo, SlideToLocation (no slide to a tile on screen),
 // @src GameScreen.cc MainGameScreenHandle (no SetUpInterface, so no DrawItemTileCursor, and no fast help while
 // @src scrolling); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
@@ -449,8 +449,10 @@ export class TacticalControls {
     const ignoresInput = slide?.ignoresInput === true || this.input.mode === UiMode.LOCKUI_MODE;
     const flags = (slide?.flags ?? 0) | (ignoresInput ? 0 : this.#inputFlags());
     const speed = runtime.modifiers & KeyModifier.SHIFT ? SHIFT_SCROLL_SPEED : SCROLL_SPEED;
-    const dx = (flags & ScrollFlag.RIGHT ? speed : 0) - (flags & ScrollFlag.LEFT ? speed : 0);
-    const dy = (flags & ScrollFlag.DOWN ? speed / 2 : 0) - (flags & ScrollFlag.UP ? speed / 2 : 0);
+    const byOffset = this.input.scrollingByOffset;
+    const pan = flags === 0 ? this.input.panScrollStep() : null;
+    const dx = pan ? pan.dx : (flags & ScrollFlag.RIGHT ? speed : 0) - (flags & ScrollFlag.LEFT ? speed : 0);
+    const dy = pan ? pan.dy : (flags & ScrollFlag.DOWN ? speed / 2 : 0) - (flags & ScrollFlag.UP ? speed / 2 : 0);
     const edges = this.#env().world.scrollEdges();
     const canX = (dx < 0 && !edges.left) || (dx > 0 && !edges.right);
     const canY = (dy < 0 && !edges.top) || (dy > 0 && !edges.bottom);
@@ -458,7 +460,7 @@ export class TacticalControls {
       flagsOff();
       return;
     }
-    if (now < this.#nextScrollAt) return;
+    if (now < this.#nextScrollAt && !byOffset) return;
     this.#nextScrollAt = now + SCROLL_STEP_MS;
     if (!this.#scrollInertia && !this.#scrollPending) {
       this.#scrollPending = true;
@@ -466,6 +468,7 @@ export class TacticalControls {
     }
     this.#scrollPending = false;
     this.#scrollInertia = true;
+    if (byOffset) this.input.keepPanRemainder();
     this.#env().world.scrollBy(canX ? dx : 0, canY ? dy : 0);
   }
 
@@ -501,6 +504,10 @@ export class TacticalControls {
 
   pointerButton(reason: number): void {
     this.input.pointerButton(reason);
+  }
+
+  pointerLeftViewport(): void {
+    this.input.pointerLeftViewport();
   }
 
   exit(): void {

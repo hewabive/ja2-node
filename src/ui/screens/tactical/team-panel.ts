@@ -21,6 +21,7 @@ export const TEAM_PANEL_CONTRACT: ControllerContract = {
     openSmPanel: { args: 1 },
     faceHover: { args: 2 },
     enemyIndicator: { args: 1 },
+    firstHandPrimary: { args: 1 },
     swapHands: { args: 1 },
     exitVehicle: { args: 1 },
     endTurn: {},
@@ -62,6 +63,7 @@ export interface TeamPanelActions {
   openSmPanel(slot: number): void;
   faceHover(slot: number, on: boolean): void;
   enemyIndicator(slot: number): void;
+  firstHandPrimary(slot: number): void;
   swapHands(slot: number): void;
   exitVehicle(slot: number): void;
   endTurn(): void;
@@ -96,6 +98,9 @@ export class TeamPanelController implements LayoutController {
         return;
       case 'enemyIndicator':
         this.#actions.enemyIndicator(slot);
+        return;
+      case 'firstHandPrimary':
+        this.#actions.firstHandPrimary(slot);
         return;
       case 'swapHands':
         this.#actions.swapHands(slot);
