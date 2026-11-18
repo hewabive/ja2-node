@@ -17,7 +17,7 @@ import type {
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { InstallationSettings } from '../sim/campaign/installation.ts';
-import { isImpSlotType } from '../sim/campaign/laptop/imp.ts';
+import { isImpSlotType, withImpPortraitFaceOffsets } from '../sim/campaign/laptop/imp.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { nicknameOverrides, shownNickname } from '../sim/campaign/profile-names.ts';
@@ -276,7 +276,9 @@ export class CampaignSession implements SessionSim {
     const types = this.campaign.economy?.economy.mercTypes;
     const freeForImp = (id: number) => types !== undefined && isImpSlotType(types.get(id));
     const declared = base.flatMap((p) => (p === undefined || characters.has(p.id) || freeForImp(p.id) ? [] : [p]));
-    return [...declared, ...characters.values()].sort((a, b) => a.id - b.id).map(profileFaceRecord);
+    const portraits = this.campaign.laptop?.content.imp.portraits ?? [];
+    const created = [...characters.values()].map((c) => withImpPortraitFaceOffsets(c, portraits));
+    return [...declared, ...created].sort((a, b) => a.id - b.id).map(profileFaceRecord);
   }
 
   messageFacts(): MessageFacts {

@@ -434,4 +434,22 @@ describe('the profile presentation the clients fetch', () => {
     const record = session.profileFaceRecords().find((r) => r.id === slot);
     expect(record).toMatchObject({ nickname: character?.nickname, faceIndex: character?.faceIndex });
   });
+
+  it("gives an I.M.P. character his portrait's eye and mouth offsets, kept across a load of a record without them (IMP_Confirm.cc, ResetIMPCharactersEyesAndMouthOffsets)", async () => {
+    const { session, live } = await newGame(122);
+    live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
+    const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
+    const slot = (created.data as { profile: number }).profile;
+    const profiles = session.campaign.state.laptop.imp.profiles;
+    const character = profiles.get(slot);
+    if (!character) throw new Error('no character');
+    const portrait = session.campaign.laptop?.content.imp.portraits.find((p) => p.face === character.faceIndex);
+    expect(portrait).toBeDefined();
+    expect([character.eyesX, character.eyesY, character.mouthX, character.mouthY]).toEqual([
+      ...(portrait?.eyes ?? []),
+      ...(portrait?.mouth ?? []),
+    ]);
+    profiles.set(slot, { ...character, eyesX: 0, eyesY: 0, mouthX: 0, mouthY: 0 });
+    expect(session.profileFaceRecords().find((r) => r.id === slot)).toMatchObject({ eyes: portrait?.eyes, mouth: portrait?.mouth });
+  });
 });

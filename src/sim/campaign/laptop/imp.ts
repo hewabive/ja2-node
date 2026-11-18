@@ -12,10 +12,12 @@
 // @src BtnIMPBeginScreenDoneCallback (names); IMP_HomePage.cc ProcessPlayerInputActivationString; IMP_MainPage.cc (begin);
 // @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, FirstFreeBigEnoughPocket, GiveItemsToPC; CharProfile.h
 // @src COST_OF_PROFILE; externalized/policy/IMPPolicy.h IMPItemCondition.
+// @src src/game/Laptop/IMP_Confirm.cc SetProfileFaceData's call, ResetIMPCharactersEyesAndMouthOffsets (the portrait's face
+// @src offsets, 2026-11-18).
 
 import { type MercProfile, zeroProfileNpcFields } from '../../../content/formats/prof.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
-import type { ImpCondition, ImpItemSet, QuizEffect } from '../../../content/strategic/laptop-content.ts';
+import type { ImpCondition, ImpItemSet, ImpPortrait, QuizEffect } from '../../../content/strategic/laptop-content.ts';
 import { i8, idiv, u8 } from '../../../core/int.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
@@ -502,6 +504,12 @@ function giveItemsToPc(ctx: LaptopContext, p: ProfileProgress): void {
   }
 }
 
+export function withImpPortraitFaceOffsets(character: MercProfile, portraits: readonly ImpPortrait[]): MercProfile {
+  const portrait = portraits.find((p) => p.face === character.faceIndex);
+  if (!portrait) return character;
+  return { ...character, eyesX: portrait.eyes[0], eyesY: portrait.eyes[1], mouthX: portrait.mouth[0], mouthY: portrait.mouth[1] };
+}
+
 function impRecord(ctx: LaptopContext, slot: number, r: ImpRequest, names: { name: string; nickname: string }): MercProfile {
   const imp = ctx.content.imp;
   const male = r.gender === 'male';
@@ -515,10 +523,10 @@ function impRecord(ctx: LaptopContext, slot: number, r: ImpRequest, names: { nam
     sex: male ? 0 : 1,
     palettes: { ...base.palettes, hair: portrait?.hair ?? base.palettes.hair, skin: portrait?.skin ?? base.palettes.skin },
     faceIndex: portrait?.face ?? base.faceIndex,
-    eyesX: 0,
-    eyesY: 0,
-    mouthX: 0,
-    mouthY: 0,
+    eyesX: portrait?.eyes[0] ?? 0,
+    eyesY: portrait?.eyes[1] ?? 0,
+    mouthX: portrait?.mouth[0] ?? 0,
+    mouthY: portrait?.mouth[1] ?? 0,
     life: a.health,
     lifeMax: a.health,
     agility: a.agility,
