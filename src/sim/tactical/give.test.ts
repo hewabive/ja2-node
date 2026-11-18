@@ -7,6 +7,7 @@ import { StructureFlags, type StructureInstance } from '../../content/world/stru
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import type { SimEvent } from '../events.ts';
 import { cloneObject, createItems, createMoney, type ItemObject } from '../items/object.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { pauseAiUntilManuallyUnpaused } from './ai/pause.ts';
 import { soldierGotoStationaryStance } from './animation.ts';
@@ -16,7 +17,7 @@ import { startInteractiveObject } from './doors/door-actions.ts';
 import { apsToGiveItem, holdsGiveItem, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
 import { soldierPickupItem } from './item-actions.ts';
-import { getNewSoldierPath } from './movement.ts';
+import { getNewSoldierPath, stopMerc } from './movement.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { hasPendingAction } from './pending-action.ts';
 import { AP } from './points.ts';
@@ -29,6 +30,7 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
+const GIVE_WAIT_TICKS = 200;
 const item = (name: string) => content.items.byName.get(name)?.index ?? -1;
 
 function clipsIn(s: Soldier): number {
@@ -98,6 +100,25 @@ describe('the give action', () => {
     soldierGiveItem(sim.state, giver, mate, cloneObject(withClips(giver, 1)), InvSlot.BIGPOCK1);
     runUntilIdle(sim);
     expect(before - giver.actionPoints).toBe(AP.PICKUP_ITEM);
+  });
+
+  it('has Darren, landed on his final tile with a give pending, begin it there (Overhead.cc ExecuteOverhead)', () => {
+    const begun = (profile: number) => {
+      const sim = newCombatSim(content);
+      const giver = spawnSoldier(sim, 40, Team.CIV, gridNo(80, 80), Direction.EAST);
+      const mate = spawnSoldier(sim, 0, Team.OUR, gridNo(85, 80), Direction.WEST);
+      giver.profile = profile;
+      soldierGiveItem(sim.state, giver, mate, cloneObject(withClips(giver, 1)), InvSlot.BIGPOCK1);
+      const pending = giver.pendingGive;
+      stopMerc(sim.state, giver);
+      giver.pendingGive = pending;
+      giver.finalDestination = giver.gridNo;
+      soldierGotoStationaryStance(sim.state, giver);
+      for (let tick = 0; tick < GIVE_WAIT_TICKS && !giver.pendingGive?.begun; tick++) sim.step();
+      return giver.pendingGive?.begun ?? true;
+    };
+    expect(begun(Npc.DARREN)).toBe(true);
+    expect(begun(Npc.KINGPIN)).toBe(false);
   });
 
   it('walks to a tile next to the target first', () => {
@@ -318,7 +339,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect(holdsGiveItem(giver)).toBe(false);
   });
 
-  const NPC_PROFILE = 87;
+  const NPC_PROFILE = Npc.KINGPIN;
   const WALKED_TO = gridNo(80, 84);
 
   function npcGaveOnTheSpot(sim: TacticalSim): { npc: Soldier; merc: Soldier; log: PortLog } {
@@ -342,6 +363,18 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect(getNewSoldierPath(sim.state, s, WALKED_TO, s.uiMovementMode, 0, false)).toBe(true);
     stepUntil(sim, () => s.gridNo === WALKED_TO && s.pathSize === 0);
   }
+
+  it('has Darren begin again a give made on the spot as soon as he stands: he gives nothing and his done-giving record fires again (Overhead.cc:698)', () => {
+    const sim = newCombatSim(content);
+    const log = port(sim, { isNpcProfile: () => true });
+    pauseAiUntilManuallyUnpaused(sim.state);
+    const darren = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.SOUTH, { profile: Npc.DARREN });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(81, 80), Direction.WEST);
+    soldierGiveItem(sim.state, darren, merc, cloneObject(withClips(darren, 1)), InvSlot.BIGPOCK1);
+    stepUntil(sim, () => log.doneGiving.length === 2);
+    stepUntil(sim, () => animationOf(sim, darren) === 'STANDING');
+    expect([clipsIn(merc), clipsIn(darren), log.doneGiving, holdsGiveItem(darren)]).toEqual([1, 0, [Npc.DARREN, Npc.DARREN], false]);
+  });
 
   it('begins the give again from its old target and tile when a walk no order started ends: the NPC turns his old way, gives nothing, and his done-giving record fires again (Overhead.cc:817, Soldier.cc:209, Soldier_Ani.cc:1339)', () => {
     const sim = newCombatSim(content);

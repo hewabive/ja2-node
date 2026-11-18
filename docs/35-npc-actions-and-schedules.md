@@ -154,6 +154,7 @@ otherwise:
 |---|---|
 | Darren pays twice the bet out of his stash without checking it; a stash too small wraps as `UINT32` | `narrative/npc-actions/catalog.test.ts` |
 | Darren's payout changes hands only at the end of his give animation; until then it lies first among his money, so the money gift of the record his payout triggers (32) gives it again rather than his stash (`Interface_Dialogue.cc:2924-2934`, `TacticalAI/NPC.cc:1809`) | `src/server/give-stub.test.ts` "keeps the payout in his pockets …" |
+| Darren standing on his final tile begins any give he still holds, so one made on the spot starts over at once: he turns his old way, gives nothing, and his done-giving record fires again (`Tactical/Overhead.cc:698`) | `give.test.ts` "has Darren begin again a give made on the spot" |
 | "Put Pacos in the basement" puts him on A10's ground level | `narrative/npc-actions/catalog.test.ts` |
 | Carmen leaving for good falls through to leaving for C13 with its own, absent parameters: the timer is always 10 s | `narrative/npc-actions/catalog.test.ts` |
 | Madame's wrong-cash line goes on after "no girls"; advertising Cindy also advertises Bambi | `narrative/npc-actions/catalog.test.ts` |

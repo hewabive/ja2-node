@@ -104,6 +104,8 @@ const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const LONE_ADMIN = { admins: 1, troops: 0, elites: 0 };
 const WALK_OFF_TICKS = 2000;
 const LEAVER_PROFILE = 1;
+const LEFTOVER_SHOCK = 4;
+const LEFTOVER_TILES_MOVED = 3;
 const RAN_AWAY_MORALE = -5;
 const TICKS_PER_WORLD_SECOND = 200;
 const QUICK_TRAVERSAL_MINUTES = 5;
@@ -269,6 +271,18 @@ describe('leaving a sector', () => {
     expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect([campaign.tactical, campaign.state.worldSector]).toEqual([null, null]);
     expect(campaign.dispatch({ type: 'compressTime', mode: 2 })).toEqual({ ok: true });
+  });
+
+  it('clears the shock and the tiles moved of our mercs as a new sector loads (Overhead.cc InitializeTacticalStatusAtBattleStart)', () => {
+    const { campaign, roster } = createTestCampaign(kit, { seed: 11, mercs: 1, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const merc = ourSoldiers(campaign)[0];
+    if (!merc) throw new Error('no merc');
+    merc.shock = LEFTOVER_SHOCK;
+    merc.tilesMoved = LEFTOVER_TILES_MOVED;
+    campaign.sectors?.setCurrentWorldSector(A10);
+    const after = roster.get(merc.id)?.soldier;
+    expect([after?.shock, after?.tilesMoved]).toEqual([0, 0]);
   });
 
   it('counts the squad walked off the edge, still in the sector, in its strength at the retreat, so the run away hits its morale at once (PlayerStrength, Strategic_Town_Loyalty.cc:1153, Morale.cc:344)', () => {

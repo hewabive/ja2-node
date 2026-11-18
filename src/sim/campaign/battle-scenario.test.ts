@@ -570,6 +570,21 @@ describe('a tactical battle lost to deaths', () => {
     expect(roster.all().map((m) => m.soldier.life)).toEqual([0, 0]);
   });
 
+  it('is lost when the world unloads in combat with nobody of ours left in the sector (StrategicMap.cc CheckAndHandleUnloadingOfCurrentWorld)', () => {
+    const { c, roster, t } = battleAtA9(44, 1, (campaign) => {
+      const a9 = campaign.state.map.elements[A9.x + A9.y * 18];
+      if (a9) a9.enemyControlled = false;
+    });
+    t.inCombat = true;
+    const [merc] = roster.all();
+    if (!merc) throw new Error('no merc');
+    roster.removeFromTacticalSector(merc.id);
+    merc.sector = { ...A10 };
+    expect(c.sectors?.checkAndHandleUnloadingOfCurrentWorld()).toBe(true);
+    expect(c.drainEvents().find((e) => e.type === 'battleResult')).toMatchObject({ sector: 'A9', result: 'defeat', via: 'tactical' });
+    expect(c.tactical).toBeNull();
+  });
+
   it('goes on while another merc stands', () => {
     const { c, soldiers, t } = battleAtA9(43, 2);
     killOutright(t, soldiers[0] as Soldier);

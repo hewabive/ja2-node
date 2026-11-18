@@ -53,6 +53,8 @@
 // @src place of PrepareLoadedSector while gfEnterTacticalPlacementGUI is set; the rest of SetCurrentWorldSector runs on),
 // @src TileEngine/Tactical_Placement_GUI.cc KillTacticalPlacementGUI (Done: the pieces picked up, PrepareLoadedSector, then
 // @src the game screen's TacticalScreenLocateToSoldier and EnterTacticalScreen once the overhead map is gone), 2026-11-14.
+// @src src/game/Tactical/Overhead.cc InitializeTacticalStatusAtBattleStart (shock and tiles moved of our team, 2026-11-18);
+// @src src/game/Strategic/StrategicMap.cc CheckAndHandleUnloadingOfCurrentWorld (CheckForEndOfCombatMode, 2026-11-18).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { decodeRevealedStatusFile } from '../../content/formats/savegame-temp-files.ts';
@@ -195,7 +197,7 @@ import {
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
-import { syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
+import { checkForEndOfCombatMode, syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
 import {
   seatAtVehicle,
   seatInTheHelicopterOnSectorEntry,
@@ -573,6 +575,13 @@ export class SectorFlow {
     if (host) shutUpTalkingFace(host);
   }
 
+  #clearLeftoverShock(): void {
+    for (const m of this.setup.roster.all()) {
+      m.soldier.shock = 0;
+      m.soldier.tilesMoved = 0;
+    }
+  }
+
   setCurrentWorldSector(sector: Sector, options: LoadOptions = {}): boolean {
     const s = this.campaign.state;
     syncStrategicTurnTimes(this.realtimeClock, s.realMs);
@@ -595,6 +604,7 @@ export class SectorFlow {
     s.map.selectedSector = { ...sector };
     this.#stopAnyCurrentlyTalkingSpeech();
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
+    this.#clearLeftoverShock();
     handleHelicopterOnGround(this.ctx, false);
     const enemyPresence = this.#whileLoading(() => this.#enterSector(sector, baseWorld, options, previous));
     const day = worldDay(s.clock);
@@ -1540,6 +1550,7 @@ export class SectorFlow {
     if (s.didGameJustStart && world.z === 0 && world.x === (start % 16) + 1 && world.y === idiv(start, 16) + 1) return false;
     if (this.#mercsStillHere()) return false;
     if (this.#bringUpAutoresolveToFinishBattle()) return false;
+    checkForEndOfCombatMode(sim.state, false);
     this.#endTacticalBattleForEnemy();
     if (s.flow === 'tactical' && s.movement.tacticalTraversal.active) return false;
     this.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);

@@ -6,14 +6,17 @@
 // @src sector included, 2026-11-08); the COUNTERDONE(TOVERHEAD) of ExecuteOverhead, never done while PauseTime holds, so
 // @src a message box up at its start holds the whole pass, CheckMercsWaiting's end of it included (2026-11-14);
 // @src Strategic/Game_Clock.cc ClearTacticalStuffDueToTimeCompression (the tactical message queue is the browser's).
+// @src src/game/Tactical/Overhead.cc ExecuteOverhead (Darren's give on his final tile, 2026-11-18).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { adjustToNextAnimationFrame, frameTimerDone, hasAnimFlag, states, turnSoldier } from './animation.ts';
 import { handleBloodForNewGridNo } from './combat/bleeding.ts';
 import { updateDamageDisplay } from './combat/hit.ts';
 import { updateSoldierFade } from './fade.ts';
 import { clearEventQueue } from './game-events.ts';
+import { holdsGiveItem } from './give.ts';
 import {
   arriveAtFinalDestination,
   handleAtNewGridNo,
@@ -74,6 +77,12 @@ function lookForItemsIfNotified(t: TacticalState, s: Soldier): void {
   s.lookForItems = false;
 }
 
+function darrenGivesFromHisFinalTile(t: TacticalState, s: Soldier): boolean {
+  return (
+    s.profile === Npc.DARREN && s.finalDestination === s.gridNo && s.state === states(t.content.animations).STANDING && holdsGiveItem(s)
+  );
+}
+
 function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
   lookForItemsIfNotified(t, s);
   const moving = hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE);
@@ -81,7 +90,8 @@ function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
   adjustToNextAnimationFrame(t, s);
   if (!inSector(s)) return false;
   if (!hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) handleNextTileWaiting(t, s);
-  if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE) && !s.pauseAnimMove) {
+  if (darrenGivesFromHisFinalTile(t, s)) t.hooks.pendingAction(t, s);
+  else if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE) && !s.pauseAnimMove) {
     if (!handleMovementFrame(t, s)) return false;
   }
   if (hasAnimFlag(t.content, s.state, AnimFlags.TURNING)) turnSoldier(t, s);
