@@ -108,6 +108,7 @@ export async function openTacticalSession(page: Page, session: string, extra = '
   await waitWhileLoading(page, () => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await waitWhileLoading(page, () => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
+  await waitWhileLoading(page, () => window.__ja2Ui.hints?.ready === true);
   await nextFrames(page, 4);
 }
 
