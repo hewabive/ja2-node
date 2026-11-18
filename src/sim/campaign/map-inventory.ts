@@ -79,7 +79,7 @@ import type { TacticalState } from '../tactical/state.ts';
 import { WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { passBetweenHoldersRefused } from './item-passing.ts';
-import { campaignCombatContext } from './off-map-combat.ts';
+import { campaignCombatContext, voicedOnTheMapScreen } from './off-map-combat.ts';
 import type { RosterMerc } from './roster.ts';
 import { emptySlotShare, poolList, poolOrder, type Stash, type StashEntry, stashOf, takesWithoutSwap } from './stash.ts';
 import { refillablePoints, refillMercItems, refillSources, stackedAndSorted, standsInStashSector } from './stash-repack.ts';
@@ -321,7 +321,7 @@ export class MapInventory {
       },
       leftover: (s, o) => stashOf(campaign, owner.sector).add(o, s.gridNo, s.level),
       emit: (event: PanelEvent) => {
-        this.#events.push({ ...event, tick: campaign.tick } as SimEvent);
+        this.#events.push(voicedOnTheMapScreen(campaign, { ...event, tick: campaign.tick } as SimEvent));
       },
     };
   }

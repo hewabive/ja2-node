@@ -1,8 +1,13 @@
-import type { SimEventBase } from '../events.ts';
+import type { DeathCry, SimEventBase } from '../events.ts';
+import type { AttachmentComplaint } from '../items/object.ts';
 
 export type KeySpotView = { readonly ring: number } | { readonly slot: number };
 
 export type AppliedSound = 'DRINK_CANTEEN_MALE' | 'DRINK_CANTEEN_FEMALE';
+
+export type AttachSound = 'ATTACH_TO_GUN' | 'ATTACH_CERAMIC_PLATES' | 'ATTACH_DETONATOR';
+
+export type AttachReaction = 'COOL1' | 'CURSE1';
 
 export interface FirstAidStartedEvent extends SimEventBase {
   readonly type: 'firstAidStarted';
@@ -105,6 +110,16 @@ export interface ItemAttachedEvent extends SimEventBase {
   readonly item: string;
   readonly to: string;
   readonly result: string;
+  readonly sound?: AttachSound;
+  readonly reaction?: AttachReaction;
+  readonly mapScreen?: true;
+  readonly cry?: DeathCry;
+}
+
+export interface AttachmentRefusedEvent extends SimEventBase {
+  readonly type: 'attachmentRefused';
+  readonly soldier: number;
+  readonly complaint: AttachmentComplaint;
 }
 
 export interface ItemDetachedEvent extends SimEventBase {
@@ -149,6 +164,7 @@ export type InventoryEvent =
   | CashDepositedEvent
   | ItemDiscardedEvent
   | ItemAttachedEvent
+  | AttachmentRefusedEvent
   | ItemDetachedEvent
   | GunUnloadedEvent
   | ItemAppliedEvent

@@ -171,6 +171,17 @@ describe('the map screen battle sounds', () => {
     ]);
   });
 
+  it('plays the sound of an attachment made on the map and the merc off the loaded map reacts in his voice (AttachObject)', async () => {
+    const r = await rig();
+    const book = await loadCueBook((path) => readFile(join(PROJECT_DATA_DIR, path)));
+    const attached = { type: 'itemAttached', tick: 1, soldier: MERC, item: 'SILENCER', to: 'GLOCK_17', mapScreen: true } as const;
+    const cry = { voice: '052', bodyType: 0, team: OUR_TEAM };
+    r.sound.itemAttached({ ...attached, result: 'attached', sound: 'ATTACH_TO_GUN' });
+    r.sound.itemAttached({ ...attached, result: 'merged', reaction: 'COOL1', cry });
+    expect(r.cues[0]).toMatchObject({ file: book.paths.get('ATTACH_TO_GUN'), mix: 'location', baseVolume: 65, gridNo: -1 });
+    expect(r.cues[1]?.file).toMatch(/^battlesnds\/052_cool/);
+  });
+
   it("plays a vehicle's enter sound at its tile against the tactical view last shown, and off the loaded map at full volume in the middle (PlayLocationJA2Sample)", async () => {
     const r = await rig();
     r.engine.setListener(LAST_TACTICAL_VIEW);

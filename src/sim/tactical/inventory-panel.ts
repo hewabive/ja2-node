@@ -14,12 +14,16 @@
 // @src left in it, 2026-11-04); UIHandleItemPlacement (what PlaceObject leaves in the item pointer stays there: kept
 // @src where it moves nothing else and named for the cursor; GetObjFrom and StackObjs put one object of a stack clicked
 // @src back onto it at the stack's end, 2026-11-07); Interface_Items.cc RemoveMoney (money withdrawn from the account into
-// @src the cursor, then dropped into a pocket of the panel's merc, 2026-11-15).
+// @src the cursor, then dropped into a pocket of the panel's merc, 2026-11-15); Items.cc ValidItemAttachment
+// @src (STR_CANT_ATTACH, STR_ATTACHMENT_ALREADY, STR_CANT_USE_TWO_ITEMS) and PlaceObject (STR_CANT_USE_TWO_ITEMS of
+// @src two face items that do not go together, 2026-11-18).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
 import { idiv } from '../../core/int.ts';
 import {
+  type AttachmentComplaint,
+  attachmentComplaint,
   attachmentPosition,
   canAttachAsAttachment,
   cloneObject,
@@ -41,14 +45,16 @@ import {
   AP_RELOAD_GUN,
   apsToReloadGunWithAmmo,
   autoPlaceObject,
+  canItemFitInPosition,
+  faceItemWornWith,
   type InventoryContext,
   InvSlot,
   itemIn,
   NO_SLOT,
   placeObject,
 } from './inventory.ts';
-import type { AppliedSound, KeySpotView } from './inventory-events.ts';
-import { attachSucceeded, evaluateValidMerge, MergeAction, soldierAttachObject, validMerge } from './item-merge.ts';
+import type { AppliedSound, AttachReaction, AttachSound, KeySpotView } from './inventory-events.ts';
+import { type AttachOutcome, attachSucceeded, evaluateValidMerge, MergeAction, soldierAttachObject, validMerge } from './item-merge.ts';
 import { AP, type BreathRules, deductPoints, enoughPoints } from './points.ts';
 import { Body, OKLIFE, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -74,7 +80,16 @@ export type PanelEvent =
       readonly to: number | 'ground';
       readonly toSoldier?: number;
     }
-  | { readonly type: 'itemAttached'; readonly soldier: number; readonly item: string; readonly to: string; readonly result: string }
+  | {
+      readonly type: 'itemAttached';
+      readonly soldier: number;
+      readonly item: string;
+      readonly to: string;
+      readonly result: string;
+      readonly sound?: AttachSound;
+      readonly reaction?: AttachReaction;
+    }
+  | { readonly type: 'attachmentRefused'; readonly soldier: number; readonly complaint: AttachmentComplaint }
   | { readonly type: 'itemDetached'; readonly soldier: number; readonly item: string; readonly from: string }
   | { readonly type: 'gunUnloaded'; readonly soldier: number; readonly item: string; readonly magazine: string; readonly rounds: number }
   | {
@@ -292,6 +307,32 @@ export interface MoveRequest {
   readonly merge: boolean | undefined;
 }
 
+function complainAboutAttachment(env: PanelEnv, s: Soldier, target: ItemObject, item: number): void {
+  const complaint = attachmentComplaint(env.items, target, item);
+  if (complaint) env.emit({ type: 'attachmentRefused', soldier: s.id, complaint });
+}
+
+function complainAboutFaceItem(env: PanelEnv, req: MoveRequest, source: ItemObject): void {
+  const { target, to } = req;
+  if (!canItemFitInPosition(env.items, target.inv, source, to, true)) return;
+  const worn = faceItemWornWith(env.items, target.inv, to, source.item);
+  if (worn === null) return;
+  env.emit({ type: 'attachmentRefused', soldier: req.mover.id, complaint: { kind: 'cannotUseBoth', first: source.item, second: worn } });
+}
+
+function attachedEvent(s: Soldier, item: string, to: string, outcome: AttachOutcome): PanelEvent {
+  const { result, sound, reaction } = outcome;
+  return {
+    type: 'itemAttached',
+    soldier: s.id,
+    item,
+    to,
+    result,
+    ...(sound ? { sound } : {}),
+    ...(reaction ? { reaction } : {}),
+  };
+}
+
 function attachPrecheck(env: PanelEnv, s: Soldier, target: ItemObject, cursor: ItemObject): PanelRefusal | null {
   if (canAttachAsAttachment(env.items, target, cursor.item))
     return attachmentPosition(env.items, target, cursor) === NO_ATTACHMENT_POSITION ? PanelRefusal.CANNOT_ATTACH : null;
@@ -337,7 +378,11 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
   if (attach) return refuse(attach);
   const merging =
     !env.mapScreen && req.merge === true && ATTACH_SLOTS.includes(to) && validMerge(env.items, cursorItem, itemIn(target.inv, to));
-  if (!merging && !placementFits(env, mover, from, target, to, req.count, req.index)) return refuse(PanelRefusal.DOES_NOT_FIT);
+  if (!merging && !placementFits(env, mover, from, target, to, req.count, req.index)) {
+    complainAboutFaceItem(env, req, source);
+    return refuse(PanelRefusal.DOES_NOT_FIT);
+  }
+  if (merging) complainAboutAttachment(env, mover, target.inv[to] as ItemObject, cursorItem);
   const mergeRefusal = merging
     ? attachPrecheck(
         env,
@@ -442,10 +487,11 @@ export function placeWithdrawnMoney(env: PanelEnv, req: WithdrawnMoneyRequest): 
 function mergeIntoSlot(env: PanelEnv, req: MoveRequest, cursor: ItemObject, cursorItem: number): PanelOutcome {
   const slotObject = req.target.inv[req.to] as ItemObject;
   const into = name(env.items, slotObject.item);
-  const result = soldierAttachObject(env.combat, req.mover, slotObject, cursor, 0);
+  const outcome = soldierAttachObject(env.combat, req.mover, slotObject, cursor, 0);
+  const { result } = outcome;
   cancelCursor(env, req.mover, req.from, cursor);
   if (result === 'noAPs') return refuse(PanelRefusal.NOT_ENOUGH_AP);
-  env.emit({ type: 'itemAttached', soldier: req.mover.id, item: name(env.items, cursorItem), to: into, result });
+  env.emit(attachedEvent(req.mover, name(env.items, cursorItem), into, outcome));
   return { ok: true, data: { result } };
 }
 
@@ -466,10 +512,11 @@ export function attachItem(env: PanelEnv, req: AttachRequest): PanelOutcome {
   if (source.item === NOTHING || target.item === NOTHING) return refuse(PanelRefusal.EMPTY_SLOT);
   if (attacher === owner && from === slot) return refuse(PanelRefusal.SAME_SLOT);
   if (!enoughPoints(env.inCombat, attacher, AP_RELOAD_GUN)) return refuse(PanelRefusal.NOT_ENOUGH_AP);
-  if (!canAttachAsAttachment(env.items, target, source.item) && !validMerge(env.items, source.item, target.item))
-    return refuse(PanelRefusal.CANNOT_ATTACH);
   const inseparable = ((env.items.byIndex.get(source.item)?.flags ?? 0) & ItemFlags.INSEPARABLE) !== 0;
   if (inseparable && validAttachment(env.items, source.item, target.item) && !req.permanent) return refuse(PanelRefusal.PERMANENT);
+  complainAboutAttachment(env, attacher, target, source.item);
+  if (!canAttachAsAttachment(env.items, target, source.item) && !validMerge(env.items, source.item, target.item))
+    return refuse(PanelRefusal.CANNOT_ATTACH);
   if (req.index < 0 || req.index >= Math.max(1, target.count)) return refuse(PanelRefusal.CANNOT_ATTACH);
   const precheck = attachPrecheck(env, attacher, target, takeObjects(env.items, cloneObject(source), req.count, 0) as ItemObject);
   if (precheck) return refuse(precheck);
@@ -477,11 +524,12 @@ export function attachItem(env: PanelEnv, req: AttachRequest): PanelOutcome {
   const into = name(env.items, target.item);
   const cursor = takeObjects(env.items, source, req.count, 0) as ItemObject;
   env.equipmentChanged(attacher, from, cursorItem, NOTHING);
-  const result = soldierAttachObject(env.combat, attacher, target, cursor, req.index);
+  const outcome = soldierAttachObject(env.combat, attacher, target, cursor, req.index);
+  const { result } = outcome;
   cancelCursor(env, attacher, from, cursor);
   if (result === 'noAPs') return refuse(PanelRefusal.NOT_ENOUGH_AP);
   if (result === 'impossible') return refuse(PanelRefusal.CANNOT_ATTACH);
-  env.emit({ type: 'itemAttached', soldier: attacher.id, item: name(env.items, cursorItem), to: into, result });
+  env.emit(attachedEvent(attacher, name(env.items, cursorItem), into, outcome));
   return { ok: true, data: { result, succeeded: attachSucceeded(result) } };
 }
 

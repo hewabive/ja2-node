@@ -120,7 +120,11 @@ const MERC_HAS_ARRIVED_STR = 80;
 const STR_LOSES_1_HP = 4;
 const STR_PLAYER_REINFORCEMENTS = 10;
 const STR_2ND_CLIP_DEPLETED = 32;
+const STR_ATTACHMENT_ALREADY = 35;
+const STR_CANT_ATTACH = 37;
+const STR_CANT_USE_TWO_ITEMS = 41;
 const STR_HEAD_HIT = 46;
+const STR_RELOAD_ONLY_ONE_GUN = 58;
 const STAT_LOSS_LINES: Readonly<Record<string, { readonly onePoint: number; readonly points: number }>> = {
   wisdom: { onePoint: 0, points: 5 },
   dexterity: { onePoint: 1, points: 6 },
@@ -139,6 +143,7 @@ const STR_LATE_46 = 45;
 const STR_LATE_45 = 44;
 const NO_LOS_TO_TALK_TARGET = 136;
 const LOCK_HAS_BEEN_HIT = 132;
+const ITEM_HAS_BEEN_GIVEN_TO_STR = 18;
 const CERAMIC_PLATES_SMASHED = 'str_ceramic_plates_smashed';
 const STR_LATE_37 = 36;
 const STR_LATE_58 = 57;
@@ -150,6 +155,8 @@ const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readon
   recruited: { kind: 'interface', table: 'TacticalStr', index: 36 },
   nowEscorted: { kind: 'interface', table: 'TacticalStr', index: 42 },
   balanceOwed: { kind: 'interface', table: 'TacticalStr', index: 37 },
+  paidInFull: { kind: 'interface', table: 'TacticalStr', index: 19 },
+  stillOwed: { kind: 'interface', table: 'TacticalStr', index: 20 },
   needsMoney: { kind: 'interface', table: 'Message', index: 45 },
   itemPlacedOnGround: { kind: 'interface', table: 'TacticalStr', index: 17 },
   vehicleRefuelled: { kind: 'uiFeedback', table: 'gzLateLocalizedString', index: 49 },
@@ -258,9 +265,11 @@ function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<Message
   const item = e.item !== undefined ? facts.itemIndex(e.item) : null;
   switch (e.kind) {
     case 'recruited':
+    case 'paidInFull':
       return [line(known.table, known.index, name ? [name] : [], known.kind)];
     case 'nowEscorted':
     case 'balanceOwed':
+    case 'stillOwed':
       return [line(known.table, known.index, [...(name ? [name] : []), { number: e.amount ?? 0 }], known.kind)];
     case 'needsMoney':
       return [line(known.table, known.index, [...(name ? [name] : []), { text: `$${e.amount ?? 0}` }], known.kind)];
@@ -278,6 +287,25 @@ function noLineOfSightToTalk(e: EventOf<'npcMessage'>, facts: MessageFacts): Omi
   const merc = soldierArg(facts, e.soldier);
   if (e.profile === undefined) return [line('gzLateLocalizedString', STR_LATE_45, [merc], 'uiFeedback')];
   return [line('TacticalStr', NO_LOS_TO_TALK_TARGET, [merc, soldierArg(facts, e.target)], 'uiFeedback')];
+}
+
+function itemGivenTo(item: string, target: number, dropped: boolean, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+  const index = facts.itemIndex(item);
+  if (dropped || index === null) return [];
+  return [line('TacticalStr', ITEM_HAS_BEEN_GIVEN_TO_STR, [{ item: index, name: 'short' }, soldierArg(facts, target)])];
+}
+
+function attachmentRefused(e: EventOf<'attachmentRefused'>): Omit<MessageEntry, 'tick'>[] {
+  const named = (item: number): MessageArg => ({ item, name: 'long' });
+  const { complaint } = e;
+  switch (complaint.kind) {
+    case 'cannotAttach':
+      return [line('Message', STR_CANT_ATTACH, [named(complaint.item), named(complaint.to)], 'uiFeedback')];
+    case 'alreadyAttached':
+      return [line('Message', STR_ATTACHMENT_ALREADY, [], 'uiFeedback')];
+    case 'cannotUseBoth':
+      return [line('Message', STR_CANT_USE_TWO_ITEMS, [named(complaint.first), named(complaint.second)], 'uiFeedback')];
+  }
 }
 
 function drugTaken(e: EventOf<'itemApplied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
@@ -322,11 +350,15 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   statChanged: (e, facts) => (e.queued ? [] : statGain(e, facts)),
   statChangeAnnounced: statGain,
   reloaded: (e, facts) => (facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', 11, [soldierArg(facts, e.soldier)])] : []),
+  reloadedOneGunOnly: (e, facts) => [line('Message', STR_RELOAD_ONLY_ONE_GUN, [namedArg(facts, e)])],
   psychoBurst: (e, facts) => [line('gzLateLocalizedString', STR_LATE_26, [namedArg(facts, e)])],
   secondClipDepleted: () => [line('Message', STR_2ND_CLIP_DEPLETED)],
   barrelExtenderFellOff: (e, facts) => [line('gzLateLocalizedString', STR_LATE_46, [soldierArg(facts, e.soldier)])],
   ceramicPlatesSmashed: (e, facts) => [line(CERAMIC_PLATES_SMASHED, 0, [soldierArg(facts, e.soldier)])],
   lockHit: () => [line('TacticalStr', LOCK_HAS_BEEN_HIT)],
+  attachmentRefused,
+  itemGiven: (e, facts) => itemGivenTo(e.item, e.target, e.dropped, facts),
+  npcGaveItem: (e, facts) => (e.to === null ? [] : itemGivenTo(e.item, e.to, e.dropped, facts)),
   firstAidDone: (e, facts) => [line('TacticalStr', 83, [soldierArg(facts, e.patient)])],
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [soldierArg(facts, e.soldier)])],
   firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],

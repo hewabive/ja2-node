@@ -472,6 +472,10 @@ export interface PsychoBurstEvent extends SimEventBase, CursingSoldier {
   readonly type: 'psychoBurst';
 }
 
+export interface ReloadedOneGunOnlyEvent extends SimEventBase, NamedSoldier {
+  readonly type: 'reloadedOneGunOnly';
+}
+
 export interface SecondClipDepletedEvent extends SimEventBase {
   readonly type: 'secondClipDepleted';
 }
@@ -942,6 +946,7 @@ export type SimEvent =
   | AttackResolvedEvent
   | GunJammedEvent
   | PsychoBurstEvent
+  | ReloadedOneGunOnlyEvent
   | SecondClipDepletedEvent
   | BarrelExtenderFellOffEvent
   | CeramicPlatesSmashedEvent

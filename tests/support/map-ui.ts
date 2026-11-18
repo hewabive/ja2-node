@@ -370,6 +370,8 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit, options: TestR
       mercDiedOffTheMap: (soldier, cry) => sounds.push(`mercDiedOffTheMap ${soldier} ${cry?.voice ?? 'mute'}`),
       damageFeedback: (feedback) => sounds.push(`damageFeedback ${feedback.soldier} ${feedback.cause}`),
       skillCheckFailed: (failure) => sounds.push(`skillCheckFailed ${failure.soldier}`),
+      itemAttached: (attached) =>
+        sounds.push(`itemAttached ${attached.soldier} ${attached.sound ?? 'silent'} ${attached.reaction ?? 'mute'}`),
       reloaded: (gun) => sounds.push(`reloaded ${gun}`),
     },
     random: (range) => (die++ * 7) % Math.max(1, range),

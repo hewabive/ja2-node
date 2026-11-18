@@ -76,6 +76,7 @@ export interface InventoryContext {
   readonly collectKey?: (o: ItemObject) => void;
   readonly placed?: (item: number) => void;
   readonly reloaded?: (gun: number) => void;
+  readonly reloadedOneGunOnly?: () => void;
 }
 
 export function emptyInventory(): Inventory {
@@ -172,14 +173,20 @@ function dropObjIfThereIsRoom(ctx: InventoryContext, c: Carrier, pos: number, o:
   return false;
 }
 
+export function faceItemWornWith(items: ItemTable, inv: Inventory, pos: number, item: number): number | null {
+  const otherSlot = pos === InvSlot.HEAD1 ? InvSlot.HEAD2 : pos === InvSlot.HEAD2 ? InvSlot.HEAD1 : null;
+  if (otherSlot === null) return null;
+  const worn = itemIn(inv, otherSlot);
+  return compatibleFaceItem(items, item, worn) ? null : worn;
+}
+
 export function placeObject(ctx: InventoryContext, c: Carrier, pos: number, o: ItemObject): boolean {
   const items = ctx.items;
   const inv = c.inv;
   const placedItem = o.item;
   if (!canItemFitInPosition(items, inv, o, pos, true)) return false;
   const def = items.byIndex.get(o.item);
-  if (pos === InvSlot.HEAD1 && !compatibleFaceItem(items, o.item, itemIn(inv, InvSlot.HEAD2))) return false;
-  if (pos === InvSlot.HEAD2 && !compatibleFaceItem(items, o.item, itemIn(inv, InvSlot.HEAD1))) return false;
+  if (faceItemWornWith(items, inv, pos, o.item) !== null) return false;
   if (def?.itemClass === ItemClass.KEY) ctx.collectKey?.(o);
   const limit = itemSlotLimit(items, o.item, pos);
   const inSlot = slot(inv, pos);

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Item_Types.h OBJECTTYPE; Items.cc DefaultMagazine, FindReplacementMagazine, CreateGun,
 // @src CreateMagazine, CreateItem, CreateItems, CreateMoney, GetObjFrom, AttachObject, RenumberAttachments,
 // @src RemoveAttachment, EmptyWeaponMagazine, ItemHasAttachments; Item_Types.h OBJECTTYPE ubOwnerProfile, ubOwnerCivGroup
-// @src (2026-11-15)
+// @src (2026-11-15); ValidItemAttachment and ValidAttachmentClass (what a refused attachment tells, 2026-11-18)
 
 import type { ObjectRecord } from '../../content/formats/object.ts';
 import { AmmoType, ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../content/items/items.ts';
@@ -237,6 +237,39 @@ export function validItemAttachment(table: ItemTable, o: ItemObject, attachment:
   };
   const other = exclusive[table.byIndex.get(attachment)?.name ?? ''];
   return !(other && findAttachment(o, id(other)) !== -1);
+}
+
+export type AttachmentComplaint =
+  | { readonly kind: 'cannotAttach'; readonly item: number; readonly to: number }
+  | { readonly kind: 'alreadyAttached' }
+  | { readonly kind: 'cannotUseBoth'; readonly first: number; readonly second: number };
+
+const ATTACHMENT_HOST_CLASS: Readonly<Record<string, number>> = {
+  IC_GUN: ItemClass.GUN,
+  IC_BOMB: ItemClass.BOMB,
+  IC_ARMOUR: ItemClass.ARMOUR,
+};
+
+function validAttachmentClass(table: ItemTable, attachment: number, host: number): boolean {
+  const hostClass = ATTACHMENT_HOST_CLASS[table.rules.attachmentInfo.get(attachment)?.itemClass ?? ''];
+  return hostClass !== undefined && table.byIndex.get(host)?.itemClass === hostClass;
+}
+
+export function attachmentComplaint(table: ItemTable, target: ItemObject, attachment: number): AttachmentComplaint | null {
+  if (validLaunchable(table, attachment, target.item)) return null;
+  const id = (name: string) => table.byName.get(name)?.index ?? -1;
+  const ugl = id('UNDER_GLAUNCHER');
+  if (!validAttachment(table, attachment, target.item)) {
+    if (findAttachment(target, ugl) !== -1 && validLaunchable(table, attachment, ugl)) return null;
+    return validAttachmentClass(table, attachment, target.item) ? { kind: 'cannotAttach', item: attachment, to: target.item } : null;
+  }
+  const name = table.byIndex.get(attachment)?.name;
+  const has = (other: string) => findAttachment(target, id(other)) !== -1;
+  if (findAttachment(target, attachment) !== -1) return { kind: 'alreadyAttached' };
+  if ((name === 'DETONATOR' && has('REMDETONATOR')) || (name === 'REMDETONATOR' && has('DETONATOR'))) return { kind: 'alreadyAttached' };
+  if (name === 'BIPOD' && has('UNDER_GLAUNCHER')) return { kind: 'cannotUseBoth', first: ugl, second: attachment };
+  if (name === 'UNDER_GLAUNCHER' && has('BIPOD')) return { kind: 'cannotUseBoth', first: id('BIPOD'), second: attachment };
+  return null;
 }
 
 export const NO_ATTACHMENT_POSITION = -1;

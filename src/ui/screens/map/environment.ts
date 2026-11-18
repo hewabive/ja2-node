@@ -64,6 +64,8 @@ export type DamageFeedback = Extract<NonNullable<ViewFrame['events']>[number], {
 
 export type SkillCheckFailure = Extract<NonNullable<ViewFrame['events']>[number], { type: 'skillCheckFailed' }>;
 
+export type ItemAttachedFeedback = Extract<NonNullable<ViewFrame['events']>[number], { type: 'itemAttached' }>;
+
 export interface MapSounds {
   glowClick(): void;
   newMessageBeep(): void;
@@ -72,6 +74,7 @@ export interface MapSounds {
   mercDiedOffTheMap(soldier: number, cry: DeathCry | null): void;
   damageFeedback(feedback: DamageFeedback): void;
   skillCheckFailed(failure: SkillCheckFailure): void;
+  itemAttached(attached: ItemAttachedFeedback): void;
   reloaded(gun: number): void;
 }
 

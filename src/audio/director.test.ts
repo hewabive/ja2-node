@@ -956,6 +956,25 @@ describe('the sound director', () => {
     expect(files(cursing)[0]).toMatch(/^battlesnds\/007_curse/);
   });
 
+  it('plays the attachment sound at the merc and his reaction, and leaves an attachment made on the map screen to it (AttachObject)', () => {
+    const attached = (extra: Record<string, unknown>) =>
+      frame(10, [], [{ type: 'itemAttached', tick: 10, soldier: 1, item: 'SILENCER', to: 'GLOCK_17', result: 'attached', ...extra }]);
+    const sound = rig(world(1));
+    sound.director.reset([soldier(1, 'STANDING', 0)], []);
+    sound.director.applyFrames([attached({ sound: 'ATTACH_TO_GUN' })]);
+    expect(sound.cues).toEqual([
+      expect.objectContaining({ file: book.paths.get('ATTACH_TO_GUN'), mix: 'location', gridNo: G, baseVolume: VolumeLevel.MID }),
+    ]);
+    const cool = rig(world(1));
+    cool.director.reset([soldier(1, 'STANDING', 0)], []);
+    cool.director.applyFrames([attached({ result: 'merged', reaction: 'COOL1' })]);
+    expect(files(cool)[0]).toMatch(/^battlesnds\/007_cool/);
+    const onTheMap = rig(world(1));
+    onTheMap.director.reset([soldier(1, 'STANDING', 0)], []);
+    onTheMap.director.applyFrames([attached({ sound: 'ATTACH_TO_GUN', reaction: 'CURSE1', mapScreen: true })]);
+    expect(files(onTheMap)).toEqual([]);
+  });
+
   it('has the merc an item was applied to say COOL1, except after a canteen, which plays its drinking sound instead', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);

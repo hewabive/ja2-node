@@ -2,12 +2,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { progressFor } from '../../../tests/support/autoresolve.ts';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { ItemClass } from '../../content/items/items.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
-import { createItem, createItems, createMoney } from '../items/object.ts';
+import { createItem, createItems, createMoney, type ItemObject } from '../items/object.ts';
+import { ScriptedStream } from '../strategic/forces/autoresolve/replay-rng.ts';
 import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
 import { createKeyObject } from './doors/keys.ts';
-import { AP_RELOAD_GUN, InvSlot, itemIn } from './inventory.ts';
+import { AP_RELOAD_GUN, apsToReloadGunWithAmmo, InvSlot, itemIn } from './inventory.ts';
 import { attachmentsChanged } from './item-description-box.ts';
 import { AP } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
@@ -158,6 +160,169 @@ describe('moving items inside one inventory', () => {
     expect(itemAt(merc, InvSlot.HAND)).toBe('GLOCK_17');
     expect(itemAt(merc, InvSlot.SECOND_HAND)).toBe('MP5K');
     expect(['LOWER_RIFLE', 'STANDING']).toContain(animName(t.content, merc.state));
+  });
+});
+
+describe('what an attachment or merge sounds like (Items.cc AttachObject)', () => {
+  function attached(sim: TacticalSim) {
+    return sim.drainEvents().filter((e) => e.type === 'itemAttached');
+  }
+
+  function failsEveryCheck(sim: TacticalSim): void {
+    Object.assign(sim.state, { pre: new ScriptedStream([], 99) });
+  }
+
+  function passesEveryCheck(sim: TacticalSim): void {
+    Object.assign(sim.state, { pre: new ScriptedStream([], 0) });
+  }
+
+  function merc(sim: TacticalSim): Soldier {
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    sim.drainEvents();
+    return s;
+  }
+
+  it('plays the sound of the host for an attachment: gun, armour or bomb', () => {
+    const sim = newCombatSim(content);
+    const s = merc(sim);
+    passesEveryCheck(sim);
+    s.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('SILENCER'), 90);
+    s.inv[InvSlot.VEST] = createItem(content.items, item('KEVLAR_VEST'), 90);
+    s.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('CERAMIC_PLATES'), 90);
+    s.inv[InvSlot.BIGPOCK3] = createItem(content.items, item('TNT'), 90);
+    s.inv[InvSlot.BIGPOCK4] = createItem(content.items, item('DETONATOR'), 90);
+    const attach = (from: string, to: string) =>
+      expect(sim.dispatch({ type: 'attach', soldier: 0, item: from, to })).toMatchObject({ ok: true });
+    attach('bigPocket1', 'hand');
+    attach('bigPocket2', 'vest');
+    attach('bigPocket4', 'bigPocket3');
+    expect(attached(sim).map((e) => [e.result, e.sound, e.reaction])).toEqual([
+      ['attached', 'ATTACH_TO_GUN', undefined],
+      ['attached', 'ATTACH_CERAMIC_PLATES', undefined],
+      ['attached', 'ATTACH_DETONATOR', undefined],
+    ]);
+  });
+
+  it('has the merc curse an attachment that fails its skill check, without the sound of a success', () => {
+    const sim = newCombatSim(content);
+    const s = merc(sim);
+    s.stats.mechanical = 1;
+    s.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('GUN_BARREL_EXTENDER'), 90);
+    failsEveryCheck(sim);
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket1', to: 'hand', permanent: true })).toMatchObject({
+      ok: true,
+      data: { result: 'failedCheck' },
+    });
+    expect(attached(sim).map((e) => [e.sound, e.reaction])).toEqual([[undefined, 'CURSE1']]);
+  });
+
+  it('has the merc say COOL1 for a merge that makes a new item, nothing for pooled points, and curse one that destroys both', () => {
+    const sim = newCombatSim(content);
+    const s = merc(sim);
+    s.inv[InvSlot.VEST] = createItem(content.items, item('KEVLAR_VEST'), 80);
+    s.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('COMPOUND18'), 100);
+    s.inv[InvSlot.SECOND_HAND] = createItem(content.items, item('FIRSTAIDKIT'), 40);
+    s.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('FIRSTAIDKIT'), 30);
+    s.inv[InvSlot.LEGS] = createItem(content.items, item('KEVLAR_LEGGINGS_Y'), 80);
+    s.inv[InvSlot.BIGPOCK3] = createItem(content.items, item('COMPOUND18'), 100);
+    const attach = (from: string, to: string) =>
+      expect(sim.dispatch({ type: 'attach', soldier: 0, item: from, to })).toMatchObject({ ok: true });
+    attach('bigPocket1', 'vest');
+    attach('bigPocket2', 'secondHand');
+    attach('bigPocket3', 'legs');
+    expect(attached(sim).map((e) => [e.result, e.reaction])).toEqual([
+      ['merged', 'COOL1'],
+      ['merged', undefined],
+      ['destroyed', 'CURSE1'],
+    ]);
+  });
+});
+
+describe('what a refused attachment tells (Items.cc ValidItemAttachment, PlaceObject)', () => {
+  const gunTaking = (wanted: readonly string[]) =>
+    [...content.items.byIndex.values()].find((d) => wanted.every((a) => d.weapon?.attachments.includes(a)))?.index ?? -1;
+  const gunRefusing = (attachment: string) =>
+    [...content.items.byIndex.values()].find((d) => d.weapon && d.itemClass === ItemClass.GUN && !d.weapon.attachments.includes(attachment))
+      ?.index ?? -1;
+
+  function armed(gun: number, attachment: string) {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    s.inv[InvSlot.HAND] = createItem(content.items, gun, 100);
+    s.inv[InvSlot.BIGPOCK1] = createItem(content.items, item(attachment), 90);
+    sim.drainEvents();
+    return { sim, s, attach: () => sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket1', to: 'hand' }) };
+  }
+
+  const complaints = (sim: TacticalSim) => sim.drainEvents().flatMap((e) => (e.type === 'attachmentRefused' ? [e.complaint] : []));
+
+  it('names both items when the attachment is of the kind the host class takes, but not for this host', () => {
+    const gun = gunRefusing('SILENCER');
+    const { sim, attach } = armed(gun, 'SILENCER');
+    expect(attach()).toMatchObject({ ok: false, data: { refusal: 'cannotAttach' } });
+    expect(complaints(sim)).toEqual([{ kind: 'cannotAttach', item: item('SILENCER'), to: gun }]);
+  });
+
+  it('says nothing about an item of no attachment class at all', () => {
+    const { sim, attach } = armed(item('GLOCK_17'), 'FIRSTAIDKIT');
+    expect(attach()).toMatchObject({ ok: false, data: { refusal: 'cannotAttach' } });
+    expect(complaints(sim)).toEqual([]);
+  });
+
+  it('says the host already has it, the two detonators counting as one', () => {
+    const { sim, s, attach } = armed(item('GLOCK_17'), 'SILENCER');
+    (s.inv[InvSlot.HAND] as { attachments: { item: number; status: number }[] }).attachments[0] = { item: item('SILENCER'), status: 90 };
+    expect(attach()).toMatchObject({ ok: false });
+    expect(complaints(sim)).toEqual([{ kind: 'alreadyAttached' }]);
+    const bomb = armed(item('TNT'), 'REMDETONATOR');
+    (bomb.s.inv[InvSlot.HAND] as { attachments: { item: number; status: number }[] }).attachments[0] = {
+      item: item('DETONATOR'),
+      status: 90,
+    };
+    expect(bomb.attach()).toMatchObject({ ok: false });
+    expect(complaints(bomb.sim)).toEqual([{ kind: 'alreadyAttached' }]);
+  });
+
+  it('names the two items that exclude each other, the one on the gun first', () => {
+    const { sim, s, attach } = armed(gunTaking(['BIPOD', 'UNDER_GLAUNCHER']), 'BIPOD');
+    (s.inv[InvSlot.HAND] as { attachments: { item: number; status: number }[] }).attachments[0] = {
+      item: item('UNDER_GLAUNCHER'),
+      status: 90,
+    };
+    expect(attach()).toMatchObject({ ok: false });
+    expect(complaints(sim)).toEqual([{ kind: 'cannotUseBoth', first: item('UNDER_GLAUNCHER'), second: item('BIPOD') }]);
+  });
+
+  it('names two face items that do not go together when one is moved next to the other', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    s.inv[InvSlot.HEAD1] = createItem(content.items, item('SUNGOGGLES'), 90);
+    s.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('NIGHTGOGGLES'), 90);
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'head2' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'doesNotFit' },
+    });
+    expect(complaints(sim)).toEqual([{ kind: 'cannotUseBoth', first: item('NIGHTGOGGLES'), second: item('SUNGOGGLES') }]);
+  });
+});
+
+describe('reloading two guns with the points for one (Items.cc AutoReload)', () => {
+  it('reloads the hand gun and says the second stays empty', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    glockWith(s, 0);
+    const second = createItem(content.items, item('GLOCK_17'), 100);
+    second.gunShotsLeft = 0;
+    s.inv[InvSlot.SECOND_HAND] = second;
+    s.inv[InvSlot.BIGPOCK1] = createItems(content.items, item('CLIP9_15'), 100, 2);
+    inCombat(sim);
+    s.actionPoints = apsToReloadGunWithAmmo(content.items, s.inv[InvSlot.HAND] as ItemObject, s.inv[InvSlot.BIGPOCK1] as ItemObject);
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'reload', soldier: 0 })).toMatchObject({ ok: true });
+    expect(s.inv[InvSlot.HAND]?.gunShotsLeft).toBeGreaterThan(0);
+    expect(second.gunShotsLeft).toBe(0);
+    expect(sim.drainEvents().filter((e) => e.type === 'reloadedOneGunOnly')).toEqual([expect.objectContaining({ soldier: 0 })]);
   });
 });
 

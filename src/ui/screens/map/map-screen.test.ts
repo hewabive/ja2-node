@@ -1011,6 +1011,22 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.sounds.filter((s) => s.startsWith('reloaded'))).toEqual([`reloaded ${gun}`]);
     }));
 
+  it('plays an attachment made on the map through its own sounds, and leaves one made in tactical to the tactical director', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const merc = f.mercs[0] ?? -1;
+      const attached = { type: 'itemAttached', tick, soldier: merc, item: 'SILENCER', to: 'GLOCK_17', result: 'attached' } as const;
+      f.frames([
+        {
+          tick,
+          changed: [],
+          removed: [],
+          events: [{ ...attached, sound: 'ATTACH_TO_GUN', mapScreen: true }, attached],
+        },
+      ]);
+      expect(f.sounds.filter((s) => s.startsWith('itemAttached'))).toEqual([`itemAttached ${merc} ATTACH_TO_GUN mute`]);
+    }));
+
   it('opens the contract menu behind the price line and asks before a dismissal from it, outside the renewal sequence (ContractMenuBtnCallbackPrimary)', () =>
     withMap(async (f) => {
       const merc = f.mercs[0] ?? -1;

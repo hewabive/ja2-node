@@ -17,7 +17,8 @@
 // @src the loaded map, sReloadSound at HIGHVOLUME, MIDDLEPAN, 2026-11-14); DoMercBattleSound (the confirmation held behind
 // @src the merc's own line, 2026-11-14); src/game/Tactical/SkillCheck.cc SkillCheck (the CURSE1 of a check failed while
 // @src the map screen is up, on Random(100) < 40 drawn here but for lockpicking, disarming and the crowbar, held behind the
-// @src merc's own line by DoMercBattleSound, 2026-11-14).
+// @src merc's own line by DoMercBattleSound, 2026-11-14); src/game/Tactical/Items.cc AttachObject (the ATTACH_* sound at
+// @src MIDVOLUME and the merc's CURSE1 or COOL1 of an attachment or merge made on the map screen, 2026-11-18).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { SpeechOwner } from '../../audio/director.ts';
@@ -37,7 +38,7 @@ import { BleedGrunts, damageFeedbackSounds } from '../../content/audio/damage-fe
 import { cursesTheFailedCheck } from '../../content/audio/skill-check-curse.ts';
 import { offScreenVolume } from '../../content/audio/sound-position.ts';
 import type { PlayerView } from '../../protocol/view.ts';
-import type { DamageFeedback, DeathCry, MapSounds, SkillCheckFailure } from '../../ui/screens/map/environment.ts';
+import type { DamageFeedback, DeathCry, ItemAttachedFeedback, MapSounds, SkillCheckFailure } from '../../ui/screens/map/environment.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 import { loadSettings } from '../settings.ts';
 
@@ -148,13 +149,26 @@ export class MapSound implements MapSounds {
   }
 
   skillCheckFailed(failure: SkillCheckFailure): void {
-    if (!cursesTheFailedCheck(failure.certain === true, this.#random.rand)) return;
+    if (cursesTheFailedCheck(failure.certain === true, this.#random.rand)) this.#exclaim(failure, CURSE);
+  }
+
+  itemAttached(attached: ItemAttachedFeedback): void {
     const book = this.#book;
-    const voiced = this.#voiceOf(failure);
+    if (book && attached.sound) {
+      const gridNo = this.#view()?.soldiers.find((s) => s.id === attached.soldier)?.gridNo ?? NOWHERE;
+      const cue = effectCue(book, attached.sound, 'location', MIDVOLUME, gridNo);
+      if (cue) this.#engine.play(cue);
+    }
+    if (attached.reaction) this.#exclaim(attached, attached.reaction);
+  }
+
+  #exclaim(feedback: Pick<DamageFeedback, 'soldier' | 'cry' | 'unseen'>, sound: BattleSoundName): void {
+    const book = this.#book;
+    const voiced = this.#voiceOf(feedback);
     if (!book || !voiced) return;
-    const play = () => this.#battleSound(book, failure.soldier, voiced, CURSE);
-    const profile = this.#view()?.strategic?.mercs.find((m) => m.id === failure.soldier)?.profile;
-    if (profile !== undefined && waitsForTheLine(book, CURSE) && this.#speech.holdBattleSound(profile, play)) return;
+    const play = () => this.#battleSound(book, feedback.soldier, voiced, sound);
+    const profile = this.#view()?.strategic?.mercs.find((m) => m.id === feedback.soldier)?.profile;
+    if (profile !== undefined && waitsForTheLine(book, sound) && this.#speech.holdBattleSound(profile, play)) return;
     play();
   }
 

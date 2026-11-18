@@ -907,6 +907,9 @@ export class MapScreen implements Screen {
       case 'mercDied':
         if (event.mapScreen) this.#env.sounds.mercDiedOffTheMap(event.soldier, event.cry ?? null);
         return;
+      case 'itemAttached':
+        if (event.mapScreen) this.#env.sounds.itemAttached(event);
+        return;
       case 'reloaded':
         if (event.mapScreen) this.#env.sounds.reloaded(event.item);
         return;

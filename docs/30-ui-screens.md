@@ -263,7 +263,8 @@ flashes (`mercBled`, `SoldierBleed`'s `SetInfoChar`), `damageFeedback` flashes t
 prints it green (`map/map-screen.ts`), and a soldier dying there cries through `MapSound` (`31`). The events of our
 mercs' assignments and map inventory while no sector is loaded reach it as well, from a combat context of their own
 (`src/sim/campaign/off-map-combat.ts`): a stat changed there prints its message and colours the stat on the info panel
-as on the loaded map (`Tactical/Campaign.cc:583-632`), and a failed attach or merge curses through `MapSound`.
+as on the loaded map (`Tactical/Campaign.cc:583-632`), and a failed attach or merge curses through `MapSound`, which also
+plays the attachment sound and the merc's `COOL1` of a merge.
 
 **A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
 the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead

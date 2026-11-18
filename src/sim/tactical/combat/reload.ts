@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc AutoReload, FindAmmoToReload, FindAmmo, FindObjExcludingSlot, FindObjClass;
-// @src Soldier_Control.cc IsValidSecondHandShotForReloadingPurposes.
+// @src Soldier_Control.cc IsValidSecondHandShotForReloadingPurposes; AutoReload's STR_RELOAD_ONLY_ONE_GUN (2026-11-18).
 
 import { ItemClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
@@ -72,7 +72,10 @@ function reloadSecondHand(ctx: InventoryContext, s: Soldier): boolean {
   const slot = findAmmoToReload(ctx.items, s, InvSlot.SECOND_HAND, NO_SLOT);
   if (slot === NO_SLOT) return true;
   const ammo = s.inv[slot] as ItemObject;
-  if (!enoughPoints(ctx.inCombat, s, apsToReloadGunWithAmmo(ctx.items, gun, ammo))) return true;
+  if (!enoughPoints(ctx.inCombat, s, apsToReloadGunWithAmmo(ctx.items, gun, ammo))) {
+    ctx.reloadedOneGunOnly?.();
+    return true;
+  }
   return reloadGun(ctx, s, gun, ammo);
 }
 

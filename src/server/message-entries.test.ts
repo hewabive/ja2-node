@@ -24,6 +24,7 @@ const at = (e: Record<string, unknown>): SimEvent => ({ tick: 40, ...e }) as unk
 
 describe('the lines of guns, armour, locks, attachments and gifts', () => {
   const YELLOW = { kind: 'interface', colour: 145 };
+  const FEEDBACK = { kind: 'uiFeedback', colour: 144 };
   const entryOf = (e: Record<string, unknown>) => messageEntriesOf([at(e)], facts).map(({ tick: _tick, ...entry }) => entry);
   const ivan = { text: 'Ivan' };
   const fox = { text: 'Fox' };
@@ -38,6 +39,43 @@ describe('the lines of guns, armour, locks, attachments and gifts', () => {
       { ...YELLOW, table: 'str_ceramic_plates_smashed', index: 0, args: [fox] },
     ]);
     expect(entryOf({ type: 'lockHit', gridNo: 5 })).toEqual([{ ...YELLOW, table: 'TacticalStr', index: 132 }]);
+    expect(entryOf({ type: 'reloadedOneGunOnly', soldier: 0 })).toEqual([{ ...YELLOW, table: 'Message', index: 58, args: [ivan] }]);
+  });
+
+  it('reports a refused attachment in the feedback box, with the long item names', () => {
+    const named = (item: number) => ({ item, name: 'long' });
+    const refused = (complaint: Record<string, unknown>) => entryOf({ type: 'attachmentRefused', soldier: 0, complaint });
+    expect(refused({ kind: 'cannotAttach', item: 7, to: 2 })).toEqual([
+      { ...FEEDBACK, table: 'Message', index: 37, args: [named(7), named(2)] },
+    ]);
+    expect(refused({ kind: 'alreadyAttached' })).toEqual([{ ...FEEDBACK, table: 'Message', index: 35 }]);
+    expect(refused({ kind: 'cannotUseBoth', first: 3, second: 4 })).toEqual([
+      { ...FEEDBACK, table: 'Message', index: 41, args: [named(3), named(4)] },
+    ]);
+  });
+
+  it('reports an item given to a merc by its short name, by a merc or an NPC, and nothing when it was dropped', () => {
+    const given = { table: 'TacticalStr', index: 18, args: [{ item: 2, name: 'short' }, fox] };
+    expect(entryOf({ type: 'itemGiven', soldier: 0, target: 1, item: 'GLOCK_17', count: 1, status: 100, dropped: false })).toEqual([
+      { ...YELLOW, ...given },
+    ]);
+    expect(
+      entryOf({ type: 'npcGaveItem', npc: 116, profile: 101, to: 1, item: 'GLOCK_17', count: 1, status: 100, dropped: false }),
+    ).toEqual([{ ...YELLOW, ...given }]);
+    expect(entryOf({ type: 'itemGiven', soldier: 0, target: 1, item: 'GLOCK_17', count: 1, status: 100, dropped: true })).toEqual([]);
+    expect(
+      entryOf({ type: 'npcGaveItem', npc: 116, profile: 101, to: null, item: 'GLOCK_17', count: 1, status: 100, dropped: true }),
+    ).toEqual([]);
+  });
+
+  it('reports the money that pays a debt: paid in full, or how much is still owed', () => {
+    const fatima = { text: 'Fatima' };
+    expect(entryOf({ type: 'npcMessage', kind: 'paidInFull', profile: 101 })).toEqual([
+      { ...YELLOW, table: 'TacticalStr', index: 19, args: [fatima] },
+    ]);
+    expect(entryOf({ type: 'npcMessage', kind: 'stillOwed', profile: 101, amount: 300 })).toEqual([
+      { ...YELLOW, table: 'TacticalStr', index: 20, args: [fatima, { number: 300 }] },
+    ]);
   });
 });
 

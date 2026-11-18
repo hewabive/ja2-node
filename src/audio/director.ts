@@ -695,6 +695,9 @@ export class SoundDirector {
       case 'barrelExtenderFellOff':
         this.#battleSound(e.soldier, 'CURSE1', false);
         return;
+      case 'itemAttached':
+        if (!e.mapScreen) this.#itemAttached(e);
+        return;
       case 'gunImprint':
         this.#play(imprintCue(book, e.result === 'imprinted'));
         return;
@@ -883,6 +886,12 @@ export class SoundDirector {
     const vehicle = [...this.#soldiers.values()].find((s) => s.gridNo === gridNo && isVehicleBody(s.bodyType));
     const sounds = vehicle ? this.#o.book.vehicles[vehicleTypeOfBody(vehicle.bodyType)] : undefined;
     if (sounds) this.#play(cueOf(sounds.enter, 'location', VolumeLevel.HIGH, gridNo));
+  }
+
+  #itemAttached(e: EventOf<'itemAttached'>): void {
+    const gridNo = this.#soldiers.get(e.soldier)?.gridNo;
+    if (e.sound && gridNo !== undefined) this.#play(effectCue(this.#o.book, e.sound, 'location', VolumeLevel.MID, gridNo));
+    if (e.reaction) this.#battleSound(e.soldier, e.reaction, false);
   }
 
   #itemApplied(e: EventOf<'itemApplied'>): void {

@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc AttachObject (the in-game attachment with its skill check and the merges),
-// @src EvaluateValidMerge, ValidMerge, GetAttachmentInfo.
+// @src EvaluateValidMerge, ValidMerge, GetAttachmentInfo; AttachObject's attachment sounds and the merc's CURSE1 and
+// @src COOL1 (2026-11-18).
 
-import { ItemClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
+import { ItemClass, type ItemTable, NOTHING, WEAPON_CLASSES } from '../../content/items/items.ts';
 import { idiv } from '../../core/int.ts';
 import {
   attachmentPosition,
@@ -13,13 +14,15 @@ import {
   deleteObject,
   type ItemObject,
   NO_ATTACHMENT_POSITION,
+  validItemAttachment,
 } from '../items/object.ts';
 import type { CombatContext } from './combat/context.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { SkillCheckReason, skillCheck } from './combat/skill-check.ts';
+import type { AttachReaction, AttachSound } from './inventory-events.ts';
 import { AP, deductPoints, enoughPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
-import type { Soldier } from './soldier.ts';
+import { type Soldier, Team } from './soldier.ts';
 
 export const MergeAction = {
   COMBINE_POINTS: 'COMBINE_POINTS',
@@ -35,6 +38,14 @@ export interface MergeOutcome {
 }
 
 export type AttachResult = 'attached' | 'merged' | 'destroyed' | 'failedCheck' | 'noAPs' | 'impossible';
+
+export interface AttachOutcome {
+  readonly result: AttachResult;
+  readonly sound?: AttachSound;
+  readonly reaction?: AttachReaction;
+}
+
+const FAILED_CHECK: AttachOutcome = { result: 'failedCheck', reaction: 'CURSE1' };
 
 function skillCheckReasonOf(check: string): number | undefined {
   switch (check) {
@@ -65,13 +76,21 @@ export function validMerge(items: ItemTable, merge: number, item: number): boole
   return evaluateValidMerge(items, merge, item) !== null;
 }
 
-function failCheck(target: ItemObject, attachment: ItemObject, margin: number): AttachResult {
+function failCheck(target: ItemObject, attachment: ItemObject, margin: number): AttachOutcome {
   damageObject(target, -margin);
   damageObject(attachment, -margin);
-  return 'failedCheck';
+  return FAILED_CHECK;
 }
 
-function attachAsAttachment(t: CombatContext, s: Soldier, target: ItemObject, attachment: ItemObject): AttachResult {
+function attachSoundFor(items: ItemTable, target: ItemObject, attachment: number): AttachSound | null {
+  if (!validItemAttachment(items, target, attachment, true)) return null;
+  const itemClass = items.byIndex.get(target.item)?.itemClass ?? ItemClass.NONE;
+  if (itemClass & WEAPON_CLASSES) return 'ATTACH_TO_GUN';
+  if (itemClass === ItemClass.ARMOUR) return 'ATTACH_CERAMIC_PLATES';
+  return itemClass === ItemClass.BOMB ? 'ATTACH_DETONATOR' : null;
+}
+
+function attachAsAttachment(t: CombatContext, s: Soldier, target: ItemObject, attachment: ItemObject): AttachOutcome {
   const items = t.content.items;
   const info = items.rules.attachmentInfo.get(attachment.item);
   const reason = info ? skillCheckReasonOf(info.check) : undefined;
@@ -80,10 +99,11 @@ function attachAsAttachment(t: CombatContext, s: Soldier, target: ItemObject, at
     if (margin < 0) return failCheck(target, attachment, margin);
   }
   const before = target.item;
-  if (!attachObject(items, target, attachment)) return 'impossible';
+  const sound = attachSoundFor(items, target, attachment.item);
+  if (!attachObject(items, target, attachment)) return { result: 'impossible' };
   if (target.item !== before && info && info.mod < COMBO_MERGE_EXPERIENCE)
     statChange(t, s, StatKind.MECHANICAL, COMBO_MERGE_EXPERIENCE - info.mod, StatCause.SUCCESS);
-  return 'attached';
+  return sound ? { result: 'attached', sound } : { result: 'attached' };
 }
 
 function combinePoints(items: ItemTable, target: ItemObject, attachment: ItemObject, indexInStack: number): void {
@@ -114,10 +134,11 @@ function removeObjectFrom(o: ItemObject, index: number): void {
   o.count--;
 }
 
-function defaultMerge(target: ItemObject, attachment: ItemObject, merge: MergeOutcome): void {
+function defaultMerge(s: Soldier, target: ItemObject, attachment: ItemObject, merge: MergeOutcome): AttachOutcome {
   target.item = merge.result;
   if (merge.action !== MergeAction.TREAT_ARMOUR) target.status[0] = idiv((target.status[0] ?? 0) + (attachment.status[0] ?? 0), 2);
   deleteObject(attachment);
+  return s.team === Team.OUR ? { result: 'merged', reaction: 'COOL1' } : { result: 'merged' };
 }
 
 function mergeObjects(
@@ -127,20 +148,20 @@ function mergeObjects(
   attachment: ItemObject,
   indexInStack: number,
   merge: MergeOutcome,
-): AttachResult {
+): AttachOutcome {
   const items = t.content.items;
   if (merge.action !== MergeAction.COMBINE_POINTS) {
-    if (!enoughPoints(t.inCombat, s, AP.MERGE)) return 'noAPs';
+    if (!enoughPoints(t.inCombat, s, AP.MERGE)) return { result: 'noAPs' };
     deductPoints(t, s, AP.MERGE, 0);
   }
   switch (merge.action) {
     case MergeAction.COMBINE_POINTS:
       combinePoints(items, target, attachment, indexInStack);
-      return 'merged';
+      return { result: 'merged' };
     case MergeAction.DESTRUCTION:
       deleteObject(target);
       deleteObject(attachment);
-      return 'destroyed';
+      return { result: 'destroyed', reaction: 'CURSE1' };
     case MergeAction.ELECTRONIC_MERGE: {
       const margin = skillCheck(t, s, SkillCheckReason.ATTACHING_SPECIAL_ELECTRONIC_ITEM, MERGE_CHECK_MODIFIER);
       if (margin < 0) return failCheck(target, attachment, margin);
@@ -153,8 +174,7 @@ function mergeObjects(
       break;
     }
   }
-  defaultMerge(target, attachment, merge);
-  return 'merged';
+  return defaultMerge(s, target, attachment, merge);
 }
 
 export function soldierAttachObject(
@@ -163,15 +183,15 @@ export function soldierAttachObject(
   target: ItemObject,
   attachment: ItemObject,
   indexInStack: number,
-): AttachResult {
+): AttachOutcome {
   const items = t.content.items;
-  if (target.item === NOTHING || attachment.item === NOTHING) return 'impossible';
+  if (target.item === NOTHING || attachment.item === NOTHING) return { result: 'impossible' };
   if (canAttachAsAttachment(items, target, attachment.item)) {
-    if (attachmentPosition(items, target, attachment) === NO_ATTACHMENT_POSITION) return 'impossible';
+    if (attachmentPosition(items, target, attachment) === NO_ATTACHMENT_POSITION) return { result: 'impossible' };
     return attachAsAttachment(t, s, target, attachment);
   }
   const merge = evaluateValidMerge(items, attachment.item, target.item);
-  if (!merge) return 'impossible';
+  if (!merge) return { result: 'impossible' };
   return mergeObjects(t, s, target, attachment, indexInStack, merge);
 }
 

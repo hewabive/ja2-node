@@ -53,7 +53,7 @@ export function campaignCombatContext(campaign: () => CampaignSim | null, state:
 }
 
 export function voicedOnTheMapScreen(c: CampaignSim, e: SimEvent): SimEvent {
-  if (e.type !== 'skillCheckFailed' || c.state.flow !== 'strategic') return e;
+  if ((e.type !== 'skillCheckFailed' && e.type !== 'itemAttached') || c.state.flow !== 'strategic') return e;
   return { ...e, mapScreen: true, ...voiceOffTheLoadedMap(c, e.soldier) };
 }
 
