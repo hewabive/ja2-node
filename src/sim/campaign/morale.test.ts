@@ -120,6 +120,43 @@ describe('strategic morale events', () => {
   });
 });
 
+describe('a merc married off (Morale.cc:565-602)', () => {
+  const NOT_SEXIST = 0;
+  const SOMEWHAT_SEXIST = 1;
+  const VERY_SEXIST = 2;
+  const GENTLEMAN = 3;
+  const MALE = 0;
+  const FEMALE = 1;
+
+  function moraleModAfterMarriage(sex: number, sexist: number, hatesTheBride = false): number {
+    const bride = merc(0, HERE);
+    const other = merc(1, HERE);
+    const ctx: TestContext = { ...context([bride, other]), sexistOf: (profile) => (profile === other.profile ? sexist : NOT_SEXIST) };
+    ctx.profiles.set(
+      other.profile,
+      progressFor(other.profile, { attitude: Attitude.NORMAL, sex, hated: hatesTheBride ? [bride.profile, -1, -1] : [-1, -1, -1] }),
+    );
+    handleMoraleEvent(ctx, bride, MoraleEvent.MERC_MARRIED, HERE);
+    return other.soldier.strategicMoraleMod;
+  }
+
+  it('upsets a somewhat sexist woman once and a very sexist one twice', () => {
+    expect(moraleModAfterMarriage(FEMALE, SOMEWHAT_SEXIST)).toBe(-5);
+    expect(moraleModAfterMarriage(FEMALE, VERY_SEXIST)).toBe(-10);
+  });
+
+  it('upsets a gentleman, and neither the other men nor a woman who is not sexist', () => {
+    expect(moraleModAfterMarriage(MALE, GENTLEMAN)).toBe(-5);
+    expect(moraleModAfterMarriage(MALE, VERY_SEXIST)).toBe(0);
+    expect(moraleModAfterMarriage(FEMALE, NOT_SEXIST)).toBe(0);
+    expect(moraleModAfterMarriage(FEMALE, GENTLEMAN)).toBe(0);
+  });
+
+  it('spares those who hate the one married off', () => {
+    expect(moraleModAfterMarriage(FEMALE, VERY_SEXIST, true)).toBe(0);
+  });
+});
+
 describe('the morale of a merc on drugs (Morale.cc RefreshSoldierMorale)', () => {
   it('adds the adrenaline effect at 150 and the drink at 160 percent, each truncated, and waits while he sleeps', () => {
     const m = merc(0, HERE);

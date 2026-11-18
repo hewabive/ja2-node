@@ -4,7 +4,8 @@
 // @src HandleMoraleEvent (the strategic events and the reputation change; MORALE_TEAMMATE_DIED for any dead soldier,
 // @src 2026-11-05); Strategic/Strategic_Status.h REPUTATION_*;
 // @src the drug term of RefreshSoldierMorale (2026-11-04); HandleMoraleEventForSoldier's bInSector, a helicopter passenger
-// @src over the loaded sector's included (2026-11-08).
+// @src over the loaded sector's included (2026-11-08); HandleMoraleEvent's MORALE_MERC_MARRIED, Soldier_Profile_Type.h
+// @src SexistLevels, Sexes (2026-11-18).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import { clamp, i8, idiv, u8 } from '../../core/int.ts';
@@ -105,6 +106,8 @@ const PROGRESS_MORALE_DIVISOR = 5;
 const ROOF_LEVEL = 1;
 const HIGH_LEVEL = 5;
 const COMPARED_BUDDIES = 3;
+const FEMALE = 1;
+const Sexist = { SOMEWHAT_SEXIST: 1, VERY_SEXIST: 2, GENTLEMAN: 3 } as const;
 const PHOBIC_LIMIT = -20;
 const LOW_MORALE_QUOTE_BELOW = 35;
 const LOW_MORALE_FLAG_RESET_ABOVE = 65;
@@ -116,6 +119,7 @@ export interface MoraleContext {
   readonly enemyInSector: boolean;
   readonly status?: Pick<StrategicStatus, 'badReputation'>;
   readonly sayQuote?: (m: RosterMerc, quote: QuoteName) => void;
+  readonly sexistOf?: (profile: number) => number;
 }
 
 interface MoraleQuoteGate {
@@ -286,6 +290,23 @@ function teammateDied(ctx: MoraleContext, deadProfile: number, s: Sector, gate: 
   }
 }
 
+function timesUpsetByMarriage(sex: number, sexist: number): number {
+  if (sex === FEMALE) {
+    if (sexist === Sexist.VERY_SEXIST) return 2;
+    return sexist === Sexist.SOMEWHAT_SEXIST ? 1 : 0;
+  }
+  return sexist === Sexist.GENTLEMAN ? 1 : 0;
+}
+
+function mercMarried(ctx: MoraleContext, married: RosterMerc, gate: MoraleQuoteGate): void {
+  for (const other of ctx.team) {
+    const p = ctx.profiles.get(other.profile);
+    if (!p || p.hated.slice(0, COMPARED_BUDDIES).includes(married.profile)) continue;
+    const times = timesUpsetByMarriage(p.sex, ctx.sexistOf?.(other.profile) ?? 0);
+    for (let k = 0; k < times; k++) apply(ctx, other, MoraleEvent.MERC_MARRIED, gate);
+  }
+}
+
 function applyMoraleEvent(ctx: MoraleContext, subject: RosterMerc | null, event: number, s: Sector, gate: MoraleQuoteGate): void {
   if (SOLDIER_ONLY.has(event)) {
     if (subject) apply(ctx, subject, event, gate);
@@ -305,6 +326,10 @@ function applyMoraleEvent(ctx: MoraleContext, subject: RosterMerc | null, event:
   }
   if (event === MoraleEvent.TEAMMATE_DIED) {
     if (subject) teammateDied(ctx, subject.profile, s, gate);
+    return;
+  }
+  if (event === MoraleEvent.MERC_MARRIED) {
+    if (subject) mercMarried(ctx, subject, gate);
     return;
   }
   if (EVERYONE.has(event)) {

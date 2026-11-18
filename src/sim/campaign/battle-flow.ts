@@ -321,6 +321,7 @@ export class BattleFlow implements FateContext {
       enemyInSector: this.campaign.tactical?.state.turn.enemyInSector === true,
       status: this.state.status,
       sayQuote: (m, quote) => this.campaign.contracts?.sayDelayed(m, quote),
+      sexistOf: (profile) => this.content.profiles[profile]?.sexist ?? 0,
     };
   }
 
