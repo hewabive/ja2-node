@@ -12,7 +12,15 @@ import type { StrategicKnowledge } from '../knowledge/strategic.ts';
 import type { CrewMember } from '../strategic/economy/ports.ts';
 import type { Group } from '../strategic/forces/groups.ts';
 import { canCharacterMoveInStrategic, canEntireMovementGroupMove, type MoveBlock } from '../strategic/forces/move-permission.ts';
-import { type PlotRefusal, type PlottedLegs, plotLegs, soldierGroup, soldierMercPath } from '../strategic/forces/routes.ts';
+import {
+  legShortest,
+  type PlotLegOptions,
+  type PlotRefusal,
+  type PlottedLegs,
+  plotLegs,
+  soldierGroup,
+  soldierMercPath,
+} from '../strategic/forces/routes.ts';
 import { appendStrategicPath } from '../strategic/map/pathing.ts';
 import { edgeTravelMinutes, plottingEtaMinutes } from '../strategic/map/plotting.ts';
 import { mercOf, sectorNames, sectorParam, strategicOf } from './strategic-check.ts';
@@ -53,9 +61,9 @@ export function plotLegsHint(
   origin: number,
   via: readonly Sector[],
   to: Sector,
-  direct: boolean,
+  options: PlotLegOptions,
 ): PlottedLegs | HintRefusal {
-  const legs = plotLegs(sk.ctx, g, start, origin, via, to, { direct });
+  const legs = plotLegs(sk.ctx, g, start, origin, via, to, options);
   return typeof legs === 'string' ? refuseHint(legs, PLOT_REFUSAL_TEXT[legs]) : legs;
 }
 
@@ -76,7 +84,7 @@ function routeFor(sk: StrategicKnowledge, m: CrewMember, req: PreviewRouteReques
   const g = soldierGroup(ctx, m);
   if (!g) return refuseHint('noRoute', 'the merc has no movement group');
   const start = req.extend === true ? soldierMercPath(ctx, m) : [];
-  const legs = plotLegsHint(sk, g, start, strategicIndex(m.sector), via, to, req.shortest === true);
+  const legs = plotLegsHint(sk, g, start, strategicIndex(m.sector), via, to, { shortest: legShortest(req.shortest) });
   if ('ok' in legs) return legs;
   const full = appendStrategicPath(legs.temp, legs.path);
   return hintData({

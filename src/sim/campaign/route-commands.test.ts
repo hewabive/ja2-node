@@ -82,4 +82,23 @@ describe('the route command', () => {
     expect(plotRouteForCharacter(ctx, 0, [], S('B9'), FRESH)).toBeNull();
     expect(g).toMatchObject({ sector: S('A9'), next: S('B9'), waypoints: [] });
   });
+
+  it('refuses a leg or a destination a merc cannot pass through, though a border opens onto it (MapScreen.cc:2307 SectorIsPassable)', () => {
+    const { ctx } = squadInA9();
+    const badSector = { ok: false, data: { refusal: 'badSector' } };
+    expect(plotRouteForCharacter(ctx, 0, [], S('D1'), FRESH)).toMatchObject(badSector);
+    expect(plotRouteForCharacter(ctx, 0, [S('D1')], S('C1'), FRESH)).toMatchObject(badSector);
+    expect(squadGroup(ctx).betweenSectors).toBe(false);
+    expect(plotRouteForCharacter(ctx, 0, [], S('C1'), FRESH)).toBeNull();
+  });
+
+  it('plots each leg with the Shift of its own click (Strategic_Pathing.cc:202-208)', () => {
+    const plotted = (shortest: readonly boolean[]) => {
+      const { ctx, mercs } = squadInA9();
+      expect(plotRouteForCharacter(ctx, 0, [S('B9')], S('C5'), { shortest, extend: false })).toBeNull();
+      return mercs.get(0)?.path;
+    };
+    expect(plotted([false, true])).toEqual(route('A9', 'B9', 'B8', 'B7', 'B6', 'B5', 'C5'));
+    expect(plotted([true, false])).toEqual(route('A9', 'B9', 'C9', 'C8', 'C7', 'C6', 'C5'));
+  });
 });

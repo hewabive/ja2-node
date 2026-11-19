@@ -8,7 +8,8 @@
 // @src GetPathTravelTimeDuringPlotting (0 until the temporary path is drawn); src/game/Strategic/Map_Screen_Interface_Map.cc
 // @src PlotPathForCharacter, PlotATemporaryPathForCharacter, ClearPathAfterThisSectorForCharacter, PlotPathForHelicopter,
 // @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter; HandleNewDestConfirmation through a click
-// @src on the end of an unchanged path, the helicopter's too (2026-11-18), or on the merc's sector without a path
+// @src on the end of an unchanged path, the helicopter's too (2026-11-18); SHIFT read by FindStratPath at each plotting
+// @src click, the helicopter's too, MAP_EVENT_PLOT_PATH's SectorIsPassable for a merc, the confirm of an empty path
 // @src (2026-11-19).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
@@ -79,6 +80,7 @@ export class Plotting {
   readonly group: readonly number[] | null;
   #base: readonly string[];
   #legs: string[] = [];
+  #legShortest: boolean[] = [];
   #shortest = false;
   #hover: Sector | null = null;
   #hoverSince = 0;
@@ -129,8 +131,8 @@ export class Plotting {
 
   #request(to: string): CommandEnvelope {
     const via = this.#legs.length > 0 ? { via: [...this.#legs] } : {};
-    const shortest = this.#shortest ? { shortest: true } : {};
-    if (this.mode === 'heli') return { type: 'previewHeliRoute', to, ...via, extend: true };
+    const shortest = shortestField([...this.#legShortest, this.#shortest]);
+    if (this.mode === 'heli') return { type: 'previewHeliRoute', to, ...via, ...shortest, extend: true };
     if (this.group) return { type: 'previewRoute', soldier: this.soldier, to, ...via, ...shortest, alone: true };
     return { type: 'previewRoute', soldier: this.soldier, to, ...via, ...shortest, extend: true };
   }
@@ -209,12 +211,14 @@ export class Plotting {
     return this.tempAnswer()?.etaMinutes ?? 0;
   }
 
-  click(sector: Sector): PlotClick {
+  click(sector: Sector, plottable = true): PlotClick {
     const label = sectorLabel({ ...sector, z: 0 });
     if (sameLabel(label, this.lastSectorOrOrigin())) return { kind: 'confirm' };
+    if (!plottable) return { kind: 'ignored' };
     const answer = this.#answer(label);
     if (!answer || answer.temp.length === 0) return answer === undefined ? { kind: 'ignored' } : { kind: 'offRoad' };
     this.#legs.push(label);
+    this.#legShortest.push(this.#shortest);
     return { kind: 'appended' };
   }
 
@@ -231,15 +235,15 @@ export class Plotting {
     if (at < 0 || at === full.length - 1) return { kind: 'abort' };
     if (at < legsStart || this.#legs.length === 0) {
       this.#legs = [];
+      this.#legShortest = [];
       this.#pathAnswer = null;
       return { kind: 'shortenBase', at: label };
     }
-    const kept = this.#legs.filter((leg) => {
-      const index = full.findIndex((s, i) => i >= legsStart && sameLabel(s, leg));
-      return index >= 0 && index < at;
-    });
-    kept.push(label);
-    this.#legs = kept;
+    const legEnds = this.#legs.map((leg) => full.findIndex((s, i) => i >= legsStart && sameLabel(s, leg)));
+    const kept = legEnds.flatMap((end, leg) => (end >= 0 && end < at ? [leg] : []));
+    const cut = legEnds.findIndex((end) => end >= at);
+    this.#legs = [...kept.map((leg) => this.#legs[leg] as string), label];
+    this.#legShortest = [...kept.map((leg) => this.#legShortest[leg] === true), this.#legShortest[cut] === true];
     this.#pathAnswer = null;
     return { kind: 'shortenLegs' };
   }
@@ -256,8 +260,8 @@ export class Plotting {
     const to = this.#legs[this.#legs.length - 1] as string;
     const via = this.#legs.slice(0, -1);
     const viaPart = via.length > 0 ? { via } : {};
-    const shortest = this.#shortest ? { shortest: true } : {};
-    if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, extend: true, plotted: true };
+    const shortest = shortestField(this.#legShortest);
+    if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, ...shortest, extend: true, plotted: true };
     const group = this.group;
     if (group) return { type: 'routeGroup', soldiers: [...group], to, ...viaPart, ...shortest };
     return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true };
@@ -276,6 +280,11 @@ export class Plotting {
     if (!command || this.#legs.length === 0 || this.mode === 'heli' || this.group) return null;
     return { ...command, soldier };
   }
+}
+
+function shortestField(legs: readonly boolean[]): { readonly shortest?: boolean | readonly boolean[] } {
+  if (!legs.includes(true)) return {};
+  return legs.includes(false) ? { shortest: [...legs] } : { shortest: true };
 }
 
 export function pathSectors(path: readonly string[]): Sector[] {

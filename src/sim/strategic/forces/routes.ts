@@ -4,12 +4,13 @@
 // @src CancelPathForCharacter, CopyPathToCharactersSquadIfInOne, IsTheCursorAllowedToHighLightThisSector;
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup; MapScreen.cc (the plotting legs: each leg built
 // @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters);
-// @src MapScreen.cc CancelPathsOfAllSelectedCharacters (2026-11-19).
+// @src MapScreen.cc CancelPathsOfAllSelectedCharacters, MAP_EVENT_PLOT_PATH's SectorIsPassable, Strategic_Pathing.cc
+// @src FindStratPath's SHIFT read at each leg (2026-11-19).
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
-import { isValidSector, type Sector, sameSector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { isValidSector, type Sector, sameSector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { appendStrategicPath, clearStrategicPathAfterSector, lastSectorOfPath } from '../map/pathing.ts';
-import { sectorInfo, Traversability } from '../map/sectors.ts';
+import { sectorInfo, sectorIsPassable, Traversability } from '../map/sectors.ts';
 import { Assignment } from './constants.ts';
 import { type Group, getGroup, removeGroupWaypoints, requireMerc } from './groups.ts';
 import { buildAStrategicPath, type GroupPathOptions, rebuildWayPointsForGroupPath } from './movement.ts';
@@ -115,6 +116,26 @@ export interface PlottedLegs {
   readonly temp: readonly number[] | null;
 }
 
+export type LegShortest = boolean | readonly boolean[];
+
+export interface PlotLegOptions {
+  readonly shortest?: LegShortest;
+  readonly helicopter?: boolean;
+}
+
+export function legShortest(value: unknown): LegShortest {
+  return Array.isArray(value) ? value.map((flag) => flag === true) : value === true;
+}
+
+function isLegShortest(shortest: LegShortest | undefined, leg: number): boolean {
+  return Array.isArray(shortest) ? shortest[leg] === true : shortest === true;
+}
+
+export function canPlotLegTo(ctx: Pick<StrategicContext, 'state'>, s: Sector, helicopter = false): boolean {
+  if (!isTheCursorAllowedToHighLightThisSector(ctx, s)) return false;
+  return helicopter || sectorIsPassable(ctx.state.map, sectorId(s));
+}
+
 export function plotLegs(
   ctx: StrategicContext,
   g: Group,
@@ -122,17 +143,19 @@ export function plotLegs(
   origin: number,
   via: readonly Sector[],
   to: Sector,
-  options: GroupPathOptions = {},
+  options: PlotLegOptions = {},
 ): PlottedLegs | PlotRefusal {
   let path: readonly number[] = start;
-  for (const leg of via) {
-    if (!isTheCursorAllowedToHighLightThisSector(ctx, leg)) return PlotRefusal.BAD_SECTOR;
-    const section = buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(leg), g, options);
+  for (const [leg, sector] of via.entries()) {
+    if (!canPlotLegTo(ctx, sector, options.helicopter)) return PlotRefusal.BAD_SECTOR;
+    const direct = isLegShortest(options.shortest, leg);
+    const section = buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(sector), g, { direct });
     if (!section) return PlotRefusal.NO_ROUTE;
     path = appendStrategicPath(section, path);
   }
+  const direct = isLegShortest(options.shortest, via.length);
   const temp = isTheCursorAllowedToHighLightThisSector(ctx, to)
-    ? buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(to), g, options)
+    ? buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(to), g, { direct })
     : null;
   return { path, temp };
 }

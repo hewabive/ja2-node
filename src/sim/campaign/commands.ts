@@ -56,9 +56,12 @@ import {
 import type { StrategicContext, StrategicMerc } from '../strategic/forces/ports.ts';
 import {
   cancelPathOfCharacterWithRoute,
+  canPlotLegTo,
   clearPathAfterThisSectorForCharacter,
   confirmPathForCharacter,
+  type LegShortest,
   lastSectorIdInCharactersPath,
+  legShortest,
   PathEdit,
   PlotRefusal,
   plotLegs,
@@ -138,7 +141,7 @@ export function plotRouteForCharacter(
   id: number,
   via: readonly Sector[],
   to: Sector,
-  options: { readonly shortest: boolean; readonly extend: boolean },
+  options: { readonly shortest: LegShortest; readonly extend: boolean },
 ): CommandResult | null {
   const m = ctx.mercs.get(id);
   if (!m) return refuse('noSuchMerc', 'no such merc');
@@ -152,8 +155,9 @@ export function plotRouteForCharacter(
   const g = soldierGroup(ctx, m);
   if (!g) return refuse('noRoute', 'the merc has no movement group');
   const origin = strategicIndex(m.sector);
-  const legs = plotLegs(ctx, g, soldierMercPath(ctx, m), origin, via, to, { direct: options.shortest });
+  const legs = plotLegs(ctx, g, soldierMercPath(ctx, m), origin, via, to, { shortest: options.shortest });
   if (typeof legs === 'string') return refuse(legs, plotRefusalText(legs));
+  if (legs.temp && !canPlotLegTo(ctx, to)) return refuse(PlotRefusal.BAD_SECTOR, plotRefusalText(PlotRefusal.BAD_SECTOR));
   const path = plottedRoute(legs, origin, to);
   if (!path) return refuse('noRoute', 'no route to that sector for this merc');
   setPathForCharacter(ctx, id, path);
@@ -179,7 +183,7 @@ function route(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicComma
   if (!via) return refuse('badSector', 'via must be a list of sectors such as ["A10"]');
   const block = canEntireMovementGroupMove(ctx, id, loaded);
   if (block) return refuseMove(block);
-  const plotted = plotRouteForCharacter(ctx, id, via, to, { shortest: cmd.shortest === true, extend: cmd.extend === true });
+  const plotted = plotRouteForCharacter(ctx, id, via, to, { shortest: legShortest(cmd.shortest), extend: cmd.extend === true });
   if (plotted) return plotted;
   if (soldierMercPath(ctx, merc).length > 0) wakeTravellersOfConfirmedRoute(campaign, mercsWhoMustMoveWith(ctx, merc));
   return routeResult(ctx, id);
@@ -298,7 +302,7 @@ function routeGroup(campaign: CampaignSim, ctx: StrategicContext, cmd: Strategic
   const travellers = travellersWith(ctx, anchor, out.selected);
   const block = canEntireMovementGroupMove(ctx, anchor.id, loaded);
   if (block) return refuseMove(block);
-  const plotted = plotRouteForCharacter(ctx, anchor.id, via, to, { shortest: cmd.shortest === true, extend: false });
+  const plotted = plotRouteForCharacter(ctx, anchor.id, via, to, { shortest: legShortest(cmd.shortest), extend: false });
   if (plotted) return plotted;
   const path = soldierMercPath(ctx, anchor);
   const anchorGroup = soldierGroup(ctx, anchor)?.id;

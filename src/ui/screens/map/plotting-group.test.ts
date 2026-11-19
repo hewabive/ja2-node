@@ -21,12 +21,13 @@ describe('plotting for the move box', () => {
     const plot = Plotting.forGroup([3, 1], 2, 'D13');
     plot.baseChanged(['D13', 'C13']);
     const c = client((req) => ({ ok: true, data: { path: ['D13'], temp: ['D13', String(req.to)], edgeMinutes: [], etaMinutes: 90 } }));
+    plot.shortest = true;
     plot.hoverAt({ x: 13, y: 3, z: 0 }, 0);
     plot.update(c, MIN_WAIT_TIME_FOR_TEMP_PATH);
     await settle();
-    expect(c.requests).toEqual([{ type: 'previewRoute', soldier: 3, to: 'C13', alone: true }]);
+    expect(c.requests).toEqual([{ type: 'previewRoute', soldier: 3, to: 'C13', shortest: true, alone: true }]);
     expect(plot.click({ x: 13, y: 3, z: 0 })).toEqual({ kind: 'appended' });
-    plot.shortest = true;
+    plot.shortest = false;
     expect(plot.confirmCommand()).toEqual({ type: 'routeGroup', soldiers: [3, 1], to: 'C13', shortest: true });
     expect(plot.routeFor(1)).toBeNull();
     expect(plot.hadPath).toBe(false);

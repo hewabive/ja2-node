@@ -14,7 +14,8 @@
 // @src Map_Screen_Helicopter.cc SkyriderDialogue, SkyriderDialogueWithSpecialEvent (Skyrider's face through the dialogue
 // @src queue, 2026-11-01).
 // @src src/game/Strategic/MapScreen.cc HandleNewDestConfirmation, WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18);
-// @src CancelPathsOfAllSelectedCharacters (a passenger without a route, 2026-11-19).
+// @src CancelPathsOfAllSelectedCharacters (a passenger without a route, 2026-11-19); Strategic_Pathing.cc FindStratPath (Shift
+// @src flattens each helicopter leg, 2026-11-19).
 
 import {
   parseSectorString,
@@ -62,7 +63,7 @@ import type { RefuelSite } from '../strategic/forces/helicopter-state.ts';
 import { canEntireMovementGroupMove } from '../strategic/forces/move-permission.ts';
 import { rebuildWayPointsForGroupPath } from '../strategic/forces/movement.ts';
 import type { HelicopterPort, StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
-import { PathEdit, plotLegs, plottedRoute } from '../strategic/forces/routes.ts';
+import { legShortest, PathEdit, plotLegs, plottedRoute } from '../strategic/forces/routes.ts';
 import { addCharacterToSquad, getFirstEmptySquad, removeCharacterFromSquads } from '../strategic/forces/squads.ts';
 import {
   exitsOntoTheLoadedMap,
@@ -370,7 +371,7 @@ export class HelicopterFlow {
     const g = helicopterGroup(ctx);
     if (!v || !g) return refusal('noHelicopter');
     const origin = strategicIndex(v.sector);
-    const legs = plotLegs(ctx, g, v.path, origin, via, to);
+    const legs = plotLegs(ctx, g, v.path, origin, via, to, { shortest: legShortest(cmd.shortest), helicopter: true });
     const path = typeof legs === 'string' ? null : plottedRoute(legs, origin, to);
     if (!path) return refusal('noRoute');
     v.path = path;

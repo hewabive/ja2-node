@@ -3,11 +3,13 @@
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc DisplayDistancesForHelicopter (distance, safe and unsafe sectors,
 // @src COST_AIRSPACE_SAFE / COST_AIRSPACE_UNSAFE, the ETA from the temporary path and the helicopter's merc path, the
 // @src passengers), PlotATemporaryPathForHelicopter, PlotPathForHelicopter; Map_Screen_Helicopter.cc
-// @src GetLastSectorOfHelicoptersPath.
+// @src GetLastSectorOfHelicoptersPath; Strategic_Pathing.cc FindStratPath (Shift flattens the helicopter's edges too,
+// @src 2026-11-19).
 
 import { strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { canHelicopterFly, helicopterGroup, whyHelicopterCannotFly } from '../strategic/forces/helicopter.ts';
+import { legShortest } from '../strategic/forces/routes.ts';
 import { helicopterPathFigures, plottingEtaMinutes } from '../strategic/map/plotting.ts';
 import { passengersOf } from '../vehicles/vehicle-list.ts';
 import { plotLegsHint, viaSectors } from './preview-route.ts';
@@ -29,6 +31,7 @@ export interface PreviewHeliRoute {
 export interface PreviewHeliRouteRequest extends HintRequestBase {
   readonly to?: unknown;
   readonly via?: unknown;
+  readonly shortest?: unknown;
   readonly extend?: unknown;
 }
 
@@ -43,7 +46,8 @@ export function previewHeliRoute(world: KnowledgeWorld, req: PreviewHeliRouteReq
   if (!to) return refuseHint('badSector', 'to must be a sector such as B13');
   const via = viaSectors(req.via);
   if (!via) return refuseHint('badSector', 'via must be a list of sectors');
-  const legs = plotLegsHint(sk, g, req.extend === true ? v.path : [], strategicIndex(v.sector), via, to, false);
+  const start = req.extend === true ? v.path : [];
+  const legs = plotLegsHint(sk, g, start, strategicIndex(v.sector), via, to, { shortest: legShortest(req.shortest), helicopter: true });
   if ('ok' in legs) return legs;
   const canFly = canHelicopterFly(ctx);
   const figures = helicopterPathFigures(ctx, canFly, v, g, legs.path, legs.temp);

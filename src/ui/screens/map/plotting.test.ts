@@ -80,7 +80,7 @@ describe('route plotting on the map screen', () => {
     });
   });
 
-  it('refuses a click off the road and sends the earlier legs as via with Shift as shortest', async () => {
+  it('refuses a click off the road and sends the earlier legs as via, each with the Shift of its own click (Strategic_Pathing.cc:202-208)', async () => {
     const client = new FakePlotClient(routes);
     const plot = new Plotting('merc', SOLDIER, ROW, 'D13', []);
     await rest(plot, client, 'A1', 0);
@@ -94,11 +94,29 @@ describe('route plotting on the map screen', () => {
       soldier: SOLDIER,
       to: 'B13',
       via: ['C13'],
-      shortest: true,
+      shortest: [false, true],
       extend: true,
     });
     plot.click(sector('B13'));
-    expect(plot.confirmCommand()).toEqual({ type: 'route', soldier: SOLDIER, to: 'B13', via: ['C13'], shortest: true, extend: true });
+    plot.shortest = false;
+    expect(plot.confirmCommand()).toEqual({
+      type: 'route',
+      soldier: SOLDIER,
+      to: 'B13',
+      via: ['C13'],
+      shortest: [false, true],
+      extend: true,
+    });
+  });
+
+  it('ignores a click on a sector a merc cannot plot to, though it shows the temporary path there (MapScreen.cc:2307)', async () => {
+    const client = new FakePlotClient(routes);
+    const plot = new Plotting('merc', SOLDIER, ROW, 'D13', []);
+    await rest(plot, client, 'C13', 0);
+    expect(plot.tempPath()).toEqual(['D13', 'C13']);
+    expect(plot.click(sector('C13'), false)).toEqual({ kind: 'ignored' });
+    expect(plot.legs).toEqual([]);
+    expect(plot.click(sector('D13'), false)).toEqual({ kind: 'confirm' });
   });
 
   it('cancels at the origin, shortens the confirmed path on the server and pending legs in the client', async () => {
@@ -128,6 +146,16 @@ describe('route plotting on the map screen', () => {
     plot.click(sector('C13'));
     expect(plot.confirmCommand()).toEqual({ type: 'heliRoute', to: 'C13', extend: true, plotted: true });
     expect(plot.routeFor(SOLDIER)).toBeNull();
+  });
+
+  it('plots the helicopter the direct way while Shift is held, as its group is a player group (Strategic_Pathing.cc:348-352)', async () => {
+    const client = new FakePlotClient(routes);
+    const plot = new Plotting('heli', 0, -1, 'D13', []);
+    plot.shortest = true;
+    await rest(plot, client, 'C13', 0);
+    expect(client.asked[0]).toEqual({ type: 'previewHeliRoute', to: 'C13', shortest: true, extend: true });
+    plot.click(sector('C13'));
+    expect(plot.confirmCommand()).toEqual({ type: 'heliRoute', to: 'C13', shortest: true, extend: true, plotted: true });
   });
 });
 

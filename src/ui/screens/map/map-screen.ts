@@ -143,6 +143,7 @@ import {
   type MapFilters,
   type MapViewArt,
   renderMapView,
+  sectorIsPassable,
 } from './map-view.ts';
 import { isMechanical, isPow, mercBars, mercSoldier } from './merc-soldier.ts';
 import { dialogueLine, localMessage, MapMessageList } from './message-list.ts';
@@ -1958,7 +1959,7 @@ export class MapScreen implements Screen {
   #plotClick(s: Sector): void {
     const plot = this.#plot;
     if (!plot) return;
-    const result = plot.click(s);
+    const result = plot.click(s, plot.mode === 'heli' || sectorIsPassable(this.#env.facts, s));
     if (result.kind === 'confirm') void this.#confirmPlot();
     else if (result.kind === 'offRoad') this.#uiMessage(this.#text(MAP_ERROR, OFF_ROAD));
     else if (result.kind === 'appended' && plot.mode === 'merc')

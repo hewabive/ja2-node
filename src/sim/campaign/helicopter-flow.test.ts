@@ -169,6 +169,20 @@ describe('the helicopter commands', () => {
     expect(c.dispatch({ type: 'cancelRoute', soldier: 0 })).toEqual({ ok: true });
   });
 
+  it('flies the direct route while Shift is held, flattening the airspace costs as for any player group (Strategic_Pathing.cc:348-352)', () => {
+    const flown = (shortest: boolean) => {
+      const c = landedCampaign();
+      c.dispatch({ type: 'mapScreen' });
+      expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+      for (const element of c.state.map.elements) element.enemyAirControlled = false;
+      const a10 = c.state.map.elements[strategicIndex({ x: 10, y: 1 })];
+      if (a10) a10.enemyAirControlled = true;
+      return c.dispatch({ type: 'heliRoute', to: 'A11', ...(shortest ? { shortest: true } : {}) });
+    };
+    expect(flown(false)).toMatchObject({ ok: true, data: { path: ['A9', 'B9', 'B10', 'B11', 'A11'] } });
+    expect(flown(true)).toMatchObject({ ok: true, data: { path: ['A9', 'A10', 'A11'] } });
+  });
+
   it('grounds the helicopter while Skyrider is owed money', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });

@@ -713,6 +713,12 @@ export function allowedToHighlight(facts: MapFacts, s: Sector | null): s is Sect
   return facts.traversability(sectorId(s)) !== EDGE_OF_WORLD;
 }
 
+export function sectorIsPassable(facts: MapFacts, s: Sector): boolean {
+  const through = facts.traversability(sectorId(s));
+  return through !== GROUND_BARRIER && through !== EDGE_OF_WORLD;
+}
+
+const GROUND_BARRIER = 9;
 const EDGE_OF_WORLD = 12;
 
 function highlight(ctx: MapViewContext, s: Sector, colour: number): void {

@@ -138,7 +138,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | Travel asks for a strength gain even when the leg earns zero points; health needs at least one | `strategic/forces/movement.test.ts` |
 | Every arrival that does not end quietly (a battle, a prompt, no battle check) takes a battle off the Queen's alert, so each group pulled into a battle counts too | `strategic/forces/movement.test.ts` |
 | The ETA ignores the current waypoint index, and an impossible edge adds −1 minute | `strategic/map/travel.test.ts` |
-| Shift's direct route flattens every edge to 60 minutes, the helicopter's airspace costs included | `strategic/map/pathing.test.ts` |
+| Shift's direct route flattens every edge to 60 minutes, the helicopter's airspace costs included | `strategic/map/pathing.test.ts`, `campaign/helicopter-flow.test.ts` "flies the direct route while Shift is held …" |
 | Confirming a route again rebuilds its waypoints, so a moving group posts another about-to-arrive event and delays an enemy group that crosses it since; confirming the empty route of a returning group at its sector turns it once more (`Strategic/MapScreen.cc:5542-5569`) | `campaign/route-commands.test.ts` |
 | A bloodcat first visit that fails its roll stays undecided and rolls again next time; a sector with no cats left still rolls `PreChance(95)` | `strategic/forces/encounters.test.ts` |
 | The enemy takes a sector while our mercs are still in it, so the later call, once they left, never counts the loss | `strategic/map/control.test.ts` |
