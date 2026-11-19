@@ -19,7 +19,8 @@
 // @src ABOUT_TO_ARRIVE_DELAY; a group in the battle group's sector counts toward its previous sector as about to arrive;
 // @src the retreat paths show only the arrows out of the battle group's sector, for groups moving or not);
 // @src src/game/Strategic/Map_Screen_Interface.cc HandleBlitOfSectorLocatorIcon (hilite.sti, red frames from 0 and yellow
-// @src from 13, ANIMATED_BATTLEICON_FRAME_TIME).
+// @src from 13, ANIMATED_BATTLEICON_FRAME_TIME); MapScreenHandle's PlotPermanentPaths, drawn over the sector inventory too
+// @src (2026-11-19).
 
 import { MAP_SIDE, type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -775,13 +776,21 @@ function cursors(ctx: MapViewContext, input: MapViewInput): void {
   indexLabels(ctx, input);
 }
 
+function permanentPath(ctx: MapViewContext, pieces: readonly PathPiece[], animatedNode: number): void {
+  pieces.forEach((piece, i) => {
+    ctx.list.image(ctx.art.mapCursors, piece.frame, piece.x, piece.y);
+    const arrow = i === animatedNode ? whiteArrow(piece)?.arrow : piece.arrow;
+    if (arrow) ctx.list.image(ctx.art.mapCursors, arrow.frame, arrow.x, arrow.y);
+  });
+}
+
+export function renderPlottedPath(ctx: MapViewContext, pieces: readonly PathPiece[], animatedNode: number): void {
+  clipToMap(ctx, () => permanentPath(ctx, pieces, animatedNode));
+}
+
 function paths(ctx: MapViewContext, input: MapViewInput): void {
   clipToMap(ctx, () => {
-    input.permanentPath.forEach((piece, i) => {
-      ctx.list.image(ctx.art.mapCursors, piece.frame, piece.x, piece.y);
-      const arrow = i === input.animatedNode ? whiteArrow(piece)?.arrow : piece.arrow;
-      if (arrow) ctx.list.image(ctx.art.mapCursors, arrow.frame, arrow.x, arrow.y);
-    });
+    permanentPath(ctx, input.permanentPath, input.animatedNode);
     for (const piece of input.tempPath) {
       ctx.list.image(ctx.art.mapCursors, piece.frame, piece.x, piece.y);
       if (piece.arrow) ctx.list.image(ctx.art.mapCursors, piece.arrow.frame, piece.arrow.x, piece.arrow.y);

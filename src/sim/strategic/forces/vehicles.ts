@@ -6,7 +6,8 @@
 // @src SetSoldierExitHelicopterInsertionData, SetVehicleSectorValues, KillAllInVehicle,
 // @src KillPersonInVehicle, TeleportVehicleToItsClosestSector, MoveCharactersPathToVehicle, SetUpMvtGroupForVehicle,
 // @src IsThisVehicleAccessibleToSoldier (without OKUseVehicle); Strategic/Map_Screen_Interface_Map.cc CancelPathForVehicle;
-// @src Strategic/Map_Screen_Helicopter.h IsHelicopter, InHelicopter.
+// @src Strategic/Map_Screen_Helicopter.h IsHelicopter, InHelicopter; the waypoints ClearStrategicPathList drops in
+// @src MoveCharactersPathToVehicle and SetUpMvtGroupForVehicle (2026-11-19).
 
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
@@ -23,7 +24,7 @@ import { setSectorFlag } from '../map/sectors.ts';
 import { setProfileSector } from '../narrative/presence.ts';
 import { worldDay, worldTotalMinutes } from '../time/world-clock.ts';
 import { Assignment, InsertionCode, NO_GROUP, NO_VEHICLE, SectorFlag, VehicleSeat } from './constants.ts';
-import { addPlayerToGroup, getGroup, removePlayerFromGroup, requireMerc } from './groups.ts';
+import { addPlayerToGroup, getGroup, removeGroupWaypoints, removePlayerFromGroup, requireMerc } from './groups.ts';
 import { placeGroupInSector, rebuildWayPointsForGroupPath } from './movement.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
 import { addCharacterToUniqueSquad, removeCharacterFromSquads } from './squads.ts';
@@ -107,9 +108,15 @@ function vehicleIdOfSoldier(m: StrategicMerc): number {
   return NO_VEHICLE;
 }
 
+function dropWaypointsWithPath(ctx: StrategicContext, path: readonly number[], groupId: number): void {
+  const g = path.length > 0 ? getGroup(ctx, groupId) : undefined;
+  if (g) removeGroupWaypoints(g);
+}
+
 export function setUpMvtGroupForVehicle(ctx: StrategicContext, m: StrategicMerc): void {
   const v = findVehicle(ctx, vehicleIdOfSoldier(m));
   if (!v) return;
+  dropWaypointsWithPath(ctx, m.path, m.groupId);
   m.path = [...v.path];
   m.groupId = v.movementGroup;
 }
@@ -120,6 +127,7 @@ export function moveCharactersPathToVehicle(ctx: StrategicContext, m: StrategicM
     m.path = [];
     return false;
   }
+  dropWaypointsWithPath(ctx, v.path, v.movementGroup);
   v.path = [...m.path];
   m.path = [];
   return true;

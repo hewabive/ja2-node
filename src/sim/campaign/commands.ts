@@ -6,8 +6,7 @@
 // @src HandleSettingTheSelectedListOfMercs,
 // @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic; Assignments.cc
 // @src CreateDestroyAssignmentPopUpBoxes (RebuildCurrentSquad as the assignment menu closes, 2026-11-08), SetAssignmentForList
-// @src (no list outside the map screen, 2026-11-16); MapScreen.cc HandleNewDestConfirmation's wake-up (2026-11-18);
-// @src CheckIfClickOnLastSectorInPath and MAP_EVENT_PLOT_PATH for the selected list (2026-11-19).
+// @src (no list outside the map screen, 2026-11-16); MapScreen.cc HandleNewDestConfirmation's wake-up (2026-11-18).
 
 import {
   parseSectorString,
@@ -60,15 +59,13 @@ import {
   canPlotLegTo,
   clearPathAfterThisSectorForCharacter,
   confirmPathForCharacter,
-  copyPathToAllSelectedCharacters,
   type LegShortest,
   lastSectorIdInCharactersPath,
   legShortest,
   PathEdit,
   PlotRefusal,
-  pathAfterEachLeg,
   plotLegs,
-  rebuildWayPointsForAllSelectedCharsGroups,
+  plottedRoute,
   setPathForCharacter,
   soldierGroup,
   soldierMercPath,
@@ -77,6 +74,7 @@ import { addCharacterToAnySquad, addCharacterToSquad, addCharacterToUniqueSquad,
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import { type RefusalTexts, refuse, refuseWithText } from '../tactical/refusal.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { endMercPlot } from './end-plot.ts';
 
 export interface StrategicCommand {
   readonly type: string;
@@ -139,29 +137,18 @@ function plotRefusalText(refusal: PlotRefusal): string {
   return refusal === PlotRefusal.BAD_SECTOR ? 'a leg ends on a sector that cannot be plotted to' : 'no route to that sector for this merc';
 }
 
-export interface SelectedTravellers {
-  readonly atLegs: readonly (readonly number[])[] | null;
-  readonly atConfirm: readonly number[];
-}
-
-function confirmRoute(ctx: StrategicContext, m: StrategicMerc, selected: SelectedTravellers | null): void {
-  if (selected) rebuildWayPointsForAllSelectedCharsGroups(ctx, m, selected.atConfirm);
-  else confirmPathForCharacter(ctx, m.id);
-}
-
 export function plotRouteForCharacter(
   ctx: StrategicContext,
   id: number,
   via: readonly Sector[],
   to: Sector,
   options: { readonly shortest: LegShortest; readonly extend: boolean },
-  selected: SelectedTravellers | null = null,
 ): CommandResult | null {
   const m = ctx.mercs.get(id);
   if (!m) return refuse('noSuchMerc', 'no such merc');
   if (!options.extend) {
     if (via.length === 0 && lastSectorIdInCharactersPath(ctx, m) === strategicIndex(to)) {
-      confirmRoute(ctx, m, selected);
+      confirmPathForCharacter(ctx, id);
       return null;
     }
     cancelPathOfCharacterWithRoute(ctx, id);
@@ -172,13 +159,10 @@ export function plotRouteForCharacter(
   const legs = plotLegs(ctx, g, soldierMercPath(ctx, m), origin, via, to, { shortest: options.shortest });
   if (typeof legs === 'string') return refuse(legs, plotRefusalText(legs));
   if (legs.temp && !canPlotLegTo(ctx, to)) return refuse(PlotRefusal.BAD_SECTOR, plotRefusalText(PlotRefusal.BAD_SECTOR));
-  const paths = pathAfterEachLeg(legs, origin, to);
-  if (!paths) return refuse('noRoute', 'no route to that sector for this merc');
-  paths.forEach((path, leg) => {
-    setPathForCharacter(ctx, id, path);
-    if (selected) copyPathToAllSelectedCharacters(ctx, m, selected.atLegs?.[leg] ?? selected.atConfirm, soldierMercPath(ctx, m));
-  });
-  confirmRoute(ctx, m, selected);
+  const path = plottedRoute(legs, origin, to);
+  if (!path) return refuse('noRoute', 'no route to that sector for this merc');
+  setPathForCharacter(ctx, id, path);
+  confirmPathForCharacter(ctx, id);
   return null;
 }
 
@@ -186,36 +170,8 @@ export function refuseMove(block: MoveBlock, reason = `the squad cannot move: ${
   return refuse(block.refusal, reason, { soldier: block.soldier });
 }
 
-function wakeTravellersOfConfirmedRoute(campaign: CampaignSim, ids: readonly number[]): void {
+export function wakeTravellersOfConfirmedRoute(campaign: CampaignSim, ids: readonly number[]): void {
   if (campaign.economy) wakeUpSleepingMercsOnFootOrDriving(campaign.economy, ids);
-}
-
-const SELECTED_TEXT = 'selected must list soldier ids, and selectedPerLeg one such list per leg: the via legs, then to';
-
-function knownIds(ctx: StrategicContext, value: unknown): number[] | null {
-  const ids = idList(value);
-  return ids?.every((id) => ctx.mercs.get(id)) ? ids : null;
-}
-
-function selectedTravellers(
-  ctx: StrategicContext,
-  cmd: StrategicCommand,
-  merc: StrategicMerc,
-  legs: number,
-): SelectedTravellers | null | CommandRefused {
-  if (cmd.selected === undefined) return null;
-  const atConfirm = knownIds(ctx, cmd.selected);
-  if (!atConfirm) return refuse('badSoldiers', SELECTED_TEXT);
-  const travelling = (ids: readonly number[]) => travellersWith(ctx, merc, ids);
-  if (cmd.selectedPerLeg === undefined) return { atLegs: null, atConfirm: travelling(atConfirm) };
-  const atLegs = Array.isArray(cmd.selectedPerLeg) ? cmd.selectedPerLeg.map((ids) => knownIds(ctx, ids)) : [];
-  if (atLegs.length !== legs || atLegs.some((ids) => ids === null)) return refuse('badSoldiers', SELECTED_TEXT);
-  return { atLegs: atLegs.map((ids) => travelling(ids ?? [])), atConfirm: travelling(atConfirm) };
-}
-
-function everyTraveller(selected: SelectedTravellers | null): number[] {
-  if (!selected) return [];
-  return [...new Set([...(selected.atLegs ?? []).flat(), ...selected.atConfirm])];
 }
 
 function route(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
@@ -226,15 +182,11 @@ function route(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicComma
   if (!to) return refuse('badSector', 'to must be a sector such as B9');
   const via = sectorList(cmd.via);
   if (!via) return refuse('badSector', 'via must be a list of sectors such as ["A10"]');
-  const selected = selectedTravellers(ctx, cmd, merc, via.length + 1);
-  if (selected && 'ok' in selected) return selected;
-  const block = canEntireMovementGroupMove(ctx, id, loaded, everyTraveller(selected));
+  const block = canEntireMovementGroupMove(ctx, id, loaded);
   if (block) return refuseMove(block);
-  const options = { shortest: legShortest(cmd.shortest), extend: cmd.extend === true };
-  const plotted = plotRouteForCharacter(ctx, id, via, to, options, selected);
+  const plotted = plotRouteForCharacter(ctx, id, via, to, { shortest: legShortest(cmd.shortest), extend: cmd.extend === true });
   if (plotted) return plotted;
-  const woken = selected ? selected.atConfirm : mercsWhoMustMoveWith(ctx, merc);
-  if (soldierMercPath(ctx, merc).length > 0) wakeTravellersOfConfirmedRoute(campaign, woken);
+  if (soldierMercPath(ctx, merc).length > 0) wakeTravellersOfConfirmedRoute(campaign, mercsWhoMustMoveWith(ctx, merc));
   return routeResult(ctx, id);
 }
 
@@ -512,6 +464,8 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
       return regroupForMove(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'routeGroup':
       return routeGroup(campaign, ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
+    case 'endPlot':
+      return endMercPlot(campaign, ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'assignSquad':
       return assignSquadAndClose(campaign, ctx, cmd);
     case 'assign':

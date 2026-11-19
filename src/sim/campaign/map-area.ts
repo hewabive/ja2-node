@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc MapViewRegionPrimaryCallback, MapViewRegionSecondaryCallback (the map area ignores
 // @src its left and right clicks while fDisableMapInterfaceDueToBattle is set: the plotting, the move box and the militia
-// @src panel it opens, the bullseye move and the battle sector's panel), HandleMapUI.
+// @src panel it opens, the bullseye move and the battle sector's panel), HandleMapUI; the plot's confirming and cancelling
+// @src clicks (2026-11-19).
 
 import type { CommandRefused } from '../command.ts';
 import type { StrategicState } from '../strategic/state.ts';
@@ -28,7 +29,13 @@ export function mapInterfaceDisabledDueToBattle(state: StrategicState): boolean 
   return state.movement.disableMapInterfaceDueToBattle;
 }
 
-export function mapAreaRefusal(state: StrategicState, type: string): CommandRefused | null {
-  if (!mapInterfaceDisabledDueToBattle(state) || !MAP_AREA_COMMANDS.has(type)) return null;
+const MAP_AREA_PLOT_ENDS: ReadonlySet<unknown> = new Set(['confirm', 'cancel']);
+
+function clicksOnTheMap(cmd: { readonly type: string; readonly outcome?: unknown }): boolean {
+  return MAP_AREA_COMMANDS.has(cmd.type) || (cmd.type === 'endPlot' && MAP_AREA_PLOT_ENDS.has(cmd.outcome));
+}
+
+export function mapAreaRefusal(state: StrategicState, cmd: { readonly type: string; readonly outcome?: unknown }): CommandRefused | null {
+  if (!mapInterfaceDisabledDueToBattle(state) || !clicksOnTheMap(cmd)) return null;
   return refuse('battlePending', BATTLE_PENDING_TEXT);
 }

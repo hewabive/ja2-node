@@ -16,6 +16,7 @@ import {
   confirmPathForCharacter,
   copyPathToAllSelectedCharacters,
   PathEdit,
+  pathStoreOf,
   plotPathForCharacter,
   rebuildWayPointsForAllSelectedCharsGroups,
 } from './routes.ts';
@@ -163,7 +164,7 @@ describe('the selected list at a plotting click and at the confirm (MapScreen.cc
     plotPathForCharacter(ctx, 0, S('C9'));
     const plotter = mercs.get(0);
     if (!plotter) throw new Error('no plotting merc');
-    copyPathToAllSelectedCharacters(ctx, plotter, [2, 0], route('A9', 'B9'));
+    copyPathToAllSelectedCharacters(ctx, [2, 0], pathStoreOf(plotter), route('A9', 'B9'));
     expect(mercs.get(2)?.path).toEqual(route('A9', 'B9'));
     expect(plotter.path).toEqual(route('A9', 'B9', 'C9'));
     expect(squadGroup(ctx, 1)?.betweenSectors).toBe(false);

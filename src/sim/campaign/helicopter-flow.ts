@@ -14,6 +14,8 @@
 // @src Map_Screen_Helicopter.cc SkyriderDialogue, SkyriderDialogueWithSpecialEvent (Skyrider's face through the dialogue
 // @src queue, 2026-11-01).
 // @src src/game/Strategic/MapScreen.cc HandleNewDestConfirmation, WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18);
+// @src RestorePreviousPaths and CopyPathToAllSelectedCharacters for the helicopter, CancelOrShortenPlottedPath,
+// @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter at each click (2026-11-19);
 // @src CancelPathsOfAllSelectedCharacters (a passenger without a route, 2026-11-19); Strategic_Pathing.cc FindStratPath (Shift
 // @src flattens each helicopter leg, 2026-11-19); MapScreen.cc CheckIfClickOnLastSectorInPath (an empty route takes off and
 // @src wakes nobody, 2026-11-19).
@@ -63,8 +65,9 @@ import type { HelicopterEventWithoutTick } from '../strategic/forces/helicopter-
 import type { RefuelSite } from '../strategic/forces/helicopter-state.ts';
 import { canEntireMovementGroupMove } from '../strategic/forces/move-permission.ts';
 import { rebuildWayPointsForGroupPath } from '../strategic/forces/movement.ts';
+import { isCut, pathsAfterSteps } from '../strategic/forces/plot-steps.ts';
 import type { HelicopterPort, StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
-import { legShortest, PathEdit, plotLegs, plottedRoute } from '../strategic/forces/routes.ts';
+import { copyPathToAllSelectedCharacters, legShortest, PathEdit, plotLegs, plottedRoute, restorePath } from '../strategic/forces/routes.ts';
 import { addCharacterToSquad, getFirstEmptySquad, removeCharacterFromSquads } from '../strategic/forces/squads.ts';
 import {
   exitsOntoTheLoadedMap,
@@ -76,7 +79,7 @@ import {
   setSoldierExitHelicopterInsertionData,
   takeSoldierOutOfVehicle,
 } from '../strategic/forces/vehicles.ts';
-import { clearStrategicPathAfterSector } from '../strategic/map/pathing.ts';
+import { clearStrategicPathAfterSector, lastSectorOfPath } from '../strategic/map/pathing.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../strategic/time/constants.ts';
@@ -88,6 +91,7 @@ import { killPersonInVehicle } from '../tactical/vehicle-passengers.ts';
 import { NO_VEHICLE_SOLDIER } from '../vehicles/vehicle-list.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { idList, refuseMove, sectorList } from './commands.ts';
+import { PlotEnd, plotEndOf, STEP_REFUSAL_TEXT, stepsOf } from './end-plot.ts';
 import { vehicleTileOnTheMap } from './vehicle-boarding.ts';
 
 type Command = { readonly type: string; readonly [key: string]: unknown };
@@ -272,6 +276,8 @@ export class HelicopterFlow {
         return this.#shortenHeliRoute(cmd);
       case 'heliCancel':
         return this.#heliCancel();
+      case 'endPlot':
+        return cmd.helicopter === true || this.#helicopterPassenger(cmd) ? this.#endHeliPlot(cmd) : null;
       case 'boardVehicle':
         return this.#boardVehicle(cmd);
       case 'leaveVehicle':
@@ -418,6 +424,54 @@ export class HelicopterFlow {
     if (!canHelicopterFly(ctx)) return refusal(explainWhySkyriderCantFly(ctx) ?? 'noHelicopter');
     cancelHelicopterRoute(ctx);
     return { ok: true, data: this.#routeData() };
+  }
+
+  #endHeliPlot(cmd: Command): CommandResult {
+    const ctx = this.ctx;
+    const notMap = this.#mapScreenRefusal();
+    if (notMap) return notMap;
+    const steps = stepsOf(cmd);
+    if ('ok' in steps) return steps;
+    const end = plotEndOf(cmd.outcome);
+    if (!end) return refuse('badOutcome', "outcome must be 'confirm', 'abort', 'cancel' or 'drop'");
+    const selected = idList(cmd.selected ?? []);
+    if (!selected) return refuse('badSoldiers', 'selected must be a list of soldier ids');
+    if (!helicopterVehicle(ctx)) return refusal('noHelicopter');
+    const flies = end === PlotEnd.CONFIRM || end === PlotEnd.CANCEL || steps.some(isCut);
+    const request = flies ? this.#plottedRequest() : null;
+    if (request && !request.ok) return refusal(request.refusal);
+    if (steps.some((step) => !isCut(step))) setUpHelicopterForMovement(ctx);
+    const v = helicopterVehicle(ctx);
+    const g = helicopterGroup(ctx);
+    if (!v || !g) return refusal('noHelicopter');
+    const previous = [...v.path];
+    const paths = pathsAfterSteps(ctx, g, previous, strategicIndex(v.sector), steps, true);
+    if (typeof paths === 'string') return refuse(paths, STEP_REFUSAL_TEXT[paths] ?? paths);
+    v.path = [...(paths.at(-1) ?? previous)];
+    this.#finishHeliPlot(end, selected, previous);
+    return { ok: true, data: this.#routeData() };
+  }
+
+  #finishHeliPlot(end: PlotEnd, selected: readonly number[], previous: readonly number[]): void {
+    const ctx = this.ctx;
+    const v = helicopterVehicle(ctx);
+    const g = helicopterGroup(ctx);
+    if (!v || !g) return;
+    const store = { vehicle: ctx.state.forces.helicopterVehicleId };
+    switch (end) {
+      case PlotEnd.CONFIRM:
+        confirmHelicopterRoute(ctx, sectorFromStrategicIndex(lastSectorOfPath(v.path, strategicIndex(v.sector))));
+        if (this.economy && v.path.length > 0) wakeUpSleepingMercsOnFootOrDriving(this.economy, selected);
+        return;
+      case PlotEnd.ABORT:
+        if (restorePath(ctx, store, g.id, previous)) copyPathToAllSelectedCharacters(ctx, selected, store, v.path);
+        return;
+      case PlotEnd.CANCEL:
+        cancelHelicopterRoute(ctx);
+        return;
+      case PlotEnd.DROP:
+        return;
+    }
   }
 
   #vehicleArg(cmd: Command): number | null {

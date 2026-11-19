@@ -203,6 +203,35 @@ describe('the helicopter commands', () => {
     expect(strategicView(c)?.helicopter).toMatchObject({ airborne: true, hovering: false });
   });
 
+  it("gives the helicopter its path from the plot's start at Esc, rebuilt, and copies it to every selected merc not aboard (RestorePreviousPaths, MapScreen.cc:7776-7784)", () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'heliRoute', to: 'A11' })).toMatchObject({ ok: true, data: { path: ['A9', 'A10', 'A11'] } });
+    const aboard = c.strategic?.mercs.get(0)?.path;
+    const abort = { type: 'endPlot', helicopter: true, steps: [{ to: 'B11' }], outcome: 'abort', selected: [0, 1] };
+    expect(c.dispatch(abort)).toMatchObject({ ok: true, data: { path: ['A9', 'A10', 'A11'] } });
+    const heliPath = c.state.forces.vehicles[c.state.forces.helicopterVehicleId]?.path;
+    expect(c.strategic?.mercs.get(1)?.path).toEqual(heliPath);
+    expect(c.strategic?.mercs.get(0)?.path).toEqual(aboard);
+  });
+
+  it('cuts the helicopter path at a shortening without a new flight until the plot ends, and cancels it on its own sector (ClearPathAfterThisSectorForHelicopter)', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'heliRoute', to: 'A11' }).ok).toBe(true);
+    const group = () =>
+      c.state.forces.groups.find((g) => g.id === c.state.forces.vehicles[c.state.forces.helicopterVehicleId]?.movementGroup);
+    const waypoints = group()?.waypoints;
+    expect(c.dispatch({ type: 'endPlot', helicopter: true, steps: [{ cut: 'A10' }], outcome: 'drop' })).toMatchObject({
+      ok: true,
+      data: { path: ['A9', 'A10'] },
+    });
+    expect(group()?.waypoints).toEqual(waypoints);
+    expect(c.dispatch({ type: 'endPlot', helicopter: true, outcome: 'cancel' })).toMatchObject({ ok: true, data: { path: [] } });
+  });
+
   it('grounds the helicopter while Skyrider is owed money', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });

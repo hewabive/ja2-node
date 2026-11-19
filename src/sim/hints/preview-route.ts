@@ -4,7 +4,8 @@
 // @src GetGroundTravelTimeOfSoldier for the ETA box); Map_Screen_Interface_Map.cc PlotPathForCharacter (a leg appended to
 // @src the merc path), PlotATemporaryPathForCharacter (from the last sector of the merc path);
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierMercPathPtr; Strategic_Pathing.cc FindStratPath
-// @src (Shift: the shortest route).
+// @src (Shift: the shortest route); MAP_EVENT_PLOT_PATH and CancelOrShortenPlottedPath as the plot's steps so far
+// @src (2026-11-19).
 
 import { type Sector, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
@@ -12,15 +13,8 @@ import type { StrategicKnowledge } from '../knowledge/strategic.ts';
 import type { CrewMember } from '../strategic/economy/ports.ts';
 import type { Group } from '../strategic/forces/groups.ts';
 import { canCharacterMoveInStrategic, canEntireMovementGroupMove, type MoveBlock } from '../strategic/forces/move-permission.ts';
-import {
-  legShortest,
-  type PlotLegOptions,
-  type PlotRefusal,
-  type PlottedLegs,
-  plotLegs,
-  soldierGroup,
-  soldierMercPath,
-} from '../strategic/forces/routes.ts';
+import { pathsAfterSteps, plotSteps, type StepRefusal } from '../strategic/forces/plot-steps.ts';
+import { legShortest, type PlotLegOptions, type PlottedLegs, plotLegs, soldierGroup, soldierMercPath } from '../strategic/forces/routes.ts';
 import { appendStrategicPath } from '../strategic/map/pathing.ts';
 import { edgeTravelMinutes, plottingEtaMinutes } from '../strategic/map/plotting.ts';
 import { mercOf, sectorNames, sectorParam, strategicOf } from './strategic-check.ts';
@@ -36,6 +30,7 @@ export interface PreviewRoute {
 export interface PreviewRouteRequest extends HintRequestBase {
   readonly soldier?: unknown;
   readonly to?: unknown;
+  readonly steps?: unknown;
   readonly via?: unknown;
   readonly shortest?: unknown;
   readonly extend?: unknown;
@@ -49,10 +44,26 @@ export function viaSectors(via: unknown): Sector[] | null {
   return sectors.every((s) => s !== null) ? (sectors as Sector[]) : null;
 }
 
-const PLOT_REFUSAL_TEXT: Readonly<Record<PlotRefusal, string>> = {
+const PLOT_REFUSAL_TEXT: Readonly<Record<StepRefusal, string>> = {
   badSector: 'a leg ends on a sector the cursor cannot plot to',
   noRoute: 'no route to a leg of the path',
+  notOnPath: 'a cut is on no sector of the path but its first, or shortens nothing',
 };
+
+export function pathAfterStepsHint(
+  sk: StrategicKnowledge,
+  g: Group,
+  start: readonly number[],
+  origin: number,
+  value: unknown,
+  helicopter = false,
+): readonly number[] | HintRefusal {
+  const steps = plotSteps(value);
+  if (!steps) return refuseHint('badStep', 'steps must list {to, shortest?} legs and {cut} cuts');
+  const paths = pathsAfterSteps(sk.ctx, g, start, origin, steps, helicopter);
+  if (typeof paths === 'string') return refuseHint(paths, PLOT_REFUSAL_TEXT[paths]);
+  return paths.at(-1) ?? start;
+}
 
 export function plotLegsHint(
   sk: StrategicKnowledge,
@@ -83,8 +94,10 @@ function routeFor(sk: StrategicKnowledge, m: CrewMember, req: PreviewRouteReques
   if (block) return refuseHint(block.refusal, `the squad cannot move: ${block.refusal}`, { soldier: block.soldier });
   const g = soldierGroup(ctx, m);
   if (!g) return refuseHint('noRoute', 'the merc has no movement group');
-  const start = req.extend === true ? soldierMercPath(ctx, m) : [];
-  const legs = plotLegsHint(sk, g, start, strategicIndex(m.sector), via, to, { shortest: legShortest(req.shortest) });
+  const origin = strategicIndex(m.sector);
+  const start = pathAfterStepsHint(sk, g, req.extend === true ? soldierMercPath(ctx, m) : [], origin, req.steps);
+  if ('ok' in start) return start;
+  const legs = plotLegsHint(sk, g, start, origin, via, to, { shortest: legShortest(req.shortest) });
   if ('ok' in legs) return legs;
   const full = appendStrategicPath(legs.temp, legs.path);
   return hintData({

@@ -192,8 +192,11 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
       { type: 'regroupForMove', soldiers: [stayer] },
       { type: 'setLandingZone', sector: NEXT_EAST },
       { type: 'showBattle' },
+      { type: 'endPlot', soldier: stayer, steps: [{ to: NEXT_EAST }], outcome: 'confirm' },
+      { type: 'endPlot', soldier: stayer, outcome: 'cancel' },
     ])
       expect(await order(c, cmd), cmd.type).toMatchObject({ ok: false, data: { refusal: 'battlePending' } });
+    expect(await order(c, { type: 'endPlot', soldier: stayer, outcome: 'abort', selected: [stayer] })).toMatchObject({ ok: true });
     expect(await order(c, { type: 'cancelRoute', soldier: stayer })).toEqual({ ok: true });
     expect(c.live.advance({ idle: true }).reason).toBe('decision');
     const prompt = c.session.campaign.state.battle.prompt ?? never('preBattle prompt');

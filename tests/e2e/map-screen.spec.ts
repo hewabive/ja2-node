@@ -149,8 +149,8 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await clickSector(page, 'C13');
     expect((await mapHook(page))?.plotting?.legs).toEqual(['C13']);
     await clickSector(page, 'C13');
-    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'route');
-    expect(await lastCommand(page)).toMatchObject({ type: 'route', ok: true });
+    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'endPlot');
+    expect(await lastCommand(page)).toMatchObject({ type: 'endPlot', ok: true });
     expect((await mapHook(page))?.plotting).toBeNull();
     await clickWidget(page, 'compressMore');
     await page.waitForFunction(() => window.__ja2Ui.map?.screen?.messages.some((m) => m.includes('C13')) === true);
@@ -230,8 +230,8 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await restOn(page, 'B13');
     await clickSector(page, 'B13');
     await clickSector(page, 'B13');
-    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'heliRoute');
-    expect(await lastCommand(page)).toMatchObject({ type: 'heliRoute', ok: true });
+    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'endPlot');
+    expect(await lastCommand(page)).toMatchObject({ type: 'endPlot', ok: true });
     await clickWidget(page, 'compressMore');
     await page.waitForFunction(() => window.__ja2Ui.map?.screen?.rows !== undefined && window.__ja2Ui.map.helicopterPoint() !== null);
     const start = heli;

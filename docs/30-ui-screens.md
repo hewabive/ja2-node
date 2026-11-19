@@ -273,14 +273,16 @@ map, in the panels and the character list (`soldierName`, `tactical/soldiers.ts`
 out-of-gas box by `pVehicleStrings`. A vehicle in sight that is not ours carries its life and fuel for the bars over it
 (`29`).
 
-**Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
-the legs stay in the client, each with the selected list of its click, until the confirming click sends one `route` with
-them and the list at the confirm (deviation "Map route plotting"). The plot stays with the merc it started for: a
-squad's number key only changes the selected list, and the sector inventory opened over it takes the map clicks until
-it closes (`Strategic/MapScreen.cc:7830`, `:2236`);
-the move box's Done regroups at once with `regroupForMove`, so Esc during the plot that follows leaves the new squads,
-and its confirm sends one `routeGroup` for the movers. Each leg keeps the Shift of its own click, the helicopter's too,
-and a merc's click on a sector nobody can pass through does nothing (`map/plotting.ts`). A click on the end of an
+**Plotting keeps its steps in the client.** The temporary path and ETA come from `previewRoute` after the pointer
+rests, from the path the steps so far give; each plotting click and right-click shortening is a step kept with the Shift
+and the selected list of its moment, and the plot's end sends them in one `endPlot` with the way it ended: the confirm,
+Esc and the other ways out (the restore), the cancel on the merc's sector, or the silent end of a name, assignment or
+contract click (deviation "Map route plotting"). The plot stays with the merc it started for: a squad's number key only
+changes the selected list, and the sector inventory opened over it takes the map clicks until it closes, the plotted path
+and the ETA's text drawn over it (`Strategic/MapScreen.cc:7830`, `:2236`, `:1887-1895`); the move box's Done regroups at
+once with `regroupForMove` and the plot that follows is the first mover's, from his own path, so Esc during it leaves
+the new squads (`Strategic/Map_Screen_Interface.cc:2862-2915`). A merc's click on a sector nobody can pass through does
+nothing (`map/plotting.ts`). A click on the end of an
 unchanged path, or on the merc's or the helicopter's own sector without one, confirms it again, and the destination
 column of a helicopter passenger plots for the helicopter. Decision prompts open as the original's boxes and close when an
 agent answers them first (deviation "Map screen boxes for prompts").
@@ -376,6 +378,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | A path node in map column 16 is not drawn at 640 pixels wide: the original tests it against the screen width | `map/plotting.test.ts` "leaves out the column 16 pieces …" |
 | The plotting ETA counts the remaining leg twice and drops the first temporary edge while the squad travels | `src/server/hints-strategic-stub.test.ts` "count the remaining leg twice …" |
 | A click on a name or an assignment gives plotting up without the "unchanged" message every other way out prints (`Strategic/MapScreen.cc:4276`, `:4393`) | `map/map-screen.test.ts` "gives up plotting silently …" |
+| While the sector inventory covers the map during a plot, the plotted path and the ground ETA's text are drawn over it, without the ETA's popup (`Strategic/MapScreen.cc:1887-1895`, `:1051`, `Strategic/Map_Screen_Interface_Border.cc:101`) | `map/map-screen.test.ts` "draws the plotted path and the ground ETA text over the sector inventory …" |
 | A second release of the middle button within 300 ms of the last one gives no look in real time, however many follow (`Tactical/Real_Time_Input.cc:85-103`) | `tactical/tactical-controls.test.ts` "looks with the middle button in real time …" |
 | The move box's Other header counts vehicle passengers and skips doctors | `map/move-selection.test.ts` "keeps the original test of the others header …" |
 | While a subtitle box is up the map screen's contract button and the contract column of the team list open no contract menu (the column still selects its merc), while the c key does (`Strategic/MapScreen.cc:4239`, `:5134`) | `map/map-speech.test.ts` "opens no contract menu from the contract button or column while the subtitle box is up …" |

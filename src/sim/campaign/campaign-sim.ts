@@ -1066,7 +1066,7 @@ export class CampaignSim {
       this.#offTacticalScreenRefusal(cmd) ??
       this.#stopTimeQuoteRefusal(cmd) ??
       this.#tacticalPromptRefusal(cmd) ??
-      mapAreaRefusal(this.state, cmd.type);
+      mapAreaRefusal(this.state, cmd);
     if (locked) return locked;
     if (this.tactical && this.#answersTacticalPrompt(cmd)) return this.tactical.dispatch(cmd);
     const cancelled = cancelsTheWithdrawal(cmd) ? this.money.dispatch(cmd) : null;

@@ -4,7 +4,8 @@
 // @src the compression label), DisplayCompressMode (sTimeStrings of the mode while compressing, else of X0, in COMPFONT
 // @src at 489, 457); src/game/Strategic/Game_Clock.cc RenderClock (pPausedGameText[0] while the player paused, red in
 // @src combat, gpGameClockString with the day, hour and minute); src/game/Strategic/MapScreen.cc DisplayGroundEta (hours
-// @src and minutes under a day, else days and hours, at CLOCK_MIN_X_START − 5 and CLOCK_HOUR_X_START − 8 or − 9);
+// @src and minutes under a day, else days and hours, at CLOCK_MIN_X_START − 5 and CLOCK_HOUR_X_START − 8 or − 9; over the
+// @src sector inventory without RenderMapBorderEtaPopUp's popup, 2026-11-19);
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc DisplayDistancesForHelicopter (the box above the bottom rows when
 // @src the pointer is on row 13 or lower, pHelicopterEtaStrings 0..4 and 6 right-aligned in MAP_FONT).
 
@@ -88,6 +89,10 @@ function padded(n: number): string {
 export function renderGroundEta(list: DrawList, p: LayoutParams, origin: Origin, text: UiTextService, totalMinutes: number): void {
   const popup = p.numbers('popupAt');
   list.image(p.asset('popup'), 0, origin.x + at(popup, 0), origin.y + at(popup, 1));
+  renderGroundEtaText(list, p, origin, text, totalMinutes);
+}
+
+export function renderGroundEtaText(list: DrawList, p: LayoutParams, origin: Origin, text: UiTextService, totalMinutes: number): void {
   const font = p.font('font');
   const colours = fontColors(FontColor.LTGREEN, DEFAULT_SHADOW);
   const label = p.numbers('label');

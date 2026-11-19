@@ -202,6 +202,23 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(data.etaMinutes).toBe(plotted.etaMinutes);
   });
 
+  it("preview the next leg from the path the plot's legs and cuts give, which its end replays (MAP_EVENT_PLOT_PATH, CancelOrShortenPlottedPath)", async () => {
+    const c = await landedCampaign(37);
+    const merc = c.sim.view().strategic?.mercs[0]?.id;
+    const steps = [{ to: 'A11' }, { cut: 'A10' }];
+    const preview = (await c.session.query({ type: 'previewRoute', soldier: merc, to: 'A12', steps, extend: true })).data as {
+      path: string[];
+      temp: string[];
+    };
+    expect(preview).toMatchObject({ path: ['A9', 'A10'], temp: ['A10', 'A11', 'A12'] });
+    expect(c.sim.dispatch({ type: 'endPlot', soldier: merc, steps: [...steps, { to: 'A12' }], outcome: 'confirm' })).toMatchObject({
+      ok: true,
+      data: { path: ['A9', 'A10', 'A11', 'A12'] },
+    });
+    const refused = await c.session.query({ type: 'previewRoute', soldier: merc, to: 'A12', steps: [{ cut: 'A9' }], extend: true });
+    expect(refused).toMatchObject({ ok: false, data: { refusal: 'notOnPath' } });
+  });
+
   it('wake nobody on a preview, and the sleeping squad when the route is confirmed (HandleNewDestConfirmation, MapScreen.cc:7398)', async () => {
     const c = await landedCampaign(35);
     const squad = c.sim.campaign.battle?.roster.all() ?? [];

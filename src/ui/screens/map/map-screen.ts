@@ -105,7 +105,14 @@ import type { StatFlash } from '../tactical/panel-models.ts';
 import { drawRadarPicture, nightTime } from '../tactical/radar-picture.ts';
 import { AssignmentMenus } from './assignment-menus.ts';
 import { type BattleNoticeEvent, battleNoticesOf, battleNoticeText } from './battle-notice.ts';
-import { clockText, heliDistanceValues, renderBottomPanel, renderGroundEta, renderHeliDistances } from './bottom-panel.ts';
+import {
+  clockText,
+  heliDistanceValues,
+  renderBottomPanel,
+  renderGroundEta,
+  renderGroundEtaText,
+  renderHeliDistances,
+} from './bottom-panel.ts';
 import {
   Assignment,
   CharacterList,
@@ -142,7 +149,9 @@ import {
   MAP_VIEW_WIDTH,
   type MapFilters,
   type MapViewArt,
+  type MapViewContext,
   renderMapView,
+  renderPlottedPath,
   sectorIsPassable,
 } from './map-view.ts';
 import { isMechanical, isPow, mercBars, mercSoldier } from './merc-soldier.ts';
@@ -332,6 +341,8 @@ export class MapScreen implements Screen {
   readonly #battle: BattleEntry;
   readonly #speech: MapSpeech;
   #lastItems: readonly DrawItem[] = [];
+  readonly #overSectorInventory: ((list: DrawList) => void)[] = [];
+  #mapLayout: { readonly rect: Point; readonly p: LayoutParams } | null = null;
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
   #statusBarsRegion: MouseRegion | null = null;
@@ -761,7 +772,7 @@ export class MapScreen implements Screen {
   exit(): void {
     this.#entered = false;
     this.#battle.suspend();
-    this.#dropPlot();
+    this.#endPlot('abort');
     this.#closeMenus();
     this.#militia.close();
     this.#moveBox.close(false);
@@ -1850,9 +1861,10 @@ export class MapScreen implements Screen {
   }
 
   #startGroupPlotting(movers: readonly number[]): void {
+    const strategic = this.#strategic();
     const first = movers[0];
-    const m = first === undefined ? null : mercById(this.#strategic(), first);
-    if (!m) return;
+    const m = first === undefined ? null : mercById(strategic, first);
+    if (!strategic || !m) return;
     const row = this.list.rowOf(m.id);
     this.list.resetSelected();
     if (row >= 0) this.list.changeInfo(row, true);
@@ -1860,7 +1872,7 @@ export class MapScreen implements Screen {
       const r = this.list.rowOf(id);
       if (r >= 0) this.list.setSelected(r, true);
     }
-    this.#plot = Plotting.forGroup(movers, row, m.sector.split('-')[0] ?? m.sector);
+    this.#plot = new Plotting('merc', m.id, row, m.sector.split('-')[0] ?? m.sector, mercPath(strategic, m));
     this.#route.reset();
     if (row >= 0) this.#team.startGlow(row, TeamColumn.DESTINATION);
   }
@@ -1972,11 +1984,7 @@ export class MapScreen implements Screen {
     this.#plot = null;
     this.#team.stopGlow();
     this.#message.end();
-    const command = plot.confirmCommand(this.list.selectedIds());
-    if (!command) {
-      this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
-      return;
-    }
+    const command = plot.endCommand('confirm', this.list.selectedIds());
     const reply = await this.#untilSettled(plot.confirmedRoute(), () => this.#env.client.command(command));
     if (!reply.ok) {
       const text = this.#moveRefusalText(reply, plot.soldier);
@@ -2016,26 +2024,22 @@ export class MapScreen implements Screen {
   async #plotShorten(s: Sector): Promise<void> {
     const plot = this.#plot;
     if (!plot || (plot.mode === 'heli' && !(this.#heli()?.canFly ?? false))) return;
-    const result = plot.shorten(s);
+    const selected = this.list.selectedIds();
+    const result = plot.shorten(s, selected);
     switch (result.kind) {
       case 'abort':
         this.#abortPlotting();
         return;
-      case 'cancel':
+      case 'cancel': {
         this.#plot = null;
         this.#team.stopGlow();
         this.#message.end();
-        if (plot.mode === 'heli') await this.#untilSettled(plot.cancelledRoute(), () => this.#env.client.command({ type: 'heliCancel' }));
-        else this.#cancelSelectedPaths();
+        const command = plot.endCommand('cancel', selected);
+        await this.#untilSettled(plot.cancelledRoute(), () => this.#env.client.command(command));
         this.#uiMessage(this.#text(MAP_PLOT, Plot.CANCELED));
         return;
-      case 'shortenBase':
-        if (plot.mode === 'heli') await this.#env.client.command({ type: 'shortenHeliRoute', at: result.at });
-        else await this.#env.client.command({ type: 'shortenRoute', soldier: plot.soldier, at: result.at });
-        this.#route.reset();
-        this.#uiMessage(this.#text(MAP_PLOT, Plot.SHORTENED));
-        return;
-      case 'shortenLegs':
+      }
+      case 'shortened':
         this.#route.reset();
         this.#uiMessage(this.#text(MAP_PLOT, Plot.SHORTENED));
         return;
@@ -2044,14 +2048,20 @@ export class MapScreen implements Screen {
 
   #abortPlotting(): void {
     if (!this.#plot) return;
-    this.#dropPlot();
+    this.#endPlot('abort');
     this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
   }
 
   #dropPlot(): void {
-    if (!this.#plot) return;
+    this.#endPlot('drop');
+  }
+
+  #endPlot(end: 'abort' | 'drop'): void {
+    const plot = this.#plot;
+    if (!plot) return;
     this.#plot = null;
     this.#team.stopGlow();
+    if (end === 'abort' || plot.changed) void this.#env.client.command(plot.endCommand(end, this.list.selectedIds()));
   }
 
   async #requestHeliPlotting(row: number = NO_CHARACTER): Promise<void> {
@@ -2374,6 +2384,8 @@ export class MapScreen implements Screen {
     const start = list.items.length;
     this.#view.render(list);
     this.#inventory.render(list);
+    this.#renderPlotOverSectorInventory(list);
+    for (const draw of this.#overSectorInventory.splice(0)) draw(list);
     this.#townBox.render(list);
     this.#militia.render(list);
     this.#menus.render(list);
@@ -2484,41 +2496,52 @@ export class MapScreen implements Screen {
     if (!strategic) return;
     const origin = { x: rect.x, y: rect.y };
     const plot = this.#plot;
+    this.#mapLayout = { rect, p };
     const geometry = this.#pathGeometry();
     const permanent = plot ? tracePathRoute(pathSectors(plot.plottedPath()), geometry, origin) : [];
     const temp = plot?.tempDrawn() ? tracePathRoute(pathSectors(plot.tempPath()), geometry, origin) : [];
-    renderMapView(
-      {
-        list,
-        origin,
-        facts: this.#env.facts,
-        text: this.#env.text,
-        images: this.#env.runtime.images,
-        art: this.#mapArt(p),
-        mapFont: p.font('font'),
-        iconFont: p.font('iconFont'),
-      },
-      {
-        strategic: this.#militia.overlay(withConfirmedRoute(strategic, this.#confirmed)),
-        level: this.#level,
-        filters: this.filters,
-        hover: allowedToHighlight(this.#env.facts, this.#hover) ? this.#hover : null,
-        selected: this.#selected,
-        drawCursors: !this.#menus.open && !this.#contract.open && !this.#townBox.open && !this.#militia.open && this.#boxOpen === 0,
-        selectedYellow: this.#selectedYellow,
-        showSelected: plot === null,
-        gameJustStarted: this.#gameJustStarted(),
-        changingArrival: this.#changingArrival,
-        permanentPath: permanent,
-        animatedNode: plot ? this.#route.update(this.#now, permanent.length) : -1,
-        tempPath: temp,
-        locators: this.#locators(),
-        now: this.#now,
-        screenWidth: this.#env.runtime.geometry().width,
-        battleGroupSector: this.#battleGroupSector(),
-        retreatPaths: this.#battle.retreatPaths,
-      },
-    );
+    const animatedNode = plot ? this.#route.update(this.#now, permanent.length) : -1;
+    renderMapView(this.#mapViewContext(list, rect, p), {
+      strategic: this.#militia.overlay(withConfirmedRoute(strategic, this.#confirmed)),
+      level: this.#level,
+      filters: this.filters,
+      hover: allowedToHighlight(this.#env.facts, this.#hover) ? this.#hover : null,
+      selected: this.#selected,
+      drawCursors: !this.#menus.open && !this.#contract.open && !this.#townBox.open && !this.#militia.open && this.#boxOpen === 0,
+      selectedYellow: this.#selectedYellow,
+      showSelected: plot === null,
+      gameJustStarted: this.#gameJustStarted(),
+      changingArrival: this.#changingArrival,
+      permanentPath: permanent,
+      animatedNode,
+      tempPath: temp,
+      locators: this.#locators(),
+      now: this.#now,
+      screenWidth: this.#env.runtime.geometry().width,
+      battleGroupSector: this.#battleGroupSector(),
+      retreatPaths: this.#battle.retreatPaths,
+    });
+  }
+
+  #mapViewContext(list: DrawList, rect: Point, p: LayoutParams): MapViewContext {
+    return {
+      list,
+      origin: { x: rect.x, y: rect.y },
+      facts: this.#env.facts,
+      text: this.#env.text,
+      images: this.#env.runtime.images,
+      art: this.#mapArt(p),
+      mapFont: p.font('font'),
+      iconFont: p.font('iconFont'),
+    };
+  }
+
+  #renderPlotOverSectorInventory(list: DrawList): void {
+    const plot = this.#plot;
+    const layout = this.#mapLayout;
+    if (!plot || !layout || !this.#sectorInventoryOpen) return;
+    const pieces = tracePathRoute(pathSectors(plot.plottedPath()), this.#pathGeometry(), { x: layout.rect.x, y: layout.rect.y });
+    renderPlottedPath(this.#mapViewContext(list, layout.rect, layout.p), pieces, this.#route.update(this.#now, pieces.length));
   }
 
   #renderList(list: DrawList, p: LayoutParams): void {
@@ -2649,7 +2672,12 @@ export class MapScreen implements Screen {
 
   #renderEta(list: DrawList, p: LayoutParams): void {
     const plot = this.#plot;
-    if (!plot || this.#sectorInventoryOpen) return;
+    if (!plot) return;
+    if (this.#sectorInventoryOpen) {
+      const eta = plot.etaMinutes();
+      if (plot.mode === 'merc') this.#overSectorInventory.push((over) => renderGroundEtaText(over, p, this.#origin(), this.#env.text, eta));
+      return;
+    }
     if (plot.mode === 'merc') {
       renderGroundEta(list, p, this.#origin(), this.#env.text, plot.etaMinutes());
       return;

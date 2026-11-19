@@ -96,7 +96,9 @@ describe('strategic movement permission', () => {
       refusal: MoveRefusal.TOO_INJURED,
       soldier: 2,
     });
-    expect(test.campaign.dispatch({ type: 'route', soldier: 0, to: 'B9', selected: [0, 2] })).toMatchObject({
+    expect(
+      test.campaign.dispatch({ type: 'endPlot', soldier: 0, steps: [{ to: 'B9' }], outcome: 'confirm', selected: [0, 2] }),
+    ).toMatchObject({
       ok: false,
       data: { refusal: MoveRefusal.TOO_INJURED, soldier: 2 },
     });

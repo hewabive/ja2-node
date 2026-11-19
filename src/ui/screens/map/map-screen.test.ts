@@ -68,6 +68,10 @@ const LAST_ROW = 19;
 const EMPTY_ROW = 10;
 const FIRST_SUBLEVEL = 1;
 const EDGE_OF_WORLD = 12;
+const MAP_CURSORS = 'interface/mapcursr.sti';
+const ETA_POPUP = 'interface/eta_pop_up.sti';
+const ETA_POPUP_HEIGHT = 21;
+const ETA_TEXT_PIECES = 3;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -310,7 +314,7 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.clickSector('C13');
       expect(f.screen.hook().plotting?.legs).toEqual(['C13']);
       await f.clickSector('C13');
-      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'route', to: 'C13', extend: true });
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'endPlot', outcome: 'confirm', steps: [{ to: 'C13' }] });
       expect(lastCommand(f)?.reply.ok).toBe(true);
       expect(f.screen.hook().plotting).toBeNull();
       expect(f.client.holds.has('plotting')).toBe(false);
@@ -345,6 +349,27 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.screen.hook().plotting).toBeNull();
       expect(squadOf(mover)).not.toBe(squadOf(stayer));
       expect(f.client.commands.filter((c) => c.cmd.type === 'routeGroup')).toHaveLength(0);
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'endPlot', soldier: mover, outcome: 'abort', selected: [mover] });
+    }));
+
+  it('plots after Done for the first mover from his own path, and confirms it again on his sector as any plot (HandleSettingTheSelectedListOfMercs, Map_Screen_Interface.cc:2862-2915)', () =>
+    withMap(async (f) => {
+      const [mover] = f.mercs;
+      const name = f.client.view.strategic?.mercs.find((m) => m.id === mover)?.name ?? '';
+      await f.clickSector(SQUAD_SECTOR);
+      await f.clickSector(SQUAD_SECTOR);
+      await f.settle();
+      const line = (text: string) => `moveBox.line${(f.screen.hook().moveBox ?? []).findIndex((l) => l.trim() === text)}`;
+      await f.click(line(name));
+      await f.click(line(PLOT_TRAVEL_ROUTE));
+      await f.settle();
+      expect(f.screen.hook().plotting).toMatchObject({ soldier: mover, mode: 'merc', legs: [] });
+      await f.clickSector(SQUAD_SECTOR);
+      expect(lastCommand(f)).toMatchObject({
+        cmd: { type: 'endPlot', soldier: mover, outcome: 'confirm', selected: [mover] },
+        reply: { ok: true },
+      });
+      expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED });
     }));
 
   it("moves the pointer onto the first line of the assignment box as it opens, unless don't move mouse is set", () => {
@@ -422,10 +447,10 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.clickSector('B13');
       await f.clickSector('B13');
       expect(lastCommand(f)?.cmd).toMatchObject({
-        type: 'heliRoute',
-        to: 'B13',
-        extend: true,
-        plotted: true,
+        type: 'endPlot',
+        helicopter: true,
+        steps: [{ to: 'B13' }],
+        outcome: 'confirm',
         selected: f.screen.list.selectedIds(),
       });
       expect(lastCommand(f)?.reply).toMatchObject({ ok: true, data: { path: ['D13', 'C13', 'B13'] } });
@@ -445,7 +470,7 @@ describe('the map screen over the stub map-screen campaign', () => {
       const send = f.client.command.bind(f.client);
       let settle: () => void = () => undefined;
       f.client.command = (cmd) =>
-        cmd.type === 'heliRoute'
+        cmd.type === 'endPlot'
           ? new Promise((resolve) => {
               settle = () => resolve(send(cmd));
             })
@@ -459,7 +484,7 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(shadows()).toHaveLength(1);
       settle();
       await f.settle();
-      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'B13' });
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'endPlot', helicopter: true, steps: [{ to: 'B13' }] });
       expect(shadows()).toHaveLength(1);
     }));
 
@@ -479,7 +504,9 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.widget('compressMore').enabled).toBe(false);
       f.key('+');
       await f.settle();
-      expect(f.client.commands.length).toBe(sent);
+      expect(f.client.commands.slice(sent).map((c) => c.cmd)).toEqual([
+        { type: 'endPlot', soldier: f.screen.list.slots[0]?.merc, outcome: 'abort', selected: f.screen.list.selectedIds() },
+      ]);
       expect(f.screen.hook().plotting).toBeNull();
     }));
 
@@ -1465,7 +1492,12 @@ describe('the map screen team list, plotting and contract rules of the original'
       await f.hoverSector('C13', PLOT_REST_MS);
       await f.clickSector('C13');
       await f.clickSector('C13');
-      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'C13', plotted: true, selected: f.screen.list.selectedIds() });
+      expect(lastCommand(f)?.cmd).toMatchObject({
+        type: 'endPlot',
+        helicopter: true,
+        outcome: 'confirm',
+        selected: f.screen.list.selectedIds(),
+      });
       expect(lastCommand(f)?.reply.ok).toBe(true);
     }));
 
@@ -1484,11 +1516,10 @@ describe('the map screen team list, plotting and contract rules of the original'
       f.sounds.length = 0;
       await f.click('teamRow0.destination');
       await f.clickSector('C13');
-      const routes = f.client.commands.filter((c) => c.cmd.type === 'route');
-      expect(routes.at(-1)?.cmd).toEqual({
-        type: 'route',
+      expect(lastCommand(f)?.cmd).toEqual({
+        type: 'endPlot',
         soldier: f.screen.list.slots[0]?.merc,
-        to: 'C13',
+        outcome: 'confirm',
         selected: f.screen.list.selectedIds(),
       });
       expect(f.screen.list.selectedIds()).toHaveLength(4);
@@ -1507,7 +1538,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       await f.click(`teamRow${rowOf(f, f.mercs[1])}.destination`);
       await f.clickSector('C13');
       expect(f.client.commands.length).toBeGreaterThan(flown);
-      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'C13', extend: true, plotted: true });
+      expect(lastCommand(f)?.cmd).toEqual({ type: 'endPlot', helicopter: true, outcome: 'confirm', selected: f.screen.list.selectedIds() });
       expect(lastCommand(f)?.reply).toMatchObject({ ok: true, data: { path: ['D13', 'C13'] } });
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
     }));
@@ -1520,7 +1551,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook().plotting).toMatchObject({ mode: 'heli', legs: [] });
       await f.clickSector('D13');
       expect(lastCommand(f)).toMatchObject({
-        cmd: { type: 'heliRoute', to: 'D13', extend: true, plotted: true, selected: f.screen.list.selectedIds() },
+        cmd: { type: 'endPlot', helicopter: true, outcome: 'confirm', selected: f.screen.list.selectedIds() },
         reply: { ok: true, data: { path: [] } },
       });
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED });
@@ -1542,10 +1573,9 @@ describe('the map screen team list, plotting and contract rules of the original'
       await f.clickSector('C13');
       await f.clickSector('C13');
       expect(lastCommand(f)).toMatchObject({
-        cmd: { type: 'route', soldier: plotter, to: 'C13', extend: true, selected: [other] },
+        cmd: { type: 'endPlot', soldier: plotter, steps: [{ to: 'C13', selected: [other] }], outcome: 'confirm', selected: [other] },
         reply: { ok: true },
       });
-      expect(lastCommand(f)?.cmd).not.toHaveProperty('selectedPerLeg');
       const groupOf = (id: number | undefined) => f.client.view.strategic?.groups.find((g) => g.members.includes(id ?? -1));
       expect(groupOf(other)).toMatchObject({ betweenSectors: true, next: 'C13' });
       expect(groupOf(plotter)).toMatchObject({ betweenSectors: false });
@@ -1566,7 +1596,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       await f.hoverSector('C13', PLOT_REST_MS);
       await f.clickSector('C13');
       await f.clickSector('C13');
-      expect(lastCommand(f)).toMatchObject({ cmd: { type: 'route', to: 'C13' }, reply: { ok: true } });
+      expect(lastCommand(f)).toMatchObject({ cmd: { type: 'endPlot', steps: [{ to: 'C13' }], outcome: 'confirm' }, reply: { ok: true } });
     }));
 
   it('says the route is unchanged wherever plotting is given up by the sort buttons, the contract menu or the arrows (AbortMovementPlottingMode)', () =>
@@ -1589,6 +1619,91 @@ describe('the map screen team list, plotting and contract rules of the original'
       await f.click('teamRow0.destination');
       await f.click('teamRow1.name');
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
+    }));
+
+  it("restores the plot's starting path on Escape after the clicks and shortenings it replays, as AbortMovementPlottingMode does (RestorePreviousPaths, MapScreen.cc:4097)", () =>
+    withMap(async (f) => {
+      await plotMercRoute(f, 0, 'B13');
+      f.key('Escape');
+      const plotter = f.screen.list.slots[0]?.merc;
+      const pathOf = () => f.client.view.strategic?.groups.find((g) => g.members.includes(plotter ?? -1))?.path;
+      const before = pathOf();
+      await f.click('teamRow0.destination');
+      await f.hoverSector('B12', PLOT_REST_MS);
+      await f.clickSector('B12');
+      f.key('Escape');
+      await f.settle();
+      expect(lastCommand(f)).toMatchObject({
+        cmd: { type: 'endPlot', soldier: plotter, steps: [{ to: 'B12' }], outcome: 'abort', selected: f.screen.list.selectedIds() },
+        reply: { ok: true },
+      });
+      expect(pathOf()).toEqual(before);
+      expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED });
+    }));
+
+  it('cuts the path in the client on a right click and sends the cut with the plot, the server path left as it is until then (CancelOrShortenPlottedPath)', () =>
+    withMap(async (f) => {
+      await plotMercRoute(f, 0, 'B13');
+      f.key('Escape');
+      const plotter = f.screen.list.slots[0]?.merc;
+      const groupOf = () => f.client.view.strategic?.groups.find((g) => g.members.includes(plotter ?? -1));
+      expect(groupOf()?.path.at(-1)).toBe('B13');
+      await f.click('teamRow0.destination');
+      const sent = f.client.commands.length;
+      await f.clickSector('C13', MouseButton.RIGHT);
+      expect(f.client.commands.length).toBe(sent);
+      expect(f.screen.plotting?.plottedPath().at(-1)).toBe('C13');
+      expect(groupOf()?.path.at(-1)).toBe('B13');
+      await f.clickSector('C13');
+      expect(f.client.commands.length).toBe(sent);
+      await f.clickSector('C13');
+      expect(lastCommand(f)).toMatchObject({
+        cmd: { type: 'endPlot', steps: [{ cut: 'C13', selected: f.screen.list.selectedIds() }], outcome: 'confirm' },
+        reply: { ok: true },
+      });
+      expect(groupOf()?.path.at(-1)).toBe('C13');
+    }));
+
+  it('leaves the clicked legs on the path at a silent end of the plot, the group not moving (TeamListInfoRegionBtnCallBackPrimary, MapScreen.cc:4276)', () =>
+    withMap(async (f) => {
+      const plotter = f.screen.list.slots[0]?.merc;
+      await f.click('teamRow0.destination');
+      await f.hoverSector('C13', PLOT_REST_MS);
+      await f.clickSector('C13');
+      await f.click('teamRow1.name');
+      expect(lastCommand(f)).toMatchObject({ cmd: { type: 'endPlot', soldier: plotter, steps: [{ to: 'C13' }], outcome: 'drop' } });
+      const group = f.client.view.strategic?.groups.find((g) => g.members.includes(plotter ?? -1));
+      expect(group?.path.at(-1)).toBe('C13');
+      expect(group?.betweenSectors).toBe(false);
+    }));
+
+  it('gives the plot up with the restore as the screen goes away (EndMapScreen, MapScreen.cc:3096)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      f.screen.exit();
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'endPlot', outcome: 'abort' });
+    }));
+
+  it('draws the plotted path and the ground ETA text over the sector inventory, without the ETA popup (MapScreen.cc:1887-1895, :1051; Map_Screen_Interface_Border.cc:101)', () =>
+    withMap(async (f) => {
+      await plotMercRoute(f, 0, 'B13');
+      await f.click('teamRow0.destination');
+      const cursors = () => f.draw().items.filter((i) => i.kind === 'image' && i.asset === MAP_CURSORS).length;
+      const popup = () => f.draw().items.find((i) => i.kind === 'image' && i.asset === ETA_POPUP);
+      const shown = popup();
+      if (shown?.kind !== 'image') throw new Error('no ETA popup while plotting');
+      const etaGlyphs = () =>
+        f
+          .draw()
+          .items.filter((i) => i.kind === 'glyphs' && i.glyphs[0] !== undefined && Math.abs(i.glyphs[0].y - shown.y) < ETA_POPUP_HEIGHT)
+          .length;
+      expect(cursors()).toBeGreaterThan(0);
+      f.key('i', KeyModifier.CTRL, 'KeyI');
+      await f.settle();
+      expect(f.screen.mapInventory.pool.open).toBe(true);
+      expect(cursors()).toBeGreaterThan(0);
+      expect(popup()).toBeUndefined();
+      expect(etaGlyphs()).toBe(ETA_TEXT_PIECES);
     }));
 
   it('lets the exit keys leave while plotting and gives the plot up on the way out (AllowedToExitFromMapscreenTo, EndMapScreen)', () =>

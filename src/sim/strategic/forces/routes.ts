@@ -6,7 +6,8 @@
 // @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters);
 // @src MapScreen.cc CancelPathsOfAllSelectedCharacters, MAP_EVENT_PLOT_PATH's SectorIsPassable, Strategic_Pathing.cc
 // @src FindStratPath's SHIFT read at each leg, PlotPathForCharacter's underground message (2026-11-19); MapScreen.cc
-// @src CopyPathToAllSelectedCharacters at each plotting click, RebuildWayPointsForAllSelectedCharsGroups (2026-11-19).
+// @src CopyPathToAllSelectedCharacters at each plotting click, RebuildWayPointsForAllSelectedCharsGroups, RestorePath and
+// @src RestorePreviousPaths (2026-11-19).
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { isValidSector, type Sector, sameSector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
@@ -123,7 +124,6 @@ export type PlotRefusal = (typeof PlotRefusal)[keyof typeof PlotRefusal];
 
 export interface PlottedLegs {
   readonly path: readonly number[];
-  readonly vias: readonly (readonly number[])[];
   readonly temp: readonly number[] | null;
 }
 
@@ -157,20 +157,18 @@ export function plotLegs(
   options: PlotLegOptions = {},
 ): PlottedLegs | PlotRefusal {
   let path: readonly number[] = start;
-  const vias: (readonly number[])[] = [];
   for (const [leg, sector] of via.entries()) {
     if (!canPlotLegTo(ctx, sector, options.helicopter)) return PlotRefusal.BAD_SECTOR;
     const direct = isLegShortest(options.shortest, leg);
     const section = buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(sector), g, { direct });
     if (!section) return PlotRefusal.NO_ROUTE;
     path = appendStrategicPath(section, path);
-    vias.push(path);
   }
   const direct = isLegShortest(options.shortest, via.length);
   const temp = isTheCursorAllowedToHighLightThisSector(ctx, to)
     ? buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(to), g, { direct })
     : null;
-  return { path, vias, temp };
+  return { path, temp };
 }
 
 export function plottedRoute(legs: PlottedLegs, origin: number, to: Sector): number[] | null {
@@ -178,31 +176,67 @@ export function plottedRoute(legs: PlottedLegs, origin: number, to: Sector): num
   return lastSectorOfPath(legs.path, origin) === strategicIndex(to) ? [...legs.path] : null;
 }
 
-export function pathAfterEachLeg(legs: PlottedLegs, origin: number, to: Sector): (readonly number[])[] | null {
-  const route = plottedRoute(legs, origin, to);
-  if (!route) return null;
-  return legs.temp ? [...legs.vias, route] : [...legs.vias];
+export type PathStore = { readonly vehicle: number } | { readonly merc: number };
+
+export function pathStoreOf(m: StrategicMerc): PathStore {
+  return inOrIsVehicle(m) ? { vehicle: m.vehicleId } : { merc: m.id };
 }
 
-function sharesPathWith(plotter: StrategicMerc, m: StrategicMerc): boolean {
-  if (inOrIsVehicle(plotter)) return inOrIsVehicle(m) && m.vehicleId === plotter.vehicleId;
-  return m.id === plotter.id;
+function sameStore(a: PathStore, b: PathStore): boolean {
+  return 'vehicle' in a ? 'vehicle' in b && a.vehicle === b.vehicle : 'merc' in b && a.merc === b.merc;
+}
+
+function storedPath(ctx: StrategicContext, store: PathStore): readonly number[] {
+  if ('vehicle' in store) return ctx.state.forces.vehicles[store.vehicle]?.path ?? [];
+  return ctx.mercs.get(store.merc)?.path ?? [];
+}
+
+function storePath(ctx: StrategicContext, store: PathStore, path: readonly number[]): void {
+  const holder = 'vehicle' in store ? ctx.state.forces.vehicles[store.vehicle] : ctx.mercs.get(store.merc);
+  if (holder) holder.path = [...path];
+}
+
+export function setStoredPathOf(ctx: StrategicContext, m: StrategicMerc, path: readonly number[]): void {
+  storePath(ctx, pathStoreOf(m), path);
 }
 
 export function copyPathToAllSelectedCharacters(
   ctx: StrategicContext,
-  plotter: StrategicMerc,
   selected: readonly number[],
+  from: PathStore,
   path: readonly number[],
 ): void {
   for (const id of selected) {
     const m = ctx.mercs.get(id);
-    if (!m || sharesPathWith(plotter, m)) continue;
-    if (!inOrIsVehicle(m)) m.path = [...path];
-    else {
-      const v = ctx.state.forces.vehicles[m.vehicleId];
-      if (v) v.path = [...path];
-    }
+    if (!m) continue;
+    const store = pathStoreOf(m);
+    if (sameStore(store, from) || (path.length === 0 && storedPath(ctx, store).length === 0)) continue;
+    storePath(ctx, store, path);
+  }
+}
+
+function restoreStoreOf(m: StrategicMerc): PathStore | null {
+  if (inOrIsVehicle(m)) return { vehicle: m.vehicleId };
+  return m.assignment < Assignment.ON_DUTY ? { merc: m.id } : null;
+}
+
+function groupOfStore(ctx: StrategicContext, m: StrategicMerc, store: PathStore): number {
+  return 'vehicle' in store ? (ctx.state.forces.vehicles[store.vehicle]?.movementGroup ?? 0) : m.groupId;
+}
+
+export function restorePath(ctx: StrategicContext, store: PathStore, groupId: number, previous: readonly number[]): boolean {
+  if (previous.length === 0 && storedPath(ctx, store).length === 0) return false;
+  storePath(ctx, store, previous);
+  const g = getGroup(ctx, groupId);
+  if (g) rebuildWayPointsForGroupPath(ctx, storedPath(ctx, store), g);
+  return true;
+}
+
+export function restorePreviousPaths(ctx: StrategicContext, selected: readonly number[], previous: readonly number[]): void {
+  for (const id of selected) {
+    const m = ctx.mercs.get(id);
+    const store = m ? restoreStoreOf(m) : null;
+    if (m && store) restorePath(ctx, store, groupOfStore(ctx, m, store), previous);
   }
 }
 

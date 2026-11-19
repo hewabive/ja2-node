@@ -10,8 +10,9 @@
 // @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter; HandleNewDestConfirmation through a click
 // @src on the end of an unchanged path, the helicopter's too (2026-11-18); SHIFT read by FindStratPath at each plotting
 // @src click, the helicopter's too, MAP_EVENT_PLOT_PATH's SectorIsPassable for a merc, the confirm of an empty path, the
-// @src helicopter's too, the selected list of each plotting click and of the confirm (CopyPathToAllSelectedCharacters,
-// @src RebuildWayPointsForAllSelectedCharsGroups) (2026-11-19).
+// @src helicopter's too, the selected list of each plotting click and shortening, the plot's end: the confirm, Esc's
+// @src restore (AbortMovementPlottingMode), the cancel and the silent end of TeamListInfoRegionBtnCallBackPrimary
+// @src (2026-11-19).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -45,17 +46,30 @@ export type PlotClick =
   | { readonly kind: 'confirm' }
   | { readonly kind: 'ignored' };
 
-export type PlotShorten =
-  | { readonly kind: 'cancel' }
-  | { readonly kind: 'shortenBase'; readonly at: string }
-  | { readonly kind: 'shortenLegs' }
-  | { readonly kind: 'abort' };
+export type PlotShorten = { readonly kind: 'cancel' } | { readonly kind: 'shortened' } | { readonly kind: 'abort' };
+
+export type PlotEnd = 'confirm' | 'abort' | 'cancel' | 'drop';
 
 export interface ConfirmedRoute {
   readonly mode: PlotMode;
   readonly soldier: number;
   readonly path: readonly string[];
 }
+
+interface LegStep {
+  readonly to: string;
+  readonly shortest: boolean;
+  readonly selected: readonly number[];
+}
+
+interface CutStep {
+  readonly cut: string;
+  readonly selected: readonly number[];
+}
+
+type Step = LegStep | CutStep;
+
+const isCutStep = (step: Step): step is CutStep => 'cut' in step;
 
 export function withConfirmedRoute(view: StrategicView, route: ConfirmedRoute | null): StrategicView {
   if (!route) return view;
@@ -78,41 +92,31 @@ export class Plotting {
   readonly row: number;
   readonly origin: string;
   readonly hadPath: boolean;
-  readonly group: readonly number[] | null;
   #base: readonly string[];
-  #legs: string[] = [];
-  #legShortest: boolean[] = [];
-  #legSelected: (readonly number[])[] = [];
+  #steps: Step[] = [];
+  #path: readonly string[];
   #shortest = false;
   #hover: Sector | null = null;
   #hoverSince = 0;
   #answers = new Map<string, RouteAnswer | null>();
   #pending = new Set<string>();
-  #pathAnswer: RouteAnswer | null = null;
 
-  constructor(
-    mode: PlotMode,
-    soldier: number,
-    row: number,
-    origin: string,
-    base: readonly string[],
-    group: readonly number[] | null = null,
-  ) {
+  constructor(mode: PlotMode, soldier: number, row: number, origin: string, base: readonly string[]) {
     this.mode = mode;
     this.soldier = soldier;
     this.row = row;
     this.origin = origin;
-    this.group = group;
-    this.#base = group ? [] : [...base];
+    this.#base = [...base];
+    this.#path = this.#base;
     this.hadPath = this.#base.length > 0;
   }
 
-  static forGroup(movers: readonly number[], row: number, origin: string): Plotting {
-    return new Plotting('merc', movers[0] ?? -1, row, origin, [], movers);
+  get legs(): readonly string[] {
+    return this.#steps.flatMap((step) => (isCutStep(step) ? [] : [step.to]));
   }
 
-  get legs(): readonly string[] {
-    return this.#legs;
+  get changed(): boolean {
+    return this.#steps.length > 0;
   }
 
   get shortest(): boolean {
@@ -124,19 +128,26 @@ export class Plotting {
   }
 
   baseChanged(base: readonly string[]): void {
-    if (this.#legs.length > 0 || this.group) return;
+    if (this.#steps.length > 0) return;
     if (base.join(',') === this.#base.join(',')) return;
     this.#base = [...base];
-    this.#pathAnswer = null;
+    this.#path = this.#base;
     this.#answers.clear();
   }
 
+  #wireSteps(withSelected: boolean): object[] {
+    return this.#steps.map((step) => {
+      const selected = withSelected ? { selected: [...step.selected] } : {};
+      if (isCutStep(step)) return { cut: step.cut, ...selected };
+      return { to: step.to, ...(step.shortest ? { shortest: true } : {}), ...selected };
+    });
+  }
+
   #request(to: string): CommandEnvelope {
-    const via = this.#legs.length > 0 ? { via: [...this.#legs] } : {};
-    const shortest = shortestField([...this.#legShortest, this.#shortest]);
-    if (this.mode === 'heli') return { type: 'previewHeliRoute', to, ...via, ...shortest, extend: true };
-    if (this.group) return { type: 'previewRoute', soldier: this.soldier, to, ...via, ...shortest, alone: true };
-    return { type: 'previewRoute', soldier: this.soldier, to, ...via, ...shortest, extend: true };
+    const steps = this.#steps.length > 0 ? { steps: this.#wireSteps(false) } : {};
+    const shortest = this.#shortest ? { shortest: true } : {};
+    if (this.mode === 'heli') return { type: 'previewHeliRoute', to, ...steps, ...shortest, extend: true };
+    return { type: 'previewRoute', soldier: this.soldier, to, ...steps, ...shortest, extend: true };
   }
 
   #key(to: string): string {
@@ -154,7 +165,7 @@ export class Plotting {
     const hover = this.#hover;
     if (hover && now - this.#hoverSince >= MIN_WAIT_TIME_FOR_TEMP_PATH) this.#ask(client, sectorLabel({ ...hover, z: 0 }));
     const last = this.lastSector();
-    if (last) this.#ask(client, last);
+    if (last && this.changed) this.#ask(client, last);
   }
 
   #ask(client: PlotClient, to: string): void {
@@ -178,8 +189,8 @@ export class Plotting {
   }
 
   pathAnswer(): RouteAnswer | null {
-    const last = this.#legs[this.#legs.length - 1];
-    return last === undefined ? null : (this.#answer(last) ?? this.#pathAnswer);
+    const last = this.lastSector();
+    return last !== null && this.changed ? (this.#answer(last) ?? null) : null;
   }
 
   tempPath(): readonly string[] {
@@ -191,17 +202,11 @@ export class Plotting {
   }
 
   plottedPath(): readonly string[] {
-    if (this.#legs.length === 0) return this.#base;
-    const last = this.#legs[this.#legs.length - 1] as string;
-    const answer = this.#answer(last);
-    if (answer) this.#pathAnswer = answer;
-    return this.#pathAnswer ? [...this.#pathAnswer.path, ...this.#pathAnswer.temp.slice(1)] : this.#base;
+    return this.#path;
   }
 
   lastSector(): string | null {
-    if (this.#legs.length > 0) return this.#legs[this.#legs.length - 1] ?? null;
-    if (this.#base.length > 0) return this.#base[this.#base.length - 1] ?? null;
-    return null;
+    return this.#path[this.#path.length - 1] ?? null;
   }
 
   lastSectorOrOrigin(): string {
@@ -219,81 +224,39 @@ export class Plotting {
     if (!plottable) return { kind: 'ignored' };
     const answer = this.#answer(label);
     if (!answer || answer.temp.length === 0) return answer === undefined ? { kind: 'ignored' } : { kind: 'offRoad' };
-    this.#legs.push(label);
-    this.#legShortest.push(this.#shortest);
-    this.#legSelected.push([...selected]);
+    this.#steps.push({ to: label, shortest: this.#shortest, selected: [...selected] });
+    this.#path = [...answer.path, ...answer.temp.slice(1)];
     return { kind: 'appended' };
   }
 
-  shorten(sector: Sector): PlotShorten {
+  shorten(sector: Sector, selected: readonly number[] = []): PlotShorten {
     const label = sectorLabel({ ...sector, z: 0 });
-    const full = this.plottedPath();
+    const full = this.#path;
     if (full.length === 0) return { kind: 'abort' };
     if (sameLabel(label, this.origin)) return { kind: 'cancel' };
-    const legsStart = this.#base.length;
     let at = -1;
     full.forEach((s, i) => {
       if (sameLabel(s, label)) at = i;
     });
     if (at < 0 || at === full.length - 1) return { kind: 'abort' };
-    if (at < legsStart || this.#legs.length === 0) {
-      this.#legs = [];
-      this.#legShortest = [];
-      this.#legSelected = [];
-      this.#pathAnswer = null;
-      return { kind: 'shortenBase', at: label };
-    }
-    const legEnds = this.#legs.map((leg) => full.findIndex((s, i) => i >= legsStart && sameLabel(s, leg)));
-    const kept = legEnds.flatMap((end, leg) => (end >= 0 && end < at ? [leg] : []));
-    const cut = legEnds.findIndex((end) => end >= at);
-    this.#legs = [...kept.map((leg) => this.#legs[leg] as string), label];
-    this.#legShortest = [...kept.map((leg) => this.#legShortest[leg] === true), this.#legShortest[cut] === true];
-    this.#legSelected = [...kept.map((leg) => this.#legSelected[leg] ?? []), this.#legSelected[cut] ?? []];
-    this.#pathAnswer = null;
-    return { kind: 'shortenLegs' };
+    this.#steps.push({ cut: label, selected: [...selected] });
+    this.#path = full.slice(0, at + 1);
+    return { kind: 'shortened' };
   }
 
-  #reconfirmedPath(selected: readonly number[]): CommandEnvelope | null {
-    if (this.group) return null;
-    const to = this.lastSectorOrOrigin();
-    if (this.mode === 'merc') return { type: 'route', soldier: this.soldier, to, selected: [...selected] };
-    return { type: 'heliRoute', to, extend: true, plotted: true, selected: [...selected] };
+  endCommand(end: PlotEnd, selected: readonly number[]): CommandEnvelope {
+    const steps = this.#steps.length > 0 ? { steps: this.#wireSteps(true) } : {};
+    const who = this.mode === 'heli' ? { helicopter: true } : { soldier: this.soldier };
+    return { type: 'endPlot', ...who, ...steps, outcome: end, selected: [...selected] };
   }
 
-  confirmCommand(selected: readonly number[] = []): CommandEnvelope | null {
-    if (this.#legs.length === 0) return this.#reconfirmedPath(selected);
-    const to = this.#legs[this.#legs.length - 1] as string;
-    const via = this.#legs.slice(0, -1);
-    const viaPart = via.length > 0 ? { via } : {};
-    const shortest = shortestField(this.#legShortest);
-    if (this.mode === 'heli')
-      return { type: 'heliRoute', to, ...viaPart, ...shortest, extend: true, plotted: true, selected: [...selected] };
-    const group = this.group;
-    if (group) return { type: 'routeGroup', soldiers: [...group], to, ...viaPart, ...shortest };
-    const perLeg = selectedPerLegField(this.#legSelected, selected);
-    return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true, selected: [...selected], ...perLeg };
+  confirmedRoute(): ConfirmedRoute {
+    return { mode: this.mode, soldier: this.soldier, path: this.plottedPath() };
   }
 
-  confirmedRoute(): ConfirmedRoute | null {
-    return this.group ? null : { mode: this.mode, soldier: this.soldier, path: this.plottedPath() };
+  cancelledRoute(): ConfirmedRoute {
+    return { mode: this.mode, soldier: this.soldier, path: [] };
   }
-
-  cancelledRoute(): ConfirmedRoute | null {
-    return this.group ? null : { mode: this.mode, soldier: this.soldier, path: [] };
-  }
-}
-
-function shortestField(legs: readonly boolean[]): { readonly shortest?: boolean | readonly boolean[] } {
-  if (!legs.includes(true)) return {};
-  return legs.includes(false) ? { shortest: [...legs] } : { shortest: true };
-}
-
-function selectedPerLegField(
-  legs: readonly (readonly number[])[],
-  atConfirm: readonly number[],
-): { readonly selectedPerLeg?: readonly (readonly number[])[] } {
-  const same = (ids: readonly number[]) => ids.join(',') === atConfirm.join(',');
-  return legs.every(same) ? {} : { selectedPerLeg: legs.map((ids) => [...ids]) };
 }
 
 export function pathSectors(path: readonly string[]): Sector[] {

@@ -118,6 +118,14 @@ describe('the route of a ground vehicle', () => {
     expect(g).toMatchObject({ betweenSectors: true, sector: S('E13'), next: S('D13') });
   });
 
+  it("drops the vehicle group's waypoints at each plotting click, until the end of the plot rebuilds them (MoveCharactersPathToVehicle, Vehicles.cc:402)", () => {
+    const { ctx, v } = plottedHummer();
+    confirmPathForCharacter(ctx, 0);
+    expect(getGroup(ctx, v.movementGroup)?.waypoints).toEqual([S('E13')]);
+    expect(plotPathForCharacter(ctx, 0, S('F13'))).toBe(true);
+    expect(getGroup(ctx, v.movementGroup)).toMatchObject({ betweenSectors: true, waypoints: [] });
+  });
+
   it("rebuilds with the vehicle's own path when the selected list is confirmed, whoever plots (MapScreen.cc:5626-5643)", () => {
     const { ctx, v } = plottedHummer();
     rebuildWayPointsForAllSelectedCharsGroups(ctx, member(ctx, 1), [1, 0]);

@@ -465,8 +465,8 @@ export class MainFlow {
     await clickAt(page, target.x, target.y);
     await page.waitForFunction((s) => window.__ja2Ui.map?.screen?.plotting?.legs.at(-1) === s, sector);
     await clickAt(page, target.x, target.y);
-    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'route');
-    expect(await page.evaluate(() => window.__ja2Ui.map?.commands.at(-1))).toEqual({ type: 'route', ok: true, reason: null });
+    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'endPlot');
+    expect(await page.evaluate(() => window.__ja2Ui.map?.commands.at(-1))).toEqual({ type: 'endPlot', ok: true, reason: null });
     expect(await page.evaluate(() => window.__ja2Ui.map?.screen?.plotting ?? null)).toBeNull();
     await this.settleMapShadow();
     return soldier;

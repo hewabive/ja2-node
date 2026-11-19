@@ -987,13 +987,20 @@ strategic view is always observable, and a sector is left by `exitSector` or by 
 the whole group's move first, so a squad cannot leave the start sector before it is cleared; `extend` appends legs like
 the map screen's plotting, otherwise the path is replaced: cancelled first as `cancelRoute` cancels it, and a `to` on the
 last sector of the path (the merc's sector without one) with no `via` is the confirming click on it, which rebuilds the
-waypoints (`Strategic/MapScreen.cc:5569`). With `selected`, the map screen's selected list at the confirming click,
-`route` is that click: each leg copies the path to the mercs selected at its plotting click (`selectedPerLeg`, one list
-per leg, the `via` legs then `to`; without it `selected` stands for every leg), and the confirm rebuilds every selected
+waypoints (`Strategic/MapScreen.cc:5569`). `endPlot` is the map screen's plot as it ends: `steps` replays its
+plotting clicks (`{to, shortest?, selected?}`: a leg appended to the path and copied to the mercs selected then) and
+right-click shortenings (`{cut, selected?}`: the path cut after that sector and copied the same way), which change
+paths but move nobody, and `outcome` ends it with the `selected` list of that moment: `confirm` rebuilds every selected
 group once, a vehicle with its own path and a group on foot with the plotting merc's, so his own group moves only when
-one of it is selected (`Strategic/MapScreen.cc:2315`, `:5609-5660`). Mercs the plot's start would have deselected
-(another sector, another moving group, off a squad or vehicle) are left out (original-bugs "Selection changed while
-plotting"), and those left travelling are checked as his group is (`Map_Screen_Interface.cc:3887-3899`).
+one of it is selected (`Strategic/MapScreen.cc:2315`, `:5609-5660`); `abort` (Esc and every other way out but the
+three below) gives each selected merc the path the plot started from and rebuilds his group, once per merc
+(`:4097`, `:7749-7821`); `cancel` (the right click on his sector) cancels the selected routes; `drop` (a click on a
+name, an assignment or a contract, which only reset the modes, `:4276`, `:4393`, `:4783`) does nothing more. With
+`helicopter: true` it plots Skyrider's helicopter: a confirm takes off, an abort gives the helicopter its starting
+path and copies it to every selected merc not aboard (`:7776-7784`). Mercs the plot's start would have deselected
+(another sector, another moving group, off a squad or vehicle) are left out of a merc's plot (original-bugs "Selection
+changed while plotting"), and those left are checked as his group is (`Map_Screen_Interface.cc:3887-3899`); the
+`previewRoute` and `previewHeliRoute` hints take the same `steps` before their `via` legs.
 `cancelRoute` cancels only a merc with a route, so a second cancel leaves a returning group on its way back
 (`Strategic/MapScreen.cc:7096`). `shortest` is the Shift each plotting click reads:
 `true` for every leg, or one flag per leg (the `via` legs, then `to`), for `route`, `routeGroup`, `heliRoute` and the
@@ -1007,7 +1014,7 @@ the view has neither the encounter nor the rooms. A merc awake with `breathMax` 
 refuses a move as `tooTired` (in a vehicle only the one who must drive); a group that has such a merc when it reaches a
 sector short of its destination stops there: its paths are cleared, compression stops (`halted`), each such merc says
 his need for sleep (the next ones "me too") and drops asleep, `collapsed` until rested (`fellAsleep {collapsed: true}`),
-so `wake` refuses him. A confirmed `route` or `routeGroup` wakes those it moves who sleep on a squad or must drive their vehicle: for `route` the merc and his squad or vehicle, or the travellers of `selected`, for `routeGroup` the mercs who move (`Strategic/MapScreen.cc:7575`); the `previewRoute` hint wakes nobody, and a passenger who need not drive sleeps on. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
+so `wake` refuses him. A confirmed `route` or `routeGroup` wakes those it moves who sleep on a squad or must drive their vehicle: for `route` the merc and his squad or vehicle, for `endPlot` the selected travellers, for `routeGroup` the mercs who move (`Strategic/MapScreen.cc:7575`); the `previewRoute` hint wakes nobody, and a passenger who need not drive sleeps on. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
 of the sector doing the same or a new one at once, before any route, and `data.selected` lists who moves; `routeGroup`
 regroups the same way and plots in one command. `enterSector` loads with automatic placement, or with the
 `tacticalPlacement` prompt where the original opens its placement GUI (§8.10); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
@@ -1017,7 +1024,8 @@ While a battle is about to begin, from the encounter until the pre-battle prompt
 `strategic.mapInterfaceDisabled` is set and the commands that stand for clicks on the map area are refused as
 `battlePending`, as the map screen ignores those clicks (`Strategic/MapScreen.cc:3335-3341`, `:3390-3396`): `route`,
 `shortenRoute`, `regroupForMove` and `routeGroup` (the move box opens from the map), `heliRoute`, `shortenHeliRoute`,
-`setLandingZone`, `showBattle` and the militia panel's `moveMilitia`, `distributeMilitia` and `redistributeMilitia`.
+`setLandingZone`, `showBattle`, the militia panel's `moveMilitia`, `distributeMilitia` and `redistributeMilitia`, and
+`endPlot` with the confirming or cancelling click (an abort or a drop passes).
 The team list's commands stay: `cancelRoute`, `heliCancel` and `heliPlot` (its destination column), `assign`,
 `assignSquad`, `sleep` and `wake`. A `save` is refused as `battlePending` in that window on either screen, where the line
 can play on the tactical screen too, enemies arriving in the loaded sector (`27`).
