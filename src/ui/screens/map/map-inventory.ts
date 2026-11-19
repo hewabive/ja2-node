@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc CreateDestroyMapInvButton, BltCharInvPanel (the armour as "{3d}%", the weight and
 // @src the camouflage as "{}%"), SetMapCursorItem and MAPEndItemPointer (the item picture as the cursor, the normal cursor at
-// @src once, 2026-11-07), HandleKeyESC;
+// @src once, 2026-11-07);
 // @src src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc CreateDestroyMapInventoryPoolButtons,
 // @src CancelSectorInventoryDisplayIfOn, HandleMouseInCompatableItemForMapSectorInventory (after 100 ms over a pool item:
 // @src the selected merc's and the page's compatible items outlined, HandleCompatibleAmmoUIForMapScreen and
@@ -175,30 +175,6 @@ export class MapInventory {
   frames(frames: readonly ViewFrame[]): void {
     if (!this.pool.open) return;
     if (frames.some((f) => f.events?.some((e) => ITEM_EVENTS.has(e.type)))) void this.pool.refresh();
-  }
-
-  escape(): boolean {
-    if (this.merc.description.open) {
-      this.merc.description.close(true);
-      return true;
-    }
-    if (this.merc.stack.open) {
-      this.merc.stack.close();
-      return true;
-    }
-    if (this.merc.keyRing.open) {
-      this.merc.keyRing.close();
-      return true;
-    }
-    if (this.merc.panel.cursor) {
-      this.merc.panel.setCursor(null);
-      return true;
-    }
-    if (this.pool.cursor) {
-      this.pool.clearCursor();
-      return true;
-    }
-    return false;
   }
 
   #action(action: MapInventoryAction, args: readonly number[]): void {

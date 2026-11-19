@@ -203,10 +203,6 @@ export class SectorInventory {
     this.#outlined = slots;
   }
 
-  clearCursor(): void {
-    this.#cursor = null;
-  }
-
   async takenOut(data: unknown): Promise<void> {
     const leftover = leftoverIndex(data);
     this.#placements = stashPlacements(data, NO_SLOT, this.#cursorSlot());

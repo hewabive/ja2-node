@@ -2198,13 +2198,14 @@ export class MapScreen implements Screen {
   }
 
   #escape(): void {
-    if (this.#inventory.escape()) return;
+    const merc = this.#inventory.merc;
     if (this.#changingArrival) {
       this.#changingArrival = false;
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
     } else if (this.#message.open && !this.#inConfirmMoveMode()) this.#message.end();
     else if (this.#speech.talking) this.#stopSpeech();
     else if (this.#updateBox.open) this.#updateBox.end(false);
+    else if (merc.description.open) merc.description.close(true);
     else if (this.#plot) this.#abortPlotting();
     else if (this.#menus.open) {
       this.#menus.escape();
@@ -2214,8 +2215,10 @@ export class MapScreen implements Screen {
     else if (this.#townBox.open) {
       this.#townBox.close(false);
       this.#syncMask(false);
-    } else if (this.#inventoryOpen) this.#toggleInventory();
-    else if (this.list.multipleSelected()) this.list.resetSelected();
+    } else if (merc.keyRing.open) merc.keyRing.close();
+    else if (this.#inventoryOpen) {
+      if (!this.#inventory.holding) this.#toggleInventory();
+    } else if (this.list.multipleSelected()) this.list.resetSelected();
     else this.#tactical();
   }
 

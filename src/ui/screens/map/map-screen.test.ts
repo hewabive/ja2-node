@@ -10,7 +10,7 @@ import type { ViewFrame } from '../../../protocol/view.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
-import { createItem, emptyObject } from '../../../sim/items/object.ts';
+import { createItem, createItems, emptyObject } from '../../../sim/items/object.ts';
 import { StatAmt, StatCause } from '../../../sim/strategic/economy/constants.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { sectorInfo, setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
@@ -1366,7 +1366,8 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.screen.hook().info).toBe(holder);
       await f.click('teamRow2.name');
       expect(f.screen.hook().info).toBe(near);
-      f.key('Escape');
+      await f.click('poolSlot0');
+      expect(f.screen.mapInventory.holding).toBe(false);
       await f.click('teamRow1.name');
       expect(f.screen.hook().info).toBe(away);
     }));
@@ -1438,7 +1439,8 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.key('ArrowLeft');
       await f.settle();
       expect(f.screen.hook().info).toBe(holder);
-      f.key('Escape');
+      await f.click(`mercSlot${pocket.slot}`);
+      expect(f.screen.mapInventory.holding).toBe(false);
       f.key('ArrowRight');
       await f.settle();
       expect(f.screen.hook().info).toBe(away);
@@ -1736,6 +1738,48 @@ describe('the map screen team list, plotting and contract rules of the original'
       f.key('Escape');
       await f.settle();
       expect(f.screen.mapInventory.pool.open).toBe(true);
+    }));
+
+  it('keeps an item held from a pocket or the sector inventory on Escape, with the inventory open, as HandleKeyESC has no branch for it', () =>
+    withMap(async (f) => {
+      const [holder] = listedMercs(f);
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      const pocket = f.client.view.strategic?.mercs.find((m) => m.id === holder)?.inventory?.[0];
+      if (!pocket) throw new Error('the info merc carries nothing');
+      await f.click(`mercSlot${pocket.slot}`);
+      f.key('Escape');
+      await f.settle();
+      expect(f.screen.mapInventory.merc.panel.cursor?.item).toBe(pocket.item);
+      expect(f.screen.hook().inventoryOpen).toBe(true);
+      await f.click(`mercSlot${pocket.slot}`);
+      stashClipInSelectedSector(f);
+      f.screen.openSectorInventory();
+      await f.settle();
+      await f.click('poolSlot0');
+      f.key('Escape');
+      await f.settle();
+      expect(f.screen.mapInventory.pool.cursor?.item).toBe('CLIP9_15');
+      expect(f.screen.hook().inventoryOpen).toBe(true);
+      await f.click('poolSlot0');
+      f.key('Escape');
+      await f.settle();
+      expect(f.screen.hook().inventoryOpen).toBe(false);
+    }));
+
+  it('leaves the stack popup up on Escape, which closes the inventory only without one (HandleKeyESC)', () =>
+    withMap(async (f) => {
+      const [holder] = listedMercs(f);
+      const items = (f.session.sim as CampaignSession).campaign.battle?.content.items;
+      if (!items) throw new Error('no item table');
+      mercRecord(f, holder).soldier.inv[InvSlot.SMALLPOCK1] = createItems(items, items.byName.get('CLIP9_15')?.index ?? 0, 100, 2);
+      f.client.refresh();
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      await f.click(`mercSlot${InvSlot.SMALLPOCK1}`, MouseButton.RIGHT);
+      expect(f.screen.mapInventory.merc.stack.open).toBe(true);
+      f.key('Escape');
+      await f.settle();
+      expect(f.screen.mapInventory.merc.stack.open).toBe(true);
+      expect(f.screen.hook().inventoryOpen).toBe(true);
     }));
 
   it('turns the airspace off on the way below ground, by key or by selecting a sector there (ChangeSelectedMapSector)', () =>
