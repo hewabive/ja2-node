@@ -7,6 +7,7 @@ import { syntheticSaveHeaderBytes } from '../../tests/support/native-save.ts';
 import { battleSandbox, ourTurn } from '../../tests/support/save-scenarios.ts';
 import { createSaveKit, type SaveKit, type SaveKitOptions } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { LoadingScreen } from '../content/strategic/loading-screens.ts';
 import { PRE_RANDOM_RING_SIZE } from '../core/rng.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -186,8 +187,21 @@ describe('saves and loads on the stub pack', () => {
       const session = await k.open({ seed: 9, campaign: { mercs: 2, land: false } });
       expect((session.sim as CampaignSession).campaign.state.worldSector).toBeNull();
       const saved = await k.saves.save(session, { name: 'arriving' });
-      expect(saved).toMatchObject({ ok: true, header: { session: 'campaign', sector: 'A9' } });
+      expect(saved).toMatchObject({ ok: true, header: { session: 'campaign', sector: 'A9', loadScreen: LoadingScreen.HELI } });
       expect((await k.saves.list()).find((s) => s.name === 'arriving')).toMatchObject({ header: { sector: 'A9' } });
+    });
+  });
+
+  it('writes the picture of the last sector entry into the header while its world is loaded, without changing the state', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 9, campaign: {} });
+      const campaign = (session.sim as CampaignSession).campaign;
+      expect(campaign.state.sectorFlow.loadScreen).toBe(LoadingScreen.HELI);
+      campaign.state.sectorFlow.loadScreen = LoadingScreen.NIGHTWILD;
+      const before = text(session);
+      expect(await k.saves.save(session, { name: 'wild' })).toMatchObject({ ok: true, header: { loadScreen: LoadingScreen.NIGHTWILD } });
+      expect(text(session)).toBe(before);
+      expect((await k.saves.list()).find((s) => s.name === 'wild')).toMatchObject({ header: { loadScreen: LoadingScreen.NIGHTWILD } });
     });
   });
 

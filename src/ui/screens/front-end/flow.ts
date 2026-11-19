@@ -36,7 +36,7 @@ import { CreditsController, creditsScreen } from './credits.ts';
 import { type FrontEndEnvironment, FrontEndLayout, type SettingsStore } from './environment.ts';
 import { type ExitBoxStyle, openExitBox } from './exit-box.ts';
 import { type GameInitChoice, GameInitController, gameInitScreen, INITIAL_GAME_CHOICE } from './game-init.ts';
-import { LoadingController, loadingScreen } from './loading.ts';
+import { LOADINGSCREEN_HELI, LoadingController, type LoadingKind, loadingPicturePath, loadingScreen } from './loading.ts';
 import { type MainMenuModel, mainMenuScreen } from './main-menu.ts';
 import { OptionsController, type OptionsOrigin, optionsScreen } from './options.ts';
 import { SanMonaController, sanMonaScreen } from './san-mona.ts';
@@ -423,9 +423,9 @@ export class FrontEndFlow {
 
   async loadSave(listing: SaveListing, origin: SaveLoadOrigin): Promise<void> {
     await this.#fade('out');
-    const loading = new LoadingController('save');
+    const picture = listing.header?.loadScreen ?? LOADINGSCREEN_HELI;
     this.#host.music('mainMenu');
-    this.#show(loadingScreen(this.#env, loading));
+    const loading = await this.#showLoading('save', picture);
     const session = origin === 'mainMenu' || origin === 'gameInit' ? null : this.#client.session;
     const outcome = await this.saves.loadConfirmed(
       listing,
@@ -439,8 +439,20 @@ export class FrontEndFlow {
     }
     if (outcome.session !== this.#client.session) await this.#client.connect(outcome.session);
     loading.progress(1, 1);
-    this.enterGame();
+    this.enterGame(false, picture);
     await this.#fade('in');
+  }
+
+  async #showLoading(kind: LoadingKind, picture: number | null): Promise<LoadingController> {
+    const path = picture === null ? null : loadingPicturePath(this.#env.layout(FrontEndLayout.LOADING), picture);
+    const images = this.#env.runtime.images;
+    if (path !== null && !images.info(path) && images.load) {
+      this.#show(new BlackScreen(this.#env));
+      await images.load(path);
+    }
+    const loading = new LoadingController(kind, picture);
+    this.#show(loadingScreen(this.#env, loading));
+    return loading;
   }
 
   credits(): void {
@@ -452,7 +464,7 @@ export class FrontEndFlow {
     this.#show(creditsScreen(this.#env, controller, { feed: () => this.#host.rowFeed() }));
   }
 
-  enterGame(fromMap = false): void {
+  enterGame(fromMap = false, savePicture: number | null = null): void {
     const session = this.#client.session;
     if (!session) {
       this.mainMenu();
@@ -463,7 +475,7 @@ export class FrontEndFlow {
     this.#noteBattlePanel();
     const tactical = kind === 'tactical' ? (this.#host.tactical?.() ?? null) : null;
     if (tactical) {
-      void this.#enterTactical(tactical, session);
+      void this.#enterTactical(tactical, session, savePicture);
       return;
     }
     const laptop = kind === 'laptop' ? (this.#host.laptop?.() ?? null) : null;
@@ -473,7 +485,7 @@ export class FrontEndFlow {
     }
     const map = kind === 'map' ? (this.#host.map?.() ?? null) : null;
     if (map) {
-      void this.#enterMap(map, session);
+      void this.#enterMap(map, session, savePicture);
       return;
     }
     this.#unavailable(kind, session, null);
@@ -495,10 +507,9 @@ export class FrontEndFlow {
     this.enterGame();
   }
 
-  async #enterMap(port: MapPort, session: string): Promise<void> {
+  async #enterMap(port: MapPort, session: string, savePicture: number | null): Promise<void> {
     if (!port.loaded) {
-      const loading = new LoadingController('save');
-      this.#show(loadingScreen(this.#env, loading));
+      const loading = await this.#showLoading('save', savePicture);
       try {
         await port.load((done, total) => loading.progress(done, total));
       } catch (err) {
@@ -571,10 +582,10 @@ export class FrontEndFlow {
     else await this.saveLoad('save', 'game');
   }
 
-  async #enterTactical(port: TacticalPort, session: string): Promise<void> {
+  async #enterTactical(port: TacticalPort, session: string, savePicture: number | null): Promise<void> {
     if (!port.loaded) {
-      const loading = new LoadingController('sector', port.loadScreen);
-      this.#show(loadingScreen(this.#env, loading));
+      const continuesSaveLoad = savePicture !== null;
+      const loading = await this.#showLoading(continuesSaveLoad ? 'save' : 'sector', continuesSaveLoad ? savePicture : port.loadScreen);
       try {
         await port.load((done, total) => loading.progress(done, total));
       } catch (err) {

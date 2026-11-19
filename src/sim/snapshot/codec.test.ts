@@ -182,6 +182,20 @@ describe('snapshot versions', () => {
   });
 });
 
+describe('snapshot version 98 (the picture of the last sector entry)', () => {
+  function migratedFlow(sectorFlow: Record<string, unknown>): unknown {
+    const graph = { externals: [], sections: [['strategic', { sectorFlow }]] };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 98, kind: 'campaign', mapPath: null, graph });
+    const strategic = migrated.graph.sections[0]?.[1] as { sectorFlow: unknown } | undefined;
+    return strategic?.sectorFlow;
+  }
+
+  it('knows no entry picture in an older campaign and keeps one already written', () => {
+    expect(migratedFlow({ preferredSelection: -1 })).toEqual({ preferredSelection: -1, loadScreen: null });
+    expect(migratedFlow({ loadScreen: 4 })).toEqual({ loadScreen: 4 });
+  });
+});
+
 describe('snapshot version 36 (merc slots with empty slots)', () => {
   const OFF_MAP_CURSOR = 0xffff;
 

@@ -140,6 +140,7 @@ export async function createSaveSession(
   const report: SaveImportReport = { ...start.report, droppedOptions: imported.dropped };
   importStrategicTime(strategic, save);
   strategic.worldSector = worldSector ? { ...worldSector } : null;
+  strategic.sectorFlow.loadScreen = worldSector ? save.header.loadScreenId : null;
   startClockRunning(strategic.clock);
   const worlds = exists ? new WorldCache(read, exists) : null;
   const { campaign, roster } = assembleImportedCampaign(

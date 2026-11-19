@@ -19,7 +19,7 @@ import {
   type MapPort,
   type TacticalPort,
 } from '../../ui/screens/front-end/flow.ts';
-import { LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
+import { LOADING_PICTURE_PREFIX, LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
 import { type LaptopMemory, laptopMemory } from '../../ui/screens/laptop/laptop-client.ts';
 import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
 import type { StoryLayer } from '../../ui/screens/story/story-layer.ts';
@@ -52,7 +52,6 @@ import type { UiBoot } from './ui-boot.ts';
 
 const LAUNCHER_PAGE = '/';
 const FRONT_END_RANDOM_SEED = 'front-end';
-const LOADING_PICTURE_PREFIX = 'picture';
 const SHORT_COMMIT = 7;
 const BASIC_TEXT_BOX = 'basic';
 const PIN_CLOCK_PARAM = 'pinClock';

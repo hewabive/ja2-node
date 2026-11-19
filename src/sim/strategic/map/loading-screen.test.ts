@@ -4,8 +4,9 @@ import { LoadingScreen } from '../../../content/strategic/loading-screens.ts';
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { Rng } from '../../../core/rng.ts';
 import type { StrategicContext } from '../forces/ports.ts';
-import { loadScreenId } from './loading-screen.ts';
+import { loadScreenId, saveLoadScreenId } from './loading-screen.ts';
 import { sectorInfo, Traversability } from './sectors.ts';
 
 let content: StrategicContent;
@@ -59,5 +60,36 @@ describe('the loading screen of a sector entry (GetLoadScreenID, rule finding 2)
     expect(screens[LoadingScreen.DAYTOWN1]?.path).toBe('loadscreens/ls_daytown1.sti');
     expect(screens[LoadingScreen.NIGHTSAM]?.path).toBe('loadscreens/ls_nightsam.sti');
     expect(screens.find((s) => s.name === 'DAYPRISON')?.index).toBe(LoadingScreen.NIGHTSAM + 1);
+  });
+});
+
+describe('the loading screen a save shows (SaveLoadGame.cc SaveGame, LoadSavedGame)', () => {
+  const town = parseSectorString(TOWN_SECTOR);
+
+  it("keeps the last sector entry's picture while its world is loaded, drawing nothing", () => {
+    const rolls = new ScriptedRolls();
+    const ctx = context(NOON, rolls);
+    ctx.state.sectorFlow.loadScreen = LoadingScreen.NIGHTWILD;
+    const before = ctx.state.rng.state();
+    expect(saveLoadScreenId(ctx, true, town)).toBe(LoadingScreen.NIGHTWILD);
+    expect([ctx.state.rng.state(), rolls.ranges]).toEqual([before, []]);
+  });
+
+  it("shows the saved sector's picture without a loaded world or a known entry, its town draw made on a copy of the stream", () => {
+    const ctx = context(NOON, new ScriptedRolls());
+    ctx.state.sectorFlow.loadScreen = LoadingScreen.NIGHTWILD;
+    const before = ctx.state.rng.state();
+    const drawn = Rng.fromState(before).int(2) === 0 ? LoadingScreen.DAYTOWN1 : LoadingScreen.DAYTOWN2;
+    expect(saveLoadScreenId(ctx, false, town)).toBe(drawn);
+    ctx.state.sectorFlow.loadScreen = null;
+    expect(saveLoadScreenId(ctx, true, town)).toBe(drawn);
+    expect(ctx.state.rng.state()).toEqual(before);
+  });
+
+  it('shows the helicopter for a save without a sector and while the game has just started', () => {
+    const ctx = context(NOON, new ScriptedRolls());
+    expect(saveLoadScreenId(ctx, false, null)).toBe(LoadingScreen.HELI);
+    ctx.state.didGameJustStart = true;
+    expect(saveLoadScreenId(ctx, false, town)).toBe(LoadingScreen.HELI);
   });
 });

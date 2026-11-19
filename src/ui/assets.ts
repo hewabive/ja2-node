@@ -17,6 +17,7 @@ export interface ImageCatalog {
   readonly imagesLoading?: number;
   info(key: AssetKey): ImageInfo | undefined;
   request?(key: AssetKey): void;
+  load?(key: AssetKey): Promise<boolean>;
 }
 
 export const NO_FRAME: FrameMetrics = { width: 0, height: 0, offsetX: 0, offsetY: 0 };
@@ -43,6 +44,11 @@ export class StaticImageCatalog implements ImageCatalog {
 
   request(key: AssetKey): void {
     this.#requested.add(key);
+  }
+
+  load(key: AssetKey): Promise<boolean> {
+    this.#requested.add(key);
+    return Promise.resolve(this.#images.has(key));
   }
 
   requested(): AssetKey[] {

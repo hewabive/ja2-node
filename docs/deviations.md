@@ -44,7 +44,7 @@ generator.
 | Cosmetic laptop draws | Gameplay `Random` picks the I.M.P. results paragraph on every display, the hard-drive light flicker and the A.I.M. conference distortion, whose frame counters are function statics (`EMail.cc:1896`, `Laptop.cc:2404`, `AIMMembers.cc:1973`) | The I.M.P. paragraph by the mail id's parity; the client draws the flicker and the distortion on its own generator and keeps the distortion's counters in its laptop memory (`src/ui/screens/laptop/aim/aim-distortion.ts`) | Presentation (`21`, `30`) |
 | Email order | Sorting the mail list by a column relinks the saved list (`EMail.cc:639-691`) | The client sorts its display; the simulation keeps arrival order | UI state (`30`) |
 | Laptop title-bar slides | The program and A.I.M. conference title bars move in 18 rendered frames (`Laptop.cc:144`) | 18 steps of 16 ms (`laptop-timers.ts`) | Frame-rate independence (`30`) |
-| Load screen draw at save | Every save draws `GetLoadScreenID` for the header picture, gameplay `Random(2)` in some town sectors (`SaveLoadGame.cc:372`) | Not drawn at save; the sector-entry draw is made, its picture in `sectorLoaded.loadScreen` | A save never changes the state (`27` §1.2) |
+| Load screen draw at save | Every save draws `GetLoadScreenID` for the header picture, gameplay `Random(2)` in some town sectors (`SaveLoadGame.cc:372`), and a load without a world draws it for the saved sector (`SaveLoadGame.cc:750`) | Not drawn at save; the header keeps the sector entry's picture (`sectorLoaded.loadScreen`), and a save without a world draws the saved sector's town picture on a copy of the stream | A save never changes the state (`27` §1.2), nor does a load |
 
 ## 2. Timing and clocks
 

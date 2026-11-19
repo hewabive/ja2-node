@@ -46,6 +46,7 @@ export interface SectorFlowState {
   trashedMapRestrictedScroll: number;
   trashedMapRooms: Uint8Array | null;
   preferredSelection: number;
+  loadScreen: number | null;
 }
 
 export interface ShopFlowState {
@@ -103,6 +104,7 @@ export function createSectorFlowState(
     trashedMapRestrictedScroll: RestrictedScroll.NONE,
     trashedMapRooms: null,
     preferredSelection: NO_SELECTION,
+    loadScreen: null,
   };
 }
 

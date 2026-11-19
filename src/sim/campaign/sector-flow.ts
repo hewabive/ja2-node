@@ -326,7 +326,6 @@ export class SectorFlow {
   readonly events: SimEvent[] = [];
   #loadingSector = false;
   #presenceWhileLoading = false;
-  #loadScreen: number = LoadingScreen.NOTHING;
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -641,8 +640,9 @@ export class SectorFlow {
   }
 
   #loadScreenView(): LoadScreenView {
-    const screen = this.ctx.content.loadingScreens.screens[this.#loadScreen];
-    return { id: this.#loadScreen, path: screen?.path ?? '' };
+    const id = this.campaign.state.sectorFlow.loadScreen ?? LoadingScreen.NOTHING;
+    const screen = this.ctx.content.loadingScreens.screens[id];
+    return { id, path: screen?.path ?? '' };
   }
 
   #whileLoading(load: () => void): boolean {
@@ -828,7 +828,7 @@ export class SectorFlow {
     const narrative = this.campaign.narrative;
     if (previous) setupProfileInsertionDataForCivilians(previous.state, this.#profileInsertionHooks());
     narrative.handleQuestCodeOnSectorEntry(sector);
-    this.#loadScreen = loadScreenId(this.ctx, sector, s.rng);
+    s.sectorFlow.loadScreen = loadScreenId(this.ctx, sector, s.rng);
     this.#mercsOutOfTheSector();
     if (!this.#inMeanwhile()) setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
     const diff = s.sectorDiffs.get(sectorKey(sector)) ?? null;

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/support/front-end.ts';
 import { loadMapTestFacts } from '../../../../tests/support/strategic.ts';
+import { LoadingScreen } from '../../../content/strategic/loading-screens.ts';
 import type { PlayerView, PromptView, ViewFrame } from '../../../protocol/view.ts';
 import { LOW_PERCENT_SHADOW_FACTOR } from '../../draw-list.ts';
 import { KeyModifier } from '../../input/events.ts';
@@ -8,7 +9,9 @@ import { SAVING_BOX } from '../../saves/saving-box.ts';
 import type { Screen } from '../../screen.ts';
 import { FADE_STEP_MS } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
+import { FrontEndLayout } from './environment.ts';
 import { type LaptopFlow, type MapPort, RECONNECTING_BOX, SESSION_ENDED_BOX, type TacticalPort } from './flow.ts';
+import { LOADINGSCREEN_HELI, loadingPicturePath } from './loading.ts';
 import { OPTION_TOGGLES } from './options.ts';
 import { SaveLoadController, type SaveLoadMode } from './save-load.ts';
 import { SECTOR_ZOOM, SECTOR_ZOOM_TIME } from './sector-zoom.ts';
@@ -670,6 +673,76 @@ describe('the zooms out of the map screen', () => {
     f.flow.frames([frame()]);
     await until(() => f.screen() === 'laptop');
     expect(laptopFlows.map((l) => l.fromMap)).toEqual([true]);
+  });
+});
+
+describe('the pictures of the loading screen (DisplayLoadScreenWithID, LoadSavedGame)', () => {
+  const { NIGHTWILD, DAYTOWN1 } = LoadingScreen;
+  let tacticalLoaded: boolean;
+  let finishTacticalLoad: () => void;
+
+  beforeEach(() => {
+    tacticalLoaded = false;
+    finishTacticalLoad = () => undefined;
+    f.host.tacticalPort = {
+      get loaded() {
+        return tacticalLoaded;
+      },
+      stale: false,
+      loadScreen: DAYTOWN1,
+      load: () =>
+        new Promise<void>((resolve) => {
+          finishTacticalLoad = () => {
+            tacticalLoaded = true;
+            resolve();
+          };
+        }),
+      screen: () => idleScreen('tactical'),
+    };
+  });
+
+  const pathOf = (picture: number) => loadingPicturePath(f.env.layout(FrontEndLayout.LOADING), picture);
+  const pictureDrawn = () => f.draw().items.find((i) => i.kind === 'image' && i.asset.startsWith('loadscreens/'));
+
+  it('loads the picture a sector load shows before the loading screen shows it, black until then', async () => {
+    const path = pathOf(DAYTOWN1);
+    if (!path) throw new Error('no picture');
+    const info = f.t.images.info.bind(f.t.images);
+    let release = () => {};
+    let loaded = false;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.spyOn(f.t.images, 'info').mockImplementation((key) => (key === path && !loaded ? undefined : info(key)));
+    const load = vi.spyOn(f.t.images, 'load').mockImplementation(async () => {
+      await gate;
+      loaded = true;
+      return true;
+    });
+    f.client.session = 'session-1';
+    showView('tactical');
+    f.flow.enterGame();
+    await f.settle(2);
+    expect([f.screen(), load.mock.calls]).toEqual(['black', [[path]]]);
+    release();
+    await until(() => f.screen() === 'loading');
+    expect(pictureDrawn()).toMatchObject({ asset: path });
+    expect(f.widget('sectorBar').visible).toBe(true);
+  });
+
+  it("shows the save's picture through its load and the tactical load after it, and the helicopter for a header without one", async () => {
+    f.client.nextFlow = 'tactical';
+    void f.flow.loadSave(listing('wild', '2026-10-05T00:00:00Z', { loadScreen: NIGHTWILD }), 'mainMenu');
+    await until(() => f.client.loads.length === 1 && f.screen() === 'loading');
+    await f.settle(2);
+    expect([pictureDrawn(), f.widget('saveBar').visible]).toEqual([expect.objectContaining({ asset: pathOf(NIGHTWILD) }), true]);
+    finishTacticalLoad();
+    await until(() => f.screen() === 'tactical');
+    tacticalLoaded = false;
+    void f.flow.loadSave(listing('old', '2026-10-01T00:00:00Z'), 'mainMenu');
+    await until(() => f.client.loads.length === 2 && f.screen() === 'loading');
+    await f.settle(2);
+    expect(pictureDrawn()).toMatchObject({ asset: pathOf(LOADINGSCREEN_HELI) });
   });
 });
 

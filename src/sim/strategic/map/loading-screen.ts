@@ -1,11 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Loading_Screen.cc GetLoadScreenID (the Random(2) of town sectors on the gameplay generator);
-// @src Strategic/Game_Clock.cc NightTime; Strategic/Campaign_Types.h the traversability values.
+// @src Strategic/Game_Clock.cc NightTime; Strategic/Campaign_Types.h the traversability values; src/game/SaveLoadGame.cc
+// @src SaveGame and LoadSavedGame (the picture a save load shows: the loaded world's, else the saved sector's, else the
+// @src helicopter; the town picture of a save without a world drawn on a copy of the stream).
 
 import { LoadingScreen } from '../../../content/strategic/loading-screens.ts';
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { Rng } from '../../../core/rng.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { worldHour } from '../time/world-clock.ts';
 import { isThisSectorASamSector } from './control.ts';
@@ -103,4 +106,11 @@ export function loadScreenId(ctx: StrategicContext, s: Sector, random: RandomDra
     default:
       return night ? LoadingScreen.NIGHTGENERIC : LoadingScreen.DAYGENERIC;
   }
+}
+
+export function saveLoadScreenId(ctx: StrategicContext, worldLoaded: boolean, sector: Sector | null): number {
+  const lastEntry = ctx.state.sectorFlow.loadScreen;
+  if (worldLoaded && lastEntry !== null) return lastEntry;
+  if (!sector) return LoadingScreen.HELI;
+  return loadScreenId(ctx, sector, Rng.fromState(ctx.state.rng.state()));
 }

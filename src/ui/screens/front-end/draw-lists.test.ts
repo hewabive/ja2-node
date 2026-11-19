@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/support/front-end.ts';
+import { LoadingScreen } from '../../../content/strategic/loading-screens.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { LoadingController, loadingScreen } from './loading.ts';
 import { SanMonaController, sanMonaScreen } from './san-mona.ts';
@@ -95,6 +96,15 @@ describe('the draw lists of the front-end screens', () => {
     f.t.runtime.host.push(loadingScreen(f.env, controller));
     f.t.frame();
     await expect(snapshot(f)).toMatchFileSnapshot('__snapshots__/loading.txt');
+  });
+
+  it('the loading screen of a night town sector at 75 percent', async () => {
+    const f = await frontEndTest();
+    const controller = new LoadingController('sector', LoadingScreen.NIGHTTOWN2);
+    controller.progress(3, 4);
+    f.t.runtime.host.push(loadingScreen(f.env, controller));
+    f.t.frame();
+    await expect(snapshot(f)).toMatchFileSnapshot('__snapshots__/loading-sector.txt');
   });
 
   it('the San Mona screen', async () => {

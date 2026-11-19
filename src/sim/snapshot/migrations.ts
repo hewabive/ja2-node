@@ -2754,6 +2754,22 @@ function addDrawnOnTop(snapshot: Readonly<Record<string, unknown>>): Record<stri
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LOAD_SCREEN_KEY = 'loadScreen';
+
+function withLoadScreen(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: { ...flow, ...withDefault(flow, LOAD_SCREEN_KEY, null) } };
+}
+
+function addLoadScreen(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withLoadScreen(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2853,5 +2869,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     95: dropLeftHelicopterShadows,
     96: renumberAttackSlayOnly,
     97: addDrawnOnTop,
+    98: addLoadScreen,
   };
 }

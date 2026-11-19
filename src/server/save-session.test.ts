@@ -498,6 +498,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       const c = session.campaign;
       const sector = save.tactical.worldSector;
       expect(c.state.worldSector).toEqual({ x: sector.x, y: sector.y, z: sector.z });
+      expect(c.state.sectorFlow.loadScreen).toBe(save.header.loadScreenId);
       const mercsHere = save.soldiers.filter((e) => inLoadedSector(save, e.soldier) && e.soldier.team === Team.OUR);
       expect(mercsHere.every((e) => c.tactical?.state.soldiers[e.soldier.id]?.placed)).toBe(true);
       if (save.generalInfo.screenAfterLoading !== NATIVE_MAP_SCREEN) {

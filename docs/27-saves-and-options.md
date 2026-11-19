@@ -63,6 +63,10 @@ One `<name>.j2s` per save, a gzip of one JSON document (`SaveFile`): `header`, `
 - **The header comes first, in its own gzip member.** It repeats what the save list shows (kind, description, time,
   sector, mercs, balance, options) and the identities of §1.4, so the list inflates only the start of each file and
   never parses a body: the original's reason for its fixed-size header. The file stays one JSON document for `gunzip`.
+  A campaign's header also holds `loadScreen`, the picture its load shows (`SaveLoadGame.cc:369-373`, `:748-751`;
+  `src/sim/strategic/map/loading-screen.ts`): the last sector entry's while its world is loaded (deviation "Load screen
+  draw at save"), else the saved sector's, else the helicopter. A header without it, written before, and a native save
+  without a loaded world show the helicopter.
 - **`session`**: the session kind, a description of the log origin and the world cache's prepared maps in order. A
   step may load a sector and the `WorldCache` is history-dependent, so a restore prepares the same maps before building
   the session.

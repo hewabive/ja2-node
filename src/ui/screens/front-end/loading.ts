@@ -4,13 +4,16 @@
 // @src src/game/Utils/Animated_ProgressBar.cc SetRelativeStartAndEndPercentage, RenderProgressBar (the bar shows the
 // @src progress in percent); src/game/SaveLoadGame.cc LoadSavedGame (the blue bar of a save load).
 
+import type { AssetKey } from '../../draw-list.ts';
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';
+import type { LayoutModel } from '../../layout/model.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { type FrontEndEnvironment, FrontEndLayout, FrontEndScreen } from './environment.ts';
 
 export const LOADING_SCREEN = 'loading';
 export const LOADINGSCREEN_NOTHING = 0;
 export const LOADINGSCREEN_HELI = 17;
+export const LOADING_PICTURE_PREFIX = 'picture';
 const FULL = 100;
 
 export const LOADING_CONTRACT: ControllerContract = {
@@ -39,6 +42,10 @@ export class LoadingController extends ViewModelController {
   progress(done: number, total: number): void {
     this.view.progress = total <= 0 ? FULL : Math.min(FULL, Math.floor((done * FULL) / total));
   }
+}
+
+export function loadingPicturePath(model: LayoutModel, picture: number): AssetKey | null {
+  return model.assets.get(`${LOADING_PICTURE_PREFIX}${picture}`)?.path ?? null;
 }
 
 export function loadingScreen(env: FrontEndEnvironment, controller: LoadingController): FrontEndScreen {

@@ -144,6 +144,7 @@ export interface NativeListingHeader {
   readonly version: number;
   readonly options: GameOptions;
   readonly droppedOptions?: readonly DroppedNativeOption[];
+  readonly loadScreen?: number;
 }
 
 export interface UploadOutcome {
@@ -324,6 +325,7 @@ export class SaveService {
       campaign: summary.campaign,
       session: snapshot.session,
       tick: summary.tick,
+      ...(summary.loadScreen === undefined ? {} : { loadScreen: summary.loadScreen }),
     };
     const file: SaveFile = {
       format: SAVE_FORMAT,
@@ -513,6 +515,7 @@ export class SaveService {
           version: h.version,
           options: imported.options,
           ...(imported.dropped.length > 0 ? { droppedOptions: imported.dropped } : {}),
+          ...(h.worldLoaded ? { loadScreen: h.loadScreenId } : {}),
         },
         compatible: problems.length === 0,
         problems,

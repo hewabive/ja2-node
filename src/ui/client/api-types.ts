@@ -50,6 +50,7 @@ export interface SaveHeader {
   readonly campaign: string;
   readonly session: SessionKind;
   readonly tick: number;
+  readonly loadScreen?: number;
 }
 
 export interface NativeSaveHeader {
@@ -61,6 +62,7 @@ export interface NativeSaveHeader {
   readonly version: number;
   readonly options: GameOptions;
   readonly droppedOptions?: readonly string[];
+  readonly loadScreen?: number;
 }
 
 export type SaveListing =

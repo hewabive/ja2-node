@@ -130,6 +130,13 @@ export class UiAssets implements ImageCatalog {
     }
   }
 
+  load(key: AssetKey): Promise<boolean> {
+    return this.image(key).catch(() => {
+      this.#failed.add(key);
+      return false;
+    });
+  }
+
   request(key: AssetKey): void {
     if (this.#images.has(key) || this.#failed.has(key) || this.#requested.has(key)) return;
     this.#requested.add(key);

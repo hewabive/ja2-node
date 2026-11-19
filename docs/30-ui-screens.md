@@ -331,7 +331,10 @@ its load locates her only when `meanwhileStarted` carries `mapScreen`.
 
 **Draws the original makes for a screen.** The loading screen's town picture draws `Random(2)` on the gameplay stream at
 sector entry; the simulation makes that draw and sends the picture as `sectorLoaded.loadScreen`, and the draw the
-original repeats at every save is not made, since a ja2-node save changes nothing (`27`). The San Mona screen's time
+original repeats at every save is not made, since a ja2-node save changes nothing (`27`). Boot loads only the
+helicopter picture; the flow loads the picture of a sector or save load before it shows the loading screen, on black
+until then, and a save load keeps its header's picture through the client's world load after it
+(`front-end/flow.ts`; `front-end/front-end.test.ts` "the pictures of the loading screen"). The San Mona screen's time
 warp and its draw are the simulation's at the action (`35`). Cosmetic draws (blinks, the disk light, the confirming
 merc) use the client's `ClientRandom`.
 

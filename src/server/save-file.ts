@@ -10,6 +10,7 @@ import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import type { GameOptions } from '../sim/options.ts';
 import type { SimSnapshot } from '../sim/snapshot/session.ts';
 import { bestPossibleSector } from '../sim/strategic/forces/save-sector.ts';
+import { saveLoadScreenId } from '../sim/strategic/map/loading-screen.ts';
 import { worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
@@ -56,6 +57,7 @@ export interface SaveHeader {
   readonly campaign: CampaignStatus;
   readonly session: SessionKind;
   readonly tick: number;
+  readonly loadScreen?: number;
 }
 
 export interface SaveSessionPart {
@@ -280,6 +282,7 @@ export interface SessionSummary {
   readonly balance: number;
   readonly campaign: CampaignStatus;
   readonly tick: number;
+  readonly loadScreen?: number;
 }
 
 function sectorString(s: { readonly x: number; readonly y: number; readonly z: number }): string {
@@ -306,6 +309,7 @@ function campaignSummary(session: CampaignSession): SessionSummary {
     balance: s.finances.balance,
     campaign: campaignStatus(s.ending),
     tick: campaign.tick,
+    ...(campaign.strategic ? { loadScreen: saveLoadScreenId(campaign.strategic, campaign.tactical !== null, sector) } : {}),
   };
 }
 
