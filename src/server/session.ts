@@ -3,7 +3,7 @@ import type { AnimationTimelines } from '../content/anim/timelines.ts';
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
 import type { UiStrings } from '../content/text/strings.ts';
-import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
+import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry, storedInLog } from '../protocol/message-log.ts';
 import {
   type CommandEnvelope,
   type DriverMode,
@@ -380,8 +380,11 @@ export class Session {
   }
 
   subscribe(listener: Listener): () => void {
-    const welcome = this.#welcome(this.listening ? this.#sentView : this.#view());
-    if (!this.listening) this.#lastView = welcome.view;
+    const welcome = this.listening ? this.#welcome(this.#sentView, this.#messagesAsSent()) : this.#welcome(this.#view(), this.#messages);
+    if (!this.listening) {
+      this.#lastView = welcome.view;
+      this.#framedMessages.length = 0;
+    }
     this.#sentView = welcome.view;
     this.#shownTick = welcome.view.tick;
     this.#listeners.add(listener);
@@ -389,7 +392,12 @@ export class Session {
     return () => this.#listeners.delete(listener);
   }
 
-  #welcome(view: PlayerView): WelcomeMessage {
+  #messagesAsSent(): readonly MessageEntry[] {
+    const unsent = this.#framedMessages.filter(storedInLog).length;
+    return this.#messages.slice(0, Math.max(0, this.#messages.length - unsent));
+  }
+
+  #welcome(view: PlayerView, messages: readonly MessageEntry[]): WelcomeMessage {
     return {
       t: 'welcome',
       session: this.id,
@@ -397,7 +405,7 @@ export class Session {
       view,
       driver: this.#driver,
       held: this.timeHeld,
-      messages: this.#messages,
+      messages,
       ...(this.#campaign ? { campaign: this.#campaign } : {}),
       ...this.identity,
     };
@@ -748,7 +756,7 @@ export class Session {
     this.#campaign = campaign;
     this.#fastFade = false;
     this.restoreMessages(messages);
-    const welcome = this.#welcome(this.#view());
+    const welcome = this.#welcome(this.#view(), this.#messages);
     this.#lastView = welcome.view;
     this.#sentView = welcome.view;
     this.#shownTick = welcome.view.tick;

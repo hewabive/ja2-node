@@ -426,8 +426,9 @@ such as a reload's) reach the frame captured right after the command, and the `S
 `sim` turns events, and the refusals the original prints, into entries of the original's message list
 (`Utils/Message.cc`): a table, an index and arguments, never text, so every client prints them in its own language;
 `quoted` marks the lines the original wraps in double quotes. The session keeps the last 256 in its presentation block:
-saved, sent whole in `welcome`, new ones in frames and in every `advance` report (`messages`). The simulation never
-reads them (deviation "Message list").
+saved, sent in `welcome` as of the view it carries (a viewer joining while others listen gets the log of the last
+frame, and the next frame brings it the rest as it brings everyone), new ones in frames and in every `advance` report
+(`messages`). The simulation never reads them (deviation "Message list").
 
 **The lines of a hit** come as events of their own, each with the original's visibility. `statLost {soldier, stat,
 points}` is the wisdom, dexterity, strength or agility a critical hit cost a soldier (`Tactical/Weapons.cc:2982-3104`),

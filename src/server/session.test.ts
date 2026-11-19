@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { appendToLog, type MessageEntry } from '../protocol/message-log.ts';
 import type { ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { QuestHistory } from '../sim/strategic/narrative/quests.ts';
 import { refuse } from '../sim/tactical/refusal.ts';
 import type { QueryService } from './query.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
@@ -69,6 +71,15 @@ function heldView(messages: readonly ServerMessage[]): PlayerView | null {
     if (m.t === 'frames' && view) for (const frame of m.frames) view = applyViewFrame(view, frame);
   }
   return view ? JSON.parse(JSON.stringify(view)) : null;
+}
+
+function clientLog(messages: readonly ServerMessage[]): MessageEntry[] {
+  let log: MessageEntry[] = [];
+  for (const m of messages) {
+    if (m.t === 'welcome') log = appendToLog([], m.messages);
+    if (m.t === 'frames') for (const frame of m.frames) log = appendToLog(log, frame.messages ?? []);
+  }
+  return log;
 }
 
 function lastShownTick(messages: readonly ServerMessage[]): number {
@@ -378,6 +389,24 @@ describe('session', () => {
     session.close();
   });
 
+  it("starts a subscriber's message log at the view it is welcomed with, so the next frame adds every entry once", () => {
+    const session = new Session('s7a', withCreationHistory(walker()));
+    session.notify({ type: 'gameSaved', name: 'QuickSave', kind: 'quick', tick: 0 });
+    expect(session.messages).toHaveLength(2);
+    const first: ServerMessage[] = [];
+    session.subscribe((m) => first.push(m));
+    session.advance({ ticks: FRAME_TICKS });
+    expect(clientLog(first)).toEqual(session.messages);
+    session.notify({ type: 'gameSaved', name: 'QuickSave', kind: 'quick', tick: FRAME_TICKS });
+    const second: ServerMessage[] = [];
+    session.subscribe((m) => second.push(m));
+    session.advance({ ticks: FRAME_TICKS });
+    expect(session.messages).toHaveLength(3);
+    expect(clientLog(first)).toEqual(session.messages);
+    expect(clientLog(second)).toEqual(session.messages);
+    session.close();
+  });
+
   it('sends the bullets of every tick in the frame that ends with it, kept out of the view', () => {
     const sim = shooting(walker(), 8, 22);
     const session = new Session('s9', sim);
@@ -439,6 +468,13 @@ function impactingAt<T extends SessionSim>(sim: T, impactTick: number): T {
     },
     drainEvents: () => pending.splice(0),
   });
+}
+
+function withCreationHistory<T extends SessionSim>(sim: T): T {
+  const created: SimEvent[] = [
+    { type: 'historyAdded', code: QuestHistory.ACCEPTED_ASSIGNMENT_FROM_ENRICO, profile: 0, sector: null, tick: 0 },
+  ];
+  return Object.assign(sim, { holdsCreationEvents: true, drainEvents: () => created.splice(0) });
 }
 
 function shooting<T extends SessionSim>(sim: T, from: number, to: number): T {
