@@ -1554,6 +1554,7 @@ export class SectorFlow {
     this.#endTacticalBattleForEnemy();
     if (s.flow === 'tactical' && s.movement.tacticalTraversal.active) return false;
     this.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
+    this.events.push(...sim.drainEvents());
     this.trashWorld();
     return true;
   }

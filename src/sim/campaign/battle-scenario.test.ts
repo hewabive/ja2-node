@@ -581,7 +581,9 @@ describe('a tactical battle lost to deaths', () => {
     roster.removeFromTacticalSector(merc.id);
     merc.sector = { ...A10 };
     expect(c.sectors?.checkAndHandleUnloadingOfCurrentWorld()).toBe(true);
-    expect(c.drainEvents().find((e) => e.type === 'battleResult')).toMatchObject({ sector: 'A9', result: 'defeat', via: 'tactical' });
+    const events = c.drainEvents();
+    expect(events.find((e) => e.type === 'battleResult')).toMatchObject({ sector: 'A9', result: 'defeat', via: 'tactical' });
+    expect(events.find((e) => e.type === 'combatEnded')).toMatchObject({ reason: 'lost' });
     expect(c.tactical).toBeNull();
   });
 
