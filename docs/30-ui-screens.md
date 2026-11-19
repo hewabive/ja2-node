@@ -107,6 +107,15 @@ locked frame before the answer, so the lock has no gap; only Esc passes. Playbac
 not lock: frames arrive unevenly under the real-time driver and a tick threshold made the lock and the cursor flicker
 (deviations "Turn-based UI lock", "Playback lock").
 
+**The shown view's combat and conversation edges reset the interface** (`tactical-screen.ts`). As the view enters
+combat, by `EnterCombatMode` or `DisplayHiddenTurnbased`, the screen runs the client's part of `ResetInterfaceAndUI`:
+the item pointer, the civilian quote box, the movement and door menus, the rubber band (cancelled) and the
+multi-selection go, the feedback box is removed and the input goes back to move mode unless a lock holds it; the talk
+panel closes in the simulation (`commonEnterCombatModeCode`). A conversation's start runs the `EraseInterfaceMenus`
+part. The edges are read from the played frames, the reset running before the entry frame's own events and messages
+so that what a later frame of the same batch opens stays, and from the shown view, not from `combatStarted`, so a
+refresh starts them too.
+
 **The helicopter drop is drawn from the view** (`25`; `29` §7). `helicopterDropStarted` centres the view on the north
 entry point and drops the locate to the entry's merc; for the first landing, whose screen is not up yet, the tactical host
 keeps the centre for the screen's entry (`src/app/tactical/tactical-host.ts`). While the view says

@@ -330,6 +330,10 @@ export class FeedbackBox {
     this.#box = null;
   }
 
+  remove(): void {
+    this.#box = null;
+  }
+
   render(list: DrawList, screenWidth: number, y: number): void {
     const box = this.#box;
     if (!box) return;

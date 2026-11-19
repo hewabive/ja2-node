@@ -520,6 +520,12 @@ export class TacticalControls {
     this.input.pointerLeftViewport();
   }
 
+  eraseInterfaceMenus(): void {
+    this.movementMenu.close(null);
+    this.doorMenu.close(null);
+    this.input.cancelRubberBandAndMultiSelection();
+  }
+
   exit(): void {
     this.movementMenu.close(null);
     this.doorMenu.close(null);

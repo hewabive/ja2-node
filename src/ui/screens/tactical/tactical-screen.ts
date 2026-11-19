@@ -54,7 +54,11 @@
 // @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02); Turn_Based_Input.cc
 // @src GetTBMouseButtonInput and Real_Time_Input.cc GetRTMouseButtonInput (A_CHANGE_TO_MOVE once an item pointer click is
 // @src handled, 2026-11-02); Interface_Items.cc CancelItemPointer as Overhead.cc CommonEnterCombatModeCode and
-// @src Interface_Dialogue.cc InternalInitTalkingMenu call it, EndItemPointer once the object is no longer the holder's
+// @src Interface_Dialogue.cc InternalInitTalkingMenu call it; Interface_Control.cc ResetInterfaceAndUI on the combat
+// @src edge of the view (CommonEnterCombatModeCode: EraseInterfaceMenus, the UI message removed at once, M_ON_TERRAIN) and
+// @src EraseInterfaceMenus on its conversation edge (InternalInitTalkingMenu: the item pointer, the civilian quote box,
+// @src the movement and door menus, the rubber band cancelled, the multi-selection, 2026-11-19); EndItemPointer once the
+// @src object is no longer the holder's
 // @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
 // @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02); Esc closes
 // @src the description box, else the key ring, and leaves the stack popup up (Turn_Based_Input.cc:2287-2294, 2026-11-19),
@@ -303,6 +307,13 @@ interface EventBox extends PromptedText {
   readonly fullScreen?: boolean;
 }
 
+interface EdgeState {
+  readonly combat: boolean;
+  readonly conversation: boolean;
+}
+
+type InterfaceEdge = 'combat' | 'conversation';
+
 function clearsMessageLog(frame: ViewFrame): boolean {
   return frame.events?.some((e) => e.type === 'tacticalClearedForCompression') ?? false;
 }
@@ -364,7 +375,7 @@ export class TacticalScreen implements Screen {
   readonly #panelAnimations = new Map<number, PanelFaceAnimation>();
   readonly #lastEnemyCycled = new Map<number, number>();
   #externCursor = false;
-  #cursorEndingState = { combat: false, conversation: false };
+  #edgeState: EdgeState = { combat: false, conversation: false };
   #pickupPrompt: string | null = null;
   #radarShown = true;
   #radarPressed = false;
@@ -781,13 +792,43 @@ export class TacticalScreen implements Screen {
     }
   }
 
-  #endItemPointerWhereTheOriginalDoes(view: PlayerView | null): void {
-    const now = { combat: inCombat(view), conversation: (view?.conversation ?? null) !== null };
-    const was = this.#cursorEndingState;
-    this.#cursorEndingState = now;
-    if ((now.combat && !was.combat) || (now.conversation && !was.conversation)) this.inventory.cancel();
+  #resetInterfaceOnAViewEdge(view: PlayerView | null): void {
+    const edge = this.#edgeTo({ combat: inCombat(view), conversation: (view?.conversation ?? null) !== null });
+    if (edge) this.#resetInterfaceAt(edge);
     const cursor = this.inventory.cursor;
     if (cursor && !cursorObjectHeld(cursor, soldierById(view, cursor.source.soldier))) this.inventory.setCursor(null);
+  }
+
+  #edgeTo(now: EdgeState): InterfaceEdge | null {
+    const was = this.#edgeState;
+    this.#edgeState = now;
+    if (now.combat && !was.combat) return 'combat';
+    return now.conversation && !was.conversation ? 'conversation' : null;
+  }
+
+  #edgeOf(frame: ViewFrame): InterfaceEdge | null {
+    const was = this.#edgeState;
+    return this.#edgeTo({
+      combat: frame.combat === undefined ? was.combat : frame.combat !== null,
+      conversation: frame.conversation === undefined ? was.conversation : frame.conversation !== null,
+    });
+  }
+
+  #resetInterfaceAt(edge: InterfaceEdge): void {
+    if (edge === 'combat') this.#resetInterfaceAndUi();
+    else this.#eraseInterfaceMenus();
+  }
+
+  #eraseInterfaceMenus(): void {
+    this.inventory.cancel();
+    this.dialogue.closeCivQuoteIfActive();
+    this.controls.eraseInterfaceMenus();
+  }
+
+  #resetInterfaceAndUi(): void {
+    this.#eraseInterfaceMenus();
+    this.#feedback.remove();
+    this.controls.input.backToMovement();
   }
 
   #endItemPointer(): void {
@@ -1215,7 +1256,7 @@ export class TacticalScreen implements Screen {
     this.#env.world.setSelected(this.#selected);
     this.#hoveredSoldier = this.controls.overhead.open ? this.#overheadHoveredMerc() : this.#pointerSoldier();
     this.#env.world.setHovered(this.#hoveredSoldier);
-    this.#endItemPointerWhereTheOriginalDoes(view);
+    this.#resetInterfaceOnAViewEdge(view);
     this.#syncPickupMenu(view);
     this.inventory.update(this.#now);
     this.description.update();
@@ -1552,6 +1593,19 @@ export class TacticalScreen implements Screen {
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    let played = 0;
+    frames.forEach((frame, at) => {
+      const edge = this.#edgeOf(frame);
+      if (!edge) return;
+      this.#playFrames(frames.slice(played, at));
+      played = at;
+      this.#resetInterfaceAt(edge);
+    });
+    this.#playFrames(frames.slice(played));
+  }
+
+  #playFrames(frames: readonly ViewFrame[]): void {
+    if (frames.length === 0) return;
     this.dialogue.frames(frames);
     this.controls.frames(frames);
     const view = this.#view();

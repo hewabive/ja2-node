@@ -14,7 +14,7 @@ import {
   tacticalUiKit,
   tacticalUiTest,
 } from '../../../../tests/support/tactical-ui.ts';
-import { GrabbedPointer } from '../../../../tests/support/ui-runtime.ts';
+import { GrabbedPointer, type TestRuntimeOptions } from '../../../../tests/support/ui-runtime.ts';
 import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -2376,6 +2376,141 @@ describe('the tactical input on the tactical screen', () => {
   });
 });
 
+describe('the interface reset of CommonEnterCombatModeCode as our team starts the combat', () => {
+  const FIRST_SPOTTER = 3;
+
+  async function inRealTime(options: TestRuntimeOptions = {}): Promise<TacticalUiTest> {
+    const f = await tacticalUiTest(kit, ui, BATTLE_SANDBOX_SEED, undefined, options);
+    f.screen.select(FIRST_SPOTTER, false);
+    await f.settle();
+    return f;
+  }
+
+  async function ourTeamStartsTheCombat(f: TacticalUiTest): Promise<void> {
+    approachUntilCombat(f.session, false);
+    untilOurTurn(f.session);
+    f.client.refresh();
+    expect(f.client.view.combat?.team).toBe(0);
+    await f.settle();
+  }
+
+  it('drops a multi-selection made in real time, so the confirmed click moves the selected merc alone (ResetMultiSelection, Overhead.cc:3907)', async () => {
+    const f = await inRealTime();
+    f.key('=');
+    await f.settle();
+    expect(f.screen.controls.input.multiSelected.size).toBe(4);
+    await ourTeamStartsTheCombat(f);
+    expect([f.screen.controls.input.mode, f.screen.controls.input.multiSelected.size]).toEqual([UiMode.MOVE_MODE, 0]);
+    const sel = merc(f, f.screen.selected ?? 0);
+    const tile = walkableBeside(f, sel);
+    const at = f.world.pickPoint(tile);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(8);
+    await f.clickAt(at.x, at.y);
+    await f.settle(8);
+    expect(f.screen.controls.input.mode).toBe(UiMode.CONFIRM_MOVE_MODE);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'moveGroup')).toEqual([]);
+    expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: sel.id, to: tile });
+  });
+
+  it('cancels a rubber band dragged into the combat without selecting anyone (EndRubberBanding(true), Interface_Control.cc:587)', async () => {
+    const f = await inRealTime();
+    const s = merc(f, 0);
+    const from = f.world.pickPoint(s.gridNo + 3 * WORLD_COLS + 3);
+    pointer(f, 'pointerMove', from.x, from.y, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerDown', from.x, from.y, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerMove', from.x - 60, from.y - 40, MouseButton.LEFT);
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.RUBBERBAND_MODE);
+    expect(f.screen.controls.input.rubberBand).not.toBeNull();
+    await ourTeamStartsTheCombat(f);
+    pointer(f, 'pointerUp', from.x - 60, from.y - 40, MouseButton.LEFT);
+    await f.settle();
+    expect(f.screen.controls.input.rubberBand).toBeNull();
+    expect(f.screen.controls.input.mode).not.toBe(UiMode.RUBBERBAND_MODE);
+    expect(f.screen.controls.input.multiSelected.size).toBe(0);
+  });
+
+  it('pops down the movement menu and the door menu (PopDownMovementMenu, PopDownOpenDoorMenu, Interface_Control.cc:582-583)', async () => {
+    const f = await inRealTime();
+    const s = merc(f, 0);
+    const at = f.world.pickPoint(s.gridNo + 2);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    pointer(f, 'pointerDown', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    f.t.frame(HOLD_MS);
+    f.t.frame();
+    pointer(f, 'pointerUp', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    expect(f.screen.controls.movementMenu.open).toBe(true);
+    await ourTeamStartsTheCombat(f);
+    expect(f.screen.controls.movementMenu.open).toBe(false);
+    expect(commandsOf(f, 'stance')).toEqual([]);
+    const pauses: boolean[] = [];
+    const door = await inRealTime({ pauseGame: (paused) => pauses.push(paused) });
+    const tick = door.client.view.tick;
+    door.frames([
+      {
+        tick,
+        changed: [],
+        removed: [],
+        events: [{ type: 'doorMenu', tick, soldier: 0, gridNo: merc(door, 0).gridNo + 1, options: OPEN_DOOR_OPTIONS }],
+      },
+    ]);
+    expect([door.screen.controls.doorMenu.open, pauses]).toEqual([true, [true]]);
+    await ourTeamStartsTheCombat(door);
+    expect([door.screen.controls.doorMenu.open, pauses]).toEqual([false, [true, false]]);
+    expect(commandsOf(door, 'door')).toEqual([]);
+  });
+
+  it('puts the interface back in move mode from an action mode of real time and removes the feedback and quote boxes (Interface_Control.cc:580, :607-615)', async () => {
+    const f = await inRealTime();
+    const s = merc(f, FIRST_SPOTTER);
+    hover(f, s.gridNo + 2);
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    const tick = f.client.view.tick;
+    f.frames([
+      {
+        tick,
+        changed: [],
+        removed: [],
+        messages: [{ tick, kind: 'uiFeedback', colour: FontColor.MCOLOR_LTYELLOW, args: [{ text: 'Stop!' }] }],
+      },
+    ]);
+    const presenter = f.screen.dialogue.presenter;
+    presenter.showCivQuote({ soldier: s.id, text: 'Hello', chars: 5, hint: false }, f.t.runtime.clock.ja2Now);
+    await f.settle(4);
+    expect([f.screen.controls.input.mode, f.screen.feedbackText, presenter.civQuote?.text]).toEqual([UiMode.ACTION_MODE, 'Stop!', 'Hello']);
+    await ourTeamStartsTheCombat(f);
+    expect([f.screen.selected, f.screen.controls.input.mode, f.screen.feedbackText, presenter.civQuote]).toEqual([
+      FIRST_SPOTTER,
+      UiMode.MOVE_MODE,
+      null,
+      null,
+    ]);
+  });
+
+  it('resets at the entry frame of a played batch, so the feedback box of a later frame of that batch stays', async () => {
+    const f = await inRealTime();
+    approachUntilCombat(f.session, false);
+    untilOurTurn(f.session);
+    f.client.refresh();
+    const tick = f.client.view.tick;
+    const feedback = { tick, kind: 'uiFeedback', colour: FontColor.MCOLOR_LTYELLOW, args: [{ text: 'Stop!' }] } as const;
+    f.frames([
+      { tick: tick - 1, changed: [], removed: [], combat: f.client.view.combat ?? null },
+      { tick, changed: [], removed: [], messages: [feedback] },
+    ]);
+    await f.settle();
+    expect([f.screen.controls.input.mode, f.screen.feedbackText]).toEqual([UiMode.MOVE_MODE, 'Stop!']);
+  });
+});
+
 describe('the exit texts of a merc escorting someone, in a stub campaign', () => {
   async function escortingSquad(sex: number): Promise<{ f: TacticalUiTest; name: string; escort: string }> {
     const a10 = await campaignInA10(kit, 5);
@@ -2518,6 +2653,17 @@ describe('the exchange cursor over a talkable NPC next to the selected merc, in 
     expect((await f.client.command({ type: 'talk', soldier: talker, target: { npc: STUB_NPC } })).ok).toBe(true);
     f.deliver();
     expect([f.client.view.conversation === null, f.screen.inventory.cursor]).toEqual([false, null]);
+  });
+
+  it('drops the multi-selection as a conversation starts, as InternalInitTalkingMenu erases the interface menus', async () => {
+    const { f } = await besideTheStubNpc();
+    const talker = f.screen.selected ?? -1;
+    f.key('=');
+    await f.settle();
+    expect(f.screen.controls.input.multiSelected.size).toBeGreaterThan(1);
+    expect((await f.client.command({ type: 'talk', soldier: talker, target: { npc: STUB_NPC } })).ok).toBe(true);
+    f.deliver();
+    expect([f.client.view.conversation === null, f.screen.controls.input.multiSelected.size]).toEqual([false, 0]);
   });
 
   it('sends the interface level with a click on the talk cursor, which the walk-up to talk checks (Handle_UI.cc HandleTalkInit, UIPlotPath)', async () => {

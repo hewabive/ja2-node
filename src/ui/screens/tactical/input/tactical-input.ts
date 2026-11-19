@@ -2057,6 +2057,15 @@ export class TacticalInput {
     this.#rubberActive = false;
   }
 
+  cancelRubberBandAndMultiSelection(): void {
+    this.#endRubberBand(true);
+    this.multiSelected.clear();
+  }
+
+  backToMovement(): void {
+    if (this.#lock === 'none') this.#pending = UiEvent.M_ON_TERRAIN;
+  }
+
   #endMultiSelection(acknowledge: boolean): void {
     const sel = this.#sel();
     const members: SoldierView[] = [];

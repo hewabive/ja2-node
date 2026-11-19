@@ -303,6 +303,18 @@ describe('turn-based combat', () => {
     expect(animName(content, sleeper.state)).toBe('STANDING');
   });
 
+  it('closes the talk panel as combat begins, after a sighting outside the virgin sector too (ResetInterfaceAndUI, Interface_Control.cc:584)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const closedInCombat: boolean[] = [];
+    t.narrative = { ...t.narrative, deleteTalkingMenu: () => closedInCombat.push(t.inCombat) };
+    t.turn.virginSector = false;
+    spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    expect([t.inCombat, closedInCombat]).toEqual([true, [true]]);
+  });
+
   it("keeps where each neutral named civilian stood when combat began, once per game, and forgets it for everyone else's profile", () => {
     const sim = newSim();
     const t = sim.state;

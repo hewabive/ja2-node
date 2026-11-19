@@ -36,7 +36,9 @@
 // @src bMenInSector, which for our team counts every soldier made for it, Overhead.h, Soldier_Create.cc AddManToTeam
 // @src (2026-11-08); ExitCombatMode's ENGAGED_IN_CONV gate on the real-time turn, the decay forced either way (2026-11-14);
 // @src CheckForLosingEndOfBattle's whole count: the dead keep bInSector (Rotting_Corpses.cc TurnSoldierIntoCorpse), an empty
-// @src sector counts as lost, fOnlyEPCsLeft; CheckForEndOfBattle's stand-down of our mercs after a fought victory (2026-11-18).
+// @src sector counts as lost, fOnlyEPCsLeft; CheckForEndOfBattle's stand-down of our mercs after a fought victory (2026-11-18);
+// @src the DeleteTalkingMenu of CommonEnterCombatModeCode's ResetInterfaceAndUI (Interface_Control.cc EraseInterfaceMenus,
+// @src 2026-11-19).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -507,6 +509,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
   t.turn.numFoughtInBattle.fill(0);
   t.turn.itemsSeenOnAttack = null;
   t.sectorHooks.combatEntered(t);
+  t.narrative.deleteTalkingMenu();
   for (const s of t.soldiers) {
     if (!s || !inSector(s) || s.bodyType === Body.CROW) continue;
     clearBattleSightingQuotes(t, s);
