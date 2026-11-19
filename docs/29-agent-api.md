@@ -748,7 +748,9 @@ soldiers close at once (deviation "Closing an open door"). A door swings for up 
 act on it meanwhile stops the merc (`{started: busy}`), as `InteractWithOpenableStruct` does, and advance may reach idle
 before the door stops. A door that changes out of the squad's sight raises no `doorChanged` and keeps its place in
 `openDoors` until a merc sees it. Containers and switches take `open` and `close` with the
-original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. A door,
+original's walk-up and `HandleStructChangeFromGridNo`, whose swap raises `openableChanged {gridNo, material, open}`, the
+sound it plays (`TileEngine/Interactive_Tiles.cc:113-115`); a sector remembers which were open when it is left, and the
+statuses it puts back at the next load and the Bobby Ray crate's close raise none, as the original plays nothing for them. A door,
 container or switch he reaches in combat without the APs of his door handle code halts him there with the order kept
 (`doorResult {result: notEnoughAp}`). A shaped charge that goes off on the lock shows its miniboom and plays
 `SMALL_EXPLODE_1` at the door (`shapedChargeBlast {gridNo, x, y, z}`, a presentation event, `Tactical/Keys.cc:607-635`);

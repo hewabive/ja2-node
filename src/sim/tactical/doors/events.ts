@@ -71,4 +71,18 @@ export interface ContentsExclaimedEvent extends SimEventBase {
   readonly sound: ContentsExclamation;
 }
 
-export type DoorEvent = DoorMenuEvent | DoorResultEvent | DoorTrapEvent | LockHitEvent | LockDestroyedEvent | ContentsExclaimedEvent;
+export interface OpenableChangedEvent extends SimEventBase {
+  readonly type: 'openableChanged';
+  readonly gridNo: number;
+  readonly material: number;
+  readonly open: boolean;
+}
+
+export type DoorEvent =
+  | DoorMenuEvent
+  | DoorResultEvent
+  | DoorTrapEvent
+  | LockHitEvent
+  | LockDestroyedEvent
+  | ContentsExclaimedEvent
+  | OpenableChangedEvent;

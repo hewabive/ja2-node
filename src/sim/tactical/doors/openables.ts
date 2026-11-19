@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment quote, the NPC
 // @src approach, the contents shown with the merc's HUMM, COOL1 or NOTHING or hidden again, the partner swap and the
-// @src switch; the browser plays the open or close sound from the view's open containers).
+// @src switch; the open or close sound as an event the browser plays).
 
 import { Approach } from '../../../content/narrative/npc-constants.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
@@ -53,6 +53,7 @@ export function handleStructChangeFromGridNo(t: TacticalState, s: Soldier, gridN
   const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
   if (!structure) return;
   const closing = has(structure.flags, StructureFlags.OPEN);
+  t.events.push({ type: 'openableChanged', gridNo, material: structure.def.armour, open: !closing });
   if (!has(structure.flags, StructureFlags.SWITCH)) showOrHideContents(t, s, gridNo, closing);
   const swapped = swapStructureForPartner(t, structure);
   if (!swapped) return;

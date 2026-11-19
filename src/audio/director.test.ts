@@ -113,9 +113,8 @@ const frame = (tick: number, changed: SoldierView[], events: ViewFrame['events']
   events,
 });
 const files = (r: Rig) => r.cues.map((c) => c.file);
-const world = (terrain: number, ambient: readonly AmbientEntry[] = [], material: number | null = null): SoundWorld => ({
+const world = (terrain: number, ambient: readonly AmbientEntry[] = []): SoundWorld => ({
   terrainAt: () => terrain,
-  openableMaterialAt: () => material,
   ambient,
 });
 
@@ -633,29 +632,31 @@ describe('the sound director', () => {
     expect(files(r)).toEqual([book.paths.get('S_METAL_IMPACT3')]);
   });
 
-  it('sounds a locker opening and closing from the open containers of the view and lets the opener cheer later', () => {
+  it('sounds a locker opening and closing from its openableChanged events and lets the opener cheer later', () => {
     const LOCKER_METAL = 22;
-    const r = rig(world(1, [], LOCKER_METAL));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    const changed = (tick: number, open: boolean) => ({ type: 'openableChanged', tick, gridNo: G, material: LOCKER_METAL, open }) as const;
     const cheer = { type: 'contentsExclaimed', tick: 10, soldier: 1, sound: 'COOL1' } as const;
-    r.director.applyFrames([{ ...frame(10, [], [cheer]), openContainers: [G] }]);
+    r.director.applyFrames([frame(10, [], [changed(10, true), cheer])]);
     expect(files(r)).toEqual([book.paths.get('OPEN_LOCKER')]);
+    expect(r.cues[0]).toMatchObject({ gridNo: G, mix: 'location' });
     for (const run of r.later) run();
     expect(files(r)[1]).toMatch(/^battlesnds\/007_cool/);
-    r.director.applyFrames([{ ...frame(20, []), openContainers: [] }]);
+    r.director.applyFrames([frame(20, [], [changed(20, false)])]);
     expect(files(r)[2]).toBe(book.paths.get('CLOSE_LOCKER'));
   });
 
   it('has a merc whose pickup or search finds nothing say the NOTHING battle sound at once', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'nothingFound', tick: 10, soldier: 1, gridNo: G }])]);
     expect(files(r)).toEqual(['battlesnds/007_noth.wav']);
   });
 
   it('has a soldier out of sight say his NOTHING from where the squad hears it, in the voice the event names', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     const heard = { by: 1, direction: Direction.NORTH, volumeClass: 3 };
     const unseen = { voice: '033', bodyType: 0 };
     r.director.applyFrames([frame(10, [], [{ type: 'nothingFound', tick: 10, soldier: 70, unseen, heard }])]);
@@ -691,7 +692,7 @@ describe('the sound director', () => {
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     const played = seeds.map((seed) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset([soldier(40, 'STANDING', 0, { team: 2, bodyType: 20 })], []);
+      r.director.reset([soldier(40, 'STANDING', 0, { team: 2, bodyType: 20 })]);
       r.director.applyFrames([frame(10, [], [{ type: 'bloodcatGrowl', tick: 10, soldier: 40 }])]);
       return r.cues;
     });
@@ -748,44 +749,44 @@ describe('the sound director', () => {
 
   it('has a soldier who trips and falls on the way curse with CURSE1', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, soldier: 1, cause: 'drunk' }])]);
     expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
   });
 
   it('has a soldier who slips on marbles curse with CURSE1', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'slippedOnMarbles', tick: 10, soldier: 1 }])]);
     expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
   });
 
   it('has a soldier out of sight who falls or slips curse from where the squad hears him, in the voice the event names', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     const heard = { by: 1, direction: Direction.NORTH, volumeClass: 3 };
     const unseen = { voice: '033', bodyType: 0 };
     r.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, defaultName: 'enemy', unseen, heard }])]);
     expect(files(r)[0]).toMatch(/^battlesnds\/033_curse/);
     expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3) });
     const far = rig(world(1));
-    far.director.reset([soldier(1, 'STANDING', 0)], []);
+    far.director.reset([soldier(1, 'STANDING', 0)]);
     far.director.applyFrames([frame(10, [], [{ type: 'slippedOnMarbles', tick: 10, name: 'Hamous', unseen }])]);
     expect(files(far)[0]).toMatch(/^battlesnds\/033_curse/);
     expect(far.cues[0]).toMatchObject({ gridNo: NOWHERE });
     const muted = rig(world(1));
-    muted.director.reset([soldier(1, 'STANDING', 0)], []);
+    muted.director.reset([soldier(1, 'STANDING', 0)]);
     muted.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, defaultName: 'enemy' }])]);
     expect(files(muted)).toEqual([]);
   });
 
   it('has the owner of a dud curse with CURSE1 (HandleArmedObjectImpact), one out of sight from where the squad hears him', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'dudCursed', tick: 10, soldier: 1 }])]);
     expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
     const unseen = rig(world(1));
-    unseen.director.reset([soldier(1, 'STANDING', 0)], []);
+    unseen.director.reset([soldier(1, 'STANDING', 0)]);
     const heard = { by: 1, direction: Direction.EAST, volumeClass: 2 };
     unseen.director.applyFrames([frame(10, [], [{ type: 'dudCursed', tick: 10, unseen: { voice: 'bad0', bodyType: 0 }, heard }])]);
     expect(files(unseen)[0]).toMatch(/^battlesnds\/bad0_curse/);
@@ -796,7 +797,7 @@ describe('the sound director', () => {
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const laughs = seeds.map((seed) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset([soldier(30, 'STANDING', 0, { team: 1, voice: 'bad1' })], []);
+      r.director.reset([soldier(30, 'STANDING', 0, { team: 1, voice: 'bad1' })]);
       r.director.applyFrames([
         frame(10, [], [{ type: 'soldierDied', tick: 10, soldier: 70, killer: 30, gridNo: G, laugher: { soldier: 30 } }]),
       ]);
@@ -807,7 +808,7 @@ describe('the sound director', () => {
     expect(new Set(expected.map((f) => f.length)).size).toBe(2);
     const laughing = seeds.find((seed) => new ClientRandom(seed).rand(3) === 0) ?? 0;
     const r = rig(world(1), scripts, { seed: laughing });
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     const heard = { by: 1, direction: Direction.NORTH, volumeClass: 3 };
     const laugher = { unseen: { voice: 'bad2', bodyType: 0 }, heard };
     r.director.applyFrames([frame(10, [], [{ type: 'soldierDied', tick: 10, soldier: 70, gridNo: G, laugher }])]);
@@ -819,7 +820,7 @@ describe('the sound director', () => {
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
     const cheers = seeds.map((seed) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset([soldier(1, 'STANDING', 0)], []);
+      r.director.reset([soldier(1, 'STANDING', 0)]);
       r.director.applyFrames([frame(10, [], [{ type: 'killCheered', tick: 10, soldier: 1 }])]);
       return files(r);
     });
@@ -833,10 +834,7 @@ describe('the sound director', () => {
     const voices = ['007', '011', '033'];
     const cools = seeds.map((seed) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset(
-        voices.map((voice, id) => soldier(id, 'STANDING', 0, { voice })),
-        [],
-      );
+      r.director.reset(voices.map((voice, id) => soldier(id, 'STANDING', 0, { voice })));
       r.director.applyFrames([frame(10, [], [{ type: 'combatEnded', tick: 10, reason: 'won', fought: true, coolCandidates: [0, 1, 2] }])]);
       r.director.applyFrames([frame(20, [], [{ type: 'combatEnded', tick: 20, reason: 'won', fought: true }])]);
       return files(r);
@@ -848,7 +846,7 @@ describe('the sound director', () => {
   it('has a merc say COOL1 after a picked lock or a disarmed door trap, and curse a wrong key on a client Random(2) (HandleOpenableStruct)', () => {
     const door = (action: string, result: string, seed = 1) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset([soldier(1, 'STANDING', 0)], []);
+      r.director.reset([soldier(1, 'STANDING', 0)]);
       r.director.applyFrames([frame(10, [], [{ type: 'doorResult', tick: 10, soldier: 1, gridNo: G + 1, action, result }])]);
       return files(r).filter((f) => f.startsWith('battlesnds/'));
     };
@@ -863,7 +861,7 @@ describe('the sound director', () => {
 
   it('plays SMALL_EXPLODE_1 loud at the door a shaped charge blows (AttemptToBlowUpLock)', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'shapedChargeBlast', tick: 10, gridNo: G + 1, x: 815, y: 805, z: 20 }])]);
     expect(r.cues).toEqual([
       expect.objectContaining({ file: book.paths.get('SMALL_EXPLODE_1'), gridNo: G + 1, baseVolume: VolumeLevel.HIGH }),
@@ -872,13 +870,13 @@ describe('the sound director', () => {
 
   it('has a merc curse a failed skill check always when the event is certain, else on a client Random(100) < 40 (SkillCheck)', () => {
     const certain = rig(world(1));
-    certain.director.reset([soldier(1, 'STANDING', 0)], []);
+    certain.director.reset([soldier(1, 'STANDING', 0)]);
     certain.director.applyFrames([frame(10, [], [{ type: 'skillCheckFailed', tick: 10, soldier: 1, certain: true }])]);
     expect(files(certain)[0]).toMatch(/^battlesnds\/007_curse/);
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const curses = seeds.map((seed) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset([soldier(1, 'STANDING', 0)], []);
+      r.director.reset([soldier(1, 'STANDING', 0)]);
       r.director.applyFrames([frame(10, [], [{ type: 'skillCheckFailed', tick: 10, soldier: 1 }])]);
       return files(r).length;
     });
@@ -888,14 +886,14 @@ describe('the sound director', () => {
 
   it('leaves the curse of a check failed while the map screen is up to the map screen, a merc of the loaded sector too', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'skillCheckFailed', tick: 10, soldier: 1, certain: true, mapScreen: true }])]);
     expect(files(r)).toEqual([]);
   });
 
   it('holds a battle sound that does not cut speech behind the line of the merc saying one, as DoMercBattleSound queues it, but not the lowered selection and group-move sounds', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })], []);
+    r.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })]);
     const held: (() => void)[] = [];
     const cut: number[] = [];
     r.director.setSpeechOwner({
@@ -914,7 +912,7 @@ describe('the sound director', () => {
     const holds: number[] = [];
     const lowered = (play: (r: Rig) => void) => {
       const l = rig(world(1));
-      l.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })], []);
+      l.director.reset([soldier(1, 'STANDING', 0, { profile: 7 })]);
       l.director.setSpeechOwner({ isTalking: () => false, cut: () => {}, holdBattleSound: (p) => holds.push(p) > 0 });
       play(l);
       return [...files(l), ...l.cues.map((c) => c.baseVolume)];
@@ -926,7 +924,7 @@ describe('the sound director', () => {
 
   it('has a medic out of bandages curse with CURSE1, and stay silent when the event brings no battle sound', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'outOfBandages', tick: 10, soldier: 1 }])]);
     expect(files(r)).toEqual([]);
     r.director.applyFrames([frame(20, [], [{ type: 'outOfBandages', tick: 20, soldier: 1, battleSound: 'CURSE1' }])]);
@@ -935,7 +933,7 @@ describe('the sound director', () => {
 
   it('has a merc who disarms a trap say COOL1 and one whose disarm fails curse with CURSE1, silent when the event brings no battle sound', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })]);
     r.director.applyFrames([frame(10, [], [{ type: 'trapDisarmed', tick: 10, soldier: 1, gridNo: G }])]);
     r.director.applyFrames([frame(20, [], [{ type: 'trapSetOff', tick: 20, soldier: 2, gridNo: G }])]);
     expect(files(r)).toEqual([]);
@@ -947,11 +945,11 @@ describe('the sound director', () => {
 
   it('laughs with the psycho who goes to burst and curses the extender that falls off (HandleItem, CalcChanceToHitGun)', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'psychoBurst', tick: 10, soldier: 1 }])]);
     expect(files(r)[0]).toMatch(/^battlesnds\/007_laugh/);
     const cursing = rig(world(1));
-    cursing.director.reset([soldier(1, 'STANDING', 0)], []);
+    cursing.director.reset([soldier(1, 'STANDING', 0)]);
     cursing.director.applyFrames([frame(10, [], [{ type: 'barrelExtenderFellOff', tick: 10, soldier: 1 }])]);
     expect(files(cursing)[0]).toMatch(/^battlesnds\/007_curse/);
   });
@@ -960,24 +958,24 @@ describe('the sound director', () => {
     const attached = (extra: Record<string, unknown>) =>
       frame(10, [], [{ type: 'itemAttached', tick: 10, soldier: 1, item: 'SILENCER', to: 'GLOCK_17', result: 'attached', ...extra }]);
     const sound = rig(world(1));
-    sound.director.reset([soldier(1, 'STANDING', 0)], []);
+    sound.director.reset([soldier(1, 'STANDING', 0)]);
     sound.director.applyFrames([attached({ sound: 'ATTACH_TO_GUN' })]);
     expect(sound.cues).toEqual([
       expect.objectContaining({ file: book.paths.get('ATTACH_TO_GUN'), mix: 'location', gridNo: G, baseVolume: VolumeLevel.MID }),
     ]);
     const cool = rig(world(1));
-    cool.director.reset([soldier(1, 'STANDING', 0)], []);
+    cool.director.reset([soldier(1, 'STANDING', 0)]);
     cool.director.applyFrames([attached({ result: 'merged', reaction: 'COOL1' })]);
     expect(files(cool)[0]).toMatch(/^battlesnds\/007_cool/);
     const onTheMap = rig(world(1));
-    onTheMap.director.reset([soldier(1, 'STANDING', 0)], []);
+    onTheMap.director.reset([soldier(1, 'STANDING', 0)]);
     onTheMap.director.applyFrames([attached({ sound: 'ATTACH_TO_GUN', reaction: 'CURSE1', mapScreen: true })]);
     expect(files(onTheMap)).toEqual([]);
   });
 
   it('has the merc an item was applied to say COOL1, except after a canteen, which plays its drinking sound instead', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })]);
     const applied = (tick: number, item: string, sound?: 'DRINK_CANTEEN_FEMALE') =>
       frame(tick, [], [{ type: 'itemApplied', tick, soldier: 1, target: 2, item, ...(sound ? { sound } : {}) }]);
     r.director.applyFrames([applied(10, 'CAMOUFLAGEKIT')]);
@@ -989,18 +987,22 @@ describe('the sound director', () => {
 
   it('sounds a drop at the feet from its event and leaves a drop beside the merc to its animation code 763', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'itemDropped', tick: 10, soldier: 1, gridNo: G, beside: true }])]);
     expect(files(r)).toEqual([]);
     r.director.applyFrames([frame(20, [], [{ type: 'itemDropped', tick: 20, soldier: 1, gridNo: G }])]);
     expect(files(r)).toEqual([book.paths.get('THROW_IMPACT_2')]);
   });
 
-  it('closes the crate of a Bobby Ray delivery silently and keeps quiet about containers open when the sector loads', () => {
-    const r = rig(world(1, [], 5));
-    r.director.reset([], [G]);
-    const delivered = { type: 'shipmentDelivered', tick: 10, shipment: 0, sector: 'B13', items: 2, stolen: 0 } as const;
-    r.director.applyFrames([{ ...frame(10, [], [delivered]), openContainers: [] }]);
+  it('plays nothing for containers a sector change, an unload or a Bobby Ray delivery opens or closes in the view', () => {
+    const r = rig(world(1));
+    r.director.reset([]);
+    const loaded = { type: 'sectorLoaded', tick: 10, sector: 'A10' } as const;
+    const delivered = { type: 'shipmentDelivered', tick: 30, shipment: 0, sector: 'B13', items: 2, stolen: 0 } as const;
+    r.director.applyFrames([{ ...frame(10, [], [loaded]), openContainers: [3000] }]);
+    r.director.applyFrames([{ ...frame(20, []), openContainers: [] }]);
+    r.director.applyFrames([{ ...frame(25, []), openContainers: [1000, 2000] }]);
+    r.director.applyFrames([{ ...frame(30, [], [delivered]), openContainers: [1000] }]);
     expect(r.cues).toEqual([]);
   });
 
@@ -1020,7 +1022,7 @@ describe('the sound director', () => {
 
   it('plays the statue remote in the middle at high volume, then has the merc say OK1 at an opened statue and curse otherwise (StartBombMessageBox)', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })]);
     r.director.applyFrames([frame(10, [], [{ type: 'remoteUsed', tick: 10, soldier: 1, result: 'statueOpened' }])]);
     r.director.applyFrames([frame(20, [], [{ type: 'remoteUsed', tick: 20, soldier: 2, result: 'nothing' }])]);
     r.director.applyFrames([frame(30, [], [{ type: 'remoteUsed', tick: 30, soldier: 2, result: 'bombs', frequency: 1 }])]);
@@ -1036,7 +1038,7 @@ describe('the sound director', () => {
 
   it('cracks glass at a soldier whose jars broke in a fall, at mid volume, off screen for one out of sight (CheckEquipmentForFragileItemDamage)', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([
       frame(
         10,
@@ -1056,7 +1058,7 @@ describe('the sound director', () => {
 
   it('has a merc whose pickup walk is long enough say OK1 (SoldierPickupItem)', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'pickupConfirmed', tick: 10, soldier: 1 }])]);
     expect(files(r)).toEqual([expect.stringMatching(/^battlesnds\/007_ok\d\.wav$/)]);
   });
@@ -1065,7 +1067,7 @@ describe('the sound director', () => {
     const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
     const chops = seeds.map((seed) => {
       const r = rig(world(1), scripts, { seed });
-      r.director.reset([soldier(33, 'STANDING', 0, { team: 1, voice: '033' })], []);
+      r.director.reset([soldier(33, 'STANDING', 0, { team: 1, voice: '033' })]);
       r.director.applyFrames([frame(10, [], [{ type: 'martialArtsChop', tick: 10, soldier: 33 }])]);
       return r.cues[0];
     });
@@ -1074,7 +1076,7 @@ describe('the sound director', () => {
     expect(new Set(expected).size).toBe(2);
     expect(chops[0]).toMatchObject({ mix: 'voiceOther', gridNo: G, baseVolume: VolumeLevel.HIGH });
     const r = rig(world(1));
-    r.director.reset([soldier(33, 'STANDING', 0, { voice: '033' })], []);
+    r.director.reset([soldier(33, 'STANDING', 0, { voice: '033' })]);
     r.director.applyFrames([frame(10, [], [{ type: 'martialArtsChop', tick: 10, soldier: 33, spinKick: true }])]);
     expect(r.cues).toEqual([expect.objectContaining({ file: 'battlesnds/033_chop2.wav', mix: 'voiceOwn' })]);
     r.director.curse(33);
@@ -1083,7 +1085,7 @@ describe('the sound director', () => {
 
   it('grunts HIT1 at bleeding at most once a second, which the 2 s repeat filter thins further, in the voice of a merc off the map or an unseen soldier (HandleSoldierTakeDamageFeedback)', () => {
     const r = rig(world(1));
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     const bled = (tick: number) => frame(tick, [], [{ type: 'damageFeedback', tick, soldier: 1, cause: 'bleeding' }]);
     r.director.applyFrames([bled(10)]);
     r.clock += 1_500;
@@ -1130,7 +1132,7 @@ describe('the sound director', () => {
       voices.push(voice);
       return voice;
     };
-    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.reset([soldier(1, 'STANDING', 0)]);
     r.director.applyFrames([frame(10, [], [{ type: 'damageFeedback', tick: 10, soldier: 1, cause: 'electricity' }])]);
     expect(files(r)).toEqual(['battlesnds/007_die.wav', expect.stringMatching(/^battlesnds\/007_hit[12]\.wav$/)]);
     expect(voices.map((v) => v.active)).toEqual([false, true]);

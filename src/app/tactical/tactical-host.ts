@@ -276,7 +276,7 @@ export class TacticalHost {
       assets.then((a) => a.tables),
       session.session ?? 'local',
     );
-    this.#sound.director?.reset(session.soldiers, session.openContainers, session.view?.helicopterDrop ?? null);
+    this.#sound.director?.reset(session.soldiers, session.view?.helicopterDrop ?? null);
     this.#sound.director?.setSpeechOwner(this.#o.speech.owner);
   }
 
@@ -491,7 +491,7 @@ export class TacticalHost {
   welcome(stateReplaced: boolean): void {
     if (stateReplaced) this.#wireframes.restart();
     const session = this.#o.session;
-    this.#sound.director?.reset(session.soldiers, session.openContainers, session.view?.helicopterDrop ?? null);
+    this.#sound.director?.reset(session.soldiers, session.view?.helicopterDrop ?? null);
     this.#frames?.reset();
     this.#entry = null;
     this.#scene = null;

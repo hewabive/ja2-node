@@ -169,10 +169,6 @@ export class SessionClient implements ViewerPromptPort {
     return this.#shown?.openDoors ?? [];
   }
 
-  get openContainers(): readonly number[] {
-    return this.#shown?.openContainers ?? [];
-  }
-
   get mapPath(): string | null {
     return this.#shown?.mapPath ?? null;
   }

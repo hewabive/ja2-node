@@ -138,7 +138,6 @@ const CONTENTS_EXCLAMATION_DELAY_MS = 500;
 const UNSEEN_VICTIM_TEAM = 1;
 const NOBODY = -1;
 const BODY_NOT_KNOWN = -1;
-const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const hiResFacing = (s: SoldierView) => s.hiResDirection ?? facingOfDirection(s.direction).hiResDirection;
 const ANIM_STAND = 6;
@@ -158,7 +157,6 @@ function doorResultBattleSound(e: Pick<EventOf<'doorResult'>, 'action' | 'result
 
 export interface SoundWorld {
   terrainAt(gridNo: number): number;
-  openableMaterialAt(gridNo: number): number | null;
   readonly ambient: readonly AmbientEntry[];
 }
 
@@ -260,7 +258,6 @@ export class SoundDirector {
   readonly #idleLoops = new Map<number, IdleLoop>();
   readonly #idleCounters = new Map<number, number>();
   readonly #idleLoopFrames = new Map<number, number | null>();
-  #openContainers = new Set<number>();
   #whistle: VoiceHandle | null = null;
   #speechOwner: SpeechOwner | null = null;
   #world: SoundWorld | null = null;
@@ -283,14 +280,13 @@ export class SoundDirector {
     return this.#rng.rand;
   }
 
-  reset(soldiers: readonly SoldierView[], openContainers: readonly number[] = [], helicopterDrop: HelicopterDropView | null = null): void {
+  reset(soldiers: readonly SoldierView[], helicopterDrop: HelicopterDropView | null = null): void {
     this.#helicopterDrop = helicopterDrop;
     for (const id of [...this.#driving.keys()]) this.#stopDriving(id);
     for (const id of [...this.#turrets.keys()]) this.#silenceTurret(id);
     this.#soldiers.clear();
     this.#timelines.clear();
     for (const s of soldiers) this.#soldierChanged(s, false);
-    this.#openContainers = new Set(openContainers);
   }
 
   setWorld(world: SoundWorld | null): void {
@@ -348,7 +344,6 @@ export class SoundDirector {
       for (const e of events) this.#remember(e);
       for (const id of frame.removed) this.#forget(id);
       for (const s of frame.changed) this.#soldierChanged(s, audible && animating);
-      if (frame.openContainers) this.#containersChanged(frame.openContainers, audible, events);
       for (const e of events) {
         this.stats.events++;
         if (audible) this.#event(e);
@@ -808,6 +803,9 @@ export class SoundDirector {
       case 'doorChanged':
         this.#door(e.gridNo, e.kind ?? 'wood', e.open, e.noisy ?? false);
         return;
+      case 'openableChanged':
+        this.#play(openableCue(book, e.gridNo, e.material, e.open));
+        return;
       case 'doorResult':
         this.#doorResult(e);
         return;
@@ -947,21 +945,6 @@ export class SoundDirector {
   #mortarWhistle(sounding: boolean): void {
     this.#whistle?.stop();
     this.#whistle = sounding ? this.#play(effectCue(this.#o.book, 'MORTAR_WHISTLE', 'fixed', VolumeLevel.HIGH)) : null;
-  }
-
-  #containersChanged(open: readonly number[], audible: boolean, events: NonNullable<ViewFrame['events']>): void {
-    const now = new Set(open);
-    const quietClose = events.some((e) => e.type === 'shipmentDelivered');
-    if (audible) {
-      for (const g of now) if (!this.#openContainers.has(g)) this.#openableSound(g, true);
-      if (!quietClose) for (const g of this.#openContainers) if (!now.has(g)) this.#openableSound(g, false);
-    }
-    this.#openContainers = now;
-  }
-
-  #openableSound(gridNo: number, open: boolean): void {
-    const material = this.#world?.openableMaterialAt(gridNo) ?? NO_MATERIAL;
-    this.#play(openableCue(this.#o.book, gridNo, material, open));
   }
 
   #stealthyFootstep(soldier: number): void {

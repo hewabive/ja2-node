@@ -8,7 +8,6 @@ import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import { type AmbientEntry, ambientTablePath, parseAmbientTable } from '../../content/formats/ambient.ts';
 import { ANIMATION_SCRIPTS_PATH, type AnimationScripts, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import { type DataVersion, rpcSpeechPrefixed, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
-import { StructureFlags } from '../../content/world/structures.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import { type ClientSettings, effectiveMaster, updateSettings } from '../../ui/settings.ts';
 import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
@@ -185,7 +184,6 @@ export class TacticalSound {
     const ambient = ambientSilenced(world.map.ambient) ? [] : await this.#ambientTable(world.ambientId);
     const sound: SoundWorld = {
       terrainAt: (g) => terrain[g] ?? 0,
-      openableMaterialAt: (g) => world.structures.find(g, StructureFlags.OPENABLE)?.def.armour ?? null,
       ambient,
     };
     director.setWorld(sound);

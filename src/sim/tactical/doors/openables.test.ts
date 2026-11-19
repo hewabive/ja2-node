@@ -9,7 +9,7 @@ import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { hasAnimFlag } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
-import { openableStatuses, openContainerGridNos, setOpenableStructStatus } from '../doors.ts';
+import { openableStatuses, openContainerGridNos, setOpenableStructStatus, setOpenableStructureToClosed } from '../doors.ts';
 import { apsToMovePlusAction } from '../give.ts';
 import { InvSlot } from '../inventory.ts';
 import { type Soldier, Team } from '../soldier.ts';
@@ -75,6 +75,23 @@ describe('HandleStructChangeFromGridNo', () => {
     expect(visibility(t)).toEqual([Visibility.HIDDEN_IN_OBJECT]);
     expect(openContainerGridNos(t)).toEqual([]);
     expect(exclamations(t)).toEqual([]);
+  });
+
+  it('sounds the crate at its swap, before the opener exclaims, and leaves a sector diff and a Bobby Ray close silent', () => {
+    const { t, opener } = crateBeside(['FIRSTAIDKIT']);
+    handleStructChangeFromGridNo(t, opener, CRATE);
+    handleStructChangeFromGridNo(t, opener, CRATE);
+    const changes = t.events.filter((e) => e.type === 'openableChanged' || e.type === 'contentsExclaimed').map((e) => e.type);
+    expect(changes).toEqual(['openableChanged', 'contentsExclaimed', 'openableChanged']);
+    expect(t.events.filter((e) => e.type === 'openableChanged')).toEqual([
+      { type: 'openableChanged', gridNo: CRATE, material: MATERIAL_THICKER_METAL, open: true },
+      { type: 'openableChanged', gridNo: CRATE, material: MATERIAL_THICKER_METAL, open: false },
+    ]);
+    t.events.length = 0;
+    setOpenableStructStatus(t, CRATE, true);
+    setOpenableStructureToClosed(t, CRATE);
+    expect(crateOpen(t)).toBe(false);
+    expect(t.events.filter((e) => e.type === 'openableChanged')).toEqual([]);
   });
 
   it('cheers three items, sighs at an empty crate and keeps a stranger quiet over a small find', () => {
