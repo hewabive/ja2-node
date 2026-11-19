@@ -137,6 +137,13 @@ export interface GroupArrivedEvent extends SimEventBase {
   readonly who: ArrivedWho;
 }
 
+export type TravelOrderWho = { readonly kind: 'merc'; readonly soldier: number } | { readonly kind: 'squad'; readonly squad: number };
+
+export interface NoTravelOrdersUndergroundEvent extends SimEventBase {
+  readonly type: 'noTravelOrdersUnderground';
+  readonly who: TravelOrderWho;
+}
+
 export interface PlayerReinforcementsEvent extends SimEventBase {
   readonly type: 'playerReinforcements';
   readonly group: number;
@@ -154,6 +161,7 @@ export interface InvasionEvent extends SimEventBase {
 export type HelicopterEvent =
   | HelicopterSetUpEvent
   | GroupArrivedEvent
+  | NoTravelOrdersUndergroundEvent
   | PlayerReinforcementsEvent
   | InvasionEvent
   | SkyriderQuoteEvent

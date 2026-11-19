@@ -11,7 +11,8 @@
 // @src (repairs, aborted assignments; NotifyPlayerOfAssignmentAttemptFailure's two lines for a list member the yes to the
 // @src militia payment box cannot set, printed because the box screen is up, Town_Militia.cc
 // @src StartTrainingInAllUnpaidTrainableSectors, 2026-11-14), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
-// @src Strategic_Movement.cc (MSG_ARRIVE; STR_PLAYER_REINFORCEMENTS, 2026-11-15), SaveLoadGame.cc (game saved), Weapons.cc UseHandToHand (stealing, 2026-10-31), Soldier_Control.cc (refused first aid),
+// @src Strategic_Movement.cc (MSG_ARRIVE; STR_PLAYER_REINFORCEMENTS, 2026-11-15), Map_Screen_Interface_Map.cc
+// @src PlotPathForCharacter (gsUndergroundString after the merc or his squad, 2026-11-19), SaveLoadGame.cc (game saved), Weapons.cc UseHandToHand (stealing, 2026-10-31), Soldier_Control.cc (refused first aid),
 // @src Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
 // @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM), src/externalized/Soldier.cc
@@ -402,6 +403,16 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
     return index === undefined ? [] : [line('gzLateLocalizedString', index, [soldierArg(facts, e.soldier)])];
   },
   groupArrived,
+  noTravelOrdersUnderground: (e, facts) => [
+    {
+      kind: 'interface',
+      colour: FONT_YELLOW,
+      args: [
+        e.who.kind === 'merc' ? soldierArg(facts, e.who.soldier) : ref('pLongAssignmentStrings', e.who.squad),
+        ref('gsUndergroundString', 0),
+      ],
+    },
+  ],
   playerReinforcements: () => [line('Message', STR_PLAYER_REINFORCEMENTS)],
   invasion: (e) => (e.kind === 'other' ? [line('pMapErrorString', 24, [{ text: e.sector }])] : []),
   trainersNotAssigned: () => [line(MAP_ERRORS, NOT_PUT_ON_ASSIGNMENT), line(MAP_ERRORS, TWO_TRAINERS_PER_SECTOR)],

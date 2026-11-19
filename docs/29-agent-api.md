@@ -992,7 +992,8 @@ returning group on its way back (`Strategic/MapScreen.cc:7096`). `shortest` is t
 `true` for every leg, or one flag per leg (the `via` legs, then `to`), for `route`, `routeGroup`, `heliRoute` and the
 `previewRoute` and `previewHeliRoute` hints. A merc's leg or destination in a sector nobody can pass through is refused
 as `badSector`, as the map screen ignores that click (`Strategic/MapScreen.cc:2307`), though `previewRoute` draws the
-temporary path there; the helicopter has no such rule. As in the original, a move from the loaded sector during a
+temporary path there; the helicopter has no such rule. A route plotted for a merc underground, as on an underground
+tactical traversal, prints `noTravelOrdersUnderground {who}` for him or his squad. As in the original, a move from the loaded sector during a
 bloodcat ambush is refused as `inCombat`, and a merc standing in the museum rooms of L12 while any merc carries the
 chalice and Eldin lives as `museumChalice` (`src/sim/strategic/forces/move-permission.ts`); the hints check neither, as
 the view has neither the encounter nor the rooms. A merc awake with `breathMax` below 30, or asleep and `collapsed`,

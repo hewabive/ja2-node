@@ -5,7 +5,7 @@
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup; MapScreen.cc (the plotting legs: each leg built
 // @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters);
 // @src MapScreen.cc CancelPathsOfAllSelectedCharacters, MAP_EVENT_PLOT_PATH's SectorIsPassable, Strategic_Pathing.cc
-// @src FindStratPath's SHIFT read at each leg (2026-11-19).
+// @src FindStratPath's SHIFT read at each leg, PlotPathForCharacter's underground message (2026-11-19).
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { isValidSector, type Sector, sameSector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
@@ -13,6 +13,7 @@ import { appendStrategicPath, clearStrategicPathAfterSector, lastSectorOfPath } 
 import { sectorInfo, sectorIsPassable, Traversability } from '../map/sectors.ts';
 import { Assignment } from './constants.ts';
 import { type Group, getGroup, removeGroupWaypoints, requireMerc } from './groups.ts';
+import type { TravelOrderWho } from './helicopter-events.ts';
 import { buildAStrategicPath, type GroupPathOptions, rebuildWayPointsForGroupPath } from './movement.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
 import { copyPathOfCharacterToSquad } from './squads.ts';
@@ -42,6 +43,10 @@ export function soldierGroup(ctx: StrategicContext, m: StrategicMerc): Group | u
   return getGroup(ctx, m.groupId);
 }
 
+function travelOrderWho(m: StrategicMerc): TravelOrderWho {
+  return m.assignment >= Assignment.ON_DUTY ? { kind: 'merc', soldier: m.id } : { kind: 'squad', squad: m.assignment };
+}
+
 function copyPathToCharactersSquadIfInOne(ctx: StrategicContext, m: StrategicMerc): void {
   if (m.assignment < Assignment.ON_DUTY) copyPathOfCharacterToSquad(ctx, m.id, m.assignment);
 }
@@ -49,7 +54,11 @@ function copyPathToCharactersSquadIfInOne(ctx: StrategicContext, m: StrategicMer
 export function plotPathForCharacter(ctx: StrategicContext, id: number, dest: Sector, options: GroupPathOptions = {}): boolean {
   if (!isTheCursorAllowedToHighLightThisSector(ctx, dest)) return false;
   const m = requireMerc(ctx, id);
-  if (m.assignment === Assignment.IN_TRANSIT || m.sector.z !== 0) return false;
+  if (m.assignment === Assignment.IN_TRANSIT) return false;
+  if (m.sector.z !== 0) {
+    ctx.helicopter.emit({ type: 'noTravelOrdersUnderground', who: travelOrderWho(m) });
+    return false;
+  }
   const vehicle = inOrIsVehicle(m);
   if (vehicle) setUpMvtGroupForVehicle(ctx, m);
   const g = soldierGroup(ctx, m);

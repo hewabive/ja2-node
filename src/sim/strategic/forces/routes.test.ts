@@ -77,6 +77,26 @@ describe('route commands', () => {
   });
 });
 
+describe('plotting on an underground traversal (Map_Screen_Interface_Map.cc PlotPathForCharacter)', () => {
+  it('builds no path and names each merc, or his squad, who cannot get travel orders underground', () => {
+    const emitted: unknown[] = [];
+    const mercs = new FakeMercs();
+    const ctx = testContext({ content, mercs, helicopter: { emit: (e) => emitted.push(e) } });
+    initStrategicLayerMap(ctx);
+    const below = { ...S('A9'), z: 1 };
+    mercs.add({ id: 0, sector: below });
+    addCharacterToSquad(ctx, 0, 0);
+    mercs.add({ id: 1, sector: below, assignment: Assignment.ON_DUTY });
+    expect(plotPathForCharacter(ctx, 0, S('A10'), { tacticalTraversal: true })).toBe(false);
+    expect(plotPathForCharacter(ctx, 1, S('A10'), { tacticalTraversal: true })).toBe(false);
+    expect(mercs.get(0)?.path).toEqual([]);
+    expect(emitted).toEqual([
+      { type: 'noTravelOrdersUnderground', who: { kind: 'squad', squad: 0 } },
+      { type: 'noTravelOrdersUnderground', who: { kind: 'merc', soldier: 1 } },
+    ]);
+  });
+});
+
 describe('cancelling the routes of the selected mercs (MapScreen.cc CancelPathsOfAllSelectedCharacters)', () => {
   it('cancels only a merc with a route, so a second cancel leaves a returning squad on its way back', () => {
     const { ctx } = squadInA9();
