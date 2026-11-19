@@ -10,7 +10,7 @@
 // @src TileEngine/Pits.cc HandleFallIntoPitFromAnimation (the merc's sector and squad, 2026-11-09); Tactical/Handle_UI.cc
 // @src SetUIMouseCursor (no exit grid cursor on a tile in a room until the tile is revealed, 2026-11-10); StrategicMap.cc
 // @src DoneFadeOutAdjacentSector and DoneFadeOutExitGridSector (gpTacticalTraversalChosenSoldier's enemy-presence line,
-// @src 2026-11-15).
+// @src 2026-11-15); DoneFadeOutAdjacentSector (gfPathAroundObstacles in caves, 2026-11-18).
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { exitGridCursorShownOver, NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
@@ -577,7 +577,10 @@ function doneFadeOutAdjacentSector(flow: SectorFlow, jump: AdjacentJump): void {
   const t = flow.campaign.tactical?.state;
   const group = getGroup(flow.ctx, jump.groupId);
   if (!t || !group) return;
-  if (t.world.map?.ambient?.caves) t.ignoreAllObstacles = true;
+  if (t.world.map?.ambient?.caves) {
+    t.ignoreAllObstacles = true;
+    t.pathEnv.pathThroughObstacles = true;
+  }
   const walking = states(t.content.animations).WALKING;
   const walkers = group.vehicle ? [] : groupMercs(flow, group);
   let n = 0;
@@ -595,6 +598,7 @@ function doneFadeOutAdjacentSector(flow: SectorFlow, jump: AdjacentJump): void {
     n++;
   }
   setActionToDoOnceMercsGetToLocation(t, WaitForMercs.WALKON_SCREEN, n);
+  t.pathEnv.pathThroughObstacles = false;
 }
 
 export function allMercsWalkedToExitGrid(flow: SectorFlow): void {

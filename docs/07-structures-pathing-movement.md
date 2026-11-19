@@ -149,6 +149,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A local recompile clears one column and row less on the east and south than it recompiles, so costs of a removed structure stay there | `world/movement-costs.test.ts` |
 | A structure file keeps only the low byte of its hit points (more than 650 filled cubes wrap) | `formats/jsd.test.ts` |
 | The search ends when the destination heads the open list and the last step costs 0, so a dearer path can win | `pathfinding.test.ts` |
+| A squad walking into a cave plans its walk-in through anything, every step at the flat cost, so it walks through walls (`Strategic/StrategicMap.cc:1891`, `:1938`) | `campaign/sector-flow.test.ts` "plans the walk-in of a cave …" |
 | The player's path goes around soldiers he cannot see, while his destination test ignores them | `pathfinding.test.ts` |
 | An AI budget gives a walker one AP back on the free landing tile behind a fence (`0 + WALKCOST` wraps in `UINT8`) | `pathfinding.test.ts` |
 | A roof step's breath comes from the ground costs under the roof | `points.test.ts` |

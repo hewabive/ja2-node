@@ -17,11 +17,13 @@ import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosive
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
 import { NOTHING } from '../../content/items/items.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
+import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
@@ -67,6 +69,7 @@ import {
 } from '../tactical/map-changes.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
+import { findBestPath } from '../tactical/pathfinding.ts';
 import { groundRevealed, markGroundRevealed, RevealedFlags } from '../tactical/perception/fov.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { NO_SAVED_SECTOR_CHANGES } from '../tactical/save-import.ts';
@@ -346,6 +349,43 @@ describe('leaving a sector', () => {
     expect(campaign.state.worldSector).toEqual(A10);
     expect(campaign.state.movement.tacticalTraversal.active).toBe(false);
     expect(campaign.state.movement.undergroundTacticalTraversal).toBe(true);
+  });
+
+  it('plans the walk-in of a cave through anything, every step at the flat cost, and around obstacles again once the squad is placed (StrategicMap.cc DoneFadeOutAdjacentSector gfPathAroundObstacles)', () => {
+    const WALL_ROW = 150;
+    const WALL_COLUMNS = { first: 70, last: 78 };
+    const CAVE_AMBIENT_LIGHT = 11;
+    const caveA10WithWall: SectorWorlds = {
+      exists: (path) => kit.sectors.worlds.exists(path),
+      world: (path) => {
+        const world = kit.sectors.worlds.world(path);
+        if (!world || !path.endsWith(STUB_A10_MAP)) return world;
+        for (let x = WALL_COLUMNS.first; x <= WALL_COLUMNS.last; x++)
+          world.structures.add(x + WALL_ROW * WORLD_COLS, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT));
+        world.costs.replaceWith(compileWorldMovementCosts(world).values);
+        return { ...world, map: { ...world.map, ambient: { basement: false, caves: true, lightLevel: CAVE_AMBIENT_LIGHT } } };
+      },
+    };
+    const { campaign } = createTestCampaign(
+      { ...kit, sectors: { ...kit.sectors, worlds: caveA10WithWall } },
+      { seed: 7, garrison: NO_GARRISON },
+    );
+    landFirstSquad(campaign);
+    walkSquadToEastEdge(campaign);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, direction: 'east', who: 'squad' })).toMatchObject({ ok: true });
+    const before = campaign.tactical?.state;
+    runTicks(campaign, WALK_OFF_TICKS, () => campaign.tactical?.state !== before);
+    const t = campaign.tactical?.state ?? never();
+    const walker = t.soldiers[0] ?? never();
+    const belowTheWall = walker.gridNo;
+    expect(idiv(belowTheWall, WORLD_COLS)).toBe(WALL_ROW + 1);
+    expect(belowTheWall % WORLD_COLS).toBeGreaterThanOrEqual(WALL_COLUMNS.first);
+    expect(belowTheWall % WORLD_COLS).toBeLessThanOrEqual(WALL_COLUMNS.last);
+    expect([walker.path.slice(walker.pathIndex, walker.pathSize), walker.finalDestination]).toEqual([
+      [Direction.NORTH],
+      belowTheWall - WORLD_COLS,
+    ]);
+    expect(findBestPath(t.pathEnv, { ...walker, gridNo: belowTheWall - WORLD_COLS }, belowTheWall, walker.level).length).toBeGreaterThan(1);
   });
 
   it('takes a gassed merc into A10 still gassed, until the first real-time turn there finds him off gas (SOLDIER_GASSED)', () => {

@@ -4,6 +4,7 @@
 // @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water.
 // @src 2026-11-04: FindBestPath's mine checks (MAPELEMENT_ENEMY_MINE_PRESENT, MAPELEMENT_PLAYER_MINE_PRESENT).
 // @src 2026-11-06: FindBestPath's gubGlobalPathFlags.
+// @src 2026-11-18: FindBestPath's gfPathAroundObstacles.
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -93,6 +94,7 @@ export interface PathEnv {
   showAllMercs: boolean;
   autoBandage: boolean;
   globalFlags?: number;
+  pathThroughObstacles?: boolean;
   readonly minAPsToStartMovement?: (s: PathSoldier, mode: MoveMode) => number;
   readonly multiTile?: (s: PathSoldier, mode: MoveMode | null) => MultiTileShape | null;
   readonly stats?: { searches: number };
@@ -481,22 +483,14 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   trailCost[org] = 0;
 
   let goingThroughDoor = false;
-  const expand = (cur: OpenHead, dir: number, structIndex: number, backwards: boolean): boolean => {
-    const curLoc = cur.loc;
-    const newLoc = curLoc + (DIRECTION_INCREMENT[dir] as number);
-    if (newLoc < 0 || newLoc >= WORLD_MAX) return EXPANDED;
-    if (visitOnce && used[newLoc] === 1) return EXPANDED;
-    if (world.heights[newLoc] !== world.heights[curLoc]) return EXPANDED;
-    if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) return EXPANDED;
-    if (knownMineBlocks(env, s, newLoc, dest)) return EXPANDED;
-
+  const admissionCost = (newLoc: number, dir: number): number => {
     let nextCost = world.costs.get(newLoc, dir, level);
     if (nextCost === TravelCost.NOT_STANDING) {
       nextCost = terrainCost(world, newLoc);
     } else if (nextCost === TravelCost.EXITGRID) {
       if (options.plotToExitGrid) nextCost = terrainCost(world, newLoc);
     } else if (nextCost === TravelCost.FENCE && nonMerc) {
-      return EXPANDED;
+      return TravelCost.OBSTACLE;
     } else if (isDoorTravelCost(nextCost)) {
       const ref = doorObstacleIfClosed(nextCost, newLoc);
       const state = doorState(env, ref.door, forPlayer);
@@ -505,12 +499,12 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
         if (!has(state, StructureFlags.ANYDOOR)) nextCost = terrainCost(world, newLoc);
         else {
           doorOpen = has(state, StructureFlags.OPEN);
-          if (has(state, StructureFlags.GARAGEDOOR) && dir & 1 && !doorOpen) return EXPANDED;
+          if (has(state, StructureFlags.GARAGEDOOR) && dir & 1 && !doorOpen) return TravelCost.OBSTACLE;
         }
       } else {
         const state2 = doorState(env, ref.door2, forPlayer);
         if (!has(state, StructureFlags.ANYDOOR) && !has(state2, StructureFlags.ANYDOOR)) nextCost = terrainCost(world, newLoc);
-        else if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) return EXPANDED;
+        else if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) return TravelCost.OBSTACLE;
         doorOpen = true;
       }
       if (isDoorTravelCost(nextCost)) {
@@ -530,6 +524,19 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     } else if ((nextCost === TravelCost.SHORE || nextCost === TravelCost.KNEEDEEP || nextCost === TravelCost.DEEPWATER) && nonMerc) {
       nextCost = TravelCost.OBSTACLE;
     }
+    return nextCost;
+  };
+
+  const expand = (cur: OpenHead, dir: number, structIndex: number, backwards: boolean): boolean => {
+    const curLoc = cur.loc;
+    const newLoc = curLoc + (DIRECTION_INCREMENT[dir] as number);
+    if (newLoc < 0 || newLoc >= WORLD_MAX) return EXPANDED;
+    if (visitOnce && used[newLoc] === 1) return EXPANDED;
+    if (world.heights[newLoc] !== world.heights[curLoc]) return EXPANDED;
+    if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) return EXPANDED;
+    if (knownMineBlocks(env, s, newLoc, dest)) return EXPANDED;
+
+    let nextCost = env.pathThroughObstacles ? TravelCost.FLAT : admissionCost(newLoc, dir);
     if (nextCost >= TravelCost.BLOCKED) return EXPANDED;
 
     if (aroundPeople && (newLoc !== dest || copyReachable)) {
