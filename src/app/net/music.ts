@@ -91,11 +91,6 @@ export class PageMusic {
     this.#sync();
   }
 
-  reset(view: MusicView | undefined): void {
-    this.#player?.reset(undefined);
-    this.show(view);
-  }
-
   frames(frames: readonly ViewFrame[]): void {
     for (const frame of frames) if (frame.music) this.show(frame.music);
   }

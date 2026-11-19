@@ -79,11 +79,6 @@ export class MusicPlayer {
     this.#setMode(view.mode);
   }
 
-  reset(view: MusicView | undefined): void {
-    this.#serverMode = null;
-    if (view) this.show(view);
-  }
-
   #setMode(mode: MusicModeName): void {
     if (mode === this.#mode) return;
     this.#mode = mode;

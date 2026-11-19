@@ -29,7 +29,7 @@ export class FrontEndMusicPlayer {
 
   show(mode: FrontEndMusic, session: MusicView | null): void {
     this.#mode = mode;
-    if (mode === 'session') this.page.reset(session ?? NO_MUSIC);
+    if (mode === 'session') this.page.show(session ?? NO_MUSIC);
     else this.page.show(mode === 'mainMenu' ? MAIN_MENU_MUSIC : NO_MUSIC);
   }
 
