@@ -16,7 +16,7 @@ import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { sectorInfo, setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { WorldItemFlags } from '../../../sim/tactical/world-items.ts';
-import type { DrawItem } from '../../draw-list.ts';
+import { type DrawItem, rgb } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
 import { Assignment } from './character-list.ts';
@@ -54,6 +54,11 @@ const RADAR_ITEM_COLUMNS = 88;
 const RADAR_ITEM_ROW = 7;
 const RADAR_FLASH_MS = 210;
 const STASH_GRIDNO = 12_345;
+const GLOW_DELAY_MS = 70;
+const GLOW_RED_STEP = 25;
+const FRAME_MS = 16;
+const HAND_GLOW_X1 = 3;
+const HAND_GLOW_Y1 = 80;
 const PORTRAIT_ICONS = 'interface/portraiticons.sti';
 const ADRENALINE_ICON = 7;
 const DRUNK_ICON = 8;
@@ -155,6 +160,16 @@ function hoverWidget(f: MapUiTest, id: string): void {
   const y = rect.y + Math.floor(rect.height / 2);
   f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
   f.t.frame();
+}
+
+function nudgePointer(f: MapUiTest): void {
+  const { mouseX, mouseY } = f.t.runtime.regions;
+  f.t.runtime.input({ kind: 'pointerMove', x: mouseX + 1, y: mouseY, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
+  f.t.frame();
+}
+
+function handOutlines(f: MapUiTest): DrawItem[] {
+  return f.draw().items.filter((i) => i.kind === 'rectangle' && i.x1 === HAND_GLOW_X1 && i.y1 === HAND_GLOW_Y1);
 }
 
 function textColourIn(f: MapUiTest, id: string): number | undefined {
@@ -1783,6 +1798,79 @@ describe('the map screen team list, plotting and contract rules of the original'
       f.key('Enter');
       await f.settle();
       expect([f.screen.mapInventory.merc.description.open, f.screen.hook().inventoryOpen]).toEqual([false, true]);
+    }));
+
+  it('outlines the hand from the first glow step while the pointer is on it, red 1 up to 10 and down to 0, and drops it as the pointer leaves (GlowItem)', () =>
+    withMap(async (f) => {
+      expect([f.screen.hook().info, f.screen.hook().inventoryOpen]).toEqual([listedMercs(f)[0], false]);
+      f.t.frame(GLOW_DELAY_MS);
+      hoverWidget(f, 'infoHand');
+      expect(f.screen.hook().handGlow).toBeNull();
+      f.t.frame(GLOW_DELAY_MS - FRAME_MS);
+      const colours = [f.screen.hook().handGlow];
+      for (let step = 0; step < 21; step++) {
+        f.t.frame(GLOW_DELAY_MS);
+        colours.push(f.screen.hook().handGlow);
+      }
+      expect(colours).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 1, 2]);
+      expect(handOutlines(f)).toEqual([{ kind: 'rectangle', x1: 3, y1: 80, x2: 64, y2: 104, color: rgb(2 * GLOW_RED_STEP, 0, 0) }]);
+      hoverWidget(f, 'infoFace');
+      expect([f.screen.hook().handGlow, handOutlines(f)]).toEqual([null, []]);
+    }));
+
+  it('holds the hand outline at its colour while the contract menu the c key opens over it is up, as GlowItem runs only without the menus (MapScreen.cc:2018)', () =>
+    withMap(async (f) => {
+      hoverWidget(f, 'infoHand');
+      f.t.frame(GLOW_DELAY_MS);
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      const held = f.screen.hook().handGlow;
+      expect([f.screen.hook().menu, held]).toEqual(['contract', expect.any(Number)]);
+      for (let step = 0; step < 3; step++) f.t.frame(GLOW_DELAY_MS);
+      expect([f.screen.hook().handGlow, handOutlines(f).length]).toEqual([held, 1]);
+      f.key('Escape');
+      f.t.frame(GLOW_DELAY_MS);
+      expect([f.screen.hook().menu, f.screen.hook().handGlow]).not.toEqual([null, held]);
+    }));
+
+  it('lights the hand only while the inventory can be toggled, and a check failing under it ends the glow at the next pointer move, lit again only as the pointer comes back (ItemRegionMvtCallback)', () =>
+    withMap(async (f) => {
+      const [first] = listedMercs(f);
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      await f.click('infoHand');
+      stashClipInSelectedSector(f);
+      f.screen.openSectorInventory();
+      await f.settle();
+      await f.click('poolSlot0');
+      expect([f.screen.hook().info, f.screen.hook().inventoryOpen, f.screen.mapInventory.pool.cursor?.item]).toEqual([
+        first,
+        false,
+        'CLIP9_15',
+      ]);
+      const glowAfterEntering = () => {
+        hoverWidget(f, 'infoFace');
+        hoverWidget(f, 'infoHand');
+        f.t.frame(GLOW_DELAY_MS);
+        return f.screen.hook().handGlow;
+      };
+      const betweenSectors = (between: boolean) => {
+        mercRecord(f, first).betweenSectors = between;
+        f.client.refresh();
+        f.t.frame(GLOW_DELAY_MS);
+      };
+      betweenSectors(true);
+      expect(glowAfterEntering()).toBeNull();
+      betweenSectors(false);
+      expect(glowAfterEntering()).not.toBeNull();
+      betweenSectors(true);
+      expect(f.screen.hook().handGlow).not.toBeNull();
+      nudgePointer(f);
+      expect(f.screen.hook().handGlow).toBeNull();
+      betweenSectors(false);
+      nudgePointer(f);
+      f.t.frame(GLOW_DELAY_MS);
+      expect(f.screen.hook().handGlow).toBeNull();
+      expect(glowAfterEntering()).not.toBeNull();
     }));
 
   it('leaves the sector inventory open on Escape, as its own button closes it (HandleKeyESC)', () =>

@@ -61,7 +61,9 @@
 // @src RequestToggleMercInventoryPanel, MAP_EVENT_CLICK_SECTOR (NS_INVALID_DROPOFF_SECTOR); Map_Screen_Interface.cc
 // @src CreateMapStatusBarsRegion, CreateDestroyInsuranceMouseRegionForMercs (2026-11-18); MapScreen.cc the TeamList*Callbacks
 // @src (no team list input while fLockOutMapScreenInterface is set, but a right click on the sleep column, 2026-11-19);
-// @src CanToggleSelectedCharInventory for every RequestToggleMercInventoryPanel, its description box closed first (2026-11-19).
+// @src CanToggleSelectedCharInventory for every RequestToggleMercInventoryPanel, its description box closed first (2026-11-19);
+// @src ItemRegionMvtCallback and GlowItem (the hand's glow, stepped only without the pre-battle panel, the assignment
+// @src and the contract menus, fShowItemHighLight cleared as the screen is entered, 2026-11-19).
 
 import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -131,6 +133,7 @@ import { type MapEnvironment, MapLayout } from './environment.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from './event-boxes.ts';
 import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn, townOfLabel } from './facts.ts';
 import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnAirspace, turnOnTeams } from './filters.ts';
+import { HandGlow } from './hand-glow.ts';
 import { CornerIcon, cornerIcons, infoGeometry, renderCharacterInfo, statusBarsHelp } from './info-panel.ts';
 import { type InvasionEvent, invasionBoxesOf, invasionText } from './invasion.ts';
 import { LayoutParams, type Params } from './layout-params.ts';
@@ -285,6 +288,7 @@ export interface MapScreenHook {
   readonly filters: MapFilters;
   readonly menu: string | null;
   readonly glow: { readonly line: number; readonly column: number } | null;
+  readonly handGlow: number | null;
   readonly uiMessage: string | null;
   readonly rows: readonly (number | null)[];
   readonly messages: readonly string[];
@@ -347,6 +351,7 @@ export class MapScreen implements Screen {
   #mapLayout: { readonly rect: Point; readonly p: LayoutParams } | null = null;
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
+  readonly #handGlow = new HandGlow();
   #statusBarsRegion: MouseRegion | null = null;
   #cornerIconRegions: MouseRegion[] = [];
   #teamRegions: MouseRegion[][] = [];
@@ -680,6 +685,7 @@ export class MapScreen implements Screen {
       filters: { ...this.filters },
       menu: this.#menus.open ? 'assignment' : this.#contract.open ? 'contract' : null,
       glow: this.#team.glow ? { line: this.#team.glow.line, column: this.#team.glow.column } : null,
+      handGlow: this.#handGlow.colour,
       uiMessage: this.#message.text,
       rows: this.list.slots.map((s) => s.merc),
       messages: this.#messages.lines.map((l) => l.text),
@@ -758,6 +764,7 @@ export class MapScreen implements Screen {
 
   enter(): void {
     this.#entered = true;
+    this.#handGlow.clear();
     this.#view.build();
     const strategic = this.#strategic();
     const world = strategic?.worldSector ? parseSectorLabel(strategic.worldSector) : null;
@@ -913,6 +920,7 @@ export class MapScreen implements Screen {
       cursor: NO_CURSOR,
       owner: OWNER,
       id: 'infoHand',
+      onMove: (_r, reason) => this.#handGlow.pointer(reason, this.#canToggleSelectedCharInventory()),
       onButton: (_r, reason) => {
         if (reason & ANY_BUTTON_UP) this.#toggleInventory();
       },
@@ -1102,6 +1110,7 @@ export class MapScreen implements Screen {
     this.#speech.update(this.#now);
     this.#syncTeamRegions();
     this.#team.update(this.#now);
+    if (this.#glowsRun()) this.#handGlow.step(this.#team.glowTimerExpired);
     this.#followHighLine();
     this.#updateSelectedFlash();
     this.#updateFace();
@@ -1244,6 +1253,10 @@ export class MapScreen implements Screen {
     if (plot.mode === 'heli') return 'CURSOR_CHOPPER';
     const m = mercById(this.#strategic(), plot.soldier);
     return m?.assignment === Assignment.VEHICLE ? 'CURSOR_STRATEGIC_VEHICLE' : 'CURSOR_STRATEGIC_FOOT';
+  }
+
+  #glowsRun(): boolean {
+    return !this.#battle.panel && !this.#menus.showing && !this.#contract.showing;
   }
 
   #compressionAllowedByUi(): boolean {
@@ -2461,7 +2474,11 @@ export class MapScreen implements Screen {
     return {
       mapView: (list, rect, params) => this.#renderMap(list, rect, this.#params(params)),
       characterList: (list, _rect, params) => this.#renderList(list, this.#params(params)),
-      characterInfo: (list, _rect, params) => this.#renderInfo(list, this.#params(params)),
+      characterInfo: (list, _rect, params) => {
+        const p = this.#params(params);
+        this.#renderInfo(list, p);
+        this.#renderHandGlow(list, p);
+      },
       bottomPanel: (list, _rect, params) => this.#renderBottom(list, this.#params(params)),
       radar: (list, rect) => this.#renderRadar(list, rect),
       etaBox: (list, _rect, params) => this.#renderEta(list, this.#params(params)),
@@ -2622,6 +2639,12 @@ export class MapScreen implements Screen {
       if (frame >= 0) list.image(p.asset('icons'), frame, icon.x, icon.y + i * spacing);
     });
     this.#renderHand(list, m, p);
+  }
+
+  #renderHandGlow(list: DrawList, p: LayoutParams): void {
+    const o = this.#origin();
+    const [x1, y1, x2, y2] = p.numbers('handGlow');
+    this.#handGlow.render(list, { x1: o.x + (x1 ?? 0), y1: o.y + (y1 ?? 0), x2: o.x + (x2 ?? 0), y2: o.y + (y2 ?? 0) });
   }
 
   #renderFace(list: DrawList, m: StrategicMercView, at: Point): void {

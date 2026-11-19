@@ -16,7 +16,8 @@
 // @src set, the pointer onto the assignment box's first line, measured on the assignment box for an EPC too; not for the
 // @src remove box of HandleRemoveMenu, 2026-11-15), DetermineBoxPositions, CheckAndUpdateTacticalAssignmentPopUpPositions
 // @src and AdjustBoxPos (the boxes kept on the tactical screen and above the panel, 2026-11-18); UILayout.cc
-// @src (VehiclePosition's y).
+// @src (VehiclePosition's y); MapScreen.cc fShowAssignmentMenu (set from the request on, so while its options load,
+// @src 2026-11-19).
 
 import { idiv } from '../../../core/int.ts';
 import type { AssignmentLine, AssignmentOptions } from '../../../protocol/hints.ts';
@@ -171,6 +172,10 @@ export class AssignmentMenus {
 
   get open(): boolean {
     return this.#main !== null;
+  }
+
+  get showing(): boolean {
+    return this.open || this.#pending;
   }
 
   get soldier(): number {

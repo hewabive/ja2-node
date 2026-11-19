@@ -7,7 +7,8 @@
 // @src (a right click on a line closes the menu), CloseContractMenu; src/game/Strategic/MapScreen.cc
 // @src HandleShadingOfLinesForContractMenu (the shading comes from openContractMenu or the renewal prompt), and
 // @src Map_Screen_Interface.cc CheckIfSalaryIncreasedAndSayQuote (no menu until the merc has said his price went up,
-// @src 2026-11-18).
+// @src 2026-11-18); MapScreen.cc RequestContractMenu's fShowContractMenu (set from the request on, so while its options
+// @src load, 2026-11-19).
 
 import type { ContractOptionView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
@@ -64,6 +65,10 @@ export class ContractMenu {
 
   get open(): boolean {
     return this.#menu !== null;
+  }
+
+  get showing(): boolean {
+    return this.open || this.#pending;
   }
 
   get soldier(): number {

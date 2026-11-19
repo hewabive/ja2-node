@@ -6,13 +6,14 @@
 // @src HandleContractTimeFlashForMercThatIsAboutLeave, the sleep icon at 125 in the sleep column, the selected-character
 // @src arrow, HighLightAssigment/Destination/Sleep/Contract and GlowColor (red 25 × i, rows of a
 // @src selected set framed together, the vehicle gap closing the frame), HandleCommonGlowTimer (GLOW_DELAY 70 ms between
-// @src steps 0..10); Map_Screen_Interface.cc CharacterIsGettingPathPlotted with the glowing destination line as
+// @src steps 0..10, gfGlowTimerExpired read by the hand's glow too, 2026-11-19); Map_Screen_Interface.cc
+// @src CharacterIsGettingPathPlotted with the glowing destination line as
 // @src giDestHighLine (2026-11-02).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import type { StrategicView } from '../../../protocol/view.ts';
-import { type DrawList, rgb } from '../../draw-list.ts';
+import { type DrawList, type RgbColor, rgb } from '../../draw-list.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import { type BitmapFont, fontHeight } from '../../text/bitmap-font.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
@@ -46,7 +47,7 @@ const COLUMN_CONSTANTS = [
 const VEHICLE_GAP = 6;
 const Y_OFFSET = 2;
 const GLOW_DELAY = 70;
-const GLOW_STEPS = 10;
+export const GLOW_STEPS = 10;
 const GLOW_RED_STEP = 25;
 const STARTING_COLOR_NUM = 5;
 const FLASH_MS = 500;
@@ -66,6 +67,10 @@ export function teamGeometry(model: LayoutModel, font: BitmapFont): TeamGeometry
     columns: COLUMN_CONSTANTS.map(([x, w]) => [model.number(x), model.number(w)] as const),
     arrowX: model.number('SELECTED_CHAR_ARROW_X'),
   };
+}
+
+export function glowColour(step: number): RgbColor {
+  return rgb(GLOW_RED_STEP * step, 0, 0);
 }
 
 export function teamRowY(g: TeamGeometry, row: number): number {
@@ -98,6 +103,7 @@ export class TeamListView {
   highLine = NO_CHARACTER;
   #glow: Glow | null = null;
   #glowAt = 0;
+  #glowTimerExpired = false;
   #flash = false;
   #flashAt = 0;
 
@@ -107,6 +113,10 @@ export class TeamListView {
 
   get glow(): Glow | null {
     return this.#glow;
+  }
+
+  get glowTimerExpired(): boolean {
+    return this.#glowTimerExpired;
   }
 
   rowY(row: number): number {
@@ -127,7 +137,8 @@ export class TeamListView {
       this.#flashAt = now;
       this.#flash = !this.#flash;
     }
-    if (now - this.#glowAt < GLOW_DELAY) return;
+    this.#glowTimerExpired = now - this.#glowAt >= GLOW_DELAY;
+    if (!this.#glowTimerExpired) return;
     this.#glowAt = now;
     const glow = this.#glow;
     if (!glow) return;
@@ -172,7 +183,7 @@ export class TeamListView {
     if (!glow) return;
     const [x, w] = this.geometry.columns[glow.column] ?? [0, 0];
     const rows = ctx.characters.isSelected(glow.line) ? ctx.characters.selectedRows() : [glow.line];
-    const colour = rgb(GLOW_RED_STEP * glow.colour, 0, 0);
+    const colour = glowColour(glow.colour);
     const h = this.geometry.ySize + Y_OFFSET;
     const left = ctx.origin.x + x;
     for (const row of rows) {
