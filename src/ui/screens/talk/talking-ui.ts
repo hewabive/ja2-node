@@ -13,8 +13,9 @@
 // @src the region exists), RenderFaceOverlay (every registered overlay shows the talking face while gfFacePanelActive
 // @src is set), ExecuteTacticalTextBox (the box stays where it was created); Faces.cc DeleteFace (SetAutoFaceInActive
 // @src takes the face's overlay down, and a face still talking ends its talking UI as HandleDialogueEnd does) from
-// @src DeleteSoldierFace, for every soldier at a load (SaveLoadGame.cc LoadSavedGame, TrashAllSoldiers) and wherever
-// @src the simulation deletes a soldier's face, his line ending with it (2026-11-09).
+// @src DeleteSoldierFace, for every soldier at a load (SaveLoadGame.cc LoadSavedGame, TrashAllSoldiers) (2026-11-09); a
+// @src face the simulation deletes elsewhere has a popup only while a line of his plays, which its end takes down
+// @src (2026-11-19).
 
 import { type ActiveLine, type SpeechLine, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import type { SubtitlePlace } from './subtitle-box.ts';
@@ -67,7 +68,6 @@ export class TalkingUi {
   #panelActive = false;
   #region: UiPoint | null = null;
   #carriedPopupUp = false;
-  readonly #facesToDelete = new Set<string>();
 
   static of(presenter: SpeechPresenter): TalkingUi {
     let ui = talkingUis.get(presenter);
@@ -97,7 +97,6 @@ export class TalkingUi {
   follow(current: ActiveLine | null, placement: SpeechPlacement, speechOn: boolean): void {
     const line = this.#line;
     if (line && line.id !== current?.line.id) this.#end(line);
-    this.#deleteFacesDoneTalking(current);
     if (!current) return;
     if (!this.#line) this.#create(current.line, placement, speechOn);
     else if (this.#screen !== placement.screen) this.#carry(current.line, placement);
@@ -107,24 +106,10 @@ export class TalkingUi {
     if (this.#region && this.#line) this.#removeOverlayOf(faceOf(this.#line));
   }
 
-  deleteSoldierFace(profile: number): void {
-    this.#facesToDelete.add(faceKey(FaceOwner.SOLDIER, profile));
-  }
-
   deleteSoldierFaces(): void {
-    this.#facesToDelete.clear();
     this.#overlays = this.#overlays.filter((o) => o.owner !== FaceOwner.SOLDIER);
     const line = this.#line;
     if (line && faceOwner(line) === FaceOwner.SOLDIER) this.#end(line);
-  }
-
-  #deleteFacesDoneTalking(current: ActiveLine | null): void {
-    const talking = current ? faceOf(current.line) : null;
-    for (const face of this.#facesToDelete) {
-      if (face === talking) continue;
-      this.#removeOverlayOf(face);
-      this.#facesToDelete.delete(face);
-    }
   }
 
   #create(line: SpeechLine, placement: SpeechPlacement, speechOn: boolean): void {

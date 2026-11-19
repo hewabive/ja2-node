@@ -157,17 +157,6 @@ describe('the talking UI of a line across screens (Dialogue_Control.cc CreateTal
 });
 
 describe('the popups of a face deleted with its soldier (Faces.cc DeleteFace, SetAutoFaceInActive)', () => {
-  it("keeps the popup of a departing merc's face up while his line plays, and the line's end takes it down (StrategicRemoveMerc)", () => {
-    const ui = talkingUi();
-    const merc = line(SpeechSurface.TACTICAL, 3);
-    ui.follow(merc, tactical, true);
-    ui.deleteSoldierFace(merc.line.profile);
-    ui.follow(merc, tactical, false);
-    expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], SCREEN_POPUP]);
-    ui.follow(line(SpeechSurface.EXTERNAL, null, 2), tactical, false);
-    expect([ui.popups, ui.region]).toEqual([[], null]);
-  });
-
   it("keeps an external face's popup and its line at a load, which deletes the soldier faces only (TrashAllSoldiers)", () => {
     const ui = talkingUi();
     ui.follow(line(SpeechSurface.EXTERNAL, null), tactical, true);

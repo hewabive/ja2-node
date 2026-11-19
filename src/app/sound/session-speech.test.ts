@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FakeGraph } from '../../../tests/support/fake-audio.ts';
 import { AudioEngine } from '../../audio/engine.ts';
-import type { ViewFrame } from '../../protocol/view.ts';
 import { type SpeechPlacement, SpeechScreen, TalkingUi, type UiPoint } from '../../ui/screens/talk/talking-ui.ts';
 import { SpeechSurface } from '../../ui/speech.ts';
 import type { SessionClient } from '../net/session-client.ts';
@@ -26,44 +25,7 @@ function say(speech: SessionSpeech, surface: SpeechSurface, soldier: number | nu
   speech.presenter.enqueue({ surface, profile: MERC_PROFILE, soldier, text: 'Hi.', chars: 3, voice: null, sector: null, keyWait: false });
 }
 
-function faceDeleted(profile: number, saidAt?: number): ViewFrame {
-  const deleted = { type: 'soldierFaceDeleted', tick: 1, profile, ...(saidAt !== undefined ? { saidAt } : {}) } as const;
-  return { tick: 1, changed: [], removed: [], events: [deleted] };
-}
-
-function sayWithFacePopup(speech: SessionSpeech): TalkingUi {
-  const ui = TalkingUi.of(speech.presenter);
-  speech.presenter.enqueue({
-    surface: SpeechSurface.TACTICAL,
-    profile: MERC_PROFILE,
-    soldier: 3,
-    text: 'Hi.',
-    chars: 3,
-    voice: null,
-    sector: null,
-    keyWait: false,
-  });
-  ui.follow(speech.presenter.current, tactical, true);
-  return ui;
-}
-
-function popupsAfterTheNextLine(speech: SessionSpeech, ui: TalkingUi): readonly UiPoint[] {
-  speech.presenter.skip(0, true);
-  say(speech, SpeechSurface.EXTERNAL, null);
-  ui.follow(speech.presenter.current, tactical, false);
-  return ui.popups;
-}
-
 describe('the session speech deletes the soldier faces the original deletes (Faces.cc DeleteSoldierFace)', () => {
-  it('keeps the popup of a deleted face up while a line of his still plays, and takes it down with the line (soldierFaceDeleted)', () => {
-    const speech = sessionSpeech();
-    const ui = sayWithFacePopup(speech);
-    speech.frames([faceDeleted(MERC_PROFILE)]);
-    ui.follow(speech.presenter.current, tactical, true);
-    expect(ui.popups).toEqual([SCREEN_POPUP]);
-    expect(popupsAfterTheNextLine(speech, ui)).toEqual([]);
-  });
-
   it('ends at once the box, the popup and the click region of the line the deletion ended (DeleteFace, HandleDialogueEnd)', () => {
     const SAID_AT = 7;
     const speech = sessionSpeech();
@@ -82,7 +44,6 @@ describe('the session speech deletes the soldier faces the original deletes (Fac
     });
     ui.follow(presenter.current, tactical, true);
     expect([ui.popups, ui.region, ui.textBox === null]).toEqual([[SCREEN_POPUP], SCREEN_POPUP, false]);
-    speech.frames([faceDeleted(MERC_PROFILE, SAID_AT)]);
     presenter.endDeletedFace(MERC_PROFILE, SAID_AT);
     ui.follow(presenter.current, tactical, true);
     expect([ui.popups, ui.region, ui.textBox]).toEqual([[], null, null]);

@@ -210,10 +210,11 @@ a line carried to the map takes its popup and click region down (original-bugs "
 line does at its end whatever the speech option (original-bugs "Carried popup after its line", "Popup after its
 line"). A face deleted
 with its soldier takes its popup down (`DeleteFace`): every soldier face at a load in place (`discardLines`), the one
-still talking ending its talking UI as at the end of its line, and the face the simulation deletes as `soldierFaceDeleted`
-comes (a merc leaving, an escort released, a merc married off or turned hostile with his civilian group, the profile
-Larry leaves; `src/app/sound/session-speech.ts`), once a line of his still playing is over, as such a line ended in the
-simulation before the face went. When the event names the line it ended (`saidAt`), the screen hearing the frame ends
+still talking ending its talking UI as at the end of its line. A face the simulation deletes (`soldierFaceDeleted`: a
+merc leaving, an escort released, a merc married off or turned hostile with his civilian group, the profile Larry
+leaves) needs no step of its own: as no popup outlives its line, his face has one only while a line of his still plays,
+and that line's end takes it down, as such a line ended in the simulation before the face went. When the event names
+the line it ended (`saidAt`), the screen hearing the frame ends
 that line's talking UI at once (`SpeechPresenter.endDeletedFace`): no line is current, its box and popup go as
 `HandleDialogueEnd` takes them, and its voice plays on, cut by nothing, before the next line starts (deviation "Speech
 playback"); a line the client has not started yet is dropped.
