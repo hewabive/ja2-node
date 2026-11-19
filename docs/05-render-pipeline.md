@@ -111,7 +111,10 @@ interactive tile by the pixels of the pictures of the shown map (`renderer.shown
 pass sweeps (`app/world/interactive-nodes.ts`, `30`). `picking.ts`'s pixel pick serves the developer pages.
 
 **The picture is the client's.** Room reveals arrive as the view's `revealedRooms`, and the tiles the last sector entry
-or native import revealed as `revealedAtLoad` (`08`); the client applies the original's node flags to both. Every tile
+or native import revealed as `revealedAtLoad` (`08`); the client applies the original's node flags to both. A level
+node holds no pointer to its structure as the original's does (`FindLevelNodeBasedOnStructure`), so the k-th structure
+of a def at its base tile takes the flags of the k-th node of that def there, and each copy of a slanted roof piece a
+map stacks twice on a tile hides (`reveal.ts`, `reveal.test.ts`). Every tile
 revealed so far, the ones sight revealed outside rooms included, arrives as `revealedTiles`, whole with the welcome and
 then as the tiles each frame adds (`revealedTilesAdded`). The wall wire frames follow the original's: every one worked
 out against the tiles the load revealed, then again at each recalculation the simulation names, in order, on its tiles

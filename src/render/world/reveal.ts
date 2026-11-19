@@ -88,14 +88,24 @@ class RevealBuilder {
     });
   }
 
+  #copyIndex(base: StructureInstance): number {
+    const copies = this.#w.structures
+      .at(base.gridNo)
+      .filter((o) => has(o.flags, StructureFlags.BASE_TILE) && o.def === base.def && o.cubeOffset === base.cubeOffset);
+    return copies.indexOf(base);
+  }
+
   #baseNode(s: StructureInstance): { gridNo: number; layer: LayerName; index: number } | null {
     const base = this.#w.structures.findBase(s);
     if (!base) return null;
     const layers: readonly LayerName[] = base.cubeOffset === STRUCTURE_ON_ROOF ? ['roofs', 'objects', 'onRoof'] : ['structs', 'objects'];
+    let copiesBefore = this.#copyIndex(base);
     for (const layer of layers) {
       const list = levelTilesAt(this.#w.level.layers[layer], base.gridNo);
       for (let i = 0; i < list.length; i++) {
-        if (this.#w.tiles[list[i] ?? 0]?.structure === base.def) return { gridNo: base.gridNo, layer, index: i };
+        if (this.#w.tiles[list[i] ?? 0]?.structure !== base.def) continue;
+        if (copiesBefore === 0) return { gridNo: base.gridNo, layer, index: i };
+        copiesBefore--;
       }
     }
     return null;

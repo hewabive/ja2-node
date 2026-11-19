@@ -110,6 +110,19 @@ describe('room reveals find a structure by its base tile', () => {
     expect(computeReveal(w, new Set([ROOM])).nodeFlags('roofs', AT, 0)).toBe(NodeFlags.HIDDEN | NodeFlags.SHOW_THROUGH);
   });
 
+  it('hides every copy of a slanted roof stacked twice on its base tile, pairing each structure with a node of its own', () => {
+    const slanted = tileIndex(tables, 'FIRSTSLANTROOF1');
+    const other = tileIndex(tables, 'FIRSTSLANTROOF2');
+    const defs = new Map([
+      [slanted, syntheticStructure(StructureFlags.SLANTED_ROOF)],
+      [other, syntheticStructure(StructureFlags.SLANTED_ROOF)],
+    ]);
+    const w = syntheticRevealWorld({ roofs: new Map([[AT, [slanted, other, slanted, other]]]), rooms: new Map([[AT, ROOM]]), defs });
+    const reveal = computeReveal(w, new Set([ROOM]));
+    const hiddenThrough = NodeFlags.HIDDEN | NodeFlags.SHOW_THROUGH;
+    expect([0, 1, 2, 3].map((i) => reveal.nodeFlags('roofs', AT, i))).toEqual([hiddenThrough, hiddenThrough, hiddenThrough, hiddenThrough]);
+  });
+
   it("draws a wall end piece's broken-wall wireframe towards a roofed tile", () => {
     const endPiece = tileIndexFromTypeSubIndex(tables, typeIndex(tables, 'FIRSTWALL'), 48);
     const roofTile = tileIndex(tables, 'FIRSTROOF1');
@@ -356,6 +369,22 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('wireframes on A9', () => {
     const rooms = new Set([...w.level.rooms].filter((r) => r !== 0));
     const open = computeReveal(input, rooms);
     expect([...open.touched].some((g) => open.wireframes(g).some((n) => n.optional))).toBe(true);
+  });
+
+  it('hides every copy of the slanted roof pieces the map stacks twice at 18445 and 18446 once their rooms are revealed', async () => {
+    const available = new Set(data.vfs.list().map((f) => f.path));
+    const w = await loadWorld('maps/a9.dat', available, (path) => data.vfs.read(path));
+    const input = { level: w.level, tiles: w.tiles, tables: w.tables, structures: w.structures, basement: false };
+    const open = computeReveal(input, new Set([...w.level.rooms].filter((r) => r !== 0)));
+    const slanted = (g: number) =>
+      [...levelTilesAt(w.level.layers.roofs, g)]
+        .map((tile, index) => ({ tile, index }))
+        .filter(({ tile }) => (w.tiles[tile]?.structure?.flags ?? 0) & StructureFlags.SLANTED_ROOF);
+    for (const g of [18445, 18446]) {
+      const pieces = slanted(g);
+      expect(new Set(pieces.map((p) => p.tile)).size).toBeLessThan(pieces.length);
+      expect(pieces.map((p) => open.nodeFlags('roofs', g, p.index))).toEqual(pieces.map(() => NodeFlags.HIDDEN | NodeFlags.SHOW_THROUGH));
+    }
   });
 });
 
