@@ -33,6 +33,7 @@ import { createItem } from '../items/object.ts';
 import { assignGameOptions } from '../options.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { scheduleInterrogation, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
 import { getSectorFlagStatus, sectorInfo, setSectorFlag } from '../strategic/map/sectors.ts';
@@ -44,6 +45,9 @@ import { PanicFlags } from '../tactical/ai/panic-triggers.ts';
 import { anim } from '../tactical/anim-states.ts';
 import { Detonator, PANIC_FREQUENCY, setDelay, setDetonator, setFrequency } from '../tactical/bombs/bomb-object.ts';
 import { addBlueFlag, knownMineTiles, MineFlag, setMineFlag } from '../tactical/bombs/mine-flags.ts';
+import { handleSoldierDeath } from '../tactical/combat/death.ts';
+import { soldierTakeDamage } from '../tactical/combat/hit.ts';
+import { DamageReason } from '../tactical/combat/types.ts';
 import { perceiveDoor } from '../tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../tactical/doors.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
@@ -75,8 +79,8 @@ import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts
 import { NO_SAVED_SECTOR_CHANGES } from '../tactical/save-import.ts';
 import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
-import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
-import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
+import { Body, NO_PROFILE, NOWHERE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { ourTeamInSectorWithTheDead, sectorMapOf, type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
@@ -106,6 +110,7 @@ const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const LONE_ADMIN = { admins: 1, troops: 0, elites: 0 };
 const WALK_OFF_TICKS = 2000;
+const DEATH_TICKS = 2000;
 const LEAVER_PROFILE = 1;
 const LEFTOVER_SHOCK = 4;
 const LEFTOVER_TILES_MOVED = 3;
@@ -484,6 +489,30 @@ describe('leaving a sector', () => {
     expect(ourSoldiers(campaign)).toEqual([]);
     expect(flowOf(campaign).setCurrentWorldSector(A9)).toBe(true);
     expect(ourSoldiers(campaign).map((s) => s.gridNo)).toEqual(walked);
+  });
+
+  it('gives a dead merc of ours his merc slot back at the next load of his sector, with no tile, so he counts among those who fight there (UpdateMercsInSector, StrategicMap.cc:947-973, Soldier_Add.cc:690, Soldier_Control.cc:1806)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const t = campaign.tactical?.state;
+    const victim = ourSoldiers(campaign)[1];
+    if (!t || !victim) throw new Error('no merc in A9');
+    soldierTakeDamage(t, victim, victim.life, 0, DamageReason.GUNFIRE, null);
+    handleSoldierDeath(t, victim);
+    const deadMerc = () => flowOf(campaign).setup.roster.get(victim.id);
+    runTicks(campaign, DEATH_TICKS, () => deadMerc()?.assignment === Assignment.ASSIGNMENT_DEAD);
+    expect(deadMerc()?.soldier.dead).toBe(true);
+    Object.assign(sectorInfo(campaign.state.map, A10), NO_GARRISON_COUNTS);
+    expect(flowOf(campaign).setCurrentWorldSector(A10)).toBe(true);
+    expect(flowOf(campaign).setCurrentWorldSector(A9)).toBe(true);
+    reloadPoint(campaign);
+    const loaded = campaign.tactical?.state;
+    const dead = deadMerc()?.soldier;
+    if (!loaded || !dead) throw new Error('A9 is not loaded again');
+    expect(loaded.mercSlots.includes(dead)).toBe(true);
+    expect([dead.placed, dead.gridNo]).toEqual([false, NOWHERE]);
+    expect(ourTeamInSectorWithTheDead(loaded).map((s) => s.id)).toContain(victim.id);
+    expect(ourSoldiers(campaign).map((s) => s.id)).not.toContain(victim.id);
   });
 
   it('keeps the crow count drawn at the sector entry (StrategicMap.cc SetCurrentWorldSector)', () => {

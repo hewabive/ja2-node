@@ -30,7 +30,8 @@
 // @src the restart's GetMan (Soldier_Control.cc:1680, 2026-11-09); Strategic/Meanwhile.cc AreInMeanwhile as the restart
 // @src finds it, the events and the clock loaded and gfInMeanwhile not yet (2026-11-09); Tactical/Soldier_Create.cc
 // @src TacticalCopySoldierFromCreateStruct (the default name of his team a save holds for a soldier without a profile) and
-// @src Interface_Dialogue.cc NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE (the nickname a married merc keeps, 2026-11-13).
+// @src Interface_Dialogue.cc NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE (the nickname a married merc keeps, 2026-11-13);
+// @src UpdateMercsInSector's merc slot with no tile for a dead soldier of the loaded sector (SaveLoadGame.cc:1036, 2026-11-19).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -480,7 +481,7 @@ function waitingForTheHelicopterDrop(s: SavedSoldier): boolean {
   return s.strategicInsertionCode === Insertion.CHOPPER;
 }
 
-function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+function inTheLoadedSectorOnArrival(save: SaveGame, s: SavedSoldier): boolean {
   const sector = save.tactical.worldSector;
   return (
     s.active !== 0 &&
@@ -489,7 +490,20 @@ function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
     s.sector.y === sector.y &&
     s.sector.z === sector.z &&
     s.assignment !== Assignment.IN_TRANSIT &&
-    !(s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP))
+    !(s.statusFlags & SoldierStatusFlags.OFF_MAP)
+  );
+}
+
+function enteringTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+  return inTheLoadedSectorOnArrival(save, s) && !(s.statusFlags & SoldierStatusFlags.DEAD);
+}
+
+function deadInTheLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+  return (
+    s.id < TOTAL_SOLDIERS &&
+    inTheLoadedSectorOnArrival(save, s) &&
+    (s.statusFlags & SoldierStatusFlags.DEAD) !== 0 &&
+    !waitingForTheHelicopterDrop(s)
   );
 }
 
@@ -540,6 +554,7 @@ function enteringTheMercSlots(save: SaveGame, s: SavedSoldier): boolean {
 function importSoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSoldiers): number {
   let placed = 0;
   for (const [s, r] of withSavedRecords(save, soldiers)) {
+    if (deadInTheLoadedSector(save, r)) registerSoldier(t, s);
     if (!enteringTheMercSlots(save, r)) continue;
     if (helicopterPassengerInLoadedSector(save, r)) seatInTheHelicopterOnSectorEntry(t, s);
     else placeSoldier(t, s);

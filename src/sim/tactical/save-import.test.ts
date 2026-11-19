@@ -68,7 +68,7 @@ import {
   TOTAL_SOLDIERS,
   Visible,
 } from './soldier.ts';
-import { whoIsThere } from './state.ts';
+import { ourTeamInSectorWithTheDead, whoIsThere } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { WorldItemFlags } from './world-items.ts';
 
@@ -1422,6 +1422,27 @@ describe('a merc in transit whose arrival sector is the loaded one (UpdateMercIn
     const t = importedSim(save).state;
     expect(t.mercSlots.map((s) => s.id)).toEqual([WALKER_ID]);
     expect(t.soldiers[ARRIVING_ID]).toBeUndefined();
+  });
+});
+
+describe('a dead merc of ours in the loaded sector (UpdateMercsInSector from SaveLoadGame.cc:1036)', () => {
+  const ALIVE_ID = 0;
+  const DEAD_ID = 1;
+  const LAST_ID = 2;
+
+  it('takes his merc slot in id order with no tile, as EVENT_SetSoldierPosition leaves a SOLDIER_DEAD soldier off the map (Soldier_Add.cc:690, Soldier_Control.cc:1806)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(ALIVE_ID, Team.OUR, gridNo(80, 82)),
+        savedSoldier(DEAD_ID, Team.OUR, SAVED_NOWHERE, { uiStatusFlags: SOLDIER_DEAD, bLife: 0 }),
+        savedSoldier(LAST_ID, Team.OUR, gridNo(84, 82)),
+      ],
+    });
+    const t = importedSim(save).state;
+    expect(t.mercSlots.map((s) => s.id)).toEqual([ALIVE_ID, DEAD_ID, LAST_ID]);
+    const dead = t.soldiers[DEAD_ID];
+    expect([dead?.placed, dead?.dead]).toEqual([false, true]);
+    expect(ourTeamInSectorWithTheDead(t).map((s) => s.id)).toEqual([ALIVE_ID, DEAD_ID, LAST_ID]);
   });
 });
 

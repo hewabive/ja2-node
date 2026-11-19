@@ -1172,7 +1172,7 @@ export class SectorFlow {
 
   #mercInLoadedSector(m: RosterMerc): boolean {
     const world = this.world;
-    return world !== null && !m.betweenSectors && sameSector(m.sector, world) && m.life > 0;
+    return world !== null && !m.betweenSectors && sameSector(m.sector, world);
   }
 
   updateMercsInSector(options: LoadOptions = {}): void {

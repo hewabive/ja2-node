@@ -7,7 +7,8 @@
 // @src for our mercs too 2026-11-08);
 // @src AddSoldierToSectorGridNo's arrival stance, skipped for a merc already in HELIDROP (2026-11-08), and its
 // @src removePendingAnimation, which drops the pending action too (2026-11-08); UpdateMercInSector's insertion code kept on the
-// @src soldier, as SOLDIERTYPE keeps it (2026-11-09).
+// @src soldier, as SOLDIERTYPE keeps it (2026-11-09); a dead soldier's merc slot with no tile, as EVENT_SetSoldierPosition
+// @src leaves a SOLDIER_DEAD soldier where he is (2026-11-19).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -236,6 +237,7 @@ export function addSoldierToSector(
     return false;
   }
   clearCreatureTensionQuotesSaid(t, s);
+  if (s.dead) return false;
   const spot = sectorEntrySpot(t, s, order, calculateDirection);
   if (!spot || !isVisibleTile(spot.gridNo)) return false;
   const direction = spot.direction >= FORCED_DIRECTION ? spot.direction - FORCED_DIRECTION : spot.direction;
