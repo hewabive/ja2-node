@@ -6,10 +6,12 @@ import {
   recordAttackRolls,
   runUntilIdle,
   spawnSoldier,
+  thickBrushOn,
 } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
+import { emptyObject } from '../items/object.ts';
 import { UnsuppliedFieldError } from '../knowledge/guard.ts';
 import { apsToDropBomb } from '../tactical/bombs/planting.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -60,6 +62,26 @@ describe('the item cursor of the hand item', () => {
       data: { cursor: 'bomb', apCost: apsToDropBomb(sim.state, sapper, free) },
     });
     expect(estimateAttack(sim, { soldier: 0, target: PATIENT_AT })).toMatchObject({ ok: true, data: { cursor: 'bomb', apCost: 0 } });
+  });
+});
+
+describe('the walk up to a melee target', () => {
+  it('plots the direct path through dear ground for directPath, the walk Shift plots (UIPlotPath gfPlotDirectPath)', () => {
+    const brush = [gridNo(81, 80), gridNo(82, 80), gridNo(83, 80), gridNo(84, 80)];
+    const victimAt = gridNo(86, 80);
+    const sim = newCombatSim(content, [], 3, new Set(), thickBrushOn(brush));
+    const boxer = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.EAST);
+    boxer.inv[InvSlot.HAND] = emptyObject();
+    spawnSoldier(sim, 20, Team.ENEMY, victimAt, Direction.WEST);
+    sim.lookAround();
+    const walk = (directPath: boolean) =>
+      estimateAttack(sim, { soldier: 0, target: victimAt, ...(directPath ? { directPath } : {}) }).data as {
+        readonly walkTo: number;
+        readonly steps: readonly { readonly gridNo: number }[];
+      };
+    expect(walk(false).walkTo).toBe(gridNo(85, 80));
+    expect(walk(false).steps.map((step) => step.gridNo)).not.toEqual(brush);
+    expect(walk(true).steps.map((step) => step.gridNo)).toEqual(brush);
   });
 });
 

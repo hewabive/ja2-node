@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { addSyntheticCrate, hintAnswer, knowledgeOf, newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { addSyntheticCrate, hintAnswer, knowledgeOf, newCombatSim, spawnSoldier, thickBrushOn } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
 import { createItem } from '../items/object.ts';
@@ -96,6 +96,19 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     addItemToPool(sim.state, ORIGIN + 2 * EAST, pistol(), Visibility.VISIBLE, 0, WorldItemFlags.DONTRENDER, 40);
     expect(action(sim, 'pickUp', ORIGIN + 2 * EAST, { zLevel: 0 })).toMatchObject({ ok: false, refusal: 'nothingThere' });
     expect(action(sim, 'pickUp', ORIGIN + 2 * EAST)).toMatchObject({ ok: true, actionGridNo: ORIGIN + 2 * EAST });
+  });
+
+  it('walks up along the direct path through dear ground for directPath, the walk Shift plots, with its APs (UIPlotPath gfPlotDirectPath)', () => {
+    const brush = [ORIGIN + EAST, ORIGIN + 2 * EAST, ORIGIN + 3 * EAST, ORIGIN + 4 * EAST];
+    const sim = newCombatSim(content, [], 3, new Set(), thickBrushOn(brush));
+    spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const pistol = createItem(content.items, content.items.byName.get('GLOCK_17')?.index ?? 0, 100);
+    addItemToPool(sim.state, ORIGIN + 5 * EAST, pistol, Visibility.VISIBLE, 0);
+    const around = action(sim, 'pickUp', ORIGIN + 5 * EAST);
+    const direct = action(sim, 'pickUp', ORIGIN + 5 * EAST, { directPath: true });
+    expect(around.steps.map((step) => step.gridNo)).not.toEqual(brush);
+    expect(direct.steps.map((step) => step.gridNo)).toEqual(brush);
+    expect(direct.apCost).toBeGreaterThan(around.apCost);
   });
 
   it('searches a tile that shows no item, hidden items or none, for the walk plus AP_PICKUP_ITEM of a pickup there', () => {

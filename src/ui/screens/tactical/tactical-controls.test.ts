@@ -21,6 +21,7 @@ import { FontColor } from '../../../content/text/font-colors.ts';
 import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
 import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
 import type { DoorMenuOption, PreviewAction, PreviewMove } from '../../../protocol/hints.ts';
+import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { ClimbView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { createSandboxSession, STUB_SANDBOX_MAP } from '../../../server/sandbox.ts';
 import { Session } from '../../../server/session.ts';
@@ -303,6 +304,28 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.world.markers.some((m) => m.gridNo === tile)).toBe(true);
     await f.clickAt(at.x, at.y);
     expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: tile });
+  });
+
+  it('asks for the direct path in the move preview while Shift is held, as UIPlotPath plots it under SHIFT (PathAI.cc gfPlotDirectPath)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const asked: CommandEnvelope[] = [];
+    const hint = f.client.hint.bind(f.client);
+    f.client.hint = (request) => {
+      asked.push(request);
+      return hint(request);
+    };
+    const tile = merc(f, 0).gridNo + 3;
+    const at = f.world.pickPoint(tile);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    const movePreviews = () => asked.filter((request) => request.type === 'previewMove' && request.to === tile);
+    expect(movePreviews().length).toBeGreaterThan(0);
+    expect(movePreviews().some((request) => 'directPath' in request)).toBe(false);
+    asked.length = 0;
+    f.t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
+    await f.settle(4);
+    expect(movePreviews().length).toBeGreaterThan(0);
+    expect(movePreviews().every((request) => request.directPath === true)).toBe(true);
   });
 
   it('selects the next squad mate when the selected merc falls into a coma under the cursor', async () => {

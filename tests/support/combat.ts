@@ -1,6 +1,8 @@
 import { expect } from 'vitest';
 import { Orientation } from '../../src/content/formats/jsd.ts';
 import type { MapDef } from '../../src/content/formats/map.ts';
+import { DIRECTION_COUNT } from '../../src/content/world/grid.ts';
+import { TravelCost } from '../../src/content/world/movement-costs.ts';
 import { StructureFlags, type WorldStructures } from '../../src/content/world/structures.ts';
 import { type SyntheticWorld, syntheticMap, syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
@@ -52,6 +54,12 @@ export function addSyntheticCrate(structures: WorldStructures, at: number): void
     partnerDelta: -1,
   };
   structures.add(at, 0, closed, undefined, { structureCount: 2, auxData: null, tileLocations: [], structures: [closed, open] });
+}
+
+export function thickBrushOn(tiles: readonly number[]): (world: SyntheticWorld) => void {
+  return (world) => {
+    for (const g of tiles) for (let dir = 0; dir < DIRECTION_COUNT; dir++) world.costs.force(g, dir, 0, TravelCost.THICK);
+  };
 }
 
 export function newCombatSim(

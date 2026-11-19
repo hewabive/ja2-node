@@ -67,7 +67,8 @@
 // @src cursor over a vehicle at ground level) and UIMouseOnValidAttackLocation (REPAIRCURS, REFUELCURS) (2026-11-05);
 // @src Turn_Based_Input.cc HandleUIReloading (the bad reload cursor's click taken too, as reload with cursor, 2026-11-14);
 // @src Spread_Burst.cc AccumulateBurstLocation (each new tile with the pointer's world point, GetMouseWorldCoords or 0,0
-// @src off the map, 2026-11-14).
+// @src off the map, 2026-11-14); PathAI.cc UIPlotPath (the direct path while SHIFT is held, for every DrawUIMovementPath
+// @src walk, 2026-11-19).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { exitGridCursorShownOver } from '../../../../content/world/exit-grid-cursor.ts';
@@ -194,6 +195,19 @@ const CRAWL = 'crawl';
 const MODE_CYCLE: Readonly<Record<string, string>> = { run: WALK, walk: SWAT, swat: CRAWL, crawl: RUN };
 const STANCE_MOVE_MODES: Readonly<Record<Stance, MoveModeName>> = { run: RUN, stand: WALK, crouch: SWAT, prone: CRAWL };
 const TALKABLE = new Set(['npc', 'epc', 'civilian']);
+const UI_PLOTTED_HINTS: ReadonlySet<string> = new Set(['previewMove', 'estimateAttack']);
+const UI_PLOTTED_ACTIONS: ReadonlySet<unknown> = new Set([
+  'door',
+  'pickUp',
+  'steal',
+  'aid',
+  'bomb',
+  'cutFence',
+  'jar',
+  'can',
+  'repair',
+  'refuel',
+]);
 
 export type MoveModeName = 'walk' | 'run' | 'swat' | 'crawl';
 export type Lock = 'none' | 'enemyTurn' | 'ourTurn' | 'helicopterDrop' | 'interface';
@@ -1283,7 +1297,7 @@ export class TacticalInput {
   async #confirmWhenPlotted(mapPos: number): Promise<void> {
     const sel = this.#sel();
     if (!sel) return;
-    const answer = await hintNow<PreviewMove>(this.#env().client, this.#moveRequest(sel, mapPos));
+    const answer = await hintNow<PreviewMove>(this.#env().client, this.#plottedAsShown(this.#moveRequest(sel, mapPos)));
     if (answer.state !== 'ok' || this.#mapPos() !== mapPos || this.#mode !== UiMode.MOVE_MODE) return;
     this.#currentAp = answer.data.apCost;
     if (answer.data.apCost === 0) {
@@ -2061,7 +2075,15 @@ export class TacticalInput {
   }
 
   #hint<T>(request: CommandEnvelope): HintState<T> {
-    return hintState<T>(this.#env().client, request);
+    return hintState<T>(this.#env().client, this.#plottedAsShown(request));
+  }
+
+  #shiftHeld(): boolean {
+    return (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0;
+  }
+
+  #plottedAsShown(request: CommandEnvelope): CommandEnvelope {
+    return this.#shiftHeld() && plotsUiPath(request) ? { ...request, directPath: true } : request;
   }
 
   #moveRequest(sel: SoldierView, to: number): CommandEnvelope {
@@ -2504,7 +2526,7 @@ export class TacticalInput {
   }
 
   #plots(): boolean {
-    return this.#combat() || (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0 || this.#env().display().alwaysShowMovementPath;
+    return this.#combat() || this.#shiftHeld() || this.#env().display().alwaysShowMovementPath;
   }
 
   #drawMovementPath(sel: SoldierView, mapPos: number, target: MoveUiTarget): boolean {
@@ -3420,6 +3442,10 @@ export class TacticalInput {
     this.#rtLeftHold = true;
     this.#doSpread = false;
   }
+}
+
+function plotsUiPath(request: CommandEnvelope): boolean {
+  return UI_PLOTTED_HINTS.has(request.type) || (request.type === 'previewAction' && UI_PLOTTED_ACTIONS.has(request.kind));
 }
 
 function adjustedStance(height: string, change: number): 'stand' | 'crouch' | 'prone' | null {

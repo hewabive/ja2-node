@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { Orientation, type StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import { Direction, gridNo, WORLD_MAX } from '../../content/world/grid.ts';
-import { parseDoorCostTable } from '../../content/world/movement-costs.ts';
+import { parseDoorCostTable, TravelCost } from '../../content/world/movement-costs.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
@@ -97,6 +97,25 @@ describe('findBestPath', () => {
     const e = env();
     expect(findBestPath(e, soldier(START), gridNo(85, 80), 0).steps).toEqual([EAST, EAST, EAST, EAST, EAST]);
     expect(findBestPath(e, soldier(START), gridNo(83, 83), 0).steps).toEqual([SOUTHEAST, SOUTHEAST, SOUTHEAST]);
+  });
+
+  it('walks the direct path through dear ground when told to, every step but the destination at the flat cost (gfPlotDirectPath)', () => {
+    const e = env();
+    for (let x = 81; x <= 84; x++) for (let dir = 0; dir < 8; dir++) e.world.costs.force(gridNo(x, 80), dir, 0, TravelCost.THICK);
+    const straight = [EAST, EAST, EAST, EAST, EAST];
+    expect(findBestPath(e, soldier(START), gridNo(85, 80), 0).steps).not.toEqual(straight);
+    expect(findBestPath(e, soldier(START), gridNo(85, 80), 0, { directPath: true }).steps).toEqual(straight);
+  });
+
+  it('paths through anything, every step at the flat cost, while the path around obstacles is off (gfPathAroundObstacles)', () => {
+    const wall = (s: WorldStructures) => {
+      for (let x = 75; x <= 85; x++) s.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT));
+    };
+    const e = env(wall);
+    for (let dir = 0; dir < 8; dir++) e.world.costs.force(gridNo(80, 78), dir, 0, TravelCost.THICK);
+    expect(findBestPath(e, soldier(START), gridNo(80, 77), 0).length).toBeGreaterThan(3);
+    e.pathThroughObstacles = true;
+    expect(findBestPath(e, soldier(START), gridNo(80, 77), 0).steps).toEqual([NORTH, NORTH, NORTH]);
   });
 
   it('stops as soon as the destination heads the open list, even on a dearer path', () => {

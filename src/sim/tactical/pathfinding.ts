@@ -4,7 +4,7 @@
 // @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water.
 // @src 2026-11-04: FindBestPath's mine checks (MAPELEMENT_ENEMY_MINE_PRESENT, MAPELEMENT_PLAYER_MINE_PRESENT).
 // @src 2026-11-06: FindBestPath's gubGlobalPathFlags.
-// @src 2026-11-18: FindBestPath's gfPathAroundObstacles.
+// @src 2026-11-18: FindBestPath's gfPathAroundObstacles and gfPlotDirectPath.
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -110,6 +110,7 @@ export interface PathOptions {
   readonly plotToExitGrid?: boolean;
   readonly maxTrailTree?: number;
   readonly estimate?: boolean;
+  readonly directPath?: boolean;
 }
 
 export interface PathResult {
@@ -559,6 +560,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
       closeGoodEnough = false;
     }
     if (newLoc === dest) nextCost = 0;
+    else if (options.directPath) nextCost = TravelCost.FLAT;
     if (waterToWater && waterCost(nextCost)) nextCost = EASYWATERCOST;
     if (dir & 1) nextCost = idiv(nextCost * 14, 10);
     if (backwards) nextCost += BACKWARDS_STEP_PENALTY;

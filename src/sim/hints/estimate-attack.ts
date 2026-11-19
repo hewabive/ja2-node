@@ -4,7 +4,8 @@
 // @src below OK_CHANCE_TO_GET_THROUGH, InRange), HandleNonActivatedTossCursor (the launchable attachment, the
 // @src under-barrel launcher in attached mode, CalculateLaunchItemChanceToGetThrough with the landing level); Weapons.cc
 // @src InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
-// @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid);
+// @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid; SHIFT's
+// @src direct path, 2026-11-19);
 // @src UI_Cursors.cc HandleBombCursor (GetTotalAPsToDropBomb, 2026-11-04); the gamepolicy(show_hit_chance) gates of
 // @src HandleNonActivatedTargetCursor and HandleNonActivatedTossCursor, off in externalized/game.json (2026-11-15);
 // @src gfCannotGetThrough, the cursor's only mark of the chance to get through (2026-11-16).
@@ -37,7 +38,7 @@ import type { WeaponModeView } from '../tactical/soldier-view.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
-import { plotWalk } from './walk-plot.ts';
+import { plotsDirectPath, plotWalk } from './walk-plot.ts';
 
 export const OK_CHANCE_TO_GET_THROUGH = 10;
 const MELEE_CHANCE_TO_GET_THROUGH = 100;
@@ -100,6 +101,7 @@ export interface EstimateAttackRequest extends HintRequestBase {
   readonly burst?: unknown;
   readonly weaponMode?: unknown;
   readonly mode?: unknown;
+  readonly directPath?: unknown;
 }
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
@@ -225,6 +227,7 @@ function estimateStrike(
   cursor: number,
   base: EstimateBase,
   policy: HitChancePolicy,
+  directPath: boolean,
 ): EstimateAttack {
   const victim = whoIsThere(t, target, level);
   const hand = s.inv[InvSlot.HAND] as ItemObject;
@@ -254,7 +257,7 @@ function estimateStrike(
     ...shownGetThrough(chanceToGetThrough, policy),
     inRange: melee ? true : inRange(t, s, target),
     ammo: ammoState(t, s, cursor),
-    ...(melee ? { inReach: meleeSpot(t, s, target, level) !== null, ...(victim ? meleeWalk(t, s, victim, level) : {}) } : {}),
+    ...(melee ? { inReach: meleeSpot(t, s, target, level) !== null, ...(victim ? meleeWalk(t, s, victim, level, directPath) : {}) } : {}),
   };
 }
 
@@ -267,11 +270,17 @@ function strikesFromHere(t: TacticalState, s: Soldier, victim: Soldier, level: n
   return false;
 }
 
-function meleeWalk(t: TacticalState, s: Soldier, victim: Soldier, level: number): { walkTo?: number; steps?: readonly Footstep[] } {
+function meleeWalk(
+  t: TacticalState,
+  s: Soldier,
+  victim: Soldier,
+  level: number,
+  directPath: boolean,
+): { walkTo?: number; steps?: readonly Footstep[] } {
   if (strikesFromHere(t, s, victim, level)) return {};
   const approach = findAdjacentGridEx(t, s, victim.gridNo, true);
   if (!approach || approach.actionGridNo === s.gridNo) return {};
-  return { walkTo: approach.actionGridNo, steps: plotWalk(t, s, approach.actionGridNo, s.uiMovementMode, level).steps };
+  return { walkTo: approach.actionGridNo, steps: plotWalk(t, s, approach.actionGridNo, s.uiMovementMode, level, directPath).steps };
 }
 
 function nobodyToStrike(t: TacticalState, s: Soldier, cursor: number, base: EstimateBase, policy: HitChancePolicy): EstimateAttack {
@@ -380,7 +389,7 @@ export function estimateAttack(
       if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(t, s, target, cursor, base, policy));
       if (cursor === ItemCursor.TOSS || cursor === ItemCursor.TRAJECTORY)
         return hintData(estimateThrow(t, s, target, level, aim, cursor === ItemCursor.TRAJECTORY, base, policy));
-      return hintData(estimateStrike(t, s, target, level, aim, cursor, base, policy));
+      return hintData(estimateStrike(t, s, target, level, aim, cursor, base, policy, plotsDirectPath(req.directPath)));
     },
   );
 }

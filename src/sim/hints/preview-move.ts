@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOnTerrain (the height check, CANNOT_MOVE_UICURSOR), DrawUIMovementPath
 // @src (MOVEUI_TARGET_NONE), SelectedMercCanAffordMove (first step plus stance change); Overhead.cc UIOKMoveDestination;
-// @src PathAI.cc UIPlotPath, PlotPath.
+// @src PathAI.cc UIPlotPath (SHIFT's gfPlotDirectPath, 2026-11-19), PlotPath.
 
 import { isVisibleTile } from '../../content/world/grid.ts';
 import { withTemporaryFields } from '../knowledge/guard.ts';
@@ -15,6 +15,7 @@ import { type Footstep, plotPathSteps } from '../tactical/plot-path.ts';
 import { apsToChangeStance, enoughPoints, ptsToMoveDirection } from '../tactical/points.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
+import { interfaceLevelOf, plotsDirectPath } from './walk-plot.ts';
 
 export type MoveDestination = 'ok' | 'blocked' | 'heightDiffers' | 'robotUncontrolled';
 
@@ -33,6 +34,7 @@ export interface PreviewMoveRequest extends HintRequestBase {
   readonly mode?: unknown;
   readonly reverse?: unknown;
   readonly level?: unknown;
+  readonly directPath?: unknown;
 }
 
 function destinationOf(acting: ActingSoldier, to: number, level: number): MoveDestination {
@@ -54,16 +56,17 @@ export function previewMove(world: KnowledgeWorld, req: PreviewMoveRequest): Hin
     return refuseHint('badDestination', 'destination must be a visible gridNo');
   const { state: t, soldier: s } = acting;
   const mode = movementModeState(t, s, req.mode);
-  return withTemporaryFields(s, { uiMovementMode: mode, reverse: req.reverse === true }, () => plotMove(acting, to, mode, req.level));
+  return withTemporaryFields(s, { uiMovementMode: mode, reverse: req.reverse === true }, () => plotMove(acting, to, mode, req));
 }
 
-function plotMove(acting: ActingSoldier, to: number, mode: number, level: unknown): HintResult<PreviewMove> {
+function plotMove(acting: ActingSoldier, to: number, mode: number, req: PreviewMoveRequest): HintResult<PreviewMove> {
   const { state: t, soldier: s } = acting;
-  const interfaceLevel = level === 1 ? 1 : level === 0 ? 0 : s.level;
+  const interfaceLevel = interfaceLevelOf(s, req.level);
   const destination = destinationOf(acting, to, interfaceLevel);
   const refusal = acting.blocked ? { refusal: acting.blocked } : {};
   if (destination !== 'ok' || s.level !== interfaceLevel) return hintData({ destination, ...NOT_PLOTTED, ...refusal });
-  const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.NONE, mode: pathMoveMode(t.content, mode) });
+  const directPath = plotsDirectPath(req.directPath);
+  const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.NONE, mode: pathMoveMode(t.content, mode), directPath });
   if (route.length === 0) return hintData({ destination, ...NOT_PLOTTED, ...refusal });
   const plotted = plotPathSteps(t, s, route.steps, mode, { plot: true, budget: s.actionPoints });
   const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };

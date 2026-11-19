@@ -589,7 +589,10 @@ squad's first merc; the current squad itself changes nothing. `previewMove`'s `a
 more he walks until his APs run out (`stopped` with `outOfAPs`). Whether the whole path fits his turn is `apCost`
 against his `actionPoints`, the check that turns the cursor's AP figure red (`HandleUIMovementCursor`,
 `Handle_UI.cc:2956`); per tile, the footsteps in `steps` (every tile before the destination) take band 4 from where no
-movement mode reaches on his APs (in real time every band is 4). A new `move` re-plans a halted move for any merc
+movement mode reaches on his APs (in real time every band is 4). `directPath: true` asks `previewMove`, `previewAction`
+and the melee walk-up of `estimateAttack` for the path the cursor plots while Shift is held (`UIPlotPath`,
+`Tactical/PathAI.cc:2355-2358`): the search costs every passable step but the last as flat ground, so the footsteps and
+the AP figure are those of the most direct walk; the order itself searches its own path. A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
 give, first aid or a robot reload), as `UIHandleCMoveMerc` does. No order asks a merc on the move to stop first, as
 the original's clicks and keys never do: `door` and `pickUp` give him a new path from where he is and drop what he was

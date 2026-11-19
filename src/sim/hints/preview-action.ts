@@ -76,7 +76,7 @@ import {
 import { isVehicleBody, vehicleTypeOfBody } from '../vehicles/vehicle-list.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
-import { interfaceLevelOf, plotWalk } from './walk-plot.ts';
+import { interfaceLevelOf, plotsDirectPath, plotWalk } from './walk-plot.ts';
 
 export const SUPPORTED_ACTIONS = [
   'door',
@@ -132,6 +132,7 @@ export interface PreviewActionRequest extends HintRequestBase {
   readonly index?: unknown;
   readonly cursor?: unknown;
   readonly account?: unknown;
+  readonly directPath?: unknown;
 }
 
 interface ActionContext {
@@ -141,6 +142,7 @@ interface ActionContext {
   readonly g: number;
   readonly level: number;
   readonly mode: number;
+  readonly directPath: boolean;
   readonly target: Soldier | null;
 }
 
@@ -155,7 +157,7 @@ function refused(c: ActionContext, refusal: string, actionGridNo = c.g): ActionP
 }
 
 function walkTo(c: ActionContext, to: number) {
-  return to === c.s.gridNo ? { cost: 0, steps: NO_STEPS } : plotWalk(c.t, c.s, to, c.mode, c.level);
+  return to === c.s.gridNo ? { cost: 0, steps: NO_STEPS } : plotWalk(c.t, c.s, to, c.mode, c.level, c.directPath);
 }
 
 type Arrival = Pick<Soldier, 'desiredDirection' | 'doorHandleCode'>;
@@ -498,7 +500,8 @@ export function previewAction(world: KnowledgeWorld, req: PreviewActionRequest):
   const level = interfaceLevelOf(s, req.level);
   const mode = movementModeState(t, s, req.mode);
   return withTemporaryFields(s, { uiMovementMode: mode, reverse: false }, () => {
-    const c: ActionContext = { world, t, s, g, level, mode, target: targetOf(world, t, req, g, level) };
+    const directPath = plotsDirectPath(req.directPath);
+    const c: ActionContext = { world, t, s, g, level, mode, directPath, target: targetOf(world, t, req, g, level) };
     return hintData(complete(acting, kind as ActionKind, preview(c, kind as ActionKind, req)));
   });
 }
