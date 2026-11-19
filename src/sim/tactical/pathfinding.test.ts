@@ -118,6 +118,16 @@ describe('findBestPath', () => {
     expect(findBestPath(e, soldier(START), gridNo(80, 77), 0).steps).toEqual([NORTH, NORTH, NORTH]);
   });
 
+  it('keeps the tiles a flood reached when its trail tree runs out, as the reachable flags stay set', () => {
+    const SMALL_TRAIL_TREE = 10;
+    const flood = findBestPath(env(), soldier(START), NOWHERE, 0, { copy: PathCopy.REACHABLE, maxTrailTree: SMALL_TRAIL_TREE });
+    const reached = [...(flood.reachable ?? [])].flatMap((flag, g) => (flag ? [g] : []));
+    expect(reached).toContain(START);
+    expect(reached.length).toBeGreaterThan(1);
+    expect(reached.length).toBeLessThan(SMALL_TRAIL_TREE);
+    expect(flood.reachedDestination).toBe(false);
+  });
+
   it('stops as soon as the destination heads the open list, even on a dearer path', () => {
     expect(findBestPath(env(), soldier(START), gridNo(82, 81), 0).steps).toEqual([SOUTHEAST, EAST]);
   });

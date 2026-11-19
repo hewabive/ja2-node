@@ -66,11 +66,13 @@ where, placing a soldier, bullets and thrown objects. `isVisibleTile` is the clo
 where the original has no test: agent API gridno validation and the insertion guard.
 
 **The path search.** It orders by travel cost, never by AP, so walking, running and crawling find the same path; the
-mode matters for an AI budget, multi-tile structures and the AP total. Globals of the original are per-call options, but
-for `gubGlobalPathFlags`, which auto-bandage's patient search raises on `PathEnv.globalFlags` around its loop (`12` §8). A
-heap pops in the original's skip-list order without its draws (deviation "Pathfinder RNG"). The pool of 1022 open nodes
-and the trail limit are kept, so long searches fail where the original's do; reachability floods pass the larger limit
-the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. A step onto a tile
+mode matters for an AI budget, multi-tile structures and the AP total. Globals of the original are per-call options
+(`gfPlotDirectPath` is `directPath`, which the cursor hints pass while Shift is held), but for `gubGlobalPathFlags`,
+which auto-bandage's patient search raises on `PathEnv.globalFlags` around its loop (`12` §8), and `gfPathAroundObstacles`,
+which the walk-in of a cave lowers on `PathEnv.pathThroughObstacles`. A heap pops in the original's skip-list order
+without its draws (deviation "Pathfinder RNG"). The pool of 1022 open nodes and the trail limit are kept, so long
+searches fail where the original's do, and a flood that runs out keeps the tiles it reached; reachability floods pass the
+larger limit the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. A step onto a tile
 its side knows to hold a mine is skipped: the friendly side keeps off the player's mine flag, which our team may end its
 path on, the others off the enemy's (`12` §6). Players path with the perceived door state and never through a closed
 door; others go through a closed door that is unlocked, has no record in the map's door table or opens with their keys.

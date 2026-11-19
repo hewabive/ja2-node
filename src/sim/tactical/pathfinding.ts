@@ -582,6 +582,11 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     return EXPANDED;
   };
 
+  const flood = (reached: Uint8Array, reachedDestination: boolean): PathResult =>
+    apCosts
+      ? { length: 0, steps: [], reachable: reached, apCosts, reachedDestination }
+      : { length: 0, steps: [], reachable: reached, reachedDestination };
+
   let cnt = 0;
   let loopStart = 0;
   let loopEnd = 0;
@@ -626,7 +631,8 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
             } else break;
           }
         } else if (structures && !fits(cur.loc, structIndex)) canTurn = false;
-        if (canTurn && expand(cur, cnt, structIndex, loopState === Looping.REVERSE) === ABORTED) return NO_PATH;
+        if (canTurn && expand(cur, cnt, structIndex, loopState === Looping.REVERSE) === ABORTED)
+          return reachable ? flood(reachable, false) : NO_PATH;
       }
       toNextDirection = false;
       cnt = loopState === Looping.CLOCKWISE ? oneCCDirection(cnt) : oneCDirection(cnt);
@@ -636,12 +642,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   }
 
   const head = open.head();
-  if (reachable) {
-    const reachedDestination = dest !== NOWHERE && head?.loc === dest;
-    return apCosts
-      ? { length: 0, steps: [], reachable, apCosts, reachedDestination }
-      : { length: 0, steps: [], reachable, reachedDestination };
-  }
+  if (reachable) return flood(reachable, dest !== NOWHERE && head?.loc === dest);
   if (!head || head.loc !== dest) return NO_PATH;
   const steps: number[] = [];
   for (let z = head.trail; z !== 0; z = trailPrev[z] as number) steps.push(trailDir[z] as number);
