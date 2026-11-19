@@ -5,6 +5,7 @@ import type { StrategicContent } from '../../../content/strategic/strategic-cont
 import { initStrategicLayerMap } from '../map/init.ts';
 import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../map/knowledge.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { EventKind } from '../time/constants.ts';
 import { Assignment, SectorFlag } from './constants.ts';
 import { getGroup } from './groups.ts';
 import type { StrategicContext } from './ports.ts';
@@ -13,8 +14,10 @@ import {
   cancelPathOfCharacterWithRoute,
   clearPathAfterThisSectorForCharacter,
   confirmPathForCharacter,
+  copyPathToAllSelectedCharacters,
   PathEdit,
   plotPathForCharacter,
+  rebuildWayPointsForAllSelectedCharsGroups,
 } from './routes.ts';
 import { addCharacterToSquad } from './squads.ts';
 
@@ -127,5 +130,42 @@ describe('what the player knows about enemies', () => {
     const m = mercs.get(0);
     if (m) Object.assign(m, { asleep: true });
     expect(whatPlayerKnowsAboutEnemiesInSector(ctx, S('A9'))).toBe(EnemyKnowledge.HOW_MANY);
+  });
+});
+
+describe('the selected list at a plotting click and at the confirm (MapScreen.cc CopyPathToAllSelectedCharacters, RebuildWayPointsForAllSelectedCharsGroups)', () => {
+  function twoSquadsInA9() {
+    const world = squadInA9();
+    world.mercs.add({ id: 2, sector: S('A9') });
+    addCharacterToSquad(world.ctx, 2, 1);
+    return world;
+  }
+
+  const squadGroup = (ctx: StrategicContext, squad: number) => getGroup(ctx, ctx.state.forces.squadGroupIds[squad] ?? 0);
+  const aboutToArrive = (ctx: StrategicContext, group: number | undefined) =>
+    ctx.state.queue.events.filter((e) => e.kind === EventKind.GROUP_ABOUT_TO_ARRIVE && e.param === group).length;
+
+  it('rebuilds each selected group once, one on foot with the plotting merc path though its own differs (MapScreen.cc:5609-5660)', () => {
+    const { ctx, mercs } = twoSquadsInA9();
+    plotPathForCharacter(ctx, 2, S('A11'));
+    plotPathForCharacter(ctx, 0, S('C9'));
+    const plotter = mercs.get(0);
+    if (!plotter) throw new Error('no plotting merc');
+    rebuildWayPointsForAllSelectedCharsGroups(ctx, plotter, [0, 1, 2]);
+    expect(squadGroup(ctx, 0)).toMatchObject({ betweenSectors: true, next: S('B9'), waypoints: [S('C9')] });
+    expect(aboutToArrive(ctx, squadGroup(ctx, 0)?.id)).toBe(1);
+    expect(squadGroup(ctx, 1)).toMatchObject({ betweenSectors: true, next: S('B9'), waypoints: [S('C9')] });
+    expect(mercs.get(2)?.path).toEqual(route('A9', 'A10', 'A11'));
+  });
+
+  it("copies the plotting merc's path to the others selected, his own path left as it is", () => {
+    const { ctx, mercs } = twoSquadsInA9();
+    plotPathForCharacter(ctx, 0, S('C9'));
+    const plotter = mercs.get(0);
+    if (!plotter) throw new Error('no plotting merc');
+    copyPathToAllSelectedCharacters(ctx, plotter, [2, 0], route('A9', 'B9'));
+    expect(mercs.get(2)?.path).toEqual(route('A9', 'B9'));
+    expect(plotter.path).toEqual(route('A9', 'B9', 'C9'));
+    expect(squadGroup(ctx, 1)?.betweenSectors).toBe(false);
   });
 });

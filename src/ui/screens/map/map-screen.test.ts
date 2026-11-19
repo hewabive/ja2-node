@@ -1477,14 +1477,21 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook()).toMatchObject({ filters: { airspace: false }, plotting: { mode: 'merc' } });
     }));
 
-  it('confirms an unchanged path of a merc with his quote and the confirmed message (CheckIfClickOnLastSectorInPath)', () =>
+  it('confirms an unchanged path of a merc for the mercs selected then, with his quote and the confirmed message (CheckIfClickOnLastSectorInPath, RebuildWayPointsForAllSelectedCharsGroups)', () =>
     withMap(async (f) => {
       await plotMercRoute(f, 0, 'C13');
       f.key('Escape');
       f.sounds.length = 0;
       await f.click('teamRow0.destination');
       await f.clickSector('C13');
-      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'route', to: 'C13' });
+      const routes = f.client.commands.filter((c) => c.cmd.type === 'route');
+      expect(routes.at(-1)?.cmd).toEqual({
+        type: 'route',
+        soldier: f.screen.list.slots[0]?.merc,
+        to: 'C13',
+        selected: f.screen.list.selectedIds(),
+      });
+      expect(f.screen.list.selectedIds()).toHaveLength(4);
       expect(f.screen.hook().uiMessage).toBe(ROUTE_CONFIRMED);
       expect(f.sounds.some((s) => s.startsWith('confirmRoute'))).toBe(true);
     }));
@@ -1518,6 +1525,48 @@ describe('the map screen team list, plotting and contract rules of the original'
       });
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED });
       expect(f.client.view.strategic?.helicopter).toMatchObject({ airborne: true, hovering: false });
+    }));
+
+  it('keeps plotting for its merc through a squad selection, each click and the confirm acting on the mercs selected then (SelectAllCharactersInSquad, MapScreen.cc:7830, :2315, :5569)', () =>
+    withMap(async (f) => {
+      const [plotter, other] = listedMercs(f);
+      expect((await f.client.command({ type: 'assignSquad', soldier: other, squad: 'new' })).ok).toBe(true);
+      await f.settle();
+      const otherSquad = f.client.view.strategic?.mercs.find((m) => m.id === other)?.squad ?? -1;
+      await f.click(`teamRow${rowOf(f, plotter)}.destination`);
+      f.key(String(otherSquad + 1), 0, `Digit${otherSquad + 1}`);
+      await f.settle();
+      expect(f.screen.hook().plotting).toMatchObject({ soldier: plotter, mode: 'merc' });
+      expect(f.screen.list.selectedIds()).toEqual([other]);
+      await f.hoverSector('C13', PLOT_REST_MS);
+      await f.clickSector('C13');
+      await f.clickSector('C13');
+      expect(lastCommand(f)).toMatchObject({
+        cmd: { type: 'route', soldier: plotter, to: 'C13', extend: true, selected: [other] },
+        reply: { ok: true },
+      });
+      expect(lastCommand(f)?.cmd).not.toHaveProperty('selectedPerLeg');
+      const groupOf = (id: number | undefined) => f.client.view.strategic?.groups.find((g) => g.members.includes(id ?? -1));
+      expect(groupOf(other)).toMatchObject({ betweenSectors: true, next: 'C13' });
+      expect(groupOf(plotter)).toMatchObject({ betweenSectors: false });
+    }));
+
+  it('keeps plotting while the sector inventory is open, which takes the map clicks, and goes on once it closes (OpenSectorInventory, MapScreen.cc:2236)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      f.key('i', KeyModifier.CTRL, 'KeyI');
+      await f.settle();
+      expect(f.screen.mapInventory.pool.open).toBe(true);
+      expect(f.screen.hook()).toMatchObject({ plotting: { mode: 'merc', legs: [] }, glow: { line: 0, column: TeamColumn.DESTINATION } });
+      await f.clickSector('C13');
+      expect(f.screen.hook().plotting?.legs).toEqual([]);
+      f.key('i', KeyModifier.CTRL, 'KeyI');
+      await f.settle();
+      expect(f.screen.mapInventory.pool.open).toBe(false);
+      await f.hoverSector('C13', PLOT_REST_MS);
+      await f.clickSector('C13');
+      await f.clickSector('C13');
+      expect(lastCommand(f)).toMatchObject({ cmd: { type: 'route', to: 'C13' }, reply: { ok: true } });
     }));
 
   it('says the route is unchanged wherever plotting is given up by the sort buttons, the contract menu or the arrows (AbortMovementPlottingMode)', () =>

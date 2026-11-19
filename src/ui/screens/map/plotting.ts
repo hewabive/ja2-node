@@ -10,7 +10,8 @@
 // @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter; HandleNewDestConfirmation through a click
 // @src on the end of an unchanged path, the helicopter's too (2026-11-18); SHIFT read by FindStratPath at each plotting
 // @src click, the helicopter's too, MAP_EVENT_PLOT_PATH's SectorIsPassable for a merc, the confirm of an empty path, the
-// @src helicopter's too (2026-11-19).
+// @src helicopter's too, the selected list of each plotting click and of the confirm (CopyPathToAllSelectedCharacters,
+// @src RebuildWayPointsForAllSelectedCharsGroups) (2026-11-19).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -81,6 +82,7 @@ export class Plotting {
   #base: readonly string[];
   #legs: string[] = [];
   #legShortest: boolean[] = [];
+  #legSelected: (readonly number[])[] = [];
   #shortest = false;
   #hover: Sector | null = null;
   #hoverSince = 0;
@@ -211,7 +213,7 @@ export class Plotting {
     return this.tempAnswer()?.etaMinutes ?? 0;
   }
 
-  click(sector: Sector, plottable = true): PlotClick {
+  click(sector: Sector, plottable = true, selected: readonly number[] = []): PlotClick {
     const label = sectorLabel({ ...sector, z: 0 });
     if (sameLabel(label, this.lastSectorOrOrigin())) return { kind: 'confirm' };
     if (!plottable) return { kind: 'ignored' };
@@ -219,6 +221,7 @@ export class Plotting {
     if (!answer || answer.temp.length === 0) return answer === undefined ? { kind: 'ignored' } : { kind: 'offRoad' };
     this.#legs.push(label);
     this.#legShortest.push(this.#shortest);
+    this.#legSelected.push([...selected]);
     return { kind: 'appended' };
   }
 
@@ -236,6 +239,7 @@ export class Plotting {
     if (at < legsStart || this.#legs.length === 0) {
       this.#legs = [];
       this.#legShortest = [];
+      this.#legSelected = [];
       this.#pathAnswer = null;
       return { kind: 'shortenBase', at: label };
     }
@@ -244,26 +248,30 @@ export class Plotting {
     const cut = legEnds.findIndex((end) => end >= at);
     this.#legs = [...kept.map((leg) => this.#legs[leg] as string), label];
     this.#legShortest = [...kept.map((leg) => this.#legShortest[leg] === true), this.#legShortest[cut] === true];
+    this.#legSelected = [...kept.map((leg) => this.#legSelected[leg] ?? []), this.#legSelected[cut] ?? []];
     this.#pathAnswer = null;
     return { kind: 'shortenLegs' };
   }
 
-  #reconfirmedPath(): CommandEnvelope | null {
+  #reconfirmedPath(selected: readonly number[]): CommandEnvelope | null {
     if (this.group) return null;
-    if (this.mode === 'merc') return { type: 'route', soldier: this.soldier, to: this.lastSectorOrOrigin() };
-    return { type: 'heliRoute', to: this.lastSectorOrOrigin(), extend: true, plotted: true };
+    const to = this.lastSectorOrOrigin();
+    if (this.mode === 'merc') return { type: 'route', soldier: this.soldier, to, selected: [...selected] };
+    return { type: 'heliRoute', to, extend: true, plotted: true, selected: [...selected] };
   }
 
-  confirmCommand(): CommandEnvelope | null {
-    if (this.#legs.length === 0) return this.#reconfirmedPath();
+  confirmCommand(selected: readonly number[] = []): CommandEnvelope | null {
+    if (this.#legs.length === 0) return this.#reconfirmedPath(selected);
     const to = this.#legs[this.#legs.length - 1] as string;
     const via = this.#legs.slice(0, -1);
     const viaPart = via.length > 0 ? { via } : {};
     const shortest = shortestField(this.#legShortest);
-    if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, ...shortest, extend: true, plotted: true };
+    if (this.mode === 'heli')
+      return { type: 'heliRoute', to, ...viaPart, ...shortest, extend: true, plotted: true, selected: [...selected] };
     const group = this.group;
     if (group) return { type: 'routeGroup', soldiers: [...group], to, ...viaPart, ...shortest };
-    return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true };
+    const perLeg = selectedPerLegField(this.#legSelected, selected);
+    return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true, selected: [...selected], ...perLeg };
   }
 
   confirmedRoute(): ConfirmedRoute | null {
@@ -273,17 +281,19 @@ export class Plotting {
   cancelledRoute(): ConfirmedRoute | null {
     return this.group ? null : { mode: this.mode, soldier: this.soldier, path: [] };
   }
-
-  routeFor(soldier: number): CommandEnvelope | null {
-    const command = this.confirmCommand();
-    if (!command || this.#legs.length === 0 || this.mode === 'heli' || this.group) return null;
-    return { ...command, soldier };
-  }
 }
 
 function shortestField(legs: readonly boolean[]): { readonly shortest?: boolean | readonly boolean[] } {
   if (!legs.includes(true)) return {};
   return legs.includes(false) ? { shortest: [...legs] } : { shortest: true };
+}
+
+function selectedPerLegField(
+  legs: readonly (readonly number[])[],
+  atConfirm: readonly number[],
+): { readonly selectedPerLeg?: readonly (readonly number[])[] } {
+  const same = (ids: readonly number[]) => ids.join(',') === atConfirm.join(',');
+  return legs.every(same) ? {} : { selectedPerLeg: legs.map((ids) => [...ids]) };
 }
 
 export function pathSectors(path: readonly string[]): Sector[] {

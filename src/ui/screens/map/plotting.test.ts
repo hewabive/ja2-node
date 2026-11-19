@@ -54,34 +54,65 @@ describe('route plotting on the map screen', () => {
     expect(client.asked[0]).toEqual({ type: 'previewRoute', soldier: SOLDIER, to: 'C13', extend: true });
     expect(plot.tempPath()).toEqual(['D13', 'C13']);
     expect(plot.etaMinutes()).toBe(90);
-    expect(plot.click(sector('C13'))).toEqual({ kind: 'appended' });
+    expect(plot.click(sector('C13'), true, [SOLDIER])).toEqual({ kind: 'appended' });
     expect(plot.legs).toEqual(['C13']);
     expect(plot.lastSectorOrOrigin()).toBe('C13');
-    expect(plot.click(sector('C13'))).toEqual({ kind: 'confirm' });
-    expect(plot.confirmCommand()).toEqual({ type: 'route', soldier: SOLDIER, to: 'C13', extend: true });
-    expect(plot.routeFor(SOLDIER + 1)).toMatchObject({ soldier: SOLDIER + 1, to: 'C13' });
+    expect(plot.click(sector('C13'), true, [SOLDIER])).toEqual({ kind: 'confirm' });
+    expect(plot.confirmCommand([SOLDIER])).toEqual({ type: 'route', soldier: SOLDIER, to: 'C13', extend: true, selected: [SOLDIER] });
   });
 
-  it("confirms a merc's unchanged path with a route to its end, for him alone (HandleNewDestConfirmation, MapScreen.cc:5586)", () => {
+  it("confirms a merc's unchanged path with a route to its end for the mercs selected then (CheckIfClickOnLastSectorInPath, MapScreen.cc:5569)", () => {
     const plot = new Plotting('merc', SOLDIER, ROW, 'D13', ['C13', 'B13']);
     expect(plot.click(sector('B13'))).toEqual({ kind: 'confirm' });
-    expect(plot.confirmCommand()).toEqual({ type: 'route', soldier: SOLDIER, to: 'B13' });
-    expect(plot.routeFor(SOLDIER + 1)).toBeNull();
+    expect(plot.confirmCommand([SOLDIER, SOLDIER + 1])).toEqual({
+      type: 'route',
+      soldier: SOLDIER,
+      to: 'B13',
+      selected: [SOLDIER, SOLDIER + 1],
+    });
+  });
+
+  it('keeps the selected list of each plotting click and sends them when one differs from the list at the confirm (MapScreen.cc:2315)', async () => {
+    const client = new FakePlotClient(routes);
+    const plot = new Plotting('merc', SOLDIER, ROW, 'D13', []);
+    await rest(plot, client, 'C13', 0);
+    plot.click(sector('C13'), true, [SOLDIER, SOLDIER + 1]);
+    await rest(plot, client, 'B13', 1000);
+    plot.click(sector('B13'), true, [SOLDIER]);
+    expect(plot.confirmCommand([SOLDIER])).toMatchObject({
+      to: 'B13',
+      via: ['C13'],
+      selected: [SOLDIER],
+      selectedPerLeg: [[SOLDIER, SOLDIER + 1], [SOLDIER]],
+    });
+    expect(plot.confirmCommand([SOLDIER, SOLDIER + 1])).toMatchObject({ selected: [SOLDIER, SOLDIER + 1] });
+    plot.update(client, 2000);
+    await Promise.resolve();
+    await Promise.resolve();
+    plot.shorten(sector('C13'));
+    expect(plot.confirmCommand([SOLDIER, SOLDIER + 1])).not.toHaveProperty('selectedPerLeg');
   });
 
   it('confirms a merc or the helicopter without a path at its own sector, and an unchanged helicopter path again (CheckIfClickOnLastSectorInPath)', () => {
-    expect(new Plotting('merc', SOLDIER, ROW, 'D13', []).confirmCommand()).toEqual({ type: 'route', soldier: SOLDIER, to: 'D13' });
+    expect(new Plotting('merc', SOLDIER, ROW, 'D13', []).confirmCommand()).toEqual({
+      type: 'route',
+      soldier: SOLDIER,
+      to: 'D13',
+      selected: [],
+    });
     expect(new Plotting('heli', SOLDIER, ROW, 'D13', []).confirmCommand()).toEqual({
       type: 'heliRoute',
       to: 'D13',
       extend: true,
       plotted: true,
+      selected: [],
     });
     expect(new Plotting('heli', SOLDIER, ROW, 'D13', ['C13']).confirmCommand()).toEqual({
       type: 'heliRoute',
       to: 'C13',
       extend: true,
       plotted: true,
+      selected: [],
     });
   });
 
@@ -111,6 +142,7 @@ describe('route plotting on the map screen', () => {
       via: ['C13'],
       shortest: [false, true],
       extend: true,
+      selected: [],
     });
   });
 
@@ -149,8 +181,7 @@ describe('route plotting on the map screen', () => {
     await rest(plot, client, 'C13', 0);
     expect(client.asked[0]).toEqual({ type: 'previewHeliRoute', to: 'C13', extend: true });
     plot.click(sector('C13'));
-    expect(plot.confirmCommand()).toEqual({ type: 'heliRoute', to: 'C13', extend: true, plotted: true });
-    expect(plot.routeFor(SOLDIER)).toBeNull();
+    expect(plot.confirmCommand([SOLDIER])).toEqual({ type: 'heliRoute', to: 'C13', extend: true, plotted: true, selected: [SOLDIER] });
   });
 
   it('plots the helicopter the direct way while Shift is held, as its group is a player group (Strategic_Pathing.cc:348-352)', async () => {
@@ -160,7 +191,7 @@ describe('route plotting on the map screen', () => {
     await rest(plot, client, 'C13', 0);
     expect(client.asked[0]).toEqual({ type: 'previewHeliRoute', to: 'C13', shortest: true, extend: true });
     plot.click(sector('C13'));
-    expect(plot.confirmCommand()).toEqual({ type: 'heliRoute', to: 'C13', shortest: true, extend: true, plotted: true });
+    expect(plot.confirmCommand()).toEqual({ type: 'heliRoute', to: 'C13', shortest: true, extend: true, plotted: true, selected: [] });
   });
 });
 

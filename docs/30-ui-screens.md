@@ -274,7 +274,10 @@ out-of-gas box by `pVehicleStrings`. A vehicle in sight that is not ours carries
 (`29`).
 
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
-the legs stay in the client until the confirming click sends one `route` per group (deviation "Map route plotting");
+the legs stay in the client, each with the selected list of its click, until the confirming click sends one `route` with
+them and the list at the confirm (deviation "Map route plotting"). The plot stays with the merc it started for: a
+squad's number key only changes the selected list, and the sector inventory opened over it takes the map clicks until
+it closes (`Strategic/MapScreen.cc:7830`, `:2236`);
 the move box's Done regroups at once with `regroupForMove`, so Esc during the plot that follows leaves the new squads,
 and its confirm sends one `routeGroup` for the movers. Each leg keeps the Shift of its own click, the helicopter's too,
 and a merc's click on a sector nobody can pass through does nothing (`map/plotting.ts`). A click on the end of an

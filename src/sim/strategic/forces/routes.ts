@@ -5,7 +5,8 @@
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup; MapScreen.cc (the plotting legs: each leg built
 // @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters);
 // @src MapScreen.cc CancelPathsOfAllSelectedCharacters, MAP_EVENT_PLOT_PATH's SectorIsPassable, Strategic_Pathing.cc
-// @src FindStratPath's SHIFT read at each leg, PlotPathForCharacter's underground message (2026-11-19).
+// @src FindStratPath's SHIFT read at each leg, PlotPathForCharacter's underground message (2026-11-19); MapScreen.cc
+// @src CopyPathToAllSelectedCharacters at each plotting click, RebuildWayPointsForAllSelectedCharsGroups (2026-11-19).
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { isValidSector, type Sector, sameSector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
@@ -122,6 +123,7 @@ export type PlotRefusal = (typeof PlotRefusal)[keyof typeof PlotRefusal];
 
 export interface PlottedLegs {
   readonly path: readonly number[];
+  readonly vias: readonly (readonly number[])[];
   readonly temp: readonly number[] | null;
 }
 
@@ -155,23 +157,76 @@ export function plotLegs(
   options: PlotLegOptions = {},
 ): PlottedLegs | PlotRefusal {
   let path: readonly number[] = start;
+  const vias: (readonly number[])[] = [];
   for (const [leg, sector] of via.entries()) {
     if (!canPlotLegTo(ctx, sector, options.helicopter)) return PlotRefusal.BAD_SECTOR;
     const direct = isLegShortest(options.shortest, leg);
     const section = buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(sector), g, { direct });
     if (!section) return PlotRefusal.NO_ROUTE;
     path = appendStrategicPath(section, path);
+    vias.push(path);
   }
   const direct = isLegShortest(options.shortest, via.length);
   const temp = isTheCursorAllowedToHighLightThisSector(ctx, to)
     ? buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(to), g, { direct })
     : null;
-  return { path, temp };
+  return { path, vias, temp };
 }
 
 export function plottedRoute(legs: PlottedLegs, origin: number, to: Sector): number[] | null {
   if (legs.temp) return appendStrategicPath(legs.temp, legs.path);
   return lastSectorOfPath(legs.path, origin) === strategicIndex(to) ? [...legs.path] : null;
+}
+
+export function pathAfterEachLeg(legs: PlottedLegs, origin: number, to: Sector): (readonly number[])[] | null {
+  const route = plottedRoute(legs, origin, to);
+  if (!route) return null;
+  return legs.temp ? [...legs.vias, route] : [...legs.vias];
+}
+
+function sharesPathWith(plotter: StrategicMerc, m: StrategicMerc): boolean {
+  if (inOrIsVehicle(plotter)) return inOrIsVehicle(m) && m.vehicleId === plotter.vehicleId;
+  return m.id === plotter.id;
+}
+
+export function copyPathToAllSelectedCharacters(
+  ctx: StrategicContext,
+  plotter: StrategicMerc,
+  selected: readonly number[],
+  path: readonly number[],
+): void {
+  for (const id of selected) {
+    const m = ctx.mercs.get(id);
+    if (!m || sharesPathWith(plotter, m)) continue;
+    if (!inOrIsVehicle(m)) m.path = [...path];
+    else {
+      const v = ctx.state.forces.vehicles[m.vehicleId];
+      if (v) v.path = [...path];
+    }
+  }
+}
+
+function groupToRebuild(ctx: StrategicContext, plotter: StrategicMerc, m: StrategicMerc): { groupId: number; path: readonly number[] } {
+  if (!inOrIsVehicle(m)) return { groupId: m.groupId, path: plotter.path };
+  const v = ctx.state.forces.vehicles[m.vehicleId];
+  return { groupId: v?.movementGroup ?? 0, path: v?.path ?? [] };
+}
+
+export function rebuildWayPointsForAllSelectedCharsGroups(
+  ctx: StrategicContext,
+  plotter: StrategicMerc,
+  selected: readonly number[],
+): void {
+  const rebuilt = new Set<number>();
+  for (const id of selected) {
+    const m = ctx.mercs.get(id);
+    if (!m) continue;
+    const { groupId, path } = groupToRebuild(ctx, plotter, m);
+    if (rebuilt.has(groupId)) continue;
+    rebuilt.add(groupId);
+    const g = getGroup(ctx, groupId);
+    if (g) rebuildWayPointsForGroupPath(ctx, path, g);
+  }
 }
 
 export function setPathForCharacter(ctx: StrategicContext, id: number, path: readonly number[]): void {

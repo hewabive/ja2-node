@@ -8,7 +8,12 @@ import { initStrategicMovementCosts } from '../map/init.ts';
 import { Assignment } from './constants.ts';
 import { getGroup } from './groups.ts';
 import { FACT_OK_USE_HUMMER } from './helicopter.ts';
-import { cancelPathOfCharacterWithRoute, confirmPathForCharacter, plotPathForCharacter } from './routes.ts';
+import {
+  cancelPathOfCharacterWithRoute,
+  confirmPathForCharacter,
+  plotPathForCharacter,
+  rebuildWayPointsForAllSelectedCharsGroups,
+} from './routes.ts';
 import { addCharacterToSquad, initSquads, initVehicles } from './squads.ts';
 import { addVehicleToList, killAllInVehicle, removeSoldierFromVehicle, takeSoldierOutOfVehicle } from './vehicles.ts';
 
@@ -111,6 +116,12 @@ describe('the route of a ground vehicle', () => {
     expect(cancelPathOfCharacterWithRoute(ctx, VEHICLE_SOLDIER)).toBe(true);
     expect(v.path).toEqual([]);
     expect(g).toMatchObject({ betweenSectors: true, sector: S('E13'), next: S('D13') });
+  });
+
+  it("rebuilds with the vehicle's own path when the selected list is confirmed, whoever plots (MapScreen.cc:5626-5643)", () => {
+    const { ctx, v } = plottedHummer();
+    rebuildWayPointsForAllSelectedCharsGroups(ctx, member(ctx, 1), [1, 0]);
+    expect(getGroup(ctx, v.movementGroup)).toMatchObject({ betweenSectors: true, next: S('E13'), waypoints: [S('E13')] });
   });
 
   it('is cancelled when its last passenger leaves, whatever the vehicle soldier holds (Vehicles.cc:356 reads the vehicle path)', () => {

@@ -84,6 +84,24 @@ describe('strategic movement permission', () => {
     expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toMatchObject({ ok: true });
   });
 
+  it('checks the selected mercs travelling with him too, outside his group (CanEntireMovementGroupMercIsInMove, Map_Screen_Interface.cc:3887-3899)', () => {
+    const test = createTestCampaign(kit, { seed: 5, mercs: 3, garrison: EMPTY });
+    landFirstSquad(test.campaign);
+    addCharacterToUniqueSquad(strategic(test.campaign), 2);
+    const other = test.roster.get(2);
+    if (!other) throw new Error('no third merc');
+    other.soldier.life = 5;
+    expect(canEntireMovementGroupMove(strategic(test.campaign), 0, PEACE)).toBeNull();
+    expect(canEntireMovementGroupMove(strategic(test.campaign), 0, PEACE, [0, 2])).toEqual({
+      refusal: MoveRefusal.TOO_INJURED,
+      soldier: 2,
+    });
+    expect(test.campaign.dispatch({ type: 'route', soldier: 0, to: 'B9', selected: [0, 2] })).toMatchObject({
+      ok: false,
+      data: { refusal: MoveRefusal.TOO_INJURED, soldier: 2 },
+    });
+  });
+
   it('checks every merc travelling in the same group and names the one who cannot move, as the custom errors print s.name', () => {
     const { campaign, roster } = landed();
     const other = roster.get(1);

@@ -4,7 +4,7 @@
 // @src Assignments.cc PlayerSoldierTooTiredToTravel (through MercPort.tooTiredToTravel); Tactical/Squads.cc
 // @src IsRobotControllerInSquad and Tactical/Vehicles.cc IsRobotControllerInVehicle (through MercPort); the bloodcat
 // @src ambush and the museum chalice checks of CanCharacterMoveInStrategic (2026-11-01); StrategicMap.cc
-// @src CanGoToTacticalInSector (2026-11-18).
+// @src CanGoToTacticalInSector (2026-11-18); CanEntireMovementGroupMercIsInMove's selected mercs (2026-11-19).
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { MuseumRooms } from '../../tactical/narrative/constants.ts';
@@ -132,13 +132,20 @@ export function canCharacterMoveInStrategic(ctx: StrategicContext, m: StrategicM
   return null;
 }
 
-export function canEntireMovementGroupMove(ctx: StrategicContext, id: number, loaded: LoadedSectorStatus): MoveBlock | null {
+export function canEntireMovementGroupMove(
+  ctx: StrategicContext,
+  id: number,
+  loaded: LoadedSectorStatus,
+  selected: readonly number[] = [],
+): MoveBlock | null {
   const merc = ctx.mercs.get(id);
   if (!merc) return null;
   const own = blocked(merc, canCharacterMoveInStrategic(ctx, merc, loaded));
   if (own) return own;
+  const travelling = new Set(selected);
   for (const other of ctx.mercs.all()) {
-    if (other.id === id || merc.groupId === 0 || other.groupId !== merc.groupId) continue;
+    const sameGroup = merc.groupId !== 0 && other.groupId === merc.groupId;
+    if (other.id === id || !(sameGroup || travelling.has(other.id))) continue;
     const block = blocked(other, canCharacterMoveInStrategic(ctx, other, loaded));
     if (block) return block;
   }

@@ -1959,7 +1959,7 @@ export class MapScreen implements Screen {
   #plotClick(s: Sector): void {
     const plot = this.#plot;
     if (!plot) return;
-    const result = plot.click(s, plot.mode === 'heli' || sectorIsPassable(this.#env.facts, s));
+    const result = plot.click(s, plot.mode === 'heli' || sectorIsPassable(this.#env.facts, s), this.list.selectedIds());
     if (result.kind === 'confirm') void this.#confirmPlot();
     else if (result.kind === 'offRoad') this.#uiMessage(this.#text(MAP_ERROR, OFF_ROAD));
     else if (result.kind === 'appended' && plot.mode === 'merc')
@@ -1972,12 +1972,11 @@ export class MapScreen implements Screen {
     this.#plot = null;
     this.#team.stopGlow();
     this.#message.end();
-    const confirmed = plot.confirmCommand();
-    if (!confirmed) {
+    const command = plot.confirmCommand(this.list.selectedIds());
+    if (!command) {
       this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
       return;
     }
-    const command = plot.mode === 'heli' ? { ...confirmed, selected: [...this.list.selectedIds()] } : confirmed;
     const reply = await this.#untilSettled(plot.confirmedRoute(), () => this.#env.client.command(command));
     if (!reply.ok) {
       const text = this.#moveRefusalText(reply, plot.soldier);
@@ -1989,7 +1988,6 @@ export class MapScreen implements Screen {
       return;
     }
     if (plot.mode === 'heli') return;
-    await this.#routeOtherSelected(plot);
     this.#confirmByRandomMerc(plot.soldier);
     this.#uiMessage(this.#text(MAP_PLOT, Plot.CONFIRMED));
   }
@@ -2000,19 +1998,6 @@ export class MapScreen implements Screen {
       return await send();
     } finally {
       if (this.#confirmed === route) this.#confirmed = null;
-    }
-  }
-
-  async #routeOtherSelected(plot: Plotting): Promise<void> {
-    const strategic = this.#strategic();
-    const groupOf = (id: number) => (strategic ? groupOfMerc(strategic, id)?.id : undefined);
-    const done = new Set<number | undefined>([groupOf(plot.soldier)]);
-    for (const id of this.list.selectedIds()) {
-      const group = groupOf(id);
-      if (id === plot.soldier || (group !== undefined && done.has(group))) continue;
-      done.add(group);
-      const command = plot.routeFor(id);
-      if (command) await this.#env.client.command(command);
     }
   }
 
@@ -2144,7 +2129,6 @@ export class MapScreen implements Screen {
 
   openSectorInventory(): void {
     if (this.#sectorInventoryOpen) return;
-    this.#dropPlot();
     this.#inventory.openPool();
     this.#sectorInventoryOpen = true;
   }
@@ -2197,7 +2181,6 @@ export class MapScreen implements Screen {
     const rows = this.list.slots.flatMap((_s, i) => (this.#mercAt(i)?.squad === squad ? [i] : []));
     const first = rows[0];
     if (first === undefined) return;
-    this.#dropPlot();
     this.list.changeInfo(first, true);
     for (const r of rows) this.list.setSelected(r, true);
     const m = this.#mercAt(first);

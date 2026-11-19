@@ -28,8 +28,7 @@ describe('plotting for the move box', () => {
     expect(c.requests).toEqual([{ type: 'previewRoute', soldier: 3, to: 'C13', shortest: true, alone: true }]);
     expect(plot.click({ x: 13, y: 3, z: 0 })).toEqual({ kind: 'appended' });
     plot.shortest = false;
-    expect(plot.confirmCommand()).toEqual({ type: 'routeGroup', soldiers: [3, 1], to: 'C13', shortest: true });
-    expect(plot.routeFor(1)).toBeNull();
+    expect(plot.confirmCommand([3, 1])).toEqual({ type: 'routeGroup', soldiers: [3, 1], to: 'C13', shortest: true });
     expect(plot.hadPath).toBe(false);
   });
 });
