@@ -1452,7 +1452,9 @@ carries no music and no sound.
   hook (`src/app/game/ui-hook.ts`) serve the e2e tests and frame measurements (`28`).
 - **Diagnostics.** Ctrl+F on any screen toggles Stracciatella's FPS overlay (`src/sgp/FPS.cc`) with ja2-node's own
   lines: the pointed cell, frames and the page's JavaScript time per frame, the ping round trip and the server's
-  event-loop delay, playback lag, the oldest unanswered request and the slowest reply, the session's input queue, and
+  event-loop delay, playback lag and `behind server` (the pong's tick less the shown tick: a frame or two while the
+  real-time driver runs, since every frame point sends a frame, `src/server/realtime-playback-stub.test.ts`), the
+  oldest unanswered request and the slowest reply, the session's input queue, and
   the open `/vfs` reads; a line turns light red past its threshold (`src/ui/diagnostics-overlay.ts` draws,
   `src/app/game/diagnostics.ts` samples). While the overlay is on the client sends `ping {id}` once a second; the
   WebSocket answers outside the command order with `pong {id, health}`: `SessionHost.health()` gives the tick, the
