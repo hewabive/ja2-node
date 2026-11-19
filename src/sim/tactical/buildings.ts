@@ -9,7 +9,7 @@ import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, pythSpacesAway, WORLD_MAX } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { roamingRange } from './ai/destinations.ts';
-import { findBestPath, newOKDestination, PathCopy, type PathSoldier } from './pathfinding.ts';
+import { DUMMY_SOLDIER_ID, findBestPath, newOKDestination, PathCopy, type PathSoldier } from './pathfinding.ts';
 import { Side, type Soldier, Team } from './soldier.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
 
@@ -45,7 +45,7 @@ function wallExists(t: TacticalState, g: number, orientation: number): boolean {
 
 function fakeRoofSoldier(g: number): PathSoldier {
   return {
-    id: 0,
+    id: DUMMY_SOLDIER_ID,
     team: Team.ENEMY,
     side: Side.FRIENDLY,
     bodyType: 0,

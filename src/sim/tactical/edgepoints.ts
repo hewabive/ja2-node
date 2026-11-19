@@ -11,7 +11,7 @@ import { TravelCost } from '../../content/world/movement-costs.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { idiv } from '../../core/int.ts';
 import type { RandomStream } from './combat/context.ts';
-import { ABSMAX_TRAIL_TREE, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
+import { ABSMAX_TRAIL_TREE, DUMMY_SOLDIER_ID, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
 import { Side, Team } from './soldier.ts';
 import { sectorMapOf, type TacticalState } from './state.ts';
 
@@ -88,7 +88,7 @@ export function savedMapEdgepoints(map: Pick<MapDef, 'edgepoints' | 'info'>): Ma
 
 function fakeSoldier(gridNo: number, team: number): PathSoldier {
   return {
-    id: -1,
+    id: DUMMY_SOLDIER_ID,
     team,
     side: Side.FRIENDLY,
     bodyType: 0,

@@ -20,7 +20,7 @@ import { idiv } from '../../core/int.ts';
 import { roomAt } from './ai/destinations.ts';
 import { states } from './animation.ts';
 import { pathMoveMode } from './movement-mode.ts';
-import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
+import { DUMMY_SOLDIER_ID, findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
 import { animStructureDef } from './person-structure.ts';
 import { Body, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -28,7 +28,6 @@ import type { TacticalState } from './state.ts';
 const NO_RANGE = 999999;
 const NO_ROOM = 0;
 const RANDOM_SWEET_SPOT_TRIES = 2000;
-const DUMMY_SOLDIER_ID = 0;
 const SWEET_SPOT_FLOOD_FLAGS = PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE;
 
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;

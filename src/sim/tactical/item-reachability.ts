@@ -5,18 +5,16 @@
 
 import { DIRECTION_INCREMENT, newGridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
-import { ABSMAX_TRAIL_TREE, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
+import { ABSMAX_TRAIL_TREE, DUMMY_SOLDIER_ID, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
 import { Body, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { type WorldItem, WorldItemFlags } from './world-items.ts';
 
 const CARDINAL_DIRECTIONS = [0, 2, 4, 6] as const;
 const DIRECTION_COUNT = 8;
-const PROBE_SOLDIER_ID = 0;
-
 function probe(gridNo: number): PathSoldier {
   return {
-    id: PROBE_SOLDIER_ID,
+    id: DUMMY_SOLDIER_ID,
     team: Team.ENEMY,
     side: Side.FRIENDLY,
     bodyType: Body.REGMALE,

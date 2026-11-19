@@ -5,11 +5,15 @@ import { DIRECTION_INCREMENT } from '../../content/world/grid.ts';
 import { compileTileMovementCosts } from '../../content/world/movement-costs.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { TacticalContent } from './content.ts';
+import { freeTilesAround } from './item-placement.ts';
+import { newOKDestination } from './pathfinding.ts';
 import { Body, NOWHERE, Team } from './soldier.ts';
 import {
+  dummySoldier,
   findGridNoFromSweetSpot,
   findGridNoFromSweetSpotExcludingSweetSpot,
   findGridNoFromSweetSpotExcludingSweetSpotInSouthEastQuadrant,
+  reachableAround,
 } from './sweet-spots.ts';
 
 let content: TacticalContent;
@@ -57,6 +61,22 @@ describe('FindGridNoFromSweetSpotExcludingSweetSpotInQuardent with SOUTHEAST (So
     for (let dy = 0; dy <= 3; dy++)
       for (let dx = 0; dx <= 3; dx++) if (dx + dy > 0) spawnSoldier(sim, 120 + dy * 4 + dx, Team.CIV, SWEET + dy * COLS + dx, NORTH);
     expect(inQuadrant(sim, walker)).toBe(NOWHERE);
+  });
+});
+
+describe('the dummy soldier of the item and corpse placement (Handle_Items.cc FindNearestAvailableGridNoForItem)', () => {
+  it('is nobody: our first merc, soldier 0, blocks the flood and the destination test as any other soldier does', () => {
+    const sim = newCombatSim(content);
+    const first = spawnSoldier(sim, 0, Team.OUR, SWEET + 1, NORTH);
+    const second = spawnSoldier(sim, 1, Team.OUR, SWEET - 1, NORTH);
+    const dummy = dummySoldier(SWEET, Team.ENEMY, 0);
+    const PATH_AROUND_PEOPLE = 0;
+    const reachable = reachableAround(sim.state, dummy, 1, { flags: PATH_AROUND_PEOPLE });
+    for (const s of [first, second]) {
+      expect(reachable).not.toContain(s.gridNo);
+      expect(newOKDestination(sim.state.pathEnv, dummy, s.gridNo, true, 0)).toBe(false);
+      expect(freeTilesAround(sim.state, SWEET, 1)).not.toContain(s.gridNo);
+    }
   });
 });
 

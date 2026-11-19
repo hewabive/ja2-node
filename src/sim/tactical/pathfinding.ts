@@ -100,6 +100,8 @@ export interface PathEnv {
   readonly stats?: { searches: number };
 }
 
+export const DUMMY_SOLDIER_ID = -1;
+
 export interface PathOptions {
   readonly mode?: MoveMode;
   readonly copy?: number;
