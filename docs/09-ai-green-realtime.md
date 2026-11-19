@@ -133,6 +133,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A random green turn is cut short: Stracciatella's movement range ends it and the queued wait stops it | `ai.test.ts` |
 | An enemy queues no wait after visiting a friend; civilians and militia do | `ai.test.ts` |
 | Any path search of the patrol branch, even one it could not use, skips the friend's roll | `ai.test.ts` |
+| A random point patrol walks back to his current patrol point between random points, and roams around it: the drawn index stays local | `destinations.test.ts` |
 | The spot next to a friend is never north of him and north-east comes up twice as often: the direction is shifted by one | `ai.test.ts` |
 | A neutral civilian counts enemy soldiers as friends, but not the other way round: the civilians' side is the enemy's | `ai.test.ts` |
 | A neutral named civilian who calms down before any combat in the game heads for tile 0: every profile starts at prof.dat's 0, which only the combat entry reads as unset | `ai.test.ts` |

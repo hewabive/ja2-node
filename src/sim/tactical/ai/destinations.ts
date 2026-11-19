@@ -260,6 +260,35 @@ export function nextPatrolPoint(s: Soldier): number {
   return ai.patrolGrid[ai.nextPatrolPoint] ?? NOWHERE;
 }
 
+function firstGoodPatrolPointAfterNext(t: TacticalState, s: Soldier): number {
+  for (let tried = 0; tried < s.ai.patrolCount; tried++) {
+    const point = nextPatrolPoint(s);
+    if (point === NOWHERE || newOKDestination(t.pathEnv, s, point, false, s.level)) return point;
+  }
+  return NOWHERE;
+}
+
+function headForPatrolPoint(
+  t: TacticalState,
+  s: Soldier,
+  point: number,
+  ordersToReachFarPoint: number,
+  determineMode: (s: Soldier, action: number) => number,
+  action: number,
+): boolean {
+  const ai = s.ai;
+  if (legalNPCDestination(t, s, point, PathMode.ENSURE_PATH, true, 0)) {
+    s.pathStored = true;
+    ai.actionData = point;
+    return true;
+  }
+  const savedOrders = ai.orders;
+  ai.orders = ordersToReachFarPoint;
+  ai.actionData = goAsFarAsPossibleTowards(t, s, point, action, determineMode);
+  ai.orders = savedOrders;
+  return ai.actionData !== NOWHERE;
+}
+
 export function pointPatrolAI(
   t: TacticalState,
   s: Soldier,
@@ -269,23 +298,36 @@ export function pointPatrolAI(
   const ai = s.ai;
   let point = ai.patrolGrid[ai.nextPatrolPoint] ?? NOWHERE;
   if (s.gridNo === point || ai.nextPatrolPoint === 0) {
-    do point = nextPatrolPoint(s);
-    while (point !== NOWHERE && !newOKDestination(t.pathEnv, s, point, false, s.level));
+    point = firstGoodPatrolPointAfterNext(t, s);
     if (point === s.gridNo) point = NOWHERE;
   }
   if (point === NOWHERE) {
     ai.orders = Orders.FARPATROL;
     return false;
   }
-  if (legalNPCDestination(t, s, point, PathMode.ENSURE_PATH, false, 0)) {
-    ai.actionData = point;
-    return true;
-  }
-  const savedOrders = ai.orders;
-  ai.orders = Orders.ONCALL;
-  ai.actionData = goAsFarAsPossibleTowards(t, s, point, action, determineMode);
-  ai.orders = savedOrders;
-  return ai.actionData !== NOWHERE;
+  return headForPatrolPoint(t, s, point, Orders.ONCALL, determineMode, action);
+}
+
+function drawablePatrolPoints(s: Soldier): number[] {
+  const highestIndex = Math.max(s.ai.patrolCount, 1);
+  return Array.from({ length: highestIndex }, (_, i) => s.ai.patrolGrid[i + 1] ?? NOWHERE);
+}
+
+function drawRandomPatrolPoint(t: TacticalState, s: Soldier): number {
+  const ai = s.ai;
+  const drawCanLeaveOwnTile = drawablePatrolPoints(s).some((point) => point !== s.gridNo);
+  let point: number;
+  let draws = 0;
+  do {
+    point = ai.patrolGrid[t.pre.int(ai.patrolCount) + 1] ?? NOWHERE;
+    draws++;
+  } while (
+    (point === s.gridNo && drawCanLeaveOwnTile) ||
+    (point !== NOWHERE && draws < ai.patrolCount && !newOKDestination(t.pathEnv, s, point, false, s.level))
+  );
+  if (draws !== ai.patrolCount) return point;
+  ai.nextPatrolPoint = 0;
+  return firstGoodPatrolPointAfterNext(t, s);
 }
 
 export function randomPointPatrolAI(
@@ -297,27 +339,12 @@ export function randomPointPatrolAI(
   const ai = s.ai;
   let point = ai.patrolGrid[ai.nextPatrolPoint] ?? NOWHERE;
   if (s.gridNo === point || ai.nextPatrolPoint === 0) {
-    let count = 0;
-    do {
-      ai.nextPatrolPoint = t.pre.int(ai.patrolCount) + 1;
-      point = ai.patrolGrid[ai.nextPatrolPoint] ?? NOWHERE;
-      count++;
-    } while (point === s.gridNo || (point !== NOWHERE && count < ai.patrolCount && !newOKDestination(t.pathEnv, s, point, false, s.level)));
-    if (count === ai.patrolCount) {
-      ai.nextPatrolPoint = 0;
-      do point = nextPatrolPoint(s);
-      while (point !== NOWHERE && !newOKDestination(t.pathEnv, s, point, false, s.level));
-    }
+    point = drawRandomPatrolPoint(t, s);
     if (point === s.gridNo) return false;
   }
-  if (point === NOWHERE) return false;
-  if (legalNPCDestination(t, s, point, PathMode.ENSURE_PATH, false, 0)) {
-    ai.actionData = point;
-    return true;
+  if (point === NOWHERE) {
+    ai.orders = Orders.FARPATROL;
+    return false;
   }
-  const savedOrders = ai.orders;
-  ai.orders = Orders.SEEKENEMY;
-  ai.actionData = goAsFarAsPossibleTowards(t, s, point, action, determineMode);
-  ai.orders = savedOrders;
-  return ai.actionData !== NOWHERE;
+  return headForPatrolPoint(t, s, point, Orders.SEEKENEMY, determineMode, action);
 }
