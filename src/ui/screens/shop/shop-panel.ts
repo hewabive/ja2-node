@@ -11,7 +11,8 @@
 // @src (quote 21 after DELAY_FOR_SHOPKEEPER_IDLE_QUOTE when Random(100) > CHANCE_FOR_SHOPKEEPER_IDLE_QUOTE),
 // @src CanShopkeeperOverrideDialogue (a fluff quote below 16 yields), StartShopKeeperTalking, EvaluateInvSlot (the normal
 // @src evaluation quote's chance 100/60/25/10/0 by the time since the last), GetShopKeeperInterfaceUserInput (ESC = Done,
-// @src SPACE = the next merc), BuildDoneWhenTimeString, BuildRepairTimeString, BuildItemHelpTextString,
+// @src over the description box too, whose HandleShopKeeperInterface early return holds the leave until it closes,
+// @src 2026-11-19; SPACE = the next merc), BuildDoneWhenTimeString, BuildRepairTimeString, BuildItemHelpTextString,
 // @src SetSkiFaceRegionHelpText, InitShopKeeperItemDescBox (the placement quirks), IsGunOrAmmoOfSameTypeSelected,
 // @src SetSkiCursor; HandleShopKeeperDialog (the entry quote 800 ms after entering, the wait restarted while the dealer
 // @src talks or the description box is up, dropped once the player asks to leave), CreateSkiInventorySlotMouseRegions
@@ -258,6 +259,7 @@ export class ShopPanel {
   #outlineRequest = '';
   #entry: EntryQuote | null = null;
   #entryWaitSince = 0;
+  #leaveAfterDescription = false;
   readonly #quoteOfLine = new Map<number, number>();
   readonly #commonQuotesSaid = new Set<number>();
   #idleSince = 0;
@@ -371,6 +373,7 @@ export class ShopPanel {
   hide(): void {
     if (!this.#open) return;
     this.#open = false;
+    this.#leaveAfterDescription = false;
     if (this.#entry?.dealer === this.#dealer) this.#entry = null;
     this.#removeSubtitle();
     this.#hooks.setHeldCursor(null);
@@ -419,6 +422,21 @@ export class ShopPanel {
     if (this.talking()) this.#hooks.presenter.skip(this.#now, true);
   }
 
+  #requestLeave(): void {
+    if (!this.#hooks.descriptionOpen()) {
+      void this.model.done();
+      return;
+    }
+    this.shutUp();
+    this.#leaveAfterDescription = true;
+  }
+
+  #leaveOnceDescribed(): void {
+    if (!this.#leaveAfterDescription || this.#hooks.descriptionOpen()) return;
+    this.#leaveAfterDescription = false;
+    void this.model.done();
+  }
+
   speak(quote: number): boolean {
     if (!this.#open || this.#dealer < 0) return false;
     const key = textKey(npcDialogueFile(this.#dealer), quote);
@@ -452,6 +470,7 @@ export class ShopPanel {
   update(now: number): void {
     this.#now = now;
     if (!this.#open) return;
+    this.#leaveOnceDescribed();
     const speaking = this.#hooks.presenter.speaking;
     const mine = speaking?.surface === SpeechSurface.SHOPKEEPER ? speaking : null;
     if (this.#face) {
@@ -483,7 +502,7 @@ export class ShopPanel {
     if (event.key === 'x' && event.modifiers === ALT_MASK) return false;
     if (event.kind !== 'keyDown') return true;
     if (event.key === 'Escape') {
-      if (!this.model.cancelHeld()) void this.model.done();
+      if (!this.model.cancelHeld()) this.#requestLeave();
       return true;
     }
     if (event.key === ' ') {

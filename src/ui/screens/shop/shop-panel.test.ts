@@ -308,7 +308,7 @@ describe('the shop screen at the stub dealer', () => {
     f.t.frame(ENTRY_QUOTE_DELAY_MS * 2);
     f.t.frame();
     expect(shop.talking()).toBe(false);
-    f.key('Escape');
+    await f.click('itemDescriptionBox', MouseButton.RIGHT);
     expect(f.screen.description.open).toBe(false);
     f.t.frame(ENTRY_QUOTE_DELAY_MS - 100);
     expect(shop.talking()).toBe(false);
@@ -435,16 +435,22 @@ describe('the shop screen at the stub dealer', () => {
     await settleShop(f);
     expect(shop.model.playerOffer[0]).toBeNull();
     expect(shop.hatched(merc, pocket.slot)).toBe(false);
+  });
+
+  it("takes Esc over the dealer's description box as the leave request, which goes through once the box is closed (ExitSKIRequested, HandleShopKeeperInterface)", async () => {
+    const { f } = await atTheDealer(6);
     await f.click('shopDealerSlot0', MouseButton.RIGHT);
     expect(f.screen.description.open).toBe(true);
     expect(f.screen.description.item).toBe(f.client.view.shop?.boxes[0]?.item);
     expect(f.widget('itemDescriptionBox').rect).toMatchObject({ x: 160, y: 0 });
     expect(f.widget('shopDone').enabled).toBe(false);
     f.key('Escape');
-    expect(f.screen.description.open).toBe(false);
-    expect(f.client.commands.at(-1)?.cmd.type).not.toBe('closeShop');
-    f.key('Escape');
     await settleShop(f);
-    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'closeShop' });
+    expect(f.screen.description.open).toBe(true);
+    expect(f.client.commands.some((c) => c.cmd.type === 'closeShop')).toBe(false);
+    await f.click('itemDescriptionBox', MouseButton.RIGHT);
+    await settleShop(f);
+    expect(f.screen.description.open).toBe(false);
+    expect(f.client.commands.filter((c) => c.cmd.type === 'closeShop').map((c) => c.cmd)).toEqual([{ type: 'closeShop' }]);
   });
 });

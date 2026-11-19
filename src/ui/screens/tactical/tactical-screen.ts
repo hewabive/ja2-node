@@ -59,7 +59,7 @@
 // @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02); Esc closes
 // @src the description box, else the key ring, and leaves the stack popup up (Turn_Based_Input.cc:2287-2294, 2026-11-19),
 // @src all in the hotkeys' Esc, which goes on to stop the selected merc, and the pickup menu only at the Esc release that
-// @src GETTINGITEM_MODE takes first (HandleItemMenuKeys, 2026-11-19); a shop's Esc closes its description box alone;
+// @src GETTINGITEM_MODE takes first (HandleItemMenuKeys, 2026-11-19); a shop's Esc is the shop's own;
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
 // @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02), InitializeItemPickupMenu (opened from the server's
 // @src pickupMenu prompt at the pointer, LocateSoldier moving the view to the picker, 2026-11-14); Interface_Control.cc
@@ -242,7 +242,6 @@ const KEY_CLASS = 'KEY';
 const MERC_IS_UNAVAILABLE_STR = 82;
 const BASE_TEAM_SLOTS = 6;
 const RADAR_REGION = 'radarRegion';
-const ESCAPE_KEY = 'Escape';
 const PAUSE_KEY = 'Pause';
 const PANEL_TOGGLE_KEY = '`';
 const KEY_RING_KEY = 'k';
@@ -1458,10 +1457,6 @@ export class TacticalScreen implements Screen {
     if (event.kind !== 'text' && this.controls.keyInput(event)) return true;
     if (event.kind === 'keyUp' && this.#env.client.paused && event.key !== PAUSE_KEY) {
       this.#togglePause();
-      return true;
-    }
-    if (event.kind === 'keyDown' && event.key === ESCAPE_KEY && this.dialogue.shopOpen) {
-      this.description.close(true);
       return true;
     }
     if (event.kind === 'keyDown' && event.key === PANEL_TOGGLE_KEY && event.modifiers === 0) {
