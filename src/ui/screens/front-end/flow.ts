@@ -11,16 +11,20 @@
 // @src entered from the map screen, not in a meanwhile; EnterSector, and SetCurrentWorldSector with
 // @src gfGotoSectorTransition, which only the pre-battle panel's Enter into the loaded sector sets);
 // @src src/game/Strategic/Map_Screen_Interface_Bottom.cc HandleExitsFromMapScreen (MAP_EXIT_TO_LAPTOP: the laptop zooms
-// @src out of the map screen's picture).
+// @src out of the map screen's picture), RequestTriggerExitFromMapscreen and Tactical/Turn_Based_Input.cc HandleModCtrl
+// @src (Ctrl+S refused with a box in Iron Man and in Dead is Dead, 2026-11-18).
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import type { GameOptions, SaveListing } from '../../client/api-types.ts';
 import { failureText } from '../../client/failure-text.ts';
-import type { DeadIsDeadSlot, FrontEndClient, SessionConnection, SessionEndReason } from '../../client/front-end-client.ts';
+import type { DeadIsDeadSlot, FrontEndClient, SessionConnection, SessionEndReason, SessionStatus } from '../../client/front-end-client.ts';
 import type { DrawList } from '../../draw-list.ts';
+import { textBoxArt } from '../../layout/styles.ts';
 import { SaveController } from '../../saves/save-controller.ts';
 import { isQuickSaveName } from '../../saves/save-rows.ts';
+import { SavingBox } from '../../saves/saving-box.ts';
 import type { Screen } from '../../screen.ts';
+import { FontName } from '../../text/fonts.ts';
 import type { LabelId } from '../../text/labels.ts';
 import { Fade, type FadeDirection } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
@@ -29,7 +33,7 @@ import type { MapFlow } from '../map/environment.ts';
 import type { MapFacts } from '../map/facts.ts';
 import type { TacticalFlow } from '../tactical/environment.ts';
 import { CreditsController, creditsScreen } from './credits.ts';
-import type { FrontEndEnvironment, SettingsStore } from './environment.ts';
+import { type FrontEndEnvironment, FrontEndLayout, type SettingsStore } from './environment.ts';
 import { type ExitBoxStyle, openExitBox } from './exit-box.ts';
 import { type GameInitChoice, GameInitController, gameInitScreen, INITIAL_GAME_CHOICE } from './game-init.ts';
 import { LoadingController, loadingScreen } from './loading.ts';
@@ -98,6 +102,9 @@ const SECTOR_LOADED = 'sectorLoaded';
 const PRE_BATTLE_PROMPT = 'preBattle';
 const TACTICAL_FLOW = 'tactical';
 const BLACK_SCREEN = 'black';
+const BASIC_TEXT_BOX = 'basic';
+const DEAD_IS_DEAD_MODE = 'deadIsDead';
+const IRON_MAN_REFUSAL = 'ironMan';
 export const RECONNECTING_BOX = 'reconnecting';
 export const SESSION_ENDED_BOX = 'sessionEnded';
 
@@ -143,6 +150,11 @@ export function gameScreenOf(view: PlayerView | null): GameScreenKind {
   return 'map';
 }
 
+function saveScreenRefusal(status: SessionStatus | null): LabelId | null {
+  if (status?.options?.saveMode === DEAD_IS_DEAD_MODE) return 'deadIsDeadCannotSave';
+  return status?.saveRefusal === IRON_MAN_REFUSAL ? 'ironManCannotSave' : null;
+}
+
 const EXIT_BOX_STYLE: Readonly<Record<GameScreenKind, ExitBoxStyle>> = { laptop: 'laptop', map: 'map', tactical: 'game' };
 
 export class FrontEndFlow {
@@ -161,6 +173,7 @@ export class FrontEndFlow {
   #listings: readonly SaveListing[] = [];
   #connection: SessionConnection = { state: 'open' };
   #reconnectShown = false;
+  #savingBox: SavingBox | null = null;
 
   constructor(env: FrontEndEnvironment, client: FrontEndClient, settings: SettingsStore, host: FrontEndHost) {
     this.#env = env;
@@ -175,8 +188,33 @@ export class FrontEndFlow {
       },
       () => undefined,
     );
-    this.saves = new SaveController({ labels: env.labels, health: () => health, box: env.boxes, api: client });
+    this.saves = new SaveController({
+      labels: env.labels,
+      health: () => health,
+      box: env.boxes,
+      api: client,
+      saving: { begin: () => this.#beginSaving(), end: () => this.#endSaving() },
+      remember: (name) => this.#rememberSave(name),
+    });
     client.onConnection = (connection) => this.#connectionChanged(connection);
+  }
+
+  #rememberSave(name: string | null): void {
+    this.#settings.change({ currentSave: name });
+    this.#settings.persist();
+  }
+
+  #beginSaving(): void {
+    const model = this.#env.layout(FrontEndLayout.MESSAGE_BOX);
+    const art = textBoxArt(model, (model.style('textBoxes') as Readonly<Record<string, unknown>>)[BASIC_TEXT_BOX]);
+    const fonts = { text: this.#env.runtime.fonts.get(FontName.FONT12ARIAL), bold: this.#env.runtime.fonts.get(FontName.FONT10ARIALBOLD) };
+    this.#savingBox = new SavingBox(this.#env.runtime, art, fonts, this.#env.labels().text('saving'));
+    this.#screens.openModal(this.#savingBox);
+  }
+
+  #endSaving(): void {
+    if (this.#savingBox) this.#screens.closeModal(this.#savingBox);
+    this.#savingBox = null;
   }
 
   #connectionChanged(connection: SessionConnection): void {
@@ -277,6 +315,7 @@ export class FrontEndFlow {
     if (this.#screens.screen?.id !== BLACK_SCREEN) await this.#fade('out');
     this.#host.music('none');
     this.#show(new BlackScreen(this.#env));
+    if (deadIsDead) this.#rememberSave(deadIsDead.name);
     try {
       await this.#client.newCampaign({ options, ...(deadIsDead ? { deadIsDead } : {}) });
     } catch (err) {
@@ -333,6 +372,7 @@ export class FrontEndFlow {
       boxes: this.#env.boxes,
       session: this.#client.session,
       namesSaveOnly: origin === 'gameInit',
+      currentSave: this.#settings.current().currentSave,
       ...(facts ? { location: saveLocationName(facts, this.#env.text, mode, this.#client.view) } : {}),
       actions: {
         leave,
@@ -371,7 +411,8 @@ export class FrontEndFlow {
   async quickSave(): Promise<string | null> {
     const session = this.#client.session;
     if (!session) return null;
-    const outcome = await this.saves.quickSave(session);
+    const status = await this.#client.status().catch(() => null);
+    const outcome = await this.saves.quickSave(session, status?.options?.saveMode === DEAD_IS_DEAD_MODE);
     return outcome.ok || outcome.cancelled ? null : outcome.text;
   }
 
@@ -516,11 +557,18 @@ export class FrontEndFlow {
   #gameActions(kind: GameScreenKind): GameScreenActions {
     return {
       options: () => void this.options('game'),
-      saveGame: () => void this.saveLoad('save', 'game'),
+      saveGame: () => void this.requestSaveScreen(),
       loadGame: () => void this.saveLoad('load', 'game'),
       exitGame: () => this.exitBox(kind),
       mainMenu: () => this.leaveGame(),
     };
+  }
+
+  async requestSaveScreen(): Promise<void> {
+    const status = await this.#client.status().catch(() => null);
+    const refusal = saveScreenRefusal(status);
+    if (refusal) await this.#env.boxes.alert(this.#env.labels().text(refusal));
+    else await this.saveLoad('save', 'game');
   }
 
   async #enterTactical(port: TacticalPort, session: string): Promise<void> {

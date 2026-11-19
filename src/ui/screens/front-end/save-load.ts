@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadScreen.cc InitSaveGameArray (newest first; to save, quick and auto saves hidden and a new row
-// @src first), EnterSaveLoadScreen (the newest row selected, the action button enabled with a selection),
+// @src first), EnterSaveLoadScreen (the current save selected, else the first row, the action button enabled with a
+// @src selection),
 // @src DisplaySaveGameEntry (the row states and the load tooltip), SelectedSaveRegionCallBack (click selects and on the
 // @src new row opens the description field; double click saves over or loads; right click clears), DisableSelectedSlot,
 // @src SelectedSaveRegionMovementCallBack, ScrollUp, ScrollDown, ScrollPositionTopMax, MoveSelectionUp,
@@ -101,6 +102,7 @@ export interface SaveLoadDeps {
   readonly boxes: MessageBoxes;
   readonly session: string | null;
   readonly namesSaveOnly: boolean;
+  readonly currentSave?: string | null;
   readonly location?: SectorName;
   readonly actions: SaveLoadActions;
 }
@@ -185,10 +187,17 @@ export class SaveLoadController extends ViewModelController {
       row: saveRow(listing, labels, this.#deps.location),
     }));
     this.#entries = this.#deps.mode === 'save' ? [{ listing: null, row: null }, ...entries] : entries;
-    this.#selected = this.#entries.length > 0 ? 0 : NO_SELECTION;
+    this.#selected = this.#initialSelection();
     this.view.scrollTop = Math.min(this.view.scrollTop, this.#scrollMax());
     this.view.actionEnabled = this.#selected !== NO_SELECTION;
     this.#refresh();
+  }
+
+  #initialSelection(): number {
+    const current = this.#deps.currentSave;
+    const at = current ? this.#entries.findIndex((e) => e.listing?.name === current) : NO_SELECTION;
+    if (at !== NO_SELECTION) return at;
+    return this.#entries.length > 0 ? 0 : NO_SELECTION;
   }
 
   #scrollMax(): number {

@@ -22,6 +22,7 @@ export type SessionConnection =
 
 export interface SessionStatus {
   readonly canSave: boolean;
+  readonly saveRefusal: string | null;
   readonly options: GameOptions | null;
 }
 

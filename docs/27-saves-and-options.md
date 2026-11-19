@@ -295,7 +295,11 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
   `32` §3) adds the session to save, Save as new or over a player or quick save, and loading into a running session.
   Their row location and tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
 - On `/play` the map and tactical screens bind quick save and quick load (Alt+S, Alt+L); the main menu's Alt+Load and
-  Alt+C open the load screen as Load and C do (original-bugs "Alt+Load after a Dead is Dead save").
+  Alt+C open the load screen as Load and C do (original-bugs "Alt+Load after a Dead is Dead save"). Ctrl+S opens the
+  save screen, or a box when Iron Man or Dead is Dead forbids it.
+- The current save is the last one this browser saved or loaded, automatic saves left out
+  (`ClientSettings.currentSave`, the original's `sCurrentSavedGameName` in its settings file); the save/load screen
+  opens on it.
 
 ### 1.12 Quirks of the original the code keeps
 

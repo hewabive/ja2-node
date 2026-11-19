@@ -4,11 +4,13 @@ import { loadMapTestFacts } from '../../../../tests/support/strategic.ts';
 import type { PlayerView, PromptView, ViewFrame } from '../../../protocol/view.ts';
 import { LOW_PERCENT_SHADOW_FACTOR } from '../../draw-list.ts';
 import { KeyModifier } from '../../input/events.ts';
+import { SAVING_BOX } from '../../saves/saving-box.ts';
 import type { Screen } from '../../screen.ts';
 import { FADE_STEP_MS } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type LaptopFlow, type MapPort, RECONNECTING_BOX, SESSION_ENDED_BOX, type TacticalPort } from './flow.ts';
 import { OPTION_TOGGLES } from './options.ts';
+import { SaveLoadController, type SaveLoadMode } from './save-load.ts';
 import { SECTOR_ZOOM, SECTOR_ZOOM_TIME } from './sector-zoom.ts';
 import { INTRO_SPLASH_DURATION } from './splash.ts';
 
@@ -759,5 +761,105 @@ describe('a game screen that cannot be opened', () => {
     await answer('messageBox', 'yes');
     await until(() => f.screen() === 'laptopUnavailable');
     expect(f.widget('reason').text).toBe('Not connected to a game session.');
+  });
+});
+
+describe('the current save, the refusals of the save key and the saving box', () => {
+  const OPTIONS = { difficulty: 1, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true } as const;
+  const MESSAGE_BOX = 'messageBox';
+
+  beforeEach(async () => {
+    await f.client.newCampaign({ options: OPTIONS });
+    f.client.listings = [
+      listing('quick', '2026-10-06T00:00:00Z', { kind: 'quick' }),
+      listing('newer', '2026-10-05T00:00:00Z'),
+      listing('older', '2026-10-01T00:00:00Z'),
+    ];
+  });
+
+  function saveScreen(mode: SaveLoadMode, currentSave: string | null): SaveLoadController {
+    return new SaveLoadController({
+      mode,
+      listings: f.client.listings,
+      labels: f.env.labels,
+      saves: f.flow.saves,
+      boxes: f.env.boxes,
+      session: null,
+      namesSaveOnly: false,
+      currentSave,
+      actions: { leave: () => undefined, saved: () => undefined, load: () => undefined, nameSave: () => undefined },
+    });
+  }
+
+  it('selects the current save on both screens, and the first row without one or for a save the screen hides (EnterSaveLoadScreen)', () => {
+    expect(saveScreen('load', 'older').selected).toBe(2);
+    expect(saveScreen('save', 'older').selected).toBe(2);
+    expect(saveScreen('load', 'gone').selected).toBe(0);
+    expect(saveScreen('load', null).selected).toBe(0);
+    expect(saveScreen('save', 'quick').selected).toBe(0);
+  });
+
+  it('remembers every save and load but an automatic one, across sessions in the settings (SaveGame, LoadSavedGame)', async () => {
+    expect(await f.flow.quickSave()).toBeNull();
+    expect(f.settings.settings.currentSave).toBe('quick');
+    expect(f.settings.persisted?.currentSave).toBe('quick');
+    const older = f.client.listings.at(-1);
+    if (!older) throw new Error('no save');
+    void f.flow.loadSave(older, 'game');
+    await until(() => f.settings.settings.currentSave === 'older');
+    await until(() => f.client.loads.length === 1);
+    void f.flow.loadSave(listing('Auto01', '2026-10-07T00:00:00Z', { kind: 'auto' }), 'game');
+    await until(() => f.client.loads.length === 2);
+    await f.settle(3);
+    expect(f.settings.settings.currentSave).toBe('older');
+  });
+
+  it('answers the save key with the Iron Man box and keeps the save screen shut (HandleModCtrl, RequestTriggerExitFromMapscreen)', async () => {
+    f.client.options = { ...OPTIONS, saveMode: 'ironMan' };
+    f.client.canSave = false;
+    f.client.statusRefusal = 'ironMan';
+    void f.flow.requestSaveScreen();
+    await until(() => f.modal() === MESSAGE_BOX);
+    expect(f.widget(MESSAGE_BOX).text).toBe(f.env.labels().text('ironManCannotSave'));
+    expect(f.screen()).not.toBe('saveLoad');
+  });
+
+  it('answers the save key with its own box in a Dead is Dead game, whose table has no line for it', async () => {
+    f.client.options = { ...OPTIONS, saveMode: 'deadIsDead' };
+    void f.flow.requestSaveScreen();
+    await until(() => f.modal() === MESSAGE_BOX);
+    expect(f.widget(MESSAGE_BOX).text).toBe(f.env.labels().text('deadIsDeadCannotSave'));
+    expect(f.screen()).not.toBe('saveLoad');
+  });
+
+  it('opens the save screen when the game can be saved', async () => {
+    void f.flow.requestSaveScreen();
+    await until(() => f.screen() === 'saveLoad');
+  });
+
+  it('stores an empty description as the original does (MSG_NODESC)', async () => {
+    await f.flow.saves.saveNew('session-1', '   ');
+    expect(f.client.saved.at(-1)?.request).toEqual({ description: 'No description' });
+  });
+
+  it('shows the saving box while the game is written, and none for the quick save of a Dead is Dead game (SaveGame)', async () => {
+    const send = f.client.save.bind(f.client);
+    let finish: () => void = () => undefined;
+    f.client.save = (session, request) =>
+      new Promise((resolve) => {
+        finish = () => resolve(send(session, request));
+      });
+    const saving = f.flow.quickSave();
+    await until(() => f.modal() === SAVING_BOX);
+    expect(f.widget(SAVING_BOX).text).toBe(f.env.labels().text('saving'));
+    finish();
+    await saving;
+    expect(f.modal()).toBeNull();
+    f.client.options = { ...OPTIONS, saveMode: 'deadIsDead' };
+    const silent = f.flow.quickSave();
+    await f.settle(3);
+    expect(f.modal()).toBeNull();
+    finish();
+    await silent;
   });
 });

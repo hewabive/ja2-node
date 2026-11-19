@@ -79,7 +79,7 @@ export class HttpFrontEndClient implements FrontEndClient {
   async status(): Promise<SessionStatus> {
     const session = this.session;
     const summary = session ? (await fetchSessions()).find((s) => s.session === session) : undefined;
-    return { canSave: summary?.canSave ?? false, options: summary?.options ?? null };
+    return { canSave: summary?.canSave ?? false, saveRefusal: summary?.saveRefusal ?? null, options: summary?.options ?? null };
   }
 
   async setBloodAndGore(on: boolean): Promise<void> {

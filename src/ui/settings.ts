@@ -75,6 +75,7 @@ export interface ClientSettings {
   readonly uiScale: number;
   readonly fixed640: boolean;
   readonly websiteLoadingTimeScale: number;
+  readonly currentSave: string | null;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -125,6 +126,7 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   uiScale: AUTO_UI_SCALE,
   fixed640: false,
   websiteLoadingTimeScale: DEFAULT_WEBSITE_LOADING_TIME_SCALE,
+  currentSave: null,
 };
 
 export interface SettingsStorage {
@@ -235,6 +237,7 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     uiScale: uiScale(o.uiScale),
     fixed640: flag(o.fixed640, d.fixed640),
     websiteLoadingTimeScale: loadingTimeScale(o.websiteLoadingTimeScale),
+    currentSave: typeof o.currentSave === 'string' && o.currentSave !== '' ? o.currentSave : null,
   };
 }
 

@@ -66,6 +66,7 @@ export const MessageString = {
   OK: 1,
   YES: 2,
   NO: 3,
+  NO_DESCRIPTION: 7,
   SAVE_SUCCESS: 8,
   DAY: 9,
   MERCS: 10,

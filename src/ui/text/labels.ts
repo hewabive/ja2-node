@@ -85,6 +85,8 @@ export const LABELS = {
   mercsColumn: original('gpStrategicString', STR_PB_MERCS),
   balanceColumn: original('pFinanceHeaders', FINANCE_HEADER_BALANCE),
   ironManCannotSave: original('zNewTacticalMessages', TCTL_MSG_IRON_MAN_CANT_SAVE_NOW),
+  deadIsDeadCannotSave: own('This is a DEAD IS DEAD game and it saves itself.', 'Это игра в режиме Dead is Dead, она сохраняется сама.'),
+  noDescription: message(MessageString.NO_DESCRIPTION),
   tagline: own('A non-commercial reimplementation of Jagged Alliance 2', 'Некоммерческая реимплементация Jagged Alliance 2'),
   play: own('Play', 'Играть'),
   data: own('Data', 'Данные'),

@@ -67,6 +67,7 @@ export class FakeClient implements FrontEndClient {
   session: string | null = null;
   view: PlayerView | null = null;
   canSave = true;
+  statusRefusal: string | null = null;
   saveRefusal: Refusal | null = null;
   options: GameOptions | null = OPTIONS;
   readonly calls: string[] = [];
@@ -112,7 +113,7 @@ export class FakeClient implements FrontEndClient {
   }
 
   async status(): Promise<SessionStatus> {
-    return { canSave: this.canSave, options: this.options };
+    return { canSave: this.canSave, saveRefusal: this.statusRefusal, options: this.options };
   }
 
   async setBloodAndGore(on: boolean): Promise<void> {

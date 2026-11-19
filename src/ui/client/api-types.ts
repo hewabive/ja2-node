@@ -98,6 +98,7 @@ export interface SessionSummary {
   readonly sector?: string | null;
   readonly campaign?: string;
   readonly canSave?: boolean;
+  readonly saveRefusal?: string;
 }
 
 export interface Refusal {
