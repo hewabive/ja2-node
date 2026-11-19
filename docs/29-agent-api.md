@@ -136,6 +136,8 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   Each has the checks, squad, wake-up and psycho `Random(50)` of `InternalSelectSoldier`. Any merc leaving the loaded
   sector while the map is up, and the departure of the selected merc, leave nobody selected, as in the original.
   It matters for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
+- Own soldiers on a squad carry `squadSlot`, their place in it: the order `FindNextActiveSquad` walks
+  (`Tactical/Overhead.cc:2892`).
 - The current squad (`forces.currentSquad`; in the view as `currentSquad`, null for none) is the original's
   `iCurrentTacticalSquad`, whose members the team panel shows: a selection makes the selected merc's squad current, and
   `selectSquad` makes a squad on the map current, as the squad keys and the squad list do. As `SetCurrentSquad` does,
@@ -1011,7 +1013,8 @@ The helicopter exists once the escorted Skyrider reaches his chopper or a native
 map screen only (deviation "Helicopter interface"). `heliPlot` is the click on the helicopter before plotting:
 Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as a refusal; `heliRoute` without
 `plotted` asks him the same way first, and its `selected` list wakes those of the listed mercs asleep on foot or at a
-wheel (`Strategic/MapScreen.cc:7575`). `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
+wheel (`Strategic/MapScreen.cc:7575`). With `extend` and `to` on the last sector of his path it confirms that path
+again, with his line and the take-off (`Strategic/MapScreen.cc:5509-5522`, `:5583-5587`). `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (original-bugs "Leaving the helicopter in
 flight"), and while it is airborne they do not count for `enterSector`, `tacticalScreen` or the `canEnterSector` hint
 (`noMercThere`, `Strategic/StrategicMap.cc:2286`). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits

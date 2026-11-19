@@ -276,7 +276,8 @@ out-of-gas box by `pVehicleStrings`. A vehicle in sight that is not ours carries
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
 the legs stay in the client until the confirming click sends one `route` per group (deviation "Map route plotting");
 the move box's Done regroups at once with `regroupForMove`, so Esc during the plot that follows leaves the new squads,
-and its confirm sends one `routeGroup` for the movers. Decision prompts open as the original's boxes and close when an
+and its confirm sends one `routeGroup` for the movers. A click on the end of an unchanged path confirms it again, and
+the destination column of a helicopter passenger plots for the helicopter. Decision prompts open as the original's boxes and close when an
 agent answers them first (deviation "Map screen boxes for prompts").
 
 **Battle entry.** The pre-battle panel is part of the map screen, as `gfPreBattleInterfaceActive` is; autoresolve is a
@@ -369,6 +370,8 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The character list sort compares each row with the merc it held when the sort reached it | `map/character-list.test.ts` |
 | A path node in map column 16 is not drawn at 640 pixels wide: the original tests it against the screen width | `map/plotting.test.ts` "leaves out the column 16 pieces …" |
 | The plotting ETA counts the remaining leg twice and drops the first temporary edge while the squad travels | `src/server/hints-strategic-stub.test.ts` "count the remaining leg twice …" |
+| A click on a name or an assignment gives plotting up without the "unchanged" message every other way out prints (`Strategic/MapScreen.cc:4276`, `:4393`) | `map/map-screen.test.ts` "gives up plotting silently …" |
+| A second release of the middle button within 300 ms of the last one gives no look in real time, however many follow (`Tactical/Real_Time_Input.cc:85-103`) | `tactical/tactical-controls.test.ts` "looks with the middle button in real time …" |
 | The move box's Other header counts vehicle passengers and skips doctors | `map/move-selection.test.ts` "keeps the original test of the others header …" |
 | While a subtitle box is up the map screen's contract button and the contract column of the team list open no contract menu (the column still selects its merc), while the c key does (`Strategic/MapScreen.cc:4239`, `:5134`) | `map/map-speech.test.ts` "opens no contract menu from the contract button or column while the subtitle box is up …" |
 | A line carried from the map into tactical gets the face popup at 10, 20 whatever the speech option and keeps the map's click region (`Tactical/Dialogue_Control.cc:386`) | `talk/talking-ui.test.ts` "gives a line carried from the map the popup …"; `talk/speech-surfaces.test.ts` "gives a line carried over from the map screen the popup …" |

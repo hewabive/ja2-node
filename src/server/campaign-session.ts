@@ -54,8 +54,10 @@ const EMAIL_TEXT = 'emailText';
 
 const RECRUITED_KINDS: Readonly<Record<number, string>> = { [MercKind.NPC]: 'rpc', [MercKind.EPC]: 'epc' };
 
-function crewFields(m: RosterMerc): Pick<SoldierView, 'asleep' | 'squad'> {
-  return { asleep: m.asleep, squad: m.assignment < Assignment.ON_DUTY ? m.assignment : null };
+function crewFields(campaign: CampaignSim, m: RosterMerc): Pick<SoldierView, 'asleep' | 'squad' | 'squadSlot'> {
+  const squad = m.assignment < Assignment.ON_DUTY ? m.assignment : null;
+  const slot = squad === null ? -1 : (campaign.state.forces.squads[squad]?.indexOf(m.id) ?? -1);
+  return { asleep: m.asleep, squad, ...(slot >= 0 ? { squadSlot: slot } : {}) };
 }
 
 function ownSoldierLabels(campaign: CampaignSim, v: SoldierView): SoldierView {
@@ -64,7 +66,7 @@ function ownSoldierLabels(campaign: CampaignSim, v: SoldierView): SoldierView {
   if (!roster || !m) return v;
   const kind = RECRUITED_KINDS[m.kind];
   const recruited = kind ? { kind, profile: m.profile } : {};
-  return { ...v, ...crewFields(m), ...recruited, ...(m.isRobot ? { controlled: roster.canRobotBeControlled(m.id) } : {}) };
+  return { ...v, ...crewFields(campaign, m), ...recruited, ...(m.isRobot ? { controlled: roster.canRobotBeControlled(m.id) } : {}) };
 }
 
 function withMerchantLabels(campaign: CampaignSim, soldiers: readonly SoldierView[]): SoldierView[] {

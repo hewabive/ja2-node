@@ -36,6 +36,14 @@ describe('a new campaign session', () => {
     expect(view.strategic?.mercs.every((m) => m.sector === 'A9' && m.squad === 0)).toBe(true);
   });
 
+  it('shows each merc his place in his squad, the order FindNextActiveSquad walks', async () => {
+    const session = await create(3, {});
+    const ours = session.view().soldiers.filter((s) => s.team === Team.OUR);
+    const squad = session.campaign.state.forces.squads[0] ?? [];
+    expect(ours.map((s) => s.squadSlot)).toEqual(ours.map((s) => squad.indexOf(s.id)));
+    expect(new Set(ours.map((s) => s.squadSlot)).size).toBe(ours.length);
+  });
+
   it('honours difficulty, squad size and a delayed landing', async () => {
     const session = await create(4, { difficulty: 3, mercs: 2, land: false });
     const view = session.view();

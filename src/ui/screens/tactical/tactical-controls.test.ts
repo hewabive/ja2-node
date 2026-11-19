@@ -54,6 +54,7 @@ import { GO_MOVE_ONE, GO_MOVE_TWO } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { LOCATOR_FRAME_MS, LocateFlag, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
 
+const MIDDLE_DOUBLE_CLICK_MS = 300;
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
 const SMALL_FONT = 'smallfont1';
@@ -1993,6 +1994,43 @@ describe('the tactical input on the tactical screen', () => {
     const lines = f.screen.messageLines.length;
     f.key(' ', KeyModifier.SHIFT);
     expect([f.screen.selected, f.screen.messageLines.length]).toEqual([first, lines]);
+  });
+
+  it('takes the first merc of the next squad by his place in it, not by his id, with shift+space (FindNextActiveSquadRange)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const [first, lowId, highId] = f.screen.teamSlots.filter((id): id is number => id !== null);
+    if (first === undefined || lowId === undefined || highId === undefined) throw new Error('three mercs expected');
+    f.screen.select(first, false);
+    f.t.frame();
+    const squad = (merc(f, first).squad ?? 0) + 1;
+    Object.assign(merc(f, Math.min(lowId, highId)), { squad, squadSlot: 1 });
+    Object.assign(merc(f, Math.max(lowId, highId)), { squad, squadSlot: 0 });
+    f.t.frame();
+    f.key(' ', KeyModifier.SHIFT);
+    expect(f.screen.selected).toBe(Math.max(lowId, highId));
+  });
+
+  it('looks with the middle button in real time, but not at a second click within 300 ms (QueryRTMiddleButton)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const at = f.world.pickPoint(merc(f, 0).gridNo + 3);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    const click = () => {
+      pointer(f, 'pointerDown', at.x, at.y, MouseButton.MIDDLE);
+      f.t.frame();
+      pointer(f, 'pointerUp', at.x, at.y, MouseButton.MIDDLE);
+      f.t.frame();
+    };
+    click();
+    await f.settle();
+    expect(commandsOf(f, 'turn')).toHaveLength(1);
+    click();
+    await f.settle();
+    expect(commandsOf(f, 'turn')).toHaveLength(1);
+    f.t.frame(MIDDLE_DOUBLE_CLICK_MS);
+    click();
+    await f.settle();
+    expect(commandsOf(f, 'turn')).toHaveLength(2);
   });
 
   it('continues a halted move of the selected merc from the single merc panel face, and only his (CheckForMercContMove)', async () => {

@@ -93,6 +93,7 @@ import {
   ourTurn,
   soldierById,
   soldierName,
+  squadOf,
 } from './soldiers.ts';
 
 const SCROLL_STEP_MS = 20;
@@ -221,6 +222,10 @@ function cellRange(a: number, b: number): number {
   const dx = ((a % WORLD_COLS) - (b % WORLD_COLS)) * CELL;
   const dy = (idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS)) * CELL;
   return Math.trunc(Math.sqrt(dx * dx + dy * dy));
+}
+
+function firstBySquadSlot(members: readonly SoldierView[]): SoldierView | undefined {
+  return [...members].sort((a, b) => (a.squadSlot ?? 0) - (b.squadSlot ?? 0))[0];
 }
 
 export class TacticalControls {
@@ -687,7 +692,7 @@ export class TacticalControls {
       ...Array.from({ length: from + 1 }, (_, i) => i),
     ];
     for (const squad of order) {
-      const s = own.find((m) => (m.squad ?? 0) === squad && !isInVehicle(m));
+      const s = firstBySquadSlot(own.filter((m) => m.squad !== null && squadOf(m) === squad && !isInVehicle(m)));
       if (!s) continue;
       if ((s.squad ?? 0) === current) return;
       this.#screen.locateSelect(s, true);

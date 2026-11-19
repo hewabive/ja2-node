@@ -102,6 +102,7 @@ export interface SoldierView {
   readonly camo?: number;
   readonly asleep?: boolean;
   readonly squad?: number | null;
+  readonly squadSlot?: number;
   readonly stealth?: boolean;
   readonly weaponMode?: WeaponModeView;
   readonly muted?: boolean;
@@ -1413,6 +1414,7 @@ const SOLDIER_FIELD_SAMENESS: FieldSameness<SoldierView> = {
   camo: sameValue,
   asleep: sameValue,
   squad: sameValue,
+  squadSlot: sameValue,
   stealth: sameValue,
   weaponMode: sameValue,
   muted: sameValue,

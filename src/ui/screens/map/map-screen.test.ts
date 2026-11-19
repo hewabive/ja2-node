@@ -1423,8 +1423,7 @@ function edgeOfWorldSector(): string {
   if (!strategic) throw new Error('no strategic rules');
   const facts = mapFacts(strategic.content, strategic.economy);
   for (let y = 1; y <= MAP_SIDE; y++)
-    for (let x = 1; x <= MAP_SIDE; x++)
-      if (facts.traversability(sectorId({ x, y, z: 0 })) === EDGE_OF_WORLD) return sectorLabel({ x, y, z: 0 });
+    for (let x = 1; x <= MAP_SIDE; x++) if (facts.traversability(sectorId({ x, y })) === EDGE_OF_WORLD) return sectorLabel({ x, y, z: 0 });
   throw new Error('no edge of the world on the map');
 }
 

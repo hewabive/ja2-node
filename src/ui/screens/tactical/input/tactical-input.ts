@@ -268,6 +268,8 @@ export class TacticalInput {
   readonly soldierStack = new SoldierStack();
   readonly #interactiveTiles = new InteractiveTileCheck();
   #now = 0;
+  #middleClickAt = 0;
+  #middleClicked = false;
   #mode: UiMode = UiMode.IDLE_MODE;
   #event: UiEvent = UiEvent.I_DO_NOTHING;
   #savedMouse = { x: 0, y: 0 };
@@ -1176,14 +1178,17 @@ export class TacticalInput {
 
   #rtMiddle(event: UiEvent): UiEvent {
     if (this.#mapPos() === null || !this.#pointer.inViewport) return event;
-    let next = event;
-    if (this.#pointer.isDown(MouseButtonMask.MIDDLE)) this.#middleDown = true;
-    else if (this.#middleDown) {
-      const shift = (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0;
-      if (!shift) next = UiEvent.LC_LOOK;
-      this.#middleDown = false;
+    if (this.#pointer.isDown(MouseButtonMask.MIDDLE)) {
+      this.#middleDown = true;
+      return event;
     }
-    return next;
+    const shift = (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0;
+    if (!this.#middleDown || shift) return event;
+    const doubleClick = this.#middleClicked && this.#now - this.#middleClickAt < DOUBLE_CLICK_MS;
+    this.#middleClickAt = this.#now;
+    this.#middleClicked = true;
+    this.#middleDown = false;
+    return doubleClick ? event : UiEvent.LC_LOOK;
   }
 
   #tbLeft(event: UiEvent): UiEvent {

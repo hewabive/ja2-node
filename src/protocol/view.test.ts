@@ -235,6 +235,7 @@ const EVERY_SOLDIER_FIELD: Required<SoldierView> = {
   camo: 0,
   asleep: false,
   squad: 0,
+  squadSlot: 0,
   stealth: false,
   weaponMode: 'single',
   muted: false,
