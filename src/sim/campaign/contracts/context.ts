@@ -60,6 +60,8 @@ export interface ContractContext {
   moraleContext(): MoraleContext;
   say(m: RosterMerc, quote: QuoteName, subject?: number): void;
   sayImportant(m: RosterMerc, quote: QuoteName, subject?: number): void;
+  sayImportantLocked(m: RosterMerc, quote: QuoteName, subject?: number): void;
+  lockMapScreen(locked: boolean): void;
   queueMercArrivingQuoteRelease(): void;
   queueEnding(e: PendingEnding): void;
   emit(e: ContractEventWithoutTick): void;

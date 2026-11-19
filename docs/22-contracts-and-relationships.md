@@ -87,7 +87,9 @@ says the same line when the flag is still set (deviation "Extending without the 
 **Quotes go through the dialogue queue.** Contract, relationship and morale lines are said as the original says them:
 `say` is `TacticalCharacterDialogue` (the speaker checks, the meanwhile test, the last-quote test, the E.P.C. test),
 `sayImportant` is `HandleImportantMercQuote` (renewal, extension, the raise, departure comments: a sleeping merc is woken
-for the line and put back to sleep), `sayDelayed` the morale whine. A line plays when the queue reaches it, pauses the
+for the line and put back to sleep), `sayImportantLocked` `HandleImportantMercQuoteLocked` (the same between a lock
+and an unlock of the map screen, queued as `mapScreenLock` events, `30`; `lockMapScreen` queues one alone, as around
+the renewal menu), `sayDelayed` the morale whine. A line plays when the queue reaches it, pauses the
 map screen while it plays and comes out as a `mercQuote` with the merc it is about as `subject` (`24`). Boxes, mails and
 records: deviation "Contract presentation". A buddy's comment on a kill he witnesses or on a skill check passed with a
 low roll is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in the

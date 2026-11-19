@@ -24,6 +24,7 @@ import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
 import {
   type ActiveLine,
+  followQueueEvent,
   isQueuedQuoteEvent,
   type QuoteEvent,
   type SpeakingFace,
@@ -126,6 +127,10 @@ export class MapSpeech {
     return this.#box.text !== null;
   }
 
+  get mapScreenLocked(): boolean {
+    return this.#hooks.presenter.mapScreenLocked;
+  }
+
   get speaking(): SpeakingFace | null {
     return this.#hooks.presenter.soldierSpeaking;
   }
@@ -163,15 +168,7 @@ export class MapSpeech {
 
   #event(event: FrameEvent): void {
     const presenter = this.#hooks.presenter;
-    if (event.type === 'lineCut') {
-      presenter.cut(event.profile, event.saidAt, event.tail);
-      return;
-    }
-    if (event.type === 'soldierFaceDeleted') {
-      if (event.saidAt !== undefined) presenter.endDeletedFace(event.profile, event.saidAt);
-      return;
-    }
-    if (!isQueuedQuoteEvent(event)) return;
+    if (followQueueEvent(presenter, event) || !isQueuedQuoteEvent(event)) return;
     const line = speechLineOf(event as QuoteEvent, this.#hooks.routing());
     if (line) presenter.enqueue(line);
   }

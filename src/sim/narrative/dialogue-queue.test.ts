@@ -18,6 +18,7 @@ import {
   externalNpcDialogue,
   FINAL_TALKING_DELAY_TICKS,
   handleImportantMercQuote,
+  handleImportantMercQuoteLocked,
   queueStatChangeLine,
   quietDialogueForLoad,
   setStopTimeQuoteCallback,
@@ -439,6 +440,29 @@ describe('an important merc line (Dialogue_Control.cc HandleImportantMercQuote)'
     const host = fakeHost({ soldiers: [merc] });
     handleImportantMercQuote(host, merc, CONTRACTS_OVER);
     expect(host.talk.queue.map((e) => e.kind)).toEqual(['quote']);
+  });
+
+  it('locks the map screen at its turn in the queue and unlocks it after the line, the wake and the sleep inside (HandleImportantMercQuoteLocked, LockMapScreenInterface)', () => {
+    const { host, merc } = sleepingMerc();
+    handleImportantMercQuoteLocked(host, merc, CONTRACTS_OVER);
+    expect(host.talk.queue.map((e) => e.kind)).toEqual(['mapScreenLock', 'wakeUp', 'quote', 'backToSleep', 'mapScreenLock']);
+    expect(host.emitted.filter((e) => e.type === 'mapScreenLock')).toEqual([]);
+    runQueueToTheEnd(host);
+    const announced = host.emitted.flatMap((e) =>
+      e.type === 'mapScreenLock' ? [`lock ${e.locked}`] : e.type === 'mercQuote' ? [`quote ${e.id}`] : [],
+    );
+    expect(announced).toEqual(['lock true', `quote ${CONTRACTS_OVER}`, 'lock false']);
+  });
+
+  it('queues the lock and the unlock even when the merc may not say the line', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    merc.gassed = true;
+    handleImportantMercQuoteLocked(host, merc, CONTRACTS_OVER);
+    expect(host.talk.queue).toEqual([
+      { kind: 'mapScreenLock', locked: true },
+      { kind: 'mapScreenLock', locked: false },
+    ]);
   });
 });
 

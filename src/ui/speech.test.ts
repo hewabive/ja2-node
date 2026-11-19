@@ -6,6 +6,7 @@ import {
   DialogueHold,
   FINAL_TALKING_DELAY_MS,
   isQueuedQuoteEvent,
+  MIN_TALK_BEFORE_SKIP_MS,
   type QuoteEvent,
   recruitedSpeaker,
   type SpeechLineRequest,
@@ -443,6 +444,60 @@ describe('SpeechPresenter', () => {
     p.update(1);
     expect(voices).toHaveLength(1);
     expect(stopped).toEqual([]);
+  });
+
+  it('locks and unlocks the map screen at their turns in the queue, as the dialogue queue runs LockMapScreenInterface', () => {
+    const { p } = presenter({ speech: false });
+    p.update(0);
+    p.enqueue(line({ profile: 1, chars: 1 }));
+    p.lockMapScreen(true);
+    p.enqueue(line({ profile: 2, chars: 1 }));
+    p.lockMapScreen(false);
+    expect(p.mapScreenLocked).toBe(false);
+    p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
+    expect([p.current?.line.profile, p.mapScreenLocked]).toEqual([2, true]);
+    p.skip(MIN_TALK_BEFORE_SKIP_MS, true);
+    expect(p.mapScreenLocked).toBe(true);
+    p.update(MIN_TALK_BEFORE_SKIP_MS);
+    expect([p.busy, p.mapScreenLocked]).toEqual([false, false]);
+    p.lockMapScreen(true);
+    expect(p.mapScreenLocked).toBe(true);
+  });
+
+  it('applies the queued locks in order when the queue is flushed, and none survives a load', () => {
+    const { p } = presenter({ speech: false });
+    p.update(0);
+    p.enqueue(line({ profile: 1, chars: 1 }));
+    p.lockMapScreen(true);
+    p.enqueue(line({ profile: 2, chars: 1 }));
+    expect(p.mapScreenLocked).toBe(false);
+    p.flush();
+    expect(p.mapScreenLocked).toBe(true);
+    p.enqueue(line({ profile: 3, chars: 1 }));
+    p.lockMapScreen(false);
+    p.lockMapScreen(true);
+    p.lockMapScreen(false);
+    expect(p.mapScreenLocked).toBe(true);
+    p.flush();
+    expect(p.mapScreenLocked).toBe(false);
+    p.lockMapScreen(true);
+    p.enqueue(line({ profile: 4, chars: 1 }));
+    p.lockMapScreen(false);
+    expect(p.mapScreenLocked).toBe(true);
+    p.discardLines();
+    expect([p.busy, p.mapScreenLocked]).toEqual([false, false]);
+  });
+
+  it('keeps a lock behind a held dialogue, as a screen without HandleDialogue runs no queued event', () => {
+    const { p } = presenter({ speech: false });
+    p.update(0);
+    p.holdDialogue(true, DialogueHold.LAPTOP);
+    p.lockMapScreen(true);
+    p.update(1);
+    expect(p.mapScreenLocked).toBe(false);
+    p.holdDialogue(false, DialogueHold.LAPTOP);
+    p.update(2);
+    expect(p.mapScreenLocked).toBe(true);
   });
 
   it('keeps a civilian quote for its lifetime, replaces it, and closes it on a click after 300 ms', () => {

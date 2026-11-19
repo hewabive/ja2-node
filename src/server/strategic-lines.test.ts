@@ -30,6 +30,7 @@ const KESTREL = 0;
 const VANT = 1;
 const CONTRACTS_OVER = 89;
 const MERC_GONE_UP_IN_PRICE = 116;
+const ACCEPT_CONTRACT_RENEWAL = 90;
 const WHINE_EQUIPMENT = 43;
 const MENTION_DRASSEN_SAM_SITE = 20;
 const SECOND_HALF_OF_MENTION_DRASSEN_SAM_SITE = 21;
@@ -103,6 +104,29 @@ describe('the contract renewal sequence behind its lines (Merc_Contract.cc Handl
     expect(menu.reason).toBe('decision');
     expect(lines(menu.events)).toEqual([`${KESTREL}:${MERC_GONE_UP_IN_PRICE}`]);
     expect(c.session.view().contractPrompt).toMatchObject({ kind: 'contractRenewal', soldier: ours(c, KESTREL).id, fromSequence: true });
+  });
+
+  it('locks the map screen around each locked line and around the menu event, in the order the queue reaches them (LockMapScreenInterface)', async () => {
+    const c = await onTheMap(122);
+    const campaign = c.session.campaign;
+    const kestrel = campaign.battle?.roster.byProfile(KESTREL);
+    const contracts = campaign.contracts;
+    if (!kestrel || !contracts) throw new Error('no contract to renew');
+    kestrel.contract.contractEnd = worldTotalMinutes(campaign.state.clock);
+    kestrel.contract.contractPriceIncreased = true;
+    campaign.state.contracts.renewal.list.push(KESTREL);
+    contracts.beginRenewalSequence();
+    const order = (events: readonly SimEvent[]) =>
+      events.flatMap((e) =>
+        e.type === 'mapScreenLock' ? [e.locked ? 'lock' : 'unlock'] : e.type === 'mercQuote' ? [`${e.profile}:${e.id}`] : [],
+      );
+    const said = (quote: number) => `${KESTREL}:${quote}`;
+    const menu = [...c.live.advance({ events: ['mercQuote'] }).events, ...c.live.advance({ idle: true }).events];
+    expect(order(menu)).toEqual(['lock', said(CONTRACTS_OVER), 'unlock', 'lock', said(MERC_GONE_UP_IN_PRICE)]);
+    const prompt = c.session.view().contractPrompt;
+    expect(prompt).toMatchObject({ kind: 'contractRenewal' });
+    expect(c.live.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'day' })).toMatchObject({ ok: true });
+    expect(order(c.live.advance({ idle: true }).events)).toEqual(['unlock', 'lock', said(ACCEPT_CONTRACT_RENEWAL), 'unlock']);
   });
 });
 

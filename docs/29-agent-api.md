@@ -251,6 +251,10 @@ queue, which says the next line when the face stops talking or at once on a clic
   as `RenderTalkingMenu` shades it. A merc's face the original deletes while he talks (he leaves the team, is released
   as an escort, is married off or turns hostile with his civilian group, or Larry's profile swaps) ends his line on that
   tick: `soldierFaceDeleted {profile, saidAt}`, and the next line follows.
+- **The map screen's lock is a queue event.** The original queues a lock and an unlock around some contract lines and
+  the renewal menu (`LockMapScreenInterface`, `Strategic/MapScreen.cc:8007-8024`); `mapScreenLock {locked}` comes as
+  the queue reaches each, and the page's team list ignores the mouse in between (`30`). Agents have no team list, so
+  nothing is locked for them.
 - **Agents playing alone**: the speech mode `skip` (`newSession {speech}` or `setSpeech`) ends every line on the tick
   after it is said, as if Backspace were pressed at once; its quote event carries `skipped: true`. It is a session
   setting, logged and kept across loads but never saved, so a player loading the agent's save hears the lines. Under

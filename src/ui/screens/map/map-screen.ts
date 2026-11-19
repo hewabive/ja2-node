@@ -59,7 +59,8 @@
 // @src HandleChangeOfHighLightedLine (the contract row glows from the request), AbortMovementPlottingMode (always says so),
 // @src ItemRegionBtnCallback, ChangeSelectedMapSector (no airspace below ground, no sublevel while plotting),
 // @src RequestToggleMercInventoryPanel, MAP_EVENT_CLICK_SECTOR (NS_INVALID_DROPOFF_SECTOR); Map_Screen_Interface.cc
-// @src CreateMapStatusBarsRegion, CreateDestroyInsuranceMouseRegionForMercs (2026-11-18).
+// @src CreateMapStatusBarsRegion, CreateDestroyInsuranceMouseRegionForMercs (2026-11-18); MapScreen.cc the TeamList*Callbacks
+// @src (no team list input while fLockOutMapScreenInterface is set, but a right click on the sleep column, 2026-11-19).
 
 import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -1494,6 +1495,7 @@ export class MapScreen implements Screen {
   }
 
   #rowMove(row: number, column: number, reason: number): void {
+    if (this.#speech.mapScreenLocked) return;
     if (reason & MouseReason.LOST_MOUSE) {
       if (this.#team.highLine === row) this.#team.highLine = NO_CHARACTER;
       const glow = this.#team.glow;
@@ -1526,6 +1528,7 @@ export class MapScreen implements Screen {
   #rowButton(row: number, column: number, reason: number): void {
     const left = (reason & MouseReason.LBUTTON_UP) !== 0;
     if (!left && (reason & MouseReason.RBUTTON_UP) === 0) return;
+    if (this.#lockedOut(column, left)) return;
     const m = this.#mercAt(row);
     if (!m) {
       this.#resetModes();
@@ -1541,6 +1544,10 @@ export class MapScreen implements Screen {
     else if (column === TeamColumn.ASSIGNMENT) this.#assignmentClick(row, m);
     else if (column === TeamColumn.SLEEP) void this.#sleepClick(row, m);
     else this.#contractClick(row);
+  }
+
+  #lockedOut(column: number, left: boolean): boolean {
+    return this.#speech.mapScreenLocked && (left || column !== TeamColumn.SLEEP);
   }
 
   #infoClick(row: number, m: StrategicMercView): void {

@@ -1800,6 +1800,25 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook()).toMatchObject({ changingArrival: true, uiMessage: INVALID_DROPOFF });
     }));
 
+  it('ignores the team list while a locked line holds the map screen, but for a right click on the sleep column (fLockOutMapScreenInterface)', () =>
+    withMap(async (f) => {
+      const [first, second] = listedMercs(f);
+      await f.click('teamRow0.destination');
+      expect(f.screen.hook().plotting).not.toBeNull();
+      f.speech.presenter.lockMapScreen(true);
+      await f.click('teamRow1.name');
+      await f.click('teamRow1.assignment');
+      await f.click('teamRow1.destination', MouseButton.RIGHT);
+      hoverWidget(f, 'teamRow1.assignment');
+      expect(f.screen.hook()).toMatchObject({ info: first, menu: null, plotting: { mode: 'merc' } });
+      expect(f.screen.hook().glow?.line).toBe(0);
+      await f.click('teamRow1.sleep', MouseButton.RIGHT);
+      expect(f.screen.hook()).toMatchObject({ info: first, plotting: null });
+      f.speech.presenter.lockMapScreen(false);
+      await f.click('teamRow1.name');
+      expect(f.screen.hook().info).toBe(second);
+    }));
+
   it('switches off the columns a row cannot use and reads the remove help for the dead and the captured (EnableDisableTeamListRegionsAndHelpText)', () =>
     withMap(async (f) => {
       const [first = -1, second = -1] = f.mercs;

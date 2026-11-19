@@ -13,7 +13,8 @@
 // @src renewal menu as dialogue events behind the lines, 2026-11-01); Tactical/Overhead.cc HandlePlayerTeamMemberDeath's buddy
 // @src lines from everyone in the sector, the helicopter's passengers included (2026-11-08); Tactical/Merc_Hiring.cc
 // @src MercArrivesCallback's DialogueEventUnsetArrivesFlag, run whenever the queue reaches it (2026-11-08); Merc_Contract.cc
-// @src StrategicRemoveMerc (TacticalRemoveSoldier deletes the merc's face, Tactical/Faces.cc DeleteSoldierFace, 2026-11-09).
+// @src StrategicRemoveMerc (TacticalRemoveSoldier deletes the merc's face, Tactical/Faces.cc DeleteSoldierFace, 2026-11-09);
+// @src DialogueEventContract and HandleExtendMercsContract between LockMapScreenInterface calls (2026-11-19).
 
 import { type Sector, sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
@@ -24,6 +25,8 @@ import {
   delayedTacticalCharacterDialogue,
   deleteSoldierFace,
   handleImportantMercQuote,
+  handleImportantMercQuoteLocked,
+  lockMapScreenInterface,
   tacticalCharacterDialogue,
 } from '../../narrative/dialogue-queue.ts';
 import type { NarrativeHost } from '../../narrative/host.ts';
@@ -259,6 +262,17 @@ export class ContractFlow implements ContractContext {
     else this.#emitQuote(m, quote, subject);
   }
 
+  sayImportantLocked(m: RosterMerc, quote: QuoteName, subject?: number): void {
+    const host = this.#dialogue;
+    if (host) handleImportantMercQuoteLocked(host, m.soldier, Quote[quote], mercAbout(subject));
+    else this.#emitQuote(m, quote, subject);
+  }
+
+  lockMapScreen(locked: boolean): void {
+    const host = this.#dialogue;
+    if (host) lockMapScreenInterface(host, locked);
+  }
+
   sayDelayed(m: RosterMerc, quote: QuoteName): void {
     const host = this.#dialogue;
     if (host) delayedTacticalCharacterDialogue(host, m.soldier, Quote[quote]);
@@ -331,9 +345,11 @@ export class ContractFlow implements ContractContext {
   #renewalMenuEvent(soldier: number, wantsToRenew: boolean): void {
     const m = this.roster.get(soldier);
     if (!m) return;
+    this.lockMapScreen(true);
     if (wantsToRenew) checkIfSalaryIncreasedAndSayQuote(this, m);
     this.contracts.renewal.fromSequence = true;
     this.#queueCallback(ContractCallback.MENU, [m.id]);
+    this.lockMapScreen(false);
   }
 
   #showRenewalMenu(soldier: number): void {
@@ -602,12 +618,19 @@ export class ContractFlow implements ContractContext {
         break;
       case 'rehire':
         this.enterMapScreen();
-        if (checkIfSalaryIncreasedAndSayQuote(this, m)) this.#queueCallback(ContractCallback.MENU, [m.id]);
+        if (this.#extendMercsContract(m)) this.#queueCallback(ContractCallback.MENU, [m.id]);
         else this.#openRenewal(m);
         break;
     }
     this.campaign.refreshPauseState();
     return { ok: true };
+  }
+
+  #extendMercsContract(m: RosterMerc): boolean {
+    this.lockMapScreen(true);
+    const raised = checkIfSalaryIncreasedAndSayQuote(this, m);
+    this.lockMapScreen(false);
+    return raised;
   }
 
   #answerInsurance(soldier: number, days: number, choice: string): CommandResult {

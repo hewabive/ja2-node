@@ -74,9 +74,9 @@ export function canBeRemovedFromContract(m: RosterMerc): boolean {
 export function beginRemoveMercFromContract(ctx: ContractContext, m: RosterMerc): void {
   if (!canBeRemovedFromContract(m)) return;
   const sinceArrival = u32(worldTotalMinutes(ctx.state.clock) - m.contract.lastContractUpdate);
-  if (m.kind === MercKind.MERC || m.kind === MercKind.NPC) ctx.sayImportant(m, 'RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO');
+  if (m.kind === MercKind.MERC || m.kind === MercKind.NPC) ctx.sayImportantLocked(m, 'RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO');
   else if (m.kind === MercKind.AIM_MERC && willMercRenew(ctx, m, false))
-    ctx.sayImportant(
+    ctx.sayImportantLocked(
       m,
       sinceArrival < DEPART_QUOTE_WINDOW_MINUTES
         ? 'DEPART_COMMET_CONTRACT_NOT_RENEWED_OR_TERMINATED_UNDER_48'

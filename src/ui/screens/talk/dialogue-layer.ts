@@ -22,6 +22,7 @@ import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import { LayoutView } from '../../layout/view.ts';
 import {
   civQuoteOf,
+  followQueueEvent,
   isQueuedQuoteEvent,
   isQuoteEvent,
   recruitedSpeaker,
@@ -276,15 +277,7 @@ export class DialogueLayer {
   }
 
   #event(event: FrameEvent): void {
-    if (event.type === 'lineCut') {
-      this.presenter.cut(event.profile, event.saidAt, event.tail);
-      return;
-    }
-    if (event.type === 'soldierFaceDeleted') {
-      if (event.saidAt !== undefined) this.presenter.endDeletedFace(event.profile, event.saidAt);
-      return;
-    }
-    if (!isQuoteEvent(event)) return;
+    if (followQueueEvent(this.presenter, event) || !isQuoteEvent(event)) return;
     const routing = this.#routing();
     if (event.type === 'civQuote') {
       const civ = civQuoteOf(event, routing);

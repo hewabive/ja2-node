@@ -60,6 +60,7 @@ export type DialogueEvent =
   | { readonly kind: 'statChange'; readonly speaker: number; readonly soldier: number; readonly stat: StatKey; readonly change: number }
   | { readonly kind: 'backToSleep'; readonly speaker: number }
   | { readonly kind: 'wakeUp'; readonly speaker: number }
+  | { readonly kind: 'mapScreenLock'; readonly locked: boolean }
   | { readonly kind: 'callback'; readonly name: string; readonly args?: readonly number[] };
 
 export interface SaidLineRef {

@@ -177,7 +177,11 @@ view, so a line the server said before the laptop opened waits for the map scree
 open link) and a switch to another session drop the queue and silence the line being said without reporting them
 (`discardLines`), as `LoadSavedGame` empties the dialogue queue, which a player load does on the server too (`27`
 §1.5). The simulation finishes lines in ticks and never waits for a viewer (`24`, deviation "Talk panel and speech on
-the canvas").
+the canvas"). The map screen's lock (`mapScreenLock`, `29` §4.5) waits its turn in the presenter's queue like a line:
+it applies once the lines queued before it are over, a flush applies every lock it drops and a load in place clears it,
+so it never outlives the server's queue (original-bugs "Map screen lock after a load"). While it holds, the map
+screen's team list takes no mouse input but a right click on the sleep column, as the `TeamList*` callbacks return
+early (`Strategic/MapScreen.cc:4253`, `:4712`).
 
 **One presenter per session serves the tactical and map screens** (`src/app/sound/session-speech.ts`), as the original
 has one talking face for every screen: a line goes on across a screen switch and each screen draws it its own way.

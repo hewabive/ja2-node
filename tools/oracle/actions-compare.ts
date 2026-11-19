@@ -144,6 +144,8 @@ export function queueEntry(e: DialogueEvent): Json {
       return { kind: 'sleep', args: [e.speaker, 1, 0, 0] };
     case 'wakeUp':
       return { kind: 'sleep', args: [e.speaker, 0, 0, 0] };
+    case 'mapScreenLock':
+      return { kind: 'lock', args: [e.locked ? 1 : 0, 0, 0, 0] };
     case 'callback':
       return { kind: 'callback', args: [0, 0, 0, 0] };
   }

@@ -150,6 +150,11 @@ export interface SoldierFaceDeletedEvent extends SimEventBase {
   readonly saidAt?: number;
 }
 
+export interface MapScreenLockEvent extends SimEventBase {
+  readonly type: 'mapScreenLock';
+  readonly locked: boolean;
+}
+
 export type GiveEvent = ItemGivenEvent | GiveAbortedEvent | NpcTookItemEvent | ItemReturnedEvent | NpcGaveItemEvent;
 
 export type NarrativeEvent =
@@ -167,7 +172,8 @@ export type NarrativeEvent =
   | AlarmEvent
   | EpcReleasedEvent
   | StatChangeAnnouncedEvent
-  | SoldierFaceDeletedEvent;
+  | SoldierFaceDeletedEvent
+  | MapScreenLockEvent;
 
 type Emitted = NarrativeEvent | MercQuoteEvent | SkyriderQuoteEvent | SoldierLocatedEvent | ItemsLocatedEvent;
 

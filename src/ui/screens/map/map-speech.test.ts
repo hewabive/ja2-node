@@ -104,6 +104,26 @@ describe('merc lines on the map screen', () => {
       expect(f.screen.hook().subtitle).toBe(`"${f.speech.presenter.current?.line.text}"`);
     }));
 
+  it('locks the team list as the queue reaches the lock before the acceptance line and unlocks it after the line (LockMapScreenInterface)', () =>
+    withMap(async (f) => {
+      const speaker = otherMerc(f);
+      const other = f.mercs.find((id) => id !== speaker);
+      const reply = await f.client.command({ type: 'extendContract', soldier: speaker, length: 'day' });
+      expect(reply.ok, reply.reason).toBe(true);
+      f.session.advance({ events: ['mercQuote'] });
+      f.deliver();
+      expect([f.speech.presenter.current?.line.soldier, f.speech.presenter.mapScreenLocked]).toEqual([speaker, true]);
+      await f.click(`teamRow${f.screen.list.rowOf(other ?? -1)}.name`);
+      expect(f.screen.hook().info).toBe(speaker);
+      f.speech.presenter.skip(f.t.now, true);
+      f.session.advance({ idle: true });
+      f.deliver();
+      f.t.frame();
+      expect(f.speech.presenter.mapScreenLocked).toBe(false);
+      await f.click(`teamRow${f.screen.list.rowOf(other ?? -1)}.name`);
+      expect(f.screen.hook().info).toBe(other);
+    }));
+
   it('subtitles a merc line in a box at 110, 40 beside the info face until the line ends', () =>
     withMap(async (f) => {
       say(f, otherMerc(f));

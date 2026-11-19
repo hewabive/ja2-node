@@ -17,7 +17,9 @@
 // @src and Laptop/Laptop.cc, whose screen leaves out HandleDialogue (2026-11-04); Faces.cc DeleteFace (a face deleted while
 // @src it talks stops talking at once and leaves its sample playing, 2026-11-09); Soldier_Control.cc DoMercBattleSound and
 // @src Dialogue_Control.cc IsMercSayingDialogue, MakeCharacterDialogueEventDoBattleSound (a battle sound queued behind the
-// @src line of the merc who says one, played once it reaches the head and his own sound is over, 2026-11-14).
+// @src line of the merc who says one, played once it reaches the head and his own sound is over, 2026-11-14);
+// @src Strategic/MapScreen.cc LockMapScreenInterface (fLockOutMapScreenInterface set and cleared at its turn in the queue,
+// @src 2026-11-19).
 
 import { speechPathForLine } from '../content/audio/speech.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -144,10 +146,19 @@ interface HeldBattleSound {
   readonly play: () => void;
 }
 
-type Queued = SpeechLine | HeldBattleSound;
+interface MapScreenLock {
+  readonly kind: 'mapScreenLock';
+  readonly locked: boolean;
+}
+
+type Queued = SpeechLine | HeldBattleSound | MapScreenLock;
 
 function isLine(entry: Queued): entry is SpeechLine {
   return !('kind' in entry);
+}
+
+function isMapScreenLock(entry: Queued): entry is MapScreenLock {
+  return 'kind' in entry && entry.kind === 'mapScreenLock';
 }
 
 function saidAs(profile: number, saidAt: number): (line: SpeechLine) => boolean {
@@ -183,6 +194,7 @@ export class SpeechPresenter {
   #civ: CivQuoteLine | null = null;
   #nextId = 1;
   #now = 0;
+  #mapScreenLocked = false;
   readonly #holds = new Set<DialogueHold>();
   readonly #framesTaken = new WeakSet<object>();
   readonly #started: ((line: SpeechLine) => void)[] = [];
@@ -255,6 +267,15 @@ export class SpeechPresenter {
     return line;
   }
 
+  get mapScreenLocked(): boolean {
+    return this.#mapScreenLocked;
+  }
+
+  lockMapScreen(locked: boolean): void {
+    this.#queue.push({ kind: 'mapScreenLock', locked });
+    if (!this.#running) this.#startNext(this.#now);
+  }
+
   holdBattleSound(profile: number, play: () => void): boolean {
     if (this.#holds.has(DialogueHold.OVERHEAD_MAP) || this.#talking?.line.profile !== profile) return false;
     this.#queue.push({ kind: 'battleSound', profile, play });
@@ -315,16 +336,31 @@ export class SpeechPresenter {
   }
 
   flush(): void {
-    this.#queue.length = 0;
+    this.#dropQueue();
     const r = this.#talking;
     if (r) this.#cutShort(r);
-    this.#queue.length = 0;
+    this.#dropQueue();
   }
 
   discardLines(): void {
     this.#queue.length = 0;
+    this.#mapScreenLocked = false;
     const r = this.#running;
     if (r) this.#finish(r);
+  }
+
+  #dropQueue(): void {
+    for (const entry of this.#queue) if (isMapScreenLock(entry)) this.#mapScreenLocked = entry.locked;
+    this.#queue.length = 0;
+  }
+
+  #headAfterMapScreenLocks(): SpeechLine | HeldBattleSound | undefined {
+    for (let next = this.#queue[0]; next !== undefined; next = this.#queue[0]) {
+      if (!isMapScreenLock(next)) return next;
+      this.#mapScreenLocked = next.locked;
+      this.#queue.shift();
+    }
+    return undefined;
   }
 
   isSaying(profile: number, saidAt: number): boolean {
@@ -375,8 +411,9 @@ export class SpeechPresenter {
   }
 
   #startNext(now: number): boolean {
-    const next = this.#queue[0];
-    if (!next || this.#dialogueHeld) return false;
+    if (this.#dialogueHeld) return false;
+    const next = this.#headAfterMapScreenLocks();
+    if (!next) return false;
     if (!isLine(next)) return this.#playHeldBattleSound(next);
     const line = next;
     if (this.#speakerBattleSoundPlaying(line)) return false;
@@ -454,6 +491,24 @@ export function reportStoppedLines(presenter: SpeechPresenter, send: (cmd: Comma
     if (line.saidAt === undefined) return;
     send({ type: 'skipLine', profile: line.profile, tick: line.saidAt, ...(how === 'talkEnded' ? { talkEnded: true } : {}) });
   });
+}
+
+type FrameEvent = NonNullable<ViewFrame['events']>[number];
+
+export function followQueueEvent(presenter: SpeechPresenter, event: FrameEvent): boolean {
+  switch (event.type) {
+    case 'lineCut':
+      presenter.cut(event.profile, event.saidAt, event.tail);
+      return true;
+    case 'soldierFaceDeleted':
+      if (event.saidAt !== undefined) presenter.endDeletedFace(event.profile, event.saidAt);
+      return true;
+    case 'mapScreenLock':
+      presenter.lockMapScreen(event.locked);
+      return true;
+    default:
+      return false;
+  }
 }
 
 export function recruitedSpeaker(view: PlayerView | null, soldier: number | null): boolean {

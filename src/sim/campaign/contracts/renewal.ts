@@ -88,7 +88,7 @@ export interface Willingness {
 export function mercRenewalWillingness(ctx: ContractContext, m: RosterMerc, sayQuote: boolean): Willingness {
   if (m.kind !== MercKind.AIM_MERC) return { willing: false, refusal: null };
   if (m.contract.signedAnotherContract) {
-    if (sayQuote) ctx.sayImportant(m, 'WONT_RENEW_CONTRACT_LAME_REFUSAL');
+    if (sayQuote) ctx.sayImportantLocked(m, 'WONT_RENEW_CONTRACT_LAME_REFUSAL');
     return { willing: false, refusal: { quote: 'WONT_RENEW_CONTRACT_LAME_REFUSAL' } };
   }
   const refusal = findRefusalReason(ctx, m);
@@ -99,10 +99,10 @@ export function mercRenewalWillingness(ctx: ContractContext, m: RosterMerc, sayQ
   if (sayQuote) {
     const quote = buddyQuote ?? refusal.quote;
     const mask = precedentBitMask(Quote[quote]);
-    if ((p.precedentQuoteSaid & mask) !== 0) ctx.sayImportant(m, 'PRECEDENT_TO_REPEATING_ONESELF_RENEW');
+    if ((p.precedentQuoteSaid & mask) !== 0) ctx.sayImportantLocked(m, 'PRECEDENT_TO_REPEATING_ONESELF_RENEW');
     else p.precedentQuoteSaid = u32(p.precedentQuoteSaid | mask);
     const subject = buddyQuote ? p.buddies[buddySlot] : refusal.subject;
-    ctx.sayImportant(m, quote, subject);
+    ctx.sayImportantLocked(m, quote, subject);
   }
   return buddyQuote ? { willing: true, refusal: null } : { willing: false, refusal };
 }
@@ -139,7 +139,7 @@ export function findOutIfAnyMercAboutToLeaveIsGonnaRenew(ctx: ContractContext): 
   }
   const chosen = willing.length > 0 ? willing[ctx.rng.main.int(willing.length)] : undefined;
   if (chosen) {
-    ctx.sayImportant(chosen, 'CONTRACTS_OVER');
+    ctx.sayImportantLocked(chosen, 'CONTRACTS_OVER');
     chosen.contract.renewalQuoteCode = RenewalQuoteCode.CONTRACTS_OVER_USED;
   } else if (quitter) {
     ctx.sayImportant(quitter, 'MERC_LEAVING_ALSUCO_SOON');
@@ -173,8 +173,8 @@ export function checkIfSalaryIncreasedAndSayQuote(ctx: ContractContext, m: Roste
 export function startRenewalQuotes(ctx: ContractContext, m: RosterMerc, wantsToRenew: boolean): void {
   const code = m.contract.renewalQuoteCode;
   if (!wantsToRenew) ctx.sayImportant(m, 'MERC_LEAVING_ALSUCO_SOON');
-  else if (code === RenewalQuoteCode.NOT_USED) ctx.sayImportant(m, 'CONTRACTS_OVER');
-  else if (code === RenewalQuoteCode.CONTRACTS_OVER_USED) ctx.sayImportant(m, 'MERC_LEAVING_ALSUCO_SOON');
+  else if (code === RenewalQuoteCode.NOT_USED) ctx.sayImportantLocked(m, 'CONTRACTS_OVER');
+  else if (code === RenewalQuoteCode.CONTRACTS_OVER_USED) ctx.sayImportantLocked(m, 'MERC_LEAVING_ALSUCO_SOON');
 }
 
 export function canExtendContractForSoldier(m: RosterMerc): boolean {

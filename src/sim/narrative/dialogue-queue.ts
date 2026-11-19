@@ -26,7 +26,9 @@
 // @src Faces.cc DeleteFace from DeleteSoldierFace (a soldier face still talking stops talking, so the next
 // @src HandleDialogue ends its line and goes on, Dialogue_Control.cc:342, 2026-11-09); Strategic/Strategic_Movement.cc
 // @src CharacterDialogueEventBeginPrebattleInterface and HandleImportantPBIQuote, HandleDialogue (FACE_TRIGGER_PREBATTLE_INT
-// @src as the face is done talking, before the next queued event, 2026-11-15).
+// @src as the face is done talking, before the next queued event, 2026-11-15); Dialogue_Control.cc
+// @src HandleImportantMercQuoteLocked and Strategic/MapScreen.cc LockMapScreenInterface (the map screen's lock as a queued
+// @src event announced at its turn, 2026-11-19).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -230,6 +232,16 @@ export function handleImportantMercQuote(host: NarrativeHost, s: Soldier, quote:
   if (asleep) makeCharacterDialogueEventSleep(host, s, false);
   tacticalCharacterDialogue(host, s, quote, subject);
   if (asleep) makeCharacterDialogueEventSleep(host, s, true);
+}
+
+export function lockMapScreenInterface(host: Pick<NarrativeHost, 'talk'>, locked: boolean): void {
+  addDialogueEvent(host, { kind: 'mapScreenLock', locked });
+}
+
+export function handleImportantMercQuoteLocked(host: NarrativeHost, s: Soldier, quote: number, subject?: number): void {
+  lockMapScreenInterface(host, true);
+  handleImportantMercQuote(host, s, quote, subject);
+  lockMapScreenInterface(host, false);
 }
 
 export function handleImportantPbiQuote(host: NarrativeHost, s: Soldier): void {
@@ -455,6 +467,9 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return executeSleep(host, e.speaker, true);
     case 'wakeUp':
       return executeSleep(host, e.speaker, false);
+    case 'mapScreenLock':
+      host.emit({ type: 'mapScreenLock', locked: e.locked });
+      return false;
     case 'callback':
       return h.callback(e.name, e.args ?? []);
   }
