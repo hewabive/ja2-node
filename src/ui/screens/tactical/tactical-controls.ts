@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Turn_Based_Input.cc HandleModNone, HandleModShift, HandleModCtrl, HandleModAlt,
-// @src HandleModCtrlShift (the actions behind the keys; the locate flag of each, 2026-11-01), ChangeCurrentSquad,
-// @src HandleSelectMercSlot, GroupAutoReload, HandleTBReload, HandleTBSwapHands, HandleTBClimbWindow,
+// @src HandleModCtrlShift (the actions behind the keys; the locate flag of each, 2026-11-01), HandleMenuKeys,
+// @src HandleOpenDoorMenuKeys, HandleItemMenuKeys (the Esc release closes the open menu, the pickup's too, 2026-11-19),
+// @src ChangeCurrentSquad, HandleSelectMercSlot, GroupAutoReload, HandleTBReload, HandleTBSwapHands, HandleTBClimbWindow,
 // @src HandleStanceChangeFromUIKeys,
 // @src HandleStealthChangeFromUIKeys, FindNextMercInTeamPanel; Handle_UI.cc ClimbUpOrDown, GotoHigherStance,
 // @src GotoLowerStance (the climb only at a roof edge, FindHigherLevel and FindLowerLevel, 2026-11-03),
@@ -184,6 +185,7 @@ export interface ControlsScreen {
   panelButtonEnabled(button: PanelButton): boolean;
   popupsOpen(): boolean;
   closePopups(): void;
+  closePickupMenu(): boolean;
   locate(s: SoldierView, flag: LocateFlag): void;
   slideTo(s: SoldierView, flag: LocateFlag): void;
   cycleVisibleEnemies(s: SoldierView): void;
@@ -838,7 +840,7 @@ export class TacticalControls {
       this.doorMenu.close(null);
       return true;
     }
-    return false;
+    return this.#screen.closePickupMenu();
   }
 
   #hotkeyHost(): HotkeyHost {

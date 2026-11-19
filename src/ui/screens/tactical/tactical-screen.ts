@@ -57,7 +57,9 @@
 // @src Interface_Dialogue.cc InternalInitTalkingMenu call it, EndItemPointer once the object is no longer the holder's
 // @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
 // @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02); Esc closes
-// @src the description box, else the key ring, and leaves the stack popup up (Turn_Based_Input.cc:2287-2294, 2026-11-19);
+// @src the description box, else the key ring, and leaves the stack popup up (Turn_Based_Input.cc:2287-2294, 2026-11-19),
+// @src all in the hotkeys' Esc, which goes on to stop the selected merc, and the pickup menu only at the Esc release that
+// @src GETTINGITEM_MODE takes first (HandleItemMenuKeys, 2026-11-19); a shop's Esc closes its description box alone;
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
 // @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02), InitializeItemPickupMenu (opened from the server's
 // @src pickupMenu prompt at the pointer, LocateSoldier moving the view to the picker, 2026-11-14); Interface_Control.cc
@@ -654,6 +656,7 @@ export class TacticalScreen implements Screen {
       panelButtonEnabled: (button) => this.#panelButtonEnabled(button),
       popupsOpen: () => this.pickup.open || this.description.open || this.stack.open || this.keyRing.open || this.assignmentMenu.open,
       closePopups: () => this.#closePopups(),
+      closePickupMenu: () => this.#closePickupMenu(),
       locate: (s, flag) => this.#locateSoldier(s, flag),
       slideTo: (s, flag) => this.#slideTo(s, flag),
       cycleVisibleEnemies: (s) => this.#cycleVisibleEnemies(s),
@@ -689,9 +692,14 @@ export class TacticalScreen implements Screen {
   }
 
   #closePopups(): void {
-    if (this.pickup.open) this.pickup.close(true);
     if (this.description.open) this.description.close(true);
     else this.keyRing.close();
+  }
+
+  #closePickupMenu(): boolean {
+    if (!this.pickup.open) return false;
+    this.pickup.close(true);
+    return true;
   }
 
   #changeSquad(squad: number): boolean {
@@ -1452,11 +1460,8 @@ export class TacticalScreen implements Screen {
       this.#togglePause();
       return true;
     }
-    if (event.kind === 'keyDown' && event.key === ESCAPE_KEY) {
-      if (this.pickup.open) this.pickup.close(true);
-      else if (this.description.open) this.description.close(true);
-      else if (this.keyRing.open) this.keyRing.close();
-      else return this.#viewInput(event);
+    if (event.kind === 'keyDown' && event.key === ESCAPE_KEY && this.dialogue.shopOpen) {
+      this.description.close(true);
       return true;
     }
     if (event.kind === 'keyDown' && event.key === PANEL_TOGGLE_KEY && event.modifiers === 0) {

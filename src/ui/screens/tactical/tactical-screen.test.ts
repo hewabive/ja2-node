@@ -651,6 +651,30 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.stack.open).toBe(false);
   });
 
+  it('closes the description box at Esc and goes on to stop the selected merc with the same key (Turn_Based_Input.cc:2287-2316)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${HAND}`, MouseButton.RIGHT);
+    expect([f.screen.description.open, f.screen.selected]).toEqual([true, 0]);
+    const sent = f.client.commands.length;
+    f.key('Escape');
+    await f.settle();
+    expect(f.screen.description.open).toBe(false);
+    expect(f.client.commands.slice(sent).map((c) => c.cmd)).toMatchObject([{ type: 'closeItemDescription' }, { type: 'stop', soldier: 0 }]);
+  });
+
+  it('closes the key ring at Esc and goes on to stop the selected merc with the same key (Turn_Based_Input.cc:2292-2316)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click('smKeyRing');
+    expect(f.screen.keyRing.open).toBe(true);
+    const sent = f.client.commands.length;
+    f.key('Escape');
+    await f.settle();
+    expect(f.screen.keyRing.open).toBe(false);
+    expect(f.client.commands.slice(sent).map((c) => c.cmd)).toMatchObject([{ type: 'stop', soldier: 0 }]);
+  });
+
   it('puts one magazine taken off its stack back at the end of the stack, with a moveItem into the same slot', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);
@@ -862,7 +886,10 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.key('Escape');
     expect(f.screen.description.open).toBe(false);
     await f.settle();
-    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'closeItemDescription' }, reply: { ok: true, data: { charged: 0 } } });
+    expect(f.client.commands.slice(-2)).toMatchObject([
+      { cmd: { type: 'closeItemDescription' }, reply: { ok: true, data: { charged: 0 } } },
+      { cmd: { type: 'stop' }, reply: { ok: true } },
+    ]);
   });
 
   it('walks to a tile with two items on one pickUp and opens the pickup menu there from the prompt, OK answering with both', async () => {
@@ -1080,6 +1107,27 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.t.frame();
     expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([false, UiMode.MOVE_MODE]);
     expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'answer', prompt, choice: 'cancel' }, reply: { ok: true } });
+  });
+
+  it('closes the pickup menu only as Esc is released and stops nobody, as GETTINGITEM_MODE takes the key before the Esc block (Turn_Based_Input.cc:2258, :2487)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = await dropTwoItemsBesideMerc3(f);
+    const at = f.world.pickPoint(tile);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    await f.clickAt(at.x, at.y);
+    untilPickupMenu(f);
+    f.t.frame();
+    const prompt = f.screen.pickup.prompt;
+    const sent = f.client.commands.length;
+    f.t.runtime.input({ kind: 'keyDown', key: 'Escape', code: '', modifiers: 0 });
+    await f.settle();
+    expect([f.screen.pickup.open, f.client.commands.length]).toEqual([true, sent]);
+    f.t.runtime.input({ kind: 'keyUp', key: 'Escape', code: '', modifiers: 0 });
+    await f.settle();
+    expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([false, UiMode.MOVE_MODE]);
+    expect(f.client.commands.slice(sent).map((c) => c.cmd)).toMatchObject([{ type: 'answer', prompt, choice: 'cancel' }]);
   });
 
   it('keeps the player paused through keypad 5 without NumLock, which the input layer drops, and unpauses at the typed 5', async () => {
@@ -1488,9 +1536,11 @@ describe('the tactical screen in a stub campaign', () => {
     await f.clickAt(origin.x + 1, origin.y + 1);
     expect([f.screen.fastHelp.shown, f.screen.description.open, pauses]).toEqual([null, true, [true, false]]);
     f.key('Escape');
+    await f.settle();
     await f.click(`slot${HAND}`, MouseButton.RIGHT);
-    expect([f.screen.fastHelp.shown, helpCommands().length]).toEqual([null, 1]);
+    expect([f.screen.fastHelp.shown, f.screen.description.open, helpCommands().length]).toEqual([null, true, 1]);
     f.key('Escape');
+    await f.settle();
     await f.click(`slot${SMALL_POCKET}`);
     narrative.facts[ATTACHED_ITEM_BEFORE] = 0;
     f.client.refresh();
