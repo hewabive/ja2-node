@@ -9,6 +9,7 @@ const OPENING_MS = 1000;
 const WEST_STRIP_X = 15;
 const MAP_MIDDLE_ABOVE_PANEL = 160;
 const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
+const RGBA = 4;
 
 let saves: BattleEntrySaves;
 
@@ -58,6 +59,18 @@ async function finish(page: Page, status: string): Promise<void> {
     return ar?.status === wanted && ar.interface === 'done';
   }, status);
   await nextFrames(page, 2);
+}
+
+async function litPixelsLeftOfTheFrame(page: Page): Promise<number> {
+  const shot = await capture(page);
+  const frameX = await page.evaluate(() => window.__ja2Ui.origin.x);
+  let lit = 0;
+  for (let y = 0; y < shot.height; y++)
+    for (let x = 0; x < frameX; x++) {
+      const at = (y * shot.width + x) * RGBA;
+      if ((shot.rgba[at] ?? 0) + (shot.rgba[at + 1] ?? 0) + (shot.rgba[at + 2] ?? 0) > 0) lit++;
+    }
+  return lit;
 }
 
 async function visible(page: Page, id: string): Promise<boolean> {
@@ -154,7 +167,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     expect(await visible(page, 'arDoneLose')).toBe(true);
   });
 
-  test('places a merc of the squad walking into an enemy sector with a click on his side of the overhead map, the rest with Spread, and Done starts the battle (Tactical_Placement_GUI.cc)', async ({
+  test('places a merc of the squad walking into an enemy sector with a click on his side of the overhead map, the rest with Spread, and Done starts the battle, the world hidden around the 640x480 frame until then (Tactical_Placement_GUI.cc, GameScreen.cc)', async ({
     page,
     request,
   }) => {
@@ -169,6 +182,8 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     );
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.overheadOpen)).toBe(true);
     expect(await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'placement.done')?.enabled)).toBe(false);
+    expect(await page.evaluate(() => window.__ja2Ui.origin.x)).toBeGreaterThan(0);
+    expect(await litPixelsLeftOfTheFrame(page)).toBe(0);
     const panel = await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'tacticalPlacement')?.rect ?? null);
     if (!panel) throw new Error('no placement panel');
     const westStrip = await devicePoint(page, panel.x + WEST_STRIP_X, panel.y - MAP_MIDDLE_ABOVE_PANEL);
@@ -185,6 +200,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     );
     const ours = await page.evaluate(() => (window.__ja2Ui.tactical?.soldiers() ?? []).filter((s) => s.team === 0).length);
     expect(ours).toBeGreaterThan(0);
+    expect(await litPixelsLeftOfTheFrame(page)).toBeGreaterThan(0);
   });
 
   test('opens BATTLE IN PROGRESS from the battle locator during the tactical battle and closes it with Esc', async ({ page, request }) => {

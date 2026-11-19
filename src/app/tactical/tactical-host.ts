@@ -411,15 +411,20 @@ export class TacticalHost {
         const loaded = this.#loaded;
         if (!loaded || !this.loaded) return null;
         if (this.#screen?.worldCovered) return this.#coveredWorld(loaded.presenter);
-        const started = performance.now();
-        loaded.presenter.resize(width, height);
-        const picture = loaded.presenter.render();
-        this.#worldTimes.add(performance.now() - started);
-        this.#updateSound(loaded.presenter);
-        return picture;
+        const picture = this.#renderedWorld(loaded.presenter, width, height);
+        return this.#screen?.worldHidden ? null : picture;
       },
       present: (target, height) => this.#loaded?.presenter.present(target, height),
     };
+  }
+
+  #renderedWorld(presenter: TacticalWorldPresenter, width: number, height: number): number | null {
+    const started = performance.now();
+    presenter.resize(width, height);
+    const picture = presenter.render();
+    this.#worldTimes.add(performance.now() - started);
+    this.#updateSound(presenter);
+    return picture;
   }
 
   #coveredWorld(presenter: TacticalWorldPresenter): number {

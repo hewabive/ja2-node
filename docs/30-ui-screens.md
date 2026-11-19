@@ -177,7 +177,12 @@ hatch over the map outside the sides' strips, the cursors and the 40-pixel strip
 client's, as they are the GUI's, and so is choosing the next unplaced merc after a placement. A click sends `place`
 with the tile under the pointer; the two refusals open the original's boxes. The cells read the merc's bars and face
 from the strategic merc list, as no soldier stands on the map before his piece does. In placement mode the overhead map
-draws only the pieces, in the frames the panel picks, and gives its clicks and keys to the panel.
+draws only the pieces, in the frames the panel picks, and gives its clicks and keys to the panel. The world is not shown
+while the prompt is up, from the tactical screen's first frame (`TacticalScreen.worldHidden`; the host still renders
+it, as the overhead map is composed from its scene, but presents none of it), so a screen larger than 640×480 stays
+black around the frame: the original fills the frame buffer black in `BeginLoadScreen` (`Strategic/StrategicMap.cc:242`),
+goes into the overhead map instead of `PrepareLoadedSector` (`:892-900`) and returns before `RenderWorld` while it is
+up (`GameScreen.cc:366-370`).
 
 **Speech has one presenter.** `SpeechPresenter` queues every quote event as playback reaches its frame and routes it to
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,

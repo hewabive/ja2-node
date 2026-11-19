@@ -104,7 +104,15 @@ import { idiv } from '../../../core/int.ts';
 import type { CompatibleMercs, Footstep, ItemInfo, PanelReach, PreviewMove } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
-import type { InventoryItemView, ItemView, PlayerView, RadarContactKind, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import type {
+  InventoryItemView,
+  ItemView,
+  PlayerView,
+  RadarContactKind,
+  SoldierView,
+  TacticalPlacementPromptView,
+  ViewFrame,
+} from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { PointedCell } from '../../diagnostics-overlay.ts';
 import { type Area, type DrawList, rgb } from '../../draw-list.ts';
@@ -314,6 +322,10 @@ interface EdgeState {
 }
 
 type InterfaceEdge = 'combat' | 'conversation';
+
+function placementPromptOf(view: PlayerView | null): TacticalPlacementPromptView | null {
+  return view?.prompt?.kind === 'tacticalPlacement' ? view.prompt : null;
+}
 
 function clearsMessageLog(frame: ViewFrame): boolean {
   return frame.events?.some((e) => e.type === 'tacticalClearedForCompression') ?? false;
@@ -592,7 +604,7 @@ export class TacticalScreen implements Screen {
   }
 
   #syncPlacement(view: PlayerView | null): void {
-    const prompt = view?.prompt?.kind === 'tacticalPlacement' ? view.prompt : null;
+    const prompt = placementPromptOf(view);
     const overhead = this.controls.overhead;
     if (prompt && !overhead.placing) {
       overhead.close();
@@ -885,6 +897,10 @@ export class TacticalScreen implements Screen {
 
   get worldCovered(): boolean {
     return this.#autoBandage.coversScreen;
+  }
+
+  get worldHidden(): boolean {
+    return this.controls.overhead.placing || placementPromptOf(this.#view()) !== null;
   }
 
   get selected(): number | null {
