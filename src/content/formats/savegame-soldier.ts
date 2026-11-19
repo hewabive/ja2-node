@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LoadSaveSoldierType.cc ExtractSoldierType, MercChecksum (Windows and Strac Linux layouts)
+// @src src/game/Tactical/LoadSaveSoldierType.cc ExtractSoldierType, MercChecksum (Windows and Strac Linux layouts);
+// @src Tactical/Soldier_Control.h HEALTH_INCREASE … LVL_INCREASE (the usValueGoneUp bits, 2026-11-19)
 
 import { u8 } from '../../core/int.ts';
 import type { ObjectRecord } from './object.ts';
@@ -19,19 +20,49 @@ const DRUG_ADRENALINE = 0;
 const DRUG_ALCOHOL = 1;
 const LAST_LOCATIONS = 2;
 const FIRST_VERSION_WITH_STAT_DAMAGE = 103;
-const STAT_CHANGE_TIMES = [
-  'uiChangeLevelTime',
-  'uiChangeHealthTime',
-  'uiChangeStrengthTime',
-  'uiChangeDexterityTime',
-  'uiChangeAgilityTime',
-  'uiChangeWisdomTime',
-  'uiChangeLeadershipTime',
-  'uiChangeMarksmanshipTime',
-  'uiChangeExplosivesTime',
-  'uiChangeMedicalTime',
-  'uiChangeMechanicalTime',
+export type SavedChangedStat =
+  | 'level'
+  | 'health'
+  | 'strength'
+  | 'dexterity'
+  | 'agility'
+  | 'wisdom'
+  | 'leadership'
+  | 'marksmanship'
+  | 'explosives'
+  | 'medical'
+  | 'mechanical';
+
+const HEALTH_INCREASE = 0x0001;
+const STRENGTH_INCREASE = 0x0002;
+const DEX_INCREASE = 0x0004;
+const AGIL_INCREASE = 0x0008;
+const WIS_INCREASE = 0x0010;
+const LDR_INCREASE = 0x0020;
+const MRK_INCREASE = 0x0040;
+const MED_INCREASE = 0x0080;
+const EXP_INCREASE = 0x0100;
+const MECH_INCREASE = 0x0200;
+const LVL_INCREASE = 0x0400;
+
+const STAT_CHANGE_FIELDS: readonly (readonly [SavedChangedStat, string, number])[] = [
+  ['level', 'uiChangeLevelTime', LVL_INCREASE],
+  ['health', 'uiChangeHealthTime', HEALTH_INCREASE],
+  ['strength', 'uiChangeStrengthTime', STRENGTH_INCREASE],
+  ['dexterity', 'uiChangeDexterityTime', DEX_INCREASE],
+  ['agility', 'uiChangeAgilityTime', AGIL_INCREASE],
+  ['wisdom', 'uiChangeWisdomTime', WIS_INCREASE],
+  ['leadership', 'uiChangeLeadershipTime', LDR_INCREASE],
+  ['marksmanship', 'uiChangeMarksmanshipTime', MRK_INCREASE],
+  ['explosives', 'uiChangeExplosivesTime', EXP_INCREASE],
+  ['medical', 'uiChangeMedicalTime', MED_INCREASE],
+  ['mechanical', 'uiChangeMechanicalTime', MECH_INCREASE],
 ];
+
+export interface SavedStatChange {
+  readonly time: number;
+  readonly up: boolean;
+}
 
 export const SOLDIER_LAYOUT: Layout = [
   field('ubID', 'u8'),
@@ -363,7 +394,7 @@ export const SOLDIER_LAYOUT: Layout = [
   skip(4),
   field('ubCivilianGroup', 'u8'),
   skip(3),
-  ...STAT_CHANGE_TIMES.map((name) => field(name, 'u32')),
+  ...STAT_CHANGE_FIELDS.map(([, name]) => field(name, 'u32')),
   field('uiUniqueSoldierIdValue', 'u32'),
   field('bBeingAttackedCount', 'i8'),
   field('bNewItemCount', 'i8', SOLDIER_INVENTORY_SLOTS),
@@ -719,6 +750,7 @@ export interface SavedSoldier {
   readonly suppressionPoints: number;
   readonly stats: SoldierStats;
   readonly statDamage: { readonly agility: number; readonly dexterity: number; readonly strength: number; readonly wisdom: number };
+  readonly statChanges: Readonly<Record<SavedChangedStat, SavedStatChange>>;
   readonly fractLife: number;
   readonly bleeding: number;
   readonly breathRed: number;
@@ -774,6 +806,12 @@ export interface SavedSoldier {
   readonly quoteSaidExtFlags: number;
   readonly corpseQuoteTolerance: number;
   readonly checksum: number;
+}
+
+function savedStatChanges(n: (name: string) => number): Readonly<Record<SavedChangedStat, SavedStatChange>> {
+  const goneUp = n('usValueGoneUp');
+  const entries = STAT_CHANGE_FIELDS.map(([stat, name, bit]) => [stat, { time: n(name), up: (goneUp & bit) !== 0 }] as const);
+  return Object.fromEntries(entries) as Record<SavedChangedStat, SavedStatChange>;
 }
 
 export function soldierRecordBytes(stracLinuxFormat: boolean): number {
@@ -871,6 +909,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       strength: statDamage('bStrengthDamage'),
       wisdom: statDamage('bWisdomDamage'),
     },
+    statChanges: savedStatChanges((name) => n(name)),
     fractLife: n('sFractLife'),
     bleeding: n('bBleeding'),
     breathRed: n('sBreathRed'),

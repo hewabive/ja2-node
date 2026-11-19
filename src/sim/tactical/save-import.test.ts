@@ -750,6 +750,25 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     });
     expect(soldierOf(importedSim(save), MERC_ID).nextBleed).toBe(Math.fround(halfwayToTheNextPoint));
   });
+
+  it('puts each stat change as far before the import on the session clock as it was before the saved JA2 clock, its direction from usValueGoneUp, and leaves out a stat never changed (uiChange*Time, guiBaseJA2Clock)', () => {
+    const SAVED_JA2_CLOCK = 500_000;
+    const MRK_INCREASE = 0x0040;
+    const LVL_INCREASE = 0x0400;
+    const soldier = savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), {
+      uiChangeHealthTime: SAVED_JA2_CLOCK - 20_000,
+      uiChangeMarksmanshipTime: SAVED_JA2_CLOCK - 1_000,
+      uiChangeLevelTime: SAVED_JA2_CLOCK - 70_000,
+      usValueGoneUp: MRK_INCREASE | LVL_INCREASE,
+    });
+    const synthetic = syntheticSave({ soldiers: [soldier] });
+    const save = { ...synthetic, generalInfo: { ...synthetic.generalInfo, baseJA2Clock: SAVED_JA2_CLOCK } } as SaveGame;
+    expect(soldierOf(importedSim(save), MERC_ID).statChanges).toEqual({
+      experience: { at: -70_000, up: true },
+      lifeMax: { at: -20_000, up: false },
+      marksmanship: { at: -1_000, up: true },
+    });
+  });
 });
 
 describe('the revealed map of the loaded sector (SaveLoadMap.cc LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus)', () => {

@@ -31,12 +31,14 @@
 // @src finds it, the events and the clock loaded and gfInMeanwhile not yet (2026-11-09); Tactical/Soldier_Create.cc
 // @src TacticalCopySoldierFromCreateStruct (the default name of his team a save holds for a soldier without a profile) and
 // @src Interface_Dialogue.cc NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE (the nickname a married merc keeps, 2026-11-13);
-// @src UpdateMercsInSector's merc slot with no tile for a dead soldier of the loaded sector (SaveLoadGame.cc:1036, 2026-11-19).
+// @src UpdateMercsInSector's merc slot with no tile for a dead soldier of the loaded sector (SaveLoadGame.cc:1036, 2026-11-19);
+// @src Tactical/LoadSaveSoldierType.cc uiChange*Time and usValueGoneUp on the JA2 clock the save's guiBaseJA2Clock
+// @src continues (SaveLoadGame.cc:2005, 2026-11-19).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import type { SavedExplosionTable, SavedItemCursor } from '../../content/formats/savegame-effects.ts';
-import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
+import type { SavedChangedStat, SavedSoldier } from '../../content/formats/savegame-soldier.ts';
 import type {
   SavedCorpse,
   SavedDoorStatus,
@@ -47,7 +49,7 @@ import type {
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
-import { i16, u8 } from '../../core/int.ts';
+import { i16, u8, u32 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
 import { type ItemObject, objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
@@ -90,6 +92,7 @@ import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
 import {
+  type ChangedStat,
   copyDrugCourses,
   createSoldier,
   NO_PENDING_ANIMATION,
@@ -98,6 +101,7 @@ import {
   type SavedPendingAction,
   type Soldier,
   SoldierStatusFlags,
+  type StatChanges,
   TOTAL_SOLDIERS,
 } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
@@ -631,12 +635,38 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
     civilianGroup: r.civilianGroup,
   });
   copyScalars(s, r);
+  s.statChanges = importedStatChanges(r, save.generalInfo.baseJA2Clock);
   s.savedPendingAction = savedPendingAction(r);
   importFacing(s, r);
   s.overTerrain = r.overTerrainType;
   s.pc = r.aniCode;
   s.keyRing = entry.keyRing ? entry.keyRing.map((k) => ({ keyId: k.keyId, count: k.count })) : null;
   return s;
+}
+
+const SESSION_MS_AT_IMPORT = 0;
+const NEVER_CHANGED = 0;
+const IMPORTED_STAT_CHANGES: Readonly<Record<SavedChangedStat, ChangedStat>> = {
+  level: 'experience',
+  health: 'lifeMax',
+  strength: 'strength',
+  dexterity: 'dexterity',
+  agility: 'agility',
+  wisdom: 'wisdom',
+  leadership: 'leadership',
+  marksmanship: 'marksmanship',
+  explosives: 'explosives',
+  medical: 'medical',
+  mechanical: 'mechanical',
+};
+
+function importedStatChanges(r: SavedSoldier, savedJa2Clock: number): StatChanges {
+  const changes: StatChanges = {};
+  for (const [saved, stat] of Object.entries(IMPORTED_STAT_CHANGES) as [SavedChangedStat, ChangedStat][]) {
+    const { time, up } = r.statChanges[saved];
+    if (time !== NEVER_CHANGED) changes[stat] = { at: SESSION_MS_AT_IMPORT - u32(savedJa2Clock - time), up };
+  }
+  return changes;
 }
 
 function savedPendingAction(r: SavedSoldier): SavedPendingAction | null {

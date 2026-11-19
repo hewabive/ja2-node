@@ -293,7 +293,10 @@ each stat (`Soldier.statChanges`, the original's `uiChange*Time` and `usValueGon
 carries them (`statChanges`), and the single merc panel and the map screen's info panel colour a stat green or red while
 the view's clock is less than 60 s past its time (`tactical/panel-models.ts`, `map/info-panel.ts`;
 `Tactical/Interface_Panels.cc:1223-1231`, `Strategic/MapScreen.cc:643`, `:722`). The clock is the session's tick
-(`15` §2), so a load shows the colours of the save and nothing from after it.
+(`15` §2), so a load shows the colours of the save and nothing from after it. A native import puts each saved change as
+far before the session's start as it was before the save's `guiBaseJA2Clock` (`SaveLoadGame.cc:2005`;
+`importedStatChanges`, `src/sim/tactical/save-import.ts`), so a stat flashing at the save flashes for the rest of its
+minute.
 
 **A load in place resets what frames fed.** A welcome that replaces the state makes the tactical screen drop the
 locators, the feedback box, the queued event boxes, the panel death animations and the fallen mercs it kept from the

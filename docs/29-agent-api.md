@@ -374,8 +374,8 @@ AP number as `drunk` (`feelingGood`, `borderline`, `drunk`, `hungover`) and `adr
 after-effect), each absent without it; strategic mercs carry the same two for the map screen's faces). The drug
 counters, and so the turns a course has left, are never shown, and other soldiers carry no drug state (`12` §5). Our
 soldiers and strategic mercs carry `statChanges` (`{stat: {at, up}}`, the stat keys of `stats` and `lifeMax`; absent
-while none changed): the last change of each stat, `at` in milliseconds of the session's clock, the view's `tick` × 5,
-and `up` for a gain; the panels colour a stat while `tick` × 5 is less than `at` + 60000 (`30`). Every soldier in the
+while none changed): the last change of each stat, `at` in milliseconds of the session's clock, the view's `tick` × 5
+(below 0 for a change made before the native save a session imported), and `up` for a gain; the panels colour a stat while `tick` × 5 is less than `at` + 60000 (`30`). Every soldier in the
 view whose floating damage number is up carries `damage {amount, steps}`: the damage it shows and how many of its 8
 drift steps of 250 ms it has taken (`33`).
 `itemLocatorsLocked` stands while the original's item locators wait for the items-seen quote (`fLockItemLocators`,
