@@ -198,11 +198,6 @@ export class MapInventory {
       this.pool.clearCursor();
       return true;
     }
-    if (this.pool.open) {
-      this.closePool();
-      this.#host.poolClosed();
-      return true;
-    }
     return false;
   }
 

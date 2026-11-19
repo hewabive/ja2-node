@@ -7,7 +7,8 @@
 // @src PATH_SHORTENED, ABORT_PLOTTING), AbortMovementPlottingMode ("Destination unchanged"), DestinationPlottingCompleted,
 // @src GetPathTravelTimeDuringPlotting (0 until the temporary path is drawn); src/game/Strategic/Map_Screen_Interface_Map.cc
 // @src PlotPathForCharacter, PlotATemporaryPathForCharacter, ClearPathAfterThisSectorForCharacter, PlotPathForHelicopter,
-// @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter.
+// @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter; HandleNewDestConfirmation through a click
+// @src on the end of an unchanged path, the helicopter's too (2026-11-18).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -244,7 +245,9 @@ export class Plotting {
 
   #reconfirmedPath(): CommandEnvelope | null {
     const last = this.lastSector();
-    return this.mode === 'merc' && !this.group && last !== null ? { type: 'route', soldier: this.soldier, to: last } : null;
+    if (last === null || this.group) return null;
+    if (this.mode === 'heli') return { type: 'heliRoute', to: last, extend: true, plotted: true };
+    return { type: 'route', soldier: this.soldier, to: last };
   }
 
   confirmCommand(): CommandEnvelope | null {

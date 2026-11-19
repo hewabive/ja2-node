@@ -57,8 +57,12 @@ export function mercSoldier(view: PlayerView | null, m: StrategicMercView): Sold
   };
 }
 
+export function isRobot(m: StrategicMercView): boolean {
+  return m.kind === ROBOT_KIND || m.controlled !== undefined;
+}
+
 export function isMechanical(m: StrategicMercView): boolean {
-  return m.kind === ROBOT_KIND || m.kind === 'vehicle';
+  return isRobot(m) || m.kind === 'vehicle';
 }
 
 export function mercBars(m: StrategicMercView): BarValues {
@@ -69,7 +73,7 @@ export function mercBars(m: StrategicMercView): BarValues {
     breath: m.breath,
     breathMax: m.breathMax,
     morale: m.morale ?? 0,
-    robot: m.kind === ROBOT_KIND,
+    robot: isRobot(m),
     vehicle: m.kind === 'vehicle',
   };
 }

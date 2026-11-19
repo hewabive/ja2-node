@@ -903,7 +903,7 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.radarHighlight()).toBeNull();
   });
 
-  it('closes the description, then the cursor, then the pool on Escape', async () => {
+  it('closes the description, then the cursor, and leaves the pool to its own exit on Escape (HandleKeyESC)', async () => {
     const gun = item((i) => i.class === 'GUN');
     const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
     h.client.stash = [stashEntry(0, gun.name)];
@@ -918,9 +918,8 @@ describe('the map screen inventory over a scripted session', () => {
     await h.click('poolSlot0');
     expect(h.inventory.escape()).toBe(true);
     expect(h.inventory.pool.cursor).toBeNull();
-    expect(h.inventory.escape()).toBe(true);
-    expect(h.inventory.pool.open).toBe(false);
     expect(h.inventory.escape()).toBe(false);
+    expect(h.inventory.pool.open).toBe(true);
   });
 
   it("describes the object in the merc's slot and its attachment, with the range in tiles as the hint gives it (MAPInternalInitItemDescriptionBox, Interface_Items.cc:2327)", async () => {

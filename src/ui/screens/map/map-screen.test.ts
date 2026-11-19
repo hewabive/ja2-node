@@ -3,7 +3,8 @@ import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { GrabbedPointer, type TestRuntimeOptions } from '../../../../tests/support/ui-runtime.ts';
 import { addVehicleOfOurs } from '../../../../tests/support/vehicles.ts';
-import { parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { Body } from '../../../content/anim/body-types.ts';
+import { MAP_SIDE, parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
@@ -19,9 +20,10 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
 import { Assignment } from './character-list.ts';
-import { parseSectorLabel } from './facts.ts';
+import { mapFacts, parseSectorLabel, sectorLabel } from './facts.ts';
 import { CHANGE_STAT_RECENTLY_DURATION_MS } from './info-panel.ts';
 import { localMessage, MAX_MESSAGES_ON_MAP_BOTTOM } from './message-list.ts';
+import { TeamColumn } from './team-list-view.ts';
 
 const PLOT_REST_MS = 250;
 const HELICOPTER_ICONS = 'interface/helicop.sti';
@@ -58,6 +60,14 @@ const DRUNK_ICON = 8;
 const HEALTH_SUBPOINTS = 50;
 const TRAINABLE_HEALTH = 60;
 const TRAINING_POINTS = 40;
+const ROUTE_CONFIRMED = 'Travel route confirmed.';
+const ROUTE_UNCHANGED = 'Destination unchanged.';
+const INVALID_DROPOFF = 'New recruits cannot arrive there.';
+const DISMISS_LINE = 'contractMenu.line5';
+const LAST_ROW = 19;
+const EMPTY_ROW = 10;
+const FIRST_SUBLEVEL = 1;
+const EDGE_OF_WORLD = 12;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -711,11 +721,21 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.widget(MESSAGE_BOX).text).toBe('You cannot save now.');
       f.key('Enter');
       await f.settle();
-      await f.click('teamRow0.destination');
+      await f.clickSector(SQUAD_SECTOR, MouseButton.RIGHT);
+      expect(f.screen.hook().townBox).not.toBeNull();
       f.key('s', KeyModifier.ALT);
       f.key('l', KeyModifier.ALT);
       await f.settle();
       expect(f.flow).toEqual(['quickSave', 'quickLoad', 'quickSave']);
+    }));
+
+  it('quick saves while plotting, which AllowedToExitFromMapscreenTo does not check', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      f.key('s', KeyModifier.ALT);
+      await f.settle();
+      expect(f.flow).toEqual(['quickSave']);
+      expect(f.screen.hook().plotting).not.toBeNull();
     }));
 
   it('boxes a lost SAM site, a producing mine with the new daily income and a town, each sector named in full', () =>
@@ -1395,5 +1415,300 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.key('ArrowRight');
       await f.settle();
       expect(f.screen.hook().info).toBe(away);
+    }));
+});
+
+function edgeOfWorldSector(): string {
+  const strategic = ui.client.rules.strategic;
+  if (!strategic) throw new Error('no strategic rules');
+  const facts = mapFacts(strategic.content, strategic.economy);
+  for (let y = 1; y <= MAP_SIDE; y++)
+    for (let x = 1; x <= MAP_SIDE; x++)
+      if (facts.traversability(sectorId({ x, y, z: 0 })) === EDGE_OF_WORLD) return sectorLabel({ x, y, z: 0 });
+  throw new Error('no edge of the world on the map');
+}
+
+function mercRecord(f: MapUiTest, id: number) {
+  const record = (f.session.sim as CampaignSession).campaign.battle?.roster.get(id);
+  if (!record) throw new Error(`no roster merc ${id}`);
+  return record;
+}
+
+function rowOf(f: MapUiTest, id: number | undefined): number {
+  return f.screen.list.rowOf(id ?? -1);
+}
+
+async function boardHelicopter(f: MapUiTest, id: number | undefined): Promise<void> {
+  expect((await f.client.command({ type: 'boardVehicle', soldier: id ?? -1, vehicle: 'helicopter' })).ok).toBe(true);
+  await f.settle();
+}
+
+async function plotMercRoute(f: MapUiTest, row: number, to: string): Promise<void> {
+  await f.click(`teamRow${row}.destination`);
+  await f.hoverSector(to, PLOT_REST_MS);
+  await f.clickSector(to);
+  await f.clickSector(to);
+}
+
+describe('the map screen team list, plotting and contract rules of the original', () => {
+  it('plots for Skyrider from the destination column of a passenger, with the airspace on and the selection woken (TeamListDestinationRegionBtnCallBackPrimary)', () =>
+    withMap(async (f) => {
+      const passenger = f.mercs[1];
+      await boardHelicopter(f, passenger);
+      const row = rowOf(f, passenger);
+      await f.click(`teamRow${row}.destination`);
+      expect(f.client.commands.find((c) => c.cmd.type === 'heliPlot')?.reply).toEqual({ ok: true });
+      expect(f.screen.hook()).toMatchObject({
+        filters: { airspace: true },
+        plotting: { mode: 'heli' },
+        glow: { line: row, column: TeamColumn.DESTINATION },
+      });
+      await f.hoverSector('C13', PLOT_REST_MS);
+      await f.clickSector('C13');
+      await f.clickSector('C13');
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'C13', plotted: true, selected: f.screen.list.selectedIds() });
+      expect(lastCommand(f)?.reply.ok).toBe(true);
+    }));
+
+  it('turns the airspace off when the destination column of a merc on foot is clicked', () =>
+    withMap(async (f) => {
+      await f.click('filter4');
+      expect(f.screen.hook().filters.airspace).toBe(true);
+      await f.click('teamRow0.destination');
+      expect(f.screen.hook()).toMatchObject({ filters: { airspace: false }, plotting: { mode: 'merc' } });
+    }));
+
+  it('confirms an unchanged path of a merc with his quote and the confirmed message (CheckIfClickOnLastSectorInPath)', () =>
+    withMap(async (f) => {
+      await plotMercRoute(f, 0, 'C13');
+      f.key('Escape');
+      f.sounds.length = 0;
+      await f.click('teamRow0.destination');
+      await f.clickSector('C13');
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'route', to: 'C13' });
+      expect(f.screen.hook().uiMessage).toBe(ROUTE_CONFIRMED);
+      expect(f.sounds.some((s) => s.startsWith('confirmRoute'))).toBe(true);
+    }));
+
+  it("confirms the helicopter's unchanged path through Skyrider, without the merc's message", () =>
+    withMap(async (f) => {
+      await boardHelicopter(f, f.mercs[1]);
+      await f.click(`teamRow${rowOf(f, f.mercs[1])}.destination`);
+      await f.hoverSector('C13', PLOT_REST_MS);
+      await f.clickSector('C13');
+      await f.clickSector('C13');
+      const flown = f.client.commands.length;
+      await f.click(`teamRow${rowOf(f, f.mercs[1])}.destination`);
+      await f.clickSector('C13');
+      expect(f.client.commands.length).toBeGreaterThan(flown);
+      expect(lastCommand(f)?.cmd).toMatchObject({ type: 'heliRoute', to: 'C13', extend: true, plotted: true });
+      expect(lastCommand(f)?.reply).toMatchObject({ ok: true, data: { path: ['D13', 'C13'] } });
+      expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
+    }));
+
+  it('says the route is unchanged wherever plotting is given up by the sort buttons, the contract menu or the arrows (AbortMovementPlottingMode)', () =>
+    withMap(async (f) => {
+      const giveUp: readonly (() => void)[] = [() => f.key('F1'), () => f.key('c', 0, 'KeyC'), () => f.key('ArrowRight')];
+      for (const action of giveUp) {
+        await f.click('teamRow0.destination');
+        expect(f.screen.hook().plotting).not.toBeNull();
+        action();
+        await f.settle();
+        expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED });
+        f.key('Escape');
+        f.key('Escape');
+        await f.settle();
+      }
+    }));
+
+  it('gives up plotting silently on a click on a name, which only resets the modes (TeamListInfoRegionBtnCallBackPrimary)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      await f.click('teamRow1.name');
+      expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
+    }));
+
+  it('lets the exit keys leave while plotting and gives the plot up on the way out (AllowedToExitFromMapscreenTo, EndMapScreen)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      f.key('o', 0, 'KeyO');
+      expect(f.flow).toEqual(['options']);
+      expect(f.widget('laptopButton').enabled).toBe(true);
+    }));
+
+  it('gives up plotting when the inventory is toggled (RequestToggleMercInventoryPanel)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      f.key('Enter');
+      expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED, inventoryOpen: true });
+    }));
+
+  it('toggles the inventory from the hand with either mouse button (ItemRegionBtnCallback)', () =>
+    withMap(async (f) => {
+      await f.click('infoHand', MouseButton.RIGHT);
+      expect(f.screen.hook().inventoryOpen).toBe(true);
+      await f.click('infoHand');
+      expect(f.screen.hook().inventoryOpen).toBe(false);
+    }));
+
+  it('leaves the sector inventory open on Escape, as its own button closes it (HandleKeyESC)', () =>
+    withMap(async (f) => {
+      f.screen.openSectorInventory();
+      await f.settle();
+      f.key('Escape');
+      await f.settle();
+      expect(f.screen.mapInventory.pool.open).toBe(true);
+    }));
+
+  it('turns the airspace off on the way below ground, by key or by selecting a sector there (ChangeSelectedMapSector)', () =>
+    withMap(async (f) => {
+      await f.click('filter4');
+      f.key('Delete');
+      expect(f.screen.level).toBe(FIRST_SUBLEVEL);
+      expect(f.screen.hook().filters.airspace).toBe(false);
+    }));
+
+  it('names the sector recruits cannot be sent to while the landing zone moves (HandleMapUI, NS_INVALID_DROPOFF_SECTOR)', () =>
+    withMap(async (f) => {
+      const zone = f.client.view.strategic?.landingZone ?? '';
+      await f.click('filter4');
+      await f.clickSector(zone);
+      expect(f.screen.hook().changingArrival).toBe(true);
+      await f.clickSector(edgeOfWorldSector());
+      expect(f.screen.hook()).toMatchObject({ changingArrival: true, uiMessage: INVALID_DROPOFF });
+    }));
+
+  it('switches off the columns a row cannot use and reads the remove help for the dead and the captured (EnableDisableTeamListRegionsAndHelpText)', () =>
+    withMap(async (f) => {
+      const [first = -1, second = -1] = f.mercs;
+      expect(f.widget(`teamRow${LAST_ROW}.name`).enabled).toBe(false);
+      expect(f.widget(`teamRow${LAST_ROW}.departure`).enabled).toBe(false);
+      expect(f.widget('teamRow0.assignment')).toMatchObject({ enabled: true, text: 'Assign Merc' });
+      mercRecord(f, first).assignment = Assignment.ASSIGNMENT_POW;
+      mercRecord(f, second).life = 0;
+      f.client.refresh();
+      f.t.frame();
+      const captured = rowOf(f, first);
+      const dead = rowOf(f, second);
+      expect(f.widget(`teamRow${captured}.departure`).enabled).toBe(false);
+      expect(f.widget(`teamRow${captured}.assignment`).text).toBe('Remove Merc');
+      expect(f.widget(`teamRow${captured}.destination`).text ?? '').toBe('');
+      expect(f.widget(`teamRow${dead}.departure`).enabled).toBe(true);
+      expect(f.widget(`teamRow${dead}.assignment`).text).toBe('Remove Merc');
+    }));
+
+  it('resets the modes through a switched-off column instead of acting on it (MapScreenMarkRegionBtnCallback)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.destination');
+      const { rect } = f.widget(`teamRow${EMPTY_ROW}.departure`);
+      expect(f.widget(`teamRow${EMPTY_ROW}.departure`).enabled).toBe(false);
+      await f.clickAt(rect.x + 1, rect.y + 1);
+      expect(f.screen.hook()).toMatchObject({ plotting: null, menu: null, uiMessage: ROUTE_UNCHANGED });
+    }));
+
+  it('gives the status bars and the corner icons their help, nothing for a dead merc (UpdateCharRegionHelpText, UpdateHelpTextForMapScreenMercIcons)', () =>
+    withMap(async (f) => {
+      const m = f.client.view.strategic?.mercs.find((x) => x.id === f.screen.hook().info);
+      if (!m) throw new Error('no info merc');
+      expect(f.widget('infoStatusBars').text).toBe(`Health: ${m.life}/${m.lifeMax}, Energy: ${m.breath}/${m.breathMax}, Morale: Stable`);
+      expect(f.widget('infoCornerIcon0').text).toBe('Merc has a finite contract.');
+      expect(f.widget('infoCornerIcon2').text ?? '').toBe('');
+      mercRecord(f, m.id).life = 0;
+      f.client.refresh();
+      f.t.frame();
+      expect(f.widget('infoStatusBars').text ?? '').toBe('');
+    }));
+
+  it('hides the numbers of a captured merc in the help of the status bars', () =>
+    withMap(async (f) => {
+      const id = f.screen.hook().info ?? -1;
+      mercRecord(f, id).assignment = Assignment.ASSIGNMENT_POW;
+      f.client.refresh();
+      f.t.frame();
+      expect(f.widget('infoStatusBars').text).toBe('Health: ??, Energy: ??, Morale: ??');
+    }));
+
+  it('keeps the contract row glowing from the key on through the price line, and closes the menu with a right click on a line (ContractMenuBtnCallbackSecondary)', () =>
+    withMap(async (f) => {
+      const merc = f.screen.hook().info ?? -1;
+      const contract = (f.session.sim as CampaignSession).campaign.contracts?.roster.get(merc)?.contract;
+      if (!contract) throw new Error('no contract');
+      contract.contractPriceIncreased = true;
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      const glow = { line: f.screen.list.rowOf(merc), column: TeamColumn.CONTRACT };
+      expect(f.screen.hook()).toMatchObject({ menu: null, glow });
+      f.session.advance({ idle: true });
+      f.client.refresh();
+      f.frames([]);
+      await f.settle();
+      expect(f.screen.hook()).toMatchObject({ menu: 'contract', glow });
+      f.key('Escape');
+      await f.settle();
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      expect(f.screen.hook()).toMatchObject({ menu: 'contract', glow });
+      await f.click('contractMenu.line2', MouseButton.RIGHT);
+      expect(f.screen.hook()).toMatchObject({ menu: null, glow: null });
+    }));
+
+  it('closes the open submenu with a right click on a line of the assignment box, and keeps the box (AssignmentMenuBtnCallbackSecondary)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.assignment');
+      await f.settle();
+      await f.click('assignmentMenu.line0');
+      await f.settle();
+      expect(f.find('squadMenu')).toBeDefined();
+      await f.click('assignmentMenu.line1', MouseButton.RIGHT);
+      await f.settle();
+      expect(f.find('squadMenu')).toBeUndefined();
+      expect(f.screen.hook().menu).toBe('assignment');
+    }));
+
+  it('closes the contract menu at once when Dismiss is chosen, whatever the answer to its box (ContractMenuBtnCallbackPrimary)', () =>
+    withMap(async (f) => {
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      await f.click(DISMISS_LINE);
+      await f.settle();
+      expect(f.screen.hook().menu).toBeNull();
+      expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
+      await f.click(`${MESSAGE_BOX}.no`);
+      await f.settle();
+      expect(f.screen.hook().menu).toBeNull();
+      expect(f.client.commands.some((c) => c.cmd.type === 'dismiss')).toBe(false);
+    }));
+
+  it('opens the contract menu for the robot, which it dismisses, and only resets the modes for a prisoner on the c key (CanExtendContractForSoldier, RequestContractMenu)', () =>
+    withMap(async (f) => {
+      const merc = f.screen.hook().info ?? -1;
+      const record = mercRecord(f, merc);
+      record.assignment = Assignment.ASSIGNMENT_POW;
+      f.client.refresh();
+      f.t.frame();
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      expect(f.screen.hook().menu).toBeNull();
+      expect(f.client.commands.some((c) => c.cmd.type === 'openContractMenu')).toBe(false);
+      record.assignment = 0;
+      Object.assign(record.soldier, { bodyType: Body.ROBOTNOWEAPON });
+      f.client.refresh();
+      f.t.frame();
+      expect(f.widget('contractButton').enabled).toBe(true);
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      expect(f.screen.hook().menu).toBe('contract');
+    }));
+
+  it('shows the remove box for a dead merc from the c key and his contract column (DetermineIfContractMenuCanBeShown)', () =>
+    withMap(async (f) => {
+      const merc = f.screen.hook().info ?? -1;
+      mercRecord(f, merc).life = 0;
+      f.client.refresh();
+      f.t.frame();
+      f.key('c', 0, 'KeyC');
+      await f.settle();
+      expect(f.screen.hook().menu).toBe('assignment');
+      expect(f.t.runtime.describe().find((w) => w.id === 'assignmentMenu.line0' && w.kind === 'popupLine')?.text).toBe('Remove Merc');
     }));
 });

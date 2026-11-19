@@ -13,7 +13,7 @@ import { PopupBox, type PopupBoxStyle, type PopupLine } from '../../widgets/popu
 import { type WidgetInfo, widgetRect } from '../../widgets/widget-info.ts';
 
 export const MENU_PRIORITY = Priority.HIGHEST - 4;
-const ANY_BUTTON_UP =
+export const ANY_BUTTON_UP =
   MouseReason.LBUTTON_UP | MouseReason.RBUTTON_UP | MouseReason.MBUTTON_UP | MouseReason.X1BUTTON_UP | MouseReason.X2BUTTON_UP;
 
 export interface MapMenuOptions {

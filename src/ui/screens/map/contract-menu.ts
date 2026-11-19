@@ -2,8 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc CreateContractBox ("Contract Options:" in yellow, a blank line, the three offers
 // @src with their price in "( $x )", Dismiss, Cancel; at ContractPosition or the row's giBoxY),
-// @src ContractMenuBtnCallbackPrimary (the extensions, Dismiss asking STR_LATE_48 outside the renewal sequence, Cancel
-// @src letting the merc go during the renewal sequence), CloseContractMenu; src/game/Strategic/MapScreen.cc
+// @src ContractMenuBtnCallbackPrimary (the extensions, Dismiss asking STR_LATE_48 outside the renewal sequence with the
+// @src menu already closed, Cancel letting the merc go during the renewal sequence), ContractMenuBtnCallbackSecondary
+// @src (a right click on a line closes the menu), CloseContractMenu; src/game/Strategic/MapScreen.cc
 // @src HandleShadingOfLinesForContractMenu (the shading comes from openContractMenu or the renewal prompt), and
 // @src Map_Screen_Interface.cc CheckIfSalaryIncreasedAndSayQuote (no menu until the merc has said his price went up,
 // @src 2026-11-18).
@@ -108,6 +109,7 @@ export class ContractMenu {
       owner: this.#host.owner,
       regions: this.#host.regions,
       select: (line) => void this.#select(line),
+      ...(renewal ? {} : { secondary: () => this.close(true) }),
     });
     this.#menu.box.lines[TITLE] = { ...(this.#menu.box.lines[TITLE] as PopupLine), shade: 'secondary' };
     this.#menu.show();
@@ -126,10 +128,10 @@ export class ContractMenu {
       return;
     }
     if (line === DISMISS) {
-      if (!renewal?.fromSequence && !(await this.#host.confirm(this.#host.text.string(LATE, STR_LATE_48) ?? ''))) return;
       this.close(true);
-      if (renewal) await this.#host.send({ type: 'answer', prompt: renewal.id, choice: 'dismiss' });
-      else await this.#host.send({ type: 'dismiss', soldier });
+      const confirmed = renewal?.fromSequence === true || (await this.#host.confirm(this.#host.text.string(LATE, STR_LATE_48) ?? ''));
+      if (renewal) await this.#host.send({ type: 'answer', prompt: renewal.id, choice: confirmed ? 'dismiss' : 'letGo' });
+      else if (confirmed) await this.#host.send({ type: 'dismiss', soldier });
       return;
     }
     this.close(true);

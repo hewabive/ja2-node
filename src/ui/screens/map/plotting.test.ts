@@ -69,9 +69,15 @@ describe('route plotting on the map screen', () => {
     expect(plot.routeFor(SOLDIER + 1)).toBeNull();
   });
 
-  it('has nothing to confirm without a path, and leaves an unchanged helicopter path alone', () => {
+  it('has nothing to confirm without a path, and confirms an unchanged helicopter path again (HandleNewDestConfirmation)', () => {
     expect(new Plotting('merc', SOLDIER, ROW, 'D13', []).confirmCommand()).toBeNull();
-    expect(new Plotting('heli', SOLDIER, ROW, 'D13', ['C13']).confirmCommand()).toBeNull();
+    expect(new Plotting('heli', SOLDIER, ROW, 'D13', []).confirmCommand()).toBeNull();
+    expect(new Plotting('heli', SOLDIER, ROW, 'D13', ['C13']).confirmCommand()).toEqual({
+      type: 'heliRoute',
+      to: 'C13',
+      extend: true,
+      plotted: true,
+    });
   });
 
   it('refuses a click off the road and sends the earlier legs as via with Shift as shortest', async () => {

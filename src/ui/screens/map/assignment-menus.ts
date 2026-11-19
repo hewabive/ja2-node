@@ -202,7 +202,15 @@ export class AssignmentMenus {
     }));
     const o = this.#host.origin();
     this.#boxes = this.#host.placement?.start() ?? { x: o.x + ASSIGNMENT_X, y: o.y + boxY };
-    this.#main = this.#menu('assignmentMenu', 'assignment', this.#boxes.x, this.#boxes.y, lines, (line) => this.#mainSelect(line));
+    this.#main = this.#menu(
+      'assignmentMenu',
+      'assignment',
+      this.#boxes.x,
+      this.#boxes.y,
+      lines,
+      (line) => this.#mainSelect(line),
+      () => this.#closeSubmenus(),
+    );
     this.#arrange();
     this.#main.show();
     if (options.box !== 'removeMerc') this.#positionPointer(this.#main.box);
@@ -282,6 +290,12 @@ export class AssignmentMenus {
     main.moveTo(x, y);
     beside?.moveTo(x + m.width, y + dy);
     if (shownByAttributes) attribute.moveTo(x + m.width + besideWidth, y + dy);
+  }
+
+  #closeSubmenus(): void {
+    for (const menu of [this.#squad, this.#vehicle, this.#repair, this.#training, this.#attribute]) menu?.hide();
+    this.#squad = this.#vehicle = this.#repair = this.#training = this.#attribute = null;
+    this.#main?.unpin();
   }
 
   #submenuOpen(): boolean {

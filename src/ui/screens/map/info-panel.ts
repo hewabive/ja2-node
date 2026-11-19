@@ -9,7 +9,8 @@
 // @src dead), RenderIconsForUpperLeftCornerPiece, ConvertMinTimeToETADayHourMinString; src/game/Strategic/
 // @src Map_Screen_Interface.cc RenderMapStatusBars (DrawSoldierUIBars at BAR_INFO_X, BAR_INFO_Y); no vehicle name for a
 // @src repair id that names no vehicle, where GetVehicle throws; a vehicle's names from pShortVehicleStrings and
-// @src pVehicleStrings of its type (2026-11-05).
+// @src pVehicleStrings of its type (2026-11-05); UpdateCharRegionHelpText and UpdateHelpTextForMapScreenMercIcons (the
+// @src help of the status bars and of the three corner icons, 2026-11-18).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -33,9 +34,12 @@ import {
   vehicleOfMerc,
 } from './character-list.ts';
 import type { LayoutParams } from './layout-params.ts';
-import { isMechanical } from './merc-soldier.ts';
+import { isMechanical, isPow, isRobot } from './merc-soldier.ts';
 
 export const CHANGE_STAT_RECENTLY_DURATION_MS = 60000;
+export const CornerIcon = { CONTRACT: 0, INSURANCE: 1, DEPOSIT: 2 } as const;
+const STATUS_STRINGS = 'pMapScreenStatusStrings';
+const StatusWord = { HEALTH: 0, ENERGY: 1, MORALE: 2, CONDITION: 3, FUEL: 4 } as const;
 const ATTRIBUTE_STRINGS = 'pAttributeMenuStrings';
 const REPAIR_STRINGS = 'pRepairStrings';
 const REPAIR_ITEMS = 0;
@@ -245,6 +249,19 @@ export function renderCharacterInfo(ctx: InfoContext, g: InfoGeometry, m: Strate
         ? ''
         : moraleText(ctx.text, m.morale, false);
   centred(ctx, g.morale, morale, CHAR_TEXT_FONT_COLOR);
+}
+
+export function statusBarsHelp(text: UiTextService, m: StrategicMercView | null): string {
+  if (!m || m.life === 0) return '';
+  const word = (index: number) => text.string(STATUS_STRINGS, index) ?? '';
+  const health = word(StatusWord.HEALTH);
+  const energy = word(StatusWord.ENERGY);
+  const morale = word(StatusWord.MORALE);
+  const condition = `${word(StatusWord.CONDITION)}: ${m.life}/${m.lifeMax}`;
+  if (isPow(m)) return `${health}: ??, ${energy}: ??, ${morale}: ??`;
+  if (isRobot(m)) return condition;
+  if (isVehicle(m)) return `${condition}, ${word(StatusWord.FUEL)}: ${m.breath}/${m.breathMax}`;
+  return `${health}: ${m.life}/${m.lifeMax}, ${energy}: ${m.breath}/${m.breathMax}, ${morale}: ${moraleText(text, m.morale, false)}`;
 }
 
 export function cornerIcons(m: StrategicMercView): number[] {

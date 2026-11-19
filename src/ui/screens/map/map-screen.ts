@@ -53,7 +53,13 @@
 // @src Strategic/Map_Screen_Helicopter.cc HandleSkyRiderMonologueEvent (SetExternMapscreenSpeechPanelXY, the panel of
 // @src each monologue; TurnOnAirSpaceMode at its start and every special event), HandleAnimationOfSectors (the red
 // @src highlights first, the speaker's locator only without them, then the battle locator of RenderMapCursorsIndexesAnims),
-// @src Strategic_Mines.cc IssueHeadMinerQuote (the panel clear of the miner's mine, 2026-11-09).
+// @src Strategic_Mines.cc IssueHeadMinerQuote (the panel clear of the miner's mine, 2026-11-09); MapScreen.cc
+// @src TeamListDestinationRegionBtnCallBackPrimary and RequestGiveSkyriderNewDestination (a passenger plots for Skyrider),
+// @src EnableDisableTeamListRegionsAndHelpText, ContractRegionBtnCallbackPrimary, RequestContractMenu and
+// @src HandleChangeOfHighLightedLine (the contract row glows from the request), AbortMovementPlottingMode (always says so),
+// @src ItemRegionBtnCallback, ChangeSelectedMapSector (no airspace below ground, no sublevel while plotting),
+// @src RequestToggleMercInventoryPanel, MAP_EVENT_CLICK_SECTOR (NS_INVALID_DROPOFF_SECTOR); Map_Screen_Interface.cc
+// @src CreateMapStatusBarsRegion, CreateDestroyInsuranceMouseRegionForMercs (2026-11-18).
 
 import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -116,12 +122,12 @@ import { type MapEnvironment, MapLayout } from './environment.ts';
 import { eventBoxesOf, inTacticalFlow, vehicleTypeIn } from './event-boxes.ts';
 import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn, townOfLabel } from './facts.ts';
 import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnAirspace, turnOnTeams } from './filters.ts';
-import { cornerIcons, infoGeometry, renderCharacterInfo } from './info-panel.ts';
+import { CornerIcon, cornerIcons, infoGeometry, renderCharacterInfo, statusBarsHelp } from './info-panel.ts';
 import { type InvasionEvent, invasionBoxesOf, invasionText } from './invasion.ts';
 import { LayoutParams, type Params } from './layout-params.ts';
 import { type MapAction, MapScreenController } from './map-controller.ts';
 import { accessibleInventory, MapInventory } from './map-inventory.ts';
-import { MenuMask } from './map-menu.ts';
+import { ANY_BUTTON_UP, MenuMask } from './map-menu.ts';
 import { departureBox, insuranceBox, type PromptBox, type PromptContext, promptBox } from './map-prompts.ts';
 import { type ExternFaceStyle, type FaceArea, MapSpeech } from './map-speech.ts';
 import {
@@ -189,11 +195,17 @@ const UPDATE_BOX_CHOICES: readonly PromptChoice[] = [
 ];
 const ROW_HELP = [0, 1, 5, 0, 2, 3];
 const ROW_HELP_TABLE = 'pMapScreenMouseRegionHelpText';
+const REMOVE_MERC_TABLE = 'pRemoveMercStrings';
+const REMOVE_MERC_HELP = 0;
 const HAND_HELP_TABLE = 'pMiscMapScreenMouseRegionHelpText';
 const HAND_HELP_ENTER = 0;
 const HAND_HELP_EXIT = 2;
 const SELECTED_FLASH_MS = 300;
 const PAUSE_GAME_TIMER = 500;
+const STATUS_BARS_LEFT = 3;
+const STATUS_BARS_ABOVE = 42;
+const STATUS_BARS_RIGHT = 17;
+const STATUS_BARS_PRIORITY = 5;
 const NEW_MAIL_PERIOD = 1000;
 const NEW_MAIL_SHOWN = 667;
 const MAP_REGION_PRIORITY = Priority.HIGH - 3;
@@ -207,6 +219,14 @@ const LATE = 'gzLateLocalizedString';
 const BETWEEN_SECTORS = 41;
 const UNDERGROUND = 1;
 const OFF_ROAD = 40;
+const NEW_STRINGS = 'new-strings';
+const NS_INVALID_DROPOFF_SECTOR = 3;
+const VEHICLE_KIND = 'vehicle';
+const CORNER_ICON_HELP: Readonly<Record<number, number>> = {
+  [CornerIcon.CONTRACT]: 21,
+  [CornerIcon.INSURANCE]: 3,
+  [CornerIcon.DEPOSIT]: 12,
+};
 const NO_MILITIA_TRAINING = 28;
 const NO_MILITIA = 1;
 const LEVEL_HELP = 0;
@@ -252,6 +272,7 @@ export interface MapScreenHook {
   readonly plotting: { readonly soldier: number; readonly mode: string; readonly legs: readonly string[] } | null;
   readonly filters: MapFilters;
   readonly menu: string | null;
+  readonly glow: { readonly line: number; readonly column: number } | null;
   readonly uiMessage: string | null;
   readonly rows: readonly (number | null)[];
   readonly messages: readonly string[];
@@ -312,6 +333,9 @@ export class MapScreen implements Screen {
   #lastItems: readonly DrawItem[] = [];
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
+  #statusBarsRegion: MouseRegion | null = null;
+  #cornerIconRegions: MouseRegion[] = [];
+  #teamRegions: MouseRegion[][] = [];
   #messageScrollRegion: MouseRegion | null = null;
   #selected: Sector = { ...START_SECTOR };
   #level = 0;
@@ -328,6 +352,7 @@ export class MapScreen implements Screen {
   #entered = false;
   #playerPaused = false;
   #leaving = false;
+  #lastHighLine = NO_CHARACTER;
 
   constructor(env: MapEnvironment) {
     this.#env = env;
@@ -375,7 +400,10 @@ export class MapScreen implements Screen {
       open: (soldier) => this.#openContractMenu(soldier),
       send: (cmd) => env.client.command(cmd),
       confirm: (text) => env.boxes.confirm(text),
-      closed: () => this.#syncMask(false),
+      closed: () => {
+        this.#syncMask(false);
+        this.#stopContractGlow();
+      },
     });
     this.#townBox = this.#createTownBox();
     this.#militia = this.#createMilitiaPopup();
@@ -637,6 +665,7 @@ export class MapScreen implements Screen {
       plotting: this.#plot ? { soldier: this.#plot.soldier, mode: this.#plot.mode, legs: this.#plot.legs } : null,
       filters: { ...this.filters },
       menu: this.#menus.open ? 'assignment' : this.#contract.open ? 'contract' : null,
+      glow: this.#team.glow ? { line: this.#team.glow.line, column: this.#team.glow.column } : null,
       uiMessage: this.#message.text,
       rows: this.list.slots.map((s) => s.merc),
       messages: this.#messages.lines.map((l) => l.text),
@@ -731,7 +760,7 @@ export class MapScreen implements Screen {
   exit(): void {
     this.#entered = false;
     this.#battle.suspend();
-    this.#abortPlotting(false);
+    this.#dropPlot();
     this.#closeMenus();
     this.#militia.close();
     this.#moveBox.close(false);
@@ -746,6 +775,9 @@ export class MapScreen implements Screen {
     this.#env.runtime.regions.removeOwner(OWNER);
     this.#screenMask = null;
     this.#handRegion = null;
+    this.#statusBarsRegion = null;
+    this.#cornerIconRegions = [];
+    this.#teamRegions = [];
     this.#messageScrollRegion = null;
     this.#view.dispose();
   }
@@ -787,8 +819,11 @@ export class MapScreen implements Screen {
     const regions = this.#env.runtime.regions;
     const o = this.#origin();
     const g = this.#team.geometry;
+    this.#teamRegions = [];
     for (let row = 0; row < MAX_CHARACTER_COUNT; row++) {
       const y = o.y + this.#team.rowY(row);
+      const cells: MouseRegion[] = [];
+      this.#teamRegions.push(cells);
       g.columns.forEach(([x, w], column) => {
         const region = regions.define({
           x1: o.x + x,
@@ -802,9 +837,41 @@ export class MapScreen implements Screen {
           onMove: (_r, reason) => this.#rowMove(row, column, reason),
           onButton: (_r, reason) => this.#rowButton(row, column, reason),
         });
-        region.setTooltip(this.#text(ROW_HELP_TABLE, ROW_HELP[column] ?? 0));
+        region.setTooltip(this.#rowHelp(column));
+        cells.push(region);
       });
     }
+  }
+
+  #rowHelp(column: number): string {
+    return this.#text(ROW_HELP_TABLE, ROW_HELP[column] ?? 0);
+  }
+
+  #syncTeamRegions(): void {
+    this.#teamRegions.forEach((cells, row) => {
+      const m = this.#mercAt(row);
+      cells.forEach((region, column) => {
+        region.setEnabled(m !== null && this.#columnEnabled(column, m));
+      });
+      if (!m || m.kind === VEHICLE_KIND) return;
+      const removable = isPow(m) || m.life === 0;
+      this.#setHelp(
+        cells[TeamColumn.ASSIGNMENT],
+        removable ? this.#text(REMOVE_MERC_TABLE, REMOVE_MERC_HELP) : this.#rowHelp(TeamColumn.ASSIGNMENT),
+      );
+      this.#setHelp(cells[TeamColumn.DESTINATION], removable ? '' : this.#rowHelp(TeamColumn.DESTINATION));
+    });
+  }
+
+  #columnEnabled(column: number, m: StrategicMercView): boolean {
+    if (column === TeamColumn.ASSIGNMENT) return m.kind !== VEHICLE_KIND;
+    if (column === TeamColumn.CONTRACT) return this.#canExtendContract(m);
+    if (column === TeamColumn.SLEEP) return m.canChangeSleep !== false;
+    return true;
+  }
+
+  #setHelp(region: MouseRegion | null | undefined, help: string): void {
+    if (region && region.tooltip !== help) region.setTooltip(help);
   }
 
   #box(names: readonly string[]): { x1: number; y1: number; x2: number; y2: number } {
@@ -833,10 +900,48 @@ export class MapScreen implements Screen {
       owner: OWNER,
       id: 'infoHand',
       onButton: (_r, reason) => {
-        if (reason & MouseReason.LBUTTON_UP) this.#toggleInventory();
+        if (reason & ANY_BUTTON_UP) this.#toggleInventory();
       },
     });
     this.#handRegion = hand;
+    const o = this.#origin();
+    const barsX = o.x + this.#model.number('BAR_INFO_X');
+    const barsY = o.y + this.#model.number('BAR_INFO_Y');
+    this.#statusBarsRegion = regions.define({
+      x1: barsX - STATUS_BARS_LEFT,
+      y1: barsY - STATUS_BARS_ABOVE,
+      x2: barsX + STATUS_BARS_RIGHT,
+      y2: barsY,
+      priority: Priority.HIGH + STATUS_BARS_PRIORITY,
+      cursor: NO_CURSOR,
+      owner: OWNER,
+      id: 'infoStatusBars',
+    });
+    this.#defineCornerIconRegions();
+  }
+
+  #defineCornerIconRegions(): void {
+    const regions = this.#env.runtime.regions;
+    const o = this.#origin();
+    const x = o.x + this.#model.number('CHAR_ICON_X');
+    const top = o.y + this.#model.number('CHAR_ICON_CONTRACT_Y');
+    const spacing = this.#model.number('CHAR_ICON_SPACING');
+    const width = this.#model.number('CHAR_ICON_WIDTH');
+    const height = this.#model.number('CHAR_ICON_HEIGHT');
+    this.#cornerIconRegions = Object.keys(CORNER_ICON_HELP).map((key) => {
+      const icon = Number(key);
+      const y = top + icon * spacing;
+      return regions.define({
+        x1: x,
+        y1: y,
+        x2: x + width,
+        y2: y + height,
+        priority: Priority.HIGH - 1,
+        cursor: NO_CURSOR,
+        owner: OWNER,
+        id: `infoCornerIcon${icon}`,
+      });
+    });
   }
 
   #faceClick(): void {
@@ -964,8 +1069,14 @@ export class MapScreen implements Screen {
 
   #changeSelectedSector(s: Sector): void {
     if (this.#sectorInventoryOpen || !allowedToHighlight(this.#env.facts, s)) return;
+    if (s.z !== 0 && this.#plot) return;
     this.#selected = { x: s.x, y: s.y, z: s.z };
     this.#level = s.z;
+    this.#leaveAirspaceUnderground();
+  }
+
+  #leaveAirspaceUnderground(): void {
+    if (this.#level > 0 && this.filters.airspace) this.#applyFilterEffects(toggleFilter(this.filters, MapFilter.AIRSPACE));
   }
 
   update(): void {
@@ -975,7 +1086,9 @@ export class MapScreen implements Screen {
     const strategic = this.#strategic();
     if (this.list.needsRebuild(strategic)) this.list.rebuild(strategic, true);
     this.#speech.update(this.#now);
+    this.#syncTeamRegions();
     this.#team.update(this.#now);
+    this.#followHighLine();
     this.#updateSelectedFlash();
     this.#updateFace();
     this.#updateMessages();
@@ -985,7 +1098,7 @@ export class MapScreen implements Screen {
     if (!this.#showPreBattleBox()) this.#battle.update(this.#now);
     this.#message.update(this.#now, false);
     this.#syncCursor();
-    this.#syncHandHelp();
+    this.#syncInfoHelp();
     this.#inventory.update(this.#now);
     this.#askPassTargets();
     this.#syncModel();
@@ -1080,9 +1193,26 @@ export class MapScreen implements Screen {
     return strategic && m ? mercPath(strategic, m) : null;
   }
 
-  #syncHandHelp(): void {
-    const help = this.#text(HAND_HELP_TABLE, this.#inventoryOpen ? HAND_HELP_EXIT : HAND_HELP_ENTER);
-    if (this.#handRegion && this.#handRegion.tooltip !== help) this.#handRegion.setTooltip(help);
+  #syncInfoHelp(): void {
+    this.#setHelp(this.#handRegion, this.#text(HAND_HELP_TABLE, this.#inventoryOpen ? HAND_HELP_EXIT : HAND_HELP_ENTER));
+    const m = this.list.infoMerc(this.#strategic());
+    this.#setHelp(this.#statusBarsRegion, statusBarsHelp(this.#env.text, m));
+    const icons = m ? cornerIcons(m) : [];
+    this.#cornerIconRegions.forEach((region, icon) => {
+      const shown = (icons[icon] ?? -1) >= 0;
+      this.#setHelp(region, shown ? this.#text(MARKS, CORNER_ICON_HELP[icon] ?? 0) : '');
+    });
+  }
+
+  #followHighLine(): void {
+    const line = this.#team.highLine;
+    if (line === this.#lastHighLine) return;
+    this.#lastHighLine = line;
+    if (line === NO_CHARACTER) this.#stopContractGlow();
+  }
+
+  #stopContractGlow(): void {
+    if (this.#team.glow?.column === TeamColumn.CONTRACT) this.#team.stopGlow();
   }
 
   #syncCursor(): void {
@@ -1155,13 +1285,13 @@ export class MapScreen implements Screen {
   }
 
   #canExtendContract(m: StrategicMercView): boolean {
-    return !isMechanical(m) && m.kind !== 'epc' && m.assignment !== Assignment.IN_TRANSIT && !isPow(m);
+    return m.kind !== VEHICLE_KIND && m.kind !== 'epc' && m.assignment !== Assignment.IN_TRANSIT && !isPow(m);
   }
 
   #allowedToExit(): boolean {
     const view = this.#playerView();
     if (view?.prompt || view?.contractPrompt || view?.clock?.exitRefusal) return false;
-    return this.#plot === null && !this.#leaving && this.#exitBoxesClosed();
+    return !this.#leaving && this.#exitBoxesClosed();
   }
 
   #exitBoxesClosed(): boolean {
@@ -1233,6 +1363,7 @@ export class MapScreen implements Screen {
     if (renewal && !open.has(renewal)) {
       this.#contract.close(false);
       this.#syncMask(false);
+      this.#stopContractGlow();
     }
   }
 
@@ -1291,7 +1422,7 @@ export class MapScreen implements Screen {
     if (contract.kind === 'contractRenewal') {
       const row = this.list.rowOf(contract.soldier);
       if (row >= 0) this.list.changeInfo(row, true);
-      this.#closeMenus();
+      this.#closeOpenMenus();
       void this.#withMask(() =>
         this.#contract.showRenewal(contract.soldier, row >= 0 ? this.#team.rowY(row) : null, {
           id: contract.id,
@@ -1319,6 +1450,11 @@ export class MapScreen implements Screen {
   }
 
   #closeMenus(): void {
+    this.#closeOpenMenus();
+    this.#stopContractGlow();
+  }
+
+  #closeOpenMenus(): void {
     this.#menus.close(false);
     const renewal = this.#contract.renewalId;
     this.#contract.close(false);
@@ -1329,7 +1465,7 @@ export class MapScreen implements Screen {
 
   #resetModes(): void {
     this.#militia.close();
-    if (this.#plot) this.#abortPlotting(true);
+    this.#abortPlotting();
     this.#team.stopGlow();
   }
 
@@ -1398,7 +1534,7 @@ export class MapScreen implements Screen {
   #infoClick(row: number, m: StrategicMercView): void {
     if (this.#ctrlOrShift(row)) return;
     this.list.changeInfo(row, true);
-    if (this.#plot) this.#abortPlotting(false);
+    this.#dropPlot();
     if (m.life > 0 && !isPow(m)) this.#selectMercSector(m);
   }
 
@@ -1421,8 +1557,9 @@ export class MapScreen implements Screen {
       void this.#mapBox(this.#text(MAP_ERROR, BETWEEN_SECTORS));
       return;
     }
-    if (this.#plot) this.#abortPlotting(false);
+    this.#dropPlot();
     this.#contract.close(false);
+    this.#stopContractGlow();
     this.#showAssignmentMenu(m.id, row);
   }
 
@@ -1458,9 +1595,14 @@ export class MapScreen implements Screen {
     this.#closeMenus();
     if (this.filters.items) toggleFilter(this.filters, MapFilter.ITEMS);
     turnOnTeams(this.filters);
-    this.#applyFilterEffects(turnOffAirspace(this.filters));
+    const aboard = this.#inHelicopter(m);
+    this.#applyFilterEffects(aboard ? turnOnAirspace(this.filters) : turnOffAirspace(this.filters));
     const s = parseSectorLabel(m.sector);
     if (s && s.z !== this.#level) this.#jumpToLevel(s.z);
+    if (aboard) {
+      await this.#requestHeliPlotting(row);
+      return;
+    }
     this.#plot = new Plotting('merc', m.id, row, origin, mercPath(strategic, m));
     this.#route.reset();
     this.#team.startGlow(row, TeamColumn.DESTINATION);
@@ -1500,21 +1642,24 @@ export class MapScreen implements Screen {
 
   #contractClick(row: number): void {
     this.list.changeInfo(row, true);
-    if (this.#plot) this.#abortPlotting(false);
-    const m = this.#mercAt(row);
-    if (m && this.#canExtendContract(m) && !this.#speech.boxShown) this.#requestContractMenu(this.#team.rowY(row));
+    this.#dropPlot();
+    if (this.#speech.boxShown) return;
+    this.#offerContract(this.#mercAt(row), this.#team.rowY(row));
   }
 
   #requestContractMenu(boxY: number | null): void {
-    const m = this.list.infoMerc(this.#strategic());
-    if (!m) return;
-    if (this.#plot) this.#abortPlotting(false);
+    if (this.#plot) this.#abortPlotting();
     this.#menus.close(false);
     this.list.resetSelected();
-    if (m.life === 0 || isPow(m)) this.#showAssignmentMenu(m.id, this.list.info);
-    else if (this.#canExtendContract(m)) {
-      void this.#withMask(() => this.#contract.show(m.id, boxY));
-    }
+    this.#offerContract(this.list.infoMerc(this.#strategic()), boxY);
+  }
+
+  #offerContract(m: StrategicMercView | null, boxY: number | null): void {
+    this.#resetModes();
+    if (!m || !this.#canExtendContract(m)) return;
+    this.#team.startGlow(this.list.info, TeamColumn.CONTRACT);
+    if (m.life === 0) this.#showAssignmentMenu(m.id, this.list.info);
+    else void this.#withMask(() => this.#contract.show(m.id, boxY));
   }
 
   #mapMove(region: MouseRegion, reason: number): void {
@@ -1559,7 +1704,10 @@ export class MapScreen implements Screen {
       if (hover) this.#plotClick(hover);
       return;
     }
-    if (!allowedToHighlight(this.#env.facts, hover)) return;
+    if (!allowedToHighlight(this.#env.facts, hover)) {
+      if (hover && this.#changingArrival) this.#uiMessage(this.#text(NEW_STRINGS, NS_INVALID_DROPOFF_SECTOR));
+      return;
+    }
     if (this.#inventory.holding) {
       this.#openPoolForHeldItem();
       return;
@@ -1593,7 +1741,7 @@ export class MapScreen implements Screen {
   }
 
   #preparePreBattle(sector: string): void {
-    this.#abortPlotting(false);
+    this.#abortPlotting();
     this.#closeMenus();
     this.#moveBox.close(false);
     const s = parseSectorLabel(sector);
@@ -1881,7 +2029,7 @@ export class MapScreen implements Screen {
     const result = plot.shorten(s);
     switch (result.kind) {
       case 'abort':
-        this.#abortPlotting(true);
+        this.#abortPlotting();
         return;
       case 'cancel':
         this.#plot = null;
@@ -1904,14 +2052,19 @@ export class MapScreen implements Screen {
     }
   }
 
-  #abortPlotting(message: boolean): void {
+  #abortPlotting(): void {
+    if (!this.#plot) return;
+    this.#dropPlot();
+    this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
+  }
+
+  #dropPlot(): void {
     if (!this.#plot) return;
     this.#plot = null;
     this.#team.stopGlow();
-    if (message) this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
   }
 
-  async #requestHeliPlotting(): Promise<void> {
+  async #requestHeliPlotting(row: number = NO_CHARACTER): Promise<void> {
     const reply = await this.#env.client.command({ type: 'heliPlot' });
     const heli = this.#heli();
     if (!reply.ok || !heli) {
@@ -1919,14 +2072,15 @@ export class MapScreen implements Screen {
       if (text) void this.#mapBox(text);
       return;
     }
-    this.#plot = new Plotting('heli', heli.vehicle, NO_CHARACTER, heli.sector, heli.path);
+    this.#plot = new Plotting('heli', heli.vehicle, row, heli.sector, heli.path);
     this.#route.reset();
+    if (row !== NO_CHARACTER) this.#team.startGlow(row, TeamColumn.DESTINATION);
   }
 
   #applyFilterEffects(effects: FilterEffects): void {
     const plot = this.#plot;
     const abort = effects.abortPlot;
-    if (plot && (abort === 'any' || abort === plot.mode)) this.#abortPlotting(true);
+    if (plot && (abort === 'any' || abort === plot.mode)) this.#abortPlotting();
     if (effects.toSurface && this.#level !== 0) this.#jumpToLevel(0);
     if (effects.militiaShown && !this.#anyMilitia()) {
       const training = (this.#strategic()?.mercs ?? []).some((m) => m.assignment === Assignment.TRAIN_TOWN);
@@ -1945,12 +2099,14 @@ export class MapScreen implements Screen {
 
   #jumpToLevel(level: number): void {
     if (this.#sectorInventoryOpen || this.#playerView()?.prompt || level < 0 || level > DEEPEST_LEVEL) return;
-    if (this.#plot) this.#abortPlotting(true);
+    this.#abortPlotting();
     this.#level = level;
     this.#selected = { ...this.#selected, z: level };
+    this.#leaveAirspaceUnderground();
   }
 
   #toggleInventory(): void {
+    this.#abortPlotting();
     if (this.#inventoryOpen) {
       if (this.#inventory.mercBusy) return;
       this.#inventory.closeMerc();
@@ -1983,14 +2139,14 @@ export class MapScreen implements Screen {
 
   openSectorInventory(): void {
     if (this.#sectorInventoryOpen) return;
-    if (this.#plot) this.#abortPlotting(false);
+    this.#dropPlot();
     this.#inventory.openPool();
     this.#sectorInventoryOpen = true;
   }
 
   #nextMerc(step: 1 | -1): void {
     if (this.#inventory.merc.description.open) return;
-    if (this.#plot) this.#abortPlotting(false);
+    this.#abortPlotting();
     const first = step < 0 ? MAX_CHARACTER_COUNT : 0;
     const last = step < 0 ? 0 : MAX_CHARACTER_COUNT;
     let row = this.list.info === NO_CHARACTER || this.list.info === last ? first : this.list.info + step;
@@ -2036,7 +2192,7 @@ export class MapScreen implements Screen {
     const rows = this.list.slots.flatMap((_s, i) => (this.#mercAt(i)?.squad === squad ? [i] : []));
     const first = rows[0];
     if (first === undefined) return;
-    if (this.#plot) this.#abortPlotting(false);
+    this.#dropPlot();
     this.list.changeInfo(first, true);
     for (const r of rows) this.list.setSelected(r, true);
     const m = this.#mercAt(first);
@@ -2051,7 +2207,7 @@ export class MapScreen implements Screen {
     } else if (this.#message.open && !this.#inConfirmMoveMode()) this.#message.end();
     else if (this.#speech.talking) this.#stopSpeech();
     else if (this.#updateBox.open) this.#updateBox.end(false);
-    else if (this.#plot) this.#abortPlotting(true);
+    else if (this.#plot) this.#abortPlotting();
     else if (this.#menus.open) {
       this.#menus.escape();
       this.#syncMask(false);
@@ -2106,7 +2262,7 @@ export class MapScreen implements Screen {
   }
 
   #compressAction(request: CompressRequest): void {
-    if (this.#plot) this.#abortPlotting(true);
+    if (this.#plot) this.#abortPlotting();
     else void this.#compress(request);
   }
 
@@ -2133,7 +2289,7 @@ export class MapScreen implements Screen {
       laptop: whenExitAllowed(() => void this.#leave({ type: 'openLaptop' }, () => this.#stopSpeech())),
       tactical: () => this.#tactical(),
       options: whenExitAllowed(() => this.#env.flow.options()),
-      compressCheck: () => this.#abortPlotting(true),
+      compressCheck: () => this.#abortPlotting(),
       compressMore: () => this.#compressAction('more'),
       keyCompressMore: () => this.#compressAction('more'),
       compressLess: () => this.#compressAction('less'),
@@ -2165,7 +2321,7 @@ export class MapScreen implements Screen {
   }
 
   #help(): void {
-    if (this.#plot) this.#abortPlotting(true);
+    this.#abortPlotting();
     this.#env.flow.help?.();
   }
 
@@ -2186,7 +2342,7 @@ export class MapScreen implements Screen {
   }
 
   #sort(mode: number): void {
-    if (this.#plot) this.#abortPlotting(false);
+    this.#abortPlotting();
     this.list.sortMode = mode;
     this.list.sort(this.#strategic(), false);
   }
@@ -2389,7 +2545,7 @@ export class MapScreen implements Screen {
       characters: this.list,
       selected: this.#selected,
       level: this.#level,
-      plottingRow: this.#plot?.mode === 'merc' ? this.#plot.row : NO_CHARACTER,
+      plottingRow: this.#plot?.row ?? NO_CHARACTER,
       sleepIcon: p.asset('sleepIcon'),
       arrow: p.asset('arrow'),
     });
