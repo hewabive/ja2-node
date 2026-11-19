@@ -1,6 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/Utils/Music_Control.cc SetMusicMode (RESTORE and the previous mode); the setters: Strategic/StrategicMap.cc
+// @src src/game/Utils/Music_Control.cc SetMusicMode (RESTORE and the previous mode), MusicPoll (the victory track plays
+// @src once, then the nothing mode), SaveLoadGame.cc LoadSavedGame (a load starts the saved mode's track from the
+// @src beginning); the setters: Strategic/StrategicMap.cc
 // @src SetCurrentWorldSector (sector entry, fast fade), AllMercsHaveWalkedOffSector (to the map screen, fast fade);
 // @src Tactical/Overhead.cc SetEnemyPresence, CommonEnterCombatModeCode, ExitCombatMode, CheckForEndOfCombatMode,
 // @src CheckForEndOfBattle; Tactical/OppList.cc OurTeamSeesSomeone (battle music when none plays in combat);
@@ -16,7 +18,15 @@ import { MusicMode, type MusicModeName } from './music-modes.ts';
 export interface MusicState {
   readonly mode: MusicModeName;
   readonly previous: MusicModeName;
+  readonly victoryEndsAt?: number;
 }
+
+export interface MusicClock {
+  readonly nowMs: number;
+  readonly victoryTrackMs: number | null;
+}
+
+export const NO_MUSIC_CLOCK: MusicClock = { nowMs: 0, victoryTrackMs: null };
 
 export interface MusicFacts {
   readonly creature: boolean;
@@ -45,7 +55,7 @@ const DEFEAT_STATUSES: ReadonlySet<string> = new Set(['defeat', 'surrendered', '
 const VICTORY_STATUS = 'victory';
 const INTERROGATION_SCENE = 'interrogation';
 
-export function setMusicMode(state: MusicState, mode: MusicModeName): MusicState {
+function modeAfter(state: MusicState, mode: MusicModeName): MusicState {
   if (mode === MusicMode.RESTORE) {
     const restored = ENDED_TRACK_MODES.has(state.previous) ? MusicMode.TACTICAL_NOTHING : state.previous;
     return { mode: restored, previous: restored };
@@ -53,16 +63,39 @@ export function setMusicMode(state: MusicState, mode: MusicModeName): MusicState
   return { mode, previous: state.mode };
 }
 
+function victoryEnd(state: MusicState): { readonly victoryEndsAt?: number } {
+  return state.victoryEndsAt === undefined ? {} : { victoryEndsAt: state.victoryEndsAt };
+}
+
+export function restartMusic(state: MusicState, clock: MusicClock): MusicState {
+  const { mode, previous } = state;
+  if (mode !== MusicMode.TACTICAL_VICTORY || clock.victoryTrackMs === null) return { mode, previous };
+  return { mode, previous, victoryEndsAt: clock.nowMs + clock.victoryTrackMs };
+}
+
+export function setMusicMode(state: MusicState, mode: MusicModeName, clock: MusicClock = NO_MUSIC_CLOCK): MusicState {
+  const next = modeAfter(state, mode);
+  return next.mode === state.mode ? { ...next, ...victoryEnd(state) } : restartMusic(next, clock);
+}
+
+export function settleMusic(state: MusicState, nowMs: number): MusicState {
+  const ends = state.victoryEndsAt;
+  if (state.mode !== MusicMode.TACTICAL_VICTORY || ends === undefined || nowMs < ends) return state;
+  return setMusicMode(state, MusicMode.TACTICAL_NOTHING);
+}
+
 class Setter {
   state: MusicState;
   fastFade = false;
+  readonly #clock: MusicClock;
 
-  constructor(state: MusicState) {
+  constructor(state: MusicState, clock: MusicClock) {
     this.state = state;
+    this.#clock = clock;
   }
 
   set(mode: MusicModeName, fast = false): void {
-    const next = setMusicMode(this.state, mode);
+    const next = setMusicMode(this.state, mode, this.#clock);
     if (next.mode !== this.state.mode) this.fastFade = fast;
     this.state = next;
   }
@@ -175,8 +208,13 @@ function apply(s: Setter, e: SimEvent, facts: MusicFacts): void {
   }
 }
 
-export function musicMode(prev: MusicState, events: readonly SimEvent[], facts: MusicFacts): MusicTransition {
-  const s = new Setter(prev);
+export function musicMode(
+  prev: MusicState,
+  events: readonly SimEvent[],
+  facts: MusicFacts,
+  clock: MusicClock = NO_MUSIC_CLOCK,
+): MusicTransition {
+  const s = new Setter(prev, clock);
   for (const e of events) apply(s, e, facts);
   return { ...s.state, fastFade: s.fastFade };
 }

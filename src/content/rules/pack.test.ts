@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { pcmWav } from '../../../tests/support/fake-audio.ts';
 import { readDataJson } from '../../../tests/support/tactical.ts';
+import { longestVictoryTrackMs, MUSIC_LENGTHS_PATH } from '../audio/music-lengths.ts';
+import { MUSIC_TABLE_PATH } from '../audio/music-table.ts';
 import { SPEECH_LENGTHS_PATH, SpeechLengths } from '../audio/speech-lengths.ts';
 import { writeAnimationScripts } from '../formats/ja2bin.ts';
 import { writeTilesetDatabase } from '../formats/ja2set.ts';
@@ -164,6 +166,22 @@ describe('the rule pack', () => {
     expect(voiced.hash).toBe(plain.hash);
     expect(voiced.allLayersHash).toBe(plain.allLayersHash);
     expect(await verifyRulePackManifest(voiced.manifest, sha256)).toBe(true);
+  });
+
+  it('derives the longest victory track of the music table from its files, a stub track only for a stub pack, kept out of its hash', async () => {
+    const table = text(
+      JSON.stringify({ tactical: ['music/nothing a.wav'], tactical_victory: ['Music/Triumph.wav', 'music/triumph2.wav'] }),
+    );
+    const tracks = { [MUSIC_TABLE_PATH]: table, 'music/nothing a.wav': pcmWav(44_100), 'music/triumph.wav': pcmWav(11_025) };
+    const stubbed = { 'stubs/music/triumph2.wav': pcmWav(22_050) };
+    const plain = await packOf(dataSet({ [MUSIC_TABLE_PATH]: table }));
+    expect(await plain.read(MUSIC_LENGTHS_PATH)).toBeNull();
+    const stubPack = await packOf(dataSet({ ...tracks, ...stubbed }));
+    expect(await longestVictoryTrackMs(stubPack.read)).toBe(2000);
+    const original = await packOf(dataSet({ ...tracks, ...stubbed }), { source: 'original' });
+    expect(await longestVictoryTrackMs(original.read)).toBe(1000);
+    expect(stubPack.hash).toBe((await packOf(dataSet({ [MUSIC_TABLE_PATH]: table }))).hash);
+    expect(await verifyRulePackManifest(stubPack.manifest, sha256)).toBe(true);
   });
 
   it('round-trips its manifest and notices a manifest that does not match its hash', async () => {

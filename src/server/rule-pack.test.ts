@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildStubs } from '../../stubs/build.ts';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { longestVictoryTrackMs } from '../content/audio/music-lengths.ts';
+import { loadMusicTable } from '../content/audio/music-table.ts';
 import { isSpeechFile, SpeechLengths, withSpeechLengths } from '../content/audio/speech-lengths.ts';
 import { parseMap } from '../content/formats/map.ts';
 import { readWavInfo, wavDurationMs } from '../content/formats/wav.ts';
@@ -235,5 +237,12 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => 
     const firstNpcLine = { profile: 57, textKey: textKey(npcDialogueFile(57), 0), recruitedNpcOrRpc: false };
     const sample = await data.vfs.read('npc_speech/057_000.wav');
     expect(voices.ms(firstNpcLine)).toBe(Math.ceil(wavDurationMs(readWavInfo(sample))));
+  });
+
+  it('times the longest victory track of the music table as its decoded sample does', async () => {
+    const tracks = (await loadMusicTable((path) => data.vfs.read(path))).get('tactical_victory') ?? [];
+    const lengths = await Promise.all(tracks.map(async (track) => Math.ceil(wavDurationMs(readWavInfo(await data.vfs.read(track))))));
+    expect(lengths.length).toBeGreaterThan(0);
+    expect(await longestVictoryTrackMs(pack.read)).toBe(Math.max(...lengths));
   });
 });

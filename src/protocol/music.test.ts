@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SimEvent } from '../sim/events.ts';
-import { type MusicFacts, type MusicState, musicMode, setMusicMode } from './music.ts';
+import { type MusicClock, type MusicFacts, type MusicState, musicMode, restartMusic, setMusicMode, settleMusic } from './music.ts';
 import { MusicMode, type MusicModeName, musicModeOfNativeByte, trackEndRule, trackListMode } from './music-modes.ts';
 
 const FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: true, hostiles: 0, gameJustStarted: false };
@@ -170,6 +170,47 @@ describe("musicMode follows the original's setters", () => {
     const entered = following(at(MusicMode.LAPTOP), [loaded(), { type: 'combatStarted', team: 1 }]);
     expect(entered).toMatchObject({ mode: MusicMode.TACTICAL_BATTLE, fastFade: false });
     expect(following(at(MusicMode.TACTICAL_NOTHING), [loaded()]).fastFade).toBe(false);
+  });
+});
+
+describe('the end of the victory track (MusicPoll)', () => {
+  const VICTORY_MS = 4000;
+  const SET_AT = 1000;
+  const ENDS_AT = SET_AT + VICTORY_MS;
+  const clock = (nowMs: number): MusicClock => ({ nowMs, victoryTrackMs: VICTORY_MS });
+  const won = [{ type: 'combatEnded', reason: 'won', fought: true }];
+
+  it('turns to the nothing music, the victory its previous mode, once the victory track has run from its setter', () => {
+    const { fastFade, ...state } = musicMode(at(MusicMode.TACTICAL_BATTLE), won.map(ev), FACTS, clock(SET_AT));
+    expect([state, fastFade]).toEqual([
+      { ...at(MusicMode.TACTICAL_VICTORY, MusicMode.TACTICAL_ENEMY_PRESENT), victoryEndsAt: ENDS_AT },
+      false,
+    ]);
+    expect(settleMusic(state, ENDS_AT - 1)).toBe(state);
+    expect(settleMusic(state, ENDS_AT)).toEqual(at(MusicMode.TACTICAL_NOTHING, MusicMode.TACTICAL_VICTORY));
+  });
+
+  it('keeps the end when victory is set while it plays, and starts the track again after another mode, as squadMovedUpstairs does', () => {
+    const playing = setMusicMode(at(MusicMode.TACTICAL_BATTLE), MusicMode.TACTICAL_VICTORY, clock(SET_AT));
+    const later = SET_AT + 1500;
+    expect(setMusicMode(playing, MusicMode.TACTICAL_VICTORY, clock(later)).victoryEndsAt).toBe(ENDS_AT);
+    const upstairs = musicMode(playing, [ev({ type: 'squadMovedUpstairs' })], FACTS, clock(later));
+    expect(upstairs).toMatchObject({ mode: MusicMode.TACTICAL_VICTORY, victoryEndsAt: later + VICTORY_MS });
+  });
+
+  it('starts the track of a loaded victory mode from the beginning, and never ends one it has no length for', () => {
+    const loadedAt = 9000;
+    expect(restartMusic(at(MusicMode.TACTICAL_VICTORY, MusicMode.TACTICAL_BATTLE), clock(loadedAt)).victoryEndsAt).toBe(
+      loadedAt + VICTORY_MS,
+    );
+    expect(restartMusic(at(MusicMode.TACTICAL_NOTHING), clock(loadedAt))).toEqual(at(MusicMode.TACTICAL_NOTHING));
+    const unknown = setMusicMode(at(MusicMode.TACTICAL_BATTLE), MusicMode.TACTICAL_VICTORY);
+    expect(settleMusic(unknown, Number.MAX_SAFE_INTEGER)).toBe(unknown);
+  });
+
+  it('ends the victory track only: the defeat mode stays after its track, as the original keeps it', () => {
+    const lost = setMusicMode(at(MusicMode.TACTICAL_BATTLE), MusicMode.TACTICAL_DEFEAT, clock(SET_AT));
+    expect(settleMusic(lost, Number.MAX_SAFE_INTEGER)).toEqual(at(MusicMode.TACTICAL_DEFEAT, MusicMode.TACTICAL_BATTLE));
   });
 });
 

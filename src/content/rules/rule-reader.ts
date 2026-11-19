@@ -1,3 +1,4 @@
+import { isMusicLengthsPath } from '../audio/music-lengths.ts';
 import { isSpeechLengthsPath } from '../audio/speech-lengths.ts';
 import { normalizeVfsPath } from '../vfs/path.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
@@ -24,7 +25,7 @@ export function liveRuleReader(listing: readonly RuleListingEntry[], readListed:
   };
   const listedRule = (path: string): string | null => {
     const normalized = normalizeVfsPath(path);
-    if (isSpeechLengthsPath(normalized)) return null;
+    if (isSpeechLengthsPath(normalized) || isMusicLengthsPath(normalized)) return null;
     if (isGraphicFactsPath(normalized)) return listed.has(graphicOfFactsPath(normalized)) ? normalized : null;
     if (isRuleFile(normalized)) return listed.has(normalized) ? normalized : null;
     throw new NotARuleFileError(path);

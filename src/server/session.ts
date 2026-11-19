@@ -16,7 +16,16 @@ import {
   type WelcomeIdentity,
   type WelcomeMessage,
 } from '../protocol/messages.ts';
-import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
+import {
+  initialMusic,
+  type MusicClock,
+  type MusicFacts,
+  type MusicState,
+  musicMode,
+  musicView,
+  restartMusic,
+  settleMusic,
+} from '../protocol/music.ts';
 import { applyViewFrame, type BulletAtTick, type BulletView, diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import {
   AdvanceRun,
@@ -159,6 +168,8 @@ export class Session {
   #sentView: PlayerView;
   #shownTick: number;
   #music: MusicState;
+  #victoryTrackMs: number | null = null;
+  wallClock: () => number = () => performance.now();
   #fastFade = false;
   #depth = 0;
   #messages: MessageEntry[] = [];
@@ -212,7 +223,21 @@ export class Session {
   }
 
   get music(): MusicState {
+    this.#settleMusic();
     return this.#music;
+  }
+
+  useMusicLengths(victoryTrackMs: number | null): void {
+    this.#victoryTrackMs = victoryTrackMs;
+    if (this.#music.victoryEndsAt === undefined) this.#music = restartMusic(this.#music, this.#musicClock());
+  }
+
+  #musicClock(): MusicClock {
+    return { nowMs: this.wallClock(), victoryTrackMs: this.#victoryTrackMs };
+  }
+
+  #settleMusic(): void {
+    this.#music = settleMusic(this.#music, this.wallClock());
   }
 
   get messages(): readonly MessageEntry[] {
@@ -270,15 +295,24 @@ export class Session {
   }
 
   #view(): PlayerView {
+    this.#settleMusic();
     return { ...this.#sim.view(), music: musicView(this.#music, this.#facts().creature, this.#fastFade) };
+  }
+
+  #settledSentView(): PlayerView {
+    this.#settleMusic();
+    const sent = this.#sentView;
+    if (sent.music?.mode === this.#music.mode) return sent;
+    return { ...sent, music: musicView(this.#music, this.#facts().creature) };
   }
 
   #followMusic(events: readonly SimEvent[]): void {
     this.#fastFade = false;
+    this.#settleMusic();
     if (events.length === 0) return;
-    const next = musicMode(this.#music, events, this.#facts());
-    this.#fastFade = next.fastFade;
-    this.#music = { mode: next.mode, previous: next.previous };
+    const { fastFade, ...next } = musicMode(this.#music, events, this.#facts(), this.#musicClock());
+    this.#fastFade = fastFade;
+    this.#music = next;
   }
 
   get sim(): SessionSim {
@@ -380,7 +414,9 @@ export class Session {
   }
 
   subscribe(listener: Listener): () => void {
-    const welcome = this.listening ? this.#welcome(this.#sentView, this.#messagesAsSent()) : this.#welcome(this.#view(), this.#messages);
+    const welcome = this.listening
+      ? this.#welcome(this.#settledSentView(), this.#messagesAsSent())
+      : this.#welcome(this.#view(), this.#messages);
     if (!this.listening) {
       this.#lastView = welcome.view;
       this.#framedMessages.length = 0;
@@ -423,7 +459,7 @@ export class Session {
   }
 
   restoreMusic(music: MusicState): void {
-    this.#music = music;
+    this.#music = restartMusic(music, this.#musicClock());
     this.#fastFade = false;
     this.#lastView = this.#view();
   }
@@ -752,7 +788,7 @@ export class Session {
     sim.useLabels?.(this.#labels);
     if (this.#installation) sim.useInstallation?.(this.#installation);
     if (this.#speech !== 'listen') this.setSpeech(this.#speech);
-    this.#music = music;
+    this.#music = restartMusic(music, this.#musicClock());
     this.#campaign = campaign;
     this.#fastFade = false;
     this.restoreMessages(messages);

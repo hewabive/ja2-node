@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { longestVictoryTrackMs } from '../content/audio/music-lengths.ts';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
 import type { DataDecoding } from '../content/text/data-version.ts';
 import { loadUiStrings } from '../content/text/strings.ts';
@@ -77,8 +78,10 @@ async function openLoad(saves: SaveService | null, name: string): Promise<Opened
 }
 
 export function createSessionFactory(options: SessionFactoryOptions): SessionFactory {
+  let victoryTrackMs: Promise<number | null> | null = null;
   return async (id: string, request: SessionRequest): Promise<Session> => {
-    const session = await createSession(options, id, request);
+    victoryTrackMs ??= longestVictoryTrackMs(options.read).catch(() => null);
+    const session = await createSession(options, id, request, await victoryTrackMs);
     if (options.installation) session.useInstallation(options.installation);
     session.queries = new QueryService(options.read, options.exists);
     if (options.identity) session.identity = options.identity;
@@ -89,11 +92,17 @@ export function createSessionFactory(options: SessionFactoryOptions): SessionFac
   };
 }
 
-async function createSession(options: SessionFactoryOptions, id: string, request: SessionRequest): Promise<Session> {
+async function createSession(
+  options: SessionFactoryOptions,
+  id: string,
+  request: SessionRequest,
+  victoryTrackMs: number | null,
+): Promise<Session> {
   const { saves, text } = options;
   if (request.load) {
     const opened = await openLoad(saves, request.load.name);
     const session = new Session(id, opened.sim, text, { kind: 'load', name: opened.name, digest: opened.digest });
+    session.useMusicLengths(victoryTrackMs);
     session.restoreMusic(musicOfPresentation(opened.file.presentation));
     session.restoreMessages(messagesOfPresentation(opened.file.presentation));
     session.useCampaign(campaignIdOfSave(opened.file.presentation, opened.digest, opened.sim instanceof CampaignSession));
@@ -114,6 +123,7 @@ async function createSession(options: SessionFactoryOptions, id: string, request
     deadIsDeadName = request.save;
   } else origin = { kind: 'sandbox', seed: request.seed };
   const session = new Session(id, await simFromOrigin(options, origin, saves), text, origin);
+  session.useMusicLengths(victoryTrackMs);
   session.useCampaign(campaignIdOfOrigin(origin));
   saves?.attach(session, { deadIsDeadName, deadIsDeadDescription });
   return session;

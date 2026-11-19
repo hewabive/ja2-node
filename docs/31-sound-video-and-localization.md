@@ -130,8 +130,15 @@ voice, subtitle and skip (`30`).
 after them. `Session` keeps `{mode, previous}` in the save's presentation part (`27`); a native import starts at the
 saved mode byte with the menu as previous, as the original's load sets the menu first. Frames carry the mode when it
 changes, with `fastFade` for the sector entry and exit. The browser picks tracks with its own generator, fades, and
-turns to the nothing tracks after the victory track by itself; the session keeps the victory mode, and a restore maps
-victory and defeat to nothing, so both sides agree.
+turns to the nothing tracks after the victory track by itself, as `MusicPoll` does (`Utils/Music_Control.cc:186-199`).
+The session reaches the same mode without a word from the browser: setting the victory mode stores when the longest
+victory track ends (the rule pack's victory lengths, `src/content/audio/music-lengths.ts`, measured from the user's data
+when the pack is built), and every read of the state (an advance's setters, a view, a welcome, a save) first switches to
+the nothing mode once that time has passed on the wall clock (`settleMusic`, `Session.wallClock`). A save so holds the
+victory mode only while the track plays, and a load starts it from the beginning, as the original's load does
+(`SaveLoadGame.cc:1171`). The session counts from the setter, the browser from the start of its track, so the session's
+switch comes no later than the browser's: it changes nothing there or fades out the last moment of the track. Screen
+switches show the session's mode as a frame does, so they never replay the track (`app/game/front-end-music.test.ts`).
 
 **What the setters read is simulation state:** whether `SetEnemyPresence` fired while a sector loaded, the last enemy
 a merc killed (deviation "Last kill talked about"), and the creature music flag, which the simulation clears where the
@@ -235,6 +242,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A restore never returns to the victory or defeat track, but to the nothing music | `protocol/music.test.ts` |
 | Entering a sector switches to the nothing music unless battle plays, or enemy present with hostiles left; the interrogation's menu music gives way to it in N7 even with enemies there | `protocol/music.test.ts` |
 | After the victory track the nothing music, after the defeat track silence | `audio/music.test.ts` |
+| The victory track plays once from its setter, again only after another mode or a load; the session turns to the nothing mode when the longest victory track ends, the defeat mode stays | `protocol/music.test.ts` "the end of the victory track", `server/session-music.test.ts` "the victory track of a session" |
 | Late video frames are decoded but not shown, the last one too | `app/video/pacing.test.ts`, `player.test.ts` |
 | The TalonSoft logo is in the archive but never played | `app/video/sequences.test.ts` |
 | The credits never read row 0: the original counts its record up before the first read | `ui/screens/credit-roll.test.ts` |

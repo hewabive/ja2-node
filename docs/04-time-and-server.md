@@ -362,6 +362,8 @@ The game data splits into the **rule pack** (everything the simulation reads) an
   surface and the frame counts of every explosion graphic, so the simulation never decodes an STI;
 - the **voice lengths**: the length of every speech sample from its WAV header (`src/content/audio/speech-lengths.ts`,
   `29` §4.5), so no line waits for audio;
+- the **victory lengths**: the length of every victory track of `music.json` the browser can play, so the session ends
+  the victory mode as the track does (`src/content/audio/music-lengths.ts`, `31`);
 - the layer count of each rule file present in several VFS layers, which the NPC record layering reads.
 
 `RulePack.read` answers from the pack and throws `NotARuleFileError` for any other path, so a rule that reaches for a

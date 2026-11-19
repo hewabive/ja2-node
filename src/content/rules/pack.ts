@@ -1,5 +1,13 @@
 import { ANIMATION_SCRIPTS_PATHS } from '../anim/timelines.ts';
 import {
+  encodeMusicLengths,
+  isMusicLengthsPath,
+  MUSIC_LENGTHS_LAYER,
+  MUSIC_LENGTHS_PATH,
+  measureVictoryTracks,
+} from '../audio/music-lengths.ts';
+import { loadMusicTable, MUSIC_TABLE_PATH } from '../audio/music-table.ts';
+import {
   encodeSpeechLengths,
   isSpeechLengthsPath,
   measureSpeech,
@@ -158,11 +166,15 @@ export function allLayersHash(input: RulePackIdentityInput, sha256: Sha256): Pro
   return textHash(allLayersIdentityText(input), sha256);
 }
 
+function isDerivedFile(path: string): boolean {
+  return isGraphicFactsPath(path) || isSpeechLengthsPath(path) || isMusicLengthsPath(path);
+}
+
 export function manifestIdentity(manifest: Pick<RulePackManifest, 'source' | 'files' | 'graphics' | 'layers'>): RulePackIdentityInput {
   return {
     source: manifest.source,
     files: manifest.files
-      .filter((f) => !isGraphicFactsPath(f.path) && !isSpeechLengthsPath(f.path))
+      .filter((f) => !isDerivedFile(f.path))
       .map((f) => ({ path: f.path, size: f.size, hash: contentHashOf(f.sha256), layer: f.layer })),
     graphics: manifest.graphics,
     layers: manifest.layers,
@@ -238,6 +250,12 @@ function listedLayer(listed: ReadonlyMap<string, RuleListingEntry>, path: string
   return entry.layer;
 }
 
+async function victoryTrackLengths(input: RulePackBuildInput, listed: ReadonlyMap<string, RuleListingEntry>): Promise<Map<string, number>> {
+  if (!listed.has(MUSIC_TABLE_PATH)) return new Map();
+  const table = await loadMusicTable(input.read);
+  return measureVictoryTracks(table, listed, input.source === 'stubs', async (path) => speechLengthMs(await input.read(path)));
+}
+
 export async function buildRulePackManifest(input: RulePackBuildInput): Promise<RulePackManifest> {
   const listed = listingByPath(input.listing);
   const rules = [...listed.values()].filter((e) => isRuleFile(e.path)).sort(byPath);
@@ -258,6 +276,8 @@ export async function buildRulePackManifest(input: RulePackBuildInput): Promise<
   }
   const voices = await measureSpeech(listed.keys(), async (path) => speechLengthMs(await input.read(path)));
   if (voices.size > 0) files.push(await storeBlob(input, SPEECH_LENGTHS_PATH, SPEECH_LENGTHS_LAYER, encodeSpeechLengths(voices)));
+  const victory = await victoryTrackLengths(input, listed);
+  if (victory.size > 0) files.push(await storeBlob(input, MUSIC_LENGTHS_PATH, MUSIC_LENGTHS_LAYER, encodeMusicLengths(victory)));
   files.sort(byPath);
   const layers = rules.filter((e) => e.layers > 1).map((e): RuleLayerCount => [e.path, e.layers]);
   const identity = manifestIdentity({ source: input.source, files, graphics, layers });
@@ -345,7 +365,7 @@ export class RulePack {
     const normalized = normalizeVfsPath(path);
     const entry = this.#files.get(normalized);
     if (entry) return entry;
-    if (isRuleFile(normalized) || isGraphicFactsPath(normalized) || isSpeechLengthsPath(normalized)) return null;
+    if (isRuleFile(normalized) || isDerivedFile(normalized)) return null;
     throw new NotARuleFileError(path);
   }
 
