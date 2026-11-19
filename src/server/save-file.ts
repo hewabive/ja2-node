@@ -309,7 +309,7 @@ function campaignSummary(session: CampaignSession): SessionSummary {
     balance: s.finances.balance,
     campaign: campaignStatus(s.ending),
     tick: campaign.tick,
-    ...(campaign.strategic ? { loadScreen: saveLoadScreenId(campaign.strategic, campaign.tactical !== null, sector) } : {}),
+    ...savePicture(session),
   };
 }
 
@@ -325,6 +325,12 @@ function sandboxSummary(session: TacticalSession): SessionSummary {
     campaign: 'playing',
     tick: session.tick,
   };
+}
+
+export function savePicture(sim: SessionSim): { readonly loadScreen?: number } {
+  if (!(sim instanceof CampaignSession)) return {};
+  const { strategic, tactical } = sim.campaign;
+  return strategic ? { loadScreen: saveLoadScreenId(strategic, tactical !== null, bestPossibleSector(strategic)) } : {};
 }
 
 export function summarizeSession(sim: SessionSim): SessionSummary {

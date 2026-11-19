@@ -897,6 +897,20 @@ describe('the map screen loaded in the background, since the original enters it 
     finishMapLoad();
     await until(() => f.screen() === 'map');
   });
+
+  it("shows on a page's first screen the picture a save of the session would show", async () => {
+    f.client.session = 'session-1';
+    f.client.loadScreen = LoadingScreen.NIGHTWILD;
+    showView('strategic');
+    f.flow.enterGame({ pageStart: true });
+    await until(() => f.screen() === 'loading' && mapLoads === 1);
+    await f.settle(1);
+    expect(f.draw().items.find((i) => i.kind === 'image' && i.asset.startsWith('loadscreens/'))).toMatchObject({
+      asset: loadingPicturePath(f.env.layout(FrontEndLayout.LOADING), LoadingScreen.NIGHTWILD),
+    });
+    finishMapLoad();
+    await until(() => f.screen() === 'map');
+  });
 });
 
 describe('the laptop port', () => {

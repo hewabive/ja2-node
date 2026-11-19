@@ -551,8 +551,12 @@ export class FrontEndFlow {
       this.#show(new BlackScreen(this.#env));
       return undefined;
     }
-    const loading = await this.#showLoading('save', entry.savePicture ?? null);
+    const loading = await this.#showLoading('save', entry.savePicture ?? (await this.#sessionSavePicture()));
     return (done, total) => loading.progress(done, total);
+  }
+
+  async #sessionSavePicture(): Promise<number | null> {
+    return (await this.#client.status().catch(() => null))?.loadScreen ?? null;
   }
 
   async #openMap(session: string): Promise<void> {

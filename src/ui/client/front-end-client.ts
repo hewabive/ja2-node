@@ -24,6 +24,7 @@ export interface SessionStatus {
   readonly canSave: boolean;
   readonly saveRefusal: string | null;
   readonly options: GameOptions | null;
+  readonly loadScreen: number | null;
 }
 
 export interface FrontEndClient extends SaveApi {

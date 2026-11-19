@@ -375,8 +375,9 @@ with a sector loaded shows that entry's picture from `strategic.loadScreen`, sin
 `LoadSavedGame` save loads: `Strategic/StrategicMap.cc:196`, `SaveLoadGame.cc:748-759`), so the map host loads in the
 background, once per connection, after the session's first game screen is up or as the beginning video starts
 (`MapPort.preload`, `src/app/map/shared-load.ts`); an entry that finds it still loading waits on the save's loading
-screen after a save load, on the loading screen on a page's first screen and on black otherwise (deviation "Map screen
-entry"; `front-end/front-end.test.ts` "the map screen loaded in the background"). The San Mona screen's time
+screen after a save load, on the loading screen on a page's first screen with the picture a save of the session would
+show (the session summary's `loadScreen`) and on black otherwise (deviation "Map screen entry";
+`front-end/front-end.test.ts` "the map screen loaded in the background"). The San Mona screen's time
 warp and its draw are the simulation's at the action (`35`). Cosmetic draws (blinks, the disk light, the confirming
 merc) use the client's `ClientRandom`.
 

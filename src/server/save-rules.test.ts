@@ -94,6 +94,15 @@ function soldierGridNo(session: Session, profile: number): number {
 }
 
 describe('save rules', () => {
+  it("lists the picture a save made now would show with the session, the entry's own while its sector is loaded", async () => {
+    await withKit(async (k) => {
+      const session = await inA10(k, 3);
+      const picture = campaignOf(session).campaign.state.sectorFlow.loadScreen;
+      expect(picture).not.toBeNull();
+      expect(describeSession(session)).toMatchObject({ loadScreen: picture });
+    });
+  });
+
   it('refuse saves in a conversation and in a shop, and allow them in between', async () => {
     await withKit(async (k) => {
       const session = await inA10(k, 3);

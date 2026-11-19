@@ -70,6 +70,7 @@ export class FakeClient implements FrontEndClient {
   statusRefusal: string | null = null;
   saveRefusal: Refusal | null = null;
   options: GameOptions | null = OPTIONS;
+  loadScreen: number | null = null;
   readonly calls: string[] = [];
   readonly campaigns: NewCampaign[] = [];
   readonly saved: { session: string; request: SaveRequest }[] = [];
@@ -113,7 +114,7 @@ export class FakeClient implements FrontEndClient {
   }
 
   async status(): Promise<SessionStatus> {
-    return { canSave: this.canSave, saveRefusal: this.statusRefusal, options: this.options };
+    return { canSave: this.canSave, saveRefusal: this.statusRefusal, options: this.options, loadScreen: this.loadScreen };
   }
 
   async setBloodAndGore(on: boolean): Promise<void> {

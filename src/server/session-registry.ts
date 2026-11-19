@@ -6,6 +6,7 @@ import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { type Entropy, serverEntropy } from './entropy.ts';
+import { savePicture } from './save-file.ts';
 import { saveStatus, sessionOptions } from './save-rules.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
 import { type Session, SPEECH_MODES, type SpeechMode } from './session.ts';
@@ -171,6 +172,7 @@ export function describeSession(session: Session): Record<string, unknown> {
     idle: session.sim.isIdle(),
     ...optionsStatus(session.sim),
     ...saveStatus(session.sim),
+    ...savePicture(session.sim),
     ...(view.clock ? { clock: view.clock } : {}),
     ...(view.strategic
       ? {

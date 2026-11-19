@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { LoadingScreen } from '../content/strategic/loading-screens.ts';
 import { advance } from '../sim/advance.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
+import { savePicture } from './save-file.ts';
 
 const ATTACHED_ITEM_BEFORE = 268;
 const CONTRACTS_ON_THE_MAP_ONLY = {
@@ -45,6 +47,13 @@ describe('a new campaign session', () => {
     const atTheLaptop = await create(3, { hire: [] });
     expect(atTheLaptop.campaign.tactical).toBeNull();
     expect(atTheLaptop.view().strategic).not.toHaveProperty('loadScreen');
+  });
+
+  it('lists the picture a save made now would show with the session, for a page opened on the map screen', async () => {
+    const landed = await create(3, {});
+    expect(savePicture(landed)).toEqual({ loadScreen: landed.campaign.state.sectorFlow.loadScreen });
+    const atTheLaptop = await create(3, { hire: [] });
+    expect(savePicture(atTheLaptop)).toEqual({ loadScreen: LoadingScreen.HELI });
   });
 
   it('owes the first-attachment hint until the page says it showed it, which sets FACT_ATTACHED_ITEM_BEFORE (InternalInitItemDescriptionBox)', async () => {

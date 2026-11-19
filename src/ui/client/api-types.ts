@@ -101,6 +101,7 @@ export interface SessionSummary {
   readonly campaign?: string;
   readonly canSave?: boolean;
   readonly saveRefusal?: string;
+  readonly loadScreen?: number;
 }
 
 export interface Refusal {
