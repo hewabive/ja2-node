@@ -446,7 +446,7 @@ export class Session {
     if (event.type === 'gameSaved') this.#recordMessages([gameSavedEntry(event.tick)]);
   }
 
-  #recordingStepper(frames: ViewFrame[]): Steppable {
+  #recordingStepper(frames: ViewFrame[], realtime: boolean): Steppable {
     const sim = this.#sim;
     const held = this.#held;
     const drained: SimEvent[] = [];
@@ -473,13 +473,13 @@ export class Session {
       step: () => {
         sim.step();
         this.#recordPresentation(drain());
-        this.#captureOnFrameTick(frames);
+        this.#captureOnFrameTick(frames, realtime);
       },
     };
   }
 
-  #captureOnFrameTick(frames: ViewFrame[]): void {
-    if (this.#sim.tick % FRAME_TICKS === 0) this.#capture(frames);
+  #captureOnFrameTick(frames: ViewFrame[], realtime: boolean): void {
+    if (this.#sim.tick % FRAME_TICKS === 0) this.#capture(frames, realtime);
   }
 
   #anchored(view: PlayerView): AnchoredView {
@@ -487,7 +487,7 @@ export class Session {
     return timelines ? keepPredictableFrames(timelines, this.#lastView, view) : { view, predicting: false };
   }
 
-  #capture(frames: ViewFrame[]): void {
+  #capture(frames: ViewFrame[], realtime = false): void {
     const events = this.#pendingEvents.splice(0);
     this.#followMusic(events);
     this.#followMessages(events);
@@ -498,8 +498,8 @@ export class Session {
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
     const extra = { ...(events.length > 0 ? { events } : {}), ...messages, ...presentation };
-    const animating = predicting || view.tick <= this.#presentationUntil;
-    const heartbeat = animating && view.tick % FRAME_TICKS === 0 && view.tick !== this.#shownTick;
+    const clockRuns = realtime || predicting || view.tick <= this.#presentationUntil;
+    const heartbeat = clockRuns && view.tick % FRAME_TICKS === 0 && view.tick !== this.#shownTick;
     const frame =
       Object.keys(extra).length > 0 || (heartbeat && !diff)
         ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), ...extra }
@@ -633,18 +633,18 @@ export class Session {
     return report;
   }
 
-  *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<SessionAdvanceReport> {
+  *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck, realtime = false): Run<SessionAdvanceReport> {
     yield 'claim';
     this.hooks?.beforeAdvance?.(this);
     const frames: ViewFrame[] = [];
-    const run = new AdvanceRun(this.#recordingStepper(frames), until, budget);
+    const run = new AdvanceRun(this.#recordingStepper(frames, realtime), until, budget);
     let report = run.resume(due);
     while (report === null) {
       this.#publish(frames.splice(0));
       yield 'pause';
       report = run.resume(due);
     }
-    this.#capture(frames);
+    this.#capture(frames, realtime);
     this.#publish(frames);
     this.hooks?.afterAdvance?.(this, report);
     return { ...report, messages: this.#unreportedMessages.splice(0) };
@@ -726,7 +726,7 @@ export class Session {
   *#realtimeRun(ticks: number, pauseOn: readonly SimEventType[]): Run<SessionAdvanceReport> {
     const entry: InputEntry = this.log.appendRealtime(this.#sim.tick, ticks, pauseOn);
     const until: StopCondition = pauseOn.length > 0 ? { ticks, events: [...pauseOn] } : { ticks };
-    const stopped = yield* this.#advanceRun(until, undefined, NEVER_DUE);
+    const stopped = yield* this.#advanceRun(until, undefined, NEVER_DUE, true);
     if (stopped.reason === 'ticks') this.log.realtimeBatchCompleted(entry);
     return stopped;
   }

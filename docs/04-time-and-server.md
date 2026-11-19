@@ -169,10 +169,13 @@ animation between frames comes from the animation schedule each soldier entry ca
 scripts (`28` §3):
 
 - a soldier whose silent animation the client can predict from its last sent slot is not resent for its frame alone
-  (`keepPredictableFrames`, `src/server/frame-anchors.ts`); a capture without changes then sends an empty frame so the
-  client's view tick keeps moving;
-- while bullets fly or effects started in the last two seconds, a frame goes out every 10 ticks even when nothing else
-  changed, so the client's effect clock runs until they end;
+  (`keepPredictableFrames`, `src/server/frame-anchors.ts`);
+- a frame point with nothing to send still sends an empty frame while the real-time driver advances the tick, while a
+  predicted animation runs and while bullets fly or effects started in the last two seconds: the client never plays
+  past the latest tick it received and plays at 1×, so a quiet stretch without frames would leave it behind by that
+  stretch for good (`src/server/realtime-playback-stub.test.ts`). An `advance` sends empty frames only for the
+  animation and the presentation, a command none: their frames play or apply at once, and thousands of quiet ticks
+  should not carry hundreds of empty frames;
 - with no subscriber the session builds and diffs no view (it still follows the music mode from the events at every
   frame point); the first subscriber's `welcome` becomes the base of the next diff.
 

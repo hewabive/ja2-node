@@ -153,6 +153,30 @@ describe('session', () => {
     session.close();
   });
 
+  it('sends an empty frame every FRAME_TICKS through a quiet stretch of real time, so the client clock follows the simulation', () => {
+    const sim = walker();
+    const session = new Session('s2q', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    const frameTicks = () => messages.flatMap((m) => (m.t === 'frames' ? m.frames : [])).map((f) => f.tick);
+    session.advance({ ticks: 5 * FRAME_TICKS });
+    expect(frameTicks()).toEqual([]);
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
+    for (let batch = 1; batch <= 7; batch++) {
+      now += 7 * TICK_MS;
+      session.runRealtime(now);
+    }
+    expect(sim.tick).toBe(5 * FRAME_TICKS + 49);
+    expect(frameTicks()).toEqual([60, 70, 80, 90]);
+    expect(messages.flatMap((m) => (m.t === 'frames' ? m.frames : [])).every((f) => f.changed.length === 0)).toBe(true);
+    session.holdTime('a', 'modal', true);
+    now += 30 * TICK_MS;
+    session.runRealtime(now);
+    expect(frameTicks()).toHaveLength(4);
+    session.close();
+  });
+
   it('keeps real time through a decision: no ticks, no log entries and no catch-up once it is resolved', () => {
     let deciding = true;
     const sim = walker();
