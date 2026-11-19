@@ -22,7 +22,8 @@
 // @src (the old magazine of a merc off the loaded map dropped into his own sector), MapScreen.cc
 // @src MAPInternalInitItemDescriptionBox and Interface_Items.cc
 // @src DeleteItemDescriptionBox (the box session, its AP_RELOAD_GUN charged as it closes or as the map screen ends,
-// @src EndMapScreen) (2026-11-16).
+// @src EndMapScreen) (2026-11-16); MAPInvClickCallbackPrimary's PlaceObject of a pool item into a head slot, its
+// @src STR_CANT_USE_TWO_ITEMS for a face item that does not go with the other one (Items.cc:1898-1915, 2026-11-19).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -54,6 +55,7 @@ import {
 } from '../tactical/inventory-commands.ts';
 import {
   type Count,
+  complainAboutFaceItem,
   dryInventoryContext,
   type LeftoverSpot,
   moveItem,
@@ -642,7 +644,10 @@ export class MapInventory {
     const s = merc.soldier;
     if (nailsRefuses(contentOf(this.#campaign).items, s, to, entry.object.item)) return refusal(InventoryRefusal.NAILS_VEST);
     const preview = takeObjects(contentOf(this.#campaign).items, cloneObject(entry.object), count, 0) as ItemObject;
-    if (!placeObject(this.#dryContext(s), { inv: s.inv.map(cloneObject) }, to, preview)) return refusal(InventoryRefusal.DOES_NOT_FIT);
+    if (!placeObject(this.#dryContext(s), { inv: s.inv.map(cloneObject) }, to, preview)) {
+      complainAboutFaceItem(this.#env(merc), s, s, to, preview);
+      return refusal(InventoryRefusal.DOES_NOT_FIT);
+    }
     const cursor = stash.take(entry.index, count);
     const item = cursor.item;
     const moved = cursor.count;

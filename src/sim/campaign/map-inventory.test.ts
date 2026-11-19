@@ -575,6 +575,23 @@ describe('the map screen inventory', () => {
     });
   });
 
+  it('names two face items that do not go together when a pool item is put next to the other, as PlaceObject prints it for every caller (Items.cc:1898-1915)', () => {
+    const c = onTheMap();
+    const merc = mercIds(c)[0] as number;
+    carry(c, merc, InvSlot.HEAD1, one('SUNGOGGLES'));
+    stashAtTheMerc(c, [one('NIGHTGOGGLES')]);
+    c.drainEvents();
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'ground', item: 0, to: 'head2' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'doesNotFit' },
+    });
+    const refusals = c.drainEvents().filter((e) => e.type === 'attachmentRefused');
+    expect(refusals).toMatchObject([
+      { soldier: merc, complaint: { kind: 'cannotUseBoth', first: itemIndex('NIGHTGOGGLES'), second: itemIndex('SUNGOGGLES') } },
+    ]);
+    expect(listed(stash(c))).toEqual([[0, 'NIGHTGOGGLES', 1]]);
+  });
+
   it('refuses a hand swap as tactical only: the original swaps hands by the tactical key and panel alone (SwapHandItems, Turn_Based_Input.cc:3390, Interface_Panels.cc:3098)', () => {
     for (const c of [onTheMap(), onTheMapWithA9Unloaded()]) {
       const merc = mercIds(c)[0] as number;

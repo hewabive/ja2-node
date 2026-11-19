@@ -312,12 +312,11 @@ function complainAboutAttachment(env: PanelEnv, s: Soldier, target: ItemObject, 
   if (complaint) env.emit({ type: 'attachmentRefused', soldier: s.id, complaint });
 }
 
-function complainAboutFaceItem(env: PanelEnv, req: MoveRequest, source: ItemObject): void {
-  const { target, to } = req;
-  if (!canItemFitInPosition(env.items, target.inv, source, to, true)) return;
-  const worn = faceItemWornWith(env.items, target.inv, to, source.item);
+export function complainAboutFaceItem(env: PanelEnv, mover: Soldier, target: Soldier, to: number, o: ItemObject): void {
+  if (!canItemFitInPosition(env.items, target.inv, o, to, true)) return;
+  const worn = faceItemWornWith(env.items, target.inv, to, o.item);
   if (worn === null) return;
-  env.emit({ type: 'attachmentRefused', soldier: req.mover.id, complaint: { kind: 'cannotUseBoth', first: source.item, second: worn } });
+  env.emit({ type: 'attachmentRefused', soldier: mover.id, complaint: { kind: 'cannotUseBoth', first: o.item, second: worn } });
 }
 
 function attachedEvent(s: Soldier, item: string, to: string, outcome: AttachOutcome): PanelEvent {
@@ -379,7 +378,7 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
   const merging =
     !env.mapScreen && req.merge === true && ATTACH_SLOTS.includes(to) && validMerge(env.items, cursorItem, itemIn(target.inv, to));
   if (!merging && !placementFits(env, mover, from, target, to, req.count, req.index)) {
-    complainAboutFaceItem(env, req, source);
+    complainAboutFaceItem(env, mover, target, to, source);
     return refuse(PanelRefusal.DOES_NOT_FIT);
   }
   if (merging) complainAboutAttachment(env, mover, target.inv[to] as ItemObject, cursorItem);
