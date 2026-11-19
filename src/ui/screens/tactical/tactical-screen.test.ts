@@ -1725,7 +1725,14 @@ describe('the tactical screen in a stub campaign', () => {
 
     await f.click(`slot${BIG_POCKET}`);
     await giveToTheRobot();
-    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'give', soldier: merc, target: robot, slot: BIG_POCKET, count: 1 });
+    expect(f.client.commands.at(-1)?.cmd).toEqual({
+      type: 'give',
+      soldier: merc,
+      target: robot,
+      slot: BIG_POCKET,
+      count: 1,
+      realTime: true,
+    });
     expect(inventory(f, merc).find((i) => i.slot === BIG_POCKET)?.status).toEqual([60, 100]);
 
     await f.click('smKeyRing');
@@ -1733,7 +1740,14 @@ describe('the tactical screen in a stub campaign', () => {
     const area = f.widget('keyRingArea').rect;
     await f.clickAt(area.x + 2, area.y + 2);
     await giveToTheRobot();
-    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'give', soldier: merc, target: robot, slot: { ring: 2 }, count: 1 });
+    expect(f.client.commands.at(-1)?.cmd).toEqual({
+      type: 'give',
+      soldier: merc,
+      target: robot,
+      slot: { ring: 2 },
+      count: 1,
+      realTime: true,
+    });
     expect(ring[2]).toEqual({ keyId: 1, count: 2 });
 
     await f.click('smMoney');

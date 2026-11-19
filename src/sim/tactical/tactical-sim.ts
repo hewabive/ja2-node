@@ -225,6 +225,7 @@ import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMove
 import type { ProfileProgress } from './profiles.ts';
 import { promptOpenRefusal, TacticalPromptKind, takeAnswer } from './prompts.ts';
 import { randomAnimOpcode } from './random-anims.ts';
+import { realTimeOrderRefusal } from './real-time-orders.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
 import { handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
 import {
@@ -951,6 +952,8 @@ export class TacticalSim {
     const prompt = promptOpenRefusal(this.state);
     if (prompt) return prompt;
     if (cmd.type === 'setOption') return this.#setOption(cmd);
+    const realTime = realTimeOrderRefusal(this.state, cmd);
+    if (realTime) return refused(realTime);
     if (this.state.mercsWaiting) return refuse('uiLocked', 'the interface is locked while mercs leave the sector');
     if (helicopterDropRunning(this.state)) return refuse('uiLocked', 'the interface is locked while the helicopter drops the mercs');
     if (this.state.boxing.uiLocked) return refuse('boxingUiLock', 'the interface is locked while the boxers leave the ring');

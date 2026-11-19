@@ -103,7 +103,10 @@ structure with hidden items on it stays plain (D16).
 sector edge), under `CURSOR_WAIT` in real time too (`'interface'`, `tactical-controls.ts`); on our turn in combat it
 locks while the view says `combat.uiLocked`, while a received frame not yet played back locks the interface or passes
 the turn, and while an order the original sends through `SetUIBusy` waits for its answer. The server publishes the
-locked frame before the answer, so the lock has no gap; only Esc passes. Playback merely trailing the newest tick does
+locked frame before the answer, so the lock has no gap; only Esc passes. On a view still in real time it locks as
+`'ourTurn'` while a received frame not yet played back enters combat, as the original never takes real-time input once
+`INCOMBAT` is set; for the entry frame not yet received, the orders of the real-time click handlers carry `realTime`,
+which the server refuses in combat and the screen does not print (`29` §4.3). Playback merely trailing the newest tick does
 not lock: frames arrive unevenly under the real-time driver and a tick threshold made the lock and the cursor flicker
 (deviations "Turn-based UI lock", "Playback lock").
 

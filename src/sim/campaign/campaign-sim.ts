@@ -99,6 +99,7 @@ import { handleShopKeepHasBeenShutDown } from '../tactical/narrative/keith-busin
 import { STOP_TIME_CALLBACKS } from '../tactical/narrative/port.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
+import { realTimeOrderRefusal } from '../tactical/real-time-orders.ts';
 import { refuse, refused } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, hostileCiviliansPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -1000,6 +1001,12 @@ export class CampaignSim {
     return refuse('notInTactical', `${cmd.type} is given on the tactical screen only`);
   }
 
+  #realTimeOrderRefusal(cmd: CampaignCommand): CommandResult | null {
+    const t = this.tactical?.state;
+    const refusal = this.state.flow === 'tactical' && t ? realTimeOrderRefusal(t, cmd) : null;
+    return refusal ? refused(refusal) : null;
+  }
+
   #promptOpen(): boolean {
     return this.battle?.hasPendingDecision() === true || this.talk?.requestOpen() === true || this.#tacticalPromptOpen();
   }
@@ -1066,6 +1073,7 @@ export class CampaignSim {
       this.#helicopterDropRefusal(cmd) ??
       this.#boxingUiLockRefusal(cmd) ??
       this.#offTacticalScreenRefusal(cmd) ??
+      this.#realTimeOrderRefusal(cmd) ??
       this.#stopTimeQuoteRefusal(cmd) ??
       this.#tacticalPromptRefusal(cmd) ??
       mapAreaRefusal(this.state, cmd);

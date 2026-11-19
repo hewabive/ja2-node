@@ -2511,6 +2511,48 @@ describe('the interface reset of CommonEnterCombatModeCode as our team starts th
   });
 });
 
+describe('a real-time click on a view behind the combat entry', () => {
+  async function shownBehindTheEntry(): Promise<TacticalUiTest> {
+    const f = await tacticalUiTest(kit, ui, BATTLE_SANDBOX_SEED);
+    f.screen.select(0, false);
+    await f.settle();
+    approachUntilCombat(f.session, false);
+    untilOurTurn(f.session);
+    expect([f.client.view.combat ?? null, tacticalOf(f.session).state.turn.currentTeam]).toEqual([null, 0]);
+    return f;
+  }
+
+  async function clickThreeTilesAway(f: TacticalUiTest): Promise<void> {
+    const at = f.world.pickPoint(merc(f, 0).gridNo + 3);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    await f.clickAt(at.x, at.y);
+  }
+
+  it('locks our input while a received frame not yet played back enters combat, so the click sends no move', async () => {
+    const f = await shownBehindTheEntry();
+    const entry = f.session.sim.view();
+    f.client.queued = [{ tick: entry.tick, changed: [], removed: [], combat: entry.combat ?? null }];
+    await f.settle();
+    expect(f.screen.controls.lockState()).toBe('ourTurn');
+    await clickThreeTilesAway(f);
+    expect(commandsOf(f, 'move')).toEqual([]);
+  });
+
+  it('sends the move flagged realTime before the entry frame comes, and prints no line for its refusal in combat', async () => {
+    const f = await shownBehindTheEntry();
+    const actionPoints = tacticalOf(f.session).state.soldiers[0]?.actionPoints;
+    await clickThreeTilesAway(f);
+    expect(f.client.commands.filter((c) => c.cmd.type === 'move')).toMatchObject([
+      { cmd: { soldier: 0, realTime: true }, reply: { ok: false, data: { refusal: 'realTimeOrder' } } },
+    ]);
+    f.deliver();
+    await f.settle();
+    expect(tacticalOf(f.session).state.soldiers[0]?.actionPoints).toBe(actionPoints);
+    expect(f.screen.messageLines.filter((line) => line.includes('real time'))).toEqual([]);
+  });
+});
+
 describe('the exit texts of a merc escorting someone, in a stub campaign', () => {
   async function escortingSquad(sex: number): Promise<{ f: TacticalUiTest; name: string; escort: string }> {
     const a10 = await campaignInA10(kit, 5);

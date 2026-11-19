@@ -157,6 +157,12 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   wait for its end (deviation "Turn-based UI lock"). The original gives `turn` and `stance` also to the mercs of a
   real-time multi-selection without selecting them: with `multiSelected: true` these orders only wake their merc, as
   the multi-selection already did.
+- An order with `realTime: true` is one a real-time click of the player's screen gave (`clickOrder`,
+  `src/ui/screens/tactical/input/click-orders.ts`). In combat it is refused as `realTimeOrder` and changes nothing
+  (`src/sim/tactical/real-time-orders.ts`): the original reads its input in the frame its simulation enters combat in
+  and picks the turn-based handlers from then on (`Tactical/Handle_UI.cc:452-473`), so no real-time click reaches
+  turn-based mode, while the browser plays the view behind the server and may send one after the server's combat
+  entry. The screen prints no line for it. Agents that omit the flag are unaffected.
 
 ### 4.4 Time on the map
 

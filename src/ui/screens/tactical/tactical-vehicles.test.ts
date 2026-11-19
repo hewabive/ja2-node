@@ -156,7 +156,7 @@ describe('boarding a vehicle with the cursor (Handle_UI.cc UIHandleInteractiveTi
       await pointAt(f, at);
       expect(f.screen.controls.input.uiCursor).toBe('ENTER_VEHICLE_UICURSOR');
       await f.clickAt(at.x, at.y);
-      const boarding = { type: 'enterVehicle', soldier: merc, vehicle: hummer(f).id, cursor: 'hand' };
+      const boarding = { type: 'enterVehicle', soldier: merc, vehicle: hummer(f).id, cursor: 'hand', realTime: true };
       expect(commandsOf(f, 'enterVehicle')).toEqual(allowed ? [boarding] : []);
     }
   });
@@ -200,7 +200,7 @@ describe('boarding a vehicle with the cursor (Handle_UI.cc UIHandleInteractiveTi
     const merc = selected(f).id;
     const at = onThePicture(f, hummer(f).id);
     await pointAt(f, at);
-    const boarding = { type: 'enterVehicle', soldier: merc, vehicle: hummer(f).id, cursor: 'move' };
+    const boarding = { type: 'enterVehicle', soldier: merc, vehicle: hummer(f).id, cursor: 'move', realTime: true };
     f.t.runtime.input({ kind: 'pointerDown', x: at.x, y: at.y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
     await f.settle(1);
     expect(commandsOf(f, 'enterVehicle')).toEqual([boarding]);
@@ -285,7 +285,7 @@ describe('the toolkit and the gas can over a vehicle (UI_Cursors.cc HandleRepair
       await pointAt(f, at);
       cursors.push(f.screen.controls.input.uiCursor);
       await f.clickAt(at.x, at.y);
-      expect(commandsOf(f, order)).toEqual([{ type: order, soldier: selected(f).id, gridNo: hummer(f).gridNo }]);
+      expect(commandsOf(f, order)).toEqual([{ type: order, soldier: selected(f).id, gridNo: hummer(f).gridNo, realTime: true }]);
     }
     expect(cursors).toEqual(['BAD_REPAIR_UICURSOR', 'GOOD_REPAIR_UICURSOR', 'REFUEL_GREY_UICURSOR', 'REFUEL_RED_UICURSOR']);
   });

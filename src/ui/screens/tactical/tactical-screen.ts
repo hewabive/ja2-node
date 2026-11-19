@@ -149,6 +149,7 @@ import {
   OKLIFE,
 } from './faces.ts';
 import { HudController, hudClockText, type KeyGates, optionsKeyEnabled, pauseHelpText, saveKeyEnabled, sectorOfMap } from './hud.ts';
+import { clickOrder } from './input/click-orders.ts';
 import { helicopterDropRunning } from './input/helicopter-drop-skip.ts';
 import { dataOf, hintState } from './input/hints.ts';
 import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPointerAction } from './input/item-tile-cursor.ts';
@@ -769,7 +770,7 @@ export class TacticalScreen implements Screen {
       return;
     }
     const command = this.#itemPointerCommand(cursor, action, at, holder, target);
-    if (command) void this.inventory.send(command).then((r) => endsItemPointer(r) && this.#endItemPointer());
+    if (command) void this.inventory.send(clickOrder(command, this.#view())).then((r) => endsItemPointer(r) && this.#endItemPointer());
     else this.#endItemPointer();
   }
 
@@ -839,7 +840,7 @@ export class TacticalScreen implements Screen {
   #pickUpAt(picker: SoldierView, gridNo: number, zLevel: number): void {
     const items = onZLevel(itemPool(this.#view()?.items, gridNo, picker.level), zLevel);
     if (items.length === 0) return;
-    void this.#command({ type: 'pickUp', soldier: picker.id, gridNo, zLevel });
+    void this.#command(clickOrder({ type: 'pickUp', soldier: picker.id, gridNo, zLevel }, this.#view()));
   }
 
   #syncPickupMenu(view: PlayerView | null): void {

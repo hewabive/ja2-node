@@ -181,7 +181,8 @@ scripts (`28` §3):
 
 An instant `advance` sends its frames at once; the client plays them at 1×, 4× or 16× or applies them immediately
 ("skip"): "unseen instantly, seen at 1×" is the original's own behaviour. While playback catches up, input is blocked,
-as the original blocks the UI during actions. The input log is deterministic, so replay comes for free (§5.5).
+as the original blocks the UI during actions; an order a real-time click sends carries `realTime`, which the
+simulation refuses in combat, so a click on a view behind the combat entry starts no turn-based action (`29` §4.3). The input log is deterministic, so replay comes for free (§5.5).
 
 ### 4.5. CPU cost
 

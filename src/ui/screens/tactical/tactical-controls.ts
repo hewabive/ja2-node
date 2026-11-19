@@ -221,6 +221,10 @@ function locksOurInput(frame: ViewFrame): boolean {
   return !!frame.combat && (frame.combat.uiLocked || frame.combat.team !== OUR_TEAM);
 }
 
+function entersCombat(frame: ViewFrame): boolean {
+  return !!frame.combat;
+}
+
 function cellRange(a: number, b: number): number {
   const dx = ((a % WORLD_COLS) - (b % WORLD_COLS)) * CELL;
   const dy = (idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS)) * CELL;
@@ -339,7 +343,7 @@ export class TacticalControls {
     if (helicopterDropRunning(view)) return 'helicopterDrop';
     if (inCombat(view) && !ourTurn(view)) return 'enemyTurn';
     if (view?.interfaceLocked) return 'interface';
-    if (!inCombat(view)) return 'none';
+    if (!inCombat(view)) return client.queuedFrames.some(entersCombat) ? 'ourTurn' : 'none';
     if (this.#busyOrders > 0 || view?.combat?.uiLocked || client.queuedFrames.some(locksOurInput)) return 'ourTurn';
     return 'none';
   }

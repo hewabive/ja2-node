@@ -23,6 +23,7 @@ const IGNORED_BY_THE_LOCKED_INPUT: readonly string[] = [
   'helicopterDrop',
   'boxingUiLock',
   'cannotAct',
+  'realTimeOrder',
 ];
 
 const ANSWERED_WITHOUT_A_LINE: readonly string[] = ['refusesOrder', 'noAmmo', 'weaponBroken', 'itemBroken', 'cannotReach', 'alreadyFacing'];

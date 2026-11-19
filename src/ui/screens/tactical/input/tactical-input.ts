@@ -131,6 +131,7 @@ import {
   tileToolTargetRefusal,
   wheelAdjust,
 } from './attack-cursors.ts';
+import { clickOrder } from './click-orders.ts';
 import { CoverDisplay, type CoverDisplayHost, nodeShade } from './cover-display.ts';
 import { ESCAPE_KEY, HelicopterDropSkip, helicopterDropRunning } from './helicopter-drop-skip.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
@@ -503,6 +504,10 @@ export class TacticalInput {
 
   #text(table: string, index: number): string {
     return this.#env().text.string(table, index) ?? '';
+  }
+
+  #clicked(cmd: CommandEnvelope): CommandEnvelope {
+    return clickOrder(cmd, this.#view());
   }
 
   #feedback(index: number, args: readonly (string | number)[] = []): void {
@@ -1409,7 +1414,7 @@ export class TacticalInput {
 
   #uiReloading(sel: SoldierView, estimate: EstimateAttack): boolean {
     if (!estimate.ammo.empty || (estimate.cursor !== 'target' && estimate.cursor !== 'trajectory')) return false;
-    void this.#host.send({ type: 'reload', soldier: sel.id, cursor: true });
+    void this.#host.send(this.#clicked({ type: 'reload', soldier: sel.id, cursor: true }));
     return true;
   }
 
@@ -1925,7 +1930,8 @@ export class TacticalInput {
     if (this.#vehicleInteractiveClick(sel, BoardingCursor.MOVE)) return -1;
     const target = this.#hover.target;
     if (target && target.id !== sel.id) {
-      if (this.#validQuickExchange()) void this.#host.send({ type: 'swapPlaces', soldier: sel.id, with: target.id, cursor: true });
+      if (this.#validQuickExchange())
+        void this.#host.send(this.#clicked({ type: 'swapPlaces', soldier: sel.id, with: target.id, cursor: true }));
       return -3;
     }
     const tile = this.#interactiveTile();
@@ -1973,7 +1979,7 @@ export class TacticalInput {
   }
 
   #searchClick(sel: SoldierView, gridNo: number, event: UiEvent): UiEvent {
-    const search = { type: 'pickUp', soldier: sel.id, gridNo, zLevel: FLOOR_Z_LEVEL };
+    const search = this.#clicked({ type: 'pickUp', soldier: sel.id, gridNo, zLevel: FLOOR_Z_LEVEL });
     if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
     else if ((sel.morale ?? 100) < MORALE_REFUSE_SEARCH) void this.#host.sendBusyOrder(search);
     else if (this.#currentAp === 0) this.#feedback(NO_PATH_STR);
@@ -1986,7 +1992,7 @@ export class TacticalInput {
 
   #stealClick(sel: SoldierView, target: number, event: UiEvent): UiEvent {
     if (!this.#enoughPoints(sel, this.#currentAp, true)) return event;
-    void this.#host.sendBusyOrder({ type: 'steal', soldier: sel.id, target });
+    void this.#host.sendBusyOrder(this.#clicked({ type: 'steal', soldier: sel.id, target }));
     return UiEvent.A_CHANGE_TO_MOVE;
   }
 
@@ -1995,7 +2001,7 @@ export class TacticalInput {
     const target = this.#hover.target;
     if (!sel || !target) return false;
     if (target.profile === undefined && this.#host.closeCivQuote()) return false;
-    void this.#host.send({ type: 'talk', soldier: sel.id, target: target.id, level: this.#host.interfaceLevel() });
+    void this.#host.send(this.#clicked({ type: 'talk', soldier: sel.id, target: target.id, level: this.#host.interfaceLevel() }));
     this.#pending = UiEvent.A_CHANGE_TO_MOVE;
     return false;
   }
@@ -2447,7 +2453,7 @@ export class TacticalInput {
   #boardIfAble(sel: SoldierView, vehicle: SoldierView, cursor: BoardingCursor, preview: PreviewAction | null): boolean {
     if (!preview?.ok || !this.#enoughPoints(sel, preview.apCost, true)) return false;
     this.#env().battleSound(sel.id, 'ok');
-    void this.#host.sendBusyOrder({ type: 'enterVehicle', soldier: sel.id, vehicle: vehicle.id, cursor });
+    void this.#host.sendBusyOrder(this.#clicked({ type: 'enterVehicle', soldier: sel.id, vehicle: vehicle.id, cursor }));
     return true;
   }
 
@@ -2974,21 +2980,21 @@ export class TacticalInput {
     const gridNo = target ? target.gridNo : (tile?.gridNo ?? mapPos);
     const level = target ? target.level : this.#host.interfaceLevel();
     if (estimate?.cursor === 'aid') {
-      if (target) void this.#host.sendBusyOrder({ type: 'bandage', soldier: sel.id, target: target.id });
+      if (target) void this.#host.sendBusyOrder(this.#clicked({ type: 'bandage', soldier: sel.id, target: target.id }));
       return;
     }
     if (estimate?.cursor === 'remote') {
-      void this.#host.send({ type: 'useRemote', soldier: sel.id });
+      void this.#host.send(this.#clicked({ type: 'useRemote', soldier: sel.id }));
       this.#pending = UiEvent.A_CHANGE_TO_MOVE;
       return;
     }
     if (estimate?.cursor === 'bomb') {
-      void this.#host.sendBusyOrder({ type: 'plantBomb', soldier: sel.id, gridNo });
+      void this.#host.sendBusyOrder(this.#clicked({ type: 'plantBomb', soldier: sel.id, gridNo }));
       this.#pending = UiEvent.A_CHANGE_TO_MOVE;
       return;
     }
     if (estimate && isTileToolCursor(estimate.cursor)) {
-      void this.#host.sendBusyOrder({ type: TILE_TOOL_ORDERS[estimate.cursor], soldier: sel.id, gridNo });
+      void this.#host.sendBusyOrder(this.#clicked({ type: TILE_TOOL_ORDERS[estimate.cursor], soldier: sel.id, gridNo }));
       this.#pending = UiEvent.A_CHANGE_TO_MOVE;
       return;
     }
@@ -2997,15 +3003,9 @@ export class TacticalInput {
     this.#doSpread = false;
     this.#burstLocations = [];
     const part = this.#bodyPart && target ? { bodyPart: this.#bodyPart } : {};
-    const reply = await this.#host.sendBusyOrder({
-      type: 'attack',
-      soldier: sel.id,
-      target: gridNo,
-      level,
-      aimTime: aimTimeOf(aim),
-      ...part,
-      ...spread,
-    });
+    const reply = await this.#host.sendBusyOrder(
+      this.#clicked({ type: 'attack', soldier: sel.id, target: gridNo, level, aimTime: aimTimeOf(aim), ...part, ...spread }),
+    );
     if (!this.#combat() && reply.ok && estimate?.cursor === 'target' && !this.#selBurst(sel))
       this.#timedCursor = {
         cursor: this.#throwingKnife(sel) ? 'RED_THROW_UICURSOR' : 'ACTION_TARGETRED_UICURSOR',
@@ -3044,11 +3044,12 @@ export class TacticalInput {
     const mapPos = this.#mapPos();
     if (mapPos === null) return;
     if (this.multiSelected.size > 0) {
-      for (const id of this.multiSelected) void this.#host.send({ type: 'turn', soldier: id, toward: mapPos, multiSelected: true });
+      for (const id of this.multiSelected)
+        void this.#host.send(this.#clicked({ type: 'turn', soldier: id, toward: mapPos, multiSelected: true }));
       return;
     }
     const sel = this.#sel();
-    if (sel) void this.#host.sendBusyOrder({ type: 'turn', soldier: sel.id, toward: mapPos });
+    if (sel) void this.#host.sendBusyOrder(this.#clicked({ type: 'turn', soldier: sel.id, toward: mapPos }));
   }
 
   #tOnTerrain(): void {
@@ -3161,7 +3162,7 @@ export class TacticalInput {
     const sel = this.#sel();
     const mapPos = this.#mapPos();
     if (sel && mapPos !== null)
-      void this.#host.sendBusyOrder({ type: 'jump', soldier: sel.id, to: mapPos, level: this.#host.interfaceLevel() });
+      void this.#host.sendBusyOrder(this.#clicked({ type: 'jump', soldier: sel.id, to: mapPos, level: this.#host.interfaceLevel() }));
   }
 
   #movementMenu(): void {
@@ -3224,7 +3225,7 @@ export class TacticalInput {
         .filter((s) => (s.life ?? 0) >= OKLIFE && !s.asleep)
         .map((s) => s.id);
       void this.#host
-        .send({ type: 'moveGroup', soldiers, to: mapPos, mode: allMove === 2 ? 'run' : 'stance' })
+        .send(this.#clicked({ type: 'moveGroup', soldiers, to: mapPos, mode: allMove === 2 ? 'run' : 'stance' }))
         .then((reply) => this.#groupSounds(reply));
       this.#setConfirmMovementModeCursor(sel, true);
       return;
@@ -3233,7 +3234,7 @@ export class TacticalInput {
     const tile = this.#interactiveTile();
     if (tile) {
       const action = tile.open ? 'close' : 'open';
-      void this.#host.sendBusyOrder({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action });
+      void this.#host.sendBusyOrder(this.#clicked({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action }));
       return;
     }
     if (!this.#combat()) {
@@ -3242,13 +3243,15 @@ export class TacticalInput {
     if (this.multiSelected.size > 0) {
       const soldiers = [...this.multiSelected];
       void this.#host
-        .send({
-          type: 'moveGroup',
-          soldiers,
-          to: mapPos,
-          mode: this.#fast ? 'fast' : 'stance',
-          ...(this.#reverse ? { reverse: true } : {}),
-        })
+        .send(
+          this.#clicked({
+            type: 'moveGroup',
+            soldiers,
+            to: mapPos,
+            mode: this.#fast ? 'fast' : 'stance',
+            ...(this.#reverse ? { reverse: true } : {}),
+          }),
+        )
         .then((reply) => this.#groupSounds(reply));
       this.#fast = false;
       return;
@@ -3257,7 +3260,15 @@ export class TacticalInput {
     this.#fast = false;
     const preview = dataOf(this.#previewMove(mapPos));
     void this.#host
-      .sendBusyOrder({ type: 'move', soldier: sel.id, to: mapPos, ...(mode ? { mode } : {}), ...(this.#reverse ? { reverse: true } : {}) })
+      .sendBusyOrder(
+        this.#clicked({
+          type: 'move',
+          soldier: sel.id,
+          to: mapPos,
+          ...(mode ? { mode } : {}),
+          ...(this.#reverse ? { reverse: true } : {}),
+        }),
+      )
       .then((reply) => {
         if (reply.ok) this.#cycledModes.delete(sel.id);
         if (reply.ok && (preview?.steps.length ?? 0) + 1 > OK_SOUND_STEPS) this.#env().battleSound(sel.id, 'ok');

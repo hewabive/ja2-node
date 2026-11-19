@@ -26,6 +26,7 @@ describe('the fallback line for a refusal no screen shows', () => {
       'attackResolving',
       'mercActing',
       'autoBandaging',
+      'realTimeOrder',
       'refusesOrder',
       'noAmmo',
       'weaponBroken',
