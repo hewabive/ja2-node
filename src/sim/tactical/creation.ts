@@ -685,6 +685,10 @@ function withCampaignProgress(p: MercProfile, live: ProfileProgress | undefined)
   };
 }
 
+function placementPatrolGrid(pp: SoldierCreate): number[] {
+  return pp.patrolCount > 0 ? [pp.insertionGridNo, ...pp.patrolGrid.slice(1, pp.patrolCount + 1)] : [];
+}
+
 function profiledSoldier(c: CreationContext, pp: SoldierCreate, id: number, record: MercProfile): Soldier {
   const p = withCampaignProgress(record, c.profiles?.get(record.id));
   const s = createSoldier({
@@ -712,7 +716,7 @@ function profiledSoldier(c: CreationContext, pp: SoldierCreate, id: number, reco
     gridNo: NOWHERE,
     direction: pp.direction,
     state: states(c.content.animations).STANDING,
-    ai: { orders: pp.orders, attitude: pp.attitude, patrolGrid: [], patrolCount: pp.patrolCount },
+    ai: { orders: pp.orders, attitude: pp.attitude, patrolGrid: placementPatrolGrid(pp), patrolCount: pp.patrolCount },
   });
   if (s.skillTrait1 === SkillTrait.CAMOUFLAGED || s.skillTrait2 === SkillTrait.CAMOUFLAGED) s.camo = FULL_CAMOUFLAGE;
   return s;
@@ -746,12 +750,7 @@ function generatedSoldier(c: CreationContext, pp: SoldierCreate, id: number): So
     gridNo: NOWHERE,
     direction: pp.direction,
     state: states(c.content.animations).STANDING,
-    ai: {
-      orders: pp.orders,
-      attitude: pp.attitude,
-      patrolGrid: pp.patrolCount > 0 ? [pp.insertionGridNo, ...pp.patrolGrid.slice(1, pp.patrolCount + 1)] : [],
-      patrolCount: pp.patrolCount,
-    },
+    ai: { orders: pp.orders, attitude: pp.attitude, patrolGrid: placementPatrolGrid(pp), patrolCount: pp.patrolCount },
   });
   assignNightOps(c, s);
   const given = pp.visible ? pp.palettes : {};

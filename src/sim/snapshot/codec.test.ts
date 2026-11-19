@@ -199,6 +199,63 @@ describe('snapshot version 98 (the picture of the last sector entry)', () => {
   });
 });
 
+describe('snapshot version 99 (profiled soldiers made without their patrol points)', () => {
+  const NPC = 120;
+  const START = 12880;
+  const POINTS = [12884, 13520, 12876];
+  const RNDPTPATROL = 7;
+  const FARPATROL = 3;
+  const ONGUARD = 1;
+  const NO_PROFILE = 200;
+
+  function soldier(id: number, profile: number, ai: Record<string, unknown>) {
+    return { id, profile, state: 0, pc: 0, frameSlot: 0, aniDelay: 0, insertionGridNo: START, ai: { nextPatrolPoint: 1, ...ai } };
+  }
+
+  function node(soldierId: number, profile: number, orders = RNDPTPATROL) {
+    const patrolGrid = [0, ...POINTS, 0, 0, 0, 0, 0, 0];
+    return { hasSoldier: true, soldierId, basic: { orders, patrolGrid, patrolCount: POINTS.length }, detail: { profile } };
+  }
+
+  function migratedSoldiers(soldiers: readonly unknown[], initList: readonly unknown[]): unknown {
+    const entries = soldiers.map((s) => [(s as { id: number }).id, s]);
+    const graph = {
+      externals: [],
+      sections: [
+        ['soldiers', { $sparse: 200, $e: entries }],
+        ['tactical', { initList }],
+      ],
+    };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 99, kind: 'tactical', mapPath: null, graph });
+    const section = migrated.graph.sections[0]?.[1] as { $e: unknown[] } | undefined;
+    return section?.$e.map((e) => (e as [number, unknown])[1]);
+  }
+
+  it("gives them the points and the orders of their placement back, and leaves every other soldier's grid and orders as they are", () => {
+    const lost = { orders: FARPATROL, patrolGrid: [START + 1], patrolCount: POINTS.length };
+    const migrated = migratedSoldiers(
+      [
+        soldier(NPC, 98, lost),
+        soldier(NPC + 1, 99, { ...lost, orders: ONGUARD }),
+        soldier(NPC + 2, 100, { ...lost, patrolGrid: [START, ...POINTS] }),
+        soldier(NPC + 3, NO_PROFILE, lost),
+        soldier(NPC + 4, 102, lost),
+        soldier(NPC + 5, 103, lost),
+      ],
+      [node(NPC, 98), node(NPC + 1, 99), node(NPC + 2, 100), node(NPC + 3, NO_PROFILE), node(NPC + 4, 101), node(NPC + 5, 103, ONGUARD)],
+    );
+    const ais = (migrated as { ai: { orders: number; patrolGrid: number[] } }[]).map((s) => [s.ai.orders, s.ai.patrolGrid]);
+    expect(ais).toEqual([
+      [RNDPTPATROL, [START + 1, ...POINTS]],
+      [ONGUARD, [START + 1, ...POINTS]],
+      [FARPATROL, [START, ...POINTS]],
+      [FARPATROL, [START + 1]],
+      [FARPATROL, [START + 1]],
+      [FARPATROL, [START + 1, ...POINTS]],
+    ]);
+  });
+});
+
 describe('snapshot version 36 (merc slots with empty slots)', () => {
   const OFF_MAP_CURSOR = 0xffff;
 

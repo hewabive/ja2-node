@@ -6,7 +6,7 @@ import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
 import { hiResDirectionOf } from '../tactical/directions.ts';
-import { NO_PROFILE, NOBODY, Team } from '../tactical/soldier.ts';
+import { NO_PROFILE, NOBODY, Orders, Team } from '../tactical/soldier.ts';
 import { isVehicleBody } from '../vehicles/vehicle-list.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError, unescapeSegment } from './codec.ts';
@@ -2772,6 +2772,67 @@ function addLoadScreen(snapshot: Readonly<Record<string, unknown>>): Record<stri
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const INIT_LIST_KEY = 'initList';
+const POINT_PATROL_ORDERS: readonly Json[] = [Orders.POINTPATROL, Orders.RNDPTPATROL];
+
+interface PlacementPatrol {
+  readonly profile: number;
+  readonly orders: Json;
+  readonly patrolCount: number;
+  readonly points: readonly Json[];
+}
+
+function resolved(sections: readonly Section[], value: Json | undefined): Json | undefined {
+  const ref = field(value, REF, null);
+  return typeof ref === 'string' ? nodeAt(sections, ref) : value;
+}
+
+function placementPatrolOf(sections: readonly Section[], node: Json): readonly [number, PlacementPatrol] | null {
+  const soldierId = field(node, 'soldierId', null);
+  const profile = field(resolved(sections, field(node, 'detail', null)), 'profile', NO_PROFILE);
+  const basic = resolved(sections, field(node, 'basic', null));
+  const grid = resolved(sections, field(basic, 'patrolGrid', null));
+  const patrolCount = field(basic, 'patrolCount', 0);
+  if (field(node, 'hasSoldier', false) !== true || typeof soldierId !== 'number' || typeof profile !== 'number') return null;
+  if (profile === NO_PROFILE || typeof patrolCount !== 'number' || patrolCount <= 0 || !Array.isArray(grid)) return null;
+  return [soldierId, { profile, orders: field(basic, 'orders', null), patrolCount, points: grid.slice(1, patrolCount + 1) }];
+}
+
+function profiledPlacementPatrols(sections: readonly Section[]): ReadonlyMap<number, PlacementPatrol> {
+  const initList = resolved(sections, field(sectionOf(sections, 'tactical'), INIT_LIST_KEY, null));
+  if (!Array.isArray(initList)) return new Map();
+  return new Map(initList.map((node: Json) => placementPatrolOf(sections, node)).filter((entry) => entry !== null));
+}
+
+function withPlacementPatrol(soldier: JsonObject, patrol: PlacementPatrol): JsonObject {
+  const ai = soldier.ai;
+  const grid = isObject(ai) ? ai.patrolGrid : undefined;
+  if (!isObject(ai) || !Array.isArray(grid) || ai.patrolCount !== patrol.patrolCount || grid.length > patrol.patrolCount) return soldier;
+  const start = grid[0] ?? field(soldier, 'insertionGridNo', NOWHERE_GRID_NO);
+  const lostOrders = ai.orders === Orders.FARPATROL && POINT_PATROL_ORDERS.includes(patrol.orders);
+  return { ...soldier, ai: { ...ai, patrolGrid: [start, ...patrol.points], ...(lostOrders ? { orders: patrol.orders } : {}) } };
+}
+
+function withProfiledPatrols(value: Json, patrols: ReadonlyMap<number, PlacementPatrol>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withProfiledPatrols(v, patrols));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withProfiledPatrols(v, patrols);
+  if (!isSoldierRecord(mapped) || typeof mapped.id !== 'number') return mapped;
+  const patrol = patrols.get(mapped.id);
+  return patrol && mapped.profile === patrol.profile ? withPlacementPatrol(mapped, patrol) : mapped;
+}
+
+function restoreProfiledPatrolGrids(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const patrols = profiledPlacementPatrols(graph.sections);
+  if (patrols.size === 0) return { ...snapshot };
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === SOLDIERS_SECTION ? withProfiledPatrols(value, patrols) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2872,5 +2933,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     96: renumberAttackSlayOnly,
     97: addDrawnOnTop,
     98: addLoadScreen,
+    99: restoreProfiledPatrolGrids,
   };
 }

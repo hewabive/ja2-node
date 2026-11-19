@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import type { BasicPlacement } from '../../content/formats/map.ts';
 import { parseDetailedPlacement, writeProfileDetailedPlacement } from '../../content/formats/placement.ts';
+import type { MercProfile } from '../../content/formats/prof.ts';
+import { parseStubProfiles, STUB_PROFILES_PATH } from '../../content/formats/stub-profiles.ts';
 import { NOTHING } from '../../content/items/items.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { gameOptions } from '../options.ts';
@@ -127,10 +131,16 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
   };
 }
 
+function stubProfiles(): MercProfile[] {
+  const json = JSON.parse(readFileSync(join(import.meta.dirname, '../../..', STUB_PROFILES_PATH), 'utf8'));
+  return parseStubProfiles(json, (name) => kit.content.items.byName.get(name)?.index);
+}
+
 const ZEROS = (n: number) => new Array<number>(n).fill(0);
 const ROOF_TILE = 1000;
 const FIRST_FLAT_ROOF_TYPE = 64;
 const FIRST_SLANTED_ROOF_TYPE = 68;
+const STUB_NPC_PROFILE = 94;
 
 describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
   it('clamps elites to the policy range 6..10 and leaves them out of ReduceHighExpLevels', () => {
@@ -251,6 +261,38 @@ describe('TacticalCreateSoldier', () => {
     expect(onRoof(ROOF_TILE + 1, ENV(40))).toEqual([0, 0]);
     expect(onRoof(ROOF_TILE, { ...ENV(40), autoresolve: true })).toEqual([0, 0]);
     expect(onRoof(ROOF_TILE, ENV(40), roofOfType(FIRST_SLANTED_ROOF_TYPE))).toEqual([0, 0]);
+  });
+
+  it("gives a profiled soldier his placement's patrol points as a generated one gets them, so a random point patrol keeps its orders", () => {
+    const START = 1000;
+    const POINTS = [1100, 1200, 1300];
+    const bp = basic({
+      team: Team.CIV,
+      soldierClass: SoldierClass.NONE,
+      orders: Orders.RNDPTPATROL,
+      patrolCount: POINTS.length,
+      patrolGrid: [0, ...POINTS, 0, 0, 0, 0, 0, 0],
+    });
+    const created = (profile: number) => {
+      const { c } = creation([]);
+      const scripted = { ...c, content: { ...kit.content, profiles: stubProfiles() }, rng: new ScriptedStream([], 0) };
+      const spp = parseDetailedPlacement(
+        writeProfileDetailedPlacement({
+          profile,
+          direction: 0,
+          insertionGridNo: START,
+          team: Team.CIV,
+          attitude: 0,
+          orders: Orders.RNDPTPATROL,
+          soldierClass: SoldierClass.NONE,
+        }),
+      );
+      const pp = createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo(scripted, spp, bp, ENV(40));
+      const s = tacticalCreateSoldier(scripted, pp, 80, ENV(40));
+      return s && [s.profile, s.ai.orders, s.ai.patrolCount, s.ai.patrolGrid];
+    };
+    expect(created(STUB_NPC_PROFILE)).toEqual([STUB_NPC_PROFILE, Orders.RNDPTPATROL, POINTS.length, [START, ...POINTS]]);
+    expect(created(NO_PROFILE)).toEqual([NO_PROFILE, Orders.RNDPTPATROL, POINTS.length, [START, ...POINTS]]);
   });
 
   it('gives elites night ops (and the expert level late in the game), then palettes, battle sound and the female sound', () => {
