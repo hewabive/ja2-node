@@ -31,11 +31,11 @@ function faceDeleted(profile: number, saidAt?: number): ViewFrame {
   return { tick: 1, changed: [], removed: [], events: [deleted] };
 }
 
-function leaveFacePopupUp(speech: SessionSpeech, profile = MERC_PROFILE): TalkingUi {
+function sayWithFacePopup(speech: SessionSpeech): TalkingUi {
   const ui = TalkingUi.of(speech.presenter);
   speech.presenter.enqueue({
     surface: SpeechSurface.TACTICAL,
-    profile,
+    profile: MERC_PROFILE,
     soldier: 3,
     text: 'Hi.',
     chars: 3,
@@ -55,19 +55,13 @@ function popupsAfterTheNextLine(speech: SessionSpeech, ui: TalkingUi): readonly 
 }
 
 describe('the session speech deletes the soldier faces the original deletes (Faces.cc DeleteSoldierFace)', () => {
-  it('takes down the popup a deleted face left up once a line of his still playing is over (soldierFaceDeleted)', () => {
+  it('keeps the popup of a deleted face up while a line of his still plays, and takes it down with the line (soldierFaceDeleted)', () => {
     const speech = sessionSpeech();
-    const ui = leaveFacePopupUp(speech);
+    const ui = sayWithFacePopup(speech);
     speech.frames([faceDeleted(MERC_PROFILE)]);
+    ui.follow(speech.presenter.current, tactical, true);
     expect(ui.popups).toEqual([SCREEN_POPUP]);
     expect(popupsAfterTheNextLine(speech, ui)).toEqual([]);
-  });
-
-  it('keeps the popup of a face the simulation did not delete', () => {
-    const speech = sessionSpeech();
-    const ui = leaveFacePopupUp(speech);
-    speech.frames([faceDeleted(MERC_PROFILE + 1)]);
-    expect(popupsAfterTheNextLine(speech, ui)).toEqual([SCREEN_POPUP]);
   });
 
   it('ends at once the box, the popup and the click region of the line the deletion ended (DeleteFace, HandleDialogueEnd)', () => {

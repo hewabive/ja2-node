@@ -6,9 +6,9 @@
 // @src the popup at 10, 20 whatever the speech option and keeps the click region it had),
 // @src HandleTacticalSpeechUI and HandleExternNPCSpeechFace (RegisterVideoOverlay into the face's one overlay; the region
 // @src only while fExternFaceBoxRegionCreated is clear),
-// @src HandleDialogueEnd (with SPEECH on only: the face's overlay and the region go, for a tactical line only while
-// @src gfFacePanelActive is set; the popup a line carried to the game screen got goes with its region at its end
-// @src whatever the option, original-bugs "Carried popup after its line", 2026-11-17),
+// @src HandleDialogueEnd (the face's overlay and the region go, for a tactical line only while gfFacePanelActive is
+// @src set; the popup a line carried to the game screen got goes with its region at its end, original-bugs "Carried
+// @src popup after its line", 2026-11-17; whatever the speech option, original-bugs "Popup after its line", 2026-11-19),
 // @src HandleShutDownOfMapScreenWhileExternfaceIsTalking (the talking face's overlay goes as the map screen closes while
 // @src the region exists), RenderFaceOverlay (every registered overlay shows the talking face while gfFacePanelActive
 // @src is set), ExecuteTacticalTextBox (the box stays where it was created); Faces.cc DeleteFace (SetAutoFaceInActive
@@ -96,7 +96,7 @@ export class TalkingUi {
 
   follow(current: ActiveLine | null, placement: SpeechPlacement, speechOn: boolean): void {
     const line = this.#line;
-    if (line && line.id !== current?.line.id) this.#end(line, speechOn);
+    if (line && line.id !== current?.line.id) this.#end(line);
     this.#deleteFacesDoneTalking(current);
     if (!current) return;
     if (!this.#line) this.#create(current.line, placement, speechOn);
@@ -111,11 +111,11 @@ export class TalkingUi {
     this.#facesToDelete.add(faceKey(FaceOwner.SOLDIER, profile));
   }
 
-  deleteSoldierFaces(speechOn: boolean): void {
+  deleteSoldierFaces(): void {
     this.#facesToDelete.clear();
     this.#overlays = this.#overlays.filter((o) => o.owner !== FaceOwner.SOLDIER);
     const line = this.#line;
-    if (line && faceOwner(line) === FaceOwner.SOLDIER) this.#end(line, speechOn);
+    if (line && faceOwner(line) === FaceOwner.SOLDIER) this.#end(line);
   }
 
   #deleteFacesDoneTalking(current: ActiveLine | null): void {
@@ -152,14 +152,14 @@ export class TalkingUi {
     this.#takeFaceDown(line);
   }
 
-  #end(line: SpeechLine, speechOn: boolean): void {
-    const takesFaceDown = this.#carriedPopupUp || (speechOn && this.#speechEndTakesFaceDown(line));
+  #end(line: SpeechLine): void {
+    const takesFaceDown = this.#carriedPopupUp || this.#lineEndTakesFaceDown(line);
     this.#line = null;
     this.#textBox = null;
     if (takesFaceDown) this.#takeFaceDown(line);
   }
 
-  #speechEndTakesFaceDown(line: SpeechLine): boolean {
+  #lineEndTakesFaceDown(line: SpeechLine): boolean {
     if (line.surface === SpeechSurface.EXTERNAL) return true;
     return line.surface === SpeechSurface.TACTICAL && this.#panelActive;
   }

@@ -85,10 +85,10 @@ describe('the talking UI of a line across screens (Dialogue_Control.cc CreateTal
 
   it('replaces the popup a face had registered when it registers another, as the face has one overlay (f.video_overlay)', () => {
     const ui = talkingUi();
-    ui.follow(line(SpeechSurface.TACTICAL, 3), tactical, true);
-    ui.follow(null, tactical, false);
-    ui.follow(line(SpeechSurface.TACTICAL, 3, 2), tactical, true);
-    expect(ui.popups).toEqual([SCREEN_POPUP]);
+    const skyrider = line(SpeechSurface.EXTERNAL, null);
+    ui.follow(skyrider, map, true);
+    ui.follow(skyrider, tactical, true);
+    expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], EXTERN_PANEL]);
     ui.follow(null, tactical, true);
     expect([ui.popups, ui.region]).toEqual([[], null]);
   });
@@ -120,17 +120,26 @@ describe('the talking UI of a line across screens (Dialogue_Control.cc CreateTal
     const merc = line(SpeechSurface.TACTICAL, 3);
     ui.follow(merc, map, false);
     ui.follow(merc, tactical, false);
-    ui.deleteSoldierFaces(false);
+    ui.deleteSoldierFaces();
     expect([ui.popups, ui.region, ui.textBox]).toEqual([[], null, null]);
   });
 
-  it('leaves the popup of a line up when speech is off as it ends, showing every later line in it (HandleDialogueEnd)', () => {
+  it('takes the popup of a line and its click region down as it ends with speech turned off since it started, so no later line shows in it (original-bugs "Popup after its line")', () => {
     const ui = talkingUi();
     ui.follow(line(SpeechSurface.TACTICAL, 3), tactical, true);
-    ui.follow(null, tactical, false);
-    expect([ui.popups, ui.region]).toEqual([[], SCREEN_POPUP]);
-    ui.follow(line(SpeechSurface.TACTICAL, 4, 2), tactical, false);
     expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], SCREEN_POPUP]);
+    ui.follow(null, tactical, false);
+    expect([ui.popups, ui.region]).toEqual([[], null]);
+    ui.follow(line(SpeechSurface.TACTICAL, 4, 2), tactical, false);
+    expect([ui.popups, ui.region]).toEqual([[], null]);
+  });
+
+  it('takes the popup of an external line down as it ends with speech turned off since it started', () => {
+    const ui = talkingUi();
+    ui.follow(line(SpeechSurface.EXTERNAL, null), map, true);
+    expect([ui.popups, ui.region]).toEqual([[EXTERN_PANEL], EXTERN_PANEL]);
+    ui.follow(null, map, false);
+    expect([ui.popups, ui.region]).toEqual([[], null]);
   });
 
   it('leaves nothing of a line without a soldier carried to the map once it ends: a later popup shows alone, with its own click region', () => {
@@ -148,35 +157,22 @@ describe('the talking UI of a line across screens (Dialogue_Control.cc CreateTal
 });
 
 describe('the popups of a face deleted with its soldier (Faces.cc DeleteFace, SetAutoFaceInActive)', () => {
-  it("takes down the popup a departing merc's face left up, once his line is over (StrategicRemoveMerc)", () => {
+  it("keeps the popup of a departing merc's face up while his line plays, and the line's end takes it down (StrategicRemoveMerc)", () => {
     const ui = talkingUi();
     const merc = line(SpeechSurface.TACTICAL, 3);
     ui.follow(merc, tactical, true);
     ui.deleteSoldierFace(merc.line.profile);
     ui.follow(merc, tactical, false);
-    expect(ui.popups).toEqual([SCREEN_POPUP]);
-    ui.follow(line(SpeechSurface.EXTERNAL, null, 2), tactical, false);
-    expect([ui.popups, ui.region]).toEqual([[], SCREEN_POPUP]);
-  });
-
-  it("leaves the popup of another merc's face up when a merc leaves", () => {
-    const ui = talkingUi();
-    const merc = line(SpeechSurface.TACTICAL, 3);
-    ui.follow(merc, tactical, true);
-    ui.deleteSoldierFace(merc.line.profile + 1);
-    ui.follow(null, tactical, false);
-    ui.follow(line(SpeechSurface.EXTERNAL, null, 2), tactical, false);
-    expect(ui.popups).toEqual([SCREEN_POPUP]);
-  });
-
-  it("takes every soldier face's popup down at a load, but an external face's (TrashAllSoldiers)", () => {
-    const ui = talkingUi();
-    ui.follow(line(SpeechSurface.TACTICAL, 3), tactical, true);
-    ui.follow(null, tactical, false);
-    ui.follow(line(SpeechSurface.EXTERNAL, null, 2), tactical, true);
-    expect(ui.popups).toEqual([SCREEN_POPUP, SCREEN_POPUP]);
-    ui.deleteSoldierFaces(false);
     expect([ui.popups, ui.region]).toEqual([[SCREEN_POPUP], SCREEN_POPUP]);
+    ui.follow(line(SpeechSurface.EXTERNAL, null, 2), tactical, false);
+    expect([ui.popups, ui.region]).toEqual([[], null]);
+  });
+
+  it("keeps an external face's popup and its line at a load, which deletes the soldier faces only (TrashAllSoldiers)", () => {
+    const ui = talkingUi();
+    ui.follow(line(SpeechSurface.EXTERNAL, null), tactical, true);
+    ui.deleteSoldierFaces();
+    expect([ui.popups, ui.region, ui.textBox]).toEqual([[SCREEN_POPUP], SCREEN_POPUP, TACTICAL_BOX]);
   });
 
   it('ends the talking UI of a soldier face deleted at a load as HandleDialogueEnd does, its box and click region too', () => {
@@ -184,7 +180,7 @@ describe('the popups of a face deleted with its soldier (Faces.cc DeleteFace, Se
     const merc = line(SpeechSurface.TACTICAL, 3);
     ui.follow(merc, tactical, true);
     expect([ui.popups, ui.region, ui.textBox]).toEqual([[SCREEN_POPUP], SCREEN_POPUP, TACTICAL_BOX]);
-    ui.deleteSoldierFaces(true);
+    ui.deleteSoldierFaces();
     expect([ui.popups, ui.region, ui.textBox]).toEqual([[], null, null]);
   });
 });

@@ -63,7 +63,7 @@ export class SessionSpeech {
   }
 
   discardLines(): void {
-    TalkingUi.of(this.presenter).deleteSoldierFaces(this.settings().speech);
+    TalkingUi.of(this.presenter).deleteSoldierFaces();
     this.presenter.discardLines();
   }
 }
