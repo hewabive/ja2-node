@@ -63,7 +63,8 @@
 // @src (no team list input while fLockOutMapScreenInterface is set, but a right click on the sleep column, 2026-11-19);
 // @src CanToggleSelectedCharInventory for every RequestToggleMercInventoryPanel, its description box closed first (2026-11-19);
 // @src ItemRegionMvtCallback and GlowItem (the hand's glow, stepped only without the pre-battle panel, the assignment
-// @src and the contract menus, fShowItemHighLight cleared as the screen is entered, 2026-11-19).
+// @src and the contract menus, fShowItemHighLight cleared as the screen is entered, 2026-11-19);
+// @src HandleHighLightingOfLinesInTeamPanel behind the same gate (the team list's glows, 2026-11-19).
 
 import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -287,7 +288,7 @@ export interface MapScreenHook {
   readonly plotting: { readonly soldier: number; readonly mode: string; readonly legs: readonly string[] } | null;
   readonly filters: MapFilters;
   readonly menu: string | null;
-  readonly glow: { readonly line: number; readonly column: number } | null;
+  readonly glow: { readonly line: number; readonly column: number; readonly colour: number } | null;
   readonly handGlow: number | null;
   readonly uiMessage: string | null;
   readonly rows: readonly (number | null)[];
@@ -684,7 +685,7 @@ export class MapScreen implements Screen {
       plotting: this.#plot ? { soldier: this.#plot.soldier, mode: this.#plot.mode, legs: this.#plot.legs } : null,
       filters: { ...this.filters },
       menu: this.#menus.open ? 'assignment' : this.#contract.open ? 'contract' : null,
-      glow: this.#team.glow ? { line: this.#team.glow.line, column: this.#team.glow.column } : null,
+      glow: this.#team.glow ? { line: this.#team.glow.line, column: this.#team.glow.column, colour: this.#team.glow.colour } : null,
       handGlow: this.#handGlow.colour,
       uiMessage: this.#message.text,
       rows: this.list.slots.map((s) => s.merc),
@@ -1110,7 +1111,7 @@ export class MapScreen implements Screen {
     this.#speech.update(this.#now);
     this.#syncTeamRegions();
     this.#team.update(this.#now);
-    if (this.#glowsRun()) this.#handGlow.step(this.#team.glowTimerExpired);
+    if (this.#glowsRun()) this.#stepGlows();
     this.#followHighLine();
     this.#updateSelectedFlash();
     this.#updateFace();
@@ -1253,6 +1254,11 @@ export class MapScreen implements Screen {
     if (plot.mode === 'heli') return 'CURSOR_CHOPPER';
     const m = mercById(this.#strategic(), plot.soldier);
     return m?.assignment === Assignment.VEHICLE ? 'CURSOR_STRATEGIC_VEHICLE' : 'CURSOR_STRATEGIC_FOOT';
+  }
+
+  #stepGlows(): void {
+    this.#team.stepGlow();
+    this.#handGlow.step(this.#team.glowTimerExpired);
   }
 
   #glowsRun(): boolean {

@@ -1869,6 +1869,27 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect([f.screen.hook().menu, f.screen.hook().handGlow]).not.toEqual([null, held]);
     }));
 
+  it('holds the glow of the assignment line at its colour while the assignment menu is up, as the team list glows step only without the menus (MapScreen.cc:2018-2027)', () =>
+    withMap(async (f) => {
+      hoverWidget(f, 'teamRow0.assignment');
+      const colours = () => {
+        const seen: (number | undefined)[] = [];
+        for (let step = 0; step < 3; step++) {
+          f.t.frame(GLOW_DELAY_MS);
+          seen.push(f.screen.hook().glow?.colour);
+        }
+        return seen;
+      };
+      expect(new Set(colours()).size).toBeGreaterThan(1);
+      await f.click('teamRow0.assignment');
+      const held = f.screen.hook().glow;
+      expect([f.screen.hook().menu, held?.column]).toEqual(['assignment', TeamColumn.ASSIGNMENT]);
+      expect(colours()).toEqual([held?.colour, held?.colour, held?.colour]);
+      f.key('Escape');
+      expect(f.screen.hook().menu).toBeNull();
+      expect(new Set(colours()).size).toBeGreaterThan(1);
+    }));
+
   it('lights the hand only while the inventory can be toggled, and a check failing under it ends the glow at the next pointer move, lit again only as the pointer comes back (ItemRegionMvtCallback)', () =>
     withMap(async (f) => {
       const [first] = listedMercs(f);

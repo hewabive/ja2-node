@@ -138,10 +138,12 @@ export class TeamListView {
       this.#flash = !this.#flash;
     }
     this.#glowTimerExpired = now - this.#glowAt >= GLOW_DELAY;
-    if (!this.#glowTimerExpired) return;
-    this.#glowAt = now;
+    if (this.#glowTimerExpired) this.#glowAt = now;
+  }
+
+  stepGlow(): void {
     const glow = this.#glow;
-    if (!glow) return;
+    if (!this.#glowTimerExpired || !glow) return;
     if (glow.colour === 0 || glow.colour === GLOW_STEPS) glow.rising = !glow.rising;
     glow.colour += glow.rising ? -1 : 1;
   }
