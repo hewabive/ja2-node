@@ -97,7 +97,8 @@
 // @src src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (no radar picture in a meanwhile, 2026-11-18); src/game/Tactical/Soldier_Ani.cc
 // @src code 477 (LocateGridNo at the target of an AI attack, 2026-11-18); Interface_Control.cc RenderTopmostTacticalInterface
 // @src (the damage number at the true position + sDamageX/Y, the bounding box offset at the hit moved a pixel each step,
-// @src + 20, - 5, from the soldier's sDamage and bDisplayDamageCount) and Interface_Panels.cc PrintStat (the stat colour
+// @src + 20, - 5, from the soldier's sDamage and bDisplayDamageCount; the Queen's from 0, 0 + 25, + 10 and never moved
+// @src below the viewport's top, Soldier_Control.cc:5701-5705) and Interface_Panels.cc PrintStat (the stat colour
 // @src from uiChange*Time and usValueGoneUp, 2026-11-19).
 
 import { Body } from '../../../content/anim/body-types.ts';
@@ -148,7 +149,7 @@ import { DialogueLayer } from '../talk/dialogue-layer.ts';
 import { AssignmentPopup } from './assignment-popup.ts';
 import { AutoBandageBox, autoBandageNotices } from './auto-bandage-box.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
-import { type CommandReply, type TacticalEnvironment, TacticalLayout } from './environment.ts';
+import { type CommandReply, type ScreenPoint, type TacticalEnvironment, TacticalLayout } from './environment.ts';
 import {
   drawFace,
   drawFaceHighlights,
@@ -266,6 +267,9 @@ const LOCATOR_OFFSET = 25;
 const TILE_LOCATOR_HALF_SIZE = 20;
 const DAMAGE_OFFSET_X = 20;
 const DAMAGE_OFFSET_Y = -5;
+const QUEEN_DAMAGE_ORIGIN = { x: 0, y: 0 };
+const QUEEN_DAMAGE_OFFSET_X = 25;
+const QUEEN_DAMAGE_OFFSET_Y = 10;
 const RADAR_MAP_BLINK_MS = 400;
 const NUMBER_OF_SQUADS = 20;
 const NO_CURRENT_SQUAD = NUMBER_OF_SQUADS;
@@ -1720,10 +1724,14 @@ export class TacticalScreen implements Screen {
       if (!damage) continue;
       shown.add(s.id);
       const origin = this.#damageOrigins.get(s.id);
-      const offset = !origin || origin.steps > damage.steps ? this.#boundingOffset(s.id) : origin;
+      const offset = !origin || origin.steps > damage.steps ? this.#damageOrigin(s) : origin;
       this.#damageOrigins.set(s.id, { steps: damage.steps, x: offset.x, y: offset.y });
     }
     for (const id of this.#damageOrigins.keys()) if (!shown.has(id)) this.#damageOrigins.delete(id);
+  }
+
+  #damageOrigin(s: SoldierView): { x: number; y: number } {
+    return s.bodyType === Body.QUEENMONSTER ? { ...QUEEN_DAMAGE_ORIGIN } : this.#boundingOffset(s.id);
   }
 
   #event(event: FrameEvent, frame: ViewFrame): void {
@@ -2649,12 +2657,16 @@ export class TacticalScreen implements Screen {
       const origin = this.#damageOrigins.get(s.id);
       const pos = this.#env.world.soldierTrueScreenPosition(s.id);
       if (!damage || !origin || !pos) continue;
-      const x = pos.x + origin.x + damage.steps + DAMAGE_OFFSET_X;
-      let y = pos.y + origin.y - damage.steps + DAMAGE_OFFSET_Y;
-      if (y < top) y = pos.y - this.#boundingOffset(s.id).y;
-      mprint(list, font, x, y, `-${damage.amount}`, fontColors(FontColor.MCOLOR_WHITE, DEFAULT_SHADOW));
+      const at = this.#damageNumberAt(s, pos, { x: pos.x + origin.x + damage.steps, y: pos.y + origin.y - damage.steps }, top);
+      mprint(list, font, at.x, at.y, `-${damage.amount}`, fontColors(FontColor.MCOLOR_WHITE, DEFAULT_SHADOW));
     }
     list.popClip();
+  }
+
+  #damageNumberAt(s: SoldierView, pos: ScreenPoint, moved: ScreenPoint, top: number): ScreenPoint {
+    if (s.bodyType === Body.QUEENMONSTER) return { x: moved.x + QUEEN_DAMAGE_OFFSET_X, y: moved.y + QUEEN_DAMAGE_OFFSET_Y };
+    const y = moved.y + DAMAGE_OFFSET_Y;
+    return { x: moved.x + DAMAGE_OFFSET_X, y: y < top ? pos.y - this.#boundingOffset(s.id).y : y };
   }
 
   #locatorHeight(locator: ShownLocator): number {

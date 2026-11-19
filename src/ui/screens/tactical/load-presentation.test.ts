@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { Body } from '../../../content/anim/body-types.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
 import { restoreSession, snapshotSession } from '../../../server/session-snapshot.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
@@ -60,6 +61,21 @@ function damageNumbersShown(f: TacticalUiTest, amount: number): number {
     .glyphs.map((g) => g.index)
     .join();
   return f.draw().items.filter((i) => i.kind === 'glyphs' && i.glyphs.map((g) => g.index).join() === wanted).length;
+}
+
+function damageNumberStart(f: TacticalUiTest, amount: number): { readonly x: number; readonly y: number } | null {
+  const font = f.t.runtime.fonts.get(FontName.TINYFONT1);
+  const wanted = glyphRun(font, `-${amount}`, 0, 0)
+    .glyphs.map((g) => g.index)
+    .join();
+  const run = f.draw().items.find((i) => i.kind === 'glyphs' && i.glyphs.map((g) => g.index).join() === wanted);
+  const first = run?.kind === 'glyphs' ? run.glyphs[0] : undefined;
+  return first ? { x: first.x, y: first.y } : null;
+}
+
+function glyphStart(f: TacticalUiTest, amount: number, x: number, y: number): { readonly x: number; readonly y: number } | null {
+  const first = glyphRun(f.t.runtime.fonts.get(FontName.TINYFONT1), `-${amount}`, x, y).glyphs[0];
+  return first ? { x: first.x, y: first.y } : null;
 }
 
 function faceImages(f: TacticalUiTest, asset: string, id: number): number[] {
@@ -176,5 +192,29 @@ describe('the tactical screen across a load in place (LoadSaveSoldierType.cc: wh
     expect(f.screen.feedbackText).toBe('Stop!');
     await load(f, saved);
     expect(f.screen.feedbackText).toBeNull();
+  });
+});
+
+describe('the place of the damage number (RenderTopmostTacticalInterface, Interface_Control.cc:420-435)', () => {
+  const QUEEN_HIT = 23;
+
+  it("draws a soldier's number at the corner of his box + 20, - 5, and the Queen's at her position + 25, + 10, both moved a pixel each step (Soldier_Control.cc:5701-5710)", async () => {
+    const f = await tacticalUiTest(kit, ui, 5);
+    f.advance(1);
+    const [merc, queen] = f.client.view.soldiers.filter((s) => s.team === 0).map((s) => s.id);
+    if (merc === undefined || queen === undefined) throw new Error('two mercs needed');
+    soldier(f, queen).bodyType = Body.QUEENMONSTER;
+    const state = tacticalOf(f.session).state;
+    soldierTakeDamage(state, soldier(f, merc), HIT, 0, DamageReason.GUNFIRE, null);
+    soldierTakeDamage(state, soldier(f, queen), QUEEN_HIT, 0, DamageReason.GUNFIRE, null);
+    f.advance(1);
+    const steps = f.client.view.soldiers.find((s) => s.id === merc)?.damage?.steps ?? -1;
+    const queenAmount = f.client.view.soldiers.find((s) => s.id === queen)?.damage?.amount ?? -1;
+    const mercAt = f.world.soldierTrueScreenPosition(merc);
+    const box = f.world.soldierBox(merc);
+    const queenAt = f.world.soldierTrueScreenPosition(queen);
+    if (!mercAt || !box || !queenAt) throw new Error('no position');
+    expect(damageNumberStart(f, HIT)).toEqual(glyphStart(f, HIT, box.x + steps + 20, box.y - steps - 5));
+    expect(damageNumberStart(f, queenAmount)).toEqual(glyphStart(f, queenAmount, queenAt.x + steps + 25, queenAt.y - steps + 10));
   });
 });
