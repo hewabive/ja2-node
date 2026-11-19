@@ -68,7 +68,10 @@
 // @src Turn_Based_Input.cc HandleUIReloading (the bad reload cursor's click taken too, as reload with cursor, 2026-11-14);
 // @src Spread_Burst.cc AccumulateBurstLocation (each new tile with the pointer's world point, GetMouseWorldCoords or 0,0
 // @src off the map, 2026-11-14); PathAI.cc UIPlotPath (the direct path while SHIFT is held, for every DrawUIMovementPath
-// @src walk, 2026-11-19).
+// @src walk, 2026-11-19); UI_Cursors.cc HandlePunchCursor, HandleKnifeCursor (HandleUIMovementCursor with
+// @src MOVEUI_TARGET_MERCS, activated or not: its AP value at once for a new target or after gfResetUIMovementOptimization,
+// @src else after the path rest, shown centred) and Handle_Items.cc HandleItem (gfResetUIMovementOptimization after our
+// @src punch and our blade attack, 2026-11-19).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { exitGridCursorShownOver } from '../../../../content/world/exit-grid-cursor.ts';
@@ -376,6 +379,8 @@ export class TacticalInput {
   readonly #helicopterDropSkip = new HelicopterDropSkip();
   #busy = false;
   #lastAttack: { cursor: EstimateAttack | null; soldier: number | null } = { cursor: null, soldier: null };
+  #targetMercsLast: number | null = null;
+  #resetMovementOptimization = false;
   #menuChoice: MovementChoice | null = null;
   #exitRefusal: string | null = null;
 
@@ -2744,7 +2749,7 @@ export class TacticalInput {
         this.#outOfRange = { gridNo: target.gridNo, soldier: sel.id };
       }
     }
-    this.#properItemCursor(sel, mapPos, false, estimate, answer.state === 'refused');
+    this.#properItemCursor(sel, mapPos, false, estimate, answer.state);
     this.#onMerc(false);
     if (
       this.#mode === UiMode.ACTION_MODE &&
@@ -2774,9 +2779,15 @@ export class TacticalInput {
     return this.#lastAttack.cursor;
   }
 
-  #properItemCursor(sel: SoldierView, mapPos: number, activated: boolean, estimate: EstimateAttack | null, refused: boolean): void {
+  #properItemCursor(
+    sel: SoldierView,
+    mapPos: number,
+    activated: boolean,
+    estimate: EstimateAttack | null,
+    answered: HintState<EstimateAttack>['state'],
+  ): void {
     if (!estimate) {
-      this.#newCursor = refused ? 'INVALID_ACTION_UICURSOR' : 'ACTION_SHOOT_UICURSOR';
+      this.#newCursor = answered === 'refused' ? 'INVALID_ACTION_UICURSOR' : 'ACTION_SHOOT_UICURSOR';
       return;
     }
     const knife = this.#throwingKnife(sel);
@@ -2790,6 +2801,9 @@ export class TacticalInput {
     });
     this.#newCursor = result.cursor;
     if (estimate.cursor === 'bomb') this.#bombCursor(sel, this.#hover.target?.gridNo ?? mapPos);
+    const melee = estimate.cursor === 'punch' || estimate.cursor === 'knife';
+    if (melee) this.#targetMercsCursor(sel, estimate, answered === 'ok');
+    if (melee && !activated) this.#apCenter = true;
     if (result.apCost !== null) {
       this.#currentAp = result.apCost;
       this.#displayAp = this.#pathfindDone() || activated;
@@ -2824,6 +2838,32 @@ export class TacticalInput {
       this.#moveState === MouseMove.STATIONARY
     )
       this.#impact = { gridNo: estimate.landsAt, level: estimate.landsOnLevel ?? 0, good: estimate.pathClear !== false };
+  }
+
+  #targetMercsCursor(sel: SoldierView, estimate: EstimateAttack, fresh: boolean): void {
+    if (!this.#enoughPoints(sel, this.#currentAp, false)) this.#apInvalid = true;
+    if (this.#combat() && !this.#standsStill(sel)) return;
+    const target = this.#hover.target?.id ?? null;
+    if ((target !== this.#targetMercsLast || this.#resetMovementOptimization) && fresh) {
+      this.#resetMovementOptimization = false;
+      this.#targetMercsLast = target;
+      this.#currentAp = estimate.walkUpApCost ?? 0;
+    }
+    if (this.#moveState !== MouseMove.STATIONARY) {
+      if (this.#moveState === MouseMove.NEW_TILE && target === null) {
+        this.#pathRestSince = this.#now;
+        this.#plotNew = true;
+      }
+      if (this.#moveState === MouseMove.IN_TILE) this.#displayAp = true;
+      return;
+    }
+    if (this.#pathfindDone() && this.#plotNew && fresh) {
+      this.#currentAp = estimate.walkUpApCost ?? 0;
+      this.#plotNew = false;
+    }
+    if (this.#plotNew) return;
+    this.#displayAp = this.#currentAp >= 0 && this.#combat();
+    if (this.#displayAp) this.#placeMovementActionPoints(sel, MoveUiTarget.MERCS);
   }
 
   #meleeWalkPath(sel: SoldierView, estimate: EstimateAttack, activated: boolean): void {
@@ -2952,7 +2992,7 @@ export class TacticalInput {
     if (mapPos === null || !sel) return;
     const target = this.#hover.target;
     const answer = this.#estimate(target?.gridNo ?? mapPos, target?.level ?? this.#host.interfaceLevel());
-    this.#properItemCursor(sel, mapPos, true, this.#keepEstimate(answer, sel.id), answer.state === 'refused');
+    this.#properItemCursor(sel, mapPos, true, this.#keepEstimate(answer, sel.id), answer.state);
     this.#onMerc(false);
   }
 
@@ -3006,6 +3046,7 @@ export class TacticalInput {
     const reply = await this.#host.sendBusyOrder(
       this.#clicked({ type: 'attack', soldier: sel.id, target: gridNo, level, aimTime: aimTimeOf(aim), ...part, ...spread }),
     );
+    if (reply.ok && (estimate?.cursor === 'punch' || estimate?.cursor === 'knife')) this.#resetMovementOptimization = true;
     if (!this.#combat() && reply.ok && estimate?.cursor === 'target' && !this.#selBurst(sel))
       this.#timedCursor = {
         cursor: this.#throwingKnife(sel) ? 'RED_THROW_UICURSOR' : 'ACTION_TARGETRED_UICURSOR',

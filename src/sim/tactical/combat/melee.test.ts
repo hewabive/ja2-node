@@ -11,6 +11,7 @@ import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../conte
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { PreRandom, Rng } from '../../../core/rng.ts';
 import type { SimEvent } from '../../events.ts';
+import { plotWalk } from '../../hints/walk-plot.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -24,7 +25,7 @@ import { Body, NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team, Visible
 import { NO_CAMPAIGN_PORT, setShowAllMercs, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
-import { calcTotalAPsToAttack } from './ap.ts';
+import { calcTotalAPsToAttack, minAPsToAttack } from './ap.ts';
 import { soldierDifficultyLevel } from './chance.ts';
 import { addCorpseStructure } from './death.ts';
 import { weaponHit } from './hit.ts';
@@ -424,6 +425,29 @@ describe('punches', () => {
     expect(before - merc.actionPoints).toBe(apCost);
     expect(merc.pendingMelee).toBeNull();
     expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it("gives the punch cursor's AP value as DrawUIMovementPath counts MOVEUI_TARGET_MERCS: the walk-up and the punch the order then costs", () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 83), Direction.SOUTH);
+    const before = merc.actionPoints;
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo }).data as { apCost: number; walkUpApCost: number };
+    expect(estimate.walkUpApCost).toBeGreaterThan(minAPsToAttack(sim.state, merc, enemy.gridNo, true));
+    expect(estimate.walkUpApCost).toBe(estimate.apCost);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(before - merc.actionPoints).toBe(estimate.walkUpApCost);
+  });
+
+  it("gives the punch cursor's AP value beside the target as MinAPsToAttack alone, and over bare ground as the walk there and the punch", () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 81), Direction.SOUTH);
+    const t = sim.state;
+    const beside = estimateAttack(sim, { soldier: 0, target: enemy.gridNo }).data as { walkUpApCost: number };
+    expect(beside.walkUpApCost).toBe(minAPsToAttack(t, merc, enemy.gridNo, true));
+    const ground = gridNo(83, 80);
+    const bare = estimateAttack(sim, { soldier: 0, target: ground }).data as { apCost: number; walkUpApCost: number };
+    const walk = plotWalk(t, merc, ground, merc.uiMovementMode, merc.level).cost;
+    expect(walk).toBeGreaterThan(0);
+    expect([bare.apCost, bare.walkUpApCost]).toEqual([0, minAPsToAttack(t, merc, ground, true) + walk]);
   });
 
   it('drops the walk-up punch when a move order sends the puncher elsewhere, as UIHandleCMoveMerc removes the pending action', () => {

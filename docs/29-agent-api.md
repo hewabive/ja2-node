@@ -669,7 +669,9 @@ range and line of fire the cursor shows (`cannotGetThrough`, its black crosshair
 `chanceToGetThrough` as `null` for every attack: the original's cursors show a chance only under the game policy
 `show_hit_chance`, off as shipped (deviation "Chance in the estimate"). Nor do `shotFired` and `meleeStrike` carry the
 chance an attack was rolled at: they tell whether it hit, as the screen does. A melee attack at a
-soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
+soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes; its `walkUpApCost`
+is the AP value the punch and knife cursors show before an aim is chosen, the cost `DrawUIMovementPath` gives them
+(`Tactical/Handle_UI.cc:3307-3369`). A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
 soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` gives the cost and the walk the cursor

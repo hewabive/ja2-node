@@ -5,7 +5,7 @@
 // @src under-barrel launcher in attached mode, CalculateLaunchItemChanceToGetThrough with the landing level); Weapons.cc
 // @src InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
 // @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid; SHIFT's
-// @src direct path, 2026-11-19);
+// @src direct path, 2026-11-19; its AP cost, MinAPsToAttack and UIPlotPath to the spot it picks, 0 without one, 2026-11-19);
 // @src UI_Cursors.cc HandleBombCursor (GetTotalAPsToDropBomb, 2026-11-04); the gamepolicy(show_hit_chance) gates of
 // @src HandleNonActivatedTargetCursor and HandleNonActivatedTossCursor, off in externalized/game.json (2026-11-15);
 // @src gfCannotGetThrough, the cursor's only mark of the chance to get through (2026-11-16).
@@ -19,7 +19,7 @@ import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { actionModeCursor } from '../tactical/action-cursor.ts';
 import { AnimHeight, endHeight } from '../tactical/animation.ts';
 import { apsToDropBomb } from '../tactical/bombs/planting.ts';
-import { calcTotalAPsToAttack, enoughAmmo, minAPsToThrow } from '../tactical/combat/ap.ts';
+import { calcTotalAPsToAttack, enoughAmmo, minAPsToAttack, minAPsToThrow } from '../tactical/combat/ap.ts';
 import { soldierToLocationChanceToGetThrough, soldierToSoldierBodyPartChanceToGetThrough } from '../tactical/combat/bullets.ts';
 import { calcChanceToHitGun, gunRange, rangeInUnits } from '../tactical/combat/chance.ts';
 import { findAdjacentGridEx, meleeSpot } from '../tactical/combat/melee-reach.ts';
@@ -84,6 +84,7 @@ export interface EstimateAttack {
   readonly inRange: boolean;
   readonly ammo: AmmoState;
   readonly inReach?: boolean;
+  readonly walkUpApCost?: number;
   readonly walkTo?: number;
   readonly steps?: readonly Footstep[];
   readonly pathClear?: boolean;
@@ -234,7 +235,8 @@ function estimateStrike(
   const def = t.content.items.byIndex.get(hand.item);
   const melee = hand.item === NOTHING || (def !== undefined && isMeleeItemClass(def.itemClass));
   const blade = def?.itemClass === ItemClass.BLADE;
-  if (melee && (level !== s.level || (!victim && !blade))) return nobodyToStrike(t, s, cursor, base, policy);
+  const walkUp = melee ? meleeWalkUp(t, s, victim, target, level, directPath) : null;
+  if (melee && (level !== s.level || (!victim && !blade))) return { ...nobodyToStrike(t, s, cursor, base, policy), ...walkUp };
   const aimedAt = victim ? victim.gridNo : target;
   const apCostByAim = aimCosts(t, s, aimedAt);
   const thrownKnife = def?.itemClass === ItemClass.THROWING_KNIFE;
@@ -257,30 +259,46 @@ function estimateStrike(
     ...shownGetThrough(chanceToGetThrough, policy),
     inRange: melee ? true : inRange(t, s, target),
     ammo: ammoState(t, s, cursor),
-    ...(melee ? { inReach: meleeSpot(t, s, target, level) !== null, ...(victim ? meleeWalk(t, s, victim, level, directPath) : {}) } : {}),
+    ...(melee ? { inReach: meleeSpot(t, s, target, level) !== null, ...walkUp } : {}),
   };
 }
 
-function strikesFromHere(t: TacticalState, s: Soldier, victim: Soldier, level: number): boolean {
+function victimSpotBeside(t: TacticalState, s: Soldier, victim: Soldier, level: number): number | null {
   for (let dir = 0; dir < DIRECTION_COUNT; dir++) {
     const spot = newGridNo(s.gridNo, DIRECTION_INCREMENT[dir] ?? 0);
     if (t.world.costs.get(spot, dir, level) >= TravelCost.BLOCKED) continue;
-    if (whoIsThere(t, spot, s.level) === victim) return true;
+    if (whoIsThere(t, spot, s.level) === victim) return spot;
   }
-  return false;
+  return null;
 }
 
-function meleeWalk(
+interface MeleeWalkUp {
+  readonly walkUpApCost: number;
+  readonly walkTo?: number;
+  readonly steps?: readonly Footstep[];
+}
+
+function walkUpTo(t: TacticalState, s: Soldier, spot: number, aimedAt: number, level: number, directPath: boolean) {
+  const walk = plotWalk(t, s, spot, s.uiMovementMode, level, directPath);
+  return { walk, walkUpApCost: minAPsToAttack(t, s, aimedAt, true) + walk.cost };
+}
+
+function meleeWalkUp(
   t: TacticalState,
   s: Soldier,
-  victim: Soldier,
+  victim: Soldier | null,
+  target: number,
   level: number,
   directPath: boolean,
-): { walkTo?: number; steps?: readonly Footstep[] } {
-  if (strikesFromHere(t, s, victim, level)) return {};
+): MeleeWalkUp {
+  if (!victim) return { walkUpApCost: walkUpTo(t, s, target, target, level, directPath).walkUpApCost };
+  const beside = victimSpotBeside(t, s, victim, level);
+  if (beside !== null) return { walkUpApCost: walkUpTo(t, s, beside, victim.gridNo, level, directPath).walkUpApCost };
   const approach = findAdjacentGridEx(t, s, victim.gridNo, true);
-  if (!approach || approach.actionGridNo === s.gridNo) return {};
-  return { walkTo: approach.actionGridNo, steps: plotWalk(t, s, approach.actionGridNo, s.uiMovementMode, level, directPath).steps };
+  if (!approach) return { walkUpApCost: 0 };
+  const { walk, walkUpApCost } = walkUpTo(t, s, approach.actionGridNo, approach.targetGridNo, level, directPath);
+  if (approach.actionGridNo === s.gridNo) return { walkUpApCost };
+  return { walkUpApCost, walkTo: approach.actionGridNo, steps: walk.steps };
 }
 
 function nobodyToStrike(t: TacticalState, s: Soldier, cursor: number, base: EstimateBase, policy: HitChancePolicy): EstimateAttack {

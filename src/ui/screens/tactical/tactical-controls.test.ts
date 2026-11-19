@@ -20,7 +20,7 @@ import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
 import { ROOF_LEVEL_HEIGHT } from '../../../content/world/render-bounds.ts';
-import type { DoorMenuOption, PreviewAction, PreviewMove } from '../../../protocol/hints.ts';
+import type { DoorMenuOption, EstimateAttack, PreviewAction, PreviewMove } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { ClimbView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { createSandboxSession, STUB_SANDBOX_MAP } from '../../../server/sandbox.ts';
@@ -39,8 +39,8 @@ import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { NpcActionCode } from '../../../sim/tactical/narrative/npc-actions/codes.ts';
 import { markGroundRevealed } from '../../../sim/tactical/perception/fov.ts';
-import { apsToChangeStance } from '../../../sim/tactical/points.ts';
-import { Orders } from '../../../sim/tactical/soldier.ts';
+import { apsToChangeStance, calcActionPoints } from '../../../sim/tactical/points.ts';
+import { Orders, type Soldier } from '../../../sim/tactical/soldier.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
@@ -75,6 +75,7 @@ const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
 const CRATE_TILE = 7;
 const PAST_THE_PATH_REST_FRAMES = 6;
+const NO_PATH_STR = 114;
 const NOBODY = -1;
 const POCKET = 7;
 const SCENE_TILE = 12248;
@@ -2550,6 +2551,63 @@ describe('a real-time click on a view behind the combat entry', () => {
     await f.settle();
     expect(tacticalOf(f.session).state.soldiers[0]?.actionPoints).toBe(actionPoints);
     expect(f.screen.messageLines.filter((line) => line.includes('real time'))).toEqual([]);
+  });
+});
+
+describe('the AP value of the punch and knife cursors (HandleUIMovementCursor, DrawUIMovementPath MOVEUI_TARGET_MERCS)', () => {
+  const STRIKES = 3;
+
+  async function besideAnEnemy(hand: string | null): Promise<{ f: TacticalUiTest; striker: Soldier; enemy: Soldier }> {
+    const f = await inCombat();
+    const t = tacticalOf(f.session).state;
+    const striker = t.soldiers.find((v) => v?.id === 0);
+    const enemy = t.soldiers.find((v) => v && v.team !== 0 && v.life > 0 && f.client.view.soldiers.some((s) => s.id === v.id));
+    if (!striker || !enemy) throw new Error('no merc 0 or no enemy in sight');
+    const item = hand === null ? null : t.content.items.byName.get(hand);
+    striker.inv[InvSlot.HAND] = item ? createItem(t.content.items, item.index, 100) : emptyObject();
+    setSoldierPosition(t, enemy, striker.gridNo + WORLD_COLS);
+    tacticalOf(f.session).lookAround();
+    f.client.refresh();
+    centreOn(f, enemy.gridNo);
+    await f.settle();
+    return { f, striker, enemy };
+  }
+
+  async function strikeAgainAndAgain(hand: string | null): Promise<{ attacks: number; refusals: number; shown: boolean }> {
+    const { f, striker, enemy } = await besideAnEnemy(hand);
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(PAST_THE_PATH_REST_FRAMES);
+    const noPath = f.text.string('TacticalStr', NO_PATH_STR) ?? '';
+    let refusals = 0;
+    let shown = true;
+    for (let strike = 0; strike < STRIKES; strike++) {
+      striker.actionPoints = calcActionPoints(tacticalOf(f.session).state, striker);
+      enemy.life = enemy.lifeMax;
+      f.client.refresh();
+      await f.settle();
+      const estimate = await f.client.hintNow({ type: 'estimateAttack', soldier: striker.id, target: enemy.gridNo, level: 0 });
+      const walkUp = (estimate.data as EstimateAttack).walkUpApCost;
+      const input = f.screen.controls.input;
+      shown &&=
+        walkUp !== undefined && walkUp > 0 && input.currentActionPoints === walkUp && input.mouseText()?.actionPoints?.value === walkUp;
+      await f.clickAt(at.x, at.y);
+      if (f.screen.feedbackText === noPath) refusals++;
+      await f.clickAt(at.x, at.y);
+      f.session.advance({ idle: true });
+      f.client.refresh();
+      f.frames(f.client.takeFrames());
+      await f.settle(PAST_THE_PATH_REST_FRAMES);
+    }
+    return { attacks: commandsOf(f, 'attack').length, refusals, shown };
+  }
+
+  it('strikes an adjacent enemy with the fists again and again with the pointer kept on him, the walk-up APs shown before each', async () => {
+    expect(await strikeAgainAndAgain(null)).toEqual({ attacks: STRIKES, refusals: 0, shown: true });
+  });
+
+  it('stabs an adjacent enemy with a knife again and again with the pointer kept on him, the walk-up APs shown before each', async () => {
+    expect(await strikeAgainAndAgain('COMBAT_KNIFE')).toEqual({ attacks: STRIKES, refusals: 0, shown: true });
   });
 });
 
