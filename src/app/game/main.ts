@@ -109,7 +109,7 @@ async function bootFrontEnd(): Promise<void> {
   const session = params.get(SESSION_PARAM);
   if (session) {
     await started.client.connect(session);
-    started.flow.enterGame();
+    started.flow.enterGame({ pageStart: true });
   } else {
     await started.playSplash(audible);
     started.flow.mainMenu();

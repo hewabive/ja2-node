@@ -368,7 +368,12 @@ helicopter picture; the flow loads the picture of a sector or save load before i
 until then, and a save load keeps its header's picture through the client's world load after it
 (`front-end/flow.ts`; `front-end/front-end.test.ts` "the pictures of the loading screen"). A page opened on a session
 with a sector loaded shows that entry's picture from `strategic.loadScreen`, since the welcome carries no
-`sectorLoaded`. The San Mona screen's time
+`sectorLoaded`. The original enters the map screen with no loading screen (`BeginLoadScreen` serves sector loads,
+`LoadSavedGame` save loads: `Strategic/StrategicMap.cc:196`, `SaveLoadGame.cc:748-759`), so the map host loads in the
+background, once per connection, after the session's first game screen is up or as the beginning video starts
+(`MapPort.preload`, `src/app/map/shared-load.ts`); an entry that finds it still loading waits on the save's loading
+screen after a save load, on the loading screen on a page's first screen and on black otherwise (deviation "Map screen
+entry"; `front-end/front-end.test.ts` "the map screen loaded in the background"). The San Mona screen's time
 warp and its draw are the simulation's at the action (`35`). Cosmetic draws (blinks, the disk light, the confirming
 merc) use the client's `ClientRandom`.
 

@@ -7,7 +7,7 @@ import type { DrawItem } from '../../ui/draw-list.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../../ui/screens/battle/environment.ts';
-import type { MapEntry, MapPort } from '../../ui/screens/front-end/flow.ts';
+import type { LoadProgress, MapEntry, MapPort } from '../../ui/screens/front-end/flow.ts';
 import { type BattleNoticeEvent, battleNoticesOf } from '../../ui/screens/map/battle-notice.ts';
 import { MAP_LAYOUTS, type MapEnvironment, type MapFlow, type MapLayout } from '../../ui/screens/map/environment.ts';
 import { mapFacts } from '../../ui/screens/map/facts.ts';
@@ -20,7 +20,7 @@ import { attachBattleHook, type BattleHook } from '../battle/battle-hook.ts';
 import { BattleSound } from '../battle/battle-sound.ts';
 import type { GamePage } from '../game/game-page.ts';
 import { loadLayouts, type UiBoot } from '../game/ui-boot.ts';
-import { ClientKnowledge } from '../hints/client-knowledge.ts';
+import type { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { createHintHook, type HintHook } from '../hints/hint-hook.ts';
 import { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
@@ -33,6 +33,7 @@ import { SessionMapClient } from './map-client.ts';
 import { attachMapHook, type MapHook } from './map-hook.ts';
 import { MapMediaStore } from './map-media.ts';
 import { MapSound } from './map-sound.ts';
+import { SharedLoad } from './shared-load.ts';
 
 const SHADOW_HINTS_PARAM = 'shadowHints';
 const PIN_CLOCK_PARAM = 'pinClock';
@@ -52,6 +53,7 @@ export interface MapHostOptions {
   readonly language: () => UiLanguage | null;
   readonly version: string;
   readonly gameOptions: () => Promise<GameOptions | null>;
+  readonly knowledge: () => Promise<ClientKnowledge>;
 }
 
 interface Loaded {
@@ -84,7 +86,10 @@ export class MapHost implements MapPort {
   readonly #requestedProfiles = new Set<number>();
   #knowledge: ClientKnowledge | null = null;
   #loaded: Loaded | null = null;
-  #loading: Promise<void> | null = null;
+  readonly #loads = new SharedLoad(
+    (progress) => this.#load(progress),
+    (start) => requestAnimationFrame(() => setTimeout(start, 0)),
+  );
   #screen: MapScreen | null = null;
   #refreshing = false;
 
@@ -115,17 +120,16 @@ export class MapHost implements MapPort {
     return this.#screen?.picture ?? [];
   }
 
-  load(onProgress: (done: number, total: number) => void): Promise<void> {
-    this.#loading ??= this.#load(onProgress).finally(() => {
-      this.#loading = null;
-    });
-    return this.#loading;
+  load(onProgress?: LoadProgress): Promise<void> {
+    return this.#loads.load(onProgress);
+  }
+
+  preload(): void {
+    if (!this.loaded) this.#loads.background();
   }
 
   async #openKnowledge(): Promise<ClientKnowledge> {
-    const identity = this.#o.session.identity;
-    if (!identity) throw new Error('the session has not identified its rules');
-    const knowledge = await ClientKnowledge.open(this.#o.ui.source, identity);
+    const knowledge = await this.#o.knowledge();
     if (!knowledge.rules.strategic) throw new Error('the rule pack has no strategic content');
     const mapPath = this.#o.session.latestView?.mapPath;
     this.#knowledge = knowledge;
@@ -136,7 +140,7 @@ export class MapHost implements MapPort {
     return knowledge;
   }
 
-  async #load(onProgress: (done: number, total: number) => void): Promise<void> {
+  async #load(onProgress: LoadProgress): Promise<void> {
     const ui = this.#o.ui;
     const session = this.#o.session;
     let done = 0;

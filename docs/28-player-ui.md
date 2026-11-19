@@ -166,8 +166,9 @@ screen asks which hint: `30`.
 
 - `ClientKnowledge` (`src/app/hints/`) loads the rule content through `src/app/rules/client-rules.ts`, which hashes the
   pack from the manifest like the server, and the server's own loaders; it is usable only when the engine identity the
-  build injects and both hashes equal `welcome`'s. The map host opens it as part of its load; the tactical host after
-  its screen has loaded, so the server answers the first hints. Each host opens its own.
+  build injects and both hashes equal `welcome`'s. One per connected session, shared by the map and tactical hosts
+  (`knowledgeFor`, `src/app/game/front-end.ts`): the map host opens it as part of its load, the tactical host after its
+  screen has loaded, so the server answers the first hints.
 - `HintProvider` implements `GameClient`, polled every frame: a request is answered once the same request of its kind
   has been asked for 80 ms (the original's `PATHFINDCOUNTER`, `Utils/Timer_Control.cc:18`), on the latest received
   view, with one projection per view and answers cached per view; `placements` is answered at once, as the original's

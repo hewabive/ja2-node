@@ -25,7 +25,7 @@ import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { GamePage, WorldLayer } from '../game/game-page.ts';
 import { TimeSamples } from '../game/time-samples.ts';
 import { loadLayouts, type UiBoot } from '../game/ui-boot.ts';
-import { ClientKnowledge } from '../hints/client-knowledge.ts';
+import type { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { attachHintHook, createHintHook, type HintHook } from '../hints/hint-hook.ts';
 import { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
@@ -70,6 +70,7 @@ export interface TacticalHostOptions {
   readonly gameOptions: () => Promise<GameOptions | null>;
   readonly version: string;
   readonly settingsChanged: (change: SettingsChange) => void;
+  readonly knowledge: () => Promise<ClientKnowledge>;
 }
 
 interface Loaded {
@@ -169,10 +170,8 @@ export class TacticalHost {
   }
 
   async #openKnowledge(): Promise<ClientKnowledge | null> {
-    const identity = this.#o.session.identity;
-    if (!identity) return null;
     try {
-      const knowledge = await ClientKnowledge.open(this.#o.ui.source, identity);
+      const knowledge = await this.#o.knowledge();
       const mapPath = this.#o.session.latestView?.mapPath;
       if (mapPath) await knowledge.worlds.ensure(mapPath);
       this.#hints.warm();

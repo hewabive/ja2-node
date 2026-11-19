@@ -63,11 +63,20 @@ export interface MapEntry {
   readonly refusal?: string;
 }
 
+export type LoadProgress = (done: number, total: number) => void;
+
 export interface MapPort {
   readonly loaded: boolean;
-  load(onProgress: (done: number, total: number) => void): Promise<void>;
+  load(onProgress?: LoadProgress): Promise<void>;
+  preload(): void;
   screen(flow: MapFlow): Screen;
   enter(abandonFight: boolean): Promise<MapEntry>;
+}
+
+export interface GameEntry {
+  readonly fromMap?: boolean;
+  readonly savePicture?: number;
+  readonly pageStart?: boolean;
 }
 
 export interface LaptopFlow {
@@ -323,8 +332,13 @@ export class FrontEndFlow {
       await this.#env.boxes.alert(failureText(this.#env.labels(), err));
       return;
     }
+    this.#preloadMap();
     await this.#host.playBeginning();
     this.enterGame();
+  }
+
+  #preloadMap(): void {
+    this.#host.map?.()?.preload();
   }
 
   async options(origin: OptionsOrigin): Promise<void> {
@@ -439,7 +453,7 @@ export class FrontEndFlow {
     }
     if (outcome.session !== this.#client.session) await this.#client.connect(outcome.session);
     loading.progress(1, 1);
-    this.enterGame(false, picture);
+    this.enterGame({ savePicture: picture });
     await this.#fade('in');
   }
 
@@ -464,7 +478,7 @@ export class FrontEndFlow {
     this.#show(creditsScreen(this.#env, controller, { feed: () => this.#host.rowFeed() }));
   }
 
-  enterGame(fromMap = false, savePicture: number | null = null): void {
+  enterGame(entry: GameEntry = {}): void {
     const session = this.#client.session;
     if (!session) {
       this.mainMenu();
@@ -475,17 +489,17 @@ export class FrontEndFlow {
     this.#noteBattlePanel();
     const tactical = kind === 'tactical' ? (this.#host.tactical?.() ?? null) : null;
     if (tactical) {
-      void this.#enterTactical(tactical, session, savePicture);
+      void this.#enterTactical(tactical, session, entry.savePicture ?? null);
       return;
     }
     const laptop = kind === 'laptop' ? (this.#host.laptop?.() ?? null) : null;
     if (laptop) {
-      void this.#enterLaptop(laptop, session, fromMap);
+      void this.#enterLaptop(laptop, session, entry.fromMap ?? false);
       return;
     }
     const map = kind === 'map' ? (this.#host.map?.() ?? null) : null;
     if (map) {
-      void this.#enterMap(map, session, savePicture);
+      void this.#enterMap(map, session, entry);
       return;
     }
     this.#unavailable(kind, session, null);
@@ -507,11 +521,11 @@ export class FrontEndFlow {
     this.enterGame();
   }
 
-  async #enterMap(port: MapPort, session: string, savePicture: number | null): Promise<void> {
+  async #enterMap(port: MapPort, session: string, entry: GameEntry): Promise<void> {
     if (!port.loaded) {
-      const loading = await this.#showLoading('save', savePicture);
+      const progress = await this.#waitForMap(entry);
       try {
-        await port.load((done, total) => loading.progress(done, total));
+        await port.load(progress);
       } catch (err) {
         this.#unavailable('map', session, err);
         return;
@@ -532,6 +546,15 @@ export class FrontEndFlow {
     );
   }
 
+  async #waitForMap(entry: GameEntry): Promise<LoadProgress | undefined> {
+    if (entry.savePicture === undefined && !entry.pageStart) {
+      this.#show(new BlackScreen(this.#env));
+      return undefined;
+    }
+    const loading = await this.#showLoading('save', entry.savePicture ?? null);
+    return (done, total) => loading.progress(done, total);
+  }
+
   async #openMap(session: string): Promise<void> {
     const port = this.#host.map?.() ?? null;
     if (!port) {
@@ -550,7 +573,9 @@ export class FrontEndFlow {
       this.#unavailable('laptop', session, err);
       return;
     }
-    if (this.#client.session === session) this.#show(screen);
+    if (this.#client.session !== session) return;
+    this.#show(screen);
+    this.#preloadMap();
   }
 
   #laptopClosed(session: string): void {
@@ -606,6 +631,7 @@ export class FrontEndFlow {
         mapScreen: () => void this.#openMap(session),
       }),
     );
+    this.#preloadMap();
   }
 
   exitBox(kind: GameScreenKind): void {
@@ -646,7 +672,7 @@ export class FrontEndFlow {
       this.#zoomIntoSector(session);
       return;
     }
-    this.enterGame(true);
+    this.enterGame({ fromMap: true });
   }
 
   #zoomIntoSector(session: string): void {

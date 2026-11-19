@@ -28,6 +28,7 @@ import type { Labels } from '../../ui/text/labels.ts';
 import { messageBoxLabels } from '../../ui/widgets/message-box.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 import { CreditRowFeed, fetchCreditRow } from '../credits/rows.ts';
+import { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { bootLaptopScreen } from '../laptop/laptop-boot.ts';
 import { fetchHealth } from '../launcher/api.ts';
 import { fetchLabels } from '../launcher/labels.ts';
@@ -160,6 +161,19 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     if (speech?.client !== session) speech = new SessionSpeech(session, ui.audio.engine);
     return speech;
   };
+  let knowledge: { readonly session: SessionClient; readonly opening: Promise<ClientKnowledge> } | null = null;
+  const knowledgeFor = (session: SessionClient): Promise<ClientKnowledge> => {
+    if (knowledge?.session === session) return knowledge.opening;
+    const identity = session.identity;
+    if (!identity) return Promise.reject(new Error('the session has not identified its rules'));
+    const opening = ClientKnowledge.open(ui.source, identity);
+    const opened = { session, opening };
+    knowledge = opened;
+    opening.catch(() => {
+      if (knowledge === opened) knowledge = null;
+    });
+    return opening;
+  };
   let tactical: TacticalHost | null = null;
   const tacticalFor = (session: SessionClient): TacticalHost => {
     if (tactical?.session === session) return tactical;
@@ -176,6 +190,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       gameOptions: async () => (await client.status()).options,
       version: versionLabel(health?.engine),
       settingsChanged: (change) => settings.change(change),
+      knowledge: () => knowledgeFor(session),
     });
     return tactical;
   };
@@ -195,6 +210,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       language: () => settings.current().language,
       version: versionLabel(health?.engine),
       gameOptions: async () => (await client.status()).options,
+      knowledge: () => knowledgeFor(session),
     });
     return map;
   };
@@ -218,6 +234,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       return host.loaded;
     },
     load: (onProgress) => host.load(onProgress),
+    preload: () => host.preload(),
     enter: (abandonFight) => host.enter(abandonFight),
     screen: (flow) => host.screen({ ...flow, help: () => help.forceMap() }),
   });
@@ -306,6 +323,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       map.dispose();
       map = null;
     }
+    if (knowledge && knowledge.session !== session) knowledge = null;
     lastLoadScreen = null;
     story.reset();
     if (!session) return;

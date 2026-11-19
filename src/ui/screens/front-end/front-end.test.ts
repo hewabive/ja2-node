@@ -10,7 +10,7 @@ import type { Screen } from '../../screen.ts';
 import { FADE_STEP_MS } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import { FrontEndLayout } from './environment.ts';
-import { type LaptopFlow, type MapPort, RECONNECTING_BOX, SESSION_ENDED_BOX, type TacticalPort } from './flow.ts';
+import { type LaptopFlow, type LoadProgress, type MapPort, RECONNECTING_BOX, SESSION_ENDED_BOX, type TacticalPort } from './flow.ts';
 import { LOADINGSCREEN_HELI, loadingPicturePath } from './loading.ts';
 import { OPTION_TOGGLES } from './options.ts';
 import { SaveLoadController, type SaveLoadMode } from './save-load.ts';
@@ -571,7 +571,13 @@ describe('the zooms out of the map screen', () => {
     tacticalLoads = 0;
     tacticalLoaded = false;
     laptopFlows = [];
-    const map: MapPort = { loaded: true, load: async () => undefined, screen: () => clockScreen('map'), enter: async () => ({ ok: true }) };
+    const map: MapPort = {
+      loaded: true,
+      load: async () => undefined,
+      preload: () => undefined,
+      screen: () => clockScreen('map'),
+      enter: async () => ({ ok: true }),
+    };
     const tactical: TacticalPort = {
       get loaded() {
         return tacticalLoaded;
@@ -743,6 +749,153 @@ describe('the pictures of the loading screen (DisplayLoadScreenWithID, LoadSaved
     await until(() => f.client.loads.length === 2 && f.screen() === 'loading');
     await f.settle(2);
     expect(pictureDrawn()).toMatchObject({ asset: pathOf(LOADINGSCREEN_HELI) });
+  });
+});
+
+describe('the map screen loaded in the background, since the original enters it with no loading screen', () => {
+  const { NIGHTWILD } = LoadingScreen;
+  const MAP_LOAD_STEPS = 4;
+  let mapLoaded: boolean;
+  let mapLoads: number;
+  let mapProgress: LoadProgress;
+  let finishMapLoad: () => void;
+  let shown: string[];
+
+  beforeEach(() => {
+    mapLoaded = false;
+    mapLoads = 0;
+    mapProgress = () => undefined;
+    finishMapLoad = () => undefined;
+    let running: Promise<void> | null = null;
+    const load = (progress: LoadProgress = () => undefined): Promise<void> => {
+      mapProgress = progress;
+      running ??= new Promise<void>((resolve) => {
+        mapLoads++;
+        finishMapLoad = () => {
+          mapLoaded = true;
+          running = null;
+          resolve();
+        };
+      });
+      return running;
+    };
+    f.host.mapPort = {
+      get loaded() {
+        return mapLoaded;
+      },
+      load,
+      preload: () => {
+        if (!mapLoaded) void load();
+      },
+      screen: () => idleScreen('map'),
+      enter: async () => ({ ok: true }),
+    };
+    shown = [];
+    const screens = f.t.runtime.host;
+    for (const method of ['push', 'replace'] as const) {
+      const original = screens[method].bind(screens);
+      vi.spyOn(screens, method).mockImplementation((screen) => {
+        shown.push(screen.id);
+        original(screen);
+      });
+    }
+  });
+
+  const shownSince = (id: string) => shown.slice(shown.lastIndexOf(id));
+
+  function loadedTactical(): TacticalPort {
+    return { loaded: true, stale: false, loadScreen: null, load: async () => undefined, screen: () => idleScreen('tactical') };
+  }
+
+  it('loads it during the beginning video of a new game and enters it from the laptop without a loading screen', async () => {
+    let loadsAtBeginning = 0;
+    f.host.playBeginning = async () => {
+      loadsAtBeginning = mapLoads;
+      finishMapLoad();
+    };
+    let laptop: LaptopFlow | null = null;
+    f.host.laptopPort = {
+      open: async (opened) => {
+        laptop = opened;
+        return idleScreen('laptop');
+      },
+    };
+    f.flow.mainMenu();
+    await f.settle();
+    f.click('newGame');
+    await until(() => f.screen() === 'gameInit');
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await until(() => f.screen() === 'laptop');
+    showView('strategic');
+    (laptop as LaptopFlow | null)?.closed();
+    await until(() => f.screen() === 'map');
+    expect([loadsAtBeginning, mapLoads, shownSince('laptop')]).toEqual([1, 1, ['laptop', 'map']]);
+  });
+
+  it('loads it once the tactical screen is up and enters it from tactical without a loading screen', async () => {
+    let mapLoadsDuringTacticalLoad = -1;
+    let tacticalLoaded = false;
+    f.host.tacticalPort = {
+      get loaded() {
+        return tacticalLoaded;
+      },
+      stale: false,
+      loadScreen: null,
+      load: async () => {
+        mapLoadsDuringTacticalLoad = mapLoads;
+        tacticalLoaded = true;
+      },
+      screen: () => idleScreen('tactical'),
+    };
+    f.client.session = 'session-1';
+    showView('tactical');
+    f.flow.enterGame({ pageStart: true });
+    await until(() => f.screen() === 'tactical');
+    expect([mapLoadsDuringTacticalLoad, mapLoads]).toEqual([0, 1]);
+    finishMapLoad();
+    await f.settle(1);
+    showView('strategic');
+    f.flow.frames([frame()]);
+    await until(() => f.screen() === 'map');
+    expect(shownSince('tactical')).toEqual(['tactical', 'map']);
+  });
+
+  it('waits on black for a map screen still loading when entered from tactical', async () => {
+    f.host.tacticalPort = loadedTactical();
+    f.client.session = 'session-1';
+    showView('tactical');
+    f.flow.enterGame();
+    await until(() => f.screen() === 'tactical');
+    showView('strategic');
+    f.flow.frames([frame()]);
+    await until(() => f.screen() === 'black');
+    finishMapLoad();
+    await until(() => f.screen() === 'map');
+    expect([mapLoads, shownSince('tactical')]).toEqual([1, ['tactical', 'black', 'map']]);
+  });
+
+  it("waits for it on the loading screen on a page's first screen and on the save's after a save load, the bar following the load", async () => {
+    f.client.session = 'session-1';
+    showView('strategic');
+    f.flow.enterGame({ pageStart: true });
+    await until(() => f.screen() === 'loading' && mapLoads === 1);
+    mapProgress(2, MAP_LOAD_STEPS);
+    await f.settle(1);
+    expect([f.widget('saveBar').visible, f.widget('saveBar').state]).toEqual([true, 50]);
+    finishMapLoad();
+    await until(() => f.screen() === 'map');
+    mapLoaded = false;
+    f.client.nextFlow = 'strategic';
+    void f.flow.loadSave(listing('wild', '2026-10-05T00:00:00Z', { loadScreen: NIGHTWILD }), 'mainMenu');
+    await until(() => f.client.loads.length === 1 && mapLoads === 2);
+    await f.settle(2);
+    expect(f.screen()).toBe('loading');
+    expect(f.draw().items.find((i) => i.kind === 'image' && i.asset.startsWith('loadscreens/'))).toMatchObject({
+      asset: loadingPicturePath(f.env.layout(FrontEndLayout.LOADING), NIGHTWILD),
+    });
+    finishMapLoad();
+    await until(() => f.screen() === 'map');
   });
 });
 
