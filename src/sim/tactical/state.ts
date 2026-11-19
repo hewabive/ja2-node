@@ -14,6 +14,7 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
+import { type SessionClock, tickClock } from '../clock.ts';
 import type { SimEvent } from '../events.ts';
 import { type GameOptions, gameOptions } from '../options.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
@@ -374,6 +375,7 @@ export interface TacticalState {
   sectorHooks: SectorHooks;
   experienceHooks: ExperienceHooks;
   narrative: NarrativePort;
+  sessionClock: SessionClock;
   sector: SectorRef | null;
   readonly keyTable: KeyTable;
   readonly civGroups: CivGroupState;
@@ -553,7 +555,7 @@ export function createTacticalState(
   const mineFlags = mineFlagsOfMap(sectorMapOf({ world }).worldFlags);
   const pathEnv = createPathEnv({ world, pathWorld, occupant, soldiers, doorStatus, mineFlags, content }, defaultPathEnvSettings());
   const options = shared.options ?? gameOptions();
-  return {
+  const state: TacticalState = {
     clockMs: 0,
     tick: 0,
     realtimeClock: shared.realtimeClock ?? createRealtimeClock(),
@@ -619,6 +621,7 @@ export function createTacticalState(
     sectorHooks: NO_SECTOR_HOOKS,
     experienceHooks: NO_EXPERIENCE_HOOKS,
     narrative: NO_NARRATIVE_PORT,
+    sessionClock: tickClock(() => state.tick),
     sector: null,
     keyTable: shared.keyTable ?? createKeyTable(),
     civGroups: shared.civGroups ?? createCivGroupState(),
@@ -636,6 +639,7 @@ export function createTacticalState(
     itemDescription: null,
     pickedOwnershipCheck: null,
   };
+  return state;
 }
 
 export function onVisibleWorldTile(t: { readonly world: TacticalWorldData }, g: number): boolean {

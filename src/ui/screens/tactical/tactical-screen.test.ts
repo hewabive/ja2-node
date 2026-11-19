@@ -15,8 +15,10 @@ import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { createItem } from '../../../sim/items/object.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
+import { markStatChange } from '../../../sim/tactical/combat/experience.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
+import type { Soldier } from '../../../sim/tactical/soldier.ts';
 import { addItemToPool, Visibility } from '../../../sim/tactical/world-items.ts';
 import { CursorId, EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
@@ -36,7 +38,7 @@ const BIG_POCKET = 7;
 const NEXT_BIG_POCKET = 8;
 const HAND_SLOT = 5;
 const SMALL_POCKET = 11;
-const STAT_FLASH_MS = 60_000;
+const STAT_FLASH_TICKS = 12_000;
 const FRAME_MS = 16;
 const PANEL_FRAME_MS = 160;
 const SKULL_ANIMATION_FRAMES = 13;
@@ -1183,10 +1185,14 @@ describe('the tactical screen over a stub sandbox session', () => {
 
   it('shows the message log, the feedback box, stat flashes and the death animation of a face', async () => {
     const f = await tacticalUiTest(kit, ui);
+    f.advance(1);
+    const t = tacticalOf(f.session).state;
+    markStatChange(t, t.soldiers[0] as Soldier, 'marksmanship', true);
+    f.client.refresh();
     f.frames([
       frame(
         1,
-        [{ tick: 1, type: 'statChanged', soldier: 0, stat: 'marksmanship', change: 1 }],
+        [],
         [
           { tick: 1, kind: 'interface', colour: FONT_RED, args: [{ text: 'Hello' }, { text: 'there' }] },
           { tick: 1, kind: 'uiFeedback', colour: FONT_MCOLOR_LTYELLOW, args: [{ text: 'Stop!' }] },
@@ -1200,7 +1206,9 @@ describe('the tactical screen over a stub sandbox session', () => {
     await smPanelOf(f, 0);
     expect(f.widget(MARKSMANSHIP).text).toBe(' 80');
     expect(statColour(f, MARKSMANSHIP)).not.toBe(statColour(f, AGILITY));
-    f.t.frame(STAT_FLASH_MS + FRAME_MS);
+    f.advance(STAT_FLASH_TICKS - 1);
+    expect(statColour(f, MARKSMANSHIP)).not.toBe(statColour(f, AGILITY));
+    f.advance(1);
     expect(statColour(f, MARKSMANSHIP)).toBe(statColour(f, AGILITY));
     f.key('`');
     await f.settle();

@@ -9,7 +9,15 @@ import type { HelicopterDropView } from '../sim/tactical/helicopter-drop-state.t
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { TileRun } from '../sim/tactical/perception/fov.ts';
-import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
+import type {
+  ClimbView,
+  DamageNumberView,
+  FirstAidRole,
+  SoldierStatsView,
+  StatChangesView,
+  VehicleSeatView,
+  WeaponModeView,
+} from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 import type {
   AddedExitGridView,
@@ -36,7 +44,17 @@ export type { HelicopterDropView, HelicopterShadowView } from '../sim/tactical/h
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { Stance } from '../sim/tactical/movement-mode.ts';
 export type { TileRun } from '../sim/tactical/perception/fov.ts';
-export type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
+export type {
+  ClimbView,
+  DamageNumberView,
+  FirstAidRole,
+  SoldierStatsView,
+  StatChangeKey,
+  StatChangesView,
+  StatChangeView,
+  VehicleSeatView,
+  WeaponModeView,
+} from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
   AddedExitGridView,
@@ -82,6 +100,7 @@ export interface SoldierView {
   readonly drawnOnTop?: boolean;
   readonly fadingOut?: boolean;
   readonly offMap?: boolean;
+  readonly damage?: DamageNumberView;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -123,6 +142,7 @@ export interface SoldierView {
   readonly gettingHit?: boolean;
   readonly drunk?: DrunkView;
   readonly adrenaline?: AdrenalineView;
+  readonly statChanges?: StatChangesView;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
   readonly defaultName?: DefaultSoldierName;
@@ -256,6 +276,7 @@ export interface StrategicMercView {
   readonly collapsed?: boolean;
   readonly drunk?: DrunkView;
   readonly adrenaline?: AdrenalineView;
+  readonly statChanges?: StatChangesView;
 }
 
 export interface StrategicVehicleView {
@@ -1400,6 +1421,7 @@ const SOLDIER_FIELD_SAMENESS: FieldSameness<SoldierView> = {
   drawnOnTop: sameValue,
   fadingOut: sameValue,
   offMap: sameValue,
+  damage: sameJson,
   team: sameValue,
   name: sameValue,
   defaultName: sameValue,
@@ -1432,6 +1454,7 @@ const SOLDIER_FIELD_SAMENESS: FieldSameness<SoldierView> = {
   gettingHit: sameValue,
   drunk: sameValue,
   adrenaline: sameValue,
+  statChanges: sameJson,
   firstAid: sameValue,
   blinded: sameValue,
   hostile: sameValue,

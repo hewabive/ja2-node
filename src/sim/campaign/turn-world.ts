@@ -23,6 +23,7 @@ import type { CampaignSim } from './campaign-sim.ts';
 import { profileVoice } from './laptop/laptop-state.ts';
 import { handleRpcDescription } from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
+import { sessionClockOf } from './off-map-combat.ts';
 import { campaignVehicleBoarding } from './vehicle-boarding.ts';
 
 const NO_SOLDIERS: readonly Soldier[] = [];
@@ -65,6 +66,7 @@ export function installCampaignPorts(campaign: CampaignSim, t: TacticalState): v
   t.campaign = campaignProgressPort(campaign);
   t.experienceHooks = campaign.experienceHooks;
   t.narrative = campaignNarrativePort(campaign);
+  t.sessionClock = sessionClockOf(campaign.state);
   t.scheduleClock = campaignScheduleClock(campaign);
   t.vehicleHooks = campaignVehicleHooks(campaign);
 }

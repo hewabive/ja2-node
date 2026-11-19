@@ -256,6 +256,26 @@ describe('snapshot version 99 (profiled soldiers made without their patrol point
   });
 });
 
+describe('snapshot version 100 (the stat change times on the soldier)', () => {
+  const STAT_DAMAGE = { strength: 0, dexterity: 0, agility: 0, wisdom: 0 };
+
+  function migratedSoldier(fields: Record<string, unknown>): unknown {
+    const soldier = { id: 3, state: 0, pc: 0, frameSlot: 0, aniDelay: 0, ...fields };
+    const graph = { externals: [], sections: [['soldiers', { $sparse: 200, $e: [[3, soldier]] }]] };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 100, kind: 'tactical', mapPath: null, graph });
+    const section = migrated.graph.sections[0]?.[1] as { $e: [number, unknown][] } | undefined;
+    return section?.$e[0]?.[1];
+  }
+
+  it('gives every soldier no recent stat change, placed after his stat damage as a new soldier has it, and keeps one already written', () => {
+    const migrated = migratedSoldier({ statDamage: STAT_DAMAGE, kills: 2 });
+    expect(migrated).toMatchObject({ statDamage: STAT_DAMAGE, statChanges: {}, kills: 2 });
+    expect(Object.keys(migrated as object).slice(-3)).toEqual(['statDamage', 'statChanges', 'kills']);
+    const changed = { marksmanship: { at: 5000, up: true } };
+    expect(migratedSoldier({ statDamage: STAT_DAMAGE, statChanges: changed })).toMatchObject({ statChanges: changed });
+  });
+});
+
 describe('snapshot version 36 (merc slots with empty slots)', () => {
   const OFF_MAP_CURSOR = 0xffff;
 

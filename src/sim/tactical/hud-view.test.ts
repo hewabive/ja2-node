@@ -468,6 +468,28 @@ describe('life deductions (lifeLost)', () => {
     ]);
   });
 
+  it('shows the floating number in the view, standing while no overhead pass runs, as on the map screen, with every loss added, then a step at the first pass and one every 250 ms for 8 (Overhead.cc:527)', () => {
+    const STEP_TICKS = 50;
+    const STEPS = 8;
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), Direction.NORTH, { life: 60 });
+    sim.lookAround();
+    soldierTakeDamage(sim.state, enemy, 5, 0, DamageReason.GUNFIRE, null);
+    soldierTakeDamage(sim.state, enemy, 1, 0, DamageReason.BLOODLOSS, null);
+    expect(shown(sim, enemy.id).damage).toEqual({ amount: 6, steps: 0 });
+    sim.step();
+    expect(shown(sim, enemy.id).damage).toEqual({ amount: 6, steps: 1 });
+    for (let i = 1; i < STEP_TICKS; i++) sim.step();
+    expect(shown(sim, enemy.id).damage?.steps).toBe(1);
+    sim.step();
+    expect(shown(sim, enemy.id).damage?.steps).toBe(2);
+    for (let i = 0; i < (STEPS - 2) * STEP_TICKS - 1; i++) sim.step();
+    expect(shown(sim, enemy.id).damage?.steps).toBe(STEPS - 1);
+    sim.step();
+    expect(shown(sim, enemy.id)).not.toHaveProperty('damage');
+  });
+
   it('adds the damage a soldier took out of sight to the number his next seen hit shows (Soldier_Control.cc:5636)', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

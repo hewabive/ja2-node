@@ -5,11 +5,12 @@
 // @src AgilityForEnemyMissingPlayer; ProcessUpdateStats's bInSector and HandleAnyStatChangesAfterAttack's FOR_EACH_IN_TEAM, a
 // @src helicopter passenger over the loaded sector's included (2026-11-08); ChangeStat's delta of a merc on our team
 // @src (2026-11-14); ChangeStat's stat line and QUOTE_EXPERIENCE_GAIN, the Random(100) < 25 drawn on the talk session's
-// @src cosmetic stream (deviation "Cosmetic draws in attacks", 2026-11-14).
+// @src cosmetic stream (deviation "Cosmetic draws in attacks", 2026-11-14); ChangeStat's puiStatTimerPtr and
+// @src usValueGoneUp (2026-11-19).
 
-import { i8, idiv, u16 } from '../../../core/int.ts';
+import { i8, idiv, u16, u32 } from '../../../core/int.ts';
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
-import { Body, inSector, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { Body, type ChangedStat, inSector, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamInSector } from '../state.ts';
 import type { CombatContext } from './context.ts';
 import { CONSCIOUSNESS } from './types.ts';
@@ -117,6 +118,10 @@ function saysStatLine(t: CombatContext, stat: number): boolean {
   return stat === StatKind.EXPERIENCE || statQuoteRoll(t) < STAT_QUOTE_CHANCE;
 }
 
+export function markStatChange(t: Pick<CombatContext, 'sessionClock'>, s: Soldier, stat: ChangedStat, up: boolean): void {
+  s.statChanges[stat] = { at: u32(t.sessionClock.ms()), up };
+}
+
 function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: number, points: number): void {
   const key = STAT_KEYS[stat];
   if (!key || points === 0) return;
@@ -132,6 +137,7 @@ function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: numb
     s.life = Math.max(OKLIFE, s.life + points);
   }
   t.events.push({ type: 'statChanged', soldier: s.id, stat: key, change: points, ...(queued ? { queued } : {}) });
+  markStatChange(t, s, key, points > 0);
   if (stat === StatKind.EXPERIENCE && points > 0) t.experienceHooks?.levelGained(p, s, points);
 }
 

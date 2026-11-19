@@ -312,6 +312,10 @@ export class MapHost implements MapPort {
     }
   }
 
+  welcome(stateReplaced: boolean): void {
+    if (stateReplaced) this.#screen?.stateReplaced();
+  }
+
   dispose(): void {
     this.#screen = null;
   }

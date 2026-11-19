@@ -253,7 +253,15 @@ import {
   Team,
   Visible,
 } from './soldier.ts';
-import { boundingFrameView, type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
+import {
+  boundingFrameView,
+  type DamageNumberView,
+  damageNumberView,
+  type OtherSoldierFields,
+  type OwnSoldierFields,
+  otherSoldierFields,
+  ownSoldierFields,
+} from './soldier-view.ts';
 import {
   type AutoBandageState,
   type CrowStatus,
@@ -320,6 +328,7 @@ export interface SoldierSnapshot {
   readonly drawnOnTop?: boolean;
   readonly fadingOut?: boolean;
   readonly offMap?: boolean;
+  readonly damage?: DamageNumberView;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -1580,6 +1589,7 @@ export class TacticalSim {
       ...(s.drawnOnTop ? { drawnOnTop: true } : {}),
       ...(s.visible === Visible.FADING_OUT ? { fadingOut: true } : {}),
       ...(s.placed ? {} : { offMap: true }),
+      ...damageNumberView(s),
       ...(s.team === Team.OUR
         ? {
             ap: apsToDisplay(this.state, s),

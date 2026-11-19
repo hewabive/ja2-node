@@ -8,7 +8,8 @@
 // @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1, for the distances taken from a soldier with no tile, 2026-11-08);
 // @src ubPendingAction MERC_GIVEITEM held after a give on the spot with its ubPendingActionAnimCount (2026-11-08);
 // @src uiPendingActionData1 as the structure ID StartInteractiveObject records (2026-11-09); MERC_PICKUPITEM with its
-// @src ubPendingActionAnimCount, its data outliving it in the slot (2026-11-09)
+// @src ubPendingActionAnimCount, its data outliving it in the slot (2026-11-09); uiChange*Time and usValueGoneUp
+// @src (statChanges, 2026-11-19)
 
 import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
@@ -237,6 +238,15 @@ export interface SoldierStats {
   medical: number;
   experience: number;
 }
+
+export type ChangedStat = keyof SoldierStats | 'lifeMax';
+
+export interface StatChange {
+  readonly at: number;
+  readonly up: boolean;
+}
+
+export type StatChanges = Partial<Record<ChangedStat, StatChange>>;
 
 export interface AiState {
   alertStatus: number;
@@ -499,6 +509,7 @@ export interface Soldier {
   turningFromHit: boolean;
   changingStanceDueToSuppression: boolean;
   statDamage: { strength: number; dexterity: number; agility: number; wisdom: number };
+  statChanges: StatChanges;
   kills: number;
   assists: number;
   shotsFired: number;
@@ -947,6 +958,7 @@ function awarenessAndCombat(init: SoldierInit) {
 function recordAndServices() {
   return {
     statDamage: { strength: 0, dexterity: 0, agility: 0, wisdom: 0 },
+    statChanges: {},
     kills: 0,
     assists: 0,
     shotsFired: 0,

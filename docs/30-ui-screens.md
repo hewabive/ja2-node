@@ -276,16 +276,31 @@ event's `notice`).
 **The loaded sector's events reach the map screen too.** While time is compressed the map screen's real-time turn runs
 on the loaded sector (`15` §2), so its bleeding, deaths and sightings come with the campaign's tick to both screens. The
 tactical screen is not updated while another screen is up, as the original runs `ExecuteOverhead` on the game screen
-only: a damage number of a bleed on the map, the summed loss since, drifts once the tactical screen is back
-(`DamageNumber`, one step a frame, `tactical/overlays.ts`), and the sound director plays no animation sound meanwhile
-(`31`). The map screen shows what the original's shows: a merc of ours who bleeds becomes the info character and his face
-flashes (`mercBled`, `SoldierBleed`'s `SetInfoChar`), `damageFeedback` flashes the info face as the map's
-`HandleAutoFaces` animates it, a point of maximum life lost while dying prints the maximum life red, as a health gain
-prints it green (`map/map-screen.ts`), and a soldier dying there cries through `MapSound` (`31`). The events of our
+only: the simulation steps the damage number in that pass, so a number of a bleed on the map, the summed loss since,
+stands in the soldier's view (`damage`) and drifts once the tactical screen is back, and the sound director plays no
+animation sound meanwhile (`31`). The map screen shows what the original's shows: a merc of ours who bleeds becomes the
+info character and his face flashes (`mercBled`, `SoldierBleed`'s `SetInfoChar`), `damageFeedback` flashes the info face
+as the map's `HandleAutoFaces` animates it, and a soldier dying there cries through `MapSound` (`31`). The events of our
 mercs' assignments and map inventory while no sector is loaded reach it as well, from a combat context of their own
-(`src/sim/campaign/off-map-combat.ts`): a stat changed there prints its message and colours the stat on the info panel
-as on the loaded map (`Tactical/Campaign.cc:583-632`), and a failed attach or merge curses through `MapSound`, which also
-plays the attachment sound and the merc's `COOL1` of a merge.
+(`src/sim/campaign/off-map-combat.ts`): a stat changed there prints its message as on the loaded map
+(`Tactical/Campaign.cc:583-632`), and a failed attach or merge curses through `MapSound`, which also plays the
+attachment sound and the merc's `COOL1` of a merge.
+
+**Recent stat changes come from the soldier.** Every soldier keeps the time and the direction of the last change of
+each stat (`Soldier.statChanges`, the original's `uiChange*Time` and `usValueGoneUp`), set where the original sets them:
+`ChangeStat` (`Tactical/Campaign.cc:626-636`), a critical hit's stat loss (`Tactical/Weapons.cc:2985`, `:3024`, `:3058`,
+`:3092`) and a point of maximum life a dying merc of ours bleeds away (`Tactical/Soldier_Control.cc:7885`). The view
+carries them (`statChanges`), and the single merc panel and the map screen's info panel colour a stat green or red while
+the view's clock is less than 60 s past its time (`tactical/panel-models.ts`, `map/info-panel.ts`;
+`Tactical/Interface_Panels.cc:1223-1231`, `Strategic/MapScreen.cc:643`, `:722`). The clock is the session's tick
+(`15` §2), so a load shows the colours of the save and nothing from after it.
+
+**A load in place resets what frames fed.** A welcome that replaces the state makes the tactical screen drop the
+locators, the feedback box, the queued event boxes, the panel death animations and the fallen mercs it kept from the
+frames before (`TacticalScreen.stateReplaced`), and the map screen its event boxes and face flashes
+(`MapScreen.stateReplaced`); the damage number and the stat colours need no reset, as they are drawn from the view. The
+panel death animation stays the client's: a merc of ours the screen first sees dead shows the skull at once (deviation
+"Panel death animation across a load").
 
 **A vehicle's names are UI text.** The view carries a vehicle soldier's name as the simulation keeps it, which is not
 the original's (`25`); the client names him by his body's vehicle type with `zVehicleName` above him, on the overhead
@@ -366,8 +381,7 @@ ja2-node (`setOption`, `27`); the help screens seen are kept per campaign identi
 "Help screens seen"); the options the original screen has no room for (ambient and master volume, language, UI scale and
 640×480 only, the video switches) stay in the launcher.
 
-**Timers.** UI timers (cursor animation, flashes, blinks, the path rest, scrolling, locators, damage drift) run on the
-client clock; timers tied to game events (the enemy turn bar, message ageing) on displayed simulation time. Client
+**Timers.** UI timers (cursor animation, flashes, blinks, the path rest, scrolling, locators) run on the client clock; timers tied to game events (the enemy turn bar, message ageing) on displayed simulation time. Client
 modals pause a running real-time driver (`28`).
 
 **Sound.** Button sounds follow the original's scheme per screen (`src/ui/widgets/button-sounds.ts`); a message box
@@ -455,7 +469,8 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | With an item held and an enemy in the loaded sector the map screen's info character changes to nobody, not even back to the merc the item came from (`Strategic/Map_Screen_Interface.cc:1457`) | `src/sim/campaign/item-passing.test.ts` "passes nothing to anybody while the loaded sector holds enemies …" |
 | On the map screen a right click on a key of the ring shows no description, as its call is commented out, while one on an empty position closes the ring (`Tactical/Interface_Panels.cc:3572`) | `map/map-inventory.test.ts` "takes keys off the ring of a merc in no loaded sector …" |
 | On the map screen every point a merc of ours bleeds makes him the info character and resets the selection, even when he already is the info character, so compressing time with a wounded merc keeps undoing a multi-selection (`Tactical/Soldier_Control.cc:7935`, `Strategic/MapScreen.cc:406`, `:7006`) | `map/map-screen.test.ts` "makes a merc who bleeds the info character, the selection reset even when he is one already …" |
-| A damage number put up while the map screen is up stands there and drifts only once the game screen is back, with every loss since summed (`Tactical/Overhead.cc:527`) | `tactical/overlays.test.ts` "drifts a step every 250 ms for 8 steps, at most one a frame …" |
+| A damage number put up while the map screen is up stands there and drifts only once the game screen is back, with every loss since summed (`Tactical/Overhead.cc:527`) | `src/sim/tactical/hud-view.test.ts` "shows the floating number in the view, standing while no overhead pass runs …" |
+| A stat whose change time is 0 is never coloured, so a change stamped at the clock's very start shows none (`Tactical/Interface_Panels.cc:1230`) | `tactical/panel-models.test.ts` "prints a stat its change time names green or red for 60 s …" |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
 | With n cycling a soldier stack, the pointer moving off the stacked soldier finds nobody once, and the stack ends then (`Tactical/Soldier_Find.cc:232`) | `tactical/input/targets.test.ts` "finds nobody the first time the pointer is off the stacked soldier …" |
 | An empty vehicle of ours under the pointer is neither ours nor an enemy, so a click does not select it (`Tactical/Soldier_Find.cc:50`); a merc aboard a vehicle is never under the pointer, and a click on his face in the team panel selects the vehicle | `tactical/input/targets.test.ts` "owns a vehicle of ours only with somebody aboard …", "never finds a merc aboard a vehicle …"; `tactical/soldiers.test.ts` "finds the vehicle of a merc aboard …" |

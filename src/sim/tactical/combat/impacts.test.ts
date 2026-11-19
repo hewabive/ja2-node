@@ -326,6 +326,21 @@ describe('the lines of a hit (Weapons.cc BulletImpact)', () => {
     expect(sim.drainEvents()).toEqual([expect.objectContaining({ type: 'statLost', soldier: 20, stat: 'agility', points: 2 })]);
   });
 
+  it('prints the stat a critical hit costs red from then on only for a visible soldier with a name (Weapons.cc uiChange*Time)', () => {
+    const AT_TICK = 20;
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    t.tick = AT_TICK;
+    const target = spawnSoldier(sim, 20, Team.ENEMY, BEYOND_MESSY_DEATH, Direction.NORTH);
+    const lost = { damage: 10, special: Special.NONE, statLoss: { stat: 'agility', points: 2 } } as const;
+    target.visible = Visible.LIMBO;
+    tellCriticalHit(t, target, lost);
+    expect(target.statChanges).toEqual({});
+    target.visible = Visible.SEEN;
+    tellCriticalHit(t, target, lost);
+    expect(target.statChanges).toEqual({ agility: { at: AT_TICK * TICK_MS, up: false } });
+  });
+
   it('names a soldier hit in the head when the squad sees him', () => {
     const sim = newCombatSim(content);
     const shooter = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

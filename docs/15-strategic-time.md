@@ -65,6 +65,14 @@ writes in the `realMs` timeline needs the same. `SyncStrategicTurnTimes` stamps 
 (the loaded sector's included, as the map's way back to tactical is, `Strategic/Map_Screen_Interface_Bottom.cc:1100`), at
 combat entry and at the first landing, so the first real-time turn comes 5 s after any of them.
 
+**The session's tick as the JA2 clock of presentation stamps.** A stamp the view carries and the panels compare over
+minutes, the stat change times (`Soldier.statChanges`, `uiChange*Time`), cannot live on `realMs`, which stands in
+autoresolve and runs backwards on the way back to tactical. The original's `GetJA2Clock` runs on every screen and stops
+only for `PauseTime` (`Utils/Timer_Control.cc:63-98`: message boxes, the player's pause, the door and pickup menus). The
+session's tick does the same: every step of every flow advances it, a decision, a hold or the paused driver stops it, it
+never runs backwards, and the view carries it as `tick`. `SessionClock` (`src/sim/clock.ts`) reads it: the campaign
+installs it on the loaded sector and every off-map combat context (`sessionClockOf`), a sandbox reads its own tick.
+
 **`UpdateClock` on an ideal machine.** `updateClock` is the original's function fed with `realMs`, so the pace follows
 the tick, not the frame rate (deviation "Strategic map pacing"): a world second per 200 ticks in tactical; while
 compressing, 60-second slices, 5, 30 or 60 per real second (every 40, 6–7 or 3–4 ticks). A world day costs 57,600 ticks

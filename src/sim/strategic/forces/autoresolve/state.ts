@@ -4,6 +4,7 @@
 // @src CalculateAutoResolveInfo, CalculateSoldierCells (logic part); Tactical/Campaign.cc ChangeStat (the stat line and
 // @src QUOTE_EXPERIENCE_GAIN of an autoresolve StatChange, queued for the map screen, 2026-11-15).
 
+import type { SessionClock } from '../../../clock.ts';
 import type { CombatContext, ExperienceHooks, RandomStream, StatChangedEvent } from '../../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { wearsHeadGear } from '../../../tactical/inventory.ts';
@@ -174,6 +175,7 @@ export interface AutoresolveEnv {
   readonly hooks: AutoresolveHooks;
   readonly experienceHooks?: ExperienceHooks;
   readonly narrative?: NarrativePort;
+  readonly sessionClock: SessionClock;
 }
 
 export interface MercCellInput {
@@ -335,6 +337,7 @@ export function combatContext(env: AutoresolveEnv, ar: AutoresolveState): Combat
     events: { push: (e: StatChangedEvent) => ar.statEvents.push({ ...e, battleMs: ar.elapsedMs }) },
     ...(env.experienceHooks ? { experienceHooks: env.experienceHooks } : {}),
     ...(env.narrative ? { narrative: env.narrative } : {}),
+    sessionClock: env.sessionClock,
   };
 }
 

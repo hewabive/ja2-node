@@ -1,6 +1,7 @@
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
+import { tickClock } from '../clock.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { createChangeCounts } from '../tactical/change-counts.ts';
 import { NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
@@ -29,7 +30,7 @@ import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 100;
+export const SNAPSHOT_VERSION = 101;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -58,6 +59,7 @@ const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'sectorHooks',
   'experienceHooks',
   'narrative',
+  'sessionClock',
   'scheduleClock',
   'timeOfDayLight',
   'vehicleHooks',
@@ -80,7 +82,7 @@ function tacticalData(t: TacticalState): Record<string, unknown> {
 
 function reviveTactical(data: unknown): TacticalState {
   const fields = data as Omit<TacticalState, DerivedTacticalField> & { readonly pathEnv: PathEnvSettings };
-  return {
+  const state: TacticalState = {
     ...fields,
     campaign: NO_CAMPAIGN_PORT,
     hooks: NO_HOOKS,
@@ -89,6 +91,7 @@ function reviveTactical(data: unknown): TacticalState {
     sectorHooks: NO_SECTOR_HOOKS,
     experienceHooks: NO_EXPERIENCE_HOOKS,
     narrative: NO_NARRATIVE_PORT,
+    sessionClock: tickClock(() => state.tick),
     scheduleClock: NO_SCHEDULE_CLOCK,
     timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
     vehicleHooks: PRIVATE_VEHICLE_LIST,
@@ -99,6 +102,7 @@ function reviveTactical(data: unknown): TacticalState {
     viewMarkers: createViewMarkers(),
     soldiersOfTheLoad: null,
   };
+  return state;
 }
 
 function tacticalSections(sim: TacticalSim): Section[] {

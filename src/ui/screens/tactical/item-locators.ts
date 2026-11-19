@@ -73,6 +73,10 @@ export class ItemLocators {
     for (const slot of this.#slots) if (slot) slot.locked = false;
   }
 
+  clear(): void {
+    this.#slots.length = 0;
+  }
+
   step(now: number, locked: boolean, clockPaused: boolean): void {
     if (clockPaused || now < this.#cycleDoneAt) return;
     this.#cycleDoneAt = now + CYCLE_RENDER_ITEM_COLOUR_MS;
@@ -119,6 +123,10 @@ export class MultiPurposeLocator {
     this.#frame = 0;
     this.#on = true;
     this.#at = at;
+  }
+
+  end(): void {
+    this.#on = false;
   }
 
   step(now: number): void {

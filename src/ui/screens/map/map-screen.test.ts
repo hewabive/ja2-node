@@ -7,7 +7,7 @@ import { addVehicleOfOurs } from '../../../../tests/support/vehicles.ts';
 import { Body } from '../../../content/anim/body-types.ts';
 import { MAP_SIDE, parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
-import type { ViewFrame } from '../../../protocol/view.ts';
+import { TICK_MS } from '../../../protocol/messages.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
@@ -21,9 +21,9 @@ import { type DrawItem, rgb } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
 import { SECTOR_ZOOM_TIME, SectorZoom } from '../front-end/sector-zoom.ts';
-import { Assignment } from './character-list.ts';
+import { CHANGE_STAT_RECENTLY_DURATION_MS } from '../tactical/panel-models.ts';
+import { Assignment, CHAR_TEXT_FONT_COLOR } from './character-list.ts';
 import { mapFacts, parseSectorLabel, sectorLabel } from './facts.ts';
-import { CHANGE_STAT_RECENTLY_DURATION_MS } from './info-panel.ts';
 import { localMessage, MAX_MESSAGES_ON_MAP_BOTTOM } from './message-list.ts';
 import { TeamColumn } from './team-list-view.ts';
 
@@ -998,21 +998,36 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect([f.screen.hook().info, whiteFaces(f) > 0]).toEqual([info, true]);
     }));
 
-  it('prints the maximum life red after a bleed that costs a point of it, and green after a health gain', () =>
+  it('drops the face flash of a damage feedback once a load replaces the state, as the loaded game never flashed it', () =>
     withMap(async (f) => {
       const info = f.screen.hook().info ?? -1;
       const tick = f.client.view.tick;
-      const recoloured = (event: NonNullable<ViewFrame['events']>[number]) => {
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'damageFeedback', tick, soldier: info, cause: 'bleeding' }] }]);
+      expect(whiteFaces(f)).toBeGreaterThan(0);
+      f.screen.stateReplaced();
+      f.t.frame();
+      expect(whiteFaces(f)).toBe(0);
+    }));
+
+  it("prints the maximum life red or green for 60 s after the change time the merc's view carries, on the clock its tick runs (DrawCharHealth)", () =>
+    withMap(async (f) => {
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      const info = f.screen.hook().info ?? -1;
+      const soldier = campaign.battle?.roster.get(info)?.soldier;
+      if (!soldier) throw new Error('no info merc');
+      const nowMs = f.client.view.tick * TICK_MS;
+      const recoloured = (lifeMax: { at: number; up: boolean } | null) => {
         f.t.frame();
         const before = glyphColours(f);
-        f.frames([{ tick, changed: [], removed: [], events: [event] }]);
+        soldier.statChanges = lifeMax ? { lifeMax } : {};
+        f.client.refresh();
+        f.t.frame();
         const after = glyphColours(f);
         return after.flatMap((colour, i) => (colour !== before[i] ? [colour] : []));
       };
-      expect(recoloured({ type: 'mercBled', tick, soldier: info })).toEqual([]);
-      expect(recoloured({ type: 'mercBled', tick, soldier: info, lifeMaxLost: true })).toEqual([FontColor.RED]);
-      f.t.frame(CHANGE_STAT_RECENTLY_DURATION_MS);
-      expect(recoloured({ type: 'statChanged', tick, soldier: info, stat: 'lifeMax', change: 1 })).toEqual([FontColor.LTGREEN]);
+      expect(recoloured({ at: nowMs, up: false })).toEqual([FontColor.RED]);
+      expect(recoloured({ at: nowMs - CHANGE_STAT_RECENTLY_DURATION_MS, up: false })).toEqual([CHAR_TEXT_FONT_COLOR]);
+      expect(recoloured({ at: nowMs, up: true })).toEqual([FontColor.LTGREEN]);
     }));
 
   it('prints the maximum life a merc off the loaded map gains on an assignment green, as ChangeStat marks the change there too', () =>

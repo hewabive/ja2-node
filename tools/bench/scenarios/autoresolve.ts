@@ -2,6 +2,7 @@ import { sectorId } from '../../../src/content/strategic/sector-ids.ts';
 import { RestrictedScroll } from '../../../src/content/world/render-bounds.ts';
 import { PreRandom, Rng } from '../../../src/core/rng.ts';
 import { stubMerc } from '../../../src/server/stub-mercs.ts';
+import { tickClock } from '../../../src/sim/clock.ts';
 import { gameOptions } from '../../../src/sim/options.ts';
 import { calcDifficultyModifier } from '../../../src/sim/strategic/ai/difficulty.ts';
 import { runAutoresolve } from '../../../src/sim/strategic/forces/autoresolve/loop.ts';
@@ -125,6 +126,7 @@ function env(content: TacticalContent, b: Battle): AutoresolveEnv {
     rng: { main, pre: PreRandom.create(main), fx: Rng.fromSeed(b.seed ^ FX_SALT) },
     world: { day: BATTLE_DAY, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE, loadedSector: null },
     hooks: { surrender: () => 'reject' },
+    sessionClock: tickClock(() => 0),
   };
 }
 

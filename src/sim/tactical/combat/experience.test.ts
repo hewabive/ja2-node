@@ -3,6 +3,7 @@ import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { TICK_MS } from '../../clock.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import type { TacticalContent } from '../content.ts';
 import { StatKind } from '../profiles.ts';
@@ -48,6 +49,29 @@ describe('the stat deltas (Campaign.cc ChangeStat)', () => {
     p.gains.wisdom = ONE_POINT_OF_WISDOM;
     profileUpdateStats(sim.state, p);
     expect([p.stats.wisdom, p.deltas.wisdom]).toEqual([62, 1]);
+  });
+});
+
+describe("the stat's change time (Campaign.cc ChangeStat: puiStatTimerPtr and usValueGoneUp)", () => {
+  const ONE_POINT_OF_WISDOM = 50;
+  const ONE_POINT_OF_MARKSMANSHIP = 25;
+  const AT_TICK = 40;
+
+  it('stamps every changed stat with the session clock and the way it went, a loss over an earlier gain included', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    const p = progressFor(MERC_PROFILE);
+    sim.state.profiles.set(MERC_PROFILE, p);
+    expect(s.statChanges).toEqual({});
+    sim.state.tick = AT_TICK;
+    Object.assign(p.gains, { wisdom: ONE_POINT_OF_WISDOM, marksmanship: ONE_POINT_OF_MARKSMANSHIP });
+    processUpdateStats(sim.state, s);
+    const at = AT_TICK * TICK_MS;
+    expect(s.statChanges).toEqual({ wisdom: { at, up: true }, marksmanship: { at, up: true } });
+    sim.state.tick = 2 * AT_TICK;
+    p.gains.wisdom = -ONE_POINT_OF_WISDOM;
+    processUpdateStats(sim.state, s);
+    expect(s.statChanges).toEqual({ wisdom: { at: 2 * at, up: false }, marksmanship: { at, up: true } });
   });
 });
 

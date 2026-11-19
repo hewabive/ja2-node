@@ -2833,6 +2833,23 @@ function restoreProfiledPatrolGrids(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const STAT_DAMAGE_KEY = 'statDamage';
+const STAT_CHANGES_KEY = 'statChanges';
+
+function withStatChanges(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withStatChanges(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withStatChanges(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, STAT_DAMAGE_KEY, STAT_CHANGES_KEY, {}) : mapped;
+}
+
+function addStatChanges(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withStatChanges(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2934,5 +2951,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     97: addDrawnOnTop,
     98: addLoadScreen,
     99: restoreProfiledPatrolGrids,
+    100: addStatChanges,
   };
 }

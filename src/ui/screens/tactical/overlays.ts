@@ -11,11 +11,7 @@
 // @src restarts at 80 ms, 2026-11-03; the selected, located, multi-selected or pointed soldier, THIRDPOINTERS1 for
 // @src the selected one during the rubber band, no squad line when multi-selected, the action line, the name, the bar box
 // @src of THIRDPOINTERS2 or 1 at + 28, + 5 or + 30, + 7, the health word, "(roof)"),
-// @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/Interface_Control.cc
-// @src RenderTopmostTacticalInterface (the damage number at the true position + the bounding box offset + 20, - 5);
-// @src src/game/Tactical/Overhead.cc ExecuteOverhead (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps, at most
-// @src one a frame, its TIMECOUNTERDONE re-armed from now, so a number put up while the map screen is up drifts from the
-// @src return to the game screen, 2026-11-06); src/game/Tactical/
+// @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/
 // @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast; frame and cycles start again, the counter and the
 // @src shown flag stay, 2026-11-03); src/game/Tactical/Overhead.cc LocateSoldier (10 centres on the soldier even
 // @src on screen; 10 and SETLOCATOR show the normal locator, the other flags but DONTSETLOCATOR the fast one), SlideTo
@@ -240,39 +236,6 @@ export class Locator {
       this.#flash++;
       this.#frame = 0;
     }
-  }
-}
-
-const DAMAGE_DISPLAY_DELAY_MS = 250;
-const DAMAGE_STEPS = 8;
-
-export class DamageNumber {
-  amount = 0;
-  dx: number;
-  dy: number;
-  #steps = 0;
-  #since: number;
-
-  constructor(now: number, offsetX: number, offsetY: number) {
-    this.#since = now;
-    this.dx = offsetX;
-    this.dy = offsetY;
-  }
-
-  restart(now: number, offsetX: number, offsetY: number): void {
-    this.#steps = 0;
-    this.#since = now;
-    this.dx = offsetX;
-    this.dy = offsetY;
-  }
-
-  update(now: number): boolean {
-    if (now - this.#since < DAMAGE_DISPLAY_DELAY_MS) return true;
-    this.#since = now;
-    this.#steps++;
-    this.dx++;
-    this.dy--;
-    return this.#steps < DAMAGE_STEPS;
   }
 }
 

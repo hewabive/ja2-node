@@ -372,7 +372,12 @@ red as `enoughApToAttack`, the move's final tile behind the face's moving highli
 that holds the portrait flash as `gettingHit`, the drink and adrenaline behind the face's drug icons and the light blue
 AP number as `drunk` (`feelingGood`, `borderline`, `drunk`, `hungover`) and `adrenaline` (`active`, or `crash` for its
 after-effect), each absent without it; strategic mercs carry the same two for the map screen's faces). The drug
-counters, and so the turns a course has left, are never shown, and other soldiers carry no drug state (`12` §5).
+counters, and so the turns a course has left, are never shown, and other soldiers carry no drug state (`12` §5). Our
+soldiers and strategic mercs carry `statChanges` (`{stat: {at, up}}`, the stat keys of `stats` and `lifeMax`; absent
+while none changed): the last change of each stat, `at` in milliseconds of the session's clock, the view's `tick` × 5,
+and `up` for a gain; the panels colour a stat while `tick` × 5 is less than `at` + 60000 (`30`). Every soldier in the
+view whose floating damage number is up carries `damage {amount, steps}`: the damage it shows and how many of its 8
+drift steps of 250 ms it has taken (`33`).
 `itemLocatorsLocked` stands while the original's item locators wait for the items-seen quote (`fLockItemLocators`,
 `08`). `interfaceLocked` stands while the original locks the interface under the wait cursor (`LOCKUI_MODE`;
 `playerInterfaceLocked`, `src/sim/tactical/interface-lock.ts`), when tactical orders answer `uiLocked`. A soldier off

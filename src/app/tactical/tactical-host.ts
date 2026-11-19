@@ -495,7 +495,10 @@ export class TacticalHost {
   }
 
   welcome(stateReplaced: boolean): void {
-    if (stateReplaced) this.#wireframes.restart();
+    if (stateReplaced) {
+      this.#wireframes.restart();
+      this.#screen?.stateReplaced();
+    }
     const session = this.#o.session;
     this.#sound.director?.reset(session.soldiers, session.view?.helicopterDrop ?? null);
     this.#frames?.reset();

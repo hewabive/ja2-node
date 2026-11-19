@@ -4,6 +4,7 @@
 // @src map); Tactical/SkillCheck.cc SkillCheck and Tactical/Soldier_Control.cc DoMercBattleSound (the curse of a failed
 // @src check while the map screen is up, in the merc's voice wherever he is).
 
+import { type SessionClock, tickClock } from '../clock.ts';
 import type { DeathCry, SimEvent } from '../events.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { type CombatContext, type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
@@ -19,6 +20,10 @@ export type CombatEvents = CombatContext['events'];
 
 const IDLE_TURN = { attackBusyCount: 0 };
 const DISCARDED_EVENTS: CombatEvents = { push: () => 0 };
+
+export function sessionClockOf(state: StrategicState): SessionClock {
+  return tickClock(() => state.session.tick);
+}
 
 export function offMapCombatContext(
   state: StrategicState,
@@ -37,6 +42,7 @@ export function offMapCombatContext(
     events,
     experienceHooks,
     ...(narrative ? { narrative } : {}),
+    sessionClock: sessionClockOf(state),
   };
 }
 

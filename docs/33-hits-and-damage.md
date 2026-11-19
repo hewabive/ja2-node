@@ -99,7 +99,8 @@ map screen's body with the drop rules of another team) and none of the roster's 
 **The damage window is presentation with a gameplay effect.** A soldier's floating damage number accumulates every life
 loss for 8 × 250 ms, and the "blown away" chest kill reads that sum: hits landing within about 2 s add up. The window
 only runs for a soldier the player can see, so hits on an unseen soldier keep adding up until a visible one. ja2-node
-keeps it in the simulation as a game-ms timer (`damageWindow`, `updateDamageDisplay`).
+keeps it in the simulation as a game-ms timer (`damageWindow`, `updateDamageDisplay`); the view carries it as `damage`,
+which the tactical screen draws, so a load shows the number of the save (`30`).
 
 **Suppression works only in turn-based combat.** Points accrue in real time too, but only the end of an attack in
 combat turns them into lost APs, morale and a stance change; the 5 s real-time turn wipes them.

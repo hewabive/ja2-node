@@ -13,7 +13,10 @@
 // @src Interface_Panels.cc CheckForAndAddMercToTeamPanel (a vehicle's passengers in its squad's panel, 2026-11-05);
 // @src Interface.cc DrawSelectedUIAboveGuy and DrawBarsInUIBox (the life and fuel bars over any vehicle, 2026-11-05);
 // @src Soldier_Control.cc SetSoldierLocatorOffsets (the frame and facing behind sBoundingBox*, 2026-11-09);
-// @src Soldier_Create.cc TacticalCopySoldierFromCreateStruct (the default name of a soldier without one, 2026-11-13).
+// @src Soldier_Create.cc TacticalCopySoldierFromCreateStruct (the default name of a soldier without one, 2026-11-13);
+// @src Interface_Panels.cc PrintStat and MapScreen.cc DrawCharStats (uiChange*Time and usValueGoneUp behind the
+// @src recent change colour, 2026-11-19); Interface_Control.cc RenderTopmostTacticalInterface (fDisplayDamage, sDamage
+// @src and bDisplayDamageCount behind the damage number, 2026-11-19).
 
 import { type PresentationTimeline, spriteFrameAt } from '../../content/anim/timelines.ts';
 import type { OwnHintInputs } from '../knowledge/view.ts';
@@ -31,7 +34,7 @@ import { type Stance, soldierStance } from './movement-mode.ts';
 import { Opp } from './perception/opp.ts';
 import { carriedWeightPercentOf, enoughPoints } from './points.ts';
 import { apsToClimbRoof, type RoofClimb, roofClimb } from './roofs.ts';
-import { NOBODY, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
+import { type ChangedStat, NOBODY, OKLIFE, Side, type Soldier, type StatChange, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { passengersAboard, seatedVehicleId, vehicleOfOurs } from './vehicle-presence.ts';
 
@@ -46,6 +49,20 @@ export interface SoldierStatsView {
   readonly explosives: number;
   readonly mechanical: number;
   readonly medical: number;
+}
+
+export type StatChangeKey = keyof SoldierStatsView | 'lifeMax';
+
+export interface StatChangeView {
+  readonly at: number;
+  readonly up: boolean;
+}
+
+export type StatChangesView = Partial<Record<StatChangeKey, StatChangeView>>;
+
+export interface DamageNumberView {
+  readonly amount: number;
+  readonly steps: number;
 }
 
 export type WeaponModeView = 'single' | 'burst' | 'launcher';
@@ -89,6 +106,7 @@ export interface OwnSoldierFields {
   readonly passengers?: readonly number[];
   readonly drunk?: DrunkView;
   readonly adrenaline?: AdrenalineView;
+  readonly statChanges?: StatChangesView;
   readonly hint: OwnHintInputs;
 }
 
@@ -125,6 +143,20 @@ export function statsView(s: Soldier): SoldierStatsView {
     mechanical: st.mechanical,
     medical: st.medical,
   };
+}
+
+function statChangeKey(stat: ChangedStat): StatChangeKey {
+  return stat === 'experience' ? 'level' : stat;
+}
+
+export function statChangesView(s: Soldier): { readonly statChanges?: StatChangesView } {
+  const changes = Object.entries(s.statChanges) as [ChangedStat, StatChange][];
+  if (changes.length === 0) return {};
+  return { statChanges: Object.fromEntries(changes.map(([stat, change]) => [statChangeKey(stat), { ...change }])) };
+}
+
+export function damageNumberView(s: Soldier): { readonly damage?: DamageNumberView } {
+  return s.displayDamage ? { damage: { amount: s.damageWindow, steps: s.damageWindowSteps } } : {};
 }
 
 function seenOpponents(s: Soldier, visible: ReadonlySet<number>): number[] {
@@ -202,6 +234,7 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     vehicle: seatView(t, s),
     ...(vehicleOfOurs(s) ? { passengers: passengersAboard(t, s) } : {}),
     ...drugView(s),
+    ...statChangesView(s),
     hint: ownHintInputs(s),
   };
 }

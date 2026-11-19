@@ -34,7 +34,7 @@ import type { KeyTable } from '../sim/tactical/doors/keys.ts';
 import { drugView } from '../sim/tactical/drugs.ts';
 import { inventoryView } from '../sim/tactical/inventory-view.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
-import { statsView } from '../sim/tactical/soldier-view.ts';
+import { statChangesView, statsView } from '../sim/tactical/soldier-view.ts';
 import { mercAccountStatusView, mercContractFields, mercSalary } from './contract-view.ts';
 import { helicopterView, vehicleViews } from './helicopter-view.ts';
 import { arrivalTime, laptopSummary } from './laptop-view.ts';
@@ -221,6 +221,7 @@ function mercView(m: ViewedMerc): StrategicMercView {
     asleep: m.asleep,
     ...(m.assignment === Assignment.VEHICLE || m.isVehicle ? { vehicle: m.vehicleId } : {}),
     ...(m.soldier ? drugView(m.soldier) : {}),
+    ...(m.soldier ? statChangesView(m.soldier) : {}),
   };
 }
 

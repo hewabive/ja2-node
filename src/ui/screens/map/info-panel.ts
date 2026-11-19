@@ -14,14 +14,14 @@
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
-import type { StrategicMercView, StrategicVehicleView, StrategicView } from '../../../protocol/view.ts';
+import type { StatChangeView, StrategicMercView, StrategicVehicleView, StrategicView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
 import { hCenterVCenterAlign, hRightVCenterAlign, stringPixLength } from '../../text/measure.ts';
 import { sprintMoney } from '../../text/money.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import type { UiTextService } from '../../text/text-service.ts';
-import type { StatFlash } from '../tactical/panel-models.ts';
+import { changedRecently } from '../tactical/panel-models.ts';
 import { STAT_KEYS, type StatKey } from '../tactical/sm-panel.ts';
 import {
   Assignment,
@@ -36,7 +36,6 @@ import {
 import type { LayoutParams } from './layout-params.ts';
 import { isMechanical, isPow, isRobot } from './merc-soldier.ts';
 
-export const CHANGE_STAT_RECENTLY_DURATION_MS = 60000;
 export const CornerIcon = { CONTRACT: 0, INSURANCE: 1, DEPOSIT: 2 } as const;
 const STATUS_STRINGS = 'pMapScreenStatusStrings';
 const StatusWord = { HEALTH: 0, ENERGY: 1, MORALE: 2, CONDITION: 3, FUEL: 4 } as const;
@@ -85,8 +84,7 @@ export interface InfoContext {
   readonly text: UiTextService;
   readonly strategic: StrategicView;
   readonly fullName: string | null;
-  readonly flashes: ReadonlyMap<string, StatFlash> | undefined;
-  readonly now: number;
+  readonly sessionMs: number;
   readonly worldMinutes: number;
 }
 
@@ -124,9 +122,9 @@ function right(ctx: InfoContext, box: Box3, text: string, colour: number, height
   mprint(ctx.list, ctx.font, at.x, at.y, text, fontColors(colour, DEFAULT_SHADOW));
 }
 
-function statColour(flash: StatFlash | undefined, now: number): number {
-  if (!flash || now >= CHANGE_STAT_RECENTLY_DURATION_MS + flash.at) return CHAR_TEXT_FONT_COLOR;
-  return flash.up ? FontColor.LTGREEN : FontColor.RED;
+function statColour(change: StatChangeView | undefined, sessionMs: number): number {
+  if (!changedRecently(change, sessionMs)) return CHAR_TEXT_FONT_COLOR;
+  return change.up ? FontColor.LTGREEN : FontColor.RED;
 }
 
 export function etaDayHourMinute(text: UiTextService, minutes: number): string {
@@ -209,8 +207,8 @@ function health(ctx: InfoContext, g: InfoGeometry, m: StrategicMercView): void {
   x += stringPixLength(life, ctx.font);
   mprint(ctx.list, ctx.font, x, y, '/', fontColors(CHAR_TEXT_FONT_COLOR, DEFAULT_SHADOW));
   x += stringPixLength('/', ctx.font);
-  const flash = ctx.flashes?.get('health');
-  mprint(ctx.list, ctx.font, x, y, String(m.lifeMax), fontColors(statColour(flash, ctx.now), DEFAULT_SHADOW));
+  const colour = statColour(m.statChanges?.lifeMax, ctx.sessionMs);
+  mprint(ctx.list, ctx.font, x, y, String(m.lifeMax), fontColors(colour, DEFAULT_SHADOW));
 }
 
 export interface CharacterNames {
@@ -236,7 +234,7 @@ export function renderCharacterInfo(ctx: InfoContext, g: InfoGeometry, m: Strate
   STAT_KEYS.forEach((key: StatKey, i) => {
     const at = g.stats[i];
     if (!at || !m.stats) return;
-    right(ctx, [at[0], at[1], g.statWidth], String(m.stats[key]).padStart(3, ' '), statColour(ctx.flashes?.get(key), ctx.now), height);
+    right(ctx, [at[0], at[1], g.statWidth], String(m.stats[key]).padStart(3, ' '), statColour(m.statChanges?.[key], ctx.sessionMs), height);
   });
   centred(ctx, [g.contract[0], g.contract[1], g.contract[2], height], contractText(ctx, m), CHAR_TEXT_FONT_COLOR);
   if (m.salary !== undefined) right(ctx, g.salary, sprintMoney(m.salary), CHAR_TEXT_FONT_COLOR, height);

@@ -325,6 +325,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       if (stateReplaced) sessionSpeech.discardLines();
       sessionSpeech.followScreen();
       tactical?.welcome(stateReplaced);
+      map?.welcome(stateReplaced);
     };
   };
   const playSplash = (audible: Promise<boolean>) =>

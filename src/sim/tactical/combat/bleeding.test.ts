@@ -3,6 +3,7 @@ import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { TICK_MS } from '../../clock.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
@@ -126,6 +127,20 @@ describe("the bleeding presentation of our merc (Soldier_Control.cc CheckBleedin
     beginMercTurn(spent.sim.state, spent.s);
     expect(spent.s.lifeMax).toBe(14);
     expect(bled(spent.sim)).toEqual([{ type: 'mercBled', soldier: spent.s.id }]);
+  });
+
+  it("prints our dying merc's maximum life red from the bleed that costs him a point of it, nobody else's (uiChangeHealthTime)", () => {
+    const AT_TICK = 30;
+    const dying = bleeder(Team.OUR, 10);
+    dying.sim.state.tick = AT_TICK;
+    beginMercTurn(dying.sim.state, dying.s);
+    expect(dying.s.statChanges).toEqual({ lifeMax: { at: AT_TICK * TICK_MS, up: false } });
+    const bandaged = bleeder(Team.OUR, 50);
+    bandaged.s.bleeding = 20;
+    beginMercTurn(bandaged.sim.state, bandaged.s);
+    const enemy = bleeder(Team.ENEMY, 10);
+    beginMercTurn(enemy.sim.state, enemy.s);
+    expect([bandaged.s.statChanges, enemy.s.lifeMax, enemy.s.statChanges]).toEqual([{}, 79, {}]);
   });
 
   it('tells nothing of a bleeding soldier of another team', () => {

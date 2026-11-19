@@ -135,6 +135,7 @@ import {
 } from './merc-fate.ts';
 import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
 import { campaignNarrativePort } from './narrative-port.ts';
+import { sessionClockOf } from './off-map-combat.ts';
 import { preBattlePanel } from './pre-battle-panel.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
@@ -596,6 +597,7 @@ export class BattleFlow implements FateContext {
       },
       experienceHooks: this.campaign.experienceHooks,
       narrative: campaignNarrativePort(this.campaign),
+      sessionClock: sessionClockOf(this.campaign.state),
     };
   }
 

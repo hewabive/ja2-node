@@ -1,3 +1,4 @@
+import type { SessionClock } from '../../clock.ts';
 import type { VehicleRecord } from '../../vehicles/vehicle-list.ts';
 import type { TacticalContent } from '../content.ts';
 import type { NarrativePort } from '../narrative/port.ts';
@@ -46,6 +47,7 @@ export interface CombatContext extends LoadedSector {
   readonly events: { push(event: StatChangedEvent | SkillCheckFailedEvent | CeramicPlatesSmashedEvent): unknown };
   readonly experienceHooks?: ExperienceHooks;
   readonly narrative?: NarrativePort;
+  readonly sessionClock: SessionClock;
 }
 
 export interface ImpactMode {

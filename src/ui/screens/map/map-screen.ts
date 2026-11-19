@@ -70,7 +70,7 @@ import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts'
 import { idiv } from '../../../core/int.ts';
 import type { AssignmentOptions, MoveBoxOptions, PassTargets } from '../../../protocol/hints.ts';
 import type { MessageEntry } from '../../../protocol/message-log.ts';
-import type { CommandEnvelope } from '../../../protocol/messages.ts';
+import { type CommandEnvelope, TICK_MS } from '../../../protocol/messages.ts';
 import { refusalMessage, refusalOf, refusalSoldierOf } from '../../../protocol/refusals.ts';
 import type { ContractOptionView, PlayerView, StrategicMercView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import { frameOf } from '../../assets.ts';
@@ -106,7 +106,6 @@ import { drawSoldierBars } from '../tactical/bars.ts';
 import { drawFace, FaceAnimator, type FaceArt, faceRecordOf } from '../tactical/faces.ts';
 import { drawInventoryItem } from '../tactical/item-tile.ts';
 import { formatMessageEntry } from '../tactical/message-format.ts';
-import type { StatFlash } from '../tactical/panel-models.ts';
 import { drawRadarPicture, nightTime } from '../tactical/radar-picture.ts';
 import { AssignmentMenus } from './assignment-menus.ts';
 import { type BattleNoticeEvent, battleNoticesOf, battleNoticeText } from './battle-notice.ts';
@@ -181,13 +180,6 @@ function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: 
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 type VehicleEvent = Extract<FrameEvent, { readonly type: 'vehicleBoarded' | 'vehicleLeft' }>;
-
-const HEALTH_STAT = 'health';
-const INFO_STAT_KEYS: Readonly<Record<string, string>> = { experience: 'level', lifeMax: HEALTH_STAT };
-
-function infoStatKey(stat: string): string {
-  return INFO_STAT_KEYS[stat] ?? stat;
-}
 
 const OWNER = 'mapScreen';
 const RADAR_WIDTH = 88;
@@ -341,7 +333,6 @@ export class MapScreen implements Screen {
   readonly #route = new RouteAnimation();
   readonly #blink = new CompressionBlink(PAUSE_GAME_TIMER);
   readonly #faces = new Map<number, FaceAnimator>();
-  readonly #flashes = new Map<number, Map<string, StatFlash>>();
   readonly #handledPrompts = new Set<string>();
   readonly #promptBoxes = new Map<string, MessageBox>();
   readonly #answeredElsewhere = new Set<string>();
@@ -1016,14 +1007,11 @@ export class MapScreen implements Screen {
 
   #event(event: FrameEvent): void {
     switch (event.type) {
-      case 'statChanged':
-        this.#flashStat(event.soldier, infoStatKey(event.stat), event.change > 0);
-        return;
       case 'groupArrived':
         if (event.final) this.#arrivalSelection(event.sector);
         return;
       case 'mercBled':
-        this.#mercBled(event.soldier, event.lifeMaxLost === true);
+        this.#mercBled(event.soldier);
         return;
       case 'damageFeedback':
         this.#faces.get(event.soldier)?.flash(this.#now);
@@ -1052,14 +1040,12 @@ export class MapScreen implements Screen {
     }
   }
 
-  #flashStat(soldier: number, key: string, up: boolean): void {
-    const flashes = this.#flashes.get(soldier) ?? new Map<string, StatFlash>();
-    flashes.set(key, { at: this.#now, up });
-    this.#flashes.set(soldier, flashes);
+  stateReplaced(): void {
+    this.#eventBoxes.length = 0;
+    this.#faces.clear();
   }
 
-  #mercBled(soldier: number, lifeMaxLost: boolean): void {
-    if (lifeMaxLost) this.#flashStat(soldier, HEALTH_STAT, false);
+  #mercBled(soldier: number): void {
     if (!this.#entered) return;
     const row = this.list.rowOf(soldier);
     if (row >= 0) this.list.changeInfo(row, true);
@@ -2632,8 +2618,7 @@ export class MapScreen implements Screen {
       text: this.#env.text,
       strategic,
       fullName: profile?.name ?? null,
-      flashes: this.#flashes.get(m.id),
-      now: this.#now,
+      sessionMs: (this.#playerView()?.tick ?? 0) * TICK_MS,
       worldMinutes: clock ? clock.day * MINUTES_PER_DAY + clock.hour * MINUTES_PER_HOUR + clock.minute : 0,
     };
     renderCharacterInfo(info, infoGeometry(p), m, (sector) => this.#townOf(sector));

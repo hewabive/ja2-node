@@ -7,3 +7,11 @@ export function ticksForMs(ms: number): number {
 export function msForTicks(ticks: number): number {
   return ticks * TICK_MS;
 }
+
+export interface SessionClock {
+  ms(): number;
+}
+
+export function tickClock(tick: () => number): SessionClock {
+  return { ms: () => msForTicks(tick()) };
+}

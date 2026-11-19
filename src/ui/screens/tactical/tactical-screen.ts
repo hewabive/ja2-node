@@ -95,7 +95,10 @@
 // @src input but the auto-bandage keys and the mask's buttons, 2026-11-06); Interface_Panels.cc SetSMPanelCurrentMerc
 // @src (the single merc panel's switch to another merc closes the item description box, 2026-11-15).
 // @src src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (no radar picture in a meanwhile, 2026-11-18); src/game/Tactical/Soldier_Ani.cc
-// @src code 477 (LocateGridNo at the target of an AI attack, 2026-11-18).
+// @src code 477 (LocateGridNo at the target of an AI attack, 2026-11-18); Interface_Control.cc RenderTopmostTacticalInterface
+// @src (the damage number at the true position + sDamageX/Y, the bounding box offset at the hit moved a pixel each step,
+// @src + 20, - 5, from the soldier's sDamage and bDisplayDamageCount) and Interface_Panels.cc PrintStat (the stat colour
+// @src from uiChange*Time and usValueGoneUp, 2026-11-19).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -185,7 +188,6 @@ import { lineHeightOf, TacticalMessageLog } from './message-log.ts';
 import { MoneyActions } from './money-actions.ts';
 import {
   aboveGuyPosition,
-  DamageNumber,
   type EntryCameraMove,
   FeedbackBox,
   healthString,
@@ -200,11 +202,11 @@ import {
   TOP_BAR_HEIGHT,
   TopBar,
 } from './overlays.ts';
-import { type PanelState, type StatFlash, smPanelModel, teamPanelModel } from './panel-models.ts';
+import { type PanelState, smPanelModel, teamPanelModel } from './panel-models.ts';
 import { ItemPickupMenu } from './pickup-menu.ts';
 import { type PlacementAnswer, type PlacementMerc, PlacementPanel } from './placement-panel.ts';
 import { drawRadarPicture } from './radar-picture.ts';
-import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-panel.ts';
+import { SmPanelController, type Stance } from './sm-panel.ts';
 import {
   type ActiveMercFilter,
   assignmentOf,
@@ -323,12 +325,22 @@ interface EdgeState {
 
 type InterfaceEdge = 'combat' | 'conversation';
 
+function finishedPanelAnimation(now: number): PanelFaceAnimation {
+  return { closeFrame: CLOSE_PANEL_LAST_FRAME, deadFrame: CLOSE_PANEL_LAST_FRAME, dead: true, finished: true, since: now };
+}
+
 function placementPromptOf(view: PlayerView | null): TacticalPlacementPromptView | null {
   return view?.prompt?.kind === 'tacticalPlacement' ? view.prompt : null;
 }
 
 function clearsMessageLog(frame: ViewFrame): boolean {
   return frame.events?.some((e) => e.type === 'tacticalClearedForCompression') ?? false;
+}
+
+interface DamageOrigin {
+  readonly steps: number;
+  readonly x: number;
+  readonly y: number;
 }
 
 interface PanelFaceAnimation {
@@ -354,8 +366,7 @@ export class TacticalScreen implements Screen {
   readonly #teamView: LayoutView;
   readonly #smView: LayoutView;
   readonly #faces = new Map<number, FaceAnimator>();
-  readonly #flashes = new Map<number, Map<StatKey, StatFlash>>();
-  readonly #damage = new Map<number, DamageNumber>();
+  readonly #damageOrigins = new Map<number, DamageOrigin>();
   readonly #locators = new Map<number, Locator>();
   readonly #blinkCounters = new Map<number, TimeCounter>();
   readonly #itemLocators = new ItemLocators();
@@ -1230,9 +1241,29 @@ export class TacticalScreen implements Screen {
   }
 
   #observeOwn(s: SoldierView): void {
+    const before = this.#remember(s);
+    if (before && !isDead(before) && isDead(s)) this.#soldierDied(s.id);
+  }
+
+  #remember(s: SoldierView): SoldierView | undefined {
     const before = this.#lastSeen.get(s.id);
     this.#lastSeen.set(s.id, s);
-    if (before && !isDead(before) && isDead(s)) this.#soldierDied(s.id);
+    if (!before && isDead(s) && !this.#panelAnimations.has(s.id)) this.#panelAnimations.set(s.id, finishedPanelAnimation(this.#now));
+    return before;
+  }
+
+  stateReplaced(): void {
+    this.#damageOrigins.clear();
+    this.#locators.clear();
+    this.#itemLocators.clear();
+    this.#mineLocators.clear();
+    this.#corpseLocator.end();
+    this.#feedback.remove();
+    this.#eventBoxes.length = 0;
+    this.#panelAnimations.clear();
+    this.#fallen.clear();
+    this.#lastSeen.clear();
+    this.#lastInventories.clear();
   }
 
   #updatePanelAnimations(): void {
@@ -1264,10 +1295,11 @@ export class TacticalScreen implements Screen {
     this.#followServer();
     this.#applyPanelSwitch();
     this.dialogue.update(this.#now);
-    for (const s of ownSoldiers(view)) this.#lastSeen.set(s.id, s);
+    for (const s of ownSoldiers(view)) this.#remember(s);
     this.#syncSlots();
     this.#updatePanelAnimations();
     this.#updateFaces();
+    this.#syncDamageOrigins(view);
     this.#updateTimers(now);
     this.#syncViewport();
     this.#env.world.setSelected(this.#selected);
@@ -1339,7 +1371,6 @@ export class TacticalScreen implements Screen {
   }
 
   #updateTimers(now: number): void {
-    for (const [id, damage] of this.#damage) if (!damage.update(this.#simMs())) this.#damage.delete(id);
     if (now - this.#radarBlinkAt >= RADAR_MAP_BLINK_MS) {
       this.#radarBlinkAt = now;
       this.#radarBlink = !this.#radarBlink;
@@ -1389,7 +1420,7 @@ export class TacticalScreen implements Screen {
       interfaceLevel: this.#interfaceLevel,
       cursorMode: this.#cursorModeOf(),
       burstCapable: this.#burstCapable(this.#smSoldier()),
-      now: this.#now,
+      sessionMs: this.#simMs(),
       shopOpen: this.dialogue.shopOpen,
     };
   }
@@ -1413,15 +1444,7 @@ export class TacticalScreen implements Screen {
     } else {
       const s = this.#smSoldier();
       const stance: Stance = s ? this.#env.world.soldierHeight(s.id) : 'stand';
-      this.#sm.model = smPanelModel(
-        state,
-        s,
-        stance,
-        this.#flashes.get(s?.id ?? -1) ?? new Map(),
-        ownSoldiers(view),
-        text,
-        this.#helpSources(),
-      );
+      this.#sm.model = smPanelModel(state, s, stance, ownSoldiers(view), text, this.#helpSources());
     }
     const paused = this.#env.client.paused;
     const keys = this.#keyGates(view);
@@ -1690,28 +1713,22 @@ export class TacticalScreen implements Screen {
     });
   }
 
-  #showDamage(soldier: number, amount: number): void {
-    const offset = this.#boundingOffset(soldier);
-    const number = this.#damage.get(soldier) ?? new DamageNumber(this.#simMs(), offset.x, offset.y);
-    number.restart(this.#simMs(), offset.x, offset.y);
-    number.amount = amount;
-    this.#damage.set(soldier, number);
+  #syncDamageOrigins(view: PlayerView | null): void {
+    const shown = new Set<number>();
+    for (const s of view?.soldiers ?? []) {
+      const damage = s.damage;
+      if (!damage) continue;
+      shown.add(s.id);
+      const origin = this.#damageOrigins.get(s.id);
+      const offset = !origin || origin.steps > damage.steps ? this.#boundingOffset(s.id) : origin;
+      this.#damageOrigins.set(s.id, { steps: damage.steps, x: offset.x, y: offset.y });
+    }
+    for (const id of this.#damageOrigins.keys()) if (!shown.has(id)) this.#damageOrigins.delete(id);
   }
 
   #event(event: FrameEvent, frame: ViewFrame): void {
     const view = this.#view();
     switch (event.type) {
-      case 'lifeLost':
-        if (event.shown !== undefined) this.#showDamage(event.soldier, event.shown);
-        return;
-      case 'statChanged': {
-        const key = event.stat === 'experience' ? 'level' : event.stat;
-        if (!STAT_KEYS.includes(key as StatKey) || event.change === 0) return;
-        const flashes = this.#flashes.get(event.soldier) ?? new Map<StatKey, StatFlash>();
-        flashes.set(key as StatKey, { at: this.#now, up: event.change > 0 });
-        this.#flashes.set(event.soldier, flashes);
-        return;
-      }
       case 'itemsPickedUp': {
         const before = this.#lastInventories.get(event.soldier) ?? [];
         const after = frame.changed.find((c) => c.id === event.soldier)?.inventory ?? [];
@@ -2627,13 +2644,14 @@ export class TacticalScreen implements Screen {
     const corpse = this.#corpseLocator.shown();
     if (corpse) this.#drawTileLocator(list, radio, corpse, 0);
     for (const s of this.#view()?.soldiers ?? []) this.#aboveGuy(list, s, top, font, radio, hostileRadio);
-    for (const [id, damage] of this.#damage) {
-      const s = soldierById(this.#view(), id);
-      const pos = this.#env.world.soldierTrueScreenPosition(id);
-      if (!s || !pos) continue;
-      const x = pos.x + damage.dx + DAMAGE_OFFSET_X;
-      let y = pos.y + damage.dy + DAMAGE_OFFSET_Y;
-      if (y < top) y = pos.y - this.#boundingOffset(id).y;
+    for (const s of this.#view()?.soldiers ?? []) {
+      const damage = s.damage;
+      const origin = this.#damageOrigins.get(s.id);
+      const pos = this.#env.world.soldierTrueScreenPosition(s.id);
+      if (!damage || !origin || !pos) continue;
+      const x = pos.x + origin.x + damage.steps + DAMAGE_OFFSET_X;
+      let y = pos.y + origin.y - damage.steps + DAMAGE_OFFSET_Y;
+      if (y < top) y = pos.y - this.#boundingOffset(s.id).y;
       mprint(list, font, x, y, `-${damage.amount}`, fontColors(FontColor.MCOLOR_WHITE, DEFAULT_SHADOW));
     }
     list.popClip();
@@ -2678,7 +2696,7 @@ export class TacticalScreen implements Screen {
     const shown = selectedBox || (locator?.shown ?? false) || multiSelected || s.id === this.#hoveredSoldier;
     if (!shown) return;
     const profiled = hasProfile(s);
-    const at = aboveGuyPosition(pos, offset, this.#damage.has(s.id), top, profiled);
+    const at = aboveGuyPosition(pos, offset, s.damage !== undefined, top, profiled);
     let x = at.x;
     let y = at.y;
     const catcher = this.controls.input.itemTile.catcher;

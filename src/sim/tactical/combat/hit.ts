@@ -18,7 +18,8 @@
 // @src Weapons.cc BulletImpact's STR_LOSES_* of a visible target with a name and STR_HEAD_HIT of any (2026-11-14);
 // @src SoldierGotHitGunFire's STR_LATE_20 of any soldier a leg hit knocks over (2026-11-14); Overhead.cc ExecuteOverhead's
 // @src damage counter, whose TIMECOUNTERDONE PauseTime holds (2026-11-14); SoldierGotHitGunFire's QUOTE_BLINDED and
-// @src SoldierTakeDamage's ShutupaYoFace below consciousness (2026-11-18).
+// @src SoldierTakeDamage's ShutupaYoFace below consciousness (2026-11-18); BulletImpact's uiChange*Time and
+// @src usValueGoneUp of a visible target with a name (2026-11-19).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -69,7 +70,7 @@ import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
 import { freeUpAttackerGivenTarget, reduceAttackBusyCount, reduceAttackBusyGivenTarget } from './barrier.ts';
 import { type Bullet, bulletWorldXY, removeBullet } from './bullets.ts';
 import { checkForAndHandleSoldierDyingNotFromHit } from './death.ts';
-import { StatCause, statChange } from './experience.ts';
+import { markStatChange, StatCause, statChange } from './experience.ts';
 import { bulletImpact, type ImpactResult, isCreatureOrBloodcat } from './impact.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { giveBackWhatACutStrikeHeld, holdsTheStrikeWillRelease } from './strikes.ts';
@@ -238,8 +239,10 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
 }
 
 export function tellCriticalHit(t: TacticalState, s: Soldier, r: ImpactResult): void {
-  if (r.statLoss && s.visible === Visible.SEEN && hasName(s))
+  if (r.statLoss && s.visible === Visible.SEEN && hasName(s)) {
+    markStatChange(t, s, r.statLoss.stat, false);
     t.events.push({ type: 'statLost', soldier: s.id, stat: r.statLoss.stat, points: r.statLoss.points });
+  }
   if (r.headHit) t.events.push({ type: 'headHit', ...namedSoldier(t, s) });
 }
 

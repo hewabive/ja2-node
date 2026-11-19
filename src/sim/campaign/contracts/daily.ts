@@ -18,6 +18,7 @@ import { QuoteSaidFlag } from '../../tactical/narrative/merc-quotes.ts';
 import { isProfileDead, MercStatus, type ProfileProgress, StatKind } from '../../tactical/profiles.ts';
 import { NO_PROFILE, OKLIFE, Personality, SkillTrait } from '../../tactical/soldier.ts';
 import { handleMoraleEvent, MoraleEvent } from '../morale.ts';
+import { sessionClockOf } from '../off-map-combat.ts';
 import { isAimOrMercType, MAX_NUMBER_MERCS, NUM_PROFILES, ProfileMiscFlag3 } from '../profiles.ts';
 import { isMercOnTeam } from '../relations/relations.ts';
 import { calcDeathRate, mercThinksDeathRateTooHigh, mercThinksHisMoraleIsTooLow } from '../relations/reputation.ts';
@@ -147,6 +148,7 @@ function profileStatContext(ctx: ContractContext): CombatContext {
     turn: { attackBusyCount: 0 },
     events: { push: () => 0 },
     experienceHooks: ctx.experienceHooks,
+    sessionClock: sessionClockOf(ctx.state),
   };
 }
 
