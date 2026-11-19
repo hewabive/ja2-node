@@ -337,7 +337,10 @@ player starts one: `initNewGame` leaves the game in the laptop on day 1, 01:00; 
 laptop's own commands with real prices, deposits and refusals; then, unless `land: false`, the first `compressTime`
 loads the start sector at 07:00 (`15`) and the helicopter drops the squad one at a time, about 25 to 40 s of tactical
 time the session runs before it answers; `land: "skip"` lands them at once as the Esc key does (`25`). `hire: []`
-returns the session in the open laptop.
+returns the session in the open laptop. `seed` seeds the random streams; without it the server takes one from its
+entropy (`src/server/entropy.ts`), as the original seeds its generator from the clock (`sgp/Random.cc:39-59`, `sgp/SGP.cc:433`) and two
+of its new games differ. The reply names the seed in `seed`, the log origin keeps it, and passing it again repeats the
+game; a load answers with the seed of its own reseed in `load.seed` instead.
 
 **Closing.** WebSocket `closeSession` and `DELETE /api/sessions/:id` take the session's Dead is Dead save point (`27`)
 and release it; the default session cannot be closed. WebSocket `leave` (the Main Menu of the game page) closes the

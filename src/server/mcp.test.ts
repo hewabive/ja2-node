@@ -221,6 +221,37 @@ describe('MCP endpoint', () => {
     await client.close();
   });
 
+  it('seeds a new session from the server entropy unless the request names a seed, and answers with the seed it took', async () => {
+    const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
+    const drawn = [40_000_001, 40_000_002];
+    const app = createApp({
+      vfs: new Vfs([]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: false },
+      sessions,
+      defaultSession: 'sandbox',
+      createSession: async (id, request) =>
+        new InProcessHost(new Session(id, counter(), undefined, { kind: 'sandbox', seed: request.seed })),
+      entropy: () => drawn.shift() ?? 0,
+    });
+    const { client, call } = await mcpClient(app);
+    const mcp = await call('newSession');
+    expect(mcp.seed).toBe(40_000_001);
+    expect(await call('newSession', { seed: 7 })).toMatchObject({ seed: 7 });
+    const post = (body: unknown) =>
+      app.request('http://localhost/api/sessions', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const http = await (await post({})).json();
+    expect(http.seed).toBe(40_000_002);
+    expect((await sessions.get(http.session)?.inputLog())?.origin).toEqual({ kind: 'sandbox', seed: 40_000_002 });
+    expect(await (await post({ seed: 8 })).json()).toMatchObject({ seed: 8 });
+    expect(drawn).toEqual([]);
+    await client.close();
+  });
+
   it('requires the token', async () => {
     const app = createApp({ vfs: new Vfs([]), token, info: { originalData: false, slfCount: 0, stubs: false } });
     expect((await app.request('http://localhost/mcp', { method: 'POST' })).status).toBe(401);

@@ -1,4 +1,3 @@
-import { randomInt } from 'node:crypto';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { StopReport } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
@@ -7,6 +6,7 @@ import { reseedMain } from '../sim/snapshot/session.ts';
 import { campaignIdOfSave } from './campaign-id.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { type ContentSource, type EngineIdentity, type LogicIdentity, textIdentityOf } from './content-identity.ts';
+import { type Entropy, serverEntropy } from './entropy.ts';
 import { describeOrigin, encodeInputLog, encodeInputLogAsync, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
 import { TacticalSession } from './sandbox.ts';
 import {
@@ -48,7 +48,6 @@ import type { Session, SessionSim } from './session.ts';
 import { type SessionSnapshot, snapshotSession } from './session-snapshot.ts';
 
 export const QUICK_ALIAS = 'quick';
-const SEED_LIMIT = 2 ** 32;
 const WARNED_LOGIC_SOURCE: ContentSource = 'stubs';
 const LOGIC_DIFFERENCE_WARNING: LoadWarning = 'stubPackDiffers';
 
@@ -111,7 +110,7 @@ export interface SaveServiceOptions {
   readonly dataVersion: string;
   readonly engine: EngineIdentity;
   readonly restore: (snapshot: SessionSnapshot) => Promise<SessionSim>;
-  readonly entropy?: () => number;
+  readonly entropy?: Entropy;
   readonly now?: () => Date;
   readonly warn?: (message: string) => void;
 }
@@ -231,7 +230,7 @@ export class SaveService {
   }
 
   #entropy(): number {
-    return this.#options.entropy?.() ?? randomInt(0, SEED_LIMIT);
+    return (this.#options.entropy ?? serverEntropy)();
   }
 
   #warn(message: string): void {

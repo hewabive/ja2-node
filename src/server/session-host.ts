@@ -26,6 +26,7 @@ import {
   optionsStatus,
   type SessionFactory,
   type SessionRequest,
+  seedReport,
   viewerPromptsStatus,
 } from './session-registry.ts';
 import { type Slicer, SliceScheduler, TimeSlicer } from './slicing.ts';
@@ -47,6 +48,7 @@ export interface SessionObservation {
 }
 
 export interface CreationReport {
+  readonly seed?: number;
   readonly load?: LoadOutcome;
   readonly import?: SaveImportReport;
 }
@@ -271,7 +273,7 @@ export class InProcessHost implements SessionHost {
   report(): Promise<CreationReport> {
     return Promise.resolve().then(() => {
       const load = this.#saves?.lastLoad(this.session);
-      return { ...(load ? { load } : {}), ...importReport(this.session) };
+      return { ...seedReport(this.session), ...(load ? { load } : {}), ...importReport(this.session) };
     });
   }
 

@@ -29,6 +29,7 @@ import { ITEM_CATALOGUE_ROUTE } from '../protocol/items.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { LOOPBACK_HOSTS } from './allowed-hosts.ts';
 import { type EncodedAssetManifest, encodeAssetManifest, VfsHashes } from './assets-manifest.ts';
+import type { Entropy } from './entropy.ts';
 import type { InstallationStore } from './installation-store.ts';
 import { buildItemCatalogue, type EncodedCatalogue } from './item-catalogue.ts';
 import { handleMcpRequest } from './mcp.ts';
@@ -63,6 +64,7 @@ export interface AppOptions {
   readonly saves?: SaveService;
   readonly installation?: InstallationStore;
   readonly refreshFiles?: () => Promise<void>;
+  readonly entropy?: Entropy;
 }
 
 export const TOKEN_COOKIE = 'ja2_token';
@@ -233,6 +235,7 @@ export function createApp(options: AppOptions): Hono {
       createSession: options.createSession,
       texts,
       saves: options.saves,
+      entropy: options.entropy,
     }),
   );
   app.get('/login', (c) => {
@@ -369,7 +372,7 @@ export function createApp(options: AppOptions): Hono {
     const request = newSessionRequest.safeParse(await c.req.json().catch(() => null));
     if (!request.success) return c.json({ error: request.error.message }, 400);
     try {
-      const created = await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data);
+      const created = await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data, options.entropy);
       return c.json({ ...(await created.describe()), ...(await created.report()) });
     } catch (err) {
       if (request.data.load) return loadFailure(c, err);

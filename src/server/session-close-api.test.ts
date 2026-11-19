@@ -63,7 +63,7 @@ describe('closing a session', () => {
     const k = await createSaveKit(kit);
     try {
       const app = await appWithSandbox(k);
-      const request = { campaign: { options: { saveMode: 'deadIsDead' }, deadIsDeadDescription: 'The long run', hire: [] } };
+      const request = { seed: 3, campaign: { options: { saveMode: 'deadIsDead' }, deadIsDeadDescription: 'The long run', hire: [] } };
       const created = (await (await app.request('http://localhost/api/sessions', post(request))).json()) as { session: string };
       const host = k.hosts.get(created.session);
       if (!host) throw new Error('no campaign session');

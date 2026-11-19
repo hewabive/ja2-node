@@ -5,6 +5,7 @@ import { type GameOptions, SAVE_MODES } from '../sim/options.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
 import { CampaignSession } from './campaign-session.ts';
+import { type Entropy, serverEntropy } from './entropy.ts';
 import { saveStatus, sessionOptions } from './save-rules.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
 import { type Session, SPEECH_MODES, type SpeechMode } from './session.ts';
@@ -144,6 +145,11 @@ export function importReport(session: Session): { readonly import?: SaveImportRe
   return report ? { import: report } : {};
 }
 
+export function seedReport(session: Session): { readonly seed?: number } {
+  const origin = session.log.origin;
+  return 'seed' in origin ? { seed: origin.seed } : {};
+}
+
 export function viewerPromptsStatus(session: Session): { readonly viewerPrompts?: readonly ViewerPromptView[] } {
   const prompts = session.viewerPrompts;
   return prompts.length > 0 ? { viewerPrompts: prompts } : {};
@@ -206,6 +212,7 @@ export async function openSession<T>(
   defaultSession: string,
   createSession: (id: string, request: SessionRequest) => Promise<T>,
   request: NewSessionRequest,
+  entropy: Entropy = serverEntropy,
 ): Promise<T> {
   const pending = creating(sessions);
   const limit = sessionLimit();
@@ -223,7 +230,7 @@ export async function openSession<T>(
   pending.add(id);
   try {
     const created = await createSession(id, {
-      seed: request.seed ?? openOrOpening,
+      seed: request.seed ?? entropy(),
       ...(request.language ? { language: request.language } : {}),
       ...(request.speech ? { speech: request.speech } : {}),
       ...(request.save ? { save: request.save } : {}),

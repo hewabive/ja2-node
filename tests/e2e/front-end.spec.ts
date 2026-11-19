@@ -1,8 +1,9 @@
 import { expect, type Page, test } from '@playwright/test';
-import { openTacticalSession, waitWhileLoading } from './play-flow.ts';
+import { openTacticalSession, seedNewCampaigns, waitWhileLoading } from './play-flow.ts';
 import { capture, clickWidget, expectGolden, nextFrames, openUiPage, widget, widgets } from './ui-capture.ts';
 
 const PLAY = '/play';
+const NEW_GAME_SEED = 1;
 const ENGINE = { version: '0.0.0', commit: 'golden0' };
 const OPTIONS = { difficulty: 2, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true };
 const ROUTED_SAVES = [
@@ -139,6 +140,7 @@ test.describe('the canvas front end on stubs', () => {
     request,
   }) => {
     const description = `canvas ${Date.now() % 100000}`;
+    await seedNewCampaigns(page, NEW_GAME_SEED);
     await openUiPage(page, PLAY);
     await screenIs(page, 'mainMenu');
     const session = await newGame(page);

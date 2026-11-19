@@ -95,9 +95,9 @@ describe('game options over the agent API', () => {
     const k = await createSaveKit(kit);
     try {
       const { client, call } = await mcpClient(await server(k));
-      const aliased = await call('newSession', { campaign: { difficulty: 1, saveMode: 'deadIsDead', land: false, hire: [] } });
+      const aliased = await call('newSession', { seed: 3, campaign: { difficulty: 1, saveMode: 'deadIsDead', land: false, hire: [] } });
       expect(aliased.options).toEqual({ difficulty: 1, sciFi: true, gunNut: false, saveMode: 'deadIsDead', bloodAndGore: true });
-      const both = await call('newSession', { campaign: { difficulty: 1, options: { difficulty: 1 }, land: false, hire: [] } });
+      const both = await call('newSession', { seed: 3, campaign: { difficulty: 1, options: { difficulty: 1 }, land: false, hire: [] } });
       expect(both.options.difficulty).toBe(1);
       const contradiction = await call('newSession', { campaign: { difficulty: 1, options: { difficulty: 3 }, land: false, hire: [] } });
       expect(contradiction.error).toMatch(/disagree/);
@@ -115,7 +115,7 @@ describe('game options over the agent API', () => {
       const response = await app.request('http://localhost/api/sessions', {
         method: 'POST',
         headers: auth,
-        body: JSON.stringify({ campaign: { options: { gunNut: true }, land: false, hire: [] } }),
+        body: JSON.stringify({ seed: 3, campaign: { options: { gunNut: true }, land: false, hire: [] } }),
       });
       const body = (await response.json()) as { session: string; options: unknown };
       expect(body.options).toEqual({ difficulty: 2, sciFi: true, gunNut: true, saveMode: 'anywhere', bloodAndGore: true });

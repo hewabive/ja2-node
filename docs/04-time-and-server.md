@@ -217,8 +217,10 @@ the player command `ja2-node` (its settings and the package, `32` §5).
   `CampaignSession`), the driver, the subscribers, the input log, the presentation block (music, message ring,
   campaign identity) and its `QueryService`.
 - `newSession` (MCP) and `POST /api/sessions` create sessions through `src/server/session-registry.ts`, up to a limit
-  (`JA2_MAX_SESSIONS`). The default session `sandbox` is the A9 sandbox, a native save or a new campaign (`JA2_SEED`,
-  `JA2_SAVE`, `JA2_CAMPAIGN` in `start.ts`).
+  (`JA2_MAX_SESSIONS`). A request without `seed` gets one from the server's entropy (`src/server/entropy.ts`, injectable
+  as `AppOptions.entropy`), which the reply returns and the log origin keeps (`29` §6). The default session `sandbox`
+  is the A9 sandbox, a native save or a new campaign (`JA2_SEED`, default 1, `JA2_SAVE`, `JA2_CAMPAIGN` in
+  `start.ts`).
 - Logic content is read only through the server's rule pack (§5.10), never from the raw data; no graphic is read. The
   in-process host shares the pack, read-only, between sessions; the worker host loads it once per worker (§5.9).
 - The world cache (`src/server/world-cache.ts`) prepares maps before each command (`Session.prepareAndDispatch`); the
