@@ -2755,11 +2755,13 @@ function addDrawnOnTop(snapshot: Readonly<Record<string, unknown>>): Record<stri
 }
 
 const LOAD_SCREEN_KEY = 'loadScreen';
+const POWS_SEEN_KEY = 'powsSeen';
 
 function withLoadScreen(strategic: JsonObject): JsonObject {
   const flow = strategic[SECTOR_FLOW_KEY];
   if (!isObject(flow) || flow[REF] !== undefined) return strategic;
-  return { ...strategic, [SECTOR_FLOW_KEY]: { ...flow, ...withDefault(flow, LOAD_SCREEN_KEY, null) } };
+  const placed = insertAfter(flow, POWS_SEEN_KEY, LOAD_SCREEN_KEY, null);
+  return { ...strategic, [SECTOR_FLOW_KEY]: { ...placed, ...withDefault(placed, LOAD_SCREEN_KEY, null) } };
 }
 
 function addLoadScreen(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {

@@ -190,7 +190,10 @@ describe('snapshot version 98 (the picture of the last sector entry)', () => {
     return strategic?.sectorFlow;
   }
 
-  it('knows no entry picture in an older campaign and keeps one already written', () => {
+  it('knows no entry picture in an older campaign, placed after the POWs seen as a new campaign has it, and keeps one already written', () => {
+    const migrated = migratedFlow({ powsSeen: [], preferredSelection: -1 });
+    expect(migrated).toEqual({ powsSeen: [], loadScreen: null, preferredSelection: -1 });
+    expect(Object.keys(migrated as object)).toEqual(['powsSeen', 'loadScreen', 'preferredSelection']);
     expect(migratedFlow({ preferredSelection: -1 })).toEqual({ preferredSelection: -1, loadScreen: null });
     expect(migratedFlow({ loadScreen: 4 })).toEqual({ loadScreen: 4 });
   });

@@ -101,10 +101,10 @@ export function createSectorFlowState(
     interfaceLockActive: false,
     powSquad: NO_CURRENT_SQUAD,
     powsSeen: [],
+    loadScreen: null,
     trashedMapRestrictedScroll: RestrictedScroll.NONE,
     trashedMapRooms: null,
     preferredSelection: NO_SELECTION,
-    loadScreen: null,
   };
 }
 
