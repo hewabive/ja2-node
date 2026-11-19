@@ -357,7 +357,11 @@ whenever a sector loads while the map screen is up, outside a meanwhile and a sa
 panel's Enter goes to the loaded sector (`BeginLoadScreen`, `Strategic/StrategicMap.cc:196`;
 `Strategic/PreBattle_Interface.cc:1023`); the Tactical button into the loaded sector does not zoom. The flow zooms when
 the batch that leaves the map screen for the tactical flow carries `sectorLoaded`, or when a pre-battle panel was open
-before it, and shows the loading or the tactical screen after the zoom. The zoom holds game time as a client modal does
+before it, and shows the loading or the tactical screen after the zoom. The zoom stretches the last frame drawn before
+the command, as `BeginLoadScreen` copies the frame buffer as last presented (`Strategic/StrategicMap.cc:210`), never a
+frame drawn from the batch's view: on the first landing the map screen at 01:00 with the radar darkened, since the
+clock warps to 07:00 only after the start sector has loaded (`Strategic/Map_Screen_Interface.cc:3641`, `:3658`;
+`map/map-screen.test.ts` "zooms into the night frame …"). The zoom holds game time as a client modal does
 (`28` §3), where the original's loop blocks the game. Both zooms stay off with `?pinClock=1`, whose UI clock never ends
 them.
 

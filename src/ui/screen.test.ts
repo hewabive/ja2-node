@@ -70,6 +70,10 @@ class Box extends Probe {
   readonly freezesScreen = true;
 }
 
+class Zoom extends Probe {
+  readonly freezesPresentedFrame = true;
+}
+
 function frame(host: ScreenHost, now: number): DrawList {
   host.update(now);
   const list = new DrawList();
@@ -164,6 +168,24 @@ describe('the screen and modal stacks', () => {
     frame(host, 48);
     frame(host, 64);
     expect([host.frozen, map.updates, map.renders]).toEqual([true, 1, 3]);
+  });
+
+  it('freezes the frame presented last under a zoom opened between frames, without updating or drawing the screen again', () => {
+    const host = new ScreenHost(() => true);
+    const map = new Counter();
+    host.push(map);
+    frame(host, 16);
+    host.openModal(new Zoom('zoom', []));
+    expect([widthOfFirst(frame(host, 32)), host.frozen, map.updates, map.renders]).toEqual([1, true, 1, 1]);
+    expect([widthOfFirst(frame(host, 48)), map.updates, map.renders]).toEqual([1, 1, 1]);
+  });
+
+  it('settles the screen under a zoom opened before any frame was presented, as under a box', () => {
+    const host = new ScreenHost();
+    const map = new Counter();
+    host.push(map);
+    host.openModal(new Zoom('zoom', []));
+    expect([widthOfFirst(frame(host, 16)), host.frozen, map.updates]).toEqual([1, true, 1]);
   });
 
   it('freezes nothing for a box closed before the screen under it settled', () => {

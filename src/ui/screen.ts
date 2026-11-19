@@ -21,6 +21,7 @@ export interface Screen {
 export interface Modal extends Screen {
   readonly passesUnhandledInput?: boolean;
   readonly freezesScreen?: boolean;
+  readonly freezesPresentedFrame?: boolean;
 }
 
 interface Settling {
@@ -35,6 +36,7 @@ export class ScreenHost {
   readonly #modals: Modal[] = [];
   readonly #artLoading: () => boolean;
   #frozen: readonly DrawItem[] | null = null;
+  #presented: readonly DrawItem[] | null = null;
   #frozenBelow: Modal | null = null;
   #settling: Settling | null = null;
   #updatingScreen = false;
@@ -87,10 +89,15 @@ export class ScreenHost {
   }
 
   openModal(modal: Modal): void {
-    if (modal.freezesScreen && !this.#frozenBelow && !this.#settling)
-      this.#settling = { modal, screenUpdated: this.#updatingScreen || this.#modals.length > 0 };
+    if (!this.#frozenBelow && !this.#settling) this.#startFreezing(modal);
     this.#modals.push(modal);
     modal.enter();
+  }
+
+  #startFreezing(modal: Modal): void {
+    if (modal.freezesPresentedFrame && this.#presented) this.#freeze(modal, this.#presented);
+    else if (modal.freezesScreen || modal.freezesPresentedFrame)
+      this.#settling = { modal, screenUpdated: this.#updatingScreen || this.#modals.length > 0 };
   }
 
   closeModal(modal: Modal | null = this.modal): void {
@@ -133,6 +140,12 @@ export class ScreenHost {
   }
 
   render(list: DrawList): void {
+    const start = list.items.length;
+    this.#renderStack(list);
+    this.#presented = list.items.slice(start);
+  }
+
+  #renderStack(list: DrawList): void {
     if (this.#frozen && this.#frozenBelow) {
       list.items.push(...this.#frozen);
       const from = this.#modals.indexOf(this.#frozenBelow);

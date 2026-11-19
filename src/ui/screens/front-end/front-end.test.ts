@@ -536,8 +536,19 @@ function idleScreen(id: string): Screen {
   return { id, enter: () => undefined, exit: () => undefined, update: () => undefined, input: () => false, render: () => undefined };
 }
 
-function showView(flow: NonNullable<PlayerView['strategic']>['flow'], prompt: PromptView | null = null): void {
-  f.client.view = { tick: 0, mapPath: 'maps/a9.dat', soldiers: [], strategic: { flow } as NonNullable<PlayerView['strategic']>, prompt };
+function clockScreen(id: string): Screen {
+  return { ...idleScreen(id), render: (list) => list.fill(0, 0, f.client.view?.clock?.hour ?? 0, 1, 0) };
+}
+
+function showView(flow: NonNullable<PlayerView['strategic']>['flow'], prompt: PromptView | null = null, hour = 0): void {
+  const strategic = { flow } as NonNullable<PlayerView['strategic']>;
+  const clock = { day: 1, hour, minute: 0, compressing: false };
+  f.client.view = { tick: 0, mapPath: 'maps/a9.dat', soldiers: [], strategic, prompt, clock };
+}
+
+function hourDrawn(): number | null {
+  const first = f.t.list.items[0];
+  return first?.kind === 'fill' ? first.width : null;
 }
 
 function frame(events: ViewFrame['events'] = []): ViewFrame {
@@ -557,7 +568,7 @@ describe('the zooms out of the map screen', () => {
     tacticalLoads = 0;
     tacticalLoaded = false;
     laptopFlows = [];
-    const map: MapPort = { loaded: true, load: async () => undefined, screen: () => idleScreen('map'), enter: async () => ({ ok: true }) };
+    const map: MapPort = { loaded: true, load: async () => undefined, screen: () => clockScreen('map'), enter: async () => ({ ok: true }) };
     const tactical: TacticalPort = {
       get loaded() {
         return tacticalLoaded;
@@ -568,7 +579,7 @@ describe('the zooms out of the map screen', () => {
         tacticalLoads++;
         tacticalLoaded = true;
       },
-      screen: () => idleScreen('tactical'),
+      screen: () => clockScreen('tactical'),
     };
     f.host.mapPort = map;
     f.host.tacticalPort = tactical;
@@ -606,6 +617,20 @@ describe('the zooms out of the map screen', () => {
     expect(f.modal()).toBeNull();
     expect(f.pauses).toEqual([true, false]);
     expect(tacticalLoads).toBe(1);
+  });
+
+  it('zooms into the frame the map screen presented before the batch that leaves it, then shows the tactical screen of that batch', async () => {
+    const FIRST_HOUR = 1;
+    const ARRIVAL_HOUR = 7;
+    showView('strategic', null, FIRST_HOUR);
+    f.t.frame(16);
+    showView('tactical', null, ARRIVAL_HOUR);
+    f.flow.frames([frame([SECTOR_LOADED])]);
+    f.t.frame(16);
+    expect([f.modal(), hourDrawn()]).toEqual([SECTOR_ZOOM, FIRST_HOUR]);
+    await zoomFor(SECTOR_ZOOM_TIME);
+    await until(() => f.screen() === 'tactical');
+    expect(hourDrawn()).toBe(ARRIVAL_HOUR);
   });
 
   it("zooms into the loaded sector the pre-battle panel's Enter goes to, but not into the one the Tactical button goes to", async () => {

@@ -1,9 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-09. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc BeginLoadScreen (on the map screen, unless a saved game loads or a meanwhile
-// @src runs: no cursor, "final psionic blast 01 (16-44).wav" at HIGHVOLUME, the screen stretched for 2000 ms from a
-// @src rectangle shrinking toward 536, 367 to the whole screen, the percentage bent by the gravity factor and truncated
-// @src after it, the saved screen shaded with the low percent table once more on every pass past half way, until the
+// @src runs: no cursor, "final psionic blast 01 (16-44).wav" at HIGHVOLUME, the frame buffer as last presented
+// @src stretched for 2000 ms from a rectangle shrinking toward 536, 367 to the whole screen, the percentage bent by
+// @src the gravity factor and truncated after it, the saved screen shaded with the low percent table once more on every pass past half way, until the
 // @src percentage reaches 100), EnterSector and SetCurrentWorldSector (a sector entry, and gfGotoSectorTransition: the
 // @src pre-battle panel's Enter into the loaded sector, src/game/Strategic/PreBattle_Interface.cc).
 
@@ -52,7 +52,7 @@ export function sectorZoomShadePasses(elapsed: number): number {
 
 export class SectorZoom implements Modal {
   readonly id = SECTOR_ZOOM;
-  readonly freezesScreen = true;
+  readonly freezesPresentedFrame = true;
   readonly hidesCursor = true;
   readonly #services: UiServices;
   readonly #onDone: () => void;

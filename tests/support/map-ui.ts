@@ -38,7 +38,7 @@ import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
 import { planStubSkin, readOriginalLayouts } from '../../stubs/ui/skin.ts';
 import { BattleSessionClient, battleLayoutModels, FakeBattleSounds, testBattleEnvironment } from './battle-ui.ts';
-import { buildMapScreenCampaign } from './e2e-campaign-saves.ts';
+import { buildMapScreenCampaign, type MapScreenCampaignBuilder } from './e2e-campaign-saves.ts';
 import { type ClientSide, clientAnswer, clientSide, withQueries } from './hints.ts';
 import { createSaveKit, type SaveKit } from './saves.ts';
 import type { StubSectorKit } from './sectors.ts';
@@ -311,12 +311,17 @@ export interface MapUiTest {
   dispose(): Promise<void>;
 }
 
-export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit, options: TestRuntimeOptions = {}): Promise<MapUiTest> {
+export async function mapUiTest(
+  kit: StubSectorKit,
+  ui: MapUiKit,
+  options: TestRuntimeOptions = {},
+  build: MapScreenCampaignBuilder = buildMapScreenCampaign,
+): Promise<MapUiTest> {
   const t = await testRuntime(undefined, options);
   await stubImages(t);
   const saves: SaveKit = await createSaveKit(kit);
   const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };
-  const campaign = await buildMapScreenCampaign(saves, kit);
+  const campaign = await build(saves, kit);
   const session = withQueries(campaign.session, sources);
   const client = new MapSessionClient(session, ui.client);
   const media = new FakeMapMedia(ui.catalogue);

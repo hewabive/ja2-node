@@ -100,6 +100,16 @@ export interface MapScreenCampaign {
   readonly trainer: number;
 }
 
+export type MapScreenCampaignBuilder = (saves: SaveKit, kit: StubSectorKit) => Promise<MapScreenCampaign>;
+
+export async function buildFirstLandingCampaign(saves: SaveKit): Promise<MapScreenCampaign> {
+  const session = await saves.open({ seed: SEED, campaign: { mercs: MERCS, land: false } });
+  const sim = campaignOf(session);
+  for (const name of QUIET) quietSector(sim, name);
+  const mercs = session.sim.view().strategic?.mercs.map((m) => m.id) ?? [];
+  return { session, mercs, trainer: bestTrainer(sim, mercs) };
+}
+
 export async function buildMapScreenCampaign(saves: SaveKit, kit: StubSectorKit): Promise<MapScreenCampaign> {
   const session = await saves.open({ seed: SEED, campaign: { mercs: MERCS, land: false } });
   const sim = campaignOf(session);

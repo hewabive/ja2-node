@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { buildFirstLandingCampaign } from '../../../../tests/support/e2e-campaign-saves.ts';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { GrabbedPointer, type TestRuntimeOptions } from '../../../../tests/support/ui-runtime.ts';
@@ -19,6 +20,7 @@ import { WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import { type DrawItem, rgb } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
+import { SECTOR_ZOOM_TIME, SectorZoom } from '../front-end/sector-zoom.ts';
 import { Assignment } from './character-list.ts';
 import { mapFacts, parseSectorLabel, sectorLabel } from './facts.ts';
 import { CHANGE_STAT_RECENTLY_DURATION_MS } from './info-panel.ts';
@@ -42,6 +44,10 @@ const FRED_RUNNING_OUT = 17;
 const FRED_KEY = { file: 'npcdata/106.edt', row: FRED_RUNNING_OUT, width: 240 };
 const DRASSEN_MINE = 1;
 const RADAR = 'radarmaps/test.sti';
+const CLOCK_X = 554;
+const CLOCK_Y = 457;
+const START_HOUR = 1;
+const FIRST_ARRIVAL_HOUR = 7;
 const DRASSEN_MINE_FIRST_LEVEL = { x: 13, y: 4, z: 1 };
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
@@ -135,6 +141,12 @@ function setWorldHour(f: MapUiTest, hour: number): void {
   clock.seconds = Math.floor(clock.seconds / SECONDS_PER_DAY) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR;
   f.client.refresh();
   f.t.frame();
+}
+
+function clockGlyphs(f: MapUiTest): string {
+  const inClock = (item: DrawItem) => item.kind === 'glyphs' && (item.glyphs[0]?.x ?? 0) >= CLOCK_X && (item.glyphs[0]?.y ?? 0) >= CLOCK_Y;
+  const text = (item: DrawItem) => (item.kind === 'glyphs' ? item.glyphs.map((g) => g.index).join() : '');
+  return f.draw().items.filter(inClock).map(text).join('|');
 }
 
 function radarShade(f: MapUiTest) {
@@ -267,6 +279,30 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.widget('teamRow0.name').rect.width).toBeGreaterThan(0);
       expect(snapshot(f)).toMatchSnapshot();
     }));
+
+  it('zooms into the night frame presented before the first compression, as BeginLoadScreen copies it before the clock warps to 07:00', async () => {
+    const f = await mapUiTest(kit, ui, {}, buildFirstLandingCampaign);
+    try {
+      f.media.radar = () => RADAR;
+      f.t.frame();
+      const night = clockGlyphs(f);
+      expect(night).not.toBe('');
+      expect([f.client.view.clock?.hour, radarShade(f), f.client.view.strategic?.flow]).toEqual([START_HOUR, NIGHT_SHADE, 'strategic']);
+      expect((await f.session.prepareAndDispatch({ type: 'compressTime', mode: 2 })).ok).toBe(true);
+      f.client.refresh();
+      expect([f.client.view.clock?.hour, f.client.view.strategic?.flow]).toEqual([FIRST_ARRIVAL_HOUR, 'tactical']);
+      f.t.runtime.host.openModal(new SectorZoom(f.t.runtime, () => undefined));
+      f.t.frame();
+      expect([clockGlyphs(f), radarShade(f)]).toEqual([night, NIGHT_SHADE]);
+      f.t.frame(SECTOR_ZOOM_TIME);
+      f.t.frame();
+      expect(f.t.runtime.host.modal).toBeNull();
+      expect(clockGlyphs(f)).not.toBe(night);
+      expect(radarShade(f)).toEqual(FULL_SHADE);
+    } finally {
+      await f.dispose();
+    }
+  });
 
   it('darkens the radar picture of the selected sector at night, from 21:00 to 7:00', () =>
     withMap(async (f) => {
