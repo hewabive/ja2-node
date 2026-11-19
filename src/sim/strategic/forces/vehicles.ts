@@ -147,7 +147,7 @@ function teleportVehicleToItsClosestSector(ctx: StrategicContext, groupId: numbe
 function emptyGroundVehicle(ctx: StrategicContext, v: VehicleRecord): void {
   const vs = ctx.mercs.get(v.soldierId);
   if (!vs) return;
-  if (vs.path.length > 0) cancelPathForVehicle(ctx, v, false);
+  if (v.path.length > 0) cancelPathForVehicle(ctx, v, false);
   if (v.betweenSectors) teleportVehicleToItsClosestSector(ctx, vs.groupId);
   removeCharacterFromSquads(ctx, vs.id);
   const g = getGroup(ctx, v.movementGroup);

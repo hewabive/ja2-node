@@ -985,7 +985,10 @@ Rules: `16` (map, movement, sector entry and exit), `17` (the Queen), `15` (time
 `sector-exits.ts`; views `src/server/strategic-view.ts`, `map-screen-view.ts`. There is no "exit tactical" command: the
 strategic view is always observable, and a sector is left by `exitSector` or by routing everyone away. `route` checks
 the whole group's move first, so a squad cannot leave the start sector before it is cleared; `extend` appends legs like
-the map screen's plotting, otherwise the path is replaced. As in the original, a move from the loaded sector during a
+the map screen's plotting, otherwise the path is replaced: cancelled first as `cancelRoute` cancels it, and a `to` on the
+last sector of the path (the merc's sector without one) with no `via` is the confirming click on it, which rebuilds the
+waypoints (`Strategic/MapScreen.cc:5569`). `cancelRoute` cancels only a merc with a route, so a second cancel leaves a
+returning group on its way back (`Strategic/MapScreen.cc:7096`). As in the original, a move from the loaded sector during a
 bloodcat ambush is refused as `inCombat`, and a merc standing in the museum rooms of L12 while any merc carries the
 chalice and Eldin lives as `museumChalice` (`src/sim/strategic/forces/move-permission.ts`); the hints check neither, as
 the view has neither the encounter nor the rooms. A merc awake with `breathMax` below 30, or asleep and `collapsed`,

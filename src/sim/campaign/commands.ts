@@ -55,10 +55,10 @@ import {
 } from '../strategic/forces/move-permission.ts';
 import type { StrategicContext, StrategicMerc } from '../strategic/forces/ports.ts';
 import {
-  cancelPathForCharacter,
+  cancelPathOfCharacterWithRoute,
   clearPathAfterThisSectorForCharacter,
   confirmPathForCharacter,
-  lastSectorInMercPath,
+  lastSectorIdInCharactersPath,
   PathEdit,
   PlotRefusal,
   plotLegs,
@@ -143,8 +143,11 @@ export function plotRouteForCharacter(
   const m = ctx.mercs.get(id);
   if (!m) return refuse('noSuchMerc', 'no such merc');
   if (!options.extend) {
-    if (via.length === 0 && soldierMercPath(ctx, m).length > 0 && lastSectorInMercPath(m) === strategicIndex(to)) return null;
-    cancelPathForCharacter(ctx, id);
+    if (via.length === 0 && lastSectorIdInCharactersPath(ctx, m) === strategicIndex(to)) {
+      confirmPathForCharacter(ctx, id);
+      return null;
+    }
+    cancelPathOfCharacterWithRoute(ctx, id);
   }
   const g = soldierGroup(ctx, m);
   if (!g) return refuse('noRoute', 'the merc has no movement group');
@@ -178,7 +181,7 @@ function route(campaign: CampaignSim, ctx: StrategicContext, cmd: StrategicComma
   if (block) return refuseMove(block);
   const plotted = plotRouteForCharacter(ctx, id, via, to, { shortest: cmd.shortest === true, extend: cmd.extend === true });
   if (plotted) return plotted;
-  wakeTravellersOfConfirmedRoute(campaign, mercsWhoMustMoveWith(ctx, merc));
+  if (soldierMercPath(ctx, merc).length > 0) wakeTravellersOfConfirmedRoute(campaign, mercsWhoMustMoveWith(ctx, merc));
   return routeResult(ctx, id);
 }
 
@@ -305,18 +308,17 @@ function routeGroup(campaign: CampaignSim, ctx: StrategicContext, cmd: Strategic
     const g = m ? soldierGroup(ctx, m) : undefined;
     if (!m || !g || done.has(g.id)) continue;
     done.add(g.id);
-    cancelPathForCharacter(ctx, id);
     setPathForCharacter(ctx, id, path);
     confirmPathForCharacter(ctx, id);
   }
-  wakeTravellersOfConfirmedRoute(campaign, travellers);
+  if (path.length > 0) wakeTravellersOfConfirmedRoute(campaign, travellers);
   return { ok: true, data: { groups: groupResult(ctx, travellers), regrouped: out.regrouped } };
 }
 
 function cancelRoute(ctx: StrategicContext, cmd: StrategicCommand): CommandResult {
   const id = soldierId(cmd);
   if (id === null || !ctx.mercs.get(id)) return refuse('noSuchMerc', 'no such merc');
-  cancelPathForCharacter(ctx, id);
+  cancelPathOfCharacterWithRoute(ctx, id);
   return { ok: true };
 }
 

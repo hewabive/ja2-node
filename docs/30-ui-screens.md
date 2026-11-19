@@ -276,8 +276,9 @@ out-of-gas box by `pVehicleStrings`. A vehicle in sight that is not ours carries
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
 the legs stay in the client until the confirming click sends one `route` per group (deviation "Map route plotting");
 the move box's Done regroups at once with `regroupForMove`, so Esc during the plot that follows leaves the new squads,
-and its confirm sends one `routeGroup` for the movers. A click on the end of an unchanged path confirms it again, and
-the destination column of a helicopter passenger plots for the helicopter. Decision prompts open as the original's boxes and close when an
+and its confirm sends one `routeGroup` for the movers. A click on the end of an
+unchanged path, or on the merc's sector without one, confirms it again, and the destination column of a helicopter
+passenger plots for the helicopter. Decision prompts open as the original's boxes and close when an
 agent answers them first (deviation "Map screen boxes for prompts").
 
 **Battle entry.** The pre-battle panel is part of the map screen, as `gfPreBattleInterfaceActive` is; autoresolve is a

@@ -8,6 +8,7 @@ import { initStrategicMovementCosts } from '../map/init.ts';
 import { Assignment } from './constants.ts';
 import { getGroup } from './groups.ts';
 import { FACT_OK_USE_HUMMER } from './helicopter.ts';
+import { cancelPathOfCharacterWithRoute, confirmPathForCharacter, plotPathForCharacter } from './routes.ts';
 import { addCharacterToSquad, initSquads, initVehicles } from './squads.ts';
 import { addVehicleToList, killAllInVehicle, removeSoldierFromVehicle, takeSoldierOutOfVehicle } from './vehicles.ts';
 
@@ -89,6 +90,34 @@ describe('ground vehicles', () => {
     expect(soldierMustDriveVehicle(ctx, member(ctx, 0), false)).toBe(true);
     addSoldierToVehicle(ctx, member(ctx, 1), v);
     expect(soldierMustDriveVehicle(ctx, member(ctx, 0), false)).toBe(false);
+  });
+});
+
+describe('the route of a ground vehicle', () => {
+  const plottedHummer = () => {
+    const world = hummerWorld();
+    addSoldierToVehicle(world.ctx, member(world.ctx, 0), world.v);
+    expect(plotPathForCharacter(world.ctx, 0, S('E13'))).toBe(true);
+    expect(world.v.path).toEqual([strategicIndex(S('D13')), strategicIndex(S('E13'))]);
+    return world;
+  };
+
+  it('is cancelled through the vehicle when its own row cancels it (MapScreen.cc:7110 CancelPathForVehicle)', () => {
+    const { ctx, v } = plottedHummer();
+    confirmPathForCharacter(ctx, 0);
+    const g = getGroup(ctx, v.movementGroup);
+    expect(g).toMatchObject({ betweenSectors: true, sector: S('D13'), next: S('E13') });
+    ctx.state.clock.seconds += 60;
+    expect(cancelPathOfCharacterWithRoute(ctx, VEHICLE_SOLDIER)).toBe(true);
+    expect(v.path).toEqual([]);
+    expect(g).toMatchObject({ betweenSectors: true, sector: S('E13'), next: S('D13') });
+  });
+
+  it('is cancelled when its last passenger leaves, whatever the vehicle soldier holds (Vehicles.cc:356 reads the vehicle path)', () => {
+    const { ctx, v } = plottedHummer();
+    expect(member(ctx, VEHICLE_SOLDIER).path).toEqual([]);
+    expect(removeSoldierFromVehicle(ctx, 0)).toBe(true);
+    expect(v.path).toEqual([]);
   });
 });
 

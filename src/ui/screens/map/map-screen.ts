@@ -1984,6 +1984,10 @@ export class MapScreen implements Screen {
       return;
     }
     if (plot.mode === 'heli') return;
+    if (plot.plottedPath().length === 0) {
+      this.#uiMessage(this.#text(MAP_PLOT, plot.hadPath ? Plot.CANCELED : Plot.UNCHANGED));
+      return;
+    }
     await this.#routeOtherSelected(plot);
     this.#confirmByRandomMerc(plot.soldier);
     this.#uiMessage(this.#text(MAP_PLOT, Plot.CONFIRMED));

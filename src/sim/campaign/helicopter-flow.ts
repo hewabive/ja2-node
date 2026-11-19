@@ -13,7 +13,8 @@
 // @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path);
 // @src Map_Screen_Helicopter.cc SkyriderDialogue, SkyriderDialogueWithSpecialEvent (Skyrider's face through the dialogue
 // @src queue, 2026-11-01).
-// @src src/game/Strategic/MapScreen.cc HandleNewDestConfirmation, WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18).
+// @src src/game/Strategic/MapScreen.cc HandleNewDestConfirmation, WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18);
+// @src CancelPathsOfAllSelectedCharacters (a passenger without a route, 2026-11-19).
 
 import {
   parseSectorString,
@@ -304,7 +305,8 @@ export class HelicopterFlow {
   }
 
   #passengerCancel(cmd: Command): CommandResult | null {
-    return this.#helicopterPassenger(cmd) ? this.#heliCancel() : null;
+    if (!this.#helicopterPassenger(cmd)) return null;
+    return (helicopterVehicle(this.ctx)?.path.length ?? 0) > 0 ? this.#heliCancel() : { ok: true };
   }
 
   #leaveRefusal(m: CrewMember): string | null {

@@ -10,6 +10,7 @@ import { getGroup } from './groups.ts';
 import type { StrategicContext } from './ports.ts';
 import {
   cancelPathForCharacter,
+  cancelPathOfCharacterWithRoute,
   clearPathAfterThisSectorForCharacter,
   confirmPathForCharacter,
   PathEdit,
@@ -73,6 +74,20 @@ describe('route commands', () => {
     expect(mercs.get(1)?.path).toEqual([]);
     cancelPathForCharacter(ctx, 1);
     expect(g).toMatchObject({ sector: S('A9'), next: S('B9') });
+  });
+});
+
+describe('cancelling the routes of the selected mercs (MapScreen.cc CancelPathsOfAllSelectedCharacters)', () => {
+  it('cancels only a merc with a route, so a second cancel leaves a returning squad on its way back', () => {
+    const { ctx } = squadInA9();
+    plotPathForCharacter(ctx, 0, S('C9'));
+    confirmPathForCharacter(ctx, 0);
+    ctx.state.clock.seconds += 20 * 60;
+    expect(cancelPathOfCharacterWithRoute(ctx, 0)).toBe(true);
+    const g = getGroup(ctx, ctx.state.forces.squadGroupIds[0] ?? 0);
+    expect(g).toMatchObject({ sector: S('B9'), next: S('A9'), betweenSectors: true });
+    expect(cancelPathOfCharacterWithRoute(ctx, 1)).toBe(false);
+    expect(g).toMatchObject({ sector: S('B9'), next: S('A9'), betweenSectors: true });
   });
 });
 

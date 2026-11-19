@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc PlotPathForCharacter, ClearPathAfterThisSectorForCharacter,
 // @src CancelPathForCharacter, CopyPathToCharactersSquadIfInOne, IsTheCursorAllowedToHighLightThisSector;
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup; MapScreen.cc (the plotting legs: each leg built
-// @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters).
+// @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters);
+// @src MapScreen.cc CancelPathsOfAllSelectedCharacters (2026-11-19).
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { isValidSector, type Sector, sameSector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
@@ -25,6 +26,10 @@ export function isTheCursorAllowedToHighLightThisSector(ctx: Pick<StrategicConte
 
 export function lastSectorInMercPath(m: StrategicMerc): number {
   return m.path.length > 0 ? (m.path[m.path.length - 1] ?? strategicIndex(m.sector)) : strategicIndex(m.sector);
+}
+
+export function lastSectorIdInCharactersPath(ctx: StrategicContext, m: StrategicMerc): number {
+  return lastSectorOfPath(soldierMercPath(ctx, m), strategicIndex(m.sector));
 }
 
 function inOrIsVehicle(m: StrategicMerc): boolean {
@@ -75,6 +80,15 @@ export function cancelPathForCharacter(ctx: StrategicContext, id: number): void 
   const v = m.assignment === Assignment.VEHICLE ? ctx.state.forces.vehicles[m.vehicleId] : undefined;
   if (v?.valid) cancelPathForVehicle(ctx, v, true);
   copyPathToCharactersSquadIfInOne(ctx, m);
+}
+
+export function cancelPathOfCharacterWithRoute(ctx: StrategicContext, id: number): boolean {
+  const m = requireMerc(ctx, id);
+  if (soldierMercPath(ctx, m).length === 0) return false;
+  const vehicle = m.isVehicle ? ctx.state.forces.vehicles[m.vehicleId] : undefined;
+  if (vehicle) cancelPathForVehicle(ctx, vehicle, false);
+  else cancelPathForCharacter(ctx, id);
+  return true;
 }
 
 export function clearPathAfterThisSectorForCharacter(ctx: StrategicContext, id: number, s: Sector): PathEdit {

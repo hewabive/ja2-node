@@ -69,8 +69,8 @@ describe('route plotting on the map screen', () => {
     expect(plot.routeFor(SOLDIER + 1)).toBeNull();
   });
 
-  it('has nothing to confirm without a path, and confirms an unchanged helicopter path again (HandleNewDestConfirmation)', () => {
-    expect(new Plotting('merc', SOLDIER, ROW, 'D13', []).confirmCommand()).toBeNull();
+  it('confirms a merc without a path at his sector, has nothing to confirm for a helicopter without one, and confirms an unchanged helicopter path again (CheckIfClickOnLastSectorInPath)', () => {
+    expect(new Plotting('merc', SOLDIER, ROW, 'D13', []).confirmCommand()).toEqual({ type: 'route', soldier: SOLDIER, to: 'D13' });
     expect(new Plotting('heli', SOLDIER, ROW, 'D13', []).confirmCommand()).toBeNull();
     expect(new Plotting('heli', SOLDIER, ROW, 'D13', ['C13']).confirmCommand()).toEqual({
       type: 'heliRoute',

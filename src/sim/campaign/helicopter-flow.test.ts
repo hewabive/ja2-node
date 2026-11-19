@@ -160,6 +160,15 @@ describe('the helicopter commands', () => {
     await expectReloadsInvisible(boardFlyAndLeave);
   });
 
+  it('cancels nothing for a passenger while the helicopter has no route, so a grounded helicopter is not explained (MapScreen.cc:7096)', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+    const skyrider = c.state.profiles.get(SKYRIDER);
+    if (skyrider) skyrider.balance = -60;
+    expect(c.dispatch({ type: 'cancelRoute', soldier: 0 })).toEqual({ ok: true });
+  });
+
   it('grounds the helicopter while Skyrider is owed money', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
