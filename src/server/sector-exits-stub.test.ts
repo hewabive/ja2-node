@@ -1,7 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { A10_STAIRS, campaignInA10, hideRoomOf } from '../../tests/support/a10-campaign.ts';
 import { spawnSoldier } from '../../tests/support/combat.ts';
-import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serialisedView, withQueries } from '../../tests/support/hints.ts';
+import {
+  type ClientSide,
+  clientSide,
+  expectHintsAgree,
+  type HintSources,
+  sampleMoveHints,
+  serialisedView,
+  withQueries,
+} from '../../tests/support/hints.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
@@ -17,6 +25,7 @@ import { createSandboxSession } from './sandbox.ts';
 import { Session } from './session.ts';
 
 const UNSEEN_ENEMY = 20;
+const WALK_OFF_TICKS = 600;
 const EXIT_DIRECTIONS = { north: ExitDirection.NORTH, east: ExitDirection.EAST, south: ExitDirection.SOUTH, west: ExitDirection.WEST };
 
 let kit: StubSectorKit;
@@ -127,6 +136,32 @@ describe('sectorExits on the stub campaign', () => {
     const view = serialisedView(session);
     const ours = view.soldiers.filter((s) => s.team === Team.OUR).map((s) => s.id);
     await expectHintsAgree(session, client, [{ type: 'sectorExits' }, ...ours.map((soldier) => ({ type: 'sectorExits', soldier }))]);
+  });
+
+  it('answers the same on the client and the server while the squad walks off the edge, its mercs in the view off the map', async () => {
+    const { sim, session } = await landedInA9(32);
+    for (const [soldier, to] of Object.entries(edgeOf(await exitsOf(session), 'east').walkTo))
+      expect(sim.dispatch({ type: 'move', soldier: Number(soldier), to, mode: 'run' }).ok).toBe(true);
+    session.advance({ idle: true });
+    const selected = serialisedView(session).selected;
+    const exit = { type: 'exitSector', soldier: selected, direction: 'east', who: 'squad', load: true };
+    expect((await session.prepareAndDispatch(exit)).ok).toBe(true);
+    const offMap = () => serialisedView(session).soldiers.filter((s) => s.team === Team.OUR && s.offMap === true);
+    for (let k = 0; k < WALK_OFF_TICKS && offMap().length < 3; k++) session.advance({ ticks: 1 });
+    const view = serialisedView(session);
+    expect(offMap().map((s) => s.id)).toEqual(view.soldiers.filter((s) => s.team === Team.OUR).map((s) => s.id));
+    const ours = offMap().map((s) => s.id);
+    await expectHintsAgree(session, client, [
+      { type: 'sectorExits' },
+      { type: 'sectorLayout', level: 0 },
+      { type: 'compatibleMercs', items: [] },
+      ...ours.flatMap((soldier) => [
+        { type: 'sectorExits', soldier },
+        { type: 'movementOptions', soldier },
+        { type: 'previewMove', soldier, to: view.soldiers[0]?.gridNo ?? 0 },
+      ]),
+      ...sampleMoveHints(view, { radius: 6, step: 3 }),
+    ]);
   });
 
   it('gives the same answer whether or not an unseen enemy stands on a walk tile', async () => {

@@ -68,6 +68,7 @@ import type {
   WorldPresenter,
 } from '../../ui/screens/tactical/environment.ts';
 import { findSoldier, PICK_ANYONE } from '../../ui/screens/tactical/input/targets.ts';
+import { offTheMap } from '../../ui/screens/tactical/soldiers.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import { type InteractiveWorld, interactiveNodesAt, interactiveTileOf, pictureHasDataAt } from '../world/interactive-nodes.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
@@ -225,6 +226,11 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return this.#sources.view()?.soldiers.find((s) => s.id === id) ?? null;
   }
 
+  #soldierOnTheMap(id: number): SoldierView | null {
+    const s = this.#soldier(id);
+    return s && !offTheMap(s) ? s : null;
+  }
+
   resize(width: number, height: number): void {
     const next = { width, height: Math.max(1, height - TEAMPANEL_HEIGHT) };
     if (next.width === this.#viewport.width && next.height === this.#viewport.height) return;
@@ -237,7 +243,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   soldierTrueScreenPosition(id: number): ScreenPoint | null {
-    const s = this.#soldier(id);
+    const s = this.#soldierOnTheMap(id);
     if (!s) return null;
     const c = mapCenter(this.#viewport);
     const dx = Math.fround(s.x - this.#camera.centerX);
@@ -264,7 +270,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   soldierBox(id: number): ScreenBox | null {
-    const s = this.#soldier(id);
+    const s = this.#soldierOnTheMap(id);
     const bounds = this.#world.soldierBoundingBox(id);
     if (!s || !bounds) return null;
     const at = soldierScreenPoint(

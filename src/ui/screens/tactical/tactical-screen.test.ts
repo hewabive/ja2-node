@@ -1421,6 +1421,22 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([dotColours(CROW_TILE), dotColours(NAMED_CIVILIAN_TILE)]).toEqual([[], [NAMED_CIVILIAN_DOT]]);
   });
 
+  it('draws no radar dot for our merc walking off the visible world, as the radar skips a tile off it (Radar_Screen.cc:255)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const radar = f.widget('radar').rect;
+    const soldiers = f.client.view.soldiers as SoldierView[];
+    const merc = soldiers.find((s) => s.team === 0 && s.id !== f.screen.selected);
+    if (!merc) throw new Error('no merc to walk off');
+    const dot = f.world.radarDot(merc.gridNo);
+    if (!dot) throw new Error('no radar dot');
+    const dotDrawn = () => f.draw().items.some((i) => i.kind === 'rectangle' && i.x1 === radar.x + dot.x && i.y1 === radar.y + dot.y);
+    f.t.frame();
+    expect(dotDrawn()).toBe(true);
+    soldiers[soldiers.indexOf(merc)] = { ...merc, offMap: true };
+    f.t.frame();
+    expect(dotDrawn()).toBe(false);
+  });
+
   it('blinks the faces from the client random and the face record', async () => {
     const f = await tacticalUiTest(kit, ui);
     const eyes = new Set<number>();

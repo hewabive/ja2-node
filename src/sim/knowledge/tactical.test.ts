@@ -16,10 +16,11 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { isDoorOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
 import { explosiveDamageGridNo } from '../tactical/explosions/structure-damage.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { setSoldierPosition } from '../tactical/movement.ts';
 import { findBestPath } from '../tactical/pathfinding.ts';
 import { calcActionPoints } from '../tactical/points.ts';
 import { exitGridAt } from '../tactical/sector-exit.ts';
-import { Body, Personality, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, inSector, Personality, type Soldier, Team, Visible } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { type KnowledgeRules, knowledgeRules, knowledgeWorld } from './knowledge-world.ts';
@@ -67,6 +68,28 @@ describe('the tactical projection of the hints', () => {
     const server = calcActionPoints(sim.state, merc);
     expect(server).toBeLessThan(calcActionPoints({ sector: null, soldiers: [] }, merc));
     expect(projectedTurnAPs(sim)).toBe(server);
+  });
+});
+
+describe('our soldiers in the sector off the visible world (Soldier_Control.cc:1917-1920)', () => {
+  const OFF_THE_VISIBLE_WORLD = gridNo(1, 0);
+  const ENEMY_ID = 20;
+
+  it('keep our merc walking off it in the view with offMap and the projection of the hints on no tile, and leave an enemy off it out', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, MERC_ID, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, ENEMY_ID, Team.ENEMY, gridNo(82, 80), Direction.NORTH);
+    for (const s of [merc, enemy]) setSoldierPosition(t, s, OFF_THE_VISIBLE_WORLD);
+    enemy.visible = Visible.SEEN;
+    expect([merc.offMap, enemy.offMap]).toEqual([true, true]);
+    const view = knowledgeViewOf(sim);
+    expect(view.soldiers.map((s) => [s.id, s.gridNo, s.offMap])).toEqual([[MERC_ID, OFF_THE_VISIBLE_WORLD, true]]);
+    const tactical = knowledgeOf(sim).tactical;
+    const projected = tactical?.ownSoldier(MERC_ID);
+    if (!tactical || !projected) throw new Error('no projected merc');
+    expect([projected.placed, projected.offMap, inSector(projected)]).toEqual([false, true, true]);
+    expect(tactical.state.occupant[0][OFF_THE_VISIBLE_WORLD]).toBe(-1);
   });
 });
 

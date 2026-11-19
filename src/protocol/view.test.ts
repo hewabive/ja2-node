@@ -203,6 +203,7 @@ const EVERY_SOLDIER_FIELD: Required<SoldierView> = {
   muzzleFlash: false,
   drawnOnTop: false,
   fadingOut: false,
+  offMap: false,
   ap: 20,
   life: 80,
   lifeMax: 90,

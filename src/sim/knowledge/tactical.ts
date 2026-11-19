@@ -271,6 +271,12 @@ export class TacticalProjection {
     this.#placed = [];
   }
 
+  #place(s: Soldier): void {
+    placeOccupant(this.state, s);
+    addMercStructure(this.state, s);
+    this.#placed.push(s);
+  }
+
   #syncSoldiers(views: readonly KnowledgeSoldier[], guard: GuardOptions): void {
     const t = this.state;
     t.soldiers.length = 0;
@@ -283,9 +289,7 @@ export class TacticalProjection {
       const { soldier, raw } = soldierFromView(t.content, v, ownIds, guard);
       raw.overTerrain = t.world.terrain[raw.gridNo] ?? 0;
       registerSoldier(t, soldier);
-      placeOccupant(t, raw);
-      addMercStructure(t, raw);
-      this.#placed.push(raw);
+      if (raw.placed) this.#place(raw);
       if (v.team !== Team.OUR) continue;
       for (const id of v.sees ?? []) if (ours) ours[id] = Opp.SEEN_CURRENTLY;
     }

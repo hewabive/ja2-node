@@ -231,7 +231,7 @@ export function sectorLayout(world: KnowledgeWorld, req: SectorLayoutRequest): H
   const covered = groundUnderDrawnRoofs(t, world.view);
   const kindAt = level === ROOF ? (g: number) => roofTileKind(t, g) : (g: number) => groundTileKind(t, covered, g);
   const mercs = world.view.soldiers
-    .filter((s) => s.team === Team.OUR && s.level === level && !s.vehicle)
+    .filter((s) => s.team === Team.OUR && s.level === level && !s.vehicle && !s.offMap)
     .map((s) => ({ soldier: s.id, gridNo: s.gridNo }));
   const marks = new Map<number, string>(level === GROUND && cell === WINDOW_CELL ? containerMarks(t, covered) : []);
   if (level === GROUND) for (const e of shownExitGrids(t, world.view)) marks.set(e.gridNo, EXIT_GRID);

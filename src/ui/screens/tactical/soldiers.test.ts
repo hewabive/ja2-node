@@ -109,6 +109,12 @@ describe('the next merc of the keys and the panel buttons', () => {
     expect(findActiveAndAliveMerc(view, merc(0), -1, filter).id).toBe(7);
   });
 
+  it('takes a merc walking off the edge, who is still in the sector (bInSector), and passes over one aboard a vehicle', () => {
+    const current = merc(1);
+    const view = viewOf(current, merc(2, { vehicle: { id: 0, driver: false } }), merc(3, { offMap: true }));
+    expect(findActiveAndAliveMerc(view, current, 1, { goodForLessOkLife: false, onlyRegularMercs: true }).id).toBe(3);
+  });
+
   it('takes a dying merc for the panel buttons but not for the shop, and keeps the merc when nobody fits', () => {
     const current = merc(1);
     const dying = merc(2, { life: DYING });
@@ -129,6 +135,14 @@ describe('the team panel of the current squad (CheckForAndAddMercToTeamPanel)', 
     const walker = merc(2);
     const view = { soldiers: [passenger, walker, driver, truck] } as unknown as PlayerView;
     expect(teamPanelMembers(view, [walker, truck, driver]).map((s) => s.id)).toEqual([2, 3, 1]);
+  });
+
+  it('keeps a merc walking off the edge and the passengers of a vehicle off the map, who are still in the sector (bInSector)', () => {
+    const walker = merc(2, { offMap: true });
+    const driver = merc(3, { squad: null, vehicle: { id: 0, driver: true }, offMap: true });
+    const truck = merc(18, { bodyType: HUMVEE, passengers: [3], offMap: true });
+    const view = { soldiers: [walker, driver, truck] } as unknown as PlayerView;
+    expect(teamPanelMembers(view, [walker, truck]).map((s) => s.id)).toEqual([2, 3]);
   });
 
   it('finds the vehicle of a merc aboard, whose face selects it, and none for a merc on foot', () => {

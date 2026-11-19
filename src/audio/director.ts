@@ -286,7 +286,7 @@ export class SoundDirector {
     for (const id of [...this.#turrets.keys()]) this.#silenceTurret(id);
     this.#soldiers.clear();
     this.#timelines.clear();
-    for (const s of soldiers) this.#soldierChanged(s, false);
+    for (const s of soldiers) if (s.offMap !== true) this.#soldierChanged(s, false);
   }
 
   setWorld(world: SoundWorld | null): void {
@@ -343,7 +343,10 @@ export class SoundDirector {
       if (frame.helicopterDrop !== undefined) this.#helicopterDrop = frame.helicopterDrop;
       for (const e of events) this.#remember(e);
       for (const id of frame.removed) this.#forget(id);
-      for (const s of frame.changed) this.#soldierChanged(s, audible && animating);
+      for (const s of frame.changed) {
+        if (s.offMap === true) this.#forget(s.id);
+        else this.#soldierChanged(s, audible && animating);
+      }
       for (const e of events) {
         this.stats.events++;
         if (audible) this.#event(e);

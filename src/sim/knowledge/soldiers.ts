@@ -42,6 +42,7 @@ const SHOWN_FIELDS = [
   'direction',
   'state',
   'placed',
+  'offMap',
   'visible',
   'structure',
   'multiTile',
@@ -311,7 +312,8 @@ export function soldierFromView(
   s.x = v.x;
   s.y = v.y;
   s.heightAdjustment = v.heightAdjustment ?? 0;
-  s.placed = true;
+  s.placed = v.offMap !== true;
+  s.offMap = v.offMap === true;
   s.visible = v.fadingOut ? Visible.FADING_OUT : Visible.SEEN;
   s.muzzleFlash = v.muzzleFlash === true;
   s.servicePartner = NOBODY;

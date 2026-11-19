@@ -32,6 +32,7 @@ export interface KnowledgeSoldier {
   readonly hand?: string;
   readonly muzzleFlash?: boolean;
   readonly fadingOut?: boolean;
+  readonly offMap?: boolean;
   readonly profile?: number;
   readonly ap?: number;
   readonly life?: number;

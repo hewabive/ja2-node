@@ -46,6 +46,14 @@ async function dropping(): Promise<Drop> {
   return { f, campaign, north: sectorMapOf(t).info.northGridNo };
 }
 
+function ourSoldiersShown(f: TacticalUiTest): number[] {
+  return f.client.view.soldiers.filter((s) => s.team === 0).map((s) => s.id);
+}
+
+function slotted(f: TacticalUiTest): number[] {
+  return f.screen.teamSlots.filter((id): id is number => id !== null);
+}
+
 function skips(f: TacticalUiTest): number {
   return f.client.commands.filter((c) => c.cmd.type === 'skipHelicopterDrop').length;
 }
@@ -70,6 +78,16 @@ describe('the tactical screen through a run of the helicopter drop', () => {
     f.deliver();
     f.t.frame();
     expect([f.screen.controls.lockState(), regions.current?.id]).toEqual(['none', 'tacticalViewport']);
+  });
+
+  it('puts no seat on the team panel before it drops, then each one as he drops, as the heli code adds them (Interface_Panels.cc:3248)', async () => {
+    const { f } = await dropping();
+    f.t.frame();
+    expect([ourSoldiersShown(f), slotted(f)]).toEqual([[], []]);
+    f.session.advance({ events: ['mercDropped'] });
+    f.deliver();
+    const first = ourSoldiersShown(f);
+    expect([first.length, slotted(f), f.client.view.soldiers.some((s) => s.offMap === true)]).toEqual([1, first, false]);
   });
 
   it('moves the view neither by the screen edge nor by a locate while the run goes on, as gfIgnoreScrolling holds (RenderWorld.cc:1938, :3578)', async () => {

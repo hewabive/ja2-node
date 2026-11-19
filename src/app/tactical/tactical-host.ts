@@ -17,6 +17,7 @@ import {
   type TacticalLayout,
 } from '../../ui/screens/tactical/environment.ts';
 import { parseUiCursorTable, UI_CURSORS_TABLE_PATH, type UiCursorTable } from '../../ui/screens/tactical/input/ui-cursors.ts';
+import { offTheMap } from '../../ui/screens/tactical/soldiers.ts';
 import { TacticalScreen } from '../../ui/screens/tactical/tactical-screen.ts';
 import { type SettingsChange, updateSettings } from '../../ui/settings.ts';
 import type { SpeechPresenter, SpeechSettings } from '../../ui/speech.ts';
@@ -259,7 +260,7 @@ export class TacticalHost {
     );
     const geometry = this.#o.page.geometry();
     presenter.resize(geometry.width, geometry.height);
-    const own = session.soldiers.find((s) => s.team === OUR_TEAM);
+    const own = session.soldiers.find((s) => s.team === OUR_TEAM && !offTheMap(s));
     presenter.centerOn(own?.gridNo ?? world.world.map.info.centerGridNo);
     presenter.setOverheadTiles(() => loadOverheadTiles(world.world, available, fetchVfsFile));
     this.#loaded = { presenter, media: loadedMedia.store, layouts, uiCursors };

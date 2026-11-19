@@ -13,7 +13,7 @@
 
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox, SoldierHeight } from '../environment.ts';
-import { isDead, isInVehicle, isOwned, isUnconscious, isVehicleBody, OUR_TEAM, okInterrupt } from '../soldiers.ts';
+import { isDead, isOwned, isUnconscious, isVehicleBody, OUR_TEAM, okInterrupt, onTheMap } from '../soldiers.ts';
 
 export const FindFlag = {
   OWNED: 0x1,
@@ -79,7 +79,7 @@ function* pointedSoldiers(
   const x = Math.floor(at.x);
   const y = Math.floor(at.y);
   for (const s of soldiers) {
-    if (isInVehicle(s)) continue;
+    if (!onTheMap(s)) continue;
     if (s.level !== at.level) continue;
     const box = world.soldierBox(s.id);
     if (!box) continue;

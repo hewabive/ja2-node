@@ -37,7 +37,7 @@ import { deathOffTheMapCues, reloadCue } from '../../content/audio/cues.ts';
 import { BleedGrunts, damageFeedbackSounds } from '../../content/audio/damage-feedback.ts';
 import { cursesTheFailedCheck } from '../../content/audio/skill-check-curse.ts';
 import { offScreenVolume } from '../../content/audio/sound-position.ts';
-import type { PlayerView } from '../../protocol/view.ts';
+import type { PlayerView, SoldierView } from '../../protocol/view.ts';
 import type { DamageFeedback, DeathCry, ItemAttachedFeedback, MapSounds, SkillCheckFailure } from '../../ui/screens/map/environment.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 import { loadSettings } from '../settings.ts';
@@ -155,7 +155,7 @@ export class MapSound implements MapSounds {
   itemAttached(attached: ItemAttachedFeedback): void {
     const book = this.#book;
     if (book && attached.sound) {
-      const gridNo = this.#view()?.soldiers.find((s) => s.id === attached.soldier)?.gridNo ?? NOWHERE;
+      const gridNo = this.#soldierOnTheMap(attached.soldier)?.gridNo ?? NOWHERE;
       const cue = effectCue(book, attached.sound, 'location', MIDVOLUME, gridNo);
       if (cue) this.#engine.play(cue);
     }
@@ -172,11 +172,15 @@ export class MapSound implements MapSounds {
     play();
   }
 
+  #soldierOnTheMap(id: number): SoldierView | null {
+    return this.#view()?.soldiers.find((s) => s.id === id && s.offMap !== true) ?? null;
+  }
+
   #voiceOf(feedback: Pick<DamageFeedback, 'soldier' | 'cry' | 'unseen'>): VoiceSoldier | null {
     if (feedback.cry) return { gridNo: NOWHERE, ...feedback.cry, morale: NORMAL_MORALE };
     const unseen = feedback.unseen;
     if (unseen) return { gridNo: NOWHERE, team: UNSEEN_TEAM, bodyType: unseen.bodyType, voice: unseen.voice, morale: NORMAL_MORALE };
-    const s = this.#view()?.soldiers.find((v) => v.id === feedback.soldier);
+    const s = this.#soldierOnTheMap(feedback.soldier);
     if (!s || s.muted) return null;
     return { gridNo: s.gridNo, team: s.team, bodyType: s.bodyType, voice: s.voice ?? null, morale: s.morale ?? NORMAL_MORALE };
   }

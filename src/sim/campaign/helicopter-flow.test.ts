@@ -11,6 +11,7 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import { strategicView } from '../../server/strategic-view.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, emptyObject } from '../items/object.ts';
+import { tacticalViewParts } from '../knowledge/sim-view.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { CrewMember } from '../strategic/economy/ports.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
@@ -256,7 +257,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     return [flying.isPassengerOrDriver, s.placed, s.offMap, s.gridNo, t.mercSlots.includes(s), t.soldiers[id] === s];
   }
 
-  it('keep their merc slot when they board on the loaded map, off their tile with no other (Vehicles.cc AddSoldierToVehicle, RemoveSoldierFromGridNo)', () => {
+  it('keep their merc slot when they board on the loaded map, off their tile with no other, and stay in the view off the map (Vehicles.cc AddSoldierToVehicle, RemoveSoldierFromGridNo)', () => {
     const c = landedCampaign();
     const boarding = c.battle?.roster.get(0)?.soldier;
     const slots = c.tactical?.state.mercSlots.map((s) => s.id);
@@ -265,6 +266,9 @@ describe('the helicopter passengers over the loaded sector', () => {
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
     expect(passengerState(c, 0)).toEqual([true, false, true, NOWHERE, true, true]);
+    const sim = c.tactical;
+    const shown = sim ? tacticalViewParts(sim).soldiers.find((s) => s.id === 0) : undefined;
+    expect([shown?.offMap, shown?.gridNo, shown?.vehicle === null || shown?.vehicle === undefined]).toEqual([true, NOWHERE, false]);
     const t = c.tactical?.state;
     expect(t?.mercSlots.map((s) => s.id)).toEqual(slots);
     if (t) expect(whoIsThere(t, tile, level)).toBeNull();

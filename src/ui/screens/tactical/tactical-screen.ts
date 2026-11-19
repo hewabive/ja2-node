@@ -210,6 +210,7 @@ import {
   namedUnderPointer,
   nobodyAboard,
   OUR_TEAM,
+  offTheMap,
   okInterrupt,
   opponentCount,
   ourTurn,
@@ -1740,12 +1741,14 @@ export class TacticalScreen implements Screen {
   }
 
   #locateSoldier(s: SoldierView, flag: LocateFlag): void {
+    if (offTheMap(s)) return;
     if (locateCentresOnScreen(flag)) this.#env.world.centerOn(s.gridNo);
     else this.#env.world.locate(s.gridNo);
     this.#showLocator(s, locateLocatorCycles(flag));
   }
 
   #slideTo(s: SoldierView, flag: LocateFlag): void {
+    if (offTheMap(s)) return;
     if (flag === LocateFlag.SETANDREMOVEPREVIOUSLOCATOR) this.#locators.clear();
     this.#showLocator(s, slideLocatorCycles(flag));
     this.controls.slideTo(s.gridNo);
@@ -2667,7 +2670,7 @@ export class TacticalScreen implements Screen {
     const box = this.#env.world.radarViewport();
     if (box) list.rectangle(rect.x + box.x1, rect.y + box.y1, rect.x + box.x2, rect.y + box.y2, RADAR_VIEW_COLOUR);
     for (const s of this.#view()?.soldiers ?? []) {
-      if (s.bodyType === Body.CROW) continue;
+      if (s.bodyType === Body.CROW || offTheMap(s)) continue;
       const dot = this.#env.world.radarDot(s.gridNo);
       if (!dot) continue;
       const x = rect.x + dot.x;

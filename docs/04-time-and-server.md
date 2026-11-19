@@ -267,7 +267,8 @@ and compressed with `permessage-deflate`, the context kept between messages.
   (`29` §7).
 - Unseen soldiers appear neither in the view nor in the events; events about them are reduced to what the squad hears
   (`29` §7). A soldier the squad has just lost stays, marked `fadingOut`, while the simulation fades him out, as the
-  original keeps drawing him. There is no omniscient view.
+  original keeps drawing him. Our soldier in the sector off the visible world stays, marked `offMap`, for the panels.
+  There is no omniscient view.
 - Rule: a field exists only when an original screen shows it at that moment; hidden state (the Queen, facts, opinions,
   tolerances, dealer cash, profile whereabouts, the event queue) never appears (each domain's section of `29` names
   what stays hidden).

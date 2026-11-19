@@ -318,6 +318,7 @@ export interface SoldierSnapshot {
   readonly muzzleFlash?: boolean;
   readonly drawnOnTop?: boolean;
   readonly fadingOut?: boolean;
+  readonly offMap?: boolean;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -325,6 +326,10 @@ export interface SoldierSnapshot {
   readonly inventory?: readonly InventoryItemView[];
   readonly keys?: readonly KeyView[];
   readonly profile?: number;
+}
+
+function inTheSoldierView(s: Soldier): boolean {
+  return s.placed || (s.team === Team.OUR && s.offMap);
 }
 
 export type OwnSoldierSnapshot = SoldierSnapshot & Partial<OwnSoldierFields> & Partial<OtherSoldierFields>;
@@ -1542,7 +1547,7 @@ export class TacticalSim {
   }
 
   snapshot(presentation: PresentationTimeline, filter: (s: Soldier) => boolean = () => true): OwnSoldierSnapshot[] {
-    const shown = this.state.soldiers.filter((s): s is Soldier => !!s && s.placed && filter(s));
+    const shown = this.state.soldiers.filter((s): s is Soldier => !!s && inTheSoldierView(s) && filter(s));
     const others = new Set(shown.filter((s) => s.team !== Team.OUR).map((s) => s.id));
     return shown.map((s) => ({
       id: s.id,
@@ -1571,6 +1576,7 @@ export class TacticalSim {
       ...(s.muzzleFlash ? { muzzleFlash: true } : {}),
       ...(s.drawnOnTop ? { drawnOnTop: true } : {}),
       ...(s.visible === Visible.FADING_OUT ? { fadingOut: true } : {}),
+      ...(s.placed ? {} : { offMap: true }),
       ...(s.team === Team.OUR
         ? {
             ap: apsToDisplay(this.state, s),

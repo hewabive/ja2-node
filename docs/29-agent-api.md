@@ -389,7 +389,12 @@ own language (`src/protocol/soldier-names.ts`), `observe` gives in the session's
 naming him carries as a string reference (`06`). A
 soldier the squad has just lost stays while he fades
 out, with `fadingOut` (`06`): he can still be targeted and his hits are told, as in the original, until the fade ends or
-he reaches the next tile. The tactical world (corpses, smoke, light, structure changes, blood;
+he reaches the next tile. Our soldier still in the sector off the visible world carries `offMap`: a squad walking off an
+edge, which stays until the next sector loads or, when others stay (`load: false`), until its last merc is off and the
+group leaves together (`Strategic/StrategicMap.cc:1788-1794`), and a passenger with no tile (his vehicle off the map, the
+helicopter over the loaded sector). The original keeps him `bInSector` (`Tactical/Soldier_Control.cc:1917-1920`): the
+panels keep him as `CheckForAndAddMercToTeamPanel` does (`Tactical/Interface_Panels.cc:3230`), and the map draws,
+picks, locates and dots him nowhere; other teams' soldiers off it are not in the view. The tactical world (corpses, smoke, light, structure changes, blood;
 `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes (`tileChanges`) are the map
 changes since the load (`remove`; `add` at the head of the tile's structure layer, as a SAM terminal the Queen's
 reinforcements repaired, `18`; `swap` in place of the tile removed just before it, a structure swapped for its partner

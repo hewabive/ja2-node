@@ -30,8 +30,12 @@ function figure(width: number, height: number, pixels: readonly number[]): Soldi
   return { layer: 0, x: 0, y: 0, width, height, offsetX: -10, offsetY: -40, pixels: Uint8Array.from(pixels) };
 }
 
-function presenterWithSoldier(sprite: SoldierSprite, bounds: BoundingBox = sprite): TacticalWorldPresenter {
-  const shown = { id: SOLDIER, gridNo: MAP_CENTRE, x: MAP_CENTRE_POSITION, y: MAP_CENTRE_POSITION, level: 0 };
+function presenterWithSoldier(
+  sprite: SoldierSprite,
+  bounds: BoundingBox = sprite,
+  fields: Partial<SoldierView> = {},
+): TacticalWorldPresenter {
+  const shown = { id: SOLDIER, gridNo: MAP_CENTRE, x: MAP_CENTRE_POSITION, y: MAP_CENTRE_POSITION, level: 0, ...fields };
   const view = { soldiers: [shown as SoldierView] } as unknown as PlayerView;
   const world = {
     world: {
@@ -139,6 +143,16 @@ describe('the soldier under the pointer (FindSoldier, GetSoldierScreenRect)', ()
     expect(presenter.soldierAt(middle.x - ONE_TILE_RIGHT_PX, middle.y)).toBe(SOLDIER);
     presenter.centerOn(MAP_CENTRE);
     expect(presenter.soldierBox(SOLDIER)).toEqual(before);
+  });
+
+  it('gives our merc off the visible world no rectangle and no screen point, so neither the pick nor an overlay finds him', () => {
+    const sprite = figure(20, 40, Array(800).fill(1));
+    const box = presenterWithSoldier(sprite).soldierBox(SOLDIER);
+    if (!box) throw new Error('no rectangle for the soldier');
+    const offMap = presenterWithSoldier(sprite, sprite, { team: 0, offMap: true });
+    expect(offMap.soldierBox(SOLDIER)).toBeNull();
+    expect(offMap.soldierTrueScreenPosition(SOLDIER)).toBeNull();
+    expect(offMap.soldierAt(box.x + 10, box.y + 20)).toBeNull();
   });
 
   it("tests a vehicle's picture one pixel left of the pointer, the last pixel of the row above at the left edge (CheckVideoObjectScreenCoordinateInData)", () => {

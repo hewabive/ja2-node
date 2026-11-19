@@ -118,8 +118,12 @@ export function isInVehicle(s: SoldierView): boolean {
   return s.vehicle !== undefined && s.vehicle !== null;
 }
 
+export function offTheMap(s: Pick<SoldierView, 'offMap'>): boolean {
+  return s.offMap === true;
+}
+
 export function onTheMap(s: SoldierView): boolean {
-  return !isInVehicle(s);
+  return !isInVehicle(s) && !offTheMap(s);
 }
 
 export function isOwned(s: SoldierView): boolean {
@@ -276,7 +280,7 @@ export function findActiveAndAliveMerc(view: PlayerView | null, current: Soldier
     const s = team[(at + step * i + team.length * i) % team.length];
     if (!s) continue;
     if (filter.onlyRegularMercs && (isEpc(s) || !isMercBodyType(s))) continue;
-    if (!sameAssignment(view, s, current) || !okInterrupt(s) || !onTheMap(s) || (s.life ?? 0) < minLife) continue;
+    if (!sameAssignment(view, s, current) || !okInterrupt(s) || isInVehicle(s) || (s.life ?? 0) < minLife) continue;
     return s;
   }
   return current;
