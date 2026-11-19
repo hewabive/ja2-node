@@ -60,7 +60,8 @@
 // @src ItemRegionBtnCallback, ChangeSelectedMapSector (no airspace below ground, no sublevel while plotting),
 // @src RequestToggleMercInventoryPanel, MAP_EVENT_CLICK_SECTOR (NS_INVALID_DROPOFF_SECTOR); Map_Screen_Interface.cc
 // @src CreateMapStatusBarsRegion, CreateDestroyInsuranceMouseRegionForMercs (2026-11-18); MapScreen.cc the TeamList*Callbacks
-// @src (no team list input while fLockOutMapScreenInterface is set, but a right click on the sleep column, 2026-11-19).
+// @src (no team list input while fLockOutMapScreenInterface is set, but a right click on the sleep column, 2026-11-19);
+// @src CanToggleSelectedCharInventory for every RequestToggleMercInventoryPanel, its description box closed first (2026-11-19).
 
 import { MAP_SIDE, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -2114,16 +2115,33 @@ export class MapScreen implements Screen {
 
   #toggleInventory(): void {
     this.#abortPlotting();
+    if (!this.#canToggleSelectedCharInventory()) return;
+    const description = this.#inventory.merc.description;
+    if (description.open) {
+      description.close(true);
+      return;
+    }
     if (this.#inventoryOpen) {
       if (this.#inventory.mercBusy) return;
       this.#inventory.closeMerc();
       this.#inventoryOpen = false;
       return;
     }
-    const m = this.list.infoMerc(this.#strategic());
-    if (!m || !accessibleInventory(m)) return;
     this.#inventory.openMerc();
     this.#inventoryOpen = true;
+  }
+
+  #canToggleSelectedCharInventory(): boolean {
+    if (this.#battle.panel) return false;
+    if (this.#inventoryOpen && this.#inventory.holding) return false;
+    const m = this.list.infoMerc(this.#strategic());
+    if (!m || !accessibleInventory(m)) return false;
+    return this.#inventoryOpen || this.#inventory.pool.cursor === null || this.#inShownSector(m);
+  }
+
+  #inShownSector(m: StrategicMercView): boolean {
+    const at = parseSectorLabel(m.sector);
+    return at !== null && !m.betweenSectors && at.x === this.#selected.x && at.y === this.#selected.y && at.z === this.#level;
   }
 
   #toggleSectorInventory(): void {

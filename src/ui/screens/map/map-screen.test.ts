@@ -1731,6 +1731,60 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook().inventoryOpen).toBe(false);
     }));
 
+  it('keeps the inventory open while a sector inventory item is held, by Enter and by the hand (CanToggleSelectedCharInventory)', () =>
+    withMap(async (f) => {
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      stashClipInSelectedSector(f);
+      f.screen.openSectorInventory();
+      await f.settle();
+      await f.click('poolSlot0');
+      expect(f.screen.mapInventory.pool.cursor?.item).toBe('CLIP9_15');
+      f.key('Enter');
+      expect(f.screen.hook().inventoryOpen).toBe(true);
+      await f.click('infoHand');
+      expect(f.screen.hook().inventoryOpen).toBe(true);
+      await f.click('poolSlot0');
+      f.key('Enter');
+      expect(f.screen.hook().inventoryOpen).toBe(false);
+    }));
+
+  it('opens the inventory under a held sector inventory item only for a merc in the sector shown (CanToggleSelectedCharInventory)', () =>
+    withMap(async (f) => {
+      const [first] = listedMercs(f);
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      await f.click('infoHand');
+      expect(f.screen.hook().inventoryOpen).toBe(false);
+      stashClipInSelectedSector(f);
+      f.screen.openSectorInventory();
+      await f.settle();
+      await f.click('poolSlot0');
+      expect(f.screen.mapInventory.pool.cursor?.item).toBe('CLIP9_15');
+      mercRecord(f, first).betweenSectors = true;
+      f.client.refresh();
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      await f.click('infoHand');
+      f.key('Enter');
+      expect(f.screen.hook().inventoryOpen).toBe(false);
+      mercRecord(f, first).betweenSectors = false;
+      f.client.refresh();
+      f.key('Enter');
+      expect(f.screen.hook().inventoryOpen).toBe(true);
+    }));
+
+  it('closes the description box instead of the inventory at a toggle (RequestToggleMercInventoryPanel)', () =>
+    withMap(async (f) => {
+      const [holder] = listedMercs(f);
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      const pocket = f.client.view.strategic?.mercs.find((m) => m.id === holder)?.inventory?.[0];
+      if (!pocket) throw new Error('the info merc carries nothing');
+      await f.click(`mercSlot${pocket.slot}`, MouseButton.RIGHT);
+      await f.settle();
+      expect(f.screen.mapInventory.merc.description.open).toBe(true);
+      f.key('Enter');
+      await f.settle();
+      expect([f.screen.mapInventory.merc.description.open, f.screen.hook().inventoryOpen]).toEqual([false, true]);
+    }));
+
   it('leaves the sector inventory open on Escape, as its own button closes it (HandleKeyESC)', () =>
     withMap(async (f) => {
       f.screen.openSectorInventory();
