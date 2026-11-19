@@ -344,12 +344,11 @@ says otherwise:
 | MOVEAWAY flies once, with no repeat: `REPEAT_HELI_MOVEAWAY` is the 640x480 screen's offset over 7, which is 0 (`Tactical/Merc_Entering.cc:37`, `UILayout.cc:68`); on a wider screen the client flies the shadow on (deviation "Helicopter shadow on wide screens") | `src/sim/tactical/helicopter-drop.test.ts` "flies MOVEAWAY once …" |
 | Only the first run syncs the strategic turn times, so a later run's end leaves the real-time turn due and the first poll after it runs one at once (`Tactical/Merc_Entering.cc:780`) | `src/sim/campaign/helicopter-drop-flow.test.ts` "flies a later arrival in the loaded start sector …" |
 | A helicopter piece destroyed in the sector stays off the map after a load, but comes back at the next sector entry: the entry adds the helicopter a second time after the map changes took the piece away (`Strategic/StrategicMap.cc:520` after `:880`) | `src/sim/campaign/sector-flow.test.ts` "brings a helicopter piece destroyed …", "keeps a helicopter piece destroyed before the save …" |
+| Confirming a helicopter route that adds no sector still takes off, its own sector without a path too: the helicopter stays airborne where it stood without hovering, so nobody can get off until the next route, and no hover timer runs (`Strategic/MapScreen.cc:5509-5520`, `Strategic/Map_Screen_Helicopter.cc:184`, `:424-432`) | `src/sim/campaign/helicopter-flow.test.ts` "takes off at a confirm on its own sector …", `src/ui/screens/map/map-screen.test.ts` "confirms the helicopter without a path …" |
 
 Not pinned yet:
 - `ENOUGH_LOYALTY_TO_TRAIN_MILITIA` reads the town of the sector above when underground, and `WALKER_AT_BAR` ignores
   Father's level (`check-fact.ts`, `economy-facts.ts`).
-- Confirming a helicopter route that adds no sector still takes off: the helicopter stays airborne where it stood,
-  without hovering (`confirmHelicopterRoute`).
 - A sex action item on a tile outside the three listed rooms only stops the merc (`sexActionItem`).
 
 ## 4. Not checked against the native build

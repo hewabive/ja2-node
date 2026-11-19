@@ -278,8 +278,8 @@ the legs stay in the client until the confirming click sends one `route` per gro
 the move box's Done regroups at once with `regroupForMove`, so Esc during the plot that follows leaves the new squads,
 and its confirm sends one `routeGroup` for the movers. Each leg keeps the Shift of its own click, the helicopter's too,
 and a merc's click on a sector nobody can pass through does nothing (`map/plotting.ts`). A click on the end of an
-unchanged path, or on the merc's sector without one, confirms it again, and the destination column of a helicopter
-passenger plots for the helicopter. Decision prompts open as the original's boxes and close when an
+unchanged path, or on the merc's or the helicopter's own sector without one, confirms it again, and the destination
+column of a helicopter passenger plots for the helicopter. Decision prompts open as the original's boxes and close when an
 agent answers them first (deviation "Map screen boxes for prompts").
 
 **Battle entry.** The pre-battle panel is part of the map screen, as `gfPreBattleInterfaceActive` is; autoresolve is a

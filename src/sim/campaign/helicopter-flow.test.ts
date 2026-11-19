@@ -183,6 +183,26 @@ describe('the helicopter commands', () => {
     expect(flown(true)).toMatchObject({ ok: true, data: { path: ['A9', 'A10', 'A11'] } });
   });
 
+  it('takes off at a confirm on its own sector without a route and stays up without hovering, so nobody gets off and nobody is woken (MapScreen.cc:5509-5520, Map_Screen_Helicopter.cc:184, :424-432)', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
+    const walker = c.economy?.crew.get(1) as CrewMember;
+    walker.asleep = true;
+    c.drainEvents();
+    const confirm = c.dispatch({ type: 'heliRoute', to: 'A9', extend: true, plotted: true, selected: [0, 1] });
+    expect(confirm).toMatchObject({ ok: true, data: { path: [] } });
+    const events = c.drainEvents();
+    expect(events.some((e) => e.type === 'heliTakeOff')).toBe(true);
+    expect(events.some((e) => e.type === 'skyriderQuote')).toBe(false);
+    expect(walker.asleep).toBe(true);
+    expect(strategicView(c)?.helicopter).toMatchObject({ sector: 'A9', airborne: true, hovering: false, path: [] });
+    expect(refusalOf(c.dispatch({ type: 'leaveVehicle', soldier: 0 }))).toBe('helicopterInFlight');
+    for (let i = 0; i < 600; i++) c.step();
+    expect(c.drainEvents().some((e) => e.type === 'heliHovering')).toBe(false);
+    expect(strategicView(c)?.helicopter).toMatchObject({ airborne: true, hovering: false });
+  });
+
   it('grounds the helicopter while Skyrider is owed money', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });

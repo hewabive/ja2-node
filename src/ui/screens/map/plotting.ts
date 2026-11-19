@@ -9,8 +9,8 @@
 // @src PlotPathForCharacter, PlotATemporaryPathForCharacter, ClearPathAfterThisSectorForCharacter, PlotPathForHelicopter,
 // @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter; HandleNewDestConfirmation through a click
 // @src on the end of an unchanged path, the helicopter's too (2026-11-18); SHIFT read by FindStratPath at each plotting
-// @src click, the helicopter's too, MAP_EVENT_PLOT_PATH's SectorIsPassable for a merc, the confirm of an empty path
-// @src (2026-11-19).
+// @src click, the helicopter's too, MAP_EVENT_PLOT_PATH's SectorIsPassable for a merc, the confirm of an empty path, the
+// @src helicopter's too (2026-11-19).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -251,8 +251,7 @@ export class Plotting {
   #reconfirmedPath(): CommandEnvelope | null {
     if (this.group) return null;
     if (this.mode === 'merc') return { type: 'route', soldier: this.soldier, to: this.lastSectorOrOrigin() };
-    const last = this.lastSector();
-    return last === null ? null : { type: 'heliRoute', to: last, extend: true, plotted: true };
+    return { type: 'heliRoute', to: this.lastSectorOrOrigin(), extend: true, plotted: true };
   }
 
   confirmCommand(): CommandEnvelope | null {

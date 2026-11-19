@@ -1505,6 +1505,21 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
     }));
 
+  it('confirms the helicopter without a path on its own sector, which takes it off, and says the route is unchanged (CheckIfClickOnLastSectorInPath, MapScreen.cc:5509-5520, :5596-5599)', () =>
+    withMap(async (f) => {
+      await boardHelicopter(f, f.mercs[1]);
+      await f.click('filter4');
+      await f.clickSector('D13');
+      expect(f.screen.hook().plotting).toMatchObject({ mode: 'heli', legs: [] });
+      await f.clickSector('D13');
+      expect(lastCommand(f)).toMatchObject({
+        cmd: { type: 'heliRoute', to: 'D13', extend: true, plotted: true, selected: f.screen.list.selectedIds() },
+        reply: { ok: true, data: { path: [] } },
+      });
+      expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: ROUTE_UNCHANGED });
+      expect(f.client.view.strategic?.helicopter).toMatchObject({ airborne: true, hovering: false });
+    }));
+
   it('says the route is unchanged wherever plotting is given up by the sort buttons, the contract menu or the arrows (AbortMovementPlottingMode)', () =>
     withMap(async (f) => {
       const giveUp: readonly (() => void)[] = [() => f.key('F1'), () => f.key('c', 0, 'KeyC'), () => f.key('ArrowRight')];

@@ -15,7 +15,8 @@
 // @src queue, 2026-11-01).
 // @src src/game/Strategic/MapScreen.cc HandleNewDestConfirmation, WakeUpAnySleepingSelectedMercsOnFootOrDriving (2026-11-18);
 // @src CancelPathsOfAllSelectedCharacters (a passenger without a route, 2026-11-19); Strategic_Pathing.cc FindStratPath (Shift
-// @src flattens each helicopter leg, 2026-11-19).
+// @src flattens each helicopter leg, 2026-11-19); MapScreen.cc CheckIfClickOnLastSectorInPath (an empty route takes off and
+// @src wakes nobody, 2026-11-19).
 
 import {
   parseSectorString,
@@ -376,7 +377,7 @@ export class HelicopterFlow {
     if (!path) return refusal('noRoute');
     v.path = path;
     confirmHelicopterRoute(ctx, to);
-    if (this.economy) wakeUpSleepingMercsOnFootOrDriving(this.economy, selected);
+    if (this.economy && path.length > 0) wakeUpSleepingMercsOnFootOrDriving(this.economy, selected);
     return { ok: true, data: this.#routeData() };
   }
 
