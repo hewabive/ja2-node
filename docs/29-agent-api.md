@@ -851,6 +851,11 @@ the box charges, at once; one onto another object closes the open box first. `de
 `data.leftover` the pocket the attachment went to, where the page keeps its cursor: the page's box sends the detach at
 the click and an attach of that pocket puts it back.
 
+The first box a campaign opens with an item in the page's cursor shows the original's first-attachment hint, picked by
+the `compatibleItems` hint with `rule: attachment` (`Interface_Items.cc:1824-1845`); the page then sends
+`attachmentHelpShown`, which sets the fact the hint checks, and `strategic.attachmentHelpDue` goes. Agents have no
+cursor and never see the hint; the command is there for the page.
+
 `applyItem` is the cursor dropped on the single merc panel's portrait (`SMInvClickCamoCallback`): one object of the
 stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT stack (`BeginItemPointer`). Drugs and
 drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`). As with `combineStack`,

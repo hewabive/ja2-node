@@ -6,6 +6,7 @@ import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 
+const ATTACHED_ITEM_BEFORE = 268;
 const CONTRACTS_ON_THE_MAP_ONLY = {
   ok: false,
   reason: 'mapScreenOnly: contracts are handled on the map screen only',
@@ -34,6 +35,14 @@ describe('a new campaign session', () => {
     expect(view.mapPath).toBe('stubs/world/maps/a9.dat');
     expect(view.soldiers.filter((s) => s.team === Team.OUR)).toHaveLength(4);
     expect(view.strategic?.mercs.every((m) => m.sector === 'A9' && m.squad === 0)).toBe(true);
+  });
+
+  it('owes the first-attachment hint until the page says it showed it, which sets FACT_ATTACHED_ITEM_BEFORE (InternalInitItemDescriptionBox)', async () => {
+    const session = await create(3, {});
+    expect(session.view().strategic?.attachmentHelpDue).toBe(true);
+    expect(session.dispatch({ type: 'attachmentHelpShown' })).toEqual({ ok: true });
+    expect(session.campaign.state.narrative.facts[ATTACHED_ITEM_BEFORE]).toBe(1);
+    expect(session.view().strategic).not.toHaveProperty('attachmentHelpDue');
   });
 
   it('shows each merc his place in his squad, the order FindNextActiveSquad walks', async () => {

@@ -906,6 +906,24 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.radarHighlight()).toBeNull();
   });
 
+  it('sets the first-attachment fact as the box opens with an item in the cursor but draws no hint, as only the tactical screen shows the fast help (InternalInitItemDescriptionBox, RenderTopmostTacticalInterface)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const silencer = item((i) => i.name === 'SILENCER');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name), view(SMALL_POCKET, silencer.name)])]);
+    h.client.view = { ...h.client.view, strategic: { ...h.client.view.strategic, attachmentHelpDue: true } } as PlayerView;
+    h.inventory.openMerc();
+    await h.settle();
+    const told = () => h.client.commands.filter((c) => c.type === 'attachmentHelpShown');
+    await h.click(`mercSlot${HAND}`, MouseButton.RIGHT);
+    expect([h.inventory.merc.description.open, told()]).toEqual([true, []]);
+    h.inventory.merc.description.close(false);
+    await h.click(`mercSlot${SMALL_POCKET}`);
+    await h.click(`mercSlot${HAND}`, MouseButton.RIGHT);
+    expect([h.inventory.merc.description.open, told()]).toEqual([true, [{ type: 'attachmentHelpShown' }]]);
+    expect(h.client.hints).toContainEqual({ type: 'compatibleItems', item: silencer.index, items: [gun.index], rule: 'attachment' });
+    expect(h.t.runtime.regions.regions.some((r) => r.id === 'fastHelpMask')).toBe(false);
+  });
+
   it('draws the description box at the map screen position (MAP_ITEMDESC_START_X, MAP_ITEMDESC_START_Y)', async () => {
     const gun = item((i) => i.class === 'GUN');
     const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);

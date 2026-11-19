@@ -419,6 +419,7 @@ export interface StrategicView {
   readonly noUsableMercs?: boolean;
   readonly gameJustStarted?: boolean;
   readonly mapInterfaceDisabled?: boolean;
+  readonly attachmentHelpDue?: boolean;
   readonly meanwhiles: readonly MeanwhileLogView[];
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];

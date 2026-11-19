@@ -28,7 +28,9 @@
 // @src UpdateClock and whose every frame restarts its second (2026-11-15); MapScreen.cc HandlePostAutoresolveMessages' last
 // @src branch, the militia promotions box, which every map screen frame without a box up reaches (2026-11-15);
 // @src MapScreen.cc HandleAssignmentsDoneAndAwaitingFurtherOrders, the only frame that acts on
-// @src gfReEvaluateEveryonesNothingToDo, so a flag raised off the map waits for it or the hourly update (2026-11-15).
+// @src gfReEvaluateEveryonesNothingToDo, so a flag raised off the map waits for it or the hourly update (2026-11-15);
+// @src Tactical/Interface_Items.cc InternalInitItemDescriptionBox's SetFactTrue(FACT_ATTACHED_ITEM_BEFORE) as the page
+// @src shows the first-attachment hint (2026-11-19).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -65,8 +67,8 @@ import { wildernessSectorWithAllProfiledNpcsNotSpokenWith } from '../strategic/f
 import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { rebelsNotNeutral } from '../strategic/narrative/civ-groups.ts';
-import { Quest } from '../strategic/narrative/fact-ids.ts';
-import { NOT_BOXING, QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
+import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
+import { NOT_BOXING, QuestStatus, questStatus, setFactTrue } from '../strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind, Warp } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
@@ -1086,6 +1088,9 @@ export class CampaignSim {
         return this.#skipHelicopterDrop();
       case 'stopTime':
         stopTimeCompression(this.#clock, CompressionStop.REQUESTED);
+        return { ok: true };
+      case 'attachmentHelpShown':
+        setFactTrue(this.state.narrative, Fact.ATTACHED_ITEM_BEFORE);
         return { ok: true };
       case 'mapScreen':
         return openMapScreen(this, cmd.abandonFight === true);

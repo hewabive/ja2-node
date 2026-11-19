@@ -18,11 +18,15 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance);
 // @src InternalInitItemDescriptionBox and DeleteItemDescriptionBox on the tactical screen as the server's box session
 // @src (the cursor's holder pays), ItemDescAttachmentsCallbackPrimary's RemoveAttachment at the click into a free pocket
-// @src (2026-11-15); the same session on the map screen (MapScreen.cc MAPInternalInitItemDescriptionBox, 2026-11-16).
+// @src (2026-11-15); the same session on the map screen (MapScreen.cc MAPInternalInitItemDescriptionBox, 2026-11-16);
+// @src InternalInitItemDescriptionBox's first-attachment hint (with an item in the cursor and FACT_ATTACHED_ITEM_BEFORE
+// @src unset: STR_ATTACHMENT_HELP unless the described item is a hidden add-on or the cursor item neither attaches to,
+// @src launches from nor merges with it, then STR_ATTACHMENT_INVALID_HELP; at 69, 12 off the box, 170 wide; the fact set
+// @src at once, 2026-11-19).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
-import type { ItemInfo, Placements } from '../../../protocol/hints.ts';
+import type { CompatibleItems, ItemInfo, Placements } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalOf } from '../../../protocol/refusals.ts';
@@ -30,6 +34,7 @@ import type { InventoryItemView, KeyView, SoldierView } from '../../../protocol/
 import type { ImageCatalog } from '../../assets.ts';
 import { CursorId } from '../../cursors/cursor-ids.ts';
 import type { DrawList } from '../../draw-list.ts';
+import type { GameClient } from '../../game-client.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
@@ -43,6 +48,7 @@ import type { UiTextService } from '../../text/text-service.ts';
 import { weightUnit } from '../../text/weight.ts';
 import { displayWrappedString, TextFlag } from '../../text/wrap.ts';
 import type { Button } from '../../widgets/button.ts';
+import type { FastHelpText } from '../../widgets/fast-help.ts';
 import { drawItemStatusBar } from './bars.ts';
 import {
   attachCommand,
@@ -159,12 +165,30 @@ export interface DescriptionHooks {
   readonly moneyDone?: (object: DescribedObject, amount: number) => void;
   readonly alert?: (text: string) => Promise<void>;
   readonly mapScreen?: boolean;
+  readonly attachmentHelp?: AttachmentHelpHooks;
+}
+
+export interface AttachmentHelpHooks {
+  readonly due: () => boolean;
+  readonly goesOnto: (item: number, target: number) => boolean | null;
+  readonly show?: (help: FastHelpText) => void;
+}
+
+export function attachmentGoesOnto(client: Pick<GameClient, 'hint'>, item: number, target: number): boolean | null {
+  const reply = client.hint({ type: 'compatibleItems', item, items: [target], rule: 'attachment' });
+  if (reply.state !== 'ready') return null;
+  return reply.answer.ok && (reply.answer.data as CompatibleItems).compatible[0] === true;
 }
 
 const OWNER = 'itemDescription';
 const STR_ATTACHMENTS = 40;
 const STR_EJECT_AMMO = 39;
 const STR_PERMANENT_ATTACHMENT = 48;
+const STR_ATTACHMENT_HELP = 42;
+const STR_ATTACHMENT_INVALID_HELP = 43;
+const ATTACHMENT_HELP_X = 69;
+const ATTACHMENT_HELP_Y = 12;
+const ATTACHMENT_HELP_WIDTH = 170;
 const ITEMDESC_FONTSHADOW2 = 32;
 const ITEMDESC_AMMO_FORE = 209;
 const STATS_TITLE = 6;
@@ -251,6 +275,8 @@ export class ItemDescriptionBox {
   #moneyButtons: Button[] = [];
   #done: Button | null = null;
   #session = false;
+  #helpFor: DescribedObject | null = null;
+  #helpGiven = false;
 
   constructor(hooks: DescriptionHooks) {
     this.#hooks = hooks;
@@ -338,6 +364,46 @@ export class ItemDescriptionBox {
     if (item.weapon && item.class === 'GUN') this.#prosConsRegions(object, geometry, fonts);
     if (item.name !== MONEY) this.#attachmentRegions(object, geometry);
     else this.#moneyBox(object, geometry, art, fonts);
+    this.#queueAttachmentHelp(object);
+  }
+
+  update(): void {
+    this.#offerAttachmentHelp();
+  }
+
+  #queueAttachmentHelp(object: DescribedObject): void {
+    const help = this.#hooks.attachmentHelp;
+    if (!help || !this.#hooks.cursor()) return;
+    if (!help.due()) {
+      this.#helpGiven = false;
+      return;
+    }
+    if (this.#helpGiven) return;
+    this.#helpFor = object;
+    this.#offerAttachmentHelp();
+  }
+
+  #offerAttachmentHelp(): void {
+    const object = this.#helpFor;
+    const help = this.#hooks.attachmentHelp;
+    const cursor = this.#hooks.cursor();
+    const geometry = this.#geometry;
+    if (!object || !help || !cursor || !geometry) return;
+    const fits = this.#cursorGoesOnto(object, cursor, help);
+    if (fits === null) return;
+    this.#helpFor = null;
+    this.#helpGiven = true;
+    void this.#hooks.command?.({ type: 'attachmentHelpShown' });
+    const text = this.#hooks.text.string('Message', fits ? STR_ATTACHMENT_HELP : STR_ATTACHMENT_INVALID_HELP) ?? '';
+    const { x, y } = geometry.origin;
+    help.show?.({ text, x: x + ATTACHMENT_HELP_X, y: y + ATTACHMENT_HELP_Y, width: ATTACHMENT_HELP_WIDTH });
+  }
+
+  #cursorGoesOnto(object: DescribedObject, cursor: ItemCursor, help: AttachmentHelpHooks): boolean | null {
+    const described = this.#hooks.item(this.#describedItem(object) ?? '');
+    const held = this.#hooks.item(cursor.item);
+    if (!described || !held || described.flags.includes(HIDDEN_ADDON)) return false;
+    return help.goesOnto(held.index, described.index);
   }
 
   #openSession(object: DescribedObject & { kind: 'slot' }): void {
@@ -638,6 +704,7 @@ export class ItemDescriptionBox {
   close(notify: boolean): void {
     if (!this.#object) return;
     this.#object = null;
+    this.#helpFor = null;
     this.#closeSession();
     for (const region of this.#regions) region.remove();
     this.#regions = [];

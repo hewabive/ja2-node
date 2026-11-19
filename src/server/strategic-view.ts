@@ -24,6 +24,8 @@ import { isSecretFoundAt, isThisSectorASamSector } from '../sim/strategic/map/co
 import { EnemyKnowledge, surfaceKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
+import { Fact } from '../sim/strategic/narrative/fact-ids.ts';
+import { fact } from '../sim/strategic/narrative/facts.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
 import { armourPercent, type MaxArmour, maxArmourPerClass } from '../sim/tactical/combat/armour.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
@@ -301,6 +303,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     ...(campaign.noUsableMercs() ? { noUsableMercs: true } : {}),
     ...(campaign.state.didGameJustStart ? { gameJustStarted: true } : {}),
     ...(mapInterfaceDisabledDueToBattle(campaign.state) ? { mapInterfaceDisabled: true } : {}),
+    ...(fact(campaign.state.narrative, Fact.ATTACHED_ITEM_BEFORE) ? {} : { attachmentHelpDue: true }),
     meanwhiles: campaign.state.meanwhile.log.map((e) => ({
       seq: e.seq,
       scene: meanwhileSceneName(e.id),

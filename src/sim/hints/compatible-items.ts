@@ -2,11 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-03. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Items.cc HandleCompatibleAmmoUIForMapScreen, HandleCompatibleAmmoUIForMapInventory
 // @src (the items lit for a merc's item or a sector inventory item under the pointer on the map screen);
-// @src ShopKeeper_Interface.cc IsGunOrAmmoOfSameTypeSelected (the shop screen's outline, rule shop, 2026-11-04).
+// @src ShopKeeper_Interface.cc IsGunOrAmmoOfSameTypeSelected (the shop screen's outline, rule shop, 2026-11-04);
+// @src Interface_Items.cc InternalInitItemDescriptionBox (the first-attachment hint's ValidAttachment, ValidLaunchable or
+// @src ValidMerge of the cursor item onto the described one, rule attachment, 2026-11-19).
 
 import { type ItemTable, NOTHING } from '../../content/items/items.ts';
+import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { compatibleWithItem, gunOrAmmoOfSameType } from '../tactical/item-compatibility.ts';
+import { validMerge } from '../tactical/item-merge.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 
 export interface CompatibleItems {
@@ -23,9 +27,14 @@ type CompatibilityRule = (table: ItemTable, candidate: number, item: number) => 
 
 const INVENTORY_RULE = 'inventory';
 
+function goesOnto(table: ItemTable, candidate: number, item: number): boolean {
+  return validAttachment(table, item, candidate) || validLaunchable(table, item, candidate) || validMerge(table, item, candidate);
+}
+
 const RULES: ReadonlyMap<unknown, CompatibilityRule> = new Map([
   [INVENTORY_RULE, compatibleWithItem],
   ['shop', gunOrAmmoOfSameType],
+  ['attachment', goesOnto],
 ]);
 
 function knownItem(table: ItemTable, item: unknown): item is number {
@@ -41,6 +50,6 @@ export function compatibleItems(world: KnowledgeWorld, req: CompatibleItemsReque
   if (!Array.isArray(items) || !items.every((i) => knownItem(table, i)))
     return refuseHint('badItems', 'items must be a list of item indices');
   const rule = RULES.get(req.rule ?? INVENTORY_RULE);
-  if (!rule) return refuseHint('badRule', 'rule must be inventory or shop');
+  if (!rule) return refuseHint('badRule', 'rule must be inventory, shop or attachment');
   return hintData({ compatible: items.map((candidate: number) => rule(table, candidate, item)) });
 }

@@ -119,6 +119,7 @@ import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import type { PromptedText } from '../../viewer-prompts.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
+import { FastHelp } from '../../widgets/fast-help.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
@@ -158,7 +159,7 @@ import {
   slotItem,
   tossCommand,
 } from './item-cursor.ts';
-import { type DescriptionGeometry, ItemDescriptionBox, itemInfoRequest } from './item-description.ts';
+import { attachmentGoesOnto, type DescriptionGeometry, ItemDescriptionBox, itemInfoRequest } from './item-description.ts';
 import { ItemLocators, MultiPurposeLocator, type ShownLocator } from './item-locators.ts';
 import { itemPool, onZLevel } from './item-pool.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
@@ -339,6 +340,7 @@ export class TacticalScreen implements Screen {
   readonly #feedback = new FeedbackBox();
   readonly inventory: InventoryPanel;
   readonly description: ItemDescriptionBox;
+  readonly fastHelp: FastHelp;
   readonly stack: StackPopup;
   readonly keyRing: KeyRingPopup;
   readonly pickup: ItemPickupMenu;
@@ -461,7 +463,18 @@ export class TacticalScreen implements Screen {
       closed: () => undefined,
       moneyDone: (object, amount) => this.#money.done(object, amount),
       alert: (text) => env.boxes.alert(text),
+      attachmentHelp: {
+        due: () => this.#view()?.strategic?.attachmentHelpDue === true,
+        goesOnto: (item, target) => attachmentGoesOnto(env.client, item, target),
+        show: (help) => {
+          if (!this.dialogue.shopOpen) this.fastHelp.show(help);
+        },
+      },
     });
+    this.fastHelp = new FastHelp(env.runtime, () => ({
+      text: env.runtime.fonts.get(FontName.FONT10ARIAL),
+      bold: env.runtime.fonts.get(FontName.FONT10ARIALBOLD),
+    }));
     this.pickup = new ItemPickupMenu({
       services: env.runtime,
       images: env.runtime.images,
@@ -923,6 +936,7 @@ export class TacticalScreen implements Screen {
     this.controls.exit();
     this.assignmentMenu.close();
     this.description.close(false);
+    this.fastHelp.close();
     this.stack.close();
     this.keyRing.close();
     this.pickup.close(false);
@@ -1196,6 +1210,7 @@ export class TacticalScreen implements Screen {
     this.#endItemPointerWhereTheOriginalDoes(view);
     this.#syncPickupMenu(view);
     this.inventory.update(this.#now);
+    this.description.update();
     this.#syncTeamButtons();
     this.#updateModels(view);
     this.#syncFacePath();
@@ -1422,6 +1437,7 @@ export class TacticalScreen implements Screen {
 
   input(event: UiInputEvent): boolean {
     if (isPointerEvent(event)) return false;
+    if (this.fastHelp.keyInput(event)) return true;
     if (this.#autoBandage.open) {
       this.#autoBandage.input(event);
       return true;
@@ -1487,6 +1503,7 @@ export class TacticalScreen implements Screen {
     this.#placement.render(list);
     if (!this.controls.overhead.open) this.dialogue.render(list);
     if (this.dialogue.shopOpen && this.description.open) this.description.render(list, ctx, this.#env.runtime.images);
+    this.fastHelp.render(list);
   }
 
   pointedCell(): PointedCell {

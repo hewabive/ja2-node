@@ -12,7 +12,8 @@
 // @src KeyRingItemPanelButtonCallback (on the map screen the key ring opens at STD_SCREEN_X, MAP_START_KEYRING_Y in
 // @src 261 × (359 − 107)); src/game/Tactical/Interface_Items.cc InitKeyRingPopup and RenderKeyRingPopup in map mode
 // @src (cells 40, 15 off the panel, MAP_KEY_RING_ROW_WIDTH per row), RemoveMoney (Done in the money box puts the split
-// @src into the map cursor).
+// @src into the map cursor); InternalInitItemDescriptionBox's first-attachment hint on the map screen, which sets the fact
+// @src and draws nothing, as only the tactical screen's RenderTopmostTacticalInterface shows the fast help (2026-11-19).
 
 import type { ItemInfo } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -23,7 +24,13 @@ import { FontName } from '../../text/fonts.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect } from '../tactical/inventory.ts';
 import { cursorFromMoney, type ItemCursor, slotItem } from '../tactical/item-cursor.ts';
-import { type DescribedObject, type DescriptionGeometry, ItemDescriptionBox, itemInfoRequest } from '../tactical/item-description.ts';
+import {
+  attachmentGoesOnto,
+  type DescribedObject,
+  type DescriptionGeometry,
+  ItemDescriptionBox,
+  itemInfoRequest,
+} from '../tactical/item-description.ts';
 import { type KeyRingGrid, KeyRingPopup, StackPopup } from '../tactical/item-popups.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
 import type { MapEnvironment } from './environment.ts';
@@ -109,6 +116,10 @@ export class MercInventory {
       closed: () => undefined,
       moneyDone: (object, amount) => this.#splitIntoCursor(object, amount),
       mapScreen: true,
+      attachmentHelp: {
+        due: () => env.client.view?.strategic?.attachmentHelpDue === true,
+        goesOnto: (item, target) => attachmentGoesOnto(env.client, item, target),
+      },
     });
   }
 
@@ -217,6 +228,7 @@ export class MercInventory {
 
   update(now: number): void {
     if (this.#open) this.panel.update(now);
+    this.description.update();
   }
 
   #widgetParams(id: string): { json: Readonly<Record<string, unknown>>; params: Readonly<Record<string, unknown>> } | null {

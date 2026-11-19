@@ -65,6 +65,7 @@ const NAMED_CIVILIAN_DOT = '#5555ff';
 const OVERHEAD_MAP = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345, soldierGridNoAt: () => 12345 };
 const GROUND_PICTURE = { path: 'tiles/ground-item.sti', frame: 3 };
 const MSG_DROP = 36;
+const ATTACHED_ITEM_BEFORE = 268;
 const PATHFIND_REST_MS = 100;
 const PAST_DOUBLE_CLICK_MS = 400;
 const MSG_THROW = 37;
@@ -1444,6 +1445,47 @@ describe('the tactical screen in a stub campaign', () => {
     await f.settle();
     expect([f.screen.panel, f.screen.inventory.cursor !== null, f.widget('teamSquad').enabled]).toEqual(['team', true, true]);
     expect(await optionsKeyOpens(f)).toBe(false);
+  });
+
+  it('shows the first-attachment hint once a campaign over the box an item in the cursor opens, pausing the game until a click (InternalInitItemDescriptionBox)', async () => {
+    const pauses: boolean[] = [];
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session, { pauseGame: (paused) => pauses.push(paused) });
+    const sim = tacticalOf(f.session);
+    const items = sim.state.content.items;
+    const merc = sim.state.soldiers.find((s) => s?.id === a10.mercs[0]);
+    if (!merc) throw new Error('no merc');
+    const give = (slot: number, name: string) => {
+      merc.inv[slot] = createItem(items, items.byName.get(name)?.index ?? 0, 100);
+    };
+    give(HAND, 'GLOCK_17');
+    give(SMALL_POCKET, 'SILENCER');
+    give(BIG_POCKET, 'KEVLAR_VEST');
+    f.client.refresh();
+    f.deliver();
+    const narrative = a10.campaign.campaign.state.narrative;
+    const helpCommands = () => f.client.commands.filter((c) => c.cmd.type === 'attachmentHelpShown');
+    await smPanelOf(f, 0);
+    await f.click(`slot${SMALL_POCKET}`);
+    await f.click(`slot${HAND}`, MouseButton.RIGHT);
+    const origin = f.widget('itemDescriptionBox').rect;
+    expect(f.screen.fastHelp.shown).toEqual({ text: f.text.string('Message', 42), x: origin.x + 69, y: origin.y + 12, width: 170 });
+    expect([helpCommands().length, narrative.facts[ATTACHED_ITEM_BEFORE], pauses]).toEqual([1, 1, [true]]);
+    await f.clickAt(origin.x + 1, origin.y + 1);
+    expect([f.screen.fastHelp.shown, f.screen.description.open, pauses]).toEqual([null, true, [true, false]]);
+    f.key('Escape');
+    await f.click(`slot${HAND}`, MouseButton.RIGHT);
+    expect([f.screen.fastHelp.shown, helpCommands().length]).toEqual([null, 1]);
+    f.key('Escape');
+    await f.click(`slot${SMALL_POCKET}`);
+    narrative.facts[ATTACHED_ITEM_BEFORE] = 0;
+    f.client.refresh();
+    f.deliver();
+    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${HAND}`, MouseButton.RIGHT);
+    expect(f.screen.fastHelp.shown?.text).toBe(f.text.string('Message', 43));
+    f.key('a');
+    expect([f.screen.fastHelp.shown, f.screen.description.open]).toEqual([null, true]);
   });
 
   it('draws no radar picture in a meanwhile (Radar_Screen.cc RenderRadarScreen)', async () => {

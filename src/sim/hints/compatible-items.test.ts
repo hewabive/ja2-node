@@ -61,6 +61,15 @@ describe('the items outlined for the item under the pointer on the shop screen (
     expect(lit(sim, item('CERAMIC_PLATES'), candidates, 'shop')).toEqual([false, false, false, false, false, true, false]);
   });
 
+  it("answers the first-attachment hint's test: the item attaches to, launches from or merges with each candidate (InternalInitItemDescriptionBox)", () => {
+    const sim = newCombatSim(content);
+    const candidates = ['GLOCK_17', 'GLAUNCHER', 'CLIP9_15', 'KEVLAR_VEST'].map(item);
+    expect(lit(sim, item('SILENCER'), candidates, 'attachment')).toEqual([true, false, false, false]);
+    expect(lit(sim, item('GL_HE_GRENADE'), candidates, 'attachment')).toEqual([false, true, false, false]);
+    expect(lit(sim, item('CLIP9_15'), candidates, 'attachment')).toEqual([false, false, true, false]);
+    expect(lit(sim, item('KEVLAR_VEST'), candidates, 'attachment')).toEqual([false, false, false, false]);
+  });
+
   it('leaves out the grenades of a launcher, which the map screen lights', () => {
     const sim = newCombatSim(content);
     const candidates = [item('GL_HE_GRENADE'), item('GLAUNCHER')];
