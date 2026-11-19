@@ -457,9 +457,12 @@ function safetyMargin(t: TacticalState, item: number): number {
   return Math.max(e.blast?.radius ?? 0, e.stun?.radius ?? 0, e.smoke?.maxRadius ?? 0, idiv(e.light?.radius ?? 0, 2));
 }
 
-function closeEnoughForGrenadeToss(t: TacticalState, s: Soldier, a: number, b: number): boolean {
+const NO_DOOR_USER = null;
+
+function closeEnoughForGrenadeToss(t: TacticalState, a: number, b: number): boolean {
   const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
-  const blocked = (g: number, dir: number) => doorTravelCost(ctx, s, g, t.world.costs.get(g, dir, 0), false, false) >= TravelCost.BLOCKED;
+  const blocked = (g: number, dir: number) =>
+    doorTravelCost(ctx, NO_DOOR_USER, g, t.world.costs.get(g, dir, 0), false, false) >= TravelCost.BLOCKED;
   if (a === b) {
     for (let dir = 0; dir < DIRECTION_COUNT; dir++) if (blocked(newGridNo(a, DIRECTION_INCREMENT[dir] ?? 0), dir)) return false;
     return true;
@@ -486,11 +489,11 @@ function tossTargets(t: TacticalState, s: Soldier, inHand: number, grenade: numb
     if (longRange) {
       if (personal !== Opp.SEEN_CURRENTLY && (t.perception.publicOpp[s.team]?.[opp.id] ?? 0) !== Opp.SEEN_CURRENTLY) continue;
     } else if (personal === Opp.SEEN_LAST_TURN) {
-      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, lastKnown.gridNo)) continue;
+      if (!closeEnoughForGrenadeToss(t, opp.gridNo, lastKnown.gridNo)) continue;
       aim = lastKnown;
     } else if (personal === Opp.HEARD_LAST_TURN) {
       if (t.pre.int(3) === 0) continue;
-      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, lastKnown.gridNo)) continue;
+      if (!closeEnoughForGrenadeToss(t, opp.gridNo, lastKnown.gridNo)) continue;
       if (grenade !== itemIndex(t, 'BREAK_LIGHT') && !s.ai.underFire && s.shock === 0) continue;
       aim = lastKnown;
     } else if (personal !== Opp.SEEN_CURRENTLY) continue;

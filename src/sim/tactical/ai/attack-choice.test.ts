@@ -1,8 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
+import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { syntheticWorld } from '../../../content/world/synthetic.ts';
+import { compileWorldMovementCosts } from '../../../content/world/movement-costs.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { type SyntheticWorld, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
 import { createItem, createItems } from '../../items/object.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
@@ -206,6 +209,42 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
     expect(onSurface.possible).toBe(true);
     expect(onSurface.target).toBe(besideHim);
     expect(toss(true).possible).toBe(false);
+  });
+
+  it('rules out a toss at where a merc was last seen when a locked door stands between, keys or not: the check opens doors for nobody', () => {
+    const DOOR = gridNo(80, 79);
+    const lockedDoor = {
+      gridNo: DOOR,
+      locked: true,
+      trapLevel: 0,
+      trapId: 0,
+      lockId: 0,
+      perceivedLocked: 0,
+      perceivedTrapped: 0,
+      lockDamage: 0,
+    };
+    const houseWithDoor = (world: SyntheticWorld) => {
+      for (let x = 70; x <= 90; x++) {
+        const flags = x === 80 ? StructureFlags.DOOR | StructureFlags.OPENABLE : StructureFlags.WALL;
+        world.structures.add(gridNo(x, 79), 0, syntheticStructure(flags, Orientation.INSIDE_LEFT));
+      }
+      world.costs.replaceWith(compileWorldMovementCosts(world).values);
+    };
+    const sim = newCombatSim(content, [], 3, new Set(), houseWithDoor, { doors: [lockedDoor] });
+    const t = sim.state;
+    const lastSeenAt = gridNo(80, 80);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 78), Direction.NORTH);
+    const bystander = spawnSoldier(sim, 40, Team.CIV, lastSeenAt, Direction.NORTH);
+    bystander.neutral = true;
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    enemy.inv[InvSlot.HAND] = createItem(content.items, item('HAND_GRENADE'), 100);
+    enemy.life = enemy.lifeMax / 2;
+    enemy.hasKeys = 1;
+    enemy.oppList[merc.id] = Opp.SEEN_LAST_TURN;
+    enemy.lastKnownOpp[merc.id] = lastSeenAt;
+    expect(checkIfTossPossible(t, enemy).possible).toBe(false);
+    lockedDoor.locked = false;
+    expect(checkIfTossPossible(t, enemy)).toMatchObject({ possible: true, target: lastSeenAt });
   });
 
   it('fires a second LAW after the first: the chance to get through takes the LAW last fired, with the impact of 80 its weapon model sets', () => {

@@ -115,6 +115,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/`:
 | A public noise the soldier stands near and sees moves two tiles west instead of fading | `utils.test.ts` |
 | The threat value of our merc on another assignment leaves out his armour, marksmanship and gun, however armed he stands in the sector | `cover.test.ts` |
 | A target of equal value replaces the one already chosen | `attack-choice.test.ts` |
+| The check that a merc last seen near where he stands is close enough for a toss opens doors for nobody: a locked door between rules the toss out even for a thrower with keys (`TacticalAI/Attacks.cc:311`, `:341`) | `attack-choice.test.ts` "rules out a toss … keys or not" |
 | A creature's blade it cannot afford stays in its hand | `creature-ai.test.ts` |
 | Scent tracking tests the stale action data, not the trail tile | `creature-ai.test.ts` |
 | The search for panic triggers stops at the third: a panic bomb in a later bomb slot does not count | `panic.test.ts` "stops at the third trigger …" |
