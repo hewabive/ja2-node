@@ -22,6 +22,8 @@ const WEST = -1;
 const MERC_AT = gridNo(80, 80);
 const NPC_AT = gridNo(80, 90);
 const VEHICLE_ID = 120;
+const GROUND_INTERFACE = 0;
+const ROOF_INTERFACE = 1;
 
 function simWith(place: (s: WorldStructures) => void): TacticalSim {
   const world = { ...syntheticWorld(testDoorCosts(), place), map: syntheticMap(), mapPath: 'synthetic' };
@@ -39,7 +41,7 @@ describe('the walk-up to talk', () => {
     const sim = newCombatSim(content);
     const merc = walkingMerc(sim);
     const npc = spawnSoldier(sim, 60, Team.CIV, NPC_AT, Direction.NORTH);
-    expect(talkWalkUp(sim.state, merc, npc)).toBe(gridNo(78, 87));
+    expect(talkWalkUp(sim.state, merc, npc, GROUND_INTERFACE)).toBe(gridNo(78, 87));
   });
 
   it('skips a free tile the merc does not fit on, such as one under a vehicle', () => {
@@ -47,7 +49,14 @@ describe('the walk-up to talk', () => {
     const merc = walkingMerc(sim);
     const npc = spawnSoldier(sim, 60, Team.CIV, NPC_AT, Direction.NORTH);
     sim.state.world.structures.add(gridNo(78, 87), 0, syntheticStructure(StructureFlags.MOBILE), { kind: 'soldier', id: VEHICLE_ID });
-    expect(talkWalkUp(sim.state, merc, npc)).toBe(gridNo(79, 87));
+    expect(talkWalkUp(sim.state, merc, npc, GROUND_INTERFACE)).toBe(gridNo(79, 87));
+  });
+
+  it('finds no path for a merc off the interface level, as UIPlotPath plots nothing for him (Handle_UI.cc HandleTalkInit)', () => {
+    const sim = newCombatSim(content);
+    const merc = walkingMerc(sim);
+    const npc = spawnSoldier(sim, 60, Team.CIV, NPC_AT, Direction.NORTH);
+    expect(talkWalkUp(sim.state, merc, npc, ROOF_INTERFACE)).toBeNull();
   });
 });
 

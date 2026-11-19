@@ -238,7 +238,7 @@ function talkAction(c: ActionContext): ActionPart {
   if (own && !epc) return { ok: true, apCost: 0, actionGridNo: s.gridNo, steps: NO_STEPS, inRange: true, lineOfSight, affordable: true };
   const inRange = talkRange(s.gridNo, target.gridNo) <= NPC_TALK_RADIUS;
   if (inRange) return { ok: true, apCost: AP.TALK, actionGridNo: s.gridNo, steps: NO_STEPS, inRange, lineOfSight };
-  const to = talkWalkUp(t, s, target);
+  const to = talkWalkUp(t, s, target, c.level);
   if (to === null || to === NOWHERE) return { ...refused(c, 'noPath', s.gridNo), inRange, lineOfSight };
   return { ok: true, apCost: AP.TALK, actionGridNo: to, steps: walkTo(c, to).steps, inRange, lineOfSight };
 }

@@ -924,7 +924,8 @@ the cursor's landing tile (`landsAt`, `landsOnLevel`, `pathClear`) with the refu
 Rules: `24`. A conversation with a named NPC is a modal talk session (`src/sim/campaign/talk-flow.ts`) over the NPC
 records and the dialogue queue (`src/sim/narrative/`); deviation "Talk session time". `talk` runs the original's checks
 in its order, walks up beyond 4 tiles (the talk starts on arrival during `advance`) and returns at once with the talk
-reply; the lines follow in game time (§4.5) as quote events, collected in `conversation.lastQuotes`. A target the merc
+reply; a walk-up with `level`, the interface level, other than the merc's refuses `noPath`, as `UIPlotPath` plots
+nothing off the interface level (`Tactical/Handle_UI.cc:4793`, `Tactical/PathAI.cc:2361-2364`); the lines follow in game time (§4.5) as quote events, collected in `conversation.lastQuotes`. A target the merc
 cannot see refuses `noLineOfSight` and an unconscious one `targetCollapsed`, each with an `npcMessage` of that kind
 naming the merc (`soldier`), the target (`target`) and his `profile` when he has one, for the original's line
 (`Tactical/Handle_UI.cc:4679-4692`). Talk to Dimitri on our team refuses `refusesToTalk` with his id in `data.target`,

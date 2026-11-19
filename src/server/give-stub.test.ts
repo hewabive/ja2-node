@@ -370,6 +370,16 @@ describe('giving items and money to the stub NPC in A10', () => {
     expect(await digest(true)).toBe(await digest(false));
   });
 
+  it('finds no path to walk up and talk while the interface shows the other level, as UIPlotPath plots nothing then (Handle_UI.cc HandleTalkInit)', async () => {
+    const { session } = await inA10(28);
+    const merc = session.view().strategic?.mercs[0]?.id;
+    if (merc === undefined) throw new Error('no merc');
+    const ROOF_INTERFACE = 1;
+    const talk = { type: 'talk', soldier: merc, target: { npc: VASKO } };
+    expect(session.dispatch({ ...talk, level: ROOF_INTERFACE })).toMatchObject({ ok: false, data: { refusal: 'noPath' } });
+    expect(session.dispatch(talk)).toMatchObject({ ok: true, data: { walking: true } });
+  });
+
   it('lets a talk walked up to replace the MERC_GIVEITEM a give on the spot left held (Handle_UI.cc HandleTalkInit)', async () => {
     const { session } = await inA10(28);
     const [merc, mate] = session.view().strategic?.mercs.map((m) => m.id) ?? [];

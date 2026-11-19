@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleTOnTerrain (the range in tiles, the line of sight at cube level 3),
 // @src HandleTalkInit (the walk up: FindAdjacentGridEx, UIPlotPath, FindGridNoFromSweetSpotWithStructData with
-// @src gfNPCCircularDistLimit); TacticalAI/NPC.cc Converse (NPC_ACTION_TELEPORT_NPC: BumpAnyExistingMerc,
+// @src gfNPCCircularDistLimit; UIPlotPath's 0 off the interface level, 2026-11-19); TacticalAI/NPC.cc Converse (NPC_ACTION_TELEPORT_NPC: BumpAnyExistingMerc,
 // @src TeleportSoldier).
 
 import { NPC_TALK_RADIUS } from '../../../content/narrative/npc-constants.ts';
@@ -34,9 +34,9 @@ export function talkLineOfSight(t: TacticalState, merc: Soldier, target: Soldier
   return soldierTo3DLocationLos(t, merc, target.gridNo, target.level, TALK_LOS_CUBE_LEVEL, u8(visible), true) !== 0;
 }
 
-export function talkWalkUp(t: TacticalState, merc: Soldier, target: Soldier): number | null {
+export function talkWalkUp(t: TacticalState, merc: Soldier, target: Soldier, interfaceLevel: number): number | null {
   const adjacent = findAdjacentGridEx(t, merc, target.gridNo, false);
-  if (!adjacent) return null;
+  if (!adjacent || merc.level !== interfaceLevel) return null;
   if (findBestPath(t.pathEnv, merc, adjacent.actionGridNo, merc.level, { mode: pathMoveMode(t.content, merc.uiMovementMode) }).length === 0)
     return null;
   return findGridNoFromSweetSpotWithStructData(t, merc, target.gridNo, TALK_SWEET_SPOT_RADIUS, {

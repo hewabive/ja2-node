@@ -2520,6 +2520,17 @@ describe('the exchange cursor over a talkable NPC next to the selected merc, in 
     expect([f.client.view.conversation === null, f.screen.inventory.cursor]).toEqual([false, null]);
   });
 
+  it('sends the interface level with a click on the talk cursor, which the walk-up to talk checks (Handle_UI.cc HandleTalkInit, UIPlotPath)', async () => {
+    const { f, npc } = await besideTheStubNpc();
+    hover(f, npc.gridNo);
+    for (let i = 0; i < EXCHANGE_CURSOR_SAMPLES && f.screen.controls.input.uiCursor !== 'TALK_A_UICURSOR'; i++)
+      f.t.frame(EXCHANGE_CURSOR_SAMPLE_MS);
+    expect(f.screen.controls.input.uiCursor).toBe('TALK_A_UICURSOR');
+    const at = f.world.pickPoint(npc.gridNo);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'talk').at(-1)).toMatchObject({ target: npc.id, level: 0 });
+  });
+
   it('prints that the NPC refuses to move on a click on the exchange cursor', async () => {
     const { f, npc } = await besideTheStubNpc();
     hover(f, npc.gridNo);

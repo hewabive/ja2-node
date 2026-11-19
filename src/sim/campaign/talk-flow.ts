@@ -18,7 +18,8 @@
 // @src HandleTalkInit's NO_LOS_TO_TALK_TARGET, STR_LATE_45 and STR_LATE_21 naming the merc and the target (2026-11-14);
 // @src HandleTalkInit's STR_LATE_32 naming Dimitri on our team (2026-11-14); Campaign.cc ChangeStat's stat line and
 // @src QUOTE_EXPERIENCE_GAIN through the dialogue queue (2026-11-14); AIMain.cc ExecuteAction's StartCivQuote (2026-11-14);
-// @src HandleItemPointerClick's put-back into the source slot before the robot's calibre check (2026-11-16).
+// @src HandleItemPointerClick's put-back into the source slot before the robot's calibre check (2026-11-16); HandleTalkInit's
+// @src UIPlotPath, which finds no path for a merc off the interface level (2026-11-19).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -861,7 +862,8 @@ export class TalkFlow {
       refuse('targetCollapsed');
     }
     if (target.team === Team.OUR && !this.#isEpc(target)) return this.#ownMercBark(target);
-    if (rangeBetween(merc.gridNo, target.gridNo) > NPC_TALK_RADIUS) return this.#walkUp(t, merc, target);
+    const interfaceLevel = cmd.level === 1 ? 1 : cmd.level === 0 ? 0 : merc.level;
+    if (rangeBetween(merc.gridNo, target.gridNo) > NPC_TALK_RADIUS) return this.#walkUp(t, merc, target, interfaceLevel);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
     if (getCivType(t, target) !== CivType.NA) return this.#civilianTalk(merc, target);
     return this.#runAndReply(() => this.#playerSoldierStartTalking(merc, target, false));
@@ -874,8 +876,8 @@ export class TalkFlow {
     return { ok: true, data: { civQuote: said ? civQuoteView(said) : null } };
   }
 
-  #walkUp(t: TacticalState, merc: Soldier, target: Soldier): CommandResult {
-    const to = talkWalkUp(t, merc, target);
+  #walkUp(t: TacticalState, merc: Soldier, target: Soldier, interfaceLevel: number): CommandResult {
+    const to = talkWalkUp(t, merc, target, interfaceLevel);
     if (to === null) {
       this.#emit({ type: 'npcMessage', kind: 'noPath' });
       return refuse('noPath');

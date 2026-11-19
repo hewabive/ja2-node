@@ -1995,7 +1995,7 @@ export class TacticalInput {
     const target = this.#hover.target;
     if (!sel || !target) return false;
     if (target.profile === undefined && this.#host.closeCivQuote()) return false;
-    void this.#host.send({ type: 'talk', soldier: sel.id, target: target.id });
+    void this.#host.send({ type: 'talk', soldier: sel.id, target: target.id, level: this.#host.interfaceLevel() });
     this.#pending = UiEvent.A_CHANGE_TO_MOVE;
     return false;
   }
@@ -3058,7 +3058,14 @@ export class TacticalInput {
     if (range <= NPC_TALK_RADIUS) this.#newCursor = target ? 'TALK_A_UICURSOR' : 'TALK_NA_UICURSOR';
     else this.#newCursor = target ? 'TALK_A_UICURSOR' : 'TALK_OUT_RANGE_NA_UICURSOR';
     if (target) {
-      const answer = this.#hint<PreviewAction>({ type: 'previewAction', soldier: sel.id, gridNo, kind: 'talk', target: target.id });
+      const answer = this.#hint<PreviewAction>({
+        type: 'previewAction',
+        soldier: sel.id,
+        gridNo,
+        kind: 'talk',
+        target: target.id,
+        level: this.#host.interfaceLevel(),
+      });
       const data = dataOf(answer);
       if (data && data.lineOfSight === false) this.#newCursor = 'TALK_OUT_RANGE_A_UICURSOR';
     }
