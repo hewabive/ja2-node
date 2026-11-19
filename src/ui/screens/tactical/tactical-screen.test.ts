@@ -638,6 +638,19 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([f.screen.inventory.cursor, f.client.commands.length, f.screen.controls.input.mode]).toEqual([null, sent, UiMode.MOVE_MODE]);
   });
 
+  it('leaves the stack popup up at Esc, which closes only the description box or else the key ring, until a right click outside it (Turn_Based_Input.cc:2287-2294, ItemPopupFullRegionCallbackSecondary)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`, MouseButton.RIGHT);
+    expect([f.screen.stack.open, f.screen.description.open]).toEqual([true, false]);
+    f.key('Escape');
+    await f.settle();
+    expect(f.screen.stack.open).toBe(true);
+    const area = f.widget('stackPopupArea').rect;
+    await f.clickAt(area.x + 2, area.y + 2, MouseButton.RIGHT);
+    expect(f.screen.stack.open).toBe(false);
+  });
+
   it('puts one magazine taken off its stack back at the end of the stack, with a moveItem into the same slot', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);
@@ -1432,9 +1445,10 @@ describe('the tactical screen in a stub campaign', () => {
     expect([f.screen.panel, f.screen.smMerc]).toEqual(['sm', 0]);
     await f.click(`slot${BIG_POCKET}`, MouseButton.RIGHT);
     await f.settle();
-    expect(f.screen.description.open || f.screen.stack.open).toBe(true);
+    expect(f.screen.stack.open).toBe(true);
     expect(await optionsKeyOpens(f)).toBe(false);
-    f.key('Escape');
+    const popup = f.widget('stackPopupArea').rect;
+    await f.clickAt(popup.x + 2, popup.y + 2, MouseButton.RIGHT);
     await f.settle();
     await f.click(`slot${BIG_POCKET}`);
     expect(f.screen.inventory.cursor).not.toBeNull();
