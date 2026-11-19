@@ -1960,6 +1960,21 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook().inventoryOpen).toBe(true);
     }));
 
+  it('keeps the inventory open under the stack popup at Enter, which the original closes under it (original-bugs "Enter under the stack popup")', () =>
+    withMap(async (f) => {
+      const [holder] = listedMercs(f);
+      const items = (f.session.sim as CampaignSession).campaign.battle?.content.items;
+      if (!items) throw new Error('no item table');
+      mercRecord(f, holder).soldier.inv[InvSlot.SMALLPOCK1] = createItems(items, items.byName.get('CLIP9_15')?.index ?? 0, 100, 2);
+      f.client.refresh();
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      await f.click(`mercSlot${InvSlot.SMALLPOCK1}`, MouseButton.RIGHT);
+      expect(f.screen.mapInventory.merc.stack.open).toBe(true);
+      f.key('Enter');
+      await f.settle();
+      expect([f.screen.mapInventory.merc.stack.open, f.screen.hook().inventoryOpen]).toEqual([true, true]);
+    }));
+
   it('turns the airspace off on the way below ground, by key or by selecting a sector there (ChangeSelectedMapSector)', () =>
     withMap(async (f) => {
       await f.click('filter4');
