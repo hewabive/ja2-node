@@ -414,6 +414,7 @@ export interface CampaignEndedView {
 export interface StrategicView {
   readonly balance: number;
   readonly worldSector: string | null;
+  readonly loadScreen?: number;
   readonly flow: 'strategic' | 'tactical' | 'autoresolve' | 'laptop' | 'meanwhile' | 'endgame' | 'ended';
   readonly campaign: 'playing' | 'endgame' | 'won';
   readonly noUsableMercs?: boolean;

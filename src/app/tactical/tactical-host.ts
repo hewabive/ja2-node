@@ -144,7 +144,7 @@ export class TacticalHost {
   }
 
   get loadScreen(): number | null {
-    return this.#loadScreen;
+    return this.#loadScreen ?? this.#o.session.view?.strategic?.loadScreen ?? null;
   }
 
   get loaded(): boolean {

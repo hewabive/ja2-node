@@ -513,7 +513,9 @@ structure, in its radius around the bomb; `tiles` are the tiles worked out and `
 were revealed then, both as runs (`05`). `ambientLightSet {level}` comes each time the original sets its base light again and draws every light over it
 (`LightSetBaseLevel`: every dawn and dusk step and every temperature update, the level unchanged too), from when on the
 roof marker takes the roof's shade (`05`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
-a load sends no `sectorLoaded` (deviation "View after a load"); an entry held at the placement prompt names him in
+a load sends no `sectorLoaded` (deviation "View after a load"); `strategic.loadScreen` keeps the id of the entry's
+loading picture (`sectorLoaded.loadScreen`) while the sector is loaded, so a page opened later shows it too; an entry
+held at the placement prompt names him in
 `placementDone` instead (§8.10). `helicopterDropStarted {gridNo}` starts a run of the
 helicopter drop and centres the view on the north entry point, with no locate to the entry's merc
 (`GameScreen.cc:351`); `mercDropped {soldier}` comes as the helicopter lands a merc, at his drop or at the skip, with the

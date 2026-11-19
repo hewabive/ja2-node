@@ -285,6 +285,11 @@ function economyViews(campaign: CampaignSim): Pick<StrategicView, 'townControl' 
   };
 }
 
+function entryPicture(campaign: CampaignSim): { readonly loadScreen?: number } {
+  const picture = campaign.state.sectorFlow.loadScreen;
+  return campaign.tactical && picture !== null ? { loadScreen: picture } : {};
+}
+
 export function strategicView(campaign: CampaignSim): StrategicView | undefined {
   const ctx = campaign.strategic;
   if (!ctx) return undefined;
@@ -298,6 +303,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
   return {
     balance: campaign.state.finances.balance,
     worldSector: world ? sectorName(world) : null,
+    ...entryPicture(campaign),
     flow: storyFlow(campaign) ?? campaign.state.flow,
     campaign: campaignStatus(campaign.state.ending),
     ...(campaign.noUsableMercs() ? { noUsableMercs: true } : {}),

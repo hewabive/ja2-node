@@ -37,6 +37,16 @@ describe('a new campaign session', () => {
     expect(view.strategic?.mercs.every((m) => m.sector === 'A9' && m.squad === 0)).toBe(true);
   });
 
+  it('keeps the loading picture of the sector entry in the view while the sector is loaded, for a page opened later', async () => {
+    const landed = await create(3, {});
+    const picture = landed.campaign.state.sectorFlow.loadScreen;
+    expect(picture).not.toBeNull();
+    expect(landed.view().strategic?.loadScreen).toBe(picture);
+    const atTheLaptop = await create(3, { hire: [] });
+    expect(atTheLaptop.campaign.tactical).toBeNull();
+    expect(atTheLaptop.view().strategic).not.toHaveProperty('loadScreen');
+  });
+
   it('owes the first-attachment hint until the page says it showed it, which sets FACT_ATTACHED_ITEM_BEFORE (InternalInitItemDescriptionBox)', async () => {
     const session = await create(3, {});
     expect(session.view().strategic?.attachmentHelpDue).toBe(true);
