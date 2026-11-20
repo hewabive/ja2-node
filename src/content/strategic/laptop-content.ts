@@ -99,7 +99,6 @@ export interface MercListing {
 
 export interface ShippingDestination {
   readonly locationId: number;
-  readonly internalName: string;
   readonly rates: readonly [number, number, number];
   readonly flowersNextDayCost: number;
   readonly flowersWhenItGetsThereCost: number;
@@ -305,7 +304,6 @@ function parseDestinations(json: unknown): ShippingDestination[] {
     const sector = o.deliverySector === undefined ? null : parseSectorId(asString(o.deliverySector, `${what}.deliverySector`));
     return {
       locationId: asInt(o.locationId, `${what}.locationId`),
-      internalName: asString(o.internalName, `${what}.internalName`),
       rates: [
         asInt(o.chargeRateOverNight, `${what}.chargeRateOverNight`),
         asInt(o.chargeRate2Days, `${what}.chargeRate2Days`),

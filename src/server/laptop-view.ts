@@ -1,7 +1,7 @@
 import { ItemClass } from '../content/items/items.ts';
 import { MercType } from '../content/strategic/economy-content.ts';
 import { sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
-import type { UiStrings } from '../content/text/strings.ts';
+import { type UiStrings, uiString } from '../content/text/strings.ts';
 import { idiv } from '../core/int.ts';
 import type {
   AimMercView,
@@ -245,7 +245,9 @@ function shipmentView(flow: LaptopFlow, s: Shipment, index: number): BobbyRayShi
   };
 }
 
-function bobbyRayView(flow: LaptopFlow): BobbyRayView {
+const DESTINATION_NAMES = 'shipping-destinations';
+
+function bobbyRayView(flow: LaptopFlow, labels: UiStrings | null): BobbyRayView {
   const br = flow.laptop.bobbyRay;
   return {
     open: br.siteCanBeAccessed,
@@ -254,7 +256,7 @@ function bobbyRayView(flow: LaptopFlow): BobbyRayView {
     shipments: br.shipments.map((s, index) => shipmentView(flow, s, index)),
     destinations: flow.content.destinations.map((d, id) => ({
       id,
-      name: d.internalName,
+      name: (labels && uiString(labels, DESTINATION_NAMES, d.locationId)) ?? '',
       rates: d.rates,
       flowers: { nextDay: d.flowersNextDayCost, whenItGetsThere: d.flowersWhenItGetsThereCost },
       canDeliver: d.canDeliver,
@@ -380,7 +382,7 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
     aim: aimView(flow),
     merc: mercView(flow),
     imp: impView(flow),
-    bobbyRay: bobbyRayView(flow),
+    bobbyRay: bobbyRayView(flow, text.labels),
     insurance: insuranceView(flow),
     inTransit: inTransitView(flow),
     landingZone: sectorShortString(sectorFromId(l.mercArriveSector)),

@@ -41,7 +41,7 @@ import { changeOpenableInUnloadedSector, sectorKey } from '../sector-diff.ts';
 import { addItemsToUnloadedSector } from '../sector-loot.ts';
 import type { LaptopContext } from './context.ts';
 import { BobbyRaySiteVisit, Bookmark, type Shipment, type ShipmentLine, type StoreSlot, setBookmark } from './laptop-state.ts';
-import { mailSpec, sender } from './mail.ts';
+import { type MailSpec, mailSpec, sender } from './mail.ts';
 
 export const MAX_PURCHASE_LINES = 10;
 const MAX_UNITS_PER_LINE = 201;
@@ -79,6 +79,11 @@ const FULL_QUALITY = 100;
 const JOHNS_AMMO_QUALITY = 5;
 const STANDARD_SERVICE = 2;
 const JOHNS_EXTRA_DAYS = 2;
+const DELIVERY_MAIL = 'BOBBY_R_DELIVERY';
+
+function deliveryMail(dest: ShippingDestination): MailSpec {
+  return { name: DELIVERY_MAIL, offset: dest.emailOffset, length: dest.emailLength };
+}
 
 export interface OrderLineRequest {
   readonly item: number;
@@ -464,8 +469,7 @@ function dropOffItemsInDestination(ctx: LaptopContext, index: number, dest: Ship
   const objects = shipment.lines.flatMap((line) => stackedObjects(ctx, line, line.count));
   placeHidden(ctx, sector, dest.gridNo, objects, loaded);
   shipment.active = false;
-  if (dest.emailOffset)
-    ctx.mail({ name: dest.internalName, offset: dest.emailOffset, length: dest.emailLength }, sender(ctx.content, 'BOBBY_R'));
+  if (dest.emailOffset) ctx.mail(deliveryMail(dest), sender(ctx.content, 'BOBBY_R'));
   ctx.emit({ type: 'shipmentDelivered', shipment: index, sector: sectorShortString(sector), items: objects.length, stolen: 0 });
 }
 
@@ -575,6 +579,6 @@ export function bobbyRayPurchaseEvent(ctx: LaptopContext, index: number, tactica
   shipment.active = false;
   stopTimeCompression(ctx.clockContext, CompressionStop.SHIPMENT);
   if (fromKulba) ctx.mail(mailSpec(ctx.content, 'JOHN_KULBA_GIFT_IN_DRASSEN'), sender(ctx.content, 'JOHN_KULBA'));
-  else ctx.mail({ name: dest.internalName, offset: dest.emailOffset, length: dest.emailLength }, sender(ctx.content, 'BOBBY_R'));
+  else ctx.mail(deliveryMail(dest), sender(ctx.content, 'BOBBY_R'));
   ctx.emit({ type: 'shipmentDelivered', shipment: index, sector: sectorShortString(sector), items: delivered.length, stolen: stolenCount });
 }

@@ -39,11 +39,11 @@ text) is commercial content outside SFI-SCLA. It is read at run time from the us
 folder or the game root; GOG or Steam 1.12 Gold, English or a localized release) and never committed, nor anything
 derived from it: extracted files, JSON produced from `Ja2bin.dat`, oracle probe outputs (kept outside the repository,
 by default in `~/ja2-oracle`), screenshots. The repository ships:
-- `data/externalized/`: Stracciatella's JSON tables (`assets/externalized` at `ae6bf01`), copied unchanged; they were
-  extracted from the source code, so they are SFI-SCLA. Exception: `script-records-NPCs.json`, whose comments quote game
-  dialogue; its records are in `data/tables/npc-script-records.json`. Its `resource_packs/` are Stracciatella's own data
-  for its version guess: the names, sizes and MD5 hashes of known releases' files, no game content; they stay out of
-  the rule pack.
+- `data/externalized/`: Stracciatella's JSON tables (`assets/externalized` at v0.22.1; its `README.md` lists the files
+  still at `ae6bf01` and their issues), copied unchanged; they were extracted from the source code, so they are
+  SFI-SCLA. Exception: `script-records-NPCs.json`, whose comments quote game dialogue; its records are in
+  `data/tables/npc-script-records.json`. Its `resource_packs/` are Stracciatella's own data for its version guess: the
+  names, sizes and MD5 hashes of known releases' files, no game content; they stay out of the rule pack.
 - `data/tables/`: tables transcribed from the source code by `tools/transcribe/*.ts` (regenerated, never edited).
 - `stubs/`: the stub pack (§4.4), ja2-node's own work, neither traced, converted nor extracted from the original. Its
   content is CC0 1.0 (`stubs/LICENSE.txt`); `stubs/NOTICE.txt` lists what that covers. The generator code and the files

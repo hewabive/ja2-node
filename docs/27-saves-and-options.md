@@ -378,9 +378,9 @@ resolution); ja2-node has no mods (`32`), and the debug and cheat levels are not
 ### 2.3 Game policy and pacing options
 
 **Game policy** ships in `data/externalized` with Stracciatella's shipped JSON values (D1; which keys ja2-node reads:
-`01` §3.9, deviation "Game policy keys"). Two keys ship with a JSON value other than the code default, and the JSON
-wins: `interrupt_after_being_under_fire` false and `campaign.start_sector_revealed` true
-(`M:externalized/policy/DefaultGamePolicy.cc:41`, `externalized/policy/DefaultGamePolicy.cc:94`). The policy stays content and is not copied into the session:
+`01` §3.9, deviation "Game policy keys"). One key ships with a JSON value other than the code default, and the JSON
+wins: `campaign.start_sector_revealed` true (`externalized/policy/DefaultGamePolicy.cc:94`). The policy stays content
+and is not copied into the session:
 it ships with the engine, so the engine identity in the save header (`engineDiffers`, §1.4) marks a save made with
 other policy values. If saves must survive policy edits, that is a migration, not a copy.
 

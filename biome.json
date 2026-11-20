@@ -2,7 +2,17 @@
   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["**", "!reference", "!dist", "!.cache", "!test-results", "!playwright-report", "!docs", "!data/externalized"]
+    "includes": [
+      "**",
+      "!reference",
+      "!dist",
+      "!.cache",
+      "!test-results",
+      "!playwright-report",
+      "!docs",
+      "!data/externalized",
+      "!src/server/fixtures/data-0.7.0"
+    ]
   },
   "formatter": {
     "enabled": true,

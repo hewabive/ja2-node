@@ -210,8 +210,8 @@ The English fonts carry only upper-case Cyrillic and the English table maps the 
 English data in Russian draws capitals; `BLOCKFONT`, `BLOCKFONT2` and `BLOCKFONTNARROW` (the map and the tactical panel
 titles) lack Ч and `FONT14HUMANIST` lacks П, so they draw Ч as `4` and П as `?` and every other capital with its own
 glyph (deviation "Missing Cyrillic capitals"). The stub fonts have the whole alphabet but are no fallback (`32`). Money
-and numbers keep `$`, `,` and `.` in every language, as in the original; Stracciatella's tooltips exist only in English
-and are off by default.
+and numbers keep `$`, `,` and `.` in every language, as in the original; master's informative tooltips
+(`strings/tooltips-eng.json`, kept from `ae6bf01`, #114) exist only in English and are off by default.
 
 **Repository rule.** The Russian strings are Stracciatella's externalized tables (SFI-SCLA, like the rest of
 `data/externalized`); nothing from the user's EDT files, fonts or speech is committed, and tests assert keys, counts

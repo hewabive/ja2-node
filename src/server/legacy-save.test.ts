@@ -15,6 +15,11 @@ import { Team } from '../sim/tactical/soldier.ts';
 import type { Session } from './session.ts';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
+const DATA_AT_070 = join(FIXTURES, 'data-0.7.0');
+const DATA_FILES_CHANGED_AFTER_070 = ['externalized/game.json', 'externalized/shipping-destinations.json'];
+const TABLES_DIR = 'tables/';
+const TABLE_SOURCE = /"source": "JA2 Stracciatella [^:"]+:/;
+const TABLE_SOURCE_AT_070 = '"source": "JA2 Stracciatella ae6bf01:';
 const LEGACY_VERSION = '0.7.0';
 const STEP_SOUTH = 320;
 const TICKS_BEFORE_MOVE = 200;
@@ -245,14 +250,27 @@ async function recordedGroundSprites(vfs: Vfs): Promise<[string, Uint8Array][]> 
   return files;
 }
 
-async function recordedCorpseTable(vfs: Vfs): Promise<Uint8Array> {
-  const current = new TextDecoder().decode(await vfs.read(CORPSES_TABLE_PATH));
-  return new TextEncoder().encode(current.replace(DECAPITATION_TABLES_ADDED_AFTER_070, ''));
+async function recordedTable(vfs: Vfs, path: string, edit: (text: string) => string = (text) => text): Promise<Uint8Array> {
+  const current = new TextDecoder().decode(await vfs.read(path));
+  return new TextEncoder().encode(edit(current.replace(TABLE_SOURCE, TABLE_SOURCE_AT_070)));
 }
 
-async function recordedAnimControlTable(vfs: Vfs): Promise<Uint8Array> {
-  const current = new TextDecoder().decode(await vfs.read(ANIM_CONTROL_PATH));
-  return new TextEncoder().encode(current.replace(RANDOM_ANIMS_ADDED_AFTER_070, '\n}'));
+async function recordedTables(vfs: Vfs): Promise<[string, Uint8Array][]> {
+  const edits = new Map<string, (text: string) => string>([
+    [CORPSES_TABLE_PATH, (text) => text.replace(DECAPITATION_TABLES_ADDED_AFTER_070, '')],
+    [ANIM_CONTROL_PATH, (text) => text.replace(RANDOM_ANIMS_ADDED_AFTER_070, '\n}')],
+  ]);
+  const data = vfs.layers.find((layer) => layer.name === PROJECT_DATA_LAYER);
+  const tables = [...(data?.entries() ?? [])].map((e) => e.path).filter((path) => path.startsWith(TABLES_DIR));
+  return Promise.all(tables.map(async (path): Promise<[string, Uint8Array]> => [path, await recordedTable(vfs, path, edits.get(path))]));
+}
+
+async function recordedDataFiles(): Promise<[string, Uint8Array][]> {
+  return Promise.all(
+    DATA_FILES_CHANGED_AFTER_070.map(
+      async (path): Promise<[string, Uint8Array]> => [path, new Uint8Array(await readFile(join(DATA_AT_070, path)))],
+    ),
+  );
 }
 
 function frames(count: number, first = 1): number[] {
@@ -333,11 +351,8 @@ async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<V
     ...(await recordedWallFamilies(vfs)),
     ...(await recordedGroundSprites(vfs)),
   ]);
-  const recordedTables = new MemoryLayer(PROJECT_DATA_LAYER, [
-    [CORPSES_TABLE_PATH, await recordedCorpseTable(vfs)],
-    [ANIM_CONTROL_PATH, await recordedAnimControlTable(vfs)],
-  ]);
-  return new Vfs([recorded, recordedTables, ...vfs.layers.map(withoutFilesAddedAfter070)]);
+  const recordedData = new MemoryLayer(PROJECT_DATA_LAYER, [...(await recordedTables(vfs)), ...(await recordedDataFiles())]);
+  return new Vfs([recorded, recordedData, ...vfs.layers.map(withoutFilesAddedAfter070)]);
 }
 
 async function copyFixtures(k: SaveKit): Promise<void> {

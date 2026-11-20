@@ -838,8 +838,9 @@ describe('the tactical input on the tactical screen', () => {
       text.string('pDoorTrapStrings', SIREN_STRING) ?? '',
     ]);
     expect(warning).not.toBe('');
-    expect(help('doorExamine')).toBe(`${text.string('pTacticalPopupButtonStrings', EXAMINE_DOOR_ICON)}\n${trapLine}\n${warning}`);
-    expect(help('doorForce').endsWith(`\n${warning}`)).toBe(true);
+    expect(warning.startsWith('\n')).toBe(true);
+    expect(help('doorExamine')).toBe(`${text.string('pTacticalPopupButtonStrings', EXAMINE_DOOR_ICON)}\n${trapLine}${warning}`);
+    expect(help('doorForce').endsWith(warning)).toBe(true);
     expect(help('doorOpen').includes(warning)).toBe(false);
     expect(help('doorCancel').includes(warning)).toBe(false);
   });

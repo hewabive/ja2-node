@@ -400,9 +400,9 @@ export class DoorMenu extends PopupMenu {
 
   #warnings(spec: DoorButton, request: DoorMenuRequest): string {
     const trap = spec.action === 'examine' ? request.provedTrap : undefined;
-    const lines = trap ? [this.#provedTrapLine(trap)] : [];
-    if (request.diagonal && !DIAGONAL_EXEMPT.has(spec.action)) lines.push(this.text.string(NEW_STRINGS, NS_DIAGONALITY_WARNING) ?? '');
-    return lines.map((line) => `\n${line}`).join('');
+    const trapLine = trap ? `\n${this.#provedTrapLine(trap)}` : '';
+    const diagonal = request.diagonal && !DIAGONAL_EXEMPT.has(spec.action);
+    return trapLine + (diagonal ? (this.text.string(NEW_STRINGS, NS_DIAGONALITY_WARNING) ?? '') : '');
   }
 
   #provedTrapLine(trap: ProvedDoorTrap): string {
