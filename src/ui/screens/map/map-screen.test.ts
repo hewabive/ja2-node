@@ -403,7 +403,7 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(lastCommand(f)?.cmd).toMatchObject({ type: 'endPlot', soldier: mover, outcome: 'abort', selected: [mover] });
     }));
 
-  it('plots after Done for the first mover from his own path, and confirms it again on his sector as any plot (HandleSettingTheSelectedListOfMercs, Map_Screen_Interface.cc:2862-2915)', () =>
+  it('plots after Done for the first mover from his own path, and confirms it again on his sector as any plot (HandleSettingTheSelectedListOfMercs, Map_Screen_Interface.cc:2886-2939)', () =>
     withMap(async (f) => {
       const [mover] = f.mercs;
       const name = f.client.view.strategic?.mercs.find((m) => m.id === mover)?.name ?? '';
@@ -1611,7 +1611,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
     }));
 
-  it('confirms the helicopter without a path on its own sector, which takes it off, and says the route is unchanged (CheckIfClickOnLastSectorInPath, MapScreen.cc:5509-5520, :5596-5599)', () =>
+  it('confirms the helicopter without a path on its own sector, which takes it off, and says the route is unchanged (CheckIfClickOnLastSectorInPath, MapScreen.cc:5475-5486, :5562-5565)', () =>
     withMap(async (f) => {
       await boardHelicopter(f, f.mercs[1]);
       await f.click('filter4');
@@ -1626,7 +1626,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.client.view.strategic?.helicopter).toMatchObject({ airborne: true, hovering: false });
     }));
 
-  it('keeps plotting for its merc through a squad selection, each click and the confirm acting on the mercs selected then (SelectAllCharactersInSquad, MapScreen.cc:7830, :2315, :5569)', () =>
+  it('keeps plotting for its merc through a squad selection, each click and the confirm acting on the mercs selected then (SelectAllCharactersInSquad, MapScreen.cc:7794, :2309, :5535)', () =>
     withMap(async (f) => {
       const [plotter, other] = listedMercs(f);
       expect((await f.client.command({ type: 'assignSquad', soldier: other, squad: 'new' })).ok).toBe(true);
@@ -1649,7 +1649,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(groupOf(plotter)).toMatchObject({ betweenSectors: false });
     }));
 
-  it('keeps plotting while the sector inventory is open, which takes the map clicks, and goes on once it closes (OpenSectorInventory, MapScreen.cc:2236)', () =>
+  it('keeps plotting while the sector inventory is open, which takes the map clicks, and goes on once it closes (OpenSectorInventory, MapScreen.cc:2230)', () =>
     withMap(async (f) => {
       await f.click('teamRow0.destination');
       f.key('i', KeyModifier.CTRL, 'KeyI');
@@ -1689,7 +1689,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(f.screen.hook()).toMatchObject({ plotting: null, uiMessage: null });
     }));
 
-  it("restores the plot's starting path on Escape after the clicks and shortenings it replays, as AbortMovementPlottingMode does (RestorePreviousPaths, MapScreen.cc:4097)", () =>
+  it("restores the plot's starting path on Escape after the clicks and shortenings it replays, as AbortMovementPlottingMode does (RestorePreviousPaths, MapScreen.cc:4065)", () =>
     withMap(async (f) => {
       await plotMercRoute(f, 0, 'B13');
       f.key('Escape');
@@ -1732,7 +1732,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(groupOf()?.path.at(-1)).toBe('C13');
     }));
 
-  it('leaves the clicked legs on the path at a silent end of the plot, the group not moving (TeamListInfoRegionBtnCallBackPrimary, MapScreen.cc:4276)', () =>
+  it('leaves the clicked legs on the path at a silent end of the plot, the group not moving (TeamListInfoRegionBtnCallBackPrimary, MapScreen.cc:4244)', () =>
     withMap(async (f) => {
       const plotter = f.screen.list.slots[0]?.merc;
       await f.click('teamRow0.destination');
@@ -1745,14 +1745,14 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect(group?.betweenSectors).toBe(false);
     }));
 
-  it('gives the plot up with the restore as the screen goes away (EndMapScreen, MapScreen.cc:3096)', () =>
+  it('gives the plot up with the restore as the screen goes away (EndMapScreen, MapScreen.cc:3070)', () =>
     withMap(async (f) => {
       await f.click('teamRow0.destination');
       f.screen.exit();
       expect(lastCommand(f)?.cmd).toMatchObject({ type: 'endPlot', outcome: 'abort' });
     }));
 
-  it('draws the plotted path and the ground ETA text over the sector inventory, without the ETA popup (MapScreen.cc:1887-1895, :1051; Map_Screen_Interface_Border.cc:101)', () =>
+  it('draws the plotted path and the ground ETA text over the sector inventory, without the ETA popup (MapScreen.cc:1881-1889, :1045; Map_Screen_Interface_Border.cc:105)', () =>
     withMap(async (f) => {
       await plotMercRoute(f, 0, 'B13');
       await f.click('teamRow0.destination');
@@ -1869,7 +1869,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect([f.screen.hook().handGlow, handOutlines(f)]).toEqual([null, []]);
     }));
 
-  it('holds the hand outline at its colour while the contract menu the c key opens over it is up, as GlowItem runs only without the menus (MapScreen.cc:2018)', () =>
+  it('holds the hand outline at its colour while the contract menu the c key opens over it is up, as GlowItem runs only without the menus (MapScreen.cc:2012)', () =>
     withMap(async (f) => {
       hoverWidget(f, 'infoHand');
       f.t.frame(GLOW_DELAY_MS);
@@ -1884,7 +1884,7 @@ describe('the map screen team list, plotting and contract rules of the original'
       expect([f.screen.hook().menu, f.screen.hook().handGlow]).not.toEqual([null, held]);
     }));
 
-  it('holds the glow of the assignment line at its colour while the assignment menu is up, as the team list glows step only without the menus (MapScreen.cc:2018-2027)', () =>
+  it('holds the glow of the assignment line at its colour while the assignment menu is up, as the team list glows step only without the menus (MapScreen.cc:2012-2021)', () =>
     withMap(async (f) => {
       hoverWidget(f, 'teamRow0.assignment');
       const colours = () => {

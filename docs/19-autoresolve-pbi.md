@@ -83,14 +83,14 @@ beyond 32 (original-bugs "Autoresolve cell counts").
 world day and capture flag, and hooks for surrender, capture, kills, the robot and the retreat. Tests and the oracle
 feed scripted or replayed streams through it. A campaign also passes its narrative port, so a stat change queues its
 message and experience line on the dialogue queue as in tactical; nothing plays the queue while AR runs, so they come
-on the map screen after the close (`Strategic/MapScreen.cc:1901`).
+on the map screen after the close (`Strategic/MapScreen.cc:1895`).
 
 **When the strategic layer learns.** Morale, loyalty and control run when the battle ends (`BattleFlow` `#endBattle`;
 `endOfBattle` only applies the time factors). Deaths, captures, militia losses and promotions, enemy deaths, corpses and
 drops run when the player closes AR (`closeAutoresolve` against `strategicClosePort`). A corpse's record is the one the
 map screen's deaths use (`deadSoldierRecord`, `campaign/sector-loot.ts`, `33`): `RandomGridNo`'s pairs, the drops, the
 key ring of a merc of ours, which lands in his own sector, then the death animation's `Random(4)`
-(`Strategic/Auto_Resolve.cc:1674`, `Tactical/Tactical_Save.cc:834`). Each enemy cell's strategic group
+(`M:Strategic/Auto_Resolve.cc:1674`, `Tactical/Tactical_Save.cc:831`). Each enemy cell's strategic group
 (Q16) decides which record loses a dead soldier. Every change of control goes through `setThisSectorAsPlayerControlled`
 or `setThisSectorAsEnemyControlled`; their town, mine, SAM, meanwhile and theft effects go through the context's `world`
 hooks, the Queen's through `ctx.ai`. A lost or abandoned AR hands the sector to the enemy at `done`, where the original
@@ -145,11 +145,11 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q30 | The dead of a battle lie on random tiles of the visible area of the map loaded last, a basement loaded elsewhere or already unloaded included (`TileEngine/Isometric_Utils.cc:667`) | `src/sim/campaign/battle-scenario.test.ts`, `autoresolve/close.test.ts` |
 | Q31 | Bandaging clears the bleeding warning only while healing a patient out of dying, before the rest of his bleeding is stopped | `autoresolve/close.test.ts` |
 | Q32 | A placement click with no edge point of the merc's side near writes NOWHERE into his insertion data even while his piece stands placed, so Done enters him from it (`TileEngine/Tactical_Placement_GUI.cc:798-808`) | `src/sim/campaign/tactical-placement.test.ts` "writes NOWHERE into the insertion data …" |
-| Q34 | A sleeping merc drawn for the enemy-presence line is woken for it and put back to sleep as the panel opens, right after the panel woke everyone involved: his back-to-sleep event follows the line in the queue (`Strategic_Movement.cc:595-602`, `PreBattle_Interface.cc:303`, `Dialogue_Control.cc:413-418`) | `src/sim/campaign/enemy-presence-line.test.ts` "puts a sleeping speaker back to sleep …" |
+| Q34 | A sleeping merc drawn for the enemy-presence line is woken for it and put back to sleep as the panel opens, right after the panel woke everyone involved: his back-to-sleep event follows the line in the queue (`Strategic_Movement.cc:592-599`, `PreBattle_Interface.cc:303`, `Dialogue_Control.cc:414-419`) | `src/sim/campaign/enemy-presence-line.test.ts` "puts a sleeping speaker back to sleep …" |
 
 Not pinned yet:
 - Q10: `bulletImpact` reads the ammo type from the attacking hand, not the slot that fired, and the throwing-knife test
-  from the last attacking weapon (`Weapons.cc:2751-2760`).
+  from the last attacking weapon (`Weapons.cc:2710-2719`).
 - Q13: a merc captured in AR takes `MORALE_MERC_CAPTURED` twice, from the end block and from
   `enemyCapturesPlayerSoldier`.
 - Q14: an AR victory asks for player control while the dead enemies still count, so the sector stays enemy-controlled
@@ -158,7 +158,7 @@ Not pinned yet:
 - Q22: autoresolving a loaded battle unloads the sector through `EndTacticalBattleForEnemy`, which costs
   `ABANDON_MILITIA` loyalty while militia and enemies are still up (oracle `battle.txt`).
 - Q23: `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` comes only from exit-grid departures, which pass the destination sector
-  to the retreat implications (`StrategicMap.cc:3215`, `:1680-1683`).
+  to the retreat implications (`StrategicMap.cc:3210`, `:1676-1679`).
 - Q24: a group with no previous sector is recognised by P16, so one really coming from P16 picks a retreat side anew.
 - Q26: retreat trips are partly spent by the PBI's 300 s warp and by AR's warp.
 

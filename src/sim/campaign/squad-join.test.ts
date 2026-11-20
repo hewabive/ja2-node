@@ -62,7 +62,7 @@ function doctorAsleep(seed: number): Sleeper {
   return l;
 }
 
-describe('joining a squad, soldier side (AddCharacterToSquad, Squads.cc:188)', () => {
+describe('joining a squad, soldier side (AddCharacterToSquad, Squads.cc:186)', () => {
   it('wakes a sleeping merc from another assignment and stamps the change; the squad menu leaves his wake-up playing', () => {
     const l = doctorAsleep(51);
     expect([merc(l).assignment, merc(l).asleep, shown(l)]).toEqual([Assignment.DOCTOR, true, 'SLEEPING']);
@@ -83,7 +83,7 @@ describe('joining a squad, soldier side (AddCharacterToSquad, Squads.cc:188)', (
   });
 });
 
-describe('a hit on our merc on another assignment (EVENT_SoldierGotHit, Soldier_Control.cc:2806)', () => {
+describe('a hit on our merc on another assignment (EVENT_SoldierGotHit, Soldier_Control.cc:2809)', () => {
   it('wakes him without the wake-up animation and puts him on a squad', () => {
     const l = doctorAsleep(53);
     merc(l).forcedToStayAwake = true;

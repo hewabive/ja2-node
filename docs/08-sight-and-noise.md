@@ -254,7 +254,7 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 - A merc aboard a ground vehicle is a valid sighting at the vehicle's tile (`IsSoldierValidForSightings`,
-  `Tactical/OppList.cc:621`), and nothing in the line of sight treats the vehicle's own structure apart: he looks out
+  `Tactical/OppList.cc:620`), and nothing in the line of sight treats the vehicle's own structure apart: he looks out
   from its tile and an enemy who sees that tile sees him (`../vehicle-presence.test.ts` "lets enemies see the mercs
   aboard …"). The helicopter's passengers never count; boarding keeps their opplists, which age with every decay and
   never see again (`25`).

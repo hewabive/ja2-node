@@ -67,7 +67,7 @@ describe('route plotting on the map screen', () => {
     });
   });
 
-  it("confirms a merc's unchanged path, or the helicopter's, for the mercs selected then (CheckIfClickOnLastSectorInPath, MapScreen.cc:5509-5569)", () => {
+  it("confirms a merc's unchanged path, or the helicopter's, for the mercs selected then (CheckIfClickOnLastSectorInPath, MapScreen.cc:5475-5535)", () => {
     const plot = new Plotting('merc', SOLDIER, ROW, 'D13', ['D13', 'C13', 'B13']);
     expect(plot.click(sector('B13'))).toEqual({ kind: 'confirm' });
     expect(plot.endCommand('confirm', [SOLDIER, SOLDIER + 1])).toEqual({
@@ -82,7 +82,7 @@ describe('route plotting on the map screen', () => {
     expect(heli.endCommand('confirm', [])).toEqual({ type: 'endPlot', helicopter: true, outcome: 'confirm', selected: [] });
   });
 
-  it('keeps each click and shortening with the selected list and the Shift of its moment (MapScreen.cc:2315, Map_Screen_Interface_Map.cc:956-960, Strategic_Pathing.cc:202-208)', async () => {
+  it('keeps each click and shortening with the selected list and the Shift of its moment (MapScreen.cc:2309, Map_Screen_Interface_Map.cc:964-968, Strategic_Pathing.cc:202-208)', async () => {
     const client = new FakePlotClient(routes);
     const plot = new Plotting('merc', SOLDIER, ROW, 'D13', []);
     await rest(plot, client, 'A1', 0);
@@ -117,7 +117,7 @@ describe('route plotting on the map screen', () => {
     });
   });
 
-  it('ignores a click on a sector a merc cannot plot to, though it shows the temporary path there (MapScreen.cc:2307)', async () => {
+  it('ignores a click on a sector a merc cannot plot to, though it shows the temporary path there (MapScreen.cc:2301)', async () => {
     const client = new FakePlotClient(routes);
     const plot = new Plotting('merc', SOLDIER, ROW, 'D13', []);
     await rest(plot, client, 'C13', 0);

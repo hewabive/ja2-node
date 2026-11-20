@@ -70,7 +70,7 @@ function victory(log: FactLog, sector: SectorRef, hick?: HickFate) {
   return sim;
 }
 
-describe('a won battle in an NPC sector (NPC.cc HandleVictoryInNPCSector, called at Overhead.cc:4682)', () => {
+describe('a won battle in an NPC sector (NPC.cc HandleVictoryInNPCSector, called at Overhead.cc:4752)', () => {
   it('records the hillbillies dead and puts Keith back in business after a victory on the surface of F10 with no hick alive', () => {
     const log = factLog({ [Fact.KEITH_OUT_OF_BUSINESS]: true });
     victory(log, F10, killed);

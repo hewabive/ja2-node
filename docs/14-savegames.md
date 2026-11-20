@@ -4,7 +4,7 @@ Reading the original's savegames (`.sav` of vanilla JA2 Gold 1.12 and of Stracci
 ja2-node campaign. Siblings: `27` ja2-node's own saves and the save list; `15` the clock and the event queue of an
 import; `16`–`18`, `21`–`26`, `35` the state each import step fills; `29` `newSession {save}`. The byte layouts are the
 `src/content/formats/savegame-*.ts` modules; their `@src` headers name the Stracciatella loaders, and `LoadSavedGame`
-(`SaveLoadGame.cc:644`) gives the section order. `pnpm cli inspect save <file.sav>` summarises a file and, with the
+(`SaveLoadGame.cc:642`) gives the section order. `pnpm cli inspect save <file.sav>` summarises a file and, with the
 original data, tells whether its animation restart reaches the campaign (§2).
 
 ## 1. The path of an import
@@ -68,34 +68,34 @@ and revealed records need the map. The sector's first entry replays those throug
 the entry's order and before the diff's own changes, and decides the flag as a load does; the next exit writes
 ja2-node's form. A change made in the sector before that entry comes after the save's records, as it would in the
 file: a structure added or removed there joins the diff's own changes, and Bobby Ray closing a crate edits the
-openable record in place (`SaveLoadMap.cc:744`).
+openable record in place (`SaveLoadMap.cc:746`).
 
 **A save without a world.** A save made before the first arrival, or after the last merc left the loaded sector,
-has no world (`SaveLoadGame.cc:731`, `:748`): the original leaves the world sector invalid and opens the map screen. The
+has no world (`SaveLoadGame.cc:729`, `:746`): the original leaves the world sector invalid and opens the map screen. The
 import reads no map and starts as a campaign does after `trashWorld` or before its landing: the strategic flow, no
 tactical sim, `worldSector` null. What a loaded world would carry and outlives it goes into the strategic state
 (`importCampaignWideState`: the PreRandom ring, profiles, key table, civilian groups, the opplist decay time); the
 roster's soldiers are built from their records; the temp files of every sector, the last one's included, go into the
 sector diffs. An imported `didGameJustStart` lands the squad at the first compression, as in a new game.
 
-**The saved screen.** A save resumes on the screen it was made on (`SaveLoadScreen.cc:1188`): one made in tactical in
+**The saved screen.** A save resumes on the screen it was made on (`SaveLoadScreen.cc:1199`): one made in tactical in
 the tactical flow, one made on the map screen, or without a world, on the map screen, entered as `MapScreenHandle`
 enters it (a 5–60 minute compression mode stays but stops, any other becomes X0; `createOnMapScreen`,
 `sim/campaign/campaign-sim.ts`), its sector, if any, loaded behind it until `tacticalScreen`.
 
 **Every saved animation starts again.** `LoadSoldierStructure` creates every saved soldier, of every team and wherever
-he is, in id order, and each creation starts his saved animation again at its saved code (`SaveLoadGame.cc:1396`,
-`Tactical/Soldier_Create.cc:459`, `Tactical/Soldier_Control.cc:615`), before the temp files load and before anybody
+he is, in id order, and each creation starts his saved animation again at its saved code (`SaveLoadGame.cc:1338`,
+`Tactical/Soldier_Create.cc:458`, `Tactical/Soldier_Control.cc:619`), before the temp files load and before anybody
 enters the map. The import does the same in `importSave` (`restartSavedSoldiers`, `src/sim/tactical/save-import.ts`):
 it creates every soldier of the save, puts those of the loaded sector at their saved tiles without standing them on the
 map, links them, and restarts each through `restartAnimationOnLoad` (`src/sim/tactical/animation.ts`) after the
 tactical status, as `LoadTacticalStatusFromSavedGame` comes first. `TacticalState.loadingSave` stands for
 `LOADING_SAVED_GAME` from the restart to the last soldier placed: every animation started meanwhile, the ones a restart
 starts included, takes `EVENT_InitNewSoldierAnim`'s loading branch, which skips every check of a new animation
-(`Tactical/Soldier_Control.cc:897`), and a soldier placed meanwhile is not stepped on to his destination (`:1891`). The
+(`Tactical/Soldier_Control.cc:901`), and a soldier placed meanwhile is not stepped on to his destination (`:1894`). The
 restart runs the script with its opcodes, and its draws are the main stream's, as all of `Random` is (deviation "Player
 loads"); the saved pending animation is held through it and dropped after, as entering the sector does
-(`Tactical/Soldier_Add.cc:871`); the roster takes the restarted soldiers of the mercs on no map. A saved pending action
+(`Tactical/Soldier_Add.cc:1051`); the roster takes the restarted soldiers of the mercs on no map. A saved pending action
 stays as its code, count, a give's target and its `bPendingActionData3` (`Soldier.savedPendingAction`; its other data
 are the soldier's `pendingActionData1`, `pendingActionData2` and `pendingActionData4`): the restart counts it, freeing
 a dropped give's target in any sector (`TacticalState.soldiersOfTheLoad`, the save's soldiers while it runs), placing
@@ -120,43 +120,43 @@ moves nobody and the smoke gasses nobody, while a soldier entering a smoke tile 
 movement costs, sends crows to a rotting corpse by day as loading the corpses file does (deviation "Crows on load"),
 posts the schedules, powers the map lights for the saved hour, sets the ambient light, runs `LoadStrategicAI`'s
 recomputation (deviation "Strategic AI load hooks") and zeroes the busy count, in combat and out of it
-(`SaveLoadGame.cc:1100`, `:1179`); resumed in tactical, it selects the selected merc again, forced, and enters the
+(`SaveLoadGame.cc:1098`, `:1177`); resumed in tactical, it selects the selected merc again, forced, and enters the
 tactical screen (deviation "Selection on load"). The import does the same, resets the once-per-conversation records of
-the loaded sector (`SaveLoadGame.cc:1174`) and ends as the load does (`src/sim/campaign/native-load-hooks.ts`): it gives
-a squad whose movement group is gone a new one (`:1183`) and, while the saved encounter is an ambush, calls the enemies
-to the map's centre (`:1195`). The encounter comes from the general info's pre-battle fields, which the strategic map
-import restores with the battle locator, its sector, the persistent PBI and the retreat block (`:2084-2091`,
+the loaded sector (`SaveLoadGame.cc:1172`) and ends as the load does (`src/sim/campaign/native-load-hooks.ts`): it gives
+a squad whose movement group is gone a new one (`:1181`) and, while the saved encounter is an ambush, calls the enemies
+to the map's centre (`:1193`). The encounter comes from the general info's pre-battle fields, which the strategic map
+import restores with the battle locator, its sector, the persistent PBI and the retreat block (`:2026-2033`,
 `src/sim/strategic/map/save-import.ts`). With no sector loaded the call reaches nobody: no soldier of such a save stands
 on a map in the original either, and the next map load clears the public noise it may set
-(`TileEngine/WorldDef.cc:2449`). ja2-node's own loads run none of these hooks (`27`; deviation "Hooks on load"). The
+(`TileEngine/WorldDef.cc:2549`). ja2-node's own loads run none of these hooks (`27`; deviation "Hooks on load"). The
 load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start
-sector for an invalid landing zone, and, gated by the save's version ahead of the hooks above (`SaveLoadGame.cc:1152-1162`),
+sector for an invalid landing zone, and, gated by the save's version ahead of the hooks above (`SaveLoadGame.cc:1150-1160`),
 `UpdateRefuelSiteAvailability` for version 89 or lower and `CalcAproximateAmountPaidToSpeck` below 91, which adds every
 M.E.R.C. listing merc's cost to date to Speck's total (`Laptop/Mercs.cc:1692`; `runNativeLoadHooks`).
 
 **Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own and
 catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
-`loadPhysicsTable`, `src/sim/tactical/native-in-flight.ts`; `Tactical/Bullets.cc:390`, `TileEngine/Physics.cc:2150`). A
-bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:405`), and a thrown knife keeps its
+`loadPhysicsTable`, `src/sim/tactical/native-in-flight.ts`; `Tactical/Bullets.cc:398`, `TileEngine/Physics.cc:2144`). A
+bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:413`), and a thrown knife keeps its
 saved status (original-bugs "Loaded thrown knife"); its tiles per update stay as saved (deviation "Hide bullets"). A
 bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped stays in its slot until the
 sector is left, which the AI's wait for the bullets sees, as in the original, and the server's idle test passes over
 (`bulletsResolving`, `src/sim/tactical/combat/bullets.ts`). An object comes back with no level node
 (`TileEngine/LoadSaveRealObject.cc:40`), which its next move takes for an object not drawn yet
-(`TileEngine/Physics.cc:1097`): every use of the node checks it, so nothing breaks, and the object gets one again at its
+(`TileEngine/Physics.cc:1066`): every use of the node checks it, so nothing breaks, and the object gets one again at its
 next tile; its float fields are read as the float32 they are. Neither holds the busy count, which the load zeroes,
 so their end releases nothing that was held. The bomb queue comes back with its entries, its active flag, which the
-general info keeps (`SaveLoadGame.cc:2092`), and the sight bits of the tactical status; an entry names a world bomb by
+general info keeps (`SaveLoadGame.cc:2034`), and the sight bits of the tactical status; an entry names a world bomb by
 its slot, and the load lists the bombs again from the item file (`loadExplosionTable`,
 `src/sim/tactical/save-import.ts`). Each explosion in flight is generated again at its saved frame
-(`TileEngine/Explosion_Control.cc:2319`, `:159`), after the soldiers, who own them, and at the world load's light
+(`TileEngine/Explosion_Control.cc:2340`, `:161`), after the soldiers, who own them, and at the world load's light
 level, which decides whether it gets its light; it adds nothing to the busy count. The queue's interface lock is not
 saved (deviation "Interface lock after a load").
 
 **The cursor item and the map messages.** A save keeps the item cursor with its holder and source slot, and the load
-hands it back (`Tactical/Interface_Items.cc:5119`); ja2-node keeps no cursor on the server, so the import puts the
-item back as `CancelItemPointer` would (`:5086`, deviation "Item cursor on the canvas"). The 256 lines of the message
-list are finished text in the saving build's language, so an import starts with an empty list (`Utils/Message.cc:545`,
+hands it back (`Tactical/Interface_Items.cc:5264`); ja2-node keeps no cursor on the server, so the import puts the
+item back as `CancelItemPointer` would (`:5231`, deviation "Item cursor on the canvas"). The 256 lines of the message
+list are finished text in the saving build's language, so an import starts with an empty list (`Utils/Message.cc:575`,
 deviation "Map messages of a native save").
 
 **Vehicle ids.** A soldier's `bVehicleID` is the vehicle he is and `iVehicleId` the one he rides. The import keeps them
@@ -164,14 +164,14 @@ apart: every vehicle soldier, on any team, gets his `bVehicleID` (`Soldier.vehic
 the original leaves at 0), the roster record keeps `iVehicleId`, and a vehicle merc's `RosterMerc.vehicleId` reads his
 soldier's (`sim/campaign/roster.ts`). Each vehicle is linked to the first active soldier who is it, whatever his team,
 as `FindSoldierType` scans (`sim/strategic/map/save-import.ts`), and the list is refilled in place, as the tactical sim
-shares it (`25`). The fuel patch of saves up to version 73 (`SaveLoadGame.cc:981`) never applies: those are refused. The
+shares it (`25`). The fuel patch of saves up to version 73 (`SaveLoadGame.cc:979`) never applies: those are refused. The
 seat (`SOLDIER_DRIVER`, `SOLDIER_PASSENGER`) moves onto the soldier (`Soldier.vehicleSeat`); the drivers and passengers
 of a ground vehicle in the loaded sector come into it at their saved tile, which is the vehicle's, with no occupant or
 structure, and a helicopter's take their merc slots with no tile (`25`). A save made in mid-drop holds the mercs still
 in the helicopter with the chopper insertion code and no tile: the import seats them in the drop, as the load's
 `UpdateMercsInSector` does, and lands them as the Esc skip does (original-bugs "Helicopter drop in a native save"). A
 merc in transit whose arrival sector is the loaded one gets no merc slot, as `UpdateMercInSector` returns for him
-(`Strategic/StrategicMap.cc:1023`).
+(`Strategic/StrategicMap.cc:1018`).
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that has
 just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
@@ -181,7 +181,7 @@ loaded last, the meanwhile scheduled last, the bomb queue's setter and its sight
 traversal flag", "Selection on load", "Strategic morale decay counter", "Bobby Ray theft
 counter", "Team change during a hit", "Visible area of the map loaded last", "Rooms of the map loaded last", "Last
 scheduled meanwhile"; original-bugs "Talk context after a load"; `gPersonToSetOffExplosions`,
-`gfExplosionQueueMayHaveChangedSight`, `TileEngine/Explosion_Control.cc:68`). The clock starts unpaused (deviation
+`gfExplosionQueueMayHaveChangedSight`, `TileEngine/Explosion_Control.cc:70`). The clock starts unpaused (deviation
 "Pause state after an import"); the enemy-sighting pause of an enemy turn is not restored.
 
 **The save's tables win.** A native save keeps the strategic traversability its campaign started with (vanilla's differs
@@ -200,11 +200,11 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 
 | Quirk | Test |
 |---|---|
-| The last-known opponent locations are saved with their element count as byte count ("TODO000F", `SaveLoadGame.cc:1661`): only soldiers 0–77 get theirs back, the others keep a fresh process's zeroed memory; the public lists of teams 3–5 and their noise tiles keep the world load's `NOWHERE` | `sim/tactical/save-import.test.ts` |
+| The last-known opponent locations are saved with their element count as byte count ("TODO000F", `SaveLoadGame.cc:1603`): only soldiers 0–77 get theirs back, the others keep a fresh process's zeroed memory; the public lists of teams 3–5 and their noise tiles keep the world load's `NOWHERE` | `sim/tactical/save-import.test.ts` |
 | A soldier saved mid-step comes back at the centre of his tile | `sim/tactical/save-import.test.ts` |
-| The load starts every saved animation again at its saved code and runs the script on to the next frame: a breathing soldier saved before his idle check counts it and may roll an idle animation, one readying his rifle in combat pays for it again, and an animation the restart starts skips every check of a new one (`Tactical/Soldier_Control.cc:615`, `:897`, `Tactical/Soldier_Ani.cc:1384`) | `sim/tactical/save-import.test.ts` "runs the script on from the saved code …", "counts the idle check …", "charges a soldier saved readying his rifle …", "holds the saved pending animation …"; `server/save-session.test.ts` "restarts the animations of …" |
+| The load starts every saved animation again at its saved code and runs the script on to the next frame: a breathing soldier saved before his idle check counts it and may roll an idle animation, one readying his rifle in combat pays for it again, and an animation the restart starts skips every check of a new one (`Tactical/Soldier_Control.cc:619`, `:901`, `Tactical/Soldier_Ani.cc:1359`) | `sim/tactical/save-import.test.ts` "runs the script on from the saved code …", "counts the idle check …", "charges a soldier saved readying his rifle …", "holds the saved pending animation …"; `server/save-session.test.ts` "restarts the animations of …" |
 | Loading drops every soldier's movement reservation and pending animation | `sim/tactical/save-import.test.ts` |
-| Placing a loaded giver drops his pending give but frees nobody: he and his target stay engaged in action, the target out of the AI (`Tactical/Soldier_Add.cc:871`, `TacticalAI/AIMain.cc:91`) | `sim/tactical/save-import.test.ts` "keeps the giver and the target of a give saved under way engaged …" |
+| Placing a loaded giver drops his pending give but frees nobody: he and his target stay engaged in action, the target out of the AI (`Tactical/Soldier_Add.cc:1051`, `TacticalAI/AIMain.cc:93`) | `sim/tactical/save-import.test.ts` "keeps the giver and the target of a give saved under way engaged …" |
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
 | So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
 | A load stands a landed helicopter before the saved soldiers enter the map, so its bump moves nobody, and before the saved map changes, so a piece destroyed before the save stays off the map | `sim/campaign/sector-flow.test.ts` "bumps nobody when a native import …", "keeps a helicopter piece destroyed before the save …" |
@@ -212,24 +212,24 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
 | `gubExplicitEnemyEncounterCode` is a `BOOLEAN` holding an encounter code (`Strategic/PreBattle_Interface.cc:134`) | `content/formats/savegame.test.ts` "reads the pre-battle state of the general info …" |
 | A save below version 91 adds the costs of Larry's listing as the merc it names now: the drunk Larry's once he has relapsed, never the sober one's (`Laptop/Mercs.cc:600`, `:1692`) | `sim/campaign/native-load-hooks.test.ts` "adds every M.E.R.C. listing merc's cost to date …" |
-| The load's ambush call reads the encounter code alone, which outlives its battle until a squad next arrives (`Strategic/Strategic_Movement.cc:731`): a game saved after an ambush calls the loaded sector's enemies to its centre on every load (`TacticalAI/Knowledge.cc:49`) | `sim/campaign/native-load-hooks.test.ts` "calls the enemies on the saved ambush code alone …" |
-| No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5856`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |
+| The load's ambush call reads the encounter code alone, which outlives its battle until a squad next arrives (`Strategic/Strategic_Movement.cc:728`): a game saved after an ambush calls the loaded sector's enemies to its centre on every load (`TacticalAI/Knowledge.cc:49`) | `sim/campaign/native-load-hooks.test.ts` "calls the enemies on the saved ambush code alone …" |
+| No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5822`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |
 | A temp file is read by its count, the bytes past it unread: B11's item file in `SaveGame07`, `09` and `10` counts no record ahead of a live slot (`Tactical/Tactical_Save.cc:217`) | `content/formats/savegame.test.ts` "reads only the counted item records …", "reads nothing from B11's item file in SaveGame07 …", `sim/campaign/save-sectors.test.ts` "enters B11 of SaveGame09 with no item …" |
-| A damage record lands on the first structure of its tile with the saved type bit, wall orientation and level class, which can be a piece of another structure listed first: the next save rescans base tiles only and loses the damage (`Structure.cc:1853`, `SaveLoadMap.cc:344`) | `sim/tactical/native-temp-files.test.ts` "lets a damage record land on the piece of another structure …" |
-| The load spreads the saved smoke before the soldiers enter the map: a soldier saved ungassed on a smoke tile enters gassed, and nobody takes gas damage (`SaveLoadGame.cc:1016`, `:1036`; `Soldier_Control.cc:2066`) | `sim/tactical/save-import.test.ts` "restores the clouds in their slots …" |
-| A queued bomb is named by its world bomb slot, and the load lists the bombs again in item order without gaps: an entry can set off another bomb than the one it was queued for (`TileEngine/Explosion_Control.cc:1955`, `Tactical/Tactical_Save.cc:571`) | `sim/tactical/save-import.test.ts` "sets off the bomb the rebuilt list holds at a saved index …" |
-| A queue saved running runs on at once, but ends at its last bomb without waiting for the blasts in flight: who set it off is not saved (`TileEngine/Explosion_Control.cc:2017`) | `sim/tactical/save-import.test.ts` "runs a queue saved running …" |
-| The load zeroes the busy count, explosions in flight or not (`SaveLoadGame.cc:1100`, `:1179`) | `sim/tactical/save-import.test.ts` "zeroes the saved busy count …" |
-| A bullet saved stopped stays in its slot for good: the miss animation that would end it is not saved (`Tactical/Bullets.cc:405`) | `sim/tactical/save-import.test.ts` "keeps a bullet saved stopped in its slot for good …" |
-| A loaded object has no level node, so its first move looks at the catch again on the tile it was saved on, measured from there, where a drawn object waits for its next tile (`TileEngine/LoadSaveRealObject.cc:40`, `TileEngine/Physics.cc:1097`) | `sim/tactical/save-import.test.ts` "looks at the catch again on the tile an object was saved on …" |
-| A saved door or container action runs from wherever his walk ends and handles the structure at its tile only if the saved structure ID is its own: the load numbers the structures anew from the process's counter, so a save from a process that had loaded other worlds plays the opening at a door that stays shut (`Tactical/Overhead.cc:821`, `TileEngine/Interactive_Tiles.cc:98`, `TileEngine/Structure.cc:777`) | `sim/tactical/saved-pending-action.test.ts` "opens the door or container its saved structure ID names …", "plays the opening of a saved door whose structure ID names no structure …" |
-| A saved pickup of our merc takes the pile at its saved tile and height whatever item index it saved: only another team's pickup reads it (`Tactical/Handle_Items.cc:1316`) | `sim/tactical/saved-pending-action.test.ts` "steps onto the tile a saved pickup names …" |
+| A damage record lands on the first structure of its tile with the saved type bit, wall orientation and level class, which can be a piece of another structure listed first: the next save rescans base tiles only and loses the damage (`Structure.cc:1897`, `SaveLoadMap.cc:344`) | `sim/tactical/native-temp-files.test.ts` "lets a damage record land on the piece of another structure …" |
+| The load spreads the saved smoke before the soldiers enter the map: a soldier saved ungassed on a smoke tile enters gassed, and nobody takes gas damage (`SaveLoadGame.cc:1014`, `:1034`; `Soldier_Control.cc:2069`) | `sim/tactical/save-import.test.ts` "restores the clouds in their slots …" |
+| A queued bomb is named by its world bomb slot, and the load lists the bombs again in item order without gaps: an entry can set off another bomb than the one it was queued for (`TileEngine/Explosion_Control.cc:1976`, `Tactical/Tactical_Save.cc:569`) | `sim/tactical/save-import.test.ts` "sets off the bomb the rebuilt list holds at a saved index …" |
+| A queue saved running runs on at once, but ends at its last bomb without waiting for the blasts in flight: who set it off is not saved (`TileEngine/Explosion_Control.cc:2038`) | `sim/tactical/save-import.test.ts` "runs a queue saved running …" |
+| The load zeroes the busy count, explosions in flight or not (`SaveLoadGame.cc:1098`, `:1177`) | `sim/tactical/save-import.test.ts` "zeroes the saved busy count …" |
+| A bullet saved stopped stays in its slot for good: the miss animation that would end it is not saved (`Tactical/Bullets.cc:413`) | `sim/tactical/save-import.test.ts` "keeps a bullet saved stopped in its slot for good …" |
+| A loaded object has no level node, so its first move looks at the catch again on the tile it was saved on, measured from there, where a drawn object waits for its next tile (`TileEngine/LoadSaveRealObject.cc:40`, `TileEngine/Physics.cc:1066`) | `sim/tactical/save-import.test.ts` "looks at the catch again on the tile an object was saved on …" |
+| A saved door or container action runs from wherever his walk ends and handles the structure at its tile only if the saved structure ID is its own: the load numbers the structures anew from the process's counter, so a save from a process that had loaded other worlds plays the opening at a door that stays shut (`Tactical/Overhead.cc:891`, `TileEngine/Interactive_Tiles.cc:98`, `TileEngine/Structure.cc:761`) | `sim/tactical/saved-pending-action.test.ts` "opens the door or container its saved structure ID names …", "plays the opening of a saved door whose structure ID names no structure …" |
+| A saved pickup of our merc takes the pile at its saved tile and height whatever item index it saved: only another team's pickup reads it (`Tactical/Handle_Items.cc:1321`) | `sim/tactical/saved-pending-action.test.ts` "steps onto the tile a saved pickup names …" |
 | The civilians' preserved file ends on a sector id that its load reads and never checks, while the enemies' is checked (`Tactical/Enemy_Soldier_Save.cc:255`, `:424`) | `content/formats/savegame-preserved-soldiers.test.ts` "checks the sector id after the records of an enemy file only …" |
 
 Not pinned yet:
 - A vanilla save's `uiFlags` holds `LOADING_SAVED_GAME`, set while writing, and two bits Stracciatella no longer defines
   (`TURNBASED`, `TRANSLUCENCY_TYPE`); the import reads only the combat, endgame and sight bits.
-- The corpse search fits the gory corpse's structure whatever the blood option (`Tactical/Rotting_Corpses.cc:1070`).
+- The corpse search fits the gory corpse's structure whatever the blood option (`Tactical/Rotting_Corpses.cc:1080`).
 
 ## 4. Verification and what is not checked against the native build
 

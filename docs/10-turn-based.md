@@ -130,7 +130,7 @@ moved, and `endAIGuysTurn` passes to the next on the list. Nothing breaks a hang
 
 **Enemy sighted on their turn.** When our merc reveals an enemy on another team's turn, that enemy's animation and all
 AI decisions pause for 3000 ms, or until that enemy starts an animation, as one stopping on the tile he walked to does
-(`Tactical/Soldier_Control.cc:1324`), and a soldier reaching a tile centre meanwhile halts. ja2-node counts the pause in
+(`Tactical/Soldier_Control.cc:1328`), and a soldier reaching a tile centre meanwhile halts. ja2-node counts the pause in
 game time and is not idle while it lasts, so `advance` runs it out (deviation "Enemy sighted on their turn").
 
 **The end of combat.** `checkForEndOfBattle`, after every death and attack, wins when no capable enemy is left (a
@@ -145,7 +145,7 @@ ends, the turn does not (`data.combatEnded`).
 **Leaving combat** releases every frozen soldier, drops pending animations and actions, clears the moved flags and the
 interrupt queue, hides enemies none of ours sees, pauses the AI for 1500 ms and forces an opplist decay. Its real-time
 turn runs on the next tick, the forced decay after it (deviation "Real-time turn after combat"); inside a conversation
-there is no such turn and the decay comes at once (`Overhead.cc:4095`). APs, opplists and alert statuses stay, except
+there is no such turn and the decay comes at once (`Overhead.cc:4169`). APs, opplists and alert statuses stay, except
 those of militia and civilians after a victory.
 
 **Time.** World time stops in combat, so the real-time turn and the assignments wait (`15`); tactical ticks go on. An

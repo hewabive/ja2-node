@@ -150,7 +150,7 @@ describe('save rules', () => {
     });
   });
 
-  it('refuse the player’s saves while the helicopter drops the mercs, whose lock takes the save keys (Turn_Based_Input.cc:2330), and allow them after it', async () => {
+  it('refuse the player’s saves while the helicopter drops the mercs, whose lock takes the save keys (Turn_Based_Input.cc:2314), and allow them after it', async () => {
     await withKit(async (k) => {
       const session = await k.open({ seed: 6, campaign: { mercs: 2, land: false } });
       expect((await session.prepareAndDispatch({ type: 'compressTime', mode: 2 })).ok).toBe(true);
@@ -264,7 +264,7 @@ describe('save rules', () => {
     });
   });
 
-  it('in Dead is Dead save nothing while the helicopter drop runs, stalled too, as its lock holds LOCKUI_MODE (SaveLoadScreen.cc:1374), and save once it is skipped', async () => {
+  it('in Dead is Dead save nothing while the helicopter drop runs, stalled too, as its lock holds LOCKUI_MODE (SaveLoadScreen.cc:1385), and save once it is skipped', async () => {
     await withKit(async (k) => {
       const writes = recordWrites(k);
       const session = await k.open({

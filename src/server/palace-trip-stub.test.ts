@@ -343,7 +343,7 @@ describe('the round trip of a palace scene to P3_m and back (Meanwhile.cc StartM
     await expectReloadsInvisible(fromTheMapWithNoWorld);
   });
 
-  it("loads P3_m in the second a palace scene is due, without enemies but with the palace's civilian setup, which only a scene under way skips (StrategicMap.cc:632 reads AreInMeanwhile, Soldier_Init_List.cc:500 gfInMeanwhile)", async () => {
+  it("loads P3_m in the second a palace scene is due, without enemies but with the palace's civilian setup, which only a scene under way skips (StrategicMap.cc:627 reads AreInMeanwhile, Soldier_Init_List.cc:507 gfInMeanwhile)", async () => {
     const session = await newCampaign(74);
     await land(session);
     const c = session.campaign;
@@ -356,7 +356,7 @@ describe('the round trip of a palace scene to P3_m and back (Meanwhile.cc StartM
     expect(getSectorFlagStatus(c.state.map, PALACE, SectorFlag.ALREADY_VISITED)).toBe(false);
   });
 
-  it('with P3 itself loaded loads nothing either way, so the scene plays on the palace map, and a line still talking at its end goes on: the way back cuts speech only when it loads (StrategicMap.cc:438, :488)', async () => {
+  it('with P3 itself loaded loads nothing either way, so the scene plays on the palace map, and a line still talking at its end goes on: the way back cuts speech only when it loads (StrategicMap.cc:436, :486)', async () => {
     const session = await newCampaign(75);
     Object.assign(sectorInfo(session.campaign.state.map, PALACE), NO_GARRISON);
     await session.worlds?.prepare([P3_MAP]);

@@ -110,7 +110,7 @@ describe('the gameplay keys of Turn_Based_Input.cc', () => {
     expect(talking.calls).toEqual([]);
   });
 
-  it('skips the quick save while a battle is about to begin, and still quick loads (Turn_Based_Input.cc:1947, :1914)', () => {
+  it('skips the quick save while a battle is about to begin, and still quick loads (Turn_Based_Input.cc:1930, :1897)', () => {
     const r = recorder({ mapInterfaceDisabled: true });
     for (const key of ['s', 'l']) handleTacticalKey(r.host, down(key, KEY_MASK.ALT), UiEvent.M_ON_TERRAIN);
     expect(r.calls).toEqual(['quickLoad']);

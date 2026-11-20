@@ -533,7 +533,7 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect([merc.gridNo, merc.x, merc.y]).toEqual([at, centre.x, centre.y]);
   });
 
-  it('keeps a walker saved between two tiles on his saved tile with his destination on the next: setting a position while loading does not move a walker on to his destination (Soldier_Control.cc:1891)', () => {
+  it('keeps a walker saved between two tiles on his saved tile with his destination on the next: setting a position while loading does not move a walker on to his destination (Soldier_Control.cc:1894)', () => {
     const at = gridNo(80, 82);
     const next = gridNo(81, 82);
     const walking = { usAnimState: states(content.animations).WALKING, sDestination: next, sFinalDestination: gridNo(84, 82) };
@@ -699,7 +699,7 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect([soldierOf(sim, MERC_ID).gassed, soldierOf(sim, MERC_ID + 1).gassed]).toEqual([true, false]);
   });
 
-  it('keeps the giver and the target of a give saved under way engaged in action: placing the giver drops his pending give without freeing either, so the target stays out of the AI (SOLDIER_ENGAGEDINACTION; Soldier_Add.cc:871, AIMain.cc:91)', () => {
+  it('keeps the giver and the target of a give saved under way engaged in action: placing the giver drops his pending give without freeing either, so the target stays out of the AI (SOLDIER_ENGAGEDINACTION; Soldier_Add.cc:1051, AIMain.cc:93)', () => {
     const save = syntheticSave({
       soldiers: [
         savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), {
@@ -898,7 +898,7 @@ function savedProfile(p: MercProfile, nickname: string): SavedMercProfile {
   };
 }
 
-describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Control.cc:615; EVENT_InitNewSoldierAnim, :897)', () => {
+describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Control.cc:619; EVENT_InitNewSoldierAnim, :901)', () => {
   const RANDOM_ANIM_CHECK = 491;
   const END_OF_ANIMATION = 499;
   const GO_BACK = 496;
@@ -938,7 +938,7 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
     expect([merc.aniDelay, merc.nextFrameAt]).toEqual([computedAnimationDelay(sim.state, merc), sim.state.clockMs + merc.aniDelay]);
   });
 
-  it('counts the idle check of a breathing soldier saved right before it, and rolls Random(100) at its threshold (Soldier_Ani.cc:1384)', () => {
+  it('counts the idle check of a breathing soldier saved right before it, and rolls Random(100) at its threshold (Soldier_Ani.cc:1359)', () => {
     const standing = states(content.animations).STANDING;
     const atCheck = codeOfOpcode(standing, RANDOM_ANIM_CHECK);
     const save = syntheticSave({
@@ -957,7 +957,7 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
     ]);
   });
 
-  it('holds the saved pending animation through the restart, whose own state changes take the loading branch too: a soldier saved at the end of kneeling down with a walk pending goes straight into the walk, with no stance change (Soldier_Control.cc:897)', () => {
+  it('holds the saved pending animation through the restart, whose own state changes take the loading branch too: a soldier saved at the end of kneeling down with a walk pending goes straight into the walk, with no stance change (Soldier_Control.cc:901)', () => {
     const st = states(content.animations);
     const kneelDown = anim(content, 'KNEEL_DOWN');
     const save = syntheticSave({
@@ -988,7 +988,7 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
     expect(animName(content, soldierOf(importedSim(save), CIVILIAN_ID).state)).toBe('PRONE');
   });
 
-  it('charges a soldier saved readying his rifle in combat the points to ready it again, unless he was not to be charged, which the restart clears (Soldier_Control.cc:1407)', () => {
+  it('charges a soldier saved readying his rifle in combat the points to ready it again, unless he was not to be charged, which the restart clears (Soldier_Control.cc:1410)', () => {
     const rifle = content.items.byName.get('M14')?.index ?? 0;
     const readyTime = content.items.byIndex.get(rifle)?.weapon?.readyTime ?? 0;
     const ready = { usAnimState: anim(content, 'READY_RIFLE_STAND'), bActionPoints: 20 };
@@ -1005,7 +1005,7 @@ describe('the restart of every saved animation (CreateSoldierCommon, Soldier_Con
     expect([charged?.actionPoints, spared?.actionPoints, spared?.dontChargeReadyAPs]).toEqual([20 - readyTime, 20, false]);
   });
 
-  it('drops the last target of a soldier saved in a state that aims at nothing, and keeps the one of a soldier readying his rifle (Soldier_Control.cc:1360)', () => {
+  it('drops the last target of a soldier saved in a state that aims at nothing, and keeps the one of a soldier readying his rifle (Soldier_Control.cc:1364)', () => {
     const target = gridNo(90, 90);
     const save = syntheticSave({
       soldiers: [
@@ -1070,7 +1070,7 @@ describe('the campaign a restart reaches (deviation "Animations on load reaching
     expect(reach).toMatchObject({ soldier: ENEMY_ID, animation: 'GENERIC_HIT_DEATH', hook: 'sectorHooks.soldierDied' });
   });
 
-  it('reaches nothing with a merc saved breath-collapsed: he collapses, and the sight of his collapse looks at nobody, as no soldier of the load stands on the map yet (Soldier_Control.cc:7970)', () => {
+  it('reaches nothing with a merc saved breath-collapsed: he collapses, and the sight of his collapse looks at nobody, as no soldier of the load stands on the map yet (Soldier_Control.cc:7966)', () => {
     const save = syntheticSave({
       soldiers: [
         savedSoldier(MERC_ID, Team.OUR, MERC_AT, { bBreath: 0, bBreathCollapsed: 1, ubProfile: NO_PROFILE }),
@@ -1095,7 +1095,7 @@ describe('the campaign a restart reaches (deviation "Animations on load reaching
     expect(reachOf([savedSoldier(MERC_ID, Team.OUR, MERC_AT, atCheck)])).toBeNull();
   });
 
-  it("lets a restart ask whether a meanwhile runs, as the release of an attack's busy count does, unless a meanwhile is due at the saved second, where the original's AreInMeanwhile finds it among the events already loaded and says yes (Overhead.cc:5585, Meanwhile.cc:417)", () => {
+  it("lets a restart ask whether a meanwhile runs, as the release of an attack's busy count does, unless a meanwhile is due at the saved second, where the original's AreInMeanwhile finds it among the events already loaded and says yes (Overhead.cc:5658, Meanwhile.cc:417)", () => {
     const shooting = [savedAt(MERC_ID, Team.OUR, 'SHOOT_RIFLE_STAND', RELEASE_ATTACK_BUSY_COUNT)];
     expect(reachOf(shooting)).toBeNull();
     expect(reachOf(shooting, [meanwhileAt(SAVED_SECOND + 1)])).toBeNull();
@@ -1104,7 +1104,7 @@ describe('the campaign a restart reaches (deviation "Animations on load reaching
 });
 
 describe('the soldiers of a save with no world (deviation "Animations on load without a world")', () => {
-  it('stands a soldier saved climbing or hopping a fence up at code 0, as CreateSoldierCommon does with no world loaded, and runs no script (Soldier_Control.cc:598-615)', () => {
+  it('stands a soldier saved climbing or hopping a fence up at code 0, as CreateSoldierCommon does with no world loaded, and runs no script (Soldier_Control.cc:602-619)', () => {
     const standing = states(content.animations).STANDING;
     const save = syntheticSave({
       soldiers: [
@@ -1321,7 +1321,7 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     expect(whoIsThere(t, PARKED_AT, 0)).toBe(soldierOf(sim, OUR_HUMMER_ID));
   });
 
-  it("leaves the saved pending action with the seated mercs, as the load stops before it places them (Soldier_Add.cc:707-708), and drops the vehicle's own", () => {
+  it("leaves the saved pending action with the seated mercs, as the load stops before it places them (Soldier_Add.cc:887-888), and drops the vehicle's own", () => {
     const MERC_PICKUPITEM = 2;
     const sim = importedSim(seatedSave({ ubPendingAction: MERC_PICKUPITEM }));
     const kept = [DRIVER_ID, PASSENGER_ID, FLYING_ID, OUR_HUMMER_ID].map((id) => soldierOf(sim, id).savedPendingAction?.action ?? null);
@@ -1357,7 +1357,7 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
   });
 });
 
-describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.cc:1670-1697)', () => {
+describe('the pending action a save holds (Soldier_Add.cc:1051, Soldier_Control.cc:1673-1700)', () => {
   const MERC_PICKUPITEM = 2;
   const ELSEWHERE = { sSectorX: SECTOR.x + 1, bInSector: 0 };
   const AWAY_ID = MERC_ID + 1;
@@ -1425,7 +1425,7 @@ describe('the pending action a save holds (Soldier_Add.cc:871, Soldier_Control.c
   });
 });
 
-describe('a merc in transit whose arrival sector is the loaded one (UpdateMercInSector, StrategicMap.cc:1023)', () => {
+describe('a merc in transit whose arrival sector is the loaded one (UpdateMercInSector, StrategicMap.cc:1018)', () => {
   const IN_TRANSIT = 24;
   const WALKER_ID = 0;
   const ARRIVING_ID = 1;
@@ -1444,12 +1444,12 @@ describe('a merc in transit whose arrival sector is the loaded one (UpdateMercIn
   });
 });
 
-describe('a dead merc of ours in the loaded sector (UpdateMercsInSector from SaveLoadGame.cc:1036)', () => {
+describe('a dead merc of ours in the loaded sector (UpdateMercsInSector from SaveLoadGame.cc:1034)', () => {
   const ALIVE_ID = 0;
   const DEAD_ID = 1;
   const LAST_ID = 2;
 
-  it('takes his merc slot in id order with no tile, as EVENT_SetSoldierPosition leaves a SOLDIER_DEAD soldier off the map (Soldier_Add.cc:690, Soldier_Control.cc:1806)', () => {
+  it('takes his merc slot in id order with no tile, as EVENT_SetSoldierPosition leaves a SOLDIER_DEAD soldier off the map (Soldier_Add.cc:870, Soldier_Control.cc:1809)', () => {
     const save = syntheticSave({
       soldiers: [
         savedSoldier(ALIVE_ID, Team.OUR, gridNo(80, 82)),
@@ -1482,7 +1482,7 @@ describe('a merc still in the helicopter in a save made in mid-drop (original-bu
     });
   }
 
-  it('is no soldier of the loaded map: he is seated in the helicopter again, in id order, as the load puts the chopper mercs back into the seats (UpdateMercInSector, StrategicMap.cc:1160)', () => {
+  it('is no soldier of the loaded map: he is seated in the helicopter again, in id order, as the load puts the chopper mercs back into the seats (UpdateMercInSector, StrategicMap.cc:1155)', () => {
     const sim = importedSim(midDropSave());
     const t = sim.state;
     expect(t.mercSlots.map((s) => s.id)).toEqual([DROPPED_ID]);
@@ -1598,7 +1598,7 @@ describe('the bomb queue and the explosions in flight of a save (Explosion_Contr
     expect(blast?.kind === 'explosion' && blast.light).toBeNull();
   });
 
-  it('zeroes the saved busy count, in combat and in real time, explosions in flight or not (SaveLoadGame.cc:1100, :1179)', () => {
+  it('zeroes the saved busy count, in combat and in real time, explosions in flight or not (SaveLoadGame.cc:1098, :1177)', () => {
     const blast = { queue: [], explosions: [explosionAt(MINE_AT[1])] };
     const combat = importedSim(syntheticSave({ tactical: { inCombat: true, attackBusyCount: 2 } }));
     const realTime = importedSim(syntheticSave({ tactical: { inCombat: false, attackBusyCount: 1 }, explosionTable: blast }));
@@ -1779,7 +1779,7 @@ describe('the bullets, thrown objects and item cursor of a save (Bullets.cc Load
     expect([blast?.kind === 'explosion' && blast.owner?.id, blast?.gridNo, t.explosives.objects]).toEqual([MERC_ID, at, []]);
   });
 
-  it('looks at the catch again on the tile an object was saved on, measured from there: the load leaves it no level node, which PhysicsMoveObject takes for an object not drawn yet (Physics.cc:1097)', () => {
+  it('looks at the catch again on the tile an object was saved on, measured from there: the load leaves it no level node, which PhysicsMoveObject takes for an object not drawn yet (Physics.cc:1066)', () => {
     const at = gridNo(78, ROW);
     const catcher = savedSoldier(CATCHER_ID, Team.OUR, gridNo(79, ROW));
     const pass = savedObject(itemIndexOf('CANTEEN'), at, {

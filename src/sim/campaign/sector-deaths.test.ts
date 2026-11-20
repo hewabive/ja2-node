@@ -153,7 +153,7 @@ describe('player activity from damage', () => {
   });
 });
 
-describe('difficulty and progress asked of the campaign at every use (Morale.cc:255, AIUtils.cc:2076)', () => {
+describe('difficulty and progress asked of the campaign at every use (Morale.cc:255, AIUtils.cc:2072)', () => {
   const MORALE_PER_PROGRESS_STEP = 5;
 
   function progressTerm(s: Soldier): number {

@@ -265,7 +265,7 @@ describe('the item locator lock and the items-seen quote (FOV.cc RevealRoofsAndI
     expect(s.t.events.filter((e) => e.type === 'itemsLocated')).toEqual([{ type: 'itemsLocated', gridNo: IN_VIEW }]);
   });
 
-  it('slides an EPC to the tile held with the items seen during an attack once it ends on our turn (Overhead.cc:5744)', () => {
+  it('slides an EPC to the tile held with the items seen during an attack once it ends on our turn (Overhead.cc:5817)', () => {
     const s = scene();
     s.t.narrative = { ...s.t.narrative, isEpc: () => true };
     inCombat(s);

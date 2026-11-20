@@ -56,7 +56,7 @@ A struct-layer node whose structure is rejected (overlapping obstacles in a few 
 the original loader; a rejection on a roof layer throws. Soldiers own a person structure built from their animation's
 structure file for the current facing (multi-tile checks, sight); `TacticalState.occupant` answers who stands where,
 and `whoIsThere` (`src/sim/tactical/state.ts`) also finds a soldier on every other tile of his body that is not
-passable, as `WhoIsThere2` does (`TileEngine/WorldMan.cc:1479-1501`): paths, destinations and the next-tile test keep
+passable, as `WhoIsThere2` does (`TileEngine/WorldMan.cc:1483-1505`): paths, destinations and the next-tile test keep
 off a fallen soldier's legs, where a soldier could not turn (`movement.test.ts`, "a tile under the body of another
 soldier"). Person structures never add movement costs.
 
@@ -97,7 +97,7 @@ step starts from the overshot position.
 charged while walking. Sight at each arrival uses the facing of that moment. Creatures and vehicles are the exception:
 they stand until they face the step (`pauseAnimMove`, `06`), and a vehicle other than a tank never turns.
 
-**The arrival on a tile.** `handleAtNewGridNo` (`movement.ts`, `Tactical/Overhead.cc:1709`) keeps the original's early
+**The arrival on a tile.** `handleAtNewGridNo` (`movement.ts`, `Tactical/Overhead.cc:1778`) keeps the original's early
 returns before noise and sight: while any squad walks off the map or to an exit grid, every soldier's arrival stops there,
 the enemies' too, so walkers make no noise and nobody looks; a soldier at 0 breath is marked to collapse and walks on
 until his animation lets him; a mine or pressure item under him goes into the bomb queue, and if it is an explosive he
@@ -107,19 +107,19 @@ mine stops (`bombs/mine-detection.ts`, `12` §6).
 
 **Falls.** From the second step of a move, after the gas check, a soldier on a floor or road tile of the ground level
 that holds marbles (any of the pool's items, hidden ones too) slips: the marbles are gone, he collapses and loses some
-APs (`Tactical/Overhead.cc:1477`). Otherwise a blinded runner and then a soldier who is DRUNK (`12` §5) may trip over
-(`tripsAndFalls`, `falls.ts`; `:1499`): he collapses where he stands, loses some APs and the move ends there. The player
+APs (`Tactical/Overhead.cc:1546`). Otherwise a blinded runner and then a soldier who is DRUNK (`12` §5) may trip over
+(`tripsAndFalls`, `falls.ts`; `:1568`): he collapses where he stands, loses some APs and the move ends there. The player
 hears the curse through `slippedOnMarbles` and `fellDown`, for a soldier out of sight too, from where the squad hears
 him (deviation "Sounds out of sight"); the fall's line names everyone, the marbles' line our mercs alone. With no fall, our FORGETFUL merc counts the step, and
 from the third step of a move, once he has walked more than 200 tiles since he last forgot, may stop with his
-personality line and some APs lost (`forgetful.ts`, `:1526`).
+personality line and some APs lost (`forgetful.ts`, `:1595`).
 
-**Water and the rest of a new tile.** `setSoldierGridNo` (`movement.ts`, `Tactical/Soldier_Control.cc:2005`) updates
+**Water and the rest of a new tile.** `setSoldierGridNo` (`movement.ts`, `Tactical/Soldier_Control.cc:2008`) updates
 the terrain and then, in the original's order, the water (`swimming.ts`: the forced walk, going under and coming up, the
-damage of `Tactical/Items.cc:3315`), the gas flag, the sneaking agility gain (`sneak-past.ts`) and the animation speed,
+damage of `Tactical/Items.cc:3306`), the gas flag, the sneaking agility gain (`sneak-past.ts`) and the animation speed,
 which a merc waiting on a squad mate's tile borrows from him until he stops on his final tile (`setDelayedTileWaiting`).
 Before the step into water, `handleNextTile` stands a crawler or a swatter up and a runner walks
-(`Tactical/Soldier_Tile.cc:349`); the end of that stance change walks him on (`Tactical/Soldier_Ani.cc:1903`).
+(`Tactical/Soldier_Tile.cc:352`); the end of that stance change walks him on (`Tactical/Soldier_Ani.cc:1878`).
 The original's `fPrevInWater` always equals the water test of the terrain left, so no flag is kept. A move started in
 deep water swims, a stop there treads, and a non-swimmer treading or swimming spends breath five times as fast
 (`deductPoints`, `points.ts`). A soldier bleeding past 12 drops blood at the middle of each tile
@@ -127,8 +127,8 @@ deep water swims, a stop there treads, and a non-swimmer treading or swimming sp
 
 **A soldier in a vehicle.** A merc seated in a ground vehicle (`Soldier.vehicleSeat`, `25`) has no tile of his own:
 `setSoldierGridNo` keeps his gridno, gas and sneaking, skips the occupant, the structure, the reservation, the smell and
-the water (`Tactical/Soldier_Control.cc:1911`), and never takes the short cut of a soldier already on the tile. Every
-position the vehicle is given is given to its passengers too (`Tactical/Vehicles.cc:802`), with no step of their own.
+the water (`Tactical/Soldier_Control.cc:1914`), and never takes the short cut of a soldier already on the tile. Every
+position the vehicle is given is given to its passengers too (`Tactical/Vehicles.cc:787`), with no step of their own.
 
 **Randomness.** The path search draws nothing. Walking draws what the ported steps draw: the gas check's
 `PreRandom(5)`, the slip's and the falls' `Random(AP)`, the falls' `Random(5)` rolls with the fall itself, the
@@ -152,7 +152,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A local recompile clears one column and row less on the east and south than it recompiles, so costs of a removed structure stay there | `world/movement-costs.test.ts` |
 | A structure file keeps only the low byte of its hit points (more than 650 filled cubes wrap) | `formats/jsd.test.ts` |
 | The search ends when the destination heads the open list and the last step costs 0, so a dearer path can win | `pathfinding.test.ts` |
-| A squad walking into a cave plans its walk-in through anything, every step at the flat cost, so it walks through walls (`Strategic/StrategicMap.cc:1891`, `:1938`) | `campaign/sector-flow.test.ts` "plans the walk-in of a cave …" |
+| A squad walking into a cave plans its walk-in through anything, every step at the flat cost, so it walks through walls (`Strategic/StrategicMap.cc:1886`, `:1933`) | `campaign/sector-flow.test.ts` "plans the walk-in of a cave …" |
 | The player's path goes around soldiers he cannot see, while his destination test ignores them | `pathfinding.test.ts` |
 | An AI budget gives a walker one AP back on the free landing tile behind a fence (`0 + WALKCOST` wraps in `UINT8`) | `pathfinding.test.ts` |
 | A roof step's breath comes from the ground costs under the roof | `points.test.ts` |
@@ -161,10 +161,10 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | The soldier swapped second neither looks nor reveals roofs: his teleport fails the destination test on the tile he was just put on | `movement.test.ts` |
 | A merc swapped at his third wait in auto-bandage stands with no final destination: the swap resets the tile his route search heads for, and the path order takes the absolute destination, `NOWHERE` | `movement.test.ts` |
 | A waiting soldier with no route around his blocker tests the first step of the route through him again (the search leaves `guiPathingData` as it was) | `movement.test.ts` |
-| Our merc held up by a squad mate who stands on his own final tile, with no route around him, waits without end 5 tiles or more from his final tile: the count climbs to 100 (the cap at 99 sets 99, `Tactical/Soldier_Tile.cc:537`), the next check puts it back to 1 (`:412`), and the give-ups need a final tile closer than 5 (`:601`) or a temporary block (`:393`); only a new order, a stop (`EVENT_StopMerc`, as combat starts) or the mate walking off ends it | `movement.test.ts` "waits without end 5 tiles or more …", "gives up silently at the 21st wait …", "ends when the mate walks off …" |
+| Our merc held up by a squad mate who stands on his own final tile, with no route around him, waits without end 5 tiles or more from his final tile: the count climbs to 100 (the cap at 99 sets 99, `Tactical/Soldier_Tile.cc:540`), the next check puts it back to 1 (`:415`), and the give-ups need a final tile closer than 5 (`:604`) or a temporary block (`:396`); only a new order, a stop (`EVENT_StopMerc`, as combat starts) or the mate walking off ends it | `movement.test.ts` "waits without end 5 tiles or more …", "gives up silently at the 21st wait …", "ends when the mate walks off …" |
 | A multi-tile soldier blocked head-on leaves the other blocked, with his final destination on his own tile | `movement.test.ts` |
 | A sweet spot search floods as a merc-bodied dummy whoever searches, so a crow's spot may lie in water | `sweet-spots.test.ts` |
-| A waiting merc whose final tile is taken heads for the closest free tile around it (ties go to the north, then the west) and, when somebody takes that one first, searches around it, not around the tile he was sent to: mercs sent to one tile drift two tiles and more from it, while the first there keeps it (`Tactical/Soldier_Tile.cc:436`) | `movement.test.ts` "searches again around the free tile he took …", `player-orders.test.ts` "keeps the first merc there on the target …" |
+| A waiting merc whose final tile is taken heads for the closest free tile around it (ties go to the north, then the west) and, when somebody takes that one first, searches around it, not around the tile he was sent to: mercs sent to one tile drift two tiles and more from it, while the first there keeps it (`Tactical/Soldier_Tile.cc:439`) | `movement.test.ts` "searches again around the free tile he took …", `player-orders.test.ts` "keeps the first merc there on the target …" |
 | The tiles moved since a turn began count in a signed byte: the 128th wraps the count to −128, which camouflage, bleeding and the moving-target penalty read | `movement.test.ts` |
 | A creature that cannot turn pays the step where it starts backwards twice, the second time with the reverse surcharge: the forced backward walk takes the step again | `movement.test.ts` |
 | A creature that cannot turn at the first step of a move goes backwards in the walk it set out in: the move's own state overwrites the backward walk | `movement.test.ts` |
@@ -176,7 +176,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A forgetful merc moved one tile at a time never forgets: the count skips the first step of every move | `forgetful.test.ts` "counts the steps of a move from the second …" |
 | The forget die is rolled on every step from the third, before the count is tested, so it draws while the merc cannot forget | `forgetful.test.ts` "rolls Random(100) on every step from the third …" |
 | A merc who waited on a squad mate keeps the mate's speed after he arrives, so he breathes at the mate's pace until a stop on his final tile clears it | `movement.test.ts` "keeps the mate's speed once he arrives …" |
-| A stop while a merc kneels up into a walk (`KNEEL_UP`, an `ANIM_STATIONARY` animation) only moves his final destination to his tile: he takes his step all the same and, his path run out short of that tile, walks back to it (`StopSoldier`, `Tactical/Soldier_Control.cc:3596-3609`; `Overhead.cc:918-953`) | `stop-soldier.test.ts` "only moves the final destination of a merc kneeling up …" |
+| A stop while a merc kneels up into a walk (`KNEEL_UP`, an `ANIM_STATIONARY` animation) only moves his final destination to his tile: he takes his step all the same and, his path run out short of that tile, walks back to it (`StopSoldier`, `Tactical/Soldier_Control.cc:3590-3603`; `Overhead.cc:988-1023`) | `stop-soldier.test.ts` "only moves the final destination of a merc kneeling up …" |
 | A soldier who goes under mid-step takes that step again from the tile he entered (his swim starts as a new move), so on a diagonal he swims a tile off his path and plans again; coming up does the same | `swimming.test.ts` "takes the step he went under on again …" |
 | Our merc may end a path on a tile marked for the player as holding a mine, though no path of his passes one; a militia soldier may not even end there | `pathfinding.test.ts` "keeps our merc off a tile with the player mine flag …", "keeps the rest of the friendly side off the tile …" |
 | The dummy soldier of a reachability flood is on the friendly side whatever its team, so the floods for sweet spots, edgepoints and items keep off the player's marked mines, never the enemy's | `pathfinding.test.ts` "floods a dummy soldier around the player mine flag …" |
@@ -192,7 +192,7 @@ Not pinned yet:
   unchanged and `TerrainActionPoints` has no case for it.
 - The AI's `EstimatePlotPath` ignores people only for multi-tile bodies, despite its comment.
 - Opcode 402 never pauses a move: `pausedMove` is cleared before the frame's step is taken.
-- A swap tests both destinations on the ground level, also for soldiers on a roof (`Tactical/Soldier_Tile.cc:655`).
+- A swap tests both destinations on the ground level, also for soldiers on a roof (`Tactical/Soldier_Tile.cc:658`).
 
 ## 4. Not checked against the native build
 

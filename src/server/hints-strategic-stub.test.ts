@@ -104,7 +104,7 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(report.answered).toBeGreaterThan(20);
   });
 
-  it('offer a passenger aboard the helicopter over the loaded sector in combat the assignment menu the full state offers him: the view counts him in the sector (AreAssignmentConditionsMet, Assignments.cc:361)', async () => {
+  it('offer a passenger aboard the helicopter over the loaded sector in combat the assignment menu the full state offers him: the view counts him in the sector (AreAssignmentConditionsMet, Assignments.cc:330)', async () => {
     const c = await landedCampaign(34);
     withHelicopter(c);
     const campaign = c.sim.campaign;
@@ -122,7 +122,7 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(hint.data).toEqual(JSON.parse(JSON.stringify(assignmentOptionsFor(economy, passenger))));
   });
 
-  it('agree that passengers of the hovering helicopter cannot go tactical (CanGoToTacticalInSector, StrategicMap.cc:2286)', async () => {
+  it('agree that passengers of the hovering helicopter cannot go tactical (CanGoToTacticalInSector, StrategicMap.cc:2281)', async () => {
     const c = await landedCampaign(37);
     withHelicopter(c);
     const answers = async (sector: string) => {
@@ -219,7 +219,7 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(refused).toMatchObject({ ok: false, data: { refusal: 'notOnPath' } });
   });
 
-  it('wake nobody on a preview, and the sleeping squad when the route is confirmed (HandleNewDestConfirmation, MapScreen.cc:7398)', async () => {
+  it('wake nobody on a preview, and the sleeping squad when the route is confirmed (HandleNewDestConfirmation, MapScreen.cc:7363)', async () => {
     const c = await landedCampaign(35);
     const squad = c.sim.campaign.battle?.roster.all() ?? [];
     const [first, second] = squad as [RosterMerc, RosterMerc];

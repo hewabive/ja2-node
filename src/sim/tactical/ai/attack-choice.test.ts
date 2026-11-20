@@ -292,7 +292,7 @@ describe('canNPCAttack', () => {
     expect(before - enemy.actionPoints).toBe(AP.RELOAD_GUN);
   });
 
-  it('tells the reload only while the squad sees him, as ReloadGun plays its sound for a visible soldier alone (D16, Items.cc:1288)', () => {
+  it('tells the reload only while the squad sees him, as ReloadGun plays its sound for a visible soldier alone (D16, Items.cc:1290)', () => {
     const reloads = (visible: number) => {
       const t = newState();
       const enemy = spawn(t, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);

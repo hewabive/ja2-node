@@ -475,7 +475,7 @@ describe('the MERC_PICKUPITEM a pickup leaves pending (Soldier_Control.cc PickPi
     expect([hasPendingAction(merc), autoBandageQuestionDue(sim.state)]).toEqual([false, true]);
   });
 
-  it('is dropped by the change out of the swat that ends a walk-up crouched pickup, as the walk counted once (Soldier_Control.cc:1674)', () => {
+  it('is dropped by the change out of the swat that ends a walk-up crouched pickup, as the walk counted once (Soldier_Control.cc:1677)', () => {
     const sim = newCombatSim(content);
     const merc = pickerAt(sim, AWAY, AnimHeight.CROUCH);
     expect(sim.dispatch({ type: 'pickUp', soldier: merc.id, gridNo: PILE })).toEqual({ ok: true });
@@ -483,7 +483,7 @@ describe('the MERC_PICKUPITEM a pickup leaves pending (Soldier_Control.cc PickPi
     expect([merc.gridNo, merc.inv.some((o) => o.item === item('CANTEEN')), hasPendingAction(merc)]).toEqual([PILE, true, false]);
   });
 
-  it('leaves the pickup animation its data once the change into it dropped the action, so a stop meanwhile still picks up (Soldier_Ani.cc:1560)', () => {
+  it('leaves the pickup animation its data once the change into it dropped the action, so a stop meanwhile still picks up (Soldier_Ani.cc:1535)', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const merc = pickerAt(sim, AWAY, AnimHeight.STAND);

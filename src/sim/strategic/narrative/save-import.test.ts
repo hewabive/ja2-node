@@ -90,7 +90,7 @@ function saveWithArrivalLineTaken(taken: boolean): SaveGame {
 }
 
 describe('the tactical status of a native save', () => {
-  it('keeps the arrival line taken when the save was made with one queued, whose release the emptied queue then never runs (bMercArrivingQuoteBeingUsed, LoadSaveTacticalStatusType.cc:121, SaveLoadGame.cc:689)', () => {
+  it('keeps the arrival line taken when the save was made with one queued, whose release the emptied queue then never runs (bMercArrivingQuoteBeingUsed, LoadSaveTacticalStatusType.cc:121, SaveLoadGame.cc:687)', () => {
     for (const taken of [true, false]) {
       const state = createStrategicState();
       state.talk.dialogue.mercArrivingQuoteBeingUsed = !taken;

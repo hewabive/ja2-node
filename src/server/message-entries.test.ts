@@ -304,7 +304,7 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 10 }]);
   });
 
-  it('prints gsUndergroundString after the merc or his squad for a plot on an underground traversal (Map_Screen_Interface_Map.cc:856-863)', () => {
+  it('prints gsUndergroundString after the merc or his squad for a plot on an underground traversal (Map_Screen_Interface_Map.cc:864-871)', () => {
     const events = [
       at({ type: 'noTravelOrdersUnderground', who: { kind: 'merc', soldier: 0 } }),
       at({ type: 'noTravelOrdersUnderground', who: { kind: 'squad', squad: 2 } }),

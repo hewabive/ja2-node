@@ -176,7 +176,7 @@ describe('the helicopter drop (Merc_Entering.cc HandleHeliDrop)', () => {
     for (const s of scene.seats) expect(s.gridNo).not.toBe(landed[scene.seats.indexOf(s)]);
   });
 
-  it('tells its start at the sweet spot, the north entry the game screen centres on, and each merc it drops as he lands (GameScreen.cc:352, Merc_Entering.cc:607)', () => {
+  it('tells its start at the sweet spot, the north entry the game screen centres on, and each merc it drops as he lands (GameScreen.cc:351, Merc_Entering.cc:607)', () => {
     const scene = dropScene(2);
     const t = scene.sim.state;
     const [first, second] = scene.seats as [Soldier, Soldier];
@@ -379,7 +379,7 @@ describe('the Esc skip of the helicopter drop (Merc_Entering.cc HandleHeliDrop, 
     expect(helicopterDropView(t)).toBeNull();
   });
 
-  it('stops the merc it selects as its Esc key reaches the tactical interface: kneeling up into his walk away he walks off and back (GameScreen.cc:407, :436, Turn_Based_Input.cc:2313)', () => {
+  it('stops the merc it selects as its Esc key reaches the tactical interface: kneeling up into his walk away he walks off and back (GameScreen.cc:406, :435, Turn_Based_Input.cc:2297)', () => {
     const scene = dropScene(2);
     const t = scene.sim.state;
     const [first] = scene.seats as [Soldier];

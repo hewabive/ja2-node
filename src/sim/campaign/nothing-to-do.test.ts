@@ -69,7 +69,7 @@ describe('nothing-to-do triggers', () => {
     expect(state.economy.reEvaluateNothingToDo).toBe(true);
   });
 
-  it('leaves a flag raised on the tactical screen stale until the map screen opens, whose frame acts on it (MapScreen.cc:6575)', () => {
+  it('leaves a flag raised on the tactical screen stale until the map screen opens, whose frame acts on it (MapScreen.cc:6541)', () => {
     const { c, roster, doctor, patient } = doctorWithPatient(8);
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     const moved = c.dispatch({ type: 'moveItem', soldier: doctor, from: InvSlot.HAND, toSoldier: patient, to: InvSlot.BIGPOCK1 });
@@ -80,7 +80,7 @@ describe('nothing-to-do triggers', () => {
     expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([true, false]);
   });
 
-  it('leaves a flag raised on the tactical screen stale until the hourly update ends with its re-evaluation (Assignments.cc:1023)', () => {
+  it('leaves a flag raised on the tactical screen stale until the hourly update ends with its re-evaluation (Assignments.cc:976)', () => {
     const { c, roster, doctor, patient } = doctorWithPatient(8);
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     const moved = c.dispatch({ type: 'moveItem', soldier: doctor, from: InvSlot.HAND, toSoldier: patient, to: InvSlot.BIGPOCK1 });
@@ -90,7 +90,7 @@ describe('nothing-to-do triggers', () => {
     expect([worldHour(c.state.clock) !== hour, merc(roster, doctor).nothingToDo, c.state.flow]).toEqual([true, true, 'tactical']);
   });
 
-  it('leaves the flags stale after an assign on the tactical screen, whose list returns at once (Assignments.cc:6609), until the map screen opens', () => {
+  it('leaves the flags stale after an assign on the tactical screen, whose list returns at once (Assignments.cc:6459), until the map screen opens', () => {
     const { c, roster, doctor, patient } = doctorWithPatient(8);
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     expect(c.dispatch({ type: 'assign', soldiers: [patient], to: { kind: 'squad', squad: 0 } })).toMatchObject({ ok: true });
@@ -99,7 +99,7 @@ describe('nothing-to-do triggers', () => {
     expect([merc(roster, doctor).nothingToDo, c.state.economy.reEvaluateNothingToDo]).toEqual([true, false]);
   });
 
-  it('raises nothing at a tactical assign that changes no assignment, where the map screen re-evaluates after its list (Assignments.cc:6779)', () => {
+  it('raises nothing at a tactical assign that changes no assignment, where the map screen re-evaluates after its list (Assignments.cc:6629)', () => {
     const { c, roster, doctor, patient } = doctorWithPatient(8);
     merc(roster, patient).life += WOUND;
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });

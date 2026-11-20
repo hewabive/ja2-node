@@ -162,7 +162,7 @@ function clips(statuses: readonly number[], name = 'CLIP9_15'): ItemObject {
 const UNREACHABLE = { flags: 0 };
 
 describe('the map screen inventory', () => {
-  it('tells the reload of a merc off the loaded map, as ReloadGun prints its line for any merc (Items.cc:1300)', () => {
+  it('tells the reload of a merc off the loaded map, as ReloadGun prints its line for any merc (Items.cc:1302)', () => {
     const c = onTheMapWithA9Unloaded();
     expect(c.tactical).toBeNull();
     const merc = mercIds(c)[0] as number;
@@ -175,7 +175,7 @@ describe('the map screen inventory', () => {
     ]);
   });
 
-  it("curses a failed attach of a merc off the loaded map on the map screen, in his voice there (SkillCheck's DoMercBattleSound, Items.cc:1555)", () => {
+  it("curses a failed attach of a merc off the loaded map on the map screen, in his voice there (SkillCheck's DoMercBattleSound, Items.cc:1557)", () => {
     const c = onTheMapWithA9Unloaded();
     const merc = clumsyWireman(c);
     const soldier = c.battle?.roster.get(merc)?.soldier;
@@ -193,7 +193,7 @@ describe('the map screen inventory', () => {
     expect(failedAttach(c, merc)).toEqual([{ type: 'skillCheckFailed', soldier: merc, mapScreen: true, tick }]);
   });
 
-  it("lists the stash in the pool's order, the item's category, kind and price and the better first object first, storage order for ties (SortSectorInventory, Map_Screen_Interface_Map_Inventory.cc:686)", () => {
+  it("lists the stash in the pool's order, the item's category, kind and price and the better first object first, storage order for ties (SortSectorInventory, Map_Screen_Interface_Map_Inventory.cc:683)", () => {
     const c = onTheMap();
     stashOn(c, [some('CLIP9_15', 2), one('M870'), one('GLOCK_17', 50), one('CLIP9_15'), one('GLOCK_17', 90)]);
     expect(listed(stash(c))).toEqual([
@@ -389,7 +389,7 @@ describe('the map screen inventory', () => {
     );
   });
 
-  it("puts the leftover of a merc of the loaded sector off its tiles at the loaded map's centre, as AddItemToPool takes NOWHERE (Handle_Items.cc:1441-1446)", () => {
+  it("puts the leftover of a merc of the loaded sector off its tiles at the loaded map's centre, as AddItemToPool takes NOWHERE (Handle_Items.cc:1446-1451)", () => {
     const c = onTheMap();
     stashAtTheMerc(c, [one('M870')]);
     const merc = mercIds(c)[1] as number;
@@ -575,7 +575,7 @@ describe('the map screen inventory', () => {
     });
   });
 
-  it('names two face items that do not go together when a pool item is put next to the other, as PlaceObject prints it for every caller (Items.cc:1898-1915)', () => {
+  it('names two face items that do not go together when a pool item is put next to the other, as PlaceObject prints it for every caller (Items.cc:1874-1891)', () => {
     const c = onTheMap();
     const merc = mercIds(c)[0] as number;
     carry(c, merc, InvSlot.HEAD1, one('SUNGOGGLES'));
@@ -592,7 +592,7 @@ describe('the map screen inventory', () => {
     expect(listed(stash(c))).toEqual([[0, 'NIGHTGOGGLES', 1]]);
   });
 
-  it('refuses a hand swap as tactical only: the original swaps hands by the tactical key and panel alone (SwapHandItems, Turn_Based_Input.cc:3390, Interface_Panels.cc:3098)', () => {
+  it('refuses a hand swap as tactical only: the original swaps hands by the tactical key and panel alone (SwapHandItems, Turn_Based_Input.cc:3373, Interface_Panels.cc:3060)', () => {
     for (const c of [onTheMap(), onTheMapWithA9Unloaded()]) {
       const merc = mercIds(c)[0] as number;
       const inv = c.battle?.roster.get(merc)?.soldier.inv ?? [];
@@ -623,7 +623,7 @@ describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickC
     return gun;
   }
 
-  it('records a key he takes from the stash as found that day in his sector, as CollectKey does for any merc of ours (Items.cc:1849)', () => {
+  it('records a key he takes from the stash as found that day in his sector, as CollectKey does for any merc of ours (Items.cc:1844)', () => {
     const { c, merc } = offTheMap();
     const key = createKeyObject(kit.sectors.content, 1, KEY_ID);
     if (!key) throw new Error('no key item');
@@ -634,7 +634,7 @@ describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickC
     expect(c.state.keyTable[KEY_ID]).toEqual({ dateFound: worldDay(c.state.clock), sectorFound: sectorByte(A9) });
   });
 
-  it("makes him the robot's controller as he puts its remote control on, the robot beside him, as PlaceObject does for any merc of ours (UpdateRobotControllerGivenController, Items.cc:2072)", () => {
+  it("makes him the robot's controller as he puts its remote control on, the robot beside him, as PlaceObject does for any merc of ours (UpdateRobotControllerGivenController, Items.cc:2056)", () => {
     const { c, merc } = offTheMap(3);
     const robot = c.battle?.roster.get(mercIds(c)[2] as number);
     if (!robot) throw new Error('no third merc');
@@ -647,7 +647,7 @@ describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickC
     expect(robot.remoteHolder).toBe(merc);
   });
 
-  it('keeps his weapon mode true to his hand after a placement, as EnsureConsistentWeaponMode ends every PlaceObject (Items.cc:2081)', () => {
+  it('keeps his weapon mode true to his hand after a placement, as EnsureConsistentWeaponMode ends every PlaceObject (Items.cc:2059)', () => {
     const { c, merc, s } = offTheMap();
     carry(c, merc, InvSlot.HAND, one('C7'));
     carry(c, merc, InvSlot.BIGPOCK2, emptyObject());
@@ -656,7 +656,7 @@ describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickC
     expect([s.weaponMode, s.doBurst]).toEqual([WeaponMode.NORMAL, 0]);
   });
 
-  it('drops his launcher mode as the gun with the launcher leaves his hand, as HandleTacticalEffectsOfEquipmentChange does for any merc (Interface_Panels.cc:3777)', () => {
+  it('drops his launcher mode as the gun with the launcher leaves his hand, as HandleTacticalEffectsOfEquipmentChange does for any merc (Interface_Panels.cc:3738)', () => {
     const { c, merc, s } = offTheMap();
     carry(c, merc, InvSlot.HAND, launcherGun());
     Object.assign(s, { weaponMode: WeaponMode.ATTACHED, doBurst: 0 });
@@ -664,7 +664,7 @@ describe("PlaceObject's side effects for a merc off the loaded map (MAPInvClickC
     expect(s.weaponMode).toBe(WeaponMode.NORMAL);
   });
 
-  it('leaves the burst mode on as a burst gun goes from the hand into the stash, which places nothing on the merc and so runs no EnsureConsistentWeaponMode (quirk, MapScreen.cc:3711)', () => {
+  it('leaves the burst mode on as a burst gun goes from the hand into the stash, which places nothing on the merc and so runs no EnsureConsistentWeaponMode (quirk, MapScreen.cc:3679)', () => {
     for (const c of [onTheMap(), onTheMapWithA9Unloaded()]) {
       const merc = mercIds(c)[0] as number;
       const s = c.battle?.roster.get(merc)?.soldier;
@@ -734,7 +734,7 @@ describe('the map screen inventory in combat (Points.cc EnoughPoints and DeductP
     return apsToReloadGunWithAmmo(kit.sectors.content.items, inv[InvSlot.HAND] as ItemObject, inv[InvSlot.BIGPOCK2] as ItemObject);
   }
 
-  it('charges a reload its APs and refuses it short of them, as ReloadGun does in combat on any screen (Items.cc:1095-1100)', () => {
+  it('charges a reload its APs and refuses it short of them, as ReloadGun does in combat on any screen (Items.cc:1097-1102)', () => {
     const c = onTheMapInCombat();
     const merc = mercIds(c)[0] as number;
     expect(c.dispatch({ type: 'unload', soldier: merc, to: 'bigPocket2' })).toMatchObject({ ok: true });
@@ -776,7 +776,7 @@ describe('the map screen inventory in combat (Points.cc EnoughPoints and DeductP
 
   const magazines = (entries: readonly StashEntryView[]) => entries.map((e) => [e.item, e.status, e.gridNo]);
 
-  it('drops the old magazine of a merc off the loaded map, his pockets full and his points short of the pickup, into his own sector (Items.cc:1235-1241)', () => {
+  it('drops the old magazine of a merc off the loaded map, his pockets full and his points short of the pickup, into his own sector (Items.cc:1237-1243)', () => {
     const c = onTheMapInCombat();
     const merc = mercIds(c)[1] as number;
     takenOffTheLoadedMap(c, merc);
@@ -786,7 +786,7 @@ describe('the map screen inventory in combat (Points.cc EnoughPoints and DeductP
     expect(magazines(stash(c, 'A10'))).toEqual([['CLIP9_15', [1], NOWHERE]]);
   });
 
-  it('charges an attach outside a box as a box of its own, AP_RELOAD_GUN once, and refuses it short of that (Interface_Items.cc:1987, :2585)', () => {
+  it('charges an attach outside a box as a box of its own, AP_RELOAD_GUN once, and refuses it short of that (Interface_Items.cc:2111, :2710)', () => {
     const c = onTheMapInCombat();
     const merc = mercIds(c)[0] as number;
     withScopes(c, merc);

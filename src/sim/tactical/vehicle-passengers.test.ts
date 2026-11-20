@@ -159,7 +159,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     return { sim, t, merc, walker };
   }
 
-  it('leaves his tile at boarding but keeps his merc slot, and every loop gated on a tile or a sighting passes him by (Vehicles.cc:261, OppList.cc:629)', () => {
+  it('leaves his tile at boarding but keeps his merc slot, and every loop gated on a tile or a sighting passes him by (Vehicles.cc:252, OppList.cc:628)', () => {
     const { t, merc, walker } = flying();
     expect([merc.placed, merc.offMap, merc.gridNo, merc.structure]).toEqual([false, true, NOWHERE, null]);
     expect(t.mercSlots).toEqual([merc, walker]);
@@ -167,7 +167,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect([validForSightings(merc), mercs(t), teamMembers(t, Team.OUR)]).toEqual([false, [walker], [walker]]);
   });
 
-  it('is handled by the overhead pass like every merc slot: his frames run and clear the order to look for items every slot gets (Overhead.cc ExecuteOverhead, Handle_Items.cc:1927)', () => {
+  it('is handled by the overhead pass like every merc slot: his frames run and clear the order to look for items every slot gets (Overhead.cc ExecuteOverhead, Handle_Items.cc:1926)', () => {
     const { sim, t, merc } = flying();
     notifySoldiersToLookForItems(t);
     expect(merc.lookForItems).toBe(true);
@@ -208,7 +208,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     return enemy;
   }
 
-  it("keeps his opplist at boarding, which the real-time decay then ages as it ages every merc slot's (Vehicles.cc:261, OppList.cc:4540)", () => {
+  it("keeps his opplist at boarding, which the real-time decay then ages as it ages every merc slot's (Vehicles.cc:252, OppList.cc:4545)", () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const enemy = spawnSoldier(sim, ENEMY_ID, Team.ENEMY, ENEMY_AT, Direction.SOUTH);
@@ -222,7 +222,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_LAST_TURN);
   });
 
-  it('keeps combat going with the enemy he saw this turn, as anyone in the sector who saw one does (CheckForEndOfCombatMode, Overhead.cc:4162, :4273)', () => {
+  it('keeps combat going with the enemy he saw this turn, as anyone in the sector who saw one does (CheckForEndOfCombatMode, Overhead.cc:4236, :4347)', () => {
     const { sim, t, merc } = flying();
     const enemy = withAnEnemy(t, sim);
     enterCombatMode(t, Team.OUR);
@@ -232,7 +232,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect(t.inCombat).toBe(true);
   });
 
-  it('gets up at his turn start and has his opplist decayed in combat, as a merc in the sector does (EVENT_BeginMercTurn, Soldier_Control.cc:4077)', () => {
+  it('gets up at his turn start and has his opplist decayed in combat, as a merc in the sector does (EVENT_BeginMercTurn, Soldier_Control.cc:4071)', () => {
     const { sim, t, merc } = flying();
     const enemy = withAnEnemy(t, sim);
     merc.collapsed = true;
@@ -242,7 +242,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect([merc.collapsed, merc.oppList[enemy.id]]).toEqual([false, Opp.SEEN_LAST_TURN]);
   });
 
-  it('keeps our team active with nobody of ours on the map, as bMenInSector counts every soldier made for our team wherever he is (IsTeamActive, Overhead.h:178, Soldier_Create.cc:453, quirk)', () => {
+  it('keeps our team active with nobody of ours on the map, as bMenInSector counts every soldier made for our team wherever he is (IsTeamActive, Overhead.h:185, Soldier_Create.cc:452, quirk)', () => {
     const { t, merc, walker } = flying();
     removeSoldierFromTacticalSector(t, walker);
     expect(teamMembers(t, Team.OUR)).toEqual([]);
@@ -251,7 +251,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect(isTeamActive(t, Team.OUR)).toBe(true);
   });
 
-  it('keeps the battle from being lost while he is conscious above it, and counts it lost once he is down too (CheckForLosingEndOfBattle, Overhead.cc:4959)', () => {
+  it('keeps the battle from being lost while he is conscious above it, and counts it lost once he is down too (CheckForLosingEndOfBattle, Overhead.cc:5029)', () => {
     const { sim, t, merc, walker } = flying();
     withAnEnemy(t, sim);
     walker.life = DOWN;
@@ -261,7 +261,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect(sim.drainEvents()).toContainEqual(expect.objectContaining({ type: 'combatEnded', reason: 'lost' }));
   });
 
-  it('is the one a death picks to select next while he is conscious, and the selection, which refuses a merc aboard, stays on the dead (HandlePlayerTeamMemberDeath, Overhead.cc:2192, quirk)', () => {
+  it('is the one a death picks to select next while he is conscious, and the selection, which refuses a merc aboard, stays on the dead (HandlePlayerTeamMemberDeath, Overhead.cc:2261, quirk)', () => {
     const { t, merc, walker } = flying();
     t.turn.selected = walker.id;
     walker.life = 0;
@@ -271,7 +271,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect(t.turn.selected).toBe(walker.id);
   });
 
-  it('is somebody left for the rules of a death of ours, which mark our robot destroyed only with a conscious merc in the sector (HandlePlayerTeamMemberDeath, Overhead.cc:2192)', () => {
+  it('is somebody left for the rules of a death of ours, which mark our robot destroyed only with a conscious merc in the sector (HandlePlayerTeamMemberDeath, Overhead.cc:2261)', () => {
     const { t, merc, walker } = flying();
     const set: number[] = [];
     t.narrative = { ...t.narrative, fact: () => false, setFactTrue: (id) => set.push(id), setFactFalse: () => {} };
@@ -284,7 +284,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect(set).toEqual([Fact.FIRST_ROBOT_DESTROYED]);
   });
 
-  it('bleeds to death through the death of a soldier in the sector, never the death of one off the map (HandleTakeDamageDeath, Soldier_Control.cc:5366, :5401)', () => {
+  it('bleeds to death through the death of a soldier in the sector, never the death of one off the map (HandleTakeDamageDeath, Soldier_Control.cc:5359, :5394)', () => {
     const { t, merc } = flying();
     const offTheMap: Soldier[] = [];
     t.sectorHooks = { ...t.sectorHooks, mercDiedOffTheMap: (_t, dead) => offTheMap.push(dead) };
@@ -300,7 +300,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect([merc.life, merc.dead, t.pendingSkullReleases]).toEqual([0, false, []]);
   });
 
-  it('gets a new turn of APs, his unused ones carried, when combat begins and loses his walk when time compression begins, as every soldier in the sector does (CommonEnterCombatModeCode, CencelAllActionsForTimeCompression, Overhead.cc:3913, :5871)', () => {
+  it('gets a new turn of APs, his unused ones carried, when combat begins and loses his walk when time compression begins, as every soldier in the sector does (CommonEnterCombatModeCode, CencelAllActionsForTimeCompression, Overhead.cc:3987, :5944)', () => {
     const { sim, t, merc } = flying();
     withAnEnemy(t, sim);
     merc.actionPoints = SAVED_APS;
@@ -312,7 +312,7 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     expect([merc.pathSize, merc.placed, merc.offMap, merc.gridNo]).toEqual([0, false, true, NOWHERE]);
   });
 
-  it('counts the battle won for him among those who fought it (CheckForEndOfBattle, Overhead.cc:4557)', () => {
+  it('counts the battle won for him among those who fought it (CheckForEndOfBattle, Overhead.cc:4627)', () => {
     const { t, merc } = flying();
     merc.profile = PROFILE;
     t.profiles.set(PROFILE, progressFor(PROFILE));
@@ -360,13 +360,13 @@ describe('a helicopter passenger over the loaded sector, in his merc slot with n
     return { sim, t, goon, facts };
   }
 
-  it("has Maria's escape noticed when one of Kingpin's men is hurt with her aboard above the sector (SoldierTakeDamage, Soldier_Control.cc:5466)", () => {
+  it("has Maria's escape noticed when one of Kingpin's men is hurt with her aboard above the sector (SoldierTakeDamage, Soldier_Control.cc:5459)", () => {
     const { t, goon, facts } = kingpinsManWithMariaAboard();
     soldierTakeDamage(t, goon, 1, 0, DamageReason.GUNFIRE, null);
     expect(facts).toContain(Fact.MARIA_ESCAPE_NOTICED);
   });
 
-  it("has Maria's escape noticed when one of Kingpin's men turns hostile with her aboard above the sector (MakeCivHostile, Overhead.cc:2652)", () => {
+  it("has Maria's escape noticed when one of Kingpin's men turns hostile with her aboard above the sector (MakeCivHostile, Overhead.cc:2722)", () => {
     const { t, goon, facts } = kingpinsManWithMariaAboard();
     makeCivHostile(t, goon);
     expect(facts).toContain(Fact.MARIA_ESCAPE_NOTICED);

@@ -91,7 +91,7 @@ the controller.
 cache, and a `ScreenHost` (`src/ui/screen.ts`): a screen stack under a modal stack. Modals take input first and block
 the rest unless they pass unhandled input; the screen under a modal is drawn but not updated, and a modal that freezes
 the screen (message boxes, fades) replays the screen's draw items as the frame it opened in left them, as the
-original's map screen draws its whole frame before the meanwhile box opens at its end (`Strategic/MapScreen.cc:2009`):
+original's map screen draws its whole frame before the meanwhile box opens at its end (`Strategic/MapScreen.cc:2003`):
 a modal opened between frames (by a frame of the session, a click) lets the screen update once more, and the items are
 taken on the first frame drawn with no image loading. The zoom into a sector freezes the frame presented last instead,
 as the original's loading zoom copies the frame buffer (`30`). Tactical, map screen and laptop are
@@ -212,7 +212,7 @@ has a fallback of its own; a second 404 fails the read. `AssetCache` keeps decod
 decoding is cheap, so the persistent layer is the HTTP cache, not a client store. A screen preloads the assets its
 layouts reference (`src/ui/layout/references.ts`) before it enters, and the map and tactical hosts every small item
 picture of the catalogue, a handful of sheets the original loads at the start (`smallItemPictures`,
-`src/app/tactical/tactical-media.ts`; `Tactical/Interface_Items.cc:5205`); other catalogue graphics (big item pictures,
+`src/app/tactical/tactical-media.ts`; `Tactical/Interface_Items.cc:5350`); other catalogue graphics (big item pictures,
 faces) load on first use. Every content loader takes a `ReadFile`, so a local source needs no loader change.
 
 **Loading in parallel.** The loaders run independent branches at once (the tactical and map hosts, boot, the front end,
@@ -267,7 +267,7 @@ tested with scripted event sequences next to the code, on the stub fonts in CI a
   fade, which multiplies the picture once per step it has taken, as the original shades its frame buffer again on every
   pass; zooms and the splash still capture the frame into a texture and stretch it in the shader. The pointer warps
   only under the mouse grab (deviation "Pointer warp"), and there is no mouse confinement, which Stracciatella
-  compiles out (`src/sgp/Input.cc:544-557`); text fields have the full text and numeric types, without the map
+  compiles out (`src/sgp/Input.cc:541-554`); text fields have the full text and numeric types, without the map
   editor's file name, coordinate and clock types.
 
 **Fonts and text.** `FontSet` (`src/ui/text/fonts.ts`) maps the original's 16 font macros to their STIs; one glyph
@@ -283,27 +283,27 @@ language; layouts name the MLG id, never a path (`31`).
 **Keyboard.** A key is `event.key` when printable ASCII (lower-cased), else taken from `event.code`, which gives
 non-Latin layouts their Latin keys; the keypad types the main keys as the original's input layer does: its operators and
 Enter always, its digits and point with NumLock on, the navigation keys with it off, when its 5 is dropped before any
-screen (`src/sgp/Input.cc:367-385`, `src/ui/input/events.ts`). Shift, Ctrl, Alt (AltGr too), Print Screen and Scroll
-Lock queue no event: the runtime takes the modifiers from them and passes them to no screen (`src/sgp/Input.cc:409`,
+screen (`src/sgp/Input.cc:363-381`, `src/ui/input/events.ts`). Shift, Ctrl, Alt (AltGr too), Print Screen and Scroll
+Lock queue no event: the runtime takes the modifiers from them and passes them to no screen (`src/sgp/Input.cc:405`,
 `src/ui/runtime.ts`). The original hard-codes whether each hotkey fires on key-down or key-up and with which exact
 modifiers; ja2-node keeps both in hotkey tables per layout and modal (`src/ui/input/hotkeys.ts`), which would also allow
 remapping. Text fields get keys first. The page `preventDefault`s every key except Meta chords, which go to the browser
 and not to the game, and the keys an IME takes; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden.
 
 **IME.** The original starts SDL's text input while a field is edited and stops it after (`SetEditingStatus`,
-`Utils/Text_Input.cc:126`), queues committed text as one `TEXT_INPUT` event and ignores the composition
-(`src/sgp/SGP.cc:173`). A browser composes only into a focused editable element, so while a field is edited
+`Utils/Text_Input.cc:127`), queues committed text as one `TEXT_INPUT` event and ignores the composition
+(`src/sgp/SGP.cc:150`). A browser composes only into a focused editable element, so while a field is edited
 (`TextInputState`, `src/ui/input/composition.ts`) the page focuses a hidden input in the stage, and a press on the stage
 keeps that focus (`src/app/game/dom-input.ts`). Nothing of a composition reaches the game before its commit: the keys the
 IME takes (`Process`, and every key while it composes) and the key-up of each of them are dropped, the committed text
 goes in as typed characters, through the field's limit and filters. The browser draws the composition in that input,
 shown at the stage's top left while it lasts, as SDL leaves it to the system's IME window. Alt+Enter on release, Stracciatella's
-toggle (`src/sgp/Input.cc:468`), and F11 on press (the original uses F11 only at the debug cheat level,
-`Tactical/Turn_Based_Input.cc:1685`) put the stage into Fullscreen API fullscreen and take the Keyboard Lock (Chromium),
+toggle (`src/sgp/Input.cc:465`), and F11 on press (the original uses F11 only at the debug cheat level,
+`Tactical/Turn_Based_Input.cc:1668`) put the stage into Fullscreen API fullscreen and take the Keyboard Lock (Chromium),
 so Esc reaches the game there. In any fullscreen Chrome keeps F11 for itself and leaves fullscreen on it (Chromium
 `chrome/browser/ui/browser_command_controller.cc`, `IsReservedCommandOrKey`), so F11 acts on its press: on its release
 the page would already be out and go back in. Stracciatella grabs the mouse in fullscreen and Scroll Lock toggles the
-grab on release (`src/sgp/Video.cc:82`, `src/sgp/Input.cc:460`); here both take a Pointer Lock on the stage
+grab on release (`M:src/sgp/Video.cc:82`, `src/sgp/Input.cc:456`); here both take a Pointer Lock on the stage
 (`src/app/game/mouse-grab.ts`). The game cursor then moves by the mouse's movement and stops at the edges of the logical
 screen, letterboxed or not, and Chrome shows no exit button at the top edge while the pointer is locked (Chromium
 `chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.cc`, `IsPointerLocked`), which edge scrolling up
@@ -339,7 +339,7 @@ slices.
 | Tab that finds no other enabled field comes back to the field it left and stops editing there | `widgets/widgets.test.ts` |
 | Keypad 5 with NumLock off reaches no screen, so it does not even end the player's pause | `input/events.test.ts` |
 | Shift, Ctrl, Alt, Print Screen and Scroll Lock pressed alone reach no screen, so they do not even end the player's pause | `runtime.test.ts` |
-| A numeric field keeps only the ASCII digits of an IME commit, so the full-width digits a Chinese IME commits are dropped (`INPUTTYPE_NUMERICSTRICT`, `Utils/Text_Input.cc:720`) | `input/composition.test.ts` |
+| A numeric field keeps only the ASCII digits of an IME commit, so the full-width digits a Chinese IME commits are dropped (`INPUTTYPE_NUMERICSTRICT`, `Utils/Text_Input.cc:721`) | `input/composition.test.ts` |
 
 ## 8. Layouts as data
 

@@ -179,7 +179,7 @@ describe('restoring the revealed tiles of a sector diff', () => {
 });
 
 describe('a crate closed in a sector that is not loaded', () => {
-  it("closes the first openable record of its tile in a native save's map modifications, the others as they were (SaveLoadMap.cc:744)", () => {
+  it("closes the first openable record of its tile in a native save's map modifications, the others as they were (SaveLoadMap.cc:746)", () => {
     const crate = gridNo(80, 84);
     const openable = (g: number, open: number) => ({
       type: MapModificationType.OPENABLE_STRUCT,
@@ -217,7 +217,7 @@ describe('the smoke of a sector diff', () => {
     expect(cloudLeftBy(MERC_ID).map((c) => [c.gridNo, c.ownerId])).toEqual([[CLOUD, MERC_ID]]);
   });
 
-  it('spreads the cloud at the entry before anybody is in the sector and credits whoever holds the id when the gas hits: a neutral civilian gassed after the merc came in is his attack (SmokeEffects.cc:495, Explosion_Control.cc:850)', () => {
+  it('spreads the cloud at the entry before anybody is in the sector and credits whoever holds the id when the gas hits: a neutral civilian gassed after the merc came in is his attack (SmokeEffects.cc:495, Explosion_Control.cc:871)', () => {
     const smoke = cloudLeftBy(MERC_ID);
     const sim = newCombatSim(content);
     const t = sim.state;

@@ -92,8 +92,8 @@ function robotInSector(): { t: TacticalState; robot: Soldier } {
   return { t: sim.state, robot };
 }
 
-describe('the count of a lost battle (CheckForLosingEndOfBattle, Overhead.cc:4950)', () => {
-  it('keeps a merc killed outright in the sector, off the map, until he leaves it (TurnSoldierIntoCorpse, Rotting_Corpses.cc:737)', () => {
+describe('the count of a lost battle (CheckForLosingEndOfBattle, Overhead.cc:5020)', () => {
+  it('keeps a merc killed outright in the sector, off the map, until he leaves it (TurnSoldierIntoCorpse, Rotting_Corpses.cc:740)', () => {
     const { t, merc } = battle();
     killOutright(t, merc);
     expect(merc.placed).toBe(false);
@@ -186,7 +186,7 @@ describe('the count of a lost battle (CheckForLosingEndOfBattle, Overhead.cc:495
   });
 });
 
-describe('the battles a merc fought (CheckForEndOfBattle, Overhead.cc:4557)', () => {
+describe('the battles a merc fought (CheckForEndOfBattle, Overhead.cc:4627)', () => {
   it('counts the battle for a merc who died in it, and not for one who left the sector', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
@@ -203,7 +203,7 @@ describe('the battles a merc fought (CheckForEndOfBattle, Overhead.cc:4557)', ()
   });
 });
 
-describe('standing down after a fought victory (CheckForEndOfBattle, Overhead.cc:4562-4591)', () => {
+describe('standing down after a fought victory (CheckForEndOfBattle, Overhead.cc:4632-4661)', () => {
   function victoryWith(prepare: (t: TacticalState, merc: Soldier) => void, fought = 1): { t: TacticalState; merc: Soldier } {
     const sim = newCombatSim(content);
     const t = sim.state;

@@ -86,7 +86,7 @@ describe("the stat line in a campaign (Campaign.cc ChangeStat's DisplayStatChang
     expect(statGains).toHaveLength(1);
   });
 
-  it("flashes and prints a stat a merc gains training off the loaded map, as on it (TrainSoldierWithPts' StatChange, Assignments.cc:2616)", async () => {
+  it("flashes and prints a stat a merc gains training off the loaded map, as on it (TrainSoldierWithPts' StatChange, Assignments.cc:2466)", async () => {
     const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), 7, { profiles: [KESTREL], land: false });
     const session = drivenSession(created, stubSessionSources(kit));
     const live = new ReloadingSession('stat off the map', session);
@@ -127,7 +127,7 @@ describe("the stat line in a campaign (Campaign.cc ChangeStat's DisplayStatChang
     const statGains = report.messages.filter((m) => JSON.stringify(m.args ?? []).includes('sStatGainStrings'));
     expect(statGains).toHaveLength(1);
   });
-  it('queues the stat lines of an autoresolve and plays them on the map screen after the battle, a merc out cold by then with his message only (Auto_Resolve.cc StatChange, MapScreen.cc:1901, ExecuteCharacterDialogue)', async () => {
+  it('queues the stat lines of an autoresolve and plays them on the map screen after the battle, a merc out cold by then with his message only (Auto_Resolve.cc StatChange, MapScreen.cc:1895, ExecuteCharacterDialogue)', async () => {
     const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), AUTORESOLVE_SEED, { mercs: SQUAD, land: false });
     const session = drivenSession(created, stubSessionSources(kit));
     const a9 = sectorInfo(session.campaign.state.map, A9);

@@ -152,7 +152,7 @@ describe('strategic HUD events and refusals in a stub campaign', () => {
     expect(barks(WITH_PASSING_DISLIKE, WITHOUT_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, SOCIAL_TRAIT]));
   });
 
-  it('names the profile of a seen civilian nobody can talk to, which the radar draws as a named civilian (Radar_Screen.cc:274)', async () => {
+  it('names the profile of a seen civilian nobody can talk to, which the radar draws as a named civilian (M:Radar_Screen.cc:274)', async () => {
     const c = await landedCampaign(74, []);
     const enter = { type: 'enterSector', sector: 'A9' };
     await c.session.prepare(enter);

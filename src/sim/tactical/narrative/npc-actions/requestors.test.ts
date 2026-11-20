@@ -110,7 +110,7 @@ describe('requestors', () => {
     expect((chooseLiar(e) as Soldier).id).toBe(0);
   });
 
-  it('chooses the liar among the mercs aboard the helicopter over the loaded sector too, as it tests bInSector (Interface_Dialogue.cc:4357)', () => {
+  it('chooses the liar among the mercs aboard the helicopter over the loaded sector too, as it tests bInSector (Interface_Dialogue.cc:4360)', () => {
     const e = env(Npc.QUEEN);
     const walker = testSoldier(0, Team.OUR, 1, 100);
     const passenger = testSoldier(1, Team.OUR, 2, NOWHERE);

@@ -24,7 +24,7 @@
 // @src RenderFaceOverlay (an external speaker's soldier, FindSoldierByProfileID, picks the popup's panel, 2026-11-09;
 // @src his bars, and an NPC's whose line said on the map screen HandleDialogue carries into the tactical popup);
 // @src Faces.cc DeleteFace from DeleteSoldierFace (a soldier face still talking stops talking, so the next
-// @src HandleDialogue ends its line and goes on, Dialogue_Control.cc:342, 2026-11-09); Strategic/Strategic_Movement.cc
+// @src HandleDialogue ends its line and goes on, Dialogue_Control.cc:343, 2026-11-09); Strategic/Strategic_Movement.cc
 // @src CharacterDialogueEventBeginPrebattleInterface and HandleImportantPBIQuote, HandleDialogue (FACE_TRIGGER_PREBATTLE_INT
 // @src as the face is done talking, before the next queued event, 2026-11-15); Dialogue_Control.cc
 // @src HandleImportantMercQuoteLocked and Strategic/MapScreen.cc LockMapScreenInterface (the map screen's lock as a queued

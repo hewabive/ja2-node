@@ -183,7 +183,7 @@ describe('the temp files of the sectors a native save did not load', () => {
     expect(diff.lights).toEqual([{ gridNo: SMOKE_GRID, radius: 4, duration: 6, age: 1, lastUpdate: 777 }]);
   });
 
-  it("takes the files of the save's sector too when the save has no world loaded (SaveLoadGame.cc:1016)", () => {
+  it("takes the files of the save's sector too when the save has no world loaded (SaveLoadGame.cc:1014)", () => {
     expect([...imported(false).keys()]).toEqual([sectorKey(A9), sectorKey(B13)]);
   });
 });

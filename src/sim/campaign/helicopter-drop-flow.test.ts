@@ -277,7 +277,7 @@ describe('the helicopter drop in a campaign', () => {
     expect([tactical(c).helicopterDrop.running, [...unlockedInTheRun]]).toEqual([false, [false]]);
   });
 
-  it('refuses every way out of the tactical screen while a run goes on, stalled or not, until skipHelicopterDrop: the drop’s lock takes every key but Esc (Turn_Based_Input.cc:2330)', () => {
+  it('refuses every way out of the tactical screen while a run goes on, stalled or not, until skipHelicopterDrop: the drop’s lock takes every key but Esc (Turn_Based_Input.cc:2314)', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 68, mercs: 2, garrison: NO_GARRISON });
     startFirstSquadsDrop(c);
     runTicks(c, DROP_TICKS, () => ourSoldiers(c).length > 0);

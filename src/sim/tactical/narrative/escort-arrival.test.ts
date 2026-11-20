@@ -124,7 +124,7 @@ describe('John and Mary at the Drassen airport (Overhead.cc HandleJohnArrival, H
     expect(apart.calls.records).toEqual([]);
   });
 
-  it("keeps John waiting for Mary aboard the helicopter over the airport: she is found at the original's NOWHERE, far from him (FindSoldierByProfileID, Overhead.cc:1680)", () => {
+  it("keeps John waiting for Mary aboard the helicopter over the airport: she is found at the original's NOWHERE, far from him (FindSoldierByProfileID, Overhead.cc:1749)", () => {
     const w = touristWorld({ facts: [Fact.MARY_ALIVE, Fact.JOHN_ALIVE], epcs: [1, 2] });
     tourist(w, 0, SOME_MERC, PLANE_NEAR + 3);
     const mary = tourist(w, 2, Profile.MARY, PLANE_NEAR + 2);

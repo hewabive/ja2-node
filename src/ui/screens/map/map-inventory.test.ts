@@ -574,7 +574,7 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.pool.stash).toEqual([]);
   });
 
-  it('keeps the pool as it opened while it is open: a take leaves its slot empty and a placement lands in the clicked slot (Map_Screen_Interface_Map_Inventory.cc:579-601, :774-815)', async () => {
+  it('keeps the pool as it opened while it is open: a take leaves its slot empty and a placement lands in the clicked slot (Map_Screen_Interface_Map_Inventory.cc:576-598, :771-812)', async () => {
     const gun = item((i) => i.class === 'GUN');
     const hollis = (inventory: InventoryItemView[]) => [merc(MERC, 'Hollis', 'D13', inventory)];
     const h = await harness(hollis([]));
@@ -605,7 +605,7 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.pool.layout.slice(0, 11)).toEqual([7, null, 5, null, null, null, null, null, null, null, 3]);
   });
 
-  it('shows the pool only once its stash answers, as the original builds the stash as the pool opens (Map_Screen_Interface_Map_Inventory.cc:300)', async () => {
+  it('shows the pool only once its stash answers, as the original builds the stash as the pool opens (Map_Screen_Interface_Map_Inventory.cc:297)', async () => {
     const gun = item((i) => i.class === 'GUN');
     const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
     h.client.stash = [stashEntry(0, gun.name)];
@@ -934,7 +934,7 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/iteminfoc.sti' && i.x === 0 && i.y === 107)).toBe(true);
   });
 
-  it("describes the object in the merc's slot and its attachment, with the range in tiles as the hint gives it (MAPInternalInitItemDescriptionBox, Interface_Items.cc:2327)", async () => {
+  it("describes the object in the merc's slot and its attachment, with the range in tiles as the hint gives it (MAPInternalInitItemDescriptionBox, Interface_Items.cc:2452)", async () => {
     const gun = item((i) => i.class === 'GUN');
     const silenced: InventoryItemView = { ...view(HAND, gun.name), attachments: [{ item: 'SILENCER', status: 77 }] };
     const h = await harness([merc(MERC, 'Hollis', 'D13', [silenced])]);
@@ -979,7 +979,7 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.t.runtime.buttons.buttons.some((b) => b.id === 'itemDescriptionDone')).toBe(false);
   });
 
-  it('prints the split amounts right-aligned to 35 pixels on their stat line and the Separate label in colour 5 on the map (Interface_Items.cc:2372, :2399-2421)', async () => {
+  it('prints the split amounts right-aligned to 35 pixels on their stat line and the Separate label in colour 5 on the map (Interface_Items.cc:2497, :2524-2546)', async () => {
     const money: InventoryItemView = { ...view(SMALL_POCKET, 'MONEY'), money: 500 };
     const h = await harness([merc(MERC, 'Hollis', 'D13', [money])]);
     h.inventory.openMerc();
@@ -1001,7 +1001,7 @@ describe('the map screen inventory over a scripted session', () => {
     expect(drawnRuns(h, separate).map((r) => r.foreground)).toEqual([STATS_TEXT]);
   });
 
-  it('lets a click on the inventory Done button hidden under the description box close the inventory: the box region lies below it (quirk, Interface_Items.cc:1669)', async () => {
+  it('lets a click on the inventory Done button hidden under the description box close the inventory: the box region lies below it (quirk, Interface_Items.cc:1793)', async () => {
     const gun = item((i) => i.class === 'GUN');
     const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
     h.inventory.openMerc();

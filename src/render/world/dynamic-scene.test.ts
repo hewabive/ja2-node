@@ -838,7 +838,7 @@ describe('dynamic scene', () => {
     expect(order.indexOf(7004)).toBeGreaterThan(order.lastIndexOf(9001));
   });
 
-  it("draws a vehicle's wreck in the structure layer of its row, after the mercs of that row and before those of later rows, as its first animation step leaves its node dynamic for good (Tactical/Rotting_Corpses.cc:506-510, TileEngine/Tile_Animation.cc:267-275, TileEngine/RenderWorld.cc:487-499)", () => {
+  it("draws a vehicle's wreck in the structure layer of its row, after the mercs of that row and before those of later rows, as its first animation step leaves its node dynamic for good (Tactical/Rotting_Corpses.cc:508-512, TileEngine/Tile_Animation.cc:258-266, TileEngine/RenderWorld.cc:499-511)", () => {
     const { staticWorld, prepared } = world({}, tiles);
     const scene = new DynamicScene(staticWorld, prepared);
     const wreck = aniTile('vehicleCorpse', g(82, 80), 0, 2);
@@ -897,7 +897,7 @@ describe('dynamic scene', () => {
     expect(scene.placedSoldiers.map((p) => p.id)).toEqual([4, 5]);
   });
 
-  it('draws a soldier in z strips where he is nearer or on the dither, his shadow too, writing his z on every pixel it draws (BltTransZTransShadowIncObscure, RenderWorld.cc:2785-2792), where a one-tile soldier is drawn in full on a tie, his shadow only nearer, and writes no z (BltTransShadowZNBObscured)', () => {
+  it('draws a soldier in z strips where he is nearer or on the dither, his shadow too, writing his z on every pixel it draws (BltTransZTransShadowIncObscure, RenderWorld.cc:3414-3421), where a one-tile soldier is drawn in full on a tie, his shadow only nearer, and writes no z (BltTransShadowZNBObscured)', () => {
     const { staticWorld, prepared } = world({}, tiles);
     const strip = { zChanges: [0], initialZChange: 0, firstStripWidth: 10 };
     const prone = { ...soldier(4, g(80, 80), 0), multiTile: { zStrip: strip, zTileOffsetX: 0, zTileOffsetY: 0, vehicle: false } };
@@ -916,12 +916,12 @@ describe('dynamic scene', () => {
     }
   });
 
-  it('draws a soldier in z strips on a no-burn tile where he is nearer or ties, his shadow too, writing his z on every pixel drawn, his z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:2999-3027)', () => {
+  it('draws a soldier in z strips on a no-burn tile where he is nearer or ties, his shadow too, writing his z on every pixel drawn, his z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:3680-3708)', () => {
     const { ours, original } = stripSoldierPixels(tiles, { blitter: 'noBurn' });
     expect(ours).toEqual(original);
   });
 
-  it('starts the strips of a soldier clipped at the left edge of the view a sublayer per strip it counts as skipped, counting none while fewer columns are cut than the cut strip has left, in both strip blitters (RenderWorld.cc:2651-2694, :2865-2908)', () => {
+  it('starts the strips of a soldier clipped at the left edge of the view a sublayer per strip it counts as skipped, counting none while fewer columns are cut than the cut strip has left, in both strip blitters (RenderWorld.cc:3269-3312, :3535-3578)', () => {
     for (const blitter of ['obscure', 'noBurn'] as const)
       for (const leftSkip of [3, 7, 10, 12, 25, 30, 45]) {
         const { ours, original } = stripSoldierPixels(tiles, { blitter, leftSkip });
@@ -929,24 +929,24 @@ describe('dynamic scene', () => {
       }
   });
 
-  it('draws a corpse in z strips with the strip blitter of a soldier on a no-burn tile whatever its tile: where it is nearer or ties, its shadow too, writing its z on every pixel drawn, its z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:1119-1127, :1256, :2999-3027)', () => {
+  it('draws a corpse in z strips with the strip blitter of a soldier on a no-burn tile whatever its tile: where it is nearer or ties, its shadow too, writing its z on every pixel drawn, its z stepping a sublayer at a strip edge inside a run of opaque pixels and a row across a transparent one (BltTransZTransShadowInc, RenderWorld.cc:1138-1146, :1277, :3680-3708)', () => {
     const { ours, original } = stripCorpsePixels(tiles);
     expect(ours).toEqual(original);
   });
 
-  it("draws a vehicle's wreck in the dynamic pass with the same strip blitter, its LEVELNODE_ROTTINGCORPSE picking it in either pass, at the struct z of its structure's tile, which both struct layers share (RenderWorld.cc:729, :781-794, :1119-1127, :1256)", () => {
+  it("draws a vehicle's wreck in the dynamic pass with the same strip blitter, its LEVELNODE_ROTTINGCORPSE picking it in either pass, at the struct z of its structure's tile, which both struct layers share (RenderWorld.cc:747, :799-812, :1138-1146, :1277)", () => {
     const { ours, original } = stripCorpsePixels(tiles, {}, 'vehicleCorpse');
     expect(ours).toEqual(original);
   });
 
-  it('starts the strips of a corpse clipped at the left edge of the view a sublayer per strip it counts as skipped, counting none while fewer columns are cut than the cut strip has left (RenderWorld.cc:2865-2908)', () => {
+  it('starts the strips of a corpse clipped at the left edge of the view a sublayer per strip it counts as skipped, counting none while fewer columns are cut than the cut strip has left (RenderWorld.cc:3535-3578)', () => {
     for (const leftSkip of [3, 7, 10, 12, 25, 30, 45]) {
       const { ours, original } = stripCorpsePixels(tiles, { leftSkip });
       expect(ours, `${leftSkip} columns skipped`).toEqual(original);
     }
   });
 
-  it("dithers a soldier in z strips clipped at the top of the view on the parity of the sprite's first row, not of the screen row (BltTransZTransShadowIncObscure, RenderWorld.cc:2629)", () => {
+  it("dithers a soldier in z strips clipped at the top of the view on the parity of the sprite's first row, not of the screen row (BltTransZTransShadowIncObscure, RenderWorld.cc:3239)", () => {
     for (const viewportTop of [0, 20])
       for (const topSkip of [0, 1, 2, 3]) {
         const { ours, original } = stripSoldierPixels(tiles, { blitter: 'obscure', topSkip, viewportTop });

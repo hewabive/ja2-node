@@ -86,7 +86,7 @@ function wreckWithTwoAboard(firstAlreadyDead: boolean): { readonly first: Roster
 }
 
 describe('the mercs aboard a destroyed vehicle (Vehicles.cc KillAllInVehicle)', () => {
-  it('die in seat order when their vehicle is destroyed in the loaded sector, in the sector until their skulls are done (HandleTakeDamageDeath, Soldier_Control.cc:5366)', () => {
+  it('die in seat order when their vehicle is destroyed in the loaded sector, in the sector until their skulls are done (HandleTakeDamageDeath, Soldier_Control.cc:5359)', () => {
     const { first, second } = wreckWithTwoAboard(false);
     expect([first.life, second.life]).toEqual([0, 0]);
     expect([first.assignment, second.assignment]).toEqual([Assignment.ASSIGNMENT_DEAD, Assignment.ASSIGNMENT_DEAD]);

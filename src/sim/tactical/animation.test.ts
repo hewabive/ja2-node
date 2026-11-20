@@ -197,7 +197,7 @@ describe('the end of a hurt walk', () => {
   });
 });
 
-describe('the enemy-sighting pause of their turn (EVENT_InitNewSoldierAnim, Soldier_Control.cc:1324)', () => {
+describe('the enemy-sighting pause of their turn (EVENT_InitNewSoldierAnim, Soldier_Control.cc:1328)', () => {
   it('ends when the paused enemy starts an animation, and not when anybody else does', () => {
     const sim = newCombatSim(content);
     const t = sim.state;

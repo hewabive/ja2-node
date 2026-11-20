@@ -100,7 +100,7 @@ not laid down mid-attack (original-bugs "Melee from a prone turn").
 **Refusals.** Every order of ours that goes through `HandleItem` (`attack`, `plantBomb`, the tile tools, `useRemote`)
 is its click, `fFromUI` (`combat/player-refusals.ts`): after the hand item roll a merc refuses with his refusing line
 to turn anything but a medkit on a good guy (when he is one), a buddy, or as a recruited rebel on a rebel or a nameless
-neutral civilian (`Handle_Items.cc:229-262`; `refusesOrder`). In combat a shot or knife throw whose chance to get
+neutral civilian (`Handle_Items.cc:227-260`; `refusesOrder`). In combat a shot or knife throw whose chance to get
 through is below 10 is held with his no-line-of-fire line and costs nothing (`noLineOfFire`); the same attack again,
 from the same tile, fires, as `TurnState.cantGetThrough` keeps the case until a shot with a fair chance or another case
 (`HandleCheckForBadChangeToGetThrough`, `:112-173`). The AI and a civilian firing back never refuse. The rocket
@@ -126,21 +126,21 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | The jam check rolls `PreRandom(100)` twice even for a gun above 80 %, which can never jam | `combat.test.ts` |
 | A bullet strikes a bystander in its path only if the player sees him (`bVisible`), whoever fires | `combat.test.ts` |
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |
-| A meanwhile shot, which always hits, still wears its barrel extender and draws for it: the chance is calculated before the meanwhile sets it to 100 (`Weapons.cc:655-667`) | `combat.test.ts` "wears on a meanwhile shot too …" |
+| A meanwhile shot, which always hits, still wears its barrel extender and draws for it: the chance is calculated before the meanwhile sets it to 100 (`Weapons.cc:674-686`) | `combat.test.ts` "wears on a meanwhile shot too …" |
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A martial arts strike turns an unaware target without stopping him or cancelling his AI action, where a plain punch does both | `melee.test.ts` |
-| Dr. Q chops at a martial arts strike whose target has left the tile too: the chop is outside the target test (`Tactical/Soldier_Control.cc:504`) | `melee.test.ts` "chops as Dr. Q at every strike …" |
+| Dr. Q chops at a martial arts strike whose target has left the tile too: the chop is outside the target test (`Tactical/Soldier_Control.cc:508`) | `melee.test.ts` "chops as Dr. Q at every strike …" |
 | Cutting off a head costs only the kneel: `DECAPITATE` has no fire code, and a blade pays its APs only when it strikes (`UseBlade`) | `melee.test.ts` |
 | A creature, the robot or a tank, which the steal chance of 0 should protect, is robbed on a roll of 0: the roll only has to reach the chance | `steal.test.ts` |
 | A steal ends the attack twice, at codes 442 and 753 of `STEAL_ITEM`, so the end-of-attack checks run twice | `steal.test.ts` |
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
-| A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4060`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
+| A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4093`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
 | A seen soldier of any team but ours turning to shoot moves the view to him, militia and real time included; a hit moves it only to our merc and only in combat (`EVENT_FireSoldierWeapon`, `EVENT_SoldierGotHit`) | `soldier-located.test.ts` |
 | A bullet is marked located at the first window it meets out of combat too, so it never moves the view at a later window should combat start during its flight; a militia bullet moves it like ours, by side, where a miss moves it for our team only (`LocateBullet`) | `impacts.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
 | A merc with the good guy flag, or a recruited rebel, refuses to plant a bomb at his own feet: the soldier on the tile of his click is himself, and he spares good guys and rebels | `player-refusals.test.ts` "makes a good guy refuse to plant a bomb …" |
 | A poor shot held for no line of fire stays confirmed after it fires: the same merc from the same tile at the same tile fires on without a word until a shot with a fair chance or another case clears it | `player-refusals.test.ts` "holds the first shot …" |
-| The adjacent-tile search never answers the soldier's own tile when a switch is on it (`Tactical/Overhead.cc:3293`), with or without its door handling: a merc bandaging himself on a switch tile first walks to a tile beside it | `src/sim/tactical/first-aid.test.ts` |
+| The adjacent-tile search never answers the soldier's own tile when a switch is on it (`Tactical/Overhead.cc:3364`), with or without its door handling: a merc bandaging himself on a switch tile first walks to a tile beside it | `src/sim/tactical/first-aid.test.ts` |
 
 Not pinned yet:
 - A prone shooter's close-range penalty against a standing target turns into a bonus at four and five tiles

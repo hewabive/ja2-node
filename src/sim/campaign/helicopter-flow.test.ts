@@ -143,7 +143,7 @@ describe('the helicopter commands', () => {
     expect(refusalOf(c.dispatch({ type: 'heliRoute', to: 'A10', selected: 'all' }))).toBe('badSoldiers');
   });
 
-  it('keeps passengers in the air out of tactical, in the air alone: on the ground and for those who got off they count (CanGoToTacticalInSector, StrategicMap.cc:2286)', () => {
+  it('keeps passengers in the air out of tactical, in the air alone: on the ground and for those who got off they count (CanGoToTacticalInSector, StrategicMap.cc:2281)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     for (const soldier of [0, 1, 2]) expect(c.dispatch({ type: 'boardVehicle', soldier, vehicle: 'helicopter' }).ok).toBe(true);
@@ -161,7 +161,7 @@ describe('the helicopter commands', () => {
     await expectReloadsInvisible(boardFlyAndLeave);
   });
 
-  it('cancels nothing for a passenger while the helicopter has no route, so a grounded helicopter is not explained (MapScreen.cc:7096)', () => {
+  it('cancels nothing for a passenger while the helicopter has no route, so a grounded helicopter is not explained (MapScreen.cc:7061)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
@@ -184,7 +184,7 @@ describe('the helicopter commands', () => {
     expect(flown(true)).toMatchObject({ ok: true, data: { path: ['A9', 'A10', 'A11'] } });
   });
 
-  it('takes off at a confirm on its own sector without a route and stays up without hovering, so nobody gets off and nobody is woken (MapScreen.cc:5509-5520, Map_Screen_Helicopter.cc:184, :424-432)', () => {
+  it('takes off at a confirm on its own sector without a route and stays up without hovering, so nobody gets off and nobody is woken (MapScreen.cc:5475-5486, Map_Screen_Helicopter.cc:184, :422-430)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
@@ -204,7 +204,7 @@ describe('the helicopter commands', () => {
     expect(strategicView(c)?.helicopter).toMatchObject({ airborne: true, hovering: false });
   });
 
-  it("gives the helicopter its path from the plot's start at Esc, rebuilt, and copies it to every selected merc not aboard (RestorePreviousPaths, MapScreen.cc:7776-7784)", () => {
+  it("gives the helicopter its path from the plot's start at Esc, rebuilt, and copies it to every selected merc not aboard (RestorePreviousPaths, MapScreen.cc:7740-7748)", () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
@@ -307,7 +307,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     return { c, t: sim.state, soldier };
   }
 
-  it('keep a lost battle going while one of them is conscious, and are captured with the walkers when the battle is lost with everyone down (CheckForLosingEndOfBattle, Overhead.cc:4959, :5058)', () => {
+  it('keep a lost battle going while one of them is conscious, and are captured with the walkers when the battle is lost with everyone down (CheckForLosingEndOfBattle, Overhead.cc:5029, :5128)', () => {
     const { c, t, soldier } = aboveTheBattle();
     for (const id of WALKERS) soldier(id).life = DOWN;
     expect(checkForEndOfBattle(t)).toBe(false);
@@ -320,7 +320,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(strategicView(c)?.helicopter).toMatchObject({ passengers: [] });
   });
 
-  it("are killed for a lost battle when the walkers are dead, with no corpse, and their death waits for its skull as a walker's does (Overhead.cc:5050, Soldier_Ani.cc:2885, Rotting_Corpses.cc:611)", () => {
+  it("are killed for a lost battle when the walkers are dead, with no corpse, and their death waits for its skull as a walker's does (Overhead.cc:5120, Soldier_Ani.cc:2862, Rotting_Corpses.cc:614)", () => {
     const { t, soldier } = aboveTheBattle();
     for (const id of WALKERS) soldier(id).life = 0;
     soldier(PASSENGER).life = DOWN;
@@ -344,21 +344,21 @@ describe('the helicopter passengers over the loaded sector', () => {
   const TIRED = 50;
   const WOUNDED = 50;
 
-  it('are refused sleep while enemies are in the sector below the landed helicopter, as the mercs on the map are (CanCharacterSleep, Assignments.cc:804)', () => {
+  it('are refused sleep while enemies are in the sector below the landed helicopter, as the mercs on the map are (CanCharacterSleep, Assignments.cc:762)', () => {
     const { c, soldier } = aboveTheBattle();
     soldier(PASSENGER).breathMax = TIRED;
     expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
     expect(refusalOf(c.dispatch({ type: 'sleep', soldier: PASSENGER }))).toBe('sectorNotCleared');
   });
 
-  it('are refused the assignments that need the sector clear while enemies are in it (AreAssignmentConditionsMet, Assignments.cc:361)', () => {
+  it('are refused the assignments that need the sector clear while enemies are in it (AreAssignmentConditionsMet, Assignments.cc:330)', () => {
     const { c, soldier } = aboveTheBattle();
     soldier(PASSENGER).life = WOUNDED;
     expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
     expect(refusalOf(c.dispatch({ type: 'assign', soldiers: [PASSENGER], to: { kind: 'patient' } }))).toBe('notEligible');
   });
 
-  it('cannot be dismissed while the sector below is in combat (the contract menu, MapScreen.cc:5208)', () => {
+  it('cannot be dismissed while the sector below is in combat (the contract menu, MapScreen.cc:5176)', () => {
     const { c, t } = aboveTheBattle();
     enterCombatMode(t, Team.OUR);
     expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
@@ -374,7 +374,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect([soldier(PASSENGER).strategicMoraleMod > before, soldier(PASSENGER).delayedStrategicMoraleMod]).toEqual([true, 0]);
   });
 
-  it('count in the strength that makes a retreat from the sector below a run away, the walkers too weak alone (PlayerStrength, Strategic_Town_Loyalty.cc:1153)', () => {
+  it('count in the strength that makes a retreat from the sector below a run away, the walkers too weak alone (PlayerStrength, Strategic_Town_Loyalty.cc:1158)', () => {
     const { c, t, soldier } = aboveTheBattle();
     for (const id of WALKERS) soldier(id).life = 1;
     const enemy = t.soldiers[ENEMY_ID];
@@ -404,7 +404,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(c.narrative.checkFact(Fact.PLAYER_IN_SAME_ROOM, Npc.ANGEL)).toBe(false);
   });
 
-  it('sleep through a confirmed route: nobody aboard drives the helicopter (CanSoldierDriveVehicle, Vehicles.cc:925)', () => {
+  it('sleep through a confirmed route: nobody aboard drives the helicopter (CanSoldierDriveVehicle, Vehicles.cc:910)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     for (const soldier of [PASSENGER, OTHER_PASSENGER])
@@ -416,7 +416,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(sleeper.asleep).toBe(true);
   });
 
-  it('fall asleep and wake up with the animations of a merc in the sector (PutMercInAsleepState, PutMercInAwakeState, Assignments.cc:6230, :6264)', () => {
+  it('fall asleep and wake up with the animations of a merc in the sector (PutMercInAsleepState, PutMercInAwakeState, Assignments.cc:6080, :6114)', () => {
     const c = landedCampaign();
     c.dispatch({ type: 'mapScreen' });
     expect(c.dispatch({ type: 'boardVehicle', soldier: PASSENGER, vehicle: 'helicopter' }).ok).toBe(true);
@@ -450,7 +450,7 @@ describe('the helicopter passengers over the loaded sector', () => {
 
   const item = (name: string) => createItem(kit.sectors.content.items, kit.sectors.content.items.byName.get(name)?.index ?? -1, 100);
 
-  it('drop the burst mode on the map screen as a gun without burst goes into the second hand, as a merc on the map does (HandleTacticalEffectsOfEquipmentChange, Interface_Panels.cc:3785; ReLoadSoldierAnimationDueToHandItemChange, Soldier_Control.cc:7432)', () => {
+  it('drop the burst mode on the map screen as a gun without burst goes into the second hand, as a merc on the map does (HandleTacticalEffectsOfEquipmentChange, Interface_Panels.cc:3746; ReLoadSoldierAnimationDueToHandItemChange, Soldier_Control.cc:7436)', () => {
     const { c, merc } = boardedOnTheMapScreen();
     for (const id of [PASSENGER, ...WALKERS]) {
       Object.assign(merc(id), { weaponMode: WeaponMode.BURST, doBurst: 1 });
@@ -462,7 +462,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     }
   });
 
-  it('raise the rifle that goes into the hand of a standing passenger on the map screen, still on no tile, and stand once the tactical screen plays it out (Soldier_Control.cc:7463, Overhead.cc:518)', () => {
+  it('raise the rifle that goes into the hand of a standing passenger on the map screen, still on no tile, and stand once the tactical screen plays it out (Soldier_Control.cc:7467, Overhead.cc:588)', () => {
     const { c, merc, content } = boardedOnTheMapScreen();
     const standing = states(content.animations).STANDING;
     const aboard = () => [merc(PASSENGER).state, merc(PASSENGER).gridNo, merc(PASSENGER).placed];

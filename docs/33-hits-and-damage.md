@@ -71,10 +71,10 @@ damage display, `fDisplayDamage` of a soldier in the sector); their grunt and po
 
 **A merc of ours can die off the tactical map.** Bleeding, gas and electricity that bring a soldier not on the loaded
 map to life 0, or any soldier while the map screen is up, hand him to the campaign through
-`SectorHooks.mercDiedOffTheMap` (`handleTakeDamageDeath`, `Tactical/Soldier_Control.cc:5401`): the strategic bookkeeping
+`SectorHooks.mercDiedOffTheMap` (`handleTakeDamageDeath`, `Tactical/Soldier_Control.cc:5394`): the strategic bookkeeping
 of `campaign/merc-fate.ts` runs at once, with no death animation, corpse or skull, and `mercDied` stands for the death cry
 and the two samples the original plays (`29`). On the tactical screen that is all: his gear stays on his record and
-nobody comments, since the buddy lines belong to the death on the tactical map (`Tactical/Overhead.cc:2207`, said before
+nobody comments, since the buddy lines belong to the death on the tactical map (`Tactical/Overhead.cc:2276`, said before
 its bookkeeping) and to the map screen (`Strategic/Strategic.cc:36`). The bookkeeping sets `Soldier.dead` beside the
 roster's `DEAD` bit, the one `SOLDIER_DEAD` of the original, so the tactical death never runs again for him.
 
@@ -88,9 +88,9 @@ them. With no sector loaded the damage runs on the unloaded world (`CampaignSim.
 an empty `TacticalState` sharing the campaign's streams, profiles, options, vehicle list and real-time clock, with the
 campaign's ports and the sector hooks that are not about a loaded map, built on first use and never saved (`27`). A wreck
 of the helicopter or a ground vehicle kills each passenger through `SoldierTakeDamage(100, 100, BLOODLOSS)` on that world
-(`killPersonInVehicle`, `Tactical/Vehicles.cc:452`).
+(`killPersonInVehicle`, `Tactical/Vehicles.cc:444`).
 
-**The strategic death takes any soldier.** The original's branch tests no team (`Tactical/Soldier_Control.cc:5401`), so
+**The strategic death takes any soldier.** The original's branch tests no team (`Tactical/Soldier_Control.cc:5394`), so
 a civilian, militiaman or enemy of the loaded sector who bleeds to death lying collapsed while the map screen is up runs
 `StrategicHandlePlayerTeamMercDeath` too: `strategicHandleOtherTeamSoldierDeath` keeps every step that reads something
 other than our roster (history for a profile, the merc death count, the profile's death, morale and reputation, the
@@ -116,12 +116,12 @@ chance to hit read the value of the soldier's last decision.
 **What changes a soldier's stat also changes his profile.** `changeStat` copies the profile's stat into the soldier at
 every change (`combat/experience.ts`, `Tactical/Campaign.cc:577`), so the stat a critical hit costs and the doctor's
 healing of it go into the profile as well (`exportStatChangeToProfile`, `src/sim/tactical/profiles.ts`;
-`Tactical/Weapons.cc:2977-2978`, `Strategic/Assignments.cc:1567-1568`), and so does the point of maximum life a dying
-soldier bleeds away (`combat/bleeding.ts`, `Tactical/Soldier_Control.cc:7877`). Each moves the stat's delta
+`M:Tactical/Weapons.cc:2977-2978`, `M:Strategic/Assignments.cc:1567-1568`), and so does the point of maximum life a dying
+soldier bleeds away (`combat/bleeding.ts`, `M:Tactical/Soldier_Control.cc:7877`). Each moves the stat's delta
 (`ProfileProgress.deltas`, the original's `b*Delta`), as `changeStat` does for a merc on our team
 (`Tactical/Campaign.cc:566`); prof.dat holds zeros and a native save its own. The personnel page prints the deltas
-beside the stats (`Laptop/Personnel.cc:702-740`), and Larry's swap adds the other profile's onto its stats
-(`statsAfterLarrysSwap`, `src/sim/strategic/narrative/larry.ts`, `Tactical/Soldier_Profile.cc:1015-1024`).
+beside the stats (`M:Laptop/Personnel.cc:702-740`), and Larry's swap adds the other profile's onto its stats
+(`statsAfterLarrysSwap`, `src/sim/strategic/narrative/larry.ts`, `Tactical/Soldier_Profile.cc:993-1002`).
 
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
 
@@ -182,7 +182,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | The floating damage number shows the damage taken since it last faded, out of sight too, not the life lost: a dying enemy whom the bleeding kills outright shows 1, an overkill the whole hit (`lifeLost.shown`) | `src/sim/tactical/hud-view.test.ts` "shows the deductions added up …", "adds the damage a soldier took out of sight …" |
 | A soldier knocked out on his own team's turn counts two turns down, also in a pose with no unconscious stop: the original runs its getting-up check twice | `death.test.ts` |
 | A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
-| A soldier in sight hurt by gas or electricity cries his death sound at every hurt, alive or not, and counts it as played, so code 497 of a later death stays silent (`Tactical/Soldier_Control.cc:5370`) | `bleeding.test.ts` "counts as played at every gas or electric hurt …", `src/audio/director.test.ts` "cries DIE1 for a seen soldier …" |
+| A soldier in sight hurt by gas or electricity cries his death sound at every hurt, alive or not, and counts it as played, so code 497 of a later death stays silent (`Tactical/Soldier_Control.cc:5363`) | `bleeding.test.ts` "counts as played at every gas or electric hurt …", `src/audio/director.test.ts` "cries DIE1 for a seen soldier …" |
 | Hits alone never bring the beating quote: it asks for a life gain of more than 20 since the turn began | `close-call.test.ts` |
 | Two of our mercs who shoot each other out of combat trade shots until one falls: every end of attack makes its target, if conscious and holding a gun, fire back at the attacker's tile | `src/sim/tactical/narrative/civ-hostility.test.ts` |
 | A skill check with no chance at all passes on a roll of 0: the margin is 0, not below it | `skill-check.test.ts` |
@@ -206,9 +206,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | An insured merc dying off the tactical map with no enemy in the loaded sector is a suspicious death: the test reads the loaded sector, not his (`Strategic/Strategic_Merc_Handler.cc:103`) | `src/sim/campaign/death-off-the-map.test.ts` "an insured merc dying off the map …" |
 | A merc of ours dying while the map screen is up leaves his body, every item and his keys in his sector (the one he left, if travelling) at a random tile of the loaded or last loaded map, buddies anywhere comment, and compression stops | `src/sim/campaign/death-in-the-map-screen.test.ts` "leaves his body, every item and his keys …", "of a merc between sectors …" |
 | A merc of the loaded sector lying collapsed who dies while the map screen is up starts his death animation and gets the map screen's body in the loaded sector's records, which the unload overwrites, so he leaves no body anywhere; standing, he dies at once in tactical terms and the map branch is skipped | `src/sim/campaign/death-in-the-map-screen.test.ts` "lying collapsed, starts his death animation …", "standing, dies at once …" |
-| A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:728`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …"; through the map screen's turn, `src/sim/campaign/map-screen-turns.test.ts` "bleeds a collapsed civilian to death there …" |
-| The head hit's line comes with the first pellet of a shot that hits him and with no later one: `BulletHitMerc` counts a pellet after `BulletImpact` has read the count (`Tactical/LOS.cc:2023-2037`, `Tactical/Weapons.cc:2998`) | `combat/impacts.test.ts` "tells the head hit of a shot's first pellet …" |
-| A body laid in an unloaded sector, by the map screen's strategic death or by autoresolve, carries profile 0, not the dead soldier's: the definition is zeroed and the profile never set (`Tactical/Tactical_Save.cc:885`), so a search for a corpse by profile misses it | `src/sim/campaign/sector-loot.test.ts` "lays the corpse of a soldier with a profile under profile 0 …" |
+| A civilian, militiaman or enemy of the loaded sector bleeding to death on the map screen counts as a merc death, lowers our morale and reputation, leaves his body and a quarter of his gear in the sector's records and stops compression; a buddy of his own team queues his line, which is never said (`Tactical/Dialogue_Control.cc:805`) | `src/sim/campaign/death-in-the-map-screen.test.ts` "goes through our team's strategic death …", "queues the buddy line …"; through the map screen's turn, `src/sim/campaign/map-screen-turns.test.ts` "bleeds a collapsed civilian to death there …" |
+| The head hit's line comes with the first pellet of a shot that hits him and with no later one: `BulletHitMerc` counts a pellet after `BulletImpact` has read the count (`Tactical/LOS.cc:1998-2012`, `Tactical/Weapons.cc:2955`) | `combat/impacts.test.ts` "tells the head hit of a shot's first pellet …" |
+| A body laid in an unloaded sector, by the map screen's strategic death or by autoresolve, carries profile 0, not the dead soldier's: the definition is zeroed and the profile never set (`Tactical/Tactical_Save.cc:882`), so a search for a corpse by profile misses it | `src/sim/campaign/sector-loot.test.ts` "lays the corpse of a soldier with a profile under profile 0 …" |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).
@@ -235,5 +235,5 @@ strategic death. Inferred from reading the source:
 
 - A soldier who died on the map screen through the strategic death, lying in his death animation, never gets his
   tactical death when the tactical screen comes back (`HandleSoldierDeath` skips a `SOLDIER_DEAD` soldier,
-  `Tactical/Soldier_Ani.cc:2861`): no corpse on the live map, and for another team no kill, loyalty, militia count or
+  `Tactical/Soldier_Ani.cc:2838`): no corpse on the live map, and for another team no kill, loyalty, militia count or
   quest consequence.

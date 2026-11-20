@@ -269,7 +269,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   );
 
   it.skipIf(!battleSave)(
-    'calls the enemies of a battle saved as an ambush to the map centre at the end of the import (SaveLoadGame.cc:1195)',
+    'calls the enemies of a battle saved as an ambush to the map centre at the end of the import (SaveLoadGame.cc:1193)',
     async () => {
       const bytes = withEncounterCode(battleSave ?? '', ENEMY_AMBUSH_CODE);
       const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
@@ -285,7 +285,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   );
 
   it.skipIf(saveFiles.length === 0)(
-    "adds the M.E.R.C. mercs' costs to date to Speck's total for a save patched below version 91, and keeps the total of the save as made (SaveLoadGame.cc:1159)",
+    "adds the M.E.R.C. mercs' costs to date to Speck's total for a save patched below version 91, and keeps the total of the save as made (SaveLoadGame.cc:1157)",
     async () => {
       const file = [...saveFiles].sort()[0] ?? '';
       const savedVersion = parseSaveHeader(new Uint8Array(readFileSync(join(savesDir, file)))).header.version;
@@ -306,7 +306,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   );
 
   it.skipIf(saveFiles.length === 0)(
-    "recomputes the refuel sites on import with the save's facts: Estoni, its sector and airspace free, opens to the helicopter only when the save has its refuelling fact (Strategic_AI.cc:2463, SaveLoadGame.cc:810)",
+    "recomputes the refuel sites on import with the save's facts: Estoni, its sector and airspace free, opens to the helicopter only when the save has its refuelling fact (Strategic_AI.cc:2466, SaveLoadGame.cc:808)",
     async () => {
       const file = [...saveFiles].sort()[0] ?? '';
       const refuelSites = async (refuellingFact: boolean) => {
@@ -320,7 +320,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   );
 
   it.skipIf(saveFiles.length === 0)(
-    "checks the saved landing zone against the airspace on import: one under the enemy's moves to the start sector, as the load's airspace update does after the general info (SaveLoadGame.cc:838, StrategicMap.cc:2295)",
+    "checks the saved landing zone against the airspace on import: one under the enemy's moves to the start sector, as the load's airspace update does after the general info (SaveLoadGame.cc:836, StrategicMap.cc:2290)",
     async () => {
       const file = [...saveFiles].sort()[0] ?? '';
       const imported = async (zone: { readonly x: number; readonly y: number }) =>
@@ -351,7 +351,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   );
 
   it.skipIf(saveFiles.length === 0)(
-    "evolves the Queen's priority phase on import from the save's mines and town loyalty, which the load reads before the strategic AI (SaveLoadGame.cc:841-846, Strategic_AI.cc:2465)",
+    "evolves the Queen's priority phase on import from the save's mines and town loyalty, which the load reads before the strategic AI (SaveLoadGame.cc:839-844, Strategic_AI.cc:2468)",
     async () => {
       const file = [...saveFiles].sort()[0] ?? '';
       const bytes = withEveryMineProducingForThePlayer(file);
@@ -407,7 +407,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   );
 
   for (const file of worldSaves) {
-    it(`restarts the animations of ${file} with the idle checks the native load rolls: one in SaveGame01 and SaveGame07, by the soldier its draw trace shows, none in the others (CreateSoldierCommon, Soldier_Control.cc:615)`, async () => {
+    it(`restarts the animations of ${file} with the idle checks the native load rolls: one in SaveGame01 and SaveGame07, by the soldier its draw trace shows, none in the others (CreateSoldierCommon, Soldier_Control.cc:619)`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
       const save = parseSaveGame(bytes, table);
@@ -453,7 +453,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(musicMode(session.initialMusic, session.drainEvents(), session.musicFacts()).mode).toBe(session.initialMusic.mode);
     });
 
-    it(`keeps the pre-battle state of ${file}, its battle locator on the map while it blinks (SaveLoadGame.cc:2084-2091)`, async () => {
+    it(`keeps the pre-battle state of ${file}, its battle locator on the map while it blinks (SaveLoadGame.cc:2026-2033)`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const saved = parseSaveGame(bytes, encryption).generalInfo.preBattle;
       const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);

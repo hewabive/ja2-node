@@ -8,8 +8,9 @@ light sprites; `15` the ambient level by time of day. Each module's `@src` heade
 ports; read those for the template generator, the illumination filter and the ray walk.
 
 The filter, the walk and the shipped templates are those of Stracciatella master's unreleased lighting overhaul (PR 2432
-and its follow-ups, at `ae6bf01`). The reference release v0.22.1 keeps vanilla's walk and reads the user's `.LHT` files
-with every ray; #105 ports it. Until then, the walls, windows and quirks below describe master, not the original.
+and its follow-ups, `M:` at `ae6bf01`). The reference release v0.22.1 (`reference/stracciatella`) keeps vanilla's walk
+and reads the user's `.LHT` files with every ray; #105 ports it. Until then, the walls, windows and quirks below
+describe master, not the original.
 
 ## 1. The path of a light
 
@@ -69,15 +70,15 @@ conversion (`asShippedTemplate`), so nothing derived from the data is in the rep
 arithmetic is plain IEEE and runs unchanged. A data test checks the result against the user's `.LHT` files. `Light0` …
 `Light6` (flares, break lights, merc lights) cannot be generated and come from Stracciatella's file in
 `data/externalized/`. `TRANSLUC.LHT` there would drive only wall translucency, which has no effect in Stracciatella: `CalcTranslucentWalls`
-is commented out (`Tactical/Overhead.cc:2036`).
+is commented out (`Tactical/Overhead.cc:2105`).
 
 **Lights change only when drawn.** A sprite adds its light when placed and subtracts it when moved or destroyed;
 `lightSetBaseLevel` and `lightSpriteRenderAll` draw every powered sprite again. Switching power shows at the next
 render, and a door that opens or a wall a grenade destroys changes no light until then
 (`UpdateLightSpritesOnStructureChange` is declared but never defined). A sector entry and a native load draw them
-once the sector's map changes, doors and revealed tiles are back (`initLoadedWorld`, `Tactical/Tactical_Save.cc:509`),
+once the sector's map changes, doors and revealed tiles are back (`initLoadedWorld`, `Tactical/Tactical_Save.cc:507`),
 so a door left open or a wall destroyed shows in the light at the next entry; a meanwhile scene returns before that
-render and keeps the lights its map load drew (`Tactical/Tactical_Save.cc:456`). The client keeps the rule for
+render and keeps the lights its map load drew (`Tactical/Tactical_Save.cc:454`). The client keeps the rule for
 structures: a change in the view's `tileChanges` redraws nothing; the map lights pass where a destroyed structure stood
 once the hour, the ambient level, the open doors or the powered map lights make it draw them again, our mercs' and the
 dynamic lights once one of them moves.
@@ -90,7 +91,7 @@ savegame loads its clock before the world, so the saved hour powers the map ligh
 
 **Sight lights the caves.** A cave map's lights load switched off (`TileEngine/LoadSaveLightSprite.cc:40`). Revealing
 a cave tile switches on the first unlit light sprite standing on it and draws it at once (`switchOnCaveLightAt`,
-`TileEngine/Fog_Of_War.cc:10`): the fog of war's look (`perception/fov.ts`, `Tactical/FOV.cc:631`, `08`), the reveal
+`TileEngine/Fog_Of_War.cc:10`): the fog of war's look (`perception/fov.ts`, `Tactical/FOV.cc:697`, `08`), the reveal
 of a room, and the load of a sector's revealed tiles (`TileEngine/Render_Fun.cc:97`), at a re-entry
 (`restoreRevealed`, `src/sim/campaign/sector-diff.ts`) and in a native import (`save-import.ts`). The original keeps
 no power state in a save or temp file: the revealed tiles switch the lights on again at every load, one per tile

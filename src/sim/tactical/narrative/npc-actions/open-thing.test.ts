@@ -80,7 +80,7 @@ describe('NPCs opening the closest door or cabinet', () => {
     expect(doorIsOpen(sim)).toBe(false);
   });
 
-  it('drops the opening when it arrives while an auto-bandage question waits for a merc of ours (Overhead.cc:840)', () => {
+  it('drops the opening when it arrives while an auto-bandage question waits for a merc of ours (Overhead.cc:910)', () => {
     const sim = village();
     const ours = spawnSoldier(sim, 0, Team.OUR, SIX_ROWS_SOUTH + 1, NORTH);
     ours.pendingTalk = 40;

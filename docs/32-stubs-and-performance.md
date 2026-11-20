@@ -104,7 +104,7 @@ mine map leads down from every mine and one cave ladder up to the surface above.
 finds them: twelve A.I.M. mercs (0–11) whose hiring rules (hate, buddy, death rate, reputation, learned opinions) give
 each refusal path a case, a M.E.R.C. merc, two R.P.C.s, the vehicles, Skyrider, the five head miners, one dealer per
 town and the NPCs of the hand-made maps. Their kits fix two things: the last gun of a kit sets the profile's gun
-attractiveness (`Tactical/Soldier_Profile.cc:189-199`), so the stub mercs measure their weapons against the Glock 17
+attractiveness (`Tactical/Soldier_Profile.cc:175-185`), so the stub mercs measure their weapons against the Glock 17
 sidearm every kit carries; and that sidearm with two `CLIP9_15` is what the A10 stub NPC's give script and the give and
 talk e2e scenarios use. A stub campaign hires from all twelve (`STUB_SQUAD_PROFILES`, `src/server/campaign-factory.ts`),
 since `StartSomeMercsOnAssignment` sends some away at a new game. The scripts carry what the stub campaign path needs:
@@ -326,7 +326,7 @@ its load average shows.
   `performance.now()` before trusting a frame.
 - No event jumping (`04` §2, level 1b) unless the real-time target fails after caches: it changes the stepping model.
 - A hot function that deoptimizes again and again (`node --trace-deopt`) may hide a porting gap: an unported branch of
-  `GunRange` (`Tactical/Weapons.cc:86`) once divided by zero in the range drop, and the Infinity and NaN values made V8
+  `GunRange` (`Tactical/Weapons.cc:85`) once divided by zero in the range drop, and the Infinity and NaN values made V8
   give up on the bullet code until enemy turns ran three times slower.
 
 **In place** (derived data only):

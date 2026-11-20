@@ -385,7 +385,7 @@ describe('parseSaveGame on a synthetic save', () => {
     });
   }
 
-  it('reads the pre-battle state of the general info, the explicit encounter code whole from the BOOLEAN byte that holds it (SaveLoadGame.cc:2084-2091)', () => {
+  it('reads the pre-battle state of the general info, the explicit encounter code whole from the BOOLEAN byte that holds it (SaveLoadGame.cc:2026-2033)', () => {
     const save = parseSaveGame(buildSave(), encryption);
     expect(save.generalInfo.preBattle).toEqual({
       persistent: true,

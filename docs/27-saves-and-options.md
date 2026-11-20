@@ -63,7 +63,7 @@ One `<name>.j2s` per save, a gzip of one JSON document (`SaveFile`): `header`, `
 - **The header comes first, in its own gzip member.** It repeats what the save list shows (kind, description, time,
   sector, mercs, balance, options) and the identities of §1.4, so the list inflates only the start of each file and
   never parses a body: the original's reason for its fixed-size header. The file stays one JSON document for `gunzip`.
-  A campaign's header also holds `loadScreen`, the picture its load shows (`SaveLoadGame.cc:369-373`, `:748-751`;
+  A campaign's header also holds `loadScreen`, the picture its load shows (`SaveLoadGame.cc:367-371`, `:746-749`;
   `src/sim/strategic/map/loading-screen.ts`): the last sector entry's while its world is loaded (deviation "Load screen
   draw at save"), else the saved sector's, else the helicopter. A header without it, written before, and a native save
   without a loaded world show the helicopter.
@@ -106,12 +106,12 @@ save's engine commit (`git cat-file`) when the current ones differ.
 
 ### 1.5 Random streams and the dialogue queue on load
 
-The original saves only the `PreRandom` table and index (`SaveLoadGame.cc:2110-2127`), seeds its engine once at
-start-up (`sgp/SGP.cc:433`) and refills each used `PreRandom` slot from it (`sgp/Random.cc:24-28`): after a reload the
+The original saves only the `PreRandom` table and index (`SaveLoadGame.cc:2052-2069`), seeds its engine once at
+start-up (`sgp/SGP.cc:409`) and refills each used `PreRandom` slot from it (`sgp/Random.cc:24-28`): after a reload the
 next `PreRandom` draws repeat until used, while `Random` continues from the running process, in effect a fresh stream.
 No save holds its dialogue queue: before reading the save, `LoadSavedGame` empties the queue, with the trigger wait,
-and silences the line being said (`SaveLoadGame.cc:659-662`, `:689`, `Tactical/Dialogue_Control.cc:215-221`), whose
-face then ends at the next `HandleDialogue` (`Tactical/Dialogue_Control.cc:393-430`): a loaded game starts quiet.
+and silences the line being said (`SaveLoadGame.cc:657-660`, `:687`, `Tactical/Dialogue_Control.cc:216-222`), whose
+face then ends at the next `HandleDialogue` (`Tactical/Dialogue_Control.cc:394-431`): a loaded game starts quiet.
 
 The snapshot stores `main`, `pre`, every cosmetic stream and the dialogue queue exactly; `load {reseed}` picks one of
 two modes:
@@ -146,19 +146,19 @@ write goes through a temporary file and a rename. The Dead is Dead file is the n
 
 | Mode | `save`, quick save | Automatic saves | Load |
 |---|---|---|---|
-| Save anywhere | refused in a conversation (also a scripted sequence; outside tactical also a busy dialogue queue, which the map screen's save key checks and the tactical one does not: `Strategic/Map_Screen_Interface_Bottom.cc:1004`, `Tactical/Turn_Based_Input.cc:1947`), while a stop-time quote plays (no input reaches the save keys: `GameScreen.cc:296`), while auto-bandage runs (its mask takes every key: `Tactical/Auto_Bandage.cc:310`), while a battle is about to begin, on either screen (the tactical save keys skip it, `Tactical/Turn_Based_Input.cc:1822`, `:1947`, as the map screen's exits do: `Strategic/Map_Screen_Interface_Bottom.cc:1037`), while a meanwhile starts or plays, while a decision prompt is open (also autoresolve) and in a shop; allowed in the laptop (deviation "Saving in the laptop") | after an accepted `endTurn` in turn-based combat that does not end combat (`Tactical/Handle_UI.cc:1066-1084`): the older or missing of `Auto01`/`Auto02`, silently | allowed |
-| Iron Man | also refused in turn-based combat and while the loaded sector holds enemies, even outside combat (`CanGameBeSaved`, `GameSettings.cc:233-259`) | the same rule, so none in combat | allowed |
-| Dead is Dead | an explicit save is refused; a quick save writes the Dead is Dead file | the one file, at the original's save points: our turn starts, `endTurn`, a meanwhile starts, a group is about to arrive, before another save is loaded into the session, at session close and server stop; written only on our turn (or outside combat) with nothing in progress and no auto-bandage, helicopter drop (stalled too: its `LOCKUI_MODE`), conversation, meanwhile, prompt or shop (`DoDeadIsDeadSave`, `SaveLoadScreen.cc:1363-1405`), after rotating two backups | never blocked |
+| Save anywhere | refused in a conversation (also a scripted sequence; outside tactical also a busy dialogue queue, which the map screen's save key checks and the tactical one does not: `Strategic/Map_Screen_Interface_Bottom.cc:1009`, `Tactical/Turn_Based_Input.cc:1930`), while a stop-time quote plays (no input reaches the save keys: `GameScreen.cc:295`), while auto-bandage runs (its mask takes every key: `Tactical/Auto_Bandage.cc:310`), while a battle is about to begin, on either screen (the tactical save keys skip it, `Tactical/Turn_Based_Input.cc:1805`, `:1930`, as the map screen's exits do: `Strategic/Map_Screen_Interface_Bottom.cc:1042`), while a meanwhile starts or plays, while a decision prompt is open (also autoresolve) and in a shop; allowed in the laptop (deviation "Saving in the laptop") | after an accepted `endTurn` in turn-based combat that does not end combat (`Tactical/Handle_UI.cc:1065-1083`): the older or missing of `Auto01`/`Auto02`, silently | allowed |
+| Iron Man | also refused in turn-based combat and while the loaded sector holds enemies, even outside combat (`CanGameBeSaved`, `GameSettings.cc:234-260`) | the same rule, so none in combat | allowed |
+| Dead is Dead | an explicit save is refused; a quick save writes the Dead is Dead file | the one file, at the original's save points: our turn starts, `endTurn`, a meanwhile starts, a group is about to arrive, before another save is loaded into the session, at session close and server stop; written only on our turn (or outside combat) with nothing in progress and no auto-bandage, helicopter drop (stalled too: its `LOCKUI_MODE`), conversation, meanwhile, prompt or shop (`DoDeadIsDeadSave`, `SaveLoadScreen.cc:1374-1416`), after rotating two backups | never blocked |
 
 - **Check order** of `saveRefusal`: `deadIsDead` (an explicit save in that mode), `autoBandaging`, `helicopterDrop`
   (the helicopter drop, whose locked UI takes the save keys, `25`), `battlePending` (`fDisableMapInterfaceDueToBattle`,
   from the encounter until the pre-battle prompt opens after the speaker's line, `19`; the autosaves do not go through
   the keys and ignore it), `conversation`, `stopTimeQuote`, `meanwhileStarting`, `promptOpen`, `shopOpen`, then Iron Man
   (combat first, then enemies in the loaded sector). The page's tactical options key, its save screen key and its quick
-  save skip the same window without a box (`Tactical/Turn_Based_Input.cc:1545`). The save screen key and the quick save
-  also skip a conversation or scripted sequence (`ENGAGED_IN_CONV`, `:1822`, `:1947`), and the options key an item in
+  save skip the same window without a box (`Tactical/Turn_Based_Input.cc:1528`). The save screen key and the quick save
+  also skip a conversation or scripted sequence (`ENGAGED_IN_CONV`, `:1805`, `:1930`), and the options key an item in
   the cursor, disabled tactical panel buttons, a meanwhile and the single merc panel's disabled Options button
-  (`:1543-1547`); the HUD layout binds them as `optionsKeyEnabled` and `saveKeyEnabled` (`ui/screens/tactical/hud.ts`).
+  (`:1526-1530`); the HUD layout binds them as `optionsKeyEnabled` and `saveKeyEnabled` (`ui/screens/tactical/hud.ts`).
 - **Automatic saves only read the simulation.** `SaveService` hooks every session (`Session.hooks`: before and after a
   dispatch and an advance, after a whole input, on a throw); a failing hook only logs. Before an `endTurn` in
   turn-based combat the service captures the save and writes it once the command is accepted without ending combat, so
@@ -313,13 +313,13 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 | Save mode hides quick and auto saves from the list | `src/ui/screens/front-end/front-end.test.ts` "hides quick and auto saves when saving …" |
 | Autosaves and Dead is Dead saves show no message | `src/server/save-service.test.ts` "autosaves into Auto01 and Auto02 …", `src/server/save-rules.test.ts` "in Dead is Dead save into the one file …" |
 | Dead is Dead keeps two backups and never blocks a load | `src/server/save-store.test.ts` "… keeps two backups of a Dead is Dead save", `src/server/save-rules.test.ts` "in Dead is Dead save into the one file …" |
-| Dead is Dead saves nothing while the helicopter drop runs, a stalled one too: its lock holds `LOCKUI_MODE`, which `DoDeadIsDeadSave` skips, and the turn start of combat begun mid-drop checks it before its own `LU_ENDUILOCK` is handled (`SaveLoadScreen.cc:1374`, `Tactical/TeamTurns.cc:147`, `:154`) | `src/server/save-rules.test.ts` "in Dead is Dead save nothing while the helicopter drop runs …" |
+| Dead is Dead saves nothing while the helicopter drop runs, a stalled one too: its lock holds `LOCKUI_MODE`, which `DoDeadIsDeadSave` skips, and the turn start of combat begun mid-drop checks it before its own `LU_ENDUILOCK` is handled (`SaveLoadScreen.cc:1385`, `Tactical/TeamTurns.cc:147`, `:154`) | `src/server/save-rules.test.ts` "in Dead is Dead save nothing while the helicopter drop runs …" |
 | Iron Man refuses saves while enemies are in the loaded sector, even outside combat | `src/server/save-rules.test.ts` "in Iron Man refuse saves with enemies in the loaded sector …" |
 | `PreRandom` repeats after a reload until the saved values are used | `src/server/save-service.test.ts` "repeats the saved PreRandom ring after a player load …" |
-| A player load drops the lines queued at the save and their callbacks, a contract ending among them (`SaveLoadGame.cc:659-662`) | `src/server/save-service.test.ts` "starts a player load with an empty queue and nobody talking …" |
-| The load screen names a secret's sector as found; the save screen names every row by the running game's secrets (`IsSecretFoundAt`, `Strategic/StrategicMap_Secrets.cc:46`) | `src/ui/screens/front-end/save-location.test.ts` "counts every secret as found on the load screen …" |
-| A save made with no map loaded names the sector of the current squad's first merc even while he travels between sectors (`GetBestPossibleSectorXYZValues`, `SaveLoadGame.cc:2165`) | `src/sim/strategic/forces/save-sector.test.ts` "takes the sector of the current squad's first merc even while he travels …" |
-| A row in an underground level of the list is named even unvisited; any other underground level is left empty (`gfGettingNameFromSaveLoadScreen`, `Strategic/StrategicMap.cc:1245`) | `src/ui/screens/front-end/save-location.test.ts` "names every underground level of the list …" |
+| A player load drops the lines queued at the save and their callbacks, a contract ending among them (`SaveLoadGame.cc:657-660`) | `src/server/save-service.test.ts` "starts a player load with an empty queue and nobody talking …" |
+| The load screen names a secret's sector as found; the save screen names every row by the running game's secrets (`IsSecretFoundAt`, `M:Strategic/StrategicMap_Secrets.cc:46`) | `src/ui/screens/front-end/save-location.test.ts` "counts every secret as found on the load screen …" |
+| A save made with no map loaded names the sector of the current squad's first merc even while he travels between sectors (`GetBestPossibleSectorXYZValues`, `SaveLoadGame.cc:2107`) | `src/sim/strategic/forces/save-sector.test.ts` "takes the sector of the current squad's first merc even while he travels …" |
+| A row in an underground level of the list is named even unvisited; any other underground level is left empty (`gfGettingNameFromSaveLoadScreen`, `Strategic/StrategicMap.cc:1240`) | `src/ui/screens/front-end/save-location.test.ts` "names every underground level of the list …" |
 
 Deviations: "Save side effects", "Schedules on load", "Hooks on load", "Selection on load", "Helicopter on load", "Save
 compatibility", "Player loads", "Saving in the laptop", "Dead is Dead save points", "Error saves", "Cosmetic streams in
@@ -332,7 +332,7 @@ launcher and on the canvas".
 
 ### 2.1 Where the original's options go
 
-The original keeps five game options per campaign in the save (`GAME_OPTIONS`, `GameSettings.h:93-100`), 23 toggles,
+The original keeps five game options per campaign in the save (`GAME_OPTIONS`, `GameSettings.h:94-101`), 23 toggles,
 the volumes and the scenes and help screens seen per user in `Ja2.set`, engine options in `ja2.json` and on the command
 line, and gameplay values in the policy files. ja2-node sorts them by whether they can change the outcome:
 
@@ -351,9 +351,9 @@ resolution); ja2-node has no mods (`32`), and the debug and cheat levels are not
 
 | Toggles | In the original | In ja2-node |
 |---|---|---|
-| `BLOOD_N_GORE` | changes state: messy deaths, corpses and blood graphics, with their draws (`Tactical/Soldier_Control.cc:3141-3283`) | a game option (§2.2) |
+| `BLOOD_N_GORE` | changes state: messy deaths, corpses and blood graphics, with their draws (`Tactical/Soldier_Control.cc:3144-3277`) | a game option (§2.2) |
 | `MUTE_CONFIRMATIONS`, `ANIMATE_SMOKE` | change only gameplay draws: the OK battle sound's pick, the smoke's start frame `Random(5)` | client settings; the simulation makes neither draw (`01` §3.6, deviation "Cosmetic draws in explosions") |
-| `SPEECH`, `KEY_ADVANCE_SPEECH`, `HIDE_BULLETS` | pace the game: a line ends with its sample or waits for a key; hidden bullets fly 4 tiles per update instead of 1 (`Tactical/LOS.cc:3155-3166`) | client presentation; the simulation's timing is fixed (§2.3) |
+| `SPEECH`, `KEY_ADVANCE_SPEECH`, `HIDE_BULLETS` | pace the game: a line ends with its sample or waits for a key; hidden bullets fly 4 tiles per update instead of 1 (`M:Tactical/LOS.cc:3155-3166`) | client presentation; the simulation's timing is fixed (§2.3) |
 | `SLEEPWAKE_NOTIFICATION` | a pausing update box whose dismissal decides compression; sleeping and waking happen regardless | a stop condition (§2.3) |
 | the other 16 | input, camera and rendering; `MERC_CASTS_LIGHT` too, since merc lights are fake and cancel out of gameplay light (`20`) | client settings |
 
@@ -380,7 +380,7 @@ resolution); ja2-node has no mods (`32`), and the debug and cheat levels are not
 **Game policy** ships in `data/externalized` with Stracciatella's shipped JSON values (D1; which keys ja2-node reads:
 `01` §3.9, deviation "Game policy keys"). Two keys ship with a JSON value other than the code default, and the JSON
 wins: `interrupt_after_being_under_fire` false and `campaign.start_sector_revealed` true
-(`externalized/policy/DefaultGamePolicy.cc:41`, `:105`). The policy stays content and is not copied into the session:
+(`M:externalized/policy/DefaultGamePolicy.cc:41`, `externalized/policy/DefaultGamePolicy.cc:94`). The policy stays content and is not copied into the session:
 it ships with the engine, so the engine identity in the save header (`engineDiffers`, §1.4) marks a save made with
 other policy values. If saves must survive policy edits, that is a migration, not a copy.
 

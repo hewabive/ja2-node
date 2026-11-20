@@ -142,7 +142,7 @@ function droppedByHelicopterIntoB9ThenOurSquadArrives(): Placing {
 }
 
 describe('the tactical placement of a pre-battle Go to sector (Tactical_Placement_GUI.cc)', () => {
-  it('holds the load at a placement prompt with every merc of the group waiting on his side, none placed under the default Clear and no enemy added yet (StrategicMap.cc:892-896, Tactical_Placement_GUI.cc:72, :572-590)', () => {
+  it('holds the load at a placement prompt with every merc of the group waiting on his side, none placed under the default Clear and no enemy added yet (StrategicMap.cc:887-891, Tactical_Placement_GUI.cc:72, :572-590)', () => {
     const { c } = placing();
     expect(c.state.flow).toBe('tactical');
     expect(c.hasPendingDecision()).toBe(true);
@@ -236,7 +236,7 @@ describe('the tactical placement of a pre-battle Go to sector (Tactical_Placemen
     expect(answer(c, 'done')).toEqual({ ok: true });
   });
 
-  it('lists a merc who left the helicopter over the hostile sector, his insertion code the centre, and Spread puts his piece at the map\'s centre entry point so Done comes (Vehicles.cc:287-302, Squads.cc:172; original-bugs "Placement merc off the map edges")', () => {
+  it('lists a merc who left the helicopter over the hostile sector, his insertion code the centre, and Spread puts his piece at the map\'s centre entry point so Done comes (Vehicles.cc:278-293, Squads.cc:170; original-bugs "Placement merc off the map edges")', () => {
     const { c, roster } = droppedByHelicopterIntoB9ThenOurSquadArrives();
     expect(placement(c).pieces.map((p) => [p.soldier, p.side])).toEqual([
       [0, InsertionCode.NORTH],

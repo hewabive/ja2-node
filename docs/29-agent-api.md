@@ -116,8 +116,8 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
 - An interrupt in our favour is a decision: only the mercs that have not moved may act (`OK_INTERRUPT_MERC`), and
   `endTurn` gives the turn back (deviation "Interrupt prompt").
 - An interrupt in our favour names the soldier it stops (`interrupted`) and a shown AI interrupt its AI soldier
-  (`interrupter`), both only while the squad sees them: the original slides the view to them (`Tactical/TeamTurns.cc:600`,
-  `:397`).
+  (`interrupter`), both only while the squad sees them: the original slides the view to them (`Tactical/TeamTurns.cc:590`,
+  `:387`).
 - An AI interrupt shows nothing until `DisplayHiddenInterrupt`, then an `interrupt` event; while a hidden one runs the
   view shows our turn, as the original does, and orders are refused with `uiLocked`. A fully hidden one leaves no
   trace. `combat.aiTurn` names the AI soldier whose turn it is (the one the original highlights) while he is in the
@@ -137,7 +137,7 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   sector while the map is up, and the departure of the selected merc, leave nobody selected, as in the original.
   It matters for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
 - Own soldiers on a squad carry `squadSlot`, their place in it: the order `FindNextActiveSquad` walks
-  (`Tactical/Overhead.cc:2892`).
+  (`Tactical/Overhead.cc:2963`).
 - The current squad (`forces.currentSquad`; in the view as `currentSquad`, null for none) is the original's
   `iCurrentTacticalSquad`, whose members the team panel shows: a selection makes the selected merc's squad current, and
   `selectSquad` makes a squad on the map current, as the squad keys and the squad list do. As `SetCurrentSquad` does,
@@ -147,7 +147,7 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   on the map, or none), a merc joining a squad while the current one is empty, the selected merc joining another squad,
   a talk and `openShop`, which stands for it, an escort's recruitment, a hospital assignment, and the close of the
   assignment menu, which every accepted `assign`, `assignSquad` and `unescort` in tactical stands for with its choice
-  (`RebuildCurrentSquad`, `Strategic/Assignments.cc:5463`; on the map screen it changes nothing, as `SetCurrentSquad`
+  (`RebuildCurrentSquad`, `Strategic/Assignments.cc:5313`; on the map screen it changes nothing, as `SetCurrentSquad`
   returns there). A native save resumed in tactical selects its selected merc again, forced, before the screen entry; a
   ja2-node save restores the selection and the current squad as they were (deviation "Selection on load").
 - An order to one merc selects him first, once the turn locks and his own state let him act (`actRefusal`) and before
@@ -258,7 +258,7 @@ queue, which says the next line when the face stops talking or at once on a clic
   as an escort, is married off or turns hostile with his civilian group, or Larry's profile swaps) ends his line on that
   tick: `soldierFaceDeleted {profile, saidAt}`, and the next line follows.
 - **The map screen's lock is a queue event.** The original queues a lock and an unlock around some contract lines and
-  the renewal menu (`LockMapScreenInterface`, `Strategic/MapScreen.cc:8007-8024`); `mapScreenLock {locked}` comes as
+  the renewal menu (`LockMapScreenInterface`, `Strategic/MapScreen.cc:7971-7988`); `mapScreenLock {locked}` comes as
   the queue reaches each, and the page's team list ignores the mouse in between (`30`). Agents have no team list, so
   nothing is locked for them.
 - **Agents playing alone**: the speech mode `skip` (`newSession {speech}` or `setSpeech`) ends every line on the tick
@@ -307,7 +307,7 @@ hire's `charge`, a trade's `shortfall`, an exit's `minutes`). `assign` answers p
 refusal, reason}` for a failure) and names the first failure in `data.refusal` and `reason`, as the original shows one
 box for the batch. A movement refusal (`route`, `routeGroup`, the `previewRoute` hint) names in `data.soldier` the merc
 who cannot move, who may be another member of the group, as the original's box names him; a `bandage` refusal names in
-`data.patient` the patient the medkit cursor's lines name (`Tactical/Handle_UI.cc:3534-3552`). Clients compare tokens,
+`data.patient` the patient the medkit cursor's lines name (`Tactical/Handle_UI.cc:3538-3556`). Clients compare tokens,
 never `reason`. The text key `refusal.<token>` (`/api/strings`, `/api/text?key=`) names the original's message where it
 has one, `refusal.<token>.female` its form for a woman where the original picks the text by the profile's sex
 (`escortAlone`, by the strategic merc's `female`); `REFUSAL_MESSAGES` (`src/protocol/refusals.ts`, so the client prints
@@ -344,7 +344,7 @@ laptop's own commands with real prices, deposits and refusals; then, unless `lan
 loads the start sector at 07:00 (`15`) and the helicopter drops the squad one at a time, about 25 to 40 s of tactical
 time the session runs before it answers; `land: "skip"` lands them at once as the Esc key does (`25`). `hire: []`
 returns the session in the open laptop. `seed` seeds the random streams; without it the server takes one from its
-entropy (`src/server/entropy.ts`), as the original seeds its generator from the clock (`sgp/Random.cc:39-59`, `sgp/SGP.cc:433`) and two
+entropy (`src/server/entropy.ts`), as the original seeds its generator from the clock (`sgp/Random.cc:39-59`, `sgp/SGP.cc:409`) and two
 of its new games differ. The reply names the seed in `seed`, the log origin keeps it, and passing it again repeats the
 game; a load answers with the seed of its own reseed in `load.seed` instead.
 
@@ -354,7 +354,7 @@ session only when no other connection watches it (`04` §5.2). Every viewer of a
 calls on it then fail with `no session <id>`.
 
 **Campaign identity** (`src/server/campaign-id.ts`): the game page keeps the help screens' seen mask per campaign, as
-the original saves it (`SaveLoadGame.cc:1916`), so `welcome.campaign` names the campaign: a random id for a new
+the original saves it (`SaveLoadGame.cc:1858`), so `welcome.campaign` names the campaign: a random id for a new
 campaign, `import:<digest>` for a native import, absent for the sandbox, `save:<digest>` for an old save without one.
 It is presentation: saved in the save's presentation part and restored by a load, never seen by the snapshot, the
 input log, the replay or the logic hash.
@@ -391,20 +391,20 @@ screen rectangle is measured on (the frame his last animation start or turn left
 `boundingDirection` and `boundingHiResDirection` while the facing that frame was converted in is not his own (`05`), and `camouflaged` while he wears camouflage
 paint, ours and theirs alike, as the screen shows both (`06`). His `name` is his own (a profile's nickname, or what a
 married merc keeps); a profile a story action renamed, as a terrorist revealing himself
-(`Tactical/Interface_Dialogue.cc:2768`), shows its new nickname in every name and text, and the campaign view's
+(`Tactical/Interface_Dialogue.cc:2771`), shows its new nickname in every name and text, and the campaign view's
 `nicknames` (`{profile: nickname}`, absent while none was renamed) lists those profiles for the faces the browser
 draws from its own profile tables; a soldier without a profile on the enemy, militia, civilian or creature team has none and carries
 `defaultName` (`enemy`, `militia`, `civilian`, `miner`, `crow`, `creature`, `bloodcat`), the default of his team the
-original names him by (`Tactical/Soldier_Create.cc:880-905`), which the client prints from the string tables in its
+original names him by (`Tactical/Soldier_Create.cc:879-904`), which the client prints from the string tables in its
 own language (`src/protocol/soldier-names.ts`), `observe` gives in the session's as `defaultNameLabel`, and a message
 naming him carries as a string reference (`06`). A
 soldier the squad has just lost stays while he fades
 out, with `fadingOut` (`06`): he can still be targeted and his hits are told, as in the original, until the fade ends or
 he reaches the next tile. Our soldier still in the sector off the visible world carries `offMap`: a squad walking off an
 edge, which stays until the next sector loads or, when others stay (`load: false`), until its last merc is off and the
-group leaves together (`Strategic/StrategicMap.cc:1788-1794`), and a passenger with no tile (his vehicle off the map, the
-helicopter over the loaded sector). The original keeps him `bInSector` (`Tactical/Soldier_Control.cc:1917-1920`): the
-panels keep him as `CheckForAndAddMercToTeamPanel` does (`Tactical/Interface_Panels.cc:3230`), and the map draws,
+group leaves together (`Strategic/StrategicMap.cc:1783-1789`), and a passenger with no tile (his vehicle off the map, the
+helicopter over the loaded sector). The original keeps him `bInSector` (`Tactical/Soldier_Control.cc:1920-1923`): the
+panels keep him as `CheckForAndAddMercToTeamPanel` does (`Tactical/Interface_Panels.cc:3192`), and the map draws,
 picks, locates and dots him nowhere; other teams' soldiers off it are not in the view. The tactical world (corpses, smoke, light, structure changes, blood;
 `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes (`tileChanges`) are the map
 changes since the load (`remove`; `add` at the head of the tile's structure layer, as a SAM terminal the Queen's
@@ -419,7 +419,7 @@ draws them and lights over them (`20`). `addedExitGrids` lists the exit grids th
 statue's way down (`26`), the rebel hideout's trapdoor (`35`), an opened pit's tiles (`12` §6), and those its earlier
 stays added, which a sector entry and a native import add again. Each replaces the map's own exit grid on its tile, and
 the client's exit grid cursor and exit box treat it as one of the map's at once, as `AddExitGridToWorld` puts it into
-the world the cursor reads (`TileEngine/Exit_Grids.cc:53`); the tile it brings a merc to is not sent.
+the world the cursor reads (`TileEngine/Exit_Grids.cc:84`); the tile it brings a merc to is not sent.
 `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room or a load took off shows its ceiling, the
 tiles of the roof no merc has seen yet (`08`). `revealedAtLoad` lists, as runs
 `[first gridNo, count]`, the tiles the last sector entry with saved revealed tiles or native import revealed, outside
@@ -450,31 +450,31 @@ frame, and the next frame brings it the rest as it brings everyone), new ones in
 (`messages`). The simulation never reads them (deviation "Message list").
 
 **The lines of a hit** come as events of their own, each with the original's visibility. `statLost {soldier, stat,
-points}` is the wisdom, dexterity, strength or agility a critical hit cost a soldier (`Tactical/Weapons.cc:2982-3104`),
+points}` is the wisdom, dexterity, strength or agility a critical hit cost a soldier (`Tactical/Weapons.cc:2939-3055`),
 told only while the squad sees him, as the original prints `STR_LOSES_*` then alone. `headHit` is a hit in the head
-that cost no wisdom (`:2998`, `:3108`), for a soldier of any team, seen or not, but for no pellet after the first of a
-shot; `knockedOver` is a standing soldier a leg hit knocks over (`Tactical/Soldier_Control.cc:3185-3196`), of any team,
+that cost no wisdom (`:2955`, `:3059`), for a soldier of any team, seen or not, but for no pellet after the first of a
+shot; `knockedOver` is a standing soldier a leg hit knocks over (`Tactical/Soldier_Control.cc:3188-3199`), of any team,
 seen or not. The original prints the name of one out of sight too, so these two carry `name` (his own) or
 `defaultName` (his team's, as in the view) instead of `soldier` for him, and an agent learns a line, never an id or a
 tile (D16). `fellDown`, `slippedOnMarbles` and `camoWashedOff` (§8.1) name a soldier out of sight the same way
-(`Tactical/Overhead.cc:1484`, `:1505`, `:1519`, `Tactical/Items.cc:3357`); the first two add `unseen` and `heard` for
+(`Tactical/Overhead.cc:1553`, `:1574`, `:1588`, `Tactical/Items.cc:3348`); the first two add `unseen` and `heard` for
 his curse, as a hit does, none for a muted soldier, and `fellDown` drops his `cause`.
 
 **A stat change** of a merc of ours comes as `statChanged {soldier, stat, change}` as it happens, on the loaded map or
-off it (doctoring, repairing, training and militia training while no sector is loaded, `Strategic/Assignments.cc:1348`,
-`:1987`, `:2616`, `:2628`; shots, hits, dodges, wounds, kills and bandaging in an autoresolve battle,
-`Strategic/Auto_Resolve.cc:1050`, `:2801`, `:3003`, `:3172`), and his panels flash it. When he says his experience line
+off it (doctoring, repairing, training and militia training while no sector is loaded, `Strategic/Assignments.cc:1299`,
+`:1842`, `:2466`, `:2478`; shots, hits, dodges, wounds, kills and bandaging in an autoresolve battle,
+`Strategic/Auto_Resolve.cc:1050`, `:2793`, `:2982`, `:3151`), and his panels flash it. When he says his experience line
 with it (`QUOTE_EXPERIENCE_GAIN` at every level, gained or lost, and for a quarter of the other stats but health, drawn on
 the talk session's cosmetic stream, in an autoresolve battle on its own; `Tactical/Campaign.cc:583-614`), the message
 waits in the dialogue queue behind the lines queued before: that `statChanged` carries `queued`, and
 `statChangeAnnounced {soldier, stat, change}` brings the message as the queue reaches it, right before the line. Nothing
 plays the queue during an autoresolve battle, so its messages and lines come on the map screen once it is closed; a merc
-below `OKLIFE` by then gets the message without the line (`Tactical/Dialogue_Control.cc:748`).
+below `OKLIFE` by then gets the message without the line (`Tactical/Dialogue_Control.cc:745`).
 
 **A merc of ours dying off the tactical map** (of bleeding, gas or electricity while he is not on the loaded map, or
 while the map screen is up; `33`) comes as `mercDied {soldier, sector, mapScreen?, cry?}`, never as `soldierDied`: the
 strategic bookkeeping at once, no corpse and no skull. `sector` is his own, the one he left for a traveller. His death
-cry and the samples `DOORCR_1` and `HEADCR_1` play for it (`Tactical/Soldier_Control.cc:5407`): `cry {voice, bodyType,
+cry and the samples `DOORCR_1` and `HEADCR_1` play for it (`Tactical/Soldier_Control.cc:5400`): `cry {voice, bodyType,
 team, gridNo?}` names the battle-sound voice and where it comes from, his team and, on the loaded map, his tile; it is
 absent for a muted soldier, who makes only the samples (`31`). Off the tactical screen,
 which `mapScreen` marks, `pMercDeadString` goes into the message list (`Strategic/Strategic_Merc_Handler.cc:71`). On
@@ -489,41 +489,41 @@ window a friendly bullet first meets in combat, where show misses moves the view
 soldiers the original moves the view to (`soldierLocated {soldier, locator: none|normal|fast}`: a seen soldier not of
 ours turning to shoot, our merc hit in combat, the seen NPC a trigger waits for, a seen Hicks turning hostile at night,
 our merc who sights an enemy on the enemy's turn; with `slide` the view slides: to that enemy while the squad sees him,
-and to an opponent turning visible in combat or before the sector's first sighting, `Tactical/OppList.cc:1916`, `:2440`;
+and to an opponent turning visible in combat or before the sector's first sighting, `Tactical/OppList.cc:1915`, `:2444`;
 deviation "Locates of unseen soldiers"), the tile an attack by a soldier not of ours is aimed at in combat, when the
-squad sees him or he aims at our merc (`attackTargetLocated {gridNo}`, `Tactical/Soldier_Ani.cc:1186`), the items' tile the view slides to as the items-seen quote starts or an escort
-sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a mine a merc of ours spotted, after
-his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3154`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
-(`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), a soldier hurt by bleeding, gas or electricity
+squad sees him or he aims at our merc (`attackTargetLocated {gridNo}`, `Tactical/Soldier_Ani.cc:1161`), the items' tile the view slides to as the items-seen quote starts or an escort
+sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6253`), the locator at a mine a merc of ours spotted, after
+his line (`mineLocator {gridNo, level}`, `Tactical/Handle_Items.cc:3157`; deviation "Mine locator"), the locator at a rotting corpse a merc comments on
+(`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1354`), a soldier hurt by bleeding, gas or electricity
 (`damageFeedback {soldier, cause, conscious?, mapScreen?, unseen?, heard?, cry?}`, `Tactical/Soldier_Control.cc:8760`):
 the portrait of a seen one flashes, a merc of ours off the loaded map included, and he grunts, at most once a second;
-one in sight hurt by gas or electricity cries his death sound first (`:5370`), and `conscious` marks a gassed one who
-grunts again (`TileEngine/Explosion_Control.cc:845`); one out of sight carries `unseen` and `heard` as a hit does, a
+one in sight hurt by gas or electricity cries his death sound first (`:5363`), and `conscious` marks a gassed one who
+grunts again (`TileEngine/Explosion_Control.cc:866`); one out of sight carries `unseen` and `heard` as a hit does, a
 merc of ours off the loaded map `cry` as `mercDied` does, a muted soldier neither, and `mapScreen` routes the sound as
 `mercDied`'s does (`31`); the sounds of a few more moments: our merc's OK as a pickup or search sets out on a path longer
-than 5 steps (`pickupConfirmed {soldier}`, `Tactical/Handle_Items.cc:1130`), the glass of jars a fall broke
-(`jarsBroken {soldier}`, `Tactical/Items.cc:3243`), the attack of a bloodcat out of sight (`bloodcatAttack`, no
-fields: the original plays it in the middle of the screen for every bloodcat, `Tactical/Soldier_Ani.cc:2412`, and a
+than 5 steps (`pickupConfirmed {soldier}`, `Tactical/Handle_Items.cc:1134`), the glass of jars a fall broke
+(`jarsBroken {soldier}`, `Tactical/Items.cc:3234`), the attack of a bloodcat out of sight (`bloodcatAttack`, no
+fields: the original plays it in the middle of the screen for every bloodcat, `Tactical/Soldier_Ani.cc:2389`, and a
 seen one's comes with his animation), a bloodcat the squad sees starting a move in combat, which the client growls
-for on one in two (`bloodcatGrowl {soldier}`, `TacticalAI/AIMain.cc:1436`; deviation "Cosmetic draws of creatures"),
+for on one in two (`bloodcatGrowl {soldier}`, `TacticalAI/AIMain.cc:1438`; deviation "Cosmetic draws of creatures"),
 the animation sounds the original plays at the tile of a soldier out of sight
 (`unseenAnimationSound {sound, heard?}`, with no soldier and no tile: `knifeThrow` three frames before a throwing knife
 leaves his hand, `fallToKnees`, `fallToGround` and `heavyFall` of a hit soldier, `creatureDying`, `creatureDissolving`
-and `creatureFalling` of a dying creature; codes 702, 709, 721, 722, 781, 782 and 784, `Tactical/Soldier_Ani.cc:1969`,
-`:2016`, `:2124`, `:2133`, `:2485`, `:2490`, `:2495`), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
-{soldier, spinKick?}`, `Tactical/Soldier_Control.cc:504`), the attacker who may laugh as a soldier the squad sees dies
+and `creatureFalling` of a dying creature; codes 702, 709, 721, 722, 781, 782 and 784, `Tactical/Soldier_Ani.cc:1944`,
+`:1991`, `:2099`, `:2108`, `:2462`, `:2467`, `:2472`), Dr. Q's chop as he strikes with martial arts (`martialArtsChop
+{soldier, spinKick?}`, `Tactical/Soldier_Control.cc:508`), the attacker who may laugh as a soldier the squad sees dies
 outside our merc's attack (`soldierDied`'s `laugher`: `{soldier}`, or `{unseen, heard?}` for one out of sight; none for a
-creature, a bloodcat or a muted one; the client laughs on one in three, `Tactical/Soldier_Ani.cc:2917-2921`), our merc
+creature, a bloodcat or a muted one; the client laughs on one in three, `Tactical/Soldier_Ani.cc:2894-2898`), our merc
 who cheers a kill he saw instead of commenting it (`killCheered {soldier}`, LAUGH1 or COOL1 by the client's coin toss,
-`:2833-2841`), the mercs one of whom says COOL1 as a battle won after a bloodcat kill ends (`combatEnded`'s
-`coolCandidates`, the client's pick, `Tactical/Overhead.cc:4624`), the owner of a grenade or mortar shell that lands
+`:2810-2818`), the mercs one of whom says COOL1 as a battle won after a bloodcat kill ends (`combatEnded`'s
+`coolCandidates`, the client's pick, `Tactical/Overhead.cc:4694`), the owner of a grenade or mortar shell that lands
 as a dud, who curses (`dudCursed {soldier}`, or `{unseen, heard?}` for one out of sight, none for a muted one,
-`TileEngine/Physics.cc:2079`), a point of life a merc of ours bleeds, which makes
-him the map screen's info character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `:7935`; `lifeMaxLost` when, dying, he lost a point of
-maximum life too: `STR_LOSES_1_HP` in the message list, `:7883`, and his maximum life red on the map screen) and the
+`TileEngine/Physics.cc:2069`), a point of life a merc of ours bleeds, which makes
+him the map screen's info character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `Tactical/Soldier_Control.cc:7926`; `lifeMaxLost` when, dying, he lost a point of
+maximum life too: `STR_LOSES_1_HP` in the message list, `M:Tactical/Soldier_Control.cc:7883`, and his maximum life red on the map screen) and the
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
-`:1165`). `wireframesRecalculated {tiles, revealed}` comes each time the original works the wall wire frames out again
+`:1140`). `wireframesRecalculated {tiles, revealed}` comes each time the original works the wall wire frames out again
 (`CalculateWorldWireFrameTiles`): as a look reveals a room, within two tiles of it, and after a blast that changed a
 structure, in its radius around the bomb; `tiles` are the tiles worked out and `revealed` those of the tiles it reads that
 were revealed then, both as runs (`05`). `ambientLightSet {level}` comes each time the original sets its base light again and draws every light over it
@@ -534,14 +534,14 @@ loading picture (`sectorLoaded.loadScreen`) while the sector is loaded, so a pag
 held at the placement prompt names him in
 `placementDone` instead (§8.10). `helicopterDropStarted {gridNo}` starts a run of the
 helicopter drop and centres the view on the north entry point, with no locate to the entry's merc
-(`GameScreen.cc:351`); `mercDropped {soldier}` comes as the helicopter lands a merc, at his drop or at the skip, with the
+(`GameScreen.cc:350`); `mercDropped {soldier}` comes as the helicopter lands a merc, at his drop or at the skip, with the
 original's "has arrived" line, which a `mercArrived` with `helicopter` (a merc the helicopter brings) leaves to it
 (`Tactical/Merc_Hiring.cc:289`); `helicopterDropEnded {first}` ends a run, `first` on the first landing's, whose end
 plays the enemy-present music (`25`). While a run goes on
 every other command is refused with `helicopterDrop` (§6's modal states); `skipHelicopterDrop`, the Esc key, lands
 the seats left at once and ends the run (`noHelicopterDrop` with none under way), and as the same key reaches the
 tactical interface it stops the merc it selects, as `stop` does, unless a conversation holds the key
-(`GameScreen.cc:407`, `:436`; deviation "Esc stop after the helicopter skip"). The session copies the cosmetic animations into
+(`GameScreen.cc:406`, `:435`; deviation "Esc stop after the helicopter skip"). The session copies the cosmetic animations into
 `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after every tick as
 `ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and cosmetic
 animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never audio.
@@ -552,29 +552,29 @@ loudest by `CalcEffVolume`, the side as `TellPlayerAboutNoise` names it, the lou
 names a soldier out of sight who acts, so an agent cannot count or follow unseen soldiers by their ids: a `shotFired` of
 an unseen shooter drops `soldier`, `target` and `hit` and keeps the weapon, silencer and burst its sound needs; his
 bullets' `bulletStopped` and `bulletImpact` carry his weapon as `item` instead of `soldier`, for the miss sounds the
-original picks by it (`Tactical/Weapons.cc:1659`, `:3177`), and his `structureStruck` and `bulletLocated`
+original picks by it (`Tactical/Weapons.cc:1619`, `:3128`), and his `structureStruck` and `bulletLocated`
 drop `soldier`; a `soldierHit` drops an unseen `attacker`, a `soldierDied` or `vehicleDestroyed` an unseen `killer`, an
 `explosion` an unseen `owner` (null still means nobody), and a `creatureCall` of an unseen creature carries `unseen`
 (its body type) and `heard` instead of `soldier`. Every `soldierHit` carries `blade` for the hit of a blade, whose knife
-impact the original plays instead of a bullet's (`Tactical/Soldier_Control.cc:2846`). A `soldierHit` or `soldierDied` of
+impact the original plays instead of a bullet's (`Tactical/Soldier_Control.cc:2849`). A `soldierHit` or `soldierDied` of
 an unseen victim carries `unseen` and a grid only when the attacker is seen or ours; bullets are recorded only for our
 soldiers and those the squad sees. `arrived` (ja2-node's event for the end of a walk), `itemsPickedUp`, `itemDropped`,
 `reloaded` and `attackResolved` (ja2-node's event for the end of an attack), which nothing on the original's screen or
 speakers marks for a soldier out of sight (the pickup's sound is our merc's alone, the drop's and the reload's a visible
-soldier's: `Tactical/Handle_Items.cc:1269`, `:975`, `Tactical/Items.cc:1288`), come only for our soldiers and those the
+soldier's: `Tactical/Handle_Items.cc:1274`, `:973`, `Tactical/Items.cc:1290`), come only for our soldiers and those the
 squad sees (`attackResolved` also for an attack without an attacker), or for everyone while the original shows every
 soldier (`SHOW_ALL_MERCS` in a palace meanwhile scene, `Strategic/Meanwhile.cc:385`; `shownInSector`,
 `src/sim/tactical/state.ts`): an unseen patrol neither stops an `advance {events: ['arrived']}` nor shows its tiles, an
 unseen soldier's pickups, drops and reloads change the items and his gun as they do but tell nothing, and the end of his
 attack neither names him nor stops an `advance {events: ['attackResolved']}`. A map screen reload of a merc off the loaded
 map comes with `mapScreen`, which routes its sound to the map screen; `ReloadGun` prints its line for any merc of ours
-(`Tactical/Items.cc:1300`). A `meleeStrike` comes only for a striker
+(`Tactical/Items.cc:1302`). A `meleeStrike` comes only for a striker
 the squad sees: the original prints nothing for it and plays its swoosh for a visible striker only
-(`Tactical/Soldier_Ani.cc:2167`, `Utils/Sound_Control.cc:413`), so the squad hears an unseen one's strike by the impact
-at the victim alone, a knife's for a blade and a bullet's otherwise (`Tactical/Soldier_Control.cc:2846`), which the
+(`Tactical/Soldier_Ani.cc:2142`, `Utils/Sound_Control.cc:413`), so the squad hears an unseen one's strike by the impact
+at the victim alone, a knife's for a blade and a bullet's otherwise (`Tactical/Soldier_Control.cc:2849`), which the
 `soldierHit`'s `blade` picks; a victim of ours shows his hit in full. A `nothingFound` of a soldier out of sight carries
 `unseen` and `heard` instead of the grid, and comes only for one with a profile who is not muted: the original's NOTHING
-has no sound for a soldier without a profile, nor for a muted one (`Tactical/Soldier_Control.cc:150`, `:6017`, `:5880`).
+has no sound for a soldier without a profile, nor for a muted one (`Tactical/Soldier_Control.cc:150`, `:6010`, `:5873`).
 A death cry, the NOTHING, the curse of a fall, a creature's call and the sounds of `unseenAnimationSound` make no
 noise in the original; they are heard as loud as the soldier's loudest scream (`CalcScreamVolume`'s cap of 10 −
 experience level), and an `unseenAnimationSound` nobody of ours hears comes without `heard` and plays nothing.
@@ -592,13 +592,13 @@ turns, stances, attacks, doors, pickups, throws, first aid, talk, give, `select`
 `notInTactical` off the tactical screen, which alone runs the loaded sector (`TACTICAL_SCREEN_ORDERS` in
 `src/sim/campaign/campaign-sim.ts`); inventory commands work on both screens, except `applyItem` and `swapHands`, which the
 map screen refuses with `tacticalOnly`: the original swaps hands only by the tactical key and panel (`SwapHandItems`,
-`Tactical/Turn_Based_Input.cc:3390`, `Tactical/Interface_Panels.cc:3098`), so an agent there moves the items as the
+`Tactical/Turn_Based_Input.cc:3373`, `Tactical/Interface_Panels.cc:3060`), so an agent there moves the items as the
 player's cursor does, with `moveItem`. One `stance` command carries the movement
 mode the original keeps beside the stance (deviation "Stance") and refuses a height the merc cannot take where he stands
 (`IsValidStance`: vehicles, the robot, water, an escort lying down, no room for the body), with the message of
 `UIHandleSoldierStanceChange`; the `movementOptions` hint says which of run, sneak and crawl the movement menu offers.
 `stealth` logs each merc's line as the z key does (`stealthChanged`), the squad's line with `squad`, and none with
-`quiet`, which the single merc panel's button sends: it toggles silently (`Tactical/Interface_Panels.cc:2126-2135`).
+`quiet`, which the single merc panel's button sends: it toggles silently (`Tactical/Interface_Panels.cc:2088-2097`).
 `select` is the player's selection (§4.3): it refuses where `InternalSelectSoldier` returns early (another screen with
 `notInTactical`, a merc aboard a vehicle with `inVehicle`, a vehicle of ours with nobody aboard with `noDriver`, a merc
 out of control with `cannotAct` or `onAssignment`, one without a move in our interrupt with `mercUnavailable` and its
@@ -610,14 +610,14 @@ in `EndMultiSoldierSelection`, and `data.woke` lists who woke. A selection wakes
 `ChangeCurrentSquad`: it refuses a squad with nobody in the loaded sector (`squadNotHere`, `IsSquadOnCurrentTacticalMap`),
 a number outside 0..19 (`badSquad`) and another screen (`notInTactical`), and takes `select`'s order locks for the
 squad's first merc; the current squad itself changes nothing. `previewMove`'s `affordable` is
-`SelectedMercCanAffordMove` (`Handle_UI.cc:2478`): only the first step with the stance change into the mode
+`SelectedMercCanAffordMove` (`Handle_UI.cc:2482`): only the first step with the stance change into the mode
 (`firstStepCost`), the one AP check `move` makes before it accepts (`notEnoughAP` otherwise); on a path that costs
 more he walks until his APs run out (`stopped` with `outOfAPs`). Whether the whole path fits his turn is `apCost`
 against his `actionPoints`, the check that turns the cursor's AP figure red (`HandleUIMovementCursor`,
-`Handle_UI.cc:2956`); per tile, the footsteps in `steps` (every tile before the destination) take band 4 from where no
+`Handle_UI.cc:2960`); per tile, the footsteps in `steps` (every tile before the destination) take band 4 from where no
 movement mode reaches on his APs (in real time every band is 4). `directPath: true` asks `previewMove`, `previewAction`
 and the melee walk-up of `estimateAttack` for the path the cursor plots while Shift is held (`UIPlotPath`,
-`Tactical/PathAI.cc:2355-2358`): the search costs every passable step but the last as flat ground, so the footsteps and
+`Tactical/PathAI.cc:2386-2389`): the search costs every passable step but the last as flat ground, so the footsteps and
 the AP figure are those of the most direct walk; the order itself searches its own path. A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
 give, first aid or a robot reload), as `UIHandleCMoveMerc` does. No order asks a merc on the move to stop first, as
@@ -660,10 +660,10 @@ item there opens the `pickupMenu` prompt (§8.1), while with `items` it takes th
 ("Picking up items"); its `zLevel` is the height the original's
 click passes: 1 for the items lying on a structure (`height` in the view: a table, inside an open cabinet, which the
 world does not draw), 0 for the floor, by default 1 when any item of the tile lies on a structure
-(`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). On a tile that shows no item, `pickUp` without `items` is the
-hand cursor's search (`Turn_Based_Input.cc:3079`): it takes the click's morale check (`refusesOrder`, and the merc says
+(`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1712`). On a tile that shows no item, `pickUp` without `items` is the
+hand cursor's search (`Turn_Based_Input.cc:3062`): it takes the click's morale check (`refusesOrder`, and the merc says
 his refusing line) but no AP check, so in combat he may stop short of the tile. An escort may neither pick up nor search:
-`escortCannotDoThat`, the hand cursor's `EPC_CANNOT_DO_THAT` (`Turn_Based_Input.cc:3051`, `:3081`, `:3148`), which
+`escortCannotDoThat`, the hand cursor's `EPC_CANNOT_DO_THAT` (`Turn_Based_Input.cc:3034`, `:3064`, `:3131`), which
 `previewAction pickUp` answers too. Hidden items turn up with his
 spotted-something line; otherwise, and whenever a pile is gone by the time he gets there, the `nothingFound` event
 carries his NOTHING battle sound, as on the tile of a closed container, whose items stay hidden until it is opened
@@ -676,7 +676,7 @@ range and line of fire the cursor shows (`cannotGetThrough`, its black crosshair
 chance an attack was rolled at: they tell whether it hit, as the screen does. A melee attack at a
 soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes; its `walkUpApCost`
 is the AP value the punch and knife cursors show before an aim is chosen, the cost `DrawUIMovementPath` gives them
-(`Tactical/Handle_UI.cc:3307-3369`). A knife takes any tile of his
+(`Tactical/Handle_UI.cc:3311-3373`). A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
 soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` gives the cost and the walk the cursor
@@ -691,11 +691,11 @@ target. In combat a shot or knife throw for which `estimateAttack` gives `cannot
 no-line-of-fire line and costs nothing (`noLineOfFire`); the same `attack` again from the same tile fires, and so do
 later ones at that tile until a shot with a fair chance or another case. An empty gun or a
 launcher without a round refuses `attack` with `noAmmo`, where the original shows the reload cursor
-(`UI_Cursors.cc:413-420`): `data.canReload` and `data.reloadAp` are that cursor, as `estimateAttack`'s `ammo` gives it,
+(`UI_Cursors.cc:398-405`): `data.canReload` and `data.reloadAp` are that cursor, as `estimateAttack`'s `ammo` gives it,
 so the next step is a `reload` for those APs, or none when no matching ammunition is carried. A `reload` with
 `cursor: true` is the click of that cursor (the client sends it): with no matching ammunition, the bad reload cursor, it
 is accepted without a reload (`data.reloaded: false`) and the merc says his out-of-ammo line on one in three, drawn on
-the talk session's cosmetic stream (`Tactical/Turn_Based_Input.cc:3208-3217`); a plain `reload` stays refused with
+the talk session's cosmetic stream (`Tactical/Turn_Based_Input.cc:3191-3200`); a plain `reload` stays refused with
 `noAmmo`. Out of combat, a neutral NPC with a usable weapon who sees the merc may draw first on an `attack` made with a
 weapon in hand (`NPCFirstDraw`, `35`): nothing is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
 of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
@@ -726,7 +726,7 @@ then avoid, and every soldier standing on it with a body that has the fall anima
 leaves the map (`fellIntoPit {soldier, gridNo}` for those the squad sees). A merc of ours goes to the sector below on a
 squad of his own, to come in at the pit's tile (`12` §6). The original maps hold no pit, and a map's pit loads unarmed.
 
-`plantBomb {soldier, gridNo}` is the bomb cursor's click (`HandleItem`, `Handle_Items.cc:758`): it takes a mine, trip
+`plantBomb {soldier, gridNo}` is the bomb cursor's click (`HandleItem`, `Handle_Items.cc:756`): it takes a mine, trip
 flare or trip klaxon in hand, or an explosive with a detonator or remote detonator attached, walks onto the tile (his own
 by default) and plants it there; the hand item roll comes first, as for a shot (`itemBroken`). Standing he plays the
 plant, which costs 3 AP at its start; crouched or prone he plants at once and for nothing. A mine goes in buried and armed
@@ -775,23 +775,23 @@ container or switch he reaches in combat without the APs of his door handle code
 (`doorResult {result: notEnoughAp}`). A shaped charge that goes off on the lock shows its miniboom and plays
 `SMALL_EXPLODE_1` at the door (`shapedChargeBlast {gridNo, x, y, z}`, a presentation event, `Tactical/Keys.cc:607-635`);
 the client has the merc say COOL1 after a picked lock or a disarmed door trap and CURSE1 on one in two after a wrong key
-(`Tactical/Handle_Doors.cc:573`, `:680`, `:710`). Every failed skill check but the silent ones (unjamming, noticing a
+(`Tactical/Handle_Doors.cc:575`, `:652`, `:682`). Every failed skill check but the silent ones (unjamming, noticing a
 dart, lying to the queen) brings `skillCheckFailed {soldier, certain?, mapScreen?, cry?}` for a soldier the squad sees,
 the curse the original plays always for lockpicking, disarming and the crowbar (`certain`) and else on
-`Random(100) < 40`, which the client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:370-381`).
-One failed while the map screen is up (an attach or merge in the map inventory, `Tactical/Items.cc:1555`, `:1681`,
-`:1697`) carries `mapScreen`, which gives the curse to that screen (`Tactical/Soldier_Control.cc:6101`), and for a merc
+`Random(100) < 40`, which the client rolls; none after the merc says he cannot do it (`Tactical/SkillCheck.cc:400-411`).
+One failed while the map screen is up (an attach or merge in the map inventory, `Tactical/Items.cc:1557`, `:1683`,
+`:1699`) carries `mapScreen`, which gives the curse to that screen (`Tactical/Soldier_Control.cc:6094`), and for a merc
 off the loaded map `cry {voice, bodyType, team}`, his voice, as `damageFeedback` does.
 One gone when he gets there keeps him walking on the spot, never idle, until
 `stop` or another order; one swapped since the order (opened and closed again by somebody else) gets his opening to no
 effect, as the original looks for the structure the order named. A closed container hides what it holds: items put
-into it, a Bobby Ray delivery to the Drassen crate among them, go in hidden (`Handle_Items.cc:1511`), sight never shows
-them (`FOV.cc:545` takes only `INVISIBLE` ones), a `pickUp` on its tile searches and finds nothing (`nothingFound`,
-`Handle_Items.cc:1369`) and `door open` shows them (`TileEngine/Interactive_Tiles.cc:164`). The original's hand cursor
-over a container opens it (`Turn_Based_Input.cc:3062`); the API leaves that choice to the agent, so `sectorLayout` marks
+into it, a Bobby Ray delivery to the Drassen crate among them, go in hidden (`Handle_Items.cc:1520`), sight never shows
+them (`FOV.cc:611` takes only `INVISIBLE` ones), a `pickUp` on its tile searches and finds nothing (`nothingFound`,
+`Handle_Items.cc:1374`) and `door open` shows them (`TileEngine/Interactive_Tiles.cc:164`). The original's hand cursor
+over a container opens it (`Turn_Based_Input.cc:3045`); the API leaves that choice to the agent, so `sectorLayout` marks
 containers and switches at cell 1 (`C` closed, `c` open) and `previewAction` kind `door` gives their walk beside, the
 3 AP of `doorAPs[HANDLE_DOOR_OPEN]` and the stand-up, as the cursor over an interactive tile does
-(`Handle_UI.cc:3161`; `src/server/bobby-ray-crate-original.test.ts`). `useRemote`
+(`Handle_UI.cc:3165`; `src/server/bobby-ray-crate-original.test.ts`). `useRemote`
 presses the remote trigger in hand after its hand item roll (`itemBroken`) for 2 AP, standing through its animation
 for 2 more, whose frame acts. The O3 statue's then opens the statue from its room (`26`) and reports it as an event
 (`remoteUsed {result: statueOpened|nothing}`); the remote bomb trigger's `remoteFrequency` asks, and the answer sets off
@@ -825,7 +825,7 @@ stack's end, as the original's put-back stacks it. A placement runs on copies fi
 permanent attachments become refusals to repeat with `merge` or `permanent`. On the map screen the same commands pass
 items within one sector only, never during a battle in the loaded sector, and cost what the map screen's inventory costs:
 nothing out of combat; in combat, which gates the original's charges for any merc on any screen, a reload its
-`GetAPsToReloadGunWithAmmo` (an ammunition `moveItem` onto a gun too, `Tactical/Items.cc:1095-1100`), an attachment
+`GetAPsToReloadGunWithAmmo` (an ammunition `moveItem` onto a gun too, `Tactical/Items.cc:1097-1102`), an attachment
 change or merge what the description box charges (below), any other placement nothing (`MAPInvClickCallbackPrimary`); the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
 only ones the map screen makes the info character while it is held, with the enemy in the loaded sector read from the
 view (deviation "Strategic hints and enemy counts"). The `itemInfo` hint gives the description box's numbers for the
@@ -864,7 +864,7 @@ item and pays (or is the box's merc with an empty cursor), `toSoldier` owns the 
 it selects that owner, as the panel shows the selected merc, and closes any open box first. Inside it an `attach` onto
 that object by the payer or the owner and the owner's `detach` from it check their APs (5, and 8 for a detach) and spend
 none (`data.inBox`), selecting nobody. Its close charges the payer `AP_RELOAD_GUN` once when combat runs and the
-attachments, item and status in any position, differ from the opening (`Interface_Items.cc:2530-2588`): an attach taken
+attachments, item and status in any position, differ from the opening (`Interface_Items.cc:2655-2713`): an attach taken
 off again costs nothing. `closeItemDescription` closes it (`data.charged`); so do another box, any selection change
 (another merc's order or `select`, an interrupt, his death or leaving), leaving the tactical screen (the map, a shop),
 and inside it a failed attachment check or the object gone (`data.boxClosed`). It stays open over the end of the turn
@@ -878,7 +878,7 @@ the box charges, at once; one onto another object closes the open box first. `de
 the click and an attach of that pocket puts it back.
 
 The first box a campaign opens with an item in the page's cursor shows the original's first-attachment hint, picked by
-the `compatibleItems` hint with `rule: attachment` (`Interface_Items.cc:1824-1845`); the page then sends
+the `compatibleItems` hint with `rule: attachment` (`Interface_Items.cc:1948-1969`); the page then sends
 `attachmentHelpShown`, which sets the fact the hint checks, and `strategic.attachmentHelpDue` goes. Agents have no
 cursor and never see the hint; the command is there for the page.
 
@@ -887,13 +887,13 @@ stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT s
 drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`). As with `combineStack`,
 `data.left` counts the objects still in the cursor, which the original keeps for the next click, and one object left
 goes back on top of its stack, at `data.index`. `itemApplied` names the canteen's drinking sound by the drinker's
-profile (`sound`, `Tactical/Items.cc:3458`); the client says COOL1 after the other items, as the panel does.
+profile (`sound`, `Tactical/Items.cc:3444`); the client says COOL1 after the other items, as the panel does.
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
 
 The sector inventory (`src/sim/campaign/map-inventory.ts`, `stash.ts`) is the `inventory` query and stash commands. They
 take any sector the map can select, one never visited and the levels below included, as the original opens the pool of
-the selected sector (`Strategic/MapScreen.cc:2236`, `:6745`), and refuse one on the edge of the world `edgeOfWorld`; the
+the selected sector (`Strategic/MapScreen.cc:2230`, `:6710`), and refuse one on the edge of the world `edgeOfWorld`; the
 stash holds only the items the map shows there, the ones seen. The query lists the items the map shows in the order the
 pool opens with (`CompareItemsForSorting` on the item and its first status, ties in storage order); each entry's `index`
 names it until it leaves the stash, the loaded sector's world item id or an unloaded sector's record, which keeps that
@@ -907,14 +907,14 @@ ring the leftover goes to him and `data.leftover` names its pocket, as for `move
 inventory cursor"). `discardItem` with `slot: 'ground'` and `item` is the trash can for a pool item.
 `{"type":"arrangeStash","sector":"A9","order":[<index>...]}` is the pool's close: the items in `order` first, the rest
 in pool order, the items the map does not show after them, as `SaveSeenAndUnseenItems` writes them back
-(`Map_Screen_Interface_Map_Inventory.cc:365`); in the loaded sector the items are added again, so every index changes.
+(`Map_Screen_Interface_Map_Inventory.cc:362`); in the loaded sector the items are added again, so every index changes.
 The page sends it with the pool's slots as the pool closes (deviation "Sector inventory layout"); refusals
 `badStashOrder` (not distinct integers), `mapScreenOnly`. A placement onto an item out of reach is refused
 `unreachable`, as the pool's click checks that item first.
 `{"type":"stackAndSortStash","sector":"A9","order":[<index>...]}` is SHIFT+S (`StackAndSortMapInventoryPool`,
-`Map_Screen_Interface_Map_Inventory.cc:1164`; `src/sim/campaign/stash-repack.ts`) and
+`M:Map_Screen_Interface_Map_Inventory.cc:1164`; `src/sim/campaign/stash-repack.ts`) and
 `{"type":"refillFromStash","sector":"A9","item":<index>,"order":[<index>...]}` SHIFT+R over the pool item `item`
-(`RefillMercItemsFromMapInventoryPool`, `:1291`). Both read the stash in `order` as `arrangeStash` does (without it, in
+(`RefillMercItemsFromMapInventoryPool`, `M:Map_Screen_Interface_Map_Inventory.cc:1291`). Both read the stash in `order` as `arrangeStash` does (without it, in
 pool order); the page sends its slots. `stackAndSortStash` takes the reachable items apart (guns unloaded into a
 magazine of their own, attachments off), pours each item's rounds, kit charges or money on one level into full objects
 and stacks them, and writes the stash back sorted, every index changed (`data.entries`); it needs a merc of ours standing
@@ -945,10 +945,10 @@ robot; after the right click's swap a squad mate instead, while an NPC or an esc
 on the merc's tile or the next one, `pass` to a merc of ours within 3 tiles who is no escort and no vehicle, and `toss`
 for anything farther or anybody else (`src/sim/tactical/item-pointer.ts`, `toss.ts`). `drop` puts the object beside him
 when that tile is no place to stand on or one step away (`DROP_ADJACENT_OBJECT`, `itemDropped` with `beside`), else at his
-feet. An escort, an unconscious merc and a swimmer in deep water click for nothing (`Interface_Items.cc:3146`): `drop`,
+feet. An escort, an unconscious merc and a swimmer in deep water click for nothing (`Interface_Items.cc:3279`): `drop`,
 `toss` and `pass` refuse them as `cannotDrop`, `cannotToss` and `cannotPass`, and `give` as `giverCannotGive`; an
-escort takes a give like a named NPC (`Handle_UI.cc:4606`) but never a pass or a catch. While he picks up, drops,
-throws or works a door the click does nothing (`SelectedGuyInBusyAnimation`, `Handle_UI.cc:5085`): `drop`, `toss` and
+escort takes a give like a named NPC (`Handle_UI.cc:4610`) but never a pass or a catch. While he picks up, drops,
+throws or works a door the click does nothing (`SelectedGuyInBusyAnimation`, `Handle_UI.cc:5089`): `drop`, `toss` and
 `pass` refuse `busyAnimation`, `give` `giverBusy`. `pass` charges both mercs their
 3 AP before the object goes into the catcher's pockets, so a catcher without room
 for all of it keeps what fits and both have paid (`data.passed` false and `passFailed`). `previewAction` kind `toss` is
@@ -960,11 +960,11 @@ Rules: `24`. A conversation with a named NPC is a modal talk session (`src/sim/c
 records and the dialogue queue (`src/sim/narrative/`); deviation "Talk session time". `talk` runs the original's checks
 in its order, walks up beyond 4 tiles (the talk starts on arrival during `advance`) and returns at once with the talk
 reply; a walk-up with `level`, the interface level, other than the merc's refuses `noPath`, as `UIPlotPath` plots
-nothing off the interface level (`Tactical/Handle_UI.cc:4793`, `Tactical/PathAI.cc:2361-2364`); the lines follow in game time (§4.5) as quote events, collected in `conversation.lastQuotes`. A target the merc
+nothing off the interface level (`Tactical/Handle_UI.cc:4797`, `Tactical/PathAI.cc:2392-2395`); the lines follow in game time (§4.5) as quote events, collected in `conversation.lastQuotes`. A target the merc
 cannot see refuses `noLineOfSight` and an unconscious one `targetCollapsed`, each with an `npcMessage` of that kind
 naming the merc (`soldier`), the target (`target`) and his `profile` when he has one, for the original's line
-(`Tactical/Handle_UI.cc:4679-4692`). Talk to Dimitri on our team refuses `refusesToTalk` with his id in `data.target`,
-which the refusal's line in the message list names (`:4705-4708`). An idle open session is modal (§5). A scripted sequence (`ENGAGED_IN_CONV` without
+(`Tactical/Handle_UI.cc:4683-4696`). Talk to Dimitri on our team refuses `refusesToTalk` with his id in `data.target`,
+which the refusal's line in the message list names (`:4709-4712`). An idle open session is modal (§5). A scripted sequence (`ENGAGED_IN_CONV` without
 a panel, a pending conversation, the 500 ms trigger wait) refuses player commands until `advance` has run it. Saving is
 refused throughout (`27`). The talk face shows what the original's face without a soldier shows: Elliot's beaten
 variants (`faceVariant`) and, with `drunk`, the drink icon of Father Walker or Micky from a drink counter of 5
@@ -982,7 +982,7 @@ an NPC, the `GIVINGITEM` conversation run during `advance` as a scripted sequenc
 items", "Giving to a dealer"; original-bugs "Give command"). One object of a stack (`count: 1`) is the first, or the
 one the stack popup picks with `index` as for `toss` (`badIndex` past the stack, and for keys off the ring any index
 but 0): it goes with its own status, and the put-back of the cursor object moves it to the stack's end at once
-(`Tactical/Interface_Items.cc:3227-3231`); the page sends its cursor's index. To a squad mate or a recruited R.P.C.
+(`Tactical/Interface_Items.cc:3360-3364`); the page sends its cursor's index. To a squad mate or a recruited R.P.C.
 the whole source pocket is emptied even when one item of a stack was given, and an NPC's hand-over and the robot's
 reload take the stack's first object off, both as in the original (`24`). Recruiting has no command: `approach
 recruit` runs the NPC's records, the pay or escort requestor opens an `npcRequest`, `answer yes` triggers the recruiting
@@ -1022,25 +1022,25 @@ strategic view is always observable, and a sector is left by `exitSector` or by 
 the whole group's move first, so a squad cannot leave the start sector before it is cleared; `extend` appends legs like
 the map screen's plotting, otherwise the path is replaced: cancelled first as `cancelRoute` cancels it, and a `to` on the
 last sector of the path (the merc's sector without one) with no `via` is the confirming click on it, which rebuilds the
-waypoints (`Strategic/MapScreen.cc:5569`). `endPlot` is the map screen's plot as it ends: `steps` replays its
+waypoints (`Strategic/MapScreen.cc:5535`). `endPlot` is the map screen's plot as it ends: `steps` replays its
 plotting clicks (`{to, shortest?, selected?}`: a leg appended to the path and copied to the mercs selected then) and
 right-click shortenings (`{cut, selected?}`: the path cut after that sector and copied the same way), which change
 paths but move nobody, and `outcome` ends it with the `selected` list of that moment: `confirm` rebuilds every selected
 group once, a vehicle with its own path and a group on foot with the plotting merc's, so his own group moves only when
-one of it is selected (`Strategic/MapScreen.cc:2315`, `:5609-5660`); `abort` (Esc and every other way out but the
+one of it is selected (`Strategic/MapScreen.cc:2309`, `:5575-5626`); `abort` (Esc and every other way out but the
 three below) gives each selected merc the path the plot started from and rebuilds his group, once per merc
-(`:4097`, `:7749-7821`); `cancel` (the right click on his sector) cancels the selected routes; `drop` (a click on a
-name, an assignment or a contract, which only reset the modes, `:4276`, `:4393`, `:4783`) does nothing more. With
+(`:4065`, `:7713-7785`); `cancel` (the right click on his sector) cancels the selected routes; `drop` (a click on a
+name, an assignment or a contract, which only reset the modes, `:4244`, `:4361`, `:4751`) does nothing more. With
 `helicopter: true` it plots Skyrider's helicopter: a confirm takes off, an abort gives the helicopter its starting
-path and copies it to every selected merc not aboard (`:7776-7784`). Mercs the plot's start would have deselected
+path and copies it to every selected merc not aboard (`:7740-7748`). Mercs the plot's start would have deselected
 (another sector, another moving group, off a squad or vehicle) are left out of a merc's plot (original-bugs "Selection
-changed while plotting"), and those left are checked as his group is (`Map_Screen_Interface.cc:3887-3899`); the
+changed while plotting"), and those left are checked as his group is (`Map_Screen_Interface.cc:3911-3923`); the
 `previewRoute` and `previewHeliRoute` hints take the same `steps` before their `via` legs.
 `cancelRoute` cancels only a merc with a route, so a second cancel leaves a returning group on its way back
-(`Strategic/MapScreen.cc:7096`). `shortest` is the Shift each plotting click reads:
+(`Strategic/MapScreen.cc:7061`). `shortest` is the Shift each plotting click reads:
 `true` for every leg, or one flag per leg (the `via` legs, then `to`), for `route`, `routeGroup`, `heliRoute` and the
 `previewRoute` and `previewHeliRoute` hints. A merc's leg or destination in a sector nobody can pass through is refused
-as `badSector`, as the map screen ignores that click (`Strategic/MapScreen.cc:2307`), though `previewRoute` draws the
+as `badSector`, as the map screen ignores that click (`Strategic/MapScreen.cc:2301`), though `previewRoute` draws the
 temporary path there; the helicopter has no such rule. A route plotted for a merc underground, as on an underground
 tactical traversal, prints `noTravelOrdersUnderground {who}` for him or his squad. As in the original, a move from the loaded sector during a
 bloodcat ambush is refused as `inCombat`, and a merc standing in the museum rooms of L12 while any merc carries the
@@ -1049,7 +1049,7 @@ the view has neither the encounter nor the rooms. A merc awake with `breathMax` 
 refuses a move as `tooTired` (in a vehicle only the one who must drive); a group that has such a merc when it reaches a
 sector short of its destination stops there: its paths are cleared, compression stops (`halted`), each such merc says
 his need for sleep (the next ones "me too") and drops asleep, `collapsed` until rested (`fellAsleep {collapsed: true}`),
-so `wake` refuses him. A confirmed `route` or `routeGroup` wakes those it moves who sleep on a squad or must drive their vehicle: for `route` the merc and his squad or vehicle, for `endPlot` the selected travellers, for `routeGroup` the mercs who move (`Strategic/MapScreen.cc:7575`); the `previewRoute` hint wakes nobody, and a passenger who need not drive sleeps on. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
+so `wake` refuses him. A confirmed `route` or `routeGroup` wakes those it moves who sleep on a squad or must drive their vehicle: for `route` the merc and his squad or vehicle, for `endPlot` the selected travellers, for `routeGroup` the mercs who move (`Strategic/MapScreen.cc:7540`); the `previewRoute` hint wakes nobody, and a passenger who need not drive sleeps on. `regroupForMove` is the move box's Done: mercs parting from their squad or vehicle join a squad
 of the sector doing the same or a new one at once, before any route, and `data.selected` lists who moves; `routeGroup`
 regroups the same way and plots in one command. `enterSector` loads with automatic placement, or with the
 `tacticalPlacement` prompt where the original opens its placement GUI (§8.10); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`;
@@ -1057,7 +1057,7 @@ regroups the same way and plots in one command. `enterSector` loads with automat
 `sectorLayout` draws the sector around them (§9).
 While a battle is about to begin, from the encounter until the pre-battle prompt opens after the speaker's line (`19`),
 `strategic.mapInterfaceDisabled` is set and the commands that stand for clicks on the map area are refused as
-`battlePending`, as the map screen ignores those clicks (`Strategic/MapScreen.cc:3335-3341`, `:3390-3396`): `route`,
+`battlePending`, as the map screen ignores those clicks (`Strategic/MapScreen.cc:3303-3309`, `:3358-3364`): `route`,
 `shortenRoute`, `regroupForMove` and `routeGroup` (the move box opens from the map), `heliRoute`, `shortenHeliRoute`,
 `setLandingZone`, `showBattle`, the militia panel's `moveMilitia`, `distributeMilitia` and `redistributeMilitia`, and
 `endPlot` with the confirming or cancelling click (an abort or a drop passes).
@@ -1075,13 +1075,13 @@ The helicopter exists once the escorted Skyrider reaches his chopper or a native
 map screen only (deviation "Helicopter interface"). `heliPlot` is the click on the helicopter before plotting:
 Skyrider's greeting or why he cannot fly, and once the empty-helicopter hint as a refusal; `heliRoute` without
 `plotted` asks him the same way first, and its `selected` list wakes, once the helicopter has a path, those of the
-listed mercs asleep on foot or at a wheel (`Strategic/MapScreen.cc:7575`). With `extend` and `to` on the last sector of
-his path it confirms that path again, with his line and the take-off (`Strategic/MapScreen.cc:5509-5522`,
-`:5583-5587`); on the helicopter's own sector without a path it only takes off, with no line and nobody woken, and the
+listed mercs asleep on foot or at a wheel (`Strategic/MapScreen.cc:7540`). With `extend` and `to` on the last sector of
+his path it confirms that path again, with his line and the take-off (`Strategic/MapScreen.cc:5475-5488`,
+`:5549-5553`); on the helicopter's own sector without a path it only takes off, with no line and nobody woken, and the
 helicopter stays airborne without hovering until its next route (`25`). `route`, `cancelRoute` and `shortenRoute` for a merc aboard act on the
 helicopter. Passengers can neither leave nor change squads while it flies (original-bugs "Leaving the helicopter in
 flight"), and while it is airborne they do not count for `enterSector`, `tacticalScreen` or the `canEnterSector` hint
-(`noMercThere`, `Strategic/StrategicMap.cc:2286`). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
+(`noMercThere`, `Strategic/StrategicMap.cc:2281`). Ground vehicles move through a passenger's `route`. A merc boarding a ground vehicle on the loaded map sits
 at its tile. The tactical `soldiers` list him with `vehicle {id, driver}` (the vehicle's id, whether he drives) at the
 vehicle's tile, which he does not occupy: the client draws no sprite and no light for him and its cursor never finds
 him, while the radar and the overhead map mark his tile as the original's do. A vehicle of ours lists the mercs aboard
@@ -1089,7 +1089,7 @@ in seat order as `passengers` (none: not ours to command, `noDriver`); its squad
 a click on one of their faces selecting the vehicle; the driver's `ap` is the vehicle's, as his panel shows
 (`GetUIApsToDisplay`). The mercs aboard look, hear and radio (`08`); our vehicle never looks. Any other vehicle in sight,
 an enemy tank or a civilian car, carries `life`, `lifeMax`, `breath` (its fuel in percent) and `breathMax`, which the
-bars over it show (`Tactical/Interface.cc:1050`); other soldiers not ours carry only their health word.
+bars over it show (`Tactical/Interface.cc:1114`); other soldiers not ours carry only their health word.
 
 On the tactical screen (`src/sim/tactical/vehicle-boarding.ts`, `src/sim/campaign/vehicle-boarding.ts`),
 `enterVehicle {soldier, vehicle, cursor}` is the click on a vehicle with the hand cursor (`cursor: "hand"`, the
@@ -1149,7 +1149,7 @@ and its `soldierDied`; the mercs aboard die with it.
 Rules: `18`. `assign` gives the first soldier the assignment as the menu gives it to its merc, then runs
 `SetAssignmentForList` for the others in the given order, each checked on its own; the original shows one failure box
 for the batch, so `data.refusal` names the first failure (§5). The list exists on the map screen only: on the tactical
-screen, whose menu changes its own merc (`Strategic/Assignments.cc:6609`), an `assign` of more than one soldier is
+screen, whose menu changes its own merc (`Strategic/Assignments.cc:6459`), an `assign` of more than one soldier is
 refused as `listOnMapScreenOnly`, so the agent sends one per merc. The mercs' `idle` flags follow at the end of the
 command on the map screen; after an `assign` on the tactical screen they wait for the map screen or the hour (`18`). When the first soldier is refused, the others keep their
 assignments (`leaderRefused`), as every menu but the squad menu sets the list only after its merc's check; a squad's
@@ -1157,7 +1157,7 @@ list runs after the refusal. Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and
 continue prompts"). The first soldier's `militia` names that payment: `alreadyPaid`, `paid`, `pending` (the prompt is
 open), `declined`, `cannotAfford`, `fundsGone`. In an unpaid sector his list waits for the yes, as
-`StartTrainingInAllUnpaidTrainableSectors` sets it (`Strategic/Town_Militia.cc:842-845`): the listed mercs answer
+`StartTrainingInAllUnpaidTrainableSectors` sets it (`Strategic/Town_Militia.cc:836-839`): the listed mercs answer
 `{ok: true, militia: 'pending'}` while the prompt is open, and `leaderRefused` when the payment fails at once. In a paid
 sector the list is set at once, and a listed merc in an unpaid sector, whose sector the payment is asked for, carries
 its outcome the same way: `pending`, or the refusal that put him back on a squad. A refusal puts the trainers back on a squad at once and comes as `militiaTrainingRejected {soldiers,
@@ -1166,7 +1166,7 @@ yes the balance no longer covers, also the `answer`'s `outcome`), and for a fini
 `militiaFull`, checked in that order before the cost; the page boxes each but `declined` (`30`). The yes to
 `militiaPayment` sets the other mercs of the `assign` then, each checked as `SetAssignmentForList` checks him; those it
 cannot set come as `trainersNotAssigned {soldiers}`, which logs `pMapErrorString` 18 and 48 as two lines, as the
-original prints them while its box screen is up (`Strategic/Assignments.cc:6381-6398`). Militia a battle promoted come
+original prints them while its box screen is up (`Strategic/Assignments.cc:6231-6248`). Militia a battle promoted come
 as `militiaPromoted {greenToElite, greenToRegular, regularToElite}`, the original's box, once the map screen is up with
 no prompt open: the counts of the last sector left or autoresolve battle (`18`). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
 with hostiles are dealt out while they also stay there (`18`). `redistributeMilitia {town, sectors: [{sector, green,
@@ -1198,7 +1198,7 @@ on the battle sector while the locator is on, a compression attempt during a tac
 
 **Tactical placement.** `enterSector` from the persistent panel of our group, unless the enemy ambushed it or creatures
 or bloodcats attack, loads the sector with the `tacticalPlacement` prompt open where the original opens its placement
-GUI (`Strategic/PreBattle_Interface.cc:1007-1013`, `Strategic/StrategicMap.cc:892-896`;
+GUI (`Strategic/PreBattle_Interface.cc:1007-1013`, `Strategic/StrategicMap.cc:887-891`;
 `src/sim/campaign/tactical-placement.ts`, the view `src/server/placement-view.ts`). The flow is tactical and the rest
 of the load has run, but the sector waits with the clock: enemies, militia, civilians and the mercs themselves are
 added only by `done`, which then selects and names the merc the entry locates (`placementDone {sector, located}`). The
@@ -1238,7 +1238,7 @@ slices (so a real-time driver paces it), `{events}` up to the slice in which one
 `data.choices`; only `done` closes it and returns to the strategic flow. A battle that no fighter can
 change any more ends with the status `stalemate`, which the original never reaches (original-bugs "Autoresolve
 stalemate"). Each of `autoresolve.cells` carries its fighter's battle voice, `voice`, the sound set his cries come from
-(a merc's voice id, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:275`, `:338`), and
+(a merc's voice id, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:274`, `:337`), and
 `female`.
 
 ### 8.11 Laptop and hiring
@@ -1298,11 +1298,11 @@ area as the trade leaves it, the parts a repairman splits off included, each wit
 `source`. The `compatibleItems` hint with `rule: shop` names the items the shop screen outlines for the one under the
 pointer (`IsGunOrAmmoOfSameTypeSelected`). A `give` of a whole pocket to a dealer who does not take it opens the shop with
 that pocket for the offer table, `offered` in `shopOpened` (the slot) and in `shop` (`{soldier, slot}`), which the
-browser puts on the table and has evaluated as the original does (`Tactical/Handle_Items.cc:2384`,
-`Tactical/ShopKeeper_Interface.cc:676`); it stays in the pocket until a `trade` sells it (deviation "Giving to a
+browser puts on the table and has evaluated as the original does (`Tactical/Handle_Items.cc:2387`,
+`Tactical/ShopKeeper_Interface.cc:680`); it stays in the pocket until a `trade` sells it (deviation "Giving to a
 dealer"). `shopQuoteSaid {quote: 31}` is the browser's report that the shopkeeper said the rocket rifle quote of a
 dealer who resets imprints, as `quoteTrade`'s `quotes` asked it to: from then on he never says it again
-(`ARMS_DEALER_FLAG__FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE`, `Tactical/ShopKeeper_Interface.cc:4845-4848`). A trade sets
+(`ARMS_DEALER_FLAG__FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE`, `Tactical/ShopKeeper_Interface.cc:4833-4836`). A trade sets
 nothing; an agent's quotes have no playback, so an agent need not send it. It is an ordinary logged command, accepted
 from any client while such a shop is open (else `noStateQuote`).
 
@@ -1369,7 +1369,7 @@ the estimate", "Other soldiers in the projection") or dropped (the melee chance 
 
 **Exits.** `sectorExits` (`src/sim/hints/sector-exits.ts`) gathers what the exit arrows at the four screen edges and the
 exit grid cursor answer for one merc: per edge the adjacent sector, the travel time, `exitSector`'s answer now, and the
-edge's band, the tiles from which `SoldierOKForSectorExit` lets a merc leave (`Strategic/StrategicMap.cc:1945`), as a
+edge's band, the tiles from which `SoldierOKForSectorExit` lets a merc leave (`Strategic/StrategicMap.cc:1940`), as a
 bound on `x - y` or `x + y`, since the band is a strip of the screen. The exit grids are those the cursor shows: it
 shows none on a tile in a room until that tile is revealed (`Tactical/Handle_UI.cc:838`), and the client's cursor and
 `exitSector` follow the same check (`src/content/world/exit-grid-cursor.ts`): `exitSector` refuses such a tile as
@@ -1389,7 +1389,7 @@ The ground under a roof the screen still draws is `R` and nothing else: a flat r
 its room is revealed or a load took it off, as `SetGridNoRevealedFlag` takes it off (`TileEngine/Render_Fun.cc:73`), and
 a slanted roof's ceiling covers each tile no merc has seen (`:131`; the client's `src/render/world/reveal.ts`);
 underground, where the map's roofs cover the rock for good, that is the rock. The roof level (`level: 1`) is the roof
-view, which draws every roof (`Tactical/Handle_UI.cc:1137`), and marks where a merc can stand by the roof's movement
+view, which draws every roof (`Tactical/Handle_UI.cc:1136`), and marks where a merc can stand by the roof's movement
 costs. Items, mines and soldiers other than ours never enter it. A cave is drawn as its light leaves it, dark but drawn,
 so the layout shows it whole. Measured on the original data (A9, B13, C13, D13) the whole sector is 1.8 KB at the
 default cell 4 (the legend is 0.3 KB of it), 2.7 KB at cell 3, 5.2 KB at cell 2, the roof level 1.5 KB and a window of
@@ -1409,7 +1409,7 @@ Measured on the original data (A9 in combat) size 4 takes about 1 ms for the cov
 3–7 ms and 10 ms, and each enemy in sight range of the square adds 2.5–4 ms at size 11.
 
 **Panel reach.** `panelReach` (`src/sim/hints/panel-reach.ts`) answers `outOfReach` for the merc of the single merc
-panel: out of `source`'s sight or farther than `CheckForDisabledForGiveItem` allows (`Tactical/Interface_Panels.cc:359`),
+panel: out of `source`'s sight or farther than `CheckForDisabledForGiveItem` allows (`Tactical/Interface_Panels.cc:357`),
 or, with `itemHeld` and that merc below `OKLIFE`, without a mate of the current squad beside him. The client hatches
 the panel and takes no items while it says so.
 
@@ -1435,7 +1435,7 @@ changes no answer (`src/server/hints-fairness.test.ts`), and strategic hints rea
 shows. Client and server agree by construction: the same code (checked by the engine commit) over the same inputs
 (checked by the rule pack hash); the scenario suites compare them over sampled points (`tests/support/hints*.ts`). The
 plotting ETA of `previewRoute` and `previewHeliRoute` keeps the original's count of the remaining leg twice while a
-group travels (`MapScreen.cc:7142-7153`, `30`).
+group travels (`MapScreen.cc:7107-7118`, `30`).
 
 ## 10. Text, saves and options
 

@@ -201,7 +201,7 @@ describe('money through the single merc panel in a stub campaign', () => {
     expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
   });
 
-  it('puts a withdrawal held in the cursor back at the money region with both ledger entries, the box asking as for money in a pocket (Interface_Panels.cc:3655)', async () => {
+  it('puts a withdrawal held in the cursor back at the money region with both ledger entries, the box asking as for money in a pocket (Interface_Panels.cc:3616)', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);
     const merc = a10.mercs[0] ?? 0;

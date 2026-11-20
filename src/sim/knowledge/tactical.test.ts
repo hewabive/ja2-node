@@ -71,7 +71,7 @@ describe('the tactical projection of the hints', () => {
   });
 });
 
-describe('our soldiers in the sector off the visible world (Soldier_Control.cc:1917-1920)', () => {
+describe('our soldiers in the sector off the visible world (Soldier_Control.cc:1920-1923)', () => {
   const OFF_THE_VISIBLE_WORLD = gridNo(1, 0);
   const ENEMY_ID = 20;
 

@@ -22,7 +22,7 @@
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
 // @src with the merc it locates, and the screen entry after a load), StrategicMap.cc UpdateMercInSector (the chopper
 // @src code's AddMercToHeli), Merc_Entering.cc HandleHeliDrop (a seat placed with the north code, the arrival quotes of
-// @src Soldier_Ani.cc:988, the end of a run; the drop cut short by a world unload, 2026-11-08),
+// @src Soldier_Ani.cc:974, the end of a run; the drop cut short by a world unload, 2026-11-08),
 // @src Squads.cc RemoveCharacterFromSquads
 // @src (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
 // @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);

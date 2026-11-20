@@ -13,7 +13,7 @@ function catalogueItem(index: number, small: string, big: string): CatalogueItem
 }
 
 describe('the item media of the map and tactical hosts', () => {
-  it('preloads every small item picture of the catalogue once, as the original loads them all at the start (Interface_Items.cc:5205-5221)', async () => {
+  it('preloads every small item picture of the catalogue once, as the original loads them all at the start (Interface_Items.cc:5350-5366)', async () => {
     const loaded: string[] = [];
     const assets = {
       image: async (path: string) => {

@@ -303,7 +303,7 @@ describe('turn-based combat', () => {
     expect(animName(content, sleeper.state)).toBe('STANDING');
   });
 
-  it('closes the talk panel as combat begins, after a sighting outside the virgin sector too (ResetInterfaceAndUI, Interface_Control.cc:584)', () => {
+  it('closes the talk panel as combat begins, after a sighting outside the virgin sector too (ResetInterfaceAndUI, Interface_Control.cc:576)', () => {
     const sim = newSim();
     const t = sim.state;
     const closedInCombat: boolean[] = [];

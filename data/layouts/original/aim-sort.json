@@ -1,7 +1,7 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
-    "src/game/Laptop/AIMSort.cc g_aim_sort_info (the offsets and justification of the eight entries, AIMSort.cc:92-102), EnterAimSort (the 54 x 54 link regions; an entry's region from its checkbox over 4 + the label width), RenderAimSort, DrawSelectLight (selectlight.sti AIM_SORT_ON)"
+    "src/game/Laptop/AIMSort.cc g_aim_sort_info (the offsets and justification of the eight entries, AIMSort.cc:88-98), EnterAimSort (the 54 x 54 link regions; an entry's region from its checkbox over 4 + the label width), RenderAimSort, DrawSelectLight (selectlight.sti AIM_SORT_ON)"
   ],
   "screen": "aimSort",
   "frame": "std640",

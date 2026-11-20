@@ -32,7 +32,7 @@ describe('the stop order (Soldier_Control.cc StopSoldier)', () => {
     expect(merc.gridNo).toBe(stoppedAt);
   });
 
-  it('only moves the final destination of a merc kneeling up to walk, an ANIM_STATIONARY animation: he takes his step and walks back (:3596-3609, Overhead.cc:918-953)', () => {
+  it('only moves the final destination of a merc kneeling up to walk, an ANIM_STATIONARY animation: he takes his step and walks back (:3596-3609, Overhead.cc:988-1023)', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const merc = spawnSoldier(sim, 0, Team.OUR, AT, Direction.EAST);

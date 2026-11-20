@@ -49,7 +49,7 @@ function tile(c: CampaignSim, name: string): number {
 }
 
 describe('the rebel hideout', () => {
-  it('opens the trapdoor in A10 and moves the crate off it, written into the left sector once the basement has loaded (DoneFadeOutActionBasement, Interface_Dialogue.cc:4510)', async () => {
+  it('opens the trapdoor in A10 and moves the crate off it, written into the left sector once the basement has loaded (DoneFadeOutActionBasement, Interface_Dialogue.cc:4513)', async () => {
     const c = await inA10(31);
     doAction(c, NpcActionCode.GOTO_HIDEOUT);
     expect(c.state.worldSector).toEqual(BASEMENT);

@@ -1009,7 +1009,7 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.lockState()).toBe('none');
   });
 
-  it('locks the interface under the wait cursor while the simulation locks it out of combat, as a bomb queue does (Explosion_Control.cc:1937, Handle_UI.cc:4015)', async () => {
+  it('locks the interface under the wait cursor while the simulation locks it out of combat, as a bomb queue does (Explosion_Control.cc:1958, Handle_UI.cc:4019)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const queue = tacticalOf(f.session).state.explosionQueue;
     const regions = f.t.runtime.regions;
@@ -1802,7 +1802,7 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'door')).toEqual([]);
   });
 
-  it('leaves the items on a table alone in the move mode: no hand over its picture, and a click there picks nothing up (Handle_UI.cc:4983)', async () => {
+  it('leaves the items on a table alone in the move mode: no hand over its picture, and a click there picks nothing up (Handle_UI.cc:4987)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const table = merc(f, 0).gridNo + 3;
     placeItem(f, table, 'CANTEEN', 0, CABINET_HEIGHT);
@@ -2395,7 +2395,7 @@ describe('the interface reset of CommonEnterCombatModeCode as our team starts th
     await f.settle();
   }
 
-  it('drops a multi-selection made in real time, so the confirmed click moves the selected merc alone (ResetMultiSelection, Overhead.cc:3907)', async () => {
+  it('drops a multi-selection made in real time, so the confirmed click moves the selected merc alone (ResetMultiSelection, Overhead.cc:3981)', async () => {
     const f = await inRealTime();
     f.key('=');
     await f.settle();
@@ -2415,7 +2415,7 @@ describe('the interface reset of CommonEnterCombatModeCode as our team starts th
     expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: sel.id, to: tile });
   });
 
-  it('cancels a rubber band dragged into the combat without selecting anyone (EndRubberBanding(true), Interface_Control.cc:587)', async () => {
+  it('cancels a rubber band dragged into the combat without selecting anyone (EndRubberBanding(true), Interface_Control.cc:579)', async () => {
     const f = await inRealTime();
     const s = merc(f, 0);
     const from = f.world.pickPoint(s.gridNo + 3 * WORLD_COLS + 3);
@@ -2436,7 +2436,7 @@ describe('the interface reset of CommonEnterCombatModeCode as our team starts th
     expect(f.screen.controls.input.multiSelected.size).toBe(0);
   });
 
-  it('pops down the movement menu and the door menu (PopDownMovementMenu, PopDownOpenDoorMenu, Interface_Control.cc:582-583)', async () => {
+  it('pops down the movement menu and the door menu (PopDownMovementMenu, PopDownOpenDoorMenu, Interface_Control.cc:574-575)', async () => {
     const f = await inRealTime();
     const s = merc(f, 0);
     const at = f.world.pickPoint(s.gridNo + 2);
@@ -2469,7 +2469,7 @@ describe('the interface reset of CommonEnterCombatModeCode as our team starts th
     expect(commandsOf(door, 'door')).toEqual([]);
   });
 
-  it('puts the interface back in move mode from an action mode of real time and removes the feedback and quote boxes (Interface_Control.cc:580, :607-615)', async () => {
+  it('puts the interface back in move mode from an action mode of real time and removes the feedback and quote boxes (Interface_Control.cc:572, :599-607)', async () => {
     const f = await inRealTime();
     const s = merc(f, FIRST_SPOTTER);
     hover(f, s.gridNo + 2);

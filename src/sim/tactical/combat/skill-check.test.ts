@@ -132,7 +132,7 @@ describe('the definite can’t-do quote (SkillCheck.cc SkillCheck)', () => {
   });
 });
 
-describe('the curse of a failed skill check (SkillCheck.cc:370-381)', () => {
+describe('the curse of a failed skill check (SkillCheck.cc:400-411)', () => {
   function failedCheck(s: Scene, reason: number): unknown[] {
     const pre = s.t.pre as unknown as { int(n: number): number };
     pre.int = () => FAILING_ROLL;

@@ -26,14 +26,14 @@
 // @src physics objects before the explosion table; Tactical/Interface_Items.cc LoadItemCursorFromSavedGame, its object
 // @src put back as CancelItemPointer puts it (2026-11-08); ubPendingAction, ubPendingActionAnimCount and a give's
 // @src uiPendingActionData4, dropped by AddSoldierToSectorGridNo but kept by the soldiers it does not reach
-// @src (Soldier_Add.cc:707-708, :871, 2026-11-08), with its bPendingActionData3, and every soldier of the load in reach of
-// @src the restart's GetMan (Soldier_Control.cc:1680, 2026-11-09); Strategic/Meanwhile.cc AreInMeanwhile as the restart
+// @src (Soldier_Add.cc:887-888, :1051, 2026-11-08), with its bPendingActionData3, and every soldier of the load in reach of
+// @src the restart's GetMan (Soldier_Control.cc:1683, 2026-11-09); Strategic/Meanwhile.cc AreInMeanwhile as the restart
 // @src finds it, the events and the clock loaded and gfInMeanwhile not yet (2026-11-09); Tactical/Soldier_Create.cc
 // @src TacticalCopySoldierFromCreateStruct (the default name of his team a save holds for a soldier without a profile) and
 // @src Interface_Dialogue.cc NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE (the nickname a married merc keeps, 2026-11-13);
-// @src UpdateMercsInSector's merc slot with no tile for a dead soldier of the loaded sector (SaveLoadGame.cc:1036, 2026-11-19);
+// @src UpdateMercsInSector's merc slot with no tile for a dead soldier of the loaded sector (SaveLoadGame.cc:1034, 2026-11-19);
 // @src Tactical/LoadSaveSoldierType.cc uiChange*Time and usValueGoneUp on the JA2 clock the save's guiBaseJA2Clock
-// @src continues (SaveLoadGame.cc:2005, 2026-11-19).
+// @src continues (SaveLoadGame.cc:1947, 2026-11-19).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';

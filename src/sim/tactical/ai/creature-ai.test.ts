@@ -289,7 +289,7 @@ describe('the bloodcat growl', () => {
     return { mover, growls, rngUntouched: rng, preUntouched: pre, t };
   }
 
-  it('tells the client that a bloodcat in sight starts a move in combat, drawing nothing on the gameplay streams (AIMain.cc:1436)', () => {
+  it('tells the client that a bloodcat in sight starts a move in combat, drawing nothing on the gameplay streams (AIMain.cc:1438)', () => {
     const { mover, growls, rngUntouched, preUntouched, t } = startMove(Body.BLOODCAT);
     expect(growls).toEqual([{ type: 'bloodcatGrowl', soldier: mover.id }]);
     expect(t.rng.state()).toEqual(rngUntouched);

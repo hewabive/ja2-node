@@ -7,7 +7,7 @@
 // @src RemoveSoldierFromGridNo for a vehicle with no soldier on the map, the helicopter, which keeps his opplist, and the
 // @src helicopter's passengers over the loaded sector in their merc slots with no tile (2026-11-08); that EVENT_StopMerc's
 // @src removePendingAnimation unless fDelayedMovement, and its fDelayedMovement cleared, as he boards off the loaded map or
-// @src a vehicle off it (Vehicles.cc:266, Soldier_Control.cc:7381, 2026-11-09).
+// @src a vehicle off it (Vehicles.cc:257, Soldier_Control.cc:7385, 2026-11-09).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { hasAnimFlag, soldierGotoStationaryStance } from './animation.ts';

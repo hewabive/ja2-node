@@ -75,7 +75,7 @@ function walkWithoutAnOrder(sim: TacticalSim, s: Soldier): void {
   stepUntil(sim, () => s.gridNo === WALKED_TO && s.pathSize === 0);
 }
 
-describe("a native save's pending action at the end of a walk no order started (Overhead.cc:817, Soldier.cc:104)", () => {
+describe("a native save's pending action at the end of a walk no order started (Overhead.cc:887, Soldier.cc:102)", () => {
   it('runs a saved give from its saved tile and facing after the merc got out of a vehicle: nothing to hand over, as pTempObject comes back NULL', () => {
     const sim = newCombatSim(content);
     const mate = spawnSoldier(sim, 1, Team.OUR, TARGET_TILE, Direction.WEST);
@@ -184,7 +184,7 @@ function savedPickup(sim: TacticalSim, itemsAt: number, zLevel: number): Soldier
   return merc;
 }
 
-describe("a native save's door, container or pickup at the end of a walk no order started (Overhead.cc:821, Soldier.cc:106)", () => {
+describe("a native save's door, container or pickup at the end of a walk no order started (Overhead.cc:891, Soldier.cc:104)", () => {
   it('opens the door or container its saved structure ID names at sPendingActionData2 from wherever the walk ends, in the saved facing, as the original never checks the tile', () => {
     for (const [action, flags] of [
       [MERC_OPENDOOR, StructureFlags.DOOR],
@@ -214,7 +214,7 @@ describe("a native save's door, container or pickup at the end of a walk no orde
     expect([isOpen(sim, AWAY_FROM_THE_WALK), merc.savedPendingAction, merc.pendingDoorAction]).toEqual([false, null, null]);
   });
 
-  it('halts a merc short of the APs of his saved door handle code in combat, keeping the action, and opens once he can pay (Overhead.cc:837, :863)', () => {
+  it('halts a merc short of the APs of his saved door handle code in combat, keeping the action, and opens once he can pay (Overhead.cc:907, :933)', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const crate = addOpenable(sim, AWAY_FROM_THE_WALK, 0);

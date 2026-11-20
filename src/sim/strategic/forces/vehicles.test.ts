@@ -107,7 +107,7 @@ describe('the route of a ground vehicle', () => {
     return world;
   };
 
-  it('is cancelled through the vehicle when its own row cancels it (MapScreen.cc:7110 CancelPathForVehicle)', () => {
+  it('is cancelled through the vehicle when its own row cancels it (MapScreen.cc:7075 CancelPathForVehicle)', () => {
     const { ctx, v } = plottedHummer();
     confirmPathForCharacter(ctx, 0);
     const g = getGroup(ctx, v.movementGroup);
@@ -118,7 +118,7 @@ describe('the route of a ground vehicle', () => {
     expect(g).toMatchObject({ betweenSectors: true, sector: S('E13'), next: S('D13') });
   });
 
-  it("drops the vehicle group's waypoints at each plotting click, until the end of the plot rebuilds them (MoveCharactersPathToVehicle, Vehicles.cc:402)", () => {
+  it("drops the vehicle group's waypoints at each plotting click, until the end of the plot rebuilds them (MoveCharactersPathToVehicle, Vehicles.cc:394)", () => {
     const { ctx, v } = plottedHummer();
     confirmPathForCharacter(ctx, 0);
     expect(getGroup(ctx, v.movementGroup)?.waypoints).toEqual([S('E13')]);
@@ -126,13 +126,13 @@ describe('the route of a ground vehicle', () => {
     expect(getGroup(ctx, v.movementGroup)).toMatchObject({ betweenSectors: true, waypoints: [] });
   });
 
-  it("rebuilds with the vehicle's own path when the selected list is confirmed, whoever plots (MapScreen.cc:5626-5643)", () => {
+  it("rebuilds with the vehicle's own path when the selected list is confirmed, whoever plots (MapScreen.cc:5592-5609)", () => {
     const { ctx, v } = plottedHummer();
     rebuildWayPointsForAllSelectedCharsGroups(ctx, member(ctx, 1), [1, 0]);
     expect(getGroup(ctx, v.movementGroup)).toMatchObject({ betweenSectors: true, next: S('E13'), waypoints: [S('E13')] });
   });
 
-  it('is cancelled when its last passenger leaves, whatever the vehicle soldier holds (Vehicles.cc:356 reads the vehicle path)', () => {
+  it('is cancelled when its last passenger leaves, whatever the vehicle soldier holds (Vehicles.cc:348 reads the vehicle path)', () => {
     const { ctx, v } = plottedHummer();
     expect(member(ctx, VEHICLE_SOLDIER).path).toEqual([]);
     expect(removeSoldierFromVehicle(ctx, 0)).toBe(true);

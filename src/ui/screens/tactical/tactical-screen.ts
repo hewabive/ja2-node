@@ -61,7 +61,7 @@
 // @src object is no longer the holder's
 // @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
 // @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02); Esc closes
-// @src the description box, else the key ring, and leaves the stack popup up (Turn_Based_Input.cc:2287-2294, 2026-11-19),
+// @src the description box, else the key ring, and leaves the stack popup up (Turn_Based_Input.cc:2271-2278, 2026-11-19),
 // @src all in the hotkeys' Esc, which goes on to stop the selected merc, and the pickup menu only at the Esc release that
 // @src GETTINGITEM_MODE takes first (HandleItemMenuKeys, 2026-11-19); a shop's Esc is the shop's own;
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
@@ -98,7 +98,7 @@
 // @src code 477 (LocateGridNo at the target of an AI attack, 2026-11-18); Interface_Control.cc RenderTopmostTacticalInterface
 // @src (the damage number at the true position + sDamageX/Y, the bounding box offset at the hit moved a pixel each step,
 // @src + 20, - 5, from the soldier's sDamage and bDisplayDamageCount; the Queen's from 0, 0 + 25, + 10 and never moved
-// @src below the viewport's top, Soldier_Control.cc:5701-5705) and Interface_Panels.cc PrintStat (the stat colour
+// @src below the viewport's top, Soldier_Control.cc:5694-5698) and Interface_Panels.cc PrintStat (the stat colour
 // @src from uiChange*Time and usValueGoneUp, 2026-11-19).
 
 import { Body } from '../../../content/anim/body-types.ts';

@@ -67,7 +67,7 @@ command refused; nothing in the laptop takes game time. Each decision is one com
 "Laptop as commands"). Queries (`aimQuote`, `hireCheck`, `bobbyRayQuote`, `impPreview`, …) work in any flow and never
 act. `openLaptop` works only from the strategic flow, stops compression, and is refused while a battle prompt is open
 and on the checks every exit from the map shares (`AllowedToExitFromMapscreenTo`, `campaign/map-screen-exits.ts`; `29`
-§4.4), so it never opens under a pause lock and its exit has no lock to lift (`Strategic/MapScreen.cc:3249`).
+§4.4), so it never opens under a pause lock and its exit has no lock to lift (`Strategic/MapScreen.cc:3223`).
 
 **What the original runs on UI timers runs at a command.** Speck's opening and its draws run at a laptop session's first
 `visitSite merc`, or at its first M.E.R.C. command without a visit; a later visit's opening, which the original says
@@ -88,7 +88,7 @@ answer `noBookmark`, and an intro mail deleted unread locks its site for good, a
 tests build without a laptop (`hiring.ts`). Every hire before the first landing comes in with the first squad's
 helicopter; later hires land at the landing zone on the next arrival slot, and one arriving in the loaded start sector
 gets a drop of his own (`campaign/helicopter-drop-flow.ts`, `25`). A hire wants to stand from his creation on, as the
-original's first `STANDING` animation sets it (`Tactical/Soldier_Control.cc:595`), so a merc hit in mid-drop gets up at
+original's first `STANDING` animation sets it (`Tactical/Soldier_Control.cc:599`), so a merc hit in mid-drop gets up at
 the end of the hit. The zone is rerouted when the enemy holds it and reset to the start sector when the enemy takes its
 airspace; the original's message boxes become the events `arrivalRerouted` and `landingZoneReset`, which the page boxes
 with the original's strings (`30`). A merc arriving by any way but the helicopter says his reached-destination line
@@ -141,9 +141,9 @@ otherwise.
 | An I.M.P. character's endless contract (−1 days) leaves his profile status at −1, the status of a merc without text | `laptop.test.ts` "lands the character with the profile status …" |
 | The I.M.P. attitude die is rolled even when one attitude leads alone | `rules.test.ts` "rolls the attitude die …" |
 | A skill the stats rule out is removed by moving the last skill into its place, which reorders the list before the draws | `rules.test.ts` "drops a skill the stats rule out …" |
-| With `imp.pick_skills_directly` a woman keeps a Martial Arts pick made as a man before a change of gender on the begin page, though the page offers it to men only, and lands with expert hand to hand (`Laptop/IMP_Compile_Character.cc:561`) | `rules.test.ts` "gives a woman who kept Martial Arts …" |
+| With `imp.pick_skills_directly` a woman keeps a Martial Arts pick made as a man before a change of gender on the begin page, though the page offers it to men only, and lands with expert hand to hand (`Laptop/IMP_Compile_Character.cc:423`) | `rules.test.ts` "gives a woman who kept Martial Arts …" |
 | The I.M.P. reminder is posted again on every exit from the laptop until it is sent | `laptop.test.ts` "posts the I.M.P. reminder on every exit …" |
-| The reached-destination line stays taken for good once the queue is emptied before the callback that releases it runs, as a load or the end of a meanwhile empties it (`SaveLoadGame.cc:689`, `Strategic/Meanwhile.cc:533`): no arrival says it again in that game | `laptop.test.ts` "keeps the reached-destination line taken for good …", `src/sim/strategic/narrative/save-import.test.ts` "keeps the arrival line taken …" |
+| The reached-destination line stays taken for good once the queue is emptied before the callback that releases it runs, as a load or the end of a meanwhile empties it (`SaveLoadGame.cc:687`, `Strategic/Meanwhile.cc:533`): no arrival says it again in that game | `laptop.test.ts` "keeps the reached-destination line taken for good …", `src/sim/strategic/narrative/save-import.test.ts` "keeps the arrival line taken …" |
 | Re-hiring a M.E.R.C. merc sets his unpaid days to 1: the old debt is forgotten | `laptop.test.ts` "forgets the unpaid days …" |
 | The payment's ledger and history records name the merc of the files page last viewed, the first listing after a laptop entry, whoever was paid (`Laptop/Mercs_Account.cc:300`); `mercPay` takes it as `listing` | `laptop.test.ts` "names the merc of the files page last viewed …" |
 | The account status changes on `!=`, so a smaller debt moves a suspended account back to a first warning and mails the warning again | `laptop.test.ts` "moves a suspended M.E.R.C. account back …" |
@@ -154,7 +154,7 @@ otherwise.
 | A gun ordered alone arrives empty, every gun of a larger line is recreated loaded | `rules.test.ts` "delivers a gun ordered alone empty …" |
 | In an unloaded sector Pablo never steals the first two units of a line | `rules.test.ts` "never lets Pablo steal …" |
 | A shipment to Drassen is lost to the agents while the town's loyalty is below 20, though the airport is ours (`Strategic/Strategic_Event_Handler.cc:89`) | `rules.test.ts` "loses a Drassen shipment to the agents while the town's loyalty is below 20 …" |
-| A delivery to Drassen lies hidden in the closed crate, loaded or not: a search of the crate's tile finds nothing, sight never shows it, only opening the crate does (`Tactical/Handle_Items.cc:1511`) | `src/server/bobby-ray-crate-original.test.ts` (original data) |
+| A delivery to Drassen lies hidden in the closed crate, loaded or not: a search of the crate's tile finds nothing, sight never shows it, only opening the crate does (`Tactical/Handle_Items.cc:1520`) | `src/server/bobby-ray-crate-original.test.ts` (original data) |
 | An insurance purchase refused for lack of funds still adds its length | `rules.test.ts` "adds the length of a purchase it refused …" |
 | The payout slot of a death found to be fraud is never freed | `rules.test.ts` "keeps the payout slot …" |
 | The insurance day counts are unsigned and wrap | `rules.test.ts` "wraps the unsigned day counts …" |

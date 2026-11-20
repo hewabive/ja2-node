@@ -154,7 +154,7 @@ describe('CheckConditionsForBattle', () => {
     expect(s.mercs.placedInSector).toEqual([3]);
   });
 
-  it('has the first merc of the reinforcements say the reached-destination line, even one who cannot speak, and prints the reinforcements message (Strategic_Movement.cc:2279-2282)', () => {
+  it('has the first merc of the reinforcements say the reached-destination line, even one who cannot speak, and prints the reinforcements message (Strategic_Movement.cc:2274-2277)', () => {
     const lines: [number, number][] = [];
     const events: HelicopterEventWithoutTick[] = [];
     const s = setup({
@@ -187,7 +187,7 @@ describe('PrepareForPreBattleInterface', () => {
     return candidates[movement.int(candidates.length)] as number;
   }
 
-  it('draws the speaker of the enemy-presence line on the movement cosmetic stream, among the conscious mercs only (Strategic_Movement.cc:679)', () => {
+  it('draws the speaker of the enemy-presence line on the movement cosmetic stream, among the conscious mercs only (Strategic_Movement.cc:676)', () => {
     const { s, said } = speakerSetup();
     const g = squad(s, S('C9'), [0, 1, 2, 3]);
     Object.assign(s.mercs.get(1) ?? {}, { life: OKLIFE - 1 });
@@ -198,7 +198,7 @@ describe('PrepareForPreBattleInterface', () => {
     expect(s.ctx.state.movement.tacticalTraversal.chosenSoldier).toBe(NO_CHOSEN_SOLDIER);
   });
 
-  it('says no line before the panel of a tactical traversal, but keeps its speaker for the sector load (Strategic_Movement.cc:652-657)', () => {
+  it('says no line before the panel of a tactical traversal, but keeps its speaker for the sector load (Strategic_Movement.cc:649-654)', () => {
     const { s, said } = speakerSetup();
     const g = squad(s, S('C9'), [0, 1, 2]);
     Object.assign(s.ctx.state.movement.tacticalTraversal, { active: true, groupId: g.id });
@@ -210,7 +210,7 @@ describe('PrepareForPreBattleInterface', () => {
     expect(s.ctx.state.movement.disableMapInterfaceDueToBattle).toBe(false);
   });
 
-  it('keeps the speaker of enemies arriving in the loaded sector as the traversal speaker, which no traversal is using (Strategic_Movement.cc:653)', () => {
+  it('keeps the speaker of enemies arriving in the loaded sector as the traversal speaker, which no traversal is using (Strategic_Movement.cc:650)', () => {
     const { s, said } = speakerSetup();
     squad(s, S('C9'), [0, 1, 2]);
     s.ctx.state.worldSector = S('C9');

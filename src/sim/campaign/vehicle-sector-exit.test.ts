@@ -231,7 +231,7 @@ describe('a vehicle of ours leaving the loaded sector with everybody aboard (ori
   });
 });
 
-describe('a merc boarding a vehicle that has no soldier on the loaded map (Vehicles.cc:266 EVENT_StopMerc)', () => {
+describe('a merc boarding a vehicle that has no soldier on the loaded map (Vehicles.cc:257 EVENT_StopMerc)', () => {
   const MERC_TALK = 11;
   const WAITING_FOR_A_TILE = 1;
 

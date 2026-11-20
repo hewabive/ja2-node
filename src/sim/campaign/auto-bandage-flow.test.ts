@@ -281,7 +281,7 @@ describe('a battle won while the map screen is up (Soldier_Control.cc HandleTake
   });
 });
 
-describe('the mode in a campaign (Auto_Bandage.cc AutoBandage, HandleAutoBandage; GameScreen.cc:283)', () => {
+describe('the mode in a campaign (Auto_Bandage.cc AutoBandage, HandleAutoBandage; GameScreen.cc:282)', () => {
   it('pauses the world clock and jumps it at the end, leaving the events inside the jump to the next advance', async () => {
     const c = await landedInA9(65);
     wound(c, VANT);

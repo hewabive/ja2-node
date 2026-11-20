@@ -15,7 +15,7 @@
 // @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack; the bInSector of
 // @src the captures and the kill loop, the helicopter's passengers included, and IsTeamActive(ENEMY_TEAM) (2026-11-08);
 // @src Tactical/Campaign.cc ChangeStat (an autoresolve StatChange queues its stat line and QUOTE_EXPERIENCE_GAIN, which
-// @src the map screen's HandleDialogue plays after the battle, MapScreen.cc:1901, 2026-11-15); Tactical/Dialogue_Control.cc
+// @src the map screen's HandleDialogue plays after the battle, MapScreen.cc:1895, 2026-11-15); Tactical/Dialogue_Control.cc
 // @src HandleDialogue (FACE_TRIGGER_PREBATTLE_INT: the PBI opens once the speaker's face is done talking) and
 // @src Strategic/Strategic_Movement.cc HandleImportantPBIQuote (2026-11-15).
 

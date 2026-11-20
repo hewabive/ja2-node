@@ -171,7 +171,7 @@ describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes, Speak
     expect(droppedInOmerta(landedEvents(cc))).toEqual([first, third]);
   });
 
-  it('lets only the lowest profile of a shared voice speak on a later drop as well: by his code 467 the whole flight has arrived (Soldier_Ani.cc:988)', () => {
+  it('lets only the lowest profile of a shared voice speak on a later drop as well: by his code 467 the whole flight has arrived (Soldier_Ani.cc:974)', () => {
     const [first, second] = IMP_SLOTS;
     const cc = impTeam(
       [{ profile: STUB.kestrel }, imp(second), imp(first)],

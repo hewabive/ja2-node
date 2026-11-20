@@ -59,7 +59,7 @@ tick, and an away soldier slid under the away cursor is visited in his place (`0
 past the end"). A soldier flagged `handleEveryFrame` is visited on every pass and skips the timer: an NPC a script sends
 somewhere or whose walk ended short of the script's destination, anybody who arrives with `QUOTE_ACTION_ID_CHECKFORDEST`
 left in his quote action (a recruited NPC's leftover too, so his next walk ends with his action at once:
-`Tactical/Overhead.cc:902`, `movement.test.ts`), an NPC facing the player until a PC comes near (`24`, `35`). Leaving combat pauses all AI for 1500 ms (`10`). While auto-bandage runs, every soldier is visited on every pass,
+`Tactical/Overhead.cc:972`, `movement.test.ts`), an NPC facing the player until a PC comes near (`24`, `35`). Leaving combat pauses all AI for 1500 ms (`10`). While auto-bandage runs, every soldier is visited on every pass,
 still on his own timer, and our mercs run the AI too, deciding by `decideAutoBandage` (`12` §8).
 
 **Turn-based runs the same code on another cadence.** In combat there are no ticks and no timers: `handleSoldierAI`

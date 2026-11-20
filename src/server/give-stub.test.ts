@@ -391,7 +391,7 @@ describe('giving items and money to the stub NPC in A10', () => {
 });
 
 describe('a give in an NPC action', () => {
-  it('walks the giver up, hands the object over at the end of the give animation and opens the receiving NPC’s giving-item conversation (Interface_Dialogue.cc:1671, Handle_Items.cc:2490)', async () => {
+  it('walks the giver up, hands the object over at the end of the give animation and opens the receiving NPC’s giving-item conversation (Interface_Dialogue.cc:1674, Handle_Items.cc:2493)', async () => {
     const { session, live } = await inA10(27);
     const t = session.campaign.tactical?.state;
     const placed = t?.soldiers.filter((s): s is Soldier => s?.placed === true) ?? [];
@@ -420,7 +420,7 @@ describe('Darren paying out a won bet', () => {
   const BET = 400;
   const STASH = 5000;
 
-  it('keeps the payout in his pockets, first of his money, until his give animation ends, where the money gift of his next record finds it (Interface_Dialogue.cc:2924-2934, NPC.cc:1809)', async () => {
+  it('keeps the payout in his pockets, first of his money, until his give animation ends, where the money gift of his next record finds it (Interface_Dialogue.cc:2927-2937, NPC.cc:1808)', async () => {
     const { session, live } = await inA10(27);
     const t = session.campaign.tactical?.state;
     const flow = session.campaign.talk?.npcActions;

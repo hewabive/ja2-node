@@ -107,7 +107,7 @@ schedules are drawn anew.
 
 **Civilian groups are strategic state.** `StrategicState.civGroups` is shared with the loaded sector as
 `TacticalState.civGroups`; a created civilian is neutral unless he is the Warden or his group is hostile. Turning
-hostile follows Stracciatella (`MakeCivHostile`, `Tactical/Overhead.cc:2591`): only Conrad and the General change side;
+hostile follows Stracciatella (`MakeCivHostile`, `Tactical/Overhead.cc:2661`): only Conrad and the General change side;
 everyone else just stops being neutral and keeps his side, where vanilla also set it.
 
 **Doors.** The `door` command returns the menu as data and, like the original's menu, cannot lock a door; the
@@ -117,28 +117,28 @@ action charges the open-door APs where the original reads past its table (origin
 actions"). An order to open or close a door, container or switch records the structure's ID when it starts
 (`TileEngine/Interactive_Tiles.cc:78`), and the opening codes 494 and 495 handle only the structure of that ID on its
 tile (`:98`, `doors/door-actions.ts`), a native save's action included (`14`). Arriving, the soldier looks for an
-openable on the tile (`Tactical/Overhead.cc:829`; `doors/door-command.ts`): short of the APs of his door handle code
-he halts there with the order kept (`:837`, `:863`); with none there he keeps the order and walks on the spot, looking
-again at every pass of the tile's middle (`Tactical/Soldier_Control.cc:6268`), until an order, a stop or combat
+openable on the tile (`Tactical/Overhead.cc:899`; `doors/door-command.ts`): short of the APs of his door handle code
+he halts there with the order kept (`:907`, `:933`); with none there he keeps the order and walks on the spot, looking
+again at every pass of the tile's middle (`Tactical/Soldier_Control.cc:6261`), until an order, a stop or combat
 starting or ending ends it. On our turn the original also keeps the interface locked meanwhile, until its 25 s breaker
 (deviations "Turn-based UI lock", "Watchdogs").
 `ExamineDoorsOnEnteringSector` never fires in the original (the tactical time stamp is set just before it,
-`Strategic/StrategicMap.cc:498,509`), so it is not ported.
+`Strategic/StrategicMap.cc:496,507`), so it is not ported.
 
 **Busy and perceived doors.** A door status (`doors/door-status.ts`) keeps the original's real state (`DOOR_OPEN`),
 the perceived and not-set flags, the busy flag and the door the player is shown, which the view sends as `openDoors`.
 The structure usually matches the real state, but the original lets the two part: a schedule's change writes only the
 status, and a load gives a door the structure of what the player perceives where the map draws its real state
-(`InternalUpdateDoorGraphicFromStatus`, `Tactical/Keys.cc:1114`), until a merc's look puts it back. A sector entry
-updates the doors twice, after the temp files and at its end (`Strategic/StrategicMap.cc:514`), so only its own steps
+(`InternalUpdateDoorGraphicFromStatus`, `Tactical/Keys.cc:1103`), until a merc's look puts it back. A sector entry
+updates the doors twice, after the temp files and at its end (`Strategic/StrategicMap.cc:512`), so only its own steps
 see that structure; a native import updates them once, so it stays. Everything that walks, sees or opens reads the
 structure, as in the original. `handleDoorChangeFromGridNo` (`doors.ts`) decides as `HandleDoorsOpenClose`
-(`Tactical/Handle_Doors.cc:814`) whether a change is shown. A shown change sets the perceived state, raises
+(`Tactical/Handle_Doors.cc:786`) whether a change is shown. A shown change sets the perceived state, raises
 `doorChanged` and runs the door's tile animation in the explosions' list (`doors/door-animation.ts`), which holds the
-door busy; an unshown one leaves what the player knows until `MercLooksForDoors` (`Tactical/Keys.cc:980`) in a merc's
+door busy; an unshown one leaves what the player knows until `MercLooksForDoors` (`Tactical/Keys.cc:969`) in a merc's
 look. The sector keeps the not-set flag, not the busy one. A status also carries a tin can tied to the door
 (`hasTinCan`, `DOOR_HAS_TIN_CAN`, `12` §7), which the sector keeps and which triples the door's opening noise
-(`DoorOpeningNoise`, `Tactical/OppList.cc:3358`).
+(`DoorOpeningNoise`, `Tactical/OppList.cc:3363`).
 
 **Randomness.** Gameplay draws keep the original's statement order on `main` and `pre`. Kingpin's men placed around
 Hans' door take two `main` draws, x first, where the original's two engine draws have no defined order (deviation
@@ -153,8 +153,8 @@ otherwise:
 | Quirk | Test |
 |---|---|
 | Darren pays twice the bet out of his stash without checking it; a stash too small wraps as `UINT32` | `narrative/npc-actions/catalog.test.ts` |
-| Darren's payout changes hands only at the end of his give animation; until then it lies first among his money, so the money gift of the record his payout triggers (32) gives it again rather than his stash (`Interface_Dialogue.cc:2924-2934`, `TacticalAI/NPC.cc:1809`) | `src/server/give-stub.test.ts` "keeps the payout in his pockets …" |
-| Darren standing on his final tile begins any give he still holds, so one made on the spot starts over at once: he turns his old way, gives nothing, and his done-giving record fires again (`Tactical/Overhead.cc:698`) | `give.test.ts` "has Darren begin again a give made on the spot" |
+| Darren's payout changes hands only at the end of his give animation; until then it lies first among his money, so the money gift of the record his payout triggers (32) gives it again rather than his stash (`Interface_Dialogue.cc:2927-2937`, `TacticalAI/NPC.cc:1808`) | `src/server/give-stub.test.ts` "keeps the payout in his pockets …" |
+| Darren standing on his final tile begins any give he still holds, so one made on the spot starts over at once: he turns his old way, gives nothing, and his done-giving record fires again (`Tactical/Overhead.cc:768`) | `give.test.ts` "has Darren begin again a give made on the spot" |
 | "Put Pacos in the basement" puts him on A10's ground level | `narrative/npc-actions/catalog.test.ts` |
 | Carmen leaving for good falls through to leaving for C13 with its own, absent parameters: the timer is always 10 s | `narrative/npc-actions/catalog.test.ts` |
 | Madame's wrong-cash line goes on after "no girls"; advertising Cindy also advertises Bambi | `narrative/npc-actions/catalog.test.ts` |

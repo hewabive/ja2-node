@@ -79,7 +79,7 @@ bundled; a missing file is skipped, as the original skips a failed play.
 
 **Animation sounds belong to the tactical screen.** The original replays animation codes, final footsteps and code 491
 in `ExecuteOverhead`, on the game screen only, and silences the position sounds (the creature queen's) as it leaves
-that screen (`GameScreen.cc:216`), while battle sounds and samples the simulation calls for play on any screen. The
+that screen (`GameScreen.cc:215`), while battle sounds and samples the simulation calls for play on any screen. The
 director follows the loaded sector's views while the map screen is up, whose real-time turn changes them, but plays
 only their events' sounds there (`audio/director.ts`, `onTacticalScreen`).
 
@@ -91,12 +91,12 @@ sounds (`audio/helicopter-engine.ts`, `25`). The simulation counts the fades as 
 that dropped the voice still ends the run on time.
 
 **A death off the tactical map** cries in the voice `mercDied`'s `cry` names, then plays `DOORCR_1` and `HEADCR_1`
-at full volume in the middle (`Tactical/Soldier_Control.cc:5407`): the director while the tactical screen is up,
+at full volume in the middle (`Tactical/Soldier_Control.cc:5400`): the director while the tactical screen is up,
 `MapSound` while `mapScreen` marks the map screen. The cry comes from the soldier's tile, `cry.gridNo`, which only a
 soldier of the loaded sector has, mixed against the tactical camera last shown and faded for a soldier not ours, as
-`InternalDoMercBattleSound` reads the world view the last scroll left (`Tactical/Soldier_Control.cc:6050`); a merc off
+`InternalDoMercBattleSound` reads the world view the last scroll left (`Tactical/Soldier_Control.cc:6043`); a merc off
 the loaded map cries in the middle, as entering another sector and setting out on a route take our mercs off their
-tiles (`Strategic/StrategicMap.cc:858`, `Strategic/Strategic_Movement.cc:1794`). The cry's variant is the client's draw;
+tiles (`Strategic/StrategicMap.cc:853`, `Strategic/Strategic_Movement.cc:1789`). The cry's variant is the client's draw;
 the voice is the profile's voice id, an I.M.P.'s chosen one, as in the views. A muted soldier has no `cry` and makes
 only the samples.
 
@@ -111,16 +111,16 @@ plays it on the tactical screen, `MapSound` for a check failed while the map scr
 map inventory), from the merc's tile on the loaded map and in the middle, in `cry`'s voice, off it. Both roll the
 `Random(100) < 40` of a check that does not always curse (`content/audio/skill-check-curse.ts`, deviation "Cosmetic
 draws of doors") and hold the curse behind the merc's own line, as `DoMercBattleSound` queues it
-(`Tactical/Soldier_Control.cc:6101-6115`).
+(`Tactical/Soldier_Control.cc:6094-6108`).
 
 **Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
 waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`, on the map screen
 `MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it.
 A battle sound of a merc saying a line that does not cut speech (all but HIT1, DIE1, HUMM, NOTHING and GOTIT) goes into
 the speech queue behind that line and any line queued meanwhile, and plays when it reaches the head and his own battle
-sound is over, as `DoMercBattleSound` queues it (`Tactical/Soldier_Control.cc:6101-6115`); in the overhead map and for
+sound is over, as `DoMercBattleSound` queues it (`Tactical/Soldier_Control.cc:6094-6108`); in the overhead map and for
 the lowered selection and group-move sounds, which the original plays through `InternalDoMercBattleSound` at
-`MIDVOLUME` (`Tactical/Handle_UI.cc:1678`, `:4166`, `:4271`), it plays at once (`SpeechPresenter.holdBattleSound`). On `/play` the speech presenter owns
+`MIDVOLUME` (`Tactical/Handle_UI.cc:1677`, `:4170`, `:4275`), it plays at once (`SpeechPresenter.holdBattleSound`). On `/play` the speech presenter owns
 voice, subtitle and skip (`30`).
 
 ### Music
@@ -130,13 +130,13 @@ voice, subtitle and skip (`30`).
 after them. `Session` keeps `{mode, previous}` in the save's presentation part (`27`); a native import starts at the
 saved mode byte with the menu as previous, as the original's load sets the menu first. Frames carry the mode when it
 changes, with `fastFade` for the sector entry and exit. The browser picks tracks with its own generator, fades, and
-turns to the nothing tracks after the victory track by itself, as `MusicPoll` does (`Utils/Music_Control.cc:186-199`).
+turns to the nothing tracks after the victory track by itself, as `MusicPoll` does (`Utils/Music_Control.cc:204-217`).
 The session reaches the same mode without a word from the browser: setting the victory mode stores when the longest
 victory track ends (the rule pack's victory lengths, `src/content/audio/music-lengths.ts`, measured from the user's data
 when the pack is built), and every read of the state (an advance's setters, a view, a welcome, a save) first switches to
 the nothing mode once that time has passed on the wall clock (`settleMusic`, `Session.wallClock`). A save so holds the
 victory mode only while the track plays, and a load starts it from the beginning, as the original's load does
-(`SaveLoadGame.cc:1171`). The session counts from the setter, the browser from the start of its track, so the session's
+(`SaveLoadGame.cc:1169`). The session counts from the setter, the browser from the start of its track, so the session's
 switch comes no later than the browser's: it changes nothing there or fades out the last moment of the track. Screen
 switches show the session's mode as a frame does, so they never replay the track (`app/game/front-end-music.test.ts`).
 
@@ -158,14 +158,14 @@ and Y-doubled files, Bink audio, SMK4.
 **The player** decodes in a module Worker, which decodes up to the newest due frame and posts only that one, so late
 frames are decoded but never shown, as in the original. A video ends once its clock passes the last frame and the Worker
 has decoded that frame, as `SmkSkipFrames` steps to `SMK_DONE` before `SmkPollFlics` closes the video
-(`Cinematics.cc:62-64`, `:266`); a slow page shows fewer frames but never ends a video short. Frames are indexed colour
+(`Cinematics.cc:64-66`, `:268`); a slow page shows fewer frames but never ends a video short. Frames are indexed colour
 on WebGL2 at an integer scale ("Video scaling"), paced by the audio clock ("Video pacing"); the sound is one buffer at
 full volume under the master gain, like the original's `MAXVOLUME`. A missing file is skipped, as in the original. A
 sequence's files download one after another, so the next video arrives while one plays.
 
 **Where videos play.** The splash on `/play` before the main menu, behind "Click to start" when the browser holds the
 audio until a gesture ("Splash start"), and only with English or Chinese data or the stubs, as the original plays it
-only for those versions (`src/sgp/SGP.cc:441`, `JAScreens.cc:124`); the other versions show their MLG splash still
+only for those versions (`src/sgp/SGP.cc:417`, `JAScreens.cc:124`); the other versions show their MLG splash still
 instead (`30`); the beginning after a new game, the ending after the
 victory; the client settings can turn off the splash and the beginning, never the ending ("Intro and splash switches").
 Steam's data keeps the videos in `Intro-old.slf`; ja2-node mounts every SLF by its library path as Stracciatella does,
@@ -188,7 +188,7 @@ UI strings together; ja2-node splits it:
   possible, which the original cannot do; the MLG pictures keep the data's language.
 
 **The resource pack guess hashes only what can change its answer.** Stracciatella reads and hashes every file of the
-data directory for each pack (`rust/stracciatella/src/guess.rs:321`, `res.rs:298`); ja2-node hashes a file, smallest
+data directory for each pack (`rust/stracciatella/src/guess.rs:324`, `res.rs:298`); ja2-node hashes a file, smallest
 first and once for all packs, only while its hash can still decide which pack differs least, which gives the same
 pack: on the English Gold data 163 of its 483 files, 10 MB, about 0.1 s at every server start. A failed guess (an
 unreadable file, a pack it cannot use) falls back to English with a warning, the version Stracciatella's configuration
@@ -248,7 +248,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | The credits never read row 0: the original counts its record up before the first read | `ui/screens/credit-roll.test.ts` |
 | Russian decoding shifts only 0xC0–0xFF, so Ё, ё and № stay CP1252 characters | `content/formats/edt.test.ts` |
 | Both Russian versions read `translation-rusgold.json` for the UI and the `-rus` files for the rest; `translation-rus.json` is never read | `content/text/strings.test.ts`, `data-version.test.ts` |
-| A resource pack's own files count twice in its difference, and the data directory's own files only in the count they are divided by (`rust/stracciatella/src/guess.rs:90`) | `content/text/resource-packs.test.ts` "counts the pack's own files twice …" |
+| A resource pack's own files count twice in its difference, and the data directory's own files only in the count they are divided by (`rust/stracciatella/src/guess.rs:89`) | `content/text/resource-packs.test.ts` "counts the pack's own files twice …" |
 
 Not pinned yet:
 - The map screen never sets a music mode, so whatever played goes on.

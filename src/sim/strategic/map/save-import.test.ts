@@ -160,14 +160,14 @@ describe('importStrategicMap on a synthetic save', () => {
     expect(s.map.sectors[D13_ID]?.flags).toBe((SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS | SectorFlag.ALREADY_VISITED) >>> 0);
   });
 
-  it("keeps the placement GUI's saved default button, which the next placement opens with (SaveLoadGame.cc:1994 gubDefaultButton)", () => {
+  it("keeps the placement GUI's saved default button, which the next placement opens with (SaveLoadGame.cc:1936 gubDefaultButton)", () => {
     const ctx = testContext({ content });
     expect(ctx.state.battle.placementButton).toBe(PlacementButton.CLEAR);
     importStrategicMap(ctx, syntheticSave());
     expect(ctx.state.battle.placementButton).toBe(PlacementButton.SPREAD);
   });
 
-  it('keeps the pre-battle state of the general info: the persistent flag, both encounter codes, the battle locator and its sector and the retreat block (SaveLoadGame.cc:2084-2091)', () => {
+  it('keeps the pre-battle state of the general info: the persistent flag, both encounter codes, the battle locator and its sector and the retreat block (SaveLoadGame.cc:2026-2033)', () => {
     const ctx = testContext({ content });
     importStrategicMap(ctx, syntheticSave());
     const { battle, encounter } = ctx.state;

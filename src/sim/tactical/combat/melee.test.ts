@@ -231,7 +231,7 @@ describe('knife attacks', () => {
   });
 });
 
-describe('the strike of a soldier the squad does not see (D16; the swoosh plays for a visible striker only, Soldier_Ani.cc:2167)', () => {
+describe('the strike of a soldier the squad does not see (D16; the swoosh plays for a visible striker only, Soldier_Ani.cc:2142)', () => {
   function unseenStriker(hand: string | null): { t: TacticalState; merc: Soldier; enemy: Soldier } {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
@@ -302,7 +302,7 @@ describe('the strike of a soldier the squad does not see (D16; the swoosh plays 
   });
 });
 
-describe("a bloodcat's attack sound (Soldier_Ani.cc:2412, unplaced for every bloodcat)", () => {
+describe("a bloodcat's attack sound (Soldier_Ani.cc:2389, unplaced for every bloodcat)", () => {
   const BLOODCAT_ATTACK_SOUND = 771;
 
   it.each([

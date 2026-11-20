@@ -82,7 +82,7 @@ function untilTheMapChanges(l: Leaving, each: () => void): void {
 }
 
 describe('the tactical panels while the squad walks off the sector edge (StrategicMap.cc JumpIntoAdjacentSector)', () => {
-  it('keep the leaving mercs in the team slots, off the map, until the next sector loads (Soldier_Control.cc:1917-1920)', async () => {
+  it('keep the leaving mercs in the team slots, off the map, until the next sector loads (Soldier_Control.cc:1920-1923)', async () => {
     const l = await squadAtTheEastEdge(false);
     expect(slotted(l.f)).toEqual(l.walkers.toSorted((a, b) => a - b));
     await leaveEast(l, true);
@@ -110,7 +110,7 @@ describe('the tactical panels while the squad walks off the sector edge (Strateg
     expect(walkedOff).toBe(true);
   });
 
-  it('drop the leaving squad from the team slots together once its last merc is off, while a merc of another squad stays (JUMP_ALL_NO_LOAD, StrategicMap.cc:1788-1794)', async () => {
+  it('drop the leaving squad from the team slots together once its last merc is off, while a merc of another squad stays (JUMP_ALL_NO_LOAD, StrategicMap.cc:1783-1789)', async () => {
     const l = await squadAtTheEastEdge(true);
     await leaveEast(l, false);
     const shown: string[] = [];

@@ -62,7 +62,7 @@ original's screen change does (`returnToLoadedSector`). That way back is the one
 original's JA2 clock never does: the real-time turn's stamps (`RealtimeClock.lastOverheadMs`, `lastTurnMs`) live on that
 clock, so `returnToLoadedSector` moves them back by as much as it rewinds `realMs`; any other stamp a map-side system
 writes in the `realMs` timeline needs the same. `SyncStrategicTurnTimes` stamps the turn at every `setCurrentWorldSector`
-(the loaded sector's included, as the map's way back to tactical is, `Strategic/Map_Screen_Interface_Bottom.cc:1100`), at
+(the loaded sector's included, as the map's way back to tactical is, `Strategic/Map_Screen_Interface_Bottom.cc:1105`), at
 combat entry and at the first landing, so the first real-time turn comes 5 s after any of them.
 
 **The session's tick as the JA2 clock of presentation stamps.** A stamp the view carries and the panels compare over
@@ -78,22 +78,22 @@ the tick, not the frame rate (deviation "Strategic map pacing"): a world second 
 compressing, 60-second slices, 5, 30 or 60 per real second (every 40, 6–7 or 3–4 ticks). A world day costs 57,600 ticks
 at 5 minutes per second and 4,800 at 60. A pause or another screen re-phases the second; turn-based combat does not, so
 the first pass after combat adds a second at once. A message box or the pickup menu on the tactical screen pauses the
-game too (`MessageBoxScreen.cc:271`, `Tactical/Interface_Items.cc:4289`) while `PauseTime` holds the JA2 clock
+game too (`MessageBoxScreen.cc:271`, `Tactical/Interface_Items.cc:4425`) while `PauseTime` holds the JA2 clock
 (`Utils/Timer_Control.cc:63-66`), so the second restarts at the tick the box opens in and the part played before it is
 lost: `CampaignSim` hands `updateClock` the box up at the end of its tactical step, a tactical prompt, a campaign box
 (the pre-battle, autoresolve and placement panels are no boxes), or an OK box the sim answers at once (a pending
 auto-bandage question's refusal, the mode's failure box, which opens after its unpause). More generally, every decision
 the simulation stands for is one the original waits on paused or on a screen of its own, whose every frame restarts the
-second: a box anywhere, the shop and the laptop screens (`Tactical/ShopKeeper_Interface.cc:423`,
-`Laptop/Laptop.cc:462`), a talk panel with nothing to say, under the conversation's pause
-(`Tactical/Dialogue_Control.cc:289`), the pre-battle panel, which stops compression behind the arrival's pause
-(`Strategic/Strategic_Movement.cc:682`, `Strategic/PreBattle_Interface.cc:421`), placement under `EnterSector`'s pause
-(`Strategic/StrategicMap.cc:839`), autoresolve's screen. As the decision takes no ticks, a step or an order that leaves
+second: a box anywhere, the shop and the laptop screens (`Tactical/ShopKeeper_Interface.cc:424`,
+`Laptop/Laptop.cc:461`), a talk panel with nothing to say, under the conversation's pause
+(`Tactical/Dialogue_Control.cc:290`), the pre-battle panel, which stops compression behind the arrival's pause
+(`Strategic/Strategic_Movement.cc:679`, `Strategic/PreBattle_Interface.cc:421`), placement under `EnterSector`'s pause
+(`Strategic/StrategicMap.cc:834`), autoresolve's screen. As the decision takes no ticks, a step or an order that leaves
 one up restarts the second at the `realMs` that stands until it is resolved, so the next second, or the next compressed
 slice, comes as late after it as in the original. The San Mona screen is such a screen too, though it waits on no
-decision (`JAScreens.cc:418`): `NPC_ACTION_SEX` only sets it pending (`Tactical/Interface_Dialogue.cc:2189`), so the
+decision (`JAScreens.cc:418`): `NPC_ACTION_SEX` only sets it pending (`Tactical/Interface_Dialogue.cc:2192`), so the
 frame of the action, the brothel's floor trigger or an NPC's record, runs its `UpdateClock` on the game screen first
-(`GameLoop.cc:168-220`), and the screen's frames restart the second after it. `playSanMonaScreen` warps the clock at the
+(`GameLoop.cc:169-221`), and the screen's frames restart the second after it. `playSanMonaScreen` warps the clock at the
 action and restarts the second at the end of the step or order that played it; the trigger's interface lock restarted
 it a tick before (`12` §6). A refusal that stands for an OK box changes nothing (deviation "Prompt time"); a page's own
 screens and menus hold time without restarting the second (deviations "Client screens' world-clock second").
@@ -120,12 +120,12 @@ and `tacticalScreen` apply the original's rules (entering the map keeps a 5–60
 becomes X0; tactical is always X1: every way in from the map sets it, a sector load from the map too, as vanilla's
 does, deviation "Speed on a sector load from the map"). Leaving the map lifts the pause lock, whoever set it: the way
 back to the loaded sector also lifts any pause but the player's, and a sector load from the map stops compression before
-the load's own unpause (`EndMapScreen`, `Strategic/MapScreen.cc:3238-3256`; `campaign/screens.ts`). A load from the
+the load's own unpause (`EndMapScreen`, `Strategic/MapScreen.cc:3212-3223`, `M:Strategic/MapScreen.cc:3252-3256`; `campaign/screens.ts`). A load from the
 tactical screen sets no speed, and `HandleStrategicTurn`'s turn of `NOT_USING_TIME_COMPRESSION` into X1
 (`Strategic/Strategic_Turns.cc:47-50`) never runs: nothing sets that mode (`Strategic/Game_Clock.cc:466-485` have no
 callers). The map's own exits (`tacticalScreen`, `enterSector`, `openLaptop`) are refused while a lock holds, lines wait
 in the dialogue queue or a meanwhile is about to start (`AllowedToExitFromMapscreenTo`,
-`Strategic/Map_Screen_Interface_Bottom.cc:987`; `campaign/map-screen-exits.ts`), so only the loads that skip those
+`Strategic/Map_Screen_Interface_Bottom.cc:992`; `campaign/map-screen-exits.ts`), so only the loads that skip those
 checks find a lock to lift: the pre-battle panel's way into a sector and the scripted ones; autoresolve starts from the
 pre-battle interface, which leaves neither compression nor a lock for the exit to end. Every stop carries a reason
 (`CompressionStop`) that the `compressionStopped` event reports. The automatic pause pauses a compression that is no
@@ -169,7 +169,7 @@ out.
 **Compression in other rules.** Natural healing asks whether time is compressed; ja2-node asks whether the flow is
 strategic (deviation "Time compression for healing"). The map screen polls the real-time turn as the tactical screen
 does, every 20 ms of `realMs` (every 4 ticks), right after `realMs` moves and before the dialogue, the automatic pause
-and `updateClock` (`handleMapScreenRealtimeTurns`, `campaign/turn-world.ts`; `Strategic/MapScreen.cc:1618`). It runs
+and `updateClock` (`handleMapScreenRealtimeTurns`, `campaign/turn-world.ts`; `Strategic/MapScreen.cc:1612`). It runs
 nothing at X0, while paused (the player's pause, the automatic one, a line's) or with compression stopped, and while
 compressing its check time is `5000 / (speed × 10)` ms, 1 ms or less, so a turn comes at every poll at every speed:
 our whole team and the loaded sector's soldiers bleed, breathe, sober up and regenerate as often per real second at
@@ -177,7 +177,7 @@ our whole team and the loaded sector's soldiers bleed, breathe, sober up and reg
 runs against the loaded sector, frozen otherwise (its tick and clock stand, its smoke and light age by world time),
 or with none loaded against the unloaded world (`33`); the loaded sector's events come out at once with the campaign's
 tick. `DecayBloodAndSmells` waits 5 real seconds of compressed time between passes (`5 × speed` world seconds) and
-nothing with no world loaded (`TileEngine/Smell.cc:220-245`). Deterministic and driver-independent: the poll rides on
+nothing with no world loaded (`TileEngine/Smell.cc:226-251`). Deterministic and driver-independent: the poll rides on
 the tick, as the clock does (deviation "Strategic map pacing"). The dead `NOT_USING_TIME_COMPRESSION` branch of
 `HandleStrategicTurn` is not ported (only `SetGameHoursPerSecond` sets that mode, and nothing calls it).
 Starting compression stops every soldier of the loaded sector, cancels their AI actions and drops the game events not
@@ -234,8 +234,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The first real-time turn after a sector load, or after the way back to the loaded sector from the map, comes at the first 20 ms count past 5 s, however recent the map's last turn | `campaign/absent-mercs.test.ts` "comes at the first 20 ms count …", "comes as long after a return …", "comes as long after a compressed stay …" |
 | The map screen runs a real-time turn at every 20 ms poll at every compressed speed, so bleeding, breath and drugs per world minute depend on the speed, twelve times faster at 5 minutes per second than at 60 | `campaign/map-screen-turns.test.ts` "every 20 ms, a turn at each poll …", "so a wounded merc bleeds as much …" |
 | With an underground sector loaded, every compressed poll on the map rolls its claustrophobes | `campaign/map-screen-turns.test.ts` "rolls each claustrophobe …" |
-| A look of the map's real-time turn that reveals a room with items says the spotted-something line on the map, during compression, its `Random(2)` drawn at that poll: `TacticalCharacterDialogue` has no screen check (`Tactical/Dialogue_Control.cc:543`) | `campaign/map-screen-looks.test.ts` "says the spotted-something line on the map …" |
-| Dawn and dusk leave the loaded sector's light as it was while the map compresses: only the game screen applies a light change (`EnvironmentController`, `GameScreen.cc:333`), so the map's looks see by the old light and the first look back in tactical by the new | `campaign/map-screen-looks.test.ts` "keeps the day light of the loaded sector over dusk on the map …" |
+| A look of the map's real-time turn that reveals a room with items says the spotted-something line on the map, during compression, its `Random(2)` drawn at that poll: `TacticalCharacterDialogue` has no screen check (`Tactical/Dialogue_Control.cc:544`) | `campaign/map-screen-looks.test.ts` "says the spotted-something line on the map …" |
+| Dawn and dusk leave the loaded sector's light as it was while the map compresses: only the game screen applies a light change (`EnvironmentController`, `GameScreen.cc:332`), so the map's looks see by the old light and the first look back in tactical by the new | `campaign/map-screen-looks.test.ts` "keeps the day light of the loaded sector over dusk on the map …" |
 | `InitBloodCatSectors` stops at sector 254 | `strategic/map/init.test.ts` |
 | Every start of compression clears the loaded sector, not only the first since the map opened: the map screen forgets each frame that compression occurred | `campaign/screens.test.ts` |
 | A speed button starts compression without the clean-up; only the start toggle runs it | `campaign/screens.test.ts` |

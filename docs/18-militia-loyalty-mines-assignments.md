@@ -78,7 +78,7 @@ miner's strategic line (`headMinerDialogue`), which the queue says as a `headMin
 animation when he stands in the loaded sector, as the original's assignment code does: the economy calls the `animate…`
 hooks, `campaign/assignment-animations.ts` finds the soldier and picks the tactical-screen or map-screen state from
 `state.flow` (the original asks for `GAME_SCREEN`). The original places a merc whose assignment the menu changes near
-his `usStrategicInsertionData`, which `SetSoldierGridNo` keeps on his own tile (`Tactical/Soldier_Control.cc:1941`), so
+his `usStrategicInsertionData`, which `SetSoldierGridNo` keeps on his own tile (`Tactical/Soldier_Control.cc:1944`), so
 ja2-node only changes his state. The assignment menu's leader and the mercs `SetAssignmentForList` gives the same
 assignment take their poses at different moments (`set-assignment.ts`).
 
@@ -112,7 +112,7 @@ compression for healing").
 when it loads, and re-created when training or redistribution changed the loaded sector; a death removes one at once.
 Promotions are rolled when the world unloads, not when the battle goes straight to autoresolve (`19` rolls its own).
 Both keep their counts in `economy.militiaPromotions` until the map screen is up with no prompt open, where they come as
-one `militiaPromoted` event, the original's box (`Strategic/MapScreen.cc:7626`), and are cleared; the next roll replaces
+one `militiaPromoted` event, the original's box (`Strategic/MapScreen.cc:7590`), and are cleared; the next roll replaces
 counts not reported yet.
 
 **Loyalty distances** come from `findStratPath` with a throw-away foot group, never with SHIFT held (original-bugs
@@ -160,10 +160,10 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A promotion falls back to a higher rank when the soldier's own is gone; a green can reach elite at once | `militia.test.ts` |
 | The next unload, even of a sector where nobody is promoted, drops the promotions the map screen has not boxed yet: the roll clears the counts first (`Tactical/Militia_Control.cc:64-67`) | `militia.test.ts` |
 | AUTO deals out the militia of a town sector with enemies in it while they also stay there | `militia.test.ts` |
-| Militia the player attacks stay on our side and never defect: Stracciatella's `MakeCivHostile` sets no side outside Conrad and the General (`Overhead.cc:2591`), and the unload asks the militia team (`Town_Militia.cc:610`) | `campaign/sector-flow.test.ts` |
+| Militia the player attacks stay on our side and never defect: Stracciatella's `MakeCivHostile` sets no side outside Conrad and the General (`Overhead.cc:2661`), and the unload asks the militia team (`Town_Militia.cc:604`) | `campaign/sector-flow.test.ts` |
 | A negative loyalty remainder keeps its sign; reaching the cap zeroes the remainder | `loyalty.test.ts` |
 | Betraying the rebels starts every loyalty town, so one not taken yet starts at 0 | `loyalty.test.ts` |
-| A loyalty gain in Omerta while the rebels are not neutral sets the rating to 10, even from above (`Strategic_Town_Loyalty.cc:296-305`) | `loyalty.test.ts`, `campaign/narrative-port.test.ts` |
+| A loyalty gain in Omerta while the rebels are not neutral sets the rating to 10, even from above (`Strategic_Town_Loyalty.cc:297-306`) | `loyalty.test.ts`, `campaign/narrative-port.test.ts` |
 | An enemy takeover steals in a visited sector every time, also when the enemy held it already (reinforcements) | `loyalty.test.ts` |
 | An enemy sector taken without a fight brings no town, mine or SAM effects, so a town completed that way is never liberated | `strategic/map/control.test.ts` |
 | Every reinforcement that reaches a SAM garrison repairs the site, an undamaged one too: the condition goes back to 100 and the terminal swap is written into the sector's stored map changes | `campaign/sam-repair.test.ts` |
@@ -179,8 +179,8 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A mechanic on a vehicle turns only whole tens of his hour's points into condition and leaves the rest unused, so with fewer than 10 an hour he repairs nothing and stops as not skilled enough | `vehicle-repair.test.ts` |
 | A rested squad merc swings around 95 breath; a dying squad merc cannot sleep, so he is worn out | `assignments.test.ts` |
 | The menu's leader made a patient or trainee takes the pose of his old assignment; the mercs listed with him take the new one, and a repairman of the menu takes none | `assignments.test.ts` |
-| The squad menu sets its list after the refusal box of its merc, while every other menu sets the list only once its merc passes (`Assignments.cc:4591-4656`, `:4702-4775`) | `assignments.test.ts`, `militia.test.ts` |
-| A listed merc the yes to the militia payment box cannot set gets `pMapErrorString` 18 as a message line, not the box the menu shows: the box screen is still the current screen inside its callback (`Assignments.cc:6381-6398`) | `militia.test.ts`, `src/server/message-entries.test.ts` |
+| The squad menu sets its list after the refusal box of its merc, while every other menu sets the list only once its merc passes (`Assignments.cc:4441-4506`, `:4552-4625`) | `assignments.test.ts`, `militia.test.ts` |
+| A listed merc the yes to the militia payment box cannot set gets `pMapErrorString` 18 as a message line, not the box the menu shows: the box screen is still the current screen inside its callback (`Assignments.cc:6231-6248`) | `militia.test.ts`, `src/server/message-entries.test.ts` |
 | A doctor, repairman or patient who stays done shows the end of his work again at every update that finds him done | `assignments.test.ts` |
 | A merc woken while he lies down goes on lying down awake: `GOTO_SLEEP` cannot be interrupted | `campaign/assignment-animations.test.ts` |
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |
@@ -188,7 +188,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A dead-tired squad merc who drops asleep always says NEED_SLEEP, even after another merc complained, yet turns the next complaint into ME_TOO | `assignments.test.ts` |
 | Asking whether a sleeper at breathMax 10 can travel or be woken marks him collapsed: the check sets the flag it reads | `assignments.test.ts` |
 | A dead merc's camouflage wears off too, with its screen message: the hourly loop walks the whole team | `campaign/camouflage.test.ts` |
-| A nothing-to-do flag raised off the map screen stays stale until the map screen opens or the hourly update ends: only the map screen's frame acts on the re-evaluation request (`Strategic/MapScreen.cc:6575`) | `campaign/nothing-to-do.test.ts` |
+| A nothing-to-do flag raised off the map screen stays stale until the map screen opens or the hourly update ends: only the map screen's frame acts on the re-evaluation request (`Strategic/MapScreen.cc:6541`) | `campaign/nothing-to-do.test.ts` |
 
 Not pinned yet:
 - The class-matched pass of militia placement rolls no attitude and keeps detailed placements (`tactical/init-list.ts`
@@ -215,4 +215,4 @@ estimates are not compared. Inferred from reading the source:
 - That attacking militia turns none of them (the quirk above; vanilla set the side, `Overhead.c:3075`), and that
   `HandleMilitiaDefections` is therefore unreachable.
 - That Deidranna's death never maximises loyalty: `MaximizeLoyaltyForDeidrannaKilled` sits in the enemy branch while
-  she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
+  she is a civilian (`Overhead.cc:2546`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.

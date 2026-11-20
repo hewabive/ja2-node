@@ -293,7 +293,7 @@ describe('leaving a sector', () => {
     expect([after?.shock, after?.tilesMoved]).toEqual([0, 0]);
   });
 
-  it('counts the squad walked off the edge, still in the sector, in its strength at the retreat, so the run away hits its morale at once (PlayerStrength, Strategic_Town_Loyalty.cc:1153, Morale.cc:344)', () => {
+  it('counts the squad walked off the edge, still in the sector, in its strength at the retreat, so the run away hits its morale at once (PlayerStrength, Strategic_Town_Loyalty.cc:1158, Morale.cc:344)', () => {
     const { campaign, roster } = createTestCampaign(kit, { seed: 11, mercs: 1, garrison: LONE_ADMIN });
     landFirstSquad(campaign);
     const leaver = ourSoldiers(campaign)[0];
@@ -491,7 +491,7 @@ describe('leaving a sector', () => {
     expect(ourSoldiers(campaign).map((s) => s.gridNo)).toEqual(walked);
   });
 
-  it('gives a dead merc of ours his merc slot back at the next load of his sector, with no tile, so he counts among those who fight there (UpdateMercsInSector, StrategicMap.cc:947-973, Soldier_Add.cc:690, Soldier_Control.cc:1806)', () => {
+  it('gives a dead merc of ours his merc slot back at the next load of his sector, with no tile, so he counts among those who fight there (UpdateMercsInSector, StrategicMap.cc:942-968, Soldier_Add.cc:870, Soldier_Control.cc:1809)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const t = campaign.tactical?.state;
@@ -626,7 +626,7 @@ describe('a native save loaded into its sector', () => {
     expect(t.corpses.map((c) => c.servicingCrows)).toEqual([2]);
   });
 
-  it('keeps a helicopter piece destroyed before the save off the map: the helicopter stands before the saved map changes apply (StrategicMap.cc:520 from SaveLoadGame.cc:743, the map changes at :1016)', () => {
+  it('keeps a helicopter piece destroyed before the save off the map: the helicopter stands before the saved map changes apply (StrategicMap.cc:518 from SaveLoadGame.cc:741, the map changes at :1016)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 9, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -695,7 +695,7 @@ describe('a native save loaded into its sector', () => {
     ]);
   });
 
-  it('bumps nobody when a native import stands the helicopter: the saved soldiers enter the map only after it and the map changes (UpdateMercsInSector, SaveLoadGame.cc:1036)', () => {
+  it('bumps nobody when a native import stands the helicopter: the saved soldiers enter the map only after it and the map changes (UpdateMercsInSector, SaveLoadGame.cc:1034)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 11, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -715,7 +715,7 @@ describe('a native save loaded into its sector', () => {
     expect(t.world.structures.at(BESIDE_HELIPAD).some((x) => x === merc.structure)).toBe(true);
   });
 
-  it('gives a door of a native import the structure the player perceives while the map draws the real one: the load updates the doors once (Keys.cc:1206), the import runs no second update', () => {
+  it('gives a door of a native import the structure the player perceives while the map draws the real one: the load updates the doors once (Keys.cc:1195), the import runs no second update', () => {
     const { campaign } = createTestCampaign(kit, { seed: 9, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -734,7 +734,7 @@ describe('a native save loaded into its sector', () => {
     ]);
   });
 
-  it('gives the door back the structure of its real state at the end of a sector entry, still shown as the player perceives it (StrategicMap.cc:514)', () => {
+  it('gives the door back the structure of its real state at the end of a sector entry, still shown as the player perceives it (StrategicMap.cc:512)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 9, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -765,7 +765,7 @@ describe('a native save loaded into its sector', () => {
     ]);
   });
 
-  it('brings a helicopter piece destroyed in the sector back at the next entry, unlike a load: the entry stands the helicopter again after the map changes took the piece away (StrategicMap.cc:520 after EnterSector, :880)', () => {
+  it('brings a helicopter piece destroyed in the sector back at the next entry, unlike a load: the entry stands the helicopter again after the map changes took the piece away (StrategicMap.cc:518 after EnterSector, :875)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -931,7 +931,7 @@ describe("the other sectors' temp files of a native save", () => {
     return { closedDoor, record };
   }
 
-  it('replays the map changes a native save left for a sector at its first entry before the changes made since, which come after them in the file (Tactical_Save.cc:458, SaveLoadMap.cc:67)', () => {
+  it('replays the map changes a native save left for a sector at its first entry before the changes made since, which come after them in the file (Tactical_Save.cc:456, SaveLoadMap.cc:67)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     const diff = nativeRecordsFor(campaign, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS);
     const { closedDoor, record } = hangarDoorRemoval(campaign);
@@ -963,7 +963,7 @@ describe("the other sectors' temp files of a native save", () => {
     expect([flagAfterEntry('none'), flagAfterEntry('native'), flagAfterEntry('since')]).toEqual([false, true, true]);
   });
 
-  it('reveals the tiles of the revealed file at the first entry, the rest hidden, and keeps them at the next in its own form (Tactical_Save.cc:468)', () => {
+  it('reveals the tiles of the revealed file at the first entry, the rest hidden, and keeps them at the next in its own form (Tactical_Save.cc:466)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     const diff = nativeRecordsFor(campaign, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS);
     const revealed = new Uint8Array(WORLD_MAX / BITS_PER_BYTE);
@@ -980,7 +980,7 @@ describe("the other sectors' temp files of a native save", () => {
 });
 
 describe('the lights of a sector entry', () => {
-  it('draws the lights once the map changes are back: the light passes where a wall was destroyed before the squad left (InitLoadedWorld from Tactical_Save.cc:509)', () => {
+  it('draws the lights once the map changes are back: the light passes where a wall was destroyed before the squad left (InitLoadedWorld from Tactical_Save.cc:507)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     const left = enterAirfieldAtNight(campaign);
     const shaded = lightTrueLevel(left, HANGAR_FLOOR, GROUND_LEVEL);
@@ -994,7 +994,7 @@ describe('the lights of a sector entry', () => {
     expect(entered).toBe(redrawnLightLevel(t, HANGAR_FLOOR));
   });
 
-  it('draws the lights once the door status is back: the light passes a door the player saw open before leaving (Tactical_Save.cc:509 after the door status at :486)', () => {
+  it('draws the lights once the door status is back: the light passes a door the player saw open before leaving (Tactical_Save.cc:507 after the door status at :486)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     const left = enterAirfieldAtNight(campaign);
     const shaded = lightTrueLevel(left, HANGAR_FLOOR, GROUND_LEVEL);
@@ -1217,7 +1217,7 @@ describe('preserved soldiers', () => {
   });
 });
 
-describe('the gear of the enemies made in Tixa (Inventory_Choosing.cc:1196, :1432)', () => {
+describe('the gear of the enemies made in Tixa (Inventory_Choosing.cc:1195, :1431)', () => {
   const TIXA = { x: 9, y: 10, z: 0 };
 
   it('masks the enemies of an enemy-held Tixa at its load instead of their face gear, and none made there once the player holds it', () => {

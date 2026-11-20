@@ -23,7 +23,7 @@
 // @src MAPInternalInitItemDescriptionBox and Interface_Items.cc
 // @src DeleteItemDescriptionBox (the box session, its AP_RELOAD_GUN charged as it closes or as the map screen ends,
 // @src EndMapScreen) (2026-11-16); MAPInvClickCallbackPrimary's PlaceObject of a pool item into a head slot, its
-// @src STR_CANT_USE_TWO_ITEMS for a face item that does not go with the other one (Items.cc:1898-1915, 2026-11-19).
+// @src STR_CANT_USE_TWO_ITEMS for a face item that does not go with the other one (Items.cc:1874-1891, 2026-11-19).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';

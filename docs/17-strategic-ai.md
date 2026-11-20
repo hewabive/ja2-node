@@ -97,7 +97,7 @@ priority phase and morale.
 **Saves.** A ja2-node save restores `QueenState` as it was. A native save is imported (sections 34 and 35 and the
 meanwhile flags) and then runs the original's load-time recomputation once (deviation "Strategic AI load hooks"). What
 the recomputation reads is imported before it, as the original loads it before `LoadStrategicAI`
-(`SaveLoadGame.cc:810-900`): the facts behind the refuel sites, the landing zone the airspace update checks, and the
+(`SaveLoadGame.cc:808-898`): the facts behind the refuel sites, the landing zone the airspace update checks, and the
 mines and town loyalty behind the priority phase (`importWhatTheStrategicAiLoadHooksRead`, `src/server/save-session.ts`;
 tests in `save-session.test.ts`).
 

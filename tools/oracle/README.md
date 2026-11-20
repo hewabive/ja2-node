@@ -258,7 +258,7 @@ fighter and twelve tiles out in eight directions; `light` with each fighter as v
 and eight tiles out in eight directions; a second dump. The comparer feeds the load's draws to the import's restart of
 every saved animation in order (each request takes the next native draw of its range), so an idle check the restart
 rolls rolls as natively, and the dumps compare each soldier's animation code and sprite frame as well, the frame worked
-out from the surface's STI as `ConvertAniCodeToAniFrame` does (`Tactical/Soldier_Control.cc:4155`).
+out from the surface's STI as `ConvertAniCodeToAniFrame` does (`Tactical/Soldier_Control.cc:4148`).
 
 ```sh
 node tools/oracle/save-probes.ts SaveGame01 SaveGame02 SaveGame07 SaveGame08 SaveGame09 SaveGame10 \
@@ -800,12 +800,12 @@ sector, whose live state is the map and not a sector diff, as what a command add
 of the sector, and after an unload at the tiles of those additions. Not compared: the screen and
 compression before a block sets them, `gfDoLighting` before a light event (the native load sets it), the sector flag of
 the dead (native soldiers stay `bInSector`) and the tile of the dead after an unload: `TrashWorld` leaves our team on
-their tiles (`TileEngine/WorldDef.cc:2522`) until the next load's `RemoveMercsInSector` (`Strategic/StrategicMap.cc:858`),
+their tiles (`TileEngine/WorldDef.cc:2622`) until the next load's `RemoveMercsInSector` (`Strategic/StrategicMap.cc:853`),
 so a merc whose death animation the unload cut short keeps his there, while ja2-node's unload takes every merc of ours
 off the map (`handleDefiniteUnloadingOfWorld`, `src/sim/campaign/sector-flow.ts`).
 Dawn and dusk on the map are probed as far as a headless build reaches: the light event leaves the loaded map's ambient
 as it was; that only the game screen's frame runs `EnvironmentController` is read from the source
-(`GameScreen.cc:333`).
+(`GameScreen.cc:332`).
 
 ### Auto-bandage
 
@@ -937,14 +937,14 @@ order (`inOrder`). It repeats the probe's own manipulations: `hdarrive` moves th
 run then starts as it does at the end of a step), `hdremove` takes the team off the map and clears the enemy presence,
 `hdenemy` and `hdhit` run at the JA2 clock of the last frame, as the native commands run between frames, and `hdsave`
 compares the state only: the server refuses saves in a drop and a snapshot changes nothing, while the native
-`SaveGame`'s header draw (`SaveLoadGame.cc:380`) moves the generator, so the frames after it draw other values than the
+`SaveGame`'s header draw (`SaveLoadGame.cc:378`) moves the generator, so the frames after it draw other values than the
 same drop without it. The clock offset of a block comes from its first frame, and the real-time turn check's 20 ms
 phase, an unsaved timer, from the closing `lastTacticalRealTime`. Every frame it compares the drop's globals
 (`globalFields` but the sample, the scrolling, the UI's event and mode and the end-turn count; the shadow only while the
 run is handled, as the dump shows it), the lines queued and our team's rows (`rowFields` but the frame, the delay, the
 alert and the breath); the closing line compares the seats, the run flags, the selection, the current squad and the
 team. The A9 garrison is placed and moves otherwise in the replay, so its idle checks (code 491,
-`Tactical/Soldier_Ani.cc:1384`) draw in other frames than natively and a merc of ours can take a garrison soldier's
+`Tactical/Soldier_Ani.cc:1359`) draw in other frames than natively and a merc of ours can take a garrison soldier's
 dice: after `hdsave` a native frame draws the dice 74, for the garrison soldier whose animation moves on in it, and 33,
 the range of `FEM_WIPE` (`Tactical/Animation_Control.cc:1881`) that merc 1 starts, while in the replay merc 1 takes the
 74 and stands. Where a merc of ours starts a random idle animation natively, the comparer feeds his idle check of that
@@ -979,7 +979,7 @@ breath, APs, shock, collapse, animation state and heights, morale, under fire, t
 noise, quote flags, opponents, personality, sleep, insertion code) and the other soldiers in the sector. It repeats the
 probe's manipulations: `hpenemy` makes the soldier as the drop comparer does, with the standing frame draw of
 `CreateSoldierCommon`, and puts him on the probe's tile 12000, off the visible map, where ja2-node's sector entry places
-nobody, with the enemy presence his placement sets (`AddSoldierToSectorGridNo`, `Tactical/Soldier_Add.cc:926`);
+nobody, with the enemy presence his placement sets (`AddSoldierToSectorGridNo`, `Tactical/Soldier_Add.cc:1106`);
 `hpturn` runs the real-time turn of a combat exit inside `ExitCombatMode`, where the original runs it, before the lull
 quote (deviation "Real-time turn after combat" puts it a tick later); `hpsave` writes nothing, and its `Random(RAND_MAX)`
 for the header is not drawn (deviation "Save side effects"). `hdframes` steps the campaign one tick a frame with the

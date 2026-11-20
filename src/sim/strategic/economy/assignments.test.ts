@@ -333,7 +333,7 @@ describe('assigning and the hourly order', () => {
     expect(made.ctx.state.queue.events.some((e) => e.kind === 68)).toBe(true);
   });
 
-  it('raises the re-evaluation at the end of the list on the map screen, also with nobody listed and nothing changed (Assignments.cc:6779)', () => {
+  it('raises the re-evaluation at the end of the list on the map screen, also with nobody listed and nothing changed (Assignments.cc:6629)', () => {
     const made = context();
     const d = merc(made, { id: 0, assignment: Assignment.DOCTOR });
     d.inv[Slot.HAND] = kit(content.items, 'MEDICKIT', [100]);
@@ -341,7 +341,7 @@ describe('assigning and the hourly order', () => {
     expect([result, made.ctx.state.economy.reEvaluateNothingToDo]).toEqual([{ ok: true }, true]);
   });
 
-  it('runs no list off the map screen, which neither assigns the others nor raises the re-evaluation (Assignments.cc:6609)', () => {
+  it('runs no list off the map screen, which neither assigns the others nor raises the re-evaluation (Assignments.cc:6459)', () => {
     const made = context(undefined, { hooks: { inMapMode: () => false } });
     const d = merc(made, { id: 0, assignment: Assignment.DOCTOR });
     d.inv[Slot.HAND] = kit(content.items, 'MEDICKIT', [100]);

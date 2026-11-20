@@ -51,7 +51,7 @@ describe('eliminateAllEnemies (Auto_Resolve.cc EliminateAllEnemies)', () => {
   });
 });
 
-describe("the location gear of autoresolve's soldiers (Inventory_Choosing.cc:1196, :1432)", () => {
+describe("the location gear of autoresolve's soldiers (Inventory_Choosing.cc:1195, :1431)", () => {
   const TIXA: Sector = { x: 9, y: 10, z: 0 };
 
   it('reads enemy-held Tixa off the loaded world, whatever sector the battle is in', async () => {

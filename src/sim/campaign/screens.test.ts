@@ -155,7 +155,7 @@ describe('map and tactical screens', () => {
   });
 });
 
-describe('the map button under the tactical interface lock (Handle_UI.cc:4020, :4471, Turn_Based_Input.cc:2330)', () => {
+describe('the map button under the tactical interface lock (Handle_UI.cc:4024, :4475, Turn_Based_Input.cc:2314)', () => {
   function inCombat(c: CampaignSim, team: number): TacticalState {
     const t = c.tactical?.state;
     if (!t) throw new Error('no sector');

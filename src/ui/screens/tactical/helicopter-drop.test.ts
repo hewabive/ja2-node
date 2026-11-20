@@ -63,7 +63,7 @@ function escapeKey(f: TacticalUiTest, kind: 'keyDown' | 'keyUp'): void {
 }
 
 describe('the tactical screen through a run of the helicopter drop', () => {
-  it('centres the view on the north entry point as the run starts and locks the interface under the wait cursor until it ends (GameScreen.cc:352, Handle_UI.cc:4015)', async () => {
+  it('centres the view on the north entry point as the run starts and locks the interface under the wait cursor until it ends (GameScreen.cc:351, Handle_UI.cc:4019)', async () => {
     const { f, north } = await dropping();
     expect(f.world.centred.at(-1)).toBe(north);
     f.t.frame();
@@ -80,7 +80,7 @@ describe('the tactical screen through a run of the helicopter drop', () => {
     expect([f.screen.controls.lockState(), regions.current?.id]).toEqual(['none', 'tacticalViewport']);
   });
 
-  it('puts no seat on the team panel before it drops, then each one as he drops, as the heli code adds them (Interface_Panels.cc:3248)', async () => {
+  it('puts no seat on the team panel before it drops, then each one as he drops, as the heli code adds them (Interface_Panels.cc:3210)', async () => {
     const { f } = await dropping();
     f.t.frame();
     expect([ourSoldiersShown(f), slotted(f)]).toEqual([[], []]);
@@ -90,14 +90,14 @@ describe('the tactical screen through a run of the helicopter drop', () => {
     expect([first.length, slotted(f), f.client.view.soldiers.some((s) => s.offMap === true)]).toEqual([1, first, false]);
   });
 
-  it('moves the view neither by the screen edge nor by a locate while the run goes on, as gfIgnoreScrolling holds (RenderWorld.cc:1938, :3578)', async () => {
+  it('moves the view neither by the screen edge nor by a locate while the run goes on, as gfIgnoreScrolling holds (RenderWorld.cc:1999, :4272)', async () => {
     const { f } = await dropping();
     f.t.runtime.input({ kind: 'pointerMove', x: SCREEN_EDGE, y: 100, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
     for (let frame = 0; frame < FRAMES; frame++) f.t.frame(20);
     expect([f.world.scrollingIgnored, f.world.scrolled]).toEqual([true, []]);
   });
 
-  it('lands the seats left once while Esc is held during a run, leaves the stop of that press to the skip, which stops the merc it selects on the server, and sends no skip once the run is over (Merc_Entering.cc:462, Turn_Based_Input.cc:2313)', async () => {
+  it('lands the seats left once while Esc is held during a run, leaves the stop of that press to the skip, which stops the merc it selects on the server, and sends no skip once the run is over (Merc_Entering.cc:462, Turn_Based_Input.cc:2297)', async () => {
     const { f, campaign } = await dropping();
     f.session.advance({ events: ['mercDropped'] });
     f.deliver();

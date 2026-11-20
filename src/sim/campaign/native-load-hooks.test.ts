@@ -75,7 +75,7 @@ function creatureNoise(campaign: CampaignSim): [number | undefined, number | und
 }
 
 describe('the hooks a native load runs at its end (SaveLoadGame.cc LoadSavedGame)', () => {
-  it('keeps the squad of a save made in a bloodcat ambush in its sector while a bloodcat lives, and calls the cats to the map centre (Map_Screen_Interface.cc:3798, SaveLoadGame.cc:1195)', () => {
+  it('keeps the squad of a save made in a bloodcat ambush in its sector while a bloodcat lives, and calls the cats to the map centre (Map_Screen_Interface.cc:3822, SaveLoadGame.cc:1193)', () => {
     const campaign = landed();
     const cat = bloodcatIn(campaign);
     importPreBattleState(campaign.state, savedPreBattle(EncounterCode.BLOODCAT_AMBUSH));
@@ -89,7 +89,7 @@ describe('the hooks a native load runs at its end (SaveLoadGame.cc LoadSavedGame
     });
   });
 
-  it('calls the enemies on the saved ambush code alone, which outlives its battle until a squad next arrives: the locator off and the ambush fought elsewhere (Knowledge.cc:49, Strategic_Movement.cc:731)', () => {
+  it('calls the enemies on the saved ambush code alone, which outlives its battle until a squad next arrives: the locator off and the ambush fought elsewhere (Knowledge.cc:49, Strategic_Movement.cc:728)', () => {
     const campaign = landed();
     const cat = bloodcatIn(campaign);
     importPreBattleState(campaign.state, { ...savedPreBattle(EncounterCode.ENEMY_AMBUSH), battleSectorLocator: false, sector: B9 });
@@ -107,7 +107,7 @@ describe('the hooks a native load runs at its end (SaveLoadGame.cc LoadSavedGame
     expect(cat.ai.newSituation).not.toBe(Situation.IS_NEW);
   });
 
-  it('gives a squad whose movement group is gone a new persistent group departing from A1 (Squads.cc:904 CheckSquadMovementGroups)', () => {
+  it('gives a squad whose movement group is gone a new persistent group departing from A1 (Squads.cc:907 CheckSquadMovementGroups)', () => {
     const campaign = landed();
     const ids = campaign.state.forces.squadGroupIds;
     const kept = ids.filter((_, q) => q !== SQUAD);
@@ -144,8 +144,8 @@ function mercListingProfiles(campaign: CampaignSim): { listed: readonly number[]
   return { listed: content.mercListings.map((l) => l.profile), larry, drunkLarry: content.namedProfiles.LARRY_DRUNK ?? -1 };
 }
 
-describe('the fix-ups a native load runs for older save versions (SaveLoadGame.cc:1152-1162)', () => {
-  it("brings the refuel sites of a save of version 89 or lower up to the airspace and the Estoni fact, and keeps a later save's as saved (Map_Screen_Helicopter.cc:615 UpdateRefuelSiteAvailability)", async () => {
+describe('the fix-ups a native load runs for older save versions (SaveLoadGame.cc:1150-1160)', () => {
+  it("brings the refuel sites of a save of version 89 or lower up to the airspace and the Estoni fact, and keeps a later save's as saved (Map_Screen_Helicopter.cc:613 UpdateRefuelSiteAvailability)", async () => {
     const sitesAfterLoad = async (version: number) => {
       const campaign = await newGame();
       freeDrassenSkies(campaign);

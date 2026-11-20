@@ -278,7 +278,7 @@ function collapseCivilian(c: Campaign, civilian: Soldier): void {
   expect([civilian.collapsed, civilian.life]).toEqual([true, COLLAPSED_LIFE]);
 }
 
-describe('a soldier of another team of the loaded sector dying while the map screen is up (Soldier_Control.cc:5400, no team check)', () => {
+describe('a soldier of another team of the loaded sector dying while the map screen is up (Soldier_Control.cc:5393, no team check)', () => {
   it("goes through our team's strategic death: a merc death, our morale and reputation, his body and dropped gear in the sector records, the compression stop (quirk)", async () => {
     const c = await landedInA9(34);
     const civilian = civilianBeside(c, KESTREL);
@@ -410,7 +410,7 @@ describe('the helicopter shot down while the map screen is up (Vehicles.cc KillA
 });
 
 describe('the helicopter passengers over the loaded sector at a death (Soldier_Control.cc HandleTakeDamageDeath, Overhead.cc HandlePlayerTeamMemberDeath)', () => {
-  it('say their buddy line when a walker of the loaded sector dies, as every conscious merc in the sector does (Overhead.cc:2210)', async () => {
+  it('say their buddy line when a walker of the loaded sector dies, as every conscious merc in the sector does (Overhead.cc:2279)', async () => {
     const c = await aboardOverA9(35, [VANT]);
     await order(c, { type: 'tacticalScreen' });
     const kestrel = merc(c, KESTREL);
@@ -419,7 +419,7 @@ describe('the helicopter passengers over the loaded sector at a death (Soldier_C
     expect(ofType(events, 'mercQuote').filter((e) => e.soldier === merc(c, VANT).id && e.id === Quote.BUDDY_ONE_KILLED)).toHaveLength(1);
   });
 
-  it('die in tactical terms when it is shot down above the loaded sector with the map screen up: no body and no gear at NOWHERE, and the strategic death waits for the tactical screen (Soldier_Control.cc:5366, :5401, quirk)', async () => {
+  it('die in tactical terms when it is shot down above the loaded sector with the map screen up: no body and no gear at NOWHERE, and the strategic death waits for the tactical screen (Soldier_Control.cc:5359, :5394, quirk)', async () => {
     const c = await aboardOverA9(31, [VANT]);
     const t = turnWorld(c);
     const status = c.session.campaign.state.status;

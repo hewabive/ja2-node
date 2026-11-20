@@ -328,7 +328,7 @@ describe('a vehicle squad at the edge of the map (StrategicMap.cc OKForSectorExi
     expect(mercs(session).map((m) => lastTile(m.soldier))).toEqual([TWO_STEPS_NORTHEAST, TWO_STEPS_NORTHEAST]);
   });
 
-  it('never moves a vehicle facing away from its first step, which cannot turn, and the walk-off timer takes it out of the sector (Soldier_Control.cc:3914, :4220; Overhead.cc:1083)', async () => {
+  it('never moves a vehicle facing away from its first step, which cannot turn, and the walk-off timer takes it out of the sector (Soldier_Control.cc:3908, :4213; Overhead.cc:1153)', async () => {
     const { session, hummer } = await hummerAtTheEastEdge(Direction.SOUTHEAST);
     const vehicle = leaveEast(session, hummer);
     expect([lastTile(vehicle), vehicle.direction, vehicle.pauseAnimMove]).toEqual([AT_THE_EAST_EDGE, Direction.SOUTHEAST, true]);

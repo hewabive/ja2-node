@@ -172,7 +172,7 @@ describe('HandleStructChangeFromGridNo', () => {
     expect(crateOpen(t)).toBe(true);
   });
 
-  it('halts a merc who reaches a crate in combat without the APs of his door handle code, keeping the order, which he carries out once he can pay (Overhead.cc:837, :863)', () => {
+  it('halts a merc who reaches a crate in combat without the APs of his door handle code, keeping the order, which he carries out once he can pay (Overhead.cc:907, :933)', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const { closed, file } = crateFile();
@@ -231,7 +231,7 @@ describe('HandleStructChangeFromGridNo', () => {
     return { merc, beside, putBack };
   }
 
-  it('walks on the spot beside a crate gone when he gets there, the order kept, until a crate is back there, whose opening he plays to no effect: it is not the structure his order named (Overhead.cc:829-833, Soldier_Control.cc:6268)', () => {
+  it('walks on the spot beside a crate gone when he gets there, the order kept, until a crate is back there, whose opening he plays to no effect: it is not the structure his order named (Overhead.cc:899-903, Soldier_Control.cc:6261)', () => {
     const sim = newCombatSim(content);
     const { merc, beside, putBack } = walkingToACrateThatGoes(sim);
     const passes: number[] = [];

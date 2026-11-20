@@ -183,7 +183,7 @@ const WALL = gridNo(70, 60);
 const FENCE = gridNo(80, 60);
 const FOUNTAIN = gridNo(90, 60);
 
-describe('explosion debris (ExplosiveDamageStructureAtGridNo, Explosion_Control.cc:427)', () => {
+describe('explosion debris (ExplosiveDamageStructureAtGridNo, Explosion_Control.cc:426)', () => {
   it('drops a debris object, drawn with a main Random(3), on every tile of a destroyed structure with a positive partner that has no debris yet', () => {
     const debrisBefore = tile('FIRSTEXPLDEBRIS', 7);
     const t = simOver(new Map([[CRATE, [tile('SECONDOSTRUCT', 1)]]]), new Map([[CRATE + 1, [debrisBefore]]]));
@@ -220,7 +220,7 @@ describe('explosion debris (ExplosiveDamageStructureAtGridNo, Explosion_Control.
   });
 });
 
-describe('fence partners (HandleFencePartnerCheck, Explosion_Control.cc:257)', () => {
+describe('fence partners (HandleFencePartnerCheck, Explosion_Control.cc:267)', () => {
   it('swaps the fence pieces on both sides of a wrecked fence to their damaged partner', () => {
     const pieces = [FENCE - 160, FENCE, FENCE + 160];
     const t = simOver(new Map(pieces.map((g) => [g, [tile('FENCESTRUCT', 1)]])));
@@ -236,7 +236,7 @@ describe('fence partners (HandleFencePartnerCheck, Explosion_Control.cc:257)', (
   });
 });
 
-describe('wall decals (RemoveAllStructsOfTypeRange, Explosion_Control.cc:498)', () => {
+describe('wall decals (RemoveAllStructsOfTypeRange, Explosion_Control.cc:513)', () => {
   it('takes the decals off a destroyed wall for good, recorded as any tile removal: the next entry takes them off again', () => {
     const decals = [tile('FIRSTWALLDECAL', 2), tile('FIFTHWALLDECAL', 1)];
     const structs = new Map([[WALL, [tile('FIRSTWALL', 1), ...decals]]]);
@@ -257,7 +257,7 @@ describe('wall decals (RemoveAllStructsOfTypeRange, Explosion_Control.cc:498)', 
   });
 });
 
-describe('wall end pieces (ReplaceWall, Explosion_Control.cc:293)', () => {
+describe('wall end pieces (ReplaceWall, Explosion_Control.cc:303)', () => {
   it('replaces the walls of the same side beside a destroyed wall with end pieces, at the head where a crossing wall stands', () => {
     const west = WALL - 1;
     const east = WALL + 1;
@@ -297,7 +297,7 @@ describe('wall end pieces (ReplaceWall, Explosion_Control.cc:293)', () => {
   });
 });
 
-describe('the fountain (Explosion_Control.cc:531)', () => {
+describe('the fountain (Explosion_Control.cc:546)', () => {
   it('drains a destroyed fount1.sti fountain, taking each of the first three water pieces twice', () => {
     const water = [1, 2, 3].map((k) => tile('FIRSTOSTRUCT', k));
     const t = simOver(new Map([[FOUNTAIN, [water[0] ?? 0, water[0] ?? 0, water[0] ?? 0, ...water.slice(1), tile('FIRSTOSTRUCT', 5)]]]));

@@ -74,7 +74,7 @@ describe('the route command', () => {
     expect(aboutToArrive(ctx)).toBe(announced + 1);
   });
 
-  it('rebuilds the waypoints of an unchanged route confirmed again, posting another about-to-arrive event and delaying an enemy group that now crosses it (MapScreen.cc:5569)', () => {
+  it('rebuilds the waypoints of an unchanged route confirmed again, posting another about-to-arrive event and delaying an enemy group that now crosses it (MapScreen.cc:5535)', () => {
     const rolls = new ScriptedRolls([4]);
     const { ctx } = squadInA9(rolls);
     expect(plotRouteForCharacter(ctx, 0, [], S('C9'), FRESH)).toBeNull();
@@ -90,7 +90,7 @@ describe('the route command', () => {
     expect(g).toMatchObject({ next: S('B9'), waypoints: [S('C9')] });
   });
 
-  it('rebuilds the group again at Esc for each selected merc, posting another about-to-arrive event each time and delaying an enemy group that crosses it (RestorePreviousPaths, MapScreen.cc:7788-7819)', () => {
+  it('rebuilds the group again at Esc for each selected merc, posting another about-to-arrive event each time and delaying an enemy group that crosses it (RestorePreviousPaths, MapScreen.cc:7752-7783)', () => {
     const rolls = new ScriptedRolls([4]);
     const { ctx, mercs } = squadInA9(rolls);
     expect(plotRouteForCharacter(ctx, 0, [], S('C9'), FRESH)).toBeNull();
@@ -105,7 +105,7 @@ describe('the route command', () => {
     expect(mercs.get(1)?.path).toEqual(route('A9', 'B9', 'C9'));
   });
 
-  it('confirms the empty route of a returning squad at the sector it stands in by turning it again (MapScreen.cc:5542)', () => {
+  it('confirms the empty route of a returning squad at the sector it stands in by turning it again (MapScreen.cc:5508)', () => {
     const { ctx } = squadInA9();
     expect(plotRouteForCharacter(ctx, 0, [], S('C9'), FRESH)).toBeNull();
     ctx.state.clock.seconds += TRAVELLED_MINUTES * 60;
@@ -116,7 +116,7 @@ describe('the route command', () => {
     expect(g).toMatchObject({ sector: S('A9'), next: S('B9'), waypoints: [] });
   });
 
-  it('refuses a leg or a destination a merc cannot pass through, though a border opens onto it (MapScreen.cc:2307 SectorIsPassable)', () => {
+  it('refuses a leg or a destination a merc cannot pass through, though a border opens onto it (MapScreen.cc:2301 SectorIsPassable)', () => {
     const { ctx } = squadInA9();
     const badSector = { ok: false, data: { refusal: 'badSector' } };
     expect(plotRouteForCharacter(ctx, 0, [], S('D1'), FRESH)).toMatchObject(badSector);
@@ -155,7 +155,7 @@ describe("the plot's end on the map screen (MapScreen.cc MAP_EVENT_PLOT_PATH, Ca
   const endPlot = (c: CampaignSim, outcome: string, steps: readonly object[], selected: readonly number[]) =>
     c.dispatch({ type: 'endPlot', soldier: PLOTTER, steps, outcome, selected });
 
-  it('copies the path at each plotting click to the mercs selected then, without moving them (MapScreen.cc:2312-2315)', () => {
+  it('copies the path at each plotting click to the mercs selected then, without moving them (MapScreen.cc:2306-2309)', () => {
     const c = twoSquadsInA9();
     const steps = [
       { to: 'B9', selected: [PLOTTER, SQUAD_MATE, OTHER_SQUAD] },
@@ -167,7 +167,7 @@ describe("the plot's end on the map screen (MapScreen.cc MAP_EVENT_PLOT_PATH, Ca
     expect(groupOf(c, PLOTTER)).toMatchObject({ betweenSectors: true, waypoints: [S('C9')] });
   });
 
-  it("moves a group selected only at the confirm along the plotting merc's path, its own left empty (MapScreen.cc:5569, :5647)", () => {
+  it("moves a group selected only at the confirm along the plotting merc's path, its own left empty (MapScreen.cc:5535, :5613)", () => {
     const c = twoSquadsInA9();
     const crew = (id: number) => c.economy?.crew.get(id) as CrewMember;
     crew(OTHER_SQUAD).asleep = true;
@@ -177,7 +177,7 @@ describe("the plot's end on the map screen (MapScreen.cc MAP_EVENT_PLOT_PATH, Ca
     expect(crew(OTHER_SQUAD).asleep).toBe(false);
   });
 
-  it('rebuilds a group selected again at the confirm of an unchanged route once, with the plotting merc path (MapScreen.cc:5609-5660)', () => {
+  it('rebuilds a group selected again at the confirm of an unchanged route once, with the plotting merc path (MapScreen.cc:5575-5626)', () => {
     const c = twoSquadsInA9();
     expect(c.dispatch({ type: 'route', soldier: PLOTTER, to: 'C9' }).ok).toBe(true);
     const group = groupOf(c, PLOTTER).id;
@@ -195,7 +195,7 @@ describe("the plot's end on the map screen (MapScreen.cc MAP_EVENT_PLOT_PATH, Ca
     expect(groupOf(c, OTHER_SQUAD)).toMatchObject({ next: S('A10'), waypoints: [S('A10')] });
   });
 
-  it('cuts the path at a shortening and copies it to the mercs selected then, not to his squad, and moves nobody at a silent end (Map_Screen_Interface_Map.cc:947-960)', () => {
+  it('cuts the path at a shortening and copies it to the mercs selected then, not to his squad, and moves nobody at a silent end (Map_Screen_Interface_Map.cc:955-968)', () => {
     const c = twoSquadsInA9();
     const steps = [
       { to: 'C9', selected: [PLOTTER] },
@@ -207,7 +207,7 @@ describe("the plot's end on the map screen (MapScreen.cc MAP_EVENT_PLOT_PATH, Ca
     expect(groupOf(c, PLOTTER)).toMatchObject({ betweenSectors: false, waypoints: [] });
   });
 
-  it("gives the selected mercs at Esc the path the plot started from and turns a returning group once for each of them who had the clicks' path (RestorePath, MapScreen.cc:7749-7768, :7788-7819)", () => {
+  it("gives the selected mercs at Esc the path the plot started from and turns a returning group once for each of them who had the clicks' path (RestorePath, MapScreen.cc:7713-7732, :7752-7783)", () => {
     const turned = (selected: readonly number[]) => {
       const c = twoSquadsInA9();
       expect(c.dispatch({ type: 'route', soldier: PLOTTER, to: 'C9' }).ok).toBe(true);

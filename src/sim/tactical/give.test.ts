@@ -270,7 +270,7 @@ describe('an NPC giving an item in an NPC action (Handle_Items.cc SoldierGiveIte
   });
 });
 
-describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_InitNewSoldierAnim, Overhead.cc:840)', () => {
+describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_InitNewSoldierAnim, Overhead.cc:910)', () => {
   function gaveOnTheSpot(sim: TacticalSim): { giver: Soldier; mate: Soldier } {
     const giver = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
     const mate = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 80), Direction.WEST);
@@ -364,7 +364,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     stepUntil(sim, () => s.gridNo === WALKED_TO && s.pathSize === 0);
   }
 
-  it('has Darren begin again a give made on the spot as soon as he stands: he gives nothing and his done-giving record fires again (Overhead.cc:698)', () => {
+  it('has Darren begin again a give made on the spot as soon as he stands: he gives nothing and his done-giving record fires again (Overhead.cc:768)', () => {
     const sim = newCombatSim(content);
     const log = port(sim, { isNpcProfile: () => true });
     pauseAiUntilManuallyUnpaused(sim.state);
@@ -376,7 +376,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect([clipsIn(merc), clipsIn(darren), log.doneGiving, holdsGiveItem(darren)]).toEqual([1, 0, [Npc.DARREN, Npc.DARREN], false]);
   });
 
-  it('begins the give again from its old target and tile when a walk no order started ends: the NPC turns his old way, gives nothing, and his done-giving record fires again (Overhead.cc:817, Soldier.cc:209, Soldier_Ani.cc:1339)', () => {
+  it('begins the give again from its old target and tile when a walk no order started ends: the NPC turns his old way, gives nothing, and his done-giving record fires again (Overhead.cc:887, Soldier.cc:207, Soldier_Ani.cc:1314)', () => {
     const sim = newCombatSim(content);
     const { npc, merc, log } = npcGaveOnTheSpot(sim);
     walkWithoutAnOrder(sim, npc);
@@ -385,7 +385,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect([clipsIn(merc), clipsIn(npc), log.doneGiving]).toEqual([1, 0, [NPC_PROFILE, NPC_PROFILE]]);
   });
 
-  it('leaves the walker in his walking animation when the old tile holds nobody, with the done-giving record fired, and stands him at his next tile middle on the same tile (Soldier_Control.cc:6567, Handle_Items.cc:2298)', () => {
+  it('leaves the walker in his walking animation when the old tile holds nobody, with the done-giving record fired, and stands him at his next tile middle on the same tile (Soldier_Control.cc:6568, Handle_Items.cc:2299)', () => {
     const sim = newCombatSim(content);
     const { npc, merc, log } = npcGaveOnTheSpot(sim);
     sim.state.occupant[0]?.fill(-1, merc.gridNo, merc.gridNo + 1);
@@ -396,7 +396,7 @@ describe('the MERC_GIVEITEM a give on the spot holds (Soldier_Control.cc EVENT_I
     expect([animationOf(sim, npc), npc.gridNo, log.doneGiving.length]).toEqual(['STANDING', WALKED_TO, 2]);
   });
 
-  it("starts the count of a native save's pending action again too at a robot reload on the spot (Interface_Items.cc:3276)", () => {
+  it("starts the count of a native save's pending action again too at a robot reload on the spot (Interface_Items.cc:3410)", () => {
     const sim = newCombatSim(content);
     const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
     const robot = spawnSoldier(sim, 2, Team.OUR, gridNo(80, 79), Direction.SOUTH, { body: Body.ROBOTNOWEAPON });

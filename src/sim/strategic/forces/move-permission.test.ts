@@ -84,7 +84,7 @@ describe('strategic movement permission', () => {
     expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toMatchObject({ ok: true });
   });
 
-  it('checks the selected mercs travelling with him too, outside his group (CanEntireMovementGroupMercIsInMove, Map_Screen_Interface.cc:3887-3899)', () => {
+  it('checks the selected mercs travelling with him too, outside his group (CanEntireMovementGroupMercIsInMove, Map_Screen_Interface.cc:3911-3923)', () => {
     const test = createTestCampaign(kit, { seed: 5, mercs: 3, garrison: EMPTY });
     landFirstSquad(test.campaign);
     addCharacterToUniqueSquad(strategic(test.campaign), 2);

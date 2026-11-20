@@ -78,7 +78,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the rebel hideout on the original data', ()
     await data.close();
   });
 
-  it('Fatima hands Miguel the letter, he reads it and the interface comes back on (Handle_Items.cc:2490)', async () => {
+  it('Fatima hands Miguel the letter, he reads it and the interface comes back on (Handle_Items.cc:2493)', async () => {
     const { cs, session } = await inA10(read, data);
     const c = cs.campaign;
     const host = c.talk?.host;

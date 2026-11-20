@@ -124,7 +124,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/`:
 | A chosen one sent to an alarm trigger stays chosen when he collapses | `panic.test.ts` "a collapsing chosen one is replaced, unless …" |
 | A tank in RED already facing its loudest noise draws a facing at random, and a draw of its own facing leaves it standing without another draw; with full APs it turns without the turn chance's draw | `combat-decide.test.ts` "draws a facing when it already faces the noise", "leaves a tank as it is …", "… a draw full APs skip" |
 | The panic keys are a bit stack on an INT8: the eighth push wraps into a negative byte, which still opens locked doors | `panic.test.ts` "pushes a set bit onto the INT8 …", `../pathfinding.test.ts` "lets any keys byte but 0 …" |
-| A standing soldier who draws a throwing knife from a pocket throws it twice at the same tile: BLACK queues the throw behind a lower-gun action that its own result overwrites (`TacticalAI/DecideAction.cc:3325`); the queued throw takes the next knife from his pockets, or with none runs up and punches with the empty hand | `knife-throw-ai.test.ts` "queues a second throw …", "runs up and punches …" |
+| A standing soldier who draws a throwing knife from a pocket throws it twice at the same tile: BLACK queues the throw behind a lower-gun action that its own result overwrites (`TacticalAI/DecideAction.cc:3297`); the queued throw takes the next knife from his pockets, or with none runs up and punches with the empty hand | `knife-throw-ai.test.ts` "queues a second throw …", "runs up and punches …" |
 
 Not pinned yet:
 - A prone soldier needs 6 APs to afford a turn that costs 2; a stance change is affordable at 2 APs whatever the stance.

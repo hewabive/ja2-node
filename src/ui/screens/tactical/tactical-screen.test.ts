@@ -640,7 +640,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([f.screen.inventory.cursor, f.client.commands.length, f.screen.controls.input.mode]).toEqual([null, sent, UiMode.MOVE_MODE]);
   });
 
-  it('leaves the stack popup up at Esc, which closes only the description box or else the key ring, until a right click outside it (Turn_Based_Input.cc:2287-2294, ItemPopupFullRegionCallbackSecondary)', async () => {
+  it('leaves the stack popup up at Esc, which closes only the description box or else the key ring, until a right click outside it (Turn_Based_Input.cc:2271-2278, ItemPopupFullRegionCallbackSecondary)', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);
     await f.click(`slot${BIG_POCKET}`, MouseButton.RIGHT);
@@ -653,7 +653,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.stack.open).toBe(false);
   });
 
-  it('closes the description box at Esc and goes on to stop the selected merc with the same key (Turn_Based_Input.cc:2287-2316)', async () => {
+  it('closes the description box at Esc and goes on to stop the selected merc with the same key (Turn_Based_Input.cc:2271-2300)', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);
     await f.click(`slot${HAND}`, MouseButton.RIGHT);
@@ -665,7 +665,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.client.commands.slice(sent).map((c) => c.cmd)).toMatchObject([{ type: 'closeItemDescription' }, { type: 'stop', soldier: 0 }]);
   });
 
-  it('closes the key ring at Esc and goes on to stop the selected merc with the same key (Turn_Based_Input.cc:2292-2316)', async () => {
+  it('closes the key ring at Esc and goes on to stop the selected merc with the same key (Turn_Based_Input.cc:2276-2300)', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);
     await f.click('smKeyRing');
@@ -1111,7 +1111,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'answer', prompt, choice: 'cancel' }, reply: { ok: true } });
   });
 
-  it('closes the pickup menu only as Esc is released and stops nobody, as GETTINGITEM_MODE takes the key before the Esc block (Turn_Based_Input.cc:2258, :2487)', async () => {
+  it('closes the pickup menu only as Esc is released and stops nobody, as GETTINGITEM_MODE takes the key before the Esc block (Turn_Based_Input.cc:2242, :2471)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tile = await dropTwoItemsBesideMerc3(f);
     const at = f.world.pickPoint(tile);
@@ -1407,7 +1407,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(namedAboveHead(f)).toEqual([0, 1, 2, 3]);
   });
 
-  it('draws no radar dot for a crow and the named-civilian dot for a civilian with a profile (Radar_Screen.cc:254, :274)', async () => {
+  it('draws no radar dot for a crow and the named-civilian dot for a civilian with a profile (Radar_Screen.cc:256, M:Radar_Screen.cc:274)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const radar = f.widget('radar').rect;
     const dotColours = (gridNo: number) => {
@@ -1429,7 +1429,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([dotColours(CROW_TILE), dotColours(NAMED_CIVILIAN_TILE)]).toEqual([[], [NAMED_CIVILIAN_DOT]]);
   });
 
-  it('draws no radar dot for our merc walking off the visible world, as the radar skips a tile off it (Radar_Screen.cc:255)', async () => {
+  it('draws no radar dot for our merc walking off the visible world, as the radar skips a tile off it (Radar_Screen.cc:257)', async () => {
     const f = await tacticalUiTest(kit, ui);
     const radar = f.widget('radar').rect;
     const soldiers = f.client.view.soldiers as SoldierView[];
@@ -1479,7 +1479,7 @@ describe('the tactical screen in a stub campaign', () => {
     expect(f.screen.messageLines).toEqual([]);
   });
 
-  it('skips the options key, the save screen key and the quick save while a battle is about to begin (Turn_Based_Input.cc:1545, :1822, :1947)', async () => {
+  it('skips the options key, the save screen key and the quick save while a battle is about to begin (Turn_Based_Input.cc:1528, :1805, :1930)', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);
     const pressSaveAndOptionsKeys = () => {
@@ -1499,7 +1499,7 @@ describe('the tactical screen in a stub campaign', () => {
     expect(f.flow).toEqual(['options', 'saveGame', 'quickSave']);
   });
 
-  it('skips the options key while the pickup menu has the panel buttons off, the single merc panel has its Options button off or an item is in the cursor (Turn_Based_Input.cc:1543-1547)', async () => {
+  it('skips the options key while the pickup menu has the panel buttons off, the single merc panel has its Options button off or an item is in the cursor (Turn_Based_Input.cc:1526-1530)', async () => {
     const f = await tacticalUiTest(kit, ui);
     expect(await optionsKeyOpens(f)).toBe(true);
     const tile = await dropTwoItemsBesideMerc3(f);
@@ -1589,7 +1589,7 @@ describe('the tactical screen in a stub campaign', () => {
     expect(pictures()).toEqual([]);
   });
 
-  it('skips the options key in a meanwhile, and the save screen key and the quick save while engaged in a conversation, with no box (Turn_Based_Input.cc:1546, :1822, :1947)', async () => {
+  it('skips the options key in a meanwhile, and the save screen key and the quick save while engaged in a conversation, with no box (Turn_Based_Input.cc:1529, :1805, :1930)', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);
     const campaign = a10.campaign.campaign;

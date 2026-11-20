@@ -138,14 +138,14 @@ event, the economy's lines are not said, Skyrider's special events run at once a
 
 **Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,
 no gas and no captivity, when it is queued and again when it plays. While auto-bandage runs the queue stands: its frame
-returns before `HandleDialogue` (`GameScreen.cc:283`, `:520`), so nothing plays and the lines queued meanwhile play
-after it (`12` §8); the drop of the head in `handleDialogue` (`Tactical/Dialogue_Control.cc:462`) is ported but no
+returns before `HandleDialogue` (`GameScreen.cc:282`, `:519`), so nothing plays and the lines queued meanwhile play
+after it (`12` §8); the drop of the head in `handleDialogue` (`Tactical/Dialogue_Control.cc:463`) is ported but no
 tactical frame reaches it. A sleeping merc whose line comes up wakes by the roster flag alone, without the waking rules
 or animation, and an event at the back of the queue puts him back to sleep. While a turn start bleeds a team
 (`logBleedMeToos`), the first bleeding warning is said as such and the next ones become ME_TOO.
 
 **Stop-time quotes.** The booby-trap and suspicious-ground lines of a merc of ours stop tactical while they play, as
-the original's modal tactical does (`Tactical/Dialogue_Control.cc:1560`, `GameScreen.cc:296`): the line's start marks
+the original's modal tactical does (`Tactical/Dialogue_Control.cc:1565`, `GameScreen.cc:295`): the line's start marks
 its face modal (`TalkingFace.modal`, `TalkState.tacticalModal`); the next campaign step still runs a full tactical
 frame, then each step runs only the dialogue while the sector's clock and the world clock go on (`CampaignSim.step`,
 `talk-flow.ts`), and every command but `answer`, `skipLine` and `estimateAttack` is refused with `stopTimeQuote`, saving
@@ -197,13 +197,13 @@ otherwise:
 | An NPC who cannot path to a scripted tile under four tiles away settles for his own tile for good: his records take that tile and he queues a walk to it that can never start, even once the way clears; without a quote record the walk goes to record 255 | `tactical/ai/ai.test.ts`, `src/server/talk-stub.test.ts` |
 | An item taken into an NPC's profile never goes to the last small pocket and becomes a fresh object: attachments, ammo and stack members are lost | `give.test.ts` |
 | A give checks 1 AP and charges 3; a merc given one item loses the whole source pocket; money given to a team member pays no debt; a target gone from its tile leaves a copy at the giver | `tactical/give.test.ts` |
-| An NPC given one object of a stack gets that object's status while the pocket loses the first of the others: the put-back moves the given one to the stack's end at the click and the hand-over's `RemoveObjs` takes the stack's first (`Tactical/Interface_Items.cc:3227-3231`, `Tactical/Handle_Items.cc:2485`) | `src/server/give-stub.test.ts` "gives the object of a stack the stack popup picked …" |
+| An NPC given one object of a stack gets that object's status while the pocket loses the first of the others: the put-back moves the given one to the stack's end at the click and the hand-over's `RemoveObjs` takes the stack's first (`Tactical/Interface_Items.cc:3360-3364`, `Tactical/Handle_Items.cc:2488`) | `src/server/give-stub.test.ts` "gives the object of a stack the stack popup picked …" |
 | A dealer stays engaged in action after a give, out of the AI until his next panel closes | `tactical/give.test.ts`, `converse.test.ts` |
 | A reload of the robot checks the walk plus 4 AP and charges the merc only the walk and his kneel; the robot pays the reload | `tactical/robot-reload.test.ts` |
-| A whole stack given to the robot reloads it from a copy: the pocket loses only its first magazine and gets the rest of the copy back too; one magazine of a stack, the first or the one the stack popup picks, loads that one while the pocket loses the first of the others: the put-back moves the given one to the stack's end and `RemoveObjs` takes the stack's first (`Tactical/Interface_Items.cc:3227-3231`, `:3271`) | `tactical/robot-reload.test.ts`, `src/server/robot-reload-stub.test.ts` "loads one magazine of a stack from the first …", "loads the magazine of a stack the stack popup picked …" |
+| A whole stack given to the robot reloads it from a copy: the pocket loses only its first magazine and gets the rest of the copy back too; one magazine of a stack, the first or the one the stack popup picks, loads that one while the pocket loses the first of the others: the put-back moves the given one to the stack's end and `RemoveObjs` takes the stack's first (`Tactical/Interface_Items.cc:3360-3364`, `:3405`) | `tactical/robot-reload.test.ts`, `src/server/robot-reload-stub.test.ts` "loads one magazine of a stack from the first …", "loads the magazine of a stack the stack popup picked …" |
 | The robot's old magazine that does not fit the merc's pockets is lost: code 756 ignores the failed placement | `tactical/robot-reload.test.ts` |
-| Ammo of another calibre for a robot nobody can reach gets `NO_PATH`, not the calibre line: the cursor's AP number of 0 is checked before the robot branch (`Tactical/Interface_Items.cc:3151-3155`, `:2966-2990`) | `tactical/robot-reload.test.ts` "finds no path before the calibre …" |
-| One magazine of a stack the robot refuses goes back to the stack's end, which rotates the statuses: the put-back into the source slot comes before the calibre check (`Tactical/Interface_Items.cc:3225-3233`, `Tactical/Items.cc:2010`) | `src/server/robot-reload-stub.test.ts` "puts one magazine of a stack the robot refuses …" |
+| Ammo of another calibre for a robot nobody can reach gets `NO_PATH`, not the calibre line: the cursor's AP number of 0 is checked before the robot branch (`Tactical/Interface_Items.cc:3284-3288`, `:3100-3124`) | `tactical/robot-reload.test.ts` "finds no path before the calibre …" |
+| One magazine of a stack the robot refuses goes back to the stack's end, which rotates the statuses: the put-back into the source slot comes before the calibre check (`Tactical/Interface_Items.cc:3358-3366`, `Tactical/Items.cc:1994`) | `src/server/robot-reload-stub.test.ts` "puts one magazine of a stack the robot refuses …" |
 | A civilian hint starts its quest on every ask while unsaid, also when a kid is asked | `civ-quotes.test.ts` |
 | L12's civilians read the miners' hint records: the sector table's L12 entry is the miners' index | `civ-quotes.test.ts` |
 | An enemy about to throw a knife says the line of his rank, not the threat: `DetermineCivQuoteEntry` tests `AI_ACTION_FIRE_GUN` twice and the knife throw never (`Tactical/Civ_Quotes.cc:405-406`) | `civ-quotes.test.ts` "gives an enemy about to throw a knife …"; `src/server/civ-stub.test.ts` |
@@ -214,7 +214,7 @@ otherwise:
 | A line on the map screen pauses before the speaker checks, so a line its speaker can no longer say pauses the game until the next pass ends the empty face | `dialogue-queue.test.ts` |
 | The end of a map screen line lifts whatever pause lock is on: a conversation engaged during the line loses its pause | `dialogue-queue.test.ts` |
 | An important line queues its wake and sleep events even when the merc may not say it | `dialogue-queue.test.ts` |
-| Skyrider's or a head miner's line takes the panel placement set since the last line ended, so a monologue or a miner's line that waits behind another line opens at the default placement: that line's end puts it back (`Tactical/Dialogue_Control.cc:1239`) | `dialogue-queue.test.ts` "loses a placement set while another line plays …" |
+| Skyrider's or a head miner's line takes the panel placement set since the last line ended, so a monologue or a miner's line that waits behind another line opens at the default placement: that line's end puts it back (`Tactical/Dialogue_Control.cc:1244`) | `dialogue-queue.test.ts` "loses a placement set while another line plays …" |
 | A boxing round decided at a team's turn start returns before the ME_TOO log closes, so later bleeding warnings keep turning into ME_TOO | `tactical/turns/turns.test.ts` |
 | A stop-time quote freezes tactical one full frame after its line starts | `dialogue-queue.test.ts` "quote %i of our merc makes tactical modal …", `src/server/stop-time-quote.test.ts` |
 | A stop-time line its merc cannot say leaves its callback waiting: nothing stops and nothing asks | `dialogue-queue.test.ts` "keeps its callback waiting …" |

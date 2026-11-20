@@ -181,7 +181,7 @@ describe('InternalAddSoldierToSector for a merc seated in a vehicle (Soldier_Add
     expect(whoIsThere(t, SWEET, 0)).toBe(hummer);
   });
 
-  it('keeps the pending action a native save left him, as the entry stops before it places him (Soldier_Add.cc:707-708)', () => {
+  it('keeps the pending action a native save left him, as the entry stops before it places him (Soldier_Add.cc:887-888)', () => {
     const sim = newCombatSim(content);
     const merc = seated(sim, arrivingHummer(sim), 0);
     merc.savedPendingAction = { action: 2, giveTarget: 0, data3: 0, animCount: 1 };

@@ -113,7 +113,7 @@ describe('the patrol points (Movement.cc PointPatrolAI, RandomPointPatrolAI)', (
   });
 });
 
-describe('a named random point patroller made from his map placement (Soldier_Create.cc:524-525, Movement.cc RandomPointPatrolAI)', () => {
+describe('a named random point patroller made from his map placement (Soldier_Create.cc:523-524, Movement.cc RandomPointPatrolAI)', () => {
   const NPC_PROFILE = 94;
   const START = gridNo(80, 80);
   const POINTS = [gridNo(84, 80), gridNo(80, 84), gridNo(76, 80)];

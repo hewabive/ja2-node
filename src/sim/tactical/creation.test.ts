@@ -187,7 +187,7 @@ describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
     return { pp, requested: zeroes.requested };
   };
 
-  it('gives the enemy made where the environment is enemy-held Tixa no face gear and a gas mask in a pocket (Inventory_Choosing.cc:1196, :1432)', () => {
+  it('gives the enemy made where the environment is enemy-held Tixa no face gear and a gas mask in a pocket (Inventory_Choosing.cc:1195, :1431)', () => {
     const item = (name: string) => kit.content.items.byName.get(name)?.index;
     const elsewhere = generated(SURFACE, ENV(80)).pp;
     expect(elsewhere.inv[InvSlot.HEAD1]?.item).not.toBe(NOTHING);

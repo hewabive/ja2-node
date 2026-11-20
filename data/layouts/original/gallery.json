@@ -2,7 +2,7 @@
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
     "src/game/MessageBoxScreen.cc, src/game/Utils/MercTextBox.cc, src/game/Utils/Slider.cc, src/game/Utils/PopUpBox.cc (the art, its sizes and constants)",
-    "src/game/Strategic/Assignments.cc:5166, :5425-5426 (popup margins 6, 6, 4, 4 and line space 2)",
+    "src/game/Strategic/Assignments.cc:5016, :5275-5276 (popup margins 6, 6, 4, 4 and line space 2)",
     "src/game/Options_Screen.cc (interface/optionscheckboxes.sti, interface/sliderbox.sti)"
   ],
   "screen": "gallery",

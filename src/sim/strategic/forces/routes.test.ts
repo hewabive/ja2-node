@@ -146,7 +146,7 @@ describe('the selected list at a plotting click and at the confirm (MapScreen.cc
   const aboutToArrive = (ctx: StrategicContext, group: number | undefined) =>
     ctx.state.queue.events.filter((e) => e.kind === EventKind.GROUP_ABOUT_TO_ARRIVE && e.param === group).length;
 
-  it('rebuilds each selected group once, one on foot with the plotting merc path though its own differs (MapScreen.cc:5609-5660)', () => {
+  it('rebuilds each selected group once, one on foot with the plotting merc path though its own differs (MapScreen.cc:5575-5626)', () => {
     const { ctx, mercs } = twoSquadsInA9();
     plotPathForCharacter(ctx, 2, S('A11'));
     plotPathForCharacter(ctx, 0, S('C9'));

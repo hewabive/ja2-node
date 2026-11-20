@@ -548,7 +548,7 @@ describe('a tactical battle lost to deaths', () => {
     handleSoldierDeath(t, s);
   }
 
-  it('is lost when the last merc is killed outright (Rotting_Corpses.cc:737, Overhead.cc:4959)', () => {
+  it('is lost when the last merc is killed outright (Rotting_Corpses.cc:740, Overhead.cc:5029)', () => {
     const { c, soldiers, t } = battleAtA9(41, 1, (campaign) => {
       const a9 = campaign.state.map.elements[A9.x + A9.y * 18];
       if (a9) a9.enemyControlled = false;

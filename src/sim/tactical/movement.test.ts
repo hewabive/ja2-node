@@ -1234,7 +1234,7 @@ describe('a tile under the body of another soldier (WorldMan.cc WhoIsThere2: a p
   });
 });
 
-describe('a walk that starts facing away (Soldier_Control.cc:3914 SOLDIER_PAUSEANIMOVE)', () => {
+describe('a walk that starts facing away (Soldier_Control.cc:3908 SOLDIER_PAUSEANIMOVE)', () => {
   const WALK_TICKS = 4_000;
   const FROM = gridNo(80, 80);
   const TO = FROM + 2 * (DIRECTION_INCREMENT[Direction.NORTH] ?? 0);

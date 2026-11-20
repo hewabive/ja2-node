@@ -278,7 +278,7 @@ describe('the stub village door', () => {
     expect(refusal('force')).toEqual({ refusal: 'notLocked' });
   });
 
-  it('has no lock action, as no button of the original door menu locks a door (Interface.cc:1523-1580)', () => {
+  it('has no lock action, as no button of the original door menu locks a door (Interface.cc:1551-1615)', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
     const key = createItem(sim.state.content.items, sim.state.content.items.byName.get('KEY_1')?.index ?? 0, 100);
@@ -384,7 +384,7 @@ describe('a door order that arrives while something else is under way (Overhead.
     };
   }
 
-  it('drops the order while a merc of ours off the map keeps the MERC_GIVEITEM of a native save, not another saved action (Overhead.cc:840, Soldier.cc:62)', () => {
+  it('drops the order while a merc of ours off the map keeps the MERC_GIVEITEM of a native save, not another saved action (Overhead.cc:910, Soldier.cc:60)', () => {
     const MERC_PICKUPITEM = 2;
     expect(walkToOpen(offTheMapKeeping(MERC_GIVE_ITEM))).toBe(false);
     expect(walkToOpen(offTheMapKeeping(MERC_PICKUPITEM))).toBe(true);
@@ -444,7 +444,7 @@ describe('a door order that arrives while something else is under way (Overhead.
   });
 });
 
-describe('a door order on arrival (Overhead.cc:821-863, Interactive_Tiles.cc:98)', () => {
+describe('a door order on arrival (Overhead.cc:891-933, Interactive_Tiles.cc:98)', () => {
   function walkingToOpen(sim: TacticalSim): Soldier {
     updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
     const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);

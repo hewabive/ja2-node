@@ -5,7 +5,7 @@
 // @src fLastBattleWon; the Utils/Timer_Control.cc customizable timer that Tactical/Overhead.cc CheckForEndOfBattle sets
 // @src for HandleThePlayerBeNotifiedOfSomeoneElseInSector, and its OK box (2026-11-07); Strategic/Meanwhile.cc
 // @src BringupMeanwhileBox (the OK and Skip box of a scene seen before, 2026-11-09); TileEngine/Tactical_Placement_GUI.cc
-// @src MERCPLACEMENT and gubDefaultButton (SaveLoadGame.cc:1856 saves it), 2026-11-14.
+// @src MERCPLACEMENT and gubDefaultButton (SaveLoadGame.cc:1798 saves it), 2026-11-14.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { ArRng, AutoresolveState } from './autoresolve/state.ts';

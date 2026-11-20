@@ -321,7 +321,7 @@ describe('duds (Physics.cc HandleArmedObjectImpact)', () => {
   });
 });
 
-describe('the curse at a dud (Physics.cc:2077-2080)', () => {
+describe('the curse at a dud (Physics.cc:2067-2070)', () => {
   const WORN_GRENADE = 5;
 
   function dudCurses(owner: (sim: TacticalSim) => Soldier): SimEvent[] {

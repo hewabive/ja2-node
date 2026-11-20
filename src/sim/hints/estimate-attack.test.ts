@@ -98,7 +98,7 @@ describe('a merc in deep water', () => {
 });
 
 describe('the chance to hit under the shipped show_hit_chance', () => {
-  it('gives no number for a gun or a throw, as the aim and throw cursors show none with the policy off (UI_Cursors.cc:244, :876)', () => {
+  it('gives no number for a gun or a throw, as the aim and throw cursors show none with the policy off (UI_Cursors.cc:246, :861)', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
     spawnSoldier(sim, 1, Team.OUR, gridNo(82, 80), Direction.SOUTH, { gun: 'HAND_GRENADE' });
@@ -118,7 +118,7 @@ describe('the chance to hit under the shipped show_hit_chance', () => {
     });
   });
 
-  it('tells only whether a shot cannot get through, as the aim cursor marks it below OK_CHANCE_TO_GET_THROUGH (UI_Cursors.cc:236-241)', () => {
+  it('tells only whether a shot cannot get through, as the aim cursor marks it below OK_CHANCE_TO_GET_THROUGH (UI_Cursors.cc:238-243)', () => {
     const wallRow = 85;
     const walls = Array.from({ length: 9 }, (_, k) => gridNo(76 + k, wallRow));
     const sim = newCombatSim(content, walls);

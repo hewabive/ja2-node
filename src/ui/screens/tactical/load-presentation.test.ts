@@ -195,10 +195,10 @@ describe('the tactical screen across a load in place (LoadSaveSoldierType.cc: wh
   });
 });
 
-describe('the place of the damage number (RenderTopmostTacticalInterface, Interface_Control.cc:420-435)', () => {
+describe('the place of the damage number (RenderTopmostTacticalInterface, Interface_Control.cc:412-427)', () => {
   const QUEEN_HIT = 23;
 
-  it("draws a soldier's number at the corner of his box + 20, - 5, and the Queen's at her position + 25, + 10, both moved a pixel each step (Soldier_Control.cc:5701-5710)", async () => {
+  it("draws a soldier's number at the corner of his box + 20, - 5, and the Queen's at her position + 25, + 10, both moved a pixel each step (Soldier_Control.cc:5694-5703)", async () => {
     const f = await tacticalUiTest(kit, ui, 5);
     f.advance(1);
     const [merc, queen] = f.client.view.soldiers.filter((s) => s.team === 0).map((s) => s.id);

@@ -63,7 +63,7 @@ function aboardTheHummer(session: CampaignSession): RosterMerc[] {
   );
 }
 
-describe('confirming a route for a vehicle (HandleNewDestConfirmation, MapScreen.cc:7398, :7575)', () => {
+describe('confirming a route for a vehicle (HandleNewDestConfirmation, MapScreen.cc:7363, :7540)', () => {
   it('wakes the one who must drive and leaves a passenger who need not drive asleep', async () => {
     const session = await stubCampaignWithOurHummer(kit, SEED, undefined, 2);
     const [driver, passenger] = aboardTheHummer(session) as [RosterMerc, RosterMerc];

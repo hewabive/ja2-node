@@ -44,7 +44,7 @@ function hitWindow(chain: readonly number[]): TacticalState {
   return t;
 }
 
-describe('the noise of a window hit (Weapons.cc:1884-1887, OppList.h:14)', () => {
+describe('the noise of a window hit (Weapons.cc:1844-1847, OppList.h:14)', () => {
   it('is 4 when the window only cracks', () => {
     expect(hitWindow(CRACKING_CHAIN).turn.deferredNoises.map((n) => n.volume)).toEqual([4]);
   });

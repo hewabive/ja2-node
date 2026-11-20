@@ -133,7 +133,7 @@ function traverse(c: Campaign): { before: readonly SimEvent[]; after: readonly S
 }
 
 describe('the enemy-presence line before the pre-battle interface (Strategic_Movement.cc HandleImportantPBIQuote)', () => {
-  it('opens the preBattle prompt only once a merc of the group has said the line (Dialogue_Control.cc:413-418)', async () => {
+  it('opens the preBattle prompt only once a merc of the group has said the line (Dialogue_Control.cc:414-419)', async () => {
     const c = await landedInA9(31, 'pre-battle-line');
     enemiesIn(c.session, ENEMY_SECTOR, TWO_TROOPS);
     await squadToB9(c);
@@ -164,7 +164,7 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
     });
   });
 
-  it('puts a sleeping speaker back to sleep as the panel opens, after the panel woke everyone involved (Strategic_Movement.cc:595-602, PreBattle_Interface.cc:303)', async () => {
+  it('puts a sleeping speaker back to sleep as the panel opens, after the panel woke everyone involved (Strategic_Movement.cc:592-599, PreBattle_Interface.cc:303)', async () => {
     const c = await landedInA9(35, 'pre-battle-line-asleep');
     expect(await order(c, { type: 'mapScreen' })).toEqual({ ok: true });
     for (const m of c.session.campaign.battle?.roster.all() ?? []) m.asleep = true;
@@ -177,7 +177,7 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
     expect(roster.all().map((m) => [m.id, m.asleep])).toEqual(squadIds(c).map((id) => [id, id === line.soldier]));
   });
 
-  it('ignores the map-area orders while the line plays, as the map screen ignores its clicks (MapScreen.cc:3335-3341, :3390-3396)', async () => {
+  it('ignores the map-area orders while the line plays, as the map screen ignores its clicks (MapScreen.cc:3303-3309, :3358-3364)', async () => {
     const c = await landedInA9(31, 'pre-battle-line-map-area');
     enemiesIn(c.session, ENEMY_SECTOR, TWO_TROOPS);
     expect(await order(c, { type: 'mapScreen' })).toEqual({ ok: true });
@@ -206,7 +206,7 @@ describe('the enemy-presence line before the pre-battle interface (Strategic_Mov
     expect(routed, routed.reason).toMatchObject({ ok: true });
   });
 
-  it('refuses a save, quick or not, while the line plays on the tactical screen, as the save keys skip it (Turn_Based_Input.cc:1822, :1947)', async () => {
+  it('refuses a save, quick or not, while the line plays on the tactical screen, as the save keys skip it (Turn_Based_Input.cc:1805, :1930)', async () => {
     const c = await landedInA9(35, 'pre-battle-line-save');
     expect(saveRefusal(c.session)).toBeNull();
     enemiesArriveInA9(c);

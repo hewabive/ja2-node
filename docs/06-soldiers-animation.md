@@ -149,7 +149,7 @@ its `DRUNK_IDLE` is a plain one-shot.
 
 **A soldier's name is his own; the team default is text.** The original writes the default of his team into the name
 of every soldier without a profile on the enemy, militia, civilian or creature team (`TacticalCopySoldierFromCreateStruct`,
-`Tactical/Soldier_Create.cc:880-905`), a string of `TacticalStr` in the game's language. ja2-node keeps the name empty
+`Tactical/Soldier_Create.cc:879-904`), a string of `TacticalStr` in the game's language. ja2-node keeps the name empty
 (`src/sim/tactical/default-names.ts`): the view carries `defaultName` and the messages a string reference, which each
 client prints in its own language (`src/protocol/soldier-names.ts`; the overhead map, the attack prompt, `29` §7). A
 merc married off to a civilian keeps his nickname, as in the original. A native save holds the default in its language,
@@ -175,8 +175,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | An unseen soldier keeps his frame delay through his fade-out and the pass that ends it; only the next speed change runs him at the loop rate | `fade.test.ts` |
 | A walking soldier's fade-out ends when he reaches the next tile, without setting his speed: he walks on at his delay to the tile after | `fade.test.ts` |
 | A walking civilian steps at his body's speed, a running one at the running state's 2.6, not his body's 2.3 | `movement.test.ts` |
-| Any stance change of a civilian body but the cripple's only sets or clears the cower state (`ChangeSoldierStance`, `Tactical/Soldier_Control.cc:3701`): told to lie down he cowers and ends crouched, and a crouched civilian whose cower flag is off ignores a stand | `stance.test.ts` |
-| An enemy who sees one of ours and is not under AI control readies his gun at the closest one in place of every breath or idle on his feet, free of the ready's APs (`ReevaluateEnemyStance` at the start of `EVENT_InitNewSoldierAnim`, `Tactical/Soldier_Control.cc:1109`); the check comes before the refused restart, so the breath he is already in readies him too | `perception/enemy-stance.test.ts` "readies an enemy already breathing on his feet …" |
+| Any stance change of a civilian body but the cripple's only sets or clears the cower state (`ChangeSoldierStance`, `Tactical/Soldier_Control.cc:3695`): told to lie down he cowers and ends crouched, and a crouched civilian whose cower flag is off ignores a stand | `stance.test.ts` |
+| An enemy who sees one of ours and is not under AI control readies his gun at the closest one in place of every breath or idle on his feet, free of the ready's APs (`ReevaluateEnemyStance` at the start of `EVENT_InitNewSoldierAnim`, `Tactical/Soldier_Control.cc:1113`); the check comes before the refused restart, so the breath he is already in readies him too | `perception/enemy-stance.test.ts` "readies an enemy already breathing on his feet …" |
 | An enemy whose gun is already up only turns at that check, and keeps the flag that spares the ready's APs, so his next ready is free | `perception/enemy-stance.test.ts` "only turns an enemy whose gun is already up …" |
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |

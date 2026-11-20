@@ -6,7 +6,9 @@ time, animation timelines, protocols kept exactly, randomness, prompts, options)
 the repository; §10 maps the other documents.
 
 **Conventions.** Paths into the original are relative to `reference/stracciatella/src/game/` (`sgp/…` and
-`externalized/…` to `reference/stracciatella/src/`); `V:` is vanilla (`reference/vanilla/ja2/Build/`).
+`externalized/…` to `reference/stracciatella/src/`), the release v0.22.1; `V:` is vanilla
+(`reference/vanilla/ja2/Build/`); `M:` is Stracciatella master `ae6bf01`, cited only for code v0.22.1 lacks that
+ja2-node still follows (§3.10).
 
 ---
 
@@ -51,8 +53,8 @@ by default in `~/ja2-oracle`), screenshots. The repository ships:
 - Not shipped: Stracciatella's `from-russia-with-love` mod `A9.dat`, declared public domain but most likely a reworked
   Omerta (local parser tests at most).
 
-`reference/` holds the third-party sources (Stracciatella master at `ae6bf01`, which #117 moves to the release v0.22.1;
-vanilla; `reference/README.md`), read-only and gitignored.
+`reference/` holds the third-party sources (Stracciatella at the release v0.22.1, vanilla; `reference/README.md`),
+read-only and gitignored.
 
 ---
 
@@ -60,7 +62,7 @@ vanilla; `reference/README.md`), read-only and gitignored.
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | **The behaviour reference is JA2 Stracciatella v0.22.1 with default settings, pinned**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Later releases and master are not a reference: a later Stracciatella change enters only as a decision of its own. Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original. The original's gameplay bugs stay, except those the maintainer decides on, those a design rule rules out and those the rare-bug rule fixes (`original-bugs.md` §2); bugs that Stracciatella itself brought into v0.22.1 are not reproduced. Until #117 moves `reference/` and the code, ja2-node follows master `ae6bf01` where §3.10 marks it | The goal is the game as played in Gold 1.12. A played release keeps that game where the 2004 source's release build does not (enemies climb roofs) and fixes bugs such as the movement-noise wraparound. From 2026, master reworks whole systems as fixes of vanilla bugs without weighing the balance (the lighting overhaul #105, suppression AP debt #107, heights #108), so later releases stop being the original. v0.22.0 lacks v0.22.1's one fix (merc relations read from `prof.dat`); v0.21.0 and older drop only a few local differences, but lack data files ja2-node reads (armours, explosion animations, smoke, NPC script records) and keep regressions that 0.22 fixed. A rare slip that only extra code would reproduce is not worth that code |
+| D1 | **The behaviour reference is JA2 Stracciatella v0.22.1 with default settings, pinned**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Later releases and master are not a reference: a later Stracciatella change enters only as a decision of its own. Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original. The original's gameplay bugs stay, except those the maintainer decides on, those a design rule rules out and those the rare-bug rule fixes (`original-bugs.md` §2); bugs that Stracciatella itself brought into v0.22.1 are not reproduced. Where §3.10 marks a row **master**, ja2-node still follows master `ae6bf01` until the issue named moves the code (`M:` citations) | The goal is the game as played in Gold 1.12. A played release keeps that game where the 2004 source's release build does not (enemies climb roofs) and fixes bugs such as the movement-noise wraparound. From 2026, master reworks whole systems as fixes of vanilla bugs without weighing the balance (the lighting overhaul #105, suppression AP debt #107, heights #108), so later releases stop being the original. v0.22.0 lacks v0.22.1's one fix (merc relations read from `prof.dat`); v0.21.0 and older drop only a few local differences, but lack data files ja2-node reads (armours, explosion animations, smoke, NPC script records) and keep regressions that 0.22 fixed. A rare slip that only extra code would reproduce is not worth that code |
 | D2 | **The simulation core is separate from presentation**: deterministic, no DOM and no Node API, no mutable module state (several sessions share a process), serializable: the snapshot codec (`src/sim/snapshot`) writes the whole session and restores it exactly. The client derives sound, music and video from events and view frames; the server computes the music mode outside `sim` (`src/protocol/music.ts`) | Tests, headless runs, comparison with the original, saves, replays |
 | D3 | **One game time: integer milliseconds on a fixed 5 ms tick** (`TICK_MS`, `src/sim/clock.ts`), the original's overhead pass; every timer of the original runs on ticks with its value (§3.3) | Outcomes independent of FPS and machine speed |
 | D4 | **Animations enter the simulation as data**: `ja2bin.dat` and `gAnimControl` become timelines; the simulation steps the logic timeline and runs the gameplay opcodes at their frames, the views take sprite frames and sound codes from the presentation timeline (§3.4). No sprite enters the simulation | The original resolves shots, deaths and doors on animation frames; durations are numbers the simulation computes instead of waiting |
@@ -163,7 +165,7 @@ drain; a campaign adds its world clock. A session's simulation (`SessionSim`, `s
   `UINT32` values past 2^31), large products through `Math.imul`, `float` math through `Math.fround`; `Math.trunc` of a
   quotient stays only as the cast of a float division of the original or in arithmetic of ja2-node alone. Overflows the
   original relies on are reproduced where the code meets them (e.g. a `UINT8` overflowing before its clamp,
-  `Tactical/Overhead.cc:5182`; a `UINT32` underflowing inside `max`, `Strategic/Game_Clock.cc:634`; bit-31 flags need
+  `Tactical/Overhead.cc:5252`; a `UINT32` underflowing inside `max`, `Strategic/Game_Clock.cc:634`; bit-31 flags need
   `>>> 0`).
 - **Determinism.** No `Math.random`, wall clock, timer (checked, §2) or mutable module state in `core`, `content`, `sim`
   and `ui`. Tables the original precomputes with C math are evaluated as it does (`gdRadiansForAngle` with glibc
@@ -175,12 +177,12 @@ drain; a campaign adds its world clock. A session's simulation (`SessionSim`, `s
 ### 3.3 Time
 
 **Game time on 5 ms ticks (D3).** The original's frame loop runs `ExecuteOverhead` at most every 5 ms
-(`GameScreen.cc:424-427`, `Utils/Timer_Control.cc:15`). A soldier's animation counter re-arms from "now" and never
+(`GameScreen.cc:423-426`, `Utils/Timer_Control.cc:15`). A soldier's animation counter re-arms from "now" and never
 catches up (`Utils/Timer_Control.cc:155-181`), so a soldier advances at most one frame per pass and a slow machine slows
-the game. Real time has no action points (`Tactical/Points.cc:462-465`): an action lasts as long as its animation, so
+the game. Real time has no action points (`Tactical/Points.cc:465-468`): an action lasts as long as its animation, so
 tactical game time is in effect "animation frames played" and the wall clock only sets the pace. In combat, soldiers
 the player cannot see get frame delay 0 once they have faded out and animate on every pass
-(`Tactical/Soldier_Control.cc:4928-4936`): turn-based outcomes never depended on playback speed. A ja2-node tick is one
+(`Tactical/Soldier_Control.cc:4921-4929`): turn-based outcomes never depended on playback speed. A ja2-node tick is one
 overhead pass on an ideal machine that never drops a frame; every timer keeps its value in game milliseconds and its
 reset points, and a cadence that follows the frame rate or the CPU in the original runs on the tick grid. What the original couples to clocks, frames and sound is listed in
 `04` §3; each resulting difference is a row of `deviations.md` §2.
@@ -198,7 +200,7 @@ plays the frames at 1×, faster, skipped, or "unseen at once".
 
 **The data.** The user's `ja2bin.dat` holds one script per animation state (`src/content/formats/ja2bin.ts`): sprite
 frames, opcodes, jumps inside the script and to other states, and sound codes (the code ranges:
-`Tactical/Soldier_Ani.cc:93-2547`). `gAnimControl` (flags, speed, non-interruptibility) is transcribed into
+`Tactical/Soldier_Ani.cc:93-2524`). `gAnimControl` (flags, speed, non-interruptibility) is transcribed into
 `data/tables/anim-control.json`. The gameplay opcodes are where the original resolves an action on an animation frame:
 the fire opcode 430 (every gun, melee and launcher attack), the throw release 460/461, the death commit 440, the
 roof-climb commits 408/475, opening a door 494/495, the busy count's increments and decrements, and the end of an
@@ -224,7 +226,7 @@ before release without AP, map blindness during a roof climb, a burst at a falli
 
 The skeleton of tactics; the order inside each is behaviour, kept with its quirks.
 
-1. **Tile step** (`07`; `HandleGotoNewGridNo`, `Tactical/Overhead.cc:1247`; `HandleAtNewGridNo`, `:1709`). The step's
+1. **Tile step** (`07`; `HandleGotoNewGridNo`, `Tactical/Overhead.cc:1316`; `HandleAtNewGridNo`, `:1778`). The step's
    AP and breath are paid at the tile centre before leaving; the soldier changes tile at the boundary, so bullets hit
    him on the new tile from then on; at the new centre the checks run in a fixed order (breath collapse, mines, noise
    and its interrupt, sight and its interrupt, mine detection, a new AI situation, arrival triggers).
@@ -236,7 +238,7 @@ The skeleton of tactics; the order inside each is behaviour, kept with its quirk
 4. **Throw** (`34`): rolled at the order, launched at the release opcode; an NPC who sights something first aborts with
    no AP spent. **Melee** (`11`): resolved at the strike frame against whoever stands on the tile; the hit lands 20 ms
    later.
-5. **Barrier** (D5; `10`, `33`; `InternalReduceAttackBusyCount`, `Tactical/Overhead.cc:5510`). While the busy count is
+5. **Barrier** (D5; `10`, `33`; `InternalReduceAttackBusyCount`, `Tactical/Overhead.cc:5583`). While the busy count is
    above 0: no interrupts, noise deferred, no new AI situations. At 0, in this order: suppression, the consequences of
    the attack (an unseen attacker noticed, combat entry, NPC hostility), the end-of-attack sight check, the deferred
    noises with their interrupts, the end-of-battle check.
@@ -253,7 +255,7 @@ The skeleton of tactics; the order inside each is behaviour, kept with its quirk
 
 **The original.** `Random` and `PreRandom` share one engine with presentation code (`sgp/Random.cc:7-90`; `mt19937` in
 Stracciatella, MSVC `rand()` in vanilla). `PreRandom` reads a table of 256 pregenerated numbers at an index; both are
-saved (`SaveLoadGame.cc:2110-2115`), so after a reload the next `PreRandom` draws repeat: a guard against save-scumming
+saved (`SaveLoadGame.cc:2052-2057`), so after a reload the next `PreRandom` draws repeat: a guard against save-scumming
 the player can see. Stracciatella refills each slot after use; vanilla never does (`V:SGP/Random.c:61-65`), so its 256
 numbers recycle forever. Cosmetic code (face blinks, idle animations, ambient sounds) draws from the same engine on
 wall-clock time. Which mechanics draw `PreRandom` and which `Random` is player-visible and kept: the code makes each
@@ -314,41 +316,41 @@ the whole `strategic-ai-policy.json` (`src/content/strategic/`). The tactical ke
 damage multipliers, interrupt rules, suppression, enemy weapon status and elite levels, drops, AI switches) are
 constants at their shipped values in the rule modules (e.g. `ENEMY_ELITE_MINIMUM_LEVEL` in
 `src/sim/tactical/creation.ts`, the suppression constants in `src/sim/tactical/combat/barrier.ts`): editing them in
-`game.json` changes nothing. Stracciatella's Lua hooks (`externalized/scripting/ScriptingExtensionsLua.cc:429-444`)
+`game.json` changes nothing. Stracciatella's Lua hooks (`externalized/scripting/ScriptingExtensionsLua.cc:426-441`)
 serve mods only; the default game ships just `enums.lua`, so nothing is ported.
 
 ### 3.10 Where Stracciatella differs from vanilla
 
 ja2-node follows the Stracciatella column (D1) unless `deviations.md` says otherwise. A row marked **master** holds only on
-master `ae6bf01`: v0.22.1 behaves as vanilla there, and ja2-node follows master until the issue named moves it (#117).
-v0.22.1's own differences from vanilla stand. The maintainer reconsiders one only from play of the original. #118 lists
-the differences an audit of v0.22.1 found, with what play has shown so far; the rows ja2-node keeps join this table
-with #117.
+master `ae6bf01` (`M:` citations): v0.22.1 behaves as vanilla there, and ja2-node follows master until the issue named
+moves it. v0.22.1's own differences from vanilla stand. The maintainer reconsiders one only from play of the original.
+#118 lists the differences an audit of v0.22.1 found, with what play has shown so far; the rows ja2-node keeps join
+this table.
 
 | Area | Vanilla | Stracciatella |
 |---|---|---|
 | `PreRandom` | Never refilled; `n*range/RAND_MAX%range` | Refilled after each use; uniform mapping (§3.6) |
-| Merc slots (**master**, #106) | A fixed array: an entering soldier takes the first empty slot, a leaving one leaves it empty (`V:Tactical/Overhead.c:294-345`) | Vectors: an entering soldier goes to the end, a leaving one closes the gap, and the index cursors of the AI pass keep their number (`Tactical/Overhead.cc:133-271`) |
-| AP debt (**master**, #107) | AP floored at 0 (`V:Tactical/Points.c:465-486`), refunding suppression debt | Debt down to −100 (`Tactical/Points.cc:488`) |
-| Sight range | Light penalty applied inconsistently | Applied consistently (`OppList.cc:881`) |
-| Movement noise | `UINT8` wraparound; an unreachable water branch | Fixed (`OppList.cc:3230`) |
-| Hearing | Sleeping listener −5 | Disabled (`OppList.cc:3848`) |
-| Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps (**master**, #115); wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1979`) |
-| Next bleed (**master**, #115) | Integer division | Float division (`Soldier_Control.cc:8056`) |
-| Carried weight | Strength halved with integer division | Minor fix (`Items.cc:843`) |
-| Hidden bullets (**master**, #114) | 1 tile per step | 4 tiles per step (`LOS.cc:3155-3166`; ja2-node: 1 tile per tick) |
-| Jam (**master**, kept: #117) | Reserved bullets lost | Refunded (`Soldier_Ani.cc:1061-1073`) |
-| Blast during a hit animation (**master**, #115) | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`Soldier_Control.cc:3254-3262`) |
-| AI burst choice (**master**, #115) | Affordability without re-raise AP | Re-raise AP included (`DecideAction.cc:3245-3300`) |
-| PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:711-742`; confirmed by the oracle `defence` probes on A9, `17`) |
-| Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1131, 2152`) |
-| Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (**master**, #110; `Auto_Resolve.cc:2918`); the index is saved but never restored |
+| Merc slots (**master**, #106) | A fixed array: an entering soldier takes the first empty slot, a leaving one leaves it empty (`V:Tactical/Overhead.c:294-345`) | Vectors: an entering soldier goes to the end, a leaving one closes the gap, and the index cursors of the AI pass keep their number (`M:Tactical/Overhead.cc:133-271`) |
+| AP debt (**master**, #107) | AP floored at 0 (`V:Tactical/Points.c:465-486`), refunding suppression debt | Debt down to −100 (`M:Tactical/Points.cc:488`) |
+| Sight range | Light penalty applied inconsistently | Applied consistently (`OppList.cc:880`) |
+| Movement noise | `UINT8` wraparound; an unreachable water branch | Fixed (`OppList.cc:3234`) |
+| Hearing | Sleeping listener −5 | Disabled (`OppList.cc:3853`) |
+| Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps (**master**, #115); wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1939`) |
+| Next bleed (**master**, #115) | Integer division | Float division (`M:Soldier_Control.cc:8056`) |
+| Carried weight | Strength halved with integer division | Minor fix (`Items.cc:845`) |
+| Hidden bullets (**master**, #114) | 1 tile per step | 4 tiles per step (`M:LOS.cc:3155-3166`; ja2-node: 1 tile per tick) |
+| Jam (**master**, kept: #117) | Reserved bullets lost | Refunded (`M:Soldier_Ani.cc:1061-1073`) |
+| Blast during a hit animation (**master**, #115) | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`M:Soldier_Control.cc:3254-3262`) |
+| AI burst choice (**master**, #115) | Affordability without re-raise AP | Re-raise AP included (`M:DecideAction.cc:3245-3300`) |
+| PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:718-749`; confirmed by the oracle `defence` probes on A9, `17`) |
+| Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1125, 2146`) |
+| Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (**master**, #110; `M:Auto_Resolve.cc:2918`); the index is saved but never restored |
 | Militia promotion | No fallback | Falls back to the next rank (`Town_Militia.cc:253, 289`) |
-| Sleep need | An integer bug always adds 4 | Fixed (`Assignments.cc:2073, 5677, 6903`) |
-| Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2451, 2603`) |
+| Sleep need | An integer bug always adds 4 | Fixed (`Assignments.cc:1928, 5527, 6753`) |
+| Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2439, 2591`) |
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
-| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5188-6202`; `27` §1.6; `enable_stat_healing`, off, **master**, #115) |
-| Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same, except that an open door's swing tile does not block (#118, row 11) | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`TileEngine/Lighting.cc:297`) |
+| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5181-6195`; `27` §1.6; `enable_stat_healing`, off, **master**, #115) |
+| Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same, except that an open door's swing tile does not block (#118, row 11) | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`M:TileEngine/Lighting.cc:297`) |
 
 ---
 

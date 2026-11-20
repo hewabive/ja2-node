@@ -118,7 +118,7 @@ hits adds his own hold (`33`).
 **Gas marks the soldier.** The gassed state is the soldier's own flag (`Soldier.gassed`): it leaves the sector with him,
 is saved with him and is read from a native save. Every turn start of our whole team tests it against the loaded map at
 the merc's gridno (`clearGassedAtTurnStart`), and a merc off the loaded map stands nowhere there: his removal from the
-sector, or the load of another, set `NOWHERE` (`removeSoldierFromTacticalSector`, `Strategic/StrategicMap.cc:563`), so
+sector, or the load of another, set `NOWHERE` (`removeSoldierFromTacticalSector`, `Strategic/StrategicMap.cc:558`), so
 he loses the flag at his next turn start: the native build reads past the end of the world array there, with a sector
 loaded or none, and finds no smoke (`tools/oracle/README.md` "Absent mercs"). The per-round gas flags and the
 one-hit-per-blast flag live per soldier id in `ExplosivesState`. Clouds and flares
@@ -143,7 +143,7 @@ replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the vi
 (`29`). The decals' removal, which the original makes outside `ApplyMapChangesToMapTempFile`, and a pit's textures
 (§6) are records like any other, so the next entry keeps them; a native save never holds them (original-bugs "Pit tiles
 after a load", "Wall decals after a load"). The end piece's
-insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
+insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:882`) is not ported: no original map has a
 roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), the debris variant's
@@ -177,16 +177,16 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
 | A pass to a merc without room for all of it still costs both mercs their 3 AP, and what fits stays with him: the APs go before `AutoPlaceObject` | `item-pointer.test.ts` |
 | An item dropped on the second tile of a long table rolls to its base, but the mark stays on the tile it was dropped on: its pickup clears the base tile alone | `world-items.test.ts` "keeps the mark on the tile an item was dropped on …" |
-| A pickup on his own tile crouched, prone or in water takes the items at once and leaves `MERC_PICKUPITEM` pending, which holds the auto-bandage question back until his next order; a walk-up one counted its walk, so the stance change that ends it drops the action (`Tactical/Soldier_Control.cc:8156-8164`, `:8220-8228`, `:1674`) | `item-actions.test.ts` "keeps it after a pickup on the spot …", "holds the auto-bandage question back …", "is dropped by the change out of the swat …" |
+| A pickup on his own tile crouched, prone or in water takes the items at once and leaves `MERC_PICKUPITEM` pending, which holds the auto-bandage question back until his next order; a walk-up one counted its walk, so the stance change that ends it drops the action (`Tactical/Soldier_Control.cc:8149-8157`, `:8220-8228`, `:1677`) | `item-actions.test.ts` "keeps it after a pickup on the spot …", "holds the auto-bandage question back …", "is dropped by the change out of the swat …" |
 | Opening and closing the sector inventory sorts the sector's items: the pool sorts as it opens and its close writes the items back in its order, the loaded sector's trashed and added again; a pool item with gridno 0 takes the gridno of the one before it | `src/sim/campaign/map-inventory.test.ts` "writes the pool back into the loaded sector …", "writes the pool of a sector off the map back …" |
 | A pool item put into an empty pool slot, its own included, takes the selected merc's level and loses every flag but the reachable one | `src/sim/campaign/map-inventory.test.ts` "moves a pool item between pool slots …" |
-| A burst gun taken from the hand into the sector inventory leaves the burst mode on: picking it up places nothing on the merc, so no `EnsureConsistentWeaponMode` runs, only the launcher reset of `HandleTacticalEffectsOfEquipmentChange` (`Strategic/MapScreen.cc:3711-3716`) | `src/sim/campaign/map-inventory.test.ts` "leaves the burst mode on as a burst gun goes from the hand into the stash …" |
-| SHIFT+R spends the pointed-at stack even when it carries an attachment, which keeps every other stack out of the refill (`Map_Screen_Interface_Map_Inventory.cc:1319-1327`) | `src/sim/campaign/map-inventory.test.ts` "takes from the pointed-at stack even when it carries an attachment …" |
+| A burst gun taken from the hand into the sector inventory leaves the burst mode on: picking it up places nothing on the merc, so no `EnsureConsistentWeaponMode` runs, only the launcher reset of `HandleTacticalEffectsOfEquipmentChange` (`Strategic/MapScreen.cc:3679-3684`) | `src/sim/campaign/map-inventory.test.ts` "leaves the burst mode on as a burst gun goes from the hand into the stash …" |
+| SHIFT+R spends the pointed-at stack even when it carries an attachment, which keeps every other stack out of the refill (`M:Map_Screen_Interface_Map_Inventory.cc:1319-1327`) | `src/sim/campaign/map-inventory.test.ts` "takes from the pointed-at stack even when it carries an attachment …" |
 | A tile's pool lists its items in the order they came, while the original's runs over all items go by index, a new item taking the first freed one: a theft in the loaded sector draws first for an item that took a freed index, the pool opens with it before older ties, and the sector's item records put it there, a freed index kept as a record the next item added off the map fills; a load adds the records again in order, so the tile's pool then follows the index | `src/sim/campaign/sector-loot.test.ts` "draws for the loaded sector's items by world item index …", `src/sim/campaign/map-inventory.test.ts` "runs over the loaded sector's items by world item index …", `src/sim/campaign/sector-diff.test.ts` "writes the loaded sector's items by world item index …" |
-| The description box charges by what it shows at its close against the opening, item and status in any position: an attachment taken off and put back costs nothing (`Interface_Items.cc:2530-2588`) | `item-description-box.test.ts` "charges nothing for an attach taken off again …" |
-| The description box stays up over the end of the turn, so its close charges the APs of the merc's next turn (`UIHandleEndTurn`, `Tactical/Handle_UI.cc:1066`) | `item-description-box.test.ts` "stays open over the end of the turn …" |
-| A failed attachment skill check closes the description box, charging what was changed in it before (`Items.cc:1563`) | `item-description-box.test.ts` "closes, charging the changes before it, when an attachment skill check fails …" |
-| A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1560`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
+| The description box charges by what it shows at its close against the opening, item and status in any position: an attachment taken off and put back costs nothing (`Interface_Items.cc:2655-2713`) | `item-description-box.test.ts` "charges nothing for an attach taken off again …" |
+| The description box stays up over the end of the turn, so its close charges the APs of the merc's next turn (`UIHandleEndTurn`, `Tactical/Handle_UI.cc:1065`) | `item-description-box.test.ts` "stays open over the end of the turn …" |
+| A failed attachment skill check closes the description box, charging what was changed in it before (`Items.cc:1565`) | `item-description-box.test.ts` "closes, charging the changes before it, when an attachment skill check fails …" |
+| A pickup's data outlives its pending action: the change into the pickup animation drops a walked-up `MERC_PICKUPITEM`, and code 493 still picks up from the data, a stop meanwhile included (`Tactical/Soldier_Ani.cc:1535`) | `item-actions.test.ts` "leaves the pickup animation its data …" |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts
@@ -216,9 +216,9 @@ source:
 ## 5. Drugs and alcohol
 
 **Where.** `drugs.ts` holds the drug rules and every read of a soldier's `drugs` record: one course for adrenaline and
-one for alcohol, each with the original's five INT8 counters (`Tactical/Soldier_Control.h:740`). `applyDrugs` starts a
+one for alcohol, each with the original's five INT8 counters (`Tactical/Soldier_Control.h:736`). `applyDrugs` starts a
 course; it is the drug application of `applyItem` (`inventory-panel.ts`), tried after the camouflage kit, the canteen
-and the elixir as `SMInvClickCamoCallback` tries them (`Tactical/Interface_Panels.cc:1459`). The course steps at each
+and the elixir as `SMInvClickCamoCallback` tries them (`Tactical/Interface_Panels.cc:1431`). The course steps at each
 turn start of the merc (`handleEndTurnDrugAdjustments`, called where `EVENT_BeginMercTurn` calls it, with the
 regeneration booster's healing). The effects call it: the drunk stats, leadership and level (`skills.ts`), the turn APs,
 the new APs' maximum and the breath between turns (`points.ts`), both morale refreshes (`combat/morale.ts`,
@@ -232,7 +232,7 @@ the sandbox).
 **Design.** The courses belong to the soldier: they leave the sector with him, are saved with him and come from a
 native save, and other modules read them only through `drugs.ts`. Taking one costs no AP and needs none, as in the
 original; `count: 'all'` applies the cursor's SHIFT stack, so a booster's status is the stack's last and a beer drinks
-into the next bottle (`Tactical/Interface_Items.cc:2693`). A course runs where turn starts run: for our whole team,
+into the next bottle (`Tactical/Interface_Items.cc:2827`). A course runs where turn starts run: for our whole team,
 mercs off the loaded map included, with the crash's morale, and for the loaded sector's other soldiers, on the tactical
 screen and on the compressed map screen, where a turn comes at every poll, so a course lasts fewer world minutes the
 slower the compression (`15` §2).
@@ -243,10 +243,10 @@ adrenaline icon (an effect, not its crash) and drink icon (any level but sober) 
 the map screen's faces (`drawFace`, `src/ui/screens/tactical/faces.ts`; `mercSoldier`,
 `src/ui/screens/map/merc-soldier.ts`; `Tactical/Faces.cc:837`), and turns the AP number light blue for either, below
 dark red and above the sneaking yellow (`apColour`, `src/ui/screens/tactical/soldiers.ts`;
-`Tactical/Interface_Panels.cc:1167`). The talk face of Father Walker or Micky shows the same drink icon from their own
+`Tactical/Interface_Panels.cc:1139`). The talk face of Father Walker or Micky shows the same drink icon from their own
 drink counter, no course (`drunkTalkFace`, `src/sim/narrative/face-variant.ts`; `Tactical/Faces.cc:944`). The merc says
 COOL1 after any applied item but the canteen, which plays its drinking sound by his profile's sex, named on
-`itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3458`). A drunk soldier who trips says CURSE1 and the log
+`itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3444`). A drunk soldier who trips says CURSE1 and the log
 prints `STR_LATE_37` (`fellDown`, `29` §8.1). The knowledge projection rebuilds an alcohol course with the shown drunk
 level (`drugCoursesShowing`) and supplies the adrenaline numbers as zero only while the view shows none
 (`knowledge/soldiers.ts`): deviation "Drugs in the projection".
@@ -255,7 +255,7 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 
 | Quirk | Test |
 |---|---|
-| The heart attack never comes: the side-effect rate it tests was just set to 0, so nine boosters at once lower no stat (`Tactical/Drugs_And_Alcohol.cc:114`, `:141`) | `drugs.test.ts` "never has the heart attack …" |
+| The heart attack never comes: the side-effect rate it tests was just set to 0, so nine boosters at once lower no stat (`Tactical/Drugs_And_Alcohol.cc:113`, `:140`) | `drugs.test.ts` "never has the heart attack …" |
 | A bottle with less left than its drink points still gives a full drink | `drugs.test.ts` "gives a full drink from a bottle with less left …" |
 | One adrenaline dose peaks at 16, not 15: its rate of 4 overshoots the 15 to come; a drink rises 2, 4, 6, 8 | `drugs.test.ts` "peaks one adrenaline dose at 16 …", "raises a drink by 2 a turn …" |
 | One dose ends with two crash morale events: the side effect over the dose's, plus one | `drugs.test.ts` "ends one dose with two crash morale events …" |
@@ -306,7 +306,7 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
 - The mine flags are per tile, shared by both levels (`TacticalState.mineFlags`): the player flag for our team and the
   militia, the enemy flag for everybody else. They belong to the loaded sector: snapshots keep them, the sector's temp
   state does not. Every load starts from the flags the map file stores with each tile (`mineFlagsOfMap`, the high
-  nibble of a tile's layer count byte, `TileEngine/WorldDef.cc:2102`) and marks for the player the tiles where the
+  nibble of a tile's layer count byte, `TileEngine/WorldDef.cc:2202`) and marks for the player the tiles where the
   replayed map changes leave a blue flag (`setBlueFlagFlags` at the end of `initLoadedWorld`, a native import
   included); the map's items mark the hidden mines the load arms for the enemy, and every pit added to a pool its
   tile.
@@ -326,15 +326,15 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
 - The original's yes/no and numbered boxes of `Tactical/Handle_Items.cc` are prompts of the loaded sector
   (`TacticalState.prompt`, decision prompts of `01` §3.8), so the sandbox has them too; the view shows them in `prompt`
   beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown, and as its
-  `PauseTime` (`MessageBoxScreen.cc:274`, the pickup menu's `Tactical/Interface_Items.cc:4291`) an open prompt stops
+  `PauseTime` (`MessageBoxScreen.cc:274`, the pickup menu's `Tactical/Interface_Items.cc:4427`) an open prompt stops
   every soldier's frame, damage and fade counters and the real-time AI's own counter at once (`promptPausesTimers`;
-  `TacticalAI/AIMain.cc:163`): the soldiers after its opener in the overhead pass wait, a soldier the AI handles every
+  `TacticalAI/AIMain.cc:165`): the soldiers after its opener in the overhead pass wait, a soldier the AI handles every
   frame excepted, so a merc due at a pile or a trap in that pass gets his menu or box after the answer, and only one
   soldier's own pickup ever asks twice. In a campaign its `PauseGame` also restarts the world clock's second in that
   tick (`15` §2). A box up at the start of the pass holds the whole pass (`executeOverhead`,
-  `Tactical/Overhead.cc:481`): the frame of the auto-bandage question (§8), and the frame of a campaign box opened
+  `Tactical/Overhead.cc:551`): the frame of the auto-bandage question (§8), and the frame of a campaign box opened
   before the sector's step (the `someoneElseInSector` box, `campaign-sim.ts`), whose throws, real-time turn and
-  ownership check wait too (`GameScreen.cc:340-346`). The callbacks read the original's globals
+  ownership check wait too (`GameScreen.cc:339-345`). The callbacks read the original's globals
   (`TacticalState.boobyTrap`: the soldier, item, tile, level and difficulty of the last trap, whether it was just
   found), set by the pickup and read at the answer; a spotted trap's box waits for the merc's stop-time quote (`24` §2).
   A spotted mine sets only the soldier and the tile, so its blue flag goes on the level the last booby trap left; its
@@ -346,10 +346,10 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   tile in `pendingActionData2` as the original's `sPendingActionData2`, which the plant's frame reads.
 - A pit (`bombs/pits.ts`, `TileEngine/Pits.cc:24`) is map changes: its textures and its exit grids (original-bugs "Pit
   tiles after a load"), and an exit grid added on a tile replaces the map's (`exitGridAt`,
-  `TileEngine/Exit_Grids.cc:53`). The fall's code 754 takes the soldier off the map; `SectorHooks.soldierFellIntoPit`
+  `TileEngine/Exit_Grids.cc:84`). The fall's code 754 takes the soldier off the map; `SectorHooks.soldierFellIntoPit`
   gives the campaign the strategic half for a merc of the roster (`mercFellIntoPit`,
   `src/sim/campaign/sector-exits.ts`), and the computer's soldiers only leave the map (original-bugs "Pit falls of the
-  computer's soldiers"). A map's pit loads unarmed (`loadWorldItemsFromMap`, `Tactical/World_Items.cc:309`), so only a
+  computer's soldiers"). A map's pit loads unarmed (`loadWorldItemsFromMap`, `Tactical/World_Items.cc:328`), so only a
   pit already armed in the bomb list opens, and no original map holds one.
   The editor's pits (`AddAllPits`) are not ported.
 
@@ -484,7 +484,7 @@ The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
   combat, outside the Deidranna endgame (the sector hook `inDeidrannaEndgame`) and with a medic for a patient. The
   normal tick runs `handleAutoBandagePending` after the real-time turn and before the bullets and the overhead pass, as
   `MainGameScreenHandle` runs it after `HandleStrategicTurn` and before `UpdateBullets` and `ExecuteOverhead`
-  (`GameScreen.cc:346-427`). It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
+  (`GameScreen.cc:345-426`). It waits while the dialogue is busy, a merc of ours in the sector has a pending action (the
   seats of a helicopter drop under way included; a pickup on the spot crouched, prone or in water leaves one, §3) or the
   interface is locked, then clears the flag and checks everything again: a refusal becomes the `autoBandageRefused`
   event (the original's OK box), otherwise the same prompt opens. Either box holds that tick's overhead pass, as its
@@ -498,22 +498,22 @@ The `realtime` bench's `bandage-*` variants time the mode's frames (`32` §2.2).
 **The frame** (`autoBandageFrame`) is `HandleAutoBandage`: the real-time turn (`HandleStrategicTurn`, which the paused
 game stops: `turns.ts` counts the mode as a pause, so the sandbox has none either), the services of our team, the 5 s
 count, the overhead pass with `autoBandageOverheadHooks`, then the end if asked. `MainGameScreenHandle` returns before
-the rest of its frame (`GameScreen.cc:283-288`), so those hooks are the normal pass's without what lies outside
+the rest of its frame (`GameScreen.cc:282-287`), so those hooks are the normal pass's without what lies outside
 `ExecuteOverhead`:
 
 | Normal tick | In the mode | Original |
 |---|---|---|
-| `handlePickedOwnershipCheck` | Left out | `CheckCustomizableTimer`, `GameScreen.cc:340` |
-| `stepThrownObjects` | Left out | `SimulateWorld`, `GameScreen.cc:343` |
-| `handleRealtimeTurns` | First in the frame | `GameScreen.cc:346`, `Auto_Bandage.cc:225` |
-| `handleAutoBandagePending` | Left out | `GameScreen.cc:411` |
-| `handleEnemySightingPause` | Left out | `GameScreen.cc:311-327` |
-| `updateBullets` | Left out | `UpdateBullets`, `GameScreen.cc:424` |
-| `stepExplosions`, `updateMissAnimations` | Kept | `UpdateAniTiles`, `Overhead.cc:487` |
-| `handleExplosionQueue`, `handleCreatureTenseQuote`, `checkHostileOrSayQuoteList`, `endTimedAiPause` | Kept | `Overhead.cc:490-500` |
+| `handlePickedOwnershipCheck` | Left out | `CheckCustomizableTimer`, `GameScreen.cc:339` |
+| `stepThrownObjects` | Left out | `SimulateWorld`, `GameScreen.cc:342` |
+| `handleRealtimeTurns` | First in the frame | `GameScreen.cc:345`, `Auto_Bandage.cc:225` |
+| `handleAutoBandagePending` | Left out | `GameScreen.cc:410` |
+| `handleEnemySightingPause` | Left out | `GameScreen.cc:310-326` |
+| `updateBullets` | Left out | `UpdateBullets`, `GameScreen.cc:423` |
+| `stepExplosions`, `updateMissAnimations` | Kept | `UpdateAniTiles`, `Overhead.cc:557` |
+| `handleExplosionQueue`, `handleCreatureTenseQuote`, `checkHostileOrSayQuoteList`, `endTimedAiPause` | Kept | `Overhead.cc:560-570` |
 | `updateSkullReleases` | Kept | `HandlePanelFaceAnimations`, in the slot loop |
-| `beginAiPass`, the slots' AI, `awayAiForPass` | Kept, then the completion check | `Overhead.cc:503-1077` |
-| `checkMercsWaiting`, then `dequeueAllGameEvents` | Kept | `Overhead.cc:1080`, `Auto_Bandage.cc:238` |
+| `beginAiPass`, the slots' AI, `awayAiForPass` | Kept, then the completion check | `Overhead.cc:573-1147` |
+| `checkMercsWaiting`, then `dequeueAllGameEvents` | Kept | `Overhead.cc:1150`, `Auto_Bandage.cc:238` |
 
 **In a campaign** the step of the mode is the tactical frame, the sector flow's after-step (the end of a wait for mercs)
 and `updateClock`, which the pause stops. It leaves out what `MainGameScreenHandle` runs after its early return: the
@@ -529,7 +529,7 @@ hook pauses the world clock; the end's hook unpauses it and warps it by the coun
 - The AI (`ai/control.ts`): `handleSoldierAI` lets our mercs through, and their real-time decision is
   `decideAutoBandage` (`rtPlayerDecideAction`); a NONE becomes the soldier's 10–11 s wait, as for anyone. `aiForSlot`
   visits every slot at every pass, each soldier still on his own 100 ms timer, and the cursor moves on after each.
-- `GIVE_AID` runs `HandleItem` with the kit in hand on the ground level, as `AIMain.cc:1732` does; `handleItem`'s medkit
+- `GIVE_AID` runs `HandleItem` with the kit in hand on the ground level, as `AIMain.cc:1734` does; `handleItem`'s medkit
   branch is `beginFirstAid` (`handleMedKit`, `first-aid.ts`), which walks him up or starts the dressing. A refusal
   cancels the action. `GET_CLOSER` and `MOVE_TO_CLIMB` walk through `executeMovement`, whose `newDest` takes the gait
   from the movement table at the medic's alert status, so the RUNNING of the decision does not stick.
@@ -608,9 +608,9 @@ checked against the native build:
 - The keys, the panel's buttons, the start's and the end's `HandleTacticalUI` calls and the message box screen's pause:
   the oracle has no input queue and no panel.
 - The dialogue queue standing for the whole mode: the probes never run `HandleDialogue`, so it is read from
-  `MainGameScreenHandle`'s early return (`GameScreen.cc:283-288`).
+  `MainGameScreenHandle`'s early return (`GameScreen.cc:282-287`).
 - That a key press the Yes box leaves in the queue cannot end the mode at its first frame
-  (`Tactical/Turn_Based_Input.cc:2142`): by reading, the box drains every key event before its callback starts the
+  (`Tactical/Turn_Based_Input.cc:2126`): by reading, the box drains every key event before its callback starts the
   mode (`MessageBoxScreen.cc:457-460`).
 
 Deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
