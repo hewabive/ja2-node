@@ -93,7 +93,8 @@ describe('client settings', () => {
       coverSize: 4,
       losSize: 4,
     });
-    expect(DEFAULT_SETTINGS.display).toMatchObject({ useMetricSystem: true, snapCursorToDoor: true, cursor3d: false, trackingMode: true });
+    expect(DEFAULT_SETTINGS.display).toMatchObject({ useMetricSystem: false, snapCursorToDoor: true, cursor3d: false, trackingMode: true });
+    expect(DEFAULT_SETTINGS.display).not.toHaveProperty('hideBullets');
   });
 
   it('clamp the display sizes, the catch-up speed and the language, and keep the display toggles apart', () => {

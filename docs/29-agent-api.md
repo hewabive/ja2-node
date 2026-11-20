@@ -520,7 +520,8 @@ who cheers a kill he saw instead of commenting it (`killCheered {soldier}`, LAUG
 as a dud, who curses (`dudCursed {soldier}`, or `{unseen, heard?}` for one out of sight, none for a muted one,
 `TileEngine/Physics.cc:2069`), a point of life a merc of ours bleeds, which makes
 him the map screen's info character (`mercBled {soldier, lifeMaxLost?}`, `SoldierBleed`, `Tactical/Soldier_Control.cc:7926`; `lifeMaxLost` when, dying, he lost a point of
-maximum life too: `STR_LOSES_1_HP` in the message list, `M:Tactical/Soldier_Control.cc:7883`, and his maximum life red on the map screen) and the
+maximum life too: master's `STR_LOSES_1_HP` in the message list, table `kept-master-lines`, deviation "Max life lost
+while dying", and his maximum life red on the map screen) and the
 interface level the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
 merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
 `:1140`). `wireframesRecalculated {tiles, revealed}` comes each time the original works the wall wire frames out again

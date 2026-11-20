@@ -85,7 +85,6 @@ export interface TacticalViewState {
 export interface EffectOptions {
   readonly bloodAndGore: boolean;
   readonly animateSmoke: boolean;
-  readonly hideBullets: boolean;
 }
 
 export type TacticalDisplayOptions = WorldDisplayOptions & SoldierLightOptions & EffectOptions;
@@ -101,7 +100,6 @@ export const DEFAULT_TACTICAL_OPTIONS: TacticalDisplayOptions = {
   mercAlwaysLit: false,
   bloodAndGore: true,
   animateSmoke: true,
-  hideBullets: false,
 };
 
 export interface TacticalFrame {
@@ -421,7 +419,7 @@ export class TacticalWorldView {
     const shownTick = f.shownTick ?? view.tick;
     const effects = this.#shownEffects(shownTick);
     this.#drawnImpacts = effects.length;
-    const bullets = f.options.hideBullets ? NO_BULLETS : (f.bullets ?? NO_BULLETS);
+    const bullets = f.bullets ?? NO_BULLETS;
     this.#drawnBullets = bullets.length;
     const animatedTiles = [
       ...aniTiles,

@@ -7,7 +7,7 @@ import { RESOURCE_PACKS_DIR } from '../text/resource-packs.ts';
 import { vfsExtension } from '../vfs/path.ts';
 
 const BINARY_RULE_FILES: readonly string[] = [ANIMATION_SCRIPTS_PATH, TILESET_DATABASE_PATH, PROFILES_PATH, LOCKS_PATH];
-const PROJECT_TABLE_DIRS: readonly string[] = ['externalized/', 'tables/'];
+const PROJECT_TABLE_DIRS: readonly string[] = ['externalized/', 'tables/', 'strings/'];
 const PROJECT_DIRS_OUTSIDE_RULES: readonly string[] = [`${RESOURCE_PACKS_DIR}/`];
 const PROJECT_TABLE_EXTENSION = 'json';
 const STRUCTURE_EXTENSION = 'jsd';

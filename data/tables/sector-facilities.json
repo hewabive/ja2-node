@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Campaign_Init.cc InitKnowFacilitiesFlags, src/game/Strategic/Campaign_Types.h SFCF_*",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Strategic/Campaign_Init.cc InitKnowFacilitiesFlags, src/game/Strategic/Campaign_Types.h SFCF_*",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "facility flags known at a new campaign, applied in order with |= to SectorInfo[sector].uiFacilitiesFlags",
   "flags": {

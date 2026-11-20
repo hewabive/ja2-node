@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Interface_Cursors.cc gUICursors; src/game/Tactical/Interface_Cursors.h UICursorID, UICURSOR_*",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Tactical/Interface_Cursors.cc gUICursors; src/game/Tactical/Interface_Cursors.h UICursorID, UICURSOR_*",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "cursors: gUICursors by position in UICursorID order (the array is indexed by position; its first field is not read): flags (UICURSOR_*), cursor (usFreeCursorName: a CursorTypeDefines name, VIDEO_DEFAULT_TO_NO_CURSOR or null) and data (usAdditionalData: a FIRSTPOINTERS tile name, or for the out-of-range talk cursors a CursorTypeDefines name, or null)",
   "flags": {

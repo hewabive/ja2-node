@@ -250,14 +250,14 @@ test.describe('the canvas front end on stubs', () => {
     await clickWidget(page, 'done');
     await screenIs(page, 'mainMenu');
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ja2-node:settings') ?? '{}').display);
-    expect(stored).toMatchObject({ treeTops: false, useMetricSystem: false });
+    expect(stored).toMatchObject({ treeTops: false, useMetricSystem: true });
     await page.reload();
     await openUiPage(page, PLAY);
     await screenIs(page, 'mainMenu');
     await page.keyboard.press('KeyO');
     await screenIs(page, 'options');
     expect([(await widget(page, 'toggle17')).state, (await widget(page, 'toggle12')).state, (await widget(page, 'toggle0')).state]).toEqual(
-      [false, false, true],
+      [false, true, true],
     );
     await page.evaluate(() => localStorage.removeItem('ja2-node:settings'));
   });

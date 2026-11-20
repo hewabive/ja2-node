@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.cc gubMercValidPrecedentQuoteID, src/game/Tactical/Soldier_Profile.h NPCIDs, src/game/Laptop/History.h",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Tactical/Dialogue_Control.cc gubMercValidPrecedentQuoteID, src/game/Tactical/Soldier_Profile.h NPCIDs, src/game/Laptop/History.h",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "precedent quotes in bit order (quote numbers), the profile ids of the NPCs the contract code names, every history record code by name",
   "precedentQuotes": [

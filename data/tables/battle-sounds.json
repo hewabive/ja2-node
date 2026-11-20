@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Soldier_Control.h BattleSound, src/game/Tactical/Soldier_Control.cc gBattleSndsData, MIN_SUBSEQUENT_SNDS_DELAY, InternalDoMercBattleSound, src/game/Directories.h",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Tactical/Soldier_Control.h BattleSound, src/game/Tactical/Soldier_Control.cc gBattleSndsData, MIN_SUBSEQUENT_SNDS_DELAY, InternalDoMercBattleSound, src/game/Directories.h",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "kinds: BattleSound enum order with the file name part, randomVariants (ubRandomVal: the kind and the next n-1 kinds are drawn from), badGuy (playable without a profile), dontAllowTwoInRow, stopDialogue (0 never, 1 cuts speech, 2 skipped while talking); directory: VFS directory; minSubsequentDelayMs and lowMoraleThreshold: the repeat filter and the morale below which the low-morale kinds replace OK1 and ATTN1",
   "directory": "battlesnds",

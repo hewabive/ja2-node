@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KEY_TEXT } from '../../../../tests/support/map-screen.ts';
+import { MessageText } from '../../../content/text/message-text.ts';
 import type { StrategicView } from '../../../protocol/view.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import { departureBox, type PromptContext, promptBox } from './map-prompts.ts';
@@ -32,7 +33,7 @@ describe("the departing merc's equipment box (NotifyPlayerOfMercDepartureAndProm
 describe('the surrender box (ShutDownQuoteBox, SurrenderMessageBoxCallBack)', () => {
   it('asks Message[STR_SURRENDER] for an offer in tactical and answers accept or reject', () => {
     const box = promptBox(context(false), { id: 'p', kind: 'surrender', context: 'tactical', soldier: 20, choices: ['accept', 'reject'] });
-    expect(box?.text).toBe('Message[54]');
+    expect(box?.text).toBe(`Message[${MessageText.STR_SURRENDER}]`);
     expect([box?.answer(MessageBoxReturn.YES), box?.answer(MessageBoxReturn.NO)]).toEqual(['accept', 'reject']);
   });
 

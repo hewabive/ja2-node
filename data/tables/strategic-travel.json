@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup and *_TRAVEL_TIME, src/game/Strategic/Campaign_Types.h, src/game/Strategic/Strategic_Pathing.cc FLAT_STRATEGIC_TRAVEL_TIME, src/game/Strategic/Map_Screen_Helicopter.h COST_AIRSPACE_*",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup and *_TRAVEL_TIME, src/game/Strategic/Campaign_Types.h, src/game/Strategic/Strategic_Pathing.cc FLAT_STRATEGIC_TRAVEL_TIME, src/game/Strategic/Map_Screen_Helicopter.h COST_AIRSPACE_*",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "transports in evaluation order; minutes = baseMinutes * 100 / modifiers[terrain] (integer), null modifiers = every terrain at baseMinutes; terrain missing from modifiers = impossible; EDGEOFWORLD is impossible for all; TOWN costs townMinutes unless the mask is exactly AIR",
   "traversability": {

@@ -15,6 +15,5 @@ export function tacticalOptionsOf(settings: Pick<ClientSettings, 'display'>, sta
     glowItems: display.glowItems,
     mercCastsLight: display.mercCastsLight,
     mercAlwaysLit: display.mercAlwaysLightUp,
-    hideBullets: display.hideBullets,
   };
 }

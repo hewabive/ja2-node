@@ -332,7 +332,7 @@ launcher and on the canvas".
 
 ### 2.1 Where the original's options go
 
-The original keeps five game options per campaign in the save (`GAME_OPTIONS`, `GameSettings.h:94-101`), 23 toggles,
+The original keeps five game options per campaign in the save (`GAME_OPTIONS`, `GameSettings.h:94-101`), 20 toggles,
 the volumes and the scenes and help screens seen per user in `Ja2.set`, engine options in `ja2.json` and on the command
 line, and gameplay values in the policy files. ja2-node sorts them by whether they can change the outcome:
 
@@ -347,15 +347,22 @@ line, and gameplay values in the policy files. ja2-node sorts them by whether th
 Stracciatella's engine options become server settings (the folders, the data version) or client settings (the
 resolution); ja2-node has no mods (`32`), and the debug and cheat levels are not ported (deviation "Cheats").
 
-**What the 23 toggles do to the outcome** decides where each one goes:
+**What the 20 toggles do to the outcome** decides where each one goes:
 
 | Toggles | In the original | In ja2-node |
 |---|---|---|
 | `BLOOD_N_GORE` | changes state: messy deaths, corpses and blood graphics, with their draws (`Tactical/Soldier_Control.cc:3144-3277`) | a game option (§2.2) |
 | `MUTE_CONFIRMATIONS`, `ANIMATE_SMOKE` | change only gameplay draws: the OK battle sound's pick, the smoke's start frame `Random(5)` | client settings; the simulation makes neither draw (`01` §3.6, deviation "Cosmetic draws in explosions") |
-| `SPEECH`, `KEY_ADVANCE_SPEECH`, `HIDE_BULLETS` | pace the game: a line ends with its sample or waits for a key; hidden bullets fly 4 tiles per update instead of 1 (`M:Tactical/LOS.cc:3155-3166`) | client presentation; the simulation's timing is fixed (§2.3) |
+| `SPEECH`, `KEY_ADVANCE_SPEECH` | pace the game: a line ends with its sample or waits for a key | client presentation; the simulation's timing is fixed (§2.3) |
 | `SLEEPWAKE_NOTIFICATION` | a pausing update box whose dismissal decides compression; sleeping and waking happen regardless | a stop condition (§2.3) |
-| the other 16 | input, camera and rendering; `MERC_CASTS_LIGHT` too, since merc lights are fake and cancel out of gameplay light (`20`) | client settings |
+| the other 14 | input, camera and rendering | client settings |
+
+Three more settings lie past `NUM_GAME_OPTIONS` and have no toggle (`GameSettings.h:50-52`, defaults
+`GameSettings.cc:165-167`): `MERC_CASTS_LIGHT`, which G switches (`Tactical/Turn_Based_Input.cc:1479`), and
+`TRACKING_MODE`, which ALT+F switches (`Tactical/Turn_Based_Input.cc:1888`), are client settings, since merc lights
+are fake and cancel out of gameplay light (`20`) and tracking only moves the camera; `HIDE_BULLETS` does nothing
+(`Tactical/LOS.cc:3184-3193` commented out), so ja2-node has no such setting. Metric is off by default
+(`GameSettings.cc:157`).
 
 ### 2.2 Game options
 
@@ -385,8 +392,8 @@ it ships with the engine, so the engine identity in the save header (`engineDiff
 other policy values. If saves must survive policy edits, that is a migration, not a copy.
 
 **Pacing options become presentation or stop conditions, never state.** The simulation's timing is fixed: a line lasts
-the longer of its voice and its text (`24`, deviation "Speech"), a bullet moves one tile per tick (deviation "Hide
-bullets"), and key-advance speech only holds the subtitle (deviation "Key-advance speech"). `SLEEPWAKE_NOTIFICATION`
+the longer of its voice and its text (`24`, deviation "Speech"), a bullet moves one tile per tick (deviation "Bullet
+flight"), and key-advance speech only holds the subtitle (deviation "Key-advance speech"). `SLEEPWAKE_NOTIFICATION`
 maps onto the client's or agent's choice to stop a strategic `advance` on `fellAsleep` and `wokeUp` (`advance {until:
 {events}}`, `04` §4.2): the map screen applies the client setting (`src/ui/screens/map/update-box.ts`), an agent passes
 the events it cares about (deviation "Sleep and wake notification"). The outcome then depends only on when commands
@@ -416,5 +423,5 @@ bullet's first window from `bulletLocated`, which the simulation sends whatever 
 
 ### 2.5 Deviations
 
-"API default difficulty", "Game policy keys", "Key-advance speech", "Hide bullets", "Show misses", "Sleep and wake
+"API default difficulty", "Game policy keys", "Key-advance speech", "Show misses", "Sleep and wake
 notification", "Timed turns", "Help screens seen", "Meanwhile scenes seen", "Pointer warp", "Cheats".

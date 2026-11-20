@@ -1,10 +1,10 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/externalized/strings/Localization.h struct L10n_t and the *_SIZE constants, Localization.cc L10n_t::L10n_t",
+  "source": "JA2 Stracciatella v0.22.1: src/externalized/strings/Localization.h struct L10n_t and the *_SIZE constants, Localization.cc L10n_t::L10n_t",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "translation: the keys of strings/translation-<suffix>.json in the order L10n_t reads them; a number is the exact array length GetArray checks, null a single string read with GetString",
   "translation": {
     "WeaponType": 9,
-    "Message": 60,
+    "Message": 59,
     "TeamTurnString": 5,
     "pAssignMenuStrings": 7,
     "pTrainingStrings": 4,
@@ -113,8 +113,8 @@
     "pIMPVoicesStrings": null,
     "pPersTitleText": null,
     "pPausedGameText": 3,
-    "zOptionsToggleText": 23,
-    "zOptionsScreenHelpText": 23,
+    "zOptionsToggleText": 20,
+    "zOptionsScreenHelpText": 20,
     "pDoctorWarningString": 2,
     "pMilitiaButtonsHelpText": 4,
     "pMapScreenJustStartedHelpText": null,

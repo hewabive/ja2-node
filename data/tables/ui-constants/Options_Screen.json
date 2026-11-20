@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Options_Screen.h, src/game/Options_Screen.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Options_Screen.h, src/game/Options_Screen.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
@@ -20,7 +20,7 @@
     "OPT_QUIT_BTN_X": 329,
     "OPT_DONE_BTN_X": 469,
     "OPT_BTN_Y": 438,
-    "OPT_GAP_BETWEEN_TOGGLE_BOXES": 27,
+    "OPT_GAP_BETWEEN_TOGGLE_BOXES": 31,
     "OPT_TOGGLE_BOX_FIRST_COL_TEXT_X": 295,
     "OPT_TOGGLE_BOX_SECOND_TEXT_X": 458,
     "OPT_SPACE_BETWEEN_TEXT_AND_TOGGLE_BOX": 30,
@@ -44,7 +44,7 @@
     "OPT_MUSIC_SLIDER_X": 158,
     "OPT_MUSIC_SLIDER_Y": 126,
     "OPT_MUSIC_SLIDER_PLAY_SOUND_DELAY": 75,
-    "OPT_FIRST_COLUMN_TOGGLE_CUT_OFF": 11
+    "OPT_FIRST_COLUMN_TOGGLE_CUT_OFF": 10
   },
   "stdScreen": [
     "OPTIONS__BOTTOM_RIGHT_X",

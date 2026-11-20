@@ -1,0 +1,16 @@
+{
+  "source": "JA2 Stracciatella ae6bf01 (master, not a release): assets/externalized/strings/translation-*.json Message[STR_LOSES_1_HP], src/game/Utils/Text.h (upstream PR 2280)",
+  "license": "Stracciatella data (SFI-SCLA). See LICENSE.",
+  "format": "lines of master that v0.22.1 lacks and ja2-node keeps (deviations \"Max life lost while dying\"), per translation suffix; index 0: STR_LOSES_1_HP",
+  "lines": {
+    "chs": ["%s在死亡的过程中，他永久失去一点生命值！"],
+    "dut": ["%s er ved at dø en verliest permanent één gezondheidspunt!"],
+    "eng": ["%s is in the process of dying and permanently loses a point of health!"],
+    "fr": ["%s est en train de mourir et perd définitivement un point de santé!"],
+    "ger": ["%s stirbt, verliert dauerhaft einen Gesundheitspunkt!"],
+    "it": ["%s sta per morire e perde permanentemente un punto di salute!"],
+    "pl": ["%s w procesie umierania i traci 1 punkt zdrowia na stałe!"],
+    "rus": ["%s в процессе умирания и необратимо теряет здоровье!"],
+    "rusgold": ["%s в процессе умирания и необратимо теряет здоровье!"]
+  }
+}

@@ -1,8 +1,18 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/externalized/strings/EDT.h, src/externalized/ItemModel.cc, src/externalized/mercs/AIMListingModel.cc, MERCListingModel.cc, src/game/Laptop/EMail.cc, Files.cc, History.cc, src/game/Tactical/Civ_Quotes.cc, src/externalized/content/Dialogs.cc, src/externalized/DefaultContentManager.cc, src/game/Directories.h",
+  "source": "JA2 Stracciatella v0.22.1: src/externalized/strings/EDT.h, src/game/Credits.cc, src/game/Laptop/AIM.h, src/game/Laptop/AIMArchives.cc, src/game/Laptop/AIMArchives.cc, src/game/Laptop/AIMPolicies.cc, src/game/Laptop/BobbyRGuns.h, src/game/Laptop/Insurance.cc, src/game/Laptop/Insurance.cc, src/game/Laptop/Florist_Cards.h, src/game/Laptop/Florist_Gallery.h, src/game/Laptop/Insurance_Text.h, src/game/Laptop/IMP_Text_System.cc, src/externalized/strings/ItemStrings.cc, src/game/Laptop/EMail.cc, Files.cc, History.cc, src/game/Tactical/Civ_Quotes.cc, src/externalized/content/Dialogs.cc, src/externalized/DefaultContentManager.cc, src/game/Directories.h",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "files: every EDT file the game reads, as a VFS path, with the record layout its reader uses: columns are UTF-16 code unit widths of one record, in order; {03d} and {02d} stand for a zero-padded number of that many digits, {sector} for a sector short string (row letter and column, e.g. a9)",
   "files": [
+    {
+      "path": "binarydata/aimbios.edt",
+      "columns": [400, 160],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/mercbios.edt",
+      "columns": [400, 160],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
     {
       "path": "binarydata/help.edt",
       "columns": [640],
@@ -11,72 +21,62 @@
     {
       "path": "binarydata/credits.edt",
       "columns": [80],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+      "src": "src/game/Credits.cc GetCreditsString"
     },
     {
       "path": "binarydata/aimhist.edt",
       "columns": [400],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+      "src": "src/game/Laptop/AIM.h AIMHistory.cc"
     },
     {
       "path": "binarydata/alumname.edt",
       "columns": [80],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+      "src": "src/game/Laptop/AIMArchives.cc DrawFaceAndName"
     },
     {
       "path": "binarydata/alumni.edt",
       "columns": [80, 560],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+      "src": "src/game/Laptop/AIMArchives.cc DisplayAlumniOldMercPopUp"
     },
     {
       "path": "binarydata/aimpol.edt",
       "columns": [400],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
-    },
-    {
-      "path": "binarydata/insurancesingle.edt",
-      "columns": [80],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
-    },
-    {
-      "path": "binarydata/insurancemulti.edt",
-      "columns": [400],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
-    },
-    {
-      "path": "binarydata/imptext.edt",
-      "columns": [400],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
-    },
-    {
-      "path": "binarydata/flowercard.edt",
-      "columns": [400],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
-    },
-    {
-      "path": "binarydata/flowerdesc.edt",
-      "columns": [80, 80, 320],
-      "src": "src/externalized/strings/EDT.h EDTFilesTable"
-    },
-    {
-      "path": "binarydata/itemdesc.edt",
-      "columns": [80, 80, 240],
-      "src": "src/externalized/ItemModel.cc ItemStrings"
+      "src": "src/game/Laptop/AIMPolicies.cc LoadAIMPolicyText"
     },
     {
       "path": "binarydata/braydesc.edt",
       "columns": [80, 320],
-      "src": "src/externalized/ItemModel.cc ItemStrings"
+      "src": "src/game/Laptop/BobbyRGuns.h BobbyRGuns.cc"
     },
     {
-      "path": "binarydata/aimbios.edt",
-      "columns": [400, 160],
-      "src": "src/externalized/mercs/AIMListingModel.cc BioStrings"
+      "path": "binarydata/insurancesingle.edt",
+      "columns": [80],
+      "src": "src/game/Laptop/Insurance.cc GetInsuranceText"
     },
     {
-      "path": "binarydata/mercbios.edt",
-      "columns": [400, 160],
-      "src": "src/externalized/mercs/MERCListingModel.cc BioStrings"
+      "path": "binarydata/insurancemulti.edt",
+      "columns": [400],
+      "src": "src/game/Laptop/Insurance.cc GetInsuranceText"
+    },
+    {
+      "path": "binarydata/flowercard.edt",
+      "columns": [400],
+      "src": "src/game/Laptop/Florist_Cards.h Florist_Cards.cc"
+    },
+    {
+      "path": "binarydata/flowerdesc.edt",
+      "columns": [80, 80, 320],
+      "src": "src/game/Laptop/Florist_Gallery.h Florist_Gallery.cc"
+    },
+    {
+      "path": "binarydata/imptext.edt",
+      "columns": [400],
+      "src": "src/game/Laptop/IMP_Text_System.cc LoadAndDisplayIMPText"
+    },
+    {
+      "path": "binarydata/itemdesc.edt",
+      "columns": [80, 80, 240],
+      "src": "src/externalized/strings/ItemStrings.cc BinaryData::deserialize"
     },
     {
       "path": "binarydata/email.edt",

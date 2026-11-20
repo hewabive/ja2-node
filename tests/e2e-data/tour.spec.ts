@@ -5,7 +5,7 @@ import { expect, test } from './fixture.ts';
 import { expectNoMissingArt, expectTextsPresent, expectWidgets } from './structure.ts';
 
 const LAPTOP = '/src/devtools/laptop/?seed=7&wait=0&slide=0&scale=2';
-const OPTION_TOGGLES = 23;
+const OPTION_TOGGLES = 20;
 const MUG_SHOTS = 'mugRegion0_0';
 const HAND = 5;
 const SANDBOX_SEED = 1;

@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/BobbyR.h, src/game/Laptop/BobbyRGuns.h, src/game/Laptop/BobbyRMailOrder.h, src/game/Laptop/BobbyRMailOrder.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Laptop/BobbyR.h, src/game/Laptop/BobbyRGuns.h, src/game/Laptop/BobbyRMailOrder.h, src/game/Laptop/BobbyRMailOrder.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
@@ -9,6 +9,10 @@
     "BOBBYR_NUM_VERTICAL_TILES": 4,
     "BOBBYR_GRIDLOC_X": 115,
     "BOBBYR_GRIDLOC_Y": 91,
+    "BOBBYRDESCFILE": "binarydata/braydesc.edt",
+    "BOBBYR_ITEM_DESC_NAME_SIZE": 80,
+    "BOBBYR_ITEM_DESC_INFO_SIZE": 320,
+    "BOBBYR_ITEM_DESC_FILE_SIZE": 400,
     "BOBBYR_USED_ITEMS": 4294967295,
     "BOBBYR_GUNS_BUTTON_FONT": "FONT10ARIAL",
     "BOBBYR_GUNS_TEXT_COLOR_ON": 141,

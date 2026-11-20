@@ -16,6 +16,7 @@
 // @src MergeMessageBoxCallBack, ReevaluateItemHatches; Interface_Items.cc InternalBeginItemPointer and EndItemPointer
 // @src (gbItemPointerLocateGood from a slot's object taken into the cursor until it leaves the cursor, 2026-11-02).
 
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import { idiv } from '../../../core/int.ts';
 import type { CompatibleItems, Placements } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -67,7 +68,6 @@ const NEW_ITEM_COLOURS = 20;
 const NEW_ITEM_HALF = 10;
 const NEW_ITEM_BRIGHTNESS_STEP = 25;
 export const COMPATIBLE_OUTLINE = rgb(255, 255, 255);
-const STR_MERGE_ITEMS = 36;
 const MONEY = 'MONEY';
 const MONEY_CLASS = 'MONEY';
 const GUN_CLASS = 'GUN';
@@ -406,7 +406,7 @@ export class InventoryPanel {
       return;
     }
     if (refusal === REFUSAL_MERGE_PROMPT) {
-      const yes = await this.#env().boxes.confirm(this.#env().text.string('Message', STR_MERGE_ITEMS) ?? '');
+      const yes = await this.#env().boxes.confirm(this.#env().text.string(MESSAGE_TABLE, MessageText.STR_MERGE_ITEMS) ?? '');
       await this.place(target, slot, yes);
     }
   }

@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT } from '../../src/node/repo.ts';
 
-export const STRACCIATELLA_COMMIT = 'ae6bf01';
+export const STRACCIATELLA_COMMIT = 'v0.22.1';
 export const STRACCIATELLA_SRC = join(REPO_ROOT, 'reference/stracciatella/src');
 
 export function readSource(relativePath: string): string {

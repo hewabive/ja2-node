@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Tactical_Save.cc g_encryption_array, Tactical_Save.h",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Tactical/Tactical_Save.cc g_encryption_array, Tactical_Save.h",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "sets[guiJA2EncryptionSet] is the rotation array of NewJA2EncryptedFileRead; baseSets = BASE_NUMBER_OF_ROTATION_ARRAYS",
   "baseSets": 19,

@@ -49,7 +49,6 @@ export interface DisplaySettings {
   readonly wireframe: boolean;
   readonly cursor3d: boolean;
   readonly mercCastsLight: boolean;
-  readonly hideBullets: boolean;
   readonly trackingMode: boolean;
 }
 
@@ -85,7 +84,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   alwaysShowMovementPath: false,
   showMisses: false,
   rtConfirm: false,
-  useMetricSystem: true,
+  useMetricSystem: false,
   mercAlwaysLightUp: false,
   smartCursor: false,
   snapCursorToDoor: true,
@@ -94,7 +93,6 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   wireframe: true,
   cursor3d: false,
   mercCastsLight: true,
-  hideBullets: false,
   trackingMode: true,
 };
 

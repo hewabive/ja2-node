@@ -1,8 +1,10 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/AIMArchives.h, src/game/Laptop/AIMArchives.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Laptop/AIMArchives.h, src/game/Laptop/AIMArchives.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
+    "AIM_ALUMNI_NAME_FILE": "binarydata/alumname.edt",
+    "AIM_ALUMNI_FILE": "binarydata/alumni.edt",
     "AIM_ALUMNI_TITLE_FONT": "FONT14ARIAL",
     "AIM_ALUMNI_TITLE_COLOR": 157,
     "AIM_ALUMNI_POPUP_FONT": "FONT10ARIAL",
@@ -51,7 +53,11 @@
     "AIM_ALUMNI_POPUP_DESC_Y": 202,
     "AIM_ALUMNI_DONE_X": 472,
     "AIM_ALUMNI_DONE_WIDTH": 36,
-    "AIM_ALUMNI_DONE_HEIGHT": 16
+    "AIM_ALUMNI_DONE_HEIGHT": 16,
+    "AIM_ALUMNI_NAME_SIZE": 80,
+    "AIM_ALUMNI_DECRIPTION_SIZE": 560,
+    "AIM_ALUMNI_FILE_RECORD_SIZE": 640,
+    "AIM_ALUMNI_FULL_NAME_SIZE": 80
   },
   "stdScreen": ["AIM_ALUMNI_FACE_PANEL_Y", "AIM_ALUMNI_POPUP_DESC_Y", "AIM_ALUMNI_POPUP_NAME_Y", "AIM_POPUP_Y"],
   "skipped": []

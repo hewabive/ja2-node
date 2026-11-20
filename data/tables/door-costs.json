@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/TileEngine/WorldDef.cc CompileTileMovementCosts (ANYDOOR branch), src/game/Tactical/PathAI.h",
+  "source": "JA2 Stracciatella v0.22.1: src/game/TileEngine/WorldDef.cc CompileTileMovementCosts (ANYDOOR branch), src/game/Tactical/PathAI.h",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "rules apply in order to a door structure matching kind, orientation, tile and sliding; set = [dx, dy, direction, cost] raised with SET semantics",
   "travelCosts": {

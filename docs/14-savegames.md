@@ -138,7 +138,7 @@ M.E.R.C. listing merc's cost to date to Speck's total (`Laptop/Mercs.cc:1692`; `
 catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,
 `loadPhysicsTable`, `src/sim/tactical/native-in-flight.ts`; `Tactical/Bullets.cc:398`, `TileEngine/Physics.cc:2144`). A
 bullet's last update is 0, so it moves on at the first tick (`Tactical/Bullets.cc:413`), and a thrown knife keeps its
-saved status (original-bugs "Loaded thrown knife"); its tiles per update stay as saved (deviation "Hide bullets"). A
+saved status (original-bugs "Loaded thrown knife"); its tiles per update stay as saved, as v0.22.1 loads them. A
 bullet's miss animation is a tile animation, which no save keeps: a bullet saved stopped stays in its slot until the
 sector is left, which the AI's wait for the bullets sees, as in the original, and the server's idle test passes over
 (`bulletsResolving`, `src/sim/tactical/combat/bullets.ts`). An object comes back with no level node

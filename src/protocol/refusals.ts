@@ -17,6 +17,8 @@
 // @src HandleTalkInit (STR_LATE_32 of Dimitri on our team, 2026-11-14); TileEngine/Tactical_Placement_GUI.cc
 // @src HandleTacticalPlacementClicksInOverheadMap (STR_TP_INACCESSIBLE_MESSAGE, STR_TP_INVALID_MESSAGE, 2026-11-14).
 
+import { MESSAGE_TABLE, MessageText } from '../content/text/message-text.ts';
+
 export interface UiTextKey {
   readonly table: string;
   readonly index: number;
@@ -65,7 +67,7 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   mercUnavailable: log('TacticalStr', 82),
   uncontrolledRobot: log('TacticalStr', 88),
   outOfBreath: log('gzLateLocalizedString', 3),
-  noBurst: log('Message', 34),
+  noBurst: log(MESSAGE_TABLE, MessageText.STR_NOT_BURST_CAPABLE),
   noRoomToFire: log('pMessageStrings', 34),
   collapsedNoStance: log('pMessageStrings', 35),
   vehicleNoStance: log('TacticalStr', 29),
@@ -94,7 +96,7 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   tooManyTrainers: box('gzLateLocalizedString', 46),
   walking: box('zMarksMapScreenText', 5),
   driving: box('zMarksMapScreenText', 7),
-  sectorNotCleared: box('Message', 44),
+  sectorNotCleared: box(MESSAGE_TABLE, MessageText.STR_SECTOR_NOT_CLEARED),
   nobodyToBandage: box('TacticalStr', 116),
   noMedKit: box('gzLateLocalizedString', 8),
   cannotAutoBandage: box('TacticalStr', 129),

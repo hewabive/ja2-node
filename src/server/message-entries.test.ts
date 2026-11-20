@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { MESSAGE_TABLE, MessageText } from '../content/text/message-text.ts';
+import { KEPT_MASTER_LINES, KeptMasterLine } from '../content/text/strings.ts';
 import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { DefaultSoldierName } from '../sim/tactical/default-names.ts';
@@ -31,7 +33,9 @@ describe('the lines of guns, armour, locks, attachments and gifts', () => {
 
   it('reports the psycho going to burst, the second clip, the extender, the plates, the lock and the reload of one gun', () => {
     expect(entryOf({ type: 'psychoBurst', soldier: 0 })).toEqual([{ ...YELLOW, table: 'gzLateLocalizedString', index: 25, args: [ivan] }]);
-    expect(entryOf({ type: 'secondClipDepleted' })).toEqual([{ ...YELLOW, table: 'Message', index: 32 }]);
+    expect(entryOf({ type: 'secondClipDepleted' })).toEqual([
+      { ...YELLOW, table: MESSAGE_TABLE, index: MessageText.STR_2ND_CLIP_DEPLETED },
+    ]);
     expect(entryOf({ type: 'barrelExtenderFellOff', soldier: 1 })).toEqual([
       { ...YELLOW, table: 'gzLateLocalizedString', index: 45, args: [fox] },
     ]);
@@ -39,18 +43,22 @@ describe('the lines of guns, armour, locks, attachments and gifts', () => {
       { ...YELLOW, table: 'str_ceramic_plates_smashed', index: 0, args: [fox] },
     ]);
     expect(entryOf({ type: 'lockHit', gridNo: 5 })).toEqual([{ ...YELLOW, table: 'TacticalStr', index: 132 }]);
-    expect(entryOf({ type: 'reloadedOneGunOnly', soldier: 0 })).toEqual([{ ...YELLOW, table: 'Message', index: 58, args: [ivan] }]);
+    expect(entryOf({ type: 'reloadedOneGunOnly', soldier: 0 })).toEqual([
+      { ...YELLOW, table: MESSAGE_TABLE, index: MessageText.STR_RELOAD_ONLY_ONE_GUN, args: [ivan] },
+    ]);
   });
 
   it('reports a refused attachment in the feedback box, with the long item names', () => {
     const named = (item: number) => ({ item, name: 'long' });
     const refused = (complaint: Record<string, unknown>) => entryOf({ type: 'attachmentRefused', soldier: 0, complaint });
     expect(refused({ kind: 'cannotAttach', item: 7, to: 2 })).toEqual([
-      { ...FEEDBACK, table: 'Message', index: 37, args: [named(7), named(2)] },
+      { ...FEEDBACK, table: MESSAGE_TABLE, index: MessageText.STR_CANT_ATTACH, args: [named(7), named(2)] },
     ]);
-    expect(refused({ kind: 'alreadyAttached' })).toEqual([{ ...FEEDBACK, table: 'Message', index: 35 }]);
+    expect(refused({ kind: 'alreadyAttached' })).toEqual([
+      { ...FEEDBACK, table: MESSAGE_TABLE, index: MessageText.STR_ATTACHMENT_ALREADY },
+    ]);
     expect(refused({ kind: 'cannotUseBoth', first: 3, second: 4 })).toEqual([
-      { ...FEEDBACK, table: 'Message', index: 41, args: [named(3), named(4)] },
+      { ...FEEDBACK, table: MESSAGE_TABLE, index: MessageText.STR_CANT_USE_TWO_ITEMS, args: [named(3), named(4)] },
     ]);
   });
 
@@ -133,7 +141,14 @@ describe('message entries from the ScreenMsg sites of the original', () => {
           { string: { table: 'sStatGainStrings', index: 7 } },
         ],
       },
-      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 53, args: [{ text: 'Ivan, Fox' }] },
+      {
+        tick: 40,
+        kind: 'interface',
+        colour: 145,
+        table: MESSAGE_TABLE,
+        index: MessageText.STR_INTERRUPT_FOR,
+        args: [{ text: 'Ivan, Fox' }],
+      },
     ]);
   });
 
@@ -170,28 +185,37 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 163, table: 'pMercDeadString', index: 0, args: [{ text: 'Ivan' }] }]);
   });
 
-  it('prints STR_LOSES_1_HP in the interface colour for our merc who loses a point of maximum life bleeding, nothing for a plain bleed', () => {
+  it("prints master's STR_LOSES_1_HP from the kept lines in the interface colour for our merc who loses a point of maximum life bleeding, nothing for a plain bleed", () => {
     const entries = messageEntriesOf(
       [at({ type: 'mercBled', soldier: 1 }), at({ type: 'mercBled', soldier: 0, lifeMaxLost: true })],
       facts,
     );
-    expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 4, args: [{ text: 'Ivan' }] }]);
+    expect(entries).toEqual([
+      {
+        tick: 40,
+        kind: 'interface',
+        colour: 145,
+        table: KEPT_MASTER_LINES,
+        index: KeptMasterLine.STR_LOSES_1_HP,
+        args: [{ text: 'Ivan' }],
+      },
+    ]);
   });
 
   it('prints STR_LOSES_1_* or STR_LOSES_* with the points for the stat a critical hit costs', () => {
     const stats = ['wisdom', 'dexterity', 'strength', 'agility'];
     const lost = (points: number) => stats.map((stat) => at({ type: 'statLost', soldier: 1, stat, points }));
     const entries = messageEntriesOf([...lost(1), ...lost(3)], facts);
-    expect(entries.every((e) => e.kind === 'interface' && e.colour === 145 && e.table === 'Message')).toBe(true);
+    expect(entries.every((e) => e.kind === 'interface' && e.colour === 145 && e.table === MESSAGE_TABLE)).toBe(true);
     expect(entries.map((e) => [e.index, e.args])).toEqual([
-      [0, [{ text: 'Fox' }]],
-      [1, [{ text: 'Fox' }]],
-      [2, [{ text: 'Fox' }]],
-      [3, [{ text: 'Fox' }]],
-      [5, [{ text: 'Fox' }, { number: 3 }]],
-      [6, [{ text: 'Fox' }, { number: 3 }]],
-      [7, [{ text: 'Fox' }, { number: 3 }]],
-      [8, [{ text: 'Fox' }, { number: 3 }]],
+      [MessageText.STR_LOSES_1_WISDOM, [{ text: 'Fox' }]],
+      [MessageText.STR_LOSES_1_DEX, [{ text: 'Fox' }]],
+      [MessageText.STR_LOSES_1_STRENGTH, [{ text: 'Fox' }]],
+      [MessageText.STR_LOSES_1_AGIL, [{ text: 'Fox' }]],
+      [MessageText.STR_LOSES_WISDOM, [{ text: 'Fox' }, { number: 3 }]],
+      [MessageText.STR_LOSES_DEX, [{ text: 'Fox' }, { number: 3 }]],
+      [MessageText.STR_LOSES_STRENGTH, [{ text: 'Fox' }, { number: 3 }]],
+      [MessageText.STR_LOSES_AGIL, [{ text: 'Fox' }, { number: 3 }]],
     ]);
   });
 
@@ -199,9 +223,9 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     const headHit = (named: Record<string, unknown>) => at({ type: 'headHit', ...named });
     const entries = messageEntriesOf([headHit({ soldier: 20 }), headHit({ defaultName: 'enemy' }), headHit({ name: 'Fatima' })], facts);
     expect(entries.map((e) => [e.kind, e.table, e.index, e.args])).toEqual([
-      ['interface', 'Message', 46, [{ text: 'Soldier' }]],
-      ['interface', 'Message', 46, [{ string: { table: 'TacticalStr', index: 90 } }]],
-      ['interface', 'Message', 46, [{ text: 'Fatima' }]],
+      ['interface', MESSAGE_TABLE, MessageText.STR_HEAD_HIT, [{ text: 'Soldier' }]],
+      ['interface', MESSAGE_TABLE, MessageText.STR_HEAD_HIT, [{ string: { table: 'TacticalStr', index: 90 } }]],
+      ['interface', MESSAGE_TABLE, MessageText.STR_HEAD_HIT, [{ text: 'Fatima' }]],
     ]);
   });
 
@@ -301,7 +325,9 @@ describe('message entries from the ScreenMsg sites of the original', () => {
 
   it('prints STR_PLAYER_REINFORCEMENTS in the interface colour as a group of ours joins the battle of the loaded sector', () => {
     const entries = messageEntriesOf([at({ type: 'playerReinforcements', group: 5, sector: 'C9' })], facts);
-    expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 10 }]);
+    expect(entries).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: MESSAGE_TABLE, index: MessageText.STR_PLAYER_REINFORCEMENTS },
+    ]);
   });
 
   it('prints gsUndergroundString after the merc or his squad for a plot on an underground traversal (Map_Screen_Interface_Map.cc:864-871)', () => {
@@ -443,13 +469,13 @@ describe('message entries from the ScreenMsg sites of the original', () => {
 
   it('names the merc whose camouflage wore off in the interface colour', () => {
     expect(messageEntriesOf([at({ type: 'camoWornOff', soldier: 1 })], facts)).toEqual([
-      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 30, args: [{ text: 'Fox' }] },
+      { tick: 40, kind: 'interface', colour: 145, table: MESSAGE_TABLE, index: MessageText.STR_CAMO_WORN_OFF, args: [{ text: 'Fox' }] },
     ]);
   });
 
   it('names the soldier whose camouflage the water washed off with STR_CAMO_WASHED_OFF', () => {
     expect(messageEntriesOf([at({ type: 'camoWashedOff', soldier: 1 })], facts)).toEqual([
-      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 31, args: [{ text: 'Fox' }] },
+      { tick: 40, kind: 'interface', colour: 145, table: MESSAGE_TABLE, index: MessageText.STR_CAMO_WASHED_OFF, args: [{ text: 'Fox' }] },
     ]);
   });
 
@@ -457,9 +483,9 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     const steal = (result: 'grabbed' | 'dropped' | 'failed') => at({ type: 'stealAttempt', soldier: 1, target: 20, item: 7, result });
     const args = [{ text: 'Fox' }, { item: 7, name: 'short' }];
     expect(messageEntriesOf([steal('grabbed'), steal('dropped'), steal('failed')], facts)).toEqual([
-      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 33, args },
-      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 33, args },
-      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 51, args },
+      { tick: 40, kind: 'interface', colour: 145, table: MESSAGE_TABLE, index: MessageText.STR_STOLE_SOMETHING, args },
+      { tick: 40, kind: 'interface', colour: 145, table: MESSAGE_TABLE, index: MessageText.STR_STOLE_SOMETHING, args },
+      { tick: 40, kind: 'interface', colour: 145, table: MESSAGE_TABLE, index: MessageText.STR_FAILED_TO_STEAL_SOMETHING, args },
     ]);
   });
 
@@ -545,15 +571,20 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entries).toEqual([
       { ...interface_, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Hamous' }] },
       { ...interface_, table: 'gzLateLocalizedString', index: 36, args: [{ string: { table: 'TacticalStr', index: 90 } }] },
-      { ...interface_, table: 'Message', index: 31, args: [{ string: { table: 'TacticalStr', index: 92 } }] },
-      { ...interface_, table: 'Message', index: 31, args: [{ text: 'Hamous' }] },
+      {
+        ...interface_,
+        table: MESSAGE_TABLE,
+        index: MessageText.STR_CAMO_WASHED_OFF,
+        args: [{ string: { table: 'TacticalStr', index: 92 } }],
+      },
+      { ...interface_, table: MESSAGE_TABLE, index: MessageText.STR_CAMO_WASHED_OFF, args: [{ text: 'Hamous' }] },
     ]);
   });
 
   it('prints STR_SLIPPED_MARBLES as UI feedback with the name of our merc who slips on marbles, and nothing for anyone else', () => {
     const slipped = (soldier: number) => at({ type: 'slippedOnMarbles', soldier });
     expect(messageEntriesOf([slipped(1), slipped(20)], facts)).toEqual([
-      { tick: 40, kind: 'uiFeedback', colour: 144, table: 'Message', index: 50, args: [{ text: 'Fox' }] },
+      { tick: 40, kind: 'uiFeedback', colour: 144, table: MESSAGE_TABLE, index: MessageText.STR_SLIPPED_MARBLES, args: [{ text: 'Fox' }] },
     ]);
   });
 

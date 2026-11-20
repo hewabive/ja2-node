@@ -21,5 +21,7 @@ These files are still master `ae6bf01`'s, because ja2-node follows master there 
 | `light-templates.json` (not in v0.22.1) | #105 (the shipped light templates) |
 | `mercs-AIM-listings.json` (not in v0.22.1) | #116 (the A.I.M. order) |
 | `strategic-map-towns.json` | #116 (`militiaMapBaseSector`, vanilla's militia map corners) |
-| `strings/translation-*.json` | #114 (the options and `STR_LOSES_1_HP`), until its commit |
 | `strings/tooltips-eng.json` (not in v0.22.1) | #114 (master's informative tooltips) |
+
+Master's `STR_LOSES_1_HP` line, which ja2-node keeps (deviation "Max life lost while dying", #114), is not in v0.22.1's
+translations: `../strings/kept-master-lines.json` holds it in every language.

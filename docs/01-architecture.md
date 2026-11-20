@@ -338,7 +338,6 @@ this table.
 | Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps (**master**, #115); wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1939`) |
 | Next bleed (**master**, #115) | Integer division | Float division (`M:Soldier_Control.cc:8056`) |
 | Carried weight | Strength halved with integer division | Minor fix (`Items.cc:845`) |
-| Hidden bullets (**master**, #114) | 1 tile per step | 4 tiles per step (`M:LOS.cc:3155-3166`; ja2-node: 1 tile per tick) |
 | Jam (**master**, kept: #117) | Reserved bullets lost | Refunded (`M:Soldier_Ani.cc:1061-1073`) |
 | Blast during a hit animation (**master**, #115) | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`M:Soldier_Control.cc:3254-3262`) |
 | AI burst choice (**master**, #115) | Affordability without re-raise AP | Re-raise AP included (`M:DecideAction.cc:3245-3300`) |

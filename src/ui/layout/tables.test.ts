@@ -50,7 +50,7 @@ describe('the transcribed UI tables', () => {
     const credits = parseConstantTable(await table(constantTablePath('Credits')), 'Credits');
     expect(credits.constants).toMatchObject({ CRDT_NAME_LOC_X: 375, CRDT_EYE_WIDTH: 30, CRDT_EYES_CLOSED_TIME: 150 });
     const settings = parseConstantTable(await table(constantTablePath('GameSettings')), 'GameSettings');
-    expect(settings.constants).toMatchObject({ NUM_GAME_OPTIONS: 23, TOPTION_TRACKING_MODE: 22 });
+    expect(settings.constants).toMatchObject({ NUM_GAME_OPTIONS: 20, TOPTION_MERC_CASTS_LIGHT: 20, TOPTION_TRACKING_MODE: 22 });
   });
 
   it('map the MLG ids per data version', async () => {

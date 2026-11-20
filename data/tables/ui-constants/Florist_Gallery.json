@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/Florist.h, src/game/Laptop/Florist_Gallery.h, src/game/Laptop/Florist_Gallery.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Laptop/Florist.h, src/game/Laptop/Florist_Gallery.h, src/game/Laptop/Florist_Gallery.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
@@ -7,6 +7,11 @@
     "FLORIST_BUTTON_TEXT_UP_COLOR": 2,
     "FLORIST_BUTTON_TEXT_DOWN_COLOR": 2,
     "FLORIST_BUTTON_TEXT_SHADOW_COLOR": 128,
+    "FLOR_GALLERY_TEXT_FILE": "binarydata/flowerdesc.edt",
+    "FLOR_GALLERY_TEXT_TITLE_SIZE": 80,
+    "FLOR_GALLERY_TEXT_PRICE_SIZE": 80,
+    "FLOR_GALLERY_TEXT_DESC_SIZE": 320,
+    "FLOR_GALLERY_TEXT_TOTAL_SIZE": 480,
     "FLOR_GALLERY_TITLE_FONT": "FONT10ARIAL",
     "FLOR_GALLERY_TITLE_COLOR": 208,
     "FLOR_GALLERY_FLOWER_TITLE_FONT": "FONT14ARIAL",

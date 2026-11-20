@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Utils/Cursors.cc CursorFileDatabase, CursorDatabase; src/game/Utils/Cursors.h CursorSurfaceDefines, CursorTypeDefines; src/sgp/Cursor_Control.h; src/game/Directories.h",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Utils/Cursors.cc CursorFileDatabase, CursorDatabase; src/game/Utils/Cursors.h CursorSurfaceDefines, CursorTypeDefines; src/sgp/Cursor_Control.h; src/game/Directories.h",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "files: CursorFileDatabase in CursorSurfaceDefines order (path null = the extern item graphic, drawn with the outline blitter); cursors: CursorDatabase in CursorTypeDefines order: composites (file index, frame, position or \"center\" = CENTER_SUBCURSOR or \"hide\" = HIDE_SUBCURSOR), the hot spot (a number or the CENTER/LEFT/RIGHT/TOP/BOTTOM_CURSOR name), flags (CURSOR_TO_FLASH 1, CURSOR_TO_FLASH2 2, CURSOR_TO_SUB_CONDITIONALLY 4, DELAY_START_CURSOR 8, CURSOR_TO_PLAY_SOUND 16) and fHideOnTouch",
   "flags": {

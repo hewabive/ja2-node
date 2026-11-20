@@ -235,8 +235,9 @@ describe('the game init screen', () => {
 });
 
 describe('the options screen', () => {
-  it('maps the 23 toggles to the client settings and keeps speech or subtitles on', async () => {
-    expect(OPTION_TOGGLES).toHaveLength(23);
+  it("maps v0.22.1's 20 toggles to the client settings, master's merc light and tracking toggles left to their hotkeys, and keeps speech or subtitles on", async () => {
+    expect(OPTION_TOGGLES).toHaveLength(20);
+    expect(OPTION_TOGGLES.filter((t) => 'display' in t && (t.display === 'mercCastsLight' || t.display === 'trackingMode'))).toEqual([]);
     await f.flow.options('mainMenu');
     await f.settle();
     expect(f.widget('saveGame').enabled).toBe(false);
@@ -244,7 +245,7 @@ describe('the options screen', () => {
     f.click('toggle17');
     expect(f.settings.current().display.treeTops).toBe(false);
     f.click('toggleLabel12');
-    expect(f.settings.current().display.useMetricSystem).toBe(false);
+    expect(f.settings.current().display.useMetricSystem).toBe(true);
     expect(f.t.sounds.names()).toEqual(expect.arrayContaining(['BIG_SWITCH3_IN', 'BIG_SWITCH3_OUT']));
     f.click('toggle0');
     expect(f.settings.current().speech).toBe(false);

@@ -30,7 +30,7 @@ const text = (s: string) => new TextEncoder().encode(s);
 const SURFACE = 'tilesets/0/grass.sti';
 const STUB_SURFACE = 'stubs/tilesets/0/grass.sti';
 const USER_DATA_LAYER = 'data-dir';
-const PROJECT_TABLE_DIRS = ['tables/', 'externalized/'];
+const PROJECT_TABLE_DIRS = ['tables/', 'externalized/', 'strings/'];
 const STUBS_ROOT = 'stubs/';
 const U0B_IDENTITY_HASH = '5e642fec8ed11243afc84bbb24bde307bd6199d661458879483479e7e3220d8c';
 

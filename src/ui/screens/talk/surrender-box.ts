@@ -3,12 +3,10 @@
 // @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBox (the basic YES/NO box with Message[STR_SURRENDER] once the
 // @src offer's quote box closes), SurrenderMessageBoxCallBack (YES surrenders, anything else declines).
 
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import type { PromptView } from '../../../protocol/view.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
-
-const MESSAGE = 'Message';
-const STR_SURRENDER = 54;
 
 export type SurrenderPromptView = Extract<PromptView, { readonly kind: 'surrender' }>;
 
@@ -17,7 +15,7 @@ export function tacticalSurrenderPrompt(prompt: PromptView | null | undefined): 
 }
 
 export function surrenderQuestion(text: UiTextService): string {
-  return text.string(MESSAGE, STR_SURRENDER) ?? '';
+  return text.string(MESSAGE_TABLE, MessageText.STR_SURRENDER) ?? '';
 }
 
 export function surrenderChoice(result: number): 'accept' | 'reject' {

@@ -38,6 +38,8 @@
 // @src (STR_RELOAD_ONLY_ONE_GUN), ValidItemAttachment and PlaceObject (STR_CANT_ATTACH, STR_ATTACHMENT_ALREADY,
 // @src STR_CANT_USE_TWO_ITEMS by MSG_UI_FEEDBACK) (2026-11-18).
 
+import { MESSAGE_TABLE, MessageText } from '../content/text/message-text.ts';
+import { KEPT_MASTER_LINES, KeptMasterLine } from '../content/text/strings.ts';
 import { DOOR_TRAP_STRINGS } from '../protocol/door-trap-strings.ts';
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -118,25 +120,12 @@ const NS_SOLDIER_EQUIPS_ITEM = 0;
 const NS_SOLDIER_REMOVES_ITEM = 1;
 const GUN_GOT_FINGERPRINT = 111;
 const MERC_HAS_ARRIVED_STR = 80;
-const STR_LOSES_1_HP = 4;
-const STR_PLAYER_REINFORCEMENTS = 10;
-const STR_2ND_CLIP_DEPLETED = 32;
-const STR_ATTACHMENT_ALREADY = 35;
-const STR_CANT_ATTACH = 37;
-const STR_CANT_USE_TWO_ITEMS = 41;
-const STR_HEAD_HIT = 46;
-const STR_RELOAD_ONLY_ONE_GUN = 58;
 const STAT_LOSS_LINES: Readonly<Record<string, { readonly onePoint: number; readonly points: number }>> = {
-  wisdom: { onePoint: 0, points: 5 },
-  dexterity: { onePoint: 1, points: 6 },
-  strength: { onePoint: 2, points: 7 },
-  agility: { onePoint: 3, points: 8 },
+  wisdom: { onePoint: MessageText.STR_LOSES_1_WISDOM, points: MessageText.STR_LOSES_WISDOM },
+  dexterity: { onePoint: MessageText.STR_LOSES_1_DEX, points: MessageText.STR_LOSES_DEX },
+  strength: { onePoint: MessageText.STR_LOSES_1_STRENGTH, points: MessageText.STR_LOSES_STRENGTH },
+  agility: { onePoint: MessageText.STR_LOSES_1_AGIL, points: MessageText.STR_LOSES_AGIL },
 };
-const STR_CAMO_WORN_OFF = 30;
-const STR_CAMO_WASHED_OFF = 31;
-const STR_STOLE_SOMETHING = 33;
-const STR_SLIPPED_MARBLES = 50;
-const STR_FAILED_TO_STEAL_SOMETHING = 51;
 const STR_LATE_20 = 19;
 const STR_LATE_21 = 20;
 const STR_LATE_26 = 25;
@@ -158,7 +147,7 @@ const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readon
   balanceOwed: { kind: 'interface', table: 'TacticalStr', index: 37 },
   paidInFull: { kind: 'interface', table: 'TacticalStr', index: 19 },
   stillOwed: { kind: 'interface', table: 'TacticalStr', index: 20 },
-  needsMoney: { kind: 'interface', table: 'Message', index: 45 },
+  needsMoney: { kind: 'interface', table: MESSAGE_TABLE, index: MessageText.STR_NEED_TO_GIVE_MONEY },
   itemPlacedOnGround: { kind: 'interface', table: 'TacticalStr', index: 17 },
   vehicleRefuelled: { kind: 'uiFeedback', table: 'gzLateLocalizedString', index: 49 },
   targetCollapsed: { kind: 'uiFeedback', table: 'gzLateLocalizedString', index: STR_LATE_21 },
@@ -220,7 +209,7 @@ function statLost(e: EventOf<'statLost'>, facts: MessageFacts): Omit<MessageEntr
   const lines = STAT_LOSS_LINES[e.stat];
   if (!lines) return [];
   const name = soldierArg(facts, e.soldier);
-  return e.points === 1 ? [line('Message', lines.onePoint, [name])] : [line('Message', lines.points, [name, { number: e.points }])];
+  return e.points === 1 ? [line(MESSAGE_TABLE, lines.onePoint, [name])] : [line(MESSAGE_TABLE, lines.points, [name, { number: e.points }])];
 }
 
 function doorResult(e: EventOf<'doorResult'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
@@ -301,11 +290,11 @@ function attachmentRefused(e: EventOf<'attachmentRefused'>): Omit<MessageEntry, 
   const { complaint } = e;
   switch (complaint.kind) {
     case 'cannotAttach':
-      return [line('Message', STR_CANT_ATTACH, [named(complaint.item), named(complaint.to)], 'uiFeedback')];
+      return [line(MESSAGE_TABLE, MessageText.STR_CANT_ATTACH, [named(complaint.item), named(complaint.to)], 'uiFeedback')];
     case 'alreadyAttached':
-      return [line('Message', STR_ATTACHMENT_ALREADY, [], 'uiFeedback')];
+      return [line(MESSAGE_TABLE, MessageText.STR_ATTACHMENT_ALREADY, [], 'uiFeedback')];
     case 'cannotUseBoth':
-      return [line('Message', STR_CANT_USE_TWO_ITEMS, [named(complaint.first), named(complaint.second)], 'uiFeedback')];
+      return [line(MESSAGE_TABLE, MessageText.STR_CANT_USE_TWO_ITEMS, [named(complaint.first), named(complaint.second)], 'uiFeedback')];
   }
 }
 
@@ -338,22 +327,23 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
       : [],
   soldierDied,
   mercDied,
-  mercBled: (e, facts) => (e.lifeMaxLost ? [line('Message', STR_LOSES_1_HP, [soldierArg(facts, e.soldier)])] : []),
+  mercBled: (e, facts) => (e.lifeMaxLost ? [line(KEPT_MASTER_LINES, KeptMasterLine.STR_LOSES_1_HP, [soldierArg(facts, e.soldier)])] : []),
   statLost,
-  headHit: (e, facts) => [line('Message', STR_HEAD_HIT, [namedArg(facts, e)])],
+  headHit: (e, facts) => [line(MESSAGE_TABLE, MessageText.STR_HEAD_HIT, [namedArg(facts, e)])],
   knockedOver: (e, facts) => [line('gzLateLocalizedString', STR_LATE_20, [namedArg(facts, e)])],
   enemyPresence: () => [line('TacticalStr', 85)],
   sectorLoaded: (e) => (e.enemyPresence ? [line('TacticalStr', 85)] : []),
   interrupt: (e, facts) =>
     e.team === OUR_TEAM && e.soldiers && e.soldiers.length > 0
-      ? [line('Message', 53, [text(e.soldiers.map((id) => facts.soldierName(id) ?? '').join(', '))])]
+      ? [line(MESSAGE_TABLE, MessageText.STR_INTERRUPT_FOR, [text(e.soldiers.map((id) => facts.soldierName(id) ?? '').join(', '))])]
       : [],
   statChanged: (e, facts) => (e.queued ? [] : statGain(e, facts)),
   statChangeAnnounced: statGain,
-  reloaded: (e, facts) => (facts.soldierTeam(e.soldier) === OUR_TEAM ? [line('Message', 11, [soldierArg(facts, e.soldier)])] : []),
-  reloadedOneGunOnly: (e, facts) => [line('Message', STR_RELOAD_ONLY_ONE_GUN, [namedArg(facts, e)])],
+  reloaded: (e, facts) =>
+    facts.soldierTeam(e.soldier) === OUR_TEAM ? [line(MESSAGE_TABLE, MessageText.STR_PLAYER_RELOADS, [soldierArg(facts, e.soldier)])] : [],
+  reloadedOneGunOnly: (e, facts) => [line(MESSAGE_TABLE, MessageText.STR_RELOAD_ONLY_ONE_GUN, [namedArg(facts, e)])],
   psychoBurst: (e, facts) => [line('gzLateLocalizedString', STR_LATE_26, [namedArg(facts, e)])],
-  secondClipDepleted: () => [line('Message', STR_2ND_CLIP_DEPLETED)],
+  secondClipDepleted: () => [line(MESSAGE_TABLE, MessageText.STR_2ND_CLIP_DEPLETED)],
   barrelExtenderFellOff: (e, facts) => [line('gzLateLocalizedString', STR_LATE_46, [soldierArg(facts, e.soldier)])],
   ceramicPlatesSmashed: (e, facts) => [line(CERAMIC_PLATES_SMASHED, 0, [soldierArg(facts, e.soldier)])],
   lockHit: () => [line('TacticalStr', LOCK_HAS_BEEN_HIT)],
@@ -362,11 +352,11 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   npcGaveItem: (e, facts) => (e.to === null ? [] : itemGivenTo(e.item, e.to, e.dropped, facts)),
   firstAidDone: (e, facts) => [line('TacticalStr', 83, [soldierArg(facts, e.patient)])],
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [soldierArg(facts, e.soldier)])],
-  firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],
+  firstAidRefused: () => [line(MESSAGE_TABLE, MessageText.STR_REFUSE_FIRSTAID, [], 'uiFeedback')],
   fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [namedArg(facts, e)])],
   slippedOnMarbles: (e, facts) =>
     e.soldier !== undefined && facts.soldierTeam(e.soldier) === OUR_TEAM
-      ? [line('Message', STR_SLIPPED_MARBLES, [soldierArg(facts, e.soldier)], 'uiFeedback')]
+      ? [line(MESSAGE_TABLE, MessageText.STR_SLIPPED_MARBLES, [soldierArg(facts, e.soldier)], 'uiFeedback')]
       : [],
   switchActivated: () => [line('gzLateLocalizedString', STR_LATE_58)],
   stopped: (e, facts) =>
@@ -379,10 +369,10 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
     e.helicopter ? [] : [line('TacticalStr', MERC_HAS_ARRIVED_STR, [text(facts.soldierName(e.soldier) ?? facts.profileName(e.profile))])],
   mercDropped: (e, facts) => [line('TacticalStr', MERC_HAS_ARRIVED_STR, [soldierArg(facts, e.soldier)])],
   historyAdded: () => [line('pMessageStrings', 67)],
-  camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [soldierArg(facts, e.soldier)])],
-  camoWashedOff: (e, facts) => [line('Message', STR_CAMO_WASHED_OFF, [namedArg(facts, e)])],
+  camoWornOff: (e, facts) => [line(MESSAGE_TABLE, MessageText.STR_CAMO_WORN_OFF, [soldierArg(facts, e.soldier)])],
+  camoWashedOff: (e, facts) => [line(MESSAGE_TABLE, MessageText.STR_CAMO_WASHED_OFF, [namedArg(facts, e)])],
   stealAttempt: (e, facts) => [
-    line('Message', e.result === 'failed' ? STR_FAILED_TO_STEAL_SOMETHING : STR_STOLE_SOMETHING, [
+    line(MESSAGE_TABLE, e.result === 'failed' ? MessageText.STR_FAILED_TO_STEAL_SOMETHING : MessageText.STR_STOLE_SOMETHING, [
       soldierArg(facts, e.soldier),
       { item: e.item, name: 'short' },
     ]),
@@ -392,7 +382,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   heliOwed: (e) => [line('pSkyriderText', 1, [{ number: e.amount }])],
   itemRepaired: (e, facts) =>
     e.repairer === e.owner
-      ? [line('Message', 52, [soldierArg(facts, e.repairer), { item: e.item, name: 'long' }])]
+      ? [line(MESSAGE_TABLE, MessageText.STR_REPAIRED, [soldierArg(facts, e.repairer), { item: e.item, name: 'long' }])]
       : [line('gzLateLocalizedString', 34, [soldierArg(facts, e.repairer), soldierArg(facts, e.owner), { item: e.item, name: 'long' }])],
   gunUnjammed: (e, facts) =>
     e.repairer === e.owner
@@ -413,7 +403,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
       ],
     },
   ],
-  playerReinforcements: () => [line('Message', STR_PLAYER_REINFORCEMENTS)],
+  playerReinforcements: () => [line(MESSAGE_TABLE, MessageText.STR_PLAYER_REINFORCEMENTS)],
   invasion: (e) => (e.kind === 'other' ? [line('pMapErrorString', 24, [{ text: e.sector }])] : []),
   trainersNotAssigned: () => [line(MAP_ERRORS, NOT_PUT_ON_ASSIGNMENT), line(MAP_ERRORS, TWO_TRAINERS_PER_SECTOR)],
   npcQuote: (e) => dialogue(e.profile, e.textKey),

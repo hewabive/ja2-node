@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Map_Screen_Interface_Border.h, src/game/Strategic/Map_Screen_Interface_Border.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Strategic/Map_Screen_Interface_Border.h, src/game/Strategic/Map_Screen_Interface_Border.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
@@ -18,6 +18,8 @@
     "MAP_LEVEL_MARKER_WIDTH": 55,
     "MAP_BORDER_X": 261,
     "MAP_BORDER_Y": 0,
+    "MAP_BORDER_CORNER_X": 584,
+    "MAP_BORDER_CORNER_Y": 279,
     "ZOOM_MAP_SCROLL_UP": 0,
     "ZOOM_MAP_SCROLL_DWN": 1,
     "ZOOM_MAP_SCROLL_RIGHT": 2,
@@ -40,6 +42,8 @@
     "BTN_MINE_X",
     "BTN_TEAMS_X",
     "BTN_TOWN_X",
+    "MAP_BORDER_CORNER_X",
+    "MAP_BORDER_CORNER_Y",
     "MAP_BORDER_X",
     "MAP_BORDER_Y",
     "MAP_LEVEL_MARKER_X",

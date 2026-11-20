@@ -6,6 +6,9 @@ import { parseJsonc } from '../strategic/jsonc.ts';
 import { UI_LANGUAGES } from './data-version.ts';
 import {
   checkTranslation,
+  KEPT_MASTER_LINES,
+  KEPT_MASTER_LINES_PATH,
+  KeptMasterLine,
   LANGUAGE_FILES,
   languageFilePath,
   loadTranslationLayout,
@@ -18,14 +21,14 @@ import {
 const read = async (path: string): Promise<Uint8Array | null> => readFile(join(PROJECT_DATA_DIR, path)).catch(() => null);
 const CYRILLIC = /[Ѐ-ӿ]/;
 const TRANSLATION_KEYS = 217;
-const TRANSLATION_STRINGS = 1901;
+const TRANSLATION_STRINGS = 1894;
 
 async function readJson(path: string): Promise<unknown> {
   return parseJsonc(new TextDecoder().decode((await read(path)) ?? new Uint8Array()));
 }
 
 describe('UI string tables', () => {
-  it('transcribes 217 keys with 1901 strings from Localization.h', async () => {
+  it('transcribes 217 keys with 1894 strings from Localization.h', async () => {
     const layout = await loadTranslationLayout(read);
     expect(layout.size).toBe(TRANSLATION_KEYS);
     expect([...layout.values()].reduce<number>((n, size) => n + (size ?? 1), 0)).toBe(TRANSLATION_STRINGS);
@@ -54,8 +57,13 @@ describe('UI string tables', () => {
     expect(languageFilePath('new-strings', 'rus')).toBe(`${STRINGS_DIR}/new-strings-rus.json`);
     expect(translationPath('ger')).toBe(`${STRINGS_DIR}/translation-ger.json`);
     const russian = await loadUiStrings(read, 'rus');
-    expect(russian.files).toEqual([translationPath('rus'), ...LANGUAGE_FILES.map((f) => languageFilePath(f, 'rus'))]);
-    expect(Object.keys(russian.tables)).toHaveLength(TRANSLATION_KEYS + LANGUAGE_FILES.length);
+    expect(russian.files).toEqual([
+      translationPath('rus'),
+      ...LANGUAGE_FILES.map((f) => languageFilePath(f, 'rus')),
+      KEPT_MASTER_LINES_PATH,
+    ]);
+    expect(Object.keys(russian.tables)).toHaveLength(TRANSLATION_KEYS + LANGUAGE_FILES.length + 1);
+    expect(uiString(russian, KEPT_MASTER_LINES, KeptMasterLine.STR_LOSES_1_HP)).toMatch(CYRILLIC);
     expect(uiString(russian, 'pMoralStrings', 0)).toMatch(CYRILLIC);
     expect(uiString(russian, 'strategic-map-town-names', 1)).toMatch(CYRILLIC);
     expect(uiString(russian, 'sMapLevelString')).toMatch(CYRILLIC);

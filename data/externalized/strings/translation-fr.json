@@ -229,7 +229,6 @@
         "%s est touché à l'épaule et perd un point de dextérité !",
         "%s est touché à la poitrine et perd un point de force !",
         "%s est touché à la jambe et perd un point d'agilité !",
-        "%s est en train de mourir et perd définitivement un point de santé!",
         "%s est touché à la tête et perd %d points de sagesse !",
         "%s est touché à l'épaule et perd %d points de dextérité !",
         "%s est touché à la poitrine et perd %d points de force !",
@@ -2123,10 +2122,7 @@
         "Activez cette option pour mettre les objets en évidence (|I)",
         "Activez cette option pour afficher le cime des arbres. (|T)",
         "Activez cette option pour afficher les murs en fil de fer. (|W)",
-        "Activez cette option pour afficher le curseur en 3D. (|H|o|m|e)",
-        "Activez cette option pour afficher de la lumière sous les mercenaires dans l'obscurité. (|G)",
-        "Activez cette option pour masquer les balles. ",
-        "Activez cette option pour afficher la caméra restera centrée sur le mercenaire sélectionné pendant le mode combat."
+        "Activez cette option pour afficher le curseur en 3D. (|H|o|m|e)"
     ],
     "zOptionsText": [
         "Enregistrer",
@@ -2159,10 +2155,7 @@
         "Objets en surbrillance",
         "Afficher cimes",
         "Affichage fil de fer",
-        "Curseur 3D",
-        "Afficher les lumières sous les mercenaires",
-        "Masquer les projectiles",
-        "Mode de suivi"
+        "Curseur 3D"
     ],
     "zSaveLoadText": [
         "Enregistrer",

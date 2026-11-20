@@ -1,8 +1,10 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/SaveLoadScreen.h, src/game/SaveLoadScreen.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/SaveLoadScreen.h, src/game/SaveLoadScreen.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
+    "SAVE_LOAD_TITLE_FONT": "FONT14ARIAL",
+    "SAVE_LOAD_TITLE_COLOR": 208,
     "SAVE_LOAD_NORMAL_FONT": "FONT12ARIAL",
     "SAVE_LOAD_NORMAL_COLOR": 2,
     "SAVE_LOAD_NORMAL_SHADOW_COLOR": 118,
@@ -29,6 +31,7 @@
     "SLG_SAVE_GAME_SKULL_Y": -3,
     "SLG_TITLE_POS_X": 0,
     "SLG_TITLE_POS_Y": 0,
+    "SLG_SAVE_CANCEL_POS_X": 226,
     "SLG_LOAD_CANCEL_POS_X": 329,
     "SLG_SAVE_LOAD_BTN_POS_X": 123,
     "SLG_BTN_POS_Y": 438,
@@ -63,6 +66,7 @@
     "SLG_FIRST_SAVED_SPOT_X",
     "SLG_FIRST_SAVED_SPOT_Y",
     "SLG_LOAD_CANCEL_POS_X",
+    "SLG_SAVE_CANCEL_POS_X",
     "SLG_SAVE_LOAD_BTN_POS_X",
     "SLG_SCROLLBAR_BTN_SCROLL_DOWN_POS_Y",
     "SLG_SCROLLBAR_INNER_POS_Y",

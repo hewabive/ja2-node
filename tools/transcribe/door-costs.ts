@@ -42,7 +42,21 @@ const stack: Condition[] = [];
 let pending: Condition | null = null;
 let lastClosed: Condition | null = null;
 let caseOrientation: string | null = null;
+let caseLabelsOpen = false;
 const rules: Rule[] = [];
+
+function orientationOfCase(label: string): string {
+  const m = label.match(/^(INSIDE|OUTSIDE)_TOP_(LEFT|RIGHT)$/);
+  if (!m) throw new Error(`unknown wall orientation ${label}`);
+  return `${m[1]}_${m[2]}`;
+}
+
+function mergedCaseOrientation(previous: string | null, next: string): string {
+  if (previous === null) return next;
+  const side = next.replace(/^(INSIDE|OUTSIDE)_/, '');
+  if (previous.replace(/^(INSIDE|OUTSIDE)_/, '') !== side || previous === next) throw new Error(`cannot merge ${previous} and ${next}`);
+  return side;
+}
 
 function context(): Rule {
   const merged: Condition = {};
@@ -120,7 +134,7 @@ for (const raw of lines) {
   const opensBlock = raw.endsWith('{') && raw !== '{';
   const setHere = line.match(/^SET_CURRMOVEMENTCOST\s*\(\s*(\w+)\s*,\s*(\w+)\s*\);?$/);
   const setNeighbour = line.match(/^SET_MOVEMENTCOST\s*\(\s*usGridNo([^,]*),\s*(\w+)\s*,\s*0\s*,\s*(\w+)\s*\);?$/);
-  const caseLabel = line.match(/^case\s+ORIENT_(\w+):$/);
+  const caseLabel = line.match(/^case\s+(\w+):$/);
   if (raw === '{') {
     stack.push(pending ?? {});
     pending = null;
@@ -133,7 +147,8 @@ for (const raw of lines) {
     const [dx, dy] = offset(setNeighbour[1] as string);
     emit(dx, dy, direction(setNeighbour[2] as string), cost(setNeighbour[3] as string));
   } else if (caseLabel) {
-    caseOrientation = caseLabel[1] as string;
+    const orientation = orientationOfCase(caseLabel[1] as string);
+    caseOrientation = caseLabelsOpen ? mergedCaseOrientation(caseOrientation, orientation) : orientation;
   } else if (/^switch\s*\(\s*pStructure->ubWallOrientation\s*\)$/.test(line)) {
     pending = { isSwitch: true };
   } else if (line === 'default:' || line === 'break;') {
@@ -151,6 +166,7 @@ for (const raw of lines) {
     stack.push(pending ?? {});
     pending = null;
   }
+  caseLabelsOpen = caseLabel !== null;
 }
 
 const out = {

@@ -19,6 +19,7 @@
 // @src (2026-11-01); Overhead_Types.h the locator flags.
 
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../../content/text/font-colors.ts';
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import { idiv } from '../../../core/int.ts';
 import { type CombatView, LIFELESS_HEALTH_INDEX, type TopMessageView } from '../../../protocol/view.ts';
 import type { ImageCatalog } from '../../assets.ts';
@@ -37,8 +38,6 @@ const BAR_END = 12;
 const BAR_START = 1;
 const OUR_TEAM = 0;
 const CREATURE_TEAM = 2;
-const STR_INTERRUPT = 9;
-const STR_BLOODCATS_TURN = 59;
 const AIR_RAID_TURN_MESSAGE = 5;
 export const TOP_BAR_HEIGHT = 20;
 
@@ -132,12 +131,12 @@ export class TopBar {
 export function topMessageText(message: TopMessageView, text: UiTextService): string {
   switch (message.kind) {
     case 'computerTurn':
-      if (message.team === CREATURE_TEAM && message.bloodcats) return text.string('Message', STR_BLOODCATS_TURN) ?? '';
+      if (message.team === CREATURE_TEAM && message.bloodcats) return text.string(MESSAGE_TABLE, MessageText.STR_BLOODCATS_TURN) ?? '';
       return text.string('TeamTurnString', message.team) ?? '';
     case 'computerInterrupt':
     case 'playerInterrupt':
     case 'militiaInterrupt':
-      return text.string('Message', STR_INTERRUPT) ?? '';
+      return text.string(MESSAGE_TABLE, MessageText.STR_INTERRUPT) ?? '';
     case 'airRaidTurn':
       return text.string('TacticalStr', AIR_RAID_TURN_MESSAGE) ?? '';
     default:

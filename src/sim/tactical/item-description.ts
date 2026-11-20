@@ -6,6 +6,7 @@
 // @src externalized/WeaponModels.cc the weapon type index of WeaponType[]; Utils/Text.h Message ids STR_RELIABLE..STR_NONE.
 
 import { ItemClass, type ItemDef, type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
+import { MessageText } from '../../content/text/message-text.ts';
 import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
 import { baseAPsToShootOrStabWith, calcAPsToBurstWith } from './combat/ap.ts';
@@ -36,24 +37,24 @@ const GRAMS_PER_POUND = 453.59237;
 const RANGE_UNITS_PER_TILE = 10;
 
 export const ProConMessage = {
-  RELIABLE: 13,
-  UNRELIABLE: 14,
-  EASY_TO_REPAIR: 15,
-  HARD_TO_REPAIR: 16,
-  HIGH_DAMAGE: 17,
-  LOW_DAMAGE: 18,
-  QUICK_FIRING: 19,
-  SLOW_FIRING: 20,
-  LONG_RANGE: 21,
-  SHORT_RANGE: 22,
-  LIGHT: 23,
-  HEAVY: 24,
-  SMALL: 25,
-  FAST_BURST: 26,
-  NO_BURST: 27,
-  LARGE_AMMO_CAPACITY: 28,
-  SMALL_AMMO_CAPACITY: 29,
-  NONE: 38,
+  RELIABLE: MessageText.STR_RELIABLE,
+  UNRELIABLE: MessageText.STR_UNRELIABLE,
+  EASY_TO_REPAIR: MessageText.STR_EASY_TO_REPAIR,
+  HARD_TO_REPAIR: MessageText.STR_HARD_TO_REPAIR,
+  HIGH_DAMAGE: MessageText.STR_HIGH_DAMAGE,
+  LOW_DAMAGE: MessageText.STR_LOW_DAMAGE,
+  QUICK_FIRING: MessageText.STR_QUICK_FIRING,
+  SLOW_FIRING: MessageText.STR_SLOW_FIRING,
+  LONG_RANGE: MessageText.STR_LONG_RANGE,
+  SHORT_RANGE: MessageText.STR_SHORT_RANGE,
+  LIGHT: MessageText.STR_LIGHT,
+  HEAVY: MessageText.STR_HEAVY,
+  SMALL: MessageText.STR_SMALL,
+  FAST_BURST: MessageText.STR_FAST_BURST,
+  NO_BURST: MessageText.STR_NO_BURST,
+  LARGE_AMMO_CAPACITY: MessageText.STR_LARGE_AMMO_CAPACITY,
+  SMALL_AMMO_CAPACITY: MessageText.STR_SMALL_AMMO_CAPACITY,
+  NONE: MessageText.STR_NONE,
 } as const;
 
 const WEAPON_TYPE_INDEX: Readonly<Record<string, number>> = {

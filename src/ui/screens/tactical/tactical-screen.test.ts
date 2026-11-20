@@ -11,6 +11,7 @@ import {
 } from '../../../../tests/support/tactical-ui.ts';
 import { Body } from '../../../content/anim/body-types.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { createItem } from '../../../sim/items/object.ts';
@@ -1555,7 +1556,12 @@ describe('the tactical screen in a stub campaign', () => {
     await f.click(`slot${SMALL_POCKET}`);
     await f.click(`slot${HAND}`, MouseButton.RIGHT);
     const origin = f.widget('itemDescriptionBox').rect;
-    expect(f.screen.fastHelp.shown).toEqual({ text: f.text.string('Message', 42), x: origin.x + 69, y: origin.y + 12, width: 170 });
+    expect(f.screen.fastHelp.shown).toEqual({
+      text: f.text.string(MESSAGE_TABLE, MessageText.STR_ATTACHMENT_HELP),
+      x: origin.x + 69,
+      y: origin.y + 12,
+      width: 170,
+    });
     expect([helpCommands().length, narrative.facts[ATTACHED_ITEM_BEFORE], pauses]).toEqual([1, 1, [true]]);
     await f.clickAt(origin.x + 1, origin.y + 1);
     expect([f.screen.fastHelp.shown, f.screen.description.open, pauses]).toEqual([null, true, [true, false]]);
@@ -1571,7 +1577,7 @@ describe('the tactical screen in a stub campaign', () => {
     f.deliver();
     await f.click(`slot${BIG_POCKET}`);
     await f.click(`slot${HAND}`, MouseButton.RIGHT);
-    expect(f.screen.fastHelp.shown?.text).toBe(f.text.string('Message', 43));
+    expect(f.screen.fastHelp.shown?.text).toBe(f.text.string(MESSAGE_TABLE, MessageText.STR_ATTACHMENT_INVALID_HELP));
     f.key('a');
     expect([f.screen.fastHelp.shown, f.screen.description.open]).toEqual([null, true]);
   });

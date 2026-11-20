@@ -25,6 +25,7 @@
 // @src at once, 2026-11-19).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import { idiv } from '../../../core/int.ts';
 import type { CompatibleItems, ItemInfo, Placements } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
@@ -181,11 +182,6 @@ export function attachmentGoesOnto(client: Pick<GameClient, 'hint'>, item: numbe
 }
 
 const OWNER = 'itemDescription';
-const STR_ATTACHMENTS = 40;
-const STR_EJECT_AMMO = 39;
-const STR_PERMANENT_ATTACHMENT = 48;
-const STR_ATTACHMENT_HELP = 42;
-const STR_ATTACHMENT_INVALID_HELP = 43;
 const ATTACHMENT_HELP_X = 69;
 const ATTACHMENT_HELP_Y = 12;
 const ATTACHMENT_HELP_WIDTH = 170;
@@ -394,7 +390,8 @@ export class ItemDescriptionBox {
     this.#helpFor = null;
     this.#helpGiven = true;
     void this.#hooks.command?.({ type: 'attachmentHelpShown' });
-    const text = this.#hooks.text.string('Message', fits ? STR_ATTACHMENT_HELP : STR_ATTACHMENT_INVALID_HELP) ?? '';
+    const text =
+      this.#hooks.text.string(MESSAGE_TABLE, fits ? MessageText.STR_ATTACHMENT_HELP : MessageText.STR_ATTACHMENT_INVALID_HELP) ?? '';
     const { x, y } = geometry.origin;
     help.show?.({ text, x: x + ATTACHMENT_HELP_X, y: y + ATTACHMENT_HELP_Y, width: ATTACHMENT_HELP_WIDTH });
   }
@@ -552,7 +549,7 @@ export class ItemDescriptionBox {
       offsetX: at.x,
       offsetY: at.y,
     };
-    button.setTooltip(this.#hooks.text.string('Message', STR_EJECT_AMMO) ?? '');
+    button.setTooltip(this.#hooks.text.string(MESSAGE_TABLE, MessageText.STR_EJECT_AMMO) ?? '');
     this.#ammo = button;
   }
 
@@ -597,8 +594,8 @@ export class ItemDescriptionBox {
   #prosCons(object: DescribedObject, pros: boolean, font: BitmapFont, limit: number): string {
     const info = this.#hooks.itemInfo(object);
     const ids = (pros ? info?.pros : info?.cons) ?? [];
-    const none = this.#hooks.text.string('Message', 38) ?? '';
-    const labels = ids.filter((id) => id !== 38).map((id) => this.#hooks.text.string('Message', id) ?? '');
+    const none = this.#hooks.text.string(MESSAGE_TABLE, MessageText.STR_NONE) ?? '';
+    const labels = ids.filter((id) => id !== MessageText.STR_NONE).map((id) => this.#hooks.text.string(MESSAGE_TABLE, id) ?? '');
     return prosConsString(labels, font, limit, none);
   }
 
@@ -638,7 +635,7 @@ export class ItemDescriptionBox {
 
   #attachmentTooltips(object: DescribedObject): void {
     const view = this.#view(object);
-    const fallback = this.#hooks.text.string('Message', STR_ATTACHMENTS) ?? '';
+    const fallback = this.#hooks.text.string(MESSAGE_TABLE, MessageText.STR_ATTACHMENTS) ?? '';
     for (let i = 0; i < MAX_ATTACHMENTS; i++) {
       const region = this.#regions.find((r) => r.id === `itemDescriptionAttachment${i}`);
       const attachment = object.kind === 'slot' ? view?.attachments?.[i] : undefined;
@@ -689,7 +686,7 @@ export class ItemDescriptionBox {
       return;
     }
     if (refusalOf(reply.data) === REFUSAL_PERMANENT_ATTACHMENT && !permanent) {
-      const yes = await this.#hooks.confirm(this.#hooks.text.string('Message', STR_PERMANENT_ATTACHMENT) ?? '');
+      const yes = await this.#hooks.confirm(this.#hooks.text.string(MESSAGE_TABLE, MessageText.STR_PERMANENT_ATTACHMENT) ?? '');
       if (yes) await this.#attach(object, cursor, true);
     }
   }

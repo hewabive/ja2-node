@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Utils/Sound_Control.h, src/game/Utils/Sound_Control.cc szSoundEffects, szAmbientEffects, src/game/Directories.h, and every literal sound path in src/game/**/*.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Utils/Sound_Control.h, src/game/Utils/Sound_Control.cc szSoundEffects, szAmbientEffects, src/game/Directories.h, and every literal sound path in src/game/**/*.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "sounds: SoundID enum order, id, name and VFS path (null where the original has none); ambient: AmbientSoundID order; files: sound paths named literally elsewhere in the game code, with the files naming them; pan 0 (left) to 127 (right); volume 0 to 127; farVolumeMod: SOUND_FAR_VOLUME_MOD",
   "pan": {

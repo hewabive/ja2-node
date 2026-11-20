@@ -1,11 +1,13 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Credits.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Credits.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
     "CRDT_FLAG__TITLE": 1,
     "CRDT_FLAG__START_SECTION": 2,
     "CRDT_FLAG__END_SECTION": 4,
+    "CRDT_NAME_OF_CREDIT_FILE": "binarydata/credits.edt",
+    "CREDITS_LINESIZE": 80,
     "CRDT_NAME_LOC_X": 375,
     "CRDT_NAME_LOC_Y": 420,
     "CRDT_NAME_TITLE_LOC_Y": 435,

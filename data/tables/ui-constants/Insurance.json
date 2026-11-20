@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/Insurance.h, src/game/Laptop/Insurance_Text.h, src/game/Laptop/Insurance.cc",
+  "source": "JA2 Stracciatella v0.22.1: src/game/Laptop/Insurance.h, src/game/Laptop/Insurance_Text.h, src/game/Laptop/Insurance.cc",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
   "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
   "constants": {
@@ -15,8 +15,12 @@
     "INS_INFO_LEFT_ARROW_BUTTON_X": 182,
     "INS_INFO_RIGHT_ARROW_BUTTON_X": 520,
     "INS_INFO_ARROW_BUTTON_Y": 400,
+    "INSURANCE_TEXT_SINGLE_LINE_SIZE": 80,
+    "INSURANCE_TEXT_MULTI_LINE_SIZE": 400,
     "INSURANCE_TEXT_SINGLE": 1,
     "INSURANCE_TEXT_MULTI": 2,
+    "INSURANCE_TEXT_SINGLE_FILE": "binarydata/insurancesingle.edt",
+    "INSURANCE_TEXT_MULTI_FILE": "binarydata/insurancemulti.edt",
     "INSURANCE_BACKGROUND_WIDTH": 125,
     "INSURANCE_BACKGROUND_HEIGHT": 100,
     "INSURANCE_BIG_TITLE_X": 206,

@@ -13,6 +13,9 @@ import { languageVersion, stringSuffix, type UiLanguage } from './data-version.t
 export const L10N_TABLE_PATH = 'tables/l10n.json';
 export const STRINGS_DIR = 'externalized/strings';
 const TRANSLATION_PREFIX = 'translation';
+export const KEPT_MASTER_LINES_PATH = 'strings/kept-master-lines.json';
+export const KEPT_MASTER_LINES = 'kept-master-lines';
+export const KeptMasterLine = { STR_LOSES_1_HP: 0 } as const;
 
 export const LANGUAGE_FILES = [
   'new-strings',
@@ -36,8 +39,18 @@ export interface UiStrings {
 
 export class TranslationError extends FormatError {}
 
+function translationSuffix(language: UiLanguage): string {
+  return stringSuffix(languageVersion(language), false);
+}
+
 export function translationPath(language: UiLanguage): string {
-  return `${STRINGS_DIR}/${TRANSLATION_PREFIX}${stringSuffix(languageVersion(language), false)}.json`;
+  return `${STRINGS_DIR}/${TRANSLATION_PREFIX}${translationSuffix(language)}.json`;
+}
+
+function keptMasterLines(json: unknown, language: UiLanguage): string[] {
+  const lines = (json as { lines?: Record<string, unknown> } | null)?.lines;
+  const suffix = translationSuffix(language).slice(1);
+  return stringArray(lines?.[suffix], `${KEPT_MASTER_LINES_PATH} ${suffix}`);
 }
 
 export function languageFilePath(file: LanguageFile, language: UiLanguage): string {
@@ -93,16 +106,18 @@ export async function loadTranslationLayout(read: ReadFile): Promise<Translation
 export async function loadUiStrings(read: ReadFile, language: UiLanguage, layout?: TranslationLayout): Promise<UiStrings> {
   const translationFile = translationPath(language);
   const paths = LANGUAGE_FILES.map((file) => languageFilePath(file, language));
-  const [translationJson, translationLayout, languageJson] = await Promise.all([
+  const [translationJson, translationLayout, languageJson, keptJson] = await Promise.all([
     readJson(read, translationFile),
     layout ?? loadTranslationLayout(read),
     Promise.all(paths.map((path) => readJson(read, path))),
+    readJson(read, KEPT_MASTER_LINES_PATH),
   ]);
   const tables: Record<string, UiStringValue> = { ...checkTranslation(translationJson, translationLayout) };
   LANGUAGE_FILES.forEach((file, i) => {
     tables[file] = stringArray(languageJson[i], paths[i] as string);
   });
-  return { language, files: [translationFile, ...paths], tables };
+  tables[KEPT_MASTER_LINES] = keptMasterLines(keptJson, language);
+  return { language, files: [translationFile, ...paths, KEPT_MASTER_LINES_PATH], tables };
 }
 
 export function uiString(strings: UiStrings, table: string, index?: number): string | null {

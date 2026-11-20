@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import { TacticalSession } from '../../../server/sandbox.ts';
 import { createItem } from '../../../sim/items/object.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
@@ -9,7 +10,6 @@ import { type Soldier, Team } from '../../../sim/tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../../../sim/tactical/state.ts';
 import { MouseButton } from '../../input/events.ts';
 
-const SECTOR_NOT_CLEARED = 44;
 const AUTOBANDAGE_NOT_NEEDED = 116;
 const BEGIN_AUTOBANDAGE_PROMPT_STR = 1;
 const WOUNDED = { life: 60, bleeding: 8 };
@@ -56,7 +56,7 @@ describe('auto-bandage on the tactical screen (Turn_Based_Input.cc a, Auto_Banda
       reply: { ok: false, data: { refusal: 'sectorNotCleared' } },
     });
     expect(f.t.runtime.host.modal?.id).toBe('messageBox');
-    expect(f.widget('messageBox').text).toBe(f.text.string('Message', SECTOR_NOT_CLEARED));
+    expect(f.widget('messageBox').text).toBe(f.text.string(MESSAGE_TABLE, MessageText.STR_SECTOR_NOT_CLEARED));
   });
 
   it('shows the OK box of a question a won battle left pending when the sector changed meanwhile', async () => {

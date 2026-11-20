@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MESSAGE_TABLE, MessageText } from '../content/text/message-text.ts';
 import { refusalMessage, refusalSoldierOf } from './refusals.ts';
 
 describe('refusal messages', () => {
@@ -18,7 +19,7 @@ describe('refusal messages', () => {
 
 describe("BeginAutoBandage's OK boxes", () => {
   it('boxes the sector not cleared, AUTOBANDAGE_NOT_NEEDED, STR_LATE_09 and CANT_AUTOBANDAGE_PROMPT', () => {
-    expect(refusalMessage('sectorNotCleared')).toEqual({ table: 'Message', index: 44, shown: 'box' });
+    expect(refusalMessage('sectorNotCleared')).toEqual({ table: MESSAGE_TABLE, index: MessageText.STR_SECTOR_NOT_CLEARED, shown: 'box' });
     expect(refusalMessage('nobodyToBandage')).toEqual({ table: 'TacticalStr', index: 116, shown: 'box' });
     expect(refusalMessage('noMedKit')).toEqual({ table: 'gzLateLocalizedString', index: 8, shown: 'box' });
     expect(refusalMessage('cannotAutoBandage')).toEqual({ table: 'TacticalStr', index: 129, shown: 'box' });

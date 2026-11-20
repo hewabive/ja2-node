@@ -27,7 +27,7 @@ describe('constants and the schema', () => {
   it('evaluate names from the layout tables first, priorities with a prefix, and $i', async () => {
     const env = await projectLayoutLoader().environment(['Options_Screen']);
     const scope = new ConstantScope(env.tables, ['Options_Screen']);
-    expect(scope.number('OPT_TOGGLE_BOX_START_Y + $i * OPT_GAP_BETWEEN_TOGGLE_BOXES', { i: 2 })).toBe(89 + 2 * 27);
+    expect(scope.number('OPT_TOGGLE_BOX_START_Y + $i * OPT_GAP_BETWEEN_TOGGLE_BOXES', { i: 2 })).toBe(89 + 2 * 31);
     expect(scope.number('HIGH+10', {}, 'MSYS_PRIORITY_')).toBe(73);
     expect(scope.number('(OPT_SLIDER_BAR_SIZE - 1) / 2')).toBe(128);
     expect(() => scope.number('MSGBOX_BUTTON_WIDTH')).toThrow(/unknown numeric constant/);

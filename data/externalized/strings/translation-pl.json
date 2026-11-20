@@ -229,7 +229,6 @@
         "%s dostał(a) w ramię i traci 1 punkt zręczności!",
         "%s dostał(a) w klatkę piersiową i traci 1 punkt siły!",
         "%s dostał(a) w nogi i traci 1 punkt zwinności!",
-        "%s w procesie umierania i traci 1 punkt zdrowia na stałe!",
         "%s dostał(a) w głowę i traci %d pkt. inteligencji!",
         "%s dostał(a) w ramię i traci %d pkt. zręczności!",
         "%s dostał(a) w klatkę piersiową i traci %d pkt. siły!",
@@ -2123,10 +2122,7 @@
         "Gdy opcja ta jest włączona, przedmioty pulsują. ( |I )",
         "Gdy opcja ta jest włączona, wyświetlane są korony drzew. ( |T )",
         "Gdy opcja ta jest włączona, wyświetlane są zarysy niewidocznych ścian. ( |W )",
-        "Gdy opcja ta jest włączona, kursor ruchu wyświetlany jest w 3D. (|H|o|m|e)",
-        "Gdy opcja ta jest włączona, najemnicy będą wyświetlani w ciemnościach, otoczeni światłami. ( |G )",
-        "Gdy opcja ta jest włączona, kule nie będą wyświetlane.",
-        "Gdy opcja ta jest włączona, kamera będzie utrzymywać ostrość na wybranym najemniku w trybie walki."
+        "Gdy opcja ta jest włączona, kursor ruchu wyświetlany jest w 3D. (|H|o|m|e)"
     ],
     "zOptionsText": [
         "Zapisz grę",
@@ -2159,10 +2155,7 @@
         "Pulsujące przedmioty",
         "Pokazuj korony drzew",
         "Pokazuj siatkę",
-        "Pokazuj kursor 3D",
-        "Pokazuj światła pod najemnikami",
-        "Ukryj pociski",
-        "Tryb śledzenia"
+        "Pokazuj kursor 3D"
     ],
     "zSaveLoadText": [
         "Zapisz grę",

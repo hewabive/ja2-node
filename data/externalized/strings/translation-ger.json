@@ -229,7 +229,6 @@
         "%s an der Schulter getroffen, verliert Geschicklichkeitspunkt!",
         "%s an der Brust getroffen, verliert einen Kraftpunkt!",
         "%s an den Beinen getroffen, verliert einen Beweglichkeitspunkt!",
-        "%s stirbt, verliert dauerhaft einen Gesundheitspunkt!",
         "%s am Kopf getroffen, verliert %d Weisheitspunkte!",
         "%s an der Schulter getroffen, verliert %d Geschicklichkeitspunkte!",
         "%s an der Brust getroffen, verliert %d Kraftpunkte!",
@@ -2123,10 +2122,7 @@
         "Angeschaltet, bekommen Gegenstände einen pulsierenden Rahmen (|I).",
         "ANgeschaltet, werden die Baumkronen gezeigt (|T).",
         "ANgeschaltet, werden Drahtgitter für verborgene Wände gezeigt (|W).",
-        "ANgeschaltet, wird der Bewegungs-Cursor in 3D angezeigt (|P|o|s|1).",
-        "ANgeschaltet, erscheinen Söldner im Dunkeln von Lichtern umgeben (|G).",
-        "ANgeschaltet, werden keine Projektile angezeigt.",
-        "ANgeschaltet, bleibt die Kamera im Kampfmodus auf den ausgewählten Söldner fokussiert."
+        "ANgeschaltet, wird der Bewegungs-Cursor in 3D angezeigt (|P|o|s|1)."
     ],
     "zOptionsText": [
         "Spiel sichern",
@@ -2153,16 +2149,13 @@
         "Bestätigung bei Echtzeit",
         "Schlaf-/Wachmeldung anzeigen",
         "Metrisches System benutzen",
-        "Boden während der Bewegung beleuchten",
+        "Boden beleuchten",
         "Cursor automatisch auf Söldner",
         "Cursor automatisch auf Türen",
         "Gegenstände leuchten",
         "Baumkronen zeigen",
         "Drahtgitter zeigen",
-        "3D Cursor zeigen",
-        "Boden beleuchten",
-        "Projektile ausblenden",
-        "Verfolgungsmodus"
+        "3D Cursor zeigen"
     ],
     "zSaveLoadText": [
         "Spiel sichern",

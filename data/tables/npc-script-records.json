@@ -1,5 +1,5 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: assets/externalized/script-records-NPCs.json without its comments (the comments quote dialogue text)",
+  "source": "JA2 Stracciatella v0.22.1: assets/externalized/script-records-NPCs.json without its comments (the comments quote dialogue text)",
   "license": "Derived from Jagged Alliance 2 (Strategy First SFI-SCLA) via JA2 Stracciatella. See LICENSE.",
   "format": "the NPC script record overrides as Stracciatella loads them; quote numbers refer to the dialogue files of the game data",
   "records": [

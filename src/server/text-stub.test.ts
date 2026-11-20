@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { MCP_CALL_OPTIONS } from '../../tests/support/patience.ts';
 import { encodeEdtFile, encodeEdtRecords } from '../content/formats/edt.ts';
 import { UI_LANGUAGES } from '../content/text/data-version.ts';
-import { LANGUAGE_FILES } from '../content/text/strings.ts';
+import { KEPT_MASTER_LINES, KEPT_MASTER_LINES_PATH, LANGUAGE_FILES } from '../content/text/strings.ts';
 import { PROJECT_DATA_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { DirLayer } from '../node/dir-layer.ts';
@@ -99,8 +99,9 @@ describe('UI strings on stubs', () => {
     const body = await res.json();
     expect(body.language).toBe('rus');
     expect(body.files[0]).toBe('externalized/strings/translation-rusgold.json');
-    expect(body.files.slice(1).every((f: string) => f.endsWith('-rus.json'))).toBe(true);
-    expect(Object.keys(body.tables)).toHaveLength(TRANSLATION_KEYS + LANGUAGE_FILES.length);
+    expect(body.files.slice(1, -1).every((f: string) => f.endsWith('-rus.json'))).toBe(true);
+    expect(body.files.at(-1)).toBe(KEPT_MASTER_LINES_PATH);
+    expect(Object.keys(body.tables)).toHaveLength(TRANSLATION_KEYS + LANGUAGE_FILES.length + 1);
     expect(body.tables.pMoralStrings).toHaveLength(6);
     expect(body.tables.pMoralStrings.every((s: string) => CYRILLIC.test(s))).toBe(true);
     expect(body.tables['strategic-map-town-names'][1]).toMatch(CYRILLIC);
@@ -122,7 +123,8 @@ describe('UI strings on stubs', () => {
     const { app } = stubApp();
     for (const lang of UI_LANGUAGES) {
       const body = await (await app.request(`http://localhost/api/strings?lang=${lang}`, { headers: auth })).json();
-      expect(Object.keys(body.tables), lang).toHaveLength(TRANSLATION_KEYS + LANGUAGE_FILES.length);
+      expect(Object.keys(body.tables), lang).toHaveLength(TRANSLATION_KEYS + LANGUAGE_FILES.length + 1);
+      expect(body.tables[KEPT_MASTER_LINES], lang).toHaveLength(1);
     }
   });
 

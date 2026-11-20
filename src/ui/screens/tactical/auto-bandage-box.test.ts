@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { testRuntime, uniformImage } from '../../../../tests/support/ui-runtime.ts';
+import { MESSAGE_TABLE, MessageText } from '../../../content/text/message-text.ts';
 import type { AutoBandageView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { DrawList } from '../../draw-list.ts';
 import type { UiKeyEvent } from '../../input/events.ts';
@@ -21,7 +22,7 @@ const CELL = 15;
 const STRINGS: Readonly<Record<string, Readonly<Record<number, string>>>> = {
   zMarksMapScreenText: { 13: 'Medics', 14: 'Patients', 15: 'Done', 16: 'Stop' },
   pDoctorWarningString: { 1: 'Your medics were unable to completely bandage everyone.' },
-  Message: { 44: 'Sector not cleared' },
+  [MESSAGE_TABLE]: { [MessageText.STR_SECTOR_NOT_CLEARED]: 'Sector not cleared' },
   TacticalStr: { 116: 'Nobody to bandage', 129: 'Cannot auto-bandage' },
 };
 const TEXT: UiTextService = { string: (table, index) => STRINGS[table]?.[index] ?? null, edt: () => null };

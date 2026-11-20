@@ -62,9 +62,6 @@ export const OPTION_TOGGLES: readonly ToggleSetting[] = [
   { display: 'treeTops' },
   { display: 'wireframe' },
   { display: 'cursor3d' },
-  { display: 'mercCastsLight' },
-  { display: 'hideBullets' },
-  { display: 'trackingMode' },
 ];
 
 const BLOOD_AND_GORE = 5;
