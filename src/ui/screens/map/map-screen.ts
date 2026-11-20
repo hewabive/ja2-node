@@ -762,7 +762,7 @@ export class MapScreen implements Screen {
     const world = strategic?.worldSector ? parseSectorLabel(strategic.worldSector) : null;
     if (!strategic || strategic.mercs.length === 0) this.#changeSelectedSector(START_SECTOR);
     else if (world) this.#changeSelectedSector(world);
-    this.list.rebuild(strategic, false);
+    this.list.rebuild(strategic);
     this.#speech.enter(this.#env.runtime.clock.ja2Now);
     this.#defineRegions();
     this.#inventory.enter();
@@ -1093,7 +1093,7 @@ export class MapScreen implements Screen {
     this.#inventoryOpen = this.#inventory.merc.open;
     this.#sectorInventoryOpen = this.#inventory.pool.open;
     const strategic = this.#strategic();
-    if (this.list.needsRebuild(strategic)) this.list.rebuild(strategic, true);
+    if (this.list.needsRebuild(strategic)) this.list.rebuild(strategic);
     this.#speech.update(this.#now);
     this.#syncTeamRegions();
     this.#team.update(this.#now);
@@ -2375,7 +2375,7 @@ export class MapScreen implements Screen {
   #sort(mode: number): void {
     this.#abortPlotting();
     this.list.sortMode = mode;
-    this.list.sort(this.#strategic(), false);
+    this.list.sort(this.#strategic(), true);
   }
 
   #setPlayerPaused(paused: boolean): void {

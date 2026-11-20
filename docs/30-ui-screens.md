@@ -428,6 +428,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 |---|---|
 | Every credits face blinks at once on entry: the original's unsigned clock difference | `front-end/front-end.test.ts` "blinks every face at once on entry …" |
 | The character list sort compares each row with the merc it held when the sort reached it | `map/character-list.test.ts` |
+| The map screen keeps the info character's row, not the merc, when it rebuilds its list on entry and after a roster change: the merc chosen before a visit to tactical is the info character again only while the team and the sort keys are the same, else the row can hold another merc (`Strategic/MapScreen.cc:5200-5204`); only the sort buttons follow the merc (`:6476`, `:7949`) | `map/character-list.test.ts` "keeps the info row, not the merc, through a rebuild …"; `map/map-screen.test.ts` "keeps the info character of the last visit …" |
 | A path node in map column 16 is not drawn at 640 pixels wide: the original tests it against the screen width | `map/plotting.test.ts` "leaves out the column 16 pieces …" |
 | The plotting ETA counts the remaining leg twice and drops the first temporary edge while the squad travels | `src/server/hints-strategic-stub.test.ts` "count the remaining leg twice …" |
 | A click on a name or an assignment gives plotting up without the "unchanged" message every other way out prints (`Strategic/MapScreen.cc:4244`, `:4361`) | `map/map-screen.test.ts` "gives up plotting silently …" |

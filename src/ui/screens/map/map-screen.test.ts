@@ -1682,6 +1682,27 @@ describe('the map screen team list, plotting and contract rules of the original'
       }
     }));
 
+  it('keeps the info character of the last visit when the screen is entered again, as nothing between EndMapScreen and the next entry moves bSelectedInfoChar', () =>
+    withMap(async (f) => {
+      const [, second] = listedMercs(f);
+      await f.click('teamRow1.name');
+      expect(f.screen.hook().info).toBe(second);
+      f.screen.exit();
+      f.screen.enter();
+      f.t.frame();
+      expect([f.screen.hook().info, f.screen.hook().selected]).toEqual([second, [second]]);
+    }));
+
+  it('keeps the selection of several mercs through a sort key, which sorts with fRetainSelectedMercs (ChangeCharacterListSortMethod)', () =>
+    withMap(async (f) => {
+      const [first, , third] = listedMercs(f);
+      await f.click('teamRow2.name', MouseButton.LEFT, KeyModifier.CTRL);
+      expect(f.screen.hook().selected).toEqual([first, third]);
+      f.key('F1');
+      await f.settle();
+      expect([f.screen.hook().info, f.screen.hook().selected]).toEqual([first, [first, third]]);
+    }));
+
   it('gives up plotting silently on a click on a name, which only resets the modes (TeamListInfoRegionBtnCallBackPrimary)', () =>
     withMap(async (f) => {
       await f.click('teamRow0.destination');

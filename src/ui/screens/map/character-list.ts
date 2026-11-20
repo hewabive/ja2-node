@@ -9,7 +9,9 @@
 // @src ResetSelectedListForMapScreen, ToggleEntryInSelectedList, BuildSelectedListFromAToB, GetMoraleString,
 // @src MultipleCharacterListEntriesSelected, CharacterIsGettingPathPlotted (2026-11-02); ChangeSelectedInfoChar's
 // @src held-item check, MapscreenCanPassItemToChar through the passTargets hint (2026-11-04); DrawName (a vehicle's
-// @src name is zVehicleName of its type, Tactical/Vehicles.cc SetVehicleValuesIntoSoldierType, 2026-11-05).
+// @src name is zVehicleName of its type, Tactical/Vehicles.cc SetVehicleValuesIntoSoldierType, 2026-11-05);
+// @src ReBuildCharactersList keeping bSelectedInfoChar's row, and SortListOfMercsInTeamPanel following the info merc only
+// @src with fRetainSelectedMercs (2026-11-20).
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -200,8 +202,7 @@ export class CharacterList {
       .join(',');
   }
 
-  rebuild(view: StrategicView | undefined, keepInfo = true): void {
-    const previous = keepInfo ? (this.slots[this.info]?.merc ?? null) : null;
+  rebuild(view: StrategicView | undefined): void {
     this.slots = Array.from({ length: MAX_CHARACTER_COUNT }, () => ({ merc: null, selected: false }));
     const mercs = [...(view?.mercs ?? [])].sort((a, b) => a.id - b.id);
     for (const m of mercs) {
@@ -215,16 +216,21 @@ export class CharacterList {
       }
     }
     this.#roster = this.#rosterKey(view);
-    this.info = previous === null ? NO_CHARACTER : this.rowOf(previous);
     this.sort(view, false);
-    if (this.info === NO_CHARACTER || this.slots[this.info]?.merc === null)
-      this.info = this.slots[0]?.merc !== null && this.slots[0] !== undefined ? 0 : NO_CHARACTER;
-    this.resetSelected();
+    if (this.#infoRowEmpty()) this.changeInfo(this.#rowHeld(0) ? 0 : NO_CHARACTER, true);
+  }
+
+  #rowHeld(row: number): boolean {
+    return (this.slots[row]?.merc ?? null) !== null;
+  }
+
+  #infoRowEmpty(): boolean {
+    return this.info === NO_CHARACTER || !this.#rowHeld(this.info);
   }
 
   sort(view: StrategicView | undefined, retainSelected: boolean): void {
     if (!view) return;
-    const infoMerc = this.slots[this.info]?.merc ?? null;
+    const infoMerc = retainSelected ? (this.slots[this.info]?.merc ?? null) : null;
     for (let row = 1; row < FIRST_VEHICLE; row++) {
       const reached = mercById(view, this.slots[row]?.merc ?? null);
       if (!reached) break;
@@ -234,8 +240,8 @@ export class CharacterList {
         if (sortsBefore(this.sortMode, view, reached, earlier)) this.#swap(row, earlierRow);
       }
     }
-    if (infoMerc !== null) this.info = this.rowOf(infoMerc);
     if (!retainSelected) this.resetSelected();
+    else if (infoMerc !== null) this.changeInfo(this.rowOf(infoMerc), false);
   }
 
   #swap(a: number, b: number): void {
