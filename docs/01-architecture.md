@@ -51,8 +51,8 @@ by default in `~/ja2-oracle`), screenshots. The repository ships:
 - Not shipped: Stracciatella's `from-russia-with-love` mod `A9.dat`, declared public domain but most likely a reworked
   Omerta (local parser tests at most).
 
-`reference/` holds the third-party sources (Stracciatella at `ae6bf01`, vanilla; `reference/README.md`), read-only and
-gitignored.
+`reference/` holds the third-party sources (Stracciatella master at `ae6bf01`, which #117 moves to the release v0.22.1;
+vanilla; `reference/README.md`), read-only and gitignored.
 
 ---
 
@@ -60,7 +60,7 @@ gitignored.
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | **The behaviour reference is JA2 Stracciatella with default settings**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original. The original's gameplay bugs stay, except those the maintainer decides on, those a design rule rules out and those the rare-bug rule fixes (`original-bugs.md` §2) | The same JA2 without bugs such as "bandaging raises the to-hit penalty"; a rare slip that only extra code would reproduce is not worth that code |
+| D1 | **The behaviour reference is the latest JA2 Stracciatella release, v0.22.1, with default settings**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original. The original's gameplay bugs stay, except those the maintainer decides on, those a design rule rules out and those the rare-bug rule fixes (`original-bugs.md` §2). Until #117 moves `reference/` and the code, ja2-node follows master `ae6bf01` where §3.10 marks it | The same JA2 without bugs such as the movement-noise wraparound; a release, because master carries unreleased reworks that are still changing (the lighting overhaul, #105); a rare slip that only extra code would reproduce is not worth that code |
 | D2 | **The simulation core is separate from presentation**: deterministic, no DOM and no Node API, no mutable module state (several sessions share a process), serializable: the snapshot codec (`src/sim/snapshot`) writes the whole session and restores it exactly. The client derives sound, music and video from events and view frames; the server computes the music mode outside `sim` (`src/protocol/music.ts`) | Tests, headless runs, comparison with the original, saves, replays |
 | D3 | **One game time: integer milliseconds on a fixed 5 ms tick** (`TICK_MS`, `src/sim/clock.ts`), the original's overhead pass; every timer of the original runs on ticks with its value (§3.3) | Outcomes independent of FPS and machine speed |
 | D4 | **Animations enter the simulation as data**: `ja2bin.dat` and `gAnimControl` become timelines; the simulation steps the logic timeline and runs the gameplay opcodes at their frames, the views take sprite frames and sound codes from the presentation timeline (§3.4). No sprite enters the simulation | The original resolves shots, deaths and doors on animation frames; durations are numbers the simulation computes instead of waiting |
@@ -319,31 +319,33 @@ serve mods only; the default game ships just `enums.lua`, so nothing is ported.
 
 ### 3.10 Where Stracciatella differs from vanilla
 
-ja2-node follows the Stracciatella column (D1) unless `deviations.md` says otherwise.
+ja2-node follows the Stracciatella column (D1) unless `deviations.md` says otherwise. A row marked **master** holds only on
+master `ae6bf01`: v0.22.1 behaves as vanilla there, and ja2-node follows master until the issue named moves it (#117).
 
 | Area | Vanilla | Stracciatella |
 |---|---|---|
 | `PreRandom` | Never refilled; `n*range/RAND_MAX%range` | Refilled after each use; uniform mapping (§3.6) |
-| Merc slots | A fixed array: an entering soldier takes the first empty slot, a leaving one leaves it empty (`V:Tactical/Overhead.c:294-345`) | Vectors: an entering soldier goes to the end, a leaving one closes the gap, and the index cursors of the AI pass keep their number (`Tactical/Overhead.cc:133-271`) |
-| AP debt | AP floored at 0 (`V:Tactical/Points.c:465-486`), refunding suppression debt | Debt down to −100 (`Tactical/Points.cc:488`) |
+| Merc slots (**master**, #106) | A fixed array: an entering soldier takes the first empty slot, a leaving one leaves it empty (`V:Tactical/Overhead.c:294-345`) | Vectors: an entering soldier goes to the end, a leaving one closes the gap, and the index cursors of the AI pass keep their number (`Tactical/Overhead.cc:133-271`) |
+| AP debt (**master**, #107) | AP floored at 0 (`V:Tactical/Points.c:465-486`), refunding suppression debt | Debt down to −100 (`Tactical/Points.cc:488`) |
 | Sight range | Light penalty applied inconsistently | Applied consistently (`OppList.cc:881`) |
 | Movement noise | `UINT8` wraparound; an unreachable water branch | Fixed (`OppList.cc:3230`) |
 | Hearing | Sleeping listener −5 | Disabled (`OppList.cc:3848`) |
-| Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps; wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1979`) |
-| Next bleed | Integer division | Float division (`Soldier_Control.cc:8056`) |
+| Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps (**master**, #115); wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1979`) |
+| Next bleed (**master**, #115) | Integer division | Float division (`Soldier_Control.cc:8056`) |
 | Carried weight | Strength halved with integer division | Minor fix (`Items.cc:843`) |
-| Hidden bullets | 1 tile per step | 4 tiles per step (`LOS.cc:3155-3166`; ja2-node: 1 tile per tick) |
-| Jam | Reserved bullets lost | Refunded (`Soldier_Ani.cc:1061-1073`) |
-| Blast during a hit animation | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`Soldier_Control.cc:3254-3262`) |
-| AI burst choice | Affordability without re-raise AP | Re-raise AP included (`DecideAction.cc:3245-3300`) |
+| Hidden bullets (**master**, #114) | 1 tile per step | 4 tiles per step (`LOS.cc:3155-3166`; ja2-node: 1 tile per tick) |
+| Jam (**master**, kept: #117) | Reserved bullets lost | Refunded (`Soldier_Ani.cc:1061-1073`) |
+| Blast during a hit animation (**master**, #115) | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`Soldier_Control.cc:3254-3262`) |
+| AI burst choice (**master**, #115) | Affordability without re-raise AP | Re-raise AP included (`DecideAction.cc:3245-3300`) |
 | PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:711-742`; confirmed by the oracle `defence` probes on A9, `17`) |
 | Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1131, 2152`) |
-| Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (`Auto_Resolve.cc:2918`); the index is saved but never restored |
+| Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (**master**, #110; `Auto_Resolve.cc:2918`); the index is saved but never restored |
 | Militia promotion | No fallback | Falls back to the next rank (`Town_Militia.cc:253, 289`) |
 | Sleep need | An integer bug always adds 4 | Fixed (`Assignments.cc:2073, 5677, 6903`) |
 | Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2451, 2603`) |
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
-| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5188-6202`; `27` §1.6; `enable_stat_healing`, off) |
+| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5188-6202`; `27` §1.6; `enable_stat_healing`, off, **master**, #115) |
+| Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`TileEngine/Lighting.cc:297`) |
 
 ---
 

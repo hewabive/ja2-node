@@ -7,6 +7,10 @@ shade; `08` vision, which reads the true level; `13` the AI's use of light; `12`
 light sprites; `15` the ambient level by time of day. Each module's `@src` header names the Stracciatella functions it
 ports; read those for the template generator, the illumination filter and the ray walk.
 
+The filter, the walk and the shipped templates are those of Stracciatella master's unreleased lighting overhaul (PR 2432
+and its follow-ups, at `ae6bf01`). The reference release v0.22.1 keeps vanilla's walk and reads the user's `.LHT` files
+with every ray; #105 ports it. Until then, the walls, windows and quirks below describe master, not the original.
+
 ## 1. The path of a light
 
 Paths are under `src/sim/tactical/` unless they start with `src/`.

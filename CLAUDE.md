@@ -2,7 +2,8 @@
 
 ja2-node is a non-commercial TypeScript reimplementation of Jagged Alliance 2. The goal is the
 original's behaviour (formulas, constants, check order, integer truncation, PreRandom semantics),
-not a line-by-line port; the behaviour reference is JA2 Stracciatella with default settings.
+not a line-by-line port; the behaviour reference is the latest JA2 Stracciatella release (v0.22.1) with default
+settings. `reference/stracciatella` still holds master `ae6bf01` until #117: do not port master-only behaviour.
 The simulation is server-side (Node), the browser is a client, agents play through an API.
 
 ## Rules
