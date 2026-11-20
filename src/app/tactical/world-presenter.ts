@@ -24,7 +24,7 @@
 // @src ExitGridAtGridNo over AddExitGridToWorld (an exit grid added while the sector runs is one at once, 2026-11-09);
 // @src src/game/Tactical/Soldier_Find.cc GridNoOnScreen, src/game/TileEngine/Lighting.h LightGetAmbient (2026-11-15).
 
-import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
+import { type AnimationTables, AnimFlags, stateId } from '../../content/anim/tables.ts';
 import { NO_ROOM } from '../../content/world/exit-grid-cursor.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { NORMAL_SHADE, shadedDisplayPalette } from '../../content/world/shading.ts';
@@ -82,6 +82,7 @@ const BAR_BOX = 'THIRDPOINTERS1';
 const SELECTED_BAR_BOX = 'THIRDPOINTERS2';
 const TILE_PICTURE_PREFIX = 'tile:';
 const OVERHEAD_PICTURE_PREFIX = 'overhead:';
+const RUNNING = 'RUNNING';
 const HEIGHT_STAND = 6;
 const HEIGHT_CROUCH = 3;
 const HEIGHT_PRONE = 1;
@@ -293,6 +294,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
     const s = this.#soldier(id);
     const control = s ? this.#animations.controls[s.animation] : undefined;
     return heightName(control?.endHeight ?? HEIGHT_STAND);
+  }
+
+  soldierRunning(id: number): boolean {
+    return this.#soldier(id)?.animation === stateId(this.#animations, RUNNING);
   }
 
   soldierMarker(id: number): SoldierMarker {

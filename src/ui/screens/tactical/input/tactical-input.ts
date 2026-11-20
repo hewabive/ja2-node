@@ -42,6 +42,9 @@
 // @src helicopter drop, 2026-11-08);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
+// @src QueryRTLeftButton's CONFIRM_MOVE_MODE and interactive-tile clicks keeping a RUNNING merc fast, UIHandleCMoveMerc's
+// @src door path (the mode by stance, SetConfirmMovementModeCursor and the cleared fUIMovementFast unless the merc stands
+// @src at the door) and SetConfirmMovementModeCursor's timed run cursor for a RUNNING merc only (2026-11-20);
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor (for FindSoldier, the aid cursor of the last estimate for the selected merc, 2026-11-03), HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor (the AP offsets of the free-flowing move cursors, 2026-11-07); Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY;
 // @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
@@ -1742,7 +1745,10 @@ export class TacticalInput {
         next = UiEvent.CA_MERC_SHOOT;
         break;
       case UiMode.CONFIRM_MOVE_MODE:
-        if (sel) next = UiEvent.C_MOVE_MERC;
+        if (sel) {
+          if (this.#running(sel)) this.#fast = true;
+          next = UiEvent.C_MOVE_MERC;
+        }
         this.#validDoubleLeft = true;
         break;
       case UiMode.MOVE_MODE:
@@ -1792,6 +1798,7 @@ export class TacticalInput {
     const result = this.#moveModeInteractiveClick();
     if (result === -2) {
       this.#timedCursor = { cursor: this.#interactiveCursor(this.#cursor, true), until: this.#now + TIMED_RUN_CURSOR_MS };
+      if (this.#running(sel)) this.#fast = true;
       this.#validDoubleLeft = true;
       return UiEvent.C_MOVE_MERC;
     }
@@ -2115,6 +2122,18 @@ export class TacticalInput {
       level: this.#host.interfaceLevel(),
       ...(this.#reverse ? { reverse: true } : {}),
     };
+  }
+
+  #interactivePreview(sel: SoldierView, kind: 'door' | 'pickUp', gridNo: number, level: number): HintState<PreviewAction> {
+    return this.#hint<PreviewAction>({
+      type: 'previewAction',
+      soldier: sel.id,
+      gridNo,
+      kind,
+      level,
+      mode: this.moveModeOf(sel),
+      zLevel: largestZLevel(itemPool(this.#view()?.items, gridNo, sel.level)),
+    });
   }
 
   #previewMove(to: number): HintState<PreviewMove> {
@@ -2556,16 +2575,7 @@ export class TacticalInput {
     const tile = this.#interactiveTile();
     if ((target === MoveUiTarget.INTTILES && tile) || target === MoveUiTarget.ITEMS) {
       const kind = target === MoveUiTarget.INTTILES ? 'door' : 'pickUp';
-      const gridNo = tile?.gridNo ?? mapPos;
-      const answer = this.#hint<PreviewAction>({
-        type: 'previewAction',
-        soldier: sel.id,
-        gridNo,
-        kind,
-        level,
-        mode: this.moveModeOf(sel),
-        zLevel: largestZLevel(itemPool(this.#view()?.items, gridNo, sel.level)),
-      });
+      const answer = this.#interactivePreview(sel, kind, tile?.gridNo ?? mapPos, level);
       if (answer.state === 'pending') return false;
       const data = dataOf(answer);
       this.#currentAp = data?.apCost ?? 0;
@@ -2619,7 +2629,8 @@ export class TacticalInput {
       if (this.#allMoveOn === 2) this.#timedCursor = { cursor: 'MOVE_RUN_REALTIME_UICURSOR', until: this.#now + TIMED_RUN_CURSOR_MS };
       else this.#newCursor = 'ALL_MOVE_REALTIME_UICURSOR';
     } else {
-      if (this.#fast && fromMove) this.#timedCursor = { cursor: 'MOVE_RUN_REALTIME_UICURSOR', until: this.#now + TIMED_RUN_CURSOR_MS };
+      if (this.#fast && this.#running(sel) && fromMove)
+        this.#timedCursor = { cursor: 'MOVE_RUN_REALTIME_UICURSOR', until: this.#now + TIMED_RUN_CURSOR_MS };
       this.#newCursor = 'CONFIRM_MOVE_REALTIME_UICURSOR';
     }
     this.#newCursor = this.#interactiveCursor(this.#newCursor, true);
@@ -3274,8 +3285,7 @@ export class TacticalInput {
     if (!this.#combat()) this.#cycledModes.delete(sel.id);
     const tile = this.#interactiveTile();
     if (tile) {
-      const action = tile.open ? 'close' : 'open';
-      void this.#host.sendBusyOrder(this.#clicked({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action }));
+      this.#orderAtInteractiveTile(sel, tile);
       return;
     }
     if (!this.#combat()) {
@@ -3314,6 +3324,30 @@ export class TacticalInput {
         if (reply.ok) this.#cycledModes.delete(sel.id);
         if (reply.ok && (preview?.steps.length ?? 0) + 1 > OK_SOUND_STEPS) this.#env().battleSound(sel.id, 'ok');
       });
+  }
+
+  #orderAtInteractiveTile(sel: SoldierView, tile: InteractiveTile): void {
+    const mode = this.#orderMode(sel);
+    const action = tile.open ? 'close' : 'open';
+    void this.#host
+      .sendBusyOrder(this.#clicked({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action, ...(mode ? { mode } : {}) }))
+      .then((reply) => {
+        if (reply.ok && (reply.data as { readonly walking?: boolean } | undefined)?.walking) this.#cycledModes.delete(sel.id);
+      });
+    if (this.#combat() || !this.#walksUpTo(sel, tile)) return;
+    this.#setConfirmMovementModeCursor(sel, true);
+    if (this.multiSelected.size === 0) this.#fast = false;
+  }
+
+  #walksUpTo(sel: SoldierView, tile: InteractiveTile): boolean {
+    const answer = this.#interactivePreview(sel, 'door', tile.gridNo, this.#host.interfaceLevel());
+    if (answer.state === 'pending') return true;
+    const preview = dataOf(answer);
+    return preview?.ok === true && preview.actionGridNo !== sel.gridNo;
+  }
+
+  #running(sel: SoldierView): boolean {
+    return this.#env().world.soldierRunning(sel.id);
   }
 
   #orderMode(sel: SoldierView): MoveModeName | null {

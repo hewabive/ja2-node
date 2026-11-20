@@ -760,7 +760,11 @@ refused with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the p
 
 Rules: `35` (doors, locks, traps; `src/sim/tactical/doors/`). `door` walks next to the door, then acts, unless he gets
 there while dialogue plays or a merc of ours still holds a give (walking up to give, or after giving on the spot until
-his next order): then the original drops the action and he only stands there. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
+his next order): then the original drops the action and he only stands there. The walk takes `move`'s `mode` and goes
+without one in his stance, a run of `stance` included, as `UIHandleCMoveMerc` sets the movement mode by stance for every
+real-time order (`Tactical/Handle_UI.cc:1699-1703`): a run that has ended leaves a walk, and the cursor's order sends
+`run` where the original's click keeps a running merc fast (`Tactical/Real_Time_Input.cc:616-625`). The mode he walks
+in stays his, as after a `move`; one already at the door keeps his. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
 `openManually` is the menu's open button (deviation "Door menu"), the one action besides cancel a merc facing
 diagonally keeps; a `doorMenu` event says `diagonal` then, and `provedTrap {trapped, trap}` once the door's trap state
 is proved, which the examine button's help names. `close` by our merc answers vanilla's closing menu

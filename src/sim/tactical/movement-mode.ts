@@ -44,6 +44,20 @@ export function soldierStance(t: TacticalState, s: Soldier): Stance {
   return mode === st.CRAWLING ? 'prone' : 'stand';
 }
 
+export function takeMoveMode(t: TacticalState, s: Soldier, mode: number): void {
+  s.uiMovementMode = mode;
+  if (!t.inCombat) s.uiMovementFast = false;
+  else if (mode === states(t.content.animations).RUNNING) s.uiMovementFast = true;
+}
+
+export function withMoveMode<R>(s: Soldier, mode: number, run: () => R): R {
+  const kept = s.uiMovementMode;
+  s.uiMovementMode = mode;
+  const result = run();
+  s.uiMovementMode = kept;
+  return result;
+}
+
 export function stanceHeight(stance: unknown): number | null {
   if (stance === 'run' || stance === 'stand') return AnimHeight.STAND;
   if (stance === 'crouch') return AnimHeight.CROUCH;

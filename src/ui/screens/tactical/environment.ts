@@ -157,6 +157,7 @@ export interface WorldPresenter {
   soldierBox(id: number): ScreenBox | null;
   soldierHeight(id: number): SoldierHeight;
   soldierMarker(id: number): SoldierMarker;
+  soldierRunning(id: number): boolean;
   soldierPictureAt(id: number, x: number, y: number): boolean;
   gridNoAt(x: number, y: number): number | null;
   radarViewport(): RadarBox | null;

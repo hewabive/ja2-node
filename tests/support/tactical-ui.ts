@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { type AnimationTables, stateId } from '../../src/content/anim/tables.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import type { ProfilePresentation } from '../../src/content/narrative/profile-presentation.ts';
 import { loadUiStrings } from '../../src/content/text/strings.ts';
@@ -216,9 +217,11 @@ export class FakeWorld implements WorldPresenter {
   overhead: OverheadMapView | null = null;
   overheadRedraws = 0;
   readonly #view: () => PlayerView;
+  readonly #running: number;
 
-  constructor(view: () => PlayerView) {
+  constructor(view: () => PlayerView, animations: AnimationTables) {
     this.#view = view;
+    this.#running = stateId(animations, 'RUNNING');
   }
 
   #cellOf(gridNo: number): { x: number; y: number } {
@@ -258,6 +261,10 @@ export class FakeWorld implements WorldPresenter {
 
   soldierMarker(id: number): SoldierMarker {
     return this.soldierMarkers.get(id) ?? { stanceOffset: 0, hidden: false, moving: false, stationary: true };
+  }
+
+  soldierRunning(id: number): boolean {
+    return this.#view().soldiers.find((v) => v.id === id)?.animation === this.#running;
   }
 
   soldierPictureAt(id: number, x: number, y: number): boolean {
@@ -528,7 +535,7 @@ export async function tacticalUiTest(
   const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };
   const session = given ?? withQueries(new Session('tactical-ui', await createSandboxSession(kit.read, false, seed)), sources);
   const client = new SessionClient(session, ui.client);
-  const world = new FakeWorld(() => client.view);
+  const world = new FakeWorld(() => client.view, ui.client.content.animations);
   const media = new FakeMedia(ui.catalogue);
   const strings = await loadUiStrings(async (path) => new Uint8Array(await readFile(join(PROJECT_DATA_DIR, path))), 'eng');
   const text = new StringsTextService(strings);

@@ -16,6 +16,7 @@ import {
 } from '../../../../tests/support/tactical-ui.ts';
 import { GrabbedPointer, type TestRuntimeOptions } from '../../../../tests/support/ui-runtime.ts';
 import { Body } from '../../../content/anim/body-types.ts';
+import { stateId } from '../../../content/anim/tables.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
@@ -2375,6 +2376,127 @@ describe('the tactical input on the tactical screen', () => {
     dialog.show(request, boxFonts, (c) => choices.push(c));
     f.key('Escape');
     expect(choices.at(-1)).toBeNull();
+  });
+});
+
+describe("the walk or run of a real-time click, from the selected merc's animation (Real_Time_Input.cc:491, :616-625)", () => {
+  const RUN_TILE_STEPS = 12;
+  const STOP_TILE_STEPS = 8;
+  const WEST_OF_THE_SQUAD = 2;
+  const TIMED_RUN_CURSOR = 'MOVE_RUN_REALTIME_UICURSOR';
+  const runningState = () => stateId(ui.client.content.animations, 'RUNNING');
+  const walkingState = () => stateId(ui.client.content.animations, 'WALKING');
+
+  function westOf(f: TacticalUiTest, steps: number): number {
+    return merc(f, 0).gridNo - steps;
+  }
+
+  async function hoverTile(f: TacticalUiTest, gridNo: number): Promise<{ x: number; y: number }> {
+    const at = f.world.pickPoint(gridNo);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    return at;
+  }
+
+  async function doubleClick(f: TacticalUiTest, gridNo: number): Promise<void> {
+    const at = await hoverTile(f, gridNo);
+    await f.clickAt(at.x, at.y);
+    await f.clickAt(at.x, at.y);
+  }
+
+  function showTheDoor(f: TacticalUiTest): number {
+    const [door] = doorTiles(kit.world(STUB_SANDBOX_MAP));
+    if (door === undefined) throw new Error('no door on the sandbox map');
+    const node = { gridNo: door, index: 0, tile: CRATE_TILE, bottom: f.world.pickPoint(door).y + 20, door: true, open: false };
+    f.world.interactiveNodes = () => [node];
+    f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: door, door: true, switch: false, open: false, itemOnTop: false });
+    return door;
+  }
+
+  async function clickTheDoor(f: TacticalUiTest): Promise<number> {
+    const door = showTheDoor(f);
+    const at = await hoverTile(f, door);
+    await f.clickAt(at.x, at.y);
+    return door;
+  }
+
+  it('keeps a running merc running on the single click after the double click that started the run, where the click used to walk him', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = westOf(f, RUN_TILE_STEPS);
+    await doubleClick(f, tile);
+    expect([commandsOf(f, 'move').at(-1)?.mode, merc(f, 0).animation]).toEqual(['run', runningState()]);
+    const at = f.world.pickPoint(tile);
+    await f.clickAt(at.x, at.y);
+    f.advance(1);
+    expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: tile, mode: 'run' });
+    expect(merc(f, 0).animation).toBe(runningState());
+  });
+
+  it('shows the timed run cursor on the re-order of a running merc, not on the double click that starts the run (SetConfirmMovementModeCursor, Handle_UI.cc:3779)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = westOf(f, RUN_TILE_STEPS);
+    await doubleClick(f, tile);
+    expect(f.screen.controls.input.uiCursor).not.toBe(TIMED_RUN_CURSOR);
+    const at = f.world.pickPoint(tile);
+    await f.clickAt(at.x, at.y);
+    expect(f.screen.controls.input.uiCursor).toBe(TIMED_RUN_CURSOR);
+  });
+
+  it('moves a multi-selection fast on a single click while the selected merc runs (HandleMultiSelectionMove, Handle_UI.cc:4237)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.screen.select(WEST_OF_THE_SQUAD, false);
+    await f.settle();
+    f.key('=');
+    await f.settle();
+    expect([f.screen.selected, f.screen.controls.input.multiSelected.size > 1]).toEqual([WEST_OF_THE_SQUAD, true]);
+    const tile = westOf(f, RUN_TILE_STEPS);
+    await doubleClick(f, tile);
+    expect(commandsOf(f, 'moveGroup').at(-1)?.mode).toBe('fast');
+    expect(merc(f, WEST_OF_THE_SQUAD).animation).toBe(runningState());
+    const at = f.world.pickPoint(tile);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'moveGroup').at(-1)).toMatchObject({ to: tile, mode: 'fast' });
+  });
+
+  it('walks a merc who stands after a run to a clicked door, the mode by his stance as UIHandleCMoveMerc takes it in real time (Handle_UI.cc:1699-1703)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await doubleClick(f, westOf(f, STOP_TILE_STEPS));
+    await playOut(f);
+    const s = tacticalOf(f.session).state.soldiers.find((v) => v?.id === 0);
+    expect([merc(f, 0).animation === runningState(), s?.uiMovementMode]).toEqual([false, runningState()]);
+    const door = await clickTheDoor(f);
+    f.advance(1);
+    expect(commandsOf(f, 'door').at(-1)).toEqual({ type: 'door', soldier: 0, gridNo: door, action: 'open', realTime: true });
+    expect(merc(f, 0).animation).toBe(walkingState());
+  });
+
+  it('leaves the run of a double click on a door beside the merc for his next move, as UIHandleCMoveMerc returns there before it clears fUIMovementFast (Handle_UI.cc:1728, :1749)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const s = t.soldiers.find((v) => v?.id === 0);
+    if (!s) throw new Error('no merc 0');
+    const door = showTheDoor(f);
+    setSoldierPosition(t, s, door + WORLD_COLS);
+    f.client.refresh();
+    const at = await hoverTile(f, door);
+    await f.clickAt(at.x, at.y);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'door').map((c) => c.mode)).toEqual([undefined, 'run']);
+    f.world.interactiveNodes = () => [];
+    const tile = walkableBeside(f, merc(f, 0));
+    const away = await hoverTile(f, tile);
+    await f.clickAt(away.x, away.y);
+    expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: tile, mode: 'run' });
+  });
+
+  it('runs a running merc on to a clicked door, the click keeping him fast (Real_Time_Input.cc:616-625)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await doubleClick(f, westOf(f, RUN_TILE_STEPS));
+    expect(merc(f, 0).animation).toBe(runningState());
+    const door = await clickTheDoor(f);
+    f.advance(1);
+    expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: door, action: 'open', mode: 'run' });
+    expect(merc(f, 0).animation).toBe(runningState());
   });
 });
 

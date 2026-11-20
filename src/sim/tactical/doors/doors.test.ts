@@ -143,6 +143,39 @@ describe('the stub village door', () => {
     expect(doorStructure(sim).flags & StructureFlags.OPEN).not.toBe(0);
   });
 
+  it('walks up in real time in the mode by stance, not in the run a finished move left stored, and the stance run lasts one order (UIHandleCMoveMerc, Handle_UI.cc:1699-1703, :1747-1753)', () => {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
+    sim.lookAround();
+    const st = states(sim.state.content.animations);
+    s.uiMovementMode = st.RUNNING;
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true },
+    });
+    expect(s.uiMovementMode).toBe(st.WALKING);
+    expect(sim.dispatch({ type: 'stance', soldier: s.id, stance: 'run' })).toEqual({ ok: true });
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true },
+    });
+    expect([s.uiMovementMode, s.uiMovementFast]).toEqual([st.RUNNING, false]);
+  });
+
+  it('walks up in the mode the order names, as move takes it', () => {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
+    sim.lookAround();
+    const st = states(sim.state.content.animations);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open', mode: 'run' })).toMatchObject({ ok: true });
+    for (let tick = 0; tick < WALK_UNDER_WAY_TICKS; tick++) sim.step();
+    expect([s.uiMovementMode, animName(sim.state.content, s.state)]).toEqual([st.RUNNING, 'RUNNING']);
+    runSimUntilIdle(sim);
+    expect([s.gridNo, doorStructure(sim).flags & StructureFlags.OPEN]).toEqual([OUTSIDE, StructureFlags.OPEN]);
+  });
+
   it('asks with the closing menu before our merc closes an open door, as vanilla does', () => {
     const sim = village();
     updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });

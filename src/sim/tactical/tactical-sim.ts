@@ -199,7 +199,14 @@ import {
   turnOnPrimeLights,
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
-import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
+import {
+  movementForStanceChange,
+  movementModeState,
+  moveStateBasedOnStance,
+  pathMoveMode,
+  stanceHeight,
+  takeMoveMode,
+} from './movement-mode.ts';
 import { shownAnimSurface } from './multi-tile.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handleCreatureTenseQuote } from './narrative/creature-tension.ts';
@@ -1105,7 +1112,7 @@ export class TacticalSim {
     if (typeof action !== 'string' || !(DOOR_ACTIONS as readonly string[]).includes(action))
       return refuse('badAction', `action must be one of ${DOOR_ACTIONS.join(', ')}`);
     if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
-    const outcome = doorCommand(t, s, g, action as DoorActionName);
+    const outcome = doorCommand(t, s, g, action as DoorActionName, movementModeState(t, s, cmd.mode));
     if (!outcome.ok) return refuse(outcome.refusal, `${outcome.refusal}: ${DOOR_REFUSALS[outcome.refusal] ?? 'refused'}`);
     return { ok: true, data: outcome.data };
   }
@@ -1366,7 +1373,7 @@ export class TacticalSim {
       }
     }
     const kept = { mode: s.uiMovementMode, fast: s.uiMovementFast };
-    this.#takeMoveMode(s, mode);
+    takeMoveMode(t, s, mode);
     if (!getNewSoldierPath(t, s, to, mode, 1, s.noAPToFinishMove)) {
       s.uiMovementMode = kept.mode;
       s.uiMovementFast = kept.fast;
@@ -1374,13 +1381,6 @@ export class TacticalSim {
     }
     removePendingAction(t, s);
     return { ok: true };
-  }
-
-  #takeMoveMode(s: Soldier, mode: number): void {
-    const t = this.state;
-    s.uiMovementMode = mode;
-    if (!t.inCombat) s.uiMovementFast = false;
-    else if (mode === states(t.content.animations).RUNNING) s.uiMovementFast = true;
   }
 
   #turn(cmd: TacticalCommand): CommandResult {

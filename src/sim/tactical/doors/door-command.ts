@@ -8,7 +8,8 @@
 // @src 2026-11-09);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
 // @src stops the menu's merc, 2026-11-01); UIHandleCMoveMerc for a merc on the move (no check that he stands still: his
-// @src pending action removed, bReverse off and a new path from where he is, 2026-11-14).
+// @src pending action removed, bReverse off and a new path from where he is, 2026-11-14; the movement mode set before
+// @src FindAdjacentGridExAdvanced, by stance in real time, and the one-shot fUIMovementFast, 2026-11-20).
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
@@ -17,6 +18,7 @@ import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
 import { anyMercHoldsGiveItem } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { getNewSoldierPath, haltMoveForSoldierOutOfPoints } from '../movement.ts';
+import { takeMoveMode, withMoveMode } from '../movement-mode.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { enoughPoints } from '../points.ts';
 import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, type Soldier, Team } from '../soldier.ts';
@@ -179,12 +181,27 @@ export function containerApproach(t: TacticalState, s: Soldier, container: Struc
   return approach ? { gridNo: approach.actionGridNo, direction: approach.direction } : null;
 }
 
-function containerCommand(t: TacticalState, s: Soldier, container: StructureInstance, action: DoorActionName): DoorCommandOutcome {
+function walkUp(t: TacticalState, s: Soldier, to: number, mode: number): boolean {
+  const kept = { mode: s.uiMovementMode, fast: s.uiMovementFast };
+  takeMoveMode(t, s, mode);
+  if (getNewSoldierPath(t, s, to, mode, 1, s.noAPToFinishMove)) return true;
+  s.uiMovementMode = kept.mode;
+  s.uiMovementFast = kept.fast;
+  return false;
+}
+
+function containerCommand(
+  t: TacticalState,
+  s: Soldier,
+  container: StructureInstance,
+  action: DoorActionName,
+  mode: number,
+): DoorCommandOutcome {
   if (action !== 'open' && action !== 'close') return refuse('noDoor');
   const open = has(container.flags, StructureFlags.OPEN);
   if (action === 'open' && open) return refuse('alreadyOpen');
   if (action === 'close' && !open) return refuse('alreadyClosed');
-  const approach = containerApproach(t, s, container);
+  const approach = withMoveMode(s, mode, () => containerApproach(t, s, container));
   if (!approach) return refuse('noPath');
   if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return refuse('notEnoughAp');
   const base = container.gridNo;
@@ -196,7 +213,7 @@ function containerCommand(t: TacticalState, s: Soldier, container: StructureInst
     return { ok: true, data: { started: action } };
   }
   s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action: OPEN_STRUCT_ACTION };
-  if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
+  if (!walkUp(t, s, approach.gridNo, mode)) {
     s.pendingDoorAction = null;
     s.pendingDoorGridNo = -1;
     return refuse('noPath');
@@ -204,24 +221,24 @@ function containerCommand(t: TacticalState, s: Soldier, container: StructureInst
   return { ok: true, data: { walking: true, to: approach.gridNo } };
 }
 
-export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action: DoorActionName): DoorCommandOutcome {
+export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action: DoorActionName, mode: number): DoorCommandOutcome {
   const door = doorAt(t, gridNo);
   if (!door) {
     const container = containerAt(t, gridNo);
-    return container ? containerCommand(t, s, container, action) : refuse('noDoor');
+    return container ? containerCommand(t, s, container, action, mode) : refuse('noDoor');
   }
   const base = door.gridNo;
   const open = has(door.flags, StructureFlags.OPEN);
   const refusal = doorActionRefusal(t, s, base, open, action);
   if (refusal) return refuse(refusal);
-  const approach = findAdjacentGridExAdvanced(t, s, door, base);
+  const approach = withMoveMode(s, mode, () => findAdjacentGridExAdvanced(t, s, door, base));
   if (!approach) return refuse('noPath');
   if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return refuse('notEnoughAp');
   removePendingAction(t, s);
   if (approach.gridNo === s.gridNo) return { ok: true, data: performDoorAction(t, s, door, approach.direction, action) };
   s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action };
   s.reverse = false;
-  if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
+  if (!walkUp(t, s, approach.gridNo, mode)) {
     s.pendingDoorAction = null;
     return refuse('noPath');
   }
