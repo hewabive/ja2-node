@@ -12,6 +12,11 @@ is vanilla (`reference/vanilla/ja2/Build/`).
 Most entries replace wall clocks, frames, sound lengths, message boxes, cursors and screens with game time, commands
 and decision prompts, move cosmetic draws off the gameplay generator, or keep saves free of side effects.
 
+A later Stracciatella (master, v0.23 on) is not a reference (`01` D1). A client convenience from it may stay as an
+entry here when it changes no outcome of play (what can happen, its odds, its costs). Such conveniences are input,
+layout, display and extra information. Its gameplay features and rule changes do not stay (maintainer's rule,
+2026-11-20).
+
 ## 1. Randomness
 
 Which generator a draw uses, draws that only pick sounds, quotes or graphics, and engine draws without a defined order.

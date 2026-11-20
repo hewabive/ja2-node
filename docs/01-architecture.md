@@ -321,6 +321,9 @@ serve mods only; the default game ships just `enums.lua`, so nothing is ported.
 
 ja2-node follows the Stracciatella column (D1) unless `deviations.md` says otherwise. A row marked **master** holds only on
 master `ae6bf01`: v0.22.1 behaves as vanilla there, and ja2-node follows master until the issue named moves it (#117).
+v0.22.1's own differences from vanilla stand. The maintainer reconsiders one only from play of the original. #118 lists
+the differences an audit of v0.22.1 found, with what play has shown so far; the rows ja2-node keeps join this table
+with #117.
 
 | Area | Vanilla | Stracciatella |
 |---|---|---|
@@ -345,7 +348,7 @@ master `ae6bf01`: v0.22.1 behaves as vanilla there, and ja2-node follows master 
 | Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2451, 2603`) |
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
 | Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5188-6202`; `27` §1.6; `enable_stat_healing`, off, **master**, #115) |
-| Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`TileEngine/Lighting.cc:297`) |
+| Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same, except that an open door's swing tile does not block (#118, row 11) | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`TileEngine/Lighting.cc:297`) |
 
 ---
 

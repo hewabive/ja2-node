@@ -13,6 +13,8 @@ What goes where:
   keep. ja2-node always defines one, the smallest step from the original it can find.
 - §2: a defined outcome that is plainly unintended, fixed by the maintainer's decision, because a design rule rules it
   out (`01` D7, D15, D16), or by the rare-bug rule (§2); the Why column names which.
+- A bug that Stracciatella itself brought into v0.22.1, absent from vanilla, is not reproduced (`01` D1). Its entry
+  goes in §1 or §2, and its Why says "Stracciatella regression".
 - `deviations.md`: ja2-node reaches the original's outcome another way (game time, commands and prompts, saves without
   side effects, generator streams, presentation in the client) or leaves out something that is not gameplay.
 
@@ -123,6 +125,15 @@ The rare-bug rule fixes a bug that meets all of these:
 - the results of the bug that a native save already holds still load as they are.
 
 A case that meets the rule only arguably goes to the maintainer.
+
+A fix that a later Stracciatella (master, v0.23 on) makes is no reason by itself: the bug stays (maintainer's rule,
+2026-11-20). The maintainer takes such a fix only in two cases:
+- the bug is plainly unintended, and the fix changes no outcome of normal play (what can happen, its odds, its costs);
+- the bug is an exploit, such as duplicating money. When only the agent API reaches the exploit, the API refuses what
+  the original's UI cannot do, and the rule stays as it is.
+
+Suppression immunity is an example that does not qualify. The original never resets `ubAPsLostToSuppression`, so
+suppression costs a merc APs about once. Master's reset changes every firefight, so the bug stays (#107).
 
 | Area | Original | ja2-node | Why |
 |---|---|---|---|
