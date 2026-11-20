@@ -133,6 +133,28 @@ describe('save files', () => {
     expect(problemOf(() => readSaveHead(encodeSaveFile(saveFile(SAVE_VERSION + 1)).bytes))).toBe('none');
   });
 
+  it("moves a version 2 save's Message lines to v0.22.1's ids, and the dying line to the kept master lines", () => {
+    const line = (table: string, index: number) => ({ tick: 1, kind: 'interface' as const, colour: 0, table, index });
+    const v2 = {
+      ...saveFile(2),
+      presentation: {
+        ...EMPTY_PRESENTATION,
+        messages: [
+          line('Message', 3),
+          line('Message', 4),
+          { ...line('Message', 53), args: [{ string: { table: 'Message', index: 46 } }, { number: 7 }] },
+          line('TacticalStr', 85),
+        ],
+      },
+    };
+    expect(migrateSaveFile(JSON.parse(JSON.stringify(v2))).presentation.messages).toEqual([
+      line('Message', 3),
+      line('kept-master-lines', 0),
+      { ...line('Message', 52), args: [{ string: { table: 'Message', index: 45 } }, { number: 7 }] },
+      line('TacticalStr', 85),
+    ]);
+  });
+
   it('refuses what is not a ja2-node save', () => {
     expect(problemOf(() => readSaveHead(new TextEncoder().encode('{"format":"ja2-node-save"}')))).toBe('notASave');
     expect(problemOf(() => readSaveHead(gzipSync(Buffer.from('{"format":"other","version":1,"header":{},\n}'))))).toBe('notASave');

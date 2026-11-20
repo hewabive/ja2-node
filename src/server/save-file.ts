@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { constants, gunzipSync, gzip, gzipSync } from 'node:zlib';
 import { sectorShortString } from '../content/strategic/sector-ids.ts';
-import type { MessageEntry } from '../protocol/message-log.ts';
+import { MESSAGE_TABLE } from '../content/text/message-text.ts';
+import { KEPT_MASTER_LINES, KeptMasterLine } from '../content/text/strings.ts';
+import type { MessageArg, MessageEntry, MessageStringRef } from '../protocol/message-log.ts';
 import { initialMusic, type MusicState } from '../protocol/music.ts';
 import { isMusicMode, MusicMode } from '../protocol/music-modes.ts';
 import { type CampaignStatus, campaignStatus } from '../sim/campaign/ending-state.ts';
@@ -21,7 +23,7 @@ import type { SessionSim } from './session.ts';
 import type { SessionKind, SessionSnapshot } from './session-snapshot.ts';
 
 export const SAVE_FORMAT = 'ja2-node-save';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const RULE_PACK_SAVE_VERSION = 2;
 export const SAVE_EXTENSION = '.j2s';
 export const MAX_DESCRIPTION_CHARS = 46;
@@ -136,8 +138,32 @@ function legacyContentBinding(file: Readonly<Record<string, unknown>>): Record<s
   return { ...rest, legacyContent: { files } };
 }
 
+const MASTER_LOSES_1_HP = 4;
+
+function v0221MessageRef(ref: MessageStringRef): MessageStringRef {
+  if (ref.table !== MESSAGE_TABLE || ref.index < MASTER_LOSES_1_HP) return ref;
+  if (ref.index === MASTER_LOSES_1_HP) return { table: KEPT_MASTER_LINES, index: KeptMasterLine.STR_LOSES_1_HP };
+  return { table: MESSAGE_TABLE, index: ref.index - 1 };
+}
+
+function v0221MessageArg(arg: MessageArg): MessageArg {
+  return 'string' in arg ? { string: v0221MessageRef(arg.string) } : arg;
+}
+
+function v0221MessageEntry(entry: MessageEntry): MessageEntry {
+  const ref = entry.table !== undefined && entry.index !== undefined ? v0221MessageRef({ table: entry.table, index: entry.index }) : null;
+  return { ...entry, ...(ref ?? {}), ...(entry.args ? { args: entry.args.map(v0221MessageArg) } : {}) };
+}
+
+function messagesOnV0221Ids(file: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const presentation = file.presentation as SavePresentation | undefined;
+  if (!presentation || !Array.isArray(presentation.messages)) return { ...file };
+  return { ...file, presentation: { ...presentation, messages: presentation.messages.map(v0221MessageEntry) } };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: legacyContentBinding,
+  2: messagesOnV0221Ids,
 };
 
 export interface MigrationTable {
