@@ -32,6 +32,15 @@ describe('item objects', async () => {
     expect(createMoney(table, 1234).money).toBe(1234);
   });
 
+  it('gives the money treatment to the item MONEY only, so an ore keeps its status and holds no money (Items.cc:2611)', () => {
+    const money = createItem(table, id('MONEY'), 20);
+    expect([money.status[0], money.money]).toEqual([100, 1000]);
+    for (const ore of ['SILVER', 'GOLD']) {
+      const o = createItem(table, id(ore), 20);
+      expect([o.status[0], o.money], ore).toEqual([20, 0]);
+    }
+  });
+
   it('takes one object off a stack with only its item and status, but a key with its lock (deviation: single key off a stack)', () => {
     const clips = createItems(table, id('CLIP9_15'), 100, 3);
     clips.status = [15, 12, 9];

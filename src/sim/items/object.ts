@@ -15,6 +15,7 @@ export const MAX_ATTACHMENTS = 4;
 export const MAX_MONEY_PER_SLOT = 20000;
 export const USABLE_STATUS = 10;
 export const NO_PROFILE = 200;
+const MONEY_ITEM = 'MONEY';
 
 export const ObjectFlags = {
   UNDROPPABLE: 0x01,
@@ -193,7 +194,7 @@ export function createItem(table: ItemTable, item: number, status: number): Item
     o.status[0] = def.magazine?.capacity ?? 0;
   } else {
     o = blankObject(item);
-    if (def.itemClass === ItemClass.MONEY) {
+    if (def.name === MONEY_ITEM) {
       o.status[0] = 100;
       o.money = status * 50;
     } else o.status[0] = checkedStatus(status);
@@ -212,7 +213,7 @@ export function createItems(table: ItemTable, item: number, status: number, coun
 }
 
 export function createMoney(table: ItemTable, amount: number): ItemObject {
-  const money = table.byName.get('MONEY');
+  const money = table.byName.get(MONEY_ITEM);
   if (!money) throw new Error('no MONEY item');
   const o = createItem(table, money.index, 100);
   o.money = amount;
