@@ -16,7 +16,13 @@ import type { Session } from './session.ts';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
 const DATA_AT_070 = join(FIXTURES, 'data-0.7.0');
-const DATA_FILES_CHANGED_AFTER_070 = ['externalized/game.json', 'externalized/shipping-destinations.json'];
+const DATA_FILES_CHANGED_AFTER_070 = [
+  'externalized/game.json',
+  'externalized/shipping-destinations.json',
+  'externalized/mercs-AIM-listings.json',
+  'externalized/strategic-map-towns.json',
+  'tables/laptop.json',
+];
 const TABLES_DIR = 'tables/';
 const TABLE_SOURCE = /"source": "JA2 Stracciatella [^:"]+:/;
 const TABLE_SOURCE_AT_070 = '"source": "JA2 Stracciatella ae6bf01:';
