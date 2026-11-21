@@ -9,7 +9,14 @@ import { CellFlag, cosmeticOnMain } from '../../src/sim/strategic/forces/autores
 import { createNewEnemyGroupDepartingFromSector, numEnemiesInSector } from '../../src/sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
-import { AutoresolveMark, type Report, replayBattle, replayStreams } from './autoresolve-compare.ts';
+import {
+  AutoresolveMark,
+  deadMercsAtClose,
+  MercCorpseDrawsOffTheTrace,
+  type Report,
+  replayBattle,
+  replayStreams,
+} from './autoresolve-compare.ts';
 
 type Json = Record<string, unknown>;
 
@@ -121,7 +128,8 @@ export function compareAutoresolveAftermath(r: Report, content: TacticalContent,
     r.same('aftermath: bandage', c.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'bandage' }).ok, true);
   }
   const close = replayStreams(p, AutoresolveMark.CLOSE, [AutoresolveMark.POST, AutoresolveMark.DONE]);
-  flow.useAutoresolveRng(cosmeticOnMain({ pre: close.pre, main: close.main, fx: close.main }));
+  const corpses = new MercCorpseDrawsOffTheTrace(close.main, deadMercsAtClose(built.ar));
+  flow.useAutoresolveRng(cosmeticOnMain({ pre: close.pre, main: corpses, fx: corpses }));
   const done = c.state.battle.prompt;
   const answered = c.dispatch({ type: 'answer', prompt: done?.id, choice: 'done' });
   r.same('aftermath: done', answered.ok ? 'ok' : answered.reason, 'ok');

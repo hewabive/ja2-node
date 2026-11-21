@@ -458,6 +458,13 @@ phases. Three comparers run on each probe:
    close draws; compares world seconds, enemy counts, militia, `fEnemyControlled` and town loyalty after the close, plus
    the enemy group id of every cell from a fresh `associateEnemiesWithStrategicGroups`.
 
+Kept fix: a merc of ours who dies in autoresolve leaves his corpse with his gear in ja2-node, none in v0.22.1
+(original-bugs "Gear of a merc who dies in autoresolve"). The core replay and the aftermath wrap the close's `main` in
+`MercCorpseDrawsOffTheTrace`: for each merc dead at the close, in cell order, the corpse's `RandomGridNo` pair
+(`Random(160)` twice) and its death animation's `Random(4)` are answered off the trace with the map's centre and the
+first animation; any other range inside that pattern fails the probe. Every other close draw still replays the trace,
+the leftover check included, and the probe line names the corpses drawn this way.
+
 `pre-battle-compare.ts` compares `pbi` (encounter code, flags, draws); `autoresolve-aftermath.ts` also compares
 `enemycounts`. `battle.txt` checks the autoresolve quirks Q12, Q14, Q16 and Q22 of `19`.
 

@@ -1,5 +1,7 @@
 import { NOTHING } from '../../src/content/items/items.ts';
+import { WORLD_COLS, WORLD_ROWS } from '../../src/content/world/grid.ts';
 import { RestrictedScroll } from '../../src/content/world/render-bounds.ts';
+import { DEATH_ANIMATIONS } from '../../src/sim/campaign/sector-loot.ts';
 import { tickClock } from '../../src/sim/clock.ts';
 import { emptyObject, type ItemObject } from '../../src/sim/items/object.ts';
 import { autoBandageMercs } from '../../src/sim/strategic/forces/autoresolve/bandage.ts';
@@ -20,6 +22,7 @@ import {
   NO_CONTROLLER,
 } from '../../src/sim/strategic/forces/autoresolve/state.ts';
 import { anim } from '../../src/sim/tactical/anim-states.ts';
+import type { RandomStream } from '../../src/sim/tactical/combat/context.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { NUM_INV_SLOTS } from '../../src/sim/tactical/inventory.ts';
 import { noCampaignFields, noRelations, noStatDeltas, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
@@ -30,6 +33,9 @@ type Json = Record<string, unknown>;
 const Mark = { SETUP: 1, RATINGS: 2, BATTLE: 3, RETREAT: 4, SURRENDER: 5, END: 6, BANDAGE: 7, CLOSE: 8, POST: 9, DONE: 10 } as const;
 const SIDES = ['merc', 'militia', 'enemy'] as const;
 const ORACLE_NOWHERE = 25601;
+const GEAR_OF_A_MERC_DEAD_IN_AUTORESOLVE = 'original-bugs "Gear of a merc who dies in autoresolve"';
+const MAP_CENTRE_COLUMN = 80;
+const MAP_CENTRE_ROW = 80;
 const LOGIC_FLAGS =
   CellFlag.MERC |
   CellFlag.MILITIA |
@@ -319,6 +325,50 @@ function compareCells(r: Report, built: Built, p: Json): void {
   }
 }
 
+export class MercCorpseDrawsOffTheTrace implements RandomStream {
+  readonly #trace: RandomStream;
+  #corpsesLeft: number;
+  #next: 'column' | 'row' | 'deathAnimation' | null = null;
+  corpses = 0;
+
+  constructor(trace: RandomStream, deadMercs: number) {
+    this.#trace = trace;
+    this.#corpsesLeft = deadMercs;
+  }
+
+  int(n: number): number {
+    if (this.#next === null && this.#corpsesLeft > 0 && n === WORLD_COLS) this.#next = 'column';
+    if (this.#next === null) return this.#trace.int(n);
+    return this.#corpseDraw(n);
+  }
+
+  #corpseDraw(n: number): number {
+    if (this.#next === 'column' && n === WORLD_COLS) {
+      this.#next = 'row';
+      return MAP_CENTRE_COLUMN;
+    }
+    if (this.#next === 'row' && n === WORLD_ROWS) {
+      this.#next = 'deathAnimation';
+      return MAP_CENTRE_ROW;
+    }
+    if (this.#next === 'deathAnimation' && n === DEATH_ANIMATIONS.length) {
+      this.#next = null;
+      this.#corpsesLeft--;
+      this.corpses++;
+      return 0;
+    }
+    throw new Error(`range ${n} inside a dead merc's corpse draws (${GEAR_OF_A_MERC_DEAD_IN_AUTORESOLVE})`);
+  }
+}
+
+export function deadMercsAtClose(ar: AutoresolveState): number {
+  return ar.mercs.filter((c) => c.soldier.life === 0).length;
+}
+
+export function mercCorpseNote(corpses: number): string {
+  return corpses > 0 ? `, ${corpses} dead merc corpse(s) drawn off the trace (${GEAR_OF_A_MERC_DEAD_IN_AUTORESOLVE})` : '';
+}
+
 function replayEnv(
   content: TacticalContent,
   built: Built,
@@ -383,7 +433,10 @@ class OracleMilitia implements MilitiaCounts {
 
 function closeReplay(r: Report, content: TacticalContent, built: Built, p: Json, draws: readonly Draw[]): number {
   const seg = segment(draws, Mark.CLOSE, [Mark.POST, Mark.DONE]);
-  const { env, main } = replayEnv(content, built, p, seg);
+  const replay = replayEnv(content, built, p, seg);
+  const { main } = replay;
+  const corpses = new MercCorpseDrawsOffTheTrace(main, deadMercsAtClose(built.ar));
+  const env: AutoresolveEnv = { ...replay.env, rng: cosmeticOnMain({ pre: replay.pre, main: corpses, fx: corpses }) };
   const before = obj(p.countsBefore);
   const militia = new OracleMilitia((before.militia as number[] | undefined) ?? [0, 0, 0]);
   let killed = 0;
@@ -406,7 +459,7 @@ function closeReplay(r: Report, content: TacticalContent, built: Built, p: Json,
     promotions,
   );
   r.same('close: main draws left', main.remaining, 0);
-  return result.warpSeconds;
+  return corpses.corpses;
 }
 
 export interface ReplayedBattle {
@@ -469,12 +522,12 @@ export function compareAutoresolve(content: TacticalContent, p: Json, aftermath?
     }
     compareCells(r, built, p);
     r.same('player kills', built.ar.playerKills, obj(p.result).playerKills);
-    closeReplay(r, content, built, p, draws);
+    const corpses = closeReplay(r, content, built, p, draws);
     aftermath?.(r);
     const ok = r.problems.length === 0;
     console.log(
       `${r.label}: ${ok ? 'ok' : 'MISMATCH'} ${String(p.sector)} status ${built.ar.status} slices ${built.ar.slices} ` +
-        `draws pre ${seg.pre.length} main ${seg.main.length}${ok ? '' : `\n  ${r.problems.join('\n  ')}`}`,
+        `draws pre ${seg.pre.length} main ${seg.main.length}${mercCorpseNote(corpses)}${ok ? '' : `\n  ${r.problems.join('\n  ')}`}`,
     );
     return ok ? 0 : 1;
   } catch (e) {

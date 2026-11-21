@@ -90,8 +90,9 @@ on the map screen after the close (`Strategic/MapScreen.cc:1895`).
 drops run when the player closes AR (`closeAutoresolve` against `strategicClosePort`). A corpse's record is the one the
 map screen's deaths use (`deadSoldierRecord`, `campaign/sector-loot.ts`, `33`): `RandomGridNo`'s pairs, the drops, the
 key ring of a merc of ours, which lands in his own sector, then the death animation's `Random(4)`
-(`M:Strategic/Auto_Resolve.cc:1674`, `Tactical/Tactical_Save.cc:831`). Each enemy cell's strategic group
-(Q16) decides which record loses a dead soldier. Every change of control goes through `setThisSectorAsPlayerControlled`
+(`Tactical/Tactical_Save.cc:831`). A merc of ours gets his corpse as in vanilla, where v0.22.1 leaves none
+(original-bugs "Gear of a merc who dies in autoresolve"). Each enemy cell's strategic group (Q16) decides which record
+loses a dead soldier. Every change of control goes through `setThisSectorAsPlayerControlled`
 or `setThisSectorAsEnemyControlled`; their town, mine, SAM, meanwhile and theft effects go through the context's `world`
 hooks, the Queen's through `ctx.ai`. A lost or abandoned AR hands the sector to the enemy at `done`, where the original
 waits for the next map frame; the hand-over is refused while an automatic AR is pending (`battle.autoStart`).
