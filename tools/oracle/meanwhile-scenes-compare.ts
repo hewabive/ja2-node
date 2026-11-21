@@ -2,6 +2,7 @@ import { basename, dirname } from 'node:path';
 import { QuoteFlag } from '../../src/content/formats/npc.ts';
 import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { u32 } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
@@ -13,6 +14,7 @@ import type { DialogueEvent } from '../../src/sim/narrative/talk-state.ts';
 import { Meanwhile } from '../../src/sim/strategic/ai/constants.ts';
 import { handleMeanwhileEvent } from '../../src/sim/strategic/ai/meanwhile.ts';
 import { PromptKind } from '../../src/sim/strategic/forces/battle-state.ts';
+import { SectorFlag } from '../../src/sim/strategic/forces/constants.ts';
 import { getGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { CompressMode, EventKind } from '../../src/sim/strategic/time/constants.ts';
@@ -325,6 +327,10 @@ function nativeSaid(state: Json): Json[] {
     loaded: r.loaded === true,
     said: (r.said as number[] | undefined) ?? [],
   }));
+}
+
+function enteredTacticalFlagAsStracciatella(ours: readonly number[], theirs: readonly number[]): number[] {
+  return ours.map((f, i) => u32(f & ~(SectorFlag.HAS_ENTERED_TACTICAL & ~(theirs[i] ?? 0))));
 }
 
 function changedFlags(before: readonly number[], after: readonly number[]): number[][] {
@@ -714,8 +720,11 @@ export class MeanwhileSceneComparer {
       'sector',
     );
     const before = this.#flagsAtLoad;
-    if (before)
-      add(changedFlags(before.ours, this.#ourFlags()), changedFlags(before.theirs, (state.sectorFlags as number[]) ?? []), 'sector flags');
+    if (before) {
+      const theirs = (state.sectorFlags as number[]) ?? [];
+      const ours = (flags: readonly number[]) => enteredTacticalFlagAsStracciatella(flags, theirs);
+      add(changedFlags(ours(before.ours), ours(this.#ourFlags())), changedFlags(before.theirs, theirs), 'sector flags');
+    }
     if (until === 'loaded' || until === 'scene') problems.push(...this.#hall(c, state));
     if (until === 'scene') {
       add(

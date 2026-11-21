@@ -29,6 +29,7 @@ const NO_WORLD = [0, 0, -1];
 const SKIPPED = new Set(['hdtimer', 'seed', 'draws', 'end']);
 const MS_PER_SECOND = 1000;
 const SPEED_DEVIATION = 'deviation "Speed on a sector load from the map"';
+const PAUSE_LEFT_BY_THE_MAP = 'original-bugs "Tactical clock left paused by the map"';
 
 const num = (v: unknown) => Number(v ?? 0);
 const bit = (v: boolean) => (v ? 1 : 0);
@@ -53,6 +54,8 @@ export class MapEntryComparer {
   #session: CampaignSession | null = null;
   #keptByTheOracle: number | null = null;
   #secondsAhead = 0;
+  #leftPausedByTheMap = false;
+  #secondsPastThePause = 0;
 
   constructor(read: ReadFile, exists: FileExists, save: (name: string) => Uint8Array) {
     this.#read = read;
@@ -96,6 +99,8 @@ export class MapEntryComparer {
     this.#session = imported.session;
     this.#keptByTheOracle = null;
     this.#secondsAhead = 0;
+    this.#leftPausedByTheMap = false;
+    this.#secondsPastThePause = 0;
     return report(label, true, `imported ${String(p.name)}`);
   }
 
@@ -167,8 +172,10 @@ export class MapEntryComparer {
   #runTheClock(c: CampaignSim, frames: number): string[] {
     const start = c.state.clock.seconds;
     for (let k = 0; k < frames; k++) c.step();
-    if (this.#keptByTheOracle === null || c.state.flow !== 'tactical') return [];
+    if (c.state.flow !== 'tactical') return [];
     const ran = c.state.clock.seconds - start;
+    if (this.#leftPausedByTheMap) this.#secondsPastThePause += ran;
+    if (this.#keptByTheOracle === null) return [];
     this.#secondsAhead += ran;
     const atX1 = idiv(frames * TICK_MS, MS_PER_SECOND);
     return ran === atX1 ? [] : [`the tactical clock ran ${ran} s, ${atX1} s at X1`];
@@ -189,13 +196,18 @@ export class MapEntryComparer {
     const c = this.#campaign();
     const clock = c.state.clock;
     const theirs = this.#theirSpeed(p.compression as number[], String(p.screen));
+    this.#leftPausedByTheMap = this.#pausedByTheMapOnly(c, p);
     const ahead = this.#secondsAhead > 0 ? `, ${this.#secondsAhead} s ahead of Stracciatella's standing clock (${SPEED_DEVIATION})` : '';
+    const pastThePause =
+      this.#leftPausedByTheMap || this.#secondsPastThePause > 0
+        ? `, ${this.#secondsPastThePause} s past the pause Stracciatella's map left (${PAUSE_LEFT_BY_THE_MAP})`
+        : '';
     const diff = firstDifference(
       {
         screen: this.#screen(c),
         world: this.#world(c),
         compression: [clock.mode, bit(clock.compressionOn), bit(isTimeBeingCompressed(clock))],
-        worldSeconds: clock.seconds - this.#secondsAhead,
+        worldSeconds: clock.seconds - this.#secondsAhead - this.#secondsPastThePause,
       },
       {
         screen: p.screen,
@@ -207,8 +219,14 @@ export class MapEntryComparer {
     return report(
       label,
       diff === null,
-      diff ?? `${this.#screen(c)}, mode ${clock.mode}, world second ${clock.seconds}${theirs.note}${ahead}`,
+      diff ?? `${this.#screen(c)}, mode ${clock.mode}, world second ${clock.seconds}${theirs.note}${ahead}${pastThePause}`,
     );
+  }
+
+  #pausedByTheMapOnly(c: CampaignSim, p: Json): boolean {
+    const [paused, locked, byThePlayer] = (p.pause as number[] | undefined) ?? [];
+    const nativeLeftPaused = p.screen === GAME_SCREEN && paused === 1 && locked === 0 && byThePlayer === 0;
+    return nativeLeftPaused && c.state.flow === 'tactical' && !c.state.clock.paused;
   }
 
   #screen(c: CampaignSim): string {
