@@ -25,7 +25,7 @@ const BLOOD_LOSS_BREATH = 100;
 const isVehicleOrRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || s.bodyType >= Body.HUMVEE;
 
 export function calcSoldierNextBleed(s: Soldier): number {
-  return Math.fround(1 + Math.fround(effectiveLife(s)) / (10 + s.tilesMoved));
+  return 1 + idiv(effectiveLife(s), 10 + s.tilesMoved);
 }
 
 export function bleedsAtTurnStart(s: Soldier): boolean {

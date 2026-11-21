@@ -160,6 +160,12 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
   const GROUND = 0;
   const ROOF = 1;
   const ON_THE_ROOF = 50;
+  const GOOD_MARKSMANSHIP = 100;
+
+  function woundOpenly(s: Soldier): void {
+    s.life = s.lifeMax / 2;
+    s.bleeding = s.lifeMax - s.life;
+  }
 
   it('aims at the level an opponent was last seen on, not the roof he has climbed onto since', () => {
     const roofs = new Set<number>();
@@ -172,9 +178,9 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
     const lastSeenAt = gridNo(80, 82);
     const bystander = spawnSoldier(sim, 40, Team.CIV, lastSeenAt, Direction.NORTH);
     bystander.neutral = true;
-    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 94), Direction.NORTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 94), Direction.NORTH, { marksmanship: GOOD_MARKSMANSHIP });
     enemy.inv[InvSlot.HAND] = createItem(content.items, item('HAND_GRENADE'), 100);
-    enemy.life = enemy.lifeMax / 2;
+    woundOpenly(enemy);
     enemy.oppList[merc.id] = Opp.SEEN_LAST_TURN;
     enemy.lastKnownOpp[merc.id] = lastSeenAt;
     enemy.lastKnownOppLevel[merc.id] = GROUND;
@@ -199,9 +205,9 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
       spawnSoldier(sim, 21, Team.ENEMY, opponentAt - margin, Direction.EAST);
       const bystander = spawnSoldier(sim, 40, Team.CIV, besideHim, Direction.NORTH);
       bystander.neutral = true;
-      const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+      const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH, { marksmanship: GOOD_MARKSMANSHIP });
       enemy.inv[InvSlot.HAND] = createItem(content.items, item('HAND_GRENADE'), 100);
-      enemy.life = enemy.lifeMax / 2;
+      woundOpenly(enemy);
       sim.lookAround();
       return checkIfTossPossible(t, enemy);
     };
@@ -236,9 +242,9 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 78), Direction.NORTH);
     const bystander = spawnSoldier(sim, 40, Team.CIV, lastSeenAt, Direction.NORTH);
     bystander.neutral = true;
-    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH, { marksmanship: GOOD_MARKSMANSHIP });
     enemy.inv[InvSlot.HAND] = createItem(content.items, item('HAND_GRENADE'), 100);
-    enemy.life = enemy.lifeMax / 2;
+    woundOpenly(enemy);
     enemy.hasKeys = 1;
     enemy.oppList[merc.id] = Opp.SEEN_LAST_TURN;
     enemy.lastKnownOpp[merc.id] = lastSeenAt;

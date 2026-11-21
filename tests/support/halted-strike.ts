@@ -6,7 +6,7 @@ import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { newCombatSim, runUntilIdle, spawnSoldier } from './combat.ts';
 
 const HALT_TICKS = 2000;
-const DYING_LIFE = 10;
+const DYING_LIFE = 12;
 const POOR_MARKSMANSHIP = 1;
 
 function haltAtHisNextTileAsAnInterruptWould(sim: TacticalSim, merc: Soldier): void {

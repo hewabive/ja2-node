@@ -32,9 +32,10 @@ import {
   effectiveAgility,
   effectiveDexterity,
   effectiveExpLevel,
-  effectiveLife,
+  effectiveLifeOfUnsignedBandage,
   effectiveStrength,
   hasPersonality,
+  injuryForPenalties,
   type LoadedSector,
   undergroundSectorLoaded,
 } from './skills.ts';
@@ -481,7 +482,7 @@ function nonSwimmerInDeepWater(content: TacticalContent, s: Soldier): boolean {
 
 function adjustBreathPts(content: TacticalContent, s: Soldier, cost: number): number {
   let factor = 100 + (100 - s.breath);
-  factor += idiv(100 * (s.lifeMax - effectiveLife(s)), s.lifeMax);
+  factor += idiv(100 * (s.lifeMax - effectiveLifeOfUnsignedBandage(s)), s.lifeMax);
   if (s.stats.strength > 80) factor -= idiv(s.stats.strength - 80, 2);
   if (nonSwimmerInDeepWater(content, s)) factor *= NON_SWIMMER_BREATH_FACTOR;
   if (factor === 0) return 0;
@@ -602,7 +603,7 @@ function actionPointsPerTurn(w: ActionPointWorld, s: Soldier, vehicle: boolean):
   if (collapsedFromSleepDart(s)) return 0;
   let points = 5 + idiv(10 * effectiveExpLevel(w, s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20, 40);
   points = u8(points);
-  if (s.life < s.lifeMax) points = u8(points - idiv(2 * points * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax));
+  if (s.life < s.lifeMax) points = u8(points - idiv(2 * points * injuryForPenalties(s), 3 * s.lifeMax));
   if (s.breath < 100) points = u8(points - idiv(points * (100 - s.breath), 200));
   if (s.weightCarriedAtTurnStart > 100) points = u8(idiv(points * 100, s.weightCarriedAtTurnStart));
   if (points < AP_LIMITS.MINIMUM) points = AP_LIMITS.MINIMUM;

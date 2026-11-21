@@ -1,9 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/SkillCheck.cc Effective* (the claustrophobic level 2026-11-01, the drink 2026-11-04);
-// @src Soldier_Control.h effectiveLife
+// @src Soldier_Control.cc CalcActionPoints, Weapons.cc CalcChanceToHitGun: the injury of the penalties (2026-11-20)
 
-import { idiv } from '../../core/int.ts';
+import { i8, idiv, u8 } from '../../core/int.ts';
 import { effectStatForBeingDrunk, expLevelForBeingDrunk, leadershipForBeingDrunk } from './drugs.ts';
 import { NO_PROFILE, Personality, type Soldier } from './soldier.ts';
 
@@ -13,8 +13,23 @@ export interface LifeState {
   readonly bleeding: number;
 }
 
+const signedBandage = (s: LifeState) => i8(s.lifeMax - s.life - s.bleeding);
+const unsignedBandage = (s: LifeState) => u8(s.lifeMax - s.life - s.bleeding);
+
 export function effectiveLife(s: LifeState): number {
-  return s.life + idiv(s.lifeMax - s.life - s.bleeding, 2);
+  return s.life + idiv(signedBandage(s), 2);
+}
+
+export function effectiveLifeOfUnsignedBandage(s: LifeState): number {
+  return s.life + idiv(unsignedBandage(s), 2);
+}
+
+export function injuryForPenalties(s: LifeState): number {
+  return s.lifeMax - s.life + idiv(signedBandage(s), 2);
+}
+
+export function injuryForPenaltiesOfUnsignedBandage(s: LifeState): number {
+  return s.lifeMax - s.life + idiv(unsignedBandage(s), 2);
 }
 
 export function effectiveStrength(s: Soldier): number {

@@ -39,6 +39,16 @@ describe('bleeding at turn start', () => {
     expect(s.nextBleed).toBe(calcSoldierNextBleed(s));
   });
 
+  it('waits a whole number of turns for the next bleed: the life is divided as integers before the float cast (quirk, Soldier_Control.cc CalcSoldierNextBleed)', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 50 });
+    s.lifeMax = 80;
+    s.bleeding = 22;
+    expect(calcSoldierNextBleed(s)).toBe(6);
+    s.tilesMoved = 3;
+    expect(calcSoldierNextBleed(s)).toBe(5);
+  });
+
   it('does not bleed below the threshold and counts down otherwise', () => {
     const sim = newCombatSim(content);
     sim.state.inCombat = true;

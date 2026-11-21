@@ -18,10 +18,10 @@ import {
   effectiveAgility,
   effectiveDexterity,
   effectiveExpLevel,
-  effectiveLife,
   effectiveMarksmanship,
   effectiveWisdom,
   fatiguePenaltyPercent,
+  injuryForPenalties,
   moraleModifier,
 } from '../skills.ts';
 import { Body, numSkillTraits, Personality, SKILL_TRAIT_BONUS, SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
@@ -254,7 +254,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
     c -= queenShotDodge(t, s, target);
   } else if (isTank(s) && range < MIN_TANK_RANGE) c -= TANK_PRONE_TARGET_PENALTY_PER_TILE * tilesInside(MIN_TANK_RANGE, range);
   if (c > 0 && s.life < s.lifeMax) {
-    const p = idiv(c * 2 * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax);
+    const p = idiv(c * 2 * injuryForPenalties(s), 3 * s.lifeMax);
     c -= idiv(p * (100 - 10 * (effectiveExpLevel(t, s) - 1)), 100);
   }
   if (c > 0 && s.breath < 100) {

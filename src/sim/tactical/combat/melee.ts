@@ -40,8 +40,8 @@ import {
   effectiveAgility,
   effectiveDexterity,
   effectiveExpLevel,
-  effectiveLife,
   effectiveStrength,
+  injuryForPenaltiesOfUnsignedBandage,
   moraleModifier,
   skillCheckFatiguePenalty,
 } from '../skills.ts';
@@ -115,7 +115,7 @@ function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number)
   if (att.gassed) a -= Aim.PENALTY_GASSED;
   if (att.serviceCount > 0) a -= Aim.PENALTY_GETTINGAID;
   if (att.shock) a -= att.shock * Aim.PENALTY_PER_SHOCK;
-  if (a > 0 && att.life < att.lifeMax) a -= idiv(2 * a * (att.lifeMax - effectiveLife(att)), 3 * att.lifeMax);
+  if (a > 0 && att.life < att.lifeMax) a -= idiv(2 * a * injuryForPenaltiesOfUnsignedBandage(att), 3 * att.lifeMax);
   if (a > 0 && att.breath < 100) a -= idiv(a * (100 - att.breath), 200);
   if (att.profile !== NO_PROFILE) {
     if (mode === MeleeMode.STAB) a += traitBonus(att, SkillTrait.KNIFING);
@@ -140,7 +140,7 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
   if (def.gassed) d -= Aim.PENALTY_GASSED;
   if (def.serviceCount > 0) d -= Aim.PENALTY_GETTINGAID;
   if (def.shock) d -= def.shock * Aim.PENALTY_PER_SHOCK;
-  if (d > 0 && def.life < def.lifeMax) d -= idiv(2 * d * (def.lifeMax - effectiveLife(def)), 3 * def.lifeMax);
+  if (d > 0 && def.life < def.lifeMax) d -= idiv(2 * d * injuryForPenaltiesOfUnsignedBandage(def), 3 * def.lifeMax);
   if (d > 0 && def.breath < 100) d -= idiv(d * (100 - def.breath), 200);
   const stance = endHeight(t.content, def.state);
   if (weapon === itemIndex(t, 'CREATURE_QUEEN_TENTACLES')) d += tentacleDefence(def, stance);

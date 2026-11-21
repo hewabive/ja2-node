@@ -24,10 +24,10 @@ import { StatKind } from '../profiles.ts';
 import {
   effectiveDexterity,
   effectiveExpLevel,
-  effectiveLife,
   effectiveMarksmanship,
   effectiveStrength,
   effectiveWisdom,
+  injuryForPenalties,
   moraleModifier,
   skillCheckFatiguePenalty,
 } from '../skills.ts';
@@ -118,7 +118,7 @@ export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, a
   c += idiv(50 * 2 * (idiv(maxRange, 2) - range), maxRange);
   if (range > maxRange) c = idiv(c, 2);
   if (c > 0 && s.life < s.lifeMax) {
-    let penalty = i8(idiv(2 * c * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax));
+    let penalty = i8(idiv(2 * c * injuryForPenalties(s), 3 * s.lifeMax));
     if (launcher) penalty = idiv(penalty, 2);
     c -= idiv(penalty * (100 - 10 * (effectiveExpLevel(t, s) - 1)), 100);
   }

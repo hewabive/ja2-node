@@ -697,7 +697,7 @@ function menInSector(t: TacticalState, team: number): number {
 }
 
 function calcNextBleed(s: Soldier): number {
-  return Math.fround(1 + Math.fround(effectiveLife(s)) / (10 + s.tilesMoved));
+  return 1 + idiv(effectiveLife(s), 10 + s.tilesMoved);
 }
 
 function noticeMariaEscapeWhenKingpinsManIsHurt(t: TacticalState, s: Soldier): void {

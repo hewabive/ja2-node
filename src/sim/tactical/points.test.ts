@@ -87,11 +87,22 @@ describe('action points', () => {
     const s = spawn(t, gridNo(80, 80));
     expect(calcActionPoints(t, s)).toBe(21);
     s.life = 50;
-    expect(calcActionPoints(t, s)).toBe(18);
-    s.breath = 50;
+    s.bleeding = 50;
     expect(calcActionPoints(t, s)).toBe(14);
+    s.breath = 50;
+    expect(calcActionPoints(t, s)).toBe(11);
     s.life = 0;
     expect(calcActionPoints(t, s)).toBe(0);
+  });
+
+  it('counts bandaged damage one and a half times, so bandaging a wound costs APs (quirk, Soldier_Control.cc CalcActionPoints)', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.life = 70;
+    s.bleeding = 30;
+    expect(calcActionPoints(t, s)).toBe(17);
+    s.bleeding = 0;
+    expect(calcActionPoints(t, s)).toBe(15);
   });
 
   it('carries at most five APs into the next turn', () => {
