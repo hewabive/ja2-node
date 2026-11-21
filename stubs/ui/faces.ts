@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { encodeStiIndexed, type StiSubImage } from '../../src/content/formats/sti.ts';
 import { asArray, asInt, asObject } from '../../src/content/strategic/json-fields.ts';
-import { parseJsonc } from '../../src/content/strategic/jsonc.ts';
+import { IMP_FACES_PATH, type ImpPortrait, parseImpPortraits } from '../../src/content/strategic/laptop-content.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import { GENERIC_FACE, GENERIC_FACE_BODY_TYPES, genericFacePath } from '../../src/ui/screens/tactical/generic-face.ts';
 import { type PortraitSize, portraitPath } from '../../src/ui/widgets/portrait.ts';
@@ -278,16 +278,11 @@ export async function buildStubPortraits(out: string, exists: (path: string) => 
 }
 
 const SPECK_FACE = 159;
-const IMP_CONTENT_FILE = 'externalized/imp.json';
 const REGULAR_MALE_BODY = 0;
 const REGULAR_FEMALE_BODY = 3;
 
-async function impPortraitFaces(): Promise<{ readonly face: number; readonly male: boolean }[]> {
-  const json = asObject(parseJsonc(await readFile(join(PROJECT_DATA_DIR, IMP_CONTENT_FILE), 'utf8')), 'imp');
-  return asArray(json.portraits, 'imp.portraits').map((p, i) => {
-    const o = asObject(p, `imp.portraits[${i}]`);
-    return { face: asInt(o.face, `imp.portraits[${i}].face`), male: o.gender !== 'FEMALE' };
-  });
+async function impPortraitFaces(): Promise<ImpPortrait[]> {
+  return parseImpPortraits(JSON.parse(await readFile(join(PROJECT_DATA_DIR, IMP_FACES_PATH), 'utf8')));
 }
 
 export async function addStubLaptopFaceAliases(aliases: Map<string, string>): Promise<void> {

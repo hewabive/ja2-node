@@ -14,7 +14,7 @@ import { MercStatus, type ProfileProgress, profileProgress, progressFromProfile 
 import { calcMedicalDeposit } from './laptop/profile-state.ts';
 import { MercKind } from './roster.ts';
 
-export const NUM_PROFILES = 200;
+export const NUM_PROFILES = 170;
 export const MAX_NUMBER_MERCS = 40;
 export const DAYS_TIL_MERC_AVAILABLE = 3;
 const NO_ATTRACTIVENESS = -1;

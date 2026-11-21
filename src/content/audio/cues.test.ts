@@ -272,9 +272,9 @@ describe('battle sounds', () => {
   };
 
   it('name voices by profile voice id or by the generic sets of soldiers without a profile', () => {
-    expect(battleVoiceBasename(7, 7, 0, 0)).toBe('007');
-    expect(battleVoiceBasename(null, 0, 0, 2)).toBe('bad2');
-    expect(battleVoiceBasename(null, 0, SoundBody.KIDCIV, 1)).toBe('kid1');
+    expect(battleVoiceBasename(7, 0, 0)).toBe('007');
+    expect(battleVoiceBasename(null, 0, 2)).toBe('bad2');
+    expect(battleVoiceBasename(null, SoundBody.KIDCIV, 1)).toBe('kid1');
   });
 
   it('draw a variant and play on the speech bus, positional only for other teams', () => {

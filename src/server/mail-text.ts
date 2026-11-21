@@ -9,9 +9,9 @@ import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { mailOffset } from '../content/strategic/laptop-content.ts';
 import { sprintMoney } from '../content/text/money.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { impInitialStats, impReportRows } from '../sim/campaign/laptop/imp-report.ts';
+import { impPortraitOfFace, impProfileId } from '../sim/campaign/laptop/imp.ts';
+import { impReportRows, impReportStats } from '../sim/campaign/laptop/imp-report.ts';
 import type { Email } from '../sim/campaign/laptop/laptop-state.ts';
-import { PLAYER_GENERATED_CHARACTER_ID } from '../sim/campaign/laptop/save-import.ts';
 import type { TextSource } from './campaign-session.ts';
 
 export const MAIL_TEXT_FILE = 'binarydata/email.edt';
@@ -81,27 +81,21 @@ function bodyRecords(campaign: CampaignSim, mail: Email, texts: TextSource): str
   return rows;
 }
 
-function reportProfile(campaign: CampaignSim, mail: Email): number {
-  const imp = campaign.state.laptop.imp;
-  return imp.taken.includes(mail.firstData) ? mail.firstData : PLAYER_GENERATED_CHARACTER_ID + imp.voiceId;
-}
-
 function impReport(campaign: CampaignSim, mail: Email, texts: TextSource): string[] | null {
   const flow = campaign.laptop;
-  const character = flow?.profileRecord(reportProfile(campaign, mail));
-  if (!flow || !character) return null;
-  const portraits = flow.content.imp.portraits;
+  const id = impProfileId(campaign.state.laptop.imp.voiceId);
+  const character = flow?.profileRecord(id);
+  const progress = flow?.profile(id);
+  if (!flow || !character || !progress) return null;
   const rows = impReportRows(
     {
-      sex: character.sex,
-      faceIndex: character.faceIndex,
-      personalityTrait: character.personalityTrait,
-      attitude: character.attitude,
-      skillTrait: character.skillTrait,
-      skillTrait2: character.skillTrait2,
-      initial: impInitialStats(character),
+      portrait: impPortraitOfFace(flow.content, character.faceIndex),
+      personalityTrait: progress.personalityTrait,
+      attitude: progress.attitude,
+      skillTrait: progress.skillTrait,
+      skillTrait2: progress.skillTrait2,
+      stats: impReportStats(progress),
     },
-    portraits,
     mail.id % 2 === 0,
   );
   const out: string[] = [];

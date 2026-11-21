@@ -1,12 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/EMail.cc HandleIMPCharProfileResultsMessage, the IMP_RESULTS_*, IMP_PERSONALITY_*, IMP_ATTITUDE_*,
-// @src IMP_SKILLS_*, IMP_PHYSICAL_* and IMP_PORTRAIT_* defines; Laptop/IMP_Compile_Character.cc IMPCharacterHasBigBody,
-// @src FindIMPPortraitByFace; Tactical/Soldier_Profile_Type.h SUPER_STAT_VALUE and the other thresholds. The Random(32767)
-// @src parity that picks one of the two looks paragraphs is the caller's fixed choice; the bInitial* stats (current
-// @src minus the deltas a save carries, 2026-11-18).
+// @src IMP_SKILLS_*, IMP_PHYSICAL_* and IMP_PORTRAIT_* defines; Tactical/Soldier_Profile_Type.h SUPER_STAT_VALUE and the
+// @src other thresholds. The Random(32767) parity that picks one of the two looks paragraphs is the caller's fixed choice;
+// @src the profile's current stats; the switch on iPortraitNumber, which has no case for the last portrait.
 
-import { i8 } from '../../../core/int.ts';
+import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { Personality, SkillTrait } from '../../tactical/soldier.ts';
 
 const SUPER_STAT_VALUE = 80;
@@ -15,8 +14,6 @@ const NO_CHANCE_IN_HELL_STAT_VALUE = 40;
 const SUPER_SKILL_VALUE = 80;
 const NEEDS_TRAINING_SKILL_VALUE = 50;
 const NO_CHANCE_IN_HELL_SKILL_VALUE = 0;
-const BIG_BODY_MIN_STRENGTH = 75;
-const MALE = 0;
 
 const INTRO_LENGTH = 9;
 const PERSONALITY_INTRO = INTRO_LENGTH;
@@ -148,39 +145,29 @@ export interface ImpReportStats {
   readonly medical: number;
 }
 
-export interface ImpReportProfile extends ImpReportStats {
-  readonly deltas?: Readonly<Record<keyof ImpReportStats, number>>;
-}
-
-export function impInitialStats(p: ImpReportProfile): ImpReportStats {
-  const initial = (stat: keyof ImpReportStats) => i8(p[stat] - (p.deltas?.[stat] ?? 0));
+export function impReportStats(p: ProfileProgress): ImpReportStats {
+  const s = p.stats;
   return {
-    life: initial('life'),
-    agility: initial('agility'),
-    dexterity: initial('dexterity'),
-    strength: initial('strength'),
-    leadership: initial('leadership'),
-    wisdom: initial('wisdom'),
-    marksmanship: initial('marksmanship'),
-    mechanical: initial('mechanical'),
-    explosives: initial('explosives'),
-    medical: initial('medical'),
+    life: p.life,
+    agility: s.agility,
+    dexterity: s.dexterity,
+    strength: s.strength,
+    leadership: s.leadership,
+    wisdom: s.wisdom,
+    marksmanship: s.marksmanship,
+    mechanical: s.mechanical,
+    explosives: s.explosives,
+    medical: s.medical,
   };
 }
 
 export interface ImpReportCharacter {
-  readonly sex: number;
-  readonly faceIndex: number;
+  readonly portrait: number;
   readonly personalityTrait: number;
   readonly attitude: number;
   readonly skillTrait: number;
   readonly skillTrait2: number;
-  readonly initial: ImpReportStats;
-}
-
-export interface ImpReportPortrait {
-  readonly face: number;
-  readonly bigBody: boolean;
+  readonly stats: ImpReportStats;
 }
 
 export interface ImpReportRecord {
@@ -196,8 +183,8 @@ function hasSkillTrait(c: ImpReportCharacter, trait: number): boolean {
   return c.skillTrait === trait || c.skillTrait2 === trait;
 }
 
-function skillSection(header: number, order: readonly Skill[], test: (value: number) => boolean, initial: ImpReportStats): number[] {
-  const held = order.filter((skill) => test(initial[skill]));
+function skillSection(header: number, order: readonly Skill[], test: (value: number) => boolean, stats: ImpReportStats): number[] {
+  const held = order.filter((skill) => test(stats[skill]));
   return held.length === 0 ? [] : [header, ...held.map((skill) => header + SKILL_OFFSET[skill])];
 }
 
@@ -205,9 +192,9 @@ function physicalSection(
   header: number,
   offsets: Readonly<Record<Physical, number>>,
   test: (value: number) => boolean,
-  initial: ImpReportStats,
+  stats: ImpReportStats,
 ): number[] {
-  const held = PHYSICAL_ORDER.filter((stat) => test(initial[stat]));
+  const held = PHYSICAL_ORDER.filter((stat) => test(stats[stat]));
   return held.length === 0 ? [] : [header, ...held.map((stat) => header + offsets[stat])];
 }
 
@@ -226,7 +213,7 @@ function attitudeRows(c: ImpReportCharacter): number[] {
 }
 
 function skillRows(c: ImpReportCharacter): number[] {
-  const s = c.initial;
+  const s = c.stats;
   return [
     ...range(SKILLS, SKILLS_LENGTH),
     ...skillSection(IMPERIAL_SKILLS, SKILL_ORDERS.imperial, (v) => v >= SUPER_SKILL_VALUE, s),
@@ -243,7 +230,7 @@ function skillRows(c: ImpReportCharacter): number[] {
 }
 
 function physicalRows(c: ImpReportCharacter): number[] {
-  const s = c.initial;
+  const s = c.stats;
   return [
     ...range(PHYSICAL, PHYSICAL_LENGTH),
     ...physicalSection(PHYSICAL_SUPER, PHYSICAL_OFFSETS.super, (v) => v >= SUPER_STAT_VALUE, s),
@@ -252,23 +239,12 @@ function physicalRows(c: ImpReportCharacter): number[] {
   ];
 }
 
-export function impPortraitIndex(portraits: readonly ImpReportPortrait[], face: number): number {
-  return portraits.findIndex((p) => p.face === face);
-}
-
-export function impHasBigBody(c: ImpReportCharacter, portraits: readonly ImpReportPortrait[]): boolean {
-  if (c.sex !== MALE) return false;
-  const portrait = portraits[impPortraitIndex(portraits, c.faceIndex)];
-  return portrait?.bigBody === true && c.initial.strength >= BIG_BODY_MIN_STRENGTH;
-}
-
-function looksOffset(c: ImpReportCharacter, portraits: readonly ImpReportPortrait[]): number {
-  const big = impHasBigBody(c, portraits);
+function looksOffset(portrait: number): number {
   const male = (n: number) => PORTRAIT_MALE_1 + (n - 1) * PORTRAIT_STEP;
   const female = (n: number) => PORTRAIT_FEMALE_1 + (n - 1) * PORTRAIT_STEP;
-  switch (impPortraitIndex(portraits, c.faceIndex)) {
+  switch (portrait) {
     case 0:
-      return big ? male(1) : male(2);
+      return male(1);
     case 1:
       return male(2);
     case 2:
@@ -280,7 +256,7 @@ function looksOffset(c: ImpReportCharacter, portraits: readonly ImpReportPortrai
       return male(5);
     case 6:
     case 7:
-      return big ? male(6) : male(2);
+      return male(6);
     case 8:
       return female(1);
     case 9:
@@ -294,12 +270,12 @@ function looksOffset(c: ImpReportCharacter, portraits: readonly ImpReportPortrai
     case 14:
       return female(5);
     default:
-      return c.sex !== MALE ? female(1) : big ? male(1) : male(2);
+      return PORTRAIT;
   }
 }
 
-export function impReportRows(c: ImpReportCharacter, portraits: readonly ImpReportPortrait[], evenLooks: boolean): ImpReportRecord[] {
-  const looks = looksOffset(c, portraits) + (evenLooks ? LOOKS_ALTERNATIVE : 0);
+export function impReportRows(c: ImpReportCharacter, evenLooks: boolean): ImpReportRecord[] {
+  const looks = looksOffset(c.portrait) + (evenLooks ? LOOKS_ALTERNATIVE : 0);
   const rows = [
     ...range(1, INTRO_LENGTH - 1),
     ...personalityRows(c),

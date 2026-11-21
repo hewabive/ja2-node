@@ -1,7 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/externalized/policy/DefaultIMPPolicy.cc (imp.json), IMPPolicy.h IMPItemCondition; policy/DefaultGamePolicy.cc
-// @src (imp.*, pablo_wont_steal); MERCListingModel.cc (mercs-MERC-listings.json with the Speck quotes); src/game/Laptop/AIMSort.cc
+// @src src/externalized/policy/DefaultIMPPolicy.cc (imp.json); policy/DefaultGamePolicy.cc (imp.*, pablo_wont_steal);
+// @src src/game/Laptop/IMP_Confirm.cc g_face_info and IMP_Compile_Character.cc SetMercSkinAndHairColors (through
+// @src tables/imp-faces.json), SelectMercFace (the face 200 + portrait number); IMP_Portraits.cc iLastPicture (eight
+// @src portraits a gender, the women's from 208); MERCListingModel.cc (mercs-MERC-listings.json with the Speck quotes); src/game/Laptop/AIMSort.cc
 // @src EnterAimSort (the listing order, through tables/laptop.json); DealerInventory.cc (bobby-ray-inventory-*.json);
 // @src ShippingDestinationModel.cc (shipping-destinations.json); internals/enums.cc (inventory slot names);
 // @src src/game/Laptop/Florist_Gallery.cc FLOR_GALLERY_NUMBER_FLORAL_IMAGES, DisplayFloralDescriptions (the price column of
@@ -17,9 +19,14 @@ import { asArray, asBool, asInt, asObject, asString, type JsonObject } from './j
 import { parseJsoncBytes } from './jsonc.ts';
 import { parseSectorId } from './sector-ids.ts';
 
+export const IMP_FACES_PATH = 'tables/imp-faces.json';
+export const IMP_PORTRAITS_PER_GENDER = 8;
+const IMP_FIRST_FACE = 200;
+
 export const LAPTOP_CONTENT_PATHS = {
   tables: 'tables/laptop.json',
   imp: 'externalized/imp.json',
+  impFaces: IMP_FACES_PATH,
   policy: 'externalized/game.json',
   mercListings: 'externalized/mercs-MERC-listings.json',
   profileInfo: 'externalized/mercs-profile-info.json',
@@ -41,26 +48,11 @@ export type QuizEffect =
   | { readonly list: QuizList; readonly value: number }
   | { readonly list: 'skill'; readonly male: number; readonly female: number };
 
-export type ImpConditionValue = number | string;
-export type ImpCondition = readonly [ImpConditionValue, ImpConditionValue];
-
-export interface ImpItemSet {
-  readonly conditions: readonly ImpCondition[];
-  readonly slot: number | null;
-  readonly items: readonly number[];
-}
-
-export interface ImpVoice {
-  readonly male: boolean;
-  readonly profile: number;
-}
-
 export interface ImpPortrait {
-  readonly male: boolean;
   readonly face: number;
+  readonly male: boolean;
   readonly skin: string;
   readonly hair: string;
-  readonly bigBody: boolean;
   readonly eyes: readonly [number, number];
   readonly mouth: readonly [number, number];
 }
@@ -68,15 +60,14 @@ export interface ImpPortrait {
 export interface ImpContent {
   readonly codes: readonly string[];
   readonly startingLevel: number;
-  readonly sendsProfileResultsEmail: boolean;
-  readonly voices: readonly ImpVoice[];
+  readonly inventory: readonly number[];
+  readonly goodShooterItems: readonly number[];
+  readonly normalShooterItems: readonly number[];
   readonly portraits: readonly ImpPortrait[];
-  readonly inventory: readonly ImpItemSet[];
   readonly maxAttributePoints: number;
   readonly minAttributePoints: number;
   readonly zeroAttributePointsBonus: number;
   readonly bonusAttributePoints: number;
-  readonly maxCharacters: number;
   readonly pickSkillsDirectly: boolean;
 }
 
@@ -132,36 +123,14 @@ export interface LaptopContent {
   readonly bouquetPrices: readonly number[];
 }
 
-const INVENTORY_SLOTS: Readonly<Record<string, number>> = {
-  HELMET: 0,
-  VEST: 1,
-  LEGS: 2,
-  HEAD1: 3,
-  HEAD2: 4,
-  HANDPOS: 5,
-  SECONDHAND: 6,
-  BIGPOCK1: 7,
-  BIGPOCK2: 8,
-  BIGPOCK3: 9,
-  BIGPOCK4: 10,
-  SMALLPOCK1: 11,
-  SMALLPOCK2: 12,
-  SMALLPOCK3: 13,
-  SMALLPOCK4: 14,
-  SMALLPOCK5: 15,
-  SMALLPOCK6: 16,
-  SMALLPOCK7: 17,
-  SMALLPOCK8: 18,
-};
 const DEFAULT_IMP_POLICY = {
+  startingLevel: 1,
   maxAttributePoints: 85,
   minAttributePoints: 35,
   zeroAttributePointsBonus: 15,
   bonusAttributePoints: 40,
-  maxCharacters: 1,
   pickSkillsDirectly: false,
 };
-const MALE = 'MALE';
 
 function intOr(o: JsonObject, key: string, fallback: number, what: string): number {
   return o[key] === undefined ? fallback : asInt(o[key], `${what}.${key}`);
@@ -182,61 +151,41 @@ function itemIndex(items: ItemTable, name: string, what: string): number {
   return def.index;
 }
 
-function conditionValue(value: unknown, what: string): ImpConditionValue {
-  return typeof value === 'number' ? asInt(value, what) : asString(value, what);
+function itemList(json: unknown, items: ItemTable, what: string): number[] {
+  return asArray(json, what).map((n, k) => itemIndex(items, asString(n, `${what}[${k}]`), what));
 }
 
-function impItemSets(json: unknown, items: ItemTable): ImpItemSet[] {
-  return asArray(json, 'imp.inventory').map((v, i) => {
-    const what = `imp.inventory[${i}]`;
-    const o = asObject(v, what);
-    const raw = o.conditions === undefined ? [] : asArray(o.conditions, `${what}.conditions`);
-    if (raw.length % 2 !== 0) throw new FormatError(`${what}: conditions need pairs`);
-    const conditions: ImpCondition[] = [];
-    for (let k = 0; k < raw.length; k += 2)
-      conditions.push([conditionValue(raw[k], `${what}.conditions[${k}]`), conditionValue(raw[k + 1], `${what}.conditions[${k + 1}]`)]);
-    const slotName = o.slot === undefined ? null : asString(o.slot, `${what}.slot`);
-    const slot = slotName === null ? null : (INVENTORY_SLOTS[slotName] ?? null);
-    if (slotName !== null && slot === null) throw new FormatError(`${what}: unknown slot ${slotName}`);
+export function parseImpPortraits(json: unknown): ImpPortrait[] {
+  const tables = asObject(json, 'imp faces');
+  return asArray(tables.portraits, 'imp faces.portraits').map((v, i) => {
+    const what = `imp faces.portraits[${i}]`;
+    const e = asObject(v, what);
     return {
-      conditions,
-      slot,
-      items: asArray(o.items, `${what}.items`).map((n, k) => itemIndex(items, asString(n, `${what}.items[${k}]`), what)),
+      face: IMP_FIRST_FACE + i,
+      male: i < IMP_PORTRAITS_PER_GENDER,
+      skin: asString(e.skin, `${what}.skin`),
+      hair: asString(e.hair, `${what}.hair`),
+      eyes: pair(e.eyes, `${what}.eyes`),
+      mouth: pair(e.mouth, `${what}.mouth`),
     };
   });
 }
 
-function parseImpContent(impJson: unknown, policyJson: unknown, items: ItemTable): ImpContent {
+function parseImpContent(impJson: unknown, facesJson: unknown, policyJson: unknown, items: ItemTable): ImpContent {
   const o = asObject(impJson, 'imp');
   const policy = asObject(policyJson, 'game policy');
   const p = policy.imp === undefined ? {} : asObject(policy.imp, 'game policy.imp');
   return {
     codes: asArray(o.activation_codes, 'imp.activation_codes').map((c, i) => asString(c, `imp.activation_codes[${i}]`)),
-    startingLevel: asInt(o.starting_level, 'imp.starting_level'),
-    sendsProfileResultsEmail: boolOr(o, 'send_profile_results_email', true, 'imp'),
-    voices: asArray(o.voices, 'imp.voices').map((v, i) => {
-      const e = asObject(v, `imp.voices[${i}]`);
-      return { male: asString(e.gender, `imp.voices[${i}].gender`) === MALE, profile: asInt(e.profile, `imp.voices[${i}].profile`) };
-    }),
-    portraits: asArray(o.portraits, 'imp.portraits').map((v, i) => {
-      const what = `imp.portraits[${i}]`;
-      const e = asObject(v, what);
-      return {
-        male: asString(e.gender, `${what}.gender`) === MALE,
-        face: asInt(e.face, `${what}.face`),
-        skin: asString(e.skin, `${what}.skin`),
-        hair: asString(e.hair, `${what}.hair`),
-        bigBody: boolOr(e, 'big_body', false, what),
-        eyes: pair(e.eyes, `${what}.eyes`),
-        mouth: pair(e.mouth, `${what}.mouth`),
-      };
-    }),
-    inventory: impItemSets(o.inventory, items),
+    startingLevel: intOr(o, 'starting_level', DEFAULT_IMP_POLICY.startingLevel, 'imp'),
+    inventory: itemList(o.inventory, items, 'imp.inventory'),
+    goodShooterItems: itemList(o.if_good_shooter, items, 'imp.if_good_shooter'),
+    normalShooterItems: itemList(o.if_normal_shooter, items, 'imp.if_normal_shooter'),
+    portraits: parseImpPortraits(facesJson),
     maxAttributePoints: intOr(p, 'max_attribute_points', DEFAULT_IMP_POLICY.maxAttributePoints, 'imp'),
     minAttributePoints: intOr(p, 'min_attribute_points', DEFAULT_IMP_POLICY.minAttributePoints, 'imp'),
     zeroAttributePointsBonus: intOr(p, 'zero_attribute_points_bonus', DEFAULT_IMP_POLICY.zeroAttributePointsBonus, 'imp'),
     bonusAttributePoints: intOr(p, 'bonus_attribute_points', DEFAULT_IMP_POLICY.bonusAttributePoints, 'imp'),
-    maxCharacters: intOr(p, 'max_characters', DEFAULT_IMP_POLICY.maxCharacters, 'imp'),
     pickSkillsDirectly: boolOr(p, 'pick_skills_directly', DEFAULT_IMP_POLICY.pickSkillsDirectly, 'imp'),
   };
 }
@@ -368,7 +317,7 @@ export function parseLaptopContent(
     impQuiz: asArray(tables.impQuiz, 'laptop tables.impQuiz').map((q, i) =>
       asArray(q, `laptop tables.impQuiz[${i}]`).map((a, k) => quizEffect(a, `laptop tables.impQuiz[${i}][${k}]`)),
     ),
-    imp: parseImpContent(sources.imp, sources.policy, items),
+    imp: parseImpContent(sources.imp, sources.impFaces, sources.policy, items),
     mercListings: parseMercListings(sources.mercListings, profileIds),
     aimOrder: parseAimOrder(tables.aimOrder),
     bobbyRayNew: parseStoreMaxima(sources.bobbyRayNew, items, 'bobby ray inventory new'),
@@ -408,7 +357,7 @@ export function mailOffset(content: LaptopContent, name: string): number {
   return offset;
 }
 
-const NUM_PROFILES = 200;
+const NUM_PROFILES = 170;
 const STUB_TEXT_PREFIX = 'stubs/';
 const MERC_TYPE_RPC = 4;
 const MERC_TYPE_NPC = 5;

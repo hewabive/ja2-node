@@ -1,6 +1,7 @@
 import type { AnimationTimelines, PresentationTimeline } from '../content/anim/timelines.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { type ProfileFaceRecord, profileFaceRecord } from '../content/narrative/profile-presentation.ts';
+import { MercType } from '../content/strategic/economy-content.ts';
 import type { UiStrings } from '../content/text/strings.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
@@ -17,7 +18,7 @@ import type {
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { InstallationSettings } from '../sim/campaign/installation.ts';
-import { isImpSlotType, withImpPortraitFaceOffsets } from '../sim/campaign/laptop/imp.ts';
+import { withImpPortraitFaceOffsets } from '../sim/campaign/laptop/imp.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { nicknameOverrides, shownNickname } from '../sim/campaign/profile-names.ts';
@@ -276,7 +277,7 @@ export class CampaignSession implements SessionSim {
     const characters = this.campaign.state.laptop.imp.profiles;
     const base = this.origin?.parts.content.profiles ?? this.campaign.battle?.content.profiles ?? [];
     const types = this.campaign.economy?.economy.mercTypes;
-    const freeForImp = (id: number) => types !== undefined && isImpSlotType(types.get(id));
+    const freeForImp = (id: number) => types?.get(id) === MercType.IMP;
     const declared = base.flatMap((p) => (p === undefined || characters.has(p.id) || freeForImp(p.id) ? [] : [p]));
     const portraits = this.campaign.laptop?.content.imp.portraits ?? [];
     const created = [...characters.values()].map((c) => withImpPortraitFaceOffsets(c, portraits));
@@ -339,9 +340,8 @@ export class CampaignSession implements SessionSim {
       : { clock, ...battle, ...shop, ...laptop, ...talk, ...story };
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
-    const imp = this.campaign.state.laptop.imp.voices;
     const stepping = this.campaign.state.flow === 'tactical';
-    const view = tacticalPlayerView(tactical, this.tick, this.presentation, (profile) => imp.get(profile) ?? profile, stepping);
+    const view = tacticalPlayerView(tactical, this.tick, this.presentation, stepping);
     return { ...view, soldiers: withMerchantLabels(this.campaign, view.soldiers), ...extra };
   }
 }

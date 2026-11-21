@@ -133,7 +133,7 @@ export function dialogueTextKey(host: NarrativeHost, profile: number, quote: num
   const usesNpcFile =
     isNpcOrRpc(host, profile) &&
     (!host.recruited(profile) || profileCurrentlyTalkingInDialoguePanel(host, profile) || forcedNpcQuote(host, profile));
-  return textKey(usesNpcFile ? npcDialogueFile(profile) : mercDialogueFile(host.voice(profile)), quote);
+  return textKey(usesNpcFile ? npcDialogueFile(profile) : mercDialogueFile(profile), quote);
 }
 
 export function characterDialogue(

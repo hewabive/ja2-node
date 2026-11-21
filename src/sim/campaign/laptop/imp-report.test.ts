@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Personality, SkillTrait } from '../../tactical/soldier.ts';
-import { type ImpReportCharacter, impHasBigBody, impInitialStats, impReportRows } from './imp-report.ts';
-
-const PORTRAITS = [
-  { face: 200, bigBody: true },
-  { face: 201, bigBody: false },
-  { face: 202, bigBody: false },
-  { face: 203, bigBody: false },
-  { face: 204, bigBody: false },
-  { face: 205, bigBody: false },
-  { face: 206, bigBody: true },
-  { face: 207, bigBody: true },
-  { face: 208, bigBody: false },
-];
+import { type ImpReportCharacter, impReportRows } from './imp-report.ts';
 
 const AVERAGE = {
   life: 70,
@@ -27,39 +15,25 @@ const AVERAGE = {
   medical: 70,
 };
 
-const ZERO_DELTAS = {
-  life: 0,
-  agility: 0,
-  dexterity: 0,
-  strength: 0,
-  leadership: 0,
-  wisdom: 0,
-  marksmanship: 0,
-  mechanical: 0,
-  explosives: 0,
-  medical: 0,
-};
-
 function character(overrides: Partial<ImpReportCharacter> = {}): ImpReportCharacter {
   return {
-    sex: 0,
-    faceIndex: 201,
+    portrait: 1,
     personalityTrait: Personality.NONE,
     attitude: 0,
     skillTrait: SkillTrait.NONE,
     skillTrait2: SkillTrait.NONE,
-    initial: AVERAGE,
+    stats: AVERAGE,
     ...overrides,
   };
 }
 
 function rows(c: ImpReportCharacter, even = false): number[] {
-  return impReportRows(c, PORTRAITS, even).map((r) => r.row);
+  return impReportRows(c, even).map((r) => r.row);
 }
 
 describe('the I.M.P. results mail (HandleIMPCharProfileResultsMessage)', () => {
   it('assembles an average character from the fixed sections', () => {
-    const report = impReportRows(character(), PORTRAITS, false);
+    const report = impReportRows(character(), false);
     expect(report[0]).toEqual({ row: 0, appendName: true });
     expect(report.filter((r) => r.appendName)).toHaveLength(1);
     expect(rows(character())).toEqual([
@@ -93,7 +67,7 @@ describe('the I.M.P. results mail (HandleIMPCharProfileResultsMessage)', () => {
     const c = character({
       skillTrait: SkillTrait.KNIFING,
       skillTrait2: SkillTrait.LOCKPICKING,
-      initial: {
+      stats: {
         ...AVERAGE,
         marksmanship: 85,
         medical: 0,
@@ -119,28 +93,19 @@ describe('the I.M.P. results mail (HandleIMPCharProfileResultsMessage)', () => {
     ]);
   });
 
-  it('describes the looks by portrait, build and the fixed parity choice', () => {
-    expect(impHasBigBody(character({ faceIndex: 200, initial: { ...AVERAGE, strength: 75 } }), PORTRAITS)).toBe(true);
-    expect(impHasBigBody(character({ faceIndex: 200, initial: { ...AVERAGE, strength: 74 } }), PORTRAITS)).toBe(false);
-    expect(impHasBigBody(character({ sex: 1, faceIndex: 200, initial: { ...AVERAGE, strength: 90 } }), PORTRAITS)).toBe(false);
+  it('describes the looks by the portrait number alone and the fixed parity choice', () => {
     const looks = (c: ImpReportCharacter, even = false) => rows(c, even).slice(-5, -3);
-    expect(looks(character({ faceIndex: 200, initial: { ...AVERAGE, strength: 80 } }))).toEqual([181, 182]);
-    expect(looks(character({ faceIndex: 200 }))).toEqual([185, 186]);
-    expect(looks(character({ faceIndex: 200 }), true)).toEqual([187, 188]);
-    expect(looks(character({ faceIndex: 207 }))).toEqual([185, 186]);
-    expect(looks(character({ faceIndex: 207, initial: { ...AVERAGE, strength: 80 } }))).toEqual([201, 202]);
-    expect(looks(character({ faceIndex: 208, sex: 1 }))).toEqual([205, 206]);
-    expect(looks(character({ faceIndex: 999, sex: 1 }))).toEqual([205, 206]);
-  });
-});
-
-describe('the stats the report reads (EMail.cc HandleIMPCharProfileResultsMessage bInitial*)', () => {
-  it('are the profile less the gains a save carries, in the signed byte of the original', () => {
-    const trained = { ...AVERAGE, marksmanship: 95, wisdom: 90, deltas: { ...ZERO_DELTAS, marksmanship: 25, wisdom: -40 } };
-    expect(impInitialStats(trained)).toEqual({ ...AVERAGE, marksmanship: 70, wisdom: 130 - 256 });
+    expect(looks(character({ portrait: 0, stats: { ...AVERAGE, strength: 40 } }))).toEqual([181, 182]);
+    expect(looks(character({ portrait: 0 }), true)).toEqual([183, 184]);
+    expect(looks(character({ portrait: 1 }))).toEqual([185, 186]);
+    expect(looks(character({ portrait: 7, stats: { ...AVERAGE, strength: 40 } }))).toEqual([201, 202]);
+    expect(looks(character({ portrait: 8 }))).toEqual([205, 206]);
+    expect(looks(character({ portrait: 14 }), true)).toEqual([223, 224]);
   });
 
-  it('are the profile itself when it carries no gains, as a character created in this game does', () => {
-    expect(impInitialStats(AVERAGE)).toEqual(AVERAGE);
+  it("gives the last woman's portrait the portrait section's own opening as her looks, as the switch has no case for it (quirk)", () => {
+    const looks = (c: ImpReportCharacter, even = false) => rows(c, even).slice(-5, -3);
+    expect(looks(character({ portrait: 15 }))).toEqual([175, 176]);
+    expect(looks(character({ portrait: 15 }), true)).toEqual([177, 178]);
   });
 });

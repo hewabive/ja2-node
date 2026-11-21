@@ -1248,7 +1248,7 @@ slices (so a real-time driver paces it), `{events}` up to the slice in which one
 `data.choices`; only `done` closes it and returns to the strategic flow. A battle that no fighter can
 change any more ends with the status `stalemate`, which the original never reaches (original-bugs "Autoresolve
 stalemate"). Each of `autoresolve.cells` carries its fighter's battle voice, `voice`, the sound set his cries come from
-(a merc's voice id, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:274`, `:337`), and
+(a merc's profile, a militia's or enemy's set drawn at his creation, `Tactical/Soldier_Create.cc:274`, `:337`), and
 `female`.
 
 ### 8.11 Laptop and hiring
@@ -1478,7 +1478,7 @@ carries no music and no sound.
 ## 11. Endpoints for the player UI, and diagnostics
 
 - `GET /api/sessions/:id/profiles` (`src/content/narrative/profile-presentation.ts`): names, faces and bios for the
-  client's faces and pages; on stubs from `stubs/profiles.json`. A profile free for I.M.P. is listed only once a
+  client's faces and pages; on stubs from `stubs/profiles.json`. An I.M.P. slot (51–56) is listed only once a
   character is created there (`profileFaceRecords`, `src/server/campaign-session.ts`), so the map and tactical screens,
   which fetch the list again when the team shows a profile they do not know, pick up a character created after they
   loaded; the laptop fetches it again after `impCreate` (`src/ui/screens/laptop/imp/imp-pages.ts`).

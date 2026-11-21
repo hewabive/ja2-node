@@ -121,7 +121,6 @@ import {
 import { hourlyCamouflageUpdate } from './camouflage.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
-import { profileVoice } from './laptop/laptop-state.ts';
 import {
   beginCaptureSequence,
   CaptureFlag,
@@ -1202,7 +1201,7 @@ export class BattleFlow implements FateContext {
 
   #deathCry(soldier: Soldier): { readonly cry?: DeathCry } {
     if (soldier.muted) return {};
-    const voice = unseenVictim(soldier, (profile) => profileVoice(this.state.laptop.imp, profile));
+    const voice = unseenVictim(soldier);
     const at = soldier.gridNo === NOWHERE ? {} : { gridNo: soldier.gridNo };
     return { cry: { ...voice, team: soldier.team, ...at } };
   }

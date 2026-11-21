@@ -2924,6 +2924,45 @@ function dropStatDamage(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const IMP_KEY = 'imp';
+const MASTER_IMP_KEYS = ['taken', 'voices'];
+const NPC_RECORDS_KEY = 'npcRecords';
+const NPC_RECORD_ARRAYS = ['arrays', 'backups'];
+const V0221_PROFILES = 170;
+
+function withOneImp(laptop: JsonObject): JsonObject {
+  const imp = laptop[IMP_KEY];
+  if (!isObject(imp) || imp[REF] !== undefined) return laptop;
+  return { ...laptop, [IMP_KEY]: withoutKeys(imp, MASTER_IMP_KEYS) };
+}
+
+function withV0221Profiles(records: JsonObject): JsonObject {
+  const out: Record<string, Json> = { ...records };
+  for (const key of NPC_RECORD_ARRAYS) {
+    const list = records[key];
+    if (Array.isArray(list) && list.slice(V0221_PROFILES).every((entry) => entry === null)) out[key] = list.slice(0, V0221_PROFILES);
+  }
+  return out;
+}
+
+function withV0221ImpModel(strategic: JsonObject): JsonObject {
+  const laptop = strategic[LAPTOP_KEY];
+  const records = strategic[NPC_RECORDS_KEY];
+  return {
+    ...strategic,
+    ...(isObject(laptop) && laptop[REF] === undefined ? { [LAPTOP_KEY]: withOneImp(laptop) } : {}),
+    ...(isObject(records) && records[REF] === undefined ? { [NPC_RECORDS_KEY]: withV0221Profiles(records) } : {}),
+  };
+}
+
+function revertToV0221ImpModel(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withV0221ImpModel(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -3030,5 +3069,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     102: keepGaplessSlotsAsTheFixedArray,
     103: (snapshot) => liftThrownObjectsOntoTheLand(snapshot, context),
     104: dropStatDamage,
+    105: revertToV0221ImpModel,
   };
 }

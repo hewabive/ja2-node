@@ -136,7 +136,6 @@ import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts'
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { type GiveRequest, giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
-import { profileVoice } from './laptop/laptop-state.ts';
 import { MoraleEvent } from './morale.ts';
 import { campaignMeanwhileActions } from './narrative/meanwhile-actions.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
@@ -502,7 +501,6 @@ export class TalkFlow {
       questValue: (index) => (index < QUEST_ARRAY_LENGTH ? (state.narrative.quests[index] ?? 0) : OVERRUN_QUEST_VALUE),
       townRating: (town) => state.economy.towns[town]?.rating ?? 0,
       threat: (merc) => this.#threat(merc),
-      voice: (profile) => profileVoice(state.laptop.imp, profile),
       worldSector: () => state.worldSector,
       isEpc: (s) => this.#isEpc(s),
       onSquad: (s) => this.#onSquad(s),

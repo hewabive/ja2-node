@@ -2,8 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Laptop.cc LoadLaptopInfoFromSavedGame; Laptop/Mercs.cc SyncLastMercFromSaveGame;
 // @src Laptop/BobbyRMailOrder.cc NewWayOfLoadingBobbyRMailOrdersToSaveGameFile; LoadSaveEMail.cc LoadEmailFromSavedGame;
-// @src Laptop/History.cc, Laptop/Files.cc (temp files); SaveLoadGame.cc LoadSavedMercProfiles (I.M.P. slot states, the
-// @src pre-104 fallback), LoadGeneralInfo (g_merc_arrive_sector, fNewMailFlag), the facts and quests.
+// @src Laptop/History.cc, Laptop/Files.cc (temp files); SaveLoadGame.cc LoadGeneralInfo (g_merc_arrive_sector,
+// @src fNewMailFlag), the facts and quests.
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
 import { readSavedLaptop, type SavedLaptop, type SavedLaptopInfo } from '../../../content/formats/savegame-laptop.ts';
@@ -11,9 +11,9 @@ import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { MAP_SIDE, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { importNarrative } from '../../strategic/narrative/facts.ts';
 import type { StrategicState } from '../../strategic/state.ts';
+import { impProfileId } from './imp.ts';
 import type { LaptopState, StoreSlot } from './laptop-state.ts';
 
-export const PLAYER_GENERATED_CHARACTER_ID = 51;
 const IMP_SLOT_TAKEN = 1;
 const LastMercArrival = { NUMB: 2, COUGAR: 3 } as const;
 
@@ -71,9 +71,9 @@ function importMercSite(l: LaptopState, info: SavedLaptopInfo, options: LaptopIm
   merc.hasAMercDiedAtSite = info.hasAMercDiedAtMercSite;
 }
 
-function takenImpSlots(saved: SavedLaptop): number[] {
+function impCharacters(saved: SavedLaptop): number[] {
   if (saved.impSlotStates) return saved.impSlotStates.flatMap((state, id) => (state === IMP_SLOT_TAKEN ? [id] : []));
-  return saved.info.impCompleted ? [PLAYER_GENERATED_CHARACTER_ID + saved.info.voiceId] : [];
+  return saved.info.impCompleted ? [impProfileId(saved.info.voiceId)] : [];
 }
 
 function importImp(l: LaptopState, saved: SavedLaptop, save: SaveGame, declared: LaptopImportOptions['declaredProfiles']): void {
@@ -82,12 +82,10 @@ function importImp(l: LaptopState, saved: SavedLaptop, save: SaveGame, declared:
   imp.completed = info.impCompleted;
   imp.sentImpWarningAlready = info.sentImpWarningAlready;
   imp.voiceId = info.voiceId;
-  replace(imp.taken, takenImpSlots(saved));
+  const characters = impCharacters(saved);
   imp.profiles.clear();
-  imp.voices.clear();
-  for (const id of imp.taken) imp.voices.set(id, saved.voiceIds?.[id] ?? id);
   save.profiles.forEach((profile, id) => {
-    if (profile && (imp.taken.includes(id) || (declared !== undefined && !declared.has(id)))) imp.profiles.set(id, profile);
+    if (profile && (characters.includes(id) || (declared !== undefined && !declared.has(id)))) imp.profiles.set(id, profile);
   });
 }
 

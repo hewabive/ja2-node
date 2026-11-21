@@ -26,14 +26,8 @@ export function screamVolume(t: LoadedSector, s: Soldier, combinedLoss: number):
   return volume > LOUDEST_SCREAM - effectiveExpLevel(t, s) ? u8(LOUDEST_SCREAM - effectiveExpLevel(t, s)) : volume;
 }
 
-const PROFILE_VOICE = (profile: number) => profile;
-
-export function unseenVictim(s: Soldier, voiceOf: (profile: number) => number = PROFILE_VOICE): UnseenVictim {
-  const profile = s.profile === NO_PROFILE ? null : s.profile;
-  return {
-    voice: battleVoiceBasename(profile, profile === null ? 0 : voiceOf(profile), s.bodyType, s.battleSoundId),
-    bodyType: s.bodyType,
-  };
+export function unseenVictim(s: Soldier): UnseenVictim {
+  return { voice: battleVoiceBasename(s.profile === NO_PROFILE ? null : s.profile, s.bodyType, s.battleSoundId), bodyType: s.bodyType };
 }
 
 export function heardOnly(t: TacticalState, s: Soldier, volume: number, kind: number): { readonly heard?: HeardFrom } {

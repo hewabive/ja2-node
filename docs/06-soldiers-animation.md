@@ -214,9 +214,6 @@ reading the source:
 - A soldier's shade never carries the `0x30` bits: the lighting clamps levels to 0–15, so ja2-node drops them.
 - `ja2prof.dat` is not loaded: its placeholders only tell the original's aim cursor the body part under it on a
   soldier in a prone sheet who is not lying yet (the cursor skips lying soldiers), and a facing change removes them.
-- ja2-node keeps the `prof.dat` records of the profiles `mercs-profile-info.json` leaves out (the I.M.P. slots 51–56,
-  165–169), which Stracciatella replaces by empty ones; no path is known to read them before I.M.P. creation
-  overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
 Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts",

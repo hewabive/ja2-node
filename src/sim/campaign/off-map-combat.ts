@@ -13,7 +13,6 @@ import type { NarrativePort } from '../tactical/narrative/port.ts';
 import { inSector } from '../tactical/soldier.ts';
 import { unseenVictim } from '../tactical/unseen-sources.ts';
 import type { CampaignSim } from './campaign-sim.ts';
-import { profileVoice } from './laptop/laptop-state.ts';
 import { campaignNarrativePort } from './narrative-port.ts';
 
 export type CombatEvents = CombatContext['events'];
@@ -66,5 +65,5 @@ export function voicedOnTheMapScreen(c: CampaignSim, e: SimEvent): SimEvent {
 function voiceOffTheLoadedMap(c: CampaignSim, soldier: number): { readonly cry?: DeathCry } {
   const s = c.battle?.roster.get(soldier)?.soldier;
   if (!s || s.muted || inSector(s)) return {};
-  return { cry: { ...unseenVictim(s, (profile) => profileVoice(c.state.laptop.imp, profile)), team: s.team } };
+  return { cry: { ...unseenVictim(s), team: s.team } };
 }

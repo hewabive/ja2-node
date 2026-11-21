@@ -15,8 +15,9 @@ import { createSaveSession } from '../../../server/save-session.ts';
 import { createStrategicState } from '../../strategic/state.ts';
 import { loadTacticalContent } from '../../tactical/load-content.ts';
 import { Team } from '../../tactical/soldier.ts';
+import { PLAYER_GENERATED_CHARACTER_ID } from './imp.ts';
 import { mailType } from './mail.ts';
-import { applySavedLaptop, PLAYER_GENERATED_CHARACTER_ID } from './save-import.ts';
+import { applySavedLaptop } from './save-import.ts';
 
 const PERSONNEL = 256;
 const AIM_MERC_KIND = 1;
@@ -83,13 +84,18 @@ function saved(overrides: Partial<SavedLaptop> = {}, infoOverrides: Partial<Save
       { offset: 19, length: 5, sender: 4, date: 6180, firstData: 0, secondData: 0, read: false },
     ],
     impSlotStates: null,
-    voiceIds: null,
     mercArriveSector: { x: 9, y: 1 },
     ...overrides,
   };
 }
 
 const SAVE = { profiles: [], facts: [0, 1], quests: [2], generalInfo: { newMailFlag: true } } as unknown as SaveGame;
+
+function withProfiles(ids: readonly number[]): SaveGame {
+  const profiles: { id: number }[] = [];
+  for (const id of ids) profiles[id] = { id };
+  return { ...SAVE, profiles } as unknown as SaveGame;
+}
 
 describe('importing the laptop state', () => {
   it('copies mails with fresh ids, records, sites, payouts and the landing zone', () => {
@@ -120,24 +126,24 @@ describe('importing the laptop state', () => {
     expect(state.narrative.facts[1]).toBe(1);
   });
 
-  it('falls back to the start sector for an invalid landing zone and to iVoiceId for old I.M.P. saves', () => {
+  it('falls back to the start sector for an invalid landing zone and keeps the I.M.P. of an old save at 51 + iVoiceId', () => {
     const state = createStrategicState();
-    applySavedLaptop(state, SAVE, saved({ mercArriveSector: { x: 0, y: 0 } }, { impCompleted: true, voiceId: 2 }), { startSector: 8 });
+    const imp = PLAYER_GENERATED_CHARACTER_ID + 2;
+    const save = withProfiles([imp - 1, imp, imp + 1]);
+    applySavedLaptop(state, save, saved({ mercArriveSector: { x: 0, y: 0 } }, { impCompleted: true, voiceId: 2 }), { startSector: 8 });
     expect(state.laptop.mercArriveSector).toBe(8);
-    expect(state.laptop.imp.taken).toEqual([PLAYER_GENERATED_CHARACTER_ID + 2]);
+    expect([...state.laptop.imp.profiles.keys()]).toEqual([imp]);
+    expect(state.laptop.imp).toMatchObject({ completed: true, voiceId: 2 });
   });
 
-  it('reads the taken I.M.P. slots from the per-profile states', () => {
+  it('keeps every I.M.P. character a newer save holds in the profile it holds him, whatever his voice', () => {
     const state = createStrategicState();
     const slots = new Array<number>(200).fill(0);
     slots[52] = 1;
     slots[170] = 1;
-    applySavedLaptop(state, SAVE, saved({ impSlotStates: slots, voiceIds: slots.map((_, i) => i) }));
-    expect(state.laptop.imp.taken).toEqual([52, 170]);
-    expect([...state.laptop.imp.voices]).toEqual([
-      [52, 52],
-      [170, 170],
-    ]);
+    applySavedLaptop(state, withProfiles([51, 52, 53, 170]), saved({ impSlotStates: slots }, { impCompleted: true, voiceId: 4 }));
+    expect([...state.laptop.imp.profiles.keys()]).toEqual([52, 170]);
+    expect(state.laptop.imp).toMatchObject({ completed: true, voiceId: 4 });
   });
 
   it('moves the last M.E.R.C. index back by one for old saves listing both Larrys', () => {

@@ -43,7 +43,6 @@ const AFTER_THE_SKULL = { ticks: 2000 };
 const LINE_TICKS = { ticks: 3000 };
 const COLLAPSED_LIFE = 5;
 const COLLAPSE_TICKS = { ticks: 400 };
-const IMP_VOICE = 52;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -173,17 +172,15 @@ describe('a merc of ours dying off the tactical map (Soldier_Control.cc HandleTa
     expect(state.queue.events.some((e) => e.kind === EventKind.INSURANCE_INVESTIGATION_STARTED)).toBe(true);
   });
 
-  it("names the voice of his death cry by his profile's voice, an I.M.P.'s chosen one, and none for a muted merc", async () => {
+  it('names the voice of his death cry by his profile, and none for a muted merc', async () => {
     const c = await kestrelInB9(31);
     const kestrel = merc(c, KESTREL);
-    c.session.campaign.state.laptop.imp.voices.set(KESTREL, IMP_VOICE);
     kestrel.soldier.muted = true;
     bleedTheLastPoint(tactical(c), kestrel);
     expect(ofType(c.session.campaign.drainEvents(), 'mercDied')).toEqual([expect.not.objectContaining({ cry: expect.anything() })]);
     const other = await kestrelInB9(31);
-    other.session.campaign.state.laptop.imp.voices.set(KESTREL, IMP_VOICE);
     bleedTheLastPoint(tactical(other), merc(other, KESTREL));
-    expect(ofType(other.session.campaign.drainEvents(), 'mercDied')).toMatchObject([{ cry: { voice: '052' } }]);
+    expect(ofType(other.session.campaign.drainEvents(), 'mercDied')).toMatchObject([{ cry: { voice: '000' } }]);
   });
 
   it('an insured merc dying off the map with no enemy in the loaded sector is a suspicious death (quirk)', async () => {

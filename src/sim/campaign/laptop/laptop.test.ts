@@ -116,7 +116,7 @@ describe('the laptop at the start of a new game', () => {
     expect(session.dispatch({ type: 'readEmail', id: 999 })).toEqual(laptopRefusal('noSuchMail'));
     const read = session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
     expect(read).toMatchObject({ ok: true, data: { type: 'IMP_EMAIL_INTRO', bookmarks: [Bookmark.AIM, Bookmark.IMP] } });
-    expect(session.view().laptop?.imp).toMatchObject({ bookmarked: true, canCreate: true, charactersLeft: 1, cost: 3000 });
+    expect(session.view().laptop?.imp).toMatchObject({ bookmarked: true, canCreate: true, cost: 3000 });
   });
 });
 
@@ -567,29 +567,29 @@ describe('I.M.P.', () => {
     expect(session.dispatch({ ...command, code: 'nope' })).toEqual(laptopRefusal('badCode'));
     expect(session.dispatch({ ...command, attributes: { ...command.attributes, health: 90 } })).toEqual(laptopRefusal('badAttributes'));
     const created = session.dispatch(command);
-    expect(created).toMatchObject({ ok: true, data: { profile: 51, soldier: 0, arrival: { minute: 1860 } } });
+    expect(created).toMatchObject({ ok: true, data: { profile: 54, soldier: 0, arrival: { minute: 1860 } } });
     expect(session.campaign.state.finances.ledger.at(-1)).toMatchObject({ code: FinanceCode.IMP_PROFILE, amount: -3000 });
-    expect(session.view().laptop?.imp).toMatchObject({ canCreate: false, charactersLeft: 0 });
+    expect(session.view().laptop?.imp).toMatchObject({ canCreate: false });
     expect(session.campaign.laptop?.roster.get(0)?.soldier.name).toBe('Stub');
   });
 
   it('lands the character with the profile status of his endless contract, -1 as for a merc without text', async () => {
     const session = await inLaptop(42);
     session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
-    expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 51 } });
-    const p = session.campaign.state.profiles.get(51);
+    expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 54 } });
+    const p = session.campaign.state.profiles.get(54);
     expect(p?.mercStatus).toBe(MercStatus.HIRED_BUT_NOT_ARRIVED_YET);
     expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
     await session.prepare({ type: 'compressTime', mode: 2 });
     expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(true);
     expect(session.view().clock).toMatchObject({ day: 1, hour: 7, minute: 0 });
-    expect(session.campaign.state.profiles.get(51)?.mercStatus).toBe(MercStatus.HAS_NO_TEXT_FILE);
+    expect(session.campaign.state.profiles.get(54)?.mercStatus).toBe(MercStatus.HAS_NO_TEXT_FILE);
   });
 
   it('says his line about being dropped in Omerta at the end of his drop, code 467, and not while he sits in the helicopter', async () => {
     const session = await inLaptop(43);
     session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
-    expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 51 } });
+    expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 54 } });
     expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
     await session.prepare({ type: 'compressTime', mode: 2 });
     expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(true);
@@ -599,12 +599,12 @@ describe('I.M.P.', () => {
     let engaged = false;
     let landedAt = -1;
     for (let tick = 0; landedAt < 0 && tick < DROP_TICKS; tick++) {
-      expect(said()).not.toEqual([51, PC_DROPPED_OMERTA]);
+      expect(said()).not.toEqual([54, PC_DROPPED_OMERTA]);
       session.step();
       if (engaged && !drop.engagedInDrop) landedAt = tick;
       engaged = drop.engagedInDrop;
     }
     expect(landedAt).toBeGreaterThan(0);
-    expect(said()).toEqual([51, PC_DROPPED_OMERTA]);
+    expect(said()).toEqual([54, PC_DROPPED_OMERTA]);
   });
 });

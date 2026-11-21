@@ -68,7 +68,6 @@ export interface NarrativeHost extends RecordsEnv {
   questValue(index: number): number;
   townRating(town: number): number;
   threat(merc: number): number;
-  voice(profile: number): number;
   worldSector(): SectorRef | null;
   isEpc(s: Soldier): boolean;
   onSquad(s: Soldier): boolean;

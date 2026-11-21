@@ -268,7 +268,6 @@ export function beginPage(imp: ImpContext): LaptopPage {
   const focusOn = (box: GenderFocus) => (args: readonly number[]) => {
     focus = args[0] === FOCUS_ENTERING ? box : GenderFocus.OTHER_INPUT;
   };
-  const canCreate = () => imp.site()?.canCreate ?? false;
   const controller = new ViewModelController(IMP_BEGIN_CONTRACT, model, {
     done: () => {
       if (draft.beginDone(String(model.fullName ?? ''), String(model.nickName ?? '')) === 'needsNameAndGender')
@@ -280,8 +279,8 @@ export function beginPage(imp: ImpContext): LaptopPage {
     setNickName: (_args, text) => {
       model.nickName = text ?? '';
     },
-    male: () => draft.selectGender(true, canCreate()),
-    female: () => draft.selectGender(false, canCreate()),
+    male: () => draft.tickGender(true),
+    female: () => draft.tickGender(false),
     maleFocus: focusOn(GenderFocus.MALE),
     femaleFocus: focusOn(GenderFocus.FEMALE),
     tickFocusedGender: () => {

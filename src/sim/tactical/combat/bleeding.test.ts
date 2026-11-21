@@ -416,12 +416,12 @@ describe('the damage feedback (Soldier_Control.cc HandleSoldierTakeDamageFeedbac
     ]);
   });
 
-  it('carries the voice of a merc of ours off the loaded map, an I.M.P. by the voice he chose, and marks the map screen', () => {
+  it("carries the voice of a merc of ours off the loaded map, his profile, an I.M.P.'s too, and marks the map screen", () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 50, profile: 51 });
     Object.assign(merc, { placed: false, offMap: false });
-    t.sectorHooks = { ...t.sectorHooks, profileVoice: (_t, profile) => (profile === 51 ? 52 : profile), inMapScreen: () => true };
+    t.sectorHooks = { ...t.sectorHooks, inMapScreen: () => true };
     soldierTakeDamage(t, merc, 1, 0, DamageReason.BLOODLOSS, null);
     expect(feedback(sim)).toEqual([
       {
@@ -429,7 +429,7 @@ describe('the damage feedback (Soldier_Control.cc HandleSoldierTakeDamageFeedbac
         soldier: merc.id,
         cause: 'bleeding',
         mapScreen: true,
-        cry: { voice: '052', bodyType: merc.bodyType, team: Team.OUR },
+        cry: { voice: '051', bodyType: merc.bodyType, team: Team.OUR },
       },
     ]);
   });

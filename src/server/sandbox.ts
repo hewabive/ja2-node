@@ -38,7 +38,7 @@ import { autoBandageView } from './auto-bandage-view.ts';
 import { BulletFlights } from './bullet-flights.ts';
 import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import type { SessionSim } from './session.ts';
-import { PROFILE_VOICE, type VoiceOf, withVoices } from './soldier-voice.ts';
+import { withVoices } from './soldier-voice.ts';
 import { stubMerc } from './stub-mercs.ts';
 import { tacticalPromptView } from './tactical-prompt-view.ts';
 
@@ -139,13 +139,7 @@ function nextFramesInViewTicks(
   );
 }
 
-export function tacticalPlayerView(
-  sim: TacticalSim,
-  tick: number,
-  presentation: PresentationTimeline,
-  voiceOf: VoiceOf = PROFILE_VOICE,
-  stepping = true,
-): PlayerView {
+export function tacticalPlayerView(sim: TacticalSim, tick: number, presentation: PresentationTimeline, stepping = true): PlayerView {
   const parts = tacticalViewParts(sim, presentation);
   const soldiers = nextFramesInViewTicks(parts.soldiers, sim.tick, tick, stepping);
   const prompt = tacticalPromptView(sim.state);
@@ -153,7 +147,7 @@ export function tacticalPlayerView(
   return {
     tick,
     ...parts,
-    soldiers: withSandboxCrew(withVoices(soldiers, sim.state.soldiers, voiceOf)),
+    soldiers: withSandboxCrew(withVoices(soldiers, sim.state.soldiers)),
     ...(prompt ? { prompt } : {}),
     ...(autoBandage ? { autoBandage } : {}),
   };

@@ -1,24 +1,27 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/IMP_Compile_Character.cc IsIMPSlot, GetNumberOfIMPCharactersCreated, GetIMPSlotInProgress,
-// @src CanCreateAnotherIMPCharacter, MarkIMPCharacterCreated, IMPCharacterHasBigBody, CreateACharacterFromPlayerEnteredStats,
-// @src CreatePlayerAttitude, AddAnAttitudeToAttitudeList, AddSkillToSkillList, RemoveSkillFromSkillsList, ValidateSkillsList,
-// @src CreatePlayerSkills, AddAPersonalityToPersonalityList, CreatePlayerPersonality, SelectMercFace,
-// @src HandleMercStatsForChangesInFace; IMP_Personality_Quiz.cc CompileQuestionsInStatsAndWhatNot (table in data/tables);
-// @src IMP_SkillTraits.cc skillTraitsMapping, AddSelectedSkillsToSkillsList (any picked specialty, a woman's martial arts
-// @src kept from a pass as a man too), DoesPlayerHaveExtraAttibutePointsToDistributeBasedOnSkillSelection;
-// @src IMP_Attribute_Selection.cc SetAttributes, IncrementStat, DecrementStat, the attribute enum (the
-// @src page's value order); IMP_Begin_Screen.cc
+// @src src/game/Laptop/IMP_Compile_Character.cc CreateACharacterFromPlayerEnteredStats, CreatePlayerAttitude,
+// @src AddAnAttitudeToAttitudeList, AddSkillToSkillList, RemoveSkillFromSkillsList, ValidateSkillsList, CreatePlayerSkills,
+// @src AddAPersonalityToPersonalityList, CreatePlayerPersonality, SelectMercFace, SetMercSkinAndHairColors (table in
+// @src data/tables), HandleMercStatsForChangesInFace, ShouldThisMercHaveABigBody; IMP_Personality_Quiz.cc
+// @src CompileQuestionsInStatsAndWhatNot (table in data/tables); IMP_SkillTraits.cc skillTraitsMapping,
+// @src AddSelectedSkillsToSkillsList (any picked specialty, a woman's martial arts kept from a pass as a man too),
+// @src DoesPlayerHaveExtraAttibutePointsToDistributeBasedOnSkillSelection; IMP_Attribute_Selection.cc SetAttributes,
+// @src IncrementStat, DecrementStat, the attribute enum (the page's value order); IMP_Begin_Screen.cc
 // @src BtnIMPBeginScreenDoneCallback (names); IMP_HomePage.cc ProcessPlayerInputActivationString; IMP_MainPage.cc (begin);
-// @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, FirstFreeBigEnoughPocket, GiveItemsToPC; CharProfile.h
-// @src COST_OF_PROFILE; externalized/policy/IMPPolicy.h IMPItemCondition.
-// @src src/game/Laptop/IMP_Confirm.cc SetProfileFaceData's call, ResetIMPCharactersEyesAndMouthOffsets (the portrait's face
-// @src offsets, 2026-11-18).
+// @src IMP_Portraits.cc iLastPicture, the portrait number; IMP_Voices.cc iLastVoice, the voice id that grabs the slot;
+// @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, GiveItemsToPC, MakeProfileInvItemAnySlot,
+// @src MakeProfileInvItemThisSlot, FirstFreeBigEnoughPocket, ResetIMPCharactersEyesAndMouthOffsets, g_face_info (table in
+// @src data/tables); CharProfile.h COST_OF_PROFILE; Soldier_Profile.h PLAYER_GENERATED_CHARACTER_ID.
 
 import { type MercProfile, zeroProfileNpcFields } from '../../../content/formats/prof.ts';
-import { MercType } from '../../../content/strategic/economy-content.ts';
-import type { ImpCondition, ImpItemSet, ImpPortrait, QuizEffect } from '../../../content/strategic/laptop-content.ts';
-import { i8, idiv, u8 } from '../../../core/int.ts';
+import {
+  IMP_PORTRAITS_PER_GENDER,
+  type ImpPortrait,
+  type LaptopContent,
+  type QuizEffect,
+} from '../../../content/strategic/laptop-content.ts';
+import { i8, idiv, u32 } from '../../../core/int.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { addFutureDayStrategicEvent } from '../../strategic/time/event-queue.ts';
@@ -26,7 +29,6 @@ import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress, progressFromProfile } from '../../tactical/profiles.ts';
 import { Body, Personality, SKILL_TRAIT_BONUS, SkillTrait } from '../../tactical/soldier.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
-import { NUM_PROFILES } from '../profiles.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import type { LaptopContext } from './context.ts';
 import { type HireHooks, hireMercCore, MAX_MERCS_ON_TEAM, numberOfMercsOnPlayerTeam } from './hire.ts';
@@ -45,9 +47,17 @@ const NICKNAME_LENGTH = 8;
 const BIG_BODY_MIN_STRENGTH = 75;
 const LOCKPICKING_THRESHOLD = 50;
 const PERCENT = 100;
-const RANDOM_100 = 'RND100';
-const SKILL_CONDITION = 'SKILL';
 const MAX_DIRECT_SKILLS = 2;
+export const PLAYER_GENERATED_CHARACTER_ID = 51;
+const VOICES_PER_GENDER = 3;
+const BIG_BODY_PORTRAITS: ReadonlySet<number> = new Set([0, 6, 7]);
+const FULL_STATUS = 100;
+const GOOD_SHOOTER_MARKSMANSHIP = 80;
+const MEDIC_KIT_MEDICAL = 60;
+const FIRST_AID_KIT_MEDICAL = 30;
+const TOOLKIT_MECHANICAL = 50;
+const DEMOLITION_EXPLOSIVES = 50;
+const NIGHT_OPS_BREAK_LIGHTS = 2;
 const NO_EXPERT_LEVEL: ReadonlySet<number> = new Set([SkillTrait.ELECTRONICS, SkillTrait.AMBIDEXT, SkillTrait.CAMOUFLAGED]);
 const DIRECT_PICK_BONUS = { none: 10, oneWithoutExpert: 5 } as const;
 export const IMP_SKILL_ORDER: readonly number[] = [
@@ -70,36 +80,6 @@ const NUM_ATTITUDES = 10;
 const ATT_NORMAL = 0;
 const RESULTS_MAIL_MINUTE = 7 * 60;
 const RESULTS_MAIL_DAYS = 2;
-const ATTRIBUTE_NAMES: Readonly<Record<string, (p: ProfileProgress) => number>> = {
-  AGILITY: (p) => p.stats.agility,
-  DEXTERITY: (p) => p.stats.dexterity,
-  STRENGTH: (p) => p.stats.strength,
-  LEADERSHIP: (p) => p.stats.leadership,
-  WISDOM: (p) => p.stats.wisdom,
-  EXPLEVEL: (p) => p.stats.experience,
-  MARKSMANSHIP: (p) => p.stats.marksmanship,
-  EXPLOSIVES: (p) => p.stats.explosives,
-  MECHANICAL: (p) => p.stats.mechanical,
-  MEDICAL: (p) => p.stats.medical,
-};
-const SKILL_NAMES: Readonly<Record<string, number>> = {
-  NONE: SkillTrait.NONE,
-  LOCKPICKING: SkillTrait.LOCKPICKING,
-  HANDTOHAND: SkillTrait.HANDTOHAND,
-  ELECTRONICS: SkillTrait.ELECTRONICS,
-  NIGHTOPS: SkillTrait.NIGHTOPS,
-  THROWING: SkillTrait.THROWING,
-  TEACHING: SkillTrait.TEACHING,
-  HEAVY_WEAPS: SkillTrait.HEAVY_WEAPS,
-  AUTO_WEAPS: SkillTrait.AUTO_WEAPS,
-  STEALTHY: SkillTrait.STEALTHY,
-  AMBIDEXT: SkillTrait.AMBIDEXT,
-  THIEF: SkillTrait.THIEF,
-  MARTIALARTS: SkillTrait.MARTIALARTS,
-  KNIFING: SkillTrait.KNIFING,
-  ONROOF: SkillTrait.ONROOF,
-  CAMOUFLAGED: SkillTrait.CAMOUFLAGED,
-};
 export const IMP_ATTRIBUTE_KEYS = [
   'health',
   'agility',
@@ -174,33 +154,35 @@ export type ImpResult =
     }
   | { readonly ok: false; readonly reason: ImpRefusal };
 
-export function isImpSlotType(type: number | undefined): boolean {
-  return type === undefined || type === MercType.IMP;
+export function impVoiceId(male: boolean, voice: number): number {
+  return voice + (male ? 0 : VOICES_PER_GENDER);
 }
 
-function isImpSlot(ctx: LaptopContext, profile: number): boolean {
-  return isImpSlotType(ctx.mercType(profile));
+export function impPortraitNumber(male: boolean, portrait: number): number {
+  return portrait + (male ? 0 : IMP_PORTRAITS_PER_GENDER);
 }
 
-export function impCharactersCreated(ctx: LaptopContext): number {
-  return ctx.laptop.imp.taken.filter((id) => isImpSlot(ctx, id)).length;
+export function impProfileId(voiceId: number): number {
+  return PLAYER_GENERATED_CHARACTER_ID + voiceId;
 }
 
-export function impSlotInProgress(ctx: LaptopContext): number | null {
-  for (let id = 0; id < NUM_PROFILES; id++) if (isImpSlot(ctx, id) && !ctx.laptop.imp.taken.includes(id)) return id;
-  return null;
+export function impPortraitOfFace(content: Pick<LaptopContent, 'imp'>, face: number): number {
+  return content.imp.portraits.findIndex((p) => p.face === face);
 }
 
-export function canCreateAnotherImpCharacter(ctx: LaptopContext): boolean {
-  if (impSlotInProgress(ctx) === null) return false;
-  return impCharactersCreated(ctx) < ctx.content.imp.maxCharacters;
+export function impPortraitFaces(content: Pick<LaptopContent, 'imp'>, male: boolean): number[] {
+  return content.imp.portraits.filter((p) => p.male === male).map((p) => p.face);
+}
+
+export function impVoiceProfiles(male: boolean): number[] {
+  return Array.from({ length: VOICES_PER_GENDER }, (_, k) => impProfileId(impVoiceId(male, k)));
 }
 
 export type ImpCodeCheck = 'ok' | 'badCode' | 'noSlot';
 
 export function impCheckCode(ctx: LaptopContext, code: string): ImpCodeCheck {
   const accepted = ctx.content.imp.codes.includes(code);
-  if (accepted && canCreateAnotherImpCharacter(ctx)) return 'ok';
+  if (accepted && !ctx.laptop.imp.completed) return 'ok';
   return accepted ? 'noSlot' : 'badCode';
 }
 
@@ -325,18 +307,13 @@ export function impNames(name: string, nickname: string | undefined): { readonly
   return { name: full, nickname: nick || (full.split(' ')[0] ?? full).slice(0, NICKNAME_LENGTH) };
 }
 
-function genderIndex<T extends { readonly male: boolean }>(entries: readonly T[], male: boolean, nth: number): number {
-  let seen = 0;
-  for (let i = 0; i < entries.length; i++) {
-    if (entries[i]?.male !== male) continue;
-    if (seen++ === nth) return i;
-  }
-  return -1;
-}
-
 function validAnswers(ctx: LaptopContext, answers: readonly number[] | undefined): boolean {
   if (!answers || answers.length !== QUIZ_QUESTIONS) return false;
   return answers.every((a, q) => Number.isInteger(a) && a >= 0 && a < (ctx.content.impQuiz[q]?.length ?? 0));
+}
+
+function validChoice(choice: number, count: number): boolean {
+  return Number.isInteger(choice) && choice >= 0 && choice < count;
 }
 
 function validDirectSkills(skills: readonly number[] | undefined): boolean {
@@ -348,17 +325,16 @@ export function impRefusal(ctx: LaptopContext, r: ImpRequest): ImpRefusal | null
   const imp = ctx.content.imp;
   if (!ctx.laptop.bookmarks.includes(Bookmark.IMP)) return 'noBookmark';
   if (!imp.codes.includes(r.code)) return 'badCode';
-  if (!canCreateAnotherImpCharacter(ctx)) return 'noSlot';
+  if (ctx.laptop.imp.completed) return 'noSlot';
   if (ctx.state.finances.balance < COST_OF_PROFILE) return 'funds';
   if (numberOfMercsOnPlayerTeam(ctx) >= MAX_MERCS_ON_TEAM) return 'teamFull';
   if (!impNames(r.name, r.nickname) || (r.gender !== 'male' && r.gender !== 'female')) return 'badName';
-  const male = r.gender === 'male';
   if (imp.pickSkillsDirectly) {
     if (!validDirectSkills(r.skills)) return 'badSkills';
   } else if (!validAnswers(ctx, r.answers)) return 'badAnswers';
   if (!attributesValid(ctx, r.attributes, r.skills ?? [])) return 'badAttributes';
-  if (genderIndex(imp.portraits, male, r.portrait) < 0) return 'badPortrait';
-  if (genderIndex(imp.voices, male, r.voice) < 0) return 'badVoice';
+  if (!validChoice(r.portrait, IMP_PORTRAITS_PER_GENDER)) return 'badPortrait';
+  if (!validChoice(r.voice, VOICES_PER_GENDER)) return 'badVoice';
   return null;
 }
 
@@ -448,41 +424,6 @@ export function emptyProfile(id: number): MercProfile {
   };
 }
 
-function conditionHolds(ctx: LaptopContext, c: ImpCondition, p: ProfileProgress): boolean {
-  const [one, two] = c;
-  let check: string;
-  let value: number;
-  let reverse = false;
-  if (typeof one === 'number' && typeof two === 'string') {
-    value = one;
-    check = two;
-    reverse = true;
-  } else if (typeof two === 'number' && typeof one === 'string') {
-    value = two;
-    check = one;
-  } else if (typeof one === 'string' && typeof two === 'string') {
-    if (one === RANDOM_100) {
-      value = ctx.rng.pre.int(PERCENT);
-      check = two;
-    } else if (two === RANDOM_100) {
-      value = ctx.rng.pre.int(PERCENT);
-      check = one;
-    } else if (one === SKILL_CONDITION) {
-      const skill = SKILL_NAMES[two] ?? SkillTrait.NONE;
-      return p.skillTrait === skill || p.skillTrait2 === skill;
-    } else return false;
-  } else return false;
-  const read = ATTRIBUTE_NAMES[check];
-  if (!read) return false;
-  const actual = u8(read(p));
-  return reverse ? value >= actual : actual >= value;
-}
-
-function setHolds(ctx: LaptopContext, set: ImpItemSet, p: ProfileProgress): boolean {
-  for (const c of set.conditions) if (!conditionHolds(ctx, c, p)) return false;
-  return true;
-}
-
 function firstFreeBigEnoughPocket(ctx: LaptopContext, p: ProfileProgress, item: number): number {
   const fitsSmall = (ctx.tactical.items.byIndex.get(item)?.perPocket ?? 0) !== 0;
   if (fitsSmall) for (let pos = InvSlot.SMALLPOCK1; pos <= InvSlot.SMALLPOCK8; pos++) if (!p.inventory[pos]) return pos;
@@ -490,18 +431,56 @@ function firstFreeBigEnoughPocket(ctx: LaptopContext, p: ProfileProgress, item: 
   return -1;
 }
 
+function makeItemThisSlot(p: ProfileProgress, pos: number, item: number, count: number): void {
+  p.inventory[pos] = item;
+  p.inventoryStatus[pos] = FULL_STATUS;
+  p.inventoryCount[pos] = count;
+}
+
+function makeItemAnySlot(ctx: LaptopContext, p: ProfileProgress, item: number, count = 1): void {
+  const pos = firstFreeBigEnoughPocket(ctx, p, item);
+  if (pos >= 0) makeItemThisSlot(p, pos, item, count);
+}
+
+function namedItem(ctx: LaptopContext, name: string): number {
+  const def = ctx.tactical.items.byName.get(name);
+  if (!def) throw new Error(`the I.M.P. gear needs the item ${name}`);
+  return def.index;
+}
+
+function hasSkillTrait(p: ProfileProgress, trait: number): boolean {
+  return p.skillTrait === trait || p.skillTrait2 === trait;
+}
+
+function giveSkillItems(ctx: LaptopContext, p: ProfileProgress): void {
+  const give = (trait: number, name: string, count = 1) => {
+    if (hasSkillTrait(p, trait)) makeItemAnySlot(ctx, p, namedItem(ctx, name), count);
+  };
+  if (p.stats.mechanical !== 0) give(SkillTrait.LOCKPICKING, 'LOCKSMITHKIT');
+  give(SkillTrait.HANDTOHAND, 'BRASS_KNUCKLES');
+  if (p.stats.mechanical !== 0) give(SkillTrait.ELECTRONICS, 'METALDETECTOR');
+  give(SkillTrait.NIGHTOPS, 'BREAK_LIGHT', NIGHT_OPS_BREAK_LIGHTS);
+  give(SkillTrait.THROWING, 'THROWING_KNIFE');
+  give(SkillTrait.STEALTHY, 'SILENCER');
+  give(SkillTrait.KNIFING, 'COMBAT_KNIFE');
+}
+
 function giveItemsToPc(ctx: LaptopContext, p: ProfileProgress): void {
-  const FULL = 100;
-  for (const set of ctx.content.imp.inventory) {
-    if (!setHolds(ctx, set, p)) continue;
-    for (const item of set.items) {
-      const pos = set.slot ?? firstFreeBigEnoughPocket(ctx, p, item);
-      if (pos < 0) continue;
-      p.inventory[pos] = item;
-      p.inventoryStatus[pos] = FULL;
-      p.inventoryCount[pos] = 1;
-    }
+  const imp = ctx.content.imp;
+  const s = p.stats;
+  const give = (name: string) => makeItemAnySlot(ctx, p, namedItem(ctx, name));
+  for (const item of imp.inventory) makeItemAnySlot(ctx, p, item);
+  if (ctx.rng.pre.int(PERCENT) < u32(s.wisdom)) makeItemThisSlot(p, InvSlot.HELMET, namedItem(ctx, 'STEEL_HELMET'), 1);
+  const shooterItems = s.marksmanship >= GOOD_SHOOTER_MARKSMANSHIP ? imp.goodShooterItems : imp.normalShooterItems;
+  for (const item of shooterItems) makeItemAnySlot(ctx, p, item);
+  if (s.medical >= MEDIC_KIT_MEDICAL) give('MEDICKIT');
+  else if (s.medical >= FIRST_AID_KIT_MEDICAL) give('FIRSTAIDKIT');
+  if (s.mechanical >= TOOLKIT_MECHANICAL) give('TOOLKIT');
+  if (s.explosives >= DEMOLITION_EXPLOSIVES) {
+    give('TNT');
+    give('DETONATOR');
   }
+  giveSkillItems(ctx, p);
 }
 
 export function withImpPortraitFaceOffsets(character: MercProfile, portraits: readonly ImpPortrait[]): MercProfile {
@@ -513,7 +492,7 @@ export function withImpPortraitFaceOffsets(character: MercProfile, portraits: re
 function impRecord(ctx: LaptopContext, slot: number, r: ImpRequest, names: { name: string; nickname: string }): MercProfile {
   const imp = ctx.content.imp;
   const male = r.gender === 'male';
-  const portrait = imp.portraits[genderIndex(imp.portraits, male, r.portrait)];
+  const portrait = imp.portraits[impPortraitNumber(male, r.portrait)];
   const a = r.attributes;
   const base = ctx.profileRecord(slot) ?? emptyProfile(slot);
   return {
@@ -543,24 +522,49 @@ function impRecord(ctx: LaptopContext, slot: number, r: ImpRequest, names: { nam
   };
 }
 
+function impProgress(ctx: LaptopContext, record: MercProfile, personality: number, attitude: number): ProfileProgress {
+  const slot = ctx.state.profiles.get(record.id) ?? progressFromProfile(record);
+  return {
+    ...slot,
+    sex: record.sex,
+    life: record.life,
+    stats: {
+      ...slot.stats,
+      lifeMax: record.lifeMax,
+      agility: record.agility,
+      strength: record.strength,
+      dexterity: record.dexterity,
+      wisdom: record.wisdom,
+      leadership: record.leadership,
+      marksmanship: record.marksmanship,
+      medical: record.medical,
+      mechanical: record.mechanical,
+      explosives: record.explosives,
+      experience: record.experience,
+    },
+    personalityTrait: personality,
+    attitude,
+    mercStatus: MercStatus.OK,
+  };
+}
+
 export function impCreate(ctx: LaptopContext, r: ImpRequest, hooks: HireHooks): ImpResult {
   const refusal = impRefusal(ctx, r);
   if (refusal) return { ok: false, reason: refusal };
   const imp = ctx.content.imp;
   const male = r.gender === 'male';
   const names = impNames(r.name, r.nickname) as { name: string; nickname: string };
-  const slot = impSlotInProgress(ctx) as number;
+  const voiceId = impVoiceId(male, r.voice);
+  const slot = impProfileId(voiceId);
   const lists = imp.pickSkillsDirectly
     ? { skills: directSkillList(r.skills ?? []), attitudes: [], personalities: [] }
     : compileQuiz(ctx, r.answers ?? [], male);
   const personality = imp.pickSkillsDirectly ? Personality.NONE : personalityFromList(lists);
   const attitude = imp.pickSkillsDirectly ? ATT_NORMAL : createPlayerAttitude(ctx, lists.attitudes);
   const record = impRecord(ctx, slot, r, names);
-  const p = progressFromProfile({ ...record, personalityTrait: personality, attitude });
-  const portraitIndex = genderIndex(imp.portraits, male, r.portrait);
-  const voiceIndex = genderIndex(imp.voices, male, r.voice);
+  const p = impProgress(ctx, record, personality, attitude);
   let [skillA, skillB] = createPlayerSkills(ctx, lists.skills, p, imp.pickSkillsDirectly);
-  const bigBody = male && imp.portraits[portraitIndex]?.bigBody === true && p.stats.strength >= BIG_BODY_MIN_STRENGTH;
+  const bigBody = male && BIG_BODY_PORTRAITS.has(impPortraitNumber(male, r.portrait)) && p.stats.strength >= BIG_BODY_MIN_STRENGTH;
   const bodyType = male ? (bigBody ? Body.BIGMALE : Body.REGMALE) : Body.REGFEMALE;
   if (bodyType !== Body.REGMALE) {
     if (skillA === SkillTrait.MARTIALARTS) skillA = SkillTrait.HANDTOHAND;
@@ -580,9 +584,8 @@ export function impCreate(ctx: LaptopContext, r: ImpRequest, hooks: HireHooks): 
     inventoryCount: [...finished.inventoryCount],
   };
   ctx.laptop.imp.profiles.set(slot, character);
-  ctx.laptop.imp.voices.set(slot, imp.voices[voiceIndex]?.profile ?? slot);
   ctx.state.profiles.set(slot, finished);
-  ctx.laptop.imp.voiceId = voiceIndex;
+  ctx.laptop.imp.voiceId = voiceId;
   const outcome = hireMercCore(
     ctx,
     {
@@ -596,20 +599,18 @@ export function impCreate(ctx: LaptopContext, r: ImpRequest, hooks: HireHooks): 
     hooks,
   );
   if (outcome === 'failed' || outcome === 'teamFull') return { ok: false, reason: outcome === 'teamFull' ? 'teamFull' : 'cannotHire' };
-  ctx.laptop.imp.taken.push(slot);
   ctx.laptop.imp.completed = true;
   const now = ctx.now();
   ctx.emitMoney(addTransaction(ctx.state.finances, FinanceCode.IMP_PROFILE, slot, now, -COST_OF_PROFILE));
   ctx.history(History.CHARACTER_GENERATED, 0, null);
-  if (imp.sendsProfileResultsEmail)
-    addFutureDayStrategicEvent(
-      ctx.state.queue,
-      ctx.state.clock,
-      EventKind.DAY2_ADD_EMAIL_FROM_IMP,
-      RESULTS_MAIL_MINUTE,
-      slot,
-      RESULTS_MAIL_DAYS,
-    );
+  addFutureDayStrategicEvent(
+    ctx.state.queue,
+    ctx.state.clock,
+    EventKind.DAY2_ADD_EMAIL_FROM_IMP,
+    RESULTS_MAIL_MINUTE,
+    0,
+    RESULTS_MAIL_DAYS,
+  );
   return {
     ok: true,
     merc: outcome.merc,

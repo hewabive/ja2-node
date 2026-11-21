@@ -12,7 +12,6 @@ import { type ServerMessage, TICK_MS } from '../protocol/messages.ts';
 import { applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
 import { createSandboxSession, tacticalPlayerView } from './sandbox.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
-import { PROFILE_VOICE } from './soldier-voice.ts';
 
 const IDLE_TICKS = 2000;
 const WALK_TICKS = 600;
@@ -132,7 +131,7 @@ describe('soldier frames the client predicts from the last sent frame', () => {
     for (let i = 0; i < 25; i++) sim.step();
     const own = tacticalPlayerView(sim, sim.tick, timelines.presentation);
     const later = tacticalPlayerView(sim, sim.tick + 1000, timelines.presentation);
-    const frozen = tacticalPlayerView(sim, sim.tick + 1000, timelines.presentation, PROFILE_VOICE, false);
+    const frozen = tacticalPlayerView(sim, sim.tick + 1000, timelines.presentation, false);
     const advancing = own.soldiers.filter((s) => s.nextFrameTick !== NEVER_NEXT_FRAME);
     expect(advancing.length).toBeGreaterThan(0);
     for (const s of advancing) expect(later.soldiers.find((o) => o.id === s.id)?.nextFrameTick).toBe((s.nextFrameTick ?? 0) + 1000);

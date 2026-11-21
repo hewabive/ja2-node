@@ -4,7 +4,7 @@
 // @src Laptop/Laptop.h (bookmarks); Laptop/Mercs.h MERC_ACCOUNT_*, MERC_SITE_*; Laptop/Store_Inventory.h STORE_INVENTORY;
 // @src Laptop/BobbyRMailOrder.h NewBobbyRayOrderStruct; Laptop/EMail.h Email; Laptop/History.cc HistoryUnit; Laptop/Files.cc
 // @src FilesUnit; Laptop/Laptop.cc LaptopScreenInit, InitLaptopAndLaptopScreens; Laptop/Mercs.cc GameInitMercs;
-// @src Tactical/Merc_Hiring.cc g_merc_arrive_sector; Tactical/Soldier_Profile.cc LoadMercProfiles (ubVoiceId = profile).
+// @src Tactical/Merc_Hiring.cc g_merc_arrive_sector.
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 
@@ -79,9 +79,7 @@ export interface ImpState {
   completed: boolean;
   sentImpWarningAlready: boolean;
   voiceId: number;
-  readonly taken: number[];
   readonly profiles: Map<number, MercProfile>;
-  readonly voices: Map<number, number>;
 }
 
 export interface StoreSlot {
@@ -190,7 +188,7 @@ export function createLaptopState(startSector = 0): LaptopState {
     files: [],
     personnel: { dead: personnelList(), left: personnelList(), other: personnelList() },
     merc: createMercSiteState(),
-    imp: { completed: false, sentImpWarningAlready: false, voiceId: 0, taken: [], profiles: new Map(), voices: new Map() },
+    imp: { completed: false, sentImpWarningAlready: false, voiceId: 0, profiles: new Map() },
     bobbyRay: {
       siteCanBeAccessed: false,
       underConstructionVisit: BobbyRaySiteVisit.NEVER_BEEN_TO_SITE,
@@ -210,10 +208,6 @@ export function createLaptopState(startSector = 0): LaptopState {
 
 export function resetLaptopState(l: LaptopState, startSector: number): void {
   Object.assign(l, createLaptopState(startSector));
-}
-
-export function profileVoice(imp: Pick<ImpState, 'voices'>, profile: number): number {
-  return imp.voices.get(profile) ?? profile;
 }
 
 export function setBookmark(l: LaptopState, bookmark: number): void {

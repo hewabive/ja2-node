@@ -22,7 +22,7 @@ function begun(): ImpDraft {
   draft.acceptCode('XEP624');
   draft.restartFromMain();
   draft.enterBegin();
-  draft.selectGender(true, true);
+  draft.tickGender(true);
   draft.beginDone('Ivan Testovich Petrov', '');
   draft.exitBegin();
   return draft;
@@ -33,9 +33,8 @@ describe('the I.M.P. draft', () => {
     const draft = new ImpDraft();
     draft.enterBegin();
     expect(draft.beginDone('  ', 'x')).toBe('needsNameAndGender');
-    draft.selectGender(false, false);
     expect(draft.genderFlag).toBe(-1);
-    draft.selectGender(false, true);
+    draft.tickGender(false);
     expect(draft.genderFlag).toBe(FEMALE);
     expect(draft.beginDone(' Annabelle-Marie Smith ', '')).toBe('main');
     draft.exitBegin();

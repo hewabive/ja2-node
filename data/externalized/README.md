@@ -16,7 +16,6 @@ These files are still master `ae6bf01`'s, because ja2-node follows master there 
 
 | File | Issue |
 |---|---|
-| `imp.json`, `mercs-profile-info.json` | #111 (six I.M.P.s, gear conditions, 200 profiles) |
 | `light-templates.json` (not in v0.22.1) | #105 (the shipped light templates) |
 | `strings/tooltips-eng.json` (not in v0.22.1) | #114 (master's informative tooltips) |
 

@@ -26,13 +26,13 @@ import { aimConferenceSilenced, aimContact, aimFace, aimMessageLeft, contractSal
 import { bobbyRayItemPrice, bobbyRayUnitPrice, shippingCost } from '../sim/campaign/laptop/bobby-ray.ts';
 import {
   COST_OF_PROFILE,
-  canCreateAnotherImpCharacter,
   directPickBonus,
   IMP_ATTRIBUTE_PAGE_ORDER,
   IMP_SKILL_ORDER,
   IMP_ZEROABLE_ATTRIBUTES,
   impBeginRefusal,
-  impCharactersCreated,
+  impPortraitFaces,
+  impVoiceProfiles,
   START_ATTRIBUTE,
 } from '../sim/campaign/laptop/imp.ts';
 import { contractDaysLeft, insuranceDaysLeft, insuranceLength, insurancePremium, isInsurable } from '../sim/campaign/laptop/insurance.ts';
@@ -262,16 +262,15 @@ function bobbyRayView(flow: LaptopFlow, labels: UiStrings | null): BobbyRayView 
   };
 }
 
-function genderLists<T extends { readonly male: boolean }>(entries: readonly T[], value: (e: T) => number): ImpGenderListsView {
-  return { male: entries.filter((e) => e.male).map(value), female: entries.filter((e) => !e.male).map(value) };
+function genderLists(list: (male: boolean) => readonly number[]): ImpGenderListsView {
+  return { male: list(true), female: list(false) };
 }
 
 function impView(flow: LaptopFlow): ImpSiteView {
   const imp = flow.content.imp;
   return {
     bookmarked: flow.laptop.bookmarks.includes(Bookmark.IMP),
-    charactersLeft: Math.max(0, imp.maxCharacters - impCharactersCreated(flow)),
-    canCreate: canCreateAnotherImpCharacter(flow),
+    canCreate: !flow.laptop.imp.completed,
     cost: COST_OF_PROFILE,
     pickSkillsDirectly: imp.pickSkillsDirectly,
     beginRefusal: impBeginRefusal(flow),
@@ -285,8 +284,8 @@ function impView(flow: LaptopFlow): ImpSiteView {
       zeroable: IMP_ZEROABLE_ATTRIBUTES,
       specialtyBonus: imp.pickSkillsDirectly ? specialtyBonusView() : null,
     },
-    portraits: genderLists(imp.portraits, (p) => p.face),
-    voices: genderLists(imp.voices, (v) => v.profile),
+    portraits: genderLists((male) => impPortraitFaces(flow.content, male)),
+    voices: genderLists(impVoiceProfiles),
     quizAnswers: flow.content.impQuiz.map((question) => question.length),
     specialties: IMP_SKILL_ORDER,
   };

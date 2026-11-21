@@ -1,0 +1,103 @@
+{
+  "source": "JA2 Stracciatella v0.22.1: src/game/Laptop/IMP_Confirm.cc g_face_info, src/game/Laptop/IMP_Compile_Character.cc SetMercSkinAndHairColors Colors",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "portraits: per I.M.P. portrait number (face 200 + number; 0-7 the men, 8-15 the women), the talking face offsets of g_face_info (eyes and mouth, x and y) and the skin and hair palettes of Colors",
+  "portraits": [
+    {
+      "eyes": [8, 5],
+      "mouth": [8, 21],
+      "skin": "BLACKSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [9, 4],
+      "mouth": [9, 23],
+      "skin": "TANSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [8, 5],
+      "mouth": [7, 24],
+      "skin": "TANSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [6, 6],
+      "mouth": [7, 25],
+      "skin": "DARKSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [13, 5],
+      "mouth": [11, 23],
+      "skin": "TANSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [11, 5],
+      "mouth": [10, 24],
+      "skin": "DARKSKIN",
+      "hair": "BLACKHEAD"
+    },
+    {
+      "eyes": [8, 4],
+      "mouth": [8, 24],
+      "skin": "TANSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [8, 4],
+      "mouth": [8, 24],
+      "skin": "TANSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [4, 4],
+      "mouth": [5, 25],
+      "skin": "TANSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [5, 5],
+      "mouth": [6, 24],
+      "skin": "PINKSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [7, 5],
+      "mouth": [7, 24],
+      "skin": "TANSKIN",
+      "hair": "BLACKHEAD"
+    },
+    {
+      "eyes": [5, 7],
+      "mouth": [6, 26],
+      "skin": "TANSKIN",
+      "hair": "BLACKHEAD"
+    },
+    {
+      "eyes": [7, 6],
+      "mouth": [7, 24],
+      "skin": "PINKSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [11, 5],
+      "mouth": [9, 23],
+      "skin": "BLACKSKIN",
+      "hair": "BROWNHEAD"
+    },
+    {
+      "eyes": [8, 5],
+      "mouth": [7, 24],
+      "skin": "TANSKIN",
+      "hair": "REDHEAD"
+    },
+    {
+      "eyes": [5, 6],
+      "mouth": [5, 26],
+      "skin": "TANSKIN",
+      "hair": "BLONDHEAD"
+    }
+  ]
+}

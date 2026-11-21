@@ -122,15 +122,15 @@ describe('the I.M.P. begin page focus', () => {
 });
 
 describe('the I.M.P. begin page keys', () => {
-  it('tick a gender box when no further I.M.P. can be created, where a click on the box does nothing', async () => {
+  it('tick a gender box as a click on it does, neither asking whether a character may still be made', async () => {
     const page = await openBeginPage(false);
-    const box = page.t.runtime.describe().find((w) => w.id === 'impMaleBox');
-    if (!box) throw new Error('no male box');
+    const box = page.t.runtime.describe().find((w) => w.id === 'impFemaleBox');
+    if (!box) throw new Error('no female box');
     page.t.move(box.rect.x + 2, box.rect.y + 2);
     page.t.frame();
     page.t.click(box.rect.x + 2, box.rect.y + 2);
     page.t.frame();
-    expect(page.draft.genderFlag).toBe(NO_GENDER);
+    expect(page.draft.genderFlag).toBe(FEMALE);
     page.key('Tab');
     page.key('Tab');
     page.key('Enter');

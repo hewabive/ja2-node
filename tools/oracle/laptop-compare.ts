@@ -8,7 +8,7 @@ import { aimHire } from '../../src/sim/campaign/laptop/aim.ts';
 import { addFreshBobbyRayInventory, bobbyRayPurchaseEvent, purchaseBobbyRayOrder } from '../../src/sim/campaign/laptop/bobby-ray.ts';
 import type { LaptopRandom } from '../../src/sim/campaign/laptop/context.ts';
 import { enterFloristOrderForm, orderFlowers } from '../../src/sim/campaign/laptop/florist.ts';
-import { type ImpAttributes, impCreate } from '../../src/sim/campaign/laptop/imp.ts';
+import { type ImpAttributes, impCreate, impProfileId } from '../../src/sim/campaign/laptop/imp.ts';
 import {
   addLifeInsurancePayout,
   dailyUpdateOfInsuredMercs,
@@ -285,7 +285,7 @@ function profileDump(flow: LaptopFlow, id: number, p: ProfileProgress): Json {
     inventory: [...p.inventory],
     invStatus: [...p.inventoryStatus],
     invCount: [...p.inventoryCount],
-    taken: flow.laptop.imp.taken.includes(id),
+    taken: flow.laptop.imp.completed && id === impProfileId(flow.laptop.imp.voiceId),
   };
 }
 

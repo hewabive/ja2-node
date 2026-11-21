@@ -839,7 +839,6 @@ export interface ImpGenderListsView {
 
 export interface ImpSiteView {
   readonly bookmarked: boolean;
-  readonly charactersLeft: number;
   readonly canCreate: boolean;
   readonly cost: number;
   readonly pickSkillsDirectly: boolean;

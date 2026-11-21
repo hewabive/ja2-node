@@ -37,7 +37,7 @@
         },
         "personalityTrait": "NONE", // HEAT_INTOLERANT, NERVOUS, CLAUSTROPHOBIC, NONSWIMMER, FEAR_OF_INSECTS, FORGETFUL, PSYCHO
         "skillTrait": "NONE",       // LOCKPICKING, HANDTOHAND, ELECTRONICS, NIGHTOPS, THROWING, TEACHING, HEAVY_WEAPS...
-        "skillTrait2": "NONE",      // ...  AUTO_WEAPS, STEALTHY, AMBIDEXT, MARTIALARTS, KNIFING, ONROOF, CAMOUFLAGED
+        "skillTrait2": "NONE",      // ...  AUTO_WEAPS, STEALTHY, AMBIDEXT, THIEF, MARTIALARTS, KNIFING, ONROOF, CAMOUFLAGED
         "attitude": "NORMAL",       // FRIENDLY, LONER, OPTIMIST, PESSIMIST, AGGRESSIVE, ARROGANT, ASSHOLE, COWARD
         "inventory": [
             { "item": "STEEL_HELMET", "status": 97 },
@@ -105,10 +105,13 @@
     { "profileID": 48, "internalName": "COUGAR", "type": "MERC" },
     { "profileID": 49, "internalName": "NUMB", "type": "MERC" },
     { "profileID": 50, "internalName": "BUBBA", "type": "MERC" },
-     /* 51 to 56 are deliberately not declared. They are where the original game
-        put its player generated characters, and an entry here would claim them
-        for something; left out, they are free again, and the I.M.P. site hands
-        them out along with every other profile that no entry names. */
+     /* IMP */
+    { "profileID": 51, "internalName": "PGMALE1", "type": "IMP" },
+    { "profileID": 52, "internalName": "PGMALE2", "type": "IMP" },
+    { "profileID": 53, "internalName": "PGMALE3", "type": "IMP" },
+    { "profileID": 54, "internalName": "PGLADY1", "type": "IMP" },
+    { "profileID": 55, "internalName": "PGLADY2", "type": "IMP" },
+    { "profileID": 56, "internalName": "PGLADY3", "type": "IMP" },
      /* RPC (rebels) */
     { "profileID": 57, "internalName": "MIGUEL", "type": "RPC" },
     { "profileID": 58, "internalName": "CARLOS", "type": "RPC" },
@@ -220,10 +223,11 @@
     { "profileID": 161, "internalName": "PROF_ELDERODO", "type": "VEHICLE" },
     { "profileID": 162, "internalName": "PROF_ICECREAM", "type": "VEHICLE" },
     { "profileID": 163, "internalName": "PROF_HELICOPTER", "type": "VEHICLE" },
-     /* Unused slot */
-    { "profileID": 164, "internalName": "NPC164", "type": "NOT_USED" } // in use as the placeholder profile of the unused vehicles
-     /* The list ends here, and 165 to 199 are free for the same reason 51 to 56
-        are: nothing declares them. Claiming one -- for an NPC a mod brings
-        along, or for anything else -- is a matter of declaring it, whatever it
-        is declared as, and the site leaves it alone from then on. */
+     /* Unused slots */
+    { "profileID": 164, "internalName": "NPC164", "type": "NOT_USED" },
+    { "profileID": 165, "internalName": "NPC165", "type": "NOT_USED" },
+    { "profileID": 166, "internalName": "NPC166", "type": "NOT_USED" },
+    { "profileID": 167, "internalName": "NPC167", "type": "NOT_USED" },
+    { "profileID": 168, "internalName": "NPC168", "type": "NOT_USED" },
+    { "profileID": 169, "internalName": "NPC169", "type": "NOT_USED" }
 ]

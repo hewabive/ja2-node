@@ -48,6 +48,15 @@ all of them in `LoadSavedGame`'s order and fails unless it ends exactly at the e
 shows at once; it records each section's offset for the readers. Versions 85–105 are read, in the Windows layout
 (vanilla) and in Stracciatella's Linux layout; older ones frame sections differently and are refused.
 
+**Saves of later Stracciatella builds import what v0.22.1's model holds.** v0.22.1 writes version 102; 103–105 come from
+later builds, whose I.M.P. site makes up to six characters in any free profile, each with a voice of its own, out of
+200 profiles. The import keeps every I.M.P. character such a save holds (its slot states, the TAKEN ones) as the
+profile and soldier it holds him in, and the laptop's completed flag and voice id as saved; before version 104 the one
+character is profile 51 + the voice id, as v0.22.1 has it. The separate voices are dropped: a character speaks with
+the files of his profile, as in v0.22.1 (`Tactical/Soldier_Control.cc:6005`, `src/externalized/content/Dialogs.cc:45`),
+and only profiles 0–169 take part in the profile loops. Creating another character follows v0.22.1 alone: none once the
+flag is set, and profile 51 + the voice id otherwise (`21` §2; `src/sim/campaign/laptop/save-import.ts`).
+
 **Encryption.** Profiles and soldiers are encrypted record by record with a rotation array the header selects
 (`CalcJA2EncryptionSet`; the arrays in `data/tables/save-encryption.json`). The German factor of the set belongs to the
 game build, not to the file, so the reader tries the plain set first and keeps the one whose first profile checksum
@@ -129,10 +138,10 @@ import restores with the battle locator, its sector, the persistent PBI and the 
 `src/sim/strategic/map/save-import.ts`). With no sector loaded the call reaches nobody: no soldier of such a save stands
 on a map in the original either, and the next map load clears the public noise it may set
 (`TileEngine/WorldDef.cc:2549`). ja2-node's own loads run none of these hooks (`27`; deviation "Hooks on load"). The
-load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start
-sector for an invalid landing zone, and, gated by the save's version ahead of the hooks above (`SaveLoadGame.cc:1150-1160`),
-`UpdateRefuelSiteAvailability` for version 89 or lower and `CalcAproximateAmountPaidToSpeck` below 91, which adds every
-M.E.R.C. listing merc's cost to date to Speck's total (`Laptop/Mercs.cc:1692`; `runNativeLoadHooks`).
+load's fix-ups come along: `SyncLastMercFromSaveGame`, the start sector for an invalid landing zone, and, gated by the
+save's version ahead of the hooks above (`SaveLoadGame.cc:1150-1160`), `UpdateRefuelSiteAvailability` for version 89 or
+lower and `CalcAproximateAmountPaidToSpeck` below 91, which adds every M.E.R.C. listing merc's cost to date to Speck's
+total (`Laptop/Mercs.cc:1692`; `runNativeLoadHooks`).
 
 **Everything in flight comes back.** The bullets and the thrown objects come back after the soldiers, who fire, own and
 catch them, in the first slots in their saved order, each soldier by his saved id (`loadBulletTable`,

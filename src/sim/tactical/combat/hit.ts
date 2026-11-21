@@ -824,7 +824,7 @@ const DAMAGE_CAUSES: Readonly<Partial<Record<number, DamageCause>>> = {
 
 function feedbackVoice(t: TacticalState, s: Soldier): Pick<DamageFeedbackEvent, 'unseen' | 'heard' | 'cry'> {
   if (s.muted) return {};
-  if (!inSector(s)) return { cry: { ...unseenVictim(s, (profile) => t.sectorHooks.profileVoice(t, profile)), team: s.team } };
+  if (!inSector(s)) return { cry: { ...unseenVictim(s), team: s.team } };
   if (shownInSector(t, s)) return {};
   return unseenVoice(t, s);
 }

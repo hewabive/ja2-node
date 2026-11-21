@@ -10,14 +10,13 @@ import { loadUiStrings } from '../content/text/strings.ts';
 import { REPO_ROOT } from '../node/repo.ts';
 import type { LaptopView } from '../protocol/view.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
-import { impSlotInProgress } from '../sim/campaign/laptop/imp.ts';
-import { impReportRows } from '../sim/campaign/laptop/imp-report.ts';
+import { impPortraitNumber, impProfileId, impVoiceId } from '../sim/campaign/laptop/imp.ts';
+import { impReportRows, impReportStats } from '../sim/campaign/laptop/imp-report.ts';
 import { BobbyRaySiteVisit, Bookmark, MercSiteVisit } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailSpec, sender } from '../sim/campaign/laptop/mail.ts';
 import { SpeckQuote } from '../sim/campaign/laptop/merc-site.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
-import { PLAYER_GENERATED_CHARACTER_ID } from '../sim/campaign/laptop/save-import.ts';
-import { MercStatus } from '../sim/tactical/profiles.ts';
+import { MercStatus, type ProfileProgress } from '../sim/tactical/profiles.ts';
 import { OKLIFE } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { CampaignSession, type TextSource } from './campaign-session.ts';
@@ -70,6 +69,18 @@ const STUB_IMP_CHARACTER = {
   portrait: 0,
   voice: 0,
 } as const;
+
+function reportRows(progress: ProfileProgress, portrait: number, mailId: number): string[] {
+  const character = {
+    portrait,
+    personalityTrait: progress.personalityTrait,
+    attitude: progress.attitude,
+    skillTrait: progress.skillTrait,
+    skillTrait2: progress.skillTrait2,
+    stats: impReportStats(progress),
+  };
+  return impReportRows(character, mailId % 2 === 0).map((r) => (r.appendName ? `imp:${r.row} Stub Tester` : `imp:${r.row}`));
+}
 
 async function newGame(seed: number): Promise<Laptop> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { hire: [] });
@@ -385,63 +396,44 @@ describe('the mail text the server assembles', () => {
     expect(plainText?.paragraphs).toHaveLength(plain.length - 1);
   });
 
-  it('builds the I.M.P. report from impass.edt for the profile of the mail, the name after the first record', async () => {
+  it('builds the I.M.P. report from impass.edt for profile 51 + the voice id, whatever the mail carries, the name after the first record', async () => {
     const { session, live } = await newGame(122);
     live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
     const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
     const profile = (created.data as { profile: number }).profile;
+    expect(profile).toBe(impProfileId(impVoiceId(false, STUB_IMP_CHARACTER.voice)));
     const flow = session.campaign.laptop;
-    const record = flow?.profileRecord(profile);
-    if (!flow || !record) throw new Error('no character');
+    const progress = flow?.profile(profile);
+    if (!flow || !progress) throw new Error('no character');
     const c = flow.content;
-    const named = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'), { firstData: profile });
-    const legacy = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'), { firstData: 0 });
-    session.campaign.state.laptop.imp.voiceId = profile - PLAYER_GENERATED_CHARACTER_ID;
-    const texts = fakeTexts(new Map());
-    const expected = (id: number) =>
-      impReportRows({ ...record, initial: record }, c.imp.portraits, id % 2 === 0).map((r) =>
-        r.appendName ? `imp:${r.row} Stub Tester` : `imp:${r.row}`,
-      );
-    expect(emailText(session.campaign, named, texts)).toEqual({
-      id: named.id,
-      subject: `mail:${named.offset}`,
-      paragraphs: expected(named.id),
+    const plain = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'));
+    const other = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'), { firstData: 1 });
+    const expected = (id: number) => reportRows(progress, impPortraitNumber(false, STUB_IMP_CHARACTER.portrait), id);
+    expect(emailText(session.campaign, plain, fakeTexts(new Map()))).toEqual({
+      id: plain.id,
+      subject: `mail:${plain.offset}`,
+      paragraphs: expected(plain.id),
     });
-    expect(emailText(session.campaign, legacy, texts)?.paragraphs).toEqual(expected(legacy.id));
-    expect(expected(named.id)).not.toEqual(expected(legacy.id));
+    expect(emailText(session.campaign, other, fakeTexts(new Map()))?.paragraphs).toEqual(expected(other.id));
+    expect(expected(plain.id)).not.toEqual(expected(other.id));
   });
 
-  it('reports a character of an imported save by the stats he started with, not the ones he trained up to', async () => {
+  it('reports the character by the stats he has now, the ones he trained up to included (EMail.cc reads the live profile)', async () => {
     const { session, live } = await newGame(123);
     live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
     const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
     const profile = (created.data as { profile: number }).profile;
     const flow = session.campaign.laptop;
-    const record = flow?.profileRecord(profile);
-    if (!flow || !record) throw new Error('no character');
+    const progress = flow?.profile(profile);
+    if (!flow || !progress) throw new Error('no character');
     const c = flow.content;
-    const mail = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'), { firstData: profile });
-    const gain = SUPER_SKILL - record.marksmanship;
-    const deltas = {
-      expLevel: 0,
-      life: 0,
-      agility: 0,
-      dexterity: 0,
-      wisdom: 0,
-      marksmanship: gain,
-      medical: 0,
-      mechanical: 0,
-      explosives: 0,
-      leadership: 0,
-      strength: 0,
-    };
-    session.campaign.state.laptop.imp.profiles.set(profile, { ...record, marksmanship: SUPER_SKILL, deltas } as typeof record);
-    const rows = (marksmanship: number) =>
-      impReportRows({ ...record, initial: { ...record, marksmanship } }, c.imp.portraits, mail.id % 2 === 0).map((r) =>
-        r.appendName ? `imp:${r.row} Stub Tester` : `imp:${r.row}`,
-      );
-    expect(rows(record.marksmanship)).not.toEqual(rows(SUPER_SKILL));
-    expect(emailText(session.campaign, mail, fakeTexts(new Map()))?.paragraphs).toEqual(rows(record.marksmanship));
+    const mail = flow.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'));
+    const portrait = impPortraitNumber(false, STUB_IMP_CHARACTER.portrait);
+    const before = reportRows(progress, portrait, mail.id);
+    progress.stats.marksmanship = SUPER_SKILL;
+    const after = reportRows(progress, portrait, mail.id);
+    expect(after).not.toEqual(before);
+    expect(emailText(session.campaign, mail, fakeTexts(new Map()))?.paragraphs).toEqual(after);
   });
 });
 
@@ -449,9 +441,7 @@ describe('the profile presentation the clients fetch', () => {
   it("sends an I.M.P. character's own face once he is created, whatever the content holds at his slot", async () => {
     const { session, live } = await newGame(122);
     live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
-    const flow = session.campaign.laptop;
-    const slot = flow ? impSlotInProgress(flow) : null;
-    if (slot === null) throw new Error('no free I.M.P. slot');
+    const slot = impProfileId(impVoiceId(false, STUB_IMP_CHARACTER.voice));
     expect(session.profileFaceRecords().some((r) => r.id === slot)).toBe(false);
     const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
     expect((created.data as { profile: number }).profile).toBe(slot);

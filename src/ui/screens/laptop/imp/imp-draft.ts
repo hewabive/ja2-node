@@ -190,10 +190,6 @@ export class ImpDraft {
     this.firstAttributeTime = true;
   }
 
-  selectGender(male: boolean, canCreate: boolean): void {
-    if (canCreate) this.tickGender(male);
-  }
-
   tickGender(male: boolean): void {
     this.genderFlag = male ? MALE : FEMALE;
   }

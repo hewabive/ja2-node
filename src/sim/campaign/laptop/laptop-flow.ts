@@ -74,7 +74,7 @@ import type { LaptopContext, LaptopRandom, MailOptions } from './context.ts';
 import type { LaptopEventWithoutTick } from './events.ts';
 import { enterFloristOrderForm, type FlowerOrder, orderFlowers } from './florist.ts';
 import { checkForValidArrivalSector, type HireHooks, handleAirspaceControlUpdated, setLandingZone } from './hire.ts';
-import { canCreateAnotherImpCharacter, emptyProfile, type ImpRequest, impCheckCode, impCreate, impPreview } from './imp.ts';
+import { emptyProfile, type ImpRequest, impCheckCode, impCreate, impPreview } from './imp.ts';
 import {
   addLifeInsurancePayout,
   dailyUpdateOfInsuredMercs,
@@ -368,10 +368,9 @@ export class LaptopFlow implements LaptopContext {
   register(d: EventDispatch<CampaignSim>): void {
     const c = this.content;
     d.register(EventKind.DAY3_ADD_EMAIL_FROM_SPECK, () => this.mail(mailSpec(c, 'MERC_INTRO'), sender(c, 'SPECK_FROM_MERC')));
-    d.register(EventKind.DAY2_ADD_EMAIL_FROM_IMP, (_, e) => {
-      if (c.imp.sendsProfileResultsEmail)
-        this.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS'), { firstData: e.param });
-    });
+    d.register(EventKind.DAY2_ADD_EMAIL_FROM_IMP, () =>
+      this.mail(mailSpec(c, 'IMP_EMAIL_PROFILE_RESULTS'), sender(c, 'IMP_PROFILE_RESULTS')),
+    );
     d.register(EventKind.HAVENT_MADE_IMP_CHARACTER_EMAIL, () => this.#haventMadeImpCharacter());
     d.register(EventKind.AIM_RESET_MERC_ANNOYANCE, (_, e) => this.#resetMercAnnoyance(e.param));
     d.register(EventKind.BOBBYRAY_PURCHASE, (_, e) => bobbyRayPurchaseEvent(this, e.param, this.campaign.tactical));
@@ -400,7 +399,7 @@ export class LaptopFlow implements LaptopContext {
 
   #haventMadeImpCharacter(): void {
     const imp = this.laptop.imp;
-    if (!canCreateAnotherImpCharacter(this) || imp.sentImpWarningAlready) return;
+    if (imp.completed || imp.sentImpWarningAlready) return;
     imp.sentImpWarningAlready = true;
     this.mail(mailSpec(this.content, 'IMP_EMAIL_AGAIN'), sender(this.content, 'CHAR_PROFILE_SITE'));
   }
@@ -459,7 +458,7 @@ export class LaptopFlow implements LaptopContext {
     const c = this.content;
     this.laptop.newGameLaptop = true;
     for (const name of STARTING_MAILS) this.mail(mailSpec(c, name), sender(c, STARTING_SENDERS[name]), { read: true });
-    if (canCreateAnotherImpCharacter(this)) this.mail(mailSpec(c, 'IMP_EMAIL_INTRO'), sender(c, 'CHAR_PROFILE_SITE'));
+    this.mail(mailSpec(c, 'IMP_EMAIL_INTRO'), sender(c, 'CHAR_PROFILE_SITE'));
   }
 
   mercOnlineNow(): void {
@@ -579,7 +578,7 @@ export class LaptopFlow implements LaptopContext {
   #close(): CommandResult {
     const l = this.laptop;
     const s = this.state;
-    if (l.newGameLaptop && canCreateAnotherImpCharacter(this) && !l.imp.sentImpWarningAlready) {
+    if (l.newGameLaptop && !l.imp.completed && !l.imp.sentImpWarningAlready) {
       const minute = (IMP_REMINDER_FIRST_HOUR + this.rng.main.int(IMP_REMINDER_HOURS)) * MINUTES_PER_HOUR;
       addFutureDayStrategicEvent(s.queue, s.clock, EventKind.HAVENT_MADE_IMP_CHARACTER_EMAIL, minute, 0, 1);
     }

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, landFirstSquad, runTheHelicopterDrop, startFirstSquadsDrop } from '../../../../tests/support/campaign.ts';
+import { type CampaignKit, landFirstSquad, startFirstSquadsDrop } from '../../../../tests/support/campaign.ts';
 import { type ContractCampaign, type ContractHire, createContractCampaign } from '../../../../tests/support/contracts.ts';
 import { loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
@@ -15,14 +15,12 @@ import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { factValue, QuestStatus } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { EventKind, NUM_MIN_IN_DAY, NUM_SEC_IN_MIN, Warp } from '../../strategic/time/constants.ts';
-import { addStrategicEvent, deleteStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { warpGameTime, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { QUOTE_ACTION_CHECK_FOR_DEST } from '../../tactical/narrative/profile-insertion.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
 import { FinanceCode } from '../finances.ts';
-import { FIRST_ARRIVAL_MINUTE } from '../hiring.ts';
 import { MercAccountStatus } from '../laptop/laptop-state.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../merc-fate.ts';
 import { ProfileMiscFlag3 } from '../profiles.ts';
@@ -127,17 +125,7 @@ describe('contract fields at hire and arrival', () => {
   });
 });
 
-describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes, SpeaksForItsVoice)', () => {
-  const IMP_SLOTS = [51, 52, 53] as const;
-  const SHARED_VOICE = 54;
-  const OWN_VOICE = 55;
-
-  function impTeam(hires: readonly ContractHire[], voices: ReadonlyMap<number, number>): ContractCampaign {
-    const cc = createContractCampaign(kit, { seed: 3, hires });
-    for (const [profile, voice] of voices) cc.campaign.state.laptop.imp.voices.set(profile, voice);
-    return cc;
-  }
-
+describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes)', () => {
   function landedEvents(cc: ContractCampaign): SimEvent[] {
     landFirstSquad(cc.campaign);
     return cc.campaign.drainEvents();
@@ -150,64 +138,14 @@ describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes, Speak
   const imp = (slot: number): ContractHire => ({ profile: STUB.vant, asProfile: slot, kind: MercKind.PLAYER_CHARACTER });
 
   it('has an I.M.P. character, and no A.I.M. merc, say at the first landing that he was dropped in Omerta', () => {
-    const cc = impTeam([{ profile: STUB.kestrel }, imp(51)], new Map([[51, SHARED_VOICE]]));
+    const cc = createContractCampaign(kit, { seed: 3, hires: [{ profile: STUB.kestrel }, imp(51)] });
     expect(droppedInOmerta(landedEvents(cc))).toEqual([51]);
   });
 
   it('says nothing once the letter quest no longer runs', () => {
-    const cc = impTeam([imp(51)], new Map([[51, SHARED_VOICE]]));
+    const cc = createContractCampaign(kit, { seed: 3, hires: [imp(51)] });
     cc.campaign.state.narrative.quests[Quest.DELIVER_LETTER] = QuestStatus.DONE;
     expect(droppedInOmerta(landedEvents(cc))).toEqual([]);
-  });
-
-  it('lets only the lowest profile of a shared voice speak at the first drop, whoever landed first', () => {
-    const [first, second, third] = IMP_SLOTS;
-    const voices = new Map([
-      [second, SHARED_VOICE],
-      [first, SHARED_VOICE],
-      [third, OWN_VOICE],
-    ]);
-    const cc = impTeam([imp(second), imp(first), imp(third)], voices);
-    expect(droppedInOmerta(landedEvents(cc))).toEqual([first, third]);
-  });
-
-  it('lets only the lowest profile of a shared voice speak on a later drop as well: by his code 467 the whole flight has arrived (Soldier_Ani.cc:974)', () => {
-    const [first, second] = IMP_SLOTS;
-    const cc = impTeam(
-      [{ profile: STUB.kestrel }, imp(second), imp(first)],
-      new Map([
-        [first, SHARED_VOICE],
-        [second, SHARED_VOICE],
-      ]),
-    );
-    const c = cc.campaign;
-    const later = FIRST_ARRIVAL_MINUTE + 1;
-    for (const id of [1, 2]) {
-      deleteStrategicEvent(c.state.queue, EventKind.DELAYED_HIRING_OF_MERC, id);
-      addStrategicEvent(c.state.queue, EventKind.DELAYED_HIRING_OF_MERC, later, id);
-      merc(cc, id).insertionCode = InsertionCode.NORTH;
-    }
-    expect(droppedInOmerta(landedEvents(cc))).toEqual([]);
-    warpGameTime(c.clockContext, NUM_SEC_IN_MIN, Warp.NORMAL);
-    c.step();
-    expect(c.state.sectorFlow.helicopterDrop.seats).toEqual([1, 2]);
-    runTheHelicopterDrop(c);
-    expect(droppedInOmerta(c.drainEvents())).toEqual([first]);
-  });
-
-  it('does not count a character of the same voice who is still in transit', () => {
-    const [first, second] = IMP_SLOTS;
-    const cc = impTeam(
-      [imp(first), imp(second)],
-      new Map([
-        [first, SHARED_VOICE],
-        [second, SHARED_VOICE],
-      ]),
-    );
-    landedEvents(cc);
-    merc(cc, 0).assignment = Assignment.IN_TRANSIT;
-    cc.flow.droppedFromHelicopter(1);
-    expect(droppedInOmerta(cc.campaign.drainEvents())).toEqual([second]);
   });
 });
 

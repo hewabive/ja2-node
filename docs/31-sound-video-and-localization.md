@@ -97,8 +97,8 @@ soldier of the loaded sector has, mixed against the tactical camera last shown a
 `InternalDoMercBattleSound` reads the world view the last scroll left (`Tactical/Soldier_Control.cc:6043`); a merc off
 the loaded map cries in the middle, as entering another sector and setting out on a route take our mercs off their
 tiles (`Strategic/StrategicMap.cc:853`, `Strategic/Strategic_Movement.cc:1789`). The cry's variant is the client's draw;
-the voice is the profile's voice id, an I.M.P.'s chosen one, as in the views. A muted soldier has no `cry` and makes
-only the samples.
+the voice is the profile's own files, an I.M.P.'s too (`51` + his voice), as in the views. A muted soldier has no `cry`
+and makes only the samples.
 
 **Grunts at bleeding, gas and electricity** follow `damageFeedback`, routed by `mapScreen` like a death off the
 tactical map. The once-a-second limit of `uiTimeSinceLastBleedGrunt` (`Tactical/Soldier_Control.cc:8764`) lives in the

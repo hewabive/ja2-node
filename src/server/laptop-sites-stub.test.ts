@@ -234,10 +234,8 @@ describe('the I.M.P. form rules (X12)', () => {
       specialtyBonus: null,
     });
     expect(imp.quizAnswers).toEqual([6, 4, 4, 5, 4, 5, 4, 4, 4, 4, 5, 8, 4, 4, 4, 4]);
-    expect(imp.portraits.male.length).toBeGreaterThan(0);
-    expect(imp.portraits.female.length).toBeGreaterThan(0);
-    expect(imp.voices.male.length).toBe(3);
-    expect(imp.voices.female.length).toBe(3);
+    expect(imp.portraits).toEqual({ male: [200, 201, 202, 203, 204, 205, 206, 207], female: [208, 209, 210, 211, 212, 213, 214, 215] });
+    expect(imp.voices).toEqual({ male: [51, 52, 53], female: [54, 55, 56] });
     const flow = session.campaign.laptop;
     if (!flow) throw new Error('no laptop');
     const balance = session.campaign.state.finances.balance;
@@ -250,7 +248,7 @@ describe('the I.M.P. form rules (X12)', () => {
     session.campaign.state.finances.balance = imp.cost - 1;
     expect(impBeginRefusal(fullTeam)).toBe('funds');
     session.campaign.state.finances.balance = balance;
-    session.campaign.state.laptop.imp.taken.push(51);
+    session.campaign.state.laptop.imp.completed = true;
     expect(live.dispatch({ type: 'impCheckCode', code: IMP_CODE })).toEqual({ ok: true, data: { result: 'noSlot' } });
   });
 });

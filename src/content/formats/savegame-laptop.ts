@@ -30,7 +30,7 @@ const HISTORY_RECORD_BYTES = 12;
 const FILE_RECORD_BYTES = 263;
 const FILE_RECORD_SKIP = 261;
 const EMAIL_RECORD_BYTES = 44;
-const FIRST_VERSION_WITH_VOICE_IDS = 104;
+const FIRST_VERSION_WITH_IMP_SLOT_STATES = 104;
 const SEL_MAP_Z_BYTES = 4;
 const BYTES_FROM_SEL_MAP_TO_MERC_ARRIVE = 8;
 
@@ -133,7 +133,6 @@ export interface SavedLaptop {
   readonly files: readonly SavedFileRecord[];
   readonly emails: readonly SavedEmail[];
   readonly impSlotStates: readonly number[] | null;
-  readonly voiceIds: readonly number[] | null;
   readonly mercArriveSector: { readonly x: number; readonly y: number };
 }
 
@@ -342,10 +341,9 @@ export function decodeEmails(section: Uint8Array): SavedEmail[] {
   return emails;
 }
 
-function profileTail(section: Uint8Array, count: number, version: number): { voiceIds: number[]; impSlotStates: number[] } | null {
-  if (version < FIRST_VERSION_WITH_VOICE_IDS) return null;
-  const tail = section.subarray(section.length - 2 * count);
-  return { voiceIds: Array.from(tail.subarray(0, count)), impSlotStates: Array.from(tail.subarray(count)) };
+function impSlotStates(section: Uint8Array, count: number, version: number): number[] | null {
+  if (version < FIRST_VERSION_WITH_IMP_SLOT_STATES) return null;
+  return Array.from(section.subarray(section.length - count));
 }
 
 function mercArriveSector(section: Uint8Array): { x: number; y: number } {
@@ -358,15 +356,14 @@ function mercArriveSector(section: Uint8Array): { x: number; y: number } {
 
 export function readSavedLaptop(bytes: Uint8Array, save: SaveGame): SavedLaptop {
   const sections = save.sections;
-  const tail = profileTail(sectionBytes(bytes, sections, 'merc profiles'), save.profiles.length, save.header.version);
+  const slots = impSlotStates(sectionBytes(bytes, sections, 'merc profiles'), save.profiles.length, save.header.version);
   return {
     info: decodeLaptopInfo(sectionBytes(bytes, sections, 'laptop info')),
     shipments: decodeShipments(sectionBytes(bytes, sections, 'bobby ray shipments')),
     history: decodeHistoryFile(sizedBlob(sectionBytes(bytes, sections, 'history file'))),
     files: decodeFilesFile(sizedBlob(sectionBytes(bytes, sections, 'files file'))),
     emails: decodeEmails(sectionBytes(bytes, sections, 'email')),
-    impSlotStates: tail?.impSlotStates ?? null,
-    voiceIds: tail?.voiceIds ?? null,
+    impSlotStates: slots,
     mercArriveSector: mercArriveSector(sectionBytes(bytes, sections, 'general info')),
   };
 }

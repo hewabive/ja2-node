@@ -7,7 +7,7 @@
 // @src getQuestEnumFromString; Tactical/Civ_Quotes.h CIV_QUOTE_*, NUM_CIV_QUOTES; Civ_Quotes.cc gubNumEntries,
 // @src CIV_QUOTE_HINT, CIV_QUOTE_TEXT_SIZE.
 
-export const NUM_PROFILES = 200;
+export const NUM_PROFILES = 170;
 export const NO_PROFILE = 200;
 
 export const Approach = {

@@ -29,8 +29,8 @@ const LOW_MORALE: Readonly<Partial<Record<string, string>>> = { OK1: 'LOWMORALE_
 const CUTS_SPEECH = 1;
 const SKIPPED_WHILE_TALKING = 2;
 
-export function battleVoiceBasename(profile: number | null, voiceId: number, bodyType: number, battleSoundId: number): string {
-  if (profile !== null) return String(voiceId).padStart(VOICE_DIGITS, '0');
+export function battleVoiceBasename(profile: number | null, bodyType: number, battleSoundId: number): string {
+  if (profile !== null) return String(profile).padStart(VOICE_DIGITS, '0');
   const kid = bodyType === SoundBody.HATKIDCIV || bodyType === SoundBody.KIDCIV;
   return `${kid ? 'kid' : 'bad'}${battleSoundId}`;
 }

@@ -97,10 +97,8 @@ roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFla
 
 **Arrival lines wait for the drop.** A merc who lands says nothing while he sits in the helicopter (his chopper code);
 at the end of his drop (code 467, `25`), or at the Esc skip, an I.M.P. character says he was dropped in Omerta while the
-letter quest runs, unless a teammate of his voice with a lower profile has already arrived, and every A.I.M. merc who
-hates him complains, one still in the helicopter included (`Tactical/Merc_Hiring.cc:373`). By then the whole flight has
-arrived, so one character speaks for each voice, at the first landing and at a later one alike
-(`campaign/helicopter-drop-flow.ts`, `SectorFlow`'s `mercArrivesQuotes` hook).
+letter quest runs, and every A.I.M. merc who hates him complains, one still in the helicopter included
+(`Tactical/Merc_Hiring.cc:373`; `campaign/helicopter-drop-flow.ts`, `SectorFlow`'s `mercArrivesQuotes` hook).
 
 **Hooks.** `ContractHooks` (no-op defaults for sandbox sessions) connect the laptop (`LaptopFlow.contractHooks`:
 insurance, the M.E.R.C. site, Larry's relapse, Speck's lost-merc flag, history, mail, personnel) and the narrative

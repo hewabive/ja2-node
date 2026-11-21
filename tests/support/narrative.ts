@@ -239,7 +239,6 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     questValue: (index) => quests.get(index) ?? 0,
     townRating: () => options.townRating ?? 0,
     threat: () => 0,
-    voice: (p) => p,
     worldSector: () => options.sector ?? { x: 1, y: 1, z: 0 },
     isEpc: () => false,
     onSquad: (s) => s.team === Team.OUR,

@@ -6,7 +6,10 @@ import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timeli
 import { strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction, WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { StructureFlags } from '../content/world/structures.ts';
+import { Bookmark } from '../sim/campaign/laptop/laptop-state.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../sim/campaign/merc-fate.ts';
+import { NUM_PROFILES } from '../sim/campaign/profiles.ts';
+import { MercKind } from '../sim/campaign/roster.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { UnloadCode } from '../sim/campaign/sector-flow.ts';
 import { createItem } from '../sim/items/object.ts';
@@ -4768,5 +4771,96 @@ describe("snapshot version 101 (master's proved-untrapped doors) migrates to v0.
     const legacy = versionHundredOne(current.sim);
     expect(JSON.stringify(legacy)).toContain(`"perceivedTrapped":${VERSION_101_PROVED_UNTRAPPED}`);
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+  });
+});
+
+const MASTER_PROFILES = 200;
+type ImpVoices = readonly (readonly [number, number])[];
+
+function paddedToMasterProfiles(list: Json | undefined): Json[] {
+  const entries = list as Json[];
+  return [...entries, ...new Array<Json>(MASTER_PROFILES - entries.length).fill(null)];
+}
+
+function withMasterImpModel(strategic: JsonObject, taken: readonly number[], voices: ImpVoices): JsonObject {
+  const laptop = object(strategic.laptop);
+  const records = object(strategic.npcRecords);
+  const imp = { ...object(laptop.imp), taken: [...taken], voices: { $map: voices.map(([p, v]) => [p, v]) } };
+  return {
+    ...strategic,
+    laptop: { ...laptop, imp },
+    npcRecords: { ...records, arrays: paddedToMasterProfiles(records.arrays), backups: paddedToMasterProfiles(records.backups) },
+  };
+}
+
+function versionHundredFive(snapshot: SimSnapshot, taken: readonly number[], voices: ImpVoices): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    name === 'strategic' ? withMasterImpModel(object(value), taken, voices) : value,
+  ]);
+  return { ...snapshot, version: 105, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 105 (master's I.M.P. slots and voices, 200 profiles) migrates to v0.22.1's one I.M.P. at 51 + the voice", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  const character = {
+    type: 'impCreate',
+    code: 'XEP624',
+    name: 'Stub Tester',
+    gender: 'male',
+    answers: [1, 0, 0, 1, 0, 1, 0, 2, 2, 1, 2, 1, 1, 1, 0, 0],
+    attributes: {
+      health: 75,
+      agility: 75,
+      dexterity: 70,
+      strength: 55,
+      wisdom: 60,
+      leadership: 35,
+      marksmanship: 75,
+      medical: 55,
+      mechanical: 55,
+      explosives: 0,
+    },
+    portrait: 0,
+    voice: 0,
+  };
+
+  it('a campaign with two I.M.P. characters keeps both as they are and drops the slot list and the voices', async () => {
+    const session = await createCampaignSession(kit.read, exists, 122, { hire: [] });
+    const imp = session.campaign.state.laptop.imp;
+    session.campaign.state.laptop.bookmarks.push(Bookmark.IMP);
+    expect(session.dispatch(character)).toMatchObject({ ok: true, data: { profile: 51 } });
+    imp.completed = false;
+    expect(session.dispatch({ ...character, name: 'Stub Other', gender: 'female' })).toMatchObject({ ok: true, data: { profile: 54 } });
+    const current = snapshotSession(session);
+    const legacy = versionHundredFive(
+      current.sim,
+      [51, 54],
+      [
+        [51, 54],
+        [54, 54],
+      ],
+    );
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = (await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists)) as CampaignSession;
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    const laptop = restored.campaign.state.laptop;
+    expect([...laptop.imp.profiles.keys()].sort()).toEqual([51, 54]);
+    expect(Object.keys(laptop.imp).sort()).toEqual(['completed', 'profiles', 'sentImpWarningAlready', 'voiceId']);
+    expect(restored.campaign.laptop?.roster.all().map((m) => [m.profile, m.kind])).toEqual([
+      [51, MercKind.PLAYER_CHARACTER],
+      [54, MercKind.PLAYER_CHARACTER],
+    ]);
+    expect(restored.campaign.state.npcRecords.arrays).toHaveLength(NUM_PROFILES);
   });
 });

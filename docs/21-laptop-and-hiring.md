@@ -102,6 +102,18 @@ in place of the quiz (`src/ui/screens/laptop/imp/imp-skill-traits.ts`): the pick
 no personality or attitude, and the attribute pool grows by the bonus the view's `imp.attributes.specialtyBonus` gives
 for them, the simulation's own `directPickBonus` (`29`).
 
+**One I.M.P. a campaign.** As in v0.22.1 the site makes one character, refused once the laptop's completed flag is set,
+in profile 51 + the voice id (a man's three voices 0–2, a woman's 3–5), and his voice is that profile's files. The
+portraits are faces 200–207 and 208–215, their face offsets and palettes in `data/tables/imp-faces.json`
+(`tools/transcribe/imp-faces.ts`); the gear is `GiveItemsToPC` in code, with the item lists of `imp.json`
+(`Laptop/IMP_Confirm.cc:273`). The character is written over the profile the campaign holds at his slot, as
+`CreateACharacterFromPlayerEnteredStats` writes over `gMercProfiles` (`Laptop/IMP_Compile_Character.cc:32`): what it does
+not set stays, `prof.dat`'s record of the slot included, whose fields differ between the six slots only in the nickname,
+the face and the body, all three of which the creation sets, and the opinions other mercs hold of the six slots are the
+same. The results mail describes profile 51 + the voice id by his current stats, whichever mail is read
+(`Laptop/EMail.cc:1901`), and its looks paragraph follows his portrait (deviation "I.M.P. report portrait"). A native
+save of a later Stracciatella may hold more characters (`14`).
+
 **Money.** A.I.M. charges at hire; M.E.R.C. mercs accrue a day's salary every midnight and the player settles the
 account on the site, greedily in listing order; an I.M.P. character costs 3000 once and is never paid. Game logic reads
 only the balance. The finance page's day figures are computed in the simulation (`finance-summary.ts`), so their quirks
@@ -143,6 +155,8 @@ otherwise.
 | A skill the stats rule out is removed by moving the last skill into its place, which reorders the list before the draws | `rules.test.ts` "drops a skill the stats rule out …" |
 | With `imp.pick_skills_directly` a woman keeps a Martial Arts pick made as a man before a change of gender on the begin page, though the page offers it to men only, and lands with expert hand to hand (`Laptop/IMP_Compile_Character.cc:423`) | `rules.test.ts` "gives a woman who kept Martial Arts …" |
 | The I.M.P. reminder is posted again on every exit from the laptop until it is sent | `laptop.test.ts` "posts the I.M.P. reminder on every exit …" |
+| An I.M.P. character's gun and armour ratings stay as his slot's profile had them, -1 for the empty slots: the gear given at creation is never rated (`Tactical/Soldier_Profile.cc:175`) | `rules.test.ts` "makes the character in his slot's profile as the campaign holds it …" |
+| The results mail gives the last woman's portrait (face 215) the portrait section's own opening records as her looks paragraph: the switch has no case for it (`Laptop/EMail.cc:2136-2155`) | `imp-report.test.ts` "gives the last woman's portrait the portrait section's own opening …" |
 | The reached-destination line stays taken for good once the queue is emptied before the callback that releases it runs, as a load or the end of a meanwhile empties it (`SaveLoadGame.cc:687`, `Strategic/Meanwhile.cc:533`): no arrival says it again in that game | `laptop.test.ts` "keeps the reached-destination line taken for good …", `src/sim/strategic/narrative/save-import.test.ts` "keeps the arrival line taken …" |
 | Re-hiring a M.E.R.C. merc sets his unpaid days to 1: the old debt is forgotten | `laptop.test.ts` "forgets the unpaid days …" |
 | The payment's ledger and history records name the merc of the files page last viewed, the first listing after a laptop entry, whoever was paid (`Laptop/Mercs_Account.cc:300`); `mercPay` takes it as `listing` | `laptop.test.ts` "names the merc of the files page last viewed …" |

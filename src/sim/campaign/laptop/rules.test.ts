@@ -9,20 +9,23 @@ import { Assignment } from '../../strategic/economy/constants.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { fact, setFact } from '../../strategic/narrative/facts.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../../strategic/time/constants.ts';
-import { MercStatus } from '../../tactical/profiles.ts';
+import { InvSlot } from '../../tactical/inventory.ts';
+import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 import { SkillTrait } from '../../tactical/soldier.ts';
 import { mercArrivalTimeOfDay } from '../contracts/contract-times.ts';
 import { FinanceCode } from '../finances.ts';
+import { initProfileFromContent } from '../profiles.ts';
 import type { RosterMerc } from '../roster.ts';
 import { sectorKey } from '../sector-diff.ts';
 import { bobbyRayPurchaseEvent, bobbyRayUnitPrice, dailyUpdateOfBobbyRaysInventory, placeOrder, shippingCost } from './bobby-ray.ts';
 import { orderFlowers } from './florist.ts';
 import { checkForValidArrivalSector, landingZoneRefusal } from './hire.ts';
-import { compileQuiz, createPlayerAttitude, personalityFromList } from './imp.ts';
+import { compileQuiz, createPlayerAttitude, emptyProfile, impProfileId, impVoiceId, personalityFromList } from './imp.ts';
 import { endInsuranceInvestigation, insuranceLength, insurancePremium, purchaseOrExtendInsurance } from './insurance.ts';
 import type { LaptopFlow } from './laptop-flow.ts';
 import { Bookmark, type Shipment, type StoreSlot, setBookmark } from './laptop-state.ts';
 import { mercSiteDailyUpdate } from './merc-site.ts';
+import { laptopRefusal } from './refusals.ts';
 
 let kit: StubSectorKit;
 
@@ -242,6 +245,63 @@ describe('I.M.P. specialties picked directly (imp_pick_skills_directly)', () => 
     setBookmark(flow.laptop, Bookmark.IMP);
     const created = flow.campaign.dispatch({ ...character, gender: 'female', skills: [SkillTrait.MARTIALARTS] });
     expect(created).toMatchObject({ ok: true, data: { skills: [SkillTrait.HANDTOHAND, SkillTrait.HANDTOHAND] } });
+  });
+});
+
+describe('I.M.P. slot and gear (IMP_Confirm.cc AddCharacterToPlayersTeam, GiveItemsToPC)', () => {
+  const directPickFlow = (seed: number) => laptopFlow(seed, withImpPolicy(kit.read, { pick_skills_directly: true }));
+  const { answers: _answers, ...character } = IMP_WITHOUT_LOCKPICKING_STATS;
+
+  async function created(flow: LaptopFlow, command: Record<string, unknown>, pre: readonly number[] = []): Promise<ProfileProgress> {
+    setBookmark(flow.laptop, Bookmark.IMP);
+    flow.useRandom({ main: new ScriptedRolls(), pre: new ScriptedRolls(pre) });
+    const result = flow.campaign.dispatch({ ...command, type: 'impCreate' });
+    const profile = (result.data as { profile?: number } | undefined)?.profile;
+    const p = profile === undefined ? null : flow.profile(profile);
+    if (!p) throw new Error(`no character: ${JSON.stringify(result)}`);
+    return p;
+  }
+
+  const held = (flow: LaptopFlow, p: ProfileProgress, name: string) =>
+    p.inventory.flatMap((item, slot) => (item === itemIndex(flow, name) ? [[slot, p.inventoryCount[slot]]] : []));
+
+  it("puts the character in profile 51 + his voice id: a man's third voice in 53, a woman's first in 54", async () => {
+    expect((await created(await laptopFlow(7), { ...IMP_WITHOUT_LOCKPICKING_STATS, voice: 2 })).id).toBe(53);
+    expect((await created(await laptopFlow(7), { ...IMP_WITHOUT_LOCKPICKING_STATS, gender: 'female', voice: 0 })).id).toBe(54);
+  });
+
+  it("makes the character in his slot's profile as the campaign holds it: what the creation does not write stays, the gun and armour ratings too (quirk)", async () => {
+    const flow = await laptopFlow(7);
+    const slot = impProfileId(impVoiceId(true, 0));
+    const held = initProfileFromContent(emptyProfile(slot), flow.tactical.items, false);
+    held.opinions[STUB_AIM_PROFILES[0] ?? 0] = 9;
+    flow.state.profiles.set(slot, held);
+    const p = await created(flow, IMP_WITHOUT_LOCKPICKING_STATS);
+    expect(p.opinions[STUB_AIM_PROFILES[0] ?? 0]).toBe(9);
+    expect(p.stats).toMatchObject({ wisdom: IMP_WITHOUT_LOCKPICKING_STATS.attributes.wisdom, experience: 1 });
+    expect(p.inventory.some((item) => flow.tactical.items.byIndex.get(item)?.weapon)).toBe(true);
+    expect([p.mainGunAttractiveness, p.armourAttractiveness]).toEqual([-1, -1]);
+  });
+
+  it('refuses a second character once one is made', async () => {
+    const flow = await laptopFlow(7);
+    await created(flow, IMP_WITHOUT_LOCKPICKING_STATS);
+    expect(flow.campaign.dispatch({ ...IMP_WITHOUT_LOCKPICKING_STATS, voice: 1 })).toEqual(laptopRefusal('noSlot'));
+  });
+
+  it('gives the steel helmet only when the PreRandom roll is below the wisdom, not when it equals it', async () => {
+    const wisdom = IMP_WITHOUT_LOCKPICKING_STATS.attributes.wisdom;
+    const below = await created(await laptopFlow(7), IMP_WITHOUT_LOCKPICKING_STATS, [wisdom - 1]);
+    expect(held(await laptopFlow(7), below, 'STEEL_HELMET')).toEqual([[InvSlot.HELMET, 1]]);
+    const equal = await created(await laptopFlow(7), IMP_WITHOUT_LOCKPICKING_STATS, [wisdom]);
+    expect(equal.inventory[InvSlot.HELMET]).toBe(0);
+  });
+
+  it('gives a night ops character two break lights in one pocket', async () => {
+    const flow = await directPickFlow(7);
+    const p = await created(flow, { ...character, skills: [SkillTrait.NIGHTOPS] });
+    expect([p.skillTrait, p.skillTrait2]).toEqual([SkillTrait.NIGHTOPS, SkillTrait.NIGHTOPS]);
+    expect(held(flow, p, 'BREAK_LIGHT').map(([, count]) => count)).toEqual([2]);
   });
 });
 
