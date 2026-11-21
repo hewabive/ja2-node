@@ -141,6 +141,13 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A merc with the good guy flag, or a recruited rebel, refuses to plant a bomb at his own feet: the soldier on the tile of his click is himself, and he spares good guys and rebels | `player-refusals.test.ts` "makes a good guy refuse to plant a bomb …" |
 | A poor shot held for no line of fire stays confirmed after it fires: the same merc from the same tile at the same tile fires on without a word until a shot with a fair chance or another case clears it | `player-refusals.test.ts` "holds the first shot …" |
 | The adjacent-tile search never answers the soldier's own tile when a switch is on it (`Tactical/Overhead.cc:3364`), with or without its door handling: a merc bandaging himself on a switch tile first walks to a tile beside it | `src/sim/tactical/first-aid.test.ts` |
+| A shot between two roofs never checks the roof, as both ends lie above one storey of absolute height (`Tactical/LOS.cc:3342-3363`): a bullet that drops past its target falls through a roof to the floor below; on raised land no shot checks a roof | `heights.test.ts` |
+| A rising bullet leaves the world above two storeys of absolute height (`Tactical/LOS.cc:3547`, `:4247`): on raised land a steep upward shot vanishes beside the shooter | `heights.test.ts` |
+| A bullet's impact is heard on the roof level wherever it stops above 50 px of absolute height, and a LAW or tank shell stopped there goes off on the roof level (`Tactical/Weapons.cc:1577`, `:1591`, `:1605`): on raised land, every impact | `heights.test.ts` |
+| A LAW rocket, a tank shell or a creature's spit that stops at a wall goes off on the wall's tile, from whichever side it came (`Tactical/Weapons.cc:1591`, `:1639`) | `heights.test.ts` |
+| A shot at an empty tile aims at the roof under it on the roof level and at a door's third cube on either level, and its chance to get through aims a cube higher than the shot (`TileEngine/Structure.cc:1041-1089`, `Tactical/LOS.cc:2962`, `Tactical/Weapons.cc:522-532`) | `heights.test.ts` |
+| An attack not ordered from the interface keeps the target level of the soldier's last attack (`Tactical/Handle_Items.cc:392`): a civilian firing back at an attacker on another level aims at the old one (`Tactical/Overhead.cc:5562`) | `heights.test.ts` |
+| A missile trail takes the bullet's absolute height (`Tactical/Bullets.cc:337`), so over raised land it is drawn a land height too high | `impacts.test.ts` |
 
 Not pinned yet:
 - A prone shooter's close-range penalty against a standing target turns into a bonus at four and five tiles
@@ -162,7 +169,9 @@ Not pinned yet:
 The oracle's `cth` probe compares the chance to hit, the AP cost and the chance to get through for every aim level
 and every armed soldier of a save, `bestshot` the AI's best shot, `los` the line of sight, and `stab`/`beststab` the
 chance to stab and `HTHImpact` with its fluke draw replayed strictly (`tools/oracle/README.md`). `cth` and `bestshot`
-draw nothing. Inferred from reading the source:
+draw nothing. The `heights` probe fires whole shots on raised land (D13) frame by frame with every draw replayed: up at
+a roof, from roof to roof, at a door, a LAW at a wall; and the aim point and chance to get through of shots at empty
+tiles. Inferred from reading the source:
 - The draws of a whole shot in order, from the order to the end of the attack: the hand item breaking, the jam check,
   the body-part roll, the barrel extender, the hit roll, the marksmanship gain, the miss deviation, each tile's
   structure, accidental-hit and suppression rolls, then the impact (`33`); likewise a punch or a stab.

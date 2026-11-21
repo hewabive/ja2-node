@@ -496,4 +496,20 @@ describe('missile trails (Bullets.cc AddMissileTrail)', () => {
     const rows = trails.map((e) => Math.trunc(e.y / 10));
     expect(rows.slice(1).every((row, k) => row >= (rows[k] ?? row))).toBe(true);
   });
+
+  it('gives a trail its absolute height, so over raised land the browser draws it a land height too high (Bullets.cc:337)', () => {
+    const RAISED_LAND_PIXELS = 80;
+    const firstTrailHeight = (raised: boolean) => {
+      const sim = newCombatSim(content, [], 3, new Set(), (world) => world.level.heights.fill(raised ? RAISED_LAND_PIXELS : 0));
+      spawnSoldier(sim, 0, Team.OUR, gridNo(80, 60), Direction.SOUTH, { gun: 'ROCKET_LAUNCHER' });
+      expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 90) }).ok).toBe(true);
+      for (let tick = 0; tick < 3000; tick++) {
+        sim.step();
+        const trail = sim.drainEvents().find((e) => e.type === 'missileTrail');
+        if (trail?.type === 'missileTrail') return trail.z;
+      }
+      throw new Error('no trail');
+    };
+    expect(firstTrailHeight(true) - firstTrailHeight(false)).toBeGreaterThanOrEqual(RAISED_LAND_PIXELS - 1);
+  });
 });

@@ -66,8 +66,8 @@ soldier pass, objects in slot order (deviation "Physics cadence and floats"). Fl
 given launch parameters, in turn-based and real time alike.
 
 **The force search is remembered.** A collision-free test flight draws nothing and reads only the visible area of the
-map, so its result is a function of source, target, heights, angle, whether the object is a mortar shell and the
-restricted scroll area. `trajectory.ts` keeps it per item table, bounded at 65,536 entries: the searches were most of
+map and the land height of its first tile, so its result is a function of source, that land height, target, heights,
+angle, whether the object is a mortar shell and the restricted scroll area. `trajectory.ts` keeps it per item table, bounded at 65,536 entries: the searches were most of
 the AI's throw planning, and the probe for the force cap is the same for every target of a toss range.
 
 **No fuses.** Hand and launcher grenades go off when the object comes to rest (or dies after 30 collisions or off the
@@ -104,9 +104,15 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `explo
 | On a map with a restricted scroll area the probe for the force cap starts off the visible map: every throw falls at the thrower's feet | `physics.test.ts` |
 | The AI's landing check passes only where the flight hits a structure or a person: open ground records no end position | `physics.test.ts` |
 | A dud's timer has no bomb item behind it (`usBombItem` aliases the grenade's empty statuses): at its end the queue takes the grenade off the map without a blast, and until then it blocks time compression | `physics.test.ts` "arms a dud …", `bombs/bomb-queue.test.ts` "takes a dud's timed bomb off the map …" |
+| A throw on raised land falls short: an object flies at absolute heights (`TileEngine/Physics.cc:162-167`), and the force search lets its test object fall to height 0, below the ground (`TileEngine/Physics.cc:632`) | `physics.test.ts` "drops a throw short …" |
+| The roof line is one storey of absolute height (`Tactical/LOS.cc:4458`): on raised land an object falls through it, and one rising into a roof lands on top of it | `physics.test.ts` "takes the roof line …" |
+| An object that comes to rest on a roof makes no impact sound: only the ground plays it (`TileEngine/Physics.cc:387`, `:901`) | `physics.test.ts` "plays no impact …" |
 
 Not pinned yet:
 - A mortar's chance is 0 below 15 tiles, before the 1–99 clamp: any roll but 0 misses.
+- A mortar's force is searched from the floor of its level (`TileEngine/Physics.cc:1492`), its landing checked from the
+  throw height (`:1622`), and its shell starts 50 units up (`:1812`); a launcher aims at height 0 on either level
+  (`Tactical/Weapons.cc:1432`). The oracle's `heights` probe compares them.
 - Only our team's and visible soldiers' launchers can misfire (`willExplosiveWeaponFail`).
 - The collision counters never reset in free flight: slow collisions of separate bounces add up toward the stop after 3,
   identical collision codes toward the one after 30.
@@ -115,12 +121,13 @@ Not pinned yet:
 
 ## 4. Not checked against the native build
 
-No oracle probe covers throws, launchers or physics; the unit tests next to the code check the port as read. Inferred
-from reading the source:
+The oracle's `heights` probe (`tools/oracle/README.md` "Heights") compares, on raised land (D13), the landing check and
+the launch of thrown grenades, launched grenades, a mortar shell and a rock, from the ground and from a roof, and whole
+flights frame by frame with every draw: a thrown grenade, grenade launchers at open ground and at a roof, a mortar.
+Inferred from reading the source:
 - The release charges: the target always new, no stance term, no aim.
 - That throws fail on a map with a restricted scroll area (one basement in the shipped data).
 - An aborted throw returns the whole copied stack; a hit during the throw animation before the release loses the object.
-- Object heights ignore the terrain height of the tile.
 - The order of the dud test's two draws.
 - In water, the throw's busy count is released before the ripple's explosion.
 - Catches, windows broken by a thrown object and objects hitting soldiers are ported as read.

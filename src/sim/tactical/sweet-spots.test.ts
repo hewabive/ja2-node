@@ -7,6 +7,7 @@ import { Terrain } from '../../content/world/terrain.ts';
 import type { TacticalContent } from './content.ts';
 import { freeTilesAround } from './item-placement.ts';
 import { newOKDestination } from './pathfinding.ts';
+import { SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
 import { Body, NOWHERE, Team } from './soldier.ts';
 import {
   dummySoldier,
@@ -92,5 +93,15 @@ describe('FindGridNoFromSweetSpot (Soldier_Add.cc)', () => {
     const crow = spawnSoldier(sim, 116, Team.CREATURE, SWEET + 10 * COLS, NORTH);
     crow.bodyType = Body.CROW;
     expect(findGridNoFromSweetSpot(t, crow, SWEET, 4)).toBe(SWEET - COLS);
+  });
+
+  it('floods on the ground even for a soldier on a roof, so it hands him the nearest free tile, roof or none (Soldier_Add.cc:57, :88)', () => {
+    const sim = newCombatSim(content, [], 3, new Set([SWEET]));
+    const t = sim.state;
+    const sitter = spawnSoldier(sim, 117, Team.CIV, SWEET, NORTH);
+    setSoldierHeight(t, sitter, SECOND_LEVEL_Z_OFFSET);
+    const climber = spawnSoldier(sim, 116, Team.CIV, SWEET + 10 * COLS, NORTH);
+    setSoldierHeight(t, climber, SECOND_LEVEL_Z_OFFSET);
+    expect(findGridNoFromSweetSpot(t, climber, SWEET, 4)).toBe(SWEET - COLS);
   });
 });

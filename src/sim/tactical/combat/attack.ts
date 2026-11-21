@@ -62,7 +62,7 @@ import { modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
 import { eventSoldierGotHit, okFallDirection } from './hit.ts';
 import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
 import { holdsShotWithoutLineOfFire, refusesToUseItemOn } from './player-refusals.ts';
-import { calculateSoldierZPos, targetZFromStructureHeight } from './positions.ts';
+import { calculateSoldierZPos, targetWorldZ } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
 import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
 
@@ -123,7 +123,6 @@ export function sendBeginFireWeaponEvent(t: TacticalState, s: Soldier, target: n
 export function handleItem(t: TacticalState, s: Soldier, g: number, level: number, handItem: number, fromUi = false): number {
   removePendingAction(t, s);
   s.attackingWeapon = handItem;
-  s.targetLevel = level;
   const tgt = whoIsThere(t, g, level);
   if (!t.inCombat) t.turn.attackBusyCount = 0;
   if (tgt) tgt.beingAttackedCount = 0;
@@ -240,6 +239,7 @@ function handleGunAttack(
       t.events.push({ type: 'psychoBurst', ...cursingSoldier(t, s) });
     }
   }
+  if (fromUi) s.targetLevel = level;
   if (d.itemClass === ItemClass.THROWING_KNIFE) {
     beginKnifeThrowAttack(t, s, targetGrid, directionToward(s.gridNo, targetGrid));
     return ItemHandle.OK;
@@ -444,7 +444,7 @@ export function getTargetWorldPositions(t: TacticalState, s: Soldier, g: number)
     return {
       x: Math.fround((g % WORLD_COLS) * 10 + 5),
       y: Math.fround(idiv(g, WORLD_COLS) * 10 + 5),
-      z: targetZFromStructureHeight(t, g, s.targetLevel, s.targetCubeLevel),
+      z: targetWorldZ(t, g, s.targetLevel, s.targetCubeLevel),
     };
   }
   s.opponent = target;

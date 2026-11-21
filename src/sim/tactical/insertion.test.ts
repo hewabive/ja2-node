@@ -226,16 +226,16 @@ describe('the APs of a soldier added to the sector (Soldier_Add.cc InternalAddSo
   });
 });
 
-describe('a soldier added on the roof level (Soldier_Add.cc SECOND_LEVEL_Z_OFFSET)', () => {
+describe('a soldier added on the roof level (Soldier_Add.cc:1113-1117 AddSoldierToSectorGridNo)', () => {
   const CLIMBED_HEIGHT = 50;
   const roofAround = (g: number) => new Set([g - 1, g, g + 1, g - WORLD_COLS, g + WORLD_COLS]);
 
-  it('stands him 58 px up where a roof is, 8 more than a climb leaves him, and on the ground where none is', () => {
+  it('keeps the height a climb left him where a roof is, 8 px under a placed one, and drops him to the ground where none is', () => {
     const roofed = newCombatSim(content, [], 3, roofAround(SWEET));
     const climber = arrivingSoldier(roofed);
     setSoldierHeight(roofed.state, climber, CLIMBED_HEIGHT);
     expect(insert(roofed, climber, ARRIVAL_FACING, false)).toMatchObject({ placed: true, gridNo: SWEET });
-    expect([climber.level, climber.heightAdjustment]).toEqual([1, 58]);
+    expect([climber.level, climber.heightAdjustment]).toEqual([1, CLIMBED_HEIGHT]);
     expect(whoIsThere(roofed.state, SWEET, 1)).toBe(climber);
     const bare = newCombatSim(content);
     const stranded = arrivingSoldier(bare);

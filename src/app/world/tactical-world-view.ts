@@ -320,7 +320,7 @@ export class TacticalWorldView {
   #knifeTiles(bullets: readonly BulletView[], tick: number): SceneAniTile[] {
     const effects = this.#effects;
     if (!effects) return [];
-    return bullets.flatMap((b) => (b.knife ? effects.knife({ ...b, knife: b.knife }, tick, this.world.level.heights) : []));
+    return bullets.flatMap((b) => (b.knife ? effects.knife({ ...b, knife: b.knife }, tick) : []));
   }
 
   #crowShadowTiles(soldiers: readonly SoldierView[], clockMs: number): SceneAniTile[] {

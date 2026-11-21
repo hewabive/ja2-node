@@ -15,7 +15,7 @@ import { losWorldOf } from '../combat/positions.ts';
 import { landHeightUnits, lineOfSightTest } from '../perception/los.ts';
 import type { Soldier } from '../soldier.ts';
 import { inCavesOrBasement, type TacticalState, whoIsThere } from '../state.ts';
-import { createRealObject, HEIGHT_UNITS, NOWHERE, objectLevel, simulateObject, toGridNo } from './physics.ts';
+import { createRealObject, HEIGHT_UNITS, landHeightUnitsAt, NOWHERE, objectLevelAboveLand, simulateObject, toGridNo } from './physics.ts';
 import { type RealObject, TestObject, ThrowAction, type ThrowParams } from './state.ts';
 import { calcMaxTossRange, launcherOf } from './throwing.ts';
 import { f32, normal, scale, type Vec3, vec3 } from './vec3.ts';
@@ -95,7 +95,7 @@ function runToDeath(t: TacticalState, o: RealObject): void {
 }
 
 export function calculateObjectTrajectory(t: TacticalState, targetZ: number, obj: ItemObject, position: Vec3, force: Vec3): number {
-  const o = createRealObject(obj, -1, position, force, null, ThrowAction.NONE, null);
+  const o = createRealObject(t, obj, -1, position, force, null, ThrowAction.NONE, null);
   o.testObject = TestObject.NO_COLLISIONS;
   o.testZTarget = targetZ;
   o.testPositionNotSet = true;
@@ -112,7 +112,8 @@ function findBestForce(t: TacticalState, src: number, dst: number, startZ: numbe
   if (known.size >= MAX_KNOWN_FORCES) known.clear();
   knownForces.set(items, known);
   const visibleArea = restrictedScrollIdOf(t.world);
-  const key = `${visibleArea}:${src}:${dst}:${startZ}:${endZ}:${degrees}:${obj.item === itemIndex(t, 'MORTAR_SHELL')}`;
+  const land = landHeightUnitsAt(t, src);
+  const key = `${visibleArea}:${src}:${land}:${dst}:${startZ}:${endZ}:${degrees}:${obj.item === itemIndex(t, 'MORTAR_SHELL')}`;
   const cached = known.get(key);
   if (cached !== undefined) return cached;
   const force = searchBestForce(t, src, dst, startZ, endZ, degrees, obj);
@@ -206,7 +207,7 @@ export function launchItemBasicParams(
   const mortarShot = armed && (launcher === mortar || obj.item === mortar);
   const grenadeLauncherShot = armed && (grenadeLaunchers.includes(launcher) || grenadeLaunchers.includes(obj.item));
   if (mortarShot) {
-    startZ = s.level * HEIGHT_UNITS + MORTAR_HEIGHT_UNITS;
+    startZ = s.level * HEIGHT_UNITS;
     minRange = MIN_MORTAR_RANGE;
   }
   if (grenadeLauncherShot) {
@@ -311,16 +312,16 @@ export function calculateLaunchItemChanceToGetThrough(
 ): LandingPrediction {
   if (s.gridNo === g) return { ok: false, gridNo: g, level: s.level };
   const basic = launchItemBasicParams(t, s, obj, g, level, endZ, armed);
-  const position = startPosition(s.gridNo, launchStartZ(t, s, obj.item, true));
+  const position = startPosition(s.gridNo, throwHeight(s.level));
   const force = scale(directionNormal(s.gridNo, g, basic.degrees), basic.force);
-  const o = createRealObject(obj, -1, position, force, null, ThrowAction.NONE, null);
+  const o = createRealObject(t, obj, -1, position, force, null, ThrowAction.NONE, null);
   o.testObject = TestObject.NOT_WALL_ROOF_COLLISIONS;
   o.testPositionNotSet = true;
   o.testZTarget = endZ;
   o.visible = false;
   runToDeath(t, o);
   const gridNo = toGridNo(fromUI ? o.position : o.endedWithCollisionPosition);
-  const landedLevel = objectLevel(o.endedWithCollisionPosition.z);
+  const landedLevel = objectLevelAboveLand(t, o.endedWithCollisionPosition.z, gridNo);
   if (o.testEndedWithCollision) return { ok: false, gridNo, level: landedLevel };
   if (landedLevel !== level) return { ok: false, gridNo, level: landedLevel };
   if (!fromUI && gridNo !== g) return { ok: false, gridNo, level: landedLevel };

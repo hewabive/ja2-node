@@ -202,7 +202,7 @@ function inBoxingSector(t: TacticalState): boolean {
 function tallestGroundStructure(t: TacticalState, g: number): number {
   let tallest = 0;
   for (const s of t.world.structures.at(g)) {
-    if (s.cubeOffset !== STRUCTURE_ON_GROUND || has(s.flags, StructureFlags.NORMAL_ROOF)) continue;
+    if (s.cubeOffset !== STRUCTURE_ON_GROUND) continue;
     tallest = Math.max(tallest, structureHeight(s));
   }
   return tallest;

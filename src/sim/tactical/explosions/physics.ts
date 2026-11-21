@@ -9,7 +9,6 @@
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
-import { levelTilesAt } from '../../../content/world/level.ts';
 import { has, INVALID_STRUCTURE_ID, ORIENT_RIGHT, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv } from '../../../core/int.ts';
@@ -141,7 +140,20 @@ export function objectLevel(z: number): number {
   return i8(Math.trunc(f32(f32(z + OBJECT_LEVEL_LIFT) / HEIGHT_UNITS)));
 }
 
+export function landHeightUnitsAt(t: TacticalState, g: number): number {
+  return idiv((t.world.level.heights[g] ?? 0) * HEIGHT_UNITS, PIXELS_PER_STOREY);
+}
+
+function landPixelsAt(t: TacticalState, g: number): number {
+  return t.world.level.heights[g] ?? 0;
+}
+
+export function objectLevelAboveLand(t: TacticalState, z: number, g: number): number {
+  return objectLevel(f32(z - landHeightUnitsAt(t, g)));
+}
+
 export function createRealObject(
+  t: TacticalState,
   object: ItemObject,
   lifeLength: number,
   position: Vec3,
@@ -152,6 +164,9 @@ export function createRealObject(
 ): RealObject {
   const initial = scale(vec3(f32(f32(force.x / HEIGHT_UNITS) * 10), f32(f32(force.y / HEIGHT_UNITS) * 10), force.z), INITIAL_FORCE_SCALE);
   const p = vec3(position.x, position.y, position.z);
+  const gridNo = toGridNo(p);
+  const land = gridNo === NOWHERE ? 0 : landHeightUnitsAt(t, gridNo);
+  p.z = f32(p.z + land);
   return {
     alive: true,
     applyFriction: false,
@@ -172,7 +187,7 @@ export function createRealObject(
     collisionNormal: vec3(),
     collisionVelocity: vec3(),
     collisionElasticity: 0,
-    gridNo: toGridNo(p),
+    gridNo,
     consecutiveCollisions: 0,
     consecutiveZeroVelocityCollisions: 0,
     oldCollisionCode: Collision.NONE,
@@ -187,7 +202,7 @@ export function createRealObject(
     dropItem: true,
     numTilesMoved: 0,
     endedWithCollisionPositionSet: false,
-    endedWithCollisionPosition: vec3(),
+    endedWithCollisionPosition: vec3(0, 0, land),
     haveHitGround: false,
     lastTargetTakenDamage: NO_TARGET_TAKEN_DAMAGE,
     levelNode: false,
@@ -215,7 +230,7 @@ export function createPhysicalObject(
     slot = slots.length;
     slots.push(null);
   }
-  const o = createRealObject(object, lifeLength, position, force, owner, action, target);
+  const o = createRealObject(t, object, lifeLength, position, force, owner, action, target);
   slots[slot] = o;
   return o;
 }
@@ -296,8 +311,7 @@ function endOfLife(t: TacticalState, o: RealObject): void {
     const volume = IMPACT_NOISE_BASE + t.pre.int(IMPACT_NOISE_SPREAD);
     makeNoise(t, o.owner, o.gridNo, 0, volume, rock ? NoiseKind.ROCK_IMPACT : NoiseKind.GRENADE_IMPACT);
   }
-  if (o.oldCollisionCode === Collision.GROUND || o.oldCollisionCode === Collision.ROOF)
-    t.events.push({ type: 'thrownImpact', gridNo: o.gridNo });
+  if (o.oldCollisionCode === Collision.GROUND) t.events.push({ type: 'thrownImpact', gridNo: o.gridNo });
   reduceAttackBusyCount(t, o.owner, false);
   endCatchAnimation(t, o);
 }
@@ -318,7 +332,7 @@ function curseTheDud(t: TacticalState, owner: Soldier | null): void {
 }
 
 function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
-  const z = heightUnitsToPixels(o.position.z);
+  const z = heightUnitsToPixels(o.position.z) - landPixelsAt(t, o.gridNo);
   const obj = o.object;
   obj.count = 1;
   const def = t.content.items.byIndex.get(obj.item);
@@ -340,7 +354,7 @@ function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
   }
   const explosive = def?.explosive;
   if (!explosive || !impact) return;
-  const level = objectLevel(o.position.z);
+  const level = objectLevelAboveLand(t, o.position.z, o.gridNo);
   const causesExplosion = explosive.blast !== null || explosive.stun !== null || explosive.smoke !== null;
   if (explosive.light) {
     if (level > 0) {
@@ -350,7 +364,7 @@ function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
   const x = i16(Math.trunc(o.position.x));
   const y = i16(Math.trunc(o.position.y));
   if (grenade && causesExplosion) igniteExplosionXY(t, o.owner, x, y, z, o.gridNo, obj.item, level);
-  if (mortarShell) igniteExplosionXY(t, o.owner, x, y, z, o.gridNo, obj.item, level);
+  if (mortarShell) igniteExplosionXY(t, o.owner, x, y, heightUnitsToPixels(o.position.z), o.gridNo, obj.item, level);
 }
 
 interface CollisionResult {
@@ -404,7 +418,6 @@ interface Hit {
 function testCollision(o: RealObject, z: number, dz: number): number {
   if (!(z < o.testZTarget && dz < 0)) return Collision.NONE;
   if (!o.testPositionNotSet) return Collision.GROUND;
-  if (o.testZTarget === HEIGHT_UNITS) return Collision.ROOF;
   if (o.testZTarget > PASSING_TARGET_MIN_Z) {
     o.testPositionNotSet = false;
     o.testZTarget = 0;
@@ -507,7 +520,6 @@ function collisionResponse(t: TacticalState, o: RealObject, code: number, hit: H
     case Collision.INTERIOR_ROOF:
       o.applyFriction = true;
       o.appliedMu = MU_ROOF;
-      landOnce(t, o);
       return { normal: DOWN(), elasticity: E_ROOF };
     case Collision.STRUCTURE_Z:
       checkForObjectHittingMerc(t, o, hit.structureId);
@@ -626,12 +638,14 @@ export function checkForCollision(t: TacticalState, x: number, y: number, z: num
   if (tileX < 0 || tileX >= WORLD_COLS || tileY < 0 || tileY >= WORLD_ROWS) return NO_HIT;
   const g = tileX + tileY * WORLD_COLS;
   const oldZ = f32(z - dz);
-  const above = Math.trunc(z);
+  const land = landHeightUnitsAt(t, g);
+  const above = Math.trunc(z) - land;
   if (above < 0) return groundOrWater(t, g);
   const list = t.world.structures.at(g);
+  const underground = inCavesOrBasement(t);
   if (list.length === 0) {
-    if (z < 0) return groundOrWater(t, g);
-    return (inCavesOrBasement(t) ? roofCrossing(oldZ, z) : null) ?? NO_HIT;
+    if (z < land) return groundOrWater(t, g);
+    return (underground ? roofCrossing(oldZ, z) : null) ?? NO_HIT;
   }
   let cube = idiv(above, CUBE_UNITS);
   if (cube >= 2 * PROFILE_Z_SIZE) return NO_HIT;
@@ -640,11 +654,11 @@ export function checkForCollision(t: TacticalState, x: number, y: number, z: num
   const cell = cellX * 5 + cellY;
   const desired = cube < PROFILE_Z_SIZE ? 0 : PROFILE_Z_SIZE;
   if (desired === PROFILE_Z_SIZE) cube -= PROFILE_Z_SIZE;
-  if (levelTilesAt(t.world.level.layers.roofs, g).length > 0 || inCavesOrBasement(t)) {
-    const roof = roofCrossing(oldZ, z);
-    if (roof) return roof;
-  }
   for (const s of list) {
+    if (has(s.flags, StructureFlags.ROOF) || underground) {
+      const roof = roofCrossing(oldZ, z);
+      if (roof) return roof;
+    }
     if (s.cubeOffset !== desired) continue;
     const column = s.tile.shape[cell] ?? 0;
     if (!(column & (1 << cube))) continue;

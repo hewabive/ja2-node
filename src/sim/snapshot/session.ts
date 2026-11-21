@@ -10,6 +10,7 @@ import { NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { NO_SCHEDULE_CLOCK } from '../tactical/narrative/schedule-state.ts';
 import { createViewMarkers } from '../tactical/perception/fov.ts';
 import { createLookMemo } from '../tactical/perception/look-memo.ts';
+import { landHeightUnits } from '../tactical/perception/los.ts';
 import { createSightMemo } from '../tactical/perception/sight-memo.ts';
 import {
   createPathEnv,
@@ -30,7 +31,7 @@ import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 103;
+export const SNAPSHOT_VERSION = 104;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -165,10 +166,21 @@ export function migrateSnapshot(raw: unknown, context: SnapshotMigrationContext 
   return current as unknown as SimSnapshot;
 }
 
+function mapPathOf(raw: unknown): string | null {
+  return isRecord(raw) && typeof raw.mapPath === 'string' ? raw.mapPath : null;
+}
+
+export function landHeightsForMigration(world: TacticalWorld | null): SnapshotMigrationContext['landHeightUnits'] {
+  if (!world) return NO_MIGRATION_CONTEXT.landHeightUnits;
+  const los = { structures: world.structures, heights: world.level.heights };
+  return (g) => landHeightUnits(los, g);
+}
+
 function decodeSections(raw: unknown, kind: SnapshotKind, sources: RestoreSources): Map<string, unknown> {
-  const snapshot = migrateSnapshot(raw);
+  const mapPath = mapPathOf(raw);
+  const world = mapPath === null ? null : sources.world(mapPath);
+  const snapshot = migrateSnapshot(raw, { ...NO_MIGRATION_CONTEXT, landHeightUnits: landHeightsForMigration(world) });
   if (snapshot.kind !== kind) throw new SnapshotError(`a ${snapshot.kind} snapshot cannot be restored as a ${kind} session`);
-  const world = snapshot.mapPath === null ? null : sources.world(snapshot.mapPath);
   const external = externalSources(sources.content, world);
   return decodeGraph(snapshot.graph, { classes: SNAPSHOT_CODECS, resolve: external.resolve });
 }

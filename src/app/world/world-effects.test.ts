@@ -6,7 +6,7 @@ import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { CorpseView, SmokeTileView } from '../../protocol/view.ts';
 import type { LoadedSoldierSheet } from '../../render/world/world-sprites.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
-import { type EffectSprites, WorldEffects } from './world-effects.ts';
+import { type EffectSprites, knifeDrawnHeight, WorldEffects } from './world-effects.ts';
 
 class FakeSprites implements EffectSprites {
   readonly sheets = new Map<string, LoadedSoldierSheet>();
@@ -141,5 +141,12 @@ describe('corpses, smoke and crow shadows on the stub pack', () => {
     const tile = effects.helicopterShadow({ gridNo: 1680, x: 795, y: 5, z: -29, frame: frames - 1 });
     expect(tile).toMatchObject({ kind: 'helicopterShadow', gridNo: 1680, level: 0, at: { x: 795, y: 5, z: -29 }, shaded: false });
     expect(tile?.sprite.x).toBe(frames - 1);
+  });
+});
+
+describe('the height a thrown knife is drawn at (Bullets.cc:239-252 UpdateBullets)', () => {
+  it('cuts 115 px off a knife above 160 px and 70 px off one above 90 px, whatever land lies under it', () => {
+    const heights = [50, 90, 91, 160, 161].map(knifeDrawnHeight);
+    expect(heights).toEqual([50, 90, 21, 90, 46]);
   });
 });

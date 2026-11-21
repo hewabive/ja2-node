@@ -27,6 +27,7 @@ import type { TacticalState } from './state.ts';
 
 const NO_RANGE = 999999;
 const NO_ROOM = 0;
+const GROUND_LEVEL = 0;
 const RANDOM_SWEET_SPOT_TRIES = 2000;
 const SWEET_SPOT_FLOOD_FLAGS = PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE;
 
@@ -80,7 +81,7 @@ function freeFor(t: TacticalState, s: Soldier, g: number): boolean {
 }
 
 export function findGridNoFromSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
-  const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, s.level), radius, { flags: SWEET_SPOT_FLOOD_FLAGS });
+  const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, GROUND_LEVEL), radius, { flags: SWEET_SPOT_FLOOD_FLAGS });
   return lowestRanked(reachable, (g) => (freeFor(t, s, g) ? cardinalSpacesAway(sweet, g) : null));
 }
 

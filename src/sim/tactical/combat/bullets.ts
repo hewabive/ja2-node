@@ -48,7 +48,7 @@ import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
 import { agilityForEnemyMissingPlayer, StatCause, statChange } from './experience.ts';
 import { bulletHitMerc, doSpecialEffectAmmoMiss, type ImpactPoint } from './hit.ts';
-import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight } from './positions.ts';
+import { aimPosType, calculateSoldierZPos, locationChanceTargetZ, losWorldOf } from './positions.ts';
 import { NUM_BUCKSHOT_PELLETS } from './types.ts';
 
 export const BulletFlag = {
@@ -68,11 +68,11 @@ const FIX = 1 << 20;
 const TEN = 10 * FIX;
 const WALL_HEIGHT_UNITS = 256;
 const WALL_HEIGHT_PIXELS = 50;
-const ROOF_HIT_ADJUSTMENT = 2;
 const WALL = 256 * FIX;
 const WIN_LO = 87 * FIX;
 const WIN_HI = 220 * FIX;
 const PROFILE_Z_SIZE = 4;
+const OUT_OF_WORLD_CUBES = PROFILE_Z_SIZE * 2;
 const STRUCTURE_ON_GROUND_MAX = 4;
 const STRUCTURE_ON_ROOF_MAX = 8;
 const CLOSE_TO_FIRER = 25;
@@ -215,7 +215,6 @@ const cellOf = (q: number) => (fixInt(q) % 10) >> 1;
 const cubeOf = (heightUnits: number) => idiv(heightUnits, 64);
 const centre = (g: number) => ({ x: (g % WORLD_COLS) * 10 + 5, y: idiv(g, WORLD_COLS) * 10 + 5 });
 const landHU = (t: TacticalState, g: number) => landHeightUnits(losWorldOf(t), g);
-const tileHeightPixels = (t: TacticalState, g: number) => t.world.level.heights[g] ?? 0;
 const rowColToPos = (row: number, col: number) => (row < 0 || row >= 160 || col < 0 || col >= WORLD_COLS ? 0xffff : row * WORLD_COLS + col);
 const ammoTypeOf = (b: Bullet) => b.firer.inv[b.firer.attackingHand]?.gunAmmoType ?? AmmoType.REGULAR;
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -401,8 +400,7 @@ export function fireBulletGivenTarget(
     const b = createBullet(t, firer, fake, flags);
     if (!b) return 0;
     b.hitBy = hitBy;
-    const wallZ = WALL_HEIGHT_UNITS + ROOF_HIT_ADJUSTMENT + idiv(tileHeightPixels(t, firer.gridNo) * 256, 50);
-    b.checkForRoof = startZ < wallZ ? endZ > startZ : endZ < startZ;
+    b.checkForRoof = startZ < WALL_HEIGHT_UNITS ? endZ > WALL_HEIGHT_UNITS : endZ < WALL_HEIGHT_UNITS;
     let h: number;
     if (k === 0) {
       h = h0;
@@ -517,21 +515,15 @@ function structureHit(
     t.events.push({ type: 'bulletStopped', ...shownFirer(t, attacker), gridNo: b.gridNo, reason, ...hitMaterial(structure) });
   }
   const sameAsBefore = structureId === b.lastStructureHit;
-  const zPixels = idiv(fixInt(b.z) * 50, 256);
-  const level = zPixels > 50 - ROOF_HIT_ADJUSTMENT + tileHeightPixels(t, attacker.gridNo) ? 1 : 0;
+  const zPixels = bulletHeightPixels(b);
   const g = b.gridNo;
-  let adjusted = g;
-  if (structure?.wallOrientation) {
-    const opposite = oppositeSideGridNo(structure, g);
-    if (pythSpacesAway(attacker.gridNo, g) > pythSpacesAway(attacker.gridNo, opposite)) adjusted = opposite;
-  }
-  if (!sameAsBefore) makeNoise(t, attacker, adjusted, level, weapon?.weapon?.hitVolume ?? 0, NoiseKind.BULLET_IMPACT);
+  if (!sameAsBefore)
+    makeNoise(t, attacker, g, zPixels > WALL_HEIGHT_PIXELS ? 1 : 0, weapon?.weapon?.hitVolume ?? 0, NoiseKind.BULLET_IMPACT);
   if (stopped && (weaponIndex === itemIndex(t, 'ROCKET_LAUNCHER') || weaponIndex === itemIndex(t, 'TANK_CANNON'))) {
     removeBullet(t, b);
     freeUpAttacker(t, attacker);
     const payload = weaponIndex === itemIndex(t, 'ROCKET_LAUNCHER') ? 'C1' : 'TANK_SHELL';
-    const payloadLevel = payload === 'C1' ? level : zPixels >= WALL_HEIGHT_PIXELS ? 1 : 0;
-    igniteExplosion(t, attacker, 0, adjusted, itemIndex(t, payload), payloadLevel);
+    igniteExplosion(t, attacker, 0, g, itemIndex(t, payload), zPixels >= WALL_HEIGHT_PIXELS ? 1 : 0);
     return;
   }
   if (structure) damageStructureByGunfire(t, structure, attacker, fixInt(b.x), fixInt(b.y), g);
@@ -546,7 +538,7 @@ function structureHit(
       doMissForGun = true;
       break;
     case WeaponClass.MONSTER:
-      doSpecialEffectAmmoMiss(t, attacker, adjusted, impactPoint(b));
+      doSpecialEffectAmmoMiss(t, attacker, g, impactPoint(b));
       removeBullet(t, b);
       freeUpAttacker(t, attacker);
       break;
@@ -616,77 +608,6 @@ function damageStructureByGunfire(t: TacticalState, s: StructureInstance, owner:
   });
 }
 
-function oppositeSideGridNo(s: StructureInstance, g: number): number {
-  const base = has(s.flags, StructureFlags.BASE_TILE);
-  const open = has(s.flags, StructureFlags.OPEN);
-  for (const o of OPPOSITE_SIDE) {
-    if (has(o.flags, s.flags) && o.base === base && o.open === open && o.orientation & s.wallOrientation)
-      return g + (DIRECTION_INCREMENT[o.direction] ?? 0);
-  }
-  return g;
-}
-
-const ORIENT_INSIDE_LEFT = 1;
-const ORIENT_INSIDE_RIGHT = 2;
-const ORIENT_OUTSIDE_LEFT = 4;
-const ORIENT_OUTSIDE_RIGHT = 8;
-const OPPOSITE_SIDE: readonly { flags: number; open: boolean; base: boolean; orientation: number; direction: number }[] =
-  buildOppositeSide();
-
-function buildOppositeSide() {
-  const WALL_LIKE = StructureFlags.WALL | StructureFlags.WALLNWINDOW;
-  const N = 0;
-  const E = 2;
-  const S = 4;
-  const W = 6;
-  return [
-    {
-      flags: WALL_LIKE | StructureFlags.DOOR | StructureFlags.SLIDINGDOOR | StructureFlags.GARAGEDOOR,
-      open: false,
-      base: true,
-      orientation: ORIENT_INSIDE_LEFT,
-      direction: W,
-    },
-    {
-      flags: WALL_LIKE | StructureFlags.DOOR | StructureFlags.SLIDINGDOOR | StructureFlags.GARAGEDOOR,
-      open: false,
-      base: true,
-      orientation: ORIENT_INSIDE_RIGHT,
-      direction: N,
-    },
-    {
-      flags: WALL_LIKE | StructureFlags.SLIDINGDOOR | StructureFlags.GARAGEDOOR,
-      open: true,
-      base: true,
-      orientation: ORIENT_INSIDE_LEFT,
-      direction: W,
-    },
-    {
-      flags: WALL_LIKE | StructureFlags.SLIDINGDOOR | StructureFlags.GARAGEDOOR,
-      open: true,
-      base: true,
-      orientation: ORIENT_INSIDE_RIGHT,
-      direction: N,
-    },
-    {
-      flags: WALL_LIKE | StructureFlags.DOOR | StructureFlags.SLIDINGDOOR | StructureFlags.GARAGEDOOR,
-      open: false,
-      base: true,
-      orientation: ORIENT_OUTSIDE_LEFT,
-      direction: E,
-    },
-    {
-      flags: WALL_LIKE | StructureFlags.DOOR | StructureFlags.SLIDINGDOOR | StructureFlags.GARAGEDOOR,
-      open: false,
-      base: true,
-      orientation: ORIENT_OUTSIDE_RIGHT,
-      direction: S,
-    },
-    { flags: StructureFlags.DOOR, open: true, base: true, orientation: ORIENT_INSIDE_LEFT, direction: N },
-    { flags: StructureFlags.DOOR, open: true, base: true, orientation: ORIENT_INSIDE_RIGHT, direction: W },
-  ];
-}
-
 function shotMiss(t: TacticalState, b: Bullet): void {
   const attacker = b.firer;
   const opp = attacker.opponent;
@@ -725,8 +646,8 @@ function adjacentSuppression(t: TacticalState, b: Bullet, p: Soldier): void {
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
 
-function outOfWorld(t: TacticalState, b: Bullet, elevation: number): boolean {
-  return !onVisibleWorldTile(t, b.tileX + b.tileY * WORLD_COLS) || (b.cubesZ > PROFILE_Z_SIZE * elevation && fixInt(b.incZ) > 0);
+function outOfWorld(t: TacticalState, b: Bullet): boolean {
+  return !onVisibleWorldTile(t, b.tileX + b.tileY * WORLD_COLS) || (b.cubesZ > OUT_OF_WORLD_CUBES && fixInt(b.incZ) > 0);
 }
 
 const isLevel = (b: Bullet) => b.incZ === 0;
@@ -744,12 +665,11 @@ interface LocalStructure {
 export function moveBullet(t: TacticalState, b: Bullet): void {
   if (t.clockMs - b.lastUpdate < b.msPerUpdate) return;
   b.lastUpdate = t.clockMs;
-  const elevation = tileHeightPixels(t, b.firer.gridNo) === 0 ? 2 : 4;
   let tiles = 0;
   let goingOver = false;
   do {
     const g = b.tileX + b.tileY * WORLD_COLS;
-    if (outOfWorld(t, b, elevation)) {
+    if (outOfWorld(t, b)) {
       removeBullet(t, b);
       shotMiss(t, b);
       return;
@@ -935,7 +855,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
         b.tileY = idiv(fixInt(b.y), 10);
       }
     } while (b.tileX === oldTileX && b.tileY === oldTileY);
-    if (outOfWorld(t, b, elevation)) {
+    if (outOfWorld(t, b)) {
       removeBullet(t, b);
       shotMiss(t, b);
       return;
@@ -978,7 +898,7 @@ function trailKind(b: Bullet): MissileTrail {
 function addMissileTrail(t: TacticalState, b: Bullet, x: number, y: number, z: number): void {
   if (b.flags & SHORT_TRAILS_HIDDEN_AT_FIRST && b.loop < TRAIL_LOOPS_HIDDEN) return;
   if (b.flags & BulletFlag.TANK_CANNON) return;
-  const height = idiv(fixInt(z) * WALL_HEIGHT_PIXELS, WALL_HEIGHT_UNITS) - tileHeightPixels(t, b.firer.gridNo);
+  const height = idiv(fixInt(z) * WALL_HEIGHT_PIXELS, WALL_HEIGHT_UNITS);
   const delay = b.flags & BulletFlag.FLAME ? { delay: FLAME_TRAIL_DELAY_MS } : {};
   t.events.push({ type: 'missileTrail', gridNo: b.gridNo, x: fixInt(x), y: fixInt(y), z: height, trail: trailKind(b), ...delay });
 }
@@ -1079,7 +999,6 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
     do {
       above = fixInt(b.z - land);
       if (above < 0) return 0;
-      if (roof && ((lastZ > wall && b.z < wall) || (lastZ < wall && b.z > wall))) return 0;
       if (tileStructures.length === 0) {
         const stepsX = b.incX > 0 ? idiv(TEN - (b.x % TEN), b.incX) : b.incX < 0 ? idiv(b.x % TEN, -b.incX) : 1000000;
         const stepsY = b.incY > 0 ? idiv(TEN - (b.y % TEN), b.incY) : b.incY < 0 ? idiv(b.y % TEN, -b.incY) : 1000000;
@@ -1121,8 +1040,11 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
         do {
           b.x += b.incX;
           b.y += b.incY;
-          lastZ = b.z;
-          b.z += b.incZ;
+          if (roof) {
+            lastZ = b.z;
+            b.z += b.incZ;
+            if ((lastZ > wall && b.z < wall) || (lastZ < wall && b.z > wall)) return 0;
+          } else b.z += b.incZ;
           b.loop++;
           b.losX = cellOf(b.x);
           b.losY = cellOf(b.y);
@@ -1188,7 +1110,7 @@ export function soldierToLocationChanceToGetThrough(
   const end = whoIsThere(t, g, level);
   if (end) return soldierToSoldierChanceToGetThrough(t, from, end);
   from.ctgtTarget = target;
-  return chanceToGetThrough(t, from, g, targetZFromStructureHeight(t, g, level, cubeLevel));
+  return chanceToGetThrough(t, from, g, locationChanceTargetZ(t, g, level, cubeLevel));
 }
 
 export function aiSoldierToSoldierChanceToGetThrough(t: TacticalState, from: Soldier, to: Soldier, standing: number): number {
@@ -1216,7 +1138,7 @@ export function aiSoldierToLocationChanceToGetThrough(
   from.ctgtTarget = null;
   const trueState = from.state;
   from.state = standing;
-  const chance = chanceToGetThrough(t, from, g, targetZFromStructureHeight(t, g, level, cubeLevel));
+  const chance = chanceToGetThrough(t, from, g, locationChanceTargetZ(t, g, level, cubeLevel));
   from.state = trueState;
   return chance;
 }

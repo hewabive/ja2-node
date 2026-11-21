@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LOS.cc CalculateSoldierZPos, GetTargetZPosFromStructureHeight, SoldierToSoldierLineOfSightTest,
-// @src SoldierTo3DLocationLineOfSightTest, SoldierToBodyPartLineOfSightTest, SoldierToVirtualSoldierLineOfSightTest
-// @src (2026-11-15); TileEngine/Structure.cc GetTallestStructureHeight.
+// @src src/game/Tactical/LOS.cc CalculateSoldierZPos, SoldierToLocationChanceToGetThrough (its target height),
+// @src SoldierToSoldierLineOfSightTest, SoldierTo3DLocationLineOfSightTest, SoldierToBodyPartLineOfSightTest,
+// @src SoldierToVirtualSoldierLineOfSightTest (2026-11-15); Weapons.cc GetTargetWorldPositions (its target height);
+// @src TileEngine/Structure.cc GetStructureTargetHeight.
 
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureHeight } from '../../../content/world/structures.ts';
 import { endHeight } from '../animation.ts';
@@ -41,31 +42,35 @@ export function calculateSoldierZPos(t: TacticalState, s: Soldier, posType: numb
   return soldierZPos(losWorldOf(t), losSubject(t, s), posType);
 }
 
-export function tallestStructureHeight(t: TacticalState, g: number, onRoof: boolean, preferOpenables: boolean): number {
+const DOOR_TARGET_HEIGHT = 3;
+
+export function structureTargetHeight(t: TacticalState, g: number, onRoof: boolean): number {
+  const openable = t.world.structures.find(g, StructureFlags.DOOR | StructureFlags.OPENABLE);
+  if (openable) return has(openable.flags, StructureFlags.DOOR) ? DOOR_TARGET_HEIGHT : structureHeight(openable);
   const desired = onRoof ? STRUCTURE_ON_ROOF : STRUCTURE_ON_GROUND;
-  if (preferOpenables) {
-    const openable = t.world.structures.find(g, StructureFlags.DOOR | StructureFlags.OPENABLE);
-    if (openable && openable.cubeOffset === desired) return structureHeight(openable);
-  }
   let tallest = 0;
-  for (const s of t.world.structures.at(g)) {
-    if (s.cubeOffset !== desired || has(s.flags, StructureFlags.NORMAL_ROOF)) continue;
-    tallest = Math.max(tallest, structureHeight(s));
-  }
+  for (const s of t.world.structures.at(g)) if (s.cubeOffset === desired) tallest = Math.max(tallest, structureHeight(s));
   return tallest;
 }
 
-export function targetZFromStructureHeight(t: TacticalState, g: number, level: number, cubeLevel: number): number {
-  let z: number;
-  if (cubeLevel) z = Math.fround((cubeLevel + level * PROFILE_Z_SIZE - 0.5) * HEIGHT_UNITS_PER_INDEX);
-  else {
-    let h = tallestStructureHeight(t, g, level === 1, true);
-    if (h > 0) {
-      if (h > 1) h--;
-      z = Math.fround((h + level * PROFILE_Z_SIZE - 0.5) * HEIGHT_UNITS_PER_INDEX);
-    } else z = level * PROFILE_Z_SIZE * HEIGHT_UNITS_PER_INDEX + 1;
-  }
+const cubeCentreZ = (cube: number, level: number) => Math.fround((cube + level * PROFILE_Z_SIZE - 0.5) * HEIGHT_UNITS_PER_INDEX);
+const aboveLevelGroundZ = (level: number) => level * PROFILE_Z_SIZE * HEIGHT_UNITS_PER_INDEX + 1;
+
+function onTerrain(t: TacticalState, g: number, z: number): number {
   return Math.fround(z + landHeightUnits(losWorldOf(t), g));
+}
+
+export function locationChanceTargetZ(t: TacticalState, g: number, level: number, cubeLevel: number): number {
+  if (cubeLevel) return onTerrain(t, g, cubeCentreZ(cubeLevel, level));
+  const h = structureTargetHeight(t, g, level === 1);
+  return onTerrain(t, g, h > 0 ? cubeCentreZ(h, level) : aboveLevelGroundZ(level));
+}
+
+export function targetWorldZ(t: TacticalState, g: number, level: number, cubeLevel: number): number {
+  if (cubeLevel) return onTerrain(t, g, cubeCentreZ(cubeLevel, level));
+  const h = structureTargetHeight(t, g, level === 1);
+  if (h <= 0) return onTerrain(t, g, aboveLevelGroundZ(level));
+  return onTerrain(t, g, cubeCentreZ(h > 1 ? h - 1 : h, level));
 }
 
 function sightTarget(t: TacticalState, s: Soldier, aware: boolean): SightTarget {

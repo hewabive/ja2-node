@@ -13,7 +13,7 @@ import { isValidSector, type Sector, sectorLongString, sectorShortString } from 
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { i16 } from '../../core/int.ts';
 import { type Bullet, bulletHeightPixels, bulletWorldXY, drawnInFlight, isKnife, knifeDirection } from './combat/bullets.ts';
-import { heightUnitsToPixels, objectDrawnInFlight, toGridNo } from './explosions/physics.ts';
+import { heightUnitsToPixels, objectDrawnInFlight } from './explosions/physics.ts';
 import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke.ts';
 import type { RealObject } from './explosions/state.ts';
 import { landedHelicopterTileChanges } from './landed-helicopter.ts';
@@ -172,10 +172,9 @@ function thrownViews(t: TacticalState, shown: (thrower: Soldier) => boolean): Bu
 }
 
 function thrownView(t: TacticalState, o: RealObject): BulletView {
-  const land = t.world.level.heights[toGridNo(o.position)] ?? 0;
   const at = { x: i16(Math.trunc(o.position.x)), y: i16(Math.trunc(o.position.y)) };
   const item = t.content.items.byIndex.get(o.object.item)?.name ?? String(o.object.item);
-  return { ...at, z: heightUnitsToPixels(o.position.z) + land, item };
+  return { ...at, z: heightUnitsToPixels(o.position.z), item };
 }
 
 function bulletView(b: Bullet, since: (b: Bullet) => number): BulletView {

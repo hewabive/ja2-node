@@ -22,10 +22,11 @@ import { SkillTrait, type Soldier, Team, Visible } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { Visibility, type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { bulletViews } from '../world-view.ts';
-import { Collision, checkForCollision, HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
+import { Collision, checkForCollision, createPhysicalObject, HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
 import { ThrowAction } from './state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, releaseThrow } from './throwing.ts';
 import {
+  calculateLaunchItemChanceToGetThrough,
   calculateLaunchItemParamsForThrow,
   calculateObjectTrajectory,
   launchItemBasicParams,
@@ -482,5 +483,57 @@ describe('landing prediction for the AI', () => {
     if (!grenade) throw new Error('no grenade');
     expect(predictLanding(t, s, grenade, gridNo(80, 88), 0, true)).toEqual({ ok: false, gridNo: 0, level: 0 });
     expect(HEIGHT_UNITS).toBe(256);
+  });
+});
+
+describe('heights on raised land (Physics.cc:162-167 CreatePhysicalObject: an object flies at absolute heights)', () => {
+  const RAISED_LAND_PIXELS = 80;
+  const RAISED_LAND_UNITS = 409;
+  const centreOf = (g: number) => ({ x: (g % 160) * 10 + 5, y: Math.trunc(g / 160) * 10 + 5 });
+  const raisedSim = (roofs: ReadonlySet<number> = new Set()) =>
+    newCombatSim(content, [], 3, roofs, (world) => world.level.heights.fill(RAISED_LAND_PIXELS));
+
+  it('drops a throw short: the force search flies its test object down to height 0, a storey and a half under the ground', () => {
+    const target = gridNo(80, 88);
+    const landing = (sim: TacticalSim) => {
+      const s = grenadier(sim);
+      const grenade = s.inv[InvSlot.HAND];
+      if (!grenade) throw new Error('no grenade');
+      return calculateLaunchItemChanceToGetThrough(sim.state, s, grenade, target, 0, 0, true, true).gridNo;
+    };
+    expect(landing(newCombatSim(content))).toBe(target);
+    const short = landing(raisedSim());
+    expect(short % 160).toBe(80);
+    expect(Math.trunc(short / 160)).toBeLessThan(88);
+    expect(Math.trunc(short / 160)).toBeGreaterThan(80);
+  });
+
+  it('takes the roof line at one storey of absolute height: there an object falls through it, and one rising lands on the roof', () => {
+    const roofed = gridNo(80, 84);
+    const { x, y } = centreOf(roofed);
+    const crossings = (sim: TacticalSim, land: number) => [
+      checkForCollision(sim.state, x, y, land + HEIGHT_UNITS - 2, 0, 0, -4).code,
+      checkForCollision(sim.state, x, y, land + HEIGHT_UNITS + 2, 0, 0, 4).code,
+    ];
+    expect(crossings(newCombatSim(content, [], 3, new Set([roofed])), 0)).toEqual([Collision.ROOF, Collision.INTERIOR_ROOF]);
+    expect(crossings(raisedSim(new Set([roofed])), RAISED_LAND_UNITS)).toEqual([Collision.NONE, Collision.ROOF]);
+  });
+
+  it('plays no impact for an object that comes to rest on a roof, only for one on the ground', () => {
+    const impacts = (roofed: boolean) => {
+      const at = gridNo(80, 84);
+      const sim = newCombatSim(content, [], 3, roofed ? new Set([at]) : new Set());
+      const t = sim.state;
+      const { x, y } = centreOf(at);
+      const o = createPhysicalObject(t, objectOf(t, 'ROCK'), -1, vec3(x, y, HEIGHT_UNITS + 40), vec3(), null, ThrowAction.NONE, null);
+      const events: SimEvent[] = [];
+      while (t.explosives.objects.includes(o)) {
+        stepWithExplosives(sim);
+        events.push(...sim.drainEvents());
+      }
+      return events.filter((e) => e.type === 'thrownImpact').length;
+    };
+    expect(impacts(false)).toBeGreaterThan(0);
+    expect(impacts(true)).toBe(0);
   });
 });

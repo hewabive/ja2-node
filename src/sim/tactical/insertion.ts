@@ -26,7 +26,7 @@ import { clearCreatureTensionQuotesSaid } from './narrative/creature-tension.ts'
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { removePendingAction } from './pending-action.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
-import { FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
+import { FIRST_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
 import { Body, inVehicle, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
 import {
@@ -252,9 +252,8 @@ function placementAnimation(t: TacticalState, s: Soldier, ctx: Pick<InsertionCon
   return ctx.assignment === undefined ? null : assignmentPose(t, s, ctx.assignment);
 }
 
-function settleOnRoof(t: TacticalState, s: Soldier): void {
-  const roof = t.world.structures.find(s.gridNo, StructureFlags.ROOF) !== null;
-  setSoldierHeight(t, s, roof ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFSET);
+function dropOffMissingRoof(t: TacticalState, s: Soldier): void {
+  if (t.world.structures.find(s.gridNo, StructureFlags.ROOF) === null) setSoldierHeight(t, s, FIRST_LEVEL_Z_OFFSET);
 }
 
 function arrivalStance(t: TacticalState, s: Soldier, animation: PlacementAnimation | null): void {
@@ -292,7 +291,7 @@ function addSoldierToSectorGridNo(
   }
   if (!s.neutral && s.side !== Side.FRIENDLY && s.bodyType !== Body.BLOODCAT) setEnemyPresence(t);
   if (s.dead) return;
-  if (s.level === SECOND_LEVEL) settleOnRoof(t, s);
+  if (s.level === SECOND_LEVEL) dropOffMissingRoof(t, s);
   if (insertionCode === Insertion.ARRIVING_GAME) return;
   if (s.state !== anim(t.content, 'HELIDROP')) arrivalStance(t, s, animation);
   const special = placementAnimation(t, s, ctx);

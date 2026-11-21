@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PreRandom, Rng } from '../../core/rng.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { canonicalJson, decodeGraph, type EncodedGraph, encodeGraph, type Section } from './codec.ts';
+import { NO_MIGRATION_CONTEXT } from './migrations.ts';
 import { contentIndex } from './refs.ts';
 import { migrateSnapshot, SNAPSHOT_FORMAT, SNAPSHOT_VERSION } from './session.ts';
 import { SNAPSHOT_CODECS } from './world.ts';
@@ -320,6 +321,37 @@ describe('snapshot version 102 (merc slots as vectors)', () => {
     const graph = { externals: [], sections: [['tactical', tactical]] };
     const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 102, kind: 'tactical', mapPath: null, graph });
     expect(migrated.graph.sections[0]?.[1]).toEqual(tactical);
+  });
+});
+
+describe('snapshot version 103 (thrown objects at heights above the land)', () => {
+  const LAND_UNITS = 409;
+  const RAISED = 12880;
+  const point = (z: number) => ({ x: 805, y: 805, z });
+  const thrown = (gridNo: number) => ({
+    testZTarget: 0,
+    position: point(300.5),
+    testTargetPosition: point(0),
+    oldPosition: point(310),
+    gridNo,
+    endedWithCollisionPositionSet: false,
+    endedWithCollisionPosition: { x: 0, y: 0, z: 0 },
+  });
+
+  it("lifts an object in flight by its tile's land height, as v0.22.1 flies objects at absolute heights", () => {
+    const graph = { externals: [], sections: [['tactical', { explosives: { objects: [thrown(RAISED), null, thrown(0)] } }]] };
+    const context = { ...NO_MIGRATION_CONTEXT, landHeightUnits: (g: number) => (g === RAISED ? LAND_UNITS : 0) };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 103, kind: 'tactical', mapPath: 'maps/d13.dat', graph }, context);
+    const tactical = migrated.graph.sections[0]?.[1] as { explosives: { objects: unknown[] } } | undefined;
+    const objects = tactical?.explosives.objects ?? [];
+    expect(objects[0]).toMatchObject({
+      position: point(300.5 + LAND_UNITS),
+      testTargetPosition: point(LAND_UNITS),
+      oldPosition: point(310 + LAND_UNITS),
+      endedWithCollisionPosition: { x: 0, y: 0, z: LAND_UNITS },
+    });
+    expect(objects[1]).toBeNull();
+    expect(objects[2]).toEqual(thrown(0));
   });
 });
 

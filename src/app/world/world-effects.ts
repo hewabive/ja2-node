@@ -11,8 +11,8 @@
 // @src the struct layer); src/game/TileEngine/Explosion_Control.cc GenerateExplosionFromExplosionPointer (the explosion's
 // @src cached tile on the topmost layer, translucent in water and from its transparent key frame on); Rotting_Corpses.cc
 // @src VaporizeCorpse (gen_blow.sti in the struct layer, opaque); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
-// @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
-// @src thrower's tile); src/game/Tactical/Soldier_Control.cc HandleCrowShadowNewGridNo (fly_shdw.sti on the shadow layer
+// @src knifing.sti frames of its direction from the fourth, every 100 ms, its height cut by 115 px above 160 and by 70 above
+// @src 90, and its shadow on the ground, both hanging on the thrower's tile); src/game/Tactical/Soldier_Control.cc HandleCrowShadowNewGridNo (fly_shdw.sti on the shadow layer
 // @src at the crow's position, on the ground); src/game/Tactical/Merc_Entering.cc HandleHeliDrop HELI_SHOW_HELI (heli_sh.sti
 // @src on the shadow layer at the helicopter's position and height, 2026-11-08).
 
@@ -41,7 +41,6 @@ import { zStripInfo } from '../../content/world/zstrip.ts';
 import type { BulletView, CorpseView, KnifeFlight, SmokeTileView } from '../../protocol/view.ts';
 import type { SceneAniTile } from '../../render/world/dynamic-scene.ts';
 import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-sprites.ts';
-import { bulletGridNo } from './bullet-nodes.ts';
 import type { CrowShadow } from './crow-shadows.ts';
 import { type EffectFrame, isCachedEffect, knifeFrame } from './effect-animations.ts';
 import type { HelicopterShadowFrame } from './helicopter-shadows.ts';
@@ -59,6 +58,10 @@ const TRAIL_PATHS: Readonly<Record<string, string>> = {
   spit: 'tilecache/msle_spt.sti',
 };
 const KNIFE_PATH = 'tilecache/knifing.sti';
+const KNIFE_HIGH_ABOVE = 160;
+const KNIFE_HIGH_DROP = 115;
+const KNIFE_RAISED_ABOVE = 90;
+const KNIFE_RAISED_DROP = 70;
 const CROW_SHADOW_PATH = 'tilecache/fly_shdw.sti';
 const HELICOPTER_SHADOW_PATH = 'tilecache/heli_sh.sti';
 const STUB_PREFIX = 'stubs/';
@@ -118,6 +121,11 @@ export interface WorldEffectsInput {
   readonly clockMs: number;
   readonly bloodAndGore: boolean;
   readonly animateSmoke: boolean;
+}
+
+export function knifeDrawnHeight(z: number): number {
+  if (z > KNIFE_HIGH_ABOVE) return z - KNIFE_HIGH_DROP;
+  return z > KNIFE_RAISED_ABOVE ? z - KNIFE_RAISED_DROP : z;
 }
 
 function parseSmokeGraphics(json: unknown): SmokeGraphics[] {
@@ -379,7 +387,7 @@ export class WorldEffects {
     };
   }
 
-  knife(b: BulletView & { readonly knife: KnifeFlight }, tick: number, landHeights: Uint8Array): SceneAniTile[] {
+  knife(b: BulletView & { readonly knife: KnifeFlight }, tick: number): SceneAniTile[] {
     const sprites = this.#sprites;
     const loaded = this.#picture(KNIFE_PATH);
     if (!sprites || !loaded) return [];
@@ -397,9 +405,8 @@ export class WorldEffects {
       zTileOffsetX: 0,
       zTileOffsetY: 0,
     };
-    const raised = b.z - (landHeights[bulletGridNo(b)] ?? 0);
     return [
-      { ...flying, kind: 'knife', at: { x: b.x, y: b.y, z: raised } },
+      { ...flying, kind: 'knife', at: { x: b.x, y: b.y, z: knifeDrawnHeight(b.z) } },
       { ...flying, kind: 'knifeShadow', at: { x: b.x, y: b.y, z: 0 } },
     ];
   }

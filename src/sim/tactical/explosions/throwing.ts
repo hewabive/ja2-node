@@ -44,6 +44,7 @@ const MIN_MORTAR_RANGE = 150;
 const MIN_LOB_RANGE = 6;
 const AP_TOSS_ITEM = 8;
 const FAILURE_DICE = 40;
+const LAUNCHED_END_Z = 0;
 const THROWING_BONUS = SKILL_TRAIT_BONUS[SkillTrait.THROWING] ?? 0;
 const HEAVY_WEAPONS_BONUS = SKILL_TRAIT_BONUS[SkillTrait.HEAVY_WEAPS] ?? 0;
 
@@ -289,7 +290,7 @@ export function useLauncher(t: TacticalState, s: Soldier, g: number): RealObject
     s,
     s.targetGridNo,
     s.targetLevel,
-    s.targetLevel * HEIGHT_UNITS,
+    LAUNCHED_END_Z,
     launchable,
     i8(roll - chance),
     ThrowAction.ARM_ITEM,

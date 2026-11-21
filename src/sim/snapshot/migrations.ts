@@ -18,12 +18,16 @@ export type SnapshotMigration = (snapshot: Readonly<Record<string, unknown>>) =>
 
 export interface SnapshotMigrationContext {
   frameSlotOf(state: number, pc: number, spriteFrame: number): number;
+  landHeightUnits(gridNo: number): number;
 }
+
+const LAND_OF_A_SNAPSHOT_WITHOUT_ITS_MAP = 0;
 
 export const NO_MIGRATION_CONTEXT: SnapshotMigrationContext = {
   frameSlotOf: () => {
     throw new SnapshotError('a version 2 snapshot holds sprite frames: loading it needs the animation timelines');
   },
+  landHeightUnits: () => LAND_OF_A_SNAPSHOT_WITHOUT_ITS_MAP,
 };
 
 const OPTIONS_KEY = 'options';
@@ -2872,6 +2876,40 @@ function keepGaplessSlotsAsTheFixedArray(snapshot: Readonly<Record<string, unkno
   return { ...snapshot };
 }
 
+const THROWN_OBJECT_HEIGHT_FIELDS = ['position', 'oldPosition', 'testTargetPosition', 'endedWithCollisionPosition'] as const;
+
+function isThrownObjectRecord(o: JsonObject): boolean {
+  return typeof o.testZTarget === 'number' && typeof o.endedWithCollisionPositionSet === 'boolean' && typeof o.gridNo === 'number';
+}
+
+function liftedPoint(point: Json | undefined, land: number): Json | undefined {
+  if (!isObject(point) || typeof point.z !== 'number') return point;
+  return { ...point, z: Math.fround(point.z + land) };
+}
+
+function withThrownObjectsOnTheLand(value: Json, context: SnapshotMigrationContext): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withThrownObjectsOnTheLand(v, context));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withThrownObjectsOnTheLand(v, context);
+  if (!isThrownObjectRecord(mapped)) return mapped;
+  const land = context.landHeightUnits(mapped.gridNo as number);
+  for (const key of THROWN_OBJECT_HEIGHT_FIELDS) {
+    const lifted = liftedPoint(mapped[key], land);
+    if (lifted !== undefined) mapped[key] = lifted;
+  }
+  return mapped;
+}
+
+function liftThrownObjectsOntoTheLand(
+  snapshot: Readonly<Record<string, unknown>>,
+  context: SnapshotMigrationContext,
+): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withThrownObjectsOnTheLand(value, context)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2976,5 +3014,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     100: addStatChanges,
     101: forgetProvedUntrappedDoors,
     102: keepGaplessSlotsAsTheFixedArray,
+    103: (snapshot) => liftThrownObjectsOntoTheLand(snapshot, context),
   };
 }
