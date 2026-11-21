@@ -203,10 +203,10 @@ describe('the chance to get through of the LAW and the tank cannon (LOS.cc CalcC
 });
 
 describe('chance to hit (Weapons.cc CalcChanceToHitGun)', () => {
-  function aimedAt(shooterTeam: number) {
+  function aimedAt(shooterTeam: number, targetAt = gridNo(80, 86)) {
     const sim = newSim();
     const shooter = spawn(sim, 0, shooterTeam, gridNo(80, 80), Direction.SOUTH);
-    const target = spawn(sim, 20, shooterTeam === Team.OUR ? Team.ENEMY : Team.OUR, gridNo(80, 86), Direction.NORTH);
+    const target = spawn(sim, 20, shooterTeam === Team.OUR ? Team.ENEMY : Team.OUR, targetAt, Direction.NORTH);
     shooter.attackingHand = InvSlot.HAND;
     shooter.attackingWeapon = itemIn(shooter.inv, InvSlot.HAND);
     const chance = () => calcChanceToHitGun(sim.state, shooter, target.gridNo, 0, AimShot.TORSO, false);
@@ -237,6 +237,17 @@ describe('chance to hit (Weapons.cc CalcChanceToHitGun)', () => {
     const average = chanceAtLevel(SoldierClass.ARMY, AVERAGE_DIFFICULTY_MODIFIER, 2);
     expect(chanceAtLevel(SoldierClass.ELITE, TOP_DIFFICULTY_MODIFIER, 4)).toBe(average);
     expect(chanceAtLevel(SoldierClass.ADMINISTRATOR, 0, 0)).toBe(average + (ENEMY_TO_HIT_MOD[0] ?? 0));
+  });
+
+  it('gives a burst with aim time the sniper scope bonus but not the aim bonus: only the aim bonus tests bDoBurst (quirk)', () => {
+    const AIM = 2;
+    const { sim, shooter, target } = aimedAt(Team.OUR, gridNo(80, 92));
+    const gun = shooter.inv[InvSlot.HAND] as ItemObject;
+    const burstChance = (aim: number) => calcChanceToHitGun(sim.state, shooter, target.gridNo, aim, AimShot.TORSO, false);
+    shooter.doBurst = 1;
+    expect(burstChance(AIM)).toBe(burstChance(0));
+    gun.attachments[0] = { item: content.items.byName.get('SNIPERSCOPE')?.index ?? -1, status: 100 };
+    expect(burstChance(AIM)).toBeGreaterThan(burstChance(0));
   });
 });
 

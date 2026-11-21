@@ -123,6 +123,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 |---|---|
 | A target dodges only the creature queen's shots: the original tests `!(body != QUEENMONSTER)` | `combat.test.ts` |
 | An enemy's gun takes only the penalties of the difficulty table (`min(0, mod)`); his blade or fists take its bonuses too | `combat.test.ts`, `melee.test.ts` |
+| A burst fired with aim time gets the sniper scope's bonus, though neither the aim bonus nor the aim APs: only the aim bonus tests `bDoBurst` (`Tactical/Weapons.cc:2126`, `:2213`, `Tactical/Points.cc:877`). The UI fires one with the aim clicks of single mode kept across a mode change, or with `REFINE_AIM_BURST` in real time (`Tactical/UI_Cursors.cc:221`, `Tactical/Handle_UI.cc:2139`), so `attack` takes `aimTime` with `burst` | `combat.test.ts` "gives a burst with aim time the sniper scope bonus …" |
 | The jam check rolls `PreRandom(100)` twice even for a gun above 80 %, which can never jam | `combat.test.ts` |
 | A bullet strikes a bystander in its path only if the player sees him (`bVisible`), whoever fires | `combat.test.ts` |
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |

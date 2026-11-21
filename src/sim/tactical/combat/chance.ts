@@ -204,7 +204,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
     const sunGoggles = items.byName.get('SUNGOGGLES')?.index ?? -2;
     if (wearsHeadGear(s.inv, sunGoggles) && lightTrueLevel(t, g, s.targetLevel) < NORMAL_LIGHTLEVEL_DAY) sight -= idiv(range, 10);
     const scope = findAttachment(gun, items.byName.get('SNIPERSCOPE')?.index ?? -2);
-    if (scope !== -1 && range > MIN_SCOPE_RANGE && aim > 0 && !s.doBurst) {
+    if (scope !== -1 && range > MIN_SCOPE_RANGE && aim > 0) {
       let bonus = idiv(SNIPERSCOPE_AIM_BONUS * aim * (range - MIN_SCOPE_RANGE), 100);
       bonus = idiv(bonus * weaponStatusMod(gun.attachments[scope]?.status ?? 0), 100);
       sight = Math.max(sight - bonus, 1);
