@@ -833,7 +833,7 @@ export function removeManAsTarget(t: TacticalState, s: Soldier): void {
   if (t.perception.lastMercToRadio[s.team] === s) t.perception.lastMercToRadio[s.team] = null;
   for (let team = 0; team < t.perception.publicOpp.length; team++) updatePublic(t, team, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
   t.mercSlots.forEach((opp, slot) => {
-    if (!opp?.placed) return;
+    if (!opp) return;
     if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY && !opp.neutral && hostile(opp, s)) removeOneOpponent(opp);
     updatePersonal(opp, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
     t.turn.seenOpponents[slot * TOTAL_SOLDIERS + s.id] = 0;

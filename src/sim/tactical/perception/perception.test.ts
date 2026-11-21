@@ -29,6 +29,7 @@ import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, createSoldier, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type SectorRef, sectorMapOf, type TacticalState, unregisterSoldier } from '../state.ts';
+import { seatInTheHelicopterOnSectorEntry } from '../vehicle-passengers.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { revealedRooms, revealRoofsAndItems } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
@@ -243,6 +244,17 @@ describe('a soldier gone as a target (OppList.cc RemoveManAsTarget)', () => {
     t.turn.seenOpponents[seen(slotOfWatcher)] = 1;
     removeManAsTarget(t, target);
     expect([t.turn.seenOpponents[seen(watcher.id)], t.turn.seenOpponents[seen(slotOfWatcher)]]).toEqual([1, 0]);
+  });
+
+  it('forgets him in the opplist of a helicopter passenger with a merc slot and no tile too: the loop takes every merc slot', () => {
+    const t = tactical();
+    const passenger = spawn(t, Team.OUR, gridNo(70, 70), Direction.SOUTH);
+    const target = spawn(t, Team.ENEMY, gridNo(74, 70), Direction.NORTH);
+    passenger.oppList[target.id] = Opp.SEEN_LAST_TURN;
+    seatInTheHelicopterOnSectorEntry(t, passenger);
+    expect([passenger.placed, t.mercSlots.includes(passenger)]).toEqual([false, true]);
+    removeManAsTarget(t, target);
+    expect(passenger.oppList[target.id]).toBe(Opp.NOT_HEARD_OR_SEEN);
   });
 });
 
